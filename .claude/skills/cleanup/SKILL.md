@@ -164,7 +164,7 @@ Calibration, for a date-mode flag you confirm by hand:
 3. For each line only the deploy has, `git log -S '<that line>' -- <source dir>` to find it in history. Found and later removed means the repo moved on and the deploy is behind. Not found anywhere means the line exists only in production, which is a **live-only change**.
 4. **Never deploy over a live-only change.** Report it, get the change into the repo first, and deploy only after the repo carries it.
 
-Deploying is a shared-system write: ask each time unless `docs/agents/standing-approvals.md` covers it (through the `deploy` skill and its tripwire). Once the direction is confirmed and the user agrees, root functions deploy from the repo root. Stripe/cron functions need `--workdir apps/myk9show` and `--project-ref sojmvhhwsjxmfistvzbe` (see the `deploy` skill). Editing a `_shared/*` helper changes every function that imports it, so check those importers too, not just directly-changed function dirs.
+Deploying is a shared-system write: ask each time, never auto-deploy. Once the direction is confirmed and the user agrees, root functions deploy from the repo root. Stripe/cron functions need `--workdir apps/myk9show` and `--project-ref sojmvhhwsjxmfistvzbe` (see the `deploy` skill). Editing a `_shared/*` helper changes every function that imports it, so check those importers too, not just directly-changed function dirs.
 
 ## Output Format
 

@@ -222,7 +222,7 @@ Invoke the `ship-pr` skill on this branch (its Step A simplify already ran as St
 
 `ship-pr` reports the outcome; do not write a second summary. Add only the plan path and one line per completed plan task. If `ship-pr` armed auto-merge and stopped under the **Asynchronous merge protocol** in `docs/agents/issue-tracker.md`, say the PR is **pending**, not shipped.
 
-After a confirmed merge, if the diff touched `supabase/migrations/` or a `supabase/functions/` tree, name the `deploy` skill as the next operator step — it decides what to run, in what order, and each run needs confirmation unless `docs/agents/standing-approvals.md` covers it. The frontend goes live only on the next Deploy myK9Show run.
+After a confirmed merge, if the diff touched `supabase/migrations/` or a `supabase/functions/` tree, name the `deploy` skill as the next operator step — it decides what to run, in what order, and each run needs confirmation. The frontend goes live only on the next Deploy myK9Show run.
 
 ---
 
@@ -231,5 +231,5 @@ After a confirmed merge, if the diff touched `supabase/migrations/` or a `supaba
 - Never add scope beyond the plan.
 - Max 10 test-fix iterations — escalate if hit.
 - If harden returns FAIL, stop before `ship-pr`.
-- Never run `supabase db push` automatically. Never run `supabase functions deploy` or the Deploy myK9Show workflow automatically unless `docs/agents/standing-approvals.md` covers it; either way, go through the `deploy` skill and its tripwire.
+- Never run `supabase db push`, `supabase functions deploy` or the Deploy myK9Show workflow automatically; point to the `deploy` skill.
 - Pre-existing typecheck failures in files this branch did not touch: stop and report, do not fix silently.

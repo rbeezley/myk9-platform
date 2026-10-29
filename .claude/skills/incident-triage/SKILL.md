@@ -40,7 +40,7 @@ Show weekends are the highest-stakes windows: exhibitors and secretaries are sta
 
 - Follow `superpowers:systematic-debugging` for anything not in the table; CLAUDE.md allows collapsing to evidence-gathering when the data path is obvious.
 - Before restarts/deletes/config edits, confirm the evidence supports that exact action — a familiar-looking signal can have a different cause.
-- Shared-system mutations (db push, function deploy) still require user confirmation mid-incident, even while standing approvals are ACTIVE.
+- Shared-system mutations (db push, function deploy) still require user confirmation mid-incident.
 - Prefer the smallest reversible mitigation first (feature flag off, revert deploy) over hot-fixing forward during a live show.
 
 ## Step 5 — Close out

@@ -7,6 +7,7 @@ import {
   type Approvals,
   evaluateTripwire,
   parseApprovals,
+  runCommand,
   runTripwire,
   type TripwireFacts,
 } from './prelaunch-tripwire.ts';
@@ -85,10 +86,7 @@ describe('runTripwire (the CLI core)', () => {
   const env = { PGPASSWORD: 'secret' };
 
   /** A checkout with its own approvals file, main's copy, and stub git/psql. */
-  function setup(
-    main: { status?: string; fails?: boolean } = {},
-    tree: { dirty?: boolean; head?: string } = {}
-  ) {
+  function setup(main: { status?: string; fails?: boolean } = {}) {
     const dir = mkdtempSync(join(tmpdir(), 'tripwire-'));
     dirs.push(dir);
     const approvalsPath = join(dir, 'standing-approvals.md');
@@ -102,10 +100,6 @@ describe('runTripwire (the CLI core)', () => {
         if (main.fails) throw new Error('fatal: invalid object name');
         return block(main.status ?? 'ACTIVE');
       }
-      if (name === 'git' && args[0] === 'status')
-        return tree.dirty ? ' M supabase/functions/x/index.ts\n' : '';
-      if (name === 'git' && args[0] === 'rev-parse')
-        return `${args[1] === 'origin/main' ? 'aaa111' : (tree.head ?? 'aaa111')}\n`;
       const sql = args[args.length - 1] ?? '';
       if (sql.includes('platform_settings')) return 'f\n';
       if (sql.includes('public.clubs')) return `${CLUB_A}\n${CLUB_B}\n`;
@@ -166,18 +160,7 @@ describe('runTripwire (the CLI core)', () => {
     }
   });
 
-  it.each<[string, { dirty?: boolean; head?: string }, 0 | 1]>([
-    ['a clean checkout at origin/main', {}, 0],
-    ['uncommitted changes', { dirty: true }, 1],
-    ['a checkout not at origin/main', { head: 'bbb222' }, 1],
-  ])('--functions-deploy with %s', (_label, tree, code) => {
-    const { approvalsPath, run } = setup({}, tree);
-    writeFileSync(approvalsPath, block('ACTIVE'));
-    expect(run(['--functions-deploy']).code).toBe(code);
-    expect(run().code).toBe(0);
-  });
-
-  it.each([[['--db-push']], [['--migration', 'x.sql']], [['--anything']]])(
+  it.each([[['--db-push']], [['--functions-deploy']], [['--anything']]])(
     'rejects an unknown argument: %j',
     argv => {
       const { approvalsPath, run } = setup();
@@ -195,5 +178,13 @@ describe('runTripwire (the CLI core)', () => {
     };
     const options = { approvalsPath, argv: [], env, command: failing };
     expect(runTripwire(options).code).toBe(2);
+  });
+});
+
+describe('runCommand', () => {
+  it('gives up on a stalled command instead of hanging', () => {
+    const started = Date.now();
+    expect(() => runCommand('sleep', ['5'], process.env, 200)).toThrow();
+    expect(Date.now() - started).toBeLessThan(3000);
   });
 });

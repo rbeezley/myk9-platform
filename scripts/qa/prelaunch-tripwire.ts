@@ -1,16 +1,17 @@
 /**
  * Pre-launch tripwire for standing approvals (MYK9-1485).
  *
- * While myK9 has no real club, agents may merge, run Deploy myK9Show and deploy
- * functions without asking (docs/agents/standing-approvals.md). `db push` is
- * not pre-approved: no scan of arbitrary SQL can promise a migration keeps
- * data (Codex review, PR #3393). This runs before each pre-approved action and exits:
+ * While myK9 has no real club, agents may merge a green PR and run Deploy
+ * myK9Show without asking (docs/agents/standing-approvals.md). Both build only
+ * from `main`. `db push` and `functions deploy` are not pre-approved: each
+ * review round found another way the unattended version could lose data or
+ * overwrite live state (Codex review, PR #3393). This runs before each
+ * pre-approved action and exits:
  *   0  standing approvals are ACTIVE, Stripe is in test mode, and every club is
- *      a known test club, read from the myK9 project itself; with
- *      --functions-deploy, also the checkout is clean and at origin/main
+ *      a known test club, read from the myK9 project itself
  *   1  one of those is false (the reason names which): do not run the action
- *   2  it could not decide (no PGPASSWORD, a failed query, a missing or
- *      malformed approvals block): do not run the action either
+ *   2  it could not decide (no PGPASSWORD, a failed or timed-out command, a
+ *      missing or malformed approvals block): do not run the action either
  *
  * The approvals file is read fresh on every run, so flipping the switch takes
  * effect on the next action. Database access is read-only, through psql to the
@@ -123,12 +124,8 @@ function combine(local: Approvals | null, main: Approvals | null): Approvals | n
 
 /** Read everything fresh and evaluate. Never throws: a failure is a code-2 result. */
 export function runTripwire(options: RunOptions): TripwireResult {
-  const functionsDeploy = options.argv.length === 1 && options.argv[0] === '--functions-deploy';
-  if (options.argv.length && !functionsDeploy)
-    return {
-      code: 2,
-      reason: `unknown arguments: ${options.argv.join(' ')} (only --functions-deploy)`,
-    };
+  if (options.argv.length)
+    return { code: 2, reason: `unknown arguments: ${options.argv.join(' ')} (it takes none)` };
   const read = (load: () => string): Approvals | null => {
     try {
       return parseApprovals(load());
@@ -169,19 +166,25 @@ export function runTripwire(options: RunOptions): TripwireResult {
           .split('\n')
           .map(s => s.trim())
           .filter(Boolean);
-  const result = evaluateTripwire(approvals, { livemode, clubIds });
-  if (result.code !== 0 || !functionsDeploy) return result;
-  // `supabase functions deploy` uploads the local files, so they must be exactly main's.
-  try {
-    if (options.command('git', ['status', '--porcelain']).trim())
-      return { code: 1, reason: 'the checkout has uncommitted changes; deploy from origin/main' };
-    const head = options.command('git', ['rev-parse', 'HEAD']).trim();
-    if (head !== options.command('git', ['rev-parse', 'origin/main']).trim())
-      return { code: 1, reason: `the checkout is at ${head}, not origin/main` };
-  } catch (error) {
-    return { code: 2, reason: `could not read the checkout: ${(error as Error).message}` };
-  }
-  return result;
+  return evaluateTripwire(approvals, { livemode, clubIds });
+}
+
+/** Long enough for a slow fetch or pooler connection; a stall becomes an exit-2 result, not a hang. */
+export const COMMAND_TIMEOUT_MS = 30_000;
+
+/** The real command runner: throws on a non-zero exit or once `timeoutMs` passes. */
+export function runCommand(
+  name: string,
+  args: string[],
+  env?: NodeJS.ProcessEnv,
+  timeoutMs = COMMAND_TIMEOUT_MS
+): string {
+  return execFileSync(name, args, {
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+    env,
+    timeout: timeoutMs,
+  });
 }
 
 function main(argv: string[]): number {
@@ -190,8 +193,7 @@ function main(argv: string[]): number {
     approvalsPath: join(repoRoot, 'docs', 'agents', 'standing-approvals.md'),
     argv,
     env: process.env,
-    command: (name, args, env) =>
-      execFileSync(name, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env }),
+    command: runCommand,
   });
   console.log(
     `prelaunch-tripwire: ${result.code === 0 ? 'PASS' : 'STOP'} (exit ${result.code}): ${result.reason}`

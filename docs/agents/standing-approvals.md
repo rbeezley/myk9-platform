@@ -1,6 +1,6 @@
 # Standing approvals
 
-While myK9 has no real club, the owner pre-approves three routine shared-system actions so agents stop asking for go-aheads they always get (MYK9-1485, owner decision 2026-10-29; design in [`docs/plan-standing-approvals.md`](../plan-standing-approvals.md)).
+While myK9 has no real club, the owner pre-approves two routine shared-system actions so agents stop asking for go-aheads they always get (MYK9-1485, owner decision 2026-10-29; design in [`docs/plan-standing-approvals.md`](../plan-standing-approvals.md)).
 
 **Read this file fresh before every shared-system write.** Never rely on a copy you read earlier in the session; the switch below may have changed.
 
@@ -32,24 +32,23 @@ test-clubs:
 
 Only while `status: ACTIVE`, and only after `pnpm qa:prelaunch-tripwire` exits 0 in the same session, right before the action. Exits 1 and 2 both mean: do not run it. Park it instead (see "When something needs the owner").
 
-| Action                                                                                     | Also required                                                                                                                                                 | Record it leaves                                                                                          |
-| ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| Merge a PR: `gh pr merge <n> --squash`, run from the main checkout                         | Every required check green on the head that merges, including the review gate (`watch-pr-checks.sh` exit 0, or exit 5 after reading the non-required failure) | Closeout comment on the Linear issue naming the merged SHA                                                |
-| Run Deploy myK9Show: `gh workflow run deploy-myk9show.yml`                                 | Nothing more; the workflow builds the newest `main` commit with green CI                                                                                      | A comment on each `MYK9-<n>` issue whose commits the deploy ships, naming the run and the deployed commit |
-| `supabase functions deploy <name> --project-ref sojmvhhwsjxmfistvzbe` (the `deploy` skill) | The function change is merged to `main`. Deploy from a clean checkout at `origin/main`: run the tripwire with `--functions-deploy`, which checks that.        | Comment naming the function, its version and the "Deployed Functions on project …" line                   |
+| Action                                                             | Also required                                                                                                                                                 | Record it leaves                                                                                          |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Merge a PR: `gh pr merge <n> --squash`, run from the main checkout | Every required check green on the head that merges, including the review gate (`watch-pr-checks.sh` exit 0, or exit 5 after reading the non-required failure) | Closeout comment on the Linear issue naming the merged SHA                                                |
+| Run Deploy myK9Show: `gh workflow run deploy-myk9show.yml`         | Nothing more; the workflow builds the newest `main` commit with green CI                                                                                      | A comment on each `MYK9-<n>` issue whose commits the deploy ships, naming the run and the deployed commit |
 
 Pre-approval removes the question, not the checks: the review gate, required CI and "merge is not deploy" evidence all still apply.
 
 ## Never pre-approved
 
 - Anything that moves real money or changes Stripe mode, including the live cutover (MYK9-11) and refunds.
+- `supabase functions deploy`. It uploads local files over live code, so an unattended deploy could ship unmerged code or overwrite a live-only change (Codex review of PR #3393); the `deploy` skill and `cleanup` § 8 comparison stay with a person.
 - `supabase db push`. Every push needs the owner's go-ahead: no scan of arbitrary SQL can promise a migration keeps data (Codex review of PR #3393).
 - Permanently deleting data, accounts or users.
 - `git push --force`, and any push to `main` other than the docs-only exception.
 - Vercel or Supabase project settings and secrets; Linear team settings and label definitions.
 - Product and UX decisions.
 - Any action the tripwire stopped.
-- During an incident (the `incident-triage` skill), function deploys still need confirmation.
 
 ## When something needs the owner
 

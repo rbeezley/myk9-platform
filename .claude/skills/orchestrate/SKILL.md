@@ -182,8 +182,8 @@ the pipeline.
 
 - Merging: OpenSpec mode needs the usual confirmation. In Linear run mode, starting the run
   authorizes the squash-merge of each PR once its review gate and required checks are green.
-- Never in either mode: `supabase db push`.
-- `supabase functions deploy`, Deploy myK9Show: only under
+- Never in either mode: `supabase db push`, `supabase functions deploy`.
+- Deploy myK9Show: only under
   [`docs/agents/standing-approvals.md`](../../../docs/agents/standing-approvals.md) (`status: ACTIVE`, read fresh, and `pnpm qa:prelaunch-tripwire` exit 0 right before,
   through the `deploy` skill). Otherwise, or when the tripwire stops it, work that
   needs one stops short of it, parks the issue `needs:operator` with the reason, and says so.

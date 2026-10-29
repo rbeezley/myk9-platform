@@ -29,6 +29,16 @@ export interface SecretaryEntry {
   search_time_seconds: number | null;
   total_faults: number | null;
   final_placement: number | null;
+  /** MYK9-1473: points at nationals (the ranking key there); absent on the online fallback read. */
+  points_earned?: number | null;
+  /**
+   * MYK9-1473: this placed entry is in an exact tie. 'unresolved' = a ribbon tie whose coin flip
+   * is not recorded, 'shared' = a tie below 4th. Absent on the online fallback read (unknown, not
+   * "no tie"). Server-derived: never written from the client.
+   */
+  placement_tie?: string | null;
+  /** MYK9-1473: the recorded coin-flip order within a tie (1 = won); null = not recorded. */
+  placement_tiebreak?: number | null;
   judge_notes: string | null;
   disqualification_reason: string | null;
   scoring_completed_at: string | null;

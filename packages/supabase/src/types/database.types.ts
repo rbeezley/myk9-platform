@@ -2443,6 +2443,8 @@ export type Database = {
           payment_status: string | null
           payment_status_before_comp: string | null
           penalty_points: number | null
+          placement_tie: string | null
+          placement_tiebreak: number | null
           points_earned: number | null
           points_possible: number | null
           preferred_judge: string | null
@@ -2543,6 +2545,8 @@ export type Database = {
           payment_status?: string | null
           payment_status_before_comp?: string | null
           penalty_points?: number | null
+          placement_tie?: string | null
+          placement_tiebreak?: number | null
           points_earned?: number | null
           points_possible?: number | null
           preferred_judge?: string | null
@@ -2643,6 +2647,8 @@ export type Database = {
           payment_status?: string | null
           payment_status_before_comp?: string | null
           penalty_points?: number | null
+          placement_tie?: string | null
+          placement_tiebreak?: number | null
           points_earned?: number | null
           points_possible?: number | null
           preferred_judge?: string | null
@@ -11443,6 +11449,8 @@ export type Database = {
           payment_reference: string | null
           payment_status: string | null
           penalty_points: number | null
+          placement_tie: string | null
+          placement_tiebreak: number | null
           points_earned: number | null
           points_possible: number | null
           preferred_judge: string | null
@@ -11761,6 +11769,8 @@ export type Database = {
           payment_reference: string | null
           payment_status: string | null
           penalty_points: number | null
+          placement_tie: string | null
+          placement_tiebreak: number | null
           points_earned: number | null
           points_possible: number | null
           preferred_judge: string | null
@@ -13611,20 +13621,6 @@ export type Database = {
           roles: string[]
           status: string
           updated_at: string
-        }[]
-      }
-      get_class_ties: {
-        Args: { p_class_id: string }
-        Returns: {
-          armband_number: number | null
-          dog_call_name: string | null
-          entry_id: string
-          final_placement: number | null
-          group_rank: number | null
-          points_earned: number | null
-          ranks_by_points: boolean | null
-          search_time_seconds: number | null
-          total_faults: number | null
         }[]
       }
       get_club_officials: {

@@ -178,8 +178,6 @@ export const queryKeys = {
   showTrials: (showId: string) => ['shows', showId, 'trials'] as const,
   showClasses: (showId: string) => ['shows', showId, 'classes'] as const,
   showEntries: (showId: string) => ['shows', showId, 'entries'] as const,
-  /** Unresolved ribbon ties of one class (MYK9-1473). Under `show(id)`, so a show invalidation refreshes it. */
-  classTies: (showId: string, classId: string) => ['shows', showId, 'class-ties', classId] as const,
   showFinancialSummary: (showId: string) => ['shows', showId, 'financial-summary'] as const,
   /** Under `show(id)`, so every waitlist mutation's show invalidation refreshes it (MYK9-717). */
   showWaitlistReport: (showId: string) => ['shows', showId, 'waitlist-report'] as const,

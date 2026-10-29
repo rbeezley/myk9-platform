@@ -1,20 +1,18 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 import { recordCoinFlips } from '@/features/show-map/classTiesMutations';
 import { useOptionalReplicationSyncActions } from '@/hooks/useOptionalReplicationSyncActions';
-import { queryKeys } from '@/lib/queryClient';
 import { getUserFriendlyError, mappedErrorMessage } from '@/utils/errorMessages';
 
 /**
  * MYK9-1473: save the coin flip for a class's tied dogs. Online only and never queued
  * (`networkMode: 'always'`, no retry): the server judges the flip against the scores as they are
  * now, so a replayed one could order dogs that are no longer tied. The server re-ranks the class,
- * so this device pulls the show's entries and the class again afterwards; the tie list is re-read
- * whether or not every group saved.
+ * so this device pulls the show's entries and the class again afterwards, whether or not every
+ * group saved; the tie groups are derived from those replicated entries.
  */
 export function useRecordCoinFlip(showId: string) {
-  const queryClient = useQueryClient();
   const sync = useOptionalReplicationSyncActions();
   const mutation = useMutation({
     networkMode: 'always',
@@ -31,9 +29,6 @@ export function useRecordCoinFlip(showId: string) {
           getUserFriendlyError(error, 'The coin flip could not be saved. Try again.')
       ),
     onSettled: (_data, _error, input) => {
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.classTies(showId, input.classId),
-      });
       void sync?.triggerSync([
         { name: 'entries', scopeId: showId },
         { name: 'classes', scopeId: input.trialId },

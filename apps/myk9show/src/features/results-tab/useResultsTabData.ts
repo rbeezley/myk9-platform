@@ -15,20 +15,18 @@
  * (LESSONS `disabled-query false zero`) and Retry refetches all of them.
  */
 import { useEffect, useMemo } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation } from 'react-router-dom';
 
 import { combineReads, type CombinedReadState } from '@/features/_shared/combineReads';
 import { useSecretaryShowEntriesQuery } from '@/hooks/queries/useEntriesDatabase';
 import { queryKeys } from '@/lib/queryClient';
-import { replicatedEntriesTable } from '@/services/replication';
+import { replicatedEntriesTable, replicatedShowsTable } from '@/services/replication';
 import { getCockpitReportHref } from '@/features/show-map/cockpit/cockpitRoutes';
 import { useShowClassPaperwork } from '@/features/show-map/cockpit/useShowClassPaperwork';
 import { getShowDeskEntriesAvailability } from '@/pages/secretary/showDeskEntryAvailability';
 import { useShowDeskScheduleRead } from '@/pages/secretary/useShowDeskScheduleRead';
 import { buildResultsClassRows, type ResultsClassRow } from './buildResultsClassRows';
-import { applyCoinFlipPending } from './coinFlipRows';
-import { useClassTies } from './useClassTies';
 
 const NO_ENTRIES: never[] = [];
 
@@ -139,13 +137,14 @@ export function useResultsTabData(showId: string) {
     ]
   );
 
-  // A tie for a ribbon is a server fact the replica does not carry: asked for the classes that
-  // could owe a coin flip, then folded into the same phase rules.
-  const tiesByClassId = useClassTies(showId, builtRows);
-  const rows = useMemo(
-    () => applyCoinFlipPending(builtRows, new Set(tiesByClassId.keys())),
-    [builtRows, tiesByClassId]
-  );
+  // Which key the show ranks by (points at nationals, faults otherwise): the coin flip dialog
+  // groups ties on it. Unknown until the replicated show row is read.
+  const showQuery = useQuery({
+    queryKey: [...queryKeys.show(showId), 'results-ranking-key'],
+    queryFn: () => replicatedShowsTable.getShowById(showId),
+    enabled: Boolean(showId),
+  });
+  const isNationals = showQuery.data ? showQuery.data.isNationals === true : null;
 
   const noTrials = schedule.hasConfirmedSnapshot && showTrials.length === 0;
   const combined = combineReads([
@@ -178,9 +177,9 @@ export function useResultsTabData(showId: string) {
   ]);
 
   return {
-    rows,
-    /** The unresolved ribbon ties of the classes that owe a coin flip, by class id. */
-    tiesByClassId,
+    rows: builtRows,
+    /** The show ranks by points (nationals); null while the show row is unread. */
+    isNationals,
     trials: showTrials,
     readState: combined.state,
     /** A background refresh failed but earlier data is still shown. */

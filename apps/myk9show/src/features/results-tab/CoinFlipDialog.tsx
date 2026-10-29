@@ -10,9 +10,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { formatPlacement } from '@/components/classes/ClassResultsTable/utils';
-import type { ClassTieEntry, ClassTieGroup } from '@/features/show-map/classTiesMutations';
 import { cn } from '@/lib/utils';
 import { dbSecondsToInputFormat } from '@/utils/scoringMappings';
+import type { ClassTieEntry, ClassTieGroup } from './coinFlipRows';
 
 /** Offline wording, same pattern as the other Results actions that need the server. */
 export const OFFLINE_COIN_FLIP_MESSAGE = 'Connect to record the coin flip';
@@ -27,7 +27,7 @@ function resultLine(group: ClassTieGroup): string {
 }
 
 function dogLabel(entry: ClassTieEntry): string {
-  return entry.armband === null ? entry.dogName : `Armband ${entry.armband} ${entry.dogName}`;
+  return entry.armband === '' ? entry.dogName : `Armband ${entry.armband} ${entry.dogName}`;
 }
 
 /** The order a group will be saved in: the taps so far, plus the last dog once only one is left. */
@@ -63,7 +63,9 @@ export function CoinFlipDialog({
 }: CoinFlipDialogProps) {
   const [picksByRank, setPicksByRank] = useState<Record<number, string[]>>({});
   const orders = groups.map(group => orderFor(group, picksByRank[group.rank] ?? []));
-  const complete = groups.every((group, index) => orders[index]?.length === group.entries.length);
+  const complete =
+    groups.length > 0 &&
+    groups.every((group, index) => orders[index]?.length === group.entries.length);
   const blocked = !online ? OFFLINE_COIN_FLIP_MESSAGE : null;
 
   const toggle = (rank: number, entryId: string) =>

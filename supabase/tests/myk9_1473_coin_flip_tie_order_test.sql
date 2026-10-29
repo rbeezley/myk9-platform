@@ -23,8 +23,9 @@
 --   4. a manager cannot write the tie columns directly (42501);
 --   5. anon calling set_class_tie_order is refused;
 --   6. marking a class checked is refused (MK018) while a ribbon tie is
---      unresolved and allowed after set_class_tie_order; get_class_ties lists
---      the unresolved groups for the show's manager only;
+--      unresolved and allowed after set_class_tie_order; the replication view
+--      carries placement_tie / placement_tiebreak for the show's manager, masks
+--      them like final_placement for an exhibitor, and refuses anon;
 --   7. the backfill: a completed class holding pre-migration placements for a
 --      tie below 4th reads shared ranks after refresh_class_scoring_state.
 --
@@ -503,20 +504,30 @@ $$;
 RESET ROLE;
 
 -- ---------------------------------------------------------------------------
--- 6. An unresolved ribbon tie blocks "results checked", and get_class_ties
---    lists it. Class 48 (after 3g) holds two unresolved ties: 147381/147382
---    tied for 1st and 147383-147385 tied for 3rd.
+-- 6. An unresolved ribbon tie blocks "results checked", and the replication
+--    view carries the tie state. Class 48 (after 3g) holds two unresolved ties:
+--    147381/147382 tied for 1st and 147383-147385 tied for 3rd.
 --    a. Marking the class checked is refused (MK018) and writes nothing.
---    b. get_class_ties returns the five tied entries, grouped by the place
---       they share (1,1,3,3,3); an exhibitor and another club's secretary
---       are refused (42501); anon cannot call it.
---    c. After both flips are recorded the list is empty and the check works.
+--    b. The manager reads placement_tie / placement_tiebreak from the
+--       replication view (five unresolved rows, two shared rows in class 47,
+--       no recorded order yet). Another club's secretary sees no rows of the
+--       class; an exhibitor tied to an entry sees the tie columns NULL exactly
+--       where final_placement is NULL (results are not released).
+--    c. After both flips are recorded no row is unresolved, the recorded order
+--       is on the rows, and the check works.
+--    d. anon cannot read the view; both views keep security_invoker = false.
 -- ---------------------------------------------------------------------------
+-- The exhibitor owns entry 147381 (fixture edit as the owner role).
+UPDATE public.people SET auth_user_id = '00000000-0000-0000-0000-000000147313'
+ WHERE id = '00000000-0000-0000-0000-000000147303';
+UPDATE public.entries SET handler_id = '00000000-0000-0000-0000-000000147303'
+ WHERE id = '00000000-0000-0000-0000-000000147381';
+
 SET LOCAL ROLE authenticated;
 DO $$
 DECLARE
-  v_ranks text;
-  caller uuid;
+  v_ids text;
+  v_n integer;
 BEGIN
   PERFORM pg_temp.act_as('00000000-0000-0000-0000-000000147311');
   BEGIN
@@ -530,28 +541,55 @@ BEGIN
   END IF;
   RAISE NOTICE 'PASS 6a marking a class with an unresolved ribbon tie checked is refused (MK018)';
 
-  SELECT string_agg(right(t.entry_id::text, 3) || '@' || t.group_rank, ',' ORDER BY t.group_rank, t.entry_id)
-    INTO v_ranks
-  FROM public.get_class_ties('00000000-0000-0000-0000-000001473048') t;
-  IF v_ranks IS DISTINCT FROM '381@1,382@1,383@3,384@3,385@3' THEN
-    RAISE EXCEPTION 'FAIL 6b get_class_ties did not list both unresolved ties: %', v_ranks;
+  SELECT string_agg(right(v.id::text, 3), ',' ORDER BY v.id) INTO v_ids
+  FROM public.view_authenticated_entry_results_replication v
+  WHERE v.class_id = '00000000-0000-0000-0000-000001473048' AND v.placement_tie = 'unresolved';
+  IF v_ids IS DISTINCT FROM '381,382,383,384,385' THEN
+    RAISE EXCEPTION 'FAIL 6b the replication view did not carry both unresolved ties: %', v_ids;
   END IF;
-  IF EXISTS (SELECT 1 FROM public.get_class_ties('00000000-0000-0000-0000-000001473047')) THEN
-    RAISE EXCEPTION 'FAIL 6b get_class_ties listed a tie below 4th';
+  SELECT count(*) INTO v_n FROM public.view_authenticated_entry_results_replication v
+  WHERE v.class_id = '00000000-0000-0000-0000-000001473047' AND v.placement_tie = 'shared';
+  IF v_n <> 2 THEN
+    RAISE EXCEPTION 'FAIL 6b the tie below 4th was not carried as shared (% rows)', v_n;
+  END IF;
+  SELECT count(*) INTO v_n FROM public.view_authenticated_entry_results_replication v
+  WHERE v.class_id = '00000000-0000-0000-0000-000001473048' AND v.placement_tiebreak IS NOT NULL;
+  IF v_n <> 0 THEN
+    RAISE EXCEPTION 'FAIL 6b a recorded order is on % rows before any flip', v_n;
+  END IF;
+  SELECT count(*) INTO v_n FROM public.view_authenticated_entry_results v
+  WHERE v.class_id = '00000000-0000-0000-0000-000001473048' AND v.placement_tie = 'unresolved';
+  IF v_n <> 5 THEN
+    RAISE EXCEPTION 'FAIL 6b the inner view did not carry the unresolved ties (% rows)', v_n;
   END IF;
 
-  FOREACH caller IN ARRAY ARRAY[
-    '00000000-0000-0000-0000-000000147313'::uuid,
-    '00000000-0000-0000-0000-000000147312'::uuid
-  ] LOOP
-    PERFORM pg_temp.act_as(caller);
-    BEGIN
-      PERFORM * FROM public.get_class_ties('00000000-0000-0000-0000-000001473048');
-      RAISE EXCEPTION 'FAIL 6b % read the ties of a class it does not manage', caller;
-    EXCEPTION WHEN insufficient_privilege THEN NULL;
-    END;
-  END LOOP;
-  RAISE NOTICE 'PASS 6b get_class_ties lists the unresolved ribbon ties (1,1,3,3,3) for the manager only';
+  PERFORM pg_temp.act_as('00000000-0000-0000-0000-000000147312');
+  SELECT count(*) INTO v_n FROM public.view_authenticated_entry_results_replication v
+  WHERE v.class_id = '00000000-0000-0000-0000-000001473048';
+  IF v_n <> 0 THEN
+    RAISE EXCEPTION 'FAIL 6b another club''s secretary read % rows of the class', v_n;
+  END IF;
+
+  PERFORM pg_temp.act_as('00000000-0000-0000-0000-000000147313');
+  SELECT count(*) INTO v_n FROM public.view_authenticated_entry_results_replication v
+  WHERE v.id = '00000000-0000-0000-0000-000000147381';
+  IF v_n <> 1 THEN
+    RAISE EXCEPTION 'FAIL 6b control: the exhibitor cannot read their own entry (% rows)', v_n;
+  END IF;
+  SELECT count(*) INTO v_n FROM public.view_authenticated_entry_results_replication v
+  WHERE v.class_id = '00000000-0000-0000-0000-000001473048'
+    AND (v.placement_tie IS NULL) IS DISTINCT FROM (v.final_placement IS NULL);
+  IF v_n <> 0 THEN
+    RAISE EXCEPTION 'FAIL 6b % rows show the tie state without the placement (or the reverse)', v_n;
+  END IF;
+  SELECT count(*) INTO v_n FROM public.view_authenticated_entry_results_replication v
+  WHERE v.class_id = '00000000-0000-0000-0000-000001473048'
+    AND v.placement_tiebreak IS NOT NULL
+    AND v.final_placement IS NULL;
+  IF v_n <> 0 THEN
+    RAISE EXCEPTION 'FAIL 6b % rows show a recorded order without the placement', v_n;
+  END IF;
+  RAISE NOTICE 'PASS 6b the replication view carries the tie state for the manager and masks it like final_placement for others';
 
   PERFORM pg_temp.act_as('00000000-0000-0000-0000-000000147311');
   PERFORM public.set_class_tie_order('00000000-0000-0000-0000-000001473048', ARRAY[
@@ -560,15 +598,22 @@ BEGIN
     '00000000-0000-0000-0000-000000147385'::uuid,
     '00000000-0000-0000-0000-000000147384'::uuid,
     '00000000-0000-0000-0000-000000147383'::uuid]);
-  IF EXISTS (SELECT 1 FROM public.get_class_ties('00000000-0000-0000-0000-000001473048')) THEN
-    RAISE EXCEPTION 'FAIL 6c ties are still listed after both flips were recorded';
+  SELECT count(*) INTO v_n FROM public.view_authenticated_entry_results_replication v
+  WHERE v.class_id = '00000000-0000-0000-0000-000001473048' AND v.placement_tie = 'unresolved';
+  IF v_n <> 0 THEN
+    RAISE EXCEPTION 'FAIL 6c % rows are still unresolved after both flips were recorded', v_n;
+  END IF;
+  SELECT count(*) INTO v_n FROM public.view_authenticated_entry_results_replication v
+  WHERE v.class_id = '00000000-0000-0000-0000-000001473048' AND v.placement_tiebreak IS NOT NULL;
+  IF v_n <> 5 THEN
+    RAISE EXCEPTION 'FAIL 6c the recorded order is on % rows, expected 5', v_n;
   END IF;
   PERFORM public.mark_class_results_verified(
     '00000000-0000-0000-0000-000001473048', pg_temp.fp('00000000-0000-0000-0000-000001473048'));
   IF NOT pg_temp.verified('00000000-0000-0000-0000-000001473048') THEN
     RAISE EXCEPTION 'FAIL 6c the class could not be checked after the flips were recorded';
   END IF;
-  RAISE NOTICE 'PASS 6c after the flips are recorded the list is empty and the class can be checked';
+  RAISE NOTICE 'PASS 6c after the flips are recorded nothing is unresolved and the class can be checked';
 END;
 $$;
 RESET ROLE;
@@ -578,14 +623,41 @@ DO $$
 BEGIN
   PERFORM pg_temp.act_as(NULL);
   BEGIN
-    PERFORM * FROM public.get_class_ties('00000000-0000-0000-0000-000001473048');
-    RAISE EXCEPTION 'FAIL anon called get_class_ties';
+    PERFORM 1 FROM public.view_authenticated_entry_results_replication LIMIT 1;
+    RAISE EXCEPTION 'FAIL anon read the replication view';
   EXCEPTION WHEN insufficient_privilege THEN NULL;
   END;
-  RAISE NOTICE 'PASS 6d anon cannot call get_class_ties';
+  BEGIN
+    PERFORM 1 FROM public.view_authenticated_entry_results LIMIT 1;
+    RAISE EXCEPTION 'FAIL anon read the inner results view';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  RAISE NOTICE 'PASS 6d anon cannot read either results view';
 END;
 $$;
 RESET ROLE;
+
+-- CREATE OR REPLACE VIEW resets reloptions: both rebuilt views must still be
+-- owner-run (a NULL reloptions folds to false).
+DO $$
+DECLARE
+  v_bad text;
+BEGIN
+  SELECT string_agg(c.relname, ',') INTO v_bad
+  FROM pg_class c
+  WHERE c.oid IN (
+    'public.view_authenticated_entry_results'::regclass,
+    'public.view_authenticated_entry_results_replication'::regclass
+  )
+    AND coalesce((SELECT o.option_value::boolean
+                  FROM pg_options_to_table(c.reloptions) o
+                  WHERE o.option_name = 'security_invoker'), false) IS DISTINCT FROM false;
+  IF v_bad IS NOT NULL THEN
+    RAISE EXCEPTION 'FAIL 6e security_invoker is no longer false on: %', v_bad;
+  END IF;
+  RAISE NOTICE 'PASS 6e both results views keep security_invoker = false';
+END;
+$$;
 
 -- ---------------------------------------------------------------------------
 -- 7. Backfill: a completed class that still holds the old placements for a

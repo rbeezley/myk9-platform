@@ -121,7 +121,12 @@ test('sync cadence follows the show channel: slow, 60 s fallback on drop, one pa
   expect(whileSubscribed, timeline).toEqual([]);
   expect(whileDropped.length, timeline).toBeGreaterThanOrEqual(2);
   expect(whileDropped[0].at - drop.at, timeline).toBeLessThanOrEqual(75 * SECOND);
-  expect(whileDropped[1].at - whileDropped[0].at, timeline).toBeGreaterThanOrEqual(45 * SECOND);
+  // Every gap between fallback passes is the 60 s cadence, bounded on both sides.
+  for (let i = 1; i < whileDropped.length; i++) {
+    const gap = whileDropped[i].at - whileDropped[i - 1].at;
+    expect(gap, timeline).toBeGreaterThanOrEqual(45 * SECOND);
+    expect(gap, timeline).toBeLessThanOrEqual(75 * SECOND);
+  }
   expect(rejoinPass.at - rejoin.at, timeline).toBeLessThanOrEqual(40 * SECOND);
   expect(fallbackAfterRejoin, timeline).toEqual([]);
 });

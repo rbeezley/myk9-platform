@@ -121,6 +121,12 @@ describe('deriveClassTies', () => {
   });
 });
 
+describe('deriveClassTies before the show row is read', () => {
+  it('offers no group while the ranking key is unknown', () => {
+    expect(deriveClassTies([unresolved('a1', { placement: 1 })], null)).toEqual([]);
+  });
+});
+
 describe('hasUnresolvedTie', () => {
   it('is true only while a ribbon tie is unresolved', () => {
     expect(hasUnresolvedTie([dog('a'), unresolved('b')])).toBe(true);

@@ -47,8 +47,11 @@ function isRankEligible(entry: ResultsEntryRow): boolean {
  */
 export function deriveClassTies(
   entries: readonly ResultsEntryRow[],
-  isNationals: boolean
+  isNationals: boolean | null
 ): ClassTieGroup[] {
+  // Until the show row says which key it ranks by, no group is offered rather than a group on the
+  // wrong key.
+  if (isNationals === null) return [];
   const byKey = new Map<string, ResultsEntryRow[]>();
   for (const entry of entries) {
     if (entry.placementTie !== 'unresolved' || !isRankEligible(entry)) continue;

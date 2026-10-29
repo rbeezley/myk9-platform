@@ -156,10 +156,9 @@ export default function ResultsTab() {
     [rows, state.classId, state.search, state.status, state.trialId]
   );
   const selected = rows.find(row => row.id === state.classId) ?? null;
-  // The tie groups come from the class's replicated rows. Until the show row says which key it
-  // ranks by, no group is offered rather than a group on the wrong key.
+  // The tie groups come from the class's replicated rows.
   const coinFlipGroups = useMemo(
-    () => (selected && isNationals !== null ? deriveClassTies(selected.entries, isNationals) : []),
+    () => deriveClassTies(selected?.entries ?? [], isNationals),
     [isNationals, selected]
   );
   const unsyncedScores = useClassUnsyncedScores(selected?.id ?? null);

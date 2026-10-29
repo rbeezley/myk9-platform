@@ -62,7 +62,10 @@ describe('scripts test wiring: the real repo', () => {
         'qa:inflight:test': 'vitest run scripts/qa/inflight.test.ts',
       },
     };
-    expect(checkScriptsTestWiring(mutated).unwired).toEqual(['scripts/qa/gh-pages.test.ts']);
+    expect(checkScriptsTestWiring(mutated).unwired).toEqual([
+      'scripts/qa/closed-prs-cache.test.ts',
+      'scripts/qa/gh-pages.test.ts',
+    ]);
   });
 
   it('goes red when a required job stops invoking a script (mutation check on real data)', () => {
@@ -72,6 +75,7 @@ describe('scripts test wiring: the real repo', () => {
       invokedScripts: repo.invokedScripts.filter(s => s !== 'qa:inflight:test'),
     };
     expect(checkScriptsTestWiring(mutated).unwired).toEqual([
+      'scripts/qa/closed-prs-cache.test.ts',
       'scripts/qa/gh-pages.test.ts',
       'scripts/qa/inflight.test.ts',
     ]);

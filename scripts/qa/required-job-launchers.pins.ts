@@ -143,7 +143,8 @@ export const PINNED_SCRIPTS: readonly PinnedScript[] = [
   {
     pkgDir: '.',
     script: 'qa:inflight:test',
-    command: 'vitest run scripts/qa/inflight.test.ts scripts/qa/gh-pages.test.ts',
+    command:
+      'vitest run scripts/qa/inflight.test.ts scripts/qa/gh-pages.test.ts scripts/qa/closed-prs-cache.test.ts',
   },
   {
     pkgDir: '.',

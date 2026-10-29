@@ -89,6 +89,25 @@ describe('tie entries for the coin flip', () => {
     expect(group?.entries.map(item => item.entryId)).toEqual(['101', '102']);
   });
 
+  it('still offers to change a recorded flip when every dog in it was pulled after running', () => {
+    const recorded = { ...tiedFor1st, placement_tie: null, check_in_status: 'pulled' };
+    const [row] = buildResultsClassRows({
+      trials: [trial],
+      trialClasses: { 'trial-1': [completedClass] },
+      releasedAtByClassId: new Map([['class-1', null]]),
+      verifiedByClassId: new Map([['class-1', { at: null, by: null }]]),
+      paperworkByClassId: new Map(),
+      entries: [
+        entry('101', { ...recorded, placement_tiebreak: 1 }),
+        entry('102', { ...recorded, final_placement: 2, placement_tiebreak: 2 }),
+        entry('103', { is_scored: true, result_status: 'qualified', final_placement: 3 }),
+      ],
+    });
+
+    expect(row?.entries.map(item => item.entryId)).toEqual(['103']);
+    expect(coinFlipAction(row ?? null)).toBe('change');
+  });
+
   it('offers no flip when the tied dog left the class without running', () => {
     const [row] = buildResultsClassRows({
       trials: [trial],

@@ -211,15 +211,15 @@ BEGIN
   ) THEN
     RAISE EXCEPTION 'FAIL a private tie function is executable by an API role';
   END IF;
-  IF NOT has_column_privilege('authenticated', 'public.entries', 'placement_tiebreak', 'SELECT')
-     OR NOT has_column_privilege('authenticated', 'public.entries', 'placement_tie', 'SELECT') THEN
-    RAISE EXCEPTION 'FAIL authenticated cannot read the tie columns (the replica needs them)';
+  IF has_column_privilege('authenticated', 'public.entries', 'placement_tiebreak', 'SELECT')
+     OR has_column_privilege('authenticated', 'public.entries', 'placement_tie', 'SELECT') THEN
+    RAISE EXCEPTION 'FAIL authenticated may read a tie column on the base table (results views only)';
   END IF;
   IF has_column_privilege('anon', 'public.entries', 'placement_tiebreak', 'SELECT')
      OR has_column_privilege('anon', 'public.entries', 'placement_tie', 'SELECT') THEN
     RAISE EXCEPTION 'FAIL anon may read a tie column';
   END IF;
-  RAISE NOTICE 'PASS 1 grants: set_class_tie_order authenticated-only, tie columns authenticated-readable and anon-unreadable, helpers private';
+  RAISE NOTICE 'PASS 1 grants: set_class_tie_order authenticated-only, tie columns unreadable on the base table by both API roles, helpers private';
 END;
 $$;
 

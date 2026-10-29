@@ -351,11 +351,10 @@ BEGIN
       -- set it (trg_entries_junior_fee forces it false on insert, keeps OLD on update).
       -- 57 became 56 when entries.promo_code_id was dropped (20261022131700,
       -- MYK9-1326): dropping a column drops its column grant with it.
-      -- 56 became 58 when entries.placement_tiebreak and entries.placement_tie were
-      -- added and granted to authenticated (20261029012700, MYK9-1473): the
-      -- replica reads the recorded coin-flip order and the tie marker offline.
-      -- anon stays 0: the same migration REVOKEs both from anon.
-      ('entries','authenticated',58),
+      -- Still 56 after entries.placement_tiebreak and entries.placement_tie
+      -- (20261029012700, MYK9-1473): result data, deliberately NOT granted on the
+      -- base table; the replica reads them through the masked results views.
+      ('entries','authenticated',56),
       ('judge_assignments','anon',10),
       ('judge_assignments','authenticated',12),
       ('dogs','anon',5),

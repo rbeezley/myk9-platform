@@ -590,11 +590,13 @@ CREATE TRIGGER trg_zz_entries_unplaced_clears_tie_marker
   WHEN (NEW.final_placement IS NULL AND NEW.placement_tie IS NOT NULL)
   EXECUTE FUNCTION private.entries_unplaced_clears_tie_marker();
 
--- Column grants, stated rather than inherited (as 20261001034700 did):
--- authenticated reads both (the replica needs the marker offline, and the order
--- the secretary recorded); anon reads no entries column (allowlist empty).
-GRANT SELECT (placement_tiebreak, placement_tie) ON public.entries TO authenticated;
-REVOKE ALL (placement_tiebreak, placement_tie) ON public.entries FROM anon;
+-- Column privileges, stated rather than inherited: NEITHER API role reads these
+-- on the base table. They are result data, and an exhibitor can select their own
+-- entries rows under RLS, so a column grant would show an unresolved tie or the
+-- recorded flip order before results are released. The replica reads them only
+-- through the results views (section 7b), which are owner-run and mask both
+-- exactly like final_placement. The entries allowlist stays at 56 columns.
+REVOKE ALL (placement_tiebreak, placement_tie) ON public.entries FROM anon, authenticated;
 
 -- ---------------------------------------------------------------------------
 -- 7. Verify guard and tie reader

@@ -56,8 +56,6 @@
     "src/hooks/useConflictResolution.ts",
     "src/hooks/useOptimisticUpdates.ts",
 
-    "src/services/scoring/OfflineScoringService.ts",
-    "src/components/scoring/JudgeSyncDashboard.tsx",
     "src/store/offlineScoringStore.ts",
 
     "src/services/performance/RealUserMonitoring.ts",

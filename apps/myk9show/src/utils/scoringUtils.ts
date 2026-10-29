@@ -2,17 +2,6 @@
  * Utility functions and types for scoring components
  */
 
-import type { ScoringFormat } from '@/types/scoring-types';
-
-// Judge Sync Dashboard type definitions
-export interface JudgeSyncDashboardProps {
-  judgeId: string;
-  classId?: string;
-  format?: ScoringFormat;
-  onForceSync?: () => void;
-  onDataExport?: () => void;
-  className?: string;
-}
 export interface SyncMetrics {
   totalScores: number;
   syncedScores: number;

@@ -229,8 +229,12 @@ async function sweepRoutes(
     // `people` read that cannot take five seconds five times in a row.
     //
     // Resetting here means a slow route is reported ONCE, against itself.
-    pendingAppApiRequests.reset();
+    // A read the previous route left unsettled (already a failure there) is
+    // abandoned by the navigation below like any other, so it is classified as
+    // stranded rather than charged to this route a second time (MYK9-1477).
     pendingAppApiRequests.stranded.clear();
+    pendingAppApiRequests.strandPending();
+    pendingAppApiRequests.reset();
 
     let navigationError: string | null = null;
     let documentStatus: number | null = null;

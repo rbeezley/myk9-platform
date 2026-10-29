@@ -30,6 +30,13 @@ export interface AppApiRequestTracker {
    * (MYK9-1477), and this set is what tells that apart from a real failure.
    */
   stranded: Set<Request>;
+  /**
+   * Move everything in flight into `stranded`. The tracker does this when a
+   * cross-document navigation commits; the route sweep does it before its own
+   * `page.goto`, so a request the previous route left unsettled can still be
+   * classified when that navigation abandons it.
+   */
+  strandPending(): void;
 }
 
 export interface AppApiRequestSettlement {
@@ -52,6 +59,9 @@ export function watchAppApiRequests(page: Page) {
     pending: new Set<Request>(),
     lastActivityAt: Date.now(),
     stranded: new Set<Request>(),
+    strandPending() {
+      for (const request of tracker.pending) tracker.stranded.add(request);
+    },
     reset() {
       tracker.pending.clear();
       tracker.lastActivityAt = Date.now();
@@ -98,7 +108,7 @@ export function watchAppApiRequests(page: Page) {
     if (typeof page.mainFrame !== 'function' || frame !== page.mainFrame()) return;
     if (withoutHash(frame.url()) !== withoutHash(crossDocumentNavigation.url())) return;
     crossDocumentNavigation = null;
-    for (const request of tracker.pending) tracker.stranded.add(request);
+    tracker.strandPending();
     tracker.reset();
   });
   page.on('requestfinished', request => {

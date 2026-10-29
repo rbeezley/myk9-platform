@@ -420,6 +420,17 @@ describe('requests the outgoing document leaves behind at a navigation (MYK9-146
     expect([...tracker.stranded]).toEqual([stranded]);
   });
 
+  it('strandPending() keeps what was in flight across the reset before a navigation', () => {
+    const harness = createPageHarness();
+    const tracker = watchAppApiRequests(harness.page);
+    const unsettled = createRequest(STRANDED);
+    harness.emit('request', unsettled);
+    tracker.strandPending();
+    tracker.reset();
+    expect([...tracker.stranded]).toEqual([unsettled]);
+    expect(tracker.pending.size).toBe(0);
+  });
+
   it('records nothing as stranded without a cross-document commit', () => {
     const harness = createPageHarness();
     const tracker = watchAppApiRequests(harness.page);

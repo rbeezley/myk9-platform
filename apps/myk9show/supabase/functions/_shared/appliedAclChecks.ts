@@ -127,7 +127,8 @@ export const AUTHENTICATED_TABLE_GRANTS: Readonly<Record<string, string>> = {
   show_payouts: 'SELECT',
   show_templates: 'SELECT,INSERT,UPDATE,DELETE',
   show_visibility_settings: 'SELECT,INSERT,UPDATE',
-  shows: 'SELECT,INSERT,UPDATE,DELETE',
+  // MYK9-1472: no DELETE; hard_delete_show is the only permanent path.
+  shows: 'SELECT,INSERT,UPDATE',
   sms_opt_in_attempts: '',
   // Service-role only: the run-proximity trigger is the sole writer, and no
   // client has any reason to read who has been texted (MYK9-193).

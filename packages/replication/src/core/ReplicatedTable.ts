@@ -420,7 +420,8 @@ export abstract class ReplicatedTable<T extends { id: string }> {
         rpc,
         !deferUpload,
         rowRevision,
-        rpc ? await this.resolveMutationShowId(rowId) : undefined
+        rpc ? await this.resolveMutationShowId(rowId) : undefined,
+        deferUpload
       );
       queueSucceeded = true;
       return mutationId;
@@ -667,8 +668,8 @@ export abstract class ReplicatedTable<T extends { id: string }> {
           undefined,
           setOptions?.options
         ),
-      stampRevision: (mutationId, revision) =>
-        this.mutationManager?.stampMutationRowRevision(mutationId, revision) ?? Promise.resolve(),
+      releaseQueued: (mutationId, revision) =>
+        this.mutationManager?.releaseHeldMutation(mutationId, revision) ?? Promise.resolve(),
       removeQueued: mutationId =>
         this.mutationManager?.removeQueuedMutation(mutationId) ?? Promise.resolve(),
       requestUpload: () => this.requestUpload(),
@@ -706,8 +707,9 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     // refused as an INSERT. `attempt.rowExisted`, recorded inside the first
     // transaction, carries that fact into the retry.
     const attempt: SetAttempt = { rowExisted: false };
-    const ownerAuthUserId = await this.rowOwnerFor();
     try {
+      // Inside the try: a throwing identity lookup must still release the lock.
+      const ownerAuthUserId = await this.rowOwnerFor();
       const result = await withQuotaEviction(
         () =>
           this.setOnce(

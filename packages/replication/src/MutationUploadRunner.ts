@@ -1,6 +1,7 @@
 import { databaseManager, REPLICATION_STORES } from './core/DatabaseManager';
 import type { Logger } from './dependencies';
 import { sendAndAcknowledge } from './mutation-send-and-ack';
+import { isHeldForLocalWrite } from './mutation-hold';
 import { ContainmentError, OccRejectionError } from './mutation-occ';
 import { handleOccRejection } from './mutation-occ-rejection';
 import { UploadLock } from './upload-lock';
@@ -200,6 +201,14 @@ export class MutationUploadRunner {
       for (const mutation of sortedMutations) {
         if (mutationOwner.holdForPassOwner(mutation, passAuthUserId, blockedDependencyIds, skipped))
           continue;
+
+        // Queued ahead of its dirty row write: not uploadable until released
+        // (MYK9-1471). Dependents wait with it.
+        if (isHeldForLocalWrite(mutation, now)) {
+          skipped.held++;
+          blockedDependencyIds.add(mutation.id);
+          continue;
+        }
 
         const unresolvedDependencies = (mutation.dependsOn ?? []).filter(
           dependencyId =>

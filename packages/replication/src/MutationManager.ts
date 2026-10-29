@@ -156,6 +156,10 @@ export class MutationManager {
    *   it has finished any dependent local write. Prevents an online upload from
    *   flushing (and deleting) the mutation before the caller marks its cache row
    *   dirty — which would strand the row as pending forever.
+   * @param holdForLocalWrite - Persist the mutation HELD: no upload pass sends it
+   *   until {@link releaseHeldMutation}, because the caller's dirty row write has
+   *   not landed yet (MYK9-1471). Unlike scheduleUploadNow=false, which only skips
+   *   this call's scheduling, a hold also stops a flush started elsewhere.
    * @returns The generated mutation ID
    */
   async queueMutation(
@@ -168,7 +172,8 @@ export class MutationManager {
     rpc?: PendingMutation['rpc'],
     scheduleUploadNow = true,
     rowRevision?: number,
-    showId?: string
+    showId?: string,
+    holdForLocalWrite = false
   ): Promise<string> {
     const releaseQueueLock = this.acquireQueueMutationLock?.();
     try {
@@ -203,6 +208,7 @@ export class MutationManager {
         rowRevision,
         {
           ownerIsAnonymous: this.identity.readOwnerIsAnonymous(authUserId),
+          ...(holdForLocalWrite && { heldForLocalWrite: Date.now() }),
           ...(showId !== undefined && { showId }),
         }
       );
@@ -240,9 +246,12 @@ export class MutationManager {
     }
   }
 
-  /** Stamp a deferred mutation with its dirty write's revision (MYK9-1471). */
-  async stampMutationRowRevision(mutationId: string, rowRevision: number): Promise<void> {
-    await this.queueStore.stampRowRevision(mutationId, rowRevision);
+  /**
+   * Release a mutation held for its dirty write, stamping the revision that
+   * write produced (MYK9-1471). One store write; the caller then requests upload.
+   */
+  async releaseHeldMutation(mutationId: string, rowRevision?: number): Promise<void> {
+    await this.queueStore.releaseHeldMutation(mutationId, rowRevision);
     await this.writeBackupBestEffort();
   }
 
@@ -250,6 +259,22 @@ export class MutationManager {
   async removeQueuedMutation(mutationId: string): Promise<void> {
     await this.queueStore.removePendingMutation(mutationId);
     await this.writeBackupBestEffort();
+    // The enqueue announced +1; pending-count UIs re-read on this event.
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('replication:mutation-queued', { detail: {} }));
+    }
+  }
+
+  private async releaseAbandonedHolds(): Promise<void> {
+    try {
+      const released = await this.queueStore.releaseAbandonedHolds();
+      if (released > 0) {
+        this.logger.warn(`[MutationManager] Released ${released} abandoned write hold(s)`);
+        this.scheduleUpload();
+      }
+    } catch (error) {
+      this.logger.warn('[MutationManager] Could not release abandoned write holds:', error);
+    }
   }
 
   /** The localStorage backup is a secondary net: its failure never fails a write. */
@@ -594,6 +619,8 @@ export class MutationManager {
       // durable queue and retry on its own.
       if (this.uploadInFlight) await this.uploadInFlight.catch(() => undefined);
       await this.backupStore.restore();
+      // A tab that died mid-write left its mutation held (MYK9-1471).
+      await this.releaseAbandonedHolds();
     })();
     this.restoreInFlight = restore;
     try {

@@ -12,7 +12,8 @@ export interface WriteAndQueueSteps {
   /** Persist the mutation with its upload deferred; null when no MutationManager is set. */
   queueDeferred: () => Promise<string | null>;
   writeDirty: () => Promise<DirtyWriteOutcome>;
-  stampRevision: (mutationId: string, revision: number) => Promise<void>;
+  /** Clear the mutation's hold and stamp the revision in one write (undefined: nothing landed). */
+  releaseQueued: (mutationId: string, revision?: number) => Promise<void>;
   removeQueued: (mutationId: string) => Promise<void>;
   requestUpload: () => void;
   logger: Logger;
@@ -30,9 +31,10 @@ export interface WriteAndQueueResult {
  * (backlog full, IndexedDB failure) the row was never touched, so it keeps its
  * data, dirty flag and server version. If the dirty write then throws, the
  * queued mutation is removed so no Sync issues entry or upload is left for a
- * change that never landed locally. Once the write lands, the mutation is
- * stamped with the revision it produced (Discard revert, MYK9-1076, needs it)
- * and the upload is released.
+ * change that never landed locally. Until the write lands the mutation is HELD:
+ * no upload pass sends it. Once it lands, one store write releases the hold and
+ * stamps the revision it produced (Discard revert, MYK9-1076, needs it), and the
+ * upload is requested.
  */
 export async function writeAndQueue(steps: WriteAndQueueSteps): Promise<WriteAndQueueResult> {
   const mutationId = await steps.queueDeferred();
@@ -53,16 +55,15 @@ export async function writeAndQueue(steps: WriteAndQueueSteps): Promise<WriteAnd
     throw writeError;
   }
   if (mutationId !== null) {
-    if (outcome.result.written && outcome.revision !== undefined) {
-      try {
-        await steps.stampRevision(mutationId, outcome.revision);
-      } catch (stampError) {
-        // The mutation is durable; without a revision only Discard revert is lost.
-        steps.logger.warn(
-          `[writeAndQueue] Could not stamp mutation ${mutationId} with its row revision:`,
-          stampError
-        );
-      }
+    try {
+      await steps.releaseQueued(mutationId, outcome.result.written ? outcome.revision : undefined);
+    } catch (releaseError) {
+      // Still held and durable: the hold lapses on its own (HELD_FOR_LOCAL_WRITE_TTL_MS),
+      // so the upload below is only delayed, and only Discard revert loses its revision.
+      steps.logger.error(
+        `[writeAndQueue] Could not release mutation ${mutationId} for upload:`,
+        releaseError
+      );
     }
     steps.requestUpload();
   }

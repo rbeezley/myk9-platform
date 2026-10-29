@@ -196,6 +196,11 @@ export interface PendingMutation {
    *  Absent when the mutation was queued without a paired dirty write. */
   rowRevision?: number;
 
+  /** When set (ms epoch), the mutation was queued ahead of its dirty row write and no
+   *  upload pass may send it until the write lands and releases it (MYK9-1471). A hold
+   *  older than HELD_FOR_LOCAL_WRITE_TTL_MS is abandoned (mutation-hold.ts). */
+  heldForLocalWrite?: number;
+
   /** @internal Set by MutationManager; do not read or mutate externally. */
   nextRetryAt?: number;
 

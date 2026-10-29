@@ -2,6 +2,7 @@ import { unwrap, type IDBPDatabase } from 'idb';
 import { databaseManager, REPLICATION_STORES } from './core/DatabaseManager';
 import type { Logger } from './dependencies';
 import { removeOrphanedLocalOnlyRow } from './mutation-row-sync';
+import { releaseAbandonedHolds, releaseHeldMutation } from './mutation-hold';
 import { DiscardRevertRegistry } from './mutation-discard-revert';
 import { rebaseQueuedMutation, rewriteQueuedMutations } from './mutation-queue-rewrite';
 import { withQuotaEviction } from './quota-eviction';
@@ -129,7 +130,7 @@ export class MutationQueueStore {
     serverVersion?: number,
     rpc?: PendingMutation['rpc'],
     rowRevision?: number,
-    adoption: Pick<PendingMutation, 'ownerIsAnonymous' | 'showId'> = {}
+    adoption: Pick<PendingMutation, 'ownerIsAnonymous' | 'showId' | 'heldForLocalWrite'> = {}
   ): Promise<string> {
     const db = await databaseManager.getDatabase('MutationManager');
     const sequenceNumber = await this.nextSequenceNumber(db);
@@ -139,6 +140,9 @@ export class MutationQueueStore {
       authUserId,
       ...(adoption.ownerIsAnonymous === true && { ownerIsAnonymous: true }),
       ...(adoption.showId !== undefined && { showId: adoption.showId }),
+      ...(adoption.heldForLocalWrite !== undefined && {
+        heldForLocalWrite: adoption.heldForLocalWrite,
+      }),
       tableName,
       operation,
       rowId,
@@ -166,15 +170,16 @@ export class MutationQueueStore {
     return id;
   }
 
-  /** Record the local revision a deferred mutation's dirty write produced (MYK9-1471). */
-  async stampRowRevision(mutationId: string, rowRevision: number): Promise<void> {
+  /** Release a held mutation, stamping the revision its dirty write produced (MYK9-1471). */
+  async releaseHeldMutation(mutationId: string, rowRevision?: number): Promise<boolean> {
     const db = await databaseManager.getDatabase('MutationManager');
-    const tx = db.transaction(REPLICATION_STORES.PENDING_MUTATIONS, 'readwrite');
-    const mutation = (await tx.store.get(mutationId)) as PendingMutation | undefined;
-    if (mutation && mutation.rowRevision === undefined) {
-      await tx.store.put({ ...mutation, rowRevision });
-    }
-    await tx.done;
+    return releaseHeldMutation(db, mutationId, rowRevision);
+  }
+
+  /** Clear holds left by a tab that died mid-write (MYK9-1471). */
+  async releaseAbandonedHolds(): Promise<number> {
+    const db = await databaseManager.getDatabase('MutationManager');
+    return releaseAbandonedHolds(db, Date.now());
   }
 
   /** Drop a pending mutation whose dirty write never landed (MYK9-1471). */

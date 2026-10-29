@@ -48,6 +48,8 @@ CREATE TABLE IF NOT EXISTS private.user_access_epoch (
 );
 -- This project's default privileges grant anon CRUD on new tables.
 REVOKE ALL ON private.user_access_epoch FROM PUBLIC, anon, authenticated;
+-- Defence in depth: only the owner-run definer functions below touch it.
+ALTER TABLE private.user_access_epoch ENABLE ROW LEVEL SECURITY;
 
 CREATE OR REPLACE FUNCTION private.touch_user_access_epoch()
 RETURNS trigger

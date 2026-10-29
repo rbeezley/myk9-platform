@@ -30,13 +30,17 @@ test.describe('Shows UI — Browse (secretary)', () => {
   test('browse loads with toolbar, view toggle, tabs', async ({ page }) => {
     await page.goto('/shows');
     await expect(page.getByRole('heading', { name: 'Find Shows', level: 1 })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Add Show', exact: true })).toBeVisible();
+    // Add Show lives in the header Actions menu, not on the page (MYK9-1490).
+    await expect(page.getByRole('button', { name: 'Add Show', exact: true })).toHaveCount(0);
     await expect(page.getByPlaceholder('Search shows or locations')).toBeVisible();
 
-    // Labelled filter selects (MYK9-906); the month scrubber below covers Date Range.
+    // The option fields sit behind one Filter button (MYK9-1490); the month scrubber below
+    // covers Date Range.
+    await page.getByRole('button', { name: /^Filter/ }).click();
     for (const label of ['Discipline', 'Entry Status', 'Club']) {
-      await expect(page.getByRole('combobox', { name: label })).toBeVisible();
+      await expect(page.getByRole('group', { name: label })).toBeVisible();
     }
+    await page.keyboard.press('Escape');
 
     // View toggles — target the exact aria-label ("<Mode> view") so "Table"
     // doesn't also match the "Reset table view" button.

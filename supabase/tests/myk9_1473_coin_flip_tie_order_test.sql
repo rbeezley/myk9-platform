@@ -1,6 +1,6 @@
 -- MYK9-1473: exact ties are decided by a recorded coin flip.
 --
--- Behavioral test for 20261029012700_myk9_1473_coin_flip_tie_order.sql, run only
+-- Behavioral test for 20261029043900_myk9_1473_coin_flip_tie_order.sql, run only
 -- in CI (scripts/qa/run-behavioral-sql-tests.sh; no container runtime on the
 -- development Mac). Every placement assertion goes through
 -- recalculate_class_placements (the entries trigger, or a direct call) and

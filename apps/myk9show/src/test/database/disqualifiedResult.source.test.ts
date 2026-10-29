@@ -110,7 +110,7 @@ describe('server rules that treat excused as accounted-for also cover disqualifi
     expect(ranker.body).not.toContain('disqualified');
     // Not re-created by the DQ migration; the latest definition is the coin-flip
     // tie order (MYK9-1473), which keeps the qualified-only filter.
-    expect(ranker.file).toBe('20261029012700_myk9_1473_coin_flip_tie_order.sql');
+    expect(ranker.file).toBe('20261029043900_myk9_1473_coin_flip_tie_order.sql');
   });
 
   it('a DQ blocks dog deletion like any other recorded result', () => {
@@ -136,7 +136,7 @@ describe('result_text on every results view reads DQ for a disqualified entry', 
     // from the 1011 body, MYK9-1326 rebuilt it again without promo_code_id, and
     // MYK9-1473 appended placement_tie/placement_tiebreak, so the DQ arm below
     // must survive all three rebuilds.
-    expect(view.file).toBe('20261029012700_myk9_1473_coin_flip_tie_order.sql');
+    expect(view.file).toBe('20261029043900_myk9_1473_coin_flip_tie_order.sql');
     expect(view.body).toContain('AS awaiting_registration_number');
     expect(view.body).toContain(
       "(access.can_view_scores OR vis.qualification_visible) AND e.is_scored = true AND e.result_status = 'disqualified' THEN 'DQ'"

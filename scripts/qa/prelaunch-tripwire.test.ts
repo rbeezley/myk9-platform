@@ -80,10 +80,15 @@ describe('runTripwire (the CLI core)', () => {
   afterEach(() => {
     for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true });
   });
-  const env = { MYK9_MIGRATION_DATABASE_URL: 'postgresql://stub' };
+  const POOLER =
+    'postgresql://postgres.sojmvhhwsjxmfistvzbe@aws-1-us-east-2.pooler.supabase.com:5432/postgres';
+  const env = { MYK9_MIGRATION_DATABASE_URL: POOLER };
 
   /** A checkout with its own approvals file, main's copy, and stub git/psql. */
-  function setup(main: { status?: string; fails?: boolean } = {}) {
+  function setup(
+    main: { status?: string; fails?: boolean } = {},
+    tree: { dirty?: boolean; head?: string } = {}
+  ) {
     const dir = mkdtempSync(join(tmpdir(), 'tripwire-'));
     dirs.push(dir);
     const approvalsPath = join(dir, 'standing-approvals.md');
@@ -95,6 +100,10 @@ describe('runTripwire (the CLI core)', () => {
         if (main.fails) throw new Error('fatal: invalid object name');
         return block(main.status ?? 'ACTIVE');
       }
+      if (name === 'git' && args[0] === 'status')
+        return tree.dirty ? ' M supabase/functions/x/index.ts\n' : '';
+      if (name === 'git' && args[0] === 'rev-parse')
+        return `${args[1] === 'origin/main' ? 'aaa111' : (tree.head ?? 'aaa111')}\n`;
       const sql = args[args.length - 1] ?? '';
       if (sql.includes('platform_settings')) return 'f\n';
       if (sql.includes('public.clubs')) return `${CLUB_A}\n${CLUB_B}\n`;
@@ -132,6 +141,46 @@ describe('runTripwire (the CLI core)', () => {
       code: 2,
       reason: expect.stringContaining('MYK9_MIGRATION_DATABASE_URL'),
     });
+  });
+
+  it.each([
+    ['a local database', 'postgresql://postgres@127.0.0.1:54322/postgres'],
+    [
+      'another project',
+      'postgresql://postgres.otherprojectref0000@aws-1-us-east-2.pooler.supabase.com:5432/postgres',
+    ],
+    ['an unparseable URL', 'not a url'],
+  ])('cannot decide when the database URL is %s', (_label, url) => {
+    const { approvalsPath, command } = setup();
+    writeFileSync(approvalsPath, block('ACTIVE'));
+    const result = runTripwire({
+      approvalsPath,
+      argv: [],
+      env: { MYK9_MIGRATION_DATABASE_URL: url },
+      command,
+    });
+    expect(result).toEqual({ code: 2, reason: expect.stringContaining('sojmvhhwsjxmfistvzbe') });
+  });
+
+  it('accepts the direct database host for the myK9 project', () => {
+    const { approvalsPath, command } = setup();
+    writeFileSync(approvalsPath, block('ACTIVE'));
+    const url = 'postgresql://postgres@db.sojmvhhwsjxmfistvzbe.supabase.co:5432/postgres';
+    expect(
+      runTripwire({ approvalsPath, argv: [], env: { MYK9_MIGRATION_DATABASE_URL: url }, command })
+        .code
+    ).toBe(0);
+  });
+
+  it.each<[string, { dirty?: boolean; head?: string }, 0 | 1]>([
+    ['a clean checkout at origin/main', {}, 0],
+    ['uncommitted changes', { dirty: true }, 1],
+    ['a checkout not at origin/main', { head: 'bbb222' }, 1],
+  ])('--functions-deploy with %s', (_label, tree, code) => {
+    const { approvalsPath, run } = setup({}, tree);
+    writeFileSync(approvalsPath, block('ACTIVE'));
+    expect(run(['--functions-deploy']).code).toBe(code);
+    expect(run().code).toBe(0);
   });
 
   it.each([[['--db-push']], [['--migration', 'x.sql']], [['--anything']]])(

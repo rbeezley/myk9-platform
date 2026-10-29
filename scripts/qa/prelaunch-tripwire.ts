@@ -6,10 +6,12 @@
  * not pre-approved: no scan of arbitrary SQL can promise a migration keeps
  * data (Codex review, PR #3393). This runs before each pre-approved action and exits:
  *   0  standing approvals are ACTIVE, Stripe is in test mode, and every club is
- *      a known test club
+ *      a known test club, read from the myK9 project itself; with
+ *      --functions-deploy, also the checkout is clean and at origin/main
  *   1  one of those is false (the reason names which): do not run the action
- *   2  it could not decide (no database URL, a failed query, a missing or
- *      malformed approvals block): do not run the action either
+ *   2  it could not decide (no database URL or one for another database, a
+ *      failed query, a missing or malformed approvals block): do not run the
+ *      action either
  *
  * The approvals file is read fresh on every run, so flipping the switch takes
  * effect on the next action. Database access is read-only, through psql with
@@ -92,6 +94,21 @@ export interface RunOptions {
 }
 
 const APPROVALS_ON_MAIN = 'origin/main:docs/agents/standing-approvals.md';
+const PROJECT_REF = 'sojmvhhwsjxmfistvzbe';
+
+/**
+ * True when the URL reaches the myK9 project: the pooler's `postgres.<ref>` user
+ * or the direct `db.<ref>.supabase.co` host. Any other database could be in test
+ * mode while production is not (Codex review, PR #3393).
+ */
+function isMyK9Project(url: string): boolean {
+  try {
+    const { username, hostname } = new URL(url);
+    return username === `postgres.${PROJECT_REF}` || hostname === `db.${PROJECT_REF}.supabase.co`;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * The stricter of this checkout's switch and main's: both must be ACTIVE, and a
@@ -108,8 +125,12 @@ function combine(local: Approvals | null, main: Approvals | null): Approvals | n
 
 /** Read everything fresh and evaluate. Never throws: a failure is a code-2 result. */
 export function runTripwire(options: RunOptions): TripwireResult {
-  if (options.argv.length)
-    return { code: 2, reason: `unknown arguments: ${options.argv.join(' ')} (it takes none)` };
+  const functionsDeploy = options.argv.length === 1 && options.argv[0] === '--functions-deploy';
+  if (options.argv.length && !functionsDeploy)
+    return {
+      code: 2,
+      reason: `unknown arguments: ${options.argv.join(' ')} (only --functions-deploy)`,
+    };
   const read = (load: () => string): Approvals | null => {
     try {
       return parseApprovals(load());
@@ -126,6 +147,11 @@ export function runTripwire(options: RunOptions): TripwireResult {
   const url = options.env.MYK9_MIGRATION_DATABASE_URL;
   if (approvals?.active && !url)
     return { code: 2, reason: 'MYK9_MIGRATION_DATABASE_URL is not set' };
+  if (approvals?.active && url && !isMyK9Project(url))
+    return {
+      code: 2,
+      reason: `MYK9_MIGRATION_DATABASE_URL is not the myK9 project (${PROJECT_REF})`,
+    };
   const query = (sql: string): string | null => {
     try {
       return options.command('psql', [
@@ -155,7 +181,19 @@ export function runTripwire(options: RunOptions): TripwireResult {
           .split('\n')
           .map(s => s.trim())
           .filter(Boolean);
-  return evaluateTripwire(approvals, { livemode, clubIds });
+  const result = evaluateTripwire(approvals, { livemode, clubIds });
+  if (result.code !== 0 || !functionsDeploy) return result;
+  // `supabase functions deploy` uploads the local files, so they must be exactly main's.
+  try {
+    if (options.command('git', ['status', '--porcelain']).trim())
+      return { code: 1, reason: 'the checkout has uncommitted changes; deploy from origin/main' };
+    const head = options.command('git', ['rev-parse', 'HEAD']).trim();
+    if (head !== options.command('git', ['rev-parse', 'origin/main']).trim())
+      return { code: 1, reason: `the checkout is at ${head}, not origin/main` };
+  } catch (error) {
+    return { code: 2, reason: `could not read the checkout: ${(error as Error).message}` };
+  }
+  return result;
 }
 
 function main(argv: string[]): number {

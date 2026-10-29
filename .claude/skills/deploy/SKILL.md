@@ -20,8 +20,10 @@ Merging a PR never deploys anything. Migrations and edge functions ship only via
 ```bash
 source supabase/.env
 MYK9_MIGRATION_DATABASE_URL=postgresql://postgres.sojmvhhwsjxmfistvzbe@aws-1-us-east-2.pooler.supabase.com:5432/postgres \
-PGPASSWORD="$SUPABASE_DB_PASSWORD" pnpm qa:prelaunch-tripwire
+PGPASSWORD="$SUPABASE_DB_PASSWORD" pnpm qa:prelaunch-tripwire   # add --functions-deploy before a functions deploy
 ```
+
+The URL must be the myK9 project (`sojmvhhwsjxmfistvzbe`); any other database exits 2. `supabase functions deploy` uploads the local files, so a pre-approved functions deploy runs from a clean checkout at `origin/main` and passes `--functions-deploy`, which exits 1 otherwise.
 
 Exit 0: proceed, then leave the record the standing-approvals table names on the Linear issue. Exit 1 or 2: do **not** run the action; file or update the issue with `needs:operator` and the printed reason, and move on.
 

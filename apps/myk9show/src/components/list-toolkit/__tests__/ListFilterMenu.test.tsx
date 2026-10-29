@@ -157,6 +157,18 @@ describe('ListFilterMenu', () => {
     expect(screen.queryByText('Nothing to choose yet.')).not.toBeInTheDocument();
   });
 
+  // axe label-content-name-mismatch (A11y smoke on #3387): every visible character inside the
+  // labelled button must be part of its name, so the F hint sits beside it, announced through
+  // aria-keyshortcuts instead.
+  it('keeps the button text inside its name, with the F hint outside the button', () => {
+    render(<ListFilterMenu fields={[]} />);
+    const button = screen.getByRole('button', { name: 'Filter' });
+
+    expect(button.textContent?.trim()).toBe('Filter');
+    expect(button).toHaveAttribute('aria-keyshortcuts', 'F');
+    expect(button.querySelector('kbd')).toBeNull();
+  });
+
   it('keeps the Loading message when you type, and never says No matches next to it', async () => {
     const fields: ListFilterMenuField[] = [
       {

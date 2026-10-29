@@ -135,6 +135,7 @@ export function ListFilterMenu({
       ref={triggerRef}
       type="button"
       aria-label={applied > 0 ? `Filter, ${applied} applied` : 'Filter'}
+      aria-keyshortcuts="F"
       className={cn(
         'inline-flex h-11 items-center gap-2 rounded-lg border border-input px-3 text-sm font-medium',
         'bg-[var(--dialog-input-bg)] shadow-sm hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
@@ -151,13 +152,17 @@ export function ListFilterMenu({
           {applied}
         </span>
       )}
-      <kbd
-        aria-hidden="true"
-        className="hidden rounded border border-border px-1 text-xs text-muted-foreground lg:inline"
-      >
-        F
-      </kbd>
     </button>
+  );
+  // Beside the button, not inside it: visible text inside a labelled control must be part of its
+  // name (axe label-content-name-mismatch); `aria-keyshortcuts` tells assistive tech instead.
+  const shortcutHint = (
+    <kbd
+      aria-hidden="true"
+      className="hidden rounded border border-border px-1 text-xs text-muted-foreground lg:inline"
+    >
+      F
+    </kbd>
   );
   const menu = (
     <Command>
@@ -173,27 +178,33 @@ export function ListFilterMenu({
 
   if (sheetOnPhone && isPhone) {
     return (
-      <Sheet open={open} onOpenChange={setOpen}>
-        <SheetTrigger asChild>{trigger}</SheetTrigger>
-        <SheetContent
-          side="bottom"
-          className="max-h-[85dvh] overflow-y-auto rounded-t-xl px-2 pb-6 pt-4"
-        >
-          <SheetHeader className="px-2">
-            <SheetTitle>Filters</SheetTitle>
-          </SheetHeader>
-          {menu}
-        </SheetContent>
-      </Sheet>
+      <span className="inline-flex items-center gap-1.5">
+        <Sheet open={open} onOpenChange={setOpen}>
+          <SheetTrigger asChild>{trigger}</SheetTrigger>
+          <SheetContent
+            side="bottom"
+            className="max-h-[85dvh] overflow-y-auto rounded-t-xl px-2 pb-6 pt-4"
+          >
+            <SheetHeader className="px-2">
+              <SheetTitle>Filters</SheetTitle>
+            </SheetHeader>
+            {menu}
+          </SheetContent>
+        </Sheet>
+        {shortcutHint}
+      </span>
     );
   }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>{trigger}</PopoverTrigger>
-      <PopoverContent align="start" className="w-[min(22rem,calc(100vw-2rem))] p-0">
-        {menu}
-      </PopoverContent>
-    </Popover>
+    <span className="inline-flex items-center gap-1.5">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>{trigger}</PopoverTrigger>
+        <PopoverContent align="start" className="w-[min(22rem,calc(100vw-2rem))] p-0">
+          {menu}
+        </PopoverContent>
+      </Popover>
+      {shortcutHint}
+    </span>
   );
 }

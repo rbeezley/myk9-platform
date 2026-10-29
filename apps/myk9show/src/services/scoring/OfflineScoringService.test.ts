@@ -3,13 +3,10 @@
  *
  * offline-scoring-service-helpers.test.ts already covers the pure helper
  * functions (key building, filtering/sorting, sync-queue item shape,
- * conflict detection, statistics). This file focuses on the service's
+ * statistics). This file focuses on the service's
  * stateful decision logic that those helpers feed into:
  *  - score submission: validation gate, versioning, sync-status, and the
  *    online/offline sync-queueing branch
- *  - multi-judge conflict handling (second judge's score never overwrites
- *    the first judge's cached score; conflict flag reflects qualification
- *    mismatch)
  *  - session lifecycle (start/end/lookup) and the offline flag captured
  *    from navigator.onLine
  *  - score/session removal, server-confirmed cache updates, and cleanup
@@ -200,42 +197,14 @@ describe('OfflineScoringService', () => {
     });
   });
 
-  describe('multi-judge conflict handling', () => {
-    it('routes a second judge scoring the same entry into multi-judge tracking instead of overwriting the cache', async () => {
+  describe('a different judge scoring an already-scored entry', () => {
+    it('supersedes the previous judge’s score (a judge change mid-class)', async () => {
       await service.submitScore(baseScore({ judgeId: 'judge-1', qualification: 'Qualified' }));
       await service.submitScore(baseScore({ judgeId: 'judge-2', qualification: 'Not Qualified' }));
 
-      // The judge-agnostic lookup still resolves to the first judge's score —
-      // the second judge's score was diverted to multi-judge tracking, not
-      // written into the primary score cache under a new key.
-      expect(service.getScore('entry-1', 'class-1')?.judgeId).toBe('judge-1');
-      // Each judge's own keyed score is independently retrievable.
-      expect(service.getScore('entry-1', 'class-1', 'judge-1')?.qualification).toBe('Qualified');
-      expect(service.getScore('entry-1', 'class-1', 'judge-2')).toBeNull();
-    });
-
-    it('flags a conflict when two judges disagree on qualification, but not when they agree', async () => {
-      const conflictListener = vi.fn();
-      service.on('multi_judge_score_updated', conflictListener);
-
-      await service.submitScore(baseScore({ judgeId: 'judge-1', qualification: 'Qualified' }));
-      await service.submitScore(baseScore({ judgeId: 'judge-2', qualification: 'Not Qualified' }));
-
-      expect(conflictListener).toHaveBeenCalledWith(
-        expect.objectContaining({ data: expect.objectContaining({ hasConflicts: true }) })
-      );
-    });
-
-    it('does not flag a conflict when two judges agree on qualification', async () => {
-      const conflictListener = vi.fn();
-      service.on('multi_judge_score_updated', conflictListener);
-
-      await service.submitScore(baseScore({ judgeId: 'judge-1', qualification: 'Qualified' }));
-      await service.submitScore(baseScore({ judgeId: 'judge-2', qualification: 'Qualified' }));
-
-      expect(conflictListener).toHaveBeenCalledWith(
-        expect.objectContaining({ data: expect.objectContaining({ hasConflicts: false }) })
-      );
+      expect(service.getScore('entry-1', 'class-1', 'judge-1')).toBeNull();
+      expect(service.getScore('entry-1', 'class-1')?.judgeId).toBe('judge-2');
+      expect(service.getClassScores('class-1')).toHaveLength(1);
     });
   });
 

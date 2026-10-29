@@ -173,6 +173,7 @@ const launchCriticalSqlTests = [
   'myk9_1071_registration_people_versions_test.sql',
   'myk9_963_unfulfilled_charge_refund_test.sql',
   'myk9_969_results_privacy_test.sql',
+  'myk9_1369_entry_results_changed_since_test.sql',
   'myk9_822_blocking_entries_rpc_test.sql',
   'myk9_970_role_onboarding_test.sql',
   'show_email_delivery_history_test.sql',

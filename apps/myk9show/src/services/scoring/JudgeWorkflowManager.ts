@@ -10,7 +10,7 @@
  * - Role-based permissions (judge, head judge, steward)
  * - Format-specific workflow orchestration
  * - Entry assignment and progress tracking
- * - Multi-judge coordination and conflict resolution
+ * - Conflict resolution
  * - Offline workflow state management
  * - Judge performance analytics
  * - Workflow templates and customization
@@ -129,9 +129,6 @@ export class JudgeWorkflowManager extends EventEmitter {
     );
     offlineScoringService.on('session_completed', (data: unknown) =>
       this.handleScoringSessionCompleted(data as ScoringEvent)
-    );
-    offlineScoringService.on('multi_judge_score_updated', (data: unknown) =>
-      this.handleMultiJudgeScore(data as ScoringEvent)
     );
   }
 
@@ -487,12 +484,6 @@ export class JudgeWorkflowManager extends EventEmitter {
 
   private async handleScoringSessionCompleted(event: ScoringEvent): Promise<void> {
     this.emit('scoring_service_session_completed', event.data);
-  }
-
-  private async handleMultiJudgeScore(event: ScoringEvent): Promise<void> {
-    if (event.data && (event.data as Record<string, unknown>).hasConflicts) {
-      this.emit('judge_conflict_detected', event.data);
-    }
   }
 
   // ========================================================================

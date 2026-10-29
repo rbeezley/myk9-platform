@@ -229,6 +229,7 @@ export class MutationQueueStore {
       // very next conflict.
       occRetries: 0,
     };
+    delete requeued.transportRetries;
     delete requeued.error;
     delete requeued.failureKind;
     delete requeued.nextRetryAt;

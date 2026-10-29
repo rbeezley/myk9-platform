@@ -149,29 +149,15 @@ describe('splitCartItemsByJudgeDayCapacity per judge day (MYK9-753)', () => {
     expect(result.fullReasonByItemId.size).toBe(0);
   });
 
-  it('blocks a two-judge line when one of its days is full, naming that day', () => {
-    const result = split(
-      [item('two-judge', 'interior', false)],
-      [day('alma', 0, ['interior']), day('bert', 3, ['interior'])]
-    );
+  it('blocks a line whose judge day is full, naming that day', () => {
+    const result = split([item('on-alma', 'interior', false)], [day('alma', 0, ['interior'])]);
 
-    expect(result.blockedItems.map(line => line.id)).toEqual(['two-judge']);
-    expect(result.fullReasonByItemId.get('two-judge')).toEqual({
+    expect(result.blockedItems.map(line => line.id)).toEqual(['on-alma']);
+    expect(result.fullReasonByItemId.get('on-alma')).toEqual({
       kind: 'judge-day',
       judgeId: 'alma',
       showDate: '2026-10-10',
     });
-  });
-
-  it('charges a two-judge line against both days, so it can fill the other day', () => {
-    const result = split(
-      [item('two-judge', 'interior'), item('bert-only', 'exterior')],
-      [day('alma', 2, ['interior']), day('bert', 1, ['interior', 'exterior'])]
-    );
-
-    expect(result.confirmedItemIds).toEqual(new Set(['two-judge']));
-    expect(result.waitlistItemIds).toEqual(new Set(['bert-only']));
-    expect(result.fullReasonByItemId.get('bert-only')).toMatchObject({ judgeId: 'bert' });
   });
 
   it('counts cart lines against a class limit, and says the class is what is full', () => {

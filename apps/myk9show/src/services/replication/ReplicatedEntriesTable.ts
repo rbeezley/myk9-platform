@@ -31,6 +31,7 @@ import { verifySecretaryEmptyShow } from '@/services/database/entries/secretaryE
 import type { Database } from '@/types/supabase';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
 import { PendingDeletes } from './pendingDeletes';
+import { planEntriesRead } from './entriesChangedSince';
 import { entryChangedColumnsRow } from './ReplicatedEntriesTable.changedColumns';
 import {
   entryToSupabaseRow,
@@ -351,6 +352,9 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     let receiptReferenceColumnObserved = false;
     const confirmedDeletionIds = new Set<string>();
     const restoredIds = new Set<string>();
+    // MYK9-1369: the last view read is recorded only once the engine has applied
+    // its rows; a read whose rows were never written must not license a skip.
+    let recordViewRead = () => {};
 
     const adapter: SyncReplicatedTableAdapter<EntryRow, ReplicatedEntry> = {
       ...this.getRowRefetchAdapter(),
@@ -385,7 +389,21 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
           return undefined;
         }
       },
-      fetchRemoteRows: async ({ since }) => {
+      fetchRemoteRows: async ({ since, forceFullSync }) => {
+        // MYK9-1369: a definite "nothing moved" skips the view's per-row build.
+        const readWindow = {
+          showId: showScopeId,
+          since,
+          forceFullSync,
+          bufferMs: REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN,
+        };
+        recordViewRead = () => {};
+        const readPlan = await planEntriesRead(readWindow);
+        if (readPlan.skip) return [];
+        const completed = (done: EntryRow[]) => {
+          recordViewRead = readPlan.recordCompleted;
+          return done;
+        };
         // Filter by show_id if provided. In myK9Show this scope value is the Show ID.
         // Read through the authenticated result view instead of public.entries:
         // managers receive raw scored fields, while exhibitors only receive
@@ -431,11 +449,11 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
             receiptReferenceColumnObserved = true;
           }
           if (pageRows.length < ENTRIES_REPLICATION_PAGE_SIZE) {
-            return rows;
+            return completed(rows);
           }
 
           const lastRow = pageRows[pageRows.length - 1];
-          if (!lastRow?.updated_at || !lastRow.id) return rows;
+          if (!lastRow?.updated_at || !lastRow.id) return completed(rows);
           cursorUpdatedAt = String(lastRow.updated_at);
           cursorId = String(lastRow.id);
         }
@@ -510,6 +528,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
         incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN,
       }
     );
+    if (result.success) recordViewRead();
 
     if (
       needsReceiptReferenceRefresh &&

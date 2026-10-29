@@ -6,7 +6,7 @@
  *
  * Key Features:
  * - Offline-first design with local storage support
- * - Multi-judge conflict resolution
+ * - Conflict resolution
  * - Real-time placement calculations
  * - Format-specific validation rules
  * - Sync queue for background synchronization
@@ -126,22 +126,6 @@ export interface BaseScore {
   syncStatus: 'pending' | 'synced' | 'conflict' | 'error';
 }
 
-// ============================================================================
-// Multi-Judge Scoring
-// ============================================================================
-
-export interface MultiJudgeScore {
-  entryId: string;
-  classId: string;
-  format: ScoringFormat;
-  judgeScores: Map<string, BaseScore>;
-  hasConflicts: boolean;
-  conflictResolution?: ConflictResolution;
-  finalScore?: BaseScore;
-  lastUpdated: Date;
-  syncStatus: 'pending' | 'synced' | 'conflict';
-}
-
 export interface ConflictResolution {
   strategy: 'average' | 'judge_hierarchy' | 'manual_override' | 'head_judge_final';
   resolvedBy: string;
@@ -241,7 +225,6 @@ export type ScoringEventType =
   | 'score_error'
   | 'session_started'
   | 'session_completed'
-  | 'multi_judge_score_updated'
   | 'placement_calculated'
   | 'placement_update_needed'
   | 'conflict_detected'

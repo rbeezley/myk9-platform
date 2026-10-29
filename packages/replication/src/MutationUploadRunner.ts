@@ -8,6 +8,7 @@ import { sortMutationsByDependencies } from './mutation-ordering';
 import * as mutationOwner from './mutation-owner';
 import { getMutationQueueCapacity, QUEUE_MAX_SIZE } from './mutation-queue-capacity';
 import { classifyMutationFailure } from './mutation-retry';
+import { createUplinkProbe } from './uplink-probe';
 import * as rowSync from './mutation-row-sync';
 import type { InFlightWriteRegistry } from './inflight-written-base';
 import type { WrittenFieldOverlayRegistry } from './mutation-written-overlay';
@@ -59,7 +60,8 @@ export class MutationUploadRunner {
     private readonly getCurrentUploadContext: () => Promise<MutationUploadAuthContext>,
     private readonly requestRowRefetch?: (tableName: string, rowId: string) => unknown,
     private readonly writtenOverlays?: WrittenFieldOverlayRegistry,
-    private readonly inFlightWrites?: InFlightWriteRegistry
+    private readonly inFlightWrites?: InFlightWriteRegistry,
+    private readonly checkConnectivity?: () => Promise<boolean>
   ) {}
 
   scheduleUpload(uploadPendingMutations = () => this.uploadPendingMutations()): void {
@@ -190,6 +192,7 @@ export class MutationUploadRunner {
       // default filter, concealing a stuck queue (MYK9-47).
       const skipped = mutationOwner.createMutationSkipCounts();
       const now = Date.now();
+      const isUplinkDown = createUplinkProbe(this.checkConnectivity);
       // Independent mutations shouldn't stall on one mutation's backoff; track the
       // earliest skipped nextRetryAt so we can self-schedule a follow-up pass.
       let earliestBackoff: number | null = null;
@@ -381,11 +384,21 @@ export class MutationUploadRunner {
             }
             continue;
           }
+          const uplinkDown = await isUplinkDown(error, queuedMutation);
+          // The probe can take seconds; a "Take theirs" discard in that window deletes this
+          // row, and writing the stale copy back would resurrect it. Classify the row as it
+          // is now, and drop it from this pass if it is gone (MYK9-1474).
+          const current = (await db.get(
+            REPLICATION_STORES.PENDING_MUTATIONS,
+            queuedMutation.id
+          )) as PendingMutation | undefined;
+          if (!current) continue;
           const failure = classifyMutationFailure({
-            mutation: queuedMutation,
+            mutation: current,
             error,
             maxRetries: this.maxRetries,
             retryBackoffBase: this.retryBackoffBase,
+            uplinkDown,
           });
 
           if (failure.permanentlyFailed) {
@@ -405,7 +418,7 @@ export class MutationUploadRunner {
           } else {
             blockedDependencyIds.add(queuedMutation.id);
             this.logger.warn(
-              `[MutationManager] Mutation ${queuedMutation.id} failed (retry ${failure.mutation.retries}/${this.maxRetries}), next attempt after ${new Date(failure.mutation.nextRetryAt!).toISOString()}:`,
+              `[MutationManager] Mutation ${queuedMutation.id} failed (retry ${failure.mutation.retries}/${this.maxRetries}, transport ${failure.mutation.transportRetries ?? 0}), next attempt after ${new Date(failure.mutation.nextRetryAt!).toISOString()}:`,
               error
             );
 

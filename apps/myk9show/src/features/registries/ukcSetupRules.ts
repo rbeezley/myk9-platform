@@ -245,7 +245,7 @@ const VEHICLE_AND_CONTAINER_NOTES: readonly SetupNote[] = [
   },
   {
     heading: 'Boxes',
-    text: 'Uniform cardboard, at least 12 x 9 in and 3 to 8 in tall, bottoms taped, no shipping markings. Boxes 24 in apart, rows 36 in apart, 60 in from ringside barriers; new box when hides change between classes. (Ch. 2 §4, Ch. 3 §1)',
+    text: 'Uniform cardboard, at least 12 x 9 in and 3 to 8 in tall, bottoms taped, no shipping markings. Boxes at least 24 in apart, rows at least 36 in apart, at least 60 in from ringside barriers; new box when hides change between classes. (Ch. 2 §4, Ch. 3 §1)',
   },
   {
     heading: 'Distractions',

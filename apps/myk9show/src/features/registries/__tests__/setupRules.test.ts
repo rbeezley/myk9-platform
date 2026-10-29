@@ -142,7 +142,7 @@ describe('AKC setup data', () => {
     );
     expect(getSetupValue(akcSetupSheet, 'container', 'layout', 'novice')).toBe('2 rows of 5');
     expect(getSetupValue(akcSetupSheet, 'container', 'spacing', 'novice')).toBe(
-      '12 in apart, rows 36 in apart'
+      'at least 12 in apart, rows at least 36 in apart'
     );
     expect(getSetupValue(akcSetupSheet, 'container', 'area', 'novice')).toBe('250 to 400 sq ft');
     expect(getSetupValue(akcSetupSheet, 'container', 'time', 'novice')).toBe('2 minutes');

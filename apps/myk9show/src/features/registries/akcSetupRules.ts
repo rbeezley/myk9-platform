@@ -73,10 +73,10 @@ const CONTAINER_GROUP: SetupElementGroup = {
       'spacing',
       'Spacing',
       perAkcLevel(
-        '12 in apart, rows 36 in apart',
-        '12 in apart, rows 36 in apart',
-        '12 in apart, rows 36 in apart',
-        '12 in apart, rows 36 in apart'
+        'at least 12 in apart, rows at least 36 in apart',
+        'at least 12 in apart, rows at least 36 in apart',
+        'at least 12 in apart, rows at least 36 in apart',
+        'at least 12 in apart, rows at least 36 in apart'
       )
     ),
     row(
@@ -129,7 +129,12 @@ const BURIED_GROUP: SetupElementGroup = {
     row(
       'spacing',
       'Spacing',
-      perAkcLevel('36 in apart', '36 in apart', '36 in apart', '36 in apart')
+      perAkcLevel(
+        'at least 36 in apart',
+        'at least 36 in apart',
+        'at least 36 in apart',
+        'at least 36 in apart'
+      )
     ),
     row(
       'area',
@@ -293,7 +298,7 @@ const CONTAINERS_AND_BURIED_NOTES: readonly SetupNote[] = [
   },
   {
     heading: 'Hide prep',
-    text: 'One scent aid (cotton ball or paper-stem swab) per vessel, one vessel per hide, 2 drops of one odor. Glass for storage only; no glass vessels. Same hide spot for every team in a class. After moving a hide, wait 10 minutes before the first dog. (Ch. 5 §4-§5, §8)',
+    text: 'One scent aid (cotton ball or paper-stem swab) per vessel, one vessel per hide, 2 drops of one odor. Glass for storage only; no glass vessels. Same hide spot for every team in a class. After moving a hide, wait 10 minutes before the next dog. (Ch. 5 §4-§5, §8)',
   },
 ];
 

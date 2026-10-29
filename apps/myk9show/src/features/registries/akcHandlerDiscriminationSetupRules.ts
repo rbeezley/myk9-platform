@@ -53,7 +53,7 @@ const HD_ROWS: readonly SetupRow[] = [
     'setup',
     'Setup',
     perAkcLevel(
-      '10 identical cardboard boxes, 2 rows of 5, boxes 12 in apart, rows 36 in apart; nothing else in the area',
+      '10 identical cardboard boxes, 2 rows of 5, boxes at least 12 in apart, rows at least 36 in apart; nothing else in the area',
       'One room or part of a room',
       'One outdoor area',
       'Areas worked one at a time; no blank area; handler scent never buried'

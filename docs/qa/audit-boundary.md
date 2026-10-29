@@ -41,9 +41,9 @@ named in the report, not quietly absorbed.
 `Last reviewed SHA` is the newest commit on `main` that has been reviewed for that stream. Dates are
 UTC.
 
-| Stream                | Last reviewed SHA                          | Window end           | Run by                    | Run date   |
-| --------------------- | ------------------------------------------ | -------------------- | ------------------------- | ---------- |
-| `daily-commit-review` | `542b6fa47972e01b29e93187d02c47672782a72c` | 2026-10-28T07:02:15Z | codex-daily-commit-review | 2026-10-28 |
+| Stream                | Last reviewed SHA                          | Window end           | Run by                     | Run date   |
+| --------------------- | ------------------------------------------ | -------------------- | -------------------------- | ---------- |
+| `daily-commit-review` | `20ada655217f735d8e5e3cdf867fdbd31b9efebf` | 2026-10-29T02:34:54Z | claude-daily-commit-review | 2026-10-29 |
 
 If this row is ever `unset`, nobody has verified which commits the Codex daily stream has actually
 covered; the first run of either automation on this stream must take its default window and stamp a
@@ -120,6 +120,16 @@ real boundary.
 > report's own header describes itself as retained locally because its `pnpm qa:inflight`
 > overlap gate exited 2; it was in fact committed to `main` with its cursor stamp, so the row
 > and the report agree either way.
+
+> **Provenance of the 2026-10-29 stamp.** The 21 commits from `542b6fa47` to `20ada6552` were
+> reviewed in one pass by `claude-daily-commit-review` on 2026-10-29 and reported in
+> `docs/qa/claude-daily-commit-review-2026-10-29.md`. The previous row's coverage was verified,
+> not assumed: `docs/qa/codex-daily-commit-review-2026-10-28.md` states its window as exclusive
+> `e1b2ddecd` through inclusive `542b6fa47`, and `git rev-list --count e1b2ddecd..542b6fa47`
+> returns exactly the 6 commits its inventory enumerates. That row was a real stamp (row plus
+> report plus matching count), not a boundary-only one, so it was honoured rather than
+> re-reviewed. This window starts at the commit it stamped, so there is no gap. `origin/main` was
+> re-fetched after the review and had not moved, so this stamp is the tip actually reviewed.
 
 ### Adding a stream
 

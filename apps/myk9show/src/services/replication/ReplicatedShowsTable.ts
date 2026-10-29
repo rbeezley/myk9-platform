@@ -398,7 +398,6 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
       _syncStatus: 'pending',
     };
 
-    await this.set(showId, updatedShow, true); // Mark as dirty
     const updatePayload = this.toSupabaseRow(updatedShow);
     // Style is owned exclusively by update_show_style. Omitting it from the
     // generic payload prevents a stale row from clobbering a concurrent style
@@ -416,7 +415,10 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
     if (!('longitude' in resolvedUpdates)) delete updatePayload.longitude;
     delete updatePayload.online_entries_enabled; // MYK9-979: RPC-owned, see above.
 
-    const mutationId = await this.queueMutation('UPDATE', showId, updatePayload);
+    const { mutationId } = await this.writeAndQueue(showId, updatedShow, {
+      operation: 'UPDATE',
+      payload: updatePayload,
+    });
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated show ${showId}`);
     return mutationId;
@@ -459,8 +461,10 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
       _localOnly: true,
     };
 
-    await this.set(id, newShow, true); // Mark as dirty
-    const mutationId = await this.queueMutation('INSERT', id, this.toSupabaseRow(newShow));
+    const { mutationId } = await this.writeAndQueue(id, newShow, {
+      operation: 'INSERT',
+      payload: this.toSupabaseRow(newShow),
+    });
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Created new show ${id}`);
     return newShow;

@@ -556,7 +556,10 @@ describe('ReplicatedShowsTable', () => {
           location: '200 New Venue Road',
           latitude: null,
           longitude: null,
-        })
+        }),
+        undefined,
+        undefined,
+        true
       );
       expect(await table.get('show-1')).toMatchObject({
         location: '200 New Venue Road',
@@ -696,7 +699,10 @@ describe('ReplicatedShowsTable', () => {
           experience_published_at: expect.anything(),
           experience_published_style: expect.anything(),
           experience_published_content: expect.anything(),
-        })
+        }),
+        undefined,
+        undefined,
+        true
       );
       expect(queueMutation.mock.calls[0]?.[2]).not.toHaveProperty('experience_published_content');
       expect((await table.get('show-1'))?.experienceIsPublished).toBe(false);
@@ -735,7 +741,10 @@ describe('ReplicatedShowsTable', () => {
       expect(queueMutation).toHaveBeenCalledWith(
         'UPDATE',
         'show-1',
-        expect.not.objectContaining({ style: expect.anything() })
+        expect.not.objectContaining({ style: expect.anything() }),
+        undefined,
+        undefined,
+        true
       );
       expect((await table.get('show-1'))?.style).toBe('monogram');
     });
@@ -924,7 +933,10 @@ describe('ReplicatedShowsTable', () => {
       expect(queueMutation).toHaveBeenCalledWith(
         'INSERT',
         result.id,
-        expect.objectContaining({ club_id: 'club-123' })
+        expect.objectContaining({ club_id: 'club-123' }),
+        undefined,
+        undefined,
+        true
       );
     });
 
@@ -954,7 +966,10 @@ describe('ReplicatedShowsTable', () => {
         expect.objectContaining({
           experience_is_published: false,
           experience_published_content: {},
-        })
+        }),
+        undefined,
+        undefined,
+        true
       );
     });
 
@@ -997,7 +1012,10 @@ describe('ReplicatedShowsTable', () => {
       expect(queueMutation).toHaveBeenCalledWith(
         'INSERT',
         result.id,
-        expect.objectContaining({ is_nationals: true })
+        expect.objectContaining({ is_nationals: true }),
+        undefined,
+        undefined,
+        true
       );
     });
   });

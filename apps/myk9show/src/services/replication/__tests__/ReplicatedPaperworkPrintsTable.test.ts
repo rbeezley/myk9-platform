@@ -66,7 +66,10 @@ describe('ReplicatedPaperworkPrintsTable', () => {
         class_id: 'class-1',
         report_id: 'check-in-sheet',
         printed_by: 'user-1',
-      })
+      }),
+      undefined,
+      undefined,
+      true
     );
   });
 
@@ -99,11 +102,18 @@ describe('ReplicatedPaperworkPrintsTable', () => {
       voidedAt: '2026-07-20T14:05:00.000Z',
     });
 
-    expect(queueMutation).toHaveBeenLastCalledWith('UPDATE', 'print-1', {
-      voided_at: '2026-07-20T14:05:00.000Z',
-      voided_by: 'user-2',
-      void_reason: 'Wrong stock',
-    });
+    expect(queueMutation).toHaveBeenLastCalledWith(
+      'UPDATE',
+      'print-1',
+      {
+        voided_at: '2026-07-20T14:05:00.000Z',
+        voided_by: 'user-2',
+        void_reason: 'Wrong stock',
+      },
+      undefined,
+      undefined,
+      true
+    );
     expect(await table.get('print-1')).toEqual(
       expect.objectContaining({
         reportId: 'armband-labels',
@@ -181,7 +191,10 @@ describe('ReplicatedPaperworkPrintsTable', () => {
         show_id: 'show-1',
         trial_id: 'trial-1',
         report_id: 'scoresheet',
-      })
+      }),
+      undefined,
+      undefined,
+      true
     );
     expect(await new ReplicatedPaperworkPrintsTable().get('offline-print')).toEqual(
       expect.objectContaining({ _syncStatus: 'pending', _localOnly: true })

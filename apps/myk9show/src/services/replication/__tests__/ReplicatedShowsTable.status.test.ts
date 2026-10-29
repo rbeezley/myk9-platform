@@ -90,7 +90,10 @@ describe('ReplicatedShowsTable status on full-row writes', () => {
     expect(queueMutation).toHaveBeenCalledWith(
       'UPDATE',
       'show-1',
-      expect.objectContaining({ name: 'Renamed', status })
+      expect.objectContaining({ name: 'Renamed', status }),
+      undefined,
+      undefined,
+      true
     );
   });
 

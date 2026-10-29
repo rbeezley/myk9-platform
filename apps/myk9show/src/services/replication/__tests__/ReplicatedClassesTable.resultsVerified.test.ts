@@ -44,6 +44,7 @@ describe('ReplicatedClassesTable paper check (MYK9-1031)', () => {
     discardReverters: { register: vi.fn() },
     queueMutation: vi.fn(async () => 'm1'),
     acquireMutationWriteLock: vi.fn(async () => () => undefined),
+    requestUpload: vi.fn(),
   };
 
   beforeEach(async () => {

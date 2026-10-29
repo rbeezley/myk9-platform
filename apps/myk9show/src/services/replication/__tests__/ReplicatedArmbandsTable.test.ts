@@ -104,7 +104,9 @@ describe('ReplicatedArmbandsTable', () => {
         is_available: false,
         assigned_at: expect.any(String),
       }),
-      undefined
+      undefined,
+      undefined,
+      true
     );
     expect(queueMutation.mock.calls[0]?.[2]).not.toHaveProperty('trial_id');
 
@@ -198,7 +200,9 @@ describe('ReplicatedArmbandsTable', () => {
         dog_id: 'dog-1',
         armband_number: '205',
       }),
-      undefined
+      undefined,
+      undefined,
+      true
     );
   });
 
@@ -231,7 +235,9 @@ describe('ReplicatedArmbandsTable', () => {
         dog_id: 'dog-1',
         armband_number: '205',
       }),
-      ['dog-mutation-1']
+      ['dog-mutation-1'],
+      undefined,
+      true
     );
   });
 });

@@ -13,7 +13,9 @@ vi.mock('@myk9/core', () => ({
 describe('ReplicatedShowDeskPeopleTable', () => {
   it('stores a local pending person and queues a people insert with the supplied id', async () => {
     const table = new ReplicatedShowDeskPeopleTable();
-    const setSpy = vi.spyOn(table, 'set').mockResolvedValue({ written: true });
+    const setSpy = vi
+      .spyOn(table as unknown as { setWithRevision: () => Promise<unknown> }, 'setWithRevision')
+      .mockResolvedValue({ result: { written: true }, revision: 2 });
     const queueMutationSpy = vi
       .spyOn(
         table as unknown as {
@@ -48,7 +50,14 @@ describe('ReplicatedShowDeskPeopleTable', () => {
         _localOnly: true,
       })
     );
-    expect(setSpy).toHaveBeenCalledWith('person-local-1', person, true);
+    expect(setSpy).toHaveBeenCalledWith(
+      'person-local-1',
+      person,
+      true,
+      undefined,
+      undefined,
+      undefined
+    );
     expect(queueMutationSpy).toHaveBeenCalledWith(
       'INSERT',
       'person-local-1',
@@ -60,7 +69,10 @@ describe('ReplicatedShowDeskPeopleTable', () => {
         phone: '555-0100',
         street_address: '12 Ring Road',
         status: 'active',
-      })
+      }),
+      undefined,
+      undefined,
+      true
     );
     expect(table.lastMutationId).toBe('person-mutation-1');
   });
@@ -68,7 +80,10 @@ describe('ReplicatedShowDeskPeopleTable', () => {
   it('offline, still stores and queues a new person (MYK9-1090: only edits need a connection)', async () => {
     vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(false);
     const table = new ReplicatedShowDeskPeopleTable();
-    vi.spyOn(table, 'set').mockResolvedValue({ written: true });
+    vi.spyOn(
+      table as unknown as { setWithRevision: () => Promise<unknown> },
+      'setWithRevision'
+    ).mockResolvedValue({ result: { written: true }, revision: 2 });
     const queueMutationSpy = vi
       .spyOn(
         table as unknown as {
@@ -95,7 +110,10 @@ describe('ReplicatedShowDeskPeopleTable', () => {
       expect(queueMutationSpy).toHaveBeenCalledWith(
         'INSERT',
         'person-offline-1',
-        expect.objectContaining({ id: 'person-offline-1', first_name: 'Jamie' })
+        expect.objectContaining({ id: 'person-offline-1', first_name: 'Jamie' }),
+        undefined,
+        undefined,
+        true
       );
     } finally {
       vi.restoreAllMocks();

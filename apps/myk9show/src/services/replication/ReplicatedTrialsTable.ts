@@ -358,13 +358,11 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
       _localOnly: true,
     };
 
-    await this.set(trial.id, newTrial, true);
-    const mutationId = await this.queueMutation(
-      'INSERT',
-      trial.id,
-      this.toSupabaseRow(newTrial),
-      showMutationId ? [showMutationId] : undefined
-    );
+    const { mutationId } = await this.writeAndQueue(trial.id, newTrial, {
+      operation: 'INSERT',
+      payload: this.toSupabaseRow(newTrial),
+      dependsOn: showMutationId ? [showMutationId] : undefined,
+    });
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Created new trial ${trial.id}`);
     return newTrial;
@@ -400,13 +398,11 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
       _syncStatus: 'pending',
     };
 
-    await this.set(trialId, updatedTrial, true);
-    const mutationId = await this.queueMutation(
-      'UPDATE',
-      trialId,
-      this.toSupabaseRow(updatedTrial),
-      dependsOn && dependsOn.length > 0 ? dependsOn : undefined
-    );
+    const { mutationId } = await this.writeAndQueue(trialId, updatedTrial, {
+      operation: 'UPDATE',
+      payload: this.toSupabaseRow(updatedTrial),
+      dependsOn: dependsOn && dependsOn.length > 0 ? dependsOn : undefined,
+    });
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated trial ${trialId}`);
     return mutationId;

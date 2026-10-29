@@ -420,8 +420,10 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
       _syncStatus: 'pending',
     };
 
-    await this.set(clubId, updatedClub, true); // Mark as dirty
-    const mutationId = await this.queueMutation('UPDATE', clubId, this.toSupabaseRow(updatedClub));
+    const { mutationId } = await this.writeAndQueue(clubId, updatedClub, {
+      operation: 'UPDATE',
+      payload: this.toSupabaseRow(updatedClub),
+    });
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated club ${clubId}`);
     return mutationId;
@@ -443,8 +445,10 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
       _localOnly: true,
     };
 
-    await this.set(id, newClub, true); // Mark as dirty
-    const mutationId = await this.queueMutation('INSERT', id, this.toSupabaseRow(newClub));
+    const { mutationId } = await this.writeAndQueue(id, newClub, {
+      operation: 'INSERT',
+      payload: this.toSupabaseRow(newClub),
+    });
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Created new club ${id}`);
     return newClub;

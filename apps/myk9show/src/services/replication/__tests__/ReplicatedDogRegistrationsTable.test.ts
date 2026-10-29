@@ -13,7 +13,9 @@ vi.mock('@myk9/core', () => ({
 describe('ReplicatedDogRegistrationsTable', () => {
   it('queues dog registration inserts behind the dog mutation', async () => {
     const table = new ReplicatedDogRegistrationsTable();
-    const setSpy = vi.spyOn(table, 'set').mockResolvedValue({ written: true });
+    const setSpy = vi
+      .spyOn(table as unknown as { setWithRevision: () => Promise<unknown> }, 'setWithRevision')
+      .mockResolvedValue({ result: { written: true }, revision: 2 });
     const queueMutationSpy = vi
       .spyOn(
         table as unknown as {
@@ -54,7 +56,10 @@ describe('ReplicatedDogRegistrationsTable', () => {
         _syncStatus: 'pending',
         _localOnly: true,
       }),
-      true
+      true,
+      undefined,
+      undefined,
+      undefined
     );
     expect(queueMutationSpy).toHaveBeenCalledWith(
       'INSERT',
@@ -69,7 +74,9 @@ describe('ReplicatedDogRegistrationsTable', () => {
         created_at: expect.any(String),
         status: 'pending',
       }),
-      ['dog-mutation-1']
+      ['dog-mutation-1'],
+      undefined,
+      true
     );
   });
 

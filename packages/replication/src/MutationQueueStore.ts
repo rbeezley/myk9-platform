@@ -166,6 +166,23 @@ export class MutationQueueStore {
     return id;
   }
 
+  /** Record the local revision a deferred mutation's dirty write produced (MYK9-1471). */
+  async stampRowRevision(mutationId: string, rowRevision: number): Promise<void> {
+    const db = await databaseManager.getDatabase('MutationManager');
+    const tx = db.transaction(REPLICATION_STORES.PENDING_MUTATIONS, 'readwrite');
+    const mutation = (await tx.store.get(mutationId)) as PendingMutation | undefined;
+    if (mutation && mutation.rowRevision === undefined) {
+      await tx.store.put({ ...mutation, rowRevision });
+    }
+    await tx.done;
+  }
+
+  /** Drop a pending mutation whose dirty write never landed (MYK9-1471). */
+  async removePendingMutation(mutationId: string): Promise<void> {
+    const db = await databaseManager.getDatabase('MutationManager');
+    await db.delete(REPLICATION_STORES.PENDING_MUTATIONS, mutationId);
+  }
+
   async getPendingCount(): Promise<number> {
     const db = await databaseManager.getDatabase('MutationManager');
     return db.count(REPLICATION_STORES.PENDING_MUTATIONS);

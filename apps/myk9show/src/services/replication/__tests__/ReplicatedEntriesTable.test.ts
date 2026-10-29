@@ -290,7 +290,9 @@ describe('ReplicatedEntriesTable', () => {
           expect.objectContaining({
             entry_source: 'myk9',
           }),
-          undefined
+          undefined,
+          undefined,
+          true
         );
       });
 
@@ -323,7 +325,9 @@ describe('ReplicatedEntriesTable', () => {
             entry_source: 'myk9',
             capacity_override: true,
           }),
-          undefined
+          undefined,
+          undefined,
+          true
         );
       });
 
@@ -549,7 +553,10 @@ describe('ReplicatedEntriesTable', () => {
         expect.objectContaining({
           entry_status: 'withdrawn',
           withdrawal_reason_code: 'in_season',
-        })
+        }),
+        undefined,
+        undefined,
+        true
       );
     });
 
@@ -613,7 +620,10 @@ describe('ReplicatedEntriesTable', () => {
       expect(queueMutation).toHaveBeenCalledWith(
         'UPDATE',
         'entry-1',
-        expect.objectContaining({ entry_status: 'confirmed', check_in_status: 'checked-in' })
+        expect.objectContaining({ entry_status: 'confirmed', check_in_status: 'checked-in' }),
+        undefined,
+        undefined,
+        true
       );
     });
 
@@ -660,7 +670,10 @@ describe('ReplicatedEntriesTable', () => {
           check_in_status: 'pulled',
           withdrawal_reason: 'Dog absent',
           updated_at: expect.any(String),
-        })
+        }),
+        undefined,
+        undefined,
+        true
       );
       expect(payload).not.toHaveProperty('show_id');
       expect(payload).not.toHaveProperty('class_id');
@@ -733,7 +746,10 @@ describe('ReplicatedEntriesTable', () => {
           id: 'entry-1',
           armband: '205',
           updated_at: expect.any(String),
-        })
+        }),
+        undefined,
+        undefined,
+        true
       );
       expect(queueMutation.mock.calls[0]?.[2]).not.toHaveProperty('handler');
       expect(queueMutation).toHaveBeenNthCalledWith(
@@ -744,7 +760,10 @@ describe('ReplicatedEntriesTable', () => {
           id: 'entry-2',
           armband: '205',
           updated_at: expect.any(String),
-        })
+        }),
+        undefined,
+        undefined,
+        true
       );
 
       expect((await table.get('entry-1'))?.armband).toBe('205');

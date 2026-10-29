@@ -1010,8 +1010,6 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
       _syncStatus: 'pending',
     };
 
-    await this.set(classId, updatedClass, true);
-    if (affectsClassEnrichment(updates)) invalidateClassEnrichment();
     // Intent-aware: the merged row always carries defined server-owned values, so
     // strip the ones this mutation didn't explicitly set before queueing — see
     // stripUnsetServerOwnedKeys. Prevents an unrelated edit from re-uploading a
@@ -1021,9 +1019,12 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
     // ringside_update_class, which admits the class's judge; classes_update RLS
     // would deny it (MYK9-1096, MYK9-1086). Anything else stays direct.
     const rpc = buildRingsideClassRpc(Object.keys(updates), payload);
-    const mutationId = rpc
-      ? await this.queueMutation('UPDATE', classId, payload, undefined, rpc)
-      : await this.queueMutation('UPDATE', classId, payload);
+    const { mutationId } = await this.writeAndQueue(classId, updatedClass, {
+      operation: 'UPDATE',
+      payload,
+      rpc: rpc ?? undefined,
+    });
+    if (affectsClassEnrichment(updates)) invalidateClassEnrichment();
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated class ${classId}`);
     return mutationId;
@@ -1058,7 +1059,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
         : signOff.by
       : null;
 
-    await this.set(
+    const { mutationId } = await this.writeAndQueue(
       classId,
       {
         ...currentClass,
@@ -1067,19 +1068,16 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
         _lastModified: new Date(),
         _syncStatus: 'pending',
       },
-      true
-    );
-    const mutationId = await this.queueMutation(
-      'UPDATE',
-      classId,
-      { id: classId, judge_signed_off_at: judgeSignedOffAt ?? null },
-      undefined,
-      signOff
-        ? {
-            name: 'mark_classes_judge_signed_off',
-            args: { p_class_ids: [classId], p_signed_off_at: signOff.at },
-          }
-        : { name: 'clear_class_judge_sign_off', args: { p_class_id: classId } }
+      {
+        operation: 'UPDATE',
+        payload: { id: classId, judge_signed_off_at: judgeSignedOffAt ?? null },
+        rpc: signOff
+          ? {
+              name: 'mark_classes_judge_signed_off',
+              args: { p_class_ids: [classId], p_signed_off_at: signOff.at },
+            }
+          : { name: 'clear_class_judge_sign_off', args: { p_class_id: classId } },
+      }
     );
     this._lastMutationId = mutationId;
     return mutationId;
@@ -1108,7 +1106,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
     // that lands meanwhile (or a discard's revert) is merged in rather than overwritten.
     const currentClass = await this.get(classId);
     if (!currentClass) throw new Error(`Class ${classId} not found`);
-    await this.set(
+    const { mutationId } = await this.writeAndQueue(
       classId,
       {
         ...currentClass,
@@ -1116,16 +1114,14 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
         _lastModified: new Date(),
         _syncStatus: 'pending',
       },
-      true
+      {
+        operation: 'UPDATE',
+        payload: { id: classId },
+        dependsOn: plan.dependsOn,
+        rpc: { name: SET_CLASS_JUDGE_RPC, args: { p_class_id: classId, p_person_id: personId } },
+      }
     );
     invalidateClassEnrichment();
-    const mutationId = await this.queueMutation(
-      'UPDATE',
-      classId,
-      { id: classId },
-      plan.dependsOn,
-      { name: SET_CLASS_JUDGE_RPC, args: { p_class_id: classId, p_person_id: personId } }
-    );
     this._lastMutationId = mutationId;
     return mutationId;
   }
@@ -1148,13 +1144,11 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
       _localOnly: true,
     };
 
-    await this.set(classData.id, newClass, true);
-    const mutationId = await this.queueMutation(
-      'INSERT',
-      classData.id,
-      this.toSupabaseRow(newClass),
-      trialMutationId ? [trialMutationId] : undefined
-    );
+    const { mutationId } = await this.writeAndQueue(classData.id, newClass, {
+      operation: 'INSERT',
+      payload: this.toSupabaseRow(newClass),
+      dependsOn: trialMutationId ? [trialMutationId] : undefined,
+    });
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Created new class ${classData.id}`);
     return newClass;

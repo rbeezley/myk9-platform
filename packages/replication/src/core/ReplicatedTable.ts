@@ -66,6 +66,7 @@ import {
 import type { ScopeStampDirective } from './scopeStamp';
 import { isConflictSurfacingEnabled } from '../conflictConfig';
 import { withQuotaEviction } from '../quota-eviction';
+import { writeAndQueue, type DirtyWriteOutcome, type WriteAndQueueResult } from './writeAndQueue';
 import {
   composeRetrySetOptions,
   isColdInsertAllowed,
@@ -629,6 +630,60 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     incomingServerVersion?: number,
     options?: ReplicatedSetOptions
   ): Promise<ReplicatedSetResult> {
+    return (
+      await this.setWithRevision(id, data, isDirty, expectedVersion, incomingServerVersion, options)
+    ).result;
+  }
+
+  /**
+   * Write a dirty row and queue its mutation as one unit (MYK9-1471). Queues
+   * first (upload deferred), then writes, then stamps the revision, so a failed
+   * enqueue leaves the row exactly as it was. Replaces the `set(..., true)` then
+   * `queueMutation(...)` pair in table write methods.
+   */
+  protected writeAndQueue(
+    id: string,
+    data: T,
+    queue: {
+      operation: 'INSERT' | 'UPDATE' | 'DELETE';
+      payload: Record<string, unknown>;
+      dependsOn?: string[] | undefined;
+      rpc?: PendingMutation['rpc'] | undefined;
+    },
+    setOptions?: {
+      expectedVersion?: number | undefined;
+      options?: ReplicatedSetOptions | undefined;
+    }
+  ): Promise<WriteAndQueueResult> {
+    return writeAndQueue({
+      queueDeferred: () =>
+        this.queueMutation(queue.operation, id, queue.payload, queue.dependsOn, queue.rpc, true),
+      writeDirty: () =>
+        this.setWithRevision(
+          id,
+          data,
+          true,
+          setOptions?.expectedVersion,
+          undefined,
+          setOptions?.options
+        ),
+      stampRevision: (mutationId, revision) =>
+        this.mutationManager?.stampMutationRowRevision(mutationId, revision) ?? Promise.resolve(),
+      removeQueued: mutationId =>
+        this.mutationManager?.removeQueuedMutation(mutationId) ?? Promise.resolve(),
+      requestUpload: () => this.requestUpload(),
+      logger: this.logger,
+    });
+  }
+
+  private async setWithRevision(
+    id: string,
+    data: T,
+    isDirty: boolean,
+    expectedVersion?: number,
+    incomingServerVersion?: number,
+    options?: ReplicatedSetOptions
+  ): Promise<DirtyWriteOutcome> {
     const lockKey = String(id);
     const deferredCount = this.deferredMutationRows.get(lockKey) ?? 0;
     const deferred = isDirty && deferredCount > 0;
@@ -685,7 +740,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
           this.pendingWriteLocks.set(lockKey, locks);
         }
       }
-      return result;
+      return { result, revision: attempt.revision };
     } catch (error) {
       releaseWriteLock?.();
       throw error;

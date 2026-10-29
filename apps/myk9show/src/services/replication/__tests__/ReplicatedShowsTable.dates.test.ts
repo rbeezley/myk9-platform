@@ -74,7 +74,10 @@ describe('ReplicatedShowsTable date writes', () => {
     expect(queueMutation).toHaveBeenCalledWith(
       'UPDATE',
       'show-1',
-      expect.objectContaining({ entry_open_date: '2026-10-01', entry_close_date: '2026-10-01' })
+      expect.objectContaining({ entry_open_date: '2026-10-01', entry_close_date: '2026-10-01' }),
+      undefined,
+      undefined,
+      true
     );
     // The local copy holds the same calendar day the server will.
     expect(await table.get('show-1')).toMatchObject({
@@ -148,7 +151,10 @@ describe('ReplicatedShowsTable date writes', () => {
     expect(queueMutation).toHaveBeenCalledWith(
       'INSERT',
       created.id,
-      expect.objectContaining({ entry_open_date: '2026-10-01', start_date: '2026-11-07' })
+      expect.objectContaining({ entry_open_date: '2026-10-01', start_date: '2026-11-07' }),
+      undefined,
+      undefined,
+      true
     );
   });
 

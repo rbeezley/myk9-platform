@@ -21,7 +21,13 @@ type QueueSpy = (
 ) => Promise<string>;
 
 function spyOnQueue(table: object) {
-  vi.spyOn(table as { set: () => Promise<unknown> }, 'set').mockResolvedValue({ written: true });
+  vi.spyOn(
+    table as unknown as { setWithRevision: () => Promise<unknown> },
+    'setWithRevision'
+  ).mockResolvedValue({
+    result: { written: true },
+    revision: 2,
+  });
   return vi
     .spyOn(table as unknown as { queueMutation: QueueSpy }, 'queueMutation')
     .mockResolvedValue('mutation-1');
@@ -38,7 +44,9 @@ describe('dog INSERT payloads (MYK9-1059)', () => {
       'INSERT',
       'dog-1',
       expect.objectContaining({ created_from_show_id: SHOW_ID }),
-      undefined
+      undefined,
+      undefined,
+      true
     );
   });
 
@@ -84,7 +92,10 @@ describe('person INSERT payload (MYK9-1059)', () => {
     expect(queue).toHaveBeenCalledWith(
       'INSERT',
       expect.any(String),
-      expect.objectContaining({ created_from_show_id: SHOW_ID })
+      expect.objectContaining({ created_from_show_id: SHOW_ID }),
+      undefined,
+      undefined,
+      true
     );
   });
 

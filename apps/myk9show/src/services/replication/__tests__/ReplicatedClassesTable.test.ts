@@ -737,7 +737,10 @@ describe('ReplicatedClassesTable', () => {
         expect.objectContaining({
           results_released_at: '2026-06-05T12:00:00.000Z',
           results_released_by: 'user-123',
-        })
+        }),
+        undefined,
+        undefined,
+        true
       );
     });
 
@@ -765,7 +768,10 @@ describe('ReplicatedClassesTable', () => {
         expect.objectContaining({
           status: 'completed',
           status_source: 'manual',
-        })
+        }),
+        undefined,
+        undefined,
+        true
       );
     });
 

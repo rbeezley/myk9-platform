@@ -361,7 +361,12 @@ describe('ReplicatedDogsTable', () => {
           breed: 'Border Collie',
           ownerId: 'person-local-1',
         });
-        const setSpy = vi.spyOn(dogsTable, 'set').mockResolvedValue({ written: true });
+        const setSpy = vi
+          .spyOn(
+            dogsTable as unknown as { setWithRevision: () => Promise<unknown> },
+            'setWithRevision'
+          )
+          .mockResolvedValue({ result: { written: true }, revision: 2 });
         const queueMutation = vi
           .spyOn(
             dogsTable as unknown as {
@@ -388,7 +393,10 @@ describe('ReplicatedDogsTable', () => {
             _syncStatus: 'pending',
             _localOnly: true,
           }),
-          true
+          true,
+          undefined,
+          undefined,
+          undefined
         );
         expect(queueMutation).toHaveBeenCalledWith(
           'INSERT',
@@ -397,7 +405,9 @@ describe('ReplicatedDogsTable', () => {
             id: 'dog-local-1',
             owner_id: 'person-local-1',
           }),
-          ['person-mutation-1']
+          ['person-mutation-1'],
+          undefined,
+          true
         );
         expect(dogsTable.lastMutationId).toBe('dog-mutation-1');
       });
@@ -424,7 +434,12 @@ describe('ReplicatedDogsTable', () => {
           });
           newDog.callName = callName;
 
-          const setSpy = vi.spyOn(dogsTable, 'set').mockResolvedValue({ written: true });
+          const setSpy = vi
+            .spyOn(
+              dogsTable as unknown as { setWithRevision: () => Promise<unknown> },
+              'setWithRevision'
+            )
+            .mockResolvedValue({ result: { written: true }, revision: 2 });
           const queueMutation = vi
             .spyOn(
               dogsTable as unknown as {
@@ -452,7 +467,12 @@ describe('ReplicatedDogsTable', () => {
           breed: 'Border Collie',
           ownerId: 'person-local-1',
         });
-        const setSpy = vi.spyOn(dogsTable, 'set').mockResolvedValue({ written: true });
+        const setSpy = vi
+          .spyOn(
+            dogsTable as unknown as { setWithRevision: () => Promise<unknown> },
+            'setWithRevision'
+          )
+          .mockResolvedValue({ result: { written: true }, revision: 2 });
         const queueMutation = vi
           .spyOn(
             dogsTable as unknown as {
@@ -494,7 +514,10 @@ describe('ReplicatedDogsTable', () => {
             _syncStatus: 'pending',
             _localOnly: true,
           }),
-          true
+          true,
+          undefined,
+          undefined,
+          undefined
         );
         expect(queueMutation).toHaveBeenCalledWith(
           'INSERT',
@@ -523,7 +546,8 @@ describe('ReplicatedDogsTable', () => {
               ],
             },
             expectRowId: true,
-          }
+          },
+          true
         );
       });
 
@@ -534,7 +558,12 @@ describe('ReplicatedDogsTable', () => {
           ownerId: 'owner-456',
         };
 
-        const setSpy = vi.spyOn(dogsTable, 'set').mockResolvedValue({ written: true });
+        const setSpy = vi
+          .spyOn(
+            dogsTable as unknown as { setWithRevision: () => Promise<unknown> },
+            'setWithRevision'
+          )
+          .mockResolvedValue({ result: { written: true }, revision: 2 });
 
         const result = await dogsTable.createDog(newDogData);
 
@@ -545,7 +574,14 @@ describe('ReplicatedDogsTable', () => {
         expect(result._syncStatus).toBe('pending');
         expect(result._localOnly).toBe(true);
 
-        expect(setSpy).toHaveBeenCalledWith(result.id, expect.objectContaining(newDogData), true);
+        expect(setSpy).toHaveBeenCalledWith(
+          result.id,
+          expect.objectContaining(newDogData),
+          true,
+          undefined,
+          undefined,
+          undefined
+        );
 
         expect(logger.log).toHaveBeenCalledWith(
           expect.stringContaining(`Created new dog ${result.id}`)

@@ -240,6 +240,27 @@ export class MutationManager {
     }
   }
 
+  /** Stamp a deferred mutation with its dirty write's revision (MYK9-1471). */
+  async stampMutationRowRevision(mutationId: string, rowRevision: number): Promise<void> {
+    await this.queueStore.stampRowRevision(mutationId, rowRevision);
+    await this.writeBackupBestEffort();
+  }
+
+  /** Remove a queued mutation whose dirty write failed (MYK9-1471). */
+  async removeQueuedMutation(mutationId: string): Promise<void> {
+    await this.queueStore.removePendingMutation(mutationId);
+    await this.writeBackupBestEffort();
+  }
+
+  /** The localStorage backup is a secondary net: its failure never fails a write. */
+  private async writeBackupBestEffort(): Promise<void> {
+    try {
+      await this.backupStore.writeCurrent();
+    } catch (backupErr) {
+      this.logger.warn('[MutationManager] localStorage backup failed:', backupErr);
+    }
+  }
+
   /** Acquire the app-level write slot for a local-write/queue pair. */
   async acquireMutationWriteLock(): Promise<(() => void) | undefined> {
     if (this.acquireQueueMutationLockAsync) return this.acquireQueueMutationLockAsync();

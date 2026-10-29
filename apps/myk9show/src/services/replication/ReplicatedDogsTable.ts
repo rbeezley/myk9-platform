@@ -451,8 +451,10 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
       _syncStatus: 'pending',
     };
 
-    await this.set(dogId, updated, true);
-    const mutationId = await this.queueMutation('UPDATE', dogId, this.toSupabaseRow(updated));
+    const { mutationId } = await this.writeAndQueue(dogId, updated, {
+      operation: 'UPDATE',
+      payload: this.toSupabaseRow(updated),
+    });
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated dog ${dogId}`);
     return mutationId;
@@ -476,13 +478,11 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
       _localOnly: true,
     };
 
-    await this.set(newDog.id, newDog, true);
-    const mutationId = await this.queueMutation(
-      'INSERT',
-      newDog.id,
-      withCreationShow(this.toSupabaseRow(newDog), options.createdFromShowId),
-      options.dependsOn
-    );
+    const { mutationId } = await this.writeAndQueue(newDog.id, newDog, {
+      operation: 'INSERT',
+      payload: withCreationShow(this.toSupabaseRow(newDog), options.createdFromShowId),
+      dependsOn: options.dependsOn,
+    });
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Created new dog ${newDog.id}`);
     return newDog;
@@ -504,14 +504,18 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
     };
     const dogRow = withCreationShow(this.toSupabaseRow(newDog), options.createdFromShowId);
 
-    await this.set(newDog.id, newDog, true);
-    const mutationId = await this.queueMutation('INSERT', newDog.id, dogRow, options.dependsOn, {
-      name: 'create_dog_with_registrations',
-      args: {
-        p_dog: dogRow,
-        p_registrations: registrations,
+    const { mutationId } = await this.writeAndQueue(newDog.id, newDog, {
+      operation: 'INSERT',
+      payload: dogRow,
+      dependsOn: options.dependsOn,
+      rpc: {
+        name: 'create_dog_with_registrations',
+        args: {
+          p_dog: dogRow,
+          p_registrations: registrations,
+        },
+        expectRowId: true,
       },
-      expectRowId: true,
     });
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Created new dog ${newDog.id} via registration RPC`);

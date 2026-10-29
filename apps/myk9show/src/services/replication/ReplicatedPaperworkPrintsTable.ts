@@ -215,8 +215,10 @@ export class ReplicatedPaperworkPrintsTable extends ReplicatedTable<ReplicatedPa
       _syncStatus: 'pending',
       _localOnly: true,
     };
-    await this.set(id, record, true);
-    await this.queueMutation('INSERT', id, this.toInsertRow(record));
+    await this.writeAndQueue(id, record, {
+      operation: 'INSERT',
+      payload: this.toInsertRow(record),
+    });
     return record;
   }
 
@@ -239,8 +241,10 @@ export class ReplicatedPaperworkPrintsTable extends ReplicatedTable<ReplicatedPa
       _lastModified: new Date(voidedAt),
       _syncStatus: 'pending',
     };
-    await this.set(input.id, updated, true);
-    await this.queueMutation('UPDATE', input.id, this.toVoidPayload(updated));
+    await this.writeAndQueue(input.id, updated, {
+      operation: 'UPDATE',
+      payload: this.toVoidPayload(updated),
+    });
   }
 
   /** One show's print records, through the show index (MYK9-792). */

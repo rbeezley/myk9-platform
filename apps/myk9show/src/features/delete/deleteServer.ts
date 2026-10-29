@@ -16,7 +16,10 @@ import { supabase } from '@/services/database/supabaseClient';
 import { deleteDog, forceDeleteDog, restoreDog } from '@/services/database/dogs/reads';
 import { deleteUser, restoreUser } from '@/services/database/users/reads';
 import { deleteClub, restoreClub } from '@/services/database/clubs/reads';
-import { describeRestoreDog } from '@/components/admin/DataLifecycleManagement/deletedEntityMappers';
+import {
+  describeRestoreClub,
+  describeRestoreDog,
+} from '@/components/admin/DataLifecycleManagement/deletedEntityMappers';
 import type { DeleteObjectKind } from './deleteTypes';
 
 interface ServiceResult {
@@ -102,7 +105,10 @@ export async function restoreOnServer(
     }
     case 'person':
       return unwrapped(await restoreUser(id));
-    case 'club':
-      return unwrapped(await restoreClub(id));
+    case 'club': {
+      // Restore never gives the club's roles back (MYK9-1388); say so.
+      unwrap(await restoreClub(id));
+      return describeRestoreClub();
+    }
   }
 }

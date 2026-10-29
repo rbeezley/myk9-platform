@@ -23,6 +23,16 @@
 --     the delete's row lock, so a grant racing a delete either waits and is
 --     refused, or commits first and is then deactivated by the delete trigger
 --     (whose UPDATE takes a fresh snapshot under READ COMMITTED).
+--   * Lock order, accepted: re-activating an EXISTING grant holds its user_roles
+--     row and then asks for the club row, while a delete holds the club row and
+--     then updates user_roles, so those two can deadlock. Postgres detects it
+--     and rolls one back (40P01); neither leaves an active grant on a deleted
+--     club. It needs a site admin deleting a club in the same instant someone
+--     re-activates a role in that same club; the loser retries. Taking the club
+--     lock first on every grant path would mean editing each grant RPC, for a
+--     race that cannot corrupt data.
+--   * The admin is told on restore that roles are not given back
+--     (describeRestoreClub in the app).
 
 -- ---------------------------------------------------------------------------
 -- 1. Guard: no active grant for a deleted club

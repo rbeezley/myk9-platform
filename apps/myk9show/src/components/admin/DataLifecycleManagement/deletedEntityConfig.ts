@@ -15,6 +15,7 @@ import { getDeletedDogs, restoreDog, hardDeleteDog } from '@/services/database/d
 import { getDeletedClubs, restoreClub, hardDeleteClub } from '@/services/database/clubs';
 import { getDeletedUsers, restoreUser, permanentDeleteUser } from '@/services/database/users';
 import {
+  describeRestoreClub,
   describeRestoreDog,
   fetchAndMap,
   mapClass,
@@ -160,6 +161,7 @@ export const ENTITY_SECTIONS: EntitySectionConfig[] = [
     iconColor: 'text-teal-600',
     fetchDeleted: () => fetchAndMap(getDeletedClubs, mapClub),
     restore: restoreClub,
+    describeRestore: describeRestoreClub,
     hardDelete: hardDeleteClub,
   },
   {

@@ -2,7 +2,6 @@ import { unwrap, type IDBPDatabase } from 'idb';
 import { databaseManager, REPLICATION_STORES } from './core/DatabaseManager';
 import type { Logger } from './dependencies';
 import { removeOrphanedLocalOnlyRow } from './mutation-row-sync';
-import { releaseAbandonedHolds, releaseHeldMutation } from './mutation-hold';
 import { DiscardRevertRegistry } from './mutation-discard-revert';
 import { rebaseQueuedMutation, rewriteQueuedMutations } from './mutation-queue-rewrite';
 import { withQuotaEviction } from './quota-eviction';
@@ -120,7 +119,13 @@ export class MutationQueueStore {
     }
   }
 
-  async queueMutation(
+  /**
+   * Build a queue record: sequence number and id allocated here, BEFORE any
+   * transaction, because they await non-IndexedDB work. Nothing is written.
+   * `serverVersion` and `rowRevision` come from the row, so a caller that
+   * writes the row in the same transaction (MYK9-1471) stamps them there.
+   */
+  async buildMutation(
     tableName: string,
     operation: PendingMutation['operation'],
     rowId: string,
@@ -130,19 +135,15 @@ export class MutationQueueStore {
     serverVersion?: number,
     rpc?: PendingMutation['rpc'],
     rowRevision?: number,
-    adoption: Pick<PendingMutation, 'ownerIsAnonymous' | 'showId' | 'heldForLocalWrite'> = {}
-  ): Promise<string> {
+    adoption: Pick<PendingMutation, 'ownerIsAnonymous' | 'showId'> = {}
+  ): Promise<PendingMutation> {
     const db = await databaseManager.getDatabase('MutationManager');
     const sequenceNumber = await this.nextSequenceNumber(db);
-    const id = crypto.randomUUID();
-    const mutation: PendingMutation = {
-      id,
+    return {
+      id: crypto.randomUUID(),
       authUserId,
       ...(adoption.ownerIsAnonymous === true && { ownerIsAnonymous: true }),
       ...(adoption.showId !== undefined && { showId: adoption.showId }),
-      ...(adoption.heldForLocalWrite !== undefined && {
-        heldForLocalWrite: adoption.heldForLocalWrite,
-      }),
       tableName,
       operation,
       rowId,
@@ -157,6 +158,11 @@ export class MutationQueueStore {
       ...(rpc !== undefined && { rpc }),
       ...(rowRevision !== undefined && { rowRevision }),
     };
+  }
+
+  async queueMutation(...args: Parameters<MutationQueueStore['buildMutation']>): Promise<string> {
+    const db = await databaseManager.getDatabase('MutationManager');
+    const mutation = await this.buildMutation(...args);
     // Wrap the durable queue write so storage-quota pressure evicts CLEAN cache
     // rows and retries once, rather than throwing raw QuotaExceededError and
     // dropping the score (audit M2). Dirty/unsynced rows and other mutations are
@@ -166,26 +172,10 @@ export class MutationQueueStore {
       () => this.evictCleanCacheRows(db),
       this.logger
     );
-    this.logger.log(`[MutationManager] Queued ${operation} for ${tableName}/${rowId}`);
-    return id;
-  }
-
-  /** Release a held mutation, stamping the revision its dirty write produced (MYK9-1471). */
-  async releaseHeldMutation(mutationId: string, rowRevision?: number): Promise<boolean> {
-    const db = await databaseManager.getDatabase('MutationManager');
-    return releaseHeldMutation(db, mutationId, rowRevision);
-  }
-
-  /** Clear holds left by a tab that died mid-write (MYK9-1471). */
-  async releaseAbandonedHolds(): Promise<number> {
-    const db = await databaseManager.getDatabase('MutationManager');
-    return releaseAbandonedHolds(db, Date.now());
-  }
-
-  /** Drop a pending mutation whose dirty write never landed (MYK9-1471). */
-  async removePendingMutation(mutationId: string): Promise<void> {
-    const db = await databaseManager.getDatabase('MutationManager');
-    await db.delete(REPLICATION_STORES.PENDING_MUTATIONS, mutationId);
+    this.logger.log(
+      `[MutationManager] Queued ${mutation.operation} for ${mutation.tableName}/${mutation.rowId}`
+    );
+    return mutation.id;
   }
 
   async getPendingCount(): Promise<number> {

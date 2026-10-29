@@ -9,7 +9,6 @@ export interface MutationSkipCounts {
   vanished: number;
   foreignOwner: number;
   legacyOwner: number;
-  held: number;
 }
 
 export function createMutationSkipCounts(): MutationSkipCounts {
@@ -20,7 +19,6 @@ export function createMutationSkipCounts(): MutationSkipCounts {
     vanished: 0,
     foreignOwner: 0,
     legacyOwner: 0,
-    held: 0,
   };
 }
 
@@ -69,7 +67,7 @@ export function warnIfUploadStalled(
     `[MutationManager] Upload pass skipped all ${pendingCount} pending mutation(s) — ` +
       `dependency: ${skipped.dependency}, backoff: ${skipped.backoff}, ` +
       `conflict: ${skipped.conflict}, foreign owner: ${skipped.foreignOwner}, ` +
-      `legacy unowned: ${skipped.legacyOwner}, held for local write: ${skipped.held}, vanished mid-pass: ${skipped.vanished}. ` +
+      `legacy unowned: ${skipped.legacyOwner}, vanished mid-pass: ${skipped.vanished}. ` +
       `Queue is stalled until the blocking condition clears.`
   );
 }

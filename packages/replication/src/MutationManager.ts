@@ -156,10 +156,6 @@ export class MutationManager {
    *   it has finished any dependent local write. Prevents an online upload from
    *   flushing (and deleting) the mutation before the caller marks its cache row
    *   dirty — which would strand the row as pending forever.
-   * @param holdForLocalWrite - Persist the mutation HELD: no upload pass sends it
-   *   until {@link releaseHeldMutation}, because the caller's dirty row write has
-   *   not landed yet (MYK9-1471). Unlike scheduleUploadNow=false, which only skips
-   *   this call's scheduling, a hold also stops a flush started elsewhere.
    * @returns The generated mutation ID
    */
   async queueMutation(
@@ -172,29 +168,12 @@ export class MutationManager {
     rpc?: PendingMutation['rpc'],
     scheduleUploadNow = true,
     rowRevision?: number,
-    showId?: string,
-    holdForLocalWrite = false
+    showId?: string
   ): Promise<string> {
     const releaseQueueLock = this.acquireQueueMutationLock?.();
     try {
       const authUserId = await this.requireQueueOwnerUserId();
-      // Queue overflow protection
-      const pendingCount = await this.getPendingCount();
-      const capacity = getMutationQueueCapacity(pendingCount);
-      if (capacity === 'overflow') {
-        this.logger.error(`[MutationManager] Queue overflow: ${pendingCount} pending mutations`);
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(
-            new CustomEvent('replication:queue-overflow', {
-              detail: { count: pendingCount },
-            })
-          );
-        }
-        throw new Error(`Mutation queue overflow: ${pendingCount} pending`);
-      }
-      if (capacity === 'warning') {
-        this.logger.warn(`[MutationManager] Queue warning: ${pendingCount} pending mutations`);
-      }
+      await this.assertQueueCapacity();
 
       const id = await this.queueStore.queueMutation(
         tableName,
@@ -208,31 +187,10 @@ export class MutationManager {
         rowRevision,
         {
           ownerIsAnonymous: this.identity.readOwnerIsAnonymous(authUserId),
-          ...(holdForLocalWrite && { heldForLocalWrite: Date.now() }),
           ...(showId !== undefined && { showId }),
         }
       );
-      // Backup synchronously (not debounced): after a reload inside a debounce
-      // window the newest mutations would live only in evictable IndexedDB.
-      // It is a SECONDARY safety net, so a localStorage-full failure (Safari
-      // private mode, a large queue) is swallowed, never failing a durably
-      // queued score (audit M2).
-      try {
-        await this.backupStore.writeCurrent();
-      } catch (backupErr) {
-        this.logger.warn(
-          '[MutationManager] localStorage backup failed (score is durably queued in IndexedDB):',
-          backupErr
-        );
-      }
-
-      // Announce the queue grew so pending-count UIs update immediately rather
-      // than waiting for the next poll tick. Critical offline: no upload-complete
-      // event can fire while offline, so without this the "N waiting to sync"
-      // signal would lag a queued score by up to the poll interval.
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('replication:mutation-queued', { detail: { rowId } }));
-      }
+      await this.announceQueued(rowId);
 
       // Auto-upload: schedule immediate flush to server — unless the caller is
       // deferring it until after a dependent local write (see scheduleUploadNow).
@@ -246,43 +204,81 @@ export class MutationManager {
     }
   }
 
-  /**
-   * Release a mutation held for its dirty write, stamping the revision that
-   * write produced (MYK9-1471). One store write; the caller then requests upload.
-   */
-  async releaseHeldMutation(mutationId: string, rowRevision?: number): Promise<void> {
-    await this.queueStore.releaseHeldMutation(mutationId, rowRevision);
-    await this.writeBackupBestEffort();
-  }
-
-  /** Remove a queued mutation whose dirty write failed (MYK9-1471). */
-  async removeQueuedMutation(mutationId: string): Promise<void> {
-    await this.queueStore.removePendingMutation(mutationId);
-    await this.writeBackupBestEffort();
-    // The enqueue announced +1; pending-count UIs re-read on this event.
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('replication:mutation-queued', { detail: {} }));
-    }
-  }
-
-  private async releaseAbandonedHolds(): Promise<void> {
-    try {
-      const released = await this.queueStore.releaseAbandonedHolds();
-      if (released > 0) {
-        this.logger.warn(`[MutationManager] Released ${released} abandoned write hold(s)`);
-        this.scheduleUpload();
+  /** Throws on queue overflow, warns near it. */
+  private async assertQueueCapacity(): Promise<void> {
+    const pendingCount = await this.getPendingCount();
+    const capacity = getMutationQueueCapacity(pendingCount);
+    if (capacity === 'overflow') {
+      this.logger.error(`[MutationManager] Queue overflow: ${pendingCount} pending mutations`);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('replication:queue-overflow', {
+            detail: { count: pendingCount },
+          })
+        );
       }
-    } catch (error) {
-      this.logger.warn('[MutationManager] Could not release abandoned write holds:', error);
+      throw new Error(`Mutation queue overflow: ${pendingCount} pending`);
+    }
+    if (capacity === 'warning') {
+      this.logger.warn(`[MutationManager] Queue warning: ${pendingCount} pending mutations`);
     }
   }
 
-  /** The localStorage backup is a secondary net: its failure never fails a write. */
-  private async writeBackupBestEffort(): Promise<void> {
+  /**
+   * Build a queue record for a caller that commits it in the SAME IndexedDB
+   * transaction as its dirty row write (MYK9-1471). Runs the owner and capacity
+   * checks and allocates the id and sequence number; writes nothing, so call it
+   * before opening the transaction. Then call {@link announceQueued} once the
+   * transaction has committed.
+   */
+  async prepareMutation(
+    tableName: string,
+    operation: PendingMutation['operation'],
+    rowId: string,
+    data: Record<string, unknown>,
+    dependsOn?: string[],
+    rpc?: PendingMutation['rpc'],
+    showId?: string
+  ): Promise<PendingMutation> {
+    const authUserId = await this.requireQueueOwnerUserId();
+    await this.assertQueueCapacity();
+    return this.queueStore.buildMutation(
+      tableName,
+      operation,
+      rowId,
+      data,
+      authUserId,
+      dependsOn,
+      undefined,
+      rpc,
+      undefined,
+      {
+        ownerIsAnonymous: this.identity.readOwnerIsAnonymous(authUserId),
+        ...(showId !== undefined && { showId }),
+      }
+    );
+  }
+
+  /**
+   * Backup and announce a committed queue write. Backup synchronously (not
+   * debounced): after a reload inside a debounce window the newest mutations
+   * would live only in evictable IndexedDB. It is a SECONDARY safety net, so a
+   * localStorage-full failure (Safari private mode, a large queue) is swallowed,
+   * never failing a durably queued score (audit M2). The event lets pending-count
+   * UIs update immediately; offline no upload-complete event can fire, so
+   * without it the "N waiting to sync" signal would lag by the poll interval.
+   */
+  async announceQueued(rowId: string): Promise<void> {
     try {
       await this.backupStore.writeCurrent();
     } catch (backupErr) {
-      this.logger.warn('[MutationManager] localStorage backup failed:', backupErr);
+      this.logger.warn(
+        '[MutationManager] localStorage backup failed (score is durably queued in IndexedDB):',
+        backupErr
+      );
+    }
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('replication:mutation-queued', { detail: { rowId } }));
     }
   }
 
@@ -619,8 +615,6 @@ export class MutationManager {
       // durable queue and retry on its own.
       if (this.uploadInFlight) await this.uploadInFlight.catch(() => undefined);
       await this.backupStore.restore();
-      // A tab that died mid-write left its mutation held (MYK9-1471).
-      await this.releaseAbandonedHolds();
     })();
     this.restoreInFlight = restore;
     try {

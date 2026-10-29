@@ -108,8 +108,9 @@ describe('server rules that treat excused as accounted-for also cover disqualifi
     const ranker = definitions.get('recalculate_class_placements')!;
     expect(ranker.body).toContain("e2.result_status = 'qualified'");
     expect(ranker.body).not.toContain('disqualified');
-    // Not re-created here: its latest definition predates this migration.
-    expect(ranker.file < '20261011003700').toBe(true);
+    // Not re-created by the DQ migration; the latest definition is the coin-flip
+    // tie order (MYK9-1473), which keeps the qualified-only filter.
+    expect(ranker.file).toBe('20261029012700_myk9_1473_coin_flip_tie_order.sql');
   });
 
   it('a DQ blocks dog deletion like any other recorded result', () => {

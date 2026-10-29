@@ -211,6 +211,7 @@ TEST_FILES=(
   "$TEST_DIR/myk9_1407_comp_keeps_paid_status_test.sql"
   "$TEST_DIR/myk9_1327_set_class_judge_test.sql"
   "$TEST_DIR/myk9_1327_one_judge_per_class_test.sql"
+  "$TEST_DIR/myk9_1473_coin_flip_tie_order_test.sql"
 )
 
 for test_file in "${TEST_FILES[@]}"; do

@@ -10,8 +10,13 @@
  *
  * What it refuses, only when the command runs in the FOREGROUND:
  *   - `sleep` of SLEEP_LIMIT_SECONDS or more, or of a length it cannot read
- *   - any `sleep` inside a `while`/`until` loop (a poll loop at any interval)
+ *   - any `sleep` inside a `while`/`until`/`for` loop body (a poll loop at any interval)
  *   - `gh run watch`, and `gh pr checks --watch`
+ * It judges the simple commands of the command line itself, nothing nested.
+ * Accepted misses, by design (two Codex rounds on #3384 showed each nested form
+ * reopens the parser, and the transcripts show agents poll with top-level sleeps
+ * and loops, not these): a sleep inside double-quoted `$(...)` or backticks,
+ * `bash -c '...'`, a heredoc body (always data), xargs, find -exec, sudo, ssh.
  * A command with `run_in_background: true` is always allowed: that is the
  * endorsed way to wait, and the harness notifies the session when it exits.
  * One `gh pr checks <pr>` read, `gh run view --log-failed`, and a `sleep`
@@ -42,64 +47,21 @@ export interface Verdict {
   rule?: 'sleep' | 'sleep-in-loop' | 'gh-run-watch' | 'gh-pr-checks-watch';
 }
 
-/** `sub` marks the body of a command substitution found inside double quotes, judged as its own command. */
-type Token = { text: string; op: boolean; sub?: true };
+type Token = { text: string; op: boolean };
 
-/** Index of the `)` closing a `$(` whose body starts at `from`, skipping escapes and single-quoted text. */
-function closingParen(s: string, from: number): number {
-  let depth = 1;
-  for (let j = from; j < s.length; j += 1) {
-    const c = s[j];
-    if (c === '\\') {
-      j += 1;
-    } else if (c === "'") {
-      const end = s.indexOf("'", j + 1);
-      j = end === -1 ? s.length : end;
-    } else if (c === '(') {
-      depth += 1;
-    } else if (c === ')') {
-      depth -= 1;
-      if (depth === 0) return j;
-    }
-  }
-  return s.length;
-}
-
-/**
- * Read a double-quoted string whose body starts at `from`; returns its text and
- * the index of the closing quote. Quoted text is data, but `$(...)` and backticks
- * inside it still run in the foreground before the command does, so their bodies
- * go to `substitutions` to be judged (Codex review, #3384).
- */
-function readDoubleQuoted(
-  s: string,
-  from: number,
-  substitutions: string[]
-): { text: string; end: number } {
+/** Read a double-quoted string whose body starts at `from`: its text (data) and the index of the closing quote. */
+function readDoubleQuoted(s: string, from: number): { text: string; end: number } {
   let text = '';
   let i = from;
   while (i < s.length && s[i] !== '"') {
-    if (s.startsWith('$(', i)) {
-      const end = closingParen(s, i + 2);
-      substitutions.push(s.slice(i + 2, end));
-      text += s.slice(i, end + 1);
-      i = end + 1;
-    } else if (s[i] === '`') {
-      const end = s.indexOf('`', i + 1);
-      const stop = end === -1 ? s.length : end;
-      substitutions.push(s.slice(i + 1, stop));
-      text += s.slice(i, stop + 1);
-      i = stop + 1;
-    } else {
-      if (s[i] === '\\' && i + 1 < s.length) i += 1;
-      text += s[i] ?? '';
-      i += 1;
-    }
+    if (s[i] === '\\' && i + 1 < s.length) i += 1;
+    text += s[i] ?? '';
+    i += 1;
   }
   return { text, end: i };
 }
 
-// A backtick is treated as a separator so `echo \`sleep 60\`` is judged like `$(sleep 60)`.
+// Unquoted `(`, `)` and backticks separate commands, so `(sleep 60)` and `echo $(sleep 60)` are still judged.
 const OPERATORS = ['&&', '||', ';;', ';', '|', '&', '\n', '(', ')', '`'];
 
 /**
@@ -112,7 +74,6 @@ const OPERATORS = ['&&', '||', ';;', ';', '|', '&', '\n', '(', ')', '`'];
 export function tokenize(command: string): Token[] {
   const tokens: Token[] = [];
   const heredocs: Array<{ delimiter: string; stripTabs: boolean }> = [];
-  const substitutions: string[] = [];
   let word = '';
   let inWord = false;
   let i = 0;
@@ -144,7 +105,7 @@ export function tokenize(command: string): Token[] {
       continue;
     }
     if (ch === '"') {
-      const quoted = readDoubleQuoted(command, i + 1, substitutions);
+      const quoted = readDoubleQuoted(command, i + 1);
       word += quoted.text;
       inWord = true;
       i = quoted.end + 1;
@@ -173,6 +134,14 @@ export function tokenize(command: string): Token[] {
       }
       continue;
     }
+    // `2>&1` and `&>file` are redirections, not the `&` operator.
+    const redirect = /^(>&|<&|&>>?)/.exec(command.slice(i, i + 3))?.[0];
+    if (redirect) {
+      word += redirect;
+      inWord = true;
+      i += redirect.length;
+      continue;
+    }
     const op = OPERATORS.find(o => command.startsWith(o, i));
     if (op) {
       flush();
@@ -191,7 +160,7 @@ export function tokenize(command: string): Token[] {
     i += 1;
   }
   flush();
-  return [...tokens, ...substitutions.map(text => ({ text, op: true, sub: true as const }))];
+  return tokens;
 }
 
 /** Words that open or continue a compound command; the real command follows them. */
@@ -211,16 +180,15 @@ const KEYWORDS = new Set([
 ]);
 /** Wrappers that run the rest of the words as the command, in the same foreground. */
 const WRAPPERS = new Set(['command', 'exec', 'time', 'nohup', 'builtin']);
-const SHELLS = new Set(['bash', 'sh', 'zsh']);
 
 const LOOPS = new Set(['while', 'until', 'for', 'select']);
 
 /**
- * The simple commands in a token stream, each with leading keywords, assignments
- * and wrappers removed, and whether it sits inside a `while`/`until` loop. Loop
+ * The simple commands in a token stream, each with redirections, leading keywords,
+ * assignments and wrappers removed, and whether it sits inside a loop body. Loop
  * keywords count only in command position, so `echo while` opens nothing.
  */
-function simpleCommands(tokens: Token[]): Array<{ words: string[]; inPollLoop: boolean }> {
+function simpleCommands(tokens: Token[]): Array<{ words: string[]; inLoop: boolean }> {
   const raw: string[][] = [];
   let current: string[] = [];
   for (const t of tokens) {
@@ -234,22 +202,29 @@ function simpleCommands(tokens: Token[]): Array<{ words: string[]; inPollLoop: b
   if (current.length) raw.push(current);
 
   const loops: string[] = [];
-  const commands: Array<{ words: string[]; inPollLoop: boolean }> = [];
+  const commands: Array<{ words: string[]; inLoop: boolean }> = [];
   for (const words of raw) {
     for (const w of words) {
       if (LOOPS.has(w)) loops.push(w);
       else if (w === 'done') loops.pop();
       else if (!KEYWORDS.has(w)) break;
     }
-    const stripped = strip(words);
-    if (stripped.length) {
-      commands.push({
-        words: stripped,
-        inPollLoop: loops.some(l => l === 'while' || l === 'until'),
-      });
-    }
+    const stripped = strip(withoutRedirections(words));
+    if (stripped.length) commands.push({ words: stripped, inLoop: loops.length > 0 });
   }
   return commands;
+}
+
+/** Drop redirections (`>/dev/null`, `2>&1`, `> out.log`) so `sleep 2 >/dev/null` reads as `sleep 2`. */
+function withoutRedirections(words: string[]): string[] {
+  const kept: string[] = [];
+  for (let i = 0; i < words.length; i += 1) {
+    const w = words[i] ?? '';
+    if (/^(\d*[<>]{1,2}|&>>?)&?$/.test(w))
+      i += 1; // operator alone: its target is the next word
+    else if (!/^(\d*[<>]|&>)/.test(w)) kept.push(w);
+  }
+  return kept;
 }
 
 function strip(words: string[]): string[] {
@@ -297,19 +272,11 @@ function ghArgs(words: string[]): string[] {
   return rest;
 }
 
-export function evaluateCommand(command: string, depth = 0): Verdict {
-  const tokens = tokenize(command);
-  if (depth < 3) {
-    for (const t of tokens) {
-      if (!t.sub) continue;
-      const inner = evaluateCommand(t.text, depth + 1);
-      if (inner.deny) return inner;
-    }
-  }
-  for (const { words, inPollLoop } of simpleCommands(tokens)) {
+export function evaluateCommand(command: string): Verdict {
+  for (const { words, inLoop } of simpleCommands(tokenize(command))) {
     const name = (words[0] ?? '').split('/').pop();
     if (name === 'sleep') {
-      if (inPollLoop) return { deny: true, rule: 'sleep-in-loop' };
+      if (inLoop) return { deny: true, rule: 'sleep-in-loop' };
       const seconds = sleepSeconds(words.slice(1));
       if (seconds === null || seconds >= SLEEP_LIMIT_SECONDS) return { deny: true, rule: 'sleep' };
     }
@@ -322,15 +289,6 @@ export function evaluateCommand(command: string, depth = 0): Verdict {
         rest.some(w => w === '--watch' || w.startsWith('--watch='))
       )
         return { deny: true, rule: 'gh-pr-checks-watch' };
-    }
-    // `bash -c '<script>'`: the quoted script runs in the same foreground, so judge it too.
-    if (name !== undefined && SHELLS.has(name) && depth < 3) {
-      const flagged = words.findIndex(w => /^-[a-z]*c[a-z]*$/.test(w));
-      const script = flagged === -1 ? undefined : words[flagged + 1];
-      if (script !== undefined) {
-        const inner = evaluateCommand(script, depth + 1);
-        if (inner.deny) return inner;
-      }
     }
   }
   return { deny: false };

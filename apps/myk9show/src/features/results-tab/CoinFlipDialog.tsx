@@ -75,6 +75,13 @@ export function CoinFlipDialog({
   onSave,
 }: CoinFlipDialogProps) {
   const [picksByRank, setPicksByRank] = useState<Record<number, string[]>>({});
+  // Any close clears the picks, including the parent closing it after a save, so a reopen
+  // starts from the recorded order (adjusting state during render, not in an effect).
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (!open) setPicksByRank({});
+  }
   const picksFor = (group: ClassTieGroup) => picksByRank[group.rank] ?? startingPicks(group);
   const orders = groups.map(group => orderFor(group, picksFor(group)));
   const correcting = groups.length > 0 && groups.every(group => group.recorded);

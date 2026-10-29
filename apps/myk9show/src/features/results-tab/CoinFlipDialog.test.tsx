@@ -136,6 +136,29 @@ describe('CoinFlipDialog', () => {
     expect(within(dialog).getByRole('button', { name: 'Save coin flip' })).toBeDisabled();
   });
 
+  // Codex round 6: a successful save closes the dialog from the parent, not through its own
+  // close handler, so a reopen must not resurface the picks from before the save.
+  it('a dialog closed by its parent reopens without the earlier picks', async () => {
+    const props = {
+      onOpenChange: () => undefined,
+      className: 'Container Novice A',
+      groups: [pair],
+      groupsState: 'ready' as const,
+      onRetry,
+      online: true,
+      saving: false,
+      onSave,
+    };
+    const { user, rerender } = render(<CoinFlipDialog open {...props} />);
+    await user.click(await screen.findByRole('button', { name: /Armband 31 Bella/ }));
+    expect(screen.getByRole('button', { name: 'Save coin flip' })).toBeEnabled();
+
+    rerender(<CoinFlipDialog open={false} {...props} />);
+    rerender(<CoinFlipDialog open {...props} />);
+
+    expect(await screen.findByRole('button', { name: 'Save coin flip' })).toBeDisabled();
+  });
+
   it('offers a retry when the show details could not be read', async () => {
     const { user } = renderDialog({ groups: [], groupsState: 'unavailable' });
     const dialog = await screen.findByRole('dialog');

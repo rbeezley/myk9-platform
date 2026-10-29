@@ -133,9 +133,10 @@ describe('result_text on every results view reads DQ for a disqualified entry', 
   it('view_authenticated_entry_results keeps owner-run and gains the DQ arm', () => {
     const view = latestViewDefinition('view_authenticated_entry_results');
     // MYK9-1162 re-emitted this view (appending awaiting_registration_number)
-    // from the 1011 body, and MYK9-1326 rebuilt it again without promo_code_id,
-    // so the DQ arm below must survive both rebuilds.
-    expect(view.file).toBe('20261022131700_myk9_1326_drop_entries_promo_code_id.sql');
+    // from the 1011 body, MYK9-1326 rebuilt it again without promo_code_id, and
+    // MYK9-1473 appended placement_tie/placement_tiebreak, so the DQ arm below
+    // must survive all three rebuilds.
+    expect(view.file).toBe('20261029012700_myk9_1473_coin_flip_tie_order.sql');
     expect(view.body).toContain('AS awaiting_registration_number');
     expect(view.body).toContain(
       "(access.can_view_scores OR vis.qualification_visible) AND e.is_scored = true AND e.result_status = 'disqualified' THEN 'DQ'"

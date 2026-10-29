@@ -47,9 +47,10 @@ export interface ResultsClassState {
    */
   judgeDayOpen?: boolean | undefined;
   /**
-   * The server reports a tie for a ribbon whose coin flip is not recorded (`get_class_ties`,
-   * MYK9-1473). `undefined` = not known, so the class asks for the ordinary check; the check itself
-   * is refused by the server (MK018) while the flip is missing.
+   * One of the class's replicated entries carries `placement_tie = 'unresolved'`: a tie for a
+   * ribbon whose coin flip is not recorded (MYK9-1473). `undefined` = not known, so the class asks
+   * for the ordinary check; the check itself is refused by the server (MK018) while the flip is
+   * missing.
    */
   coinFlipPending?: boolean | undefined;
 }

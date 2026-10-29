@@ -1,12 +1,12 @@
 import { screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
-import type { ClassTieGroup } from '@/features/show-map/classTiesMutations';
 import { CoinFlipDialog, OFFLINE_COIN_FLIP_MESSAGE } from './CoinFlipDialog';
+import type { ClassTieGroup } from './coinFlipRows';
 
 const entry = (entryId: string, armband: number, dogName: string) => ({
   entryId,
-  armband,
+  armband: String(armband),
   dogName,
   totalFaults: 0,
   pointsEarned: null,

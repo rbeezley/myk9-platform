@@ -52,6 +52,7 @@ export type {
 export { getSetupSheet, getSetupValue, akcSetupSheet, ukcSetupSheet } from './setupRules';
 export type {
   SetupElementGroup,
+  SetupExcerpt,
   SetupLevelColumn,
   SetupNote,
   SetupPage,

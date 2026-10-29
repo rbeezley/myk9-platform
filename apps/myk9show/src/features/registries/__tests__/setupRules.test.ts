@@ -46,7 +46,10 @@ describe.each([
     const text = [
       sheet.title,
       sheet.edition,
-      ...sheet.pages.flatMap(p => [p.title, ...p.notes.map(n => `${n.heading} ${n.text}`)]),
+      ...sheet.pages.flatMap(p => [
+        p.title,
+        ...p.notes.flatMap(n => [n.heading, ...n.excerpts.flatMap(e => [e.quote, e.cite])]),
+      ]),
       ...allCells(sheet),
     ].join(' ');
     expect(text).not.toContain('—');
@@ -202,8 +205,9 @@ describe('AKC Handler Discrimination data', () => {
       'Novice boxes',
       'Handler cueing',
     ]);
-    const steward = page?.notes.find(n => n.heading === 'Hide steward')?.text ?? '';
-    expect(steward).toMatch(/never sets Handler Discrimination hides/);
-    expect(steward).toMatch(/latex, nitrile or vinyl gloves/);
+    const steward = page?.notes.find(n => n.heading === 'Hide steward');
+    const quotes = steward?.excerpts.map(e => e.quote).join(' ') ?? '';
+    expect(quotes).toMatch(/the judge must designate another individual to set the hides/);
+    expect(quotes).toMatch(/latex, nitrile, or vinyl gloves/);
   });
 });

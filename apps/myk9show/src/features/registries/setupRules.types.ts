@@ -51,14 +51,25 @@ export interface SetupPage {
   /** Overrides the sheet's table size for a sparse page (the single-sided AKC HD card). */
   tableFontPt?: number;
   groups: readonly SetupElementGroup[];
-  /** Footer notes printed under the table; each is one short line or sentence. */
+  /** Footer notes printed under the table: short verbatim rulebook excerpts under a heading. */
   notes: readonly SetupNote[];
+}
+
+/**
+ * One verbatim rulebook excerpt. `quote` is copied word for word from the registry's rulebook
+ * (trimmed to the shortest complete clause); `cite` is the chapter and section that holds it.
+ * A guard test checks every quote against the rulebook text, so a note cannot paraphrase.
+ */
+export interface SetupExcerpt {
+  quote: string;
+  /** e.g. "Ch. 5 §9". */
+  cite: string;
 }
 
 export interface SetupNote {
   /** Bold lead-in, e.g. "Vehicles". */
   heading: string;
-  text: string;
+  excerpts: readonly SetupExcerpt[];
 }
 
 export interface SetupSheet {

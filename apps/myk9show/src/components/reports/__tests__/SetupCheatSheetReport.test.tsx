@@ -70,6 +70,15 @@ describe('AKCSetupCheatSheetReport', () => {
     expect(screen.getAllByText(/Amended August 2025/)).toHaveLength(3);
     expect(screen.getByText('Hide steward.')).toBeInTheDocument();
   });
+
+  it('prints each note excerpt as the verbatim quote followed by its cite', () => {
+    render(<AKCSetupCheatSheetReport {...props} />);
+
+    const note = screen.getByText('Handler waits out of sight.').closest('li');
+    expect(note).toHaveTextContent(
+      'The handler-scented article may not be enclosed in a scent vessel. (Ch. 8 §7)'
+    );
+  });
 });
 
 describe('setup cheat sheet print stylesheet', () => {

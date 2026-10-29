@@ -10,13 +10,8 @@
  * UKC Handler Discrimination (Ch. 11) is out of scope for this card; the shape has room for it.
  */
 
-import type {
-  SetupElementGroup,
-  SetupLevelColumn,
-  SetupNote,
-  SetupRow,
-  SetupSheet,
-} from './setupRules.types';
+import type { SetupElementGroup, SetupLevelColumn, SetupRow, SetupSheet } from './setupRules.types';
+import { UKC_INTERIOR_AND_EXTERIOR_NOTES, UKC_VEHICLE_AND_CONTAINER_NOTES } from './ukcSetupNotes';
 
 type UkcLevelKey = 'novice' | 'advanced' | 'superior' | 'master' | 'elite';
 
@@ -159,8 +154,8 @@ const CONTAINERS_GROUP: SetupElementGroup = {
         'No extra rule',
         'No extra rule',
         'Distraction not next to a hide',
-        'One hide per box; boxes may touch',
-        'One odor per box; boxes may touch'
+        'One hide per box; boxes with odor or distraction may be placed adjacent',
+        'One odor per box; boxes with odor or distraction may be placed adjacent'
       )
     ),
     row('distractions', 'Distractions', DISTRACTIONS),
@@ -238,60 +233,26 @@ const EXTERIOR_GROUP: SetupElementGroup = {
   ],
 };
 
-const VEHICLE_AND_CONTAINER_NOTES: readonly SetupNote[] = [
-  {
-    heading: 'Vehicles',
-    text: 'Search the outside only; the handler never opens a door. Set vehicles 4 to 6 ft apart. A vehicle that held a hide is not reused that weekend. (Ch. 2 §4, Ch. 3 §2)',
-  },
-  {
-    heading: 'Boxes',
-    text: 'Uniform cardboard, at least 12 x 9 in and 3 to 8 in tall, bottoms taped, no shipping markings. Boxes at least 24 in apart, rows at least 36 in apart, at least 60 in from ringside barriers; new box when hides change between classes. (Ch. 2 §4, Ch. 3 §1)',
-  },
-  {
-    heading: 'Distractions',
-    text: 'Hidden and non-toxic (no chocolate, raisins, grapes, avocado, xylitol); food is contained. Exposed mimic objects from Master, a person other than the judge at Elite. (Ch. 2 §4)',
-  },
-  {
-    heading: 'Hide prep',
-    text: 'Made ahead: up to 2 aids per container, 1 drop per swab end. Made the day of: 1 aid, 1 drop. Wait at least 10 minutes after setting, before the Dog In White. Nitrile gloves, no glass receptacles. (Ch. 2 §4)',
-  },
-];
-
-const INTERIOR_AND_EXTERIOR_NOTES: readonly SetupNote[] = [
-  {
-    heading: 'Search areas',
-    text: 'Odor may be in only one search area unless the class uses several (Superior to Elite Interior). Areas holding odor cannot touch without a barrier. Mark every area. (Ch. 3 §1, §3)',
-  },
-  {
-    heading: 'Hide locations',
-    text: 'Superior to Elite counts distractions in the total. Blank rooms or areas are allowed only at Superior, Master and Elite. Use each object or area for a hide once per class in a weekend. (Ch. 2 §4, Ch. 3 §2)',
-  },
-  {
-    heading: 'Interior',
-    text: 'The judge decides at the briefing whether everyone searches on leash. The element timer keeps running when handlers change rooms. (Ch. 3 §2, Ch. 8 §5c)',
-  },
-];
-
 export const ukcSetupSheet: SetupSheet = {
   registryId: 'UKC',
   title: 'UKC Nosework Judge Setup Cheat Sheet',
   edition:
     'Source: UKC Official Nosework Rulebook, Chapters 2, 3, 4 and 6 to 10 (docs/rulebooks/ukc-nose-work-rules.txt)',
-  tableFontPt: 11.5,
+  tableFontPt: 11,
   pages: [
     {
       id: 'vehicles-containers',
       title: 'Side 1: Vehicles and Containers',
       columns: UKC_LEVEL_COLUMNS,
       groups: [VEHICLES_GROUP, CONTAINERS_GROUP],
-      notes: VEHICLE_AND_CONTAINER_NOTES,
+      notes: UKC_VEHICLE_AND_CONTAINER_NOTES,
     },
     {
       id: 'interior-exterior',
       title: 'Side 2: Interior and Exterior',
       columns: UKC_LEVEL_COLUMNS,
       groups: [INTERIOR_GROUP, EXTERIOR_GROUP],
-      notes: INTERIOR_AND_EXTERIOR_NOTES,
+      notes: UKC_INTERIOR_AND_EXTERIOR_NOTES,
     },
   ],
 };

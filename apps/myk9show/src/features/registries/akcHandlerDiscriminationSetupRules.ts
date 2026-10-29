@@ -120,19 +120,82 @@ const HD_ROWS: readonly SetupRow[] = [
 const HD_NOTES: readonly SetupNote[] = [
   {
     heading: 'Hide steward',
-    text: 'The judge never sets Handler Discrimination hides; the judge designates a hide steward. The steward wears latex, nitrile or vinyl gloves, takes the handler article in its plastic bag, hides it where the judge chooses, then calls the team to the start line. (Ch. 5 §30, Ch. 8 §7)',
+    excerpts: [
+      {
+        quote:
+          'For classes in the Handler Discrimination division, the judge must designate another individual to set the hides for them (the Hide Steward).',
+        cite: 'Ch. 5 §30',
+      },
+      {
+        quote:
+          'The hide steward will be responsible for hiding the handler-scented article and will wear latex, nitrile, or vinyl gloves while doing so.',
+        cite: 'Ch. 8 §7',
+      },
+    ],
   },
   {
     heading: 'Handler waits out of sight',
-    text: 'The handler waits behind a wall or partition while the article is placed. The article is taped or stuck on, never inside a scent vessel, and goes back to the handler in its sealed bag after the search. (Ch. 8 §7, §9)',
+    excerpts: [
+      {
+        quote:
+          'The handler will then retreat to a location blocked by a wall or partition while the scented article is placed on the course.',
+        cite: 'Ch. 8 §7',
+      },
+      {
+        quote: 'The handler-scented article may not be enclosed in a scent vessel.',
+        cite: 'Ch. 8 §7',
+      },
+      {
+        quote:
+          'The sealed plastic bag will then be returned to the handler before he or she leaves the search area.',
+        cite: 'Ch. 8 §9',
+      },
+    ],
   },
   {
     heading: 'Novice boxes',
-    text: 'The club supplies one box per handler. The box with the handler scent replaces an empty box, is never reused for another handler, and an empty box goes back so 10 boxes are always on the floor. Boxes are at least 10 x 8 in and 3 to 8 in tall. (Ch. 5 §11, Ch. 8 §10)',
+    excerpts: [
+      {
+        quote:
+          'The club shall provide one container per handler, and no container used for a handler’s scent can be subsequently re-used.',
+        cite: 'Ch. 8 §10',
+      },
+      {
+        quote:
+          'When setting the course, the container with the handler’s scent will replace an empty container.',
+        cite: 'Ch. 8 §10',
+      },
+      {
+        quote:
+          'When returning the scented article to the handler, the empty container will be returned to the space so that there are always 10 containers in the search area.',
+        cite: 'Ch. 8 §10',
+      },
+      {
+        quote:
+          'Novice cardboard boxes must be of uniform size and shall be at least 10-inches long by 8-inches wide; they must be no less than 3-inches and no more than 8-inches tall.',
+        cite: 'Ch. 5 §11',
+      },
+    ],
   },
   {
     heading: 'Handler cueing',
-    text: 'Handlers may use an extra scented article to cue the dog at the start line or at any time in the search. The hide can be in a new place for every team, and there is no waiting time for the handler scent. (Ch. 5 §8, Ch. 8 §8)',
+    excerpts: [
+      {
+        quote:
+          'Handlers may use an additional scented article to cue the dog to search for their scent.',
+        cite: 'Ch. 8 §8',
+      },
+      {
+        quote:
+          'This can be done on the start line and can also be done at any time during the class, if the handler wishes.',
+        cite: 'Ch. 8 §8',
+      },
+      {
+        quote:
+          'the scented article may be placed in a different location for each team, even within the same class, and there is no minimum time required for the handler scent to be left to stand before the team searches',
+        cite: 'Ch. 5 §8',
+      },
+    ],
   },
 ];
 
@@ -141,7 +204,7 @@ export const akcHandlerDiscriminationPage: SetupPage = {
   title: 'Handler Discrimination',
   columns: AKC_LEVEL_COLUMNS,
   // Sparse page: prints larger than the two dense pages.
-  tableFontPt: 13.5,
+  tableFontPt: 13,
   groups: [{ elementKey: 'hd', title: 'Handler Discrimination', rows: HD_ROWS }],
   notes: HD_NOTES,
 };

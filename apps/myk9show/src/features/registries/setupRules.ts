@@ -18,6 +18,7 @@ export { akcSetupSheet, ukcSetupSheet };
 export { getSetupValue } from './setupRules.types';
 export type {
   SetupElementGroup,
+  SetupExcerpt,
   SetupLevelColumn,
   SetupNote,
   SetupPage,

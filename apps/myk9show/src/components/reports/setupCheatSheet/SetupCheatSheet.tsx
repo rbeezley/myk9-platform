@@ -62,7 +62,13 @@ function SheetPage({ sheet, page }: { sheet: SetupSheet; page: SetupPage }) {
       <ul className="setup-notes">
         {page.notes.map(note => (
           <li key={note.heading}>
-            <strong>{note.heading}.</strong> {note.text}
+            <strong>{note.heading}.</strong>
+            {note.excerpts.map(excerpt => (
+              <span key={excerpt.quote} className="setup-excerpt">
+                {' '}
+                <em>{excerpt.quote}</em> ({excerpt.cite})
+              </span>
+            ))}
           </li>
         ))}
       </ul>

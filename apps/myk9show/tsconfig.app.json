@@ -5,6 +5,10 @@
     "moduleDetection": "force",
     "allowImportingTsExtensions": true,
     "noEmit": true,
+    // Incremental for every caller (`typecheck:app`, the build:* scripts, a bare
+    // `tsc -p tsconfig.app.json`). Configs that extend this one name their own file (MYK9-1482).
+    "incremental": true,
+    "tsBuildInfoFile": "node_modules/.cache/tsc/app.tsbuildinfo",
     "jsx": "react-jsx",
     "composite": false,
     "declaration": false,

@@ -30,6 +30,7 @@ import { getTrialTimezone } from '@/features/registries';
 import { useSelfCheckinStateMap } from '@/hooks/queries/useSelfCheckinEnabled';
 import { AtShowClassRow } from './AtShowClassRow';
 import { AtShowClassListSkeleton } from './AtShowClassListSkeleton';
+import { AtShowSetupSheetLink } from './AtShowSetupSheetLink';
 import { WIDE_COLUMN } from './atShowClassListLayout';
 import { formatAtShowTrialHeading } from './atShowTrialHeading';
 import { useNow } from '@/hooks/useNow';
@@ -457,6 +458,8 @@ export const AtShowClassListPage: React.FC = () => {
       {showName && <h1 className="mb-4 text-center text-lg font-semibold">{showName}</h1>}
 
       <AtShowOfflineReadySlot showId={showId} isExhibitorOnly={isExhibitorOnly} />
+
+      <AtShowSetupSheetLink showId={showId} groups={groups} isExhibitorOnly={isExhibitorOnly} />
 
       {/* MYK9-1184: the exhibitor's way back to "Your dogs today" is a button,
           so name what this all-days list is. */}

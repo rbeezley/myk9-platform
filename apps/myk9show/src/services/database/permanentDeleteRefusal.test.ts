@@ -1,8 +1,7 @@
-import { describe, expect, it, vi } from 'vitest';
-
-vi.mock('@/services/database/shows', () => ({ SHOW_HAS_STRIPE_ORDERS: 'SHOW_HAS_STRIPE_ORDERS' }));
+import { describe, expect, it } from 'vitest';
 
 import {
+  DATABASE_BUSY_REFUSAL_MESSAGE,
   STRIPE_LEDGER_REFUSAL_MESSAGE,
   permanentDeleteRefusalMessage,
 } from './permanentDeleteRefusal';
@@ -12,15 +11,27 @@ const fk = (constraint: string, table: string) =>
 
 describe('permanentDeleteRefusalMessage (MYK9-750)', () => {
   it('passes guard-authored sentences through', () => {
-    expect(
-      permanentDeleteRefusalMessage({ code: 'SHOW_HAS_STRIPE_ORDERS', message: 'Resolve them.' })
-    ).toBe('Resolve them.');
     expect(permanentDeleteRefusalMessage({ code: 'MK001', message: 'Delete dogs first.' })).toBe(
       'Delete dogs first.'
     );
+    // hard_delete_show's unused-show refusals (MYK9-1472), Stripe orders included.
     expect(
-      permanentDeleteRefusalMessage({ code: '23503', message: 'This show has 1 Stripe order(s).' })
+      permanentDeleteRefusalMessage({ code: 'MK615', message: 'This show has 1 Stripe order(s).' })
     ).toBe('This show has 1 Stripe order(s).');
+    expect(
+      permanentDeleteRefusalMessage({
+        code: 'MK615',
+        message: 'This show has entries or enrollments, so it cannot be permanently deleted.',
+      })
+    ).toBe('This show has entries or enrollments, so it cannot be permanently deleted.');
+  });
+
+  it('says nothing changed when a lock conflict stopped the delete (MYK9-1472)', () => {
+    for (const code of ['55P03', '40P01']) {
+      expect(permanentDeleteRefusalMessage({ code, message: 'deadlock detected' })).toBe(
+        DATABASE_BUSY_REFUSAL_MESSAGE
+      );
+    }
   });
 
   it('names the Stripe ledger only for the ledger foreign keys', () => {

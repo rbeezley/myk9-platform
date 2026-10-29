@@ -38,10 +38,11 @@ function entryResultsViewColumns(): Set<string> {
   const latest = readFileSync(resolve(migrationsDir, defining[defining.length - 1]), 'utf8');
   const start = latest.search(ENTRY_RESULTS_VIEW_DEFINITION);
   const body = latest.slice(start);
-  const selectList = body.slice(
-    body.search(/\bSELECT\b/i),
-    body.search(/\bFROM\s+(public\.)?entries\b/i)
-  );
+  // The view's own select list is the top-level (unindented) SELECT closed by
+  // the top-level FROM entries; a CTE above it may hold its own indented
+  // SELECT … FROM public.entries (MYK9-1369's exhibitor_shows).
+  const end = body.search(/^FROM\s+(public\.)?entries\b/im);
+  const selectList = body.slice(body.slice(0, end).search(/^SELECT\b(?![\s\S]*^SELECT\b)/im), end);
 
   const columns = new Set<string>();
   for (const line of selectList.split('\n')) {

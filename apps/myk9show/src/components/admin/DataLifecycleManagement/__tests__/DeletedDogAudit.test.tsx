@@ -50,7 +50,6 @@ vi.mock('@/services/database/shows', () => ({
   getDeletedShows: emptyList(),
   restoreShow: ok(),
   hardDeleteShow: ok(),
-  SHOW_HAS_STRIPE_ORDERS: 'SHOW_HAS_STRIPE_ORDERS',
 }));
 vi.mock('@/services/database/trials', () => ({
   getDeletedTrials: emptyList(),

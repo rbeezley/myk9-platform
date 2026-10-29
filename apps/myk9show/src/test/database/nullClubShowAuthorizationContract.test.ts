@@ -253,7 +253,6 @@ const REVIEWED_CLUB_HELPER_POLICY_SITES: readonly string[] = [
   'show_visibility_insert -> is_trial_secretary',
   'show_visibility_update -> is_club_admin',
   'show_visibility_update -> is_trial_secretary',
-  'shows_delete -> is_club_admin',
   'shows_insert -> is_club_admin',
   'shows_insert -> is_trial_secretary',
   'shows_update -> is_club_admin',

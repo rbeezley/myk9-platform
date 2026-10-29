@@ -176,6 +176,21 @@ describe('restoreRecords: Undo', () => {
     expect(result.warnings).toEqual([]);
   });
 
+  it('a confirmed-live club retry still carries the roles-not-restored warning', async () => {
+    mocks.restore.mockRejectedValueOnce({
+      code: 'P0002',
+      message: 'Club not found or not deleted',
+    });
+    mocks.preview.mockResolvedValue({});
+
+    const result = await restoreRecords('club', [{ id: 'c1', name: 'Heartland KC' }]);
+
+    expect(result.restored.map(t => t.id)).toEqual(['c1']);
+    expect(result.warnings).toEqual([
+      { target: { id: 'c1', name: 'Heartland KC' }, message: expect.stringContaining('roles') },
+    ]);
+  });
+
   it('a P0002 for a record that is not live is a real failure', async () => {
     mocks.restore.mockRejectedValueOnce({ code: 'P0002', message: 'x' });
     mocks.preview.mockRejectedValue({ code: 'P0002', message: 'gone' });

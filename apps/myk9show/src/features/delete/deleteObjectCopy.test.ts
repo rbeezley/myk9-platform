@@ -76,7 +76,9 @@ describe('delete dialog copy', () => {
       'Their myK9 roles are switched off too.'
     );
     expect(cascadeSentence('entry', EMPTY_PREVIEW, 1)).toBeNull();
-    expect(cascadeSentence('club', EMPTY_PREVIEW, 1)).toBeNull();
+    expect(cascadeSentence('club', EMPTY_PREVIEW, 1)).toMatch(
+      /access to this club.*Restoring the club does not bring it back/
+    );
   });
 
   it('is honest about Undo and never claims a permanent delete', () => {

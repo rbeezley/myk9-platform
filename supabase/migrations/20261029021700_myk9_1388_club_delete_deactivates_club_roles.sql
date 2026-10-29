@@ -59,11 +59,27 @@ COMMENT ON FUNCTION private.user_roles_refuse_deleted_club_grant() IS
 REVOKE ALL ON FUNCTION private.user_roles_refuse_deleted_club_grant()
   FROM PUBLIC, anon, authenticated, service_role;
 
+-- Two triggers, not one, so an UPDATE that leaves an already-active grant active
+-- never takes the club lock. That is the only update the delete's own
+-- deactivation UPDATE can be waiting on, so the lock order club -> grant (delete)
+-- and grant -> club (guard) can no longer invert into a deadlock. A reactivation
+-- or move targets a row the delete does not match, so it cannot be waited on.
 DROP TRIGGER IF EXISTS trg_user_roles_refuse_deleted_club_grant ON public.user_roles;
-CREATE TRIGGER trg_user_roles_refuse_deleted_club_grant
-  BEFORE INSERT OR UPDATE OF is_active, club_id ON public.user_roles
+DROP TRIGGER IF EXISTS trg_user_roles_refuse_deleted_club_grant_ins ON public.user_roles;
+DROP TRIGGER IF EXISTS trg_user_roles_refuse_deleted_club_grant_upd ON public.user_roles;
+CREATE TRIGGER trg_user_roles_refuse_deleted_club_grant_ins
+  BEFORE INSERT ON public.user_roles
   FOR EACH ROW
   WHEN (NEW.is_active AND NEW.club_id IS NOT NULL)
+  EXECUTE FUNCTION private.user_roles_refuse_deleted_club_grant();
+CREATE TRIGGER trg_user_roles_refuse_deleted_club_grant_upd
+  BEFORE UPDATE OF is_active, club_id ON public.user_roles
+  FOR EACH ROW
+  WHEN (
+    NEW.is_active AND NEW.club_id IS NOT NULL
+    AND (OLD.is_active IS DISTINCT FROM NEW.is_active
+         OR OLD.club_id IS DISTINCT FROM NEW.club_id)
+  )
   EXECUTE FUNCTION private.user_roles_refuse_deleted_club_grant();
 
 -- ---------------------------------------------------------------------------

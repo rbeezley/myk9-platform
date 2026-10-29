@@ -171,6 +171,11 @@ export function describeRestoreDog(result: unknown): string | null {
   );
 }
 
+/** A club restore never brings back the roles its delete switched off (MYK9-1388). */
+export function describeRestoreClub(): string {
+  return 'Club restored. Its administrators, secretaries and officials lost access when it was deleted; grant their roles again.';
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type QueryFn = () => Promise<{ data: any[]; error: any } | any>;
 

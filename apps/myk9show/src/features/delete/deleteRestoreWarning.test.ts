@@ -9,6 +9,7 @@ import { QueryClient } from '@tanstack/react-query';
 
 const mocks = vi.hoisted(() => ({
   restoreDog: vi.fn(),
+  restoreClub: vi.fn(),
   toastSuccess: vi.fn(),
   toastWarning: vi.fn(),
   toastError: vi.fn(),
@@ -18,6 +19,10 @@ vi.mock('@/services/database/dogs/reads', () => ({
   forceDeleteDog: vi.fn(),
   restoreDog: mocks.restoreDog,
 }));
+vi.mock('@/services/database/clubs/reads', () => ({
+  deleteClub: vi.fn(),
+  restoreClub: mocks.restoreClub,
+}));
 vi.mock('sonner', () => ({
   toast: { success: mocks.toastSuccess, warning: mocks.toastWarning, error: mocks.toastError },
 }));
@@ -26,7 +31,10 @@ vi.mock('./deleteLocalState', () => ({
   reconcileLocalRestore: vi.fn(),
 }));
 
-import { describeRestoreDog } from '@/components/admin/DataLifecycleManagement/deletedEntityMappers';
+import {
+  describeRestoreClub,
+  describeRestoreDog,
+} from '@/components/admin/DataLifecycleManagement/deletedEntityMappers';
 import { restoreOnServer } from './deleteServer';
 import { undoDelete } from './deleteUndoToast';
 
@@ -42,6 +50,15 @@ const skipped = {
 
 beforeEach(() => {
   for (const fn of Object.values(mocks)) fn.mockReset();
+});
+
+describe('club Undo access warning', () => {
+  it('restoreOnServer warns that the club roles are not restored', async () => {
+    mocks.restoreClub.mockResolvedValue({ data: null, error: null });
+    const warning = await restoreOnServer('club', 'c1');
+    expect(warning).toBe(describeRestoreClub());
+    expect(warning).toContain('grant their roles again');
+  });
 });
 
 describe('dog Undo placement warning', () => {

@@ -3,34 +3,9 @@ import type { Page, Request } from '@playwright/test';
 const DEFAULT_IDLE_MS = 100;
 const DEFAULT_TIMEOUT_MS = 5000;
 
-/**
- * What the page did with one app API request, kept for the life of the tracker
- * (MYK9-1477). `reset()` and the settle check forget in-flight requests; this
- * does not, so a WebKit page error can be traced back to a request this page
- * itself cancelled.
- */
-export interface AppApiRequestLedgerEntry {
-  url: string;
-  outcome: 'pending' | 'finished' | 'failed';
-  /** Playwright's `request.failure().errorText`, when the request failed. */
-  failureText: string | null;
-  /**
-   * Still in flight when a navigation boundary (`reset()`, or the commit of a
-   * cross-document navigation) arrived: the outgoing document started it and
-   * its teardown cancelled it.
-   */
-  orphanedByNavigation: boolean;
-  /**
-   * Can no longer excuse a page error: it already excused one, or it had settled
-   * before a route's health check ran (MYK9-1477, Codex round 1).
-   */
-  spent: boolean;
-}
-
 export interface AppApiRequestTracker {
   pending: Set<Request>;
   lastActivityAt: number;
-  ledger: AppApiRequestLedgerEntry[];
   /**
    * Forget everything currently in flight.
    *
@@ -68,18 +43,11 @@ export function watchAppApiRequests(page: Page) {
   const tracker: AppApiRequestTracker = {
     pending: new Set<Request>(),
     lastActivityAt: Date.now(),
-    ledger: [],
     reset() {
-      for (const request of tracker.pending) {
-        const entry = entries.get(request);
-        if (entry) entry.orphanedByNavigation = true;
-      }
       tracker.pending.clear();
       tracker.lastActivityAt = Date.now();
     },
   };
-
-  const entries = new Map<Request, AppApiRequestLedgerEntry>();
 
   const recordActivity = () => {
     tracker.lastActivityAt = Date.now();
@@ -113,15 +81,6 @@ export function watchAppApiRequests(page: Page) {
       return;
     }
     if (!isAppApiRequest(request)) return;
-    const entry: AppApiRequestLedgerEntry = {
-      url: request.url(),
-      outcome: 'pending',
-      failureText: null,
-      orphanedByNavigation: false,
-      spent: false,
-    };
-    entries.set(request, entry);
-    tracker.ledger.push(entry);
     tracker.pending.add(request);
     recordActivity();
   });
@@ -133,17 +92,10 @@ export function watchAppApiRequests(page: Page) {
     tracker.reset();
   });
   page.on('requestfinished', request => {
-    const entry = entries.get(request);
-    if (entry) entry.outcome = 'finished';
     if (!tracker.pending.delete(request)) return;
     recordActivity();
   });
   page.on('requestfailed', request => {
-    const entry = entries.get(request);
-    if (entry) {
-      entry.outcome = 'failed';
-      entry.failureText = request.failure?.()?.errorText ?? '';
-    }
     if (request === crossDocumentNavigation) crossDocumentNavigation = null;
     if (!tracker.pending.delete(request)) return;
     recordActivity();

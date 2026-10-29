@@ -114,6 +114,43 @@ async function readRingDogCheckIn(): Promise<{ id: string; check_in_status: stri
   return { id: data.id, check_in_status: data.check_in_status };
 }
 
+/**
+ * The two office records the steward probes. If the regression this spec guards came
+ * back, those PATCHes would really change them, so they are snapshotted and written
+ * back whatever the outcome.
+ */
+async function readOfficeRecords() {
+  const admin = getIsolatedAdminClient();
+  const [assignment, enrollment] = await Promise.all([
+    admin.from('judge_assignments').select('status').eq('id', JUDGE_ASSIGNMENT_ID).single(),
+    admin.from('enrollments').select('notes').eq('id', ENROLLMENT_ID).single(),
+  ]);
+  if (assignment.error || enrollment.error) {
+    throw new Error(
+      `Could not read office records: ${assignment.error?.message ?? enrollment.error?.message}`
+    );
+  }
+  return { status: assignment.data.status, notes: enrollment.data.notes };
+}
+
+async function restoreOfficeRecords(
+  records: Awaited<ReturnType<typeof readOfficeRecords>>
+): Promise<string[]> {
+  const admin = getIsolatedAdminClient();
+  const problems: string[] = [];
+  const assignment = await admin
+    .from('judge_assignments')
+    .update({ status: records.status })
+    .eq('id', JUDGE_ASSIGNMENT_ID);
+  if (assignment.error) problems.push(`judge assignment: ${assignment.error.message}`);
+  const enrollment = await admin
+    .from('enrollments')
+    .update({ notes: records.notes })
+    .eq('id', ENROLLMENT_ID);
+  if (enrollment.error) problems.push(`enrollment: ${enrollment.error.message}`);
+  return problems;
+}
+
 /** A denial is zero rows changed or an auth refusal; anything unparsed is not a denial. */
 function refused(result: { status: number; rows: number }) {
   return result.rows === 0 || result.status === 401 || result.status === 403;
@@ -164,6 +201,7 @@ test('a steward-only account checks dogs in but cannot write office records', as
 }) => {
   test.setTimeout(240_000);
   const ringDog = await readRingDogCheckIn();
+  const office = await readOfficeRecords();
   const steward = await createStewardOnlyAccount();
   let failure: unknown;
   const ringWrites: number[] = [];
@@ -241,7 +279,7 @@ test('a steward-only account checks dogs in but cannot write office records', as
     .from('entries')
     .update({ check_in_status: ringDog.check_in_status })
     .eq('id', ringDog.id);
-  const problems = await deleteAccount(steward);
+  const problems = [...(await restoreOfficeRecords(office)), ...(await deleteAccount(steward))];
   if (reset.error) problems.push(`check-in reset: ${reset.error.message}`);
   // A cleanup problem fails a passing test, but never hides the failure that stopped one.
   if (failure) {
@@ -254,22 +292,12 @@ test('a steward-only account checks dogs in but cannot write office records', as
 test('control: the same office writes change one row each for secretary@', async ({ page }) => {
   await signInAsSecretary(page, `/shows/${SHOW_ID}`);
   // Write each row's current value back, so the control proves access without changing the seed.
-  const admin = getIsolatedAdminClient();
-  const { data: assignmentBefore } = await admin
-    .from('judge_assignments')
-    .select('status')
-    .eq('id', JUDGE_ASSIGNMENT_ID)
-    .single();
-  const { data: enrollmentBefore } = await admin
-    .from('enrollments')
-    .select('notes')
-    .eq('id', ENROLLMENT_ID)
-    .single();
+  const office = await readOfficeRecords();
   const assignment = await patchAsSignedIn(page, `judge_assignments?id=eq.${JUDGE_ASSIGNMENT_ID}`, {
-    status: assignmentBefore?.status,
+    status: office.status,
   });
   const enrollment = await patchAsSignedIn(page, `enrollments?id=eq.${ENROLLMENT_ID}`, {
-    notes: enrollmentBefore?.notes ?? null,
+    notes: office.notes,
   });
   expect(assignment).toEqual({ status: 200, rows: 1 });
   expect(enrollment).toEqual({ status: 200, rows: 1 });

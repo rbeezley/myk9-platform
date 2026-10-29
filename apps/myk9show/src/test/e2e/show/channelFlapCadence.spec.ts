@@ -3,7 +3,7 @@ import { signInAsSecretary } from '../uat/shared/auth';
 import { isIsolatedTarget } from '../helpers/isolatedFixtures';
 
 /**
- * Suite category: regression (isolated only). Runs in real time, about 6.5 minutes.
+ * Suite category: regression (isolated only). Runs in real time, about 8 minutes.
  *
  * MYK9-1305. While the show's realtime channel is SUBSCRIBED the untargeted sync
  * pass slows to 3–5 minutes (realtime carries the changes). When the channel
@@ -22,7 +22,7 @@ test.skip(!isIsolatedTarget(), 'measures the isolated stack realtime socket only
 test('sync cadence follows the show channel: slow, 60 s fallback on drop, one pass on rejoin', async ({
   page,
 }) => {
-  test.setTimeout(480_000);
+  test.setTimeout(600_000);
   let down = false;
   const live: WebSocketRoute[] = [];
   const t0 = Date.now();
@@ -69,18 +69,25 @@ test('sync cadence follows the show channel: slow, 60 s fallback on drop, one pa
   await page.waitForTimeout(160_000);
   const whileDropped = passes.filter(p => p >= droppedAt);
 
-  // SUBSCRIBED again: a pass on rejoin, then slow again. A 60 s tick that falls due during
-  // the reconnect backoff can land just before the rejoin pass, so allow one or two.
+  // SUBSCRIBED again. Wait for a NEW join acknowledgement, so the rejoin is proven rather
+  // than assumed, then watch 150 s from it: longer than two 60 s fallback ticks, shorter
+  // than the slow cadence's 180 s minimum. Exactly one pass in that window, soon after the
+  // rejoin, is the rejoin pass with the slow cadence back; a fallback still running would
+  // put two or more there, and a missing rejoin pass would leave none.
   down = false;
   const restoredAt = seconds();
-  await page.waitForTimeout(90_000);
-  const afterRejoin = passes.filter(p => p > restoredAt);
+  await expect
+    .poll(() => joinedAt, { timeout: 60_000, message: 'the show channel never rejoined' })
+    .toBeGreaterThan(restoredAt);
+  const rejoinedAt = joinedAt;
+  await page.waitForTimeout(150_000);
+  const afterRejoin = passes.filter(p => p >= rejoinedAt && p <= rejoinedAt + 150);
 
-  const timeline = `passes at [${passes.join(', ')}]s; joined ${joinedAt}s, subscribed window from ${subscribedFrom}s, dropped ${droppedAt}s, restored ${restoredAt}s`;
+  const timeline = `passes at [${passes.join(', ')}]s; subscribed window from ${subscribedFrom}s, dropped ${droppedAt}s, restored ${restoredAt}s, rejoined ${rejoinedAt}s`;
   expect(whileSubscribed, timeline).toEqual([]);
   expect(whileDropped.length, timeline).toBeGreaterThanOrEqual(2);
   expect(whileDropped[0] - droppedAt, timeline).toBeLessThanOrEqual(75);
   expect(whileDropped[1] - whileDropped[0], timeline).toBeGreaterThanOrEqual(45);
-  expect(afterRejoin.length, timeline).toBeGreaterThanOrEqual(1);
-  expect(afterRejoin.length, timeline).toBeLessThanOrEqual(2);
+  expect(afterRejoin, timeline).toHaveLength(1);
+  expect(afterRejoin[0] - rejoinedAt, timeline).toBeLessThanOrEqual(40);
 });

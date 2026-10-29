@@ -268,6 +268,37 @@ async function patchAsSignedIn(page: Page, path: string, body: Record<string, un
 }
 
 /** A denial is zero rows changed or an auth refusal; anything unparsed is not a denial. */
+async function storedCheckIn(entryId: string): Promise<string> {
+  const { data, error } = await getIsolatedAdminClient()
+    .from('entries')
+    .select('check_in_status')
+    .eq('id', entryId)
+    .single();
+  if (error) throw new Error(`entries read: ${error.message}`);
+  return data.check_in_status;
+}
+
+/**
+ * Server truth for a ring write: the database holds `status`, every check-in
+ * response succeeded, and the device parked nothing as failed. The UI is
+ * optimistic and the pending queue also empties when a write is parked, so
+ * neither proves the server accepted it.
+ */
+async function expectCheckInStored(page: Page, entryId: string, status: string, writes: number[]) {
+  await expect
+    .poll(() => storedCheckIn(entryId), {
+      timeout: 30_000,
+      message: `the server never stored ${status}`,
+    })
+    .toBe(status);
+  expect(writes.length).toBeGreaterThan(0);
+  expect(
+    writes.every(s => s >= 200 && s < 300),
+    JSON.stringify(writes)
+  ).toBe(true);
+  expect(await readReplicationStoreCount(page, 'failed_mutations')).toBe(0);
+}
+
 function refused(result: { status: number; rows: number }) {
   return result.rows === 0 || result.status === 401 || result.status === 403;
 }
@@ -312,13 +343,14 @@ test('a steward-only account checks dogs in but cannot write office records', as
     await page.goto(SCORE_PATH);
     await expect(page.getByText('No Scoring Access')).toBeVisible({ timeout: 30_000 });
 
-    // Ring flow, online.
+    // Ring flow, online: the server must end up holding the check-in.
+    expect(await storedCheckIn(ring.entryId)).toBe('no-status');
     await page.goto(classPath);
     await setCheckIn(page, ring.callName, 'Not checked in', /^Checked[ -]in$/i, 'Checked in');
-    await expect.poll(() => ringWrites.length, { timeout: 30_000 }).toBeGreaterThan(0);
     await expect
       .poll(() => readReplicationStoreCount(page, 'pending_mutations'), { timeout: 30_000 })
       .toBe(0);
+    await expectCheckInStored(page, ring.entryId, 'checked-in', ringWrites);
 
     // Office writes with the steward's own session: RLS leaves zero rows changed.
     const assignment = await patchAsSignedIn(
@@ -340,7 +372,7 @@ test('a steward-only account checks dogs in but cannot write office records', as
     ).toHaveCount(0);
     await expect(page.getByRole('checkbox', { name: /^Select every class/ })).toHaveCount(0);
 
-    // Ring flow, offline: the reset to "No Status" queues, then drains on reconnect.
+    // Ring flow, offline: the reset to "No Status" queues, then reaches the server on reconnect.
     await page.goto(classPath);
     await expect(page.getByRole('button', { name: /^Pending/ })).toBeVisible({ timeout: 30_000 });
     const before = ringWrites.length;
@@ -355,9 +387,7 @@ test('a steward-only account checks dogs in but cannot write office records', as
     await expect
       .poll(() => readReplicationStoreCount(page, 'pending_mutations'), { timeout: 60_000 })
       .toBe(0);
-    const drained = ringWrites.slice(before);
-    expect(drained.length).toBeGreaterThan(0);
-    expect(drained.every(s => s >= 200 && s < 300)).toBe(true);
+    await expectCheckInStored(page, ring.entryId, 'no-status', ringWrites.slice(before));
   } catch (error) {
     failure = error;
   }

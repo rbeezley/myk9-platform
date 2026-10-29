@@ -42,17 +42,20 @@ LANGUAGE plpgsql
 SET search_path = ''
 AS $$
 BEGIN
-  IF TG_OP = 'UPDATE'
-     AND NEW.is_active IS DISTINCT FROM OLD.is_active
-     AND COALESCE(current_setting('myk9.club_role_sync', true), '') <> 'on' THEN
-    NEW.club_deactivated_at := NULL;
+  IF TG_OP = 'UPDATE' THEN
+    IF NEW.is_active IS DISTINCT FROM OLD.is_active
+       AND COALESCE(current_setting('myk9.club_role_sync', true), '') <> 'on' THEN
+      NEW.club_deactivated_at := NULL;
+    END IF;
+    -- Only a new or newly-reactivated/moved grant is checked; OLD is not read on INSERT.
+    IF NOT (NEW.is_active IS DISTINCT FROM OLD.is_active
+            OR NEW.club_id IS DISTINCT FROM OLD.club_id) THEN
+      RETURN NEW;
+    END IF;
   END IF;
 
   IF NEW.is_active
      AND NEW.club_id IS NOT NULL
-     AND (TG_OP = 'INSERT'
-          OR NEW.is_active IS DISTINCT FROM OLD.is_active
-          OR NEW.club_id IS DISTINCT FROM OLD.club_id)
      AND EXISTS (
        SELECT 1 FROM public.clubs c
        WHERE c.id = NEW.club_id AND c.deleted_at IS NOT NULL

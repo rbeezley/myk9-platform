@@ -132,6 +132,9 @@ $$;
 UPDATE public.user_roles SET is_active = true
 WHERE user_id = '00000000-0000-0000-0000-000000138802'
   AND club_id = '00000000-0000-0000-0000-000000138811';
+UPDATE public.user_roles SET is_active = true
+WHERE user_id = '00000000-0000-0000-0000-000000138803'
+  AND club_id = '00000000-0000-0000-0000-000000138811';
 UPDATE public.user_roles SET is_active = false
 WHERE user_id = '00000000-0000-0000-0000-000000138803'
   AND club_id = '00000000-0000-0000-0000-000000138811';

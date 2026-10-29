@@ -311,6 +311,24 @@ describe('MutationManager transport outage (MYK9-1474)', () => {
     expect((await db.getAll(PENDING)).every(item => item.transportRetries === 1)).toBe(true);
   });
 
+  it('does not resurrect a mutation discarded while the probe was running', async () => {
+    await db.put(PENDING, mutation({ id: 'gone', rowId: 'entry-gone', timestamp: Date.now() }));
+    vi.mocked(supabase.from).mockReturnValue({
+      update: () => ({
+        eq: () => ({ select: () => Promise.reject(new TypeError('Failed to fetch')) }),
+      }),
+    } as never);
+    probe.mockImplementation(async () => {
+      await manager.discardPendingMutationsForRow('entries', 'entry-gone');
+      return false;
+    });
+
+    await manager.uploadPendingMutations();
+
+    expect(await db.get(PENDING, 'gone')).toBeUndefined();
+    expect(await db.get(REPLICATION_STORES.FAILED_MUTATIONS, 'gone')).toBeUndefined();
+  });
+
   it('retryFailedMutation resets transportRetries', async () => {
     await db.put(
       REPLICATION_STORES.FAILED_MUTATIONS,

@@ -384,12 +384,21 @@ export class MutationUploadRunner {
             }
             continue;
           }
+          const uplinkDown = await isUplinkDown(error, queuedMutation);
+          // The probe can take seconds; a "Take theirs" discard in that window deletes this
+          // row, and writing the stale copy back would resurrect it. Classify the row as it
+          // is now, and drop it from this pass if it is gone (MYK9-1474).
+          const current = (await db.get(
+            REPLICATION_STORES.PENDING_MUTATIONS,
+            queuedMutation.id
+          )) as PendingMutation | undefined;
+          if (!current) continue;
           const failure = classifyMutationFailure({
-            mutation: queuedMutation,
+            mutation: current,
             error,
             maxRetries: this.maxRetries,
             retryBackoffBase: this.retryBackoffBase,
-            uplinkDown: await isUplinkDown(error, queuedMutation),
+            uplinkDown,
           });
 
           if (failure.permanentlyFailed) {

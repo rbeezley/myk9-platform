@@ -17,8 +17,7 @@ import { ReplicatedEntriesTable } from './ReplicatedEntriesTable';
 type SyncShow = (
   showId: string,
   principalId: string,
-  forceFullSync?: boolean,
-  accessMark?: unknown
+  forceFullSync?: boolean
 ) => Promise<SyncResult>;
 
 function deferred<T>() {
@@ -60,7 +59,7 @@ describe('ReplicatedEntriesTable sync coalescing', () => {
     await Promise.all([a, b]);
 
     expect(syncShow).toHaveBeenCalledTimes(1);
-    expect(syncShow).toHaveBeenCalledWith('show-1', 'anonymous', false, null);
+    expect(syncShow).toHaveBeenCalledWith('show-1', 'anonymous', false);
   });
 
   it('a forced sync waits out the incremental one running, then runs its own', async () => {
@@ -74,7 +73,7 @@ describe('ReplicatedEntriesTable sync coalescing', () => {
     first.resolve(ok());
     await Promise.all([incremental, forced]);
     expect(syncShow).toHaveBeenCalledTimes(2);
-    expect(syncShow).toHaveBeenLastCalledWith('show-1', 'anonymous', true, null);
+    expect(syncShow).toHaveBeenLastCalledWith('show-1', 'anonymous', true);
   });
 
   it('a forced sync still runs when the one it waited out failed', async () => {
@@ -85,7 +84,7 @@ describe('ReplicatedEntriesTable sync coalescing', () => {
 
     first.reject(new Error('Failed to fetch'));
     await Promise.all([incremental, forced]);
-    expect(syncShow).toHaveBeenLastCalledWith('show-1', 'anonymous', true, null);
+    expect(syncShow).toHaveBeenLastCalledWith('show-1', 'anonymous', true);
   });
 
   it('later ordinary callers share the forced run', async () => {

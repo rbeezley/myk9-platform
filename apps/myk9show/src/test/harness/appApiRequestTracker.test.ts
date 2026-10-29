@@ -415,3 +415,51 @@ describe('requests the outgoing document leaves behind at a navigation (MYK9-146
     expect((await settle(tracker, harness)).pendingUrls).toEqual([STRANDED]);
   });
 });
+
+describe('app API request ledger (MYK9-1477)', () => {
+  const URL_A = 'http://127.0.0.1:54321/rest/v1/clubs?select=id&deleted_at=is.null';
+
+  it('records finished, failed and orphaned requests', () => {
+    const harness = createPageHarness();
+    const tracker = watchAppApiRequests(harness.page);
+    const done = createRequest(`${URL_A}&n=1`);
+    const aborted = {
+      url: () => `${URL_A}&n=2`,
+      failure: () => ({ errorText: 'cancelled' }),
+    } as unknown as Request;
+    const inFlight = createRequest(`${URL_A}&n=3`);
+    for (const request of [done, aborted, inFlight]) harness.emit('request', request);
+    harness.emit('requestfinished', done);
+    harness.emit('requestfailed', aborted);
+    tracker.reset();
+
+    expect(tracker.ledger).toEqual([
+      { url: `${URL_A}&n=1`, outcome: 'finished', failureText: null, orphanedByNavigation: false },
+      {
+        url: `${URL_A}&n=2`,
+        outcome: 'failed',
+        failureText: 'cancelled',
+        orphanedByNavigation: false,
+      },
+      { url: `${URL_A}&n=3`, outcome: 'pending', failureText: null, orphanedByNavigation: true },
+    ]);
+  });
+
+  it('keeps the ledger when the pending set is cleared at a navigation commit', () => {
+    const harness = createPageHarness();
+    const tracker = watchAppApiRequests(harness.page);
+    const target = 'http://127.0.0.1:5173/account';
+    harness.emit('request', {
+      url: () => target,
+      isNavigationRequest: () => true,
+      frame: () => harness.page.mainFrame(),
+    } as unknown as Request);
+    harness.emit('request', createRequest(URL_A));
+    harness.mainFrame.currentUrl = target;
+    harness.emit('framenavigated', harness.mainFrame as unknown as Request);
+
+    expect(tracker.pending.size).toBe(0);
+    expect(tracker.ledger).toHaveLength(1);
+    expect(tracker.ledger[0]?.orphanedByNavigation).toBe(true);
+  });
+});

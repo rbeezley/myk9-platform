@@ -39,6 +39,7 @@ import {
   waitForAppApiRequestsToSettle,
   watchAppApiRequests,
 } from '../harness/appApiRequestTracker';
+import { partitionCancelledWebkitFetchErrors } from '../harness/webkitCancelledFetch';
 import { logUnsettledAppApiRequests } from '../harness/routeHealthDiagnostics';
 
 const SEEDED_SHOW = LIVE_SECRETARY_SHOW_ID;
@@ -335,7 +336,20 @@ async function sweepRoutes(
 
     // Health checks (console errors, replication errors, owned 4xx/5xx).
     // Evaluated after the mobile resize so any mobile-triggered errors are included.
-    const viols = violations(health);
+    // WebKit page errors for fetches this page cancelled itself are excused
+    // only when the request ledger shows that exact URL cancelled (MYK9-1477).
+    const { kept, ignored } = partitionCancelledWebkitFetchErrors(
+      health.pageErrors,
+      pendingAppApiRequests.ledger,
+      page.context().browser()?.browserType().name() ?? 'unknown'
+    );
+    if (ignored.length > 0) {
+      test.info().annotations.push({
+        type: 'route',
+        description: `${id} webkit-cancelled-fetches-ignored=${ignored.length}: ${ignored.join('; ')}`,
+      });
+    }
+    const viols = violations({ ...health, pageErrors: kept });
     expect.soft(viols, `${id}: browser health violations`).toHaveLength(0);
 
     // Annotate result for report visibility.

@@ -459,7 +459,7 @@ export const AtShowClassListPage: React.FC = () => {
 
       <AtShowOfflineReadySlot showId={showId} isExhibitorOnly={isExhibitorOnly} />
 
-      {!isExhibitorOnly && <AtShowSetupSheetLink showId={showId} groups={groups} />}
+      <AtShowSetupSheetLink showId={showId} groups={groups} isExhibitorOnly={isExhibitorOnly} />
 
       {/* MYK9-1184: the exhibitor's way back to "Your dogs today" is a button,
           so name what this all-days list is. */}

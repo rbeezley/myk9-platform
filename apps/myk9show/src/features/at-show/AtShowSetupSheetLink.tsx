@@ -12,11 +12,14 @@ import { atShowSetupSheetPath, setupSheetRegistryIds } from './setupSheetRegistr
 export function AtShowSetupSheetLink({
   showId,
   groups,
+  isExhibitorOnly,
 }: {
   showId: string | undefined;
   groups: readonly AtShowClassGroup[];
+  /** An exhibitor-only account is not setting up searches; they never see the door. */
+  isExhibitorOnly: boolean;
 }) {
-  if (!showId || setupSheetRegistryIds(groups).length === 0) return null;
+  if (isExhibitorOnly || !showId || setupSheetRegistryIds(groups).length === 0) return null;
   return (
     <div className="mb-4 flex justify-center">
       <Button asChild variant="outline" className="min-h-11 gap-2 px-4">

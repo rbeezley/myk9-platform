@@ -27,10 +27,10 @@ describe('UKCSetupCheatSheetReport', () => {
       expect(headers.join('|')).toMatch(/Novice.*Advanced.*Superior.*Master.*Elite/);
       expect(within(table).getAllByText(/Max time 6 min/)).toHaveLength(2);
     }
-    expect(within(side1).getByText('Vehicles')).toBeInTheDocument();
-    expect(within(side1).getByText('Containers')).toBeInTheDocument();
-    expect(within(side2).getByText('Interior')).toBeInTheDocument();
-    expect(within(side2).getByText('Exterior')).toBeInTheDocument();
+    const elements = (table: HTMLElement) =>
+      [...table.querySelectorAll('tbody[data-element]')].map(el => el.getAttribute('data-element'));
+    expect(elements(side1)).toEqual(['vehicle', 'container']);
+    expect(elements(side2)).toEqual(['interior', 'exterior']);
     expect(within(side1).getByText('Cars 3 ft, other 4 ft')).toBeInTheDocument();
   });
 

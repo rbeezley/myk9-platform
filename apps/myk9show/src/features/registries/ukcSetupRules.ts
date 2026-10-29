@@ -18,8 +18,7 @@ import type {
   SetupSheet,
 } from './setupRules.types';
 
-const LEVEL_KEYS = ['novice', 'advanced', 'superior', 'master', 'elite'] as const;
-type UkcLevelKey = (typeof LEVEL_KEYS)[number];
+type UkcLevelKey = 'novice' | 'advanced' | 'superior' | 'master' | 'elite';
 
 /** Five values in Novice..Elite order, keyed by level. */
 function perLevel(

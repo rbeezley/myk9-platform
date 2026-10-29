@@ -99,6 +99,18 @@
     ]
   },
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON \"$CLAUDE_PROJECT_DIR/scripts/qa/no-ci-polling.ts\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "EnterWorktree",

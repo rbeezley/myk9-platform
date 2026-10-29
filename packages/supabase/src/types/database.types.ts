@@ -13609,6 +13609,20 @@ export type Database = {
           updated_at: string
         }[]
       }
+      get_class_ties: {
+        Args: { p_class_id: string }
+        Returns: {
+          armband_number: number | null
+          dog_call_name: string | null
+          entry_id: string
+          final_placement: number | null
+          group_rank: number | null
+          points_earned: number | null
+          ranks_by_points: boolean | null
+          search_time_seconds: number | null
+          total_faults: number | null
+        }[]
+      }
       get_club_officials: {
         Args: { p_club_id: string }
         Returns: {
@@ -15022,6 +15036,10 @@ export type Database = {
       set_class_judge: {
         Args: { p_class_id: string; p_person_id: string | null }
         Returns: Json
+      }
+      set_class_tie_order: {
+        Args: { p_class_id: string; p_entry_ids: string[] }
+        Returns: number
       }
       send_waitlist_offer_message_internal: {
         Args: {

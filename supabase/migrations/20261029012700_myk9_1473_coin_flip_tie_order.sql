@@ -30,8 +30,15 @@
 -- Grants: authenticated entries column SELECT gains both columns (56 -> 58);
 -- anon stays 0 (explicit REVOKE; stated, not inherited).
 --
--- Deploy: migration only. No client reads these columns yet; the secretary
--- control that records a flip is a separate decision.
+--   6. mark_class_results_verified refuses (MK018) while a ribbon tie in the
+--      class is still unresolved, and get_class_ties(class) lets a manager read
+--      those groups so the Results tab can offer "Record coin flip" (online
+--      only, like set_class_tie_order). The entries replication views are not
+--      widened.
+--   7. Backfill: completed classes are re-derived through
+--      refresh_class_scoring_state, the entry point the app uses.
+--
+-- Deploy: migration only.
 
 BEGIN;
 
@@ -589,37 +596,204 @@ GRANT SELECT (placement_tiebreak, placement_tie) ON public.entries TO authentica
 REVOKE ALL (placement_tiebreak, placement_tie) ON public.entries FROM anon;
 
 -- ---------------------------------------------------------------------------
--- 8. Backfill: re-derive classes that already hold placements
+-- 7. Verify guard and tie reader
+--
+-- mark_class_results_verified is copied from its latest definition
+-- (20261008014300, MYK9-1045; nothing later replaces it) with one addition: a
+-- class with an unresolved ribbon tie cannot be marked checked, because its
+-- placements for that tie are arbitrary until the coin flip is recorded
+-- (MK018). The tie check runs before the fingerprint comparison so the answer
+-- does not depend on what the caller ticked.
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.mark_class_results_verified(
+  p_class_id uuid,
+  p_results_fingerprint text,
+  p_verified_at timestamptz DEFAULT NULL
+)
+RETURNS integer
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_uid uuid := auth.uid();
+  v_class record;
+  v_current text;
+  v_version integer;
+BEGIN
+  IF v_uid IS NULL THEN
+    RAISE EXCEPTION 'Sign in to record that results were checked.' USING ERRCODE = '42501';
+  END IF;
+  IF nullif(btrim(coalesce(p_results_fingerprint, '')), '') IS NULL THEN
+    RAISE EXCEPTION 'The results you checked were not sent with the request.' USING ERRCODE = '22023';
+  END IF;
+
+  -- Lock before reading the fingerprint: see "Concurrency" in the header.
+  SELECT c.id, c.trial_id, c.name, c.status
+    INTO v_class
+  FROM public.classes c
+  WHERE c.id = p_class_id AND c.deleted_at IS NULL
+  FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'That class no longer exists.' USING ERRCODE = 'P0002';
+  END IF;
+
+  IF NOT coalesce((SELECT public.can_manage_trial(v_class.trial_id)), false) THEN
+    RAISE EXCEPTION 'You do not manage the show this class belongs to.' USING ERRCODE = '42501';
+  END IF;
+  IF v_class.status IS DISTINCT FROM 'completed' THEN
+    RAISE EXCEPTION '% is not complete yet, so its results cannot be checked.', v_class.name
+      USING ERRCODE = '55000';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM public.entries e
+    WHERE e.class_id = p_class_id
+      AND e.deleted_at IS NULL
+      AND e.placement_tie = 'unresolved'
+  ) THEN
+    RAISE EXCEPTION '% has a tie for a ribbon that is not decided yet. Record the coin flip first.', v_class.name
+      USING ERRCODE = 'MK018',
+            HINT = 'Call set_class_tie_order for each tie in the class (get_class_ties lists them).';
+  END IF;
+
+  v_current := private.class_results_fingerprint(p_class_id);
+  IF v_current IS DISTINCT FROM p_results_fingerprint THEN
+    RAISE EXCEPTION '%''s results changed after you checked them. Check them again.', v_class.name
+      USING ERRCODE = 'MK015',
+            HINT = 'The results fingerprint sent does not match the class''s current results.';
+  END IF;
+
+  -- A replay of the same check keeps the first stamp. A verified class's
+  -- stored fingerprint always equals the live one (the entries trigger clears
+  -- it otherwise), so there is nothing to refresh.
+  UPDATE public.classes c
+     SET results_verified_at = least(coalesce(p_verified_at, now()), now()),
+         results_verified_by = v_uid,
+         results_verified_fingerprint = v_current
+   WHERE c.id = p_class_id
+     AND c.results_verified_at IS NULL;
+
+  SELECT c.version INTO v_version FROM public.classes c WHERE c.id = p_class_id;
+  RETURN v_version;
+END;
+$$;
+
+COMMENT ON FUNCTION public.mark_class_results_verified(uuid, text, timestamptz) IS
+  'MYK9-1045: record that a completed class''s results were checked against the paper. Show managers only (can_manage_trial). p_results_fingerprint is the fingerprint of the results the manager looked at (classResultsFingerprint.ts); refused with MK015 when the class''s results no longer match it, and with MK018 while a tie for a ribbon still needs its coin flip (MYK9-1473). Keeps an existing stamp. Returns the class''s new version.';
+
+REVOKE ALL ON FUNCTION public.mark_class_results_verified(uuid, text, timestamptz) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.mark_class_results_verified(uuid, text, timestamptz) TO authenticated;
+
+-- get_class_ties: one row per entry of every unresolved ribbon tie in the
+-- class (placement_tie = 'unresolved'), grouped by the shared ranking keys.
+-- group_rank is the competition rank the group shares (2 = tied for 2nd), so
+-- the client can say "Tied for 2nd"; ranks_by_points says whether the shared
+-- result is points and time (nationals) or faults and time. Same manager gate as set_class_tie_order.
+-- Online-only like set_class_tie_order: the entries replication views are
+-- deliberately not widened (MYK9-1369 reworks them).
+CREATE OR REPLACE FUNCTION public.get_class_ties(p_class_id uuid)
+RETURNS TABLE (
+  group_rank integer,
+  entry_id uuid,
+  armband_number integer,
+  dog_call_name text,
+  final_placement integer,
+  total_faults integer,
+  points_earned integer,
+  search_time_seconds numeric,
+  ranks_by_points boolean
+)
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_trial_id uuid;
+  v_is_nationals boolean;
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Sign in to see a class''s ties.' USING ERRCODE = '42501';
+  END IF;
+
+  SELECT c.trial_id INTO v_trial_id
+  FROM public.classes c
+  WHERE c.id = p_class_id AND c.deleted_at IS NULL;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'That class no longer exists.' USING ERRCODE = 'P0002';
+  END IF;
+  IF NOT coalesce((SELECT public.can_manage_trial(v_trial_id)), false) THEN
+    RAISE EXCEPTION 'You do not manage the show this class belongs to.' USING ERRCODE = '42501';
+  END IF;
+
+  SELECT coalesce(s.is_nationals, false) INTO v_is_nationals
+  FROM public.trials t JOIN public.shows s ON s.id = t.show_id
+  WHERE t.id = v_trial_id;
+
+  RETURN QUERY
+  SELECT
+    min(e.final_placement) OVER (
+      PARTITION BY e.points_earned, e.total_faults, e.search_time_seconds
+    )::integer AS group_rank,
+    e.id,
+    e.armband_number::integer,
+    d.call_name::text,
+    e.final_placement::integer,
+    e.total_faults::integer,
+    e.points_earned::integer,
+    e.search_time_seconds::numeric,
+    v_is_nationals
+  FROM public.entries e
+  LEFT JOIN public.dogs d ON d.id = e.dog_id
+  WHERE e.class_id = p_class_id
+    AND e.deleted_at IS NULL
+    AND e.placement_tie = 'unresolved'
+  ORDER BY 1, e.final_placement, e.id;
+END;
+$$;
+
+COMMENT ON FUNCTION public.get_class_ties(uuid) IS
+  'MYK9-1473: the unresolved ribbon ties of a class, one row per tied entry (group_rank = the place the group shares), for the Results tab''s Record coin flip dialog. Show managers only (can_manage_trial). Empty when every tie is recorded.';
+
+REVOKE ALL ON FUNCTION public.get_class_ties(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.get_class_ties(uuid) TO authenticated;
+
+-- ---------------------------------------------------------------------------
+-- 8. Backfill: re-derive completed classes
 --
 -- Adding the columns and replacing the function does not run the recalculator,
 -- so a class completed before this migration would keep consecutive placements
 -- for a tie below 4th and no marker on a ribbon tie until an unrelated score
--- write refreshed it. Re-rank every class that has a placement now (nationals
--- per its show). Placements that do not change are not written; a verified class
--- whose placements change loses its results check through the fingerprint,
--- which is the intended signal to look at it again.
+-- write refreshed it. Re-derive every completed, non-deleted class through
+-- refresh_class_scoring_state, the entry point the app uses: a class whose
+-- status was set by hand (status_source = 'manual', MYK9-1230) is re-ranked
+-- only when every expected entry is accounted for and otherwise keeps its
+-- placements, exactly as on a score write. Placements that do not change are
+-- not written; a verified class whose placements change loses its results
+-- check through the fingerprint, the intended signal to look at it again.
+-- The class-status push webhook is suppressed for the duration (this corrects
+-- stale state; same pattern as 20261017014900).
 -- ---------------------------------------------------------------------------
+ALTER TABLE public.classes DISABLE TRIGGER trg_notify_class_status_push;
+
 DO $$
 DECLARE
-  v_nationals boolean;
-  v_class_ids uuid[];
+  r record;
 BEGIN
-  FOREACH v_nationals IN ARRAY ARRAY[false, true] LOOP
-    SELECT array_agg(DISTINCT e.class_id)
-      INTO v_class_ids
-    FROM public.entries e
-    JOIN public.classes c ON c.id = e.class_id
-    JOIN public.trials t ON t.id = c.trial_id
-    JOIN public.shows s ON s.id = t.show_id
-    WHERE e.final_placement IS NOT NULL
-      AND coalesce(s.is_nationals, false) = v_nationals;
-
-    IF v_class_ids IS NOT NULL THEN
-      PERFORM public.recalculate_class_placements(v_class_ids, v_nationals);
-    END IF;
+  FOR r IN
+    SELECT c.id
+    FROM public.classes c
+    WHERE c.status = 'completed'
+      AND c.deleted_at IS NULL
+    ORDER BY c.id
+  LOOP
+    PERFORM public.refresh_class_scoring_state(r.id);
   END LOOP;
 END;
 $$;
+
+ALTER TABLE public.classes ENABLE TRIGGER trg_notify_class_status_push;
 
 COMMIT;
 

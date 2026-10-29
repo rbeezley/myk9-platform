@@ -27,6 +27,8 @@ import { useShowClassPaperwork } from '@/features/show-map/cockpit/useShowClassP
 import { getShowDeskEntriesAvailability } from '@/pages/secretary/showDeskEntryAvailability';
 import { useShowDeskScheduleRead } from '@/pages/secretary/useShowDeskScheduleRead';
 import { buildResultsClassRows, type ResultsClassRow } from './buildResultsClassRows';
+import { applyCoinFlipPending } from './coinFlipRows';
+import { useClassTies } from './useClassTies';
 
 const NO_ENTRIES: never[] = [];
 
@@ -107,7 +109,7 @@ export function useResultsTabData(showId: string) {
     [paperwork.classRows]
   );
 
-  const rows = useMemo<ResultsClassRow[]>(
+  const builtRows = useMemo<ResultsClassRow[]>(
     () =>
       buildResultsClassRows({
         trials: showTrials,
@@ -135,6 +137,14 @@ export function useResultsTabData(showId: string) {
       showTrials,
       verifiedByClassId,
     ]
+  );
+
+  // A tie for a ribbon is a server fact the replica does not carry: asked for the classes that
+  // could owe a coin flip, then folded into the same phase rules.
+  const tiesByClassId = useClassTies(showId, builtRows);
+  const rows = useMemo(
+    () => applyCoinFlipPending(builtRows, new Set(tiesByClassId.keys())),
+    [builtRows, tiesByClassId]
   );
 
   const noTrials = schedule.hasConfirmedSnapshot && showTrials.length === 0;
@@ -169,6 +179,8 @@ export function useResultsTabData(showId: string) {
 
   return {
     rows,
+    /** The unresolved ribbon ties of the classes that owe a coin flip, by class id. */
+    tiesByClassId,
     trials: showTrials,
     readState: combined.state,
     /** A background refresh failed but earlier data is still shown. */

@@ -17,6 +17,7 @@ import {
 import { CockpitPaperworkRow } from '@/features/show-map/cockpit/CockpitPaperworkRow';
 import { judgeSignOffWording } from '@/features/show-map/judgeSignOff';
 import { formatTime } from '@/lib/format/dates';
+import { OFFLINE_COIN_FLIP_MESSAGE } from './CoinFlipDialog';
 import { useReserveBottomAbove } from '@/hooks/useReserveBottomAbove';
 import { useShowManageScope } from '@/hooks/useShowManageScope';
 import type { ResultsClassRow } from './buildResultsClassRows';
@@ -47,6 +48,8 @@ interface ResultsClassDetailProps {
   verifying: boolean;
   /** Saving or removing the check needs the server; ticking the dogs does not. */
   online: boolean;
+  /** Opens the coin flip dialog for the class's tied dogs. */
+  onRecordCoinFlip: () => void;
   /** Why Release is held back on this tab right now (offline, scores still syncing), or null. */
   releaseBlockedReason: string | null;
   /** Why the saved check could not show here yet (class row unsynced or in conflict), or null. */
@@ -64,6 +67,7 @@ interface PrimaryWorkProps extends Pick<
   | 'hiding'
   | 'onRelease'
   | 'online'
+  | 'onRecordCoinFlip'
   | 'releaseBlockedReason'
   | 'verifyBlockedReason'
 > {
@@ -76,6 +80,7 @@ function PrimaryWork({
   hiding,
   onRelease,
   online,
+  onRecordCoinFlip,
   releaseBlockedReason,
   verifyBlockedReason,
   verifying,
@@ -94,6 +99,23 @@ function PrimaryWork({
       <p className="text-xs text-muted-foreground">
         This class is run and marked complete on Overview.
       </p>
+    );
+  } else if (phase === 'needs-coin-flip') {
+    title = 'Record the coin flip';
+    body =
+      'Some dogs finished with the same score and time. Flip a coin, tell us who won, then check the scores.';
+    action = (
+      <div className="space-y-1">
+        <Button
+          type="button"
+          className="min-h-11"
+          disabled={!online || verifying || releasing || hiding}
+          onClick={onRecordCoinFlip}
+        >
+          Record coin flip
+        </Button>
+        {!online && <p className="text-xs text-muted-foreground">{OFFLINE_COIN_FLIP_MESSAGE}</p>}
+      </div>
     );
   } else if (phase === 'needs-checking') {
     const released = Boolean(row.releasedAt);
@@ -304,6 +326,7 @@ export function ResultsClassDetail({
   onUndoVerify,
   verifying,
   online,
+  onRecordCoinFlip,
   releaseBlockedReason,
   verifyBlockedReason,
   currentUserId,
@@ -364,6 +387,7 @@ export function ResultsClassDetail({
         hiding={hiding}
         onRelease={onRelease}
         online={online}
+        onRecordCoinFlip={onRecordCoinFlip}
         releaseBlockedReason={releaseBlockedReason}
         verifyBlockedReason={verifyBlockedReason}
         verifying={verifying}

@@ -21,7 +21,12 @@
 --      separately resolved ties clears every flip in the class, while an NQ
 --      change keeps them;
 --   4. a manager cannot write the tie columns directly (42501);
---   5. anon calling set_class_tie_order is refused.
+--   5. anon calling set_class_tie_order is refused;
+--   6. marking a class checked is refused (MK018) while a ribbon tie is
+--      unresolved and allowed after set_class_tie_order; get_class_ties lists
+--      the unresolved groups for the show's manager only;
+--   7. the backfill: a completed class holding pre-migration placements for a
+--      tie below 4th reads shared ranks after refresh_class_scoring_state.
 --
 -- All fixtures roll back. Run with psql -X -v ON_ERROR_STOP=1 after migrations.
 
@@ -490,6 +495,125 @@ BEGIN
 END;
 $$;
 RESET ROLE;
+
+-- ---------------------------------------------------------------------------
+-- 6. An unresolved ribbon tie blocks "results checked", and get_class_ties
+--    lists it. Class 48 (after 3g) holds two unresolved ties: 147381/147382
+--    tied for 1st and 147383-147385 tied for 3rd.
+--    a. Marking the class checked is refused (MK018) and writes nothing.
+--    b. get_class_ties returns the five tied entries, grouped by the place
+--       they share (1,1,3,3,3); an exhibitor and another club's secretary
+--       are refused (42501); anon cannot call it.
+--    c. After both flips are recorded the list is empty and the check works.
+-- ---------------------------------------------------------------------------
+SET LOCAL ROLE authenticated;
+DO $$
+DECLARE
+  v_ranks text;
+  caller uuid;
+BEGIN
+  PERFORM pg_temp.act_as('00000000-0000-0000-0000-000000147311');
+  BEGIN
+    PERFORM public.mark_class_results_verified(
+      '00000000-0000-0000-0000-000001473048', pg_temp.fp('00000000-0000-0000-0000-000001473048'));
+    RAISE EXCEPTION 'FAIL 6a a class with an unresolved ribbon tie was marked checked';
+  EXCEPTION WHEN SQLSTATE 'MK018' THEN NULL;
+  END;
+  IF pg_temp.verified('00000000-0000-0000-0000-000001473048') THEN
+    RAISE EXCEPTION 'FAIL 6a a refused check still stamped the class';
+  END IF;
+  RAISE NOTICE 'PASS 6a marking a class with an unresolved ribbon tie checked is refused (MK018)';
+
+  SELECT string_agg(right(t.entry_id::text, 3) || '@' || t.group_rank, ',' ORDER BY t.group_rank, t.entry_id)
+    INTO v_ranks
+  FROM public.get_class_ties('00000000-0000-0000-0000-000001473048') t;
+  IF v_ranks IS DISTINCT FROM '381@1,382@1,383@3,384@3,385@3' THEN
+    RAISE EXCEPTION 'FAIL 6b get_class_ties did not list both unresolved ties: %', v_ranks;
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.get_class_ties('00000000-0000-0000-0000-000001473047')) THEN
+    RAISE EXCEPTION 'FAIL 6b get_class_ties listed a tie below 4th';
+  END IF;
+
+  FOREACH caller IN ARRAY ARRAY[
+    '00000000-0000-0000-0000-000000147313'::uuid,
+    '00000000-0000-0000-0000-000000147312'::uuid
+  ] LOOP
+    PERFORM pg_temp.act_as(caller);
+    BEGIN
+      PERFORM * FROM public.get_class_ties('00000000-0000-0000-0000-000001473048');
+      RAISE EXCEPTION 'FAIL 6b % read the ties of a class it does not manage', caller;
+    EXCEPTION WHEN insufficient_privilege THEN NULL;
+    END;
+  END LOOP;
+  RAISE NOTICE 'PASS 6b get_class_ties lists the unresolved ribbon ties (1,1,3,3,3) for the manager only';
+
+  PERFORM pg_temp.act_as('00000000-0000-0000-0000-000000147311');
+  PERFORM public.set_class_tie_order('00000000-0000-0000-0000-000001473048', ARRAY[
+    '00000000-0000-0000-0000-000000147382'::uuid, '00000000-0000-0000-0000-000000147381'::uuid]);
+  PERFORM public.set_class_tie_order('00000000-0000-0000-0000-000001473048', ARRAY[
+    '00000000-0000-0000-0000-000000147385'::uuid,
+    '00000000-0000-0000-0000-000000147384'::uuid,
+    '00000000-0000-0000-0000-000000147383'::uuid]);
+  IF EXISTS (SELECT 1 FROM public.get_class_ties('00000000-0000-0000-0000-000001473048')) THEN
+    RAISE EXCEPTION 'FAIL 6c ties are still listed after both flips were recorded';
+  END IF;
+  PERFORM public.mark_class_results_verified(
+    '00000000-0000-0000-0000-000001473048', pg_temp.fp('00000000-0000-0000-0000-000001473048'));
+  IF NOT pg_temp.verified('00000000-0000-0000-0000-000001473048') THEN
+    RAISE EXCEPTION 'FAIL 6c the class could not be checked after the flips were recorded';
+  END IF;
+  RAISE NOTICE 'PASS 6c after the flips are recorded the list is empty and the class can be checked';
+END;
+$$;
+RESET ROLE;
+
+SET LOCAL ROLE anon;
+DO $$
+BEGIN
+  PERFORM pg_temp.act_as(NULL);
+  BEGIN
+    PERFORM * FROM public.get_class_ties('00000000-0000-0000-0000-000001473048');
+    RAISE EXCEPTION 'FAIL anon called get_class_ties';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  RAISE NOTICE 'PASS 6d anon cannot call get_class_ties';
+END;
+$$;
+RESET ROLE;
+
+-- ---------------------------------------------------------------------------
+-- 7. Backfill: a completed class that still holds the old placements for a
+--    tie below 4th (consecutive 5, 6, no marker) reads shared ranks once it is
+--    re-derived through refresh_class_scoring_state, the call the migration's
+--    backfill makes for every completed, non-deleted class. Class 47 stands in
+--    for such a class: its tie for 5th is put back to the pre-migration shape
+--    first.
+-- ---------------------------------------------------------------------------
+DO $$
+BEGIN
+  UPDATE public.entries SET final_placement = 5, placement_tie = NULL
+  WHERE id = '00000000-0000-0000-0000-000000147375';
+  UPDATE public.entries SET final_placement = 6, placement_tie = NULL
+  WHERE id = '00000000-0000-0000-0000-000000147376';
+  IF pg_temp.ties('00000000-0000-0000-0000-000001473047')
+     IS DISTINCT FROM '147371=1,147372=2,147373=3,147374=4,147375=5,147376=6,147377=7' THEN
+    RAISE EXCEPTION 'FAIL 7 setup: class 47 is not in the pre-migration shape: %',
+      pg_temp.ties('00000000-0000-0000-0000-000001473047');
+  END IF;
+
+  PERFORM public.refresh_class_scoring_state(c.id)
+  FROM public.classes c
+  WHERE c.status = 'completed' AND c.deleted_at IS NULL
+    AND c.id = '00000000-0000-0000-0000-000001473047';
+
+  IF pg_temp.ties('00000000-0000-0000-0000-000001473047')
+     IS DISTINCT FROM '147371=1,147372=2,147373=3,147374=4,147375=5~,147376=5~,147377=7' THEN
+    RAISE EXCEPTION 'FAIL 7 the backfill did not give the tie below 4th shared ranks: %',
+      pg_temp.ties('00000000-0000-0000-0000-000001473047');
+  END IF;
+  RAISE NOTICE 'PASS 7 a completed class with a tie below 4th reads shared ranks (5, 5, 7) after the backfill re-derives it';
+END;
+$$;
 
 -- ---------------------------------------------------------------------------
 -- 5. anon is refused outright.

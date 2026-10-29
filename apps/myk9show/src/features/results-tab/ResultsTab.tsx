@@ -17,6 +17,7 @@ import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useReleaseResults } from '@/hooks/mutations/useReleaseResults';
 import { useUnreleaseResults } from '@/hooks/mutations/useUnreleaseResults';
 import type { ResultsClassRow } from './buildResultsClassRows';
+import { CoinFlipDialog } from './CoinFlipDialog';
 import { ResultsClassDetail } from './ResultsClassDetail';
 import { ResultsClassList } from './ResultsClassList';
 import { ResultsFinishRow } from './ResultsFinishRow';
@@ -33,6 +34,7 @@ import {
 } from './resultsTabRoutes';
 import { classRowSyncBlockedReason, useClassRowSyncState } from './useClassRowSyncState';
 import { classHasUnsyncedScores, useClassUnsyncedScores } from './useClassUnsyncedScores';
+import { useRecordCoinFlip } from './useRecordCoinFlip';
 import { useResultsTabData } from './useResultsTabData';
 
 function rowMatchesSearch(row: ResultsClassRow, rawQuery: string): boolean {
@@ -86,7 +88,8 @@ export default function ResultsTab() {
   const showId = params.showId ?? params.id ?? '';
   const [searchParams, setSearchParams] = useSearchParams();
   const urlState = readResultsTabUrlState(searchParams);
-  const { rows, trials, readState, retry, refreshFailed } = useResultsTabData(showId);
+  const { rows, tiesByClassId, trials, readState, retry, refreshFailed } =
+    useResultsTabData(showId);
   // The default status is derived live from the rows the view would list and never written to the
   // URL; a status the URL names always wins (MYK9-1276).
   const defaultStatus = useMemo(
@@ -112,6 +115,8 @@ export default function ResultsTab() {
   const verification = useResultsVerifiedMutations();
   const isWide = useMediaQuery(MASTER_DETAIL_QUERY);
   const [visibilityOpen, setVisibilityOpen] = useState(false);
+  const [coinFlipOpen, setCoinFlipOpen] = useState(false);
+  const coinFlip = useRecordCoinFlip(showId);
   const timeZone = getTrialTimezone(trials[0]);
 
   const update = useCallback(
@@ -355,6 +360,7 @@ export default function ResultsTab() {
       verifyBlockedReason={verifyBlockedReason}
       verifying={verification.isPending}
       online={isOnline}
+      onRecordCoinFlip={() => setCoinFlipOpen(true)}
       currentUserId={user?.id ?? null}
       judgeSignOffSlot={
         judgeGroup ? (
@@ -417,6 +423,23 @@ export default function ResultsTab() {
         detail={detail}
       />
       <ResultsVisibilitySheet open={visibilityOpen} onOpenChange={setVisibilityOpen} />
+      {selected && (
+        <CoinFlipDialog
+          key={selected.id}
+          open={coinFlipOpen && selected.phase === 'needs-coin-flip'}
+          onOpenChange={setCoinFlipOpen}
+          className={selected.name}
+          groups={tiesByClassId.get(selected.id) ?? []}
+          online={isOnline}
+          saving={coinFlip.isPending}
+          onSave={orders =>
+            coinFlip
+              .save({ classId: selected.id, trialId: selected.trialId, orders })
+              .then(() => setCoinFlipOpen(false))
+              .catch(() => undefined)
+          }
+        />
+      )}
     </div>
   );
 }

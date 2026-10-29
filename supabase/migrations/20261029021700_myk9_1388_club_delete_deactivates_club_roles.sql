@@ -23,6 +23,14 @@
 --     the delete's row lock, so a grant racing a delete either waits and is
 --     refused, or commits first and is then deactivated by the delete trigger
 --     (whose UPDATE takes a fresh snapshot under READ COMMITTED).
+--   * Lock order: the guard is two triggers (see section 1), and the UPDATE one
+--     fires only when is_active or club_id actually changes to an active grant.
+--     An update that leaves an already-active grant active never asks for the
+--     club row, so it cannot hold the grant row the delete's deactivation is
+--     waiting on while it waits for the club row (a club -> grant / grant ->
+--     club inversion). A reactivation targets a row the delete does not match.
+--   * The admin is told on restore that roles are not given back
+--     (describeRestoreClub in the app).
 
 -- ---------------------------------------------------------------------------
 -- 1. Guard: no active grant for a deleted club

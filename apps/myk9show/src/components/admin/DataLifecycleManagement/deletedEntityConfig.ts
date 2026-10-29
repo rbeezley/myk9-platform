@@ -15,8 +15,8 @@ import { getDeletedDogs, restoreDog, hardDeleteDog } from '@/services/database/d
 import { getDeletedClubs, restoreClub, hardDeleteClub } from '@/services/database/clubs';
 import { getDeletedUsers, restoreUser, permanentDeleteUser } from '@/services/database/users';
 import {
-  describeRestoreDog,
   describeRestoreClub,
+  describeRestoreDog,
   fetchAndMap,
   mapClass,
   mapClub,

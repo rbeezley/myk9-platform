@@ -105,8 +105,10 @@ export async function restoreOnServer(
     }
     case 'person':
       return unwrapped(await restoreUser(id));
-    case 'club':
-      unwrapped(await restoreClub(id));
+    case 'club': {
+      // Restore never gives the club's roles back (MYK9-1388); say so.
+      unwrap(await restoreClub(id));
       return describeRestoreClub();
+    }
   }
 }

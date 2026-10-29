@@ -253,7 +253,7 @@ const VEHICLE_AND_CONTAINER_NOTES: readonly SetupNote[] = [
   },
   {
     heading: 'Hide prep',
-    text: 'Made ahead: up to 2 aids per container, 1 drop per swab end. Made the day of: 1 aid, 1 drop. Wait 10 minutes after setting before the Dog In White. Nitrile gloves, no glass receptacles. (Ch. 2 §4)',
+    text: 'Made ahead: up to 2 aids per container, 1 drop per swab end. Made the day of: 1 aid, 1 drop. Wait at least 10 minutes after setting, before the Dog In White. Nitrile gloves, no glass receptacles. (Ch. 2 §4)',
   },
 ];
 

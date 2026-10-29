@@ -286,11 +286,11 @@ const EXTERIOR_GROUP: SetupElementGroup = {
 const CONTAINERS_AND_BURIED_NOTES: readonly SetupNote[] = [
   {
     heading: 'Containers',
-    text: 'Novice boxes are identical cardboard, at least 10 x 8 in and 3 to 8 in tall. Rows are parallel straight lines, not offset, with the start line at the short end. Use no more than 5 of any identical container type. Keep a visual barrier from other search areas, at least 20 ft away. (Ch. 5 §11-§12, Ch. 7 §3-§4)',
+    text: 'Novice boxes are identical cardboard, at least 10 x 8 in and 3 to 8 in tall. Rows are parallel straight lines, not offset, with the start line at the short end. Use no more than 5 of any identical container type. Always keep a visual barrier from other search areas, and stay at least 20 ft from an active search area unless a physical barrier separates them. (Ch. 5 §11-§12, Ch. 7 §3-§4)',
   },
   {
     heading: 'Buried',
-    text: 'Totes about 16 x 11 x 7 in with latching handles and a metal grid. Play sand and drinking-quality water only. Sand vessel is a stainless mesh tea ball, 1 to 2 in. Water boxes each hold a vessel on the bottom, covered by 4 in of water. Distractions are never buried. (Ch. 5 §24, Ch. 7 §7)',
+    text: 'Totes about 16 x 11 x 7 in with latching handles and a metal grid. Play sand and drinking-quality water only. Sand vessel is a stainless mesh tea ball, 1 to 2 in. Water boxes each hold a vessel on the bottom, covered by 4 in of water. At some levels a distraction may not be buried or submerged. (Ch. 5 §24, Ch. 7 §7)',
   },
   {
     heading: 'Distractions',
@@ -298,7 +298,7 @@ const CONTAINERS_AND_BURIED_NOTES: readonly SetupNote[] = [
   },
   {
     heading: 'Hide prep',
-    text: 'One scent aid (cotton ball or paper-stem swab) per vessel, one vessel per hide, 2 drops of one odor. Glass for storage only; no glass vessels. Same hide spot for every team in a class. After moving a hide, wait 10 minutes before the next dog. (Ch. 5 §4-§5, §8)',
+    text: 'One scent aid (cotton ball or paper-stem swab) per vessel, one vessel per hide, 2 drops of one odor. Glass for storage only; no glass vessels. Same hide spot for every team in a class. If a hide must move mid-class, wipe the old spot with 1 part white vinegar to 3 parts water and wait 10 minutes before the next dog. (Ch. 5 §4-§5, §8-§9)',
   },
 ];
 
@@ -317,7 +317,7 @@ const INTERIOR_AND_EXTERIOR_NOTES: readonly SetupNote[] = [
   },
   {
     heading: 'Between classes',
-    text: 'Move the scent between classes; let it stand 10 minutes before the first dog. Wipe a moved hide spot with 1 part white vinegar to 3 parts water. (Ch. 5 §8-§9)',
+    text: 'Move the scent between classes; let it stand 10 minutes before the first dog in the new class. (Ch. 5 §8)',
   },
 ];
 

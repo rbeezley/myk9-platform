@@ -6,6 +6,7 @@
  *  - `/at-show/:showId/class/:classId`            → single-class EntryList (1a)
  *  - `/at-show/:showId/class/:classIdA/:classIdB` → combined Section A/B list (1h)
  *  - `/at-show/:showId/class/:classId/score/:entryId` → live scoresheet
+ *  - `/at-show/:showId/setup-sheet`               → printable judge setup cheat sheet
  * Mounted OUTSIDE UnifiedAppLayout (full-screen ringside — no host sidebar or
  * header; see App.tsx), which is why the boundary's states use a full-screen
  * wrapper.
@@ -42,6 +43,11 @@ const AtShowCombinedEntryListPage = createEnhancedLazy(
 const AtShowScoresheetPage = createEnhancedLazy(
   () => import('@/features/at-show/AtShowScoresheetPage'),
   { ...RouteLazyPresets.mediumPriority, displayName: 'AtShowScoresheetPage' }
+);
+
+const AtShowSetupSheetPage = createEnhancedLazy(
+  () => import('@/features/at-show/AtShowSetupSheetPage'),
+  { ...RouteLazyPresets.mediumPriority, displayName: 'AtShowSetupSheetPage' }
 );
 
 const AtShowClassListPage = createEnhancedLazy(
@@ -95,6 +101,11 @@ export const AtShowRoutes = () => {
       <Route
         path="/at-show/:showId/class/:classIdA/:classIdB"
         element={atShowElement(<AtShowCombinedEntryListPage />)}
+      />
+      {/* Printable judge setup cheat sheet (MYK9-1078): static, so it works offline. */}
+      <Route
+        path="/at-show/:showId/setup-sheet"
+        element={atShowElement(<AtShowSetupSheetPage />)}
       />
       {/* Live scoresheet (judge's mobile timer) — entry cards navigate here. */}
       <Route

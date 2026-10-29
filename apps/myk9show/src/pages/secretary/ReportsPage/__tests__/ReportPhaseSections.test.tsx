@@ -46,15 +46,15 @@ describe('ReportPhaseSections', () => {
       expect(new Set(ids).size).toBe(reportRegistry.length);
     });
 
-    it('has exactly 37 reports, in the buckets the phase table on MYK9-630 states', () => {
-      expect(reportRegistry).toHaveLength(37);
+    it('has exactly 39 reports, in the buckets the phase table on MYK9-630 states', () => {
+      expect(reportRegistry).toHaveLength(39);
       const sizes = Object.fromEntries(
         (Object.keys(PHASE_COPY) as Array<keyof typeof PHASE_COPY>).map(phase => [
           phase,
           reportRegistry.filter(r => r.phase === phase).length,
         ])
       );
-      expect(sizes).toEqual({ before: 13, during: 11, after: 12, anytime: 1 });
+      expect(sizes).toEqual({ before: 15, during: 11, after: 12, anytime: 1 });
     });
 
     it('lists Result labels under During the show, not Before or After (MYK9-1233)', () => {
@@ -158,6 +158,25 @@ describe('ReportPhaseSections', () => {
         expect(ids, `${report.id} must not appear for a UKC-only show`).not.toContain(report.id);
       }
       expect(ids).toContain('ukc-nosework-entry-form');
+    });
+
+    it('lists the setup cheat sheet for the show registry only, never for ASCA (MYK9-1078)', () => {
+      const sheetIds = ['ukc-nosework-setup-cheat-sheet', 'akc-scent-work-setup-cheat-sheet'];
+      const idsFor = (registry: string) => {
+        const { unmount } = render(
+          <ReportPhaseSections
+            {...defaultProps}
+            trials={akcTrials.map(t => ({ ...t, registry_id: registry }))}
+          />
+        );
+        const ids = cardIds();
+        unmount();
+        return ids.filter(id => sheetIds.includes(id));
+      };
+
+      expect(idsFor('UKC')).toEqual(['ukc-nosework-setup-cheat-sheet']);
+      expect(idsFor('AKC')).toEqual(['akc-scent-work-setup-cheat-sheet']);
+      expect(idsFor('ASCA')).toEqual([]);
     });
 
     it('fails open to the full catalog when no trials are loaded', () => {
@@ -342,6 +361,8 @@ describe('report registry names', () => {
     'akc-judge-report': "AKC Judge's Report",
     'trial-secretary-certification': 'AKC Trial Secretary Certification',
     'judge-supply-checklist': 'Judge Supply Checklists',
+    'ukc-nosework-setup-cheat-sheet': 'UKC Judge Setup Cheat Sheet',
+    'akc-scent-work-setup-cheat-sheet': 'AKC Judge Setup Cheat Sheet',
   };
 
   it('gives every report its own name', () => {

@@ -147,6 +147,7 @@ export {
   configureConflictSurfacing,
   countServerBackedRows,
 } from './syncReplicatedTable';
+export { replaceScope } from './replaceScope';
 export { countCoveredRows } from './replicaCoverage';
 export {
   DEFAULT_REMOTE_COUNT_INTERVAL_MS,

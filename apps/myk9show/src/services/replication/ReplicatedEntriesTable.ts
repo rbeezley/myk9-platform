@@ -12,6 +12,7 @@
 import {
   ReplicatedTable,
   syncReplicatedTable,
+  replaceScope,
   parseUpdatedAtMs,
   databaseManager,
   REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN,
@@ -32,6 +33,11 @@ import type { Database } from '@/types/supabase';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
 import { PendingDeletes } from './pendingDeletes';
 import { planEntriesRead } from './entriesChangedSince';
+import {
+  clearEntriesAccessPending,
+  entriesAccessMark,
+  hasEntriesAccessPending,
+} from './entriesAccessPending';
 import { entryChangedColumnsRow } from './ReplicatedEntriesTable.changedColumns';
 import {
   entryToSupabaseRow,
@@ -301,8 +307,13 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     // Background replication and report reads can request the same show together.
     // Share only the active operation; the next refresh must still contact the server.
     const syncKey = `${principalId}:${showScopeId}`;
+    // A show pending an access refetch (MYK9-1476) is a forced run, so an
+    // ordinary running sync, fetched under the old roles, cannot answer it.
+    const forceFullSync =
+      options?.forceFullSync === true ||
+      (hasEntriesAccessPending() && (await entriesAccessMark(this, showScopeId)) !== null);
+    // Read after that await: the map may have changed while it was pending.
     const running = this._syncsByShow.get(syncKey);
-    const forceFullSync = options?.forceFullSync === true;
     // A forced full sync must not be answered by an incremental one already
     // running (MYK9-752): wait that one out, then run its own. Anything shares
     // a forced run; only an ordinary call shares an ordinary one.
@@ -330,6 +341,11 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     return running.length > 0 ? Promise.allSettled(running).then(noop) : null;
   }
 
+  /** Show ids with a sync running now, for any principal (MYK9-1476). */
+  runningShowIds(): string[] {
+    return [...this._syncsByShow.keys()].map(key => key.slice(key.lastIndexOf(':') + 1));
+  }
+
   async refreshReceiptReferencesForUser(principalId: string): Promise<void> {
     // MYK9-774: getAll() on purpose — maintenance: [] refreshes nothing this
     // pass; receipts keep their current references until the next refresh.
@@ -351,6 +367,11 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     forceFullSync = false
   ): Promise<SyncResult> {
     logger.log(`[${this.getTableName()}] Starting sync`);
+    // No await unless something is pending: the common sync still starts at once.
+    const accessMark = hasEntriesAccessPending()
+      ? await entriesAccessMark(this, showScopeId)
+      : null;
+    let replacedScope = false;
     const needsReceiptReferenceRefresh = !hasReceiptReferenceRefresh(showScopeId, principalId);
     let remoteRowCount: number | undefined;
     let receiptReferenceColumnObserved = false;
@@ -497,6 +518,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
         return shouldSkip;
       },
       afterSuccessfulSync: async ({ serverIds, localRows, staleCleanupCompleted }) => {
+        replacedScope = staleCleanupCompleted;
         const pendingCount = await this.getMutationPendingCount();
         for (const [id, deletedVersion] of this._deletedIds) {
           if (
@@ -523,16 +545,20 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       },
     };
 
-    const result = await syncReplicatedTable(
-      this,
-      adapter,
-      { value: showScopeId },
-      {
-        forceFullSync: forceFullSync || needsReceiptReferenceRefresh,
-        incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN,
-      }
-    );
+    const engineOptions = {
+      forceFullSync: forceFullSync || needsReceiptReferenceRefresh,
+      incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN,
+    };
+    const scope = { value: showScopeId };
+    // MYK9-1476: a show whose access changed replaces its clean rows after the
+    // download, believing a complete zero-row answer.
+    const result = accessMark
+      ? await replaceScope(this, adapter, scope, engineOptions)
+      : await syncReplicatedTable(this, adapter, scope, engineOptions);
     if (result.success) recordViewRead();
+    if (accessMark && result.success && replacedScope) {
+      clearEntriesAccessPending(accessMark.authUserId, showScopeId, accessMark.markedAt);
+    }
 
     if (
       needsReceiptReferenceRefresh &&

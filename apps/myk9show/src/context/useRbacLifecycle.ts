@@ -15,6 +15,7 @@ import { isTransientBrowserFetchError } from '@/services/rbac/PermissionChecker'
 import { useAuthEventRefresh } from './useAuthEventRefresh';
 import { rbacRetryDelayMs } from './rbacLoadRetry';
 import { rbacService } from '@/services/rbac/RBACService';
+import { noteEntriesAccessRoles } from '@/services/replication/entriesAccessPending';
 import { onAccountBoundary } from '@/lib/accountBoundary';
 import { getUniqueActiveRoleNames } from './authContextHelpers';
 import {
@@ -62,6 +63,9 @@ function persistVerifiedCopy(userId: string, data: UserPermissionsResponse): voi
   const cachedAt = saveRbacPermissionsCache(userId, data);
   if (cachedAt) saveRbacWarmToken(userId, cachedAt);
   else clearRbacWarmToken(userId);
+  // Server-verified roles only (never the cache or a warm seed): a changed
+  // active role set re-reads each held show's entries in full (MYK9-1476).
+  void noteEntriesAccessRoles(userId, data.roles);
 }
 
 export function useRbacLifecycle(userId: string | undefined) {

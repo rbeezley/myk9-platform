@@ -41,6 +41,8 @@ export interface SyncReplicatedTableOptions extends Partial<SyncOptions> {
    *
    *  Per-call override takes precedence over `configureConflictSurfacing()`. */
   conflictSurfacingEnabled?: boolean;
+  /** Access changed (MYK9-1476): full sync; believe a COMPLETE 0-row answer. Use `replaceScope`. */
+  accessChanged?: boolean;
 }
 
 /**
@@ -152,11 +154,8 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
 
     const localRows = await getLocalRowsForScope();
 
-    // Periodic self-heal. The server-authoritative watermark below removes the
-    // systemic drop, but a *partially* stale replica (most rows present, a few
-    // missing) would never re-run a full sync on its own — `forceFullSync` would
-    // otherwise only fire on a fully empty replica. Force a full sync when the
-    // last full sync is older than the staleness window. Guarded on `> 0` so a
+    // Periodic self-heal: a *partially* stale replica never re-runs a full sync
+    // on its own, so force one past the staleness window. Guarded on `> 0` so a
     // never-full-synced table (lastFullSyncAt = 0) does NOT force-full every tick.
     const fullSyncIntervalMs = options.fullSyncIntervalMs ?? DEFAULT_FULL_SYNC_INTERVAL_MS;
     const lastFullSyncAt = metadata?.lastFullSyncAt || 0;
@@ -164,6 +163,7 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
 
     const forced =
       options.forceFullSync === true ||
+      options.accessChanged === true ||
       localRows.length === 0 ||
       scopeNotStampedByMe ||
       fullSyncStale;
@@ -340,6 +340,7 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
     // the fetch share one RLS, so an RLS gap returns 0 and 0 -- "complete".
     // Over a warm replica that needs independent proof; otherwise skip cleanup.
     const scopeEmptyIsProven = async (): Promise<boolean> => {
+      if (options.accessChanged === true) return true;
       if (serverIds.size > 0 || countServerBackedRows(await getAllRowsForScope()) === 0)
         return true;
       try {

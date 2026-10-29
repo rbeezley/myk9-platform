@@ -1,4 +1,4 @@
--- MYK9-1388 (migration 20261029021700): soft-deleting a club deactivates the
+-- MYK9-1388 (migration 20261029041300): soft-deleting a club deactivates the
 -- role grants scoped to it; restore is role-neutral; no active grant can exist
 -- for a deleted club.
 --

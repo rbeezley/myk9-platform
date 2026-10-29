@@ -4,7 +4,7 @@ import type { Logger } from './dependencies';
 import { removeOrphanedLocalOnlyRow } from './mutation-row-sync';
 import { DiscardRevertRegistry } from './mutation-discard-revert';
 import { rebaseQueuedMutation, rewriteQueuedMutations } from './mutation-queue-rewrite';
-import { withQuotaEviction } from './quota-eviction';
+import { evictCleanCacheRows, withQuotaEviction } from './quota-eviction';
 import { type PendingMutation, type ReplicatedRow } from './types';
 
 export class MutationQueueStore {
@@ -100,43 +100,6 @@ export class MutationQueueStore {
   }
 
   /**
-   * Free space by deleting the least-recently-accessed CLEAN cache rows from the
-   * replicated-tables store. Used as the eviction callback when a mutation write
-   * hits storage quota. Dirty/unsynced rows are never deleted, so an offline
-   * score can make room without losing other unsynced data. Best-effort:
-   * returns 0 (write cannot proceed) if nothing clean is evictable or the scan
-   * fails.
-   */
-  private async evictCleanCacheRows(db: IDBPDatabase): Promise<number> {
-    try {
-      const all = (await db.getAll(
-        REPLICATION_STORES.REPLICATED_TABLES
-      )) as ReplicatedRow<unknown>[];
-      const clean = all
-        .filter(row => !row.isDirty)
-        .sort((a, b) => (a.lastAccessedAt ?? 0) - (b.lastAccessedAt ?? 0));
-      if (clean.length === 0) return 0;
-
-      // Free ~10% of clean rows (at least one) — enough to relieve pressure
-      // without nuking the whole cache. Key is [tableName, id] (top-level).
-      const toEvict = Math.max(1, Math.floor(clean.length * 0.1));
-      const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
-      let evicted = 0;
-      for (let i = 0; i < toEvict && i < clean.length; i++) {
-        const row = clean[i];
-        if (row && typeof row.tableName === 'string' && typeof row.id === 'string') {
-          await tx.store.delete([row.tableName, row.id]);
-          evicted++;
-        }
-      }
-      await tx.done;
-      return evicted;
-    } catch {
-      return 0;
-    }
-  }
-
-  /**
    * Build a queue record: id (and, by default, sequence number) allocated here,
    * BEFORE any transaction, because they await non-IndexedDB work. Nothing is
    * written.
@@ -191,7 +154,7 @@ export class MutationQueueStore {
     // never touched by the evictor.
     await withQuotaEviction(
       () => putStampingCurrentServerVersion(db, mutation),
-      () => this.evictCleanCacheRows(db),
+      () => evictCleanCacheRows(db),
       this.logger
     );
     this.logger.log(

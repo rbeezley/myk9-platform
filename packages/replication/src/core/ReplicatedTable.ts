@@ -65,7 +65,7 @@ import {
 } from '../conflict/detectDirtyRowConflict';
 import type { ScopeStampDirective } from './scopeStamp';
 import { isConflictSurfacingEnabled } from '../conflictConfig';
-import { withQuotaEviction } from '../quota-eviction';
+import { evictCleanCacheRows, withQuotaEviction } from '../quota-eviction';
 import { putRowAndMutation, type QueuedWrite } from './putRowAndMutation';
 import { writeAndQueue, type WriteAndQueueResult } from './writeAndQueue';
 import {
@@ -768,7 +768,14 @@ export abstract class ReplicatedTable<T extends { id: string }> {
           ownerAuthUserId,
           queued
         ),
-      () => this.relieveQuota(),
+      // The mutation lands in the same transaction, so a full disk is relieved the
+      // way the queue store relieves it: this table first, then clean rows of any
+      // table (Codex round 3, MYK9-1471).
+      async () => {
+        const evicted = await this.relieveQuota();
+        if (evicted > 0 || !queued) return evicted;
+        return evictCleanCacheRows(await this.init());
+      },
       this.logger
     );
     return { result, revision: attempt.revision };

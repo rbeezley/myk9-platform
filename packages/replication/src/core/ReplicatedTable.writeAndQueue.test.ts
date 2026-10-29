@@ -321,6 +321,35 @@ describe('ReplicatedTable.writeAndQueue (MYK9-1471)', () => {
     expect(row?.serverVersion).toBe(3);
   });
 
+  // Codex round 3: the mutation is in the row's transaction, so a full disk must be relieved
+  // across tables as the queue store does, not only from this table's clean rows.
+  it('frees clean rows of another table when its own table has none to give', async () => {
+    const table = new WritingTable(tableName);
+    await start(table);
+    await table.edit('1', 'first'); // the only row in this table is now dirty, so protected
+    const db = await databaseManager.getDatabase('test');
+    await db.put(REPLICATION_STORES.REPLICATED_TABLES, {
+      tableName: 'other_table',
+      id: 'spare',
+      data: {},
+      isDirty: false,
+      version: 1,
+      lastAccessedAt: 1,
+    });
+    const quota = new Error('QuotaExceededError');
+    quota.name = 'AbortError';
+    failNextPutInto(REPLICATION_STORES.PENDING_MUTATIONS, quota);
+
+    const { mutationId, result } = await table.edit('1', 'second');
+
+    expect(result.written).toBe(true);
+    expect(mutationId).not.toBeNull();
+    expect(await db.get(REPLICATION_STORES.REPLICATED_TABLES, ['other_table', 'spare'])).toBe(
+      undefined
+    );
+    expect((await table.getReplicatedRow('1'))?.data).toMatchObject({ status: 'second' });
+  });
+
   it('writes the row without a mutation when no MutationManager is set', async () => {
     const table = new WritingTable(tableName);
     const { mutationId, result } = await table.edit('9', 'offline-only');

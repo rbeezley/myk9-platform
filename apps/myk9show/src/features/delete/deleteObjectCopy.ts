@@ -85,11 +85,16 @@ export function cascadeSentence(
   }
   if (parts.length > 0) return `This also removes ${its} ${joinWords(parts)}.`;
   if (kind === 'person') return 'Their myK9 roles are switched off too.';
+  if (kind === 'club') return CLUB_ACCESS_SENTENCE;
   if (kind === 'show' || kind === 'trial' || kind === 'class' || kind === 'dog') {
     return 'Nothing else goes with it.';
   }
   return null;
 }
+
+/** A deleted club's administrators, secretaries and officials lose access, and Undo does not give it back. */
+export const CLUB_ACCESS_SENTENCE =
+  "Everyone's access to this club (administrators, secretaries, officials) is switched off. Restoring the club does not bring it back; grant the roles again.";
 
 export function undoSentence(count: number): string {
   return `You can undo this for 10 minutes. After that, ask a myK9 administrator to restore ${

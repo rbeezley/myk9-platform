@@ -18,6 +18,7 @@ import {
 import { QUERY_ROOTS_BY_KIND } from './deleteLocalStores';
 import { reconcileLocalDeletion, reconcileLocalRestore } from './deleteLocalState';
 import { restoreOnServer, softDeleteOnServer, type ServerDeleteOptions } from './deleteServer';
+import { describeRestoreClub } from '@/components/admin/DataLifecycleManagement/deletedEntityMappers';
 import { fetchDeletePreview } from './deletePreview';
 import { deviceHasUnsavedWork, stillSavingError } from './deleteUnsyncedWork';
 import { UNDO_WINDOW_MS, type DeleteObjectKind, type DeleteTarget } from './deleteTypes';
@@ -188,6 +189,9 @@ export async function restoreRecords(
         });
         return;
       }
+      // The first restore committed and only its response was lost. A club's
+      // roles are still switched off, so the warning must not be lost with it.
+      if (kind === 'club') warnings.push({ target, message: describeRestoreClub() });
     }
     restored.push(target);
     await reconcileLocalRestore(kind, target);

@@ -10,6 +10,7 @@
  */
 
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -67,7 +68,17 @@ export const ClubContextGate: React.FC<ClubContextGateProps> = ({
         <CardContent className="flex flex-col items-center gap-4 pt-6 text-center">
           <Icon className="h-6 w-6 text-muted-foreground" aria-hidden="true" />
           <p className="max-w-md text-muted-foreground">{message}</p>
-          {canRetry && <Button onClick={onRetry}>Try again</Button>}
+          {canRetry ? (
+            <Button onClick={onRetry}>Try again</Button>
+          ) : (
+            // Retrying cannot fix an authorization gap, so the way out is home.
+            <Link
+              to="/"
+              className="rounded text-sm text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              Back to dashboard
+            </Link>
+          )}
         </CardContent>
       </Card>
     </div>

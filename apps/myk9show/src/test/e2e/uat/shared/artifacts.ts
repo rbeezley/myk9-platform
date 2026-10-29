@@ -6,6 +6,12 @@ export type BrowserHealth = {
   consoleErrors: string[];
   pageErrors: string[];
   failedResponses: string[];
+  /**
+   * App requests that never got a response, with the browser's own reason
+   * (`cancelled`, or WebKit's `… Status code: N`). Diagnostic only: it names
+   * what a WebKit "due to access control checks" page error really was (MYK9-1477).
+   */
+  failedRequests: string[];
 };
 
 const DEFAULT_RUN_ID = new Date().toISOString().replace(/[:.]/g, '-');
@@ -15,6 +21,7 @@ export function createBrowserHealth(): BrowserHealth {
     consoleErrors: [],
     pageErrors: [],
     failedResponses: [],
+    failedRequests: [],
   };
 }
 
@@ -36,6 +43,12 @@ export function watchBrowserHealth(page: Page, health: BrowserHealth) {
     if (status >= 400 && isAppOwnedUrl(response.url())) {
       health.failedResponses.push(`${status} ${response.request().method()} ${response.url()}`);
     }
+  });
+
+  page.on('requestfailed', request => {
+    if (!isAppOwnedUrl(request.url())) return;
+    const reason = request.failure()?.errorText ?? 'unknown';
+    health.failedRequests.push(`${reason} | ${request.method()} ${request.url()}`);
   });
 }
 

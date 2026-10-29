@@ -212,6 +212,7 @@ async function sweepRoutes(
     health.consoleErrors.length = 0;
     health.pageErrors.length = 0;
     health.failedResponses.length = 0;
+    health.failedRequests.length = 0;
     // Including the in-flight API requests, which used to be the one piece of
     // per-route state this block forgot. `page.goto` below tears down the
     // current document, and a request still in flight when that happens may
@@ -336,12 +337,20 @@ async function sweepRoutes(
     // Health checks (console errors, replication errors, owned 4xx/5xx).
     // Evaluated after the mobile resize so any mobile-triggered errors are included.
     const viols = violations(health);
-    expect.soft(viols, `${id}: browser health violations`).toHaveLength(0);
+    // WebKit reports some failed fetches only as "<url> due to access control
+    // checks", which hides why. The browser's own reason for each app request
+    // that never got a response (`cancelled`, or `… Status code: N`) rides along
+    // so the report says what the page error really was (MYK9-1477).
+    const failedRequests =
+      health.failedRequests.length > 0
+        ? ` failed-requests=${health.failedRequests.join('; ')}`
+        : '';
+    expect.soft(viols, `${id}: browser health violations${failedRequests}`).toHaveLength(0);
 
     // Annotate result for report visibility.
     test.info().annotations.push({
       type: 'route',
-      description: `${id} render=${bodyText.length}ch health=${viols.length > 0 ? viols.join('; ') : 'ok'}`,
+      description: `${id} render=${bodyText.length}ch health=${viols.length > 0 ? viols.join('; ') : 'ok'}${failedRequests}`,
     });
   }
 }

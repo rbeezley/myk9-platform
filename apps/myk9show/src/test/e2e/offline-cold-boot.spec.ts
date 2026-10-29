@@ -345,13 +345,16 @@ test.describe('offline cold boot', () => {
   // mark, so its next attempt lands once the route reopens. The text check
   // below stays as the user-visible outcome, not as the hook's proof.
   //
-  // The proof is the exhibitor profile read. `useExhibitorProfile` sets
-  // `retry: false` and a 5-minute staleTime, and nothing else on this page
-  // reads `exhibitor_profiles`, so after the offline boot it sits in `error`
-  // and only a reconnect refetch can re-issue it. Measured with the hook
-  // removed: zero `exhibitor_profiles` requests in the 20s after reconnect.
-  // With it: one, as soon as the `online` event fires. Do not swap this for a
-  // query some other path also refreshes without re-checking that mutation.
+  // The proof is the exhibitor profile read. Every profile reader on this page
+  // shares the one `['exhibitorProfile', userId]` query, which sets
+  // `retry: false` and a 5-minute staleTime, and nothing invalidates it; so
+  // after the offline boot it sits in `error` and only a reconnect refetch can
+  // re-issue it. Measured with the hook removed: zero `exhibitor_profiles`
+  // requests in the 20s after reconnect. With it: one, as soon as the `online`
+  // event fires. Two changes would make this pass without the hook, so re-check
+  // that mutation after either: swapping in a query some other path also
+  // refreshes, or a profile reader that first MOUNTS after reconnect (a
+  // skeleton-to-content swap), since `refetchOnMount` refetches an errored query.
   test('react-query data returns when connectivity comes back, without a reload', async ({
     page,
     context,
@@ -389,17 +392,19 @@ test.describe('offline cold boot', () => {
     expect(interceptedCount()).toBeGreaterThan(0);
 
     // Armed before the route reopens, so a refetch that fires on the `online`
-    // event itself cannot be missed.
-    const profileRefetch = page.waitForRequest(
-      request =>
-        request.method() === 'GET' && /\/rest\/v1\/exhibitor_profiles\?/.test(request.url()),
-      { timeout: 15_000 }
-    );
+    // event itself cannot be missed. A response, not a request: a read the
+    // offline route aborted never gets one, so only a refetch that reached the
+    // server counts. Signal returns. NO reload — that is the whole point.
+    await Promise.all([
+      page.waitForResponse(
+        response =>
+          response.request().method() === 'GET' &&
+          /\/rest\/v1\/exhibitor_profiles\?/.test(response.url()),
+        { timeout: 15_000 }
+      ),
+      restoreConnectivity(),
+    ]);
 
-    // Signal returns. NO reload — that is the whole point.
-    await restoreConnectivity();
-
-    await profileRefetch;
     await expect
       .poll(async () => (await page.locator('main').innerText()).length, { timeout: 30_000 })
       .toBeGreaterThan(healthyLength / 2);

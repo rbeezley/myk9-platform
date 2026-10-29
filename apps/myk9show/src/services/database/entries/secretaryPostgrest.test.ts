@@ -140,6 +140,41 @@ describe('postgrestGetSecretaryEntriesForShow — payment bookkeeping compatibil
     expect(viewReads[0].select).toContain('payment_notes');
   });
 
+  // MYK9-1473: Results derives "Record coin flip" from the tie state. A fallback
+  // that omits it reads every tie as resolved, offers Check scores, and the
+  // server refuses the check (MK018) with no way forward from the tab.
+  it('reads the tie state and points the Results tab needs', async () => {
+    const reads: string[] = [];
+    mocks.from.mockImplementation((relation: string) => {
+      const query = {
+        select: vi.fn((columns: string) => {
+          if (relation === 'view_authenticated_entry_results') reads.push(columns);
+          return query;
+        }),
+        eq: vi.fn(() => query),
+        is: vi.fn(() => query),
+        in: vi.fn(() => query),
+        order: vi.fn(() =>
+          Promise.resolve({
+            data: [{ id: 'entry-1', placement_tie: 'unresolved', placement_tiebreak: null }],
+            error: null,
+          })
+        ),
+        then: (resolve: (value: unknown) => unknown) =>
+          Promise.resolve({ data: [], error: null }).then(resolve),
+      };
+      return query;
+    });
+
+    const { data } = await postgrestGetSecretaryEntriesForShow('show-1', Date.now(), 'test');
+
+    const columns = reads[0].split(/[\s,]+/);
+    expect(columns).toEqual(
+      expect.arrayContaining(['placement_tie', 'placement_tiebreak', 'points_earned'])
+    );
+    expect(data[0]).toMatchObject({ placement_tie: 'unresolved' });
+  });
+
   it('projects the canonical handler identity from joined handler and owner rows', async () => {
     mocks.from.mockImplementation((relation: string) => {
       const query = {

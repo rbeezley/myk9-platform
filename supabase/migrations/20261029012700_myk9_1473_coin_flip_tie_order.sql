@@ -734,7 +734,11 @@ BEGIN
   RETURN QUERY
   SELECT
     (min(e.final_placement) OVER (
-      PARTITION BY e.points_earned, e.total_faults, e.search_time_seconds
+      -- The same keys recalculate_class_placements ties on: points at a
+      -- nationals, faults otherwise, then time.
+      PARTITION BY CASE WHEN v_is_nationals THEN e.points_earned END,
+                   CASE WHEN NOT v_is_nationals THEN e.total_faults END,
+                   e.search_time_seconds
     ))::integer AS group_rank,
     e.id,
     -- The authoritative armband is armbands.armband_number; entries.armband is

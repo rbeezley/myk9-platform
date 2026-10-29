@@ -141,7 +141,8 @@ export function useResultsTabData(showId: string) {
 
   // A tie for a ribbon is a server fact the replica does not carry: asked for the classes that
   // could owe a coin flip, then folded into the same phase rules.
-  const tiesByClassId = useClassTies(showId, builtRows);
+  const classTies = useClassTies(showId, builtRows);
+  const tiesByClassId = classTies.byClass;
   const rows = useMemo(
     () => applyCoinFlipPending(builtRows, new Set(tiesByClassId.keys())),
     [builtRows, tiesByClassId]
@@ -164,6 +165,14 @@ export function useResultsTabData(showId: string) {
       isError: entriesQuery.isError,
     },
     ...paperwork.reads,
+    // A tie read that failed must not read as "no ties": it shows as a failed refresh, with Retry.
+    {
+      key: 'class-ties',
+      critical: false,
+      hasData: true,
+      isLoading: false,
+      isError: classTies.failed,
+    },
     // Release state is read from the class rows; without them every class would read unreleased.
     ...paperwork.reads
       .filter(read => read.key === 'class-rows')
@@ -192,6 +201,7 @@ export function useResultsTabData(showId: string) {
       void schedule.retry();
       void entriesQuery.refetch();
       paperwork.refetch();
+      classTies.refetch();
     },
   };
 }

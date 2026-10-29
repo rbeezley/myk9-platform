@@ -66,7 +66,7 @@ import {
 import type { ScopeStampDirective } from './scopeStamp';
 import { isConflictSurfacingEnabled } from '../conflictConfig';
 import { withQuotaEviction } from '../quota-eviction';
-import { putRowAndMutation } from './putRowAndMutation';
+import { putRowAndMutation, type QueuedWrite } from './putRowAndMutation';
 import { writeAndQueue, type WriteAndQueueResult } from './writeAndQueue';
 import {
   composeRetrySetOptions,
@@ -703,16 +703,21 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       acquireLock: async () => manager?.acquireMutationWriteLock?.(),
       prepare: async () =>
         manager
-          ? manager.prepareMutation(
-              this.tableName,
-              queue.operation,
-              id,
-              queue.payload,
-              queue.dependsOn,
-              queue.rpc,
-              queue.rpc ? await this.resolveMutationShowId(id) : undefined
-            )
+          ? {
+              mutation: await manager.prepareMutation(
+                this.tableName,
+                queue.operation,
+                id,
+                queue.payload,
+                queue.dependsOn,
+                queue.rpc,
+                queue.rpc ? await this.resolveMutationShowId(id) : undefined
+              ),
+              sequencer: manager.sequencer,
+            }
           : null,
+      queueAlone: () =>
+        this.queueMutation(queue.operation, id, queue.payload, queue.dependsOn, queue.rpc),
       write: queued =>
         this.persistRow(
           id,
@@ -746,7 +751,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     expectedVersion?: number,
     incomingServerVersion?: number,
     options?: ReplicatedSetOptions,
-    queued?: PendingMutation
+    queued?: QueuedWrite
   ): Promise<{ result: ReplicatedSetResult; revision: number | undefined }> {
     const attempt: SetAttempt = { rowExisted: false };
     const ownerAuthUserId = await this.rowOwnerFor();
@@ -787,12 +792,16 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     options?: ReplicatedSetOptions,
     attempt?: SetAttempt,
     ownerAuthUserId?: string,
-    queued?: PendingMutation
+    queued?: QueuedWrite
   ): Promise<ReplicatedSetResult> {
     const db = await this.init();
     const tx = db.transaction(
       queued
-        ? [REPLICATION_STORES.REPLICATED_TABLES, REPLICATION_STORES.PENDING_MUTATIONS]
+        ? [
+            REPLICATION_STORES.REPLICATED_TABLES,
+            REPLICATION_STORES.PENDING_MUTATIONS,
+            REPLICATION_STORES.SYNC_METADATA,
+          ]
         : REPLICATION_STORES.REPLICATED_TABLES,
       'readwrite'
     );

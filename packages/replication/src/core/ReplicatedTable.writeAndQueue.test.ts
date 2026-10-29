@@ -216,7 +216,7 @@ describe('ReplicatedTable.writeAndQueue (MYK9-1471)', () => {
     expect(row?.data.status).toBe('done');
   });
 
-  it('queues nothing when the row write stores nothing', async () => {
+  it('still queues the mutation, alone, when the cold-insert guard refuses the row write', async () => {
     const table = new WritingTable(tableName);
     await start(table);
     vi.spyOn(
@@ -227,8 +227,40 @@ describe('ReplicatedTable.writeAndQueue (MYK9-1471)', () => {
     const { mutationId, result } = await table.edit('absent-row', 'x');
 
     expect(result.written).toBe(false);
-    expect(mutationId).toBeNull();
-    expect(await pendingFor(tableName)).toEqual([]);
+    expect(mutationId).not.toBeNull();
+    const queued = await pendingFor(tableName);
+    expect(queued.map(m => [m.id, m.rowId])).toEqual([[mutationId, 'absent-row']]);
+    expect(await table.getReplicatedRow('absent-row')).toBeNull();
+  });
+
+  it('numbers overlapping writes in the order they commit, not the order they prepared', async () => {
+    const table = new WritingTable(tableName);
+    await start(table);
+    await table.set('2', { id: '2', status: 'scored', finalPlacement: null }, false, undefined, 3);
+    // The first write finishes preparing, then stalls before its transaction.
+    let openGate!: () => void;
+    const gate = new Promise<void>(resolve => (openGate = resolve));
+    const prepare = MutationManager.prototype.prepareMutation;
+    vi.spyOn(MutationManager.prototype, 'prepareMutation').mockImplementationOnce(async function (
+      this: MutationManager,
+      ...args: Parameters<typeof prepare>
+    ) {
+      const prepared = await prepare.apply(this, args);
+      await gate;
+      return prepared;
+    });
+
+    const first = table.edit('1', 'first-prepared');
+    await vi.waitFor(() => expect(MutationManager.prototype.prepareMutation).toHaveBeenCalled());
+    await table.edit('2', 'second-committed');
+    openGate();
+    await first;
+
+    const bySequence = (await pendingFor(tableName)).sort(
+      (a, b) => (a.sequenceNumber ?? 0) - (b.sequenceNumber ?? 0)
+    );
+    expect(bySequence.map(m => m.rowId)).toEqual(['2', '1']);
+    expect(new Set(bySequence.map(m => m.sequenceNumber)).size).toBe(2);
   });
 
   it('releases the write lock when the identity lookup throws mid-write', async () => {

@@ -16,7 +16,7 @@ export class MutationQueueStore {
   private sequenceSeedPromise: Promise<void> | null = null;
 
   /** Reserved SYNC_METADATA key (store is keyed by `tableName`) for the counter. */
-  private static readonly SEQUENCE_METADATA_KEY = '__mutation_sequence__';
+  static readonly SEQUENCE_METADATA_KEY = '__mutation_sequence__';
 
   constructor(
     private readonly logger: Logger,
@@ -31,7 +31,7 @@ export class MutationQueueStore {
    * a metadata loss. The increment is synchronous once seeded, so concurrent
    * queueMutation calls in the same tab always get distinct, increasing values.
    */
-  private async nextSequenceNumber(db: IDBPDatabase): Promise<number> {
+  private async ensureSequenceSeeded(db: IDBPDatabase): Promise<void> {
     if (this.sequenceCounter === null) {
       if (!this.sequenceSeedPromise) {
         this.sequenceSeedPromise = (async () => {
@@ -63,6 +63,23 @@ export class MutationQueueStore {
       }
       await this.sequenceSeedPromise;
     }
+  }
+
+  /**
+   * Take the next sequence number inside the transaction that commits the
+   * mutation (MYK9-1471). `persisted` is the counter record read from
+   * SYNC_METADATA in that same transaction; readwrite transactions over the same
+   * store serialize, across tabs too, so sequence order is commit order. The
+   * caller must write the returned value back to {@link SEQUENCE_METADATA_KEY}.
+   */
+  reserveSequence(persisted: number | undefined): number {
+    const next = Math.max(persisted ?? 0, this.sequenceCounter ?? 0) + 1;
+    this.sequenceCounter = next;
+    return next;
+  }
+
+  private async nextSequenceNumber(db: IDBPDatabase): Promise<number> {
+    await this.ensureSequenceSeeded(db);
 
     // Synchronous increment — no await between read and write of the counter.
     const next = (this.sequenceCounter as number) + 1;
@@ -120,8 +137,9 @@ export class MutationQueueStore {
   }
 
   /**
-   * Build a queue record: sequence number and id allocated here, BEFORE any
-   * transaction, because they await non-IndexedDB work. Nothing is written.
+   * Build a queue record: id (and, by default, sequence number) allocated here,
+   * BEFORE any transaction, because they await non-IndexedDB work. Nothing is
+   * written.
    * `serverVersion` and `rowRevision` come from the row, so a caller that
    * writes the row in the same transaction (MYK9-1471) stamps them there.
    */
@@ -135,10 +153,14 @@ export class MutationQueueStore {
     serverVersion?: number,
     rpc?: PendingMutation['rpc'],
     rowRevision?: number,
-    adoption: Pick<PendingMutation, 'ownerIsAnonymous' | 'showId'> = {}
+    adoption: Pick<PendingMutation, 'ownerIsAnonymous' | 'showId'> = {},
+    /** False: leave the sequence number to the transaction that commits the record. */
+    allocateSequence = true
   ): Promise<PendingMutation> {
     const db = await databaseManager.getDatabase('MutationManager');
-    const sequenceNumber = await this.nextSequenceNumber(db);
+    let sequenceNumber: number | undefined;
+    if (allocateSequence) sequenceNumber = await this.nextSequenceNumber(db);
+    else await this.ensureSequenceSeeded(db);
     return {
       id: crypto.randomUUID(),
       authUserId,
@@ -150,7 +172,7 @@ export class MutationQueueStore {
       data,
       explicitDataKeys: Object.keys(data),
       timestamp: Date.now(),
-      sequenceNumber,
+      ...(sequenceNumber !== undefined && { sequenceNumber }),
       retries: 0,
       status: 'pending',
       dependsOn,

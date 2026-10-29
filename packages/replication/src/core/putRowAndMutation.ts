@@ -3,6 +3,12 @@ import { isConflictSurfacingEnabled } from '../conflictConfig';
 import type { PendingMutation, ReplicatedRow } from '../types';
 import { REPLICATION_STORES } from './DatabaseManager';
 
+/** A prepared mutation plus the queue's counter, which numbers it inside the transaction. */
+export interface QueuedWrite {
+  mutation: PendingMutation;
+  sequencer?: { key: string; next: (persisted: number | undefined) => number } | undefined;
+}
+
 type WriteTransaction = Pick<
   IDBPTransaction<unknown, string[], 'readwrite'>,
   'objectStore' | 'done' | 'abort'
@@ -14,7 +20,10 @@ type WriteTransaction = Pick<
  * carries the row's server version as its OCC precondition, read from the same
  * row the same transaction writes, so no upload can move it in between.
  */
-function finalizeQueuedMutation(queued: PendingMutation, row: ReplicatedRow<unknown>) {
+function finalizeQueuedMutation(
+  queued: PendingMutation,
+  row: ReplicatedRow<unknown>
+): PendingMutation {
   const withOcc =
     queued.operation === 'UPDATE' &&
     isConflictSurfacingEnabled() &&
@@ -24,6 +33,12 @@ function finalizeQueuedMutation(queued: PendingMutation, row: ReplicatedRow<unkn
     rowRevision: row.version,
     ...(withOcc && { serverVersion: row.serverVersion }),
   };
+}
+
+/** Marks a request handled, so an abort cannot surface it as an unhandled rejection. */
+function settled<P extends Promise<unknown>>(request: P): P {
+  request.catch(() => undefined);
+  return request;
 }
 
 /**
@@ -37,19 +52,24 @@ export async function putRowAndMutation(
   tx: WriteTransaction,
   rowPut: Promise<unknown>,
   row: ReplicatedRow<unknown>,
-  queued: PendingMutation
+  queued: QueuedWrite
 ): Promise<void> {
   // Settled below via Promise.all; this keeps an abort from surfacing it as unhandled.
-  rowPut.catch(() => undefined);
+  settled(rowPut);
   try {
+    const finalized = finalizeQueuedMutation(queued.mutation, row);
     const puts: Promise<unknown>[] = [rowPut];
-    if (queued) {
-      puts.push(
-        tx
-          .objectStore(REPLICATION_STORES.PENDING_MUTATIONS)
-          .put(finalizeQueuedMutation(queued, row))
-      );
+    const { sequencer } = queued;
+    if (sequencer) {
+      // Numbered here, from the counter record this transaction reads, so two
+      // overlapping writes are numbered in the order they commit (MYK9-1471).
+      const metadata = tx.objectStore(REPLICATION_STORES.SYNC_METADATA);
+      const record = (await metadata.get(sequencer.key)) as { value?: number } | undefined;
+      const sequenceNumber = sequencer.next(record?.value);
+      finalized.sequenceNumber = sequenceNumber;
+      puts.push(settled(metadata.put({ tableName: sequencer.key, value: sequenceNumber })));
     }
+    puts.push(settled(tx.objectStore(REPLICATION_STORES.PENDING_MUTATIONS).put(finalized)));
     await Promise.all(puts);
     await tx.done;
   } catch (error) {

@@ -227,7 +227,8 @@ export class MutationManager {
   /**
    * Build a queue record for a caller that commits it in the SAME IndexedDB
    * transaction as its dirty row write (MYK9-1471). Runs the owner and capacity
-   * checks and allocates the id and sequence number; writes nothing, so call it
+   * checks and allocates the id (the sequence number is taken inside the
+   * transaction, so it follows commit order); writes nothing, so call it
    * before opening the transaction. Then call {@link announceQueued} once the
    * transaction has committed.
    */
@@ -255,9 +256,16 @@ export class MutationManager {
       {
         ownerIsAnonymous: this.identity.readOwnerIsAnonymous(authUserId),
         ...(showId !== undefined && { showId }),
-      }
+      },
+      false
     );
   }
+
+  /** The sequence counter of the queue, for a transaction that numbers its own mutation. */
+  readonly sequencer = {
+    key: MutationQueueStore.SEQUENCE_METADATA_KEY,
+    next: (persisted: number | undefined) => this.queueStore.reserveSequence(persisted),
+  };
 
   /**
    * Backup and announce a committed queue write. Backup synchronously (not

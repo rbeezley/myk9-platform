@@ -345,8 +345,7 @@ lanes. Additions specific to the run:
   condition; this run posts that override only when the approval at Run start named the budget.
 - **Migration in the diff:** carry it through the PR and review gate (`migration-auditor`
   is one adversarial lens), then **do not merge** in this run unless standing approvals cover it
-  (`docs/agents/standing-approvals.md` ACTIVE and the tripwire, run with every pending migration as
-  `--migration`, exits 0): then merge and push it through the `db-push` skill. Otherwise route the
+  (`docs/agents/standing-approvals.md` ACTIVE and the tripwire, run with `--db-push`, exits 0): then merge and push it through the `db-push` skill. Otherwise route the
   owner's merge/deploy action through the shared table. Never push a migration from an unmerged
   branch.
 - **Codex unavailable on an `independent` floor:** leave the PR open and route the unavailable

@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -81,6 +81,14 @@ describe('destructiveStatements', () => {
     ['/* DROP TABLE public.x; */ select 1;', 0],
     ["do $$ begin execute 'select 1'; drop table public.y; end $$;", 1],
     ['create table public.z (id int);', 0],
+    ['ALTER TABLE a DROP b;', 1],
+    ['DROP SCHEMA s CASCADE;', 1],
+    ['DELETE FROM a WHERE true;', 1],
+    ["COMMENT ON TABLE a IS 'x -- y'; DROP TABLE b;", 1],
+    ["COMMENT ON TABLE a IS 'x /* y'; DROP TABLE b; -- */", 1],
+    ['alter table a drop constraint c;', 0],
+    ['alter table a alter column b drop default;', 0],
+    ['alter table a alter column b drop not null;', 0],
   ])('%s → %i statement(s)', (sql, count) => {
     expect(destructiveStatements(sql)).toHaveLength(count);
   });
@@ -111,57 +119,97 @@ describe('runTripwire (the CLI core)', () => {
   afterEach(() => {
     for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true });
   });
+  const env = { MYK9_MIGRATION_DATABASE_URL: 'postgresql://stub' };
 
-  function setup() {
+  /** A checkout with its own approvals file, main's copy, a migrations dir, and stub git/psql. */
+  function setup(main: { status?: string; fails?: boolean } = {}, pushed: string[] = []) {
     const dir = mkdtempSync(join(tmpdir(), 'tripwire-'));
     dirs.push(dir);
     const approvalsPath = join(dir, 'standing-approvals.md');
-    const command = (_name: string, args: string[]): string => {
+    const migrationsDir = join(dir, 'migrations');
+    mkdirSync(migrationsDir);
+    const calls: string[][] = [];
+    const command = (name: string, args: string[]): string => {
+      calls.push([name, ...args]);
+      if (name === 'git' && args[0] === 'fetch') return '';
+      if (name === 'git' && args[0] === 'show') {
+        if (main.fails) throw new Error('fatal: invalid object name');
+        return block(main.status ?? 'ACTIVE');
+      }
       const sql = args[args.length - 1] ?? '';
       if (sql.includes('platform_settings')) return 'f\n';
       if (sql.includes('public.clubs')) return `${CLUB_A}\n${CLUB_B}\n`;
-      throw new Error(`unexpected query ${sql}`);
+      if (sql.includes('schema_migrations')) return pushed.map(v => `${v}\n`).join('');
+      throw new Error(`unexpected command ${name} ${args.join(' ')}`);
     };
-    return { dir, approvalsPath, command };
+    const run = (argv: string[] = []) =>
+      runTripwire({ approvalsPath, migrationsDir, argv, env, command });
+    return { approvalsPath, migrationsDir, command, calls, run };
   }
 
   it('re-reads the approvals file on every run', () => {
-    const { approvalsPath, command } = setup();
+    const { approvalsPath, run } = setup();
     writeFileSync(approvalsPath, block('ACTIVE'));
-    const env = { MYK9_MIGRATION_DATABASE_URL: 'postgresql://stub' };
-    expect(runTripwire({ approvalsPath, command, env, migrationPaths: [] }).code).toBe(0);
+    expect(run().code).toBe(0);
     writeFileSync(approvalsPath, block('OFF'));
-    expect(runTripwire({ approvalsPath, command, env, migrationPaths: [] }).code).toBe(1);
+    expect(run().code).toBe(1);
+  });
+
+  it("stops when main's copy says OFF even though the checkout says ACTIVE", () => {
+    const { approvalsPath, run, calls } = setup({ status: 'OFF' });
+    writeFileSync(approvalsPath, block('ACTIVE'));
+    expect(run()).toEqual({ code: 1, reason: expect.stringContaining('OFF') });
+    expect(calls.some(c => c[0] === 'git' && c[1] === 'fetch')).toBe(true);
+  });
+
+  it("cannot decide when main's copy cannot be read", () => {
+    const { approvalsPath, run } = setup({ fails: true });
+    writeFileSync(approvalsPath, block('ACTIVE'));
+    expect(run().code).toBe(2);
   });
 
   it('cannot decide without a database URL', () => {
-    const { approvalsPath, command } = setup();
+    const { approvalsPath, migrationsDir, command } = setup();
     writeFileSync(approvalsPath, block('ACTIVE'));
-    expect(runTripwire({ approvalsPath, command, env: {}, migrationPaths: [] })).toEqual({
+    expect(runTripwire({ approvalsPath, migrationsDir, argv: [], env: {}, command })).toEqual({
       code: 2,
       reason: expect.stringContaining('MYK9_MIGRATION_DATABASE_URL'),
     });
   });
 
-  it('reads the named migration files', () => {
-    const { dir, approvalsPath, command } = setup();
+  it('--db-push scans every pending migration, not only the ones an agent names', () => {
+    const { approvalsPath, migrationsDir, run } = setup({}, ['20261029000000']);
     writeFileSync(approvalsPath, block('ACTIVE'));
-    const migration = join(dir, '20261030000000_drop.sql');
-    writeFileSync(migration, 'drop table public.x;');
-    const env = { MYK9_MIGRATION_DATABASE_URL: 'postgresql://stub' };
-    expect(runTripwire({ approvalsPath, command, env, migrationPaths: [migration] })).toEqual({
+    writeFileSync(join(migrationsDir, '20261029000000_pushed.sql'), 'drop table public.old;');
+    writeFileSync(
+      join(migrationsDir, '20261030000000_mine.sql'),
+      'create table public.a (id int);'
+    );
+    writeFileSync(join(migrationsDir, '20261030010000_other.sql'), 'alter table public.b drop c;');
+    expect(run(['--db-push'])).toEqual({
       code: 1,
-      reason: expect.stringContaining('20261030000000_drop.sql'),
+      reason: expect.stringContaining('20261030010000_other.sql'),
     });
+    expect(run().code).toBe(0);
   });
 
+  it.each([[['--migration', 'x.sql']], [['--db-push=1']], [['--migration']]])(
+    'rejects an unknown argument: %j',
+    argv => {
+      const { approvalsPath, run } = setup();
+      writeFileSync(approvalsPath, block('ACTIVE'));
+      expect(run(argv).code).toBe(2);
+    }
+  );
+
   it('treats a failing query as could-not-decide', () => {
-    const { approvalsPath } = setup();
+    const { approvalsPath, migrationsDir } = setup();
     writeFileSync(approvalsPath, block('ACTIVE'));
-    const failing = () => {
+    const failing = (name: string, args: string[]) => {
+      if (name === 'git') return args[0] === 'show' ? block('ACTIVE') : '';
       throw new Error('psql: connection refused');
     };
-    const env = { MYK9_MIGRATION_DATABASE_URL: 'postgresql://stub' };
-    expect(runTripwire({ approvalsPath, command: failing, env, migrationPaths: [] }).code).toBe(2);
+    const options = { approvalsPath, migrationsDir, argv: [], env, command: failing };
+    expect(runTripwire(options).code).toBe(2);
   });
 });

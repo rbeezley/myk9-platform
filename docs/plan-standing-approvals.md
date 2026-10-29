@@ -95,6 +95,8 @@ A small script, `scripts/qa/prelaunch-tripwire.ts`, runs as `pnpm qa:prelaunch-t
 
 It exits 1 with the reason when a check fails, and 2 when it cannot decide (for example, no database access). **Exit 2 is not a pass:** the action is not taken. Read-only queries only.
 
+**Changed after the final review (2026-10-29):** the switch is read from both this checkout and `origin/main` (after a fetch), and both must say ACTIVE, so a worktree cut before the owner merged OFF cannot keep acting. A push runs the tripwire with `--db-push`, which computes every unpushed migration itself (local files minus `schema_migrations`) instead of trusting the files an agent names. The scanner ignores string contents and also catches `DROP SCHEMA`, `ALTER TABLE … DROP <column>` without the COLUMN keyword, and `DELETE … WHERE true`. Unknown arguments exit 2.
+
 - **My call:** it reads through the same authenticated path the deploy and `db-push` skills already use (psql with `--db-url`, or the Supabase MCP). The builder picks whichever those skills use.
 - **My call:** a failed or undecided tripwire files or updates a Linear issue labelled `needs:operator` with the reason, so it reaches the Owner actions view.
 - **My call: merges run the tripwire too.** It costs one read-only query and closes the gap where merges kept going after launch. The tripwire applies to all four pre-approved actions.

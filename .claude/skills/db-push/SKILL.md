@@ -156,14 +156,14 @@ never from an unmerged branch.
 
 **Approval.** While [`docs/agents/standing-approvals.md`](../../../docs/agents/standing-approvals.md)
 says `status: ACTIVE` (read it fresh), the push needs no confirmation once the
-tripwire exits 0 with every pending migration named. Otherwise confirm with the
+tripwire exits 0 with `--db-push`. Otherwise confirm with the
 user first (Auto Mode rule in CLAUDE.md).
 
 ```bash
 source supabase/.env
 MYK9_MIGRATION_DATABASE_URL=postgresql://postgres.sojmvhhwsjxmfistvzbe@aws-1-us-east-2.pooler.supabase.com:5432/postgres \
 PGPASSWORD="$SUPABASE_DB_PASSWORD" \
-  pnpm qa:prelaunch-tripwire --migration supabase/migrations/<version>_<name>.sql   # one --migration per pending file
+  pnpm qa:prelaunch-tripwire --db-push   # scans every unpushed migration, not just this branch's
 ```
 
 Exit 1 (for example, a migration that drops or deletes data) or 2: do **not**

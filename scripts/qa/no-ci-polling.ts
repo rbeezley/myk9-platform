@@ -16,7 +16,9 @@
  * Accepted misses, by design (two Codex rounds on #3384 showed each nested form
  * reopens the parser, and the transcripts show agents poll with top-level sleeps
  * and loops, not these): a sleep inside double-quoted `$(...)` or backticks,
- * `bash -c '...'`, a heredoc body (always data), xargs, find -exec, sudo, ssh.
+ * `bash -c '...'`, a heredoc body (always data), xargs, find -exec, sudo, ssh,
+ * and a gh flag between command levels (`gh run --repo x watch`: 0 of 3,937
+ * gh run/pr calls in the transcripts, Codex round 3).
  * A command with `run_in_background: true` is always allowed: that is the
  * endorsed way to wait, and the harness notifies the session when it exits.
  * One `gh pr checks <pr>` read, `gh run view --log-failed`, and a `sleep`

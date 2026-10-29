@@ -83,6 +83,8 @@ const ACCEPTED_MISSES: string[] = [
   "bash -c 'sleep 60 && gh run view 1'",
   'cat <<EOF\n$(sleep 60)\nEOF',
   'xargs -n1 sleep <<< 60',
+  'gh run --repo rbeezley/myk9-platform watch 456',
+  'gh pr --repo rbeezley/myk9-platform checks 123 --watch',
 ];
 
 describe('evaluateCommand', () => {

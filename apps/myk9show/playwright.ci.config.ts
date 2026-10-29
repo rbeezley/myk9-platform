@@ -36,6 +36,13 @@ const REGRESSION_SPECS = [
   // them. Real payment journeys are tracked in MYK9-42.
   '**/show/atShowJudgeScoring.spec.ts',
   '**/show/atShowOfflineScoring.spec.ts',
+  // MYK9-1498: walks promoted from the 2026-10-29 evidence sweep. Each writes real
+  // rows (disposable entries, a disposable steward, planted cart lines) and skips
+  // unless the target is the isolated stack. The channel flap runs ~6 minutes.
+  '**/show/uplinkOutageQueue.spec.ts',
+  '**/show/stewardOfficeWrites.spec.ts',
+  '**/registration/fullClassCheckoutRefused.spec.ts',
+  '**/show/channelFlapCadence.spec.ts',
   // Offline cold boot (MYK9-200 AC 1 / MYK9-203 AC 2). Secretary-authed, so it
   // is credential-eligible for PR smoke, but it depends on the Heartland seed
   // fixture exactly as atShowOfflineScoring does — same reason, same home.

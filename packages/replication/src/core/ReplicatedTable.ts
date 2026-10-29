@@ -81,12 +81,6 @@ interface SetAttempt {
   rowExisted: boolean;
   /** The row's local revision after the write that landed. */
   revision?: number;
-  /**
-   * The row's server version as the first attempt read it. A quota retry may
-   * find the row evicted; the rebuilt row keeps this, so a queued UPDATE still
-   * carries its OCC precondition (Codex round 4, MYK9-1471).
-   */
-  serverVersion?: number;
 }
 
 /**
@@ -778,7 +772,9 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       // way the queue store relieves it: this table first, then clean rows of any
       // table (Codex round 3, MYK9-1471).
       async () => {
-        const evicted = await this.relieveQuota();
+        // Never the row being written: evicting it would drop its Discard snapshot
+        // (baseData, baseServerVersion) and OCC token (Codex rounds 4-5).
+        const evicted = await this.relieveQuota(queued ? String(id) : undefined);
         if (evicted > 0 || !queued) return evicted;
         return evictCleanCacheRows(await this.init(), [this.tableName, String(id)]);
       },
@@ -830,10 +826,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       ReplicatedRow<T> | undefined;
 
     if (existingRow) {
-      if (attempt) {
-        attempt.rowExisted = true;
-        attempt.serverVersion ??= existingRow.serverVersion;
-      }
+      if (attempt) attempt.rowExisted = true;
     }
 
     // MYK9-575: a show-scoped table refuses a single-row INSERT unless the
@@ -885,12 +878,6 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       ownerAuthUserId,
       now: Date.now(),
     });
-
-    // A quota retry that found its row evicted rebuilds it from nothing; keep the
-    // server version the first attempt read, or the UPDATE loses its OCC check.
-    if (!existingRow && row.serverVersion === undefined && attempt?.serverVersion !== undefined) {
-      row.serverVersion = attempt.serverVersion;
-    }
 
     if (queued) {
       await putRowAndMutation(tx, rowStore.put(row), row, queued);
@@ -1606,8 +1593,8 @@ export abstract class ReplicatedTable<T extends { id: string }> {
    * evictable rows while another holds gigabytes of garbage) won't recover
    * here; that would need a store-wide evictor — tracked as a follow-up.
    */
-  async relieveQuota(): Promise<number> {
-    return this.cacheManager.evictRetainingFraction(QUOTA_EVICTION_RETAIN_FRACTION);
+  async relieveQuota(keepId?: string): Promise<number> {
+    return this.cacheManager.evictRetainingFraction(QUOTA_EVICTION_RETAIN_FRACTION, keepId);
   }
 
   async getSyncMetadata(scopeValue?: string): Promise<SyncMetadata | null> {

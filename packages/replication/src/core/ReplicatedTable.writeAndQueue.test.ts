@@ -353,27 +353,32 @@ describe('ReplicatedTable.writeAndQueue (MYK9-1471)', () => {
 
   // Codex round 4: a quota retry that finds its own clean row evicted rebuilds it, and the
   // queued UPDATE must keep the server version the first attempt read as its OCC check.
-  it('keeps the OCC precondition when quota relief evicted the row being written', async () => {
+  // Codex rounds 4-5: quota relief must never evict the row being written. A rebuilt row
+  // would lose its OCC token and its Discard snapshot (baseData, baseServerVersion).
+  it('per-table quota relief never evicts the row being written', async () => {
     const table = new WritingTable(tableName);
     await start(table); // row 1 is clean at server version 3
     const db = await databaseManager.getDatabase('test');
-    vi.spyOn(
-      table as unknown as { relieveQuota: () => Promise<number> },
-      'relieveQuota'
-    ).mockImplementationOnce(async () => {
-      await db.delete(REPLICATION_STORES.REPLICATED_TABLES, [tableName, '1']);
-      return 1;
+    // Make row 1 the oldest, least-used, otherwise evictable row in its table.
+    const seeded = await db.get(REPLICATION_STORES.REPLICATED_TABLES, [tableName, '1']);
+    await db.put(REPLICATION_STORES.REPLICATED_TABLES, {
+      ...seeded,
+      lastAccessedAt: 1,
+      lastModifiedAt: 1,
+      accessCount: 1,
     });
     const quota = new Error('QuotaExceededError');
     quota.name = 'AbortError';
     failNextPutInto(REPLICATION_STORES.PENDING_MUTATIONS, quota);
 
-    const { mutationId } = await table.edit('1', 'after-eviction');
+    const { mutationId } = await table.edit('1', 'after-relief');
 
     const queued = (await db.get(REPLICATION_STORES.PENDING_MUTATIONS, mutationId!)) as
       PendingMutation | undefined;
     expect(queued?.serverVersion).toBe(3);
-    expect((await table.getReplicatedRow('1'))?.serverVersion).toBe(3);
+    const row = await table.getReplicatedRow('1');
+    expect(row?.serverVersion).toBe(3);
+    expect(row?.baseData).toMatchObject({ status: 'scored' });
   });
 
   it('cross-table eviction never deletes the row being written or a dirty row', async () => {

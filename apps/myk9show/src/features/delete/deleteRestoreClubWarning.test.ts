@@ -37,6 +37,7 @@ beforeEach(() => {
 describe('club restore warning', () => {
   it('says the roles were not given back and where to appoint people again', () => {
     expect(describeRestoreClub()).toMatch(/does not switch them back on/);
+    expect(describeRestoreClub()).toMatch(/User Management/);
     expect(describeRestoreClub()).toMatch(/Members page/);
   });
 

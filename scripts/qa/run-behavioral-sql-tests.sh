@@ -211,6 +211,7 @@ TEST_FILES=(
   "$TEST_DIR/myk9_1407_comp_keeps_paid_status_test.sql"
   "$TEST_DIR/myk9_1327_set_class_judge_test.sql"
   "$TEST_DIR/myk9_1327_one_judge_per_class_test.sql"
+  "$TEST_DIR/myk9_1472_hard_delete_show_money_guards_test.sql"
 )
 
 for test_file in "${TEST_FILES[@]}"; do
@@ -221,5 +222,14 @@ for test_file in "${TEST_FILES[@]}"; do
   echo "── $(basename "$test_file") ──"
   psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f "$test_file"
 done
+
+# MYK9-1472: two-session races against hard_delete_show's row locks, lock
+# timeout, deadlock and FK-DDL ordering. The fake-psql contract test skips it.
+if [ "${MYK9_SKIP_HARD_DELETE_CONCURRENCY:-0}" = "1" ]; then
+  echo "SKIP: local hard-delete concurrency harness (source-contract test mode)"
+else
+  MYK9_BEHAVIORAL_SQL_DATABASE_URL="$DATABASE_URL" \
+    bash "$REPO_ROOT/scripts/qa/hard-delete-show-concurrency.sh"
+fi
 
 echo "BEHAVIORAL SQL TESTS PASSED (${#TEST_FILES[@]} files)"

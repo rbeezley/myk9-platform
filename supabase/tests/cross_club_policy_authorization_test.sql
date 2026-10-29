@@ -209,23 +209,32 @@ BEGIN
   END IF;
   RAISE NOTICE 'PASS 1.1 shows_update refuses a club B show';
 
-  DELETE FROM public.shows WHERE id = '00000000-0000-0000-0000-000000585024';
-  GET DIAGNOSTICS n = ROW_COUNT;
-  IF n <> 0 THEN
-    RAISE EXCEPTION 'FAIL 1.2 shows_delete reached a club B show (MYK9-585)';
+  -- MYK9-1472 removed shows_delete and the DELETE grant: permanent deletion
+  -- goes through hard_delete_show only, so a club admin's direct DELETE is
+  -- refused outright, for a club B show (1.2) and for their OWN club's show
+  -- (1.2b) alike. 1.2b is what proves the refusal is the missing privilege,
+  -- not a cross-club policy filter returning zero rows.
+  refused := false;
+  BEGIN
+    DELETE FROM public.shows WHERE id = '00000000-0000-0000-0000-000000585024';
+  EXCEPTION WHEN insufficient_privilege THEN
+    refused := true;
+  END;
+  IF NOT refused THEN
+    RAISE EXCEPTION 'FAIL 1.2 a club admin can DELETE a club B show directly (MYK9-585, MYK9-1472)';
   END IF;
-  RAISE NOTICE 'PASS 1.2 shows_delete refuses a club B show';
+  RAISE NOTICE 'PASS 1.2 direct DELETE of a club B show is refused';
 
-  -- Positive control for 1.2, in the same role and the same statement shape: a
-  -- zero row count means "the policy refused" only if the SAME caller's DELETE
-  -- on their OWN club's show returns one. Without this, a shows_delete that
-  -- denied everybody would pass 1.2.
-  DELETE FROM public.shows WHERE id = '00000000-0000-0000-0000-000000585027';
-  GET DIAGNOSTICS n = ROW_COUNT;
-  IF n <> 1 THEN
-    RAISE EXCEPTION 'FAIL 1.2b club admin lost DELETE on their own club''s show';
+  refused := false;
+  BEGIN
+    DELETE FROM public.shows WHERE id = '00000000-0000-0000-0000-000000585027';
+  EXCEPTION WHEN insufficient_privilege THEN
+    refused := true;
+  END;
+  IF NOT refused THEN
+    RAISE EXCEPTION 'FAIL 1.2b a club admin can DELETE their own club''s show directly (MYK9-1472)';
   END IF;
-  RAISE NOTICE 'PASS 1.2b shows_delete still accepts the admin''s own club''s show';
+  RAISE NOTICE 'PASS 1.2b direct DELETE of the admin''s own club''s show is refused';
 
   refused := false;
   BEGIN

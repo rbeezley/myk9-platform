@@ -338,19 +338,20 @@ test.describe('offline cold boot', () => {
   // when signal returns `setOnline(true)` finds `true` already there, no
   // listener runs, and the reconnect is swallowed.
   //
-  // Recovery was not absent before the fix — it was LATE. Measured with the
-  // refetch hook removed, `<main>` sat at 254 characters through t+55s and
-  // returned to full at t+60s: the ReplicationSyncProvider's periodic re-sync,
-  // which invalidates queries as a side effect. With the hook it is back inside
-  // 20s. So an exhibitor walking back into coverage faced up to a minute of a
-  // page that still said "we are still confirming your account".
+  // THE PAGE TEXT CANNOT PROVE THE HOOK (MYK9-1453). `<main>` now recovers in
+  // about 4s with `useRefetchQueriesOnReconnect` removed, by two routes that do
+  // not go through it: the reconnect replication pass refetches the entry list,
+  // and the identity query (`userProfile`) is still mid-retry at the offline
+  // mark, so its next attempt lands once the route reopens. The text check
+  // below stays as the user-visible outcome, not as the hook's proof.
   //
-  // THE 30s BOUND IS THE WHOLE TEST. It sits strictly between the two paths —
-  // above the hook's refetch, below the 60s replication fallback — so removing
-  // the hook fails this test instead of quietly passing on the slow path. An
-  // earlier version of this test polled for 60s and passed with the hook
-  // deleted, which is exactly the kind of green that proves nothing. Do not
-  // raise this timeout to "fix" a flake without re-checking that mutation.
+  // The proof is the exhibitor profile read. `useExhibitorProfile` sets
+  // `retry: false` and a 5-minute staleTime, and nothing else on this page
+  // reads `exhibitor_profiles`, so after the offline boot it sits in `error`
+  // and only a reconnect refetch can re-issue it. Measured with the hook
+  // removed: zero `exhibitor_profiles` requests in the 20s after reconnect.
+  // With it: one, as soon as the `online` event fires. Do not swap this for a
+  // query some other path also refreshes without re-checking that mutation.
   test('react-query data returns when connectivity comes back, without a reload', async ({
     page,
     context,
@@ -387,9 +388,18 @@ test.describe('offline cold boot', () => {
     expect(offlineLength).toBeLessThan(healthyLength / 2);
     expect(interceptedCount()).toBeGreaterThan(0);
 
+    // Armed before the route reopens, so a refetch that fires on the `online`
+    // event itself cannot be missed.
+    const profileRefetch = page.waitForRequest(
+      request =>
+        request.method() === 'GET' && /\/rest\/v1\/exhibitor_profiles\?/.test(request.url()),
+      { timeout: 15_000 }
+    );
+
     // Signal returns. NO reload — that is the whole point.
     await restoreConnectivity();
 
+    await profileRefetch;
     await expect
       .poll(async () => (await page.locator('main').innerText()).length, { timeout: 30_000 })
       .toBeGreaterThan(healthyLength / 2);

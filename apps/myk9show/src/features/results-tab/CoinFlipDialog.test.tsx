@@ -4,7 +4,7 @@ import { render } from '@/test/utils/testUtils';
 import { CoinFlipDialog, OFFLINE_COIN_FLIP_MESSAGE } from './CoinFlipDialog';
 import type { ClassTieGroup } from './coinFlipRows';
 
-const entry = (entryId: string, armband: number, dogName: string) => ({
+const entry = (entryId: string, armband: string, dogName: string) => ({
   entryId,
   armband: String(armband),
   dogName,
@@ -16,12 +16,12 @@ const entry = (entryId: string, armband: number, dogName: string) => ({
 const pair: ClassTieGroup = {
   rank: 2,
   byPoints: false,
-  entries: [entry('rex', 12, 'Rex'), entry('bella', 31, 'Bella')],
+  entries: [entry('rex', '12', 'Rex'), entry('bella', '31', 'Bella')],
 };
 const trio: ClassTieGroup = {
   rank: 3,
   byPoints: false,
-  entries: [entry('a', 40, 'Ace'), entry('b', 41, 'Bo'), entry('c', 42, 'Cy')],
+  entries: [entry('a', '40', 'Ace'), entry('b', '41', 'Bo'), entry('c', '42', 'Cy')],
 };
 
 const onSave = vi.fn();

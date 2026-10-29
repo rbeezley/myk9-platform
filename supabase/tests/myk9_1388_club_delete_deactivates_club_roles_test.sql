@@ -1,23 +1,26 @@
 -- MYK9-1388 (migration 20261029021700): soft-deleting a club deactivates the
--- role grants scoped to it; restoring reactivates exactly those.
+-- role grants scoped to it; restore is role-neutral; no active grant can exist
+-- for a deleted club.
 --
 -- Properties asserted here:
---   * deleting club A deactivates the club_admin grant on A and stamps
---     club_deactivated_at = clubs.deleted_at;
+--   * deleting club A deactivates the active club_admin grant on A;
 --   * the same user's grant on club B is untouched;
---   * a grant on A that was already inactive before the delete is not stamped;
---   * restoring A reactivates only the grant the delete deactivated; the
---     pre-inactive grant stays inactive;
---   * a person soft-deleted while the club is deleted keeps that revocation: club
---     restore does not reactivate their grant (Codex P1);
---   * an active grant for a deleted club is refused on INSERT and on
---     reactivation, and works again once the club is restored (Codex P2);
---   * a standalone is_active change clears club_deactivated_at (Codex P2);
+--   * a grant on A that was already inactive stays inactive, and the delete
+--     does not write user_roles.deactivated_at (that column records person
+--     deletes only);
+--   * an active grant for a deleted club is refused on INSERT, on reactivation
+--     and on moving a grant onto the deleted club;
+--   * restoring A reactivates nothing, including a grant whose person was
+--     deleted and restored while A was deleted (Codex P1, round 2);
+--   * after restore, a fresh grant on A is accepted again;
 --   * backfill: running the migration's backfill statement deactivates an
 --     active grant whose club was deleted before the trigger existed.
 --
 -- The trigger fires on any writer of clubs.deleted_at, so the fixtures write it
 -- as postgres, like the other soft-delete fixtures. All fixtures roll back.
+-- The concurrent grant-vs-delete race is serialised by FOR SHARE on the club
+-- row; a single psql session cannot interleave two transactions, so that part
+-- is argued in the migration header, not asserted here.
 -- Run with psql -X -v ON_ERROR_STOP=1 after migrations.
 
 BEGIN;
@@ -36,20 +39,21 @@ VALUES
   ('00000000-0000-0000-0000-000000138813', 'MYK9-1388 Club C', now());
 
 -- Secretary: active club_admin on A and B. Other: club_admin on A, inactive
--- since before any delete.
+-- since before any delete. Removed: active club_admin on A, plus one on C.
 INSERT INTO public.user_roles (user_id, role_id, club_id, is_active)
 SELECT p.user_id::uuid, r.id, p.club_id::uuid, p.is_active
 FROM (VALUES
   ('00000000-0000-0000-0000-000000138801', '00000000-0000-0000-0000-000000138811', true),
   ('00000000-0000-0000-0000-000000138801', '00000000-0000-0000-0000-000000138812', true),
   ('00000000-0000-0000-0000-000000138802', '00000000-0000-0000-0000-000000138811', false),
-  ('00000000-0000-0000-0000-000000138803', '00000000-0000-0000-0000-000000138811', true)
+  ('00000000-0000-0000-0000-000000138803', '00000000-0000-0000-0000-000000138811', true),
+  ('00000000-0000-0000-0000-000000138803', '00000000-0000-0000-0000-000000138813', true)
 ) AS p(user_id, club_id, is_active)
 CROSS JOIN public.roles r WHERE r.name = 'club_admin';
 
 CREATE FUNCTION pg_temp.grant_state(p_user text, p_club text)
 RETURNS text LANGUAGE sql AS $$
-  SELECT ur.is_active::text || '/' || COALESCE(ur.club_deactivated_at::text, 'null')
+  SELECT ur.is_active::text || '/' || COALESCE(ur.deactivated_at::text, 'null')
   FROM public.user_roles ur
   WHERE ur.user_id = p_user::uuid AND ur.club_id = p_club::uuid
 $$;
@@ -61,8 +65,8 @@ WHERE id = '00000000-0000-0000-0000-000000138811';
 DO $$
 BEGIN
   IF pg_temp.grant_state('00000000-0000-0000-0000-000000138801', '00000000-0000-0000-0000-000000138811')
-     <> 'false/2026-10-01 12:00:00+00' THEN
-    RAISE EXCEPTION 'FAIL club A delete did not deactivate the grant: %',
+     <> 'false/null' THEN
+    RAISE EXCEPTION 'FAIL club A delete did not deactivate the grant (or wrote deactivated_at): %',
       pg_temp.grant_state('00000000-0000-0000-0000-000000138801', '00000000-0000-0000-0000-000000138811');
   END IF;
   IF pg_temp.grant_state('00000000-0000-0000-0000-000000138801', '00000000-0000-0000-0000-000000138812')
@@ -71,17 +75,13 @@ BEGIN
   END IF;
   IF pg_temp.grant_state('00000000-0000-0000-0000-000000138802', '00000000-0000-0000-0000-000000138811')
      <> 'false/null' THEN
-    RAISE EXCEPTION 'FAIL the pre-inactive grant was stamped by the delete';
+    RAISE EXCEPTION 'FAIL the pre-inactive grant changed';
   END IF;
   RAISE NOTICE 'PASS delete deactivates only the deleted club''s active grants';
 END;
 $$;
 
--- The third person is removed while club A is deleted.
-UPDATE public.people SET deleted_at = '2026-10-02 08:00:00+00'
-WHERE id = '00000000-0000-0000-0000-000000138803';
-
--- An active grant for the deleted club is refused, on insert and on reactivation.
+-- An active grant for the deleted club is refused: insert, reactivation, move.
 DO $$
 BEGIN
   BEGIN
@@ -101,8 +101,22 @@ BEGIN
   EXCEPTION WHEN check_violation THEN
     RAISE NOTICE 'PASS reactivation for a deleted club is refused';
   END;
+  BEGIN
+    UPDATE public.user_roles SET club_id = '00000000-0000-0000-0000-000000138811'
+    WHERE user_id = '00000000-0000-0000-0000-000000138803'
+      AND club_id = '00000000-0000-0000-0000-000000138813';
+    RAISE EXCEPTION 'FAIL moving an active grant onto a deleted club was allowed';
+  EXCEPTION WHEN check_violation THEN
+    RAISE NOTICE 'PASS moving an active grant onto a deleted club is refused';
+  END;
 END;
 $$;
+
+-- While A is deleted, the third person is deleted and then restored.
+UPDATE public.people SET deleted_at = '2026-10-02 08:00:00+00'
+WHERE id = '00000000-0000-0000-0000-000000138803';
+UPDATE public.people SET deleted_at = NULL
+WHERE id = '00000000-0000-0000-0000-000000138803';
 
 -- Restore club A.
 UPDATE public.clubs SET deleted_at = NULL
@@ -111,53 +125,42 @@ WHERE id = '00000000-0000-0000-0000-000000138811';
 DO $$
 BEGIN
   IF pg_temp.grant_state('00000000-0000-0000-0000-000000138801', '00000000-0000-0000-0000-000000138811')
-     <> 'true/null' THEN
-    RAISE EXCEPTION 'FAIL restore did not reactivate the grant the delete deactivated';
+     <> 'false/null' THEN
+    RAISE EXCEPTION 'FAIL restore reactivated a grant; restore must be role-neutral';
   END IF;
   IF pg_temp.grant_state('00000000-0000-0000-0000-000000138802', '00000000-0000-0000-0000-000000138811')
      <> 'false/null' THEN
     RAISE EXCEPTION 'FAIL restore reactivated a grant that was inactive before the delete';
   END IF;
   IF pg_temp.grant_state('00000000-0000-0000-0000-000000138803', '00000000-0000-0000-0000-000000138811')
-     <> 'false/2026-10-01 12:00:00+00' THEN
-    RAISE EXCEPTION 'FAIL restore reactivated a grant whose person was deleted meanwhile: %',
+     <> 'false/null' THEN
+    RAISE EXCEPTION 'FAIL restore reactivated the grant of a person deleted and restored meanwhile: %',
       pg_temp.grant_state('00000000-0000-0000-0000-000000138803', '00000000-0000-0000-0000-000000138811');
   END IF;
-  RAISE NOTICE 'PASS restore reactivates exactly the grants the delete deactivated';
+  RAISE NOTICE 'PASS club restore reactivates nothing';
 END;
 $$;
 
--- A standalone is_active change clears the club provenance: reactivate the
--- grant on the now-live club A, revoke it by hand, and the stamp stays null.
+-- Once A is live again, an explicit re-grant is accepted.
 UPDATE public.user_roles SET is_active = true
-WHERE user_id = '00000000-0000-0000-0000-000000138802'
-  AND club_id = '00000000-0000-0000-0000-000000138811';
-UPDATE public.user_roles SET is_active = true
-WHERE user_id = '00000000-0000-0000-0000-000000138803'
-  AND club_id = '00000000-0000-0000-0000-000000138811';
-UPDATE public.user_roles SET is_active = false
-WHERE user_id = '00000000-0000-0000-0000-000000138803'
+WHERE user_id = '00000000-0000-0000-0000-000000138801'
   AND club_id = '00000000-0000-0000-0000-000000138811';
 
 DO $$
 BEGIN
-  IF pg_temp.grant_state('00000000-0000-0000-0000-000000138802', '00000000-0000-0000-0000-000000138811')
+  IF pg_temp.grant_state('00000000-0000-0000-0000-000000138801', '00000000-0000-0000-0000-000000138811')
      <> 'true/null' THEN
-    RAISE EXCEPTION 'FAIL a live club accepts a reactivated grant';
+    RAISE EXCEPTION 'FAIL a restored club refused an explicit re-grant';
   END IF;
-  IF pg_temp.grant_state('00000000-0000-0000-0000-000000138803', '00000000-0000-0000-0000-000000138811')
-     <> 'false/null' THEN
-    RAISE EXCEPTION 'FAIL a standalone is_active change must clear club_deactivated_at';
-  END IF;
-  RAISE NOTICE 'PASS standalone changes clear provenance and live clubs accept grants';
+  RAISE NOTICE 'PASS a restored club accepts an explicit re-grant';
 END;
 $$;
 
 -- Backfill: simulate a club deleted before the trigger existed by disabling it.
-ALTER TABLE public.clubs DISABLE TRIGGER trg_clubs_sync_role_grants_on_delete;
+ALTER TABLE public.clubs DISABLE TRIGGER trg_clubs_deactivate_role_grants_on_delete;
 UPDATE public.clubs SET deleted_at = '2026-10-08 09:00:00+00'
 WHERE id = '00000000-0000-0000-0000-000000138812';
-ALTER TABLE public.clubs ENABLE TRIGGER trg_clubs_sync_role_grants_on_delete;
+ALTER TABLE public.clubs ENABLE TRIGGER trg_clubs_deactivate_role_grants_on_delete;
 
 DO $$
 BEGIN
@@ -168,19 +171,18 @@ BEGIN
 END;
 $$;
 
-SELECT set_config('myk9.club_role_sync', 'on', true);
-UPDATE public.user_roles ur
-SET is_active = false, club_deactivated_at = c.deleted_at
-FROM public.clubs c
+-- The migration's backfill statement, verbatim.
+UPDATE public.user_roles AS ur
+SET is_active = false
+FROM public.clubs AS c
 WHERE ur.club_id = c.id
   AND c.deleted_at IS NOT NULL
   AND ur.is_active;
-SELECT set_config('myk9.club_role_sync', 'off', true);
 
 DO $$
 BEGIN
   IF pg_temp.grant_state('00000000-0000-0000-0000-000000138801', '00000000-0000-0000-0000-000000138812')
-     <> 'false/2026-10-08 09:00:00+00' THEN
+     <> 'false/null' THEN
     RAISE EXCEPTION 'FAIL backfill did not deactivate the orphan grant';
   END IF;
   RAISE NOTICE 'PASS backfill deactivates grants to already-deleted clubs';

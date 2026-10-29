@@ -51,6 +51,9 @@ REVOKE ALL ON private.user_access_epoch FROM PUBLIC, anon, authenticated;
 -- Defence in depth: only the owner-run definer functions below touch it.
 ALTER TABLE private.user_access_epoch ENABLE ROW LEVEL SECURITY;
 
+-- clock_timestamp(), not now(): a transaction that began before a client's
+-- last read would otherwise stamp a time older than that read's watermark.
+-- GREATEST: concurrent transactions never move the epoch backward.
 CREATE OR REPLACE FUNCTION private.touch_user_access_epoch()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -59,15 +62,17 @@ SET search_path = ''
 AS $$
 BEGIN
   IF TG_OP IN ('UPDATE', 'DELETE') AND OLD.auth_user_id IS NOT NULL THEN
-    INSERT INTO private.user_access_epoch (auth_user_id, changed_at)
-    VALUES (OLD.auth_user_id, now())
-    ON CONFLICT (auth_user_id) DO UPDATE SET changed_at = EXCLUDED.changed_at;
+    INSERT INTO private.user_access_epoch AS ep (auth_user_id, changed_at)
+    VALUES (OLD.auth_user_id, clock_timestamp())
+    ON CONFLICT (auth_user_id) DO UPDATE
+      SET changed_at = GREATEST(ep.changed_at, EXCLUDED.changed_at);
   END IF;
   IF TG_OP IN ('INSERT', 'UPDATE') AND NEW.auth_user_id IS NOT NULL
      AND (TG_OP = 'INSERT' OR NEW.auth_user_id IS DISTINCT FROM OLD.auth_user_id) THEN
-    INSERT INTO private.user_access_epoch (auth_user_id, changed_at)
-    VALUES (NEW.auth_user_id, now())
-    ON CONFLICT (auth_user_id) DO UPDATE SET changed_at = EXCLUDED.changed_at;
+    INSERT INTO private.user_access_epoch AS ep (auth_user_id, changed_at)
+    VALUES (NEW.auth_user_id, clock_timestamp())
+    ON CONFLICT (auth_user_id) DO UPDATE
+      SET changed_at = GREATEST(ep.changed_at, EXCLUDED.changed_at);
   END IF;
   RETURN NULL;
 END;

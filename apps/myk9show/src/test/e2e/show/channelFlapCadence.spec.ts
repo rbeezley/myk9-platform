@@ -3,7 +3,7 @@ import { signInAsSecretary } from '../uat/shared/auth';
 import { isIsolatedTarget } from '../helpers/isolatedFixtures';
 
 /**
- * Suite category: regression (isolated only). Runs in real time, about 6 minutes.
+ * Suite category: regression (isolated only). Runs in real time, about 6.5 minutes.
  *
  * MYK9-1305. While the show's realtime channel is SUBSCRIBED the untargeted sync
  * pass slows to 3–5 minutes (realtime carries the changes). When the channel
@@ -28,12 +28,22 @@ test('sync cadence follows the show channel: slow, 60 s fallback on drop, one pa
   const t0 = Date.now();
   const seconds = () => Math.round((Date.now() - t0) / 1000);
 
+  // The show channel's join acknowledgement (a phx_reply "ok" on a show topic), as the
+  // server sends it: the evidence of SUBSCRIBED, rather than a fixed wait.
+  let joinedAt = -1;
   await page.routeWebSocket(/\/realtime\/v1\/websocket/, ws => {
     if (down) {
       void ws.close({ code: 4000, reason: 'regression: uplink down' });
       return;
     }
-    ws.connectToServer();
+    const server = ws.connectToServer();
+    server.onMessage(message => {
+      ws.send(message);
+      const text = typeof message === 'string' ? message : '';
+      if (/realtime:show/.test(text) && text.includes('phx_reply') && text.includes('"ok"')) {
+        joinedAt = seconds();
+      }
+    });
     live.push(ws);
   });
   const passes: number[] = [];
@@ -42,7 +52,10 @@ test('sync cadence follows the show channel: slow, 60 s fallback on drop, one pa
   });
 
   await signInAsSecretary(page, `/shows/${SHOW_ID}`);
-  await page.waitForTimeout(25_000); // initial pass and channel subscribe
+  await expect
+    .poll(() => joinedAt, { timeout: 60_000, message: 'the show channel never joined' })
+    .toBeGreaterThan(-1);
+  await page.waitForTimeout(25_000); // let any pass the join itself causes land first
 
   // SUBSCRIBED: no full pass for 70 s (the slow cadence is 180–300 s).
   const subscribedFrom = seconds();
@@ -53,19 +66,21 @@ test('sync cadence follows the show channel: slow, 60 s fallback on drop, one pa
   down = true;
   const droppedAt = seconds();
   for (const ws of live.splice(0)) await ws.close({ code: 4000, reason: 'regression: drop' });
-  await page.waitForTimeout(140_000);
+  await page.waitForTimeout(160_000);
   const whileDropped = passes.filter(p => p >= droppedAt);
 
-  // SUBSCRIBED again: one pass on rejoin, then slow again.
+  // SUBSCRIBED again: a pass on rejoin, then slow again. A 60 s tick that falls due during
+  // the reconnect backoff can land just before the rejoin pass, so allow one or two.
   down = false;
   const restoredAt = seconds();
   await page.waitForTimeout(90_000);
   const afterRejoin = passes.filter(p => p > restoredAt);
 
-  const timeline = `passes at [${passes.join(', ')}]s; subscribed ${subscribedFrom}s, dropped ${droppedAt}s, restored ${restoredAt}s`;
+  const timeline = `passes at [${passes.join(', ')}]s; joined ${joinedAt}s, subscribed window from ${subscribedFrom}s, dropped ${droppedAt}s, restored ${restoredAt}s`;
   expect(whileSubscribed, timeline).toEqual([]);
   expect(whileDropped.length, timeline).toBeGreaterThanOrEqual(2);
   expect(whileDropped[0] - droppedAt, timeline).toBeLessThanOrEqual(75);
   expect(whileDropped[1] - whileDropped[0], timeline).toBeGreaterThanOrEqual(45);
-  expect(afterRejoin, timeline).toHaveLength(1);
+  expect(afterRejoin.length, timeline).toBeGreaterThanOrEqual(1);
+  expect(afterRejoin.length, timeline).toBeLessThanOrEqual(2);
 });

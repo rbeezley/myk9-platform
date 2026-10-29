@@ -100,7 +100,9 @@ test.describe('At-show offline scoring', () => {
           { timeout: 20_000 }
         )
         .toBe(true);
-      await expect.poll(() => readReplicationStoreCount(page, 'pending_mutations'), { timeout: 20_000 }).toBe(0);
+      await expect
+        .poll(() => readReplicationStoreCount(page, 'pending_mutations'), { timeout: 20_000 })
+        .toBe(0);
       await expect
         .poll(() => readPersistedScoringState(seed.entryId), { timeout: 20_000 })
         .toEqual({ is_scored: true, result_status: 'qualified' });

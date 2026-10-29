@@ -89,11 +89,34 @@ async function createStewardOnlyAccount(): Promise<Steward> {
   return { authUserId, email, password };
 }
 
-async function deleteAccount(steward: Steward) {
+/** Role, person, then auth user: each step reports, none hides the next. */
+async function deleteAccount(steward: Steward): Promise<string[]> {
   const client = getIsolatedAdminClient();
-  await client.from('people').delete().eq('auth_user_id', steward.authUserId);
+  const problems: string[] = [];
+  const roles = await client.from('user_roles').delete().eq('auth_user_id', steward.authUserId);
+  if (roles.error) problems.push(`user_roles: ${roles.error.message}`);
+  const person = await client.from('people').delete().eq('auth_user_id', steward.authUserId);
+  if (person.error) problems.push(`people: ${person.error.message}`);
   const { error } = await client.auth.admin.deleteUser(steward.authUserId);
-  if (error) throw new Error(`Could not delete steward: ${error.message}`);
+  if (error) problems.push(`auth user: ${error.message}`);
+  return problems;
+}
+
+/** The seeded ring dog's entry and its check-in, so a failed run can put it back. */
+async function readRingDogCheckIn(): Promise<{ id: string; check_in_status: string | null }> {
+  const { data, error } = await getIsolatedAdminClient()
+    .from('entries')
+    .select('id, check_in_status, dogs!inner(call_name)')
+    .eq('class_id', RING_CLASS_ID)
+    .eq('dogs.call_name', RING_DOG)
+    .single();
+  if (error || !data) throw new Error(`Could not read ${RING_DOG}'s entry: ${error?.message}`);
+  return { id: data.id, check_in_status: data.check_in_status };
+}
+
+/** A denial is zero rows changed or an auth refusal; anything unparsed is not a denial. */
+function refused(result: { status: number; rows: number }) {
+  return result.rows === 0 || result.status === 401 || result.status === 403;
 }
 
 async function accessToken(page: Page) {
@@ -140,7 +163,9 @@ test('a steward-only account checks dogs in but cannot write office records', as
   context,
 }) => {
   test.setTimeout(240_000);
+  const ringDog = await readRingDogCheckIn();
   const steward = await createStewardOnlyAccount();
+  let failure: unknown;
   const ringWrites: number[] = [];
   page.on('response', r => {
     if (r.url().includes('/rest/v1/rpc/ringside_update_entry')) ringWrites.push(r.status());
@@ -176,12 +201,8 @@ test('a steward-only account checks dogs in but cannot write office records', as
     const enrollment = await patchAsSignedIn(page, `enrollments?id=eq.${ENROLLMENT_ID}`, {
       notes: 'MYK9-147 regression probe',
     });
-    expect(assignment.status >= 400 || assignment.rows === 0, JSON.stringify(assignment)).toBe(
-      true
-    );
-    expect(enrollment.status >= 400 || enrollment.rows === 0, JSON.stringify(enrollment)).toBe(
-      true
-    );
+    expect(refused(assignment), JSON.stringify(assignment)).toBe(true);
+    expect(refused(enrollment), JSON.stringify(enrollment)).toBe(true);
 
     // No office controls on the show home.
     await page.goto(`/shows/${SHOW_ID}?select=classes`);
@@ -210,24 +231,45 @@ test('a steward-only account checks dogs in but cannot write office records', as
     const drained = ringWrites.slice(before);
     expect(drained.length).toBeGreaterThan(0);
     expect(drained.every(s => s >= 200 && s < 300)).toBe(true);
-  } finally {
-    await context.setOffline(false);
-    await deleteAccount(steward);
+  } catch (error) {
+    failure = error;
   }
+
+  await context.setOffline(false);
+  // Put the shared seed back even when the walk stopped between the two check-in writes.
+  const reset = await getIsolatedAdminClient()
+    .from('entries')
+    .update({ check_in_status: ringDog.check_in_status })
+    .eq('id', ringDog.id);
+  const problems = await deleteAccount(steward);
+  if (reset.error) problems.push(`check-in reset: ${reset.error.message}`);
+  // A cleanup problem fails a passing test, but never hides the failure that stopped one.
+  if (failure) {
+    if (problems.length) console.warn(`Cleanup after a failed run: ${problems.join('; ')}`);
+    throw failure;
+  }
+  if (problems.length) throw new Error(`Cleanup failed: ${problems.join('; ')}`);
 });
 
 test('control: the same office writes change one row each for secretary@', async ({ page }) => {
   await signInAsSecretary(page, `/shows/${SHOW_ID}`);
-  const assignment = await patchAsSignedIn(page, `judge_assignments?id=eq.${JUDGE_ASSIGNMENT_ID}`, {
-    status: 'confirmed',
-  });
-  const { data: before } = await getIsolatedAdminClient()
+  // Write each row's current value back, so the control proves access without changing the seed.
+  const admin = getIsolatedAdminClient();
+  const { data: assignmentBefore } = await admin
+    .from('judge_assignments')
+    .select('status')
+    .eq('id', JUDGE_ASSIGNMENT_ID)
+    .single();
+  const { data: enrollmentBefore } = await admin
     .from('enrollments')
     .select('notes')
     .eq('id', ENROLLMENT_ID)
     .single();
+  const assignment = await patchAsSignedIn(page, `judge_assignments?id=eq.${JUDGE_ASSIGNMENT_ID}`, {
+    status: assignmentBefore?.status,
+  });
   const enrollment = await patchAsSignedIn(page, `enrollments?id=eq.${ENROLLMENT_ID}`, {
-    notes: before?.notes ?? null,
+    notes: enrollmentBefore?.notes ?? null,
   });
   expect(assignment).toEqual({ status: 200, rows: 1 });
   expect(enrollment).toEqual({ status: 200, rows: 1 });

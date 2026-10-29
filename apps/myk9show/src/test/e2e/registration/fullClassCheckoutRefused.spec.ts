@@ -38,28 +38,43 @@ const JUDGE_DAY_ASSIGNMENTS = [
 test.describe.configure({ mode: 'serial', timeout: 240_000 });
 test.skip(!isIsolatedTarget(), 'plants cart rows: isolated Supabase target only');
 
-/** Sets the Dec 13 judge day's capacity to its current load, or clears the override. */
-async function capJudgeDay(cap: boolean) {
+type SavedOverrides = Array<{ id: string; day_capacity_override: number | null }>;
+
+/** Caps the Dec 13 judge day at its current load; returns the overrides it replaced. */
+async function capJudgeDay(): Promise<SavedOverrides> {
   const client = getIsolatedAdminClient();
-  let capacity: number | null = null;
-  if (cap) {
-    const { data, error } = await client.rpc('get_show_class_judge_day_availability', {
-      p_show_id: SHOW_ID,
-    });
-    if (error) throw new Error(`Could not read judge-day availability: ${error.message}`);
-    // RETURNS TABLE of get_show_class_judge_day_availability (20261005031700): the day is
-    // full when capacity equals what is taken plus what mail-in entries reserve.
-    const row = (
-      data as Array<{ class_id: string; day_taken: number; day_mail_in_reserved: number }>
-    ).find(r => r.class_id === JUDGE_DAY_CLASS);
-    if (!row) throw new Error(`No judge-day row for ${JUDGE_DAY_CLASS}`);
-    capacity = row.day_taken + row.day_mail_in_reserved;
-  }
-  const { error } = await client
+  const { data: saved, error: savedError } = await client
     .from('judge_assignments')
-    .update({ day_capacity_override: capacity })
+    .select('id, day_capacity_override')
     .in('id', JUDGE_DAY_ASSIGNMENTS);
-  if (error) throw new Error(`Could not set judge-day capacity: ${error.message}`);
+  if (savedError) throw new Error(`Could not read judge-day overrides: ${savedError.message}`);
+  const { data, error } = await client.rpc('get_show_class_judge_day_availability', {
+    p_show_id: SHOW_ID,
+  });
+  if (error) throw new Error(`Could not read judge-day availability: ${error.message}`);
+  // RETURNS TABLE of get_show_class_judge_day_availability (20261005031700): the day is
+  // full when capacity equals what is taken plus what mail-in entries reserve.
+  const row = (
+    data as Array<{ class_id: string; day_taken: number; day_mail_in_reserved: number }>
+  ).find(r => r.class_id === JUDGE_DAY_CLASS);
+  if (!row) throw new Error(`No judge-day row for ${JUDGE_DAY_CLASS}`);
+  const { error: capError } = await client
+    .from('judge_assignments')
+    .update({ day_capacity_override: row.day_taken + row.day_mail_in_reserved })
+    .in('id', JUDGE_DAY_ASSIGNMENTS);
+  if (capError) throw new Error(`Could not cap the judge day: ${capError.message}`);
+  return (saved ?? []) as SavedOverrides;
+}
+
+async function restoreJudgeDay(saved: SavedOverrides) {
+  const client = getIsolatedAdminClient();
+  for (const assignment of saved) {
+    const { error } = await client
+      .from('judge_assignments')
+      .update({ day_capacity_override: assignment.day_capacity_override })
+      .eq('id', assignment.id);
+    if (error) throw new Error(`Could not restore ${assignment.id}: ${error.message}`);
+  }
 }
 
 async function refusedAtPayment(page: Page, fullClassId: string, fullClassName: string) {
@@ -69,7 +84,13 @@ async function refusedAtPayment(page: Page, fullClassId: string, fullClassName: 
     checkoutCalls.push(route.request().postData() ?? '');
     await route.abort('blockedbyclient');
   });
-  const createdItemIds: string[] = [];
+  // Every cart line that exists now; anything new at the end was this test's and is deleted.
+  const { data: existingItems, error: existingError } = await client
+    .from('entry_cart_items')
+    .select('id');
+  if (existingError) throw new Error(`Could not read cart lines: ${existingError.message}`);
+  const preexisting = new Set((existingItems ?? []).map(item => item.id as string));
+  let plantedId = '';
   try {
     await signInAsExhibitor(page, `/shows/${SHOW_ID}/register`);
     await selectFirstDogAndContinue(page);
@@ -97,7 +118,6 @@ async function refusedAtPayment(page: Page, fullClassId: string, fullClassName: 
         { timeout: 30_000, message: 'the selected class never reached the cart' }
       )
       .toBe(true);
-    createdItemIds.push(String(base!.id));
     const { data: planted, error: plantError } = await client
       .from('entry_cart_items')
       .insert({
@@ -111,7 +131,7 @@ async function refusedAtPayment(page: Page, fullClassId: string, fullClassName: 
       .single();
     if (plantError || !planted)
       throw new Error(`Could not plant the stale line: ${plantError?.message}`);
-    createdItemIds.push(planted.id);
+    plantedId = planted.id;
 
     await page.reload();
     await page.getByRole('button', { name: /^Next$/ }).click({ timeout: 30_000 });
@@ -130,23 +150,34 @@ async function refusedAtPayment(page: Page, fullClassId: string, fullClassName: 
     await expect(
       page.getByRole('listitem').filter({ hasText: `in ${fullClassName}: this class is full` })
     ).toBeVisible();
-    expect(checkoutCalls.filter(body => body.includes(fullClassId))).toEqual([]);
+    // The refusal happens before payment: the planted line is gone from the server's cart,
+    // and no checkout session was requested at all (the exhibitor has not paid again).
+    await expect
+      .poll(
+        async () => {
+          const { data } = await client.from('entry_cart_items').select('id').eq('id', plantedId);
+          return data?.length ?? -1;
+        },
+        { timeout: 15_000, message: 'the full-class line is still in the cart' }
+      )
+      .toBe(0);
+    expect(checkoutCalls).toEqual([]);
   } finally {
-    if (createdItemIds.length) {
-      await client.from('entry_cart_items').delete().in('id', createdItemIds);
-    }
+    const { data: after } = await client.from('entry_cart_items').select('id');
+    const created = (after ?? []).map(item => item.id as string).filter(id => !preexisting.has(id));
+    if (created.length) await client.from('entry_cart_items').delete().in('id', created);
   }
 }
 
 test('a per-class-full no-waitlist line is removed before payment', async ({ page }) => {
-  await refusedAtPayment(page, PER_CLASS_FULL, "Handler Discrimination Advanced");
+  await refusedAtPayment(page, PER_CLASS_FULL, 'Handler Discrimination Advanced');
 });
 
 test('a judge-day-full no-waitlist line is removed before payment', async ({ page }) => {
-  await capJudgeDay(true);
+  const saved = await capJudgeDay();
   try {
-    await refusedAtPayment(page, JUDGE_DAY_CLASS, "Interior Advanced");
+    await refusedAtPayment(page, JUDGE_DAY_CLASS, 'Interior Advanced');
   } finally {
-    await capJudgeDay(false);
+    await restoreJudgeDay(saved);
   }
 });

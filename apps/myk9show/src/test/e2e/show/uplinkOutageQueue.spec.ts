@@ -169,12 +169,47 @@ async function selectTrial3(page: Page) {
   await page.getByRole('checkbox', { name: /^Select every class in Trial 3/ }).check();
 }
 
-async function assignJudge(page: Page, pick: 'first' | 'Unassigned') {
-  await page.getByRole('button', { name: /^Assign judge/ }).click();
-  if (pick === 'Unassigned') {
-    await page.getByRole('menuitem', { name: 'Unassigned' }).click();
-    return 'Unassigned';
+// The seed's Trial 3 (trials.trial_number is the text "Trial 3") and its two not-started classes.
+const TRIAL_3_ID = 'dededede-0000-0000-0000-000000000023';
+const TRIAL_3_CLASS_NAMES = ['Container Advanced', 'Handler Discrimination Novice A'];
+
+/**
+ * The Trial 3 classes and their judge_assignments rows. `set_class_judge` replaces a
+ * class's rows (delete, then insert), so writing these back restores the seed exactly,
+ * whatever state the page or the outage left behind.
+ */
+async function snapshotTrial3Judges() {
+  const admin = getIsolatedAdminClient();
+  const { data: classes, error } = await admin
+    .from('classes')
+    .select('id')
+    .eq('trial_id', TRIAL_3_ID)
+    .in('name', TRIAL_3_CLASS_NAMES);
+  if (error || classes?.length !== 2) {
+    throw new Error(`Could not find the Trial 3 classes: ${error?.message ?? classes?.length}`);
   }
+  const classIds = classes.map(c => c.id as string);
+  const { data: rows, error: rowsError } = await admin
+    .from('judge_assignments')
+    .select('*')
+    .in('class_id', classIds);
+  if (rowsError) throw new Error(`Could not read Trial 3 judges: ${rowsError.message}`);
+  return { classIds, rows: rows ?? [] };
+}
+
+async function restoreTrial3Judges(snapshot: Awaited<ReturnType<typeof snapshotTrial3Judges>>) {
+  const admin = getIsolatedAdminClient();
+  const cleared = await admin.from('judge_assignments').delete().in('class_id', snapshot.classIds);
+  if (cleared.error) throw new Error(`Could not clear Trial 3 judges: ${cleared.error.message}`);
+  if (snapshot.rows.length) {
+    const restored = await admin.from('judge_assignments').insert(snapshot.rows);
+    if (restored.error)
+      throw new Error(`Could not restore Trial 3 judges: ${restored.error.message}`);
+  }
+}
+
+async function assignJudge(page: Page) {
+  await page.getByRole('button', { name: /^Assign judge/ }).click();
   const judges = page
     .getByRole('menuitem')
     .filter({ hasNotText: /Unassigned|Loading|can't load/i });
@@ -187,7 +222,7 @@ async function assignJudge(page: Page, pick: 'first' | 'Unassigned') {
 async function expectTrial3Judge(page: Page, text: string) {
   await page.reload();
   await page.getByRole('button', { name: /^Expand Trial 3/ }).click({ timeout: 30_000 });
-  for (const cls of ['Container Advanced', 'Handler Discrimination Novice A']) {
+  for (const cls of TRIAL_3_CLASS_NAMES) {
     // The nearest ancestor holding the whole row (its "N of 7 steps done" line too).
     const row = page
       .getByRole('button', { name: cls, exact: true })
@@ -201,12 +236,13 @@ test('a judge pick survives a 60 s fast-failing uplink and uploads itself', asyn
   context,
 }) => {
   test.setTimeout(300_000);
+  const snapshot = await snapshotTrial3Judges();
   const net = await uplink(context);
-  await signInAsSecretary(page, `/shows/${SHOW_ID}?select=classes`);
-  await selectTrial3(page);
   try {
+    await signInAsSecretary(page, `/shows/${SHOW_ID}?select=classes`);
+    await selectTrial3(page);
     net.drop();
-    const judge = await assignJudge(page, 'first');
+    const judge = await assignJudge(page);
     await holdOutage(page, 'judge pick');
 
     const statuses: number[] = [];
@@ -218,17 +254,14 @@ test('a judge pick survives a 60 s fast-failing uplink and uploads itself', asyn
       .poll(() => readReplicationStoreCount(page, 'pending_mutations'), { timeout: 60_000 })
       .toBe(0);
     expect(await readReplicationStoreCount(page, 'failed_mutations')).toBe(0);
-    expect(statuses.length).toBeGreaterThanOrEqual(2);
+    // One set_class_judge per class (two in Trial 3), each a 2xx.
+    expect(statuses).toHaveLength(2);
     expect(statuses.every(s => s >= 200 && s < 300)).toBe(true);
     await expectTrial3Judge(page, judge);
   } finally {
-    // Put Trial 3 back as the seed has it, through the same bulk action.
     net.restore();
-    await page.goto(`/shows/${SHOW_ID}?select=classes`);
-    await selectTrial3(page);
-    await assignJudge(page, 'Unassigned');
-    await expect
-      .poll(() => readReplicationStoreCount(page, 'pending_mutations'), { timeout: 60_000 })
-      .toBe(0);
+    // Close the page first, so no write still queued in it can land after the restore.
+    await page.close();
+    await restoreTrial3Judges(snapshot);
   }
 });

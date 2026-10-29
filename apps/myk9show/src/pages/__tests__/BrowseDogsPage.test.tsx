@@ -69,6 +69,7 @@ const mockGetUserRoles = vi.fn().mockReturnValue(['secretary']);
 const mockHasRole = vi.fn((role: UserRole) => (mockGetUserRoles() as string[]).includes(role));
 // `useRoleBasedDogs` scopes the roster off `userWithRoles`, so the page treats a
 // null value as "identity not resolved yet" rather than "this user owns no dogs".
+let mockCurrentUserPersonId: string | null = 'person-1';
 let mockUserWithRoles: unknown = { id: 'user-1', databaseUserId: 'person-1', roles: [] };
 
 vi.mock('@/hooks/useAuthContext', async importOriginal => {
@@ -90,7 +91,7 @@ vi.mock('@/hooks/useRoleBasedData', async importOriginal => {
   const actual = await importOriginal();
   return {
     ...(actual as object),
-    useCurrentUserPersonId: () => 'person-1',
+    useCurrentUserPersonId: () => mockCurrentUserPersonId,
   };
 });
 
@@ -150,6 +151,7 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
     vi.clearAllMocks();
     localStorage.clear();
     mockGetUserRoles.mockReturnValue(['secretary']);
+    mockCurrentUserPersonId = 'person-1';
     mockUserWithRoles = { id: 'user-1', databaseUserId: 'person-1', roles: [] };
     mockBrowseDogsReturn = {
       dogs: [makeDog()],
@@ -571,6 +573,23 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
 
       expect(mockRefreshRbac).toHaveBeenCalled();
       expect(handleRetry).toHaveBeenCalled();
+    });
+
+    it('says it cannot confirm the account, not "No dogs yet", for an exhibitor whose person id is unknown (MYK9-1493)', () => {
+      mockGetUserRoles.mockReturnValue([UserRole.EXHIBITOR]);
+      mockCurrentUserPersonId = null;
+      mockBrowseDogsReturn = {
+        ...mockBrowseDogsReturn,
+        isLoading: false,
+        dogs: [],
+        filteredDogs: [],
+      };
+
+      renderPage();
+
+      expect(screen.getByText("We couldn't confirm your account")).toBeInTheDocument();
+      expect(screen.queryByText('No dogs yet')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /add dog/i })).not.toBeInTheDocument();
     });
 
     it('still shows the real empty state once identity is known', () => {

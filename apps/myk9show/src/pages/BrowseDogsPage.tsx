@@ -109,7 +109,10 @@ const BrowseDogsPage: React.FC<BrowseDogsPageProps> = ({ detail = null }) => {
   // "No dogs yet" with a full roster in IndexedDB — and on a cold offline boot
   // roles settle at [] permanently (see the MYK9-200 note in CLAUDE.md), so
   // that false empty state is terminal rather than a flash.
-  const identityResolved = Boolean(userWithRoles);
+  // An own-dogs roster also needs the viewer's person id: roles can resolve from the device cache
+  // while the person pairing has not, and `useRoleBasedDogs` then returns [] — which must read
+  // as "can't confirm", never as "No dogs yet" (MYK9-1493).
+  const identityResolved = Boolean(userWithRoles) && (!ownDogsOnly || Boolean(currentUserPersonId));
   const isResolvingIdentity = !identityResolved && (rbacLoading || isLoading);
 
   // The unresolved-identity state is caused by RBAC, not by the dogs query, so

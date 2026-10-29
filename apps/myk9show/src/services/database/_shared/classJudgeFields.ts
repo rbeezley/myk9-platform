@@ -49,7 +49,7 @@ export interface ClassJudgeSource {
 }
 
 /**
- * The class's confirmed assignment. `judge_assignments_one_confirmed_class_judge` (a partial
+ * The class's confirmed assignment. `judge_assignments_one_confirmed_judge_per_class` (a partial
  * unique index on `class_id` where `status = 'confirmed'`) guarantees at most one, so this is a
  * plain `find`: a class has exactly one judge.
  */

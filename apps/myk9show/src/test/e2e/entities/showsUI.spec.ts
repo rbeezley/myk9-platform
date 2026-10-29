@@ -73,11 +73,13 @@ test.describe('Shows UI — Create wizard (secretary)', () => {
     await signInAsSecretary(page);
   });
 
-  test('Add Show button opens the wizard at step 1', async ({ page }) => {
+  test('Actions > Add Show opens the wizard at step 1', async ({ page }) => {
     await page.goto('/shows');
+    // The page's own Add Show button is gone; the header Actions menu carries it (MYK9-1490).
+    await page.getByRole('button', { name: /^actions$/i }).click();
     await Promise.all([
       page.waitForURL(/\/secretary\/create-show\/wizard/),
-      page.getByRole('button', { name: 'Add Show', exact: true }).click(),
+      page.getByRole('menuitem', { name: 'Add Show', exact: true }).click(),
     ]);
     await expect(page.getByRole('heading', { name: 'Add Show', level: 2 })).toBeVisible();
     // Clone is owned by the wizard, not a second Calendar-page dialog.

@@ -17,7 +17,7 @@ import {
 import { SHOW_DESK_TOOL_GROUP_HEADINGS } from './showToolActions';
 import { UserRole } from '@/types/auth-types';
 import { useEntryEligibleShows } from './useEntryEligibleShows';
-import { useAddEntryPickerStore } from './AddEntryShowPicker';
+import { useAddEntryPickerStore } from './addEntryPickerStore';
 
 export interface CurrentActions {
   route: ActionRouteContext;

@@ -32,7 +32,9 @@ test.describe('Cross-role workflow smoke', () => {
     await expect(
       page.getByRole('heading', { name: /Good (morning|afternoon|evening)/ })
     ).toBeVisible({ timeout: 15000 });
-    await expect(page.getByRole('link', { name: 'Add Show' })).toBeVisible();
+    // MYK9-1490: Home has no Add Show tile; the rail item reads Home.
+    await expect(page.getByRole('link', { name: 'Add Show' })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Home', exact: true }).first()).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Personal tasks' })).toBeVisible();
     // Messages is no longer a dashboard/sidebar link; PR #592 consolidated it
     // into the top Message Center panel.

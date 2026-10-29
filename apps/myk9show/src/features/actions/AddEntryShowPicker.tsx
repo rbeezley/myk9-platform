@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom';
-import { create } from 'zustand';
 import {
   Dialog,
   DialogContent,
@@ -9,17 +8,7 @@ import {
 } from '@/components/ui/dialog';
 import { buildSecretaryRegistrationPath } from '@/pages/RegistrationWizardPage.routes';
 import { useEntryEligibleShows } from './useEntryEligibleShows';
-
-interface AddEntryPickerState {
-  open: boolean;
-  setOpen: (open: boolean) => void;
-}
-
-/** Opened by the Create group's Add Entry when more than one show can take an entry. */
-export const useAddEntryPickerStore = create<AddEntryPickerState>(set => ({
-  open: false,
-  setOpen: open => set({ open }),
-}));
+import { useAddEntryPickerStore } from './addEntryPickerStore';
 
 /**
  * "Add entry to which show?": one register link per eligible show. Mounted once beside the

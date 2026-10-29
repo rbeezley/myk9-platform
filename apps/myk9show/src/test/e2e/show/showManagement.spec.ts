@@ -41,12 +41,11 @@ test.describe('Show management workflow', () => {
   test('secretary can reach the canonical show wizard from the browse page', async ({ page }) => {
     await signInAsSecretary(page, '/shows');
 
-    await expect(page.getByRole('button', { name: 'Add Show', exact: true })).toBeVisible({
-      timeout: 15000,
-    });
+    // The header Actions menu carries Add Show (MYK9-1490), not a page button.
+    await page.getByRole('button', { name: /^actions$/i }).click({ timeout: 15000 });
     await Promise.all([
       page.waitForURL(/\/secretary\/create-show\/wizard/),
-      page.getByRole('button', { name: 'Add Show', exact: true }).click(),
+      page.getByRole('menuitem', { name: 'Add Show', exact: true }).click(),
     ]);
 
     await expect(page.getByRole('heading', { name: 'Add Show', level: 2 })).toBeVisible();

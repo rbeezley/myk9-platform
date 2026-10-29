@@ -17,14 +17,7 @@ vi.mock('@/services/database/supabaseClient', () => ({
 
 import { ReplicatedClassesTable, type ReplicatedClass } from '../ReplicatedClassesTable';
 import { REPLICATION_STORES } from '@myk9/replication';
-
-type QueueMutation = (
-  operation: string,
-  rowId: string,
-  payload: Record<string, unknown>,
-  dependsOn?: string[],
-  rpc?: { name: string; idParam?: string; fields?: Record<string, unknown> }
-) => Promise<string | null>;
+import { spyOnWriteAndQueue } from '@/test/utils/spyOnWriteAndQueue';
 
 function baseClass(overrides: Partial<ReplicatedClass> = {}): ReplicatedClass {
   return {
@@ -60,7 +53,7 @@ describe('ReplicatedClassesTable ringside routing (MYK9-1096 / MYK9-1086)', () =
         await store.clear?.();
       });
     }
-    queueMutation = vi.spyOn(table as unknown as { queueMutation: QueueMutation }, 'queueMutation');
+    queueMutation = spyOnWriteAndQueue(table).queue;
   });
 
   afterEach(() => {

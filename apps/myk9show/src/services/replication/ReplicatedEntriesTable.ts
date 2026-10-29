@@ -676,22 +676,16 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       _syncStatus: 'pending',
     };
 
-    // Durable-first (MYK9-1206): queue before the dirty write, as updateEntry does,
-    // so a rejected queue leaves no dirty row without a mutation. deferUpload keeps
-    // the upload from flushing before the dirty row exists; requestUpload follows.
-    const mutationId = await this.queueMutation(
-      'UPDATE',
-      entryId,
+    // Durable-first (MYK9-1206, MYK9-1471): writeAndQueue queues before the dirty
+    // write, so a rejected queue leaves no dirty row without a mutation.
+    const { mutationId, result } = await this.writeAndQueue(entryId, updated, {
+      operation: 'UPDATE',
       // Only entry_status (MYK9-1442): a full row would write back every other
       // column at this device's last-seen value over a trigger's or another
       // device's change.
-      entryChangedColumnsRow(entry, { entryStatus: status }, updated),
-      undefined,
-      undefined,
-      /* deferUpload */ true
-    );
-    this.reportSetResult(entryId, await this.set(entryId, updated, true));
-    this.requestUpload();
+      payload: entryChangedColumnsRow(entry, { entryStatus: status }, updated),
+    });
+    this.reportSetResult(entryId, result);
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated entry ${entryId} status to ${status}`);
     return mutationId;
@@ -714,23 +708,19 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       _syncStatus: 'pending',
     };
 
-    // Durable-first (MYK9-1206): see updateEntryStatus.
-    const mutationId = await this.queueMutation(
-      'UPDATE',
-      entryId,
-      {
+    // Durable-first (MYK9-1206, MYK9-1471): see updateEntryStatus.
+    const { mutationId, result } = await this.writeAndQueue(entryId, updated, {
+      operation: 'UPDATE',
+      payload: {
         id: entryId,
         check_in_status: status,
         updated_at: new Date().toISOString(),
       },
-      undefined,
       // check_in_status is ringside-whitelisted; route through the RPC so judges/
       // stewards can persist check-ins (updated_at is auto-managed, not intent).
-      { name: RINGSIDE_RPC_FUNCTION, fields: { check_in_status: status } },
-      /* deferUpload */ true
-    );
-    this.reportSetResult(entryId, await this.set(entryId, updated, true));
-    this.requestUpload();
+      rpc: { name: RINGSIDE_RPC_FUNCTION, fields: { check_in_status: status } },
+    });
+    this.reportSetResult(entryId, result);
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated entry ${entryId} check-in status to ${status}`);
     return mutationId;
@@ -759,34 +749,24 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     // ./ringsideEntryRpc.ts.
     const rpcFields = buildRingsideRpcFields(Object.keys(updates), supabaseRow);
 
-    // Durable-first: queue the mutation BEFORE mutating the local cache. If the
-    // queue write THROWS (overflow/quota), the optimistic cache is never touched,
-    // so we don't strand a dirty row that shows as saved but has no mutation to
-    // upload — the caller's error path leaves the list unchanged. (There is no
-    // orphan-repair to rescue such a row.) The OCC serverVersion precondition
-    // reads the pre-update cache row, which our optimistic edit hasn't changed.
+    // Durable-first: writeAndQueue queues the mutation BEFORE mutating the local
+    // cache. If the queue write THROWS (overflow/quota), the optimistic cache is
+    // never touched, so we don't strand a dirty row that shows as saved but has
+    // no mutation to upload — the caller's error path leaves the list unchanged.
+    // The OCC serverVersion precondition reads the pre-update cache row, which
+    // our optimistic edit hasn't changed. The upload is deferred until the dirty
+    // row exists, so a fast flush cannot strand the row as pending forever.
     //
-    // A `null` return means no MutationManager is wired (a dev/test or
+    // A `null` mutationId means no MutationManager is wired (a dev/test or
     // misconfiguration case, never production, where the provider always wires
     // it). We still update the cache so offline-cache behavior works; the scoring
     // caller separately treats `null` as a failure and surfaces it.
-    //
-    // deferUpload: don't let the auto-upload flush (and delete) this mutation
-    // before the dirty cache row exists — otherwise, when online with slow
-    // storage, the row could be written dirty AFTER its mutation was already
-    // uploaded+removed, stranding it as pending forever. We trigger the upload
-    // ourselves after set() below.
-    const mutationId = await this.queueMutation(
-      'UPDATE',
-      entryId,
-      supabaseRow,
-      undefined,
-      rpcFields ? { name: RINGSIDE_RPC_FUNCTION, fields: rpcFields } : undefined,
-      /* deferUpload */ true
-    );
-
-    this.reportSetResult(entryId, await this.set(entryId, updated, true));
-    this.requestUpload();
+    const { mutationId, result } = await this.writeAndQueue(entryId, updated, {
+      operation: 'UPDATE',
+      payload: supabaseRow,
+      rpc: rpcFields ? { name: RINGSIDE_RPC_FUNCTION, fields: rpcFields } : undefined,
+    });
+    this.reportSetResult(entryId, result);
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated entry ${entryId}`);
     return mutationId;
@@ -814,35 +794,6 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     const seededRow =
       Object.keys(seed).length > 0 ? ({ id: entryId, ...seed } as ReplicatedEntry) : null;
     const entry = cached ?? seededRow;
-
-    if (entry) {
-      const updated: ReplicatedEntry = {
-        ...entry,
-        ...updates,
-        _lastModified: new Date(),
-        _syncStatus: 'pending',
-      };
-
-      const result = await this.set(
-        entryId,
-        updated,
-        true,
-        undefined,
-        undefined,
-        cached
-          ? undefined
-          : { allowColdInsert: 'secretary lifecycle write seeded from the loaded row' }
-      );
-      if (!result.written) {
-        logger.warn(
-          `[${this.getTableName()}] Local cache write skipped for ${entryId} (${result.reason}); the server mutation is still queued`
-        );
-      }
-    } else {
-      logger.log(
-        `[${this.getTableName()}] No cached row and no seed for ${entryId}; queueing the status mutation without a local write`
-      );
-    }
 
     const payload: Record<string, unknown> = {
       id: entryId,
@@ -872,7 +823,36 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
           : updates.withdrawalReasonCode;
     }
 
-    const mutationId = await this.queueMutation('UPDATE', entryId, payload);
+    let mutationId: string | null;
+    if (entry) {
+      const updated: ReplicatedEntry = {
+        ...entry,
+        ...updates,
+        _lastModified: new Date(),
+        _syncStatus: 'pending',
+      };
+      const written = await this.writeAndQueue(
+        entryId,
+        updated,
+        { operation: 'UPDATE', payload },
+        {
+          options: cached
+            ? undefined
+            : { allowColdInsert: 'secretary lifecycle write seeded from the loaded row' },
+        }
+      );
+      mutationId = written.mutationId;
+      if (!written.result.written) {
+        logger.warn(
+          `[${this.getTableName()}] Local cache write skipped for ${entryId} (${written.result.reason}); the server mutation is still queued`
+        );
+      }
+    } else {
+      logger.log(
+        `[${this.getTableName()}] No cached row and no seed for ${entryId}; queueing the status mutation without a local write`
+      );
+      mutationId = await this.queueMutation('UPDATE', entryId, payload);
+    }
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated entry ${entryId} secretary lifecycle status`);
     return mutationId;
@@ -1517,6 +1497,8 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
 
     const mutationIds: string[] = [];
     for (const [entryId, entry] of targets) {
+      const payload = { id: entryId, armband, updated_at: new Date().toISOString() };
+      let mutationId: string | null;
       if (entry) {
         const updated: ReplicatedEntry = {
           ...entry,
@@ -1526,14 +1508,15 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
           _syncStatus: 'pending',
         };
 
-        this.reportSetResult(entryId, await this.set(entryId, updated, true));
+        const written = await this.writeAndQueue(entryId, updated, {
+          operation: 'UPDATE',
+          payload,
+        });
+        this.reportSetResult(entryId, written.result);
+        mutationId = written.mutationId;
+      } else {
+        mutationId = await this.queueMutation('UPDATE', entryId, payload);
       }
-
-      const mutationId = await this.queueMutation('UPDATE', entryId, {
-        id: entryId,
-        armband,
-        updated_at: new Date().toISOString(),
-      });
       if (mutationId) {
         mutationIds.push(mutationId);
         this._lastMutationId = mutationId;
@@ -1564,18 +1547,22 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       _localOnly: true,
     };
 
-    this.reportSetResult(
+    const { mutationId, result } = await this.writeAndQueue(
       entry.id,
-      await this.set(entry.id, newEntry, true, undefined, undefined, {
-        allowColdInsert: 'local create of a new entry',
-      })
+      newEntry,
+      {
+        operation: 'INSERT',
+        payload: entryToSupabaseRow(newEntry),
+        dependsOn:
+          typeof dependsOn === 'string'
+            ? [dependsOn]
+            : dependsOn.length > 0
+              ? dependsOn
+              : undefined,
+      },
+      { options: { allowColdInsert: 'local create of a new entry' } }
     );
-    const mutationId = await this.queueMutation(
-      'INSERT',
-      entry.id,
-      entryToSupabaseRow(newEntry),
-      typeof dependsOn === 'string' ? [dependsOn] : dependsOn.length > 0 ? dependsOn : undefined
-    );
+    this.reportSetResult(entry.id, result);
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Created new entry ${entry.id}`);
     return newEntry;

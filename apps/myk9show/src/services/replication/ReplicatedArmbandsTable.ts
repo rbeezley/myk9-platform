@@ -366,13 +366,12 @@ export class ReplicatedArmbandsTable extends ReplicatedTable<ReplicatedArmband> 
       ...(existing ? {} : { _localOnly: true }),
     };
 
-    await this.set(id, updated, true);
-    return this.queueMutation(
-      existing ? 'UPDATE' : 'INSERT',
-      id,
-      this.toSupabaseRow(updated),
-      input.dependsOn
-    );
+    const { mutationId } = await this.writeAndQueue(id, updated, {
+      operation: existing ? 'UPDATE' : 'INSERT',
+      payload: this.toSupabaseRow(updated),
+      dependsOn: input.dependsOn,
+    });
+    return mutationId;
   }
 }
 

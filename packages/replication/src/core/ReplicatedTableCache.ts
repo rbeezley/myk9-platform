@@ -127,8 +127,8 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
    * the browser quota is global, so this frees space within the overflowing
    * table but does not reclaim another table's evictable rows.
    */
-  async evictRetainingFraction(retainFraction: number): Promise<number> {
-    return this.evictToTarget(currentSize => Math.floor(currentSize * retainFraction));
+  async evictRetainingFraction(retainFraction: number, keepId?: string): Promise<number> {
+    return this.evictToTarget(currentSize => Math.floor(currentSize * retainFraction), keepId);
   }
 
   /**
@@ -136,7 +136,11 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
    * measured current size, then evict LRU/LFU-ranked rows until at/under target.
    * Dirty and recently-touched rows are always protected.
    */
-  private async evictToTarget(deriveTarget: (currentSize: number) => number): Promise<number> {
+  private async evictToTarget(
+    deriveTarget: (currentSize: number) => number,
+    /** A row the caller is writing: never evicted (MYK9-1471). */
+    keepId?: string
+  ): Promise<number> {
     const db = await this.getDb();
     const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
     const index = tx.store.index('tableName');
@@ -165,6 +169,7 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
     const evictableRows = rows
       .filter(row => {
         if (row.isDirty) return false;
+        if (keepId !== undefined && row.id === keepId) return false;
         if (row.lastModifiedAt && now - row.lastModifiedAt < RECENT_EDIT_PROTECTION_MS)
           return false;
         if (now - row.lastAccessedAt < EVICTION_GRACE_PERIOD_MS) return false;

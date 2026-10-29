@@ -22,14 +22,7 @@ import {
   type ReplicatedClass,
 } from '../ReplicatedClassesTable';
 import { REPLICATION_STORES } from '@myk9/replication';
-
-type QueueMutation = (
-  operation: string,
-  rowId: string,
-  payload: Record<string, unknown>,
-  dependsOn?: string[],
-  rpc?: { name: string; args?: Record<string, unknown> }
-) => Promise<string | null>;
+import { spyOnWriteAndQueue } from '@/test/utils/spyOnWriteAndQueue';
 
 const AT = '2026-10-10T21:15:00.000Z';
 
@@ -67,7 +60,7 @@ describe('ReplicatedClassesTable judge sign-off (MYK9-1030)', () => {
         await store.clear?.();
       });
     }
-    queueMutation = vi.spyOn(table as unknown as { queueMutation: QueueMutation }, 'queueMutation');
+    queueMutation = spyOnWriteAndQueue(table).queue;
   });
 
   afterEach(() => {

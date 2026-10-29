@@ -6,25 +6,15 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ReplicatedDogsTable, type ReplicatedDog } from '../ReplicatedDogsTable';
 import { ReplicatedShowDeskPeopleTable } from '../ReplicatedShowDeskPeopleTable';
+import { spyOnWriteAndQueue } from '@/test/utils/spyOnWriteAndQueue';
 
 vi.mock('@/services/database/supabaseClient', () => ({ supabase: { from: vi.fn() } }));
 vi.mock('@myk9/core', () => ({ logger: { log: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
 
 const SHOW_ID = '6349d047-34fe-4307-b29a-c1ae6d7750c7';
 
-type QueueSpy = (
-  operation: string,
-  rowId: string,
-  payload: Record<string, unknown>,
-  dependencies?: string[],
-  rpc?: { name: string; args: Record<string, unknown>; expectRowId: boolean }
-) => Promise<string>;
-
 function spyOnQueue(table: object) {
-  vi.spyOn(table as { set: () => Promise<unknown> }, 'set').mockResolvedValue({ written: true });
-  return vi
-    .spyOn(table as unknown as { queueMutation: QueueSpy }, 'queueMutation')
-    .mockResolvedValue('mutation-1');
+  return spyOnWriteAndQueue(table, { writeRow: false }).queue.mockResolvedValue('mutation-1');
 }
 
 const dog: ReplicatedDog = { id: 'dog-1', name: 'Liddle', callName: 'Liddle', breed: 'Mixed' };
@@ -37,8 +27,7 @@ describe('dog INSERT payloads (MYK9-1059)', () => {
     expect(queue).toHaveBeenCalledWith(
       'INSERT',
       'dog-1',
-      expect.objectContaining({ created_from_show_id: SHOW_ID }),
-      undefined
+      expect.objectContaining({ created_from_show_id: SHOW_ID })
     );
   });
 

@@ -20,6 +20,7 @@ import {
 } from '../ReplicatedShowsTable';
 import { SHOW_REQUIRES_CLUB_MESSAGE } from '@/services/database/shows/requireShowClub';
 import { fromAny } from '@total-typescript/shoehorn';
+import { spyOnWriteAndQueue } from '@/test/utils/spyOnWriteAndQueue';
 
 // Mock dependencies
 vi.mock('@/services/database/supabaseClient', () => ({
@@ -535,16 +536,7 @@ describe('ReplicatedShowsTable', () => {
         latitude: 36.15,
         longitude: -95.99,
       };
-      const queueMutation = vi.spyOn(
-        table as unknown as {
-          queueMutation: (
-            operation: string,
-            rowId: string,
-            payload: Record<string, unknown>
-          ) => Promise<string | null>;
-        },
-        'queueMutation'
-      );
+      const queueMutation = spyOnWriteAndQueue(table).queue;
 
       await table.set('show-1', show);
       await table.updateShow('show-1', { location: '200 New Venue Road' });
@@ -652,16 +644,7 @@ describe('ReplicatedShowsTable', () => {
         experiencePublishedStyle: null,
         experiencePublishedContent: null,
       };
-      const queueMutation = vi.spyOn(
-        table as unknown as {
-          queueMutation: (
-            operation: string,
-            rowId: string,
-            payload: Record<string, unknown>
-          ) => Promise<string | null>;
-        },
-        'queueMutation'
-      );
+      const queueMutation = spyOnWriteAndQueue(table).queue;
 
       await table.set('show-1', show);
       await table.updateShow('show-1', {
@@ -717,16 +700,7 @@ describe('ReplicatedShowsTable', () => {
         endDate: '2026-06-16',
         style: 'monogram',
       };
-      const queueMutation = vi.spyOn(
-        table as unknown as {
-          queueMutation: (
-            operation: string,
-            rowId: string,
-            payload: Record<string, unknown>
-          ) => Promise<string | null>;
-        },
-        'queueMutation'
-      );
+      const queueMutation = spyOnWriteAndQueue(table).queue;
       queueMutation.mockResolvedValue('mutation-1');
 
       await table.set('show-1', show);
@@ -875,16 +849,7 @@ describe('ReplicatedShowsTable', () => {
     // MYK9-1008: shows.club_id is NOT NULL. A clubless create queued offline
     // would only fail when it synced, so it is refused before any write.
     it.each(['', '   '])('refuses a show with no club (%j) and writes nothing', async clubId => {
-      const queueMutation = vi.spyOn(
-        table as unknown as {
-          queueMutation: (
-            operation: string,
-            rowId: string,
-            payload: Record<string, unknown>
-          ) => Promise<string | null>;
-        },
-        'queueMutation'
-      );
+      const queueMutation = spyOnWriteAndQueue(table).queue;
       const before = await table.getAllShows();
 
       await expect(
@@ -902,16 +867,7 @@ describe('ReplicatedShowsTable', () => {
     });
 
     it('queues the INSERT with the club it was given', async () => {
-      const queueMutation = vi.spyOn(
-        table as unknown as {
-          queueMutation: (
-            operation: string,
-            rowId: string,
-            payload: Record<string, unknown>
-          ) => Promise<string | null>;
-        },
-        'queueMutation'
-      );
+      const queueMutation = spyOnWriteAndQueue(table).queue;
 
       const result = await table.createShow({
         name: 'Club Show',
@@ -929,16 +885,7 @@ describe('ReplicatedShowsTable', () => {
     });
 
     it('should queue an empty published experience object for new show inserts', async () => {
-      const queueMutation = vi.spyOn(
-        table as unknown as {
-          queueMutation: (
-            operation: string,
-            rowId: string,
-            payload: Record<string, unknown>
-          ) => Promise<string | null>;
-        },
-        'queueMutation'
-      );
+      const queueMutation = spyOnWriteAndQueue(table).queue;
 
       const result = await table.createShow({
         name: 'Test Show',
@@ -959,16 +906,7 @@ describe('ReplicatedShowsTable', () => {
     });
 
     it('should create show with full metadata', async () => {
-      const queueMutation = vi.spyOn(
-        table as unknown as {
-          queueMutation: (
-            operation: string,
-            rowId: string,
-            payload: Record<string, unknown>
-          ) => Promise<string | null>;
-        },
-        'queueMutation'
-      );
+      const queueMutation = spyOnWriteAndQueue(table).queue;
 
       const result = await table.createShow({
         name: 'Premium Show',

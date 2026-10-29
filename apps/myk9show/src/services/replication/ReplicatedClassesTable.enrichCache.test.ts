@@ -18,6 +18,7 @@ vi.mock('@/utils/logger', () => ({ logger: { warn: vi.fn(), log: vi.fn(), error:
 
 import { ReplicatedClassesTable } from './ReplicatedClassesTable';
 import { invalidateClassEnrichment } from './classEnrichmentCache';
+import { spyOnWriteAndQueue } from '@/test/utils/spyOnWriteAndQueue';
 
 const SHOW_ID = 'show-1';
 const TRIALS = [{ id: 'trial-1', show_id: SHOW_ID, registry_id: 'AKC' }];
@@ -167,10 +168,7 @@ describe('class enrichment across consecutive classes deltas (MYK9-1360)', () =>
     const { replicatedJudgeAssignmentsTable } = await import('./ReplicatedJudgeAssignmentsTable');
     vi.spyOn(replicatedJudgeAssignmentsTable, 'get').mockResolvedValue({ id: 'a-1' } as never);
     vi.spyOn(replicatedJudgeAssignmentsTable, 'set').mockResolvedValue(undefined as never);
-    vi.spyOn(
-      replicatedJudgeAssignmentsTable as unknown as { queueMutation: () => Promise<string | null> },
-      'queueMutation'
-    ).mockResolvedValue(null);
+    spyOnWriteAndQueue(replicatedJudgeAssignmentsTable).queue.mockResolvedValue(null);
 
     mockRpc.mockClear();
     await replicatedJudgeAssignmentsTable.updateAssignment('a-1', { personId: 'judge-2' });

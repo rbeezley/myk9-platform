@@ -16,6 +16,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { fromAny } from '@total-typescript/shoehorn';
 import { ReplicatedTrialsTable, type ReplicatedTrial } from '../ReplicatedTrialsTable';
+import { spyOnWriteAndQueue } from '@/test/utils/spyOnWriteAndQueue';
 
 // Mock dependencies
 vi.mock('@/services/database/supabaseClient', () => ({
@@ -211,12 +212,9 @@ describe('ReplicatedTrialsTable', () => {
     describe('createTrial — registry write path (Phase 1)', () => {
       // toSupabaseRow is the final write hop. createTrial queues an INSERT mutation
       // whose payload is toSupabaseRow's output — spy on queueMutation to capture it.
-      type Spyable = { queueMutation: (...args: unknown[]) => Promise<string> };
 
       it('persists registry_id from the replicated trial into the INSERT payload', async () => {
-        const spy = vi
-          .spyOn(table as unknown as Spyable, 'queueMutation')
-          .mockResolvedValue('mutation-1');
+        const spy = spyOnWriteAndQueue(table).queue.mockResolvedValue('mutation-1');
 
         await table.createTrial({
           id: 'trial-ukc',
@@ -231,9 +229,7 @@ describe('ReplicatedTrialsTable', () => {
       });
 
       it('defaults registry_id to AKC when unset (never writes NULL to the NOT-NULL column)', async () => {
-        const spy = vi
-          .spyOn(table as unknown as Spyable, 'queueMutation')
-          .mockResolvedValue('mutation-2');
+        const spy = spyOnWriteAndQueue(table).queue.mockResolvedValue('mutation-2');
 
         await table.createTrial({
           id: 'trial-default',
@@ -251,12 +247,9 @@ describe('ReplicatedTrialsTable', () => {
       // Same shape as the registry write path above: toSupabaseRow is the final
       // write hop, so a timezone chosen in the wizard that never reaches this
       // payload is a timezone that never reaches the row.
-      type Spyable = { queueMutation: (...args: unknown[]) => Promise<string> };
 
       it('persists the wizard-selected timezone into the INSERT payload', async () => {
-        const spy = vi
-          .spyOn(table as unknown as Spyable, 'queueMutation')
-          .mockResolvedValue('mutation-tz-1');
+        const spy = spyOnWriteAndQueue(table).queue.mockResolvedValue('mutation-tz-1');
 
         await table.createTrial({
           id: 'trial-chicago',
@@ -271,9 +264,7 @@ describe('ReplicatedTrialsTable', () => {
       });
 
       it('defaults timezone to America/New_York when unset (never writes NULL to the NOT-NULL column)', async () => {
-        const spy = vi
-          .spyOn(table as unknown as Spyable, 'queueMutation')
-          .mockResolvedValue('mutation-tz-2');
+        const spy = spyOnWriteAndQueue(table).queue.mockResolvedValue('mutation-tz-2');
 
         await table.createTrial({
           id: 'trial-default-tz',
@@ -293,7 +284,6 @@ describe('ReplicatedTrialsTable', () => {
       // the queue entry simply carries no `dependsOn` and the upload runner is free to send
       // the trial update before the organization change that justifies it, which the server
       // now refuses with SQLSTATE MK490 on every retry.
-      type Spyable = { queueMutation: (...args: unknown[]) => Promise<string> };
 
       const seeded: ReplicatedTrial = fromAny({
         id: 'trial-dep',
@@ -305,9 +295,7 @@ describe('ReplicatedTrialsTable', () => {
 
       it('forwards the dependency ids to the queued UPDATE mutation', async () => {
         await table.set('trial-dep', seeded);
-        const spy = vi
-          .spyOn(table as unknown as Spyable, 'queueMutation')
-          .mockResolvedValue('mutation-3');
+        const spy = spyOnWriteAndQueue(table).queue.mockResolvedValue('mutation-3');
 
         await table.updateTrial('trial-dep', { registryId: 'UKC' }, ['show-mutation-1']);
 
@@ -318,9 +306,7 @@ describe('ReplicatedTrialsTable', () => {
 
       it('queues no dependency for an ordinary update', async () => {
         await table.set('trial-dep', seeded);
-        const spy = vi
-          .spyOn(table as unknown as Spyable, 'queueMutation')
-          .mockResolvedValue('mutation-4');
+        const spy = spyOnWriteAndQueue(table).queue.mockResolvedValue('mutation-4');
 
         await table.updateTrial('trial-dep', { name: 'Renamed' });
 
@@ -331,9 +317,7 @@ describe('ReplicatedTrialsTable', () => {
         // An empty array would make `dependsOn: []` — harmless for the runner, but it
         // persists a field that reads as "has dependencies" to anything inspecting the queue.
         await table.set('trial-dep', seeded);
-        const spy = vi
-          .spyOn(table as unknown as Spyable, 'queueMutation')
-          .mockResolvedValue('mutation-5');
+        const spy = spyOnWriteAndQueue(table).queue.mockResolvedValue('mutation-5');
 
         await table.updateTrial('trial-dep', { registryId: 'UKC' }, []);
 

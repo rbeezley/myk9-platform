@@ -276,9 +276,11 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
       _localOnly: true,
     };
 
-    await this.set(id, newAssignment, true);
+    const { mutationId } = await this.writeAndQueue(id, newAssignment, {
+      operation: 'INSERT',
+      payload: this.toSupabaseRow(newAssignment),
+    });
     invalidateClassEnrichment();
-    const mutationId = await this.queueMutation('INSERT', id, this.toSupabaseRow(newAssignment));
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Created assignment ${id}`);
     return newAssignment;
@@ -300,9 +302,11 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
       _syncStatus: 'pending',
     };
 
-    await this.set(id, updated, true);
+    const { mutationId } = await this.writeAndQueue(id, updated, {
+      operation: 'UPDATE',
+      payload: this.toSupabaseRow(updated),
+    });
     invalidateClassEnrichment();
-    const mutationId = await this.queueMutation('UPDATE', id, this.toSupabaseRow(updated));
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated assignment ${id}`);
     return mutationId;

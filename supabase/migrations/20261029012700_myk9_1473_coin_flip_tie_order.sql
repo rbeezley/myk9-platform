@@ -1222,6 +1222,22 @@ BEGIN
 END;
 $$;
 
+-- A check made before the flip existed attested to arbitrary placements for any
+-- ribbon tie still unresolved. placement_tie is not part of the results
+-- fingerprint, so the loop above cannot clear it when only the marker changed:
+-- clear those checks here, and the Results tab asks for the coin flip first.
+UPDATE public.classes c
+   SET results_verified_at = NULL,
+       results_verified_by = NULL,
+       results_verified_fingerprint = NULL
+ WHERE c.results_verified_at IS NOT NULL
+   AND EXISTS (
+     SELECT 1
+     FROM public.entries e
+     WHERE e.class_id = c.id
+       AND e.deleted_at IS NULL
+       AND e.placement_tie = 'unresolved');
+
 ALTER TABLE public.classes ENABLE TRIGGER trg_notify_class_status_push;
 
 COMMIT;

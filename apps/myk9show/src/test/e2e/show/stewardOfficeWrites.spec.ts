@@ -1,9 +1,12 @@
 import { expect, test, type Page } from '@playwright/test';
 import { signIn, signInAsSecretary } from '../helpers/testUsers';
 import {
+  cleanupDisposableEntry,
   getIsolatedAdminClient,
   isIsolatedTarget,
   readReplicationStoreCount,
+  seedDisposableEntry,
+  type DisposableEntry,
 } from '../helpers/isolatedFixtures';
 
 /**
@@ -11,29 +14,33 @@ import {
  *
  * MYK9-147. A steward runs the ring (check-in) but must not administer the
  * office: no judge-assignment or enrollment writes. `secretary@` holds steward
- * AND secretary, so it cannot show a denial; this spec mints a disposable
- * steward-only account through the local auth admin API and deletes it after.
+ * AND secretary, so it cannot show a denial; this spec mints a steward-only
+ * account through the local auth admin API.
+ *
+ * Everything it writes is its own: the steward, a dog entered in today's
+ * show-day class, a judge assignment and an enrollment. Nothing seeded is ever
+ * written, so a failed run cannot leave shared state behind for later specs, and
+ * a replication write still queued when a test stops can only reach a row this
+ * spec is about to delete. Cleanup closes the page first, then deletes.
  *
  * The office writes go straight to PostgREST with the steward's own session, the
- * path the original finding used. RLS filters them to zero rows. The positive
- * control sends the same PATCHes as secretary@ and must change one row each, so
- * a probe that could never succeed cannot pass as a denial.
+ * path the original finding used; RLS must leave zero rows changed. The control
+ * sends the same PATCHes as secretary@ and must change one row each, so a probe
+ * that could never succeed cannot pass as a denial.
  */
 
 const SUPABASE = process.env.VITE_SUPABASE_URL ?? '';
 const ANON = process.env.VITE_SUPABASE_ANON_KEY ?? '';
-const SHOW_ID = 'dededede-0000-0000-0000-000000000010';
-const CLUB_ID = 'dededede-0000-0000-0000-000000000001';
-const JUDGE_ASSIGNMENT_ID = 'dededede-0000-0000-0000-0000000000b5';
-const ENROLLMENT_ID = 'dededede-0000-0000-0000-000000000070';
-// Exterior Excellent: unscored on the seed, with "Juni" unique and near the top of the list.
-const RING_CLASS_ID = 'dec1a55e-0000-0000-0000-000000000033';
-const RING_DOG = 'Juni';
-const SCORE_CLASS_ID = 'dec1a55e-0000-0000-0000-000000000031';
-const SCORE_ENTRY_ID = 'dededede-0000-0000-0000-000000000051';
+const CLUB_ID = 'dededede-0000-0000-0000-000000000001'; // Heartland, which runs both shows below
+const OFFICE_SHOW_ID = 'dededede-0000-0000-0000-000000000010';
+// A seeded judge assignment, read only as the template for a disposable copy.
+const TEMPLATE_ASSIGNMENT_ID = 'dededede-0000-0000-0000-0000000000b5';
+// Ringside scoring is a judge capability; any demo scoresheet shows the refusal.
+const SCORE_PATH =
+  '/at-show/dededede-0000-0000-0000-000000000010/class/dec1a55e-0000-0000-0000-000000000031/score/dededede-0000-0000-0000-000000000051';
 
 test.describe.configure({ mode: 'serial' });
-test.skip(!isIsolatedTarget(), 'mints a disposable account: isolated Supabase target only');
+test.skip(!isIsolatedTarget(), 'writes real rows: isolated Supabase target only');
 
 interface Steward {
   authUserId: string;
@@ -41,11 +48,21 @@ interface Steward {
   password: string;
 }
 
+interface OfficeRows {
+  assignmentId: string;
+  enrollmentId: string;
+  handlerId: string;
+}
+
+function suffix() {
+  return `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+}
+
 async function createStewardOnlyAccount(): Promise<Steward> {
   const client = getIsolatedAdminClient();
-  const suffix = `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
-  const email = `e2e-steward-${suffix}@myk9t.test`;
-  const password = `Steward-${suffix}-Aa1!`;
+  const tag = suffix();
+  const email = `e2e-steward-${tag}@myk9t.test`;
+  const password = `Steward-${tag}-Aa1!`;
   const { data, error } = await client.auth.admin.createUser({
     email,
     password,
@@ -89,7 +106,7 @@ async function createStewardOnlyAccount(): Promise<Steward> {
   return { authUserId, email, password };
 }
 
-/** Role, person, then auth user: each step reports, none hides the next. */
+/** Role, person, then auth user; returns problems instead of throwing. */
 async function deleteAccount(steward: Steward): Promise<string[]> {
   const client = getIsolatedAdminClient();
   const problems: string[] = [];
@@ -102,58 +119,116 @@ async function deleteAccount(steward: Steward): Promise<string[]> {
   return problems;
 }
 
-/** The seeded ring dog's entry and its check-in, so a failed run can put it back. */
-async function readRingDogCheckIn(): Promise<{ id: string; check_in_status: string | null }> {
-  const { data, error } = await getIsolatedAdminClient()
-    .from('entries')
-    .select('id, check_in_status, dogs!inner(call_name)')
-    .eq('class_id', RING_CLASS_ID)
-    .eq('dogs.call_name', RING_DOG)
+/**
+ * Today's show-day fixture class (Container Novice A, two entries), re-minted on every
+ * reseed, and a disposable dog entered in it. A short list keeps the dog's check-in
+ * control rendered, which a long, virtualized class list would not.
+ */
+async function seedRingEntry(): Promise<DisposableEntry & { showId: string; classId: string }> {
+  const client = getIsolatedAdminClient();
+  const { data: show, error: showError } = await client
+    .from('shows')
+    .select('id')
+    .eq('name', 'Heartland Scent Work Week')
+    .order('start_date', { ascending: false })
+    .limit(1)
     .single();
-  if (error || !data) throw new Error(`Could not read ${RING_DOG}'s entry: ${error?.message}`);
-  return { id: data.id, check_in_status: data.check_in_status };
+  if (showError || !show) throw new Error(`No show-day fixture: ${showError?.message}`);
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+  const { data: cls, error: classError } = await client
+    .from('classes')
+    .select('id, trials!inner(show_id, date), entries(id)')
+    .eq('trials.show_id', show.id)
+    .eq('trials.date', today)
+    .eq('name', 'Container Novice A')
+    .limit(1)
+    .single();
+  const templateEntryId = (cls?.entries as Array<{ id: string }> | undefined)?.[0]?.id;
+  if (classError || !cls || !templateEntryId) {
+    throw new Error(`No show-day class with an entry today: ${classError?.message}`);
+  }
+  const entry = await seedDisposableEntry({
+    showId: show.id,
+    classId: cls.id,
+    templateEntryId,
+    label: 'Steward Ring',
+  });
+  return { ...entry, showId: show.id, classId: cls.id };
 }
 
 /**
- * The two office records the steward probes. If the regression this spec guards came
- * back, those PATCHes would really change them, so they are snapshotted and written
- * back whatever the outcome.
+ * A disposable judge assignment (no class, so no one-judge-per-class clash) and a
+ * disposable enrollment. A show allows one enrollment per handler, so the enrollment
+ * gets its own disposable person as handler; not the steward, who might legitimately
+ * edit their own. Whatever was made before a failure is deleted before rethrowing.
  */
-async function readOfficeRecords() {
-  const admin = getIsolatedAdminClient();
-  const [assignment, enrollment] = await Promise.all([
-    admin.from('judge_assignments').select('status').eq('id', JUDGE_ASSIGNMENT_ID).single(),
-    admin.from('enrollments').select('notes').eq('id', ENROLLMENT_ID).single(),
-  ]);
-  if (assignment.error || enrollment.error) {
-    throw new Error(
-      `Could not read office records: ${assignment.error?.message ?? enrollment.error?.message}`
-    );
-  }
-  return { status: assignment.data.status, notes: enrollment.data.notes };
-}
-
-async function restoreOfficeRecords(
-  records: Awaited<ReturnType<typeof readOfficeRecords>>
-): Promise<string[]> {
-  const admin = getIsolatedAdminClient();
-  const problems: string[] = [];
-  const assignment = await admin
+async function seedOfficeRows(): Promise<OfficeRows> {
+  const client = getIsolatedAdminClient();
+  const { data: assignment, error: assignmentError } = await client
     .from('judge_assignments')
-    .update({ status: records.status })
-    .eq('id', JUDGE_ASSIGNMENT_ID);
-  if (assignment.error) problems.push(`judge assignment: ${assignment.error.message}`);
-  const enrollment = await admin
-    .from('enrollments')
-    .update({ notes: records.notes })
-    .eq('id', ENROLLMENT_ID);
-  if (enrollment.error) problems.push(`enrollment: ${enrollment.error.message}`);
-  return problems;
+    .select('person_id, show_id, trial_id')
+    .eq('id', TEMPLATE_ASSIGNMENT_ID)
+    .single();
+  if (assignmentError || !assignment) {
+    throw new Error(`Could not read the assignment template: ${assignmentError?.message}`);
+  }
+  const rows: Partial<OfficeRows> = {};
+  try {
+    const { data: handler, error: handlerError } = await client
+      .from('people')
+      .insert({ first_name: 'Disposable', last_name: `Handler ${suffix()}` })
+      .select('id')
+      .single();
+    if (handlerError || !handler) throw new Error(`handler: ${handlerError?.message}`);
+    rows.handlerId = handler.id;
+
+    const { data: newAssignment, error: insertAssignmentError } = await client
+      .from('judge_assignments')
+      .insert({ ...assignment, class_id: null, status: 'invited' })
+      .select('id')
+      .single();
+    if (insertAssignmentError || !newAssignment) {
+      throw new Error(`judge assignment: ${insertAssignmentError?.message}`);
+    }
+    rows.assignmentId = newAssignment.id;
+
+    const { data: newEnrollment, error: insertEnrollmentError } = await client
+      .from('enrollments')
+      .insert({
+        show_id: OFFICE_SHOW_ID,
+        handler_id: handler.id,
+        notes: 'MYK9-1498 disposable enrollment',
+      })
+      .select('id')
+      .single();
+    if (insertEnrollmentError || !newEnrollment) {
+      throw new Error(`enrollment: ${insertEnrollmentError?.message}`);
+    }
+    rows.enrollmentId = newEnrollment.id;
+    return rows as OfficeRows;
+  } catch (error) {
+    await deleteOfficeRows(rows);
+    throw new Error(`Could not seed office rows: ${String(error)}`);
+  }
 }
 
-/** A denial is zero rows changed or an auth refusal; anything unparsed is not a denial. */
-function refused(result: { status: number; rows: number }) {
-  return result.rows === 0 || result.status === 401 || result.status === 403;
+/** Enrollment, assignment, then handler; skips what was never made, reports instead of throwing. */
+async function deleteOfficeRows(rows: Partial<OfficeRows>): Promise<string[]> {
+  const client = getIsolatedAdminClient();
+  const problems: string[] = [];
+  if (rows.enrollmentId) {
+    const { error } = await client.from('enrollments').delete().eq('id', rows.enrollmentId);
+    if (error) problems.push(`enrollment: ${error.message}`);
+  }
+  if (rows.assignmentId) {
+    const { error } = await client.from('judge_assignments').delete().eq('id', rows.assignmentId);
+    if (error) problems.push(`judge assignment: ${error.message}`);
+  }
+  if (rows.handlerId) {
+    const { error } = await client.from('people').delete().eq('id', rows.handlerId);
+    if (error) problems.push(`handler: ${error.message}`);
+  }
+  return problems;
 }
 
 async function accessToken(page: Page) {
@@ -180,18 +255,23 @@ async function patchAsSignedIn(page: Page, path: string, body: Record<string, un
   return { status: res.status(), rows: Array.isArray(parsed) ? parsed.length : -1 };
 }
 
+/** A denial is zero rows changed or an auth refusal; anything unparsed is not a denial. */
+function refused(result: { status: number; rows: number }) {
+  return result.rows === 0 || result.status === 401 || result.status === 403;
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 /** Sets the dog's check-in from its own control on the ringside class list. */
-async function setCheckIn(page: Page, from: RegExp, option: RegExp, to: RegExp) {
-  const control = (state: RegExp) =>
+async function setCheckIn(page: Page, dog: string, from: string, option: RegExp, to: string) {
+  const control = (state: string) =>
     page.getByRole('button', {
-      name: new RegExp(`^Check-in: ${state.source}\\. Change check-in for ${RING_DOG}$`),
+      name: new RegExp(`^Check-in: ${state}\\. Change check-in for ${escapeRegExp(dog)}$`),
     });
   await control(from).click();
-  await page
-    .locator('[role=menu], [role=dialog], [role=listbox]')
-    .getByText(option)
-    .first()
-    .click();
+  await page.getByRole('dialog').getByRole('button', { name: option }).click();
   await expect(control(to)).toBeVisible({ timeout: 15_000 });
 }
 
@@ -200,29 +280,29 @@ test('a steward-only account checks dogs in but cannot write office records', as
   context,
 }) => {
   test.setTimeout(240_000);
-  const ringDog = await readRingDogCheckIn();
-  const office = await readOfficeRecords();
-  const steward = await createStewardOnlyAccount();
-  let failure: unknown;
   const ringWrites: number[] = [];
   page.on('response', r => {
     if (r.url().includes('/rest/v1/rpc/ringside_update_entry')) ringWrites.push(r.status());
   });
+  // Set up inside the guarded block, so a failure partway through setup is cleaned up too.
+  let ring: Awaited<ReturnType<typeof seedRingEntry>> | undefined;
+  let office: OfficeRows | undefined;
+  let steward: Steward | undefined;
+  let failure: unknown;
   try {
-    await signIn(
-      page,
-      steward.email,
-      steward.password,
-      `/at-show/${SHOW_ID}/class/${RING_CLASS_ID}`
-    );
+    ring = await seedRingEntry();
+    office = await seedOfficeRows();
+    steward = await createStewardOnlyAccount();
+    const classPath = `/at-show/${ring.showId}/class/${ring.classId}`;
+    await signIn(page, steward.email, steward.password, classPath);
 
     // Scoring is a judge capability: the steward is sent to a judge passcode.
-    await page.goto(`/at-show/${SHOW_ID}/class/${SCORE_CLASS_ID}/score/${SCORE_ENTRY_ID}`);
+    await page.goto(SCORE_PATH);
     await expect(page.getByText('No Scoring Access')).toBeVisible({ timeout: 30_000 });
 
     // Ring flow, online.
-    await page.goto(`/at-show/${SHOW_ID}/class/${RING_CLASS_ID}`);
-    await setCheckIn(page, /Not checked in/, /^Checked[ -]in$/i, /Checked in/);
+    await page.goto(classPath);
+    await setCheckIn(page, ring.callName, 'Not checked in', /^Checked[ -]in$/i, 'Checked in');
     await expect.poll(() => ringWrites.length, { timeout: 30_000 }).toBeGreaterThan(0);
     await expect
       .poll(() => readReplicationStoreCount(page, 'pending_mutations'), { timeout: 30_000 })
@@ -231,33 +311,30 @@ test('a steward-only account checks dogs in but cannot write office records', as
     // Office writes with the steward's own session: RLS leaves zero rows changed.
     const assignment = await patchAsSignedIn(
       page,
-      `judge_assignments?id=eq.${JUDGE_ASSIGNMENT_ID}`,
-      {
-        status: 'confirmed',
-      }
+      `judge_assignments?id=eq.${office.assignmentId}`,
+      { status: 'declined' }
     );
-    const enrollment = await patchAsSignedIn(page, `enrollments?id=eq.${ENROLLMENT_ID}`, {
-      notes: 'MYK9-147 regression probe',
+    const enrollment = await patchAsSignedIn(page, `enrollments?id=eq.${office.enrollmentId}`, {
+      notes: 'changed by a steward',
     });
     expect(refused(assignment), JSON.stringify(assignment)).toBe(true);
     expect(refused(enrollment), JSON.stringify(enrollment)).toBe(true);
 
     // No office controls on the show home.
-    await page.goto(`/shows/${SHOW_ID}?select=classes`);
+    await page.goto(`/shows/${OFFICE_SHOW_ID}?select=classes`);
     await page.waitForTimeout(6_000);
     await expect(
       page.getByRole('button', { name: /^Assign judge|^Trial actions|^Add classes/ })
     ).toHaveCount(0);
     await expect(page.getByRole('checkbox', { name: /^Select every class/ })).toHaveCount(0);
 
-    // Ring flow, offline: undo the check-in, which also puts the seed back.
-    await page.goto(`/at-show/${SHOW_ID}/class/${RING_CLASS_ID}`);
+    // Ring flow, offline: the reset to "No Status" queues, then drains on reconnect.
+    await page.goto(classPath);
     await expect(page.getByRole('button', { name: /^Pending/ })).toBeVisible({ timeout: 30_000 });
     const before = ringWrites.length;
     await context.setOffline(true);
     await page.evaluate(() => window.dispatchEvent(new Event('offline')));
-    // The dialog names the reset "No Status" (statusIconGrammar); the control then reads "Not checked in".
-    await setCheckIn(page, /Checked in/, /^No Status$/, /Not checked in/);
+    await setCheckIn(page, ring.callName, 'Checked in', /^No Status$/, 'Not checked in');
     await expect
       .poll(() => readReplicationStoreCount(page, 'pending_mutations'), { timeout: 15_000 })
       .toBeGreaterThan(0);
@@ -273,14 +350,18 @@ test('a steward-only account checks dogs in but cannot write office records', as
     failure = error;
   }
 
-  await context.setOffline(false);
-  // Put the shared seed back even when the walk stopped between the two check-in writes.
-  const reset = await getIsolatedAdminClient()
-    .from('entries')
-    .update({ check_in_status: ringDog.check_in_status })
-    .eq('id', ringDog.id);
-  const problems = [...(await restoreOfficeRecords(office)), ...(await deleteAccount(steward))];
-  if (reset.error) problems.push(`check-in reset: ${reset.error.message}`);
+  // Close the page first so no queued write is still in flight, then delete what this test made.
+  await page.close();
+  const problems: string[] = [];
+  if (office) problems.push(...(await deleteOfficeRows(office)));
+  if (steward) problems.push(...(await deleteAccount(steward)));
+  if (ring) {
+    try {
+      await cleanupDisposableEntry(ring);
+    } catch (error) {
+      problems.push(String(error));
+    }
+  }
   // A cleanup problem fails a passing test, but never hides the failure that stopped one.
   if (failure) {
     if (problems.length) console.warn(`Cleanup after a failed run: ${problems.join('; ')}`);
@@ -290,15 +371,21 @@ test('a steward-only account checks dogs in but cannot write office records', as
 });
 
 test('control: the same office writes change one row each for secretary@', async ({ page }) => {
-  await signInAsSecretary(page, `/shows/${SHOW_ID}`);
-  // Write each row's current value back, so the control proves access without changing the seed.
-  const office = await readOfficeRecords();
-  const assignment = await patchAsSignedIn(page, `judge_assignments?id=eq.${JUDGE_ASSIGNMENT_ID}`, {
-    status: office.status,
-  });
-  const enrollment = await patchAsSignedIn(page, `enrollments?id=eq.${ENROLLMENT_ID}`, {
-    notes: office.notes,
-  });
-  expect(assignment).toEqual({ status: 200, rows: 1 });
-  expect(enrollment).toEqual({ status: 200, rows: 1 });
+  const office = await seedOfficeRows();
+  try {
+    await signInAsSecretary(page, `/shows/${OFFICE_SHOW_ID}`);
+    const assignment = await patchAsSignedIn(
+      page,
+      `judge_assignments?id=eq.${office.assignmentId}`,
+      { status: 'declined' }
+    );
+    const enrollment = await patchAsSignedIn(page, `enrollments?id=eq.${office.enrollmentId}`, {
+      notes: 'changed by the secretary',
+    });
+    expect(assignment).toEqual({ status: 200, rows: 1 });
+    expect(enrollment).toEqual({ status: 200, rows: 1 });
+  } finally {
+    await page.close();
+    await deleteOfficeRows(office);
+  }
 });

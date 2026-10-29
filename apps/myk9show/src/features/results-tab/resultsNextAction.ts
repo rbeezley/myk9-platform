@@ -46,11 +46,19 @@ export interface ResultsClassState {
    * (MYK9-1030), so a class does not ask for initials while its judge is still judging.
    */
   judgeDayOpen?: boolean | undefined;
+  /**
+   * One of the class's replicated entries carries `placement_tie = 'unresolved'`: a tie for a
+   * ribbon whose coin flip is not recorded (MYK9-1473). `undefined` = not known, so the class asks
+   * for the ordinary check; the check itself is refused by the server (MK018) while the flip is
+   * missing.
+   */
+  coinFlipPending?: boolean | undefined;
 }
 
 export type ResultsClassPhase =
   | 'not-started'
   | 'in-ring'
+  | 'needs-coin-flip'
   | 'needs-checking'
   | 'ready-to-release'
   | 'release-unknown'
@@ -61,7 +69,7 @@ export type ResultsClassPhase =
   | 'no-dogs';
 
 export type ResultsNextActionKind =
-  'overview' | 'verify' | 'release' | 'print' | 'initials' | 'none';
+  'overview' | 'coin-flip' | 'verify' | 'release' | 'print' | 'initials' | 'none';
 
 export interface ResultsNextAction {
   kind: ResultsNextActionKind;
@@ -87,7 +95,10 @@ export function deriveResultsPhase(state: ResultsClassState): ResultsClassPhase 
   if (state.releasedAt === undefined) return 'release-unknown';
   // Unchecked comes before released: a class whose check was undone, or cleared by a correction,
   // goes back to Check scores even after its results were released.
-  if (state.verifiedAt === null) return 'needs-checking';
+  // A tie for a ribbon is decided before the scores can be checked (the server refuses the check).
+  if (state.verifiedAt === null) {
+    return state.coinFlipPending === true ? 'needs-coin-flip' : 'needs-checking';
+  }
   if (state.releasedAt) {
     if (state.paperworkPrinted !== true) return 'released';
     return state.judgeSignedOffAt === null && state.judgeDayOpen !== true
@@ -100,6 +111,7 @@ export function deriveResultsPhase(state: ResultsClassState): ResultsClassPhase 
 const NEXT_ACTION_BY_PHASE: Record<ResultsClassPhase, ResultsNextAction> = {
   'not-started': { kind: 'overview', label: 'Overview' },
   'in-ring': { kind: 'overview', label: 'Overview' },
+  'needs-coin-flip': { kind: 'coin-flip', label: 'Record coin flip' },
   'needs-checking': { kind: 'verify', label: 'Check scores' },
   'ready-to-release': { kind: 'release', label: 'Release' },
   'release-unknown': { kind: 'none', label: 'Status unknown' },
@@ -118,6 +130,7 @@ export function deriveResultsNextAction(state: ResultsClassState): ResultsNextAc
 export const RESULTS_PHASE_LABEL: Record<ResultsClassPhase, string> = {
   'not-started': 'Not started',
   'in-ring': 'In the ring',
+  'needs-coin-flip': 'Needs coin flip',
   'needs-checking': 'Needs checking',
   'ready-to-release': 'Ready to release',
   'release-unknown': 'Release status unknown',
@@ -140,6 +153,7 @@ export type ResultsStatusFilterId =
 export const DEFAULT_RESULTS_STATUS_FILTER: ResultsStatusFilterId = 'needs-me';
 
 const NEEDS_ME: ReadonlySet<ResultsClassPhase> = new Set([
+  'needs-coin-flip',
   'needs-checking',
   'ready-to-release',
   'released',
@@ -149,7 +163,8 @@ const NEEDS_ME: ReadonlySet<ResultsClassPhase> = new Set([
 const FILTER_PHASES: Record<ResultsStatusFilterId, ReadonlySet<ResultsClassPhase> | null> = {
   'needs-me': NEEDS_ME,
   all: null,
-  'needs-checking': new Set(['needs-checking']),
+  // A coin flip is the first step of checking a class, so it stays under the same filter.
+  'needs-checking': new Set(['needs-coin-flip', 'needs-checking']),
   'ready-to-release': new Set(['ready-to-release']),
   // Released, paperwork not yet printed: exactly what the Print all ready button counts.
   'needs-printing': new Set(['released']),

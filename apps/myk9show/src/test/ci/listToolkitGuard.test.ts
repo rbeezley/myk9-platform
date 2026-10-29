@@ -93,6 +93,10 @@ const ARIA_PRESSED_DECLARED: Record<string, { count: number; reason: string }> =
     count: 1,
     reason: 'selected report card, a report chooser rather than a list filter',
   },
+  'features/results-tab/CoinFlipDialog.tsx': {
+    count: 1,
+    reason: 'a dog in the tie order the coin flip decided (MYK9-1473), not a list filter',
+  },
   'pages/secretary/ResultsControlPage/PresetSelector.tsx': {
     count: 1,
     reason: 'results preset, not a filter',

@@ -2443,6 +2443,8 @@ export type Database = {
           payment_status: string | null
           payment_status_before_comp: string | null
           penalty_points: number | null
+          placement_tie: string | null
+          placement_tiebreak: number | null
           points_earned: number | null
           points_possible: number | null
           preferred_judge: string | null
@@ -2543,6 +2545,8 @@ export type Database = {
           payment_status?: string | null
           payment_status_before_comp?: string | null
           penalty_points?: number | null
+          placement_tie?: string | null
+          placement_tiebreak?: number | null
           points_earned?: number | null
           points_possible?: number | null
           preferred_judge?: string | null
@@ -2643,6 +2647,8 @@ export type Database = {
           payment_status?: string | null
           payment_status_before_comp?: string | null
           penalty_points?: number | null
+          placement_tie?: string | null
+          placement_tiebreak?: number | null
           points_earned?: number | null
           points_possible?: number | null
           preferred_judge?: string | null
@@ -11443,6 +11449,8 @@ export type Database = {
           payment_reference: string | null
           payment_status: string | null
           penalty_points: number | null
+          placement_tie: string | null
+          placement_tiebreak: number | null
           points_earned: number | null
           points_possible: number | null
           preferred_judge: string | null
@@ -11761,6 +11769,8 @@ export type Database = {
           payment_reference: string | null
           payment_status: string | null
           penalty_points: number | null
+          placement_tie: string | null
+          placement_tiebreak: number | null
           points_earned: number | null
           points_possible: number | null
           preferred_judge: string | null
@@ -15026,6 +15036,10 @@ export type Database = {
       set_class_judge: {
         Args: { p_class_id: string; p_person_id: string | null }
         Returns: Json
+      }
+      set_class_tie_order: {
+        Args: { p_class_id: string; p_entry_ids: string[] }
+        Returns: number
       }
       send_waitlist_offer_message_internal: {
         Args: {

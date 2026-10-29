@@ -250,6 +250,11 @@ export function toSecretaryEntry(
     ),
     total_faults: numberFrom(replicatedField(entry, 'totalFaults', 'total_faults')),
     final_placement: numberFrom(replicatedField(entry, 'finalPlacement', 'final_placement')),
+    points_earned: numberFrom(replicatedField(entry, 'pointsEarned', 'points_earned')),
+    placement_tie: stringFrom(replicatedField(entry, 'placementTie', 'placement_tie')),
+    placement_tiebreak: numberFrom(
+      replicatedField(entry, 'placementTiebreak', 'placement_tiebreak')
+    ),
     judge_notes: stringFrom(replicatedField(entry, 'judgeNotes', 'judge_notes')),
     results_line: replicatedEntryResultsLine(entry),
     disqualification_reason: stringFrom(

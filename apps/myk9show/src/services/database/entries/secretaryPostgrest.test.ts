@@ -140,6 +140,102 @@ describe('postgrestGetSecretaryEntriesForShow — payment bookkeeping compatibil
     expect(viewReads[0].select).toContain('payment_notes');
   });
 
+  // MYK9-1473: Results derives "Record coin flip" from the tie state. A fallback
+  // that omits it reads every tie as resolved, offers Check scores, and the
+  // server refuses the check (MK018) with no way forward from the tab.
+  it('reads the tie state and points the Results tab needs', async () => {
+    const reads: string[] = [];
+    mocks.from.mockImplementation((relation: string) => {
+      const query = {
+        select: vi.fn((columns: string) => {
+          if (relation === 'view_authenticated_entry_results') reads.push(columns);
+          return query;
+        }),
+        eq: vi.fn(() => query),
+        is: vi.fn(() => query),
+        in: vi.fn(() => query),
+        order: vi.fn(() =>
+          Promise.resolve({
+            data: [{ id: 'entry-1', placement_tie: 'unresolved', placement_tiebreak: null }],
+            error: null,
+          })
+        ),
+        then: (resolve: (value: unknown) => unknown) =>
+          Promise.resolve({ data: [], error: null }).then(resolve),
+      };
+      return query;
+    });
+
+    const { data } = await postgrestGetSecretaryEntriesForShow('show-1', Date.now(), 'test');
+
+    const columns = reads[0].split(/[\s,]+/);
+    expect(columns).toEqual(
+      expect.arrayContaining(['placement_tie', 'placement_tiebreak', 'points_earned'])
+    );
+    expect(data[0]).toMatchObject({ placement_tie: 'unresolved' });
+  });
+
+  // The frontend can ship before 20261029043900 is pushed. PostgREST names one
+  // unknown column per failure, so each optional set is dropped as it is named.
+  function viewRejecting(missing: string[]) {
+    const reads: string[] = [];
+    mocks.from.mockImplementation((relation: string) => {
+      let columns = '';
+      const respond = () => {
+        if (relation !== 'view_authenticated_entry_results') return { data: [], error: null };
+        const absent = missing.find(column => columns.split(/[\s,]+/).includes(column));
+        return absent
+          ? {
+              data: null,
+              error: {
+                code: '42703',
+                message: `column view_authenticated_entry_results.${absent} does not exist`,
+              },
+            }
+          : { data: [{ id: 'entry-1' }], error: null };
+      };
+      const query = {
+        select: vi.fn((selected: string) => {
+          columns = selected;
+          if (relation === 'view_authenticated_entry_results') reads.push(selected);
+          return query;
+        }),
+        eq: vi.fn(() => query),
+        is: vi.fn(() => query),
+        in: vi.fn(() => query),
+        order: vi.fn(() => Promise.resolve(respond())),
+        then: (resolve: (value: unknown) => unknown) => Promise.resolve(respond()).then(resolve),
+      };
+      return query;
+    });
+    return reads;
+  }
+
+  it('drops the tie columns and keeps the move-up link when only the tie migration is missing', async () => {
+    const selects = viewRejecting(['placement_tie']);
+
+    const { data } = await postgrestGetSecretaryEntriesForShow('show-1', Date.now(), 'test');
+
+    expect(data).toHaveLength(1);
+    const reads = selects.map(select => select.split(/[\s,]+/));
+    expect(reads).toHaveLength(2);
+    expect(reads[1]).not.toContain('placement_tie');
+    expect(reads[1]).not.toContain('placement_tiebreak');
+    expect(reads[1]).toContain('moved_from_entry_id');
+  });
+
+  it('drops each optional set in turn when both migrations are missing', async () => {
+    const selects = viewRejecting(['placement_tie', 'moved_from_entry_id']);
+
+    const { data } = await postgrestGetSecretaryEntriesForShow('show-1', Date.now(), 'test');
+
+    expect(data).toHaveLength(1);
+    const reads = selects.map(select => select.split(/[\s,]+/));
+    expect(reads).toHaveLength(3);
+    expect(reads[2]).not.toContain('placement_tie');
+    expect(reads[2]).not.toContain('moved_from_entry_id');
+  });
+
   it('projects the canonical handler identity from joined handler and owner rows', async () => {
     mocks.from.mockImplementation((relation: string) => {
       const query = {

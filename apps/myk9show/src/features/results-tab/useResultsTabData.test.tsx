@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { replicatedShowsTable } from '@/services/replication';
 import { render, screen } from '@/test/utils/testUtils';
 import type { SyncableTrial, SyncableTrialClass } from '@/store/trial-store-types';
 import { buildReportPaperworkDescriptor } from '@/features/show-map/cockpit/buildReportPaperworkDescriptor';
@@ -77,6 +78,7 @@ function Probe() {
       <button onClick={data.retry}>retry</button>
       <span data-testid="refresh-failed">{String(data.refreshFailed)}</span>
       <span data-testid="state">{data.readState}</span>
+      <span data-testid="ranking-key">{`${data.rankingKeyState}:${String(data.isNationals)}`}</span>
       <span data-testid="rows">
         {data.rows
           .map(row => `${row.id}:${row.phase}:${row.scoredCount}/${row.expectedCount}`)
@@ -289,5 +291,52 @@ describe('useResultsTabData', () => {
     );
     await vi.waitFor(() => expect(screen.getByTestId('state')).toHaveTextContent('ready'));
     expect(screen.getByTestId('paperwork')).toHaveTextContent('true');
+  });
+
+  describe('the ranking key read (which key the coin flip groups on)', () => {
+    const show = (isNationals: boolean) =>
+      ({ id: 'show-1', isNationals }) as unknown as Awaited<
+        ReturnType<typeof replicatedShowsTable.getShowById>
+      >;
+
+    it('is unavailable, not an empty answer, when the show row cannot be read, and Retry re-reads it', async () => {
+      const read = vi
+        .spyOn(replicatedShowsTable, 'getShowById')
+        .mockRejectedValueOnce(new Error('boom'))
+        .mockResolvedValue(show(true));
+      const { user } = render(<Probe />);
+
+      await vi.waitFor(() =>
+        expect(screen.getByTestId('ranking-key')).toHaveTextContent('unavailable:null')
+      );
+      // Not critical: the rest of the tab is unaffected.
+      expect(screen.getByTestId('state')).toHaveTextContent('ready');
+
+      await user.click(screen.getByText('retry'));
+      await vi.waitFor(() =>
+        expect(screen.getByTestId('ranking-key')).toHaveTextContent('ready:true')
+      );
+      expect(read).toHaveBeenCalledTimes(2);
+    });
+
+    it('repairs a cached null when the show replica changes', async () => {
+      let notify: () => void = () => undefined;
+      vi.spyOn(replicatedShowsTable, 'subscribe').mockImplementation(listener => {
+        notify = () => void listener([]);
+        return () => undefined;
+      });
+      vi.spyOn(replicatedShowsTable, 'getShowById')
+        .mockResolvedValueOnce(null)
+        .mockResolvedValue(show(false));
+      render(<Probe />);
+
+      await vi.waitFor(() =>
+        expect(screen.getByTestId('ranking-key')).toHaveTextContent('unavailable:null')
+      );
+      notify();
+      await vi.waitFor(() =>
+        expect(screen.getByTestId('ranking-key')).toHaveTextContent('ready:false')
+      );
+    });
   });
 });

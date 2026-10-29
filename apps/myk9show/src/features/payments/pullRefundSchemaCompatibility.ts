@@ -10,6 +10,24 @@ const MOVE_UP_LINK_SCHEMA_TARGET = /moved_from_entry_id/i;
 
 const REGISTRATION_CONFIRMATION_NUMBER_SCHEMA_TARGET = /registration_confirmation_number/i;
 
+const PLACEMENT_TIE_SCHEMA_TARGET = /placement_tie/i;
+
+/**
+ * True only when MYK9-1473's `placement_tie` / `placement_tiebreak` are
+ * unavailable on `view_authenticated_entry_results` (20261029043900). Same
+ * deploy window as the move-up link: a frontend built before the migration is
+ * pushed must not turn the secretary's cold-store entries read into a failure.
+ * The degraded read has no tie state, which renders as "no coin flip owed".
+ */
+export function isPlacementTieSchemaUnavailable(
+  error: PostgrestErrorLike | null | undefined
+): boolean {
+  if (!error) return false;
+  const message = error.message ?? '';
+  if (!PLACEMENT_TIE_SCHEMA_TARGET.test(message)) return false;
+  return MISSING_SCHEMA_CODES.has(error.code ?? '') || MISSING_SCHEMA_MESSAGE.test(message);
+}
+
 /**
  * True only when MYK9-659's `registration_confirmation_number` is unavailable
  * on the authenticated entry-results views (20260918193700).

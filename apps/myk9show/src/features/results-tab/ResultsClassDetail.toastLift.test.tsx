@@ -106,6 +106,7 @@ function renderDetail({ embedded, released }: { embedded: boolean; released: boo
       onUndoVerify={vi.fn()}
       verifying={false}
       online
+      onRecordCoinFlip={vi.fn()}
       releaseBlockedReason={null}
       verifyBlockedReason={null}
       currentUserId="auth-me"

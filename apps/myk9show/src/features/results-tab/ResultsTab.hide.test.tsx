@@ -83,6 +83,8 @@ vi.mock('./useResultsTabData', () => ({
     rows: hook.rows,
     trials: [trial],
     readState: 'ready',
+    isNationals: false,
+    rankingKeyState: 'ready' as const,
     refreshFailed: false,
     paperworkAvailable: true,
     retry: vi.fn(),

@@ -1,6 +1,6 @@
 import type { CheckInStatus } from '@myk9/core';
 import type { Database } from '@/types/supabase';
-import { optionalColumn } from './optionalColumn';
+import { optionalColumn, optionalNumberColumn } from './optionalColumn';
 
 /** `results_private` from a view row, or undefined when the view lacks it. */
 function resultsPrivateColumn(row: unknown): boolean | undefined {
@@ -146,6 +146,13 @@ export interface ReplicatedEntry {
    */
   awaitingRegistrationNumber?: boolean | undefined;
   awaiting_registration_number?: boolean | undefined;
+
+  // MYK9-1473: read-only tie state, derived by the server's placement recalculation. Never part of
+  // `entryToSupabaseRow`: a write carrying either column is refused by the direct-write guard.
+  placementTie?: string | undefined;
+  placement_tie?: string | undefined;
+  placementTiebreak?: number | undefined;
+  placement_tiebreak?: number | undefined;
   trialId?: string | undefined;
   trial_id?: string | undefined;
 
@@ -458,6 +465,12 @@ export function rowToEntry(row: EntryRow): ReplicatedEntry {
     results_private: resultsPrivateColumn(row),
     awaitingRegistrationNumber: awaitingRegistrationNumberColumn(row),
     awaiting_registration_number: awaitingRegistrationNumberColumn(row),
+    // MYK9-1473. `optionalColumn` on purpose: until the migration is pushed the view does not
+    // return these, and the generated row type cannot know them. Absent reads as no tie.
+    placementTie: optionalColumn(row, 'placement_tie'),
+    placement_tie: optionalColumn(row, 'placement_tie'),
+    placementTiebreak: optionalNumberColumn(row, 'placement_tiebreak'),
+    placement_tiebreak: optionalNumberColumn(row, 'placement_tiebreak'),
     trialId: row.trial_id ?? undefined,
     trial_id: row.trial_id ?? undefined,
     refundAmount: row.refund_amount ?? undefined,

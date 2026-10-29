@@ -1,6 +1,9 @@
 import { createDatabaseError, logQuery, supabase } from '../supabaseClient';
 import { stampServerHeldFlags } from './serverHeldFlags';
-import { isMoveUpLinkSchemaUnavailable } from '@/features/payments/pullRefundSchemaCompatibility';
+import {
+  isMoveUpLinkSchemaUnavailable,
+  isPlacementTieSchemaUnavailable,
+} from '@/features/payments/pullRefundSchemaCompatibility';
 import { projectPostgrestEntryHandlerIdentity } from './entryHandlerReadBoundary';
 import type { SecretaryEntry } from './secretaryTypes';
 
@@ -42,6 +45,7 @@ const SECRETARY_ENTRIES_BASE_SELECT = `
         search_time_seconds,
         total_faults,
         final_placement,
+        points_earned,
         judge_notes,
         disqualification_reason,
         scoring_completed_at,
@@ -107,6 +111,11 @@ const SECRETARY_ENTRIES_BASE_SELECT = `
 const MOVE_UP_LINK_COLUMN = `,
         moved_from_entry_id`;
 
+/** MYK9-1473's tie state, appended on the same terms (20261029043900). */
+const PLACEMENT_TIE_COLUMNS = `,
+        placement_tie,
+        placement_tiebreak`;
+
 /** Secretary payment bookkeeping (20260828200000, applied; MYK9-654 retired its compat arm). */
 const SECRETARY_ENTRIES_SELECT = `${SECRETARY_ENTRIES_BASE_SELECT},
         payment_reference,
@@ -127,17 +136,31 @@ export async function postgrestGetSecretaryEntriesForShow(
   // brand-new show or a fresh device -- render "Couldn't load entries".
   // This is also the relation `ReplicatedEntriesTable` pulls, so both secretary
   // read paths now agree on columns as well as rows.
-  const runSelect = (includeMoveUpLink: boolean) =>
+  let includeMoveUpLink = true;
+  let includePlacementTie = true;
+  const runSelect = () =>
     supabase
       .from('view_authenticated_entry_results')
-      .select(SECRETARY_ENTRIES_SELECT + (includeMoveUpLink ? MOVE_UP_LINK_COLUMN : ''))
+      .select(
+        SECRETARY_ENTRIES_SELECT +
+          (includeMoveUpLink ? MOVE_UP_LINK_COLUMN : '') +
+          (includePlacementTie ? PLACEMENT_TIE_COLUMNS : '')
+      )
       .eq('show_id', showId)
       .is('deleted_at', null)
       .order('created_at', { ascending: true });
 
-  let response = await runSelect(true);
-  if (isMoveUpLinkSchemaUnavailable(response.error)) {
-    response = await runSelect(false);
+  // PostgREST names one unknown column per failure, so drop each optional set as it is named.
+  let response = await runSelect();
+  for (;;) {
+    if (includePlacementTie && isPlacementTieSchemaUnavailable(response.error)) {
+      includePlacementTie = false;
+    } else if (includeMoveUpLink && isMoveUpLinkSchemaUnavailable(response.error)) {
+      includeMoveUpLink = false;
+    } else {
+      break;
+    }
+    response = await runSelect();
   }
   const { data, error } = response;
 

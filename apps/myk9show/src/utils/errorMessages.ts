@@ -44,6 +44,14 @@ export const ERROR_CODE_MESSAGES: Record<string, string> = {
   // MYK9-1045: mark_class_results_verified refuses a check whose scores moved since they were ticked.
   MK015: 'The scores changed since you ticked them. Check them again.',
 
+  // MYK9-1473: coin flips for dogs tied on score and time.
+  MK016: 'These dogs are no longer tied. Close this and look at the class again.',
+  MK017: 'This tie is below the ribbons, so no coin flip is needed.',
+  MK018:
+    'A tie for a ribbon still needs its coin flip. Record the coin flip, then check the scores.',
+  // lock_not_available: set_class_tie_order refuses to wait for a score being saved.
+  '55P03': 'Someone is scoring this class right now. Try again in a moment.',
+
   // Application-level refusals (MYK9-136). These carry copy that is the whole
   // point of the refusal, so they must be mapped — this function discards the
   // original message in production.

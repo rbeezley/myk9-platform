@@ -15,7 +15,7 @@
  * cache is written, so a run that could not decide never leaves state behind.
  * The cache lives in the git common dir, shared by every worktree.
  */
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { GH_MAX_PAGES as MAX_PAGES, GH_PAGE_SIZE as PAGE_SIZE } from './gh-pages.ts';
 
@@ -52,11 +52,21 @@ function slim(pr: ClosedPr): ClosedPr {
   };
 }
 
+function isRow(r: unknown): r is ClosedPr {
+  const pr = r as Partial<ClosedPr> | null;
+  return (
+    typeof pr?.created_at === 'string' &&
+    typeof pr.head?.ref === 'string' &&
+    typeof pr.head.sha === 'string'
+  );
+}
+
+/** The cached rows, or undefined (a cold fetch) when the file is missing, another version, or any row is malformed. */
 export function loadCache(file: string): ClosedPr[] | undefined {
   try {
     const data = JSON.parse(readFileSync(file, 'utf8')) as { version?: number; rows?: unknown };
-    return data.version === VERSION && Array.isArray(data.rows)
-      ? (data.rows as ClosedPr[])
+    return data.version === VERSION && Array.isArray(data.rows) && data.rows.every(isRow)
+      ? data.rows
       : undefined;
   } catch {
     return undefined;
@@ -65,13 +75,13 @@ export function loadCache(file: string): ClosedPr[] | undefined {
 
 /** Best effort: the cache only saves time, so a write that fails costs the next run a full fetch. */
 function saveCache(file: string, rows: ClosedPr[]): void {
+  const tmp = `${file}.${process.pid}.tmp`;
   try {
     mkdirSync(dirname(file), { recursive: true });
-    const tmp = `${file}.${process.pid}.tmp`;
     writeFileSync(tmp, JSON.stringify({ version: VERSION, rows }));
     renameSync(tmp, file);
   } catch {
-    // best effort, see above
+    rmSync(tmp, { force: true });
   }
 }
 

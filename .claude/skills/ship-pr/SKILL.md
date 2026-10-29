@@ -165,7 +165,7 @@ PR_NUMBER=$(gh pr view --json number -q '.number')
 
 **Pre-pass (`independent` tier only).** Before the first Codex run, dispatch one read-only `sonnet` sub-agent (one Mac heavy job against the orchestrate cap) with `git diff origin/main...HEAD`, told to find defects and never to approve, answering as `- [P<n>] file:line finding` bullets. Fix every finding you agree with and commit, so Codex reviews a second draft. It posts nothing and is not gate evidence. Record `pre-pass: N findings fixed` in the PR body, and `Codex rounds: M` once the gate is green.
 
-**Author is Claude Code → Codex reviews.** Run the wrapper from the worktree. The main session starts it once with `run_in_background: true` and is notified when it exits; it blocks until the verdict, so never poll it, re-run it, or read its log before then. A sub-agent that must return the verdict runs it in the foreground. Foreground runs in the main session cost 16 h of blocked sessions over Sept–Oct 2026 (MYK9-1483).
+**Author is Claude Code → Codex reviews.** Run the wrapper from the worktree. The main session starts it once with `run_in_background: true` and is notified when it exits; it blocks until the verdict, so never poll it, re-run it, or read its log before then. When it exits, read `.logs/codex-review.log` once for the verdict (`No actionable defects found.` or the `[P*]` bullets) and act on the exit code below. A sub-agent that must return the verdict runs it in the foreground. Foreground runs in the main session cost 16 h of blocked sessions over Sept–Oct 2026 (MYK9-1483).
 
 ```bash
 pnpm qa:codex-review --post > .logs/codex-review.log 2>&1; echo "EXIT=$?"   # scripts/qa/codex-review.sh, always --base origin/main

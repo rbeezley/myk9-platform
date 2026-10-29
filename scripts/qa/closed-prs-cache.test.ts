@@ -113,12 +113,12 @@ describe('closedPrs', () => {
     expect(gh.asked).toEqual([1, 2, 3]);
   });
 
-  it('fetches everything when cached rows carry no updated_at', () => {
+  it('treats a cache with a malformed row as cold instead of crashing', () => {
     const file = cacheFile();
-    const undated = history(250).map(r => ({ ...r, updated_at: undefined }));
-    closedPrs(server(undated).readPage, file);
-    const gh = server(undated);
-    closedPrs(gh.readPage, file);
+    closedPrs(server([]).readPage, file); // creates the directory
+    writeFileSync(file, JSON.stringify({ version: 1, rows: [pr(1, T0 + HOUR), { number: 2 }] }));
+    const gh = server(history(250));
+    expect(closedPrs(gh.readPage, file)).toHaveLength(250);
     expect(gh.asked).toEqual([1, 2, 3]);
   });
 

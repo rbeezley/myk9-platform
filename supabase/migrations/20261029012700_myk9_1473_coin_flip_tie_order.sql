@@ -733,9 +733,9 @@ BEGIN
 
   RETURN QUERY
   SELECT
-    min(e.final_placement) OVER (
+    (min(e.final_placement) OVER (
       PARTITION BY e.points_earned, e.total_faults, e.search_time_seconds
-    )::integer AS group_rank,
+    ))::integer AS group_rank,
     e.id,
     e.armband_number::integer,
     d.call_name::text,

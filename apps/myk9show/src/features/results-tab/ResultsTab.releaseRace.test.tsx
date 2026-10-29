@@ -38,6 +38,7 @@ vi.mock('./useResultsTabData', () => ({
     rows: [row],
     trials: [],
     readState: 'ready',
+    tiesByClassId: new Map(),
     refreshFailed: false,
     paperworkAvailable: true,
     retry: vi.fn(),

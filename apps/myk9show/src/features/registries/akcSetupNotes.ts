@@ -56,6 +56,11 @@ export const AKC_CONTAINERS_AND_BURIED_NOTES: readonly SetupNote[] = [
           'Whenever a food distraction is used it must be enclosed within a container such that a searching dog would be unable to consume the food',
         cite: 'Ch. 5 §24',
       },
+      {
+        quote:
+          'For Container and Buried classes, the distraction may be in a container or loose in the search area. If in a container, it may NOT be in the same container as the odor.',
+        cite: 'Ch. 5 §24',
+      },
     ],
   },
   {

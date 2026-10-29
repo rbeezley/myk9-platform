@@ -107,7 +107,7 @@ const VEHICLES_GROUP: SetupElementGroup = {
       perLevel(
         'Front bumper only',
         'Any area of the vehicle',
-        '1 hide per vehicle; distraction on another vehicle',
+        '1 hide per vehicle; hides not adjacent; distraction on another vehicle',
         '1 hide per vehicle; distraction not on its side',
         '1 hide per vehicle; distraction not on its side'
       )
@@ -153,7 +153,7 @@ const CONTAINERS_GROUP: SetupElementGroup = {
       perLevel(
         'No extra rule',
         'No extra rule',
-        'Distraction not next to a hide',
+        'Hides not adjacent; distraction not next to a hide',
         'One hide per box; boxes with odor or distraction may be placed adjacent',
         'One odor per box; boxes with odor or distraction may be placed adjacent'
       )
@@ -189,7 +189,7 @@ const INTERIOR_GROUP: SetupElementGroup = {
       perLevel(
         'No extra rule',
         'No extra rule',
-        'Blank area allowed; distraction not next to a hide',
+        'Blank area allowed; hides not adjacent; distraction not next to a hide',
         'Blank area allowed; items may be adjacent',
         'Max 2 items in small area, 3 in larger; any area may be blank'
       )
@@ -224,7 +224,7 @@ const EXTERIOR_GROUP: SetupElementGroup = {
       perLevel(
         'No extra rule',
         'No extra rule',
-        'Distraction not next to the hide',
+        'Hides not adjacent; distraction not next to the hide',
         'Items may be adjacent',
         'Items may be adjacent'
       )

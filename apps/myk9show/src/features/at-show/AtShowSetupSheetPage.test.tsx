@@ -9,10 +9,17 @@ import { atShowSetupSheetPath, setupSheetRegistryIds } from './setupSheetRegistr
 const classList = vi.hoisted(() => ({
   groups: [] as unknown[],
   isLoading: false,
+  error: null as Error | null,
+  refresh: vi.fn(),
 }));
 
 vi.mock('./useAtShowClassList', () => ({
-  useAtShowClassList: () => ({ groups: classList.groups, isLoading: classList.isLoading }),
+  useAtShowClassList: () => ({
+    groups: classList.groups,
+    isLoading: classList.isLoading,
+    error: classList.error,
+    refresh: classList.refresh,
+  }),
 }));
 
 function groupsFor(...registries: Array<string | null>): AtShowClassGroup[] {
@@ -35,6 +42,8 @@ function renderPage() {
 beforeEach(() => {
   classList.groups = [];
   classList.isLoading = false;
+  classList.error = null;
+  classList.refresh.mockReset();
 });
 
 describe('setupSheetRegistryIds', () => {
@@ -74,6 +83,16 @@ describe('AtShowSetupSheetLink for exhibitors', () => {
 });
 
 describe('AtShowSetupSheetPage', () => {
+  it('says the show could not be loaded, with a retry, when the class list fails', async () => {
+    classList.error = new Error('IndexedDB read failed');
+    renderPage();
+
+    expect(screen.getByRole('status')).toHaveTextContent(/couldn.t load this show.s trials/i);
+    expect(screen.queryByText(/no setup cheat sheet/i)).not.toBeInTheDocument();
+    screen.getByRole('button', { name: /try again/i }).click();
+    expect(classList.refresh).toHaveBeenCalledTimes(1);
+  });
+
   it('prints the UKC sheet for a UKC show, with a Print button and a way back', () => {
     classList.groups = groupsFor('UKC');
     renderPage();

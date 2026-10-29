@@ -39,7 +39,7 @@ export function setupSheetPrintHtml(sheets: readonly SetupSheet[]): string {
 
 export function AtShowSetupSheetPage() {
   const { showId } = useParams<{ showId: string }>();
-  const { groups, isLoading } = useAtShowClassList(showId);
+  const { groups, isLoading, error, refresh } = useAtShowClassList(showId);
   const sheets = setupSheetRegistryIds(groups)
     .map(registryId => getSetupSheet(registryId))
     .filter((sheet): sheet is SetupSheet => sheet !== null && sheet !== undefined);
@@ -73,7 +73,15 @@ export function AtShowSetupSheetPage() {
         )}
       </div>
 
-      {sheets.length === 0 ? (
+      {sheets.length === 0 && error ? (
+        // A failed read is not "no sheet": the registry is unknown until the trials load.
+        <div role="status" className="flex flex-col items-center gap-3 py-12 text-center">
+          <p className="text-muted-foreground">Couldn’t load this show’s trials.</p>
+          <Button variant="outline" className="min-h-11" onClick={refresh}>
+            Try again
+          </Button>
+        </div>
+      ) : sheets.length === 0 ? (
         <p role="status" className="py-12 text-center text-muted-foreground">
           {isLoading
             ? 'Loading the setup cheat sheet...'

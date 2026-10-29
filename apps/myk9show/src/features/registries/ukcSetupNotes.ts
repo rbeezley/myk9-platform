@@ -19,7 +19,7 @@ export const UKC_VEHICLE_AND_CONTAINER_NOTES: readonly SetupNote[] = [
       {
         quote:
           'The vehicles must be no less than four (4) feet and no more than six (6) feet apart',
-        cite: 'Ch. 6 §4d, repeated in Ch. 7 to 10',
+        cite: 'Ch. 6 §4d, Ch. 7 §5d (same rule Ch. 8 to 10 §5d)',
       },
       {
         quote:

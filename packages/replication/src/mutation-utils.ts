@@ -241,6 +241,39 @@ export const RPC_PERMANENT_CODES: ReadonlyMap<string, ReadonlySet<string>> = new
 ]);
 
 /**
+ * Whether an error is a CANDIDATE for "no server answer": a fetch `TypeError`, the package's
+ * `TimeoutError`, an `AbortError`, or the plain object postgrest-js returns for them. The
+ * shape alone does NOT prove the uplink is down: postgrest wraps every fetch-path rejection
+ * (client bugs, a custom fetch wrapper's errors) the same way, and a deterministic timeout
+ * looks identical to an outage. Only a candidate that the connectivity probe confirms
+ * (`uplink-probe.ts`) skips the `maxRetries` budget (MYK9-1474).
+ *
+ * postgrest-js (2.118.0, dist/index.cjs, the fetch `.catch` when `shouldThrowOnError` is off)
+ * RETURNS `{ error: { message: `${name}: ${message}`, details, hint, code: '' }, status: 0 }`;
+ * `mutation-execute.ts` then throws that plain object. Only a non-Error object with an empty
+ * or absent `code` and one of the four name prefixes matches.
+ *
+ * AbortError is a candidate because nothing in the upload path aborts deliberately: the only
+ * `abort()` is `withTimeout`'s own, which surfaces as `TimeoutError`. HTTP 502/503/504 are not
+ * distinguished: the error shapes here expose no status.
+ */
+const POSTGREST_TRANSPORT_MESSAGE = /^(TypeError|FetchError|AbortError|TimeoutError): /;
+
+export function isTransportError(error: unknown): boolean {
+  if (error instanceof TimeoutError) return true;
+  if (error instanceof TypeError && error.message.includes('fetch')) return true;
+  if (typeof error !== 'object' || error === null) return false;
+  const candidate = error as { name?: unknown; message?: unknown; code?: unknown };
+  if (candidate.name === 'AbortError') return true;
+  if (error instanceof Error) return false;
+  return (
+    (candidate.code === '' || candidate.code === undefined) &&
+    typeof candidate.message === 'string' &&
+    POSTGREST_TRANSPORT_MESSAGE.test(candidate.message)
+  );
+}
+
+/**
  * Determines if an error is retryable
  *
  * Retryable errors include:

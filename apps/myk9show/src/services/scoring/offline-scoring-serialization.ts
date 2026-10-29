@@ -2,17 +2,12 @@
  * Offline Scoring Serialization Helpers
  *
  * Pure functions for serializing and deserializing scoring data
- * (scores, multi-judge scores, and sessions) to/from JSON-safe formats.
+ * (scores and sessions) to/from JSON-safe formats.
  * Date fields are converted to ISO strings for storage and back to
  * Date objects on load.
  */
 
-import type {
-  BaseScore,
-  MultiJudgeScore,
-  ScoringSession,
-  ConflictResolution,
-} from '@/types/scoring-types';
+import type { BaseScore, ScoringSession } from '@/types/scoring-types';
 
 /**
  * Serialize a BaseScore for JSON storage.
@@ -39,45 +34,6 @@ export function deserializeScore(data: unknown): BaseScore {
     recordedAt: new Date(scoreData.recordedAt as string),
     lastModified: new Date(scoreData.lastModified as string),
   } as BaseScore;
-}
-
-/**
- * Serialize a MultiJudgeScore for JSON storage.
- * Converts the judgeScores Map to a plain object and Date fields to ISO strings.
- */
-export function serializeMultiJudgeScore(score: MultiJudgeScore): Record<string, unknown> {
-  return {
-    ...score,
-    judgeScores: Object.fromEntries(score.judgeScores),
-    lastUpdated: score.lastUpdated.toISOString(),
-    conflictResolution: score.conflictResolution
-      ? {
-          ...score.conflictResolution,
-          resolvedAt: score.conflictResolution.resolvedAt.toISOString(),
-        }
-      : undefined,
-  };
-}
-
-/**
- * Deserialize stored data back into a MultiJudgeScore.
- * Converts plain objects back to Maps and ISO strings back to Date objects.
- */
-export function deserializeMultiJudgeScore(data: unknown): MultiJudgeScore {
-  const multiData = data as Record<string, unknown>;
-  return {
-    ...multiData,
-    judgeScores: new Map(
-      Object.entries(multiData.judgeScores || ({} as Record<string, BaseScore>))
-    ),
-    lastUpdated: new Date(multiData.lastUpdated as string),
-    conflictResolution: multiData.conflictResolution
-      ? {
-          ...(multiData.conflictResolution as ConflictResolution),
-          resolvedAt: new Date((multiData.conflictResolution as ConflictResolution).resolvedAt),
-        }
-      : undefined,
-  } as MultiJudgeScore;
 }
 
 /**

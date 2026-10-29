@@ -199,6 +199,11 @@ export interface PendingMutation {
   /** @internal Set by MutationManager; do not read or mutate externally. */
   nextRetryAt?: number;
 
+  /** @internal Count of transport-class failures (fetch TypeError, timeout, abort). Drives
+   *  backoff growth only; never counts toward `maxRetries`, so a venue Wi-Fi drop cannot
+   *  dead-letter a write (MYK9-1474). Absent on legacy persisted mutations (treated as 0). */
+  transportRetries?: number;
+
   /** @internal Count of OCC (version-conflict) rejections for this mutation.
    *  Drives exponential backoff on the conflict path so an unresolved conflict
    *  is throttled (not dead-lettered — it stays queued for user reconciliation).

@@ -109,6 +109,15 @@ export const features = {
   // runs the full pass immediately, the pre-MYK9-1304 behaviour. Reconnect
   // nudges are unaffected.
   replicationScopedNudges: true,
+
+  // Entries delta probe (MYK9-1369). Before an incremental entries pull, one
+  // `entry_results_changed_since(show_id, since)` RPC asks whether anything the
+  // results view reads moved; FALSE skips the view read (the view computes every
+  // row of the show before its `updated_at > since` filter applies). Any RPC
+  // error or non-boolean answer falls through to the view read. Never used on a
+  // full sync. KILL SWITCH: false = always read the view, the pre-MYK9-1369
+  // behaviour.
+  replicationEntriesChangedSince: true,
 } as const;
 
 export type Features = typeof features;

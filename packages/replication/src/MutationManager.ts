@@ -90,7 +90,8 @@ export class MutationManager {
       () => this.requireCurrentUploadContext(),
       (tableName, rowId) => this.rowRefetchers.request(tableName, rowId),
       this.writtenOverlays,
-      this.inFlightWrites
+      this.inFlightWrites,
+      options.checkConnectivity
     );
   }
 

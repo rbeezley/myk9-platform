@@ -2,14 +2,13 @@
  * MYK9-753: the cart split's inputs, from the server's per-judge-day read.
  *
  * `get_show_class_judge_day_availability` returns one row per (class, confirmed
- * judge day), each with that day's real self-service spots left
- * (`get_judge_day_capacity_live`, the figure payment's `evaluate_entry_capacity`
- * reads), plus the class's own spots left when it has a limit. A class with no
- * confirmed judge has one row with no day. This only regroups those rows:
+ * judge day), at most one per class, each with that day's real self-service
+ * spots left (`get_judge_day_capacity_live`, the figure payment's
+ * `evaluate_entry_capacity` reads), plus the class's own spots left when it
+ * has a limit. A class with no confirmed judge has one row with no day. This only regroups those rows:
  *
  *   - `judgeDays`: one bucket per (judge, date) listing every class that takes
- *     a spot on it, so a line in a two-judge class is charged against both
- *     days and several lines on one day share what is left of it;
+ *     a spot on it, so several lines on one judge's day share what is left of it;
  *   - `classSpots`: spots left in each class that has an entry limit;
  *   - `waitlistClassIds`: every class whose `allow_waitlist` is true. The
  *     server reports the EFFECTIVE value (the class's own setting, else the

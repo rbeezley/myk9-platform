@@ -136,6 +136,27 @@ BEGIN
   LOCK TABLE public.classes IN SHARE UPDATE EXCLUSIVE MODE;
   LOCK TABLE public.trials IN SHARE UPDATE EXCLUSIVE MODE;
   LOCK TABLE public.shows IN SHARE UPDATE EXCLUSIVE MODE;
+  -- Every other table the cascade sweeps, read from the manifest so a new
+  -- disposable edge is locked too: otherwise a foreign key added to, say,
+  -- show_passcodes could commit after the catalog check and the cascade would
+  -- follow an unreviewed edge. A table missing from the catalog is skipped
+  -- here and reported by the drift check below.
+  FOR v_edge IN
+    SELECT DISTINCT manifest.child_schema, manifest.child_table
+    FROM pg_catalog.jsonb_to_recordset(v_fk_manifest) AS manifest(
+      child_schema text, child_table text, disposition text
+    )
+    WHERE manifest.disposition = 'disposable'
+      AND manifest.child_table NOT IN ('shows', 'trials', 'classes')
+      AND pg_catalog.to_regclass(
+        pg_catalog.format('%I.%I', manifest.child_schema, manifest.child_table)
+      ) IS NOT NULL
+    ORDER BY manifest.child_schema, manifest.child_table
+  LOOP
+    EXECUTE pg_catalog.format(
+      'LOCK TABLE %I.%I IN SHARE UPDATE EXCLUSIVE MODE', v_edge.child_schema, v_edge.child_table
+    );
+  END LOOP;
 
   PERFORM 1 FROM public.shows WHERE id = p_show_id FOR UPDATE;
   IF NOT FOUND THEN

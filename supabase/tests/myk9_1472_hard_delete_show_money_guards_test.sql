@@ -306,6 +306,30 @@ BEGIN
   END IF;
   RAISE NOTICE 'PASS MYK9-1472 unused show with trials, classes and wizard configuration deletes';
 
+  -- The delete committed nothing yet (one transaction), so its table locks are
+  -- still held here: every swept table must carry the FK-DDL lock, not only
+  -- shows/trials/classes, or a foreign key added mid-delete escapes the check.
+  IF EXISTS (
+    SELECT 1
+    FROM (VALUES
+      ('shows'), ('trials'), ('classes'), ('judge_assignments'), ('show_passcodes'),
+      ('show_officials'), ('user_roles'), ('show_lifecycle_email_steps'),
+      ('show_visibility_settings'), ('trial_visibility_overrides'),
+      ('class_visibility_overrides')
+    ) AS swept(table_name)
+    WHERE NOT EXISTS (
+      SELECT 1 FROM pg_catalog.pg_locks AS l
+      WHERE l.pid = pg_catalog.pg_backend_pid()
+        AND l.locktype = 'relation'
+        AND l.mode = 'ShareUpdateExclusiveLock'
+        AND l.granted
+        AND l.relation = pg_catalog.to_regclass('public.' || swept.table_name)
+    )
+  ) THEN
+    RAISE EXCEPTION 'FAIL MYK9-1472: a swept table was not locked against FK DDL during the delete';
+  END IF;
+  RAISE NOTICE 'PASS MYK9-1472 every swept table holds SHARE UPDATE EXCLUSIVE through the delete';
+
   -- Every refused fixture still holds its evidence row, not only its show.
   IF (SELECT count(*) FROM public.enrollments WHERE id IN (
         '00000000-0000-0000-0000-000001476021', '00000000-0000-0000-0000-000001476030')) <> 2

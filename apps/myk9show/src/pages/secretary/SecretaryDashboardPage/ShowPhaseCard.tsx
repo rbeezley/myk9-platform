@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { differenceInDays } from 'date-fns';
 import { ArrowRight, Pencil, Play } from 'lucide-react';
@@ -5,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/base/Chip';
 import { toLocalDate } from '@/lib/format/dates';
 import { ShowDateVenueLine } from './ShowDateVenueLine';
+import { ShowPinButton, type ShowPin } from './ShowPinButton';
 import type { TodayClassCounts } from './todayClassCounts';
 import type { Show } from '@/types/show-types';
 import type { ShowPhase } from '@/hooks/useMyShows';
@@ -16,6 +18,8 @@ interface ShowPhaseCardProps {
   classCounts?: TodayClassCounts | null | undefined;
   /** The show's live entry count (MYK9-1311); null/omitted when unknown, never a placeholder 0. */
   entryCount?: number | null | undefined;
+  /** The rail pin, for a show still in Managing (MYK9-1490); omitted offers none. */
+  pin?: ShowPin | undefined;
 }
 
 function EntryCountLine({ entryCount }: { entryCount: number | null | undefined }) {
@@ -30,11 +34,26 @@ function EntryCountLine({ entryCount }: { entryCount: number | null | undefined 
 // Setup and Show Day are the show home now (MYK9-957).
 const workbenchHref = (showId: string) => `/shows/${showId}`;
 
+/** The card's buttons: the pin (when offered) beside its one action. */
+function CardActions({
+  show,
+  pin,
+  children,
+}: Pick<ShowPhaseCardProps, 'show' | 'pin'> & { children: ReactNode }) {
+  return (
+    <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
+      {pin && <ShowPinButton showName={show.name} pin={pin} />}
+      {children}
+    </div>
+  );
+}
+
 function TodayCard({
   show,
   classCounts,
   entryCount,
-}: Pick<ShowPhaseCardProps, 'show' | 'classCounts' | 'entryCount'>) {
+  pin,
+}: Pick<ShowPhaseCardProps, 'show' | 'classCounts' | 'entryCount' | 'pin'>) {
   return (
     <div className="flex items-center gap-4 rounded-xl border border-destructive/30 bg-destructive/5 px-5 py-4">
       <div className="flex-1 min-w-0">
@@ -53,17 +72,23 @@ function TodayCard({
         )}
         <EntryCountLine entryCount={entryCount} />
       </div>
-      <Button asChild size="touch" className="shrink-0">
-        <Link to={workbenchHref(show.id)}>
-          <Play className="mr-1.5 h-3.5 w-3.5" />
-          Go to show
-        </Link>
-      </Button>
+      <CardActions show={show} pin={pin}>
+        <Button asChild size="touch" className="shrink-0">
+          <Link to={workbenchHref(show.id)}>
+            <Play className="mr-1.5 h-3.5 w-3.5" />
+            Go to show
+          </Link>
+        </Button>
+      </CardActions>
     </div>
   );
 }
 
-function UpcomingCard({ show, entryCount }: Pick<ShowPhaseCardProps, 'show' | 'entryCount'>) {
+function UpcomingCard({
+  show,
+  entryCount,
+  pin,
+}: Pick<ShowPhaseCardProps, 'show' | 'entryCount' | 'pin'>) {
   const daysUntil = differenceInDays(toLocalDate(show.startDate), new Date());
   const daysUntilClose = show.entryCloseDate
     ? differenceInDays(toLocalDate(show.entryCloseDate), new Date())
@@ -101,17 +126,23 @@ function UpcomingCard({ show, entryCount }: Pick<ShowPhaseCardProps, 'show' | 'e
         <ShowDateVenueLine show={show} />
         <EntryCountLine entryCount={entryCount} />
       </div>
-      <Button asChild variant="outline" size="touch" className="shrink-0">
-        <Link to={workbenchHref(show.id)}>
-          Manage
-          <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
-        </Link>
-      </Button>
+      <CardActions show={show} pin={pin}>
+        <Button asChild variant="outline" size="touch" className="shrink-0">
+          <Link to={workbenchHref(show.id)}>
+            Manage
+            <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+          </Link>
+        </Button>
+      </CardActions>
     </div>
   );
 }
 
-function DraftCard({ show, entryCount }: Pick<ShowPhaseCardProps, 'show' | 'entryCount'>) {
+function DraftCard({
+  show,
+  entryCount,
+  pin,
+}: Pick<ShowPhaseCardProps, 'show' | 'entryCount' | 'pin'>) {
   return (
     <div className="flex items-center gap-4 rounded-xl border border-dashed border-border bg-muted/30 px-5 py-4">
       <div className="flex-1 min-w-0">
@@ -127,12 +158,14 @@ function DraftCard({ show, entryCount }: Pick<ShowPhaseCardProps, 'show' | 'entr
           Not visible to exhibitors until published
         </p>
       </div>
-      <Button asChild size="touch" className="shrink-0">
-        <Link to={workbenchHref(show.id)}>
-          <Pencil className="mr-1.5 h-3.5 w-3.5" />
-          Continue setup
-        </Link>
-      </Button>
+      <CardActions show={show} pin={pin}>
+        <Button asChild size="touch" className="shrink-0">
+          <Link to={workbenchHref(show.id)}>
+            <Pencil className="mr-1.5 h-3.5 w-3.5" />
+            Continue setup
+          </Link>
+        </Button>
+      </CardActions>
     </div>
   );
 }
@@ -155,14 +188,14 @@ function PastCard({ show, entryCount }: Pick<ShowPhaseCardProps, 'show' | 'entry
   );
 }
 
-export function ShowPhaseCard({ show, phase, classCounts, entryCount }: ShowPhaseCardProps) {
+export function ShowPhaseCard({ show, phase, classCounts, entryCount, pin }: ShowPhaseCardProps) {
   switch (phase) {
     case 'today':
-      return <TodayCard show={show} classCounts={classCounts} entryCount={entryCount} />;
+      return <TodayCard show={show} classCounts={classCounts} entryCount={entryCount} pin={pin} />;
     case 'upcoming':
-      return <UpcomingCard show={show} entryCount={entryCount} />;
+      return <UpcomingCard show={show} entryCount={entryCount} pin={pin} />;
     case 'draft':
-      return <DraftCard show={show} entryCount={entryCount} />;
+      return <DraftCard show={show} entryCount={entryCount} pin={pin} />;
     case 'past':
       return <PastCard show={show} entryCount={entryCount} />;
   }

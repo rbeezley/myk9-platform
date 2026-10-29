@@ -45,15 +45,10 @@ export const UnifiedAppLayout: React.FC = () => {
       clubName: validatedClubContext.clubName,
     };
   }, [validatedClubContext]);
-  const { currentShow, managingShows, chooseShow } = useCurrentShow();
+  const { currentShow } = useCurrentShow();
   const sidebarConfig = useMemo(
-    () =>
-      buildUnifiedSidebarConfig(roles, clubContext, firstName, {
-        currentShow,
-        managingShows,
-        onChooseShow: chooseShow,
-      }),
-    [roles, clubContext, firstName, currentShow, managingShows, chooseShow]
+    () => buildUnifiedSidebarConfig(roles, clubContext, firstName, { currentShow }),
+    [roles, clubContext, firstName, currentShow]
   );
   useRememberBrowseList(sidebarConfig);
   const { mobileOpen, setMobileOpen } = useSidebarLayoutState();

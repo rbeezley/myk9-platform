@@ -17,6 +17,9 @@ import { getEntryManagementHref } from '@/features/entry-operations/entryAttenti
 import { MyShowsSection, MyShowsSectionSkeleton } from './MyShowsSection';
 import { TasksTab } from './TasksTab';
 import { getTodayClassCounts } from './todayClassCounts';
+import type { ShowPin } from './ShowPinButton';
+import { useCurrentShow } from '@/components/layout/sidebar/useCurrentShow';
+import { useCurrentShowPinStore } from '@/components/layout/sidebar/currentShowPinStore';
 
 function greeting(): string {
   const h = new Date().getHours();
@@ -27,6 +30,21 @@ function greeting(): string {
 
 export function SecretaryDashboardPage() {
   const { firstName } = useAuthContext();
+  // The rail's current show, overridden only by a pin here (MYK9-1490). Only shows still in
+  // Managing can be pinned: an ended show's pin is ignored anyway.
+  const { managingShows, pinnedShowId } = useCurrentShow();
+  const pin = useCurrentShowPinStore(state => state.pin);
+  const unpin = useCurrentShowPinStore(state => state.unpin);
+  const pinFor = useMemo(() => {
+    const pinnable = new Set(managingShows.map(show => show.id));
+    return (showId: string): ShowPin | undefined =>
+      pinnable.has(showId)
+        ? {
+            pinned: pinnedShowId === showId,
+            onToggle: () => (pinnedShowId === showId ? unpin() : pin(showId)),
+          }
+        : undefined;
+  }, [managingShows, pinnedShowId, pin, unpin]);
 
   const { shows, isLoading: showsLoading } = useMissionControlData();
 
@@ -139,6 +157,7 @@ export function SecretaryDashboardPage() {
           shows={today}
           classCountsByShow={classCountsByShow}
           entryCountsByShow={entryCountsByShow}
+          pinFor={pinFor}
         />
         <MyShowsSection
           phase="upcoming"
@@ -147,6 +166,7 @@ export function SecretaryDashboardPage() {
           shows={upcoming}
           defaultCollapsed
           entryCountsByShow={entryCountsByShow}
+          pinFor={pinFor}
         />
         <MyShowsSection
           phase="draft"
@@ -155,6 +175,7 @@ export function SecretaryDashboardPage() {
           shows={draft}
           defaultCollapsed
           entryCountsByShow={entryCountsByShow}
+          pinFor={pinFor}
         />
         <MyShowsSection
           phase="past"

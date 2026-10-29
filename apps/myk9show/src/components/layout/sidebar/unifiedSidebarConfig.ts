@@ -85,19 +85,13 @@ const CLUB_RAIL_MENU: NavRailMenu = { id: 'club', title: 'My Club', icon: Flag }
 const BROWSE_RAIL_LINK: NavRailLink = { id: 'browse', title: 'Browse', icon: LayoutList };
 
 export interface CurrentShowNav {
+  /** Changed only by the pin on a Home show card (MYK9-1490); the rail has no Switch. */
   currentShow: ShowRef | null;
-  /** Managed shows not yet over, soonest first; more than one turns on Switch. */
-  managingShows: readonly ShowRef[];
-  onChooseShow: (id: string) => void;
 }
 
 type ShowRef = Pick<Show, 'id' | 'name'> & Partial<Pick<Show, 'startDate' | 'endDate'>>;
 
-function currentShowItem(
-  show: ShowRef,
-  onChooseShow?: (id: string) => void,
-  description?: string
-): NavItem {
+function currentShowItem(show: ShowRef): NavItem {
   const short = truncateRailTitle(show.name);
   const dates = formatShowDateRange(show.startDate, show.endDate);
   return {
@@ -106,23 +100,8 @@ function currentShowItem(
     ...(short === show.name ? {} : { railTitle: short, tooltip: show.name }),
     href: `/shows/${show.id}`,
     icon: CalendarCheck,
-    ...(description ? { description } : {}),
+    description: 'Your current show',
     ...(dates ? { subtitle: dates } : {}),
-    // Only a Switch pick is remembered; opening the current show must not pin it.
-    ...(onChooseShow ? { onSelect: () => onChooseShow(show.id) } : {}),
-  };
-}
-
-/** The current show first, then the other managed shows (Switch's list), each opening its Overview. */
-function currentShowGroup({ currentShow, managingShows, onChooseShow }: CurrentShowNav): NavGroup {
-  const others = managingShows.filter(show => show.id !== currentShow?.id);
-  return {
-    title: 'Current show',
-    railSwitch: true,
-    items: [
-      ...(currentShow ? [currentShowItem(currentShow, undefined, 'Your current show')] : []),
-      ...others.map(show => currentShowItem(show, onChooseShow, 'Switch to this show')),
-    ],
   };
 }
 
@@ -192,7 +171,9 @@ export function buildUnifiedSidebarConfig(
 
     // 2. The current show, right under Home: a secretary or club admin's way back into the one show
     // being worked for days or weeks (MYK9-1269, moved up by MYK9-1490). Absent when they manage none.
-    if (currentShowNav?.currentShow) groups.push(currentShowGroup(currentShowNav));
+    if (currentShowNav?.currentShow) {
+      groups.push({ title: 'Current show', items: [currentShowItem(currentShowNav.currentShow)] });
+    }
 
     // 3. Show Day — the always-available Ringside entry. Beside the current show, which it is the
     // live view of; and first of all for a judge, for whom it may be the only section that matters.

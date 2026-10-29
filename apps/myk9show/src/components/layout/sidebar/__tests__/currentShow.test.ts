@@ -79,7 +79,7 @@ describe('pickCurrentShow', () => {
     expect(pickCurrentShow(inputs([], 'over', 'soon'))).toBeNull();
   });
 
-  it('tie: two shows today give the soonest-starting, and a Switch choice overrides it', () => {
+  it('tie: two shows today give the soonest-starting, and a pin overrides it', () => {
     const tied = make({
       id: 'tied',
       name: 'Tied Trial',
@@ -109,7 +109,7 @@ describe('truncateRailTitle', () => {
 });
 
 describe('current show storage', () => {
-  it('round-trips the last opened show and the Switch choice', () => {
+  it('round-trips the last opened show and the pin', () => {
     writeLastOpenedShowId('a');
     writeCurrentShowChoice('b');
     expect(readLastOpenedShowId()).toBe('a');

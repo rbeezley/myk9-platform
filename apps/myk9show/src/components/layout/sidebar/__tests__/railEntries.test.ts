@@ -120,11 +120,7 @@ describe('buildRailEntries', () => {
 // view) beside it; then Browse, My Entries, and the role-specific groups. A change here is a
 // design change.
 describe('rail order', () => {
-  const CURRENT = {
-    currentShow: { id: 's1', name: 'Fall Classic' },
-    managingShows: [{ id: 's1', name: 'Fall Classic' }],
-    onChooseShow: () => undefined,
-  };
+  const CURRENT = { currentShow: { id: 's1', name: 'Fall Classic' } };
 
   function railLabels(roles: UserRole[], currentShowNav?: typeof CURRENT): string[] {
     const config = buildUnifiedSidebarConfig(roles, CLUB, 'Jamie', currentShowNav);

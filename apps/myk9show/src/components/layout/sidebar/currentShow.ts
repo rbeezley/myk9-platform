@@ -1,17 +1,19 @@
 /**
  * The "current show" rail item: the one show a secretary or club admin is working inside for days
- * or weeks, one tap from anywhere. Automatic, never pinned by hand (MYK9-1269).
+ * or weeks, one tap from anywhere. Automatic (MYK9-1269), with one manual override: a pin on a
+ * Home show card (MYK9-1490).
  *
  * The pick is the Shows list's own Managing section, so the rail and the list never disagree:
  * Managing already puts the shows happening today first and then the upcoming ones soonest first
- * (`groupShowsForPane`). This module only adds the two memories around it: a choice made with
- * Switch, and the last managed show opened (the fallback once nothing is current).
+ * (`groupShowsForPane`). This module only adds the two memories around it: the pinned show, and
+ * the last managed show opened (the fallback once nothing is current).
  */
 
 import type { Show } from '@/types/show-types';
 
 const LAST_OPENED_KEY = 'myk9:current-show-last-opened';
-const CHOICE_KEY = 'myk9:current-show-choice';
+/** Kept from the Switch menu it replaced, so a show chosen there stays pinned. */
+export const CURRENT_SHOW_CHOICE_KEY = 'myk9:current-show-choice';
 
 /** Longest label the 88px rail holds on two short lines before it is shortened. */
 const RAIL_LABEL_MAX = 18;
@@ -22,13 +24,13 @@ export interface CurrentShowInputs<T extends Show = Show> {
   /** Every show the viewer manages and can see, over or not (the last-opened fallback's pool). */
   managedShows: readonly T[];
   lastOpenedId: string | null;
-  /** A show picked with Switch; honoured only while that show is still in Managing. */
+  /** The pinned show; honoured only while that show is still in Managing. */
   rememberedChoice: string | null;
 }
 
 /**
- * Rules, in order: (1) a remembered Switch choice that is still current; (2) Managing's first
- * show (today's, else the next upcoming); (3) the last managed show opened; else none. A choice
+ * Rules, in order: (1) the pinned show, while it is still current; (2) Managing's first
+ * show (today's, else the next upcoming); (3) the last managed show opened; else none. A pin
  * whose show has ended is simply not in `managingShows`, so it drops out ("until that show ends").
  */
 export function pickCurrentShow<T extends Show>({
@@ -78,5 +80,12 @@ function writeKey(key: string, value: string): void {
 
 export const readLastOpenedShowId = (): string | null => readKey(LAST_OPENED_KEY);
 export const writeLastOpenedShowId = (id: string): void => writeKey(LAST_OPENED_KEY, id);
-export const readCurrentShowChoice = (): string | null => readKey(CHOICE_KEY);
-export const writeCurrentShowChoice = (id: string): void => writeKey(CHOICE_KEY, id);
+export const readCurrentShowChoice = (): string | null => readKey(CURRENT_SHOW_CHOICE_KEY);
+export const writeCurrentShowChoice = (id: string): void => writeKey(CURRENT_SHOW_CHOICE_KEY, id);
+export function clearCurrentShowChoice(): void {
+  try {
+    window.localStorage.removeItem(CURRENT_SHOW_CHOICE_KEY);
+  } catch {
+    // A pin that outlives its removal is still dropped once its show ends.
+  }
+}

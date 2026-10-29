@@ -445,29 +445,20 @@ describe('buildUnifiedSidebarConfig — account identity', () => {
 });
 
 describe('buildUnifiedSidebarConfig — current show', () => {
-  const nav = {
-    currentShow: { id: 's1', name: 'Heartland Spring Nosework Trial' },
-    managingShows: [
-      { id: 's1', name: 'Heartland Spring Nosework Trial' },
-      { id: 's2', name: 'Fall Classic' },
-    ],
-    onChooseShow: () => undefined,
-  };
+  const nav = { currentShow: { id: 's1', name: 'Heartland Spring Nosework Trial' } };
 
-  it('adds a Current show group right after Home, with the current show first', () => {
+  it('adds a Current show group right after Home, holding only the current show', () => {
     const config = buildUnifiedSidebarConfig([UserRole.SECRETARY], undefined, null, nav);
     const titles = config.groups.map(g => g.title);
     const group = config.groups[titles.indexOf('Home') + 1];
 
     expect(group.title).toBe('Current show');
-    expect(group.railSwitch).toBe(true);
-    expect(group.items.map(i => i.href)).toEqual(['/shows/s1', '/shows/s2']);
+    expect(group.items.map(i => i.href)).toEqual(['/shows/s1']);
     expect(group.items[0].railTitle).toBe('Heartland Spring…');
-    expect(group.items[1].railTitle).toBeUndefined();
   });
 
   it('adds nothing without a current show, or for an exhibitor-only account', () => {
-    const none = { ...nav, currentShow: null, managingShows: [] };
+    const none = { currentShow: null };
     expect(
       buildUnifiedSidebarConfig([UserRole.SECRETARY], undefined, null, none).groups.map(
         g => g.title

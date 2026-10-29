@@ -7,7 +7,7 @@
  */
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent } from '@/test/utils/testUtils';
 
 import { ClubContextGate } from './ClubContextGate';
 import {
@@ -92,6 +92,17 @@ describe('ClubContextGate — rendering', () => {
     // Retrying a permissions problem just wastes the operator's time.
     renderGate({ status: 'not-applicable' });
     expect(screen.queryByRole('button', { name: /try again/i })).not.toBeInTheDocument();
+  });
+
+  it('gives an authorization wall a way back to the dashboard', () => {
+    renderGate({ status: 'not-applicable' });
+    expect(screen.getByText(/club administrator access to manage members/i)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /back to dashboard/i })).toHaveAttribute('href', '/');
+  });
+
+  it('does not show the way back while a retry is on offer', () => {
+    renderGate({ status: 'unavailable' });
+    expect(screen.queryByRole('link', { name: /back to dashboard/i })).not.toBeInTheDocument();
   });
 
   it('lists every club as a choice instead of an error', () => {

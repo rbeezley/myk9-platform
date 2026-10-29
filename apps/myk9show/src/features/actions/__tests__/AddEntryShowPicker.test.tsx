@@ -4,16 +4,30 @@ import { render, screen, userEvent, within } from '@/test/utils/testUtils';
 import { AddEntryShowPicker } from '../AddEntryShowPicker';
 import { useAddEntryPickerStore } from '../addEntryPickerStore';
 
+const mockShows = vi.hoisted(() => ({
+  list: [] as Array<{ id: string; name: string }>,
+}));
 vi.mock('../useEntryEligibleShows', () => ({
-  useEntryEligibleShows: () => [
-    { id: 'a', name: 'Spring Trial' },
-    { id: 'b', name: 'Fall Trial' },
-  ],
+  useEntryEligibleShows: () => mockShows.list,
 }));
 
 describe('AddEntryShowPicker', () => {
   beforeEach(() => {
     useAddEntryPickerStore.setState({ open: false });
+    mockShows.list = [
+      { id: 'a', name: 'Spring Trial' },
+      { id: 'b', name: 'Fall Trial' },
+    ];
+  });
+
+  it('says why when no show can take an entry any more while it is open', async () => {
+    mockShows.list = [];
+    render(<AddEntryShowPicker />);
+    act(() => useAddEntryPickerStore.getState().setOpen(true));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Add entry to which show?' });
+    expect(within(dialog).getByText(/No show can take an entry right now/)).toBeInTheDocument();
+    expect(within(dialog).queryByRole('link')).toBeNull();
   });
 
   it('renders nothing until Add Entry opens it', () => {

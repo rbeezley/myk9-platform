@@ -35,6 +35,11 @@ function PickerContent({ onPick }: { onPick: () => void }) {
         <DialogTitle>Add entry to which show?</DialogTitle>
         <DialogDescription>Pick the show you are keying an entry for.</DialogDescription>
       </DialogHeader>
+      {entryShows.length === 0 && (
+        <p className="text-sm text-muted-foreground">
+          No show can take an entry right now. Entries open once a show is published.
+        </p>
+      )}
       <ul className="flex flex-col gap-2">
         {entryShows.map(show => (
           <li key={show.id}>

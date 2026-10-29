@@ -41,7 +41,7 @@ function CardActions({
   children,
 }: Pick<ShowPhaseCardProps, 'show' | 'pin'> & { children: ReactNode }) {
   return (
-    <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
+    <div className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-1">
       {pin && <ShowPinButton showName={show.name} pin={pin} />}
       {children}
     </div>
@@ -55,8 +55,8 @@ function TodayCard({
   pin,
 }: Pick<ShowPhaseCardProps, 'show' | 'classCounts' | 'entryCount' | 'pin'>) {
   return (
-    <div className="flex items-center gap-4 rounded-xl border border-destructive/30 bg-destructive/5 px-5 py-4">
-      <div className="flex-1 min-w-0">
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-xl border border-destructive/30 bg-destructive/5 px-5 py-4">
+      <div className="min-w-[12rem] flex-1">
         <div className="flex items-center gap-2 mb-1">
           <Chip color="red" size="sm">
             Live today
@@ -98,9 +98,9 @@ function UpcomingCard({
 
   return (
     <div
-      className={`flex items-center gap-4 rounded-xl border bg-card px-5 py-4 ${deadlineUrgent ? 'border-warning/50' : 'border-border'}`}
+      className={`flex flex-wrap items-center gap-x-4 gap-y-3 rounded-xl border bg-card px-5 py-4 ${deadlineUrgent ? 'border-warning/50' : 'border-border'}`}
     >
-      <div className="flex-1 min-w-0">
+      <div className="min-w-[12rem] flex-1">
         <div className="flex items-center gap-2 flex-wrap mb-1">
           <Chip color="green" size="sm">
             {entriesOpen ? 'Entries open' : 'Entries closed'}
@@ -144,8 +144,8 @@ function DraftCard({
   pin,
 }: Pick<ShowPhaseCardProps, 'show' | 'entryCount' | 'pin'>) {
   return (
-    <div className="flex items-center gap-4 rounded-xl border border-dashed border-border bg-muted/30 px-5 py-4">
-      <div className="flex-1 min-w-0">
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-xl border border-dashed border-border bg-muted/30 px-5 py-4">
+      <div className="min-w-[12rem] flex-1">
         <div className="flex items-center gap-2 mb-1">
           <Chip color="amber" size="sm">
             Draft

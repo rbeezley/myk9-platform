@@ -171,16 +171,18 @@ describe('SecretaryDashboardPage', () => {
     mockCurrentShow.managingShows = [spring, fall];
     renderPage();
     const pinOf = (name: string) =>
-      screen.getByRole('button', { name: new RegExp(`${name} as your current show`) });
+      screen.getByRole('button', { name: new RegExp(`${name} (as|is) your current show`) });
 
     fireEvent.click(pinOf('Spring Trial'));
     expect(useCurrentShowPinStore.getState().pinnedId).toBe('spring');
-    expect(pinOf('Spring Trial')).toHaveAttribute('aria-pressed', 'true');
-    expect(pinOf('Spring Trial')).toHaveTextContent(/^Pinned/);
+    expect(pinOf('Spring Trial')).toHaveAccessibleName(
+      /^Pinned: Spring Trial is your current show\. Unpin$/
+    );
 
     fireEvent.click(pinOf('Fall Trial'));
     expect(useCurrentShowPinStore.getState().pinnedId).toBe('fall');
-    expect(pinOf('Spring Trial')).toHaveAttribute('aria-pressed', 'false');
+    expect(pinOf('Spring Trial')).toHaveAccessibleName(/^Pin Spring Trial as your current show$/);
+    expect(pinOf('Fall Trial')).toHaveAccessibleName(/^Pinned: Fall Trial/);
 
     fireEvent.click(pinOf('Fall Trial'));
     expect(useCurrentShowPinStore.getState().pinnedId).toBeNull();
@@ -189,7 +191,9 @@ describe('SecretaryDashboardPage', () => {
     // A show no longer in Managing offers no pin (Past starts collapsed; open it to look).
     fireEvent.click(screen.getByRole('button', { name: /Past shows/ }));
     expect(screen.getByText('Ended Trial')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Ended Trial as your current show/ })).toBeNull();
+    expect(
+      screen.queryByRole('button', { name: /Ended Trial (as|is) your current show/ })
+    ).toBeNull();
   });
 
   it('only surfaces pending-entry attention for shows the secretary manages', () => {

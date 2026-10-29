@@ -53,8 +53,11 @@ export function useCurrentActions(): CurrentActions {
   const canCreatePeople = !rbacLoading && gates.canCreatePeople;
   const canCreateClubs = !rbacLoading && gates.canCreateClubs;
   // The roles `/secretary/register/:showId` admits (routes/secretaryRoutes.tsx).
+  // The roles `/secretary/register/:showId` admits (routes/secretaryRoutes.tsx). Withheld while
+  // the shows replica loads, so a secretary with shows is never told they have none.
+  const showsLoading = useShowStore(state => state.isLoading);
   const canAddEntries =
-    !rbacLoading && (hasRole(UserRole.SECRETARY) || hasRole(UserRole.SITE_ADMIN));
+    !rbacLoading && !showsLoading && (hasRole(UserRole.SECRETARY) || hasRole(UserRole.SITE_ADMIN));
   const entryShows = useEntryEligibleShows();
   const openEntryPicker = useAddEntryPickerStore(state => state.setOpen);
   // The show section's heading: the replicated store first (offline-durable, no read), then the
@@ -115,6 +118,7 @@ export function useCurrentActions(): CurrentActions {
         // the button, which is honest, where a flashed-then-withdrawn menu is
         // the mistake-anxiety bug docs/INTENT.md names.
         canManageShow: scope.status === 'resolved' && scope.canManage,
+        showScopeResolving: route.kind === 'show' && scope.status !== 'resolved',
         canOperateShow: scope.status === 'resolved' && scope.canOperate,
         canCreateShows,
         canCreateDogs,

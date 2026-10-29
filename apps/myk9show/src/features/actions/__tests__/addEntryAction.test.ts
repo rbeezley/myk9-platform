@@ -80,6 +80,15 @@ describe('Add Entry in the Create group', () => {
     expect(action).toMatchObject({ href: '/secretary/register/a' });
   });
 
+  it("is withheld on a show route until the show's scope resolves, never shown then withdrawn", () => {
+    const action = addEntry(
+      { ...secretary, showScopeResolving: true, entryShows: [{ id: 'a', name: 'Spring Trial' }] },
+      IN_SHOW
+    );
+
+    expect(action).toBeUndefined();
+  });
+
   it('is absent for a viewer the register route would refuse', () => {
     expect(addEntry({ ...secretary, canAddEntries: false })).toBeUndefined();
   });

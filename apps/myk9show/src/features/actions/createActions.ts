@@ -21,6 +21,8 @@ export interface CreateViewer extends CreateGates {
    * screen offers its own Add entry.
    */
   canManageShow: boolean;
+  /** On a show route whose management scope is still resolving: it may yet own an Add entry. */
+  showScopeResolving?: boolean | undefined;
 }
 
 /**
@@ -63,7 +65,11 @@ export function buildCreateActions(route: ActionRouteContext, viewer: CreateView
       icon: 'add-show',
     });
   }
-  if (viewer.canAddEntries && !(route.kind === 'show' && viewer.canManageShow)) {
+  // Fail closed on a show route until we know whether the show offers its own Add entry, so the
+  // item never appears and is then withdrawn.
+  const showOwnsAddEntry =
+    route.kind === 'show' && (viewer.canManageShow || viewer.showScopeResolving === true);
+  if (viewer.canAddEntries && !showOwnsAddEntry) {
     actions.push(buildAddEntryAction(viewer.entryShows ?? []));
   }
   if (viewer.canCreateDogs) {

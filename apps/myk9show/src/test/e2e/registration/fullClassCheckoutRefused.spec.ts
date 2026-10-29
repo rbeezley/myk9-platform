@@ -92,7 +92,12 @@ async function droppedOnNextLoad(page: Page, fullClassId: string, fullClassName:
     await waitForChipsToSettle(page);
 
     // A real line, so the cart exists; then a stale line for the full class in the same cart.
+    // The template is the line this test's own selection created: new since the snapshot,
+    // never another cart's line for the same class.
     const selected = await aSelectedClass(page);
+    expect(selected.added, 'the spec needs a class it selected itself, not a reused one').toBe(
+      true
+    );
     const realClassId = selected.id.replace(/^chip-/, '');
     let base: Record<string, unknown> | undefined;
     await expect
@@ -101,15 +106,14 @@ async function droppedOnNextLoad(page: Page, fullClassId: string, fullClassName:
           const { data } = await client
             .from('entry_cart_items')
             .select('id, cart_id, dog_id, handler_id, entry_fee_cents')
-            .eq('class_id', realClassId)
-            .order('created_at', { ascending: false })
-            .limit(1);
-          base = data?.[0];
-          return Boolean(base);
+            .eq('class_id', realClassId);
+          const created = (data ?? []).filter(line => !preexisting.has(line.id as string));
+          base = created.length === 1 ? created[0] : undefined;
+          return created.length;
         },
-        { timeout: 30_000, message: 'the selected class never reached the cart' }
+        { timeout: 30_000, message: 'the selection did not create exactly one new cart line' }
       )
-      .toBe(true);
+      .toBe(1);
     const { data: planted, error: plantError } = await client
       .from('entry_cart_items')
       .insert({

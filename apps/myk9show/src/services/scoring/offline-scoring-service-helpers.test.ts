@@ -3,11 +3,9 @@ import type { BaseScore, ScoringEventType, ScoringSession } from '@/types/scorin
 import type { SyncQueueItem } from '@/services/sync/types';
 import {
   buildDeletionSyncQueueItem,
-  buildConflictResolution,
   buildScoreSyncQueueItem,
   buildScoringEvent,
   buildSessionSyncQueueItem,
-  detectQualificationConflict,
   findScoreById,
   findScoreForEntry,
   getClassScoresFromCache,
@@ -140,42 +138,6 @@ describe('offline scoring service helpers', () => {
       timestamp: now,
       data: { entryId: 'entry-1', score: { id: 'score-1' } },
     });
-  });
-
-  it('detects multi-judge qualification conflicts', () => {
-    expect(
-      detectQualificationConflict([
-        score({ judgeId: 'judge-a', qualification: 'Qualified' }),
-        score({ judgeId: 'judge-b', qualification: 'Not Qualified' }),
-      ])
-    ).toBe(true);
-
-    expect(
-      detectQualificationConflict([
-        score({ judgeId: 'judge-a', qualification: 'Qualified' }),
-        score({ judgeId: 'judge-b', qualification: 'Qualified' }),
-      ])
-    ).toBe(false);
-
-    expect(detectQualificationConflict([score()])).toBe(false);
-  });
-
-  it('builds conflict resolution notes for each configured strategy', () => {
-    expect(buildConflictResolution('average', now)).toMatchObject({
-      strategy: 'average',
-      resolvedBy: 'system',
-      resolvedAt: now,
-      resolutionNotes: 'Manual resolution required for qualification conflicts',
-    });
-    expect(buildConflictResolution('judge_hierarchy', now).resolutionNotes).toBe(
-      'Head judge score takes precedence'
-    );
-    expect(buildConflictResolution('head_judge_final', now).resolutionNotes).toBe(
-      'Marked for head judge final decision'
-    );
-    expect(buildConflictResolution('manual_override', now).resolutionNotes).toBe(
-      'Manual override required'
-    );
   });
 
   it('builds score, delete, and session sync queue items', () => {

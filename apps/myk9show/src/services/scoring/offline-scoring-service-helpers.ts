@@ -1,6 +1,5 @@
 import type {
   BaseScore,
-  ConflictResolution,
   ScoringEvent,
   ScoringEventType,
   ScoringSession,
@@ -68,50 +67,6 @@ export function buildScoringEvent(
     timestamp,
     data,
   };
-}
-
-export function detectQualificationConflict(scores: readonly BaseScore[]): boolean {
-  if (scores.length < 2) return false;
-
-  const qualifications = scores.map(score => score.qualification);
-  const uniqueQualifications = new Set(qualifications);
-
-  return uniqueQualifications.size > 1;
-}
-
-export function buildConflictResolution(
-  strategy: ConflictResolution['strategy'],
-  resolvedAt: Date
-): ConflictResolution {
-  const resolution: ConflictResolution = {
-    strategy,
-    resolvedBy: 'system',
-    resolvedAt,
-    resolutionNotes: 'Automatic conflict resolution applied',
-  };
-
-  switch (strategy) {
-    case 'average':
-      return {
-        ...resolution,
-        resolutionNotes: 'Manual resolution required for qualification conflicts',
-      };
-    case 'judge_hierarchy':
-      return {
-        ...resolution,
-        resolutionNotes: 'Head judge score takes precedence',
-      };
-    case 'head_judge_final':
-      return {
-        ...resolution,
-        resolutionNotes: 'Marked for head judge final decision',
-      };
-    default:
-      return {
-        ...resolution,
-        resolutionNotes: 'Manual override required',
-      };
-  }
 }
 
 interface BuildScoreSyncQueueItemOptions {

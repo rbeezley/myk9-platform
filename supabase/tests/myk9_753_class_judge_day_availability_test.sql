@@ -32,7 +32,7 @@ INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id,
                           entry_open_date, entry_close_date, pre_entry_fee,
                           default_judge_day_capacity)
 VALUES
-  ('00000000-0000-0000-0000-000000753100', 'MYK9-753 Two Judge Show', 'AKC',
+  ('00000000-0000-0000-0000-000000753100', 'MYK9-753 Judge Day Show', 'AKC',
    current_date + 5, current_date + 6, '00000000-0000-0000-0000-000000753010', 'published',
    (current_date - 10)::timestamptz, (current_date + 4)::timestamptz, 30, 125),
   ('00000000-0000-0000-0000-000000753101', 'MYK9-753 Draft Show', 'AKC',
@@ -56,7 +56,7 @@ VALUES
 INSERT INTO public.classes (id, trial_id, name, element, level, status, status_source,
                             entry_fee, max_entries, allow_waitlist)
 VALUES
-  -- Judged by Alma AND Bert.
+  -- Alma only; its day is full.
   ('00000000-0000-0000-0000-000000753301', '00000000-0000-0000-0000-000000753200',
    'Interior Novice A', 'Interior', 'Novice', 'upcoming', 'manual', 30, NULL, false),
   -- Alma only; Otto's entry here fills Alma's day.

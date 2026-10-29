@@ -4,7 +4,14 @@
  * checks.`, with no `requestfailed` and no response. Run 40962869226 showed
  * every such error in the route-health sweep had exactly that signature.
  *
- * A page error is excused only when ALL of these hold:
+ * A page error carries only a URL, so it cannot be tied to one request. The
+ * excuse works by elimination instead: when the route has SETTLED, every app
+ * request the incoming document made has reported an outcome (a failure
+ * records a `requestfailed` reason or a failed response; one with no outcome
+ * stays pending and fails the settle check). An outcome-less access-control
+ * error on a settled route can then only belong to a request the outgoing
+ * document abandoned. So a page error is excused only when ALL of these hold:
+ * - the route settled (`routeSettled`); otherwise nothing is excused;
  * - it is the WebKit access-control message;
  * - its URL matches a request the tracker saw still in flight when a
  *   cross-document navigation committed, and that request has reported no
@@ -47,12 +54,15 @@ export function accessControlErrorUrl(message: string): string | null {
  * @param strandedUrls URLs of the tracker's stranded requests, one per request
  * @param failureLines the route's `failedResponses` and `failedRequests` lines,
  *                     each ending in the request URL
+ * @param routeSettled whether the route's app API requests all settled
  */
 export function triageStrandedAccessControlErrors(
   pageErrors: string[],
   strandedUrls: string[],
-  failureLines: string[]
+  failureLines: string[],
+  routeSettled: boolean
 ): StrandedErrorTriage {
+  if (!routeSettled) return { kept: [...pageErrors], excused: [] };
   const failed = new Set(failureLines.map(line => normalizeUrl(lastToken(line))));
   const budget = new Map<string, number>();
   for (const url of strandedUrls.map(normalizeUrl)) {

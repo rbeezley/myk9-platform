@@ -32,7 +32,7 @@ describe('accessControlErrorUrl', () => {
 
 describe('triageStrandedAccessControlErrors', () => {
   it('excuses an access-control error whose request was stranded with no outcome', () => {
-    expect(triageStrandedAccessControlErrors([errorFor(URL_A)], [URL_A], [])).toEqual({
+    expect(triageStrandedAccessControlErrors([errorFor(URL_A)], [URL_A], [], true)).toEqual({
       kept: [],
       excused: [errorFor(URL_A)],
     });
@@ -41,32 +41,41 @@ describe('triageStrandedAccessControlErrors', () => {
   it('matches a scheme-less localhost error to its stranded request', () => {
     const url = 'http://localhost:54321/rest/v1/dogs?select=id';
     const error = 'localhost:54321/rest/v1/dogs?select=id due to access control checks.';
-    expect(triageStrandedAccessControlErrors([error], [url], []).excused).toEqual([error]);
+    expect(triageStrandedAccessControlErrors([error], [url], [], true).excused).toEqual([error]);
+  });
+
+  it('excuses nothing on a route that did not settle, where the URL alone cannot attribute it', () => {
+    // Codex round 3: an incoming request to the same URL could fail with no
+    // outcome. It would still be pending, so the route cannot have settled.
+    expect(triageStrandedAccessControlErrors([errorFor(URL_A)], [URL_A], [], false)).toEqual({
+      kept: [errorFor(URL_A)],
+      excused: [],
+    });
   });
 
   it('keeps an access-control error for a request that was never stranded', () => {
-    expect(triageStrandedAccessControlErrors([errorFor(URL_B)], [URL_A], []).kept).toEqual([
+    expect(triageStrandedAccessControlErrors([errorFor(URL_B)], [URL_A], [], true).kept).toEqual([
       errorFor(URL_B),
     ]);
   });
 
   it('keeps it when a request to that URL recorded a failure reason', () => {
     const failed = [`Origin not allowed. Status code: 502 | GET ${URL_A}`];
-    expect(triageStrandedAccessControlErrors([errorFor(URL_A)], [URL_A], failed).kept).toEqual([
-      errorFor(URL_A),
-    ]);
+    expect(
+      triageStrandedAccessControlErrors([errorFor(URL_A)], [URL_A], failed, true).kept
+    ).toEqual([errorFor(URL_A)]);
   });
 
   it('keeps it when a request to that URL got a failed response', () => {
     const failed = [`503 GET ${URL_A}`];
-    expect(triageStrandedAccessControlErrors([errorFor(URL_A)], [URL_A], failed).kept).toEqual([
-      errorFor(URL_A),
-    ]);
+    expect(
+      triageStrandedAccessControlErrors([errorFor(URL_A)], [URL_A], failed, true).kept
+    ).toEqual([errorFor(URL_A)]);
   });
 
   it('excuses one error per stranded request, never more', () => {
     const errors = [errorFor(URL_A), errorFor(URL_A)];
-    expect(triageStrandedAccessControlErrors(errors, [URL_A], [])).toEqual({
+    expect(triageStrandedAccessControlErrors(errors, [URL_A], [], true)).toEqual({
       kept: [errorFor(URL_A)],
       excused: [errorFor(URL_A)],
     });
@@ -74,6 +83,6 @@ describe('triageStrandedAccessControlErrors', () => {
 
   it('never excuses another kind of page error, even with stranded requests', () => {
     const error = `TypeError: ${URL_A} is broken`;
-    expect(triageStrandedAccessControlErrors([error], [URL_A], []).kept).toEqual([error]);
+    expect(triageStrandedAccessControlErrors([error], [URL_A], [], true).kept).toEqual([error]);
   });
 });

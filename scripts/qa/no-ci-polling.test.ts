@@ -21,6 +21,9 @@ const REFUSE: Array<[string, string]> = [
   ['gh pr checks 123; sleep 45; gh pr checks 123', 'sleep'],
   ['/bin/sleep 120', 'sleep'],
   ['(sleep 60)', 'sleep'],
+  ['echo `sleep 60`', 'sleep'],
+  ['cat <<EOF > f\nhello\nEOF\nsleep 60', 'sleep'],
+  ['for i in 1 2; do echo $i; done; while true; do sleep 2; done', 'sleep-in-loop'],
   ['FOO=1 command sleep 30', 'sleep'],
   ['timeout 600 sleep 300', 'sleep'],
   ['while true; do gh pr checks 1; sleep 2; done', 'sleep-in-loop'],
@@ -47,6 +50,14 @@ const ALLOW: string[] = [
   'for f in a b; do echo $f; done',
   'pnpm vitest run scripts/qa/no-ci-polling.test.ts # then; sleep 60',
   'gh run list --limit 5',
+  // Heredoc bodies are data: writing a script or message that mentions sleep is not a wait.
+  "cat <<'EOF' > f\nsleep 60\nEOF",
+  'cat > f <<EOF\nwhile true; do sleep 1; done\nEOF',
+  'cat <<-EOF\n\tsleep 60\n\tEOF',
+  // `while`/`until` count only in command position, and only until their `done`.
+  'echo while; sleep 3',
+  'sleep 1; while read x; do echo $x; done < f; sleep 2',
+  'if [ -f x ]; then sleep 2; fi; until false; do break; done',
 ];
 
 describe('evaluateCommand', () => {

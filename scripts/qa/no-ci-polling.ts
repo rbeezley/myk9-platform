@@ -44,15 +44,19 @@ export interface Verdict {
 
 type Token = { text: string; op: boolean };
 
-const OPERATORS = ['&&', '||', ';;', ';', '|', '&', '\n', '(', ')'];
+// A backtick is treated as a separator so `echo \`sleep 60\`` is judged like `$(sleep 60)`.
+const OPERATORS = ['&&', '||', ';;', ';', '|', '&', '\n', '(', ')', '`'];
 
 /**
  * Split a shell command into words and control operators, honouring single
  * quotes, double quotes and backslash escapes. It does not expand anything;
  * a guard only needs to know where one word ends and the next begins.
+ * Heredoc bodies are data, not commands, so they are skipped: a file or commit
+ * message written with `cat <<EOF` may contain `sleep 60` (pre-pass review, #3384).
  */
 export function tokenize(command: string): Token[] {
   const tokens: Token[] = [];
+  const heredocs: Array<{ delimiter: string; stripTabs: boolean }> = [];
   let word = '';
   let inWord = false;
   let i = 0;
@@ -60,6 +64,18 @@ export function tokenize(command: string): Token[] {
     if (inWord) tokens.push({ text: word, op: false });
     word = '';
     inWord = false;
+  };
+  const skipHeredocBodies = () => {
+    for (const { delimiter, stripTabs } of heredocs) {
+      while (i < command.length) {
+        const end = command.indexOf('\n', i);
+        const stop = end === -1 ? command.length : end;
+        const line = command.slice(i, stop);
+        i = stop + 1;
+        if ((stripTabs ? line.replace(/^\t+/, '') : line) === delimiter) break;
+      }
+    }
+    heredocs.length = 0;
   };
   while (i < command.length) {
     const ch = command[i];
@@ -92,11 +108,25 @@ export function tokenize(command: string): Token[] {
       while (i < command.length && command[i] !== '\n') i += 1;
       continue;
     }
+    if (command.startsWith('<<', i) && !command.startsWith('<<<', i)) {
+      flush();
+      i += 2;
+      const stripTabs = command[i] === '-';
+      if (stripTabs) i += 1;
+      while (command[i] === ' ' || command[i] === '\t') i += 1;
+      const m = /^(['"]?)([^\s'"<>;&|()`]+)\1/.exec(command.slice(i));
+      if (m?.[2]) {
+        heredocs.push({ delimiter: m[2], stripTabs });
+        i += m[0].length;
+      }
+      continue;
+    }
     const op = OPERATORS.find(o => command.startsWith(o, i));
     if (op) {
       flush();
       tokens.push({ text: op, op: true });
       i += op.length;
+      if (op === '\n') skipHeredocBodies();
       continue;
     }
     if (ch === ' ' || ch === '\t') {
@@ -131,20 +161,43 @@ const KEYWORDS = new Set([
 const WRAPPERS = new Set(['command', 'exec', 'time', 'nohup', 'builtin']);
 const SHELLS = new Set(['bash', 'sh', 'zsh']);
 
-/** The simple commands in a token stream, each with leading keywords, assignments and wrappers removed. */
-function simpleCommands(tokens: Token[]): string[][] {
-  const commands: string[][] = [];
+const LOOPS = new Set(['while', 'until', 'for', 'select']);
+
+/**
+ * The simple commands in a token stream, each with leading keywords, assignments
+ * and wrappers removed, and whether it sits inside a `while`/`until` loop. Loop
+ * keywords count only in command position, so `echo while` opens nothing.
+ */
+function simpleCommands(tokens: Token[]): Array<{ words: string[]; inPollLoop: boolean }> {
+  const raw: string[][] = [];
   let current: string[] = [];
   for (const t of tokens) {
     if (t.op) {
-      if (current.length) commands.push(current);
+      if (current.length) raw.push(current);
       current = [];
     } else {
       current.push(t.text);
     }
   }
-  if (current.length) commands.push(current);
-  return commands.map(strip).filter(c => c.length > 0);
+  if (current.length) raw.push(current);
+
+  const loops: string[] = [];
+  const commands: Array<{ words: string[]; inPollLoop: boolean }> = [];
+  for (const words of raw) {
+    for (const w of words) {
+      if (LOOPS.has(w)) loops.push(w);
+      else if (w === 'done') loops.pop();
+      else if (!KEYWORDS.has(w)) break;
+    }
+    const stripped = strip(words);
+    if (stripped.length) {
+      commands.push({
+        words: stripped,
+        inPollLoop: loops.some(l => l === 'while' || l === 'until'),
+      });
+    }
+  }
+  return commands;
 }
 
 function strip(words: string[]): string[] {
@@ -193,12 +246,10 @@ function ghArgs(words: string[]): string[] {
 }
 
 export function evaluateCommand(command: string, depth = 0): Verdict {
-  const tokens = tokenize(command);
-  const inLoop = tokens.some(t => !t.op && (t.text === 'while' || t.text === 'until'));
-  for (const words of simpleCommands(tokens)) {
+  for (const { words, inPollLoop } of simpleCommands(tokenize(command))) {
     const name = (words[0] ?? '').split('/').pop();
     if (name === 'sleep') {
-      if (inLoop) return { deny: true, rule: 'sleep-in-loop' };
+      if (inPollLoop) return { deny: true, rule: 'sleep-in-loop' };
       const seconds = sleepSeconds(words.slice(1));
       if (seconds === null || seconds >= SLEEP_LIMIT_SECONDS) return { deny: true, rule: 'sleep' };
     }

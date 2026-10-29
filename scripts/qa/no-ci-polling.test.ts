@@ -22,6 +22,10 @@ const REFUSE: Array<[string, string]> = [
   ['/bin/sleep 120', 'sleep'],
   ['(sleep 60)', 'sleep'],
   ['echo `sleep 60`', 'sleep'],
+  ['echo "$(sleep 60)"', 'sleep'],
+  ['result="$(gh run watch 456)"', 'gh-run-watch'],
+  ['echo "done: `sleep 30`"', 'sleep'],
+  ['echo "$(cat "$(dirname x)"; sleep 60)"', 'sleep'],
   ['cat <<EOF > f\nhello\nEOF\nsleep 60', 'sleep'],
   ['for i in 1 2; do echo $i; done; while true; do sleep 2; done', 'sleep-in-loop'],
   ['FOO=1 command sleep 30', 'sleep'],
@@ -56,6 +60,10 @@ const ALLOW: string[] = [
   'cat <<-EOF\n\tsleep 60\n\tEOF',
   // `while`/`until` count only in command position, and only until their `done`.
   'echo while; sleep 3',
+  // Quoted text stays data unless it is an unescaped substitution.
+  'echo "sleep 60 (later)"',
+  'echo "cost: \\$(sleep 60)"',
+  'echo "$(git rev-parse HEAD) then sleep 60"',
   'sleep 1; while read x; do echo $x; done < f; sleep 2',
   'if [ -f x ]; then sleep 2; fi; until false; do break; done',
 ];

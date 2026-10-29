@@ -42,7 +42,62 @@ export interface Verdict {
   rule?: 'sleep' | 'sleep-in-loop' | 'gh-run-watch' | 'gh-pr-checks-watch';
 }
 
-type Token = { text: string; op: boolean };
+/** `sub` marks the body of a command substitution found inside double quotes, judged as its own command. */
+type Token = { text: string; op: boolean; sub?: true };
+
+/** Index of the `)` closing a `$(` whose body starts at `from`, skipping escapes and single-quoted text. */
+function closingParen(s: string, from: number): number {
+  let depth = 1;
+  for (let j = from; j < s.length; j += 1) {
+    const c = s[j];
+    if (c === '\\') {
+      j += 1;
+    } else if (c === "'") {
+      const end = s.indexOf("'", j + 1);
+      j = end === -1 ? s.length : end;
+    } else if (c === '(') {
+      depth += 1;
+    } else if (c === ')') {
+      depth -= 1;
+      if (depth === 0) return j;
+    }
+  }
+  return s.length;
+}
+
+/**
+ * Read a double-quoted string whose body starts at `from`; returns its text and
+ * the index of the closing quote. Quoted text is data, but `$(...)` and backticks
+ * inside it still run in the foreground before the command does, so their bodies
+ * go to `substitutions` to be judged (Codex review, #3384).
+ */
+function readDoubleQuoted(
+  s: string,
+  from: number,
+  substitutions: string[]
+): { text: string; end: number } {
+  let text = '';
+  let i = from;
+  while (i < s.length && s[i] !== '"') {
+    if (s.startsWith('$(', i)) {
+      const end = closingParen(s, i + 2);
+      substitutions.push(s.slice(i + 2, end));
+      text += s.slice(i, end + 1);
+      i = end + 1;
+    } else if (s[i] === '`') {
+      const end = s.indexOf('`', i + 1);
+      const stop = end === -1 ? s.length : end;
+      substitutions.push(s.slice(i + 1, stop));
+      text += s.slice(i, stop + 1);
+      i = stop + 1;
+    } else {
+      if (s[i] === '\\' && i + 1 < s.length) i += 1;
+      text += s[i] ?? '';
+      i += 1;
+    }
+  }
+  return { text, end: i };
+}
 
 // A backtick is treated as a separator so `echo \`sleep 60\`` is judged like `$(sleep 60)`.
 const OPERATORS = ['&&', '||', ';;', ';', '|', '&', '\n', '(', ')', '`'];
@@ -57,6 +112,7 @@ const OPERATORS = ['&&', '||', ';;', ';', '|', '&', '\n', '(', ')', '`'];
 export function tokenize(command: string): Token[] {
   const tokens: Token[] = [];
   const heredocs: Array<{ delimiter: string; stripTabs: boolean }> = [];
+  const substitutions: string[] = [];
   let word = '';
   let inWord = false;
   let i = 0;
@@ -88,14 +144,10 @@ export function tokenize(command: string): Token[] {
       continue;
     }
     if (ch === '"') {
-      i += 1;
-      while (i < command.length && command[i] !== '"') {
-        if (command[i] === '\\' && i + 1 < command.length) i += 1;
-        word += command[i];
-        i += 1;
-      }
+      const quoted = readDoubleQuoted(command, i + 1, substitutions);
+      word += quoted.text;
       inWord = true;
-      i += 1;
+      i = quoted.end + 1;
       continue;
     }
     if (ch === '\\' && i + 1 < command.length) {
@@ -139,7 +191,7 @@ export function tokenize(command: string): Token[] {
     i += 1;
   }
   flush();
-  return tokens;
+  return [...tokens, ...substitutions.map(text => ({ text, op: true, sub: true as const }))];
 }
 
 /** Words that open or continue a compound command; the real command follows them. */
@@ -246,7 +298,15 @@ function ghArgs(words: string[]): string[] {
 }
 
 export function evaluateCommand(command: string, depth = 0): Verdict {
-  for (const { words, inPollLoop } of simpleCommands(tokenize(command))) {
+  const tokens = tokenize(command);
+  if (depth < 3) {
+    for (const t of tokens) {
+      if (!t.sub) continue;
+      const inner = evaluateCommand(t.text, depth + 1);
+      if (inner.deny) return inner;
+    }
+  }
+  for (const { words, inPollLoop } of simpleCommands(tokens)) {
     const name = (words[0] ?? '').split('/').pop();
     if (name === 'sleep') {
       if (inPollLoop) return { deny: true, rule: 'sleep-in-loop' };

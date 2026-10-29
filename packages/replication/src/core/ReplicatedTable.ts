@@ -81,6 +81,12 @@ interface SetAttempt {
   rowExisted: boolean;
   /** The row's local revision after the write that landed. */
   revision?: number;
+  /**
+   * The row's server version as the first attempt read it. A quota retry may
+   * find the row evicted; the rebuilt row keeps this, so a queued UPDATE still
+   * carries its OCC precondition (Codex round 4, MYK9-1471).
+   */
+  serverVersion?: number;
 }
 
 /**
@@ -774,7 +780,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       async () => {
         const evicted = await this.relieveQuota();
         if (evicted > 0 || !queued) return evicted;
-        return evictCleanCacheRows(await this.init());
+        return evictCleanCacheRows(await this.init(), [this.tableName, String(id)]);
       },
       this.logger
     );
@@ -824,7 +830,10 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       ReplicatedRow<T> | undefined;
 
     if (existingRow) {
-      if (attempt) attempt.rowExisted = true;
+      if (attempt) {
+        attempt.rowExisted = true;
+        attempt.serverVersion ??= existingRow.serverVersion;
+      }
     }
 
     // MYK9-575: a show-scoped table refuses a single-row INSERT unless the
@@ -876,6 +885,12 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       ownerAuthUserId,
       now: Date.now(),
     });
+
+    // A quota retry that found its row evicted rebuilds it from nothing; keep the
+    // server version the first attempt read, or the UPDATE loses its OCC check.
+    if (!existingRow && row.serverVersion === undefined && attempt?.serverVersion !== undefined) {
+      row.serverVersion = attempt.serverVersion;
+    }
 
     if (queued) {
       await putRowAndMutation(tx, rowStore.put(row), row, queued);

@@ -97,28 +97,33 @@ export async function withQuotaEviction<R>(
  * returns 0 (write cannot proceed) if nothing clean is evictable or the scan
  * fails.
  */
-export async function evictCleanCacheRows(db: IDBPDatabase): Promise<number> {
+export async function evictCleanCacheRows(
+  db: IDBPDatabase,
+  keep?: readonly [tableName: string, id: string]
+): Promise<number> {
   try {
-    const all = (await db.getAll(REPLICATION_STORES.REPLICATED_TABLES)) as ReplicatedRow<unknown>[];
+    // Scan and delete in ONE read-write transaction: a concurrent write that
+    // dirties a scanned row waits for this transaction, so a row is never
+    // deleted after it stopped being clean (Codex round 4, MYK9-1471).
+    const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
+    const all = (await tx.store.getAll()) as ReplicatedRow<unknown>[];
     const clean = all
-      .filter(row => !row.isDirty)
+      .filter(
+        row =>
+          !row.isDirty &&
+          typeof row.tableName === 'string' &&
+          typeof row.id === 'string' &&
+          !(keep && row.tableName === keep[0] && row.id === keep[1])
+      )
       .sort((a, b) => (a.lastAccessedAt ?? 0) - (b.lastAccessedAt ?? 0));
-    if (clean.length === 0) return 0;
 
     // Free ~10% of clean rows (at least one) — enough to relieve pressure
     // without nuking the whole cache. Key is [tableName, id] (top-level).
-    const toEvict = Math.max(1, Math.floor(clean.length * 0.1));
-    const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
-    let evicted = 0;
-    for (let i = 0; i < toEvict && i < clean.length; i++) {
-      const row = clean[i];
-      if (row && typeof row.tableName === 'string' && typeof row.id === 'string') {
-        await tx.store.delete([row.tableName, row.id]);
-        evicted++;
-      }
-    }
+    const toEvict = clean.length === 0 ? 0 : Math.max(1, Math.floor(clean.length * 0.1));
+    const deletes = clean.slice(0, toEvict).map(row => tx.store.delete([row.tableName, row.id]));
+    await Promise.all(deletes);
     await tx.done;
-    return evicted;
+    return deletes.length;
   } catch {
     return 0;
   }

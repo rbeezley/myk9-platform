@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MutationManager } from '../MutationManager';
 import { QUEUE_MAX_SIZE } from '../mutation-queue-capacity';
+import { evictCleanCacheRows } from '../quota-eviction';
 import {
   AUTH_USER_ID,
   PlainEntriesTable,
@@ -348,6 +349,54 @@ describe('ReplicatedTable.writeAndQueue (MYK9-1471)', () => {
       undefined
     );
     expect((await table.getReplicatedRow('1'))?.data).toMatchObject({ status: 'second' });
+  });
+
+  // Codex round 4: a quota retry that finds its own clean row evicted rebuilds it, and the
+  // queued UPDATE must keep the server version the first attempt read as its OCC check.
+  it('keeps the OCC precondition when quota relief evicted the row being written', async () => {
+    const table = new WritingTable(tableName);
+    await start(table); // row 1 is clean at server version 3
+    const db = await databaseManager.getDatabase('test');
+    vi.spyOn(
+      table as unknown as { relieveQuota: () => Promise<number> },
+      'relieveQuota'
+    ).mockImplementationOnce(async () => {
+      await db.delete(REPLICATION_STORES.REPLICATED_TABLES, [tableName, '1']);
+      return 1;
+    });
+    const quota = new Error('QuotaExceededError');
+    quota.name = 'AbortError';
+    failNextPutInto(REPLICATION_STORES.PENDING_MUTATIONS, quota);
+
+    const { mutationId } = await table.edit('1', 'after-eviction');
+
+    const queued = (await db.get(REPLICATION_STORES.PENDING_MUTATIONS, mutationId!)) as
+      PendingMutation | undefined;
+    expect(queued?.serverVersion).toBe(3);
+    expect((await table.getReplicatedRow('1'))?.serverVersion).toBe(3);
+  });
+
+  it('cross-table eviction never deletes the row being written or a dirty row', async () => {
+    const db = await databaseManager.getDatabase('test');
+    const row = (table: string, id: string, isDirty: boolean, lastAccessedAt: number) => ({
+      tableName: table,
+      id,
+      data: {},
+      isDirty,
+      version: 1,
+      lastAccessedAt,
+    });
+    await db.put(REPLICATION_STORES.REPLICATED_TABLES, row('t', 'target', false, 1));
+    await db.put(REPLICATION_STORES.REPLICATED_TABLES, row('t', 'dirty', true, 2));
+    await db.put(REPLICATION_STORES.REPLICATED_TABLES, row('u', 'spare', false, 3));
+
+    expect(await evictCleanCacheRows(db, ['t', 'target'])).toBe(1);
+
+    const left = async (table: string, id: string) =>
+      (await db.get(REPLICATION_STORES.REPLICATED_TABLES, [table, id])) !== undefined;
+    expect(await left('t', 'target')).toBe(true);
+    expect(await left('t', 'dirty')).toBe(true);
+    expect(await left('u', 'spare')).toBe(false);
   });
 
   it('writes the row without a mutation when no MutationManager is set', async () => {

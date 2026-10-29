@@ -40,15 +40,19 @@ const OWN_MIGRATION = '20260918193700_myk9_659_view_registration_confirmation_nu
  * Resolved rather than named so the durability assertions cannot silently stop
  * covering the live shape (LESSON `replace-function-latest`).
  */
-function latestViewMigration(): string {
+function latestMigrationDefining(definition: string): string {
   const candidates = readdirSync(MIGRATIONS_DIR)
     .filter(name => name.endsWith('.sql'))
     .sort()
-    .filter(name => readFileSync(resolve(MIGRATIONS_DIR, name), 'utf8').includes(INNER_VIEW_DEF));
+    .filter(name => readFileSync(resolve(MIGRATIONS_DIR, name), 'utf8').includes(definition));
   if (candidates.length === 0) {
-    throw new Error(`no migration defines ${INNER_VIEW_DEF.trim()}`);
+    throw new Error(`no migration defines ${definition.trim()}`);
   }
   return candidates.at(-1)!;
+}
+
+function readMigration(name: string): string {
+  return readFileSync(resolve(MIGRATIONS_DIR, name), 'utf8');
 }
 
 /**
@@ -83,6 +87,8 @@ function sliceStatement(source: string, start: string): string {
 describe('MYK9-659 — registration_confirmation_number on the authenticated entry views', () => {
   /** Resolved LATEST definition — what a rebuild from migrations produces. */
   let migration: string;
+  /** The newest migration that restates the grants (a body-only rebuild, such as MYK9-1369, does not). */
+  let grantsMigration: string;
   let innerView: string;
   let wrapperView: string;
   /** This PR's own migration — the only place column ORDER is a claim. */
@@ -90,9 +96,18 @@ describe('MYK9-659 — registration_confirmation_number on the authenticated ent
   let ownWrapperView: string;
 
   beforeAll(() => {
-    migration = readFileSync(resolve(MIGRATIONS_DIR, latestViewMigration()), 'utf8');
+    // Each view is resolved independently: a later migration may rebuild only
+    // the inner view's body (MYK9-1369) and leave the wrapper and the grants in
+    // the migration that last defined them.
+    migration = readMigration(latestMigrationDefining(INNER_VIEW_DEF));
+    grantsMigration = readMigration(
+      latestMigrationDefining('REVOKE ALL ON public.view_authenticated_entry_results FROM anon;')
+    );
     innerView = sliceStatement(migration, INNER_VIEW_DEF);
-    wrapperView = sliceStatement(migration, WRAPPER_VIEW_DEF);
+    wrapperView = sliceStatement(
+      readMigration(latestMigrationDefining(WRAPPER_VIEW_DEF)),
+      WRAPPER_VIEW_DEF
+    );
 
     const own = readFileSync(resolve(MIGRATIONS_DIR, OWN_MIGRATION), 'utf8');
     ownInnerView = sliceStatement(own, INNER_VIEW_DEF);
@@ -177,11 +192,13 @@ describe('MYK9-659 — registration_confirmation_number on the authenticated ent
   });
 
   it('keeps the new column out of anon and out of write grants', () => {
-    expect(migration).toContain('REVOKE ALL ON public.view_authenticated_entry_results FROM anon;');
-    expect(migration).toContain(
+    expect(grantsMigration).toContain(
+      'REVOKE ALL ON public.view_authenticated_entry_results FROM anon;'
+    );
+    expect(grantsMigration).toContain(
       'REVOKE ALL ON public.view_authenticated_entry_results_replication FROM anon;'
     );
-    expect(migration).toContain(
+    expect(grantsMigration).toContain(
       'REVOKE INSERT, UPDATE, DELETE ON public.view_authenticated_entry_results FROM authenticated;'
     );
   });

@@ -39,6 +39,10 @@ import {
   type EntryRow,
   type ReplicatedEntry,
 } from './ReplicatedEntriesTable.mapper';
+import {
+  COLD_ELIGIBILITY_ROW_SELECT,
+  COLD_ENTRY_ROW_SELECT,
+} from './ReplicatedEntriesTable.coldReadColumns';
 import { ENTRY_DIRTY_ROW_COMPARE_POLICY } from './entriesDirtyRowComparePolicy';
 import { buildRingsideRpcFields, RINGSIDE_RPC_FUNCTION } from './ringsideEntryRpc';
 import {
@@ -633,7 +637,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       try {
         const { data, error } = await supabase
           .from('view_authenticated_entry_results')
-          .select('*')
+          .select(COLD_ENTRY_ROW_SELECT)
           .eq('id', entryId)
           .maybeSingle();
 
@@ -933,7 +937,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     try {
       const { data, error } = await supabase
         .from('view_authenticated_entry_results')
-        .select('*')
+        .select(COLD_ELIGIBILITY_ROW_SELECT)
         .in('id', misses);
       // A failed batch leaves every miss out of the map — the caller decides
       // what an unanswered id means, and its default is a refusal.
@@ -1044,7 +1048,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     try {
       result = await supabase
         .from('view_authenticated_entry_results')
-        .select('*')
+        .select(COLD_ENTRY_ROW_SELECT)
         .eq('id', entryId)
         .maybeSingle();
     } catch {
@@ -1424,7 +1428,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     try {
       const { data, error } = await supabase
         .from('view_authenticated_entry_results')
-        .select('*')
+        .select(COLD_ENTRY_ROW_SELECT)
         .eq('id', entryId)
         .maybeSingle();
       if (!error && data) {

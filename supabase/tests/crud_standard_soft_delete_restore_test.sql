@@ -1334,7 +1334,13 @@ $f$;
 INSERT INTO public.clubs (id, name, authorized_at, deleted_at)
 VALUES
   ('00000000-0000-0000-0000-000000915028', 'MYK9-922 Live Club', now(), NULL),
-  ('00000000-0000-0000-0000-000000915029', 'MYK9-922 Deleted Club', now(), now() - interval '1 hour');
+  ('00000000-0000-0000-0000-000000915029', 'MYK9-922 Deleted Club', now(), NULL);
+
+-- Born live, then soft-deleted: the creator's club_admin grant from
+-- trg_grant_club_admin_to_club_creator is refused for a club that is already
+-- deleted (MYK9-1388), and deleting it afterwards switches that grant off.
+UPDATE public.clubs SET deleted_at = now() - interval '1 hour'
+WHERE id = '00000000-0000-0000-0000-000000915029';
 
 INSERT INTO public.shows (id, name, organization, start_date, end_date, status, club_id, deleted_at)
 VALUES

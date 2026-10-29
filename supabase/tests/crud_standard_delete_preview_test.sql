@@ -283,7 +283,11 @@ VALUES ('00000000-0000-0000-0000-000000922069', 'MYK9-922 Deleted Dog', 'Border 
 INSERT INTO public.people (id, first_name, last_name, email, deleted_at)
 VALUES ('00000000-0000-0000-0000-000000922019', 'MYK9-922', 'Deleted', 'myk9922-del@example.test', now() - interval '1 hour');
 INSERT INTO public.clubs (id, name, authorized_at, deleted_at)
-VALUES ('00000000-0000-0000-0000-000000922029', 'MYK9-922 Deleted Club', now(), now() - interval '1 hour');
+VALUES ('00000000-0000-0000-0000-000000922029', 'MYK9-922 Deleted Club', now(), NULL);
+-- Born live, then soft-deleted: a club_admin grant to a club that is already
+-- deleted is refused (MYK9-1388), and the creator trigger makes one.
+UPDATE public.clubs SET deleted_at = now() - interval '1 hour'
+WHERE id = '00000000-0000-0000-0000-000000922029';
 
 SET LOCAL ROLE authenticated;
 DO $$

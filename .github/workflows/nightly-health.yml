@@ -81,6 +81,12 @@ jobs:
       - name: Install Playwright browser
         run: pnpm --filter @myk9/show exec playwright install --with-deps chromium
 
+      # MYK9-1467: boot each edge function the app calls before the sweep, so a page's
+      # first call does not pay the start-up inside the 5 s settle window. Prints
+      # the first and second answer times; never fails the job.
+      - name: Warm the isolated edge functions
+        run: bash scripts/qa/warm-isolated-functions.sh
+
       - name: Run read-only nightly health
         run: pnpm qa:nightly:health
         env:
@@ -201,6 +207,12 @@ jobs:
 
       - name: Install Playwright browser
         run: pnpm --filter @myk9/show exec playwright install --with-deps webkit
+
+      # MYK9-1467: boot each edge function the app calls before the sweep, so a page's
+      # first call does not pay the start-up inside the 5 s settle window. Prints
+      # the first and second answer times; never fails the job.
+      - name: Warm the isolated edge functions
+        run: bash scripts/qa/warm-isolated-functions.sh
 
       - name: Run cross-browser route health
         run: pnpm qa:nightly:health

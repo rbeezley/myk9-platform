@@ -64,6 +64,7 @@ const PREFLIGHT_STEP =
 const PREPARE_STEP = 'run: pnpm qa:isolated-e2e:prepare';
 const PRODUCTION_PROJECT_REF = 'sojmvhhwsjxmfistvzbe';
 const STOP_STEP = 'run: pnpm qa:isolated-e2e:stop';
+const WARM_STEP = 'run: bash scripts/qa/warm-isolated-functions.sh';
 
 /**
  * The jobs that actually sweep routes, and therefore carry the build-first and
@@ -162,6 +163,23 @@ describe('nightly health workflow', () => {
       expect(job).not.toMatch(/SUPABASE_[A-Z_]*: \$\{\{ secrets\./);
       expect(job).not.toMatch(/E2E_[A-Z_]+_EMAIL:/);
       expect(job).not.toContain(PRODUCTION_PROJECT_REF);
+    });
+
+    it.each(HEALTH_JOBS)(
+      'warms the edge functions after the stack is ready and before the sweep in %s',
+      jobName => {
+        // A page's first function call otherwise pays the worker start-up inside the
+        // sweep's 5 s settle window (admin/sign-in-target, run 40765490128).
+        const job = jobs.get(jobName)!;
+        const warmAt = job.indexOf(WARM_STEP);
+        expect(warmAt, 'warm-up step present').toBeGreaterThan(-1);
+        expect(job.indexOf(PREPARE_STEP)).toBeLessThan(warmAt);
+        expect(warmAt).toBeLessThan(job.indexOf(HEALTH_STEP));
+      }
+    );
+
+    it('never warms production: the probe job has no warm-up step', () => {
+      expect(jobs.get('production-probe')).not.toContain(WARM_STEP);
     });
 
     it.each(HEALTH_JOBS)('requires canary data on the seeded stack in %s', jobName => {

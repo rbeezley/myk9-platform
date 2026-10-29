@@ -5,7 +5,7 @@ import type { Page, Request } from '@playwright/test';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { waitForAppApiRequestsToSettle, watchAppApiRequests } from './appApiRequestTracker';
 
-type RequestEvent = 'request' | 'requestfinished' | 'requestfailed';
+type RequestEvent = 'request' | 'requestfinished' | 'requestfailed' | 'framenavigated';
 
 function createRequest(url: string) {
   return { url: () => url } as Request;
@@ -13,7 +13,14 @@ function createRequest(url: string) {
 
 function createPageHarness() {
   const listeners = new Map<RequestEvent, Array<(request: Request) => void>>();
+  const mainFrame = {
+    currentUrl: 'http://127.0.0.1:5173/exhibitor/entries',
+    url() {
+      return mainFrame.currentUrl;
+    },
+  };
   const page = {
+    mainFrame: () => mainFrame,
     on(event: RequestEvent, listener: (request: Request) => void) {
       listeners.set(event, [...(listeners.get(event) ?? []), listener]);
       return page;
@@ -25,6 +32,7 @@ function createPageHarness() {
 
   return {
     page,
+    mainFrame,
     emit(event: RequestEvent, request: Request) {
       for (const listener of listeners.get(event) ?? []) listener(request);
     },
@@ -289,5 +297,121 @@ describe('the route sweep actually calls reset()', () => {
     // Resetting after the navigation would discard the very requests the route
     // under test had just issued, turning the false failure into a false pass.
     expect(resetAt).toBeLessThan(gotoAt);
+  });
+});
+
+/**
+ * MYK9-1467: when the sweep leaves a route, the outgoing document keeps running
+ * until the new one commits, and a query it starts in that window is killed
+ * with the document: Playwright reports the request and never its end. Run
+ * 40785638617 stranded two of /exhibitor/entries' reads (stripe_orders and the
+ * self check-in classes batch) on /account. Pending clears at the COMMIT only.
+ */
+describe('requests the outgoing document leaves behind at a navigation (MYK9-1467)', () => {
+  const STRANDED = 'http://127.0.0.1:54321/rest/v1/stripe_orders?select=id&offset=0&limit=100';
+  const TARGET = 'http://127.0.0.1:5173/account';
+
+  function navigationRequest(frame: unknown, url = TARGET) {
+    return {
+      url: () => url,
+      isNavigationRequest: () => true,
+      frame: () => frame,
+    } as unknown as Request;
+  }
+
+  function commit(harness: ReturnType<typeof createPageHarness>, url = TARGET) {
+    harness.mainFrame.currentUrl = url;
+    harness.emit('framenavigated', harness.mainFrame as unknown as Request);
+  }
+
+  function settle(
+    tracker: ReturnType<typeof watchAppApiRequests>,
+    harness: ReturnType<typeof createPageHarness>
+  ) {
+    return waitForAppApiRequestsToSettle(harness.page, tracker, { idleMs: 5, timeoutMs: 40 });
+  }
+
+  it('drops a request the outgoing document started between the navigation request and its commit', async () => {
+    const harness = createPageHarness();
+    const tracker = watchAppApiRequests(harness.page);
+    harness.emit('request', navigationRequest(harness.mainFrame));
+    harness.emit('request', createRequest(STRANDED));
+    commit(harness);
+
+    expect(await settle(tracker, harness)).toEqual({ settled: true, pendingUrls: [] });
+  });
+
+  it('drops what the outgoing document still had in flight when the navigation commits', async () => {
+    const harness = createPageHarness();
+    const tracker = watchAppApiRequests(harness.page);
+    harness.emit('request', createRequest(STRANDED));
+    harness.emit('request', navigationRequest(harness.mainFrame));
+    commit(harness);
+
+    expect((await settle(tracker, harness)).settled).toBe(true);
+  });
+
+  it('keeps tracking everything until the commit', async () => {
+    const harness = createPageHarness();
+    const tracker = watchAppApiRequests(harness.page);
+    harness.emit('request', navigationRequest(harness.mainFrame));
+    harness.emit('request', createRequest(STRANDED));
+
+    expect((await settle(tracker, harness)).pendingUrls).toEqual([STRANDED]);
+  });
+
+  it("tracks the new document's requests after the commit", async () => {
+    const harness = createPageHarness();
+    const tracker = watchAppApiRequests(harness.page);
+    harness.emit('request', navigationRequest(harness.mainFrame));
+    commit(harness);
+    harness.emit('request', createRequest(STRANDED));
+
+    expect((await settle(tracker, harness)).pendingUrls).toEqual([STRANDED]);
+  });
+
+  it('keeps every request of the old document when the navigation fails', async () => {
+    const before = 'http://127.0.0.1:54321/rest/v1/classes?select=id';
+    const harness = createPageHarness();
+    const tracker = watchAppApiRequests(harness.page);
+    const navigation = navigationRequest(harness.mainFrame);
+    harness.emit('request', createRequest(before));
+    harness.emit('request', navigation);
+    harness.emit('request', createRequest(STRANDED));
+    harness.emit('requestfailed', navigation);
+    // A later pushState to the failed target must not count as its commit.
+    commit(harness);
+
+    expect((await settle(tracker, harness)).pendingUrls).toEqual([before, STRANDED]);
+  });
+
+  it('clears nothing on a same-document navigation elsewhere (pushState)', async () => {
+    const harness = createPageHarness();
+    const tracker = watchAppApiRequests(harness.page);
+    harness.emit('request', navigationRequest(harness.mainFrame)); // answered 204, never commits
+    harness.emit('request', createRequest(STRANDED));
+    commit(harness, 'http://127.0.0.1:5173/exhibitor/entries?tab=past');
+
+    expect((await settle(tracker, harness)).pendingUrls).toEqual([STRANDED]);
+  });
+
+  it('clears nothing on a same-document navigation with no navigation request', async () => {
+    const harness = createPageHarness();
+    const tracker = watchAppApiRequests(harness.page);
+    harness.emit('request', createRequest(STRANDED));
+    commit(harness);
+
+    expect((await settle(tracker, harness)).pendingUrls).toEqual([STRANDED]);
+  });
+
+  it('ignores a navigation of a child frame', async () => {
+    const harness = createPageHarness();
+    const tracker = watchAppApiRequests(harness.page);
+    const child = { url: () => TARGET };
+    harness.emit('request', navigationRequest(child));
+    harness.emit('request', createRequest(STRANDED));
+    harness.emit('framenavigated', child as unknown as Request);
+
+    expect((await settle(tracker, harness)).pendingUrls).toEqual([STRANDED]);
   });
 });

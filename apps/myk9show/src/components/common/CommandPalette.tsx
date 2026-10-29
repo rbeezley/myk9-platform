@@ -155,7 +155,7 @@ export function CommandPalette({ open, onOpenChange, onShowShortcuts }: CommandP
       {
         // Left the header Actions menu (CRUD standard decision 6): it is a place, not an action.
         id: 'nav-show-management',
-        title: 'Show Management',
+        title: 'Home',
         subtitle: 'Your shows as secretary',
         icon: <LayoutDashboard className="h-4 w-4" />,
         action: () =>
@@ -163,7 +163,7 @@ export function CommandPalette({ open, onOpenChange, onShowShortcuts }: CommandP
             navigate('/secretary/dashboard');
             onOpenChange(false);
           }),
-        keywords: ['secretary', 'dashboard', 'manage', 'my shows'],
+        keywords: ['secretary', 'dashboard', 'manage', 'show management', 'my shows'],
         category: 'navigation' as const,
       },
     ],
@@ -208,8 +208,10 @@ export function CommandPalette({ open, onOpenChange, onShowShortcuts }: CommandP
   const actionCommands: CommandAction[] = useMemo(
     () =>
       createActions.flatMap(action => {
-        const href = action.href;
-        if (href === undefined) return [];
+        // A greyed item has no palette row to carry its reason (useCommandMenuCommands).
+        if (action.disabledReason) return [];
+        const { href, run } = action;
+        if (href === undefined && !run) return [];
         const id = action.id.replace(/^create-/, 'add-');
         const Icon = ACTION_ICONS[action.icon];
         return [
@@ -219,7 +221,8 @@ export function CommandPalette({ open, onOpenChange, onShowShortcuts }: CommandP
             icon: <Icon className="h-4 w-4" />,
             action: () =>
               startTransition(() => {
-                navigate(href);
+                if (href !== undefined) navigate(href);
+                else run?.();
                 onOpenChange(false);
               }),
             keywords: [...(action.aliases ?? [])],

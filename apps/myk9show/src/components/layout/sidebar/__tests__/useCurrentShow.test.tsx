@@ -6,6 +6,7 @@ import { showFactory } from '@/test/utils/factories';
 import type { Show } from '@/types/show-types';
 import { ScopeType } from '@/types/auth-types';
 import { useCurrentShow } from '../useCurrentShow';
+import { useCurrentShowPinStore } from '../currentShowPinStore';
 
 const data = { shows: [] as Show[] };
 const auth = { user: null as unknown, userWithRoles: null as unknown, isAdmin: false };
@@ -63,6 +64,8 @@ describe('useCurrentShow', () => {
     auth.user = { id: 'user-1' };
     auth.userWithRoles = secretaryOf('club-mine');
     auth.isAdmin = false;
+    localStorage.clear();
+    useCurrentShowPinStore.setState({ pinnedId: null });
   });
 
   it("is the first show of the Shows list's Managing section, never someone else's show", () => {
@@ -91,11 +94,60 @@ describe('useCurrentShow', () => {
     expect(renderCurrent().result.current.currentShow).toBeNull();
   });
 
-  it('follows a Switch choice and remembers it', () => {
+  // MYK9-1490: the pin on a Home show card replaces the rail's Switch menu.
+  it('follows a pin at once and remembers it on this device', () => {
     const { result } = renderCurrent();
-    act(() => result.current.chooseShow('mine-soon'));
+    act(() => useCurrentShowPinStore.getState().pin('mine-soon'));
     expect(result.current.currentShow?.id).toBe('mine-soon');
+    expect(result.current.pinnedShowId).toBe('mine-soon');
     expect(localStorage.getItem('myk9:current-show-choice')).toBe('mine-soon');
+  });
+
+  it('keeps the rail and the Home card in step: a pin from one shows in the other', () => {
+    const rail = renderCurrent('/shows').result;
+    const card = renderCurrent('/secretary/dashboard').result;
+
+    act(() => useCurrentShowPinStore.getState().pin('mine-soon'));
+    expect(rail.current.currentShow?.id).toBe('mine-soon');
+    expect(card.current.pinnedShowId).toBe('mine-soon');
+
+    act(() => useCurrentShowPinStore.getState().pin('mine'));
+    expect(rail.current.currentShow?.id).toBe('mine');
+    expect(card.current.pinnedShowId).toBe('mine');
+  });
+
+  it('unpinning returns to the automatic pick and forgets the pin', () => {
+    const { result } = renderCurrent();
+    act(() => useCurrentShowPinStore.getState().pin('mine-soon'));
+    act(() => useCurrentShowPinStore.getState().unpin());
+    expect(result.current.currentShow?.id).toBe('mine');
+    expect(result.current.pinnedShowId).toBeNull();
+    expect(localStorage.getItem('myk9:current-show-choice')).toBeNull();
+  });
+
+  it("drops an ended show's pin", () => {
+    const ended = show({
+      id: 'ended',
+      name: 'Ended',
+      clubId: 'club-mine',
+      startDate: '2026-10-01',
+      endDate: '2026-10-02',
+    });
+    data.shows = [ended, mineSoon, mine];
+    act(() => useCurrentShowPinStore.getState().pin('ended'));
+    const { result } = renderCurrent();
+    expect(result.current.pinnedShowId).toBeNull();
+    expect(result.current.currentShow?.id).toBe('mine');
+  });
+
+  it('follows a pin made in another tab (the storage event)', () => {
+    const { result } = renderCurrent();
+    act(() => {
+      window.dispatchEvent(
+        new StorageEvent('storage', { key: 'myk9:current-show-choice', newValue: 'mine-soon' })
+      );
+    });
+    expect(result.current.currentShow?.id).toBe('mine-soon');
   });
 
   it('remembers a managed show opened, and not one the viewer does not manage', () => {

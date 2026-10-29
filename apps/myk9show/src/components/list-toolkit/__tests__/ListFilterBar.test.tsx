@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, userEvent } from '@/test/utils/testUtils';
+import { afterAll, beforeAll, describe, it, expect, vi } from 'vitest';
+import { render, screen, userEvent, within } from '@/test/utils/testUtils';
+import { mockViewportWidth } from '@/test/utils/mockViewportWidth';
 import { ListFilterBar } from '../ListFilterBar';
 import type { ListDateRange, ListFilterField, ListOptionsFilterField } from '../types';
 
@@ -144,6 +145,88 @@ describe('ListFilterBar', () => {
 
     renderBar([roleField(null)], { onClearAll, search: 'ada' });
     await userEvent.click(screen.getByRole('button', { name: 'Clear all' }));
+    expect(onClearAll).toHaveBeenCalledOnce();
+  });
+});
+
+// MYK9-1490: Find Shows opts into one Filter button; every other list keeps the inline fields.
+describe('ListFilterBar layout="panel"', () => {
+  // cmdk scrolls the highlighted row into view; jsdom has no layout, so no scrollIntoView.
+  const originalScrollIntoView = Element.prototype.scrollIntoView;
+  beforeAll(() => {
+    Element.prototype.scrollIntoView = vi.fn();
+  });
+  afterAll(() => {
+    Element.prototype.scrollIntoView = originalScrollIntoView;
+  });
+
+  function renderPanel(
+    fields: ListFilterField[],
+    extra: { search?: string; onClearAll?: () => void } = {}
+  ) {
+    return render(
+      <ListFilterBar
+        searchValue={extra.search ?? ''}
+        onSearchChange={vi.fn()}
+        searchPlaceholder="Search shows"
+        fields={fields}
+        layout="panel"
+        {...(extra.onClearAll ? { onClearAll: extra.onClearAll } : {})}
+      />
+    );
+  }
+
+  it('shows search and a Filter button instead of a select per field', () => {
+    renderPanel([roleField(null)]);
+
+    expect(screen.getByPlaceholderText('Search shows')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Filter' })).toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: 'Role' })).not.toBeInTheDocument();
+  });
+
+  it('counts the applied fields on the button and shows each as a removable sentence', async () => {
+    const onChange = vi.fn();
+    renderPanel([roleField('judge', onChange)]);
+
+    expect(screen.getByRole('button', { name: 'Filter, 1 applied' })).toBeInTheDocument();
+    const applied = screen.getByRole('group', { name: 'Applied filters' });
+    await userEvent.click(within(applied).getByRole('button', { name: /^Remove filter Role/ }));
+    expect(onChange).toHaveBeenCalledWith(null);
+  });
+
+  it('picks a value from the popover at desktop width', async () => {
+    mockViewportWidth(1440);
+    const onChange = vi.fn();
+    renderPanel([roleField(null, onChange)]);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Filter' }));
+    expect(screen.queryByRole('dialog', { name: 'Filters' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('option', { name: /Judge/ }));
+    expect(onChange).toHaveBeenCalledWith('judge');
+  });
+
+  it('opens as a bottom sheet titled Filters on a phone', async () => {
+    mockViewportWidth(390);
+    const onChange = vi.fn();
+    renderPanel([roleField(null, onChange)]);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Filter' }));
+    const sheet = await screen.findByRole('dialog', { name: 'Filters' });
+    await userEvent.click(within(sheet).getByRole('option', { name: /Secretary/ }));
+    expect(onChange).toHaveBeenCalledWith('secretary');
+  });
+
+  it('keeps a date-range field inline', () => {
+    renderPanel([roleField(null), createdField({ start: null, end: null })]);
+
+    expect(screen.getByRole('button', { name: /^Created: any time/ })).toBeInTheDocument();
+  });
+
+  it('offers Clear all while a search or filter narrows the list', async () => {
+    const onClearAll = vi.fn();
+    renderPanel([roleField(null)], { onClearAll, search: 'spring' });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Clear all filters' }));
     expect(onClearAll).toHaveBeenCalledOnce();
   });
 });

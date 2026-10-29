@@ -15,6 +15,9 @@ import {
   type ActionRouteContext,
 } from './actionRegistry';
 import { SHOW_DESK_TOOL_GROUP_HEADINGS } from './showToolActions';
+import { UserRole } from '@/types/auth-types';
+import { useEntryEligibleShows } from './useEntryEligibleShows';
+import { useAddEntryPickerStore } from './addEntryPickerStore';
 
 export interface CurrentActions {
   route: ActionRouteContext;
@@ -49,6 +52,14 @@ export function useCurrentActions(): CurrentActions {
   const canCreateDogs = !rbacLoading && gates.canCreateDogs;
   const canCreatePeople = !rbacLoading && gates.canCreatePeople;
   const canCreateClubs = !rbacLoading && gates.canCreateClubs;
+  // The roles `/secretary/register/:showId` admits (routes/secretaryRoutes.tsx). Withheld until
+  // the shows replica's first read, so a secretary with shows is never told they have none; a
+  // later save or refetch does not withdraw it.
+  const showsLoaded = useShowStore(state => state.hasLoaded);
+  const canAddEntries =
+    !rbacLoading && showsLoaded && (hasRole(UserRole.SECRETARY) || hasRole(UserRole.SITE_ADMIN));
+  const entryShows = useEntryEligibleShows();
+  const openEntryPicker = useAddEntryPickerStore(state => state.setOpen);
   // The show section's heading: the replicated store first (offline-durable, no read), then the
   // show's own query, which the show page has already cached under the same key. Asked only
   // when the section will render and the store does not have the show.
@@ -107,11 +118,14 @@ export function useCurrentActions(): CurrentActions {
         // the button, which is honest, where a flashed-then-withdrawn menu is
         // the mistake-anxiety bug docs/INTENT.md names.
         canManageShow: scope.status === 'resolved' && scope.canManage,
+        showScopeResolving: route.kind === 'show' && scope.status !== 'resolved',
         canOperateShow: scope.status === 'resolved' && scope.canOperate,
         canCreateShows,
         canCreateDogs,
         canCreatePeople,
         canCreateClubs,
+        canAddEntries,
+        entryShows,
         showStatus,
       }),
     [
@@ -123,6 +137,8 @@ export function useCurrentActions(): CurrentActions {
       canCreateDogs,
       canCreatePeople,
       canCreateClubs,
+      canAddEntries,
+      entryShows,
       showStatus,
       pageKind,
       pageCanEdit,
@@ -154,13 +170,16 @@ export function useCurrentActions(): CurrentActions {
         if (action.command === 'edit-object') {
           return pageTarget ? { ...action, run: pageTarget.run } : action;
         }
+        if (action.command === 'pick-entry-show') {
+          return { ...action, run: () => openEntryPicker(true) };
+        }
         if (action.command === 'page-export') {
           const exported = pageExports.find(item => `page-export-${item.id}` === action.id);
           return exported ? { ...action, run: exported.run } : action;
         }
         return action;
       }),
-    [resolved, search, pageTarget, pageExports]
+    [resolved, search, pageTarget, pageExports, openEntryPicker]
   );
 
   const groups = useMemo(

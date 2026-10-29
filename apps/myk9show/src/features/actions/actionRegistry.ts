@@ -8,7 +8,7 @@ import { getAddTrialsHref } from '@/pages/secretary/ShowCreationWizard/addTrials
 import { TRIAL_SECRETARY_ONLY_REASON } from './trialSecretaryAccess';
 import { buildSelectClassesAction } from './selectClassesAction';
 import { buildShowToolActions, type ShowToolItem } from './showToolActions';
-import { CREATE_HREFS, type CreateGates } from './createGates';
+import { buildCreateActions, type CreateViewer } from './createActions';
 
 /**
  * THE registry of "what can I do from here" (MYK9-630).
@@ -30,7 +30,7 @@ import { CREATE_HREFS, type CreateGates } from './createGates';
  * React state the pure resolver has no access to. `useCurrentActions` binds
  * each one to a real callback; nothing else may invent a command.
  */
-export type ActionCommand = 'edit-object' | 'page-export' | 'page-extra';
+export type ActionCommand = 'edit-object' | 'page-export' | 'page-extra' | 'pick-entry-show';
 
 /**
  * The objects whose DETAIL page owns an Edit panel (the show's own Edit is a
@@ -163,9 +163,7 @@ export type ActionRouteContext =
     }
   | { kind: 'global' };
 
-export interface ActionViewer extends CreateGates {
-  /** May manage THIS show -- the same gate the management routes use. */
-  canManageShow: boolean;
+export interface ActionViewer extends CreateViewer {
   /**
    * Holds the operational trial-secretary (or site-admin) role over this show.
    * Strictly narrower than `canManageShow`: a club admin manages the show's
@@ -383,58 +381,6 @@ function buildShowActions(
 }
 
 /**
- * The Create group: the same on every page, so a first-time secretary never has to know which
- * page to visit before starting something. It holds ONLY objects with no parent; a trial, class
- * or entry is created from its parent's own group, so the parent is never in doubt (CRUD
- * standard decision 6). Each item links to its list page's existing create panel. "Open Show
- * Management" used to sit here; it is navigation, and lives in the sidebar and the palette.
- */
-function buildCreateActions(viewer: ActionViewer): AppAction[] {
-  const actions: AppAction[] = [];
-  if (viewer.canCreateShows) {
-    actions.push({
-      id: 'create-show',
-      label: 'Add Show',
-      aliases: ['new', 'create', 'event'],
-      href: CREATE_HREFS.show,
-      group: 'create',
-      icon: 'add-show',
-    });
-  }
-  if (viewer.canCreateDogs) {
-    actions.push({
-      id: 'create-dog',
-      label: 'Add Dog',
-      aliases: ['new', 'create'],
-      href: CREATE_HREFS.dog,
-      group: 'create',
-      icon: 'add-dog',
-    });
-  }
-  if (viewer.canCreatePeople) {
-    actions.push({
-      id: 'create-person',
-      label: 'Add Person',
-      aliases: ['new', 'create', 'contact'],
-      href: CREATE_HREFS.person,
-      group: 'create',
-      icon: 'add-person',
-    });
-  }
-  if (viewer.canCreateClubs) {
-    actions.push({
-      id: 'create-club',
-      label: 'Add Club',
-      aliases: ['new', 'create'],
-      href: CREATE_HREFS.club,
-      group: 'create',
-      icon: 'add-club',
-    });
-  }
-  return actions;
-}
-
-/**
  * The Edit (and Add) item(s) for the detail page on screen. Edit is always the
  * first item; there is no page-level Edit button anywhere (MYK9-928).
  */
@@ -496,5 +442,5 @@ export function resolveActions(route: ActionRouteContext, viewer: ActionViewer):
   }));
   const showTools =
     route.kind === 'show' && viewer.canManageShow ? buildShowToolActions(viewer.showTools) : [];
-  return [...own, ...show, ...showTools, ...exports, ...buildCreateActions(viewer)];
+  return [...own, ...show, ...showTools, ...exports, ...buildCreateActions(route, viewer)];
 }

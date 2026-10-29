@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
-import userEvent from '@testing-library/user-event';
 import { UserRole } from '@/types/auth-types';
 import { RoleSidebar } from '../RoleSidebar';
 import { buildUnifiedSidebarConfig } from '../unifiedSidebarConfig';
@@ -15,13 +14,11 @@ const second = { id: 'show-2', name: 'Fall Classic' };
 
 function renderRail(
   route: string,
-  nav: { currentShow: typeof show | null; managingShows: (typeof show)[] },
-  onChooseShow = vi.fn(),
+  currentShow: typeof show | null,
   variant: 'rail' | 'drawer' = 'rail'
 ) {
   const config = buildUnifiedSidebarConfig([UserRole.SECRETARY], undefined, 'Jordan', {
-    ...nav,
-    onChooseShow,
+    currentShow,
   });
   return render(<RoleSidebar config={config} variant={variant} />, { initialRoute: route });
 }
@@ -31,7 +28,7 @@ const browseLink = () => screen.getByRole('link', { name: 'Browse' });
 
 describe('current show rail item', () => {
   it('shows the truncated name, keeps the full name accessible and in the tooltip, and opens the Overview', () => {
-    renderRail('/secretary/dashboard', { currentShow: show, managingShows: [show] });
+    renderRail('/secretary/dashboard', show);
 
     expect(showLink()).toHaveTextContent(/^Heartland Spring…$/);
     expect(showLink()).toHaveAttribute('title', LONG);
@@ -39,18 +36,16 @@ describe('current show rail item', () => {
     expect(screen.queryByRole('button', { name: 'Switch' })).not.toBeInTheDocument();
   });
 
-  it('sits directly under Browse', () => {
-    renderRail('/secretary/dashboard', { currentShow: show, managingShows: [show] });
+  it('sits directly under Home (MYK9-1490)', () => {
+    renderRail('/secretary/dashboard', show);
 
     const links = screen.getAllByRole('link');
-    expect(links.indexOf(showLink())).toBe(links.indexOf(browseLink()) + 1);
+    const home = screen.getByRole('link', { name: 'Home' });
+    expect(links.indexOf(showLink())).toBe(links.indexOf(home) + 1);
   });
 
   it('uses a short name whole, with no tooltip or doubled accessible name', () => {
-    renderRail('/secretary/dashboard', {
-      currentShow: second,
-      managingShows: [second],
-    });
+    renderRail('/secretary/dashboard', second);
 
     const link = screen.getByRole('link', { name: 'Fall Classic' });
     expect(link).not.toHaveAttribute('title');
@@ -59,7 +54,7 @@ describe('current show rail item', () => {
   it.each(['/shows/show-1', '/shows/show-1/results'])(
     'is the current page on %s while Browse is not',
     route => {
-      renderRail(route, { currentShow: show, managingShows: [show] });
+      renderRail(route, show);
 
       expect(showLink()).toHaveAttribute('aria-current', 'page');
       expect(showLink()).toHaveClass('bg-primary/10');
@@ -68,61 +63,31 @@ describe('current show rail item', () => {
   );
 
   it('leaves Browse current on a show the viewer does not manage', () => {
-    renderRail('/shows/other-show', { currentShow: show, managingShows: [show] });
+    renderRail('/shows/other-show', show);
 
     expect(browseLink()).toHaveAttribute('aria-current', 'page');
     expect(showLink()).not.toHaveAttribute('aria-current');
   });
 
   it('is absent when the viewer manages no show', () => {
-    renderRail('/secretary/dashboard', { currentShow: null, managingShows: [] });
+    renderRail('/secretary/dashboard', null);
 
     expect(screen.queryByRole('link', { name: /Heartland/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Switch' })).not.toBeInTheDocument();
   });
 
-  it('offers Switch with the other managed shows, and choosing one is remembered', async () => {
-    const user = userEvent.setup();
-    const onChooseShow = vi.fn();
-    renderRail(
-      '/secretary/dashboard',
-      { currentShow: show, managingShows: [show, second] },
-      onChooseShow
-    );
-
-    expect(showLink()).toHaveAttribute('href', '/shows/show-1');
-    await user.click(screen.getByRole('button', { name: 'Switch show' }));
-    expect(screen.queryByRole('link', { name: LONG })).not.toBeInTheDocument();
-    await user.click(screen.getByRole('link', { name: 'Fall Classic' }));
-
-    expect(onChooseShow).toHaveBeenCalledWith('show-2');
-    expect(screen.queryByRole('link', { name: 'Fall Classic' })).not.toBeInTheDocument();
-  });
-
-  it('does not remember a plain click on the current show as a Switch choice', async () => {
-    const user = userEvent.setup();
-    const onChooseShow = vi.fn();
-    renderRail(
-      '/secretary/dashboard',
-      { currentShow: show, managingShows: [show, second] },
-      onChooseShow
-    );
-
-    await user.click(showLink());
-
-    expect(onChooseShow).not.toHaveBeenCalled();
-  });
-
-  it('lists the current show under its own heading in the mobile drawer', () => {
-    renderRail(
-      '/shows/show-1',
-      { currentShow: show, managingShows: [show, second] },
-      vi.fn(),
-      'drawer'
-    );
+  it('lists only the current show under its own heading in the mobile drawer', () => {
+    renderRail('/shows/show-1', show, 'drawer');
 
     expect(screen.getByRole('heading', { name: 'Current show' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: LONG })).toHaveAttribute('aria-current', 'page');
-    expect(screen.getByRole('link', { name: 'Fall Classic' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Fall Classic' })).not.toBeInTheDocument();
+  });
+
+  // MYK9-1490: the pin on a Home show card is the only override; the rail has no Switch.
+  it('has no Switch control', () => {
+    renderRail('/secretary/dashboard', show);
+
+    expect(screen.queryByRole('button', { name: /switch/i })).not.toBeInTheDocument();
   });
 });

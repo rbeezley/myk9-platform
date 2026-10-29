@@ -4,9 +4,9 @@ import { showBreadcrumbs } from './ShowDetailsPage.breadcrumbs';
 const show = { name: 'Spring Nosework Trial' };
 
 describe('showBreadcrumbs', () => {
-  it('starts a manager at Manage, linking to the secretary dashboard', () => {
+  it('starts a manager at Home, linking to the secretary dashboard', () => {
     expect(showBreadcrumbs(true, show, 'show-1')).toEqual([
-      { label: 'Manage', href: '/secretary/dashboard' },
+      { label: 'Home', href: '/secretary/dashboard' },
       { label: 'Spring Nosework Trial', href: '/shows/show-1' },
     ]);
   });
@@ -18,7 +18,7 @@ describe('showBreadcrumbs', () => {
     ]);
   });
 
-  it('shows no first crumb while the show loads, so a manager never sees Shows flip to Manage', () => {
+  it('shows no first crumb while the show loads, so a manager never sees Shows flip to Home', () => {
     expect(showBreadcrumbs(false, undefined, 'show-1')).toEqual([
       { label: 'Show Details', href: '/shows/show-1' },
     ]);

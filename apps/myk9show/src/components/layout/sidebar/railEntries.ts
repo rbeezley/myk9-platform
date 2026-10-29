@@ -14,7 +14,7 @@ export interface RailMenuSection {
 }
 
 export type RailEntry =
-  | { kind: 'item'; item: NavItem; startsGroup: boolean; switchItems?: NavItem[] }
+  | { kind: 'item'; item: NavItem; startsGroup: boolean }
   | { kind: 'menu'; menu: NavRailMenu; sections: RailMenuSection[]; startsGroup: boolean }
   | { kind: 'link'; link: NavRailLink; items: NavItem[]; startsGroup: boolean };
 
@@ -46,12 +46,6 @@ export function buildRailEntries(groups: readonly NavGroup[]): RailEntry[] {
       };
       menus.set(group.railMenu.id, entry);
       entries.push(entry);
-      return;
-    }
-
-    if (group.railSwitch) {
-      const [current, ...others] = group.items;
-      entries.push({ kind: 'item', item: current, startsGroup, switchItems: others });
       return;
     }
 

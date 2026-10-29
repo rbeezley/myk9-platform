@@ -28,15 +28,13 @@ function userWith(permissions: string[]): UserWithRoles {
 const SHOW = {} as Show;
 
 describe('getTabQuickActions navigation', () => {
-  it('routes "Add Show" through the injected navigator', () => {
-    const navigate = vi.fn();
-    const actions = getTabQuickActions('all', userWith([PERMISSIONS.SHOW_CREATE]), navigate);
-
-    const createShow = actions.find(a => a.id === 'create_show');
-    expect(createShow, 'create_show action missing').toBeDefined();
-
-    createShow!.onClick(SHOW);
-    expect(navigate).toHaveBeenCalledWith('/secretary/create-show/wizard');
+  it('offers no Add Show, which lives in the header Actions menu (MYK9-1490)', () => {
+    for (const tab of ['all', 'managing']) {
+      const ids = getTabQuickActions(tab, userWith([PERMISSIONS.SHOW_CREATE]), vi.fn()).map(
+        a => a.id
+      );
+      expect(ids).not.toContain('create_show');
+    }
   });
 
   it('never assigns window.location.href', () => {

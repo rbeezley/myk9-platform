@@ -1,10 +1,10 @@
 /**
- * The show workbench's breadcrumbs. A manager came from Manage, not from the Shows list, so the
+ * The show workbench's breadcrumbs. A manager came from Home, not from the Shows list, so the
  * first crumb says so and the rail's current-show item (not Browse) is the lit one beside it
  * (MYK9-1293). Anyone else browsing the show keeps "Shows".
  *
  * Whether the viewer manages the show is unknown until the show (its club) has loaded, so until
- * then there is no first crumb: it would otherwise read "Shows", then flip to "Manage".
+ * then there is no first crumb: it would otherwise read "Shows", then flip to "Home".
  */
 export function showBreadcrumbs(
   canManageShow: boolean,
@@ -15,7 +15,7 @@ export function showBreadcrumbs(
   if (!show) return [showCrumb];
   return [
     canManageShow
-      ? { label: 'Manage', href: '/secretary/dashboard' }
+      ? { label: 'Home', href: '/secretary/dashboard' }
       : { label: 'Shows', href: '/shows' },
     showCrumb,
   ];

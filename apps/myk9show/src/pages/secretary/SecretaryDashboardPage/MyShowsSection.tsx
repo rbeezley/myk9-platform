@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ShowPhaseCard } from './ShowPhaseCard';
+import type { ShowPin } from './ShowPinButton';
 import type { Show } from '@/types/show-types';
 import type { ShowPhase } from '@/hooks/useMyShows';
 import type { TodayClassCounts } from './todayClassCounts';
@@ -35,6 +36,8 @@ interface MyShowsSectionProps {
   classCountsByShow?: ReadonlyMap<string, TodayClassCounts | null> | undefined;
   /** Live entry count per show (MYK9-1311); a show missing from the map shows no count. */
   entryCountsByShow?: ReadonlyMap<string, number> | undefined;
+  /** The rail pin for a show that can be pinned (still in Managing); undefined offers none. */
+  pinFor?: ((showId: string) => ShowPin | undefined) | undefined;
 }
 
 export function MyShowsSection({
@@ -45,6 +48,7 @@ export function MyShowsSection({
   defaultCollapsed = false,
   classCountsByShow,
   entryCountsByShow,
+  pinFor,
 }: MyShowsSectionProps) {
   const [open, setOpen] = useState(!defaultCollapsed);
 
@@ -92,6 +96,7 @@ export function MyShowsSection({
               phase={phase}
               classCounts={classCountsByShow?.get(show.id)}
               entryCount={entryCountsByShow?.get(show.id)}
+              pin={pinFor?.(show.id)}
             />
           ))}
         </div>

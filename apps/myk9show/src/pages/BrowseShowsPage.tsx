@@ -515,6 +515,9 @@ const BrowseShowsPage: React.FC = () => {
                 onSearchChange={value => setFilters(prev => ({ ...prev, search: value }))}
                 searchPlaceholder="Search shows or locations"
                 fields={filterFields}
+                // MYK9-1490: the four option fields sit behind one Filter button here only.
+                layout="panel"
+                onClearAll={clearAllFilters}
                 className="flex-1"
               />
               <ShowLocationField

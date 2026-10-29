@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
 import { useLocation } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
@@ -9,6 +9,8 @@ import { usePageEditAction, usePageEditTargetStore } from '@/features/actions/pa
 import { generatedPremium } from '@/features/premium/__tests__/fixtures/generatedPremium';
 import { usePremiumPublishStore } from '@/features/premium/useGenerateAndPublishPremium';
 import { resetPremiumPublishCoordinatorForTests } from '@/features/premium/premiumPublishCoordinator';
+import { ADD_ENTRY_NO_SHOW_REASON } from '@/features/actions/createActions';
+import { useShowStore } from '@/store/showStore';
 
 const viewer = vi.hoisted(() => ({
   canManage: true,
@@ -423,6 +425,10 @@ describe('AppHeader Actions menu — exhibitor on the same route', () => {
 describe('AppHeader Actions menu — off a show route', () => {
   it('offers a secretary the Create section, and no Show Management link', async () => {
     const user = userEvent.setup();
+    // The shows replica has been read and holds no live show (Add Entry waits for that read).
+    const prior = useShowStore.getState();
+    useShowStore.setState({ shows: [], hasLoaded: true });
+    onTestFinished(() => useShowStore.setState({ shows: prior.shows, hasLoaded: prior.hasLoaded }));
     render(<AppHeader />, { initialRoute: '/dogs' });
 
     await user.click(screen.getByRole('button', { name: /^actions$/i }));
@@ -433,7 +439,14 @@ describe('AppHeader Actions menu — off a show route', () => {
       within(menu)
         .getAllByRole('menuitem')
         .map(item => item.textContent?.trim())
-    ).toEqual(['Add Show', 'Add Dog', 'Add Person', 'Add Club']);
+    ).toEqual([
+      'Add Show',
+      // MYK9-1490: greyed with its reason, as this secretary has no live show to key for.
+      `Add Entry${ADD_ENTRY_NO_SHOW_REASON}`,
+      'Add Dog',
+      'Add Person',
+      'Add Club',
+    ]);
     expect(within(menu).getByText('Add Club').closest('a')).toHaveAttribute(
       'href',
       '/clubs?create=true'

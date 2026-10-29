@@ -3,7 +3,7 @@
 -- writes (judges, passcodes, officials and their show roles, lifecycle email
 -- steps, visibility settings) is deletable; one row of participant, money,
 -- delivery or audit evidence refuses with MK615 and keeps the show AND the row.
--- Migration: 20261029014300_myk9_1472_hard_delete_show_money_guards.sql.
+-- Migration: 20261029034700_myk9_1472_hard_delete_show_money_guards.sql.
 
 BEGIN;
 

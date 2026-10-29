@@ -19,7 +19,7 @@ converts each body to `SET search_path = ''` with fully qualified references.
 | `get_admin_user_list(boolean)`                          | Accepted dependency; convert when next edited                                                                                        |
 | `get_my_onboarding_requests()`                          | Accepted dependency; convert when next edited                                                                                        |
 | `handle_entry_scoring_state_change()`                   | Accepted dependency; convert when next edited                                                                                        |
-| `hard_delete_show(uuid)`                                | **Converted** to `SET search_path = ''` by `20261029014300_myk9_1472_hard_delete_show_money_guards.sql` (MYK9-1472, not yet applied) |
+| `hard_delete_show(uuid)`                                | **Converted** to `SET search_path = ''` by `20261029034700_myk9_1472_hard_delete_show_money_guards.sql` (MYK9-1472, not yet applied) |
 | `promote_waitlist_entry(uuid, integer)`                 | **Converted** to `SET search_path = ''` by `20261004224300_myk9_1003_waitlist_auto_offer_switch.sql` (2026-10-04)                    |
 | `promote_waitlist_entry_from_cron(uuid)`                | **Converted** to `SET search_path = ''` by `20261004224300_myk9_1003_waitlist_auto_offer_switch.sql` (2026-10-04)                    |
 | `promote_waitlist_entry_internal(uuid, integer)`        | Accepted dependency; convert when next edited                                                                                        |

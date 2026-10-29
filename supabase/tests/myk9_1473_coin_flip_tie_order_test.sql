@@ -465,6 +465,7 @@ BEGIN
   END IF;
   RAISE NOTICE 'PASS 3g a correction that merges two resolved ties clears every flip in the class; both ties read unresolved; an NQ change keeps them';
 END;
+$$;
 
 -- ---------------------------------------------------------------------------
 -- 4. A manager cannot write the tie columns directly.

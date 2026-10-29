@@ -46,17 +46,23 @@ DECLARE
 BEGIN
   -- SECURITY DEFINER: FOR SHARE needs UPDATE privilege on clubs and must not
   -- be filtered by the caller's RLS, or a hidden deleted club would read as
-  -- missing and pass.
-  SELECT c.deleted_at INTO v_deleted_at
-  FROM public.clubs AS c
-  WHERE c.id = NEW.club_id
-  FOR SHARE;
-
-  IF FOUND AND v_deleted_at IS NOT NULL THEN
-    RAISE EXCEPTION 'Cannot grant access to a deleted club'
-      USING ERRCODE = '23514',
-            HINT = 'Restore the club first, then grant the role again.';
-  END IF;
+  -- missing and pass. A show-scoped grant (legacy officials carry show_id and a
+  -- NULL club_id, 099_migrate_officials_to_user_roles) belongs to the show's
+  -- club, so both routes to a club are checked. Live clubs are locked too (no
+  -- deleted_at filter in the query): that lock is what serialises this check
+  -- with a concurrent delete.
+  FOR v_deleted_at IN
+    SELECT c.deleted_at
+    FROM public.clubs AS c
+    WHERE c.id IN (NEW.club_id, (SELECT s.club_id FROM public.shows AS s WHERE s.id = NEW.show_id))
+    FOR SHARE OF c
+  LOOP
+    IF v_deleted_at IS NOT NULL THEN
+      RAISE EXCEPTION 'Cannot grant access to a deleted club'
+        USING ERRCODE = '23514',
+              HINT = 'Restore the club first, then grant the role again.';
+    END IF;
+  END LOOP;
   RETURN NEW;
 END;
 $$;
@@ -78,15 +84,16 @@ DROP TRIGGER IF EXISTS trg_user_roles_refuse_deleted_club_grant_upd ON public.us
 CREATE TRIGGER trg_user_roles_refuse_deleted_club_grant_ins
   BEFORE INSERT ON public.user_roles
   FOR EACH ROW
-  WHEN (NEW.is_active AND NEW.club_id IS NOT NULL)
+  WHEN (NEW.is_active AND (NEW.club_id IS NOT NULL OR NEW.show_id IS NOT NULL))
   EXECUTE FUNCTION private.user_roles_refuse_deleted_club_grant();
 CREATE TRIGGER trg_user_roles_refuse_deleted_club_grant_upd
-  BEFORE UPDATE OF is_active, club_id ON public.user_roles
+  BEFORE UPDATE OF is_active, club_id, show_id ON public.user_roles
   FOR EACH ROW
   WHEN (
-    NEW.is_active AND NEW.club_id IS NOT NULL
+    NEW.is_active AND (NEW.club_id IS NOT NULL OR NEW.show_id IS NOT NULL)
     AND (OLD.is_active IS DISTINCT FROM NEW.is_active
-         OR OLD.club_id IS DISTINCT FROM NEW.club_id)
+         OR OLD.club_id IS DISTINCT FROM NEW.club_id
+         OR OLD.show_id IS DISTINCT FROM NEW.show_id)
   )
   EXECUTE FUNCTION private.user_roles_refuse_deleted_club_grant();
 
@@ -104,8 +111,9 @@ BEGIN
   -- do not apply; the caller is the already-gated delete RPC.
   UPDATE public.user_roles
   SET is_active = false
-  WHERE club_id = NEW.id
-    AND is_active;
+  WHERE is_active
+    AND (club_id = NEW.id
+         OR show_id IN (SELECT s.id FROM public.shows AS s WHERE s.club_id = NEW.id));
   RETURN NULL;
 END;
 $$;
@@ -131,6 +139,7 @@ CREATE TRIGGER trg_clubs_deactivate_role_grants_on_delete
 UPDATE public.user_roles AS ur
 SET is_active = false
 FROM public.clubs AS c
-WHERE ur.club_id = c.id
-  AND c.deleted_at IS NOT NULL
-  AND ur.is_active;
+WHERE c.deleted_at IS NOT NULL
+  AND ur.is_active
+  AND (ur.club_id = c.id
+       OR ur.show_id IN (SELECT s.id FROM public.shows AS s WHERE s.club_id = c.id));

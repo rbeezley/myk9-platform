@@ -51,6 +51,14 @@ FROM (VALUES
 ) AS p(user_id, club_id, is_active)
 CROSS JOIN public.roles r WHERE r.name = 'club_admin';
 
+-- A legacy show-scoped grant (club_id NULL, show_id set) on a show of club A.
+INSERT INTO public.shows (id, name, organization, start_date, end_date, status, club_id)
+VALUES ('00000000-0000-0000-0000-000000138821', 'MYK9-1388 Show', 'AKC', current_date, current_date, 'draft',
+        '00000000-0000-0000-0000-000000138811');
+INSERT INTO public.user_roles (user_id, role_id, show_id, is_active)
+SELECT '00000000-0000-0000-0000-000000138801', r.id, '00000000-0000-0000-0000-000000138821', true
+FROM public.roles r WHERE r.name = 'steward';
+
 CREATE FUNCTION pg_temp.grant_state(p_user text, p_club text)
 RETURNS text LANGUAGE sql AS $$
   SELECT ur.is_active::text || '/' || COALESCE(ur.deactivated_at::text, 'null')
@@ -77,6 +85,10 @@ BEGIN
      <> 'false/null' THEN
     RAISE EXCEPTION 'FAIL the pre-inactive grant changed';
   END IF;
+  IF (SELECT is_active FROM public.user_roles
+      WHERE show_id = '00000000-0000-0000-0000-000000138821') THEN
+    RAISE EXCEPTION 'FAIL club A delete left the show-scoped steward grant active';
+  END IF;
   RAISE NOTICE 'PASS delete deactivates only the deleted club''s active grants';
 END;
 $$;
@@ -100,6 +112,13 @@ BEGIN
     RAISE EXCEPTION 'FAIL reactivating a grant for a deleted club was allowed';
   EXCEPTION WHEN check_violation THEN
     RAISE NOTICE 'PASS reactivation for a deleted club is refused';
+  END;
+  BEGIN
+    UPDATE public.user_roles SET is_active = true
+    WHERE show_id = '00000000-0000-0000-0000-000000138821';
+    RAISE EXCEPTION 'FAIL reactivating a show-scoped grant of a deleted club was allowed';
+  EXCEPTION WHEN check_violation THEN
+    RAISE NOTICE 'PASS reactivating a show-scoped grant of a deleted club is refused';
   END;
   BEGIN
     UPDATE public.user_roles SET club_id = '00000000-0000-0000-0000-000000138811'

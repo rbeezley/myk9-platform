@@ -19,14 +19,6 @@ import { ReplicatedClassesTable, type ReplicatedClass } from '../ReplicatedClass
 import { REPLICATION_STORES } from '@myk9/replication';
 import { spyOnWriteAndQueue } from '@/test/utils/spyOnWriteAndQueue';
 
-type QueueMutation = (
-  operation: string,
-  rowId: string,
-  payload: Record<string, unknown>,
-  dependsOn?: string[],
-  rpc?: { name: string; idParam?: string; fields?: Record<string, unknown> }
-) => Promise<string | null>;
-
 function baseClass(overrides: Partial<ReplicatedClass> = {}): ReplicatedClass {
   return {
     id: 'class-1',

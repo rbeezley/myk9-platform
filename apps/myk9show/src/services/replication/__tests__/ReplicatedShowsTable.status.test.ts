@@ -15,12 +15,6 @@ vi.mock('@myk9/core', () => ({
   logger: { log: vi.fn(), error: vi.fn(), warn: vi.fn(), debug: vi.fn() },
 }));
 
-type QueueMutation = (
-  operation: string,
-  rowId: string,
-  payload: Record<string, unknown>
-) => Promise<string | null>;
-
 // Every value in shows' status CHECK (live constraint, 2026-10-03).
 const CHECK_STATUSES = ['draft', 'published', 'upcoming', 'in_progress', 'completed', 'cancelled'];
 

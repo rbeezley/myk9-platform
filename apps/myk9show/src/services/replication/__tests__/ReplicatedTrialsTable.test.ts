@@ -212,7 +212,6 @@ describe('ReplicatedTrialsTable', () => {
     describe('createTrial — registry write path (Phase 1)', () => {
       // toSupabaseRow is the final write hop. createTrial queues an INSERT mutation
       // whose payload is toSupabaseRow's output — spy on queueMutation to capture it.
-      type Spyable = { queueMutation: (...args: unknown[]) => Promise<string> };
 
       it('persists registry_id from the replicated trial into the INSERT payload', async () => {
         const spy = spyOnWriteAndQueue(table).queue.mockResolvedValue('mutation-1');
@@ -248,7 +247,6 @@ describe('ReplicatedTrialsTable', () => {
       // Same shape as the registry write path above: toSupabaseRow is the final
       // write hop, so a timezone chosen in the wizard that never reaches this
       // payload is a timezone that never reaches the row.
-      type Spyable = { queueMutation: (...args: unknown[]) => Promise<string> };
 
       it('persists the wizard-selected timezone into the INSERT payload', async () => {
         const spy = spyOnWriteAndQueue(table).queue.mockResolvedValue('mutation-tz-1');
@@ -286,7 +284,6 @@ describe('ReplicatedTrialsTable', () => {
       // the queue entry simply carries no `dependsOn` and the upload runner is free to send
       // the trial update before the organization change that justifies it, which the server
       // now refuses with SQLSTATE MK490 on every retry.
-      type Spyable = { queueMutation: (...args: unknown[]) => Promise<string> };
 
       const seeded: ReplicatedTrial = fromAny({
         id: 'trial-dep',

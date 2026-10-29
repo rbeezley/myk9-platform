@@ -24,14 +24,6 @@ import {
 import { REPLICATION_STORES } from '@myk9/replication';
 import { spyOnWriteAndQueue } from '@/test/utils/spyOnWriteAndQueue';
 
-type QueueMutation = (
-  operation: string,
-  rowId: string,
-  payload: Record<string, unknown>,
-  dependsOn?: string[],
-  rpc?: { name: string; args?: Record<string, unknown> }
-) => Promise<string | null>;
-
 const AT = '2026-10-10T21:15:00.000Z';
 
 function baseClass(overrides: Partial<ReplicatedClass> = {}): ReplicatedClass {

@@ -17,12 +17,6 @@ vi.mock('@myk9/core', () => ({
   logger: { log: vi.fn(), error: vi.fn(), warn: vi.fn(), debug: vi.fn() },
 }));
 
-type QueueMutation = (
-  operation: string,
-  rowId: string,
-  payload: Record<string, unknown>
-) => Promise<string | null>;
-
 const originalTimezone = process.env.TZ;
 
 const SERVER_MIDNIGHT = '2026-10-01T00:00:00+00:00';

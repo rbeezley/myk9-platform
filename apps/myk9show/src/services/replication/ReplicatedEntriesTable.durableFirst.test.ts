@@ -13,8 +13,6 @@ vi.mock('@/services/database/supabaseClient', () => ({
   supabase: { rpc: vi.fn(), from: vi.fn() },
 }));
 
-type QueueMutation = (...args: unknown[]) => Promise<string | null>;
-
 describe('ReplicatedEntriesTable durable-first status writers (MYK9-1206)', () => {
   let table: ReplicatedEntriesTable;
   const seed: ReplicatedEntry = {

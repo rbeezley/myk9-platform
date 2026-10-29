@@ -73,6 +73,8 @@ describe('ReplicatedTable.writeAndQueue (MYK9-1471)', () => {
 
   beforeEach(async () => {
     tableName = await resetForStaleRowTest();
+    // Eviction scans every table, so rows another test left behind would be evicted first.
+    await (await databaseManager.getDatabase('test')).clear(REPLICATION_STORES.REPLICATED_TABLES);
   });
 
   afterEach(() => teardownStaleRowTest(manager));
@@ -367,11 +369,23 @@ describe('ReplicatedTable.writeAndQueue (MYK9-1471)', () => {
       lastModifiedAt: 1,
       accessCount: 1,
     });
+    // A newer clean row the relief can free instead.
+    await db.put(REPLICATION_STORES.REPLICATED_TABLES, {
+      ...seeded,
+      id: 'spare',
+      lastAccessedAt: 2,
+      lastModifiedAt: 2,
+      accessCount: 1,
+    });
     const quota = new Error('QuotaExceededError');
     quota.name = 'AbortError';
     failNextPutInto(REPLICATION_STORES.PENDING_MUTATIONS, quota);
 
     const { mutationId } = await table.edit('1', 'after-relief');
+
+    expect(await db.get(REPLICATION_STORES.REPLICATED_TABLES, [tableName, 'spare'])).toBe(
+      undefined
+    );
 
     const queued = (await db.get(REPLICATION_STORES.PENDING_MUTATIONS, mutationId!)) as
       PendingMutation | undefined;

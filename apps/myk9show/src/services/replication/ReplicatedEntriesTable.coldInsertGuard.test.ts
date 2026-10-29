@@ -15,7 +15,7 @@
  * untouched.
  */
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
-import { databaseManager, REPLICATION_STORES, type MutationManager } from '@myk9/replication';
+import type { MutationManager } from '@myk9/replication';
 import { ReplicatedEntriesTable, type ReplicatedEntry } from './ReplicatedEntriesTable';
 import { readWithReplicationFallback } from '@/services/database/_shared/read-shape';
 import { supabase } from '@/services/database/supabaseClient';

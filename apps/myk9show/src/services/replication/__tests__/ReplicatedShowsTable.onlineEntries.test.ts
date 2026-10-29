@@ -15,12 +15,6 @@ vi.mock('@myk9/core', () => ({
   logger: { log: vi.fn(), error: vi.fn(), warn: vi.fn(), debug: vi.fn() },
 }));
 
-type QueueMutation = (
-  operation: string,
-  rowId: string,
-  payload: Record<string, unknown>
-) => Promise<string | null>;
-
 const BASE: ReplicatedShow = {
   id: 'show-1',
   name: 'Fall Trial',

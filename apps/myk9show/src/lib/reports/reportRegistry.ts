@@ -23,6 +23,8 @@ import { AKCJudgeReport } from '@/components/reports/AKCJudgeReport';
 import { TrialSecretaryCertification } from '@/components/reports/TrialSecretaryCertification';
 import { JudgeSupplyChecklistReport } from '@/components/reports/JudgeSupplyChecklistReport';
 import { HighInTrialReport } from '@/components/reports/HighInTrialReport';
+import { UKCSetupCheatSheetReport } from '@/components/reports/UKCSetupCheatSheetReport';
+import { AKCSetupCheatSheetReport } from '@/components/reports/AKCSetupCheatSheetReport';
 import type React from 'react';
 
 const PlaceholderReport: React.FC<ReportProps> = () => null;
@@ -517,6 +519,34 @@ export const reportRegistry: ReportDefinition[] = [
     defaultSort: '',
     component: JudgeSupplyChecklistReport,
     enabled: true,
+  },
+  // MYK9-1078: static setup cheat sheets. One card per registry, both rendered by
+  // the shared SetupCheatSheet; the registry filter keeps each off the other's shows
+  // and off ASCA, which has no sheet.
+  {
+    id: 'ukc-nosework-setup-cheat-sheet',
+    name: 'UKC Judge Setup Cheat Sheet',
+    phase: 'before',
+    scopes: ['show'],
+    sortOptions: [],
+    defaultSort: '',
+    component: UKCSetupCheatSheetReport,
+    enabled: true,
+    registryId: 'UKC',
+    // Static rulebook data: it has nothing to say about entries, so an empty show still prints it.
+    rendersWithoutEntries: true,
+  },
+  {
+    id: 'akc-scent-work-setup-cheat-sheet',
+    name: 'AKC Judge Setup Cheat Sheet',
+    phase: 'before',
+    scopes: ['show'],
+    sortOptions: [],
+    defaultSort: '',
+    component: AKCSetupCheatSheetReport,
+    enabled: true,
+    registryId: 'AKC',
+    rendersWithoutEntries: true,
   },
 ];
 

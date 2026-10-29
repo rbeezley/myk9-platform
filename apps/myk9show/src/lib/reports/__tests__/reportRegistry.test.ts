@@ -21,13 +21,14 @@ function renderReport(report: ReportDefinition) {
 
 describe('reportRegistry', () => {
   // 37 since F26 added `high-in-trial` (AKC Scent Work Chapter 6 §8) and the
-  // UKC Nosework Trial Report was split from the legacy dynamic report id.
-  it('has 37 total entries', () => {
-    expect(reportRegistry).toHaveLength(37);
+  // UKC Nosework Trial Report was split from the legacy dynamic report id. 39 since
+  // MYK9-1078 added the UKC and AKC judge setup cheat sheets.
+  it('has 39 total entries', () => {
+    expect(reportRegistry).toHaveLength(39);
   });
 
-  it('has exactly 37 enabled entries', () => {
-    expect(getEnabledReports()).toHaveLength(37);
+  it('has exactly 39 enabled entries', () => {
+    expect(getEnabledReports()).toHaveLength(39);
   });
 
   // MYK9-661: under the show-phase headings a registry form sits beside generic
@@ -138,6 +139,17 @@ describe('reportRegistry', () => {
       expect(visible.map(report => report.id)).toContain('ukc-nosework-entry-form');
     });
 
+    it('scopes each judge setup cheat sheet to its own registry and omits both for ASCA', () => {
+      const ids = (registry: 'UKC' | 'AKC' | 'ASCA') =>
+        getReportsForRegistries([registry])
+          .map(report => report.id)
+          .filter(id => id.endsWith('-setup-cheat-sheet'));
+
+      expect(ids('UKC')).toEqual(['ukc-nosework-setup-cheat-sheet']);
+      expect(ids('AKC')).toEqual(['akc-scent-work-setup-cheat-sheet']);
+      expect(ids('ASCA')).toEqual([]);
+    });
+
     it('does not filter before trial data is available', () => {
       expect(getReportsForRegistries(undefined)).toHaveLength(reportRegistry.length);
     });
@@ -153,7 +165,7 @@ describe('reportRegistry', () => {
       expect(missing).toEqual([]);
     });
 
-    it('assigns every one of the 37 entries to exactly one phase bucket', () => {
+    it('assigns every one of the 39 entries to exactly one phase bucket', () => {
       const counts = PHASES.map(phase => reportRegistry.filter(r => r.phase === phase).length);
       expect(counts.reduce((sum, n) => sum + n, 0)).toBe(reportRegistry.length);
     });

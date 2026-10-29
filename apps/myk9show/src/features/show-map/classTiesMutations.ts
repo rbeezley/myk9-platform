@@ -11,7 +11,7 @@ import { supabase } from '@/services/database/supabaseClient';
 
 export interface ClassTieEntry {
   entryId: string;
-  armband: number | null;
+  armband: string | null;
   dogName: string;
   /** Faults at an ordinary show, points at nationals (the tie is on whichever the class ranks by). */
   totalFaults: number | null;

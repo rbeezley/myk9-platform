@@ -13612,7 +13612,7 @@ export type Database = {
       get_class_ties: {
         Args: { p_class_id: string }
         Returns: {
-          armband_number: number | null
+          armband_number: string | null
           dog_call_name: string | null
           entry_id: string
           final_placement: number | null

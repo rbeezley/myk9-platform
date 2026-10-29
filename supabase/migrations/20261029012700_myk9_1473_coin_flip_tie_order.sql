@@ -696,7 +696,7 @@ CREATE OR REPLACE FUNCTION public.get_class_ties(p_class_id uuid)
 RETURNS TABLE (
   group_rank integer,
   entry_id uuid,
-  armband_number integer,
+  armband_number text,
   dog_call_name text,
   final_placement integer,
   total_faults integer,
@@ -737,7 +737,9 @@ BEGIN
       PARTITION BY e.points_earned, e.total_faults, e.search_time_seconds
     ))::integer AS group_rank,
     e.id,
-    e.armband_number::integer,
+    -- The authoritative armband is armbands.armband_number; entries.armband is
+    -- the denormalised fallback. Text, because suffixed armbands ("12A") exist.
+    NULLIF(btrim(COALESCE(NULLIF(btrim(ab.armband_number), ''), e.armband, '')), '')::text,
     d.call_name::text,
     e.final_placement::integer,
     e.total_faults::integer,
@@ -746,6 +748,14 @@ BEGIN
     v_is_nationals
   FROM public.entries e
   LEFT JOIN public.dogs d ON d.id = e.dog_id
+  LEFT JOIN LATERAL (
+    SELECT a2.armband_number
+    FROM public.armbands a2
+    WHERE a2.show_id = e.show_id
+      AND a2.dog_id = e.dog_id
+    ORDER BY a2.assigned_at DESC NULLS LAST
+    LIMIT 1
+  ) ab ON TRUE
   WHERE e.class_id = p_class_id
     AND e.deleted_at IS NULL
     AND e.placement_tie = 'unresolved'

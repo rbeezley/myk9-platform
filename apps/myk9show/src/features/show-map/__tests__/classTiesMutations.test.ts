@@ -15,7 +15,7 @@ beforeEach(() => {
 
 describe('readClassTies', () => {
   it('groups the rows by the place they share', async () => {
-    const row = (entry_id: string, armband_number: number, group_rank: number) => ({
+    const row = (entry_id: string, armband_number: string, group_rank: number) => ({
       entry_id,
       armband_number,
       dog_call_name: `Dog ${armband_number}`,
@@ -27,7 +27,7 @@ describe('readClassTies', () => {
       ranks_by_points: false,
     });
     rpc.mockResolvedValue({
-      data: [row('a', 12, 2), row('b', 31, 2), row('c', 40, 4), row('d', 41, 4)],
+      data: [row('a', '12', 2), row('b', '31', 2), row('c', '40', 4), row('d', '41', 4)],
       error: null,
     });
 
@@ -38,7 +38,7 @@ describe('readClassTies', () => {
       [2, ['a', 'b']],
       [4, ['c', 'd']],
     ]);
-    expect(groups[0]?.entries[0]).toMatchObject({ armband: 12, dogName: 'Dog 12' });
+    expect(groups[0]?.entries[0]).toMatchObject({ armband: '12', dogName: 'Dog 12' });
   });
 
   it('throws what the server said', async () => {

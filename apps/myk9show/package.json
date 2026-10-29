@@ -26,7 +26,7 @@
     "typecheck:api": "tsc --noEmit --project tsconfig.api.json",
     "typecheck:tests:all": "tsc --noEmit --project tsconfig.test.all.json",
     "typecheck:strict": "tsc --noEmit --strict --project tsconfig.app.json --tsBuildInfoFile node_modules/.cache/tsc/strict.tsbuildinfo",
-    "typecheck:watch": "tsc --noEmit --watch --project tsconfig.app.json",
+    "typecheck:watch": "tsc --noEmit --watch --project tsconfig.app.json --tsBuildInfoFile node_modules/.cache/tsc/watch.tsbuildinfo",
     "quality:quick": "npm run typecheck && npm run lint",
     "quality:full": "npm run typecheck:strict && npm run lint && npm run test",
     "monitor:type-safety": "node scripts/monitor-type-safety.js",

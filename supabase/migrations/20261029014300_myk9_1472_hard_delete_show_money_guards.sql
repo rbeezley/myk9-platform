@@ -22,7 +22,8 @@
 --    an entry of another show that points at this show's trials, classes or
 --    enrollments. Money and delivery tables that name a show without a
 --    foreign key (cart_fulfillments, cart_fulfillment_lines,
---    show_lifecycle_email_job_requests) are checked by name.
+--    show_lifecycle_email_job_requests, private.class_results_push) are
+--    checked by name.
 -- 4. The show, its trials and its classes are row-locked before any check, so
 --    a concurrent entry, enrollment, order or payment (each of which takes
 --    FOR KEY SHARE on one of those rows) waits for this transaction instead
@@ -277,6 +278,18 @@ BEGIN
     SELECT 1 FROM public.show_lifecycle_email_job_requests AS q WHERE q.show_id = p_show_id
   ) THEN
     RAISE EXCEPTION 'This show has email delivery records in public.show_lifecycle_email_job_requests that must be kept, so it cannot be permanently deleted.'
+      USING ERRCODE = 'MK615';
+  END IF;
+  -- "Results Posted" push state, keyed by class with no foreign key: a delete
+  -- would orphan it and private.retry_class_results_push would keep retrying.
+  IF EXISTS (
+    SELECT 1 FROM private.class_results_push AS p
+    WHERE p.class_id IN (
+      SELECT c.id FROM public.classes AS c
+      JOIN public.trials AS t ON t.id = c.trial_id WHERE t.show_id = p_show_id
+    )
+  ) THEN
+    RAISE EXCEPTION 'This show has results push delivery records in private.class_results_push that must be kept, so it cannot be permanently deleted.'
       USING ERRCODE = 'MK615';
   END IF;
 

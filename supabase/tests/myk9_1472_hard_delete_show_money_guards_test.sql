@@ -182,6 +182,9 @@ INSERT INTO public.show_lifecycle_email_job_requests (show_id, request_key, job_
 SELECT j.show_id, 'myk9-1472-request', j.id
 FROM public.show_lifecycle_email_jobs AS j
 WHERE j.idempotency_key = 'myk9-1472-job-039';
+-- "Results Posted" push state names its class without a foreign key (show 1472043).
+INSERT INTO private.class_results_push (class_id)
+VALUES ('00000000-0000-0000-0000-000001474043');
 
 CREATE FUNCTION pg_temp.assert_hard_delete_refused(
   p_show_id uuid, p_expected_state text, p_expected_message text, p_case_name text
@@ -275,7 +278,8 @@ BEGIN
       ('show incident', 1472037, 'public.show_incidents'),
       ('trial packet snapshot', 1472038, 'public.trial_packet_snapshots'),
       ('email job request (no FK)', 1472039, 'public.show_lifecycle_email_job_requests'),
-      ('lifecycle email job', 1472040, 'public.show_lifecycle_email_jobs')
+      ('lifecycle email job', 1472040, 'public.show_lifecycle_email_jobs'),
+      ('class results push (no FK)', 1472043, 'private.class_results_push')
     ) AS cases(case_name, show_n, expected_message)
   LOOP
     PERFORM pg_temp.assert_hard_delete_refused(
@@ -327,7 +331,9 @@ BEGIN
      OR (SELECT count(*) FROM public.show_lifecycle_email_job_requests
          WHERE show_id = '00000000-0000-0000-0000-000001472039') <> 1
      OR (SELECT count(*) FROM public.show_lifecycle_email_jobs
-         WHERE idempotency_key = 'myk9-1472-job-040') <> 1 THEN
+         WHERE idempotency_key = 'myk9-1472-job-040') <> 1
+     OR (SELECT count(*) FROM private.class_results_push
+         WHERE class_id = '00000000-0000-0000-0000-000001474043') <> 1 THEN
     RAISE EXCEPTION 'FAIL MYK9-1472: a refused delete lost an evidence row';
   END IF;
   RAISE NOTICE 'PASS MYK9-1472 every refused show keeps its evidence row';

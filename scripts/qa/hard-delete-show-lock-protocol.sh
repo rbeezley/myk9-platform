@@ -4,7 +4,6 @@
 set -Eeuo pipefail
 
 DATABASE_URL="${1:-${MYK9_BEHAVIORAL_SQL_DATABASE_URL:-}}"
-LOCAL_DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:54322/postgres"
 ADMIN_AUTH_ID="${2:-}"
 CLUB_ID="${3:-}"
 HANDLER_PERSON_ID="${4:-}"
@@ -13,8 +12,11 @@ ENROLLMENT_SHOW_ID="${6:-}"
 ENROLLMENT_TRIAL_ID="${7:-}"
 CROSS_CLASS_ID="${8:-}"
 
-if [ "$DATABASE_URL" != "$LOCAL_DATABASE_URL" ]; then
-  echo "FAIL: lock-protocol tests require the exact local loopback database URL." >&2
+# Same rule as run-behavioral-sql-tests.sh: any loopback port, no query string.
+LOOPBACK_URL_RE='^postgresql://postgres:postgres@(127\.0\.0\.1|localhost):([0-9]{1,5})/postgres$'
+if ! [[ "$DATABASE_URL" =~ $LOOPBACK_URL_RE ]] ||
+  [ "${BASH_REMATCH[2]}" -lt 1 ] || [ "${BASH_REMATCH[2]}" -gt 65535 ]; then
+  echo "FAIL: lock-protocol tests require a local loopback database URL." >&2
   exit 1
 fi
 unset PGHOST PGHOSTADDR PGPORT PGSERVICE PGSERVICEFILE

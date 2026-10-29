@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
-# Verify target row locks against only the exact local migrated database.
+# Verify target row locks against only a local loopback migrated database.
 
 set -Eeuo pipefail
 
 DATABASE_URL="${MYK9_BEHAVIORAL_SQL_DATABASE_URL:-}"
-LOCAL_DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:54322/postgres"
-if [ "$DATABASE_URL" != "$LOCAL_DATABASE_URL" ]; then
-  echo "FAIL: hard-delete concurrency tests require the exact local loopback database URL." >&2
+# Same rule as run-behavioral-sql-tests.sh: any loopback port, no query string.
+LOOPBACK_URL_RE='^postgresql://postgres:postgres@(127\.0\.0\.1|localhost):([0-9]{1,5})/postgres$'
+if ! [[ "$DATABASE_URL" =~ $LOOPBACK_URL_RE ]] ||
+  [ "${BASH_REMATCH[2]}" -lt 1 ] || [ "${BASH_REMATCH[2]}" -gt 65535 ]; then
+  echo "FAIL: hard-delete concurrency tests require a local loopback database URL." >&2
   exit 1
 fi
 unset PGHOST PGHOSTADDR PGPORT PGSERVICE PGSERVICEFILE

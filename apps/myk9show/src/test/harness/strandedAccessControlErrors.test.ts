@@ -19,6 +19,12 @@ describe('accessControlErrorUrl', () => {
     ).toBe('127.0.0.1:54321/rest/v1/classes?select=id');
   });
 
+  it('keeps a scheme-less host with a port', () => {
+    expect(
+      accessControlErrorUrl('localhost:54321/rest/v1/dogs?select=id due to access control checks.')
+    ).toBe('localhost:54321/rest/v1/dogs?select=id');
+  });
+
   it('is null for any other page error', () => {
     expect(accessControlErrorUrl('TypeError: undefined is not an object')).toBeNull();
   });
@@ -30,6 +36,12 @@ describe('triageStrandedAccessControlErrors', () => {
       kept: [],
       excused: [errorFor(URL_A)],
     });
+  });
+
+  it('matches a scheme-less localhost error to its stranded request', () => {
+    const url = 'http://localhost:54321/rest/v1/dogs?select=id';
+    const error = 'localhost:54321/rest/v1/dogs?select=id due to access control checks.';
+    expect(triageStrandedAccessControlErrors([error], [url], []).excused).toEqual([error]);
   });
 
   it('keeps an access-control error for a request that was never stranded', () => {

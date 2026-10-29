@@ -21,9 +21,13 @@ export interface StrandedErrorTriage {
   excused: string[];
 }
 
-/** Compare URLs without scheme or leading slashes: WebKit's message can drop them. */
+/**
+ * Compare URLs without scheme or leading slashes: WebKit's message can drop
+ * them. A scheme is stripped only when a slash follows it, so the host of a
+ * scheme-less `localhost:54321/…` survives.
+ */
 function normalizeUrl(url: string) {
-  return url.replace(/^[a-z][a-z0-9+.-]*:/i, '').replace(/^\/+/, '');
+  return url.replace(/^[a-z][a-z0-9+.-]*:(?=\/)/i, '').replace(/^\/+/, '');
 }
 
 function lastToken(text: string) {

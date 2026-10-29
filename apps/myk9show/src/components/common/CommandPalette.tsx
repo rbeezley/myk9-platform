@@ -155,7 +155,7 @@ export function CommandPalette({ open, onOpenChange, onShowShortcuts }: CommandP
       {
         // Left the header Actions menu (CRUD standard decision 6): it is a place, not an action.
         id: 'nav-show-management',
-        title: 'Show Management',
+        title: 'Home',
         subtitle: 'Your shows as secretary',
         icon: <LayoutDashboard className="h-4 w-4" />,
         action: () =>
@@ -163,7 +163,7 @@ export function CommandPalette({ open, onOpenChange, onShowShortcuts }: CommandP
             navigate('/secretary/dashboard');
             onOpenChange(false);
           }),
-        keywords: ['secretary', 'dashboard', 'manage', 'my shows'],
+        keywords: ['secretary', 'dashboard', 'manage', 'show management', 'my shows'],
         category: 'navigation' as const,
       },
     ],

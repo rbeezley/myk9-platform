@@ -40,22 +40,20 @@ describe('RoleSidebar', () => {
       expect(link).not.toHaveAttribute('title');
     }
 
-    const manage = screen.getByRole('link', { name: 'Manage: Show Management' });
-    expect(manage).toHaveTextContent(/^Manage$/);
-    expect(manage).toHaveAttribute('href', '/secretary/dashboard');
+    const home = screen.getByRole('link', { name: 'Home' });
+    expect(home).toHaveTextContent(/^Home$/);
+    expect(home).toHaveAttribute('href', '/secretary/dashboard');
     // One Browse item stands for Shows, Dogs, People and Clubs; first time, it opens Shows.
     expect(screen.getByRole('link', { name: 'Browse' })).toHaveAttribute('href', '/shows');
     expect(screen.queryByRole('link', { name: 'Shows' })).not.toBeInTheDocument();
   });
 
-  it('keeps the full Show Management title in the mobile drawer', () => {
+  it('labels the secretary dashboard Home in the mobile drawer too', () => {
     const config = buildUnifiedSidebarConfig([UserRole.SECRETARY]);
 
     render(<RoleSidebar config={config} />, { initialRoute: '/secretary/dashboard' });
 
-    expect(screen.getByRole('link', { name: 'Show Management' })).toHaveTextContent(
-      'Show Management'
-    );
+    expect(screen.getByRole('link', { name: 'Home' })).toHaveTextContent('Home');
   });
 
   it('keeps expanded link names concise and renders descriptions in full', () => {

@@ -77,36 +77,36 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
     const config = buildUnifiedSidebarConfig([UserRole.SITE_ADMIN, UserRole.SECRETARY]);
     const titles = config.groups.map(g => g.title);
     expect(titles).toContain('Admin');
-    expect(titles).toContain('Manage');
+    expect(titles).toContain('Home');
     expect(titles).toContain('Show Day');
     expect(titles).toContain('Browse');
     expect(titles.at(-1)).toBe('Resources');
   });
 
-  // ── Manage ───────────────────────────────────────────────────────────────
-  it('manage holds only Show Management; no single show is linked from the sidebar', () => {
+  // ── Home ─────────────────────────────────────────────────────────────────
+  it('Home holds only the Home link; no single show is linked from the sidebar', () => {
     const config = buildUnifiedSidebarConfig([UserRole.SECRETARY, UserRole.EXHIBITOR]);
-    const group = config.groups.find(g => g.title === 'Manage');
+    const group = config.groups.find(g => g.title === 'Home');
     const titles = group?.items.map(i => i.title) ?? [];
-    expect(titles).toEqual(['Show Management']);
+    expect(titles).toEqual(['Home']);
     // Today's show is the top of the Shows list's Today group now (MYK9-1213).
     const hrefs = config.groups.flatMap(g => g.items.map(i => i.href));
     expect(hrefs.filter(href => /^\/shows\/[^/?]+/.test(href))).toEqual([]);
     expect(hrefs).toContain('/shows');
   });
 
-  it('manage sidebar omits Messages because Message Center is the communication hub', () => {
+  it('Home group omits Messages because Message Center is the communication hub', () => {
     const config = buildUnifiedSidebarConfig([UserRole.SECRETARY]);
-    const group = config.groups.find(g => g.title === 'Manage');
+    const group = config.groups.find(g => g.title === 'Home');
     const titles = group?.items.map(i => i.title) ?? [];
 
     expect(titles).not.toContain('Messages');
     expect(group?.items.some(i => i.href === '/secretary/messages')).toBe(false);
   });
 
-  it('manage sidebar omits Add Show and other parked items', () => {
+  it('Home group omits Add Show and other parked items', () => {
     const config = buildUnifiedSidebarConfig([UserRole.SECRETARY]);
-    const group = config.groups.find(g => g.title === 'Manage');
+    const group = config.groups.find(g => g.title === 'Home');
     const titles = group?.items.map(i => i.title) ?? [];
     for (const absent of [
       'Add Show',
@@ -121,10 +121,10 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
     }
   });
 
-  it('Show Management href is /secretary/dashboard for secretaries', () => {
+  it('Home href is /secretary/dashboard for secretaries', () => {
     const config = buildUnifiedSidebarConfig([UserRole.SECRETARY]);
-    const group = config.groups.find(g => g.title === 'Manage');
-    const item = group?.items.find(i => i.title === 'Show Management');
+    const group = config.groups.find(g => g.title === 'Home');
+    const item = group?.items.find(i => i.title === 'Home');
     expect(item?.href).toBe('/secretary/dashboard');
     expect(item?.description).toBeUndefined();
   });
@@ -132,7 +132,7 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
   it('club admins use the My Club Members destination as their dashboard', () => {
     const config = buildUnifiedSidebarConfig([UserRole.CLUB_ADMIN]);
 
-    expect(config.groups.find(g => g.title === 'Manage')).toBeUndefined();
+    expect(config.groups.find(g => g.title === 'Home')).toBeUndefined();
     expect(config.groups.find(g => g.title === 'My Club')?.items.map(item => item.title)).toEqual([
       'Members',
       'Payments',
@@ -172,9 +172,9 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
     expect(group?.railMenu).toBeDefined();
   });
 
-  it('manage sidebar omits standalone Entries, Reports, Results, and Submit Results', () => {
+  it('Home group omits standalone Entries, Reports, Results, and Submit Results', () => {
     const config = buildUnifiedSidebarConfig([UserRole.SECRETARY]);
-    const group = config.groups.find(g => g.title === 'Manage');
+    const group = config.groups.find(g => g.title === 'Home');
     const titles = group?.items.map(i => i.title) ?? [];
     for (const removed of ['Entries', 'Reports', 'Results', 'Submit Results']) {
       expect(titles, `"${removed}" should be absent from sidebar`).not.toContain(removed);
@@ -364,13 +364,18 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
     }
   );
 
-  it('Show Day group appears immediately after Manage for a secretary', () => {
+  it('Show Day group appears immediately after Home for a secretary with no current show', () => {
     const config = buildUnifiedSidebarConfig([UserRole.SECRETARY]);
     const titles = config.groups.map(g => g.title);
-    expect(titles.indexOf('Show Day')).toBe(titles.indexOf('Manage') + 1);
+    expect(titles.indexOf('Show Day')).toBe(titles.indexOf('Home') + 1);
   });
 
-  it('judge-only sidebar surfaces Ringside even though it has no Manage section', () => {
+  it('judge-only sidebar starts with Ringside, having no Home section', () => {
+    const config = buildUnifiedSidebarConfig([UserRole.JUDGE]);
+    expect(config.groups[0]?.items[0]?.href).toBe('/at-show');
+  });
+
+  it('judge-only sidebar surfaces Ringside even though it has no Home section', () => {
     const config = buildUnifiedSidebarConfig([UserRole.JUDGE]);
     const hrefs = config.groups.flatMap(g => g.items.map(i => i.href));
     expect(hrefs).toContain('/at-show');
@@ -449,10 +454,10 @@ describe('buildUnifiedSidebarConfig — current show', () => {
     onChooseShow: () => undefined,
   };
 
-  it('adds a Current show group right after Browse, with the current show first', () => {
+  it('adds a Current show group right after Home, with the current show first', () => {
     const config = buildUnifiedSidebarConfig([UserRole.SECRETARY], undefined, null, nav);
     const titles = config.groups.map(g => g.title);
-    const group = config.groups[titles.indexOf('Browse') + 1];
+    const group = config.groups[titles.indexOf('Home') + 1];
 
     expect(group.title).toBe('Current show');
     expect(group.railSwitch).toBe(true);

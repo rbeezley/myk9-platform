@@ -39,11 +39,12 @@ describe('current show rail item', () => {
     expect(screen.queryByRole('button', { name: 'Switch' })).not.toBeInTheDocument();
   });
 
-  it('sits directly under Browse', () => {
+  it('sits directly under Home (MYK9-1490)', () => {
     renderRail('/secretary/dashboard', { currentShow: show, managingShows: [show] });
 
     const links = screen.getAllByRole('link');
-    expect(links.indexOf(showLink())).toBe(links.indexOf(browseLink()) + 1);
+    const home = screen.getByRole('link', { name: 'Home' });
+    expect(links.indexOf(showLink())).toBe(links.indexOf(home) + 1);
   });
 
   it('uses a short name whole, with no tooltip or doubled accessible name', () => {

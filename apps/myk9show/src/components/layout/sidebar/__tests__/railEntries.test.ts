@@ -116,13 +116,60 @@ describe('buildRailEntries', () => {
   });
 });
 
+// MYK9-1490: Home is the hub and the current show its workspace, with Ringside (that show's live
+// view) beside it; then Browse, My Entries, and the role-specific groups. A change here is a
+// design change.
+describe('rail order', () => {
+  const CURRENT = {
+    currentShow: { id: 's1', name: 'Fall Classic' },
+    managingShows: [{ id: 's1', name: 'Fall Classic' }],
+    onChooseShow: () => undefined,
+  };
+
+  function railLabels(roles: UserRole[], currentShowNav?: typeof CURRENT): string[] {
+    const config = buildUnifiedSidebarConfig(roles, CLUB, 'Jamie', currentShowNav);
+    return buildRailEntries(config.groups).map(entry =>
+      entry.kind === 'item'
+        ? railLabel(entry.item)
+        : entry.kind === 'menu'
+          ? entry.menu.title
+          : entry.link.title
+    );
+  }
+
+  it('reads Home, current show, Ringside, Browse, My Entries, then My Club for a secretary', () => {
+    expect(
+      railLabels([UserRole.SECRETARY, UserRole.CLUB_ADMIN, UserRole.EXHIBITOR], CURRENT)
+    ).toEqual(['Home', 'Fall Classic', 'Ringside', 'Browse', 'My Entries', 'My Club']);
+  });
+
+  it('puts Admin after My Entries and before My Club when the viewer holds every role', () => {
+    expect(
+      railLabels(
+        [
+          UserRole.SITE_ADMIN,
+          UserRole.SECRETARY,
+          UserRole.CLUB_ADMIN,
+          UserRole.JUDGE,
+          UserRole.EXHIBITOR,
+        ],
+        CURRENT
+      )
+    ).toEqual(['Home', 'Fall Classic', 'Ringside', 'Browse', 'My Entries', 'Admin', 'My Club']);
+  });
+
+  it('starts a judge-only rail with Ringside', () => {
+    expect(railLabels([UserRole.JUDGE])[0]).toBe('Ringside');
+  });
+});
+
 describe('rail labels', () => {
-  it('shortens Show Management to "Manage" and keeps the full title as its accessible name', () => {
+  it('labels the secretary dashboard Home in the rail, with no shortened title', () => {
     const config = buildUnifiedSidebarConfig([UserRole.SECRETARY]);
     const item = config.groups.flatMap(g => g.items).find(i => i.href === '/secretary/dashboard');
 
-    expect(item && railLabel(item)).toBe('Manage');
-    expect(item && railAccessibleName(item)).toBe('Manage: Show Management');
+    expect(item && railLabel(item)).toBe('Home');
+    expect(item && railAccessibleName(item)).toBe('Home');
   });
 
   it('uses the title unchanged when no rail title is set', () => {

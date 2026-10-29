@@ -522,7 +522,7 @@ describe('CommandPalette permission suppression role matrix (task 3.2)', () => {
     expect(screen.queryByText('Add Show')).not.toBeInTheDocument();
   });
 
-  it('offers Show Management to a secretary or site admin, never to an exhibitor', () => {
+  it('offers Home (the secretary dashboard) to a secretary or site admin, never to an exhibitor', () => {
     for (const [roles, expected] of [
       [[UserRole.SECRETARY], true],
       [[UserRole.SITE_ADMIN], true],
@@ -530,7 +530,7 @@ describe('CommandPalette permission suppression role matrix (task 3.2)', () => {
     ] as const) {
       mockAuth([...roles]);
       const { unmount } = render(<CommandPalette open onOpenChange={vi.fn()} />);
-      expect(screen.queryByText('Show Management') !== null, roles.join()).toBe(expected);
+      expect(screen.queryByText('Home') !== null, roles.join()).toBe(expected);
       unmount();
     }
   });

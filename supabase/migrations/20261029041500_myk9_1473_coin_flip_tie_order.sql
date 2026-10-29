@@ -697,7 +697,8 @@ GRANT EXECUTE ON FUNCTION public.mark_class_results_verified(uuid, text, timesta
 -- no tie-reader RPC: a score correction re-ranks the class, moves the entry
 -- rows' updated_at, and the replica picks the new marker up on its next pull.
 --
--- Both views are rebuilt from their LATEST definition (20261022131700,
+-- Both views are rebuilt from their LATEST definition (inner view:
+-- 20261029023100, MYK9-1369 hoist; replication wrapper: 20261022131700,
 -- MYK9-1326; 20261028213700 only reads them) with the two columns appended at
 -- the end of each explicit select list. security_invoker = false is carried
 -- inline because CREATE OR REPLACE VIEW resets reloptions. Grants are restated
@@ -709,6 +710,45 @@ CREATE OR REPLACE VIEW public.view_authenticated_entry_results
 AS
 WITH caller_context AS MATERIALIZED (
   SELECT * FROM private.entry_results_caller_context()
+),
+-- MYK9-1369: the shows where the caller has a live, non-withdrawn entry as
+-- handler, dog owner or dog co-owner. Depends on caller_context only, and
+-- MATERIALIZED guarantees one evaluation per query. Three UNION ALL arms, one
+-- per role, so each is an index lookup on the caller's own rows
+-- (entries_active_handler_id_idx; dogs_owner_id_idx / dogs_co_owner_id_idx ->
+-- entries_active_dog_id_idx) rather than an OR across the join, which would
+-- scan every live entry on the platform. The union is the same set the old
+-- `handler OR own_dog.owner OR own_dog.co_owner` over entries LEFT JOIN dogs
+-- admitted: an entry with no dog row can match only through its handler arm.
+exhibitor_shows AS MATERIALIZED (
+  SELECT COALESCE(
+    (
+      SELECT array_agg(DISTINCT own.show_id)
+      FROM (
+        SELECT own_e.show_id
+        FROM public.entries own_e
+        WHERE own_e.handler_id = ctx0.person_id
+          AND own_e.deleted_at IS NULL
+          AND own_e.entry_status NOT IN ('withdrawn', 'scratched')
+        UNION ALL
+        SELECT own_e.show_id
+        FROM public.dogs own_dog
+        JOIN public.entries own_e ON own_e.dog_id = own_dog.id
+        WHERE own_dog.owner_id = ctx0.person_id
+          AND own_e.deleted_at IS NULL
+          AND own_e.entry_status NOT IN ('withdrawn', 'scratched')
+        UNION ALL
+        SELECT own_e.show_id
+        FROM public.dogs own_dog
+        JOIN public.entries own_e ON own_e.dog_id = own_dog.id
+        WHERE own_dog.co_owner_id = ctx0.person_id
+          AND own_e.deleted_at IS NULL
+          AND own_e.entry_status NOT IN ('withdrawn', 'scratched')
+      ) own
+    ),
+    ARRAY[]::uuid[]
+  ) AS show_ids
+  FROM caller_context ctx0
 )
 SELECT
   e.id,
@@ -899,6 +939,7 @@ LEFT JOIN public.show_visibility_settings show_vis ON show_vis.show_id = e.show_
 LEFT JOIN public.trial_visibility_overrides trial_vis ON trial_vis.trial_id = c.trial_id
 LEFT JOIN public.class_visibility_overrides class_vis ON class_vis.class_id = e.class_id
 CROSS JOIN caller_context ctx
+CROSS JOIN exhibitor_shows
 LEFT JOIN private.class_result_visibility cvr ON cvr.class_id = e.class_id
 -- MYK9-126: `vis` keeps its four column names, so every downstream reference
 -- above is byte-identical to 20260902130000. The COALESCE reproduces the
@@ -943,19 +984,7 @@ CROSS JOIN LATERAL (
           AND owned_dog.owner_id = ctx.person_id
       )
     ) AS is_own_entry,
-    EXISTS (
-      SELECT 1
-      FROM public.entries own_e
-      LEFT JOIN public.dogs own_dog ON own_dog.id = own_e.dog_id
-      WHERE own_e.show_id = e.show_id
-        AND own_e.deleted_at IS NULL
-        AND own_e.entry_status NOT IN ('withdrawn', 'scratched')
-        AND (
-          own_e.handler_id = ctx.person_id
-          OR own_dog.owner_id = ctx.person_id
-          OR own_dog.co_owner_id = ctx.person_id
-        )
-    ) AS is_show_exhibitor,
+    COALESCE(e.show_id = ANY(exhibitor_shows.show_ids), false) AS is_show_exhibitor,
     (
       ctx.claim_kind = 'ringside_passcode'
       AND ctx.claim_show_id = e.show_id::text
@@ -1051,7 +1080,7 @@ COMMENT ON VIEW public.view_authenticated_entry_results IS
   'withdrawal_reason_code beside the free-text withdrawal_reason (MYK9-632). A '
   'club-less show is manageable by site admins only (MYK9-258 / MYK9-329). Class '
   'result visibility resolves once per class via private.class_result_visibility '
-  '(MYK9-126). moved_from_entry_id (MYK9-639) is unmasked: it is structural provenance, like class_id. registration_confirmation_number (MYK9-659) is appended after it and is NOT a sibling of payment_reference: it is a cross-table column from public.enrollments, reached by an owner-run LEFT JOIN that evaluates no enrollments policy, so can_view_admin is its ONLY guard -- a different predicate from enrollments_select, which matches the enrollment''s own handler_id. That is deliberate: the order reference belongs to whoever the ENTRY belongs to, so the entry''s handler or the dog''s owner sees the reference of the order their entry is on, even when another person placed it, and both client read paths apply that one rule. MYK9-969 results privacy: an entry''s results are public only when the show is not private (show_visibility_settings.results_private) and every tied person (dog owner, co-owner, handler) has exhibitor_profiles.results_public; otherwise every result column is NULL for a caller who is neither show staff nor a tied person, and results_private says so. Staff paths (can_view_scores, stewards, ringside staff claims) are unaffected. The view remains security_invoker = false. awaiting_registration_number (MYK9-1162) is appended last: TRUE for a live entry whose dog has no registration number for the trial''s registry, from public.entry_awaiting_registration_number(), and unmasked because it carries no registration data. placement_tie and placement_tiebreak (MYK9-1473) are appended after it and masked exactly like final_placement (can_view_scores OR placement_visible), so the replica holds the coin-flip state wherever it holds the placement.';
+  '(MYK9-126). moved_from_entry_id (MYK9-639) is unmasked: it is structural provenance, like class_id. registration_confirmation_number (MYK9-659) is appended after it and is NOT a sibling of payment_reference: it is a cross-table column from public.enrollments, reached by an owner-run LEFT JOIN that evaluates no enrollments policy, so can_view_admin is its ONLY guard -- a different predicate from enrollments_select, which matches the enrollment''s own handler_id. That is deliberate: the order reference belongs to whoever the ENTRY belongs to, so the entry''s handler or the dog''s owner sees the reference of the order their entry is on, even when another person placed it, and both client read paths apply that one rule. MYK9-969 results privacy: an entry''s results are public only when the show is not private (show_visibility_settings.results_private) and every tied person (dog owner, co-owner, handler) has exhibitor_profiles.results_public; otherwise every result column is NULL for a caller who is neither show staff nor a tied person, and results_private says so. Staff paths (can_view_scores, stewards, ringside staff claims) are unaffected. The view remains security_invoker = false. awaiting_registration_number (MYK9-1162) is appended last: TRUE for a live entry whose dog has no registration number for the trial''s registry, from public.entry_awaiting_registration_number(), and unmasked because it carries no registration data. is_show_exhibitor (MYK9-1369) is computed once per query from a materialized set of the caller''s exhibitor show ids, not once per entry; the access rule is unchanged. placement_tie and placement_tiebreak (MYK9-1473) are appended after it and masked exactly like final_placement (can_view_scores OR placement_visible), so the replica holds the coin-flip state wherever it holds the placement.';
 
 CREATE OR REPLACE VIEW public.view_authenticated_entry_results_replication
   WITH (security_invoker = false)

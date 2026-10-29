@@ -150,7 +150,8 @@ BEGIN
     ('show_payouts','SELECT','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('show_templates','SELECT,INSERT,UPDATE,DELETE','SELECT','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('show_visibility_settings','SELECT,INSERT,UPDATE','SELECT','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
-    ('shows','SELECT,INSERT,UPDATE,DELETE','SELECT','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
+    -- MYK9-1472: no DELETE; hard_delete_show is the only permanent path.
+    ('shows','SELECT,INSERT,UPDATE','SELECT','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('sms_opt_in_attempts','','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('sms_proximity_sends','','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('sport_class_rules','SELECT,INSERT,UPDATE,DELETE','SELECT','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
@@ -352,7 +353,7 @@ BEGIN
       -- 57 became 56 when entries.promo_code_id was dropped (20261022131700,
       -- MYK9-1326): dropping a column drops its column grant with it.
       -- Still 56 after entries.placement_tiebreak and entries.placement_tie
-      -- (20261029012700, MYK9-1473): result data, deliberately NOT granted on the
+      -- (20261029041500, MYK9-1473): result data, deliberately NOT granted on the
       -- base table; the replica reads them through the masked results views.
       ('entries','authenticated',56),
       ('judge_assignments','anon',10),

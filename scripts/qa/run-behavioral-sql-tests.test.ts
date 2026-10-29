@@ -209,6 +209,7 @@ const launchCriticalSqlTests = [
   'myk9_1407_comp_keeps_paid_status_test.sql',
   'myk9_1327_set_class_judge_test.sql',
   'myk9_1327_one_judge_per_class_test.sql',
+  'myk9_1472_hard_delete_show_money_guards_test.sql',
   'myk9_1473_coin_flip_tie_order_test.sql',
 ];
 
@@ -234,6 +235,8 @@ function runWithFakePsql([command, ...args]: [string, ...string[]], databaseUrl:
         ...process.env,
         PATH: `${scratch}:${process.env.PATH ?? ''}`,
         MYK9_BEHAVIORAL_SQL_DATABASE_URL: databaseUrl,
+        // The two-session hard-delete harness needs a real database.
+        MYK9_SKIP_HARD_DELETE_CONCURRENCY: '1',
         MYK9_FAKE_PSQL_LOG: invocationLog,
       },
     });

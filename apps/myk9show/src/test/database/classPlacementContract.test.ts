@@ -119,7 +119,7 @@ describe('placement ranking — recalculate_class_placements (latest definition)
     // If this fails, a later migration redefined the ranking: repoint the pin
     // rather than deleting it, and re-check every assertion below against the
     // new body. Silently leaving it behind is how a contract goes vacuous.
-    expect(latestRankingMigrationFile).toBe('20261029012700_myk9_1473_coin_flip_tie_order.sql');
+    expect(latestRankingMigrationFile).toBe('20261029041500_myk9_1473_coin_flip_tie_order.sql');
   });
 
   it('places ONLY scored + qualified entries (NQ/ABS/EX/WD get no placement)', () => {

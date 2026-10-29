@@ -179,8 +179,8 @@ export function describeRestoreDog(result: unknown): string | null {
 export function describeRestoreClub(): string {
   return (
     'Club restored. Deleting it switched off everyone’s roles in this club, and restoring ' +
-    'does not switch them back on. Appoint its club admins and secretaries again from the ' +
-    'club’s Members page.'
+    'does not switch them back on. Give its club admins their role again in User Management, ' +
+    'then they can appoint secretaries from the club’s Members page.'
   );
 }
 

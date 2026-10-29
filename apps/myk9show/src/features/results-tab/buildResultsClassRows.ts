@@ -65,6 +65,8 @@ export interface ResultsEntryRow {
    * coin flip, 'shared' = a tie below 4th, null = no tie (or unknown on the online fallback read).
    */
   placementTie: 'unresolved' | 'shared' | null;
+  /** The recorded coin flip order within a tie (1 = won the flip); null = none recorded. */
+  placementTiebreak: number | null;
 }
 
 export interface ResultsClassRow {
@@ -223,6 +225,7 @@ function toEntryRow(entry: SecretaryEntry): ResultsEntryRow {
       entry.placement_tie === 'unresolved' || entry.placement_tie === 'shared'
         ? entry.placement_tie
         : null,
+    placementTiebreak: entry.placement_tiebreak ?? null,
   };
 }
 

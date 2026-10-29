@@ -27,7 +27,16 @@ export interface ClassTieGroup {
   rank: number;
   /** Nationals rank by points then time; every other show by faults then time. */
   byPoints: boolean;
+  /** True when the flip is already recorded: `entries` are then in the recorded order. */
+  recorded: boolean;
   entries: ClassTieEntry[];
+}
+
+/** True when a coin flip order is recorded for any dog of the class (it can still be changed). */
+export function hasRecordedTie(
+  entries: readonly Pick<ResultsEntryRow, 'placementTie' | 'placementTiebreak'>[]
+) {
+  return entries.some(isRecorded);
 }
 
 /** True when any entry of the class still owes a coin flip for a ribbon. */
@@ -40,21 +49,39 @@ function isRankEligible(entry: ResultsEntryRow): boolean {
   return entry.scored && entry.qualified;
 }
 
-/**
- * The class's unresolved ribbon ties, in finishing order. A group's rank is the place its dogs
- * share (the best placement any of them currently holds). A tie below 4th is `shared`, never
- * `unresolved`, so it is never offered.
- */
-export function deriveClassTies(
+/** A recorded flip: the server stores the order and drops the `unresolved` marker. */
+function isRecorded(entry: Pick<ResultsEntryRow, 'placementTie' | 'placementTiebreak'>): boolean {
+  return entry.placementTie !== 'unresolved' && entry.placementTiebreak !== null;
+}
+
+function byPlacement(a: ResultsEntryRow, b: ResultsEntryRow): number {
+  return (
+    (a.placement ?? Number.MAX_SAFE_INTEGER) - (b.placement ?? Number.MAX_SAFE_INTEGER) ||
+    a.armband.localeCompare(b.armband, undefined, { numeric: true })
+  );
+}
+
+function toTieEntry(entry: ResultsEntryRow): ClassTieEntry {
+  return {
+    entryId: entry.entryId,
+    armband: entry.armband,
+    dogName: entry.dogName,
+    totalFaults: entry.faults,
+    pointsEarned: entry.pointsEarned,
+    timeSeconds: entry.timeSeconds,
+  };
+}
+
+/** Groups the matching rank-eligible entries on the key the show ranks by, finishing order first. */
+function groupTies(
   entries: readonly ResultsEntryRow[],
-  isNationals: boolean | null
+  isNationals: boolean,
+  recorded: boolean
 ): ClassTieGroup[] {
-  // Until the show row says which key it ranks by, no group is offered rather than a group on the
-  // wrong key.
-  if (isNationals === null) return [];
   const byKey = new Map<string, ResultsEntryRow[]>();
   for (const entry of entries) {
-    if (entry.placementTie !== 'unresolved' || !isRankEligible(entry)) continue;
+    const matches = recorded ? isRecorded(entry) : entry.placementTie === 'unresolved';
+    if (!matches || !isRankEligible(entry)) continue;
     const score = isNationals ? entry.pointsEarned : entry.faults;
     const key = `${score ?? 'none'}|${entry.timeSeconds ?? 'none'}`;
     const members = byKey.get(key);
@@ -63,27 +90,41 @@ export function deriveClassTies(
   }
   const groups: ClassTieGroup[] = [];
   for (const members of byKey.values()) {
+    // A recorded order is one tie of at least two dogs; anything less is a stale lone value.
+    if (recorded && members.length < 2) continue;
     const placements = members
       .map(entry => entry.placement)
       .filter((place): place is number => place !== null);
     groups.push({
       rank: placements.length > 0 ? Math.min(...placements) : 0,
       byPoints: isNationals,
+      recorded,
       entries: members
         .sort(
-          (a, b) =>
-            (a.placement ?? Number.MAX_SAFE_INTEGER) - (b.placement ?? Number.MAX_SAFE_INTEGER) ||
-            a.armband.localeCompare(b.armband, undefined, { numeric: true })
+          recorded
+            ? (a, b) => (a.placementTiebreak ?? 0) - (b.placementTiebreak ?? 0) || byPlacement(a, b)
+            : byPlacement
         )
-        .map(entry => ({
-          entryId: entry.entryId,
-          armband: entry.armband,
-          dogName: entry.dogName,
-          totalFaults: entry.faults,
-          pointsEarned: entry.pointsEarned,
-          timeSeconds: entry.timeSeconds,
-        })),
+        .map(toTieEntry),
     });
   }
-  return groups.sort((a, b) => a.rank - b.rank);
+  return groups;
+}
+
+/**
+ * The class's ribbon ties, in finishing order: the unresolved ones awaiting a flip, then the ones
+ * whose flip is already recorded (so a wrong winner can be corrected). A group's rank is the place
+ * its dogs share (the best placement any of them currently holds). A tie below 4th is `shared`,
+ * never `unresolved`, and carries no recorded order, so it is never offered.
+ */
+export function deriveClassTies(
+  entries: readonly ResultsEntryRow[],
+  isNationals: boolean | null
+): ClassTieGroup[] {
+  // Until the show row says which key it ranks by, no group is offered rather than a group on the
+  // wrong key.
+  if (isNationals === null) return [];
+  return [...groupTies(entries, isNationals, false), ...groupTies(entries, isNationals, true)].sort(
+    (a, b) => a.rank - b.rank
+  );
 }

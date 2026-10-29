@@ -50,6 +50,8 @@ interface ResultsClassDetailProps {
   online: boolean;
   /** Opens the coin flip dialog for the class's tied dogs. */
   onRecordCoinFlip: () => void;
+  /** Reopens the dialog on a recorded flip to correct it; undefined = nothing to change here. */
+  onChangeCoinFlip?: (() => void) | undefined;
   /** Why Release is held back on this tab right now (offline, scores still syncing), or null. */
   releaseBlockedReason: string | null;
   /** Why the saved check could not show here yet (class row unsynced or in conflict), or null. */
@@ -327,6 +329,7 @@ export function ResultsClassDetail({
   verifying,
   online,
   onRecordCoinFlip,
+  onChangeCoinFlip,
   releaseBlockedReason,
   verifyBlockedReason,
   currentUserId,
@@ -392,6 +395,20 @@ export function ResultsClassDetail({
         verifyBlockedReason={verifyBlockedReason}
         verifying={verifying}
       />
+      {onChangeCoinFlip && (
+        <div className="space-y-1">
+          <Button
+            type="button"
+            variant="outline"
+            className="min-h-11"
+            disabled={!online || verifying || releasing || hiding}
+            onClick={onChangeCoinFlip}
+          >
+            Change coin-flip order
+          </Button>
+          {!online && <p className="text-xs text-muted-foreground">{OFFLINE_COIN_FLIP_MESSAGE}</p>}
+        </div>
+      )}
       {/* A released class always shows Hide; it is enabled only under manual release timing
           (clearing the release changes nothing otherwise), online, and while nothing else runs.
           An unknown release state has no releasedAt, so it offers neither Release nor Hide. */}

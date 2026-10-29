@@ -18,7 +18,7 @@ import { useReleaseResults } from '@/hooks/mutations/useReleaseResults';
 import { useUnreleaseResults } from '@/hooks/mutations/useUnreleaseResults';
 import type { ResultsClassRow } from './buildResultsClassRows';
 import { CoinFlipDialog } from './CoinFlipDialog';
-import { deriveClassTies } from './coinFlipRows';
+import { deriveClassTies, hasRecordedTie } from './coinFlipRows';
 import { ResultsClassDetail } from './ResultsClassDetail';
 import { ResultsClassList } from './ResultsClassList';
 import { ResultsFinishRow } from './ResultsFinishRow';
@@ -89,7 +89,8 @@ export default function ResultsTab() {
   const showId = params.showId ?? params.id ?? '';
   const [searchParams, setSearchParams] = useSearchParams();
   const urlState = readResultsTabUrlState(searchParams);
-  const { rows, isNationals, trials, readState, retry, refreshFailed } = useResultsTabData(showId);
+  const { rows, isNationals, rankingKeyState, trials, readState, retry, refreshFailed } =
+    useResultsTabData(showId);
   // The default status is derived live from the rows the view would list and never written to the
   // URL; a status the URL names always wins (MYK9-1276).
   const defaultStatus = useMemo(
@@ -161,6 +162,13 @@ export default function ResultsTab() {
     () => deriveClassTies(selected?.entries ?? [], isNationals),
     [isNationals, selected]
   );
+  // A recorded flip can be corrected until the results are released (the server re-ranks and
+  // clears the check on a reorder, so a checked class simply needs checking again).
+  const canChangeCoinFlip =
+    selected !== null &&
+    !selected.releasedAt &&
+    (selected.phase === 'needs-checking' || selected.phase === 'ready-to-release') &&
+    hasRecordedTie(selected.entries);
   const unsyncedScores = useClassUnsyncedScores(selected?.id ?? null);
   // The saved check reaches this device through a class sync, which a dirty or conflicted class row
   // refuses; say so up front instead of letting the click look like it did nothing (MYK9-1113).
@@ -366,6 +374,7 @@ export default function ResultsTab() {
       verifying={verification.isPending}
       online={isOnline}
       onRecordCoinFlip={() => setCoinFlipOpen(true)}
+      onChangeCoinFlip={canChangeCoinFlip ? () => setCoinFlipOpen(true) : undefined}
       currentUserId={user?.id ?? null}
       judgeSignOffSlot={
         judgeGroup ? (
@@ -431,10 +440,12 @@ export default function ResultsTab() {
       {selected && (
         <CoinFlipDialog
           key={selected.id}
-          open={coinFlipOpen && selected.phase === 'needs-coin-flip'}
+          open={coinFlipOpen && (selected.phase === 'needs-coin-flip' || canChangeCoinFlip)}
           onOpenChange={setCoinFlipOpen}
           className={selected.name}
           groups={coinFlipGroups}
+          groupsState={rankingKeyState}
+          onRetry={retry}
           online={isOnline}
           saving={coinFlip.isPending}
           onSave={orders =>

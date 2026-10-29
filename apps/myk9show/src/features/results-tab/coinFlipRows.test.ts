@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { ResultsEntryRow } from './buildResultsClassRows';
-import { deriveClassTies, hasUnresolvedTie } from './coinFlipRows';
+import { deriveClassTies, hasRecordedTie, hasUnresolvedTie } from './coinFlipRows';
 
 const dog = (id: string, fields: Partial<ResultsEntryRow> = {}): ResultsEntryRow => ({
   entryId: id,
@@ -17,6 +17,7 @@ const dog = (id: string, fields: Partial<ResultsEntryRow> = {}): ResultsEntryRow
   pointsEarned: null,
   timeSeconds: 40,
   placementTie: null,
+  placementTiebreak: null,
   ...fields,
 });
 
@@ -132,5 +133,44 @@ describe('hasUnresolvedTie', () => {
     expect(hasUnresolvedTie([dog('a'), unresolved('b')])).toBe(true);
     expect(hasUnresolvedTie([dog('a'), dog('b', { placementTie: 'shared' })])).toBe(false);
     expect(hasUnresolvedTie([])).toBe(false);
+  });
+});
+
+describe('recorded flips', () => {
+  const recorded = (id: string, tiebreak: number, fields: Partial<ResultsEntryRow> = {}) =>
+    dog(id, { placementTiebreak: tiebreak, ...fields });
+
+  it('offers a resolved tie, in the recorded order, so a wrong winner can be corrected', () => {
+    const entries = [
+      recorded('a1', 2, { placement: 2 }),
+      recorded('a2', 1, { placement: 1 }),
+      dog('c3', { placement: 3, faults: 2 }),
+    ];
+    expect(hasUnresolvedTie(entries)).toBe(false);
+    expect(hasRecordedTie(entries)).toBe(true);
+    const groups = deriveClassTies(entries, false);
+    expect(groups).toHaveLength(1);
+    expect(groups[0]).toMatchObject({ rank: 1, recorded: true });
+    expect(groups[0]?.entries.map(e => e.entryId)).toEqual(['a2', 'a1']);
+  });
+
+  it('lists an unresolved tie alongside a recorded one, each marked for what it is', () => {
+    const groups = deriveClassTies(
+      [
+        recorded('a1', 1, { placement: 1 }),
+        recorded('a2', 2, { placement: 2 }),
+        unresolved('b3', { placement: 3, faults: 1 }),
+        unresolved('b4', { placement: 4, faults: 1 }),
+      ],
+      false
+    );
+    expect(groups.map(g => [g.rank, g.recorded])).toEqual([
+      [1, true],
+      [3, false],
+    ]);
+  });
+
+  it('a class with no recorded order has nothing to change', () => {
+    expect(hasRecordedTie([dog('a1'), unresolved('a2')])).toBe(false);
   });
 });

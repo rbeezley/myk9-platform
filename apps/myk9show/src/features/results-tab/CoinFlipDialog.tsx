@@ -36,11 +36,22 @@ function orderFor(group: ClassTieGroup, picks: readonly string[]): string[] {
   return rest.length === 1 ? [...picks, ...rest] : [...picks];
 }
 
+/** Whether the tie groups can be trusted yet: they need the show row to say which key it ranks by. */
+export type CoinFlipGroupsState = 'ready' | 'loading' | 'unavailable';
+
+/** The order a group starts from: the recorded one when the flip is already on file. */
+function startingPicks(group: ClassTieGroup): string[] {
+  return group.recorded ? group.entries.map(entry => entry.entryId) : [];
+}
+
 interface CoinFlipDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   className: string;
   groups: readonly ClassTieGroup[];
+  /** Until 'ready' the dialog says so (with a retry) instead of showing no dogs. */
+  groupsState: CoinFlipGroupsState;
+  onRetry: () => void;
   online: boolean;
   saving: boolean;
   /** Each group's entry ids, the dog that won the flip first. */
@@ -57,23 +68,31 @@ export function CoinFlipDialog({
   onOpenChange,
   className,
   groups,
+  groupsState,
+  onRetry,
   online,
   saving,
   onSave,
 }: CoinFlipDialogProps) {
   const [picksByRank, setPicksByRank] = useState<Record<number, string[]>>({});
-  const orders = groups.map(group => orderFor(group, picksByRank[group.rank] ?? []));
+  const picksFor = (group: ClassTieGroup) => picksByRank[group.rank] ?? startingPicks(group);
+  const orders = groups.map(group => orderFor(group, picksFor(group)));
+  const correcting = groups.length > 0 && groups.every(group => group.recorded);
   const complete =
+    groupsState === 'ready' &&
     groups.length > 0 &&
     groups.every((group, index) => orders[index]?.length === group.entries.length);
   const blocked = !online ? OFFLINE_COIN_FLIP_MESSAGE : null;
 
-  const toggle = (rank: number, entryId: string) =>
+  const toggle = (group: ClassTieGroup, entryId: string) =>
     setPicksByRank(previous => {
-      const picks = previous[rank] ?? [];
+      // The first tap on a recorded group starts the order over from the dog tapped.
+      const picks = previous[group.rank] ?? [];
       return {
         ...previous,
-        [rank]: picks.includes(entryId) ? picks.filter(id => id !== entryId) : [...picks, entryId],
+        [group.rank]: picks.includes(entryId)
+          ? picks.filter(id => id !== entryId)
+          : [...picks, entryId],
       };
     });
 
@@ -86,7 +105,7 @@ export function CoinFlipDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Record the coin flip</DialogTitle>
+          <DialogTitle>{correcting ? 'Change the coin flip' : 'Record the coin flip'}</DialogTitle>
           <DialogDescription>
             {className}
             <br />
@@ -94,6 +113,21 @@ export function CoinFlipDialog({
             with the same score and time.
           </DialogDescription>
         </DialogHeader>
+
+        {groupsState !== 'ready' && (
+          <div role="status" className="space-y-2 text-sm text-muted-foreground">
+            <p>
+              {groupsState === 'loading'
+                ? 'Loading the show details…'
+                : 'The show details could not be read, so the tied dogs cannot be listed yet.'}
+            </p>
+            {groupsState === 'unavailable' && (
+              <Button type="button" variant="outline" className="min-h-11" onClick={onRetry}>
+                Try again
+              </Button>
+            )}
+          </div>
+        )}
 
         <div className="space-y-5">
           {groups.map((group, index) => {
@@ -117,7 +151,7 @@ export function CoinFlipDialog({
                           className={cn('min-h-11 w-full justify-between text-left')}
                           aria-pressed={position >= 0}
                           disabled={saving}
-                          onClick={() => toggle(group.rank, entry.entryId)}
+                          onClick={() => toggle(group, entry.entryId)}
                         >
                           <span>{dogLabel(entry)}</span>
                           <span>

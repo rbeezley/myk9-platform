@@ -95,7 +95,18 @@ export function installAppApiFetchLedger(globalName: string) {
       ledger.inFlight[key] = Math.max(0, (ledger.inFlight[key] ?? 1) - 1);
     };
     const pending = original(input, init);
-    pending.then(end, end);
+    // The fetch promise resolves at the response headers, before Playwright's
+    // `requestfinished`. Count it done only once a copy of the body has fully
+    // arrived (or failed, as an abort mid-body does), so a slow body stays open.
+    pending.then(response => {
+      let body: Promise<unknown>;
+      try {
+        body = response.clone().arrayBuffer();
+      } catch {
+        body = Promise.resolve();
+      }
+      body.then(end, end);
+    }, end);
     return pending;
   };
 }

@@ -392,8 +392,33 @@ describe('the page fetch ledger (MYK9-1467)', () => {
 
       await window.fetch('http://127.0.0.1:5173/src/main.tsx');
       await window.fetch(COUNT_URL);
+      await new Promise(resolve => setTimeout(resolve, 0)); // The body copy is read after the headers.
 
       expect(Object.keys(ledger().seen)).toEqual([`GET ${COUNT_URL}`]);
+      expect(ledger().inFlight[`GET ${COUNT_URL}`]).toBe(0);
+    });
+
+    it('keeps a fetch in flight until its response body has arrived', async () => {
+      let finishBody: () => void = () => {};
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode('['));
+          finishBody = () => {
+            controller.enqueue(new TextEncoder().encode(']'));
+            controller.close();
+          };
+        },
+      });
+      window.fetch = (() => Promise.resolve(new Response(body))) as typeof fetch;
+      installAppApiFetchLedger(FETCH_LEDGER_GLOBAL);
+
+      const response = await window.fetch(COUNT_URL);
+      await new Promise(resolve => setTimeout(resolve, 0));
+      expect(ledger().inFlight[`GET ${COUNT_URL}`]).toBe(1);
+
+      finishBody();
+      await expect(response.text()).resolves.toBe('[]');
+      await new Promise(resolve => setTimeout(resolve, 0));
       expect(ledger().inFlight[`GET ${COUNT_URL}`]).toBe(0);
     });
 

@@ -70,8 +70,21 @@ async function createStewardOnlyAccount(): Promise<Steward> {
     user_metadata: { first_name: 'Disposable', last_name: 'Steward' },
   });
   if (error || !data.user) throw new Error(`Could not create steward: ${error?.message}`);
-  const authUserId = data.user.id;
+  const steward = { authUserId: data.user.id, email, password };
+  try {
+    await grantStewardRole(steward.authUserId);
+  } catch (setupError) {
+    // The caller never receives a half-made account, so delete it here.
+    const problems = await deleteAccount(steward);
+    if (problems.length) console.error(`steward setup cleanup: ${problems.join('; ')}`);
+    throw setupError;
+  }
+  return steward;
+}
 
+/** Waits for the signup trigger's person, then grants it the steward role in the club. */
+async function grantStewardRole(authUserId: string): Promise<void> {
+  const client = getIsolatedAdminClient();
   // The signup trigger creates the person; user_roles.user_id is that person's id.
   let personId = '';
   await expect
@@ -103,7 +116,6 @@ async function createStewardOnlyAccount(): Promise<Steward> {
     is_active: true,
   });
   if (grantError) throw new Error(`Could not grant steward: ${grantError.message}`);
-  return { authUserId, email, password };
 }
 
 /** Role, person, then auth user; returns problems instead of throwing. */

@@ -16,8 +16,8 @@
 -- identical to the old EXISTS: a boolean, never NULL; false when the caller has
 -- no person_id (every comparison is NULL, so the set is empty); same filters
 -- (live entry, not withdrawn or scratched); handler OR dog owner OR dog
--- co-owner; and the LEFT JOIN to dogs is kept, so a handler match works with no
--- dog row. Measured numbers are in the PR / issue.
+-- co-owner, as three indexed UNION ALL arms (a handler match needs no dog row).
+-- Measured numbers are in the PR / issue.
 --
 -- Everything else is copied verbatim from the LATEST definition,
 -- 20261022131700_myk9_1326_drop_entries_promo_code_id.sql: the explicit column
@@ -37,20 +37,38 @@ WITH caller_context AS MATERIALIZED (
 ),
 -- MYK9-1369: the shows where the caller has a live, non-withdrawn entry as
 -- handler, dog owner or dog co-owner. Depends on caller_context only, and
--- MATERIALIZED guarantees one evaluation per query.
+-- MATERIALIZED guarantees one evaluation per query. Three UNION ALL arms, one
+-- per role, so each is an index lookup on the caller's own rows
+-- (entries_active_handler_id_idx; dogs_owner_id_idx / dogs_co_owner_id_idx ->
+-- entries_active_dog_id_idx) rather than an OR across the join, which would
+-- scan every live entry on the platform. The union is the same set the old
+-- `handler OR own_dog.owner OR own_dog.co_owner` over entries LEFT JOIN dogs
+-- admitted: an entry with no dog row can match only through its handler arm.
 exhibitor_shows AS MATERIALIZED (
   SELECT COALESCE(
     (
-      SELECT array_agg(DISTINCT own_e.show_id)
-      FROM public.entries own_e
-      LEFT JOIN public.dogs own_dog ON own_dog.id = own_e.dog_id
-      WHERE own_e.deleted_at IS NULL
-        AND own_e.entry_status NOT IN ('withdrawn', 'scratched')
-        AND (
-          own_e.handler_id = ctx0.person_id
-          OR own_dog.owner_id = ctx0.person_id
-          OR own_dog.co_owner_id = ctx0.person_id
-        )
+      SELECT array_agg(DISTINCT own.show_id)
+      FROM (
+        SELECT own_e.show_id
+        FROM public.entries own_e
+        WHERE own_e.handler_id = ctx0.person_id
+          AND own_e.deleted_at IS NULL
+          AND own_e.entry_status NOT IN ('withdrawn', 'scratched')
+        UNION ALL
+        SELECT own_e.show_id
+        FROM public.dogs own_dog
+        JOIN public.entries own_e ON own_e.dog_id = own_dog.id
+        WHERE own_dog.owner_id = ctx0.person_id
+          AND own_e.deleted_at IS NULL
+          AND own_e.entry_status NOT IN ('withdrawn', 'scratched')
+        UNION ALL
+        SELECT own_e.show_id
+        FROM public.dogs own_dog
+        JOIN public.entries own_e ON own_e.dog_id = own_dog.id
+        WHERE own_dog.co_owner_id = ctx0.person_id
+          AND own_e.deleted_at IS NULL
+          AND own_e.entry_status NOT IN ('withdrawn', 'scratched')
+      ) own
     ),
     ARRAY[]::uuid[]
   ) AS show_ids

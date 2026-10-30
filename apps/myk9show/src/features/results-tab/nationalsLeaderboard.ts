@@ -77,13 +77,6 @@ export function compareLeaderboard(
   );
 }
 
-/** Total time as mm:ss. */
-export function formatLeaderboardTime(seconds: number): string {
-  const whole = Math.max(0, Math.round(seconds));
-  const minutes = Math.floor(whole / 60);
-  return `${String(minutes).padStart(2, '0')}:${String(whole % 60).padStart(2, '0')}`;
-}
-
 /** Result statuses that eliminate a dog from the nationals. */
 const ELIMINATING_RESULTS: ReadonlySet<string> = new Set(['excused', 'disqualified']);
 
@@ -143,7 +136,11 @@ export function buildNationalsLeaderboard({
     // Totals, time and day points come only from scored entries in released classes.
     const scored = dogEntries.filter(
       entry =>
-        entry.is_scored === true && entry.class_id !== null && releasedClassIds.has(entry.class_id)
+        entry.is_scored === true &&
+        entry.class_id !== null &&
+        releasedClassIds.has(entry.class_id) &&
+        // A score recorded before a pull or scratch is not shown (MYK9-1258), so it cannot rank.
+        !isPulledEntry(accountingFields(entry))
     );
     if (scored.length === 0) continue;
     const row = blankRow(armband, scored[0]!);

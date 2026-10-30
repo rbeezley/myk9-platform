@@ -163,7 +163,7 @@ describe('Results tab: Nationals leaderboard (MYK9-1516)', () => {
       within(rows[0]!)
         .getAllByRole('cell')
         .map(cell => cell.textContent)
-    ).toEqual(['1', '8', 'Dog 8', 'Handler 8', '20', '01:20', '20', '–', '–', '–']);
+    ).toEqual(['1', '8', 'Dog 8', 'Handler 8', '20', '1:20.00', '20', '–', '–', '–']);
     expect(within(rows[1]!).getAllByRole('cell')[1]).toHaveTextContent('7');
     expect(screen.getByRole('link', { name: /Back to classes/ })).toHaveAttribute(
       'href',

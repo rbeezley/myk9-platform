@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
+import { formatSecondsAsMSSCC } from '@/lib/format/searchTime';
 import type { SecretaryEntry } from '@/services/database/entries';
 import {
   buildNationalsLeaderboard,
   compareLeaderboard,
   competitionDay,
-  formatLeaderboardTime,
   leaderboardStatus,
 } from './nationalsLeaderboard';
 
@@ -178,7 +178,32 @@ describe('buildNationalsLeaderboard', () => {
       dayPoints: { 1: 10, 2: 20, 3: null },
     });
     expect(row!.totalTimeSeconds).toBeCloseTo(100.4);
-    expect(formatLeaderboardTime(row!.totalTimeSeconds)).toBe('01:40');
+  });
+
+  it("leaves a pulled or scratched entry's earlier score out of the totals and the ranks", () => {
+    const board = build([
+      entry({ armband: '1', class_id: 'c1', points_earned: 50 }),
+      entry({ armband: '1', class_id: 'c2', points_earned: 40, check_in_status: 'pulled' }),
+      entry({ armband: '1', class_id: 'c3', points_earned: 30, entry_status: 'scratched' }),
+      entry({ armband: '2', class_id: 'c1', points_earned: 60 }),
+      entry({ armband: '3', class_id: 'c2', points_earned: 99, check_in_status: 'pulled' }),
+    ]);
+    expect(board.map(row => [row.rank, row.armband, row.totalPoints])).toEqual([
+      [1, '2', 60],
+      [2, '1', 50],
+    ]);
+  });
+
+  it('keeps the fractions of a second the sort ranks on', () => {
+    const board = build([
+      entry({ armband: '1', points_earned: 10, search_time_seconds: 80.5 }),
+      entry({ armband: '2', points_earned: 10, search_time_seconds: 80.25 }),
+    ]);
+    expect(board.map(row => row.armband)).toEqual(['2', '1']);
+    expect(board.map(row => formatSecondsAsMSSCC(row.totalTimeSeconds))).toEqual([
+      '1:20.25',
+      '1:20.50',
+    ]);
   });
 
   it('counts only scored entries in released classes', () => {

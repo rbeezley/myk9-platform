@@ -2,6 +2,7 @@ import { ArrowLeft, Trophy } from 'lucide-react';
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 
+import { formatSecondsAsMSSCC } from '@/lib/format/searchTime';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -13,11 +14,7 @@ import {
 } from '@/components/ui/table';
 import type { SecretaryEntry } from '@/services/database/entries';
 import type { ResultsClassRow } from './buildResultsClassRows';
-import {
-  buildNationalsLeaderboard,
-  formatLeaderboardTime,
-  NATIONALS_DAYS,
-} from './nationalsLeaderboard';
+import { buildNationalsLeaderboard, NATIONALS_DAYS } from './nationalsLeaderboard';
 import { ResultsRefreshFailedAlert } from './ResultsRefreshFailedAlert';
 import { getNationalsLeaderboardHref, getResultsListHref } from './resultsTabRoutes';
 
@@ -111,7 +108,7 @@ export function NationalsLeaderboardView({
                   <TableCell>{row.handlerName || DASH}</TableCell>
                   <TableCell className="text-right tabular-nums">{row.totalPoints}</TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {formatLeaderboardTime(row.totalTimeSeconds)}
+                    {formatSecondsAsMSSCC(row.totalTimeSeconds)}
                   </TableCell>
                   {NATIONALS_DAYS.map(day => (
                     <TableCell key={day} className="text-right tabular-nums">

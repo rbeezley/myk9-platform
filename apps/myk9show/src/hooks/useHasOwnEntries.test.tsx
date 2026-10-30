@@ -5,11 +5,15 @@ import type { ReactNode } from 'react';
 import { useHasOwnEntries } from './useHasOwnEntries';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { readOwnReplicaEntries } from '@/services/database/entries/ownReplicaEntries';
+import { serverHasOwnEntries } from '@/services/database/entries/ownEntriesExistence';
 import { markJustEntered } from '@/features/own-entries/ownEntriesMemory';
 
 vi.mock('@/hooks/useAuthContext');
 vi.mock('@/services/database/entries/ownReplicaEntries', () => ({
   readOwnReplicaEntries: vi.fn(),
+}));
+vi.mock('@/services/database/entries/ownEntriesExistence', () => ({
+  serverHasOwnEntries: vi.fn(),
 }));
 vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
   replicatedEntriesTable: { subscribe: vi.fn(() => () => {}) },
@@ -31,6 +35,10 @@ function wrapper({ children }: { children: ReactNode }) {
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 }
 
+function stubServer(has: boolean) {
+  (serverHasOwnEntries as ReturnType<typeof vi.fn>).mockResolvedValue(has);
+}
+
 function stubReplica(count: number) {
   (readOwnReplicaEntries as ReturnType<typeof vi.fn>).mockResolvedValue(
     Array.from({ length: count }, (_, i) => ({ id: `e${i}` }))
@@ -43,11 +51,48 @@ beforeEach(() => {
 });
 
 describe('useHasOwnEntries', () => {
-  it('is no once identity is resolved and the replica holds none', async () => {
+  it('is no when the replica is empty and the server counts none', async () => {
     mockAuth('person-1', 'resolved');
     stubReplica(0);
+    stubServer(false);
     const { result } = renderHook(() => useHasOwnEntries(), { wrapper });
     await waitFor(() => expect(result.current).toBe('no'));
+  });
+
+  it('is yes when the replica is empty but the server has entries (a show never opened here)', async () => {
+    mockAuth('person-1', 'resolved');
+    stubReplica(0);
+    stubServer(true);
+    const { result } = renderHook(() => useHasOwnEntries(), { wrapper });
+    await waitFor(() => expect(result.current).toBe('yes'));
+    expect(window.localStorage.getItem('myk9-has-own-entries:person-1')).toBe('yes');
+  });
+
+  it('is unknown when the replica is empty and the server read fails with nothing remembered', async () => {
+    mockAuth('person-1', 'resolved');
+    stubReplica(0);
+    (serverHasOwnEntries as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('offline'));
+    const { result } = renderHook(() => useHasOwnEntries(), { wrapper });
+    await waitFor(() => expect(serverHasOwnEntries).toHaveBeenCalled());
+    expect(result.current).toBe('unknown');
+  });
+
+  it('holds a remembered no when the server read fails', async () => {
+    window.localStorage.setItem('myk9-has-own-entries:person-1', 'no');
+    mockAuth('person-1', 'resolved');
+    stubReplica(0);
+    (serverHasOwnEntries as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('offline'));
+    const { result } = renderHook(() => useHasOwnEntries(), { wrapper });
+    await waitFor(() => expect(serverHasOwnEntries).toHaveBeenCalled());
+    expect(result.current).toBe('no');
+  });
+
+  it('is yes from the replica without waiting for the server', async () => {
+    mockAuth('person-1', 'resolved');
+    stubReplica(1);
+    (serverHasOwnEntries as ReturnType<typeof vi.fn>).mockReturnValue(new Promise(() => {}));
+    const { result } = renderHook(() => useHasOwnEntries(), { wrapper });
+    await waitFor(() => expect(result.current).toBe('yes'));
   });
 
   it('is yes when the replica holds an entry of their own', async () => {

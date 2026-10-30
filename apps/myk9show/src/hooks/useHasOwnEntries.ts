@@ -1,11 +1,11 @@
 /**
  * Whether the signed-in viewer has an entry of their own, any show, past or upcoming.
  *
- * It answers the rail's My Entries item for staff who are also exhibitors, and it reads only the
- * entries replica (no network). Unknown is not "none": the replica is per show, and identity can
- * be unresolved on a cold offline boot, so `'no'` needs a resolved identity AND a finished
- * replica read that found nothing, with no checkout marker. Everything else holds the last
- * answer remembered on this device, or reports `'unknown'` and the caller keeps the item.
+ * It answers the rail's My Entries item for staff who are also exhibitors. The entries replica is
+ * per show, so an empty replica is an absence of knowledge, never proof. A replica that holds an
+ * entry (or the checkout marker) is an immediate `'yes'`; otherwise, online with a resolved
+ * identity, one head count on the authoritative view decides. Offline, pending or failed, the
+ * answer remembered on this device holds; with none, `'unknown'` and the caller keeps the item.
  */
 
 import { useEffect } from 'react';
@@ -14,6 +14,7 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { useEntriesPersonId } from '@/hooks/useEntriesPersonId';
 import { deriveEntriesIdentityState } from '@/pages/MyEntriesPage/modules/entriesIdentityState';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
+import { serverHasOwnEntries } from '@/services/database/entries/ownEntriesExistence';
 import { readOwnReplicaEntries } from '@/services/database/entries/ownReplicaEntries';
 import {
   clearJustEntered,
@@ -25,6 +26,7 @@ import {
 export type OwnEntriesState = 'yes' | 'no' | 'unknown';
 
 const queryKeyFor = (personId: string | null) => ['own-entries', 'replica-has-any', personId];
+const serverKeyFor = (personId: string | null) => ['own-entries', 'server-has-any', personId];
 
 export function useHasOwnEntries(): OwnEntriesState {
   const { user, loading, personIdentityState } = useAuthContext();
@@ -49,6 +51,16 @@ export function useHasOwnEntries(): OwnEntriesState {
     networkMode: 'always' as const,
   });
 
+  // Account-scoped, no placeholder from another account. Online-only: offline it parks and the
+  // remembered answer holds.
+  const { data: serverHasEntries } = useQuery({
+    queryKey: serverKeyFor(personId),
+    queryFn: serverHasOwnEntries,
+    enabled: !!personId && identityState === 'resolved',
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+
   // A sync or a local write can add the first entry while the app is open.
   useEffect(() => {
     if (!personId) return;
@@ -59,21 +71,25 @@ export function useHasOwnEntries(): OwnEntriesState {
   }, [personId, queryClient]);
 
   const justEntered = hasJustEntered();
-  const answer: OwnEntriesState =
-    replicaHasEntries === true || justEntered
-      ? 'yes'
-      : identityState === 'missing'
-        ? 'no'
-        : identityState === 'resolved' && replicaHasEntries === false
-          ? 'no'
-          : 'unknown';
+  const remembered = personId ? readOwnEntriesMemory(personId) : null;
+  const fromReplica = replicaHasEntries === true || justEntered;
+  const answer: OwnEntriesState = fromReplica
+    ? 'yes'
+    : identityState === 'missing'
+      ? 'no'
+      : serverHasEntries !== undefined
+        ? serverHasEntries
+          ? 'yes'
+          : 'no'
+        : (remembered ?? 'unknown');
 
+  // Only a replica hit or the authoritative read is worth remembering, never a guess.
+  const authoritative = fromReplica || serverHasEntries !== undefined;
   useEffect(() => {
-    if (!personId || answer === 'unknown') return;
+    if (!personId || !authoritative || answer === 'unknown') return;
     writeOwnEntriesMemory(personId, answer);
     if (replicaHasEntries === true) clearJustEntered();
-  }, [personId, answer, replicaHasEntries]);
+  }, [personId, answer, authoritative, replicaHasEntries]);
 
-  if (answer !== 'unknown') return answer;
-  return personId && readOwnEntriesMemory(personId) === 'yes' ? 'yes' : 'unknown';
+  return answer;
 }

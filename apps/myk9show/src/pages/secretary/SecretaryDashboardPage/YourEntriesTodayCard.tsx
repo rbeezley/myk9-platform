@@ -5,7 +5,11 @@ import { useRefreshOnReturn } from '@/hooks/useRefreshOnReturn';
 import { useSelfCheckinMap, useSelfCheckinStateMap } from '@/hooks/queries/useSelfCheckinEnabled';
 import { useMyEntriesData } from '@/pages/MyEntriesPage/modules/useMyEntriesData';
 import { useMyEntriesPresentation } from '@/pages/MyEntriesPage/modules/useMyEntriesPresentation';
-import { selectTodayEntryRows, todayClassIds } from '@/pages/MyEntriesPage/modules/todayEntryRows';
+import {
+  hasUndatedClass,
+  selectTodayEntryRows,
+  todayClassIds,
+} from '@/pages/MyEntriesPage/modules/todayEntryRows';
 
 // The card links to My Shows and never hosts check-in, so nothing ever persists.
 const noCheckInWrites = async () => {};
@@ -55,8 +59,9 @@ export function YourEntriesTodayCard() {
 
   const unconfirmed = isError || readState === 'unconfirmed' || readState === 'error';
 
-  // Saved rows for other days cannot establish "nothing today" while the read
-  // is unconfirmed, so that case gets the same link as an unconfirmed empty list.
+  // "Nothing today" is only a fact when the read is confirmed AND every class
+  // has a known day; otherwise the card gets the same link as an unconfirmed
+  // empty list.
   // Still reading is not a failed read: say nothing until the read settles, so
   // an ordinary load never flashes "couldn't check".
   const stillReading =
@@ -65,7 +70,9 @@ export function YourEntriesTodayCard() {
   const cannotSayNothingToday =
     presentation === 'identity-pending' ||
     presentation === 'unconfirmed-empty' ||
-    (presentation === 'known-rows' && rows.length === 0 && unconfirmed);
+    (presentation === 'known-rows' &&
+      rows.length === 0 &&
+      (unconfirmed || hasUndatedClass(entries)));
 
   if (stillReading && rows.length === 0) return null;
   if (cannotSayNothingToday) {

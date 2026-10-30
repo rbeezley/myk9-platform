@@ -197,6 +197,12 @@ describe('YourEntriesTodayCard', () => {
     }
   );
 
+  it('links to My Shows when a class has no trial date yet and nothing else is today', () => {
+    setEntries(entryWith({ trialDate: undefined }));
+    render(<YourEntriesTodayCard />);
+    expect(screen.getByRole('link', { name: /couldn't check today's entries/i })).toBeTruthy();
+  });
+
   it('keeps the saved-entries note when rows exist but the read is unconfirmed', () => {
     mocks.readState = 'unconfirmed';
     setEntries(entryWith());

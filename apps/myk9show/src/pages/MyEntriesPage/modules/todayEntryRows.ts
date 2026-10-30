@@ -59,6 +59,18 @@ const CHECK_IN_WORDING: ReadonlySet<ClassRowKind> = new Set<ClassRowKind>([
  * may only be MORE conservative, so a class whose setting is `'unknown'` never
  * gets check-in wording.
  */
+/**
+ * Does any class lack a usable trial date (its trial has not replicated yet)?
+ * Its day is unknown, so "no rows today" is not a fact while one exists.
+ */
+export function hasUndatedClass(entries: MyEntry[]): boolean {
+  return groupEntriesByShow(entries).some(group =>
+    group.dogs.some(dog =>
+      dog.classes.some(cls => !cls.trialDate || Number.isNaN(cls.trialDate.getTime()))
+    )
+  );
+}
+
 export function selectTodayEntryRows(
   entries: MyEntry[],
   now: Date,

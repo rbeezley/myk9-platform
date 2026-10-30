@@ -4,8 +4,7 @@
  */
 
 import { useState, useMemo } from 'react';
-import { Trophy, ChevronDown, ChevronRight, Clock, BarChart3, Scale, Medal } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { Trophy, BarChart3, Scale, Medal } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -16,6 +15,16 @@ import {
 } from '@/components/common/PrimaryTabs';
 import { ListFilterBar, ListResultLine } from '@/components/list-toolkit';
 import { PodiumCard } from './PodiumCard';
+import { PendingClassesList } from './PendingClassesList';
+import {
+  RESULTS_FILTER_KEYS,
+  deriveClassFilterOptions,
+  derivePendingClasses,
+  filterClasses,
+} from './resultsClassFilters';
+import { ShowStatsFilterBar } from '@/components/analytics/ShowStatsFilterBar';
+import { useShowStatsFilters } from '@/hooks/useShowStatsFilters';
+import type { StatsFilterOptions } from '@/components/analytics/analytics-filters';
 import { useShowResults, type ClassResult } from '@/hooks/queries/useShowResults';
 import { useVisibleResultFields, deriveClassState } from '@/hooks/useVisibleResultFields';
 import { useShowStats } from '@/hooks/queries/useShowStats';
@@ -67,6 +76,15 @@ function VisibilityGatedPodiumCard({ cls, showId }: VisibilityGatedPodiumCardPro
   return <PodiumCard classTitle={cls.className} placements={cls.placements} />;
 }
 
+const EMPTY_OPTIONS: StatsFilterOptions = {
+  breed: [],
+  judge: [],
+  date: [],
+  trial: [],
+  element: [],
+  level: [],
+};
+
 interface ResultsEmptyStateCopy {
   title: string;
   description: string;
@@ -103,24 +121,35 @@ interface PodiumContentProps {
 function PodiumContent({ showId, showEntries = [] }: PodiumContentProps) {
   const { data: results = [], isLoading, error, refetch } = useShowResults(showId);
   const [search, setSearch] = useState('');
-  const [pendingExpanded, setPendingExpanded] = useState(false);
+  const { filters, setFilter, clearFilters } = useShowStatsFilters();
+
+  // Narrowing happens here, after useShowResults/useVisibleResultFields own what may be shown.
+  const pendingAll = useMemo(
+    () => derivePendingClasses(showEntries, new Set(results.map(cls => cls.classId))),
+    [showEntries, results]
+  );
+  const options = useMemo(
+    () => deriveClassFilterOptions([...results, ...pendingAll], showEntries),
+    [results, pendingAll, showEntries]
+  );
+  const pending = useMemo(() => filterClasses(pendingAll, filters), [pendingAll, filters]);
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) return results;
-    return results.filter(cls => cls.className.toLowerCase().includes(query));
-  }, [results, search]);
+    const byClass = filterClasses(results, filters);
+    if (!query) return byClass;
+    return byClass.filter(cls => cls.className.toLowerCase().includes(query));
+  }, [results, search, filters]);
 
-  const { withPlacements, pending } = useMemo(() => {
-    const w: typeof filtered = [];
-    const p: typeof filtered = [];
-    for (const c of filtered) {
-      (c.placements.length > 0 ? w : p).push(c);
-    }
-    return { withPlacements: w, pending: p };
-  }, [filtered]);
+  const withPlacements = filtered;
 
-  const hasActiveFilters = search.trim() !== '';
+  const hasActiveFilters =
+    search.trim() !== '' || RESULTS_FILTER_KEYS.some(key => filters[key] !== null);
+
+  const clearAll = () => {
+    setSearch('');
+    clearFilters(RESULTS_FILTER_KEYS);
+  };
 
   if (isLoading) {
     return <LoadingSpinner message="Loading results..." />;
@@ -140,12 +169,15 @@ function PodiumContent({ showId, showEntries = [] }: PodiumContentProps) {
     const emptyState = getResultsEmptyStateCopy(showEntries);
 
     return (
-      <EmptyState
-        icon={Trophy}
-        title={emptyState.title}
-        description={emptyState.description}
-        action={null}
-      />
+      <div className="space-y-4">
+        <EmptyState
+          icon={Trophy}
+          title={emptyState.title}
+          description={emptyState.description}
+          action={null}
+        />
+        <PendingClassesList classes={pendingAll} />
+      </div>
     );
   }
 
@@ -158,12 +190,19 @@ function PodiumContent({ showId, showEntries = [] }: PodiumContentProps) {
           searchPlaceholder="Search by class name..."
           fields={[]}
         />
+        <ShowStatsFilterBar
+          keys={RESULTS_FILTER_KEYS}
+          filters={filters}
+          options={{ ...EMPTY_OPTIONS, ...options }}
+          onChange={setFilter}
+          onClearAll={clearAll}
+        />
         <ListResultLine
           shown={withPlacements.length}
-          total={results.filter(cls => cls.placements.length > 0).length}
+          total={results.length}
           noun={['class', 'classes']}
           filtered={hasActiveFilters}
-          onShowAll={() => setSearch('')}
+          onShowAll={clearAll}
         />
       </div>
 
@@ -179,36 +218,7 @@ function PodiumContent({ showId, showEntries = [] }: PodiumContentProps) {
         </div>
       )}
 
-      {pending.length > 0 && (
-        <div className="rounded-lg border">
-          <button
-            className="flex w-full items-center gap-2 px-4 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted/50"
-            onClick={() => setPendingExpanded(!pendingExpanded)}
-            aria-expanded={pendingExpanded}
-          >
-            {pendingExpanded ? (
-              <ChevronDown className="h-4 w-4" />
-            ) : (
-              <ChevronRight className="h-4 w-4" />
-            )}
-            <Clock className="h-4 w-4" />
-            Pending Results
-            <Badge variant="outline" className="ml-auto">
-              {pending.length}
-            </Badge>
-          </button>
-
-          {pendingExpanded && (
-            <div className="divide-y border-t px-4">
-              {pending.map(cls => (
-                <p key={cls.classId} className="py-2 text-sm">
-                  {cls.className}
-                </p>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+      <PendingClassesList classes={pending} />
     </div>
   );
 }

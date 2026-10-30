@@ -22,6 +22,21 @@ async function fetchShowEntries(showId: string): Promise<StatsEntry[]> {
 
   if (classError) throw classError;
 
+  // Which people judge each class, for the Judge filter (same table useJudgeShowStats reads).
+  const { data: assignmentData, error: assignmentError } = await supabase
+    .from('judge_assignments')
+    .select('class_id, person_id')
+    .eq('show_id', showId);
+
+  if (assignmentError) throw assignmentError;
+
+  const classJudges = new Map<string, string[]>();
+  for (const a of assignmentData || []) {
+    const classId = a.class_id as string | null;
+    if (!classId) continue;
+    classJudges.set(classId, [...(classJudges.get(classId) ?? []), a.person_id as string]);
+  }
+
   const classTrialMap = new Map<string, StatsTrialMeta>();
   for (const cls of classData || []) {
     const trial = cls.trials as unknown as Record<string, unknown>;
@@ -29,6 +44,7 @@ async function fetchShowEntries(showId: string): Promise<StatsEntry[]> {
       trialDate: (trial?.trial_date as string) || '',
       trialName: (trial?.name as string) || '',
       trialNumber: (trial?.trial_number as string) || '',
+      judgeIds: classJudges.get(cls.id as string) ?? [],
     });
   }
 

@@ -52,6 +52,8 @@ describe('useShowStats', () => {
         search_time_seconds: 35,
         total_faults: 0,
         final_placement: 1,
+        dog_breed: 'Beagle',
+        trial_id: 't1',
       },
     ];
 
@@ -68,9 +70,15 @@ describe('useShowStats', () => {
     const mockIn = vi.fn().mockResolvedValue({ data: mockClassData, error: null });
     const mockClassSelect = vi.fn().mockReturnValue({ in: mockIn });
 
+    const mockAssignEq = vi
+      .fn()
+      .mockResolvedValue({ data: [{ class_id: 'c1', person_id: 'j1' }], error: null });
+    const mockAssignSelect = vi.fn().mockReturnValue({ eq: mockAssignEq });
+
     mockFrom
       .mockReturnValueOnce({ select: mockEntrySelect } as never)
-      .mockReturnValueOnce({ select: mockClassSelect } as never);
+      .mockReturnValueOnce({ select: mockClassSelect } as never)
+      .mockReturnValueOnce({ select: mockAssignSelect } as never);
 
     const { result } = renderHook(() => useShowStats('show-1'), {
       wrapper: createWrapper(),
@@ -82,6 +90,12 @@ describe('useShowStats', () => {
     expect(result.current.data![0].dogCallName).toBe('Rex');
     expect(result.current.data![0].trialDate).toBe('2026-04-01');
     expect(result.current.data![0].trialNumber).toBe('1');
+    expect(result.current.data![0]).toMatchObject({
+      breed: 'Beagle',
+      trialId: 't1',
+      judgeIds: ['j1'],
+    });
+    expect(mockFrom).toHaveBeenCalledWith('judge_assignments');
     expect(mockFrom).toHaveBeenCalledWith('view_authenticated_entry_results');
     expect(mockFrom).toHaveBeenCalledWith('classes');
   });

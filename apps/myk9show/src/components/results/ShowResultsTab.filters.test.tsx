@@ -4,6 +4,7 @@ import { ShowResultsTab } from './ShowResultsTab';
 import { useShowResults, type ClassResult } from '@/hooks/queries/useShowResults';
 import { useShowStats } from '@/hooks/queries/useShowStats';
 import { useShowJudges } from '@/hooks/queries/useShowJudges';
+import type { StatsEntry } from '@/components/analytics/analytics-utils';
 import { useVisibleResultFields } from '@/hooks/useVisibleResultFields';
 
 vi.mock('@/hooks/queries/useShowResults', async () => {
@@ -44,6 +45,24 @@ function makeClass(overrides: Partial<ClassResult> & { classId: string }): Class
   };
 }
 
+function entry(overrides: Partial<StatsEntry> & { id: string; classId: string }): StatsEntry {
+  return {
+    dogId: 'dog-1',
+    dogCallName: 'Rex',
+    showId: 'show-1',
+    showName: '',
+    showDate: '',
+    className: 'Interior Novice A',
+    classElement: 'Interior',
+    classLevel: 'Novice',
+    resultText: 'Q',
+    searchTimeSeconds: 40,
+    totalFaults: 0,
+    finalPlacement: 1,
+    ...overrides,
+  };
+}
+
 const RESULTS: ClassResult[] = [
   makeClass({
     classId: 'c1',
@@ -62,6 +81,7 @@ const RESULTS: ClassResult[] = [
 describe('ShowResultsTab class-name search', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    Element.prototype.scrollIntoView = vi.fn();
     vi.mocked(useShowResults).mockReturnValue({
       data: RESULTS,
       isLoading: false,
@@ -98,15 +118,82 @@ describe('ShowResultsTab class-name search', () => {
 
     expect(screen.queryByText('Interior Novice A')).not.toBeInTheDocument();
     expect(screen.getByText('Exterior Excellent A')).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('Showing 1 of 2 classes.');
+    expect(screen.getByText('Showing 1 of 2 classes.')).toBeInTheDocument();
   });
 
-  it('offers no Element or Level filter (cut by MYK9-906)', () => {
-    render(<ShowResultsTab showId="show-1" />);
+  it('reads trial, element and level from the URL and narrows the podium', () => {
+    render(<ShowResultsTab showId="show-1" />, {
+      initialRoute: '/?element=Exterior&level=Excellent',
+    });
 
-    expect(screen.queryByRole('button', { name: /^Filter$/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole('combobox', { name: 'Element' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('combobox', { name: 'Level' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Interior Novice A')).not.toBeInTheDocument();
+    expect(screen.getByText('Exterior Excellent A')).toBeInTheDocument();
+    expect(screen.getByText('Element: Exterior')).toBeInTheDocument();
+    expect(screen.getByText('Level: Excellent')).toBeInTheDocument();
+  });
+
+  it('narrows by trial from the URL', () => {
+    vi.mocked(useShowResults).mockReturnValue({
+      data: [
+        makeClass({ classId: 'c1', className: 'Interior Novice A', trialId: 't1' }),
+        makeClass({ classId: 'c2', className: 'Exterior Excellent A', trialId: 't2' }),
+      ],
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useShowResults>);
+
+    render(<ShowResultsTab showId="show-1" />, { initialRoute: '/?trial=t2' });
+
+    expect(screen.queryByText('Interior Novice A')).not.toBeInTheDocument();
+    expect(screen.getByText('Exterior Excellent A')).toBeInTheDocument();
+  });
+
+  it('sets a filter from the Filter menu', async () => {
+    const { user } = render(<ShowResultsTab showId="show-1" />);
+
+    await user.click(screen.getByRole('button', { name: /^Filter/ }));
+    await user.click(await screen.findByText('Exterior'));
+
+    expect(screen.queryByText('Interior Novice A')).not.toBeInTheDocument();
+    expect(screen.getByText('Exterior Excellent A')).toBeInTheDocument();
+  });
+
+  it('lists pending classes: entries whose class has no podium, narrowed by the same filters', () => {
+    vi.mocked(useShowStats).mockReturnValue({
+      data: [
+        entry({ id: 'e1', classId: 'c1' }),
+        entry({
+          id: 'e2',
+          classId: 'p1',
+          className: 'Buried Master',
+          classElement: 'Buried',
+          classLevel: 'Master',
+        }),
+        entry({
+          id: 'e3',
+          classId: 'p2',
+          className: 'Vehicle Open',
+          classElement: 'Vehicle',
+          classLevel: 'Open',
+          resultText: 'pending',
+        }),
+      ],
+    } as unknown as ReturnType<typeof useShowStats>);
+
+    const { unmount } = render(<ShowResultsTab showId="show-1" />);
+    const list = screen.getByRole('region', { name: /Pending classes/ });
+    expect(list).toHaveTextContent('Buried Master');
+    expect(list).toHaveTextContent('Scored, awaiting release');
+    expect(list).toHaveTextContent('Vehicle Open');
+    expect(list).toHaveTextContent('Not scored yet');
+    expect(list).not.toHaveTextContent('Interior Novice A');
+    unmount();
+
+    render(<ShowResultsTab showId="show-1" />, { initialRoute: '/?element=Buried' });
+    const narrowed = screen.getByRole('region', { name: /Pending classes/ });
+    expect(narrowed).toHaveTextContent('Buried Master');
+    expect(narrowed).not.toHaveTextContent('Vehicle Open');
   });
 
   it('"Show all classes" clears the search', async () => {

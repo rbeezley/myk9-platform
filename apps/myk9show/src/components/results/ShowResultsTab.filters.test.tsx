@@ -196,6 +196,97 @@ describe('ShowResultsTab class-name search', () => {
     expect(narrowed).not.toHaveTextContent('Vehicle Open');
   });
 
+  describe('pending classes (review fixes)', () => {
+    const pendingEntries = [
+      entry({
+        id: 'p1',
+        classId: 'p1',
+        className: 'Buried Master',
+        classElement: 'Buried',
+        classLevel: 'Master',
+        trialId: 't1',
+      }),
+      entry({
+        id: 'p2',
+        classId: 'p2',
+        className: 'Vehicle Open',
+        classElement: 'Vehicle',
+        classLevel: 'Open',
+        trialId: 't1',
+        resultText: 'pending',
+      }),
+    ];
+
+    function mockNoPodium(entries: StatsEntry[]) {
+      vi.mocked(useShowResults).mockReturnValue({
+        data: [],
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
+      } as unknown as ReturnType<typeof useShowResults>);
+      vi.mocked(useShowStats).mockReturnValue({ data: entries } as unknown as ReturnType<
+        typeof useShowStats
+      >);
+    }
+
+    it('counts a withheld scored result as scored', () => {
+      vi.mocked(useShowStats).mockReturnValue({
+        data: [
+          entry({
+            id: 'w',
+            classId: 'p1',
+            className: 'Buried Master',
+            classElement: 'Buried',
+            classLevel: 'Master',
+            resultText: 'pending',
+            resultWithheld: true,
+          }),
+        ],
+      } as unknown as ReturnType<typeof useShowStats>);
+      render(<ShowResultsTab showId="show-1" />);
+
+      const list = screen.getByRole('region', { name: /Pending classes/ });
+      expect(list).toHaveTextContent('Scored, awaiting release');
+      expect(list).not.toHaveTextContent('Not scored yet');
+    });
+
+    it('keeps filters and filtered pending classes when nothing has a podium', () => {
+      mockNoPodium(pendingEntries);
+      render(<ShowResultsTab showId="show-1" />, { initialRoute: '/?element=Buried' });
+
+      expect(screen.getByText('Element: Buried')).toBeInTheDocument();
+      const list = screen.getByRole('region', { name: /Pending classes/ });
+      expect(list).toHaveTextContent('Buried Master');
+      expect(list).not.toHaveTextContent('Vehicle Open');
+    });
+
+    it('applies the class-name search to pending classes', async () => {
+      mockNoPodium(pendingEntries);
+      const { user } = render(<ShowResultsTab showId="show-1" />);
+
+      await user.type(screen.getByPlaceholderText('Search by class name...'), 'Vehicle');
+
+      const list = screen.getByRole('region', { name: /Pending classes/ });
+      expect(list).toHaveTextContent('Vehicle Open');
+      expect(list).not.toHaveTextContent('Buried Master');
+    });
+
+    it('does not list a released class that simply has no placements', () => {
+      mockNoPodium([
+        entry({
+          id: 'r',
+          classId: 'r1',
+          className: 'Released All NQ',
+          resultText: 'NQ',
+          classResultsReleasedAt: '2026-05-01T00:00:00Z',
+        }),
+      ]);
+      render(<ShowResultsTab showId="show-1" />);
+
+      expect(screen.queryByText('Released All NQ')).not.toBeInTheDocument();
+    });
+  });
+
   it('"Show all classes" clears the search', async () => {
     const { user } = render(<ShowResultsTab showId="show-1" />);
 

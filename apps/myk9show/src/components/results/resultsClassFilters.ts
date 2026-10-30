@@ -48,6 +48,8 @@ export function derivePendingClasses(
   const byClass = new Map<string, PendingClass>();
   for (const entry of entries) {
     if (podiumClassIds.has(entry.classId)) continue;
+    // Released with no placement 1-4 (e.g. all NQ): nothing pending, nothing to show.
+    if (entry.classResultsReleasedAt) continue;
     const row = byClass.get(entry.classId) ?? {
       classId: entry.classId,
       className: entry.className,
@@ -58,7 +60,8 @@ export function derivePendingClasses(
       entryCount: 0,
     };
     row.entryCount++;
-    if (isScored(entry)) row.scoredCount++;
+    // A scored result withheld from this viewer maps to 'pending' but is still scored.
+    if (isScored(entry) || entry.resultWithheld) row.scoredCount++;
     byClass.set(entry.classId, row);
   }
   return [...byClass.values()].sort(

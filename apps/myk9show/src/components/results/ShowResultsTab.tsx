@@ -132,14 +132,20 @@ function PodiumContent({ showId, showEntries = [] }: PodiumContentProps) {
     () => deriveClassFilterOptions([...results, ...pendingAll], showEntries),
     [results, pendingAll, showEntries]
   );
-  const pending = useMemo(() => filterClasses(pendingAll, filters), [pendingAll, filters]);
+  const query = search.trim().toLowerCase();
+  const matchesSearch = (cls: { className: string }) =>
+    !query || cls.className.toLowerCase().includes(query);
+  const pending = useMemo(
+    () => filterClasses(pendingAll, filters).filter(matchesSearch),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [pendingAll, filters, query]
+  );
 
-  const filtered = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    const byClass = filterClasses(results, filters);
-    if (!query) return byClass;
-    return byClass.filter(cls => cls.className.toLowerCase().includes(query));
-  }, [results, search, filters]);
+  const filtered = useMemo(
+    () => filterClasses(results, filters).filter(matchesSearch),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [results, filters, query]
+  );
 
   const withPlacements = filtered;
 
@@ -165,21 +171,7 @@ function PodiumContent({ showId, showEntries = [] }: PodiumContentProps) {
     );
   }
 
-  if (results.length === 0) {
-    const emptyState = getResultsEmptyStateCopy(showEntries);
-
-    return (
-      <div className="space-y-4">
-        <EmptyState
-          icon={Trophy}
-          title={emptyState.title}
-          description={emptyState.description}
-          action={null}
-        />
-        <PendingClassesList classes={pendingAll} />
-      </div>
-    );
-  }
+  const emptyState = results.length === 0 ? getResultsEmptyStateCopy(showEntries) : null;
 
   return (
     <div className="space-y-4">
@@ -206,7 +198,14 @@ function PodiumContent({ showId, showEntries = [] }: PodiumContentProps) {
         />
       </div>
 
-      {withPlacements.length > 0 ? (
+      {emptyState ? (
+        <EmptyState
+          icon={Trophy}
+          title={emptyState.title}
+          description={emptyState.description}
+          action={null}
+        />
+      ) : withPlacements.length > 0 ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {withPlacements.map(cls => (
             <VisibilityGatedPodiumCard key={cls.classId} cls={cls} showId={showId} />

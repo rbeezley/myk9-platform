@@ -18,6 +18,8 @@ export interface StatsEntry {
   trialName?: string | undefined;
   trialNumber?: string | undefined;
   trialId?: string | undefined;
+  /** When the club released this class's results; null while unreleased. */
+  classResultsReleasedAt?: string | null | undefined;
   breed?: string | undefined;
   /** People assigned to judge this entry's class (judge_assignments). */
   judgeIds?: string[] | undefined;

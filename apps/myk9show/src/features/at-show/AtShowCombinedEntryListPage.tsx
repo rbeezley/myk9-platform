@@ -52,6 +52,7 @@ import { persistEntryRunOrder } from './persistEntryRunOrder';
 import { buildRingsideContextValue, buildRingsideReplication } from './ringsideCapabilities';
 import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
 import { useAtShowShowHydration } from './useAtShowShowHydration';
+import { useAtShowEntriesNotOnDevice } from './useAtShowEntriesNotOnDevice';
 import { createAtShowDataDependencies } from './atShowDataAdapter';
 import { useAtShowEntryListActions } from './useAtShowEntryListActions';
 import { useAtShowEntryListUiState } from './useAtShowEntryListUiState';
@@ -156,6 +157,11 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
   // app-wide pass never downloads entries, so waiting on it left a cold device
   // on the skeleton or an empty ring.
   const isFirstShowHydrationPending = useAtShowShowHydration(showId, syncStatus, refresh);
+  const notOnDevice = useAtShowEntriesNotOnDevice(
+    showId,
+    isFirstShowHydrationPending,
+    entries.length
+  );
   const [localEntries, setLocalEntries] = useState<Entry[]>([]);
   const [manualOrder, setManualOrder] = useState<Entry[]>([]);
   // Mirrors AtShowEntryListPage. Without this the combined route presented an
@@ -393,7 +399,7 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
             setSectionFilter,
           }}
           data={{ entries, classInfo }}
-          dataStatus={{ isRefreshing, fetchError, refresh }}
+          dataStatus={{ isRefreshing, fetchError, refresh, notOnDevice }}
           handlers={handlers}
           actions={actions}
           uiState={uiState}

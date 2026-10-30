@@ -38,6 +38,7 @@ import {
   ClassCompletionPresentation,
   EntryListDialogs,
   EntryListEmptyState,
+  EntryListNotOnDeviceState,
   EntryListSkeleton,
   SuccessToast,
   FloatingDoneButton,
@@ -64,7 +65,7 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
   const navigate = useNavigate();
   const isCombined = Boolean(combined);
   const { entries, classInfo } = data;
-  const { isRefreshing, fetchError, refresh } = dataStatus;
+  const { isRefreshing, fetchError, refresh, notOnDevice } = dataStatus;
   const { showContext, hasPermission, role } = context;
   const {
     localEntries,
@@ -186,6 +187,18 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
           isRetrying={isRefreshing}
         />
       </div>
+    );
+  }
+
+  // Not loaded, which is not the same as empty: never claim "No Entries Yet"
+  // for a show whose entries this device never downloaded (MYK9-1520).
+  if (hasCompletedInitialLoad && entries.length === 0 && notOnDevice) {
+    return (
+      <EntryListNotOnDeviceState
+        className={classInfo?.className}
+        action={notOnDevice}
+        onGoBack={() => navigate(-1)}
+      />
     );
   }
 

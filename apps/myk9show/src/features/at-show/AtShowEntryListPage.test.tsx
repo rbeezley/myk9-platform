@@ -58,6 +58,21 @@ vi.mock('@/services/replication', () => ({
   },
 }));
 
+// The show's entries scope: synced by default so a genuinely empty class still
+// reads "No Entries Yet"; the not-on-device test flips it (MYK9-1520).
+const entriesScope = vi.hoisted(() => ({ synced: true }));
+vi.mock('@/services/replication/entriesShowSyncState', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/services/replication/entriesShowSyncState')>()),
+  hasShowEntriesSynced: vi.fn(async () => entriesScope.synced),
+}));
+vi.mock('@/features/offline-readiness/OfflineReadyBadge', () => ({
+  OfflineReadyBadge: ({ showId }: { showId: string | undefined }) => (
+    <button type="button" data-show-id={showId}>
+      Save for show day
+    </button>
+  ),
+}));
+
 // Auth: force a SITE_ADMIN primary role (→ ringside 'admin', canScore = true)
 // so the pending card is clickable. Real getPrimaryRole is preserved so the
 // role→permission mapping under test stays genuine.
@@ -141,6 +156,7 @@ const renderPage = (syncStatus: ReplicationSyncContextValue['status'] = settledS
 describe('AtShowEntryListPage (Phase 1a shim)', () => {
   beforeEach(() => {
     authRoles.current = null;
+    entriesScope.synced = true;
     vi.clearAllMocks();
     localStorage.clear();
     vi.mocked(replicatedEntriesTable.subscribe)
@@ -210,6 +226,32 @@ describe('AtShowEntryListPage (Phase 1a shim)', () => {
 
     expect(await screen.findByRole('status', { name: 'Loading entries' })).toBeInTheDocument();
     expect(screen.queryByText('No Entries Yet')).not.toBeInTheDocument();
+  });
+
+  // MYK9-1520: offline on a device that never saved this show, "not loaded" must
+  // not read as "none". The class card already says "Entry count not loaded yet".
+  it('says the entries are not on this device, never No Entries Yet, when the show was never saved', async () => {
+    entriesScope.synced = false;
+    vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([] as never);
+
+    renderPage();
+
+    expect(await screen.findByText('Entries are not on this device')).toBeInTheDocument();
+    expect(screen.queryByText('No Entries Yet')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Save for show day' })).toHaveAttribute(
+      'data-show-id',
+      'show-1'
+    );
+  });
+
+  it('still says No Entries Yet for a genuinely empty class on a saved show', async () => {
+    entriesScope.synced = true;
+    vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([] as never);
+
+    renderPage();
+
+    expect(await screen.findByText('No Entries Yet')).toBeInTheDocument();
+    expect(screen.queryByText('Entries are not on this device')).not.toBeInTheDocument();
   });
 
   it('refreshes an initially empty query from the replicated subscription snapshot', async () => {

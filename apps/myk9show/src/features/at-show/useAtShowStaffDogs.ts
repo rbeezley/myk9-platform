@@ -1,11 +1,15 @@
-import { useEffect, useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { getClassIds, groupSectionedClasses } from '@myk9/ringside';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { replicatedArmbandsTable, replicatedEntriesTable } from '@/services/replication';
+import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { hasShowEntriesSynced } from '@/services/replication/entriesShowSyncState';
 import { buildShowArmbandMaps } from '@/features/_shared/entryArmband';
 import { formatAtShowTrialHeading } from './atShowTrialHeading';
 import { useAtShowClassList } from './useAtShowClassList';
+import { syncAtShowData } from './atShowDataAdapter';
+import { useAtShowShowHydration } from './useAtShowShowHydration';
+import { useAtShowRealtimeRefresh } from './useAtShowRealtimeRefresh';
 import { buildStaffDogs, type StaffDog, type StaffDogClassInfo } from './staffDogIndex';
 
 export interface UseAtShowStaffDogsResult {
@@ -13,8 +17,8 @@ export interface UseAtShowStaffDogsResult {
   showName: string;
   isLoading: boolean;
   /**
-   * This device has read the whole show's entries. False means the list may be partial
-   * (this show's entries scope has no completed sync on this device), so "all classes" cannot be promised.
+   * False only once the first hydration has settled and this show's entries scope still has no
+   * completed sync on this device (offline, never saved): the list may be partial.
    */
   isComplete: boolean;
   /** The entry read failed; `dogs` is the last good read, possibly empty. */
@@ -29,20 +33,7 @@ export interface UseAtShowStaffDogsResult {
 export function useAtShowStaffDogs(showId: string | undefined): UseAtShowStaffDogsResult {
   const queryClient = useQueryClient();
   const classList = useAtShowClassList(showId);
-
-  useEffect(() => {
-    if (!showId) return;
-    const invalidate = () => {
-      void queryClient.invalidateQueries({ queryKey: ['at-show', 'staff-dogs', showId] });
-      void queryClient.invalidateQueries({ queryKey: ['at-show', 'staff-dogs-synced', showId] });
-    };
-    const unsubscribeEntries = replicatedEntriesTable.subscribe(invalidate);
-    const unsubscribeArmbands = replicatedArmbandsTable.subscribe(invalidate);
-    return () => {
-      unsubscribeEntries();
-      unsubscribeArmbands();
-    };
-  }, [showId, queryClient]);
+  const { status: syncStatus } = useReplicationSync();
 
   const entriesQuery = useQuery({
     queryKey: ['at-show', 'staff-dogs', showId],
@@ -66,6 +57,34 @@ export function useAtShowStaffDogs(showId: string | undefined): UseAtShowStaffDo
     enabled: !!showId,
     networkMode: 'always',
   });
+
+  // The same freshness path as the class entry lists: hydrate on mount and after every
+  // app-wide pass, and pull on show-change broadcasts and when the app returns to the
+  // foreground. A forced refresh runs the canonical show sync (failures keep the
+  // cached rows), then re-reads the entries and the completed-sync marker.
+  const refresh = useCallback(
+    async (forceSync?: boolean) => {
+      if (!showId) return;
+      if (forceSync) {
+        try {
+          await syncAtShowData(showId);
+        } catch {
+          /* offline: keep the cached rows */
+        }
+      }
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['at-show', 'staff-dogs', showId] }),
+        queryClient.invalidateQueries({ queryKey: ['at-show', 'staff-dogs-synced', showId] }),
+      ]);
+    },
+    [showId, queryClient]
+  );
+  const isHydrationPending = useAtShowShowHydration(showId, syncStatus, refresh);
+  const classIds = useMemo(
+    () => classList.groups.flatMap(group => group.classes.map(cls => cls.id)),
+    [classList.groups]
+  );
+  useAtShowRealtimeRefresh(showId, classIds, refresh);
 
   const classesById = useMemo(() => {
     const map = new Map<string, StaffDogClassInfo>();
@@ -101,8 +120,8 @@ export function useAtShowStaffDogs(showId: string | undefined): UseAtShowStaffDo
   return {
     dogs,
     showName: classList.showName,
-    isLoading: entriesQuery.isLoading || classList.isLoading,
-    isComplete: syncedQuery.data === true,
+    isLoading: entriesQuery.isLoading || classList.isLoading || isHydrationPending,
+    isComplete: isHydrationPending || syncedQuery.data === true,
     loadFailed: entriesQuery.isError || classList.error != null,
     onRetry: () => {
       void entriesQuery.refetch();

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 
@@ -9,6 +9,28 @@ const classState = vi.hoisted(() => ({
   refresh: vi.fn(),
   groups: [] as unknown[],
   available: true,
+  syncGate: null as Promise<void> | null,
+  realtime: null as null | {
+    showId: string | undefined;
+    classIds: readonly string[];
+    refresh: (force?: boolean) => Promise<void>;
+  },
+}));
+vi.mock('@/hooks/useReplicationSync', () => ({
+  useReplicationSync: () => ({ status: { isSyncing: false, lastSyncAt: null } }),
+}));
+vi.mock('./atShowDataAdapter', async importOriginal => ({
+  ...(await importOriginal<typeof import('./atShowDataAdapter')>()),
+  syncAtShowData: () => classState.syncGate ?? Promise.resolve(),
+}));
+vi.mock('./useAtShowRealtimeRefresh', () => ({
+  useAtShowRealtimeRefresh: (
+    showId: string | undefined,
+    classIds: readonly string[],
+    refresh: (force?: boolean) => Promise<void>
+  ) => {
+    classState.realtime = { showId, classIds, refresh };
+  },
 }));
 vi.mock('@/services/replication', () => ({
   replicatedEntriesTable: { getEntriesByShow, subscribe: vi.fn(() => vi.fn()) },
@@ -107,6 +129,65 @@ describe('useAtShowStaffDogs', () => {
     await waitFor(() => expect(result.current.dogs).toEqual([]));
     await new Promise(resolve => setTimeout(resolve, 20));
     expect(result.current.isComplete).toBe(false);
+    classState.available = true;
+  });
+
+  function setup() {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
+    return renderHook(() => useAtShowStaffDogs('s1'), { wrapper });
+  }
+
+  it('re-reads the entries when a show-change signal or foreground refresh fires', async () => {
+    classState.groups = [
+      { trial: { id: 't1' }, classes: [{ id: 'c9' }], nextUpByClassId: new Map() },
+    ];
+    getEntriesByShow.mockResolvedValue([]);
+    const { result } = setup();
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(classState.realtime?.showId).toBe('s1');
+    expect(classState.realtime?.classIds).toEqual(['c9']);
+    getEntriesByShow.mockResolvedValue([
+      { id: 'e2', dogId: 'd2', armband: '7', dogCallName: 'Bo', classId: 'c9' },
+    ]);
+    await act(async () => {
+      await classState.realtime?.refresh(false);
+    });
+    await waitFor(() => expect(result.current.dogs.map(d => d.dogName)).toEqual(['Bo']));
+    classState.groups = [];
+  });
+
+  it('shows loading, not the partial notice, until the first hydration settles, then re-reads the marker', async () => {
+    let release = () => {};
+    classState.syncGate = new Promise<void>(resolve => {
+      release = resolve;
+    });
+    classState.available = false;
+    getEntriesByShow.mockResolvedValue([]);
+    const { result } = setup();
+    await waitFor(() => expect(result.current.dogs).toEqual([]));
+    expect(result.current.isLoading).toBe(true);
+    expect(result.current.isComplete).toBe(true);
+    classState.available = true;
+    await act(async () => {
+      release();
+      await classState.syncGate;
+    });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.isComplete).toBe(true);
+    classState.syncGate = null;
+  });
+
+  it('keeps the partial notice when hydration settles without a completed sync', async () => {
+    classState.syncGate = Promise.resolve();
+    classState.available = false;
+    getEntriesByShow.mockResolvedValue([]);
+    const { result } = setup();
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.isComplete).toBe(false);
+    classState.syncGate = null;
     classState.available = true;
   });
 });

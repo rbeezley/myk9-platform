@@ -326,6 +326,8 @@ Prompt source of truth: docs/operations/scheduled-audits-claude.md — edit ther
 sits next to the weekly branch janitor (Monday 8:30, `scripts/reap-merged-branches.sh`), which reaps
 merged remote branches; this one reconciles Linear issues against their PRs and branches
 (MYK9-1434), so stranded In Progress claims return to Todo without the dead session's close-out.
+It never merges, deploys or pushes migrations, even while
+[`docs/agents/standing-approvals.md`](../agents/standing-approvals.md) is ACTIVE.
 
 **Registration is the owner's step**, on the owner's machine, next to the branch janitor. **The
 first scheduled run is a dry run reviewed by the owner** (the prompt below stops after the plan

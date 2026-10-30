@@ -170,6 +170,11 @@ export const PINNED_SCRIPTS: readonly PinnedScript[] = [
   },
   {
     pkgDir: '.',
+    script: 'qa:prelaunch-tripwire:test',
+    command: 'vitest run scripts/qa/prelaunch-tripwire.test.ts',
+  },
+  {
+    pkgDir: '.',
     script: 'qa:ci-concurrency:test',
     command: 'vitest run scripts/qa/ci-concurrency.test.ts',
   },

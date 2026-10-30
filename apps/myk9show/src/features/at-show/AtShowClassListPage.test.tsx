@@ -242,6 +242,7 @@ describe('AtShowClassListPage (Phase 1h class picker)', () => {
     expect(
       screen.queryByRole('status', { name: 'Loading at-show classes' })
     ).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Ringside menu' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Ringside' }));
     expect(await screen.findByText('RINGSIDE HOME')).toBeInTheDocument();
   });
@@ -255,6 +256,7 @@ describe('AtShowClassListPage (Phase 1h class picker)', () => {
     expect(
       screen.queryByRole('status', { name: 'Loading at-show classes' })
     ).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Ringside menu' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Ringside' }));
     expect(await screen.findByText('RINGSIDE HOME')).toBeInTheDocument();
   });

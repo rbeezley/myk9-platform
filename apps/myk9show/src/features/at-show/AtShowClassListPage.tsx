@@ -40,6 +40,7 @@ import { orderRingClassesByDay } from './orderRingClassesByDay';
 /** The scopes the picker's own rows come from. */
 const CLASS_DATA_TABLES = ['shows', 'trials', 'classes'] as const;
 import { ClassListUpButton } from './ClassListUpButton';
+import { ClassListUpAndMenu } from './ClassListUpAndMenu';
 import { RingsideMenu } from './menu/RingsideMenu';
 import {
   sortClassesForAtShowScan,
@@ -373,8 +374,7 @@ export const AtShowClassListPage: React.FC = () => {
           <Button variant="outline" className="min-h-11 px-6" onClick={refresh}>
             Try again
           </Button>
-          <ClassListUpButton showId={showId} clubId={clubId} />
-          <RingsideMenu showId={showId} />
+          <ClassListUpAndMenu showId={showId} clubId={clubId} />
         </div>
       </main>
     );
@@ -442,8 +442,7 @@ export const AtShowClassListPage: React.FC = () => {
               Try again
             </Button>
           )}
-          <ClassListUpButton showId={showId} clubId={clubId} />
-          <RingsideMenu showId={showId} />
+          <ClassListUpAndMenu showId={showId} clubId={clubId} />
         </div>
       </main>
     );

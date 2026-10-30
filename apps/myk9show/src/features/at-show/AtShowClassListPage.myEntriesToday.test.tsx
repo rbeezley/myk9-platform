@@ -80,6 +80,7 @@ vi.mock('@/hooks/queries/useSelfCheckinEnabled', () => ({
 }));
 
 import { AtShowClassListPage } from './AtShowClassListPage';
+import { RingsideReturnBar } from './menu/RingsideReturnBar';
 import {
   replicatedShowsTable,
   replicatedTrialsTable,
@@ -310,6 +311,35 @@ describe('AtShowClassListPage — exhibitor "Your dogs today" default', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'See all classes' }));
     expect(await screen.findByText(/Container Novice/)).toBeInTheDocument();
     expect(screen.getByTestId('search')).toHaveTextContent('?view=all');
+  });
+
+  it('returns from a menu destination opened in All classes to All classes', async () => {
+    mockAuthState.hasRole = role => role === UserRole.EXHIBITOR;
+    mockAuthState.user = { id: 'user-1' };
+    seedOwnedEntry();
+
+    const { user } = render(
+      <ReplicationSyncTestProvider
+        value={{ status: settledSyncStatus, triggerSync: vi.fn(), syncTable: vi.fn() }}
+      >
+        <RingsideReturnBar />
+        <Routes>
+          <Route path="/at-show/:showId" element={<AtShowClassListPage />} />
+          <Route path="/account" element={<div>ACCOUNT PAGE</div>} />
+        </Routes>
+      </ReplicationSyncTestProvider>,
+      { initialRoute: '/at-show/show-1' }
+    );
+
+    await user.click(await screen.findByRole('button', { name: 'See all classes' }));
+    expect(await screen.findByText(/Container Novice/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Ringside menu' }));
+    await user.click(await screen.findByRole('button', { name: 'Settings' }));
+    expect(await screen.findByText('ACCOUNT PAGE', {}, { timeout: 3000 })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Back to ringside' }));
+    expect(await screen.findByText(/Container Novice/)).toBeInTheDocument();
+    expect(screen.queryByTestId('at-show-my-entries-today')).not.toBeInTheDocument();
   });
 
   // MYK9-1184: the all-days list used to sit under a "Your dogs today" button

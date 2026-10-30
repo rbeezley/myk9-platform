@@ -145,10 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           roles,
           permissions,
           scopes: buildActiveRoleScopes(currentRbacRoles, auth.user.id),
-          // `personId` is the profile id once the lookup answers, else the device-cached
-          // pairing: a cold offline boot has roles (cached) but no profile response, and an
-          // undefined here made every own-dogs read report "no rows" (MYK9-1493).
-          databaseUserId: userProfile?.id ?? personId ?? undefined,
+          databaseUserId: userProfile?.id,
         } as UserWithRoles;
       }
     }
@@ -186,7 +183,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     rbacError,
     rbacLoaded,
     userProfile?.id,
-    personId,
   ]);
 
   const canReadHideCounts = userWithRoles

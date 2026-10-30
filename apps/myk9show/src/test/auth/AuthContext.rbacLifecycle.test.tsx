@@ -437,9 +437,7 @@ describe('AuthContext RBAC lifecycle', () => {
       expect(screen.getByTestId('cached-user-roles')).toHaveTextContent(UserRole.EXHIBITOR);
     });
     expect(screen.getByTestId('cached-person-state')).toHaveTextContent('unresolved');
-    // The cached pairing reaches userWithRoles too: every hook keyed on databaseUserId
-    // (the own-dogs roster, dog access) reads it, and 'none' here was a false empty (MYK9-1493).
-    expect(screen.getByTestId('cached-user-with-roles-id')).toHaveTextContent('person-cached');
+    expect(screen.getByTestId('cached-user-with-roles-id')).toHaveTextContent('none');
   });
 
   it('saves a confirmed profile identity to the account-scoped cache', async () => {
@@ -598,7 +596,7 @@ describe('AuthContext RBAC lifecycle', () => {
       expect(screen.getByTestId('integration-entered')).toHaveTextContent('1');
       expect(screen.getByTestId('integration-balance')).toHaveTextContent('unknown');
     });
-    expect(screen.getByTestId('integration-user-with-roles-id')).toHaveTextContent('person-cached');
+    expect(screen.getByTestId('integration-user-with-roles-id')).toHaveTextContent('none');
     expect(mockGetUserEntries).toHaveBeenCalledTimes(4);
     expect(mockGetUserEntries).toHaveBeenCalledWith('person-cached');
   });

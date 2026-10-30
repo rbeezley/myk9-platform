@@ -62,6 +62,18 @@ export function useAtShowShowHydration(
     // A slower hydration of an earlier show must not overwrite a later one's
     // completion (MYK9-1379): only the show still being hydrated may record it.
     const forShow = showId;
+    // MYK9-1509: a cold reload with no connection must not wait on a sync that
+    // only a connection can finish. The replica is the show: settle from the
+    // entries marker at once and leave the sync to the next online start (a
+    // connection lost MID-sync is MYK9-1550). A later settled sync still
+    // upgrades `'not-arrived'` below.
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      void readEntriesMarker(forShow).then(onDevice => {
+        if (startedShowRef.current === forShow)
+          setHydrated({ showId: forShow, state: onDevice ? 'arrived' : 'not-arrived' });
+      });
+      return;
+    }
     // Started before refresh() so both share one operation; a failed or
     // rejected sync (offline) only means "did not arrive".
     const outcome = syncAtShowData(forShow).then(

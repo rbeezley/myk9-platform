@@ -1,16 +1,17 @@
 import { act, renderHook } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReplicationSyncContextValue } from '@/context/ReplicationSyncContext';
 import { useAtShowShowHydration } from './useAtShowShowHydration';
 
 const mocks = vi.hoisted(() => ({
   syncAtShowData: vi.fn(),
   hasShowEntriesSynced: vi.fn(),
+  subscribeAtShowSyncSettled: vi.fn(),
 }));
 
 vi.mock('./atShowDataAdapter', () => ({
   syncAtShowData: mocks.syncAtShowData,
-  subscribeAtShowSyncSettled: vi.fn(() => vi.fn()),
+  subscribeAtShowSyncSettled: mocks.subscribeAtShowSyncSettled,
 }));
 vi.mock('@/services/replication/entriesShowSyncState', () => ({
   hasShowEntriesSynced: mocks.hasShowEntriesSynced,
@@ -35,6 +36,7 @@ describe('useAtShowShowHydration', () => {
   beforeEach(() => {
     mocks.syncAtShowData.mockReset();
     mocks.hasShowEntriesSynced.mockReset();
+    mocks.subscribeAtShowSyncSettled.mockReset().mockReturnValue(vi.fn());
   });
 
   it('is pending, then arrived when the hydration succeeded', async () => {
@@ -93,5 +95,60 @@ describe('useAtShowShowHydration', () => {
       await a.promise;
     });
     expect(result.current).toBe('arrived');
+  });
+
+  // MYK9-1509: a cold reload with no connection must not wait on a sync that
+  // only a connection can finish (a mid-sync drop is MYK9-1550).
+  describe('cold offline start', () => {
+    const goOffline = () => vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    const neverRefresh = () =>
+      vi.fn<(forceSync: boolean) => Promise<void>>().mockReturnValue(new Promise(() => {}));
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('is arrived at once, without awaiting the sync, when the show was saved earlier', async () => {
+      goOffline();
+      mocks.syncAtShowData.mockReturnValue(new Promise(() => {}));
+      mocks.hasShowEntriesSynced.mockResolvedValue(true);
+      const { result } = renderHook(() => useAtShowShowHydration('A', IDLE_STATUS, neverRefresh()));
+      await act(async () => {});
+      expect(result.current).toBe('arrived');
+    });
+
+    it('is not-arrived at once, without awaiting the sync, for a never-saved show', async () => {
+      goOffline();
+      mocks.syncAtShowData.mockReturnValue(new Promise(() => {}));
+      mocks.hasShowEntriesSynced.mockResolvedValue(false);
+      const { result } = renderHook(() => useAtShowShowHydration('A', IDLE_STATUS, neverRefresh()));
+      await act(async () => {});
+      expect(result.current).toBe('not-arrived');
+    });
+
+    it('still upgrades not-arrived to arrived when a later sync settles', async () => {
+      goOffline();
+      let settled: () => void = () => {};
+      mocks.subscribeAtShowSyncSettled.mockImplementation((_id: string, cb: () => void) => {
+        settled = cb;
+        return vi.fn();
+      });
+      mocks.hasShowEntriesSynced.mockResolvedValueOnce(false).mockResolvedValue(true);
+      const { result } = renderHook(() => useAtShowShowHydration('A', IDLE_STATUS, neverRefresh()));
+      await act(async () => {});
+      expect(result.current).toBe('not-arrived');
+
+      await act(async () => {
+        settled();
+      });
+      expect(result.current).toBe('arrived');
+    });
+
+    it('still waits on the sync when the start is online', async () => {
+      mocks.syncAtShowData.mockReturnValue(new Promise(() => {}));
+      const { result } = renderHook(() => useAtShowShowHydration('A', IDLE_STATUS, neverRefresh()));
+      await act(async () => {});
+      expect(result.current).toBe('pending');
+    });
   });
 });

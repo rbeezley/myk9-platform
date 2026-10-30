@@ -218,19 +218,19 @@ export function useCanAccessPerson(personId: string): boolean {
 }
 
 /**
- * Hook to get the current user's person ID
+ * Hook to get the current user's CONFIRMED person ID. Deliberately ignores the
+ * device-cached pairing: callers use it for writes (AddDogPanel's new-dog
+ * ownerId), and a cached identity stays scoped to reads (MYK9-601, MYK9-1493).
  */
 export function useCurrentUserPersonId(): string | null {
   const { userWithRoles } = useAuthContext();
   const allPeople = useUserStore(state => state.people);
-  const cachedPersonId = useEntriesPersonId();
 
   return useMemo(() => {
     if (!userWithRoles) return null;
     if (userWithRoles.databaseUserId) return userWithRoles.databaseUserId;
-    if (cachedPersonId) return cachedPersonId;
 
     const userPerson = getUserPersonFromAuthId(userWithRoles.id, allPeople);
     return userPerson?.id || null;
-  }, [userWithRoles, allPeople, cachedPersonId]);
+  }, [userWithRoles, allPeople]);
 }

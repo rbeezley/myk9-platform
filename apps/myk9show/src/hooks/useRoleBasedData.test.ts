@@ -312,9 +312,11 @@ describe('reader identity on a cold offline boot', () => {
     expect(result.current).toBe('unresolved');
   });
 
-  it('uses the cached person id as the current user person id', () => {
+  it('never hands the cached person id to the current user person id, which writes read', () => {
+    // AddDogPanel uses it as a new dog's ownerId; an unconfirmed cached identity
+    // must not reach a write (MYK9-601).
     coldBoot('person-1');
     const { result } = renderHook(() => useCurrentUserPersonId());
-    expect(result.current).toBe('person-1');
+    expect(result.current).toBeNull();
   });
 });

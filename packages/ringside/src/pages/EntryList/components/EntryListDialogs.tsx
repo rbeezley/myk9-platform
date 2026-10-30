@@ -295,6 +295,7 @@ export const EntryListDialogs: React.FC<EntryListDialogsProps> = ({
             class_name: classInfo.className,
             ...classDialogCounts(classInfo),
             class_status: classInfo.classStatus,
+            per_area_times: classInfo.perAreaMaxTimes,
           }}
           onRequirements={() => {
             setRequirementsDialogOpen(true);

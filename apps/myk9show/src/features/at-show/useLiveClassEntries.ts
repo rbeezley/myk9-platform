@@ -1,0 +1,41 @@
+/**
+ * A class's replicated entry rows, re-read whenever the entry replica changes, so
+ * ringside surfaces that summarise a class (statistics) work offline and follow a
+ * score saved on this or another device. Null until the first read; a failed read
+ * reads as no rows, so nothing waits on it forever.
+ */
+import { useEffect, useState } from 'react';
+import { replicatedEntriesTable } from '@/services/replication';
+import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
+
+export function useLiveClassEntries(classId: string, enabled = true): ReplicatedEntry[] | null {
+  // Keyed by the class read: a reused hook must not answer with the previous class.
+  const [snapshot, setSnapshot] = useState<{ key: string; rows: ReplicatedEntry[] } | null>(null);
+
+  useEffect(() => {
+    if (!enabled || !classId) return;
+    let cancelled = false;
+    const read = () => {
+      replicatedEntriesTable
+        .getEntriesByClass(classId)
+        .then(rows => {
+          if (!cancelled) setSnapshot({ key: classId, rows });
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setSnapshot(current =>
+              current?.key === classId ? current : { key: classId, rows: [] }
+            );
+          }
+        });
+    };
+    const unsubscribe = replicatedEntriesTable.subscribe(read);
+    read();
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [classId, enabled]);
+
+  return snapshot?.key === classId ? snapshot.rows : null;
+}

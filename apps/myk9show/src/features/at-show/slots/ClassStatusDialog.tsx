@@ -12,18 +12,12 @@
 import { useState } from 'react';
 import type React from 'react';
 import type { ClassStatusDialogProps, ClassStatusValue } from '@myk9/ringside';
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Flag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
-import { handleOpenChange } from './dialogHelpers';
+import { ClassDialogShell } from './ClassDialogShell';
 
 interface StatusOption {
   value: ClassStatusValue;
@@ -121,76 +115,70 @@ const ClassStatusForm: React.FC<ClassStatusDialogProps> = ({
   };
 
   return (
-    <Dialog open onOpenChange={open => handleOpenChange(open, onClose)}>
-      {/* Eight two-line options plus the time form outgrow a phone: cap at the viewport and scroll. */}
-      <DialogContent className="max-h-[90dvh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{classData.class_name} — Status</DialogTitle>
-        </DialogHeader>
-        <div role="group" aria-label="Class status" className="flex flex-col gap-2">
-          {CLASS_STATUS_OPTIONS.map(option => {
-            const isCurrent = option.value === currentStatus;
-            return (
-              <Button
-                key={option.value}
-                variant="outline"
-                disabled={saving}
-                aria-current={isCurrent || undefined}
-                onClick={() => choose(option)}
-                className={cn(
-                  'h-auto min-h-12 flex-col items-start gap-0.5 whitespace-normal py-2 text-left',
-                  isCurrent && 'border-primary'
-                )}
-              >
-                <span className="flex w-full items-center justify-between gap-2 font-medium">
-                  <span>{option.label}</span>
-                  {isCurrent && <span className="text-xs font-normal text-primary">Current</span>}
-                </span>
-                <span className="text-xs font-normal text-muted-foreground">
-                  {option.description}
-                </span>
-              </Button>
-            );
-          })}
-        </div>
-        {picked?.timeLabel && (
-          <form
-            className="flex flex-col gap-2"
-            onSubmit={event => {
-              event.preventDefault();
-              if (time) void save(picked.value, time);
-            }}
-          >
-            <Label htmlFor="class-status-time">{picked.timeLabel}</Label>
-            <Input
-              id="class-status-time"
-              type="time"
-              value={time}
-              onChange={event => setTime(event.target.value)}
-              required
-              autoFocus
-            />
-            <Button type="submit" disabled={saving || !time}>
-              Set {picked.label}
+    <ClassDialogShell
+      icon={Flag}
+      eyebrow="Status"
+      className={classData.class_name}
+      onClose={onClose}
+    >
+      <div role="group" aria-label="Class status" className="flex flex-col gap-2">
+        {CLASS_STATUS_OPTIONS.map(option => {
+          const isCurrent = option.value === currentStatus;
+          return (
+            <Button
+              key={option.value}
+              variant="outline"
+              disabled={saving}
+              aria-current={isCurrent || undefined}
+              onClick={() => choose(option)}
+              className={cn(
+                'h-auto min-h-12 flex-col items-start gap-0.5 whitespace-normal py-2 text-left',
+                isCurrent && 'border-primary'
+              )}
+            >
+              <span className="flex w-full items-center justify-between gap-2 font-medium">
+                <span>{option.label}</span>
+                {isCurrent && <span className="text-xs font-normal text-primary">Current</span>}
+              </span>
+              <span className="text-xs font-normal text-muted-foreground">
+                {option.description}
+              </span>
             </Button>
-          </form>
-        )}
-        {error && (
-          <p role="alert" className="text-sm text-destructive">
-            {error}
-          </p>
-        )}
-        {onMarkAbsent && (
-          <Button variant="outline" disabled={saving} onClick={() => void onMarkAbsent()}>
-            Mark Unscored Absent
+          );
+        })}
+      </div>
+      {picked?.timeLabel && (
+        <form
+          className="flex flex-col gap-2"
+          onSubmit={event => {
+            event.preventDefault();
+            if (time) void save(picked.value, time);
+          }}
+        >
+          <Label htmlFor="class-status-time">{picked.timeLabel}</Label>
+          <Input
+            id="class-status-time"
+            type="time"
+            value={time}
+            onChange={event => setTime(event.target.value)}
+            required
+            autoFocus
+          />
+          <Button type="submit" disabled={saving || !time}>
+            Set {picked.label}
           </Button>
-        )}
-        <DialogFooter>
-          <Button variant="ghost" onClick={onClose}>
-            Close
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </form>
+      )}
+      {error && (
+        <p role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      )}
+      {onMarkAbsent && (
+        <Button variant="outline" disabled={saving} onClick={() => void onMarkAbsent()}>
+          Mark Unscored Absent
+        </Button>
+      )}
+    </ClassDialogShell>
   );
 };

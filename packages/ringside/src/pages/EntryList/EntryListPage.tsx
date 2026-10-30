@@ -197,7 +197,9 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
       <EntryListNotOnDeviceState
         className={classInfo?.className}
         action={notOnDevice}
-        onGoBack={() => navigate(-1)}
+        // A deep link can open this with no (or foreign) history, so go to the
+        // fixed class list the header's Up uses rather than back.
+        onGoBack={() => navigate(context.up.to)}
       />
     );
   }

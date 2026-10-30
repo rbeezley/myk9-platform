@@ -256,6 +256,16 @@ describe('AtShowEntryListPage (Phase 1a shim)', () => {
     );
   });
 
+  it('Go Back from the not-on-device state goes to the show class list, not history', async () => {
+    entriesScope.synced = false;
+    vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([] as never);
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('button', { name: /go back/i }));
+
+    expect(await screen.findByTestId('class-list-page')).toBeInTheDocument();
+  });
+
   it('holds the skeleton, not No Entries Yet, until the entries-scope check resolves', async () => {
     entriesScope.synced = false;
     let release: () => void = () => {};

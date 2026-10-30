@@ -39,7 +39,7 @@ export function useAtShowEntriesNotOnDevice(
   const { user } = useAuthContext();
   const queryKey = ['at-show', 'entry-list-entries-known', showId];
   const enabled = !!showId && !isFirstHydrationPending;
-  const { data: entriesKnown } = useQuery({
+  const { data: entriesKnown, isFetching } = useQuery({
     queryKey,
     queryFn: () => areAtShowEntryCountsKnown(showId as string),
     enabled,
@@ -59,7 +59,9 @@ export function useAtShowEntriesNotOnDevice(
     });
   }, [queryClient, showId]);
 
-  const isChecking = enabled && entriesKnown === undefined;
+  // isFetching, not just missing data: a retained answer from an earlier visit
+  // (cleared cache, other account) must not stand in for the fresh read.
+  const isChecking = enabled && (entriesKnown === undefined || isFetching);
   if (entriesKnown !== false) return { notOnDevice: undefined, isChecking };
   const notOnDevice =
     user?.is_anonymous === true ? (

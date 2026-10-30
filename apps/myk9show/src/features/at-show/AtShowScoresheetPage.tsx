@@ -17,7 +17,7 @@
  */
 
 import { useCallback, useMemo, useState } from 'react';
-import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   Loader2,
   AlertCircle,
@@ -28,8 +28,7 @@ import {
   VolumeX,
 } from 'lucide-react';
 import { RingsideUpButton } from '@myk9/ui';
-import { ScoresheetLeaveGuard } from './ScoresheetLeaveGuard';
-import { useSelfNavigation } from '@/components/panels/edit/useSelfNavigation';
+import { ScoresheetLeaveGuard } from '@/components/navigation/ScoresheetLeaveGuard';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
 import { getScoresheetComponent } from '@myk9/scoring-ui';
@@ -62,8 +61,8 @@ import { speakRemainingSeconds } from './atShowVoiceAnnouncement';
 import { QuickAdvancePanel } from './quickAdvancePanel';
 import {
   COMBINED_PARAM,
+  buildAtShowScoreSheetRoute,
   pairedClassIdFor,
-  planNextDogNavigation,
   resolveScoreSheetEntryListRoute,
 } from './atShowScoresheetRoutes';
 
@@ -251,14 +250,8 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
   onBack,
 }) => {
   const navigate = useNavigate();
-  const location = useLocation();
-  // The sheet reports whether leaving would lose work, so the browser/device
-  // back gesture (which bypasses Up and Cancel) is held to the same prompt.
-  // Up/Cancel answer in the sheet's own dialog, then navigate on their own
-  // behalf so the route guard does not ask a second time.
+  // The sheet reports whether leaving would lose work; the guard owns the one prompt.
   const [sheetDirty, setSheetDirty] = useState(false);
-  const { selfNavigationRef, runSelfNavigation } = useSelfNavigation();
-  const leaveSheet = useCallback(() => runSelfNavigation(onBack), [runSelfNavigation, onBack]);
   // MYK9-83: saving lands on a "Saved" state with optional up-next chips
   // instead of navigating away on its own. NOTHING here auto-advances — the
   // judge either taps a candidate or goes back to the list (the default).
@@ -270,18 +263,20 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
       // The normal scoresheet route, so the picked dog goes through the same
       // load + in-ring path as a tap from the entry list.
       // A chip from the other section opens under ITS class, keeping the pair.
-      for (const step of planNextDogNavigation({
-        showId: showId ?? '',
-        classId: classId ?? '',
-        nextClassId,
-        nextEntryId,
-        combined,
-        openedDirectly: location.key === 'default',
-      })) {
-        navigate(step.to, { replace: step.replace });
-      }
+      // REPLACE, not push: the sheet being left is already saved, so the back
+      // gesture from the next dog goes where the judge came from instead of
+      // stepping back through every dog scored (MYK9-1500).
+      navigate(
+        buildAtShowScoreSheetRoute(
+          showId ?? '',
+          nextClassId || (classId ?? ''),
+          nextEntryId,
+          combined
+        ),
+        { replace: true }
+      );
     },
-    [navigate, location.key, showId, classId, combined]
+    [navigate, showId, classId, combined]
   );
   const {
     entry,
@@ -421,7 +416,7 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
           onDismiss={dismissNudge}
         />
       )}
-      <ScoresheetLeaveGuard isDirty={sheetDirty} selfNavigationRef={selfNavigationRef} />
+      <ScoresheetLeaveGuard isDirty={sheetDirty} />
       {submitError && <ScoreSubmitErrorBanner message={submitError} onDismiss={clearSubmitError} />}
       {(isSyncing || hasSyncError) && (
         <div
@@ -459,7 +454,7 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
         classInfo={toScoresheetClassInfo(classInfo, trialDate, trialNumber, trialName)}
         rules={rules}
         onSubmit={submit}
-        onBack={leaveSheet}
+        onBack={onBack}
         backLabel="Entries"
         onDirtyChange={setSheetDirty}
         onWarningChime={audio.playWarning}

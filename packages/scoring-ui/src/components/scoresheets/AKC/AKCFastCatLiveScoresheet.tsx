@@ -128,7 +128,7 @@ export const AKCFastCatLiveScoresheet: React.FC<LiveScoresheetProps> = ({
     }
   };
 
-  const { requestLeave, upButton, discardDialog } = useScoresheetLeave({
+  const { upButton } = useScoresheetLeave({
     scoring,
     stopwatch,
     extraDirty: () => fastcatResult !== '',
@@ -139,7 +139,6 @@ export const AKCFastCatLiveScoresheet: React.FC<LiveScoresheetProps> = ({
 
   return (
     <>
-      {discardDialog}
       <div className="min-h-screen bg-background">
         <div className="max-w-2xl mx-auto">
           {/* Header */}
@@ -278,7 +277,7 @@ export const AKCFastCatLiveScoresheet: React.FC<LiveScoresheetProps> = ({
 
             {/* Submit */}
             <div className="flex gap-3 pt-2 pb-8">
-              <Button variant="outline" className="flex-1 h-12" onClick={requestLeave}>
+              <Button variant="outline" className="flex-1 h-12" onClick={onBack}>
                 Cancel
               </Button>
               <Button

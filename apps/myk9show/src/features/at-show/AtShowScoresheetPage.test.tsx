@@ -21,7 +21,15 @@ import {
 } from 'react-router-dom';
 import { render as rawRender } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, act } from '@/test/utils/testUtils';
+import { QueryClientProvider } from '@tanstack/react-query';
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  act,
+  createTestQueryClient,
+} from '@/test/utils/testUtils';
 import { UserRole } from '@/types/auth-types';
 import { ReplicationSyncTestProvider } from '@/test/utils/ReplicationSyncTestProvider';
 import type { ReplicationSyncContextValue } from '@/context/ReplicationSyncContext';
@@ -854,20 +862,13 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
       fireEvent.click(screen.getByText('Browser back'));
       expect(await screen.findByText('Combined list')).toBeInTheDocument();
     });
-
-    it('keeps the entry list behind a sheet opened from a link or reload', async () => {
-      renderPick(SHEET);
-      await saveAndPickNext();
-
-      expect(await screen.findByText(`nav PUSH ${NEXT}`)).toBeInTheDocument();
-      fireEvent.click(screen.getByText('Browser back'));
-      expect(await screen.findByText('Combined list')).toBeInTheDocument();
-    });
   });
 
-  // The back gesture bypasses Up and Cancel, so the page holds it to the same
-  // "Discard this score?" prompt once the sheet reports unsaved work.
-  describe('route guard for navigation that bypasses Up and Cancel (MYK9-1500)', () => {
+  // One prompt, owned by the router guard: Up, Cancel (both call the sheet's
+  // onBack, which the stub's Back button stands for) and the back gesture are
+  // all held to it once the sheet reports unsaved work.
+  describe('one "Discard this score?" prompt from the route guard (MYK9-1500)', () => {
+    const SHEET_ROUTE = '/at-show/show-1/class/class-1/score/entry-1';
     const renderInDataRouter = () => {
       const router = createMemoryRouter(
         [
@@ -880,36 +881,40 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
         { initialEntries: ['/at-show/show-1/class/class-1', SHEET_ROUTE], initialIndex: 1 }
       );
       rawRender(
-        <ReplicationSyncTestProvider
-          value={{ status: settledSyncStatus, triggerSync: vi.fn(), syncTable: vi.fn() }}
-        >
-          <RouterProvider router={router} />
-        </ReplicationSyncTestProvider>
+        <QueryClientProvider client={createTestQueryClient()}>
+          <ReplicationSyncTestProvider
+            value={{ status: settledSyncStatus, triggerSync: vi.fn(), syncTable: vi.fn() }}
+          >
+            <RouterProvider router={router} />
+          </ReplicationSyncTestProvider>
+        </QueryClientProvider>
       );
       return router;
     };
-    const SHEET_ROUTE = '/at-show/show-1/class/class-1/score/entry-1';
 
-    it('lets a clean sheet go back without a prompt', async () => {
+    it('lets a clean sheet leave at once, by Up or by the back gesture', async () => {
       const router = renderInDataRouter();
       await screen.findByTestId('live-scoresheet');
-
       await act(async () => {
         await router.navigate(-1);
       });
+      expect(await screen.findByText('Entry List')).toBeInTheDocument();
+      expect(screen.queryByText('Discard this score?')).toBeNull();
 
+      await act(async () => {
+        await router.navigate(SHEET_ROUTE);
+      });
+      fireEvent.click(await screen.findByText('Back'));
       expect(await screen.findByText('Entry List')).toBeInTheDocument();
       expect(screen.queryByText('Discard this score?')).toBeNull();
     });
 
-    it('asks first when the sheet has unsaved work, and honors Keep scoring and Discard', async () => {
-      const router = renderInDataRouter();
+    it('asks when Up or Cancel leaves a dirty sheet, and honors Keep scoring and Discard', async () => {
+      renderInDataRouter();
       await screen.findByTestId('live-scoresheet');
       fireEvent.click(screen.getByText('Mark dirty'));
 
-      await act(async () => {
-        await router.navigate(-1);
-      });
+      fireEvent.click(screen.getByText('Back'));
       expect(await screen.findByText('Discard this score?')).toBeInTheDocument();
       expect(screen.getByTestId('live-scoresheet')).toBeInTheDocument();
 
@@ -917,23 +922,47 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
       await waitFor(() => expect(screen.queryByText('Discard this score?')).toBeNull());
       expect(screen.getByTestId('live-scoresheet')).toBeInTheDocument();
 
-      await act(async () => {
-        await router.navigate('/at-show/show-1/class/class-1');
-      });
+      fireEvent.click(screen.getByText('Back'));
       fireEvent.click(await screen.findByRole('button', { name: 'Discard' }));
       expect(await screen.findByText('Entry List')).toBeInTheDocument();
     });
 
-    it('does not ask a second time when Up leaves a sheet that has unsaved work', async () => {
-      renderInDataRouter();
+    it('asks on the back gesture from a dirty sheet', async () => {
+      const router = renderInDataRouter();
       await screen.findByTestId('live-scoresheet');
       fireEvent.click(screen.getByText('Mark dirty'));
 
-      // The stub's Back calls onBack directly; the real sheet asks in its own
-      // dialog first, and the page must not add a route prompt on top.
-      fireEvent.click(screen.getByText('Back'));
+      await act(async () => {
+        await router.navigate(-1);
+      });
 
-      expect(await screen.findByText('Entry List')).toBeInTheDocument();
+      expect(await screen.findByText('Discard this score?')).toBeInTheDocument();
+      expect(screen.getByTestId('live-scoresheet')).toBeInTheDocument();
+    });
+
+    it('does not ask after a save: picking the next dog leaves the saved sheet freely', async () => {
+      vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([
+        { id: 'entry-1', armband: 105, dogId: 'dog-1', checkInStatus: 'no-status' },
+        {
+          id: 'entry-9',
+          classId: 'class-1',
+          armband: '209',
+          dogCallName: 'Bo',
+          runOrder: 1,
+          checkInStatus: 'no-status',
+        },
+      ] as never);
+      submitScoreOptimistically.mockImplementationOnce(
+        async ({ onSuccess }: { onSuccess?: () => void }) => onSuccess?.()
+      );
+      renderInDataRouter();
+      await screen.findByTestId('live-scoresheet');
+      fireEvent.click(screen.getByText('Mark dirty'));
+      fireEvent.click(screen.getByText('Submit Score'));
+
+      fireEvent.click(await screen.findByText(/#209 Bo/));
+
+      await waitFor(() => expect(screen.getByTestId('live-scoresheet')).toBeInTheDocument());
       expect(screen.queryByText('Discard this score?')).toBeNull();
     });
   });

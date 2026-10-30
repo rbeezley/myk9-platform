@@ -141,7 +141,7 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
 
   const headerTitle = buildHeaderTitle(classInfo);
 
-  const { requestLeave, upButton, discardDialog } = useScoresheetLeave({
+  const { upButton } = useScoresheetLeave({
     scoring,
     stopwatch,
     onBack,
@@ -151,7 +151,6 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
 
   return (
     <>
-      {discardDialog}
       <div className="min-h-screen bg-background">
         <div className="max-w-2xl mx-auto">
           {/* Header */}
@@ -334,12 +333,7 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
             </Card>
 
             <div className="flex gap-3 pt-1 pb-8">
-              <Button
-                variant="secondary"
-                size="xl"
-                className="flex-1 rounded-xl"
-                onClick={requestLeave}
-              >
+              <Button variant="secondary" size="xl" className="flex-1 rounded-xl" onClick={onBack}>
                 Cancel
               </Button>
               <Button

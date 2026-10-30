@@ -8,4 +8,4 @@ export { useStopwatch } from './useStopwatch';
 export { useElementTimer } from './useElementTimer';
 export { useDragAndDropEntries } from './useDragAndDropEntries';
 export { useScoresheetScoring } from './useScoresheetScoring';
-export { useScoresheetLeave, DiscardScoreDialog } from './useScoresheetLeave';
+export { useScoresheetLeave } from './useScoresheetLeave';

@@ -103,7 +103,7 @@ export const UKCRallyLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   const warningMessage = stopwatch.getWarningMessage();
   const displayResult = scoring.qualifying || autoQualifying;
 
-  const { requestLeave, upButton, discardDialog } = useScoresheetLeave({
+  const { upButton } = useScoresheetLeave({
     scoring,
     stopwatch,
     extraDirty: () => deductions > 0,
@@ -114,7 +114,6 @@ export const UKCRallyLiveScoresheet: React.FC<LiveScoresheetProps> = ({
 
   return (
     <>
-      {discardDialog}
       <div className="min-h-screen bg-background">
         <div className="max-w-2xl mx-auto">
           {/* Header */}
@@ -357,7 +356,7 @@ export const UKCRallyLiveScoresheet: React.FC<LiveScoresheetProps> = ({
 
             {/* Submit */}
             <div className="flex gap-3 pt-2 pb-8">
-              <Button variant="outline" className="flex-1 h-12" onClick={requestLeave}>
+              <Button variant="outline" className="flex-1 h-12" onClick={onBack}>
                 Cancel
               </Button>
               <Button

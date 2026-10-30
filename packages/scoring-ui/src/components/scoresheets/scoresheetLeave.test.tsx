@@ -1,6 +1,7 @@
 /**
- * MYK9-1500: leaving a scoresheet asks "Discard this score?" only when something
- * would be lost; the Up control and the bottom Cancel behave the same.
+ * MYK9-1500: Up and the bottom Cancel call `onBack` directly; the sheet reports
+ * whether something would be lost, and the host's route guard owns the single
+ * "Discard this score?" prompt.
  */
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -49,7 +50,7 @@ const rules: ResolvedClassRules = {
   distractionCount: 0,
 };
 
-function renderSheet(onBack = vi.fn()) {
+function renderSheet(onBack = vi.fn(), onDirtyChange = vi.fn()) {
   render(
     <AKCScentWorkLiveScoresheet
       entry={entry}
@@ -57,9 +58,10 @@ function renderSheet(onBack = vi.fn()) {
       rules={rules}
       onSubmit={vi.fn()}
       onBack={onBack}
+      onDirtyChange={onDirtyChange}
     />
   );
-  return onBack;
+  return { onBack, onDirtyChange };
 }
 
 const leaveControls: [string, () => HTMLElement][] = [
@@ -67,49 +69,42 @@ const leaveControls: [string, () => HTMLElement][] = [
   ['Cancel', () => screen.getByRole('button', { name: 'Cancel' })],
 ];
 
-describe('scoresheet leave guard', () => {
+describe('scoresheet leave', () => {
   beforeEach(() => {
     clock.ms = 0;
     clock.running = false;
   });
 
-  it.each(leaveControls)('%s leaves an untouched sheet without a prompt', (_name, control) => {
-    const onBack = renderSheet();
-    fireEvent.click(control());
-    expect(onBack).toHaveBeenCalledTimes(1);
-    expect(screen.queryByText('Discard this score?')).toBeNull();
-  });
-
-  it.each(leaveControls)('%s asks first once a result is chosen', (_name, control) => {
-    const onBack = renderSheet();
+  it.each(leaveControls)('%s calls onBack at once, with no prompt of its own', (_n, control) => {
+    const { onBack } = renderSheet();
     fireEvent.click(screen.getByTestId('result-Q'));
     fireEvent.click(control());
-    expect(screen.getByText('Discard this score?')).toBeInTheDocument();
-    expect(onBack).not.toHaveBeenCalled();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Keep scoring' }));
-    expect(screen.queryByText('Discard this score?')).toBeNull();
-    expect(onBack).not.toHaveBeenCalled();
-
-    fireEvent.click(control());
-    fireEvent.click(screen.getByRole('button', { name: 'Discard' }));
     expect(onBack).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('Discard this score?')).toBeNull();
   });
 
-  it.each(leaveControls)('%s asks first when a time is typed', (_name, control) => {
-    const onBack = renderSheet();
+  it('reports clean for an untouched sheet', () => {
+    const { onDirtyChange } = renderSheet();
+    expect(onDirtyChange).toHaveBeenLastCalledWith(false);
+    expect(onDirtyChange).not.toHaveBeenCalledWith(true);
+  });
+
+  it('reports dirty once a result is chosen', () => {
+    const { onDirtyChange } = renderSheet();
+    fireEvent.click(screen.getByTestId('result-Q'));
+    expect(onDirtyChange).toHaveBeenLastCalledWith(true);
+  });
+
+  it('reports dirty when a time is typed', () => {
+    const { onDirtyChange } = renderSheet();
     fireEvent.change(screen.getByLabelText('Area 1 time'), { target: { value: '1:05.00' } });
-    fireEvent.click(control());
-    expect(screen.getByText('Discard this score?')).toBeInTheDocument();
-    expect(onBack).not.toHaveBeenCalled();
+    expect(onDirtyChange).toHaveBeenLastCalledWith(true);
   });
 
-  it.each(leaveControls)('%s asks first when the timer has run', (_name, control) => {
+  it('reports dirty when the timer has run', () => {
     clock.ms = 4200;
-    const onBack = renderSheet();
-    fireEvent.click(control());
-    expect(screen.getByText('Discard this score?')).toBeInTheDocument();
-    expect(onBack).not.toHaveBeenCalled();
+    const { onDirtyChange } = renderSheet();
+    expect(onDirtyChange).toHaveBeenLastCalledWith(true);
   });
 
   it('labels the Up control with backLabel when given', () => {

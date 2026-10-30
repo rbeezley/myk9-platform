@@ -154,16 +154,25 @@ describe('RingsideMenu', () => {
     expect(useRingsideReturnStore.getState().target).toBeNull();
   });
 
-  it('keeps Settings and Announcements usable offline', async () => {
+  it('says Settings needs a connection when offline, and does not navigate', async () => {
     mocks.online = false;
     const { user } = renderMenu();
     const nav = await openMenu(user);
-    expect(within(nav).getByRole('button', { name: 'Settings' })).not.toHaveAttribute(
-      'aria-disabled'
-    );
-    expect(within(nav).getByRole('button', { name: 'Announcements' })).not.toHaveAttribute(
-      'aria-disabled'
-    );
+    const settings = within(nav).getByRole('button', { name: /^Settings/ });
+    expect(settings).toHaveAttribute('aria-disabled', 'true');
+    expect(settings).toHaveTextContent('Needs a connection');
+    await user.click(settings);
+    expect(screen.getByTestId('location')).toHaveTextContent('/at-show/show-1/class/class-1');
+    expect(useRingsideReturnStore.getState().target).toBeNull();
+  });
+
+  it('keeps Announcements and Sign out usable offline', async () => {
+    mocks.online = false;
+    const { user } = renderMenu();
+    const nav = await openMenu(user);
+    for (const name of ['Announcements', 'Sign out']) {
+      expect(within(nav).getByRole('button', { name })).not.toHaveAttribute('aria-disabled');
+    }
   });
 
   it('omits Settings for a passcode session', async () => {

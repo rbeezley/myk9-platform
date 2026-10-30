@@ -74,7 +74,9 @@ export function buildRingsideMenuItems(
           icon: Settings,
           href: '/account?section=appearance',
           returnScope: '/account',
-          requiresConnection: false,
+          // The Account page saves preferences through Supabase, so it fails offline.
+          // MYK9-1545 (local-first device preferences) removes this flag.
+          requiresConnection: true,
         }
       : null,
     // A viewer with no entries who is not a manager lands on the public show

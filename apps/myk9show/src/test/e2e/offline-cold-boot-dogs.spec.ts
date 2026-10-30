@@ -72,6 +72,14 @@ test.describe('offline cold boot: dogs', () => {
     // The URL's dog opened, not the "My Dogs" placeholder.
     await expect(page.getByRole('region', { name: 'Dog details' })).not.toContainText('My Dogs');
 
+    // Career renders too. Offline, its Upcoming Shows panel either counts the replica's entries
+    // or says it cannot check; it never states a confident "none".
+    const details = page.getByRole('region', { name: 'Dog details' });
+    await details.getByRole('tab', { name: 'Career' }).click();
+    await expect(details.getByRole('tabpanel', { name: 'Upcoming Shows' })).toContainText(
+      /\d+ entr(y|ies) upcoming|Can't check for upcoming shows offline/i,
+      { timeout: 45_000 }
+    );
     await expect(page.evaluate(() => navigator.onLine)).resolves.toBe(false);
     expect(interceptedCount()).toBeGreaterThan(0);
   });

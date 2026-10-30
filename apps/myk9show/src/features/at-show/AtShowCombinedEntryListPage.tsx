@@ -263,7 +263,7 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
   // Same contract as the single-class AtShowEntryListPage — see
   // persistEntryRunOrder for the offline-first / RLS details.
   const updateExhibitorOrder = useCallback(
-    (reordered: Entry[]) => persistEntryRunOrder(reordered),
+    (reordered: Entry[], previous: Entry[]) => persistEntryRunOrder(reordered, previous),
     []
   );
   // A drag whose write never QUEUED used to be silent on both routes: the

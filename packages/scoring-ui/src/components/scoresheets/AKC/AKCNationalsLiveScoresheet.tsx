@@ -8,7 +8,7 @@
 
 import React, { useState, useCallback } from 'react';
 import { Check } from 'lucide-react';
-import { Button, Input, Card, cn, RingsideUpButton } from '@myk9/ui';
+import { Button, Input, Card, cn } from '@myk9/ui';
 import { ScoresheetDogCard } from '../../ScoresheetDogCard';
 import { StopwatchTime } from '../../StopwatchTime';
 import { MaxTimeRing } from '../../MaxTimeRing';
@@ -187,7 +187,7 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   const warningMessage = stopwatch.getWarningMessage();
   const maxTimeMs = stopwatch.getMaxTimeMs();
 
-  const { requestLeave, discardDialog } = useScoresheetLeave({
+  const { requestLeave, upButton, discardDialog } = useScoresheetLeave({
     scoring,
     stopwatch,
     extraDirty: () =>
@@ -196,6 +196,7 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
       incorrectAlerts.some(n => n > 0) ||
       finishCallErrors > 0,
     onBack,
+    backLabel,
   });
 
   return (
@@ -205,7 +206,7 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
         <div className="max-w-2xl mx-auto">
           {/* Header */}
           <header className="flex items-center gap-3 px-4 py-3 border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-10">
-            <RingsideUpButton label={backLabel ?? 'Entries'} onClick={requestLeave} />
+            {upButton}
             <div className="flex-1">
               <h1 className="text-lg max-sm:text-base font-semibold">AKC Nationals</h1>
               <p className="text-sm text-muted-foreground">{formatScoresheetSubtitle(classInfo)}</p>

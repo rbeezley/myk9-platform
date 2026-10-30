@@ -10,7 +10,7 @@
  * covered in @myk9/scoring-ui + the secretary ScoresheetPage).
  */
 
-import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+import { Routes, Route, useLocation, useNavigate, useNavigationType } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@/test/utils/testUtils';
 import { UserRole } from '@/types/auth-types';
@@ -135,6 +135,7 @@ const StubLiveScoresheet = ({
   entry,
   onSubmit,
   onBack,
+  backLabel,
   onWarningChime,
   onVoiceAnnouncement,
   enableVoiceAnnouncements,
@@ -143,6 +144,7 @@ const StubLiveScoresheet = ({
   entry: { armband: number };
   onSubmit: (sd: unknown) => void;
   onBack: () => void;
+  backLabel?: string;
   onWarningChime?: () => void;
   onVoiceAnnouncement?: (secondsRemaining: number) => void;
   enableVoiceAnnouncements?: boolean;
@@ -151,6 +153,7 @@ const StubLiveScoresheet = ({
   <div>
     <header>{headerActions}</header>
     <div data-testid="live-scoresheet">Live scoresheet for #{entry.armband}</div>
+    <div data-testid="back-label">{backLabel}</div>
     <div data-testid="voice-announcements-enabled">{String(enableVoiceAnnouncements)}</div>
     {/* Like the real sheet, a refused save is caught (and shown) by the sheet. */}
     <button
@@ -723,6 +726,94 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     await screen.findByTestId('live-scoresheet');
 
     expect(screen.queryByText(/no max time is set/i)).not.toBeInTheDocument();
+  });
+
+  // MYK9-1500: one Up label, and the only way out of Ringside is the Up chain.
+  it('labels Up "Entries" and offers no house / "Back to main app" exit', async () => {
+    renderPage();
+    await screen.findByTestId('live-scoresheet');
+
+    expect(screen.getByTestId('back-label')).toHaveTextContent('Entries');
+    expect(screen.queryByRole('button', { name: /main app/i })).toBeNull();
+  });
+
+  it('Up returns to the combined A/B list from a loaded scoresheet', async () => {
+    render(
+      <ReplicationSyncTestProvider
+        value={{ status: settledSyncStatus, triggerSync: vi.fn(), syncTable: vi.fn() }}
+      >
+        <Routes>
+          <Route
+            path="/at-show/:showId/class/:classId/score/:entryId"
+            element={<AtShowScoresheetPage />}
+          />
+          <Route
+            path="/at-show/:showId/class/:classIdA/:classIdB"
+            element={<div>Combined list</div>}
+          />
+        </Routes>
+      </ReplicationSyncTestProvider>,
+      { initialRoute: '/at-show/show-1/class/class-1/score/entry-1?combined=class-1,class-2' }
+    );
+    await screen.findByTestId('live-scoresheet');
+
+    fireEvent.click(screen.getByText('Back'));
+
+    expect(await screen.findByText('Combined list')).toBeInTheDocument();
+  });
+
+  it('replaces the history entry when moving to the next dog after a save', async () => {
+    vi.mocked(replicatedEntriesTable.getEntriesByClass).mockImplementation(async (id: string) =>
+      id === 'class-2'
+        ? ([
+            {
+              id: 'entry-9',
+              classId: 'class-2',
+              armband: '209',
+              dogCallName: 'Bo',
+              runOrder: 1,
+              checkInStatus: 'no-status',
+            },
+          ] as never)
+        : ([{ id: 'entry-1', armband: 105, dogId: 'dog-1', checkInStatus: 'no-status' }] as never)
+    );
+    submitScoreOptimistically.mockImplementationOnce(
+      async ({ onSuccess }: { onSuccess?: () => void }) => onSuccess?.()
+    );
+    const NavProbe = () => {
+      const location = useLocation();
+      return (
+        <div>
+          nav {useNavigationType()} {location.pathname}
+        </div>
+      );
+    };
+    render(
+      <ReplicationSyncTestProvider
+        value={{ status: settledSyncStatus, triggerSync: vi.fn(), syncTable: vi.fn() }}
+      >
+        <Routes>
+          <Route
+            path="/at-show/:showId/class/:classId/score/:entryId"
+            element={
+              <>
+                <AtShowScoresheetPage />
+                <NavProbe />
+              </>
+            }
+          />
+        </Routes>
+      </ReplicationSyncTestProvider>,
+      { initialRoute: '/at-show/show-1/class/class-1/score/entry-1?combined=class-1,class-2' }
+    );
+    await screen.findByTestId('live-scoresheet');
+    fireEvent.click(screen.getByText('Submit Score'));
+
+    fireEvent.click(await screen.findByText(/#209 Bo/));
+
+    expect(
+      await screen.findByText('nav REPLACE /at-show/show-1/class/class-2/score/entry-9')
+    ).toBeInTheDocument();
   });
 
   it('navigates back to the at-show entry list', async () => {

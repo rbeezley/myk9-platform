@@ -5,7 +5,7 @@
  * No draft persistence: Discard throws the score away.
  */
 import { useCallback, useRef, useState, type ReactNode } from 'react';
-import { Button, Card } from '@myk9/ui';
+import { Button, Card, RingsideUpButton } from '@myk9/ui';
 import type { ScoresheetScoringReturn } from './useScoresheetScoring';
 
 interface StopwatchLike {
@@ -20,6 +20,8 @@ export interface UseScoresheetLeaveOptions {
   /** Sport-specific result input the shared scoring state does not hold. */
   extraDirty?: () => boolean;
   onBack: () => void;
+  /** The parent screen's name on the Up control; "Entries" when omitted. */
+  backLabel?: string | undefined;
 }
 
 export function DiscardScoreDialog({
@@ -64,7 +66,12 @@ export function useScoresheetLeave({
   stopwatch,
   extraDirty,
   onBack,
-}: UseScoresheetLeaveOptions): { requestLeave: () => void; discardDialog: ReactNode } {
+  backLabel,
+}: UseScoresheetLeaveOptions): {
+  requestLeave: () => void;
+  upButton: ReactNode;
+  discardDialog: ReactNode;
+} {
   const [asking, setAsking] = useState(false);
   // What the sheet opened with, so re-editing a saved score is not "dirty" until changed.
   const initial = useRef({
@@ -87,5 +94,7 @@ export function useScoresheetLeave({
     <DiscardScoreDialog onKeep={() => setAsking(false)} onDiscard={onBack} />
   ) : null;
 
-  return { requestLeave, discardDialog };
+  const upButton = <RingsideUpButton label={backLabel ?? 'Entries'} onClick={requestLeave} />;
+
+  return { requestLeave, upButton, discardDialog };
 }

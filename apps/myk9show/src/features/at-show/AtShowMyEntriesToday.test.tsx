@@ -6,6 +6,12 @@ import type { AtShowEntryDetail } from './myAtShowEntryDetails.helpers';
 
 const mockMutateAsync = vi.hoisted(() => vi.fn());
 const mockSync = vi.hoisted(() => vi.fn());
+const mockNavigate = vi.hoisted(() => vi.fn());
+
+vi.mock('react-router-dom', async importOriginal => ({
+  ...(await importOriginal<typeof import('react-router-dom')>()),
+  useNavigate: () => mockNavigate,
+}));
 
 vi.mock('@/hooks/mutations/useCheckInMutation', () => ({
   useCheckInMutation: () => ({ mutateAsync: mockMutateAsync, isPending: false }),
@@ -451,7 +457,7 @@ describe('AtShowMyEntriesToday — row shows trial context (MYK9-800 finding #2)
 // MYK9-800 walk finding #3: the owner had no way back to the exhibitor
 // dashboard from this show-day page.
 describe('AtShowMyEntriesToday — back navigation (MYK9-800 finding #3)', () => {
-  it('offers a link back to the dashboard', async () => {
+  it('offers an Up control back to the dashboard', async () => {
     render(
       <AtShowMyEntriesToday
         showId="show-1"
@@ -465,8 +471,8 @@ describe('AtShowMyEntriesToday — back navigation (MYK9-800 finding #3)', () =>
       />
     );
 
-    const backLink = await screen.findByRole('link', { name: /Back to dashboard/ });
-    expect(backLink).toHaveAttribute('href', '/');
+    fireEvent.click(await screen.findByRole('button', { name: 'Dashboard' }));
+    expect(mockNavigate).toHaveBeenCalledWith('/');
   });
 });
 

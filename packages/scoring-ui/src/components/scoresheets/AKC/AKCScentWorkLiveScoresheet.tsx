@@ -10,7 +10,7 @@
 import React, { useState } from 'react';
 import { ClipboardCheck, X } from 'lucide-react';
 import { formatTrialLabel } from '@myk9/core';
-import { Button, Input, Card, cn, RingsideUpButton } from '@myk9/ui';
+import { Button, Input, Card, cn } from '@myk9/ui';
 import { ScoresheetDogCard } from '../../ScoresheetDogCard';
 import { TimerResetButton } from '../../TimerResetButton';
 import { RecordAreaTimeButton } from '../../RecordAreaTimeButton';
@@ -140,7 +140,12 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
 
   const headerTitle = buildHeaderTitle(classInfo);
 
-  const { requestLeave, discardDialog } = useScoresheetLeave({ scoring, stopwatch, onBack });
+  const { requestLeave, upButton, discardDialog } = useScoresheetLeave({
+    scoring,
+    stopwatch,
+    onBack,
+    backLabel,
+  });
 
   return (
     <>
@@ -149,7 +154,7 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
         <div className="max-w-2xl mx-auto">
           {/* Header */}
           <header className="flex items-center gap-3 px-4 py-3 border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-10">
-            <RingsideUpButton label={backLabel ?? 'Entries'} onClick={requestLeave} />
+            {upButton}
             <div className="flex-1">
               <h1 className="text-lg max-sm:text-base font-semibold flex items-center gap-2">
                 <ClipboardCheck className="h-5 w-5 text-primary" />

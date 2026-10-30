@@ -132,6 +132,7 @@ const renderPage = (syncStatus: ReplicationSyncContextValue['status'] = settledS
     >
       <Routes>
         <Route path="/at-show/:showId/class/:classId" element={<AtShowEntryListPage />} />
+        <Route path="/at-show/:showId" element={<div data-testid="class-list-page" />} />
       </Routes>
     </ReplicationSyncTestProvider>,
     { initialRoute: '/at-show/show-1/class/class-1' }
@@ -378,6 +379,27 @@ describe('AtShowEntryListPage (Phase 1a shim)', () => {
     fireEvent.click(favoriteButton);
 
     expect(JSON.parse(localStorage.getItem('dog_favorites_show-1') ?? '[]')).toEqual([]);
+  });
+
+  // MYK9-1500: Up is a fixed route, so a deep link (history holds only this
+  // page) still goes to the show's class list, and there is no second exit.
+  it('Up goes to the show class list from a deep link, with no history to go back to', async () => {
+    renderPage();
+    await screen.findByText('Rex');
+    expect(window.history.length).toBeLessThanOrEqual(2);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Classes' }));
+
+    expect(await screen.findByTestId('class-list-page')).toBeInTheDocument();
+  });
+
+  it('offers no "Back to main app" exit in the header or the actions menu', async () => {
+    renderPage();
+    await screen.findByText('Rex');
+    fireEvent.click(screen.getByRole('button', { name: 'Actions menu' }));
+
+    expect(screen.queryByText('Back to main app')).toBeNull();
+    expect(screen.queryByRole('button', { name: /main app/i })).toBeNull();
   });
 
   it('registers the /at-show routes unconditionally (no feature-flag gate)', () => {

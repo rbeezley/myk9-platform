@@ -260,6 +260,8 @@ describe('AtShowEntryListPage (Phase 1a shim)', () => {
       'data-show-id',
       'show-1'
     );
+    // The badge renders nothing when its readiness probe fails, so a retry is always there.
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
   });
 
   it('still says No Entries Yet when the sync failed but this device saved the show earlier', async () => {

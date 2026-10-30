@@ -7,6 +7,7 @@ import { resetAllMockData } from '@/utils/debugUtils';
 import { clearDevelopmentCache } from '@/utils/clearDevelopmentCache';
 import { useAskQPanelStore } from '@/store/useAskQPanelStore';
 import { UserRole } from '@/types/auth-types';
+import { refreshApp } from '@/services/pwa/refreshApp';
 
 const { authState, networkState, syncState, signOutSpy, themeState, toggleThemeSpy } = vi.hoisted(
   () => ({
@@ -60,6 +61,8 @@ vi.mock('@/utils/debugUtils', () => ({
 vi.mock('@/utils/clearDevelopmentCache', () => ({
   clearDevelopmentCache: vi.fn().mockResolvedValue(true),
 }));
+
+vi.mock('@/services/pwa/refreshApp', () => ({ refreshApp: vi.fn() }));
 
 const originalNodeEnv = process.env.NODE_ENV;
 
@@ -206,6 +209,16 @@ describe('AccountMenuContent AskQ item (phone consolidation)', () => {
   });
 });
 
+describe('AccountMenuContent Refresh app item (MYK9-1549)', () => {
+  it('is offered to a non-admin outside development builds and runs the refresh', async () => {
+    process.env.NODE_ENV = 'production';
+    const { user } = renderOpenAccountMenu();
+    await user.click(screen.getByRole('menuitem', { name: 'Refresh app' }));
+    expect(refreshApp).toHaveBeenCalledOnce();
+    process.env.NODE_ENV = originalNodeEnv;
+  });
+});
+
 describe('AccountMenuContent appearance item (phone consolidation)', () => {
   it('fires the same theme handler the desktop header button uses', async () => {
     const { user } = renderOpenAccountMenu();
@@ -274,6 +287,7 @@ describe('AccountMenuContent organization', () => {
       'Dark mode',
       'Help & Guides',
       'About',
+      'Refresh app',
       'Sign out',
     ]);
   });

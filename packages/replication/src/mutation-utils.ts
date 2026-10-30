@@ -244,18 +244,45 @@ export const RPC_PERMANENT_CODES: ReadonlyMap<string, ReadonlySet<string>> = new
 const GATEWAY_TRANSIENT_STATUSES: ReadonlySet<number> = new Set([502, 503, 504]);
 
 /**
- * Stamps the HTTP status of a failed write onto the error `executeMutation` throws, as a typed
- * field the retry policy reads instead of parsing the message. postgrest-js reports the status
- * on the response beside `error`, not on it, so it is lost unless carried here.
+ * A 502/503/504 whose body is not a structured server error: a gateway outage. Its message is
+ * fixed and the body is kept aside in `body`, so body text such as "Forbidden" can never be read
+ * as a refusal by `isAuthorizationError` or `isRetryableError` (MYK9-1488).
+ */
+export class GatewayTransientError extends Error {
+  readonly httpStatus: number;
+  readonly body: unknown;
+  constructor(httpStatus: number, body: unknown) {
+    super(`Server busy (HTTP ${httpStatus})`);
+    this.name = 'GatewayTransientError';
+    this.httpStatus = httpStatus;
+    this.body = body;
+  }
+}
+
+/** A Postgres/PostgREST error the server itself produced: an object with a non-empty `code`. */
+function isStructuredServerError(error: unknown): error is { code: string } {
+  if (typeof error !== 'object' || error === null) return false;
+  const code = (error as { code?: unknown }).code;
+  return typeof code === 'string' && code.length > 0;
+}
+
+/**
+ * Carries the HTTP status of a failed write to the retry policy. postgrest-js reports the status
+ * beside `error`, not on it, so it is lost unless carried here.
+ *
+ * At 502/503/504 the body's shape is the gateway's, not the database's: postgrest-js may hand
+ * back a string, a number, `true`, or `{ message, code: '' }`. Only a structured server error
+ * (non-empty `code`) is kept, so a refusal still parks at once; every other body becomes a
+ * `GatewayTransientError`. Other statuses are stamped onto object errors as before.
  */
 export function withHttpStatus(error: unknown, status: number | undefined): unknown {
   if (typeof status !== 'number' || status <= 0) return error;
+  if (GATEWAY_TRANSIENT_STATUSES.has(status) && !isStructuredServerError(error)) {
+    return new GatewayTransientError(status, error);
+  }
   if (typeof error === 'object' && error !== null) {
     (error as { httpStatus?: number }).httpStatus = status;
-    return error;
   }
-  // postgrest-js hands back a bare string when the gateway body is a JSON string; wrap it so the status survives.
-  if (typeof error === 'string') return { message: error, code: '', httpStatus: status };
   return error;
 }
 

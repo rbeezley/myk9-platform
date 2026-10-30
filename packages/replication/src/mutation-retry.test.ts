@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { PendingMutation } from './types';
 import { classifyMutationFailure } from './mutation-retry';
-import { MAX_BACKOFF_MS, TimeoutError } from './mutation-utils';
+import { MAX_BACKOFF_MS, TimeoutError, withHttpStatus } from './mutation-utils';
 
 function mutation(overrides: Partial<PendingMutation> = {}): PendingMutation {
   return {
@@ -239,6 +239,26 @@ describe('classifyMutationFailure', () => {
       const survivor = runOverload(mutation(), gateway(status));
       expect(survivor.retries).toBe(0);
       expect(survivor.transportRetries).toBeGreaterThan(3);
+    });
+
+    // Codex round 2 on #3397: gateway bodies of any shape, including wording that reads like a
+    // refusal, stay a retryable outage and spend no budget.
+    it.each([
+      ['a JSON string', 'upstream unavailable'],
+      ['a JSON number', 503],
+      ['a JSON boolean', true],
+      ['"Forbidden" with an empty code', { message: 'Forbidden', code: '' }],
+      ['"Unauthorized" as a string', 'Unauthorized'],
+    ])('a 503 whose body is %s stays pending without spending the budget', (_n, body) => {
+      const result = classifyMutationFailure({
+        mutation: mutation({ retries: 2 }),
+        error: withHttpStatus(body, 503),
+        maxRetries: 3,
+        retryBackoffBase: 10,
+        now: 0,
+      });
+      expect(result.permanentlyFailed).toBe(false);
+      expect(result.mutation).toMatchObject({ retries: 2, status: 'pending' });
     });
 
     it('applies to a ringside_update_entry rpc and caps the backoff at MAX_BACKOFF_MS', () => {

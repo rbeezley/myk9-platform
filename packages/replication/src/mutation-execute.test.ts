@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { executeMutation, isPrimaryKeyDuplicateError } from './mutation-execute';
 import { OccRejectionError } from './mutation-occ';
+import { GatewayTransientError } from './mutation-utils';
 import type { Logger } from './dependencies';
 import type { PendingMutation } from './types';
 
@@ -542,7 +543,11 @@ describe('executeMutation', () => {
           makeLogger(),
           makeMutation({ operation, data: { id: 'entry-1' } })
         )
-      ).rejects.toMatchObject({ message: 'upstream unavailable', httpStatus: 503 });
+      ).rejects.toMatchObject({
+        name: 'GatewayTransientError',
+        httpStatus: 503,
+        body: { message: 'upstream unavailable' },
+      });
     });
 
     it.each(['INSERT', 'UPDATE'] as const)(
@@ -563,21 +568,45 @@ describe('executeMutation', () => {
       }
     );
 
-    it('keeps the status when the gateway body parses to a primitive JSON string', async () => {
+    it.each([
+      ['a JSON string', 'upstream unavailable'],
+      ['a JSON number', 503],
+      ['a JSON boolean', true],
+      ['"Forbidden" text with an empty code', { message: 'Forbidden', code: '' }],
+    ])('turns a 503 whose body is %s into a GatewayTransientError', async (_n, body) => {
       const supabase = {
         from: vi.fn(() => ({
           update: vi.fn(() => ({
             eq: vi.fn().mockReturnThis(),
-            select: () =>
-              Promise.resolve({ data: null, error: 'upstream unavailable', status: 503 }),
+            select: () => Promise.resolve({ data: null, error: body, status: 503 }),
           })),
         })),
         rpc: vi.fn(),
       } as unknown as SupabaseClient;
 
-      await expect(
-        executeMutation(supabase, makeLogger(), makeMutation({ operation: 'UPDATE' }))
-      ).rejects.toMatchObject({ message: 'upstream unavailable', httpStatus: 503 });
+      const thrown = await executeMutation(
+        supabase,
+        makeLogger(),
+        makeMutation({ operation: 'UPDATE' })
+      ).catch((error: unknown) => error);
+      expect(thrown).toBeInstanceOf(GatewayTransientError);
+      expect(thrown).toMatchObject({ httpStatus: 503, body });
+    });
+
+    it('keeps a structured server error at 503 as itself, with the status', async () => {
+      const refusal = { message: 'not authorized', code: '42501', details: '', hint: '' };
+      const supabase = {
+        from: vi.fn(() => ({
+          insert: vi.fn(() => ({
+            select: () => Promise.resolve({ data: null, error: refusal, status: 503 }),
+          })),
+        })),
+        rpc: vi.fn(),
+      } as unknown as SupabaseClient;
+
+      const thrown = await executeMutation(supabase, makeLogger(), makeMutation()).catch(e => e);
+      expect(thrown).not.toBeInstanceOf(GatewayTransientError);
+      expect(thrown).toMatchObject({ code: '42501', httpStatus: 503 });
     });
 
     it('leaves a status-less transport failure without an httpStatus', async () => {

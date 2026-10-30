@@ -91,6 +91,22 @@ describe('buildStaffDogs eligibility and armbands', () => {
     expect(built[0]?.uncheckedEntryIds).toEqual(['s-confirmed']);
   });
 
+  it('shows a checked-in then withdrawn entry as pulled, not checked in', () => {
+    const built = buildStaffDogs(
+      [
+        entry({
+          id: 'w1',
+          dogId: 'dw',
+          checkInStatus: 'checked-in',
+          entryStatus: 'withdrawn',
+        } as Partial<ReplicatedEntry> & { id: string }),
+      ],
+      classes,
+      EMPTY_MAPS
+    );
+    expect(built[0]?.entries[0]?.checkInStatus).toBe('pulled');
+  });
+
   it('resolves a missing armband from the show assignment table', () => {
     const maps = buildShowArmbandMaps([{ armbandNumber: '77', dogId: 'dz' }]);
     const built = buildStaffDogs(

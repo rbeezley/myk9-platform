@@ -74,11 +74,15 @@ export const AtShowDogPage: React.FC = () => {
   const favorited = dog.armband != null && favoriteArmbands.has(dog.armband);
   const toCheckIn = dog.uncheckedEntryIds;
   const results = state.phase === 'done' ? state.results : {};
-  // Entries a check-in already took are not offered again while the replica catches up;
-  // an entry that reappears unchecked later (new class, another device) is.
-  const remaining = toCheckIn.filter(id => results[id] !== 'ok');
-  const okCount = Object.values(results).filter(value => value === 'ok').length;
-  const failedCount = Object.values(results).filter(value => value === 'failed').length;
+  const remaining = toCheckIn;
+  // A success only stands while the replica still shows the entry checked in: if another
+  // device resets it, the outcome is stale and the entry is offered again.
+  const uncheckedIds = new Set(toCheckIn);
+  const outcomeOf = (entryId: string) =>
+    results[entryId] === 'ok' && uncheckedIds.has(entryId) ? undefined : results[entryId];
+  const outcomes = Object.keys(results).map(outcomeOf);
+  const okCount = outcomes.filter(value => value === 'ok').length;
+  const failedCount = outcomes.filter(value => value === 'failed').length;
   const hasPreliminary = dog.entries.some(entry => !entry.resultsReleased && resultLine(entry));
 
   return (
@@ -135,7 +139,7 @@ export const AtShowDogPage: React.FC = () => {
       <ul className="space-y-2">
         {dog.entries.map(entry => {
           const result = resultLine(entry);
-          const outcome = results[entry.entryId];
+          const outcome = outcomeOf(entry.entryId);
           return (
             <li
               key={entry.entryId}

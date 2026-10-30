@@ -49,6 +49,14 @@ function dog(over: Partial<StaffDog> & { key: string; dogName: string }): StaffD
   };
 }
 
+function dogRoute() {
+  return (
+    <Routes>
+      <Route path="/at-show/:showId/dogs/:dogKey" element={<AtShowDogPage />} />
+    </Routes>
+  );
+}
+
 function renderRoutes(path: string) {
   return render(
     <Routes>
@@ -144,8 +152,19 @@ describe('AtShowDogPage', () => {
         uncheckedEntryIds: ['e1', 'e2'],
       }),
     ];
-    renderRoutes('/at-show/s1/dogs/d1');
+    const view = renderRoutes('/at-show/s1/dogs/d1');
     fireEvent.click(screen.getByRole('button', { name: 'Check In All (2)' }));
+    await waitFor(() => expect(mocks.checkIn).toHaveBeenCalledTimes(2));
+    // The replica now reports both entries checked in.
+    mocks.dogs = [
+      dog({
+        key: 'd1',
+        dogName: 'Zip',
+        entries: [classEntry('e1', 'checked-in'), classEntry('e2', 'checked-in')],
+        uncheckedEntryIds: [],
+      }),
+    ];
+    view.rerender(dogRoute());
     await waitFor(() => expect(screen.getByText('✓ Checked in to 2 classes')).toBeInTheDocument());
     expect(mocks.checkIn).toHaveBeenCalledWith('e1', 'checked-in');
     expect(mocks.checkIn).toHaveBeenCalledWith('e2', 'checked-in');
@@ -197,20 +216,21 @@ describe('AtShowDogPage', () => {
     ];
     const view = renderRoutes('/at-show/s1/dogs/d1');
     fireEvent.click(screen.getByRole('button', { name: 'Check In All (1)' }));
+    await waitFor(() => expect(mocks.checkIn).toHaveBeenCalledTimes(1));
+    mocks.dogs = [dog({ key: 'd1', dogName: 'Zip', entries: [classEntry('e1', 'checked-in')] })];
+    view.rerender(dogRoute());
     await waitFor(() => expect(screen.getByText('✓ Checked in to 1 class')).toBeInTheDocument());
+    // Another device resets e1 and a class is added: both are offered again.
     mocks.dogs = [
       dog({
         key: 'd1',
         dogName: 'Zip',
-        entries: [classEntry('e1', 'checked-in'), classEntry('e9', 'no-status')],
-        uncheckedEntryIds: ['e9'],
+        entries: [classEntry('e1', 'no-status'), classEntry('e9', 'no-status')],
+        uncheckedEntryIds: ['e1', 'e9'],
       }),
     ];
-    view.rerender(
-      <Routes>
-        <Route path="/at-show/:showId/dogs/:dogKey" element={<AtShowDogPage />} />
-      </Routes>
-    );
-    expect(await screen.findByRole('button', { name: 'Check In All (1)' })).toBeInTheDocument();
+    view.rerender(dogRoute());
+    expect(await screen.findByRole('button', { name: 'Check In All (2)' })).toBeInTheDocument();
+    expect(screen.queryByText(/Checked in to/)).not.toBeInTheDocument();
   });
 });

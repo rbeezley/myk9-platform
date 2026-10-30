@@ -4,12 +4,19 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 
 const getEntriesByShow = vi.hoisted(() => vi.fn());
+const classState = vi.hoisted(() => ({ error: null as Error | null, refresh: vi.fn() }));
 vi.mock('@/services/replication', () => ({
   replicatedEntriesTable: { getEntriesByShow, subscribe: vi.fn(() => vi.fn()) },
   replicatedArmbandsTable: { getByShow: vi.fn(async () => []), subscribe: vi.fn(() => vi.fn()) },
 }));
 vi.mock('./useAtShowClassList', () => ({
-  useAtShowClassList: () => ({ groups: [], showName: 'Spring', isLoading: false }),
+  useAtShowClassList: () => ({
+    groups: [],
+    showName: 'Spring',
+    isLoading: false,
+    error: classState.error,
+    refresh: classState.refresh,
+  }),
 }));
 
 import { useAtShowStaffDogs } from './useAtShowStaffDogs';
@@ -28,5 +35,19 @@ describe('useAtShowStaffDogs', () => {
     await waitFor(() => expect(result.current.dogs).toHaveLength(1));
     expect(result.current.dogs[0]?.dogName).toBe('Zip');
     expect(getEntriesByShow).toHaveBeenCalledWith('s1');
+  });
+
+  it('reports a class-list failure and retries the class reads too', async () => {
+    classState.error = new Error('classes');
+    getEntriesByShow.mockResolvedValue([]);
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
+    const { result } = renderHook(() => useAtShowStaffDogs('s1'), { wrapper });
+    expect(result.current.loadFailed).toBe(true);
+    result.current.onRetry();
+    expect(classState.refresh).toHaveBeenCalled();
+    classState.error = null;
   });
 });

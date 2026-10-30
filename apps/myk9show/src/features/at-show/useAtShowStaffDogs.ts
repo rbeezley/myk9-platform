@@ -78,7 +78,10 @@ export function useAtShowStaffDogs(showId: string | undefined): UseAtShowStaffDo
     dogs,
     showName: classList.showName,
     isLoading: entriesQuery.isLoading || classList.isLoading,
-    loadFailed: entriesQuery.isError,
-    onRetry: () => void entriesQuery.refetch(),
+    loadFailed: entriesQuery.isError || classList.error != null,
+    onRetry: () => {
+      void entriesQuery.refetch();
+      classList.refresh();
+    },
   };
 }

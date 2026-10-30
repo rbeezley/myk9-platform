@@ -91,7 +91,8 @@ export function buildStaffDogs(
       byDog.set(key, dog);
     }
     const pulled = isPulledEntry(re);
-    const checkInStatus = view.checkinStatus ?? view.status;
+    // Derived display status: a withdrawn dog reads Pulled even if it was checked in earlier.
+    const checkInStatus = view.status;
     dog.entries.push({
       entryId: re.id,
       classId: re.classId ?? null,

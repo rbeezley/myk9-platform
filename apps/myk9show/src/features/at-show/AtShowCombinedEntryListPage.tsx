@@ -25,6 +25,7 @@
  * dialog via `applyCombinedRunOrder`.
  */
 
+import { RingsideMenu } from './menu/RingsideMenu';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -424,6 +425,7 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
             // No printing at ringside — reports live on the secretary Reports page.
             hidePrintOptions: true,
             up: { label: 'Classes', to: resolveClassListRoute(showId) },
+            menu: <RingsideMenu showId={showId} />,
           }}
         />
       </div>

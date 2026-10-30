@@ -26,6 +26,7 @@
  * placement recalc, prints, statistics nav) — all INTENT-noted in their hooks.
  */
 
+import { RingsideMenu } from './menu/RingsideMenu';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -368,6 +369,7 @@ export const AtShowEntryListPage: React.FC = () => {
             // the Access-upload workflow that doesn't belong here).
             hidePrintOptions: true,
             up: { label: 'Classes', to: resolveClassListRoute(showId) },
+            menu: <RingsideMenu showId={showId} />,
           }}
         />
       </div>

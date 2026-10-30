@@ -39,6 +39,7 @@ import { orderRingClassesByDay } from './orderRingClassesByDay';
 /** The scopes the picker's own rows come from. */
 const CLASS_DATA_TABLES = ['shows', 'trials', 'classes'] as const;
 import { ClassListUpButton } from './ClassListUpButton';
+import { RingsideMenu } from './menu/RingsideMenu';
 import {
   sortClassesForAtShowScan,
   sortClassesForYourRing,
@@ -438,21 +439,24 @@ export const AtShowClassListPage: React.FC = () => {
     <main className={`ringside-root ${WIDE_COLUMN} px-4 py-4`}>
       <div className="mb-3 flex items-center justify-between gap-2">
         <ClassListUpButton showId={showId} clubId={clubId} />
-        {/* Gating this on `ownEntryIds.size > 0` alone hid the only route back
-            to an exhibitor's own dogs whenever ownership was merely UNKNOWN --
-            a cold device at the venue -- stranding them in the staff class
-            list. Offer the door whenever we have entries OR cannot rule them
-            out; the destination handles its own empty state. */}
-        {isExhibitorOnly && (ownEntryIds.size > 0 || ownershipUnknown) && (
-          <Button
-            type="button"
-            variant="ghost"
-            className="min-h-11 gap-1.5 px-3"
-            onClick={() => setManualView('mine')}
-          >
-            Your dogs today
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {/* Gating this on `ownEntryIds.size > 0` alone hid the only route back
+              to an exhibitor's own dogs whenever ownership was merely UNKNOWN --
+              a cold device at the venue -- stranding them in the staff class
+              list. Offer the door whenever we have entries OR cannot rule them
+              out; the destination handles its own empty state. */}
+          {isExhibitorOnly && (ownEntryIds.size > 0 || ownershipUnknown) && (
+            <Button
+              type="button"
+              variant="ghost"
+              className="min-h-11 gap-1.5 px-3"
+              onClick={() => setManualView('mine')}
+            >
+              Your dogs today
+            </Button>
+          )}
+          <RingsideMenu showId={showId} />
+        </div>
       </div>
 
       {showName && <h1 className="mb-4 text-center text-lg font-semibold">{showName}</h1>}

@@ -44,8 +44,8 @@ export function buildRingsideStatusInfo(
  * The combined A/B header's phase label, from the SAME merged status the combined class
  * card uses (`mergeSectionStatus`). The label is taken whole from the section that supplies
  * that status, so its time is that section's own; no time is assembled across sections.
- * When both sections hold the merged status, the one with the earlier Expected start INSTANT
- * (`pickClassTime`, the card's rule) supplies it. When neither does (one completed, one
+ * When both sections hold the merged status, Start Time goes to the earlier Expected start
+ * INSTANT (`pickClassTime`, the card's rule) and Briefing / Break to section A, as on the card. When neither does (one completed, one
  * pre-scoring, which reads as In Progress), the merged status is worded with no time.
  */
 function buildCombinedStatusLabel(
@@ -63,11 +63,16 @@ function buildCombinedStatusLabel(
   const bHolds = infoB.ringsideStatus === merged;
   if (!aHolds && !bHolds) return formatRingsideStatusLabel(merged, {}, timeZone);
   if (aHolds !== bHolds) return (aHolds ? infoA : infoB).statusLabel ?? null;
-  const earlier = pickClassTime(
-    a.revisedExpectedStart ?? undefined,
-    b.revisedExpectedStart ?? undefined,
-    'earlier'
-  );
+  // The card keeps section A's Briefing and Break time (`withMergedSectionState` only merges
+  // the start instants), so only a Start Time tie goes to the earlier Expected start.
+  const earlier =
+    merged === 'start_time'
+      ? pickClassTime(
+          a.revisedExpectedStart ?? undefined,
+          b.revisedExpectedStart ?? undefined,
+          'earlier'
+        )
+      : undefined;
   const supplier = earlier !== undefined && earlier === b.revisedExpectedStart ? infoB : infoA;
   return supplier.statusLabel ?? null;
 }

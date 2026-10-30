@@ -84,6 +84,19 @@ describe('withCombinedStatusLabel (MYK9-1526)', () => {
     expect(label(late, nextDay)).toBe('Start Time 11:00 PM');
   });
 
+  it("keeps A's Briefing time on a tie even when B's Expected start is earlier, like the card", () => {
+    expect(
+      label(
+        { ringPhase: 'briefing', ringPhaseTime: '10:00:00' },
+        {
+          ringPhase: 'briefing',
+          ringPhaseTime: '10:30:00',
+          revisedExpectedStart: '2026-10-30T14:00:00Z',
+        }
+      )
+    ).toBe('Briefing 10:00 AM');
+  });
+
   it('words the merged status with no time when neither section holds it', () => {
     expect(label({ classStatus: 'completed' }, { classStatus: 'upcoming' })).toBeUndefined();
   });

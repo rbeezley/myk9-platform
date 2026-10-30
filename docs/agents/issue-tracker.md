@@ -87,6 +87,7 @@ The `verify` and `needs` groups are multi-select. Apply the children, never the 
 | `verify:database`           | Applied-database/RPC/grant behavior on the named target, with positive and negative controls |
 | `verify:recovery`           | Backup freshness, restore and failover scope, with measured RPO/RTO                          |
 | `verify:spec`               | OpenSpec verification against the integrated tree, and its archive                           |
+| `verify:scheduled-runs`     | The run IDs and dates of the consecutive green scheduled runs the issue requires             |
 
 | Intervention label   | Add when                                                                   | Remove when                         |
 | -------------------- | -------------------------------------------------------------------------- | ----------------------------------- |
@@ -99,6 +100,15 @@ The `verify` and `needs` groups are multi-select. Apply the children, never the 
   unblock condition. Every `verify:*` label keeps its criterion in the issue.
 - Add and remove labels incrementally; keep unrelated labels. Re-add one when its evidence goes
   stale. **No labels is not proof of completion**: Done needs a fresh full read of every criterion.
+- **Everything still owed is a label or a relation, never prose alone** (MYK9-1495). An open
+  blocked-by relation or an open sub-issue counts as owed with no label. Anything else gets one:
+  a wait for scheduled runs is `verify:scheduled-runs`, and an owner accepting a substitute check
+  is `needs:decision`.
+- **Removing the last owed label, or the last blocker closing, triggers a fresh read**: Done if
+  every criterion is evidenced, otherwise label what is still owed. An In Review issue with no
+  `verify:*`/`needs:*` label, no open blocker and no open sub-issue is a defect: fix it on sight.
+- **After each Deploy myK9Show run**, the `deploy` skill's post-deploy pass works the agent-doable
+  labels on issues the deploy shipped.
 - Work types: `Bug`, `Improvement`, `Feature`, `Test` (test or harness work; never "tests
   passed"), `Ops` (operational work: follow its runbook, not a code implementer). `Parked` is an
   explicit owner decision to defer until a named trigger; leave it out of launch work.

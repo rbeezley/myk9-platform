@@ -494,6 +494,29 @@ describe('codex-review.sh', () => {
       expect(bodies(gh.calls)[0]).toMatch(/— 1 findings, all addressed\n/);
     });
 
+    it('lists the backticked-location and mixed-case shapes too', () => {
+      const r = run(
+        stubCodex(
+          'codex\nNo actionable defects found.\n\n- `src/a.ts:1` — [pre-existing P2] old.\n- [Pre-Existing P3] older.\n'
+        )
+      );
+      expect(r.code).toBe(0);
+      expect(r.out).toContain('codex-review: 2 pre-existing defect(s)');
+    });
+
+    it('a real [P*] bullet is never hidden by a pre-existing tag elsewhere on the page', () => {
+      const r = run(
+        stubCodex(
+          'codex\nNo actionable defects found.\n\n- [pre-existing P1] src/a.ts:1 — old.\n- [P1] src/b.ts:2 — introduced here.\n'
+        )
+      );
+      expect(r.code).toBe(1);
+    });
+
+    it('a pre-existing list with no clean sentence is not a verdict (exit 2)', () => {
+      expect(run(stubCodex('codex\n- [pre-existing P1] src/a.ts:1 — old.\n')).code).toBe(2);
+    });
+
     it('prints nothing about pre-existing defects when there are none', () => {
       expect(run(stubCodex('codex\nNo actionable defects found.')).out).not.toContain(
         'pre-existing defect(s)'

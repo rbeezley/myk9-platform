@@ -35,16 +35,18 @@ REVIEW_FINDING_BULLET='^[[:space:]]*- ((\*\*)?\[P[0-9]\]|`[^`]+`[[:space:]]*(-|�
 # past the first audited whatever the change touched and the gate had no stop
 # condition (docs/lessons/README.md#review-scope-boundary). The wrappers print
 # these so the shipper files them; the evidence comment carries them verbatim.
-REVIEW_PREEXISTING_BULLET='^[[:space:]]*- (\*\*)?\[pre-existing P[0-9]\]'
+# Same shapes as REVIEW_FINDING_BULLET (tag first, or after a backticked
+# location), matched case-insensitively.
+REVIEW_PREEXISTING_BULLET='^[[:space:]]*- ((\*\*)?\[pre-existing P[0-9]\]|`[^`]+`[[:space:]]*(-|–|—)[[:space:]]*(\*\*)?\[pre-existing P[0-9]\])'
 
 # Print the pre-existing bullets with a filing instruction; silent when none.
 review_note_preexisting() {  # LABEL TEXT
   local n
-  n="$(printf '%s\n' "$2" | grep -Ec "$REVIEW_PREEXISTING_BULLET" || true)"
+  n="$(printf '%s\n' "$2" | grep -Eic "$REVIEW_PREEXISTING_BULLET" || true)"
   [ "${n:-0}" -gt 0 ] || return 0
   echo
   echo "$1: ${n} pre-existing defect(s), not introduced by this branch and not blocking. File each in Linear before merge (reconcile with includeArchived first):"
-  printf '%s\n' "$2" | grep -E "$REVIEW_PREEXISTING_BULLET"
+  printf '%s\n' "$2" | grep -Ei "$REVIEW_PREEXISTING_BULLET"
 }
 
 # Structured findings (MYK9-1209) are PARSED, not sniffed. Claude's review can

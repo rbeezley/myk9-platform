@@ -24,6 +24,7 @@ import {
 } from './resultsClassFilters';
 import { ShowStatsFilterBar } from '@/components/analytics/ShowStatsFilterBar';
 import { useListUrlParams } from '@/hooks/useListUrlParams';
+import { useShowClassProgress } from '@/hooks/queries/useShowClassProgress';
 import { useShowStatsFilters } from '@/hooks/useShowStatsFilters';
 import type { StatsFilterOptions } from '@/components/analytics/analytics-filters';
 import { useShowResults, type ClassResult } from '@/hooks/queries/useShowResults';
@@ -121,14 +122,12 @@ interface PodiumContentProps {
 
 function PodiumContent({ showId, showEntries = [] }: PodiumContentProps) {
   const { data: results = [], isLoading, error, refetch } = useShowResults(showId);
+  const { data: classProgress = [] } = useShowClassProgress(showId);
   const [search, setSearch] = useState('');
   const { filters, setFilter, clearFilters } = useShowStatsFilters();
 
   // Narrowing happens here, after useShowResults/useVisibleResultFields own what may be shown.
-  const pendingAll = useMemo(
-    () => derivePendingClasses(showEntries, new Set(results.map(cls => cls.classId))),
-    [showEntries, results]
-  );
+  const pendingAll = useMemo(() => derivePendingClasses(classProgress), [classProgress]);
   const options = useMemo(
     () => deriveClassFilterOptions([...results, ...pendingAll], showEntries),
     [results, pendingAll, showEntries]

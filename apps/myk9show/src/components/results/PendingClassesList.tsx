@@ -4,8 +4,7 @@ import type { PendingClass } from './resultsClassFilters';
 
 function statusText(cls: PendingClass): string {
   if (cls.scoredCount === 0) return 'Not scored yet';
-  if (cls.scoredCount < cls.entryCount) return `${cls.scoredCount} of ${cls.entryCount} scored`;
-  return 'Scored, awaiting release';
+  return `${cls.scoredCount} scored, awaiting release`;
 }
 
 /** Classes with no podium yet, always visible so a novice can tell "not done" from "missing". */

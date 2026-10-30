@@ -1,8 +1,8 @@
 /**
  * Trial / element / level narrowing for the Podium tab, and the pending-classes list (MYK9-1512).
- * Everything here runs on rows the viewer already loaded: podium classes from the public results
- * view and entries from the authenticated view. Pending classes come from the latter, so an
- * exhibitor sees pending classes for the entries they may see and no more.
+ * Podium classes come from the public results view, which owns release and visibility. Pending
+ * classes come from class rows (server-kept `scored_count` / `results_released_at`), never from
+ * counting entries here.
  */
 import type { ListFilterOption } from '@/components/list-toolkit';
 import {
@@ -10,8 +10,8 @@ import {
   type ShowStatsFilterKey,
   type ShowStatsFilters,
 } from '@/components/analytics/analytics-filters';
-import { isRunnableScheduleStatus } from '@/services/entryDisplay/entryDisplaySelectors';
-import { isScored, type StatsEntry } from '@/components/analytics/analytics-utils';
+import type { StatsEntry } from '@/components/analytics/analytics-utils';
+import type { ShowClassProgress } from '@/hooks/queries/useShowClassProgress';
 
 export const RESULTS_FILTER_KEYS = [
   'trial',
@@ -27,10 +27,7 @@ export interface ClassLike {
   level: string;
 }
 
-export interface PendingClass extends ClassLike {
-  scoredCount: number;
-  entryCount: number;
-}
+export type PendingClass = ShowClassProgress;
 
 export function filterClasses<T extends ClassLike>(items: readonly T[], filters: ShowStatsFilters) {
   return items.filter(
@@ -41,38 +38,16 @@ export function filterClasses<T extends ClassLike>(items: readonly T[], filters:
   );
 }
 
-/** Classes that have entries but no podium to show yet, in element/level order. */
-export function derivePendingClasses(
-  entries: readonly StatsEntry[],
-  podiumClassIds: ReadonlySet<string>
-): PendingClass[] {
-  const byClass = new Map<string, PendingClass>();
-  for (const entry of entries) {
-    if (podiumClassIds.has(entry.classId)) continue;
-    // Withdrawn, scratched, moved and not-accepted entries are not waiting on a score.
-    if (!isRunnableScheduleStatus(entry.entryStatus)) continue;
-    // Released with no placement 1-4 (e.g. all NQ): nothing pending, nothing to show.
-    if (entry.classResultsReleasedAt) continue;
-    const row = byClass.get(entry.classId) ?? {
-      classId: entry.classId,
-      className: entry.className,
-      trialId: entry.trialId ?? '',
-      element: entry.classElement ?? '',
-      level: entry.classLevel ?? '',
-      scoredCount: 0,
-      entryCount: 0,
-    };
-    row.entryCount++;
-    // A scored result withheld from this viewer maps to 'pending' but is still scored.
-    if (isScored(entry) || entry.resultWithheld) row.scoredCount++;
-    byClass.set(entry.classId, row);
-  }
-  return [...byClass.values()].sort(
-    (a, b) =>
-      a.element.localeCompare(b.element) ||
-      a.level.localeCompare(b.level) ||
-      a.className.localeCompare(b.className)
-  );
+/** Classes whose results are not released yet, in element/level order. */
+export function derivePendingClasses(classes: readonly ShowClassProgress[]): PendingClass[] {
+  return classes
+    .filter(cls => !cls.resultsReleasedAt)
+    .sort(
+      (a, b) =>
+        a.element.localeCompare(b.element) ||
+        a.level.localeCompare(b.level) ||
+        a.className.localeCompare(b.className)
+    );
 }
 
 export function deriveClassFilterOptions(

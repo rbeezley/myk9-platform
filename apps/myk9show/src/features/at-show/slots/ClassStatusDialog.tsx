@@ -134,7 +134,7 @@ const ClassStatusForm: React.FC<ClassStatusDialogProps> = ({
                 key={option.value}
                 variant="outline"
                 disabled={saving}
-                aria-pressed={isCurrent || picked?.value === option.value}
+                aria-current={isCurrent || undefined}
                 onClick={() => choose(option)}
                 className={cn(
                   'h-auto min-h-12 flex-col items-start gap-0.5 whitespace-normal py-2 text-left',

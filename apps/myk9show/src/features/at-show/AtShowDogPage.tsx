@@ -108,9 +108,9 @@ export const AtShowDogPage: React.FC = () => {
         )}
       </div>
 
-      {loadFailed && <StaleReadNotice onRetry={onRetry} />}
+      {loadFailed && <StaleReadNotice onRetry={onRetry} blocksCheckIn />}
       {!isComplete && <PartialReplicaNotice blocksCheckIn />}
-      {isComplete && (toCheckIn.length > 0 || isChecking) && (
+      {isComplete && !loadFailed && (toCheckIn.length > 0 || isChecking) && (
         <Button
           className="mb-3 min-h-11 w-full"
           disabled={isChecking}

@@ -5,6 +5,7 @@ import type { StaffDog } from './staffDogIndex';
 
 const mocks = vi.hoisted(() => ({
   role: 'admin' as string | null,
+  rehydrated: null as string | null,
   dogs: [] as StaffDog[],
   toggle: vi.fn(),
   favorites: new Set<number>(),
@@ -18,6 +19,9 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('./useRingsideEffectiveRole', () => ({
   useRingsideEffectiveRole: () => ({ ringsideRole: mocks.role }),
+}));
+vi.mock('./useRehydrateRingsideGrant', () => ({
+  useRehydrateRingsideGrant: () => mocks.rehydrated,
 }));
 vi.mock('./useAtShowStaffDogs', () => ({
   useAtShowStaffDogs: () => ({
@@ -80,6 +84,7 @@ function renderRoutes(path: string) {
 
 beforeEach(() => {
   mocks.role = 'admin';
+  mocks.rehydrated = null;
   mocks.favorites = new Set();
   mocks.toggle.mockReset();
   mocks.checkIn.mockReset();
@@ -300,5 +305,27 @@ describe('AtShowDogPage', () => {
     ];
     renderRoutes('/at-show/s1/dogs/d1');
     expect(screen.getByText('Moved')).toBeInTheDocument();
+  });
+
+  it('admits a passcode judge whose grant is rehydrated from the session claim', () => {
+    mocks.role = 'exhibitor';
+    mocks.rehydrated = 'judge';
+    renderRoutes('/at-show/s1/dogs');
+    expect(screen.getByTestId('at-show-dogs')).toBeInTheDocument();
+  });
+
+  it('turns Check In All off while the latest read failed, keeping the stale notice', () => {
+    mocks.loadFailed = true;
+    mocks.dogs = [
+      dog({
+        key: 'd1',
+        dogName: 'Zip',
+        entries: [classEntry('e1', 'no-status')],
+        uncheckedEntryIds: ['e1'],
+      }),
+    ];
+    renderRoutes('/at-show/s1/dogs/d1');
+    expect(screen.queryByRole('button', { name: /Check In All/ })).not.toBeInTheDocument();
+    expect(screen.getByText(/Check In All is off until it refreshes/)).toBeInTheDocument();
   });
 });

@@ -1,4 +1,5 @@
 import type { UserRole as RingsideRole } from '@myk9/ringside';
+import { useRehydrateRingsideGrant } from './useRehydrateRingsideGrant';
 import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
 
 /**
@@ -12,5 +13,9 @@ export function isStaffRingsideRole(role: RingsideRole | null): boolean {
 
 export function useIsStaffDogViewer(showId: string | undefined): boolean {
   const { ringsideRole } = useRingsideEffectiveRole(showId);
-  return isStaffRingsideRole(ringsideRole);
+  // A passcode-only judge or steward is admitted from the session claim before the in-memory
+  // grant store is restored; `AtShowAccessGate` uses this same hook's answer on first render,
+  // so the grant wins here too and a reload never bounces staff off the page.
+  const rehydratedRole = useRehydrateRingsideGrant(showId);
+  return isStaffRingsideRole(rehydratedRole ?? ringsideRole);
 }

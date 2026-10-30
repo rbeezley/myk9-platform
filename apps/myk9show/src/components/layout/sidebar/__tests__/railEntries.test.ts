@@ -116,6 +116,27 @@ describe('buildRailEntries', () => {
   });
 });
 
+// MYK9-1491: a staff account that is also an exhibitor sees My Entries only with entries of its own.
+describe('rail count by own entries', () => {
+  function count(roles: UserRole[], ownEntries: 'yes' | 'no' | 'unknown'): number {
+    const config = buildUnifiedSidebarConfig(roles, CLUB, 'Jamie', undefined, ownEntries);
+    return buildRailEntries(config.groups).length;
+  }
+
+  it.each([
+    ['yes', 4],
+    ['unknown', 4],
+    ['no', 3],
+  ] as const)('secretary + exhibitor with own entries %s has %i items', (state, expected) => {
+    expect(count([UserRole.SECRETARY, UserRole.EXHIBITOR], state)).toBe(expected);
+  });
+
+  it('leaves an exhibitor-only rail unchanged whatever the answer', () => {
+    expect(count([UserRole.EXHIBITOR], 'no')).toBe(4);
+    expect(count([UserRole.EXHIBITOR], 'yes')).toBe(4);
+  });
+});
+
 // MYK9-1490: Home is the hub and the current show its workspace, with Ringside (that show's live
 // view) beside it; then Browse, My Entries, and the role-specific groups. A change here is a
 // design change.

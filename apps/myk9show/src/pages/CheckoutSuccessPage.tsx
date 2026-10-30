@@ -25,6 +25,7 @@ import { CheckoutVerificationIssueCard } from '@/features/payments/CheckoutVerif
 import { overflowRefundMessage } from '@/features/payments/overflowRefundCopy';
 import { CONFIRMATION_NUMBER_LABEL } from '@/features/registration/confirmationNumberDisplay';
 import { retireDraftsForCheckout } from '@/features/registration/retireDraftsForCheckout';
+import { markJustEntered } from '@/features/own-entries/ownEntriesMemory';
 
 interface EntryDetails {
   id: string;
@@ -100,6 +101,10 @@ export default function CheckoutSuccessPage() {
     (result: SuccessfulCheckoutVerification, generation: number) => {
       if (verificationGenerationRef.current !== generation) return;
       verificationSettledRef.current = true;
+      // The paid entry may not have replicated yet; keep the rail's My Entries visible meanwhile.
+      if (result.checkoutOutcome !== 'full_overflow_refund' && result.entryIds?.length !== 0) {
+        markJustEntered();
+      }
 
       const nextSplitSummary = splitCheckoutId
         ? readCartSplitCheckoutSummary(splitCheckoutId)

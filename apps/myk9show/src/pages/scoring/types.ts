@@ -407,9 +407,40 @@ const SPORT_TYPE_BY_ORG_DISCIPLINE: Record<string, string> = {
   'ASCA:Scent Detection': 'asca-scent-detection',
 };
 
-export function deriveSportType(organization: string, trialType: string): string | null {
-  return SPORT_TYPE_BY_ORG_DISCIPLINE[`${organization}:${trialType}`] ?? null;
+/**
+ * Trial types are stored in two forms: display names ("Scent Work") and snake_case
+ * ("scent_work"). One canonical key (lowercase, no separators) makes both resolve.
+ */
+function canonicalTrialType(value: string): string {
+  return value.toLowerCase().replace(/[\s_-]+/g, '');
 }
+
+const SPORT_TYPE_LOOKUP = new Map(
+  Object.entries(SPORT_TYPE_BY_ORG_DISCIPLINE).map(([key, code]) => {
+    const [org = '', discipline = ''] = key.split(':');
+    return [`${org.toUpperCase()}:${canonicalTrialType(discipline)}`, code] as const;
+  })
+);
+
+export function deriveSportType(
+  organization: string,
+  trialType: string | null | undefined
+): string | null {
+  if (!trialType) return null;
+  return (
+    SPORT_TYPE_LOOKUP.get(`${organization.toUpperCase()}:${canonicalTrialType(trialType)}`) ?? null
+  );
+}
+
+/**
+ * Sport code for a show whose registry is known but whose trial type has no
+ * scoresheet. `mapSportType` reads it as unknown, so the page shows "Scoresheet
+ * Not Available" instead of the class-name fallback guessing AKC.
+ */
+export const UNRESOLVED_SPORT_TYPE = 'unresolved';
+
+/** Registries whose sheets must never be guessed from a class name. */
+const STRICT_REGISTRIES = new Set(['ASCA', 'UKC']);
 
 /** Resolve sport type for a class by walking trial → show → deriveSportType. */
 export async function resolveSportTypeForClass(
@@ -417,10 +448,12 @@ export async function resolveSportTypeForClass(
 ): Promise<string | null> {
   if (!trialId) return null;
   const trial = await replicatedTrialsTable.getTrialById(trialId);
-  if (!trial?.showId || !trial.trialType) return null;
+  if (!trial?.showId) return null;
   const show = await replicatedShowsTable.get(trial.showId);
   if (!show?.organization) return null;
-  return deriveSportType(show.organization, trial.trialType);
+  const derived = deriveSportType(show.organization, trial.trialType);
+  if (derived) return derived;
+  return STRICT_REGISTRIES.has(show.organization.toUpperCase()) ? UNRESOLVED_SPORT_TYPE : null;
 }
 
 /**

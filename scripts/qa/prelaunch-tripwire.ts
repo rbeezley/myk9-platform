@@ -47,12 +47,6 @@ export interface TripwireFacts {
 export interface TripwireResult {
   code: 0 | 1 | 2;
   reason: string;
-  /**
-   * The exact main commit whose migrations were checked. A deploy must pin to it
-   * (`-f commit_sha=`): a commit merged after the check was never compared with
-   * schema_migrations (Codex review, PR #3438).
-   */
-  deployCommit?: string;
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -131,7 +125,7 @@ export interface RunOptions {
   command: Command;
 }
 
-const FULL_SHA = /^[0-9a-f]{40}$/;
+const MIGRATIONS_ON_MAIN = 'origin/main:supabase/migrations';
 const APPROVALS_ON_MAIN = 'origin/main:docs/agents/standing-approvals.md';
 /**
  * The myK9 project, fixed here rather than read from the environment: any other
@@ -215,18 +209,9 @@ export function runTripwire(options: RunOptions): TripwireResult {
           .map(s => s.trim())
           .filter(Boolean);
   let unapplied: string[] | null | undefined;
-  let checkedCommit: string | undefined;
   if (checkMigrations && approvals?.active) {
     try {
-      // One resolved commit, not the moving `origin/main` ref, so the deploy can pin to it.
-      const sha = options.command('git', ['rev-parse', '--verify', 'origin/main^{commit}']).trim();
-      if (!FULL_SHA.test(sha)) throw new Error(`unexpected rev-parse output: ${sha}`);
-      const files = options.command('git', [
-        'ls-tree',
-        '-r',
-        '--name-only',
-        `${sha}:supabase/migrations`,
-      ]);
+      const files = options.command('git', ['ls-tree', '-r', '--name-only', MIGRATIONS_ON_MAIN]);
       const rows = query('select version from supabase_migrations.schema_migrations;');
       if (rows === null) unapplied = null;
       else {
@@ -238,23 +223,12 @@ export function runTripwire(options: RunOptions): TripwireResult {
         unapplied = applied.every(v => /^\d+$/.test(v))
           ? unappliedMigrations(files.split('\n'), applied)
           : null;
-        if (unapplied) checkedCommit = sha;
       }
     } catch {
       unapplied = null;
     }
   }
-  const result = evaluateTripwire(approvals, {
-    livemode,
-    clubIds,
-    unappliedMigrations: unapplied,
-  });
-  if (result.code !== 0 || !checkedCommit) return result;
-  return {
-    ...result,
-    reason: `${result.reason}; main checked at ${checkedCommit}, deploy exactly that commit: gh workflow run deploy-myk9show.yml -f commit_sha=${checkedCommit}`,
-    deployCommit: checkedCommit,
-  };
+  return evaluateTripwire(approvals, { livemode, clubIds, unappliedMigrations: unapplied });
 }
 
 /** Long enough for a slow fetch or pooler connection; a stall becomes an exit-2 result, not a hang. */

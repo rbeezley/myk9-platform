@@ -108,7 +108,6 @@ describe('runTripwire (the CLI core)', () => {
       calls.push([name, ...args]);
       if (name === 'psql') psqlEnvs.push(cmdEnv ?? {});
       if (name === 'git' && args[0] === 'fetch') return '';
-      if (name === 'git' && args[0] === 'rev-parse') return `${'a'.repeat(40)}\n`;
       if (name === 'git' && args[0] === 'ls-tree') return '20261029043900_a.sql\n';
       if (name === 'git' && args[0] === 'show') {
         if (main.fails) throw new Error('fatal: invalid object name');
@@ -220,9 +219,8 @@ describe('runTripwire migration check (MYK9-1527)', () => {
     for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true });
   });
   const MAIN_FILES = '20261029043900_a.sql\n20261030174300_b.sql\n';
-  const SHA = 'b'.repeat(40);
 
-  function run(applied: string | Error, argv: string[] = [], head: string = SHA) {
+  function run(applied: string | Error, argv: string[] = []) {
     const dir = mkdtempSync(join(tmpdir(), 'tripwire-'));
     dirs.push(dir);
     const approvalsPath = join(dir, 'standing-approvals.md');
@@ -230,13 +228,7 @@ describe('runTripwire migration check (MYK9-1527)', () => {
     const command = (name: string, args: string[]): string => {
       if (name === 'git' && args[0] === 'fetch') return '';
       if (name === 'git' && args[0] === 'show') return block('ACTIVE');
-      if (name === 'git' && args[0] === 'rev-parse') return `${head}\n`;
-      if (name === 'git' && args[0] === 'ls-tree') {
-        // Only the resolved commit's tree: a moving ref would let a later merge slip past.
-        if (args[args.length - 1] !== `${SHA}:supabase/migrations`)
-          throw new Error(`ls-tree of ${args[args.length - 1]}`);
-        return MAIN_FILES;
-      }
+      if (name === 'git' && args[0] === 'ls-tree') return MAIN_FILES;
       const sql = args[args.length - 1] ?? '';
       if (sql.includes('schema_migrations')) {
         if (applied instanceof Error) throw applied;
@@ -249,21 +241,8 @@ describe('runTripwire migration check (MYK9-1527)', () => {
     return runTripwire({ approvalsPath, argv, env: { PGPASSWORD: 'secret' }, command });
   }
 
-  it('passes when every migration on main is applied, pinned to the commit it checked', () => {
-    const result = run('20261029043900\n20261030174300\n');
-    expect(result.code).toBe(0);
-    expect(result.deployCommit).toBe(SHA);
-    expect(result.reason).toContain(`gh workflow run deploy-myk9show.yml -f commit_sha=${SHA}`);
-  });
-
-  it('cannot decide when main does not resolve to a full commit sha', () => {
-    const result = run('20261029043900\n20261030174300\n', [], 'not-a-sha');
-    expect(result.code).toBe(2);
-    expect(result.deployCommit).toBeUndefined();
-  });
-
-  it('names no deploy commit when it refuses', () => {
-    expect(run('20261029043900\n').deployCommit).toBeUndefined();
+  it('passes when every migration on main is applied', () => {
+    expect(run('20261029043900\n20261030174300\n').code).toBe(0);
   });
 
   it('refuses by default, naming the unapplied version', () => {
@@ -277,10 +256,8 @@ describe('runTripwire migration check (MYK9-1527)', () => {
     expect(run(new Error('psql: connection refused')).code).toBe(2);
   });
 
-  it('does not look at migrations under --merge, and names no deploy commit', () => {
-    const result = run('20261029043900\n', ['--merge']);
-    expect(result.code).toBe(0);
-    expect(result.deployCommit).toBeUndefined();
+  it('does not look at migrations under --merge', () => {
+    expect(run('20261029043900\n', ['--merge']).code).toBe(0);
   });
 
   it('under --merge, an unreadable schema_migrations is not consulted', () => {

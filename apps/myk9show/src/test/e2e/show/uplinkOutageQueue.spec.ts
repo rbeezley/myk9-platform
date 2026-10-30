@@ -163,6 +163,100 @@ test('control: a reachable server that refuses the RPC still parks the score', a
   }
 });
 
+/** Answers every ringside_update_entry POST with HTTP 503 and `body` while on. */
+async function gateway503(context: BrowserContext, body: string, contentType: string) {
+  let on = false;
+  let served = 0;
+  await context.route(`${SUPABASE}/rest/v1/rpc/ringside_update_entry`, route => {
+    if (!on || route.request().method() !== 'POST') return route.fallback();
+    served += 1;
+    return route.fulfill({ status: 503, contentType, body });
+  });
+  return {
+    start: () => {
+      on = true;
+    },
+    stop: () => {
+      on = false;
+    },
+    served: () => served,
+  };
+}
+
+/**
+ * MYK9-1488. A 502/503/504 with a non-structured body is a gateway hiccup, not a
+ * refusal: the write backs off to the 30 s cap without spending maxRetries, so it
+ * stays queued for the whole hold and uploads once the gateway answers again.
+ */
+test('a ringside score survives a 60 s gateway 503 and uploads itself', async ({
+  page,
+  context,
+}) => {
+  test.setTimeout(240_000);
+  const seed = await seedDisposableEntry({
+    showId: SHOW_ID,
+    classId: CLASS_ID,
+    templateEntryId: TEMPLATE_ENTRY_ID,
+    label: 'Gateway 503',
+  });
+  try {
+    // The gateway shape: an HTML error page, no JSON code.
+    const gateway = await gateway503(context, '<html>503 Service Unavailable</html>', 'text/html');
+    await openScoresheet(page, seed.entryId);
+    gateway.start();
+    await submitQualified(page);
+    await holdOutage(page, 'gateway 503');
+    expect(gateway.served()).toBeGreaterThan(0);
+
+    const uploaded = page.waitForResponse(
+      r => r.url().includes('/rest/v1/rpc/ringside_update_entry') && r.ok(),
+      { timeout: 90_000 }
+    );
+    gateway.stop();
+    expect(JSON.parse((await uploaded).request().postData() ?? '{}')).toMatchObject({
+      p_entry_id: seed.entryId,
+    });
+    await expect
+      .poll(() => readReplicationStoreCount(page, 'pending_mutations'), { timeout: 30_000 })
+      .toBe(0);
+    expect(await readReplicationStoreCount(page, 'failed_mutations')).toBe(0);
+    await expect
+      .poll(() => readScored(seed.entryId), { timeout: 20_000 })
+      .toEqual({ is_scored: true, result_status: 'qualified' });
+  } finally {
+    await cleanupDisposableEntry(seed);
+  }
+});
+
+test('control: a 503 carrying a structured refusal parks the score at once', async ({
+  page,
+  context,
+}) => {
+  test.setTimeout(120_000);
+  const seed = await seedDisposableEntry({
+    showId: SHOW_ID,
+    classId: CLASS_ID,
+    templateEntryId: TEMPLATE_ENTRY_ID,
+    label: 'Gateway 503 Control',
+  });
+  try {
+    const refusal = await gateway503(
+      context,
+      JSON.stringify({ code: '42501', message: 'permission denied for function' }),
+      'application/json'
+    );
+    await openScoresheet(page, seed.entryId);
+    refusal.start();
+    await submitQualified(page);
+    await expect
+      .poll(() => readReplicationStoreCount(page, 'failed_mutations'), { timeout: 60_000 })
+      .toBeGreaterThan(0);
+    expect(refusal.served()).toBeGreaterThan(0);
+  } finally {
+    await cleanupDisposableEntry(seed);
+  }
+});
+
 /** Show home, select mode, Trial 3 (two not-started classes) all ticked. */
 async function selectTrial3(page: Page) {
   await page.getByRole('button', { name: /^Expand Trial 3/ }).click({ timeout: 30_000 });

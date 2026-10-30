@@ -43,10 +43,6 @@ import {
 import type { JudgeNameParts } from '@/services/database/_shared/judgeNamesByClass';
 import { resolveClassJudgeFields } from '@/services/database/_shared/classJudgeFields';
 import { CLASS_AUTHENTICATED_COLUMN_SELECT } from '@/services/database/classes/reads';
-import {
-  withRingPhaseFallback,
-  withoutRingPhaseColumns,
-} from '@/services/database/classes/ringPhaseCompat';
 import type { Database } from '@/types/supabase';
 import { buildRingsideClassRpc } from './ringsideClassRpc';
 import {
@@ -454,12 +450,8 @@ type EnrichedClassRow = ClassRow & {
 // official counts are enriched by enrichClassRows. A function, not a constant:
 // classes/reads sits in an import cycle with this module, so its export is still
 // undefined while this module first evaluates.
-const classReplicationSelect = (omitRingPhase = false) => {
-  const columns = omitRingPhase
-    ? withoutRingPhaseColumns(CLASS_AUTHENTICATED_COLUMN_SELECT)
-    : CLASS_AUTHENTICATED_COLUMN_SELECT;
-  return `${columns}, judge_assignments!judge_assignments_class_id_fkey(id, person_id, status)`;
-};
+const classReplicationSelect = () =>
+  `${CLASS_AUTHENTICATED_COLUMN_SELECT}, judge_assignments!judge_assignments_class_id_fkey(id, person_id, status)`;
 
 export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
   /** Most recent mutation ID from a create/update operation */
@@ -672,9 +664,10 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
   protected override getRowRefetchAdapter(): RowRefetchAdapter<EnrichedClassRow, ReplicatedClass> {
     return {
       fetchRowsById: async ids => {
-        const { data, error } = await withRingPhaseFallback(omit =>
-          supabase.from('classes').select(classReplicationSelect(omit)).in('id', ids)
-        );
+        const { data, error } = await supabase
+          .from('classes')
+          .select(classReplicationSelect())
+          .in('id', ids);
         if (error) throw new Error(`Supabase query failed: ${error.message}`);
         return this.enrichClassRows((data ?? []) as unknown as ClassRow[]);
       },
@@ -720,9 +713,10 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
     for (let start = 0; start < owed.length; start += OWED_CLASS_FETCH_CHUNK) {
       const chunk = owed.slice(start, start + OWED_CLASS_FETCH_CHUNK);
       try {
-        const { data, error } = await withRingPhaseFallback(omit =>
-          supabase.from('classes').select(classReplicationSelect(omit)).in('id', chunk)
-        );
+        const { data, error } = await supabase
+          .from('classes')
+          .select(classReplicationSelect())
+          .in('id', chunk);
         if (error) throw new Error(error.message);
         const fetched = (data ?? []) as unknown as ClassRow[];
         // A class the server no longer returns (deleted, or no longer visible) is owed nothing,
@@ -910,14 +904,17 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
       fetchRemoteRows: async ({ scope, since, forceFullSync }) => {
         // A full sync re-derives everything; never answer it from the enrichment cache.
         if (forceFullSync) invalidateClassEnrichment();
-        const { data, error } = await withRingPhaseFallback(omit => {
-          const query = supabase
-            .from('classes')
-            .select(classReplicationSelect(omit))
-            .gt('updated_at', new Date(since).toISOString())
-            .order('updated_at', { ascending: true });
-          return scope.value ? query.eq('trial_id', scope.value) : query;
-        });
+        let query = supabase
+          .from('classes')
+          .select(classReplicationSelect())
+          .gt('updated_at', new Date(since).toISOString())
+          .order('updated_at', { ascending: true });
+
+        if (scope.value) {
+          query = query.eq('trial_id', scope.value);
+        }
+
+        const { data, error } = await query;
 
         if (error) {
           throw new Error(`Supabase query failed: ${error.message}`);

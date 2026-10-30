@@ -39,8 +39,10 @@ import {
   type EntryRow,
   type ReplicatedEntry,
 } from './ReplicatedEntriesTable.mapper';
-import { COLD_ELIGIBILITY_ROW_SELECT } from './ReplicatedEntriesTable.coldReadColumns';
-import { readColdEntryRow } from './ReplicatedEntriesTable.coldRead';
+import {
+  COLD_ELIGIBILITY_ROW_SELECT,
+  COLD_ENTRY_ROW_SELECT,
+} from './ReplicatedEntriesTable.coldReadColumns';
 import { ENTRY_DIRTY_ROW_COMPARE_POLICY } from './entriesDirtyRowComparePolicy';
 import { buildRingsideRpcFields, RINGSIDE_RPC_FUNCTION } from './ringsideEntryRpc';
 import {
@@ -672,7 +674,11 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     // An entry deleted locally this session must not be resurrected by a write.
     if (!this._deletedIds.has(entryId)) {
       try {
-        const { data, error } = await readColdEntryRow(entryId);
+        const { data, error } = await supabase
+          .from('view_authenticated_entry_results_replication')
+          .select(COLD_ENTRY_ROW_SELECT)
+          .eq('id', entryId)
+          .maybeSingle();
 
         // Re-check after the await: a deleteEntry() for this id may have landed
         // while the fetch was in flight, and must still win the race.
@@ -1079,7 +1085,11 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
 
     let result: { data: unknown; error: unknown };
     try {
-      result = await readColdEntryRow(entryId);
+      result = await supabase
+        .from('view_authenticated_entry_results_replication')
+        .select(COLD_ENTRY_ROW_SELECT)
+        .eq('id', entryId)
+        .maybeSingle();
     } catch {
       throw new WithdrawUnavailableError(kind);
     }
@@ -1455,7 +1465,11 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     }
 
     try {
-      const { data, error } = await readColdEntryRow(entryId);
+      const { data, error } = await supabase
+        .from('view_authenticated_entry_results_replication')
+        .select(COLD_ENTRY_ROW_SELECT)
+        .eq('id', entryId)
+        .maybeSingle();
       if (!error && data) {
         // Re-checked HERE as well as before the RPC: an eviction DURING the
         // call would otherwise let this INSERT the row straight back.

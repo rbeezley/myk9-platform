@@ -306,7 +306,8 @@ describe('ShowResultsTab class-name search', () => {
       expect(screen.getByText('Trial: Trial 2 · Mar 15')).toBeInTheDocument();
     });
 
-    it('pulls a released class the podium is missing, on first load and on later releases', () => {
+    it('refetches the podium and the progress together on every 30s tick', () => {
+      vi.useFakeTimers();
       const invalidate = vi.spyOn(QueryClient.prototype, 'invalidateQueries');
       vi.mocked(useShowResults).mockReturnValue({
         data: RESULTS,
@@ -314,28 +315,20 @@ describe('ShowResultsTab class-name search', () => {
         error: null,
         refetch: vi.fn(),
       } as unknown as ReturnType<typeof useShowResults>);
-      const asProgress = (rows: ShowClassProgress[]) =>
-        ({ data: rows, isSuccess: true }) as unknown as ReturnType<typeof useShowClassProgress>;
-      const released = (classId: string) =>
-        progress({ classId, className: classId, resultsReleasedAt: '2026-05-01T00:00:00Z' });
+      render(<ShowResultsTab showId="show-1" />);
+      expect(invalidate).not.toHaveBeenCalled();
 
-      // First progress response already shows a release the cached podium lacks (c9): pull it.
-      vi.mocked(useShowClassProgress).mockReturnValue(asProgress([released('c9')]));
-      const { rerender } = render(<ShowResultsTab showId="show-1" />);
-      expect(invalidate).toHaveBeenCalledTimes(1);
-      expect(invalidate).toHaveBeenCalledWith({ queryKey: ['show', 'show-1', 'results'] });
-
-      // The same poll again must not refetch (no loop for a class that has no placements).
-      rerender(<ShowResultsTab showId="show-1" />);
-      expect(invalidate).toHaveBeenCalledTimes(1);
-
-      // A class the podium already shows (c1) is not missing; a new release (c8) is.
-      vi.mocked(useShowClassProgress).mockReturnValue(
-        asProgress([released('c9'), released('c1'), released('c8')])
-      );
-      rerender(<ShowResultsTab showId="show-1" />);
+      vi.advanceTimersByTime(30_000);
       expect(invalidate).toHaveBeenCalledTimes(2);
+      expect(invalidate).toHaveBeenCalledWith({ queryKey: ['show', 'show-1', 'results'] });
+      expect(invalidate).toHaveBeenCalledWith({
+        queryKey: ['analytics', 'show-class-progress', 'show-1'],
+      });
+
+      vi.advanceTimersByTime(30_000);
+      expect(invalidate).toHaveBeenCalledTimes(4);
       invalidate.mockRestore();
+      vi.useRealTimers();
     });
 
     it('round-trips the sub-tab through the URL', () => {

@@ -4,7 +4,7 @@
  */
 
 import { useQueryClient } from '@tanstack/react-query';
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Trophy, BarChart3, Scale, Medal } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
@@ -34,6 +34,7 @@ import {
   type ClassResult,
 } from '@/hooks/queries/useShowResults';
 import { useVisibleResultFields, deriveClassState } from '@/hooks/useVisibleResultFields';
+import { queryKeys } from '@/lib/queryClient';
 import { useShowStats } from '@/hooks/queries/useShowStats';
 import { useShowJudges } from '@/hooks/queries/useShowJudges';
 import { ShowStatsSubTab } from '@/components/analytics/ShowStatsSubTab';
@@ -131,32 +132,23 @@ function PodiumContent({ showId, showEntries = [] }: PodiumContentProps) {
   const {
     data: classProgress = [],
     isError: progressError,
-    isSuccess: progressLoaded,
     refetch: refetchProgress,
-  } = useShowClassProgress(showId, { refetchInterval: PROGRESS_REFRESH_MS });
+  } = useShowClassProgress(showId);
   const [search, setSearch] = useState('');
   const { filters, setFilter, clearFilters } = useShowStatsFilters();
 
-  // The progress poll sees a class get released before the podium does. Compare the two lists
-  // themselves (not "did the released set change"): a release that landed between the podium
-  // fetch and the first progress response, or behind a fresh cached podium, is missing from the
-  // podium and must be pulled once. A released class with no placement 1-4 is also "missing"; it
-  // costs one refetch per distinct set, never one per poll.
-  const podiumIds = new Set(results.map(cls => cls.classId));
-  const missingKey = classProgress
-    .filter(cls => cls.resultsReleasedAt && !podiumIds.has(cls.classId))
-    .map(cls => cls.classId)
-    .sort()
-    .join(',');
+  // The tab's one clock: every tick refetches the podium and the progress together, so a later
+  // placement correction on an already-released class reaches the podium too.
   const queryClient = useQueryClient();
-  const reconciledKey = useRef('');
   useEffect(() => {
-    if (!progressLoaded || podiumLoading || missingKey === reconciledKey.current) return;
-    reconciledKey.current = missingKey;
-    if (missingKey !== '') {
-      void queryClient.invalidateQueries({ queryKey: showResultsQueryKey(showId) });
-    }
-  }, [progressLoaded, podiumLoading, missingKey, queryClient, showId]);
+    const timer = setInterval(() => {
+      void Promise.all([
+        queryClient.invalidateQueries({ queryKey: showResultsQueryKey(showId) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.showClassProgress(showId) }),
+      ]);
+    }, PROGRESS_REFRESH_MS);
+    return () => clearInterval(timer);
+  }, [queryClient, showId]);
 
   // Narrowing happens here, after useShowResults/useVisibleResultFields own what may be shown.
   const pendingAll = useMemo(() => derivePendingClasses(classProgress), [classProgress]);
@@ -266,7 +258,7 @@ function PodiumContent({ showId, showEntries = [] }: PodiumContentProps) {
   );
 }
 
-/** The one clock for the tab: Pending and the podium refresh together off this poll. */
+/** The one clock for the tab: Pending and the podium refresh together on this interval. */
 const PROGRESS_REFRESH_MS = 30 * 1000;
 
 const RESULTS_VIEW_PARAM = 'resultsView';

@@ -5,8 +5,8 @@ import { useCurrentPersonId } from './useCurrentPersonId';
 let mockAuthPersonId: string | null | undefined;
 let mockProfile: { person_id: string } | undefined;
 
-vi.mock('./useAuthContext', () => ({
-  useAuthContext: () => ({ personId: mockAuthPersonId }),
+vi.mock('./useEntriesPersonId', () => ({
+  useEntriesPersonId: () => mockAuthPersonId ?? null,
 }));
 vi.mock('./useExhibitorProfile', () => ({
   useExhibitorProfile: () => ({ profile: mockProfile }),

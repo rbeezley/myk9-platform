@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { useEntriesPersonId } from '@/hooks/useEntriesPersonId';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useUserStore } from '@/store/userStore';
 import { useUsersQuery } from '@/hooks/queries/useUsersQuery';
@@ -26,6 +27,7 @@ export function useRoleBasedDogs() {
   const { userWithRoles, hasRole } = useAuthContext();
   const { dogs: allDogs, isLoading, error } = useDogStoreCompat();
   const allPeople = useUserStore(state => state.people);
+  const cachedPersonId = useEntriesPersonId();
 
   const filteredDogs = useMemo(() => {
     if (!userWithRoles || isLoading || error) {
@@ -39,14 +41,14 @@ export function useRoleBasedDogs() {
 
     // Exhibitors only see their own dogs. Prefer the canonical people.id from RBAC;
     // the auth id lookup is only for legacy sessions that predate databaseUserId.
-    const userPersonId = resolveViewerPersonId(userWithRoles, allPeople);
+    const userPersonId = resolveViewerPersonId(userWithRoles, allPeople, cachedPersonId);
 
     if (!userPersonId) {
       return [];
     }
 
     return selectOwnedDogs(allDogs, userPersonId);
-  }, [userWithRoles, allDogs, allPeople, hasRole, isLoading, error]);
+  }, [userWithRoles, allDogs, allPeople, cachedPersonId, hasRole, isLoading, error]);
 
   return filteredDogs;
 }
@@ -102,32 +104,34 @@ export function useDogAccess(dogId: string): RecordAccess {
   const { userWithRoles, hasRole } = useAuthContext();
   const { dogs } = useDogStoreCompat();
   const allPeople = useUserStore(state => state.people);
+  const cachedPersonId = useEntriesPersonId();
 
   return useMemo(() => {
     if (!userWithRoles) return 'unresolved';
     if (isStaffViewer(hasRole)) return 'allowed';
 
-    const viewerPersonId = resolveViewerPersonId(userWithRoles, allPeople);
+    const viewerPersonId = resolveViewerPersonId(userWithRoles, allPeople, cachedPersonId);
     if (!viewerPersonId) return 'unresolved';
 
     const dog = dogs.find(d => d.id === dogId);
     if (!dog) return 'missing';
     return dog.ownerId === viewerPersonId ? 'allowed' : 'denied';
-  }, [userWithRoles, hasRole, dogs, dogId, allPeople]);
+  }, [userWithRoles, hasRole, dogs, dogId, allPeople, cachedPersonId]);
 }
 
 export function usePersonAccess(personId: string): RecordAccess {
   const { userWithRoles, hasRole } = useAuthContext();
   const allPeople = useUserStore(state => state.people);
+  const cachedPersonId = useEntriesPersonId();
 
   return useMemo(() => {
     if (!userWithRoles) return 'unresolved';
     if (isStaffViewer(hasRole)) return 'allowed';
 
-    const viewerPersonId = resolveViewerPersonId(userWithRoles, allPeople);
+    const viewerPersonId = resolveViewerPersonId(userWithRoles, allPeople, cachedPersonId);
     if (!viewerPersonId) return 'unresolved';
     return personId === viewerPersonId ? 'allowed' : 'denied';
-  }, [userWithRoles, hasRole, personId, allPeople]);
+  }, [userWithRoles, hasRole, personId, allPeople, cachedPersonId]);
 }
 
 /**
@@ -219,12 +223,14 @@ export function useCanAccessPerson(personId: string): boolean {
 export function useCurrentUserPersonId(): string | null {
   const { userWithRoles } = useAuthContext();
   const allPeople = useUserStore(state => state.people);
+  const cachedPersonId = useEntriesPersonId();
 
   return useMemo(() => {
     if (!userWithRoles) return null;
     if (userWithRoles.databaseUserId) return userWithRoles.databaseUserId;
+    if (cachedPersonId) return cachedPersonId;
 
     const userPerson = getUserPersonFromAuthId(userWithRoles.id, allPeople);
     return userPerson?.id || null;
-  }, [userWithRoles, allPeople]);
+  }, [userWithRoles, allPeople, cachedPersonId]);
 }

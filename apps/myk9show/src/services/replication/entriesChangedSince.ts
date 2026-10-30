@@ -23,24 +23,44 @@ interface ReadWindow {
 export interface EntriesReadPlan {
   /** True only when the view read can be skipped; the caller then returns no rows. */
   skip: boolean;
+  /**
+   * MYK9-1521: the server said the caller may read none of this show (revoked to
+   * zero). Only an explicit `caller_has_access: false` sets it; an absent field
+   * (a server older than the migration), `true` or an unusable probe never do.
+   */
+  callerHasNoAccess: boolean;
   /** Call once the view read completed AND its rows were applied; never on error or abort. */
   recordCompleted: () => void;
 }
 
-const NO_PROBE: EntriesReadPlan = { skip: false, recordCompleted: () => {} };
+const NO_PROBE: EntriesReadPlan = {
+  skip: false,
+  callerHasNoAccess: false,
+  recordCompleted: () => {},
+};
 
 interface Probe {
   changed: boolean;
   serverNow: number;
+  callerHasAccess: boolean | undefined;
 }
 
-/** Strict parse of `{changed: boolean, server_now: timestamp}`; anything else is unknown. */
+/**
+ * Strict parse of `{changed: boolean, server_now: timestamp, caller_has_access?: boolean}`;
+ * anything else is unknown. A `caller_has_access` that is present but not a boolean
+ * makes the whole answer unknown.
+ */
 function parseProbe(data: unknown): Probe | null {
   if (typeof data !== 'object' || data === null || Array.isArray(data)) return null;
-  const { changed, server_now: serverNow } = data as Record<string, unknown>;
+  const {
+    changed,
+    server_now: serverNow,
+    caller_has_access: callerHasAccess,
+  } = data as Record<string, unknown>;
   if (typeof changed !== 'boolean' || typeof serverNow !== 'string') return null;
+  if (callerHasAccess !== undefined && typeof callerHasAccess !== 'boolean') return null;
   const serverMs = Date.parse(serverNow);
-  return Number.isFinite(serverMs) ? { changed, serverNow: serverMs } : null;
+  return Number.isFinite(serverMs) ? { changed, serverNow: serverMs, callerHasAccess } : null;
 }
 
 /**
@@ -89,9 +109,13 @@ export async function planEntriesRead(params: ReadWindow): Promise<EntriesReadPl
   const last = lastViewRead.get(showId);
   const settled =
     last !== undefined && last.watermark === watermark && last.serverReadAt >= watermark + bufferMs;
-  if (!probe.changed && settled) return { skip: true, recordCompleted: () => {} };
+  const callerHasNoAccess = probe.callerHasAccess === false;
+  if (!probe.changed && settled) {
+    return { skip: true, callerHasNoAccess, recordCompleted: () => {} };
+  }
   return {
     skip: false,
+    callerHasNoAccess,
     recordCompleted: () => {
       lastViewRead.set(showId, { watermark, serverReadAt: probe.serverNow });
     },

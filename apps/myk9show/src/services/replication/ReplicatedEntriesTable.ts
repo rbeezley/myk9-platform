@@ -359,6 +359,8 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     // MYK9-1369: the last view read is recorded only once the engine has applied
     // its rows; a read whose rows were never written must not license a skip.
     let recordViewRead = () => {};
+    // MYK9-1521: set when this pass's probe said the caller may read none of the show.
+    let probedNoAccess = false;
 
     const adapter: SyncReplicatedTableAdapter<EntryRow, ReplicatedEntry> = {
       ...this.getRowRefetchAdapter(),
@@ -402,7 +404,9 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
           bufferMs: REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN,
         };
         recordViewRead = () => {};
+        probedNoAccess = false;
         const readPlan = await planEntriesRead(readWindow);
+        probedNoAccess = readPlan.callerHasNoAccess;
         if (readPlan.skip) return [];
         const completed = (done: EntryRow[]) => {
           recordViewRead = readPlan.recordCompleted;
@@ -524,15 +528,24 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       },
     };
 
-    const result = await syncReplicatedTable(
-      this,
-      adapter,
-      { value: showScopeId },
-      {
-        forceFullSync: forceFullSync || needsReceiptReferenceRefresh,
-        incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN,
-      }
-    );
+    const syncOptions = {
+      forceFullSync: forceFullSync || needsReceiptReferenceRefresh,
+      incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN,
+    };
+    let result = await syncReplicatedTable(this, adapter, { value: showScopeId }, syncOptions);
+    // MYK9-1521: a caller revoked to zero reads no rows, so an incremental pass
+    // sees nothing move and stale cleanup (full syncs only) would wait for the
+    // count cadence. The probe has just said they hold no access: run the full
+    // pass now so `verifyScopeEmpty` re-proves it and clears the show's rows.
+    if (result.success && probedNoAccess && (await this.getEntriesByShow(showScopeId)).length > 0) {
+      const purge = await syncReplicatedTable(
+        this,
+        adapter,
+        { value: showScopeId },
+        { ...syncOptions, forceFullSync: true, skipMutationUpload: true }
+      );
+      result = { ...purge, rowsAffected: result.rowsAffected + purge.rowsAffected };
+    }
     if (result.success) recordViewRead();
 
     if (

@@ -60,8 +60,29 @@ describe('useMyShowResults (MYK9-1026)', () => {
       totalFaults: 2,
       finalPlacement: null,
       resultsReleasedAt: null,
+      serverConfirmed: true,
     });
     expect(result.current.has('e2')).toBe(false);
+  });
+
+  // MYK9-1519: the offline fallback nulls the same result columns the server's mask does,
+  // so only a server answer may say a result is withheld.
+  it.each([
+    ['confirmed', true],
+    ['confirmed-move-up-link-unavailable', true],
+    ['replica-offline', false],
+    ['replica-after-error', false],
+  ])('marks rows from a %s read as serverConfirmed=%s', async (source, expected) => {
+    getUserEntries.mockResolvedValue({
+      data: [{ id: 'e1', show_id: 'show-1', is_scored: true, result_status: null }],
+      error: null,
+      source,
+    });
+
+    const { result } = renderHook(() => useMyShowResults('show-1'), { wrapper });
+
+    await waitFor(() => expect(result.current.size).toBe(1));
+    expect(result.current.get('e1')?.serverConfirmed).toBe(expected);
   });
 
   it('re-reads when a class is released or unreleased (classes table changes)', async () => {

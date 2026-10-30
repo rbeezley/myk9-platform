@@ -45,10 +45,6 @@ vi.mock('@/hooks/queries/useSecretaryTasks', () => ({
   useDeleteTask: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
-vi.mock('@/hooks/useEntriesToday', () => ({
-  useEntriesToday: () => ({ lines: [], showNames: new Map() }),
-}));
-
 vi.mock('@/hooks/queries/usePendingEntries', () => ({
   usePendingEntries: () => ({ data: mockPendingEntries }),
 }));

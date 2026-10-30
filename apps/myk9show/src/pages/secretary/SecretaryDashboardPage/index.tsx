@@ -13,7 +13,6 @@ import {
   type AttentionCounts,
 } from '@/features/show-map/attention';
 import { AttentionNeededStrip } from './AttentionNeededStrip';
-import { YourEntriesTodayCard } from './YourEntriesTodayCard';
 import { getEntryManagementHref } from '@/features/entry-operations/entryAttentionRoutes';
 import { MyShowsSection, MyShowsSectionSkeleton } from './MyShowsSection';
 import { TasksTab } from './TasksTab';
@@ -132,9 +131,6 @@ export function SecretaryDashboardPage() {
 
       {/* Attention strip */}
       <AttentionNeededStrip items={attentionNeeded} countFailed={pendingEntriesError} />
-
-      {/* Own entries today: lighter than Needs attention, and it links to the entries page. */}
-      <YourEntriesTodayCard />
 
       {/* Phase-grouped show sections */}
       <div className="px-5 pb-2">

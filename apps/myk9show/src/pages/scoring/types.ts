@@ -18,6 +18,7 @@ import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTabl
 import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
 import type { SecretaryEntry } from '@/services/database/entries';
+import { canonicalizeTrialType } from '@/types/template.types';
 import { canPrefillSheet, toExistingScore } from './toExistingScore';
 
 /**
@@ -407,18 +408,12 @@ const SPORT_TYPE_BY_ORG_DISCIPLINE: Record<string, string> = {
   'ASCA:Scent Detection': 'asca-scent-detection',
 };
 
-/**
- * Trial types are stored in two forms: display names ("Scent Work") and snake_case
- * ("scent_work"). One canonical key (lowercase, no separators) makes both resolve.
- */
-function canonicalTrialType(value: string): string {
-  return value.toLowerCase().replace(/[\s_-]+/g, '');
-}
+const trialToken = (value: string): string => value.toLowerCase().replace(/[^a-z0-9]/g, '');
 
 const SPORT_TYPE_LOOKUP = new Map(
   Object.entries(SPORT_TYPE_BY_ORG_DISCIPLINE).map(([key, code]) => {
     const [org = '', discipline = ''] = key.split(':');
-    return [`${org.toUpperCase()}:${canonicalTrialType(discipline)}`, code] as const;
+    return [`${org}:${trialToken(discipline)}`, code] as const;
   })
 );
 
@@ -427,9 +422,11 @@ export function deriveSportType(
   trialType: string | null | undefined
 ): string | null {
   if (!trialType) return null;
-  return (
-    SPORT_TYPE_LOOKUP.get(`${organization.toUpperCase()}:${canonicalTrialType(trialType)}`) ?? null
-  );
+  // Stored values come as display labels, snake_case and historic "ORG Label" aliases;
+  // canonicalizeTrialType resolves the enum ones, the raw token covers the rest
+  // (e.g. "Scent Work Nationals").
+  const discipline = canonicalizeTrialType(trialType) ?? trialType;
+  return SPORT_TYPE_LOOKUP.get(`${organization.toUpperCase()}:${trialToken(discipline)}`) ?? null;
 }
 
 /**

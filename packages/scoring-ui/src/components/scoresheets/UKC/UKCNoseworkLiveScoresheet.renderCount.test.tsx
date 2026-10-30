@@ -3,12 +3,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { UKCNoseworkLiveScoresheet } from './UKCNoseworkLiveScoresheet';
 import type { ScoresheetEntry, ScoresheetClassInfo, ResolvedClassRules } from '../../../types';
 
-// MYK9-1364: the real stopwatch runs here (no hook mock). ScoresheetDogCard is not
+// MYK9-1364: the real stopwatch runs here (no hook mock). ScoresheetHeader is not
 // memoised, so it renders once per render of the scoresheet body -- a host-render
 // counter.
 const body = vi.hoisted(() => ({ renders: 0 }));
-vi.mock('../../ScoresheetDogCard', () => ({
-  ScoresheetDogCard: () => {
+vi.mock('../../ScoresheetHeader', () => ({
+  ScoresheetHeader: () => {
     body.renders += 1;
     return null;
   },

@@ -9,9 +9,14 @@
  */
 
 import React, { useState, useCallback } from 'react';
-import { ClipboardCheck, X } from 'lucide-react';
-import { Button, Input, Card, cn } from '@myk9/ui';
-import { ScoresheetDogCard } from '../../ScoresheetDogCard';
+import { Button, Card, cn } from '@myk9/ui';
+import { ScoresheetShell } from '../../ScoresheetShell';
+import { ScoresheetTimerCard, timerPrimaryButtonClass } from '../../ScoresheetTimerCard';
+import { ManualTimeField } from '../../ManualTimeField';
+import { FaultStepper } from '../../FaultStepper';
+import { ScoreConfirmationDialog, timeRows } from '../../ScoreConfirmationDialog';
+import { TimerResetButton } from '../../TimerResetButton';
+import { resultLabel } from '../../../utils/resultLabel';
 import { StopwatchTime } from '../../StopwatchTime';
 import { MaxTimeRing } from '../../MaxTimeRing';
 import { formatScoresheetSubtitle } from '../../../utils/scoresheetSubtitle';
@@ -30,13 +35,25 @@ import type { ExtendedResult } from '../../../types/scoreData';
 const RESULT_OPTIONS: { value: ExtendedResult; label: string; activeClass: string }[] = [
   {
     value: 'Q',
-    label: 'Qualified',
+    label: resultLabel('Q'),
     activeClass: 'bg-green-600 hover:bg-green-700 border-green-600',
   },
-  { value: 'NQ', label: 'NQ', activeClass: 'bg-amber-500 hover:bg-amber-600 border-amber-500' },
-  { value: 'ABS', label: 'Absent', activeClass: 'bg-gray-500 hover:bg-gray-600 border-gray-500' },
-  { value: 'EX', label: 'Excused', activeClass: 'bg-red-600 hover:bg-red-700 border-red-600' },
-  { value: 'DQ', label: 'DQ', activeClass: DQ_ACTIVE_CLASS },
+  {
+    value: 'NQ',
+    label: resultLabel('NQ'),
+    activeClass: 'bg-amber-500 hover:bg-amber-600 border-amber-500',
+  },
+  {
+    value: 'ABS',
+    label: resultLabel('ABS'),
+    activeClass: 'bg-gray-500 hover:bg-gray-600 border-gray-500',
+  },
+  {
+    value: 'EX',
+    label: resultLabel('EX'),
+    activeClass: 'bg-red-600 hover:bg-red-700 border-red-600',
+  },
+  { value: 'DQ', label: resultLabel('DQ'), activeClass: DQ_ACTIVE_CLASS },
 ];
 
 const NQ_REASONS = ['Incorrect Call', 'Max Time', 'False Alert', 'Handler Error'];
@@ -136,321 +153,193 @@ export const ASCAScentDetectionLiveScoresheet: React.FC<LiveScoresheetProps> = (
 
   return (
     <>
-      <div className="min-h-screen bg-background">
-        <div className="max-w-2xl mx-auto">
-          {/* Header */}
-          <header className="flex items-center gap-3 px-4 py-3 border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-10">
-            {upButton}
-            <div className="flex-1">
-              <h1 className="text-lg max-sm:text-base font-semibold flex items-center gap-2">
-                <ClipboardCheck className="h-5 w-5 text-primary" />
-                ASCA Scent Detection
-              </h1>
-              <p className="text-sm text-muted-foreground">{formatScoresheetSubtitle(classInfo)}</p>
-            </div>
-            {headerActions}
-          </header>
-
-          <div className="p-4 space-y-4">
-            {/* Dog Info */}
-            <ScoresheetDogCard
-              armband={entry.armband}
-              dogName={entry.dogName}
-              breed={entry.breed}
-              handlerName={entry.handlerName}
-            />
-
-            {/* Timer */}
-            <Card className="p-6 relative overflow-hidden">
-              {maxTimeMs > 0 && (
-                <StopwatchTime stopwatch={stopwatch}>
-                  {elapsedMs => (
-                    <MaxTimeRing
-                      className="absolute top-3 right-3"
-                      remainingMs={Math.max(0, maxTimeMs - elapsedMs)}
-                      maxTimeMs={maxTimeMs}
-                    />
-                  )}
-                </StopwatchTime>
+      <ScoresheetShell
+        header={{
+          upButton,
+          armband: entry.armband,
+          dogName: entry.dogName,
+          breed: entry.breed,
+          handlerName: entry.handlerName,
+          titleLines: ['ASCA Scent Detection'],
+          subtitle: formatScoresheetSubtitle(classInfo),
+          headerActions,
+        }}
+        actions={{
+          onCancel: onBack,
+          onSave: handleSubmitClick,
+          saveDisabled:
+            scoring.isSubmitting || !scoring.qualifying || scoring.disqualifyReasonMissing,
+          isSubmitting: scoring.isSubmitting,
+        }}
+      >
+        <ScoresheetTimerCard
+          clock={
+            <span
+              className={cn(
+                'font-mono',
+                stopwatch.shouldShow30SecondWarning() && 'text-amber-500',
+                stopwatch.isTimeExpired() && 'text-destructive'
               )}
-
-              <div className="text-center pt-8">
-                <div
-                  className={cn(
-                    'text-5xl font-mono font-bold tracking-tight',
-                    stopwatch.shouldShow30SecondWarning() && 'text-amber-500',
-                    stopwatch.isTimeExpired() && 'text-destructive'
-                  )}
-                >
-                  <StopwatchTime stopwatch={stopwatch} />
-                </div>
-
-                <div className="text-sm text-muted-foreground mt-2 tabular-nums">
-                  <StopwatchTime stopwatch={stopwatch}>
-                    {elapsedMs =>
-                      timerLimitLine(elapsedMs, areaMaxSeconds, stopwatch.getRemainingTime())
-                    }
-                  </StopwatchTime>
-                </div>
-
-                <div className="mt-6">
-                  {stopwatch.isRunning ? (
-                    <Button
-                      size="lg"
-                      variant="destructive"
-                      className="w-32 h-12 text-lg font-semibold"
-                      onClick={handleStopTimer}
-                      data-testid="timer-stop"
-                    >
-                      Stop
-                    </Button>
-                  ) : stopwatch.time > 0 && stopwatch.isTimeExpired() ? (
-                    <Button
-                      size="lg"
-                      variant="outline"
-                      className="w-32 h-12 text-lg font-semibold"
-                      onClick={handleResetTimer}
-                    >
-                      Reset
-                    </Button>
-                  ) : stopwatch.time > 0 ? (
-                    <Button
-                      size="lg"
-                      variant="secondary"
-                      className="w-32 h-12 text-lg font-semibold"
-                      onClick={handleStartTimer}
-                    >
-                      Resume
-                    </Button>
-                  ) : (
-                    <Button
-                      size="lg"
-                      className="w-32 h-12 text-lg font-semibold bg-green-600 hover:bg-green-700"
-                      onClick={handleStartTimer}
-                      data-testid="timer-start"
-                    >
-                      Start
-                    </Button>
-                  )}
-                </div>
-                <RecordAreaTimeButton
-                  areaNames={scoring.areas.map(a => a.areaName)}
-                  timedArea={area.timedArea}
-                  isRunning={stopwatch.isRunning}
-                  elapsedMs={stopwatch.time}
-                  onRecord={handleRecordArea}
-                />
-              </div>
-            </Card>
-
-            {/* Warning */}
-            {warningMessage && (
-              <div
-                className={cn(
-                  'px-4 py-3 rounded-lg text-center font-medium',
-                  warningMessage === 'Time Expired'
-                    ? 'bg-destructive/10 text-destructive'
-                    : 'bg-amber-500/10 text-amber-600'
-                )}
-              >
-                {warningMessage}
-              </div>
-            )}
-
-            {/* Area Times */}
-            {scoring.areas.map((searchArea, index) => (
-              <Card key={index} className="p-4">
-                <label className="text-sm font-medium text-muted-foreground mb-1 flex justify-between">
-                  <span>{searchArea.areaName}</span>
-                  <span className="text-xs">Max: {maxTimeLabel(maxTimeForArea(rules, index))}</span>
-                </label>
-                <div className="relative">
-                  <Input
-                    type="text"
-                    value={searchArea.time}
-                    onChange={e => scoring.handleAreaUpdate(index, 'time', e.target.value)}
-                    placeholder="0:00.00"
-                    className="text-center text-xl font-mono pr-12"
-                    aria-label={`${searchArea.areaName} time`}
+            >
+              <StopwatchTime stopwatch={stopwatch} />
+            </span>
+          }
+          limit={
+            <StopwatchTime stopwatch={stopwatch}>
+              {elapsedMs => timerLimitLine(elapsedMs, areaMaxSeconds, stopwatch.getRemainingTime())}
+            </StopwatchTime>
+          }
+          aside={
+            maxTimeMs > 0 && (
+              <StopwatchTime stopwatch={stopwatch}>
+                {elapsedMs => (
+                  <MaxTimeRing
+                    className="flex-shrink-0"
+                    remainingMs={Math.max(0, maxTimeMs - elapsedMs)}
+                    maxTimeMs={maxTimeMs}
                   />
-                  {searchArea.time && (
-                    <button
-                      type="button"
-                      className="absolute right-0 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center text-muted-foreground hover:text-foreground"
-                      aria-label={`Clear ${searchArea.areaName} time`}
-                      onClick={() => scoring.handleAreaUpdate(index, 'time', '')}
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  )}
-                </div>
-              </Card>
-            ))}
-
-            {/* Result Chips */}
-            <Card className="p-4 space-y-4">
-              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-                {RESULT_OPTIONS.map(opt => (
-                  <Button
-                    key={opt.value}
-                    variant={scoring.qualifying === opt.value ? 'default' : 'outline'}
-                    className={cn('h-12', scoring.qualifying === opt.value && opt.activeClass)}
-                    onClick={() => handleResultSelect(opt.value)}
-                    data-testid={`result-${opt.value}`}
-                  >
-                    {opt.label}
-                  </Button>
-                ))}
-              </div>
-
-              {/* Faults */}
-              {scoring.qualifying === 'Q' && (
-                <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                  <span className="font-medium">Faults:</span>
-                  <div className="flex items-center gap-3">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => scoring.setFaultCount(Math.max(0, scoring.faultCount - 1))}
-                      data-testid="fault-decrement"
-                    >
-                      -
-                    </Button>
-                    <span className="text-xl font-bold w-8 text-center">{scoring.faultCount}</span>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => scoring.setFaultCount(scoring.faultCount + 1)}
-                      data-testid="fault-increment"
-                    >
-                      +
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {scoring.qualifying === 'DQ' && (
-                <DisqualifyReason
-                  sportType="ASCA_SCENT_DETECTION"
-                  reason={scoring.nonQualifyingReason}
-                  onReasonChange={scoring.setNonQualifyingReason}
-                />
-              )}
-
-              {/* NQ Reason */}
-              {scoring.qualifying === 'NQ' && (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">NQ Reason:</label>
-                  <select
-                    value={scoring.nonQualifyingReason}
-                    onChange={e => scoring.setNonQualifyingReason(e.target.value)}
-                    className="w-full h-10 px-3 rounded-md border border-input bg-background"
-                  >
-                    {NQ_REASONS.map(reason => (
-                      <option key={reason} value={reason}>
-                        {reason}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-            </Card>
-
-            {/* Submit */}
-            <div className="flex gap-3 pt-2 pb-8">
-              <Button variant="outline" className="flex-1 h-12" onClick={onBack}>
-                Cancel
-              </Button>
-              <Button
-                className="flex-1 h-12"
-                onClick={handleSubmitClick}
-                disabled={
-                  scoring.isSubmitting || !scoring.qualifying || scoring.disqualifyReasonMissing
-                }
-                data-testid="submit-btn"
-              >
-                {scoring.isSubmitting ? 'Saving...' : 'Save'}
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Confirmation Dialog */}
-      {showConfirmation && (
-        <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-          data-testid="confirmation-dialog"
+                )}
+              </StopwatchTime>
+            )
+          }
         >
-          <Card className="w-full max-w-md p-6 space-y-4 animate-in fade-in zoom-in-95">
-            <div>
-              <h2 className="text-xl font-semibold">Score Confirmation</h2>
-              <p className="text-sm text-muted-foreground">{formatScoresheetSubtitle(classInfo)}</p>
-            </div>
-
-            <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-              <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-primary flex items-center justify-center shadow-sm">
-                <span className="text-sm font-bold text-primary-foreground">{entry.armband}</span>
-              </div>
-              <div>
-                <div className="font-medium">{entry.dogName}</div>
-                <div className="text-xs text-muted-foreground">Handler: {entry.handlerName}</div>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex justify-between py-2 border-b border-border">
-                <span className="text-muted-foreground">Result</span>
-                <span
-                  className={cn(
-                    'font-semibold',
-                    scoring.qualifying === 'Q' && 'text-green-600',
-                    scoring.qualifying === 'NQ' && 'text-amber-500',
-                    scoring.qualifying === 'ABS' && 'text-gray-500',
-                    scoring.qualifying === 'EX' && 'text-red-600',
-                    scoring.qualifying === 'DQ' && 'font-bold'
-                  )}
-                >
-                  {scoring.qualifying}
-                </span>
-              </div>
-              <div className="flex justify-between py-2 border-b border-border">
-                <span className="text-muted-foreground">Time</span>
-                <span className="font-mono font-semibold">{scoring.calculateTotalTime()}</span>
-              </div>
-              {scoring.qualifying === 'DQ' && (
-                <div className="flex justify-between py-2 border-b border-border">
-                  <span className="text-muted-foreground">DQ Reason</span>
-                  <span className="font-medium">{scoring.nonQualifyingReason}</span>
-                </div>
+          {stopwatch.isRunning ? (
+            <Button
+              variant="destructive"
+              className={timerPrimaryButtonClass}
+              onClick={handleStopTimer}
+              data-testid="timer-stop"
+            >
+              Stop
+            </Button>
+          ) : stopwatch.time > 0 && stopwatch.isTimeExpired() ? (
+            <Button
+              variant="outline"
+              className={timerPrimaryButtonClass}
+              onClick={handleResetTimer}
+            >
+              Reset
+            </Button>
+          ) : (
+            <Button
+              variant={stopwatch.time > 0 ? 'secondary' : 'default'}
+              className={cn(
+                timerPrimaryButtonClass,
+                stopwatch.time === 0 && 'bg-green-600 hover:bg-green-700'
               )}
-              {scoring.faultCount > 0 && (
-                <div className="flex justify-between py-2 border-b border-border">
-                  <span className="text-muted-foreground">Faults</span>
-                  <span className="font-semibold text-amber-500">{scoring.faultCount}</span>
-                </div>
-              )}
-            </div>
+              onClick={handleStartTimer}
+              data-testid={stopwatch.time > 0 ? undefined : 'timer-start'}
+            >
+              {stopwatch.time > 0 ? 'Resume' : 'Start'}
+            </Button>
+          )}
+          <TimerResetButton
+            visible={!stopwatch.isRunning && stopwatch.time > 0 && !stopwatch.isTimeExpired()}
+            onReset={handleResetTimer}
+          />
+          <RecordAreaTimeButton
+            areaNames={scoring.areas.map(a => a.areaName)}
+            timedArea={area.timedArea}
+            isRunning={stopwatch.isRunning}
+            elapsedMs={stopwatch.time}
+            onRecord={handleRecordArea}
+          />
+        </ScoresheetTimerCard>
 
-            <div className="flex gap-3 pt-2">
+        {warningMessage && (
+          <div
+            className={cn(
+              'rounded-lg px-3 py-2 text-center text-sm font-medium',
+              warningMessage === 'Time Expired'
+                ? 'bg-destructive/10 text-destructive'
+                : 'bg-amber-500/10 text-amber-600'
+            )}
+          >
+            {warningMessage}
+          </div>
+        )}
+
+        {scoring.areas.map((searchArea, index) => (
+          <ManualTimeField
+            key={index}
+            label={scoring.areas.length > 1 ? searchArea.areaName : undefined}
+            value={searchArea.time}
+            onChange={value => scoring.handleAreaUpdate(index, 'time', value)}
+            ariaLabel={`${searchArea.areaName} time`}
+            maxLabel={maxTimeLabel(maxTimeForArea(rules, index))}
+          />
+        ))}
+
+        <Card className="space-y-2 p-3">
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+            {RESULT_OPTIONS.map(opt => (
               <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => setShowConfirmation(false)}
+                key={opt.value}
+                variant={scoring.qualifying === opt.value ? 'default' : 'outline'}
+                className={cn('h-12', scoring.qualifying === opt.value && opt.activeClass)}
+                onClick={() => handleResultSelect(opt.value)}
+                data-testid={`result-${opt.value}`}
               >
-                Cancel
+                {opt.label}
               </Button>
-              <Button
-                className="flex-1"
-                onClick={handleConfirmSubmit}
-                disabled={scoring.isSubmitting}
-                data-testid="confirm-submit-btn"
+            ))}
+          </div>
+
+          {scoring.qualifying === 'Q' && (
+            <FaultStepper
+              value={scoring.faultCount}
+              onChange={scoring.setFaultCount}
+              testIds={{ decrement: 'fault-decrement', increment: 'fault-increment' }}
+            />
+          )}
+
+          {scoring.qualifying === 'DQ' && (
+            <DisqualifyReason
+              sportType="ASCA_SCENT_DETECTION"
+              reason={scoring.nonQualifyingReason}
+              onReasonChange={scoring.setNonQualifyingReason}
+            />
+          )}
+
+          {scoring.qualifying === 'NQ' && (
+            <div className="flex items-center gap-2">
+              <label className="flex-shrink-0 text-sm font-medium">NQ Reason:</label>
+              <select
+                value={scoring.nonQualifyingReason}
+                onChange={e => scoring.setNonQualifyingReason(e.target.value)}
+                className="h-11 w-full rounded-md border border-input bg-background px-3"
               >
-                {scoring.isSubmitting ? 'Submitting...' : 'Confirm & Submit'}
-              </Button>
+                {NQ_REASONS.map(reason => (
+                  <option key={reason} value={reason}>
+                    {reason}
+                  </option>
+                ))}
+              </select>
             </div>
-          </Card>
-        </div>
+          )}
+        </Card>
+      </ScoresheetShell>
+
+      {showConfirmation && (
+        // INTENT: the Score Confirmation is the read-back the judge copies onto the
+        // paper scoresheet. Do not remove it, skip it or auto-dismiss it (MYK9-1501).
+        <ScoreConfirmationDialog
+          subtitle={formatScoresheetSubtitle(classInfo)}
+          armband={entry.armband}
+          dogName={entry.dogName}
+          handlerName={entry.handlerName}
+          result={scoring.qualifying}
+          rows={[
+            ...timeRows(scoring.areas, scoring.calculateTotalTime()),
+            ...(scoring.faultCount > 0
+              ? [{ label: 'Faults', value: scoring.faultCount, className: 'text-amber-500' }]
+              : []),
+          ]}
+          reason={scoring.nonQualifyingReason}
+          isSubmitting={scoring.isSubmitting}
+          onCancel={() => setShowConfirmation(false)}
+          onConfirm={handleConfirmSubmit}
+        />
       )}
     </>
   );

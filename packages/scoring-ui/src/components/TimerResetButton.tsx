@@ -1,15 +1,17 @@
 /**
- * TimerResetButton — a labelled reset under the main Start/Stop button
- * (MYK9-1086).
+ * TimerResetButton — a labelled reset beside the main Start/Resume button
+ * (MYK9-1086, MYK9-1501).
  *
  * Replaces the unlabelled grey icon tucked in the timer card's corner, which
  * judges missed or mistook for something else. It only renders when there is
  * a stopped time to clear, so it is never in reach while the dog is searching.
+ * It sits beside Resume in the timer card's single controls row.
  */
 
 import React from 'react';
 import { RotateCcw } from 'lucide-react';
-import { Button } from '@myk9/ui';
+import { Button, cn } from '@myk9/ui';
+import { timerSecondaryButtonClass } from './ScoresheetTimerCard';
 
 export const TimerResetButton: React.FC<{ visible: boolean; onReset: () => void }> = ({
   visible,
@@ -20,8 +22,7 @@ export const TimerResetButton: React.FC<{ visible: boolean; onReset: () => void 
     <Button
       type="button"
       variant="outline"
-      // mt-6: far enough below Resume that a gloved tap does not land on it.
-      className="mt-6 h-12 gap-2 rounded-full px-6 text-base font-semibold"
+      className={cn(timerSecondaryButtonClass)}
       onClick={onReset}
       data-testid="timer-reset"
     >

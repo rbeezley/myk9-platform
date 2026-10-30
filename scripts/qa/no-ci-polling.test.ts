@@ -38,6 +38,8 @@ const REFUSE: Array<[string, string]> = [
   ['gh pr checks 123 --watch', 'gh-pr-checks-watch'],
   ['gh pr checks 123 --watch --interval 30', 'gh-pr-checks-watch'],
   ['gh pr checks 123 2>&1 --watch', 'gh-pr-checks-watch'],
+  // Accepted false deny (header, MYK9-1492): a backgrounded sleep is still refused.
+  ['sleep 60 >/dev/null 2>&1 &', 'sleep'],
 ];
 
 const ALLOW: string[] = [

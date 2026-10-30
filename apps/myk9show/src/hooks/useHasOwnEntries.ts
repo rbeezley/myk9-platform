@@ -15,7 +15,11 @@ import { useEntriesPersonId } from '@/hooks/useEntriesPersonId';
 import { deriveEntriesIdentityState } from '@/pages/MyEntriesPage/modules/entriesIdentityState';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
-import { serverHasOwnEntries } from '@/services/database/entries/ownEntriesExistence';
+import { hasExhibitorGroupRoles } from '@/components/layout/sidebar/browseTabs';
+import {
+  localReplicaHasOwnEntry,
+  serverHasOwnEntries,
+} from '@/services/database/entries/ownEntriesExistence';
 import {
   readOwnEntriesMemory,
   writeOwnEntriesMemory,
@@ -23,10 +27,18 @@ import {
 
 export type OwnEntriesState = 'yes' | 'no' | 'unknown';
 
-const REFETCH_DEBOUNCE_MS = 1000;
+const REFETCH_DEBOUNCE_MS = 5000;
+
+/** 'no' needs the server at zero AND an empty local replica; a replica hit only ever keeps the item. */
+async function hasOwnEntries(personId: string): Promise<boolean> {
+  if (await serverHasOwnEntries()) return true;
+  return localReplicaHasOwnEntry(personId);
+}
 
 export function useHasOwnEntries(): OwnEntriesState {
-  const { user, loading, personIdentityState } = useAuthContext();
+  const { user, loading, personIdentityState, getUserRoles } = useAuthContext();
+  // Only an exhibitor who also holds a staff role has a My Entries item to decide.
+  const relevant = hasExhibitorGroupRoles(getUserRoles());
   const personId = useEntriesPersonId();
   const queryClient = useQueryClient();
   const identityState = deriveEntriesIdentityState({
@@ -40,15 +52,17 @@ export function useHasOwnEntries(): OwnEntriesState {
   // remembered answer holds.
   const { data: serverHasEntries } = useQuery({
     queryKey: ['own-entries', 'server-has-any', personId],
-    queryFn: serverHasOwnEntries,
-    enabled: !!personId && identityState === 'resolved',
+    queryFn: () => hasOwnEntries(personId as string),
+    enabled: relevant && !!personId && identityState === 'resolved',
     staleTime: 5 * 60_000,
     retry: false,
   });
 
   // A checkout's entry or a dog arriving by sync re-asks the server; a burst is one refetch.
+  // A known 'yes' never needs re-asking, so only an unanswered or 'no' hook listens.
+  const knownYes = serverHasEntries === true;
   useEffect(() => {
-    if (!personId) return;
+    if (!relevant || !personId || knownYes) return;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const onChange = () => {
       clearTimeout(timer);
@@ -67,11 +81,12 @@ export function useHasOwnEntries(): OwnEntriesState {
       unsubEntries();
       unsubDogs();
     };
-  }, [personId, queryClient]);
+  }, [relevant, personId, knownYes, queryClient]);
 
   const remembered = personId ? readOwnEntriesMemory(personId) : null;
-  const answer: OwnEntriesState =
-    identityState === 'missing'
+  const answer: OwnEntriesState = !relevant
+    ? 'unknown'
+    : identityState === 'missing'
       ? 'no'
       : serverHasEntries !== undefined
         ? serverHasEntries

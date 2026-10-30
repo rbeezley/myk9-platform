@@ -43,7 +43,7 @@ import { ROLE_LABELS } from '@/services/rbac/roleUiConstants';
 import { isWizardSurface, isPathInWizardAllowlist } from '@/config/surface';
 import type { SidebarConfig, NavGroup, NavItem, NavRailLink, NavRailMenu } from './types';
 import type { OwnEntriesState } from '@/hooks/useHasOwnEntries';
-import { browseTabsForRoles, isExhibitorOnlyRoles } from './browseTabs';
+import { browseTabsForRoles, hasExhibitorGroupRoles, isExhibitorOnlyRoles } from './browseTabs';
 import { formatShowDateRange } from '@/lib/format/dates';
 import { truncateRailTitle } from './currentShow';
 import type { Show } from '@/types/show-types';
@@ -198,7 +198,7 @@ export function buildUnifiedSidebarConfig(
     // 5. As Exhibitor section (exhibitor with other roles): the rarest destination, so last of the
     // shared items
     // Only a confirmed absence of the viewer's own entries hides it: unknown keeps it (MYK9-1491).
-    if (hasAnyRole(userRoles, [UserRole.EXHIBITOR]) && ownEntries !== 'no') {
+    if (hasExhibitorGroupRoles(userRoles) && ownEntries !== 'no') {
       groups.push({
         title: 'As Exhibitor',
         items: [

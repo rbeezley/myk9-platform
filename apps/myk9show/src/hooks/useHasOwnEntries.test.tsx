@@ -4,13 +4,18 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { railOwnEntriesState, useHasOwnEntries } from './useHasOwnEntries';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { serverHasOwnEntries } from '@/services/database/entries/ownEntriesExistence';
+import {
+  localReplicaHasOwnEntry,
+  serverHasOwnEntries,
+} from '@/services/database/entries/ownEntriesExistence';
+import { UserRole } from '@/types/auth-types';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 
 vi.mock('@/hooks/useAuthContext');
 vi.mock('@/services/database/entries/ownEntriesExistence', () => ({
   serverHasOwnEntries: vi.fn(),
+  localReplicaHasOwnEntry: vi.fn(),
 }));
 vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
   replicatedEntriesTable: { subscribe: vi.fn(() => () => {}) },
@@ -21,12 +26,18 @@ vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
 
 type Identity = 'unresolved' | 'resolved' | 'missing';
 
-function mockAuth(personId: string | null, personIdentityState: Identity, loading = false) {
+function mockAuth(
+  personId: string | null,
+  personIdentityState: Identity,
+  loading = false,
+  roles: UserRole[] = [UserRole.EXHIBITOR, UserRole.SECRETARY]
+) {
   (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
     user: { id: 'user-1' },
     loading,
     personId,
     personIdentityState,
+    getUserRoles: () => roles,
   });
 }
 
@@ -45,6 +56,10 @@ function stubServerFails() {
 }
 
 beforeEach(() => {
+  vi.resetAllMocks();
+  (replicatedEntriesTable.subscribe as ReturnType<typeof vi.fn>).mockReturnValue(() => {});
+  (replicatedDogsTable.subscribe as ReturnType<typeof vi.fn>).mockReturnValue(() => {});
+  (localReplicaHasOwnEntry as ReturnType<typeof vi.fn>).mockResolvedValue(false);
   queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   vi.clearAllMocks();
   window.localStorage.clear();
@@ -108,6 +123,51 @@ describe('useHasOwnEntries', () => {
     expect(result.current).toBe('no');
   });
 
+  it.each([
+    ['an exhibitor-only account', [UserRole.EXHIBITOR]],
+    ['a staff account with no exhibitor role', [UserRole.SECRETARY]],
+  ])('asks nothing and listens to nothing for %s', (_name, roles) => {
+    mockAuth('person-1', 'resolved', false, roles);
+    stubServer(true);
+    const { result } = renderHook(() => useHasOwnEntries(), { wrapper });
+    expect(result.current).toBe('unknown');
+    expect(serverHasOwnEntries).not.toHaveBeenCalled();
+    expect(replicatedEntriesTable.subscribe).not.toHaveBeenCalled();
+    expect(replicatedDogsTable.subscribe).not.toHaveBeenCalled();
+  });
+
+  it('is yes, and not remembered as no, when the server counts none but the replica holds one', async () => {
+    mockAuth('person-1', 'resolved');
+    stubServer(false);
+    (localReplicaHasOwnEntry as ReturnType<typeof vi.fn>).mockResolvedValue(true);
+    const { result } = renderHook(() => useHasOwnEntries(), { wrapper });
+    await waitFor(() => expect(result.current).toBe('yes'));
+    expect(localReplicaHasOwnEntry).toHaveBeenCalledWith('person-1');
+    expect(window.localStorage.getItem('myk9-has-own-entries:person-1')).toBe('yes');
+  });
+
+  it('keeps the item when the replica cannot be read', async () => {
+    mockAuth('person-1', 'resolved');
+    stubServer(false);
+    (localReplicaHasOwnEntry as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('idb'));
+    const { result } = renderHook(() => useHasOwnEntries(), { wrapper });
+    await waitFor(() => expect(localReplicaHasOwnEntry).toHaveBeenCalled());
+    expect(result.current).toBe('unknown');
+  });
+
+  it('holds no replica subscription once the answer is yes', async () => {
+    const unsub = vi.fn();
+    (replicatedEntriesTable.subscribe as ReturnType<typeof vi.fn>).mockReturnValue(unsub);
+    mockAuth('person-1', 'resolved');
+    stubServer(true);
+    const { result } = renderHook(() => useHasOwnEntries(), { wrapper });
+    await waitFor(() => expect(result.current).toBe('yes'));
+    const subscribed = (replicatedEntriesTable.subscribe as ReturnType<typeof vi.fn>).mock.calls
+      .length;
+    expect(subscribed).toBeGreaterThan(0);
+    expect(unsub).toHaveBeenCalledTimes(subscribed);
+  });
+
   describe.each([
     ['entries', replicatedEntriesTable],
     ['dogs', replicatedDogsTable],
@@ -131,7 +191,7 @@ describe('useHasOwnEntries', () => {
         onChange();
       });
       await act(async () => {
-        await vi.advanceTimersByTimeAsync(1100);
+        await vi.advanceTimersByTimeAsync(5100);
       });
       vi.useRealTimers();
 

@@ -10,6 +10,10 @@
  */
 
 import { supabase } from '../supabaseClient';
+import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
+import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
+import { selectOwnedDogIds } from '@/utils/dogOwnership';
+import { filterOwnReplicaEntries } from './userEntriesRead';
 
 export async function serverHasOwnEntries(): Promise<boolean> {
   const { count, error } = await supabase
@@ -18,4 +22,17 @@ export async function serverHasOwnEntries(): Promise<boolean> {
     .eq('is_own_entry', true);
   if (error) throw error;
   return (count ?? 0) > 0;
+}
+
+/**
+ * Whether the local entries replica holds an entry of the person's own (same rule as
+ * `getUserEntries`' replica fallback). A veto only: a stale or partial replica can keep the rail
+ * item, never hide it. Throws when the replica cannot be read, so doubt keeps the item.
+ */
+export async function localReplicaHasOwnEntry(personId: string): Promise<boolean> {
+  const [entries, dogs] = await Promise.all([
+    replicatedEntriesTable.getAllOrThrow(),
+    replicatedDogsTable.getAllDogs(),
+  ]);
+  return filterOwnReplicaEntries(entries, selectOwnedDogIds(dogs, personId), personId).length > 0;
 }

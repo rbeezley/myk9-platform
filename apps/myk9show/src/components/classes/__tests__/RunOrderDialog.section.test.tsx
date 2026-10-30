@@ -160,13 +160,11 @@ describe('RunOrderDialog — section-aware UI', () => {
       expect(onApply).toHaveBeenCalledWith(preset, 'all');
     });
 
-    it('offers Manual Drag and Drop for a single section and skips the renumber step', async () => {
-      const onApply = vi.fn().mockResolvedValue(undefined);
-      const { user } = renderDialog(multiSectionEntries, onApply);
+    it('does not offer Manual Drag and Drop under a single section, only under All', async () => {
+      const { user } = renderDialog(multiSectionEntries);
+      expect(screen.getByText('Manual Drag and Drop')).toBeInTheDocument();
       await user.click(screen.getByRole('button', { name: 'Section B' }));
-      await user.click(screen.getByText('Manual Drag and Drop'));
-      await user.click(screen.getByRole('button', { name: 'Apply' }));
-      expect(onApply).toHaveBeenCalledWith('manual', 'B');
+      expect(screen.queryByText('Manual Drag and Drop')).not.toBeInTheDocument();
     });
 
     it('switches to Section A scope when that tab is clicked', async () => {

@@ -36,6 +36,17 @@ vi.mock('@/services/replication', () => ({
   replicatedTrialsTable: { getTrialById: vi.fn(), getTrialsByShow: vi.fn(), sync: vi.fn() },
 }));
 
+// The show's entries scope: synced by default so a genuinely empty list still
+// reads "No Entries Yet"; the not-on-device test flips it (MYK9-1520).
+const entriesScope = vi.hoisted(() => ({ synced: true }));
+vi.mock('@/services/replication/entriesShowSyncState', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/services/replication/entriesShowSyncState')>()),
+  hasShowEntriesSynced: vi.fn(async () => entriesScope.synced),
+}));
+vi.mock('@/features/offline-readiness/OfflineReadyBadge', () => ({
+  OfflineReadyBadge: () => <button type="button">Save for show day</button>,
+}));
+
 vi.mock('@/hooks/useAuthContext', async importOriginal => {
   const actual = await importOriginal<typeof import('@/hooks/useAuthContext')>();
   const { UserRole } = await import('@/types/auth-types');
@@ -134,6 +145,7 @@ const renderPage = (syncStatus: ReplicationSyncContextValue['status'] = settledS
           path="/at-show/:showId/class/:classIdA/:classIdB"
           element={<AtShowCombinedEntryListPage />}
         />
+        <Route path="/at-show/:showId" element={<div data-testid="class-list-page" />} />
       </Routes>
     </ReplicationSyncTestProvider>,
     { initialRoute: '/at-show/show-1/class/class-a/class-b' }
@@ -141,7 +153,9 @@ const renderPage = (syncStatus: ReplicationSyncContextValue['status'] = settledS
 
 describe('AtShowCombinedEntryListPage (Phase 1h combined Section A/B)', () => {
   beforeEach(() => {
+    entriesScope.synced = true;
     vi.clearAllMocks();
+    vi.mocked(replicatedTrialsTable.sync).mockReset();
     seed();
   });
 
@@ -232,5 +246,29 @@ describe('AtShowCombinedEntryListPage (Phase 1h combined Section A/B)', () => {
       releaseSync();
     }
     expect(await screen.findByText('No Entries Yet')).toBeInTheDocument();
+  });
+
+  it('says the entries are not on this device, never No Entries Yet, when the show was never saved', async () => {
+    entriesScope.synced = false;
+    vi.mocked(replicatedTrialsTable.sync).mockResolvedValue({ success: false } as never);
+    vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([] as never);
+
+    renderPage();
+
+    expect(await screen.findByText('Entries are not on this device')).toBeInTheDocument();
+    expect(screen.queryByText('No Entries Yet')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Save for show day' })).toBeInTheDocument();
+  });
+
+  // MYK9-1500: a combined list's Up is the same fixed route as a single list's.
+  it('Up goes to the show class list, and there is no "Back to main app" exit', async () => {
+    renderPage();
+    await screen.findByText('Rex');
+    fireEvent.click(screen.getByRole('button', { name: 'Actions menu' }));
+    expect(screen.queryByText('Back to main app')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Classes' }));
+
+    expect(await screen.findByTestId('class-list-page')).toBeInTheDocument();
   });
 });

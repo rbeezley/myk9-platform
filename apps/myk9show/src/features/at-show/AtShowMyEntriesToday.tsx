@@ -8,8 +8,9 @@
  * action — ahead of the full ringside class-administration list.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ListChecks, WifiOff } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ListChecks, WifiOff } from 'lucide-react';
+import { RingsideUpButton } from '@myk9/ui';
 import type { CheckInStatus } from '@myk9/core';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
@@ -206,13 +207,7 @@ export const AtShowMyEntriesToday: React.FC<AtShowMyEntriesTodayProps> = ({
           it needs its own way out. `/` resolves per-role via `HomeRedirect`,
           landing an exhibitor-only account on `/exhibitor/entries` (My
           Shows), never back into this same show (MYK9-800 walk finding #3). */}
-      <Link
-        to="/"
-        className="mb-2 inline-flex min-h-11 items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" aria-hidden />
-        Back to dashboard
-      </Link>
+      <RingsideUpButton label="Dashboard" className="mb-2" onClick={() => navigate('/')} />
       {(showName || showDateLabel || venue) && (
         <div className="mb-3 text-center" data-testid="at-show-identity">
           {showName && <p className="text-base font-semibold">{showName}</p>}

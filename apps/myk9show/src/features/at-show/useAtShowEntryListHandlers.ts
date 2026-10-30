@@ -30,6 +30,7 @@ import { supabase } from '@/services/database/supabaseClient';
 import { calculateRunOrder, toMyK9ShowRunOrderPreset } from '@/lib/runOrderUtils';
 import { notifyRunOrderPersistError } from './runOrderErrorToast';
 import { persistRunOrderResults } from './persistRunOrderResults';
+import { toStatusUpdateFields } from './ringsideClassStatusMap';
 
 type ResetConfirmState = { show: boolean; entry: Entry | null };
 
@@ -327,6 +328,7 @@ export function useAtShowEntryListHandlers(
           id: e.id,
           armband: e.armband != null ? String(e.armband) : null,
           section: e.section ?? null,
+          runOrder: e.exhibitorOrder ?? null,
         })),
         // Translate the wide ringside preset to myK9Show's supported set —
         // notably ringside 'random-all' → 'random'. A bare cast let 'random-all'
@@ -334,7 +336,7 @@ export function useAtShowEntryListHandlers(
         toMyK9ShowRunOrderPreset(preset)
       );
       try {
-        await persistRunOrderResults(results);
+        await persistRunOrderResults(results, localEntries);
       } catch (error) {
         // The single-class RunOrderDialog fires this fire-and-forget (`void
         // onApplyOrder(...)`), so a re-throw would surface as an unhandled
@@ -370,11 +372,12 @@ export function useAtShowEntryListHandlers(
   const handleStatusDialogChange = useCallback<EntryListHandlers['handleStatusDialogChange']>(
     async (status, timeValue) => {
       // ringside passes its own status string; the replication adapter maps it
-      // to myK9Show's vocabulary (lossy, owner-approved) + threads start_time.
+      // to a class status + ring phase, and the time to the field that status owns.
+      const ringsideStatus = status as Parameters<RingsideReplication['updateClassStatus']>[1];
       await replication.updateClassStatus(
         deps.classId ?? '',
-        status as Parameters<RingsideReplication['updateClassStatus']>[1],
-        timeValue ? { start_time: timeValue } : undefined
+        ringsideStatus,
+        toStatusUpdateFields(ringsideStatus, timeValue)
       );
     },
     [replication, deps.classId]
@@ -431,10 +434,12 @@ export function useAtShowEntryListHandlers(
     [stubPrint]
   );
 
-  const handleStatisticsClick = useCallback<EntryListHandlers['handleStatisticsClick']>(() => {
-    // INTENT (spike): stats page not mounted at /at-show — signal "no stats".
-    return false;
-  }, []);
+  // Statistics opens from ClassOptionsDialog itself (ClassStatisticsDialog reads the
+  // replicated entries), so the page has nothing to do. The contract requires the
+  // handler; its presence is only what shows the tile.
+  const handleStatisticsClick = useCallback<
+    EntryListHandlers['handleStatisticsClick']
+  >(() => {}, []);
 
   // Silence unused-in-spike setter (kept in deps for parity with the shim).
   void setLocalEntries;

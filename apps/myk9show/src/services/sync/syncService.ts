@@ -5,7 +5,7 @@
  * Stores now use replicated tables directly (see showStore, trialStore, etc.)
  *
  * This stub remains only for Phase 6 features (OfflineEntryCreator,
- * OfflineScoringService, OfflineCheckInService) which will be updated
+ * OfflineCheckInService) which will be updated
  * to use @myk9/replication in Phase 6.
  *
  * DO NOT USE IN NEW CODE - use @myk9/replication instead.

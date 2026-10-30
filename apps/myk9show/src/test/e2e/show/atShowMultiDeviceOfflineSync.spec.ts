@@ -1,50 +1,87 @@
 import { expect, test, type Page } from '@playwright/test';
 import { signInAsSecretary } from '../uat/shared/auth';
 import {
+  cleanupDisposableEntry,
+  seedDisposableEntry,
+  type DisposableEntry,
+} from '../helpers/isolatedFixtures';
+import {
   installSharedStagingWriteGuard,
+  isIsolatedSupabaseTarget,
   type GuardedRingsideRpcCall,
 } from '../helpers/sharedStagingWriteGuard';
 
 /**
  * Suite category: feature-audit.
  *
- * Multi-device offline sync-merge (MYK9-42). Models two independent devices
- * (two isolated Playwright browser contexts, each with its own IndexedDB
- * replica and localStorage session) both scoring the *same* entry while
- * offline, then both reconnecting close together. This is the natural
- * extension of show/atShowOfflineScoring.spec.ts (single-device round trip)
- * to the multi-device case the offline-first design exists for.
+ * Multi-device offline conflict (MYK9-42, MYK9-1487). Two independent devices
+ * (two Playwright browser contexts, each with its own IndexedDB replica and
+ * session) score the *same* entry while offline, then reconnect one after the
+ * other. This is the multi-device case the offline-first design exists for.
  *
- * Scope: this proves the sync-merge round trip doesn't deadlock or drop a
- * mutation when two devices flush near-simultaneously — it does NOT exercise
- * server-side optimistic-concurrency rejection (the real "40001 conflict"
- * class documented in packages/replication/src/conflict/*, which is unit
- * -tested there with a real version-mismatch response). Reproducing that
- * precisely at the browser layer would require matching the live RPC's actual
- * conflict-error shape; each device's ringside_update_entry call is
- * intercepted (installSharedStagingWriteGuard) so the shared staging entry is
- * never actually mutated by this spec, which also means both intercepted
- * calls unconditionally "succeed" — a true conflict-rejection path stays a
- * unit-test concern.
+ * What this proves, end to end against an isolated stack:
+ *   1. Device A reconnects first and its write lands on the server.
+ *   2. Device B reconnects second. Its queued write carries a stale OCC token,
+ *      so the server genuinely rejects it (40001) and the app parks the row as
+ *      a conflict instead of overwriting A's score. B's user sees the
+ *      "This record was changed elsewhere" notice (ReplicationSyncProvider).
+ *   3. B's user resolves it with "Take theirs". B's queue drains to 0 and both
+ *      devices hold the same final result (A's).
  *
- * Fixture: entry ...051 (Willow, Container Novice A) — confirmed/paid, and not
- * used by atShowOfflineScoring.spec.ts (...053) or atShowJudgeScoring.spec.ts
- * (...052), so the three specs can run in parallel without racing on IndexedDB
- * state for the same entry.
+ * The write guard (`installSharedStagingWriteGuard`) still protects shared
+ * staging, but on an isolated host (127.0.0.1) it records and FORWARDS
+ * `ringside_update_entry` (`isObservableIsolatedRingsideWrite`), so the
+ * conflict here is the server's own, not a simulated one. The unit-level merge
+ * rules stay in packages/replication/src/conflict/*.
+ *
+ * Fixture: each test mints its own disposable dog + entry in Container Novice A
+ * (copied from seeded entry ...051, which is never touched) and deletes it
+ * afterwards, so reruns need no reseed and parallel browser projects never share
+ * a row. It skips unless the target is an isolated host: on shared staging the
+ * write guard answers both devices with synthetic success, so B never receives
+ * the server's OCC rejection, and fixtures must never be inserted there.
  */
 
 const SHOW_ID = 'dededede-0000-0000-0000-000000000010';
 const CLASS_ID = 'dec1a55e-0000-0000-0000-000000000031';
-const ENTRY_ID = 'dededede-0000-0000-0000-000000000051';
-const SCORE_PATH = `/at-show/${SHOW_ID}/class/${CLASS_ID}/score/${ENTRY_ID}`;
+const TEMPLATE_ENTRY_ID = 'dededede-0000-0000-0000-000000000051';
 const CLASS_PATH = `/at-show/${SHOW_ID}/class/${CLASS_ID}`;
 const REPLICATION_DB_NAME = 'myK9_Replication';
 const PENDING_MUTATIONS_STORE = 'pending_mutations';
 
-test.describe('At-show multi-device offline sync-merge', () => {
-  test('two devices score the same entry offline and both flush cleanly on reconnect', async ({
+const CONFLICT_TITLE = 'This record was changed elsewhere';
+
+test.describe('At-show multi-device offline conflict', () => {
+  let seed: DisposableEntry | null = null;
+
+  test.beforeEach(async () => {
+    // Skipped (not seeded) on shared staging: seeding asserts an isolated target too.
+    if (!isIsolatedSupabaseTarget(process.env.VITE_SUPABASE_URL)) return;
+    seed = await seedDisposableEntry({
+      showId: SHOW_ID,
+      classId: CLASS_ID,
+      templateEntryId: TEMPLATE_ENTRY_ID,
+      label: 'Multi Device',
+    });
+  });
+
+  test.afterEach(async () => {
+    const current = seed;
+    seed = null;
+    if (current) await cleanupDisposableEntry(current);
+  });
+
+  test('second device to reconnect gets a conflict notice, and Take theirs settles both devices on the first score', async ({
     browser,
   }) => {
+    test.skip(
+      !isIsolatedSupabaseTarget(process.env.VITE_SUPABASE_URL),
+      'needs an isolated host: the shared-staging write guard returns synthetic success, so no real OCC conflict'
+    );
+    test.setTimeout(180_000);
+    if (!seed) throw new Error('disposable entry was not seeded');
+    const entryId = seed.entryId;
+    const scorePath = `/at-show/${SHOW_ID}/class/${CLASS_ID}/score/${entryId}`;
     const contextA = await browser.newContext();
     const contextB = await browser.newContext();
     const deviceA = await contextA.newPage();
@@ -53,42 +90,25 @@ test.describe('At-show multi-device offline sync-merge', () => {
     try {
       const rpcCallsA: GuardedRingsideRpcCall[] = [];
       const rpcCallsB: GuardedRingsideRpcCall[] = [];
-      await installSharedStagingWriteGuard(deviceA, {
-        ringsideRpcCalls: rpcCallsA,
-        versionBase: 100,
-      });
-      await installSharedStagingWriteGuard(deviceB, {
-        ringsideRpcCalls: rpcCallsB,
-        versionBase: 200,
-      });
+      await installSharedStagingWriteGuard(deviceA, { ringsideRpcCalls: rpcCallsA });
+      await installSharedStagingWriteGuard(deviceB, { ringsideRpcCalls: rpcCallsB });
 
-      await signInAsSecretary(deviceA, SCORE_PATH);
-      await signInAsSecretary(deviceB, SCORE_PATH);
-      await expect(deviceA.getByRole('button', { name: /^Save$/ })).toBeVisible({
-        timeout: 20_000,
-      });
-      await expect(deviceB.getByRole('button', { name: /^Save$/ })).toBeVisible({
-        timeout: 20_000,
-      });
+      await signInAsSecretary(deviceA, scorePath);
+      await signInAsSecretary(deviceB, scorePath);
+      for (const device of [deviceA, deviceB]) {
+        await expect(device.getByRole('button', { name: /^Save$/ })).toBeVisible({
+          timeout: 20_000,
+        });
+      }
 
-      // Both devices go offline independently (two separate BrowserContexts,
-      // so each has its own network/IndexedDB state).
       await contextA.setOffline(true);
       await contextB.setOffline(true);
       await deviceA.evaluate(() => window.dispatchEvent(new Event('offline')));
       await deviceB.evaluate(() => window.dispatchEvent(new Event('offline')));
 
-      // Deliberately conflicting scores from the two devices.
-      await deviceA.getByTestId('result-Q').click();
-      await deviceA.getByRole('button', { name: /^Save$/ }).click();
-      await deviceA.getByRole('button', { name: /Confirm & Submit/i }).click();
-      await expect(deviceA).toHaveURL(new RegExp(escapeRegExp(CLASS_PATH)), { timeout: 15_000 });
-
-      await deviceB.getByTestId('result-NQ').click();
-      await deviceB.getByRole('button', { name: /^Save$/ }).click();
-      await deviceB.getByRole('button', { name: /Confirm & Submit/i }).click();
-      await expect(deviceB).toHaveURL(new RegExp(escapeRegExp(CLASS_PATH)), { timeout: 15_000 });
-
+      // Deliberately different scores from the two devices.
+      await scoreOffline(deviceA, 'Q');
+      await scoreOffline(deviceB, 'NQ');
       await expect
         .poll(() => readPendingMutationCount(deviceA), { timeout: 10_000 })
         .toBeGreaterThan(0);
@@ -96,27 +116,81 @@ test.describe('At-show multi-device offline sync-merge', () => {
         .poll(() => readPendingMutationCount(deviceB), { timeout: 10_000 })
         .toBeGreaterThan(0);
 
-      // Reconnect both devices close together.
+      // Device A reconnects alone: its write lands, nothing to conflict with.
       await contextA.setOffline(false);
-      await contextB.setOffline(false);
       await deviceA.evaluate(() => window.dispatchEvent(new Event('online')));
+      await expect.poll(() => readPendingMutationCount(deviceA), { timeout: 30_000 }).toBe(0);
+      expect(
+        rpcCallsA.some(
+          call => call.p_entry_id === entryId && call.p_fields?.result_status === 'qualified'
+        )
+      ).toBe(true);
+      await expect(deviceA.getByText(CONFLICT_TITLE)).toHaveCount(0);
+
+      // Device B reconnects second: its stale-token write is rejected by the
+      // server and the app asks its user instead of overwriting A.
+      await contextB.setOffline(false);
       await deviceB.evaluate(() => window.dispatchEvent(new Event('online')));
+      await expect(deviceB.getByText(CONFLICT_TITLE)).toBeVisible({ timeout: 30_000 });
+      expect(rpcCallsB.some(call => call.p_entry_id === entryId)).toBe(true);
+      // Parked, not dropped: B's queue still holds its writes until the user chooses.
+      expect(await readPendingMutationCount(deviceB)).toBeGreaterThan(0);
 
-      // Neither device's mutation queue should stall — both drain even though
-      // they raced to sync the same entry.
-      await expect.poll(() => readPendingMutationCount(deviceA), { timeout: 20_000 }).toBe(0);
-      await expect.poll(() => readPendingMutationCount(deviceB), { timeout: 20_000 }).toBe(0);
+      await deviceB.getByRole('button', { name: 'Take theirs' }).click();
+      await expect(deviceB.getByText(CONFLICT_TITLE)).toHaveCount(0);
+      await expect.poll(() => readPendingMutationCount(deviceB), { timeout: 30_000 }).toBe(0);
+      await expect.poll(() => readPendingMutationCount(deviceA), { timeout: 10_000 }).toBe(0);
 
-      // Each device's own write actually reached the (intercepted) RPC — the
-      // reconnect flush isn't silently discarding one device's queue.
-      expect(rpcCallsA.some(call => call.p_entry_id === ENTRY_ID)).toBe(true);
-      expect(rpcCallsB.some(call => call.p_entry_id === ENTRY_ID)).toBe(true);
+      // Both replicas now agree on A's score.
+      await expect
+        .poll(() => readEntryResult(deviceB, entryId), { timeout: 20_000 })
+        .toBe('qualified');
+      expect(await readEntryResult(deviceA, entryId)).toBe('qualified');
     } finally {
       await contextA.close();
       await contextB.close();
     }
   });
 });
+
+async function scoreOffline(device: Page, result: 'Q' | 'NQ') {
+  await device.getByTestId(`result-${result}`).click();
+  await device.getByRole('button', { name: /^Save$/ }).click();
+  await device.getByRole('button', { name: /Confirm & Submit/i }).click();
+  await expect(device).toHaveURL(new RegExp(escapeRegExp(CLASS_PATH)), { timeout: 15_000 });
+}
+
+async function readEntryResult(page: Page, entryId: string) {
+  return page.evaluate(
+    ({ dbName, entryId }) =>
+      new Promise<string | null>(resolve => {
+        const openReq = indexedDB.open(dbName);
+        openReq.onerror = () => resolve(null);
+        openReq.onsuccess = () => {
+          const db = openReq.result;
+          if (!db.objectStoreNames.contains('replicated_tables')) {
+            db.close();
+            resolve(null);
+            return;
+          }
+          const getReq = db
+            .transaction('replicated_tables', 'readonly')
+            .objectStore('replicated_tables')
+            .get(['entries', entryId]);
+          getReq.onsuccess = () => {
+            db.close();
+            const data = getReq.result?.data as { result_status?: string | null } | undefined;
+            resolve(data?.result_status ?? null);
+          };
+          getReq.onerror = () => {
+            db.close();
+            resolve(null);
+          };
+        };
+      }),
+    { dbName: REPLICATION_DB_NAME, entryId }
+  );
+}
 
 async function readPendingMutationCount(page: Page) {
   return page.evaluate(

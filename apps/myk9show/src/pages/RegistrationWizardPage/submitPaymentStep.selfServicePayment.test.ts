@@ -174,6 +174,7 @@ function makeContext(overrides: Partial<SubmitPaymentStepContext> = {}): SubmitP
     setRegistrationNumber: vi.fn(),
     setArmbandAssignments: vi.fn(),
     setEntryOutcomes: vi.fn(),
+    setCreatedEntryOutcomes: vi.fn(),
     markStepComplete: vi.fn(),
     setCurrentStep: vi.fn(),
     updateShowRegistration: vi.fn(),

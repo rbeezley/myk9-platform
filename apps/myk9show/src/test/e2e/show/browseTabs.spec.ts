@@ -43,11 +43,11 @@ test.describe('Browse: one rail item and a tablist over the lists', () => {
     await browse(page).click();
     await expect(page).toHaveURL(/\/shows$/);
 
-    // The Shows list beside Find Shows carries the tabs at its top.
-    const showsList = page.getByRole('region', { name: 'Shows list' });
-    await expect(showsList.getByRole('tablist', { name: 'Browse' })).toBeVisible({
-      timeout: 20_000,
-    });
+    // With no show open, Find Shows is the full-width page: the tabs sit above it and there is
+    // no Shows list pane (the list pane appears only beside an open record, MYK9-1489).
+    await expect(tablist(page)).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole('region', { name: 'Shows list' })).toHaveCount(0);
+    await expect(page.getByPlaceholder('Search shows')).toHaveCount(1);
     await expectSelected(page, 'Shows');
     expect(await tablist(page).getByRole('tab').allTextContents()).toEqual([
       'Shows',
@@ -55,6 +55,7 @@ test.describe('Browse: one rail item and a tablist over the lists', () => {
       'People',
       'Clubs',
     ]);
+    await expectNoSidewaysScroll(page);
 
     await tab(page, 'Dogs').click();
     await expect(page).toHaveURL(/\/dogs$/);

@@ -99,12 +99,13 @@ describe('RunOrderDialog — section-aware UI', () => {
   // ── Multi-section class ─────────────────────────────────────────────────────
 
   describe('multi-section class (A and B entries present)', () => {
-    it('renders the 4 basic presets', () => {
+    it("renders v3's grouped list: Combined, A then B, B then A, Other", () => {
       renderDialog(multiSectionEntries);
-      // Labels appear in both basic and section groups, so use getAllByText
-      expect(screen.getAllByText('Armband Low to High').length).toBeGreaterThanOrEqual(1);
-      expect(screen.getAllByText('Armband High to Low').length).toBeGreaterThanOrEqual(1);
-      expect(screen.getAllByText('Random Shuffle').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getByText('Combined (ignore sections)')).toBeInTheDocument();
+      // low-to-high / high-to-low appear once per armband group (Combined, A→B, B→A)
+      expect(screen.getAllByText('Armband Low to High')).toHaveLength(3);
+      expect(screen.getAllByText('Armband High to Low')).toHaveLength(3);
+      expect(screen.getByText('Random Shuffle (all dogs)')).toBeInTheDocument();
       expect(screen.getByText('Manual Drag and Drop')).toBeInTheDocument();
     });
 
@@ -119,7 +120,8 @@ describe('RunOrderDialog — section-aware UI', () => {
       renderDialog(multiSectionEntries);
       expect(screen.getByText(/Section A then B/i)).toBeInTheDocument();
       expect(screen.getByText(/Section B then A/i)).toBeInTheDocument();
-      expect(screen.getByText(/Random \(within sections\)/i)).toBeInTheDocument();
+      expect(screen.getByText('Combined (ignore sections)')).toBeInTheDocument();
+      expect(screen.getByText('Other')).toBeInTheDocument();
     });
 
     it('shows the random-sections preset option', () => {
@@ -131,18 +133,38 @@ describe('RunOrderDialog — section-aware UI', () => {
       const onApply = vi.fn().mockResolvedValue(undefined);
       const { user } = renderDialog(multiSectionEntries, onApply);
 
-      // There are multiple "Armband Low to High" labels — pick the one inside
-      // the "Section A then B" group by finding the group heading first then
-      // clicking the first preset after it. We use getAllByText and take [1]
-      // which is the first section-group version (after the basic preset).
-      const allAscLabels = screen.getAllByText('Armband Low to High');
-      await user.click(allAscLabels[1]); // second occurrence = a-then-b-asc
+      // Groups render in order Combined, A then B, B then A: index 1 = a-then-b-asc.
+      await user.click(screen.getAllByText('Armband Low to High')[1]);
 
       const applyBtn = screen.getByRole('button', { name: 'Apply' });
       expect(applyBtn).toBeEnabled();
       await user.click(applyBtn);
 
       expect(onApply).toHaveBeenCalledWith('a-then-b-asc', 'all');
+    });
+
+    it.each([
+      ['Armband Low to High', 0, 'combined-asc'],
+      ['Armband High to Low', 0, 'combined-desc'],
+      ['Armband High to Low', 1, 'a-then-b-desc'],
+      ['Armband Low to High', 2, 'b-then-a-asc'],
+      ['Armband High to Low', 2, 'b-then-a-desc'],
+      ['Random Shuffle (all dogs)', 0, 'random'],
+      ['Random Shuffle (within sections)', 0, 'random-sections'],
+      ['Manual Drag and Drop', 0, 'manual'],
+    ])('all-scope "%s" #%i applies %s', async (label, index, preset) => {
+      const onApply = vi.fn().mockResolvedValue(undefined);
+      const { user } = renderDialog(multiSectionEntries, onApply);
+      await user.click(screen.getAllByText(label)[index]);
+      await user.click(screen.getByRole('button', { name: 'Apply' }));
+      expect(onApply).toHaveBeenCalledWith(preset, 'all');
+    });
+
+    it('does not offer Manual Drag and Drop under a single section, only under All', async () => {
+      const { user } = renderDialog(multiSectionEntries);
+      expect(screen.getByText('Manual Drag and Drop')).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: 'Section B' }));
+      expect(screen.queryByText('Manual Drag and Drop')).not.toBeInTheDocument();
     });
 
     it('switches to Section A scope when that tab is clicked', async () => {
@@ -194,6 +216,19 @@ describe('RunOrderDialog — section-aware UI', () => {
       await user.click(screen.getByText(/Renumber all/i));
 
       expect(onApply).toHaveBeenCalledWith('armband-asc', 'A', 'renumber');
+    });
+
+    it('changing scope on the renumber step returns to the preset list', async () => {
+      const { user } = renderDialog(multiSectionEntries);
+      await user.click(screen.getByRole('button', { name: 'Section A' }));
+      await user.click(screen.getByText('Armband Low to High'));
+      await user.click(screen.getByRole('button', { name: 'Next' }));
+      expect(screen.getByText(/Renumber all/i)).toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: 'Section B' }));
+
+      expect(screen.queryByText(/Renumber all/i)).not.toBeInTheDocument();
+      expect(screen.getByText('Armband Low to High')).toBeInTheDocument();
     });
 
     it('Back button on renumber step returns to preset list', async () => {

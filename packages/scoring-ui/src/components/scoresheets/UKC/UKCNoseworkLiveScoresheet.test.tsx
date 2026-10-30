@@ -122,8 +122,9 @@ describe('UKCNoseworkLiveScoresheet', () => {
   });
 
   // MYK9-1086 (owner): pinned in the card corner, the ring covered the element row's time
-  // and Finish button. Dual mode carries it inside that row; single mode keeps the corner.
-  it('places the max-time ring in the element row in dual mode and in the corner otherwise', () => {
+  // and Finish button. Dual mode carries it inside that row; single mode sits beside the
+  // limit line in the timer card (MYK9-1501), never over the clock.
+  it('places the max-time ring in the element row in dual mode and in the timer card otherwise', () => {
     const { unmount } = render(<UKCNoseworkLiveScoresheet {...defaultProps} rules={dualRules} />);
     const dualRings = screen.getAllByTestId('max-time-ring');
     expect(dualRings).toHaveLength(1);
@@ -133,7 +134,8 @@ describe('UKCNoseworkLiveScoresheet', () => {
     render(<UKCNoseworkLiveScoresheet {...defaultProps} rules={singleRules} />);
     const singleRings = screen.getAllByTestId('max-time-ring');
     expect(singleRings).toHaveLength(1);
-    expect(singleRings[0]!.getAttribute('class')).toContain('absolute');
+    expect(screen.getByTestId('scoresheet-timer-card')).toContainElement(singleRings[0]!);
+    expect(singleRings[0]!.getAttribute('class')).not.toContain('absolute');
   });
 
   it('dual timer: both search and element timer render when rules.timerMode is dual', () => {
@@ -215,7 +217,7 @@ describe('UKCNoseworkLiveScoresheet', () => {
     const onBack = vi.fn();
     render(<UKCNoseworkLiveScoresheet {...defaultProps} onBack={onBack} />);
 
-    fireEvent.click(screen.getByLabelText('Back'));
+    fireEvent.click(screen.getByRole('button', { name: 'Entries' }));
     expect(onBack).toHaveBeenCalled();
   });
 });

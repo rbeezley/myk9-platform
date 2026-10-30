@@ -118,3 +118,39 @@ describe('AtShowClassRow next-up line', () => {
     expect(screen.getByText('Container Novice')).toBeInTheDocument();
   });
 });
+
+describe('AtShowClassRow status times and Offline Scoring (MYK9-1513)', () => {
+  it('shows the briefing time', () => {
+    renderRow(classEntry({ class_status: 'briefing', briefing_time: '10:00:00' }));
+    expect(screen.getByText(/Briefing 10:00 AM/)).toBeInTheDocument();
+  });
+
+  it('shows "Break Until" with the break time', () => {
+    renderRow(classEntry({ class_status: 'break', break_until: '14:30:00' }));
+    expect(screen.getByText(/Break Until 2:30 PM/)).toBeInTheDocument();
+  });
+
+  it('shows "Start Time" for the Expected start in place of the Expected line', () => {
+    renderRow(
+      classEntry({
+        class_status: 'start_time',
+        start_time: '2026-11-01T15:00:00.000Z',
+        revised_expected_start: '2026-11-01T15:00:00.000Z',
+      })
+    );
+    expect(screen.getByText(/Start Time 10:00 AM/)).toBeInTheDocument();
+    expect(screen.queryByText(/Expected/)).not.toBeInTheDocument();
+  });
+
+  it('shows the orange Offline Scoring badge and the reconnect banner', () => {
+    renderRow(classEntry({ class_status: 'offline-scoring' }));
+    expect(screen.getByText('Offline Scoring')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Offline - updates when reconnected');
+  });
+
+  it('shows neither for an ordinary in-progress class', () => {
+    renderRow(classEntry());
+    expect(screen.queryByText('Offline Scoring')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Offline - updates/)).not.toBeInTheDocument();
+  });
+});

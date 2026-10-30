@@ -12,8 +12,9 @@
  */
 import { useEffect, useRef } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, Printer } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { Printer } from 'lucide-react';
+import { RingsideUpButton } from '@myk9/ui';
 import { Button } from '@/components/ui/button';
 import { getSetupSheet } from '@/features/registries';
 import type { SetupSheet } from '@/features/registries';
@@ -39,6 +40,7 @@ export function setupSheetPrintHtml(sheets: readonly SetupSheet[]): string {
 
 export function AtShowSetupSheetPage() {
   const { showId } = useParams<{ showId: string }>();
+  const navigate = useNavigate();
   const { groups, isLoading, error, refresh } = useAtShowClassList(showId);
   const sheets = setupSheetRegistryIds(groups)
     .map(registryId => getSetupSheet(registryId))
@@ -59,12 +61,10 @@ export function AtShowSetupSheetPage() {
   return (
     <main className="ringside-root px-4 py-4">
       <div className="mb-4 flex items-center justify-between gap-2">
-        <Button asChild variant="ghost" className="min-h-11 gap-2 px-3">
-          <Link to={`/at-show/${encodeURIComponent(showId ?? '')}`}>
-            <ArrowLeft className="h-4 w-4" aria-hidden />
-            Back to classes
-          </Link>
-        </Button>
+        <RingsideUpButton
+          label="Classes"
+          onClick={() => navigate(`/at-show/${encodeURIComponent(showId ?? '')}`)}
+        />
         {sheets.length > 0 && (
           <Button className="min-h-11 gap-2 px-4" onClick={handlePrint}>
             <Printer className="h-4 w-4" aria-hidden />

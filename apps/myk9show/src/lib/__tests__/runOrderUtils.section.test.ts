@@ -240,23 +240,29 @@ describe('calculateRunOrderScoped', () => {
   });
 
   describe('preserve mode', () => {
-    it('offsets scoped entries after other entries', () => {
+    it('places scoped entries after the other section when it has no orders', () => {
       const result = calculateRunOrderScoped(mixed, 'armband-asc', 'A', 'preserve');
-      // 3 B entries get runOrders 1-3; A entries offset by 3 → 4-6
-      const aResults = result.filter(r => r.id.startsWith('a'));
-      aResults.forEach(r => expect(r.runOrder).toBeGreaterThan(3));
+      expect(result.map(r => r.runOrder).sort((a, b) => a - b)).toEqual([1, 2, 3]);
     });
 
-    it('other entries get 1-based run orders', () => {
+    it('returns results for the scoped section only', () => {
       const result = calculateRunOrderScoped(mixed, 'armband-asc', 'A', 'preserve');
-      const bResults = result.filter(r => r.id.startsWith('b'));
-      const bOrders = bResults.map(r => r.runOrder).sort((a, b) => a - b);
-      expect(bOrders).toEqual([1, 2, 3]);
+      expect(result.map(r => r.id).sort()).toEqual(['a1', 'a2', 'a3']);
     });
 
-    it('returns run orders for all entries', () => {
-      const result = calculateRunOrderScoped(mixed, 'armband-asc', 'A', 'preserve');
-      expect(result).toHaveLength(mixed.length);
+    it('returns no result for any other-section entry when it is partly unset', () => {
+      const partly = [
+        { id: 'a1', armband: '1', section: 'A', runOrder: null },
+        { id: 'a2', armband: '2', section: 'A', runOrder: null },
+        { id: 'b1', armband: '3', section: 'B', runOrder: 5 },
+        { id: 'b2', armband: '4', section: 'B', runOrder: null },
+        { id: 'b3', armband: '5', section: 'B', runOrder: 0 },
+      ];
+      const result = calculateRunOrderScoped(partly, 'armband-asc', 'A', 'preserve');
+      expect(result).toEqual([
+        { id: 'a1', runOrder: 6 },
+        { id: 'a2', runOrder: 7 },
+      ]);
     });
   });
 
@@ -315,5 +321,53 @@ describe('calculateCombinedRunOrder', () => {
     const result = calculateCombinedRunOrder(mixed, 'armband-asc', 'B', 'renumber');
     expect(result).toHaveLength(mixed.length);
     expect(result.map(r => r.id).sort()).toEqual(mixed.map(e => e.id).sort());
+  });
+});
+
+describe('calculateRunOrder — combined (ignore sections)', () => {
+  const mixed = [
+    { id: 'a1', armband: '1', section: 'A' },
+    { id: 'b1', armband: '2', section: 'B' },
+    { id: 'a2', armband: '3', section: 'A' },
+    { id: 'b2', armband: '4', section: 'B' },
+  ];
+
+  it('combined-asc interleaves sections by armband', () => {
+    expect(calculateRunOrder(mixed, 'combined-asc').map(r => r.id)).toEqual([
+      'a1',
+      'b1',
+      'a2',
+      'b2',
+    ]);
+  });
+
+  it('combined-desc interleaves sections by descending armband', () => {
+    expect(calculateRunOrder(mixed, 'combined-desc').map(r => r.id)).toEqual([
+      'b2',
+      'a2',
+      'b1',
+      'a1',
+    ]);
+  });
+});
+
+describe('calculateRunOrderScoped — preserve leaves the other section byte-for-byte', () => {
+  const scheduled = [
+    { id: 'a1', armband: '1', section: 'A', runOrder: 1 },
+    { id: 'b1', armband: '4', section: 'B', runOrder: 4 },
+    { id: 'a2', armband: '3', section: 'A', runOrder: 2 },
+    { id: 'b2', armband: '6', section: 'B', runOrder: 6 },
+    { id: 'a3', armband: '2', section: 'A', runOrder: 3 },
+    { id: 'b3', armband: '5', section: 'B', runOrder: 5 },
+  ];
+
+  it('never writes B (4,5,6) and reshuffles A within its own slots 1,2,3', () => {
+    const byId = Object.fromEntries(
+      calculateRunOrderScoped(scheduled, 'armband-asc', 'A', 'preserve').map(r => [
+        r.id,
+        r.runOrder,
+      ])
+    );
+    expect(byId).toEqual({ a1: 1, a3: 2, a2: 3 });
   });
 });

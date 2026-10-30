@@ -10,7 +10,7 @@ import {
   OccRejectionError,
   parseContainmentRetryAfterMs,
 } from './mutation-occ';
-import { TIMEOUT_PRESETS, withTimeout } from './mutation-utils';
+import { TIMEOUT_PRESETS, withHttpStatus, withTimeout } from './mutation-utils';
 import type { PendingMutation } from './types';
 
 const POSTGRES_UNIQUE_VIOLATION = '23505';
@@ -57,7 +57,11 @@ export async function executeMutation(
   switch (operation) {
     case 'INSERT': {
       if (mutation.rpc) {
-        const { data: returned, error } = await withTimeout(
+        const {
+          data: returned,
+          error,
+          status,
+        } = await withTimeout(
           supabase.rpc(mutation.rpc.name, mutation.rpc.args ?? data),
           TIMEOUT_PRESETS.standard,
           `${tableName} rpc ${mutation.rpc.name}`
@@ -74,7 +78,7 @@ export async function executeMutation(
             );
             return {};
           }
-          throw error;
+          throw withHttpStatus(error, status);
         }
         if (mutation.rpc.expectRowId && typeof returned === 'string') {
           if (returned !== mutation.rowId) {
@@ -84,7 +88,11 @@ export async function executeMutation(
         return {};
       }
 
-      const { data: rows, error } = await withTimeout(
+      const {
+        data: rows,
+        error,
+        status,
+      } = await withTimeout(
         supabase.from(tableName).insert(data).select('id'),
         TIMEOUT_PRESETS.standard,
         `${tableName} insert`
@@ -98,7 +106,7 @@ export async function executeMutation(
         );
         return {};
       }
-      if (error) throw error;
+      if (error) throw withHttpStatus(error, status);
       if (!rows || rows.length === 0) {
         throw new Error(
           `RLS policy blocked INSERT on ${tableName} for row ${mutation.rowId}. ` +
@@ -115,7 +123,11 @@ export async function executeMutation(
       // authorization (e.g. at-show ringside writes by an assigned judge). The
       // function returns the authoritative post-trigger version.
       if (mutation.rpc) {
-        const { data: returned, error } = await withTimeout(
+        const {
+          data: returned,
+          error,
+          status,
+        } = await withTimeout(
           supabase.rpc(
             mutation.rpc.name,
             mutation.rpc.args ?? {
@@ -158,7 +170,7 @@ export async function executeMutation(
               fresh
             );
           }
-          throw error;
+          throw withHttpStatus(error, status);
         }
         // The RPC returns the new integer version (or null if the function
         // signals a no-op). Surface it so the local row's OCC token stays fresh.
@@ -182,12 +194,16 @@ export async function executeMutation(
       if (mutation.serverVersion !== undefined) {
         updateQuery = updateQuery.eq('version', mutation.serverVersion);
       }
-      const { data: rows, error } = await withTimeout(
+      const {
+        data: rows,
+        error,
+        status,
+      } = await withTimeout(
         updateQuery.select('id, version'),
         TIMEOUT_PRESETS.standard,
         `${tableName} update`
       );
-      if (error) throw error;
+      if (error) throw withHttpStatus(error, status);
       if (!rows || rows.length === 0) {
         let serverCheck: { version?: number } | null | undefined;
         let serverCheckError: unknown;
@@ -215,12 +231,16 @@ export async function executeMutation(
     }
 
     case 'DELETE': {
-      const { data: rows, error } = await withTimeout(
+      const {
+        data: rows,
+        error,
+        status,
+      } = await withTimeout(
         supabase.from(tableName).delete().eq('id', mutation.rowId).select('id'),
         TIMEOUT_PRESETS.standard,
         `${tableName} delete`
       );
-      if (error) throw error;
+      if (error) throw withHttpStatus(error, status);
       // 0 rows affected means either the row was already deleted (OK,
       // idempotent) or RLS silently rejected the DELETE. We can't
       // distinguish the two, so we log a warning and let the next sync

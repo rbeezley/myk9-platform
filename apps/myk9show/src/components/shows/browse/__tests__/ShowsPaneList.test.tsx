@@ -169,6 +169,13 @@ describe('ShowsPaneList', () => {
     expect(screen.queryByRole('link', { name: 'Go to Show Management' })).not.toBeInTheDocument();
   });
 
+  it('names its search by the noun, like every browse list', () => {
+    renderList();
+    expect(screen.getByPlaceholderText('Search shows')).toBe(
+      screen.getByRole('textbox', { name: 'Search the shows list' })
+    );
+  });
+
   it('says when a search matches nothing and offers every show back', async () => {
     const user = userEvent.setup();
     data.shows = [

@@ -1,4 +1,5 @@
 import type { Page, Request } from '@playwright/test';
+import type { RequestOutcome } from './accessControlErrors';
 
 const DEFAULT_IDLE_MS = 100;
 const DEFAULT_TIMEOUT_MS = 5000;
@@ -29,9 +30,12 @@ export interface AppApiRequestSettlement {
   pendingUrls: string[];
 }
 
-export function isAppApiRequest(request: Request) {
-  const url = request.url();
+export function isAppApiUrl(url: string) {
   return url.includes('/rest/v1/') || url.includes('/functions/v1/') || url.includes('/auth/v1/');
+}
+
+export function isAppApiRequest(request: Request) {
+  return isAppApiUrl(request.url());
 }
 
 function withoutHash(url: string) {
@@ -102,6 +106,35 @@ export function watchAppApiRequests(page: Page) {
   });
 
   return tracker;
+}
+
+/**
+ * Diagnostic only (MYK9-1477): the app API requests seen since the current
+ * route started, with their outcomes. `clear()` at each route start forgets
+ * everything earlier, so one route's requests never appear in another's report.
+ */
+export interface SeenAppApiRequests {
+  outcomes: Map<Request, RequestOutcome>;
+  clear(): void;
+}
+
+export function watchSeenAppApiRequests(page: Page): SeenAppApiRequests {
+  const outcomes = new Map<Request, RequestOutcome>();
+  page.on('request', request => {
+    if (isAppApiRequest(request)) outcomes.set(request, 'no-outcome');
+  });
+  page.on('requestfinished', request => {
+    if (outcomes.has(request)) outcomes.set(request, 'finished');
+  });
+  page.on('requestfailed', request => {
+    if (outcomes.has(request)) outcomes.set(request, 'failed');
+  });
+  return {
+    outcomes,
+    clear() {
+      outcomes.clear();
+    },
+  };
 }
 
 export async function waitForAppApiRequestsToSettle(

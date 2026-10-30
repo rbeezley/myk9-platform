@@ -250,6 +250,7 @@ export const queryKeys = {
 
   // Public Show & Judge Analytics
   showStats: (showId: string) => ['analytics', 'show-stats', showId] as const,
+  showClassProgress: (showId: string) => ['analytics', 'show-class-progress', showId] as const,
   showJudges: (showId: string) => ['analytics', 'show-judges', showId] as const,
   judgeShowStats: (judgeId: string, showId: string) =>
     ['analytics', 'judge-show-stats', judgeId, showId] as const,

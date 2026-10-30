@@ -29,6 +29,9 @@ export function mapRowToStatsEntry(
     trialDate: trialMeta?.trialDate || '',
     trialName: trialMeta?.trialName || '',
     trialNumber: trialMeta?.trialNumber || '',
+    trialId: (row.trial_id as string | null) || undefined,
+    breed: (row.dog_breed as string | null) || undefined,
+    judgeIds: trialMeta?.judgeIds,
   };
 }
 
@@ -36,6 +39,7 @@ export interface StatsTrialMeta {
   trialDate: string;
   trialName: string;
   trialNumber: string;
+  judgeIds?: string[] | undefined;
 }
 
 /** The select fragment used when querying authenticated entry-result views for stats. */
@@ -43,6 +47,8 @@ export const STATS_ENTRY_SELECT = `
   id,
   dog_id,
   dog_call_name,
+  dog_breed,
+  trial_id,
   show_id,
   class_id,
   class_name,

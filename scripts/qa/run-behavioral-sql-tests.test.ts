@@ -111,6 +111,7 @@ const launchCriticalSqlTests = [
   'myk9_740_ringside_replay_idempotent_test.sql',
   'myk9_1086_ringside_update_class_test.sql',
   'myk9_1098_ringside_update_class_area_times_test.sql',
+  'myk9_1513_class_ring_phase_test.sql',
   'myk9_677_show_payments_ledger_test.sql',
   'myk9_677_submit_entries_payment_test.sql',
   'myk9_773_inherited_refund_follows_payment_test.sql',

@@ -472,6 +472,15 @@ export function isObservableIsolatedRingsideWrite(request: RequestLike) {
   return isRingsideUpdateEntryRequest(request) && isIsolatedHost(request.url);
 }
 
+/**
+ * Whether the Supabase target the app talks to is an isolated host, i.e. the
+ * guard forwards ringside writes instead of answering them locally. Specs that
+ * need the server's own response (e.g. a real OCC rejection) skip otherwise.
+ */
+export function isIsolatedSupabaseTarget(supabaseUrl: string | undefined) {
+  return isIsolatedHost(supabaseUrl ?? '');
+}
+
 function isIsolatedHost(value: string) {
   const url = parseUrl(value);
   return url?.hostname === '127.0.0.1' || url?.hostname === 'localhost';

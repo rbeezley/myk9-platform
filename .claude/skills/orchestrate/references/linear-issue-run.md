@@ -366,7 +366,10 @@ the actual state and evidence explicitly after a fresh read:
 2. A fresh `get_issue` (a nightly job may have appended criteria). Check every criterion against
    the merged diff and the tests that ran.
 3. Apply the shared disposition/evidence contract to the post-merge state and pending labels.
-   Never accept automatic Done while any criterion remains owed.
+   Never accept automatic Done while any criterion remains owed. Every owed item becomes a
+   `verify:*`/`needs:*` label or an issue relation, never prose alone. When nothing is owed
+   after the merge (every criterion met by the merged diff, the tests and the review gate, no
+   label, no open blocker or sub-issue), move the issue to Done now; do not leave it In Review.
 4. Comment on the issue:
 
 ```markdown

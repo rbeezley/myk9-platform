@@ -161,7 +161,11 @@ export function makeSingleClassProps(cse: ParityCase = {}): EntryListPageProps {
     drag: { sensors: [], handleDragStart: vi.fn(), handleDragEnd: vi.fn() },
     dialogs: dialogSlots,
     layout: layoutSlots,
-    context: { hasPermission: () => true, showId: 'show-1' },
+    context: {
+      hasPermission: () => true,
+      showId: 'show-1',
+      up: { label: 'Classes', to: '/at-show/show-1' },
+    },
   } as unknown as EntryListPageProps;
 }
 

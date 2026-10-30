@@ -133,7 +133,7 @@ export async function fetchShowsJudgeNameParts(
 
 function confirmedJudgeByClass(data: ShowJudgeRows): Map<string, JudgeNameParts> {
   const byClass = new Map<string, JudgeNameParts>();
-  // `judge_assignments_one_confirmed_class_judge` allows one confirmed row per class, so each
+  // `judge_assignments_one_confirmed_judge_per_class` allows one confirmed row per class, so each
   // class gets that row's id AND name together.
   // No cast: the get_show_judges row type comes from the generated Database types, so a change
   // to the function's RETURNS TABLE surfaces here as a type error rather than at runtime.

@@ -240,6 +240,64 @@ export const RPC_PERMANENT_CODES: ReadonlyMap<string, ReadonlySet<string>> = new
   ['set_class_judge', new Set(['P0002', '22023'])],
 ]);
 
+/** HTTP statuses of a gateway that answered but could not reach a healthy backend (MYK9-1488). */
+const GATEWAY_TRANSIENT_STATUSES: ReadonlySet<number> = new Set([502, 503, 504]);
+
+/**
+ * A 502/503/504 whose body is not a structured server error: a gateway outage. Its message is
+ * fixed and the body is kept aside in `body`, so body text such as "Forbidden" can never be read
+ * as a refusal by `isAuthorizationError` or `isRetryableError` (MYK9-1488).
+ */
+export class GatewayTransientError extends Error {
+  readonly httpStatus: number;
+  readonly body: unknown;
+  constructor(httpStatus: number, body: unknown) {
+    super(`Server busy (HTTP ${httpStatus})`);
+    this.name = 'GatewayTransientError';
+    this.httpStatus = httpStatus;
+    this.body = body;
+  }
+}
+
+/** A Postgres/PostgREST error the server itself produced: an object with a non-empty `code`. */
+function isStructuredServerError(error: unknown): error is { code: string } {
+  if (typeof error !== 'object' || error === null) return false;
+  const code = (error as { code?: unknown }).code;
+  return typeof code === 'string' && code.length > 0;
+}
+
+/**
+ * Carries the HTTP status of a failed write to the retry policy. postgrest-js reports the status
+ * beside `error`, not on it, so it is lost unless carried here.
+ *
+ * At 502/503/504 the body's shape is the gateway's, not the database's: postgrest-js may hand
+ * back a string, a number, `true`, or `{ message, code: '' }`. Only a structured server error
+ * (non-empty `code`) is kept, so a refusal still parks at once; every other body becomes a
+ * `GatewayTransientError`. Other statuses are stamped onto object errors as before.
+ */
+export function withHttpStatus(error: unknown, status: number | undefined): unknown {
+  if (typeof status !== 'number' || status <= 0) return error;
+  if (GATEWAY_TRANSIENT_STATUSES.has(status) && !isStructuredServerError(error)) {
+    return new GatewayTransientError(status, error);
+  }
+  if (typeof error === 'object' && error !== null) {
+    (error as { httpStatus?: number }).httpStatus = status;
+  }
+  return error;
+}
+
+/**
+ * Whether a retryable error is a 502/503/504 from the gateway. The server is reachable (the
+ * connectivity probe says "up"), but the database behind it is saturated: the show-day overload
+ * shape. It backs off without spending `maxRetries`, like a confirmed-unreachable uplink
+ * (MYK9-1488). A refusal never qualifies: `isRetryableError` is checked by the caller first.
+ */
+export function isGatewayTransientError(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) return false;
+  const status = (error as { httpStatus?: unknown }).httpStatus;
+  return typeof status === 'number' && GATEWAY_TRANSIENT_STATUSES.has(status);
+}
+
 /**
  * Whether an error is a CANDIDATE for "no server answer": a fetch `TypeError`, the package's
  * `TimeoutError`, an `AbortError`, or the plain object postgrest-js returns for them. The
@@ -255,7 +313,7 @@ export const RPC_PERMANENT_CODES: ReadonlyMap<string, ReadonlySet<string>> = new
  *
  * AbortError is a candidate because nothing in the upload path aborts deliberately: the only
  * `abort()` is `withTimeout`'s own, which surfaces as `TimeoutError`. HTTP 502/503/504 are not
- * distinguished: the error shapes here expose no status.
+ * transport errors here: they carry `httpStatus` and are `isGatewayTransientError`.
  */
 const POSTGREST_TRANSPORT_MESSAGE = /^(TypeError|FetchError|AbortError|TimeoutError): /;
 

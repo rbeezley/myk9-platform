@@ -22,6 +22,7 @@ export { useStopwatch } from './hooks/useStopwatch';
 export { useElementTimer } from './hooks/useElementTimer';
 export { useDragAndDropEntries } from './hooks/useDragAndDropEntries';
 export { useScoresheetScoring } from './hooks/useScoresheetScoring';
+export { useScoresheetLeave } from './hooks/useScoresheetLeave';
 
 // Phase 1: Quick Win Hooks (Sprint 25)
 export {
@@ -49,6 +50,7 @@ export {
   parseTimeToMs,
   formatTimeInputToMMSS,
 } from './utils/timeUtils';
+export { resultLabel } from './utils/resultLabel';
 export { buildResolvedClassRules, maxTimeForArea } from './utils/buildResolvedClassRules';
 export {
   getScoresheetComponent,
@@ -92,6 +94,24 @@ export type {
 export { ResultChoiceChips, type ResultChoiceChipsProps } from './components/ResultChoiceChips';
 export { StopwatchTime, type StopwatchClock } from './components/StopwatchTime';
 export { disqualifyHelpText } from './components/DisqualifyReason';
+export { ScoresheetShell, type ScoresheetShellProps } from './components/ScoresheetShell';
+export { ScoresheetHeader, type ScoresheetHeaderProps } from './components/ScoresheetHeader';
+export {
+  ScoresheetActionBar,
+  type ScoresheetActionBarProps,
+} from './components/ScoresheetActionBar';
+export {
+  ScoresheetTimerCard,
+  type ScoresheetTimerCardProps,
+} from './components/ScoresheetTimerCard';
+export { ManualTimeField, type ManualTimeFieldProps } from './components/ManualTimeField';
+export { FaultStepper, type FaultStepperProps } from './components/FaultStepper';
+export {
+  ScoreConfirmationDialog,
+  timeRows,
+  type ScoreConfirmationDialogProps,
+  type ConfirmationRow,
+} from './components/ScoreConfirmationDialog';
 
 // Scoresheets - AKC
 export { AKCScentWorkLiveScoresheet } from './components/scoresheets/AKC/AKCScentWorkLiveScoresheet';

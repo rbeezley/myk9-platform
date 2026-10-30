@@ -41,9 +41,9 @@ named in the report, not quietly absorbed.
 `Last reviewed SHA` is the newest commit on `main` that has been reviewed for that stream. Dates are
 UTC.
 
-| Stream                | Last reviewed SHA                          | Window end           | Run by                    | Run date   |
-| --------------------- | ------------------------------------------ | -------------------- | ------------------------- | ---------- |
-| `daily-commit-review` | `35c77a6c1d71e213432b146520a49028564cfe4b` | 2026-10-29T04:34:26Z | codex-daily-commit-review | 2026-10-29 |
+| Stream                | Last reviewed SHA                          | Window end           | Run by                     | Run date   |
+| --------------------- | ------------------------------------------ | -------------------- | -------------------------- | ---------- |
+| `daily-commit-review` | `792773bfbcb8a9102c75ec1830eeb21c2095b620` | 2026-10-30T04:29:04Z | codex-daily-commit-review | 2026-10-30 |
 
 If this row is ever `unset`, nobody has verified which commits the Codex daily stream has actually
 covered; the first run of either automation on this stream must take its default window and stamp a
@@ -137,6 +137,15 @@ Add a row only for an audit whose scope is a commit range. Streams scoped to _cu
 full-surface security audit, a role UX walk, the weekly reconcile — have no meaningful cursor; their
 run-to-run comparison is report-against-previous-report, and adding them here implies a precision
 they do not have.
+
+> **Provenance of the 2026-10-30 stamp.** The 33 commits from `35c77a6c1` to `1e863d802` were
+> reviewed in one pass by `claude-daily-commit-review` and reported in
+> `docs/qa/claude-daily-commit-review-2026-10-30.md`. The previous row's stamp was verified before
+> it was honoured: `docs/qa/codex-daily-commit-review-2026-10-29.md` is on `main` as `4b4584c68`,
+> its claimed interval `(20ada6552, 35c77a6c1]` is the one documentation commit it enumerates, and
+> it in turn adopted the 21-commit Claude inventory for `(542b6fa47, 20ada6552]` after counting it.
+> No coverage gap: this window begins exactly at the previous window's end.
+
 
 ## Related
 

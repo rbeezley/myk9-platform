@@ -38,6 +38,7 @@ import {
   ClassCompletionPresentation,
   EntryListDialogs,
   EntryListEmptyState,
+  EntryListNotOnDeviceState,
   EntryListSkeleton,
   SuccessToast,
   FloatingDoneButton,
@@ -64,7 +65,7 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
   const navigate = useNavigate();
   const isCombined = Boolean(combined);
   const { entries, classInfo } = data;
-  const { isRefreshing, fetchError, refresh } = dataStatus;
+  const { isRefreshing, fetchError, refresh, notOnDevice } = dataStatus;
   const { showContext, hasPermission, role } = context;
   const {
     localEntries,
@@ -189,6 +190,20 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
     );
   }
 
+  // Not loaded, which is not the same as empty: never claim "No Entries Yet"
+  // for a show whose entries this device never downloaded (MYK9-1520).
+  if (hasCompletedInitialLoad && entries.length === 0 && notOnDevice) {
+    return (
+      <EntryListNotOnDeviceState
+        className={classInfo?.className}
+        action={notOnDevice}
+        // A deep link can open this with no (or foreign) history, so go to the
+        // fixed class list the header's Up uses rather than back.
+        onGoBack={() => navigate(context.up.to)}
+      />
+    );
+  }
+
   // Empty state - the class(es) exist but have no entries
   if (hasCompletedInitialLoad && entries.length === 0) {
     return (
@@ -229,7 +244,6 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
           onRunOrderClick: () => setRunOrderDialogOpen(true),
           onRecalculatePlacements: handlers.handleRecalculatePlacements,
           onClassSettingsClick: () => setClassOptionsDialogOpen(true),
-          exitToApp: context.exitToApp,
           printOptions: [
             {
               label: 'Check-In Sheet',
@@ -249,7 +263,7 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
             },
           ],
         }}
-        HamburgerMenu={layout.HamburgerMenu}
+        up={context.up}
         CompactOfflineIndicator={layout.CompactOfflineIndicator}
         SyncIndicator={layout.SyncIndicator}
         RefreshIndicator={layout.RefreshIndicator}

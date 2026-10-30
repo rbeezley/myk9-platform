@@ -1,10 +1,14 @@
+import { useEntriesPersonId } from './useEntriesPersonId';
 import { useExhibitorProfile } from './useExhibitorProfile';
 
 /**
- * Returns the current user's person_id from their exhibitor profile.
- * Undefined while loading or if user has no profile.
+ * The current user's person id for READS. Prefers the device-cached auth pairing
+ * (`useEntriesPersonId`), which survives a cold offline boot; the exhibitor profile
+ * is a network-only read that never answers there (MYK9-1493). Undefined while
+ * loading or if neither source knows it.
  */
 export const useCurrentPersonId = (): string | undefined => {
+  const cachedPersonId = useEntriesPersonId();
   const { profile } = useExhibitorProfile();
-  return profile?.person_id;
+  return cachedPersonId ?? profile?.person_id;
 };

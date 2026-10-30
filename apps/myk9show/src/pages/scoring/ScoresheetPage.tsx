@@ -12,6 +12,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Loader2, AlertCircle, ArrowLeft, WifiOff } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { ScoresheetLeaveGuard } from '@/components/navigation/ScoresheetLeaveGuard';
+import { useSelfNavigation } from '@/components/panels/edit/useSelfNavigation';
 import { ScoresheetLoadingSkeleton } from '@/components/scoring/ScoringLoadingSkeletons';
 import { useOptimisticScoring } from '@/hooks/useOptimisticScoring';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
@@ -62,6 +64,8 @@ export function ScoresheetPage() {
     clearSubmitError,
   } = useOptimisticScoring();
 
+  const [sheetDirty, setSheetDirty] = useState(false);
+  const { selfNavigationRef, runSelfNavigation } = useSelfNavigation();
   const [entry, setEntry] = useState<ScoringEntry | null>(null);
   const [classInfo, setClassInfo] = useState<ClassInfo | null>(null);
   const [rules, setRules] = useState<ResolvedClassRules | null>(null);
@@ -167,8 +171,9 @@ export function ScoresheetPage() {
         // Auto-set check-in status to completed after scoring
         transitionToCompleted(entry.entryId);
 
-        // Navigate back to entry list
-        navigate(`/scoring/classes/${classId}/entries`);
+        // Navigate back to entry list. The score is saved, so leaving loses
+        // nothing: skip the discard prompt.
+        runSelfNavigation(() => navigate(`/scoring/classes/${classId}/entries`));
       },
       onError: err => {
         logger.error('Score submission failed:', 'pages', {}, err as Error);
@@ -310,12 +315,14 @@ export function ScoresheetPage() {
         </div>
       )}
       <MaxTimeNotSetNotice maxTimeSeconds={rules.maxTimeSeconds} registryKey={registryKey} />
+      <ScoresheetLeaveGuard isDirty={sheetDirty} selfNavigationRef={selfNavigationRef} />
       <LiveScoresheet
         entry={toScoresheetEntry(entry, classInfo)}
         classInfo={toScoresheetClassInfo(classInfo, trialDate, trialNumber, trialName)}
         rules={rules}
         onSubmit={handleSubmit}
         onBack={handleBack}
+        onDirtyChange={setSheetDirty}
       />
     </>
   );

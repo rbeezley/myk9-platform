@@ -3,7 +3,11 @@ import { resolve } from 'node:path';
 
 import type { Page, Request } from '@playwright/test';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { waitForAppApiRequestsToSettle, watchAppApiRequests } from './appApiRequestTracker';
+import {
+  waitForAppApiRequestsToSettle,
+  watchAppApiRequests,
+  watchSeenAppApiRequests,
+} from './appApiRequestTracker';
 
 type RequestEvent = 'request' | 'requestfinished' | 'requestfailed' | 'framenavigated';
 
@@ -413,5 +417,22 @@ describe('requests the outgoing document leaves behind at a navigation (MYK9-146
     harness.emit('framenavigated', child as unknown as Request);
 
     expect((await settle(tracker, harness)).pendingUrls).toEqual([STRANDED]);
+  });
+});
+
+describe('the diagnostic collector of seen requests (MYK9-1477)', () => {
+  it('records app API outcomes and forgets every request at a route start', () => {
+    const harness = createPageHarness();
+    const seen = watchSeenAppApiRequests(harness.page);
+    const finished = createRequest('http://127.0.0.1:54321/rest/v1/clubs?select=id');
+    const inFlight = createRequest('http://127.0.0.1:54321/rest/v1/stripe_orders?select=id');
+    harness.emit('request', createRequest('http://127.0.0.1:5173/assets/app.js'));
+    harness.emit('request', finished);
+    harness.emit('request', inFlight);
+    harness.emit('requestfinished', finished);
+    expect([...seen.outcomes.values()]).toEqual(['finished', 'no-outcome']);
+
+    seen.clear();
+    expect(seen.outcomes.size).toBe(0);
   });
 });

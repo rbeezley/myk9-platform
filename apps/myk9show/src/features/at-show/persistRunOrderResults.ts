@@ -11,13 +11,26 @@
  * via the replication mutation queue. The manual drag path persists an
  * already-reordered `Entry[]` slice separately; this owns the computed-preset
  * write only.
+ *
+ * Only results whose run order differs from the one the entry held before
+ * (`previous`, the list as the steward saw it) are written, so a preset that
+ * moves three dogs queues three rows, not the whole class. An entry absent from
+ * `previous` is always written. `persistEntryRunOrder` (drag) delegates here, so
+ * every run-order write shares this one diffing path.
  */
 
 import { replicatedEntriesTable } from '@/services/replication';
+import type { Entry } from '@myk9/ringside';
 import type { RunOrderResult } from '@/lib/runOrderUtils';
 
-export async function persistRunOrderResults(results: RunOrderResult[]): Promise<void> {
+export async function persistRunOrderResults(
+  results: RunOrderResult[],
+  previous: Entry[] = []
+): Promise<void> {
+  const previousOrder = new Map(previous.map(entry => [entry.id, entry.exhibitorOrder]));
   await Promise.all(
-    results.map(r => replicatedEntriesTable.updateEntry(r.id, { runOrder: r.runOrder }))
+    results
+      .filter(r => previousOrder.get(r.id) !== r.runOrder)
+      .map(r => replicatedEntriesTable.updateEntry(r.id, { runOrder: r.runOrder }))
   );
 }

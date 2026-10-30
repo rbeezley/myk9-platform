@@ -208,6 +208,14 @@ describe('useDragAndDropEntries — handleDragEnd reorder', () => {
     expect(reordered.map(e => e.id)).toEqual(['2', '3', '1']);
     expect(reordered.map(e => e.exhibitorOrder)).toEqual([1, 2, 3]);
 
+    // The pre-drop snapshot rides along so the host can write only changed rows
+    const previous = updateExhibitorOrder.mock.calls[0][1] as Entry[];
+    expect(previous.map(e => [e.id, e.exhibitorOrder])).toEqual([
+      ['1', 1],
+      ['2', 2],
+      ['3', 3],
+    ]);
+
     // External setManualOrder receives the same reordered list
     expect(setManualOrder).toHaveBeenCalledWith(reordered);
 

@@ -8,7 +8,7 @@
  * there; anything else stays on the direct path, unchanged for secretaries.
  *
  * Mirror of ringsideEntryRpc.ts. `RINGSIDE_CLASS_RPC_KEYS` MUST match the SQL
- * allow-list in the latest ringside_update_class migration (per-area times: MYK9-1098).
+ * allow-list in the latest ringside_update_class migration (ring phase and expected start: MYK9-1513).
  */
 
 export const RINGSIDE_CLASS_RPC_FUNCTION = 'ringside_update_class';
@@ -17,6 +17,9 @@ export const RINGSIDE_CLASS_RPC_FUNCTION = 'ringside_update_class';
 const RINGSIDE_CLASS_RPC_KEYS: Readonly<Record<string, string>> = {
   classStatus: 'status',
   startTime: 'start_time',
+  revisedExpectedStart: 'revised_expected_start',
+  ringPhase: 'ring_phase',
+  ringPhaseTime: 'ring_phase_time',
   timeLimitSeconds: 'time_limit_seconds',
   time_limit_seconds: 'time_limit_seconds',
   timeLimitArea2Seconds: 'time_limit_area2_seconds',

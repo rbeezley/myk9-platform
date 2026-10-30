@@ -7,6 +7,7 @@ import {
   rosterIsOwnDogsOnly,
   useCanDeleteDog,
   useCurrentUserPersonId,
+  useDogAccess,
   useRoleBasedDogs,
 } from './useRoleBasedData';
 import { fromAny, fromPartial } from '@total-typescript/shoehorn';
@@ -253,5 +254,69 @@ describe('useCanDeleteDog (mirrors the soft_delete_dog RPC gate)', () => {
   it('does not let a club admin delete a dog they neither own nor co-own', () => {
     withRole(role => role === UserRole.CLUB_ADMIN);
     expect(renderHook(() => useCanDeleteDog('legacy-dog')).result.current).toBe(false);
+  });
+});
+
+// MYK9-1493. A cold offline boot has cached roles and the device-cached person pairing, but no
+// `databaseUserId` (a network lookup that never answers). Reads must use the cached pairing;
+// with neither known the answer is "unresolved", never "no rows".
+describe('reader identity on a cold offline boot', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setMocks();
+  });
+
+  const coldBoot = (personId: string | null) => {
+    vi.mocked(useAuthContext).mockReturnValue(
+      fromPartial({
+        // `auth-user` matches NO people row here, so only the cached pairing can resolve it.
+        userWithRoles: {
+          id: 'auth-user-unlisted',
+          roles: [UserRole.EXHIBITOR],
+          permissions: [],
+          scopes: [],
+        },
+        hasRole: (role: UserRole) => role === UserRole.EXHIBITOR,
+        personId,
+      })
+    );
+  };
+
+  it('returns the owner dogs from the cached person id when databaseUserId is undefined', () => {
+    coldBoot('person-1');
+    const { result } = renderHook(() => useRoleBasedDogs());
+    expect(result.current.map(dog => dog.id)).toEqual(['current-dog-1', 'current-dog-2']);
+  });
+
+  it('returns no dogs (unresolved identity) when neither id is known', () => {
+    coldBoot(null);
+    const { result } = renderHook(() => useRoleBasedDogs());
+    expect(result.current).toEqual([]);
+  });
+
+  it('allows the owner to open their dog from the cached person id', () => {
+    coldBoot('person-1');
+    const { result } = renderHook(() => useDogAccess('current-dog-1'));
+    expect(result.current).toBe('allowed');
+  });
+
+  it('denies another owner dog from the cached person id', () => {
+    coldBoot('person-1');
+    const { result } = renderHook(() => useDogAccess('legacy-dog'));
+    expect(result.current).toBe('denied');
+  });
+
+  it('reports unresolved, not missing or denied, when neither id is known', () => {
+    coldBoot(null);
+    const { result } = renderHook(() => useDogAccess('current-dog-1'));
+    expect(result.current).toBe('unresolved');
+  });
+
+  it('never hands the cached person id to the current user person id, which writes read', () => {
+    // AddDogPanel uses it as a new dog's ownerId; an unconfirmed cached identity
+    // must not reach a write (MYK9-601).
+    coldBoot('person-1');
+    const { result } = renderHook(() => useCurrentUserPersonId());
+    expect(result.current).toBeNull();
   });
 });

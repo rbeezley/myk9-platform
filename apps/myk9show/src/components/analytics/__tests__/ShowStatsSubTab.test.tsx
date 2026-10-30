@@ -1,5 +1,5 @@
 import { render } from '@/test/utils/testUtils';
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import { vi } from 'vitest';
 import { ShowStatsSubTab } from '../ShowStatsSubTab';
 import type { StatsEntry } from '../analytics-utils';
@@ -13,6 +13,10 @@ global.ResizeObserver = class ResizeObserver {
 
 vi.mock('@/hooks/queries/useShowStats', () => ({
   useShowStats: vi.fn(),
+}));
+
+vi.mock('@/hooks/queries/useShowJudges', () => ({
+  useShowJudges: vi.fn(() => ({ data: [{ id: 'j1', name: 'Ann Judge' }] })),
 }));
 
 import { useShowStats } from '@/hooks/queries/useShowStats';
@@ -86,5 +90,91 @@ describe('ShowStatsSubTab', () => {
     expect(screen.getByText('Entries')).toBeInTheDocument();
     expect(screen.getByText('Result Distribution')).toBeInTheDocument();
     expect(screen.getByText('Performance by Dog')).toBeInTheDocument();
+  });
+
+  describe('filters and breed chart (MYK9-1512)', () => {
+    const manyEntries = Array.from({ length: 25 }, (_, i) =>
+      makeEntry({
+        id: `e${i}`,
+        dogId: `d${i}`,
+        dogCallName: `Dog${i}`,
+        searchTimeSeconds: 30 + i,
+        breed: i < 20 ? 'Beagle' : 'Lab',
+        classElement: i < 20 ? 'Interior' : 'Exterior',
+        judgeIds: i < 20 ? ['j1'] : [],
+      })
+    );
+
+    function mockEntries(data: StatsEntry[]) {
+      mockUseShowStats.mockReturnValue({ data, isLoading: false } as ReturnType<
+        typeof useShowStats
+      >);
+    }
+
+    it('shows the breed performance chart and the Filter button', () => {
+      mockEntries(manyEntries);
+      render(<ShowStatsSubTab showId="show-1" />);
+
+      expect(screen.getByText('Breed Performance')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /^Filter/ })).toBeInTheDocument();
+    });
+
+    it('lists the 20 fastest times, not 10', () => {
+      mockEntries(manyEntries);
+      render(<ShowStatsSubTab showId="show-1" />);
+
+      const table = screen.getByRole('table', { name: /fastest/i });
+      expect(within(table).getAllByRole('row')).toHaveLength(21); // header + 20
+    });
+
+    it.each([
+      ['breed=Lab', 5],
+      ['element=Exterior', 5],
+      ['judge=j1', 20],
+    ])('narrows from the URL (%s)', (query, count) => {
+      mockEntries(manyEntries);
+      render(<ShowStatsSubTab showId="show-1" />, { initialRoute: `/?${query}` });
+
+      const table = screen.getByRole('table', { name: /fastest/i });
+      expect(within(table).getAllByRole('row')).toHaveLength(Math.min(count, 20) + 1);
+    });
+
+    it('offers a way out when a filter matches nothing scored', async () => {
+      mockEntries(manyEntries);
+      const { user } = render(<ShowStatsSubTab showId="show-1" />, {
+        initialRoute: '/?breed=Poodle',
+      });
+
+      expect(screen.getByText('No scored entries match')).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: 'Clear filters' }));
+      expect(screen.getByText('Breed Performance')).toBeInTheDocument();
+    });
+
+    it('still shows the withheld notice when a filter would hide the withheld row', () => {
+      mockEntries([...manyEntries, makeEntry({ id: 'w', breed: 'Poodle', resultWithheld: true })]);
+      render(<ShowStatsSubTab showId="show-1" />, { initialRoute: '/?breed=Lab' });
+
+      expect(screen.queryByText('Breed Performance')).not.toBeInTheDocument();
+      expect(screen.queryByRole('table', { name: /fastest/i })).not.toBeInTheDocument();
+    });
+  });
+
+  it('renders stats without the judge filter and offers a retry when the lookup failed', async () => {
+    const refetch = vi.fn();
+    mockUseShowStats.mockReturnValue(
+      fromPartial({
+        data: [makeEntry()],
+        isLoading: false,
+        judgeLookupFailed: true,
+        refetch,
+      })
+    );
+
+    const { user } = render(<ShowStatsSubTab showId="show-1" />);
+
+    expect(screen.getByText(/Judge filter unavailable, try again/)).toBeInTheDocument();
+    expect(screen.getAllByText('Rex').length).toBeGreaterThan(0);
+    await user.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(refetch).toHaveBeenCalledTimes(1);
   });
 });

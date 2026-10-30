@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { CheckCircle, Receipt, Calendar, Dog, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -59,6 +60,7 @@ function paymentReferenceField(id: string | undefined): { paymentReference?: str
 export default function CheckoutSuccessPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const sessionId = searchParams.get('session_id');
   const isWaitlistOnly = searchParams.get('waitlist') === '1';
   const splitCheckoutId = searchParams.get('split');
@@ -100,6 +102,8 @@ export default function CheckoutSuccessPage() {
     (result: SuccessfulCheckoutVerification, generation: number) => {
       if (verificationGenerationRef.current !== generation) return;
       verificationSettledRef.current = true;
+      // The rail's My Entries answer may have been 'no' until now: re-ask the server (no cache write).
+      void queryClient.invalidateQueries({ queryKey: ['own-entries', 'server-has-any'] });
 
       const nextSplitSummary = splitCheckoutId
         ? readCartSplitCheckoutSummary(splitCheckoutId)
@@ -183,7 +187,7 @@ export default function CheckoutSuccessPage() {
         })();
       }
     },
-    [resetCart, splitCheckoutId]
+    [queryClient, resetCart, splitCheckoutId]
   );
 
   useLayoutEffect(() => {

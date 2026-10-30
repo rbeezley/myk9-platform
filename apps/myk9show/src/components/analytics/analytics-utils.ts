@@ -17,6 +17,10 @@ export interface StatsEntry {
   trialDate?: string | undefined;
   trialName?: string | undefined;
   trialNumber?: string | undefined;
+  trialId?: string | undefined;
+  breed?: string | undefined;
+  /** People assigned to judge this entry's class (judge_assignments). */
+  judgeIds?: string[] | undefined;
   /**
    * Scored, but this viewer cannot see the result: the entry's people keep it
    * private (MYK9-969) or the club has not released it yet. Any total, rate,

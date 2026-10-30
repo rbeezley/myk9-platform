@@ -12,9 +12,10 @@
  */
 import { getEffectiveClassStatus, type ClassEntry } from '@myk9/ringside';
 
+// `start_time` is an announced FUTURE start (the Expected start, MYK9-1513), not a live ring.
 const LIVE_CLASS_STATUSES = new Set<ClassEntry['class_status']>([
   'briefing',
-  'start_time',
+  'break',
   'in_progress',
   'offline-scoring',
 ]);
@@ -52,7 +53,7 @@ export function yourRingScanPriority(entry: ClassEntry): number {
   const effectiveStatus = getEffectiveClassStatus(entry);
   if (
     effectiveStatus === 'briefing' ||
-    effectiveStatus === 'start_time' ||
+    effectiveStatus === 'break' ||
     effectiveStatus === 'in-progress' ||
     effectiveStatus === 'offline-scoring'
   ) {

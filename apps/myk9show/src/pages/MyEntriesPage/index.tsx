@@ -13,6 +13,7 @@ import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useEntriesPersonId } from '@/hooks/useEntriesPersonId';
 import { deriveMyEntriesDogState } from './modules/myEntriesDogState';
+import { useRefreshOnReturn } from '@/hooks/useRefreshOnReturn';
 import { useDogsByOwnerQuery } from '@/hooks/queries/useDogsDatabase';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { ShowTodayBanner } from '@/features/show-today/ShowTodayBanner';
@@ -78,6 +79,10 @@ const MyEntriesPage: React.FC = () => {
   } = useMyEntriesData({
     persistCheckInStatus: checkInMutation.mutateAsync,
   });
+  // MYK9-1523: coming back to the page re-reads it, held only while a check-in
+  // is saving. A return during the initial load needs no hold: `loadMyEntries`
+  // lets the newer read supersede the older one (`readSeq`).
+  useRefreshOnReturn(refreshEntries, true, checkInMutation.isPending);
   const entriesPresentation: MyEntriesPresentation = getMyEntriesPresentation({
     identityState,
     readState,

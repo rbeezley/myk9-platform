@@ -67,6 +67,8 @@ The judge's eyes should be on the dog, not the screen. Every interaction should 
 
 **Anti-patterns to avoid:** Small buttons on tablet. Loading spinners between entries. "Are you sure?" popups. Anything that breaks the rhythm of the ring.
 
+The Score Confirmation dialog on every scoresheet is deliberate and is not the "Are you sure?" popup above: it is the read-back the judge copies onto the paper sheet (result in words, times, faults, any reason), so it must not be removed, skipped or auto-dismissed.
+
 ### Gate Steward — _"I've got this under control"_
 
 The steward is the traffic controller. They need a clear, glanceable view of what's happening now.

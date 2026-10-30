@@ -33,7 +33,8 @@ import {
 } from '@/services/entryDisplay/entryDisplaySelectors';
 import { buildShowArmbandMaps, resolveEntryArmband } from '@/features/_shared/entryArmband';
 import type { ShowChangeSignal } from '@/features/show-live-sync/showChangeSignal';
-import { getTrialRegistry } from '@/features/registries';
+import { getTrialRegistry, getTrialTimezone } from '@/features/registries';
+import { buildRingsideStatusInfo, withCombinedStatusLabel } from './ringsideStatusInfo';
 import { scoresheetKeyForClass } from '@/pages/scoring/types';
 import { settledScopesOutcome, type AtShowSyncInFlight } from './atShowSyncOutcome';
 import {
@@ -344,6 +345,7 @@ export function buildClassInfo(
     // Ribbon colours differ by registry (MYK9-1086); read via the helper, never the raw column.
     registry: safeRegistryId(trial),
     classStatus: cls.classStatus ?? 'pending',
+    ...buildRingsideStatusInfo(cls, getTrialTimezone(trial)),
     totalEntries: counts.expected,
     completedEntries: counts.accounted,
     // Hand the SAME pair to the ringside Pending/Completed tabs (MYK9-645).
@@ -467,7 +469,7 @@ export function createAtShowDataDependencies(): Pick<
             resultsReleasedAt: bothReleasedAt,
           }
         : null;
-      return { entries, classInfo };
+      return { entries, classInfo: withCombinedStatusLabel(classInfo, a.cls, b.cls, a.trial) };
     },
 
     forceSyncEntriesAndClasses: async (licenseKey): Promise<void> => {

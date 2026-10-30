@@ -131,6 +131,8 @@ export interface ClassOptionsData {
   briefing_time?: string;
   break_until_time?: string;
   start_time?: string;
+  /** One max time per area (MYK9-1098); lets the menu say what is saved. */
+  per_area_times?: boolean;
 }
 
 /**
@@ -189,7 +191,7 @@ export interface RunOrderDialogProps {
 export interface ClassStatusDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onStatusChange: (status: string, timeValue?: string) => void;
+  onStatusChange: (status: string, timeValue?: string) => void | Promise<void>;
   classData: {
     id: string;
     element: string;

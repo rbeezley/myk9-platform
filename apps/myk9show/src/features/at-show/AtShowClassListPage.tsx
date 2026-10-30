@@ -31,6 +31,7 @@ import { useSelfCheckinStateMap } from '@/hooks/queries/useSelfCheckinEnabled';
 import { AtShowClassRow } from './AtShowClassRow';
 import { AtShowClassListSkeleton } from './AtShowClassListSkeleton';
 import { AtShowSetupSheetLink } from './AtShowSetupSheetLink';
+import { AtShowDogsLink } from './AtShowDogsLink';
 import { WIDE_COLUMN } from './atShowClassListLayout';
 import { formatAtShowTrialHeading } from './atShowTrialHeading';
 import { useNow } from '@/hooks/useNow';
@@ -38,7 +39,7 @@ import { orderRingClassesByDay } from './orderRingClassesByDay';
 
 /** The scopes the picker's own rows come from. */
 const CLASS_DATA_TABLES = ['shows', 'trials', 'classes'] as const;
-import { BackToRingsideExitButton } from './BackToRingsideExitButton';
+import { ClassListUpButton } from './ClassListUpButton';
 import {
   sortClassesForAtShowScan,
   sortClassesForYourRing,
@@ -356,7 +357,7 @@ export const AtShowClassListPage: React.FC = () => {
           <Button variant="outline" className="min-h-11 px-6" onClick={refresh}>
             Try again
           </Button>
-          <BackToRingsideExitButton showId={showId} clubId={clubId} />
+          <ClassListUpButton showId={showId} clubId={clubId} />
         </div>
       </main>
     );
@@ -424,7 +425,7 @@ export const AtShowClassListPage: React.FC = () => {
               Try again
             </Button>
           )}
-          <BackToRingsideExitButton showId={showId} clubId={clubId} />
+          <ClassListUpButton showId={showId} clubId={clubId} />
         </div>
       </main>
     );
@@ -437,7 +438,7 @@ export const AtShowClassListPage: React.FC = () => {
     // the display instead of being capped at phone width forever.
     <main className={`ringside-root ${WIDE_COLUMN} px-4 py-4`}>
       <div className="mb-3 flex items-center justify-between gap-2">
-        <BackToRingsideExitButton showId={showId} clubId={clubId} />
+        <ClassListUpButton showId={showId} clubId={clubId} />
         {/* Gating this on `ownEntryIds.size > 0` alone hid the only route back
             to an exhibitor's own dogs whenever ownership was merely UNKNOWN --
             a cold device at the venue -- stranding them in the staff class
@@ -458,6 +459,8 @@ export const AtShowClassListPage: React.FC = () => {
       {showName && <h1 className="mb-4 text-center text-lg font-semibold">{showName}</h1>}
 
       <AtShowOfflineReadySlot showId={showId} isExhibitorOnly={isExhibitorOnly} />
+
+      <AtShowDogsLink showId={showId} />
 
       <AtShowSetupSheetLink showId={showId} groups={groups} isExhibitorOnly={isExhibitorOnly} />
 

@@ -44,7 +44,7 @@ export type {
 } from './ClassCompletionPresentation';
 
 // PR E2d-2b — EntryListHeader. Six UI primitives are required slot
-// props (HamburgerMenu, CompactOfflineIndicator, SyncIndicator,
+// props (CompactOfflineIndicator, SyncIndicator,
 // RefreshIndicator, FilterTriggerButton, ClassDetailsPopover).
 export { EntryListHeader } from './EntryListHeader';
 export type { EntryListHeaderProps } from './EntryListHeader';
@@ -60,5 +60,13 @@ export type { EntryListDialogsProps } from './EntryListDialogs';
 export { ActionsDropdownMenu, TrialInfo, getStatusBadge } from './entryListHeaderHelpers';
 export type { PrintOption, ActionsMenuConfig } from './entryListHeaderHelpers';
 
-export { EntryListSkeleton, EntryListEmptyState } from './EntryListStates';
-export type { EntryListSkeletonProps, EntryListEmptyStateProps } from './EntryListStates';
+export {
+  EntryListSkeleton,
+  EntryListEmptyState,
+  EntryListNotOnDeviceState,
+} from './EntryListStates';
+export type {
+  EntryListSkeletonProps,
+  EntryListEmptyStateProps,
+  EntryListNotOnDeviceStateProps,
+} from './EntryListStates';

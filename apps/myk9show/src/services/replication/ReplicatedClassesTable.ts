@@ -84,6 +84,10 @@ export interface ReplicatedClass {
   handlerAgeMax?: number | undefined;
   startTime?: string | undefined;
   revisedExpectedStart?: string | null | undefined;
+  /** MYK9-1513: briefing | break | offline_scoring while in_progress, else null. */
+  ringPhase?: string | null | undefined;
+  /** MYK9-1513: the briefing time or "Break until" time (time of day) for a briefing/break phase. */
+  ringPhaseTime?: string | null | undefined;
   estimatedDuration?: number | undefined;
 
   // Scent Work specific fields (camelCase)
@@ -239,6 +243,7 @@ export function rowToClass(row: ClassRow): ReplicatedClass {
     handlerAgeMax: row.handler_age_max ?? undefined,
     startTime: row.start_time ?? undefined,
     revisedExpectedStart: (dbRow.revised_expected_start as string | null | undefined) ?? null,
+    ...ringPhaseFromRow(dbRow),
     estimatedDuration: row.estimated_duration ?? undefined,
 
     // CamelCase fields
@@ -300,6 +305,19 @@ export function rowToClass(row: ClassRow): ReplicatedClass {
   };
 }
 
+/** MYK9-1513: the ring phase pair, DB → replica. */
+function ringPhaseFromRow(dbRow: Record<string, unknown>) {
+  return {
+    ringPhase: (dbRow.ring_phase as string | null | undefined) ?? null,
+    ringPhaseTime: (dbRow.ring_phase_time as string | null | undefined) ?? null,
+  };
+}
+
+/** MYK9-1513: the ring phase pair, replica → DB. */
+function ringPhaseToRow(cls: Pick<ReplicatedClass, 'ringPhase' | 'ringPhaseTime'>) {
+  return { ring_phase: cls.ringPhase ?? null, ring_phase_time: cls.ringPhaseTime ?? null };
+}
+
 /**
  * DB columns whose values are server-owned/derived, paired with the camelCase
  * `ReplicatedClass` key a caller sets to change them. The server derivation owns
@@ -310,6 +328,10 @@ export function rowToClass(row: ClassRow): ReplicatedClass {
  * values on every unrelated `updateClass`, clobbering server-derived state until
  * the next inbound sync heals it. Each is written ONLY when the caller explicitly
  * included its source key in the update (see stripUnsetServerOwnedKeys).
+ *
+ * `ring_phase` / `ring_phase_time` (MYK9-1513) join them: the server clears the phase when
+ * the class leaves in_progress (trg_classes_clear_ring_phase), so an unrelated edit must not
+ * re-emit a stale local phase.
  *
  * `num_hides` joins them for the mirror-image reason: it is baked in at creation
  * from the sport rule, not server-derived, but a row cached before `hideCount`
@@ -326,6 +348,8 @@ const SERVER_OWNED_CLASS_COLUMNS: ReadonlyArray<readonly [string, keyof Replicat
   ['is_scoring_finalized', 'isScoringFinalized'],
   ['reopened_after_closeout_at', 'reopenedAfterCloseoutAt'],
   ['num_hides', 'hideCount'],
+  ['ring_phase', 'ringPhase'],
+  ['ring_phase_time', 'ringPhaseTime'],
 ];
 
 /**
@@ -569,6 +593,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
       handler_age_max: cls.handlerAgeMax ?? null,
       start_time: cls.startTime ?? null,
       revised_expected_start: cls.revisedExpectedStart ?? null,
+      ...ringPhaseToRow(cls),
       estimated_duration: cls.estimatedDuration ?? null,
       element: cls.element ?? null,
       section: cls.section ?? null,

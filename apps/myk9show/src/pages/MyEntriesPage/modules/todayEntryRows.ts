@@ -13,6 +13,7 @@
 import { SEE_MY_SHOWS_TEXT, classRowDisplay } from './classRowStatusText';
 import { buildDayCheckInContext, isTrialDayToday } from './dayCheckIn';
 import { groupEntriesByShow } from './groupEntriesByShow';
+import { formatTrialLabel } from '@myk9/core';
 import type { SelfCheckinState } from '@/hooks/queries/useSelfCheckinEnabled';
 import type { ClassRowKind } from './myShowDogState';
 import type { MyEntry } from './my-entries-types';
@@ -23,6 +24,8 @@ export interface TodayEntryRow {
   /** Class id the self-check-in cascade is keyed on, when known. */
   classId: string | undefined;
   showName: string;
+  /** Show and trial, so same-named classes on one day stay tellable apart. */
+  where: string;
   dogName: string;
   className: string;
   /** My Shows' status or action text for this row; never empty. */
@@ -75,6 +78,14 @@ export function selectTodayEntryRows(
           key: cls.id,
           classId: cls.classId,
           showName: group.showName,
+          where: [
+            group.showName,
+            cls.trialName || cls.trialNumber
+              ? formatTrialLabel({ name: cls.trialName, trialNumber: cls.trialNumber })
+              : null,
+          ]
+            .filter(Boolean)
+            .join(' · '),
           dogName: dog.dogName,
           className: cls.name,
           statusText:

@@ -87,9 +87,12 @@ export function YourEntriesTodayCard() {
         <ul className="mt-2 flex flex-col gap-1.5">
           {rows.map(row => (
             <li key={row.key} className="flex items-baseline justify-between gap-3 text-sm">
-              <span className="min-w-0 truncate">
-                <span className="font-medium text-foreground">{row.dogName}</span>
-                <span className="text-muted-foreground"> · {row.className}</span>
+              <span className="min-w-0">
+                <span className="block truncate">
+                  <span className="font-medium text-foreground">{row.dogName}</span>
+                  <span className="text-muted-foreground"> · {row.className}</span>
+                </span>
+                <span className="block truncate text-xs text-muted-foreground">{row.where}</span>
               </span>
               <span className="shrink-0 text-xs text-muted-foreground">{row.statusText}</span>
             </li>

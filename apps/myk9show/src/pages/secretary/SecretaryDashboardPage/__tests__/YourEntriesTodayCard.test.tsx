@@ -249,6 +249,25 @@ describe('YourEntriesTodayCard', () => {
     expect(myShowsRowState()).toContain(status);
   });
 
+  it('does not spoil an unopened result: a scored class reads neutral, not Q', () => {
+    setEntries(entryWith({ isScored: true, resultStatus: 'qualified' }));
+    render(<YourEntriesTodayCard />);
+    expect(screen.getByText('Result in')).toBeTruthy();
+    expect(screen.queryByText('Q')).toBeNull();
+  });
+
+  it('tells same-named classes in different shows apart', () => {
+    const a = entryWith({}, { id: 'e1', showName: 'Heartland Classic' });
+    const b = entryWith(
+      { id: 'c2', classId: 'class-2' },
+      { id: 'e2', showId: 's2', showName: 'Prairie Open', registrationId: 'r2' }
+    );
+    mocks.entries = groupEntriesByOrder([a, b]);
+    render(<YourEntriesTodayCard />);
+    expect(screen.getByText('Heartland Classic')).toBeTruthy();
+    expect(screen.getByText('Prairie Open')).toBeTruthy();
+  });
+
   // Finding 7: never "Check in" while the class's setting is still loading.
   it('says "See My Shows" while the self-check-in setting is unknown', () => {
     setEntries(entryWith());

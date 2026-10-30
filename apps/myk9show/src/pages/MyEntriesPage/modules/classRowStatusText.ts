@@ -94,7 +94,9 @@ export function classRowDisplay(cls: MyShowClass, ctx: DayCheckInContext): Class
     (kind === 'absent' || kind === 'result') && cls.resultStatus ? cls.resultStatus : undefined;
   const text =
     word?.text ??
-    (outcomeStatus ? resultStatusLabel(outcomeStatus) : undefined) ??
+    // A scored result is the exhibitor's reveal (My Shows holds it behind "New
+    // result" until opened); the card has no seen-state, so it stays neutral.
+    (kind === 'absent' && outcomeStatus ? resultStatusLabel(outcomeStatus) : undefined) ??
     classRowStatusText(kind) ??
     (kind === 'result' ? 'Result in' : SEE_MY_SHOWS_TEXT);
   return { kind, word, outcomeStatus, text };

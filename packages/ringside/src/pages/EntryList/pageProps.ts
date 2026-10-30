@@ -703,6 +703,11 @@ export interface EntryListPageProps {
      * never history, so a deep link or reload still goes somewhere sensible.
      */
     up: { label: string; to: string };
+    /**
+     * Host-rendered menu control (MYK9-1508), placed at the end of the header.
+     * Omitted means no menu, which is how the scoresheet-adjacent hosts opt out.
+     */
+    menu?: ReactNode;
   };
 }
 

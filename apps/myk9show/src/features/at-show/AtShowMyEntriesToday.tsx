@@ -22,6 +22,7 @@ import { useMyEntryQueuePlacesWithFreshness } from '@/hooks/queries/useMyEntryQu
 import { useIsOnline } from '@/hooks/useNetworkStatus';
 import { isAwaitingPlaceInLine, type AtShowEntryDetail } from './myAtShowEntryDetails.helpers';
 import { MyEntryRow } from './MyEntryRow';
+import { RingsideMenu } from './menu/RingsideMenu';
 import { ListViewTabs, type ListView } from '@/components/list-toolkit';
 import { SAVED_INFO_NOTICE } from './myEntriesTodayCopy';
 import {
@@ -207,7 +208,10 @@ export const AtShowMyEntriesToday: React.FC<AtShowMyEntriesTodayProps> = ({
           it needs its own way out. `/` resolves per-role via `HomeRedirect`,
           landing an exhibitor-only account on `/exhibitor/entries` (My
           Shows), never back into this same show (MYK9-800 walk finding #3). */}
-      <RingsideUpButton label="Dashboard" className="mb-2" onClick={() => navigate('/')} />
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <RingsideUpButton label="Dashboard" onClick={() => navigate('/')} />
+        <RingsideMenu showId={showId} />
+      </div>
       {(showName || showDateLabel || venue) && (
         <div className="mb-3 text-center" data-testid="at-show-identity">
           {showName && <p className="text-base font-semibold">{showName}</p>}

@@ -15,6 +15,9 @@ import type { AtShowEntryDetail } from './myAtShowEntryDetails.helpers';
 const rpc = vi.hoisted(() => vi.fn());
 const online = vi.hoisted(() => ({ current: true }));
 
+// The ringside menu has its own tests; these render the screen on its own.
+vi.mock('./menu/RingsideMenu', () => ({ RingsideMenu: () => null }));
+
 vi.mock('@/services/database/supabaseClient', () => ({ supabase: { rpc } }));
 vi.mock('@/hooks/useAuthContext', () => ({ useAuthContext: () => ({ user: { id: 'u1' } }) }));
 vi.mock('@/hooks/useNetworkStatus', () => ({ useIsOnline: () => online.current }));

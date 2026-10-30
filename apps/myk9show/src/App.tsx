@@ -30,6 +30,7 @@ import { ReplicationSyncProvider } from './providers/ReplicationSyncProvider';
 import { UnsavedChangesRouteGuardProvider } from './components/navigation/UnsavedChangesRouteGuard';
 
 // Notification System
+import { RingsideReturnBar } from '@/features/at-show/menu/RingsideReturnBar';
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
 import { ToastContainer } from '@/components/notifications/ToastContainer';
 import { AppToaster } from '@/components/layout/AppToaster';
@@ -241,6 +242,7 @@ function App() {
                         <PWAInstallBanner />
                         <RbacOfflineNotice />
                         <AppHeader />
+                        <RingsideReturnBar />
                         <NotificationCenter />
                         <AppToaster />
                         <ToastContainer />

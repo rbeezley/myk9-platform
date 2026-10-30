@@ -51,7 +51,13 @@ vi.mock('@/hooks/useAuthContext', async importOriginal => {
   const { UserRole } = await import('@/types/auth-types');
   return {
     ...actual,
-    useAuthContext: () => ({ getUserRoles: () => [UserRole.SITE_ADMIN] }),
+    useAuthContext: () => ({
+      getUserRoles: () => [UserRole.SITE_ADMIN],
+      // The ringside menu (MYK9-1508) reads these to route Stats and Results.
+      hasRole: () => false,
+      userWithRoles: null,
+      user: null,
+    }),
   };
 });
 

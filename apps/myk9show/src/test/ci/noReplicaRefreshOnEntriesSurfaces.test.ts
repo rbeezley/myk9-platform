@@ -16,7 +16,8 @@ describe('entries surfaces do not refresh from replica notices', () => {
     ['useMyEntriesData.ts', '../../pages/MyEntriesPage/modules/useMyEntriesData.ts'],
     ['useRefreshOnReturn.ts', '../../hooks/useRefreshOnReturn.ts'],
   ])('%s has no replicated-table subscription', (_name, relative) => {
-    const source = read(relative);
+    // The mutation cache's own subscribe is how the hook sees writes settle.
+    const source = read(relative).replace(/getMutationCache\(\)\s*\.subscribe/g, '');
     expect(source).not.toMatch(/@\/services\/replication/);
     expect(source).not.toMatch(/replicated\w+Table/);
     expect(source).not.toMatch(/\.subscribe\(/);

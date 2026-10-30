@@ -5,8 +5,11 @@
  * glance at the phone between runs: a returning window focus or a tab becoming
  * visible is that moment, so the page re-reads then instead of listening to
  * the replica (whose per-show snapshot cannot stand in for the account read).
- * Throttled, and skipped while any local write is in flight, so a read can never
- * land the server's old value over a pending check-in.
+ *
+ * Throttled to one per window. A read never starts while a local write is in
+ * flight; the return is remembered and runs once the write settles. A write that
+ * overlaps a read may have been overwritten by it, so one corrective re-read
+ * follows once both are done.
  */
 
 import { useEffect, useRef } from 'react';
@@ -31,18 +34,42 @@ export function useRefreshOnReturn(refresh: () => Promise<void> | void, enabled 
 
   useEffect(() => {
     if (!enabled) return;
+    let reading = false;
+    // A refresh is owed once no write is in flight and no read is running.
+    let owed = false;
+    let disposed = false;
+
+    // Read at event time: a mutation count held in React state lags the write.
+    const writing = () => queryClient.isMutating() > 0;
+
+    const flush = () => {
+      if (disposed || !owed || reading || writing()) return;
+      owed = false;
+      reading = true;
+      lastRefreshAtRef.current = Date.now();
+      void Promise.resolve(refreshRef.current()).finally(() => {
+        reading = false;
+        flush();
+      });
+    };
+
     const onReturn = () => {
       if (document.visibilityState === 'hidden') return;
-      // Read at event time: a mutation count held in React state lags the write.
-      if (queryClient.isMutating() > 0) return;
-      const now = Date.now();
-      if (now - lastRefreshAtRef.current < REFRESH_ON_RETURN_MIN_INTERVAL_MS) return;
-      lastRefreshAtRef.current = now;
-      void refreshRef.current();
+      if (Date.now() - lastRefreshAtRef.current < REFRESH_ON_RETURN_MIN_INTERVAL_MS) return;
+      owed = true;
+      flush();
     };
+
+    const unsubscribeMutations = queryClient.getMutationCache().subscribe(() => {
+      // A write that lands during a read may be overwritten by that read.
+      if (writing() && reading) owed = true;
+      flush();
+    });
     window.addEventListener('focus', onReturn);
     document.addEventListener('visibilitychange', onReturn);
     return () => {
+      disposed = true;
+      unsubscribeMutations();
       window.removeEventListener('focus', onReturn);
       document.removeEventListener('visibilitychange', onReturn);
     };

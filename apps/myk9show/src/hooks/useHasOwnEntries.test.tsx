@@ -1,12 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, renderHook, waitFor } from '@testing-library/react';
+import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
-import { useHasOwnEntries } from './useHasOwnEntries';
+import { railOwnEntriesState, useHasOwnEntries } from './useHasOwnEntries';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { readOwnReplicaEntries } from '@/services/database/entries/ownReplicaEntries';
 import { serverHasOwnEntries } from '@/services/database/entries/ownEntriesExistence';
-import { markOwnEntriesKnownYes } from '@/features/own-entries/ownEntriesCache';
 
 vi.mock('@/hooks/useAuthContext');
 vi.mock('@/services/database/entries/ownReplicaEntries', () => ({
@@ -137,33 +136,22 @@ describe('useHasOwnEntries', () => {
     );
   });
 
-  it('is yes the moment checkout marks the person, even though the server read said no', async () => {
-    mockAuth('person-1', 'resolved');
-    stubReplica(0);
-    stubServer(false);
-    const { result } = renderHook(() => useHasOwnEntries(), { wrapper });
-    await waitFor(() => expect(result.current).toBe('no'));
-
-    act(() => markOwnEntriesKnownYes(queryClient, 'person-1'));
-    await waitFor(() => expect(result.current).toBe('yes'));
-    expect(serverHasOwnEntries).toHaveBeenCalledTimes(1);
-    await waitFor(() =>
-      expect(window.localStorage.getItem('myk9-has-own-entries:person-1')).toBe('yes')
-    );
-  });
-
-  it('leaves another person unaffected by a checkout mark', async () => {
-    mockAuth('person-2', 'resolved');
-    stubReplica(0);
-    stubServer(false);
-    markOwnEntriesKnownYes(queryClient, 'person-1');
-    const { result } = renderHook(() => useHasOwnEntries(), { wrapper });
-    await waitFor(() => expect(result.current).toBe('no'));
-  });
-
   it('is no when the profile lookup confirms there is no person row', () => {
     mockAuth(null, 'missing');
     const { result } = renderHook(() => useHasOwnEntries(), { wrapper });
     expect(result.current).toBe('no');
+  });
+});
+
+describe('railOwnEntriesState', () => {
+  it('keeps the item on My Entries itself, where a first checkout lands', () => {
+    expect(railOwnEntriesState('no', '/exhibitor/entries')).toBe('unknown');
+    expect(railOwnEntriesState('no', '/exhibitor/entries/abc')).toBe('unknown');
+  });
+
+  it('lets the server answer decide everywhere else', () => {
+    expect(railOwnEntriesState('no', '/secretary/dashboard')).toBe('no');
+    expect(railOwnEntriesState('no', '/exhibitor/entries-archive')).toBe('no');
+    expect(railOwnEntriesState('yes', '/exhibitor/entries')).toBe('yes');
   });
 });

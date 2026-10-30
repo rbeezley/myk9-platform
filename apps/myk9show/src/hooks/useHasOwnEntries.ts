@@ -4,8 +4,7 @@
  * It answers the rail's My Entries item for staff who are also exhibitors. The entries replica is
  * per show, so an empty replica is an absence of knowledge, never proof. A replica that holds an
  * entry is an immediate `'yes'`; otherwise, online with a resolved
- * identity, one head count on the authoritative view decides (checkout success writes that answer into the
- * cache directly, see `markOwnEntriesKnownYes`). Offline, pending or failed, the
+ * identity, one head count on the authoritative view decides. Offline, pending or failed, the
  * answer remembered on this device holds; with none, `'unknown'` and the caller keeps the item.
  */
 
@@ -21,7 +20,6 @@ import {
   readOwnEntriesMemory,
   writeOwnEntriesMemory,
 } from '@/features/own-entries/ownEntriesMemory';
-import { ownEntriesServerKey } from '@/features/own-entries/ownEntriesCache';
 
 export type OwnEntriesState = 'yes' | 'no' | 'unknown';
 
@@ -53,7 +51,7 @@ export function useHasOwnEntries(): OwnEntriesState {
   // Account-scoped, no placeholder from another account. Online-only: offline it parks and the
   // remembered answer holds.
   const { data: serverHasEntries } = useQuery({
-    queryKey: ownEntriesServerKey(personId),
+    queryKey: ['own-entries', 'server-has-any', personId],
     queryFn: serverHasOwnEntries,
     enabled: !!personId && identityState === 'resolved',
     staleTime: 5 * 60_000,
@@ -89,4 +87,18 @@ export function useHasOwnEntries(): OwnEntriesState {
   }, [personId, answer, authoritative]);
 
   return answer;
+}
+
+/** The page a checkout lands on. While the viewer is there, the rail must offer it too. */
+const MY_ENTRIES_PATH = '/exhibitor/entries';
+
+/**
+ * The rail's answer for My Entries on this route. A first checkout lands on My Entries before the
+ * server count can see the new entry (it exists once the payment webhook lands), so on that page
+ * a `'no'` reads as `'unknown'` and the item stays, agreeing with the page (MYK9-1491). Elsewhere
+ * the server count decides. A route check, not a cache write, so no async ordering can undo it.
+ */
+export function railOwnEntriesState(state: OwnEntriesState, pathname: string): OwnEntriesState {
+  const onMyEntries = pathname === MY_ENTRIES_PATH || pathname.startsWith(`${MY_ENTRIES_PATH}/`);
+  return state === 'no' && onMyEntries ? 'unknown' : state;
 }

@@ -1,7 +1,6 @@
 /** Verifies the Stripe return and shows entry confirmation. */
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { CheckCircle, Receipt, Calendar, Dog, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -26,8 +25,6 @@ import { CheckoutVerificationIssueCard } from '@/features/payments/CheckoutVerif
 import { overflowRefundMessage } from '@/features/payments/overflowRefundCopy';
 import { CONFIRMATION_NUMBER_LABEL } from '@/features/registration/confirmationNumberDisplay';
 import { retireDraftsForCheckout } from '@/features/registration/retireDraftsForCheckout';
-import { useEntriesPersonId } from '@/hooks/useEntriesPersonId';
-import { markOwnEntriesKnownYes } from '@/features/own-entries/ownEntriesCache';
 
 interface EntryDetails {
   id: string;
@@ -87,10 +84,6 @@ export default function CheckoutSuccessPage() {
   } | null>(null);
   const [entries, setEntries] = useState<EntryDetails[]>([]);
 
-  const queryClient = useQueryClient();
-  const entriesPersonId = useEntriesPersonId();
-  const entriesPersonIdRef = useRef(entriesPersonId);
-  entriesPersonIdRef.current = entriesPersonId;
   const activeCartId = useCartStore(state => state.cart?.id ?? null);
   const resetCart = useCartStore(state => state.reset);
   const activeCartIdRef = useRef(activeCartId);
@@ -107,11 +100,6 @@ export default function CheckoutSuccessPage() {
     (result: SuccessfulCheckoutVerification, generation: number) => {
       if (verificationGenerationRef.current !== generation) return;
       verificationSettledRef.current = true;
-      // The paid entry may not have replicated yet; keep the rail's My Entries visible meanwhile.
-      if (result.checkoutOutcome !== 'full_overflow_refund' && result.entryIds?.length !== 0) {
-        if (entriesPersonIdRef.current)
-          markOwnEntriesKnownYes(queryClient, entriesPersonIdRef.current);
-      }
 
       const nextSplitSummary = splitCheckoutId
         ? readCartSplitCheckoutSummary(splitCheckoutId)
@@ -195,7 +183,7 @@ export default function CheckoutSuccessPage() {
         })();
       }
     },
-    [queryClient, resetCart, splitCheckoutId]
+    [resetCart, splitCheckoutId]
   );
 
   useLayoutEffect(() => {

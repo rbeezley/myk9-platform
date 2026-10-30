@@ -31,6 +31,7 @@ import { useSelfCheckinStateMap } from '@/hooks/queries/useSelfCheckinEnabled';
 import { AtShowClassRow } from './AtShowClassRow';
 import { AtShowClassListSkeleton } from './AtShowClassListSkeleton';
 import { AtShowSetupSheetLink } from './AtShowSetupSheetLink';
+import { AtShowDogsLink } from './AtShowDogsLink';
 import { WIDE_COLUMN } from './atShowClassListLayout';
 import { formatAtShowTrialHeading } from './atShowTrialHeading';
 import { useNow } from '@/hooks/useNow';
@@ -458,6 +459,8 @@ export const AtShowClassListPage: React.FC = () => {
       {showName && <h1 className="mb-4 text-center text-lg font-semibold">{showName}</h1>}
 
       <AtShowOfflineReadySlot showId={showId} isExhibitorOnly={isExhibitorOnly} />
+
+      <AtShowDogsLink showId={showId} />
 
       <AtShowSetupSheetLink showId={showId} groups={groups} isExhibitorOnly={isExhibitorOnly} />
 

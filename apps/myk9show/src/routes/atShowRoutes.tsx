@@ -6,6 +6,7 @@
  *  - `/at-show/:showId/class/:classId`            → single-class EntryList (1a)
  *  - `/at-show/:showId/class/:classIdA/:classIdB` → combined Section A/B list (1h)
  *  - `/at-show/:showId/class/:classId/score/:entryId` → live scoresheet
+ *  - `/at-show/:showId/dogs` + `/dogs/:dogKey`       → staff dog finder + dog page (MYK9-1509)
  *  - `/at-show/:showId/setup-sheet`               → printable judge setup cheat sheet
  * Mounted OUTSIDE UnifiedAppLayout (full-screen ringside — no host sidebar or
  * header; see App.tsx), which is why the boundary's states use a full-screen
@@ -49,6 +50,16 @@ const AtShowSetupSheetPage = createEnhancedLazy(
   () => import('@/features/at-show/AtShowSetupSheetPage'),
   { ...RouteLazyPresets.mediumPriority, displayName: 'AtShowSetupSheetPage' }
 );
+
+const AtShowDogsPage = createEnhancedLazy(() => import('@/features/at-show/AtShowDogsPage'), {
+  ...RouteLazyPresets.mediumPriority,
+  displayName: 'AtShowDogsPage',
+});
+
+const AtShowDogPage = createEnhancedLazy(() => import('@/features/at-show/AtShowDogPage'), {
+  ...RouteLazyPresets.mediumPriority,
+  displayName: 'AtShowDogPage',
+});
 
 const AtShowClassListPage = createEnhancedLazy(
   () => import('@/features/at-show/AtShowClassListPage'),
@@ -102,6 +113,9 @@ export const AtShowRoutes = () => {
         path="/at-show/:showId/class/:classIdA/:classIdB"
         element={atShowElement(<AtShowCombinedEntryListPage />)}
       />
+      {/* Staff dog finder + dog page (MYK9-1509). */}
+      <Route path="/at-show/:showId/dogs" element={atShowElement(<AtShowDogsPage />)} />
+      <Route path="/at-show/:showId/dogs/:dogKey" element={atShowElement(<AtShowDogPage />)} />
       {/* Printable judge setup cheat sheet (MYK9-1078): static, so it works offline. */}
       <Route
         path="/at-show/:showId/setup-sheet"

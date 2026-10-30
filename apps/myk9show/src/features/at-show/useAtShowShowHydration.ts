@@ -65,16 +65,23 @@ export function useAtShowShowHydration(
     // Started before refresh() so both share one operation; a failed or
     // rejected sync (offline) only means "did not arrive".
     const outcome = syncAtShowData(forShow).then(
-      result => result.success,
+      // Like `isSyncResultFailed`: only an explicit `success: false` is a failure.
+      result => result?.success !== false,
       () => false
     );
     // refresh() swallows sync failures (offline: keep the cached rows).
-    void Promise.all([refresh(true).catch(() => {}), outcome])
-      .then(async ([, success]) => {
+    void Promise.all([refresh(true).catch(() => {}), outcome]).then(
+      async ([, success]) => {
         const state = success || (await readEntriesMarker(forShow)) ? 'arrived' : 'not-arrived';
         if (startedShowRef.current === forShow) setHydrated({ showId: forShow, state });
-      })
-      .catch(() => {});
+      },
+      () => {
+        // Unreachable in practice (both inputs swallow rejections); never leave
+        // the page on its skeleton if that changes.
+        if (startedShowRef.current === forShow)
+          setHydrated({ showId: forShow, state: 'not-arrived' });
+      }
+    );
   }, [refresh, showId]);
 
   useEffect(() => {

@@ -97,6 +97,7 @@ beforeEach(() => {
   // would leak into every file that runs after it under --sequence.shuffle.
   themeState.theme = 'light';
   toggleThemeSpy.mockClear();
+  vi.mocked(refreshApp).mockClear();
   useAskQPanelStore.getState().close();
 });
 

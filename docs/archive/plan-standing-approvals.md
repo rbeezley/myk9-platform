@@ -1,6 +1,6 @@
 # Standing approvals while pre-launch
 
-> **Status:** Active
+> **Status:** Complete
 
 Linear: [MYK9-1485](https://linear.app/myk9-platform/issue/MYK9-1485). The issue was filed as "one approval queue page"; this design replaces that with standing approvals plus the existing Linear "Owner actions" view.
 

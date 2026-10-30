@@ -1,6 +1,6 @@
 # Standing approvals
 
-While myK9 has no real club, the owner pre-approves two routine shared-system actions so agents stop asking for go-aheads they always get (MYK9-1485, owner decision 2026-10-29; design in [`docs/plan-standing-approvals.md`](../plan-standing-approvals.md)).
+While myK9 has no real club, the owner pre-approves two routine shared-system actions so agents stop asking for go-aheads they always get (MYK9-1485, owner decision 2026-10-29; design in [`docs/archive/plan-standing-approvals.md`](../archive/plan-standing-approvals.md)).
 
 **Read this file fresh before every shared-system write.** Never rely on a copy you read earlier in the session; the switch below may have changed.
 

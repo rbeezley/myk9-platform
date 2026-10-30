@@ -18,7 +18,11 @@
  */
 
 import type { Entry, RunOrderPreset, RunOrderScope, RenumberMode } from '@myk9/ringside';
-import { calculateCombinedRunOrder, toMyK9ShowRunOrderPreset } from '@/lib/runOrderUtils';
+import {
+  calculateCombinedRunOrder,
+  storedRunOrder,
+  toMyK9ShowRunOrderPreset,
+} from '@/lib/runOrderUtils';
 import { persistRunOrderResults } from './persistRunOrderResults';
 
 export async function applyCombinedRunOrder(
@@ -32,8 +36,7 @@ export async function applyCombinedRunOrder(
       id: e.id,
       armband: e.armband != null ? String(e.armband) : null,
       section: e.section ?? null,
-      // The adapter exposes an unset run order as 0; 0 is never a real slot.
-      runOrder: e.exhibitorOrder ? e.exhibitorOrder : null,
+      runOrder: storedRunOrder(e),
     })),
     // ringside's union carries members myK9Show's dialog doesn't model
     // (notably `random-all` → `random`); a bare cast would let them fall to

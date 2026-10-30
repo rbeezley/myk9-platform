@@ -24,6 +24,7 @@
  */
 
 import type { Entry } from '@myk9/ringside';
+import { storedRunOrder } from '@/lib/runOrderUtils';
 import { persistRunOrderResults } from './persistRunOrderResults';
 
 export async function persistEntryRunOrder(
@@ -33,7 +34,7 @@ export async function persistEntryRunOrder(
   await persistRunOrderResults(
     reordered.map((entry, index) => ({
       id: entry.id,
-      runOrder: entry.exhibitorOrder ?? index + 1,
+      runOrder: storedRunOrder(entry) ?? index + 1,
     })),
     previous
   );

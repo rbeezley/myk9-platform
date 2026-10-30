@@ -21,13 +21,13 @@
 
 import { replicatedEntriesTable } from '@/services/replication';
 import type { Entry } from '@myk9/ringside';
-import type { RunOrderResult } from '@/lib/runOrderUtils';
+import { storedRunOrder, type RunOrderResult } from '@/lib/runOrderUtils';
 
 export async function persistRunOrderResults(
   results: RunOrderResult[],
   previous: Entry[] = []
 ): Promise<void> {
-  const previousOrder = new Map(previous.map(entry => [entry.id, entry.exhibitorOrder]));
+  const previousOrder = new Map(previous.map(entry => [entry.id, storedRunOrder(entry)]));
   await Promise.all(
     results
       .filter(r => previousOrder.get(r.id) !== r.runOrder)

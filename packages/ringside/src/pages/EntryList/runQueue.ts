@@ -233,4 +233,9 @@ export {
   pickClassTime,
   type ParsedClassTime,
 } from '../ClassList/utils/classTimeValue';
-export { mergeSectionStatus } from '../ClassList/utils/combinedSectionState';
+export {
+  mergeSectionPhase,
+  mergeSectionStatus,
+  type MergedSectionPhase,
+  type PhaseSource,
+} from '../ClassList/utils/combinedSectionState';

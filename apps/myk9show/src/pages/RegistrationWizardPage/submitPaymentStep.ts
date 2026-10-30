@@ -88,6 +88,7 @@ export interface SubmitPaymentStepContext {
   setRegistrationNumber: (value: string | undefined) => void;
   setArmbandAssignments: (value: ArmbandAssignment[]) => void;
   setEntryOutcomes: (value: EntrySubmissionOutcome[]) => void;
+  setCreatedEntryOutcomes: (value: EntrySubmissionOutcome[]) => void;
   markStepComplete: (stepIndex: number) => void;
   setCurrentStep: (updater: (prev: number) => number) => void;
   updateShowRegistration: (
@@ -195,6 +196,7 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
         ctx.setArmbandAssignments(offlineResult.armbandAssignments);
       }
       ctx.setEntryOutcomes(offlineResult.entryOutcomes);
+      ctx.setCreatedEntryOutcomes([]);
       ctx.discardDraftsWithoutFinalSave(
         handledClasses(ctx.classSelections, offlineResult.entryOutcomes)
       );
@@ -229,6 +231,7 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
     if (ctx.currentWorkflowMode === 'exhibitor') ctx.invalidateOwnTodayEntries();
     ctx.setRegistrationNumber(submissionResult.registrationNumber);
     ctx.setEntryOutcomes(submissionResult.entryOutcomes ?? []);
+    ctx.setCreatedEntryOutcomes(submissionResult.createdEntryOutcomes ?? []);
     ctx.discardDraftsWithoutFinalSave(
       handledClasses(ctx.classSelections, submissionResult.entryOutcomes)
     );

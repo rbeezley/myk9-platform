@@ -301,6 +301,7 @@ export function useRegistrationWizardState() {
   const [entryStatus, setEntryStatus] = useState<EntryStatus>(EntryStatus.PENDING);
   const [armbandAssignments, setArmbandAssignments] = useState<ArmbandAssignment[]>([]);
   const [entryOutcomes, setEntryOutcomes] = useState<EntrySubmissionOutcome[]>([]);
+  const [createdEntryOutcomes, setCreatedEntryOutcomes] = useState<EntrySubmissionOutcome[]>([]);
   const paymentDetailsRef = useRef<PaymentDetails>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [agreedToEntryAgreement, setAgreedToEntryAgreement] = useState(false);
@@ -660,6 +661,8 @@ export function useRegistrationWizardState() {
     setArmbandAssignments,
     entryOutcomes,
     setEntryOutcomes,
+    createdEntryOutcomes,
+    setCreatedEntryOutcomes,
     paymentDetailsRef,
     isSubmitting,
     setIsSubmitting,

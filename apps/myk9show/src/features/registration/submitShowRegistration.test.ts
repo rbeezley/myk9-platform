@@ -122,6 +122,7 @@ describe('submitShowRegistration', () => {
       dbRegistrationId: 'db-reg-2',
       armbandAssignments: [],
       armbandFailures: [],
+      createdEntryOutcomes: [expect.objectContaining({ entryId: 'entry-1' })],
     });
   });
 
@@ -278,6 +279,24 @@ describe('submitShowRegistration', () => {
 
     expect(params.deps.createShowRegistration).toHaveBeenCalledTimes(1);
     expect(params.deps.createShowRegistration).toHaveBeenCalledWith('show-1', 'owner-1');
+  });
+
+  // MYK9-1518: the ordinary path surfaces no entryOutcomes (the receipt reads that as
+  // "nothing unusual"), so the created entries travel in their own field for the
+  // Receipt step's entry-blank downloads.
+  it('carries the created entries separately on an ordinary submission', async () => {
+    const params = makeParams({ classes: [{ id: 'class-1', entryFee: 30 }] });
+
+    const result = await submitShowRegistration(params);
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        createdEntryOutcomes: [
+          expect.objectContaining({ dogId: 'dog-1', classId: 'class-1', entryId: 'entry-1' }),
+        ],
+      })
+    );
+    expect(result).not.toHaveProperty('entryOutcomes');
   });
 
   it('records payment and claims armbands only for created capacity outcomes', async () => {
@@ -437,6 +456,7 @@ describe('submitShowRegistration', () => {
       dbRegistrationId: 'db-reg-2',
       armbandAssignments: [{ dogId: 'dog-1', armband: '101' }],
       armbandFailures: [],
+      createdEntryOutcomes: [expect.objectContaining({ entryId: 'entry-1' })],
     });
   });
 
@@ -455,6 +475,7 @@ describe('submitShowRegistration', () => {
       dbRegistrationId: 'db-reg-2',
       armbandAssignments: [],
       armbandFailures: [{ dogId: 'dog-1', error: 'replicated entry patch failed' }],
+      createdEntryOutcomes: [expect.objectContaining({ entryId: 'entry-1' })],
     });
   });
 
@@ -470,6 +491,7 @@ describe('submitShowRegistration', () => {
       dbRegistrationId: 'db-reg-2',
       armbandAssignments: [],
       armbandFailures: [{ dogId: 'dog-1', error: 'P0001: not staff' }],
+      createdEntryOutcomes: [expect.objectContaining({ entryId: 'entry-1' })],
     });
   });
 

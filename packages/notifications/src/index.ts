@@ -24,6 +24,7 @@ export { generateVoiceText } from './voice-text';
 export { playNotificationSound, testSound } from './sound';
 
 export { speak, speakWithConfig, isSpeechSupported } from './voice';
+export type { SpeakOptions } from './voice';
 
 export type { VoiceCategories, VoiceConfig } from './types';
 export { NOTIFICATION_TYPE_TO_VOICE_CATEGORY } from './types';

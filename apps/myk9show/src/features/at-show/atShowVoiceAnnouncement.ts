@@ -17,5 +17,10 @@ export function remainingSecondsPhrase(secondsRemaining: number): string {
 export function speakRemainingSeconds(secondsRemaining: number): void {
   const { timerVoiceEnabled, voiceName, voiceRate } = useNotificationStore.getState().preferences;
   if (!timerVoiceEnabled) return;
-  speakWithConfig(remainingSecondsPhrase(secondsRemaining), { voiceName, voiceRate });
+  // Priority: a spoken notification arriving at the same moment never cancels the warning.
+  speakWithConfig(
+    remainingSecondsPhrase(secondsRemaining),
+    { voiceName, voiceRate },
+    { priority: true }
+  );
 }

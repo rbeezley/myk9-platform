@@ -22,10 +22,12 @@ describe('speakRemainingSeconds', () => {
   it('speaks with the saved voice and speed', () => {
     setPrefs({ voiceName: 'Samantha', voiceRate: 1.4 });
     speakRemainingSeconds(30);
-    expect(speakWithConfig).toHaveBeenCalledWith('30 seconds remaining', {
-      voiceName: 'Samantha',
-      voiceRate: 1.4,
-    });
+    expect(speakWithConfig).toHaveBeenCalledWith(
+      '30 seconds remaining',
+      { voiceName: 'Samantha', voiceRate: 1.4 },
+      // Priority, so a spoken notification can never cancel the warning (Codex round 2).
+      { priority: true }
+    );
   });
 
   it('speaks by default for a judge who never opened Settings', () => {

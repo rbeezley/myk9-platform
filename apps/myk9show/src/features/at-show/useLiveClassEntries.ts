@@ -26,16 +26,19 @@ export function useLiveClassEntries(classId: string, enabled = true): LiveClassE
   useEffect(() => {
     if (!enabled || !classId) return;
     let cancelled = false;
+    // Reads can resolve out of order: only the newest one may update the snapshot.
+    let latest = 0;
     const read = () => {
+      const mine = ++latest;
       replicatedEntriesTable
         .getEntriesByClass(classId)
         .then(rows => {
-          if (cancelled) return;
+          if (cancelled || mine !== latest) return;
           setSnapshot({ key: classId, rows });
           setFailedKey(null);
         })
         .catch(() => {
-          if (!cancelled) setFailedKey(classId);
+          if (!cancelled && mine === latest) setFailedKey(classId);
         });
     };
     const unsubscribe = replicatedEntriesTable.subscribe(read);

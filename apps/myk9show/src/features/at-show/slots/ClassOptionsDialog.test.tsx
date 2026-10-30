@@ -10,6 +10,10 @@ const replica = vi.hoisted(() => ({
   classes: new Map<string, Record<string, unknown>>(),
   entries: [] as Record<string, unknown>[],
   failEntries: false,
+  /** When set, each entry read waits for a manual resolve (see `held`). */
+  hold: false,
+  held: [] as Array<() => void>,
+  listeners: [] as Array<() => void>,
 }));
 vi.mock('@/services/replication', () => ({
   replicatedClassesTable: {
@@ -19,9 +23,14 @@ vi.mock('@/services/replication', () => ({
   replicatedEntriesTable: {
     getEntriesByClass: vi.fn(async () => {
       if (replica.failEntries) throw new Error('read failed');
-      return replica.entries;
+      const snapshot = replica.entries;
+      if (replica.hold) await new Promise<void>(resolve => replica.held.push(resolve));
+      return snapshot;
     }),
-    subscribe: vi.fn(() => () => {}),
+    subscribe: vi.fn((listener: () => void) => {
+      replica.listeners.push(listener);
+      return () => {};
+    }),
   },
 }));
 
@@ -54,6 +63,9 @@ beforeEach(() => {
   replica.classes.clear();
   replica.entries = [];
   replica.failEntries = false;
+  replica.hold = false;
+  replica.held = [];
+  replica.listeners = [];
 });
 
 describe('ClassOptionsDialog (MYK9-1502)', () => {
@@ -169,5 +181,28 @@ describe('ClassOptionsDialog (MYK9-1502)', () => {
     rerender(<ClassOptionsDialog isOpen={false} {...props} />);
     rerender(<ClassOptionsDialog isOpen {...props} />);
     expect(await screen.findByRole('button', { name: /Requirements/ })).toBeInTheDocument();
+  });
+
+  it('an older read that resolves late does not overwrite the newer statistics', async () => {
+    replica.hold = true;
+    replica.entries = [
+      { id: 'a', isScored: true, resultStatus: 'qualified', searchTimeSeconds: 60 },
+    ];
+    renderDialog();
+    fireEvent.click(screen.getByRole('button', { name: /Statistics/ }));
+    await waitFor(() => expect(replica.held).toHaveLength(1));
+    // A score lands while the first read is still in flight.
+    replica.entries = [
+      { id: 'a', isScored: true, resultStatus: 'qualified', searchTimeSeconds: 60 },
+      { id: 'b', isScored: true, resultStatus: 'qualified', searchTimeSeconds: 90 },
+    ];
+    replica.listeners.forEach(listener => listener());
+    await waitFor(() => expect(replica.held).toHaveLength(2));
+    replica.held[1]!(); // the newer read finishes first
+    const stat = (label: string) => screen.getByText(label).closest('div')!;
+    await waitFor(() => expect(stat('Entries')).toHaveTextContent('2'));
+    replica.held[0]!(); // then the older one, stale
+    await new Promise(resolve => setTimeout(resolve, 20));
+    expect(stat('Entries')).toHaveTextContent('2');
   });
 });

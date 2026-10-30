@@ -7,6 +7,7 @@
  */
 import { ALL_DAYS, getShowHomeHref } from '@/features/show-map/cockpit/cockpitRoutes';
 import { getPaperScoringEntryHref } from '@/pages/scoring/scoringRoutes';
+import type { ResultsTabReadState } from './useResultsTabData';
 import { isResultsStatusFilterId, type ResultsStatusFilterId } from './resultsNextAction';
 
 export interface ResultsTabUrlState {
@@ -86,4 +87,48 @@ export function getFixScoreHref(
 
 export function getResultsStepHref(showId: string, step: 'submit' | 'close'): string {
   return `/shows/${encodeURIComponent(showId)}/results?step=${step}`;
+}
+
+/**
+ * The nationals leaderboard is a view of the Results tab (MYK9-1516); anything else is the class
+ * list. The URL alone never opens it on a show that is not known to be nationals.
+ */
+export function isNationalsLeaderboardView(
+  params: URLSearchParams,
+  isNationals: boolean | null
+): boolean {
+  return isNationals === true && isNationalsLeaderboardRequested(params);
+}
+
+/** The URL names the board; whether the show may open it waits on the nationals flag. */
+export function isNationalsLeaderboardRequested(params: URLSearchParams): boolean {
+  return params.get('view') === 'leaderboard';
+}
+
+/**
+ * The read state the tab should act on. A direct leaderboard URL also waits on the show row (the
+ * nationals flag): while it loads that is Loading, and when it cannot be read that is Unavailable,
+ * so the class list is never shown in place of the requested view.
+ */
+export function effectiveReadState(
+  readState: ResultsTabReadState,
+  params: URLSearchParams,
+  rankingKeyState: 'ready' | 'loading' | 'unavailable'
+): ResultsTabReadState {
+  if (!isNationalsLeaderboardRequested(params) || rankingKeyState === 'ready') return readState;
+  return rankingKeyState === 'loading' ? 'loading' : 'unavailable';
+}
+
+/** Easy to link from elsewhere (the ringside menu, MYK9-1508): it is just the Results tab URL. */
+export function getNationalsLeaderboardHref(showId: string): string {
+  return `/shows/${encodeURIComponent(showId)}/results?view=leaderboard`;
+}
+
+export function getResultsListHref(showId: string): string {
+  return `/shows/${encodeURIComponent(showId)}/results`;
+}
+
+/** The show id, from whichever route param this tab is mounted under. */
+export function getShowIdParam(params: { showId?: string; id?: string }): string {
+  return params.showId ?? params.id ?? '';
 }

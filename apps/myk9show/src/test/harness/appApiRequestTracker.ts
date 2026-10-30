@@ -1,4 +1,5 @@
 import type { Page, Request } from '@playwright/test';
+import type { RequestOutcome } from './strandedAccessControlErrors';
 
 const DEFAULT_IDLE_MS = 100;
 const DEFAULT_TIMEOUT_MS = 5000;
@@ -124,6 +125,37 @@ export function watchAppApiRequests(page: Page) {
   });
 
   return tracker;
+}
+
+/**
+ * Diagnostic only (MYK9-1477): the app API requests the CURRENT route started,
+ * with their outcomes. `clear()` at each route start forgets everything earlier;
+ * the outgoing document's abandoned requests are the tracker's `stranded` set,
+ * which is already scoped to this navigation, so this collector never carries
+ * one route's requests into another's report.
+ */
+export interface SeenAppApiRequests {
+  outcomes: Map<Request, RequestOutcome>;
+  clear(): void;
+}
+
+export function watchSeenAppApiRequests(page: Page): SeenAppApiRequests {
+  const outcomes = new Map<Request, RequestOutcome>();
+  page.on('request', request => {
+    if (isAppApiRequest(request)) outcomes.set(request, 'no-outcome');
+  });
+  page.on('requestfinished', request => {
+    if (outcomes.has(request)) outcomes.set(request, 'finished');
+  });
+  page.on('requestfailed', request => {
+    if (outcomes.has(request)) outcomes.set(request, 'failed');
+  });
+  return {
+    outcomes,
+    clear() {
+      outcomes.clear();
+    },
+  };
 }
 
 export async function waitForAppApiRequestsToSettle(

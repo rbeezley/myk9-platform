@@ -38,9 +38,14 @@ import {
 import {
   waitForAppApiRequestsToSettle,
   watchAppApiRequests,
+  watchSeenAppApiRequests,
+  type SeenAppApiRequests,
 } from '../harness/appApiRequestTracker';
 import { logUnsettledAppApiRequests } from '../harness/routeHealthDiagnostics';
-import { triageStrandedAccessControlErrors } from '../harness/strandedAccessControlErrors';
+import {
+  describeKeptAccessControlErrors,
+  triageStrandedAccessControlErrors,
+} from '../harness/strandedAccessControlErrors';
 
 const SEEDED_SHOW = LIVE_SECRETARY_SHOW_ID;
 
@@ -198,7 +203,8 @@ async function sweepRoutes(
   page: Page,
   group: string,
   routes: RouteSpec[],
-  pendingAppApiRequests: ReturnType<typeof watchAppApiRequests>
+  pendingAppApiRequests: ReturnType<typeof watchAppApiRequests>,
+  seenRequests: SeenAppApiRequests
 ) {
   const health = createBrowserHealth();
   watchBrowserHealth(page, health);
@@ -236,6 +242,7 @@ async function sweepRoutes(
     pendingAppApiRequests.stranded.clear();
     pendingAppApiRequests.strandPending();
     pendingAppApiRequests.reset();
+    seenRequests.clear();
 
     let navigationError: string | null = null;
     let documentStatus: number | null = null;
@@ -348,9 +355,10 @@ async function sweepRoutes(
     // outcome at all (run 40962869226). Only that exact case is excused, and
     // only once the route settled: then every request this route made has an
     // outcome, so an outcome-less error must be one the old document abandoned.
+    const strandedUrls = [...pendingAppApiRequests.stranded].map(request => request.url());
     const { kept: pageErrors, excused } = triageStrandedAccessControlErrors(
       health.pageErrors,
-      [...pendingAppApiRequests.stranded].map(request => request.url()),
+      strandedUrls,
       [...health.failedResponses, ...health.failedRequests],
       routeSettled
     );
@@ -363,12 +371,23 @@ async function sweepRoutes(
       health.failedRequests.length > 0
         ? ` failed-requests=${health.failedRequests.join('; ')}`
         : '';
-    expect.soft(viols, `${id}: browser health violations${failedRequests}`).toHaveLength(0);
+    const keptAccessControl = describeKeptAccessControlErrors(
+      pageErrors,
+      [...seenRequests.outcomes].map(([request, outcome]) => ({ url: request.url(), outcome })),
+      strandedUrls
+    );
+    const accessControl =
+      keptAccessControl.length > 0
+        ? ` access-control=${keptAccessControl.join('; ')} settled=${routeSettled}`
+        : '';
+    expect
+      .soft(viols, `${id}: browser health violations${failedRequests}${accessControl}`)
+      .toHaveLength(0);
 
     // Annotate result for report visibility.
     test.info().annotations.push({
       type: 'route',
-      description: `${id} render=${bodyText.length}ch health=${viols.length > 0 ? viols.join('; ') : 'ok'}${failedRequests}${excused.length > 0 ? ` excused-stranded=${excused.join('; ')}` : ''}`,
+      description: `${id} render=${bodyText.length}ch health=${viols.length > 0 ? viols.join('; ') : 'ok'}${failedRequests}${accessControl}${excused.length > 0 ? ` excused-stranded=${excused.join('; ')}` : ''}`,
     });
   }
 }
@@ -378,7 +397,8 @@ async function sweepRoutes(
 test.describe('Route health: public', () => {
   test('public routes render clean', async ({ page }) => {
     const pendingAppApiRequests = watchAppApiRequests(page);
-    await sweepRoutes(page, 'public', PUBLIC_ROUTES, pendingAppApiRequests);
+    const seenRequests = watchSeenAppApiRequests(page);
+    await sweepRoutes(page, 'public', PUBLIC_ROUTES, pendingAppApiRequests, seenRequests);
   });
 });
 
@@ -393,8 +413,9 @@ test.describe('Route health: exhibitor', () => {
       test.skip(true, 'Exhibitor credentials absent — group skipped');
     }
     const pendingAppApiRequests = watchAppApiRequests(page);
+    const seenRequests = watchSeenAppApiRequests(page);
     await signIn(page, user.email, user.password, '/exhibitor/entries');
-    await sweepRoutes(page, 'exhibitor', EXHIBITOR_ROUTES, pendingAppApiRequests);
+    await sweepRoutes(page, 'exhibitor', EXHIBITOR_ROUTES, pendingAppApiRequests, seenRequests);
   });
 });
 
@@ -409,8 +430,9 @@ test.describe('Route health: secretary', () => {
       test.skip(true, 'Secretary credentials absent — group skipped');
     }
     const pendingAppApiRequests = watchAppApiRequests(page);
+    const seenRequests = watchSeenAppApiRequests(page);
     await signIn(page, user.email, user.password, '/secretary/dashboard');
-    await sweepRoutes(page, 'secretary', SECRETARY_ROUTES, pendingAppApiRequests);
+    await sweepRoutes(page, 'secretary', SECRETARY_ROUTES, pendingAppApiRequests, seenRequests);
   });
 });
 
@@ -425,8 +447,9 @@ test.describe('Route health: judge', () => {
       test.skip(true, 'Judge credentials absent — group skipped');
     }
     const pendingAppApiRequests = watchAppApiRequests(page);
+    const seenRequests = watchSeenAppApiRequests(page);
     await signIn(page, user.email, user.password, '/judge/dashboard');
-    await sweepRoutes(page, 'judge', JUDGE_ROUTES, pendingAppApiRequests);
+    await sweepRoutes(page, 'judge', JUDGE_ROUTES, pendingAppApiRequests, seenRequests);
   });
 });
 
@@ -441,8 +464,9 @@ test.describe('Route health: club-admin', () => {
       test.skip(true, 'Club-admin credentials absent — group skipped');
     }
     const pendingAppApiRequests = watchAppApiRequests(page);
+    const seenRequests = watchSeenAppApiRequests(page);
     await signIn(page, user.email, user.password, '/club-admin/members');
-    await sweepRoutes(page, 'club-admin', CLUB_ADMIN_ROUTES, pendingAppApiRequests);
+    await sweepRoutes(page, 'club-admin', CLUB_ADMIN_ROUTES, pendingAppApiRequests, seenRequests);
   });
 });
 
@@ -457,7 +481,8 @@ test.describe('Route health: admin', () => {
       test.skip(true, 'Admin credentials absent — group skipped');
     }
     const pendingAppApiRequests = watchAppApiRequests(page);
+    const seenRequests = watchSeenAppApiRequests(page);
     await signIn(page, user.email, user.password, '/admin/dashboard');
-    await sweepRoutes(page, 'admin', ADMIN_ROUTES, pendingAppApiRequests);
+    await sweepRoutes(page, 'admin', ADMIN_ROUTES, pendingAppApiRequests, seenRequests);
   });
 });

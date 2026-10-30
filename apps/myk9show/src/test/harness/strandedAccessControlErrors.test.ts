@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   accessControlErrorUrl,
+  describeKeptAccessControlErrors,
   triageStrandedAccessControlErrors,
 } from './strandedAccessControlErrors';
 
@@ -84,5 +85,35 @@ describe('triageStrandedAccessControlErrors', () => {
   it('never excuses another kind of page error, even with stranded requests', () => {
     const error = `TypeError: ${URL_A} is broken`;
     expect(triageStrandedAccessControlErrors([error], [URL_A], [], true).kept).toEqual([error]);
+  });
+});
+
+describe('describeKeptAccessControlErrors', () => {
+  it('says a kept error was never seen, and how many requests shared its path', () => {
+    const other = 'http://127.0.0.1:54321/rest/v1/stripe_orders?select=id';
+    expect(
+      describeKeptAccessControlErrors([errorFor(URL_A)], [{ url: other, outcome: 'finished' }], [])
+    ).toEqual([
+      '127.0.0.1:54321/rest/v1/stripe_orders seen=never same-path-requests=1 stranded=no',
+    ]);
+  });
+
+  it('reports each outcome a request to that URL had, and whether it was stranded', () => {
+    expect(
+      describeKeptAccessControlErrors(
+        [errorFor(URL_A)],
+        [
+          { url: URL_A, outcome: 'finished' },
+          { url: URL_A, outcome: 'no-outcome' },
+        ],
+        [URL_A]
+      )
+    ).toEqual([
+      '127.0.0.1:54321/rest/v1/stripe_orders seen=finished,no-outcome same-path-requests=2 stranded=yes',
+    ]);
+  });
+
+  it('describes nothing for page errors of any other kind', () => {
+    expect(describeKeptAccessControlErrors(['TypeError: boom'], [], [])).toEqual([]);
   });
 });

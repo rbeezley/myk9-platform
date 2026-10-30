@@ -84,3 +84,32 @@ export function triageStrandedAccessControlErrors(
   }
   return { kept, excused };
 }
+
+export type RequestOutcome = 'no-outcome' | 'finished' | 'failed';
+
+/**
+ * Diagnostic only (MYK9-1477): for each access-control page error the triage
+ * KEPT, say what the sweep saw of a request to that URL, so a nightly shows why
+ * it was not excused: `seen=never` means Playwright never reported the request,
+ * a `same-path-requests` count above zero with `seen=never` means the URL text
+ * differs (encoding), and `seen=no-outcome stranded=no` means the tracker missed
+ * a request it did see.
+ */
+export function describeKeptAccessControlErrors(
+  keptPageErrors: string[],
+  seenRequests: Array<{ url: string; outcome: RequestOutcome }>,
+  strandedUrls: string[]
+): string[] {
+  const stranded = new Set(strandedUrls.map(normalizeUrl));
+  const seen = seenRequests.map(request => ({ ...request, url: normalizeUrl(request.url) }));
+  return keptPageErrors.flatMap(message => {
+    const url = accessControlErrorUrl(message);
+    if (url === null) return [];
+    const path = url.split('?')[0];
+    const outcomes = seen.filter(request => request.url === url).map(request => request.outcome);
+    const samePath = seen.filter(request => request.url.split('?')[0] === path).length;
+    return [
+      `${path} seen=${outcomes.length > 0 ? outcomes.join(',') : 'never'} same-path-requests=${samePath} stranded=${stranded.has(url) ? 'yes' : 'no'}`,
+    ];
+  });
+}

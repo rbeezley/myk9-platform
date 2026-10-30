@@ -122,7 +122,8 @@ const ClassStatusForm: React.FC<ClassStatusDialogProps> = ({
 
   return (
     <Dialog open onOpenChange={open => handleOpenChange(open, onClose)}>
-      <DialogContent>
+      {/* Eight two-line options plus the time form outgrow a phone: cap at the viewport and scroll. */}
+      <DialogContent className="max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{classData.class_name} — Status</DialogTitle>
         </DialogHeader>

@@ -128,16 +128,15 @@ export function watchAppApiRequests(page: Page) {
 }
 
 /**
- * Diagnostic only (MYK9-1477): every app API request in the current navigation
- * window, with its outcome. Create it with the tracker, BEFORE sign-in, so a
- * request the sign-in page starts is seen. `pruneSettled()` at each route start
- * drops requests that already finished or failed and keeps the outgoing
- * document's in-flight ones, so an earlier route's success never answers for
- * the current route's error.
+ * Diagnostic only (MYK9-1477): the app API requests the CURRENT route started,
+ * with their outcomes. `clear()` at each route start forgets everything earlier;
+ * the outgoing document's abandoned requests are the tracker's `stranded` set,
+ * which is already scoped to this navigation, so this collector never carries
+ * one route's requests into another's report.
  */
 export interface SeenAppApiRequests {
   outcomes: Map<Request, RequestOutcome>;
-  pruneSettled(): void;
+  clear(): void;
 }
 
 export function watchSeenAppApiRequests(page: Page): SeenAppApiRequests {
@@ -153,10 +152,8 @@ export function watchSeenAppApiRequests(page: Page): SeenAppApiRequests {
   });
   return {
     outcomes,
-    pruneSettled() {
-      for (const [request, outcome] of outcomes) {
-        if (outcome !== 'no-outcome') outcomes.delete(request);
-      }
+    clear() {
+      outcomes.clear();
     },
   };
 }

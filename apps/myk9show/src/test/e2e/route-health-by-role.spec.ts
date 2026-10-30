@@ -242,7 +242,7 @@ async function sweepRoutes(
     pendingAppApiRequests.stranded.clear();
     pendingAppApiRequests.strandPending();
     pendingAppApiRequests.reset();
-    seenRequests.pruneSettled();
+    seenRequests.clear();
 
     let navigationError: string | null = null;
     let documentStatus: number | null = null;

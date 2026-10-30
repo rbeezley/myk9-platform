@@ -468,7 +468,7 @@ describe('requests the outgoing document leaves behind at a navigation (MYK9-146
 });
 
 describe('the diagnostic collector of seen requests (MYK9-1477)', () => {
-  it('records outcomes and prunes only settled requests at a route start', () => {
+  it('records app API outcomes and forgets every request at a route start', () => {
     const harness = createPageHarness();
     const seen = watchSeenAppApiRequests(harness.page);
     const finished = createRequest('http://127.0.0.1:54321/rest/v1/clubs?select=id');
@@ -479,7 +479,8 @@ describe('the diagnostic collector of seen requests (MYK9-1477)', () => {
     harness.emit('requestfinished', finished);
     expect([...seen.outcomes.values()]).toEqual(['finished', 'no-outcome']);
 
-    seen.pruneSettled();
-    expect([...seen.outcomes]).toEqual([[inFlight, 'no-outcome']]);
+    // An abandoned request belongs to the tracker's stranded set, not to a later route.
+    seen.clear();
+    expect(seen.outcomes.size).toBe(0);
   });
 });

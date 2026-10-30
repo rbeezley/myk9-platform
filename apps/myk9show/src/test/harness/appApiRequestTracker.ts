@@ -1,4 +1,5 @@
 import type { Page, Request } from '@playwright/test';
+import type { RequestOutcome } from './strandedAccessControlErrors';
 
 const DEFAULT_IDLE_MS = 100;
 const DEFAULT_TIMEOUT_MS = 5000;
@@ -124,6 +125,40 @@ export function watchAppApiRequests(page: Page) {
   });
 
   return tracker;
+}
+
+/**
+ * Diagnostic only (MYK9-1477): every app API request in the current navigation
+ * window, with its outcome. Create it with the tracker, BEFORE sign-in, so a
+ * request the sign-in page starts is seen. `pruneSettled()` at each route start
+ * drops requests that already finished or failed and keeps the outgoing
+ * document's in-flight ones, so an earlier route's success never answers for
+ * the current route's error.
+ */
+export interface SeenAppApiRequests {
+  outcomes: Map<Request, RequestOutcome>;
+  pruneSettled(): void;
+}
+
+export function watchSeenAppApiRequests(page: Page): SeenAppApiRequests {
+  const outcomes = new Map<Request, RequestOutcome>();
+  page.on('request', request => {
+    if (isAppApiRequest(request)) outcomes.set(request, 'no-outcome');
+  });
+  page.on('requestfinished', request => {
+    if (outcomes.has(request)) outcomes.set(request, 'finished');
+  });
+  page.on('requestfailed', request => {
+    if (outcomes.has(request)) outcomes.set(request, 'failed');
+  });
+  return {
+    outcomes,
+    pruneSettled() {
+      for (const [request, outcome] of outcomes) {
+        if (outcome !== 'no-outcome') outcomes.delete(request);
+      }
+    },
+  };
 }
 
 export async function waitForAppApiRequestsToSettle(

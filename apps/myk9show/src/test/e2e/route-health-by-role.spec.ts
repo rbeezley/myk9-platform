@@ -21,7 +21,7 @@
  * Proof: run alone + full active Nightly Playwright command with --retries=0.
  */
 
-import { expect, test, type Page, type Request } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { TEST_USERS } from './helpers/testUsers';
 import { signIn } from './uat/shared/auth';
 import { LIVE_SECRETARY_SHOW_ID } from './uat/shared/seededShows';
@@ -36,15 +36,15 @@ import {
   type BrowserHealth,
 } from './uat/shared/artifacts';
 import {
-  isAppApiRequest,
   waitForAppApiRequestsToSettle,
   watchAppApiRequests,
+  watchSeenAppApiRequests,
+  type SeenAppApiRequests,
 } from '../harness/appApiRequestTracker';
 import { logUnsettledAppApiRequests } from '../harness/routeHealthDiagnostics';
 import {
   describeKeptAccessControlErrors,
   triageStrandedAccessControlErrors,
-  type RequestOutcome,
 } from '../harness/strandedAccessControlErrors';
 
 const SEEDED_SHOW = LIVE_SECRETARY_SHOW_ID;
@@ -203,23 +203,11 @@ async function sweepRoutes(
   page: Page,
   group: string,
   routes: RouteSpec[],
-  pendingAppApiRequests: ReturnType<typeof watchAppApiRequests>
+  pendingAppApiRequests: ReturnType<typeof watchAppApiRequests>,
+  seenRequests: SeenAppApiRequests
 ) {
   const health = createBrowserHealth();
   watchBrowserHealth(page, health);
-
-  // Every app API request this sweep saw, with its outcome. Diagnostic only: it
-  // explains an access-control page error the triage below did not excuse (MYK9-1477).
-  const seenRequests = new Map<Request, RequestOutcome>();
-  page.on('request', request => {
-    if (isAppApiRequest(request)) seenRequests.set(request, 'no-outcome');
-  });
-  page.on('requestfinished', request => {
-    if (seenRequests.has(request)) seenRequests.set(request, 'finished');
-  });
-  page.on('requestfailed', request => {
-    if (seenRequests.has(request)) seenRequests.set(request, 'failed');
-  });
 
   // Authentication lands on the first route before the sweep starts. Let any
   // API reads started by that navigation finish before the loop reloads it.
@@ -254,6 +242,7 @@ async function sweepRoutes(
     pendingAppApiRequests.stranded.clear();
     pendingAppApiRequests.strandPending();
     pendingAppApiRequests.reset();
+    seenRequests.pruneSettled();
 
     let navigationError: string | null = null;
     let documentStatus: number | null = null;
@@ -384,7 +373,7 @@ async function sweepRoutes(
         : '';
     const keptAccessControl = describeKeptAccessControlErrors(
       pageErrors,
-      [...seenRequests].map(([request, outcome]) => ({ url: request.url(), outcome })),
+      [...seenRequests.outcomes].map(([request, outcome]) => ({ url: request.url(), outcome })),
       strandedUrls
     );
     const accessControl =
@@ -408,7 +397,8 @@ async function sweepRoutes(
 test.describe('Route health: public', () => {
   test('public routes render clean', async ({ page }) => {
     const pendingAppApiRequests = watchAppApiRequests(page);
-    await sweepRoutes(page, 'public', PUBLIC_ROUTES, pendingAppApiRequests);
+    const seenRequests = watchSeenAppApiRequests(page);
+    await sweepRoutes(page, 'public', PUBLIC_ROUTES, pendingAppApiRequests, seenRequests);
   });
 });
 
@@ -423,8 +413,9 @@ test.describe('Route health: exhibitor', () => {
       test.skip(true, 'Exhibitor credentials absent — group skipped');
     }
     const pendingAppApiRequests = watchAppApiRequests(page);
+    const seenRequests = watchSeenAppApiRequests(page);
     await signIn(page, user.email, user.password, '/exhibitor/entries');
-    await sweepRoutes(page, 'exhibitor', EXHIBITOR_ROUTES, pendingAppApiRequests);
+    await sweepRoutes(page, 'exhibitor', EXHIBITOR_ROUTES, pendingAppApiRequests, seenRequests);
   });
 });
 
@@ -439,8 +430,9 @@ test.describe('Route health: secretary', () => {
       test.skip(true, 'Secretary credentials absent — group skipped');
     }
     const pendingAppApiRequests = watchAppApiRequests(page);
+    const seenRequests = watchSeenAppApiRequests(page);
     await signIn(page, user.email, user.password, '/secretary/dashboard');
-    await sweepRoutes(page, 'secretary', SECRETARY_ROUTES, pendingAppApiRequests);
+    await sweepRoutes(page, 'secretary', SECRETARY_ROUTES, pendingAppApiRequests, seenRequests);
   });
 });
 
@@ -455,8 +447,9 @@ test.describe('Route health: judge', () => {
       test.skip(true, 'Judge credentials absent — group skipped');
     }
     const pendingAppApiRequests = watchAppApiRequests(page);
+    const seenRequests = watchSeenAppApiRequests(page);
     await signIn(page, user.email, user.password, '/judge/dashboard');
-    await sweepRoutes(page, 'judge', JUDGE_ROUTES, pendingAppApiRequests);
+    await sweepRoutes(page, 'judge', JUDGE_ROUTES, pendingAppApiRequests, seenRequests);
   });
 });
 
@@ -471,8 +464,9 @@ test.describe('Route health: club-admin', () => {
       test.skip(true, 'Club-admin credentials absent — group skipped');
     }
     const pendingAppApiRequests = watchAppApiRequests(page);
+    const seenRequests = watchSeenAppApiRequests(page);
     await signIn(page, user.email, user.password, '/club-admin/members');
-    await sweepRoutes(page, 'club-admin', CLUB_ADMIN_ROUTES, pendingAppApiRequests);
+    await sweepRoutes(page, 'club-admin', CLUB_ADMIN_ROUTES, pendingAppApiRequests, seenRequests);
   });
 });
 
@@ -487,7 +481,8 @@ test.describe('Route health: admin', () => {
       test.skip(true, 'Admin credentials absent — group skipped');
     }
     const pendingAppApiRequests = watchAppApiRequests(page);
+    const seenRequests = watchSeenAppApiRequests(page);
     await signIn(page, user.email, user.password, '/admin/dashboard');
-    await sweepRoutes(page, 'admin', ADMIN_ROUTES, pendingAppApiRequests);
+    await sweepRoutes(page, 'admin', ADMIN_ROUTES, pendingAppApiRequests, seenRequests);
   });
 });

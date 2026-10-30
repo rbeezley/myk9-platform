@@ -108,11 +108,13 @@ describe('runTripwire (the CLI core)', () => {
       calls.push([name, ...args]);
       if (name === 'psql') psqlEnvs.push(cmdEnv ?? {});
       if (name === 'git' && args[0] === 'fetch') return '';
+      if (name === 'git' && args[0] === 'ls-tree') return '20261029043900_a.sql\n';
       if (name === 'git' && args[0] === 'show') {
         if (main.fails) throw new Error('fatal: invalid object name');
         return block(main.status ?? 'ACTIVE');
       }
       const sql = args[args.length - 1] ?? '';
+      if (sql.includes('schema_migrations')) return '20261029043900\n';
       if (sql.includes('platform_settings')) return 'f\n';
       if (sql.includes('public.clubs')) return `${CLUB_A}\n${CLUB_B}\n`;
       throw new Error(`unexpected command ${name} ${args.join(' ')}`);
@@ -174,7 +176,7 @@ describe('runTripwire (the CLI core)', () => {
     }
   });
 
-  it.each([[['--db-push']], [['--functions-deploy']], [['--anything']]])(
+  it.each([[['--db-push']], [['--functions-deploy']], [['--deploy']], [['--anything']]])(
     'rejects an unknown argument: %j',
     argv => {
       const { approvalsPath, run } = setup();
@@ -211,14 +213,14 @@ describe('unappliedMigrations (MYK9-1527)', () => {
   });
 });
 
-describe('runTripwire --deploy (MYK9-1527)', () => {
+describe('runTripwire migration check (MYK9-1527)', () => {
   const dirs: string[] = [];
   afterEach(() => {
     for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true });
   });
   const MAIN_FILES = '20261029043900_a.sql\n20261030174300_b.sql\n';
 
-  function run(applied: string | Error, argv = ['--deploy']) {
+  function run(applied: string | Error, argv: string[] = []) {
     const dir = mkdtempSync(join(tmpdir(), 'tripwire-'));
     dirs.push(dir);
     const approvalsPath = join(dir, 'standing-approvals.md');
@@ -243,7 +245,7 @@ describe('runTripwire --deploy (MYK9-1527)', () => {
     expect(run('20261029043900\n20261030174300\n').code).toBe(0);
   });
 
-  it('refuses, naming the unapplied version', () => {
+  it('refuses by default, naming the unapplied version', () => {
     expect(run('20261029043900\n')).toEqual({
       code: 1,
       reason: expect.stringContaining('20261030174300'),
@@ -254,8 +256,12 @@ describe('runTripwire --deploy (MYK9-1527)', () => {
     expect(run(new Error('psql: connection refused')).code).toBe(2);
   });
 
-  it('does not look at migrations without --deploy', () => {
-    expect(run('20261029043900\n', []).code).toBe(0);
+  it('does not look at migrations under --merge', () => {
+    expect(run('20261029043900\n', ['--merge']).code).toBe(0);
+  });
+
+  it('under --merge, an unreadable schema_migrations is not consulted', () => {
+    expect(run(new Error('psql: connection refused'), ['--merge']).code).toBe(0);
   });
 });
 

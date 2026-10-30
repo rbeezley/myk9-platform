@@ -13,12 +13,13 @@
  *   2  it could not decide (no PGPASSWORD, a failed or timed-out command, a
  *      missing or malformed approvals block): do not run the action either
  *
- * `--deploy` (Deploy myK9Show only) adds a fourth check, MYK9-1527: every
- * 14-digit migration version in origin/main's supabase/migrations/ must be in
+ * A fourth check, MYK9-1527, runs by default: every 14-digit migration version
+ * in origin/main's supabase/migrations/ must be in
  * supabase_migrations.schema_migrations. `supabase db push` is never
  * pre-approved, so a frontend shipped past an unapplied migration reads columns
- * the database lacks. It is a flag because a merge may legitimately precede its
- * push; a deploy may not.
+ * the database lacks. `--merge` skips it, because a merge may legitimately
+ * precede its push; a deploy may not. The strict mode is the default so a
+ * forgotten flag fails safe.
  *
  * The approvals file is read fresh on every run, so flipping the switch takes
  * effect on the next action. Database access is read-only, through psql to the
@@ -156,12 +157,13 @@ function combine(local: Approvals | null, main: Approvals | null): Approvals | n
 
 /** Read everything fresh and evaluate. Never throws: a failure is a code-2 result. */
 export function runTripwire(options: RunOptions): TripwireResult {
-  const checkMigrations = options.argv.length === 1 && options.argv[0] === '--deploy';
-  if (options.argv.length && !checkMigrations)
+  const isMerge = options.argv.length === 1 && options.argv[0] === '--merge';
+  if (options.argv.length && !isMerge)
     return {
       code: 2,
-      reason: `unknown arguments: ${options.argv.join(' ')} (it takes only --deploy)`,
+      reason: `unknown arguments: ${options.argv.join(' ')} (it takes only --merge)`,
     };
+  const checkMigrations = !isMerge;
   const read = (load: () => string): Approvals | null => {
     try {
       return parseApprovals(load());

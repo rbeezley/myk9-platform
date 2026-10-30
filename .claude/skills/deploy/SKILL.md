@@ -19,10 +19,10 @@ Merging a PR never deploys anything. Migrations and edge functions ship only via
 
 ```bash
 source supabase/.env
-PGPASSWORD="$SUPABASE_DB_PASSWORD" pnpm qa:prelaunch-tripwire --deploy
+PGPASSWORD="$SUPABASE_DB_PASSWORD" pnpm qa:prelaunch-tripwire
 ```
 
-`--deploy` also refuses (exit 1, naming the versions) while `origin/main` carries a migration `schema_migrations` lacks: `db push` is never pre-approved, so the frontend would otherwise ship ahead of its schema (MYK9-1527). Use it only for Deploy myK9Show; a merge may precede its push.
+It also refuses (exit 1, naming the versions) while `origin/main` carries a migration `schema_migrations` lacks: `db push` is never pre-approved, so the frontend would otherwise ship ahead of its schema (MYK9-1527).
 
 The tripwire always queries the myK9 project (`sojmvhhwsjxmfistvzbe`) at an address fixed in the script; only the password comes from the environment, and other `PG*` variables are ignored.
 

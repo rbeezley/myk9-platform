@@ -140,6 +140,7 @@ describe('AtShowDogPage', () => {
   const classEntry = (id: string, status: string) => ({
     entryId: id,
     classId: `c-${id}`,
+    routeClassIds: [`c-${id}`],
     className: `Class ${id}`,
     trialLabel: null,
     checkInStatus: status,
@@ -233,5 +234,32 @@ describe('AtShowDogPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     expect(mocks.retry).toHaveBeenCalled();
     expect(screen.queryByText(/isn't on this device/)).not.toBeInTheDocument();
+  });
+
+  it('links a paired class to the combined entry list', () => {
+    mocks.dogs = [
+      dog({
+        key: 'd1',
+        dogName: 'Zip',
+        entries: [{ ...classEntry('e1', 'checked-in'), routeClassIds: ['c-a', 'c-b'] }],
+      }),
+    ];
+    renderRoutes('/at-show/s1/dogs/d1');
+    expect(screen.getByRole('link', { name: /entry list/ })).toHaveAttribute(
+      'href',
+      '/at-show/s1/class/c-a/c-b'
+    );
+  });
+
+  it('warns that cached data may be stale when a refresh failed, on the list and the dog page', () => {
+    mocks.loadFailed = true;
+    mocks.dogs = [dog({ key: 'd1', dogName: 'Zip', entries: [classEntry('e1', 'checked-in')] })];
+    const { unmount } = renderRoutes('/at-show/s1/dogs');
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(mocks.retry).toHaveBeenCalledTimes(1);
+    expect(screen.getByText('Zip')).toBeInTheDocument();
+    unmount();
+    renderRoutes('/at-show/s1/dogs/d1');
+    expect(screen.getByText(/may be out of date/)).toBeInTheDocument();
   });
 });

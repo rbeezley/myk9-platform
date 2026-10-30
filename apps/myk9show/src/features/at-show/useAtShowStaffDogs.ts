@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from 'react';
+import { getClassIds, groupSectionedClasses } from '@myk9/ringside';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { replicatedArmbandsTable, replicatedEntriesTable } from '@/services/replication';
 import { buildShowArmbandMaps } from '@/features/_shared/entryArmband';
@@ -54,17 +55,24 @@ export function useAtShowStaffDogs(showId: string | undefined): UseAtShowStaffDo
     const map = new Map<string, StaffDogClassInfo>();
     for (const group of classList.groups) {
       const trialLabel = formatAtShowTrialHeading(group.trial);
-      for (const cls of group.classes) {
-        map.set(cls.id, {
-          className: cls.class_name,
-          classId: cls.id,
-          resultsReleasedAt: cls.results_released_at ?? null,
-          trialLabel,
-        });
+      const releasedById = new Map(group.classes.map(cls => [cls.id, cls.results_released_at]));
+      // Group A/B pairs the way the class picker does, so a paired class links to
+      // the combined list rather than one section of it.
+      for (const entry of groupSectionedClasses(group.classes, classList.organization)) {
+        const classIds = getClassIds(entry);
+        for (const id of classIds) {
+          const member = group.classes.find(cls => cls.id === id);
+          map.set(id, {
+            className: member?.class_name ?? entry.class_name,
+            classIds,
+            resultsReleasedAt: releasedById.get(id) ?? null,
+            trialLabel,
+          });
+        }
       }
     }
     return map;
-  }, [classList.groups]);
+  }, [classList.groups, classList.organization]);
 
   const dogs = useMemo(
     () =>

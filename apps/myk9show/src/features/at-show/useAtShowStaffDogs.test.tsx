@@ -4,14 +4,19 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 
 const getEntriesByShow = vi.hoisted(() => vi.fn());
-const classState = vi.hoisted(() => ({ error: null as Error | null, refresh: vi.fn() }));
+const classState = vi.hoisted(() => ({
+  error: null as Error | null,
+  refresh: vi.fn(),
+  groups: [] as unknown[],
+}));
 vi.mock('@/services/replication', () => ({
   replicatedEntriesTable: { getEntriesByShow, subscribe: vi.fn(() => vi.fn()) },
   replicatedArmbandsTable: { getByShow: vi.fn(async () => []), subscribe: vi.fn(() => vi.fn()) },
 }));
 vi.mock('./useAtShowClassList', () => ({
   useAtShowClassList: () => ({
-    groups: [],
+    groups: classState.groups,
+    organization: 'AKC',
     showName: 'Spring',
     isLoading: false,
     error: classState.error,
@@ -49,5 +54,40 @@ describe('useAtShowStaffDogs', () => {
     result.current.onRetry();
     expect(classState.refresh).toHaveBeenCalled();
     classState.error = null;
+  });
+
+  it('maps both sections of a Novice A/B pair to the combined route ids', async () => {
+    const section = (id: string, sectionName: string) => ({
+      id,
+      element: 'Container',
+      level: 'Novice',
+      section: sectionName,
+      class_name: `Container Novice ${sectionName}`,
+      class_order: 1,
+      judge_name: 'J',
+      entry_count: 1,
+      completed_count: 0,
+      class_status: 'no-status',
+      is_favorite: false,
+      dogs: [],
+    });
+    classState.groups = [
+      {
+        trial: { id: 't1' },
+        classes: [section('ca', 'A'), section('cb', 'B')],
+        nextUpByClassId: new Map(),
+      },
+    ];
+    getEntriesByShow.mockResolvedValue([
+      { id: 'e1', dogId: 'd1', armband: '5', dogCallName: 'Zip', classId: 'ca' },
+    ]);
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
+    const { result } = renderHook(() => useAtShowStaffDogs('s1'), { wrapper });
+    await waitFor(() => expect(result.current.dogs).toHaveLength(1));
+    expect(result.current.dogs[0]?.entries[0]?.routeClassIds).toEqual(['ca', 'cb']);
+    classState.groups = [];
   });
 });

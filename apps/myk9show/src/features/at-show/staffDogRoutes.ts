@@ -22,3 +22,10 @@ export function saveDogTab(showId: string | undefined, tab: StaffDogTab): void {
     // Storage blocked: the tab simply resets on the next visit.
   }
 }
+
+/** The class entry list for a class, or the combined list for an A/B pair run together. */
+export function atShowClassPath(showId: string, classIds: readonly string[]): string {
+  return classIds.length === 2
+    ? `/at-show/${showId}/class/${classIds[0]}/${classIds[1]}`
+    : `/at-show/${showId}/class/${classIds[0]}`;
+}

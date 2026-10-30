@@ -14,8 +14,8 @@ import { transformEntry } from './atShowDataAdapter';
 /** What the page needs to know about a class an entry sits in. */
 export interface StaffDogClassInfo {
   className: string;
-  /** Raw route target: one class id, or the A/B pair's ids when run together. */
-  classId: string;
+  /** Route target the class picker uses: this class's id, or the A/B pair's ids when run together. */
+  classIds: readonly string[];
   resultsReleasedAt: string | null;
   trialLabel: string | null;
 }
@@ -24,6 +24,8 @@ export interface StaffDogClassInfo {
 export interface StaffDogClassEntry {
   entryId: string;
   classId: string | null;
+  /** Class ids for the entry-list link: the pair when the class runs combined. */
+  routeClassIds: readonly string[];
   className: string;
   trialLabel: string | null;
   checkInStatus: string;
@@ -96,6 +98,7 @@ export function buildStaffDogs(
     dog.entries.push({
       entryId: re.id,
       classId: re.classId ?? null,
+      routeClassIds: classInfo?.classIds ?? (re.classId ? [re.classId] : []),
       className: classInfo?.className ?? 'Class not on this device yet',
       trialLabel: classInfo?.trialLabel ?? null,
       checkInStatus,

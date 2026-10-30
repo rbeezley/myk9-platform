@@ -13,6 +13,8 @@ import { useAtShowStaffDogs } from './useAtShowStaffDogs';
 import { useIsStaffDogViewer } from './useStaffDogGate';
 import { useCheckInAllClasses } from './useCheckInAllClasses';
 import type { StaffDogClassEntry } from './staffDogIndex';
+import { atShowClassPath } from './staffDogRoutes';
+import { StaleReadNotice } from './StaleReadNotice';
 
 function resultLine(entry: StaffDogClassEntry): string | null {
   if (entry.isPulled || !entry.isScored) return null;
@@ -104,6 +106,7 @@ export const AtShowDogPage: React.FC = () => {
         )}
       </div>
 
+      {loadFailed && <StaleReadNotice onRetry={onRetry} />}
       {(toCheckIn.length > 0 || isChecking) && (
         <Button
           className="mb-3 min-h-11 w-full"
@@ -131,9 +134,9 @@ export const AtShowDogPage: React.FC = () => {
                     <p className="truncate text-sm text-muted-foreground">{entry.trialLabel}</p>
                   )}
                 </div>
-                {entry.classId && (
+                {entry.routeClassIds.length > 0 && (
                   <Link
-                    to={`/at-show/${showId}/class/${entry.classId}`}
+                    to={atShowClassPath(showId as string, entry.routeClassIds)}
                     aria-label={`Open ${entry.className} entry list`}
                     className="flex h-11 w-11 shrink-0 items-center justify-center"
                   >

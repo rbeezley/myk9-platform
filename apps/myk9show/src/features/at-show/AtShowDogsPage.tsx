@@ -19,6 +19,7 @@ import {
   type StaffDogTab,
 } from './staffDogIndex';
 import { atShowDogPath, loadDogTab, saveDogTab } from './staffDogRoutes';
+import { StaleReadNotice } from './StaleReadNotice';
 
 const SORTS: ReadonlyArray<{ id: StaffDogSort; label: string }> = [
   { id: 'armband', label: 'Armband' },
@@ -110,6 +111,7 @@ export const AtShowDogsPage: React.FC = () => {
         {formatDogCount(visible.length, dogs.length)}
       </p>
 
+      {loadFailed && dogs.length > 0 && <StaleReadNotice onRetry={onRetry} />}
       {loadFailed && dogs.length === 0 ? (
         <div className="flex flex-col items-center gap-3 py-10 text-center" role="alert">
           <p className="text-sm text-muted-foreground">We couldn't read this show's dogs.</p>

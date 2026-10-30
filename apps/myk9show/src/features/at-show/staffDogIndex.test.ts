@@ -10,10 +10,10 @@ import {
 } from './staffDogIndex';
 
 const classes = new Map<string, StaffDogClassInfo>([
-  ['c1', { className: 'Novice A', classId: 'c1', resultsReleasedAt: null, trialLabel: 'Day 1' }],
+  ['c1', { className: 'Novice A', classIds: ['c1'], resultsReleasedAt: null, trialLabel: 'Day 1' }],
   [
     'c2',
-    { className: 'Open B', classId: 'c2', resultsReleasedAt: '2030-01-01', trialLabel: 'Day 1' },
+    { className: 'Open B', classIds: ['c2'], resultsReleasedAt: '2030-01-01', trialLabel: 'Day 1' },
   ],
 ]);
 

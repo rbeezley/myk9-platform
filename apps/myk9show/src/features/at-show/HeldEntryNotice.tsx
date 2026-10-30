@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ArrowLeft, ShieldAlert } from 'lucide-react';
+import { ShieldAlert } from 'lucide-react';
+import { RingsideUpButton } from '@myk9/ui';
 import type { ScoreData } from '@myk9/scoring-ui';
 import { Button } from '@/components/ui/button';
 import { ScoreSubmitErrorBanner } from './ScoreSubmitErrorBanner';
@@ -73,10 +74,7 @@ export function HeldEntryNotice({
           <Button variant="outline" className="min-h-11" onClick={markAbsent}>
             Mark absent
           </Button>
-          <Button variant="outline" className="min-h-11" onClick={onBack}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Entry List
-          </Button>
+          <RingsideUpButton label="Entries" onClick={onBack} />
         </div>
       </div>
     </div>

@@ -325,7 +325,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     expect(await screen.findByText('Class not found')).toBeInTheDocument();
     expect(screen.queryByRole('status', { name: 'Loading scoresheet' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Back to Entry List' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Entries' })).toBeInTheDocument();
   });
 
   it('returns to the combined A/B list when opened from it', async () => {
@@ -350,7 +350,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
       { initialRoute: '/at-show/show-1/class/class-1/score/entry-1?combined=class-1,class-2' }
     );
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Back to Entry List' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Entries' }));
 
     expect(await screen.findByText('Combined list')).toBeInTheDocument();
   });

@@ -1,19 +1,18 @@
 /**
- * The way out of the full-screen ringside surface.
+ * The class list's Up control, and the one way out of Ringside (MYK9-1500).
  *
- * Ringside mounts outside the app shell, so this is the only chrome offering a
- * route back. The destination is PREDICTED from the caller's roles and must
- * mirror ShowManagementSectionRoute's admission exactly -- see the comment
- * inside.
+ * Ringside mounts outside the app shell, so the Up chain (scoresheet -> entries
+ * -> classes -> here) ends at the show page. The destination is PREDICTED from
+ * the caller's roles and must mirror ShowManagementSectionRoute's admission
+ * exactly -- see the comment inside.
  */
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { RingsideUpButton } from '@myk9/ui';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { UserRole } from '@/types/auth-types';
 import { hasScopedClubRole } from '@/utils/roleScopes';
 
-export function BackToRingsideExitButton({
+export function ClassListUpButton({
   showId,
   clubId,
 }: {
@@ -32,13 +31,8 @@ export function BackToRingsideExitButton({
     hasRole(UserRole.SITE_ADMIN) ||
     (hasRole(UserRole.CLUB_ADMIN) && hasScopedClubRole(userWithRoles, UserRole.CLUB_ADMIN, clubId));
   // The show home (MYK9-957) is where the desk lives now.
-  const label = canUseShowDesk ? 'Back to show' : 'Back to Ringside';
+  const label = canUseShowDesk ? 'Show' : 'Ringside';
   const target = canUseShowDesk && showId ? `/shows/${showId}` : '/at-show';
 
-  return (
-    <Button variant="ghost" className="min-h-11 gap-2 px-3" onClick={() => navigate(target)}>
-      <ArrowLeft className="h-4 w-4" aria-hidden />
-      {label}
-    </Button>
-  );
+  return <RingsideUpButton label={label} onClick={() => navigate(target)} />;
 }

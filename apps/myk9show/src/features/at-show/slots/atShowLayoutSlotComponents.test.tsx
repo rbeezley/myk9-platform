@@ -6,7 +6,6 @@ import { ReplicationSyncTestProvider } from '@/test/utils/ReplicationSyncTestPro
 import {
   CompactOfflineIndicator,
   FilterTriggerButton,
-  HamburgerMenu,
   PullToRefresh,
 } from './atShowLayoutSlotComponents';
 
@@ -155,17 +154,5 @@ describe('FilterTriggerButton active-filter dot', () => {
     );
 
     expect(container.querySelector('span.absolute')).toBeNull();
-  });
-});
-
-describe('HamburgerMenu', () => {
-  it('uses the 44px icon button size when a back action is available', () => {
-    render(<HamburgerMenu backNavigation={{ label: 'Back to classes', action: () => {} }} />);
-
-    const trigger = screen.getByRole('button', { name: 'Back to classes' });
-    expect(trigger.className).toContain('h-11');
-    expect(trigger.className).toContain('w-11');
-    expect(trigger.className).toContain('min-h-[44px]');
-    expect(trigger.className).toContain('min-w-[44px]');
   });
 });

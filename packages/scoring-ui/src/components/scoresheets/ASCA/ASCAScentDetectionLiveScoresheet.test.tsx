@@ -129,7 +129,7 @@ describe('ASCAScentDetectionLiveScoresheet', () => {
     const onBack = vi.fn();
     render(<ASCAScentDetectionLiveScoresheet {...defaultProps} onBack={onBack} />);
 
-    fireEvent.click(screen.getByLabelText('Back'));
+    fireEvent.click(screen.getByRole('button', { name: 'Entries' }));
     expect(onBack).toHaveBeenCalled();
   });
 });

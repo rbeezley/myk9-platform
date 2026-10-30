@@ -22,6 +22,7 @@ export { useStopwatch } from './hooks/useStopwatch';
 export { useElementTimer } from './hooks/useElementTimer';
 export { useDragAndDropEntries } from './hooks/useDragAndDropEntries';
 export { useScoresheetScoring } from './hooks/useScoresheetScoring';
+export { useScoresheetLeave, DiscardScoreDialog } from './hooks/useScoresheetLeave';
 
 // Phase 1: Quick Win Hooks (Sprint 25)
 export {

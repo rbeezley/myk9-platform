@@ -77,6 +77,8 @@ export interface BaseScoresheetProps {
   rules: import('./resolvedClassRules').ResolvedClassRules;
   onSubmit: (scoreData: ScoreData) => void | Promise<void>;
   onBack: () => void;
+  /** Parent screen's name on the Up control ("Entries" by default). */
+  backLabel?: string;
   /** Extra controls shown at the right end of the scoresheet header (e.g. mute timer sounds). */
   headerActions?: ReactNode;
 }

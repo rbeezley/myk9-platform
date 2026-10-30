@@ -219,6 +219,17 @@ describe('AccountMenuContent Refresh app item (MYK9-1549)', () => {
   });
 });
 
+describe('AccountMenuContent Refresh app offline (MYK9-1549)', () => {
+  it('is disabled and says it needs a connection', async () => {
+    networkState.isOnline = false;
+    const { user } = renderOpenAccountMenu();
+    const item = screen.getByRole('menuitem', { name: 'Refresh app (needs a connection)' });
+    expect(item).toHaveAttribute('aria-disabled', 'true');
+    await user.click(item);
+    expect(refreshApp).not.toHaveBeenCalled();
+  });
+});
+
 describe('AccountMenuContent appearance item (phone consolidation)', () => {
   it('fires the same theme handler the desktop header button uses', async () => {
     const { user } = renderOpenAccountMenu();

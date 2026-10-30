@@ -203,9 +203,13 @@ export function AccountMenuContent({
         <Info className="h-4 w-4 mr-2" />
         About
       </DropdownMenuItem>
-      <DropdownMenuItem onClick={() => void refreshApp()} className="cursor-pointer">
+      <DropdownMenuItem
+        onClick={() => void refreshApp()}
+        disabled={isOffline}
+        className="cursor-pointer"
+      >
         <RefreshCw className="h-4 w-4 mr-2" />
-        Refresh app
+        {isOffline ? 'Refresh app (needs a connection)' : 'Refresh app'}
       </DropdownMenuItem>
 
       {/* Development Tools */}

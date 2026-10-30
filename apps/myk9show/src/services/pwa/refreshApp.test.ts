@@ -17,9 +17,20 @@ function stubServiceWorker(registration: unknown) {
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
 describe('refreshApp', () => {
+  it('does not reload while offline', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    const postMessage = vi.fn();
+    stubServiceWorker({ waiting: { postMessage } });
+    const reload = vi.fn();
+    await refreshApp(reload);
+    expect(reload).not.toHaveBeenCalled();
+    expect(postMessage).not.toHaveBeenCalled();
+  });
+
   it('reloads straight away when no service worker is waiting', async () => {
     stubServiceWorker({ waiting: null });
     const reload = vi.fn();

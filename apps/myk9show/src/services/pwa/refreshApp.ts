@@ -8,6 +8,9 @@
 const CONTROLLER_CHANGE_FALLBACK_MS = 3000;
 
 export async function refreshApp(reload: () => void = () => window.location.reload()) {
+  // Offline, only /at-show and /shows have a cached shell; any other route
+  // would land on the browser's offline error page with no way back.
+  if (typeof navigator !== 'undefined' && !navigator.onLine) return;
   const registration =
     typeof navigator !== 'undefined' && 'serviceWorker' in navigator
       ? await navigator.serviceWorker.getRegistration().catch(() => undefined)

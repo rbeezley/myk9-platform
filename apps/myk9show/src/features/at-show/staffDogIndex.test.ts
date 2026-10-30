@@ -70,26 +70,9 @@ describe('buildStaffDogs', () => {
       'Open B',
     ]);
   });
-
-  it('counts only unchecked, unpulled entries for check-in-all', () => {
-    expect(dogs.find(d => d.key === 'd1')?.uncheckedEntryIds).toEqual(['e1']);
-  });
 });
 
 describe('buildStaffDogs eligibility and armbands', () => {
-  it('leaves withdrawn, moved and absent entries out of check-in-all', () => {
-    const built = buildStaffDogs(
-      ['withdrawn', 'moved', 'absent', 'not_accepted', 'confirmed'].map(entryStatus =>
-        entry({ id: `s-${entryStatus}`, dogId: 'dx', entryStatus } as Partial<ReplicatedEntry> & {
-          id: string;
-        })
-      ),
-      classes,
-      EMPTY_MAPS
-    );
-    expect(built[0]?.uncheckedEntryIds).toEqual(['s-confirmed']);
-  });
-
   it('leaves entries the dog is not expected to run off the dog page, but lists a moved one', () => {
     const rows = ['withdrawn', 'scratched', 'not_accepted', 'absent', 'moved', 'confirmed'].map(
       entryStatus =>
@@ -103,20 +86,6 @@ describe('buildStaffDogs eligibility and armbands', () => {
     const built = buildStaffDogs(rows, classes, EMPTY_MAPS);
     expect(built[0]?.entries.map(e => e.entryId)).toEqual(['m-moved', 'm-confirmed']);
     expect(built[0]?.entries[0]?.isMoved).toBe(true);
-  });
-
-  it('never offers a moved entry to Check In All', () => {
-    const built = buildStaffDogs(
-      [
-        entry({ id: 'mv', dogId: 'dq', entryStatus: 'moved' } as Partial<ReplicatedEntry> & {
-          id: string;
-        }),
-        entry({ id: 'ok', dogId: 'dq', classId: 'c2' }),
-      ],
-      classes,
-      EMPTY_MAPS
-    );
-    expect(built[0]?.uncheckedEntryIds).toEqual(['ok']);
   });
 
   it('fills the dog armband from a later entry when the first has none', () => {

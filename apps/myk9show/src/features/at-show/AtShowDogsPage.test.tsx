@@ -1,6 +1,6 @@
 import { Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@/test/utils/testUtils';
+import { fireEvent, render, screen } from '@/test/utils/testUtils';
 import type { StaffDog } from './staffDogIndex';
 
 const mocks = vi.hoisted(() => ({
@@ -9,12 +9,9 @@ const mocks = vi.hoisted(() => ({
   dogs: [] as StaffDog[],
   toggle: vi.fn(),
   favorites: new Set<number>(),
-  checkIn: vi.fn(),
   loadFailed: false,
   isComplete: true,
   retry: vi.fn(),
-  success: vi.fn(),
-  error: vi.fn(),
 }));
 
 vi.mock('./useRingsideEffectiveRole', () => ({
@@ -38,15 +35,6 @@ vi.mock('./dogFavoritesSync', () => ({
     favoriteArmbands: mocks.favorites,
     toggleFavoriteArmband: mocks.toggle,
   }),
-}));
-vi.mock('@/lib/notifications', () => ({
-  notifications: {
-    success: (...args: unknown[]) => mocks.success(...args),
-    error: (...args: unknown[]) => mocks.error(...args),
-  },
-}));
-vi.mock('@/services/show-day/checkInStatus', () => ({
-  updateReplicatedCheckInStatus: (...args: unknown[]) => mocks.checkIn(...args),
 }));
 
 import AtShowDogsPage from './AtShowDogsPage';
@@ -87,12 +75,9 @@ beforeEach(() => {
   mocks.rehydrated = null;
   mocks.favorites = new Set();
   mocks.toggle.mockReset();
-  mocks.checkIn.mockReset();
   mocks.loadFailed = false;
   mocks.isComplete = true;
   mocks.retry.mockReset();
-  mocks.success.mockReset();
-  mocks.error.mockReset();
   sessionStorage.clear();
   mocks.dogs = [
     dog({ key: 'd1', dogName: 'Zip', armband: 12, handler: 'Amy' }),
@@ -162,69 +147,17 @@ describe('AtShowDogPage', () => {
     resultsReleased: false,
   });
 
-  it('checks the dog in to every unchecked class and reports it in a toast', async () => {
-    mocks.checkIn.mockResolvedValue(null);
+  it('offers no bulk check-in control on the dog page', () => {
     mocks.dogs = [
       dog({
         key: 'd1',
         dogName: 'Zip',
         entries: [classEntry('e1', 'no-status'), classEntry('e2', 'no-status')],
-        uncheckedEntryIds: ['e1', 'e2'],
       }),
     ];
     renderRoutes('/at-show/s1/dogs/d1');
-    fireEvent.click(screen.getByRole('button', { name: 'Check In All (2)' }));
-    await waitFor(() => expect(mocks.success).toHaveBeenCalledWith('✓ Checked in to 2 classes'));
-    expect(mocks.checkIn).toHaveBeenCalledWith('e1', 'checked-in');
-    expect(mocks.checkIn).toHaveBeenCalledWith('e2', 'checked-in');
-  });
-
-  it('toasts the failure and keeps offering the entry that did not take', async () => {
-    mocks.checkIn.mockResolvedValueOnce(null).mockRejectedValueOnce(new Error('queue'));
-    mocks.dogs = [
-      dog({
-        key: 'd1',
-        dogName: 'Zip',
-        entries: [classEntry('e1', 'no-status'), classEntry('e2', 'no-status')],
-        uncheckedEntryIds: ['e1', 'e2'],
-      }),
-    ];
-    renderRoutes('/at-show/s1/dogs/d1');
-    fireEvent.click(screen.getByRole('button', { name: 'Check In All (2)' }));
-    await waitFor(() =>
-      expect(mocks.error).toHaveBeenCalledWith('1 class could not be checked in', expect.anything())
-    );
-    expect(screen.getByRole('button', { name: 'Check In All (2)' })).toBeEnabled();
-  });
-
-  it('re-offers check-in for an entry another device reset, without a remount', async () => {
-    mocks.checkIn.mockResolvedValue(null);
-    mocks.dogs = [
-      dog({
-        key: 'd1',
-        dogName: 'Zip',
-        entries: [classEntry('e1', 'no-status')],
-        uncheckedEntryIds: ['e1'],
-      }),
-    ];
-    const view = renderRoutes('/at-show/s1/dogs/d1');
-    fireEvent.click(screen.getByRole('button', { name: 'Check In All (1)' }));
-    await waitFor(() => expect(mocks.checkIn).toHaveBeenCalledTimes(1));
-    mocks.dogs = [dog({ key: 'd1', dogName: 'Zip', entries: [classEntry('e1', 'checked-in')] })];
-    view.rerender(dogRoute());
-    await waitFor(() =>
-      expect(screen.queryByRole('button', { name: /Check In All/ })).not.toBeInTheDocument()
-    );
-    mocks.dogs = [
-      dog({
-        key: 'd1',
-        dogName: 'Zip',
-        entries: [classEntry('e1', 'no-status'), classEntry('e9', 'no-status')],
-        uncheckedEntryIds: ['e1', 'e9'],
-      }),
-    ];
-    view.rerender(dogRoute());
-    expect(await screen.findByRole('button', { name: 'Check In All (2)' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Zip/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /check in/i })).not.toBeInTheDocument();
   });
 
   it('links each class to its entry list', () => {
@@ -272,23 +205,6 @@ describe('AtShowDogPage', () => {
     expect(screen.getByText(/may be out of date/)).toBeInTheDocument();
   });
 
-  it('blocks Check In All and says so while the show-wide replica is incomplete', () => {
-    mocks.isComplete = false;
-    mocks.dogs = [
-      dog({
-        key: 'd1',
-        dogName: 'Zip',
-        entries: [classEntry('e1', 'no-status')],
-        uncheckedEntryIds: ['e1'],
-      }),
-    ];
-    renderRoutes('/at-show/s1/dogs/d1');
-    expect(screen.queryByRole('button', { name: /Check In All/ })).not.toBeInTheDocument();
-    expect(
-      screen.getByText(/Connect to sync this show before checking in to every class/)
-    ).toBeInTheDocument();
-  });
-
   it('warns on the dog list that a partial replica may be missing dogs', () => {
     mocks.isComplete = false;
     renderRoutes('/at-show/s1/dogs');
@@ -312,20 +228,5 @@ describe('AtShowDogPage', () => {
     mocks.rehydrated = 'judge';
     renderRoutes('/at-show/s1/dogs');
     expect(screen.getByTestId('at-show-dogs')).toBeInTheDocument();
-  });
-
-  it('turns Check In All off while the latest read failed, keeping the stale notice', () => {
-    mocks.loadFailed = true;
-    mocks.dogs = [
-      dog({
-        key: 'd1',
-        dogName: 'Zip',
-        entries: [classEntry('e1', 'no-status')],
-        uncheckedEntryIds: ['e1'],
-      }),
-    ];
-    renderRoutes('/at-show/s1/dogs/d1');
-    expect(screen.queryByRole('button', { name: /Check In All/ })).not.toBeInTheDocument();
-    expect(screen.getByText(/Check In All is off until it refreshes/)).toBeInTheDocument();
   });
 });

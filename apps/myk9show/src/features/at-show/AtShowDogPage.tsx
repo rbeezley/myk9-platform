@@ -1,7 +1,7 @@
 /**
  * Ringside staff dog page (MYK9-1509): one dog's classes with check-in state and
- * result, a jump to each class's entry list, and "Check In All" through the
- * offline check-in queue. Entry cards stay on the class page; this links there.
+ * result, and a jump to each class's entry list. Check-in stays on the class page
+ * and the secretary check-in desk; this links there.
  */
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { ArrowLeft, ChevronRight, Heart } from 'lucide-react';
@@ -11,7 +11,6 @@ import { cn } from '@/lib/utils';
 import { useAtShowDogFavoritesSynced } from './dogFavoritesSync';
 import { useAtShowStaffDogs } from './useAtShowStaffDogs';
 import { useIsStaffDogViewer } from './useStaffDogGate';
-import { useCheckInAllClasses } from './useCheckInAllClasses';
 import type { StaffDogClassEntry } from './staffDogIndex';
 import { atShowClassPath } from './staffDogRoutes';
 import { PartialReplicaNotice, StaleReadNotice } from './StaleReadNotice';
@@ -38,7 +37,6 @@ export const AtShowDogPage: React.FC = () => {
   const { favoriteArmbands, toggleFavoriteArmband } = useAtShowDogFavoritesSynced(
     isStaff ? showId : undefined
   );
-  const { isChecking, checkInAll } = useCheckInAllClasses();
 
   if (!isStaff) return <Navigate to={`/at-show/${showId}`} replace />;
 
@@ -76,7 +74,6 @@ export const AtShowDogPage: React.FC = () => {
   }
 
   const favorited = dog.armband != null && favoriteArmbands.has(dog.armband);
-  const toCheckIn = dog.uncheckedEntryIds;
   const hasPreliminary = dog.entries.some(entry => !entry.resultsReleased && resultLine(entry));
 
   return (
@@ -108,17 +105,8 @@ export const AtShowDogPage: React.FC = () => {
         )}
       </div>
 
-      {loadFailed && <StaleReadNotice onRetry={onRetry} blocksCheckIn />}
-      {!isComplete && <PartialReplicaNotice blocksCheckIn />}
-      {isComplete && !loadFailed && (toCheckIn.length > 0 || isChecking) && (
-        <Button
-          className="mb-3 min-h-11 w-full"
-          disabled={isChecking}
-          onClick={() => void checkInAll(toCheckIn)}
-        >
-          {isChecking ? 'Checking In...' : `Check In All (${toCheckIn.length})`}
-        </Button>
-      )}
+      {loadFailed && <StaleReadNotice onRetry={onRetry} />}
+      {!isComplete && <PartialReplicaNotice />}
 
       <h2 className="mb-2 text-sm font-semibold">Class Entries</h2>
       <ul className="space-y-2">

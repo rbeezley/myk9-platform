@@ -3,7 +3,6 @@ import { Button } from '@/components/ui/button';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { StatusIcon } from '@/components/status';
 import { CheckInClassRow } from './CheckInClassRow';
-import { isUncheckedCheckInStatus } from './uncheckedEntries';
 import type { ExhibitorCheckInGroup } from '@/hooks/queries/useCheckInReport';
 
 function getSummaryEntryStatus(summaryStatus: ExhibitorCheckInGroup['summaryStatus']) {
@@ -28,7 +27,7 @@ export function CheckInExhibitorCard({
   const [expanded, setExpanded] = useState(false);
 
   const uncheckedEntryIds = group.entries
-    .filter(e => isUncheckedCheckInStatus(e.checkInStatus))
+    .filter(e => e.checkInStatus === 'no-status' || !e.checkInStatus)
     .map(e => e.entryId);
 
   const summaryEntryStatus = getSummaryEntryStatus(group.summaryStatus);

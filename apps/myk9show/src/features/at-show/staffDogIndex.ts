@@ -8,7 +8,6 @@
 import type { ReplicatedEntry } from '@/services/replication';
 import { isExpectedEntry, isPulledEntry } from '@/features/_shared/entryAccounting';
 import { resolveEntryArmband, type ShowArmbandMaps } from '@/features/_shared/entryArmband';
-import { isUncheckedCheckInStatus } from '@/components/checkin/uncheckedEntries';
 import { transformEntry } from './atShowDataAdapter';
 
 /** What the page needs to know about a class an entry sits in. */
@@ -48,8 +47,6 @@ export interface StaffDog {
   handler: string;
   armband: number | null;
   entries: StaffDogClassEntry[];
-  /** Entries a check-in-all would write: not yet checked in and not pulled. */
-  uncheckedEntryIds: string[];
 }
 
 export type StaffDogSort = 'armband' | 'dog' | 'handler';
@@ -101,7 +98,6 @@ export function buildStaffDogs(
         handler: view.handler,
         armband: view.armband,
         entries: [],
-        uncheckedEntryIds: [],
       };
       byDog.set(key, dog);
     } else if (dog.armband == null && view.armband != null) {
@@ -128,8 +124,6 @@ export function buildStaffDogs(
       placement: view.placement ?? null,
       resultsReleased: Boolean(classInfo?.resultsReleasedAt),
     });
-    if (!isMoved && isExpectedEntry(re) && isUncheckedCheckInStatus(checkInStatus))
-      dog.uncheckedEntryIds.push(re.id);
   }
   return [...byDog.values()];
 }

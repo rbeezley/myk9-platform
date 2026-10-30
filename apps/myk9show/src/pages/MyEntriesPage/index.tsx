@@ -14,6 +14,7 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { useEntriesPersonId } from '@/hooks/useEntriesPersonId';
 import { deriveMyEntriesDogState } from './modules/myEntriesDogState';
 import { useRefreshOnReturn } from '@/hooks/useRefreshOnReturn';
+import { useInFlightCount } from '@/hooks/useInFlightCount';
 import { useDogsByOwnerQuery } from '@/hooks/queries/useDogsDatabase';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { ShowTodayBanner } from '@/features/show-today/ShowTodayBanner';
@@ -63,6 +64,10 @@ const MyEntriesPage: React.FC = () => {
   const { user, firstName } = useAuthContext();
   const checkInMutation = useCheckInMutation({ writer: 'self-checkin-rpc' });
   const { status: syncStatus } = useReplicationSync();
+  // MYK9-1531: `isPending` tracks only the newest mutation; count them all.
+  const { track: trackCheckIn, inFlight: checkInsInFlight } = useInFlightCount(
+    checkInMutation.mutateAsync
+  );
 
   // Data and filters
   const {
@@ -77,12 +82,12 @@ const MyEntriesPage: React.FC = () => {
     refreshEntries,
     updateEntryCheckIn,
   } = useMyEntriesData({
-    persistCheckInStatus: checkInMutation.mutateAsync,
+    persistCheckInStatus: trackCheckIn,
   });
   // MYK9-1523: coming back to the page re-reads it, held only while a check-in
   // is saving. A return during the initial load needs no hold: `loadMyEntries`
   // lets the newer read supersede the older one (`readSeq`).
-  useRefreshOnReturn(refreshEntries, true, checkInMutation.isPending);
+  useRefreshOnReturn(refreshEntries, true, checkInsInFlight > 0);
   const entriesPresentation: MyEntriesPresentation = getMyEntriesPresentation({
     identityState,
     readState,

@@ -42,6 +42,11 @@ export function isExhibitorOnlyRoles(roles: readonly UserRole[]): boolean {
   );
 }
 
+/** An exhibitor who also holds a staff role: the rail's "As Exhibitor" group and its My Entries item. */
+export function hasExhibitorGroupRoles(roles: readonly UserRole[]): boolean {
+  return hasAnyRole(roles, [UserRole.EXHIBITOR]) && !isExhibitorOnlyRoles(roles);
+}
+
 /**
  * The lists a set of roles can browse, in tab order. An exhibitor-only account browses none (My
  * Shows and My Dogs are plain rail items, not tabs); a site admin with no other role browses none

@@ -42,7 +42,8 @@ import { UserRole, USER_ROLE_HIERARCHY } from '@/types/auth-types';
 import { ROLE_LABELS } from '@/services/rbac/roleUiConstants';
 import { isWizardSurface, isPathInWizardAllowlist } from '@/config/surface';
 import type { SidebarConfig, NavGroup, NavItem, NavRailLink, NavRailMenu } from './types';
-import { browseTabsForRoles, isExhibitorOnlyRoles } from './browseTabs';
+import type { OwnEntriesState } from '@/hooks/useHasOwnEntries';
+import { browseTabsForRoles, hasExhibitorGroupRoles, isExhibitorOnlyRoles } from './browseTabs';
 import { formatShowDateRange } from '@/lib/format/dates';
 import { truncateRailTitle } from './currentShow';
 import type { Show } from '@/types/show-types';
@@ -109,7 +110,8 @@ export function buildUnifiedSidebarConfig(
   userRoles: readonly UserRole[],
   clubContext?: ClubContext,
   firstName?: string | null,
-  currentShowNav?: CurrentShowNav
+  currentShowNav?: CurrentShowNav,
+  ownEntries: OwnEntriesState = 'unknown'
 ): SidebarConfig {
   const groups: NavGroup[] = [];
   const hasSiteAdmin = hasAnyRole(userRoles, [UserRole.SITE_ADMIN]);
@@ -195,7 +197,8 @@ export function buildUnifiedSidebarConfig(
 
     // 5. As Exhibitor section (exhibitor with other roles): the rarest destination, so last of the
     // shared items
-    if (hasAnyRole(userRoles, [UserRole.EXHIBITOR])) {
+    // Only a confirmed absence of the viewer's own entries hides it: unknown keeps it (MYK9-1491).
+    if (hasExhibitorGroupRoles(userRoles) && ownEntries !== 'no') {
       groups.push({
         title: 'As Exhibitor',
         items: [

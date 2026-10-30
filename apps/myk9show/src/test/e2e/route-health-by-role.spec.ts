@@ -21,7 +21,7 @@
  * Proof: run alone + full active Nightly Playwright command with --retries=0.
  */
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page, type Request } from '@playwright/test';
 import { TEST_USERS } from './helpers/testUsers';
 import { signIn } from './uat/shared/auth';
 import { LIVE_SECRETARY_SHOW_ID } from './uat/shared/seededShows';
@@ -36,11 +36,16 @@ import {
   type BrowserHealth,
 } from './uat/shared/artifacts';
 import {
+  isAppApiRequest,
   waitForAppApiRequestsToSettle,
   watchAppApiRequests,
 } from '../harness/appApiRequestTracker';
 import { logUnsettledAppApiRequests } from '../harness/routeHealthDiagnostics';
-import { triageStrandedAccessControlErrors } from '../harness/strandedAccessControlErrors';
+import {
+  describeKeptAccessControlErrors,
+  triageStrandedAccessControlErrors,
+  type RequestOutcome,
+} from '../harness/strandedAccessControlErrors';
 
 const SEEDED_SHOW = LIVE_SECRETARY_SHOW_ID;
 
@@ -203,6 +208,19 @@ async function sweepRoutes(
   const health = createBrowserHealth();
   watchBrowserHealth(page, health);
 
+  // Every app API request this sweep saw, with its outcome. Diagnostic only: it
+  // explains an access-control page error the triage below did not excuse (MYK9-1477).
+  const seenRequests = new Map<Request, RequestOutcome>();
+  page.on('request', request => {
+    if (isAppApiRequest(request)) seenRequests.set(request, 'no-outcome');
+  });
+  page.on('requestfinished', request => {
+    if (seenRequests.has(request)) seenRequests.set(request, 'finished');
+  });
+  page.on('requestfailed', request => {
+    if (seenRequests.has(request)) seenRequests.set(request, 'failed');
+  });
+
   // Authentication lands on the first route before the sweep starts. Let any
   // API reads started by that navigation finish before the loop reloads it.
   await assertAppApiRequestsSettled(page, pendingAppApiRequests, `${group}/sign-in-target`);
@@ -348,9 +366,10 @@ async function sweepRoutes(
     // outcome at all (run 40962869226). Only that exact case is excused, and
     // only once the route settled: then every request this route made has an
     // outcome, so an outcome-less error must be one the old document abandoned.
+    const strandedUrls = [...pendingAppApiRequests.stranded].map(request => request.url());
     const { kept: pageErrors, excused } = triageStrandedAccessControlErrors(
       health.pageErrors,
-      [...pendingAppApiRequests.stranded].map(request => request.url()),
+      strandedUrls,
       [...health.failedResponses, ...health.failedRequests],
       routeSettled
     );
@@ -363,12 +382,23 @@ async function sweepRoutes(
       health.failedRequests.length > 0
         ? ` failed-requests=${health.failedRequests.join('; ')}`
         : '';
-    expect.soft(viols, `${id}: browser health violations${failedRequests}`).toHaveLength(0);
+    const keptAccessControl = describeKeptAccessControlErrors(
+      pageErrors,
+      [...seenRequests].map(([request, outcome]) => ({ url: request.url(), outcome })),
+      strandedUrls
+    );
+    const accessControl =
+      keptAccessControl.length > 0
+        ? ` access-control=${keptAccessControl.join('; ')} settled=${routeSettled}`
+        : '';
+    expect
+      .soft(viols, `${id}: browser health violations${failedRequests}${accessControl}`)
+      .toHaveLength(0);
 
     // Annotate result for report visibility.
     test.info().annotations.push({
       type: 'route',
-      description: `${id} render=${bodyText.length}ch health=${viols.length > 0 ? viols.join('; ') : 'ok'}${failedRequests}${excused.length > 0 ? ` excused-stranded=${excused.join('; ')}` : ''}`,
+      description: `${id} render=${bodyText.length}ch health=${viols.length > 0 ? viols.join('; ') : 'ok'}${failedRequests}${accessControl}${excused.length > 0 ? ` excused-stranded=${excused.join('; ')}` : ''}`,
     });
   }
 }

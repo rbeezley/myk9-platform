@@ -299,7 +299,10 @@ describe('ReplicatedClassesTable', () => {
             data: null,
             error: { code: '42703', message: 'column classes.ring_phase does not exist' },
           })
-          .mockResolvedValue({ data: [createDbRow({ id: '1', trial_id: 'trial-1' })], error: null });
+          .mockResolvedValue({
+            data: [createDbRow({ id: '1', trial_id: 'trial-1' })],
+            error: null,
+          });
 
         const result = await classesTable.sync('trial-1');
 

@@ -100,9 +100,11 @@ export const RunOrderDialog: React.FC<RunOrderDialogProps> = ({
     }
   }, [open]);
 
-  // Reset selected preset when scope changes (presets differ per scope)
+  // Reset selected preset and return to the preset step when scope changes
+  // (presets differ per scope; the renumber buttons need a selected preset).
   React.useEffect(() => {
     setSelected(null);
+    setStep('presets');
   }, [scope]);
 
   const handleOpenChange = (next: boolean) => {

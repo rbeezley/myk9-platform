@@ -218,6 +218,19 @@ describe('RunOrderDialog — section-aware UI', () => {
       expect(onApply).toHaveBeenCalledWith('armband-asc', 'A', 'renumber');
     });
 
+    it('changing scope on the renumber step returns to the preset list', async () => {
+      const { user } = renderDialog(multiSectionEntries);
+      await user.click(screen.getByRole('button', { name: 'Section A' }));
+      await user.click(screen.getByText('Armband Low to High'));
+      await user.click(screen.getByRole('button', { name: 'Next' }));
+      expect(screen.getByText(/Renumber all/i)).toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: 'Section B' }));
+
+      expect(screen.queryByText(/Renumber all/i)).not.toBeInTheDocument();
+      expect(screen.getByText('Armband Low to High')).toBeInTheDocument();
+    });
+
     it('Back button on renumber step returns to preset list', async () => {
       const { user } = renderDialog(multiSectionEntries);
       await user.click(screen.getByRole('button', { name: 'Section A' }));

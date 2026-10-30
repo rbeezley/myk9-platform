@@ -44,7 +44,6 @@ import type { JudgeNameParts } from '@/services/database/_shared/judgeNamesByCla
 import { resolveClassJudgeFields } from '@/services/database/_shared/classJudgeFields';
 import { CLASS_AUTHENTICATED_COLUMN_SELECT } from '@/services/database/classes/reads';
 import {
-  isRingPhaseKnownMissing,
   withRingPhaseFallback,
   withoutRingPhaseColumns,
 } from '@/services/database/classes/ringPhaseCompat';
@@ -602,8 +601,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
       handler_age_max: cls.handlerAgeMax ?? null,
       start_time: cls.startTime ?? null,
       revised_expected_start: cls.revisedExpectedStart ?? null,
-      // PGRST204 fails the whole write on a column the server lacks, so leave the pair out once known.
-      ...(isRingPhaseKnownMissing() ? {} : ringPhaseToRow(cls)),
+      ...ringPhaseToRow(cls),
       estimated_duration: cls.estimatedDuration ?? null,
       element: cls.element ?? null,
       section: cls.section ?? null,
@@ -1045,11 +1043,6 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
     // stripUnsetServerOwnedKeys. Prevents an unrelated edit from re-uploading a
     // stale local status / status_source and clobbering server-derived state.
     const payload = stripUnsetServerOwnedKeys(this.toSupabaseRow(updatedClass), updates);
-    if (isRingPhaseKnownMissing() && ('ringPhase' in updates || 'ringPhaseTime' in updates)) {
-      logger.warn(
-        `[${this.getTableName()}] Ring phase change on class ${classId} is not sent: the server does not have the ring phase columns yet`
-      );
-    }
     // A ringside-only write (status / start time / max time) goes through
     // ringside_update_class, which admits the class's judge; classes_update RLS
     // would deny it (MYK9-1096, MYK9-1086). Anything else stays direct.

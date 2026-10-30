@@ -6,7 +6,6 @@ import {
   resetRingPhaseSchemaCache,
   withRingPhaseFallback,
   withoutRingPhaseColumns,
-  withoutRingPhaseKeys,
 } from './ringPhaseCompat';
 
 const missing = { code: '42703', message: 'column classes.ring_phase does not exist' };
@@ -102,12 +101,6 @@ describe('ringPhaseCompat (MYK9-1527)', () => {
       await withRingPhaseFallback(run);
       await withRingPhaseFallback(run);
       expect(omits).toEqual([false, true, false, true, true, true]);
-    });
-  });
-
-  it('drops only the pair from a write body', () => {
-    expect(withoutRingPhaseKeys({ name: 'A', ring_phase: 'break', ring_phase_time: 't' })).toEqual({
-      name: 'A',
     });
   });
 });

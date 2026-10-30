@@ -22,11 +22,7 @@ import {
 } from '@/services/mappers/classMappers';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
-import {
-  withRingPhaseFallback,
-  withoutRingPhaseColumns,
-  withoutRingPhaseKeys,
-} from './ringPhaseCompat';
+import { withRingPhaseFallback, withoutRingPhaseColumns } from './ringPhaseCompat';
 import { buildMapFromArray } from '../_shared/maps';
 import { joinRowsOrEmpty } from '../_shared/readRows';
 
@@ -546,7 +542,7 @@ export const createClass = async (classData: DbClassInsert) => {
         .from('classes')
         .insert([
           {
-            ...(omitRingPhase ? withoutRingPhaseKeys(classData) : classData),
+            ...classData,
             created_at: createdAt,
           },
         ])
@@ -583,7 +579,7 @@ export const updateClass = async (id: string, updates: DbClassUpdate) => {
       supabase
         .from('classes')
         .update({
-          ...(omitRingPhase ? withoutRingPhaseKeys(updates) : updates),
+          ...updates,
           updated_at: updatedAt,
         })
         .eq('id', id)

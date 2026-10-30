@@ -26,14 +26,6 @@ export function withoutRingPhaseColumns(select: string): string {
   return select.replace(/,\s*ring_phase(?:_time)?(?=\s*(?:,|$))/g, '');
 }
 
-/** Drop the ring phase pair from a classes write body; other keys are untouched. */
-export function withoutRingPhaseKeys<T extends object>(body: T): T {
-  const rest: Record<string, unknown> = { ...(body as Record<string, unknown>) };
-  delete rest.ring_phase;
-  delete rest.ring_phase_time;
-  return rest as T;
-}
-
 /** Test seam: forget what this session learned about the server's schema, and restore the clock. */
 export function resetRingPhaseSchemaCache(clock: () => number = Date.now): void {
   latchedAt = null;

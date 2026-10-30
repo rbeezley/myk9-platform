@@ -77,7 +77,10 @@ import {
   type ReplicatedClass,
 } from '../ReplicatedClassesTable';
 import { REPLICATION_STORES } from '@myk9/replication';
-import { resetRingPhaseSchemaCache } from '@/services/database/classes/ringPhaseCompat';
+import {
+  resetRingPhaseSchemaCache,
+  withRingPhaseFallback,
+} from '@/services/database/classes/ringPhaseCompat';
 import { spyOnWriteAndQueue } from '@/test/utils/spyOnWriteAndQueue';
 
 describe('ReplicatedClassesTable', () => {
@@ -829,6 +832,42 @@ describe('ReplicatedClassesTable', () => {
       expect(payload).not.toHaveProperty('status_source');
       expect(payload).not.toHaveProperty('is_scoring_finalized');
       expect(payload).not.toHaveProperty('reopened_after_closeout_at');
+    });
+
+    it('sends a requested ring phase unchanged while the read latch is set (MYK9-1527)', async () => {
+      await withRingPhaseFallback(async omit =>
+        omit
+          ? { data: [], error: null }
+          : {
+              data: null,
+              error: { code: '42703', message: 'column classes.ring_phase does not exist' },
+            }
+      );
+      const queueMutation = spyOnWriteAndQueue(classesTable).queue;
+
+      await classesTable.set('class-rp', createMockClass({ id: 'class-rp' }));
+      await classesTable.updateClass('class-rp', {
+        classStatus: 'in_progress',
+        ringPhase: 'briefing',
+        ringPhaseTime: '2026-10-30T10:00:00Z',
+      });
+
+      const [, , payload, , rpc] = queueMutation.mock.calls[0] as [
+        string,
+        string,
+        Record<string, unknown>,
+        unknown,
+        { fields: Record<string, unknown> },
+      ];
+      expect(payload).toMatchObject({
+        ring_phase: 'briefing',
+        ring_phase_time: '2026-10-30T10:00:00Z',
+      });
+      expect(rpc.fields).toEqual({
+        status: 'in_progress',
+        ring_phase: 'briefing',
+        ring_phase_time: '2026-10-30T10:00:00Z',
+      });
     });
 
     it('queues reopened_after_closeout_at: null when a mutation explicitly clears it', async () => {

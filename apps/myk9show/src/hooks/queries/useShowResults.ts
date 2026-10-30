@@ -88,9 +88,12 @@ async function fetchShowResults(showId: string): Promise<ClassResult[]> {
   return Array.from(classMap.values());
 }
 
+export const showResultsQueryKey = (showId: string | undefined) =>
+  ['show', showId, 'results'] as const;
+
 export function useShowResults(showId: string | undefined) {
   return useQuery({
-    queryKey: ['show', showId, 'results'],
+    queryKey: showResultsQueryKey(showId),
     queryFn: () => fetchShowResults(showId!),
     enabled: !!showId,
     ...cacheStrategies.moderate,

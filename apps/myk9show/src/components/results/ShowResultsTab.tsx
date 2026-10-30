@@ -3,6 +3,7 @@
  * Contains sub-tabs: Podium (existing results), Show Stats, Judge Stats.
  */
 
+import { useQueryClient } from '@tanstack/react-query';
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { Trophy, BarChart3, Scale, Medal } from 'lucide-react';
 import { Card } from '@/components/ui/card';
@@ -27,7 +28,11 @@ import { useListUrlParams } from '@/hooks/useListUrlParams';
 import { useShowClassProgress } from '@/hooks/queries/useShowClassProgress';
 import { useShowStatsFilters } from '@/hooks/useShowStatsFilters';
 import type { StatsFilterOptions } from '@/components/analytics/analytics-filters';
-import { useShowResults, type ClassResult } from '@/hooks/queries/useShowResults';
+import {
+  useShowResults,
+  showResultsQueryKey,
+  type ClassResult,
+} from '@/hooks/queries/useShowResults';
 import { useVisibleResultFields, deriveClassState } from '@/hooks/useVisibleResultFields';
 import { useShowStats } from '@/hooks/queries/useShowStats';
 import { useShowJudges } from '@/hooks/queries/useShowJudges';
@@ -127,7 +132,7 @@ function PodiumContent({ showId, showEntries = [] }: PodiumContentProps) {
     isError: progressError,
     isSuccess: progressLoaded,
     refetch: refetchProgress,
-  } = useShowClassProgress(showId);
+  } = useShowClassProgress(showId, { refetchInterval: PROGRESS_REFRESH_MS });
   const [search, setSearch] = useState('');
   const { filters, setFilter, clearFilters } = useShowStatsFilters();
 
@@ -138,14 +143,16 @@ function PodiumContent({ showId, showEntries = [] }: PodiumContentProps) {
     .map(cls => cls.classId)
     .sort()
     .join(',');
+  const queryClient = useQueryClient();
   const seenReleasedKey = useRef<string | null>(null);
   useEffect(() => {
     if (!progressLoaded) return;
     const previous = seenReleasedKey.current;
     seenReleasedKey.current = releasedKey;
     // The first load only records the baseline; the podium query already ran for it.
-    if (previous !== null && previous !== releasedKey) void refetch();
-  }, [progressLoaded, releasedKey, refetch]);
+    if (previous !== null && previous !== releasedKey)
+      void queryClient.invalidateQueries({ queryKey: showResultsQueryKey(showId) });
+  }, [progressLoaded, releasedKey, queryClient, showId]);
 
   // Narrowing happens here, after useShowResults/useVisibleResultFields own what may be shown.
   const pendingAll = useMemo(() => derivePendingClasses(classProgress), [classProgress]);
@@ -254,6 +261,9 @@ function PodiumContent({ showId, showEntries = [] }: PodiumContentProps) {
     </div>
   );
 }
+
+/** The one clock for the tab: Pending and the podium refresh together off this poll. */
+const PROGRESS_REFRESH_MS = 30 * 1000;
 
 const RESULTS_VIEW_PARAM = 'resultsView';
 

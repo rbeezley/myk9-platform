@@ -1,3 +1,4 @@
+import { QueryClient } from '@tanstack/react-query';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
 import { ShowResultsTab } from './ShowResultsTab';
@@ -305,7 +306,8 @@ describe('ShowResultsTab class-name search', () => {
       expect(screen.getByText('Trial: Trial 2 · Mar 15')).toBeInTheDocument();
     });
 
-    it('refetches the podium when a class gets released while the page is open', () => {
+    it('invalidates the podium query when a class gets released while the page is open', () => {
+      const invalidate = vi.spyOn(QueryClient.prototype, 'invalidateQueries');
       const refetch = vi.fn();
       const podium = { data: RESULTS, isLoading: false, error: null, refetch };
       vi.mocked(useShowResults).mockReturnValue(
@@ -317,13 +319,15 @@ describe('ShowResultsTab class-name search', () => {
       vi.mocked(useShowClassProgress).mockReturnValue(asProgress([pendingRow]));
 
       const { rerender } = render(<ShowResultsTab showId="show-1" />);
-      expect(refetch).not.toHaveBeenCalled();
+      expect(invalidate).not.toHaveBeenCalled();
 
       vi.mocked(useShowClassProgress).mockReturnValue(
         asProgress([{ ...pendingRow, resultsReleasedAt: '2026-05-01T00:00:00Z' }])
       );
       rerender(<ShowResultsTab showId="show-1" />);
-      expect(refetch).toHaveBeenCalledTimes(1);
+      expect(invalidate).toHaveBeenCalledTimes(1);
+      expect(invalidate).toHaveBeenCalledWith({ queryKey: ['show', 'show-1', 'results'] });
+      invalidate.mockRestore();
     });
 
     it('round-trips the sub-tab through the URL', () => {

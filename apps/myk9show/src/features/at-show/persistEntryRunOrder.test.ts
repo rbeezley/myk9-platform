@@ -43,6 +43,39 @@ describe('persistEntryRunOrder', () => {
     expect(replicatedEntriesTable.updateEntry).toHaveBeenCalledWith('b1', { runOrder: 2 });
   });
 
+  it('writes only the rows whose run order changed in a 60-entry class (3rd card dropped on top)', async () => {
+    const before = Array.from({ length: 60 }, (_, i) => entry(`e${i + 1}`, i + 1));
+    const moved = [before[2], before[0], before[1], ...before.slice(3)];
+    const after = moved.map((e, i) => entry(e.id, i + 1));
+
+    await persistEntryRunOrder(after, before);
+
+    expect(replicatedEntriesTable.updateEntry).toHaveBeenCalledTimes(3);
+    expect(replicatedEntriesTable.updateEntry).toHaveBeenCalledWith('e3', { runOrder: 1 });
+    expect(replicatedEntriesTable.updateEntry).toHaveBeenCalledWith('e1', { runOrder: 2 });
+    expect(replicatedEntriesTable.updateEntry).toHaveBeenCalledWith('e2', { runOrder: 3 });
+  });
+
+  it('writes every row only for a full reversal of a 60-entry class', async () => {
+    const before = Array.from({ length: 60 }, (_, i) => entry(`e${i + 1}`, i + 1));
+    const after = [...before].reverse().map((e, i) => entry(e.id, i + 1));
+
+    await persistEntryRunOrder(after, before);
+
+    expect(replicatedEntriesTable.updateEntry).toHaveBeenCalledTimes(60);
+  });
+
+  it('writes a gapped prior order down to the new contiguous numbering', async () => {
+    const before = [entry('a', 1), entry('b', 5), entry('c', 7)];
+    const after = [entry('a', 1), entry('b', 2), entry('c', 3)];
+
+    await persistEntryRunOrder(after, before);
+
+    expect(replicatedEntriesTable.updateEntry).toHaveBeenCalledTimes(2);
+    expect(replicatedEntriesTable.updateEntry).toHaveBeenCalledWith('b', { runOrder: 2 });
+    expect(replicatedEntriesTable.updateEntry).toHaveBeenCalledWith('c', { runOrder: 3 });
+  });
+
   it('persists nothing for an empty reorder', async () => {
     await persistEntryRunOrder([]);
     expect(replicatedEntriesTable.updateEntry).not.toHaveBeenCalled();

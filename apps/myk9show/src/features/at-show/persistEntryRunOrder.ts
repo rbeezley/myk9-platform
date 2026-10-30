@@ -11,6 +11,11 @@
  * via the replication mutation queue. The drag hook owns the optimistic local
  * reorder + grace period; this only queues the writes.
  *
+ * Only entries whose run order differs from the one they held before the drop
+ * are written (`previous` is the hook's pre-drop snapshot): moving the 3rd card
+ * to the top writes 3 rows, not the whole class, so one drag is not N RPCs plus
+ * N realtime fan-outs. An entry absent from `previous` is always written.
+ *
  * Writes are scoped to the entries in the dragged view; the hook leaves
  * everything outside it untouched. For the single-class list that is one class.
  * For the combined list it is the MERGED A/B queue — which shares one ring run
@@ -21,12 +26,16 @@
 import { replicatedEntriesTable } from '@/services/replication';
 import type { Entry } from '@myk9/ringside';
 
-export async function persistEntryRunOrder(reordered: Entry[]): Promise<void> {
+export async function persistEntryRunOrder(
+  reordered: Entry[],
+  previous: Entry[] = []
+): Promise<void> {
+  const previousOrder = new Map(previous.map(entry => [entry.id, entry.exhibitorOrder]));
+  const changed = reordered.flatMap((entry, index) => {
+    const runOrder = entry.exhibitorOrder ?? index + 1;
+    return previousOrder.get(entry.id) === runOrder ? [] : [{ id: entry.id, runOrder }];
+  });
   await Promise.all(
-    reordered.map((entry, index) =>
-      replicatedEntriesTable.updateEntry(entry.id, {
-        runOrder: entry.exhibitorOrder ?? index + 1,
-      })
-    )
+    changed.map(({ id, runOrder }) => replicatedEntriesTable.updateEntry(id, { runOrder }))
   );
 }

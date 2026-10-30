@@ -12,6 +12,7 @@ const base: RingsideMenuContext = {
   canManageShow: false,
   isOnline: true,
   hasEntries: true,
+  showStatsAvailable: true,
   hasAccount: true,
 };
 
@@ -47,6 +48,12 @@ describe('buildRingsideMenuItems', () => {
 
   it('offers Stats only to a viewer with entries, who gets the tab view that renders it', () => {
     expect(ids({ ...base, hasEntries: false })).not.toContain('stats');
+  });
+
+  it('offers Stats only once something is scored, and lands on the show-stats view', () => {
+    expect(ids({ ...base, showStatsAvailable: false })).not.toContain('stats');
+    expect(ids({ ...base, showStatsAvailable: false })).toContain('results');
+    expect(find(base, 'stats')?.href).toContain('resultsView=show-stats');
   });
 
   it('gives Results only to managers and viewers with entries today', () => {

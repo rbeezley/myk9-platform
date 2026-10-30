@@ -26,6 +26,8 @@ import { useMessageStore } from '@/store/messageStore';
 import { useNotificationStore } from '@/store/notificationStore';
 import { useShowManageScope } from '@/hooks/useShowManageScope';
 import { useMyAtShowEntries } from '../useMyAtShowEntries';
+import { useShowStats } from '@/hooks/queries/useShowStats';
+import { isShowStatsAvailable } from '@/components/results/showResultsViews';
 import {
   OFFLINE_ITEM_NOTICE,
   buildRingsideMenuItems,
@@ -62,6 +64,8 @@ export function RingsideMenu({ showId }: { showId: string | undefined }) {
   // The destination route's own gate, so the link and the page cannot disagree.
   const canManageShow = useShowManageScope(showId).canManage;
   const hasEntries = useMyAtShowEntries(showId).ownEntryIds.size > 0;
+  // The Results tab's own rule for offering Show Stats, read from its cached query.
+  const { data: statsEntries } = useShowStats(hasEntries && !canManageShow ? showId : undefined);
 
   const unread =
     useNotificationStore(s => s.unreadCount) +
@@ -72,6 +76,7 @@ export function RingsideMenu({ showId }: { showId: string | undefined }) {
     showId,
     canManageShow,
     hasEntries,
+    showStatsAvailable: isShowStatsAvailable(statsEntries),
     isOnline,
     hasAccount: Boolean(user) && !user?.is_anonymous,
   });

@@ -16,6 +16,8 @@ export interface RingsideMenuContext {
   isOnline: boolean;
   /** The account has entries in this show, so the show page gives it the tabbed view with Show Stats. */
   hasEntries: boolean;
+  /** The Results tab will render its Show Stats view (`isShowStatsAvailable`). */
+  showStatsAvailable: boolean;
   /** A real account (not a passcode session). */
   hasAccount: boolean;
 }
@@ -80,7 +82,11 @@ export function buildRingsideMenuItems(
       : null,
     // Show Stats renders only in the entered-exhibitor tab view: a manager's
     // Results page and the public landing have no statistics to land on.
-    showId && showScope && context.hasEntries && !context.canManageShow
+    showId &&
+    showScope &&
+    context.hasEntries &&
+    !context.canManageShow &&
+    context.showStatsAvailable
       ? {
           id: 'stats',
           label: 'Stats',

@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   online: true,
   canManage: false,
   ownEntryIds: new Set<string>(['e1']),
+  statsEntries: [{ resultText: 'Q' }] as unknown[],
   show: { clubId: 'club-1', location: '123 Main St, Springfield' } as Record<string, unknown>,
 }));
 
@@ -25,6 +26,9 @@ vi.mock('@/hooks/useShowManageScope', () => ({
 }));
 vi.mock('../useMyAtShowEntries', () => ({
   useMyAtShowEntries: () => ({ ownEntryIds: mocks.ownEntryIds }),
+}));
+vi.mock('@/hooks/queries/useShowStats', () => ({
+  useShowStats: () => ({ data: mocks.statsEntries }),
 }));
 vi.mock('@/lib/networkUtils', () => ({ useOnlineStatus: () => mocks.online }));
 vi.mock('@/hooks/useGlobalSyncStatus', () => ({
@@ -82,6 +86,7 @@ describe('RingsideMenu', () => {
     mocks.auth.signOut.mockReset();
     mocks.online = true;
     mocks.canManage = false;
+    mocks.statsEntries = [{ resultText: 'Q' }];
     mocks.ownEntryIds = new Set(['e1']);
     useRingsideReturnStore.getState().clear();
     useNotificationStore.setState({ isCenterOpen: false });
@@ -123,6 +128,14 @@ describe('RingsideMenu', () => {
       returnTo: '/at-show/show-1/class/class-1?tab=a',
       scope: '/account',
     });
+  });
+
+  it('offers Stats once an entry is scored and hides it while everything is pending', async () => {
+    mocks.statsEntries = [{ resultText: 'pending' }];
+    const { user } = renderMenu();
+    const nav = await openMenu(user);
+    expect(within(nav).queryByRole('button', { name: /^Stats/ })).not.toBeInTheDocument();
+    expect(within(nav).getByRole('button', { name: /^Results/ })).toBeInTheDocument();
   });
 
   it('sends a show manager to the results page and hides Stats', async () => {

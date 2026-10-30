@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { signInAsSecretary } from '../uat/shared/auth';
 import {
   installSharedStagingWriteGuard,
+  isIsolatedSupabaseTarget,
   type GuardedRingsideRpcCall,
 } from '../helpers/sharedStagingWriteGuard';
 
@@ -28,6 +29,14 @@ import {
  * conflict here is the server's own, not a simulated one. The unit-level merge
  * rules stay in packages/replication/src/conflict/*.
  *
+ * Scope: runs in the chromium project only, with retries off. Every project
+ * would score the same seeded entry (...051) concurrently, and a retry would
+ * start from the previous attempt's scored entry, so neither is deterministic
+ * (MYK9-1487). Replication conflict handling is browser-agnostic app logic, so
+ * one project is sufficient coverage. It also skips unless the target is an
+ * isolated host: on shared staging the write guard answers both devices with
+ * synthetic success, so B never receives the server's OCC rejection.
+ *
  * Fixture: entry ...051 (Willow, Container Novice A) - confirmed/paid, and not
  * used by atShowOfflineScoring.spec.ts (...053) or atShowJudgeScoring.spec.ts
  * (...052). The spec scores it once and leaves it scored.
@@ -44,9 +53,16 @@ const PENDING_MUTATIONS_STORE = 'pending_mutations';
 const CONFLICT_TITLE = 'This record was changed elsewhere';
 
 test.describe('At-show multi-device offline conflict', () => {
+  test.describe.configure({ retries: 0 });
+
   test('second device to reconnect gets a conflict notice, and Take theirs settles both devices on the first score', async ({
     browser,
-  }) => {
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium', 'shares one seeded entry; see MYK9-1487');
+    test.skip(
+      !isIsolatedSupabaseTarget(process.env.VITE_SUPABASE_URL),
+      'needs an isolated host: the shared-staging write guard returns synthetic success, so no real OCC conflict'
+    );
     test.setTimeout(180_000);
     const contextA = await browser.newContext();
     const contextB = await browser.newContext();

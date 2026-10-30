@@ -9,6 +9,8 @@ const mocks = vi.hoisted(() => ({
   toggle: vi.fn(),
   favorites: new Set<number>(),
   checkIn: vi.fn(),
+  loadFailed: false,
+  retry: vi.fn(),
 }));
 
 vi.mock('./useRingsideEffectiveRole', () => ({
@@ -19,8 +21,8 @@ vi.mock('./useAtShowStaffDogs', () => ({
     dogs: mocks.dogs,
     showName: 'Spring Show',
     isLoading: false,
-    loadFailed: false,
-    onRetry: vi.fn(),
+    loadFailed: mocks.loadFailed,
+    onRetry: mocks.retry,
   }),
 }));
 vi.mock('./dogFavoritesSync', () => ({
@@ -63,6 +65,8 @@ beforeEach(() => {
   mocks.favorites = new Set();
   mocks.toggle.mockReset();
   mocks.checkIn.mockReset();
+  mocks.loadFailed = false;
+  mocks.retry.mockReset();
   sessionStorage.clear();
   mocks.dogs = [
     dog({ key: 'd1', dogName: 'Zip', armband: 12, handler: 'Amy' }),
@@ -170,5 +174,43 @@ describe('AtShowDogPage', () => {
       'href',
       '/at-show/s1/class/c-e1'
     );
+  });
+
+  it('offers a retry when the read failed instead of claiming the dog is missing', () => {
+    mocks.dogs = [];
+    mocks.loadFailed = true;
+    renderRoutes('/at-show/s1/dogs/d1');
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(mocks.retry).toHaveBeenCalled();
+    expect(screen.queryByText(/isn't on this device/)).not.toBeInTheDocument();
+  });
+
+  it('offers Check In All again when an unchecked entry appears after a success', async () => {
+    mocks.checkIn.mockResolvedValue(null);
+    mocks.dogs = [
+      dog({
+        key: 'd1',
+        dogName: 'Zip',
+        entries: [classEntry('e1', 'no-status')],
+        uncheckedEntryIds: ['e1'],
+      }),
+    ];
+    const view = renderRoutes('/at-show/s1/dogs/d1');
+    fireEvent.click(screen.getByRole('button', { name: 'Check In All (1)' }));
+    await waitFor(() => expect(screen.getByText('✓ Checked in to 1 class')).toBeInTheDocument());
+    mocks.dogs = [
+      dog({
+        key: 'd1',
+        dogName: 'Zip',
+        entries: [classEntry('e1', 'checked-in'), classEntry('e9', 'no-status')],
+        uncheckedEntryIds: ['e9'],
+      }),
+    ];
+    view.rerender(
+      <Routes>
+        <Route path="/at-show/:showId/dogs/:dogKey" element={<AtShowDogPage />} />
+      </Routes>
+    );
+    expect(await screen.findByRole('button', { name: 'Check In All (1)' })).toBeInTheDocument();
   });
 });

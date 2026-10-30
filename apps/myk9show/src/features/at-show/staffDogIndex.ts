@@ -6,7 +6,8 @@
  * @module at-show/staffDogIndex
  */
 import type { ReplicatedEntry } from '@/services/replication';
-import { isPulledEntry } from '@/features/_shared/entryAccounting';
+import { isExpectedEntry, isPulledEntry } from '@/features/_shared/entryAccounting';
+import { resolveEntryArmband, type ShowArmbandMaps } from '@/features/_shared/entryArmband';
 import { isUncheckedCheckInStatus } from '@/components/checkin/uncheckedEntries';
 import { transformEntry } from './atShowDataAdapter';
 
@@ -63,11 +64,16 @@ function liveEntry(entry: ReplicatedEntry): boolean {
 /** Group the show's live entries by dog. Class info comes from the class list. */
 export function buildStaffDogs(
   entries: readonly ReplicatedEntry[],
-  classesById: ReadonlyMap<string, StaffDogClassInfo>
+  classesById: ReadonlyMap<string, StaffDogClassInfo>,
+  armbandMaps: ShowArmbandMaps
 ): StaffDog[] {
   const byDog = new Map<string, StaffDog>();
-  for (const re of entries) {
-    if (!liveEntry(re)) continue;
+  for (const stored of entries) {
+    if (!liveEntry(stored)) continue;
+    // The entry column can be empty while the show's armbands table still holds
+    // the number (MYK9-976); resolve it the way the class entry list does.
+    const armband = resolveEntryArmband(stored, armbandMaps);
+    const re = armband ? { ...stored, armband } : stored;
     const classInfo = re.classId ? (classesById.get(re.classId) ?? null) : null;
     const view = transformEntry(re, null);
     const key = dogKeyOf(re);
@@ -100,7 +106,8 @@ export function buildStaffDogs(
       placement: view.placement ?? null,
       resultsReleased: Boolean(classInfo?.resultsReleasedAt),
     });
-    if (!pulled && isUncheckedCheckInStatus(checkInStatus)) dog.uncheckedEntryIds.push(re.id);
+    if (isExpectedEntry(re) && isUncheckedCheckInStatus(checkInStatus))
+      dog.uncheckedEntryIds.push(re.id);
   }
   return [...byDog.values()];
 }

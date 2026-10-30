@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { buildShowArmbandMaps } from '@/features/_shared/entryArmband';
 import type { ReplicatedEntry } from '@/services/replication';
 import {
   buildStaffDogs,
@@ -57,7 +58,8 @@ const entries = [
   } as Partial<ReplicatedEntry> & { id: string }),
   entry({ id: 'e6', dogId: 'd5', armband: '41', dogCallName: 'Pulled', checkInStatus: 'pulled' }),
 ];
-const dogs = buildStaffDogs(entries, classes);
+const EMPTY_MAPS = buildShowArmbandMaps([]);
+const dogs = buildStaffDogs(entries, classes, EMPTY_MAPS);
 const none = new Set<number>();
 
 describe('buildStaffDogs', () => {
@@ -72,6 +74,31 @@ describe('buildStaffDogs', () => {
   it('counts only unchecked, unpulled entries for check-in-all', () => {
     expect(dogs.find(d => d.key === 'd1')?.uncheckedEntryIds).toEqual(['e1']);
     expect(dogs.find(d => d.key === 'd5')?.uncheckedEntryIds).toEqual([]);
+  });
+});
+
+describe('buildStaffDogs eligibility and armbands', () => {
+  it('leaves withdrawn, moved and absent entries out of check-in-all', () => {
+    const built = buildStaffDogs(
+      ['withdrawn', 'moved', 'absent', 'not_accepted', 'confirmed'].map(entryStatus =>
+        entry({ id: `s-${entryStatus}`, dogId: 'dx', entryStatus } as Partial<ReplicatedEntry> & {
+          id: string;
+        })
+      ),
+      classes,
+      EMPTY_MAPS
+    );
+    expect(built[0]?.uncheckedEntryIds).toEqual(['s-confirmed']);
+  });
+
+  it('resolves a missing armband from the show assignment table', () => {
+    const maps = buildShowArmbandMaps([{ armbandNumber: '77', dogId: 'dz' }]);
+    const built = buildStaffDogs(
+      [entry({ id: 'ez', dogId: 'dz', dogCallName: 'Neo' })],
+      classes,
+      maps
+    );
+    expect(built[0]?.armband).toBe(77);
   });
 });
 

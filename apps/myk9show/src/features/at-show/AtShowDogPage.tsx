@@ -30,7 +30,7 @@ function resultLine(entry: StaffDogClassEntry): string | null {
 export const AtShowDogPage: React.FC = () => {
   const { showId, dogKey } = useParams<{ showId: string; dogKey: string }>();
   const isStaff = useIsStaffDogViewer(showId);
-  const { dogs, isLoading } = useAtShowStaffDogs(isStaff ? showId : undefined);
+  const { dogs, isLoading, loadFailed, onRetry } = useAtShowStaffDogs(isStaff ? showId : undefined);
   const { favoriteArmbands, toggleFavoriteArmband } = useAtShowDogFavoritesSynced(
     isStaff ? showId : undefined
   );
@@ -53,9 +53,20 @@ export const AtShowDogPage: React.FC = () => {
     return (
       <main className="ringside-root mx-auto max-w-2xl px-4 py-4">
         {back}
-        <p className="py-10 text-center text-sm text-muted-foreground">
-          {isLoading ? 'Loading dog…' : "That dog isn't on this device."}
-        </p>
+        {loadFailed ? (
+          <div className="flex flex-col items-center gap-3 py-10 text-center" role="alert">
+            <p className="text-sm text-muted-foreground">
+              We couldn't read this dog on this device.
+            </p>
+            <Button variant="outline" onClick={onRetry}>
+              Try again
+            </Button>
+          </div>
+        ) : (
+          <p className="py-10 text-center text-sm text-muted-foreground">
+            {isLoading ? 'Loading dog…' : "That dog isn't on this device."}
+          </p>
+        )}
       </main>
     );
   }
@@ -63,6 +74,9 @@ export const AtShowDogPage: React.FC = () => {
   const favorited = dog.armband != null && favoriteArmbands.has(dog.armband);
   const toCheckIn = dog.uncheckedEntryIds;
   const results = state.phase === 'done' ? state.results : {};
+  // Entries a check-in already took are not offered again while the replica catches up;
+  // an entry that reappears unchecked later (new class, another device) is.
+  const remaining = toCheckIn.filter(id => results[id] !== 'ok');
   const okCount = Object.values(results).filter(value => value === 'ok').length;
   const failedCount = Object.values(results).filter(value => value === 'failed').length;
   const hasPreliminary = dog.entries.some(entry => !entry.resultsReleased && resultLine(entry));
@@ -96,19 +110,20 @@ export const AtShowDogPage: React.FC = () => {
         )}
       </div>
 
-      {state.phase === 'done' && okCount > 0 && failedCount === 0 ? (
+      {state.phase === 'done' && okCount > 0 && failedCount === 0 && (
         <p className="mb-3 rounded-lg border px-3 py-2 text-sm font-medium" role="status">
           ✓ Checked in to {okCount} {okCount === 1 ? 'class' : 'classes'}
         </p>
-      ) : toCheckIn.length > 0 || state.phase === 'done' ? (
+      )}
+      {(remaining.length > 0 || state.phase === 'checking') && (
         <Button
           className="mb-3 min-h-11 w-full"
-          disabled={state.phase === 'checking' || toCheckIn.length === 0}
-          onClick={() => void checkInAll(toCheckIn)}
+          disabled={state.phase === 'checking'}
+          onClick={() => void checkInAll(remaining)}
         >
-          {state.phase === 'checking' ? 'Checking In...' : `Check In All (${toCheckIn.length})`}
+          {state.phase === 'checking' ? 'Checking In...' : `Check In All (${remaining.length})`}
         </Button>
-      ) : null}
+      )}
       {failedCount > 0 && (
         <p className="mb-3 text-sm text-destructive" role="alert">
           {failedCount} {failedCount === 1 ? 'class' : 'classes'} could not be checked in. Try

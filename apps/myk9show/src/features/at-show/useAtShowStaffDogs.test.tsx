@@ -6,6 +6,7 @@ import type { ReactNode } from 'react';
 const getEntriesByShow = vi.hoisted(() => vi.fn());
 vi.mock('@/services/replication', () => ({
   replicatedEntriesTable: { getEntriesByShow, subscribe: vi.fn(() => vi.fn()) },
+  replicatedArmbandsTable: { getByShow: vi.fn(async () => []), subscribe: vi.fn(() => vi.fn()) },
 }));
 vi.mock('./useAtShowClassList', () => ({
   useAtShowClassList: () => ({ groups: [], showName: 'Spring', isLoading: false }),

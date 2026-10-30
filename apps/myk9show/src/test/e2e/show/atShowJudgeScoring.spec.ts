@@ -57,6 +57,10 @@ const REPLICATED_TABLES_STORE = 'replicated_tables';
 const PENDING_MUTATIONS_STORE = 'pending_mutations';
 
 test.describe('At-show judge scoring authorization', () => {
+  // MYK9-1487: these tests share entry ...052 and the forwarded isolated-stack
+  // writes are real, so parallel tests race into genuine OCC conflicts.
+  test.describe.configure({ mode: 'serial' });
+
   // MYK9-1114: attaches console/network/toast text on failure (traces are not uploaded).
   installBrowserDiagnostics(test);
 
@@ -191,28 +195,6 @@ test.describe('At-show judge scoring authorization', () => {
           }),
         ])
       );
-  });
-
-  test('lets the judge pull a dog without turning it into a score', async ({ page }) => {
-    const rpcCalls: GuardedRingsideRpcCall[] = [];
-    await installSharedStagingWriteGuard(page, {
-      ringsideRpcCalls: rpcCalls,
-      strictRpcWrites: true,
-    });
-
-    await signInAsJudge(page, CLASS_PATH);
-    await expect(page.getByText('Change Status')).toHaveCount(0);
-    await page.getByTestId('check-in-button').first().click();
-    const statusDialog = page.getByRole('dialog', { name: 'Change Status' });
-    await expect(statusDialog).toBeVisible();
-    await statusDialog.getByRole('button', { name: 'Pulled' }).click();
-
-    await expect
-      .poll(() => rpcCalls.some(call => call.p_fields?.check_in_status === 'pulled'), {
-        timeout: 20_000,
-      })
-      .toBe(true);
-    expect(rpcCalls.some(call => call.p_fields?.is_scored === true)).toBe(false);
   });
 
   test('reopens the saved dog for correction and keeps the next-dog shortcut explicit', async ({
@@ -351,6 +333,29 @@ test.describe('At-show judge scoring authorization', () => {
       )
       .toBe(1);
     await expect.poll(() => readPendingMutation(page, true), { timeout: 20_000 }).toBeNull();
+  });
+  // MYK9-1487: keep last. It really pulls the first dog on the isolated stack,
+  // which empties the gate list the reopen test's next-dog shortcut needs.
+  test('lets the judge pull a dog without turning it into a score', async ({ page }) => {
+    const rpcCalls: GuardedRingsideRpcCall[] = [];
+    await installSharedStagingWriteGuard(page, {
+      ringsideRpcCalls: rpcCalls,
+      strictRpcWrites: true,
+    });
+
+    await signInAsJudge(page, CLASS_PATH);
+    await expect(page.getByText('Change Status')).toHaveCount(0);
+    await page.getByTestId('check-in-button').first().click();
+    const statusDialog = page.getByRole('dialog', { name: 'Change Status' });
+    await expect(statusDialog).toBeVisible();
+    await statusDialog.getByRole('button', { name: 'Pulled' }).click();
+
+    await expect
+      .poll(() => rpcCalls.some(call => call.p_fields?.check_in_status === 'pulled'), {
+        timeout: 20_000,
+      })
+      .toBe(true);
+    expect(rpcCalls.some(call => call.p_fields?.is_scored === true)).toBe(false);
   });
 });
 

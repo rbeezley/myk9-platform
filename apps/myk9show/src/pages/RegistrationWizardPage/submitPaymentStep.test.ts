@@ -139,6 +139,33 @@ describe('submitPaymentStep', () => {
     expect(ctx.discardDraftsWithoutFinalSave).not.toHaveBeenCalled();
   });
 
+  // MYK9-1518: the Receipt's entry blanks read this state; a dropped hand-off would
+  // silently remove every download on an ordinary submission.
+  it('hands an ordinary submission’s created entries to the Receipt step', async () => {
+    const created = {
+      dogId: 'dog-1',
+      classId: 'class-1',
+      outcome: 'created' as const,
+      entryId: 'entry-1',
+      waitlistEntryId: null,
+      feeCents: 2500,
+      capacityOverride: false,
+    };
+    submitShowRegistrationMock.mockResolvedValue({
+      aborted: false,
+      registrationNumber: 'REG-1',
+      armbandAssignments: [],
+      armbandFailures: [],
+      createdEntryOutcomes: [created],
+    });
+    const { ctx } = makeContextAndOrder();
+
+    await submitPaymentStep(ctx);
+
+    expect(ctx.setEntryOutcomes).toHaveBeenCalledWith([]);
+    expect(ctx.setCreatedEntryOutcomes).toHaveBeenCalledWith([created]);
+  });
+
   it('keeps denied dogs while clearing only successful submission outcomes', async () => {
     submitShowRegistrationMock.mockResolvedValue({
       aborted: false,

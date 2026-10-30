@@ -2,24 +2,30 @@ import { describe, expect, it } from 'vitest';
 
 import { formatSecondsAsMSSCC } from '@/lib/format/searchTime';
 import type { SecretaryEntry } from '@/services/database/entries';
+import type { SyncableTrial, SyncableTrialClass } from '@/store/trial-store-types';
+import { buildResultsClassRows } from './buildResultsClassRows';
 import {
   buildNationalsLeaderboard,
   compareLeaderboard,
   competitionDay,
+  isRankableEntry,
   leaderboardStatus,
 } from './nationalsLeaderboard';
 
+let nextId = 0;
 function entry(over: Record<string, unknown>): SecretaryEntry {
+  const armband = 'armband' in over ? over.armband : '101';
   return {
-    id: `e-${Math.random()}`,
+    id: `e-${nextId++}`,
     class_id: 'c1',
-    armband: '101',
+    armband,
     entry_status: 'confirmed',
     is_scored: true,
     result_status: 'qualified',
     points_earned: 0,
     search_time_seconds: 0,
-    dog: { id: 'd', name: 'Ranger', call_name: 'Rex' },
+    dog_id: `dog-${armband ?? 'none'}`,
+    dog: { id: `dog-${armband ?? 'none'}`, name: 'Ranger', call_name: 'Rex' },
     handler_identity: { source: 'entered', name: 'Jane Doe' },
     ...over,
   } as unknown as SecretaryEntry;
@@ -160,6 +166,71 @@ describe('Status from the shared entry-accounting rules', () => {
         { ...toRun, result_status: 'disqualified', is_scored: false }
       )
     ).toBe('Withdrawn');
+  });
+});
+
+describe('one eligibility rule, shared with the Results class list (MYK9-1516)', () => {
+  const scoredThenOut = (over: Record<string, unknown>) =>
+    build([
+      entry({ armband: '1', class_id: 'c1', points_earned: 40 }),
+      entry({ armband: '1', class_id: 'c2', points_earned: 30, ...over }),
+      entry({ armband: '2', class_id: 'c1', points_earned: 50 }),
+    ]);
+
+  it.each([
+    ['entry_status', { entry_status: 'withdrawn' }],
+    ['result_status', { result_status: 'withdrawn' }],
+  ])(
+    'an entry withdrawn after scoring (%s) is out of the totals and shows Withdrawn',
+    (_n, over) => {
+      const board = scoredThenOut(over);
+      expect(board.map(row => [row.armband, row.totalPoints, row.status])).toEqual([
+        ['2', 50, null],
+        ['1', 40, 'Withdrawn'],
+      ]);
+    }
+  );
+
+  it('keeps a scored dog that has no armband assigned yet, and shows no armband for it', () => {
+    const board = build([
+      entry({ armband: null, points_earned: 70 }),
+      entry({ armband: '2', points_earned: 50 }),
+    ]);
+    expect(board.map(row => [row.rank, row.armband, row.totalPoints])).toEqual([
+      [1, null, 70],
+      [2, '2', 50],
+    ]);
+  });
+
+  it('counts the same entries as the Results class list', () => {
+    const fixture = [
+      entry({ armband: '1' }),
+      entry({ armband: '2', entry_status: 'withdrawn' }),
+      entry({ armband: '3', entry_status: 'scratched' }),
+      entry({ armband: '4', entry_status: 'moved' }),
+      entry({ armband: '5', entry_status: 'absent' }),
+      entry({ armband: '6', entry_status: 'not_accepted' }),
+      entry({ armband: '7', entry_status: 'pending' }),
+      entry({ armband: '8', check_in_status: 'pulled' }),
+      entry({ armband: '9', is_scored: false, result_status: 'pending' }),
+    ];
+    const classList = buildResultsClassRows({
+      trials: [{ id: 't1', showId: 's1', trialDate: '2026-10-10' } as SyncableTrial],
+      trialClasses: {
+        t1: [{ id: 'c1', name: 'Containers Open', status: 'Completed' } as SyncableTrialClass],
+      },
+      releasedAtByClassId: new Map([['c1', RELEASED]]),
+      entries: fixture,
+      paperworkByClassId: new Map(),
+    })
+      .flatMap(row => row.entries.map(item => item.entryId))
+      .sort();
+    expect(
+      fixture
+        .filter(isRankableEntry)
+        .map(item => item.id)
+        .sort()
+    ).toEqual(classList);
   });
 });
 

@@ -4,15 +4,15 @@
  * The `nationals_rankings` / `nationals_advancement` tables are not a source: nothing in the app
  * reads or writes them, they are not replicated, and their only policy is staff-only by design
  * (MYK9-93). The ranking key at nationals is `points_earned` on the replicated entry (the same
- * one the coin flip groups on), so this folds those rows per armband, as v3 did.
+ * one the coin flip groups on), so this folds those rows per dog, as v3 did per armband.
  *
  * Only RELEASED classes count, so the board never shows a result the Results tab still holds back.
  * Pure on purpose: the component only renders what this returns.
  */
-import { isPulledEntry, isRunnableEntry } from '@/features/_shared/entryAccounting';
+import { isRunnableEntry } from '@/features/_shared/entryAccounting';
 import { accountingFields } from '@/pages/secretary/showDeskEntryAvailability';
 import type { SecretaryEntry } from '@/services/database/entries';
-import type { ResultsClassRow } from './buildResultsClassRows';
+import { isResultsDisplayEntry, type ResultsClassRow } from './buildResultsClassRows';
 
 /** The nationals run three days; a trial outside that window counts toward the nearest one. */
 export const NATIONALS_DAYS = [1, 2, 3] as const;
@@ -23,7 +23,9 @@ export type NationalsLeaderboardStatus = 'Withdrawn' | 'Eliminated' | 'Finals';
 
 export interface NationalsLeaderboardRow {
   rank: number;
-  armband: string;
+  /** The dog the row is for; an armband may not be assigned yet. */
+  dogId: string;
+  armband: string | null;
   dogName: string;
   handlerName: string;
   totalPoints: number;
@@ -73,7 +75,7 @@ export function compareLeaderboard(
   return (
     b.totalPoints - a.totalPoints ||
     a.totalTimeSeconds - b.totalTimeSeconds ||
-    a.armband.localeCompare(b.armband, undefined, { numeric: true })
+    (a.armband ?? '').localeCompare(b.armband ?? '', undefined, { numeric: true })
   );
 }
 
@@ -87,31 +89,52 @@ export interface BuildNationalsLeaderboardInput {
   showStartDate: string | null | undefined;
 }
 
-/**
- * Withdrawn: the dog withdrew from something and has nothing left to run. "Left to run" is the
- * shared entry-accounting rule (`isRunnableEntry`: not withdrawn, scratched, absent, moved,
- * not accepted or pulled, and not already scored or settled), so this keeps no list of its own.
- */
-export function isDogWithdrawn(dogEntries: readonly SecretaryEntry[]): boolean {
-  const hasWithdrawn = dogEntries.some(entry => entry.entry_status === 'withdrawn');
-  return hasWithdrawn && !dogEntries.some(entry => isRunnableEntry(accountingFields(entry)));
+/** Withdrawn either way the app records it: the entry status, or a scoring result. */
+function isWithdrawnEntry(entry: SecretaryEntry): boolean {
+  const fields = accountingFields(entry);
+  return [fields.entry_status, fields.result_status].some(
+    value => value?.trim().toLowerCase() === 'withdrawn'
+  );
 }
 
 /**
- * Eliminated: a released excused or disqualified result, scored or not. A pulled entry's result
- * predates the pull and is not shown (MYK9-1258), so it does not count.
+ * The entries that can rank: exactly the ones the Results class list shows
+ * (`isResultsDisplayEntry`), minus a withdrawal recorded as a scoring result. Scores and
+ * eliminations read only these, so the board never counts an entry the class list does not.
  */
+export function isRankableEntry(entry: SecretaryEntry): boolean {
+  return isResultsDisplayEntry(entry) && !isWithdrawnEntry(entry);
+}
+
+/**
+ * Withdrawn: the dog withdrew from something and has nothing left to run. "Left to run" is the
+ * shared entry-accounting rule (`isRunnableEntry`), so this keeps no list of its own.
+ */
+export function isDogWithdrawn(dogEntries: readonly SecretaryEntry[]): boolean {
+  return (
+    dogEntries.some(isWithdrawnEntry) &&
+    !dogEntries.some(entry => !isWithdrawnEntry(entry) && isRunnableEntry(accountingFields(entry)))
+  );
+}
+
+/** Eliminated: a released excused or disqualified result on a rankable entry, scored or not. */
 export function isDogEliminated(
   dogEntries: readonly SecretaryEntry[],
   releasedClassIds: ReadonlySet<string>
 ): boolean {
   return dogEntries.some(
     entry =>
+      isRankableEntry(entry) &&
       entry.class_id !== null &&
       releasedClassIds.has(entry.class_id) &&
-      ELIMINATING_RESULTS.has(entry.result_status ?? '') &&
-      !isPulledEntry(accountingFields(entry))
+      ELIMINATING_RESULTS.has(entry.result_status ?? '')
   );
+}
+
+/** The dog an entry belongs to; an entry with no dog on the read falls back to its armband. */
+function dogKeyOf(entry: SecretaryEntry): string {
+  const armband = entry.armband?.trim();
+  return entry.dog_id ?? entry.dog?.id ?? (armband ? `armband:${armband}` : `entry:${entry.id}`);
 }
 
 export function buildNationalsLeaderboard({
@@ -123,27 +146,25 @@ export function buildNationalsLeaderboard({
     classRows.filter(row => row.releasedAt).map(row => [row.id, row.trialDate] as const)
   );
   const releasedClassIds = new Set(trialDateByReleasedClass.keys());
-  const entriesByArmband = new Map<string, SecretaryEntry[]>();
+  const entriesByDog = new Map<string, SecretaryEntry[]>();
   for (const entry of entries) {
-    const armband = entry.armband?.trim();
-    if (!armband) continue;
-    const dogEntries = entriesByArmband.get(armband) ?? [];
+    const key = dogKeyOf(entry);
+    const dogEntries = entriesByDog.get(key) ?? [];
     dogEntries.push(entry);
-    entriesByArmband.set(armband, dogEntries);
+    entriesByDog.set(key, dogEntries);
   }
   const rows: Omit<NationalsLeaderboardRow, 'rank'>[] = [];
-  for (const [armband, dogEntries] of entriesByArmband) {
-    // Totals, time and day points come only from scored entries in released classes.
+  for (const [dogId, dogEntries] of entriesByDog) {
+    // Totals, time and day points come only from scored, rankable entries in released classes.
     const scored = dogEntries.filter(
       entry =>
         entry.is_scored === true &&
         entry.class_id !== null &&
         releasedClassIds.has(entry.class_id) &&
-        // A score recorded before a pull or scratch is not shown (MYK9-1258), so it cannot rank.
-        !isPulledEntry(accountingFields(entry))
+        isRankableEntry(entry)
     );
     if (scored.length === 0) continue;
-    const row = blankRow(armband, scored[0]!);
+    const row = blankRow(dogId, dogEntries, scored[0]!);
     for (const entry of scored) {
       const points = entry.points_earned ?? 0;
       const day = competitionDay(trialDateByReleasedClass.get(entry.class_id!), showStartDate);
@@ -166,12 +187,14 @@ export function buildNationalsLeaderboard({
 }
 
 function blankRow(
-  armband: string,
+  dogId: string,
+  dogEntries: readonly SecretaryEntry[],
   entry: SecretaryEntry
 ): Omit<NationalsLeaderboardRow, 'rank' | 'status'> {
   const identity = entry.handler_identity;
   return {
-    armband,
+    dogId,
+    armband: dogEntries.map(item => item.armband?.trim()).find(Boolean) ?? null,
     dogName: entry.dog?.call_name || entry.dog?.name || 'Unknown dog',
     handlerName: identity && identity.source !== 'unknown' ? (identity.name ?? '') : '',
     totalPoints: 0,

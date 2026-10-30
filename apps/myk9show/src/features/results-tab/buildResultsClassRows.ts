@@ -199,6 +199,16 @@ function withUnknownPrintActions(
   });
 }
 
+/**
+ * The rows the Results class list shows: the ones `tallyEntriesByClass` counts toward
+ * `expectedCount` (not pulled, withdrawn, moved or absent) and not still waiting on an accept
+ * decision. One rule, shared with the nationals leaderboard (MYK9-1516), so the two surfaces never
+ * disagree about which entries exist.
+ */
+export function isResultsDisplayEntry(entry: SecretaryEntry): boolean {
+  return isExpectedEntry(accountingFields(entry)) && !isPendingEntryStatus(entry.entry_status);
+}
+
 function placementSort(a: ResultsEntryRow, b: ResultsEntryRow): number {
   if (a.placement !== null && b.placement !== null && a.placement !== b.placement) {
     return a.placement - b.placement;
@@ -278,8 +288,7 @@ export function buildResultsClassRows(input: BuildResultsClassRowsInput): Result
     }
     // The same rows `tallyEntriesByClass` counts toward `expectedCount`: not pulled, withdrawn,
     // moved or absent, and not still waiting on an accept decision.
-    if (!isExpectedEntry(accountingFields(entry)) || isPendingEntryStatus(entry.entry_status))
-      continue;
+    if (!isResultsDisplayEntry(entry)) continue;
     const list = entriesByClass.get(entry.class_id) ?? [];
     list.push(entry);
     entriesByClass.set(entry.class_id, list);

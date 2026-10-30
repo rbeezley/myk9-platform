@@ -101,9 +101,9 @@ export function NationalsLeaderboardView({
             </TableHeader>
             <TableBody>
               {board.map(row => (
-                <TableRow key={row.armband}>
+                <TableRow key={row.dogId}>
                   <TableCell>{row.rank}</TableCell>
-                  <TableCell>{row.armband}</TableCell>
+                  <TableCell>{row.armband ?? DASH}</TableCell>
                   <TableCell>{row.dogName}</TableCell>
                   <TableCell>{row.handlerName || DASH}</TableCell>
                   <TableCell className="text-right tabular-nums">{row.totalPoints}</TableCell>

@@ -155,6 +155,7 @@ describe('AtShowCombinedEntryListPage (Phase 1h combined Section A/B)', () => {
   beforeEach(() => {
     entriesScope.synced = true;
     vi.clearAllMocks();
+    vi.mocked(replicatedTrialsTable.sync).mockReset();
     seed();
   });
 
@@ -249,6 +250,7 @@ describe('AtShowCombinedEntryListPage (Phase 1h combined Section A/B)', () => {
 
   it('says the entries are not on this device, never No Entries Yet, when the show was never saved', async () => {
     entriesScope.synced = false;
+    vi.mocked(replicatedTrialsTable.sync).mockResolvedValue({ success: false } as never);
     vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([] as never);
 
     renderPage();

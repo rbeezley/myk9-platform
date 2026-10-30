@@ -96,7 +96,9 @@ export interface RingsideStatusSource {
  * Inverse: a class's stored status + ring phase + Expected start → ringside
  * `ClassStatusValue`, for DISPLAY (the class card and the status dialog).
  *
- * A ring phase counts only while the class is `in_progress`. An unstarted class
+ * A ring phase counts while the class is `in_progress` or not yet started (the server
+ * resets an unscored class to `upcoming` on routine entry changes, which must not drop
+ * it) and is ignored once the class is setup, completed or cancelled. An unstarted class
  * (`upcoming`, or any other not-started spelling) with an Expected start reads as
  * `start_time`; `cancelled` has no ringside equivalent and reads as `no-status`.
  */
@@ -107,19 +109,26 @@ export function toRingsideClassStatus(
     typeof source === 'object'
       ? source
       : { classStatus: source, ringPhase: null, revisedExpectedStart: null };
+  const phaseStatus: ClassStatusValue | null =
+    ringPhase === 'briefing'
+      ? 'briefing'
+      : ringPhase === 'break'
+        ? 'break'
+        : ringPhase === 'offline_scoring'
+          ? 'offline-scoring'
+          : null;
   switch (classStatus?.toLowerCase().replace(/[\s-]+/g, '_')) {
     case 'setup':
       return 'setup';
     case 'in_progress':
-      if (ringPhase === 'briefing') return 'briefing';
-      if (ringPhase === 'break') return 'break';
-      if (ringPhase === 'offline_scoring') return 'offline-scoring';
-      return 'in_progress';
+      return phaseStatus ?? 'in_progress';
     case 'completed':
       return 'completed';
     case 'cancelled':
       return 'no-status';
     default:
-      return revisedExpectedStart ? 'start_time' : 'no-status';
+      // Unstarted: the server derivation resets an unscored class to upcoming on
+      // routine entry changes; the DB trigger keeps the phase across it, so show it.
+      return phaseStatus ?? (revisedExpectedStart ? 'start_time' : 'no-status');
   }
 }

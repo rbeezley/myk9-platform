@@ -13,9 +13,12 @@
 -- v3's Start Time is the existing revised_expected_start; no new column for it.
 --
 -- 1. The two columns, with CHECKs. The time belongs to briefing / break only.
--- 2. trg_classes_clear_ring_phase: any write that leaves a class outside in_progress
---    (the derivation completing it, a reopen to setup) clears the phase, so a stale
---    phase never reappears when the class is next in progress.
+-- 2. trg_classes_clear_ring_phase: a write that moves a class to completed, setup or
+--    cancelled clears the phase, so a stale phase never reappears later. It is KEPT
+--    across 'upcoming': refresh_class_scoring_state (20261017014900) resets an
+--    unscored class to upcoming on every check-in / pull / add, and that must not
+--    erase an announced Briefing or Break. Ringside's No Status and Start Time write
+--    the phase as NULL themselves.
 -- 3. authenticated may read both columns. classes is read through a column
 --    allowlist; the latest authenticated list (20261008014300) is restated with the
 --    two columns added. anon is unchanged: the phase is staff-facing.
@@ -37,7 +40,7 @@ ALTER TABLE public.classes
     CHECK (ring_phase_time IS NULL OR ring_phase IN ('briefing', 'break'));
 
 COMMENT ON COLUMN public.classes.ring_phase IS
-  'MYK9-1513: ringside phase of an in_progress class (briefing, break, offline_scoring), else NULL. Cleared when status leaves in_progress.';
+  'MYK9-1513: ringside phase of an in_progress class (briefing, break, offline_scoring), else NULL. Cleared when status becomes completed, setup or cancelled (kept across upcoming).';
 COMMENT ON COLUMN public.classes.ring_phase_time IS
   'MYK9-1513: the briefing time or the "Break until" time for ring_phase briefing / break, else NULL.';
 
@@ -60,6 +63,7 @@ CREATE TRIGGER trg_classes_clear_ring_phase
   BEFORE INSERT OR UPDATE ON public.classes
   FOR EACH ROW
   WHEN (NEW.status IS DISTINCT FROM 'in_progress'
+        AND NEW.status IS DISTINCT FROM 'upcoming'
         AND (NEW.ring_phase IS NOT NULL OR NEW.ring_phase_time IS NOT NULL))
   EXECUTE FUNCTION private.classes_clear_ring_phase();
 

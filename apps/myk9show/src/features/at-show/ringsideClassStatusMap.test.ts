@@ -64,7 +64,14 @@ describe('toRingsideClassStatus', () => {
     }
   });
 
-  it('ignores a ring phase unless the class is in progress', () => {
+  it('keeps a phase the server derivation left on an unstarted class', () => {
+    expect(toRingsideClassStatus({ classStatus: 'upcoming', ringPhase: 'break' })).toBe('break');
+    expect(toRingsideClassStatus({ classStatus: 'upcoming', ringPhase: 'briefing' })).toBe(
+      'briefing'
+    );
+  });
+
+  it('ignores a ring phase once the class is completed or in setup', () => {
     expect(toRingsideClassStatus({ classStatus: 'completed', ringPhase: 'break' })).toBe(
       'completed'
     );

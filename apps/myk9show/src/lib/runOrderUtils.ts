@@ -199,7 +199,7 @@ export function calculateRunOrder(
  * @param section     Which section to reorder ('A' or 'B').
  * @param renumberMode
  *   'preserve'  — scoped entries get new run-order values that continue after
- *                 the other section's max value (other section unchanged).
+ *                 the other section's max value (other section keeps its values).
  *   'renumber'  — scoped section starts at 1; other section follows in sequence.
  */
 export function calculateRunOrderScoped(
@@ -209,27 +209,20 @@ export function calculateRunOrderScoped(
   renumberMode: 'preserve' | 'renumber'
 ): RunOrderResult[] {
   const scopedEntries = entries.filter(e => e.section === section);
-  // Keep the other section in its current run order (stable; unknown last) so
-  // "preserve" renumbers it contiguously without reshuffling it.
-  const otherEntries = entries
-    .filter(e => e.section !== section)
-    .sort(
-      (a, b) => (a.runOrder ?? Number.MAX_SAFE_INTEGER) - (b.runOrder ?? Number.MAX_SAFE_INTEGER)
-    );
+  const otherEntries = entries.filter(e => e.section !== section);
 
   // Reorder only the scoped section
   const reorderedScoped = calculateRunOrder(scopedEntries, preset);
 
   if (renumberMode === 'preserve') {
-    // Find the max existing run_order among other entries
-    // We don't have run_order on RunOrderEntry, so we just place scoped after
-    // the other count (caller controls DB writes).
-    const offset = otherEntries.length;
+    // The other section keeps its existing run-order numbers (index order when
+    // an entry carries none); the scoped section is numbered after the highest.
+    const otherResults = otherEntries.map((e, i) => ({ id: e.id, runOrder: e.runOrder ?? i + 1 }));
+    const offset = Math.max(0, ...otherResults.map(r => r.runOrder));
     const adjustedScoped = reorderedScoped.map(r => ({
       id: r.id,
       runOrder: r.runOrder + offset,
     }));
-    const otherResults = otherEntries.map((e, i) => ({ id: e.id, runOrder: i + 1 }));
     return [...otherResults, ...adjustedScoped];
   } else {
     // renumber: scoped section first (1, 2, 3...), other follows

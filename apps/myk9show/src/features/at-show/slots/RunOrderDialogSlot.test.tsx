@@ -66,5 +66,7 @@ describe('RunOrderDialogSlot (ringside run-order dialog)', () => {
     await user.click(screen.getByText('Random Shuffle'));
     await user.click(screen.getByRole('button', { name: 'Apply' }));
     expect(onClose).not.toHaveBeenCalled();
+    // Retry is possible: the selection survives and Apply is enabled again.
+    expect(screen.getByRole('button', { name: 'Apply' })).toBeEnabled();
   });
 });

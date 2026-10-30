@@ -143,5 +143,4 @@ export const SCOPED_PRESETS: PresetDef[] = [
     description: 'Randomly shuffle this section',
     icon: shuffleIcon,
   },
-  MANUAL_PRESET,
 ];

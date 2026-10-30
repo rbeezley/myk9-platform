@@ -345,17 +345,19 @@ describe('calculateRunOrder — combined (ignore sections)', () => {
   });
 });
 
-describe('calculateRunOrderScoped — preserve keeps the other section in its current order', () => {
-  it('numbers the other section by its current runOrder, not input order', () => {
+describe('calculateRunOrderScoped — preserve keeps the other sections actual numbers', () => {
+  it('leaves the other section at 4 and 6 and numbers the scoped section after 6', () => {
     const entries = [
-      { id: 'b2', armband: '4', section: 'B', runOrder: 2 },
-      { id: 'a1', armband: '1', section: 'A', runOrder: 3 },
-      { id: 'b1', armband: '3', section: 'B', runOrder: 1 },
+      { id: 'b2', armband: '4', section: 'B', runOrder: 6 },
+      { id: 'a2', armband: '2', section: 'A', runOrder: 1 },
+      { id: 'a1', armband: '1', section: 'A', runOrder: 2 },
+      { id: 'b1', armband: '3', section: 'B', runOrder: 4 },
     ];
     expect(calculateRunOrderScoped(entries, 'armband-asc', 'A', 'preserve')).toEqual([
-      { id: 'b1', runOrder: 1 },
-      { id: 'b2', runOrder: 2 },
-      { id: 'a1', runOrder: 3 },
+      { id: 'b2', runOrder: 6 },
+      { id: 'b1', runOrder: 4 },
+      { id: 'a1', runOrder: 7 },
+      { id: 'a2', runOrder: 8 },
     ]);
   });
 });

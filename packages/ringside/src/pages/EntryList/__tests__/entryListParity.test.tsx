@@ -197,10 +197,11 @@ describe.each(PAGES)('entry-list parity — $name', page => {
         </MemoryRouter>
       );
 
-      await dialogSpy.handleApplyRunOrder?.('by-armband');
+      // Rejects so the dialog stays open for a retry, and nothing is closed.
+      await expect(dialogSpy.handleApplyRunOrder?.('by-armband')).rejects.toThrow();
 
       expect(uiActionSpy.setShowSuccessMessage).not.toHaveBeenCalledWith(true);
-      expect(uiActionSpy.setRunOrderDialogOpen).toHaveBeenCalledWith(false);
+      expect(uiActionSpy.setRunOrderDialogOpen).not.toHaveBeenCalledWith(false);
     });
 
     it('confirms and re-sorts when the handler reports the write landed', async () => {

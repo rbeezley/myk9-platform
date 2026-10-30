@@ -83,9 +83,8 @@ export function useEntryListPageActions({
   // natural response is to apply it again.
   const showSuccess = useAutoDismiss(uiActions.setShowSuccessMessage, 2000);
 
-  // Returns void, not the handler's boolean: this wrapper is consumed by the
-  // RunOrderDialog, which fires it and forgets. The boolean is the HOST's
-  // report to this page, and it stops here.
+  // Returns void, not the handler's boolean: the boolean is the HOST's report
+  // to this page and stops here. A failed write is signalled by rejecting.
   const handleApplyRunOrder = useCallback(
     async (
       preset: RunOrderPreset,
@@ -111,8 +110,11 @@ export function useEntryListPageActions({
       } catch {
         persisted = false;
       }
+      // A failed write keeps the dialog open and REJECTS, so the dialog can
+      // show its error state and let the steward retry instead of losing the
+      // selection. The host has already toasted the failure.
+      if (!persisted) throw new Error('Run order was not saved');
       setRunOrderDialogOpen(false);
-      if (!persisted) return;
       showSuccess();
       setSortOrder('run');
     },

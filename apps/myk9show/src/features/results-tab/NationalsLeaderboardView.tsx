@@ -18,6 +18,7 @@ import {
   formatLeaderboardTime,
   NATIONALS_DAYS,
 } from './nationalsLeaderboard';
+import { ResultsRefreshFailedAlert } from './ResultsRefreshFailedAlert';
 import { getNationalsLeaderboardHref, getResultsListHref } from './resultsTabRoutes';
 
 const DASH = '–';
@@ -46,6 +47,9 @@ interface NationalsLeaderboardViewProps {
   entries: readonly SecretaryEntry[];
   rows: readonly ResultsClassRow[];
   showStartDate: string | null | undefined;
+  /** A background refresh failed, so the ranks shown may be stale. */
+  refreshFailed: boolean;
+  onRetry: () => void;
 }
 
 /**
@@ -57,6 +61,8 @@ export function NationalsLeaderboardView({
   entries,
   rows,
   showStartDate,
+  refreshFailed,
+  onRetry,
 }: NationalsLeaderboardViewProps) {
   const board = useMemo(
     () => buildNationalsLeaderboard({ entries, classRows: rows, showStartDate }),
@@ -70,6 +76,7 @@ export function NationalsLeaderboardView({
           Back to classes
         </Link>
       </Button>
+      {refreshFailed && <ResultsRefreshFailedAlert onRetry={onRetry} />}
       <h1 className="text-xl font-semibold">Nationals Leaderboard</h1>
       {board.length === 0 ? (
         <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">

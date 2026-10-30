@@ -33,6 +33,7 @@ const entry = (armband: string, classId: string, points: number, seconds: number
 
 const hook = vi.hoisted(() => ({
   isNationals: true as boolean | null,
+  refreshFailed: false,
   entries: [] as unknown[],
   rows: [] as unknown[],
 }));
@@ -45,7 +46,7 @@ vi.mock('./useResultsTabData', () => ({
     readState: 'ready',
     isNationals: hook.isNationals,
     rankingKeyState: 'ready' as const,
-    refreshFailed: false,
+    refreshFailed: hook.refreshFailed,
     paperworkAvailable: true,
     retry: vi.fn(),
   }),
@@ -96,6 +97,7 @@ const LINK = { name: 'Nationals leaderboard' };
 
 beforeEach(() => {
   hook.isNationals = true;
+  hook.refreshFailed = false;
   hook.rows = [
     { id: 'c1', trialId: 'trial-1', trialDate: '2026-10-10', releasedAt: '2026-10-10T16:00:00Z' },
     { id: 'c-hidden', trialId: 'trial-1', trialDate: '2026-10-10', releasedAt: null },
@@ -167,6 +169,13 @@ describe('Results tab: Nationals leaderboard (MYK9-1516)', () => {
       'href',
       '/shows/show-1/results'
     );
+  });
+
+  it('keeps the stale-data warning and Retry on the board', () => {
+    hook.refreshFailed = true;
+    mount('?view=leaderboard');
+    expect(screen.getByText("Couldn't refresh the scores")).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
   });
 
   it('says so when nothing is released and scored', () => {

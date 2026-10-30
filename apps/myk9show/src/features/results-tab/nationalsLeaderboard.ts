@@ -86,8 +86,12 @@ const ELIMINATING_RESULTS: ReadonlySet<string> = new Set(['excused', 'disqualifi
 
 interface Draft {
   row: Omit<NationalsLeaderboardRow, 'rank' | 'status'>;
-  withdrawn: boolean;
   eliminated: boolean;
+}
+
+/** A class-level withdrawal: the entry (one class) is out, not necessarily the dog. */
+function isWithdrawnEntry(entry: SecretaryEntry): boolean {
+  return entry.entry_status === 'withdrawn' || entry.result_status === 'withdrawn';
 }
 
 export interface BuildNationalsLeaderboardInput {
@@ -105,25 +109,22 @@ export function buildNationalsLeaderboard({
   const trialDateByReleasedClass = new Map(
     classRows.filter(row => row.releasedAt).map(row => [row.id, row.trialDate] as const)
   );
+  // Entry status is per class: a dog is Withdrawn only when none of its entries is still in.
+  const stillEntered = new Set<string>();
+  for (const entry of entries) {
+    const armband = entry.armband?.trim();
+    if (armband && !isWithdrawnEntry(entry)) stillEntered.add(armband);
+  }
   const drafts = new Map<string, Draft>();
   for (const entry of entries) {
     const armband = entry.armband?.trim();
-    if (!armband) continue;
-    const withdrawn = entry.entry_status === 'withdrawn' || entry.result_status === 'withdrawn';
     const releasedDate = entry.class_id ? trialDateByReleasedClass.get(entry.class_id) : undefined;
-    const counts = entry.is_scored === true && releasedDate !== undefined;
+    if (!armband || entry.is_scored !== true || releasedDate === undefined) continue;
     let draft = drafts.get(armband);
-    if (!draft && !counts) {
-      // A withdrawal only matters to a dog that already has a scored, released result.
-      if (withdrawn) drafts.set(armband, blankDraft(armband, entry, true));
-      continue;
-    }
     if (!draft) {
-      draft = blankDraft(armband, entry, withdrawn);
+      draft = blankDraft(armband, entry);
       drafts.set(armband, draft);
     }
-    if (withdrawn) draft.withdrawn = true;
-    if (!counts) continue;
     const points = entry.points_earned ?? 0;
     const day = competitionDay(releasedDate, showStartDate);
     draft.row.totalPoints += points;
@@ -134,13 +135,12 @@ export function buildNationalsLeaderboard({
     }
   }
   return [...drafts.values()]
-    .filter(draft => NATIONALS_DAYS.some(day => draft.row.dayPoints[day] !== null))
     .map(draft => ({
       ...draft.row,
       // The schema's `qualified_for_finals` is not carried on the entry read, and v3's client
       // aggregation never computed it either, so no dog is marked Finals yet.
       status: leaderboardStatus({
-        withdrawn: draft.withdrawn,
+        withdrawn: !stillEntered.has(draft.row.armband),
         eliminated: draft.eliminated,
         finals: false,
       }),
@@ -149,10 +149,9 @@ export function buildNationalsLeaderboard({
     .map((row, index) => ({ ...row, rank: index + 1 }));
 }
 
-function blankDraft(armband: string, entry: SecretaryEntry, withdrawn: boolean): Draft {
+function blankDraft(armband: string, entry: SecretaryEntry): Draft {
   const identity = entry.handler_identity;
   return {
-    withdrawn,
     eliminated: false,
     row: {
       armband,

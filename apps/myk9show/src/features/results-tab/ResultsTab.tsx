@@ -18,7 +18,8 @@ import { useReleaseResults } from '@/hooks/mutations/useReleaseResults';
 import { useUnreleaseResults } from '@/hooks/mutations/useUnreleaseResults';
 import type { ResultsClassRow } from './buildResultsClassRows';
 import { CoinFlipPanel } from './CoinFlipPanel';
-import { NationalsLeaderboardLink, NationalsLeaderboardView } from './NationalsLeaderboard';
+import { NationalsLeaderboardLink, NationalsLeaderboardView } from './NationalsLeaderboardView';
+import { ResultsRefreshFailedAlert } from './ResultsRefreshFailedAlert';
 import { ResultsClassDetail } from './ResultsClassDetail';
 import { ResultsClassList } from './ResultsClassList';
 import { ResultsFinishRow } from './ResultsFinishRow';
@@ -322,6 +323,8 @@ export default function ResultsTab() {
         entries={entries}
         rows={rows}
         showStartDate={showStartDate}
+        refreshFailed={refreshFailed}
+        onRetry={retry}
       />
     );
   }
@@ -410,17 +413,7 @@ export default function ResultsTab() {
   return (
     <div className="mt-4 space-y-4">
       <h1 className="sr-only">Results</h1>
-      {refreshFailed && (
-        <Alert>
-          <AlertTitle>Couldn&apos;t refresh the scores</AlertTitle>
-          <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
-            <span>What is shown may be out of date. Check your connection and try again.</span>
-            <Button type="button" variant="outline" className="min-h-11" onClick={retry}>
-              Retry
-            </Button>
-          </AlertDescription>
-        </Alert>
-      )}
+      {refreshFailed && <ResultsRefreshFailedAlert onRetry={retry} />}
       <NationalsLeaderboardLink showId={showId} isNationals={isNationals} />
       <ResultsFinishRow
         showId={showId}

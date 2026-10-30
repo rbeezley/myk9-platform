@@ -118,8 +118,12 @@ describe('buildNationalsLeaderboard', () => {
   it('marks Withdrawn over Eliminated, and Eliminated over a plain row', () => {
     const board = build([
       entry({ armband: '1', points_earned: 30, result_status: 'excused' }),
-      entry({ armband: '2', points_earned: 20, result_status: 'disqualified' }),
-      entry({ armband: '2', class_id: 'c2', entry_status: 'withdrawn', is_scored: false }),
+      entry({
+        armband: '2',
+        points_earned: 20,
+        result_status: 'disqualified',
+        entry_status: 'withdrawn',
+      }),
       entry({ armband: '3', points_earned: 10 }),
     ]);
     expect(board.map(row => [row.armband, row.status])).toEqual([
@@ -127,6 +131,14 @@ describe('buildNationalsLeaderboard', () => {
       ['2', 'Withdrawn'],
       ['3', null],
     ]);
+  });
+
+  it('does not call a dog withdrawn for leaving one class while still entered in another', () => {
+    const board = build([
+      entry({ armband: '1', class_id: 'c1', points_earned: 10 }),
+      entry({ armband: '1', class_id: 'c2', entry_status: 'withdrawn', is_scored: false }),
+    ]);
+    expect(board.map(row => [row.armband, row.status])).toEqual([['1', null]]);
   });
 
   it('lists a withdrawn dog with no released score nowhere, and an empty show as empty', () => {

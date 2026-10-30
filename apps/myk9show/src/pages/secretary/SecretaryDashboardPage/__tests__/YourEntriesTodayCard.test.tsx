@@ -170,6 +170,16 @@ describe('YourEntriesTodayCard', () => {
     expect(screen.getByRole('link', { name: /couldn't check today's entries/i })).toBeTruthy();
   });
 
+  it.each(['unconfirmed', 'error'])(
+    'links to My Shows when saved entries are all for other days and the read is %s',
+    state => {
+      mocks.readState = state;
+      mocks.entries = groupEntriesByOrder([entryToday(new Date(2026, 9, 25))]);
+      render(<YourEntriesTodayCard />);
+      expect(screen.getByRole('link', { name: /couldn't check today's entries/i })).toBeTruthy();
+    }
+  );
+
   it('keeps the saved-entries note when rows exist but the read is unconfirmed', () => {
     mocks.readState = 'unconfirmed';
     setEntries(entryWith());

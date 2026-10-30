@@ -53,7 +53,16 @@ export function YourEntriesTodayCard() {
     [presentation, entries, now, selfCheckinByClassId, selfCheckinStateByClassId]
   );
 
-  if (presentation === 'identity-pending' || presentation === 'unconfirmed-empty') {
+  const unconfirmed = isError || readState === 'unconfirmed' || readState === 'error';
+
+  // Saved rows for other days cannot establish "nothing today" while the read
+  // is unconfirmed, so that case gets the same link as an unconfirmed empty list.
+  const cannotSayNothingToday =
+    presentation === 'identity-pending' ||
+    presentation === 'unconfirmed-empty' ||
+    (presentation === 'known-rows' && rows.length === 0 && unconfirmed);
+
+  if (cannotSayNothingToday) {
     return (
       <section aria-label="Your entries today" className="mx-5 mb-4 text-xs text-muted-foreground">
         <Link
@@ -66,8 +75,6 @@ export function YourEntriesTodayCard() {
     );
   }
   if (rows.length === 0) return null;
-
-  const unconfirmed = isError || readState === 'unconfirmed' || readState === 'error';
 
   return (
     <section

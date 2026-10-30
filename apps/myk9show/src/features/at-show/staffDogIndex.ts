@@ -30,6 +30,8 @@ export interface StaffDogClassEntry {
   trialLabel: string | null;
   checkInStatus: string;
   isPulled: boolean;
+  /** The source row of a move-up: shown as Moved, never offered a check-in. */
+  isMoved: boolean;
   isScored: boolean;
   resultText: string | null;
   searchTime: string | null;
@@ -59,19 +61,19 @@ function dogKeyOf(entry: ReplicatedEntry): string {
   return `entry:${entry.id}`;
 }
 
-/**
- * A move-up leaves the SOURCE row live as `moved`, and `not_accepted` rows stay live too.
- * Neither is a class the dog is entered in, so the dog page leaves them out rather than
- * show them with a stale check-in state (withdrawn/scratched stay, read as Pulled).
- */
-const SETTLED_ELSEWHERE = new Set(['moved', 'not_accepted']);
+function lifecycleOf(entry: ReplicatedEntry): string {
+  return (entry.entryStatus ?? entry.status ?? '').trim().toLowerCase();
+}
 
-function liveEntry(entry: ReplicatedEntry): boolean {
+/**
+ * Entries the dog is not expected to run are left off the dog page, except a moved one:
+ * a move-up leaves the SOURCE row live as `moved`, and staff should see where the dog went.
+ */
+function listedEntry(entry: ReplicatedEntry): boolean {
   if ((entry.deletedAt ?? (entry as { deleted_at?: string | null }).deleted_at) != null) {
     return false;
   }
-  const lifecycle = (entry.entryStatus ?? entry.status ?? '').trim().toLowerCase();
-  return !SETTLED_ELSEWHERE.has(lifecycle);
+  return isExpectedEntry(entry) || lifecycleOf(entry) === 'moved';
 }
 
 /** Group the show's live entries by dog. Class info comes from the class list. */
@@ -82,7 +84,7 @@ export function buildStaffDogs(
 ): StaffDog[] {
   const byDog = new Map<string, StaffDog>();
   for (const stored of entries) {
-    if (!liveEntry(stored)) continue;
+    if (!listedEntry(stored)) continue;
     // The entry column can be empty while the show's armbands table still holds
     // the number (MYK9-976); resolve it the way the class entry list does.
     const armband = resolveEntryArmband(stored, armbandMaps);
@@ -107,6 +109,7 @@ export function buildStaffDogs(
       dog.armband = view.armband;
     }
     const pulled = isPulledEntry(re);
+    const isMoved = lifecycleOf(re) === 'moved';
     // Derived display status: a withdrawn dog reads Pulled even if it was checked in earlier.
     const checkInStatus = view.status;
     dog.entries.push({
@@ -117,6 +120,7 @@ export function buildStaffDogs(
       trialLabel: classInfo?.trialLabel ?? null,
       checkInStatus,
       isPulled: pulled,
+      isMoved,
       isScored: view.isScored,
       resultText: view.resultText ?? null,
       searchTime: view.searchTime ?? null,
@@ -124,7 +128,7 @@ export function buildStaffDogs(
       placement: view.placement ?? null,
       resultsReleased: Boolean(classInfo?.resultsReleasedAt),
     });
-    if (isExpectedEntry(re) && isUncheckedCheckInStatus(checkInStatus))
+    if (!isMoved && isExpectedEntry(re) && isUncheckedCheckInStatus(checkInStatus))
       dog.uncheckedEntryIds.push(re.id);
   }
   return [...byDog.values()];

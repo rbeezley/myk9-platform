@@ -17,7 +17,7 @@ import { atShowClassPath } from './staffDogRoutes';
 import { PartialReplicaNotice, StaleReadNotice } from './StaleReadNotice';
 
 function resultLine(entry: StaffDogClassEntry): string | null {
-  if (entry.isPulled || !entry.isScored) return null;
+  if (entry.isPulled || entry.isMoved || !entry.isScored) return null;
   const parts = [
     entry.resultText,
     entry.searchTime ? `Time ${entry.searchTime}` : null,
@@ -148,11 +148,17 @@ export const AtShowDogPage: React.FC = () => {
                 )}
               </div>
               <div className="mt-1 flex flex-wrap items-center gap-2">
-                <StatusBadge
-                  family="entry"
-                  status={entry.checkInStatus}
-                  label={getStatusDescriptor('entry', entry.checkInStatus).label}
-                />
+                {entry.isMoved ? (
+                  <span className="rounded-full bg-[color:var(--chip-stone-bg)] px-2 py-0.5 text-xs font-medium text-[color:var(--chip-stone-fg)]">
+                    Moved
+                  </span>
+                ) : (
+                  <StatusBadge
+                    family="entry"
+                    status={entry.checkInStatus}
+                    label={getStatusDescriptor('entry', entry.checkInStatus).label}
+                  />
+                )}
               </div>
               {result && <p className="mt-1 text-sm">{result}</p>}
             </li>

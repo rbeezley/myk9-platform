@@ -14,6 +14,9 @@ vi.mock('@/services/replication', () => ({
   replicatedEntriesTable: { getEntriesByShow, subscribe: vi.fn(() => vi.fn()) },
   replicatedArmbandsTable: { getByShow: vi.fn(async () => []), subscribe: vi.fn(() => vi.fn()) },
 }));
+vi.mock('@/services/replication/entriesShowSyncState', () => ({
+  hasShowEntriesSynced: async () => classState.available,
+}));
 vi.mock('./useAtShowClassList', () => ({
   useAtShowClassList: () => ({
     groups: classState.groups,
@@ -93,7 +96,7 @@ describe('useAtShowStaffDogs', () => {
     classState.groups = [];
   });
 
-  it('reports an incomplete show-wide replica when entries were never fully synced', async () => {
+  it('reports an incomplete replica until the show scope has a completed sync', async () => {
     classState.available = false;
     getEntriesByShow.mockResolvedValue([]);
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -101,6 +104,8 @@ describe('useAtShowStaffDogs', () => {
       <QueryClientProvider client={client}>{children}</QueryClientProvider>
     );
     const { result } = renderHook(() => useAtShowStaffDogs('s1'), { wrapper });
+    await waitFor(() => expect(result.current.dogs).toEqual([]));
+    await new Promise(resolve => setTimeout(resolve, 20));
     expect(result.current.isComplete).toBe(false);
     classState.available = true;
   });

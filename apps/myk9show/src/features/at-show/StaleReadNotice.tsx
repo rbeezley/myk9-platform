@@ -17,13 +17,13 @@ export function StaleReadNotice({ onRetry }: { onRetry: () => void }) {
   );
 }
 
-/** This device has not downloaded the whole show yet, so the list may be missing dogs or classes. */
+/** This device has no completed sync of the show, so the list may be missing dogs or classes. */
 export function PartialReplicaNotice({ blocksCheckIn = false }: { blocksCheckIn?: boolean }) {
   return (
     <p className="mb-3 rounded-md border px-3 py-2 text-sm text-muted-foreground" role="status">
-      This device hasn't downloaded all of this show's entries yet, so some dogs or classes may be
-      missing.
-      {blocksCheckIn && ' Check In All is unavailable until they load.'}
+      {blocksCheckIn
+        ? 'Connect to sync this show before checking in to every class. You can still check in class by class from the class links below.'
+        : "This device hasn't finished syncing this show, so some dogs or classes may be missing."}
     </p>
   );
 }

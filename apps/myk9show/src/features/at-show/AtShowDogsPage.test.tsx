@@ -148,6 +148,7 @@ describe('AtShowDogPage', () => {
     trialLabel: null,
     checkInStatus: status,
     isPulled: false,
+    isMoved: false,
     isScored: false,
     resultText: null,
     searchTime: null,
@@ -278,12 +279,26 @@ describe('AtShowDogPage', () => {
     ];
     renderRoutes('/at-show/s1/dogs/d1');
     expect(screen.queryByRole('button', { name: /Check In All/ })).not.toBeInTheDocument();
-    expect(screen.getByText(/Check In All is unavailable/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Connect to sync this show before checking in to every class/)
+    ).toBeInTheDocument();
   });
 
   it('warns on the dog list that a partial replica may be missing dogs', () => {
     mocks.isComplete = false;
     renderRoutes('/at-show/s1/dogs');
     expect(screen.getByText(/some dogs or classes may be missing/)).toBeInTheDocument();
+  });
+
+  it('shows a moved entry as Moved with no status badge', () => {
+    mocks.dogs = [
+      dog({
+        key: 'd1',
+        dogName: 'Zip',
+        entries: [{ ...classEntry('e1', 'checked-in'), isMoved: true }],
+      }),
+    ];
+    renderRoutes('/at-show/s1/dogs/d1');
+    expect(screen.getByText('Moved')).toBeInTheDocument();
   });
 });

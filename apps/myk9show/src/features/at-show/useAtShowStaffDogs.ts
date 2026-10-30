@@ -2,6 +2,7 @@ import { useEffect, useMemo } from 'react';
 import { getClassIds, groupSectionedClasses } from '@myk9/ringside';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { replicatedArmbandsTable, replicatedEntriesTable } from '@/services/replication';
+import { hasShowEntriesSynced } from '@/services/replication/entriesShowSyncState';
 import { buildShowArmbandMaps } from '@/features/_shared/entryArmband';
 import { formatAtShowTrialHeading } from './atShowTrialHeading';
 import { useAtShowClassList } from './useAtShowClassList';
@@ -13,7 +14,7 @@ export interface UseAtShowStaffDogsResult {
   isLoading: boolean;
   /**
    * This device has read the whole show's entries. False means the list may be partial
-   * (never synced, or offline mid-hydration), so "all classes" cannot be promised.
+   * (this show's entries scope has no completed sync on this device), so "all classes" cannot be promised.
    */
   isComplete: boolean;
   /** The entry read failed; `dogs` is the last good read, possibly empty. */
@@ -33,6 +34,7 @@ export function useAtShowStaffDogs(showId: string | undefined): UseAtShowStaffDo
     if (!showId) return;
     const invalidate = () => {
       void queryClient.invalidateQueries({ queryKey: ['at-show', 'staff-dogs', showId] });
+      void queryClient.invalidateQueries({ queryKey: ['at-show', 'staff-dogs-synced', showId] });
     };
     const unsubscribeEntries = replicatedEntriesTable.subscribe(invalidate);
     const unsubscribeArmbands = replicatedArmbandsTable.subscribe(invalidate);
@@ -53,6 +55,15 @@ export function useAtShowStaffDogs(showId: string | undefined): UseAtShowStaffDo
     },
     enabled: !!showId,
     // Reads IndexedDB; the default "online" mode would pause it offline (MYK9-200).
+    networkMode: 'always',
+  });
+
+  // The show scope's completed-sync marker: only a finished sync proves the replica holds
+  // every entry. A row count cannot (single-row writes insert into a never-synced scope).
+  const syncedQuery = useQuery({
+    queryKey: ['at-show', 'staff-dogs-synced', showId],
+    queryFn: () => hasShowEntriesSynced(showId as string),
+    enabled: !!showId,
     networkMode: 'always',
   });
 
@@ -91,7 +102,7 @@ export function useAtShowStaffDogs(showId: string | undefined): UseAtShowStaffDo
     dogs,
     showName: classList.showName,
     isLoading: entriesQuery.isLoading || classList.isLoading,
-    isComplete: classList.entryCountsAvailable,
+    isComplete: syncedQuery.data === true,
     loadFailed: entriesQuery.isError || classList.error != null,
     onRetry: () => {
       void entriesQuery.refetch();

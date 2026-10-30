@@ -123,6 +123,14 @@ export function MyEntryRow({
             {detail.isPreliminary && <span className="text-muted-foreground">preliminary</span>}
           </div>
         )}
+        {detail.isResultWithheld && !detail.resultStatus && (
+          <div
+            className="mt-1 text-sm text-muted-foreground"
+            data-testid="at-show-my-entry-withheld"
+          >
+            Result not released yet
+          </div>
+        )}
         {action.kind === 'self-checkin-disabled' && (
           <div className="mt-1 flex items-start gap-1 text-xs text-muted-foreground">
             <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />

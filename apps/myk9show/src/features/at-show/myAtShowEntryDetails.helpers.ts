@@ -93,6 +93,8 @@ export interface AtShowEntryDetail {
   resultFaults: number | null;
   /** True while the class is unreleased: the row labels the result "preliminary". */
   isPreliminary: boolean;
+  /** Scored, but the release preset withholds the result: the row says it is not released (MYK9-1519). */
+  isResultWithheld?: boolean | undefined;
   /** The class's resolved self-check-in cascade (MYK9-800 follow-up). */
   selfCheckinState: SelfCheckinState;
   /** "<trial label> · <date>" (`formatAtShowTrialHeading`), or null before the trial replica resolves. */
@@ -172,6 +174,9 @@ export function buildMyAtShowEntryDetails(
     const pulled = isPulledEntry(entry);
     const hasVisibleResult =
       !pulled && own?.isScored === true && status != null && status !== 'pending';
+    // The masked read passes `is_scored` through but nulls the qualification
+    // when the preset withholds it, so scored-with-no-status is "withheld".
+    const isResultWithheld = !pulled && own?.isScored === true && status == null;
     const seconds = own?.searchTimeSeconds;
     const { isPreliminary } = deriveResultReleaseDisplay({
       // The own read is authoritative: a stale class replica must never turn
@@ -199,6 +204,7 @@ export function buildMyAtShowEntryDetails(
           : null,
       resultFaults: hasVisibleResult ? (own?.totalFaults ?? null) : null,
       isPreliminary: hasVisibleResult && isPreliminary,
+      isResultWithheld,
       selfCheckinState: classSummary?.selfCheckinState ?? 'unknown',
       trialLabel: trial?.label ?? null,
       dogKey: entry.dogId ?? entry.dogCallName ?? entry.id,

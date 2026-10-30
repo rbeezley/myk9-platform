@@ -2,12 +2,12 @@ import type { RunOrderPreset as RingsideRunOrderPreset, RunOrderScope } from '@m
 
 /**
  * myK9Show exposes a deliberately narrower run-order preset surface than
- * the canonical `RunOrderPreset` in `@myk9/ringside` (which serves the
- * full myK9Q ringside flow). myK9Show's RunOrderDialog UI does not
- * render buttons for `'combined-asc' | 'combined-desc' | 'random-all'`,
- * so accepting them at the type boundary would create dead union
- * members whose runtime would fall to the armband-asc default branch
- * below — silently wrong for `'random-all'` in particular.
+ * the canonical `RunOrderPreset` in `@myk9/ringside`. The RunOrderDialog
+ * emits `'combined-asc' | 'combined-desc'` (v3's "Combined (ignore
+ * sections)") but never `'random-all'`, which `toMyK9ShowRunOrderPreset`
+ * maps to `'random'`; accepting an unhandled member at the type boundary
+ * would let it fall to the armband-asc default branch below — silently
+ * wrong for `'random-all'` in particular.
  *
  * `Extract` pins the local union as a structural subset of the
  * canonical union: if any of these member names is later removed from
@@ -20,6 +20,8 @@ export type RunOrderPreset = Extract<
   RingsideRunOrderPreset,
   | 'armband-asc'
   | 'armband-desc'
+  | 'combined-asc'
+  | 'combined-desc'
   | 'random'
   | 'manual'
   | 'random-sections'
@@ -33,6 +35,8 @@ export interface RunOrderEntry {
   id: string;
   armband: string | null;
   section?: string | null;
+  /** Current run order; lets a section-scoped "preserve" keep the other section's order. */
+  runOrder?: number | null;
 }
 
 export interface RunOrderResult {
@@ -43,10 +47,8 @@ export interface RunOrderResult {
 /**
  * Translate a (wider) ringside `RunOrderPreset` to myK9Show's supported preset.
  *
- * ringside's union carries members myK9Show's RunOrderDialog doesn't model
- * (`combined-asc | combined-desc | random-all`). The at-show "Randomize All"
- * button emits ringside's `random-all`, which is semantically myK9Show's
- * `random`. Casting the wide type onto the narrow one (the previous approach)
+ * ringside's union carries `random-all`, which myK9Show models as `random`
+ * (the dialog's "Random Shuffle (all dogs)"). Casting the wide type onto the narrow one (the previous approach)
  * let `random-all` fall through `calculateRunOrder`'s default branch to
  * deterministic armband-ascending — silently wrong. This makes the boundary
  * explicit: `random-all` → `random`; any other unsupported member (never
@@ -56,6 +58,8 @@ export function toMyK9ShowRunOrderPreset(preset: RingsideRunOrderPreset): RunOrd
   switch (preset) {
     case 'armband-asc':
     case 'armband-desc':
+    case 'combined-asc':
+    case 'combined-desc':
     case 'random':
     case 'manual':
     case 'random-sections':
@@ -142,10 +146,12 @@ export function calculateRunOrder(
 
   switch (preset) {
     case 'armband-asc':
+    case 'combined-asc':
       sorted = [...entries].sort((a, b) => parseArmband(a.armband) - parseArmband(b.armband));
       break;
 
     case 'armband-desc':
+    case 'combined-desc':
       sorted = [...entries].sort((a, b) => parseArmband(b.armband) - parseArmband(a.armband));
       break;
 
@@ -185,15 +191,22 @@ export function calculateRunOrder(
  * Only entries belonging to the given section are reordered; all other
  * entries keep their original positions (returned unchanged).
  *
- * Returns RunOrderResult[] for ALL entries, not just the scoped section,
- * so the caller can write all of them atomically.
+ * Renumber mode returns RunOrderResult[] for ALL entries so the caller can
+ * write them atomically. PRESERVE mode returns results for the scoped section
+ * ONLY.
+ *
+ * Preserve rule: the other section is never written. Its entries keep exactly
+ * what they have, including no run order at all. Only the scoped section
+ * receives new values: it is reshuffled within the slots it already holds when
+ * those are all set, distinct and clear of the other section's; otherwise it is
+ * placed after the highest SET order of the other section (from 1 if none).
+ * An unset order is `null`/`undefined`, never `0`.
  *
  * @param entries     Full list of entries for the class.
  * @param preset      Which preset to apply (armband-asc, armband-desc, random).
  * @param section     Which section to reorder ('A' or 'B').
  * @param renumberMode
- *   'preserve'  — scoped entries get new run-order values that continue after
- *                 the other section's max value (other section unchanged).
+ *   'preserve'  — see the preserve rule above; no result for the other section.
  *   'renumber'  — scoped section starts at 1; other section follows in sequence.
  */
 export function calculateRunOrderScoped(
@@ -203,22 +216,32 @@ export function calculateRunOrderScoped(
   renumberMode: 'preserve' | 'renumber'
 ): RunOrderResult[] {
   const scopedEntries = entries.filter(e => e.section === section);
-  const otherEntries = entries.filter(e => e.section !== section);
+  // Keep the other section in its current run order (stable; unknown last) so
+  // "preserve" renumbers it contiguously without reshuffling it.
+  const otherEntries = entries
+    .filter(e => e.section !== section)
+    .sort(
+      (a, b) => (a.runOrder ?? Number.MAX_SAFE_INTEGER) - (b.runOrder ?? Number.MAX_SAFE_INTEGER)
+    );
 
   // Reorder only the scoped section
   const reorderedScoped = calculateRunOrder(scopedEntries, preset);
 
   if (renumberMode === 'preserve') {
-    // Find the max existing run_order among other entries
-    // We don't have run_order on RunOrderEntry, so we just place scoped after
-    // the other count (caller controls DB writes).
-    const offset = otherEntries.length;
-    const adjustedScoped = reorderedScoped.map(r => ({
-      id: r.id,
-      runOrder: r.runOrder + offset,
-    }));
-    const otherResults = otherEntries.map((e, i) => ({ id: e.id, runOrder: i + 1 }));
-    return [...otherResults, ...adjustedScoped];
+    // Results cover ONLY the scoped section; the other section is never written.
+    const otherValues = new Set(
+      otherEntries.filter(e => e.runOrder != null).map(e => e.runOrder as number)
+    );
+    const slots = scopedEntries.map(e => e.runOrder);
+    const slotsUsable =
+      slots.every((v): v is number => v != null && !otherValues.has(v)) &&
+      new Set(slots).size === slots.length;
+    if (slotsUsable) {
+      const sortedSlots = (slots as number[]).sort((a, b) => a - b);
+      return reorderedScoped.map((r, i) => ({ id: r.id, runOrder: sortedSlots[i] }));
+    }
+    const maxOther = Math.max(0, ...otherValues);
+    return reorderedScoped.map(r => ({ id: r.id, runOrder: maxOther + r.runOrder }));
   } else {
     // renumber: scoped section first (1, 2, 3...), other follows
     const adjustedOther = otherEntries.map((e, i) => ({

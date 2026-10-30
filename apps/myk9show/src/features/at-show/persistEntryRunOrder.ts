@@ -23,19 +23,18 @@
  * run_order values do change). That is the intended behavior, not a leak.
  */
 
-import { replicatedEntriesTable } from '@/services/replication';
 import type { Entry } from '@myk9/ringside';
+import { persistRunOrderResults } from './persistRunOrderResults';
 
 export async function persistEntryRunOrder(
   reordered: Entry[],
   previous: Entry[] = []
 ): Promise<void> {
-  const previousOrder = new Map(previous.map(entry => [entry.id, entry.exhibitorOrder]));
-  const changed = reordered.flatMap((entry, index) => {
-    const runOrder = entry.exhibitorOrder ?? index + 1;
-    return previousOrder.get(entry.id) === runOrder ? [] : [{ id: entry.id, runOrder }];
-  });
-  await Promise.all(
-    changed.map(({ id, runOrder }) => replicatedEntriesTable.updateEntry(id, { runOrder }))
+  await persistRunOrderResults(
+    reordered.map((entry, index) => ({
+      id: entry.id,
+      runOrder: entry.exhibitorOrder ?? index + 1,
+    })),
+    previous
   );
 }

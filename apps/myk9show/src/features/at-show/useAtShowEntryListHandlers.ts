@@ -327,6 +327,7 @@ export function useAtShowEntryListHandlers(
           id: e.id,
           armband: e.armband != null ? String(e.armband) : null,
           section: e.section ?? null,
+          runOrder: e.exhibitorOrder ?? null,
         })),
         // Translate the wide ringside preset to myK9Show's supported set —
         // notably ringside 'random-all' → 'random'. A bare cast let 'random-all'
@@ -334,7 +335,7 @@ export function useAtShowEntryListHandlers(
         toMyK9ShowRunOrderPreset(preset)
       );
       try {
-        await persistRunOrderResults(results);
+        await persistRunOrderResults(results, localEntries);
       } catch (error) {
         // The single-class RunOrderDialog fires this fire-and-forget (`void
         // onApplyOrder(...)`), so a re-throw would surface as an unhandled

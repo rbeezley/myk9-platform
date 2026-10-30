@@ -31,6 +31,7 @@ export function mapRowToStatsEntry(
     trialNumber: trialMeta?.trialNumber || '',
     trialId: (row.trial_id as string | null) || undefined,
     classResultsReleasedAt: (row.class_results_released_at as string | null) ?? null,
+    entryStatus: (row.entry_status as string | null) ?? null,
     breed: (row.dog_breed as string | null) || undefined,
     judgeIds: trialMeta?.judgeIds,
   };
@@ -55,6 +56,7 @@ export const STATS_ENTRY_SELECT = `
   class_name,
   class_element,
   class_level,
+  entry_status,
   class_results_released_at,
   result_text,
   is_scored,

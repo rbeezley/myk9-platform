@@ -271,6 +271,37 @@ describe('ShowResultsTab class-name search', () => {
       expect(list).not.toHaveTextContent('Buried Master');
     });
 
+    it('ignores withdrawn and scratched entries in pending classes', () => {
+      mockNoPodium([
+        entry({
+          id: 'x',
+          classId: 'x1',
+          className: 'Only Withdrawn',
+          resultText: 'pending',
+          entryStatus: 'withdrawn',
+        }),
+        entry({
+          id: 'y',
+          classId: 'y1',
+          className: 'Done Class',
+          resultText: 'Q',
+          entryStatus: 'confirmed',
+        }),
+        entry({
+          id: 'z',
+          classId: 'y1',
+          className: 'Done Class',
+          resultText: 'pending',
+          entryStatus: 'scratched',
+        }),
+      ]);
+      render(<ShowResultsTab showId="show-1" />);
+
+      const list = screen.getByRole('region', { name: /Pending classes/ });
+      expect(list).not.toHaveTextContent('Only Withdrawn');
+      expect(list).toHaveTextContent('Scored, awaiting release');
+    });
+
     it('does not list a released class that simply has no placements', () => {
       mockNoPodium([
         entry({

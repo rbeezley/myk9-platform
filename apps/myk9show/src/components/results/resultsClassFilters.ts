@@ -48,6 +48,8 @@ export function derivePendingClasses(
   const byClass = new Map<string, PendingClass>();
   for (const entry of entries) {
     if (podiumClassIds.has(entry.classId)) continue;
+    // Withdrawn and scratched entries are not waiting on a score.
+    if (entry.entryStatus === 'withdrawn' || entry.entryStatus === 'scratched') continue;
     // Released with no placement 1-4 (e.g. all NQ): nothing pending, nothing to show.
     if (entry.classResultsReleasedAt) continue;
     const row = byClass.get(entry.classId) ?? {

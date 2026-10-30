@@ -70,9 +70,10 @@ describe('useShowStats', () => {
     const mockIn = vi.fn().mockResolvedValue({ data: mockClassData, error: null });
     const mockClassSelect = vi.fn().mockReturnValue({ in: mockIn });
 
-    const mockAssignEq = vi
+    const mockAssignOr = vi
       .fn()
       .mockResolvedValue({ data: [{ class_id: 'c1', person_id: 'j1' }], error: null });
+    const mockAssignEq = vi.fn().mockReturnValue({ or: mockAssignOr });
     const mockAssignSelect = vi.fn().mockReturnValue({ eq: mockAssignEq });
 
     mockFrom
@@ -96,6 +97,7 @@ describe('useShowStats', () => {
       judgeIds: ['j1'],
     });
     expect(mockFrom).toHaveBeenCalledWith('judge_assignments');
+    expect(mockAssignOr).toHaveBeenCalledWith('status.is.null,status.not.in.(declined,cancelled)');
     expect(mockFrom).toHaveBeenCalledWith('view_authenticated_entry_results');
     expect(mockFrom).toHaveBeenCalledWith('classes');
   });

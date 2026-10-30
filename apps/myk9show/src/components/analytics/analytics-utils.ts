@@ -18,6 +18,8 @@ export interface StatsEntry {
   trialName?: string | undefined;
   trialNumber?: string | undefined;
   trialId?: string | undefined;
+  /** entries.entry_status; withdrawn and scratched entries no longer count toward a class. */
+  entryStatus?: string | null | undefined;
   /** When the club released this class's results; null while unreleased. */
   classResultsReleasedAt?: string | null | undefined;
   breed?: string | undefined;

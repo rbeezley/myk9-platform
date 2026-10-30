@@ -26,7 +26,9 @@ async function fetchShowEntries(showId: string): Promise<StatsEntry[]> {
   const { data: assignmentData, error: assignmentError } = await supabase
     .from('judge_assignments')
     .select('class_id, person_id')
-    .eq('show_id', showId);
+    .eq('show_id', showId)
+    // A declined or cancelled judge did not judge the class.
+    .or('status.is.null,status.not.in.(declined,cancelled)');
 
   if (assignmentError) throw assignmentError;
 

@@ -17,6 +17,13 @@ describe('attributeClassJudges', () => {
       'j1',
     ],
     ['declined only', [row('j3', 'declined')], undefined],
+    ['two invitations, none confirmed', [row('j2', 'invited'), row('j5', 'invited')], undefined],
+    [
+      'two invitations plus a confirmation: confirmed wins',
+      [row('j2', 'invited'), row('j5', 'invited'), row('j1', 'confirmed')],
+      'j1',
+    ],
+    ['the same person invited twice', [row('j2', 'invited'), row('j2', 'invited')], 'j2'],
     [
       'cancelled and declined alongside invited',
       [row('j3', 'declined'), row('j4', 'cancelled'), row('j2', 'invited')],

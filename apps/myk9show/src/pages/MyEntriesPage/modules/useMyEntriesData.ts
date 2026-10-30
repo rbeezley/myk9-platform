@@ -42,6 +42,7 @@ import { resolveTrialTimezone, type EntryRowTrial } from './entryRowTrial';
 import { parseShowDate } from './myEntriesStats.helpers';
 import { normalizeCheckInStatus } from './myEntriesUtils';
 import { groupEntriesByOrder } from './groupEntriesByOrder';
+import { useMyEntriesLiveRefresh } from './useMyEntriesLiveRefresh';
 import type { MyEntry, EntryClass } from './my-entries-types';
 import { SHOW_NOT_PUBLISHED_LABEL } from '@/lib/showNotPublished';
 import {
@@ -535,6 +536,9 @@ export function useMyEntriesData({
       if (isCurrentRefresh()) setRefreshing(false);
     }
   }, [currentIdentity, loadMyEntries]);
+
+  // MYK9-1523: a replica change (check-in, ring status) re-reads while open.
+  useMyEntriesLiveRefresh(refreshEntries, currentIdentity !== null);
 
   const hasCurrentEntries =
     currentIdentity !== null && loadedIdentityRef.current === currentIdentity;

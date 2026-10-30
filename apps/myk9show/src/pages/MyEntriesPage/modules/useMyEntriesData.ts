@@ -42,7 +42,6 @@ import { resolveTrialTimezone, type EntryRowTrial } from './entryRowTrial';
 import { parseShowDate } from './myEntriesStats.helpers';
 import { normalizeCheckInStatus } from './myEntriesUtils';
 import { groupEntriesByOrder } from './groupEntriesByOrder';
-import { useMyEntriesLiveRefresh } from './useMyEntriesLiveRefresh';
 import type { MyEntry, EntryClass } from './my-entries-types';
 import { SHOW_NOT_PUBLISHED_LABEL } from '@/lib/showNotPublished';
 import {
@@ -536,18 +535,6 @@ export function useMyEntriesData({
       if (isCurrentRefresh()) setRefreshing(false);
     }
   }, [currentIdentity, loadMyEntries]);
-
-  // MYK9-1523: a replica change (check-in, ring status) re-reads while open. The
-  // live read is replica-only, so it can never overwrite a pending local write
-  // with the server view; `source` and `balanceSummary` stay as the last load.
-  const applyLiveRows = useCallback(
-    (rows: OwnEntryResultRow[], identity: string) => {
-      if (currentIdentityRef.current !== identity || loadedIdentityRef.current !== identity) return;
-      setEntries(groupEntriesByOrder(rows.filter(shouldRenderOwnEntry).map(transformEntry)));
-    },
-    [transformEntry]
-  );
-  useMyEntriesLiveRefresh({ identity: currentIdentity, personId, applyRows: applyLiveRows });
 
   const hasCurrentEntries =
     currentIdentity !== null && loadedIdentityRef.current === currentIdentity;

@@ -4,6 +4,7 @@ import {
   MY_ENTRIES_LIVE_REFRESH_DEBOUNCE_MS,
   useMyEntriesLiveRefresh,
 } from './useMyEntriesLiveRefresh';
+import { getUserEntriesFromReplica } from '@/services/database/entries';
 
 const { listeners, makeTable } = vi.hoisted(() => {
   const listeners: Record<string, Set<() => void>> = {};
@@ -24,84 +25,101 @@ vi.mock('@/services/replication', () => ({
   replicatedDogsTable: makeTable('dogs'),
   replicatedClassesTable: makeTable('classes'),
 }));
+vi.mock('@/services/database/entries', () => ({
+  getUserEntriesFromReplica: vi.fn(),
+  getUserEntries: vi.fn(),
+}));
+vi.mock('@/services/LoggingService', () => ({ logger: { warn: vi.fn(), error: vi.fn() } }));
 
 import {
   replicatedClassesTable,
   replicatedDogsTable,
   replicatedEntriesTable,
 } from '@/services/replication';
+import { getUserEntries } from '@/services/database/entries';
 
 const notify = (table: string) => listeners[table].forEach(listener => listener());
+const flush = async () => {
+  await vi.advanceTimersByTimeAsync(MY_ENTRIES_LIVE_REFRESH_DEBOUNCE_MS);
+};
+const rows = [{ id: 'entry-1' }];
 
 describe('useMyEntriesLiveRefresh', () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    vi.mocked(getUserEntriesFromReplica).mockResolvedValue(rows);
   });
   afterEach(() => {
     vi.useRealTimers();
     vi.clearAllMocks();
   });
 
+  const render = (applyRows = vi.fn(), identity: string | null = 'user-1::person-1') => ({
+    applyRows,
+    ...renderHook(() => useMyEntriesLiveRefresh({ identity, personId: 'person-1', applyRows })),
+  });
+
   it('subscribes to entries, dogs and classes without the initial emit', () => {
-    renderHook(() => useMyEntriesLiveRefresh(vi.fn().mockResolvedValue(undefined), true));
+    render();
     for (const table of [replicatedEntriesTable, replicatedDogsTable, replicatedClassesTable]) {
       expect(table.subscribe).toHaveBeenCalledWith(expect.any(Function), { emitCurrent: false });
     }
+    expect(getUserEntriesFromReplica).not.toHaveBeenCalled();
   });
 
-  it('refreshes once after a burst of notices across tables', () => {
-    const refresh = vi.fn().mockResolvedValue(undefined);
-    renderHook(() => useMyEntriesLiveRefresh(refresh, true));
+  it('reads the replica once for a burst of notices across tables, never the server view', async () => {
+    const { applyRows } = render();
 
     notify('entries');
-    vi.advanceTimersByTime(MY_ENTRIES_LIVE_REFRESH_DEBOUNCE_MS - 1);
+    await vi.advanceTimersByTimeAsync(MY_ENTRIES_LIVE_REFRESH_DEBOUNCE_MS - 1);
     notify('classes');
-    vi.advanceTimersByTime(MY_ENTRIES_LIVE_REFRESH_DEBOUNCE_MS - 1);
+    await vi.advanceTimersByTimeAsync(MY_ENTRIES_LIVE_REFRESH_DEBOUNCE_MS - 1);
     notify('dogs');
-    expect(refresh).not.toHaveBeenCalled();
+    expect(getUserEntriesFromReplica).not.toHaveBeenCalled();
 
-    vi.advanceTimersByTime(MY_ENTRIES_LIVE_REFRESH_DEBOUNCE_MS);
-    expect(refresh).toHaveBeenCalledTimes(1);
+    await flush();
+    expect(getUserEntriesFromReplica).toHaveBeenCalledTimes(1);
+    expect(getUserEntriesFromReplica).toHaveBeenCalledWith('person-1');
+    expect(applyRows).toHaveBeenCalledWith(rows, 'user-1::person-1');
+    expect(getUserEntries).not.toHaveBeenCalled();
   });
 
-  it('calls the latest refresh after a re-render', () => {
-    const first = vi.fn().mockResolvedValue(undefined);
-    const second = vi.fn().mockResolvedValue(undefined);
-    const { rerender } = renderHook(({ refresh }) => useMyEntriesLiveRefresh(refresh, true), {
-      initialProps: { refresh: first },
-    });
+  it('applies nothing when the replica cannot be read', async () => {
+    vi.mocked(getUserEntriesFromReplica).mockResolvedValue(null);
+    const { applyRows } = render();
     notify('entries');
-    rerender({ refresh: second });
-    vi.advanceTimersByTime(MY_ENTRIES_LIVE_REFRESH_DEBOUNCE_MS);
-    expect(first).not.toHaveBeenCalled();
-    expect(second).toHaveBeenCalledTimes(1);
+    await flush();
+    expect(applyRows).not.toHaveBeenCalled();
   });
 
-  it('defers the refresh while busy, then runs it once the busy state clears', () => {
-    const refresh = vi.fn().mockResolvedValue(undefined);
-    let busy = true;
-    renderHook(() => useMyEntriesLiveRefresh(refresh, true, () => busy));
-    notify('entries');
-    vi.advanceTimersByTime(MY_ENTRIES_LIVE_REFRESH_DEBOUNCE_MS * 3);
-    expect(refresh).not.toHaveBeenCalled();
-
-    busy = false;
-    vi.advanceTimersByTime(MY_ENTRIES_LIVE_REFRESH_DEBOUNCE_MS);
-    expect(refresh).toHaveBeenCalledTimes(1);
-  });
-
-  it('does not subscribe while disabled', () => {
-    renderHook(() => useMyEntriesLiveRefresh(vi.fn().mockResolvedValue(undefined), false));
+  it('does not subscribe without an identity', () => {
+    render(vi.fn(), null);
     expect(replicatedEntriesTable.subscribe).not.toHaveBeenCalled();
   });
 
-  it('unsubscribes and drops a pending refresh on unmount', () => {
-    const refresh = vi.fn().mockResolvedValue(undefined);
-    const { unmount } = renderHook(() => useMyEntriesLiveRefresh(refresh, true));
+  it('drops a pending read and unsubscribes on unmount', async () => {
+    const { applyRows, unmount } = render();
     notify('entries');
     unmount();
-    vi.advanceTimersByTime(MY_ENTRIES_LIVE_REFRESH_DEBOUNCE_MS * 2);
-    expect(refresh).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(MY_ENTRIES_LIVE_REFRESH_DEBOUNCE_MS * 2);
+    expect(getUserEntriesFromReplica).not.toHaveBeenCalled();
+    expect(applyRows).not.toHaveBeenCalled();
     expect(listeners.entries.size + listeners.dogs.size + listeners.classes.size).toBe(0);
+  });
+
+  it('discards a slow read that lands after unmount', async () => {
+    let resolveRead!: (value: Record<string, unknown>[]) => void;
+    vi.mocked(getUserEntriesFromReplica).mockReturnValue(
+      new Promise(resolve => {
+        resolveRead = resolve;
+      })
+    );
+    const { applyRows, unmount } = render();
+    notify('entries');
+    await flush();
+    unmount();
+    resolveRead(rows);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(applyRows).not.toHaveBeenCalled();
   });
 });

@@ -5,6 +5,7 @@ import {
   SLOW_POLL_MAX_MS,
   SLOW_POLL_MIN_MS,
   clearShowChannel,
+  holdFastPoll,
   markOnline,
   markShowChannel,
   nextPollDelayMs,
@@ -90,6 +91,28 @@ describe('onCadenceChange', () => {
 
     stop();
     markOnline(true);
+    expect(listener).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('holdFastPoll', () => {
+  it('keeps the 60 s poll while held, even with a subscribed show, and releases once', () => {
+    markShowChannel('a', true);
+    const release = holdFastPoll();
+    expect(nextPollDelayMs()).toBe(SYNC_INTERVAL_MS);
+
+    release();
+    release();
+    expect(nextPollDelayMs()).toBeGreaterThanOrEqual(SLOW_POLL_MIN_MS);
+  });
+
+  it('notifies cadence listeners when the hold flips the poll', () => {
+    markShowChannel('a', true);
+    const listener = vi.fn();
+    onCadenceChange(listener);
+    const release = holdFastPoll();
+    expect(listener).toHaveBeenCalledTimes(1);
+    release();
     expect(listener).toHaveBeenCalledTimes(2);
   });
 });

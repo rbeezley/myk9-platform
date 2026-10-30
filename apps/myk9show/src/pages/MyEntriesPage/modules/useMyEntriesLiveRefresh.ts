@@ -7,6 +7,8 @@
  */
 
 import { useEffect, useRef } from 'react';
+import { getUserEntriesFromReplica } from '@/services/database/entries';
+import { logger } from '@/services/LoggingService';
 import {
   replicatedClassesTable,
   replicatedDogsTable,
@@ -16,35 +18,47 @@ import {
 /** A sync applies rows in bursts; one re-read covers the burst. */
 export const MY_ENTRIES_LIVE_REFRESH_DEBOUNCE_MS = 750;
 
+interface LiveRefreshOptions {
+  /** `user::person` key the page is showing; null disables the refresh. */
+  identity: string | null;
+  personId: string | null | undefined;
+  /** Receives the replica rows; must ignore them when `identity` is no longer current. */
+  applyRows: (rows: Record<string, unknown>[], identity: string) => void;
+}
+
 /**
- * Re-reads through `refresh` (the page's existing read, not a second fetch)
- * after a debounced replica notice (deferred while `isBusy`). Never fires on the initial emit, and never
- * logs an audit event: only the page's initial-load effect does that.
+ * Re-reads the REPLICA (never the server view, which would overwrite a pending
+ * local write with the old value) after a debounced replica notice. Never fires
+ * on the initial emit, never logs an audit event, never touches loading, error,
+ * source or balance state: only the page's own loads do that.
  */
-export function useMyEntriesLiveRefresh(
-  refresh: () => Promise<void>,
-  enabled: boolean,
-  isBusy: () => boolean = () => false
-): void {
-  const refreshRef = useRef(refresh);
-  const isBusyRef = useRef(isBusy);
+export function useMyEntriesLiveRefresh({
+  identity,
+  personId,
+  applyRows,
+}: LiveRefreshOptions): void {
+  const applyRef = useRef(applyRows);
   useEffect(() => {
-    refreshRef.current = refresh;
-    isBusyRef.current = isBusy;
-  }, [refresh, isBusy]);
+    applyRef.current = applyRows;
+  }, [applyRows]);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!identity || !personId) return;
     let timer: ReturnType<typeof setTimeout> | undefined;
-    // While busy (a local write in flight) the read waits: it would return the
-    // server's old value over the local one. The write's own replica notice
-    // lands after it settles, so nothing is lost by deferring.
+    let cancelled = false;
+    const refresh = async () => {
+      try {
+        const rows = await getUserEntriesFromReplica(personId);
+        if (!cancelled && rows) applyRef.current(rows, identity);
+      } catch (error) {
+        logger.warn('My Shows live refresh failed', 'pages', {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    };
     const onNotice = () => {
       clearTimeout(timer);
-      timer = setTimeout(() => {
-        if (isBusyRef.current()) return onNotice();
-        void refreshRef.current();
-      }, MY_ENTRIES_LIVE_REFRESH_DEBOUNCE_MS);
+      timer = setTimeout(() => void refresh(), MY_ENTRIES_LIVE_REFRESH_DEBOUNCE_MS);
     };
     const unsubscribes = [
       replicatedEntriesTable.subscribe(onNotice, { emitCurrent: false }),
@@ -52,8 +66,9 @@ export function useMyEntriesLiveRefresh(
       replicatedClassesTable.subscribe(onNotice, { emitCurrent: false }),
     ];
     return () => {
+      cancelled = true;
       clearTimeout(timer);
       unsubscribes.forEach(unsubscribe => unsubscribe());
     };
-  }, [enabled]);
+  }, [identity, personId]);
 }

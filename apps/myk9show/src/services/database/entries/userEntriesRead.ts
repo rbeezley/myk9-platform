@@ -335,6 +335,19 @@ export const getUserEntries = async (userId: string): Promise<UserEntriesResult>
   }
 };
 
+/**
+ * The exhibitor's own rows from the local replica only, or `null` when it
+ * cannot be read. For live refresh after a replica notice: the replica already
+ * holds pending local writes, which the server view would not (MYK9-1523).
+ * Unconfirmed like every replica read, so callers must not derive money from it.
+ */
+export async function getUserEntriesFromReplica(
+  userId: string
+): Promise<Record<string, unknown>[] | null> {
+  const replica = await readReplicaUserEntryRows(userId);
+  return replica ? replica.data : null;
+}
+
 /** The replica rows the viewer handles or whose dog they own: the one own-entry rule for the replica. */
 export function filterOwnReplicaEntries<
   E extends { handlerId?: string | null | undefined; dogId?: string | null | undefined },

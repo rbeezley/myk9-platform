@@ -537,14 +537,17 @@ export function useMyEntriesData({
     }
   }, [currentIdentity, loadMyEntries]);
 
-  // MYK9-1523: a replica change (check-in, ring status) re-reads while open.
-  // A server read mid-upload would show the old status over the optimistic one.
-  const checkInsInFlightRef = useRef(0);
-  useMyEntriesLiveRefresh(
-    refreshEntries,
-    currentIdentity !== null,
-    () => checkInsInFlightRef.current > 0
+  // MYK9-1523: a replica change (check-in, ring status) re-reads while open. The
+  // live read is replica-only, so it can never overwrite a pending local write
+  // with the server view; `source` and `balanceSummary` stay as the last load.
+  const applyLiveRows = useCallback(
+    (rows: OwnEntryResultRow[], identity: string) => {
+      if (currentIdentityRef.current !== identity || loadedIdentityRef.current !== identity) return;
+      setEntries(groupEntriesByOrder(rows.filter(shouldRenderOwnEntry).map(transformEntry)));
+    },
+    [transformEntry]
   );
+  useMyEntriesLiveRefresh({ identity: currentIdentity, personId, applyRows: applyLiveRows });
 
   const hasCurrentEntries =
     currentIdentity !== null && loadedIdentityRef.current === currentIdentity;
@@ -601,12 +604,7 @@ export function useMyEntriesData({
 
         // classId is the individual entry row id — use it as the DB target so
         // grouped cards with multiple classes update the right row.
-        checkInsInFlightRef.current += 1;
-        try {
-          await persistCheckInStatus({ entryId: classId, classId, newStatus: status });
-        } finally {
-          checkInsInFlightRef.current -= 1;
-        }
+        await persistCheckInStatus({ entryId: classId, classId, newStatus: status });
       } catch (error) {
         logger.error('Failed to update check-in status:', 'pages', {}, error as Error);
         // Revert optimistic update

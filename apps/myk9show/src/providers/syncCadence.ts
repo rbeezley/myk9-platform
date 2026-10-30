@@ -22,12 +22,17 @@ type Listener = () => void;
 /** Mount tokens whose show channel is SUBSCRIBED. One token per hook mount, so two mounts sharing one channel cannot clear each other. */
 const subscribedMounts = new Set<string>();
 let mountSeq = 0;
+/** Surfaces that need the 60 s poll for tables no show channel broadcasts. */
+let fastPollHolds = 0;
 const listeners = new Set<Listener>();
 let online = true;
 let random: () => number = Math.random;
 
 const isSlow = (): boolean =>
-  features.replicationSubscribedCadence && online && subscribedMounts.size > 0;
+  features.replicationSubscribedCadence &&
+  online &&
+  subscribedMounts.size > 0 &&
+  fastPollHolds === 0;
 
 /** Runs a state change and notifies once if it flipped slow <-> fast. */
 function mutate(change: () => void): void {
@@ -52,6 +57,25 @@ export function markShowChannel(mountToken: string, subscribed: boolean): void {
 
 export function clearShowChannel(mountToken: string): void {
   markShowChannel(mountToken, false);
+}
+
+/**
+ * Keep the 60 s poll while a surface is open that shows tables the show
+ * channels do not broadcast (dogs), even with a channel SUBSCRIBED (MYK9-1523).
+ * Returns the release.
+ */
+export function holdFastPoll(): () => void {
+  mutate(() => {
+    fastPollHolds += 1;
+  });
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    mutate(() => {
+      fastPollHolds -= 1;
+    });
+  };
 }
 
 export function markOnline(isOnline: boolean): void {
@@ -82,6 +106,7 @@ export function setCadenceRandom(next: () => number): void {
 /** Test seam: restore the initial module state. */
 export function resetSyncCadence(): void {
   subscribedMounts.clear();
+  fastPollHolds = 0;
   listeners.clear();
   online = true;
   random = Math.random;

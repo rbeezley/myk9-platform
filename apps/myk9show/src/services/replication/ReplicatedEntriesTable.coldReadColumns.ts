@@ -2,18 +2,19 @@ import type { Database } from '@/types/supabase';
 
 /**
  * MYK9-1362: the explicit column lists for the single-row COLD-path reads of
- * `view_authenticated_entry_results` (an entry missing from the replica: write
+ * `view_authenticated_entry_results` (the whole-entry reads use its `_replication`
+ * wrapper, MYK9-1486) (an entry missing from the replica: write
  * hydration, the withdraw read, the post-withdrawal read-back, and the batched
  * remove-from-class eligibility read). The bulk sync reads
- * `view_authenticated_entry_results_replication` and is not governed here.
+ * `*` from the replication view and is not governed here.
  */
 type EntryViewColumn = keyof Database['public']['Views']['view_authenticated_entry_results']['Row'];
 
 /**
- * Every column `rowToEntry` reads that this view returns. ONE list so the mapper
+ * Every column `rowToEntry` reads that the base view returns. ONE list so the mapper
  * and the select cannot drift: `ReplicatedEntriesTable.coldReadColumns.test.ts`
  * records every key the mapper touches and fails when one is neither here nor in
- * ENTRY_MAPPER_COLUMNS_NOT_ON_VIEW. Typed against the generated view Row, so a
+ * the two lists below. Typed against the generated view Row, so a
  * name the view lacks is a compile error rather than a PostgREST 42703 that
  * fails the whole request.
  */
@@ -88,18 +89,38 @@ export const ENTRY_VIEW_MAPPER_COLUMNS = [
 ] as const satisfies readonly EntryViewColumn[];
 
 /**
- * Columns `rowToEntry` reads that only the REPLICATION view carries. The
- * non-replication view has never returned them, so a cold read leaves those
- * fields undefined (as `select('*')` did); selecting one here would 42703.
- * Listed so the drift test can tell "deliberately absent" from "forgotten".
+ * MYK9-1486: the columns `rowToEntry` reads that only the REPLICATION view
+ * carries: its `shows` join (`show_deleted_at`, `source_show_name`,
+ * `source_show_start_date`, `source_show_end_date`). The whole-entry cold reads
+ * select them from `view_authenticated_entry_results_replication`, the view the
+ * bulk sync and the row-refetch adapter read, so a cold-hydrated row matches a
+ * synced one. Read from the inner view they were undefined, and the post-withdrawal
+ * read-back (which overwrites a CACHED row) dropped `showDeletedAt` from a synced
+ * row: `userEntriesReplication` keys its soft-deleted-show fallback on it.
+ * Untyped: the generated Database types do not include the replication view.
  */
-export const ENTRY_MAPPER_COLUMNS_NOT_ON_VIEW = [
-  'dogs',
-  'dog_owner_id',
+export const ENTRY_REPLICATION_VIEW_COLUMNS = [
   'show_deleted_at',
   'source_show_name',
   'source_show_start_date',
   'source_show_end_date',
+] as const;
+
+/**
+ * Columns `rowToEntry` reads that NEITHER view carries (checked against the
+ * latest definition, 20261029043900): the mapper's `?? default` paths for them
+ * are dead against the server, so a bulk-synced row holds them undefined too and
+ * a cold-hydrated row differs from a synced one in nothing here. `dogs` and
+ * `dog_owner_id` (so `dogOwnerId`) come from an embed or a local join, not a
+ * view column; `status`, `total_fees`, `capacity_override`, `total_points`,
+ * `area_count`, `element`, `level` and the three `time_limit_*` columns are
+ * `entries`/`classes` columns the views never project (the views carry
+ * `class_element`/`class_level`). Selecting one would 42703. Listed so the drift
+ * test can tell "deliberately absent" from "forgotten".
+ */
+export const ENTRY_MAPPER_COLUMNS_ON_NEITHER_VIEW = [
+  'dogs',
+  'dog_owner_id',
   'status',
   'total_fees',
   'capacity_override',
@@ -114,10 +135,15 @@ export const ENTRY_MAPPER_COLUMNS_NOT_ON_VIEW = [
 
 /**
  * Whole-entry cold reads (write hydration, withdraw read, post-withdrawal
- * read-back): the mapper's columns plus `version`, which they pass on as the
- * row's OCC precondition.
+ * read-back), from `view_authenticated_entry_results_replication`: the mapper's
+ * columns plus the replication-only `shows` columns plus `version`, which they
+ * pass on as the row's OCC precondition.
  */
-export const COLD_ENTRY_ROW_SELECT = [...ENTRY_VIEW_MAPPER_COLUMNS, 'version'].join(',');
+export const COLD_ENTRY_ROW_SELECT = [
+  ...ENTRY_VIEW_MAPPER_COLUMNS,
+  ...ENTRY_REPLICATION_VIEW_COLUMNS,
+  'version',
+].join(',');
 
 /**
  * Remove-from-class eligibility (batched): the only inputs of

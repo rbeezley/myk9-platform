@@ -637,7 +637,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     if (!this._deletedIds.has(entryId)) {
       try {
         const { data, error } = await supabase
-          .from('view_authenticated_entry_results')
+          .from('view_authenticated_entry_results_replication')
           .select(COLD_ENTRY_ROW_SELECT)
           .eq('id', entryId)
           .maybeSingle();
@@ -1048,7 +1048,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     let result: { data: unknown; error: unknown };
     try {
       result = await supabase
-        .from('view_authenticated_entry_results')
+        .from('view_authenticated_entry_results_replication')
         .select(COLD_ENTRY_ROW_SELECT)
         .eq('id', entryId)
         .maybeSingle();
@@ -1428,7 +1428,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
 
     try {
       const { data, error } = await supabase
-        .from('view_authenticated_entry_results')
+        .from('view_authenticated_entry_results_replication')
         .select(COLD_ENTRY_ROW_SELECT)
         .eq('id', entryId)
         .maybeSingle();

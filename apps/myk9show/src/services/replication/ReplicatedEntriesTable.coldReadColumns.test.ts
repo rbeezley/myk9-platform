@@ -10,7 +10,8 @@ import { rowToEntry, type EntryRow } from './ReplicatedEntriesTable.mapper';
 import {
   COLD_ELIGIBILITY_ROW_SELECT,
   COLD_ENTRY_ROW_SELECT,
-  ENTRY_MAPPER_COLUMNS_NOT_ON_VIEW,
+  ENTRY_MAPPER_COLUMNS_ON_NEITHER_VIEW,
+  ENTRY_REPLICATION_VIEW_COLUMNS,
   ENTRY_VIEW_MAPPER_COLUMNS,
 } from './ReplicatedEntriesTable.coldReadColumns';
 
@@ -39,7 +40,7 @@ function columnsReadByMapper(): Set<string> {
  * a column the list forgot is still present here.
  */
 function fullViewRow(): Record<string, unknown> {
-  const notOnView = new Set<string>(ENTRY_MAPPER_COLUMNS_NOT_ON_VIEW);
+  const notOnView = new Set<string>(ENTRY_MAPPER_COLUMNS_ON_NEITHER_VIEW);
   const row: Record<string, unknown> = {};
   [...columnsReadByMapper()]
     .filter(column => !notOnView.has(column))
@@ -71,7 +72,8 @@ describe('cold-read column list vs the entry mapper', () => {
     const read = columnsReadByMapper();
     const covered = new Set<string>([
       ...ENTRY_VIEW_MAPPER_COLUMNS,
-      ...ENTRY_MAPPER_COLUMNS_NOT_ON_VIEW,
+      ...ENTRY_REPLICATION_VIEW_COLUMNS,
+      ...ENTRY_MAPPER_COLUMNS_ON_NEITHER_VIEW,
     ]);
     expect([...read].filter(column => !covered.has(column))).toEqual([]);
     expect([...covered].filter(column => !read.has(column))).toEqual([]);
@@ -121,8 +123,24 @@ describe('cold single-row reads select explicit columns', () => {
     await (
       table as unknown as { getOrHydrateEntryForWrite(id: string): Promise<unknown> }
     ).getOrHydrateEntryForWrite('entry-1');
-    expect(supabaseMocks.from).toHaveBeenCalledWith('view_authenticated_entry_results');
+    expect(supabaseMocks.from).toHaveBeenCalledWith('view_authenticated_entry_results_replication');
     expect(select).toHaveBeenCalledWith(COLD_ENTRY_ROW_SELECT);
+  });
+
+  it("a cold-hydrated row carries the replication view's shows columns, as a synced row does", async () => {
+    mockView({ data: fullViewRow(), error: null });
+    const hydrated = await (
+      table as unknown as {
+        getOrHydrateEntryForWrite(id: string): Promise<Record<string, unknown>>;
+      }
+    ).getOrHydrateEntryForWrite('entry-1');
+    expect(hydrated).toMatchObject({
+      showDeletedAt: fullViewRow().show_deleted_at,
+      showName: fullViewRow().source_show_name,
+      showStartDate: fullViewRow().source_show_start_date,
+      showEndDate: fullViewRow().source_show_end_date,
+    });
+    expect(String(hydrated.showName)).toMatch(/^value-/);
   });
 
   it('the withdraw read reads the whole-entry list and keeps the cold version', async () => {

@@ -1979,7 +1979,7 @@ describe('ReplicatedEntriesTable', () => {
 
       await table.updateCheckInStatus('entry-cold', 'checked-in');
 
-      expect(supabase.from).toHaveBeenCalledWith('view_authenticated_entry_results');
+      expect(supabase.from).toHaveBeenCalledWith('view_authenticated_entry_results_replication');
       expect(eq).toHaveBeenCalledWith('id', 'entry-cold');
 
       const result = await table.get('entry-cold');

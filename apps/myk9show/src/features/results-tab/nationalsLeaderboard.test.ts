@@ -6,7 +6,6 @@ import {
   compareLeaderboard,
   competitionDay,
   formatLeaderboardTime,
-  isDogWithdrawn,
   leaderboardStatus,
 } from './nationalsLeaderboard';
 
@@ -89,24 +88,78 @@ describe('sort', () => {
   });
 });
 
-describe('isDogWithdrawn: withdrawn iff something withdrawn and nothing left to run', () => {
-  const scored = { entry_status: 'confirmed', result_status: 'qualified', is_scored: true };
+describe('Status from the shared entry-accounting rules', () => {
+  const scoredQ = { entry_status: 'confirmed', result_status: 'qualified', is_scored: true };
   const toRun = { entry_status: 'confirmed', result_status: 'pending', is_scored: false };
   const out = { entry_status: 'withdrawn', result_status: 'pending', is_scored: false };
+  const gone = (entry_status: string) => ({ ...toRun, entry_status });
+  const pulled = { ...toRun, check_in_status: 'pulled' };
+  const statusOf = (...dogEntries: Record<string, unknown>[]) =>
+    build([
+      entry({ armband: '1', class_id: 'c1', points_earned: 10 }),
+      ...dogEntries.map(over => entry({ armband: '1', class_id: 'c2', ...over })),
+    ])[0]!.status;
+
   it.each([
-    ['one class withdrawn, others still to run', [out, toRun], false],
-    ['completed one class, withdrew from the rest', [scored, out, out], true],
-    ['withdrawn from everything', [out, out], true],
-    ['no withdrawals, all still to run', [toRun, toRun], false],
-    ['no withdrawals, all scored', [scored, scored], false],
-    ['no withdrawals, mixed scored and to run', [scored, toRun], false],
+    ['withdrawn plus another class still to run', [out, toRun], null],
+    ['withdrawn plus the rest scratched', [out, gone('scratched')], 'Withdrawn'],
+    ['withdrawn plus the rest absent', [out, gone('absent')], 'Withdrawn'],
+    ['withdrawn plus the rest moved', [out, gone('moved')], 'Withdrawn'],
+    ['withdrawn plus the rest not accepted', [out, gone('not_accepted')], 'Withdrawn'],
+    ['withdrawn plus a pulled entry', [out, pulled], 'Withdrawn'],
     [
-      'withdrawn after being scored in that class',
-      [{ ...scored, entry_status: 'withdrawn' }],
-      true,
+      'withdrawn plus an unscored excused result',
+      [out, { ...toRun, result_status: 'excused' }],
+      'Withdrawn',
     ],
-  ] as const)('%s', (_name, dogEntries, expected) => {
-    expect(isDogWithdrawn(dogEntries)).toBe(expected);
+    ['completed one class then withdrew', [out], 'Withdrawn'],
+    ['no withdrawal at all', [scoredQ], null],
+    ['no withdrawal, a class still to run', [toRun], null],
+  ] as const)('%s', (_name, rest, expected) => {
+    expect(statusOf(...rest)).toBe(expected);
+  });
+
+  it.each([
+    [
+      'a released scored class, then a released unscored excused',
+      { result_status: 'excused', is_scored: false },
+      'c2',
+      'Eliminated',
+    ],
+    [
+      'a released unscored disqualified',
+      { result_status: 'disqualified', is_scored: false },
+      'c2',
+      'Eliminated',
+    ],
+    [
+      "a pulled entry's DQ",
+      { result_status: 'disqualified', is_scored: false, check_in_status: 'pulled' },
+      'c2',
+      null,
+    ],
+    [
+      "a scratched entry's DQ",
+      { result_status: 'disqualified', is_scored: false, entry_status: 'scratched' },
+      'c2',
+      null,
+    ],
+    ['an unreleased DQ', { result_status: 'disqualified', is_scored: false }, 'c-hidden', null],
+  ] as const)('%s', (_name, over, classId, expected) => {
+    const board = build([
+      entry({ armband: '1', class_id: 'c1', points_earned: 10 }),
+      entry({ armband: '1', class_id: classId, ...over }),
+    ]);
+    expect(board[0]!.status).toBe(expected);
+  });
+
+  it('Withdrawn wins over Eliminated', () => {
+    expect(
+      statusOf(
+        { ...out, result_status: 'excused' },
+        { ...toRun, result_status: 'disqualified', is_scored: false }
+      )
+    ).toBe('Withdrawn');
   });
 });
 
@@ -137,35 +190,14 @@ describe('buildNationalsLeaderboard', () => {
     expect(board.map(row => row.armband)).toEqual(['3']);
   });
 
-  it('marks Withdrawn over Eliminated, and Eliminated over a plain row', () => {
+  it('marks Eliminated over a plain row', () => {
     const board = build([
       entry({ armband: '1', points_earned: 30, result_status: 'excused' }),
-      entry({
-        armband: '2',
-        points_earned: 20,
-        result_status: 'disqualified',
-        entry_status: 'withdrawn',
-      }),
       entry({ armband: '3', points_earned: 10 }),
     ]);
     expect(board.map(row => [row.armband, row.status])).toEqual([
       ['1', 'Eliminated'],
-      ['2', 'Withdrawn'],
       ['3', null],
-    ]);
-  });
-
-  it('shows Withdrawn for a dog that completed a class then withdrew from the rest, and not for one with classes left', () => {
-    const board = build([
-      entry({ armband: '1', class_id: 'c1', points_earned: 10 }),
-      entry({ armband: '1', class_id: 'c2', entry_status: 'withdrawn', is_scored: false }),
-      entry({ armband: '2', class_id: 'c1', points_earned: 5 }),
-      entry({ armband: '2', class_id: 'c2', entry_status: 'withdrawn', is_scored: false }),
-      entry({ armband: '2', class_id: 'c3', is_scored: false, result_status: 'pending' }),
-    ]);
-    expect(board.map(row => [row.armband, row.status])).toEqual([
-      ['1', 'Withdrawn'],
-      ['2', null],
     ]);
   });
 

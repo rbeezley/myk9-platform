@@ -9,6 +9,8 @@
  * Only RELEASED classes count, so the board never shows a result the Results tab still holds back.
  * Pure on purpose: the component only renders what this returns.
  */
+import { isPulledEntry, isRunnableEntry } from '@/features/_shared/entryAccounting';
+import { accountingFields } from '@/pages/secretary/showDeskEntryAvailability';
 import type { SecretaryEntry } from '@/services/database/entries';
 import type { ResultsClassRow } from './buildResultsClassRows';
 
@@ -82,37 +84,41 @@ export function formatLeaderboardTime(seconds: number): string {
   return `${String(minutes).padStart(2, '0')}:${String(whole % 60).padStart(2, '0')}`;
 }
 
+/** Result statuses that eliminate a dog from the nationals. */
 const ELIMINATING_RESULTS: ReadonlySet<string> = new Set(['excused', 'disqualified']);
-
-interface Draft {
-  row: Omit<NationalsLeaderboardRow, 'rank' | 'status'>;
-  eliminated: boolean;
-}
-
-type WithdrawalFields = Pick<SecretaryEntry, 'entry_status' | 'result_status' | 'is_scored'>;
-
-/** A class-level withdrawal: the entry (one class) is out, not necessarily the dog. */
-function isWithdrawnEntry(entry: WithdrawalFields): boolean {
-  return entry.entry_status === 'withdrawn' || entry.result_status === 'withdrawn';
-}
-
-/**
- * Entry status is per class, so a dog is Withdrawn only when it has withdrawn from something and
- * has nothing left to run: no entry that is neither scored nor withdrawn.
- */
-export function isDogWithdrawn(dogEntries: readonly WithdrawalFields[]): boolean {
-  const hasWithdrawn = dogEntries.some(isWithdrawnEntry);
-  const remaining = dogEntries.filter(
-    entry => entry.is_scored !== true && !isWithdrawnEntry(entry)
-  );
-  return hasWithdrawn && remaining.length === 0;
-}
 
 export interface BuildNationalsLeaderboardInput {
   entries: readonly SecretaryEntry[];
   /** The Results tab's class rows: which classes are released, and the date each ran. */
   classRows: readonly Pick<ResultsClassRow, 'id' | 'trialDate' | 'releasedAt'>[];
   showStartDate: string | null | undefined;
+}
+
+/**
+ * Withdrawn: the dog withdrew from something and has nothing left to run. "Left to run" is the
+ * shared entry-accounting rule (`isRunnableEntry`: not withdrawn, scratched, absent, moved,
+ * not accepted or pulled, and not already scored or settled), so this keeps no list of its own.
+ */
+export function isDogWithdrawn(dogEntries: readonly SecretaryEntry[]): boolean {
+  const hasWithdrawn = dogEntries.some(entry => entry.entry_status === 'withdrawn');
+  return hasWithdrawn && !dogEntries.some(entry => isRunnableEntry(accountingFields(entry)));
+}
+
+/**
+ * Eliminated: a released excused or disqualified result, scored or not. A pulled entry's result
+ * predates the pull and is not shown (MYK9-1258), so it does not count.
+ */
+export function isDogEliminated(
+  dogEntries: readonly SecretaryEntry[],
+  releasedClassIds: ReadonlySet<string>
+): boolean {
+  return dogEntries.some(
+    entry =>
+      entry.class_id !== null &&
+      releasedClassIds.has(entry.class_id) &&
+      ELIMINATING_RESULTS.has(entry.result_status ?? '') &&
+      !isPulledEntry(accountingFields(entry))
+  );
 }
 
 export function buildNationalsLeaderboard({
@@ -123,6 +129,7 @@ export function buildNationalsLeaderboard({
   const trialDateByReleasedClass = new Map(
     classRows.filter(row => row.releasedAt).map(row => [row.id, row.trialDate] as const)
   );
+  const releasedClassIds = new Set(trialDateByReleasedClass.keys());
   const entriesByArmband = new Map<string, SecretaryEntry[]>();
   for (const entry of entries) {
     const armband = entry.armband?.trim();
@@ -131,51 +138,47 @@ export function buildNationalsLeaderboard({
     dogEntries.push(entry);
     entriesByArmband.set(armband, dogEntries);
   }
-  const drafts = new Map<string, Draft>();
-  for (const entry of entries) {
-    const armband = entry.armband?.trim();
-    const releasedDate = entry.class_id ? trialDateByReleasedClass.get(entry.class_id) : undefined;
-    if (!armband || entry.is_scored !== true || releasedDate === undefined) continue;
-    let draft = drafts.get(armband);
-    if (!draft) {
-      draft = blankDraft(armband, entry);
-      drafts.set(armband, draft);
+  const rows: Omit<NationalsLeaderboardRow, 'rank'>[] = [];
+  for (const [armband, dogEntries] of entriesByArmband) {
+    // Totals, time and day points come only from scored entries in released classes.
+    const scored = dogEntries.filter(
+      entry =>
+        entry.is_scored === true && entry.class_id !== null && releasedClassIds.has(entry.class_id)
+    );
+    if (scored.length === 0) continue;
+    const row = blankRow(armband, scored[0]!);
+    for (const entry of scored) {
+      const points = entry.points_earned ?? 0;
+      const day = competitionDay(trialDateByReleasedClass.get(entry.class_id!), showStartDate);
+      row.totalPoints += points;
+      row.totalTimeSeconds += entry.search_time_seconds ?? 0;
+      row.dayPoints[day] = (row.dayPoints[day] ?? 0) + points;
     }
-    const points = entry.points_earned ?? 0;
-    const day = competitionDay(releasedDate, showStartDate);
-    draft.row.totalPoints += points;
-    draft.row.totalTimeSeconds += entry.search_time_seconds ?? 0;
-    draft.row.dayPoints[day] = (draft.row.dayPoints[day] ?? 0) + points;
-    if (entry.result_status && ELIMINATING_RESULTS.has(entry.result_status)) {
-      draft.eliminated = true;
-    }
-  }
-  return [...drafts.values()]
-    .map(draft => ({
-      ...draft.row,
+    rows.push({
+      ...row,
       // The schema's `qualified_for_finals` is not carried on the entry read, and v3's client
       // aggregation never computed it either, so no dog is marked Finals yet.
       status: leaderboardStatus({
-        withdrawn: isDogWithdrawn(entriesByArmband.get(draft.row.armband) ?? []),
-        eliminated: draft.eliminated,
+        withdrawn: isDogWithdrawn(dogEntries),
+        eliminated: isDogEliminated(dogEntries, releasedClassIds),
         finals: false,
       }),
-    }))
-    .sort(compareLeaderboard)
-    .map((row, index) => ({ ...row, rank: index + 1 }));
+    });
+  }
+  return rows.sort(compareLeaderboard).map((row, index) => ({ ...row, rank: index + 1 }));
 }
 
-function blankDraft(armband: string, entry: SecretaryEntry): Draft {
+function blankRow(
+  armband: string,
+  entry: SecretaryEntry
+): Omit<NationalsLeaderboardRow, 'rank' | 'status'> {
   const identity = entry.handler_identity;
   return {
-    eliminated: false,
-    row: {
-      armband,
-      dogName: entry.dog?.call_name || entry.dog?.name || 'Unknown dog',
-      handlerName: identity && identity.source !== 'unknown' ? (identity.name ?? '') : '',
-      totalPoints: 0,
-      totalTimeSeconds: 0,
-      dayPoints: { 1: null, 2: null, 3: null },
-    },
+    armband,
+    dogName: entry.dog?.call_name || entry.dog?.name || 'Unknown dog',
+    handlerName: identity && identity.source !== 'unknown' ? (identity.name ?? '') : '',
+    totalPoints: 0,
+    totalTimeSeconds: 0,
+    dayPoints: { 1: null, 2: null, 3: null },
   };
 }

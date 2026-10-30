@@ -133,16 +133,15 @@ describe('applyCombinedRunOrder', () => {
     expect(recordedRunOrders()).toEqual({ a3: 2, a2: 3, b3: 5, b2: 6 });
   });
 
-  it('preserve keeps the untouched sections actual run-order numbers', async () => {
+  it('preserve keeps the untouched section in its current relative order', async () => {
     const withOrder = [
-      { ...entry('b2', 6, 'B'), exhibitorOrder: 4 },
-      { ...entry('b1', 4, 'B'), exhibitorOrder: 6 },
-      { ...entry('a2', 3, 'A'), exhibitorOrder: 1 },
-      { ...entry('a1', 1, 'A'), exhibitorOrder: 2 },
+      { ...entry('b2', 6, 'B'), exhibitorOrder: 1 },
+      { ...entry('b1', 4, 'B'), exhibitorOrder: 2 },
+      { ...entry('a2', 3, 'A'), exhibitorOrder: 3 },
+      { ...entry('a1', 1, 'A'), exhibitorOrder: 4 },
     ] as unknown as Entry[];
     await applyCombinedRunOrder(withOrder, 'armband-asc', 'A', 'preserve');
-    // Section B keeps 4 and 6 (not written); A is numbered after 6.
-    expect(recordedRunOrders()).toEqual({ a1: 7, a2: 8 });
+    expect(recordedRunOrders()).toEqual({ a1: 3, a2: 4 });
   });
 
   it('rejects when the replication write fails', async () => {

@@ -210,7 +210,13 @@ export function calculateRunOrderScoped(
   renumberMode: 'preserve' | 'renumber'
 ): RunOrderResult[] {
   const scopedEntries = entries.filter(e => e.section === section);
-  const otherEntries = entries.filter(e => e.section !== section);
+  // Keep the other section in its current run order (stable; unknown last) so
+  // "preserve" renumbers it contiguously without reshuffling it.
+  const otherEntries = entries
+    .filter(e => e.section !== section)
+    .sort(
+      (a, b) => (a.runOrder ?? Number.MAX_SAFE_INTEGER) - (b.runOrder ?? Number.MAX_SAFE_INTEGER)
+    );
 
   // Reorder only the scoped section
   const reorderedScoped = calculateRunOrder(scopedEntries, preset);

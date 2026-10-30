@@ -83,8 +83,9 @@ export function useEntryListPageActions({
   // natural response is to apply it again.
   const showSuccess = useAutoDismiss(uiActions.setShowSuccessMessage, 2000);
 
-  // Returns void, not the handler's boolean: the boolean is the HOST's report
-  // to this page and stops here. A failed write is signalled by rejecting.
+  // Returns void, not the handler's boolean: this wrapper is consumed by the
+  // RunOrderDialog, which fires it and forgets. The boolean is the HOST's
+  // report to this page, and it stops here.
   const handleApplyRunOrder = useCallback(
     async (
       preset: RunOrderPreset,

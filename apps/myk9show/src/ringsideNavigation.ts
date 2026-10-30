@@ -1,3 +1,11 @@
+/**
+ * Paths that get the offline document shell: ringside scoring and Find Shows
+ * (MYK9-1539). The shell is account-agnostic HTML; what a visitor sees offline
+ * is decided by the app's own boot, and a signed-out boot never reads the
+ * shows replica (useBrowseShowsList, MYK9-780).
+ */
+export const OFFLINE_SHELL_ALLOWLIST: RegExp[] = [/^\/at-show(?:\/|$)/, /^\/shows(?:\/|$)/];
+
 const APP_SHELL_MARKER = 'name="myk9-supabase-origin"';
 const NAVIGATION_TIMEOUT_MS = 3000;
 

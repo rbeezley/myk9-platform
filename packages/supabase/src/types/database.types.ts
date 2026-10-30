@@ -13379,7 +13379,7 @@ export type Database = {
       entry_enrollment_select_show_ids: { Args: never; Returns: string[] }
       entry_results_changed_since: {
         Args: { p_show_id: string; p_since: string }
-        Returns: { changed: boolean; server_now: string }
+        Returns: { caller_has_access: boolean; changed: boolean; server_now: string }
       }
       evaluate_entry_capacity: {
         Args: {

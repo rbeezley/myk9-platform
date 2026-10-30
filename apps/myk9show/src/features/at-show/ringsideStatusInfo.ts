@@ -1,5 +1,5 @@
 import type { ClassInfo, ClassStatusValue } from '@myk9/ringside';
-import { mergeSectionStatus, pickClassTime } from '@myk9/ringside/run-queue';
+import { mergeSectionPhase, type PhaseSource } from '@myk9/ringside/run-queue';
 import { instantToClockTime } from '@/features/show-map/cockpit/cockpitTime';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
@@ -41,40 +41,34 @@ export function buildRingsideStatusInfo(
 }
 
 /**
- * The combined A/B header's phase label, from the SAME merged status the combined class
- * card uses (`mergeSectionStatus`). The label is taken whole from the section that supplies
- * that status, so its time is that section's own; no time is assembled across sections.
- * When both sections hold the merged status, Start Time goes to the earlier Expected start
- * INSTANT (`pickClassTime`, the card's rule) and Briefing / Break to section A, as on the card. When neither does (one completed, one
- * pre-scoring, which reads as In Progress), the merged status is worded with no time.
+ * The combined A/B header's phase label, from the SAME merged phase and time the combined
+ * class card uses (`mergeSectionPhase`); this only formats it. Section A's label would hide B's
+ * Offline Scoring, so the label is the merged phase's, or null when it has none (plain In Progress).
  */
 function buildCombinedStatusLabel(
   a: ReplicatedClass,
   b: ReplicatedClass,
   timeZone: string
 ): string | null {
-  const infoA = buildRingsideStatusInfo(a, timeZone);
-  const infoB = buildRingsideStatusInfo(b, timeZone);
-  const merged = mergeSectionStatus(
-    infoA.ringsideStatus as ClassStatusValue,
-    infoB.ringsideStatus as ClassStatusValue
+  const source = (cls: ReplicatedClass): PhaseSource => {
+    const info = buildRingsideStatusInfo(cls, timeZone);
+    return {
+      class_status: info.ringsideStatus as ClassStatusValue,
+      ...(info.briefingTime ? { briefing_time: info.briefingTime } : {}),
+      ...(info.breakUntilTime ? { break_until: info.breakUntilTime } : {}),
+      ...(cls.revisedExpectedStart ? { revised_expected_start: cls.revisedExpectedStart } : {}),
+    };
+  };
+  const { status, time } = mergeSectionPhase(source(a), source(b));
+  return formatRingsideStatusLabel(
+    status,
+    {
+      briefing: time,
+      breakUntil: time,
+      startTime: time && status === 'start_time' ? instantToClockTime(time, timeZone) : undefined,
+    },
+    timeZone
   );
-  const aHolds = infoA.ringsideStatus === merged;
-  const bHolds = infoB.ringsideStatus === merged;
-  if (!aHolds && !bHolds) return formatRingsideStatusLabel(merged, {}, timeZone);
-  if (aHolds !== bHolds) return (aHolds ? infoA : infoB).statusLabel ?? null;
-  // The card keeps section A's Briefing and Break time (`withMergedSectionState` only merges
-  // the start instants), so only a Start Time tie goes to the earlier Expected start.
-  const earlier =
-    merged === 'start_time'
-      ? pickClassTime(
-          a.revisedExpectedStart ?? undefined,
-          b.revisedExpectedStart ?? undefined,
-          'earlier'
-        )
-      : undefined;
-  const supplier = earlier !== undefined && earlier === b.revisedExpectedStart ? infoB : infoA;
-  return supplier.statusLabel ?? null;
 }
 
 /**

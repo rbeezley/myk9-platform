@@ -77,6 +77,22 @@ export function useAtShowShowHydration(
   } | null>(null);
   const startedShowRef = useRef<string | null>(null);
   const passKeyRef = useRef<string | null>(null);
+  // Counts settled syncs, so a completion that lands while the first hydration
+  // reads the marker (before `hydrated` exists to upgrade) is not lost.
+  const settledCountRef = useRef(0);
+  const stopOfflineRef = useRef<(() => void) | null>(null);
+
+  // Abandoning the hydration (unmount, or another show) releases its `offline`
+  // listener, which a still-pending sync would otherwise hold forever. Clearing
+  // the started marker lets a StrictMode remount start the hydration again.
+  useEffect(
+    () => () => {
+      stopOfflineRef.current?.();
+      stopOfflineRef.current = null;
+      startedShowRef.current = null;
+    },
+    [showId]
+  );
 
   useEffect(() => {
     if (!showId || startedShowRef.current === showId) return;
@@ -93,6 +109,7 @@ export function useAtShowShowHydration(
     );
     // refresh() swallows sync failures (offline: keep the cached rows).
     const { offline, stop } = whenOffline();
+    stopOfflineRef.current = stop;
     const hydration = Promise.all([refresh(true).catch(() => {}), outcome]).then(
       ([, success]) => success
     );
@@ -103,7 +120,14 @@ export function useAtShowShowHydration(
       .finally(stop)
       .then(
         async success => {
-          const state = success || (await readEntriesMarker(forShow)) ? 'arrived' : 'not-arrived';
+          let onDevice = success;
+          // Re-read while a sync settled mid-read: its marker write precedes the
+          // notification, so the second read sees it.
+          for (let seen = -1; !onDevice && seen !== settledCountRef.current;) {
+            seen = settledCountRef.current;
+            onDevice = await readEntriesMarker(forShow);
+          }
+          const state = onDevice ? 'arrived' : 'not-arrived';
           if (startedShowRef.current === forShow) setHydrated({ showId: forShow, state });
         },
         () => {
@@ -118,6 +142,7 @@ export function useAtShowShowHydration(
   useEffect(() => {
     if (!showId) return;
     return subscribeAtShowSyncSettled(showId, () => {
+      settledCountRef.current += 1;
       void readEntriesMarker(showId).then(onDevice => {
         if (!onDevice) return;
         setHydrated(prev =>

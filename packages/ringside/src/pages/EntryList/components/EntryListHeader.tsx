@@ -42,7 +42,7 @@ function handleClassInfoKeyDown(event: React.KeyboardEvent, onToggle: () => void
   onToggle();
 }
 
-/** "<trial date> • <trial label> • <ring phase>" (MYK9-704, MYK9-1526): the label is the trial's name, never "Trial <n>". */
+/** "<trial date> • <trial label>" (MYK9-704): the label is the trial's name, never "Trial <n>". */
 function buildTrialInfoText(classInfo: ClassInfo | null): string {
   const parts: string[] = [];
   if (classInfo?.trialDate) parts.push(formatTrialDate(classInfo.trialDate));
@@ -50,7 +50,6 @@ function buildTrialInfoText(classInfo: ClassInfo | null): string {
   if (classInfo?.trialName || trialNumber) {
     parts.push(formatTrialLabel({ name: classInfo?.trialName, trialNumber }));
   }
-  if (classInfo?.statusLabel) parts.push(classInfo.statusLabel);
   return parts.join(' • ');
 }
 
@@ -240,6 +239,13 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
               {trialInfoText}
             </span>
           </div>
+        )}
+        {/* Ring phase on its own wrapping line: the trial line above truncates, and a
+            Briefing / Break / Offline Scoring time must stay readable (MYK9-1526). */}
+        {classInfo?.statusLabel && (
+          <span className="text-balance text-center text-xs font-semibold leading-tight text-foreground max-sm:text-sm">
+            {classInfo.statusLabel}
+          </span>
         )}
       </div>
       {/* Class Details Popover - renders via portal */}

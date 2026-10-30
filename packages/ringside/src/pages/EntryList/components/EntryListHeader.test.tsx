@@ -243,10 +243,18 @@ describe('EntryListHeader', () => {
       'Offline Scoring',
     ])('shows %p in the header and hands it to the info popover', label => {
       renderHeader({ classInfo: withLabel(label) });
-      expect(screen.getByText(new RegExp(label))).not.toBeNull();
+      expect(screen.getByText(label)).not.toBeNull();
 
       fireEvent.click(screen.getByRole('button', { name: /Container Novice/i }));
       expect(screen.getByTestId('popover').getAttribute('data-status-label')).toBe(label);
+    });
+
+    it('keeps the phase out of the truncating trial line', () => {
+      renderHeader({ classInfo: withLabel('Briefing 10:00 AM') });
+      const phase = screen.getByText('Briefing 10:00 AM');
+      const trialLine = screen.getByText(/2026|May/);
+      expect(phase).not.toBe(trialLine);
+      expect(trialLine.textContent).not.toContain('Briefing');
     });
 
     it('shows no phase for plain In Progress', () => {
@@ -269,7 +277,7 @@ describe('EntryListHeader', () => {
         } as ClassInfo,
         showSectionsBadge: true,
       });
-      expect(screen.getByText(/Offline Scoring/)).not.toBeNull();
+      expect(screen.getByText('Offline Scoring')).not.toBeNull();
       fireEvent.click(screen.getByRole('button', { name: /Container Novice/i }));
       expect(screen.getByTestId('popover').getAttribute('data-status-label')).toBe(
         'Offline Scoring'

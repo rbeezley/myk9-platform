@@ -34,7 +34,7 @@ import {
 import { buildShowArmbandMaps, resolveEntryArmband } from '@/features/_shared/entryArmband';
 import type { ShowChangeSignal } from '@/features/show-live-sync/showChangeSignal';
 import { getTrialRegistry, getTrialTimezone } from '@/features/registries';
-import { buildRingsideStatusInfo } from './ringsideStatusInfo';
+import { buildRingsideStatusInfo, withCombinedStatusLabel } from './ringsideStatusInfo';
 import { scoresheetKeyForClass } from '@/pages/scoring/types';
 import { settledScopesOutcome, type AtShowSyncInFlight } from './atShowSyncOutcome';
 import {
@@ -469,7 +469,7 @@ export function createAtShowDataDependencies(): Pick<
             resultsReleasedAt: bothReleasedAt,
           }
         : null;
-      return { entries, classInfo };
+      return { entries, classInfo: withCombinedStatusLabel(classInfo, a.cls, b.cls, a.trial) };
     },
 
     forceSyncEntriesAndClasses: async (licenseKey): Promise<void> => {

@@ -70,7 +70,7 @@ export function useHasOwnEntries(): OwnEntriesState {
     );
   }, [personId, queryClient]);
 
-  const justEntered = hasJustEntered();
+  const justEntered = hasJustEntered(personId);
   const remembered = personId ? readOwnEntriesMemory(personId) : null;
   const fromReplica = replicaHasEntries === true || justEntered;
   const answer: OwnEntriesState = fromReplica

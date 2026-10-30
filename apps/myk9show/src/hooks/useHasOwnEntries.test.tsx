@@ -136,7 +136,7 @@ describe('useHasOwnEntries', () => {
   });
 
   it('is yes right after checkout, before the entry has replicated', async () => {
-    markJustEntered();
+    markJustEntered('person-1');
     mockAuth('person-1', 'resolved');
     stubReplica(0);
     const { result } = renderHook(() => useHasOwnEntries(), { wrapper });

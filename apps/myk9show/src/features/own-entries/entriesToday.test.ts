@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import type { OwnReplicaEntryLabel } from '@/services/database/entries/ownReplicaEntries';
+import type { OwnEntryLabel } from './entriesToday';
 import { selectEntriesToday } from './entriesToday';
 
-function label(overrides: Partial<OwnReplicaEntryLabel>): OwnReplicaEntryLabel {
+function label(overrides: Partial<OwnEntryLabel>): OwnEntryLabel {
   return {
     entryId: 'e1',
     showId: 'show-today',
@@ -48,5 +48,21 @@ describe('selectEntriesToday', () => {
         today
       )
     ).toEqual([]);
+  });
+
+  it('keeps a completed entry as Done, but not a pending-payment or cancelled one', () => {
+    const lines = selectEntriesToday(
+      [
+        label({ entryId: 'done', entryStatus: 'completed' }),
+        label({ entryId: 'done-ring', checkInStatus: 'completed' }),
+        label({ entryId: 'unpaid', entryStatus: 'pending-payment' }),
+        label({ entryId: 'cancelled', entryStatus: 'cancelled' }),
+      ],
+      today
+    );
+    expect(lines.map(l => [l.entryId, l.statusLabel])).toEqual([
+      ['done', 'Done'],
+      ['done-ring', 'Done'],
+    ]);
   });
 });

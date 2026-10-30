@@ -262,6 +262,21 @@ describe('ShowResultsTab class-name search', () => {
       expect(user).toBeDefined();
     });
 
+    it('says so, with a retry, when class progress fails to load', async () => {
+      const refetch = vi.fn();
+      mockProgress([], RESULTS);
+      vi.mocked(useShowClassProgress).mockReturnValue({
+        data: undefined,
+        isError: true,
+        refetch,
+      } as unknown as ReturnType<typeof useShowClassProgress>);
+      const { user } = render(<ShowResultsTab showId="show-1" />);
+
+      expect(screen.getByRole('alert')).toHaveTextContent('Pending classes could not be loaded');
+      await user.click(screen.getByRole('button', { name: 'Retry' }));
+      expect(refetch).toHaveBeenCalled();
+    });
+
     it('round-trips the sub-tab through the URL', () => {
       vi.mocked(useShowStats).mockReturnValue({
         data: [entry({ id: 's', classId: 'c1' })],

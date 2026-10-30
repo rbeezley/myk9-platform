@@ -13,7 +13,7 @@ import {
   PrimaryTabsContent,
   type PrimaryTabDef,
 } from '@/components/common/PrimaryTabs';
-import { ListFilterBar, ListResultLine } from '@/components/list-toolkit';
+import { ListFilterBar, ListResultLine, LIST_LINK_BUTTON } from '@/components/list-toolkit';
 import { PodiumCard } from './PodiumCard';
 import { PendingClassesList } from './PendingClassesList';
 import {
@@ -122,7 +122,11 @@ interface PodiumContentProps {
 
 function PodiumContent({ showId, showEntries = [] }: PodiumContentProps) {
   const { data: results = [], isLoading, error, refetch } = useShowResults(showId);
-  const { data: classProgress = [] } = useShowClassProgress(showId);
+  const {
+    data: classProgress = [],
+    isError: progressError,
+    refetch: refetchProgress,
+  } = useShowClassProgress(showId);
   const [search, setSearch] = useState('');
   const { filters, setFilter, clearFilters } = useShowStatsFilters();
 
@@ -217,7 +221,19 @@ function PodiumContent({ showId, showEntries = [] }: PodiumContentProps) {
         </div>
       )}
 
-      <PendingClassesList classes={pending} />
+      {progressError ? (
+        <div
+          role="alert"
+          className="flex items-center justify-between gap-3 rounded-lg border px-4 py-3 text-sm"
+        >
+          <span>Pending classes could not be loaded.</span>
+          <button type="button" className={LIST_LINK_BUTTON} onClick={() => refetchProgress()}>
+            Retry
+          </button>
+        </div>
+      ) : (
+        <PendingClassesList classes={pending} />
+      )}
     </div>
   );
 }

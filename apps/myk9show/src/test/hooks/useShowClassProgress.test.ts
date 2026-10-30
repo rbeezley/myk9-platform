@@ -43,6 +43,7 @@ describe('useShowClassProgress', () => {
     expect(mockFrom).toHaveBeenCalledWith('classes');
     expect(mockEq).toHaveBeenCalledWith('trials.show_id', 'show-1');
     expect(mockIs).toHaveBeenCalledWith('deleted_at', null);
+    expect(result.current.isFetching).toBe(false);
     expect(result.current.data).toEqual([
       {
         classId: 'c1',

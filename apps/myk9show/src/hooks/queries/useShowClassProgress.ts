@@ -40,11 +40,15 @@ async function fetchShowClassProgress(showId: string): Promise<ShowClassProgress
   }));
 }
 
+const PROGRESS_REFRESH_MS = 30 * 1000;
+
 export function useShowClassProgress(showId: string | undefined) {
   return useQuery({
     queryKey: queryKeys.showClassProgress(showId || ''),
     queryFn: () => fetchShowClassProgress(showId!),
     enabled: !!showId,
-    ...cacheStrategies.moderate,
+    ...cacheStrategies.realtime,
+    // Scoring and release happen while visitors watch this page; keep the list current.
+    refetchInterval: PROGRESS_REFRESH_MS,
   });
 }

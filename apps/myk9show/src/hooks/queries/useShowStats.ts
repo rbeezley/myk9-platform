@@ -27,8 +27,8 @@ async function fetchShowEntries(showId: string): Promise<StatsEntry[]> {
     .from('judge_assignments')
     .select('class_id, person_id')
     .eq('show_id', showId)
-    // A declined or cancelled judge did not judge the class.
-    .or('status.is.null,status.not.in.(declined,cancelled)');
+    // Only a confirmed judge judged the class; invited, declined and cancelled did not.
+    .eq('status', 'confirmed');
 
   if (assignmentError) throw assignmentError;
 

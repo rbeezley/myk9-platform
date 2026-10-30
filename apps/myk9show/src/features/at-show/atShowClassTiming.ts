@@ -1,4 +1,4 @@
-import { parseClassTime } from '@myk9/ringside';
+import { parseClassTime } from '@myk9/ringside/run-queue';
 import { formatTime } from '@/lib/format/dates';
 
 export function formatAtShowClassTime(value: string | null | undefined, timeZone: string): string {

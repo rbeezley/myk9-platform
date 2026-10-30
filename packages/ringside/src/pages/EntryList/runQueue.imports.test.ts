@@ -32,7 +32,7 @@ describe('run-queue entry stays dependency-free', () => {
     expect(readFileSync(entry, 'utf8')).toContain('export function pendingByRunOrder');
   });
 
-  it('has no runtime imports, directly or through relative files', () => {
+  it('has no package imports, directly or through relative files', () => {
     const seen = new Set<string>();
     const found: string[] = [];
     const queue = [entry];
@@ -41,12 +41,16 @@ describe('run-queue entry stays dependency-free', () => {
       if (seen.has(file)) continue;
       seen.add(file);
       for (const spec of runtimeSpecifiers(file)) {
-        found.push(`${file.replace(`${__dirname}/`, '')} -> ${spec}`);
-        if (spec.startsWith('.')) {
-          const base = resolve(dirname(file), spec);
-          const next = [base, `${base}.ts`, `${base}.tsx`].find(existsSync);
-          if (next) queue.push(next);
+        if (!spec.startsWith('.')) {
+          found.push(`${file.replace(`${__dirname}/`, '')} -> ${spec}`);
+          continue;
         }
+        // A relative file is allowed (e.g. the pure class-time parser) so long as
+        // its own runtime imports are clean: they are walked and reported here.
+        const base = resolve(dirname(file), spec);
+        const next = [base, `${base}.ts`, `${base}.tsx`].find(existsSync);
+        if (next) queue.push(next);
+        else found.push(`${file.replace(`${__dirname}/`, '')} -> ${spec} (unresolved)`);
       }
     }
     expect(found).toEqual([]);

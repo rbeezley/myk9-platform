@@ -2,16 +2,23 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
 import type { StatsEntry } from '@/components/analytics/analytics-utils';
+import { ACTIVE_JUDGE_ASSIGNMENT_STATUSES } from '@/services/database/judges/assignmentStatus';
+import { attributeClassJudges, type ClassJudgeAssignmentRow } from './attributeClassJudges';
 import { mapRowToStatsEntry, STATS_ENTRY_SELECT, type StatsTrialMeta } from './statsEntryMapper';
 
-async function fetchShowEntries(showId: string): Promise<StatsEntry[]> {
+interface ShowStatsData {
+  entries: StatsEntry[];
+  judgeLookupFailed: boolean;
+}
+
+async function fetchShowEntries(showId: string): Promise<ShowStatsData> {
   const { data: entryData, error: entryError } = await supabase
     .from('view_authenticated_entry_results')
     .select(STATS_ENTRY_SELECT)
     .eq('show_id', showId);
 
   if (entryError) throw entryError;
-  if (!entryData || entryData.length === 0) return [];
+  if (!entryData || entryData.length === 0) return { entries: [], judgeLookupFailed: false };
 
   // Fetch trial metadata from classes table (can't join through views)
   const classIds = [...new Set(entryData.map(r => r.class_id as string))];
@@ -22,21 +29,19 @@ async function fetchShowEntries(showId: string): Promise<StatsEntry[]> {
 
   if (classError) throw classError;
 
-  // Which people judge each class, for the Judge filter (same table useJudgeShowStats reads).
+  // Which person judges each class, for the Judge filter. A failed lookup must not discard
+  // the stats: return them with no attribution and let the filter say it is unavailable.
+  let classJudges = new Map<string, string>();
+  let judgeLookupFailed = false;
   const { data: assignmentData, error: assignmentError } = await supabase
     .from('judge_assignments')
-    .select('class_id, person_id')
+    .select('class_id, person_id, status')
     .eq('show_id', showId)
-    // Only a confirmed judge judged the class; invited, declined and cancelled did not.
-    .eq('status', 'confirmed');
-
-  if (assignmentError) throw assignmentError;
-
-  const classJudges = new Map<string, string[]>();
-  for (const a of assignmentData || []) {
-    const classId = a.class_id as string | null;
-    if (!classId) continue;
-    classJudges.set(classId, [...(classJudges.get(classId) ?? []), a.person_id as string]);
+    .in('status', [...ACTIVE_JUDGE_ASSIGNMENT_STATUSES]);
+  if (assignmentError) {
+    judgeLookupFailed = true;
+  } else {
+    classJudges = attributeClassJudges((assignmentData ?? []) as ClassJudgeAssignmentRow[]);
   }
 
   const classTrialMap = new Map<string, StatsTrialMeta>();
@@ -46,20 +51,29 @@ async function fetchShowEntries(showId: string): Promise<StatsEntry[]> {
       trialDate: (trial?.trial_date as string) || '',
       trialName: (trial?.name as string) || '',
       trialNumber: (trial?.trial_number as string) || '',
-      judgeIds: classJudges.get(cls.id as string) ?? [],
+      judgeIds: classJudges.has(cls.id as string) ? [classJudges.get(cls.id as string)!] : [],
     });
   }
 
-  return entryData.map((row: Record<string, unknown>) =>
-    mapRowToStatsEntry(row, classTrialMap.get(row.class_id as string))
-  );
+  return {
+    entries: entryData.map((row: Record<string, unknown>) =>
+      mapRowToStatsEntry(row, classTrialMap.get(row.class_id as string))
+    ),
+    judgeLookupFailed,
+  };
 }
 
 export function useShowStats(showId: string | undefined) {
-  return useQuery({
+  const query = useQuery({
     queryKey: queryKeys.showStats(showId || ''),
     queryFn: () => fetchShowEntries(showId!),
     enabled: !!showId,
     ...cacheStrategies.moderate,
   });
+  return {
+    ...query,
+    data: query.data?.entries,
+    /** True when judge assignments could not be read; entries then carry no judge. */
+    judgeLookupFailed: query.data?.judgeLookupFailed ?? false,
+  };
 }

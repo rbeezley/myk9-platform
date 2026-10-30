@@ -25,6 +25,7 @@ import {
   hasActiveFilters,
   SHOW_STATS_FILTER_KEYS,
 } from './analytics-filters';
+import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/common/EmptyState';
 
 const FASTEST_TIMES_LIMIT = 20;
@@ -34,7 +35,7 @@ interface ShowStatsSubTabProps {
 }
 
 export function ShowStatsSubTab({ showId }: ShowStatsSubTabProps) {
-  const { data: entries, isLoading } = useShowStats(showId);
+  const { data: entries, isLoading, judgeLookupFailed, refetch } = useShowStats(showId);
   const { data: judges } = useShowJudges(showId);
   const { filters, setFilter, clearFilters } = useShowStatsFilters();
 
@@ -43,7 +44,12 @@ export function ShowStatsSubTab({ showId }: ShowStatsSubTabProps) {
     [entries, judges]
   );
 
-  const filtered = useMemo(() => applyStatsFilters(entries ?? [], filters), [entries, filters]);
+  // With no judge attribution a leftover ?judge= would hide every entry, so ignore it.
+  const filtered = useMemo(
+    () =>
+      applyStatsFilters(entries ?? [], judgeLookupFailed ? { ...filters, judge: null } : filters),
+    [entries, filters, judgeLookupFailed]
+  );
 
   const stats = useMemo(
     () => ({
@@ -76,10 +82,22 @@ export function ShowStatsSubTab({ showId }: ShowStatsSubTabProps) {
     );
   }
 
+  const filterKeys = judgeLookupFailed
+    ? SHOW_STATS_FILTER_KEYS.filter(key => key !== 'judge')
+    : SHOW_STATS_FILTER_KEYS;
+
   return (
     <div className="space-y-6">
+      {judgeLookupFailed && (
+        <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+          Judge filter unavailable, try again.
+          <Button variant="outline" size="sm" onClick={() => void refetch()}>
+            Retry
+          </Button>
+        </p>
+      )}
       <ShowStatsFilterBar
-        keys={SHOW_STATS_FILTER_KEYS}
+        keys={filterKeys}
         filters={filters}
         options={options}
         onChange={setFilter}

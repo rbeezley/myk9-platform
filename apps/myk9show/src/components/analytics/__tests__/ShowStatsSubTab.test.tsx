@@ -158,4 +158,23 @@ describe('ShowStatsSubTab', () => {
       expect(screen.queryByRole('table', { name: /fastest/i })).not.toBeInTheDocument();
     });
   });
+
+  it('renders stats without the judge filter and offers a retry when the lookup failed', async () => {
+    const refetch = vi.fn();
+    mockUseShowStats.mockReturnValue(
+      fromPartial({
+        data: [makeEntry()],
+        isLoading: false,
+        judgeLookupFailed: true,
+        refetch,
+      })
+    );
+
+    const { user } = render(<ShowStatsSubTab showId="show-1" />);
+
+    expect(screen.getByText(/Judge filter unavailable, try again/)).toBeInTheDocument();
+    expect(screen.getAllByText('Rex').length).toBeGreaterThan(0);
+    await user.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(refetch).toHaveBeenCalledTimes(1);
+  });
 });

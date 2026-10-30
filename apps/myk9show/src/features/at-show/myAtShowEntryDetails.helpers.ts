@@ -69,6 +69,11 @@ export interface OwnShowResult {
   /** Null until the class is released; the masked read withholds it before. */
   finalPlacement: number | null;
   resultsReleasedAt: string | null;
+  /**
+   * True only when the server's masked view answered. The offline fallback nulls the
+   * same result columns, so a null status from it says nothing about release (MYK9-1519).
+   */
+  serverConfirmed?: boolean | undefined;
 }
 
 export const NO_OWN_RESULTS: ReadonlyMap<string, OwnShowResult> = new Map();
@@ -175,8 +180,10 @@ export function buildMyAtShowEntryDetails(
     const hasVisibleResult =
       !pulled && own?.isScored === true && status != null && status !== 'pending';
     // The masked read passes `is_scored` through but nulls the qualification
-    // when the preset withholds it, so scored-with-no-status is "withheld".
-    const isResultWithheld = !pulled && own?.isScored === true && status == null;
+    // when the preset withholds it, so scored-with-no-status is "withheld" —
+    // but only when the server said so, not the offline fallback.
+    const isResultWithheld =
+      !pulled && own?.serverConfirmed === true && own.isScored === true && status == null;
     const seconds = own?.searchTimeSeconds;
     const { isPreliminary } = deriveResultReleaseDisplay({
       // The own read is authoritative: a stale class replica must never turn

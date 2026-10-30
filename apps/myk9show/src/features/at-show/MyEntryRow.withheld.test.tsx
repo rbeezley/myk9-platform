@@ -24,7 +24,10 @@ const WITHHELD: OwnShowResult = {
   totalFaults: null,
   finalPlacement: null,
   resultsReleasedAt: null,
+  serverConfirmed: true,
 };
+// The device's offline fallback nulls the same columns but is not the server's answer.
+const REPLICA_FALLBACK: OwnShowResult = { ...WITHHELD, serverConfirmed: false };
 const PRELIMINARY: OwnShowResult = {
   ...WITHHELD,
   resultStatus: 'qualified',
@@ -81,6 +84,12 @@ describe('MyEntryRow: withheld results', () => {
         expect(el.getAttribute(attr) ?? '').not.toMatch(/42|\bQ\b|qualif|place|fault/i);
       }
     }
+  });
+
+  it('claims nothing about release when the result came from the offline fallback', () => {
+    const row = renderRow(REPLICA_FALLBACK);
+    expect(row).not.toHaveTextContent(/not released|preliminary/i);
+    expect(row).not.toHaveTextContent('42.5');
   });
 
   it('keeps the released row as it was', () => {

@@ -123,7 +123,7 @@ export function MyEntryRow({
             {detail.isPreliminary && <span className="text-muted-foreground">preliminary</span>}
           </div>
         )}
-        {detail.isResultWithheld && !detail.resultStatus && (
+        {detail.isResultWithheld && (
           <div
             className="mt-1 text-sm text-muted-foreground"
             data-testid="at-show-my-entry-withheld"

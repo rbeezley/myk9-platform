@@ -8,7 +8,6 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { RunOrderPreset as RingsideRunOrderPreset } from '@myk9/ringside';
 import { toMyK9ShowRunOrderPreset, calculateRunOrder } from './runOrderUtils';
 
 describe('toMyK9ShowRunOrderPreset', () => {

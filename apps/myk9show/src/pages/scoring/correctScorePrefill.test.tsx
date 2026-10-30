@@ -69,7 +69,7 @@ describe('Correct this score prefill (MYK9-1025)', () => {
 
     expect(screen.getByLabelText('Area 1 time')).toHaveValue('1:05.00');
     // The faults stepper only renders while Q is the selected result.
-    expect(screen.getByText(/Faults Count/)).toBeInTheDocument();
+    expect(screen.getByText('Faults')).toBeInTheDocument();
     expect(screen.getByText('2')).toBeInTheDocument();
   });
 
@@ -111,6 +111,6 @@ describe('Correct this score prefill (MYK9-1025)', () => {
       />
     );
     expect(screen.getByLabelText('Area 1 time')).toHaveValue('');
-    expect(screen.queryByText(/Faults Count/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Faults')).not.toBeInTheDocument();
   });
 });

@@ -40,6 +40,7 @@ const REGRESSION_SPECS = [
   // is credential-eligible for PR smoke, but it depends on the Heartland seed
   // fixture exactly as atShowOfflineScoring does — same reason, same home.
   '**/offline-cold-boot.spec.ts',
+  '**/offline-cold-boot-dogs.spec.ts',
   // scoring/scoringWorkflow and show/showManagement are obsolete candidate
   // suites; current coverage lives in focused scoring and management specs
   // tracked in docs/qa/e2e-suite-map.md.

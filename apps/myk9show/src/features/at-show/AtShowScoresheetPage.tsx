@@ -50,7 +50,7 @@ import { HeldEntryNotice } from './HeldEntryNotice';
 import { ScoreSubmitErrorBanner } from './ScoreSubmitErrorBanner';
 import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
 import { useJudgeAssignedToClass } from './useJudgeAssignedToClass';
-import { useAtShowAudioMute } from './useAtShowAudioMute';
+import { useAtShowTimerMute } from './useAtShowAudioMute';
 import { useLeaveRingside } from './useLeaveRingside';
 import { badgeClass } from './slots/atShowChrome.helpers';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -322,11 +322,11 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
   // does the silencing; the Master-level suppression itself lives inside
   // `useStopwatch` (it never calls onWarningChime/onVoiceAnnouncement for
   // Master runs) and must not be duplicated here.
-  const [audioMuted, toggleAudioMuted] = useAtShowAudioMute();
+  const { muted: audioMuted, chimeMuted, toggle: toggleAudioMuted } = useAtShowTimerMute();
   const leaveRingside = useLeaveRingside();
   const audioSettings = useMemo(
-    () => ({ ...DEFAULT_AUDIO_SETTINGS, volume: audioMuted ? 0 : DEFAULT_AUDIO_SETTINGS.volume }),
-    [audioMuted]
+    () => ({ ...DEFAULT_AUDIO_SETTINGS, volume: chimeMuted ? 0 : DEFAULT_AUDIO_SETTINGS.volume }),
+    [chimeMuted]
   );
   const audio = useAudioWarnings(audioSettings);
   const handleVoiceAnnouncement = useCallback(

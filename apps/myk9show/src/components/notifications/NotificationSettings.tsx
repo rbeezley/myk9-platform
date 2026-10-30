@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNotificationStore } from '@/store/notificationStore';
 import { testSound, isSpeechSupported, speakWithConfig } from '@myk9/notifications';
 import type { VoiceCategories } from '@myk9/notifications';
+import { remainingSecondsPhrase } from '@/features/at-show/atShowVoiceAnnouncement';
 import { groupVoices, detectPlatform, getEnhancedVoiceInstructions } from '@/lib/voice-utils';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useHapticFeedback } from '@myk9/scoring-ui';
@@ -81,7 +82,7 @@ export function NotificationSettings() {
 
   function handleTestVoice() {
     if (!speechSupported) return;
-    speakWithConfig('This is a test of your selected voice.', {
+    speakWithConfig(remainingSecondsPhrase(30), {
       voiceName: preferences.voiceName,
       voiceRate: preferences.voiceRate,
     });
@@ -295,6 +296,10 @@ export function NotificationSettings() {
                 <Volume2 className="h-4 w-4 mr-2" />
                 Test Voice
               </Button>
+              <p className="text-xs text-muted-foreground">
+                Spoken alerts, including the scoresheet 30-second warning, only play while myK9 is
+                open on screen. iPhone and iPad cannot speak in the background.
+              </p>
             </CardContent>
           )}
         </Card>

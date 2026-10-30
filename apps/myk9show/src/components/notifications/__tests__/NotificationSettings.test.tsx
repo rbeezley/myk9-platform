@@ -448,7 +448,7 @@ describe('NotificationSettings', () => {
     });
     render(<NotificationSettings />);
     fireEvent.click(screen.getByRole('button', { name: /test voice/i }));
-    expect(speakWithConfig).toHaveBeenCalledWith('This is a test of your selected voice.', {
+    expect(speakWithConfig).toHaveBeenCalledWith('30 seconds remaining', {
       voiceName: 'Alex',
       voiceRate: 1.5,
     });

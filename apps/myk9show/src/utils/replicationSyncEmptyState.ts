@@ -27,13 +27,14 @@ export function areReplicationTablesPendingFirstSync(
   status: SyncStatus,
   tableNames: readonly string[]
 ): boolean {
-  // A run that is genuinely underway is a bounded wait with a real end, so it
-  // stays pending even if connectivity drops mid-flight.
-  if (status.isSyncing) return true;
-
-  // Offline there is nothing to wait for: no sync is running and none can
-  // start. Let the caller render what it has, or its own offline/unknown state.
+  // Offline there is nothing to wait for: a run cannot finish and the device has
+  // what it has. Checked BEFORE `isSyncing`, which a pass stuck on a dead
+  // connection leaves true (that cleanup is MYK9-1550). Let the caller render
+  // what it has, or its own offline/unknown state.
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return false;
+
+  // Online, a run that is genuinely underway is a bounded wait with a real end.
+  if (status.isSyncing) return true;
 
   return tableNames.some(tableName => PENDING_TABLE_STATUSES.has(status.tablesStatus[tableName]));
 }

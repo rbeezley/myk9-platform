@@ -63,16 +63,3 @@ export function shouldRequestPostUploadSync(
 
   return uploadedTables.some(table => replicatedTableNames.has(table));
 }
-
-/** Reads as an aborted sync: the table returns to `'idle'` and no failure toast fires. */
-const OFFLINE_SYNC_ERROR = 'AbortError: the device went offline during the sync';
-
-/** What a download phase answers for every table when the device goes offline mid-pass. */
-export function offlineSyncResults(tableNames: readonly string[]): TableSyncResultSummary[] {
-  return tableNames.map(name => ({
-    name,
-    ok: false,
-    error: OFFLINE_SYNC_ERROR,
-    recoveredFromEmptyReplica: false,
-  }));
-}

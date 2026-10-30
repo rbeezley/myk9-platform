@@ -146,7 +146,9 @@ describe('runTripwire (the CLI core)', () => {
     writeFileSync(approvalsPath, block('ACTIVE'));
     expect(runTripwire({ approvalsPath, argv: [], env: {}, command })).toEqual({
       code: 2,
-      reason: expect.stringContaining('PGPASSWORD'),
+      reason: expect.stringContaining(
+        'PGPASSWORD="$SUPABASE_DB_PASSWORD" pnpm qa:prelaunch-tripwire'
+      ),
     });
   });
 

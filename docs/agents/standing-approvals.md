@@ -30,7 +30,7 @@ test-clubs:
 
 ## Pre-approved actions
 
-Only while `status: ACTIVE`, and only after `pnpm qa:prelaunch-tripwire` exits 0 in the same session, right before the action. Exits 1 and 2 both mean: do not run it. Park it instead (see "When something needs the owner").
+Only while `status: ACTIVE`, and only after the tripwire exits 0 in the same session, right before the action: `source supabase/.env && PGPASSWORD="$SUPABASE_DB_PASSWORD" pnpm qa:prelaunch-tripwire`. Exits 1 and 2 both mean: do not run it. Park it instead (see "When something needs the owner").
 
 | Action                                                             | Also required                                                                                                                                                 | Record it leaves                                                                                          |
 | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |

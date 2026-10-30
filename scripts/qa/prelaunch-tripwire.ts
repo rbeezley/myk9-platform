@@ -141,7 +141,11 @@ export function runTripwire(options: RunOptions): TripwireResult {
   const approvals = combine(local, onMain);
   // Without a password psql would prompt on a terminal and hang.
   if (approvals?.active && !options.env.PGPASSWORD)
-    return { code: 2, reason: 'PGPASSWORD is not set (source supabase/.env)' };
+    return {
+      code: 2,
+      reason:
+        'PGPASSWORD is not set; run: source supabase/.env && PGPASSWORD="$SUPABASE_DB_PASSWORD" pnpm qa:prelaunch-tripwire',
+    };
   const query = (sql: string): string | null => {
     try {
       return options.command(

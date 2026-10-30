@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { withFixtureKind } from '@/test/fixtures/entryClassKind';
+import { buildDayCheckInContext } from './dayCheckIn';
 import { groupEntriesByOrder } from './groupEntriesByOrder';
+import { groupEntriesByShow } from './groupEntriesByShow';
+import { classRowStatusText } from './classRowStatusText';
+import { deriveClassRowState } from './myShowDogState';
 import type { EntryClass, MyEntry } from './my-entries-types';
 import { selectTodayEntryRows, todayClassIds } from './todayEntryRows';
 
@@ -129,5 +133,39 @@ describe('selectTodayEntryRows', () => {
   it('names a recorded outcome the way My Shows does', () => {
     const entries = makeRows({}, [makeClass({ resultStatus: 'withdrawn' })]);
     expect(selectTodayEntryRows(entries, NOW, undefined)[0]?.statusText).toBe('WD');
+  });
+
+  it('never says "Check in" where My Shows, built from the same context, does not', () => {
+    // The device clock has passed midnight on the show's last day, so My Shows
+    // calls the show past; a zone still on the trial day keeps the class "today".
+    const deviceNow = new Date(2026, 9, 25, 0, 30);
+    const zone = [
+      'Pacific/Pago_Pago',
+      'America/Los_Angeles',
+      'America/New_York',
+      'Europe/London',
+      'Asia/Tokyo',
+      'Pacific/Kiritimati',
+    ].find(
+      tz => new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(deviceNow) === '2026-10-24'
+    );
+    expect(zone).toBeDefined();
+    const entries = makeRows(
+      { showDate: new Date(2026, 9, 24), showEndDate: new Date(2026, 9, 24) },
+      [makeClass({ trialTimezone: zone })]
+    );
+
+    const group = groupEntriesByShow(entries)[0]!;
+    const cls = group.dogs[0]!.classes[0]!;
+    const myShowsKind = deriveClassRowState(
+      cls,
+      buildDayCheckInContext(group, deviceNow, undefined)
+    ).kind;
+    expect(myShowsKind).not.toBe('check-in');
+
+    const rows = selectTodayEntryRows(entries, deviceNow, undefined);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.statusText).not.toBe('Check in');
+    expect(rows[0]?.statusText).toBe(classRowStatusText(myShowsKind) ?? 'See My Shows');
   });
 });

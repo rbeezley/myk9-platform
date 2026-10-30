@@ -38,8 +38,22 @@ export function YourEntriesTodayCard() {
     [entries, now, selfCheckinByClassId]
   );
 
-  if (rows.length === 0) return null;
   const unconfirmed = isError || readState === 'unconfirmed' || readState === 'error';
+
+  if (rows.length === 0) {
+    // A confirmed empty read is silence; an unconfirmed one must not read as "nothing today".
+    if (!unconfirmed) return null;
+    return (
+      <section aria-label="Your entries today" className="mx-5 mb-4 text-xs text-muted-foreground">
+        <Link
+          to="/exhibitor/entries"
+          className="underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          Couldn't check today's entries. Open My Shows
+        </Link>
+      </section>
+    );
+  }
 
   return (
     <section

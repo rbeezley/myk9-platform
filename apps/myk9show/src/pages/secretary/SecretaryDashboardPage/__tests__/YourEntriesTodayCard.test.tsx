@@ -11,13 +11,14 @@ const mocks = vi.hoisted(() => ({
   entries: [] as MyEntry[],
   refreshEntries: vi.fn(async () => {}),
   readState: 'confirmed' as string,
+  isError: false,
 }));
 
 vi.mock('@/pages/MyEntriesPage/modules/useMyEntriesData', () => ({
   useMyEntriesData: () => ({
     entries: mocks.entries,
     readState: mocks.readState,
-    isError: false,
+    isError: mocks.isError,
     refreshEntries: mocks.refreshEntries,
   }),
 }));
@@ -65,6 +66,7 @@ describe('YourEntriesTodayCard', () => {
     vi.setSystemTime(new Date('2026-10-24T16:00:00Z'));
     mocks.entries = [];
     mocks.readState = 'confirmed';
+    mocks.isError = false;
   });
 
   it('renders nothing with no entry today', () => {
@@ -87,6 +89,23 @@ describe('YourEntriesTodayCard', () => {
     mocks.entries = groupEntriesByOrder([entryToday(new Date(2026, 9, 24))]);
     render(<YourEntriesTodayCard />);
     expect(screen.getByText(/couldn't confirm them/)).toBeTruthy();
+  });
+
+  it('stays silent on a confirmed empty read', () => {
+    render(<YourEntriesTodayCard />);
+    expect(screen.queryByRole('link')).toBeNull();
+  });
+
+  it.each([
+    { name: 'unconfirmed', state: 'unconfirmed', isError: false },
+    { name: 'error', state: 'error', isError: false },
+    { name: 'isError', state: 'confirmed', isError: true },
+  ])('links to My Shows when an empty read is not confirmed ($name)', ({ state, isError }) => {
+    mocks.readState = state;
+    mocks.isError = isError;
+    render(<YourEntriesTodayCard />);
+    const link = screen.getByRole('link', { name: /couldn't check today's entries/i });
+    expect(link.getAttribute('href')).toBe('/exhibitor/entries');
   });
 
   it('moves to the next day while left open', () => {

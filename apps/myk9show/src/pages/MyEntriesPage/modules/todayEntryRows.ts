@@ -12,8 +12,8 @@
  */
 
 import { classRowStatusText } from './classRowStatusText';
-import { isTrialDayToday, type DayCheckInContext } from './dayCheckIn';
-import { groupEntriesByShow, indexOrdersById } from './groupEntriesByShow';
+import { buildDayCheckInContext, isTrialDayToday } from './dayCheckIn';
+import { groupEntriesByShow } from './groupEntriesByShow';
 import { resultStatusLabel } from '@/components/common/resultStatusLabel';
 import { deriveClassRowState } from './myShowDogState';
 import type { MyEntry } from './my-entries-types';
@@ -51,14 +51,7 @@ export function selectTodayEntryRows(
 ): TodayEntryRow[] {
   const rows: TodayEntryRow[] = [];
   for (const group of groupEntriesByShow(entries)) {
-    const ctx: DayCheckInContext = {
-      now,
-      ordersById: indexOrdersById(group),
-      selfCheckinByClassId,
-      // Only classes whose trial day is today (in the trial's zone) are read, so
-      // the show is not past for them, whatever the device's own clock says.
-      isPastShow: false,
-    };
+    const ctx = buildDayCheckInContext(group, now, selfCheckinByClassId);
     for (const dog of group.dogs) {
       for (const cls of dog.classes) {
         if (!isTrialDayToday(cls.trialDate, cls.trialTimezone, now)) continue;

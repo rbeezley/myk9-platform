@@ -2,6 +2,12 @@ import { expect, test, type Page } from '@playwright/test';
 import { signInAsJudge } from '../uat/shared/auth';
 import { installBrowserDiagnostics } from '../shared/browserDiagnostics';
 import {
+  cleanupDisposableEntry,
+  isIsolatedTarget,
+  seedDisposableEntry,
+  type DisposableEntry,
+} from '../helpers/isolatedFixtures';
+import {
   installSharedStagingWriteGuard,
   type GuardedRingsideRpcCall,
 } from '../helpers/sharedStagingWriteGuard';
@@ -31,6 +37,11 @@ import {
  * a per-spec flag, because the flag it used to need defaulted to off and left
  * every assertion here blind (MYK9-270).
  *
+ * Isolated-stack writes are real, so each test scores its OWN disposable entry
+ * (minted in beforeEach, deleted in afterEach, copied from seeded entry ...052).
+ * Reruns need no reseed and parallel browser projects never share a row
+ * (MYK9-1487).
+ *
  * `strictRpcWrites` is on because this spec is part of the scheduled judge
  * replay (`pnpm test:e2e:audit:judge`), and that run reports that shared staging
  * received no writes. A permissive guard in ONE included spec would make the
@@ -39,8 +50,10 @@ import {
 
 const SHOW_ID = 'dededede-0000-0000-0000-000000000010';
 const CLASS_ID = 'dec1a55e-0000-0000-0000-000000000032';
-const ENTRY_ID = 'dededede-0000-0000-0000-000000000052';
-const SCORE_PATH = `/at-show/${SHOW_ID}/class/${CLASS_ID}/score/${ENTRY_ID}`;
+// Seeded entry. On shared staging (scheduled judge replay) the tests use it as is,
+// because the ringside RPC is intercepted and nothing is written. On an isolated
+// stack it is only the TEMPLATE for a disposable entry minted per test.
+const SEEDED_ENTRY_ID = 'dededede-0000-0000-0000-000000000052';
 const CLASS_PATH = `/at-show/${SHOW_ID}/class/${CLASS_ID}`;
 // A lean-seed class with NO judge assignment and a real entry in it
 // (seed-demo.sql section 4, MYK9-515's full-class fixture on Trial 4). This was
@@ -57,9 +70,29 @@ const REPLICATED_TABLES_STORE = 'replicated_tables';
 const PENDING_MUTATIONS_STORE = 'pending_mutations';
 
 test.describe('At-show judge scoring authorization', () => {
-  // MYK9-1487: these tests share entry ...052 and the forwarded isolated-stack
-  // writes are real, so parallel tests race into genuine OCC conflicts.
-  test.describe.configure({ mode: 'serial' });
+  let seed: DisposableEntry | null = null;
+  let entryId = SEEDED_ENTRY_ID;
+  let scorePath = scorePathFor(entryId);
+
+  test.beforeEach(async () => {
+    seed = null;
+    if (isIsolatedTarget()) {
+      seed = await seedDisposableEntry({
+        showId: SHOW_ID,
+        classId: CLASS_ID,
+        templateEntryId: SEEDED_ENTRY_ID,
+        label: 'Judge Scoring',
+      });
+    }
+    entryId = seed?.entryId ?? SEEDED_ENTRY_ID;
+    scorePath = scorePathFor(entryId);
+  });
+
+  test.afterEach(async () => {
+    const current = seed;
+    seed = null;
+    if (current) await cleanupDisposableEntry(current);
+  });
 
   // MYK9-1114: attaches console/network/toast text on failure (traces are not uploaded).
   installBrowserDiagnostics(test);
@@ -71,19 +104,19 @@ test.describe('At-show judge scoring authorization', () => {
       strictRpcWrites: true,
     });
 
-    await signInAsJudge(page, SCORE_PATH);
-    await expect(page).toHaveURL(new RegExp(escapeRegExp(SCORE_PATH)));
+    await signInAsJudge(page, scorePath);
+    await expect(page).toHaveURL(new RegExp(escapeRegExp(scorePath)));
     // The scoresheet engine only mounts for a role with canScore — reaching the
     // Save button proves the judge passed the structural canScore gate.
     await expect(page.getByRole('button', { name: /^Save$/ })).toBeVisible({ timeout: 20_000 });
-    await expect.poll(() => readEntryReplica(page)).not.toBeNull();
+    await expect.poll(() => readEntryReplica(page, entryId)).not.toBeNull();
 
     // Refresh proves the authenticated session and the direct-route replica
     // hydration survive a browser restart before any score is entered.
     await page.reload();
-    await expect(page).toHaveURL(new RegExp(escapeRegExp(SCORE_PATH)));
+    await expect(page).toHaveURL(new RegExp(escapeRegExp(scorePath)));
     await expect(page.getByRole('button', { name: /^Save$/ })).toBeVisible({ timeout: 20_000 });
-    await expect.poll(() => readEntryReplica(page)).not.toBeNull();
+    await expect.poll(() => readEntryReplica(page, entryId)).not.toBeNull();
 
     await expect(page.getByRole('button', { name: /^Save$/ })).toBeDisabled();
     await page.getByTestId('result-Q').click();
@@ -102,7 +135,7 @@ test.describe('At-show judge scoring authorization', () => {
         () =>
           rpcCalls.some(
             call =>
-              call.p_entry_id === ENTRY_ID &&
+              call.p_entry_id === entryId &&
               call.p_fields?.result_status === 'qualified' &&
               call.p_fields?.is_scored === true
           ),
@@ -112,7 +145,7 @@ test.describe('At-show judge scoring authorization', () => {
     await expect
       .poll(
         () =>
-          rpcCalls.filter(call => call.p_entry_id === ENTRY_ID && call.p_fields?.is_scored === true)
+          rpcCalls.filter(call => call.p_entry_id === entryId && call.p_fields?.is_scored === true)
             .length,
         { timeout: 5_000 }
       )
@@ -120,7 +153,7 @@ test.describe('At-show judge scoring authorization', () => {
 
     // (b) The score persisted to the offline replica (offline-first write).
     await expect
-      .poll(() => readEntryReplica(page), { timeout: 10_000 })
+      .poll(() => readEntryReplica(page, entryId), { timeout: 10_000 })
       .toMatchObject({
         data: expect.objectContaining({ result_status: 'qualified', is_scored: true }),
       });
@@ -150,14 +183,14 @@ test.describe('At-show judge scoring authorization', () => {
     // IS assigned to must now produce a recorded call on the same page and the
     // same collector. Empty-then-non-empty is what makes the emptiness above
     // mean something.
-    await page.goto(SCORE_PATH);
+    await page.goto(scorePath);
     await expect(page.getByRole('button', { name: /^Save$/ })).toBeVisible({ timeout: 20_000 });
     await page.getByTestId('result-Q').click();
     await page.getByRole('button', { name: /^Save$/ }).click();
     await page.getByRole('button', { name: /Confirm & Submit/i }).click();
 
     await expect
-      .poll(() => rpcCalls.some(call => call.p_entry_id === ENTRY_ID), { timeout: 20_000 })
+      .poll(() => rpcCalls.some(call => call.p_entry_id === entryId), { timeout: 20_000 })
       .toBe(true);
     expect(rpcCalls.filter(call => call.p_entry_id === UNASSIGNED_ENTRY_ID)).toEqual([]);
   });
@@ -169,7 +202,7 @@ test.describe('At-show judge scoring authorization', () => {
       strictRpcWrites: true,
     });
 
-    await signInAsJudge(page, SCORE_PATH);
+    await signInAsJudge(page, scorePath);
     await expect(page.getByRole('button', { name: /^Save$/ })).toBeVisible({ timeout: 20_000 });
     await page.getByTestId('result-ABS').click();
     await page.getByRole('button', { name: /^Save$/ }).click();
@@ -183,9 +216,7 @@ test.describe('At-show judge scoring authorization', () => {
     await expect
       .poll(
         () =>
-          rpcCalls.filter(
-            call => call.p_entry_id === ENTRY_ID && call.p_fields?.is_scored === true
-          ),
+          rpcCalls.filter(call => call.p_entry_id === entryId && call.p_fields?.is_scored === true),
         { timeout: 20_000 }
       )
       .toEqual(
@@ -206,7 +237,7 @@ test.describe('At-show judge scoring authorization', () => {
       strictRpcWrites: true,
     });
 
-    await signInAsJudge(page, SCORE_PATH);
+    await signInAsJudge(page, scorePath);
     await expect(page.getByRole('button', { name: /^Save$/ })).toBeVisible({ timeout: 20_000 });
     await page.getByTestId('result-Q').click();
     await page.getByRole('button', { name: /^Save$/ }).click();
@@ -218,7 +249,7 @@ test.describe('At-show judge scoring authorization', () => {
     await expect(page.getByTestId('quick-advance-entry').first()).toBeVisible();
 
     await page.getByRole('button', { name: 'Correct this score' }).click();
-    await expect(page).toHaveURL(new RegExp(escapeRegExp(SCORE_PATH)));
+    await expect(page).toHaveURL(new RegExp(escapeRegExp(scorePath)));
     await expect(page.getByRole('button', { name: /^Save$/ })).toBeVisible({ timeout: 20_000 });
 
     await page.getByTestId('result-NQ').click();
@@ -229,9 +260,7 @@ test.describe('At-show judge scoring authorization', () => {
     await expect
       .poll(
         () =>
-          rpcCalls.filter(
-            call => call.p_entry_id === ENTRY_ID && call.p_fields?.is_scored === true
-          ),
+          rpcCalls.filter(call => call.p_entry_id === entryId && call.p_fields?.is_scored === true),
         { timeout: 20_000 }
       )
       .toEqual(
@@ -256,7 +285,7 @@ test.describe('At-show judge scoring authorization', () => {
       strictRpcWrites: true,
     });
 
-    await signInAsJudge(page, SCORE_PATH);
+    await signInAsJudge(page, scorePath);
     await expect(page.getByRole('button', { name: /^Save$/ })).toBeVisible({ timeout: 20_000 });
 
     await context.setOffline(true);
@@ -269,18 +298,18 @@ test.describe('At-show judge scoring authorization', () => {
     await expect(page).toHaveURL(new RegExp(escapeRegExp(CLASS_PATH)), { timeout: 15_000 });
     await expect.poll(() => readPendingMutationCount(page), { timeout: 10_000 }).toBeGreaterThan(0);
     await expect
-      .poll(() => readEntryReplica(page), { timeout: 10_000 })
+      .poll(() => readEntryReplica(page, entryId), { timeout: 10_000 })
       .toMatchObject({
         syncStatus: 'pending',
         isDirty: true,
         data: expect.objectContaining({ result_status: 'nq', is_scored: true }),
       });
     await expect
-      .poll(() => readPendingMutation(page, true), { timeout: 10_000 })
+      .poll(() => readPendingMutation(page, entryId, true), { timeout: 10_000 })
       .toMatchObject({
         tableName: 'entries',
         operation: 'UPDATE',
-        rowId: ENTRY_ID,
+        rowId: entryId,
         rpc: { name: 'ringside_update_entry' },
       });
 
@@ -327,15 +356,15 @@ test.describe('At-show judge scoring authorization', () => {
     await expect
       .poll(
         () =>
-          rpcCalls.filter(call => call.p_entry_id === ENTRY_ID && call.p_fields?.is_scored === true)
+          rpcCalls.filter(call => call.p_entry_id === entryId && call.p_fields?.is_scored === true)
             .length,
         { timeout: 20_000 }
       )
       .toBe(1);
-    await expect.poll(() => readPendingMutation(page, true), { timeout: 20_000 }).toBeNull();
+    await expect
+      .poll(() => readPendingMutation(page, entryId, true), { timeout: 20_000 })
+      .toBeNull();
   });
-  // MYK9-1487: keep last. It really pulls the first dog on the isolated stack,
-  // which empties the gate list the reopen test's next-dog shortcut needs.
   test('lets the judge pull a dog without turning it into a score', async ({ page }) => {
     const rpcCalls: GuardedRingsideRpcCall[] = [];
     await installSharedStagingWriteGuard(page, {
@@ -345,7 +374,11 @@ test.describe('At-show judge scoring authorization', () => {
 
     await signInAsJudge(page, CLASS_PATH);
     await expect(page.getByText('Change Status')).toHaveCount(0);
-    await page.getByTestId('check-in-button').first().click();
+    // Isolated: pull this test's own dog. Shared staging: the RPC is intercepted.
+    const checkIn = seed
+      ? page.locator(`[data-testid="check-in-button"][aria-label$=" for ${seed.callName}"]`)
+      : page.getByTestId('check-in-button').first();
+    await checkIn.click();
     const statusDialog = page.getByRole('dialog', { name: 'Change Status' });
     await expect(statusDialog).toBeVisible();
     await statusDialog.getByRole('button', { name: 'Pulled' }).click();
@@ -359,7 +392,11 @@ test.describe('At-show judge scoring authorization', () => {
   });
 });
 
-async function readEntryReplica(page: Page) {
+function scorePathFor(entryId: string) {
+  return `/at-show/${SHOW_ID}/class/${CLASS_ID}/score/${entryId}`;
+}
+
+async function readEntryReplica(page: Page, entryId: string) {
   return page.evaluate(
     ({ dbName, storeName, entryId }) =>
       new Promise<{
@@ -399,7 +436,7 @@ async function readEntryReplica(page: Page) {
           };
         };
       }),
-    { dbName: REPLICATION_DB_NAME, storeName: REPLICATED_TABLES_STORE, entryId: ENTRY_ID }
+    { dbName: REPLICATION_DB_NAME, storeName: REPLICATED_TABLES_STORE, entryId }
   );
 }
 
@@ -431,7 +468,7 @@ async function readPendingMutationCount(page: Page) {
   );
 }
 
-async function readPendingMutation(page: Page, scoredOnly = false) {
+async function readPendingMutation(page: Page, entryId: string, scoredOnly = false) {
   return page.evaluate(
     ({ dbName, storeName, entryId, scoredOnly }) =>
       new Promise<Record<string, unknown> | null>(resolve => {
@@ -466,7 +503,7 @@ async function readPendingMutation(page: Page, scoredOnly = false) {
     {
       dbName: REPLICATION_DB_NAME,
       storeName: PENDING_MUTATIONS_STORE,
-      entryId: ENTRY_ID,
+      entryId,
       scoredOnly,
     }
   );

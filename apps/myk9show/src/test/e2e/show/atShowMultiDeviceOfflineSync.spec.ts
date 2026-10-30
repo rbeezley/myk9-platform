@@ -1,6 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
 import { signInAsSecretary } from '../uat/shared/auth';
 import {
+  cleanupDisposableEntry,
+  seedDisposableEntry,
+  type DisposableEntry,
+} from '../helpers/isolatedFixtures';
+import {
   installSharedStagingWriteGuard,
   isIsolatedSupabaseTarget,
   type GuardedRingsideRpcCall,
@@ -29,23 +34,17 @@ import {
  * conflict here is the server's own, not a simulated one. The unit-level merge
  * rules stay in packages/replication/src/conflict/*.
  *
- * Scope: runs in the chromium project only, with retries off. Every project
- * would score the same seeded entry (...051) concurrently, and a retry would
- * start from the previous attempt's scored entry, so neither is deterministic
- * (MYK9-1487). Replication conflict handling is browser-agnostic app logic, so
- * one project is sufficient coverage. It also skips unless the target is an
- * isolated host: on shared staging the write guard answers both devices with
- * synthetic success, so B never receives the server's OCC rejection.
- *
- * Fixture: entry ...051 (Willow, Container Novice A) - confirmed/paid, and not
- * used by atShowOfflineScoring.spec.ts (...053) or atShowJudgeScoring.spec.ts
- * (...052). The spec scores it once and leaves it scored.
+ * Fixture: each test mints its own disposable dog + entry in Container Novice A
+ * (copied from seeded entry ...051, which is never touched) and deletes it
+ * afterwards, so reruns need no reseed and parallel browser projects never share
+ * a row. It skips unless the target is an isolated host: on shared staging the
+ * write guard answers both devices with synthetic success, so B never receives
+ * the server's OCC rejection, and fixtures must never be inserted there.
  */
 
 const SHOW_ID = 'dededede-0000-0000-0000-000000000010';
 const CLASS_ID = 'dec1a55e-0000-0000-0000-000000000031';
-const ENTRY_ID = 'dededede-0000-0000-0000-000000000051';
-const SCORE_PATH = `/at-show/${SHOW_ID}/class/${CLASS_ID}/score/${ENTRY_ID}`;
+const TEMPLATE_ENTRY_ID = 'dededede-0000-0000-0000-000000000051';
 const CLASS_PATH = `/at-show/${SHOW_ID}/class/${CLASS_ID}`;
 const REPLICATION_DB_NAME = 'myK9_Replication';
 const PENDING_MUTATIONS_STORE = 'pending_mutations';
@@ -53,17 +52,36 @@ const PENDING_MUTATIONS_STORE = 'pending_mutations';
 const CONFLICT_TITLE = 'This record was changed elsewhere';
 
 test.describe('At-show multi-device offline conflict', () => {
-  test.describe.configure({ retries: 0 });
+  let seed: DisposableEntry | null = null;
+
+  test.beforeEach(async () => {
+    // Skipped (not seeded) on shared staging: seeding asserts an isolated target too.
+    if (!isIsolatedSupabaseTarget(process.env.VITE_SUPABASE_URL)) return;
+    seed = await seedDisposableEntry({
+      showId: SHOW_ID,
+      classId: CLASS_ID,
+      templateEntryId: TEMPLATE_ENTRY_ID,
+      label: 'Multi Device',
+    });
+  });
+
+  test.afterEach(async () => {
+    const current = seed;
+    seed = null;
+    if (current) await cleanupDisposableEntry(current);
+  });
 
   test('second device to reconnect gets a conflict notice, and Take theirs settles both devices on the first score', async ({
     browser,
-  }, testInfo) => {
-    test.skip(testInfo.project.name !== 'chromium', 'shares one seeded entry; see MYK9-1487');
+  }) => {
     test.skip(
       !isIsolatedSupabaseTarget(process.env.VITE_SUPABASE_URL),
       'needs an isolated host: the shared-staging write guard returns synthetic success, so no real OCC conflict'
     );
     test.setTimeout(180_000);
+    if (!seed) throw new Error('disposable entry was not seeded');
+    const entryId = seed.entryId;
+    const scorePath = `/at-show/${SHOW_ID}/class/${CLASS_ID}/score/${entryId}`;
     const contextA = await browser.newContext();
     const contextB = await browser.newContext();
     const deviceA = await contextA.newPage();
@@ -75,8 +93,8 @@ test.describe('At-show multi-device offline conflict', () => {
       await installSharedStagingWriteGuard(deviceA, { ringsideRpcCalls: rpcCallsA });
       await installSharedStagingWriteGuard(deviceB, { ringsideRpcCalls: rpcCallsB });
 
-      await signInAsSecretary(deviceA, SCORE_PATH);
-      await signInAsSecretary(deviceB, SCORE_PATH);
+      await signInAsSecretary(deviceA, scorePath);
+      await signInAsSecretary(deviceB, scorePath);
       for (const device of [deviceA, deviceB]) {
         await expect(device.getByRole('button', { name: /^Save$/ })).toBeVisible({
           timeout: 20_000,
@@ -104,7 +122,7 @@ test.describe('At-show multi-device offline conflict', () => {
       await expect.poll(() => readPendingMutationCount(deviceA), { timeout: 30_000 }).toBe(0);
       expect(
         rpcCallsA.some(
-          call => call.p_entry_id === ENTRY_ID && call.p_fields?.result_status === 'qualified'
+          call => call.p_entry_id === entryId && call.p_fields?.result_status === 'qualified'
         )
       ).toBe(true);
       await expect(deviceA.getByText(CONFLICT_TITLE)).toHaveCount(0);
@@ -114,7 +132,7 @@ test.describe('At-show multi-device offline conflict', () => {
       await contextB.setOffline(false);
       await deviceB.evaluate(() => window.dispatchEvent(new Event('online')));
       await expect(deviceB.getByText(CONFLICT_TITLE)).toBeVisible({ timeout: 30_000 });
-      expect(rpcCallsB.some(call => call.p_entry_id === ENTRY_ID)).toBe(true);
+      expect(rpcCallsB.some(call => call.p_entry_id === entryId)).toBe(true);
       // Parked, not dropped: B's queue still holds its writes until the user chooses.
       expect(await readPendingMutationCount(deviceB)).toBeGreaterThan(0);
 
@@ -124,8 +142,10 @@ test.describe('At-show multi-device offline conflict', () => {
       await expect.poll(() => readPendingMutationCount(deviceA), { timeout: 10_000 }).toBe(0);
 
       // Both replicas now agree on A's score.
-      await expect.poll(() => readEntryResult(deviceB), { timeout: 20_000 }).toBe('qualified');
-      expect(await readEntryResult(deviceA)).toBe('qualified');
+      await expect
+        .poll(() => readEntryResult(deviceB, entryId), { timeout: 20_000 })
+        .toBe('qualified');
+      expect(await readEntryResult(deviceA, entryId)).toBe('qualified');
     } finally {
       await contextA.close();
       await contextB.close();
@@ -140,7 +160,7 @@ async function scoreOffline(device: Page, result: 'Q' | 'NQ') {
   await expect(device).toHaveURL(new RegExp(escapeRegExp(CLASS_PATH)), { timeout: 15_000 });
 }
 
-async function readEntryResult(page: Page) {
+async function readEntryResult(page: Page, entryId: string) {
   return page.evaluate(
     ({ dbName, entryId }) =>
       new Promise<string | null>(resolve => {
@@ -168,7 +188,7 @@ async function readEntryResult(page: Page) {
           };
         };
       }),
-    { dbName: REPLICATION_DB_NAME, entryId: ENTRY_ID }
+    { dbName: REPLICATION_DB_NAME, entryId }
   );
 }
 

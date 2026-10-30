@@ -14,10 +14,18 @@ const mocks = vi.hoisted(() => ({
     getUserRoles: (): string[] => [],
   },
   online: true,
+  canManage: false,
+  ownEntryIds: new Set<string>(['e1']),
   show: { clubId: 'club-1', location: '123 Main St, Springfield' } as Record<string, unknown>,
 }));
 
 vi.mock('@/hooks/useAuthContext', () => ({ useAuthContext: () => mocks.auth }));
+vi.mock('@/hooks/useShowManageScope', () => ({
+  useShowManageScope: () => ({ canManage: mocks.canManage }),
+}));
+vi.mock('../useMyAtShowEntries', () => ({
+  useMyAtShowEntries: () => ({ ownEntryIds: mocks.ownEntryIds }),
+}));
 vi.mock('@/lib/networkUtils', () => ({ useOnlineStatus: () => mocks.online }));
 vi.mock('@/hooks/useGlobalSyncStatus', () => ({
   useGlobalSyncStatus: () => ({ status: 'synced', queueSize: 0 }),
@@ -73,6 +81,8 @@ describe('RingsideMenu', () => {
     mocks.auth.user = { id: 'u1', is_anonymous: false };
     mocks.auth.signOut.mockReset();
     mocks.online = true;
+    mocks.canManage = false;
+    mocks.ownEntryIds = new Set(['e1']);
     useRingsideReturnStore.getState().clear();
     useNotificationStore.setState({ isCenterOpen: false });
     useAskQPanelStore.getState().close();
@@ -115,10 +125,11 @@ describe('RingsideMenu', () => {
     });
   });
 
-  it('sends a show manager to the results page', async () => {
-    mocks.auth.hasRole = role => role === 'secretary';
+  it('sends a show manager to the results page and hides Stats', async () => {
+    mocks.canManage = true;
     const { user } = renderMenu();
     const nav = await openMenu(user);
+    expect(within(nav).queryByRole('button', { name: /^Stats/ })).not.toBeInTheDocument();
     await user.click(within(nav).getByRole('button', { name: 'Results' }));
     await waitFor(() =>
       expect(screen.getByTestId('location')).toHaveTextContent('/shows/show-1/results')

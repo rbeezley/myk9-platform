@@ -9,8 +9,9 @@ import {
 
 const base: RingsideMenuContext = {
   showId: 'show-1',
-  canUseShowDesk: false,
+  canManageShow: false,
   isOnline: true,
+  hasEntries: true,
   hasAccount: true,
 };
 
@@ -37,10 +38,16 @@ describe('buildRingsideMenuItems', () => {
     expect(find(base, 'stats')?.href).toBe('/shows/show-1?tab=results&resultsView=show-stats');
   });
 
-  it('sends a show manager to the results page they already use', () => {
-    const manager = { ...base, canUseShowDesk: true };
+  it('sends a show manager to the results page they already use, with no Stats item', () => {
+    const manager = { ...base, canManageShow: true };
     expect(find(manager, 'results')?.href).toBe('/shows/show-1/results');
-    expect(find(manager, 'stats')?.href).toBe('/shows/show-1/results?resultsView=show-stats');
+    // That page lists classes; Show Stats exists only in the entered-exhibitor tab view.
+    expect(ids(manager)).not.toContain('stats');
+  });
+
+  it('offers Stats only to a viewer with entries, who gets the tab view that renders it', () => {
+    expect(ids({ ...base, hasEntries: false })).not.toContain('stats');
+    expect(ids({ ...base, hasEntries: false })).toContain('results');
   });
 
   it('opens Settings on Appearance, where theme, voice and haptics live', () => {
@@ -86,12 +93,12 @@ describe('buildRingsideMenuItems', () => {
     const staffOnly: RingsideMenuExtension = {
       id: 'staff',
       build: context =>
-        context.canUseShowDesk
+        context.canManageShow
           ? { id: 'staff', label: 'Staff', icon: BarChart3, href: '/x', requiresConnection: false }
           : null,
     };
     expect(ids(base, [staffOnly])).not.toContain('staff');
-    expect(ids({ ...base, canUseShowDesk: true }, [staffOnly])).toContain('staff');
+    expect(ids({ ...base, canManageShow: true }, [staffOnly])).toContain('staff');
   });
 });
 

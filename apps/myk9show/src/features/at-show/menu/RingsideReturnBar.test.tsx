@@ -58,10 +58,20 @@ describe('RingsideReturnBar', () => {
     expect(screen.queryByRole('button', { name: 'Back to ringside' })).not.toBeInTheDocument();
   });
 
-  it('clears the trip once the user is back in ringside', async () => {
+  it('keeps the trip while the menu closes on the ringside screen, before navigating', async () => {
     record();
     render(<Pages />, { initialRoute: '/at-show/show-1/class/class-1' });
+    await new Promise(resolve => setTimeout(resolve, 50));
+    expect(useRingsideReturnStore.getState().target).not.toBeNull();
+  });
+
+  it('survives the whole trip: ringside, then the destination, then back clears it', async () => {
+    record();
+    const { user } = render(<Pages />, { initialRoute: '/at-show/show-1/class/class-1' });
+    await user.click(screen.getByRole('button', { name: 'go settings' }));
+    const back = await screen.findByRole('button', { name: 'Back to ringside' });
+    await user.click(back);
+    expect(await screen.findByText('entry list')).toBeInTheDocument();
     await waitFor(() => expect(useRingsideReturnStore.getState().target).toBeNull());
-    expect(screen.queryByRole('button', { name: 'Back to ringside' })).not.toBeInTheDocument();
   });
 });

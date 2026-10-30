@@ -15,17 +15,22 @@ export interface RingsideReturn {
   scope: string;
   /** `history.state.idx` when the menu was used. */
   originIdx: number;
+  /** True once the user has actually left ringside; only then may arriving back end the trip. */
+  departed?: boolean;
 }
 
 interface RingsideReturnState {
   target: RingsideReturn | null;
   set: (target: RingsideReturn) => void;
+  markDeparted: () => void;
   clear: () => void;
 }
 
 export const useRingsideReturnStore = create<RingsideReturnState>()(set => ({
   target: null,
   set: target => set({ target }),
+  markDeparted: () =>
+    set(state => (state.target ? { target: { ...state.target, departed: true } } : state)),
   clear: () => set({ target: null }),
 }));
 

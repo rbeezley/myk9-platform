@@ -16,10 +16,16 @@ export function RingsideReturnBar() {
   const navigate = useNavigate();
   const atRingside = isRingsidePath(pathname);
 
-  // Back in ringside: the trip is over.
+  const markDeparted = useRingsideReturnStore(s => s.markDeparted);
+
+  // The menu records the trip while still ON the ringside route (it navigates
+  // after the slide-out closes), so arriving at ringside only ends the trip once
+  // the user has actually left it.
   useEffect(() => {
-    if (atRingside && target) clear();
-  }, [atRingside, target, clear]);
+    if (!target) return;
+    if (!atRingside && !target.departed) markDeparted();
+    else if (atRingside && target.departed) clear();
+  }, [atRingside, target, clear, markDeparted]);
 
   if (!target || atRingside) return null;
   if (pathname !== target.scope && !pathname.startsWith(`${target.scope}/`)) return null;
@@ -32,7 +38,7 @@ export function RingsideReturnBar() {
   };
 
   return (
-    <div className="sticky top-0 z-30 border-b border-border bg-card px-3 py-1">
+    <div className="sticky top-[calc(var(--pwa-banner-height,0px)+var(--app-header-height,3rem))] z-30 mt-[calc(var(--pwa-banner-height,0px)+var(--app-header-height,3rem))] border-b border-border bg-card px-3 py-1">
       <button
         type="button"
         onClick={goBack}

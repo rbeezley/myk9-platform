@@ -11,9 +11,11 @@ import { ringsideMenuExtensions } from './ringsideMenuExtensions';
 
 export interface RingsideMenuContext {
   showId: string | undefined;
-  /** Secretary, site admin or a club admin scoped to this show's club. */
-  canUseShowDesk: boolean;
+  /** May manage THIS show: the exact gate `ShowManagementSectionRoute` applies (`useShowManageScope`). */
+  canManageShow: boolean;
   isOnline: boolean;
+  /** The account has entries in this show, so the show page gives it the tabbed view with Show Stats. */
+  hasEntries: boolean;
   /** A real account (not a passcode session). */
   hasAccount: boolean;
 }
@@ -45,10 +47,10 @@ export const OFFLINE_ITEM_NOTICE = 'Needs a connection';
 function resultsHref(context: RingsideMenuContext, showId: string, view?: 'show-stats'): string {
   const base = `/shows/${showId}`;
   const params = new URLSearchParams();
-  if (!context.canUseShowDesk) params.set('tab', 'results');
+  if (!context.canManageShow) params.set('tab', 'results');
   if (view) params.set('resultsView', view);
   const query = params.toString();
-  return `${base}${context.canUseShowDesk ? '/results' : ''}${query ? `?${query}` : ''}`;
+  return `${base}${context.canManageShow ? '/results' : ''}${query ? `?${query}` : ''}`;
 }
 
 export function buildRingsideMenuItems(
@@ -76,7 +78,9 @@ export function buildRingsideMenuItems(
           requiresConnection: false,
         }
       : null,
-    showId && showScope
+    // Show Stats renders only in the entered-exhibitor tab view: a manager's
+    // Results page and the public landing have no statistics to land on.
+    showId && showScope && context.hasEntries && !context.canManageShow
       ? {
           id: 'stats',
           label: 'Stats',

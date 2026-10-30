@@ -24,7 +24,8 @@ import { useAnnouncementStore } from '@/store/announcementStore';
 import { useAskQPanelStore } from '@/store/useAskQPanelStore';
 import { useMessageStore } from '@/store/messageStore';
 import { useNotificationStore } from '@/store/notificationStore';
-import { useShowDeskAccess } from '../useShowDeskAccess';
+import { useShowManageScope } from '@/hooks/useShowManageScope';
+import { useMyAtShowEntries } from '../useMyAtShowEntries';
 import {
   OFFLINE_ITEM_NOTICE,
   buildRingsideMenuItems,
@@ -58,7 +59,9 @@ export function RingsideMenu({ showId }: { showId: string | undefined }) {
     enabled: !!showId,
     networkMode: 'always',
   });
-  const canUseShowDesk = useShowDeskAccess(showQuery.data?.clubId ?? undefined);
+  // The destination route's own gate, so the link and the page cannot disagree.
+  const canManageShow = useShowManageScope(showId).canManage;
+  const hasEntries = useMyAtShowEntries(showId).ownEntryIds.size > 0;
 
   const unread =
     useNotificationStore(s => s.unreadCount) +
@@ -67,7 +70,8 @@ export function RingsideMenu({ showId }: { showId: string | undefined }) {
 
   const items = buildRingsideMenuItems({
     showId,
-    canUseShowDesk,
+    canManageShow,
+    hasEntries,
     isOnline,
     hasAccount: Boolean(user) && !user?.is_anonymous,
   });

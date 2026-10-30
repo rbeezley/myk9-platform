@@ -20,7 +20,7 @@ describe('speakRemainingSeconds', () => {
   });
 
   it('speaks with the saved voice and speed', () => {
-    setPrefs({ voiceEnabled: true, voiceName: 'Samantha', voiceRate: 1.4 });
+    setPrefs({ voiceName: 'Samantha', voiceRate: 1.4 });
     speakRemainingSeconds(30);
     expect(speakWithConfig).toHaveBeenCalledWith('30 seconds remaining', {
       voiceName: 'Samantha',
@@ -28,8 +28,27 @@ describe('speakRemainingSeconds', () => {
     });
   });
 
-  it('stays silent when Settings has voice announcements off', () => {
-    setPrefs({ voiceEnabled: false, voiceName: 'Samantha' });
+  it('speaks by default for a judge who never opened Settings', () => {
+    setPrefs({});
+    expect(useNotificationStore.getState().preferences.voiceEnabled).toBe(false);
+    speakRemainingSeconds(30);
+    expect(speakWithConfig).toHaveBeenCalledTimes(1);
+  });
+
+  it('speaks for an older persisted device that has no timer key', async () => {
+    const { voiceEnabled, voiceName, voiceRate } = DEFAULT_PREFERENCES;
+    localStorage.setItem(
+      'myk9-notification-preferences',
+      JSON.stringify({ state: { preferences: { voiceEnabled, voiceName, voiceRate } }, version: 0 })
+    );
+    await useNotificationStore.persist.rehydrate();
+    speakRemainingSeconds(30);
+    expect(speakWithConfig).toHaveBeenCalledTimes(1);
+    localStorage.clear();
+  });
+
+  it('stays silent when the timer switch is off, even if push voice is on', () => {
+    setPrefs({ timerVoiceEnabled: false, voiceEnabled: true, voiceName: 'Samantha' });
     speakRemainingSeconds(30);
     expect(speakWithConfig).not.toHaveBeenCalled();
   });

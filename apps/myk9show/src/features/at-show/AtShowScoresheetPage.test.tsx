@@ -278,8 +278,11 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     useRingsideGrantStore.getState().clearGrant();
     // useAtShowAudioMute persists to localStorage — start every test unmuted.
     localStorage.clear();
-    // Spoken warnings follow Settings > Voice Announcements; start enabled.
-    useNotificationStore.getState().updatePreferences({ voiceEnabled: true });
+    // Spoken warnings follow Settings > timer warning switch (default on);
+    // push-notification voice stays at its default (off).
+    useNotificationStore
+      .getState()
+      .updatePreferences({ timerVoiceEnabled: true, voiceEnabled: false });
     seed();
   });
 
@@ -1058,23 +1061,27 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
       expect(vi.mocked(useAudioWarnings).mock.calls.at(-1)?.[0].volume).toBeGreaterThan(0);
     });
 
-    it('agrees with Settings: voice announcements off reads as muted and silences speech', async () => {
-      useNotificationStore.getState().updatePreferences({ voiceEnabled: false });
+    it('agrees with Settings: timer switch off reads as muted, and unmuting writes it back', async () => {
+      useNotificationStore.getState().updatePreferences({ timerVoiceEnabled: false });
       renderPage();
       await screen.findByTestId('live-scoresheet');
 
       expect(screen.getByRole('button', { name: 'Unmute timer sounds' })).toBeInTheDocument();
       expect(screen.getByTestId('voice-announcements-enabled')).toHaveTextContent('false');
 
-      // Unmuting from the scoresheet writes the same Settings switch.
       fireEvent.click(screen.getByRole('button', { name: 'Unmute timer sounds' }));
-      expect(useNotificationStore.getState().preferences.voiceEnabled).toBe(true);
+      expect(useNotificationStore.getState().preferences.timerVoiceEnabled).toBe(true);
+      expect(useNotificationStore.getState().preferences.voiceEnabled).toBe(false);
     });
 
-    it('muting from the scoresheet turns the Settings voice switch off', async () => {
+    it('muting from the scoresheet turns the timer switch off and leaves push voice alone', async () => {
       renderPage();
       await screen.findByTestId('live-scoresheet');
       fireEvent.click(screen.getByRole('button', { name: 'Mute timer sounds' }));
+      expect(useNotificationStore.getState().preferences.timerVoiceEnabled).toBe(false);
+      expect(useNotificationStore.getState().preferences.voiceEnabled).toBe(false);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Unmute timer sounds' }));
       expect(useNotificationStore.getState().preferences.voiceEnabled).toBe(false);
     });
 

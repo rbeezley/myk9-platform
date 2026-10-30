@@ -396,6 +396,23 @@ describe('NotificationSettings', () => {
     expect(screen.getByRole('switch', { name: /voice announcements/i })).toBeInTheDocument();
   });
 
+  it('renders the timer warning switch on by default, separate from push voice', () => {
+    render(<NotificationSettings />);
+    const timer = screen.getByRole('switch', { name: /speak the scoresheet timer warning/i });
+    expect(timer).toBeChecked();
+    expect(screen.getByRole('switch', { name: /voice announcements/i })).not.toBeChecked();
+    // Voice picker and Test Voice are reachable without push voice.
+    expect(screen.getByRole('button', { name: /test voice/i })).toBeInTheDocument();
+  });
+
+  it('turning the timer switch off leaves push voice untouched', () => {
+    render(<NotificationSettings />);
+    fireEvent.click(screen.getByRole('switch', { name: /speak the scoresheet timer warning/i }));
+    const prefs = useNotificationStore.getState().preferences;
+    expect(prefs.timerVoiceEnabled).toBe(false);
+    expect(prefs.voiceEnabled).toBe(false);
+  });
+
   it('shows category toggles when voice is enabled', () => {
     useNotificationStore.setState({
       preferences: { ...DEFAULT_PREFERENCES, voiceEnabled: true },

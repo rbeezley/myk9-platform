@@ -68,9 +68,10 @@ export function useAtShowAudioMute(): [boolean, () => void] {
 
 /**
  * The scoresheet mute button's state. Spoken warnings follow the Settings
- * "Voice Announcements" switch (`voiceEnabled`), the single source of truth, so
- * the button reads and writes it; the chime keeps its own persisted mute.
- * Muting from the button turns both off; unmuting turns both on.
+ * "Speak the scoresheet timer warning" switch (`timerVoiceEnabled`, on by
+ * default), so the button reads and writes it; the chime keeps its own
+ * persisted mute. Muting turns both off; unmuting turns both on. It never
+ * touches `voiceEnabled`, which belongs to push notifications.
  */
 export function useAtShowTimerMute(): {
   muted: boolean;
@@ -78,16 +79,16 @@ export function useAtShowTimerMute(): {
   toggle: () => void;
 } {
   const [chimeMuted, toggleChimeMuted] = useAtShowAudioMute();
-  const voiceEnabled = useNotificationStore(s => s.preferences.voiceEnabled);
+  const timerVoiceEnabled = useNotificationStore(s => s.preferences.timerVoiceEnabled);
   const updatePreferences = useNotificationStore(s => s.updatePreferences);
-  const muted = chimeMuted || !voiceEnabled;
+  const muted = chimeMuted || !timerVoiceEnabled;
   const toggle = useCallback(() => {
     if (muted) {
       if (readMuted()) toggleChimeMuted();
-      updatePreferences({ voiceEnabled: true });
+      updatePreferences({ timerVoiceEnabled: true });
     } else {
       toggleChimeMuted();
-      updatePreferences({ voiceEnabled: false });
+      updatePreferences({ timerVoiceEnabled: false });
     }
   }, [muted, toggleChimeMuted, updatePreferences]);
   return { muted, chimeMuted, toggle };

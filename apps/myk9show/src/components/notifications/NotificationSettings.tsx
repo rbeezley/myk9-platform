@@ -171,32 +171,54 @@ export function NotificationSettings() {
             </div>
           </CardHeader>
 
-          {preferences.voiceEnabled && (
-            <CardContent className="space-y-4">
-              {/* Per-category toggles */}
+          <CardContent className="pb-2">
+            <div className="flex items-center justify-between">
               <div>
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Announce
-                </Label>
+                <label htmlFor="timer-voice-enabled" className="text-sm font-medium">
+                  Speak the scoresheet timer warning
+                </label>
+                <p className="text-xs text-muted-foreground">
+                  Says &quot;30 seconds remaining&quot; during a timed run. On by default.
+                </p>
               </div>
-              {VOICE_CATEGORIES.map(({ key, label, example }) => (
-                <div key={key} className="flex items-center justify-between pl-2">
-                  <div>
-                    <label htmlFor={`voice-cat-${key}`} className="text-sm font-medium">
-                      {label}
-                    </label>
-                    <p className="text-xs text-muted-foreground">{example}</p>
-                  </div>
-                  <Switch
-                    id={`voice-cat-${key}`}
-                    aria-label={label}
-                    checked={preferences.voiceCategories[key]}
-                    onCheckedChange={checked => updateVoiceCategory(key, checked)}
-                  />
-                </div>
-              ))}
+              <Switch
+                id="timer-voice-enabled"
+                checked={preferences.timerVoiceEnabled}
+                onCheckedChange={checked => updatePreferences({ timerVoiceEnabled: checked })}
+              />
+            </div>
+          </CardContent>
 
-              <Separator />
+          {(preferences.voiceEnabled || preferences.timerVoiceEnabled) && (
+            <CardContent className="space-y-4">
+              {preferences.voiceEnabled && (
+                <>
+                  {/* Per-category toggles */}
+                  <div>
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Announce
+                    </Label>
+                  </div>
+                  {VOICE_CATEGORIES.map(({ key, label, example }) => (
+                    <div key={key} className="flex items-center justify-between pl-2">
+                      <div>
+                        <label htmlFor={`voice-cat-${key}`} className="text-sm font-medium">
+                          {label}
+                        </label>
+                        <p className="text-xs text-muted-foreground">{example}</p>
+                      </div>
+                      <Switch
+                        id={`voice-cat-${key}`}
+                        aria-label={label}
+                        checked={preferences.voiceCategories[key]}
+                        onCheckedChange={checked => updateVoiceCategory(key, checked)}
+                      />
+                    </div>
+                  ))}
+
+                  <Separator />
+                </>
+              )}
 
               {/* Voice config */}
               <div>

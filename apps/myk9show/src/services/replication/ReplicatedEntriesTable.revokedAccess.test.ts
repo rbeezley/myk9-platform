@@ -115,6 +115,18 @@ describe('revoke-to-zero clears the show on the next sync (MYK9-1521)', () => {
     expect(rpcCalls(NO_ACCESS_RPC)).toEqual([[NO_ACCESS_RPC, { p_show_id: SHOW }]]);
   });
 
+  it('runs no purge pass when every remaining row holds unsynced local work (no re-run every poll)', async () => {
+    // The cleanup keeps such rows (a revoked scorer's queued scores), so purging
+    // for them would repeat on every poll without removing anything.
+    vi.spyOn(table, 'hasUnsyncedLocalWork').mockResolvedValue(true);
+    mockRpc(probeAnswer(false));
+    const result = await incrementalPass();
+
+    expect(result.operation).toBe('incremental-sync');
+    expect(rpcCalls(NO_ACCESS_RPC)).toHaveLength(0);
+    expect(await table.getEntriesByShow(SHOW)).toHaveLength(2);
+  });
+
   it('keeps the rows when the independent proof does not confirm (never purge on doubt)', async () => {
     mockRpc(probeAnswer(false), { noAccessProof: false });
     await incrementalPass();

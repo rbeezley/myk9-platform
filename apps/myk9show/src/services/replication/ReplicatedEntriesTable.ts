@@ -537,14 +537,23 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     // sees nothing move and stale cleanup (full syncs only) would wait for the
     // count cadence. The probe has just said they hold no access: run the full
     // pass now so `verifyScopeEmpty` re-proves it and clears the show's rows.
-    if (result.success && probedNoAccess && (await this.getEntriesByShow(showScopeId)).length > 0) {
+    // Only while a row the cleanup may remove is left: rows with unsynced local
+    // work survive it, so counting them would re-run this pass on every poll.
+    if (result.success && probedNoAccess && (await this.hasPurgeableEntries(showScopeId))) {
       const purge = await syncReplicatedTable(
         this,
         adapter,
         { value: showScopeId },
         { ...syncOptions, forceFullSync: true, skipMutationUpload: true }
       );
-      result = { ...purge, rowsAffected: result.rowsAffected + purge.rowsAffected };
+      // One sync to the caller: keep the first pass's work and any upload failure,
+      // as the engine's own full re-run does (the purge pass skips the upload).
+      result = {
+        ...purge,
+        rowsAffected: result.rowsAffected + purge.rowsAffected,
+        conflictsResolved: (result.conflictsResolved ?? 0) + (purge.conflictsResolved ?? 0),
+        ...(result.uploadError ? { uploadError: result.uploadError } : {}),
+      };
     }
     if (result.success) recordViewRead();
 
@@ -589,6 +598,22 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
    */
   async getEntriesByShow(showId: string): Promise<ReplicatedEntry[]> {
     return this.getByShowOrThrow(showId);
+  }
+
+  /**
+   * MYK9-1521: whether the show holds a row the full-sync cleanup may remove.
+   * Rows with unsynced local work (dirty, local-only or queued) are kept by that
+   * cleanup, so they never count. An unreadable queue counts as "nothing to purge".
+   */
+  private async hasPurgeableEntries(showId: string): Promise<boolean> {
+    try {
+      for (const entry of await this.getEntriesByShow(showId)) {
+        if (!(await this.hasUnsyncedLocalWork(entry.id))) return true;
+      }
+    } catch {
+      return false;
+    }
+    return false;
   }
 
   /**

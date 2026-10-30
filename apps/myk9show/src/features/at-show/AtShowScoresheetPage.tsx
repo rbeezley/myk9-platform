@@ -322,6 +322,9 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
   // does the silencing; the Master-level suppression itself lives inside
   // `useStopwatch` (it never calls onWarningChime/onVoiceAnnouncement for
   // Master runs) and must not be duplicated here.
+  // The button is the scoresheet's own mute (chime and voice together, synced across tabs).
+  // Whether the warning is spoken at all is the separate Settings switch, read inside
+  // `speakRemainingSeconds` (MYK9-1510); the button never writes it.
   const [audioMuted, toggleAudioMuted] = useAtShowAudioMute();
   const leaveRingside = useLeaveRingside();
   const audioSettings = useMemo(

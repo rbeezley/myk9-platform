@@ -187,6 +187,7 @@ vi.mock('./atShowVoiceAnnouncement', () => ({
 
 import { AtShowScoresheetPage } from './AtShowScoresheetPage';
 import { useAudioWarnings } from '@/hooks/useAudioWarnings';
+import { useNotificationStore } from '@/store/notificationStore';
 import { useRingsideGrantStore } from '@/store/ringsideGrantStore';
 import { transitionToInRing } from '@/utils/checkInTransitions';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
@@ -277,6 +278,11 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     useRingsideGrantStore.getState().clearGrant();
     // useAtShowAudioMute persists to localStorage — start every test unmuted.
     localStorage.clear();
+    // Spoken warnings follow Settings > timer warning switch (default on);
+    // push-notification voice stays at its default (off).
+    useNotificationStore
+      .getState()
+      .updatePreferences({ timerVoiceEnabled: true, voiceEnabled: false });
     seed();
   });
 
@@ -1053,6 +1059,30 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
         expect.objectContaining({ volume: expect.any(Number) })
       );
       expect(vi.mocked(useAudioWarnings).mock.calls.at(-1)?.[0].volume).toBeGreaterThan(0);
+    });
+
+    // Codex round 1 on the timer-switch fix: the button and the Settings switch are separate
+    // controls. The button is the scoresheet mute (chime and voice); it never writes Settings.
+    it('with the Settings timer switch off, the chime still plays, the button reads unmuted, and no voice is spoken', async () => {
+      useNotificationStore.getState().updatePreferences({ timerVoiceEnabled: false });
+      renderPage();
+      await screen.findByTestId('live-scoresheet');
+
+      expect(screen.getByRole('button', { name: 'Mute timer sounds' })).toBeInTheDocument();
+      expect(vi.mocked(useAudioWarnings).mock.calls.at(-1)?.[0].volume).toBeGreaterThan(0);
+      // The page forwards the event; speakRemainingSeconds itself gates on the switch.
+      fireEvent.click(screen.getByText('Fire voice announcement'));
+      expect(speakRemainingSeconds).toHaveBeenCalledWith(30);
+    });
+
+    it('the mute button never changes either Settings switch', async () => {
+      renderPage();
+      await screen.findByTestId('live-scoresheet');
+      fireEvent.click(screen.getByRole('button', { name: 'Mute timer sounds' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Unmute timer sounds' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Mute timer sounds' }));
+      expect(useNotificationStore.getState().preferences.timerVoiceEnabled).toBe(true);
+      expect(useNotificationStore.getState().preferences.voiceEnabled).toBe(false);
     });
 
     it('persists the mute preference across remounts', async () => {

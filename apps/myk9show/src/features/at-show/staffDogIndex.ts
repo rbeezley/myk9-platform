@@ -59,8 +59,19 @@ function dogKeyOf(entry: ReplicatedEntry): string {
   return `entry:${entry.id}`;
 }
 
+/**
+ * A move-up leaves the SOURCE row live as `moved`, and `not_accepted` rows stay live too.
+ * Neither is a class the dog is entered in, so the dog page leaves them out rather than
+ * show them with a stale check-in state (withdrawn/scratched stay, read as Pulled).
+ */
+const SETTLED_ELSEWHERE = new Set(['moved', 'not_accepted']);
+
 function liveEntry(entry: ReplicatedEntry): boolean {
-  return (entry.deletedAt ?? (entry as { deleted_at?: string | null }).deleted_at) == null;
+  if ((entry.deletedAt ?? (entry as { deleted_at?: string | null }).deleted_at) != null) {
+    return false;
+  }
+  const lifecycle = (entry.entryStatus ?? entry.status ?? '').trim().toLowerCase();
+  return !SETTLED_ELSEWHERE.has(lifecycle);
 }
 
 /** Group the show's live entries by dog. Class info comes from the class list. */
@@ -91,6 +102,9 @@ export function buildStaffDogs(
         uncheckedEntryIds: [],
       };
       byDog.set(key, dog);
+    } else if (dog.armband == null && view.armband != null) {
+      // The first row may have no number while a later entry of the same dog has one.
+      dog.armband = view.armband;
     }
     const pulled = isPulledEntry(re);
     // Derived display status: a withdrawn dog reads Pulled even if it was checked in earlier.

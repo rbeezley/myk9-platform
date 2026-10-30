@@ -8,6 +8,7 @@ const classState = vi.hoisted(() => ({
   error: null as Error | null,
   refresh: vi.fn(),
   groups: [] as unknown[],
+  available: true,
 }));
 vi.mock('@/services/replication', () => ({
   replicatedEntriesTable: { getEntriesByShow, subscribe: vi.fn(() => vi.fn()) },
@@ -19,6 +20,7 @@ vi.mock('./useAtShowClassList', () => ({
     organization: 'AKC',
     showName: 'Spring',
     isLoading: false,
+    entryCountsAvailable: classState.available,
     error: classState.error,
     refresh: classState.refresh,
   }),
@@ -89,5 +91,17 @@ describe('useAtShowStaffDogs', () => {
     await waitFor(() => expect(result.current.dogs).toHaveLength(1));
     expect(result.current.dogs[0]?.entries[0]?.routeClassIds).toEqual(['ca', 'cb']);
     classState.groups = [];
+  });
+
+  it('reports an incomplete show-wide replica when entries were never fully synced', async () => {
+    classState.available = false;
+    getEntriesByShow.mockResolvedValue([]);
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
+    const { result } = renderHook(() => useAtShowStaffDogs('s1'), { wrapper });
+    expect(result.current.isComplete).toBe(false);
+    classState.available = true;
   });
 });

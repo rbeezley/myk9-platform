@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   favorites: new Set<number>(),
   checkIn: vi.fn(),
   loadFailed: false,
+  isComplete: true,
   retry: vi.fn(),
   success: vi.fn(),
   error: vi.fn(),
@@ -23,6 +24,7 @@ vi.mock('./useAtShowStaffDogs', () => ({
     dogs: mocks.dogs,
     showName: 'Spring Show',
     isLoading: false,
+    isComplete: mocks.isComplete,
     loadFailed: mocks.loadFailed,
     onRetry: mocks.retry,
   }),
@@ -82,6 +84,7 @@ beforeEach(() => {
   mocks.toggle.mockReset();
   mocks.checkIn.mockReset();
   mocks.loadFailed = false;
+  mocks.isComplete = true;
   mocks.retry.mockReset();
   mocks.success.mockReset();
   mocks.error.mockReset();
@@ -261,5 +264,26 @@ describe('AtShowDogPage', () => {
     unmount();
     renderRoutes('/at-show/s1/dogs/d1');
     expect(screen.getByText(/may be out of date/)).toBeInTheDocument();
+  });
+
+  it('blocks Check In All and says so while the show-wide replica is incomplete', () => {
+    mocks.isComplete = false;
+    mocks.dogs = [
+      dog({
+        key: 'd1',
+        dogName: 'Zip',
+        entries: [classEntry('e1', 'no-status')],
+        uncheckedEntryIds: ['e1'],
+      }),
+    ];
+    renderRoutes('/at-show/s1/dogs/d1');
+    expect(screen.queryByRole('button', { name: /Check In All/ })).not.toBeInTheDocument();
+    expect(screen.getByText(/Check In All is unavailable/)).toBeInTheDocument();
+  });
+
+  it('warns on the dog list that a partial replica may be missing dogs', () => {
+    mocks.isComplete = false;
+    renderRoutes('/at-show/s1/dogs');
+    expect(screen.getByText(/some dogs or classes may be missing/)).toBeInTheDocument();
   });
 });

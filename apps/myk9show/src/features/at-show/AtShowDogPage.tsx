@@ -14,7 +14,7 @@ import { useIsStaffDogViewer } from './useStaffDogGate';
 import { useCheckInAllClasses } from './useCheckInAllClasses';
 import type { StaffDogClassEntry } from './staffDogIndex';
 import { atShowClassPath } from './staffDogRoutes';
-import { StaleReadNotice } from './StaleReadNotice';
+import { PartialReplicaNotice, StaleReadNotice } from './StaleReadNotice';
 
 function resultLine(entry: StaffDogClassEntry): string | null {
   if (entry.isPulled || !entry.isScored) return null;
@@ -32,7 +32,9 @@ function resultLine(entry: StaffDogClassEntry): string | null {
 export const AtShowDogPage: React.FC = () => {
   const { showId, dogKey } = useParams<{ showId: string; dogKey: string }>();
   const isStaff = useIsStaffDogViewer(showId);
-  const { dogs, isLoading, loadFailed, onRetry } = useAtShowStaffDogs(isStaff ? showId : undefined);
+  const { dogs, isLoading, isComplete, loadFailed, onRetry } = useAtShowStaffDogs(
+    isStaff ? showId : undefined
+  );
   const { favoriteArmbands, toggleFavoriteArmband } = useAtShowDogFavoritesSynced(
     isStaff ? showId : undefined
   );
@@ -107,7 +109,8 @@ export const AtShowDogPage: React.FC = () => {
       </div>
 
       {loadFailed && <StaleReadNotice onRetry={onRetry} />}
-      {(toCheckIn.length > 0 || isChecking) && (
+      {!isComplete && <PartialReplicaNotice blocksCheckIn />}
+      {isComplete && (toCheckIn.length > 0 || isChecking) && (
         <Button
           className="mb-3 min-h-11 w-full"
           disabled={isChecking}

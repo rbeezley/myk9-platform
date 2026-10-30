@@ -107,6 +107,31 @@ describe('buildStaffDogs eligibility and armbands', () => {
     expect(built[0]?.entries[0]?.checkInStatus).toBe('pulled');
   });
 
+  it('leaves moved and not-accepted rows off the dog page', () => {
+    const built = buildStaffDogs(
+      ['moved', 'not_accepted', 'confirmed'].map(entryStatus =>
+        entry({ id: `m-${entryStatus}`, dogId: 'dm', entryStatus } as Partial<ReplicatedEntry> & {
+          id: string;
+        })
+      ),
+      classes,
+      EMPTY_MAPS
+    );
+    expect(built[0]?.entries.map(e => e.entryId)).toEqual(['m-confirmed']);
+  });
+
+  it('fills the dog armband from a later entry when the first has none', () => {
+    const built = buildStaffDogs(
+      [
+        entry({ id: 'a1', dogId: 'dn', dogCallName: 'Neo' }),
+        entry({ id: 'a2', dogId: 'dn', armband: '9', classId: 'c2' }),
+      ],
+      classes,
+      EMPTY_MAPS
+    );
+    expect(built[0]?.armband).toBe(9);
+  });
+
   it('resolves a missing armband from the show assignment table', () => {
     const maps = buildShowArmbandMaps([{ armbandNumber: '77', dogId: 'dz' }]);
     const built = buildStaffDogs(

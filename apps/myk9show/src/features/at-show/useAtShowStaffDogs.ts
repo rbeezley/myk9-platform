@@ -11,6 +11,11 @@ export interface UseAtShowStaffDogsResult {
   dogs: StaffDog[];
   showName: string;
   isLoading: boolean;
+  /**
+   * This device has read the whole show's entries. False means the list may be partial
+   * (never synced, or offline mid-hydration), so "all classes" cannot be promised.
+   */
+  isComplete: boolean;
   /** The entry read failed; `dogs` is the last good read, possibly empty. */
   loadFailed: boolean;
   onRetry: () => void;
@@ -86,6 +91,7 @@ export function useAtShowStaffDogs(showId: string | undefined): UseAtShowStaffDo
     dogs,
     showName: classList.showName,
     isLoading: entriesQuery.isLoading || classList.isLoading,
+    isComplete: classList.entryCountsAvailable,
     loadFailed: entriesQuery.isError || classList.error != null,
     onRetry: () => {
       void entriesQuery.refetch();

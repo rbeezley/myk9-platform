@@ -19,7 +19,7 @@ import {
   type StaffDogTab,
 } from './staffDogIndex';
 import { atShowDogPath, loadDogTab, saveDogTab } from './staffDogRoutes';
-import { StaleReadNotice } from './StaleReadNotice';
+import { PartialReplicaNotice, StaleReadNotice } from './StaleReadNotice';
 
 const SORTS: ReadonlyArray<{ id: StaffDogSort; label: string }> = [
   { id: 'armband', label: 'Armband' },
@@ -30,7 +30,7 @@ const SORTS: ReadonlyArray<{ id: StaffDogSort; label: string }> = [
 export const AtShowDogsPage: React.FC = () => {
   const { showId } = useParams<{ showId: string }>();
   const isStaff = useIsStaffDogViewer(showId);
-  const { dogs, showName, isLoading, loadFailed, onRetry } = useAtShowStaffDogs(
+  const { dogs, showName, isLoading, isComplete, loadFailed, onRetry } = useAtShowStaffDogs(
     isStaff ? showId : undefined
   );
   const { favoriteArmbands, toggleFavoriteArmband } = useAtShowDogFavoritesSynced(
@@ -111,6 +111,7 @@ export const AtShowDogsPage: React.FC = () => {
         {formatDogCount(visible.length, dogs.length)}
       </p>
 
+      {!isComplete && !isLoading && <PartialReplicaNotice />}
       {loadFailed && dogs.length > 0 && <StaleReadNotice onRetry={onRetry} />}
       {loadFailed && dogs.length === 0 ? (
         <div className="flex flex-col items-center gap-3 py-10 text-center" role="alert">

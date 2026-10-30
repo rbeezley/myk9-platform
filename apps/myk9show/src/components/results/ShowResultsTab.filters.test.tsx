@@ -302,6 +302,52 @@ describe('ShowResultsTab class-name search', () => {
       expect(list).toHaveTextContent('Scored, awaiting release');
     });
 
+    it('ignores moved and not-accepted entries in pending classes', () => {
+      mockNoPodium([
+        entry({
+          id: 'm',
+          classId: 'm1',
+          className: 'Moved Source',
+          resultText: 'pending',
+          entryStatus: 'moved',
+        }),
+        entry({
+          id: 'n',
+          classId: 'n1',
+          className: 'Expired Promo',
+          resultText: 'pending',
+          entryStatus: 'promotion-expired',
+        }),
+        entry({
+          id: 'k',
+          classId: 'k1',
+          className: 'Live Class',
+          resultText: 'pending',
+          entryStatus: 'confirmed',
+        }),
+      ]);
+      render(<ShowResultsTab showId="show-1" />);
+
+      const list = screen.getByRole('region', { name: /Pending classes/ });
+      expect(list).toHaveTextContent('Live Class');
+      expect(list).not.toHaveTextContent('Moved Source');
+      expect(list).not.toHaveTextContent('Expired Promo');
+    });
+
+    it('reopens the sub-tab named in the URL', () => {
+      vi.mocked(useShowStats).mockReturnValue({
+        data: [entry({ id: 's', classId: 'c1' })],
+      } as unknown as ReturnType<typeof useShowStats>);
+      render(<ShowResultsTab showId="show-1" />, {
+        initialRoute: '/?resultsView=show-stats&breed=Beagle',
+      });
+
+      expect(screen.getByRole('tab', { name: 'Show Stats' })).toHaveAttribute(
+        'aria-selected',
+        'true'
+      );
+    });
+
     it('does not list a released class that simply has no placements', () => {
       mockNoPodium([
         entry({

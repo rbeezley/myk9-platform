@@ -23,6 +23,7 @@ import {
   filterClasses,
 } from './resultsClassFilters';
 import { ShowStatsFilterBar } from '@/components/analytics/ShowStatsFilterBar';
+import { useListUrlParams } from '@/hooks/useListUrlParams';
 import { useShowStatsFilters } from '@/hooks/useShowStatsFilters';
 import type { StatsFilterOptions } from '@/components/analytics/analytics-filters';
 import { useShowResults, type ClassResult } from '@/hooks/queries/useShowResults';
@@ -222,6 +223,8 @@ function PodiumContent({ showId, showEntries = [] }: PodiumContentProps) {
   );
 }
 
+const RESULTS_VIEW_PARAM = 'resultsView';
+
 interface ShowResultsTabProps {
   showId: string;
 }
@@ -242,7 +245,12 @@ export function ShowResultsTab({ showId }: ShowResultsTabProps) {
     [hasScoredEntries, hasJudges]
   );
 
-  const [activeSubTab, setActiveSubTab] = useState('podium');
+  // The sub-tab lives in the URL beside the filters, so a copied Show Stats link reopens it.
+  const { searchParams, patch } = useListUrlParams();
+  const requested = searchParams.get(RESULTS_VIEW_PARAM);
+  const activeSubTab = subTabDefs.some(tab => tab.id === requested) ? requested! : 'podium';
+  const setActiveSubTab = (id: string) =>
+    patch({ [RESULTS_VIEW_PARAM]: id === 'podium' ? null : id });
 
   return (
     <PrimaryTabs tabs={subTabDefs} value={activeSubTab} onValueChange={setActiveSubTab}>

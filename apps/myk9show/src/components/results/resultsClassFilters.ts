@@ -10,6 +10,7 @@ import {
   type ShowStatsFilterKey,
   type ShowStatsFilters,
 } from '@/components/analytics/analytics-filters';
+import { isRunnableScheduleStatus } from '@/services/entryDisplay/entryDisplaySelectors';
 import { isScored, type StatsEntry } from '@/components/analytics/analytics-utils';
 
 export const RESULTS_FILTER_KEYS = [
@@ -48,8 +49,8 @@ export function derivePendingClasses(
   const byClass = new Map<string, PendingClass>();
   for (const entry of entries) {
     if (podiumClassIds.has(entry.classId)) continue;
-    // Withdrawn and scratched entries are not waiting on a score.
-    if (entry.entryStatus === 'withdrawn' || entry.entryStatus === 'scratched') continue;
+    // Withdrawn, scratched, moved and not-accepted entries are not waiting on a score.
+    if (!isRunnableScheduleStatus(entry.entryStatus)) continue;
     // Released with no placement 1-4 (e.g. all NQ): nothing pending, nothing to show.
     if (entry.classResultsReleasedAt) continue;
     const row = byClass.get(entry.classId) ?? {

@@ -13,6 +13,13 @@
  *   2  it could not decide (no PGPASSWORD, a failed or timed-out command, a
  *      missing or malformed approvals block): do not run the action either
  *
+ * `--deploy` (Deploy myK9Show only) adds a fourth check, MYK9-1527: every
+ * 14-digit migration version in origin/main's supabase/migrations/ must be in
+ * supabase_migrations.schema_migrations. `supabase db push` is never
+ * pre-approved, so a frontend shipped past an unapplied migration reads columns
+ * the database lacks. It is a flag because a merge may legitimately precede its
+ * push; a deploy may not.
+ *
  * The approvals file is read fresh on every run, so flipping the switch takes
  * effect on the next action. Database access is read-only, through psql to the
  * fixed myK9 pooler address below; only PGPASSWORD comes from the environment.
@@ -32,6 +39,8 @@ export interface TripwireFacts {
   livemode: boolean | null;
   /** Every public.clubs id, soft-deleted included; null when unreadable. */
   clubIds: string[] | null;
+  /** Versions on main absent from schema_migrations; null when unreadable, undefined when not checked. */
+  unappliedMigrations?: string[] | null;
 }
 
 export interface TripwireResult {
@@ -40,6 +49,7 @@ export interface TripwireResult {
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const MIGRATION_FILE = /(?:^|\/)(\d{14})_[^/]*\.sql$/;
 const BLOCK = /```standing-approvals\n([\s\S]*?)```/g;
 
 /** The one `standing-approvals` fenced block, or null when it is missing, duplicated or malformed. */
@@ -65,6 +75,20 @@ export function parseApprovals(markdown: string): Approvals | null {
   return { active: status === 'ACTIVE', testClubIds };
 }
 
+/**
+ * Timestamped (14-digit) migration versions in `fileNames` that `applied` lacks, sorted. The
+ * pre-2026 `NNN_` files are not part of the timestamp convention and are ignored.
+ */
+export function unappliedMigrations(fileNames: string[], applied: string[]): string[] {
+  const have = new Set(applied.map(v => v.trim()));
+  const missing = new Set<string>();
+  for (const name of fileNames) {
+    const version = MIGRATION_FILE.exec(name.trim())?.[1];
+    if (version && !have.has(version)) missing.add(version);
+  }
+  return [...missing].sort();
+}
+
 export function evaluateTripwire(
   approvals: Approvals | null,
   facts: TripwireFacts
@@ -79,6 +103,13 @@ export function evaluateTripwire(
   const unknown = facts.clubIds.filter(id => !known.has(id.toLowerCase()));
   if (unknown.length)
     return { code: 1, reason: `club(s) not on the test-club list: ${unknown.join(', ')}` };
+  if (facts.unappliedMigrations === null)
+    return { code: 2, reason: 'could not compare main migrations with schema_migrations' };
+  if (facts.unappliedMigrations?.length)
+    return {
+      code: 1,
+      reason: `main carries migration(s) not applied to the database: ${facts.unappliedMigrations.join(', ')}; the frontend would ship ahead of its schema`,
+    };
   return { code: 0, reason: 'standing approvals apply' };
 }
 
@@ -93,6 +124,7 @@ export interface RunOptions {
   command: Command;
 }
 
+const MIGRATIONS_ON_MAIN = 'origin/main:supabase/migrations';
 const APPROVALS_ON_MAIN = 'origin/main:docs/agents/standing-approvals.md';
 /**
  * The myK9 project, fixed here rather than read from the environment: any other
@@ -124,8 +156,12 @@ function combine(local: Approvals | null, main: Approvals | null): Approvals | n
 
 /** Read everything fresh and evaluate. Never throws: a failure is a code-2 result. */
 export function runTripwire(options: RunOptions): TripwireResult {
-  if (options.argv.length)
-    return { code: 2, reason: `unknown arguments: ${options.argv.join(' ')} (it takes none)` };
+  const checkMigrations = options.argv.length === 1 && options.argv[0] === '--deploy';
+  if (options.argv.length && !checkMigrations)
+    return {
+      code: 2,
+      reason: `unknown arguments: ${options.argv.join(' ')} (it takes only --deploy)`,
+    };
   const read = (load: () => string): Approvals | null => {
     try {
       return parseApprovals(load());
@@ -170,7 +206,27 @@ export function runTripwire(options: RunOptions): TripwireResult {
           .split('\n')
           .map(s => s.trim())
           .filter(Boolean);
-  return evaluateTripwire(approvals, { livemode, clubIds });
+  let unapplied: string[] | null | undefined;
+  if (checkMigrations && approvals?.active) {
+    try {
+      const files = options.command('git', ['ls-tree', '-r', '--name-only', MIGRATIONS_ON_MAIN]);
+      const rows = query('select version from supabase_migrations.schema_migrations;');
+      if (rows === null) unapplied = null;
+      else {
+        const applied = rows
+          .split('\n')
+          .map(v => v.trim())
+          .filter(Boolean);
+        // A malformed version row means the table is not what we think it is: do not guess.
+        unapplied = applied.every(v => /^\d+$/.test(v))
+          ? unappliedMigrations(files.split('\n'), applied)
+          : null;
+      }
+    } catch {
+      unapplied = null;
+    }
+  }
+  return evaluateTripwire(approvals, { livemode, clubIds, unappliedMigrations: unapplied });
 }
 
 /** Long enough for a slow fetch or pooler connection; a stall becomes an exit-2 result, not a hang. */

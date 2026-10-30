@@ -22,6 +22,7 @@ import {
 } from '@/services/mappers/classMappers';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
+import { withRingPhaseFallback, withoutRingPhaseColumns } from './ringPhaseCompat';
 import { buildMapFromArray } from '../_shared/maps';
 import { joinRowsOrEmpty } from '../_shared/readRows';
 
@@ -218,6 +219,23 @@ export const CLASS_AUTHENTICATED_COLUMNS = CLASS_AUTHENTICATED_COLUMN_SELECT.spl
  * `get_show_class_hide_counts(show_id)`, never off the class row.
  */
 export const CLASS_OFFICIAL_ONLY_COLUMNS = ['num_hides'] as const;
+
+const CLASS_WITH_TRIAL_SELECT = `
+        ${CLASS_AUTHENTICATED_COLUMN_SELECT},
+        trial:trials (
+          id,
+          name,
+          date,
+          trial_number
+        )
+      ` as const;
+
+/** The returning select; the cast keeps supabase-js's literal-typed row when the pair is left out. */
+function classWithTrialSelect(omitRingPhase: boolean): typeof CLASS_WITH_TRIAL_SELECT {
+  return omitRingPhase
+    ? (withoutRingPhaseColumns(CLASS_WITH_TRIAL_SELECT) as typeof CLASS_WITH_TRIAL_SELECT)
+    : CLASS_WITH_TRIAL_SELECT;
+}
 
 async function postgrestGetAllClasses() {
   const { data, error } = await supabase
@@ -518,28 +536,23 @@ export const createClass = async (classData: DbClassInsert) => {
   try {
     log('createClass', 'Creating new class', { name: classData.name });
 
-    const { data, error } = await supabase
-      .from('classes')
-      .insert([
-        {
-          ...classData,
-          created_at: new Date().toISOString(),
-        },
-      ])
-      .select(
-        // Not `*`: authenticated has no SELECT on num_hides (20260731160000), and a
-        // returning-clause `*` would fail 42501 even though the write itself is allowed.
-        `
-        ${CLASS_AUTHENTICATED_COLUMN_SELECT},
-        trial:trials (
-          id,
-          name,
-          date,
-          trial_number
+    const createdAt = new Date().toISOString();
+    const { data, error } = await withRingPhaseFallback(omitRingPhase =>
+      supabase
+        .from('classes')
+        .insert([
+          {
+            ...classData,
+            created_at: createdAt,
+          },
+        ])
+        .select(
+          // Not `*`: authenticated has no SELECT on num_hides (20260731160000), and a
+          // returning-clause `*` would fail 42501 even though the write itself is allowed.
+          classWithTrialSelect(omitRingPhase)
         )
-      `
-      )
-      .single();
+        .single()
+    );
 
     if (error) {
       log('createClass', 'Error creating class', { error });
@@ -561,27 +574,22 @@ export const updateClass = async (id: string, updates: DbClassUpdate) => {
   try {
     log('updateClass', 'Updating class', { id });
 
-    const { data, error } = await supabase
-      .from('classes')
-      .update({
-        ...updates,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', id)
-      .select(
-        // Not `*`: authenticated has no SELECT on num_hides (20260731160000), and a
-        // returning-clause `*` would fail 42501 even though the write itself is allowed.
-        `
-        ${CLASS_AUTHENTICATED_COLUMN_SELECT},
-        trial:trials (
-          id,
-          name,
-          date,
-          trial_number
+    const updatedAt = new Date().toISOString();
+    const { data, error } = await withRingPhaseFallback(omitRingPhase =>
+      supabase
+        .from('classes')
+        .update({
+          ...updates,
+          updated_at: updatedAt,
+        })
+        .eq('id', id)
+        .select(
+          // Not `*`: authenticated has no SELECT on num_hides (20260731160000), and a
+          // returning-clause `*` would fail 42501 even though the write itself is allowed.
+          classWithTrialSelect(omitRingPhase)
         )
-      `
-      )
-      .single();
+        .single()
+    );
 
     if (error) {
       log('updateClass', 'Error updating class', { id, error });

@@ -77,6 +77,7 @@ import {
   type ReplicatedClass,
 } from '../ReplicatedClassesTable';
 import { REPLICATION_STORES } from '@myk9/replication';
+import { resetRingPhaseSchemaCache } from '@/services/database/classes/ringPhaseCompat';
 import { spyOnWriteAndQueue } from '@/test/utils/spyOnWriteAndQueue';
 
 describe('ReplicatedClassesTable', () => {
@@ -201,6 +202,8 @@ describe('ReplicatedClassesTable', () => {
       });
     }
 
+    resetRingPhaseSchemaCache();
+
     // Reset mock chain
     mockSupabaseFrom.mockReturnValue({ select: mockSupabaseSelect });
     mockSupabaseSelect.mockReturnValue({ gt: mockSupabaseGt });
@@ -279,6 +282,53 @@ describe('ReplicatedClassesTable', () => {
         await classesTable.sync('trial-1');
 
         expect(mockSupabaseGt).toHaveBeenCalledWith('updated_at', expect.any(String));
+      });
+    });
+
+    describe('sync - frontend ahead of the schema (MYK9-1527)', () => {
+      const ringPhaseSelects = () =>
+        mockSupabaseSelect.mock.calls
+          .map(call => call[0])
+          .filter(
+            (value): value is string => typeof value === 'string' && value.includes('hides_known')
+          );
+
+      it('retries without ring_phase on 42703, maps the phase fields to null, and remembers it', async () => {
+        mockSupabaseEq
+          .mockResolvedValueOnce({
+            data: null,
+            error: { code: '42703', message: 'column classes.ring_phase does not exist' },
+          })
+          .mockResolvedValue({ data: [createDbRow({ id: '1', trial_id: 'trial-1' })], error: null });
+
+        const result = await classesTable.sync('trial-1');
+
+        expect(result.success).toBe(true);
+        const [first, second] = ringPhaseSelects();
+        expect(first).toContain('ring_phase_time');
+        expect(second).not.toContain('ring_phase');
+        const row = await classesTable.getClassById('1');
+        expect(row).toBeDefined();
+        expect(row?.ringPhase ?? null).toBeNull();
+        expect(row?.ringPhaseTime ?? null).toBeNull();
+
+        // The answer is cached for the session: the next sync does not pay the failed request.
+        await classesTable.sync('trial-1');
+        const selects = ringPhaseSelects();
+        expect(selects).toHaveLength(3);
+        expect(selects[2]).not.toContain('ring_phase');
+      });
+
+      it('does not swallow a 42703 that names another column', async () => {
+        mockSupabaseEq.mockResolvedValue({
+          data: null,
+          error: { code: '42703', message: 'column classes.nope does not exist' },
+        });
+
+        const result = await classesTable.sync('trial-1');
+
+        expect(result.success).toBe(false);
+        expect(ringPhaseSelects()).toHaveLength(1);
       });
     });
 

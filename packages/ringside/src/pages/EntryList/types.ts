@@ -71,6 +71,13 @@ export interface ClassInfo {
    * and Expected start folded in (MYK9-1513). Absent: the dialog falls back to `classStatus`.
    */
   ringsideStatus?: string;
+  /**
+   * The ring phase as the host's class card words it: "Briefing 10:00 AM", "Break Until
+   * 10:30 AM", "Start Time 11:00 AM" or "Offline Scoring" (MYK9-1526). Host-formatted so
+   * the card and the header share one formatter; absent for any other status, where the
+   * header keeps showing `classStatus`.
+   */
+  statusLabel?: string;
   /** Prefill for the status dialog's time inputs, "HH:MM" (MYK9-1513). */
   briefingTime?: string;
   breakUntilTime?: string;

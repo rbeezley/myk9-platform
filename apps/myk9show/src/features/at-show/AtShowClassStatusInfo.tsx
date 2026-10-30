@@ -1,6 +1,7 @@
 import { Clock3, WifiOff } from 'lucide-react';
 import type { ClassEntry, EffectiveClassStatus } from '@myk9/ringside';
 import { formatAtShowClassTime } from './atShowClassTiming';
+import { ringsideStatusTimeParts } from './ringsideStatusLabel';
 
 /** MYK9-1513: Offline Scoring's orange badge with a WifiOff icon (v3 parity). */
 export function OfflineScoringBadge() {
@@ -12,18 +13,12 @@ export function OfflineScoringBadge() {
   );
 }
 
-/** The time a status carries: "Briefing 10:00 AM", "Break Until 10:30 AM", "Start Time 11:00 AM". */
 function statusTimeLabel(entry: ClassEntry, status: EffectiveClassStatus): [string, string] | null {
-  switch (status) {
-    case 'briefing':
-      return entry.briefing_time ? ['Briefing', entry.briefing_time] : null;
-    case 'break':
-      return entry.break_until ? ['Break Until', entry.break_until] : null;
-    case 'start_time':
-      return entry.start_time ? ['Start Time', entry.start_time] : null;
-    default:
-      return null;
-  }
+  return ringsideStatusTimeParts(status, {
+    briefing: entry.briefing_time,
+    breakUntil: entry.break_until,
+    startTime: entry.start_time,
+  });
 }
 
 /** Whether the card's own status line replaces the generic "Scheduled / Expected" one. */

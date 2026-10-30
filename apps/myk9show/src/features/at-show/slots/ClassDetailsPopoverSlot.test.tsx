@@ -31,4 +31,18 @@ describe('ClassDetailsPopover', () => {
     expect(screen.queryByText(rawClassId)).not.toBeInTheDocument();
     expect(screen.queryByText('Class ID')).not.toBeInTheDocument();
   });
+
+  it('shows the ring phase label in place of the plain class status', () => {
+    render(
+      <ClassDetailsPopover
+        isOpen
+        onClose={() => undefined}
+        anchorRef={createRef<HTMLElement>()}
+        data={{ status: 'in_progress', statusLabel: 'Briefing 10:00 AM' }}
+      />
+    );
+
+    expect(screen.getByText('Briefing 10:00 AM')).toBeInTheDocument();
+    expect(screen.queryByText('In Progress')).not.toBeInTheDocument();
+  });
 });

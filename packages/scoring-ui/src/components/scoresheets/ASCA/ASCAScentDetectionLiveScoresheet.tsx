@@ -48,6 +48,7 @@ export const ASCAScentDetectionLiveScoresheet: React.FC<LiveScoresheetProps> = (
   onSubmit,
   onBack,
   backLabel,
+  onDirtyChange,
   headerActions,
   onWarningChime,
   onVoiceAnnouncement,
@@ -130,6 +131,7 @@ export const ASCAScentDetectionLiveScoresheet: React.FC<LiveScoresheetProps> = (
     stopwatch,
     onBack,
     backLabel,
+    onDirtyChange,
   });
 
   return (

@@ -95,6 +95,7 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   onSubmit,
   onBack,
   backLabel,
+  onDirtyChange,
   headerActions,
   onWarningChime,
   onVoiceAnnouncement,
@@ -253,6 +254,7 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
     stopwatch,
     onBack,
     backLabel,
+    onDirtyChange,
   });
 
   return (

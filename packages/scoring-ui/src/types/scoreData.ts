@@ -79,6 +79,8 @@ export interface BaseScoresheetProps {
   onBack: () => void;
   /** Parent screen's name on the Up control ("Entries" by default). */
   backLabel?: string;
+  /** Reports whether leaving would lose work; lets the host guard the back gesture too. */
+  onDirtyChange?: (dirty: boolean) => void;
   /** Extra controls shown at the right end of the scoresheet header (e.g. mute timer sounds). */
   headerActions?: ReactNode;
 }

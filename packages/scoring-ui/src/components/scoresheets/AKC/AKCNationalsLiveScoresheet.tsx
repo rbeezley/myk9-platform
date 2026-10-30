@@ -87,6 +87,7 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   onSubmit,
   onBack,
   backLabel,
+  onDirtyChange,
   headerActions,
   onWarningChime,
   onVoiceAnnouncement,
@@ -197,6 +198,7 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
       finishCallErrors > 0,
     onBack,
     backLabel,
+    onDirtyChange,
   });
 
   return (

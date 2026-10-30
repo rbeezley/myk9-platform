@@ -43,6 +43,7 @@ export const UKCObedienceLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   onSubmit,
   onBack,
   backLabel,
+  onDirtyChange,
   headerActions,
 }) => {
   const [points, setPoints] = useState(() => {
@@ -121,6 +122,7 @@ export const UKCObedienceLiveScoresheet: React.FC<LiveScoresheetProps> = ({
     extraDirty: () => manualResult !== null || points !== initialPoints,
     onBack,
     backLabel,
+    onDirtyChange,
   });
 
   return (

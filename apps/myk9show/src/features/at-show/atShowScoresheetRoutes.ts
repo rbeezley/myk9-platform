@@ -62,3 +62,34 @@ export function resolveScoreSheetEntryListRoute(
 export function resolveClassListRoute(showId: string | undefined): string {
   return showId ? `/at-show/${showId}` : '/at-show';
 }
+
+/**
+ * The navigations that open the next dog's scoresheet after a save (MYK9-1500).
+ * Normally one REPLACE: the saved sheet is already finished, so the back
+ * gesture lands on the entry list, as Up does. A sheet opened straight from a
+ * link or a reload has no entry list behind it, so that parent goes in first
+ * and the next dog is pushed on top of it.
+ */
+export function planNextDogNavigation(args: {
+  showId: string;
+  classId: string;
+  nextClassId: string;
+  nextEntryId: string;
+  combined: string | null;
+  openedDirectly: boolean;
+}): { to: string; replace: boolean }[] {
+  const next = buildAtShowScoreSheetRoute(
+    args.showId,
+    args.nextClassId || args.classId,
+    args.nextEntryId,
+    args.combined
+  );
+  if (!args.openedDirectly) return [{ to: next, replace: true }];
+  return [
+    {
+      to: resolveScoreSheetEntryListRoute(args.showId, args.classId, args.combined),
+      replace: true,
+    },
+    { to: next, replace: false },
+  ];
+}

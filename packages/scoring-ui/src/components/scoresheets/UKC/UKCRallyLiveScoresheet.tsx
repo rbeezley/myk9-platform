@@ -24,6 +24,7 @@ export const UKCRallyLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   onSubmit,
   onBack,
   backLabel,
+  onDirtyChange,
   headerActions,
   onWarningChime,
   onVoiceAnnouncement,
@@ -108,6 +109,7 @@ export const UKCRallyLiveScoresheet: React.FC<LiveScoresheetProps> = ({
     extraDirty: () => deductions > 0,
     onBack,
     backLabel,
+    onDirtyChange,
   });
 
   return (

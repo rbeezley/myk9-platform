@@ -10,9 +10,18 @@
  * covered in @myk9/scoring-ui + the secretary ScoresheetPage).
  */
 
-import { Routes, Route, useLocation, useNavigate, useNavigationType } from 'react-router-dom';
+import {
+  Routes,
+  Route,
+  RouterProvider,
+  createMemoryRouter,
+  useLocation,
+  useNavigate,
+  useNavigationType,
+} from 'react-router-dom';
+import { render as rawRender } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@/test/utils/testUtils';
+import { render, screen, fireEvent, waitFor, act } from '@/test/utils/testUtils';
 import { UserRole } from '@/types/auth-types';
 import { ReplicationSyncTestProvider } from '@/test/utils/ReplicationSyncTestProvider';
 import type { ReplicationSyncContextValue } from '@/context/ReplicationSyncContext';
@@ -136,6 +145,7 @@ const StubLiveScoresheet = ({
   onSubmit,
   onBack,
   backLabel,
+  onDirtyChange,
   onWarningChime,
   onVoiceAnnouncement,
   enableVoiceAnnouncements,
@@ -145,6 +155,7 @@ const StubLiveScoresheet = ({
   onSubmit: (sd: unknown) => void;
   onBack: () => void;
   backLabel?: string;
+  onDirtyChange?: (dirty: boolean) => void;
   onWarningChime?: () => void;
   onVoiceAnnouncement?: (secondsRemaining: number) => void;
   enableVoiceAnnouncements?: boolean;
@@ -154,6 +165,7 @@ const StubLiveScoresheet = ({
     <header>{headerActions}</header>
     <div data-testid="live-scoresheet">Live scoresheet for #{entry.armband}</div>
     <div data-testid="back-label">{backLabel}</div>
+    <button onClick={() => onDirtyChange?.(true)}>Mark dirty</button>
     <div data-testid="voice-announcements-enabled">{String(enableVoiceAnnouncements)}</div>
     {/* Like the real sheet, a refused save is caught (and shown) by the sheet. */}
     <button
@@ -762,58 +774,168 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     expect(await screen.findByText('Combined list')).toBeInTheDocument();
   });
 
-  it('replaces the history entry when moving to the next dog after a save', async () => {
-    vi.mocked(replicatedEntriesTable.getEntriesByClass).mockImplementation(async (id: string) =>
-      id === 'class-2'
-        ? ([
-            {
-              id: 'entry-9',
-              classId: 'class-2',
-              armband: '209',
-              dogCallName: 'Bo',
-              runOrder: 1,
-              checkInStatus: 'no-status',
-            },
-          ] as never)
-        : ([{ id: 'entry-1', armband: 105, dogId: 'dog-1', checkInStatus: 'no-status' }] as never)
-    );
-    submitScoreOptimistically.mockImplementationOnce(
-      async ({ onSuccess }: { onSuccess?: () => void }) => onSuccess?.()
-    );
-    const NavProbe = () => {
-      const location = useLocation();
-      return (
-        <div>
-          nav {useNavigationType()} {location.pathname}
-        </div>
+  describe('moving to the next dog after a save (MYK9-1500)', () => {
+    const SHEET = '/at-show/show-1/class/class-1/score/entry-1?combined=class-1,class-2';
+    const NEXT = '/at-show/show-1/class/class-2/score/entry-9';
+
+    const renderPick = (initialRoute: string) => {
+      vi.mocked(replicatedEntriesTable.getEntriesByClass).mockImplementation(async (id: string) =>
+        id === 'class-2'
+          ? ([
+              {
+                id: 'entry-9',
+                classId: 'class-2',
+                armband: '209',
+                dogCallName: 'Bo',
+                runOrder: 1,
+                checkInStatus: 'no-status',
+              },
+            ] as never)
+          : ([{ id: 'entry-1', armband: 105, dogId: 'dog-1', checkInStatus: 'no-status' }] as never)
+      );
+      submitScoreOptimistically.mockImplementationOnce(
+        async ({ onSuccess }: { onSuccess?: () => void }) => onSuccess?.()
+      );
+      const NavProbe = () => {
+        const location = useLocation();
+        const goBack = useNavigate();
+        return (
+          <div>
+            nav {useNavigationType()} {location.pathname}
+            <button onClick={() => goBack(-1)}>Browser back</button>
+          </div>
+        );
+      };
+      const OpenSheet = () => {
+        const open = useNavigate();
+        return <button onClick={() => open(SHEET)}>Open sheet</button>;
+      };
+      render(
+        <ReplicationSyncTestProvider
+          value={{ status: settledSyncStatus, triggerSync: vi.fn(), syncTable: vi.fn() }}
+        >
+          <Routes>
+            <Route
+              path="/at-show/:showId/class/:classId/score/:entryId"
+              element={
+                <>
+                  <AtShowScoresheetPage />
+                  <NavProbe />
+                </>
+              }
+            />
+            <Route
+              path="/at-show/:showId/class/:classIdA/:classIdB"
+              element={
+                <>
+                  <div>Combined list</div>
+                  <OpenSheet />
+                </>
+              }
+            />
+          </Routes>
+        </ReplicationSyncTestProvider>,
+        { initialRoute }
       );
     };
-    render(
-      <ReplicationSyncTestProvider
-        value={{ status: settledSyncStatus, triggerSync: vi.fn(), syncTable: vi.fn() }}
-      >
-        <Routes>
-          <Route
-            path="/at-show/:showId/class/:classId/score/:entryId"
-            element={
-              <>
-                <AtShowScoresheetPage />
-                <NavProbe />
-              </>
-            }
-          />
-        </Routes>
-      </ReplicationSyncTestProvider>,
-      { initialRoute: '/at-show/show-1/class/class-1/score/entry-1?combined=class-1,class-2' }
-    );
-    await screen.findByTestId('live-scoresheet');
-    fireEvent.click(screen.getByText('Submit Score'));
 
-    fireEvent.click(await screen.findByText(/#209 Bo/));
+    const saveAndPickNext = async () => {
+      await screen.findByTestId('live-scoresheet');
+      fireEvent.click(screen.getByText('Submit Score'));
+      fireEvent.click(await screen.findByText(/#209 Bo/));
+    };
 
-    expect(
-      await screen.findByText('nav REPLACE /at-show/show-1/class/class-2/score/entry-9')
-    ).toBeInTheDocument();
+    it('replaces the history entry when the sheet was opened from the entry list', async () => {
+      renderPick('/at-show/show-1/class/class-1/class-2');
+      fireEvent.click(await screen.findByText('Open sheet'));
+      await saveAndPickNext();
+
+      expect(await screen.findByText(`nav REPLACE ${NEXT}`)).toBeInTheDocument();
+      fireEvent.click(screen.getByText('Browser back'));
+      expect(await screen.findByText('Combined list')).toBeInTheDocument();
+    });
+
+    it('keeps the entry list behind a sheet opened from a link or reload', async () => {
+      renderPick(SHEET);
+      await saveAndPickNext();
+
+      expect(await screen.findByText(`nav PUSH ${NEXT}`)).toBeInTheDocument();
+      fireEvent.click(screen.getByText('Browser back'));
+      expect(await screen.findByText('Combined list')).toBeInTheDocument();
+    });
+  });
+
+  // The back gesture bypasses Up and Cancel, so the page holds it to the same
+  // "Discard this score?" prompt once the sheet reports unsaved work.
+  describe('route guard for navigation that bypasses Up and Cancel (MYK9-1500)', () => {
+    const renderInDataRouter = () => {
+      const router = createMemoryRouter(
+        [
+          {
+            path: '/at-show/:showId/class/:classId/score/:entryId',
+            element: <AtShowScoresheetPage />,
+          },
+          { path: '/at-show/:showId/class/:classId', element: <div>Entry List</div> },
+        ],
+        { initialEntries: ['/at-show/show-1/class/class-1', SHEET_ROUTE], initialIndex: 1 }
+      );
+      rawRender(
+        <ReplicationSyncTestProvider
+          value={{ status: settledSyncStatus, triggerSync: vi.fn(), syncTable: vi.fn() }}
+        >
+          <RouterProvider router={router} />
+        </ReplicationSyncTestProvider>
+      );
+      return router;
+    };
+    const SHEET_ROUTE = '/at-show/show-1/class/class-1/score/entry-1';
+
+    it('lets a clean sheet go back without a prompt', async () => {
+      const router = renderInDataRouter();
+      await screen.findByTestId('live-scoresheet');
+
+      await act(async () => {
+        await router.navigate(-1);
+      });
+
+      expect(await screen.findByText('Entry List')).toBeInTheDocument();
+      expect(screen.queryByText('Discard this score?')).toBeNull();
+    });
+
+    it('asks first when the sheet has unsaved work, and honors Keep scoring and Discard', async () => {
+      const router = renderInDataRouter();
+      await screen.findByTestId('live-scoresheet');
+      fireEvent.click(screen.getByText('Mark dirty'));
+
+      await act(async () => {
+        await router.navigate(-1);
+      });
+      expect(await screen.findByText('Discard this score?')).toBeInTheDocument();
+      expect(screen.getByTestId('live-scoresheet')).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Keep scoring' }));
+      await waitFor(() => expect(screen.queryByText('Discard this score?')).toBeNull());
+      expect(screen.getByTestId('live-scoresheet')).toBeInTheDocument();
+
+      await act(async () => {
+        await router.navigate('/at-show/show-1/class/class-1');
+      });
+      fireEvent.click(await screen.findByRole('button', { name: 'Discard' }));
+      expect(await screen.findByText('Entry List')).toBeInTheDocument();
+    });
+
+    it('does not ask a second time when Up leaves a sheet that has unsaved work', async () => {
+      renderInDataRouter();
+      await screen.findByTestId('live-scoresheet');
+      fireEvent.click(screen.getByText('Mark dirty'));
+
+      // The stub's Back calls onBack directly; the real sheet asks in its own
+      // dialog first, and the page must not add a route prompt on top.
+      fireEvent.click(screen.getByText('Back'));
+
+      expect(await screen.findByText('Entry List')).toBeInTheDocument();
+      expect(screen.queryByText('Discard this score?')).toBeNull();
+    });
   });
 
   it('navigates back to the at-show entry list', async () => {

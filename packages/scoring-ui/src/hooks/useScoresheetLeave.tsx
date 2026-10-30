@@ -4,7 +4,7 @@
  * run timer, a chosen result or a typed time asks "Discard this score?" first.
  * No draft persistence: Discard throws the score away.
  */
-import { useCallback, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Button, Card, RingsideUpButton } from '@myk9/ui';
 import type { ScoresheetScoringReturn } from './useScoresheetScoring';
 
@@ -22,6 +22,21 @@ export interface UseScoresheetLeaveOptions {
   onBack: () => void;
   /** The parent screen's name on the Up control; "Entries" when omitted. */
   backLabel?: string | undefined;
+  /**
+   * Tells the host whether leaving would lose work, so it can also guard
+   * navigation that bypasses Up and Cancel (the browser or device back gesture).
+   */
+  onDirtyChange?: ((dirty: boolean) => void) | undefined;
+}
+
+/** Everything the sheet persists, in one comparable string. */
+function scoreSnapshot(scoring: ScoresheetScoringReturn): string {
+  return JSON.stringify([
+    scoring.qualifying,
+    scoring.nonQualifyingReason,
+    scoring.faultCount,
+    scoring.areas,
+  ]);
 }
 
 export function DiscardScoreDialog({
@@ -67,6 +82,7 @@ export function useScoresheetLeave({
   extraDirty,
   onBack,
   backLabel,
+  onDirtyChange,
 }: UseScoresheetLeaveOptions): {
   requestLeave: () => void;
   upButton: ReactNode;
@@ -74,21 +90,25 @@ export function useScoresheetLeave({
 } {
   const [asking, setAsking] = useState(false);
   // What the sheet opened with, so re-editing a saved score is not "dirty" until changed.
-  const initial = useRef({
-    qualifying: scoring.qualifying,
-    times: scoring.areas.map(a => a.time).join('|'),
-  });
+  const [initial] = useState(() => scoreSnapshot(scoring));
 
-  const requestLeave = useCallback(() => {
-    const timerRan = Boolean(stopwatch && (stopwatch.isRunning || stopwatch.getTimeMs() > 0));
-    const dirty =
-      timerRan ||
-      scoring.qualifying !== initial.current.qualifying ||
-      scoring.areas.map(a => a.time).join('|') !== initial.current.times ||
-      Boolean(extraDirty?.());
-    if (dirty) setAsking(true);
+  // Read when asked (the stopwatch time lives in a ref and does not re-render).
+  const isDirty = () =>
+    Boolean(stopwatch && (stopwatch.isRunning || stopwatch.getTimeMs() > 0)) ||
+    scoreSnapshot(scoring) !== initial ||
+    Boolean(extraDirty?.());
+  const dirty = isDirty();
+
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+  }, [dirty, onDirtyChange]);
+  // A sheet that unmounts (saved, or replaced by an error screen) holds nothing.
+  useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
+
+  const requestLeave = () => {
+    if (isDirty()) setAsking(true);
     else onBack();
-  }, [stopwatch, scoring, extraDirty, onBack]);
+  };
 
   const discardDialog = asking ? (
     <DiscardScoreDialog onKeep={() => setAsking(false)} onDiscard={onBack} />

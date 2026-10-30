@@ -17,7 +17,7 @@
  */
 
 import { useCallback, useMemo, useState } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   Loader2,
   AlertCircle,
@@ -28,6 +28,8 @@ import {
   VolumeX,
 } from 'lucide-react';
 import { RingsideUpButton } from '@myk9/ui';
+import { ScoresheetLeaveGuard } from './ScoresheetLeaveGuard';
+import { useSelfNavigation } from '@/components/panels/edit/useSelfNavigation';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
 import { getScoresheetComponent } from '@myk9/scoring-ui';
@@ -60,8 +62,8 @@ import { speakRemainingSeconds } from './atShowVoiceAnnouncement';
 import { QuickAdvancePanel } from './quickAdvancePanel';
 import {
   COMBINED_PARAM,
-  buildAtShowScoreSheetRoute,
   pairedClassIdFor,
+  planNextDogNavigation,
   resolveScoreSheetEntryListRoute,
 } from './atShowScoresheetRoutes';
 
@@ -249,6 +251,14 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
   onBack,
 }) => {
   const navigate = useNavigate();
+  const location = useLocation();
+  // The sheet reports whether leaving would lose work, so the browser/device
+  // back gesture (which bypasses Up and Cancel) is held to the same prompt.
+  // Up/Cancel answer in the sheet's own dialog, then navigate on their own
+  // behalf so the route guard does not ask a second time.
+  const [sheetDirty, setSheetDirty] = useState(false);
+  const { selfNavigationRef, runSelfNavigation } = useSelfNavigation();
+  const leaveSheet = useCallback(() => runSelfNavigation(onBack), [runSelfNavigation, onBack]);
   // MYK9-83: saving lands on a "Saved" state with optional up-next chips
   // instead of navigating away on its own. NOTHING here auto-advances — the
   // judge either taps a candidate or goes back to the list (the default).
@@ -260,20 +270,18 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
       // The normal scoresheet route, so the picked dog goes through the same
       // load + in-ring path as a tap from the entry list.
       // A chip from the other section opens under ITS class, keeping the pair.
-      // REPLACE, not push: the sheet being left is already saved, so the back
-      // gesture from the next dog must land on the entry list, the same place Up
-      // goes, instead of stepping back through every dog scored (MYK9-1500).
-      navigate(
-        buildAtShowScoreSheetRoute(
-          showId ?? '',
-          nextClassId || (classId ?? ''),
-          nextEntryId,
-          combined
-        ),
-        { replace: true }
-      );
+      for (const step of planNextDogNavigation({
+        showId: showId ?? '',
+        classId: classId ?? '',
+        nextClassId,
+        nextEntryId,
+        combined,
+        openedDirectly: location.key === 'default',
+      })) {
+        navigate(step.to, { replace: step.replace });
+      }
     },
-    [navigate, showId, classId, combined]
+    [navigate, location.key, showId, classId, combined]
   );
   const {
     entry,
@@ -413,6 +421,7 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
           onDismiss={dismissNudge}
         />
       )}
+      <ScoresheetLeaveGuard isDirty={sheetDirty} selfNavigationRef={selfNavigationRef} />
       {submitError && <ScoreSubmitErrorBanner message={submitError} onDismiss={clearSubmitError} />}
       {(isSyncing || hasSyncError) && (
         <div
@@ -450,8 +459,9 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
         classInfo={toScoresheetClassInfo(classInfo, trialDate, trialNumber, trialName)}
         rules={rules}
         onSubmit={submit}
-        onBack={onBack}
+        onBack={leaveSheet}
         backLabel="Entries"
+        onDirtyChange={setSheetDirty}
         onWarningChime={audio.playWarning}
         onVoiceAnnouncement={handleVoiceAnnouncement}
         enableVoiceAnnouncements={!audioMuted}

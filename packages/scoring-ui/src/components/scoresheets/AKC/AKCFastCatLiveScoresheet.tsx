@@ -56,6 +56,7 @@ export const AKCFastCatLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   onSubmit,
   onBack,
   backLabel,
+  onDirtyChange,
   headerActions,
   onWarningChime,
   onVoiceAnnouncement,
@@ -133,6 +134,7 @@ export const AKCFastCatLiveScoresheet: React.FC<LiveScoresheetProps> = ({
     extraDirty: () => fastcatResult !== '',
     onBack,
     backLabel,
+    onDirtyChange,
   });
 
   return (

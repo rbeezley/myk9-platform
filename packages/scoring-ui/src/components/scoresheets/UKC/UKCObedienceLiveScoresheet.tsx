@@ -9,9 +9,9 @@
  */
 
 import React, { useState } from 'react';
-import { ArrowLeft } from 'lucide-react';
 import { Button, Input, Card, cn } from '@myk9/ui';
 import { useScoresheetScoring } from '../../../hooks/useScoresheetScoring';
+import { useScoresheetLeave } from '../../../hooks/useScoresheetLeave';
 import { registerScoresheet } from '../../../utils/getScoresheetComponent';
 import { DQ_ACTIVE_CLASS, DisqualifyReason } from '../../DisqualifyReason';
 import type { LiveScoresheetProps } from '../../../types';
@@ -42,12 +42,15 @@ export const UKCObedienceLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   rules,
   onSubmit,
   onBack,
+  backLabel,
+  onDirtyChange,
   headerActions,
 }) => {
   const [points, setPoints] = useState(() => {
     const existing = entry.existingScore?.points;
     return existing != null && existing > 0 ? String(existing) : '';
   });
+  const [initialPoints] = useState(points);
   const [manualResult, setManualResult] = useState<ObedienceResult | null>(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
 
@@ -114,21 +117,21 @@ export const UKCObedienceLiveScoresheet: React.FC<LiveScoresheetProps> = ({
     }
   };
 
+  const { upButton } = useScoresheetLeave({
+    scoring,
+    extraDirty: () => manualResult !== null || points !== initialPoints,
+    onBack,
+    backLabel,
+    onDirtyChange,
+  });
+
   return (
     <>
       <div className="min-h-screen bg-background">
         <div className="max-w-2xl mx-auto">
           {/* Header */}
           <header className="flex items-center gap-3 px-4 py-3 border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-10">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-11 w-11"
-              onClick={onBack}
-              aria-label="Back"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
+            {upButton}
             <div className="flex-1">
               <h1 className="text-lg max-sm:text-base font-semibold">UKC Obedience</h1>
               <p className="text-sm text-muted-foreground">

@@ -134,6 +134,7 @@ const renderPage = (syncStatus: ReplicationSyncContextValue['status'] = settledS
           path="/at-show/:showId/class/:classIdA/:classIdB"
           element={<AtShowCombinedEntryListPage />}
         />
+        <Route path="/at-show/:showId" element={<div data-testid="class-list-page" />} />
       </Routes>
     </ReplicationSyncTestProvider>,
     { initialRoute: '/at-show/show-1/class/class-a/class-b' }
@@ -232,5 +233,17 @@ describe('AtShowCombinedEntryListPage (Phase 1h combined Section A/B)', () => {
       releaseSync();
     }
     expect(await screen.findByText('No Entries Yet')).toBeInTheDocument();
+  });
+
+  // MYK9-1500: a combined list's Up is the same fixed route as a single list's.
+  it('Up goes to the show class list, and there is no "Back to main app" exit', async () => {
+    renderPage();
+    await screen.findByText('Rex');
+    fireEvent.click(screen.getByRole('button', { name: 'Actions menu' }));
+    expect(screen.queryByText('Back to main app')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Classes' }));
+
+    expect(await screen.findByTestId('class-list-page')).toBeInTheDocument();
   });
 });

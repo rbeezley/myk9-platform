@@ -158,7 +158,6 @@ export type {
   EntryListDrag,
   EntryListLayoutSlots,
   // Per-primitive Props interfaces (PR E2d-2a)
-  HamburgerMenuProps,
   CompactOfflineIndicatorProps,
   SyncIndicatorProps,
   RefreshIndicatorProps,
@@ -170,7 +169,6 @@ export type {
   ClassDetailsPopoverProps,
   // Supporting unions / sub-types
   DogCardStatusBorder,
-  HamburgerMenuPage,
   PopoverPosition,
   PullToRefreshState,
   SyncIndicatorStatus,

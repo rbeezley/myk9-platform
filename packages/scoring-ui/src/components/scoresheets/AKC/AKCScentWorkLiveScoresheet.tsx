@@ -8,7 +8,7 @@
  */
 
 import React, { useState } from 'react';
-import { ArrowLeft, ClipboardCheck, X } from 'lucide-react';
+import { ClipboardCheck, X } from 'lucide-react';
 import { formatTrialLabel } from '@myk9/core';
 import { Button, Input, Card, cn } from '@myk9/ui';
 import { ScoresheetDogCard } from '../../ScoresheetDogCard';
@@ -19,6 +19,7 @@ import { useStopwatch } from '../../../hooks/useStopwatch';
 import { StopwatchTime } from '../../StopwatchTime';
 import { remainingColor } from '../../MaxTimeRing';
 import { useScoresheetScoring } from '../../../hooks/useScoresheetScoring';
+import { useScoresheetLeave } from '../../../hooks/useScoresheetLeave';
 import { useTimedArea } from '../../../hooks/useTimedArea';
 import { maxTimeForArea } from '../../../utils/buildResolvedClassRules';
 import { registerScoresheet } from '../../../utils/getScoresheetComponent';
@@ -58,6 +59,8 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   rules,
   onSubmit,
   onBack,
+  backLabel,
+  onDirtyChange,
   headerActions,
   onWarningChime,
   onVoiceAnnouncement,
@@ -138,21 +141,21 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
 
   const headerTitle = buildHeaderTitle(classInfo);
 
+  const { upButton } = useScoresheetLeave({
+    scoring,
+    stopwatch,
+    onBack,
+    backLabel,
+    onDirtyChange,
+  });
+
   return (
     <>
       <div className="min-h-screen bg-background">
         <div className="max-w-2xl mx-auto">
           {/* Header */}
           <header className="flex items-center gap-3 px-4 py-3 border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-10">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-11 w-11"
-              onClick={onBack}
-              aria-label="Back"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
+            {upButton}
             <div className="flex-1">
               <h1 className="text-lg max-sm:text-base font-semibold flex items-center gap-2">
                 <ClipboardCheck className="h-5 w-5 text-primary" />

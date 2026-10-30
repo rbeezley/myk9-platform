@@ -252,7 +252,7 @@ export type {
 //
 // PR E2d-2a — `EntryListLayoutSlots` resolved from TODO placeholder
 // into 10 concrete `ComponentType` slots for the host UI primitives
-// the page tree imports (HamburgerMenu, FilterPanel, DogCard,
+// the page tree imports (FilterPanel, DogCard,
 // PullToRefresh, etc.). `TabBar` is intentionally NOT slotted —
 // it's a direct import from `@myk9/ui`, which is already a ringside
 // dep. Same for the date/time formatters from `@myk9/core`.
@@ -272,7 +272,6 @@ export type {
   // PR E2d-2a — per-primitive Props interfaces. apps/myk9q will switch
   // its component-side interfaces to these during/after E2d-2b for
   // single-sourcing.
-  HamburgerMenuProps,
   CompactOfflineIndicatorProps,
   SyncIndicatorProps,
   RefreshIndicatorProps,
@@ -287,7 +286,6 @@ export type {
   // with any future package-level types (matches the pattern E2a used
   // for `SortOrder` → `EntryListSortOrder`).
   DogCardStatusBorder,
-  HamburgerMenuPage,
   PopoverPosition as EntryListPopoverPosition,
   PullToRefreshState,
   SyncIndicatorStatus,

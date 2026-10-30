@@ -5,6 +5,7 @@ export * from './Card';
 export * from './Input';
 export * from './Sheet';
 export * from './Tabs';
+export * from './RingsideUpButton';
 
 // Domain Components
 export * from './StatCard';

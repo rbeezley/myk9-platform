@@ -237,7 +237,7 @@ describe('AtShowClassListPage (Phase 1h class picker)', () => {
     expect(
       screen.queryByRole('status', { name: 'Loading at-show classes' })
     ).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Back to Ringside' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ringside' }));
     expect(await screen.findByText('RINGSIDE HOME')).toBeInTheDocument();
   });
 
@@ -250,7 +250,7 @@ describe('AtShowClassListPage (Phase 1h class picker)', () => {
     expect(
       screen.queryByRole('status', { name: 'Loading at-show classes' })
     ).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Back to Ringside' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ringside' }));
     expect(await screen.findByText('RINGSIDE HOME')).toBeInTheDocument();
   });
 
@@ -267,7 +267,7 @@ describe('AtShowClassListPage (Phase 1h class picker)', () => {
 
     renderPage();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Back to show' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Show' }));
     expect(await screen.findByText('SHOW HOME')).toBeInTheDocument();
   });
 
@@ -284,7 +284,7 @@ describe('AtShowClassListPage (Phase 1h class picker)', () => {
 
     renderPage();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Back to Ringside' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Ringside' }));
     expect(await screen.findByText('RINGSIDE HOME')).toBeInTheDocument();
   });
 

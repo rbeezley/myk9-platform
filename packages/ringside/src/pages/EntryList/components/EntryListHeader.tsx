@@ -2,9 +2,9 @@
  * EntryListHeader — page header for the EntryList page.
  *
  * Moved into @myk9/ringside in PR E2d-2b. Host coupling reduced to:
- *  - 6 UI primitives are now required slot props (HamburgerMenu,
- *    CompactOfflineIndicator, SyncIndicator, RefreshIndicator,
- *    FilterTriggerButton, ClassDetailsPopover). Previously imported
+ *  - 5 UI primitives are now required slot props (CompactOfflineIndicator,
+ *    SyncIndicator, RefreshIndicator, FilterTriggerButton,
+ *    ClassDetailsPopover). Previously imported
  *    directly from apps/myk9q's components/ui + components/dialogs.
  *  - `useNavigate` is unchanged — `react-router-dom` is now a
  *    ringside peer dep.
@@ -18,7 +18,7 @@
 import React, { useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Info } from 'lucide-react';
-import { cn } from '@myk9/ui';
+import { cn, RingsideUpButton } from '@myk9/ui';
 import { formatTrialDate, formatTrialLabel } from '@myk9/core';
 import type { ComponentType } from 'react';
 import type { ClassInfo } from '../hooks/useEntryListData';
@@ -29,7 +29,6 @@ import {
 } from './entryListHeaderHelpers';
 import { parseTimeLimit } from '../entryListHelpers';
 import type {
-  HamburgerMenuProps,
   CompactOfflineIndicatorProps,
   SyncIndicatorProps,
   RefreshIndicatorProps,
@@ -72,6 +71,8 @@ export interface EntryListHeaderProps {
   hasActiveFilters: boolean;
   onFilterClick: () => void;
   onRefresh: () => void;
+  /** The Up control's label and fixed parent route (MYK9-1500). */
+  up: { label: string; to: string };
   /** Actions menu items configuration */
   actionsMenu: ActionsMenuConfig;
   /** For combined view - show section badge */
@@ -86,7 +87,6 @@ export interface EntryListHeaderProps {
   };
 
   // ── Host-injected primitives ──────────────────────────────────────
-  HamburgerMenu: ComponentType<HamburgerMenuProps>;
   CompactOfflineIndicator: ComponentType<CompactOfflineIndicatorProps>;
   SyncIndicator: ComponentType<SyncIndicatorProps>;
   RefreshIndicator: ComponentType<RefreshIndicatorProps>;
@@ -108,9 +108,9 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
   onFilterClick,
   onRefresh,
   actionsMenu,
+  up,
   showSectionsBadge = false,
   refreshLongPressHandlers,
-  HamburgerMenu,
   CompactOfflineIndicator,
   SyncIndicator,
   RefreshIndicator,
@@ -189,13 +189,7 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
 
   return (
     <header className="sticky top-0 z-10 flex min-h-[60px] items-center gap-2 rounded-b-xl border-b border-border bg-card p-3 sm:gap-4">
-      <HamburgerMenu
-        backNavigation={{
-          label: 'Back to Classes',
-          action: () => navigate(-1),
-        }}
-        currentPage="entries"
-      />
+      <RingsideUpButton label={up.label} onClick={() => navigate(up.to)} />
       <CompactOfflineIndicator />
       {/* Class info - explicit tap/click or keyboard activation to show details popup */}
       <div

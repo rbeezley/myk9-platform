@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Route, Routes } from 'react-router-dom';
-import { render, screen, within } from '@/test/utils/testUtils';
+import { fireEvent, render, screen, within } from '@/test/utils/testUtils';
 import type { AtShowClassGroup } from './atShowClassListAdapter';
 import { AtShowSetupSheetLink } from './AtShowSetupSheetLink';
 import { AtShowSetupSheetPage } from './AtShowSetupSheetPage';
@@ -34,6 +34,7 @@ function renderPage() {
   return render(
     <Routes>
       <Route path="/at-show/:showId/setup-sheet" element={<AtShowSetupSheetPage />} />
+      <Route path="/at-show/:showId" element={<div data-testid="class-list" />} />
     </Routes>,
     { initialRoute: '/at-show/show-1/setup-sheet' }
   );
@@ -101,10 +102,8 @@ describe('AtShowSetupSheetPage', () => {
     expect(screen.getByTestId('setup-table-interior-exterior')).toBeInTheDocument();
     expect(screen.queryByTestId('setup-table-handler-discrimination')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Print' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /back to classes/i })).toHaveAttribute(
-      'href',
-      '/at-show/show-1'
-    );
+    fireEvent.click(screen.getByRole('button', { name: 'Classes' }));
+    expect(screen.getByTestId('class-list')).toBeInTheDocument();
   });
 
   it('prints the AKC sheet, including Handler Discrimination, for an AKC show', () => {

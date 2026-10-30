@@ -165,14 +165,14 @@ test.describe('shell integrity responsive runtime matrix', () => {
 
     await page.goto(`/at-show/${LIVE_SECRETARY_SHOW_ID}`, { waitUntil: 'commit' });
     await waitForAppShell(page);
-    await page.getByRole('button', { name: 'Back to show' }).click();
+    await page.getByRole('button', { name: 'Show', exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`/shows/${LIVE_SECRETARY_SHOW_ID}(?:\\?|$)`));
 
     const scorePath = `/at-show/${LIVE_SECRETARY_SHOW_ID}/class/${SEEDED_CLASS_ID}/score/${SEEDED_ENTRY_ID}`;
     const classPath = `/at-show/${LIVE_SECRETARY_SHOW_ID}/class/${SEEDED_CLASS_ID}`;
     await page.goto(scorePath, { waitUntil: 'commit' });
     await waitForAppShell(page);
-    await page.getByRole('button', { name: 'Back to Entry List' }).click();
+    await page.getByRole('button', { name: 'Entries', exact: true }).click();
     await expect(page).toHaveURL(new RegExp(classPath));
   });
 

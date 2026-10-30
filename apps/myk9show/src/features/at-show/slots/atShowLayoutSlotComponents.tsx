@@ -1,7 +1,6 @@
 import React, { useContext } from 'react';
 import {
   AlertCircle,
-  ArrowLeft,
   CheckCircle,
   CloudOff,
   CloudUpload,
@@ -15,7 +14,6 @@ import type {
   ErrorStateProps,
   FilterPanelProps,
   FilterTriggerButtonProps,
-  HamburgerMenuProps,
   PullToRefreshProps,
   RefreshIndicatorProps,
   SyncIndicatorProps,
@@ -27,23 +25,6 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { useReplicationContainment } from '@/hooks/useReplicationContainment';
 import { cn } from '@/lib/utils';
 import { badgeClass, getSyncLabel, getSyncTier } from './atShowChrome.helpers';
-
-export const HamburgerMenu: React.FC<HamburgerMenuProps> = ({ backNavigation, className }) => {
-  if (!backNavigation) return null;
-  return (
-    <Button
-      type="button"
-      variant="ghost"
-      size="icon-lg"
-      aria-label={backNavigation.label}
-      title={backNavigation.label}
-      className={cn('at-show-hamburger-back', className)}
-      onClick={backNavigation.action}
-    >
-      <ArrowLeft size={20} />
-    </Button>
-  );
-};
 
 /** The tables the at-show surface must hold locally before it can promise offline use. */
 const AT_SHOW_OFFLINE_TABLES = ['shows', 'trials', 'classes', 'entries'] as const;

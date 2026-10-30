@@ -21,14 +21,14 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   Loader2,
   AlertCircle,
-  ArrowLeft,
   WifiOff,
   ShieldAlert,
   KeyRound,
   Volume2,
   VolumeX,
-  House,
 } from 'lucide-react';
+import { RingsideUpButton } from '@myk9/ui';
+import { ScoresheetLeaveGuard } from '@/components/navigation/ScoresheetLeaveGuard';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
 import { getScoresheetComponent } from '@myk9/scoring-ui';
@@ -51,7 +51,6 @@ import { ScoreSubmitErrorBanner } from './ScoreSubmitErrorBanner';
 import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
 import { useJudgeAssignedToClass } from './useJudgeAssignedToClass';
 import { useAtShowAudioMute } from './useAtShowAudioMute';
-import { useLeaveRingside } from './useLeaveRingside';
 import { badgeClass } from './slots/atShowChrome.helpers';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useRingsideGrantStore } from '@/store/ringsideGrantStore';
@@ -147,10 +146,7 @@ export const AtShowScoresheetPage: React.FC = () => {
             Your role can view ringside but isn&apos;t allowed to submit scores. Ask the secretary
             for a judge passcode if you need to score this class.
           </p>
-          <Button variant="outline" className="mt-4" onClick={handleBack}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Entry List
-          </Button>
+          <RingsideUpButton label="Entries" onClick={handleBack} />
         </div>
       </div>
     );
@@ -172,10 +168,7 @@ export const AtShowScoresheetPage: React.FC = () => {
             as a guest.
           </p>
           <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center">
-            <Button variant="outline" onClick={handleBack}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Entry List
-            </Button>
+            <RingsideUpButton label="Entries" onClick={handleBack} />
             <Button variant="ghost" onClick={handleSignOutToPasscode}>
               <KeyRound className="h-4 w-4 mr-2" />
               Sign out to use a passcode
@@ -257,6 +250,8 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
   onBack,
 }) => {
   const navigate = useNavigate();
+  // The sheet reports whether leaving would lose work; the guard owns the one prompt.
+  const [sheetDirty, setSheetDirty] = useState(false);
   // MYK9-83: saving lands on a "Saved" state with optional up-next chips
   // instead of navigating away on its own. NOTHING here auto-advances — the
   // judge either taps a candidate or goes back to the list (the default).
@@ -268,13 +263,17 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
       // The normal scoresheet route, so the picked dog goes through the same
       // load + in-ring path as a tap from the entry list.
       // A chip from the other section opens under ITS class, keeping the pair.
+      // REPLACE, not push: the sheet being left is already saved, so the back
+      // gesture from the next dog goes where the judge came from instead of
+      // stepping back through every dog scored (MYK9-1500).
       navigate(
         buildAtShowScoreSheetRoute(
           showId ?? '',
           nextClassId || (classId ?? ''),
           nextEntryId,
           combined
-        )
+        ),
+        { replace: true }
       );
     },
     [navigate, showId, classId, combined]
@@ -326,7 +325,6 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
   // Whether the warning is spoken at all is the separate Settings switch, read inside
   // `speakRemainingSeconds` (MYK9-1510); the button never writes it.
   const [audioMuted, toggleAudioMuted] = useAtShowAudioMute();
-  const leaveRingside = useLeaveRingside();
   const audioSettings = useMemo(
     () => ({ ...DEFAULT_AUDIO_SETTINGS, volume: audioMuted ? 0 : DEFAULT_AUDIO_SETTINGS.volume }),
     [audioMuted]
@@ -366,10 +364,7 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
         </p>
         <div className="flex flex-col gap-2 sm:flex-row">
           <Button onClick={retry}>Retry</Button>
-          <Button variant="outline" onClick={onBack}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Entry List
-          </Button>
+          <RingsideUpButton label="Entries" onClick={onBack} />
         </div>
       </div>
     );
@@ -406,10 +401,7 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
           <p className="text-muted-foreground">
             The scoresheet for {organization} {sportType} is not yet implemented.
           </p>
-          <Button variant="outline" className="mt-4" onClick={onBack}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Entry List
-          </Button>
+          <RingsideUpButton label="Entries" onClick={onBack} />
         </div>
       </div>
     );
@@ -427,6 +419,7 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
           onDismiss={dismissNudge}
         />
       )}
+      <ScoresheetLeaveGuard isDirty={sheetDirty} />
       {submitError && <ScoreSubmitErrorBanner message={submitError} onDismiss={clearSubmitError} />}
       {(isSyncing || hasSyncError) && (
         <div
@@ -465,20 +458,13 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
         rules={rules}
         onSubmit={submit}
         onBack={onBack}
+        backLabel="Entries"
+        onDirtyChange={setSheetDirty}
         onWarningChime={audio.playWarning}
         onVoiceAnnouncement={handleVoiceAnnouncement}
         enableVoiceAnnouncements={!audioMuted}
         headerActions={
           <>
-            <button
-              type="button"
-              onClick={leaveRingside.leave}
-              aria-label={leaveRingside.label}
-              title={leaveRingside.label}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border bg-card text-muted-foreground shadow-sm"
-            >
-              <House className="h-4 w-4" />
-            </button>
             <button
               type="button"
               onClick={toggleAudioMuted}

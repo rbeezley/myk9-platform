@@ -90,7 +90,10 @@ export function buildRingsideMenuItems(
           requiresConnection: true,
         }
       : null,
-    showId && showScope
+    // A viewer with no entries who is not a manager lands on the public show
+    // landing, which has no Results tab until the show ends, so they get no
+    // item. MYK9-1544 changes the show page audience and removes this check.
+    showId && showScope && (context.canManageShow || context.hasEntries)
       ? {
           id: 'results',
           label: 'Results',

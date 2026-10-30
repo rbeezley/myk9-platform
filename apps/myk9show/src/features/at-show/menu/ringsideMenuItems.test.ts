@@ -47,7 +47,13 @@ describe('buildRingsideMenuItems', () => {
 
   it('offers Stats only to a viewer with entries, who gets the tab view that renders it', () => {
     expect(ids({ ...base, hasEntries: false })).not.toContain('stats');
-    expect(ids({ ...base, hasEntries: false })).toContain('results');
+  });
+
+  it('gives Results only to managers and viewers with entries today', () => {
+    // A judge, steward or passcode user with no entries would land on the public landing.
+    expect(ids({ ...base, hasEntries: false })).not.toContain('results');
+    expect(ids({ ...base, hasEntries: true })).toContain('results');
+    expect(ids({ ...base, hasEntries: false, canManageShow: true })).toContain('results');
   });
 
   it('opens Settings on Appearance, where theme, voice and haptics live', () => {

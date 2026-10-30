@@ -6,47 +6,45 @@
  * visible is that moment, so the page re-reads then instead of listening to
  * the replica (whose per-show snapshot cannot stand in for the account read).
  *
- * Throttled to one per window. A read never starts while a local write is in
- * flight; the return is remembered and runs once the write settles. A write that
- * overlaps a read may have been overwritten by it, so one corrective re-read
- * follows once both are done.
+ * Every return refreshes. A return while a refresh is running coalesces into
+ * exactly one follow-up. A read never starts while the page's own write
+ * (`isWriting`) is in flight; the return is remembered and runs once the write
+ * settles. A write that overlaps a read may have been overwritten by it, so one
+ * corrective re-read follows once both are done.
  */
 
 import { useEffect, useRef } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 
-/** At most one return-triggered refresh per window. */
-export const REFRESH_ON_RETURN_MIN_INTERVAL_MS = 30_000;
-
-export function useRefreshOnReturn(refresh: () => Promise<void> | void, enabled = true): void {
+export function useRefreshOnReturn(
+  refresh: () => Promise<void> | void,
+  enabled = true,
+  isWriting = false
+): void {
   const refreshRef = useRef(refresh);
-  const lastRefreshAtRef = useRef(0);
-  const queryClient = useQueryClient();
+  const writingRef = useRef(isWriting);
+  const syncRef = useRef<() => void>(() => {});
+  const overlapRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     refreshRef.current = refresh;
   }, [refresh]);
 
-  // Arriving on the page is a read; the first return counts from here.
   useEffect(() => {
-    lastRefreshAtRef.current = Date.now();
-  }, []);
+    writingRef.current = isWriting;
+    if (isWriting) overlapRef.current();
+    else syncRef.current();
+  }, [isWriting]);
 
   useEffect(() => {
     if (!enabled) return;
     let reading = false;
-    // A refresh is owed once no write is in flight and no read is running.
     let owed = false;
     let disposed = false;
 
-    // Read at event time: a mutation count held in React state lags the write.
-    const writing = () => queryClient.isMutating() > 0;
-
     const flush = () => {
-      if (disposed || !owed || reading || writing()) return;
+      if (disposed || !owed || reading || writingRef.current) return;
       owed = false;
       reading = true;
-      lastRefreshAtRef.current = Date.now();
       void Promise.resolve(refreshRef.current()).finally(() => {
         reading = false;
         flush();
@@ -55,23 +53,23 @@ export function useRefreshOnReturn(refresh: () => Promise<void> | void, enabled 
 
     const onReturn = () => {
       if (document.visibilityState === 'hidden') return;
-      if (Date.now() - lastRefreshAtRef.current < REFRESH_ON_RETURN_MIN_INTERVAL_MS) return;
       owed = true;
       flush();
     };
 
-    const unsubscribeMutations = queryClient.getMutationCache().subscribe(() => {
-      // A write that lands during a read may be overwritten by that read.
-      if (writing() && reading) owed = true;
-      flush();
-    });
+    syncRef.current = flush;
+    // A write that lands during a read may be overwritten by that read.
+    overlapRef.current = () => {
+      if (reading) owed = true;
+    };
     window.addEventListener('focus', onReturn);
     document.addEventListener('visibilitychange', onReturn);
     return () => {
       disposed = true;
-      unsubscribeMutations();
+      syncRef.current = () => {};
+      overlapRef.current = () => {};
       window.removeEventListener('focus', onReturn);
       document.removeEventListener('visibilitychange', onReturn);
     };
-  }, [enabled, queryClient]);
+  }, [enabled]);
 }

@@ -79,8 +79,8 @@ const MyEntriesPage: React.FC = () => {
   } = useMyEntriesData({
     persistCheckInStatus: checkInMutation.mutateAsync,
   });
-  // MYK9-1523: coming back to the page re-reads it (throttled, never mid-write).
-  useRefreshOnReturn(refreshEntries, !isLoading);
+  // MYK9-1523: coming back to the page re-reads it, never mid-check-in.
+  useRefreshOnReturn(refreshEntries, !isLoading, checkInMutation.isPending);
   const entriesPresentation: MyEntriesPresentation = getMyEntriesPresentation({
     identityState,
     readState,

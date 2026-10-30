@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { Link, MemoryRouter, Route, Routes } from 'react-router-dom';
 import { mockViewportWidth } from '@/test/utils/mockViewportWidth';
 import { useEmbeddedDetail } from '@/components/layout/embeddedDetail';
 import ShowsMasterDetailPage from '../ShowsMasterDetailPage';
@@ -60,7 +60,17 @@ function Page({ name }: { name: string }) {
   return (
     <p>
       {name} {useEmbeddedDetail() ? '(in pane)' : '(full page)'}
+      <Link to="/shows">Back to Find Shows</Link>
     </p>
+  );
+}
+
+function OpenShowLink() {
+  return (
+    <>
+      <p>find shows (full page)</p>
+      <Link to="/shows/show-1">Open show-1</Link>
+    </>
   );
 }
 
@@ -126,13 +136,39 @@ describe('ShowsMasterDetailPage', () => {
     expect(insetHolder?.style.getPropertyValue('--app-top-inset')).toBe('0px');
   });
 
-  it('shows Find Shows beside the list on /shows', () => {
+  it('renders Find Shows as the full-width page on /shows, with no list pane', () => {
     setWindow(1440);
     renderAt('/shows');
-    expect(screen.getByRole('region', { name: 'Find Shows' })).toHaveTextContent(
-      'find shows (in pane)'
+    expect(screen.getByText('find shows (full page)')).toBeInTheDocument();
+    expect(screen.queryByTestId('master-detail-layout')).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Shows list' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/shows list/)).not.toBeInTheDocument();
+  });
+
+  it('brings the list in beside a show opened from Find Shows, and Back removes it', async () => {
+    const user = userEvent.setup();
+    setWindow(1440);
+    render(
+      <MemoryRouter initialEntries={['/shows']}>
+        <Routes>
+          <Route element={<ShowsMasterDetailPage />}>
+            <Route path="/shows" element={<OpenShowLink />} />
+            <Route path="/shows/:id" element={<Page name="show page" />} />
+          </Route>
+        </Routes>
+      </MemoryRouter>
     );
-    expect(screen.getByText('shows list (open: none)')).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Shows list' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('link', { name: 'Open show-1' }));
+    expect(screen.getByRole('region', { name: 'Shows list' })).toHaveTextContent(
+      'shows list (open: show-1)'
+    );
+    expect(screen.getByText('show page (in pane)')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('link', { name: 'Back to Find Shows' }));
+    expect(screen.getByText('find shows (full page)')).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Shows list' })).not.toBeInTheDocument();
   });
 
   it('folds the list away from an open show where the cockpit beside it would stack (1280)', () => {
@@ -220,10 +256,11 @@ describe('ShowsMasterDetailPage', () => {
     expect(screen.getByTestId('master-detail-layout')).toBeInTheDocument();
   });
 
-  it('keeps the split on /shows where it would fold, since no show is open to fold for', () => {
+  it('keeps /shows a full-width page at a window where the list would fold, with no Shows button', () => {
     setWindow(1100);
     renderAt('/shows');
-    expect(screen.getByTestId('master-detail-layout')).toBeInTheDocument();
+    expect(screen.getByText('find shows (full page)')).toBeInTheDocument();
+    expect(screen.queryByTestId('master-detail-layout')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Shows' })).not.toBeInTheDocument();
   });
 

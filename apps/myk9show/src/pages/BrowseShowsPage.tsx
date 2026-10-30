@@ -513,7 +513,7 @@ const BrowseShowsPage: React.FC = () => {
               <ListFilterBar
                 searchValue={filters.search}
                 onSearchChange={value => setFilters(prev => ({ ...prev, search: value }))}
-                searchPlaceholder="Search shows or locations"
+                searchPlaceholder="Search shows"
                 fields={filterFields}
                 // MYK9-1490: the four option fields sit behind one Filter button here only.
                 layout="panel"

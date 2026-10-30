@@ -395,13 +395,13 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
       expect(screen.queryByRole('combobox', { name })).not.toBeInTheDocument();
     }
     expect(screen.queryByRole('button', { name: /^filter$/i })).not.toBeInTheDocument();
-    expect(screen.getByPlaceholderText('Search dogs by name, breed, or owner...')).toBeVisible();
+    expect(screen.getByPlaceholderText('Search dogs')).toBeVisible();
   });
 
   it('renders SearchBar with correct placeholder', () => {
     renderPage();
 
-    const searchInput = screen.getByPlaceholderText('Search dogs by name, breed, or owner...');
+    const searchInput = screen.getByPlaceholderText('Search dogs');
     expect(searchInput).toBeInTheDocument();
   });
 
@@ -496,7 +496,7 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
     renderPage();
 
     expect(screen.getByRole('heading', { name: 'My Dogs' })).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('Search your dogs by name or breed...')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Search dogs')).toBeInTheDocument();
   });
 
   it.each([
@@ -794,7 +794,7 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
       await user.click(screen.getByRole('button', { name: 'Go to next page' }));
       expect(cardLinks()[0]).toHaveAccessibleName('Dog 26');
 
-      await user.type(screen.getByPlaceholderText('Search dogs by name, breed, or owner...'), 'a');
+      await user.type(screen.getByPlaceholderText('Search dogs'), 'a');
 
       expect(mockBrowseDogsReturn.setFilters).toHaveBeenCalled();
       expect(cardLinks()[0]).toHaveAccessibleName('Dog 1');

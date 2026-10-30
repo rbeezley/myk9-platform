@@ -64,7 +64,7 @@ export function PeopleListToolbar({
     <ListFilterBar
       searchValue={filters.search}
       onSearchChange={value => onFiltersChange({ ...filters, search: value })}
-      searchPlaceholder={compact ? 'Search people' : 'Search people by name or email...'}
+      searchPlaceholder={'Search people'}
       fields={[]}
       compact={compact}
       {...(compact ? { className: 'min-w-0 flex-1' } : {})}

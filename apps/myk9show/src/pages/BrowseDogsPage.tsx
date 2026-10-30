@@ -207,11 +207,7 @@ const BrowseDogsPage: React.FC<BrowseDogsPageProps> = ({ detail = null }) => {
   // roles may retain table/management chrome while still receiving an own-dogs
   // roster, so deriving this from `isExhibitorOnly` would reintroduce the
   // My Dogs/Dogs mismatch (MYK9-237).
-  const searchPlaceholder = splitOpen
-    ? 'Search dogs'
-    : isExhibitorOnly
-      ? 'Search your dogs by name or breed...'
-      : 'Search dogs by name, breed, or owner...';
+  const searchPlaceholder = 'Search dogs';
   const pageTitle = ownDogsOnly ? 'My Dogs' : 'Dogs';
 
   const openCreateDogPanel = useCallback(() => {

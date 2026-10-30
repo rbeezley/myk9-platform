@@ -4,6 +4,7 @@ import { LIVE_SECRETARY_SHOW_ID } from '../uat/shared/seededShows';
 
 /**
  * MYK9-1213 (docs/plan-sidebar-browse-pane.md, phase 2): the Shows list beside the show.
+ * MYK9-1489: the list pane appears only beside an open show; `/shows` is Find Shows at full width.
  * The cockpit splits on its own width (868px, `cockpitSplit.ts`), and the list stays beside an
  * open show only where the cockpit beside it still splits (`showsPaneFold.ts`): open at 1440,
  * folded at 1280 and 1024; under 1024 a tap is a page hop. Entry Forms needs more (its own 960px
@@ -54,6 +55,16 @@ async function expectCockpitFollowsItsWidth(page: Page, expected?: 'split' | 'st
   );
 }
 
+/** Opens a show from the full-width Find Shows page (a Browse All card), as a visitor would. */
+async function openShowFromFindShows(page: Page): Promise<string> {
+  await page.getByRole('tab', { name: /^Browse All/ }).click();
+  const card = page.locator('main a[href^="/shows/"]').first();
+  await expect(card).toBeVisible({ timeout: 20_000 });
+  await card.click();
+  await expect(page).toHaveURL(SHOW_URL);
+  return page.url().match(SHOW_URL)![1]!;
+}
+
 type ShowGroup = 'Today' | 'Upcoming' | 'Past';
 
 /** Opens the first show of the first of `groups` that lists one (staging dates move on). */
@@ -82,7 +93,7 @@ async function openFirstShow(page: Page, group: ShowGroup): Promise<string> {
 }
 
 test.describe('Shows list with a detail pane', () => {
-  test('at 1440 a secretary finds a past show from /shows; the cockpit still splits', async ({
+  test('at 1440 a secretary opens a show from Find Shows; the list appears beside it and Back removes it', async ({
     page,
   }) => {
     // Signs in and opens two shows' cockpits against shared staging; 30s was too tight twice.
@@ -90,12 +101,27 @@ test.describe('Shows list with a detail pane', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await signInAsSecretary(page, '/shows');
 
-    await expect(showsList(page)).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByRole('region', { name: 'Find Shows' })).toBeVisible();
+    // Nothing open: Find Shows is the page, full width, with one search and no list pane.
+    await expect(page.getByRole('heading', { name: 'Find Shows', level: 1 })).toBeVisible({
+      timeout: 20_000,
+    });
+    await expect(showsList(page)).toHaveCount(0);
+    await expect(page.getByPlaceholder('Search shows')).toHaveCount(1);
     // The rail no longer carries a single "Today's show" / "Next show" link.
     await expect(
       page.getByRole('link', { name: /^(Today's show|Next show|Draft show):/ })
     ).toHaveCount(0);
+
+    await openShowFromFindShows(page);
+    await expect(showsList(page)).toBeVisible();
+    await expect(showsList(page).getByPlaceholder('Search shows')).toBeVisible();
+
+    // Back returns to the full-width Find Shows.
+    await page.goBack();
+    await expect(page).toHaveURL(/\/shows$/);
+    await expect(showsList(page)).toHaveCount(0);
+    await page.goForward();
+    await expect(showsList(page)).toBeVisible();
 
     const pastId = await openFirstShow(page, 'Past');
     await expect(showsList(page)).toBeVisible();
@@ -123,7 +149,7 @@ test.describe('Shows list with a detail pane', () => {
       await page.setViewportSize({ width, height: 800 });
       await signInAsSecretary(page, '/shows');
       await page.evaluate(() => window.localStorage.removeItem('view-pref-shows-pane'));
-      await openShowFrom(page, ['Today', 'Upcoming']);
+      await page.goto(`/shows/${LIVE_SECRETARY_SHOW_ID}`);
 
       await expect(showsList(page)).toHaveCount(0);
       await expectCockpitFollowsItsWidth(page, fullPage);
@@ -170,6 +196,7 @@ test.describe('Shows list with a detail pane', () => {
   }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await signInAsSecretary(page, '/shows');
+    await openShowFromFindShows(page);
     const todayId = await openFirstShow(page, 'Today');
     await openFirstShow(page, 'Upcoming');
 

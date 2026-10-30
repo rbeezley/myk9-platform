@@ -32,7 +32,7 @@ test.describe('Shows UI — Browse (secretary)', () => {
     await expect(page.getByRole('heading', { name: 'Find Shows', level: 1 })).toBeVisible();
     // Add Show lives in the header Actions menu, not on the page (MYK9-1490).
     await expect(page.getByRole('button', { name: 'Add Show', exact: true })).toHaveCount(0);
-    await expect(page.getByPlaceholder('Search shows or locations')).toBeVisible();
+    await expect(page.getByPlaceholder('Search shows')).toBeVisible();
 
     // The option fields sit behind one Filter button (MYK9-1490); the month scrubber below
     // covers Date Range.

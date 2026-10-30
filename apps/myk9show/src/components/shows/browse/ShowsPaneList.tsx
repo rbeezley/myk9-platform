@@ -160,7 +160,7 @@ export const ShowsPaneList: React.FC<ShowsPaneListProps> = ({ selectedId, header
             size="sm"
             value={search}
             onChange={setSearch}
-            placeholder="Search this list"
+            placeholder="Search shows"
             aria-label="Search the shows list"
             className="flex-1"
           />

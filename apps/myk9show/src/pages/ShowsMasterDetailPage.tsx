@@ -29,8 +29,8 @@ const PANE_TABS: ReadonlySet<string> = new Set(
 );
 type PaneMode = (typeof PANE_MODES)[number];
 
-// The people who run shows. An exhibitor or judge would only get the Find Shows list twice, side by
-// side; their own shows list is phase 4 (docs/plan-sidebar-browse-pane.md).
+// The people who run shows. An exhibitor or judge has no show-management list to switch between;
+// their own shows list is phase 4 (docs/plan-sidebar-browse-pane.md).
 const PANE_ROLES: ReadonlySet<string> = new Set([
   UserRole.SECRETARY,
   UserRole.CLUB_ADMIN,
@@ -61,13 +61,11 @@ const PANE_TOP_INSET = { '--app-top-inset': '0px' } as CSSProperties;
  * The layout route around `/shows` and `/shows/:id/*`. One element for both, so the list stays
  * mounted (scroll, search) while shows open and close.
  *
- * - Signed-out visitors, exhibitors and judges, and windows under `lg`: no list, exactly as before
- *   (a row tap is a page hop).
- * - From `lg`, wherever the show beside the list still gets the cockpit's split
- *   (`showsPaneFolds`, measured on this page's own width): the list beside whatever the route
- *   renders (Find Shows, or the open show).
- * - Narrower than that: the same split on `/shows`; with a show open the list folds away behind a
- *   "Shows" button, so the show keeps its full width, and the viewer's open/folded choice is
+ * - `/shows` itself, signed-out visitors, exhibitors and judges, and windows under `lg`: no list
+ *   (Find Shows is the full-width page; a row tap is a page hop).
+ * - From `lg`, with a show open, wherever the show beside the list still gets the cockpit's split
+ *   (`showsPaneFolds`, measured on this page's own width): the list beside the open show.
+ * - Narrower than that, with a show open, the list folds away behind a "Shows" button, so the show keeps its full width, and the viewer's open/folded choice is
  *   remembered. The rule is the same on every show tab, so switching tabs never moves the list.
  *   Where the list fits there is no Hide: a list dragged wider than its default narrows the show,
  *   and the cockpit stacks rather than squeeze until it is dragged back. A remembered "hide even
@@ -87,13 +85,15 @@ const ShowsMasterDetailPage: React.FC = () => {
   // Roles are null only until RBAC first loads (refreshes keep them), so a cold open of a show URL
   // mounts the show once more when the list arrives; after that the tree position is fixed.
   const runsShows = (userWithRoles?.roles ?? []).some(role => PANE_ROLES.has(role));
-  if (!isAccountSession(user) || !runsShows || !isWide) return <Outlet />;
+  // The list pane appears only beside an open show; at `/shows` Find Shows is the full-width page,
+  // like Dogs, People and Clubs with nothing open.
+  if (!showId || !isAccountSession(user) || !runsShows || !isWide) return <Outlet />;
   return <ShowsPaneSplit showId={showId} tab={tab} />;
 };
 
 // Its own component so the width is measured from the moment the split mounts, which can be after
 // the page's first render (roles arriving, the window crossing `lg`).
-function ShowsPaneSplit({ showId, tab }: { showId: string | undefined; tab: ShowPaneTab }) {
+function ShowsPaneSplit({ showId, tab }: { showId: string; tab: ShowPaneTab }) {
   // Measured inside the page padding, on a box whose width folding never changes.
   const { ref: splitRef, width: splitWidth } = useElementWidth<HTMLDivElement>();
   const [paneMode, setPaneMode] = useViewPreference<PaneMode>('shows-pane', 'folded', PANE_MODES);
@@ -103,7 +103,7 @@ function ShowsPaneSplit({ showId, tab }: { showId: string | undefined; tab: Show
   // it fits narrows the show rather than folding the list out from under the pointer.
   const listWidth =
     splitWidth === null ? undefined : showsListWidth(splitWidth, readSavedListPercent('shows'));
-  const canFold = !!showId && showsPaneFolds(splitWidth, tab, listWidth);
+  const canFold = showsPaneFolds(splitWidth, tab, listWidth);
   const folded = canFold && paneMode === 'folded';
 
   // The control that was clicked unmounts on toggle; put focus where the reader now is.
@@ -146,7 +146,7 @@ function ShowsPaneSplit({ showId, tab }: { showId: string | undefined; tab: Show
         <MasterDetailLayout
           id="shows"
           listLabel="Shows list"
-          detailLabel={showId ? 'Show' : 'Find Shows'}
+          detailLabel="Show"
           listSize={SHOWS_LIST_SIZE}
           heightClassName={folded ? FOLDED_HEIGHT : SPLIT_HEIGHT}
           listHidden={folded}

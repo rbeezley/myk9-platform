@@ -34,7 +34,7 @@ export const AtShowDogPage: React.FC = () => {
   const { favoriteArmbands, toggleFavoriteArmband } = useAtShowDogFavoritesSynced(
     isStaff ? showId : undefined
   );
-  const { state, checkInAll } = useCheckInAllClasses();
+  const { isChecking, checkInAll } = useCheckInAllClasses();
 
   if (!isStaff) return <Navigate to={`/at-show/${showId}`} replace />;
 
@@ -73,16 +73,6 @@ export const AtShowDogPage: React.FC = () => {
 
   const favorited = dog.armband != null && favoriteArmbands.has(dog.armband);
   const toCheckIn = dog.uncheckedEntryIds;
-  const results = state.phase === 'done' ? state.results : {};
-  const remaining = toCheckIn;
-  // A success only stands while the replica still shows the entry checked in: if another
-  // device resets it, the outcome is stale and the entry is offered again.
-  const uncheckedIds = new Set(toCheckIn);
-  const outcomeOf = (entryId: string) =>
-    results[entryId] === 'ok' && uncheckedIds.has(entryId) ? undefined : results[entryId];
-  const outcomes = Object.keys(results).map(outcomeOf);
-  const okCount = outcomes.filter(value => value === 'ok').length;
-  const failedCount = outcomes.filter(value => value === 'failed').length;
   const hasPreliminary = dog.entries.some(entry => !entry.resultsReleased && resultLine(entry));
 
   return (
@@ -114,32 +104,20 @@ export const AtShowDogPage: React.FC = () => {
         )}
       </div>
 
-      {state.phase === 'done' && okCount > 0 && failedCount === 0 && (
-        <p className="mb-3 rounded-lg border px-3 py-2 text-sm font-medium" role="status">
-          ✓ Checked in to {okCount} {okCount === 1 ? 'class' : 'classes'}
-        </p>
-      )}
-      {(remaining.length > 0 || state.phase === 'checking') && (
+      {(toCheckIn.length > 0 || isChecking) && (
         <Button
           className="mb-3 min-h-11 w-full"
-          disabled={state.phase === 'checking'}
-          onClick={() => void checkInAll(remaining)}
+          disabled={isChecking}
+          onClick={() => void checkInAll(toCheckIn)}
         >
-          {state.phase === 'checking' ? 'Checking In...' : `Check In All (${remaining.length})`}
+          {isChecking ? 'Checking In...' : `Check In All (${toCheckIn.length})`}
         </Button>
-      )}
-      {failedCount > 0 && (
-        <p className="mb-3 text-sm text-destructive" role="alert">
-          {failedCount} {failedCount === 1 ? 'class' : 'classes'} could not be checked in. Try
-          again.
-        </p>
       )}
 
       <h2 className="mb-2 text-sm font-semibold">Class Entries</h2>
       <ul className="space-y-2">
         {dog.entries.map(entry => {
           const result = resultLine(entry);
-          const outcome = outcomeOf(entry.entryId);
           return (
             <li
               key={entry.entryId}
@@ -169,10 +147,6 @@ export const AtShowDogPage: React.FC = () => {
                   status={entry.checkInStatus}
                   label={getStatusDescriptor('entry', entry.checkInStatus).label}
                 />
-                {outcome === 'ok' && <span className="text-xs font-medium">✓ Checked in</span>}
-                {outcome === 'failed' && (
-                  <span className="text-xs font-medium text-destructive">Check-in failed</span>
-                )}
               </div>
               {result && <p className="mt-1 text-sm">{result}</p>}
             </li>

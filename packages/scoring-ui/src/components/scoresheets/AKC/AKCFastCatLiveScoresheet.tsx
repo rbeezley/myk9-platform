@@ -9,8 +9,12 @@
  */
 
 import React, { useState, useMemo, useCallback } from 'react';
-import { Zap } from 'lucide-react';
-import { Button, Input, Card, cn } from '@myk9/ui';
+import { Button, Card, cn } from '@myk9/ui';
+import { ScoresheetShell } from '../../ScoresheetShell';
+import { ScoresheetTimerCard, timerPrimaryButtonClass } from '../../ScoresheetTimerCard';
+import { ManualTimeField } from '../../ManualTimeField';
+import { ScoreConfirmationDialog } from '../../ScoreConfirmationDialog';
+import { resultLabel } from '../../../utils/resultLabel';
 import { useStopwatch } from '../../../hooks/useStopwatch';
 import { StopwatchTime } from '../../StopwatchTime';
 import { useScoresheetScoring } from '../../../hooks/useScoresheetScoring';
@@ -25,12 +29,20 @@ type FastCATResult = 'Q' | 'NQ' | 'EX' | 'DQ';
 const RESULT_OPTIONS: { value: FastCATResult; label: string; activeClass: string }[] = [
   {
     value: 'Q',
-    label: 'Qualified',
+    label: resultLabel('Q'),
     activeClass: 'bg-green-600 hover:bg-green-700 border-green-600',
   },
-  { value: 'NQ', label: 'NQ', activeClass: 'bg-amber-500 hover:bg-amber-600 border-amber-500' },
-  { value: 'EX', label: 'Excused', activeClass: 'bg-gray-500 hover:bg-gray-600 border-gray-500' },
-  { value: 'DQ', label: 'DQ', activeClass: DQ_ACTIVE_CLASS },
+  {
+    value: 'NQ',
+    label: resultLabel('NQ'),
+    activeClass: 'bg-amber-500 hover:bg-amber-600 border-amber-500',
+  },
+  {
+    value: 'EX',
+    label: resultLabel('EX'),
+    activeClass: 'bg-gray-500 hover:bg-gray-600 border-gray-500',
+  },
+  { value: 'DQ', label: resultLabel('DQ'), activeClass: DQ_ACTIVE_CLASS },
 ];
 
 // 100 yards / time → MPH
@@ -139,234 +151,135 @@ export const AKCFastCatLiveScoresheet: React.FC<LiveScoresheetProps> = ({
 
   return (
     <>
-      <div className="min-h-screen bg-background">
-        <div className="max-w-2xl mx-auto">
-          {/* Header */}
-          <header className="flex items-center gap-3 px-4 py-3 border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-10">
-            {upButton}
-            <div className="flex-1">
-              <h1 className="text-lg max-sm:text-base font-semibold flex items-center gap-2">
-                <Zap className="h-5 w-5 text-amber-500" />
-                AKC FastCAT
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                {classInfo.element} {classInfo.level}
-              </p>
-            </div>
-            {headerActions}
-          </header>
-
-          <div className="p-4 space-y-4">
-            {/* Dog Info */}
-            <Card className="p-4">
-              <div className="flex items-start gap-4">
-                <div className="flex-shrink-0 w-14 h-14 rounded-xl bg-primary flex items-center justify-center shadow-md">
-                  <span className="text-xl font-bold text-primary-foreground">{entry.armband}</span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-xl font-semibold truncate">{entry.dogName}</div>
-                  <div className="text-sm text-muted-foreground">Handler: {entry.handlerName}</div>
-                </div>
-              </div>
-            </Card>
-
-            {/* Timer */}
-            <Card className="p-6">
-              <div className="text-center">
-                <div
-                  className={cn(
-                    'text-5xl font-mono font-bold tracking-tight',
-                    stopwatch.isTimeExpired() && 'text-destructive'
-                  )}
-                >
-                  <StopwatchTime stopwatch={stopwatch} />
-                </div>
-
-                <div className="mt-6">
-                  {stopwatch.isRunning ? (
-                    <Button
-                      size="lg"
-                      variant="destructive"
-                      className="w-32 h-12 text-lg font-semibold"
-                      onClick={handleStopTimer}
-                      data-testid="timer-stop"
-                    >
-                      Stop
-                    </Button>
-                  ) : stopwatch.time > 0 ? (
-                    <Button
-                      size="lg"
-                      variant="secondary"
-                      className="w-32 h-12 text-lg font-semibold"
-                      onClick={stopwatch.start}
-                    >
-                      Resume
-                    </Button>
-                  ) : (
-                    <Button
-                      size="lg"
-                      className="w-32 h-12 text-lg font-semibold bg-green-600 hover:bg-green-700"
-                      onClick={stopwatch.start}
-                      data-testid="timer-start"
-                    >
-                      Start
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </Card>
-
-            {/* Run Time Input */}
-            <Card className="p-4">
-              <label className="text-sm font-medium text-muted-foreground mb-2 block">
-                Run Time
-              </label>
-              <Input
-                type="text"
-                value={runTimeStr}
-                onChange={e => scoring.handleAreaUpdate(0, 'time', e.target.value)}
-                placeholder="0:00.00"
-                className="text-center text-xl font-mono"
-                aria-label="Run time"
-                data-testid="run-time-input"
-              />
-            </Card>
-
-            {/* Speed & Points */}
-            {mph > 0 && (
-              <div className="grid grid-cols-2 gap-3">
-                <Card className="p-4 text-center bg-amber-500/10 border-amber-500/20">
-                  <div className="text-sm text-amber-600 font-medium">Speed</div>
-                  <div className="text-2xl font-bold text-amber-600" data-testid="mph-display">
-                    {mph.toFixed(1)} MPH
-                  </div>
-                </Card>
-                <Card className="p-4 text-center bg-green-500/10 border-green-500/20">
-                  <div className="text-sm text-green-600 font-medium">Points</div>
-                  <div className="text-2xl font-bold text-green-600" data-testid="points-display">
-                    {points}
-                  </div>
-                </Card>
-              </div>
-            )}
-
-            {/* Result Chips */}
-            <Card className="p-4">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {RESULT_OPTIONS.map(opt => (
-                  <Button
-                    key={opt.value}
-                    variant={fastcatResult === opt.value ? 'default' : 'outline'}
-                    className={cn('h-12', fastcatResult === opt.value && opt.activeClass)}
-                    onClick={() => handleResultSelect(opt.value)}
-                    data-testid={`result-${opt.value}`}
-                  >
-                    {opt.label}
-                  </Button>
-                ))}
-              </div>
-
-              {fastcatResult === 'DQ' && (
-                <DisqualifyReason
-                  sportType="AKC_FASTCAT"
-                  reason={scoring.nonQualifyingReason}
-                  onReasonChange={scoring.setNonQualifyingReason}
-                />
-              )}
-            </Card>
-
-            {/* Submit */}
-            <div className="flex gap-3 pt-2 pb-8">
-              <Button variant="outline" className="flex-1 h-12" onClick={onBack}>
-                Cancel
-              </Button>
-              <Button
-                className="flex-1 h-12"
-                onClick={handleSubmitClick}
-                disabled={isSubmitting || !fastcatResult || reasonMissing}
-                data-testid="submit-btn"
-              >
-                {isSubmitting ? 'Saving...' : 'Save'}
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Confirmation Dialog */}
-      {showConfirmation && (
-        <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-          data-testid="confirmation-dialog"
+      <ScoresheetShell
+        header={{
+          upButton,
+          armband: entry.armband,
+          dogName: entry.dogName,
+          breed: entry.breed,
+          handlerName: entry.handlerName,
+          titleLines: ['AKC FastCAT'],
+          subtitle: `${classInfo.element} ${classInfo.level}`,
+          headerActions,
+        }}
+        actions={{
+          onCancel: onBack,
+          onSave: handleSubmitClick,
+          saveDisabled: isSubmitting || !fastcatResult || reasonMissing,
+          isSubmitting,
+        }}
+      >
+        <ScoresheetTimerCard
+          clock={
+            <span className={cn('font-mono', stopwatch.isTimeExpired() && 'text-destructive')}>
+              <StopwatchTime stopwatch={stopwatch} />
+            </span>
+          }
         >
-          <Card className="w-full max-w-md p-6 space-y-4 animate-in fade-in zoom-in-95">
-            <div>
-              <h2 className="text-xl font-semibold">Score Confirmation</h2>
-              <p className="text-sm text-muted-foreground">AKC FastCAT</p>
-            </div>
+          {stopwatch.isRunning ? (
+            <Button
+              variant="destructive"
+              className={timerPrimaryButtonClass}
+              onClick={handleStopTimer}
+              data-testid="timer-stop"
+            >
+              Stop
+            </Button>
+          ) : stopwatch.time > 0 ? (
+            <Button
+              variant="secondary"
+              className={timerPrimaryButtonClass}
+              onClick={stopwatch.start}
+            >
+              Resume
+            </Button>
+          ) : (
+            <Button
+              className={cn(timerPrimaryButtonClass, 'bg-green-600 hover:bg-green-700')}
+              onClick={stopwatch.start}
+              data-testid="timer-start"
+            >
+              Start
+            </Button>
+          )}
+        </ScoresheetTimerCard>
 
-            <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-              <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-primary flex items-center justify-center shadow-sm">
-                <span className="text-sm font-bold text-primary-foreground">{entry.armband}</span>
-              </div>
-              <div>
-                <div className="font-medium">{entry.dogName}</div>
-                <div className="text-xs text-muted-foreground">Handler: {entry.handlerName}</div>
-              </div>
-            </div>
+        <ManualTimeField
+          label="Run time"
+          inputId="fastcat-run-time"
+          testId="run-time-input"
+          ariaLabel="Run time"
+          value={runTimeStr}
+          onChange={value => scoring.handleAreaUpdate(0, 'time', value)}
+        />
 
-            <div className="space-y-2">
-              <div className="flex justify-between py-2 border-b border-border">
-                <span className="text-muted-foreground">Result</span>
-                <span
-                  className={cn(
-                    'font-semibold',
-                    fastcatResult === 'Q' && 'text-green-600',
-                    fastcatResult === 'NQ' && 'text-amber-500',
-                    fastcatResult === 'EX' && 'text-gray-500',
-                    fastcatResult === 'DQ' && 'text-red-600'
-                  )}
-                >
-                  {fastcatResult}
-                </span>
+        {/* Speed & Points */}
+        {mph > 0 && (
+          <div className="grid grid-cols-2 gap-2">
+            <Card className="border-amber-500/20 bg-amber-500/10 p-2 text-center">
+              <div className="text-sm font-medium text-amber-600">Speed</div>
+              <div className="text-xl font-bold text-amber-600" data-testid="mph-display">
+                {mph.toFixed(1)} MPH
               </div>
-              <div className="flex justify-between py-2 border-b border-border">
-                <span className="text-muted-foreground">Run Time</span>
-                <span className="font-mono font-semibold">{runTimeStr || 'Not entered'}</span>
+            </Card>
+            <Card className="border-green-500/20 bg-green-500/10 p-2 text-center">
+              <div className="text-sm font-medium text-green-600">Points</div>
+              <div className="text-xl font-bold text-green-600" data-testid="points-display">
+                {points}
               </div>
-              {mph > 0 && (
-                <>
-                  <div className="flex justify-between py-2 border-b border-border">
-                    <span className="text-muted-foreground">Speed</span>
-                    <span className="font-semibold">{mph.toFixed(2)} MPH</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b border-border">
-                    <span className="text-muted-foreground">Points</span>
-                    <span className="font-semibold text-green-600">{points}</span>
-                  </div>
-                </>
-              )}
-            </div>
+            </Card>
+          </div>
+        )}
 
-            <div className="flex gap-3 pt-2">
+        <Card className="space-y-2 p-3">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {RESULT_OPTIONS.map(opt => (
               <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => setShowConfirmation(false)}
+                key={opt.value}
+                variant={fastcatResult === opt.value ? 'default' : 'outline'}
+                className={cn('h-12', fastcatResult === opt.value && opt.activeClass)}
+                onClick={() => handleResultSelect(opt.value)}
+                data-testid={`result-${opt.value}`}
               >
-                Cancel
+                {opt.label}
               </Button>
-              <Button
-                className="flex-1"
-                onClick={handleConfirmSubmit}
-                disabled={isSubmitting}
-                data-testid="confirm-submit-btn"
-              >
-                {isSubmitting ? 'Submitting...' : 'Confirm & Submit'}
-              </Button>
-            </div>
-          </Card>
-        </div>
+            ))}
+          </div>
+
+          {fastcatResult === 'DQ' && (
+            <DisqualifyReason
+              sportType="AKC_FASTCAT"
+              reason={scoring.nonQualifyingReason}
+              onReasonChange={scoring.setNonQualifyingReason}
+            />
+          )}
+        </Card>
+      </ScoresheetShell>
+
+      {showConfirmation && (
+        // INTENT: the Score Confirmation is the read-back the judge copies onto the
+        // paper scoresheet. Do not remove it, skip it or auto-dismiss it (MYK9-1501).
+        <ScoreConfirmationDialog
+          subtitle="AKC FastCAT"
+          armband={entry.armband}
+          dogName={entry.dogName}
+          handlerName={entry.handlerName}
+          result={fastcatResult}
+          rows={[
+            { label: 'Run Time', value: runTimeStr || 'Not entered', mono: true },
+            ...(mph > 0
+              ? [
+                  { label: 'Speed', value: `${mph.toFixed(2)} MPH` },
+                  { label: 'Points', value: points, className: 'text-green-600' },
+                ]
+              : []),
+          ]}
+          // Only a DQ saves a reason on this sheet (see handleConfirmSubmit).
+          reason={fastcatResult === 'DQ' ? scoring.nonQualifyingReason : undefined}
+          isSubmitting={isSubmitting}
+          onCancel={() => setShowConfirmation(false)}
+          onConfirm={handleConfirmSubmit}
+        />
       )}
     </>
   );

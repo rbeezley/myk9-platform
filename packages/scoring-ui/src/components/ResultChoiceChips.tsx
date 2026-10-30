@@ -3,6 +3,8 @@ import { cn } from '@myk9/ui';
 import { haptic } from '../hooks/useHapticFeedback';
 import type { QualifyingResult, ScoresheetSportType } from '../types/scoreData';
 import { DQ_ACTIVE_CLASS, DisqualifyReason } from './DisqualifyReason';
+import { FaultStepper } from './FaultStepper';
+import { resultLabel } from '../utils/resultLabel';
 
 // Each option carries its own label colour beside its own fill. A blanket
 // `text-white` on the active branch would work only by twMerge ordering — the
@@ -11,31 +13,31 @@ import { DQ_ACTIVE_CLASS, DisqualifyReason } from './DisqualifyReason';
 const RESULT_OPTIONS: { value: QualifyingResult; label: string; activeClass: string }[] = [
   {
     value: 'Q',
-    label: 'Qualified',
+    label: resultLabel('Q'),
     // Qualified uses the host accent (terracotta in myK9Show, teal in myK9Q) —
     // the "selected = accent" convention. NQ/ABS/EX stay semantic below.
     activeClass: 'bg-primary hover:brightness-110 border-primary text-primary-foreground shadow-lg',
   },
   {
     value: 'NQ',
-    label: 'NQ',
+    label: resultLabel('NQ'),
     activeClass:
       'bg-red-600 hover:bg-red-700 border-red-600 text-white shadow-lg shadow-red-600/20',
   },
   {
     value: 'ABS',
-    label: 'Absent',
+    label: resultLabel('ABS'),
     activeClass:
       'bg-purple-600 hover:bg-purple-700 border-purple-600 text-white shadow-lg shadow-purple-600/20',
   },
   {
     value: 'EX',
-    label: 'Excused',
+    label: resultLabel('EX'),
     activeClass:
       'bg-red-700 hover:bg-red-800 border-red-700 text-white shadow-lg shadow-red-700/20',
   },
   // Rare, official record: kept last and styled apart from Excused (MYK9-1011).
-  { value: 'DQ', label: 'DQ', activeClass: DQ_ACTIVE_CLASS },
+  { value: 'DQ', label: resultLabel('DQ'), activeClass: DQ_ACTIVE_CLASS },
 ];
 
 const NQ_REASONS: Record<string, string[]> = {
@@ -88,16 +90,13 @@ function getMaxFaults(sportType?: ScoresheetSportType, level?: string): number {
 }
 
 const chipBase =
-  'px-3 py-2 rounded-full border-2 text-sm font-semibold cursor-pointer transition-all duration-200 hover:-translate-y-px active:scale-[0.98]';
+  'min-h-12 px-1 rounded-xl border-2 text-sm font-semibold cursor-pointer transition-all duration-200 active:scale-[0.98]';
 
 const chipInactive =
   'bg-muted border-border text-muted-foreground hover:bg-accent hover:text-foreground';
 
 const reasonChipBase =
-  'px-4 py-2 rounded-full border-2 text-sm font-semibold cursor-pointer transition-all duration-200 hover:-translate-y-px active:scale-[0.98]';
-
-const faultButtonClass =
-  'w-11 h-11 rounded-full border-2 border-border bg-primary text-primary-foreground text-xl font-semibold flex items-center justify-center cursor-pointer transition-all duration-200 hover:brightness-110 hover:-translate-y-px disabled:opacity-40 disabled:cursor-not-allowed';
+  'min-h-11 px-4 py-2 rounded-full border-2 text-sm font-semibold cursor-pointer transition-all duration-200 hover:-translate-y-px active:scale-[0.98]';
 
 export interface ResultChoiceChipsProps {
   selectedResult: QualifyingResult | null;
@@ -135,20 +134,16 @@ export const ResultChoiceChips: React.FC<ResultChoiceChipsProps> = ({
   const nqReasons = NQ_REASONS[sportType || ''] || NQ_REASONS.default;
   const excusedReasons = EXCUSED_REASONS[sportType || ''] || EXCUSED_REASONS.default;
   const maxFaults = getMaxFaults(sportType, level);
-  const isAtMaxFaults = faultCount >= maxFaults;
 
   return (
-    <div className={cn('space-y-4', className)}>
-      <div className="flex flex-wrap gap-1.5 justify-center">
+    <div className={cn('space-y-2', className)}>
+      <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-5">
         {RESULT_OPTIONS.map(opt => {
           const isActive = selectedResult === opt.value;
           return (
             <button
               key={opt.value}
-              className={cn(
-                chipBase,
-                isActive ? `-translate-y-px ${opt.activeClass}` : chipInactive
-              )}
+              className={cn(chipBase, isActive ? opt.activeClass : chipInactive)}
               onClick={() => {
                 haptic.medium();
                 onResultChange(opt.value);
@@ -162,54 +157,16 @@ export const ResultChoiceChips: React.FC<ResultChoiceChipsProps> = ({
       </div>
 
       {selectedResult === 'Q' && onFaultCountChange && !hideFaults && (
-        <div className="flex flex-col items-center gap-3 py-2">
-          <h3 className="text-base font-semibold text-center">
-            Faults Count
-            {maxFaults !== Infinity && (
-              <span className="text-sm font-normal text-muted-foreground"> (max {maxFaults})</span>
-            )}
-          </h3>
-          <div className="flex items-center justify-center gap-5">
-            <button
-              className={faultButtonClass}
-              onClick={() => {
-                haptic.light();
-                onFaultCountChange(Math.max(0, faultCount - 1));
-              }}
-              disabled={faultCount === 0}
-            >
-              -
-            </button>
-            <span
-              className={cn(
-                'text-2xl font-bold w-10 text-center tabular-nums',
-                isAtMaxFaults && 'text-red-500'
-              )}
-            >
-              {faultCount}
-            </span>
-            <button
-              className={faultButtonClass}
-              onClick={() => {
-                haptic.light();
-                onFaultCountChange(faultCount + 1);
-              }}
-              disabled={isAtMaxFaults}
-              title={isAtMaxFaults ? `Maximum ${maxFaults} faults allowed` : undefined}
-            >
-              +
-            </button>
-          </div>
-          {isAtMaxFaults && (
-            <div className="text-sm text-red-500 font-medium">
-              At maximum faults for {level} level
-            </div>
-          )}
-        </div>
+        <FaultStepper
+          value={faultCount}
+          onChange={onFaultCountChange}
+          max={maxFaults === Infinity ? undefined : maxFaults}
+          maxNote={`At maximum faults for ${level} level`}
+        />
       )}
 
       {selectedResult === 'NQ' && onNQReasonChange && (
-        <div className="flex flex-col items-center gap-3 py-2">
+        <div className="flex flex-col items-center gap-2 py-1">
           <h3 className="text-base font-semibold text-center">Non-Qualifying Reason</h3>
           <div className="flex gap-2 justify-center flex-wrap">
             {nqReasons.map(reason => (
@@ -234,7 +191,7 @@ export const ResultChoiceChips: React.FC<ResultChoiceChipsProps> = ({
       )}
 
       {selectedResult === 'EX' && onExcusedReasonChange && (
-        <div className="flex flex-col items-center gap-3 py-2">
+        <div className="flex flex-col items-center gap-2 py-1">
           <h3 className="text-base font-semibold text-center">Excused Reason</h3>
           <div className="flex gap-2 justify-center flex-wrap">
             {excusedReasons.map(reason => (

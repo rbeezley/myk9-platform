@@ -4,30 +4,40 @@
  */
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import { ScoresheetDogCard } from './ScoresheetDogCard';
+import { ScoresheetHeader } from './ScoresheetHeader';
 import { TimerResetButton } from './TimerResetButton';
 import { formatScoresheetSubtitle } from '../utils/scoresheetSubtitle';
+import { resultLabel } from '../utils/resultLabel';
 
-describe('ScoresheetDogCard', () => {
+const header = {
+  upButton: <button type="button">Entries</button>,
+  titleLines: ['AKC Scent Work'],
+  handlerName: 'Jordan Ellis',
+  dogName: 'Cooper',
+  armband: 1204,
+};
+
+describe('ScoresheetHeader', () => {
   it('shows armband, call name, breed and handler', () => {
-    render(
-      <ScoresheetDogCard
-        armband={1204}
-        dogName="Cooper"
-        breed="Beagle"
-        handlerName="Jordan Ellis"
-      />
-    );
+    render(<ScoresheetHeader {...header} breed="Beagle" />);
     expect(screen.getByTestId('scoresheet-armband').textContent).toBe('1204');
+    expect(screen.getByText('Cooper')).toBeTruthy();
     expect(screen.getByText('Beagle')).toBeTruthy();
     expect(screen.getByText('Handler: Jordan Ellis')).toBeTruthy();
   });
 
   it('lets the armband badge grow with its digits', () => {
-    render(<ScoresheetDogCard armband={1204} dogName="Cooper" handlerName="Jordan" />);
+    render(<ScoresheetHeader {...header} />);
     const badge = screen.getByTestId('scoresheet-armband');
     expect(badge.className).toContain('min-w-');
     expect(badge.className).not.toMatch(/\bw-14\b/);
+  });
+
+  it('puts the Up control first and the host actions last', () => {
+    render(<ScoresheetHeader {...header} headerActions={<button type="button">Mute</button>} />);
+    const banner = screen.getByRole('banner');
+    expect(banner.firstElementChild).toBe(screen.getByRole('button', { name: 'Entries' }));
+    expect(banner.lastElementChild).toBe(screen.getByRole('button', { name: 'Mute' }));
   });
 });
 
@@ -40,6 +50,20 @@ describe('formatScoresheetSubtitle', () => {
 
   it('drops an Unknown level and a missing judge', () => {
     expect(formatScoresheetSubtitle({ element: 'Interior', level: 'Unknown' })).toBe('Interior');
+  });
+});
+
+describe('resultLabel', () => {
+  it('spells every result code out in words', () => {
+    expect(['Q', 'NQ', 'ABS', 'EX', 'DQ'].map(resultLabel)).toEqual([
+      'Qualified',
+      'NQ',
+      'Absent',
+      'Excused',
+      'DQ',
+    ]);
+    expect(resultLabel('1st')).toBe('1st');
+    expect(resultLabel(null)).toBe('');
   });
 });
 

@@ -32,7 +32,8 @@ export async function applyCombinedRunOrder(
       id: e.id,
       armband: e.armband != null ? String(e.armband) : null,
       section: e.section ?? null,
-      runOrder: e.exhibitorOrder ?? null,
+      // The adapter exposes an unset run order as 0; 0 is never a real slot.
+      runOrder: e.exhibitorOrder ? e.exhibitorOrder : null,
     })),
     // ringside's union carries members myK9Show's dialog doesn't model
     // (notably `random-all` → `random`); a bare cast would let them fall to

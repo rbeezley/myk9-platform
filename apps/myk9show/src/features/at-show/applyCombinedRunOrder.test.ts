@@ -85,11 +85,8 @@ describe('applyCombinedRunOrder', () => {
     await applyCombinedRunOrder(mixed, 'armband-asc', 'B', 'preserve');
 
     const orders = recordedRunOrders();
-    // preserve: the other section (A, 3 entries) keeps 1..3; scoped B offsets to 4..6.
-    expect([orders.a1, orders.a2, orders.a3].sort()).toEqual([1, 2, 3]);
-    expect(orders.b1).toBe(4);
-    expect(orders.b3).toBe(5);
-    expect(orders.b2).toBe(6);
+    // preserve: the other section (A) is never written; unset, B starts at 1.
+    expect(orders).toEqual({ b1: 1, b3: 2, b2: 3 });
   });
 
   it('maps ringside random-all to a full contiguous renumber (1..N)', async () => {
@@ -147,5 +144,24 @@ describe('applyCombinedRunOrder', () => {
   it('rejects when the replication write fails', async () => {
     vi.mocked(replicatedEntriesTable.updateEntry).mockRejectedValueOnce(new Error('offline'));
     await expect(applyCombinedRunOrder(mixed, 'armband-asc', 'all')).rejects.toThrow('offline');
+  });
+
+  it("treats the adapter's 0 sentinel as unset: scoped section gets real orders, none end at 0", async () => {
+    const zeroed = mixed.map(e => ({ ...e, exhibitorOrder: 0 }) as Entry);
+    await applyCombinedRunOrder(zeroed, 'armband-asc', 'A', 'preserve');
+
+    expect(recordedRunOrders()).toEqual({ a1: 1, a3: 2, a2: 3 });
+    expect(Object.values(recordedRunOrders())).not.toContain(0);
+  });
+
+  it('gives a lone unset (0) scoped entry a real slot after the other section', async () => {
+    const lone = [
+      { ...entry('a1', 1, 'A'), exhibitorOrder: 0 },
+      { ...entry('b1', 2, 'B'), exhibitorOrder: 1 },
+      { ...entry('b2', 3, 'B'), exhibitorOrder: 2 },
+    ] as unknown as Entry[];
+    await applyCombinedRunOrder(lone, 'armband-asc', 'A', 'preserve');
+
+    expect(recordedRunOrders()).toEqual({ a1: 3 });
   });
 });

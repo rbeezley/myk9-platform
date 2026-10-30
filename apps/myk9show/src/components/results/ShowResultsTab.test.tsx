@@ -16,6 +16,10 @@ vi.mock('@/hooks/queries/useShowResults', async () => {
   };
 });
 
+vi.mock('@/hooks/queries/useShowClassProgress', () => ({
+  useShowClassProgress: vi.fn(() => ({ data: [] })),
+}));
+
 vi.mock('@/hooks/queries/useShowStats', () => ({
   useShowStats: vi.fn(),
 }));

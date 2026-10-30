@@ -10,6 +10,7 @@ import {
   SUPABASE_CONFIG_FILE,
   functionSecretsEnvFile,
   noVerifyJwtConfig,
+  perWorkerEdgeRuntimeConfig,
   planAppFunctionStaging,
   resolveIsolatedStripeSecretKey,
   stageAppEdgeFunctions,
@@ -101,6 +102,38 @@ describe('stageAppEdgeFunctions', () => {
     }
     expect(config).not.toContain('[functions._shared]');
     expect(config.startsWith('[api]\nenabled = true\n')).toBe(true);
+    // MYK9-1467: workers stay alive between requests, as in production.
+    expect(config).toMatch(/^\[edge_runtime\]\npolicy = "per_worker"$/m);
+  });
+});
+
+describe('perWorkerEdgeRuntimeConfig (MYK9-1467)', () => {
+  it('adds the section when the config has none', () => {
+    expect(perWorkerEdgeRuntimeConfig('[api]\nenabled = true\n')).toBe(
+      '[api]\nenabled = true\n\n[edge_runtime]\npolicy = "per_worker"\n'
+    );
+  });
+
+  it('adds the policy to an existing section without one, and touches nothing else', () => {
+    expect(
+      perWorkerEdgeRuntimeConfig(
+        '[edge_runtime]\nenabled = true\n[functions.a]\nverify_jwt = false\n'
+      )
+    ).toBe(
+      '[edge_runtime]\npolicy = "per_worker"\nenabled = true\n[functions.a]\nverify_jwt = false\n'
+    );
+  });
+
+  it("replaces a oneshot policy, but not another section's policy line", () => {
+    expect(
+      perWorkerEdgeRuntimeConfig('[other]\npolicy = "x"\n[edge_runtime]\npolicy = "oneshot"\n')
+    ).toBe('[other]\npolicy = "x"\n[edge_runtime]\npolicy = "per_worker"\n');
+  });
+
+  it('finds a section header that carries a trailing comment', () => {
+    expect(perWorkerEdgeRuntimeConfig('[edge_runtime] # runtime\npolicy = "oneshot"\n')).toBe(
+      '[edge_runtime] # runtime\npolicy = "per_worker"\n'
+    );
   });
 });
 

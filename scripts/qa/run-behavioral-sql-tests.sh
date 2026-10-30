@@ -111,6 +111,7 @@ TEST_FILES=(
   "$TEST_DIR/myk9_740_ringside_replay_idempotent_test.sql"
   "$TEST_DIR/myk9_1086_ringside_update_class_test.sql"
   "$TEST_DIR/myk9_1098_ringside_update_class_area_times_test.sql"
+  "$TEST_DIR/myk9_1513_class_ring_phase_test.sql"
   "$TEST_DIR/myk9_677_show_payments_ledger_test.sql"
   "$TEST_DIR/myk9_677_submit_entries_payment_test.sql"
   "$TEST_DIR/myk9_773_inherited_refund_follows_payment_test.sql"
@@ -154,6 +155,8 @@ TEST_FILES=(
   "$TEST_DIR/myk9_981_closed_refund_request_releases_cart_test.sql"
   "$TEST_DIR/myk9_968_payment_link_offer_resolves_atomically_test.sql"
   "$TEST_DIR/myk9_1003_waitlist_auto_offer_test.sql"
+  "$TEST_DIR/myk9_1460_timezone_names_snapshot_test.sql"
+  "$TEST_DIR/myk9_1388_club_delete_deactivates_club_roles_test.sql"
   "$TEST_DIR/myk9_1000_count_live_waitlist_entries_test.sql"
   "$TEST_DIR/myk9_1001_waitlist_offer_withdrawn_test.sql"
   "$TEST_DIR/myk9_1002_waitlist_offer_message_deadline_test.sql"
@@ -176,6 +179,8 @@ TEST_FILES=(
   "$TEST_DIR/myk9_1071_registration_people_versions_test.sql"
   "$TEST_DIR/myk9_963_unfulfilled_charge_refund_test.sql"
   "$TEST_DIR/myk9_969_results_privacy_test.sql"
+  "$TEST_DIR/myk9_1369_entry_results_changed_since_test.sql"
+  "$TEST_DIR/myk9_1476_caller_access_epoch_test.sql"
   "$TEST_DIR/myk9_822_blocking_entries_rpc_test.sql"
   "$TEST_DIR/myk9_970_role_onboarding_test.sql"
   "$TEST_DIR/user_roles_show_manager_read_test.sql"
@@ -203,10 +208,15 @@ TEST_FILES=(
   "$TEST_DIR/myk9_1254_lifecycle_jobs_column_acl_test.sql"
   "$TEST_DIR/myk9_1310_approval_authorizes_club_test.sql"
   "$TEST_DIR/myk9_1315_club_awaiting_authorization_notice_test.sql"
+  "$TEST_DIR/myk9_1395_club_awaiting_authorization_rate_limit_test.sql"
   "$TEST_DIR/myk9_1309_seed_fixture_functions_test.sql"
   "$TEST_DIR/myk9_1311_show_entry_counts_test.sql"
   "$TEST_DIR/myk9_1409_role_permission_rpcs_test.sql"
   "$TEST_DIR/myk9_1407_comp_keeps_paid_status_test.sql"
+  "$TEST_DIR/myk9_1327_set_class_judge_test.sql"
+  "$TEST_DIR/myk9_1327_one_judge_per_class_test.sql"
+  "$TEST_DIR/myk9_1472_hard_delete_show_money_guards_test.sql"
+  "$TEST_DIR/myk9_1473_coin_flip_tie_order_test.sql"
 )
 
 for test_file in "${TEST_FILES[@]}"; do
@@ -217,5 +227,14 @@ for test_file in "${TEST_FILES[@]}"; do
   echo "── $(basename "$test_file") ──"
   psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f "$test_file"
 done
+
+# MYK9-1472: two-session races against hard_delete_show's row locks, lock
+# timeout, deadlock and FK-DDL ordering. The fake-psql contract test skips it.
+if [ "${MYK9_SKIP_HARD_DELETE_CONCURRENCY:-0}" = "1" ]; then
+  echo "SKIP: local hard-delete concurrency harness (source-contract test mode)"
+else
+  MYK9_BEHAVIORAL_SQL_DATABASE_URL="$DATABASE_URL" \
+    bash "$REPO_ROOT/scripts/qa/hard-delete-show-concurrency.sh"
+fi
 
 echo "BEHAVIORAL SQL TESTS PASSED (${#TEST_FILES[@]} files)"

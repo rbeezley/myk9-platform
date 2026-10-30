@@ -18,6 +18,7 @@ vi.mock('@/utils/logger', () => ({ logger: { warn: vi.fn(), log: vi.fn(), error:
 
 import { ReplicatedClassesTable } from './ReplicatedClassesTable';
 import { invalidateClassEnrichment } from './classEnrichmentCache';
+import { spyOnWriteAndQueue } from '@/test/utils/spyOnWriteAndQueue';
 
 const SHOW_ID = 'show-1';
 const TRIALS = [{ id: 'trial-1', show_id: SHOW_ID, registry_id: 'AKC' }];
@@ -53,23 +54,30 @@ describe('class enrichment across consecutive classes deltas (MYK9-1360)', () =>
     vi.clearAllMocks();
     invalidateClassEnrichment();
     mockFrom.mockImplementation((table: string) => builder(table === 'trials' ? TRIALS : []));
-    mockRpc.mockImplementation(async (name: string) =>
-      name === 'get_show_judges'
+    // Answers the batched RPCs, with every row stamped for a show the caller actually asked for.
+    mockRpc.mockImplementation(async (name: string, args: { p_show_ids: string[] }) =>
+      name === 'get_shows_judges'
         ? {
-            data: [
-              {
-                assignment_id: 'a-1',
-                class_id: 'class-1',
-                trial_id: 'trial-1',
-                person_id: 'judge-1',
-                first_name: 'Jo',
-                last_name: 'Judge',
-                status: 'confirmed',
-              },
-            ],
+            data: args.p_show_ids.map(showId => ({
+              show_id: showId,
+              assignment_id: 'a-1',
+              class_id: 'class-1',
+              trial_id: 'trial-1',
+              person_id: 'judge-1',
+              first_name: 'Jo',
+              last_name: 'Judge',
+              status: 'confirmed',
+            })),
             error: null,
           }
-        : { data: [{ class_id: 'class-1', num_hides: 4 }], error: null }
+        : {
+            data: args.p_show_ids.map(showId => ({
+              show_id: showId,
+              class_id: 'class-1',
+              num_hides: 4,
+            })),
+            error: null,
+          }
     );
   });
 
@@ -87,7 +95,7 @@ describe('class enrichment across consecutive classes deltas (MYK9-1360)', () =>
       ])
     );
     expect(tablesRead().filter(name => name === 'sport_class_rules')).toHaveLength(2);
-    expect(rpcNames().sort()).toEqual(['get_show_class_hide_counts', 'get_show_judges']);
+    expect(rpcNames().sort()).toEqual(['get_shows_class_hide_counts', 'get_shows_judges']);
     expect(wireCalls()).toBe(8);
 
     mockFrom.mockClear();
@@ -122,21 +130,23 @@ describe('class enrichment across consecutive classes deltas (MYK9-1360)', () =>
 
     invalidateClassEnrichment(SHOW_ID);
     await enrich(table)(delta(2));
-    expect(rpcNames().sort()).toEqual(['get_show_class_hide_counts', 'get_show_judges']);
+    // The re-ask is a batched call naming only the invalidated show.
+    for (const call of mockRpc.mock.calls) expect(call[1]).toEqual({ p_show_ids: [SHOW_ID] });
+    expect(rpcNames().sort()).toEqual(['get_shows_class_hide_counts', 'get_shows_judges']);
     expect(tablesRead().filter(name => name === 'sport_class_rules')).toHaveLength(2);
     expect(wireCalls()).toBe(8);
   });
 
   it('re-asks on the next delta when the hide-count RPC errored on the first', async () => {
     const answer = mockRpc.getMockImplementation()!;
-    mockRpc.mockImplementation(async (name: string) =>
-      name === 'get_show_class_hide_counts'
+    mockRpc.mockImplementation(async (name: string, args: { p_show_ids: string[] }) =>
+      name === 'get_shows_class_hide_counts'
         ? { data: null, error: { message: 'timeout' } }
-        : answer(name)
+        : answer(name, args)
     );
     const table = new ReplicatedClassesTable();
     const first = await enrich(table)(delta(0));
-    // The failed read still replicates: judge and visibility answered, hide count is absent.
+    // A cold device (MYK9-1451) holds no count to lose: the failed read still replicates.
     expect(first[0]).toMatchObject({ num_hides: null, _judgeResolved: true });
 
     mockRpc.mockImplementation(answer);
@@ -144,7 +154,7 @@ describe('class enrichment across consecutive classes deltas (MYK9-1360)', () =>
     mockRpc.mockClear();
     const second = await enrich(table)(delta(1));
 
-    expect(rpcNames()).toContain('get_show_class_hide_counts');
+    expect(rpcNames()).toContain('get_shows_class_hide_counts');
     expect(second[0]).toMatchObject({ num_hides: 4 });
 
     mockRpc.mockClear();
@@ -158,15 +168,12 @@ describe('class enrichment across consecutive classes deltas (MYK9-1360)', () =>
     const { replicatedJudgeAssignmentsTable } = await import('./ReplicatedJudgeAssignmentsTable');
     vi.spyOn(replicatedJudgeAssignmentsTable, 'get').mockResolvedValue({ id: 'a-1' } as never);
     vi.spyOn(replicatedJudgeAssignmentsTable, 'set').mockResolvedValue(undefined as never);
-    vi.spyOn(
-      replicatedJudgeAssignmentsTable as unknown as { queueMutation: () => Promise<string | null> },
-      'queueMutation'
-    ).mockResolvedValue(null);
+    spyOnWriteAndQueue(replicatedJudgeAssignmentsTable).queue.mockResolvedValue(null);
 
     mockRpc.mockClear();
     await replicatedJudgeAssignmentsTable.updateAssignment('a-1', { personId: 'judge-2' });
     await enrich(table)(delta(1));
 
-    expect(rpcNames()).toContain('get_show_judges');
+    expect(rpcNames()).toContain('get_shows_judges');
   });
 });

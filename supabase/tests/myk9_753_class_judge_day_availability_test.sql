@@ -1,14 +1,13 @@
 -- Behavioral test for 20260925201300_myk9_753_class_judge_day_availability.sql.
 --
--- MYK9-753: the cart needs every judge day's real remaining spots, not only
--- each class's tightest day. A line in a class with two confirmed judges takes
--- a spot on BOTH judges' days, so a read that names one day per class cannot
--- tell the cart what the other day has left.
+-- MYK9-753: the cart needs every judge day's real remaining spots. A class has
+-- exactly one judge (owner, 2026-10-28; CONTEXT.md, Class; MYK9-1327 batch 3
+-- adds the unique index), so each judged class reads its judge's day. The
+-- earlier two-judge case modelled an impossible state and was removed.
 --
 -- Why each case earns its place:
---   1. The two-judge class returns one row PER judge day: Alma's day is full
---      (another exhibitor's entry in her other class filled it), Bert's is not.
---      A read that returned only the tightest day (the old shape) fails here.
+--   1. A class whose judge's day is full returns that judge's day: Alma's day
+--      is full (another exhibitor's entry in her other class filled it).
 --   2. That class's verdict is 'full' (no wait list), because payment refuses
 --      it: evaluate_entry_capacity answers 'denied' on the same fixture.
 --   3. A single-judge class is unchanged: one row, and its figure equals
@@ -33,7 +32,7 @@ INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id,
                           entry_open_date, entry_close_date, pre_entry_fee,
                           default_judge_day_capacity)
 VALUES
-  ('00000000-0000-0000-0000-000000753100', 'MYK9-753 Two Judge Show', 'AKC',
+  ('00000000-0000-0000-0000-000000753100', 'MYK9-753 Judge Day Show', 'AKC',
    current_date + 5, current_date + 6, '00000000-0000-0000-0000-000000753010', 'published',
    (current_date - 10)::timestamptz, (current_date + 4)::timestamptz, 30, 125),
   ('00000000-0000-0000-0000-000000753101', 'MYK9-753 Draft Show', 'AKC',
@@ -57,7 +56,7 @@ VALUES
 INSERT INTO public.classes (id, trial_id, name, element, level, status, status_source,
                             entry_fee, max_entries, allow_waitlist)
 VALUES
-  -- Judged by Alma AND Bert.
+  -- Alma only; its day is full.
   ('00000000-0000-0000-0000-000000753301', '00000000-0000-0000-0000-000000753200',
    'Interior Novice A', 'Interior', 'Novice', 'upcoming', 'manual', 30, NULL, false),
   -- Alma only; Otto's entry here fills Alma's day.
@@ -95,7 +94,7 @@ VALUES
    'authenticated', 'authenticated', 'myk9-753-ann@example.test', '', now(), now(), now(),
    '{}', '{}', false, false, false);
 
--- Alma: a one-dog day. Bert: a three-dog day. Both judge the Interior class.
+-- Alma: a one-dog day, judging 301 and 302. Bert: a three-dog day, judging 303.
 INSERT INTO public.judge_assignments (person_id, show_id, trial_id, class_id, status,
                                       day_capacity_override)
 VALUES
@@ -103,8 +102,6 @@ VALUES
    '00000000-0000-0000-0000-000000753200', '00000000-0000-0000-0000-000000753301', 'confirmed', 1),
   ('00000000-0000-0000-0000-000000753003', '00000000-0000-0000-0000-000000753100',
    '00000000-0000-0000-0000-000000753200', '00000000-0000-0000-0000-000000753302', 'confirmed', 1),
-  ('00000000-0000-0000-0000-000000753004', '00000000-0000-0000-0000-000000753100',
-   '00000000-0000-0000-0000-000000753200', '00000000-0000-0000-0000-000000753301', 'confirmed', 3),
   ('00000000-0000-0000-0000-000000753004', '00000000-0000-0000-0000-000000753100',
    '00000000-0000-0000-0000-000000753200', '00000000-0000-0000-0000-000000753303', 'confirmed', 3);
 
@@ -156,12 +153,12 @@ BEGIN
   END IF;
   RAISE NOTICE 'PASS Ann''s own RLS returns 0 entries on Alma''s full day';
 
-  -- 1. One row per judge day for the two-judge class.
+  -- 1. One row, its judge's day, for the class whose judge's day is full.
   SELECT count(*) INTO v_rows
   FROM public.get_show_class_judge_day_availability(v_show)
   WHERE class_id = '00000000-0000-0000-0000-000000753301';
-  IF v_rows <> 2 THEN
-    RAISE EXCEPTION 'FAIL the two-judge class returned % judge-day rows, not 2', v_rows;
+  IF v_rows <> 1 THEN
+    RAISE EXCEPTION 'FAIL the full-day class returned % judge-day rows, not 1', v_rows;
   END IF;
 
   SELECT * INTO r FROM public.get_show_class_judge_day_availability(v_show)
@@ -171,20 +168,14 @@ BEGIN
     RAISE EXCEPTION 'FAIL Alma''s full day read as capacity %, taken %, remaining %, date %',
       r.day_capacity, r.day_taken, r.day_remaining, r.show_date;
   END IF;
-
-  SELECT * INTO r FROM public.get_show_class_judge_day_availability(v_show)
-  WHERE class_id = '00000000-0000-0000-0000-000000753301' AND judge_id = v_bert;
-  IF r.day_remaining IS DISTINCT FROM 3 OR r.day_taken IS DISTINCT FROM 0 THEN
-    RAISE EXCEPTION 'FAIL Bert''s open day read as taken %, remaining %', r.day_taken, r.day_remaining;
-  END IF;
-  RAISE NOTICE 'PASS a two-judge class returns each judge''s day: Alma 0 left, Bert 3 left';
+  RAISE NOTICE 'PASS a class returns its judge''s day: Alma 0 left';
 
   -- 2. The class verdict is what payment does: no room on Alma's day, no wait list.
   IF r.self_service_block IS DISTINCT FROM 'full' OR r.class_full OR r.class_remaining IS NOT NULL THEN
-    RAISE EXCEPTION 'FAIL two-judge class verdict %, class_full %, class_remaining %',
+    RAISE EXCEPTION 'FAIL full-day class verdict %, class_full %, class_remaining %',
       r.self_service_block, r.class_full, r.class_remaining;
   END IF;
-  RAISE NOTICE 'PASS the two-judge class verdict is full because one of its days is';
+  RAISE NOTICE 'PASS the class verdict is full because its judge''s day is';
 
   -- 3. A single-judge class: one row, the same figure the wizard read reports.
   SELECT count(*) INTO v_rows
@@ -200,15 +191,15 @@ BEGIN
     RAISE EXCEPTION 'FAIL single-judge class: % rows, judge %, remaining %, wizard read %/%',
       v_rows, r.judge_id, r.day_remaining, legacy.judge_id, legacy.judge_day_available;
   END IF;
-  -- The wizard read still names the tightest day for the two-judge class.
+  -- The wizard read names the same full day for that class.
   SELECT * INTO legacy FROM public.get_show_class_availability(v_show)
   WHERE class_id = '00000000-0000-0000-0000-000000753301';
   IF legacy.judge_id IS DISTINCT FROM v_alma OR legacy.judge_day_available <> 0
      OR NOT legacy.judge_day_full OR legacy.self_service_block IS DISTINCT FROM 'full' THEN
-    RAISE EXCEPTION 'FAIL the wizard read changed for the two-judge class: judge %, available %, block %',
+    RAISE EXCEPTION 'FAIL the wizard read changed for the full-day class: judge %, available %, block %',
       legacy.judge_id, legacy.judge_day_available, legacy.self_service_block;
   END IF;
-  RAISE NOTICE 'PASS a single-judge class is unchanged, and the wizard read still names the tightest day';
+  RAISE NOTICE 'PASS an open-day class matches the wizard read, and the full-day class reads full there too';
 
   -- 4. No confirmed judge: one row, NULL day columns, class spots.
   SELECT count(*) INTO v_rows
@@ -290,8 +281,8 @@ BEGIN
     END IF;
     v_checked := v_checked + 1;
   END LOOP;
-  IF v_checked <> 4 THEN
-    RAISE EXCEPTION 'FAIL parity walked % judge-day rows, expected 4', v_checked;
+  IF v_checked <> 3 THEN
+    RAISE EXCEPTION 'FAIL parity walked % judge-day rows, expected 3', v_checked;
   END IF;
   RAISE NOTICE 'PASS every day_remaining equals get_judge_day_capacity_live''s self-service figure';
 

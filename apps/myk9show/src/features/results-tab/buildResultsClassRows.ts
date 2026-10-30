@@ -32,6 +32,7 @@ import type { SyncableTrial, SyncableTrialClass } from '@/store/trial-store-type
 import { mapResultStatusToQualification, dbSecondsToInputFormat } from '@/utils/scoringMappings';
 import { DISPLAY_LABELS } from '@/components/classes/ClassResultsTable/constants';
 import { CLASS_STATUS, LEGACY_STATUS_MAP } from '@myk9/core';
+import { hasUnresolvedTie } from './coinFlipRows';
 import {
   deriveResultsNextAction,
   deriveResultsPhase,
@@ -55,6 +56,17 @@ export interface ResultsEntryRow {
   timeLabel: string;
   faults: number | null;
   scored: boolean;
+  /** Points at nationals, the ranking key there (`points_earned`). */
+  pointsEarned: number | null;
+  /** Search time in seconds, the last ranking key. */
+  timeSeconds: number | null;
+  /**
+   * MYK9-1473: the server's tie marker from the replica. 'unresolved' = a ribbon tie awaiting its
+   * coin flip, 'shared' = a tie below 4th, null = no tie (or unknown on the online fallback read).
+   */
+  placementTie: 'unresolved' | 'shared' | null;
+  /** The recorded coin flip order within a tie (1 = won the flip); null = none recorded. */
+  placementTiebreak: number | null;
 }
 
 export interface ResultsClassRow {
@@ -112,6 +124,11 @@ export interface ResultsClassRow {
   /** False when print status could not be read; the UI says so rather than hiding the buttons. */
   paperworkAvailable: boolean;
   entries: readonly ResultsEntryRow[];
+  /**
+   * The rows the server ranks for ties: scored and qualified, whatever the entry status. A dog
+   * pulled after it ran keeps its place server-side, so a coin flip group must include it (MK016).
+   */
+  tieEntries: readonly ResultsEntryRow[];
 }
 
 export interface BuildResultsClassRowsInput {
@@ -207,6 +224,13 @@ function toEntryRow(entry: SecretaryEntry): ResultsEntryRow {
     timeLabel: entry.search_time_seconds ? dbSecondsToInputFormat(entry.search_time_seconds) : '',
     faults: entry.total_faults ?? null,
     scored: entry.is_scored === true,
+    pointsEarned: entry.points_earned ?? null,
+    timeSeconds: entry.search_time_seconds ?? null,
+    placementTie:
+      entry.placement_tie === 'unresolved' || entry.placement_tie === 'shared'
+        ? entry.placement_tie
+        : null,
+    placementTiebreak: entry.placement_tiebreak ?? null,
   };
 }
 
@@ -243,8 +267,15 @@ export function buildResultsClassRows(input: BuildResultsClassRowsInput): Result
   };
   const tallies = tallyEntriesByClass(input.entries);
   const entriesByClass = new Map<string, SecretaryEntry[]>();
+  const tieEntriesByClass = new Map<string, SecretaryEntry[]>();
   for (const entry of input.entries) {
     if (!entry.class_id) continue;
+    // Mirrors `recalculate_class_placements`' eligibility, before the display filter below.
+    if (entry.is_scored === true && entry.result_status === 'qualified') {
+      const ranked = tieEntriesByClass.get(entry.class_id) ?? [];
+      ranked.push(entry);
+      tieEntriesByClass.set(entry.class_id, ranked);
+    }
     // The same rows `tallyEntriesByClass` counts toward `expectedCount`: not pulled, withdrawn,
     // moved or absent, and not still waiting on an accept decision.
     if (!isExpectedEntry(accountingFields(entry)) || isPendingEntryStatus(entry.entry_status))
@@ -354,14 +385,23 @@ export function buildResultsClassRows(input: BuildResultsClassRowsInput): Result
       section: cls.section,
     };
     const day = judgeDays.byClassId.get(cls.id);
-    const state: ResultsClassState = {
+    const withDay: ResultsClassState = {
       ...baseState,
       judgeDayOpen: day ? judgeDays.openDayKeys.has(day.dayKey) : false,
+    };
+    const classEntries = (entriesByClass.get(cls.id) ?? []).map(toEntryRow).sort(placementSort);
+    const tieEntries = (tieEntriesByClass.get(cls.id) ?? []).map(toEntryRow);
+    // A tie for a ribbon is decided before the scores can be checked (the server refuses the
+    // check, MK018). Only a class saved as Completed can be checked, so only it asks for the flip.
+    const state: ResultsClassState = {
+      ...withDay,
+      ...(isCompletedStatus(cls.status) && hasUnresolvedTie(tieEntries)
+        ? { coinFlipPending: true }
+        : {}),
     };
     const derivedPhase = deriveResultsPhase(state);
     const wording = judgeSignOffWording(registryId);
     const paperwork = classPaperwork(input, cls.id, trial.id);
-    const classEntries = (entriesByClass.get(cls.id) ?? []).map(toEntryRow).sort(placementSort);
     const runFinished = day?.finished ?? false;
     // Who takes a sign-off is Overview's wrap-up rule, not a filter of Results' own: a Completed
     // class whose entries are all absent still needs initials there, so it does here.
@@ -423,6 +463,7 @@ export function buildResultsClassRows(input: BuildResultsClassRowsInput): Result
       paperwork,
       paperworkAvailable,
       entries: classEntries,
+      tieEntries,
     };
   });
 }

@@ -19,6 +19,28 @@ describe('isRetryableError', () => {
       expect(isRetryableError({ message: 'boom', code: '503' })).toBe(true);
     });
 
+    describe('RPC-scoped permanent codes (MYK9-1327)', () => {
+      const pick = { rpc: { name: 'set_class_judge' } };
+      const ringside = { rpc: { name: 'ringside_update_entry' } };
+
+      it('parks a set_class_judge mutation on P0002 and on 22023', () => {
+        expect(isRetryableError({ message: 'class not found', code: 'P0002' }, pick)).toBe(false);
+        expect(isRetryableError({ message: 'bad parameter', code: '22023' }, pick)).toBe(false);
+      });
+
+      it('keeps retrying a ringside_update_entry on P0002 (entry not visible yet)', () => {
+        expect(isRetryableError({ message: 'Entry not found', code: 'P0002' }, ringside)).toBe(
+          true
+        );
+      });
+
+      it('keeps retrying a plain UPDATE on 22023, and any error with no mutation given', () => {
+        expect(isRetryableError({ message: 'bad parameter', code: '22023' }, {})).toBe(true);
+        expect(isRetryableError({ message: 'bad parameter', code: '22023' })).toBe(true);
+        expect(isRetryableError({ message: 'not found', code: 'P0002' })).toBe(true);
+      });
+    });
+
     it('returns true for 429 rate limit', () => {
       expect(isRetryableError({ message: 'too many', code: '429' })).toBe(true);
     });

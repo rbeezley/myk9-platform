@@ -229,3 +229,46 @@ describe('deriveDefaultResultsStatus', () => {
     expect(deriveDefaultResultsStatus([])).toBe('needs-me');
   });
 });
+
+describe('a tie for a ribbon (MYK9-1473)', () => {
+  const complete = state({
+    classStatus: 'Completed',
+    scoredCount: 8,
+    releasedAt: null,
+    verifiedAt: null,
+  });
+
+  it('asks for the coin flip instead of the check', () => {
+    const tied = { ...complete, coinFlipPending: true };
+    expect(deriveResultsPhase(tied)).toBe('needs-coin-flip');
+    expect(deriveResultsNextAction(tied)).toEqual({
+      kind: 'coin-flip',
+      label: 'Record coin flip',
+    });
+  });
+
+  it('keeps asking for the check when no tie is known', () => {
+    expect(deriveResultsPhase(complete)).toBe('needs-checking');
+    expect(deriveResultsPhase({ ...complete, coinFlipPending: false })).toBe('needs-checking');
+    expect(deriveResultsNextAction(complete).kind).toBe('verify');
+  });
+
+  it('never asks a checked class for a flip, and never before the class is complete', () => {
+    expect(
+      deriveResultsPhase({
+        ...complete,
+        verifiedAt: '2026-10-10T21:15:00.000Z',
+        coinFlipPending: true,
+      })
+    ).toBe('ready-to-release');
+    expect(deriveResultsPhase({ ...complete, scoredCount: 7, coinFlipPending: true })).toBe(
+      'in-ring'
+    );
+  });
+
+  it('counts as work for the secretary and under Needs checking', () => {
+    expect(matchesResultsStatusFilter('needs-coin-flip', 'needs-me')).toBe(true);
+    expect(matchesResultsStatusFilter('needs-coin-flip', 'needs-checking')).toBe(true);
+    expect(matchesResultsStatusFilter('needs-coin-flip', 'ready-to-release')).toBe(false);
+  });
+});

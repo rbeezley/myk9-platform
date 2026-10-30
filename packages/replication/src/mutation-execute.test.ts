@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { executeMutation, isPrimaryKeyDuplicateError } from './mutation-execute';
 import { OccRejectionError } from './mutation-occ';
+import { GatewayTransientError } from './mutation-utils';
 import type { Logger } from './dependencies';
 import type { PendingMutation } from './types';
 
@@ -505,6 +506,121 @@ describe('executeMutation', () => {
           makeMutation({ operation: 'DELETE', data: { id: 'entry-1' } })
         )
       ).rejects.toMatchObject({ message: 'boom' });
+    });
+  });
+
+  // MYK9-1488: postgrest reports the HTTP status beside `error`; the retry policy needs it on the thrown error.
+  describe('HTTP status of a failed write', () => {
+    const gatewayError = () => ({
+      message: 'upstream unavailable',
+      code: '',
+      details: '',
+      hint: '',
+    });
+    const settled = (status: number) =>
+      Promise.resolve({ data: null, error: gatewayError(), status });
+    const chain = (status: number) => {
+      const node: Record<string, unknown> = {};
+      node.eq = vi.fn(() => node);
+      node.select = vi.fn(() => settled(status));
+      return node;
+    };
+
+    it.each([
+      ['INSERT', 'insert', { insert: (status: number) => ({ select: () => settled(status) }) }],
+      ['UPDATE', 'update', { update: (status: number) => chain(status) }],
+      ['DELETE', 'delete', { delete: (status: number) => chain(status) }],
+    ] as const)('carries the status on a failed %s', async (operation, _key, builder) => {
+      const [method, make] = Object.entries(builder)[0] as [string, (status: number) => unknown];
+      const supabase = {
+        from: vi.fn(() => ({ [method]: vi.fn(() => make(503)) })),
+        rpc: vi.fn(),
+      } as unknown as SupabaseClient;
+
+      await expect(
+        executeMutation(
+          supabase,
+          makeLogger(),
+          makeMutation({ operation, data: { id: 'entry-1' } })
+        )
+      ).rejects.toMatchObject({
+        name: 'GatewayTransientError',
+        httpStatus: 503,
+        body: { message: 'upstream unavailable' },
+      });
+    });
+
+    it.each(['INSERT', 'UPDATE'] as const)(
+      'carries the status on a failed %s rpc',
+      async operation => {
+        const supabase = {
+          from: vi.fn(),
+          rpc: vi.fn(() => settled(504)),
+        } as unknown as SupabaseClient;
+
+        await expect(
+          executeMutation(
+            supabase,
+            makeLogger(),
+            makeMutation({ operation, rpc: { name: 'ringside_update_entry', args: {} } })
+          )
+        ).rejects.toMatchObject({ httpStatus: 504 });
+      }
+    );
+
+    it.each([
+      ['a JSON string', 'upstream unavailable'],
+      ['a JSON number', 503],
+      ['a JSON boolean', true],
+      ['"Forbidden" text with an empty code', { message: 'Forbidden', code: '' }],
+    ])('turns a 503 whose body is %s into a GatewayTransientError', async (_n, body) => {
+      const supabase = {
+        from: vi.fn(() => ({
+          update: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            select: () => Promise.resolve({ data: null, error: body, status: 503 }),
+          })),
+        })),
+        rpc: vi.fn(),
+      } as unknown as SupabaseClient;
+
+      const thrown = await executeMutation(
+        supabase,
+        makeLogger(),
+        makeMutation({ operation: 'UPDATE' })
+      ).catch((error: unknown) => error);
+      expect(thrown).toBeInstanceOf(GatewayTransientError);
+      expect(thrown).toMatchObject({ httpStatus: 503, body });
+    });
+
+    it('keeps a structured server error at 503 as itself, with the status', async () => {
+      const refusal = { message: 'not authorized', code: '42501', details: '', hint: '' };
+      const supabase = {
+        from: vi.fn(() => ({
+          insert: vi.fn(() => ({
+            select: () => Promise.resolve({ data: null, error: refusal, status: 503 }),
+          })),
+        })),
+        rpc: vi.fn(),
+      } as unknown as SupabaseClient;
+
+      const thrown = await executeMutation(supabase, makeLogger(), makeMutation()).catch(e => e);
+      expect(thrown).not.toBeInstanceOf(GatewayTransientError);
+      expect(thrown).toMatchObject({ code: '42501', httpStatus: 503 });
+    });
+
+    it('leaves a status-less transport failure without an httpStatus', async () => {
+      const supabase = {
+        from: vi.fn(() => ({
+          insert: vi.fn(() => ({
+            select: () => Promise.resolve({ data: null, error: gatewayError(), status: 0 }),
+          })),
+        })),
+        rpc: vi.fn(),
+      } as unknown as SupabaseClient;
+
+      const thrown = await executeMutation(supabase, makeLogger(), makeMutation()).catch(e => e);
+      expect(thrown).not.toHaveProperty('httpStatus');
     });
   });
 

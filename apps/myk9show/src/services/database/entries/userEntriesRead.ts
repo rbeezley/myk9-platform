@@ -335,6 +335,15 @@ export const getUserEntries = async (userId: string): Promise<UserEntriesResult>
   }
 };
 
+/** The replica rows the viewer handles or whose dog they own: the one own-entry rule for the replica. */
+export function filterOwnReplicaEntries<
+  E extends { handlerId?: string | null | undefined; dogId?: string | null | undefined },
+>(allEntries: readonly E[], ownedDogIds: ReadonlySet<string>, userId: string): E[] {
+  return allEntries.filter(
+    e => e.handlerId === userId || (e.dogId ? ownedDogIds.has(e.dogId) : false)
+  );
+}
+
 /**
  * Rebuild the exhibitor's rows from the per-show replication snapshot, or
  * `null` when the snapshot itself cannot be read.
@@ -360,9 +369,7 @@ async function readReplicaUserEntryRows(
     const showsMap = buildMapFromArray(shows, s => s.id);
     const trialsMap = buildMapFromArray(trials, t => t.id);
     const ownedDogIds = selectOwnedDogIds(dogs, userId);
-    const filtered = allEntries.filter(
-      e => e.handlerId === userId || (e.dogId ? ownedDogIds.has(e.dogId) : false)
-    );
+    const filtered = filterOwnReplicaEntries(allEntries, ownedDogIds, userId);
 
     return await buildReplicatedUserEntryRows(filtered, {
       dogsMap,

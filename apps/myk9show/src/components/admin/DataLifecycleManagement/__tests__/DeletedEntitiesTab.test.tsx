@@ -46,7 +46,6 @@ vi.mock('@/services/database/shows', () => ({
   getDeletedShows: vi.fn().mockResolvedValue({ data: [], error: null }),
   restoreShow: vi.fn().mockResolvedValue({ error: null }),
   hardDeleteShow: mockHardDeleteShow,
-  SHOW_HAS_STRIPE_ORDERS: 'SHOW_HAS_STRIPE_ORDERS',
 }));
 
 vi.mock('@/services/database/trials', () => ({
@@ -261,40 +260,63 @@ describe('DeletedEntitiesTab', () => {
 
   // MYK9-527: the ledger guard's refusal is not transient, so "Please try
   // again" is the wrong advice. Its own message must reach the admin.
-  it('renders the Stripe ledger guard message instead of the generic retry advice', async () => {
-    mockHardDeleteShow.mockResolvedValue({
-      error: {
-        code: 'SHOW_HAS_STRIPE_ORDERS',
+  // MYK9-1472: hard_delete_show refuses a show that is not unused with MK615
+  // and a sentence saying why; a lock conflict rolls back whole.
+  it.each([
+    [
+      'a Stripe order',
+      {
+        code: 'MK615',
         message:
-          'This show has 3 Stripe orders; refunds and reconciliation still reference them. Resolve or reassign those orders before deleting the show permanently.',
+          'This show has 3 Stripe order(s); refunds and reconciliation still reference them. Permanent deletion is refused. Resolve or reassign those orders first.',
       },
-    });
-    setCountsPerTable({ shows: 1 });
+      'This show has 3 Stripe order(s); refunds and reconciliation still reference them. Permanent deletion is refused. Resolve or reassign those orders first.',
+    ],
+    [
+      'records that must be kept',
+      {
+        code: 'MK615',
+        message:
+          'This show has records in public.show_payouts that must be kept for history and reconciliation, so it cannot be permanently deleted. Permanent deletion is limited to unused shows.',
+      },
+      'This show has records in public.show_payouts that must be kept for history and reconciliation, so it cannot be permanently deleted. Permanent deletion is limited to unused shows.',
+    ],
+    [
+      'a lock conflict',
+      { code: '55P03', message: 'The show could not be deleted because the database was busy' },
+      'The database was busy, so nothing was deleted. Try again in a quiet moment.',
+    ],
+  ])(
+    'renders the show refusal for %s instead of the generic retry advice',
+    async (_label, error, expected) => {
+      mockHardDeleteShow.mockResolvedValue({ error });
+      setCountsPerTable({ shows: 1 });
 
-    render(<DeletedEntitiesTab />);
+      render(<DeletedEntitiesTab />);
 
-    await waitFor(() => {
-      expect(screen.getByTestId('section-show')).toBeInTheDocument();
-    });
+      await waitFor(() => {
+        expect(screen.getByTestId('section-show')).toBeInTheDocument();
+      });
 
-    fireEvent.click(screen.getByText('Delete Shows'));
-    await waitFor(() => {
-      expect(screen.getByText('Permanently Delete Show?')).toBeInTheDocument();
-    });
+      fireEvent.click(screen.getByText('Delete Shows'));
+      await waitFor(() => {
+        expect(screen.getByText('Permanently Delete Show?')).toBeInTheDocument();
+      });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Delete Forever' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Delete Forever' }));
 
-    await waitFor(() => {
-      expect(mockNotifyError).toHaveBeenCalledWith(
-        'This show has 3 Stripe orders; refunds and reconciliation still reference them. Resolve or reassign those orders before deleting the show permanently.'
+      await waitFor(() => {
+        expect(mockNotifyError).toHaveBeenCalledWith(expected);
+      });
+      expect(mockNotifyError).not.toHaveBeenCalledWith(
+        "Couldn't permanently delete Show. Please try again."
       );
-    });
-    expect(mockNotifyError).not.toHaveBeenCalledWith(expect.stringContaining('Please try again'));
-  });
+    }
+  );
 
   it('still shows the generic retry advice for an unrelated delete failure', async () => {
     mockHardDeleteShow.mockResolvedValue({
-      error: { code: '40P01', message: 'deadlock detected' },
+      error: { code: 'PGRST000', message: 'Could not connect to the database' },
     });
     setCountsPerTable({ shows: 1 });
 

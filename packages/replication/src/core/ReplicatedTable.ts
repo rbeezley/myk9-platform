@@ -65,7 +65,9 @@ import {
 } from '../conflict/detectDirtyRowConflict';
 import type { ScopeStampDirective } from './scopeStamp';
 import { isConflictSurfacingEnabled } from '../conflictConfig';
-import { withQuotaEviction } from '../quota-eviction';
+import { evictCleanCacheRows, withQuotaEviction } from '../quota-eviction';
+import { putRowAndMutation, type QueuedWrite } from './putRowAndMutation';
+import { writeAndQueue, type WriteAndQueueResult } from './writeAndQueue';
 import {
   composeRetrySetOptions,
   isColdInsertAllowed,
@@ -642,35 +644,18 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     const releaseWriteLock =
       deferredWriteLock ??
       (isDirty && !deferred ? await this.mutationManager?.acquireMutationWriteLock?.() : undefined);
-    // Wrap the write so a storage-quota abort triggers eviction + one retry
-    // rather than escaping as an unhandled "AbortError: QuotaExceededError".
-    //
-    // The cold-insert decision (MYK9-575) belongs to the LOGICAL write, not to
-    // each attempt: `relieveQuota()` evicts CLEAN rows, so the retry of a
-    // legitimate UPDATE can find its own row gone and would otherwise be
-    // refused as an INSERT. `attempt.rowExisted`, recorded inside the first
-    // transaction, carries that fact into the retry.
-    const attempt: SetAttempt = { rowExisted: false };
-    const ownerAuthUserId = await this.rowOwnerFor();
     try {
-      const result = await withQuotaEviction(
-        () =>
-          this.setOnce(
-            id,
-            data,
-            isDirty,
-            expectedVersion,
-            incomingServerVersion,
-            composeRetrySetOptions(options, attempt.rowExisted),
-            attempt,
-            ownerAuthUserId
-          ),
-        () => this.relieveQuota(),
-        this.logger
+      const { result, revision } = await this.persistRow(
+        id,
+        data,
+        isDirty,
+        expectedVersion,
+        incomingServerVersion,
+        options
       );
-      if (isDirty && !deferred && result.written && attempt.revision !== undefined) {
+      if (isDirty && !deferred && result.written && revision !== undefined) {
         const revisions = this.pendingWriteRevisions.get(lockKey) ?? [];
-        revisions.push(attempt.revision);
+        revisions.push(revision);
         this.pendingWriteRevisions.set(lockKey, revisions);
       }
       if (deferredWriteLock) {
@@ -692,6 +677,112 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     }
   }
 
+  /**
+   * Mark the row dirty and queue its mutation in ONE IndexedDB transaction
+   * (MYK9-1471); see {@link writeAndQueue}. Replaces `set(..., true)` followed
+   * by `queueMutation(...)` in table write methods.
+   */
+  protected writeAndQueue(
+    id: string,
+    data: T,
+    queue: {
+      operation: 'INSERT' | 'UPDATE' | 'DELETE';
+      payload: Record<string, unknown>;
+      dependsOn?: string[] | undefined;
+      rpc?: PendingMutation['rpc'] | undefined;
+    },
+    setOptions?: {
+      expectedVersion?: number | undefined;
+      options?: ReplicatedSetOptions | undefined;
+    }
+  ): Promise<WriteAndQueueResult> {
+    const manager = this.mutationManager;
+    if (!manager)
+      this.logger.warn(`[${this.tableName}] No MutationManager set — mutation not queued`);
+    return writeAndQueue({
+      acquireLock: async () => manager?.acquireMutationWriteLock?.(),
+      prepare: async () =>
+        manager
+          ? {
+              mutation: await manager.prepareMutation(
+                this.tableName,
+                queue.operation,
+                id,
+                queue.payload,
+                queue.dependsOn,
+                queue.rpc,
+                queue.rpc ? await this.resolveMutationShowId(id) : undefined
+              ),
+              sequencer: manager.sequencer,
+            }
+          : null,
+      queueAlone: () =>
+        this.queueMutation(queue.operation, id, queue.payload, queue.dependsOn, queue.rpc),
+      write: queued =>
+        this.persistRow(
+          id,
+          data,
+          true,
+          setOptions?.expectedVersion,
+          undefined,
+          setOptions?.options,
+          queued ?? undefined
+        ),
+      announce: async () => manager?.announceQueued(id),
+      requestUpload: () => this.requestUpload(),
+      logger: this.logger,
+    });
+  }
+
+  /**
+   * One logical row write, wrapped so a storage-quota abort triggers eviction
+   * + one retry rather than escaping as an unhandled "AbortError:
+   * QuotaExceededError". The cold-insert decision (MYK9-575) belongs to the
+   * LOGICAL write, not each attempt: `relieveQuota()` evicts CLEAN rows, so the
+   * retry of a legitimate UPDATE can find its own row gone and would otherwise
+   * be refused as an INSERT. `attempt.rowExisted`, recorded inside the first
+   * transaction, carries that fact into the retry. `queued` rides in the same
+   * transaction as the row.
+   */
+  private async persistRow(
+    id: string,
+    data: T,
+    isDirty: boolean,
+    expectedVersion?: number,
+    incomingServerVersion?: number,
+    options?: ReplicatedSetOptions,
+    queued?: QueuedWrite
+  ): Promise<{ result: ReplicatedSetResult; revision: number | undefined }> {
+    const attempt: SetAttempt = { rowExisted: false };
+    const ownerAuthUserId = await this.rowOwnerFor();
+    const result = await withQuotaEviction(
+      () =>
+        this.setOnce(
+          id,
+          data,
+          isDirty,
+          expectedVersion,
+          incomingServerVersion,
+          composeRetrySetOptions(options, attempt.rowExisted),
+          attempt,
+          ownerAuthUserId,
+          queued
+        ),
+      // The mutation lands in the same transaction, so a full disk is relieved the
+      // way the queue store relieves it: this table first, then clean rows of any
+      // table (Codex round 3, MYK9-1471).
+      async () => {
+        // Never the row being written: evicting it would drop its Discard snapshot
+        // (baseData, baseServerVersion) and OCC token (Codex rounds 4-5).
+        const evicted = await this.relieveQuota(queued ? String(id) : undefined);
+        if (evicted > 0 || !queued) return evicted;
+        return evictCleanCacheRows(await this.init(), [this.tableName, String(id)]);
+      },
+      this.logger
+    );
+    return { result, revision: attempt.revision };
+  }
+
   /** The oldest revision recorded for this row's dirty writes, consumed by its queue. */
   private takeWriteRevision(lockKey: string): number | undefined {
     const revisions = this.pendingWriteRevisions.get(lockKey);
@@ -709,13 +800,29 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     incomingServerVersion?: number,
     options?: ReplicatedSetOptions,
     attempt?: SetAttempt,
-    ownerAuthUserId?: string
+    ownerAuthUserId?: string,
+    queued?: QueuedWrite
   ): Promise<ReplicatedSetResult> {
     const db = await this.init();
-    const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
+    const tx = db.transaction(
+      queued
+        ? [
+            REPLICATION_STORES.REPLICATED_TABLES,
+            REPLICATION_STORES.PENDING_MUTATIONS,
+            REPLICATION_STORES.SYNC_METADATA,
+          ]
+        : REPLICATION_STORES.REPLICATED_TABLES,
+      'readwrite'
+    );
+    const rowStore = (queued
+      ? tx.objectStore(REPLICATION_STORES.REPLICATED_TABLES)
+      : tx.store) as unknown as {
+      get(key: unknown): Promise<unknown>;
+      put(value: unknown): Promise<unknown>;
+    };
 
     const normalizedId = String(id);
-    const existingRow = (await tx.store.get([this.tableName, normalizedId])) as
+    const existingRow = (await rowStore.get([this.tableName, normalizedId])) as
       ReplicatedRow<T> | undefined;
 
     if (existingRow) {
@@ -772,8 +879,12 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       now: Date.now(),
     });
 
-    await tx.store.put(row);
-    await tx.done;
+    if (queued) {
+      await putRowAndMutation(tx, rowStore.put(row), row, queued);
+    } else {
+      await rowStore.put(row);
+      await tx.done;
+    }
     if (attempt) attempt.revision = row.version;
 
     this.logger.log(
@@ -1482,8 +1593,8 @@ export abstract class ReplicatedTable<T extends { id: string }> {
    * evictable rows while another holds gigabytes of garbage) won't recover
    * here; that would need a store-wide evictor — tracked as a follow-up.
    */
-  async relieveQuota(): Promise<number> {
-    return this.cacheManager.evictRetainingFraction(QUOTA_EVICTION_RETAIN_FRACTION);
+  async relieveQuota(keepId?: string): Promise<number> {
+    return this.cacheManager.evictRetainingFraction(QUOTA_EVICTION_RETAIN_FRACTION, keepId);
   }
 
   async getSyncMetadata(scopeValue?: string): Promise<SyncMetadata | null> {

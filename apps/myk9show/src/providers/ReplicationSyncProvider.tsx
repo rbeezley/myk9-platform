@@ -49,6 +49,7 @@ import { replicatedArmbandsTable } from '@/services/replication/ReplicatedArmban
 import { replicatedWaitlistEntriesTable } from '@/services/replication/ReplicatedWaitlistEntriesTable';
 import { replicatedPaperworkPrintsTable } from '@/services/replication/ReplicatedPaperworkPrintsTable';
 import { isAbortSyncError } from '@/services/replication/syncErrorUtils';
+import { invalidateEnrichmentForUpload } from '@/services/replication/classJudgePick';
 import { requestPersistentStorage } from '@/lib/persistentStorage';
 import { mutationManager } from '@/services/replication/sharedMutationManager';
 import type { SyncFailedEventDetail } from './replicationSyncFormatters';
@@ -621,6 +622,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
       // "backlog is full" overflow toast so it doesn't linger over a now-healthy
       // queue. (The overflow handler shows it with this fixed id.)
       toast.dismiss('replication-queue-overflow');
+      invalidateEnrichmentForUpload(detail);
       for (const table of tables) {
         queryClient.invalidateQueries({ queryKey: [table] });
       }

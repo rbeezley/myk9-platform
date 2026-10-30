@@ -218,6 +218,8 @@ describe('inflight CLI', () => {
     closedPadding = 0
   ) {
     // A test may call stubGh twice; stale answer files from the first call must not survive.
+    // Nor may the closed-PR cache: a re-stub is a different GitHub (closed-prs-cache.test.ts covers the cache).
+    rmSync(join(fixtureRepo, '.git', 'myk9-inflight'), { recursive: true, force: true });
     for (const f of readdirSync(bin))
       if (/^(closed-|files-|open-|calls\.log)/.test(f)) rmSync(join(bin, f));
     const writePages = (prefix: string, rows: unknown[]) => {
@@ -401,9 +403,11 @@ describe('inflight CLI', () => {
       const calls = readFileSync(join(bin, 'calls.log'), 'utf8').trim().split('\n');
       expect(calls.every(call => call.startsWith('api ') && !call.includes('graphql'))).toBe(true);
       expect(calls).toContain('api repos/{owner}/{repo}');
-      expect(calls.some(call => call.includes('/pulls?state=closed&per_page=100&page=1'))).toBe(
-        true
-      );
+      expect(
+        calls.some(call =>
+          call.includes('/pulls?state=closed&sort=updated&direction=desc&per_page=100&page=1')
+        )
+      ).toBe(true);
     }
     expect(verdicts).toEqual([0, 1]);
   });

@@ -1,5 +1,6 @@
 import { test, expect, type BrowserContext, type Locator, type Page } from '@playwright/test';
 import { signInAsSecretary, signInAsExhibitor } from './helpers/testUsers';
+import { goOffline, reportOffline, supabaseRouteGlob } from './helpers/offlineBackend';
 
 /**
  * MYK9-200 AC 1 + MYK9-203 AC 2 — the verification neither issue could close
@@ -22,61 +23,6 @@ import { signInAsSecretary, signInAsExhibitor } from './helpers/testUsers';
 
 const SHOW_ID = 'dededede-0000-0000-0000-000000000010'; // Heartland Scent Work Classic
 const AT_SHOW_URL = `/at-show/${SHOW_ID}`;
-
-/**
- * Derived from the CONFIGURED Supabase URL, not hard-coded to `*.supabase.co`.
- * The isolated/local E2E target runs Supabase at `http://127.0.0.1:54321`, which
- * a cloud-only glob matches zero times — `goOffline` would then be a silent
- * no-op and the "offline" assertions would run against a live backend.
- */
-function supabaseRouteGlob(): string {
-  const configured = process.env.VITE_SUPABASE_URL;
-  if (!configured) return '**/*.supabase.co/**';
-  try {
-    return `${new URL(configured).origin}/**`;
-  } catch {
-    return '**/*.supabase.co/**';
-  }
-}
-
-/**
- * Cut the backend off in a way that outlives a reload.
- *
- * Returns a count of intercepted requests. The caller asserts it is non-zero:
- * without that, a glob matching nothing would leave the app happily online and
- * every assertion below would still pass, turning this into a test that proves
- * the opposite of what it claims.
- */
-async function goOffline(context: BrowserContext): Promise<() => number> {
-  let intercepted = 0;
-  await context.route(supabaseRouteGlob(), route => {
-    intercepted += 1;
-    return route.abort('internetdisconnected');
-  });
-  return () => intercepted;
-}
-
-/**
- * Report `navigator.onLine === false` for the whole context, across reloads.
- *
- * This is the app-facing half of "no signal": the offline banners, the network
- * status provider, and anything else reading `navigator.onLine` see a device
- * with no connectivity, not one on a captive venue Wi-Fi.
- *
- * It does NOT put TanStack Query into its paused state, and that surprised the
- * fix that added this test. `onlineManager` (query-core 5.x) initialises
- * `#online = true` unconditionally and only ever changes on a window
- * `online`/`offline` EVENT — it never reads `navigator.onLine`. A page that
- * BOOTS with no connectivity gets no such event, so every query fires, fails,
- * and lands in `status:'error'`. The paused shape needs a connectivity
- * transition while the page is already open, which a cold boot by definition
- * does not have. See the exhibitor test below for what that means for coverage.
- */
-async function reportOffline(context: BrowserContext): Promise<void> {
-  await context.addInitScript(() => {
-    Object.defineProperty(window.navigator, 'onLine', { get: () => false, configurable: true });
-  });
-}
 
 /**
  * Like `goOffline`, but the backend can be switched back on mid-test.
@@ -338,19 +284,23 @@ test.describe('offline cold boot', () => {
   // when signal returns `setOnline(true)` finds `true` already there, no
   // listener runs, and the reconnect is swallowed.
   //
-  // Recovery was not absent before the fix — it was LATE. Measured with the
-  // refetch hook removed, `<main>` sat at 254 characters through t+55s and
-  // returned to full at t+60s: the ReplicationSyncProvider's periodic re-sync,
-  // which invalidates queries as a side effect. With the hook it is back inside
-  // 20s. So an exhibitor walking back into coverage faced up to a minute of a
-  // page that still said "we are still confirming your account".
+  // THE PAGE TEXT CANNOT PROVE THE HOOK (MYK9-1453). `<main>` now recovers in
+  // about 4s with `useRefetchQueriesOnReconnect` removed, by two routes that do
+  // not go through it: the reconnect replication pass refetches the entry list,
+  // and the identity query (`userProfile`) is still mid-retry at the offline
+  // mark, so its next attempt lands once the route reopens. The text check
+  // below stays as the user-visible outcome, not as the hook's proof.
   //
-  // THE 30s BOUND IS THE WHOLE TEST. It sits strictly between the two paths —
-  // above the hook's refetch, below the 60s replication fallback — so removing
-  // the hook fails this test instead of quietly passing on the slow path. An
-  // earlier version of this test polled for 60s and passed with the hook
-  // deleted, which is exactly the kind of green that proves nothing. Do not
-  // raise this timeout to "fix" a flake without re-checking that mutation.
+  // The proof is the exhibitor profile read. Every profile reader on this page
+  // shares the one `['exhibitorProfile', userId]` query, which sets
+  // `retry: false` and a 5-minute staleTime, and nothing invalidates it; so
+  // after the offline boot it sits in `error` and only a reconnect refetch can
+  // re-issue it. Measured with the hook removed: zero `exhibitor_profiles`
+  // requests in the 20s after reconnect. With it: one, as soon as the `online`
+  // event fires. Two changes would make this pass without the hook, so re-check
+  // that mutation after either: swapping in a query some other path also
+  // refreshes, or a profile reader that first MOUNTS after reconnect (a
+  // skeleton-to-content swap), since `refetchOnMount` refetches an errored query.
   test('react-query data returns when connectivity comes back, without a reload', async ({
     page,
     context,
@@ -360,10 +310,13 @@ test.describe('offline cold boot', () => {
     await expect(page.getByRole('heading', { name: 'My Shows', level: 1 })).toBeVisible({
       timeout: 45_000,
     });
-    // Let the entry list finish arriving before measuring the healthy baseline.
-    await expect
-      .poll(async () => (await page.locator('main').innerText()).length, { timeout: 45_000 })
-      .toBeGreaterThan(2_000);
+    // Let the entry list finish arriving before measuring the healthy baseline. The gate is
+    // the page's own "N class entries" status line, not a character count: how much text
+    // `<main>` holds depends on the layout (it was 1,242 at the 1280px desktop width, so a
+    // fixed 2,000 never passed there), whereas the relative comparisons below hold at any width.
+    await expect(page.getByRole('status').filter({ hasText: /class entr/i })).toBeVisible({
+      timeout: 45_000,
+    });
     const healthyLength = (await page.locator('main').innerText()).length;
 
     const [interceptedCount, restoreConnectivity] = await goOfflineRestorable(context, page);
@@ -384,8 +337,19 @@ test.describe('offline cold boot', () => {
     expect(offlineLength).toBeLessThan(healthyLength / 2);
     expect(interceptedCount()).toBeGreaterThan(0);
 
-    // Signal returns. NO reload — that is the whole point.
-    await restoreConnectivity();
+    // Armed before the route reopens, so a refetch that fires on the `online`
+    // event itself cannot be missed. A response, not a request: a read the
+    // offline route aborted never gets one, so only a refetch that reached the
+    // server counts. Signal returns. NO reload — that is the whole point.
+    await Promise.all([
+      page.waitForResponse(
+        response =>
+          response.request().method() === 'GET' &&
+          /\/rest\/v1\/exhibitor_profiles\?/.test(response.url()),
+        { timeout: 15_000 }
+      ),
+      restoreConnectivity(),
+    ]);
 
     await expect
       .poll(async () => (await page.locator('main').innerText()).length, { timeout: 30_000 })

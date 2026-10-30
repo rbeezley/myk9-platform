@@ -135,7 +135,10 @@ describe('useAccountNotifications', () => {
       title: 'Account update',
       body: clubApprovedRow.message,
       priority: 'normal',
-      data: { accountNotificationUserId: 'auth-user-1' },
+      data: {
+        accountNotificationUserId: 'auth-user-1',
+        accountNotificationType: 'club_access_approved',
+      },
       actionUrl: '/clubs/club-1',
       timestamp: new Date(clubApprovedRow.created_at).getTime(),
     });
@@ -226,6 +229,75 @@ describe('useAccountNotifications', () => {
       })
     );
     expect(mockRefreshPermissions).not.toHaveBeenCalled();
+  });
+
+  describe('folded club awaiting authorization notices (MYK9-1395)', () => {
+    const creatorLink = '/admin/onboarding?creator=creator-1';
+    const foldedRow = (id: string, message: string, link = creatorLink) => ({
+      id,
+      type: 'club_awaiting_authorization',
+      message,
+      deep_link_url: link,
+      created_at: '2026-10-27T20:00:00.000Z',
+    });
+
+    it('replaces the visible alert when the database folds a later club into a new row', () => {
+      let rows = [
+        foldedRow('notif-a', 'Club A was created by Pat and is waiting for authorization.'),
+      ];
+      let updatedAt = 1;
+      mockUseQueryResult.mockImplementation(() => ({
+        data: { userId: 'auth-user-1', rows },
+        dataUpdatedAt: updatedAt,
+      }));
+
+      const { rerender } = renderHook(() => useAccountNotifications());
+      // The trigger deleted notif-a and inserted notif-b for the same creator.
+      rows = [foldedRow('notif-b', 'Pat created clubs waiting for authorization, latest: Club B.')];
+      updatedAt = 2;
+      rerender();
+      rows = [foldedRow('notif-c', 'Pat created clubs waiting for authorization, latest: Club C.')];
+      updatedAt = 3;
+      rerender();
+
+      expect(notificationState.recentAlerts.map(a => a.payload.id)).toEqual(['notif-c']);
+      expect(mockDismissAlert).toHaveBeenCalledWith('notif-a');
+      expect(mockDismissAlert).toHaveBeenCalledWith('notif-b');
+    });
+
+    it("keeps a different creator's folded notice and other types with the same link", () => {
+      let rows: ReturnType<typeof foldedRow>[] = [
+        foldedRow('notif-a', 'Club A was created by Pat and is waiting for authorization.'),
+        {
+          ...foldedRow('notif-x', 'Other notice'),
+          type: 'club_access_approved',
+        },
+      ];
+      let updatedAt = 1;
+      mockUseQueryResult.mockImplementation(() => ({
+        data: { userId: 'auth-user-1', rows },
+        dataUpdatedAt: updatedAt,
+      }));
+
+      const { rerender } = renderHook(() => useAccountNotifications());
+      rows = [
+        ...rows,
+        foldedRow(
+          'notif-z',
+          'Club Z was created by Sam and is waiting for authorization.',
+          '/admin/onboarding?creator=creator-2'
+        ),
+      ];
+      updatedAt = 2;
+      rerender();
+
+      expect(notificationState.recentAlerts.map(a => a.payload.id).sort()).toEqual([
+        'notif-a',
+        'notif-x',
+        'notif-z',
+      ]);
+      expect(mockDismissAlert).not.toHaveBeenCalled();
+    });
   });
 
   it('refreshes RBAC permissions after delivering a club_access_approved row', () => {

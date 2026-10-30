@@ -11,7 +11,7 @@
  * caller keeps its own error type, its own idea of a missing resource, and its
  * own unwrapping of an object page (`{ artifacts: [...] }`).
  */
-const GH_PAGE_SIZE = 100;
+export const GH_PAGE_SIZE = 100;
 export const GH_MAX_PAGES = 500;
 
 export function ghPages<T>(readRows: (args: string[]) => T[], path: string): T[] {

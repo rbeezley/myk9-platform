@@ -269,3 +269,57 @@ describe('useCurrentActions — Create waits for permissions', () => {
     ).toEqual(['create-show', 'create-dog', 'create-person', 'create-club']);
   });
 });
+
+// MYK9-1490 review: Add Entry waits for the shows replica's FIRST read, and a later save (which
+// sets the store's isLoading) never withdraws it.
+describe('useCurrentActions — Add Entry and the shows replica', () => {
+  const tomorrow = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return [d.getFullYear(), d.getMonth() + 1, d.getDate()]
+      .map((n, i) => String(n).padStart(i === 0 ? 4 : 2, '0'))
+      .join('-');
+  })();
+  const liveShow = {
+    id: 'live-1',
+    name: 'Spring Trial',
+    clubId: 'club-1',
+    status: 'published',
+    startDate: tomorrow,
+    endDate: tomorrow,
+  };
+
+  function offShowRoute({ children }: { children: ReactNode }) {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    return (
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={['/dogs']}>{children}</MemoryRouter>
+      </QueryClientProvider>
+    );
+  }
+  const addEntry = (actions: AppAction[]) => actions.find(action => action.id === 'create-entry');
+
+  beforeEach(() => {
+    useShowStore.setState({ shows: [], isLoading: false, hasLoaded: false });
+  });
+
+  it('is absent before the first read, rather than claiming there is no show', () => {
+    const { result } = renderHook(() => useCurrentActions(), { wrapper: offShowRoute });
+    expect(addEntry(result.current.actions)).toBeUndefined();
+  });
+
+  it('appears after the first read and stays while a later save is loading', () => {
+    const { result } = renderHook(() => useCurrentActions(), { wrapper: offShowRoute });
+    act(() => useShowStore.setState({ shows: [liveShow] as never, hasLoaded: true }));
+    expect(addEntry(result.current.actions)).toMatchObject({ href: '/secretary/register/live-1' });
+
+    act(() => useShowStore.setState({ isLoading: true }));
+    expect(addEntry(result.current.actions)).toMatchObject({ href: '/secretary/register/live-1' });
+  });
+
+  it('says there is no show only once the read has found none', () => {
+    useShowStore.setState({ hasLoaded: true });
+    const { result } = renderHook(() => useCurrentActions(), { wrapper: offShowRoute });
+    expect(addEntry(result.current.actions)?.disabledReason).toMatch(/published show/);
+  });
+});

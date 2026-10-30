@@ -42,7 +42,7 @@ Run the narrowest checks that match the level.
 **Micro review follow-up** — related tests only (Step 1b, focused). Skip local typecheck/lint unless production TypeScript changed; if it did, run the app-local typecheck:
 
 ```bash
-cd apps/myk9show && npx tsc --noEmit -p tsconfig.app.json
+pnpm --filter @myk9/show typecheck:app
 ```
 
 Never `-p tsconfig.json` — that file is solution-style and typechecks nothing while exiting 0.

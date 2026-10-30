@@ -1,6 +1,6 @@
 /**
  * MYK9-1327 on the real classes path: a judge change is written onto the local class row
- * (`writeClassJudgeLocally` in services/database/judges/reads.ts), so every screen shows it at
+ * (`setClassJudge`), so every screen shows it at
  * once and after an offline reload. A pull that reaches the row while its writes are still
  * queued must keep that judge, and must not surface the device's own earlier picks, or an
  * unresolved judge lookup, as a conflict. A judge change made elsewhere still reaches a row

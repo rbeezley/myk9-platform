@@ -1,10 +1,11 @@
 /**
  * MYK9-753: say WHICH thing is full when a cart line cannot be paid now.
  *
- * A class with two judges can be open on one judge's day and full on the
- * other's, so "this class is full" alone leaves the exhibitor guessing. The
- * sentence names the judge's day when that is what is full. It is advisory
- * ("right now"): payment re-checks availability on the server.
+ * A class can be full because its one judge's day is full (judge-day capacity
+ * is per judge per day, across that judge's classes), so "this class is full"
+ * alone leaves the exhibitor guessing. The sentence names the judge's day when
+ * that is what is full. It is advisory ("right now"): payment re-checks
+ * availability on the server.
  */
 
 import { formatWeekdayLongMonthDay } from '@/lib/format/dates';

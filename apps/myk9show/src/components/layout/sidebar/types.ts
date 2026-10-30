@@ -21,8 +21,6 @@ export interface NavItem {
   tooltip?: string;
   /** Muted second line under the title where titles can repeat (a show's date range). */
   subtitle?: string;
-  /** Runs when the item is chosen (the current-show Switch remembers the pick). */
-  onSelect?: () => void;
 }
 
 /**
@@ -56,11 +54,6 @@ export interface NavGroup {
   items: NavItem[];
   railMenu?: NavRailMenu;
   railLink?: NavRailLink;
-  /**
-   * The current-show group: `items[0]` is the current show (the rail link); any further items are
-   * the other managed shows, listed in the rail's Switch menu. The drawer lists them all.
-   */
-  railSwitch?: boolean;
 }
 
 export interface SidebarConfig {

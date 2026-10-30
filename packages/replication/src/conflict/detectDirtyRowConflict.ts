@@ -45,6 +45,22 @@ const INSTANT_FIELDS_BY_TABLE: Readonly<Record<string, ReadonlySet<string>>> = {
     'updated_at',
     'withdrawn_at',
   ]),
+  // MYK9-1445: Release results stamps `results_released_at` with `toISOString()` (`…Z`)
+  // under both spellings; the server's echo reads `…+00:00`, which as text is a
+  // same-field conflict against the secretary's own write.
+  classes: new Set([
+    'judgeSignedOffAt',
+    'judge_signed_off_at',
+    'reopenedAfterCloseoutAt',
+    'reopened_after_closeout_at',
+    'resultsReleasedAt',
+    'results_released_at',
+    'resultsVerifiedAt',
+    'results_verified_at',
+    // MYK9-1513: the ringside Start Time rides the offline queue as `…Z`; the echo reads `…+00:00`.
+    'revisedExpectedStart',
+    'revised_expected_start',
+  ]),
 };
 
 const NO_INSTANT_FIELDS: ReadonlySet<string> = new Set();

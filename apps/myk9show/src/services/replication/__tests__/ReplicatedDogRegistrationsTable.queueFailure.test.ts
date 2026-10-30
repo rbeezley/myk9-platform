@@ -52,7 +52,7 @@ const DRAFT = {
 };
 
 function queueRefuses(): void {
-  vi.spyOn(queue.manager, 'queueMutation').mockRejectedValueOnce(OVERFLOW);
+  vi.spyOn(queue.manager, 'prepareMutation').mockRejectedValueOnce(OVERFLOW);
 }
 
 describe('a write the queue refuses is rolled back', () => {
@@ -203,7 +203,7 @@ describe('deleting the same registration twice at once', () => {
   it('does not report success for a delete whose enqueue failed and was rolled back', async () => {
     await table.applyServerRows([serverRow({ id: 'reg-1', dog_id: 'dog-1', version: 2 })]);
     // The first enqueue fails late, so the second call arrives while the row is hidden.
-    vi.spyOn(queue.manager, 'queueMutation').mockImplementationOnce(async () => {
+    vi.spyOn(queue.manager, 'prepareMutation').mockImplementationOnce(async () => {
       await new Promise(resolve => setTimeout(resolve, 60));
       throw OVERFLOW;
     });

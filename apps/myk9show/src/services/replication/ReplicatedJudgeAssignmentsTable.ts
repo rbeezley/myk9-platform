@@ -276,9 +276,11 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
       _localOnly: true,
     };
 
-    await this.set(id, newAssignment, true);
+    const { mutationId } = await this.writeAndQueue(id, newAssignment, {
+      operation: 'INSERT',
+      payload: this.toSupabaseRow(newAssignment),
+    });
     invalidateClassEnrichment();
-    const mutationId = await this.queueMutation('INSERT', id, this.toSupabaseRow(newAssignment));
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Created assignment ${id}`);
     return newAssignment;
@@ -300,9 +302,11 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
       _syncStatus: 'pending',
     };
 
-    await this.set(id, updated, true);
+    const { mutationId } = await this.writeAndQueue(id, updated, {
+      operation: 'UPDATE',
+      payload: this.toSupabaseRow(updated),
+    });
     invalidateClassEnrichment();
-    const mutationId = await this.queueMutation('UPDATE', id, this.toSupabaseRow(updated));
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated assignment ${id}`);
     return mutationId;
@@ -371,54 +375,6 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
         notes: null,
       });
     }
-  }
-
-  /**
-   * Replace the assignment for a single class: deletes any existing class-level
-   * assignment(s), then creates a new one unless `judgeId` is null (removal).
-   * Mirrors `upsertClassJudgeAssignment`'s delete-then-insert semantics.
-   */
-  async replaceClassAssignment(
-    showId: string,
-    classId: string,
-    judgeId: string | null
-  ): Promise<void> {
-    const existing = (await this.readAllForWrite()).filter(a => a.classId === classId);
-    for (const row of existing) {
-      await this.deleteAssignment(row.id);
-    }
-    if (judgeId) {
-      await this.createAssignment({
-        personId: judgeId,
-        showId,
-        trialId: null,
-        classId,
-        status: 'confirmed',
-        invitedAt: null,
-        confirmedAt: new Date().toISOString(),
-        fee: null,
-        notes: null,
-      });
-    }
-  }
-
-  /**
-   * Reassign a class's judge in place (update, not delete+insert) to preserve the
-   * assignment's identity/history. No-ops if no local row matches the from/class/show
-   * filter, mirroring the raw `.eq()` update's silent no-match behavior.
-   */
-  async reassignClassAssignment(
-    showId: string,
-    classId: string,
-    fromPersonId: string,
-    toPersonId: string
-  ): Promise<void> {
-    const all = await this.readAllForWrite();
-    const match = all.find(
-      a => a.classId === classId && a.showId === showId && a.personId === fromPersonId
-    );
-    if (!match) return;
-    await this.updateAssignment(match.id, { personId: toPersonId });
   }
 }
 

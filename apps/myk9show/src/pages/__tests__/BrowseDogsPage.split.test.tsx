@@ -67,6 +67,21 @@ vi.mock('@/components/panels/edit', () => ({
   AddDogPanel: ({ open }: { open: boolean }) => (open ? <p>add dog panel</p> : null),
 }));
 
+const layoutSeen = vi.hoisted(() => ({
+  props: null as { id: string; listSize?: unknown } | null,
+}));
+vi.mock('@/components/layout/MasterDetailLayout', async importOriginal => {
+  const actual =
+    (await importOriginal()) as typeof import('@/components/layout/MasterDetailLayout');
+  return {
+    ...actual,
+    MasterDetailLayout: (props: React.ComponentProps<typeof actual.MasterDetailLayout>) => {
+      layoutSeen.props = props;
+      return <actual.MasterDetailLayout {...props} />;
+    },
+  };
+});
+
 import BrowseDogsPage from '../BrowseDogsPage';
 
 function Probe() {
@@ -99,6 +114,14 @@ describe('BrowseDogsPage beside an open dog', () => {
     mockCanUpdate = true;
     mockGetUserRoles.mockReturnValue(['secretary']);
     mockViewportWidth(1600);
+  });
+
+  it('gives the list the narrow Dogs bounds under a fresh storage id', () => {
+    renderSplit();
+    expect(layoutSeen.props).toMatchObject({
+      id: 'dogs-v2',
+      listSize: { default: '28%', min: '22%', max: '40%' },
+    });
   });
 
   it('shows one compact link per dog beside the dog, not the table', () => {

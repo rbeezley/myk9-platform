@@ -4,7 +4,7 @@ import type { Logger } from './dependencies';
 import { removeOrphanedLocalOnlyRow } from './mutation-row-sync';
 import { DiscardRevertRegistry } from './mutation-discard-revert';
 import { rebaseQueuedMutation, rewriteQueuedMutations } from './mutation-queue-rewrite';
-import { withQuotaEviction } from './quota-eviction';
+import { evictCleanCacheRows, withQuotaEviction } from './quota-eviction';
 import { type PendingMutation, type ReplicatedRow } from './types';
 
 export class MutationQueueStore {
@@ -16,7 +16,7 @@ export class MutationQueueStore {
   private sequenceSeedPromise: Promise<void> | null = null;
 
   /** Reserved SYNC_METADATA key (store is keyed by `tableName`) for the counter. */
-  private static readonly SEQUENCE_METADATA_KEY = '__mutation_sequence__';
+  static readonly SEQUENCE_METADATA_KEY = '__mutation_sequence__';
 
   constructor(
     private readonly logger: Logger,
@@ -31,7 +31,7 @@ export class MutationQueueStore {
    * a metadata loss. The increment is synchronous once seeded, so concurrent
    * queueMutation calls in the same tab always get distinct, increasing values.
    */
-  private async nextSequenceNumber(db: IDBPDatabase): Promise<number> {
+  private async ensureSequenceSeeded(db: IDBPDatabase): Promise<void> {
     if (this.sequenceCounter === null) {
       if (!this.sequenceSeedPromise) {
         this.sequenceSeedPromise = (async () => {
@@ -63,6 +63,23 @@ export class MutationQueueStore {
       }
       await this.sequenceSeedPromise;
     }
+  }
+
+  /**
+   * Take the next sequence number inside the transaction that commits the
+   * mutation (MYK9-1471). `persisted` is the counter record read from
+   * SYNC_METADATA in that same transaction; readwrite transactions over the same
+   * store serialize, across tabs too, so sequence order is commit order. The
+   * caller must write the returned value back to {@link SEQUENCE_METADATA_KEY}.
+   */
+  reserveSequence(persisted: number | undefined): number {
+    const next = Math.max(persisted ?? 0, this.sequenceCounter ?? 0) + 1;
+    this.sequenceCounter = next;
+    return next;
+  }
+
+  private async nextSequenceNumber(db: IDBPDatabase): Promise<number> {
+    await this.ensureSequenceSeeded(db);
 
     // Synchronous increment — no await between read and write of the counter.
     const next = (this.sequenceCounter as number) + 1;
@@ -83,43 +100,13 @@ export class MutationQueueStore {
   }
 
   /**
-   * Free space by deleting the least-recently-accessed CLEAN cache rows from the
-   * replicated-tables store. Used as the eviction callback when a mutation write
-   * hits storage quota. Dirty/unsynced rows are never deleted, so an offline
-   * score can make room without losing other unsynced data. Best-effort:
-   * returns 0 (write cannot proceed) if nothing clean is evictable or the scan
-   * fails.
+   * Build a queue record: id (and, by default, sequence number) allocated here,
+   * BEFORE any transaction, because they await non-IndexedDB work. Nothing is
+   * written.
+   * `serverVersion` and `rowRevision` come from the row, so a caller that
+   * writes the row in the same transaction (MYK9-1471) stamps them there.
    */
-  private async evictCleanCacheRows(db: IDBPDatabase): Promise<number> {
-    try {
-      const all = (await db.getAll(
-        REPLICATION_STORES.REPLICATED_TABLES
-      )) as ReplicatedRow<unknown>[];
-      const clean = all
-        .filter(row => !row.isDirty)
-        .sort((a, b) => (a.lastAccessedAt ?? 0) - (b.lastAccessedAt ?? 0));
-      if (clean.length === 0) return 0;
-
-      // Free ~10% of clean rows (at least one) — enough to relieve pressure
-      // without nuking the whole cache. Key is [tableName, id] (top-level).
-      const toEvict = Math.max(1, Math.floor(clean.length * 0.1));
-      const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
-      let evicted = 0;
-      for (let i = 0; i < toEvict && i < clean.length; i++) {
-        const row = clean[i];
-        if (row && typeof row.tableName === 'string' && typeof row.id === 'string') {
-          await tx.store.delete([row.tableName, row.id]);
-          evicted++;
-        }
-      }
-      await tx.done;
-      return evicted;
-    } catch {
-      return 0;
-    }
-  }
-
-  async queueMutation(
+  async buildMutation(
     tableName: string,
     operation: PendingMutation['operation'],
     rowId: string,
@@ -129,13 +116,16 @@ export class MutationQueueStore {
     serverVersion?: number,
     rpc?: PendingMutation['rpc'],
     rowRevision?: number,
-    adoption: Pick<PendingMutation, 'ownerIsAnonymous' | 'showId'> = {}
-  ): Promise<string> {
+    adoption: Pick<PendingMutation, 'ownerIsAnonymous' | 'showId'> = {},
+    /** False: leave the sequence number to the transaction that commits the record. */
+    allocateSequence = true
+  ): Promise<PendingMutation> {
     const db = await databaseManager.getDatabase('MutationManager');
-    const sequenceNumber = await this.nextSequenceNumber(db);
-    const id = crypto.randomUUID();
-    const mutation: PendingMutation = {
-      id,
+    let sequenceNumber: number | undefined;
+    if (allocateSequence) sequenceNumber = await this.nextSequenceNumber(db);
+    else await this.ensureSequenceSeeded(db);
+    return {
+      id: crypto.randomUUID(),
       authUserId,
       ...(adoption.ownerIsAnonymous === true && { ownerIsAnonymous: true }),
       ...(adoption.showId !== undefined && { showId: adoption.showId }),
@@ -145,7 +135,7 @@ export class MutationQueueStore {
       data,
       explicitDataKeys: Object.keys(data),
       timestamp: Date.now(),
-      sequenceNumber,
+      ...(sequenceNumber !== undefined && { sequenceNumber }),
       retries: 0,
       status: 'pending',
       dependsOn,
@@ -153,17 +143,24 @@ export class MutationQueueStore {
       ...(rpc !== undefined && { rpc }),
       ...(rowRevision !== undefined && { rowRevision }),
     };
+  }
+
+  async queueMutation(...args: Parameters<MutationQueueStore['buildMutation']>): Promise<string> {
+    const db = await databaseManager.getDatabase('MutationManager');
+    const mutation = await this.buildMutation(...args);
     // Wrap the durable queue write so storage-quota pressure evicts CLEAN cache
     // rows and retries once, rather than throwing raw QuotaExceededError and
     // dropping the score (audit M2). Dirty/unsynced rows and other mutations are
     // never touched by the evictor.
     await withQuotaEviction(
       () => putStampingCurrentServerVersion(db, mutation),
-      () => this.evictCleanCacheRows(db),
+      () => evictCleanCacheRows(db),
       this.logger
     );
-    this.logger.log(`[MutationManager] Queued ${operation} for ${tableName}/${rowId}`);
-    return id;
+    this.logger.log(
+      `[MutationManager] Queued ${mutation.operation} for ${mutation.tableName}/${mutation.rowId}`
+    );
+    return mutation.id;
   }
 
   async getPendingCount(): Promise<number> {
@@ -229,6 +226,7 @@ export class MutationQueueStore {
       // very next conflict.
       occRetries: 0,
     };
+    delete requeued.transportRetries;
     delete requeued.error;
     delete requeued.failureKind;
     delete requeued.nextRetryAt;

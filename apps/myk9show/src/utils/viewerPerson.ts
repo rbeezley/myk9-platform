@@ -14,8 +14,16 @@ export function getUserPersonFromAuthId(authUserId?: string, allPeople: User[] =
 export function resolveViewerPersonId(
   userWithRoles:
     { id?: string | undefined; databaseUserId?: string | undefined } | null | undefined,
-  allPeople: User[] = []
+  allPeople: User[] = [],
+  cachedPersonId?: string | null
 ): string | undefined {
   if (!userWithRoles) return undefined;
-  return userWithRoles.databaseUserId ?? getUserPersonFromAuthId(userWithRoles.id, allPeople)?.id;
+  // `cachedPersonId` is the device-cached pairing (`useEntriesPersonId`). It is for READ checks
+  // only (roster filter, ownership comparison): `databaseUserId` itself stays confirmed-only
+  // because writes read it (MYK9-601 kept cached identity scoped to readers, MYK9-1493).
+  return (
+    userWithRoles.databaseUserId ??
+    cachedPersonId ??
+    getUserPersonFromAuthId(userWithRoles.id, allPeople)?.id
+  );
 }

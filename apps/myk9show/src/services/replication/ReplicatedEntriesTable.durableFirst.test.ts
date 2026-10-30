@@ -7,12 +7,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { databaseManager, REPLICATION_STORES } from '@myk9/replication';
 import { ReplicatedEntriesTable, type ReplicatedEntry } from './ReplicatedEntriesTable';
+import { spyOnWriteAndQueue } from '@/test/utils/spyOnWriteAndQueue';
 
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: { rpc: vi.fn(), from: vi.fn() },
 }));
-
-type QueueMutation = (...args: unknown[]) => Promise<string | null>;
 
 describe('ReplicatedEntriesTable durable-first status writers (MYK9-1206)', () => {
   let table: ReplicatedEntriesTable;
@@ -42,9 +41,7 @@ describe('ReplicatedEntriesTable durable-first status writers (MYK9-1206)', () =
   }
 
   function rejectQueue() {
-    return vi
-      .spyOn(table as unknown as { queueMutation: QueueMutation }, 'queueMutation')
-      .mockRejectedValue(new Error('queue overflow'));
+    return spyOnWriteAndQueue(table).queue.mockRejectedValue(new Error('queue overflow'));
   }
 
   it('check-in: a rejected queueMutation leaves the row clean and rejects the caller', async () => {

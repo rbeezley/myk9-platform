@@ -16,8 +16,8 @@
  * `judge_day_summary` and the rebuilt stats views.
  *
  * Two invariants this file exists to hold:
- *   * Name and person id always come from the SAME source. A class carrying two confirmed
- *     assignments must never render one judge's name beside another judge's id.
+ *   * Name and person id always come from the SAME source: never one source's name beside
+ *     another source's id.
  *   * `resolved` distinguishes "the RPC ran and found no confirmed judge" from "the RPC never
  *     ran". Only the first is a reason to clear a cached name; see
  *     `ReplicatedClassesTable.resolveConflict`.
@@ -49,24 +49,14 @@ export interface ClassJudgeSource {
 }
 
 /**
- * Lowest `id` wins, so a class with two confirmed assignments resolves to the same one on every
- * device and on every read — the same tie-break `fetchShowJudgeNameParts` applies to the RPC.
+ * The class's confirmed assignment. `judge_assignments_one_confirmed_judge_per_class` (a partial
+ * unique index on `class_id` where `status = 'confirmed'`) guarantees at most one, so this is a
+ * plain `find`: a class has exactly one judge.
  */
 export function pickConfirmedAssignment(
   assignments: readonly ClassJudgeAssignmentEmbed[]
 ): ClassJudgeAssignmentEmbed | undefined {
-  let chosen: ClassJudgeAssignmentEmbed | undefined;
-  for (const assignment of assignments) {
-    if (assignment.status !== 'confirmed') continue;
-    if (chosen === undefined) {
-      chosen = assignment;
-      continue;
-    }
-    const chosenId = chosen.id ?? '';
-    const candidateId = assignment.id ?? '';
-    if (candidateId && candidateId < chosenId) chosen = assignment;
-  }
-  return chosen;
+  return assignments.find(assignment => assignment.status === 'confirmed');
 }
 
 export function resolveClassJudgeFields(row: ClassJudgeSource): ClassJudgeFields {

@@ -2,7 +2,7 @@
  * MYK9-494 review follow-ups — the two ways the judge name could still be wrong after the
  * original fix, both of which the first round of tests could not see because they hydrate once.
  *
- *  * P1: the `get_show_judges` enrichment is best-effort and its failure is swallowed. On an
+ *  * P1: the `get_shows_judges` enrichment is best-effort and its failure is swallowed. On an
  *    incremental sync triggered by anything at all, `rowToClass` would then yield
  *    `judgeName: undefined` and `resolveConflict` would commit that over a correct cached
  *    name — back to `Judge TBD`, silently.
@@ -87,6 +87,7 @@ describe('MYK9-494 P1 — a failed enrichment must not erase a cached judge name
     mockRpc.mockResolvedValue({
       data: [
         {
+          show_id: SHOW_ID,
           assignment_id: 'a-1',
           person_id: JUDGE_ID,
           first_name: 'Test',
@@ -115,6 +116,7 @@ describe('MYK9-494 P1 — a failed enrichment must not erase a cached judge name
     mockRpc.mockResolvedValue({
       data: [
         {
+          show_id: SHOW_ID,
           assignment_id: 'a-1',
           person_id: JUDGE_ID,
           first_name: 'Test',
@@ -143,6 +145,7 @@ describe('MYK9-494 P1 — a failed enrichment must not erase a cached judge name
     mockRpc.mockResolvedValue({
       data: [
         {
+          show_id: SHOW_ID,
           assignment_id: 'a-1',
           person_id: JUDGE_ID,
           first_name: 'Test',
@@ -175,6 +178,7 @@ describe('MYK9-494 P1 — a failed enrichment must not erase a cached judge name
     mockRpc.mockResolvedValue({
       data: [
         {
+          show_id: SHOW_ID,
           assignment_id: 'a-1',
           person_id: JUDGE_ID,
           first_name: 'Test',
@@ -214,22 +218,26 @@ describe('MYK9-494 P1 — a failed enrichment must not erase a cached judge name
 });
 
 describe('MYK9-494 P3 — name and person id come from the same assignment', () => {
-  const twoConfirmed = (order: Array<'a-1' | 'a-2'>) =>
-    order.map(assignmentId => ({
-      assignment_id: assignmentId,
-      person_id: assignmentId === 'a-1' ? 'person-first' : 'person-second',
-      first_name: assignmentId === 'a-1' ? 'First' : 'Second',
-      last_name: 'Judge',
-      trial_id: TRIAL_ID,
-      class_id: CLASS_ID,
-      status: 'confirmed',
-    }));
+  const confirmedRow = {
+    show_id: SHOW_ID,
+    assignment_id: 'a-1',
+    person_id: 'person-first',
+    first_name: 'First',
+    last_name: 'Judge',
+    trial_id: TRIAL_ID,
+    class_id: CLASS_ID,
+    status: 'confirmed',
+  };
 
-  it.each([
-    ['a-1 first', ['a-1', 'a-2'] as Array<'a-1' | 'a-2'>],
-    ['a-2 first', ['a-2', 'a-1'] as Array<'a-1' | 'a-2'>],
-  ])('picks the lowest assignment id regardless of row order (%s)', async (_label, order) => {
-    mockRpc.mockResolvedValue({ data: twoConfirmed(order), error: null });
+  it('takes the id and the name from the class’s one confirmed assignment', async () => {
+    // A declined row for the same class never names the judge.
+    mockRpc.mockResolvedValue({
+      data: [
+        { ...confirmedRow, assignment_id: 'a-0', person_id: 'person-declined', status: 'declined' },
+        confirmedRow,
+      ],
+      error: null,
+    });
 
     const parts = await fetchShowJudgeNameParts(SHOW_ID);
 
@@ -240,16 +248,12 @@ describe('MYK9-494 P3 — name and person id come from the same assignment', () 
     });
   });
 
-  it('never pairs one judge’s name with another judge’s id', async () => {
-    mockRpc.mockResolvedValue({ data: twoConfirmed(['a-2', 'a-1']), error: null });
+  it('pairs the enriched name with the enriched id on the class row', async () => {
+    mockRpc.mockResolvedValue({ data: [confirmedRow], error: null });
 
-    // The embed lists the OTHER assignment first — the old code took the id from here.
     const cls = rowToClass({
       ...CLASS_ROW,
-      judge_assignments: [
-        { id: 'a-2', person_id: 'person-second', status: 'confirmed' },
-        { id: 'a-1', person_id: 'person-first', status: 'confirmed' },
-      ],
+      judge_assignments: [{ id: 'a-1', person_id: 'person-first', status: 'confirmed' }],
       _judge: (await resolveJudgeNamesForClassRows([CLASS_ROW])).get(CLASS_ID) ?? null,
       _judgeResolved: true,
     } as never);

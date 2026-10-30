@@ -19,6 +19,8 @@ import {
   CommandList,
 } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useKeyboardShortcuts, type ShortcutDefinition } from '@/hooks/useKeyboardShortcuts';
 import { cn } from '@/lib/utils';
 import { isFieldActive, isFieldLoading, toggleListValue } from './filterFieldState';
@@ -34,7 +36,11 @@ interface ListFilterMenuProps {
   className?: string;
   /** The Filter button, so applied-filter controls can send focus back to it after a removal. */
   triggerRef?: Ref<HTMLButtonElement>;
+  /** Below `md`, open as a bottom sheet instead of a popover (Find Shows, MYK9-1490). */
+  sheetOnPhone?: boolean;
 }
+
+const PHONE_QUERY = '(max-width: 767px)';
 
 function isPicked(field: ListFilterMenuField, option: ListFilterOption): boolean {
   return field.kind === 'multiOptions'
@@ -96,7 +102,12 @@ function FieldGroup({ field }: { field: ListFilterMenuField }) {
   );
 }
 
-export function ListFilterMenu({ fields, className, triggerRef }: ListFilterMenuProps) {
+export function ListFilterMenu({
+  fields,
+  className,
+  triggerRef,
+  sheetOnPhone = false,
+}: ListFilterMenuProps) {
   const [open, setOpen] = useState(false);
   // `F` goes through the app's one shortcut hook, so it is ignored while typing in a field or while
   // a dialog is open, like the other single-key shortcuts. It only opens; Escape closes.
@@ -117,49 +128,83 @@ export function ListFilterMenu({ fields, className, triggerRef }: ListFilterMenu
   // "No matches." only makes sense when there are values to match; a menu that is all
   // "Loading…" or "Nothing to choose yet." says that instead.
   const hasValues = fields.some(field => !isLoading(field) && field.options.length > 0);
+  const isPhone = useMediaQuery(PHONE_QUERY);
+
+  const trigger = (
+    <button
+      ref={triggerRef}
+      type="button"
+      aria-label={applied > 0 ? `Filter, ${applied} applied` : 'Filter'}
+      aria-keyshortcuts="F"
+      className={cn(
+        'inline-flex h-11 items-center gap-2 rounded-lg border border-input px-3 text-sm font-medium',
+        'bg-[var(--dialog-input-bg)] shadow-sm hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        className
+      )}
+    >
+      <ListFilter className="h-4 w-4" aria-hidden="true" />
+      Filter
+      {applied > 0 && (
+        <span
+          aria-hidden="true"
+          className="rounded-full bg-primary px-1.5 text-xs text-primary-foreground"
+        >
+          {applied}
+        </span>
+      )}
+    </button>
+  );
+  // Beside the button, not inside it: visible text inside a labelled control must be part of its
+  // name (axe label-content-name-mismatch); `aria-keyshortcuts` tells assistive tech instead.
+  const shortcutHint = (
+    <kbd
+      aria-hidden="true"
+      className="hidden rounded border border-border px-1 text-xs text-muted-foreground lg:inline"
+    >
+      F
+    </kbd>
+  );
+  const menu = (
+    <Command>
+      <CommandInput placeholder="Filter by…" />
+      <CommandList className="max-h-[min(24rem,60vh)]">
+        {hasValues && <CommandEmpty>No matches.</CommandEmpty>}
+        {fields.map(field => (
+          <FieldGroup key={field.key} field={field} />
+        ))}
+      </CommandList>
+    </Command>
+  );
+
+  if (sheetOnPhone && isPhone) {
+    return (
+      <span className="inline-flex items-center gap-1.5">
+        <Sheet open={open} onOpenChange={setOpen}>
+          <SheetTrigger asChild>{trigger}</SheetTrigger>
+          <SheetContent
+            side="bottom"
+            className="max-h-[85dvh] overflow-y-auto rounded-t-xl px-2 pb-6 pt-4"
+          >
+            <SheetHeader className="px-2">
+              <SheetTitle>Filters</SheetTitle>
+            </SheetHeader>
+            {menu}
+          </SheetContent>
+        </Sheet>
+        {shortcutHint}
+      </span>
+    );
+  }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <button
-          ref={triggerRef}
-          type="button"
-          aria-label={applied > 0 ? `Filter, ${applied} applied` : 'Filter'}
-          className={cn(
-            'inline-flex h-11 items-center gap-2 rounded-lg border border-input px-3 text-sm font-medium',
-            'bg-[var(--dialog-input-bg)] shadow-sm hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-            className
-          )}
-        >
-          <ListFilter className="h-4 w-4" aria-hidden="true" />
-          Filter
-          {applied > 0 && (
-            <span
-              aria-hidden="true"
-              className="rounded-full bg-primary px-1.5 text-xs text-primary-foreground"
-            >
-              {applied}
-            </span>
-          )}
-          <kbd
-            aria-hidden="true"
-            className="hidden rounded border border-border px-1 text-xs text-muted-foreground lg:inline"
-          >
-            F
-          </kbd>
-        </button>
-      </PopoverTrigger>
-      <PopoverContent align="start" className="w-[min(22rem,calc(100vw-2rem))] p-0">
-        <Command>
-          <CommandInput placeholder="Filter by…" />
-          <CommandList className="max-h-[min(24rem,60vh)]">
-            {hasValues && <CommandEmpty>No matches.</CommandEmpty>}
-            {fields.map(field => (
-              <FieldGroup key={field.key} field={field} />
-            ))}
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+    <span className="inline-flex items-center gap-1.5">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>{trigger}</PopoverTrigger>
+        <PopoverContent align="start" className="w-[min(22rem,calc(100vw-2rem))] p-0">
+          {menu}
+        </PopoverContent>
+      </Popover>
+      {shortcutHint}
+    </span>
   );
 }

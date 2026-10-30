@@ -2148,11 +2148,11 @@ describe('MutationManager', () => {
         makeMutation({ id: 'mut-backoff', operation: 'UPDATE', data: { id: 'e1' } })
       );
 
-      // Network timeout is retryable
+      // A non-transport retryable error (statement timeout) backs off and spends retry budget
       vi.mocked(mockSupabase.from).mockReturnValue({
         update: vi.fn(() => ({
           eq: vi.fn(() => ({
-            select: vi.fn(() => Promise.reject(new TypeError('fetch failed'))),
+            select: vi.fn(() => Promise.reject({ code: '57014', message: 'statement timeout' })),
           })),
         })),
       } as unknown as ReturnType<typeof mockSupabase.from>);

@@ -43,6 +43,10 @@ export const REPORT_WHY: Record<string, string> = {
   'akc-judge-report': 'The AKC judge’s report for the trial.',
   'trial-secretary-certification': 'The trial secretary’s certification page.',
   'judge-supply-checklist': 'What each judge needs on the table before the first run.',
+  'ukc-nosework-setup-cheat-sheet':
+    'Two landscape pages of UKC search setup values by element and level, for judges and secretaries.',
+  'akc-scent-work-setup-cheat-sheet':
+    'Three landscape pages of AKC search setup values by element and level, for judges and secretaries.',
 };
 
 /**

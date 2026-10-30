@@ -44,7 +44,7 @@ Find REAL, VERIFIED defects **in your assigned scope only**:
   decision is not a defect** — this is the judgment the expensive model is here for.
 - Do NOT report style, naming, formatting, missing tests, or "could be simpler".
 - **Read-only.** You may run `grep`, `git log`, `git blame`, and from `apps/myk9show`:
-  `npx tsc --noEmit -p tsconfig.app.json` (never `-p tsconfig.json` — it is solution-style, compiles
+  `pnpm run typecheck:app` (it writes only a tsc cache under `node_modules/.cache`; never `tsc -p tsconfig.json` — it is solution-style, compiles
   nothing, and exits 0) or `pnpm vitest run <one file>`. Do not edit, do not run the whole suite,
   do not install.
 

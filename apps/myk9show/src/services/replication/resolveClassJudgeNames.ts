@@ -2,7 +2,7 @@ import { supabase } from '@/services/database/supabaseClient';
 import { logger } from '@/utils/logger';
 import { readNow, type ShareRead } from '@/services/database/_shared/shareInFlight';
 import {
-  fetchShowJudgeNameParts,
+  fetchShowsJudgeNameParts,
   type JudgeNameParts,
 } from '@/services/database/_shared/judgeNamesByClass';
 import type { ClassTrialRow } from './resolveClassTrials';
@@ -19,7 +19,8 @@ interface JudgeNameClassRow {
  * show managers, so an ordinary exhibitor's `people!inner` embed drops the assignment row and
  * every name field lands undefined — `Judge TBD` on every schedule row even though the
  * confirmed assignment is right there. Names therefore come from `get_show_judges`, the
- * SECURITY DEFINER RPC MYK9-474 added for exactly this, resolved once per show and persisted on
+ * SECURITY DEFINER RPC MYK9-474 added for exactly this (called per show by `get_shows_judges`,
+ * one round trip per sync batch since MYK9-1450), and persisted on
  * the local row so the name survives a cold offline warm start.
  *
  * The result distinguishes three states per class, and the distinction is the whole point:
@@ -67,15 +68,15 @@ export async function resolveJudgeNamesForClassRows(
     if (trial.show_id) showIdByTrialId.set(trial.id, trial.show_id);
   }
 
-  const partsByShowId = new Map<string, Map<string, JudgeNameParts>>();
-  await Promise.all(
-    [...new Set(showIdByTrialId.values())].map(async showId => {
-      const parts = await shareRead(`judges:${showId}`, () => fetchShowJudgeNameParts(showId));
-      // null = the RPC failed. Leave the show out, so its classes stay ABSENT from the result
-      // and every reader keeps whatever it already had.
-      if (parts) partsByShowId.set(showId, parts);
-    })
-  );
+  // MYK9-1450: one get_shows_judges round trip for every show in the batch, not one per show,
+  // so a cold replica's first sync costs the same however many shows are visible. A show whose
+  // batch failed is absent, so its classes stay ABSENT from the result and every reader keeps
+  // whatever it already had.
+  const showIds = [...new Set(showIdByTrialId.values())].sort();
+  const partsByShowId =
+    showIds.length === 0
+      ? new Map<string, Map<string, JudgeNameParts>>()
+      : await shareRead(`judges:${showIds.join(',')}`, () => fetchShowsJudgeNameParts(showIds));
 
   for (const row of rows) {
     const showId = row.trial_id ? showIdByTrialId.get(row.trial_id) : undefined;

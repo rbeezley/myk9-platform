@@ -171,6 +171,19 @@ export function describeRestoreDog(result: unknown): string | null {
   );
 }
 
+/**
+ * The notice after a club restore (MYK9-1388). Deleting a club switches off every role in it,
+ * and restoring it gives none of them back (the same rule as restoring a person), so the admin
+ * has to know to appoint people again.
+ */
+export function describeRestoreClub(): string {
+  return (
+    'Club restored. Deleting it switched off everyone’s roles in this club, and restoring ' +
+    'does not switch them back on. Give its club admins their role again in User Management, ' +
+    'then they can appoint secretaries from the club’s Members page.'
+  );
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type QueryFn = () => Promise<{ data: any[]; error: any } | any>;
 

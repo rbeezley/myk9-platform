@@ -72,4 +72,6 @@ export const LOAD_CLASS_AUTHENTICATED_COLUMN_SELECT = `${HARNESS_CLASS_COLUMN_SE
       judge_signed_off_at,
       judge_signed_off_by,
       results_verified_at,
-      results_verified_by`;
+      results_verified_by,
+      ring_phase,
+      ring_phase_time`;

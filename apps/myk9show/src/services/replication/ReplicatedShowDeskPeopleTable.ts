@@ -75,8 +75,11 @@ export class ReplicatedShowDeskPeopleTable extends ReplicatedTable<ReplicatedSho
       _localOnly: true,
     };
 
-    await this.set(id, person, true);
-    this._lastMutationId = await this.queueMutation('INSERT', id, this.toSupabaseRow(person));
+    const { mutationId } = await this.writeAndQueue(id, person, {
+      operation: 'INSERT',
+      payload: this.toSupabaseRow(person),
+    });
+    this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Created show-desk person ${id}`);
 
     return person;

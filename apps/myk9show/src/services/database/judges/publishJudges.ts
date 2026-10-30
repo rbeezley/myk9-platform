@@ -3,6 +3,9 @@ import { buildAssignedJudges } from '@/utils/buildAssignedJudges';
 import { PremiumPublishError } from '@/features/premium/premiumPublishErrors';
 import type { ReplicatedJudgeAssignment } from '@/services/replication/ReplicatedJudgeAssignmentsTable';
 import { mutationManager } from '@/services/replication/sharedMutationManager';
+import { unsentPickClassIds } from '@/services/replication/classJudgePick';
+import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
+import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
 import { readJudgeAssignmentsOrThrow } from './assignmentReads';
 
@@ -86,6 +89,27 @@ function sameKeys(a: Set<string>, b: Set<string>): boolean {
 }
 
 /**
+ * True while this device holds a `set_class_judge` pick, pending or parked for Retry, for a class
+ * of the show (MYK9-1327). A pick changes the class row at once, but the assignment replica (and
+ * so the comparison below) names the old judge until the pick uploads and the sync lands. An
+ * unreadable device answers true: publishing the old judge is the worse error.
+ */
+async function hasUnsentPickInShow(showId: string): Promise<boolean> {
+  try {
+    const classIds = await unsentPickClassIds(mutationManager);
+    if (classIds.length === 0) return false;
+    const trialIds = new Set((await replicatedTrialsTable.getTrialsByShow(showId)).map(t => t.id));
+    for (const classId of classIds) {
+      const cls = await replicatedClassesTable.getClassById(classId);
+      if (cls?.trialId && trialIds.has(cls.trialId)) return true;
+    }
+    return false;
+  } catch {
+    return true;
+  }
+}
+
+/**
  * The judges a published premium lists: the server's, and only when this
  * device holds the same assignments (which judge has which class).
  *
@@ -98,10 +122,19 @@ function sameKeys(a: Set<string>, b: Set<string>): boolean {
  * guessing which side is right, and asks for an upload. When the device cannot
  * read its judges at all, the server's list stands.
  *
- * Throws a `judges-syncing` PremiumPublishError when the two disagree, and a
+ * Throws a `judges-syncing` PremiumPublishError when the two disagree or a class-judge pick is
+ * still unsent, and a
  * database error when the server cannot be read.
  */
 export async function fetchShowJudgesForPublish(showId: string): Promise<ShowJudgeAssignment[]> {
+  if (await hasUnsentPickInShow(showId)) {
+    mutationManager.requestUpload();
+    throw new PremiumPublishError(
+      "This device's judges don't match the server's yet",
+      'experience-snapshot',
+      'judges-syncing'
+    );
+  }
   const [server, deviceKeys] = await Promise.all([
     readServerJudges(showId),
     readDeviceAssignmentKeys(showId),

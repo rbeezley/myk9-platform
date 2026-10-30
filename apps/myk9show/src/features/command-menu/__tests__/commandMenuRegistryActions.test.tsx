@@ -102,7 +102,12 @@ describe('command palette show actions come from the action registry', () => {
       const { result } = renderHook(() => useCommandMenuCommands(), {
         wrapper: wrapperAt(route),
       });
-      expect(result.current.createActions.map(a => [a.label, a.href])).toEqual([
+      // Add Entry (MYK9-1490) is greyed with no live show here, so it carries no href.
+      expect(
+        result.current.createActions
+          .filter(a => a.id !== 'create-entry')
+          .map(a => [a.label, a.href])
+      ).toEqual([
         ['Add Show', '/?wizard=true'],
         ['Add Dog', '/dogs?add=true'],
         ['Add Person', '/people?add=true'],

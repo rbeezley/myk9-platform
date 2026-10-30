@@ -65,6 +65,7 @@ function stubGh(
     commentExit?: number;
     prior?: string;
     prHead?: string;
+    prBranch?: string;
     commentsExit?: number;
     secondCommentExit?: number;
   } = {}
@@ -85,6 +86,7 @@ function stubGh(
 printf '%s\\n' "$@" >> '${calls}'
 printf -- '---\\n' >> '${calls}'
 case "$*" in
+  *headRefName*) echo '${opts.prBranch ?? 'codex/stub-default'}' ;;
   *headRefOid*) echo '${opts.prHead ?? LOCAL_HEAD}' ;;
   *comments*) cat '${prior}'; exit ${opts.commentsExit ?? 0} ;;
   'pr view --json number'*) echo 7 ;;
@@ -182,11 +184,91 @@ describe('claude-review.sh', () => {
     const args = readFileSync(stub.args, 'utf8').trimEnd().split('\n');
     expect(args[0]).toBe('-p');
     const prompt = args.slice(1).join('\n');
-    expect(prompt.split('\n')[0]).toBe('/code-review 7');
+    expect(prompt.split('\n')[0]).toBe('/code-review high 7');
     const contract = readFileSync(CODEX_SCRIPT, 'utf8').match(/^REVIEW_INSTRUCTIONS='(.*)'$/m)?.[1];
     expect(contract, 'codex-review.sh must expose REVIEW_INSTRUCTIONS').toBeTruthy();
     expect(contract!.length).toBeGreaterThan(200);
     expect(prompt).toContain(contract!);
+  });
+
+  describe('MYK9-1470: pinned effort, harness-aware hint, empty findings array', () => {
+    const GATE_CMD = 'post-review-gate.sh 7 claude';
+
+    it('pins an explicit local effort level and never sends ultra', () => {
+      const stub = stubClaude('No actionable defects found.');
+      expect(run(stub, stubGh(), ['7']).code).toBe(0);
+      const first = readFileSync(stub.args, 'utf8').trimEnd().split('\n')[1];
+      expect(first).toMatch(/^\/code-review (low|medium|high|xhigh|max) 7$/);
+      expect(first).not.toMatch(/ultra/i);
+    });
+
+    it('a Claude-authored head gets no gate-evidence command, and is told to use qa:codex-review', () => {
+      const stub = stubClaude('No actionable defects found.');
+      const r = run(stub, stubGh({ prBranch: 'claude/myk9-1-thing' }), ['7']);
+      expect(r.code).toBe(0);
+      expect(r.out).not.toContain(GATE_CMD);
+      expect(r.out).toContain('same-harness');
+      expect(r.out).toContain('pnpm qa:codex-review --post 7');
+    });
+
+    it('a head whose authorship cannot be determined takes the conservative branch', () => {
+      const stub = stubClaude('No actionable defects found.');
+      const r = run(stub, stubGh({ prBranch: '' }), ['7']);
+      expect(r.code).toBe(0);
+      expect(r.out).not.toContain(GATE_CMD);
+      expect(r.out).toContain('pnpm qa:codex-review --post 7');
+    });
+
+    it('a Codex-authored head keeps the post-review-gate hint', () => {
+      const stub = stubClaude('No actionable defects found.');
+      const r = run(stub, stubGh({ prBranch: 'codex/myk9-1-thing' }), ['7']);
+      expect(r.code).toBe(0);
+      expect(r.out).toContain(GATE_CMD);
+      expect(r.out).not.toContain('same-harness');
+    });
+
+    it.each([
+      ['a claude/ head', 'claude/myk9-1-thing'],
+      ['an unknown branch', ''],
+    ])('--post on a clean review of %s refuses: exit 2, nothing posted', (_label, prBranch) => {
+      const gh = stubGh({ prBranch });
+      const r = run(stubClaude('No actionable defects found.'), gh);
+      expect(r.code).toBe(2);
+      expect(r.out).toContain('pnpm qa:codex-review --post 7');
+      expect(r.out).toContain('Codex-authored PRs only');
+      expect(bodies(gh.calls)).toEqual([]);
+    });
+
+    it('--post on a clean review of a codex/ head still posts claude evidence', () => {
+      const gh = stubGh({ prBranch: 'codex/myk9-1-thing' });
+      expect(run(stubClaude('No actionable defects found.'), gh).code).toBe(0);
+      const posted = bodies(gh.calls);
+      expect(posted).toHaveLength(1);
+      expect(posted[0]).toMatch(/^Review gate: claude reviewed /);
+    });
+
+    it('--post findings on a claude/ head are still reported (exit 1), never refused', () => {
+      const gh = stubGh({ prBranch: 'claude/myk9-1-thing' });
+      const r = run(stubClaude('- [P1] src/a.ts:1 broken\n'), gh);
+      expect(r.code).toBe(1);
+      expect(bodies(gh.calls)[0]).toMatch(/^Claude findings for /);
+    });
+
+    it('a bare [] exits 2 with a message naming the empty-array case, and posts nothing', () => {
+      const stub = stubClaude('[]\n');
+      const gh = stubGh();
+      const r = run(stub, gh);
+      expect(r.code).toBe(2);
+      expect(r.out).toContain('empty findings array without the verdict sentence');
+      expect(bodies(gh.calls)).toEqual([]);
+    });
+
+    it('other unrecognized output keeps the generic message, not the empty-array one', () => {
+      const r = run(stubClaude('I looked at it.\n'), stubGh(), ['7']);
+      expect(r.code).toBe(2);
+      expect(r.out).toContain('unrecognized output');
+      expect(r.out).not.toContain('empty findings array');
+    });
   });
 
   it('--post on a clean review posts evidence naming claude as the reviewer', () => {
@@ -391,7 +473,7 @@ describe('claude-review.sh', () => {
 
   it('without --post it writes nothing to the PR', () => {
     const stub = stubClaude('No actionable defects found.');
-    const gh = stubGh();
+    const gh = stubGh({ prBranch: 'codex/x' });
     const r = run(stub, gh, ['7']);
     expect(r.code).toBe(0);
     expect(r.out).toContain('post-review-gate.sh');

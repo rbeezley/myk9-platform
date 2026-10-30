@@ -33,6 +33,7 @@ vi.mock('./resolveClassJudgeNames', () => ({
 
 import {
   CLASS_ENRICHMENT_TTL_MS,
+  HideCountLookupFailedError,
   affectsClassEnrichment,
   invalidateClassEnrichment,
   invalidateClassEnrichmentForShows,
@@ -178,7 +179,8 @@ describe('class enrichment cache (MYK9-1360)', () => {
       }
     );
     const rows = [row('c1', 'trial-1')];
-    await resolve(rows);
+    // MYK9-1451: a skipped hide-count read fails the enrichment rather than answering "no count".
+    await expect(resolve(rows)).rejects.toBeInstanceOf(HideCountLookupFailedError);
     await resolve(rows);
 
     expect(resolvers.hideCounts).toHaveBeenCalledTimes(2);
@@ -284,10 +286,15 @@ describe('class enrichment cache (MYK9-1360)', () => {
       ['hide counts', () => resolvers.hideCounts.mockRejectedValueOnce(new Error('down'))],
       ['time limits', () => resolvers.timeLimits.mockResolvedValueOnce(null)],
       ['judge names', () => resolvers.judges.mockRejectedValueOnce(new Error('down'))],
-    ])('%s', async (_name, fail) => {
+    ])('%s', async (name, fail) => {
       fail();
       const rows = [row('c1', 'trial-1')];
-      await expect(resolve(rows)).resolves.toBeDefined();
+      // A hide-count failure fails the enrichment (MYK9-1451); the others still answer.
+      if (name === 'hide counts') {
+        await expect(resolve(rows)).rejects.toBeInstanceOf(HideCountLookupFailedError);
+      } else {
+        await expect(resolve(rows)).resolves.toBeDefined();
+      }
 
       await resolve(rows);
 

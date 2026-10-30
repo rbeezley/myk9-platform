@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { ArrowUpDown, Shuffle, GripVertical } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -11,18 +10,17 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { hasMultipleSections } from '@/lib/runOrderUtils';
 import type { RunOrderPreset, RunOrderEntry } from '@/lib/runOrderUtils';
+import {
+  BASIC_PRESETS,
+  COMBINED_PRESET_GROUPS,
+  SCOPED_PRESETS,
+  type PresetDef,
+} from './runOrderPresetDefs';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type RunOrderScope = 'all' | string; // 'all' or a specific section value ('A', 'B', …)
 export type RenumberMode = 'preserve' | 'renumber';
-
-interface PresetDef {
-  preset: RunOrderPreset;
-  label: string;
-  description: string;
-  icon: React.ReactNode;
-}
 
 interface RunOrderDialogProps {
   open: boolean;
@@ -35,110 +33,6 @@ interface RunOrderDialogProps {
     renumberMode?: RenumberMode
   ) => Promise<void>;
 }
-
-// ─── Preset definitions ───────────────────────────────────────────────────────
-
-const BASIC_PRESETS: PresetDef[] = [
-  {
-    preset: 'armband-asc',
-    label: 'Armband Low to High',
-    description: 'Sort entries by armband number (ascending)',
-    icon: <ArrowUpDown className="h-5 w-5" />,
-  },
-  {
-    preset: 'armband-desc',
-    label: 'Armband High to Low',
-    description: 'Sort entries by armband number (descending)',
-    icon: <ArrowUpDown className="h-5 w-5" />,
-  },
-  {
-    preset: 'random',
-    label: 'Random Shuffle',
-    description: 'Completely randomize entry order',
-    icon: <Shuffle className="h-5 w-5" />,
-  },
-  {
-    preset: 'manual',
-    label: 'Manual Drag and Drop',
-    description: 'Manually reorder entries by dragging',
-    icon: <GripVertical className="h-5 w-5" />,
-  },
-];
-
-interface SectionPresetGroup {
-  label: string;
-  presets: PresetDef[];
-}
-
-const SECTION_PRESET_GROUPS: SectionPresetGroup[] = [
-  {
-    label: 'Section A then B',
-    presets: [
-      {
-        preset: 'a-then-b-asc',
-        label: 'Armband Low to High',
-        description: 'A section first (ascending), then B section (ascending)',
-        icon: <ArrowUpDown className="h-5 w-5" />,
-      },
-      {
-        preset: 'a-then-b-desc',
-        label: 'Armband High to Low',
-        description: 'A section first (descending), then B section (descending)',
-        icon: <ArrowUpDown className="h-5 w-5" />,
-      },
-    ],
-  },
-  {
-    label: 'Section B then A',
-    presets: [
-      {
-        preset: 'b-then-a-asc',
-        label: 'Armband Low to High',
-        description: 'B section first (ascending), then A section (ascending)',
-        icon: <ArrowUpDown className="h-5 w-5" />,
-      },
-      {
-        preset: 'b-then-a-desc',
-        label: 'Armband High to Low',
-        description: 'B section first (descending), then A section (descending)',
-        icon: <ArrowUpDown className="h-5 w-5" />,
-      },
-    ],
-  },
-  {
-    label: 'Random (within sections)',
-    presets: [
-      {
-        preset: 'random-sections',
-        label: 'Random Shuffle (within sections)',
-        description: 'Randomize A section, then randomize B section',
-        icon: <Shuffle className="h-5 w-5" />,
-      },
-    ],
-  },
-];
-
-// Scoped presets: applied to a single section only
-const SCOPED_PRESETS: PresetDef[] = [
-  {
-    preset: 'armband-asc',
-    label: 'Armband Low to High',
-    description: 'Sort this section by armband (ascending)',
-    icon: <ArrowUpDown className="h-5 w-5" />,
-  },
-  {
-    preset: 'armband-desc',
-    label: 'Armband High to Low',
-    description: 'Sort this section by armband (descending)',
-    icon: <ArrowUpDown className="h-5 w-5" />,
-  },
-  {
-    preset: 'random',
-    label: 'Random Shuffle',
-    description: 'Randomly shuffle this section',
-    icon: <Shuffle className="h-5 w-5" />,
-  },
-];
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -206,9 +100,11 @@ export const RunOrderDialog: React.FC<RunOrderDialogProps> = ({
     }
   }, [open]);
 
-  // Reset selected preset when scope changes (presets differ per scope)
+  // Reset selected preset and return to the preset step when scope changes
+  // (presets differ per scope; the renumber buttons need a selected preset).
   React.useEffect(() => {
     setSelected(null);
+    setStep('presets');
   }, [scope]);
 
   const handleOpenChange = (next: boolean) => {
@@ -310,55 +206,35 @@ export const RunOrderDialog: React.FC<RunOrderDialogProps> = ({
   };
 
   // ── Preset list ─────────────────────────────────────────────────────────────
+  const renderPresetButtons = (defs: PresetDef[]) =>
+    defs.map(def => (
+      <PresetButton
+        key={def.preset}
+        def={def}
+        selected={selected === def.preset}
+        onSelect={() => setSelected(def.preset)}
+      />
+    ));
+
   const renderPresets = () => {
-    if (!multiSection || scope === 'all') {
-      // Non-section class OR all-scope: show basic presets.
-      // For multi-section "all" scope, also show section preset groups.
-      return (
-        <div className="flex flex-col gap-2">
-          {/* Basic presets always visible */}
-          {BASIC_PRESETS.map(def => (
-            <PresetButton
-              key={def.preset}
-              def={def}
-              selected={selected === def.preset}
-              onSelect={() => setSelected(def.preset)}
-            />
-          ))}
-
-          {/* Section preset groups — only when multiple sections exist */}
-          {multiSection &&
-            SECTION_PRESET_GROUPS.map(group => (
-              <div key={group.label} className="mt-3">
-                <div className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {group.label}
-                </div>
-                <div className="flex flex-col gap-2">
-                  {group.presets.map(def => (
-                    <PresetButton
-                      key={def.preset}
-                      def={def}
-                      selected={selected === def.preset}
-                      onSelect={() => setSelected(def.preset)}
-                    />
-                  ))}
-                </div>
-              </div>
-            ))}
-        </div>
-      );
+    // Single-section scope: simple presets for that section only.
+    if (multiSection && scope !== 'all') {
+      return <div className="flex flex-col gap-2">{renderPresetButtons(SCOPED_PRESETS)}</div>;
     }
-
-    // Single-section scope: only simple presets
+    // Class without A/B sections: one flat list.
+    if (!multiSection) {
+      return <div className="flex flex-col gap-2">{renderPresetButtons(BASIC_PRESETS)}</div>;
+    }
+    // Combined A/B class, scope "All": v3's grouped list.
     return (
       <div className="flex flex-col gap-2">
-        {SCOPED_PRESETS.map(def => (
-          <PresetButton
-            key={def.preset}
-            def={def}
-            selected={selected === def.preset}
-            onSelect={() => setSelected(def.preset)}
-          />
+        {COMBINED_PRESET_GROUPS.map(group => (
+          <div key={group.label} className="mt-1">
+            <div className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {group.label}
+            </div>
+            <div className="flex flex-col gap-2">{renderPresetButtons(group.presets)}</div>
+          </div>
         ))}
       </div>
     );
@@ -399,7 +275,7 @@ export const RunOrderDialog: React.FC<RunOrderDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Set Run Order</DialogTitle>
         </DialogHeader>

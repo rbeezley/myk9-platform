@@ -150,7 +150,8 @@ BEGIN
     ('show_payouts','SELECT','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('show_templates','SELECT,INSERT,UPDATE,DELETE','SELECT','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('show_visibility_settings','SELECT,INSERT,UPDATE','SELECT','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
-    ('shows','SELECT,INSERT,UPDATE,DELETE','SELECT','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
+    -- MYK9-1472: no DELETE; hard_delete_show is the only permanent path.
+    ('shows','SELECT,INSERT,UPDATE','SELECT','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('sms_opt_in_attempts','','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('sms_proximity_sends','','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('sport_class_rules','SELECT,INSERT,UPDATE,DELETE','SELECT','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
@@ -165,6 +166,7 @@ BEGIN
     ('support_tickets','SELECT,INSERT,UPDATE','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('sync_conflicts','SELECT,INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('system_health_snapshots','SELECT','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
+    ('timezone_names','','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('training_goals','SELECT,INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('training_journal_entries','SELECT,INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('training_milestones','SELECT,INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
@@ -263,7 +265,7 @@ BEGIN
       'sport_titles',
       'stripe_customers','stripe_order_refunds','stripe_orders','stripe_subscriptions',
       'subscription_entitlement_grants','support_ticket_messages','support_tickets',
-      'sync_conflicts','system_health_snapshots','training_goals','training_journal_entries',
+      'sync_conflicts','system_health_snapshots','timezone_names','training_goals','training_journal_entries',
       'training_milestones','trial_checklist_state','trial_judge_supplies',
       'trial_packet_generation_claims','trial_packet_print_reminders',
       'trial_packet_snapshots','trial_visibility_overrides','trials','user_guide','user_milestones','user_preferences',
@@ -326,7 +328,9 @@ BEGIN
       -- MYK9-1045). results_verified_fingerprint is granted to no API role, and
       -- anon stays 51.
       ('classes','anon',51),
-      ('classes','authenticated',57),
+      -- authenticated 57 -> 59: ring_phase / ring_phase_time (20261030174300, MYK9-1513);
+      -- anon stays 51.
+      ('classes','authenticated',59),
       ('entries','anon',0),
       -- 54 became 55 when entries.withdrawal_reason_code was added and granted
       -- to authenticated (20260917214300, MYK9-632). anon stays 0: the same
@@ -350,6 +354,9 @@ BEGIN
       -- set it (trg_entries_junior_fee forces it false on insert, keeps OLD on update).
       -- 57 became 56 when entries.promo_code_id was dropped (20261022131700,
       -- MYK9-1326): dropping a column drops its column grant with it.
+      -- Still 56 after entries.placement_tiebreak and entries.placement_tie
+      -- (20261029043900, MYK9-1473): result data, deliberately NOT granted on the
+      -- base table; the replica reads them through the masked results views.
       ('entries','authenticated',56),
       ('judge_assignments','anon',10),
       ('judge_assignments','authenticated',12),

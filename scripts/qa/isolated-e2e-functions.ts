@@ -141,6 +141,31 @@ export function noVerifyJwtConfig(existingConfig: string, functionNames: string[
     .join('');
 }
 
+/**
+ * MYK9-1467: keep each edge function's worker alive between requests, as production does.
+ *
+ * The CLI's default `oneshot` policy (built for hot reload) boots a fresh worker for EVERY request:
+ * about 2 s per call on a laptop and more on a CI runner, so a page's function call could miss the
+ * route sweep's 5 s settle window. Throwaway CI stacks never need hot reload. The checked-in
+ * config keeps the default, so local development still reloads on save.
+ */
+export function perWorkerEdgeRuntimeConfig(existingConfig: string): string {
+  const section = /^\[edge_runtime\]\s*(#.*)?$/m;
+  if (!section.test(existingConfig)) {
+    return `${existingConfig.replace(/\n*$/, '\n')}\n[edge_runtime]\npolicy = "per_worker"\n`;
+  }
+  const lines = existingConfig.split('\n');
+  const start = lines.findIndex(line => section.test(line));
+  let end = lines.findIndex((line, i) => i > start && /^\[/.test(line));
+  if (end === -1) end = lines.length;
+  const policyAt = lines.findIndex(
+    (line, i) => i > start && i < end && /^\s*policy\s*=/.test(line)
+  );
+  if (policyAt === -1) lines.splice(start + 1, 0, 'policy = "per_worker"');
+  else lines[policyAt] = 'policy = "per_worker"';
+  return lines.join('\n');
+}
+
 export function functionSecretsEnvFile(env: NodeJS.ProcessEnv = {}): string {
   return `${Object.entries(isolatedFunctionSecrets(env))
     .map(([key, value]) => `${key}=${value}`)
@@ -184,5 +209,6 @@ export function stageAppEdgeFunctions(
   const configPath = join(repoRoot, SUPABASE_CONFIG_FILE);
   const served = listDirs(rootDir).filter(name => name !== SHARED_DIR);
   appendFileSync(configPath, noVerifyJwtConfig(readFileSync(configPath, 'utf8'), served), 'utf8');
+  writeFileSync(configPath, perWorkerEdgeRuntimeConfig(readFileSync(configPath, 'utf8')), 'utf8');
   return plan;
 }

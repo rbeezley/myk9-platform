@@ -69,6 +69,11 @@ export interface OwnShowResult {
   /** Null until the class is released; the masked read withholds it before. */
   finalPlacement: number | null;
   resultsReleasedAt: string | null;
+  /**
+   * True only when the server's masked view answered. The offline fallback nulls the
+   * same result columns, so a null status from it says nothing about release (MYK9-1519).
+   */
+  serverConfirmed?: boolean | undefined;
 }
 
 export const NO_OWN_RESULTS: ReadonlyMap<string, OwnShowResult> = new Map();
@@ -93,6 +98,8 @@ export interface AtShowEntryDetail {
   resultFaults: number | null;
   /** True while the class is unreleased: the row labels the result "preliminary". */
   isPreliminary: boolean;
+  /** Scored, but the release preset withholds the result: the row says it is not released (MYK9-1519). */
+  isResultWithheld?: boolean | undefined;
   /** The class's resolved self-check-in cascade (MYK9-800 follow-up). */
   selfCheckinState: SelfCheckinState;
   /** "<trial label> · <date>" (`formatAtShowTrialHeading`), or null before the trial replica resolves. */
@@ -172,6 +179,11 @@ export function buildMyAtShowEntryDetails(
     const pulled = isPulledEntry(entry);
     const hasVisibleResult =
       !pulled && own?.isScored === true && status != null && status !== 'pending';
+    // The masked read passes `is_scored` through but nulls the qualification
+    // when the preset withholds it, so scored-with-no-status is "withheld" —
+    // but only when the server said so, not the offline fallback.
+    const isResultWithheld =
+      !pulled && own?.serverConfirmed === true && own.isScored === true && status == null;
     const seconds = own?.searchTimeSeconds;
     const { isPreliminary } = deriveResultReleaseDisplay({
       // The own read is authoritative: a stale class replica must never turn
@@ -199,6 +211,7 @@ export function buildMyAtShowEntryDetails(
           : null,
       resultFaults: hasVisibleResult ? (own?.totalFaults ?? null) : null,
       isPreliminary: hasVisibleResult && isPreliminary,
+      isResultWithheld,
       selfCheckinState: classSummary?.selfCheckinState ?? 'unknown',
       trialLabel: trial?.label ?? null,
       dogKey: entry.dogId ?? entry.dogCallName ?? entry.id,

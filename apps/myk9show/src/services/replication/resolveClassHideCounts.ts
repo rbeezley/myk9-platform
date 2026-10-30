@@ -2,6 +2,7 @@ import { supabase } from '@/services/database/supabaseClient';
 import { logger } from '@/utils/logger';
 import { getTrialRegistry } from '@/features/registries';
 import { readNow, type ShareRead } from '@/services/database/_shared/shareInFlight';
+import { showIdBatches } from '@/services/database/_shared/judgeNamesByClass';
 import type { ClassTrialRow } from './resolveClassTrials';
 
 interface HideCountClassRow {
@@ -135,18 +136,20 @@ export async function resolveHideCountsForClassRows(
 
   const showIds = [
     ...new Set(trials.map(trial => trial.show_id).filter((id): id is string => !!id)),
-  ];
+  ].sort();
 
+  // MYK9-1450: one get_shows_class_hide_counts round trip per batch of shows, not one per show.
+  // It runs get_show_class_hide_counts per show, so each show keeps its own role checks.
   await Promise.all(
-    showIds.map(async showId => {
-      const { data, error } = await shareRead(`hide-counts:${showId}`, async () =>
-        supabase.rpc('get_show_class_hide_counts', { p_show_id: showId })
+    showIdBatches(showIds).map(async batch => {
+      const { data, error } = await shareRead(`hide-counts:${batch.join(',')}`, async () =>
+        supabase.rpc('get_shows_class_hide_counts', { p_show_ids: batch })
       );
 
       if (error) {
         onPartialFailure?.();
         logger.warn(
-          `[resolveClassHideCounts] Official hide counts unavailable for show ${showId}: ${error.message}`,
+          `[resolveClassHideCounts] Official hide counts unavailable for ${batch.length} show(s): ${error.message}`,
           'replication'
         );
         return;

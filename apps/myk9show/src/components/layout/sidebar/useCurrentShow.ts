@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { matchPath, useLocation } from 'react-router-dom';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { isAccountSession } from '@/hooks/guestServerRead';
@@ -9,21 +9,17 @@ import { groupShowsForPane, REGROUP_INTERVAL_MS } from '@/components/shows/brows
 import { ShowPermissionValidator } from '@/utils/permissionValidation';
 import { getUserManagedShows } from '@/utils/show-relationships';
 import type { Show } from '@/types/show-types';
-import {
-  pickCurrentShow,
-  readCurrentShowChoice,
-  readLastOpenedShowId,
-  writeCurrentShowChoice,
-  writeLastOpenedShowId,
-} from './currentShow';
+import { pickCurrentShow, readLastOpenedShowId, writeLastOpenedShowId } from './currentShow';
+import { useCurrentShowPinStore } from './currentShowPinStore';
 
 const NO_SHOWS: Show[] = [];
 
 export interface CurrentShowState {
   currentShow: Show | null;
-  /** Managed shows not yet over, in Managing order; the Switch menu lists these. */
+  /** Managed shows not yet over, in Managing order; only these can be pinned. */
   managingShows: Show[];
-  chooseShow: (id: string) => void;
+  /** The pinned show's id while it is still in Managing; null means the pick is automatic. */
+  pinnedShowId: string | null;
 }
 
 /**
@@ -42,7 +38,7 @@ export function useCurrentShow(): CurrentShowState {
   const shows = useMemo(() => withEntryWindowTimeZones(rawShows, trials), [rawShows, trials]);
   const { pathname } = useLocation();
   const [now, setNow] = useState(() => new Date());
-  const [choice, setChoice] = useState<string | null>(readCurrentShowChoice);
+  const pinnedId = useCurrentShowPinStore(state => state.pinnedId);
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), REGROUP_INTERVAL_MS);
@@ -83,15 +79,14 @@ export function useCurrentShow(): CurrentShowState {
         managedShows,
         // Intentional read: a per-device memory, so it needs no re-render when it changes.
         lastOpenedId: openedManagedId ?? readLastOpenedShowId(),
-        rememberedChoice: choice,
+        rememberedChoice: pinnedId,
       }),
-    [managingShows, managedShows, openedManagedId, choice]
+    [managingShows, managedShows, openedManagedId, pinnedId]
   );
 
-  const chooseShow = useCallback((id: string) => {
-    writeCurrentShowChoice(id);
-    setChoice(id);
-  }, []);
+  // An ended show's pin falls away: it is honoured only while the show is in Managing.
+  const pinnedShowId =
+    pinnedId && managingShows.some(show => show.id === pinnedId) ? pinnedId : null;
 
-  return { currentShow, managingShows, chooseShow };
+  return { currentShow, managingShows, pinnedShowId };
 }

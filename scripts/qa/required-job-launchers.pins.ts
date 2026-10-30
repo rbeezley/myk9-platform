@@ -143,7 +143,8 @@ export const PINNED_SCRIPTS: readonly PinnedScript[] = [
   {
     pkgDir: '.',
     script: 'qa:inflight:test',
-    command: 'vitest run scripts/qa/inflight.test.ts scripts/qa/gh-pages.test.ts',
+    command:
+      'vitest run scripts/qa/inflight.test.ts scripts/qa/gh-pages.test.ts scripts/qa/closed-prs-cache.test.ts',
   },
   {
     pkgDir: '.',
@@ -161,6 +162,16 @@ export const PINNED_SCRIPTS: readonly PinnedScript[] = [
     script: 'qa:primary-checkout:test',
     command:
       'vitest run scripts/qa/primary-checkout.test.ts scripts/bootstrap-worktree.test.ts scripts/qa/push-hold.test.ts',
+  },
+  {
+    pkgDir: '.',
+    script: 'qa:no-ci-polling:test',
+    command: 'vitest run scripts/qa/no-ci-polling.test.ts',
+  },
+  {
+    pkgDir: '.',
+    script: 'qa:prelaunch-tripwire:test',
+    command: 'vitest run scripts/qa/prelaunch-tripwire.test.ts',
   },
   {
     pkgDir: '.',

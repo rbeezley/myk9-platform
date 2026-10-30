@@ -43,6 +43,13 @@ export interface ShowRegistrationSubmissionResult {
   armbandFailures: ArmbandAssignmentFailure[];
   /** Present when capacity changed at least one requested selection's normal created outcome. */
   entryOutcomes?: EntrySubmissionOutcome[] | undefined;
+  /**
+   * Every `created` outcome, present on ordinary submissions too. Unlike
+   * `entryOutcomes` (whose presence means "something unusual happened" to the
+   * receipt's summary, totals and notices), this is read only by the Receipt
+   * step's entry-blank downloads. (MYK9-1518)
+   */
+  createdEntryOutcomes?: EntrySubmissionOutcome[] | undefined;
 }
 
 export interface AbortedShowRegistrationSubmissionResult {
@@ -251,6 +258,10 @@ export async function submitShowRegistration({
       ? submissionOutcomes
       : undefined;
 
+  const createdEntryOutcomes = (submissionOutcomes ?? []).filter(
+    outcome => outcome.outcome === 'created'
+  );
+
   return {
     aborted: false,
     registrationNumber: enrollment.registrationNumber,
@@ -258,6 +269,7 @@ export async function submitShowRegistration({
     armbandAssignments,
     armbandFailures,
     ...(surfacedOutcomes ? { entryOutcomes: surfacedOutcomes } : {}),
+    ...(createdEntryOutcomes.length > 0 ? { createdEntryOutcomes } : {}),
   };
 }
 

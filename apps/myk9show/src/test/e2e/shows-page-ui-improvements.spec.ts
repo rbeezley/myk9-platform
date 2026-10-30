@@ -31,14 +31,17 @@ test.describe('Shows Page - Labelled Filters', () => {
     await navigateToBrowseShows(page);
   });
 
-  test('should show search bar and labelled filter selects', async ({ page }) => {
+  test('should show search bar and the Filter button', async ({ page }) => {
     await expect(page.locator('input[placeholder*="Search"]')).toBeVisible();
-    await expect(page.getByRole('combobox', { name: 'Discipline' })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Filter/ })).toBeVisible();
   });
 
   test('should state the result count and clear it with Show all', async ({ page }) => {
-    await page.getByRole('combobox', { name: 'Discipline' }).click();
+    await page.getByRole('button', { name: /^Filter/ }).click();
     await page.getByRole('option', { name: 'Agility' }).click();
+    await page.keyboard.press('Escape');
+    // The applied filter stays visible as a removable sentence (MYK9-1490).
+    await expect(page.getByRole('button', { name: /^Remove filter Discipline/ })).toBeVisible();
 
     await expect(page.getByText(/^Showing \d+ of \d+ shows?\.$/)).toBeVisible();
 

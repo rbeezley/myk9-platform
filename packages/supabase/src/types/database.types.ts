@@ -1188,6 +1188,8 @@ export type Database = {
           results_released_by: string | null
           results_verified_at: string | null
           results_verified_by: string | null
+          ring_phase: string | null
+          ring_phase_time: string | null
           results_verified_fingerprint: string | null
           revised_expected_start: string | null
           scored_count: number | null
@@ -1249,6 +1251,8 @@ export type Database = {
           results_released_by?: string | null
           results_verified_at?: string | null
           results_verified_by?: string | null
+          ring_phase?: string | null
+          ring_phase_time?: string | null
           results_verified_fingerprint?: string | null
           revised_expected_start?: string | null
           scored_count?: number | null
@@ -1310,6 +1314,8 @@ export type Database = {
           results_released_by?: string | null
           results_verified_at?: string | null
           results_verified_by?: string | null
+          ring_phase?: string | null
+          ring_phase_time?: string | null
           results_verified_fingerprint?: string | null
           revised_expected_start?: string | null
           scored_count?: number | null
@@ -2443,6 +2449,8 @@ export type Database = {
           payment_status: string | null
           payment_status_before_comp: string | null
           penalty_points: number | null
+          placement_tie: string | null
+          placement_tiebreak: number | null
           points_earned: number | null
           points_possible: number | null
           preferred_judge: string | null
@@ -2543,6 +2551,8 @@ export type Database = {
           payment_status?: string | null
           payment_status_before_comp?: string | null
           penalty_points?: number | null
+          placement_tie?: string | null
+          placement_tiebreak?: number | null
           points_earned?: number | null
           points_possible?: number | null
           preferred_judge?: string | null
@@ -2643,6 +2653,8 @@ export type Database = {
           payment_status?: string | null
           payment_status_before_comp?: string | null
           penalty_points?: number | null
+          placement_tie?: string | null
+          placement_tiebreak?: number | null
           points_earned?: number | null
           points_possible?: number | null
           preferred_judge?: string | null
@@ -9531,6 +9543,18 @@ export type Database = {
         }
         Relationships: []
       }
+      timezone_names: {
+        Row: {
+          name: string
+        }
+        Insert: {
+          name: string
+        }
+        Update: {
+          name?: string
+        }
+        Relationships: []
+      }
       training_goals: {
         Row: {
           completed_at: string | null
@@ -11431,6 +11455,8 @@ export type Database = {
           payment_reference: string | null
           payment_status: string | null
           penalty_points: number | null
+          placement_tie: string | null
+          placement_tiebreak: number | null
           points_earned: number | null
           points_possible: number | null
           preferred_judge: string | null
@@ -11749,6 +11775,8 @@ export type Database = {
           payment_reference: string | null
           payment_status: string | null
           penalty_points: number | null
+          placement_tie: string | null
+          placement_tiebreak: number | null
           points_earned: number | null
           points_possible: number | null
           preferred_judge: string | null
@@ -13349,6 +13377,10 @@ export type Database = {
         Returns: boolean
       }
       entry_enrollment_select_show_ids: { Args: never; Returns: string[] }
+      entry_results_changed_since: {
+        Args: { p_show_id: string; p_since: string }
+        Returns: { changed: boolean; server_now: string }
+      }
       evaluate_entry_capacity: {
         Args: {
           p_allow_override?: boolean
@@ -14110,6 +14142,27 @@ export type Database = {
           last_name: string
           role: string
           user_id: string
+        }[]
+      }
+      get_shows_class_hide_counts: {
+        Args: { p_show_ids: string[] }
+        Returns: {
+          class_id: string
+          num_hides: number
+          show_id: string
+        }[]
+      }
+      get_shows_judges: {
+        Args: { p_show_ids: string[] }
+        Returns: {
+          assignment_id: string
+          class_id: string
+          first_name: string
+          last_name: string
+          person_id: string
+          show_id: string
+          status: string
+          trial_id: string
         }[]
       }
       get_user_permissions: {
@@ -14985,6 +15038,14 @@ export type Database = {
       send_waitlist_offer_message: {
         Args: { p_payment_link_url?: string; p_waitlist_entry_id: string }
         Returns: string
+      }
+      set_class_judge: {
+        Args: { p_class_id: string; p_person_id: string | null }
+        Returns: Json
+      }
+      set_class_tie_order: {
+        Args: { p_class_id: string; p_entry_ids: string[] }
+        Returns: number
       }
       send_waitlist_offer_message_internal: {
         Args: {

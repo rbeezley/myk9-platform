@@ -52,6 +52,7 @@ import { persistEntryRunOrder } from './persistEntryRunOrder';
 import { buildRingsideContextValue, buildRingsideReplication } from './ringsideCapabilities';
 import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
 import { useAtShowShowHydration } from './useAtShowShowHydration';
+import { AtShowEntriesNotOnDeviceAction } from './AtShowEntriesNotOnDeviceAction';
 import { createAtShowDataDependencies } from './atShowDataAdapter';
 import { useAtShowEntryListActions } from './useAtShowEntryListActions';
 import { useAtShowEntryListUiState } from './useAtShowEntryListUiState';
@@ -65,8 +66,11 @@ import { AtShowAddToHomeNudge } from './AtShowAddToHomeNudge';
 import { useMyAtShowEntries } from './useMyAtShowEntries';
 import { useMyRingConflicts } from './useMyRingConflicts';
 import { useAtShowRealtimeRefresh } from './useAtShowRealtimeRefresh';
-import { useLeaveRingside } from './useLeaveRingside';
-import { buildAtShowScoreSheetRoute, combinedPairParam } from './atShowScoresheetRoutes';
+import {
+  buildAtShowScoreSheetRoute,
+  combinedPairParam,
+  resolveClassListRoute,
+} from './atShowScoresheetRoutes';
 
 export const AtShowCombinedEntryListPage: React.FC = () => {
   const { showId, classIdA, classIdB } = useParams<{
@@ -79,7 +83,6 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
   // show-scoped passcode grant overriding the mapping. Shared with the
   // single-class and scoresheet shims via `useRingsideEffectiveRole`.
   const navigate = useNavigate();
-  const leaveRingside = useLeaveRingside();
   const { showRole, grantRole, ringsideRole, hasPermission } = useRingsideEffectiveRole(showId);
   // Device-local favorites, mirrored to `dog_favorites` when signed in so the
   // notification monitor can watch them for "your turn" push (MYK9-79).
@@ -153,7 +156,12 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
   // MYK9-1347: hydrate this show on mount, as the single-class page does. The
   // app-wide pass never downloads entries, so waiting on it left a cold device
   // on the skeleton or an empty ring.
-  const isFirstShowHydrationPending = useAtShowShowHydration(showId, syncStatus, refresh);
+  const showHydration = useAtShowShowHydration(showId, syncStatus, refresh);
+  const isFirstShowHydrationPending = showHydration === 'pending';
+  const notOnDevice =
+    showHydration === 'not-arrived' ? (
+      <AtShowEntriesNotOnDeviceAction showId={showId} refresh={refresh} />
+    ) : undefined;
   const [localEntries, setLocalEntries] = useState<Entry[]>([]);
   const [manualOrder, setManualOrder] = useState<Entry[]>([]);
   // Mirrors AtShowEntryListPage. Without this the combined route presented an
@@ -263,7 +271,7 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
   // Same contract as the single-class AtShowEntryListPage — see
   // persistEntryRunOrder for the offline-first / RLS details.
   const updateExhibitorOrder = useCallback(
-    (reordered: Entry[]) => persistEntryRunOrder(reordered),
+    (reordered: Entry[], previous: Entry[]) => persistEntryRunOrder(reordered, previous),
     []
   );
   // A drag whose write never QUEUED used to be silent on both routes: the
@@ -391,7 +399,7 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
             setSectionFilter,
           }}
           data={{ entries, classInfo }}
-          dataStatus={{ isRefreshing, fetchError, refresh }}
+          dataStatus={{ isRefreshing, fetchError, refresh, notOnDevice }}
           handlers={handlers}
           actions={actions}
           uiState={uiState}
@@ -421,7 +429,7 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
             hideSettingsOption: !canManageClasses,
             // No printing at ringside — reports live on the secretary Reports page.
             hidePrintOptions: true,
-            exitToApp: { label: leaveRingside.label, onClick: leaveRingside.leave },
+            up: { label: 'Classes', to: resolveClassListRoute(showId) },
           }}
         />
       </div>

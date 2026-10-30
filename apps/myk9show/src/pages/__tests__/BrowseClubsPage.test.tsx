@@ -252,7 +252,7 @@ describe('BrowseClubsPage (shared primitives migration)', () => {
   it('renders SearchBar with correct placeholder', () => {
     renderPage();
 
-    const searchInput = screen.getByPlaceholderText('Search clubs by name, city, or state...');
+    const searchInput = screen.getByPlaceholderText('Search clubs');
     expect(searchInput).toBeInTheDocument();
   });
 

@@ -9,6 +9,7 @@ vi.mock('@/services/database/supabaseClient', async importOriginal => {
 });
 
 import { ENTITY_SECTIONS } from '../deletedEntityConfig';
+import { permanentDeleteRefusalMessage } from '@/services/database/permanentDeleteRefusal';
 
 const personSection = () => {
   const section = ENTITY_SECTIONS.find(s => s.type === 'person');
@@ -36,23 +37,22 @@ describe('Data Lifecycle person hard delete', () => {
       data: null,
       error: Object.assign(new Error('Edge Function returned a non-2xx status code'), {
         name: 'FunctionsHttpError',
-        context: new Response(
-          JSON.stringify({
-            error: 'Recent password confirmation required',
-            code: 'step_up_required',
-          }),
-          { status: 403 }
-        ),
+        // The literal body _shared/http/handler.ts emits for HttpError(403, 'step_up_required').
+        context: new Response(JSON.stringify({ error: 'step_up_required' }), { status: 403 }),
       }),
     });
 
     const result = (await personSection().hardDelete('person-1')) as {
       data: unknown;
-      error: { code?: string } | null;
+      error: { code?: string; message?: string } | null;
     };
 
     expect(result.data).toBeNull();
     expect(result.error?.code).toBe('step_up_required');
     expect(from).not.toHaveBeenCalled();
+    // What DeletedEntitiesTab toasts: names the password confirmation, not "try again".
+    expect(permanentDeleteRefusalMessage(result.error)).toBe(
+      'Nothing was deleted. Confirm your password to continue.'
+    );
   });
 });

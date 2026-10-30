@@ -9,18 +9,13 @@
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ReplicatedShowsTable, type ReplicatedShow } from '../ReplicatedShowsTable';
+import { spyOnWriteAndQueue } from '@/test/utils/spyOnWriteAndQueue';
 
 vi.mock('@/services/database/supabaseClient', () => ({ supabase: { from: vi.fn() } }));
 
 vi.mock('@myk9/core', () => ({
   logger: { log: vi.fn(), error: vi.fn(), warn: vi.fn(), debug: vi.fn() },
 }));
-
-type QueueMutation = (
-  operation: string,
-  rowId: string,
-  payload: Record<string, unknown>
-) => Promise<string | null>;
 
 const originalTimezone = process.env.TZ;
 
@@ -47,7 +42,7 @@ describe('ReplicatedShowsTable date writes', () => {
     const { databaseManager } = await import('@myk9/replication');
     await databaseManager.reset();
     table = new ReplicatedShowsTable();
-    queueMutation = vi.spyOn(table as unknown as { queueMutation: QueueMutation }, 'queueMutation');
+    queueMutation = spyOnWriteAndQueue(table).queue;
     queueMutation.mockResolvedValue('mutation-1');
   });
 

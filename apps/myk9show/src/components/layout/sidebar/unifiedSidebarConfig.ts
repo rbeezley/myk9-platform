@@ -3,21 +3,24 @@
  *
  * Builds a single SidebarConfig from the user's active roles.
  *
- * Section Ordering (priority/visual hierarchy):
- * 1. Admin (if SITE_ADMIN)
- * 2. Manage (if SECRETARY)
- * 3. My Shows (if EXHIBITOR with other roles)
+ * Section Ordering, top to bottom (MYK9-1490):
+ * 1. Home (if SECRETARY)
+ * 2. The current show (if the viewer manages one)
+ * 3. Show Day / Ringside (staff roles; first for a judge)
  * 4. Browse (always visible for non-exhibitor-only users)
- * 5. My Club (if CLUB_ADMIN; club-scoped links require context)
- * 6. Resources (if SITE_ADMIN)
+ * 5. As Exhibitor / My Entries (if EXHIBITOR with other roles)
+ * 6. Admin (if SITE_ADMIN)
+ * 7. My Club (if CLUB_ADMIN; club-scoped links require context)
+ * 8. Resources (if SITE_ADMIN; folds into the Admin rail menu)
  *
- * This ordering ensures primary role-based navigation appears first,
- * followed by browsing/discovery, then secondary management sections.
+ * Home is the hub and the current show its workspace, with Ringside (that show's live view)
+ * beside it; then discovery, then the role-specific sections.
  * Exhibitor-only users get a simplified, role-agnostic sidebar.
  */
 
 import {
   LayoutDashboard,
+  House,
   Calendar,
   Users,
   Building2,
@@ -39,7 +42,8 @@ import { UserRole, USER_ROLE_HIERARCHY } from '@/types/auth-types';
 import { ROLE_LABELS } from '@/services/rbac/roleUiConstants';
 import { isWizardSurface, isPathInWizardAllowlist } from '@/config/surface';
 import type { SidebarConfig, NavGroup, NavItem, NavRailLink, NavRailMenu } from './types';
-import { browseTabsForRoles, isExhibitorOnlyRoles } from './browseTabs';
+import type { OwnEntriesState } from '@/hooks/useHasOwnEntries';
+import { browseTabsForRoles, hasExhibitorGroupRoles, isExhibitorOnlyRoles } from './browseTabs';
 import { formatShowDateRange } from '@/lib/format/dates';
 import { truncateRailTitle } from './currentShow';
 import type { Show } from '@/types/show-types';
@@ -82,19 +86,13 @@ const CLUB_RAIL_MENU: NavRailMenu = { id: 'club', title: 'My Club', icon: Flag }
 const BROWSE_RAIL_LINK: NavRailLink = { id: 'browse', title: 'Browse', icon: LayoutList };
 
 export interface CurrentShowNav {
+  /** Changed only by the pin on a Home show card (MYK9-1490); the rail has no Switch. */
   currentShow: ShowRef | null;
-  /** Managed shows not yet over, soonest first; more than one turns on Switch. */
-  managingShows: readonly ShowRef[];
-  onChooseShow: (id: string) => void;
 }
 
 type ShowRef = Pick<Show, 'id' | 'name'> & Partial<Pick<Show, 'startDate' | 'endDate'>>;
 
-function currentShowItem(
-  show: ShowRef,
-  onChooseShow?: (id: string) => void,
-  description?: string
-): NavItem {
+function currentShowItem(show: ShowRef): NavItem {
   const short = truncateRailTitle(show.name);
   const dates = formatShowDateRange(show.startDate, show.endDate);
   return {
@@ -103,23 +101,8 @@ function currentShowItem(
     ...(short === show.name ? {} : { railTitle: short, tooltip: show.name }),
     href: `/shows/${show.id}`,
     icon: CalendarCheck,
-    ...(description ? { description } : {}),
+    description: 'Your current show',
     ...(dates ? { subtitle: dates } : {}),
-    // Only a Switch pick is remembered; opening the current show must not pin it.
-    ...(onChooseShow ? { onSelect: () => onChooseShow(show.id) } : {}),
-  };
-}
-
-/** The current show first, then the other managed shows (Switch's list), each opening its Overview. */
-function currentShowGroup({ currentShow, managingShows, onChooseShow }: CurrentShowNav): NavGroup {
-  const others = managingShows.filter(show => show.id !== currentShow?.id);
-  return {
-    title: 'Current show',
-    railSwitch: true,
-    items: [
-      ...(currentShow ? [currentShowItem(currentShow, undefined, 'Your current show')] : []),
-      ...others.map(show => currentShowItem(show, onChooseShow, 'Switch to this show')),
-    ],
   };
 }
 
@@ -127,7 +110,8 @@ export function buildUnifiedSidebarConfig(
   userRoles: readonly UserRole[],
   clubContext?: ClubContext,
   firstName?: string | null,
-  currentShowNav?: CurrentShowNav
+  currentShowNav?: CurrentShowNav,
+  ownEntries: OwnEntriesState = 'unknown'
 ): SidebarConfig {
   const groups: NavGroup[] = [];
   const hasSiteAdmin = hasAnyRole(userRoles, [UserRole.SITE_ADMIN]);
@@ -178,7 +162,56 @@ export function buildUnifiedSidebarConfig(
     });
   } else {
     // Multi-role users: Build sections in priority order
-    // 1. Admin section (highest priority)
+    // 1. Home (secretary): the cross-show home, first because every other item is reached from it
+    // (MYK9-1490; it was "Manage" / "Show Management").
+    if (hasSecretaryRole) {
+      groups.push({
+        title: 'Home',
+        items: [{ title: 'Home', href: '/secretary/dashboard', icon: House }],
+      });
+    }
+
+    // 2. The current show, right under Home: a secretary or club admin's way back into the one show
+    // being worked for days or weeks (MYK9-1269, moved up by MYK9-1490). Absent when they manage none.
+    if (currentShowNav?.currentShow) {
+      groups.push({ title: 'Current show', items: [currentShowItem(currentShowNav.currentShow)] });
+    }
+
+    // 3. Show Day — the always-available Ringside entry. Beside the current show, which it is the
+    // live view of; and first of all for a judge, for whom it may be the only section that matters.
+    if (hasRingsideRole) {
+      groups.push({ title: 'Show Day', items: [STAFF_RINGSIDE_NAV_ITEM] });
+    }
+
+    // 4. Browse section: one rail item, Browse, opening the list used last; the list pages carry
+    // the switch between them (BrowseTabs). The drawer keeps the lists by name under the "Browse"
+    // heading, one tap each on a phone (docs/plan-sidebar-browse-pane.md, phase 3).
+    const browseTabs = browseTabsForRoles(userRoles);
+    if (browseTabs.length > 0) {
+      groups.push({
+        title: 'Browse',
+        railLink: BROWSE_RAIL_LINK,
+        items: browseTabs,
+      });
+    }
+
+    // 5. As Exhibitor section (exhibitor with other roles): the rarest destination, so last of the
+    // shared items
+    // Only a confirmed absence of the viewer's own entries hides it: unknown keeps it (MYK9-1491).
+    if (hasExhibitorGroupRoles(userRoles) && ownEntries !== 'no') {
+      groups.push({
+        title: 'As Exhibitor',
+        items: [
+          {
+            title: 'My Entries',
+            href: '/exhibitor/entries',
+            icon: FileText,
+          },
+        ],
+      });
+    }
+
+    // 6. Admin section, then My Club: the role-specific groups, in their long-standing order
     if (hasSiteAdmin) {
       groups.push({
         title: 'Admin',
@@ -230,62 +263,7 @@ export function buildUnifiedSidebarConfig(
       });
     }
 
-    // 2. Manage section (secretary)
-    if (hasSecretaryRole) {
-      // One item: the secretary's shows (today's first) are the Shows list's Today group, not a
-      // single next-show link here (docs/plan-sidebar-browse-pane.md, phase 2).
-      groups.push({
-        title: 'Manage',
-        items: [
-          {
-            title: 'Show Management',
-            // "Management" is wider than the rail; renamed there, never cut.
-            railTitle: 'Manage',
-            href: '/secretary/dashboard',
-            icon: LayoutDashboard,
-          },
-        ],
-      });
-    }
-
-    // 2b. Show Day — the always-available Ringside entry. Placed high (right
-    // after Manage) because for a judge it may be the only section that matters,
-    // and on show day it's the primary destination for every staff role.
-    if (hasRingsideRole) {
-      groups.push({ title: 'Show Day', items: [STAFF_RINGSIDE_NAV_ITEM] });
-    }
-
-    // 3. As Exhibitor section (exhibitor with other roles)
-    if (hasAnyRole(userRoles, [UserRole.EXHIBITOR])) {
-      groups.push({
-        title: 'As Exhibitor',
-        items: [
-          {
-            title: 'My Entries',
-            href: '/exhibitor/entries',
-            icon: FileText,
-          },
-        ],
-      });
-    }
-
-    // 4. Browse section: one rail item, Browse, opening the list used last; the list pages carry
-    // the switch between them (BrowseTabs). The drawer keeps the lists by name under the "Browse"
-    // heading, one tap each on a phone (docs/plan-sidebar-browse-pane.md, phase 3).
-    const browseTabs = browseTabsForRoles(userRoles);
-    if (browseTabs.length > 0) {
-      groups.push({
-        title: 'Browse',
-        railLink: BROWSE_RAIL_LINK,
-        items: browseTabs,
-      });
-    }
-
-    // 4b. The current show, right under Browse: a secretary or club admin's way back into the one
-    // show being worked (MYK9-1269). Absent when the viewer manages none.
-    if (currentShowNav?.currentShow) groups.push(currentShowGroup(currentShowNav));
-
-    // 5. My Club section. Stable account destinations remain available while
+    // 7. My Club section. Stable account destinations remain available while
     // club-scoped routes wait for validated context.
     if (hasAnyRole(userRoles, [UserRole.CLUB_ADMIN])) {
       const myClubItems: NavItem[] = [

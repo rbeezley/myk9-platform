@@ -129,6 +129,10 @@ describe('buildResultsClassRows', () => {
       timeLabel: '1:01.25',
       faults: 0,
       scored: true,
+      pointsEarned: null,
+      timeSeconds: 61.25,
+      placementTie: null,
+      placementTiebreak: null,
     });
     expect(row?.entries[2]).toMatchObject({ resultLabel: 'NQ', faults: 2, placement: null });
     expect(row?.entries[3]).toMatchObject({ resultLabel: 'Pending', scored: false });

@@ -45,8 +45,12 @@ interface UseDragAndDropEntriesOptions {
    * Injected by the caller so this hook doesn't depend on app services.
    * In apps/myk9q the binding is the `updateExhibitorOrder` export from
    * `services/entryService`, wired by the shim re-export.
+   *
+   * `previous` is the pre-drop snapshot of the same view, still carrying each
+   * entry's prior `exhibitorOrder`, so the host can write only the rows whose
+   * order changed instead of renumbering the whole class.
    */
-  updateExhibitorOrder: (entries: Entry[]) => Promise<unknown>;
+  updateExhibitorOrder: (entries: Entry[], previous: Entry[]) => Promise<unknown>;
   /** External isDraggingRef - if provided, hook uses it instead of creating its own */
   isDraggingRef?: React.MutableRefObject<boolean>;
   /** External manualOrder state setter - if provided, hook updates it instead of internal state */
@@ -240,7 +244,7 @@ export function useDragAndDropEntries({
       // Update database and AWAIT it to prevent race conditions with sync
       setIsUpdatingOrder(true);
       try {
-        await updateExhibitorOrder(entriesWithNewOrder);
+        await updateExhibitorOrder(entriesWithNewOrder, snapshot);
       } catch (error) {
         logger.error('Failed to update run order in database:', error);
         // The old comment here reasoned "if offline, the sync will happen later"

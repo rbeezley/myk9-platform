@@ -26,7 +26,7 @@ An explicit `/ship-pr`, "ship this branch," or "create a PR" request authorizes 
 - apply the `codex` and `codex-automation` labels when available; and
 - update the PR description as part of the shipping workflow.
 
-Do not ask for confirmation again before these steps. Merging, enabling auto-merge, closing a PR, or deploying a shared system requires separate explicit authorization unless the user explicitly requested merge or shipping through completion.
+Do not ask for confirmation again before these steps. Merging, enabling auto-merge, closing a PR, or deploying a shared system requires separate explicit authorization unless the user explicitly requested merge or shipping through completion, or [`docs/agents/standing-approvals.md`](../../../docs/agents/standing-approvals.md) covers it: while it says `status: ACTIVE` (read it fresh) and `pnpm qa:prelaunch-tripwire` exits 0 right before the merge, Step 5's immediate `gh pr merge --squash` needs no go-ahead. Standing approvals never cover auto-merge: GitHub would merge later, after the tripwire's answer is stale. If the check watcher times out, stop and wait instead of arming it. Anything that needs the owner goes to Linear (`needs:decision` / `needs:operator`), not a chat question.
 
 ## Workflow
 
@@ -165,10 +165,10 @@ PR_NUMBER=$(gh pr view --json number -q '.number')
 
 **Pre-pass (`independent` tier only).** Before the first Codex run, dispatch one read-only `sonnet` sub-agent (one Mac heavy job against the orchestrate cap) with `git diff origin/main...HEAD`, told to find defects and never to approve, answering as `- [P<n>] file:line finding` bullets. Fix every finding you agree with and commit, so Codex reviews a second draft. It posts nothing and is not gate evidence. Record `pre-pass: N findings fixed` in the PR body, and `Codex rounds: M` once the gate is green.
 
-**Author is Claude Code → Codex reviews.** Run the wrapper from the worktree, foreground:
+**Author is Claude Code → Codex reviews.** Run the wrapper from the worktree. The main session starts it once with `run_in_background: true` and is notified when it exits; it blocks until the verdict, so never poll it, re-run it, or read its log before then. When it exits, read `.logs/codex-review.log` once for the verdict (`No actionable defects found.` or the `[P*]` bullets) and act on the exit code below. A sub-agent that must return the verdict runs it in the foreground. Foreground runs in the main session cost 16 h of blocked sessions over Sept–Oct 2026 (MYK9-1483).
 
 ```bash
-pnpm qa:codex-review --post     # scripts/qa/codex-review.sh, always --base origin/main
+pnpm qa:codex-review --post > .logs/codex-review.log 2>&1; echo "EXIT=$?"   # scripts/qa/codex-review.sh, always --base origin/main
 ```
 
 Use `--post` with no `--` before it: pnpm forwards a bare `--` to the script.
@@ -202,6 +202,8 @@ The reviewer is `codex` or `claude` (whichever ran, i.e. the OTHER harness). The
 **If the reviewer is genuinely unavailable** (usage limit, outage, auth failure — not merely slow), this PR's floor is `independent` (see Step 3a) — use the `owner` override documented there and in `docs/PLAYBOOK.md` § 4: claim `override, floor was independent`, set `OVERRIDE_REASON="<harness> unavailable — <detail>"` (or `"convergence stop — <detail>"` when the reviewer is reachable but the convergence rule says to stop the round — never write "unavailable" for that) and `DEFERRED_REVIEW=<ISSUE-ID>`, then run `post-review-gate.sh $PR_NUMBER owner <base-sha> <head-sha> "override, floor was independent" /dev/null`. Keep the PR a draft when nothing is time-pressured; when a maintainer authorizes the override, mark it ready so the status can be evaluated, and re-run the real gate once the reviewer is available.
 
 **Findings:** fix every critical/high (P1/P2) finding and any medium (P3) that is straightforward (the docs-only budget below is the one case where a P2 may be deferred). Invoke `/commit`, then re-run the wrapper against the new head. **Max 5 review rounds** — escalate to the user if not clean after 5.
+
+**Pre-existing defects** (`- [pre-existing P<n>]` bullets, which the wrapper lists after the verdict) are in code the branch did not touch, so they do not block the gate and the evidence comment carries them verbatim. Before merge, file each one as a MYK9 issue (`list_issues` with `includeArchived: true` first; a match gets a comment, not a duplicate). Do not fix them in this PR. Check the label yourself: a defect in lines the diff changed is a normal finding, whatever it is labelled (docs/lessons/README.md#review-scope-boundary).
 
 **Two-round budget for documentation-only diffs at the `independent` floor** (skills, references and runbooks under guardrail paths; a pure `docs/` or root `.md` diff has floor `none` and needs no Codex round, so the budget never applies to it). When a Codex round returns only P2 or lower, two rounds is the budget. Fix every P0/P1, file the residual findings as a follow-up issue linked from the PR, and post the gate with the `owner` override above, claiming the floor `pnpm qa:review-tier` prints (`override, floor was independent`; the poster refuses a claimed floor that differs from the real one), with `OVERRIDE_REASON="convergence stop — two-round budget, docs-only diff"` and `DEFERRED_REVIEW=<follow-up issue>` (an uppercase-prefix id like `MYK9-523`; the line counts only from an OWNER/MEMBER account). The grammar has no green line for residual P2s any other way. In an unattended run, post it only when the owner's run-start approval named this budget; otherwise leave the PR open with the residual findings filed.
 
@@ -258,7 +260,9 @@ gh pr view $PR_NUMBER --json state,mergedAt
 Do not proceed until `state == "MERGED"`.
 
 **Path B — the watcher exited 3 (timeout — NOT a verdict):** after Step 4 has passed,
-auto-merge may be armed. GitHub will squash-merge when required checks pass.
+auto-merge may be armed, but only when the user explicitly authorized merging or shipping
+through completion. Standing approvals alone never cover it: stop, and re-run the watcher
+and the tripwire later. GitHub will squash-merge when required checks pass.
 
 ```bash
 gh pr merge $PR_NUMBER --squash --auto
@@ -275,7 +279,7 @@ ownership and approved-handoff requirements. Proceed to Steps 6–7 only once me
 Do this **before** Step 7: once the worktree is removed the harness keeps its CWD there, and later shell calls fail.
 
 1. Confirm the merge: `gh pr view $PR_NUMBER --json state,mergeCommit`.
-2. A merge is not a deploy. The frontend goes live only on the next **Deploy myK9Show** run (`gh workflow run deploy-myk9show.yml`, only when the user asks); its summary names the deployed commit.
+2. A merge is not a deploy. The frontend goes live only on the next **Deploy myK9Show** run (`gh workflow run deploy-myk9show.yml`, only when the user asks or under standing approvals, through the `deploy` skill's tripwire); its summary names the deployed commit.
 3. Read the **full** issue with `get_issue` and check every criterion. Apply the single disposition/evidence contract in `docs/agents/issue-tracker.md`; do not accept automatic Done while acceptance or production proof remains owed. Record the exact next action and pending evidence rather than duplicating state/label mappings here. If a deploy or production evidence remains owed, explicitly tell the user what is pending and that merge alone did not make the fix live.
 
 ---
@@ -315,7 +319,7 @@ git worktree remove "<worktree path from Step 0>" --force 2>/dev/null || true
 - NEVER remove the worktree before merge is confirmed, main is updated, AND close-out (Step 6) is done
 - Any push that changes the head after the gate — including a merge from `main` — re-runs the gate
 - Worktree removal is ALWAYS the final command
-- If the watcher times out (exit 3), use Path B: arm auto-merge, then watch or stop as the Asynchronous merge protocol says.
+- If the watcher times out (exit 3), use Path B: with the user's explicit merge authorization, arm auto-merge, then watch or stop as the Asynchronous merge protocol says; under standing approvals alone, stop without arming it.
 - NEVER treat "no pending checks" as green. Use `scripts/qa/watch-pr-checks.sh` — it pins the SHA, waits for the ruleset's required contexts, and fails closed on unknown conclusions.
 - NEVER collapse a non-required failure into a blocking one, or into silence. Exit 5 is that case, and it carries two required confirmations.
 - NEVER accept a merged PR's `headRefName` as proof a branch merged. Compare the tip SHA against its `headRefOid`.

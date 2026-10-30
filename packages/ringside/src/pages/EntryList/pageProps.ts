@@ -25,7 +25,7 @@
  * file-audit didn't capture: `EntryListHeader`, `EntryListContent`,
  * `SortableEntryCard`, and friends each import ~3-5 UI primitives
  * from apps/myk9q's local `components/ui/` and `components/dialogs/`
- * trees (HamburgerMenu, CompactOfflineIndicator, SyncIndicator,
+ * trees (CompactOfflineIndicator, SyncIndicator,
  * RefreshIndicator, FilterPanel, FilterTriggerButton, TabBar,
  * DogCard, ClassDetailsPopover, ErrorState, PullToRefresh). Moving
  * the components into ringside without first designing the layout
@@ -114,16 +114,6 @@ export type DogCardStatusBorder =
   | 'result-abs'
   | 'result-wd';
 
-/**
- * Page identifier the hamburger menu uses to highlight the active
- * section. Mirrors the host's union — kept narrow so a stale value
- * surfaces at compile time when adding a new top-level page in the
- * host. The page tree always passes `'entries'`; the slot accepts the
- * full union for hosts reusing the primitive elsewhere.
- */
-export type HamburgerMenuPage =
-  'home' | 'announcements' | 'settings' | 'stats' | 'entries' | 'tv' | 'show' | 'results';
-
 /** Edge a popover anchors against. Inlined from the host's `Popover`. */
 export type PopoverPosition = 'top' | 'bottom' | 'left' | 'right';
 
@@ -158,13 +148,6 @@ export interface FilterPanelSortOption {
 // its dialog Props: ringside owns the contract, host components must
 // conform. apps/myk9q will switch each primitive's local interface to
 // `Props from @myk9/ringside` during/after E2d-2b.
-
-/** Top-left nav drawer with optional "← Back to X" affordance. */
-export interface HamburgerMenuProps {
-  backNavigation?: { label: string; action: () => void };
-  currentPage?: HamburgerMenuPage;
-  className?: string;
-}
 
 /**
  * Compact "offline" pill in the header. Wraps the host's
@@ -281,6 +264,8 @@ export interface DogCardProps {
 export interface ClassDetailsData {
   classId?: number | string;
   status?: string;
+  /** Host-formatted ring phase ("Briefing 10:00 AM"); shown in place of `status` when set. */
+  statusLabel?: string;
   totalEntries?: number;
   completedEntries?: number;
   judgeName?: string;
@@ -331,7 +316,6 @@ export interface ClassDetailsPopoverProps {
  */
 export interface EntryListLayoutSlots {
   // Header chrome
-  HamburgerMenu: ComponentType<HamburgerMenuProps>;
   CompactOfflineIndicator: ComponentType<CompactOfflineIndicatorProps>;
   SyncIndicator: ComponentType<SyncIndicatorProps>;
   RefreshIndicator: ComponentType<RefreshIndicatorProps>;
@@ -624,6 +608,13 @@ export interface EntryListPageProps {
     isRefreshing: boolean;
     fetchError: Error | null;
     refresh: (forceSync?: boolean) => Promise<void>;
+    /**
+     * Set by the host when this device holds no downloaded copy of the show's
+     * entries (never synced). An empty list then means "not loaded", not "none",
+     * so the page renders this node (the host's own save-for-offline action)
+     * under a not-on-this-device message instead of "No Entries Yet".
+     */
+    notOnDevice?: ReactNode;
   };
 
   /** Action handler bag from host's `useEntryListHandlers`. */
@@ -707,8 +698,11 @@ export interface EntryListPageProps {
      * non-exhibitor roles).
      */
     hidePrintOptions?: boolean;
-    /** "Back to main app" in the actions menu; omitted means no exit item. */
-    exitToApp?: { label: string; onClick: () => void } | undefined;
+    /**
+     * The header's Up control (MYK9-1500): the parent's name and its FIXED route,
+     * never history, so a deep link or reload still goes somewhere sensible.
+     */
+    up: { label: string; to: string };
   };
 }
 

@@ -31,7 +31,6 @@ export {
   // Judge certifications
   createJudgeCertification,
   // Judge assignments
-  reassignClassJudge,
   upsertClassJudgeAssignment,
   persistShowJudgeAssignments,
   saveShowJudgeChanges,

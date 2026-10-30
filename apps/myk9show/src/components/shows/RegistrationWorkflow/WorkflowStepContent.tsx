@@ -75,6 +75,8 @@ interface WorkflowStepContentProps {
   /** Armband assignments from the RPC call */
   armbandAssignments?: ArmbandAssignment[];
   entryOutcomes?: EntrySubmissionOutcome[] | undefined;
+  /** Created entries for the entry-blank downloads; set even when `entryOutcomes` is not. */
+  createdEntryOutcomes?: EntrySubmissionOutcome[] | undefined;
   onDogSelectionChange: (dogs: string[]) => void | Promise<void>;
   onClassSelectionChange: (selections: ClassSelectionData[]) => void | Promise<void>;
   onHandlerAssignmentChange: (assignments: Record<string, HandlerInfo>) => void | Promise<void>;
@@ -125,6 +127,7 @@ export function WorkflowStepContent({
   blockedClassIds = new Set(),
   armbandAssignments,
   entryOutcomes,
+  createdEntryOutcomes,
   onDogSelectionChange,
   onClassSelectionChange,
   onHandlerAssignmentChange,
@@ -269,7 +272,7 @@ export function WorkflowStepContent({
       classes,
       dogs,
       people,
-      outcomes: entryOutcomes,
+      outcomes: createdEntryOutcomes?.length ? createdEntryOutcomes : entryOutcomes,
       handlerAssignments: optimisticState.handlerAssignments,
       paymentMethod: optimisticState.formData.paymentMethod,
     });
@@ -283,6 +286,7 @@ export function WorkflowStepContent({
     dogs,
     people,
     entryOutcomes,
+    createdEntryOutcomes,
     optimisticState.handlerAssignments,
     optimisticState.formData.paymentMethod,
   ]);

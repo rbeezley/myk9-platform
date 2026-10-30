@@ -193,7 +193,10 @@ function createdOutcome(dogId: string, classId: string, entryId: string): EntryS
   };
 }
 
-function renderConfirmation(outcomes: EntrySubmissionOutcome[]) {
+function renderConfirmation(
+  outcomes: EntrySubmissionOutcome[] | undefined,
+  createdEntryOutcomes?: EntrySubmissionOutcome[]
+) {
   const selections = [
     { dogId: 'dog-1', trialId: 'trial-1', selectedClasses: [{ classId: 'class-1' }] },
     { dogId: 'dog-2', trialId: 'trial-1', selectedClasses: [{ classId: 'class-2' }] },
@@ -234,6 +237,7 @@ function renderConfirmation(outcomes: EntrySubmissionOutcome[]) {
       registrationNumber="CONF-100"
       currentRegistrationTotalFees={50}
       entryOutcomes={outcomes}
+      createdEntryOutcomes={createdEntryOutcomes}
       onDogSelectionChange={vi.fn()}
       onClassSelectionChange={vi.fn()}
       onHandlerAssignmentChange={vi.fn()}
@@ -275,6 +279,20 @@ describe('WorkflowStepContent entry blanks', () => {
 
     await waitFor(() => expect(mockPdf).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(mockSaveAs).toHaveBeenCalledTimes(1));
+  });
+
+  // MYK9-1518: an ordinary submission surfaces no entryOutcomes at all.
+  it('offers a download per created entry when the submission surfaced no outcomes', () => {
+    renderConfirmation(undefined, [
+      createdOutcome('dog-1', 'class-1', 'entry-1'),
+      createdOutcome('dog-2', 'class-2', 'entry-2'),
+    ]);
+
+    expect(
+      screen.getByRole('button', { name: 'Download First — Novice Containers' })
+    ).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Download Tera — Advanced Exterior' })).toBeEnabled();
+    expect(screen.queryByText('Entry summary')).not.toBeInTheDocument();
   });
 
   it('builds one action per created entry with that entry’s exact data', async () => {

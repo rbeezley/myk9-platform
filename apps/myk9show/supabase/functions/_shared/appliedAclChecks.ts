@@ -127,7 +127,8 @@ export const AUTHENTICATED_TABLE_GRANTS: Readonly<Record<string, string>> = {
   show_payouts: 'SELECT',
   show_templates: 'SELECT,INSERT,UPDATE,DELETE',
   show_visibility_settings: 'SELECT,INSERT,UPDATE',
-  shows: 'SELECT,INSERT,UPDATE,DELETE',
+  // MYK9-1472: no DELETE; hard_delete_show is the only permanent path.
+  shows: 'SELECT,INSERT,UPDATE',
   sms_opt_in_attempts: '',
   // Service-role only: the run-proximity trigger is the sole writer, and no
   // client has any reason to read who has been texted (MYK9-193).
@@ -144,6 +145,8 @@ export const AUTHENTICATED_TABLE_GRANTS: Readonly<Record<string, string>> = {
   support_tickets: 'SELECT,INSERT,UPDATE',
   sync_conflicts: 'SELECT,INSERT,UPDATE,DELETE',
   system_health_snapshots: 'SELECT',
+  // MYK9-1460: zone-name snapshot read only by SECURITY DEFINER functions.
+  timezone_names: '',
   training_goals: 'SELECT,INSERT,UPDATE,DELETE',
   training_journal_entries: 'SELECT,INSERT,UPDATE,DELETE',
   training_milestones: 'SELECT,INSERT,UPDATE,DELETE',

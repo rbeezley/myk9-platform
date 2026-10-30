@@ -13,6 +13,7 @@ import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useEntriesPersonId } from '@/hooks/useEntriesPersonId';
 import { deriveMyEntriesDogState } from './modules/myEntriesDogState';
+import { useRefreshOnReturn } from '@/hooks/useRefreshOnReturn';
 import { useDogsByOwnerQuery } from '@/hooks/queries/useDogsDatabase';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { ShowTodayBanner } from '@/features/show-today/ShowTodayBanner';
@@ -32,7 +33,7 @@ import {
   useMyEntriesFilters,
   useMyEntriesDialogs,
   useResultReveal,
-  MyShowsSplit,
+  MyShowsList,
   EntriesEmptyState,
   EntriesLoadErrorCard,
   EntriesLoadingSkeleton,
@@ -78,6 +79,10 @@ const MyEntriesPage: React.FC = () => {
   } = useMyEntriesData({
     persistCheckInStatus: checkInMutation.mutateAsync,
   });
+  // MYK9-1523: coming back to the page re-reads it, held only while a check-in
+  // is saving. A return during the initial load needs no hold: `loadMyEntries`
+  // lets the newer read supersede the older one (`readSeq`).
+  useRefreshOnReturn(refreshEntries, true, checkInMutation.isPending);
   const entriesPresentation: MyEntriesPresentation = getMyEntriesPresentation({
     identityState,
     readState,
@@ -151,7 +156,7 @@ const MyEntriesPage: React.FC = () => {
 
   const navigate = useNavigate();
 
-  // From lg the filters live in the shows list pane and the dog strip is the My Dogs tab's job.
+  // From lg the dog strip is the My Dogs tab's job.
   const isWide = useMediaQuery(MASTER_DETAIL_QUERY);
   const showFilterStrip = useEntryFilterStripVisible({
     distinctShowCount: countDistinctShows(entries),
@@ -439,10 +444,9 @@ const MyEntriesPage: React.FC = () => {
                     onClearScope={clearScope}
                   />
 
-                  {/* Two composable filter axes (When, Status), one node: in the page below lg, in
-                    the shows list pane from lg (`MyShowsSplit`), never both. Shown from the third show or
-                    when a filter is narrowing the list; once shown it stays for the mount (MYK9-1286). */}
-                  {!isWide && showFilterStrip && filterStrip}
+                  {/* Two composable filter axes (When, Status). Shown from the third show or when a
+                    filter is narrowing the list; once shown it stays for the mount (MYK9-1286). */}
+                  {showFilterStrip && filterStrip}
 
                   <div className="space-y-4">
                     {/* Changing a filter changes the list silently for a
@@ -452,11 +456,9 @@ const MyEntriesPage: React.FC = () => {
                     <p className="sr-only" role="status" aria-live="polite">
                       {filteredResultAnnouncement}
                     </p>
-                    {/* One show group per show, dog cards beneath (modules/, MYK9-482 D10). From lg it is
-                      always the split, even with no results, and the strip (when shown) is latched open
-                      (`useEntryFilterStripVisible`, MYK9-1286), so it never unmounts under the focused chip. */}
-                    <MyShowsSplit
-                      filters={isWide && showFilterStrip ? filterStrip : undefined}
+                    {/* One column at every width (modules/, MYK9-482 D10, MYK9-1447): today's show, then
+                      upcoming shows with their entries inline, then a collapsed Past shows section. */}
+                    <MyShowsList
                       emptyState={
                         filteredEntries.length === 0 && waitlistSurface.allowEmptyState ? (
                           <EntriesEmptyState

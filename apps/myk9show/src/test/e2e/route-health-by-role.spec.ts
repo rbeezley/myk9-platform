@@ -38,8 +38,14 @@ import {
 import {
   waitForAppApiRequestsToSettle,
   watchAppApiRequests,
+  watchSeenAppApiRequests,
+  type SeenAppApiRequests,
 } from '../harness/appApiRequestTracker';
 import { logUnsettledAppApiRequests } from '../harness/routeHealthDiagnostics';
+import {
+  describeKeptAccessControlErrors,
+  triageAccessControlErrors,
+} from '../harness/accessControlErrors';
 
 const SEEDED_SHOW = LIVE_SECRETARY_SHOW_ID;
 
@@ -130,9 +136,9 @@ function isReplicationError(text: string) {
  * Filters a BrowserHealth summary for the budgeted error categories,
  * returning one string per violation.
  */
-function violations(health: BrowserHealth): string[] {
+function violations(health: BrowserHealth, pageErrors: string[]): string[] {
   const result: string[] = [];
-  for (const msg of health.pageErrors) {
+  for (const msg of pageErrors) {
     result.push(`pageerror: ${msg}`);
   }
   for (const msg of health.consoleErrors) {
@@ -174,7 +180,7 @@ async function assertAppApiRequestsSettled(
   page: Page,
   pendingAppApiRequests: ReturnType<typeof watchAppApiRequests>,
   routeId: string
-) {
+): Promise<boolean> {
   const settlement = await waitForAppApiRequestsToSettle(page, pendingAppApiRequests);
   expect
     .soft(settlement.settled, `${routeId}: app API requests did not settle before route transition`)
@@ -186,6 +192,7 @@ async function assertAppApiRequestsSettled(
       description: `${routeId} unsettled-api-requests=${diagnostic}`,
     });
   }
+  return settlement.settled;
 }
 
 /**
@@ -196,7 +203,8 @@ async function sweepRoutes(
   page: Page,
   group: string,
   routes: RouteSpec[],
-  pendingAppApiRequests: ReturnType<typeof watchAppApiRequests>
+  pendingAppApiRequests: ReturnType<typeof watchAppApiRequests>,
+  seenRequests: SeenAppApiRequests
 ) {
   const health = createBrowserHealth();
   watchBrowserHealth(page, health);
@@ -212,6 +220,7 @@ async function sweepRoutes(
     health.consoleErrors.length = 0;
     health.pageErrors.length = 0;
     health.failedResponses.length = 0;
+    health.failedRequests.length = 0;
     // Including the in-flight API requests, which used to be the one piece of
     // per-route state this block forgot. `page.goto` below tears down the
     // current document, and a request still in flight when that happens may
@@ -228,13 +237,16 @@ async function sweepRoutes(
     //
     // Resetting here means a slow route is reported ONCE, against itself.
     pendingAppApiRequests.reset();
+    seenRequests.clear();
 
     let navigationError: string | null = null;
+    let documentStatus: number | null = null;
     try {
-      await page.goto(route.path, {
+      const response = await page.goto(route.path, {
         waitUntil: 'commit',
         timeout: ROUTE_GOTO_TIMEOUT_MS,
       });
+      documentStatus = response?.status() ?? null;
       await page
         .waitForLoadState('domcontentloaded', { timeout: ROUTE_GOTO_TIMEOUT_MS })
         .catch(() => {
@@ -258,6 +270,13 @@ async function sweepRoutes(
       });
       continue;
     }
+
+    // The browser-health watcher records only local and Supabase API responses,
+    // so an error page served by a deployed origin (the anonymous production
+    // probe, MYK9-1467) would otherwise pass on its body text alone.
+    expect
+      .soft(documentStatus ?? 0, `${id}: the page itself answered HTTP ${documentStatus}`)
+      .toBeLessThan(400);
 
     // Compatibility routes can redirect after the initial response commits.
     // Wait for their declared canonical destination before evaluating render
@@ -322,17 +341,44 @@ async function sweepRoutes(
     // WebKit reports a cross-origin fetch canceled by the next navigation as a
     // page error ("due to access control checks"), even when the request is
     // healthy and completes with 200 if allowed to finish (MYK9-244).
-    await assertAppApiRequestsSettled(page, pendingAppApiRequests, id);
+    const routeSettled = await assertAppApiRequestsSettled(page, pendingAppApiRequests, id);
 
     // Health checks (console errors, replication errors, owned 4xx/5xx).
     // Evaluated after the mobile resize so any mobile-triggered errors are included.
-    const viols = violations(health);
-    expect.soft(viols, `${id}: browser health violations`).toHaveLength(0);
+    // Linux WebKit reports a fetch the outgoing document starts during teardown
+    // as "<url> due to access control checks" and never sends it (run
+    // 40980816332: seen=never). On a settled route, an access-control error for a
+    // URL with no recorded failure is excused; any recorded failure keeps it.
+    const { kept: pageErrors, excused } = triageAccessControlErrors(
+      health.pageErrors,
+      [...health.failedResponses, ...health.failedRequests],
+      routeSettled
+    );
+    const viols = violations(health, pageErrors);
+    // WebKit reports some failed fetches only as "<url> due to access control
+    // checks", which hides why. The browser's own reason for each app request
+    // that never got a response (`cancelled`, or `… Status code: N`) rides along
+    // so the report says what the page error really was (MYK9-1477).
+    const failedRequests =
+      health.failedRequests.length > 0
+        ? ` failed-requests=${health.failedRequests.join('; ')}`
+        : '';
+    const keptAccessControl = describeKeptAccessControlErrors(
+      pageErrors,
+      [...seenRequests.outcomes].map(([request, outcome]) => ({ url: request.url(), outcome }))
+    );
+    const accessControl =
+      keptAccessControl.length > 0
+        ? ` access-control=${keptAccessControl.join('; ')} settled=${routeSettled}`
+        : '';
+    expect
+      .soft(viols, `${id}: browser health violations${failedRequests}${accessControl}`)
+      .toHaveLength(0);
 
     // Annotate result for report visibility.
     test.info().annotations.push({
       type: 'route',
-      description: `${id} render=${bodyText.length}ch health=${viols.length > 0 ? viols.join('; ') : 'ok'}`,
+      description: `${id} render=${bodyText.length}ch health=${viols.length > 0 ? viols.join('; ') : 'ok'}${failedRequests}${accessControl}${excused.length > 0 ? ` excused-never-sent=${excused.join('; ')}` : ''}`,
     });
   }
 }
@@ -342,7 +388,8 @@ async function sweepRoutes(
 test.describe('Route health: public', () => {
   test('public routes render clean', async ({ page }) => {
     const pendingAppApiRequests = watchAppApiRequests(page);
-    await sweepRoutes(page, 'public', PUBLIC_ROUTES, pendingAppApiRequests);
+    const seenRequests = watchSeenAppApiRequests(page);
+    await sweepRoutes(page, 'public', PUBLIC_ROUTES, pendingAppApiRequests, seenRequests);
   });
 });
 
@@ -357,8 +404,9 @@ test.describe('Route health: exhibitor', () => {
       test.skip(true, 'Exhibitor credentials absent — group skipped');
     }
     const pendingAppApiRequests = watchAppApiRequests(page);
+    const seenRequests = watchSeenAppApiRequests(page);
     await signIn(page, user.email, user.password, '/exhibitor/entries');
-    await sweepRoutes(page, 'exhibitor', EXHIBITOR_ROUTES, pendingAppApiRequests);
+    await sweepRoutes(page, 'exhibitor', EXHIBITOR_ROUTES, pendingAppApiRequests, seenRequests);
   });
 });
 
@@ -373,8 +421,9 @@ test.describe('Route health: secretary', () => {
       test.skip(true, 'Secretary credentials absent — group skipped');
     }
     const pendingAppApiRequests = watchAppApiRequests(page);
+    const seenRequests = watchSeenAppApiRequests(page);
     await signIn(page, user.email, user.password, '/secretary/dashboard');
-    await sweepRoutes(page, 'secretary', SECRETARY_ROUTES, pendingAppApiRequests);
+    await sweepRoutes(page, 'secretary', SECRETARY_ROUTES, pendingAppApiRequests, seenRequests);
   });
 });
 
@@ -389,8 +438,9 @@ test.describe('Route health: judge', () => {
       test.skip(true, 'Judge credentials absent — group skipped');
     }
     const pendingAppApiRequests = watchAppApiRequests(page);
+    const seenRequests = watchSeenAppApiRequests(page);
     await signIn(page, user.email, user.password, '/judge/dashboard');
-    await sweepRoutes(page, 'judge', JUDGE_ROUTES, pendingAppApiRequests);
+    await sweepRoutes(page, 'judge', JUDGE_ROUTES, pendingAppApiRequests, seenRequests);
   });
 });
 
@@ -405,8 +455,9 @@ test.describe('Route health: club-admin', () => {
       test.skip(true, 'Club-admin credentials absent — group skipped');
     }
     const pendingAppApiRequests = watchAppApiRequests(page);
+    const seenRequests = watchSeenAppApiRequests(page);
     await signIn(page, user.email, user.password, '/club-admin/members');
-    await sweepRoutes(page, 'club-admin', CLUB_ADMIN_ROUTES, pendingAppApiRequests);
+    await sweepRoutes(page, 'club-admin', CLUB_ADMIN_ROUTES, pendingAppApiRequests, seenRequests);
   });
 });
 
@@ -421,7 +472,8 @@ test.describe('Route health: admin', () => {
       test.skip(true, 'Admin credentials absent — group skipped');
     }
     const pendingAppApiRequests = watchAppApiRequests(page);
+    const seenRequests = watchSeenAppApiRequests(page);
     await signIn(page, user.email, user.password, '/admin/dashboard');
-    await sweepRoutes(page, 'admin', ADMIN_ROUTES, pendingAppApiRequests);
+    await sweepRoutes(page, 'admin', ADMIN_ROUTES, pendingAppApiRequests, seenRequests);
   });
 });

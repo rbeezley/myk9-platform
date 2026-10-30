@@ -61,6 +61,10 @@ const jobs = extractJobs(workflow);
 
 const PREFLIGHT_STEP =
   'scripts/verify-e2e-auth-preflight.ts --check-roles secretary admin judge exhibitor';
+const PREPARE_STEP = 'run: pnpm qa:isolated-e2e:prepare';
+const PRODUCTION_PROJECT_REF = 'sojmvhhwsjxmfistvzbe';
+const STOP_STEP = 'run: pnpm qa:isolated-e2e:stop';
+const WARM_STEP = 'run: bash scripts/qa/warm-isolated-functions.sh';
 
 /**
  * The jobs that actually sweep routes, and therefore carry the build-first and
@@ -133,5 +137,82 @@ describe('nightly health workflow', () => {
   it('skips the browser-independent Vitest block in the cross-browser job only', () => {
     expect(jobs.get('cross-browser-health')!).toContain("MYK9_NIGHTLY_HEALTH_SKIP_VITEST: 'true'");
     expect(jobs.get('nightly-health')!).not.toContain('MYK9_NIGHTLY_HEALTH_SKIP_VITEST');
+  });
+
+  // MYK9-1467: signing the fixture accounts into production cost ~12k requests a
+  // run and pushed live p95 to 543 ms, so the signed-in sweeps run on the runner's
+  // own isolated stack, and only an anonymous probe touches production.
+  describe('targets (MYK9-1467)', () => {
+    it.each(HEALTH_JOBS)(
+      'prepares an isolated stack before the preflight and stops it always in %s',
+      jobName => {
+        const job = jobs.get(jobName)!;
+        expect(job).toContain(PREPARE_STEP);
+        expect(job.indexOf(PREPARE_STEP)).toBeLessThan(job.indexOf(PREFLIGHT_STEP));
+        expect(job.indexOf(PREPARE_STEP)).toBeLessThan(job.indexOf(HEALTH_STEP));
+        const stop = job.indexOf(STOP_STEP);
+        expect(stop, 'stop step present').toBeGreaterThan(job.indexOf(HEALTH_STEP));
+        expect(job.slice(stop - 60, stop)).toContain('if: always()');
+      }
+    );
+
+    it.each(HEALTH_JOBS)('passes no production URL or account override in %s', jobName => {
+      const job = jobs.get(jobName)!;
+      // GITHUB_ENV from the prepare step is the only Supabase target; an
+      // explicit secret here would override it with the live project.
+      expect(job).not.toMatch(/SUPABASE_[A-Z_]*: \$\{\{ secrets\./);
+      expect(job).not.toMatch(/E2E_[A-Z_]+_EMAIL:/);
+      expect(job).not.toContain(PRODUCTION_PROJECT_REF);
+    });
+
+    it.each(HEALTH_JOBS)(
+      'warms the edge functions after the stack is ready and before the sweep in %s',
+      jobName => {
+        // A page's first function call otherwise pays the worker start-up inside the
+        // sweep's 5 s settle window (admin/sign-in-target, run 40765490128).
+        const job = jobs.get(jobName)!;
+        const warmAt = job.indexOf(WARM_STEP);
+        expect(warmAt, 'warm-up step present').toBeGreaterThan(-1);
+        expect(job.indexOf(PREPARE_STEP)).toBeLessThan(warmAt);
+        expect(warmAt).toBeLessThan(job.indexOf(HEALTH_STEP));
+      }
+    );
+
+    it('never warms production: the probe job has no warm-up step', () => {
+      expect(jobs.get('production-probe')).not.toContain(WARM_STEP);
+    });
+
+    it.each(HEALTH_JOBS)('requires canary data on the seeded stack in %s', jobName => {
+      const job = jobs.get(jobName)!;
+      const run = job.slice(job.indexOf(HEALTH_STEP));
+      expect(run.slice(0, run.indexOf('- name:'))).toContain(
+        "MYK9_PLAYWRIGHT_REGRESSION_ENABLED: 'true'"
+      );
+    });
+
+    it('never opts in to signing fixture accounts into production', () => {
+      expect(workflow).not.toContain('MYK9_ALLOW_PROD_E2E');
+    });
+
+    it('probes production anonymously: public routes on the deployed site, no fixture password', () => {
+      const probe = jobs.get('production-probe');
+      expect(probe, 'production-probe job').toBeDefined();
+      expect(probe).toContain('PLAYWRIGHT_BASE_URL: https://myk9show.com');
+      expect(probe).toContain('--grep "Route health: public" --project=chromium');
+      expect(probe).toContain('--retries=0');
+      // No secret of any kind: with no fixture password the guard lets it run and
+      // the signed-in groups skip, so nobody is signed in to production.
+      expect(probe).not.toMatch(/\$\{\{\s*secrets\./);
+      expect(probe).not.toMatch(/(MYK9_E2E_|VITE_)[A-Z_]+:/);
+      expect(probe).not.toContain(HEALTH_STEP);
+    });
+
+    it('reports the probe in the tracking-issue verdict, beside the chromium gate', () => {
+      const report = jobs.get('report-status')!;
+      expect(report).toContain('needs: [nightly-health, cross-browser-health, production-probe]');
+      expect(report).toContain(
+        "outcome: ${{ (needs.nightly-health.result == 'success' && needs.production-probe.result == 'success') && 'success' || 'failure' }}"
+      );
+    });
   });
 });

@@ -4,6 +4,7 @@ import {
   ReplicatedPaperworkPrintsTable,
   rowToPaperworkPrint,
 } from '../ReplicatedPaperworkPrintsTable';
+import { spyOnWriteAndQueue } from '@/test/utils/spyOnWriteAndQueue';
 
 vi.mock('@/services/database/supabaseClient', () => ({ supabase: { from: vi.fn() } }));
 vi.mock('@myk9/core', () => ({
@@ -25,16 +26,7 @@ describe('ReplicatedPaperworkPrintsTable', () => {
   });
 
   it('queues an append-only Class print confirmation with a stable client id', async () => {
-    const queueMutation = vi.spyOn(
-      table as unknown as {
-        queueMutation: (
-          operation: string,
-          rowId: string,
-          payload: Record<string, unknown>
-        ) => Promise<string | null>;
-      },
-      'queueMutation'
-    );
+    const queueMutation = spyOnWriteAndQueue(table).queue;
 
     const record = await table.confirmPrinted({
       id: 'print-1',
@@ -81,16 +73,7 @@ describe('ReplicatedPaperworkPrintsTable', () => {
       printedByName: 'Jamie',
       printedAt: '2026-07-20T14:00:00.000Z',
     });
-    const queueMutation = vi.spyOn(
-      table as unknown as {
-        queueMutation: (
-          operation: string,
-          rowId: string,
-          payload: Record<string, unknown>
-        ) => Promise<string | null>;
-      },
-      'queueMutation'
-    );
+    const queueMutation = spyOnWriteAndQueue(table).queue;
 
     await table.voidPrint({
       id: 'print-1',
@@ -150,18 +133,7 @@ describe('ReplicatedPaperworkPrintsTable', () => {
 
   it('persists an offline confirmation and its full insert payload for later replay', async () => {
     const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
-    const queueMutation = vi
-      .spyOn(
-        table as unknown as {
-          queueMutation: (
-            operation: string,
-            rowId: string,
-            payload: Record<string, unknown>
-          ) => Promise<string | null>;
-        },
-        'queueMutation'
-      )
-      .mockResolvedValue('mutation-1');
+    const queueMutation = spyOnWriteAndQueue(table).queue.mockResolvedValue('mutation-1');
     await table.confirmPrinted({
       id: 'offline-print',
       scope: { kind: 'trial', showId: 'show-1', trialId: 'trial-1' },

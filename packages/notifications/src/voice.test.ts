@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { speak, isSpeechSupported } from './voice';
+import { speak, speakWithConfig, isSpeechSupported } from './voice';
 
 const mockUtterance = {
   text: '',
@@ -65,5 +65,70 @@ describe('speak', () => {
     vi.stubGlobal('speechSynthesis', undefined);
 
     expect(() => speak('Test')).not.toThrow();
+  });
+});
+
+describe('priority speech (MYK9-1510)', () => {
+  const config = { voiceName: '', voiceRate: 1 };
+  const spoken = () =>
+    (speechSynthesis.speak as ReturnType<typeof vi.fn>).mock.calls.map(
+      ([utterance]) => (utterance as { text: string }).text
+    );
+
+  beforeEach(() => {
+    // The file-level stub drops the text; these tests need to see what was spoken.
+    vi.stubGlobal(
+      'SpeechSynthesisUtterance',
+      vi.fn(function (text: string) {
+        return { ...mockUtterance, text };
+      })
+    );
+  });
+
+  afterEach(() => {
+    // The hold is module state, and each test's fake clock restarts at real time, so a time-bound
+    // release cannot carry over: end every utterance that was spoken instead.
+    vi.advanceTimersByTime(200);
+    for (const [utterance] of (speechSynthesis.speak as ReturnType<typeof vi.fn>).mock.calls) {
+      (utterance as { onend?: () => void }).onend?.();
+    }
+  });
+
+  it('skips ordinary speech while a priority utterance holds the voice', () => {
+    speakWithConfig('30 seconds remaining', config, { priority: true });
+    vi.advanceTimersByTime(100);
+    speakWithConfig('Your dog is up next', config);
+    vi.advanceTimersByTime(100);
+    expect(spoken()).toEqual(['30 seconds remaining']);
+    expect(speechSynthesis.cancel).toHaveBeenCalledTimes(1);
+  });
+
+  it('lets ordinary speech through once the priority utterance ends', () => {
+    speakWithConfig('30 seconds remaining', config, { priority: true });
+    vi.advanceTimersByTime(100);
+    const utterance = (speechSynthesis.speak as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as {
+      onend: () => void;
+    };
+    utterance.onend();
+    speakWithConfig('Your dog is up next', config);
+    vi.advanceTimersByTime(100);
+    expect(spoken()).toEqual(['30 seconds remaining', 'Your dog is up next']);
+  });
+
+  it('releases the hold after the time bound if the end is never reported', () => {
+    speakWithConfig('30 seconds remaining', config, { priority: true });
+    vi.advanceTimersByTime(10_001);
+    speakWithConfig('Your dog is up next', config);
+    vi.advanceTimersByTime(100);
+    expect(spoken()).toEqual(['30 seconds remaining', 'Your dog is up next']);
+  });
+
+  it('a priority utterance still cancels ordinary speech in progress', () => {
+    speakWithConfig('Your dog is up next', config);
+    vi.advanceTimersByTime(100);
+    speakWithConfig('30 seconds remaining', config, { priority: true });
+    vi.advanceTimersByTime(100);
+    expect(spoken()).toEqual(['Your dog is up next', '30 seconds remaining']);
+    expect(speechSynthesis.cancel).toHaveBeenCalledTimes(2);
   });
 });

@@ -20,6 +20,11 @@ import { notifications } from '@/lib/notifications';
 import { logger } from '@/services/LoggingService';
 import { queryKeys } from '@/lib/queryClient';
 import { inviteNotSentMessage } from './inviteOutcome';
+import {
+  isEdgeStepUpRefusal,
+  isStepUpRefusalError,
+  stepUpRefusalError,
+} from '@/features/step-up/edgeStepUpRefusal';
 
 export interface SendInvitationArgs {
   personId: string;
@@ -68,7 +73,7 @@ export async function invokeAdminInvite({
       ...(onlyIfNeverSignedIn ? { onlyIfNeverSignedIn: true } : {}),
     },
   });
-  if (error) throw error;
+  if (error) throw (await isEdgeStepUpRefusal(error)) ? stepUpRefusalError() : error;
   // The request email is deliberately NOT returned: the toast must have no
   // way to name it, since it can differ from where the link actually went.
   return { data: data as InviteResponse | null };
@@ -112,6 +117,10 @@ export function useSendUserInvitation() {
     onError: (error: Error, variables) => {
       if (error.message === 'NO_EMAIL') {
         notifications.error('Add an email address before sending an invitation.');
+        return;
+      }
+      if (isStepUpRefusalError(error)) {
+        notifications.error(`No invitation was sent. ${error.message}`);
         return;
       }
       logger.error('Failed to send invitation:', 'admin', { personId: variables.personId }, error);

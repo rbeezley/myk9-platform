@@ -127,33 +127,63 @@ for (const viewport of [
     const selectAll = page.getByRole('checkbox', {
       name: /^Select all (on page|entry forms on this page)$/,
     });
-    // elementFromPoint only sees the viewport, and boundingBox does not scroll.
-    await selectAll.scrollIntoViewIfNeeded();
-    const box = await selectAll.boundingBox();
-    expect(box, 'select-all checkbox must be rendered').not.toBeNull();
-    const cx = box!.x + box!.width / 2;
-    const cy = box!.y + box!.height / 2;
-    const hitsCheckbox = (dx: number, dy: number) =>
-      selectAll.evaluate(
-        (el, point) => {
-          const hit = document.elementFromPoint(point.x, point.y);
-          return hit === el || el.contains(hit);
-        },
-        { x: cx + dx, y: cy + dy }
-      );
+    // The checkbox sits in the queue card's header; rows arriving later move it.
+    await expect(
+      page.getByRole('list', { name: 'Entry form work queue' }).getByRole('listitem')
+    ).not.toHaveCount(0);
+    await expect(selectAll).toBeVisible();
+
     // Each corner of the 44x44 square centred on the checkbox must hit the
     // checkbox itself (its ::before is part of its hit area). ±21.5 sits inside a
     // 44px square but outside the old 42px one, so a revert to before:-inset-3.5
-    // fails; ±23 lies outside 44 and must not hit it (a positive control).
-    for (const [sx, sy] of [
+    // fails; ±23 lies outside 44 and must not hit it (a positive control). The
+    // centre must hit it too, so a covered target reads differently from a small one.
+    const corners = [
       [-1, -1],
       [1, -1],
       [-1, 1],
       [1, 1],
-    ] as const) {
-      expect(await hitsCheckbox(sx * 21.5, sy * 21.5), `corner ${sx},${sy} inside 44px`).toBe(true);
-      expect(await hitsCheckbox(sx * 23, sy * 23), `corner ${sx},${sy} outside 44px`).toBe(false);
-    }
+    ] as const;
+    const offsets = [
+      [0, 0],
+      ...corners.flatMap(([sx, sy]) => [
+        [sx * 21.5, sy * 21.5],
+        [sx * 23, sy * 23],
+      ]),
+    ];
+    // elementFromPoint only sees the viewport and answers null outside it.
+    // scrollIntoViewIfNeeded stopped as soon as the checkbox was visible, which at
+    // 390px left it on the last row and its lower probes below the fold
+    // (MYK9-1464). So centre it, instantly (the app scrolls smoothly), and measure
+    // and probe in the same call so nothing can move in between.
+    const hits = await selectAll.evaluate((el, points) => {
+      el.scrollIntoView({ block: 'center', inline: 'center', behavior: 'instant' });
+      const box = el.getBoundingClientRect();
+      const cx = box.x + box.width / 2;
+      const cy = box.y + box.height / 2;
+      return points.map(([dx, dy]) => {
+        const x = cx + dx;
+        const y = cy + dy;
+        if (x < 0 || y < 0 || x >= window.innerWidth || y >= window.innerHeight) {
+          return `offscreen ${x},${y}`;
+        }
+        const hit = document.elementFromPoint(x, y);
+        if (hit === el || el.contains(hit)) return 'checkbox';
+        if (!hit) return 'nothing';
+        // Name what took the point, so a failure says what covers the target.
+        const r = hit.getBoundingClientRect();
+        const cls = (hit.getAttribute('class') ?? '').slice(0, 120);
+        return `${hit.tagName.toLowerCase()}.${cls} [${Math.round(r.x)},${Math.round(r.y)} ${Math.round(r.width)}x${Math.round(r.height)}]`;
+      });
+    }, offsets);
+
+    expect(hits[0], 'centre').toBe('checkbox');
+    corners.forEach(([sx, sy], i) => {
+      expect(hits[1 + i * 2], `corner ${sx},${sy} inside 44px`).toBe('checkbox');
+      const outside = hits[2 + i * 2];
+      expect(outside, `corner ${sx},${sy} outside 44px`).not.toBe('checkbox');
+      expect(outside, `corner ${sx},${sy} outside 44px`).not.toMatch(/^(offscreen|nothing)/);
+    });
   });
 }
 

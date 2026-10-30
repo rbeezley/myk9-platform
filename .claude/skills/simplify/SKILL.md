@@ -190,4 +190,3 @@ If `FAIL`, do not encourage proceeding to `/commit` until critical findings are 
 
 - **Runs BEFORE `/harden`**: `/simplify` removes code; `/harden` stress-tests what remains. Doing it in this order means `/harden` has less surface to attack.
 - **Runs BEFORE `/commit`**: `/commit` runs typecheck + lint + tests; it doesn't review for shape.
-- **Distinct from `codebase-health`**: that skill surveys the whole codebase for debt; `/simplify` is scoped to the current diff.

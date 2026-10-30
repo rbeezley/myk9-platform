@@ -208,6 +208,11 @@ interface ShowStore {
   shows: Show[];
   selectedShowId: string;
   isLoading: boolean;
+  /**
+   * The device replica has been read at least once (or failed to read), so an empty `shows` now
+   * means "none", not "not yet". Unlike `isLoading`, saves and refetches never reset it.
+   */
+  hasLoaded: boolean;
   error: string | null;
 
   // Local-First Actions
@@ -244,6 +249,7 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
   shows: shouldUseMockData('USE_MOCK_SHOWS') ? mockShows : [],
   selectedShowId: shouldUseMockData('USE_MOCK_SHOWS') ? mockShows[0]?.id || '' : '',
   isLoading: false,
+  hasLoaded: shouldUseMockData('USE_MOCK_SHOWS'),
   error: null,
   _unsubscribe: null,
 
@@ -577,7 +583,7 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
 
       if (shouldUseMockData('USE_MOCK_SHOWS')) {
         // Load mock data if configured
-        set({ shows: mockShows, isLoading: false });
+        set({ shows: mockShows, isLoading: false, hasLoaded: true });
       } else {
         // Load from replicated table (IndexedDB)
         // A failed device read is an error, never an empty show list.
@@ -599,13 +605,13 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
           return show;
         });
 
-        set({ shows: mergedShows, isLoading: false });
+        set({ shows: mergedShows, isLoading: false, hasLoaded: true });
         reportDebug('store', 'Loaded shows from replicated table', { count: mergedShows.length });
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to load shows';
       reportStoreError('loadShows', 'showStore', error);
-      set({ error: errorMessage, isLoading: false });
+      set({ error: errorMessage, isLoading: false, hasLoaded: true });
     }
   },
 
@@ -666,7 +672,7 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
         return show;
       });
 
-      set({ shows: mergedShows });
+      set({ shows: mergedShows, hasLoaded: true });
 
       reportDebug('store', 'Shows updated from replicated table', { count: mergedShows.length });
     });

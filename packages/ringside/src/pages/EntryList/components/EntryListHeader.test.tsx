@@ -2,19 +2,18 @@
  * Smoke tests for `EntryListHeader` (PR E2d-2b).
  *
  * Scope: layout slot pass-through, popover-on-click when classInfo
- * has extra info. The internal primitives (HamburgerMenu, sync
+ * has extra info. The internal primitives (sync
  * indicators, etc.) are stubbed — the test verifies the page wires
  * the slots correctly, not the primitives themselves. Uses vanilla
  * vitest assertions.
  */
 
 import { render, screen, fireEvent } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, it, expect, vi } from 'vitest';
 import type { ComponentType } from 'react';
 import type { ClassInfo } from '../hooks/useEntryListData';
 import type {
-  HamburgerMenuProps,
   CompactOfflineIndicatorProps,
   SyncIndicatorProps,
   RefreshIndicatorProps,
@@ -23,11 +22,6 @@ import type {
 } from '../pageProps';
 import { EntryListHeader, type EntryListHeaderProps } from './EntryListHeader';
 
-const StubHamburgerMenu: ComponentType<HamburgerMenuProps> = ({ currentPage }) => (
-  <button data-testid="hamburger" data-current-page={currentPage}>
-    menu
-  </button>
-);
 const StubOffline: ComponentType<CompactOfflineIndicatorProps> = () => (
   <span data-testid="offline" />
 );
@@ -47,6 +41,7 @@ const StubPopover: ComponentType<ClassDetailsPopoverProps> = ({ isOpen, data }) 
       data-class-id={String(data.classId)}
       data-time-limit={String(data.timeLimitSeconds)}
       data-time-limit-type={typeof data.timeLimitSeconds}
+      data-status-label={data.statusLabel ?? ''}
     >
       {data.judgeName ?? ''}
     </div>
@@ -74,6 +69,7 @@ const defaultProps: EntryListHeaderProps = {
   hasActiveFilters: false,
   onFilterClick: vi.fn(),
   onRefresh: vi.fn(),
+  up: { label: 'Classes', to: '/at-show/show-1' },
   actionsMenu: {
     showRunOrder: false,
     showRecalculatePlacements: false,
@@ -83,7 +79,6 @@ const defaultProps: EntryListHeaderProps = {
     onClassSettingsClick: vi.fn(),
     printOptions: [],
   },
-  HamburgerMenu: StubHamburgerMenu,
   CompactOfflineIndicator: StubOffline,
   SyncIndicator: StubSync,
   RefreshIndicator: StubRefresh,
@@ -99,10 +94,17 @@ const renderHeader = (override: Partial<EntryListHeaderProps> = {}) =>
   );
 
 describe('EntryListHeader', () => {
-  it('renders the hamburger menu slot with currentPage="entries"', () => {
-    renderHeader();
-    const hb = screen.getByTestId('hamburger');
-    expect(hb.getAttribute('data-current-page')).toBe('entries');
+  it('shows the Up control with the parent name and goes to its fixed route', () => {
+    render(
+      <MemoryRouter initialEntries={['/at-show/show-1/class/c1']}>
+        <Routes>
+          <Route path="/at-show/show-1/class/c1" element={<EntryListHeader {...defaultProps} />} />
+          <Route path="/at-show/show-1" element={<div data-testid="show-page" />} />
+        </Routes>
+      </MemoryRouter>
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Classes' }));
+    expect(screen.getByTestId('show-page')).toBeInTheDocument();
   });
 
   // MYK9-704: wizard trials store the name in trial_number too.
@@ -228,6 +230,59 @@ describe('EntryListHeader', () => {
     expect(screen.getByTestId('popover')).not.toBeNull();
     expect(trigger.getAttribute('aria-expanded')).toBe('true');
     expect(trigger.getAttribute('aria-controls')).toBe('class-details-popover');
+  });
+
+  describe('ring phase label (MYK9-1526)', () => {
+    const withLabel = (statusLabel: string | undefined): ClassInfo =>
+      ({ ...baseClassInfo, statusLabel }) as unknown as ClassInfo;
+
+    it.each([
+      'Briefing 10:00 AM',
+      'Break Until 10:30 AM',
+      'Start Time 11:00 AM',
+      'Offline Scoring',
+    ])('shows %p in the header and hands it to the info popover', label => {
+      renderHeader({ classInfo: withLabel(label) });
+      expect(screen.getByText(label)).not.toBeNull();
+
+      fireEvent.click(screen.getByRole('button', { name: /Container Novice/i }));
+      expect(screen.getByTestId('popover').getAttribute('data-status-label')).toBe(label);
+    });
+
+    it('keeps the phase out of the truncating trial line', () => {
+      renderHeader({ classInfo: withLabel('Briefing 10:00 AM') });
+      const phase = screen.getByText('Briefing 10:00 AM');
+      const trialLine = screen.getByText(/2026|May/);
+      expect(phase).not.toBe(trialLine);
+      expect(trialLine.textContent).not.toContain('Briefing');
+    });
+
+    it('shows no phase for plain In Progress', () => {
+      renderHeader({ classInfo: withLabel(undefined) });
+      expect(screen.queryByText(/Briefing|Break Until|Start Time|Offline Scoring/)).toBeNull();
+
+      fireEvent.click(screen.getByRole('button', { name: /Container Novice/i }));
+      const popover = screen.getByTestId('popover');
+      expect(popover.getAttribute('data-status-label')).toBe('');
+    });
+
+    it('shows the phase on the combined A/B header too', () => {
+      renderHeader({
+        classInfo: {
+          ...withLabel('Offline Scoring'),
+          actualClassId: undefined,
+          actualClassIdA: 'a',
+          actualClassIdB: 'b',
+          judgeNameB: 'J. Jones',
+        } as ClassInfo,
+        showSectionsBadge: true,
+      });
+      expect(screen.getByText('Offline Scoring')).not.toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: /Container Novice/i }));
+      expect(screen.getByTestId('popover').getAttribute('data-status-label')).toBe(
+        'Offline Scoring'
+      );
+    });
   });
 
   describe('popover timeLimitSeconds is always number | undefined', () => {

@@ -65,7 +65,7 @@ describe('PeopleListToolbar', () => {
 
   it('typing in the search field reports the raw value', async () => {
     const { onFiltersChange } = renderToolbar();
-    await userEvent.type(screen.getByPlaceholderText('Search people by name or email...'), 'x');
+    await userEvent.type(screen.getByPlaceholderText('Search people'), 'x');
     expect(onFiltersChange).toHaveBeenLastCalledWith({ ...DEFAULT_PEOPLE_FILTERS, search: 'x' });
   });
 

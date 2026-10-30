@@ -30,6 +30,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, realpathSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { closedPrs, type ClosedPr } from './closed-prs-cache.ts';
 import { ghPages as ghRestPages } from './gh-pages.ts';
 import {
   check as checkPrimaryCheckout,
@@ -357,13 +358,6 @@ interface GhPrFile {
   previous_filename?: string;
 }
 
-interface RestMergedPr {
-  created_at: string;
-  merged_at: string | null;
-  merge_commit_sha: string | null;
-  head: { sha: string; ref: string };
-}
-
 /**
  * Every `gh` call here is REST (`gh api`): `gh repo view` and `gh pr list` are
  * GraphQL, which Claude Code cloud sessions reject with a 403 (MYK9-1415).
@@ -447,7 +441,7 @@ export function openPullRequests(): ChangeSource[] {
  */
 export class MergedHeads {
   private readonly cache = new Map<string, string | undefined>();
-  private inventory?: Map<string, RestMergedPr[]>;
+  private inventory?: Map<string, ClosedPr[]>;
   private readonly base: string;
   private readonly cwd?: string;
   // Plain fields, not parameter properties: this file runs under node's
@@ -464,7 +458,7 @@ export class MergedHeads {
       // commit association) lost part of that across four review rounds of
       // #3275. So reproduce it by construction: one inventory of the repo's
       // closed PRs per run, keyed by head ref.
-      const merged = (this.inventory ??= mergedPrsByHead()).get(branch) ?? [];
+      const merged = (this.inventory ??= mergedPrsByHead(this.cwd)).get(branch) ?? [];
       // Merged INTO SOMETHING ELSE is not shipped here. A PR squashed onto an
       // integration branch, or merged after this checkout last fetched, leaves
       // its work outside the selected base, so excluding its head would hide a
@@ -483,10 +477,28 @@ export class MergedHeads {
   }
 }
 
-/** Every merged PR of the repo, keyed by head ref (any owner). */
-function mergedPrsByHead(): Map<string, RestMergedPr[]> {
-  const byHead = new Map<string, RestMergedPr[]>();
-  for (const pr of ghPages<RestMergedPr>(`repos/${repoSlug()}/pulls?state=closed`, 'closed PRs')) {
+/** Every merged PR of the repo, keyed by head ref (any owner); history is cached, see closed-prs-cache.ts. */
+function mergedPrsByHead(cwd?: string): Map<string, ClosedPr[]> {
+  const byHead = new Map<string, ClosedPr[]>();
+  const slug = repoSlug();
+  const common = resolve(cwd ?? '.', run('git', ['rev-parse', '--git-common-dir'], { cwd }).trim());
+  const cacheFile = join(
+    common,
+    'myk9-inflight',
+    `closed-prs-${slug.replace(/[^\w.-]/g, '_')}.json`
+  );
+  const path = `repos/${slug}/pulls?state=closed&sort=updated&direction=desc&per_page=100`;
+  let prs: ClosedPr[];
+  try {
+    prs = closedPrs(
+      page => ghJson<ClosedPr[]>(['api', `${path}&page=${page}`], 'closed PRs'),
+      cacheFile
+    );
+  } catch (error) {
+    if (error instanceof InflightQueryError) throw error;
+    throw new InflightQueryError(`could not list closed PRs: ${(error as Error).message}`);
+  }
+  for (const pr of prs) {
     if (!pr.merged_at) continue;
     byHead.set(pr.head.ref, [...(byHead.get(pr.head.ref) ?? []), pr]);
   }

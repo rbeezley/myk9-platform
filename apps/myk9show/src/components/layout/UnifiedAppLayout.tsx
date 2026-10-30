@@ -9,12 +9,13 @@
  */
 
 import React, { useCallback, useEffect, useMemo } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { SidebarLayout } from '@/components/layout/SidebarLayout';
 import { RoleSidebar } from '@/components/layout/sidebar';
 import { useSidebarLayoutState } from '@/hooks/useSidebarLayoutState';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { railOwnEntriesState, useHasOwnEntries } from '@/hooks/useHasOwnEntries';
 import { useClubStore } from '@/store/clubStore';
 import { useRegisterAppShellMobileNav } from './useAppShellMobileNav';
 import { buildUnifiedSidebarConfig } from './sidebar/unifiedSidebarConfig';
@@ -45,15 +46,12 @@ export const UnifiedAppLayout: React.FC = () => {
       clubName: validatedClubContext.clubName,
     };
   }, [validatedClubContext]);
-  const { currentShow, managingShows, chooseShow } = useCurrentShow();
+  const { currentShow } = useCurrentShow();
+  const { pathname } = useLocation();
+  const ownEntries = railOwnEntriesState(useHasOwnEntries(), pathname);
   const sidebarConfig = useMemo(
-    () =>
-      buildUnifiedSidebarConfig(roles, clubContext, firstName, {
-        currentShow,
-        managingShows,
-        onChooseShow: chooseShow,
-      }),
-    [roles, clubContext, firstName, currentShow, managingShows, chooseShow]
+    () => buildUnifiedSidebarConfig(roles, clubContext, firstName, { currentShow }, ownEntries),
+    [roles, clubContext, firstName, currentShow, ownEntries]
   );
   useRememberBrowseList(sidebarConfig);
   const { mobileOpen, setMobileOpen } = useSidebarLayoutState();

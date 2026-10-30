@@ -44,8 +44,10 @@ export function useMyShowResults(showId: string | undefined): ReadonlyMap<string
   const { data } = useQuery({
     queryKey,
     queryFn: async (): Promise<ReadonlyMap<string, OwnShowResult>> => {
-      const { data: rows, error } = await getUserEntries(personId as string);
+      const { data: rows, error, source } = await getUserEntries(personId as string);
       if (error) throw error;
+      const serverConfirmed =
+        source === 'confirmed' || source === 'confirmed-move-up-link-unavailable';
       const results = new Map<string, OwnShowResult>();
       for (const row of (rows ?? []) as OwnRow[]) {
         if (!row.id || row.show_id !== showId) continue;
@@ -56,6 +58,7 @@ export function useMyShowResults(showId: string | undefined): ReadonlyMap<string
           totalFaults: row.total_faults ?? null,
           finalPlacement: row.final_placement ?? null,
           resultsReleasedAt: row.class_results_released_at ?? null,
+          serverConfirmed,
         });
       }
       return results;

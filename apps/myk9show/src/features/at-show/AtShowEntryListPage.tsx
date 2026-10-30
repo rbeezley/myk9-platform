@@ -48,6 +48,7 @@ import { notifyRunOrderPersistError } from './runOrderErrorToast';
 import { persistEntryRunOrder } from './persistEntryRunOrder';
 import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
 import { useAtShowShowHydration } from './useAtShowShowHydration';
+import { AtShowEntriesNotOnDeviceAction } from './AtShowEntriesNotOnDeviceAction';
 import { createAtShowDataDependencies } from './atShowDataAdapter';
 import { useAtShowEntryListActions } from './useAtShowEntryListActions';
 import { useAtShowEntryListHandlers } from './useAtShowEntryListHandlers';
@@ -61,12 +62,11 @@ import { AtShowAddToHomeNudge } from './AtShowAddToHomeNudge';
 import { useMyAtShowEntries } from './useMyAtShowEntries';
 import { useMyRingConflicts } from './useMyRingConflicts';
 import { useAtShowRealtimeRefresh } from './useAtShowRealtimeRefresh';
-import { useLeaveRingside } from './useLeaveRingside';
+import { resolveClassListRoute } from './atShowScoresheetRoutes';
 
 export const AtShowEntryListPage: React.FC = () => {
   const { showId, classId } = useParams<{ showId: string; classId: string }>();
   const navigate = useNavigate();
-  const leaveRingside = useLeaveRingside();
   const { status: syncStatus } = useReplicationSync();
 
   // ── Role + permissions ────────────────────────────────────────────────
@@ -136,7 +136,12 @@ export const AtShowEntryListPage: React.FC = () => {
     dependencies,
   });
 
-  const isFirstShowHydrationPending = useAtShowShowHydration(showId, syncStatus, refresh);
+  const showHydration = useAtShowShowHydration(showId, syncStatus, refresh);
+  const isFirstShowHydrationPending = showHydration === 'pending';
+  const notOnDevice =
+    showHydration === 'not-arrived' ? (
+      <AtShowEntriesNotOnDeviceAction showId={showId} refresh={refresh} />
+    ) : undefined;
 
   // An exhibitor-role account (including an admin who entered an exhibitor
   // passcode) lacks the staff RLS authority the replicated writer needs, so its
@@ -193,7 +198,7 @@ export const AtShowEntryListPage: React.FC = () => {
   // the offline-first / ringside-RLS details. The drag hook owns the optimistic
   // local reorder + grace period; we only queue the writes here.
   const updateExhibitorOrder = useCallback(
-    (reordered: Entry[]) => persistEntryRunOrder(reordered),
+    (reordered: Entry[], previous: Entry[]) => persistEntryRunOrder(reordered, previous),
     []
   );
 
@@ -334,7 +339,7 @@ export const AtShowEntryListPage: React.FC = () => {
         <EntryListPage
           classId={classId}
           data={{ entries, classInfo }}
-          dataStatus={{ isRefreshing, fetchError, refresh }}
+          dataStatus={{ isRefreshing, fetchError, refresh, notOnDevice }}
           handlers={handlers}
           actions={pageActions}
           uiState={uiState}
@@ -368,7 +373,7 @@ export const AtShowEntryListPage: React.FC = () => {
             // at-show surface offers no printing (a myK9Q-era affordance from
             // the Access-upload workflow that doesn't belong here).
             hidePrintOptions: true,
-            exitToApp: { label: leaveRingside.label, onClick: leaveRingside.leave },
+            up: { label: 'Classes', to: resolveClassListRoute(showId) },
           }}
         />
       </div>

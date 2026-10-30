@@ -69,7 +69,12 @@ export function toClassEntry(
     judge_name: cls.judgeName ?? 'No Judge Assigned',
     entry_count: counts.expected,
     completed_count: counts.accounted,
-    class_status: toRingsideClassStatus(cls.classStatus),
+    // MYK9-1513: status + ring phase + Expected start read back as ringside's eight values.
+    class_status: toRingsideClassStatus(cls),
+    ...(cls.ringPhase === 'briefing' && cls.ringPhaseTime
+      ? { briefing_time: cls.ringPhaseTime }
+      : {}),
+    ...(cls.ringPhase === 'break' && cls.ringPhaseTime ? { break_until: cls.ringPhaseTime } : {}),
     is_favorite: favoriteClassIds.has(cls.id),
     ...(cls.startTime ? { planned_start_time: cls.startTime } : {}),
     ...(cls.revisedExpectedStart

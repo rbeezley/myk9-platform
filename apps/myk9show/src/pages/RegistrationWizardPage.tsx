@@ -93,6 +93,7 @@ function RegistrationWizardContent() {
     blockedClassIds,
     armbandAssignments,
     entryOutcomes,
+    createdEntryOutcomes,
     ownerResolution,
     dogsLoading,
     dogsReady,
@@ -429,6 +430,7 @@ function RegistrationWizardContent() {
               blockedClassIds={blockedClassIds}
               armbandAssignments={armbandAssignments}
               entryOutcomes={entryOutcomes}
+              createdEntryOutcomes={createdEntryOutcomes}
               onDogSelectionChange={dogIds => {
                 setClearedDogSelection(dogIds.length === 0);
                 handleDogSelectionChange(dogIds);

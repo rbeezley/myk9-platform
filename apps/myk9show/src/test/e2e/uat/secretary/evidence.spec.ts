@@ -40,7 +40,7 @@ test.describe('Phase 1 UAT - Secretary evidence pass', () => {
       testInfo,
       '/secretary/dashboard',
       'secretary-dashboard',
-      page.getByRole('link', { name: 'Add Show' })
+      page.getByRole('heading', { name: /Good (morning|afternoon|evening)/ })
     );
 
     await page.goto(`/shows/${SHOW_ID}/entries`, { waitUntil: 'domcontentloaded' });

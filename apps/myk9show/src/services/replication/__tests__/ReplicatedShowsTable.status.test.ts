@@ -7,18 +7,13 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ReplicatedShowsTable, type ReplicatedShow } from '../ReplicatedShowsTable';
 import { SHOW_DB_STATUSES, mapShowStatusToDb } from '../showStatusMapping';
+import { spyOnWriteAndQueue } from '@/test/utils/spyOnWriteAndQueue';
 
 vi.mock('@/services/database/supabaseClient', () => ({ supabase: { from: vi.fn() } }));
 
 vi.mock('@myk9/core', () => ({
   logger: { log: vi.fn(), error: vi.fn(), warn: vi.fn(), debug: vi.fn() },
 }));
-
-type QueueMutation = (
-  operation: string,
-  rowId: string,
-  payload: Record<string, unknown>
-) => Promise<string | null>;
 
 // Every value in shows' status CHECK (live constraint, 2026-10-03).
 const CHECK_STATUSES = ['draft', 'published', 'upcoming', 'in_progress', 'completed', 'cancelled'];
@@ -70,7 +65,7 @@ describe('ReplicatedShowsTable status on full-row writes', () => {
     const { databaseManager } = await import('@myk9/replication');
     await databaseManager.reset();
     table = new ReplicatedShowsTable();
-    queueMutation = vi.spyOn(table as unknown as { queueMutation: QueueMutation }, 'queueMutation');
+    queueMutation = spyOnWriteAndQueue(table).queue;
     queueMutation.mockResolvedValue('mutation-1');
   });
 

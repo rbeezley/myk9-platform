@@ -34,10 +34,10 @@ export interface CartCapacitySplitDecision {
  *
  * The rule is the server's (`evaluate_entry_capacity`): a line needs a spot in
  * its class (when the class has a limit) AND a spot on EVERY judge day its
- * class runs on, and once admitted it takes one of each. So a line in a
- * two-judge class uses a spot on both judges' days, and lines earlier in the
- * cart use up spots before later ones are judged. Advisory only: payment
- * re-decides under the server's locks.
+ * class runs on, and once admitted it takes one of each. A class has one judge,
+ * so that is its judge's day, shared by every cart line on that judge's day:
+ * lines earlier in the cart use up spots before later ones are judged.
+ * Advisory only: payment re-decides under the server's locks.
  *
  * A full line goes to the wait list only when its class is in
  * `waitlistClassIds`: the classes the server's availability read reports as

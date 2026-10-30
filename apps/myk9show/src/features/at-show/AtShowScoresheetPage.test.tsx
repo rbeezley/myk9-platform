@@ -10,9 +10,26 @@
  * covered in @myk9/scoring-ui + the secretary ScoresheetPage).
  */
 
-import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+import {
+  Routes,
+  Route,
+  RouterProvider,
+  createMemoryRouter,
+  useLocation,
+  useNavigate,
+  useNavigationType,
+} from 'react-router-dom';
+import { render as rawRender } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@/test/utils/testUtils';
+import { QueryClientProvider } from '@tanstack/react-query';
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  act,
+  createTestQueryClient,
+} from '@/test/utils/testUtils';
 import { UserRole } from '@/types/auth-types';
 import { ReplicationSyncTestProvider } from '@/test/utils/ReplicationSyncTestProvider';
 import type { ReplicationSyncContextValue } from '@/context/ReplicationSyncContext';
@@ -135,6 +152,8 @@ const StubLiveScoresheet = ({
   entry,
   onSubmit,
   onBack,
+  backLabel,
+  onDirtyChange,
   onWarningChime,
   onVoiceAnnouncement,
   enableVoiceAnnouncements,
@@ -143,6 +162,8 @@ const StubLiveScoresheet = ({
   entry: { armband: number };
   onSubmit: (sd: unknown) => void;
   onBack: () => void;
+  backLabel?: string;
+  onDirtyChange?: (dirty: boolean) => void;
   onWarningChime?: () => void;
   onVoiceAnnouncement?: (secondsRemaining: number) => void;
   enableVoiceAnnouncements?: boolean;
@@ -151,6 +172,8 @@ const StubLiveScoresheet = ({
   <div>
     <header>{headerActions}</header>
     <div data-testid="live-scoresheet">Live scoresheet for #{entry.armband}</div>
+    <div data-testid="back-label">{backLabel}</div>
+    <button onClick={() => onDirtyChange?.(true)}>Mark dirty</button>
     <div data-testid="voice-announcements-enabled">{String(enableVoiceAnnouncements)}</div>
     {/* Like the real sheet, a refused save is caught (and shown) by the sheet. */}
     <button
@@ -187,6 +210,7 @@ vi.mock('./atShowVoiceAnnouncement', () => ({
 
 import { AtShowScoresheetPage } from './AtShowScoresheetPage';
 import { useAudioWarnings } from '@/hooks/useAudioWarnings';
+import { useNotificationStore } from '@/store/notificationStore';
 import { useRingsideGrantStore } from '@/store/ringsideGrantStore';
 import { transitionToInRing } from '@/utils/checkInTransitions';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
@@ -277,6 +301,11 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     useRingsideGrantStore.getState().clearGrant();
     // useAtShowAudioMute persists to localStorage — start every test unmuted.
     localStorage.clear();
+    // Spoken warnings follow Settings > timer warning switch (default on);
+    // push-notification voice stays at its default (off).
+    useNotificationStore
+      .getState()
+      .updatePreferences({ timerVoiceEnabled: true, voiceEnabled: false });
     seed();
   });
 
@@ -325,7 +354,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     expect(await screen.findByText('Class not found')).toBeInTheDocument();
     expect(screen.queryByRole('status', { name: 'Loading scoresheet' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Back to Entry List' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Entries' })).toBeInTheDocument();
   });
 
   it('returns to the combined A/B list when opened from it', async () => {
@@ -350,7 +379,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
       { initialRoute: '/at-show/show-1/class/class-1/score/entry-1?combined=class-1,class-2' }
     );
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Back to Entry List' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Entries' }));
 
     expect(await screen.findByText('Combined list')).toBeInTheDocument();
   });
@@ -725,6 +754,225 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     expect(screen.queryByText(/no max time is set/i)).not.toBeInTheDocument();
   });
 
+  // MYK9-1500: one Up label, and the only way out of Ringside is the Up chain.
+  it('labels Up "Entries" and offers no house / "Back to main app" exit', async () => {
+    renderPage();
+    await screen.findByTestId('live-scoresheet');
+
+    expect(screen.getByTestId('back-label')).toHaveTextContent('Entries');
+    expect(screen.queryByRole('button', { name: /main app/i })).toBeNull();
+  });
+
+  it('Up returns to the combined A/B list from a loaded scoresheet', async () => {
+    render(
+      <ReplicationSyncTestProvider
+        value={{ status: settledSyncStatus, triggerSync: vi.fn(), syncTable: vi.fn() }}
+      >
+        <Routes>
+          <Route
+            path="/at-show/:showId/class/:classId/score/:entryId"
+            element={<AtShowScoresheetPage />}
+          />
+          <Route
+            path="/at-show/:showId/class/:classIdA/:classIdB"
+            element={<div>Combined list</div>}
+          />
+        </Routes>
+      </ReplicationSyncTestProvider>,
+      { initialRoute: '/at-show/show-1/class/class-1/score/entry-1?combined=class-1,class-2' }
+    );
+    await screen.findByTestId('live-scoresheet');
+
+    fireEvent.click(screen.getByText('Back'));
+
+    expect(await screen.findByText('Combined list')).toBeInTheDocument();
+  });
+
+  describe('moving to the next dog after a save (MYK9-1500)', () => {
+    const SHEET = '/at-show/show-1/class/class-1/score/entry-1?combined=class-1,class-2';
+    const NEXT = '/at-show/show-1/class/class-2/score/entry-9';
+
+    const renderPick = (initialRoute: string) => {
+      vi.mocked(replicatedEntriesTable.getEntriesByClass).mockImplementation(async (id: string) =>
+        id === 'class-2'
+          ? ([
+              {
+                id: 'entry-9',
+                classId: 'class-2',
+                armband: '209',
+                dogCallName: 'Bo',
+                runOrder: 1,
+                checkInStatus: 'no-status',
+              },
+            ] as never)
+          : ([{ id: 'entry-1', armband: 105, dogId: 'dog-1', checkInStatus: 'no-status' }] as never)
+      );
+      submitScoreOptimistically.mockImplementationOnce(
+        async ({ onSuccess }: { onSuccess?: () => void }) => onSuccess?.()
+      );
+      const NavProbe = () => {
+        const location = useLocation();
+        const goBack = useNavigate();
+        return (
+          <div>
+            nav {useNavigationType()} {location.pathname}
+            <button onClick={() => goBack(-1)}>Browser back</button>
+          </div>
+        );
+      };
+      const OpenSheet = () => {
+        const open = useNavigate();
+        return <button onClick={() => open(SHEET)}>Open sheet</button>;
+      };
+      render(
+        <ReplicationSyncTestProvider
+          value={{ status: settledSyncStatus, triggerSync: vi.fn(), syncTable: vi.fn() }}
+        >
+          <Routes>
+            <Route
+              path="/at-show/:showId/class/:classId/score/:entryId"
+              element={
+                <>
+                  <AtShowScoresheetPage />
+                  <NavProbe />
+                </>
+              }
+            />
+            <Route
+              path="/at-show/:showId/class/:classIdA/:classIdB"
+              element={
+                <>
+                  <div>Combined list</div>
+                  <OpenSheet />
+                </>
+              }
+            />
+          </Routes>
+        </ReplicationSyncTestProvider>,
+        { initialRoute }
+      );
+    };
+
+    const saveAndPickNext = async () => {
+      await screen.findByTestId('live-scoresheet');
+      fireEvent.click(screen.getByText('Submit Score'));
+      fireEvent.click(await screen.findByText(/#209 Bo/));
+    };
+
+    it('replaces the history entry when the sheet was opened from the entry list', async () => {
+      renderPick('/at-show/show-1/class/class-1/class-2');
+      fireEvent.click(await screen.findByText('Open sheet'));
+      await saveAndPickNext();
+
+      expect(await screen.findByText(`nav REPLACE ${NEXT}`)).toBeInTheDocument();
+      fireEvent.click(screen.getByText('Browser back'));
+      expect(await screen.findByText('Combined list')).toBeInTheDocument();
+    });
+  });
+
+  // One prompt, owned by the router guard: Up, Cancel (both call the sheet's
+  // onBack, which the stub's Back button stands for) and the back gesture are
+  // all held to it once the sheet reports unsaved work.
+  describe('one "Discard this score?" prompt from the route guard (MYK9-1500)', () => {
+    const SHEET_ROUTE = '/at-show/show-1/class/class-1/score/entry-1';
+    const renderInDataRouter = () => {
+      const router = createMemoryRouter(
+        [
+          {
+            path: '/at-show/:showId/class/:classId/score/:entryId',
+            element: <AtShowScoresheetPage />,
+          },
+          { path: '/at-show/:showId/class/:classId', element: <div>Entry List</div> },
+        ],
+        { initialEntries: ['/at-show/show-1/class/class-1', SHEET_ROUTE], initialIndex: 1 }
+      );
+      rawRender(
+        <QueryClientProvider client={createTestQueryClient()}>
+          <ReplicationSyncTestProvider
+            value={{ status: settledSyncStatus, triggerSync: vi.fn(), syncTable: vi.fn() }}
+          >
+            <RouterProvider router={router} />
+          </ReplicationSyncTestProvider>
+        </QueryClientProvider>
+      );
+      return router;
+    };
+
+    it('lets a clean sheet leave at once, by Up or by the back gesture', async () => {
+      const router = renderInDataRouter();
+      await screen.findByTestId('live-scoresheet');
+      await act(async () => {
+        await router.navigate(-1);
+      });
+      expect(await screen.findByText('Entry List')).toBeInTheDocument();
+      expect(screen.queryByText('Discard this score?')).toBeNull();
+
+      await act(async () => {
+        await router.navigate(SHEET_ROUTE);
+      });
+      fireEvent.click(await screen.findByText('Back'));
+      expect(await screen.findByText('Entry List')).toBeInTheDocument();
+      expect(screen.queryByText('Discard this score?')).toBeNull();
+    });
+
+    it('asks when Up or Cancel leaves a dirty sheet, and honors Keep scoring and Discard', async () => {
+      renderInDataRouter();
+      await screen.findByTestId('live-scoresheet');
+      fireEvent.click(screen.getByText('Mark dirty'));
+
+      fireEvent.click(screen.getByText('Back'));
+      expect(await screen.findByText('Discard this score?')).toBeInTheDocument();
+      expect(screen.getByTestId('live-scoresheet')).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Keep scoring' }));
+      await waitFor(() => expect(screen.queryByText('Discard this score?')).toBeNull());
+      expect(screen.getByTestId('live-scoresheet')).toBeInTheDocument();
+
+      fireEvent.click(screen.getByText('Back'));
+      fireEvent.click(await screen.findByRole('button', { name: 'Discard' }));
+      expect(await screen.findByText('Entry List')).toBeInTheDocument();
+    });
+
+    it('asks on the back gesture from a dirty sheet', async () => {
+      const router = renderInDataRouter();
+      await screen.findByTestId('live-scoresheet');
+      fireEvent.click(screen.getByText('Mark dirty'));
+
+      await act(async () => {
+        await router.navigate(-1);
+      });
+
+      expect(await screen.findByText('Discard this score?')).toBeInTheDocument();
+      expect(screen.getByTestId('live-scoresheet')).toBeInTheDocument();
+    });
+
+    it('does not ask after a save: picking the next dog leaves the saved sheet freely', async () => {
+      vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([
+        { id: 'entry-1', armband: 105, dogId: 'dog-1', checkInStatus: 'no-status' },
+        {
+          id: 'entry-9',
+          classId: 'class-1',
+          armband: '209',
+          dogCallName: 'Bo',
+          runOrder: 1,
+          checkInStatus: 'no-status',
+        },
+      ] as never);
+      submitScoreOptimistically.mockImplementationOnce(
+        async ({ onSuccess }: { onSuccess?: () => void }) => onSuccess?.()
+      );
+      renderInDataRouter();
+      await screen.findByTestId('live-scoresheet');
+      fireEvent.click(screen.getByText('Mark dirty'));
+      fireEvent.click(screen.getByText('Submit Score'));
+
+      fireEvent.click(await screen.findByText(/#209 Bo/));
+
+      await waitFor(() => expect(screen.getByTestId('live-scoresheet')).toBeInTheDocument());
+      expect(screen.queryByText('Discard this score?')).toBeNull();
+    });
+  });
+
   it('navigates back to the at-show entry list', async () => {
     renderPage();
     await screen.findByTestId('live-scoresheet');
@@ -1053,6 +1301,30 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
         expect.objectContaining({ volume: expect.any(Number) })
       );
       expect(vi.mocked(useAudioWarnings).mock.calls.at(-1)?.[0].volume).toBeGreaterThan(0);
+    });
+
+    // Codex round 1 on the timer-switch fix: the button and the Settings switch are separate
+    // controls. The button is the scoresheet mute (chime and voice); it never writes Settings.
+    it('with the Settings timer switch off, the chime still plays, the button reads unmuted, and no voice is spoken', async () => {
+      useNotificationStore.getState().updatePreferences({ timerVoiceEnabled: false });
+      renderPage();
+      await screen.findByTestId('live-scoresheet');
+
+      expect(screen.getByRole('button', { name: 'Mute timer sounds' })).toBeInTheDocument();
+      expect(vi.mocked(useAudioWarnings).mock.calls.at(-1)?.[0].volume).toBeGreaterThan(0);
+      // The page forwards the event; speakRemainingSeconds itself gates on the switch.
+      fireEvent.click(screen.getByText('Fire voice announcement'));
+      expect(speakRemainingSeconds).toHaveBeenCalledWith(30);
+    });
+
+    it('the mute button never changes either Settings switch', async () => {
+      renderPage();
+      await screen.findByTestId('live-scoresheet');
+      fireEvent.click(screen.getByRole('button', { name: 'Mute timer sounds' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Unmute timer sounds' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Mute timer sounds' }));
+      expect(useNotificationStore.getState().preferences.timerVoiceEnabled).toBe(true);
+      expect(useNotificationStore.getState().preferences.voiceEnabled).toBe(false);
     });
 
     it('persists the mute preference across remounts', async () => {

@@ -1,3 +1,4 @@
+import { logger } from '@/utils/logger';
 import { supabase } from '../supabaseClient';
 
 /** The name half of a confirmed judge assignment, split as `people` stores it. */
@@ -29,7 +30,7 @@ export interface ConfirmedJudgeAssignment {
   firstName: string | null;
   lastName: string | null;
   trialId: string | null;
-  /** Class-level edits (`replaceClassAssignment`) write `class_id` with a null `trial_id`. */
+  /** Class-level assignments (`set_class_judge`) write `class_id` with a null `trial_id`. */
   classId: string | null;
 }
 
@@ -77,22 +78,69 @@ export async function fetchShowJudgeNameParts(
 ): Promise<Map<string, JudgeNameParts> | null> {
   const data = await callGetShowJudges(showId);
   if (!data) return null;
+  return confirmedJudgeByClass(data);
+}
 
+/** The most show ids one `get_shows_judges` / `get_shows_class_hide_counts` call may carry. */
+export const CLASS_ENRICHMENT_SHOW_BATCH = 200;
+
+/** `ids` split into lists of at most CLASS_ENRICHMENT_SHOW_BATCH, the batched RPCs' cap. */
+export function showIdBatches(ids: ReadonlyArray<string>): string[][] {
+  const batches: string[][] = [];
+  for (let i = 0; i < ids.length; i += CLASS_ENRICHMENT_SHOW_BATCH) {
+    batches.push(ids.slice(i, i + CLASS_ENRICHMENT_SHOW_BATCH));
+  }
+  return batches;
+}
+
+/**
+ * `fetchShowJudgeNameParts` for many shows in one round trip per batch (MYK9-1450), through
+ * `get_shows_judges`, which runs `get_show_judges` per show so the same gate applies to each.
+ *
+ * Every show of a batch that answered is present, with an empty map when it has no confirmed
+ * judge. A show is ABSENT only when its batch failed, which a caller must not read as "no judge".
+ */
+export async function fetchShowsJudgeNameParts(
+  showIds: ReadonlyArray<string>
+): Promise<Map<string, Map<string, JudgeNameParts>>> {
+  const byShow = new Map<string, Map<string, JudgeNameParts>>();
+  await Promise.all(
+    showIdBatches([...new Set(showIds)]).map(async batch => {
+      // A failed batch leaves its shows absent: unknown, not "no judge". Logged, because that
+      // state is otherwise silent (the absent classes are simply not cached, MYK9-1450 review).
+      try {
+        const { data, error } = await supabase.rpc('get_shows_judges', { p_show_ids: batch });
+        if (error) {
+          logger.warn(
+            `[judgeNamesByClass] Judge names unavailable for ${batch.length} show(s): ${error.message}`,
+            'replication'
+          );
+          return;
+        }
+        const rowsByShow = new Map<string, ShowJudgeRows>(batch.map(id => [id, []]));
+        for (const row of data ?? []) rowsByShow.get(row.show_id)?.push(row);
+        for (const [showId, rows] of rowsByShow) byShow.set(showId, confirmedJudgeByClass(rows));
+      } catch (error) {
+        logger.warn(
+          `[judgeNamesByClass] Judge names unavailable for ${batch.length} show(s): ${error instanceof Error ? error.message : String(error)}`,
+          'replication'
+        );
+      }
+    })
+  );
+  return byShow;
+}
+
+function confirmedJudgeByClass(data: ShowJudgeRows): Map<string, JudgeNameParts> {
   const byClass = new Map<string, JudgeNameParts>();
-  // The RPC has no ORDER BY, so a class with two confirmed assignments would otherwise resolve
-  // to whichever row arrived first. Pick the lowest assignment_id — stable across calls and the
-  // same tie-break the embed uses — and take the id AND the name from that one row.
-  const chosen = new Map<string, string>();
-
+  // `judge_assignments_one_confirmed_judge_per_class` allows one confirmed row per class, so each
+  // class gets that row's id AND name together.
   // No cast: the get_show_judges row type comes from the generated Database types, so a change
   // to the function's RETURNS TABLE surfaces here as a type error rather than at runtime.
   for (const row of data) {
     if (row.status !== 'confirmed') continue;
     if (!row.class_id) continue;
     if (!row.first_name && !row.last_name) continue;
-    const incumbent = chosen.get(row.class_id);
-    if (incumbent !== undefined && incumbent <= row.assignment_id) continue;
-    chosen.set(row.class_id, row.assignment_id);
     byClass.set(row.class_id, {
       personId: row.person_id,
       firstName: row.first_name ?? null,

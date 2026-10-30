@@ -52,7 +52,7 @@ describe('appliedAclCheck — authenticated and sequence ACL drift', () => {
     const check = appliedAclCheck(facts, PROBED_AT);
 
     expect(check.status).toBe('fail');
-    expect(check.detail).toContain("shows has 'SELECT', expected 'SELECT,INSERT,UPDATE,DELETE'");
+    expect(check.detail).toContain("shows has 'SELECT', expected 'SELECT,INSERT,UPDATE'");
   });
 
   it('fails when an authenticated table grant is missing', () => {

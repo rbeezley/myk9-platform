@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ReplicatedShowDeskPeopleTable } from '../ReplicatedShowDeskPeopleTable';
+import { spyOnWriteAndQueue } from '@/test/utils/spyOnWriteAndQueue';
 
 vi.mock('@myk9/core', () => ({
   logger: {
@@ -13,19 +14,8 @@ vi.mock('@myk9/core', () => ({
 describe('ReplicatedShowDeskPeopleTable', () => {
   it('stores a local pending person and queues a people insert with the supplied id', async () => {
     const table = new ReplicatedShowDeskPeopleTable();
-    const setSpy = vi.spyOn(table, 'set').mockResolvedValue({ written: true });
-    const queueMutationSpy = vi
-      .spyOn(
-        table as unknown as {
-          queueMutation: (
-            operation: string,
-            rowId: string,
-            payload: Record<string, unknown>
-          ) => Promise<string | null>;
-        },
-        'queueMutation'
-      )
-      .mockResolvedValue('person-mutation-1');
+    const setSpy = spyOnWriteAndQueue(table, { writeRow: false }).set;
+    const queueMutationSpy = spyOnWriteAndQueue(table).queue.mockResolvedValue('person-mutation-1');
 
     const person = await table.createPerson({
       id: 'person-local-1',
@@ -68,19 +58,8 @@ describe('ReplicatedShowDeskPeopleTable', () => {
   it('offline, still stores and queues a new person (MYK9-1090: only edits need a connection)', async () => {
     vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(false);
     const table = new ReplicatedShowDeskPeopleTable();
-    vi.spyOn(table, 'set').mockResolvedValue({ written: true });
-    const queueMutationSpy = vi
-      .spyOn(
-        table as unknown as {
-          queueMutation: (
-            operation: string,
-            rowId: string,
-            payload: Record<string, unknown>
-          ) => Promise<string | null>;
-        },
-        'queueMutation'
-      )
-      .mockResolvedValue('person-mutation-2');
+    spyOnWriteAndQueue(table, { writeRow: false });
+    const queueMutationSpy = spyOnWriteAndQueue(table).queue.mockResolvedValue('person-mutation-2');
 
     try {
       const person = await table.createPerson({

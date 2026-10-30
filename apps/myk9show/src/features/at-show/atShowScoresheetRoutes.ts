@@ -4,7 +4,7 @@
  * A combined A/B list (AKC Novice; every UKC level) (`/at-show/:showId/class/:classIdA/:classIdB`)
  * opens each dog's scoresheet under that dog's OWN class id, so the scoresheet
  * URL alone cannot say which list it came from. The pair rides along as
- * `?combined=<classIdA>,<classIdB>` so "Back to Entry List" — and the next dog
+ * `?combined=<classIdA>,<classIdB>` so the scoresheet Up control and Cancel, and the next dog
  * picked after a save — return to the combined list, not the single section.
  * A query (not router state) survives a reload of the scoresheet.
  */
@@ -52,4 +52,13 @@ export function resolveScoreSheetEntryListRoute(
     return `/at-show/${showId}/class/${classId}`;
   }
   return `/at-show/${showId}/class/${combined.split(',').join('/')}`;
+}
+
+/**
+ * Where an entry list's Up control goes (MYK9-1500): the show's class list,
+ * single and combined lists alike. A fixed route, never history, so a deep link
+ * or a reload still lands on the class list.
+ */
+export function resolveClassListRoute(showId: string | undefined): string {
+  return showId ? `/at-show/${showId}` : '/at-show';
 }

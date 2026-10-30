@@ -14,6 +14,7 @@ import {
   REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN,
   REPLICATION_STORES,
   type DirtyRowComparePolicy,
+  type MutationManager,
   type ReplicatedRow,
   type RowRefetchAdapter,
   type SyncReplicatedTableAdapter,
@@ -26,15 +27,31 @@ import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
 import { createInFlightSharer, type ShareRead } from '@/services/database/_shared/shareInFlight';
 import { readPersistedAuthUserId } from '@/services/database/persistedAuthUserId';
 import {
+  HideCountLookupFailedError,
   affectsClassEnrichment,
   invalidateClassEnrichment,
   resolveClassEnrichment,
 } from './classEnrichmentCache';
+import type { ClassEnrichment } from './classEnrichmentCache';
+import {
+  clearHideCountsOwed,
+  markHideCountsOwed,
+  OWED_CLASS_FETCH_CHUNK,
+  owedHideCountClassIds,
+  settleHideCountsOwed,
+} from './hideCountsOwed';
 import type { JudgeNameParts } from '@/services/database/_shared/judgeNamesByClass';
 import { resolveClassJudgeFields } from '@/services/database/_shared/classJudgeFields';
 import { CLASS_AUTHENTICATED_COLUMN_SELECT } from '@/services/database/classes/reads';
 import type { Database } from '@/types/supabase';
 import { buildRingsideClassRpc } from './ringsideClassRpc';
+import {
+  SET_CLASS_JUDGE_RPC,
+  discardSupersededPicks,
+  judgeFieldsAfterPick,
+  planClassJudgePick,
+  type ClassJudgeTarget,
+} from './classJudgePick';
 import type { TimeLimitRule } from './resolveClassTimeLimitRules';
 
 /**
@@ -67,6 +84,10 @@ export interface ReplicatedClass {
   handlerAgeMax?: number | undefined;
   startTime?: string | undefined;
   revisedExpectedStart?: string | null | undefined;
+  /** MYK9-1513: briefing | break | offline_scoring while in_progress, else null. */
+  ringPhase?: string | null | undefined;
+  /** MYK9-1513: the briefing time or "Break until" time (time of day) for a briefing/break phase. */
+  ringPhaseTime?: string | null | undefined;
   estimatedDuration?: number | undefined;
 
   // Scent Work specific fields (camelCase)
@@ -222,6 +243,7 @@ export function rowToClass(row: ClassRow): ReplicatedClass {
     handlerAgeMax: row.handler_age_max ?? undefined,
     startTime: row.start_time ?? undefined,
     revisedExpectedStart: (dbRow.revised_expected_start as string | null | undefined) ?? null,
+    ...ringPhaseFromRow(dbRow),
     estimatedDuration: row.estimated_duration ?? undefined,
 
     // CamelCase fields
@@ -283,6 +305,19 @@ export function rowToClass(row: ClassRow): ReplicatedClass {
   };
 }
 
+/** MYK9-1513: the ring phase pair, DB → replica. */
+function ringPhaseFromRow(dbRow: Record<string, unknown>) {
+  return {
+    ringPhase: (dbRow.ring_phase as string | null | undefined) ?? null,
+    ringPhaseTime: (dbRow.ring_phase_time as string | null | undefined) ?? null,
+  };
+}
+
+/** MYK9-1513: the ring phase pair, replica → DB. */
+function ringPhaseToRow(cls: Pick<ReplicatedClass, 'ringPhase' | 'ringPhaseTime'>) {
+  return { ring_phase: cls.ringPhase ?? null, ring_phase_time: cls.ringPhaseTime ?? null };
+}
+
 /**
  * DB columns whose values are server-owned/derived, paired with the camelCase
  * `ReplicatedClass` key a caller sets to change them. The server derivation owns
@@ -293,6 +328,10 @@ export function rowToClass(row: ClassRow): ReplicatedClass {
  * values on every unrelated `updateClass`, clobbering server-derived state until
  * the next inbound sync heals it. Each is written ONLY when the caller explicitly
  * included its source key in the update (see stripUnsetServerOwnedKeys).
+ *
+ * `ring_phase` / `ring_phase_time` (MYK9-1513) join them: the server clears the phase when
+ * the class leaves in_progress (trg_classes_clear_ring_phase), so an unrelated edit must not
+ * re-emit a stale local phase.
  *
  * `num_hides` joins them for the mirror-image reason: it is baked in at creation
  * from the sport rule, not server-derived, but a row cached before `hideCount`
@@ -309,6 +348,8 @@ const SERVER_OWNED_CLASS_COLUMNS: ReadonlyArray<readonly [string, keyof Replicat
   ['is_scoring_finalized', 'isScoringFinalized'],
   ['reopened_after_closeout_at', 'reopenedAfterCloseoutAt'],
   ['num_hides', 'hideCount'],
+  ['ring_phase', 'ringPhase'],
+  ['ring_phase_time', 'ringPhaseTime'],
 ];
 
 /**
@@ -328,8 +369,8 @@ const CLASS_JUDGE_FIELDS: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * MYK9-1327: a judge change is written onto the local class row
- * (`writeClassJudgeLocally`), while the server derives the row's judge from
+ * MYK9-1327: a judge pick is written onto the local class row
+ * (`setClassJudge`), while the server derives the row's judge from
  * `judge_assignments`. A pull that reaches the row before its writes upload therefore
  * shows the server mid-way (this device's own earlier pick, or a name lookup that did
  * not run), which is not a change to collide with. So the judge fields never count as
@@ -420,6 +461,19 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
     super('classes', { logger });
   }
 
+  private pickQueue: MutationManager | null = null;
+
+  /**
+   * Discarding a refused class write puts the row back to the server's state (MYK9-1076), so a
+   * discarded `set_class_judge` does not leave the refused judge on a row that stays dirty.
+   */
+  protected override readonly revertsOnDiscard = true;
+
+  override setMutationManager(manager: MutationManager): void {
+    super.setMutationManager(manager);
+    this.pickQueue = manager;
+  }
+
   /** Get the mutation ID from the last create/update operation */
   get lastMutationId(): string | null {
     return this._lastMutationId;
@@ -434,6 +488,18 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
    * prior session's local data.
    */
   async clearCachedHideCounts(): Promise<void> {
+    this.hideCountBoundaryActive = true;
+    this.hideCountBoundaryGeneration += 1;
+    try {
+      await this.scrubCachedHideCounts();
+    } finally {
+      this.hideCountBoundaryGeneration += 1;
+      this.hideCountBoundaryActive = false;
+    }
+  }
+
+  private async scrubCachedHideCounts(): Promise<void> {
+    clearHideCountsOwed();
     await this.runTransaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite', async store => {
       const index = store.index('tableName');
       const rows = (await index.getAll(this.getTableName())) as ReplicatedRow<ReplicatedClass>[];
@@ -527,6 +593,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
       handler_age_max: cls.handlerAgeMax ?? null,
       start_time: cls.startTime ?? null,
       revised_expected_start: cls.revisedExpectedStart ?? null,
+      ...ringPhaseToRow(cls),
       estimated_duration: cls.estimatedDuration ?? null,
       element: cls.element ?? null,
       section: cls.section ?? null,
@@ -629,20 +696,108 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
   private readonly shareShowRead: ShareRead = (key, read) =>
     this.sharedShowReads(`${readPersistedAuthUserId() ?? 'anon'}:${key}`, read);
 
-  /** Server-derived values a class row carries offline (visibility, hides, judge). */
-  private async enrichClassRows(rows: ClassRow[]): Promise<EnrichedClassRow[]> {
-    // MYK9-1360: cached per show for a few minutes; the lookups are best-effort inside, so a
-    // failure must not break class replication.
+  /** Bumped on entry and exit of `clearCachedHideCounts`, so a lookup that spans it can tell. */
+  private hideCountBoundaryGeneration = 0;
+  private hideCountBoundaryActive = false;
+
+  /** Owed classes in this scope that the incremental fetch did not already return (MYK9-1458). */
+  private async fetchOwedClassRows(
+    fetched: ClassRow[],
+    scope: { value?: string | undefined }
+  ): Promise<ClassRow[]> {
+    const have = new Set(fetched.map(row => String(row.id)));
+    const owed = owedHideCountClassIds(scope.value).filter(id => !have.has(id));
+    const rows: ClassRow[] = [];
+    // Chunked so a long owed list stays under URL and row caps; best-effort so a failed retry
+    // never holds the sync it rides on. Its ids simply stay owed for the next one.
+    for (let start = 0; start < owed.length; start += OWED_CLASS_FETCH_CHUNK) {
+      const chunk = owed.slice(start, start + OWED_CLASS_FETCH_CHUNK);
+      try {
+        const { data, error } = await supabase
+          .from('classes')
+          .select(classReplicationSelect())
+          .in('id', chunk);
+        if (error) throw new Error(error.message);
+        const fetched = (data ?? []) as unknown as ClassRow[];
+        // A class the server no longer returns (deleted, or no longer visible) is owed nothing,
+        // but only when this same read returned some row: that proves it can see this scope. An
+        // entirely empty answer with no error is also what an expired token or an RLS miss
+        // gives, so it settles nothing and its ids stay owed for the next sync.
+        if (fetched.length > 0) {
+          const returned = new Set(fetched.map(row => String(row.id)));
+          settleHideCountsOwed(chunk.filter(id => !returned.has(id)));
+        }
+        rows.push(...fetched);
+      } catch (error) {
+        logger.warn(
+          `[${this.getTableName()}] Owed hide-count retry skipped this sync`,
+          'replication',
+          {
+            message: error instanceof Error ? error.message : String(error),
+          }
+        );
+      }
+    }
+    return rows;
+  }
+
+  /** The hide counts this device persisted for `rows`, keyed by class id; absent ones omitted. */
+  private async savedHideCounts(rows: ClassRow[]): Promise<Map<string, number>> {
+    const saved = new Map<string, number>();
+    const locals = await Promise.all(rows.map(row => this.get(String(row.id))));
+    for (const local of locals) {
+      if (local?.hideCount !== undefined) saved.set(String(local.id), local.hideCount);
+    }
+    return saved;
+  }
+
+  /**
+   * Server-derived values a class row carries offline (visibility, hides, judge).
+   *
+   * Visibility, time-limit and judge lookups are best-effort inside (MYK9-1360): a failure keeps
+   * what the device has and must not break class replication. A failed hide-count lookup
+   * (MYK9-1451) must not read as "no count" either: it never changes a count this device saved,
+   * and a class with none takes whatever the partial lookup answered. Every class in the batch
+   * is then owed a lookup (`hideCountsOwed`), which the next sync retries by id even when the
+   * class itself has not changed (MYK9-1458). Rows always apply; no role's sync is held.
+   *
+   * A saved count wins over a partial answer on purpose: a failed official RPC can leave a rule's
+   * default total in the answer, which must not replace a judge-set count mid-scoring. The class
+   * stays owed, so the next good lookup corrects it.
+   *
+   * `answered` collects the classes whose lookup succeeded. Only the sync settles them, and only
+   * after its rows are applied (`settleAppliedOwed`).
+   */
+  private async enrichClassRows(
+    rows: ClassRow[],
+    answered?: Set<string>
+  ): Promise<EnrichedClassRow[]> {
+    const boundary = this.hideCountBoundaryGeneration;
+    let enrichment: ClassEnrichment;
+    try {
+      enrichment = await resolveClassEnrichment(rows, {
+        shareRead: this.shareShowRead,
+        localTimeLimitRules: ids => this.cachedTimeLimitRules(ids),
+        tableName: this.getTableName(),
+      });
+      for (const row of rows) answered?.add(String(row.id));
+    } catch (error) {
+      if (!(error instanceof HideCountLookupFailedError)) throw error;
+      enrichment = error.enrichment;
+      const saved = await this.savedHideCounts(rows);
+      // An account-boundary strip that ran or is running since this began wins: never carry a
+      // count it removed back into the row, nor re-owe the previous account's classes.
+      if (!this.hideCountBoundaryActive && boundary === this.hideCountBoundaryGeneration) {
+        markHideCountsOwed(rows);
+        for (const [id, count] of saved) enrichment.hideCounts.set(id, count);
+      }
+    }
     const {
       visibility: visibilityByClassId,
       hideCounts: hideCountByClassId,
       timeLimitRules: timeLimitRuleByClassId,
       judges: judgeByClassId,
-    } = await resolveClassEnrichment(rows, {
-      shareRead: this.shareShowRead,
-      localTimeLimitRules: ids => this.cachedTimeLimitRules(ids),
-      tableName: this.getTableName(),
-    });
+    } = enrichment;
 
     return rows.map(row => ({
       ...row,
@@ -667,8 +822,53 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
     return byId;
   }
 
+  /**
+   * Of `ids`, those holding an unsent edit under any account on this device. The sync skips or
+   * merges such a row rather than writing the server copy, so its count may not have applied.
+   * Null when the device store could not be read: the caller then settles nothing, and the
+   * classes simply stay owed. Never throws, so it cannot change a sync's result.
+   */
+  private async withUnsentEdits(ids: string[]): Promise<Set<string> | null> {
+    try {
+      const dirty = new Set<string>();
+      for (const id of ids) {
+        if ((await this.getReplicatedRowIncludingOtherAccounts(id))?.isDirty) dirty.add(id);
+      }
+      return dirty;
+    } catch (error) {
+      logger.warn(`[${this.getTableName()}] Owed hide-count check skipped`, 'replication', {
+        message: error instanceof Error ? error.message : String(error),
+      });
+      return null;
+    }
+  }
+
+  /**
+   * Settle owed classes the sync both looked up and applied: answered in this sync, and holding
+   * no unsent edit when it started or now. Any other stays owed for a later sync.
+   */
+  private async settleAppliedOwed(
+    answered: Set<string>,
+    dirtyAtStart: Set<string> | null
+  ): Promise<void> {
+    if (!dirtyAtStart) return;
+    // Accepted (MYK9-1459): an edit that never uploads keeps its class owed, and so does a class
+    // that was hard-deleted or became invisible when its by-id chunk answers empty (that settles
+    // nothing). Each sync re-reads them by id, one request per 100; an account switch clears the
+    // list. No count changes.
+    const candidates = owedHideCountClassIds(undefined).filter(
+      id => answered.has(id) && !dirtyAtStart.has(id)
+    );
+    if (candidates.length === 0) return;
+    const dirtyNow = await this.withUnsentEdits(candidates);
+    if (!dirtyNow) return;
+    settleHideCountsOwed(candidates.filter(id => !dirtyNow.has(id)));
+  }
+
   async sync(syncScopeId: string, options?: Partial<SyncOptions>): Promise<SyncResult> {
     logger.log(`[${this.getTableName()}] Starting sync`);
+    const answered = new Set<string>();
+    const dirtyAtStart = await this.withUnsentEdits(owedHideCountClassIds(undefined));
 
     const adapter: SyncReplicatedTableAdapter<EnrichedClassRow, ReplicatedClass> = {
       ...this.getRowRefetchAdapter(),
@@ -720,7 +920,11 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
           throw new Error(`Supabase query failed: ${error.message}`);
         }
 
-        return this.enrichClassRows((data ?? []) as unknown as ClassRow[]);
+        const rows = (data ?? []) as unknown as ClassRow[];
+        return this.enrichClassRows(
+          [...rows, ...(await this.fetchOwedClassRows(rows, scope))],
+          answered
+        );
       },
       getRemoteUpdatedAt: remote => parseUpdatedAtMs(remote.updated_at),
       filterLocalRows: (rows, scope) =>
@@ -737,6 +941,8 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
         incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN,
       }
     );
+
+    if (result.success) await this.settleAppliedOwed(answered, dirtyAtStart);
 
     if (!result.success && result.error && !isAbortSyncError(result.error)) {
       logger.error(`[${this.getTableName()}] Sync failed:`, result.error);
@@ -829,8 +1035,6 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
       _syncStatus: 'pending',
     };
 
-    await this.set(classId, updatedClass, true);
-    if (affectsClassEnrichment(updates)) invalidateClassEnrichment();
     // Intent-aware: the merged row always carries defined server-owned values, so
     // strip the ones this mutation didn't explicitly set before queueing — see
     // stripUnsetServerOwnedKeys. Prevents an unrelated edit from re-uploading a
@@ -840,9 +1044,12 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
     // ringside_update_class, which admits the class's judge; classes_update RLS
     // would deny it (MYK9-1096, MYK9-1086). Anything else stays direct.
     const rpc = buildRingsideClassRpc(Object.keys(updates), payload);
-    const mutationId = rpc
-      ? await this.queueMutation('UPDATE', classId, payload, undefined, rpc)
-      : await this.queueMutation('UPDATE', classId, payload);
+    const { mutationId } = await this.writeAndQueue(classId, updatedClass, {
+      operation: 'UPDATE',
+      payload,
+      rpc: rpc ?? undefined,
+    });
+    if (affectsClassEnrichment(updates)) invalidateClassEnrichment();
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated class ${classId}`);
     return mutationId;
@@ -877,7 +1084,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
         : signOff.by
       : null;
 
-    await this.set(
+    const { mutationId } = await this.writeAndQueue(
       classId,
       {
         ...currentClass,
@@ -886,20 +1093,60 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
         _lastModified: new Date(),
         _syncStatus: 'pending',
       },
-      true
+      {
+        operation: 'UPDATE',
+        payload: { id: classId, judge_signed_off_at: judgeSignedOffAt ?? null },
+        rpc: signOff
+          ? {
+              name: 'mark_classes_judge_signed_off',
+              args: { p_class_ids: [classId], p_signed_off_at: signOff.at },
+            }
+          : { name: 'clear_class_judge_sign_off', args: { p_class_id: classId } },
+      }
     );
-    const mutationId = await this.queueMutation(
-      'UPDATE',
+    this._lastMutationId = mutationId;
+    return mutationId;
+  }
+
+  /**
+   * MYK9-1327: pick (or, with `null`, remove) a class's judge as ONE queued `set_class_judge` RPC,
+   * which replaces the class's judge assignment atomically on the server. The local row shows the
+   * pick now; the row stays dirty while the pick is queued, so a pull never restores the old judge
+   * (CLASS_DIRTY_ROW_COMPARE_POLICY). The pick waits for this class's pending INSERT and for an
+   * earlier pick, and discards earlier FAILED picks first (a throwing discard aborts the pick) so Retry cannot replay an old intent.
+   */
+  async setClassJudge(classId: string, judge: ClassJudgeTarget | null): Promise<string | null> {
+    const personId = judge?.personId ?? null;
+    if (this.pickQueue) {
+      // Supersede first. A discard that throws leaves nothing written or queued; the discard's
+      // row revert runs before our local write, so the row ends on the NEW judge.
+      const { supersededFailedIds } = await planClassJudgePick(this.pickQueue, classId, personId);
+      await discardSupersededPicks(this.pickQueue, supersededFailedIds);
+    }
+    // Plan again so dependsOn never names a discarded pick.
+    const plan = this.pickQueue
+      ? await planClassJudgePick(this.pickQueue, classId, personId)
+      : { dependsOn: undefined };
+    // Read the row only after the queue work, right before the write, so a class edit or sync
+    // that lands meanwhile (or a discard's revert) is merged in rather than overwritten.
+    const currentClass = await this.get(classId);
+    if (!currentClass) throw new Error(`Class ${classId} not found`);
+    const { mutationId } = await this.writeAndQueue(
       classId,
-      { id: classId, judge_signed_off_at: judgeSignedOffAt ?? null },
-      undefined,
-      signOff
-        ? {
-            name: 'mark_classes_judge_signed_off',
-            args: { p_class_ids: [classId], p_signed_off_at: signOff.at },
-          }
-        : { name: 'clear_class_judge_sign_off', args: { p_class_id: classId } }
+      {
+        ...currentClass,
+        ...judgeFieldsAfterPick(currentClass, judge),
+        _lastModified: new Date(),
+        _syncStatus: 'pending',
+      },
+      {
+        operation: 'UPDATE',
+        payload: { id: classId },
+        dependsOn: plan.dependsOn,
+        rpc: { name: SET_CLASS_JUDGE_RPC, args: { p_class_id: classId, p_person_id: personId } },
+      }
     );
+    invalidateClassEnrichment();
     this._lastMutationId = mutationId;
     return mutationId;
   }
@@ -922,13 +1169,11 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
       _localOnly: true,
     };
 
-    await this.set(classData.id, newClass, true);
-    const mutationId = await this.queueMutation(
-      'INSERT',
-      classData.id,
-      this.toSupabaseRow(newClass),
-      trialMutationId ? [trialMutationId] : undefined
-    );
+    const { mutationId } = await this.writeAndQueue(classData.id, newClass, {
+      operation: 'INSERT',
+      payload: this.toSupabaseRow(newClass),
+      dependsOn: trialMutationId ? [trialMutationId] : undefined,
+    });
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Created new class ${classData.id}`);
     return newClass;

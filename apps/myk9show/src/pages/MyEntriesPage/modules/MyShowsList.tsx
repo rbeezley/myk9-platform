@@ -1,5 +1,7 @@
 /**
- * The My Shows list: one show group per show, dog cards beneath each.
+ * The My Shows list: one column at every width. Today's show first, then upcoming shows soonest
+ * first, each with its dog cards inline, then one collapsed "Past shows" section. `?show=` scrolls
+ * to that show's section (`useShowAnchor`).
  *
  * Lives here rather than in `index.tsx` because that file is at the 500-line
  * cap and CI's quality ratchet fails any regression (D10). The page hands this
@@ -11,6 +13,10 @@
  */
 
 import React from 'react';
+import { ChevronDown } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { cn } from '@/lib/utils';
 import type { ResultCardModel } from '@/features/result-card';
 import { useMyPayments } from '@/features/payments/useMyPayments';
 import { ALL_PAYMENT_YEARS } from '@/features/payments/paymentYearFilter';
@@ -22,6 +28,8 @@ import type { MyShowClass, MyShowDog, MyShowGroup } from './groupEntriesByShow';
 import { MyShowGroupCard } from './MyShowGroup';
 import type { EntryStatusFilter, LeaveClassTarget, MyEntry } from './my-entries-types';
 import { narrowDogsToStatus } from './statusFilterPredicate';
+import { SELECTED_SHOW_PARAM, splitShowsIntoSections } from './myShowSections';
+import { showSectionId, useShowAnchor } from './useShowAnchor';
 
 /**
  * Group the filtered orders into the show groups the list renders.
@@ -73,11 +81,8 @@ export interface MyShowsListProps {
    * passes it.
    */
   now?: Date | undefined;
-  /**
-   * Render only the show group with this key. The list-and-detail layout (`MyShowsSplit`) shows
-   * one show's entries in the detail pane; every other prop behaves exactly as for the full list.
-   */
-  onlyShowKey?: string | undefined;
+  /** Shown in place of the list when the filters leave no shows (the page's empty-state card). */
+  emptyState?: React.ReactNode;
 }
 
 export const MyShowsList: React.FC<MyShowsListProps> = ({
@@ -94,10 +99,9 @@ export const MyShowsList: React.FC<MyShowsListProps> = ({
   onLeaveClass,
   onResultRevealClick,
   now: nowProp,
-  onlyShowKey,
+  emptyState,
 }) => {
-  const allGroups = useMyShowGroups(filteredEntries, selectedStatus);
-  const groups = onlyShowKey ? allGroups.filter(group => group.key === onlyShowKey) : allGroups;
+  const groups = useMyShowGroups(filteredEntries, selectedStatus);
   const allOrders = allOrdersProp ?? filteredEntries;
   // Indexed once per unfiltered-set change, not per show group, so a page
   // with many shows still builds it a single time per render pass.
@@ -112,27 +116,84 @@ export const MyShowsList: React.FC<MyShowsListProps> = ({
   // the paid strip may only confirm a payment that page shows (MYK9-1275).
   const { data: onlinePayments } = useMyPayments(ALL_PAYMENT_YEARS, useViewerId());
 
+  const sections = React.useMemo(() => splitShowsIntoSections(groups, now), [groups, now]);
+  const [searchParams] = useSearchParams();
+  const requested = searchParams.get(SELECTED_SHOW_PARAM);
+  // Past shows stay folded away unless the exhibitor is being sent to one (`?show=`, or a receipt
+  // scope from My Payments) or has nothing else to look at.
+  const wantsPast =
+    sections.past.some(group => group.key === requested) ||
+    searchParams.has('entryIds') ||
+    searchParams.has('showId') ||
+    (sections.today.length === 0 && sections.upcoming.length === 0);
+  const [pastOpen, setPastOpen] = React.useState(wantsPast);
+  React.useEffect(() => {
+    if (wantsPast) setPastOpen(true);
+  }, [wantsPast]);
+  const highlightedKey = useShowAnchor(
+    groups.map(group => group.key),
+    pastOpen
+  );
+
+  if (groups.length === 0) return <>{emptyState}</>;
+
+  const renderGroup = (group: MyShowGroup) => (
+    <li
+      key={group.key}
+      id={showSectionId(group.key)}
+      data-highlighted={highlightedKey === group.key ? 'true' : undefined}
+      className={cn(
+        'scroll-mt-24 rounded-xl motion-safe:transition-shadow',
+        highlightedKey === group.key && 'ring-2 ring-primary ring-offset-8 ring-offset-background'
+      )}
+    >
+      <MyShowGroupCard
+        group={group}
+        allOrders={fullShowIndex.get(group.key)?.orders ?? group.orders}
+        onlinePayments={onlinePayments}
+        source={source}
+        now={now}
+        selfCheckinByClassId={selfCheckinByClassId}
+        seenResultReleaseKeys={seenResultReleaseKeys}
+        onCheckInDay={onCheckInDay}
+        onOpenCheckIn={onOpenCheckIn}
+        onOpenEdit={onOpenEdit}
+        onOpenReceipts={onOpenReceipts}
+        onLeaveClass={onLeaveClass}
+        onResultRevealClick={onResultRevealClick}
+      />
+    </li>
+  );
+
+  const labelled = [
+    { id: 'today', label: 'Today', groups: sections.today },
+    { id: 'upcoming', label: 'Upcoming shows', groups: sections.upcoming },
+  ].filter(section => section.groups.length > 0);
+
   return (
-    <ul className="space-y-8">
-      {groups.map(group => (
-        <li key={group.key}>
-          <MyShowGroupCard
-            group={group}
-            allOrders={fullShowIndex.get(group.key)?.orders ?? group.orders}
-            onlinePayments={onlinePayments}
-            source={source}
-            now={now}
-            selfCheckinByClassId={selfCheckinByClassId}
-            seenResultReleaseKeys={seenResultReleaseKeys}
-            onCheckInDay={onCheckInDay}
-            onOpenCheckIn={onOpenCheckIn}
-            onOpenEdit={onOpenEdit}
-            onOpenReceipts={onOpenReceipts}
-            onLeaveClass={onLeaveClass}
-            onResultRevealClick={onResultRevealClick}
-          />
-        </li>
+    <div className="space-y-8">
+      {labelled.map(section => (
+        <section key={section.id} aria-labelledby={`my-shows-${section.id}`} className="space-y-4">
+          <h3
+            id={`my-shows-${section.id}`}
+            className="text-sm font-semibold uppercase tracking-wide text-muted-foreground"
+          >
+            {section.label}
+          </h3>
+          <ul className="space-y-8">{section.groups.map(renderGroup)}</ul>
+        </section>
       ))}
-    </ul>
+      {sections.past.length > 0 && (
+        <Collapsible open={pastOpen} onOpenChange={setPastOpen}>
+          <CollapsibleTrigger className="min-h-[44px] py-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground hover:no-underline">
+            <span>Past shows ({sections.past.length})</span>
+            <ChevronDown className="h-4 w-4" aria-hidden="true" />
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <ul className="space-y-8 pt-2">{sections.past.map(renderGroup)}</ul>
+          </CollapsibleContent>
+        </Collapsible>
+      )}
+    </div>
   );
 };

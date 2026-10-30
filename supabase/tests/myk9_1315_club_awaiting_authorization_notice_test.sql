@@ -93,7 +93,7 @@ BEGIN
 
   SELECT count(*) INTO v_total
   FROM public.notifications
-  WHERE type = 'club_awaiting_authorization' AND deep_link_url = '/clubs/' || v_club_id;
+  WHERE type = 'club_awaiting_authorization' AND deep_link_url = '/admin/onboarding?creator=00000000-0000-0000-0000-000001315104';
 
   SELECT count(DISTINCT p.auth_user_id) INTO v_active_admins
   FROM public.user_roles ur
@@ -112,21 +112,21 @@ BEGIN
 
   FOR v_msg IN
     SELECT user_id::text FROM public.notifications
-    WHERE type = 'club_awaiting_authorization' AND deep_link_url = '/clubs/' || v_club_id
+    WHERE type = 'club_awaiting_authorization' AND deep_link_url = '/admin/onboarding?creator=00000000-0000-0000-0000-000001315104'
     GROUP BY user_id HAVING count(*) > 1
   LOOP
     RAISE EXCEPTION 'FAIL admin % got more than one notification for the club', v_msg;
   END LOOP;
 
   IF (SELECT count(*) FROM public.notifications
-      WHERE type = 'club_awaiting_authorization' AND deep_link_url = '/clubs/' || v_club_id
+      WHERE type = 'club_awaiting_authorization' AND deep_link_url = '/admin/onboarding?creator=00000000-0000-0000-0000-000001315104'
         AND user_id IN ('00000000-0000-0000-0000-000001315101', '00000000-0000-0000-0000-000001315102')) <> 2 THEN
     RAISE EXCEPTION 'FAIL the two fixture site admins did not each get a notification';
   END IF;
 
   IF EXISTS (
     SELECT 1 FROM public.notifications
-    WHERE type = 'club_awaiting_authorization' AND deep_link_url = '/clubs/' || v_club_id
+    WHERE type = 'club_awaiting_authorization' AND deep_link_url = '/admin/onboarding?creator=00000000-0000-0000-0000-000001315104'
       AND user_id IN ('00000000-0000-0000-0000-000001315103', '00000000-0000-0000-0000-000001315104')
   ) THEN
     RAISE EXCEPTION 'FAIL an inactive site admin or the creator was notified';
@@ -134,7 +134,7 @@ BEGIN
 
   SELECT message INTO v_msg
   FROM public.notifications
-  WHERE type = 'club_awaiting_authorization' AND deep_link_url = '/clubs/' || v_club_id
+  WHERE type = 'club_awaiting_authorization' AND deep_link_url = '/admin/onboarding?creator=00000000-0000-0000-0000-000001315104'
     AND user_id = '00000000-0000-0000-0000-000001315101';
   IF v_msg IS DISTINCT FROM 'MYK9-1315 Secretary Created Club was created by Sam Secretary and is waiting for authorization.' THEN
     RAISE EXCEPTION 'FAIL unexpected message: %', v_msg;
@@ -165,7 +165,7 @@ BEGIN
   END IF;
   SELECT count(*) INTO v_count
   FROM public.notifications
-  WHERE type = 'club_awaiting_authorization' AND deep_link_url = '/clubs/' || v_club_id;
+  WHERE type = 'club_awaiting_authorization' AND deep_link_url = '/admin/onboarding?creator=00000000-0000-0000-0000-000001315101';
   IF v_count <> 0 THEN
     RAISE EXCEPTION 'FAIL a site admin''s own club raised % notifications', v_count;
   END IF;
@@ -187,7 +187,7 @@ BEGIN
 
   SELECT count(*) INTO v_count
   FROM public.notifications
-  WHERE type = 'club_awaiting_authorization' AND deep_link_url = '/clubs/' || v_club_id;
+  WHERE type = 'club_awaiting_authorization' AND message LIKE '%MYK9-1315 Seed Created Club%';
   IF v_count <> 0 THEN
     RAISE EXCEPTION 'FAIL a seed insert raised % notifications', v_count;
   END IF;

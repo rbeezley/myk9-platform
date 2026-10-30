@@ -43,51 +43,6 @@ This document provides an overview of the comprehensive test suite created for P
   - Entry data consistency across operations
   - Referential integrity validation
 
-#### `/src/test/services/offline-scoring-system.test.ts`
-
-**Comprehensive tests for the offline scoring system**
-
-**Key Test Scenarios:**
-
-- **OfflineScoringService Core Functionality**
-  - Placement-based scoring
-  - Time-based competition scoring (agility)
-  - Point-based competition scoring (obedience)
-  - Score updates and revisions
-  - Absent/scratched entry handling
-  - Scoring permissions validation
-
-- **PlacementCalculatorService Automatic Placement Logic**
-  - Time-based placement calculation
-  - Point-based placement calculation
-  - Tied scores handling
-  - Non-qualifying score exclusion
-
-- **ScoreValidatorService Score Validation**
-  - Placement score validation
-  - Time-based score validation
-  - Point-based score validation
-  - Score consistency validation
-
-- **JudgeWorkflowManager Workflow Management**
-  - Judging session lifecycle
-  - Scoring progress tracking
-  - Session completion handling
-  - Unauthorized judging prevention
-
-- **Error Handling and Edge Cases**
-  - Scoring unchecked entries
-  - Storage errors during scoring
-  - Invalid class status handling
-
-- **Performance and Scalability**
-  - Large class scoring (100 entries)
-  - Efficient placement calculations (500 scores)
-
-- **Data Consistency and Integrity**
-  - Scoring data consistency
-  - Referential integrity between scores and entries
-
 #### `/src/test/services/offline-checkin-system.test.ts`
 
 **Comprehensive tests for the offline check-in system**
@@ -239,7 +194,6 @@ This document provides an overview of the comprehensive test suite created for P
 - **Scoring Performance**
   - High-volume scoring (1000 entries)
   - Placement calculation for large result sets (5000 scores)
-  - Complex multi-judge scoring scenarios
 
 - **Data Query Performance**
   - Large dataset queries (5000 entries)
@@ -308,7 +262,6 @@ npm run test -- --testPathPattern="phase3|offline"
 
 # Run specific test suites
 npm run test -- src/test/services/offline-entry-system.test.ts
-npm run test -- src/test/services/offline-scoring-system.test.ts
 npm run test -- src/test/services/offline-checkin-system.test.ts
 npm run test -- src/test/stores/phase3-offline-stores.test.ts
 npm run test -- src/test/integration/phase3-offline-workflows.test.ts

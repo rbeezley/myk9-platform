@@ -33,11 +33,6 @@ export function isTransportFailure(result: { status?: number | null }): boolean 
   return result.status === 0;
 }
 
-/**
- * Any HTTP response, even 401/404, proves the server is reachable. `no-cors` keeps
- * a CORS rejection from reading as "unreachable": only a network failure rejects.
- * The CSP `connect-src` must allow this host (it allows https://*.supabase.co).
- */
 /** `AbortSignal.timeout` arrived in Safari 16; the build still targets Safari 14.1. */
 export function timeoutSignal(ms: number): AbortSignal {
   if (typeof AbortSignal.timeout === 'function') return AbortSignal.timeout(ms);
@@ -46,7 +41,13 @@ export function timeoutSignal(ms: number): AbortSignal {
   return controller.signal;
 }
 
-async function probeServer(): Promise<boolean> {
+/**
+ * Any HTTP response, even 401/404, proves the server is reachable. `no-cors` keeps
+ * a CORS rejection from reading as "unreachable": only a network failure rejects.
+ * The CSP `connect-src` must allow this host (it allows https://*.supabase.co).
+ * Also the shared MutationManager's `checkConnectivity` (MYK9-1474).
+ */
+export async function probeServer(): Promise<boolean> {
   const baseUrl = import.meta.env.VITE_SUPABASE_URL;
   if (!baseUrl) return true;
   try {

@@ -12,7 +12,10 @@
  * nothing ever triggered it. These helpers wire eviction to the moment quota
  * pressure actually manifests: a failed write.
  */
+import type { IDBPDatabase } from 'idb';
+import { REPLICATION_STORES } from './core/DatabaseManager';
 import type { Logger } from './dependencies';
+import type { ReplicatedRow } from './types';
 
 /**
  * Detect a storage-quota-exhausted error across browser quirks.
@@ -82,5 +85,46 @@ export async function withQuotaEviction<R>(
 
     logger.log(`[replication] Evicted ${evicted} rows to relieve quota; retrying write`);
     return await write();
+  }
+}
+
+/**
+ * Free space by deleting the least-recently-accessed CLEAN cache rows from the
+ * replicated-tables store, across every table. The eviction callback when a
+ * mutation write hits storage quota (MutationQueueStore), and the fallback when
+ * an atomic row+mutation write finds nothing clean in its own table (MYK9-1471). Dirty/unsynced rows are never deleted, so an offline
+ * score can make room without losing other unsynced data. Best-effort:
+ * returns 0 (write cannot proceed) if nothing clean is evictable or the scan
+ * fails.
+ */
+export async function evictCleanCacheRows(
+  db: IDBPDatabase,
+  keep?: readonly [tableName: string, id: string]
+): Promise<number> {
+  try {
+    // Scan and delete in ONE read-write transaction: a concurrent write that
+    // dirties a scanned row waits for this transaction, so a row is never
+    // deleted after it stopped being clean (Codex round 4, MYK9-1471).
+    const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
+    const all = (await tx.store.getAll()) as ReplicatedRow<unknown>[];
+    const clean = all
+      .filter(
+        row =>
+          !row.isDirty &&
+          typeof row.tableName === 'string' &&
+          typeof row.id === 'string' &&
+          !(keep && row.tableName === keep[0] && row.id === keep[1])
+      )
+      .sort((a, b) => (a.lastAccessedAt ?? 0) - (b.lastAccessedAt ?? 0));
+
+    // Free ~10% of clean rows (at least one) — enough to relieve pressure
+    // without nuking the whole cache. Key is [tableName, id] (top-level).
+    const toEvict = clean.length === 0 ? 0 : Math.max(1, Math.floor(clean.length * 0.1));
+    const deletes = clean.slice(0, toEvict).map(row => tx.store.delete([row.tableName, row.id]));
+    await Promise.all(deletes);
+    await tx.done;
+    return deletes.length;
+  } catch {
+    return 0;
   }
 }

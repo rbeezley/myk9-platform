@@ -135,6 +135,26 @@ END;
 $$;
 
 -- ---------------------------------------------------------------------------
+-- 3b. MYK9-1456: nor clear it, so the club stays in its creator's
+--     /admin/onboarding?creator= view.
+-- ---------------------------------------------------------------------------
+DO $$
+DECLARE
+  v_created_by uuid;
+BEGIN
+  UPDATE public.clubs
+     SET created_by = NULL
+   WHERE id = '00000000-0000-0000-0000-000000909001'
+  RETURNING created_by INTO v_created_by;
+
+  IF v_created_by IS DISTINCT FROM current_setting('myk9909.auth_1')::uuid THEN
+    RAISE EXCEPTION 'FAIL created-by-not-clearable: UPDATE cleared created_by (now %)', v_created_by;
+  END IF;
+  RAISE NOTICE 'PASS created-by-not-clearable: UPDATE cannot clear created_by';
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
 -- 4. The club_admin grant exists (trigger still ran).
 -- ---------------------------------------------------------------------------
 RESET ROLE;
@@ -214,6 +234,23 @@ BEGIN
     RAISE EXCEPTION 'FAIL service-role-keeps-value: created_by = %', v_created_by;
   END IF;
   RAISE NOTICE 'PASS service-role-keeps-value';
+END;
+$$;
+
+-- MYK9-1456: service_role (account cleanup, seeds) may still clear it.
+DO $$
+DECLARE
+  v_created_by uuid;
+BEGIN
+  UPDATE public.clubs
+     SET created_by = NULL
+   WHERE id = '00000000-0000-0000-0000-000000909003'
+  RETURNING created_by INTO v_created_by;
+
+  IF v_created_by IS NOT NULL THEN
+    RAISE EXCEPTION 'FAIL service-role-can-clear: created_by still %', v_created_by;
+  END IF;
+  RAISE NOTICE 'PASS service-role-can-clear';
 END;
 $$;
 

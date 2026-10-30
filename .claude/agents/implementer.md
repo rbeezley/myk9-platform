@@ -76,7 +76,7 @@ CONCERNS.
 ## Finishing
 
 1. `pnpm exec prettier --write` on every file you touched.
-2. Typecheck: `npx tsc --noEmit -p tsconfig.app.json` from `apps/myk9show` for app code
+2. Typecheck: `pnpm --filter @myk9/show typecheck:app` for app code (incremental)
    (`pnpm typecheck` from the worktree root when you touched a package or script). Note that
    `tsc --noEmit -p tsconfig.json` in `apps/myk9show` checks nothing and exits 0.
 3. Commit `wip: <task>` before any verification that takes longer than a minute, so a reaped

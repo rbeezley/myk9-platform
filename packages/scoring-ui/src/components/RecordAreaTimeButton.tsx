@@ -19,7 +19,7 @@ export function RecordAreaTimeButton({
   return (
     <Button
       variant="outline"
-      className="mt-3 h-11"
+      className="h-12 w-full rounded-xl"
       onClick={onRecord}
       data-testid="timer-record-area"
     >

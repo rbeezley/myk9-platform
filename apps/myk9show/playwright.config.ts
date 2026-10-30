@@ -1,8 +1,11 @@
 import { defineConfig, devices } from '@playwright/test';
 import { config as loadEnv } from 'dotenv';
+import { assertPlaywrightRunAllowed } from './src/test/productionFixtureGuard';
 import { createHash } from 'node:crypto';
 
 // Load .env.local first (gitignored, takes precedence), then fall back to .env.
+// MYK9-1454: the shell's own environment, before .env files; the production opt-in is read from it.
+const shellEnv = { ...process.env };
 loadEnv({ path: '.env.local', override: false });
 loadEnv({ path: '.env', override: false });
 
@@ -28,6 +31,14 @@ const baseURL = process.env.PLAYWRIGHT_BASE_URL || `http://127.0.0.1:${defaultPo
 const parsedBaseURL = new URL(baseURL);
 const webServerPort = Number(process.env.PLAYWRIGHT_PORT || parsedBaseURL.port || defaultPort);
 const webServerHmrPort = Number(process.env.PLAYWRIGHT_HMR_PORT || webServerPort + 20000);
+// MYK9-1454: refuse to sign fixture accounts into production unless the run opts in. The config
+// always starts its own dev server (reuseExistingServer: false); the browser must point at it.
+assertPlaywrightRunAllowed('playwright.config.ts', shellEnv, {
+  kind: 'own',
+  mode: 'dev',
+  browserUrl: baseURL,
+  serverPort: webServerPort,
+});
 
 export default defineConfig({
   testDir: './src/test/e2e',

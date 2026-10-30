@@ -41,9 +41,9 @@ named in the report, not quietly absorbed.
 `Last reviewed SHA` is the newest commit on `main` that has been reviewed for that stream. Dates are
 UTC.
 
-| Stream                | Last reviewed SHA                          | Window end           | Run by                    | Run date   |
-| --------------------- | ------------------------------------------ | -------------------- | ------------------------- | ---------- |
-| `daily-commit-review` | `0d9e4bb1629b7c4234716200c1e6485202e9ebfe` | 2026-10-27T04:33:30Z | codex-daily-commit-review | 2026-10-27 |
+| Stream                | Last reviewed SHA                          | Window end           | Run by                     | Run date   |
+| --------------------- | ------------------------------------------ | -------------------- | -------------------------- | ---------- |
+| `daily-commit-review` | `792773bfbcb8a9102c75ec1830eeb21c2095b620` | 2026-10-30T04:29:04Z | codex-daily-commit-review | 2026-10-30 |
 
 If this row is ever `unset`, nobody has verified which commits the Codex daily stream has actually
 covered; the first run of either automation on this stream must take its default window and stamp a
@@ -110,12 +110,42 @@ real boundary.
 > [MYK9-1343](https://linear.app/myk9-platform/issue/MYK9-1343) owns was closed inside this
 > window by `9ab650fc5` and `551c4bf7f`, not absorbed by this stamp.
 
+> **Provenance of the 2026-10-28 stamp.** The 28 commits from `0d9e4bb16` to
+> `e1b2ddecd` were reviewed in one pass by `claude-daily-commit-review` on 2026-10-28 and
+> reported in `docs/qa/claude-daily-commit-review-2026-10-28.md`. The previous row's
+> coverage was verified, not assumed: `docs/qa/codex-daily-commit-review-2026-10-27.md`
+> (committed in `96e1618eb`) states its window as exclusive `4d5a839e6` through inclusive
+> `0d9e4bb16`, and `git rev-list --count 4d5a839e6..0d9e4bb16` returns exactly the 3 commits
+> its inventory enumerates. This window starts at that commit, so there is no gap. That
+> report's own header describes itself as retained locally because its `pnpm qa:inflight`
+> overlap gate exited 2; it was in fact committed to `main` with its cursor stamp, so the row
+> and the report agree either way.
+
+> **Provenance of the 2026-10-29 stamp.** The 21 commits from `542b6fa47` to `20ada6552` were
+> reviewed in one pass by `claude-daily-commit-review` on 2026-10-29 and reported in
+> `docs/qa/claude-daily-commit-review-2026-10-29.md`. The previous row's coverage was verified,
+> not assumed: `docs/qa/codex-daily-commit-review-2026-10-28.md` states its window as exclusive
+> `e1b2ddecd` through inclusive `542b6fa47`, and `git rev-list --count e1b2ddecd..542b6fa47`
+> returns exactly the 6 commits its inventory enumerates. That row was a real stamp (row plus
+> report plus matching count), not a boundary-only one, so it was honoured rather than
+> re-reviewed. This window starts at the commit it stamped, so there is no gap. `origin/main` was
+> re-fetched after the review and had not moved, so this stamp is the tip actually reviewed.
+
 ### Adding a stream
 
 Add a row only for an audit whose scope is a commit range. Streams scoped to _current state_ — a
 full-surface security audit, a role UX walk, the weekly reconcile — have no meaningful cursor; their
 run-to-run comparison is report-against-previous-report, and adding them here implies a precision
 they do not have.
+
+> **Provenance of the 2026-10-30 stamp.** The 33 commits from `35c77a6c1` to `1e863d802` were
+> reviewed in one pass by `claude-daily-commit-review` and reported in
+> `docs/qa/claude-daily-commit-review-2026-10-30.md`. The previous row's stamp was verified before
+> it was honoured: `docs/qa/codex-daily-commit-review-2026-10-29.md` is on `main` as `4b4584c68`,
+> its claimed interval `(20ada6552, 35c77a6c1]` is the one documentation commit it enumerates, and
+> it in turn adopted the 21-commit Claude inventory for `(542b6fa47, 20ada6552]` after counting it.
+> No coverage gap: this window begins exactly at the previous window's end.
+
 
 ## Related
 

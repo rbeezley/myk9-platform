@@ -5,14 +5,12 @@ import {
   ErrorState,
   FilterPanel,
   FilterTriggerButton,
-  HamburgerMenu,
   PullToRefresh,
   RefreshIndicator,
   SyncIndicator,
 } from './atShowLayoutSlotComponents';
 
 export const atShowLayoutSlots: EntryListLayoutSlots = {
-  HamburgerMenu,
   CompactOfflineIndicator,
   SyncIndicator,
   RefreshIndicator,

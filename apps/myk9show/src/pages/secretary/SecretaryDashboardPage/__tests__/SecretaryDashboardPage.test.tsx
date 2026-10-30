@@ -5,6 +5,8 @@ import { SecretaryDashboardPage } from '../index';
 import { ScopeType } from '@/types/auth-types';
 import { useTrialStore } from '@/store/trialStore';
 import { showFactory } from '@/test/utils/factories';
+import { useCurrentShowPinStore } from '@/components/layout/sidebar/currentShowPinStore';
+import type { Show } from '@/types/show-types';
 
 const mockUseMissionControlData = vi.fn();
 let mockEntryCounts: ReadonlyMap<string, number> = new Map();
@@ -52,6 +54,25 @@ vi.mock('@/hooks/queries/useShowEntryCounts', () => ({
   useShowEntryCounts: (ids: readonly string[]) => mockUseShowEntryCounts(ids),
 }));
 
+// The rail's current show (MYK9-1490): which shows can be pinned, and which one is. The pin itself
+// goes through the real shared store, the one the rail reads.
+const mockCurrentShow = vi.hoisted(() => ({ managingShows: [] as unknown[] }));
+vi.mock('@/components/layout/sidebar/useCurrentShow', async () => {
+  const { useCurrentShowPinStore: store } =
+    await import('@/components/layout/sidebar/currentShowPinStore');
+  return {
+    useCurrentShow: () => {
+      const pinnedId = store(state => state.pinnedId);
+      const managing = mockCurrentShow.managingShows as Array<{ id: string }>;
+      return {
+        currentShow: null,
+        managingShows: managing,
+        pinnedShowId: managing.some(show => show.id === pinnedId) ? pinnedId : null,
+      };
+    },
+  };
+});
+
 vi.mock('@/features/pipeline/hooks/useMissionControlData', () => ({
   useMissionControlData: () => mockUseMissionControlData(),
 }));
@@ -67,6 +88,8 @@ function renderPage() {
 describe('SecretaryDashboardPage', () => {
   beforeEach(() => {
     localStorage.clear();
+    useCurrentShowPinStore.setState({ pinnedId: null });
+    mockCurrentShow.managingShows = [];
     mockPendingEntries = [];
     mockEntryCounts = new Map();
     mockUseShowEntryCounts.mockImplementation(() => mockEntryCounts);
@@ -102,24 +125,75 @@ describe('SecretaryDashboardPage', () => {
     expect(screen.getByText('No shows yet.')).toBeInTheDocument();
   });
 
-  it('renders compact quick links to existing creation surfaces without duplicating the show action', () => {
+  // MYK9-1490: Add Show and Add Entry live in the header Actions menu, not as tiles here.
+  it('has no Add Show or Add Entry tiles', () => {
     renderPage();
 
-    expect(screen.getByRole('link', { name: /Add Show/i })).toHaveAttribute(
-      'href',
-      '/secretary/create-show/wizard'
+    expect(screen.queryByRole('navigation', { name: /Dashboard quick links/i })).toBeNull();
+    expect(screen.queryByRole('link', { name: /Add Show/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Add Entry/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Add Entry/i })).not.toBeInTheDocument();
+  });
+
+  it('pins a managed show as the rail current show, replaces it, and unpins (MYK9-1490)', () => {
+    const dayKey = (offset: number) => {
+      const d = new Date();
+      d.setDate(d.getDate() + offset);
+      return [d.getFullYear(), d.getMonth() + 1, d.getDate()]
+        .map((n, idx) => String(n).padStart(idx === 0 ? 4 : 2, '0'))
+        .join('-');
+    };
+    const spring = showFactory.build({
+      id: 'spring',
+      name: 'Spring Trial',
+      startDate: dayKey(0),
+      endDate: dayKey(0),
+      status: 'in_progress',
+    });
+    const fall = showFactory.build({
+      id: 'fall',
+      name: 'Fall Trial',
+      startDate: dayKey(0),
+      endDate: dayKey(1),
+      status: 'in_progress',
+    });
+    const ended = showFactory.build({
+      id: 'ended',
+      name: 'Ended Trial',
+      startDate: dayKey(-10),
+      endDate: dayKey(-9),
+      status: 'completed',
+    });
+    mockUseMissionControlData.mockReturnValue({
+      shows: [spring, fall, ended] as Show[],
+      isLoading: false,
+    });
+    mockCurrentShow.managingShows = [spring, fall];
+    renderPage();
+    const pinOf = (name: string) =>
+      screen.getByRole('button', { name: new RegExp(`${name} (as|is) your current show`) });
+
+    fireEvent.click(pinOf('Spring Trial'));
+    expect(useCurrentShowPinStore.getState().pinnedId).toBe('spring');
+    expect(pinOf('Spring Trial')).toHaveAccessibleName(
+      /^Pinned: Spring Trial is your current show\. Unpin$/
     );
-    expect(screen.getByRole('button', { name: /Add Entry/i })).toBeDisabled();
-    expect(screen.queryByRole('link', { name: /Add Dog/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: /Add Person/i })).not.toBeInTheDocument();
-    const quickLinks = screen.getByRole('navigation', { name: /Dashboard quick links/i });
-    expect(quickLinks).toBeInTheDocument();
-    expect(quickLinks.querySelector('[data-testid="dashboard-quick-links-row"]')).toHaveClass(
-      'grid-cols-2'
-    );
-    expect(screen.queryByText('Open dogs')).not.toBeInTheDocument();
-    expect(screen.queryByText('Open people')).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Add Show/i })).not.toBeInTheDocument();
+
+    fireEvent.click(pinOf('Fall Trial'));
+    expect(useCurrentShowPinStore.getState().pinnedId).toBe('fall');
+    expect(pinOf('Spring Trial')).toHaveAccessibleName(/^Pin Spring Trial as your current show$/);
+    expect(pinOf('Fall Trial')).toHaveAccessibleName(/^Pinned: Fall Trial/);
+
+    fireEvent.click(pinOf('Fall Trial'));
+    expect(useCurrentShowPinStore.getState().pinnedId).toBeNull();
+    expect(localStorage.getItem('myk9:current-show-choice')).toBeNull();
+
+    // A show no longer in Managing offers no pin (Past starts collapsed; open it to look).
+    fireEvent.click(screen.getByRole('button', { name: /Past shows/ }));
+    expect(screen.getByText('Ended Trial')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /Ended Trial (as|is) your current show/ })
+    ).toBeNull();
   });
 
   it('only surfaces pending-entry attention for shows the secretary manages', () => {

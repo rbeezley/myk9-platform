@@ -148,6 +148,10 @@ commands check `main`, not the proposed change.
 4. On failure, send the same agent (SendMessage, which keeps its context) a numbered defect list
    and re-review. **Max 3 rounds.** After that, escalate (see Model routing) or implement it
    yourself. A cheap model looping past the point where you'd be faster is waste.
+   Reviewer output tagged `[pre-existing P<n>]` is code the branch did not touch. It never
+   blocks and never goes to the implementer: file it (reconcile with `includeArchived: true`
+   first) and keep the batch's scope. Check the tag yourself; a defect in lines the diff
+   changed is a normal finding whatever it is labelled.
 5. Only you tick `tasks.md` boxes or move Linear state. A tick means _reviewed and accepted_.
 6. Once accepted, ship it before you start the next batch or issue that touches the same
    files. How depends on the mode: see the OpenSpec section below, or `ship-pr` per
@@ -182,8 +186,13 @@ the pipeline.
 
 - Merging: OpenSpec mode needs the usual confirmation. In Linear run mode, starting the run
   authorizes the squash-merge of each PR once its review gate and required checks are green.
-- Never in either mode: `supabase db push`, `supabase functions deploy`, Deploy myK9Show. Work
-  that needs one stops short of it and says so.
+- Never in either mode: `supabase db push`, `supabase functions deploy`.
+- Deploy myK9Show: only under
+  [`docs/agents/standing-approvals.md`](../../../docs/agents/standing-approvals.md) (`status: ACTIVE`, read fresh, and `pnpm qa:prelaunch-tripwire` exit 0 right before,
+  through the `deploy` skill). Otherwise, or when the tripwire stops it, work that
+  needs one stops short of it, parks the issue `needs:operator` with the reason, and says so.
+- Owner questions go to Linear (`needs:decision` / `needs:operator`) and the run moves on; it does
+  not wait in chat.
 - The `independent` floor is met only by the other harness (`pnpm qa:codex-review --post`).
   A same-harness reviewer never substitutes. If Codex is unavailable, the PR waits, open and
   unmerged, and the run reports it.

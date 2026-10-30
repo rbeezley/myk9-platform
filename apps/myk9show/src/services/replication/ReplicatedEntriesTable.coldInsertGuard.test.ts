@@ -163,9 +163,25 @@ describe('ReplicatedEntriesTable cold-insert guard (MYK9-575)', () => {
 
   describe('updateSecretaryLifecycleStatus on a cold replica', () => {
     function wireMutationManager() {
+      const prepareMutation = vi.fn(
+        async (tableName: string, operation: string, rowId: string) => ({
+          id: 'mutation-1',
+          authUserId: 'auth-1',
+          tableName,
+          operation,
+          rowId,
+          data: {},
+          timestamp: 0,
+          retries: 0,
+          status: 'pending',
+        })
+      );
       const queueMutation = vi.fn(async () => 'mutation-1');
       table.setMutationManager({
         queueMutation,
+        prepareMutation,
+        announceQueued: vi.fn(async () => undefined),
+        requestUpload: vi.fn(),
         rowRefetchers: { register: () => () => undefined },
         acquireMutationWriteLock: vi.fn(async () => vi.fn()),
         getPendingCount: vi.fn(async () => 0),

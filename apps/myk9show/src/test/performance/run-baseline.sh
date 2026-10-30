@@ -27,5 +27,11 @@ until curl --silent --fail http://127.0.0.1:4173/ >/dev/null; do
 done
 
 pnpm --dir apps/myk9show exec tsx src/test/performance/runBaseline.ts
-pnpm --dir apps/myk9show exec tsx src/test/performance/addEntryComposition.ts
+# dist/stats.html exists only for an ANALYZE_BUNDLE=true build (MYK9-1356 stopped emitting and
+# precaching it by default). Without it the composition appendix is skipped, not a failed run.
+if [ -f apps/myk9show/dist/stats.html ]; then
+  pnpm --dir apps/myk9show exec tsx src/test/performance/addEntryComposition.ts
+else
+  echo "dist/stats.html not emitted; skipping the entry-chunk composition appendix" >&2
+fi
 pnpm exec prettier --write "$report_path"

@@ -17,7 +17,6 @@ import {
   type RailEntry,
   type RailMenuSection,
 } from './railEntries';
-import { RailSwitch } from './RailSwitch';
 import { browseHref, browseTabForPath, readLastBrowseTab } from './browseTabs';
 import type { NavGroup, NavItem, NavRailLink } from './types';
 
@@ -57,12 +56,7 @@ export function RailNav({ groups, isActive }: RailNavProps) {
             <div className="mx-3 my-2 border-t border-border/40" aria-hidden="true" />
           )}
           {entry.kind === 'item' ? (
-            <>
-              <RailLink item={entry.item} active={isActive(entry.item.href)} />
-              {entry.switchItems && entry.switchItems.length > 0 && (
-                <RailSwitch items={entry.switchItems} isActive={isActive} />
-              )}
-            </>
+            <RailLink item={entry.item} active={isActive(entry.item.href)} />
           ) : entry.kind === 'link' ? (
             <RailGroupLink link={entry.link} items={entry.items} isActive={isActive} />
           ) : (
@@ -93,7 +87,6 @@ function RailLink({ item, active }: { item: NavItem; active: boolean }) {
       aria-current={active ? 'page' : undefined}
       // The visible label may be shortened (a show's name); the tooltip carries the full one.
       title={item.tooltip}
-      onClick={item.onSelect}
       className={cn(RAIL_ITEM_CLASS, railItemStateClass(active))}
     >
       <span className="relative">

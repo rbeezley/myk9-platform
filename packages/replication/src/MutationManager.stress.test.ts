@@ -253,7 +253,7 @@ describe('MutationManager: large-queue stress', () => {
                 const id = data.id as string;
                 if (id === FAIL_ID && !hasThrown) {
                   hasThrown = true;
-                  return Promise.reject(new TypeError('fetch failed'));
+                  return Promise.reject({ code: '57014', message: 'statement timeout' });
                 }
                 observedIds.push(id);
                 return Promise.resolve({ data: [{ id }], error: null });

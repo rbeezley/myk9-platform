@@ -132,8 +132,8 @@ describe("virtual reader replays the application's real poll", () => {
     expect(app).toContain('HEAD /rest/v1/clubs');
     expect(app).toMatch(/GET \/rest\/v1\/dogs .*select=id(\n|$)/);
     expect(app).toMatch(/GET \/rest\/v1\/dog_registrations .*select=id(\n|$)/);
-    expect(app).toContain('POST /rest/v1/rpc/get_show_judges');
-    expect(app).toContain('POST /rest/v1/rpc/get_show_class_hide_counts');
+    expect(app).toContain('POST /rest/v1/rpc/get_shows_judges');
+    expect(app).toContain('POST /rest/v1/rpc/get_shows_class_hide_counts');
     expect(app).toContain('GET /rest/v1/sport_class_rules');
     expect(app).toContain('GET /rest/v1/armbands');
   });

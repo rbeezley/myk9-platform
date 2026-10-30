@@ -14,13 +14,6 @@ export type {
   EntryNavigationStatus,
 } from './ResultEntryNavigation';
 
-// Phase 3: Scoring Sync UI Components
-export { LiveScoreUpdates } from './LiveScoreUpdates';
-export type { LiveScoreUpdatesProps } from './LiveScoreUpdates';
-
-export { default as JudgeSyncDashboard } from './JudgeSyncDashboard';
-export type { JudgeSyncDashboardProps } from '@/utils/scoringUtils';
-
 export { PlacementRecalculationAlert } from './PlacementRecalculationAlert';
 export type { PlacementRecalculationAlertProps } from './PlacementRecalculationAlert';
 

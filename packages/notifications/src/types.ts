@@ -33,6 +33,8 @@ export interface NotificationPreferences {
   leadDogs: number;
   soundEnabled: boolean;
   voiceEnabled: boolean;
+  /** Spoken scoresheet timer warning; independent of push-notification speech. On by default. */
+  timerVoiceEnabled: boolean;
   vibrationEnabled: boolean;
   pushEnabled: boolean;
   /** Per-category voice toggles */
@@ -49,6 +51,7 @@ export const DEFAULT_PREFERENCES: NotificationPreferences = {
   leadDogs: 3,
   soundEnabled: true,
   voiceEnabled: false,
+  timerVoiceEnabled: true,
   vibrationEnabled: true,
   pushEnabled: false,
   voiceCategories: {

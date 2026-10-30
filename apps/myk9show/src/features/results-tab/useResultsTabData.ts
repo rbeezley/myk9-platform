@@ -15,13 +15,13 @@
  * (LESSONS `disabled-query false zero`) and Retry refetches all of them.
  */
 import { useEffect, useMemo } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation } from 'react-router-dom';
 
 import { combineReads, type CombinedReadState } from '@/features/_shared/combineReads';
 import { useSecretaryShowEntriesQuery } from '@/hooks/queries/useEntriesDatabase';
 import { queryKeys } from '@/lib/queryClient';
-import { replicatedEntriesTable } from '@/services/replication';
+import { replicatedEntriesTable, replicatedShowsTable } from '@/services/replication';
 import { getCockpitReportHref } from '@/features/show-map/cockpit/cockpitRoutes';
 import { useShowClassPaperwork } from '@/features/show-map/cockpit/useShowClassPaperwork';
 import { getShowDeskEntriesAvailability } from '@/pages/secretary/showDeskEntryAvailability';
@@ -29,6 +29,9 @@ import { useShowDeskScheduleRead } from '@/pages/secretary/useShowDeskScheduleRe
 import { buildResultsClassRows, type ResultsClassRow } from './buildResultsClassRows';
 
 const NO_ENTRIES: never[] = [];
+
+const showRankingKeyQueryKey = (showId: string) =>
+  [...queryKeys.show(showId), 'results-ranking-key'] as const;
 
 export type ResultsTabReadState = CombinedReadState;
 
@@ -107,7 +110,7 @@ export function useResultsTabData(showId: string) {
     [paperwork.classRows]
   );
 
-  const rows = useMemo<ResultsClassRow[]>(
+  const builtRows = useMemo<ResultsClassRow[]>(
     () =>
       buildResultsClassRows({
         trials: showTrials,
@@ -137,6 +140,24 @@ export function useResultsTabData(showId: string) {
     ]
   );
 
+  // Which key the show ranks by (points at nationals, faults otherwise): the coin flip dialog
+  // groups ties on it. Unknown until the replicated show row is read.
+  const showQuery = useQuery({
+    queryKey: showRankingKeyQueryKey(showId),
+    queryFn: () => replicatedShowsTable.getShowById(showId),
+    enabled: Boolean(showId),
+  });
+  const isNationals = showQuery.data ? showQuery.data.isNationals === true : null;
+  // The show row is replicated: a later sync (or the row arriving after a first empty read) must
+  // repair the cached null. Never on the initial emit.
+  useEffect(() => {
+    if (!showId) return;
+    return replicatedShowsTable.subscribe(
+      () => void queryClient.invalidateQueries({ queryKey: showRankingKeyQueryKey(showId) }),
+      { emitCurrent: false }
+    );
+  }, [queryClient, showId]);
+
   const noTrials = schedule.hasConfirmedSnapshot && showTrials.length === 0;
   const combined = combineReads([
     {
@@ -153,6 +174,14 @@ export function useResultsTabData(showId: string) {
       isLoading: entriesQuery.isLoading,
       isError: entriesQuery.isError,
     },
+    // Not critical: the tab renders without it. Only the coin flip needs it, and says so.
+    {
+      key: 'ranking-key',
+      critical: false,
+      hasData: isNationals !== null,
+      isLoading: showQuery.isLoading,
+      isError: showQuery.isError,
+    },
     ...paperwork.reads,
     // Release state is read from the class rows; without them every class would read unreleased.
     ...paperwork.reads
@@ -168,7 +197,15 @@ export function useResultsTabData(showId: string) {
   ]);
 
   return {
-    rows,
+    rows: builtRows,
+    /** The show ranks by points (nationals); null while the show row is unread. */
+    isNationals,
+    /** Whether `isNationals` can be trusted: 'unavailable' = the show row could not be read. */
+    rankingKeyState: (isNationals !== null
+      ? 'ready'
+      : combined.unavailableKeys.includes('ranking-key')
+        ? 'unavailable'
+        : 'loading') as 'ready' | 'loading' | 'unavailable',
     trials: showTrials,
     readState: combined.state,
     /** A background refresh failed but earlier data is still shown. */
@@ -179,6 +216,7 @@ export function useResultsTabData(showId: string) {
     retry: () => {
       void schedule.retry();
       void entriesQuery.refetch();
+      void showQuery.refetch();
       paperwork.refetch();
     },
   };

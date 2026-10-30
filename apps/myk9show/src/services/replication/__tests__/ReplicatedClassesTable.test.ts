@@ -62,6 +62,12 @@ vi.mock('@/services/database/supabaseClient', () => {
   };
 });
 
+// These tests are not about hide counts: the bare Supabase mock above cannot answer that lookup,
+// and a failed lookup now fails the class sync (MYK9-1451).
+vi.mock('../resolveClassHideCounts', () => ({
+  resolveHideCountsForClassRows: vi.fn(async () => new Map()),
+}));
+
 // Don't mock @myk9/replication - use the real implementation
 
 // Import after mocks are set up
@@ -71,6 +77,7 @@ import {
   type ReplicatedClass,
 } from '../ReplicatedClassesTable';
 import { REPLICATION_STORES } from '@myk9/replication';
+import { spyOnWriteAndQueue } from '@/test/utils/spyOnWriteAndQueue';
 
 describe('ReplicatedClassesTable', () => {
   let classesTable: ReplicatedClassesTable;
@@ -708,16 +715,7 @@ describe('ReplicatedClassesTable', () => {
     });
 
     it('should queue results release fields on update', async () => {
-      const queueMutation = vi.spyOn(
-        classesTable as unknown as {
-          queueMutation: (
-            operation: string,
-            rowId: string,
-            payload: Record<string, unknown>
-          ) => Promise<string | null>;
-        },
-        'queueMutation'
-      );
+      const queueMutation = spyOnWriteAndQueue(classesTable).queue;
 
       await classesTable.set('class-1', createMockClass({ id: 'class-1' }));
       await classesTable.updateClass('class-1', {
@@ -736,16 +734,7 @@ describe('ReplicatedClassesTable', () => {
     });
 
     it('should queue status_source on update so a manual override marker syncs', async () => {
-      const queueMutation = vi.spyOn(
-        classesTable as unknown as {
-          queueMutation: (
-            operation: string,
-            rowId: string,
-            payload: Record<string, unknown>
-          ) => Promise<string | null>;
-        },
-        'queueMutation'
-      );
+      const queueMutation = spyOnWriteAndQueue(classesTable).queue;
 
       await classesTable.set('class-1', createMockClass({ id: 'class-1' }));
       await classesTable.updateClass('class-1', {
@@ -764,16 +753,7 @@ describe('ReplicatedClassesTable', () => {
     });
 
     it('strips every server-owned key on an unrelated edit so it cannot clobber server-derived state', async () => {
-      const queueMutation = vi.spyOn(
-        classesTable as unknown as {
-          queueMutation: (
-            operation: string,
-            rowId: string,
-            payload: Record<string, unknown>
-          ) => Promise<string | null>;
-        },
-        'queueMutation'
-      );
+      const queueMutation = spyOnWriteAndQueue(classesTable).queue;
 
       // A class locally pinned by a prior manual Mark Complete + a server reopen
       // stamp. An unrelated displayOrder reorder must NOT re-upload any of these.
@@ -799,16 +779,7 @@ describe('ReplicatedClassesTable', () => {
     });
 
     it('queues reopened_after_closeout_at: null when a mutation explicitly clears it', async () => {
-      const queueMutation = vi.spyOn(
-        classesTable as unknown as {
-          queueMutation: (
-            operation: string,
-            rowId: string,
-            payload: Record<string, unknown>
-          ) => Promise<string | null>;
-        },
-        'queueMutation'
-      );
+      const queueMutation = spyOnWriteAndQueue(classesTable).queue;
 
       await classesTable.set(
         'class-3',
@@ -831,16 +802,7 @@ describe('ReplicatedClassesTable', () => {
       // hideCount: undefined. Emitting num_hides: null on an unrelated edit
       // (rename, fee, ordering) would clear a correct server-side hide count,
       // and the bumped updated_at would then propagate the loss back on sync.
-      const queueMutation = vi.spyOn(
-        classesTable as unknown as {
-          queueMutation: (
-            operation: string,
-            rowId: string,
-            payload: Record<string, unknown>
-          ) => Promise<string | null>;
-        },
-        'queueMutation'
-      );
+      const queueMutation = spyOnWriteAndQueue(classesTable).queue;
 
       await classesTable.set('class-hide-1', createMockClass({ id: 'class-hide-1' }));
       await classesTable.updateClass('class-hide-1', { name: 'Renamed Class' });
@@ -851,16 +813,7 @@ describe('ReplicatedClassesTable', () => {
     });
 
     it('writes num_hides on an UPDATE that explicitly sets hideCount', async () => {
-      const queueMutation = vi.spyOn(
-        classesTable as unknown as {
-          queueMutation: (
-            operation: string,
-            rowId: string,
-            payload: Record<string, unknown>
-          ) => Promise<string | null>;
-        },
-        'queueMutation'
-      );
+      const queueMutation = spyOnWriteAndQueue(classesTable).queue;
 
       await classesTable.set('class-hide-2', createMockClass({ id: 'class-hide-2' }));
       await classesTable.updateClass('class-hide-2', { hideCount: 3 });
@@ -896,16 +849,7 @@ describe('ReplicatedClassesTable', () => {
     });
 
     it('keeps the explicit num_hides null on the INSERT path (DEFAULT 1 must not apply)', async () => {
-      const queueMutation = vi.spyOn(
-        classesTable as unknown as {
-          queueMutation: (
-            operation: string,
-            rowId: string,
-            payload: Record<string, unknown>
-          ) => Promise<string | null>;
-        },
-        'queueMutation'
-      );
+      const queueMutation = spyOnWriteAndQueue(classesTable).queue;
 
       await classesTable.createClass(createMockClass({ id: 'class-hide-3', hideCount: undefined }));
 
@@ -953,6 +897,8 @@ describe('ReplicatedClassesTable', () => {
         'is_scoring_finalized',
         'reopened_after_closeout_at',
         'num_hides',
+        'ring_phase',
+        'ring_phase_time',
       ]);
     });
 

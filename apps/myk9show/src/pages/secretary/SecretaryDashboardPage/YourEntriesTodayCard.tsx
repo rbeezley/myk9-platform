@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { PawPrint } from 'lucide-react';
 import { useRefreshOnReturn } from '@/hooks/useRefreshOnReturn';
@@ -15,12 +15,21 @@ const noCheckInWrites = async () => {};
  * is nothing today. Liveness is My Shows' (MYK9-1523): re-read on return.
  */
 export function YourEntriesTodayCard() {
-  const { entries, refreshEntries } = useMyEntriesData({ persistCheckInStatus: noCheckInWrites });
+  const { entries, readState, isError, refreshEntries } = useMyEntriesData({
+    persistCheckInStatus: noCheckInWrites,
+  });
   useRefreshOnReturn(refreshEntries);
 
-  // Today moves when the data is re-read, which is when the card can change.
+  // Today is a property of the clock, not of the data: re-read it whenever the
+  // entries change and once a minute, so a dashboard left open across midnight
+  // moves to the new day.
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const id = window.setInterval(() => setTick(n => n + 1), 60_000);
+    return () => window.clearInterval(id);
+  }, []);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const now = useMemo(() => new Date(), [entries]);
+  const now = useMemo(() => new Date(), [entries, tick]);
   const selfCheckinByClassId = useSelfCheckinMap(
     useMemo(() => todayClassIds(entries, now), [entries, now])
   );
@@ -30,6 +39,7 @@ export function YourEntriesTodayCard() {
   );
 
   if (rows.length === 0) return null;
+  const unconfirmed = isError || readState === 'unconfirmed' || readState === 'error';
 
   return (
     <section
@@ -57,6 +67,11 @@ export function YourEntriesTodayCard() {
             </li>
           ))}
         </ul>
+        {unconfirmed && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            Showing saved entries; we couldn't confirm them just now.
+          </p>
+        )}
       </Link>
     </section>
   );

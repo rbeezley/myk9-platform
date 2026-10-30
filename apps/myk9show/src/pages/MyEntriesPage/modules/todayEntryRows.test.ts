@@ -115,4 +115,19 @@ describe('selectTodayEntryRows', () => {
     const entries = makeRows({}, [makeClass({ trialDate: new Date(2026, 9, 25) })]);
     expect(selectTodayEntryRows(entries, NOW, undefined)).toEqual([]);
   });
+
+  it("still lists today's class when the device clock has passed the show's last day", () => {
+    // 03:00 UTC on the 26th is the 25th in Los Angeles: the show's last day.
+    const lateNow = new Date('2026-10-26T03:00:00Z');
+    const entries = makeRows({}, [
+      makeClass({ trialDate: new Date(2026, 9, 25), trialTimezone: 'America/Los_Angeles' }),
+    ]);
+    expect(selectTodayEntryRows(entries, lateNow, undefined)).toHaveLength(1);
+    expect(todayClassIds(entries, lateNow)).toEqual(['class-1']);
+  });
+
+  it('names a recorded outcome the way My Shows does', () => {
+    const entries = makeRows({}, [makeClass({ resultStatus: 'withdrawn' })]);
+    expect(selectTodayEntryRows(entries, NOW, undefined)[0]?.statusText).toBe('WD');
+  });
 });

@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { act, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
@@ -10,10 +10,16 @@ import { YourEntriesTodayCard } from '../YourEntriesTodayCard';
 const mocks = vi.hoisted(() => ({
   entries: [] as MyEntry[],
   refreshEntries: vi.fn(async () => {}),
+  readState: 'confirmed' as string,
 }));
 
 vi.mock('@/pages/MyEntriesPage/modules/useMyEntriesData', () => ({
-  useMyEntriesData: () => ({ entries: mocks.entries, refreshEntries: mocks.refreshEntries }),
+  useMyEntriesData: () => ({
+    entries: mocks.entries,
+    readState: mocks.readState,
+    isError: false,
+    refreshEntries: mocks.refreshEntries,
+  }),
 }));
 vi.mock('@/hooks/queries/useSelfCheckinEnabled', () => ({
   useSelfCheckinMap: () => ({}),
@@ -55,9 +61,10 @@ function entryToday(trialDate: Date): MyEntry {
 
 describe('YourEntriesTodayCard', () => {
   beforeEach(() => {
-    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] });
     vi.setSystemTime(new Date('2026-10-24T16:00:00Z'));
     mocks.entries = [];
+    mocks.readState = 'confirmed';
   });
 
   it('renders nothing with no entry today', () => {
@@ -73,5 +80,23 @@ describe('YourEntriesTodayCard', () => {
     expect(screen.getByText('Rex')).toBeTruthy();
     expect(screen.getByRole('link').getAttribute('href')).toBe('/exhibitor/entries');
     expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  it('says the statuses are saved when the read is unconfirmed', () => {
+    mocks.readState = 'unconfirmed';
+    mocks.entries = groupEntriesByOrder([entryToday(new Date(2026, 9, 24))]);
+    render(<YourEntriesTodayCard />);
+    expect(screen.getByText(/couldn't confirm them/)).toBeTruthy();
+  });
+
+  it('moves to the next day while left open', () => {
+    mocks.entries = groupEntriesByOrder([entryToday(new Date(2026, 9, 24))]);
+    render(<YourEntriesTodayCard />);
+    expect(screen.getByText('Rex')).toBeTruthy();
+    act(() => {
+      vi.setSystemTime(new Date('2026-10-25T16:00:00Z'));
+      vi.advanceTimersByTime(60_000);
+    });
+    expect(screen.queryByText('Rex')).toBeNull();
   });
 });

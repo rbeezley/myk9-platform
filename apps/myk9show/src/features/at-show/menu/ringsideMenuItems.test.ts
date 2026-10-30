@@ -12,7 +12,6 @@ const base: RingsideMenuContext = {
   canManageShow: false,
   isOnline: true,
   hasEntries: true,
-  showStatsAvailable: true,
   hasAccount: true,
 };
 
@@ -26,7 +25,6 @@ describe('buildRingsideMenuItems', () => {
     expect(ids(base)).toEqual([
       'announcements',
       'settings',
-      'stats',
       'results',
       'show-info',
       'askq',
@@ -36,24 +34,16 @@ describe('buildRingsideMenuItems', () => {
 
   it('sends an exhibitor or judge to the show page tabs, never a management page', () => {
     expect(find(base, 'results')?.href).toBe('/shows/show-1?tab=results');
-    expect(find(base, 'stats')?.href).toBe('/shows/show-1?tab=results&resultsView=show-stats');
   });
 
-  it('sends a show manager to the results page they already use, with no Stats item', () => {
+  it('sends a show manager to the results page they already use', () => {
     const manager = { ...base, canManageShow: true };
     expect(find(manager, 'results')?.href).toBe('/shows/show-1/results');
-    // That page lists classes; Show Stats exists only in the entered-exhibitor tab view.
-    expect(ids(manager)).not.toContain('stats');
   });
 
-  it('offers Stats only to a viewer with entries, who gets the tab view that renders it', () => {
-    expect(ids({ ...base, hasEntries: false })).not.toContain('stats');
-  });
-
-  it('offers Stats only once something is scored, and lands on the show-stats view', () => {
-    expect(ids({ ...base, showStatsAvailable: false })).not.toContain('stats');
-    expect(ids({ ...base, showStatsAvailable: false })).toContain('results');
-    expect(find(base, 'stats')?.href).toContain('resultsView=show-stats');
+  it('has no separate Stats item: Show Stats is a view inside Results', () => {
+    expect(ids(base)).not.toContain('stats');
+    expect(ids({ ...base, canManageShow: true })).not.toContain('stats');
   });
 
   it('gives Results only to managers and viewers with entries today', () => {
@@ -71,15 +61,14 @@ describe('buildRingsideMenuItems', () => {
     expect(ids({ ...base, hasAccount: false })).not.toContain('settings');
   });
 
-  it('drops Stats and Results when the show is unknown rather than linking nowhere', () => {
+  it('drops Results when the show is unknown rather than linking nowhere', () => {
     const unknown = ids({ ...base, showId: undefined });
-    expect(unknown).not.toContain('stats');
     expect(unknown).not.toContain('results');
   });
 
-  it('marks Stats, Results and AskQ online-only, and Settings and Announcements usable offline', () => {
+  it('marks Results and AskQ online-only, and Settings and Announcements usable offline', () => {
     const online = (id: string) => find(base, id)?.requiresConnection;
-    expect([online('stats'), online('results'), online('askq')]).toEqual([true, true, true]);
+    expect([online('results'), online('askq')]).toEqual([true, true]);
     expect([online('settings'), online('announcements'), online('sign-out')]).toEqual([
       false,
       false,
@@ -117,10 +106,10 @@ describe('buildRingsideMenuItems', () => {
 
 describe('itemNeedsConnection', () => {
   it('is true only for an online-only item while offline', () => {
-    const stats = find(base, 'stats')!;
+    const results = find(base, 'results')!;
     const settings = find(base, 'settings')!;
-    expect(itemNeedsConnection(stats, false)).toBe(true);
-    expect(itemNeedsConnection(stats, true)).toBe(false);
+    expect(itemNeedsConnection(results, false)).toBe(true);
+    expect(itemNeedsConnection(results, true)).toBe(false);
     expect(itemNeedsConnection(settings, false)).toBe(false);
   });
 });

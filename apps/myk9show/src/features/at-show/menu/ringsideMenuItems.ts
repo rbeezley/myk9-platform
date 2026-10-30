@@ -6,7 +6,7 @@
  * page's Results tab, the Message Center, AskQ). Nothing here re-implements one.
  */
 import type { LucideIcon } from 'lucide-react';
-import { Bell, BarChart3, Info, LifeBuoy, LogOut, Medal, Settings } from 'lucide-react';
+import { Bell, Info, LifeBuoy, LogOut, Medal, Settings } from 'lucide-react';
 import { ringsideMenuExtensions } from './ringsideMenuExtensions';
 
 export interface RingsideMenuContext {
@@ -14,10 +14,8 @@ export interface RingsideMenuContext {
   /** May manage THIS show: the exact gate `ShowManagementSectionRoute` applies (`useShowManageScope`). */
   canManageShow: boolean;
   isOnline: boolean;
-  /** The account has entries in this show, so the show page gives it the tabbed view with Show Stats. */
+  /** The account has entries in this show, so the show page gives it the tabbed view with a Results tab. */
   hasEntries: boolean;
-  /** The Results tab will render its Show Stats view (`isShowStatsAvailable`). */
-  showStatsAvailable: boolean;
   /** A real account (not a passcode session). */
   hasAccount: boolean;
 }
@@ -45,14 +43,13 @@ export interface RingsideMenuExtension {
 
 export const OFFLINE_ITEM_NOTICE = 'Needs a connection';
 
-/** Where Results and Stats live: the manager's page, or the show page's own tab. */
-function resultsHref(context: RingsideMenuContext, showId: string, view?: 'show-stats'): string {
-  const base = `/shows/${showId}`;
-  const params = new URLSearchParams();
-  if (!context.canManageShow) params.set('tab', 'results');
-  if (view) params.set('resultsView', view);
-  const query = params.toString();
-  return `${base}${context.canManageShow ? '/results' : ''}${query ? `?${query}` : ''}`;
+/**
+ * Where Results lives: the manager's page, or the show page's own tab. Show
+ * Stats is a view inside that tab, one tap away once something is scored, so
+ * it has no menu item of its own.
+ */
+function resultsHref(context: RingsideMenuContext, showId: string): string {
+  return context.canManageShow ? `/shows/${showId}/results` : `/shows/${showId}?tab=results`;
 }
 
 export function buildRingsideMenuItems(
@@ -78,22 +75,6 @@ export function buildRingsideMenuItems(
           href: '/account?section=appearance',
           returnScope: '/account',
           requiresConnection: false,
-        }
-      : null,
-    // Show Stats renders only in the entered-exhibitor tab view: a manager's
-    // Results page and the public landing have no statistics to land on.
-    showId &&
-    showScope &&
-    context.hasEntries &&
-    !context.canManageShow &&
-    context.showStatsAvailable
-      ? {
-          id: 'stats',
-          label: 'Stats',
-          icon: BarChart3,
-          href: resultsHref(context, showId, 'show-stats'),
-          returnScope: showScope,
-          requiresConnection: true,
         }
       : null,
     // A viewer with no entries who is not a manager lands on the public show

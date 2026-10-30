@@ -40,7 +40,6 @@ import { useShowJudges } from '@/hooks/queries/useShowJudges';
 import { ShowStatsSubTab } from '@/components/analytics/ShowStatsSubTab';
 import { JudgeStatsSubTab } from '@/components/analytics/JudgeStatsSubTab';
 import { isScored, type StatsEntry } from '@/components/analytics/analytics-utils';
-import { isShowStatsAvailable } from './showResultsViews';
 
 interface VisibilityGatedPodiumCardProps {
   cls: ClassResult;
@@ -271,7 +270,7 @@ export function ShowResultsTab({ showId }: ShowResultsTabProps) {
   const { data: showEntries } = useShowStats(showId);
   const { data: judges } = useShowJudges(showId);
 
-  const hasScoredEntries = isShowStatsAvailable(showEntries);
+  const hasScoredEntries = (showEntries || []).some(isScored);
   const hasJudges = (judges || []).length > 0;
 
   const subTabDefs: PrimaryTabDef[] = useMemo(

@@ -16,7 +16,6 @@ const mocks = vi.hoisted(() => ({
   online: true,
   canManage: false,
   ownEntryIds: new Set<string>(['e1']),
-  statsEntries: [{ resultText: 'Q' }] as unknown[],
   show: { clubId: 'club-1', location: '123 Main St, Springfield' } as Record<string, unknown>,
 }));
 
@@ -26,9 +25,6 @@ vi.mock('@/hooks/useShowManageScope', () => ({
 }));
 vi.mock('../useMyAtShowEntries', () => ({
   useMyAtShowEntries: () => ({ ownEntryIds: mocks.ownEntryIds }),
-}));
-vi.mock('@/hooks/queries/useShowStats', () => ({
-  useShowStats: () => ({ data: mocks.statsEntries }),
 }));
 vi.mock('@/lib/networkUtils', () => ({ useOnlineStatus: () => mocks.online }));
 vi.mock('@/hooks/useGlobalSyncStatus', () => ({
@@ -86,7 +82,6 @@ describe('RingsideMenu', () => {
     mocks.auth.signOut.mockReset();
     mocks.online = true;
     mocks.canManage = false;
-    mocks.statsEntries = [{ resultText: 'Q' }];
     mocks.ownEntryIds = new Set(['e1']);
     useRingsideReturnStore.getState().clear();
     useNotificationStore.setState({ isCenterOpen: false });
@@ -109,7 +104,6 @@ describe('RingsideMenu', () => {
     expect(labels).toEqual([
       'Announcements',
       'Settings',
-      'Stats',
       'Results',
       'Show info',
       'Ask for help (AskQ)',
@@ -130,36 +124,32 @@ describe('RingsideMenu', () => {
     });
   });
 
-  it('offers Stats once an entry is scored and hides it while everything is pending', async () => {
-    mocks.statsEntries = [{ resultText: 'pending' }];
+  it('has no Stats item and gives Results only to a viewer with entries or a manager', async () => {
+    mocks.ownEntryIds = new Set();
     const { user } = renderMenu();
     const nav = await openMenu(user);
     expect(within(nav).queryByRole('button', { name: /^Stats/ })).not.toBeInTheDocument();
-    expect(within(nav).getByRole('button', { name: /^Results/ })).toBeInTheDocument();
+    expect(within(nav).queryByRole('button', { name: /^Results/ })).not.toBeInTheDocument();
   });
 
-  it('sends a show manager to the results page and hides Stats', async () => {
+  it('sends a show manager to the results page', async () => {
     mocks.canManage = true;
     const { user } = renderMenu();
     const nav = await openMenu(user);
-    expect(within(nav).queryByRole('button', { name: /^Stats/ })).not.toBeInTheDocument();
     await user.click(within(nav).getByRole('button', { name: 'Results' }));
     await waitFor(() =>
       expect(screen.getByTestId('location')).toHaveTextContent('/shows/show-1/results')
     );
   });
 
-  it('says Stats and Results need a connection when offline, and does not navigate', async () => {
+  it('says Results needs a connection when offline, and does not navigate', async () => {
     mocks.online = false;
     const { user } = renderMenu();
     const nav = await openMenu(user);
-    const stats = within(nav).getByRole('button', { name: /^Stats/ });
-    expect(stats).toHaveAttribute('aria-disabled', 'true');
-    expect(stats).toHaveTextContent('Needs a connection');
-    expect(within(nav).getByRole('button', { name: /^Results/ })).toHaveTextContent(
-      'Needs a connection'
-    );
-    await user.click(stats);
+    const results = within(nav).getByRole('button', { name: /^Results/ });
+    expect(results).toHaveAttribute('aria-disabled', 'true');
+    expect(results).toHaveTextContent('Needs a connection');
+    await user.click(results);
     expect(screen.getByTestId('location')).toHaveTextContent('/at-show/show-1/class/class-1');
     expect(useRingsideReturnStore.getState().target).toBeNull();
   });

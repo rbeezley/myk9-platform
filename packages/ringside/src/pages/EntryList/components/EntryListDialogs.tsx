@@ -45,6 +45,7 @@ import type {
 } from '../dialogSlots';
 import { ResetConfirmDialog, ResetMenuPopup, SelfCheckinDisabledDialog } from './index';
 import { classDialogCounts } from './classDialogCounts';
+import { statusDialogClassData } from './statusDialogClassData';
 
 /** "180s" → 180; absent → undefined. */
 const toSeconds = (value: string | undefined) => (value ? parseInt(value) : undefined);
@@ -384,14 +385,11 @@ export const EntryListDialogs: React.FC<EntryListDialogsProps> = ({
           onClose={() => setStatusDialogOpen(false)}
           onStatusChange={handleStatusDialogChange}
           classData={{
+            ...statusDialogClassData(classInfo),
             id: classId ?? '',
-            element: classInfo.element,
-            level: classInfo.level,
-            class_name: classInfo.className,
-            class_status: classInfo.classStatus || 'no-status',
             entry_count: classDialogCounts(classInfo).entry_count,
           }}
-          currentStatus={classInfo.classStatus || 'no-status'}
+          currentStatus={statusDialogClassData(classInfo).class_status}
         />
       )}
 

@@ -28,6 +28,29 @@ describe('buildRingsideClassRpc (MYK9-1086 / MYK9-1096)', () => {
     ).toEqual({ time_limit_seconds: null });
   });
 
+  it('routes a status with its ring phase, phase time and Expected start (MYK9-1513)', () => {
+    expect(
+      buildRingsideClassRpc(['classStatus', 'ringPhase', 'ringPhaseTime'], {
+        ...row,
+        ring_phase: 'break',
+        ring_phase_time: '10:30:00',
+      })?.fields
+    ).toEqual({ status: 'in_progress', ring_phase: 'break', ring_phase_time: '10:30:00' });
+    expect(
+      buildRingsideClassRpc(['classStatus', 'ringPhase', 'ringPhaseTime'], {
+        ...row,
+        status: 'completed',
+      })?.fields
+    ).toEqual({ status: 'completed', ring_phase: null, ring_phase_time: null });
+    expect(
+      buildRingsideClassRpc(['classStatus', 'revisedExpectedStart'], {
+        ...row,
+        status: 'upcoming',
+        revised_expected_start: '2026-11-01T15:00:00.000Z',
+      })?.fields
+    ).toEqual({ status: 'upcoming', revised_expected_start: '2026-11-01T15:00:00.000Z' });
+  });
+
   it('routes per-area max times (MYK9-1098)', () => {
     expect(
       buildRingsideClassRpc(

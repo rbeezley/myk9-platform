@@ -30,6 +30,7 @@ import { supabase } from '@/services/database/supabaseClient';
 import { calculateRunOrder, toMyK9ShowRunOrderPreset } from '@/lib/runOrderUtils';
 import { notifyRunOrderPersistError } from './runOrderErrorToast';
 import { persistRunOrderResults } from './persistRunOrderResults';
+import { toStatusUpdateFields } from './ringsideClassStatusMap';
 
 type ResetConfirmState = { show: boolean; entry: Entry | null };
 
@@ -371,11 +372,12 @@ export function useAtShowEntryListHandlers(
   const handleStatusDialogChange = useCallback<EntryListHandlers['handleStatusDialogChange']>(
     async (status, timeValue) => {
       // ringside passes its own status string; the replication adapter maps it
-      // to myK9Show's vocabulary (lossy, owner-approved) + threads start_time.
+      // to a class status + ring phase, and the time to the field that status owns.
+      const ringsideStatus = status as Parameters<RingsideReplication['updateClassStatus']>[1];
       await replication.updateClassStatus(
         deps.classId ?? '',
-        status as Parameters<RingsideReplication['updateClassStatus']>[1],
-        timeValue ? { start_time: timeValue } : undefined
+        ringsideStatus,
+        toStatusUpdateFields(ringsideStatus, timeValue)
       );
     },
     [replication, deps.classId]

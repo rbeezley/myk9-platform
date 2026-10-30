@@ -65,6 +65,17 @@ export interface ClassInfo {
   registry?: string;
   classStatus?: string;
   /**
+   * The class's status in ringside's own eight-value vocabulary (`ClassStatusValue`),
+   * for the status dialog's "current" marker. `classStatus` stays the host's stored
+   * status, which other consumers read; this is the same state with the ring phase
+   * and Expected start folded in (MYK9-1513). Absent: the dialog falls back to `classStatus`.
+   */
+  ringsideStatus?: string;
+  /** Prefill for the status dialog's time inputs, "HH:MM" (MYK9-1513). */
+  briefingTime?: string;
+  breakUntilTime?: string;
+  expectedStartTime?: string;
+  /**
    * The host's canonical expected / accounted pair (`entryAccounting.ts`).
    *
    * REQUIRED, not optional (MYK9-646). `buildClassInfo` already describes them

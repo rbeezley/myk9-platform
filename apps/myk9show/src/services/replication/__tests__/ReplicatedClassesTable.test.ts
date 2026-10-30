@@ -897,6 +897,8 @@ describe('ReplicatedClassesTable', () => {
         'is_scoring_finalized',
         'reopened_after_closeout_at',
         'num_hides',
+        'ring_phase',
+        'ring_phase_time',
       ]);
     });
 

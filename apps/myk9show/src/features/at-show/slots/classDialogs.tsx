@@ -9,7 +9,6 @@ import type {
   AreaCountSelectionDialogProps,
   ClassOptionsDialogProps,
   ClassSettingsDialogProps,
-  ClassStatusDialogProps,
 } from '@myk9/ringside';
 import {
   Dialog,
@@ -104,50 +103,8 @@ export const ClassOptionsDialog: React.FC<ClassOptionsDialogProps> = ({
   );
 };
 
-// ---------------------------------------------------------------------------
-// ClassStatusDialog — set a class's overall status.
-// ---------------------------------------------------------------------------
-
-const CLASS_STATUSES: readonly string[] = ['none', 'briefing', 'scoring', 'break', 'completed'];
-
-export const ClassStatusDialog: React.FC<ClassStatusDialogProps> = ({
-  isOpen,
-  onClose,
-  onStatusChange,
-  classData,
-  currentStatus,
-  onMarkAbsent,
-}) => {
-  if (!isOpen) return null;
-
-  return (
-    <Dialog open onOpenChange={open => handleOpenChange(open, onClose)}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{classData.class_name} — Status</DialogTitle>
-        </DialogHeader>
-        <p>Current: {currentStatus}</p>
-        <div className="flex flex-col gap-2">
-          {CLASS_STATUSES.map(status => (
-            <Button key={status} variant="outline" onClick={() => onStatusChange(status)}>
-              {status}
-            </Button>
-          ))}
-          {onMarkAbsent && (
-            <Button variant="outline" onClick={() => void onMarkAbsent()}>
-              Mark Unscored Absent
-            </Button>
-          )}
-        </div>
-        <DialogFooter>
-          <Button variant="ghost" onClick={onClose}>
-            Close
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-};
+// ClassStatusDialog lives in ./ClassStatusDialog (v3 statuses, descriptions and times).
+export { ClassStatusDialog } from './ClassStatusDialog';
 
 // ---------------------------------------------------------------------------
 // ClassRequirementsDialog — the class's rules; see RequirementsDialog (MYK9-1100).

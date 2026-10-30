@@ -524,6 +524,8 @@ export const mapReplicatedClassToDbRow = (
     results_verified_at: cls.resultsVerifiedAt ?? null,
     results_verified_by: cls.resultsVerifiedBy ?? null,
     results_verified_fingerprint: null,
+    ring_phase: cls.ringPhase ?? null,
+    ring_phase_time: cls.ringPhaseTime ?? null,
     deleted_at: null,
   };
 

@@ -1,20 +1,25 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import type { ReactNode } from 'react';
+import { act, renderHook } from '@testing-library/react';
 import { useEntriesToday } from './useEntriesToday';
-import { useAuthContext } from '@/hooks/useAuthContext';
-import { getUserEntries } from '@/services/database/entries';
+import { useMyEntriesData } from '@/pages/MyEntriesPage/modules/useMyEntriesData';
+import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { useShowStore } from '@/store/showStore';
 import { useTrialStore } from '@/store/trialStore';
-import { showsPaneGroupFor } from '@/components/shows/browse/showsPaneGroups';
+import type { EntryClass, MyEntry } from '@/pages/MyEntriesPage/modules/my-entries-types';
 
-vi.mock('@/hooks/useAuthContext');
-vi.mock('@/services/database/entries', () => ({ getUserEntries: vi.fn() }));
-vi.mock('@/hooks/guestServerRead', () => ({ isAccountSession: () => true }));
+vi.mock('@/pages/MyEntriesPage/modules/useMyEntriesData', () => ({ useMyEntriesData: vi.fn() }));
+vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
+  replicatedEntriesTable: { subscribe: vi.fn(() => () => {}) },
+}));
+vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
+  replicatedDogsTable: { subscribe: vi.fn(() => () => {}) },
+}));
+vi.mock('@/services/replication/ReplicatedClassesTable', () => ({
+  replicatedClassesTable: { subscribe: vi.fn(() => () => {}) },
+}));
 vi.mock('@/components/shows/browse/showsPaneGroups', () => ({
   REGROUP_INTERVAL_MS: 60_000,
-  showsPaneGroupFor: vi.fn(() => 'today'),
+  showsPaneGroupFor: () => 'today',
 }));
 vi.mock('@/utils/entryWindowZones', () => ({
   withEntryWindowTimeZones: (shows: unknown[]) => shows,
@@ -22,18 +27,34 @@ vi.mock('@/utils/entryWindowZones', () => ({
 vi.mock('@/store/showStore');
 vi.mock('@/store/trialStore');
 
-function wrapper({ children }: { children: ReactNode }) {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+const refreshEntries = vi.fn();
+
+function entriesWith(checkInStatus: EntryClass['checkInStatus']): MyEntry[] {
+  const classes = [
+    {
+      id: 'e1',
+      entryStatusKind: 'accepted',
+      name: 'Container Novice A',
+      status: 'entered',
+      checkInStatus,
+    },
+  ] as unknown as EntryClass[];
+  return [
+    {
+      id: 'order-1',
+      showId: 'show-1',
+      dogs: [{ id: 'd1', dogId: 'dog-1', dogName: 'Scout', classes }],
+      classes,
+    },
+  ] as unknown as MyEntry[];
+}
+
+function mockSharedHook(entries: MyEntry[]) {
+  (useMyEntriesData as ReturnType<typeof vi.fn>).mockReturnValue({ entries, refreshEntries });
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
-  (showsPaneGroupFor as ReturnType<typeof vi.fn>).mockReturnValue('today');
-  (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
-    user: { id: 'user-1' },
-    personId: 'person-1',
-  });
   (useShowStore as unknown as ReturnType<typeof vi.fn>).mockImplementation(
     (sel: (s: unknown) => unknown) => sel({ shows: [{ id: 'show-1', name: 'Spring Trial' }] })
   );
@@ -43,30 +64,45 @@ beforeEach(() => {
 });
 
 describe('useEntriesToday', () => {
-  it('reads the account-level entries, so a show never opened on this device still shows', async () => {
-    (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({
-      data: [
-        {
-          id: 'e1',
-          show_id: 'show-1',
-          entry_status: 'confirmed',
-          check_in_status: 'no-status',
-          dog: { name: 'Scout', call_name: 'Scout' },
-          class: { name: 'Container Novice A' },
-        },
-      ],
-      error: null,
-      source: 'confirmed',
-    });
-    const { result } = renderHook(() => useEntriesToday(), { wrapper });
-    await waitFor(() => expect(result.current.lines).toHaveLength(1));
-    expect(getUserEntries).toHaveBeenCalledWith('person-1');
-    expect(result.current.lines[0]).toMatchObject({
-      entryId: 'e1',
-      dogCallName: 'Scout',
-      classLabel: 'Container Novice A',
-      statusLabel: 'Check in',
-    });
+  it("derives today's lines from the shared entries hook, not its own read", () => {
+    mockSharedHook(entriesWith('no-status'));
+    const { result } = renderHook(() => useEntriesToday());
+    expect(result.current.lines).toEqual([
+      {
+        entryId: 'e1',
+        showId: 'show-1',
+        dogCallName: 'Scout',
+        classLabel: 'Container Novice A',
+        statusLabel: 'Check in',
+      },
+    ]);
     expect(result.current.showNames.get('show-1')).toBe('Spring Trial');
+  });
+
+  it('follows the shared hook when a check-in status changes', () => {
+    mockSharedHook(entriesWith('no-status'));
+    const { result, rerender } = renderHook(() => useEntriesToday());
+    expect(result.current.lines[0]?.statusLabel).toBe('Check in');
+    mockSharedHook(entriesWith('checked-in'));
+    rerender();
+    expect(result.current.lines[0]?.statusLabel).toBe('Checked in');
+  });
+
+  it('asks the shared hook to re-read, once, when the entries replica changes', () => {
+    vi.useFakeTimers();
+    try {
+      mockSharedHook(entriesWith('no-status'));
+      renderHook(() => useEntriesToday());
+      const subscribe = replicatedEntriesTable.subscribe as unknown as ReturnType<typeof vi.fn>;
+      const onChange = subscribe.mock.calls[0]?.[0] as () => void;
+      act(() => {
+        onChange();
+        onChange();
+        vi.advanceTimersByTime(1000);
+      });
+      expect(refreshEntries).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

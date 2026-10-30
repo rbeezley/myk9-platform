@@ -3,8 +3,9 @@
  *
  * It answers the rail's My Entries item for staff who are also exhibitors. The entries replica is
  * per show, so an empty replica is an absence of knowledge, never proof. A replica that holds an
- * entry (or the checkout marker) is an immediate `'yes'`; otherwise, online with a resolved
- * identity, one head count on the authoritative view decides. Offline, pending or failed, the
+ * entry is an immediate `'yes'`; otherwise, online with a resolved
+ * identity, one head count on the authoritative view decides (checkout success writes that answer into the
+ * cache directly, see `markOwnEntriesKnownYes`). Offline, pending or failed, the
  * answer remembered on this device holds; with none, `'unknown'` and the caller keeps the item.
  */
 
@@ -17,16 +18,14 @@ import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntries
 import { serverHasOwnEntries } from '@/services/database/entries/ownEntriesExistence';
 import { readOwnReplicaEntries } from '@/services/database/entries/ownReplicaEntries';
 import {
-  clearJustEntered,
-  hasJustEntered,
   readOwnEntriesMemory,
   writeOwnEntriesMemory,
 } from '@/features/own-entries/ownEntriesMemory';
+import { ownEntriesServerKey } from '@/features/own-entries/ownEntriesCache';
 
 export type OwnEntriesState = 'yes' | 'no' | 'unknown';
 
 const queryKeyFor = (personId: string | null) => ['own-entries', 'replica-has-any', personId];
-const serverKeyFor = (personId: string | null) => ['own-entries', 'server-has-any', personId];
 
 export function useHasOwnEntries(): OwnEntriesState {
   const { user, loading, personIdentityState } = useAuthContext();
@@ -54,7 +53,7 @@ export function useHasOwnEntries(): OwnEntriesState {
   // Account-scoped, no placeholder from another account. Online-only: offline it parks and the
   // remembered answer holds.
   const { data: serverHasEntries } = useQuery({
-    queryKey: serverKeyFor(personId),
+    queryKey: ownEntriesServerKey(personId),
     queryFn: serverHasOwnEntries,
     enabled: !!personId && identityState === 'resolved',
     staleTime: 5 * 60_000,
@@ -70,9 +69,8 @@ export function useHasOwnEntries(): OwnEntriesState {
     );
   }, [personId, queryClient]);
 
-  const justEntered = hasJustEntered(personId);
   const remembered = personId ? readOwnEntriesMemory(personId) : null;
-  const fromReplica = replicaHasEntries === true || justEntered;
+  const fromReplica = replicaHasEntries === true;
   const answer: OwnEntriesState = fromReplica
     ? 'yes'
     : identityState === 'missing'
@@ -88,8 +86,7 @@ export function useHasOwnEntries(): OwnEntriesState {
   useEffect(() => {
     if (!personId || !authoritative || answer === 'unknown') return;
     writeOwnEntriesMemory(personId, answer);
-    if (replicaHasEntries === true) clearJustEntered();
-  }, [personId, answer, authoritative, replicaHasEntries]);
+  }, [personId, answer, authoritative]);
 
   return answer;
 }

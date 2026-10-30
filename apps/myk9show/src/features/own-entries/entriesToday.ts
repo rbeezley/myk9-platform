@@ -3,53 +3,63 @@
  * happening today, one line per dog and class.
  */
 
-import { getEntryStatusKind } from '@/services/entryDisplay/entryDisplaySelectors';
+import type { EntryStatusKind } from '@/services/entryDisplay/entryDisplaySelectors';
+import type { MyEntry } from '@/pages/MyEntriesPage/modules/my-entries-types';
+import { PaymentStatus } from '@/types/show-registration-types';
 
 /** An own entry labelled for the card: the dog's call name and the class. */
 export interface OwnEntryLabel {
   entryId: string;
   showId: string;
-  entryStatus: string | undefined;
+  /** The canonical display kind, from the same read My Shows renders. */
+  kind: EntryStatusKind;
   checkInStatus: string | undefined;
   dogCallName: string;
   classLabel: string;
 }
 
-/** The subset of a `getUserEntries` row the card reads. */
-export interface UserEntryRow {
-  id: string;
-  show_id?: string | null;
-  entry_status?: string | null;
-  check_in_status?: string | null;
-  deleted_at?: string | null;
-  dog?: { name?: string | null; call_name?: string | null } | null;
-  class?: { name?: string | null } | null;
-}
-
-export function labelsFromUserEntryRows(rows: readonly UserEntryRow[]): OwnEntryLabel[] {
-  return rows.flatMap(row => {
-    if (row.deleted_at || !row.show_id) return [];
-    return [
-      {
-        entryId: row.id,
-        showId: row.show_id,
-        entryStatus: row.entry_status ?? undefined,
-        checkInStatus: row.check_in_status ?? undefined,
-        dogCallName: row.dog?.call_name || row.dog?.name || 'Your dog',
-        classLabel: row.class?.name ?? '',
-      },
-    ];
+/**
+ * One label per class row of the entries My Shows already loaded. A removed, withdrawn or moved
+ * row is dropped here; an online order still awaiting payment is not an entry yet (the grouped
+ * rows no longer carry the raw `pending-payment` status, so unpaid online money stands in for it).
+ */
+export function labelsFromMyEntries(entries: readonly MyEntry[]): OwnEntryLabel[] {
+  return entries.flatMap(entry => {
+    const dogs = entry.dogs.length
+      ? entry.dogs
+      : [{ id: entry.id, dogId: entry.dogId, dogName: entry.dogName, classes: entry.classes }];
+    return dogs.flatMap(dog =>
+      dog.classes.flatMap(row => {
+        if (row.deletedAt || row.status !== 'entered') return [];
+        if (
+          row.entryStatusKind === 'pending' &&
+          row.paymentMethod === 'online' &&
+          row.rawPaymentStatus === PaymentStatus.PENDING
+        ) {
+          return [];
+        }
+        return [
+          {
+            entryId: row.id,
+            showId: entry.showId,
+            kind: row.entryStatusKind,
+            checkInStatus: row.checkInStatus,
+            dogCallName: dog.dogName || 'Your dog',
+            classLabel: row.unresolved ? '' : row.name,
+          },
+        ];
+      })
+    );
   });
 }
 
 /** Live entries, and finished ones (shown as "Done"); never withdrawn, pulled or unpaid. */
-function isShownToday(entryStatus: string | undefined, checkInStatus: string | undefined): boolean {
-  if (checkInStatus === 'pulled' || entryStatus === 'pending-payment') return false;
-  const kind = getEntryStatusKind(entryStatus);
+function isShownToday(kind: EntryStatusKind, checkInStatus: string | undefined): boolean {
+  if (checkInStatus === 'pulled') return false;
   return kind === 'completed' || isLiveKind(kind);
 }
 
-function isLiveKind(kind: ReturnType<typeof getEntryStatusKind>): boolean {
+function isLiveKind(kind: EntryStatusKind): boolean {
   return (
     kind === 'pending' ||
     kind === 'accepted' ||
@@ -79,9 +89,9 @@ const STATUS_LABELS: Record<string, string> = {
 
 export function entryStatusLabel(
   checkInStatus: string | undefined,
-  entryStatus?: string | undefined
+  kind?: EntryStatusKind
 ): string {
-  if (getEntryStatusKind(entryStatus) === 'completed') return STATUS_LABELS.completed;
+  if (kind === 'completed') return STATUS_LABELS.completed;
   return (checkInStatus && STATUS_LABELS[checkInStatus]) || 'Check in';
 }
 
@@ -91,14 +101,13 @@ export function selectEntriesToday(
 ): EntryTodayLine[] {
   return labels
     .filter(
-      label =>
-        todayShowIds.has(label.showId) && isShownToday(label.entryStatus, label.checkInStatus)
+      label => todayShowIds.has(label.showId) && isShownToday(label.kind, label.checkInStatus)
     )
     .map(label => ({
       entryId: label.entryId,
       showId: label.showId,
       dogCallName: label.dogCallName,
       classLabel: label.classLabel,
-      statusLabel: entryStatusLabel(label.checkInStatus, label.entryStatus),
+      statusLabel: entryStatusLabel(label.checkInStatus, label.kind),
     }));
 }

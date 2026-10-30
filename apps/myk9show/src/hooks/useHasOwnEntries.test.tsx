@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { useHasOwnEntries } from './useHasOwnEntries';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { readOwnReplicaEntries } from '@/services/database/entries/ownReplicaEntries';
 import { serverHasOwnEntries } from '@/services/database/entries/ownEntriesExistence';
-import { markJustEntered } from '@/features/own-entries/ownEntriesMemory';
+import { markOwnEntriesKnownYes } from '@/features/own-entries/ownEntriesCache';
 
 vi.mock('@/hooks/useAuthContext');
 vi.mock('@/services/database/entries/ownReplicaEntries', () => ({
@@ -30,9 +30,10 @@ function mockAuth(personId: string | null, personIdentityState: Identity, loadin
   });
 }
 
+let queryClient: QueryClient;
+
 function wrapper({ children }: { children: ReactNode }) {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
 }
 
 function stubServer(has: boolean) {
@@ -46,6 +47,7 @@ function stubReplica(count: number) {
 }
 
 beforeEach(() => {
+  queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   vi.clearAllMocks();
   window.localStorage.clear();
 });
@@ -135,13 +137,28 @@ describe('useHasOwnEntries', () => {
     );
   });
 
-  it('is yes right after checkout, before the entry has replicated', async () => {
-    markJustEntered('person-1');
+  it('is yes the moment checkout marks the person, even though the server read said no', async () => {
     mockAuth('person-1', 'resolved');
     stubReplica(0);
+    stubServer(false);
     const { result } = renderHook(() => useHasOwnEntries(), { wrapper });
-    await waitFor(() => expect(readOwnReplicaEntries).toHaveBeenCalled());
-    expect(result.current).toBe('yes');
+    await waitFor(() => expect(result.current).toBe('no'));
+
+    act(() => markOwnEntriesKnownYes(queryClient, 'person-1'));
+    await waitFor(() => expect(result.current).toBe('yes'));
+    expect(serverHasOwnEntries).toHaveBeenCalledTimes(1);
+    await waitFor(() =>
+      expect(window.localStorage.getItem('myk9-has-own-entries:person-1')).toBe('yes')
+    );
+  });
+
+  it('leaves another person unaffected by a checkout mark', async () => {
+    mockAuth('person-2', 'resolved');
+    stubReplica(0);
+    stubServer(false);
+    markOwnEntriesKnownYes(queryClient, 'person-1');
+    const { result } = renderHook(() => useHasOwnEntries(), { wrapper });
+    await waitFor(() => expect(result.current).toBe('no'));
   });
 
   it('is no when the profile lookup confirms there is no person row', () => {

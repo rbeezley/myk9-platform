@@ -8,8 +8,6 @@
  */
 
 const MEMORY_KEY_PREFIX = 'myk9-has-own-entries:';
-/** Holds the person id, set at checkout success before the paid entry has replicated. */
-const JUST_ENTERED_KEY = 'myk9-just-entered';
 
 export type OwnEntriesMemory = 'yes' | 'no';
 
@@ -27,34 +25,5 @@ export function writeOwnEntriesMemory(personId: string, answer: OwnEntriesMemory
     window.localStorage.setItem(`${MEMORY_KEY_PREFIX}${personId}`, answer);
   } catch {
     // A lost memory only means the next unresolved boot fails open instead of holding the answer.
-  }
-}
-
-/**
- * Checkout success: the entry exists on the server even if this device has not replicated it yet.
- * The marker carries the person it was set for, so a different account on this device ignores it.
- */
-export function markJustEntered(personId: string): void {
-  try {
-    window.localStorage.setItem(JUST_ENTERED_KEY, personId);
-  } catch {
-    // The replica read still finds the entry once it syncs.
-  }
-}
-
-export function hasJustEntered(personId: string | null): boolean {
-  if (!personId) return false;
-  try {
-    return window.localStorage.getItem(JUST_ENTERED_KEY) === personId;
-  } catch {
-    return false;
-  }
-}
-
-export function clearJustEntered(): void {
-  try {
-    window.localStorage.removeItem(JUST_ENTERED_KEY);
-  } catch {
-    // A marker that outlives its use only keeps the item visible.
   }
 }

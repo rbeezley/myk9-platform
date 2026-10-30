@@ -62,6 +62,11 @@ describe('triageAccessControlErrors', () => {
     ]);
   });
 
+  it('keeps an access-control error for a third-party URL, whose failures are not recorded', () => {
+    const error = 'https://js.stripe.com/v3/m/outer.html due to access control checks.';
+    expect(triageAccessControlErrors([error], [], true).kept).toEqual([error]);
+  });
+
   it('never excuses another kind of page error', () => {
     const error = `TypeError: ${URL_A} is broken`;
     expect(triageAccessControlErrors([error], [], true).kept).toEqual([error]);

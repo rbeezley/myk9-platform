@@ -11,10 +11,14 @@
  * excused only when ALL of these hold:
  * - the route settled (`routeSettled`): every request this route made has an
  *   outcome, so none is still in flight to fail later;
- * - it is the WebKit access-control message;
+ * - it is the WebKit access-control message for an app API URL (`/rest/v1/`,
+ *   `/functions/v1/`, `/auth/v1/`), the only requests whose failures the
+ *   collectors record; a third-party URL's failure would be invisible here;
  * - no request to that URL recorded a failure reason or a failed response in
  *   the route's window. Any recorded failure keeps every error for that URL.
  */
+import { isAppApiUrl } from './appApiRequestTracker';
+
 const ACCESS_CONTROL_SUFFIX = ' due to access control checks.';
 
 export interface AccessControlErrorTriage {
@@ -60,7 +64,7 @@ export function triageAccessControlErrors(
   const excused: string[] = [];
   for (const message of pageErrors) {
     const url = accessControlErrorUrl(message);
-    if (url !== null && !failed.has(url)) excused.push(message);
+    if (url !== null && isAppApiUrl(url) && !failed.has(url)) excused.push(message);
     else kept.push(message);
   }
   return { kept, excused };

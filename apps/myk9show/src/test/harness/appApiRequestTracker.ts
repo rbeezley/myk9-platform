@@ -30,9 +30,12 @@ export interface AppApiRequestSettlement {
   pendingUrls: string[];
 }
 
-export function isAppApiRequest(request: Request) {
-  const url = request.url();
+export function isAppApiUrl(url: string) {
   return url.includes('/rest/v1/') || url.includes('/functions/v1/') || url.includes('/auth/v1/');
+}
+
+export function isAppApiRequest(request: Request) {
+  return isAppApiUrl(request.url());
 }
 
 function withoutHash(url: string) {

@@ -64,8 +64,8 @@ A deploy is what In Review issues wait for, so work them right after it (MYK9-14
    - `verify:performance`: where the measurement is scriptable;
    - `verify:scheduled-runs`: count the green scheduled runs since the merge.
 3. Record each result on the issue and remove the label it satisfies. When the last owed label
-   comes off, fresh-read the issue: Done if every criterion is evidenced, otherwise label what
-   is left.
+   comes off, fresh-read the issue: Done only if every criterion is evidenced and it has no open
+   blocked-by relation or open sub-issue; otherwise label what is left (a relation needs none).
 4. Leave `verify:load`, `verify:offline`, `verify:physical-print`, `verify:real-user`,
    `verify:checkout`, `verify:recovery` and every `needs:*` label alone: they need people,
    devices or the owner.

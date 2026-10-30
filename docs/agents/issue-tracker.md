@@ -104,8 +104,9 @@ The `verify` and `needs` groups are multi-select. Apply the children, never the 
   blocked-by relation or an open sub-issue counts as owed with no label. Anything else gets one:
   a wait for scheduled runs is `verify:scheduled-runs`, and an owner accepting a substitute check
   is `needs:decision`.
-- **Removing the last owed label, or the last blocker closing, triggers a fresh read**: Done if
-  every criterion is evidenced, otherwise label what is still owed. An In Review issue with no
+- **Removing the last owed label, or the last blocker closing, triggers a fresh read**: Done only if
+  every criterion is evidenced and no blocked-by relation or sub-issue is still open, otherwise
+  label what is still owed. An In Review issue with no
   `verify:*`/`needs:*` label, no open blocker and no open sub-issue is a defect: fix it on sight.
 - **After each Deploy myK9Show run**, the `deploy` skill's post-deploy pass works the agent-doable
   labels on issues the deploy shipped.

@@ -3,9 +3,9 @@
  * Contains sub-tabs: Podium (existing results), Show Stats, Judge Stats.
  */
 
-import { useState, useMemo } from 'react';
-import { Trophy, ChevronDown, ChevronRight, Clock, BarChart3, Scale, Medal } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { useQueryClient } from '@tanstack/react-query';
+import { useState, useMemo, useEffect } from 'react';
+import { Trophy, BarChart3, Scale, Medal } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -14,10 +14,27 @@ import {
   PrimaryTabsContent,
   type PrimaryTabDef,
 } from '@/components/common/PrimaryTabs';
-import { ListFilterBar, ListResultLine } from '@/components/list-toolkit';
+import { ListFilterBar, ListResultLine, LIST_LINK_BUTTON } from '@/components/list-toolkit';
 import { PodiumCard } from './PodiumCard';
-import { useShowResults, type ClassResult } from '@/hooks/queries/useShowResults';
+import { PendingClassesList } from './PendingClassesList';
+import {
+  RESULTS_FILTER_KEYS,
+  deriveClassFilterOptions,
+  derivePendingClasses,
+  filterClasses,
+} from './resultsClassFilters';
+import { ShowStatsFilterBar } from '@/components/analytics/ShowStatsFilterBar';
+import { useListUrlParams } from '@/hooks/useListUrlParams';
+import { useShowClassProgress } from '@/hooks/queries/useShowClassProgress';
+import { useShowStatsFilters } from '@/hooks/useShowStatsFilters';
+import type { StatsFilterOptions } from '@/components/analytics/analytics-filters';
+import {
+  useShowResults,
+  showResultsQueryKey,
+  type ClassResult,
+} from '@/hooks/queries/useShowResults';
 import { useVisibleResultFields, deriveClassState } from '@/hooks/useVisibleResultFields';
+import { queryKeys } from '@/lib/queryClient';
 import { useShowStats } from '@/hooks/queries/useShowStats';
 import { useShowJudges } from '@/hooks/queries/useShowJudges';
 import { ShowStatsSubTab } from '@/components/analytics/ShowStatsSubTab';
@@ -67,6 +84,15 @@ function VisibilityGatedPodiumCard({ cls, showId }: VisibilityGatedPodiumCardPro
   return <PodiumCard classTitle={cls.className} placements={cls.placements} />;
 }
 
+const EMPTY_OPTIONS: StatsFilterOptions = {
+  breed: [],
+  judge: [],
+  date: [],
+  trial: [],
+  element: [],
+  level: [],
+};
+
 interface ResultsEmptyStateCopy {
   title: string;
   description: string;
@@ -102,25 +128,57 @@ interface PodiumContentProps {
 
 function PodiumContent({ showId, showEntries = [] }: PodiumContentProps) {
   const { data: results = [], isLoading, error, refetch } = useShowResults(showId);
+  const {
+    data: classProgress = [],
+    isError: progressError,
+    refetch: refetchProgress,
+  } = useShowClassProgress(showId);
   const [search, setSearch] = useState('');
-  const [pendingExpanded, setPendingExpanded] = useState(false);
+  const { filters, setFilter, clearFilters } = useShowStatsFilters();
 
-  const filtered = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    if (!query) return results;
-    return results.filter(cls => cls.className.toLowerCase().includes(query));
-  }, [results, search]);
+  // The tab's one clock: every tick refetches the podium and the progress together, so a later
+  // placement correction on an already-released class reaches the podium too.
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    const timer = setInterval(() => {
+      void Promise.all([
+        queryClient.invalidateQueries({ queryKey: showResultsQueryKey(showId) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.showClassProgress(showId) }),
+      ]);
+    }, PROGRESS_REFRESH_MS);
+    return () => clearInterval(timer);
+  }, [queryClient, showId]);
 
-  const { withPlacements, pending } = useMemo(() => {
-    const w: typeof filtered = [];
-    const p: typeof filtered = [];
-    for (const c of filtered) {
-      (c.placements.length > 0 ? w : p).push(c);
-    }
-    return { withPlacements: w, pending: p };
-  }, [filtered]);
+  // Narrowing happens here, after useShowResults/useVisibleResultFields own what may be shown.
+  const pendingAll = useMemo(() => derivePendingClasses(classProgress), [classProgress]);
+  const options = useMemo(
+    () => deriveClassFilterOptions([...results, ...pendingAll], classProgress),
+    [results, pendingAll, classProgress]
+  );
+  const query = search.trim().toLowerCase();
+  const matchesSearch = (cls: { className: string }) =>
+    !query || cls.className.toLowerCase().includes(query);
+  const pending = useMemo(
+    () => filterClasses(pendingAll, filters).filter(matchesSearch),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [pendingAll, filters, query]
+  );
 
-  const hasActiveFilters = search.trim() !== '';
+  const filtered = useMemo(
+    () => filterClasses(results, filters).filter(matchesSearch),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [results, filters, query]
+  );
+
+  const withPlacements = filtered;
+
+  const hasActiveFilters =
+    search.trim() !== '' || RESULTS_FILTER_KEYS.some(key => filters[key] !== null);
+
+  const clearAll = () => {
+    setSearch('');
+    clearFilters(RESULTS_FILTER_KEYS);
+  };
 
   if (isLoading) {
     return <LoadingSpinner message="Loading results..." />;
@@ -136,18 +194,7 @@ function PodiumContent({ showId, showEntries = [] }: PodiumContentProps) {
     );
   }
 
-  if (results.length === 0) {
-    const emptyState = getResultsEmptyStateCopy(showEntries);
-
-    return (
-      <EmptyState
-        icon={Trophy}
-        title={emptyState.title}
-        description={emptyState.description}
-        action={null}
-      />
-    );
-  }
+  const emptyState = results.length === 0 ? getResultsEmptyStateCopy(showEntries) : null;
 
   return (
     <div className="space-y-4">
@@ -158,16 +205,30 @@ function PodiumContent({ showId, showEntries = [] }: PodiumContentProps) {
           searchPlaceholder="Search by class name..."
           fields={[]}
         />
+        <ShowStatsFilterBar
+          keys={RESULTS_FILTER_KEYS}
+          filters={filters}
+          options={{ ...EMPTY_OPTIONS, ...options }}
+          onChange={setFilter}
+          onClearAll={clearAll}
+        />
         <ListResultLine
           shown={withPlacements.length}
-          total={results.filter(cls => cls.placements.length > 0).length}
+          total={results.length}
           noun={['class', 'classes']}
           filtered={hasActiveFilters}
-          onShowAll={() => setSearch('')}
+          onShowAll={clearAll}
         />
       </div>
 
-      {withPlacements.length > 0 ? (
+      {emptyState ? (
+        <EmptyState
+          icon={Trophy}
+          title={emptyState.title}
+          description={emptyState.description}
+          action={null}
+        />
+      ) : withPlacements.length > 0 ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {withPlacements.map(cls => (
             <VisibilityGatedPodiumCard key={cls.classId} cls={cls} showId={showId} />
@@ -179,39 +240,27 @@ function PodiumContent({ showId, showEntries = [] }: PodiumContentProps) {
         </div>
       )}
 
-      {pending.length > 0 && (
-        <div className="rounded-lg border">
-          <button
-            className="flex w-full items-center gap-2 px-4 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted/50"
-            onClick={() => setPendingExpanded(!pendingExpanded)}
-            aria-expanded={pendingExpanded}
-          >
-            {pendingExpanded ? (
-              <ChevronDown className="h-4 w-4" />
-            ) : (
-              <ChevronRight className="h-4 w-4" />
-            )}
-            <Clock className="h-4 w-4" />
-            Pending Results
-            <Badge variant="outline" className="ml-auto">
-              {pending.length}
-            </Badge>
+      {progressError ? (
+        <div
+          role="alert"
+          className="flex items-center justify-between gap-3 rounded-lg border px-4 py-3 text-sm"
+        >
+          <span>Pending classes could not be loaded.</span>
+          <button type="button" className={LIST_LINK_BUTTON} onClick={() => refetchProgress()}>
+            Retry
           </button>
-
-          {pendingExpanded && (
-            <div className="divide-y border-t px-4">
-              {pending.map(cls => (
-                <p key={cls.classId} className="py-2 text-sm">
-                  {cls.className}
-                </p>
-              ))}
-            </div>
-          )}
         </div>
+      ) : (
+        <PendingClassesList classes={pending} />
       )}
     </div>
   );
 }
+
+/** The one clock for the tab: Pending and the podium refresh together on this interval. */
+const PROGRESS_REFRESH_MS = 30 * 1000;
+
+const RESULTS_VIEW_PARAM = 'resultsView';
 
 interface ShowResultsTabProps {
   showId: string;
@@ -233,7 +282,12 @@ export function ShowResultsTab({ showId }: ShowResultsTabProps) {
     [hasScoredEntries, hasJudges]
   );
 
-  const [activeSubTab, setActiveSubTab] = useState('podium');
+  // The sub-tab lives in the URL beside the filters, so a copied Show Stats link reopens it.
+  const { searchParams, patch } = useListUrlParams();
+  const requested = searchParams.get(RESULTS_VIEW_PARAM);
+  const activeSubTab = subTabDefs.some(tab => tab.id === requested) ? requested! : 'podium';
+  const setActiveSubTab = (id: string) =>
+    patch({ [RESULTS_VIEW_PARAM]: id === 'podium' ? null : id });
 
   return (
     <PrimaryTabs tabs={subTabDefs} value={activeSubTab} onValueChange={setActiveSubTab}>

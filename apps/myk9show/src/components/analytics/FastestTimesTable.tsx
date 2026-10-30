@@ -28,7 +28,7 @@ export function FastestTimesTable({ times, showShowColumn }: FastestTimesTablePr
         <CardTitle>Fastest Times</CardTitle>
       </CardHeader>
       <CardContent>
-        <table className="w-full text-sm">
+        <table className="w-full text-sm" aria-label="Fastest times">
           <thead>
             <tr className="border-b text-left text-muted-foreground">
               <th className="pb-2 pr-2">Rank</th>

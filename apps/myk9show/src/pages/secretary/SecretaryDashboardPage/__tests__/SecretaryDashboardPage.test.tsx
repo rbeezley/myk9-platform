@@ -22,6 +22,9 @@ let mockPendingEntries: Array<{
   check_in_status: string | null;
 }> = [];
 
+// The Home entries card has its own test and reads My Shows' data hooks.
+vi.mock('../YourEntriesTodayCard', () => ({ YourEntriesTodayCard: () => null }));
+
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
     firstName: 'Sam',

@@ -60,10 +60,17 @@ vi.mock('@/services/replication', () => ({
 
 // The show's entries scope: synced by default so a genuinely empty class still
 // reads "No Entries Yet"; the not-on-device test flips it (MYK9-1520).
-const entriesScope = vi.hoisted(() => ({ synced: true }));
+const entriesScope = vi.hoisted(() => ({
+  synced: true,
+  gate: null as Promise<void> | null,
+  anonymous: false,
+}));
 vi.mock('@/services/replication/entriesShowSyncState', async importOriginal => ({
   ...(await importOriginal<typeof import('@/services/replication/entriesShowSyncState')>()),
-  hasShowEntriesSynced: vi.fn(async () => entriesScope.synced),
+  hasShowEntriesSynced: vi.fn(async () => {
+    await entriesScope.gate;
+    return entriesScope.synced;
+  }),
 }));
 vi.mock('@/features/offline-readiness/OfflineReadyBadge', () => ({
   OfflineReadyBadge: ({ showId }: { showId: string | undefined }) => (
@@ -84,7 +91,10 @@ vi.mock('@/hooks/useAuthContext', async importOriginal => {
   const { UserRole } = await import('@/types/auth-types');
   return {
     ...actual,
-    useAuthContext: () => ({ getUserRoles: () => authRoles.current ?? [UserRole.SITE_ADMIN] }),
+    useAuthContext: () => ({
+      getUserRoles: () => authRoles.current ?? [UserRole.SITE_ADMIN],
+      user: entriesScope.anonymous ? { is_anonymous: true } : null,
+    }),
   };
 });
 
@@ -157,6 +167,8 @@ describe('AtShowEntryListPage (Phase 1a shim)', () => {
   beforeEach(() => {
     authRoles.current = null;
     entriesScope.synced = true;
+    entriesScope.gate = null;
+    entriesScope.anonymous = false;
     vi.clearAllMocks();
     localStorage.clear();
     vi.mocked(replicatedEntriesTable.subscribe)
@@ -241,6 +253,54 @@ describe('AtShowEntryListPage (Phase 1a shim)', () => {
     expect(screen.getByRole('button', { name: 'Save for show day' })).toHaveAttribute(
       'data-show-id',
       'show-1'
+    );
+  });
+
+  it('holds the skeleton, not No Entries Yet, until the entries-scope check resolves', async () => {
+    entriesScope.synced = false;
+    let release: () => void = () => {};
+    entriesScope.gate = new Promise<void>(resolve => {
+      release = resolve;
+    });
+    vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([] as never);
+
+    renderPage();
+
+    try {
+      await waitFor(() => expect(replicatedEntriesTable.sync).toHaveBeenCalledWith('show-1'));
+      expect(await screen.findByRole('status', { name: 'Loading entries' })).toBeInTheDocument();
+      expect(screen.queryByText('No Entries Yet')).not.toBeInTheDocument();
+    } finally {
+      release();
+    }
+    expect(await screen.findByText('Entries are not on this device')).toBeInTheDocument();
+  });
+
+  it('re-asks after a sync of the show settles and drops the not-on-device state', async () => {
+    entriesScope.synced = false;
+    vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([] as never);
+    renderPage();
+    expect(await screen.findByText('Entries are not on this device')).toBeInTheDocument();
+
+    entriesScope.synced = true;
+    await createAtShowDataDependencies().forceSyncEntriesAndClasses('show-1');
+
+    expect(await screen.findByText('No Entries Yet')).toBeInTheDocument();
+    expect(screen.queryByText('Entries are not on this device')).not.toBeInTheDocument();
+  });
+
+  it('offers a retry instead of the badge to an anonymous passcode session', async () => {
+    entriesScope.synced = false;
+    entriesScope.anonymous = true;
+    vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([] as never);
+    renderPage();
+
+    const retry = await screen.findByRole('button', { name: 'Try again' });
+    expect(screen.queryByRole('button', { name: 'Save for show day' })).not.toBeInTheDocument();
+    const syncsBefore = vi.mocked(replicatedEntriesTable.sync).mock.calls.length;
+    fireEvent.click(retry);
+    await waitFor(() =>
+      expect(vi.mocked(replicatedEntriesTable.sync).mock.calls.length).toBeGreaterThan(syncsBefore)
     );
   });
 

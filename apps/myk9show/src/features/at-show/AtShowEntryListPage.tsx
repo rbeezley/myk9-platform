@@ -137,10 +137,10 @@ export const AtShowEntryListPage: React.FC = () => {
   });
 
   const isFirstShowHydrationPending = useAtShowShowHydration(showId, syncStatus, refresh);
-  const notOnDevice = useAtShowEntriesNotOnDevice(
+  const { notOnDevice, isChecking: isCheckingEntriesOnDevice } = useAtShowEntriesNotOnDevice(
     showId,
     isFirstShowHydrationPending,
-    entries.length
+    refresh
   );
 
   // An exhibitor-role account (including an admin who entered an exhibitor
@@ -154,6 +154,7 @@ export const AtShowEntryListPage: React.FC = () => {
   const isInitialEntryDataSyncing =
     entries.length === 0 &&
     (isFirstShowHydrationPending ||
+      isCheckingEntriesOnDevice ||
       areReplicationTablesPendingFirstSync(syncStatus, ['shows', 'trials', 'classes', 'entries']));
   const pageActions = useMemo(
     () => ({ ...actions, isSyncing: actions.isSyncing || isInitialEntryDataSyncing }),

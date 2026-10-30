@@ -157,10 +157,10 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
   // app-wide pass never downloads entries, so waiting on it left a cold device
   // on the skeleton or an empty ring.
   const isFirstShowHydrationPending = useAtShowShowHydration(showId, syncStatus, refresh);
-  const notOnDevice = useAtShowEntriesNotOnDevice(
+  const { notOnDevice, isChecking: isCheckingEntriesOnDevice } = useAtShowEntriesNotOnDevice(
     showId,
     isFirstShowHydrationPending,
-    entries.length
+    refresh
   );
   const [localEntries, setLocalEntries] = useState<Entry[]>([]);
   const [manualOrder, setManualOrder] = useState<Entry[]>([]);
@@ -170,6 +170,7 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
   const isInitialEntryDataSyncing =
     entries.length === 0 &&
     (isFirstShowHydrationPending ||
+      isCheckingEntriesOnDevice ||
       areReplicationTablesPendingFirstSync(syncStatus, ['shows', 'trials', 'classes', 'entries']));
 
   // ── Filters (section filter ON → All / Section A / Section B tabs) ─────

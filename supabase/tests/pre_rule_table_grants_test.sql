@@ -328,7 +328,9 @@ BEGIN
       -- MYK9-1045). results_verified_fingerprint is granted to no API role, and
       -- anon stays 51.
       ('classes','anon',51),
-      ('classes','authenticated',57),
+      -- authenticated 57 -> 59: ring_phase / ring_phase_time (20261030174300, MYK9-1513);
+      -- anon stays 51.
+      ('classes','authenticated',59),
       ('entries','anon',0),
       -- 54 became 55 when entries.withdrawal_reason_code was added and granted
       -- to authenticated (20260917214300, MYK9-632). anon stays 0: the same

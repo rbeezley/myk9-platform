@@ -33,11 +33,16 @@ ALTER TABLE public.classes
   ADD COLUMN IF NOT EXISTS ring_phase text,
   ADD COLUMN IF NOT EXISTS ring_phase_time time;
 
+-- Dropped first so a re-run does not fail. The time check COALESCEs: with a NULL phase
+-- `ring_phase IN (...)` is NULL, which a CHECK passes, so an orphan time would be stored.
+ALTER TABLE public.classes
+  DROP CONSTRAINT IF EXISTS classes_ring_phase_check,
+  DROP CONSTRAINT IF EXISTS classes_ring_phase_time_check;
 ALTER TABLE public.classes
   ADD CONSTRAINT classes_ring_phase_check
     CHECK (ring_phase IS NULL OR ring_phase IN ('briefing', 'break', 'offline_scoring')),
   ADD CONSTRAINT classes_ring_phase_time_check
-    CHECK (ring_phase_time IS NULL OR ring_phase IN ('briefing', 'break'));
+    CHECK (ring_phase_time IS NULL OR COALESCE(ring_phase IN ('briefing', 'break'), false));
 
 COMMENT ON COLUMN public.classes.ring_phase IS
   'MYK9-1513: ringside phase of an in_progress class (briefing, break, offline_scoring), else NULL. Cleared when status becomes completed, setup or cancelled (kept across upcoming).';
@@ -375,7 +380,14 @@ BEGIN
          status = CASE WHEN v_has_status THEN v_status ELSE status END,
          start_time = CASE WHEN v_has_start THEN v_start ELSE start_time END,
          ring_phase = CASE WHEN v_has_phase THEN v_phase ELSE ring_phase END,
-         ring_phase_time = CASE WHEN v_has_phase_time THEN v_phase_time ELSE ring_phase_time END,
+         -- The time belongs to briefing / break only: any other effective phase clears it
+         -- rather than failing the CHECK.
+         ring_phase_time = CASE
+           WHEN COALESCE(CASE WHEN v_has_phase THEN v_phase ELSE ring_phase END, '')
+                NOT IN ('briefing', 'break') THEN NULL
+           WHEN v_has_phase_time THEN v_phase_time
+           ELSE ring_phase_time
+         END,
          revised_expected_start =
            CASE WHEN v_has_expected THEN v_expected ELSE revised_expected_start END
    WHERE id = p_class_id

@@ -57,6 +57,9 @@ const INSTANT_FIELDS_BY_TABLE: Readonly<Record<string, ReadonlySet<string>>> = {
     'results_released_at',
     'resultsVerifiedAt',
     'results_verified_at',
+    // MYK9-1513: the ringside Start Time rides the offline queue as `…Z`; the echo reads `…+00:00`.
+    'revisedExpectedStart',
+    'revised_expected_start',
   ]),
 };
 

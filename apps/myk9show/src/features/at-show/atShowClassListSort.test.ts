@@ -104,3 +104,20 @@ describe('combined A/B card sorts on both sections (MYK9-1092)', () => {
     );
   });
 });
+
+describe('announced Start Time is not a live ring (MYK9-1513)', () => {
+  const live = classEntry({ id: 'live', class_order: 5, class_status: 'in_progress' });
+  const onBreak = classEntry({ id: 'break', class_order: 6, class_status: 'break' });
+  const announced = classEntry({ id: 'announced', class_order: 1, class_status: 'start_time' });
+
+  it('keeps a class with an announced future start behind live classes', () => {
+    const ids = sortClassesForAtShowScan([announced, onBreak, live]).map(c => c.id);
+    expect(ids).toEqual(['live', 'break', 'announced']);
+  });
+
+  it('ranks Your ring the same way', () => {
+    expect(yourRingScanPriority(live)).toBe(0);
+    expect(yourRingScanPriority(onBreak)).toBe(0);
+    expect(yourRingScanPriority(announced)).toBe(1);
+  });
+});

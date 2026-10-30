@@ -34,10 +34,17 @@ export interface AtShowNextUpPreview {
 
 /**
  * Class statuses where a next-up line helps. Deliberately excludes
- * `no-status`, `setup`, `break`, `start_time` and `completed`: a preview there
- * would be noise, and the row's tap target must stay uncluttered.
+ * `no-status`, `setup`, `start_time` and `completed`: a preview there would be
+ * noise, and the row's tap target must stay uncluttered. `break` is included:
+ * the class is still in progress and the run order matters when judging resumes
+ * (before MYK9-1513 a break reached the card as `in_progress` and kept the preview).
  */
-const LIVE_STATUSES = new Set<EffectiveClassStatus>(['briefing', 'in-progress', 'offline-scoring']);
+const LIVE_STATUSES = new Set<EffectiveClassStatus>([
+  'briefing',
+  'break',
+  'in-progress',
+  'offline-scoring',
+]);
 
 export function isLiveNextUpStatus(status: EffectiveClassStatus): boolean {
   return LIVE_STATUSES.has(status);

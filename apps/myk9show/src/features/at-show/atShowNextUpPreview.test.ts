@@ -208,7 +208,7 @@ describe('isLiveNextUpStatus', () => {
     expect(isLiveNextUpStatus('start_time')).toBe(false);
     expect(isLiveNextUpStatus('completed')).toBe(false);
     expect(isLiveNextUpStatus('setup')).toBe(false);
-    expect(isLiveNextUpStatus('break')).toBe(false);
+    expect(isLiveNextUpStatus('break')).toBe(true);
   });
 });
 

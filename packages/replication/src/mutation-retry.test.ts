@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { PendingMutation } from './types';
 import { classifyMutationFailure } from './mutation-retry';
-import { MAX_BACKOFF_MS, TimeoutError } from './mutation-utils';
+import { MAX_BACKOFF_MS, TimeoutError, withHttpStatus } from './mutation-utils';
 
 function mutation(overrides: Partial<PendingMutation> = {}): PendingMutation {
   return {
@@ -199,6 +199,158 @@ describe('classifyMutationFailure', () => {
         now: 1_000,
       });
       expect(result.permanentlyFailed).toBe(false);
+    });
+  });
+
+  describe('gateway 502/503/504 does not spend the retry budget (MYK9-1488)', () => {
+    const OVERLOAD_MS = 60_000;
+    const gateway = (httpStatus: number) => ({
+      message: 'upstream unavailable',
+      code: '',
+      details: '',
+      hint: '',
+      httpStatus,
+    });
+
+    // Replays every retry across a 60 s overload with the probe saying "up" (uplinkDown false).
+    function runOverload(m: PendingMutation, error: unknown): PendingMutation {
+      let current = m;
+      let now = 0;
+      let attempts = 0;
+      while (now < OVERLOAD_MS) {
+        const result = classifyMutationFailure({
+          mutation: current,
+          error,
+          maxRetries: 3,
+          retryBackoffBase: 1_000,
+          uplinkDown: false,
+          now,
+        });
+        expect(result.permanentlyFailed).toBe(false);
+        current = result.mutation;
+        now = current.nextRetryAt!;
+        attempts += 1;
+      }
+      expect(attempts).toBeGreaterThan(3);
+      return current;
+    }
+
+    it.each([502, 503, 504])('stays pending through a 60 s overload of %i', status => {
+      const survivor = runOverload(mutation(), gateway(status));
+      expect(survivor.retries).toBe(0);
+      expect(survivor.transportRetries).toBeGreaterThan(3);
+    });
+
+    // Codex round 2 on #3397: gateway bodies of any shape, including wording that reads like a
+    // refusal, stay a retryable outage and spend no budget.
+    it.each([
+      ['a JSON string', 'upstream unavailable'],
+      ['a JSON number', 503],
+      ['a JSON boolean', true],
+      ['"Forbidden" with an empty code', { message: 'Forbidden', code: '' }],
+      ['"Unauthorized" as a string', 'Unauthorized'],
+    ])('a 503 whose body is %s stays pending without spending the budget', (_n, body) => {
+      const result = classifyMutationFailure({
+        mutation: mutation({ retries: 2 }),
+        error: withHttpStatus(body, 503),
+        maxRetries: 3,
+        retryBackoffBase: 10,
+        now: 0,
+      });
+      expect(result.permanentlyFailed).toBe(false);
+      expect(result.mutation).toMatchObject({ retries: 2, status: 'pending' });
+    });
+
+    it('applies to a ringside_update_entry rpc and caps the backoff at MAX_BACKOFF_MS', () => {
+      const result = classifyMutationFailure({
+        mutation: mutation({
+          rpc: { name: 'ringside_update_entry', args: {} },
+          transportRetries: 500,
+        }),
+        error: gateway(503),
+        maxRetries: 3,
+        retryBackoffBase: 1_000,
+        now: 0,
+      });
+      expect(result.mutation).toMatchObject({ retries: 0, status: 'pending' });
+      expect(result.mutation.nextRetryAt).toBeLessThanOrEqual(MAX_BACKOFF_MS);
+    });
+
+    it.each([
+      ['500', { message: 'internal', code: '', httpStatus: 500 }],
+      ['429', { message: 'slow down', code: '429', httpStatus: 429 }],
+      ['a status-less ambiguous error', { message: 'statement timeout', code: '57014' }],
+    ])('still spends the budget on %s', (_n, error) => {
+      const result = classifyMutationFailure({
+        mutation: mutation(),
+        error,
+        maxRetries: 3,
+        retryBackoffBase: 10,
+        now: 0,
+      });
+      expect(result.mutation).toMatchObject({ retries: 1, status: 'pending' });
+      expect(result.mutation.transportRetries).toBeUndefined();
+    });
+
+    it.each([
+      ['42501', { message: 'not authorized to score this class', code: '42501' }],
+      ['23505', { message: 'duplicate key', code: '23505' }],
+      ['23503', { message: 'fk violation', code: '23503' }],
+      ['MK014', { message: 'entry under deleted class', code: 'MK014' }],
+    ])('parks refusal %s at once even if the gateway status is 503', (_code, base) => {
+      const result = classifyMutationFailure({
+        mutation: mutation(),
+        error: { ...base, httpStatus: 503 },
+        maxRetries: 3,
+        retryBackoffBase: 10,
+        now: 0,
+      });
+      expect(result.permanentlyFailed).toBe(true);
+      expect(result.mutation.status).toBe('failed');
+    });
+
+    it.each([
+      ['P0002', 'set_class_judge'],
+      ['22023', 'set_class_judge'],
+    ])('parks %s on %s at once', (code, rpcName) => {
+      const result = classifyMutationFailure({
+        mutation: mutation({ rpc: { name: rpcName, args: {} } }),
+        error: { message: 'refused', code, httpStatus: 503 },
+        maxRetries: 3,
+        retryBackoffBase: 10,
+        now: 0,
+      });
+      expect(result.permanentlyFailed).toBe(true);
+    });
+
+    // Probe down, write path up: the probe only vouches for transport candidates. A write that
+    // fails with any other error is classified by that error, never by the probe.
+    it.each([
+      ['a 500', { message: 'internal', code: '', httpStatus: 500 }],
+      ['an ambiguous 57014', { message: 'statement timeout', code: '57014' }],
+    ])('with the probe down, %s still spends the budget', (_n, error) => {
+      const result = classifyMutationFailure({
+        mutation: mutation({ retries: 2 }),
+        error,
+        maxRetries: 3,
+        retryBackoffBase: 10,
+        uplinkDown: true,
+        now: 0,
+      });
+      expect(result.permanentlyFailed).toBe(true);
+      expect(result.mutation).toMatchObject({ status: 'failed', failureKind: 'max-retries' });
+    });
+
+    it('with the probe down, a refusal still parks at once', () => {
+      const result = classifyMutationFailure({
+        mutation: mutation(),
+        error: { message: 'not authorized', code: '42501' },
+        maxRetries: 3,
+        retryBackoffBase: 10,
+        uplinkDown: true,
+        now: 0,
+      });
+      expect(result.mutation).toMatchObject({ status: 'failed', failureKind: 'authorization' });
     });
   });
 

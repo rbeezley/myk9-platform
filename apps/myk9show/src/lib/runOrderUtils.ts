@@ -45,6 +45,16 @@ export interface RunOrderResult {
 }
 
 /**
+ * The one rule for an adapter entry's unset run order. `transformEntry` exposes
+ * an unset `run_order` as `exhibitorOrder: 0`, and 0 is never a real slot, so
+ * 0/null/undefined all mean "unset" (`null`). Every run-order caller reads the
+ * stored order through this instead of repeating a `? :` / `??` choice.
+ */
+export function storedRunOrder(entry: { exhibitorOrder?: number | null }): number | null {
+  return entry.exhibitorOrder ? entry.exhibitorOrder : null;
+}
+
+/**
  * Translate a (wider) ringside `RunOrderPreset` to myK9Show's supported preset.
  *
  * ringside's union carries `random-all`, which myK9Show models as `random`

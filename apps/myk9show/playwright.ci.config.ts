@@ -36,6 +36,8 @@ const REGRESSION_SPECS = [
   // them. Real payment journeys are tracked in MYK9-42.
   '**/show/atShowJudgeScoring.spec.ts',
   '**/show/atShowOfflineScoring.spec.ts',
+  // MYK9-1487: two-device offline OCC conflict on a disposable entry; skips unless isolated.
+  '**/show/atShowMultiDeviceOfflineSync.spec.ts',
   // MYK9-1498: walks promoted from the 2026-10-29 evidence sweep. Each writes real
   // rows (disposable entries, a disposable steward, planted cart lines) and skips
   // unless the target is the isolated stack. The channel flap runs ~6 minutes.

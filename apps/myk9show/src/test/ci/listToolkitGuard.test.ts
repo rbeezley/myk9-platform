@@ -61,6 +61,14 @@ const ARIA_PRESSED_DECLARED: Record<string, { count: number; reason: string }> =
       'show-day picker (All days / one day, MYK9-955): one-tap day row kept on purpose; a select costs a tap on show day (MYK9-967 owner decision)',
   },
   'features/at-show/AtShowScoresheetPage.tsx': { count: 1, reason: 'ringside scoring toggle' },
+  'features/at-show/AtShowDogsPage.tsx': {
+    count: 1,
+    reason: 'favorite heart on a dog row (MYK9-1509), a per-dog toggle, not a filter',
+  },
+  'features/at-show/AtShowDogPage.tsx': {
+    count: 1,
+    reason: 'favorite heart on the dog page (MYK9-1509), a per-dog toggle, not a filter',
+  },
   'pages/secretary/ReportsPage/TrialFinancialsCard.tsx': {
     count: 1,
     reason: 'picks which trial the Trial financials card shows (MYK9-1320), not a list filter',

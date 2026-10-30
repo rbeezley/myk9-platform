@@ -160,8 +160,9 @@ describe('RunOrderDialog — section-aware UI', () => {
       expect(onApply).toHaveBeenCalledWith(preset, 'all');
     });
 
-    it('does not offer Manual Drag and Drop for a single section (drag mode is unscoped)', async () => {
+    it('does not offer Manual Drag and Drop under a single section, only under All', async () => {
       const { user } = renderDialog(multiSectionEntries);
+      expect(screen.getByText('Manual Drag and Drop')).toBeInTheDocument();
       await user.click(screen.getByRole('button', { name: 'Section B' }));
       expect(screen.queryByText('Manual Drag and Drop')).not.toBeInTheDocument();
     });

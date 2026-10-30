@@ -198,8 +198,9 @@ export function calculateRunOrder(
  * @param preset      Which preset to apply (armband-asc, armband-desc, random).
  * @param section     Which section to reorder ('A' or 'B').
  * @param renumberMode
- *   'preserve'  — scoped entries get new run-order values that continue after
- *                 the other section's max value (other section keeps its values).
+ *   'preserve'  — the other section keeps its run_order values exactly; the
+ *                 scoped entries are reshuffled within the slots they already
+ *                 held (or after the other section's max when they held none).
  *   'renumber'  — scoped section starts at 1; other section follows in sequence.
  */
 export function calculateRunOrderScoped(
@@ -215,14 +216,29 @@ export function calculateRunOrderScoped(
   const reorderedScoped = calculateRunOrder(scopedEntries, preset);
 
   if (renumberMode === 'preserve') {
-    // The other section keeps its existing run-order numbers (index order when
-    // an entry carries none); the scoped section is numbered after the highest.
-    const otherResults = otherEntries.map((e, i) => ({ id: e.id, runOrder: e.runOrder ?? i + 1 }));
-    const offset = Math.max(0, ...otherResults.map(r => r.runOrder));
-    const adjustedScoped = reorderedScoped.map(r => ({
-      id: r.id,
-      runOrder: r.runOrder + offset,
-    }));
+    // The other section keeps its stored run_order values exactly. The scoped
+    // section is reshuffled WITHIN the slots it already occupies when those are
+    // all set and distinct from the other section's; otherwise (a fresh class,
+    // or a clash) it is placed after the other section's highest value, and any
+    // other entry with no run order yet is numbered after the ones that have one.
+    const keptOthers = otherEntries.filter(e => e.runOrder != null);
+    const slots = scopedEntries.map(e => e.runOrder);
+    const otherValues = new Set(keptOthers.map(e => e.runOrder));
+    const slotsUsable =
+      slots.every((v): v is number => v != null && !otherValues.has(v)) &&
+      new Set(slots).size === slots.length;
+    if (slotsUsable) {
+      const sortedSlots = (slots as number[]).sort((a, b) => a - b);
+      return [
+        ...keptOthers.map(e => ({ id: e.id, runOrder: e.runOrder as number })),
+        ...reorderedScoped.map((r, i) => ({ id: r.id, runOrder: sortedSlots[i] })),
+      ];
+    }
+    let next = keptOthers.reduce((max, e) => Math.max(max, e.runOrder as number), 0);
+    const otherResults = otherEntries.map(e =>
+      e.runOrder != null ? { id: e.id, runOrder: e.runOrder } : { id: e.id, runOrder: ++next }
+    );
+    const adjustedScoped = reorderedScoped.map(r => ({ id: r.id, runOrder: next + r.runOrder }));
     return [...otherResults, ...adjustedScoped];
   } else {
     // renumber: scoped section first (1, 2, 3...), other follows

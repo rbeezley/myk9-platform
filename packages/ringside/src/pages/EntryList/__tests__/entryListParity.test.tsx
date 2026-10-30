@@ -197,7 +197,6 @@ describe.each(PAGES)('entry-list parity — $name', page => {
         </MemoryRouter>
       );
 
-      // Rejects so the dialog stays open for a retry, and nothing is closed.
       await expect(dialogSpy.handleApplyRunOrder?.('by-armband')).rejects.toThrow();
 
       expect(uiActionSpy.setShowSuccessMessage).not.toHaveBeenCalledWith(true);

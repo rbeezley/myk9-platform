@@ -361,3 +361,24 @@ describe('calculateRunOrderScoped — preserve keeps the other sections actual n
     ]);
   });
 });
+
+describe('calculateRunOrderScoped — preserve leaves the other section byte-for-byte', () => {
+  const scheduled = [
+    { id: 'a1', armband: '1', section: 'A', runOrder: 1 },
+    { id: 'b1', armband: '4', section: 'B', runOrder: 4 },
+    { id: 'a2', armband: '3', section: 'A', runOrder: 2 },
+    { id: 'b2', armband: '6', section: 'B', runOrder: 6 },
+    { id: 'a3', armband: '2', section: 'A', runOrder: 3 },
+    { id: 'b3', armband: '5', section: 'B', runOrder: 5 },
+  ];
+
+  it('keeps B at 4,5,6 and reshuffles A within its own slots 1,2,3', () => {
+    const byId = Object.fromEntries(
+      calculateRunOrderScoped(scheduled, 'armband-asc', 'A', 'preserve').map(r => [
+        r.id,
+        r.runOrder,
+      ])
+    );
+    expect(byId).toEqual({ b1: 4, b2: 6, b3: 5, a1: 1, a3: 2, a2: 3 });
+  });
+});

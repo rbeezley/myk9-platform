@@ -123,7 +123,8 @@ export const COMBINED_PRESET_GROUPS: PresetGroup[] = [
   },
 ];
 
-// Scoped presets: applied to a single section only.
+// Scoped presets: applied to a single section only. No manual option: drag
+// mode reorders the whole list, so a drag could renumber the other section too.
 export const SCOPED_PRESETS: PresetDef[] = [
   {
     preset: 'armband-asc',

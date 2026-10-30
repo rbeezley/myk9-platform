@@ -98,22 +98,12 @@ export function useEntryListPageActions({
         handleOpenDragMode();
         return;
       }
-      // The handler REPORTS whether the order persisted; it does not signal by
-      // throwing, because the dialog invokes it fire-and-forget. Treating "did
-      // not throw" as success is how this banner came to congratulate a steward
-      // on an order that never left their phone -- both hosts catch their own
-      // persistence failures and return normally. The catch stays as a backstop
-      // for a host that does reject.
-      let persisted = false;
-      try {
-        persisted = await handlers.handleApplyRunOrder(preset, scope, renumberMode);
-      } catch {
-        persisted = false;
-      }
-      // A failed write keeps the dialog open and REJECTS, so the dialog can
-      // show its error state and let the steward retry instead of losing the
-      // selection. The host has already toasted the failure.
-      if (!persisted) throw new Error('Run order was not saved');
+      // The host REPORTS whether the order persisted (both hosts catch their own
+      // failures and return false after toasting). A false report REJECTS here,
+      // so the dialog awaiting this stays open on the steward's selection; only
+      // a persisted order closes it and shows the success banner.
+      const persisted = await handlers.handleApplyRunOrder(preset, scope, renumberMode);
+      if (!persisted) throw new Error('Run order could not be saved');
       setRunOrderDialogOpen(false);
       showSuccess();
       setSortOrder('run');

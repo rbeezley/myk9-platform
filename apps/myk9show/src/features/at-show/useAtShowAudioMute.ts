@@ -1,5 +1,4 @@
 import { useCallback, useSyncExternalStore } from 'react';
-import { useNotificationStore } from '@/store/notificationStore';
 
 const AUDIO_MUTE_KEY = 'at-show-audio-muted';
 const AUDIO_MUTE_CHANGED_EVENT = 'myk9:at-show-audio-mute-changed';
@@ -64,32 +63,4 @@ export function useAtShowAudioMute(): [boolean, () => void] {
   const muted = useSyncExternalStore(subscribe, readMuted, () => false);
   const toggle = useCallback(() => writeMuted(!readMuted()), []);
   return [muted, toggle];
-}
-
-/**
- * The scoresheet mute button's state. Spoken warnings follow the Settings
- * "Speak the scoresheet timer warning" switch (`timerVoiceEnabled`, on by
- * default), so the button reads and writes it; the chime keeps its own
- * persisted mute. Muting turns both off; unmuting turns both on. It never
- * touches `voiceEnabled`, which belongs to push notifications.
- */
-export function useAtShowTimerMute(): {
-  muted: boolean;
-  chimeMuted: boolean;
-  toggle: () => void;
-} {
-  const [chimeMuted, toggleChimeMuted] = useAtShowAudioMute();
-  const timerVoiceEnabled = useNotificationStore(s => s.preferences.timerVoiceEnabled);
-  const updatePreferences = useNotificationStore(s => s.updatePreferences);
-  const muted = chimeMuted || !timerVoiceEnabled;
-  const toggle = useCallback(() => {
-    if (muted) {
-      if (readMuted()) toggleChimeMuted();
-      updatePreferences({ timerVoiceEnabled: true });
-    } else {
-      toggleChimeMuted();
-      updatePreferences({ timerVoiceEnabled: false });
-    }
-  }, [muted, toggleChimeMuted, updatePreferences]);
-  return { muted, chimeMuted, toggle };
 }

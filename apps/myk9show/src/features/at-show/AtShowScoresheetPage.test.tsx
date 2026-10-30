@@ -1061,27 +1061,27 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
       expect(vi.mocked(useAudioWarnings).mock.calls.at(-1)?.[0].volume).toBeGreaterThan(0);
     });
 
-    it('agrees with Settings: timer switch off reads as muted, and unmuting writes it back', async () => {
+    // Codex round 1 on the timer-switch fix: the button and the Settings switch are separate
+    // controls. The button is the scoresheet mute (chime and voice); it never writes Settings.
+    it('with the Settings timer switch off, the chime still plays, the button reads unmuted, and no voice is spoken', async () => {
       useNotificationStore.getState().updatePreferences({ timerVoiceEnabled: false });
       renderPage();
       await screen.findByTestId('live-scoresheet');
 
-      expect(screen.getByRole('button', { name: 'Unmute timer sounds' })).toBeInTheDocument();
-      expect(screen.getByTestId('voice-announcements-enabled')).toHaveTextContent('false');
-
-      fireEvent.click(screen.getByRole('button', { name: 'Unmute timer sounds' }));
-      expect(useNotificationStore.getState().preferences.timerVoiceEnabled).toBe(true);
-      expect(useNotificationStore.getState().preferences.voiceEnabled).toBe(false);
+      expect(screen.getByRole('button', { name: 'Mute timer sounds' })).toBeInTheDocument();
+      expect(vi.mocked(useAudioWarnings).mock.calls.at(-1)?.[0].volume).toBeGreaterThan(0);
+      // The page forwards the event; speakRemainingSeconds itself gates on the switch.
+      fireEvent.click(screen.getByText('Fire voice announcement'));
+      expect(speakRemainingSeconds).toHaveBeenCalledWith(30);
     });
 
-    it('muting from the scoresheet turns the timer switch off and leaves push voice alone', async () => {
+    it('the mute button never changes either Settings switch', async () => {
       renderPage();
       await screen.findByTestId('live-scoresheet');
       fireEvent.click(screen.getByRole('button', { name: 'Mute timer sounds' }));
-      expect(useNotificationStore.getState().preferences.timerVoiceEnabled).toBe(false);
-      expect(useNotificationStore.getState().preferences.voiceEnabled).toBe(false);
-
       fireEvent.click(screen.getByRole('button', { name: 'Unmute timer sounds' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Mute timer sounds' }));
+      expect(useNotificationStore.getState().preferences.timerVoiceEnabled).toBe(true);
       expect(useNotificationStore.getState().preferences.voiceEnabled).toBe(false);
     });
 

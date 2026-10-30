@@ -33,6 +33,8 @@ const entry = (armband: string, classId: string, points: number, seconds: number
 
 const hook = vi.hoisted(() => ({
   isNationals: true as boolean | null,
+  rankingKeyState: 'ready' as 'ready' | 'loading' | 'unavailable',
+  retry: vi.fn(),
   refreshFailed: false,
   entries: [] as unknown[],
   rows: [] as unknown[],
@@ -45,10 +47,10 @@ vi.mock('./useResultsTabData', () => ({
     trials: [trial],
     readState: 'ready',
     isNationals: hook.isNationals,
-    rankingKeyState: 'ready' as const,
+    rankingKeyState: hook.rankingKeyState,
     refreshFailed: hook.refreshFailed,
     paperworkAvailable: true,
-    retry: vi.fn(),
+    retry: hook.retry,
   }),
 }));
 vi.mock('@/hooks/useShowManageScope', () => ({
@@ -97,6 +99,8 @@ const LINK = { name: 'Nationals leaderboard' };
 
 beforeEach(() => {
   hook.isNationals = true;
+  hook.rankingKeyState = 'ready';
+  hook.retry.mockReset();
   hook.refreshFailed = false;
   hook.rows = [
     { id: 'c1', trialId: 'trial-1', trialDate: '2026-10-10', releasedAt: '2026-10-10T16:00:00Z' },
@@ -126,12 +130,46 @@ describe('Results tab: Nationals leaderboard (MYK9-1516)', () => {
     expect(screen.queryByRole('link', LINK)).not.toBeInTheDocument();
   });
 
-  it('does not open from the URL on a show that is not nationals', () => {
-    hook.isNationals = false;
-    mount('?view=leaderboard');
-    expect(
-      screen.queryByRole('heading', { name: 'Nationals Leaderboard' })
-    ).not.toBeInTheDocument();
+  describe('a direct leaderboard URL', () => {
+    const BOARD = { name: 'Nationals Leaderboard' };
+
+    it('shows the loading skeleton while the nationals flag is loading', () => {
+      hook.isNationals = null;
+      hook.rankingKeyState = 'loading';
+      mount('?view=leaderboard');
+      expect(screen.getByRole('status', { name: 'Loading content' })).toBeInTheDocument();
+      expect(screen.queryByRole('heading', BOARD)).not.toBeInTheDocument();
+      expect(screen.queryByRole('list', { name: 'Classes' })).not.toBeInTheDocument();
+    });
+
+    it('shows the could-not-load alert with Retry when the flag is unavailable', async () => {
+      hook.isNationals = null;
+      hook.rankingKeyState = 'unavailable';
+      const { user } = mount('?view=leaderboard');
+      expect(screen.getByText("Couldn't load the scores")).toBeInTheDocument();
+      expect(screen.queryByRole('list', { name: 'Classes' })).not.toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: 'Retry' }));
+      expect(hook.retry).toHaveBeenCalledTimes(1);
+    });
+
+    it('falls back to the class list once the show is known not to be nationals', () => {
+      hook.isNationals = false;
+      mount('?view=leaderboard');
+      expect(screen.queryByRole('heading', BOARD)).not.toBeInTheDocument();
+      expect(screen.getByRole('list', { name: 'Classes' })).toBeInTheDocument();
+    });
+
+    it('opens the board once the show is known to be nationals', () => {
+      mount('?view=leaderboard');
+      expect(screen.getByRole('heading', BOARD)).toBeInTheDocument();
+    });
+
+    it('does not hold the class list back for the flag when the board was not asked for', () => {
+      hook.isNationals = null;
+      hook.rankingKeyState = 'loading';
+      mount('');
+      expect(screen.getByRole('list', { name: 'Classes' })).toBeInTheDocument();
+    });
   });
 
   it('links to the board from the class list', () => {

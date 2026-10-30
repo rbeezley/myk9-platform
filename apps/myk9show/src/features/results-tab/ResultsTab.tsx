@@ -30,6 +30,7 @@ import { ResultsVisibilitySheet } from './ResultsVisibilitySheet';
 import { deriveDefaultResultsStatus, matchesResultsStatusFilter } from './resultsNextAction';
 import {
   getShowIdParam,
+  isNationalsLeaderboardRequested,
   isNationalsLeaderboardView,
   readResultsTabUrlState,
   writeResultsTabUrlState,
@@ -291,14 +292,21 @@ export default function ResultsTab() {
     );
   };
 
-  if (readState === 'loading') {
+  // A direct leaderboard URL waits on the nationals flag instead of guessing: the class list is
+  // shown only once the show is known not to be nationals (MYK9-1516).
+  const leaderboardRequested = isNationalsLeaderboardRequested(searchParams);
+  if (readState === 'loading' || (leaderboardRequested && rankingKeyState === 'loading')) {
     return (
       <div className="mt-4">
         <LoadingSkeleton variant="cards" count={3} />
       </div>
     );
   }
-  if (readState === 'failed' || readState === 'unavailable') {
+  if (
+    readState === 'failed' ||
+    readState === 'unavailable' ||
+    (leaderboardRequested && rankingKeyState === 'unavailable')
+  ) {
     return (
       <Alert variant={readState === 'failed' ? 'destructive' : 'default'} className="mt-4">
         <AlertTitle>Couldn&apos;t load the scores</AlertTitle>

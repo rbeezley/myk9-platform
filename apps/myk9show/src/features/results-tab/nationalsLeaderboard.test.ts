@@ -169,6 +169,50 @@ describe('Status from the shared entry-accounting rules', () => {
   });
 });
 
+describe('Withdrawn reads only the visible set (MYK9-1516)', () => {
+  const scoredQ = { is_scored: true, result_status: 'qualified' };
+  const lifecycleOut = { entry_status: 'withdrawn', is_scored: false, result_status: 'pending' };
+  const resultOut = { is_scored: false, result_status: 'withdrawn' };
+  const statusOf = (...dogEntries: [string, Record<string, unknown>][]) =>
+    build([
+      entry({ armband: '1', class_id: 'c1', points_earned: 10 }),
+      ...dogEntries.map(([class_id, over]) => entry({ armband: '1', class_id, ...over })),
+    ])[0]!.status;
+
+  it.each([
+    ['a lifecycle withdrawal in an unreleased class', [['c-hidden', lifecycleOut]], 'Withdrawn'],
+    ['a lifecycle withdrawal in a released class', [['c2', lifecycleOut]], 'Withdrawn'],
+    ['a withdrawal-by-result in a released class', [['c2', resultOut]], 'Withdrawn'],
+    ['a withdrawal-by-result in an unreleased class', [['c-hidden', resultOut]], null],
+    [
+      'an unreleased scored entry is still to run',
+      [
+        ['c2', lifecycleOut],
+        ['c-hidden', scoredQ],
+      ],
+      null,
+    ],
+    [
+      'a released scored entry is a finished run',
+      [
+        ['c2', lifecycleOut],
+        ['c3', scoredQ],
+      ],
+      'Withdrawn',
+    ],
+    [
+      'an unreleased withdrawal-by-result beside a released lifecycle withdrawal',
+      [
+        ['c2', lifecycleOut],
+        ['c-hidden', resultOut],
+      ],
+      null,
+    ],
+  ] as const)('%s', (_name, rest, expected) => {
+    expect(statusOf(...(rest as unknown as [string, Record<string, unknown>][]))).toBe(expected);
+  });
+});
+
 describe('one eligibility rule, shared with the Results class list (MYK9-1516)', () => {
   const scoredThenOut = (over: Record<string, unknown>) =>
     build([

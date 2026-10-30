@@ -97,6 +97,28 @@ function isWithdrawnEntry(entry: SecretaryEntry): boolean {
   );
 }
 
+/** A withdrawal on the entry's lifecycle: a fact about the entry, not a result anyone releases. */
+function isLifecycleWithdrawn(entry: SecretaryEntry): boolean {
+  return accountingFields(entry).entry_status?.trim().toLowerCase() === 'withdrawn';
+}
+
+/**
+ * The one visible-set rule for everything the board derives from a dog's entries: a result counts
+ * only if its class is released. A lifecycle withdrawal always counts, whatever the release state;
+ * every other entry counts only in a released class, so an unreleased score or withdrawal-by-result
+ * never reaches Withdrawn, Eliminated or the totals.
+ */
+export function visibleEntries(
+  dogEntries: readonly SecretaryEntry[],
+  releasedClassIds: ReadonlySet<string>
+): SecretaryEntry[] {
+  return dogEntries.filter(
+    entry =>
+      isLifecycleWithdrawn(entry) ||
+      (entry.class_id !== null && releasedClassIds.has(entry.class_id))
+  );
+}
+
 /**
  * The entries that can rank: exactly the ones the Results class list shows
  * (`isResultsDisplayEntry`), minus a withdrawal recorded as a scoring result. Scores and
@@ -108,26 +130,31 @@ export function isRankableEntry(entry: SecretaryEntry): boolean {
 
 /**
  * Withdrawn: the dog withdrew from something and has nothing left to run. "Left to run" is the
- * shared entry-accounting rule (`isRunnableEntry`), so this keeps no list of its own.
+ * shared entry-accounting rule (`isRunnableEntry`), so this keeps no list of its own. An entry
+ * outside the visible set has no visible result, so it is read as not yet run.
  */
-export function isDogWithdrawn(dogEntries: readonly SecretaryEntry[]): boolean {
+export function isDogWithdrawn(
+  dogEntries: readonly SecretaryEntry[],
+  releasedClassIds: ReadonlySet<string>
+): boolean {
+  const visible = visibleEntries(dogEntries, releasedClassIds);
+  const hidden = dogEntries.filter(entry => !visible.includes(entry));
   return (
-    dogEntries.some(isWithdrawnEntry) &&
-    !dogEntries.some(entry => !isWithdrawnEntry(entry) && isRunnableEntry(accountingFields(entry)))
+    visible.some(isWithdrawnEntry) &&
+    !visible.some(entry => !isWithdrawnEntry(entry) && isRunnableEntry(accountingFields(entry))) &&
+    !hidden.some(entry =>
+      isRunnableEntry({ ...accountingFields(entry), is_scored: false, result_status: 'pending' })
+    )
   );
 }
 
-/** Eliminated: a released excused or disqualified result on a rankable entry, scored or not. */
+/** Eliminated: an excused or disqualified result on a visible rankable entry, scored or not. */
 export function isDogEliminated(
   dogEntries: readonly SecretaryEntry[],
   releasedClassIds: ReadonlySet<string>
 ): boolean {
-  return dogEntries.some(
-    entry =>
-      isRankableEntry(entry) &&
-      entry.class_id !== null &&
-      releasedClassIds.has(entry.class_id) &&
-      ELIMINATING_RESULTS.has(entry.result_status ?? '')
+  return visibleEntries(dogEntries, releasedClassIds).some(
+    entry => isRankableEntry(entry) && ELIMINATING_RESULTS.has(entry.result_status ?? '')
   );
 }
 
@@ -155,13 +182,9 @@ export function buildNationalsLeaderboard({
   }
   const rows: Omit<NationalsLeaderboardRow, 'rank'>[] = [];
   for (const [dogId, dogEntries] of entriesByDog) {
-    // Totals, time and day points come only from scored, rankable entries in released classes.
-    const scored = dogEntries.filter(
-      entry =>
-        entry.is_scored === true &&
-        entry.class_id !== null &&
-        releasedClassIds.has(entry.class_id) &&
-        isRankableEntry(entry)
+    // Totals, time and day points come only from scored, rankable entries in the visible set.
+    const scored = visibleEntries(dogEntries, releasedClassIds).filter(
+      entry => entry.is_scored === true && entry.class_id !== null && isRankableEntry(entry)
     );
     if (scored.length === 0) continue;
     const row = blankRow(dogId, dogEntries, scored[0]!);
@@ -177,7 +200,7 @@ export function buildNationalsLeaderboard({
       // The schema's `qualified_for_finals` is not carried on the entry read, and v3's client
       // aggregation never computed it either, so no dog is marked Finals yet.
       status: leaderboardStatus({
-        withdrawn: isDogWithdrawn(dogEntries),
+        withdrawn: isDogWithdrawn(dogEntries, releasedClassIds),
         eliminated: isDogEliminated(dogEntries, releasedClassIds),
         finals: false,
       }),

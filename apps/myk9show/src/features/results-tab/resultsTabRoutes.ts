@@ -96,7 +96,12 @@ export function isNationalsLeaderboardView(
   params: URLSearchParams,
   isNationals: boolean | null
 ): boolean {
-  return isNationals === true && params.get('view') === 'leaderboard';
+  return isNationals === true && isNationalsLeaderboardRequested(params);
+}
+
+/** The URL names the board; whether the show may open it waits on the nationals flag. */
+export function isNationalsLeaderboardRequested(params: URLSearchParams): boolean {
+  return params.get('view') === 'leaderboard';
 }
 
 /** Easy to link from elsewhere (the ringside menu, MYK9-1508): it is just the Results tab URL. */

@@ -30,6 +30,7 @@ import { helpUrl } from '@/lib/help';
 import { resetAllMockData } from '@/utils/debugUtils';
 import { clearDevelopmentCache } from '@/utils/clearDevelopmentCache';
 import { UserRole } from '@/types/auth-types';
+import { refreshApp } from '@/services/pwa/refreshApp';
 import { AskQIcon } from '@/components/layout/AskQIcon';
 
 export interface DevActionRequest {
@@ -201,6 +202,14 @@ export function AccountMenuContent({
       <DropdownMenuItem onClick={onAbout} className="cursor-pointer">
         <Info className="h-4 w-4 mr-2" />
         About
+      </DropdownMenuItem>
+      <DropdownMenuItem
+        onClick={() => void refreshApp()}
+        disabled={isOffline}
+        className="cursor-pointer"
+      >
+        <RefreshCw className="h-4 w-4 mr-2" />
+        {isOffline ? 'Refresh app (needs a connection)' : 'Refresh app'}
       </DropdownMenuItem>
 
       {/* Development Tools */}

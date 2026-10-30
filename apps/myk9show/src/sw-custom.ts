@@ -4,7 +4,7 @@ import { NavigationRoute, registerRoute } from 'workbox-routing';
 import { CacheFirst } from 'workbox-strategies';
 import { installSkipWaitingHandler } from '@myk9/pwa-update/sw';
 import { getNotificationActionUrl, routeNotificationClick } from './swClickNavigation';
-import { loadRingsideNavigation } from './ringsideNavigation';
+import { OFFLINE_SHELL_ALLOWLIST, loadRingsideNavigation } from './ringsideNavigation';
 
 declare const self: ServiceWorkerGlobalScope & {
   __WB_MANIFEST: Array<{ url: string; revision: string | null }>;
@@ -31,7 +31,7 @@ const precachedShell = createHandlerBoundToURL('/index.html');
 registerRoute(
   new NavigationRoute(
     options => loadRingsideNavigation(options.request, () => precachedShell(options)),
-    { allowlist: [/^\/at-show(?:\/|$)/] }
+    { allowlist: OFFLINE_SHELL_ALLOWLIST }
   )
 );
 

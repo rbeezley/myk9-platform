@@ -462,10 +462,10 @@ BEGIN
     SELECT 1 FROM pg_proc p
     WHERE p.oid = 'public.entry_results_changed_since(uuid, timestamptz)'::regprocedure
       AND NOT p.proretset
-      AND p.proargnames = ARRAY['p_show_id', 'p_since', 'changed', 'server_now']
-      AND p.proargmodes = ARRAY['i', 'i', 'o', 'o']::"char"[]
+      AND p.proargnames = ARRAY['p_show_id', 'p_since', 'changed', 'server_now', 'caller_has_access']
+      AND p.proargmodes = ARRAY['i', 'i', 'o', 'o', 'o']::"char"[]
   ) THEN
-    RAISE EXCEPTION 'FAIL 5 the function must return exactly one row of (changed, server_now)';
+    RAISE EXCEPTION 'FAIL 5 the function must return exactly one row of (changed, server_now, caller_has_access)';
   END IF;
   RAISE NOTICE 'PASS 5 results stay masked in the view and the function returns only a boolean';
 END;

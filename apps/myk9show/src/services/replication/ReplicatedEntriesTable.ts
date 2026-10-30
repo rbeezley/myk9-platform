@@ -357,6 +357,8 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     // MYK9-1369: the last view read is recorded only once the engine has applied
     // its rows; a read whose rows were never written must not license a skip.
     let recordViewRead = () => {};
+    // MYK9-1521: set when this pass's probe said the caller may read none of the show.
+    let probedNoAccess = false;
 
     const adapter: SyncReplicatedTableAdapter<EntryRow, ReplicatedEntry> = {
       ...this.getRowRefetchAdapter(),
@@ -400,7 +402,9 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
           bufferMs: REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN,
         };
         recordViewRead = () => {};
+        probedNoAccess = false;
         const readPlan = await planEntriesRead(readWindow);
+        probedNoAccess = readPlan.callerHasNoAccess;
         if (readPlan.skip) return [];
         const completed = (done: EntryRow[]) => {
           recordViewRead = readPlan.recordCompleted;
@@ -522,15 +526,33 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       },
     };
 
-    const result = await syncReplicatedTable(
-      this,
-      adapter,
-      { value: showScopeId },
-      {
-        forceFullSync: forceFullSync || needsReceiptReferenceRefresh,
-        incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN,
-      }
-    );
+    const syncOptions = {
+      forceFullSync: forceFullSync || needsReceiptReferenceRefresh,
+      incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN,
+    };
+    let result = await syncReplicatedTable(this, adapter, { value: showScopeId }, syncOptions);
+    // MYK9-1521: a caller revoked to zero reads no rows, so an incremental pass
+    // sees nothing move and stale cleanup (full syncs only) would wait for the
+    // count cadence. The probe has just said they hold no access: run the full
+    // pass now so `verifyScopeEmpty` re-proves it and clears the show's rows.
+    // Only while a row the cleanup may remove is left: rows with unsynced local
+    // work survive it, so counting them would re-run this pass on every poll.
+    if (result.success && probedNoAccess && (await this.hasPurgeableEntries(showScopeId))) {
+      const purge = await syncReplicatedTable(
+        this,
+        adapter,
+        { value: showScopeId },
+        { ...syncOptions, forceFullSync: true, skipMutationUpload: true }
+      );
+      // One sync to the caller: keep the first pass's work and any upload failure,
+      // as the engine's own full re-run does (the purge pass skips the upload).
+      result = {
+        ...purge,
+        rowsAffected: result.rowsAffected + purge.rowsAffected,
+        conflictsResolved: (result.conflictsResolved ?? 0) + (purge.conflictsResolved ?? 0),
+        ...(result.uploadError ? { uploadError: result.uploadError } : {}),
+      };
+    }
     if (result.success) recordViewRead();
 
     if (
@@ -574,6 +596,22 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
    */
   async getEntriesByShow(showId: string): Promise<ReplicatedEntry[]> {
     return this.getByShowOrThrow(showId);
+  }
+
+  /**
+   * MYK9-1521: whether the show holds a row the full-sync cleanup may remove.
+   * Rows with unsynced local work (dirty, local-only or queued) are kept by that
+   * cleanup, so they never count. An unreadable queue counts as "nothing to purge".
+   */
+  private async hasPurgeableEntries(showId: string): Promise<boolean> {
+    try {
+      for (const entry of await this.getEntriesByShow(showId)) {
+        if (!(await this.hasUnsyncedLocalWork(entry.id))) return true;
+      }
+    } catch {
+      return false;
+    }
+    return false;
   }
 
   /**

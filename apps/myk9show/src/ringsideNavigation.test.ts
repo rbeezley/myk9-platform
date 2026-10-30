@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { loadRingsideNavigation } from './ringsideNavigation';
+import { OFFLINE_SHELL_ALLOWLIST, loadRingsideNavigation } from './ringsideNavigation';
 
 const request = new Request('https://myk9show.com/at-show/show-1');
 const shell = () => Promise.resolve(new Response('cached shell', { status: 200 }));
@@ -105,4 +105,19 @@ describe('loadRingsideNavigation', () => {
     expect((await navigation).status).toBe(200);
     expect(fallback).toHaveBeenCalledOnce();
   });
+});
+
+describe('OFFLINE_SHELL_ALLOWLIST', () => {
+  const covered = (path: string) => OFFLINE_SHELL_ALLOWLIST.some(re => re.test(path));
+
+  it.each(['/at-show', '/at-show/show-1', '/shows', '/shows/abc'])('covers %s', path => {
+    expect(covered(path)).toBe(true);
+  });
+
+  it.each(['/', '/account', '/showsomething', '/entries', '/at-shows'])(
+    'leaves %s untouched',
+    path => {
+      expect(covered(path)).toBe(false);
+    }
+  );
 });

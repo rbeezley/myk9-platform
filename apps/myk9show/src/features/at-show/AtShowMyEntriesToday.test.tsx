@@ -8,6 +8,9 @@ const mockMutateAsync = vi.hoisted(() => vi.fn());
 const mockSync = vi.hoisted(() => vi.fn());
 const mockNavigate = vi.hoisted(() => vi.fn());
 
+// The ringside menu has its own tests; these render the screen on its own.
+vi.mock('./menu/RingsideMenu', () => ({ RingsideMenu: () => null }));
+
 vi.mock('react-router-dom', async importOriginal => ({
   ...(await importOriginal<typeof import('react-router-dom')>()),
   useNavigate: () => mockNavigate,

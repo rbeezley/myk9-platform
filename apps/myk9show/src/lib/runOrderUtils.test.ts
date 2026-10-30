@@ -8,7 +8,12 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { toMyK9ShowRunOrderPreset, calculateRunOrder } from './runOrderUtils';
+import {
+  toMyK9ShowRunOrderPreset,
+  calculateRunOrder,
+  calculateRunOrderScoped,
+  storedRunOrder,
+} from './runOrderUtils';
 
 describe('toMyK9ShowRunOrderPreset', () => {
   it('maps ringside random-all → myK9Show random (the bug fix)', () => {
@@ -56,5 +61,41 @@ describe('calculateRunOrder via the translated preset', () => {
     // proof it went through the shuffle branch, not a dropped/empty result.
     expect(result.map(r => r.id).sort()).toEqual(['e1', 'e2', 'e3']);
     expect(result.map(r => r.runOrder).sort()).toEqual([1, 2, 3]);
+  });
+});
+
+describe('storedRunOrder', () => {
+  it('reads 0, null and undefined as unset and keeps real slots', () => {
+    expect(storedRunOrder({ exhibitorOrder: 0 })).toBeNull();
+    expect(storedRunOrder({ exhibitorOrder: null })).toBeNull();
+    expect(storedRunOrder({})).toBeNull();
+    expect(storedRunOrder({ exhibitorOrder: 3 })).toBe(3);
+  });
+});
+
+describe('calculateRunOrderScoped preserve with an unset stored order', () => {
+  it('never returns runOrder 0 for entries the adapter exposes as exhibitorOrder 0', () => {
+    // transformEntry exposes an unset run_order as 0; callers convert via storedRunOrder.
+    const adapterEntries = [
+      { id: 'a1', armband: '101', section: 'A', exhibitorOrder: 0 },
+      { id: 'a2', armband: '102', section: 'A', exhibitorOrder: 0 },
+      { id: 'b1', armband: '201', section: 'B', exhibitorOrder: 4 },
+    ];
+    const result = calculateRunOrderScoped(
+      adapterEntries.map(e => ({
+        id: e.id,
+        armband: e.armband,
+        section: e.section,
+        runOrder: storedRunOrder(e),
+      })),
+      'armband-asc',
+      'A',
+      'preserve'
+    );
+    expect(result).toEqual([
+      { id: 'a1', runOrder: 5 },
+      { id: 'a2', runOrder: 6 },
+    ]);
+    expect(result.every(r => r.runOrder > 0)).toBe(true);
   });
 });

@@ -93,6 +93,9 @@ vi.mock('@/hooks/useAuthContext', async importOriginal => {
     ...actual,
     useAuthContext: () => ({
       getUserRoles: () => authRoles.current ?? [UserRole.SITE_ADMIN],
+      // The ringside menu (MYK9-1508) reads these to route Results.
+      hasRole: () => false,
+      userWithRoles: null,
       user: entriesScope.anonymous ? { is_anonymous: true } : null,
     }),
   };
@@ -188,6 +191,8 @@ describe('AtShowEntryListPage (Phase 1a shim)', () => {
   it('renders the ringside entry list from the mocked replication layer', async () => {
     renderPage();
     expect(await screen.findByText('Rex')).toBeInTheDocument();
+    // The menu's positive control: the scoresheet test asserts its absence there.
+    expect(screen.getByRole('button', { name: 'Ringside menu' })).toBeInTheDocument();
     expect(screen.getByText('Border Collie')).toBeInTheDocument();
     expect(screen.getByText('Jane Handler')).toBeInTheDocument();
   });
@@ -566,5 +571,47 @@ describe('AtShowEntryListPage (Phase 1a shim)', () => {
     // `unified_ringside_enabled` gate was removed pre-launch; resilience now
     // lives in RingsideShowBoundary (tested in RingsideShowBoundary.test.tsx).
     expect(AtShowRoutes()).not.toBeNull();
+  });
+
+  // MYK9-1509: an app-wide pass stuck on a dead connection leaves `isSyncing`
+  // true (cleanup is MYK9-1550). Offline it must not hold the skeleton.
+  describe('offline with the app-wide pass stuck syncing', () => {
+    const stuckSyncStatus: ReplicationSyncContextValue['status'] = {
+      isSyncing: true,
+      lastSyncAt: null,
+      error: null,
+      tablesStatus: { shows: 'syncing', trials: 'syncing', classes: 'syncing', entries: 'syncing' },
+    };
+
+    it('says the entries are not on this device, not the skeleton, for a never-saved show', async () => {
+      const offline = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+      try {
+        entriesScope.synced = false;
+        vi.mocked(replicatedTrialsTable.sync).mockResolvedValue({ success: false } as never);
+        vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([] as never);
+
+        renderPage(stuckSyncStatus);
+
+        expect(await screen.findByText('Entries are not on this device')).toBeInTheDocument();
+        expect(screen.queryByRole('status', { name: /Loading/ })).not.toBeInTheDocument();
+      } finally {
+        offline.mockRestore();
+      }
+    });
+
+    it('shows the saved empty class, not the skeleton, for a previously saved show', async () => {
+      const offline = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+      try {
+        vi.mocked(replicatedTrialsTable.sync).mockResolvedValue({ success: false } as never);
+        vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([] as never);
+
+        renderPage(stuckSyncStatus);
+
+        expect(await screen.findByText('No Entries Yet')).toBeInTheDocument();
+        expect(screen.queryByRole('status', { name: /Loading/ })).not.toBeInTheDocument();
+      } finally {
+        offline.mockRestore();
+      }
+    });
   });
 });

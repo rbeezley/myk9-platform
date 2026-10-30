@@ -27,7 +27,7 @@ import type {
 import { toast } from 'sonner';
 import { logger } from '@/utils/logger';
 import { supabase } from '@/services/database/supabaseClient';
-import { calculateRunOrder, toMyK9ShowRunOrderPreset } from '@/lib/runOrderUtils';
+import { calculateRunOrder, storedRunOrder, toMyK9ShowRunOrderPreset } from '@/lib/runOrderUtils';
 import { notifyRunOrderPersistError } from './runOrderErrorToast';
 import { persistRunOrderResults } from './persistRunOrderResults';
 import { toStatusUpdateFields } from './ringsideClassStatusMap';
@@ -328,7 +328,7 @@ export function useAtShowEntryListHandlers(
           id: e.id,
           armband: e.armband != null ? String(e.armband) : null,
           section: e.section ?? null,
-          runOrder: e.exhibitorOrder ?? null,
+          runOrder: storedRunOrder(e),
         })),
         // Translate the wide ringside preset to myK9Show's supported set —
         // notably ringside 'random-all' → 'random'. A bare cast let 'random-all'

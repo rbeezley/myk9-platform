@@ -18,6 +18,8 @@ import { useReleaseResults } from '@/hooks/mutations/useReleaseResults';
 import { useUnreleaseResults } from '@/hooks/mutations/useUnreleaseResults';
 import type { ResultsClassRow } from './buildResultsClassRows';
 import { CoinFlipPanel } from './CoinFlipPanel';
+import { NationalsLeaderboardLink, NationalsLeaderboardView } from './NationalsLeaderboardView';
+import { ResultsRefreshFailedAlert } from './ResultsRefreshFailedAlert';
 import { ResultsClassDetail } from './ResultsClassDetail';
 import { ResultsClassList } from './ResultsClassList';
 import { ResultsFinishRow } from './ResultsFinishRow';
@@ -27,6 +29,9 @@ import { ResultsTabToolbar } from './ResultsTabToolbar';
 import { ResultsVisibilitySheet } from './ResultsVisibilitySheet';
 import { deriveDefaultResultsStatus, matchesResultsStatusFilter } from './resultsNextAction';
 import {
+  effectiveReadState,
+  getShowIdParam,
+  isNationalsLeaderboardView,
   readResultsTabUrlState,
   writeResultsTabUrlState,
   type ResultsTabUrlState,
@@ -83,12 +88,20 @@ function everyClassReleasedAndInitialed(rows: readonly ResultsClassRow[]): boole
  * Release is the `useReleaseResults` mutation; this is the one place a class is released (MYK9-1318).
  */
 export default function ResultsTab() {
-  const params = useParams<{ showId?: string; id?: string }>();
-  const showId = params.showId ?? params.id ?? '';
+  const showId = getShowIdParam(useParams<{ showId?: string; id?: string }>());
   const [searchParams, setSearchParams] = useSearchParams();
   const urlState = readResultsTabUrlState(searchParams);
-  const { rows, isNationals, rankingKeyState, trials, readState, retry, refreshFailed } =
-    useResultsTabData(showId);
+  const {
+    rows,
+    entries,
+    showStartDate,
+    isNationals,
+    rankingKeyState,
+    trials,
+    readState,
+    retry,
+    refreshFailed,
+  } = useResultsTabData(showId);
   // The default status is derived live from the rows the view would list and never written to the
   // URL; a status the URL names always wins (MYK9-1276).
   const defaultStatus = useMemo(
@@ -279,16 +292,19 @@ export default function ResultsTab() {
     );
   };
 
-  if (readState === 'loading') {
+  // A direct leaderboard URL waits on the nationals flag instead of guessing: the class list is
+  // shown only once the show is known not to be nationals (MYK9-1516).
+  const shownReadState = effectiveReadState(readState, searchParams, rankingKeyState);
+  if (shownReadState === 'loading') {
     return (
       <div className="mt-4">
         <LoadingSkeleton variant="cards" count={3} />
       </div>
     );
   }
-  if (readState === 'failed' || readState === 'unavailable') {
+  if (shownReadState === 'failed' || shownReadState === 'unavailable') {
     return (
-      <Alert variant={readState === 'failed' ? 'destructive' : 'default'} className="mt-4">
+      <Alert variant={shownReadState === 'failed' ? 'destructive' : 'default'} className="mt-4">
         <AlertTitle>Couldn&apos;t load the scores</AlertTitle>
         <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
           <span>
@@ -300,6 +316,20 @@ export default function ResultsTab() {
           </Button>
         </AlertDescription>
       </Alert>
+    );
+  }
+
+  // Only a nationals show has the board; the URL alone never opens it elsewhere.
+  if (isNationalsLeaderboardView(searchParams, isNationals)) {
+    return (
+      <NationalsLeaderboardView
+        showId={showId}
+        entries={entries}
+        rows={rows}
+        showStartDate={showStartDate}
+        refreshFailed={refreshFailed}
+        onRetry={retry}
+      />
     );
   }
 
@@ -387,17 +417,8 @@ export default function ResultsTab() {
   return (
     <div className="mt-4 space-y-4">
       <h1 className="sr-only">Results</h1>
-      {refreshFailed && (
-        <Alert>
-          <AlertTitle>Couldn&apos;t refresh the scores</AlertTitle>
-          <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
-            <span>What is shown may be out of date. Check your connection and try again.</span>
-            <Button type="button" variant="outline" className="min-h-11" onClick={retry}>
-              Retry
-            </Button>
-          </AlertDescription>
-        </Alert>
-      )}
+      {refreshFailed && <ResultsRefreshFailedAlert onRetry={retry} />}
+      <NationalsLeaderboardLink showId={showId} isNationals={isNationals} />
       <ResultsFinishRow
         showId={showId}
         trials={trials}

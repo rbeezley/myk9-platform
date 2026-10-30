@@ -181,6 +181,7 @@ TEST_FILES=(
   "$TEST_DIR/myk9_969_results_privacy_test.sql"
   "$TEST_DIR/myk9_1369_entry_results_changed_since_test.sql"
   "$TEST_DIR/myk9_1476_caller_access_epoch_test.sql"
+  "$TEST_DIR/myk9_1521_changed_since_caller_access_test.sql"
   "$TEST_DIR/myk9_822_blocking_entries_rpc_test.sql"
   "$TEST_DIR/myk9_970_role_onboarding_test.sql"
   "$TEST_DIR/user_roles_show_manager_read_test.sql"

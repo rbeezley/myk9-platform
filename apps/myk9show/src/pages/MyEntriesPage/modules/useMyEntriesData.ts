@@ -538,7 +538,13 @@ export function useMyEntriesData({
   }, [currentIdentity, loadMyEntries]);
 
   // MYK9-1523: a replica change (check-in, ring status) re-reads while open.
-  useMyEntriesLiveRefresh(refreshEntries, currentIdentity !== null);
+  // A server read mid-upload would show the old status over the optimistic one.
+  const checkInsInFlightRef = useRef(0);
+  useMyEntriesLiveRefresh(
+    refreshEntries,
+    currentIdentity !== null,
+    () => checkInsInFlightRef.current > 0
+  );
 
   const hasCurrentEntries =
     currentIdentity !== null && loadedIdentityRef.current === currentIdentity;
@@ -595,7 +601,12 @@ export function useMyEntriesData({
 
         // classId is the individual entry row id — use it as the DB target so
         // grouped cards with multiple classes update the right row.
-        await persistCheckInStatus({ entryId: classId, classId, newStatus: status });
+        checkInsInFlightRef.current += 1;
+        try {
+          await persistCheckInStatus({ entryId: classId, classId, newStatus: status });
+        } finally {
+          checkInsInFlightRef.current -= 1;
+        }
       } catch (error) {
         logger.error('Failed to update check-in status:', 'pages', {}, error as Error);
         // Revert optimistic update

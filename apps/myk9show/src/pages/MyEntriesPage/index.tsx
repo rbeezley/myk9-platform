@@ -13,6 +13,7 @@ import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useEntriesPersonId } from '@/hooks/useEntriesPersonId';
 import { deriveMyEntriesDogState } from './modules/myEntriesDogState';
+import { MyShowsLiveSync } from './modules/MyShowsLiveSync';
 import { useDogsByOwnerQuery } from '@/hooks/queries/useDogsDatabase';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { ShowTodayBanner } from '@/features/show-today/ShowTodayBanner';
@@ -506,6 +507,7 @@ const MyEntriesPage: React.FC = () => {
 
   return (
     <>
+      <MyShowsLiveSync showIds={entries.map(entry => entry.showId)} />
       {/* The receipt half of an inbound `?orderId=` link: the amount, date and
         reference the exhibitor came here for.
 

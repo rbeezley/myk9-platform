@@ -77,6 +77,19 @@ describe('useMyEntriesLiveRefresh', () => {
     expect(second).toHaveBeenCalledTimes(1);
   });
 
+  it('defers the refresh while busy, then runs it once the busy state clears', () => {
+    const refresh = vi.fn().mockResolvedValue(undefined);
+    let busy = true;
+    renderHook(() => useMyEntriesLiveRefresh(refresh, true, () => busy));
+    notify('entries');
+    vi.advanceTimersByTime(MY_ENTRIES_LIVE_REFRESH_DEBOUNCE_MS * 3);
+    expect(refresh).not.toHaveBeenCalled();
+
+    busy = false;
+    vi.advanceTimersByTime(MY_ENTRIES_LIVE_REFRESH_DEBOUNCE_MS);
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
   it('does not subscribe while disabled', () => {
     renderHook(() => useMyEntriesLiveRefresh(vi.fn().mockResolvedValue(undefined), false));
     expect(replicatedEntriesTable.subscribe).not.toHaveBeenCalled();

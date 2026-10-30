@@ -51,6 +51,26 @@ Consider dispatching the `migration-auditor` agent on any new migration file bef
 3. Frontend: nothing deploys on merge. With the user's go-ahead or under standing approvals (tripwire exit 0), `gh workflow run deploy-myk9show.yml` deploys the newest `main` commit with a green CI run. Wait for it with `gh run watch <id> --exit-status` started with `run_in_background: true` (a foreground watch is refused, MYK9-1481), then read the summary for the deployed commit and the entry chunk myk9show.com serves, and comment on each `MYK9-<n>` issue whose commits it shipped.
 4. Run `get_advisors` after schema changes to catch new RLS/security warnings.
 
+## Post-deploy pass (after a Deploy myK9Show run)
+
+A deploy is what In Review issues wait for, so work them right after it (MYK9-1495):
+
+1. List In Review issues with a `verify:*` label whose merge commit is at or before the deployed
+   commit (`git merge-base --is-ancestor <merge> <deployed>`). Later merges are not live yet.
+2. Do the agent-doable evidence, per the label's removal rule in
+   [`docs/agents/issue-tracker.md`](../../../docs/agents/issue-tracker.md):
+   - `verify:database`: the rolled-back psql walk;
+   - `verify:browser`: on the live site, within the sign-in limits the issue and memory record;
+   - `verify:performance`: where the measurement is scriptable;
+   - `verify:scheduled-runs`: count the green scheduled runs since the merge.
+3. Record each result on the issue and remove the label it satisfies. When the last owed label
+   comes off, fresh-read the issue: Done only if every criterion is evidenced and it has no open
+   blocked-by relation or open sub-issue; otherwise label what is left (a relation needs none).
+4. Leave `verify:load`, `verify:offline`, `verify:physical-print`, `verify:real-user`,
+   `verify:checkout`, `verify:recovery` and every `needs:*` label alone: they need people,
+   devices or the owner.
+5. Report the In Review count before and after the pass, with the deployed commit and run ID.
+
 ## Common failure signatures
 
 | Symptom                                                 | Cause                                                              |

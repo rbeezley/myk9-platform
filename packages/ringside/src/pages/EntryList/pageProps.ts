@@ -264,6 +264,8 @@ export interface DogCardProps {
 export interface ClassDetailsData {
   classId?: number | string;
   status?: string;
+  /** Host-formatted ring phase ("Briefing 10:00 AM"); shown in place of `status` when set. */
+  statusLabel?: string;
   totalEntries?: number;
   completedEntries?: number;
   judgeName?: string;

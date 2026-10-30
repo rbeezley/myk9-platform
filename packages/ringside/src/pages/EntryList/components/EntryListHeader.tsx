@@ -42,7 +42,7 @@ function handleClassInfoKeyDown(event: React.KeyboardEvent, onToggle: () => void
   onToggle();
 }
 
-/** "<trial date> • <trial label>" (MYK9-704): the label is the trial's name, never "Trial <n>". */
+/** "<trial date> • <trial label> • <ring phase>" (MYK9-704, MYK9-1526): the label is the trial's name, never "Trial <n>". */
 function buildTrialInfoText(classInfo: ClassInfo | null): string {
   const parts: string[] = [];
   if (classInfo?.trialDate) parts.push(formatTrialDate(classInfo.trialDate));
@@ -50,6 +50,7 @@ function buildTrialInfoText(classInfo: ClassInfo | null): string {
   if (classInfo?.trialName || trialNumber) {
     parts.push(formatTrialLabel({ name: classInfo?.trialName, trialNumber }));
   }
+  if (classInfo?.statusLabel) parts.push(classInfo.statusLabel);
   return parts.join(' • ');
 }
 
@@ -153,7 +154,10 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
   // Check if there's extra info to show in popup
   const statusBadge = getStatusBadge(classInfo?.classStatus);
   const hasExtraInfo = Boolean(
-    classInfo?.judgeName || statusBadge || (showSectionsBadge && classInfo?.judgeNameB)
+    classInfo?.judgeName ||
+    statusBadge ||
+    classInfo?.statusLabel ||
+    (showSectionsBadge && classInfo?.judgeNameB)
   );
 
   // Memoize popover data to reduce inline complexity
@@ -168,6 +172,7 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
     return {
       classId: classIdDisplay,
       status: classInfo.classStatus,
+      statusLabel: classInfo.statusLabel,
       totalEntries: classInfo.totalEntries,
       completedEntries: classInfo.completedEntries,
       judgeName: classInfo.judgeName,

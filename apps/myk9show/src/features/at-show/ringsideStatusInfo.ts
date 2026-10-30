@@ -2,6 +2,7 @@ import type { ClassInfo } from '@myk9/ringside';
 import { instantToClockTime } from '@/features/show-map/cockpit/cockpitTime';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
 import { toRingsideClassStatus } from './ringsideClassStatusMap';
+import { formatRingsideStatusLabel } from './ringsideStatusLabel';
 
 /**
  * MYK9-1513: a class's status in ringside's eight-value vocabulary (status + ring
@@ -11,14 +12,27 @@ import { toRingsideClassStatus } from './ringsideClassStatusMap';
 export function buildRingsideStatusInfo(
   cls: ReplicatedClass,
   timeZone: string
-): Pick<ClassInfo, 'ringsideStatus' | 'briefingTime' | 'breakUntilTime' | 'expectedStartTime'> {
+): Pick<
+  ClassInfo,
+  'ringsideStatus' | 'statusLabel' | 'briefingTime' | 'breakUntilTime' | 'expectedStartTime'
+> {
   const phaseTime = cls.ringPhaseTime?.slice(0, 5);
+  const ringsideStatus = toRingsideClassStatus(cls);
+  const expectedStartTime = cls.revisedExpectedStart
+    ? instantToClockTime(cls.revisedExpectedStart, timeZone)
+    : undefined;
+  const briefingTime = cls.ringPhase === 'briefing' ? phaseTime : undefined;
+  const breakUntilTime = cls.ringPhase === 'break' ? phaseTime : undefined;
+  const statusLabel = formatRingsideStatusLabel(
+    ringsideStatus,
+    { briefing: briefingTime, breakUntil: breakUntilTime, startTime: expectedStartTime },
+    timeZone
+  );
   return {
-    ringsideStatus: toRingsideClassStatus(cls),
-    ...(cls.ringPhase === 'briefing' && phaseTime ? { briefingTime: phaseTime } : {}),
-    ...(cls.ringPhase === 'break' && phaseTime ? { breakUntilTime: phaseTime } : {}),
-    ...(cls.revisedExpectedStart
-      ? { expectedStartTime: instantToClockTime(cls.revisedExpectedStart, timeZone) }
-      : {}),
+    ringsideStatus,
+    ...(statusLabel ? { statusLabel } : {}),
+    ...(briefingTime ? { briefingTime } : {}),
+    ...(breakUntilTime ? { breakUntilTime } : {}),
+    ...(expectedStartTime ? { expectedStartTime } : {}),
   };
 }

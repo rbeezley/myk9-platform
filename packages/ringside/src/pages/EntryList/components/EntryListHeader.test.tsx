@@ -41,6 +41,7 @@ const StubPopover: ComponentType<ClassDetailsPopoverProps> = ({ isOpen, data }) 
       data-class-id={String(data.classId)}
       data-time-limit={String(data.timeLimitSeconds)}
       data-time-limit-type={typeof data.timeLimitSeconds}
+      data-status-label={data.statusLabel ?? ''}
     >
       {data.judgeName ?? ''}
     </div>
@@ -229,6 +230,51 @@ describe('EntryListHeader', () => {
     expect(screen.getByTestId('popover')).not.toBeNull();
     expect(trigger.getAttribute('aria-expanded')).toBe('true');
     expect(trigger.getAttribute('aria-controls')).toBe('class-details-popover');
+  });
+
+  describe('ring phase label (MYK9-1526)', () => {
+    const withLabel = (statusLabel: string | undefined): ClassInfo =>
+      ({ ...baseClassInfo, statusLabel }) as unknown as ClassInfo;
+
+    it.each([
+      'Briefing 10:00 AM',
+      'Break Until 10:30 AM',
+      'Start Time 11:00 AM',
+      'Offline Scoring',
+    ])('shows %p in the header and hands it to the info popover', label => {
+      renderHeader({ classInfo: withLabel(label) });
+      expect(screen.getByText(new RegExp(label))).not.toBeNull();
+
+      fireEvent.click(screen.getByRole('button', { name: /Container Novice/i }));
+      expect(screen.getByTestId('popover').getAttribute('data-status-label')).toBe(label);
+    });
+
+    it('shows no phase for plain In Progress', () => {
+      renderHeader({ classInfo: withLabel(undefined) });
+      expect(screen.queryByText(/Briefing|Break Until|Start Time|Offline Scoring/)).toBeNull();
+
+      fireEvent.click(screen.getByRole('button', { name: /Container Novice/i }));
+      const popover = screen.getByTestId('popover');
+      expect(popover.getAttribute('data-status-label')).toBe('');
+    });
+
+    it('shows the phase on the combined A/B header too', () => {
+      renderHeader({
+        classInfo: {
+          ...withLabel('Offline Scoring'),
+          actualClassId: undefined,
+          actualClassIdA: 'a',
+          actualClassIdB: 'b',
+          judgeNameB: 'J. Jones',
+        } as ClassInfo,
+        showSectionsBadge: true,
+      });
+      expect(screen.getByText(/Offline Scoring/)).not.toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: /Container Novice/i }));
+      expect(screen.getByTestId('popover').getAttribute('data-status-label')).toBe(
+        'Offline Scoring'
+      );
+    });
   });
 
   describe('popover timeLimitSeconds is always number | undefined', () => {

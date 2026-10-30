@@ -10,7 +10,7 @@
  * stays hidden until MYK9-1515 gives it content. Printing is not offered at the
  * ring. Statistics opens ClassStatisticsDialog from the replicated entries.
  */
-import { useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import type React from 'react';
 import {
   BarChart3,
@@ -101,6 +101,10 @@ export const ClassOptionsDialog: React.FC<ClassOptionsDialogProps> = ({
   const [showStatistics, setShowStatistics] = useState(false);
   // Live: a max time saved on this or another device shows without reopening.
   const live = useLiveClasses(classData?.id ? [classData.id] : [], isOpen);
+  // The host keeps this mounted while closed: reopen on the menu, never on Statistics.
+  useEffect(() => {
+    if (!isOpen) setShowStatistics(false);
+  }, [isOpen]);
   if (!isOpen) return null;
 
   const name = classData ? classData.class_name : 'Class Options';

@@ -6,6 +6,7 @@
 import { useMemo } from 'react';
 import type React from 'react';
 import { BarChart3 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { ClassDialogShell } from './ClassDialogShell';
 import { useLiveClassEntries } from '../useLiveClassEntries';
 import { computeClassStatistics, formatStatTime } from '../classStatistics';
@@ -33,7 +34,7 @@ export const ClassStatisticsDialog: React.FC<ClassStatisticsDialogProps> = ({
   className,
   onClose,
 }) => {
-  const rows = useLiveClassEntries(classId);
+  const { rows, failed, retry } = useLiveClassEntries(classId);
   const stats = useMemo(() => (rows ? computeClassStatistics(rows) : null), [rows]);
 
   return (
@@ -42,6 +43,15 @@ export const ClassStatisticsDialog: React.FC<ClassStatisticsDialogProps> = ({
         <p className="text-sm text-muted-foreground">
           Statistics are per class. Open a single class to see them.
         </p>
+      ) : failed ? (
+        <div role="alert" className="space-y-2">
+          <p className="text-sm text-destructive">
+            Couldn&apos;t read this class&apos;s entries on this device.
+          </p>
+          <Button variant="outline" className="min-h-11" onClick={retry}>
+            Try again
+          </Button>
+        </div>
       ) : !stats ? (
         <p className="text-sm text-muted-foreground">Loading statistics…</p>
       ) : (

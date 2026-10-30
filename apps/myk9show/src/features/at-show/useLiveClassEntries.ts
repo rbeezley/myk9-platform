@@ -1,16 +1,27 @@
 /**
  * A class's replicated entry rows, re-read whenever the entry replica changes, so
  * ringside surfaces that summarise a class (statistics) work offline and follow a
- * score saved on this or another device. Null until the first read; a failed read
- * reads as no rows, so nothing waits on it forever.
+ * score saved on this or another device. `rows` is null until the first read. A
+ * failed read is reported as `failed` (never as an empty class) and `retry` reads
+ * again; rows already read for this class stay on screen through a later failure.
  */
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { replicatedEntriesTable } from '@/services/replication';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 
-export function useLiveClassEntries(classId: string, enabled = true): ReplicatedEntry[] | null {
+interface LiveClassEntries {
+  rows: ReplicatedEntry[] | null;
+  failed: boolean;
+  retry: () => void;
+}
+
+export function useLiveClassEntries(classId: string, enabled = true): LiveClassEntries {
   // Keyed by the class read: a reused hook must not answer with the previous class.
-  const [snapshot, setSnapshot] = useState<{ key: string; rows: ReplicatedEntry[] } | null>(null);
+  const [snapshot, setSnapshot] = useState<{ key: string; rows: ReplicatedEntry[] | null } | null>(
+    null
+  );
+  const [failedKey, setFailedKey] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     if (!enabled || !classId) return;
@@ -19,14 +30,12 @@ export function useLiveClassEntries(classId: string, enabled = true): Replicated
       replicatedEntriesTable
         .getEntriesByClass(classId)
         .then(rows => {
-          if (!cancelled) setSnapshot({ key: classId, rows });
+          if (cancelled) return;
+          setSnapshot({ key: classId, rows });
+          setFailedKey(null);
         })
         .catch(() => {
-          if (!cancelled) {
-            setSnapshot(current =>
-              current?.key === classId ? current : { key: classId, rows: [] }
-            );
-          }
+          if (!cancelled) setFailedKey(classId);
         });
     };
     const unsubscribe = replicatedEntriesTable.subscribe(read);
@@ -35,7 +44,13 @@ export function useLiveClassEntries(classId: string, enabled = true): Replicated
       cancelled = true;
       unsubscribe();
     };
-  }, [classId, enabled]);
+  }, [classId, enabled, attempt]);
 
-  return snapshot?.key === classId ? snapshot.rows : null;
+  const retry = useCallback(() => {
+    setFailedKey(null);
+    setAttempt(n => n + 1);
+  }, []);
+
+  const rows = snapshot?.key === classId ? snapshot.rows : null;
+  return { rows, failed: failedKey === classId && rows === null, retry };
 }

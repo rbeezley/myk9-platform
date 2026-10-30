@@ -9,6 +9,7 @@ import { render, screen, fireEvent, waitFor, within } from '@/test/utils/testUti
 const replica = vi.hoisted(() => ({
   classes: new Map<string, Record<string, unknown>>(),
   entries: [] as Record<string, unknown>[],
+  failEntries: false,
 }));
 vi.mock('@/services/replication', () => ({
   replicatedClassesTable: {
@@ -16,7 +17,10 @@ vi.mock('@/services/replication', () => ({
     subscribe: vi.fn(() => () => {}),
   },
   replicatedEntriesTable: {
-    getEntriesByClass: vi.fn(async () => replica.entries),
+    getEntriesByClass: vi.fn(async () => {
+      if (replica.failEntries) throw new Error('read failed');
+      return replica.entries;
+    }),
     subscribe: vi.fn(() => () => {}),
   },
 }));
@@ -49,6 +53,7 @@ const tileNames = () =>
 beforeEach(() => {
   replica.classes.clear();
   replica.entries = [];
+  replica.failEntries = false;
 });
 
 describe('ClassOptionsDialog (MYK9-1502)', () => {
@@ -143,5 +148,26 @@ describe('ClassOptionsDialog (MYK9-1502)', () => {
     renderDialog();
     fireEvent.click(screen.getByRole('button', { name: /Statistics/ }));
     expect(await screen.findByText('Nothing scored yet')).toBeInTheDocument();
+  });
+
+  it('a failed entry read is an error with a retry, not an empty class', async () => {
+    replica.failEntries = true;
+    renderDialog();
+    fireEvent.click(screen.getByRole('button', { name: /Statistics/ }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/Couldn't read/);
+    expect(screen.queryByText('Nothing scored yet')).not.toBeInTheDocument();
+    replica.failEntries = false;
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(await screen.findByText('Nothing scored yet')).toBeInTheDocument();
+  });
+
+  it('reopening after Statistics lands on the menu again', async () => {
+    const props = { onClose: vi.fn(), classData, onRequirements: vi.fn(), onStatistics: vi.fn() };
+    const { rerender } = render(<ClassOptionsDialog isOpen {...props} />);
+    fireEvent.click(screen.getByRole('button', { name: /Statistics/ }));
+    await screen.findByText('Fastest time');
+    rerender(<ClassOptionsDialog isOpen={false} {...props} />);
+    rerender(<ClassOptionsDialog isOpen {...props} />);
+    expect(await screen.findByRole('button', { name: /Requirements/ })).toBeInTheDocument();
   });
 });

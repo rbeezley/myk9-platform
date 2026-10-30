@@ -18,6 +18,7 @@ import { useReleaseResults } from '@/hooks/mutations/useReleaseResults';
 import { useUnreleaseResults } from '@/hooks/mutations/useUnreleaseResults';
 import type { ResultsClassRow } from './buildResultsClassRows';
 import { CoinFlipPanel } from './CoinFlipPanel';
+import { NationalsLeaderboardLink, NationalsLeaderboardView } from './NationalsLeaderboard';
 import { ResultsClassDetail } from './ResultsClassDetail';
 import { ResultsClassList } from './ResultsClassList';
 import { ResultsFinishRow } from './ResultsFinishRow';
@@ -27,6 +28,8 @@ import { ResultsTabToolbar } from './ResultsTabToolbar';
 import { ResultsVisibilitySheet } from './ResultsVisibilitySheet';
 import { deriveDefaultResultsStatus, matchesResultsStatusFilter } from './resultsNextAction';
 import {
+  getShowIdParam,
+  isNationalsLeaderboardView,
   readResultsTabUrlState,
   writeResultsTabUrlState,
   type ResultsTabUrlState,
@@ -83,12 +86,20 @@ function everyClassReleasedAndInitialed(rows: readonly ResultsClassRow[]): boole
  * Release is the `useReleaseResults` mutation; this is the one place a class is released (MYK9-1318).
  */
 export default function ResultsTab() {
-  const params = useParams<{ showId?: string; id?: string }>();
-  const showId = params.showId ?? params.id ?? '';
+  const showId = getShowIdParam(useParams<{ showId?: string; id?: string }>());
   const [searchParams, setSearchParams] = useSearchParams();
   const urlState = readResultsTabUrlState(searchParams);
-  const { rows, isNationals, rankingKeyState, trials, readState, retry, refreshFailed } =
-    useResultsTabData(showId);
+  const {
+    rows,
+    entries,
+    showStartDate,
+    isNationals,
+    rankingKeyState,
+    trials,
+    readState,
+    retry,
+    refreshFailed,
+  } = useResultsTabData(showId);
   // The default status is derived live from the rows the view would list and never written to the
   // URL; a status the URL names always wins (MYK9-1276).
   const defaultStatus = useMemo(
@@ -303,6 +314,18 @@ export default function ResultsTab() {
     );
   }
 
+  // Only a nationals show has the board; the URL alone never opens it elsewhere.
+  if (isNationalsLeaderboardView(searchParams, isNationals)) {
+    return (
+      <NationalsLeaderboardView
+        showId={showId}
+        entries={entries}
+        rows={rows}
+        showStartDate={showStartDate}
+      />
+    );
+  }
+
   const list =
     visibleRows.length > 0 ? (
       <ResultsClassList showId={showId} rows={visibleRows} selectedId={selected?.id ?? null} />
@@ -398,6 +421,7 @@ export default function ResultsTab() {
           </AlertDescription>
         </Alert>
       )}
+      <NationalsLeaderboardLink showId={showId} isNationals={isNationals} />
       <ResultsFinishRow
         showId={showId}
         trials={trials}

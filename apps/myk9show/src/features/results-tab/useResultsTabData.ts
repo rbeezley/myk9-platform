@@ -198,6 +198,10 @@ export function useResultsTabData(showId: string) {
 
   return {
     rows: builtRows,
+    /** The scores behind the rows, for the nationals leaderboard (MYK9-1516). */
+    entries,
+    /** The show's first day, which the leaderboard counts competition days from. */
+    showStartDate: showQuery.data?.startDate ?? null,
     /** The show ranks by points (nationals); null while the show row is unread. */
     isNationals,
     /** Whether `isNationals` can be trusted: 'unavailable' = the show row could not be read. */

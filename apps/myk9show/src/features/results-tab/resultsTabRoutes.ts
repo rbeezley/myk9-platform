@@ -87,3 +87,28 @@ export function getFixScoreHref(
 export function getResultsStepHref(showId: string, step: 'submit' | 'close'): string {
   return `/shows/${encodeURIComponent(showId)}/results?step=${step}`;
 }
+
+/**
+ * The nationals leaderboard is a view of the Results tab (MYK9-1516); anything else is the class
+ * list. The URL alone never opens it on a show that is not known to be nationals.
+ */
+export function isNationalsLeaderboardView(
+  params: URLSearchParams,
+  isNationals: boolean | null
+): boolean {
+  return isNationals === true && params.get('view') === 'leaderboard';
+}
+
+/** Easy to link from elsewhere (the ringside menu, MYK9-1508): it is just the Results tab URL. */
+export function getNationalsLeaderboardHref(showId: string): string {
+  return `/shows/${encodeURIComponent(showId)}/results?view=leaderboard`;
+}
+
+export function getResultsListHref(showId: string): string {
+  return `/shows/${encodeURIComponent(showId)}/results`;
+}
+
+/** The show id, from whichever route param this tab is mounted under. */
+export function getShowIdParam(params: { showId?: string; id?: string }): string {
+  return params.showId ?? params.id ?? '';
+}

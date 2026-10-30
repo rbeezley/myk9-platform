@@ -7,6 +7,7 @@
  */
 import { ALL_DAYS, getShowHomeHref } from '@/features/show-map/cockpit/cockpitRoutes';
 import { getPaperScoringEntryHref } from '@/pages/scoring/scoringRoutes';
+import type { ResultsTabReadState } from './useResultsTabData';
 import { isResultsStatusFilterId, type ResultsStatusFilterId } from './resultsNextAction';
 
 export interface ResultsTabUrlState {
@@ -102,6 +103,20 @@ export function isNationalsLeaderboardView(
 /** The URL names the board; whether the show may open it waits on the nationals flag. */
 export function isNationalsLeaderboardRequested(params: URLSearchParams): boolean {
   return params.get('view') === 'leaderboard';
+}
+
+/**
+ * The read state the tab should act on. A direct leaderboard URL also waits on the show row (the
+ * nationals flag): while it loads that is Loading, and when it cannot be read that is Unavailable,
+ * so the class list is never shown in place of the requested view.
+ */
+export function effectiveReadState(
+  readState: ResultsTabReadState,
+  params: URLSearchParams,
+  rankingKeyState: 'ready' | 'loading' | 'unavailable'
+): ResultsTabReadState {
+  if (!isNationalsLeaderboardRequested(params) || rankingKeyState === 'ready') return readState;
+  return rankingKeyState === 'loading' ? 'loading' : 'unavailable';
 }
 
 /** Easy to link from elsewhere (the ringside menu, MYK9-1508): it is just the Results tab URL. */

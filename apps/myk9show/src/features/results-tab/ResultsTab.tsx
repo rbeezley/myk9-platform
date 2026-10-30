@@ -29,8 +29,8 @@ import { ResultsTabToolbar } from './ResultsTabToolbar';
 import { ResultsVisibilitySheet } from './ResultsVisibilitySheet';
 import { deriveDefaultResultsStatus, matchesResultsStatusFilter } from './resultsNextAction';
 import {
+  effectiveReadState,
   getShowIdParam,
-  isNationalsLeaderboardRequested,
   isNationalsLeaderboardView,
   readResultsTabUrlState,
   writeResultsTabUrlState,
@@ -294,21 +294,17 @@ export default function ResultsTab() {
 
   // A direct leaderboard URL waits on the nationals flag instead of guessing: the class list is
   // shown only once the show is known not to be nationals (MYK9-1516).
-  const leaderboardRequested = isNationalsLeaderboardRequested(searchParams);
-  if (readState === 'loading' || (leaderboardRequested && rankingKeyState === 'loading')) {
+  const shownReadState = effectiveReadState(readState, searchParams, rankingKeyState);
+  if (shownReadState === 'loading') {
     return (
       <div className="mt-4">
         <LoadingSkeleton variant="cards" count={3} />
       </div>
     );
   }
-  if (
-    readState === 'failed' ||
-    readState === 'unavailable' ||
-    (leaderboardRequested && rankingKeyState === 'unavailable')
-  ) {
+  if (shownReadState === 'failed' || shownReadState === 'unavailable') {
     return (
-      <Alert variant={readState === 'failed' ? 'destructive' : 'default'} className="mt-4">
+      <Alert variant={shownReadState === 'failed' ? 'destructive' : 'default'} className="mt-4">
         <AlertTitle>Couldn&apos;t load the scores</AlertTitle>
         <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
           <span>

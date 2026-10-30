@@ -53,7 +53,7 @@ const CLASS_ID = 'dec1a55e-0000-0000-0000-000000000032';
 // Seeded entry. On shared staging (scheduled judge replay) the tests use it as is,
 // because the ringside RPC is intercepted and nothing is written. On an isolated
 // stack it is only the TEMPLATE for a disposable entry minted per test.
-const SEEDED_ENTRY_ID = 'dededede-0000-0000-0000-000000000052';
+const ENTRY_ID = 'dededede-0000-0000-0000-000000000052';
 const CLASS_PATH = `/at-show/${SHOW_ID}/class/${CLASS_ID}`;
 // A lean-seed class with NO judge assignment and a real entry in it
 // (seed-demo.sql section 4, MYK9-515's full-class fixture on Trial 4). This was
@@ -71,7 +71,7 @@ const PENDING_MUTATIONS_STORE = 'pending_mutations';
 
 test.describe('At-show judge scoring authorization', () => {
   let seed: DisposableEntry | null = null;
-  let entryId = SEEDED_ENTRY_ID;
+  let entryId = ENTRY_ID;
   let scorePath = scorePathFor(entryId);
 
   test.beforeEach(async () => {
@@ -80,11 +80,11 @@ test.describe('At-show judge scoring authorization', () => {
       seed = await seedDisposableEntry({
         showId: SHOW_ID,
         classId: CLASS_ID,
-        templateEntryId: SEEDED_ENTRY_ID,
+        templateEntryId: ENTRY_ID,
         label: 'Judge Scoring',
       });
     }
-    entryId = seed?.entryId ?? SEEDED_ENTRY_ID;
+    entryId = seed?.entryId ?? ENTRY_ID;
     scorePath = scorePathFor(entryId);
   });
 

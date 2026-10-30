@@ -45,7 +45,6 @@ export const ManualTimeField: React.FC<ManualTimeFieldProps> = ({
       <Input
         id={inputId}
         type="text"
-        inputMode="decimal"
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder="0:00.00"

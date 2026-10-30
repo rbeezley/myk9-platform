@@ -137,4 +137,11 @@ describe('manual time field', () => {
     expect(input.value).toBe('1:23.45');
     expect(screen.getByText('Max: 3:00')).toBeInTheDocument();
   });
+
+  // A numeric keypad has no colon, so "1:23.45" could not be typed (it would become 123.45 s).
+  it('does not force a numeric keypad on the time input', () => {
+    render(<AKCScentWorkLiveScoresheet {...props()} />);
+    const input = screen.getByLabelText('Area 1 time');
+    expect(input.getAttribute('inputmode')).toBeNull();
+  });
 });

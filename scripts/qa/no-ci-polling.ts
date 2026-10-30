@@ -19,6 +19,11 @@
  * `bash -c '...'`, a heredoc body (always data), xargs, find -exec, sudo, ssh,
  * and a gh flag between command levels (`gh run --repo x watch`: 0 of 3,937
  * gh run/pr calls in the transcripts, Codex round 3).
+ * One accepted false deny: a sleep sent to a shell background job with `&`
+ * (`sleep 60 >/dev/null 2>&1 &`) is refused although the shell does not wait
+ * for it. Reading `&` would also have to catch a later `wait`; 0 of 4,892
+ * foreground sleep calls in the transcripts use the form, and
+ * run_in_background is the way to wait (MYK9-1492, Codex re-review).
  * A command with `run_in_background: true` is always allowed: that is the
  * endorsed way to wait, and the harness notifies the session when it exits.
  * One `gh pr checks <pr>` read, `gh run view --log-failed`, and a `sleep`

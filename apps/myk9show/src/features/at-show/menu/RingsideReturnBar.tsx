@@ -7,7 +7,7 @@
 import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
-import { currentHistoryIdx, isRingsidePath, useRingsideReturnStore } from './ringsideReturnStore';
+import { isRingsidePath, useRingsideReturnStore } from './ringsideReturnStore';
 
 export function RingsideReturnBar() {
   const target = useRingsideReturnStore(s => s.target);
@@ -30,11 +30,11 @@ export function RingsideReturnBar() {
   if (!target || atRingside) return null;
   if (pathname !== target.scope && !pathname.startsWith(`${target.scope}/`)) return null;
 
+  // Always the recorded URL: stepping back by history index can land on an
+  // unrelated page once the user has navigated around the destination.
   const goBack = () => {
-    const delta = currentHistoryIdx() - target.originIdx;
     clear();
-    if (delta > 0) navigate(-delta);
-    else navigate(target.returnTo);
+    navigate(target.returnTo);
   };
 
   return (

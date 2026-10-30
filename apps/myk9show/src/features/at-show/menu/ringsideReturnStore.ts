@@ -1,10 +1,9 @@
 /**
  * Where a ringside menu destination sends the user back to (MYK9-1508).
  *
- * The menu records the ringside screen it was opened on, plus how far the
- * history had advanced, so the return bar can step back through history (which
- * restores the screen and its scroll) or, after the user wandered, navigate to
- * the recorded URL. `scope` keeps the bar on the destination's own pages only.
+ * The menu records the ringside screen it was opened on (path, query and the
+ * class list's `?view=`), and the return bar navigates back to that URL.
+ * `scope` keeps the bar on the destination's own pages only.
  */
 import { create } from 'zustand';
 
@@ -13,8 +12,6 @@ export interface RingsideReturn {
   returnTo: string;
   /** Route prefix of the destination; the bar shows only under it. */
   scope: string;
-  /** `history.state.idx` when the menu was used. */
-  originIdx: number;
   /** True once the user has actually left ringside; only then may arriving back end the trip. */
   departed?: boolean;
 }
@@ -36,9 +33,4 @@ export const useRingsideReturnStore = create<RingsideReturnState>()(set => ({
 
 export function isRingsidePath(pathname: string): boolean {
   return pathname === '/at-show' || pathname.startsWith('/at-show/');
-}
-
-export function currentHistoryIdx(): number {
-  const idx = (window.history.state as { idx?: unknown } | null)?.idx;
-  return typeof idx === 'number' ? idx : 0;
 }

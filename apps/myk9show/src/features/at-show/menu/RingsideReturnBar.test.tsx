@@ -23,7 +23,6 @@ const record = () =>
   useRingsideReturnStore.getState().set({
     returnTo: '/at-show/show-1/class/class-1?tab=a',
     scope: '/account',
-    originIdx: 0,
   });
 
 describe('RingsideReturnBar', () => {
@@ -37,6 +36,14 @@ describe('RingsideReturnBar', () => {
     await user.click(screen.getByRole('button', { name: 'Back to ringside' }));
     expect(await screen.findByText('entry list')).toBeInTheDocument();
     expect(useRingsideReturnStore.getState().target).toBeNull();
+  });
+
+  it('returns to the recorded URL even after the user wandered through other pages', async () => {
+    record();
+    const { user } = render(<Pages />, { initialRoute: '/account?section=appearance' });
+    await user.click(screen.getByRole('button', { name: 'go settings' }));
+    await user.click(screen.getByRole('button', { name: 'Back to ringside' }));
+    expect(await screen.findByText('entry list')).toBeInTheDocument();
   });
 
   it('gives the return control a 48px target', () => {

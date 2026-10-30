@@ -8,6 +8,9 @@ const mockPlaces = vi.hoisted(() => ({ current: new Map<string, number>() }));
 const mockUpdatedAt = vi.hoisted(() => ({ current: 1_761_325_500_000 as number | null }));
 const mockPlaceRequests = vi.hoisted(() => vi.fn());
 
+// The ringside menu has its own tests; these render the screen on its own.
+vi.mock('./menu/RingsideMenu', () => ({ RingsideMenu: () => null }));
+
 vi.mock('@/hooks/queries/useMyEntryQueuePlaces', () => ({
   useMyEntryQueuePlacesWithFreshness: (ids: readonly string[]) => {
     mockPlaceRequests(ids);

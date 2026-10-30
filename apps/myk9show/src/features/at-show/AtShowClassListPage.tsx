@@ -5,7 +5,7 @@
  */
 
 import { useCallback, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { AlertCircle, ChevronRight } from 'lucide-react';
 import { groupSectionedClasses, getClassIds, type ClassEntry } from '@myk9/ringside';
 import { Button } from '@/components/ui/button';
@@ -254,7 +254,22 @@ export const AtShowClassListPage: React.FC = () => {
   // `null` = no manual override yet, so the view tracks ownership as it
   // resolves (starts 'all' while ownEntryIds is still loading, flips to
   // 'mine' once entries are known) without fighting an explicit user choice.
-  const [manualView, setManualView] = useState<'mine' | 'all' | null>(null);
+  // Kept in the URL (`?view=`) so the ringside menu's return control restores it.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedView = searchParams.get('view');
+  const manualView = requestedView === 'mine' || requestedView === 'all' ? requestedView : null;
+  const setManualView = useCallback(
+    (next: 'mine' | 'all') =>
+      setSearchParams(
+        previous => {
+          const params = new URLSearchParams(previous);
+          params.set('view', next);
+          return params;
+        },
+        { replace: true }
+      ),
+    [setSearchParams]
+  );
   const view: 'mine' | 'all' =
     manualView ?? (isExhibitorOnly && ownEntryIds.size > 0 ? 'mine' : 'all');
 
@@ -359,6 +374,7 @@ export const AtShowClassListPage: React.FC = () => {
             Try again
           </Button>
           <ClassListUpButton showId={showId} clubId={clubId} />
+          <RingsideMenu showId={showId} />
         </div>
       </main>
     );
@@ -427,6 +443,7 @@ export const AtShowClassListPage: React.FC = () => {
             </Button>
           )}
           <ClassListUpButton showId={showId} clubId={clubId} />
+          <RingsideMenu showId={showId} />
         </div>
       </main>
     );

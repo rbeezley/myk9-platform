@@ -2,7 +2,7 @@
  * Integration test for the exhibitor-first "Your dogs today" show-day view
  * (openspec/changes/exhibitor-elderly-ux-remediation, section 3).
  */
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@/test/utils/testUtils';
 import { ReplicationSyncTestProvider } from '@/test/utils/ReplicationSyncTestProvider';
@@ -140,6 +140,10 @@ function seedOwnedEntry(overrides: Record<string, unknown> = {}) {
   ] as never);
 }
 
+function SearchProbe() {
+  return <div data-testid="search">{useLocation().search}</div>;
+}
+
 const renderPage = () =>
   render(
     <ReplicationSyncTestProvider
@@ -271,6 +275,41 @@ describe('AtShowClassListPage — exhibitor "Your dogs today" default', () => {
     await waitFor(() => {
       expect(screen.getByText('Rex')).toBeInTheDocument();
     });
+  });
+
+  // MYK9-1508: the ringside menu is reachable from the exhibitor's default
+  // screen, and the chosen view lives in the URL so the menu's return restores it.
+  it('offers the ringside menu on "Your dogs today"', async () => {
+    mockAuthState.hasRole = role => role === UserRole.EXHIBITOR;
+    mockAuthState.user = { id: 'user-1' };
+    seedOwnedEntry();
+
+    renderPage();
+
+    expect(await screen.findByTestId('at-show-my-entries-today')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Ringside menu' })).toBeInTheDocument();
+  });
+
+  it('keeps the chosen class-list view in the URL', async () => {
+    mockAuthState.hasRole = role => role === UserRole.EXHIBITOR;
+    mockAuthState.user = { id: 'user-1' };
+    seedOwnedEntry();
+
+    render(
+      <ReplicationSyncTestProvider
+        value={{ status: settledSyncStatus, triggerSync: vi.fn(), syncTable: vi.fn() }}
+      >
+        <Routes>
+          <Route path="/at-show/:showId" element={<AtShowClassListPage />} />
+        </Routes>
+        <SearchProbe />
+      </ReplicationSyncTestProvider>,
+      { initialRoute: '/at-show/show-1' }
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'See all classes' }));
+    expect(await screen.findByText(/Container Novice/)).toBeInTheDocument();
+    expect(screen.getByTestId('search')).toHaveTextContent('?view=all');
   });
 
   // MYK9-1184: the all-days list used to sit under a "Your dogs today" button

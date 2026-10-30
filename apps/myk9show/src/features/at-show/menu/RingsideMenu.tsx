@@ -31,7 +31,7 @@ import {
   itemNeedsConnection,
   type RingsideMenuItem,
 } from './ringsideMenuItems';
-import { currentHistoryIdx, useRingsideReturnStore } from './ringsideReturnStore';
+import { useRingsideReturnStore } from './ringsideReturnStore';
 import { RingsideShowInfo } from './RingsideShowInfo';
 
 const ROW_CLASS =
@@ -109,7 +109,6 @@ export function RingsideMenu({ showId }: { showId: string | undefined }) {
       setReturn({
         returnTo: `${location.pathname}${location.search}`,
         scope: item.returnScope ?? href.split('?')[0] ?? href,
-        originIdx: currentHistoryIdx(),
       });
       closeThen(() => navigate(href));
       return;

@@ -1,29 +1,23 @@
 /**
- * MYK9-1477: Linux WebKit reports an app request that the outgoing document
- * abandoned at a navigation as a page error, `<url> due to access control
- * checks.`, with no `requestfailed` and no response. Run 40962869226 showed
- * every such error in the route-health sweep had exactly that signature.
+ * MYK9-1477: Linux WebKit reports a fetch the outgoing document starts while it
+ * is being torn down as a page error, `<url> due to access control checks.`,
+ * and never sends it: Playwright sees no `request` event for it at all (run
+ * 40980816332: every kept error was `seen=never`, or its URL's real requests had
+ * all finished). A request that was never sent cannot be a server or CORS
+ * failure; a real one is sent and records a `requestfailed` reason
+ * (`… Status code: N`) or a failed response (#3391 known-answer probe).
  *
- * A page error carries only a URL, so it cannot be tied to one request. The
- * excuse works by elimination instead: when the route has SETTLED, every app
- * request the incoming document made has reported an outcome (a failure
- * records a `requestfailed` reason or a failed response; one with no outcome
- * stays pending and fails the settle check). An outcome-less access-control
- * error on a settled route can then only belong to a request the outgoing
- * document abandoned. So a page error is excused only when ALL of these hold:
- * - the route settled (`routeSettled`); otherwise nothing is excused;
+ * A page error carries only a URL, so the excuse works by elimination. It is
+ * excused only when ALL of these hold:
+ * - the route settled (`routeSettled`): every request this route made has an
+ *   outcome, so none is still in flight to fail later;
  * - it is the WebKit access-control message;
- * - its URL matches a request the tracker saw still in flight when a
- *   cross-document navigation committed, and that request has reported no
- *   outcome since (`AppApiRequestTracker.stranded`);
  * - no request to that URL recorded a failure reason or a failed response in
- *   the same window, so a real failure can never borrow a stranded twin's excuse.
- *
- * Each stranded request excuses at most one page error.
+ *   the route's window. Any recorded failure keeps every error for that URL.
  */
 const ACCESS_CONTROL_SUFFIX = ' due to access control checks.';
 
-export interface StrandedErrorTriage {
+export interface AccessControlErrorTriage {
   kept: string[];
   excused: string[];
 }
@@ -51,36 +45,23 @@ export function accessControlErrorUrl(message: string): string | null {
 
 /**
  * @param pageErrors   the route's page error messages
- * @param strandedUrls URLs of the tracker's stranded requests, one per request
  * @param failureLines the route's `failedResponses` and `failedRequests` lines,
  *                     each ending in the request URL
  * @param routeSettled whether the route's app API requests all settled
  */
-export function triageStrandedAccessControlErrors(
+export function triageAccessControlErrors(
   pageErrors: string[],
-  strandedUrls: string[],
   failureLines: string[],
   routeSettled: boolean
-): StrandedErrorTriage {
+): AccessControlErrorTriage {
   if (!routeSettled) return { kept: [...pageErrors], excused: [] };
   const failed = new Set(failureLines.map(line => normalizeUrl(lastToken(line))));
-  const budget = new Map<string, number>();
-  for (const url of strandedUrls.map(normalizeUrl)) {
-    if (failed.has(url)) continue;
-    budget.set(url, (budget.get(url) ?? 0) + 1);
-  }
-
   const kept: string[] = [];
   const excused: string[] = [];
   for (const message of pageErrors) {
     const url = accessControlErrorUrl(message);
-    const remaining = url === null ? 0 : (budget.get(url) ?? 0);
-    if (url !== null && remaining > 0) {
-      budget.set(url, remaining - 1);
-      excused.push(message);
-    } else {
-      kept.push(message);
-    }
+    if (url !== null && !failed.has(url)) excused.push(message);
+    else kept.push(message);
   }
   return { kept, excused };
 }
@@ -90,17 +71,13 @@ export type RequestOutcome = 'no-outcome' | 'finished' | 'failed';
 /**
  * Diagnostic only (MYK9-1477): for each access-control page error the triage
  * KEPT, say what the sweep saw of a request to that URL, so a nightly shows why
- * it was not excused: `seen=never` means Playwright never reported the request,
- * a `same-path-requests` count above zero with `seen=never` means the URL text
- * differs (encoding), and `seen=no-outcome stranded=no` means the tracker missed
- * a request it did see.
+ * it was not excused: which outcomes requests to that URL had (`seen=never`
+ * when none was sent), and how many requests shared its path.
  */
 export function describeKeptAccessControlErrors(
   keptPageErrors: string[],
-  seenRequests: Array<{ url: string; outcome: RequestOutcome }>,
-  strandedUrls: string[]
+  seenRequests: Array<{ url: string; outcome: RequestOutcome }>
 ): string[] {
-  const stranded = new Set(strandedUrls.map(normalizeUrl));
   const seen = seenRequests.map(request => ({ ...request, url: normalizeUrl(request.url) }));
   return keptPageErrors.flatMap(message => {
     const url = accessControlErrorUrl(message);
@@ -109,7 +86,7 @@ export function describeKeptAccessControlErrors(
     const outcomes = seen.filter(request => request.url === url).map(request => request.outcome);
     const samePath = seen.filter(request => request.url.split('?')[0] === path).length;
     return [
-      `${path} seen=${outcomes.length > 0 ? outcomes.join(',') : 'never'} same-path-requests=${samePath} stranded=${stranded.has(url) ? 'yes' : 'no'}`,
+      `${path} seen=${outcomes.length > 0 ? outcomes.join(',') : 'never'} same-path-requests=${samePath}`,
     ];
   });
 }

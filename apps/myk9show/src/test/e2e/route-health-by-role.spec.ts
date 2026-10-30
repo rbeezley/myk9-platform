@@ -44,8 +44,8 @@ import {
 import { logUnsettledAppApiRequests } from '../harness/routeHealthDiagnostics';
 import {
   describeKeptAccessControlErrors,
-  triageStrandedAccessControlErrors,
-} from '../harness/strandedAccessControlErrors';
+  triageAccessControlErrors,
+} from '../harness/accessControlErrors';
 
 const SEEDED_SHOW = LIVE_SECRETARY_SHOW_ID;
 
@@ -236,11 +236,6 @@ async function sweepRoutes(
     // `people` read that cannot take five seconds five times in a row.
     //
     // Resetting here means a slow route is reported ONCE, against itself.
-    // A read the previous route left unsettled (already a failure there) is
-    // abandoned by the navigation below like any other, so it is classified as
-    // stranded rather than charged to this route a second time (MYK9-1477).
-    pendingAppApiRequests.stranded.clear();
-    pendingAppApiRequests.strandPending();
     pendingAppApiRequests.reset();
     seenRequests.clear();
 
@@ -350,15 +345,12 @@ async function sweepRoutes(
 
     // Health checks (console errors, replication errors, owned 4xx/5xx).
     // Evaluated after the mobile resize so any mobile-triggered errors are included.
-    // Linux WebKit reports a request the outgoing document abandoned at this
-    // route's navigation as "<url> due to access control checks", with no
-    // outcome at all (run 40962869226). Only that exact case is excused, and
-    // only once the route settled: then every request this route made has an
-    // outcome, so an outcome-less error must be one the old document abandoned.
-    const strandedUrls = [...pendingAppApiRequests.stranded].map(request => request.url());
-    const { kept: pageErrors, excused } = triageStrandedAccessControlErrors(
+    // Linux WebKit reports a fetch the outgoing document starts during teardown
+    // as "<url> due to access control checks" and never sends it (run
+    // 40980816332: seen=never). On a settled route, an access-control error for a
+    // URL with no recorded failure is excused; any recorded failure keeps it.
+    const { kept: pageErrors, excused } = triageAccessControlErrors(
       health.pageErrors,
-      strandedUrls,
       [...health.failedResponses, ...health.failedRequests],
       routeSettled
     );
@@ -373,8 +365,7 @@ async function sweepRoutes(
         : '';
     const keptAccessControl = describeKeptAccessControlErrors(
       pageErrors,
-      [...seenRequests.outcomes].map(([request, outcome]) => ({ url: request.url(), outcome })),
-      strandedUrls
+      [...seenRequests.outcomes].map(([request, outcome]) => ({ url: request.url(), outcome }))
     );
     const accessControl =
       keptAccessControl.length > 0
@@ -387,7 +378,7 @@ async function sweepRoutes(
     // Annotate result for report visibility.
     test.info().annotations.push({
       type: 'route',
-      description: `${id} render=${bodyText.length}ch health=${viols.length > 0 ? viols.join('; ') : 'ok'}${failedRequests}${accessControl}${excused.length > 0 ? ` excused-stranded=${excused.join('; ')}` : ''}`,
+      description: `${id} render=${bodyText.length}ch health=${viols.length > 0 ? viols.join('; ') : 'ok'}${failedRequests}${accessControl}${excused.length > 0 ? ` excused-never-sent=${excused.join('; ')}` : ''}`,
     });
   }
 }

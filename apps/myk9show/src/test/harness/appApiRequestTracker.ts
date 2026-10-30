@@ -1,5 +1,5 @@
 import type { Page, Request } from '@playwright/test';
-import type { RequestOutcome } from './strandedAccessControlErrors';
+import type { RequestOutcome } from './accessControlErrors';
 
 const DEFAULT_IDLE_MS = 100;
 const DEFAULT_TIMEOUT_MS = 5000;
@@ -23,21 +23,6 @@ export interface AppApiRequestTracker {
    * issued a single request — trading a false failure for a false pass.
    */
   reset(): void;
-  /**
-   * Requests still in flight when a cross-document navigation committed that
-   * have reported no outcome since: no `requestfinished`, no `requestfailed`.
-   * `reset()` leaves it alone; the route sweep clears it per route. WebKit can
-   * report such a request only as a "due to access control checks" page error
-   * (MYK9-1477), and this set is what tells that apart from a real failure.
-   */
-  stranded: Set<Request>;
-  /**
-   * Move everything in flight into `stranded`. The tracker does this when a
-   * cross-document navigation commits; the route sweep does it before its own
-   * `page.goto`, so a request the previous route left unsettled can still be
-   * classified when that navigation abandons it.
-   */
-  strandPending(): void;
 }
 
 export interface AppApiRequestSettlement {
@@ -59,10 +44,6 @@ export function watchAppApiRequests(page: Page) {
   const tracker: AppApiRequestTracker = {
     pending: new Set<Request>(),
     lastActivityAt: Date.now(),
-    stranded: new Set<Request>(),
-    strandPending() {
-      for (const request of tracker.pending) tracker.stranded.add(request);
-    },
     reset() {
       tracker.pending.clear();
       tracker.lastActivityAt = Date.now();
@@ -109,17 +90,14 @@ export function watchAppApiRequests(page: Page) {
     if (typeof page.mainFrame !== 'function' || frame !== page.mainFrame()) return;
     if (withoutHash(frame.url()) !== withoutHash(crossDocumentNavigation.url())) return;
     crossDocumentNavigation = null;
-    tracker.strandPending();
     tracker.reset();
   });
   page.on('requestfinished', request => {
-    tracker.stranded.delete(request);
     if (!tracker.pending.delete(request)) return;
     recordActivity();
   });
   page.on('requestfailed', request => {
     if (request === crossDocumentNavigation) crossDocumentNavigation = null;
-    tracker.stranded.delete(request);
     if (!tracker.pending.delete(request)) return;
     recordActivity();
   });
@@ -128,11 +106,9 @@ export function watchAppApiRequests(page: Page) {
 }
 
 /**
- * Diagnostic only (MYK9-1477): the app API requests the CURRENT route started,
- * with their outcomes. `clear()` at each route start forgets everything earlier;
- * the outgoing document's abandoned requests are the tracker's `stranded` set,
- * which is already scoped to this navigation, so this collector never carries
- * one route's requests into another's report.
+ * Diagnostic only (MYK9-1477): the app API requests seen since the current
+ * route started, with their outcomes. `clear()` at each route start forgets
+ * everything earlier, so one route's requests never appear in another's report.
  */
 export interface SeenAppApiRequests {
   outcomes: Map<Request, RequestOutcome>;

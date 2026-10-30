@@ -9,7 +9,7 @@
  * things the two modes legitimately differ on.
  */
 import React from 'react';
-import { ArrowLeft, Users } from 'lucide-react';
+import { ArrowLeft, CloudOff, Users } from 'lucide-react';
 
 export interface EntryListSkeletonProps {
   /** Combined A/B renders an extra tab row, so its skeleton reserves one. */
@@ -86,6 +86,44 @@ export const EntryListEmptyState: React.FC<EntryListEmptyStateProps> = ({
       <h2 className="m-0 text-lg font-semibold text-foreground">No Entries Yet</h2>
       {className && <p className="text-sm font-medium">{className}</p>}
       <p className="max-w-sm text-sm">{description}</p>
+      <button
+        className="mt-2 inline-flex min-h-11 items-center gap-2 rounded-md border border-border bg-background px-4 text-sm font-medium text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        onClick={onGoBack}
+      >
+        <ArrowLeft size={16} aria-hidden="true" />
+        Go Back
+      </button>
+    </div>
+  </div>
+);
+
+export interface EntryListNotOnDeviceStateProps {
+  className?: string | undefined;
+  /** The host's save-for-offline action; the page never builds a second one. */
+  action: React.ReactNode;
+  onGoBack: () => void;
+}
+
+/**
+ * MYK9-1520: the show's entries were never downloaded to this device, so an
+ * empty list is "not loaded", not "none". Same honesty the class card ("Entry
+ * count not loaded yet") and the offline badge already show.
+ */
+export const EntryListNotOnDeviceState: React.FC<EntryListNotOnDeviceStateProps> = ({
+  className,
+  action,
+  onGoBack,
+}) => (
+  <div className="p-3">
+    <div className="flex flex-col items-center justify-center gap-2 px-3 py-8 text-center text-muted-foreground">
+      <CloudOff size={48} aria-hidden="true" />
+      <h2 className="m-0 text-lg font-semibold text-foreground">Entries are not on this device</h2>
+      {className && <p className="text-sm font-medium">{className}</p>}
+      <p className="max-w-sm text-sm">
+        This show has not been saved here yet, so its entries cannot be shown. Connect to the
+        internet to load them.
+      </p>
+      {action}
       <button
         className="mt-2 inline-flex min-h-11 items-center gap-2 rounded-md border border-border bg-background px-4 text-sm font-medium text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         onClick={onGoBack}

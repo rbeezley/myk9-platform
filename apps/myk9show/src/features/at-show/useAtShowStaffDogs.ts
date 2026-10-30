@@ -79,7 +79,7 @@ export function useAtShowStaffDogs(showId: string | undefined): UseAtShowStaffDo
     },
     [showId, queryClient]
   );
-  const isHydrationPending = useAtShowShowHydration(showId, syncStatus, refresh);
+  const isHydrationPending = useAtShowShowHydration(showId, syncStatus, refresh) === 'pending';
   const classIds = useMemo(
     () => classList.groups.flatMap(group => group.classes.map(cls => cls.id)),
     [classList.groups]

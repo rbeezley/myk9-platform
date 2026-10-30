@@ -48,6 +48,7 @@ import { notifyRunOrderPersistError } from './runOrderErrorToast';
 import { persistEntryRunOrder } from './persistEntryRunOrder';
 import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
 import { useAtShowShowHydration } from './useAtShowShowHydration';
+import { AtShowEntriesNotOnDeviceAction } from './AtShowEntriesNotOnDeviceAction';
 import { createAtShowDataDependencies } from './atShowDataAdapter';
 import { useAtShowEntryListActions } from './useAtShowEntryListActions';
 import { useAtShowEntryListHandlers } from './useAtShowEntryListHandlers';
@@ -135,7 +136,12 @@ export const AtShowEntryListPage: React.FC = () => {
     dependencies,
   });
 
-  const isFirstShowHydrationPending = useAtShowShowHydration(showId, syncStatus, refresh);
+  const showHydration = useAtShowShowHydration(showId, syncStatus, refresh);
+  const isFirstShowHydrationPending = showHydration === 'pending';
+  const notOnDevice =
+    showHydration === 'not-arrived' ? (
+      <AtShowEntriesNotOnDeviceAction showId={showId} refresh={refresh} />
+    ) : undefined;
 
   // An exhibitor-role account (including an admin who entered an exhibitor
   // passcode) lacks the staff RLS authority the replicated writer needs, so its
@@ -333,7 +339,7 @@ export const AtShowEntryListPage: React.FC = () => {
         <EntryListPage
           classId={classId}
           data={{ entries, classInfo }}
-          dataStatus={{ isRefreshing, fetchError, refresh }}
+          dataStatus={{ isRefreshing, fetchError, refresh, notOnDevice }}
           handlers={handlers}
           actions={pageActions}
           uiState={uiState}

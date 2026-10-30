@@ -1,0 +1,106 @@
+import { describe, it, expect } from 'vitest';
+import { BarChart3 } from 'lucide-react';
+import {
+  buildRingsideMenuItems,
+  itemNeedsConnection,
+  type RingsideMenuContext,
+  type RingsideMenuExtension,
+} from './ringsideMenuItems';
+
+const base: RingsideMenuContext = {
+  showId: 'show-1',
+  canUseShowDesk: false,
+  isOnline: true,
+  hasAccount: true,
+};
+
+const ids = (context: RingsideMenuContext, extensions?: readonly RingsideMenuExtension[]) =>
+  buildRingsideMenuItems(context, extensions).map(item => item.id);
+const find = (context: RingsideMenuContext, id: string) =>
+  buildRingsideMenuItems(context).find(item => item.id === id);
+
+describe('buildRingsideMenuItems', () => {
+  it('lists the core show-day set in order, ending with Sign out', () => {
+    expect(ids(base)).toEqual([
+      'announcements',
+      'settings',
+      'stats',
+      'results',
+      'show-info',
+      'askq',
+      'sign-out',
+    ]);
+  });
+
+  it('sends an exhibitor or judge to the show page tabs, never a management page', () => {
+    expect(find(base, 'results')?.href).toBe('/shows/show-1?tab=results');
+    expect(find(base, 'stats')?.href).toBe('/shows/show-1?tab=results&resultsView=show-stats');
+  });
+
+  it('sends a show manager to the results page they already use', () => {
+    const manager = { ...base, canUseShowDesk: true };
+    expect(find(manager, 'results')?.href).toBe('/shows/show-1/results');
+    expect(find(manager, 'stats')?.href).toBe('/shows/show-1/results?resultsView=show-stats');
+  });
+
+  it('opens Settings on Appearance, where theme, voice and haptics live', () => {
+    expect(find(base, 'settings')?.href).toBe('/account?section=appearance');
+  });
+
+  it('withholds Settings from a passcode session, which has no account to open', () => {
+    expect(ids({ ...base, hasAccount: false })).not.toContain('settings');
+  });
+
+  it('drops Stats and Results when the show is unknown rather than linking nowhere', () => {
+    const unknown = ids({ ...base, showId: undefined });
+    expect(unknown).not.toContain('stats');
+    expect(unknown).not.toContain('results');
+  });
+
+  it('marks Stats, Results and AskQ online-only, and Settings and Announcements usable offline', () => {
+    const online = (id: string) => find(base, id)?.requiresConnection;
+    expect([online('stats'), online('results'), online('askq')]).toEqual([true, true, true]);
+    expect([online('settings'), online('announcements'), online('sign-out')]).toEqual([
+      false,
+      false,
+      false,
+    ]);
+  });
+
+  it('puts extension items after the core set and before Sign out', () => {
+    const extension: RingsideMenuExtension = {
+      id: 'leaderboard',
+      build: () => ({
+        id: 'leaderboard',
+        label: 'Leaderboard',
+        icon: BarChart3,
+        href: '/x',
+        requiresConnection: true,
+      }),
+    };
+    const withExtension = ids(base, [extension]);
+    expect(withExtension.slice(-2)).toEqual(['leaderboard', 'sign-out']);
+  });
+
+  it('lets an extension hide itself for a viewer', () => {
+    const staffOnly: RingsideMenuExtension = {
+      id: 'staff',
+      build: context =>
+        context.canUseShowDesk
+          ? { id: 'staff', label: 'Staff', icon: BarChart3, href: '/x', requiresConnection: false }
+          : null,
+    };
+    expect(ids(base, [staffOnly])).not.toContain('staff');
+    expect(ids({ ...base, canUseShowDesk: true }, [staffOnly])).toContain('staff');
+  });
+});
+
+describe('itemNeedsConnection', () => {
+  it('is true only for an online-only item while offline', () => {
+    const stats = find(base, 'stats')!;
+    const settings = find(base, 'settings')!;
+    expect(itemNeedsConnection(stats, false)).toBe(true);
+    expect(itemNeedsConnection(stats, true)).toBe(false);
+    expect(itemNeedsConnection(settings, false)).toBe(false);
+  });
+});

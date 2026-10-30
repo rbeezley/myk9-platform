@@ -171,6 +171,11 @@ describe('AtShowClassListPage (Phase 1h class picker)', () => {
     expect(document.querySelectorAll('[data-family="class"]').length).toBeGreaterThan(0);
   });
 
+  it('offers the ringside menu beside the Up control (MYK9-1508)', async () => {
+    renderPage();
+    expect(await screen.findByRole('button', { name: 'Ringside menu' })).toBeInTheDocument();
+  });
+
   it('shows actual Class timing to staff', async () => {
     mockAuthState.hasRole = role => role === UserRole.SECRETARY;
     vi.mocked(replicatedClassesTable.getClassesByTrial).mockImplementation((async (

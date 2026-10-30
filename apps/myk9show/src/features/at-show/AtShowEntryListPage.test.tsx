@@ -69,7 +69,13 @@ vi.mock('@/hooks/useAuthContext', async importOriginal => {
   const { UserRole } = await import('@/types/auth-types');
   return {
     ...actual,
-    useAuthContext: () => ({ getUserRoles: () => authRoles.current ?? [UserRole.SITE_ADMIN] }),
+    useAuthContext: () => ({
+      getUserRoles: () => authRoles.current ?? [UserRole.SITE_ADMIN],
+      // The ringside menu (MYK9-1508) reads these to route Stats and Results.
+      hasRole: () => false,
+      userWithRoles: null,
+      user: null,
+    }),
   };
 });
 
@@ -159,6 +165,8 @@ describe('AtShowEntryListPage (Phase 1a shim)', () => {
   it('renders the ringside entry list from the mocked replication layer', async () => {
     renderPage();
     expect(await screen.findByText('Rex')).toBeInTheDocument();
+    // The menu's positive control: the scoresheet test asserts its absence there.
+    expect(screen.getByRole('button', { name: 'Ringside menu' })).toBeInTheDocument();
     expect(screen.getByText('Border Collie')).toBeInTheDocument();
     expect(screen.getByText('Jane Handler')).toBeInTheDocument();
   });

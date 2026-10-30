@@ -318,6 +318,12 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     expect(replicatedEntriesTable.sync).toHaveBeenCalledWith('show-1');
   });
 
+  it('has no ringside menu: the scoresheet is a focused timer with one way back (MYK9-1508)', async () => {
+    renderPage();
+    expect(await screen.findByTestId('live-scoresheet')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Ringside menu' })).not.toBeInTheDocument();
+  });
+
   it('keeps the skeleton visible while the explicit scoped load is still pending', async () => {
     vi.mocked(replicatedClassesTable.getClassById).mockResolvedValue(null as never);
     let finishTrialsSync!: () => void;

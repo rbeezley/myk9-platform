@@ -46,6 +46,8 @@ export function RingsideMenu({ showId }: { showId: string | undefined }) {
   const setReturn = useRingsideReturnStore(s => s.set);
   const [open, setOpen] = useState(false);
   const [showInfoOpen, setShowInfoOpen] = useState(false);
+  // AskQ's panel (and its hooks) mounts on first use, not with every class list.
+  const [askqMounted, setAskqMounted] = useState(false);
   const [pending, setPending] = useState<(() => void) | null>(null);
   const [signOutWarning, setSignOutWarning] = useState<SignOutWarningContext | null>(null);
 
@@ -113,7 +115,11 @@ export function RingsideMenu({ showId }: { showId: string | undefined }) {
     }
     if (item.action === 'announcements')
       closeThen(() => useNotificationStore.getState().openCenter());
-    if (item.action === 'askq') closeThen(() => useAskQPanelStore.getState().open());
+    if (item.action === 'askq')
+      closeThen(() => {
+        setAskqMounted(true);
+        useAskQPanelStore.getState().open();
+      });
     if (item.action === 'sign-out') closeThen(guardedSignOut);
   };
 
@@ -195,7 +201,7 @@ export function RingsideMenu({ showId }: { showId: string | undefined }) {
           })}
         </nav>
       </SlideOverPanel>
-      <AskQPanel />
+      {askqMounted && <AskQPanel />}
       <SignOutWarningDialog
         context={signOutWarning}
         onCancel={() => setSignOutWarning(null)}

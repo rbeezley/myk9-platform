@@ -248,10 +248,14 @@ const GATEWAY_TRANSIENT_STATUSES: ReadonlySet<number> = new Set([502, 503, 504])
  * field the retry policy reads instead of parsing the message. postgrest-js reports the status
  * on the response beside `error`, not on it, so it is lost unless carried here.
  */
-export function withHttpStatus<E>(error: E, status: number | undefined): E {
-  if (typeof error === 'object' && error !== null && typeof status === 'number' && status > 0) {
+export function withHttpStatus(error: unknown, status: number | undefined): unknown {
+  if (typeof status !== 'number' || status <= 0) return error;
+  if (typeof error === 'object' && error !== null) {
     (error as { httpStatus?: number }).httpStatus = status;
+    return error;
   }
+  // postgrest-js hands back a bare string when the gateway body is a JSON string; wrap it so the status survives.
+  if (typeof error === 'string') return { message: error, code: '', httpStatus: status };
   return error;
 }
 

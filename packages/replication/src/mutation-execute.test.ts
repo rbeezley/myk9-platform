@@ -563,6 +563,23 @@ describe('executeMutation', () => {
       }
     );
 
+    it('keeps the status when the gateway body parses to a primitive JSON string', async () => {
+      const supabase = {
+        from: vi.fn(() => ({
+          update: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            select: () =>
+              Promise.resolve({ data: null, error: 'upstream unavailable', status: 503 }),
+          })),
+        })),
+        rpc: vi.fn(),
+      } as unknown as SupabaseClient;
+
+      await expect(
+        executeMutation(supabase, makeLogger(), makeMutation({ operation: 'UPDATE' }))
+      ).rejects.toMatchObject({ message: 'upstream unavailable', httpStatus: 503 });
+    });
+
     it('leaves a status-less transport failure without an httpStatus', async () => {
       const supabase = {
         from: vi.fn(() => ({

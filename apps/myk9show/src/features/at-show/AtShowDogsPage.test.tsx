@@ -46,7 +46,6 @@ function dog(over: Partial<StaffDog> & { key: string; dogName: string }): StaffD
     handler: 'Amy',
     armband: 1,
     entries: [],
-    uncheckedEntryIds: [],
     ...over,
   };
 }

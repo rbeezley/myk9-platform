@@ -79,12 +79,10 @@ const MyEntriesPage: React.FC = () => {
   } = useMyEntriesData({
     persistCheckInStatus: checkInMutation.mutateAsync,
   });
-  // MYK9-1523: coming back to the page re-reads it. A return during the page's
-  // own load or a check-in is held, then re-read once that settles. A load the
-  // refresh itself started (`refreshing`) is not a hold, or a failing read would
-  // schedule its own retry forever.
-  const holdReturn = (isLoading && !refreshing) || checkInMutation.isPending;
-  useRefreshOnReturn(refreshEntries, true, holdReturn);
+  // MYK9-1523: coming back to the page re-reads it, held only while a check-in
+  // is saving. A return during the initial load needs no hold: `loadMyEntries`
+  // lets the newer read supersede the older one (`readSeq`).
+  useRefreshOnReturn(refreshEntries, true, checkInMutation.isPending);
   const entriesPresentation: MyEntriesPresentation = getMyEntriesPresentation({
     identityState,
     readState,

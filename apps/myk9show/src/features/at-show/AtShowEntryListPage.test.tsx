@@ -58,6 +58,28 @@ vi.mock('@/services/replication', () => ({
   },
 }));
 
+// The show's entries scope: synced by default so a genuinely empty class still
+// reads "No Entries Yet"; the not-on-device test flips it (MYK9-1520).
+const entriesScope = vi.hoisted(() => ({
+  synced: true,
+  gate: null as Promise<void> | null,
+  anonymous: false,
+}));
+vi.mock('@/services/replication/entriesShowSyncState', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/services/replication/entriesShowSyncState')>()),
+  hasShowEntriesSynced: vi.fn(async () => {
+    await entriesScope.gate;
+    return entriesScope.synced;
+  }),
+}));
+vi.mock('@/features/offline-readiness/OfflineReadyBadge', () => ({
+  OfflineReadyBadge: ({ showId }: { showId: string | undefined }) => (
+    <button type="button" data-show-id={showId}>
+      Save for show day
+    </button>
+  ),
+}));
+
 // Auth: force a SITE_ADMIN primary role (→ ringside 'admin', canScore = true)
 // so the pending card is clickable. Real getPrimaryRole is preserved so the
 // role→permission mapping under test stays genuine.
@@ -71,10 +93,10 @@ vi.mock('@/hooks/useAuthContext', async importOriginal => {
     ...actual,
     useAuthContext: () => ({
       getUserRoles: () => authRoles.current ?? [UserRole.SITE_ADMIN],
-      // The ringside menu (MYK9-1508) reads these to route Stats and Results.
+      // The ringside menu (MYK9-1508) reads these to route Results.
       hasRole: () => false,
       userWithRoles: null,
-      user: null,
+      user: entriesScope.anonymous ? { is_anonymous: true } : null,
     }),
   };
 });
@@ -147,7 +169,11 @@ const renderPage = (syncStatus: ReplicationSyncContextValue['status'] = settledS
 describe('AtShowEntryListPage (Phase 1a shim)', () => {
   beforeEach(() => {
     authRoles.current = null;
+    entriesScope.synced = true;
+    entriesScope.gate = null;
+    entriesScope.anonymous = false;
     vi.clearAllMocks();
+    vi.mocked(replicatedTrialsTable.sync).mockReset();
     localStorage.clear();
     vi.mocked(replicatedEntriesTable.subscribe)
       .mockReset()
@@ -218,6 +244,136 @@ describe('AtShowEntryListPage (Phase 1a shim)', () => {
 
     expect(await screen.findByRole('status', { name: 'Loading entries' })).toBeInTheDocument();
     expect(screen.queryByText('No Entries Yet')).not.toBeInTheDocument();
+  });
+
+  // MYK9-1520: offline on a device that never saved this show, "not loaded" must
+  // not read as "none". The class card already says "Entry count not loaded yet".
+  // Replication reports a failed sync as `{ success: false }`, not a rejection.
+  const failShowSync = () =>
+    vi.mocked(replicatedTrialsTable.sync).mockResolvedValue({ success: false } as never);
+
+  it('says the entries are not on this device, never No Entries Yet, when the show was never saved', async () => {
+    entriesScope.synced = false;
+    failShowSync();
+    vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([] as never);
+
+    renderPage();
+
+    expect(await screen.findByText('Entries are not on this device')).toBeInTheDocument();
+    expect(screen.queryByText('No Entries Yet')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Save for show day' })).toHaveAttribute(
+      'data-show-id',
+      'show-1'
+    );
+    // The badge renders nothing when its readiness probe fails, so a retry is always there.
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+  });
+
+  it('still says No Entries Yet when the sync failed but this device saved the show earlier', async () => {
+    entriesScope.synced = true;
+    failShowSync();
+    vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([] as never);
+
+    renderPage();
+
+    expect(await screen.findByText('No Entries Yet')).toBeInTheDocument();
+    expect(screen.queryByText('Entries are not on this device')).not.toBeInTheDocument();
+  });
+
+  it('says No Entries Yet for a genuinely empty class once the hydration arrived', async () => {
+    entriesScope.synced = false; // irrelevant: the hydration itself succeeded
+    vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([] as never);
+
+    renderPage();
+
+    expect(await screen.findByText('No Entries Yet')).toBeInTheDocument();
+    expect(screen.queryByText('Entries are not on this device')).not.toBeInTheDocument();
+  });
+
+  it('Go Back from the not-on-device state goes to the show class list, not history', async () => {
+    entriesScope.synced = false;
+    failShowSync();
+    vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([] as never);
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('button', { name: /go back/i }));
+
+    expect(await screen.findByTestId('class-list-page')).toBeInTheDocument();
+  });
+
+  it('holds the skeleton, not No Entries Yet, until the entries marker is read', async () => {
+    entriesScope.synced = false;
+    failShowSync();
+    let release: () => void = () => {};
+    entriesScope.gate = new Promise<void>(resolve => {
+      release = resolve;
+    });
+    vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([] as never);
+
+    renderPage();
+
+    try {
+      await waitFor(() => expect(replicatedTrialsTable.sync).toHaveBeenCalledWith('show-1'));
+      expect(await screen.findByRole('status', { name: 'Loading entries' })).toBeInTheDocument();
+      expect(screen.queryByText('No Entries Yet')).not.toBeInTheDocument();
+    } finally {
+      release();
+    }
+    expect(await screen.findByText('Entries are not on this device')).toBeInTheDocument();
+  });
+
+  it('never shows No Entries Yet first on a return visit after the cache was cleared', async () => {
+    entriesScope.synced = true;
+    failShowSync();
+    vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([] as never);
+    const first = renderPage();
+    expect(await screen.findByText('No Entries Yet')).toBeInTheDocument();
+    first.unmount();
+
+    entriesScope.synced = false;
+    let release: () => void = () => {};
+    entriesScope.gate = new Promise<void>(resolve => {
+      release = resolve;
+    });
+    renderPage();
+
+    try {
+      expect(await screen.findByRole('status', { name: 'Loading entries' })).toBeInTheDocument();
+      expect(screen.queryByText('No Entries Yet')).not.toBeInTheDocument();
+    } finally {
+      release();
+    }
+    expect(await screen.findByText('Entries are not on this device')).toBeInTheDocument();
+  });
+
+  it('drops the not-on-device state once a later sync of the show lands the entries', async () => {
+    entriesScope.synced = false;
+    failShowSync();
+    vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([] as never);
+    renderPage();
+    expect(await screen.findByText('Entries are not on this device')).toBeInTheDocument();
+
+    entriesScope.synced = true;
+    await createAtShowDataDependencies().forceSyncEntriesAndClasses('show-1');
+
+    expect(await screen.findByText('No Entries Yet')).toBeInTheDocument();
+    expect(screen.queryByText('Entries are not on this device')).not.toBeInTheDocument();
+  });
+
+  it('offers a retry instead of the badge to an anonymous passcode session', async () => {
+    entriesScope.synced = false;
+    entriesScope.anonymous = true;
+    failShowSync();
+    vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([] as never);
+    renderPage();
+
+    const retry = await screen.findByRole('button', { name: 'Try again' });
+    expect(screen.queryByRole('button', { name: 'Save for show day' })).not.toBeInTheDocument();
+    const syncsBefore = vi.mocked(replicatedEntriesTable.sync).mock.calls.length;
+    fireEvent.click(retry);
+    await waitFor(() =>
+      expect(vi.mocked(replicatedEntriesTable.sync).mock.calls.length).toBeGreaterThan(syncsBefore)
+    );
   });
 
   it('refreshes an initially empty query from the replicated subscription snapshot', async () => {

@@ -3,8 +3,9 @@
  *
  * The entries replica is per show, so an empty replica is an absence of knowledge. This asks the
  * same view and predicate `getUserEntries` reads (`view_authenticated_entry_results` with
- * `is_own_entry = true`: the viewer handles the entry or owns its dog), as a head count. It names
- * a column: a `*` count returns 403 on a column-allowlisted table.
+ * `is_own_entry = true`: the viewer handles the entry or owns its dog), as a head count, minus the
+ * soft-deleted rows My Shows does not list (`shouldRenderOwnEntry`; the replica check applies
+ * `isLiveEntry`). It names a column: a `*` count returns 403 on a column-allowlisted table.
  *
  * @module services/database/entries/ownEntriesExistence
  */
@@ -14,12 +15,14 @@ import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntries
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 import { selectOwnedDogIds } from '@/utils/dogOwnership';
 import { filterOwnReplicaEntries } from './userEntriesRead';
+import { isLiveEntry } from './reads';
 
 export async function serverHasOwnEntries(): Promise<boolean> {
   const { count, error } = await supabase
     .from('view_authenticated_entry_results')
     .select('id', { count: 'exact', head: true })
-    .eq('is_own_entry', true);
+    .eq('is_own_entry', true)
+    .is('deleted_at', null);
   if (error) throw error;
   return (count ?? 0) > 0;
 }
@@ -34,5 +37,6 @@ export async function localReplicaHasOwnEntry(personId: string): Promise<boolean
     replicatedEntriesTable.getAllOrThrow(),
     replicatedDogsTable.getAllDogs(),
   ]);
-  return filterOwnReplicaEntries(entries, selectOwnedDogIds(dogs, personId), personId).length > 0;
+  const own = filterOwnReplicaEntries(entries, selectOwnedDogIds(dogs, personId), personId);
+  return own.some(isLiveEntry);
 }

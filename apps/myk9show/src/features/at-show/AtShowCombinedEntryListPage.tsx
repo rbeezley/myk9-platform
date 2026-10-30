@@ -53,6 +53,7 @@ import { persistEntryRunOrder } from './persistEntryRunOrder';
 import { buildRingsideContextValue, buildRingsideReplication } from './ringsideCapabilities';
 import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
 import { useAtShowShowHydration } from './useAtShowShowHydration';
+import { AtShowEntriesNotOnDeviceAction } from './AtShowEntriesNotOnDeviceAction';
 import { createAtShowDataDependencies } from './atShowDataAdapter';
 import { useAtShowEntryListActions } from './useAtShowEntryListActions';
 import { useAtShowEntryListUiState } from './useAtShowEntryListUiState';
@@ -156,7 +157,12 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
   // MYK9-1347: hydrate this show on mount, as the single-class page does. The
   // app-wide pass never downloads entries, so waiting on it left a cold device
   // on the skeleton or an empty ring.
-  const isFirstShowHydrationPending = useAtShowShowHydration(showId, syncStatus, refresh);
+  const showHydration = useAtShowShowHydration(showId, syncStatus, refresh);
+  const isFirstShowHydrationPending = showHydration === 'pending';
+  const notOnDevice =
+    showHydration === 'not-arrived' ? (
+      <AtShowEntriesNotOnDeviceAction showId={showId} refresh={refresh} />
+    ) : undefined;
   const [localEntries, setLocalEntries] = useState<Entry[]>([]);
   const [manualOrder, setManualOrder] = useState<Entry[]>([]);
   // Mirrors AtShowEntryListPage. Without this the combined route presented an
@@ -394,7 +400,7 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
             setSectionFilter,
           }}
           data={{ entries, classInfo }}
-          dataStatus={{ isRefreshing, fetchError, refresh }}
+          dataStatus={{ isRefreshing, fetchError, refresh, notOnDevice }}
           handlers={handlers}
           actions={actions}
           uiState={uiState}

@@ -65,7 +65,9 @@ async function openShowFromFindShows(page: Page): Promise<string> {
   return page.url().match(SHOW_URL)![1]!;
 }
 
-type ShowGroup = 'Today' | 'Upcoming' | 'Past';
+// A secretary's own current and upcoming shows sit under Managing (`showsPaneGroups.ts`), so
+// Today and Upcoming list only the shows they do not manage.
+type ShowGroup = 'Managing' | 'Today' | 'Upcoming' | 'Past';
 
 /** Opens the first show of the first of `groups` that lists one (staging dates move on). */
 async function openShowFrom(page: Page, groups: readonly ShowGroup[]): Promise<string> {
@@ -116,9 +118,9 @@ test.describe('Shows list with a detail pane', () => {
     await expect(showsList(page)).toBeVisible();
     await expect(showsList(page).getByPlaceholder('Search shows')).toBeVisible();
 
-    // Back returns to the full-width Find Shows.
+    // Back returns to the full-width Find Shows; Browse All stays selected (`?tab=all` is URL-synced).
     await page.goBack();
-    await expect(page).toHaveURL(/\/shows$/);
+    await expect(page).toHaveURL(/\/shows\?tab=all$/);
     await expect(showsList(page)).toHaveCount(0);
     await page.goForward();
     await expect(showsList(page)).toBeVisible();
@@ -132,7 +134,7 @@ test.describe('Shows list with a detail pane', () => {
     await expect(page.getByRole('region', { name: 'Show', exact: true })).toBeVisible();
 
     // A current show is one click away in the list, and its cockpit keeps the split beside it.
-    await openShowFrom(page, ['Today', 'Upcoming']);
+    await openShowFrom(page, ['Managing', 'Today', 'Upcoming']);
     await expectCockpitFollowsItsWidth(page, 'split');
   });
 
@@ -197,15 +199,15 @@ test.describe('Shows list with a detail pane', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await signInAsSecretary(page, '/shows');
     await openShowFromFindShows(page);
-    const todayId = await openFirstShow(page, 'Today');
-    await openFirstShow(page, 'Upcoming');
+    const currentId = await openFirstShow(page, 'Managing');
+    await openFirstShow(page, 'Past');
 
     await context.setOffline(true);
     try {
-      const row = showsList(page).locator(`a[href="/shows/${todayId}"]`);
+      const row = showsList(page).locator(`a[href="/shows/${currentId}"]`);
       await expect(row).toBeVisible();
       await row.click();
-      await expect(page).toHaveURL(new RegExp(`/shows/${todayId}$`));
+      await expect(page).toHaveURL(new RegExp(`/shows/${currentId}$`));
       await expect(page.getByRole('region', { name: 'Show', exact: true })).toBeVisible();
     } finally {
       await context.setOffline(false);

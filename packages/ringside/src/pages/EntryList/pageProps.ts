@@ -608,6 +608,13 @@ export interface EntryListPageProps {
     isRefreshing: boolean;
     fetchError: Error | null;
     refresh: (forceSync?: boolean) => Promise<void>;
+    /**
+     * Set by the host when this device holds no downloaded copy of the show's
+     * entries (never synced). An empty list then means "not loaded", not "none",
+     * so the page renders this node (the host's own save-for-offline action)
+     * under a not-on-this-device message instead of "No Entries Yet".
+     */
+    notOnDevice?: ReactNode;
   };
 
   /** Action handler bag from host's `useEntryListHandlers`. */

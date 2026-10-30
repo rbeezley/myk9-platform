@@ -132,7 +132,7 @@ const APPROVALS_ON_MAIN = 'origin/main:docs/agents/standing-approvals.md';
  * database could be in test mode while production is not, and no check of a
  * caller-supplied URL proved airtight (Codex review, PR #3393).
  */
-const MYK9_DATABASE_URL =
+export const MYK9_DATABASE_URL =
   'postgresql://postgres.sojmvhhwsjxmfistvzbe@aws-1-us-east-2.pooler.supabase.com:5432/postgres';
 
 /** The caller's environment minus every libpq `PG*` variable but the password, so none can redirect psql. */

@@ -49,6 +49,19 @@ jobs:
           git fetch origin main --no-tags
           bash scripts/qa/pick-deploy-commit.sh
 
+      # MYK9-1527: refuse a frontend that would ship ahead of its schema. Checks
+      # the exact commit picked above, so a migration merged after any local
+      # check cannot slip through. `supabase db push` stays owner-only.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.23.4'
+
+      - name: Refuse a commit with unapplied migrations
+        env:
+          COMMIT_SHA: ${{ steps.pick.outputs.commit_sha }}
+          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/qa/deploy-migration-guard.ts
+
   deploy:
     name: Build and deploy to Vercel production
     needs: preflight

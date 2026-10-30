@@ -1045,6 +1045,11 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
     // stripUnsetServerOwnedKeys. Prevents an unrelated edit from re-uploading a
     // stale local status / status_source and clobbering server-derived state.
     const payload = stripUnsetServerOwnedKeys(this.toSupabaseRow(updatedClass), updates);
+    if (isRingPhaseKnownMissing() && ('ringPhase' in updates || 'ringPhaseTime' in updates)) {
+      logger.warn(
+        `[${this.getTableName()}] Ring phase change on class ${classId} is not sent: the server does not have the ring phase columns yet`
+      );
+    }
     // A ringside-only write (status / start time / max time) goes through
     // ringside_update_class, which admits the class's judge; classes_update RLS
     // would deny it (MYK9-1096, MYK9-1086). Anything else stays direct.

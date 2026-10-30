@@ -347,7 +347,7 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
               <div className="flex items-center justify-center gap-3">
                 <Button
                   variant="outline"
-                  className="h-11 w-11 p-0"
+                  className="h-11 w-11 shrink-0 p-0"
                   onClick={() => handleCorrectChange(-1)}
                   data-testid="correct-dec"
                 >
@@ -361,7 +361,7 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                 </span>
                 <Button
                   variant="outline"
-                  className="h-11 w-11 p-0"
+                  className="h-11 w-11 shrink-0 p-0"
                   onClick={() => handleCorrectChange(1)}
                   data-testid="correct-inc"
                 >
@@ -377,7 +377,7 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
               <div className="flex items-center justify-center gap-3">
                 <Button
                   variant="outline"
-                  className="h-11 w-11 p-0"
+                  className="h-11 w-11 shrink-0 p-0"
                   onClick={() => handleIncorrectChange(-1)}
                   data-testid="incorrect-dec"
                 >
@@ -391,7 +391,7 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                 </span>
                 <Button
                   variant="outline"
-                  className="h-11 w-11 p-0"
+                  className="h-11 w-11 shrink-0 p-0"
                   onClick={() => handleIncorrectChange(1)}
                   data-testid="incorrect-inc"
                 >
@@ -410,7 +410,7 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
             <div className="flex items-center gap-3">
               <Button
                 variant="outline"
-                className="h-11 w-11 p-0"
+                className="h-11 w-11 shrink-0 p-0"
                 onClick={() => setFinishCallErrors(v => Math.max(0, v - 1))}
                 data-testid="fce-dec"
               >
@@ -421,7 +421,7 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
               </span>
               <Button
                 variant="outline"
-                className="h-11 w-11 p-0"
+                className="h-11 w-11 shrink-0 p-0"
                 onClick={() => setFinishCallErrors(v => v + 1)}
                 data-testid="fce-inc"
               >

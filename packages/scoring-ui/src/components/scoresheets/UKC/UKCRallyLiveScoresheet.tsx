@@ -218,7 +218,7 @@ export const UKCRallyLiveScoresheet: React.FC<LiveScoresheetProps> = ({
 
         {/* Score Display: three columns */}
         <Card className="p-3">
-          <div className="grid grid-cols-3 gap-3 text-center">
+          <div className="grid grid-cols-[auto_1fr_auto] gap-3 text-center">
             <div>
               <div className="text-sm text-muted-foreground">Starting</div>
               <div className="text-3xl font-bold" data-testid="starting-score">
@@ -232,7 +232,7 @@ export const UKCRallyLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                 <Button
                   variant="outline"
                   size="icon"
-                  className="h-11 w-11"
+                  className="h-11 w-11 shrink-0"
                   onClick={handleDeductionDecrease}
                   data-testid="deduction-decrease"
                 >
@@ -244,7 +244,7 @@ export const UKCRallyLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                 <Button
                   variant="outline"
                   size="icon"
-                  className="h-11 w-11"
+                  className="h-11 w-11 shrink-0"
                   onClick={handleDeductionIncrease}
                   data-testid="deduction-increase"
                 >

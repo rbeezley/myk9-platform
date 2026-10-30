@@ -47,11 +47,11 @@ export const ScoresheetHeader: React.FC<ScoresheetHeaderProps> = ({
     <div className="flex min-w-0 flex-1 flex-col">
       <div className="truncate text-lg font-semibold leading-tight">{dogName}</div>
       <div className="flex min-w-0 items-baseline gap-2 text-sm leading-tight text-muted-foreground">
-        {breed ? <span className="min-w-0 flex-shrink truncate">{breed}</span> : null}
-        <span className="flex-shrink-0 truncate">Handler: {handlerName}</span>
+        {breed ? <span className="min-w-0 max-w-[50%] flex-shrink-0 truncate">{breed}</span> : null}
+        <span className="min-w-0 flex-1 truncate">Handler: {handlerName}</span>
       </div>
       <div className="mt-0.5 flex min-w-0 items-baseline gap-x-2 text-xs leading-tight text-muted-foreground">
-        <h1 className="flex flex-shrink-0 gap-x-1.5 font-medium">
+        <h1 className="flex min-w-0 flex-shrink gap-x-1.5 overflow-hidden whitespace-nowrap font-sans text-xs font-medium leading-tight">
           {titleLines.map(line => (
             <span key={line} className="block">
               {line}

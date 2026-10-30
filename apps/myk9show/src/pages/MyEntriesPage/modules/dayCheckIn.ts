@@ -14,8 +14,14 @@
  */
 
 import { isClassCheckInEligible } from './entryNextAction';
-import type { MyShowClass, MyShowDog } from './groupEntriesByShow';
+import {
+  indexOrdersById,
+  type MyShowClass,
+  type MyShowDog,
+  type MyShowGroup,
+} from './groupEntriesByShow';
 import type { MyEntry } from './my-entries-types';
+import { isPastShowEntry } from './myEntriesStats.helpers';
 
 /** The calendar day (`YYYY-MM-DD`) a local-midnight `Date` stands for. */
 export function calendarDayOf(date: Date): string {
@@ -147,6 +153,24 @@ export interface DayCheckInContext {
   selfCheckinByClassId?: Record<string, boolean> | undefined;
   /** Whether the show's last day is already behind us. */
   isPastShow: boolean;
+}
+
+/**
+ * The one way to build a show's check-in context. My Shows and every card that
+ * summarises it (Home's "Your entries today") call this, so a row can never say
+ * "Check in" where My Shows offers none.
+ */
+export function buildDayCheckInContext(
+  group: MyShowGroup,
+  now: Date,
+  selfCheckinByClassId: Record<string, boolean> | undefined
+): DayCheckInContext {
+  return {
+    now,
+    ordersById: indexOrdersById(group),
+    selfCheckinByClassId,
+    isPastShow: isPastShowEntry(group.orders[0], now),
+  };
 }
 
 /** Is the class's own class-scoped self-check-in toggle open? */

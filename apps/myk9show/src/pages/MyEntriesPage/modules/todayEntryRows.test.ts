@@ -1,0 +1,174 @@
+import { describe, expect, it } from 'vitest';
+import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
+import { withFixtureKind } from '@/test/fixtures/entryClassKind';
+import { buildDayCheckInContext } from './dayCheckIn';
+import { groupEntriesByOrder } from './groupEntriesByOrder';
+import { groupEntriesByShow } from './groupEntriesByShow';
+import { classRowDisplay } from './classRowStatusText';
+import type { EntryClass, MyEntry } from './my-entries-types';
+import { selectTodayEntryRows, todayClassIds } from './todayEntryRows';
+
+// 12:00 in New York on the show's first day.
+const NOW = new Date('2026-10-24T16:00:00Z');
+
+function makeClass(overrides: Partial<EntryClass> = {}): EntryClass {
+  return withFixtureKind({
+    id: 'c1',
+    classId: 'class-1',
+    name: 'Container Search',
+    number: '101',
+    fee: 25,
+    status: 'entered',
+    paymentStatus: PaymentStatus.PAID_ONLINE,
+    paymentMethod: 'online',
+    trialDate: new Date(2026, 9, 24),
+    trialTimezone: 'America/New_York',
+    ...overrides,
+  });
+}
+
+function makeRows(overrides: Partial<MyEntry> = {}, classes: EntryClass[] = [makeClass()]) {
+  const row: MyEntry = {
+    id: 'e1',
+    registrationId: 'r1',
+    showId: 's1',
+    showName: 'Heartland Classic',
+    showDate: new Date(2026, 9, 24),
+    showEndDate: new Date(2026, 9, 25),
+    location: { venue: 'Expo Hall', city: 'Denver', state: 'CO' },
+    dogName: 'Rex',
+    dogId: 'd1',
+    classes,
+    dogs: [],
+    totalFee: 25,
+    entryStatus: EntryStatus.ACCEPTED,
+    paymentStatus: PaymentStatus.PAID_ONLINE,
+    submittedAt: new Date('2026-09-01'),
+    lastUpdated: new Date('2026-09-02'),
+    ...overrides,
+  };
+  return groupEntriesByOrder([row], NOW);
+}
+
+describe('selectTodayEntryRows', () => {
+  it('lists an entry once My Shows has it, with no per-show replica involved', () => {
+    const rows = selectTodayEntryRows(makeRows(), NOW, undefined);
+    expect(rows).toEqual([
+      expect.objectContaining({ dogName: 'Rex', className: 'Container Search' }),
+    ]);
+  });
+
+  it('shows only the trial day that is today on a multi-day show', () => {
+    const entries = makeRows({}, [
+      makeClass({ id: 'c1', name: 'Today Class' }),
+      makeClass({
+        id: 'c2',
+        classId: 'class-2',
+        name: 'Tomorrow Class',
+        trialDate: new Date(2026, 9, 25),
+      }),
+      makeClass({
+        id: 'c3',
+        classId: 'class-3',
+        name: 'Yesterday Class',
+        trialDate: new Date(2026, 9, 23),
+      }),
+    ]);
+    expect(selectTodayEntryRows(entries, NOW, undefined).map(r => r.className)).toEqual([
+      'Today Class',
+    ]);
+    expect(todayClassIds(entries, NOW)).toEqual(['class-1']);
+  });
+
+  it('reckons the day in the trial timezone, not the device', () => {
+    // 02:00 UTC on the 25th is still the 24th in Los Angeles.
+    const lateNow = new Date('2026-10-25T02:00:00Z');
+    const entries = makeRows({}, [makeClass({ trialTimezone: 'America/Los_Angeles' })]);
+    expect(selectTodayEntryRows(entries, lateNow, undefined)).toHaveLength(1);
+  });
+
+  it('offers "Check in" only where My Shows does', () => {
+    const open = selectTodayEntryRows(makeRows(), NOW, undefined);
+    expect(open[0]?.statusText).toBe('Check in');
+
+    const disabled = selectTodayEntryRows(makeRows(), NOW, { 'class-1': false });
+    expect(disabled[0]?.statusText).toBe('check in with the secretary');
+
+    const pending = selectTodayEntryRows(
+      makeRows({ entryStatus: EntryStatus.PENDING, paymentStatus: PaymentStatus.PENDING }),
+      NOW,
+      undefined
+    );
+    expect(pending[0]?.statusText).not.toBe('Check in');
+
+    const unresolved = selectTodayEntryRows(
+      makeRows({}, [makeClass({ unresolved: true })]),
+      NOW,
+      undefined
+    );
+    expect(unresolved[0]?.statusText).not.toBe('Check in');
+  });
+
+  it('is more conservative than My Shows while a class setting is unknown', () => {
+    const rows = selectTodayEntryRows(makeRows(), NOW, undefined, { 'class-1': 'unknown' });
+    expect(rows[0]?.statusText).toBe('See My Shows');
+    const settled = selectTodayEntryRows(makeRows(), NOW, undefined, { 'class-1': 'allowed' });
+    expect(settled[0]?.statusText).toBe('Check in');
+  });
+
+  it('reads the live check-in state', () => {
+    const entries = makeRows({}, [makeClass({ checkInStatus: 'at-gate' })]);
+    expect(selectTodayEntryRows(entries, NOW, undefined)[0]?.statusText).toBe('at gate');
+  });
+
+  it('is empty when no class runs today', () => {
+    const entries = makeRows({}, [makeClass({ trialDate: new Date(2026, 9, 25) })]);
+    expect(selectTodayEntryRows(entries, NOW, undefined)).toEqual([]);
+  });
+
+  it("still lists today's class when the device clock has passed the show's last day", () => {
+    // 03:00 UTC on the 26th is the 25th in Los Angeles: the show's last day.
+    const lateNow = new Date('2026-10-26T03:00:00Z');
+    const entries = makeRows({}, [
+      makeClass({ trialDate: new Date(2026, 9, 25), trialTimezone: 'America/Los_Angeles' }),
+    ]);
+    expect(selectTodayEntryRows(entries, lateNow, undefined)).toHaveLength(1);
+    expect(todayClassIds(entries, lateNow)).toEqual(['class-1']);
+  });
+
+  it('names a recorded outcome the way My Shows does', () => {
+    const entries = makeRows({}, [makeClass({ resultStatus: 'withdrawn' })]);
+    expect(selectTodayEntryRows(entries, NOW, undefined)[0]?.statusText).toBe('WD');
+  });
+
+  it('never says "Check in" where My Shows, built from the same context, does not', () => {
+    // The device clock has passed midnight on the show's last day, so My Shows
+    // calls the show past; a zone still on the trial day keeps the class "today".
+    const deviceNow = new Date(2026, 9, 25, 0, 30);
+    const zone = [
+      'Pacific/Pago_Pago',
+      'America/Los_Angeles',
+      'America/New_York',
+      'Europe/London',
+      'Asia/Tokyo',
+      'Pacific/Kiritimati',
+    ].find(
+      tz => new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(deviceNow) === '2026-10-24'
+    );
+    expect(zone).toBeDefined();
+    const entries = makeRows(
+      { showDate: new Date(2026, 9, 24), showEndDate: new Date(2026, 9, 24) },
+      [makeClass({ trialTimezone: zone })]
+    );
+
+    const group = groupEntriesByShow(entries)[0]!;
+    const cls = group.dogs[0]!.classes[0]!;
+    const myShows = classRowDisplay(cls, buildDayCheckInContext(group, deviceNow, undefined));
+    expect(myShows.kind).not.toBe('check-in-available');
+
+    const rows = selectTodayEntryRows(entries, deviceNow, undefined);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.statusText).not.toBe('Check in');
+    expect(rows[0]?.statusText).toBe(myShows.text);
+  });
+});

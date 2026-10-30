@@ -306,27 +306,35 @@ describe('ShowResultsTab class-name search', () => {
       expect(screen.getByText('Trial: Trial 2 · Mar 15')).toBeInTheDocument();
     });
 
-    it('invalidates the podium query when a class gets released while the page is open', () => {
+    it('pulls a released class the podium is missing, on first load and on later releases', () => {
       const invalidate = vi.spyOn(QueryClient.prototype, 'invalidateQueries');
-      const refetch = vi.fn();
-      const podium = { data: RESULTS, isLoading: false, error: null, refetch };
-      vi.mocked(useShowResults).mockReturnValue(
-        podium as unknown as ReturnType<typeof useShowResults>
-      );
-      const pendingRow = progress({ classId: 'p1', className: 'Buried Master' });
+      vi.mocked(useShowResults).mockReturnValue({
+        data: RESULTS,
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
+      } as unknown as ReturnType<typeof useShowResults>);
       const asProgress = (rows: ShowClassProgress[]) =>
         ({ data: rows, isSuccess: true }) as unknown as ReturnType<typeof useShowClassProgress>;
-      vi.mocked(useShowClassProgress).mockReturnValue(asProgress([pendingRow]));
+      const released = (classId: string) =>
+        progress({ classId, className: classId, resultsReleasedAt: '2026-05-01T00:00:00Z' });
 
+      // First progress response already shows a release the cached podium lacks (c9): pull it.
+      vi.mocked(useShowClassProgress).mockReturnValue(asProgress([released('c9')]));
       const { rerender } = render(<ShowResultsTab showId="show-1" />);
-      expect(invalidate).not.toHaveBeenCalled();
-
-      vi.mocked(useShowClassProgress).mockReturnValue(
-        asProgress([{ ...pendingRow, resultsReleasedAt: '2026-05-01T00:00:00Z' }])
-      );
-      rerender(<ShowResultsTab showId="show-1" />);
       expect(invalidate).toHaveBeenCalledTimes(1);
       expect(invalidate).toHaveBeenCalledWith({ queryKey: ['show', 'show-1', 'results'] });
+
+      // The same poll again must not refetch (no loop for a class that has no placements).
+      rerender(<ShowResultsTab showId="show-1" />);
+      expect(invalidate).toHaveBeenCalledTimes(1);
+
+      // A class the podium already shows (c1) is not missing; a new release (c8) is.
+      vi.mocked(useShowClassProgress).mockReturnValue(
+        asProgress([released('c9'), released('c1'), released('c8')])
+      );
+      rerender(<ShowResultsTab showId="show-1" />);
+      expect(invalidate).toHaveBeenCalledTimes(2);
       invalidate.mockRestore();
     });
 

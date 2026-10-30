@@ -127,6 +127,7 @@ interface PodiumContentProps {
 
 function PodiumContent({ showId, showEntries = [] }: PodiumContentProps) {
   const { data: results = [], isLoading, error, refetch } = useShowResults(showId);
+  const podiumLoading = isLoading;
   const {
     data: classProgress = [],
     isError: progressError,
@@ -136,23 +137,26 @@ function PodiumContent({ showId, showEntries = [] }: PodiumContentProps) {
   const [search, setSearch] = useState('');
   const { filters, setFilter, clearFilters } = useShowStatsFilters();
 
-  // The progress poll sees a class get released first; pull its podium in the same breath, or the
-  // class would leave Pending and not yet appear below.
-  const releasedKey = classProgress
-    .filter(cls => cls.resultsReleasedAt)
+  // The progress poll sees a class get released before the podium does. Compare the two lists
+  // themselves (not "did the released set change"): a release that landed between the podium
+  // fetch and the first progress response, or behind a fresh cached podium, is missing from the
+  // podium and must be pulled once. A released class with no placement 1-4 is also "missing"; it
+  // costs one refetch per distinct set, never one per poll.
+  const podiumIds = new Set(results.map(cls => cls.classId));
+  const missingKey = classProgress
+    .filter(cls => cls.resultsReleasedAt && !podiumIds.has(cls.classId))
     .map(cls => cls.classId)
     .sort()
     .join(',');
   const queryClient = useQueryClient();
-  const seenReleasedKey = useRef<string | null>(null);
+  const reconciledKey = useRef('');
   useEffect(() => {
-    if (!progressLoaded) return;
-    const previous = seenReleasedKey.current;
-    seenReleasedKey.current = releasedKey;
-    // The first load only records the baseline; the podium query already ran for it.
-    if (previous !== null && previous !== releasedKey)
+    if (!progressLoaded || podiumLoading || missingKey === reconciledKey.current) return;
+    reconciledKey.current = missingKey;
+    if (missingKey !== '') {
       void queryClient.invalidateQueries({ queryKey: showResultsQueryKey(showId) });
-  }, [progressLoaded, releasedKey, queryClient, showId]);
+    }
+  }, [progressLoaded, podiumLoading, missingKey, queryClient, showId]);
 
   // Narrowing happens here, after useShowResults/useVisibleResultFields own what may be shown.
   const pendingAll = useMemo(() => derivePendingClasses(classProgress), [classProgress]);

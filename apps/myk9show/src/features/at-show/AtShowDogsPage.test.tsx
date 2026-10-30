@@ -50,14 +50,6 @@ function dog(over: Partial<StaffDog> & { key: string; dogName: string }): StaffD
   };
 }
 
-function dogRoute() {
-  return (
-    <Routes>
-      <Route path="/at-show/:showId/dogs/:dogKey" element={<AtShowDogPage />} />
-    </Routes>
-  );
-}
-
 function renderRoutes(path: string) {
   return render(
     <Routes>

@@ -10,7 +10,7 @@
  * stays hidden until MYK9-1515 gives it content. Printing is not offered at the
  * ring. Statistics opens ClassStatisticsDialog from the replicated entries.
  */
-import { useEffect, useId, useState } from 'react';
+import { useId, useState } from 'react';
 import type React from 'react';
 import {
   BarChart3,
@@ -85,8 +85,14 @@ const Tile: React.FC<TileProps> = ({ icon: Icon, title, tone, onClick, large, wi
   );
 };
 
-export const ClassOptionsDialog: React.FC<ClassOptionsDialogProps> = ({
-  isOpen,
+/**
+ * The host keeps this slot mounted while closed, so the body mounts fresh on every
+ * open: reopening lands on the menu, never on a previous Statistics view.
+ */
+export const ClassOptionsDialog: React.FC<ClassOptionsDialogProps> = props =>
+  props.isOpen ? <ClassOptionsBody {...props} /> : null;
+
+const ClassOptionsBody: React.FC<ClassOptionsDialogProps> = ({
   onClose,
   classData,
   onRequirements,
@@ -100,12 +106,7 @@ export const ClassOptionsDialog: React.FC<ClassOptionsDialogProps> = ({
 }) => {
   const [showStatistics, setShowStatistics] = useState(false);
   // Live: a max time saved on this or another device shows without reopening.
-  const live = useLiveClasses(classData?.id ? [classData.id] : [], isOpen);
-  // The host keeps this mounted while closed: reopen on the menu, never on Statistics.
-  useEffect(() => {
-    if (!isOpen) setShowStatistics(false);
-  }, [isOpen]);
-  if (!isOpen) return null;
+  const live = useLiveClasses(classData?.id ? [classData.id] : []);
 
   const name = classData ? classData.class_name : 'Class Options';
   if (showStatistics) {

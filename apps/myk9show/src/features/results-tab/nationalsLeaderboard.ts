@@ -89,9 +89,23 @@ interface Draft {
   eliminated: boolean;
 }
 
+type WithdrawalFields = Pick<SecretaryEntry, 'entry_status' | 'result_status' | 'is_scored'>;
+
 /** A class-level withdrawal: the entry (one class) is out, not necessarily the dog. */
-function isWithdrawnEntry(entry: SecretaryEntry): boolean {
+function isWithdrawnEntry(entry: WithdrawalFields): boolean {
   return entry.entry_status === 'withdrawn' || entry.result_status === 'withdrawn';
+}
+
+/**
+ * Entry status is per class, so a dog is Withdrawn only when it has withdrawn from something and
+ * has nothing left to run: no entry that is neither scored nor withdrawn.
+ */
+export function isDogWithdrawn(dogEntries: readonly WithdrawalFields[]): boolean {
+  const hasWithdrawn = dogEntries.some(isWithdrawnEntry);
+  const remaining = dogEntries.filter(
+    entry => entry.is_scored !== true && !isWithdrawnEntry(entry)
+  );
+  return hasWithdrawn && remaining.length === 0;
 }
 
 export interface BuildNationalsLeaderboardInput {
@@ -109,11 +123,13 @@ export function buildNationalsLeaderboard({
   const trialDateByReleasedClass = new Map(
     classRows.filter(row => row.releasedAt).map(row => [row.id, row.trialDate] as const)
   );
-  // Entry status is per class: a dog is Withdrawn only when none of its entries is still in.
-  const stillEntered = new Set<string>();
+  const entriesByArmband = new Map<string, SecretaryEntry[]>();
   for (const entry of entries) {
     const armband = entry.armband?.trim();
-    if (armband && !isWithdrawnEntry(entry)) stillEntered.add(armband);
+    if (!armband) continue;
+    const dogEntries = entriesByArmband.get(armband) ?? [];
+    dogEntries.push(entry);
+    entriesByArmband.set(armband, dogEntries);
   }
   const drafts = new Map<string, Draft>();
   for (const entry of entries) {
@@ -140,7 +156,7 @@ export function buildNationalsLeaderboard({
       // The schema's `qualified_for_finals` is not carried on the entry read, and v3's client
       // aggregation never computed it either, so no dog is marked Finals yet.
       status: leaderboardStatus({
-        withdrawn: !stillEntered.has(draft.row.armband),
+        withdrawn: isDogWithdrawn(entriesByArmband.get(draft.row.armband) ?? []),
         eliminated: draft.eliminated,
         finals: false,
       }),

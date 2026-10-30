@@ -6,6 +6,7 @@ import {
   compareLeaderboard,
   competitionDay,
   formatLeaderboardTime,
+  isDogWithdrawn,
   leaderboardStatus,
 } from './nationalsLeaderboard';
 
@@ -88,6 +89,27 @@ describe('sort', () => {
   });
 });
 
+describe('isDogWithdrawn: withdrawn iff something withdrawn and nothing left to run', () => {
+  const scored = { entry_status: 'confirmed', result_status: 'qualified', is_scored: true };
+  const toRun = { entry_status: 'confirmed', result_status: 'pending', is_scored: false };
+  const out = { entry_status: 'withdrawn', result_status: 'pending', is_scored: false };
+  it.each([
+    ['one class withdrawn, others still to run', [out, toRun], false],
+    ['completed one class, withdrew from the rest', [scored, out, out], true],
+    ['withdrawn from everything', [out, out], true],
+    ['no withdrawals, all still to run', [toRun, toRun], false],
+    ['no withdrawals, all scored', [scored, scored], false],
+    ['no withdrawals, mixed scored and to run', [scored, toRun], false],
+    [
+      'withdrawn after being scored in that class',
+      [{ ...scored, entry_status: 'withdrawn' }],
+      true,
+    ],
+  ] as const)('%s', (_name, dogEntries, expected) => {
+    expect(isDogWithdrawn(dogEntries)).toBe(expected);
+  });
+});
+
 describe('buildNationalsLeaderboard', () => {
   it('sums each armband across days and keeps points per day', () => {
     const [row] = build([
@@ -133,12 +155,18 @@ describe('buildNationalsLeaderboard', () => {
     ]);
   });
 
-  it('does not call a dog withdrawn for leaving one class while still entered in another', () => {
+  it('shows Withdrawn for a dog that completed a class then withdrew from the rest, and not for one with classes left', () => {
     const board = build([
       entry({ armband: '1', class_id: 'c1', points_earned: 10 }),
       entry({ armband: '1', class_id: 'c2', entry_status: 'withdrawn', is_scored: false }),
+      entry({ armband: '2', class_id: 'c1', points_earned: 5 }),
+      entry({ armband: '2', class_id: 'c2', entry_status: 'withdrawn', is_scored: false }),
+      entry({ armband: '2', class_id: 'c3', is_scored: false, result_status: 'pending' }),
     ]);
-    expect(board.map(row => [row.armband, row.status])).toEqual([['1', null]]);
+    expect(board.map(row => [row.armband, row.status])).toEqual([
+      ['1', 'Withdrawn'],
+      ['2', null],
+    ]);
   });
 
   it('lists a withdrawn dog with no released score nowhere, and an empty show as empty', () => {

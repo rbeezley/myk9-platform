@@ -46,19 +46,19 @@ const BLOCK = /```standing-approvals\n([\s\S]*?)```/g;
 export function parseApprovals(markdown: string): Approvals | null {
   const blocks = [...markdown.matchAll(BLOCK)];
   if (blocks.length !== 1) return null;
-  const lines = (blocks[0]?.[1] ?? '').split('\n').map(l => l.trim());
-  const status = lines
-    .find(l => l.startsWith('status:'))
-    ?.slice('status:'.length)
-    .trim();
-  if (status !== 'ACTIVE' && status !== 'OFF') return null;
-  const start = lines.indexOf('test-clubs:');
-  if (start === -1) return null;
+  // Exactly `status:`, then `test-clubs:`, then only `- <uuid>` lines. Anything
+  // else, such as a second status line, is malformed rather than first-wins.
+  const [statusLine, listLine, ...entries] = (blocks[0]?.[1] ?? '')
+    .split('\n')
+    .map(l => l.trim())
+    .filter(Boolean);
+  const status = statusLine?.startsWith('status:')
+    ? statusLine.slice('status:'.length).trim()
+    : null;
+  if ((status !== 'ACTIVE' && status !== 'OFF') || listLine !== 'test-clubs:') return null;
   const testClubIds: string[] = [];
-  for (const line of lines.slice(start + 1)) {
-    if (!line) continue;
-    if (!line.startsWith('- ')) break;
-    const id = line.slice(2).trim();
+  for (const line of entries) {
+    const id = line.startsWith('- ') ? line.slice(2).trim() : '';
     if (!UUID.test(id)) return null;
     testClubIds.push(id.toLowerCase());
   }

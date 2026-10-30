@@ -70,7 +70,18 @@ describe('parseApprovals', () => {
     ['two blocks', block('ACTIVE') + block('ACTIVE')],
     ['no status line', block('ACTIVE').replace('status: ACTIVE\n', '')],
     ['lower-case status', block('active')],
+    ['no test-clubs line', block('ACTIVE').replace('test-clubs:\n', '')],
     ['a test-club entry that is not a uuid', block('ACTIVE', ['not-a-uuid'])],
+    ['a second status line', block('ACTIVE').replace('test-clubs:', 'status: OFF\ntest-clubs:')],
+    [
+      'a second test-clubs list',
+      block('ACTIVE').replace(`- ${CLUB_B}`, `- ${CLUB_B}\ntest-clubs:`),
+    ],
+    ['an unknown field', block('ACTIVE').replace('test-clubs:', 'paused: true\ntest-clubs:')],
+    [
+      'a line after the club list',
+      block('ACTIVE').replace(`- ${CLUB_B}`, `- ${CLUB_B}\nstatus: OFF`),
+    ],
   ])('returns null for %s', (_label, markdown) => {
     expect(parseApprovals(markdown)).toBeNull();
   });

@@ -36,14 +36,7 @@ import type { ShowChangeSignal } from '@/features/show-live-sync/showChangeSigna
 import { getTrialRegistry, getTrialTimezone } from '@/features/registries';
 import { buildRingsideStatusInfo, withCombinedStatusLabel } from './ringsideStatusInfo';
 import { scoresheetKeyForClass } from '@/pages/scoring/types';
-export { subscribeAtShowSyncSettled } from './atShowSyncSettled';
-import { notifyAtShowSyncSettled } from './atShowSyncSettled';
-import { endOnOffline } from '@/services/replication/endOnOffline';
-import {
-  settledScopesOutcome,
-  type AtShowSyncInFlight,
-  type AtShowSyncOutcome,
-} from './atShowSyncOutcome';
+import { settledScopesOutcome, type AtShowSyncInFlight } from './atShowSyncOutcome';
 import {
   classifyEntries,
   countEntryAccounting,
@@ -52,6 +45,27 @@ import {
 } from '@/features/_shared/entryAccounting';
 
 const atShowSyncsInFlight = new Map<string, AtShowSyncInFlight>();
+
+const syncSettledListeners = new Map<string, Set<() => void>>();
+
+/**
+ * Run `listener` each time a `syncAtShowData` operation for `showId` settles,
+ * after every scope's rows are written, and on failure too: a partial sync
+ * still changed local rows. This sync never advances the replication
+ * provider's `lastSyncAt`, so the offline readiness badge needs this to notice
+ * the page's own hydration (MYK9-766). Returns the unsubscribe.
+ */
+export function subscribeAtShowSyncSettled(showId: string, listener: () => void): () => void {
+  const listeners = syncSettledListeners.get(showId) ?? new Set<() => void>();
+  listeners.add(listener);
+  syncSettledListeners.set(showId, listeners);
+  return () => {
+    listeners.delete(listener);
+    if (listeners.size === 0 && syncSettledListeners.get(showId) === listeners) {
+      syncSettledListeners.delete(showId);
+    }
+  };
+}
 
 /**
  * Sync the show's trials, their classes and its entries. Concurrent callers
@@ -70,7 +84,7 @@ export function syncAtShowData(showId: string, options?: { forceFullSync?: boole
   // Options only when forced, so ordinary calls stay exactly as they were.
   const syncArgs: [] | [{ forceFullSync: true }] = forceFullSync ? [{ forceFullSync: true }] : [];
 
-  const network = (async () => {
+  const operation = (async () => {
     if (existing) await existing.then(noop, noop);
     const trialsResult = await replicatedTrialsTable.sync(showId, ...syncArgs);
     const showTrials = await replicatedTrialsTable.getTrialsByShow(showId);
@@ -87,20 +101,12 @@ export function syncAtShowData(showId: string, options?: { forceFullSync?: boole
     ]);
     return settledScopesOutcome(trialsResult, results);
   })();
-  // No wait outlives the `offline` event (MYK9-1509): a sync stuck on a dead
-  // connection settles as failed, so every caller settles, `release` clears the
-  // entry, and the next call after reconnecting starts a NEW operation. Rows the
-  // abandoned network work writes late are still on the device; the next settled
-  // sync reads the marker.
-  const operation = endOnOffline<AtShowSyncOutcome, AtShowSyncOutcome>(network, {
-    success: false,
-  });
   atShowSyncsInFlight.set(showId, { operation, forced: forceFullSync });
   const release = () => {
     if (atShowSyncsInFlight.get(showId)?.operation === operation) {
       atShowSyncsInFlight.delete(showId);
     }
-    notifyAtShowSyncSettled(showId);
+    for (const listener of [...(syncSettledListeners.get(showId) ?? [])]) listener();
   };
   void operation.then(release, release);
   return operation;

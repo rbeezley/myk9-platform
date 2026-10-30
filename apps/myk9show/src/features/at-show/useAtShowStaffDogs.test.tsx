@@ -10,8 +10,6 @@ const classState = vi.hoisted(() => ({
   groups: [] as unknown[],
   available: true,
   syncGate: null as Promise<void> | null,
-  /** Run the real `syncAtShowData`, with a trials sync that never settles. */
-  hangRealSync: false,
   realtime: null as null | {
     showId: string | undefined;
     classIds: readonly string[];
@@ -21,16 +19,10 @@ const classState = vi.hoisted(() => ({
 vi.mock('@/hooks/useReplicationSync', () => ({
   useReplicationSync: () => ({ status: { isSyncing: false, lastSyncAt: null } }),
 }));
-vi.mock('./atShowDataAdapter', async importOriginal => {
-  const actual = await importOriginal<typeof import('./atShowDataAdapter')>();
-  return {
-    ...actual,
-    syncAtShowData: (...args: Parameters<typeof actual.syncAtShowData>) =>
-      classState.hangRealSync
-        ? actual.syncAtShowData(...args)
-        : (classState.syncGate ?? Promise.resolve()),
-  };
-});
+vi.mock('./atShowDataAdapter', async importOriginal => ({
+  ...(await importOriginal<typeof import('./atShowDataAdapter')>()),
+  syncAtShowData: () => classState.syncGate ?? Promise.resolve(),
+}));
 vi.mock('./useAtShowRealtimeRefresh', () => ({
   useAtShowRealtimeRefresh: (
     showId: string | undefined,
@@ -41,8 +33,6 @@ vi.mock('./useAtShowRealtimeRefresh', () => ({
   },
 }));
 vi.mock('@/services/replication', () => ({
-  replicatedTrialsTable: { sync: () => new Promise(() => {}), getTrialsByShow: async () => [] },
-  replicatedClassesTable: { sync: async () => ({ success: true }) },
   replicatedEntriesTable: { getEntriesByShow, subscribe: vi.fn(() => vi.fn()) },
   replicatedArmbandsTable: { getByShow: vi.fn(async () => []), subscribe: vi.fn(() => vi.fn()) },
 }));
@@ -145,12 +135,12 @@ describe('useAtShowStaffDogs', () => {
   describe('cold offline reload (MYK9-1509)', () => {
     // The show sync waits on the dead connection instead of rejecting.
     function hangSync() {
-      classState.hangRealSync = true;
+      classState.syncGate = new Promise<void>(() => {});
       vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
     }
 
     afterEach(() => {
-      classState.hangRealSync = false;
+      classState.syncGate = null;
       classState.available = true;
       vi.restoreAllMocks();
     });

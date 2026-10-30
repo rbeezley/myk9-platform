@@ -27,7 +27,7 @@ Most gates also run in CI on every PR (marked **[CI]**). Re-running them togethe
 ## 3. Static code quality
 
 - [ ] `pnpm qa:code-quality-ratchet` — no regressions vs `code-quality-ratchet.baseline.json` **[CI]**
-- [ ] `/code-quality-audit` skill (`full`) — review the maintainability dimensions; file drift as a Linear issue.
+- [ ] `engineering:tech-debt` skill over the whole repo — the judgment-based maintainability review the ratchet's counts cannot do (duplication, test gaps, schema drift between code and migrations, abstractions that no longer fit); file each finding as a Linear issue. (The project's `codebase-health` skill was retired in MYK9-1484.)
 
 ## 4. Money-path correctness (Phase 2 — mutation testing)
 

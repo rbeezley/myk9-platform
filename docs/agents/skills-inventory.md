@@ -63,3 +63,7 @@ scheduled task removed seven more: `UX-to-Prompt` (v0/Bolt build prompts, never 
 `vercel-react-best-practices` and `web-design-guidelines` (generic Next.js/Vercel guidance for a Vite
 app, near-zero use). `supabase-postgres-best-practices` stayed: the weekly Supabase audit routes to it
 and Codex reads it.
+
+On 2026-10-29 (MYK9-1484) a 60-day usage count (3,414 Claude sessions, 560 Codex sessions) removed
+two more: `release-notes` (zero uses anywhere) and `codebase-health` (one Codex use; the
+code-quality ratchet measures static debt). `verify-plan` stayed: the owner runs it by hand.

@@ -1,6 +1,6 @@
 ---
 name: bug-audit
-description: 'Use when asked to hunt for bugs, dead code, logic errors, broken buttons or links across the codebase, to re-run the whole-repo defect sweep, or to audit one area for correctness defects and file them as Linear issues. Distinct from codebase-health (maintainability debt) and security-audit (security posture).'
+description: 'Use when asked to hunt for bugs, dead code, logic errors, broken buttons or links across the codebase, to re-run the whole-repo defect sweep, or to audit one area for correctness defects and file them as Linear issues. Distinct from security-audit (security posture); maintainability debt is measured by the code-quality ratchet.'
 user-invocable: true
 argument-hint: '[scope-name | --resume | --scopes]'
 ---
@@ -8,8 +8,8 @@ argument-hint: '[scope-name | --resume | --scopes]'
 # Bug Audit
 
 A whole-repo hunt for **correctness** defects — bugs, logic errors, broken navigation, dead code —
-verified against source and filed as Linear issues. Not a maintainability review (that is
-`codebase-health`) and not a security posture review (that is `security-audit`), though it reports
+verified against source and filed as Linear issues. Not a maintainability review (`pnpm qa:code-quality-ratchet`
+measures static debt) and not a security posture review (that is `security-audit`), though it reports
 security smells it walks into.
 
 **Core principle: one reviewer at a time, matched to the right model, writing findings to disk as

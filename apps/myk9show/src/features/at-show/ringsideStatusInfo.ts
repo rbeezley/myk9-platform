@@ -1,5 +1,5 @@
 import type { ClassInfo, ClassStatusValue } from '@myk9/ringside';
-import { mergeSectionStatus } from '@myk9/ringside/run-queue';
+import { mergeSectionStatus, pickClassTime } from '@myk9/ringside/run-queue';
 import { instantToClockTime } from '@/features/show-map/cockpit/cockpitTime';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
@@ -42,9 +42,11 @@ export function buildRingsideStatusInfo(
 
 /**
  * The combined A/B header's phase label, from the SAME merged status the combined class
- * card uses (`mergeSectionStatus`): Offline Scoring on either section wins, and an
- * unscored pair reads as its earlier section. Times follow the card: A's Briefing and
- * Break time, the earlier Start Time. Null when the merged status carries no label.
+ * card uses (`mergeSectionStatus`). The label is taken whole from the section that supplies
+ * that status, so its time is that section's own; no time is assembled across sections.
+ * When both sections hold the merged status, the one with the earlier Expected start INSTANT
+ * (`pickClassTime`, the card's rule) supplies it. When neither does (one completed, one
+ * pre-scoring, which reads as In Progress), the merged status is worded with no time.
  */
 function buildCombinedStatusLabel(
   a: ReplicatedClass,
@@ -53,15 +55,21 @@ function buildCombinedStatusLabel(
 ): string | null {
   const infoA = buildRingsideStatusInfo(a, timeZone);
   const infoB = buildRingsideStatusInfo(b, timeZone);
-  const starts = [infoA.expectedStartTime, infoB.expectedStartTime].filter(Boolean).sort();
-  return formatRingsideStatusLabel(
-    mergeSectionStatus(
-      infoA.ringsideStatus as ClassStatusValue,
-      infoB.ringsideStatus as ClassStatusValue
-    ),
-    { briefing: infoA.briefingTime, breakUntil: infoA.breakUntilTime, startTime: starts[0] },
-    timeZone
+  const merged = mergeSectionStatus(
+    infoA.ringsideStatus as ClassStatusValue,
+    infoB.ringsideStatus as ClassStatusValue
   );
+  const aHolds = infoA.ringsideStatus === merged;
+  const bHolds = infoB.ringsideStatus === merged;
+  if (!aHolds && !bHolds) return formatRingsideStatusLabel(merged, {}, timeZone);
+  if (aHolds !== bHolds) return (aHolds ? infoA : infoB).statusLabel ?? null;
+  const earlier = pickClassTime(
+    a.revisedExpectedStart ?? undefined,
+    b.revisedExpectedStart ?? undefined,
+    'earlier'
+  );
+  const supplier = earlier !== undefined && earlier === b.revisedExpectedStart ? infoB : infoA;
+  return supplier.statusLabel ?? null;
 }
 
 /**

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ClassInfo } from '@myk9/ringside';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
+import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
 import { buildRingsideStatusInfo, withCombinedStatusLabel } from './ringsideStatusInfo';
 
 const TZ = 'America/Chicago';
@@ -50,20 +51,40 @@ describe('withCombinedStatusLabel (MYK9-1526)', () => {
       { ...info, statusLabel: 'stale' } as ClassInfo,
       classWith(a),
       classWith(b),
-      null
+      { timezone: TZ } as ReplicatedTrial
     )?.statusLabel;
 
   it("shows B's Offline Scoring when A is plain In Progress, like the combined card", () => {
     expect(label({}, { ringPhase: 'offline_scoring' })).toBe('Offline Scoring');
   });
 
-  it("drops section A's own label when the merged pair has none", () => {
-    expect(label({ ringPhase: 'offline_scoring' }, {})).toBe('Offline Scoring');
+  it("drops A's own label when the merged pair has none", () => {
     expect(label({ ringPhase: 'briefing', ringPhaseTime: '10:00:00' }, {})).toBeUndefined();
   });
 
   it('keeps Briefing when both sections are in it', () => {
     const briefing = { ringPhase: 'briefing', ringPhaseTime: '10:00:00' } as const;
     expect(label(briefing, briefing)).toBe('Briefing 10:00 AM');
+  });
+
+  it("uses B's Briefing time when A is on Break and B is still in Briefing", () => {
+    expect(
+      label(
+        { ringPhase: 'break', ringPhaseTime: '09:00:00' },
+        { ringPhase: 'briefing', ringPhaseTime: '09:30:00' }
+      )
+    ).toBe('Briefing 9:30 AM');
+  });
+
+  it('picks the earlier Start Time by instant across dates, not by clock string', () => {
+    const late = { classStatus: 'upcoming', revisedExpectedStart: '2026-10-31T04:00:00Z' };
+    const nextDay = { classStatus: 'upcoming', revisedExpectedStart: '2026-11-01T06:00:00Z' };
+    // 11:00 PM Oct 30 Chicago vs 1:00 AM Oct 31 Chicago: the instant, not "01:00" < "23:00".
+    expect(label(nextDay, late)).toBe('Start Time 11:00 PM');
+    expect(label(late, nextDay)).toBe('Start Time 11:00 PM');
+  });
+
+  it('words the merged status with no time when neither section holds it', () => {
+    expect(label({ classStatus: 'completed' }, { classStatus: 'upcoming' })).toBeUndefined();
   });
 });

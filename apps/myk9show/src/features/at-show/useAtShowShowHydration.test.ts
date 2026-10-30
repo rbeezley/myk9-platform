@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReplicationSyncContextValue } from '@/context/ReplicationSyncContext';
 import { useAtShowShowHydration } from './useAtShowShowHydration';
 
@@ -35,6 +35,10 @@ describe('useAtShowShowHydration', () => {
   beforeEach(() => {
     mocks.syncAtShowData.mockReset();
     mocks.hasShowEntriesSynced.mockReset();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('is pending, then arrived when the hydration succeeded', async () => {
@@ -93,5 +97,60 @@ describe('useAtShowShowHydration', () => {
       await a.promise;
     });
     expect(result.current).toBe('arrived');
+  });
+
+  describe('cold offline (MYK9-1509)', () => {
+    // A sync and a refresh that wait on the network instead of rejecting: the
+    // hydration must still settle, or the page reads "Loading" forever.
+    const hang = () => new Promise<never>(() => {});
+
+    function goOffline() {
+      vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    }
+
+    it('settles arrived from the cached rows when the show was saved earlier', async () => {
+      goOffline();
+      mocks.syncAtShowData.mockReturnValue(hang());
+      mocks.hasShowEntriesSynced.mockResolvedValue(true);
+      const refresh = vi.fn<(forceSync: boolean) => Promise<void>>().mockReturnValue(hang());
+      const { result } = renderHook(() => useAtShowShowHydration('A', IDLE_STATUS, refresh));
+
+      await act(async () => {});
+      expect(result.current).toBe('arrived');
+    });
+
+    it('settles not-arrived when the show was never saved on this device', async () => {
+      goOffline();
+      mocks.syncAtShowData.mockReturnValue(hang());
+      mocks.hasShowEntriesSynced.mockResolvedValue(false);
+      const refresh = vi.fn<(forceSync: boolean) => Promise<void>>().mockReturnValue(hang());
+      const { result } = renderHook(() => useAtShowShowHydration('A', IDLE_STATUS, refresh));
+
+      await act(async () => {});
+      expect(result.current).toBe('not-arrived');
+    });
+
+    it('settles when the connection drops while the hydration is in flight', async () => {
+      mocks.syncAtShowData.mockReturnValue(hang());
+      mocks.hasShowEntriesSynced.mockResolvedValue(true);
+      const refresh = vi.fn<(forceSync: boolean) => Promise<void>>().mockReturnValue(hang());
+      const { result } = renderHook(() => useAtShowShowHydration('A', IDLE_STATUS, refresh));
+      await act(async () => {});
+      expect(result.current).toBe('pending');
+
+      await act(async () => {
+        window.dispatchEvent(new Event('offline'));
+      });
+      expect(result.current).toBe('arrived');
+    });
+
+    it('stays pending while online and the hydration is still running', async () => {
+      mocks.syncAtShowData.mockReturnValue(hang());
+      const refresh = vi.fn<(forceSync: boolean) => Promise<void>>().mockReturnValue(hang());
+      const { result } = renderHook(() => useAtShowShowHydration('A', IDLE_STATUS, refresh));
+
+      await act(async () => {});
+      expect(result.current).toBe('pending');
+    });
   });
 });

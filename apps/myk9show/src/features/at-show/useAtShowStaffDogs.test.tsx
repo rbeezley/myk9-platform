@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
@@ -130,6 +130,41 @@ describe('useAtShowStaffDogs', () => {
     await new Promise(resolve => setTimeout(resolve, 20));
     expect(result.current.isComplete).toBe(false);
     classState.available = true;
+  });
+
+  describe('cold offline reload (MYK9-1509)', () => {
+    // The show sync waits on the dead connection instead of rejecting.
+    function hangSync() {
+      classState.syncGate = new Promise<void>(() => {});
+      vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    }
+
+    afterEach(() => {
+      classState.syncGate = null;
+      classState.available = true;
+      vi.restoreAllMocks();
+    });
+
+    it('stops loading and lists the cached dogs of a saved show', async () => {
+      hangSync();
+      getEntriesByShow.mockResolvedValue([
+        { id: 'e1', dogId: 'd1', armband: '5', dogCallName: 'Willow', classId: 'c1' },
+      ]);
+      const { result } = setup();
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+      expect(result.current.dogs.map(dog => dog.dogName)).toEqual(['Willow']);
+      expect(result.current.isComplete).toBe(true);
+    });
+
+    it('stops loading and reports an incomplete list for a never-saved show', async () => {
+      hangSync();
+      classState.available = false;
+      getEntriesByShow.mockResolvedValue([]);
+      const { result } = setup();
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+      expect(result.current.dogs).toEqual([]);
+      expect(result.current.isComplete).toBe(false);
+    });
   });
 
   function setup() {

@@ -28,6 +28,28 @@ async function readEntriesMarker(showId: string): Promise<boolean> {
 }
 
 /**
+ * Resolves once the device is offline: at once if it already is, else on the
+ * `offline` event. The returned `stop` removes the listener.
+ *
+ * A fetch or replication sync can wait on a dead connection instead of
+ * rejecting, which would leave the first hydration (and its page skeleton)
+ * pending forever on a cold offline reload (MYK9-1509). Offline is the one
+ * connection state the browser reports reliably, so it ends the wait; the
+ * rows already on the device are the show.
+ */
+function whenOffline(): { offline: Promise<void>; stop: () => void } {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    return { offline: Promise.resolve(), stop: () => {} };
+  }
+  let stop = () => {};
+  const offline = new Promise<void>(resolve => {
+    stop = () => window.removeEventListener('offline', resolve as () => void);
+    window.addEventListener('offline', resolve as () => void);
+  });
+  return { offline, stop };
+}
+
+/**
  * Hydrates the at-show page's own show (trials, their classes, its entries) the
  * moment the page mounts, then again after every completed app-wide sync pass.
  *
@@ -70,18 +92,27 @@ export function useAtShowShowHydration(
       () => false
     );
     // refresh() swallows sync failures (offline: keep the cached rows).
-    void Promise.all([refresh(true).catch(() => {}), outcome]).then(
-      async ([, success]) => {
-        const state = success || (await readEntriesMarker(forShow)) ? 'arrived' : 'not-arrived';
-        if (startedShowRef.current === forShow) setHydrated({ showId: forShow, state });
-      },
-      () => {
-        // Unreachable in practice (both inputs swallow rejections); never leave
-        // the page on its skeleton if that changes.
-        if (startedShowRef.current === forShow)
-          setHydrated({ showId: forShow, state: 'not-arrived' });
-      }
+    const { offline, stop } = whenOffline();
+    const hydration = Promise.all([refresh(true).catch(() => {}), outcome]).then(
+      ([, success]) => success
     );
+    // Offline ends the wait as "did not succeed": a sync that never settles must
+    // not hold the page on its skeleton (MYK9-1509). A late success still
+    // upgrades through `subscribeAtShowSyncSettled` below.
+    void Promise.race([hydration, offline.then(() => false)])
+      .finally(stop)
+      .then(
+        async success => {
+          const state = success || (await readEntriesMarker(forShow)) ? 'arrived' : 'not-arrived';
+          if (startedShowRef.current === forShow) setHydrated({ showId: forShow, state });
+        },
+        () => {
+          // Unreachable in practice (both inputs swallow rejections); never leave
+          // the page on its skeleton if that changes.
+          if (startedShowRef.current === forShow)
+            setHydrated({ showId: forShow, state: 'not-arrived' });
+        }
+      );
   }, [refresh, showId]);
 
   useEffect(() => {

@@ -8,7 +8,7 @@ import type React from 'react';
 import { BarChart3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ClassDialogShell } from './ClassDialogShell';
-import { useLiveClassEntries } from '../useLiveClassEntries';
+import { useClassEntriesSnapshot } from '../useClassEntriesSnapshot';
 import { computeClassStatistics, formatStatTime } from '../classStatistics';
 
 interface ClassStatisticsDialogProps {
@@ -34,7 +34,7 @@ export const ClassStatisticsDialog: React.FC<ClassStatisticsDialogProps> = ({
   className,
   onClose,
 }) => {
-  const { rows, failed, retry } = useLiveClassEntries(classId);
+  const { rows, failed, retry } = useClassEntriesSnapshot(classId);
   const stats = useMemo(() => (rows ? computeClassStatistics(rows) : null), [rows]);
 
   return (

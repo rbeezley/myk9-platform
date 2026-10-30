@@ -13,7 +13,6 @@ const replica = vi.hoisted(() => ({
   /** When set, each entry read waits for a manual resolve (see `held`). */
   hold: false,
   held: [] as Array<() => void>,
-  listeners: [] as Array<() => void>,
 }));
 vi.mock('@/services/replication', () => ({
   replicatedClassesTable: {
@@ -27,14 +26,11 @@ vi.mock('@/services/replication', () => ({
       if (replica.hold) await new Promise<void>(resolve => replica.held.push(resolve));
       return snapshot;
     }),
-    subscribe: vi.fn((listener: () => void) => {
-      replica.listeners.push(listener);
-      return () => {};
-    }),
   },
 }));
 
 import { ClassOptionsDialog } from './ClassOptionsDialog';
+import { ClassStatisticsDialog } from './ClassStatisticsDialog';
 
 const classData = { id: 'c1', element: 'Interior', level: 'Novice', class_name: 'Interior Novice' };
 
@@ -65,7 +61,6 @@ beforeEach(() => {
   replica.failEntries = false;
   replica.hold = false;
   replica.held = [];
-  replica.listeners = [];
 });
 
 describe('ClassOptionsDialog (MYK9-1502)', () => {
@@ -183,26 +178,29 @@ describe('ClassOptionsDialog (MYK9-1502)', () => {
     expect(await screen.findByRole('button', { name: /Requirements/ })).toBeInTheDocument();
   });
 
-  it('an older read that resolves late does not overwrite the newer statistics', async () => {
-    replica.hold = true;
-    replica.entries = [
-      { id: 'a', isScored: true, resultStatus: 'qualified', searchTimeSeconds: 60 },
-    ];
+  it('reads the replica once per open, with no live re-read', async () => {
+    const { replicatedEntriesTable } = await import('@/services/replication');
+    const read = vi.mocked(replicatedEntriesTable.getEntriesByClass);
+    read.mockClear();
     renderDialog();
     fireEvent.click(screen.getByRole('button', { name: /Statistics/ }));
-    await waitFor(() => expect(replica.held).toHaveLength(1));
-    // A score lands while the first read is still in flight.
+    await screen.findByText('Nothing scored yet');
+    expect(read).toHaveBeenCalledTimes(1);
+    expect(read).toHaveBeenCalledWith('c1');
+  });
+
+  it('a different class never shows the previous class rows', async () => {
     replica.entries = [
       { id: 'a', isScored: true, resultStatus: 'qualified', searchTimeSeconds: 60 },
-      { id: 'b', isScored: true, resultStatus: 'qualified', searchTimeSeconds: 90 },
     ];
-    replica.listeners.forEach(listener => listener());
-    await waitFor(() => expect(replica.held).toHaveLength(2));
-    replica.held[1]!(); // the newer read finishes first
+    const { rerender } = render(
+      <ClassStatisticsDialog classId="c1" className="One" onClose={vi.fn()} />
+    );
     const stat = (label: string) => screen.getByText(label).closest('div')!;
-    await waitFor(() => expect(stat('Entries')).toHaveTextContent('2'));
-    replica.held[0]!(); // then the older one, stale
-    await new Promise(resolve => setTimeout(resolve, 20));
-    expect(stat('Entries')).toHaveTextContent('2');
+    await waitFor(() => expect(stat('Entries')).toHaveTextContent('1'));
+    replica.hold = true;
+    rerender(<ClassStatisticsDialog classId="c2" className="Two" onClose={vi.fn()} />);
+    expect(await screen.findByText('Loading statistics…')).toBeInTheDocument();
+    expect(screen.queryByText('Fastest time')).not.toBeInTheDocument();
   });
 });

@@ -106,4 +106,46 @@ describe('applyCombinedRunOrder', () => {
     await applyCombinedRunOrder(mixed, 'manual', 'all');
     expect(replicatedEntriesTable.updateEntry).not.toHaveBeenCalled();
   });
+
+  it.each([
+    ['combined-asc', { a1: 1, a3: 2, a2: 3, b1: 4, b3: 5, b2: 6 }],
+    ['combined-desc', { b2: 1, b3: 2, b1: 3, a2: 4, a3: 5, a1: 6 }],
+    ['a-then-b-desc', { a2: 1, a3: 2, a1: 3, b2: 4, b3: 5, b1: 6 }],
+    ['b-then-a-asc', { b1: 1, b3: 2, b2: 3, a1: 4, a3: 5, a2: 6 }],
+    ['b-then-a-desc', { b2: 1, b3: 2, b1: 3, a2: 4, a3: 5, a1: 6 }],
+  ] as const)('persists %s for the whole class', async (preset, expected) => {
+    await applyCombinedRunOrder(mixed, preset, 'all');
+    expect(recordedRunOrders()).toEqual(expected);
+  });
+
+  it.each(['random', 'random-all', 'random-sections'] as const)(
+    'persists a full permutation for %s',
+    async preset => {
+      await applyCombinedRunOrder(mixed, preset, 'all');
+      expect(Object.values(recordedRunOrders()).sort()).toEqual([1, 2, 3, 4, 5, 6]);
+    }
+  );
+
+  it('writes only rows whose run order changed, comparing against exhibitorOrder', async () => {
+    const ordered = mixed.map((e, i) => ({ ...e, exhibitorOrder: i + 1 }) as unknown as Entry);
+    // Armbands run 1,3,2 / 4,6,5 in each section, so only those pairs swap.
+    await applyCombinedRunOrder(ordered, 'a-then-b-asc', 'all');
+    expect(recordedRunOrders()).toEqual({ a3: 2, a2: 3, b3: 5, b2: 6 });
+  });
+
+  it('preserve keeps the untouched section in its current relative order', async () => {
+    const withOrder = [
+      { ...entry('b2', 6, 'B'), exhibitorOrder: 1 },
+      { ...entry('b1', 4, 'B'), exhibitorOrder: 2 },
+      { ...entry('a2', 3, 'A'), exhibitorOrder: 3 },
+      { ...entry('a1', 1, 'A'), exhibitorOrder: 4 },
+    ] as unknown as Entry[];
+    await applyCombinedRunOrder(withOrder, 'armband-asc', 'A', 'preserve');
+    expect(recordedRunOrders()).toEqual({ a1: 3, a2: 4 });
+  });
+
+  it('rejects when the replication write fails', async () => {
+    vi.mocked(replicatedEntriesTable.updateEntry).mockRejectedValueOnce(new Error('offline'));
+    await expect(applyCombinedRunOrder(mixed, 'armband-asc', 'all')).rejects.toThrow('offline');
+  });
 });

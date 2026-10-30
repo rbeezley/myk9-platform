@@ -32,6 +32,7 @@ export async function applyCombinedRunOrder(
       id: e.id,
       armband: e.armband != null ? String(e.armband) : null,
       section: e.section ?? null,
+      runOrder: e.exhibitorOrder ?? null,
     })),
     // ringside's union carries members myK9Show's dialog doesn't model
     // (notably `random-all` → `random`); a bare cast would let them fall to
@@ -41,5 +42,5 @@ export async function applyCombinedRunOrder(
     renumberMode
   );
 
-  await persistRunOrderResults(results);
+  await persistRunOrderResults(results, entries);
 }

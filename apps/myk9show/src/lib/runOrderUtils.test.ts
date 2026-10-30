@@ -20,6 +20,8 @@ describe('toMyK9ShowRunOrderPreset', () => {
     for (const p of [
       'armband-asc',
       'armband-desc',
+      'combined-asc',
+      'combined-desc',
       'random',
       'manual',
       'random-sections',
@@ -30,13 +32,6 @@ describe('toMyK9ShowRunOrderPreset', () => {
     ] as const) {
       expect(toMyK9ShowRunOrderPreset(p)).toBe(p);
     }
-  });
-
-  it('falls back unsupported ringside presets to armband-asc', () => {
-    // combined-* are ringside members myK9Show never offers; never reach here
-    // from the at-show dialog, but the fallback must be deterministic.
-    expect(toMyK9ShowRunOrderPreset('combined-asc' as RingsideRunOrderPreset)).toBe('armband-asc');
-    expect(toMyK9ShowRunOrderPreset('combined-desc' as RingsideRunOrderPreset)).toBe('armband-asc');
   });
 });
 

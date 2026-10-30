@@ -317,3 +317,45 @@ describe('calculateCombinedRunOrder', () => {
     expect(result.map(r => r.id).sort()).toEqual(mixed.map(e => e.id).sort());
   });
 });
+
+describe('calculateRunOrder — combined (ignore sections)', () => {
+  const mixed = [
+    { id: 'a1', armband: '1', section: 'A' },
+    { id: 'b1', armband: '2', section: 'B' },
+    { id: 'a2', armband: '3', section: 'A' },
+    { id: 'b2', armband: '4', section: 'B' },
+  ];
+
+  it('combined-asc interleaves sections by armband', () => {
+    expect(calculateRunOrder(mixed, 'combined-asc').map(r => r.id)).toEqual([
+      'a1',
+      'b1',
+      'a2',
+      'b2',
+    ]);
+  });
+
+  it('combined-desc interleaves sections by descending armband', () => {
+    expect(calculateRunOrder(mixed, 'combined-desc').map(r => r.id)).toEqual([
+      'b2',
+      'a2',
+      'b1',
+      'a1',
+    ]);
+  });
+});
+
+describe('calculateRunOrderScoped — preserve keeps the other section in its current order', () => {
+  it('numbers the other section by its current runOrder, not input order', () => {
+    const entries = [
+      { id: 'b2', armband: '4', section: 'B', runOrder: 2 },
+      { id: 'a1', armband: '1', section: 'A', runOrder: 3 },
+      { id: 'b1', armband: '3', section: 'B', runOrder: 1 },
+    ];
+    expect(calculateRunOrderScoped(entries, 'armband-asc', 'A', 'preserve')).toEqual([
+      { id: 'b1', runOrder: 1 },
+      { id: 'b2', runOrder: 2 },
+      { id: 'a1', runOrder: 3 },
+    ]);
+  });
+});

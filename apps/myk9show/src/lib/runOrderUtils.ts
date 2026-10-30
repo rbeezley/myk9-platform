@@ -2,12 +2,12 @@ import type { RunOrderPreset as RingsideRunOrderPreset, RunOrderScope } from '@m
 
 /**
  * myK9Show exposes a deliberately narrower run-order preset surface than
- * the canonical `RunOrderPreset` in `@myk9/ringside` (which serves the
- * full myK9Q ringside flow). myK9Show's RunOrderDialog UI does not
- * render buttons for `'combined-asc' | 'combined-desc' | 'random-all'`,
- * so accepting them at the type boundary would create dead union
- * members whose runtime would fall to the armband-asc default branch
- * below — silently wrong for `'random-all'` in particular.
+ * the canonical `RunOrderPreset` in `@myk9/ringside`. The RunOrderDialog
+ * emits `'combined-asc' | 'combined-desc'` (v3's "Combined (ignore
+ * sections)") but never `'random-all'`, which `toMyK9ShowRunOrderPreset`
+ * maps to `'random'`; accepting an unhandled member at the type boundary
+ * would let it fall to the armband-asc default branch below — silently
+ * wrong for `'random-all'` in particular.
  *
  * `Extract` pins the local union as a structural subset of the
  * canonical union: if any of these member names is later removed from
@@ -20,6 +20,8 @@ export type RunOrderPreset = Extract<
   RingsideRunOrderPreset,
   | 'armband-asc'
   | 'armband-desc'
+  | 'combined-asc'
+  | 'combined-desc'
   | 'random'
   | 'manual'
   | 'random-sections'
@@ -33,6 +35,8 @@ export interface RunOrderEntry {
   id: string;
   armband: string | null;
   section?: string | null;
+  /** Current run order; lets a section-scoped "preserve" keep the other section's order. */
+  runOrder?: number | null;
 }
 
 export interface RunOrderResult {
@@ -56,6 +60,8 @@ export function toMyK9ShowRunOrderPreset(preset: RingsideRunOrderPreset): RunOrd
   switch (preset) {
     case 'armband-asc':
     case 'armband-desc':
+    case 'combined-asc':
+    case 'combined-desc':
     case 'random':
     case 'manual':
     case 'random-sections':
@@ -142,10 +148,12 @@ export function calculateRunOrder(
 
   switch (preset) {
     case 'armband-asc':
+    case 'combined-asc':
       sorted = [...entries].sort((a, b) => parseArmband(a.armband) - parseArmband(b.armband));
       break;
 
     case 'armband-desc':
+    case 'combined-desc':
       sorted = [...entries].sort((a, b) => parseArmband(b.armband) - parseArmband(a.armband));
       break;
 
@@ -203,7 +211,13 @@ export function calculateRunOrderScoped(
   renumberMode: 'preserve' | 'renumber'
 ): RunOrderResult[] {
   const scopedEntries = entries.filter(e => e.section === section);
-  const otherEntries = entries.filter(e => e.section !== section);
+  // Keep the other section in its current run order (stable; unknown last) so
+  // "preserve" renumbers it contiguously without reshuffling it.
+  const otherEntries = entries
+    .filter(e => e.section !== section)
+    .sort(
+      (a, b) => (a.runOrder ?? Number.MAX_SAFE_INTEGER) - (b.runOrder ?? Number.MAX_SAFE_INTEGER)
+    );
 
   // Reorder only the scoped section
   const reorderedScoped = calculateRunOrder(scopedEntries, preset);

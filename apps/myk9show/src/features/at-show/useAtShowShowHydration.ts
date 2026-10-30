@@ -28,28 +28,6 @@ async function readEntriesMarker(showId: string): Promise<boolean> {
 }
 
 /**
- * Resolves once the device is offline: at once if it already is, else on the
- * `offline` event. The returned `stop` removes the listener.
- *
- * A fetch or replication sync can wait on a dead connection instead of
- * rejecting, which would leave the first hydration (and its page skeleton)
- * pending forever on a cold offline reload (MYK9-1509). Offline is the one
- * connection state the browser reports reliably, so it ends the wait; the
- * rows already on the device are the show.
- */
-function whenOffline(): { offline: Promise<void>; stop: () => void } {
-  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-    return { offline: Promise.resolve(), stop: () => {} };
-  }
-  let stop = () => {};
-  const offline = new Promise<void>(resolve => {
-    stop = () => window.removeEventListener('offline', resolve as () => void);
-    window.addEventListener('offline', resolve as () => void);
-  });
-  return { offline, stop };
-}
-
-/**
  * Hydrates the at-show page's own show (trials, their classes, its entries) the
  * moment the page mounts, then again after every completed app-wide sync pass.
  *
@@ -77,22 +55,6 @@ export function useAtShowShowHydration(
   } | null>(null);
   const startedShowRef = useRef<string | null>(null);
   const passKeyRef = useRef<string | null>(null);
-  // Counts settled syncs, so a completion that lands while the first hydration
-  // reads the marker (before `hydrated` exists to upgrade) is not lost.
-  const settledCountRef = useRef(0);
-  const stopOfflineRef = useRef<(() => void) | null>(null);
-
-  // Abandoning the hydration (unmount, or another show) releases its `offline`
-  // listener, which a still-pending sync would otherwise hold forever. Clearing
-  // the started marker lets a StrictMode remount start the hydration again.
-  useEffect(
-    () => () => {
-      stopOfflineRef.current?.();
-      stopOfflineRef.current = null;
-      startedShowRef.current = null;
-    },
-    [showId]
-  );
 
   useEffect(() => {
     if (!showId || startedShowRef.current === showId) return;
@@ -108,41 +70,23 @@ export function useAtShowShowHydration(
       () => false
     );
     // refresh() swallows sync failures (offline: keep the cached rows).
-    const { offline, stop } = whenOffline();
-    stopOfflineRef.current = stop;
-    const hydration = Promise.all([refresh(true).catch(() => {}), outcome]).then(
-      ([, success]) => success
+    void Promise.all([refresh(true).catch(() => {}), outcome]).then(
+      async ([, success]) => {
+        const state = success || (await readEntriesMarker(forShow)) ? 'arrived' : 'not-arrived';
+        if (startedShowRef.current === forShow) setHydrated({ showId: forShow, state });
+      },
+      () => {
+        // Unreachable in practice (both inputs swallow rejections); never leave
+        // the page on its skeleton if that changes.
+        if (startedShowRef.current === forShow)
+          setHydrated({ showId: forShow, state: 'not-arrived' });
+      }
     );
-    // Offline ends the wait as "did not succeed": a sync that never settles must
-    // not hold the page on its skeleton (MYK9-1509). A late success still
-    // upgrades through `subscribeAtShowSyncSettled` below.
-    void Promise.race([hydration, offline.then(() => false)])
-      .finally(stop)
-      .then(
-        async success => {
-          let onDevice = success;
-          // Re-read while a sync settled mid-read: its marker write precedes the
-          // notification, so the second read sees it.
-          for (let seen = -1; !onDevice && seen !== settledCountRef.current;) {
-            seen = settledCountRef.current;
-            onDevice = await readEntriesMarker(forShow);
-          }
-          const state = onDevice ? 'arrived' : 'not-arrived';
-          if (startedShowRef.current === forShow) setHydrated({ showId: forShow, state });
-        },
-        () => {
-          // Unreachable in practice (both inputs swallow rejections); never leave
-          // the page on its skeleton if that changes.
-          if (startedShowRef.current === forShow)
-            setHydrated({ showId: forShow, state: 'not-arrived' });
-        }
-      );
   }, [refresh, showId]);
 
   useEffect(() => {
     if (!showId) return;
     return subscribeAtShowSyncSettled(showId, () => {
-      settledCountRef.current += 1;
       void readEntriesMarker(showId).then(onDevice => {
         if (!onDevice) return;
         setHydrated(prev =>

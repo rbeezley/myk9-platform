@@ -74,7 +74,9 @@ import {
   createTablesStatus,
   shouldRequestPostUploadSync,
   type TableSyncStatus,
+  offlineSyncResults,
 } from './replicationSyncStatus';
+import { endOnOffline } from '@/services/replication/endOnOffline';
 import {
   invalidatePostSyncQueries,
   refetchShowEntriesAfterScopedSync,
@@ -346,7 +348,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
       try {
         // Phase 1: Upload pending mutations to Supabase
         try {
-          const uploadResults = await mutationManager.uploadPendingMutations();
+          const uploadResults = await endOnOffline(mutationManager.uploadPendingMutations(), []);
           const succeeded = uploadResults.filter(r => r.success).length;
           if (uploadResults.length > 0) {
             logger.info('Phase 1 upload complete', 'replication', {
@@ -359,7 +361,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
           // Continue to Phase 2 even if upload fails
         }
 
-        await ensureAuthenticatedEntryResultReplicaVersion();
+        await endOnOffline(ensureAuthenticatedEntryResultReplicaVersion(), undefined);
 
         // Phase 2: parallel download — one failure must not block others.
         setStatus(prev => ({
@@ -367,26 +369,32 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
           tablesStatus: { ...prev.tablesStatus, ...createTablesStatus(selectedNames, 'syncing') },
         }));
 
-        const syncResults = await Promise.all(
-          selectedTables.map(async ({ name, table, scope }) => {
-            try {
-              const result = await table.sync(scope);
-              return {
-                name,
-                ok: result.success,
-                error: result.error,
-                recoveredFromEmptyReplica: result.recoveredFromEmptyReplica ?? false,
-              };
-            } catch (err) {
-              logger.error('Table sync threw', 'replication', { name }, err as Error);
-              return {
-                name,
-                ok: false,
-                error: err instanceof Error ? err.message : String(err),
-                recoveredFromEmptyReplica: false,
-              };
-            }
-          })
+        // MYK9-1509: a pass stuck on a dead connection ends when the device goes
+        // offline, so `isSyncing` clears and the tables never stay 'syncing'.
+        const offlineResults = offlineSyncResults(selectedNames);
+        const syncResults = await endOnOffline(
+          Promise.all(
+            selectedTables.map(async ({ name, table, scope }) => {
+              try {
+                const result = await table.sync(scope);
+                return {
+                  name,
+                  ok: result.success,
+                  error: result.error,
+                  recoveredFromEmptyReplica: result.recoveredFromEmptyReplica ?? false,
+                };
+              } catch (err) {
+                logger.error('Table sync threw', 'replication', { name }, err as Error);
+                return {
+                  name,
+                  ok: false,
+                  error: err instanceof Error ? err.message : String(err),
+                  recoveredFromEmptyReplica: false,
+                };
+              }
+            })
+          ),
+          offlineResults
         );
 
         const { tableStatusUpdates, downloadFailures, recoveredTables, abortedTables } =
@@ -424,7 +432,8 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
         setStatus(prev => ({
           ...prev,
           isSyncing: false,
-          lastSyncAt: new Date(),
+          // A pass the device left mid-flight downloaded nothing to stamp.
+          lastSyncAt: syncResults === offlineResults ? prev.lastSyncAt : new Date(),
         }));
         syncInFlightRef.current = false;
 

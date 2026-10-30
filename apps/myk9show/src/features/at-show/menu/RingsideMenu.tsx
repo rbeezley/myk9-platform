@@ -25,7 +25,6 @@ import { useAskQPanelStore } from '@/store/useAskQPanelStore';
 import { useMessageStore } from '@/store/messageStore';
 import { useNotificationStore } from '@/store/notificationStore';
 import { useShowManageScope } from '@/hooks/useShowManageScope';
-import { useShowResultsAccess } from './useShowResultsAccess';
 import {
   OFFLINE_ITEM_NOTICE,
   buildRingsideMenuItems,
@@ -61,7 +60,6 @@ export function RingsideMenu({ showId }: { showId: string | undefined }) {
   });
   // The destination route's own gate, so the link and the page cannot disagree.
   const canManageShow = useShowManageScope(showId).canManage;
-  const hasResultsAccess = useShowResultsAccess(showId, canManageShow);
 
   const unread =
     useNotificationStore(s => s.unreadCount) +
@@ -71,7 +69,6 @@ export function RingsideMenu({ showId }: { showId: string | undefined }) {
   const items = buildRingsideMenuItems({
     showId,
     canManageShow,
-    hasResultsAccess,
     isOnline,
     hasAccount: Boolean(user) && !user?.is_anonymous,
   });

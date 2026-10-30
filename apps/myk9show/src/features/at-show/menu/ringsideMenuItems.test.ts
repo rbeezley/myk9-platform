@@ -11,7 +11,6 @@ const base: RingsideMenuContext = {
   showId: 'show-1',
   canManageShow: false,
   isOnline: true,
-  hasResultsAccess: true,
   hasAccount: true,
 };
 
@@ -46,9 +45,9 @@ describe('buildRingsideMenuItems', () => {
     expect(ids({ ...base, canManageShow: true })).not.toContain('stats');
   });
 
-  it('shows Results exactly when the show page gives the viewer a Results surface', () => {
-    expect(ids({ ...base, hasResultsAccess: false })).not.toContain('results');
-    expect(ids({ ...base, hasResultsAccess: true })).toContain('results');
+  it('gives Results to every viewer who has a show, manager or not', () => {
+    expect(ids(base)).toContain('results');
+    expect(ids({ ...base, canManageShow: true })).toContain('results');
   });
 
   it('opens Settings on Appearance, where theme, voice and haptics live', () => {

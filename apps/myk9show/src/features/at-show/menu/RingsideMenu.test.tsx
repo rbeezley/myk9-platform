@@ -15,16 +15,12 @@ const mocks = vi.hoisted(() => ({
   },
   online: true,
   canManage: false,
-  resultsAccess: true,
   show: { clubId: 'club-1', location: '123 Main St, Springfield' } as Record<string, unknown>,
 }));
 
 vi.mock('@/hooks/useAuthContext', () => ({ useAuthContext: () => mocks.auth }));
 vi.mock('@/hooks/useShowManageScope', () => ({
   useShowManageScope: () => ({ canManage: mocks.canManage }),
-}));
-vi.mock('./useShowResultsAccess', () => ({
-  useShowResultsAccess: () => mocks.resultsAccess,
 }));
 vi.mock('@/lib/networkUtils', () => ({ useOnlineStatus: () => mocks.online }));
 vi.mock('@/hooks/useGlobalSyncStatus', () => ({
@@ -82,7 +78,6 @@ describe('RingsideMenu', () => {
     mocks.auth.signOut.mockReset();
     mocks.online = true;
     mocks.canManage = false;
-    mocks.resultsAccess = true;
     useRingsideReturnStore.getState().clear();
     useNotificationStore.setState({ isCenterOpen: false });
     useAskQPanelStore.getState().close();
@@ -124,12 +119,14 @@ describe('RingsideMenu', () => {
     });
   });
 
-  it('has no Stats item, and no Results item when the show page has none for the viewer', async () => {
-    mocks.resultsAccess = false;
+  it('has no Stats item, and shows Results to a viewer who is not a manager', async () => {
     const { user } = renderMenu();
     const nav = await openMenu(user);
     expect(within(nav).queryByRole('button', { name: /^Stats/ })).not.toBeInTheDocument();
-    expect(within(nav).queryByRole('button', { name: /^Results/ })).not.toBeInTheDocument();
+    await user.click(within(nav).getByRole('button', { name: 'Results' }));
+    await waitFor(() =>
+      expect(screen.getByTestId('location')).toHaveTextContent('/shows/show-1?tab=results')
+    );
   });
 
   it('sends a show manager to the results page', async () => {

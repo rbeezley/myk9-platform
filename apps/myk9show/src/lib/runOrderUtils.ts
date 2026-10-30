@@ -47,10 +47,8 @@ export interface RunOrderResult {
 /**
  * Translate a (wider) ringside `RunOrderPreset` to myK9Show's supported preset.
  *
- * ringside's union carries members myK9Show's RunOrderDialog doesn't model
- * (`combined-asc | combined-desc | random-all`). The at-show "Randomize All"
- * button emits ringside's `random-all`, which is semantically myK9Show's
- * `random`. Casting the wide type onto the narrow one (the previous approach)
+ * ringside's union carries `random-all`, which myK9Show models as `random`
+ * (the dialog's "Random Shuffle (all dogs)"). Casting the wide type onto the narrow one (the previous approach)
  * let `random-all` fall through `calculateRunOrder`'s default branch to
  * deterministic armband-ascending — silently wrong. This makes the boundary
  * explicit: `random-all` → `random`; any other unsupported member (never

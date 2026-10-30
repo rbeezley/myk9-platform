@@ -22,6 +22,18 @@ import {
 export type RunOrderScope = 'all' | string; // 'all' or a specific section value ('A', 'B', …)
 export type RenumberMode = 'preserve' | 'renumber';
 
+interface RunOrderDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  /** Full entry list — used to detect A/B sections. */
+  entries: RunOrderEntry[];
+  onApply: (
+    preset: RunOrderPreset,
+    scope?: RunOrderScope,
+    renumberMode?: RenumberMode
+  ) => Promise<void>;
+}
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function PresetButton({

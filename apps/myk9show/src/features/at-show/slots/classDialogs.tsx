@@ -5,11 +5,7 @@
  * the data handlers behind them are spike stubs owned by the host hooks.
  */
 import type React from 'react';
-import type {
-  AreaCountSelectionDialogProps,
-  ClassOptionsDialogProps,
-  ClassSettingsDialogProps,
-} from '@myk9/ringside';
+import type { AreaCountSelectionDialogProps, ClassSettingsDialogProps } from '@myk9/ringside';
 import {
   Dialog,
   DialogContent,
@@ -18,90 +14,12 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Layers } from 'lucide-react';
+import { ClassDialogShell } from './ClassDialogShell';
 import { handleOpenChange } from './dialogHelpers';
 
-// ---------------------------------------------------------------------------
-// ClassOptionsDialog — umbrella menu gating per-class affordances.
-// ---------------------------------------------------------------------------
-
-export const ClassOptionsDialog: React.FC<ClassOptionsDialogProps> = ({
-  isOpen,
-  onClose,
-  classData,
-  onRequirements,
-  onSetMaxTime,
-  onSettings,
-  onStatistics,
-  onStatus,
-  onPrintCheckIn,
-  onPrintResults,
-  onPrintScoresheet,
-  hideRequirements,
-  hideMaxTime,
-  hideSettings,
-  hideStatistics,
-  hideStatus,
-  hidePrintOptions,
-}) => {
-  if (!isOpen) return null;
-
-  return (
-    <Dialog open onOpenChange={open => handleOpenChange(open, onClose)}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{classData ? classData.class_name : 'Class Options'}</DialogTitle>
-        </DialogHeader>
-        <div className="flex flex-col gap-2">
-          {!hideRequirements && onRequirements && (
-            <Button variant="outline" onClick={onRequirements}>
-              Requirements
-            </Button>
-          )}
-          {!hideMaxTime && onSetMaxTime && (
-            <Button variant="outline" onClick={onSetMaxTime}>
-              Set Max Time
-            </Button>
-          )}
-          {!hideSettings && onSettings && (
-            <Button variant="outline" onClick={onSettings}>
-              Settings
-            </Button>
-          )}
-          {!hideStatistics && onStatistics && (
-            <Button variant="outline" onClick={() => onStatistics()}>
-              Statistics
-            </Button>
-          )}
-          {!hideStatus && onStatus && (
-            <Button variant="outline" onClick={onStatus}>
-              Status
-            </Button>
-          )}
-          {!hidePrintOptions && onPrintCheckIn && (
-            <Button variant="outline" onClick={onPrintCheckIn}>
-              Print Check-In
-            </Button>
-          )}
-          {!hidePrintOptions && onPrintResults && (
-            <Button variant="outline" onClick={onPrintResults}>
-              Print Results
-            </Button>
-          )}
-          {!hidePrintOptions && onPrintScoresheet && (
-            <Button variant="outline" onClick={onPrintScoresheet}>
-              Print Scoresheet
-            </Button>
-          )}
-        </div>
-        <DialogFooter>
-          <Button variant="ghost" onClick={onClose}>
-            Close
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-};
+// ClassOptionsDialog lives in ./ClassOptionsDialog (MYK9-1502).
+export { ClassOptionsDialog } from './ClassOptionsDialog';
 
 // ClassStatusDialog lives in ./ClassStatusDialog (v3 statuses, descriptions and times).
 export { ClassStatusDialog } from './ClassStatusDialog';
@@ -167,24 +85,17 @@ export const AreaCountSelectionDialog: React.FC<AreaCountSelectionDialogProps> =
   }
 
   return (
-    <Dialog open onOpenChange={open => handleOpenChange(open, onClose)}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{classData.class_name} — Select Areas</DialogTitle>
-        </DialogHeader>
-        <div className="flex flex-col gap-2">
-          {counts.map(count => (
-            <Button key={count} variant="outline" onClick={onSave}>
-              {count} {count === 1 ? 'Area' : 'Areas'}
-            </Button>
-          ))}
-        </div>
-        <DialogFooter>
-          <Button variant="ghost" onClick={onClose}>
-            Close
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <ClassDialogShell
+      icon={Layers}
+      eyebrow="Select areas"
+      className={classData.class_name}
+      onClose={onClose}
+    >
+      {counts.map(count => (
+        <Button key={count} variant="outline" className="min-h-11" onClick={onSave}>
+          {count} {count === 1 ? 'Area' : 'Areas'}
+        </Button>
+      ))}
+    </ClassDialogShell>
   );
 };

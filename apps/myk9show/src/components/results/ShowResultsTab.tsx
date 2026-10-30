@@ -128,7 +128,6 @@ interface PodiumContentProps {
 
 function PodiumContent({ showId, showEntries = [] }: PodiumContentProps) {
   const { data: results = [], isLoading, error, refetch } = useShowResults(showId);
-  const podiumLoading = isLoading;
   const {
     data: classProgress = [],
     isError: progressError,

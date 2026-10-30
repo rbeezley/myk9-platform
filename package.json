@@ -78,7 +78,7 @@
     "qa:primary-checkout:test": "vitest run scripts/qa/primary-checkout.test.ts scripts/bootstrap-worktree.test.ts scripts/qa/push-hold.test.ts",
     "qa:no-ci-polling:test": "vitest run scripts/qa/no-ci-polling.test.ts",
     "qa:prelaunch-tripwire": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/qa/prelaunch-tripwire.ts",
-    "qa:prelaunch-tripwire:test": "vitest run scripts/qa/prelaunch-tripwire.test.ts",
+    "qa:prelaunch-tripwire:test": "vitest run scripts/qa/prelaunch-tripwire.test.ts scripts/qa/deploy-migration-guard.test.ts",
     "qa:ci-concurrency:test": "vitest run scripts/qa/ci-concurrency.test.ts",
     "qa:deploy-picker:test": "vitest run scripts/qa/pick-deploy-commit.test.ts",
     "qa:shared-rules": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/qa/sync-shared-rules.ts",

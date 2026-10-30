@@ -15,7 +15,7 @@ const mocks = vi.hoisted(() => ({
   },
   online: true,
   canManage: false,
-  ownEntryIds: new Set<string>(['e1']),
+  resultsAccess: true,
   show: { clubId: 'club-1', location: '123 Main St, Springfield' } as Record<string, unknown>,
 }));
 
@@ -23,8 +23,8 @@ vi.mock('@/hooks/useAuthContext', () => ({ useAuthContext: () => mocks.auth }));
 vi.mock('@/hooks/useShowManageScope', () => ({
   useShowManageScope: () => ({ canManage: mocks.canManage }),
 }));
-vi.mock('../useMyAtShowEntries', () => ({
-  useMyAtShowEntries: () => ({ ownEntryIds: mocks.ownEntryIds }),
+vi.mock('./useShowResultsAccess', () => ({
+  useShowResultsAccess: () => mocks.resultsAccess,
 }));
 vi.mock('@/lib/networkUtils', () => ({ useOnlineStatus: () => mocks.online }));
 vi.mock('@/hooks/useGlobalSyncStatus', () => ({
@@ -82,7 +82,7 @@ describe('RingsideMenu', () => {
     mocks.auth.signOut.mockReset();
     mocks.online = true;
     mocks.canManage = false;
-    mocks.ownEntryIds = new Set(['e1']);
+    mocks.resultsAccess = true;
     useRingsideReturnStore.getState().clear();
     useNotificationStore.setState({ isCenterOpen: false });
     useAskQPanelStore.getState().close();
@@ -124,8 +124,8 @@ describe('RingsideMenu', () => {
     });
   });
 
-  it('has no Stats item and gives Results only to a viewer with entries or a manager', async () => {
-    mocks.ownEntryIds = new Set();
+  it('has no Stats item, and no Results item when the show page has none for the viewer', async () => {
+    mocks.resultsAccess = false;
     const { user } = renderMenu();
     const nav = await openMenu(user);
     expect(within(nav).queryByRole('button', { name: /^Stats/ })).not.toBeInTheDocument();

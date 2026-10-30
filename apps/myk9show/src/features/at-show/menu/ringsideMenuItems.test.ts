@@ -11,7 +11,7 @@ const base: RingsideMenuContext = {
   showId: 'show-1',
   canManageShow: false,
   isOnline: true,
-  hasEntries: true,
+  hasResultsAccess: true,
   hasAccount: true,
 };
 
@@ -46,11 +46,9 @@ describe('buildRingsideMenuItems', () => {
     expect(ids({ ...base, canManageShow: true })).not.toContain('stats');
   });
 
-  it('gives Results only to managers and viewers with entries today', () => {
-    // A judge, steward or passcode user with no entries would land on the public landing.
-    expect(ids({ ...base, hasEntries: false })).not.toContain('results');
-    expect(ids({ ...base, hasEntries: true })).toContain('results');
-    expect(ids({ ...base, hasEntries: false, canManageShow: true })).toContain('results');
+  it('shows Results exactly when the show page gives the viewer a Results surface', () => {
+    expect(ids({ ...base, hasResultsAccess: false })).not.toContain('results');
+    expect(ids({ ...base, hasResultsAccess: true })).toContain('results');
   });
 
   it('opens Settings on Appearance, where theme, voice and haptics live', () => {

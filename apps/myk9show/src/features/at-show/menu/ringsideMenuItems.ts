@@ -14,8 +14,8 @@ export interface RingsideMenuContext {
   /** May manage THIS show: the exact gate `ShowManagementSectionRoute` applies (`useShowManageScope`). */
   canManageShow: boolean;
   isOnline: boolean;
-  /** The account has entries in this show, so the show page gives it the tabbed view with a Results tab. */
-  hasEntries: boolean;
+  /** The show page gives this viewer a Results surface (`useShowResultsAccess`, from `resolveShowAudience`). */
+  hasResultsAccess: boolean;
   /** A real account (not a passcode session). */
   hasAccount: boolean;
 }
@@ -79,10 +79,9 @@ export function buildRingsideMenuItems(
           requiresConnection: true,
         }
       : null,
-    // A viewer with no entries who is not a manager lands on the public show
-    // landing, which has no Results tab until the show ends, so they get no
-    // item. MYK9-1544 changes the show page audience and removes this check.
-    showId && showScope && (context.canManageShow || context.hasEntries)
+    // The show page's own audience rule decides; a public viewer has no Results
+    // tab until the show ends. MYK9-1544 changes that rule and this follows it.
+    showId && showScope && context.hasResultsAccess
       ? {
           id: 'results',
           label: 'Results',

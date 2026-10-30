@@ -22,7 +22,7 @@ const LINK_FOCUS = 'focus-visible:outline-none focus-visible:ring-2 focus-visibl
  */
 export function YourEntriesTodayCard() {
   const data = useMyEntriesData({ persistCheckInStatus: noCheckInWrites });
-  const { entries, readState, isError, refreshEntries } = data;
+  const { entries, readState, isError, isLoading, identityState, refreshEntries } = data;
   useRefreshOnReturn(refreshEntries);
   const presentation = useMyEntriesPresentation(data);
 
@@ -57,11 +57,17 @@ export function YourEntriesTodayCard() {
 
   // Saved rows for other days cannot establish "nothing today" while the read
   // is unconfirmed, so that case gets the same link as an unconfirmed empty list.
+  // Still reading is not a failed read: say nothing until the read settles, so
+  // an ordinary load never flashes "couldn't check".
+  const stillReading =
+    isLoading || identityState === 'pending-auth' || readState === 'read-pending';
+
   const cannotSayNothingToday =
     presentation === 'identity-pending' ||
     presentation === 'unconfirmed-empty' ||
     (presentation === 'known-rows' && rows.length === 0 && unconfirmed);
 
+  if (stillReading && rows.length === 0) return null;
   if (cannotSayNothingToday) {
     return (
       <section aria-label="Your entries today" className="mx-5 mb-4 text-xs text-muted-foreground">

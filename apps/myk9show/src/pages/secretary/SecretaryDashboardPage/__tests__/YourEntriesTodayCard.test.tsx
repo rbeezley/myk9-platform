@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   readState: 'confirmed' as string,
   identityState: 'resolved' as string,
   isError: false,
+  isLoading: false,
   selfCheckin: {} as Record<string, boolean>,
   settingState: {} as Record<string, string>,
   settingIds: [] as string[][],
@@ -28,7 +29,7 @@ vi.mock('@/pages/MyEntriesPage/modules/useMyEntriesData', () => ({
     entries: mocks.entries,
     readState: mocks.readState,
     identityState: mocks.identityState,
-    isLoading: false,
+    isLoading: mocks.isLoading,
     isError: mocks.isError,
     refreshEntries: mocks.refreshEntries,
   }),
@@ -120,6 +121,7 @@ describe('YourEntriesTodayCard', () => {
     mocks.readState = 'confirmed';
     mocks.identityState = 'resolved';
     mocks.isError = false;
+    mocks.isLoading = false;
     mocks.selfCheckin = {};
     mocks.settingState = {};
     mocks.settingIds = [];
@@ -154,6 +156,21 @@ describe('YourEntriesTodayCard', () => {
     const link = screen.getByRole('link', { name: /couldn't check today's entries/i });
     expect(link.getAttribute('href')).toBe('/exhibitor/entries');
     expect(link.className).toContain('min-h-11');
+  });
+
+  it.each([
+    ['loading', { isLoading: true, identityState: 'unresolved', readState: 'identity-unresolved' }],
+    [
+      'auth pending',
+      { isLoading: false, identityState: 'pending-auth', readState: 'read-pending' },
+    ],
+    ['read pending', { isLoading: false, identityState: 'resolved', readState: 'read-pending' }],
+  ])('says nothing while the read is still in progress (%s)', (_name, st) => {
+    mocks.isLoading = st.isLoading;
+    mocks.identityState = st.identityState;
+    mocks.readState = st.readState;
+    const { container } = render(<YourEntriesTodayCard />);
+    expect(container.querySelector('section')).toBeNull();
   });
 
   // Finding 3: a failed or unconfirmed read must not hide the card.

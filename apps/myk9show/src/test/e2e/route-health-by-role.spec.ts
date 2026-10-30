@@ -40,6 +40,7 @@ import {
   watchAppApiRequests,
 } from '../harness/appApiRequestTracker';
 import { logUnsettledAppApiRequests } from '../harness/routeHealthDiagnostics';
+import { triageStrandedAccessControlErrors } from '../harness/strandedAccessControlErrors';
 
 const SEEDED_SHOW = LIVE_SECRETARY_SHOW_ID;
 
@@ -130,9 +131,9 @@ function isReplicationError(text: string) {
  * Filters a BrowserHealth summary for the budgeted error categories,
  * returning one string per violation.
  */
-function violations(health: BrowserHealth): string[] {
+function violations(health: BrowserHealth, pageErrors: string[]): string[] {
   const result: string[] = [];
-  for (const msg of health.pageErrors) {
+  for (const msg of pageErrors) {
     result.push(`pageerror: ${msg}`);
   }
   for (const msg of health.consoleErrors) {
@@ -174,7 +175,7 @@ async function assertAppApiRequestsSettled(
   page: Page,
   pendingAppApiRequests: ReturnType<typeof watchAppApiRequests>,
   routeId: string
-) {
+): Promise<boolean> {
   const settlement = await waitForAppApiRequestsToSettle(page, pendingAppApiRequests);
   expect
     .soft(settlement.settled, `${routeId}: app API requests did not settle before route transition`)
@@ -186,6 +187,7 @@ async function assertAppApiRequestsSettled(
       description: `${routeId} unsettled-api-requests=${diagnostic}`,
     });
   }
+  return settlement.settled;
 }
 
 /**
@@ -228,6 +230,11 @@ async function sweepRoutes(
     // `people` read that cannot take five seconds five times in a row.
     //
     // Resetting here means a slow route is reported ONCE, against itself.
+    // A read the previous route left unsettled (already a failure there) is
+    // abandoned by the navigation below like any other, so it is classified as
+    // stranded rather than charged to this route a second time (MYK9-1477).
+    pendingAppApiRequests.stranded.clear();
+    pendingAppApiRequests.strandPending();
     pendingAppApiRequests.reset();
 
     let navigationError: string | null = null;
@@ -332,11 +339,22 @@ async function sweepRoutes(
     // WebKit reports a cross-origin fetch canceled by the next navigation as a
     // page error ("due to access control checks"), even when the request is
     // healthy and completes with 200 if allowed to finish (MYK9-244).
-    await assertAppApiRequestsSettled(page, pendingAppApiRequests, id);
+    const routeSettled = await assertAppApiRequestsSettled(page, pendingAppApiRequests, id);
 
     // Health checks (console errors, replication errors, owned 4xx/5xx).
     // Evaluated after the mobile resize so any mobile-triggered errors are included.
-    const viols = violations(health);
+    // Linux WebKit reports a request the outgoing document abandoned at this
+    // route's navigation as "<url> due to access control checks", with no
+    // outcome at all (run 40962869226). Only that exact case is excused, and
+    // only once the route settled: then every request this route made has an
+    // outcome, so an outcome-less error must be one the old document abandoned.
+    const { kept: pageErrors, excused } = triageStrandedAccessControlErrors(
+      health.pageErrors,
+      [...pendingAppApiRequests.stranded].map(request => request.url()),
+      [...health.failedResponses, ...health.failedRequests],
+      routeSettled
+    );
+    const viols = violations(health, pageErrors);
     // WebKit reports some failed fetches only as "<url> due to access control
     // checks", which hides why. The browser's own reason for each app request
     // that never got a response (`cancelled`, or `… Status code: N`) rides along
@@ -350,7 +368,7 @@ async function sweepRoutes(
     // Annotate result for report visibility.
     test.info().annotations.push({
       type: 'route',
-      description: `${id} render=${bodyText.length}ch health=${viols.length > 0 ? viols.join('; ') : 'ok'}${failedRequests}`,
+      description: `${id} render=${bodyText.length}ch health=${viols.length > 0 ? viols.join('; ') : 'ok'}${failedRequests}${excused.length > 0 ? ` excused-stranded=${excused.join('; ')}` : ''}`,
     });
   }
 }

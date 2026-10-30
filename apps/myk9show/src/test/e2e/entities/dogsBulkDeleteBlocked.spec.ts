@@ -44,7 +44,7 @@ async function gotoDogsTable(page: Page) {
  * this spec found an empty bulk bar, not a missing menu item.
  */
 async function selectBlockedDogs(page: Page) {
-  const search = page.getByPlaceholder('Search dogs by name, breed, or owner...');
+  const search = page.getByPlaceholder('Search dogs');
   await search.fill(BLOCKED_DOGS_SEARCH);
   for (const name of BLOCKED_DOGS) {
     const box = page.getByRole('checkbox', { name: `Select ${name}`, exact: true });
@@ -145,7 +145,7 @@ test.describe('bulk delete of dogs the server refuses', () => {
     await dialog.getByRole('button', { name: 'Keep it', exact: true }).click();
 
     // Still there without a refresh...
-    const search = page.getByPlaceholder('Search dogs by name, breed, or owner...');
+    const search = page.getByPlaceholder('Search dogs');
     await search.fill(BLOCKED_DOGS_SEARCH);
     for (const name of BLOCKED_DOGS) {
       await expect(
@@ -155,7 +155,7 @@ test.describe('bulk delete of dogs the server refuses', () => {
 
     // ...and still there after one, which is where the old rollback diverged.
     await gotoDogsTable(page);
-    const searchAfter = page.getByPlaceholder('Search dogs by name, breed, or owner...');
+    const searchAfter = page.getByPlaceholder('Search dogs');
     await searchAfter.fill(BLOCKED_DOGS_SEARCH);
     for (const name of BLOCKED_DOGS) {
       await expect(

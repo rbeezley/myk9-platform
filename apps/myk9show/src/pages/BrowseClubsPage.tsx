@@ -227,7 +227,7 @@ const BrowseClubsPage: React.FC<BrowseClubsPageProps> = ({ detail = null }) => {
       <ListFilterBar
         searchValue={filters.search}
         onSearchChange={value => setFilters(prev => ({ ...prev, search: value }))}
-        searchPlaceholder={splitOpen ? 'Search clubs' : 'Search clubs by name, city, or state...'}
+        searchPlaceholder="Search clubs"
         fields={[]}
       />
       <ListResultLine

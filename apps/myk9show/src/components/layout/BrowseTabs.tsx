@@ -35,8 +35,8 @@ interface BrowseTabsProps {
 /**
  * Renders the tablist and wraps `children` (the list) as its tabpanel. Renders `children` alone
  * where there is no switch to offer: signed out, a role with fewer than two lists (a judge's Dogs
- * only, or a deployment surface that serves fewer), or inside a detail pane (Find Shows beside
- * the Shows list). An exhibitor-only account has no Browse lists: My Shows and My Dogs are rail
+ * only, or a deployment surface that serves fewer), or inside a detail pane (a record open beside
+ * its list). An exhibitor-only account has no Browse lists: My Shows and My Dogs are rail
  * items (MYK9-1287).
  */
 export function BrowseTabs({

@@ -2,6 +2,7 @@ import { describeError } from './error-message';
 import {
   calculateBackoffDelay,
   isAuthorizationError,
+  isGatewayTransientError,
   isRetryableError,
   isTransportError,
 } from './mutation-utils';
@@ -36,7 +37,8 @@ export function classifyMutationFailure({
   const message = describeError(error);
   const canRetry = isRetryableError(error, mutation);
   // MYK9-1474: transport loss, confirmed by the connectivity probe, keeps retrying with capped backoff and spends no retry budget.
-  if (canRetry && uplinkDown && isTransportError(error)) {
+  // MYK9-1488: so does a gateway 502/503/504, by its own status and never by the probe (the gateway answered, so the probe says "up").
+  if (canRetry && ((uplinkDown && isTransportError(error)) || isGatewayTransientError(error))) {
     const transportRetries = (mutation.transportRetries || 0) + 1;
     const pending: PendingMutation = {
       ...mutation,

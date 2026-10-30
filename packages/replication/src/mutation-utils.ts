@@ -240,6 +240,33 @@ export const RPC_PERMANENT_CODES: ReadonlyMap<string, ReadonlySet<string>> = new
   ['set_class_judge', new Set(['P0002', '22023'])],
 ]);
 
+/** HTTP statuses of a gateway that answered but could not reach a healthy backend (MYK9-1488). */
+const GATEWAY_TRANSIENT_STATUSES: ReadonlySet<number> = new Set([502, 503, 504]);
+
+/**
+ * Stamps the HTTP status of a failed write onto the error `executeMutation` throws, as a typed
+ * field the retry policy reads instead of parsing the message. postgrest-js reports the status
+ * on the response beside `error`, not on it, so it is lost unless carried here.
+ */
+export function withHttpStatus<E>(error: E, status: number | undefined): E {
+  if (typeof error === 'object' && error !== null && typeof status === 'number' && status > 0) {
+    (error as { httpStatus?: number }).httpStatus = status;
+  }
+  return error;
+}
+
+/**
+ * Whether a retryable error is a 502/503/504 from the gateway. The server is reachable (the
+ * connectivity probe says "up"), but the database behind it is saturated: the show-day overload
+ * shape. It backs off without spending `maxRetries`, like a confirmed-unreachable uplink
+ * (MYK9-1488). A refusal never qualifies: `isRetryableError` is checked by the caller first.
+ */
+export function isGatewayTransientError(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) return false;
+  const status = (error as { httpStatus?: unknown }).httpStatus;
+  return typeof status === 'number' && GATEWAY_TRANSIENT_STATUSES.has(status);
+}
+
 /**
  * Whether an error is a CANDIDATE for "no server answer": a fetch `TypeError`, the package's
  * `TimeoutError`, an `AbortError`, or the plain object postgrest-js returns for them. The
@@ -255,7 +282,7 @@ export const RPC_PERMANENT_CODES: ReadonlyMap<string, ReadonlySet<string>> = new
  *
  * AbortError is a candidate because nothing in the upload path aborts deliberately: the only
  * `abort()` is `withTimeout`'s own, which surfaces as `TimeoutError`. HTTP 502/503/504 are not
- * distinguished: the error shapes here expose no status.
+ * transport errors here: they carry `httpStatus` and are `isGatewayTransientError`.
  */
 const POSTGREST_TRANSPORT_MESSAGE = /^(TypeError|FetchError|AbortError|TimeoutError): /;
 

@@ -508,6 +508,76 @@ describe('executeMutation', () => {
     });
   });
 
+  // MYK9-1488: postgrest reports the HTTP status beside `error`; the retry policy needs it on the thrown error.
+  describe('HTTP status of a failed write', () => {
+    const gatewayError = () => ({
+      message: 'upstream unavailable',
+      code: '',
+      details: '',
+      hint: '',
+    });
+    const settled = (status: number) =>
+      Promise.resolve({ data: null, error: gatewayError(), status });
+    const chain = (status: number) => {
+      const node: Record<string, unknown> = {};
+      node.eq = vi.fn(() => node);
+      node.select = vi.fn(() => settled(status));
+      return node;
+    };
+
+    it.each([
+      ['INSERT', 'insert', { insert: (status: number) => ({ select: () => settled(status) }) }],
+      ['UPDATE', 'update', { update: (status: number) => chain(status) }],
+      ['DELETE', 'delete', { delete: (status: number) => chain(status) }],
+    ] as const)('carries the status on a failed %s', async (operation, _key, builder) => {
+      const [method, make] = Object.entries(builder)[0] as [string, (status: number) => unknown];
+      const supabase = {
+        from: vi.fn(() => ({ [method]: vi.fn(() => make(503)) })),
+        rpc: vi.fn(),
+      } as unknown as SupabaseClient;
+
+      await expect(
+        executeMutation(
+          supabase,
+          makeLogger(),
+          makeMutation({ operation, data: { id: 'entry-1' } })
+        )
+      ).rejects.toMatchObject({ message: 'upstream unavailable', httpStatus: 503 });
+    });
+
+    it.each(['INSERT', 'UPDATE'] as const)(
+      'carries the status on a failed %s rpc',
+      async operation => {
+        const supabase = {
+          from: vi.fn(),
+          rpc: vi.fn(() => settled(504)),
+        } as unknown as SupabaseClient;
+
+        await expect(
+          executeMutation(
+            supabase,
+            makeLogger(),
+            makeMutation({ operation, rpc: { name: 'ringside_update_entry', args: {} } })
+          )
+        ).rejects.toMatchObject({ httpStatus: 504 });
+      }
+    );
+
+    it('leaves a status-less transport failure without an httpStatus', async () => {
+      const supabase = {
+        from: vi.fn(() => ({
+          insert: vi.fn(() => ({
+            select: () => Promise.resolve({ data: null, error: gatewayError(), status: 0 }),
+          })),
+        })),
+        rpc: vi.fn(),
+      } as unknown as SupabaseClient;
+
+      const thrown = await executeMutation(supabase, makeLogger(), makeMutation()).catch(e => e);
+      expect(thrown).not.toHaveProperty('httpStatus');
+    });
+  });
+
   it('throws for an unknown operation', async () => {
     const supabase = { from: vi.fn(), rpc: vi.fn() } as unknown as SupabaseClient;
     const mutation = makeMutation({ operation: 'UPSERT' as never });

@@ -185,7 +185,7 @@ export const CLASS_HIDE_SECRET_COLUMNS = ['num_hides', 'has_blank', 'hides_known
 /**
  * What `authenticated` may read (20260731160000, MYK9-127) — the anon allowlist
  * plus `has_blank` and `hides_known`, the judge's sign-off (MYK9-1030,
- * 20261006154700) and the paper check (MYK9-1045, 20261008014300), which are staff paperwork
+ * 20261006154700) and the paper check (MYK9-1045, 20261008014300) and the ring phase (MYK9-1513, 20261030174300), which are staff paperwork
  * anon never reads. `results_verified_fingerprint` is granted to nobody.
  *
  * Only `num_hides` is withheld from signed-in users, and only because a judge-set
@@ -204,7 +204,9 @@ export const CLASS_AUTHENTICATED_COLUMN_SELECT = `${CLASS_COLUMN_SELECT},
       judge_signed_off_at,
       judge_signed_off_by,
       results_verified_at,
-      results_verified_by`;
+      results_verified_by,
+      ring_phase,
+      ring_phase_time`;
 
 /** Pinned by the contract test against the SQL grant. */
 export const CLASS_AUTHENTICATED_COLUMNS = CLASS_AUTHENTICATED_COLUMN_SELECT.split(',').map(

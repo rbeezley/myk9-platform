@@ -16,6 +16,22 @@
 import { describeNearUp, type NearUpItem } from './ringConflicts';
 import type { AtShowEntryDetail } from './myAtShowEntryDetails.helpers';
 
+/**
+ * "In progress" in the picker's vocabulary: the ring phases (briefing, break,
+ * offline scoring) are in-progress classes since MYK9-1513, and used to collapse
+ * to `in_progress` before reaching this check.
+ */
+const IN_PROGRESS_STATUSES: ReadonlySet<string | undefined> = new Set([
+  'in_progress',
+  'briefing',
+  'break',
+  'offline-scoring',
+]);
+
+function isClassInProgress(classStatus: string | undefined): boolean {
+  return IN_PROGRESS_STATUSES.has(classStatus);
+}
+
 export function detectPlaceRingConflicts(
   entries: readonly AtShowEntryDetail[],
   places: ReadonlyMap<string, number> | undefined,
@@ -24,7 +40,7 @@ export function detectPlaceRingConflicts(
   const result = new Map<string, string>();
   const nearUp: NearUpItem[] = [];
   for (const detail of entries) {
-    if (!detail.classId || detail.classStatus !== 'in_progress' || detail.isScored) continue;
+    if (!detail.classId || !isClassInProgress(detail.classStatus) || detail.isScored) continue;
     const place = places?.get(detail.entryId);
     const inRing = detail.checkInStatus === 'in-ring';
     if (!inRing && (place === undefined || place - 1 > leadDogs)) continue;

@@ -189,7 +189,7 @@ export interface RunOrderDialogProps {
 export interface ClassStatusDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onStatusChange: (status: string, timeValue?: string) => void;
+  onStatusChange: (status: string, timeValue?: string) => void | Promise<void>;
   classData: {
     id: string;
     element: string;

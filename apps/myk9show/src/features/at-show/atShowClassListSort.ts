@@ -14,6 +14,7 @@ import { getEffectiveClassStatus, type ClassEntry } from '@myk9/ringside';
 
 const LIVE_CLASS_STATUSES = new Set<ClassEntry['class_status']>([
   'briefing',
+  'break',
   'start_time',
   'in_progress',
   'offline-scoring',
@@ -52,6 +53,7 @@ export function yourRingScanPriority(entry: ClassEntry): number {
   const effectiveStatus = getEffectiveClassStatus(entry);
   if (
     effectiveStatus === 'briefing' ||
+    effectiveStatus === 'break' ||
     effectiveStatus === 'start_time' ||
     effectiveStatus === 'in-progress' ||
     effectiveStatus === 'offline-scoring'

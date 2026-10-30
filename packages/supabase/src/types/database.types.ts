@@ -1188,6 +1188,8 @@ export type Database = {
           results_released_by: string | null
           results_verified_at: string | null
           results_verified_by: string | null
+          ring_phase: string | null
+          ring_phase_time: string | null
           results_verified_fingerprint: string | null
           revised_expected_start: string | null
           scored_count: number | null
@@ -1249,6 +1251,8 @@ export type Database = {
           results_released_by?: string | null
           results_verified_at?: string | null
           results_verified_by?: string | null
+          ring_phase?: string | null
+          ring_phase_time?: string | null
           results_verified_fingerprint?: string | null
           revised_expected_start?: string | null
           scored_count?: number | null
@@ -1310,6 +1314,8 @@ export type Database = {
           results_released_by?: string | null
           results_verified_at?: string | null
           results_verified_by?: string | null
+          ring_phase?: string | null
+          ring_phase_time?: string | null
           results_verified_fingerprint?: string | null
           revised_expected_start?: string | null
           scored_count?: number | null

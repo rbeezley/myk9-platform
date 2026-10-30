@@ -3,6 +3,11 @@ import { getEffectiveClassStatus, type ClassEntry } from '@myk9/ringside';
 import { StatusBadge } from '@/components/status';
 import { cn } from '@/lib/utils';
 import { formatAtShowClassTime } from './atShowClassTiming';
+import {
+  AtShowClassStatusInfo,
+  OfflineScoringBadge,
+  statusCarriesTime,
+} from './AtShowClassStatusInfo';
 import type { RingDayBucket } from './orderRingClassesByDay';
 import {
   isEmptyNextUpPreview,
@@ -139,7 +144,8 @@ export function AtShowClassRow({
               {entry.judge_name}
             </div>
           )}
-          {entry.start_time && (
+          <AtShowClassStatusInfo entry={entry} status={status} trialTimeZone={trialTimeZone} />
+          {entry.start_time && !statusCarriesTime(entry, status) && (
             <div className="mt-0.5 flex items-center gap-1 text-xs font-medium text-muted-foreground">
               <Clock3 size={13} className="shrink-0" aria-hidden />
               {entry.revised_expected_start ? 'Expected' : 'Scheduled'}{' '}
@@ -157,7 +163,15 @@ export function AtShowClassRow({
           {showNextUp && nextUp && <AtShowClassRowNextUp preview={nextUp} />}
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1">
-          <StatusBadge family="class" status={status} className="px-2 py-0.5 text-xs font-medium" />
+          {status === 'offline-scoring' ? (
+            <OfflineScoringBadge />
+          ) : (
+            <StatusBadge
+              family="class"
+              status={status}
+              className="px-2 py-0.5 text-xs font-medium"
+            />
+          )}
           {/*
             INTENT: an unknown count must never be spelled as a zero. On the
             judge's landing screen "0 of 0 scored" is a claim that the class is

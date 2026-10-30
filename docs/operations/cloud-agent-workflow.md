@@ -45,6 +45,27 @@ It copies no `.env`, credentials, browser profile or Keychain state. Secrets com
 
 To change a pin, update `install`, `minimum`, `url` and `sha256` together, from the project's published checksums where it has them (gh and Deno do; ShellCheck does not, so hash the downloaded archive), and rerun setup in a cloud session.
 
+## Node 22.23.4 rollout for Astro 7.4.2
+
+PR #3337's Astro update requires Node 22.23.4 or newer for the docs build and
+typecheck. The provider image last verified for Claude cloud had Node 22.22.0;
+`setup.sh` does not replace it. Until each provider has a supported runtime,
+cloud preflight's current Node 22.12.0 floor does not prove the docs build can run.
+
+Before merging #3337, prepare each cloud provider image or environment with
+Node 22.23.4 or newer without replacing credentials or changing the repository's
+setup script. In a fresh session for each provider, record `node --version`,
+`pnpm --version`, the setup and preflight results, and run the docs build and
+typecheck with #3337's locked dependencies. Confirm the selected Node remains
+on PATH in subsequent shells. If the provider cannot supply that runtime, hold
+the dependency merge; keep the existing preflight pin rather than silently
+accepting a failed setup.
+
+After both provider proofs pass, update the Node `install` and `minimum` pins
+in `scripts/cloud/tool-versions.json` to the verified floor and update the
+setup description above. Record the proof and coordinate that pin change before
+merging #3337. Do not claim cloud readiness from local or GitHub Actions checks.
+
 ## Run the Stage 1 proof
 
 MYK9-1397 stays open until a fresh session in each cloud runs setup and the narrow checks on `main` and records the result. Provider settings below were checked against each provider's documentation on 2026-10-25; recheck them if a label no longer matches.

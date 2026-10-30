@@ -184,7 +184,11 @@ export const ClassDetailsPopover: React.FC<ClassDetailsPopoverProps> = ({
         <div className="flex flex-col gap-2.5 px-4 py-3">
           {data.status && (
             <DetailRow icon={Activity} label="Status">
-              <StatusBadge family="class" status={data.status} className="ml-auto" />
+              {data.statusLabel ? (
+                <DetailBadge tier="neutral">{data.statusLabel}</DetailBadge>
+              ) : (
+                <StatusBadge family="class" status={data.status} className="ml-auto" />
+              )}
             </DetailRow>
           )}
 

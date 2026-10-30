@@ -225,3 +225,12 @@ export function formatRunQueueState(state: RunQueueState): string {
       return 'Withdrawn';
   }
 }
+
+// Dependency-free, so the app's time formatter can parse class times without
+// importing the ringside UI barrel into the entry chunk (MYK9-844, MYK9-1526).
+export {
+  parseClassTime,
+  pickClassTime,
+  type ParsedClassTime,
+} from '../ClassList/utils/classTimeValue';
+export { mergeSectionStatus } from '../ClassList/utils/combinedSectionState';

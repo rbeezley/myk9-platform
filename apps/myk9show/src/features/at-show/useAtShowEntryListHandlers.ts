@@ -434,10 +434,12 @@ export function useAtShowEntryListHandlers(
     [stubPrint]
   );
 
-  const handleStatisticsClick = useCallback<EntryListHandlers['handleStatisticsClick']>(() => {
-    // INTENT (spike): stats page not mounted at /at-show — signal "no stats".
-    return false;
-  }, []);
+  // Statistics opens from ClassOptionsDialog itself (ClassStatisticsDialog reads the
+  // replicated entries), so the page has nothing to do. The contract requires the
+  // handler; its presence is only what shows the tile.
+  const handleStatisticsClick = useCallback<
+    EntryListHandlers['handleStatisticsClick']
+  >(() => {}, []);
 
   // Silence unused-in-spike setter (kept in deps for parity with the shim).
   void setLocalEntries;

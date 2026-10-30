@@ -153,7 +153,10 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
   // Check if there's extra info to show in popup
   const statusBadge = getStatusBadge(classInfo?.classStatus);
   const hasExtraInfo = Boolean(
-    classInfo?.judgeName || statusBadge || (showSectionsBadge && classInfo?.judgeNameB)
+    classInfo?.judgeName ||
+    statusBadge ||
+    classInfo?.statusLabel ||
+    (showSectionsBadge && classInfo?.judgeNameB)
   );
 
   // Memoize popover data to reduce inline complexity
@@ -168,6 +171,7 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
     return {
       classId: classIdDisplay,
       status: classInfo.classStatus,
+      statusLabel: classInfo.statusLabel,
       totalEntries: classInfo.totalEntries,
       completedEntries: classInfo.completedEntries,
       judgeName: classInfo.judgeName,
@@ -235,6 +239,13 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
               {trialInfoText}
             </span>
           </div>
+        )}
+        {/* Ring phase on its own wrapping line: the trial line above truncates, and a
+            Briefing / Break / Offline Scoring time must stay readable (MYK9-1526). */}
+        {classInfo?.statusLabel && (
+          <span className="text-balance text-center text-xs font-semibold leading-tight text-foreground max-sm:text-sm">
+            {classInfo.statusLabel}
+          </span>
         )}
       </div>
       {/* Class Details Popover - renders via portal */}

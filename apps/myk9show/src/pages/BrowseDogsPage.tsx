@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Plus, PawPrint } from 'lucide-react';
 import { useAuthContext, getPrimaryRole } from '@/hooks/useAuthContext';
 import { useCurrentUserPersonId, useRosterIsOwnDogsOnly } from '@/hooks/useRoleBasedData';
+import { useEntriesPersonId } from '@/hooks/useEntriesPersonId';
 import { useRBAC } from '@/hooks/useRBAC';
 import { useBrowseDogsData } from '@/hooks/useBrowseDogsData';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
@@ -87,6 +88,9 @@ const BrowseDogsPage: React.FC<BrowseDogsPageProps> = ({ detail = null }) => {
   const [cardPage, setCardPage] = useState(1);
 
   const currentUserPersonId = useCurrentUserPersonId();
+  // The roster filter reads the cached pairing too (`useRoleBasedDogs`), so the guard below must
+  // accept it; `currentUserPersonId` itself stays confirmed-only because Add Dog writes it.
+  const readerPersonId = useEntriesPersonId();
   const { hasPermission, isLoading: rbacLoading, refresh: refreshRbac } = useRBAC();
 
   const {
@@ -109,7 +113,11 @@ const BrowseDogsPage: React.FC<BrowseDogsPageProps> = ({ detail = null }) => {
   // "No dogs yet" with a full roster in IndexedDB — and on a cold offline boot
   // roles settle at [] permanently (see the MYK9-200 note in CLAUDE.md), so
   // that false empty state is terminal rather than a flash.
-  const identityResolved = Boolean(userWithRoles);
+  // An own-dogs roster also needs the viewer's person id: roles can resolve from the device cache
+  // while the person pairing has not, and `useRoleBasedDogs` then returns [] — which must read
+  // as "can't confirm", never as "No dogs yet" (MYK9-1493).
+  const identityResolved =
+    Boolean(userWithRoles) && (!ownDogsOnly || Boolean(currentUserPersonId ?? readerPersonId));
   const isResolvingIdentity = !identityResolved && (rbacLoading || isLoading);
 
   // The unresolved-identity state is caused by RBAC, not by the dogs query, so

@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { useEntriesPersonId } from '@/hooks/useEntriesPersonId';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useUserStore } from '@/store/userStore';
 import { useUsersQuery } from '@/hooks/queries/useUsersQuery';
@@ -26,6 +27,7 @@ export function useRoleBasedDogs() {
   const { userWithRoles, hasRole } = useAuthContext();
   const { dogs: allDogs, isLoading, error } = useDogStoreCompat();
   const allPeople = useUserStore(state => state.people);
+  const cachedPersonId = useEntriesPersonId();
 
   const filteredDogs = useMemo(() => {
     if (!userWithRoles || isLoading || error) {
@@ -39,14 +41,14 @@ export function useRoleBasedDogs() {
 
     // Exhibitors only see their own dogs. Prefer the canonical people.id from RBAC;
     // the auth id lookup is only for legacy sessions that predate databaseUserId.
-    const userPersonId = resolveViewerPersonId(userWithRoles, allPeople);
+    const userPersonId = resolveViewerPersonId(userWithRoles, allPeople, cachedPersonId);
 
     if (!userPersonId) {
       return [];
     }
 
     return selectOwnedDogs(allDogs, userPersonId);
-  }, [userWithRoles, allDogs, allPeople, hasRole, isLoading, error]);
+  }, [userWithRoles, allDogs, allPeople, cachedPersonId, hasRole, isLoading, error]);
 
   return filteredDogs;
 }
@@ -102,32 +104,34 @@ export function useDogAccess(dogId: string): RecordAccess {
   const { userWithRoles, hasRole } = useAuthContext();
   const { dogs } = useDogStoreCompat();
   const allPeople = useUserStore(state => state.people);
+  const cachedPersonId = useEntriesPersonId();
 
   return useMemo(() => {
     if (!userWithRoles) return 'unresolved';
     if (isStaffViewer(hasRole)) return 'allowed';
 
-    const viewerPersonId = resolveViewerPersonId(userWithRoles, allPeople);
+    const viewerPersonId = resolveViewerPersonId(userWithRoles, allPeople, cachedPersonId);
     if (!viewerPersonId) return 'unresolved';
 
     const dog = dogs.find(d => d.id === dogId);
     if (!dog) return 'missing';
     return dog.ownerId === viewerPersonId ? 'allowed' : 'denied';
-  }, [userWithRoles, hasRole, dogs, dogId, allPeople]);
+  }, [userWithRoles, hasRole, dogs, dogId, allPeople, cachedPersonId]);
 }
 
 export function usePersonAccess(personId: string): RecordAccess {
   const { userWithRoles, hasRole } = useAuthContext();
   const allPeople = useUserStore(state => state.people);
+  const cachedPersonId = useEntriesPersonId();
 
   return useMemo(() => {
     if (!userWithRoles) return 'unresolved';
     if (isStaffViewer(hasRole)) return 'allowed';
 
-    const viewerPersonId = resolveViewerPersonId(userWithRoles, allPeople);
+    const viewerPersonId = resolveViewerPersonId(userWithRoles, allPeople, cachedPersonId);
     if (!viewerPersonId) return 'unresolved';
     return personId === viewerPersonId ? 'allowed' : 'denied';
-  }, [userWithRoles, hasRole, personId, allPeople]);
+  }, [userWithRoles, hasRole, personId, allPeople, cachedPersonId]);
 }
 
 /**
@@ -214,7 +218,9 @@ export function useCanAccessPerson(personId: string): boolean {
 }
 
 /**
- * Hook to get the current user's person ID
+ * Hook to get the current user's CONFIRMED person ID. Deliberately ignores the
+ * device-cached pairing: callers use it for writes (AddDogPanel's new-dog
+ * ownerId), and a cached identity stays scoped to reads (MYK9-601, MYK9-1493).
  */
 export function useCurrentUserPersonId(): string | null {
   const { userWithRoles } = useAuthContext();

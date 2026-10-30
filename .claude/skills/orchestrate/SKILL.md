@@ -148,6 +148,10 @@ commands check `main`, not the proposed change.
 4. On failure, send the same agent (SendMessage, which keeps its context) a numbered defect list
    and re-review. **Max 3 rounds.** After that, escalate (see Model routing) or implement it
    yourself. A cheap model looping past the point where you'd be faster is waste.
+   Reviewer output tagged `[pre-existing P<n>]` is code the branch did not touch. It never
+   blocks and never goes to the implementer: file it (reconcile with `includeArchived: true`
+   first) and keep the batch's scope. Check the tag yourself; a defect in lines the diff
+   changed is a normal finding whatever it is labelled.
 5. Only you tick `tasks.md` boxes or move Linear state. A tick means _reviewed and accepted_.
 6. Once accepted, ship it before you start the next batch or issue that touches the same
    files. How depends on the mode: see the OpenSpec section below, or `ship-pr` per

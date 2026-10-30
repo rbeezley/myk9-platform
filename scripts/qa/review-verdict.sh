@@ -29,6 +29,24 @@
 # or em dash (spelled out; a wildcard here matched the word "is"), then the tag.
 REVIEW_FINDING_BULLET='^[[:space:]]*- ((\*\*)?\[P[0-9]\]|`[^`]+`[[:space:]]*(-|–|—)[[:space:]]*(\*\*)?\[P[0-9]\])'
 
+# A defect the reviewer found in code the branch did not touch (MYK9-1546).
+# It never blocks the gate: `[pre-existing P2]` cannot match REVIEW_FINDING_BULLET,
+# which needs `[` immediately before the `P`. Without this split, every round
+# past the first audited whatever the change touched and the gate had no stop
+# condition (docs/lessons/README.md#review-scope-boundary). The wrappers print
+# these so the shipper files them; the evidence comment carries them verbatim.
+REVIEW_PREEXISTING_BULLET='^[[:space:]]*- (\*\*)?\[pre-existing P[0-9]\]'
+
+# Print the pre-existing bullets with a filing instruction; silent when none.
+review_note_preexisting() {  # LABEL TEXT
+  local n
+  n="$(printf '%s\n' "$2" | grep -Ec "$REVIEW_PREEXISTING_BULLET" || true)"
+  [ "${n:-0}" -gt 0 ] || return 0
+  echo
+  echo "$1: ${n} pre-existing defect(s), not introduced by this branch and not blocking. File each in Linear before merge (reconcile with includeArchived first):"
+  printf '%s\n' "$2" | grep -E "$REVIEW_PREEXISTING_BULLET"
+}
+
 # Structured findings (MYK9-1209) are PARSED, not sniffed. Claude's review can
 # emit its findings as a fenced JSON array of {"file", "line", "summary",
 # "failure_scenario"} objects instead of bullets. On 2026-10-15 a review of

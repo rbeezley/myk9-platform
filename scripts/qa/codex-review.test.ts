@@ -203,6 +203,9 @@ describe('codex-review.sh', () => {
     expect(args[4]).toContain('- [P0]');
     expect(args[4]).toContain('Unable to complete the review');
     expect(args[4]).toContain('Only assert a clean verdict after completing');
+    expect(args[4]).toContain('- [pre-existing P0]');
+    expect(args[4]).toContain('when unsure it is a normal finding');
+    expect(args[4]).toContain('list every instance in the diff');
   });
 
   it('exits 2 and says GATE DID NOT RUN on a usage-limit abort, even though codex exited 0', () => {
@@ -447,6 +450,78 @@ describe('codex-review.sh', () => {
     expect(bodies(gh.calls)[0]).toMatch(
       /^Review gate: codex reviewed \S+ — 2 findings, all addressed\n/
     );
+  });
+
+  describe('pre-existing defects (MYK9-1546)', () => {
+    const CLEAN_WITH_PREEXISTING = [
+      'codex',
+      'No actionable defects found.',
+      '',
+      'Pre-existing defects',
+      '- [pre-existing P1] src/a.ts:10 — stale store reopens the wrong row (unchanged at base).',
+      '- **[pre-existing P3]** src/b.ts:4 — label renders snake_case.',
+    ].join('\n');
+
+    it('a clean verdict with only pre-existing defects is clean (exit 0) and lists them for filing', () => {
+      const r = run(stubCodex(CLEAN_WITH_PREEXISTING));
+      expect(r.code).toBe(0);
+      expect(r.out).toContain('codex-review: 2 pre-existing defect(s)');
+      expect(r.out).toContain('File each in Linear before merge');
+    });
+
+    it('--post on that verdict posts "no findings" evidence that carries the pre-existing bullets', () => {
+      const gh = stubGh();
+      expect(runPost(stubCodex(CLEAN_WITH_PREEXISTING), gh).code).toBe(0);
+      const posted = bodies(gh.calls);
+      expect(posted).toHaveLength(1);
+      expect(posted[0]).toMatch(/^Review gate: codex reviewed \S+ — no findings\n/);
+      expect(posted[0]).toContain('- [pre-existing P1] src/a.ts:10');
+    });
+
+    it('a real finding beside pre-existing ones still blocks (exit 1)', () => {
+      const stub = stubCodex(
+        'codex\n- [P2] src/c.ts:3 — regression this branch introduced.\n\nPre-existing defects\n- [pre-existing P1] src/a.ts:10 — old bug.\n'
+      );
+      expect(run(stub).code).toBe(1);
+    });
+
+    it('N ignores pre-existing bullets in earlier findings comments', () => {
+      const gh = stubGh({
+        prior:
+          'Codex findings for abc123456 (not gate evidence):\n\n- [P2] real\n\n- [pre-existing P1] old\n- [pre-existing P2] older\n',
+      });
+      expect(runPost(stubCodex('codex\nNo actionable defects found.'), gh).code).toBe(0);
+      expect(bodies(gh.calls)[0]).toMatch(/— 1 findings, all addressed\n/);
+    });
+
+    it('lists the backticked-location and mixed-case shapes too', () => {
+      const r = run(
+        stubCodex(
+          'codex\nNo actionable defects found.\n\n- `src/a.ts:1` — [pre-existing P2] old.\n- [Pre-Existing P3] older.\n'
+        )
+      );
+      expect(r.code).toBe(0);
+      expect(r.out).toContain('codex-review: 2 pre-existing defect(s)');
+    });
+
+    it('a real [P*] bullet is never hidden by a pre-existing tag elsewhere on the page', () => {
+      const r = run(
+        stubCodex(
+          'codex\nNo actionable defects found.\n\n- [pre-existing P1] src/a.ts:1 — old.\n- [P1] src/b.ts:2 — introduced here.\n'
+        )
+      );
+      expect(r.code).toBe(1);
+    });
+
+    it('a pre-existing list with no clean sentence is not a verdict (exit 2)', () => {
+      expect(run(stubCodex('codex\n- [pre-existing P1] src/a.ts:1 — old.\n')).code).toBe(2);
+    });
+
+    it('prints nothing about pre-existing defects when there are none', () => {
+      expect(run(stubCodex('codex\nNo actionable defects found.')).out).not.toContain(
+        'pre-existing defect(s)'
+      );
+    });
   });
 
   it('exits 2 when the prior-findings lookup fails, instead of posting "no findings"', () => {

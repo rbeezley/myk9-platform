@@ -308,6 +308,7 @@ abort_lines() {
 # `claude -p` prints no marker line, so the whole log is the verdict.
 VERDICT="$(cat "$LOG")"
 echo "$VERDICT"
+review_note_preexisting claude-review "$VERDICT"
 
 # FINDINGS ARE PROCESSED BEFORE EVERY INCOMPLETENESS GUARD: a review that
 # reported a defect and then hit a blocker has still reported a defect, and

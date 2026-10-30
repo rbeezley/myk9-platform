@@ -10,7 +10,6 @@ import {
   type ShowStatsFilterKey,
   type ShowStatsFilters,
 } from '@/components/analytics/analytics-filters';
-import type { StatsEntry } from '@/components/analytics/analytics-utils';
 import type { ShowClassProgress } from '@/hooks/queries/useShowClassProgress';
 
 export const RESULTS_FILTER_KEYS = [
@@ -52,11 +51,13 @@ export function derivePendingClasses(classes: readonly ShowClassProgress[]): Pen
 
 export function deriveClassFilterOptions(
   classes: readonly ClassLike[],
-  entries: readonly StatsEntry[]
+  progress: readonly ShowClassProgress[]
 ): Record<(typeof RESULTS_FILTER_KEYS)[number], ListFilterOption[]> {
+  // Labels come from the public class rows, so they are the same for everyone and stable as
+  // classes are released. A trial with no metadata is named plainly, never by list position.
   const labels = new Map<string, string>();
-  for (const entry of entries) {
-    if (entry.trialId && !labels.has(entry.trialId)) labels.set(entry.trialId, trialLabel(entry));
+  for (const cls of progress) {
+    if (cls.trialId && !labels.has(cls.trialId)) labels.set(cls.trialId, trialLabel(cls));
   }
   const trialIds = [...new Set(classes.map(c => c.trialId).filter(Boolean))];
   const distinct = (pick: (c: ClassLike) => string) =>
@@ -66,7 +67,7 @@ export function deriveClassFilterOptions(
 
   return {
     trial: trialIds
-      .map((id, i) => ({ value: id, label: labels.get(id) ?? `Trial ${i + 1}` }))
+      .map(id => ({ value: id, label: labels.get(id) ?? 'Trial' }))
       .sort((a, b) => a.label.localeCompare(b.label)),
     element: distinct(c => c.element),
     level: distinct(c => c.level),

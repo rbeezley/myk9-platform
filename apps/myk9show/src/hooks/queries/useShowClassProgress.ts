@@ -16,28 +16,38 @@ export interface ShowClassProgress {
   level: string;
   scoredCount: number;
   resultsReleasedAt: string | null;
+  /** The class's trial, so filters can name it without the (staff-only) entries view. */
+  trialName: string;
+  trialNumber: string;
+  trialDate: string;
 }
 
 async function fetchShowClassProgress(showId: string): Promise<ShowClassProgress[]> {
   const { data, error } = await supabase
     .from('classes')
     .select(
-      'id, trial_id, name, element, level, scored_count, results_released_at, trials!inner(show_id)'
+      'id, trial_id, name, element, level, scored_count, results_released_at, trials!inner(show_id, trial_date:date, trial_number, name)'
     )
     .eq('trials.show_id', showId)
     .is('deleted_at', null);
 
   if (error) throw error;
 
-  return (data ?? []).map(row => ({
-    classId: row.id as string,
-    className: (row.name as string | null) || 'Unknown Class',
-    trialId: (row.trial_id as string | null) ?? '',
-    element: (row.element as string | null) ?? '',
-    level: (row.level as string | null) ?? '',
-    scoredCount: (row.scored_count as number | null) ?? 0,
-    resultsReleasedAt: (row.results_released_at as string | null) ?? null,
-  }));
+  return (data ?? []).map(row => {
+    const trial = (row.trials ?? {}) as unknown as Record<string, string | null>;
+    return {
+      classId: row.id as string,
+      className: (row.name as string | null) || 'Unknown Class',
+      trialId: (row.trial_id as string | null) ?? '',
+      element: (row.element as string | null) ?? '',
+      level: (row.level as string | null) ?? '',
+      scoredCount: (row.scored_count as number | null) ?? 0,
+      resultsReleasedAt: (row.results_released_at as string | null) ?? null,
+      trialName: trial.name ?? '',
+      trialNumber: trial.trial_number ?? '',
+      trialDate: trial.trial_date ?? '',
+    };
+  });
 }
 
 const PROGRESS_REFRESH_MS = 30 * 1000;

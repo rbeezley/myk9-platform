@@ -177,6 +177,9 @@ describe('ShowResultsTab class-name search', () => {
       level: 'Novice',
       scoredCount: 0,
       resultsReleasedAt: null,
+      trialName: '',
+      trialNumber: '1',
+      trialDate: '2026-03-14',
       ...over,
     });
 
@@ -275,6 +278,52 @@ describe('ShowResultsTab class-name search', () => {
       expect(screen.getByRole('alert')).toHaveTextContent('Pending classes could not be loaded');
       await user.click(screen.getByRole('button', { name: 'Retry' }));
       expect(refetch).toHaveBeenCalled();
+    });
+
+    it('names trials from class rows, not list position, even for signed-out visitors', async () => {
+      mockProgress([
+        progress({
+          classId: 'a',
+          trialId: 't2',
+          trialNumber: '2',
+          trialDate: '2026-03-15',
+          className: 'A',
+        }),
+        progress({
+          classId: 'b',
+          trialId: 't1',
+          trialNumber: '1',
+          trialDate: '2026-03-14',
+          className: 'B',
+        }),
+      ]);
+      vi.mocked(useShowStats).mockReturnValue({ data: undefined } as unknown as ReturnType<
+        typeof useShowStats
+      >);
+      render(<ShowResultsTab showId="show-1" />, { initialRoute: '/?trial=t2' });
+
+      expect(screen.getByText('Trial: Trial 2 · Mar 15')).toBeInTheDocument();
+    });
+
+    it('refetches the podium when a class gets released while the page is open', () => {
+      const refetch = vi.fn();
+      const podium = { data: RESULTS, isLoading: false, error: null, refetch };
+      vi.mocked(useShowResults).mockReturnValue(
+        podium as unknown as ReturnType<typeof useShowResults>
+      );
+      const pendingRow = progress({ classId: 'p1', className: 'Buried Master' });
+      const asProgress = (rows: ShowClassProgress[]) =>
+        ({ data: rows, isSuccess: true }) as unknown as ReturnType<typeof useShowClassProgress>;
+      vi.mocked(useShowClassProgress).mockReturnValue(asProgress([pendingRow]));
+
+      const { rerender } = render(<ShowResultsTab showId="show-1" />);
+      expect(refetch).not.toHaveBeenCalled();
+
+      vi.mocked(useShowClassProgress).mockReturnValue(
+        asProgress([{ ...pendingRow, resultsReleasedAt: '2026-05-01T00:00:00Z' }])
+      );
+      rerender(<ShowResultsTab showId="show-1" />);
+      expect(refetch).toHaveBeenCalledTimes(1);
     });
 
     it('round-trips the sub-tab through the URL', () => {

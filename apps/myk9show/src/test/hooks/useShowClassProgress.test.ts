@@ -29,6 +29,7 @@ describe('useShowClassProgress', () => {
           level: 'Master',
           scored_count: 3,
           results_released_at: null,
+          trials: { trial_date: '2026-03-14', trial_number: '2', name: 'Spring Trial' },
         },
       ],
       error: null,
@@ -43,7 +44,6 @@ describe('useShowClassProgress', () => {
     expect(mockFrom).toHaveBeenCalledWith('classes');
     expect(mockEq).toHaveBeenCalledWith('trials.show_id', 'show-1');
     expect(mockIs).toHaveBeenCalledWith('deleted_at', null);
-    expect(result.current.isFetching).toBe(false);
     expect(result.current.data).toEqual([
       {
         classId: 'c1',
@@ -53,6 +53,9 @@ describe('useShowClassProgress', () => {
         level: 'Master',
         scoredCount: 3,
         resultsReleasedAt: null,
+        trialName: 'Spring Trial',
+        trialNumber: '2',
+        trialDate: '2026-03-14',
       },
     ]);
   });

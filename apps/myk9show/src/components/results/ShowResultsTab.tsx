@@ -3,7 +3,7 @@
  * Contains sub-tabs: Podium (existing results), Show Stats, Judge Stats.
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { Trophy, BarChart3, Scale, Medal } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
@@ -125,16 +125,33 @@ function PodiumContent({ showId, showEntries = [] }: PodiumContentProps) {
   const {
     data: classProgress = [],
     isError: progressError,
+    isSuccess: progressLoaded,
     refetch: refetchProgress,
   } = useShowClassProgress(showId);
   const [search, setSearch] = useState('');
   const { filters, setFilter, clearFilters } = useShowStatsFilters();
 
+  // The progress poll sees a class get released first; pull its podium in the same breath, or the
+  // class would leave Pending and not yet appear below.
+  const releasedKey = classProgress
+    .filter(cls => cls.resultsReleasedAt)
+    .map(cls => cls.classId)
+    .sort()
+    .join(',');
+  const seenReleasedKey = useRef<string | null>(null);
+  useEffect(() => {
+    if (!progressLoaded) return;
+    const previous = seenReleasedKey.current;
+    seenReleasedKey.current = releasedKey;
+    // The first load only records the baseline; the podium query already ran for it.
+    if (previous !== null && previous !== releasedKey) void refetch();
+  }, [progressLoaded, releasedKey, refetch]);
+
   // Narrowing happens here, after useShowResults/useVisibleResultFields own what may be shown.
   const pendingAll = useMemo(() => derivePendingClasses(classProgress), [classProgress]);
   const options = useMemo(
-    () => deriveClassFilterOptions([...results, ...pendingAll], showEntries),
-    [results, pendingAll, showEntries]
+    () => deriveClassFilterOptions([...results, ...pendingAll], classProgress),
+    [results, pendingAll, classProgress]
   );
   const query = search.trim().toLowerCase();
   const matchesSearch = (cls: { className: string }) =>

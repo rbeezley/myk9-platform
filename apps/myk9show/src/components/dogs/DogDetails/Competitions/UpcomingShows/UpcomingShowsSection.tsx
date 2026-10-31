@@ -218,9 +218,12 @@ const UpcomingShowsSection: React.FC<UpcomingShowsSectionProps> = ({
             const { statusLine } = deriveEntryPresentation(
               {
                 entryStatus: entry.entry_status ?? null,
-                paymentStatus: entry.payment_status ?? null,
-                paymentMethod: entry.payment_method ?? null,
-                entryFee: entry.entry_fee ?? null,
+                // An unverified replica row can carry a stale pending payment.
+                ...(canTrustEmpty && {
+                  paymentStatus: entry.payment_status ?? null,
+                  paymentMethod: entry.payment_method ?? null,
+                  entryFee: entry.entry_fee ?? null,
+                }),
               },
               { viewer }
             );

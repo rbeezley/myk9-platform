@@ -603,4 +603,22 @@ describe('payment-pending wording agrees across the dog surfaces (MYK9-1553)', (
     render(<ActivityTab dogId={DOG_ID} dogName="Willow" role="exhibitor" />);
     expect(screen.getByText(line)).toBeVisible();
   });
+
+  it('asserts no payment on either surface when the read is an unverified replica', () => {
+    useEntriesByDogQueryMock.mockReturnValue(
+      resolved(
+        [entryRow({ payment_status: 'pending', payment_method: 'online', entry_fee: 30 })],
+        false
+      )
+    );
+
+    const career = render(<UpcomingShowsSection {...defaultProps} />);
+    expect(screen.getByText('Submitted — awaiting review')).toBeVisible();
+    expect(screen.queryByText('Submitted — waiting on payment')).toBeNull();
+    career.unmount();
+
+    render(<ActivityTab dogId={DOG_ID} dogName="Willow" role="exhibitor" />);
+    expect(screen.getByText('Submitted — awaiting review')).toBeVisible();
+    expect(screen.queryByText('Submitted — waiting on payment')).toBeNull();
+  });
 });

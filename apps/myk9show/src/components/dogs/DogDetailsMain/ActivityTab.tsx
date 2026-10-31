@@ -36,7 +36,12 @@ function UpcomingRow({
   // One composed status line in the viewer's voice — never the raw enum
   // ("submitted") or a bare "pending" (UX walk remediation 2.B).
   const { statusLine } = deriveEntryPresentation(
-    { entryStatus: entry.entry_status ?? null },
+    {
+      entryStatus: entry.entry_status ?? null,
+      paymentStatus: entry.payment_status ?? null,
+      paymentMethod: entry.payment_method ?? null,
+      entryFee: entry.entry_fee ?? null,
+    },
     { viewer }
   );
 

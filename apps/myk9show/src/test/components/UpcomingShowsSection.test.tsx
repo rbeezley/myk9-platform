@@ -575,3 +575,32 @@ describe('Career and Overview agree about a dog’s upcoming entries', () => {
     expect(onCareer).toBe(onOverview);
   });
 });
+
+describe('payment-pending wording agrees across the dog surfaces (MYK9-1553)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useCompetitionStore.setState({ competitions: [] });
+  });
+
+  it.each([
+    [
+      'unpaid online',
+      { payment_status: 'pending', payment_method: 'online', entry_fee: 30 },
+      'Submitted — waiting on payment',
+    ],
+    [
+      'paid',
+      { payment_status: 'paid_online', payment_method: 'online', entry_fee: 30 },
+      'Submitted — awaiting review',
+    ],
+  ])('reads the %s submitted entry the same on Career and Overview', (_label, payment, line) => {
+    useEntriesByDogQueryMock.mockReturnValue(resolved([entryRow(payment)]));
+
+    const career = render(<UpcomingShowsSection {...defaultProps} />);
+    expect(screen.getByText(line)).toBeVisible();
+    career.unmount();
+
+    render(<ActivityTab dogId={DOG_ID} dogName="Willow" role="exhibitor" />);
+    expect(screen.getByText(line)).toBeVisible();
+  });
+});

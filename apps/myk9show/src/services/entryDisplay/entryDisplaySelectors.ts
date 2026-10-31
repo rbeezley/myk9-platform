@@ -281,6 +281,10 @@ export function getStatusLabel(kind: EntryStatusKind): string {
 export interface EntryDisplayInput {
   entryStatus?: string | null;
   paymentStatus?: string | null;
+  /** Raw `entries.payment_method`; with `entryFee`, lets presentation tell unpaid from paid. */
+  paymentMethod?: string | null;
+  /** The fee this row owes, in dollars. */
+  entryFee?: number | null;
   refundAmount?: number | null;
   refundedAt?: string | null;
   class?: ClassTitleInput | null;

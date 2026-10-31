@@ -13,6 +13,8 @@
  * enforces that no other directory may do that. Pure, React-free, safe on
  * partial/cold-store rows (unknown → "Status unavailable", never a raw enum).
  */
+import { getEntryPaymentPrompt } from '@/features/payments/entryPaymentPrompt';
+import { PaymentStatus } from '@/types/show-registration-types';
 import {
   getEntryStatusKind,
   getRefundLabel,
@@ -142,6 +144,30 @@ const KIND_WORDING: Record<EntryStatusKind, VoicedWording> = {
 };
 
 /**
+ * A submitted entry whose online balance is still owed. My Shows reads the same
+ * `getEntryPaymentPrompt` rule ("waiting on payment"), so the dog pages say the
+ * same thing: the secretary reviews it once it is paid. Cash/check entries are
+ * pay-at-show, not a debt, and a row without a fee has no balance to claim.
+ */
+const AWAITING_PAYMENT_WORDING: VoicedWording = {
+  secretary: { line: 'Awaiting payment' },
+  exhibitor: { line: 'Submitted — waiting on payment' },
+};
+
+function isOnlinePaymentOwed(input: EntryDisplayInput): boolean {
+  return (
+    getEntryPaymentPrompt({
+      paymentMethod: input.paymentMethod,
+      paymentStatus:
+        input.paymentStatus === PaymentStatus.PENDING
+          ? PaymentStatus.PENDING
+          : PaymentStatus.PAID_ONLINE,
+      totalFee: input.entryFee ?? 0,
+    }).kind === 'finish-online'
+  );
+}
+
+/**
  * The review lane for the Pending+Refunded special row: genuinely-pending
  * kinds plus the two raw review-lane overrides. Deliberately narrower than
  * the UI-enum PENDING bucket, which also swallows in_ring/absent/unknown as
@@ -155,8 +181,12 @@ export function deriveEntryPresentation(
 ): EntryPresentation {
   const raw = input.entryStatus ?? null;
   const kind = getEntryStatusKind(raw);
+  const rawWording = raw !== null ? RAW_WORDING.get(raw) : undefined;
   const wording =
-    (raw !== null ? RAW_WORDING.get(raw) : undefined) ?? KIND_WORDING[kind] ?? KIND_WORDING.unknown;
+    rawWording ??
+    (kind === 'pending' && isOnlinePaymentOwed(input) ? AWAITING_PAYMENT_WORDING : undefined) ??
+    KIND_WORDING[kind] ??
+    KIND_WORDING.unknown;
   const voice = wording[viewer];
 
   let statusLine = voice.line;

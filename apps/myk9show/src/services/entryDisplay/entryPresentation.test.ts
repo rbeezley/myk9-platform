@@ -155,3 +155,35 @@ describe('deriveEntryPresentation — refund composition', () => {
     expect(result.actionHint).toBe('Refunded — confirm withdrawal or keep entry');
   });
 });
+
+describe('deriveEntryPresentation — submitted entry payment state (MYK9-1553)', () => {
+  const unpaid = { paymentStatus: 'pending', paymentMethod: 'online', entryFee: 30 };
+
+  it('says waiting on payment for an unpaid online submitted entry', () => {
+    expect(present('submitted', exhibitor, unpaid).statusLine).toBe(
+      'Submitted — waiting on payment'
+    );
+    expect(present('submitted', secretary, unpaid).statusLine).toBe('Awaiting payment');
+  });
+
+  it('says awaiting review once paid', () => {
+    const paid = { ...unpaid, paymentStatus: 'paid_online' };
+    expect(present('submitted', exhibitor, paid).statusLine).toBe('Submitted — awaiting review');
+    expect(present('submitted', secretary, paid).statusLine).toBe('Needs review');
+  });
+
+  it('keeps pay-at-show, fee-less and unknown-payment rows on awaiting review', () => {
+    expect(present('submitted', exhibitor, { ...unpaid, paymentMethod: 'cash' }).statusLine).toBe(
+      'Submitted — awaiting review'
+    );
+    expect(present('submitted', exhibitor, { ...unpaid, entryFee: null }).statusLine).toBe(
+      'Submitted — awaiting review'
+    );
+    expect(present('submitted', exhibitor).statusLine).toBe('Submitted — awaiting review');
+  });
+
+  it('leaves paid and promotion-expired in the review lane even with a pending payment', () => {
+    expect(present('paid', exhibitor, unpaid).statusLine).toBe("Submitted — you're in");
+    expect(present('promotion-expired', secretary, unpaid).statusLine).toBe('Needs review');
+  });
+});

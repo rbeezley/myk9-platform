@@ -20,6 +20,9 @@ import { getTrialTimezone } from '@/features/registries';
 export interface DogActivityEntry {
   id: string;
   entry_status?: string | null;
+  payment_status?: string | null;
+  payment_method?: string | null;
+  entry_fee?: number | null;
   check_in_status?: string | null;
   deleted_at?: string | null;
   result_status?: string | null;

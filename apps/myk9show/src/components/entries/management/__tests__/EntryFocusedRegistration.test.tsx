@@ -171,6 +171,20 @@ describe('EntryFocusedRegistration', () => {
       expect(item).toHaveTextContent('Trial secretary access only');
     });
 
+    it('is not offered on an online-checkout form with no enrollment row to join', async () => {
+      const { user } = render(
+        <EntryFocusedRegistration
+          registration={{ ...registration(), enrollmentId: null }}
+          {...props()}
+        />
+      );
+
+      await user.click(screen.getByRole('button', { name: 'More actions for Alice Martin' }));
+      await screen.findByRole('menu');
+
+      expect(screen.queryByRole('menuitem', { name: /Add entry for/ })).toBeNull();
+    });
+
     it('is not offered when the form names no exhibitor to add for', async () => {
       const bare = groupEntriesByShowRegistration([
         entry('entry-1', 'Poppy', 'Alice Martin', 'dog-1'),

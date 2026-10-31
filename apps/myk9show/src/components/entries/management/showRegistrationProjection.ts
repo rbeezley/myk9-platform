@@ -157,14 +157,6 @@ export function selectShowRegistrationQueue(
   return groups.filter(group => groupMatchesAnyQueue(group, queues)).sort(compareShowRegistrations);
 }
 
-/** Distinct forms in any of the queues: the result line's count, never the sum of the queues'. */
-export function countShowRegistrationQueueUnion(
-  groups: ShowRegistrationGroup[],
-  queues: readonly ShowRegistrationQueue[]
-): number {
-  return groups.filter(group => groupMatchesAnyQueue(group, queues)).length;
-}
-
 export interface ShowRegistrationTotals {
   /** Rows the queue lists. One registration can carry several entries. */
   registrationCount: number;

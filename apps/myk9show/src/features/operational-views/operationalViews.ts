@@ -10,7 +10,7 @@
  * model to search params:
  *   - `attention` -> EntryAttentionFilter (all | pending | missing_information |
  *     accepted | waitlist | issues). The live cockpit replaces this with its
- *     `queue` list (the Show: menu's checked queues), where the status-filter
+ *     `queue` list (the Filter menu's Status values), where the status-filter
  *     INTENT guard now lives.
  *   - `payment` -> EntryPaymentFilter (all | pending | paid_online |
  *     paid_by_check | paid_by_cash | waived | refunded).

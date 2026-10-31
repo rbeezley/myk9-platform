@@ -162,7 +162,7 @@ const EntryManagementPage: React.FC = () => {
   const showTimeZone = useMemo(() => getEntryWindowTimezone(trials), [trials]);
   const paymentLedger = useEnrollmentLedgerActions({ setEntries, showTimeZone });
 
-  // One shared cockpit for the page's Show: menu and Filter button AND the
+  // One shared cockpit for the page's Filter menu (Status, Trial, Class) AND the
   // registration list itself (MYK9-795) — previously computed inside
   // `EntryManagementCockpit`, lifted here so the unified view row (which spans
   // the registration queues AND the Waitlist/Pulls/Move-ups panes) and the

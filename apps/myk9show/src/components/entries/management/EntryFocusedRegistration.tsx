@@ -53,8 +53,11 @@ export function EntryFocusedRegistration({
   const secretaryOnlyReason = useTrialSecretaryOnlyReason();
   const firstEntry = registration.entries[0];
   const exhibitorId = firstEntry?.ownerId ?? firstEntry?.handlerId ?? null;
+  // Only a form with an enrollment row: new entries join that enrollment (one per person per
+  // show). An online-checkout group (`pi:`/`entry:` key) has none, so the new entries would land
+  // on a different form; the header Actions → Add entry stays the path there.
   const addEntry =
-    firstEntry && exhibitorId
+    firstEntry && exhibitorId && registration.enrollmentId
       ? {
           href: buildAddEntryForExhibitorPath(
             firstEntry.showId,

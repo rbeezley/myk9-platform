@@ -3,7 +3,6 @@ import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import {
   buildShowRegistrationPage,
-  countShowRegistrationQueueUnion,
   getScopedShowRegistrationQueueCounts,
   getShowRegistrationQueueCounts,
   getVisiblePageSelectionState,
@@ -165,7 +164,6 @@ describe('groupEntriesByShowRegistration', () => {
         group => group.groupKey
       )
     ).toEqual(['registration-mixed']);
-    expect(countShowRegistrationQueueUnion(groups, ['missing-information', 'payment-due'])).toBe(1);
     // All lists forms needing attention first (missing info, then review), the rest after.
     expect(selectShowRegistrationQueue(groups, ['all']).map(group => group.groupKey)).toEqual([
       'registration-mixed',

@@ -58,6 +58,26 @@ describe('EntryPanel', () => {
     expect(screen.getByRole('button', { name: /^EX$/i })).toBeInTheDocument();
   });
 
+  it('shows the selected result sublabel at full strength, not dimmed (axe contrast, MYK9-1503)', async () => {
+    const user = userEvent.setup();
+    render(
+      <EntryPanel
+        entry={makeEntry()}
+        settings={DEFAULT_SESSION_SETTINGS}
+        onSave={vi.fn()}
+        onSaveAndNext={vi.fn()}
+        onClose={vi.fn()}
+        isSaving={false}
+      />
+    );
+    const qButton = screen.getByRole('button', { name: /^Q$/i });
+    const nqButton = screen.getByRole('button', { name: /^NQ$/i });
+    expect(within(qButton).getByTestId('result-sublabel')).toHaveClass('opacity-80');
+    await user.click(qButton);
+    expect(within(qButton).getByTestId('result-sublabel')).not.toHaveClass('opacity-80');
+    expect(within(nqButton).getByTestId('result-sublabel')).toHaveClass('opacity-80');
+  });
+
   it('does not show time field before a result is selected', () => {
     render(
       <EntryPanel

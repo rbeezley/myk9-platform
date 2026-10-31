@@ -49,6 +49,7 @@ function ViewModeButton({
       type="button"
       role="tab"
       aria-selected={active}
+      aria-label={label}
       onClick={onClick}
       className={cn(
         'flex h-9 items-center gap-2 rounded-md px-3 text-sm font-semibold transition-colors',

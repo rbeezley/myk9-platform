@@ -166,7 +166,16 @@ export function EntryPanel({
                 )}
               >
                 <span className="text-base leading-tight">{label}</span>
-                <span className="text-xs font-normal opacity-80">{description}</span>
+                {/* Full-strength text when selected: opacity-80 over bg-primary measured 4.33:1 (axe, MYK9-1503). */}
+                <span
+                  data-testid="result-sublabel"
+                  className={cn(
+                    'text-xs font-normal',
+                    !(isSelected && !isPrefilled) && 'opacity-80'
+                  )}
+                >
+                  {description}
+                </span>
                 {isPrefilled && (
                   <span className="text-xs font-normal text-muted-foreground">
                     pre-filled · click to confirm

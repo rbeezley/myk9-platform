@@ -42,7 +42,7 @@ export function NationalsLeaderboardLink({
 interface NationalsLeaderboardViewProps {
   showId: string;
   entries: readonly SecretaryEntry[];
-  rows: readonly ResultsClassRow[];
+  rows: readonly Pick<ResultsClassRow, 'id' | 'trialDate' | 'releasedAt'>[];
   showStartDate: string | null | undefined;
   /** A background refresh failed, so the ranks shown may be stale. */
   refreshFailed: boolean;

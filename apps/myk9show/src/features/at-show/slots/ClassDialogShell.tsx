@@ -16,6 +16,8 @@ interface ClassDialogShellProps {
   eyebrow: string;
   className: string;
   onClose: () => void;
+  /** Footer button label; "Cancel" where the dialog is a wait rather than a result. */
+  closeLabel?: string;
   children: React.ReactNode;
 }
 
@@ -24,6 +26,7 @@ export const ClassDialogShell: React.FC<ClassDialogShellProps> = ({
   eyebrow,
   className,
   onClose,
+  closeLabel = 'Close',
   children,
 }) => (
   <Dialog open onOpenChange={open => handleOpenChange(open, onClose)}>
@@ -39,7 +42,7 @@ export const ClassDialogShell: React.FC<ClassDialogShellProps> = ({
       <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-5 py-4">{children}</div>
       <div className="flex justify-end border-t border-border px-5 py-3">
         <Button variant="ghost" className="min-h-11" onClick={onClose}>
-          Close
+          {closeLabel}
         </Button>
       </div>
     </DialogContent>

@@ -9,7 +9,12 @@ import { useEffect, useState } from 'react';
 import { replicatedClassesTable } from '@/services/replication';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
 
-export function useLiveClasses(classIds: string[], enabled = true): ReplicatedClass[] | null {
+/** `refreshKey` re-runs the read when bumped (a Retry after a read that came back empty). */
+export function useLiveClasses(
+  classIds: string[],
+  enabled = true,
+  refreshKey = 0
+): ReplicatedClass[] | null {
   const idsKey = classIds.join(',');
   // Keyed by the ids read: a list reused for another class (no remount) must not
   // answer with the previous class while the new read runs.
@@ -37,7 +42,7 @@ export function useLiveClasses(classIds: string[], enabled = true): ReplicatedCl
       cancelled = true;
       unsubscribe();
     };
-  }, [idsKey, enabled]);
+  }, [idsKey, enabled, refreshKey]);
 
   return snapshot?.key === idsKey ? snapshot.rows : null;
 }

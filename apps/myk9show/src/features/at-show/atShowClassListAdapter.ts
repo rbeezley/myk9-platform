@@ -140,7 +140,7 @@ export function refreshAtShowClassListEntries(
  */
 export async function isAtShowClassDataHydrated(
   showId: string,
-  groups: AtShowClassGroup[]
+  groups: readonly { trial: { id: string }; classes: readonly unknown[] }[]
 ): Promise<boolean> {
   const trialsMeta = (await replicatedTrialsTable.getSyncMetadata(showId)) as SyncMetadata | null;
   if (
@@ -162,6 +162,21 @@ export async function isAtShowClassDataHydrated(
     })
   );
   return classHydration.every(Boolean);
+}
+
+/**
+ * Are this show's trials and each trial's classes on this device? The trial and
+ * class half of the show-is-fully-here marker (see `atShowOnDevice.ts`).
+ */
+export async function isAtShowStructureOnDevice(showId: string): Promise<boolean> {
+  const trials = await replicatedTrialsTable.getTrialsByShow(showId);
+  const groups = await Promise.all(
+    trials.map(async trial => ({
+      trial,
+      classes: await replicatedClassesTable.getClassesByTrial(trial.id),
+    }))
+  );
+  return isAtShowClassDataHydrated(showId, groups);
 }
 
 /**

@@ -65,6 +65,11 @@ const entriesScope = vi.hoisted(() => ({
   gate: null as Promise<void> | null,
   anonymous: false,
 }));
+const structureState = vi.hoisted(() => ({ onDevice: true }));
+vi.mock('./atShowClassListAdapter', async importOriginal => ({
+  ...(await importOriginal<typeof import('./atShowClassListAdapter')>()),
+  isAtShowStructureOnDevice: async () => structureState.onDevice,
+}));
 vi.mock('@/services/replication/entriesShowSyncState', async importOriginal => ({
   ...(await importOriginal<typeof import('@/services/replication/entriesShowSyncState')>()),
   hasShowEntriesSynced: vi.fn(async () => {

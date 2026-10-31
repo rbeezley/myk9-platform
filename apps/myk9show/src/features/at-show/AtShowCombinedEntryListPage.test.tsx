@@ -39,6 +39,11 @@ vi.mock('@/services/replication', () => ({
 // The show's entries scope: synced by default so a genuinely empty list still
 // reads "No Entries Yet"; the not-on-device test flips it (MYK9-1520).
 const entriesScope = vi.hoisted(() => ({ synced: true }));
+const structureState = vi.hoisted(() => ({ onDevice: true }));
+vi.mock('./atShowClassListAdapter', async importOriginal => ({
+  ...(await importOriginal<typeof import('./atShowClassListAdapter')>()),
+  isAtShowStructureOnDevice: async () => structureState.onDevice,
+}));
 vi.mock('@/services/replication/entriesShowSyncState', async importOriginal => ({
   ...(await importOriginal<typeof import('@/services/replication/entriesShowSyncState')>()),
   hasShowEntriesSynced: vi.fn(async () => entriesScope.synced),

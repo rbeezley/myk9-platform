@@ -13,6 +13,11 @@ vi.mock('./atShowDataAdapter', () => ({
   syncAtShowData: mocks.syncAtShowData,
   subscribeAtShowSyncSettled: mocks.subscribeAtShowSyncSettled,
 }));
+const structureState = vi.hoisted(() => ({ onDevice: true }));
+vi.mock('./atShowClassListAdapter', async importOriginal => ({
+  ...(await importOriginal<typeof import('./atShowClassListAdapter')>()),
+  isAtShowStructureOnDevice: async () => structureState.onDevice,
+}));
 vi.mock('@/services/replication/entriesShowSyncState', () => ({
   hasShowEntriesSynced: mocks.hasShowEntriesSynced,
 }));

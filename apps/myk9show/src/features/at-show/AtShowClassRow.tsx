@@ -53,7 +53,8 @@ export interface AtShowClassRowProps {
   /** The heart. Omitted, the card has no favorite control. */
   onToggleFavorite?: ((entry: ClassEntry) => void) | undefined;
   /** The info icon. Omitted, the card has none. */
-  onShowDetails?: ((entry: ClassEntry, anchor: HTMLElement) => void) | undefined;
+  onShowDetails?:
+    ((entry: ClassEntry, anchor: HTMLElement, countsTrusted: boolean) => void) | undefined;
   /** The ellipsis. Omitted for roles that may not open Class Options. */
   onOpenOptions?: ((entry: ClassEntry, anchor: HTMLElement) => void) | undefined;
 }

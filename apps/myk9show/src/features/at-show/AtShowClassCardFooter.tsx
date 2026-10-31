@@ -38,7 +38,8 @@ interface AtShowClassCardFooterProps {
   showProgress: boolean;
   queuedScoreCount: number;
   onToggleFavorite?: ((entry: ClassEntry) => void) | undefined;
-  onShowDetails?: ((entry: ClassEntry, anchor: HTMLElement) => void) | undefined;
+  onShowDetails?:
+    ((entry: ClassEntry, anchor: HTMLElement, countsTrusted: boolean) => void) | undefined;
   onOpenOptions?: ((entry: ClassEntry, anchor: HTMLElement) => void) | undefined;
 }
 
@@ -71,7 +72,7 @@ export function AtShowClassCardFooter({
             aria-label={`Class details for ${entry.class_name}`}
             aria-haspopup="dialog"
             className={ICON_BUTTON}
-            onClick={event => onShowDetails(entry, event.currentTarget)}
+            onClick={event => onShowDetails(entry, event.currentTarget, showProgress)}
           >
             <Info size={20} aria-hidden />
           </button>

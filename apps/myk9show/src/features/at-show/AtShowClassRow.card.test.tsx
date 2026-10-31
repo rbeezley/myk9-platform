@@ -126,7 +126,7 @@ describe('card controls', () => {
 
     const info = screen.getByRole('button', { name: 'Class details for Container Novice' });
     fireEvent.click(info);
-    expect(onShowDetails).toHaveBeenCalledWith(entry, info);
+    expect(onShowDetails).toHaveBeenCalledWith(entry, info, true);
 
     const more = screen.getByRole('button', { name: 'Class options for Container Novice' });
     fireEvent.click(more);

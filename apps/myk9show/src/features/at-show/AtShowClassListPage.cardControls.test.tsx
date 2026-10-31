@@ -49,6 +49,16 @@ vi.mock('./atShowDataAdapter', async importOriginal => ({
   syncAtShowData: sync.run,
 }));
 
+const lookup = vi.hoisted(() => ({ scoresheetKey: vi.fn(), toastError: vi.fn() }));
+vi.mock('@/pages/scoring/types', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/pages/scoring/types')>()),
+  scoresheetKeyForClass: lookup.scoresheetKey,
+}));
+vi.mock('sonner', async importOriginal => {
+  const actual = await importOriginal<typeof import('sonner')>();
+  return { ...actual, toast: Object.assign(actual.toast, { error: lookup.toastError }) };
+});
+
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
     hasRole: () => false,
@@ -113,6 +123,9 @@ beforeEach(() => {
   vi.clearAllMocks();
   window.localStorage.clear();
   queue.pending = [];
+  lookup.scoresheetKey.mockReset();
+  lookup.toastError.mockReset();
+  vi.mocked(replicatedClassesTable.getClassById).mockResolvedValue(null as never);
   role.primary = UserRole.EXHIBITOR;
   sync.run.mockResolvedValue({ success: true });
   vi.mocked(replicatedShowsTable.getShowById).mockResolvedValue({
@@ -236,6 +249,61 @@ describe('details and options', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Class options for Interior Excellent' }));
     expect(await screen.findByRole('button', { name: 'Requirements' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Set Max Time' })).toBeInTheDocument();
+  });
+});
+
+describe('options session', () => {
+  it('reopens a card on the options menu, not the sub-dialog it last closed', async () => {
+    role.primary = UserRole.SECRETARY;
+    renderPage();
+    const open = async () =>
+      fireEvent.click(
+        await screen.findByRole('button', { name: 'Class options for Interior Excellent' })
+      );
+
+    await open();
+    fireEvent.click(await screen.findByRole('button', { name: 'Requirements' }));
+    expect(screen.queryByRole('button', { name: 'Set Max Time' })).not.toBeInTheDocument();
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+
+    await open();
+    expect(await screen.findByRole('button', { name: 'Set Max Time' })).toBeInTheDocument();
+  });
+});
+
+describe('Set Max Time scoring-mode lookup', () => {
+  const liveClass = { id: 'class-c', name: 'Interior Excellent' };
+
+  it('says so and keeps the menu when the scoring mode cannot be determined', async () => {
+    role.primary = UserRole.SECRETARY;
+    lookup.scoresheetKey.mockRejectedValue(new Error('offline'));
+    vi.mocked(replicatedClassesTable.getClassById).mockResolvedValue(liveClass as never);
+    renderPage();
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Class options for Interior Excellent' })
+    );
+    await waitFor(() => expect(lookup.toastError).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Set Max Time' }));
+    expect(lookup.toastError).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole('button', { name: 'Requirements' })).toBeInTheDocument();
+  });
+
+  it('opens the form once the scoring mode is known', async () => {
+    role.primary = UserRole.SECRETARY;
+    lookup.scoresheetKey.mockResolvedValue('AKC_SCENT_WORK');
+    vi.mocked(replicatedClassesTable.getClassById).mockResolvedValue(liveClass as never);
+    renderPage();
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Class options for Interior Excellent' })
+    );
+    await waitFor(() => expect(lookup.scoresheetKey).toHaveBeenCalled());
+    fireEvent.click(await screen.findByRole('button', { name: 'Set Max Time' }));
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    expect(lookup.toastError).not.toHaveBeenCalled();
   });
 });
 

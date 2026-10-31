@@ -21,7 +21,8 @@ import { buildRingsideStatusInfo } from './ringsideStatusInfo';
 export function classDetailsData(
   entry: ClassEntry,
   live: ReplicatedClass | null,
-  timeZone: string
+  timeZone: string,
+  countsTrusted: boolean
 ): ClassDetailsData {
   const statusLabel = live ? buildRingsideStatusInfo(live, timeZone).statusLabel : undefined;
   const limit = (card: number | undefined, stored: number | null | undefined) =>
@@ -34,8 +35,10 @@ export function classDetailsData(
     classId: entry.id,
     status: entry.class_status,
     ...(statusLabel ? { statusLabel } : {}),
-    totalEntries: entry.entry_count,
-    completedEntries: entry.completed_count,
+    // An unread or partial (exhibitor) replica must not pass its zeros off as the class's totals.
+    ...(countsTrusted
+      ? { totalEntries: entry.entry_count, completedEntries: entry.completed_count }
+      : {}),
     judgeName: entry.judge_name,
     ...limitFields(entry, live, limit),
     ...(areaCount != null ? { areaCount } : {}),
@@ -89,20 +92,24 @@ export function classRequirementsData(
   };
 }
 
-export function classMaxTimeData(entry: ClassEntry): MaxTimeDialogProps['classData'] {
+/** The picker's cards carry no time limits, so the saved ones come from the live replicated class. */
+export function classMaxTimeData(
+  entry: ClassEntry,
+  live: ReplicatedClass | null
+): MaxTimeDialogProps['classData'] {
+  const t1 = live?.timeLimitSeconds ?? entry.time_limit_seconds;
+  const t2 = live?.timeLimitArea2Seconds ?? entry.time_limit_area2_seconds;
+  const t3 = live?.timeLimitArea3Seconds ?? entry.time_limit_area3_seconds;
+  const areas = live?.areaCount ?? entry.area_count;
   return {
     id: entry.id,
     element: entry.element,
     level: entry.level,
     class_name: entry.class_name,
-    ...(entry.time_limit_seconds != null ? { time_limit_seconds: entry.time_limit_seconds } : {}),
-    ...(entry.time_limit_area2_seconds != null
-      ? { time_limit_area2_seconds: entry.time_limit_area2_seconds }
-      : {}),
-    ...(entry.time_limit_area3_seconds != null
-      ? { time_limit_area3_seconds: entry.time_limit_area3_seconds }
-      : {}),
-    ...(entry.area_count != null ? { area_count: entry.area_count } : {}),
+    ...(t1 != null ? { time_limit_seconds: t1 } : {}),
+    ...(t2 != null ? { time_limit_area2_seconds: t2 } : {}),
+    ...(t3 != null ? { time_limit_area3_seconds: t3 } : {}),
+    ...(areas != null ? { area_count: areas } : {}),
   };
 }
 

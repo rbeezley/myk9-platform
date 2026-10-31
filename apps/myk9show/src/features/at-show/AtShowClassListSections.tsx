@@ -1,5 +1,5 @@
 /**
- * The picker's card lists: the Pending tab's "Your ring" section and the
+ * The picker's card lists: the "Your ring" section and the
  * per-trial collapsible lists (MYK9-1506 split this out of AtShowClassListPage).
  */
 import { ChevronRight } from 'lucide-react';

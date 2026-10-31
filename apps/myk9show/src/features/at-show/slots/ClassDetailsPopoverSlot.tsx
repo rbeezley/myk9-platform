@@ -44,7 +44,10 @@ import {
   type BadgeTier,
 } from './atShowChrome.helpers';
 
-type PopoverCoords = { top: number; left: number };
+type PopoverCoords = { top?: number; bottom?: number; left: number; maxHeight: number };
+
+/** About what the full card needs; below this the card flips above the anchor or scrolls. */
+const COMFORTABLE_HEIGHT = 340;
 
 function getPopoverCoords(
   anchor: HTMLElement | null,
@@ -55,13 +58,24 @@ function getPopoverCoords(
   const rect = anchor.getBoundingClientRect();
   const spacing = 8;
   const width = Math.min(320, window.innerWidth - 32);
-  const top = position === 'top' ? rect.top - spacing : rect.bottom + spacing;
   // Clamp the left edge so the 320px card never spills off a narrow viewport
   // (myK9Q renders full-width phones where anchor.left is always safe; the
   // wider myK9Show layout needs the guard).
   const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
+  const spaceBelow = window.innerHeight - rect.bottom - spacing * 2;
+  const spaceAbove = rect.top - spacing * 2;
+  // A card near the bottom of the screen opens upward instead of running off it; either
+  // way it is capped to the room it has and scrolls inside.
+  const opensUp =
+    position === 'top' || (spaceBelow < COMFORTABLE_HEIGHT && spaceAbove > spaceBelow);
 
-  return { top, left };
+  return opensUp
+    ? {
+        bottom: window.innerHeight - rect.top + spacing,
+        left,
+        maxHeight: Math.max(160, spaceAbove),
+      }
+    : { top: rect.bottom + spacing, left, maxHeight: Math.max(160, spaceBelow) };
 }
 
 /** One label/value (or label/badge) row in the class-details popover. */
@@ -169,12 +183,12 @@ export const ClassDetailsPopover: React.FC<ClassDetailsPopoverProps & { sheet?: 
       <div
         id="class-details-popover"
         className={cn(
-          'at-show-class-details fixed z-[100] overflow-hidden border border-border bg-card shadow-xl animate-in duration-150',
+          'at-show-class-details fixed z-[100] overflow-x-hidden border border-border bg-card shadow-xl animate-in duration-150',
           sheet
             ? 'inset-x-0 bottom-0 max-h-[85vh] w-full overflow-y-auto rounded-t-2xl pb-[env(safe-area-inset-bottom)] slide-in-from-bottom'
-            : 'w-[min(320px,calc(100vw-32px))] rounded-xl fade-in-0 zoom-in-95'
+            : 'w-[min(320px,calc(100vw-32px))] overflow-y-auto rounded-xl fade-in-0 zoom-in-95'
         )}
-        style={!sheet && coords ? { top: coords.top, left: coords.left } : undefined}
+        style={!sheet && coords ? coords : undefined}
         role="dialog"
         aria-label="Class details"
       >

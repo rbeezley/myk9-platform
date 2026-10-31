@@ -10,11 +10,12 @@
  */
 import { useCallback, useMemo, useSyncExternalStore } from 'react';
 import {
+  CLASS_FAVORITES_CHANGED_EVENT as CHANGED_EVENT,
+  getDismissedFavoriteClassIds,
   getFavoriteClassIdsForTrial,
+  setFavoriteClassDismissals,
   setFavoriteClassIdsForTrial,
 } from '@/features/show-today/accountTodayEntries.helpers';
-
-const CHANGED_EVENT = 'myk9:class-favorites-changed';
 const STORAGE_KEY_PREFIX = 'favorites_';
 
 /**
@@ -33,6 +34,15 @@ export function toggleClassFavorites(
     else current.add(id);
   }
   const written = setFavoriteClassIdsForTrial(showId, trialId, current);
+  if (written) {
+    // Remember an explicit un-heart so the entry-based seeding does not undo it.
+    const dismissed = getDismissedFavoriteClassIds(showId, trialId);
+    for (const id of classIds) {
+      if (isFavorite) dismissed.add(id);
+      else dismissed.delete(id);
+    }
+    setFavoriteClassDismissals(showId, trialId, dismissed);
+  }
   if (written) window.dispatchEvent(new CustomEvent(CHANGED_EVENT, { detail: { showId } }));
   return written;
 }

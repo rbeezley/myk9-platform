@@ -26,7 +26,7 @@ function prefersTouchSheet(): boolean {
 export interface ClassCardRowProps {
   queuedScoreCount: number;
   onToggleFavorite: (entry: ClassEntry) => void;
-  onShowDetails: (entry: ClassEntry, anchor: HTMLElement) => void;
+  onShowDetails: (entry: ClassEntry, anchor: HTMLElement, countsTrusted: boolean) => void;
   /** Undefined hides the ellipsis for roles that may not open Class Options. */
   onOpenOptions: ((entry: ClassEntry, anchor: HTMLElement) => void) | undefined;
 }
@@ -47,14 +47,24 @@ export function useAtShowClassCards(showId: string | undefined, groups: AtShowCl
   const anchorRef = useRef<HTMLElement | null>(null);
   const [active, setActive] = useState<ActiveClassCard | null>(null);
   const [sheet, setSheet] = useState(false);
+  const sessionRef = useRef(0);
 
   const open = useCallback(
-    (mode: ActiveClassCard['mode']) => (entry: ClassEntry, anchor: HTMLElement) => {
-      const trial = trialByClassId.get(entry.id) ?? null;
-      anchorRef.current = anchor;
-      setSheet(mode === 'details' && prefersTouchSheet());
-      setActive({ entry, mode, trial, trialTimeZone: getTrialTimezone(trial) });
-    },
+    (mode: ActiveClassCard['mode']) =>
+      (entry: ClassEntry, anchor: HTMLElement, countsTrusted = false) => {
+        const trial = trialByClassId.get(entry.id) ?? null;
+        anchorRef.current = anchor;
+        setSheet(mode === 'details' && prefersTouchSheet());
+        sessionRef.current += 1;
+        setActive({
+          entry,
+          mode,
+          trial,
+          trialTimeZone: getTrialTimezone(trial),
+          countsTrusted,
+          session: sessionRef.current,
+        });
+      },
     [trialByClassId]
   );
   const close = useCallback(() => {

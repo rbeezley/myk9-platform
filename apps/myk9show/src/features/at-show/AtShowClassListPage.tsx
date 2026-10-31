@@ -159,14 +159,13 @@ export const AtShowClassListPage: React.FC = () => {
       })),
     [groupedByTrial, tab, search, sort]
   );
-  // Your ring is the Pending tab's judge-only section (v3 has no such tab of its own).
+  // Your ring follows the selected tab too: for a judge-only account it IS the picker,
+  // so a tab that hid it would hide their completed classes.
   const visibleYourRing = useMemo(
     () =>
-      tab === 'pending'
-        ? yourRingClasses.filter(
-            ({ entry }) => classMatchesTab(entry, 'pending') && classMatchesSearch(entry, search)
-          )
-        : [],
+      yourRingClasses.filter(
+        ({ entry }) => classMatchesTab(entry, tab) && classMatchesSearch(entry, search)
+      ),
     [yourRingClasses, tab, search]
   );
 

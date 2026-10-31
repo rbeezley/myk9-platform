@@ -147,6 +147,19 @@ describe('UserManagementPage ?userId= with an auth user id (MYK9-1533)', () => {
     }
   });
 
+  it('treats a lookup that fails after the device went offline as needs-connection (MYK9-1567)', async () => {
+    const onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    mockMaybeSingle.mockResolvedValueOnce({ data: null, error: new Error('Failed to fetch') });
+    try {
+      render(<UserManagementPage />, { initialRoute: `/admin/users?userId=${AUTH_ID}` });
+
+      expect(await screen.findByText(/needs a connection/i)).toBeInTheDocument();
+      expect(screen.queryByText(/could not look up that user/i)).not.toBeInTheDocument();
+    } finally {
+      onLine.mockRestore();
+    }
+  });
+
   it('says nothing about a missing user when no userId is given', async () => {
     render(<UserManagementPage />, { initialRoute: '/admin/users' });
     await screen.findByTestId('user-table');

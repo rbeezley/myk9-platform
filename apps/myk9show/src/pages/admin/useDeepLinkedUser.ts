@@ -65,11 +65,17 @@ export function useDeepLinkedUser(
   );
 
   const user = direct ?? resolved;
+  // A drop mid-request fails the fetch (fetchStatus returns to idle, not paused);
+  // while the device is offline that is the same "needs a connection" state.
+  const lostConnection = typeof navigator !== 'undefined' && !navigator.onLine;
   return {
     user,
     notFound: (malformedId || (needsLookup && lookup.isSuccess)) && !user,
-    lookupFailed: needsLookup && !user && lookup.isError,
-    needsConnection: needsLookup && !user && lookup.fetchStatus === 'paused',
+    lookupFailed: needsLookup && !user && lookup.isError && !lostConnection,
+    needsConnection:
+      needsLookup &&
+      !user &&
+      (lookup.fetchStatus === 'paused' || (lookup.isError && lostConnection)),
     retryLookup: () => void lookup.refetch(),
   };
 }

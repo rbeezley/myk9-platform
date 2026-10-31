@@ -1,5 +1,8 @@
 import { isHeldEntry } from '@/features/dogs/identity';
-import { getOperationalEntryState } from '@/features/entry-operations/attentionClassification';
+import {
+  getOperationalEntryState,
+  type OperationalEntryState,
+} from '@/features/entry-operations/attentionClassification';
 import { PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { entryAttentionReasons, type ShowRegistrationGroup } from './showRegistrationProjection';
@@ -30,6 +33,12 @@ export interface FormChecklist {
   /** What is already finished, e.g. ["2 accepted", "$60.00 paid by check", "armband 201"]. */
   done: string[];
 }
+
+const ARMBAND_STATES: ReadonlySet<OperationalEntryState> = new Set([
+  'accepted',
+  'pending_review',
+  'missing_information',
+]);
 
 const dollars = (value: number) => `$${value.toFixed(2)}`;
 const entriesWord = (count: number) => (count === 1 ? 'entry' : 'entries');
@@ -130,7 +139,17 @@ export function buildFormChecklist(
     );
   }
 
-  for (const entry of onePerDog(entries, e => live(e) && !e.armbandNumber)) {
+  // An armband is owed only by entries headed for the run: accepted, or still being
+  // decided (the owner's design shows "no armband" beside "needs review"). An allowlist,
+  // so a waitlisted, unclassified or withdrawn entry never asks for one.
+  const needsArmband = (entry: EntryManagementEntry) =>
+    ARMBAND_STATES.has(
+      getOperationalEntryState({
+        entryStatus: entry.entryStatus,
+        rawEntryStatus: entry.rawEntryStatus,
+      })
+    );
+  for (const entry of onePerDog(entries, e => needsArmband(e) && !e.armbandNumber)) {
     items.push({
       kind: 'armband',
       id: `armband-${entry.dogId || entry.id}`,

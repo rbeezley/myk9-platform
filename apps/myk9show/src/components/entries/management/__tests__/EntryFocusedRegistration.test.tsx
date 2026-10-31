@@ -253,6 +253,24 @@ describe('EntryFocusedRegistration', () => {
       expect(screen.getByText('Paid in full')).toBeInTheDocument();
     });
 
+    it('asks for an armband only for entries headed for the run, never a waitlisted one', () => {
+      const registration = groupEntriesByShowRegistration([
+        accepted('entry-1', 'Poppy', 'dog-1'),
+        {
+          ...entry('entry-2', 'Bean', 'Alice Martin', 'dog-2'),
+          entryStatus: EntryStatus.WAITLIST,
+          rawEntryStatus: 'waitlist',
+        },
+      ])[0]!;
+      render(
+        <EntryFocusedRegistration
+          {...baseProps()}
+          registration={{ ...registration, enrollmentId: 'enrollment-1' }}
+        />
+      );
+      expect(screen.queryByText('Bean has no armband')).not.toBeInTheDocument();
+    });
+
     it('credits armbands only to accepted entries in the Done line', () => {
       const registration = groupEntriesByShowRegistration([
         accepted('entry-1', 'Poppy', 'dog-1'),

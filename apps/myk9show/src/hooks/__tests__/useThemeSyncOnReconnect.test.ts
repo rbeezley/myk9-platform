@@ -110,4 +110,49 @@ describe('useThemeSyncOnReconnect (app-level trigger)', () => {
     expect(mockApply).not.toHaveBeenCalled();
     expect(mockUpdate).not.toHaveBeenCalled();
   });
+
+  it('syncs once when auth arrives after connectivity returned', async () => {
+    recordLocalThemeChange('u1', { mode: 'dark' }, 5000);
+    mockOnline = false;
+    mockUserId = null;
+    const { rerender } = renderHook(() => useThemeSyncOnReconnect());
+    mockOnline = true;
+    rerender();
+    expect(mockLoad).not.toHaveBeenCalled();
+
+    mockUserId = 'u1';
+    mockLoad.mockResolvedValue(serverRow({ mode: 'light' }, 4000));
+    mockUpdate.mockResolvedValue(serverRow({ mode: 'dark' }, 9000));
+    rerender();
+    await waitFor(() =>
+      expect(mockUpdate).toHaveBeenCalledWith('u1', { theme: { mode: 'dark' } }, { mode: 5000 })
+    );
+    rerender();
+    expect(mockLoad).toHaveBeenCalledTimes(1);
+  });
+
+  it('syncs pending changes on a cold start that is already online', async () => {
+    recordLocalThemeChange('u1', { mode: 'dark' }, 5000);
+    mockLoad.mockResolvedValue(serverRow({ mode: 'light' }, 4000));
+    mockUpdate.mockResolvedValue(serverRow({ mode: 'dark' }, 9000));
+    renderHook(() => useThemeSyncOnReconnect());
+    await waitFor(() =>
+      expect(mockUpdate).toHaveBeenCalledWith('u1', { theme: { mode: 'dark' } }, { mode: 5000 })
+    );
+  });
+
+  it('does not apply a server value over a field edited while the write was in flight', async () => {
+    recordLocalThemeChange('u1', { mode: 'dark' }, 5000);
+    mockLoad.mockResolvedValue(serverRow({ mode: 'light' }, 4000));
+    let finish: (v: unknown) => void = () => {};
+    mockUpdate.mockReturnValue(new Promise(r => (finish = r)));
+    renderHook(() => useThemeSyncOnReconnect());
+    await waitFor(() => expect(mockUpdate).toHaveBeenCalled());
+    recordLocalThemeChange('u1', { mode: 'system' }, 7000);
+    finish(serverRow({ mode: 'light' }, 9000));
+    await waitFor(() => expect(readDeviceTheme('u1')?.theme.mode).toBe('system'));
+    await new Promise(r => setTimeout(r, 20));
+    for (const [adopted] of mockApply.mock.calls) expect(adopted).not.toHaveProperty('mode');
+    expect(readDeviceTheme('u1')?.pending).toEqual(['mode']);
+  });
 });

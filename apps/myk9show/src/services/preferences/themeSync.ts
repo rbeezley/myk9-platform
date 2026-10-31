@@ -76,10 +76,15 @@ export function syncDeviceTheme(uid: string, handlers: ThemeSyncHandlers): Promi
       // The write keeps a newer value another device saved meanwhile; settle
       // to what the server holds, and apply any field it kept.
       const held = Object.fromEntries(pushFields.map(f => [f, written.theme[f]]));
+      // A field edited during the write keeps its newer local value; only fields
+      // settle actually replaced may take the server's value on the live UI.
+      const edited = readDeviceTheme(uid)?.changedAt ?? {};
       const after = settleFields(uid, held, sentAt);
       if (!isCurrent()) return;
       const lost = Object.fromEntries(
-        pushFields.filter(f => written.theme[f] !== toPush[f]).map(f => [f, written.theme[f]])
+        pushFields
+          .filter(f => written.theme[f] !== toPush[f] && edited[f] === sentAt[f])
+          .map(f => [f, written.theme[f]])
       );
       onPreferences?.({ ...written, theme: deviceThemeOrDefaults(after) });
       if (Object.keys(lost).length > 0) onServerTheme?.(lost);

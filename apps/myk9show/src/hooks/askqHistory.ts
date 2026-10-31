@@ -83,7 +83,13 @@ export function loadAskQHistory(userId: string, scope: string): AskQHistoryEntry
     if (!raw) return [];
     const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return pruneAskQHistory(parsed.filter(isEntry));
+    const kept = pruneAskQHistory(parsed.filter(isEntry));
+    // Expired or malformed rows must not linger on the device: persist the pruned result.
+    if (kept.length !== parsed.length) {
+      if (kept.length === 0) window.localStorage.removeItem(askqHistoryKey(userId, scope));
+      else saveAskQHistory(userId, scope, kept);
+    }
+    return kept;
   } catch {
     return [];
   }

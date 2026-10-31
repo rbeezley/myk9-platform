@@ -40,6 +40,19 @@ describe('askqHistory', () => {
     expect(loadAskQHistory('u1', 'app').map(e => e.id)).toEqual(['e2']);
   });
 
+  it('removes expired rows from storage on load, and the key when none remain', () => {
+    const now = Date.now();
+    const old = now - ASKQ_HISTORY_MAX_AGE_MS - 1000;
+    saveAskQHistory('u1', 'app', [entry(1, old)]);
+    expect(loadAskQHistory('u1', 'app')).toEqual([]);
+    expect(window.localStorage.getItem(askqHistoryKey('u1', 'app'))).toBeNull();
+
+    saveAskQHistory('u1', 'app', [entry(1, old), entry(2, now)]);
+    loadAskQHistory('u1', 'app');
+    const raw = JSON.parse(window.localStorage.getItem(askqHistoryKey('u1', 'app')) ?? '[]');
+    expect(raw.map((e: AskQHistoryEntry) => e.id)).toEqual(['e2']);
+  });
+
   it('keeps only the newest 20 entries', () => {
     saveAskQHistory(
       'u1',

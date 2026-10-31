@@ -221,8 +221,8 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
             and a title that rewrapped each time bounced the whole list under the sticky
             header (owner report, 2026-10-09). Sized in em, not px, so the app's text scale
             (text-base is 20px at ringside) cannot under-reserve it again. */}
-        <div className="flex items-center justify-center gap-1 max-md:min-h-[2.5em] max-md:text-base">
-          <h1 className="m-0 text-balance max-md:line-clamp-2 text-center text-base font-[590] leading-tight tracking-tight text-foreground md:whitespace-nowrap md:text-lg md:leading-none">
+        <div className="flex min-w-0 max-w-full items-center justify-center gap-1 max-md:min-h-[2.5em] max-md:text-base">
+          <h1 className="m-0 min-w-0 break-words text-balance max-md:line-clamp-2 text-center text-base font-[590] leading-tight tracking-tight text-foreground md:whitespace-nowrap md:text-lg md:leading-none">
             {classInfo?.className?.toLowerCase().replace(/\b\w/g, l => l.toUpperCase()) ||
               'Loading...'}
           </h1>

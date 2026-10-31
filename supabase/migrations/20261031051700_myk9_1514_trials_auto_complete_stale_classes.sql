@@ -56,9 +56,17 @@ COMMENT ON COLUMN public.trials.auto_complete_stale_classes IS
 -- transaction, exactly as the ringside Status write would.
 --
 -- "Unscored" is entryAccounting.ts's outstandingEntries (expected AND not
--- accounted for) minus entries in the ring: a live entry whose entry_status is
--- not withdrawn/scratched/absent/moved/not_accepted, not pulled, not scored, no
--- absent/excused/disqualified result, and is_in_ring is not true.
+-- accounted for): a live entry whose entry_status is not
+-- withdrawn/scratched/absent/moved/not_accepted, not pulled, not scored, and
+-- with no absent/excused/disqualified result.
+--
+-- A class is refused (ok:false, no ids) while it is not in_progress (a
+-- secretary cancelled or reset it) or while any unscored dog is in the ring
+-- (is_in_ring, or check_in_status 'in-ring', which opening a scoresheet sets).
+-- Nothing is marked and nothing is completed under a dog being run.
+--
+-- LOCK ORDER matches the scoring path (entry rows first, then the class row via
+-- its scoring-state trigger), so an overlapping score cannot deadlock with this.
 --
 -- AUTHORIZATION is ringside_update_entry's, copied from the latest migration
 -- defining it (20260925143700): a manager, the class's assigned judge, or a
@@ -93,15 +101,15 @@ DECLARE
   v_class_status text;
   v_current uuid[];
   v_expected uuid[];
+  v_any_in_ring boolean;
 BEGIN
-  -- 1. Class context, locked so two taps (or a tap and a status write) serialize.
-  SELECT tr.show_id, c.status_source, c.status
-    INTO v_show_id, v_status_source, v_class_status
+  -- 1. Class context (unlocked: the class row is locked after the entry rows).
+  SELECT tr.show_id
+    INTO v_show_id
     FROM public.classes c
     JOIN public.trials tr ON tr.id = c.trial_id
    WHERE c.id = p_class_id
-     AND c.deleted_at IS NULL
-     FOR UPDATE OF c;
+     AND c.deleted_at IS NULL;
 
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Class % not found', p_class_id USING errcode = 'P0002';
@@ -153,11 +161,14 @@ BEGIN
   END IF;
 
   -- 4. The class's current unscored entries, row-locked so a score landing
-  -- between this read and the write below waits and is not overwritten.
-  SELECT coalesce(array_agg(s.id ORDER BY s.id), '{}'::uuid[])
-    INTO v_current
+  -- between this read and the write below waits and is not overwritten. Entries
+  -- first, then the class row, as the scoring path does.
+  SELECT coalesce(array_agg(s.id ORDER BY s.id), '{}'::uuid[]),
+         coalesce(bool_or(s.in_ring), false)
+    INTO v_current, v_any_in_ring
     FROM (
-      SELECT e.id
+      SELECT e.id,
+             (e.is_in_ring IS TRUE OR e.check_in_status = 'in-ring') AS in_ring
         FROM public.entries e
        WHERE e.class_id = p_class_id
          AND e.deleted_at IS NULL
@@ -166,9 +177,20 @@ BEGIN
          AND e.check_in_status IS DISTINCT FROM 'pulled'
          AND e.is_scored IS NOT TRUE
          AND coalesce(e.result_status, '') NOT IN ('absent', 'excused', 'disqualified')
-         AND e.is_in_ring IS NOT TRUE
          FOR UPDATE OF e
     ) s;
+
+  SELECT c.status_source, c.status
+    INTO v_status_source, v_class_status
+    FROM public.classes c
+   WHERE c.id = p_class_id
+     FOR UPDATE OF c;
+
+  -- A class a secretary cancelled or reset, or one with a dog in the ring, is
+  -- not stale: refuse with no dogs to offer.
+  IF v_class_status IS DISTINCT FROM 'in_progress' OR v_any_in_ring THEN
+    RETURN jsonb_build_object('ok', false, 'current_entry_ids', '[]'::jsonb);
+  END IF;
 
   SELECT coalesce(array_agg(DISTINCT x ORDER BY x), '{}'::uuid[])
     INTO v_expected
@@ -199,7 +221,7 @@ BEGIN
 
   -- 6. A hand-set status is never derived; complete it here, in the same
   -- transaction. A derived class completes through the entries trigger above.
-  IF v_status_source = 'manual' AND v_class_status IS DISTINCT FROM 'completed' THEN
+  IF v_status_source = 'manual' THEN
     UPDATE public.classes SET status = 'completed' WHERE id = p_class_id;
   END IF;
 

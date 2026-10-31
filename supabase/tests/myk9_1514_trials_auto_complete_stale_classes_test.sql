@@ -104,7 +104,7 @@ insert into public.judge_assignments (person_id, show_id, trial_id, class_id, st
    '00000000-0000-0000-0000-000001514003', '00000000-0000-0000-0000-000001514022',
    'confirmed', now());
 
--- Six dogs: 031/032 are unscored, 033 is scored, 034 is pulled, 035 is in the ring,
+-- Six dogs: 031/032 are unscored, 033 is scored, 034 is pulled, 035 starts in the ring,
 -- 036 is the manual class's only dog.
 insert into public.dogs (id, name, call_name, breed, owner_id)
 select ('00000000-0000-0000-0000-0000015140' || n)::uuid, 'Dog ' || n, 'Dog ' || n, 'Beagle',
@@ -229,6 +229,32 @@ begin
   raise notice 'PASS anon has no EXECUTE';
 end $$;
 
+-- R. a dog in the ring (either indicator) makes the whole call refuse with no ids
+do $$
+declare
+  v_reply jsonb;
+begin
+  v_reply := public.ringside_complete_stale_class('00000000-0000-0000-0000-000001514021',
+    array['00000000-0000-0000-0000-000001514131', '00000000-0000-0000-0000-000001514132']::uuid[]);
+  if (v_reply ->> 'ok')::boolean is not false or jsonb_array_length(v_reply -> 'current_entry_ids') <> 0 then
+    raise exception 'FAIL R is_in_ring dog did not refuse the whole call: %', v_reply;
+  end if;
+  perform pg_temp.q($q$update public.entries set is_in_ring = false, check_in_status = 'in-ring'
+    where id = '00000000-0000-0000-0000-000001514135' returning 1$q$);
+  v_reply := public.ringside_complete_stale_class('00000000-0000-0000-0000-000001514021',
+    array['00000000-0000-0000-0000-000001514131', '00000000-0000-0000-0000-000001514132']::uuid[]);
+  if (v_reply ->> 'ok')::boolean is not false or jsonb_array_length(v_reply -> 'current_entry_ids') <> 0 then
+    raise exception 'FAIL R check_in_status in-ring dog did not refuse the whole call: %', v_reply;
+  end if;
+  if pg_temp.absent_count('00000000-0000-0000-0000-000001514021') <> 0 then
+    raise exception 'FAIL R a refused call changed entries';
+  end if;
+  raise notice 'PASS R an in-ring dog (either indicator) refuses the whole call and changes nothing';
+  -- the dog finishes: scored, out of the ring
+  perform pg_temp.q($q$update public.entries set check_in_status = 'checked-in', is_scored = true,
+    result_status = 'qualified' where id = '00000000-0000-0000-0000-000001514135' returning 1$q$);
+end $$;
+
 -- G. grown, shrunk and empty sets refuse and change nothing (assigned judge)
 select pg_temp.as_account('00000000-0000-0000-0000-000001514101');
 do $$
@@ -245,7 +271,7 @@ begin
                                       '00000000-0000-0000-0000-000001514132']::uuid[] then
     raise exception 'FAIL G grown set not refused with the current ids: %', v_reply;
   end if;
-  raise notice 'PASS G a grown set is refused and the current ids are returned (scored, pulled and in-ring dogs excluded)';
+  raise notice 'PASS G a grown set is refused and the current ids are returned (scored and pulled dogs excluded)';
 
   -- shrunk: the judge saw 031, 032 and 033, but 033 is scored
   v_reply := public.ringside_complete_stale_class('00000000-0000-0000-0000-000001514021',
@@ -261,7 +287,7 @@ begin
     array['00000000-0000-0000-0000-000001514131', '00000000-0000-0000-0000-000001514132',
           '00000000-0000-0000-0000-000001514135']::uuid[]);
   if (v_reply ->> 'ok')::boolean is not false then
-    raise exception 'FAIL G a set naming an in-ring dog was not refused: %', v_reply;
+    raise exception 'FAIL G a set naming a now-scored dog was not refused: %', v_reply;
   end if;
   v_reply := public.ringside_complete_stale_class('00000000-0000-0000-0000-000001514021',
     array['00000000-0000-0000-0000-000001514131', '00000000-0000-0000-0000-000001514132',
@@ -269,7 +295,7 @@ begin
   if (v_reply ->> 'ok')::boolean is not false then
     raise exception 'FAIL G a set naming a pulled dog was not refused: %', v_reply;
   end if;
-  raise notice 'PASS G in-ring and pulled dogs are refused';
+  raise notice 'PASS G scored and pulled dogs cannot be named';
 
   -- empty and NULL never mark anything
   v_reply := public.ringside_complete_stale_class('00000000-0000-0000-0000-000001514021', '{}'::uuid[]);
@@ -318,7 +344,7 @@ begin
   if v_n <> 0 then
     raise exception 'FAIL M % dog(s) outside the set were marked absent', v_n;
   end if;
-  raise notice 'PASS M the scored, pulled and in-ring dogs were left alone';
+  raise notice 'PASS M the scored and pulled dogs were left alone';
 
   -- a second tap finds nothing left and writes nothing
   v_reply := public.ringside_complete_stale_class('00000000-0000-0000-0000-000001514021',
@@ -329,12 +355,26 @@ begin
   raise notice 'PASS M a repeated call is refused with no dogs left';
 end $$;
 
--- S. a class whose status a person set by hand completes in the same call
+-- S. a class whose status a person set by hand completes in the same call, but a
+-- class no longer in progress (cancelled or reset) is refused untouched
 do $$
 declare
   v_reply jsonb;
   v_status text;
 begin
+  perform pg_temp.q($q$update public.classes set status = 'setup'
+    where id = '00000000-0000-0000-0000-000001514022' returning 1$q$);
+  v_reply := public.ringside_complete_stale_class('00000000-0000-0000-0000-000001514022',
+    array['00000000-0000-0000-0000-000001514136']::uuid[]);
+  if (v_reply ->> 'ok')::boolean is not false
+     or pg_temp.absent_count('00000000-0000-0000-0000-000001514022') <> 0
+     or pg_temp.q($q$select status from public.classes where id = '00000000-0000-0000-0000-000001514022'$q$) <> 'setup' then
+    raise exception 'FAIL S a class that left in_progress was not refused untouched: %', v_reply;
+  end if;
+  raise notice 'PASS S a class no longer in progress is refused and left as it was';
+  perform pg_temp.q($q$update public.classes set status = 'in_progress'
+    where id = '00000000-0000-0000-0000-000001514022' returning 1$q$);
+
   v_reply := public.ringside_complete_stale_class('00000000-0000-0000-0000-000001514022',
     array['00000000-0000-0000-0000-000001514136']::uuid[]);
   if (v_reply ->> 'ok')::boolean is not true then

@@ -47,7 +47,10 @@ export function StaleClassPrompt() {
         toast.info(`${result.className} changed. ${n} ${n === 1 ? 'dog is' : 'dogs are'} left.`);
         return;
       }
-      useStaleClassPromptStore.getState().dismiss();
+      // A queued confirmation changes nothing locally, so snooze the class or the next
+      // saved score would ask again and queue a duplicate.
+      if (result.outcome === 'queued') useStaleClassPromptStore.getState().snooze(Date.now());
+      else useStaleClassPromptStore.getState().dismiss();
       if (result.outcome === 'not-needed') {
         toast.info(`${result.className} no longer needs completing`);
         return;

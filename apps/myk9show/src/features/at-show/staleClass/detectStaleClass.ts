@@ -33,7 +33,7 @@ export interface StaleEntryFields {
   entryStatus?: string | undefined;
   checkInStatus?: string | undefined;
   isScored?: boolean | undefined;
-  /** A dog in the ring is never counted: the server leaves it out too. */
+  /** A dog in the ring makes the class not stale, as `ringside_complete_stale_class` refuses it. */
   isInRing?: boolean | undefined;
   resultStatus?: string | undefined;
   deletedAt?: string | null | undefined;
@@ -67,9 +67,10 @@ function isStaleClass(entries: StaleEntryFields[], nowMs: number): StaleClassCan
   const last = lastResultAtMs(entries);
   if (last === null) return null;
   if (nowMs - last <= STALE_CLASS_IDLE_MS) return null;
-  // Same set `ringside_complete_stale_class` computes, so the ids the judge sees match.
-  const unscored = outstandingEntries(entries).filter(e => e.isInRing !== true);
+  const unscored = outstandingEntries(entries);
   if (unscored.length === 0) return null;
+  // A dog in the ring (either indicator) means the class is in use, as on the server.
+  if (unscored.some(e => e.isInRing === true || e.checkInStatus === 'in-ring')) return null;
   return {
     classId: '',
     className: '',

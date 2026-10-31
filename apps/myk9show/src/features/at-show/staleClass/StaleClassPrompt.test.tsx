@@ -134,6 +134,8 @@ describe('StaleClassPrompt', () => {
     expect(mocks.queue).toHaveBeenCalledWith('stale', ['a', 'b', 'c']);
     expect(mocks.complete).not.toHaveBeenCalled();
     expect(mocks.toastSuccess.mock.calls[0]?.[0]).toMatch(/back online/);
+    // Snoozed, so the next saved score does not ask again and queue a duplicate.
+    expect(useStaleClassPromptStore.getState().snoozes.stale).toBeDefined();
     online.mockRestore();
   });
 });

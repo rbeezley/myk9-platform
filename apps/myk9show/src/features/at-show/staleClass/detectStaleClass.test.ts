@@ -135,14 +135,12 @@ describe('detectStaleClass', () => {
     );
   });
 
-  it('leaves a dog in the ring out of the dogs to mark, as the server does', () => {
-    const hit = detect({
-      entries: [
-        scoredEntry('a', 40),
-        unscoredEntry('b'),
-        { ...unscoredEntry('c'), isInRing: true },
-      ],
-    });
-    expect(hit?.unscoredEntryIds).toEqual(['b']);
+  it('is not stale while any unscored dog is in the ring, by either indicator', () => {
+    const base = [scoredEntry('a', 40), unscoredEntry('b')];
+    expect(detect({ entries: [...base, { ...unscoredEntry('c'), isInRing: true }] })).toBeNull();
+    expect(
+      detect({ entries: [...base, { ...unscoredEntry('c'), checkInStatus: 'in-ring' }] })
+    ).toBeNull();
+    expect(detect({ entries: base })?.unscoredEntryIds).toEqual(['b']);
   });
 });

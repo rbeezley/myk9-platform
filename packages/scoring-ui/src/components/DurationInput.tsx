@@ -98,6 +98,17 @@ export const DurationInput: React.FC<DurationInputProps> = ({
     onChange(stored, parsed);
   };
 
+  // A formatted time goes back to its digits on focus, so the digit stream can be
+  // corrected the way the paper sheet is: "0:45.32" becomes "4532", then one more
+  // digit continues from the right. Blur formats it again.
+  const handleFocus = () => {
+    if (result.ok && text === result.formatted) {
+      const digits = text.replace(/\D/g, '');
+      setText(kind === 'search' ? digits.replace(/^0+/, '') || '0' : digits);
+    }
+    onFocus?.();
+  };
+
   const handleBlur = () => {
     if (result.ok && text !== result.formatted) report(result.formatted);
     onCommit?.();
@@ -160,7 +171,7 @@ export const DurationInput: React.FC<DurationInputProps> = ({
           spellCheck={false}
           value={text}
           onChange={e => report(e.target.value)}
-          onFocus={onFocus}
+          onFocus={handleFocus}
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}
           placeholder={PLACEHOLDER[kind]}

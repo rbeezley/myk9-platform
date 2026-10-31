@@ -103,4 +103,23 @@ describe('DurationInput', () => {
     const hint = screen.getByTestId('duration-preview').parentElement;
     expect(field().getAttribute('aria-describedby')).toBe(hint?.id);
   });
+
+  it('turns a formatted time back into digits on focus so the stream can be corrected', () => {
+    const onValue = vi.fn();
+    render(<Harness initial="0:45.32" onValue={onValue} />);
+    fireEvent.focus(field());
+    expect(field().value).toBe('4532');
+    fireEvent.change(field(), { target: { value: '45321' } });
+    expect(onValue).toHaveBeenLastCalledWith('4:53.21');
+    fireEvent.blur(field());
+    expect(field().value).toBe('4:53.21');
+  });
+
+  it('does the same for a max time without turning 0:30 into 30 minutes', () => {
+    render(<Harness kind="max" initial="0:30" />);
+    fireEvent.focus(field());
+    expect(field().value).toBe('030');
+    fireEvent.blur(field());
+    expect(field().value).toBe('0:30');
+  });
 });

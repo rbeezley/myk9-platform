@@ -288,7 +288,7 @@ describe('EntryPanel', () => {
     );
 
     expect(screen.getByRole('button', { name: /^Q$/i })).toHaveAttribute('data-selected', 'true');
-    expect(screen.getByLabelText(/search time/i)).toHaveValue('1:23.45');
+    expect(screen.getByLabelText(/search time/i)).toHaveValue('12345');
     expect(screen.getByText('2')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^save$/i })).toBeInTheDocument();
   });

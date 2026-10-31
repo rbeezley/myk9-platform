@@ -4,29 +4,10 @@
  * Add an entry here to put a new destination in the menu; the builder in
  * `ringsideMenuItems.ts` appends these after the core show-day set and before
  * Sign out, and each entry decides per viewer whether to show itself.
+ *
+ * The Nationals Leaderboard item lands here once its component merges
+ * (MYK9-1516, PR #3423), with its staff-authorized route. Empty until then.
  */
-import { Trophy } from 'lucide-react';
-import { getRingsideNationalsLeaderboardHref } from '@/features/results-tab/resultsTabRoutes';
 import type { RingsideMenuExtension } from './ringsideMenuItems';
 
-/**
- * Nationals shows only (MYK9-1540), ringside staff only. The board reads secretary-entry rows,
- * which carry no result-privacy rule, so an exhibitor must not reach it; the exhibitor path is the
- * privacy-aware Results tab.
- */
-const nationalsLeaderboard: RingsideMenuExtension = {
-  id: 'nationals-leaderboard',
-  build: ({ showId, isNationals, isRingsideStaff }) =>
-    showId && isNationals && isRingsideStaff
-      ? {
-          id: 'nationals-leaderboard',
-          label: 'Nationals Leaderboard',
-          icon: Trophy,
-          href: getRingsideNationalsLeaderboardHref(showId),
-          returnScope: getRingsideNationalsLeaderboardHref(showId),
-          requiresConnection: false,
-        }
-      : null,
-};
-
-export const ringsideMenuExtensions: readonly RingsideMenuExtension[] = [nationalsLeaderboard];
+export const ringsideMenuExtensions: readonly RingsideMenuExtension[] = [];

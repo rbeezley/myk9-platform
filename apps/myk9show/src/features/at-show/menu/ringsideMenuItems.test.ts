@@ -12,8 +12,6 @@ const base: RingsideMenuContext = {
   canManageShow: false,
   isOnline: true,
   hasAccount: true,
-  isNationals: false,
-  isRingsideStaff: true,
 };
 
 const ids = (context: RingsideMenuContext, extensions?: readonly RingsideMenuExtension[]) =>
@@ -107,39 +105,5 @@ describe('itemNeedsConnection', () => {
     expect(itemNeedsConnection(results, true)).toBe(false);
     expect(itemNeedsConnection(settings, false)).toBe(true);
     expect(itemNeedsConnection(find(base, 'announcements')!, false)).toBe(false);
-  });
-});
-
-describe('Nationals Leaderboard item (MYK9-1540)', () => {
-  const nationals = { ...base, isNationals: true };
-
-  it('is offered on a nationals show to a judge or steward, a secretary and a passcode user', () => {
-    expect(ids(nationals)).toContain('nationals-leaderboard');
-    expect(ids({ ...nationals, canManageShow: true })).toContain('nationals-leaderboard');
-    expect(ids({ ...nationals, hasAccount: false })).toContain('nationals-leaderboard');
-  });
-
-  it('is absent for an exhibitor who is not ringside staff (result privacy)', () => {
-    expect(ids({ ...nationals, isRingsideStaff: false })).not.toContain('nationals-leaderboard');
-  });
-
-  it('is absent on a show that is not nationals', () => {
-    expect(ids(base)).not.toContain('nationals-leaderboard');
-  });
-
-  it('is absent without a show id', () => {
-    expect(ids({ ...nationals, showId: undefined })).not.toContain('nationals-leaderboard');
-  });
-
-  it('opens the staff-authorized ringside route and keeps the return bar scoped to it', () => {
-    const item = find(nationals, 'nationals-leaderboard');
-    expect(item?.href).toBe('/at-show/show-1/leaderboard');
-    expect(item?.returnScope).toBe('/at-show/show-1/leaderboard');
-  });
-
-  it('sits between AskQ and Sign out', () => {
-    const list = ids(nationals);
-    expect(list.indexOf('nationals-leaderboard')).toBe(list.indexOf('askq') + 1);
-    expect(list.at(-1)).toBe('sign-out');
   });
 });

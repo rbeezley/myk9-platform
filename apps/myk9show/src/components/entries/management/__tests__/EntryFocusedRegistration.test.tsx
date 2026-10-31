@@ -235,6 +235,43 @@ describe('EntryFocusedRegistration', () => {
       expect(screen.getByText('1 to do')).toBeInTheDocument();
     });
 
+    it('never says "due" or offers to take money when the money received covers the total', () => {
+      const registration = groupEntriesByShowRegistration([
+        accepted('entry-1', 'Poppy', 'dog-1'),
+        accepted('entry-2', 'Poppy', 'dog-1'),
+      ])[0]!;
+      render(
+        <EntryFocusedRegistration
+          {...baseProps()}
+          registration={{ ...registration, enrollmentId: 'enrollment-1', paidAmount: 50 }}
+        />
+      );
+      const list = screen.getByRole('region', { name: 'To finish this form' });
+      expect(within(list).getByText('Entries still marked unpaid')).toBeInTheDocument();
+      expect(within(list).queryByText(/due$/)).not.toBeInTheDocument();
+      expect(within(list).queryByRole('button', { name: /^Cash/ })).not.toBeInTheDocument();
+      expect(screen.getByText('Paid in full')).toBeInTheDocument();
+    });
+
+    it('credits armbands only to accepted entries in the Done line', () => {
+      const registration = groupEntriesByShowRegistration([
+        accepted('entry-1', 'Poppy', 'dog-1'),
+        {
+          ...accepted('entry-2', 'Bean', 'dog-2'),
+          entryStatus: EntryStatus.REJECTED,
+          rawEntryStatus: 'rejected',
+          armbandNumber: '105',
+        },
+      ])[0]!;
+      render(
+        <EntryFocusedRegistration
+          {...baseProps()}
+          registration={{ ...registration, enrollmentId: 'enrollment-1' }}
+        />
+      );
+      expect(screen.getByText(/^Done: 1 accepted · armband 201$/)).toBeInTheDocument();
+    });
+
     it('offers no payment buttons on an online-checkout form (no enrollment row)', () => {
       const registration = groupEntriesByShowRegistration([
         accepted('entry-1', 'Poppy', 'dog-1'),

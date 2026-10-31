@@ -167,7 +167,11 @@ export function EntryFormChecklist({
               return (
                 <ItemCard
                   key={item.id}
-                  item={item}
+                  item={
+                    onOpenEditEntry
+                      ? item
+                      : { ...item, detail: "Add it from the entry's menu below." }
+                  }
                   inline
                   actions={
                     onOpenEditEntry ? (

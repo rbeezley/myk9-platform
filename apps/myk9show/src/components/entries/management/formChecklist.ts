@@ -97,23 +97,39 @@ export function buildFormChecklist(
     });
   }
 
-  const unpaid = withReason('payment_due');
-  if (unpaid.length > 0) {
-    const due = Math.max(0, money.remainingDollars);
-    items.push({
-      kind: 'payment',
-      id: 'payment',
-      title: due > 0 ? `${dollars(due)} due` : 'Payment due',
-      detail: `${unpaid.length} of ${entries.length} ${entriesWord(entries.length)} unpaid`,
-      canRecord: Boolean(registration.enrollmentId),
-    });
-  }
-
   const live = (entry: EntryManagementEntry) =>
     getOperationalEntryState({
       entryStatus: entry.entryStatus,
       rawEntryStatus: entry.rawEntryStatus,
     }) !== 'terminal';
+  const liveCount = entries.filter(live).length;
+
+  const unpaid = withReason('payment_due');
+  if (unpaid.length > 0) {
+    const due = money.remainingDollars;
+    const unpaidLine = `${unpaid.length} of ${liveCount} ${entriesWord(liveCount)} unpaid`;
+    items.push(
+      due > 0
+        ? {
+            kind: 'payment',
+            id: 'payment',
+            title: `${dollars(due)} due`,
+            detail: unpaidLine,
+            canRecord: Boolean(registration.enrollmentId),
+          }
+        : {
+            // The money received already covers the total, yet entries are still
+            // marked unpaid: never offer to take more money or say "due" while the
+            // footer reads Paid in full. The status is fixed from Change payment.
+            kind: 'payment',
+            id: 'payment',
+            title: 'Entries still marked unpaid',
+            detail: `${unpaidLine}, but the money received covers the total. Use Change payment below to update the status.`,
+            canRecord: false,
+          }
+    );
+  }
+
   for (const entry of onePerDog(entries, e => live(e) && !e.armbandNumber)) {
     items.push({
       kind: 'armband',
@@ -153,7 +169,7 @@ export function buildFormChecklist(
   }
   const armbands = [
     ...new Set(
-      entries
+      accepted
         .map(entry => entry.armbandNumber)
         .filter((n): n is NonNullable<typeof n> => Boolean(n))
     ),

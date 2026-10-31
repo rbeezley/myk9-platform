@@ -111,7 +111,11 @@ export function EntryPanel({
     ? overTimeLimitWarning(selectedResult, timeDigits, maxTimeSeconds)
     : null;
   // A time that is not readable yet is never saved as some other time (MYK9-1503).
-  const timeUnreadable = displayTimeField && isUnresolvedDuration(timeDigits, 'search');
+  const timeUnresolved = isUnresolvedDuration(timeDigits, 'search');
+  const timeUnreadable = displayTimeField && timeUnresolved;
+  // Unreadable text in a field that is now hidden (the result changed to NQ) is
+  // dropped, never saved as 0.
+  const timeToSave = timeUnresolved && !displayTimeField ? '' : timeDigits;
   const canSave = (!needsReason || reason.trim().length > 0) && !timeUnreadable;
   const normalizedReason = needsReason ? reason.trim() : undefined;
   const canClearResult = !!onClearResult && (entry.isScored || entry.result);
@@ -280,14 +284,14 @@ export function EntryPanel({
           <Button
             variant="secondary"
             className="flex-1"
-            onClick={() => onSave(selectedResult!, timeDigits, faults, normalizedReason)}
+            onClick={() => onSave(selectedResult!, timeToSave, faults, normalizedReason)}
             disabled={isSaving || !canSave}
           >
             Save
           </Button>
           <Button
             className="flex-1"
-            onClick={() => onSaveAndNext(selectedResult!, timeDigits, faults, normalizedReason)}
+            onClick={() => onSaveAndNext(selectedResult!, timeToSave, faults, normalizedReason)}
             disabled={isSaving || !canSave}
           >
             {isSaving ? 'Saving...' : 'Save & Next'}

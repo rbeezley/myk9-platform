@@ -405,6 +405,14 @@ describe('EntryPanel', () => {
       expect(digitsToSeconds('0:01.25')).toBe(1.25);
     });
 
+    it('drops unreadable time text when the result changes and the field is hidden', async () => {
+      const { onSave, input } = renderQ();
+      await userEvent.type(input, '19945');
+      await userEvent.click(screen.getByRole('button', { name: /^ABS$/i }));
+      await userEvent.click(screen.getByRole('button', { name: /^save$/i }));
+      expect(onSave).toHaveBeenCalledWith('ABS', '', 0, undefined);
+    });
+
     it('flags 99 seconds and saves nothing until the person picks a reading', async () => {
       const { onSave, input } = renderQ();
       await userEvent.type(input, '19945');

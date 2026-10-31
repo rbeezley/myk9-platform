@@ -55,6 +55,13 @@ function applyTime(date: Date, timeStr: string): Date {
   return d;
 }
 
+/** `date` carrying a resolved draft `time`, or undefined when nothing would change. */
+function changedTime(date: Date | undefined, time: string): Date | undefined {
+  if (!date || parseStoredClockTime(time) === null) return undefined;
+  const next = applyTime(date, time);
+  return next.getTime() === date.getTime() ? undefined : next;
+}
+
 export const DateRangePicker: React.FC<DateRangePickerProps> = ({
   startDate,
   endDate,
@@ -127,14 +134,10 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
   // Time edits stay local drafts until Done, so dismissing mid-edit leaves the parent's times alone.
   const commitTimes = () => {
     if (!showTime) return;
-    if (startDate && parseStoredClockTime(startTime) !== null) {
-      const next = applyTime(startDate, startTime);
-      if (next.getTime() !== startDate.getTime()) onStartDateChange(next);
-    }
-    if (endDate && parseStoredClockTime(endTime) !== null) {
-      const next = applyTime(endDate, endTime);
-      if (next.getTime() !== endDate.getTime()) onEndDateChange(next);
-    }
+    const nextStart = changedTime(startDate, startTime);
+    if (nextStart) onStartDateChange(nextStart);
+    const nextEnd = changedTime(endDate, endTime);
+    if (nextEnd) onEndDateChange(nextEnd);
   };
 
   const handleDone = () => {

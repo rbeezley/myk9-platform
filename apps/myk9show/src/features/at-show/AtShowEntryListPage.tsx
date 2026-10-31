@@ -58,6 +58,7 @@ import { useMaxTimeGate } from './useMaxTimeGate';
 import { useAtShowEntryListUiState } from './useAtShowEntryListUiState';
 import { atShowLayoutSlots } from './slots/atShowLayoutSlots';
 import { atShowDialogSlots } from './slots/atShowDialogSlots';
+import { useHasClassSettingsLinks } from './slots/classSettingsLinks';
 import { useAtShowDogFavoritesSynced } from './dogFavoritesSync';
 import { useAtShowFavoriteAlertNudge } from './useAtShowFavoriteAlertNudge';
 import { AtShowAddToHomeNudge } from './AtShowAddToHomeNudge';
@@ -321,6 +322,7 @@ export const AtShowEntryListPage: React.FC = () => {
 
   // ── Context bag ──────────────────────────────────────────────────────────
   const canManageClasses = hasPermission('canManageClasses');
+  const hasSettingsLinks = useHasClassSettingsLinks(showId);
   const pageShowContext = useMemo(
     () => (showId ? { ...(show?.organization ? { org: show.organization } : {}) } : null),
     [showId, show]
@@ -371,7 +373,7 @@ export const AtShowEntryListPage: React.FC = () => {
             // for anyone who can't manage classes. A faithful org-rule pass
             // (mirroring myK9Q's hasRuleDefinedMaxTimes) lands in the UI sprint.
             hideMaxTimeOption: !canManageClasses,
-            hideSettingsOption: !canManageClasses,
+            hideSettingsOption: !canManageClasses || !hasSettingsLinks,
             // Reports live on the secretary Reports page, not at ringside — the
             // at-show surface offers no printing (a myK9Q-era affordance from
             // the Access-upload workflow that doesn't belong here).

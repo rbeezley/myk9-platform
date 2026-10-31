@@ -44,7 +44,14 @@ function renderDialog(props: Partial<React.ComponentProps<typeof ClassOptionsDia
   };
   const onClose = vi.fn();
   render(
-    <ClassOptionsDialog isOpen onClose={onClose} classData={classData} {...handlers} {...props} />
+    <ClassOptionsDialog
+      isOpen
+      onClose={onClose}
+      classData={classData}
+      hideSettings
+      {...handlers}
+      {...props}
+    />
   );
   return { ...handlers, onClose };
 }
@@ -64,7 +71,14 @@ beforeEach(() => {
 });
 
 describe('ClassOptionsDialog (MYK9-1502)', () => {
-  it('leads with Requirements and Set Max Time, then Statistics and Status; no Settings or print', () => {
+  it('shows a Settings tile only when the host leaves it visible and gives a handler (MYK9-1627)', async () => {
+    const { onSettings } = renderDialog({ hideSettings: false });
+    expect(tileNames()).toContain('Settings');
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+    expect(onSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it('leads with Requirements and Set Max Time, then Statistics and Status; Settings only when the host shows it, no print', () => {
     renderDialog();
     expect(tileNames()).toEqual(['Requirements', 'Set Max Time', 'Statistics', 'Status']);
     expect(screen.queryByText('Settings')).not.toBeInTheDocument();

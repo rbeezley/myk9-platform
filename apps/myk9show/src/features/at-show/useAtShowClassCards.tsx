@@ -106,6 +106,7 @@ export function useAtShowClassCards(showId: string | undefined, groups: AtShowCl
       anchorRef={anchorRef}
       sheet={sheet}
       canManageClasses={canManageClasses}
+      showId={showId}
       onClose={close}
     />
   );

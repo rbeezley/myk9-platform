@@ -1055,6 +1055,16 @@ describe('ResultsTab toolbar', () => {
     expect(screen.getByTestId('visibility-sheet')).toBeInTheDocument();
   });
 
+  it('opens the Visibility settings sheet on arrival when the link says so (MYK9-1627)', () => {
+    renderAt('?classId=c1&visibility=1');
+    expect(screen.getByTestId('visibility-sheet')).toBeInTheDocument();
+  });
+
+  it('keeps the sheet closed without the visibility param', () => {
+    renderAt('?classId=c1');
+    expect(screen.queryByTestId('visibility-sheet')).not.toBeInTheDocument();
+  });
+
   it('counts the released classes still to print on Print all ready', () => {
     renderAt();
 

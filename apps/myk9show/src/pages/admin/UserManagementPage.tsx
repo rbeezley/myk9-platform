@@ -39,6 +39,8 @@ import {
 import { filterUsers, sortUsers, exportUsersCSV } from './UserManagementPage.helpers';
 import { UserListToolbar } from './UserListToolbar';
 import { useRefreshingNow } from './useRefreshingNow';
+import { useDeepLinkedUser } from './useDeepLinkedUser';
+import { DeepLinkLookupAlerts } from './DeepLinkLookupAlerts';
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -99,9 +101,7 @@ const UserManagementPage: React.FC = () => {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showUserEditPanel, setShowUserEditPanel] = useState(false);
   const [roleAssignTarget, setRoleAssignTarget] = useState<User | null>(null);
-  // Support diagnostics deep-link here with ?userId= so the admin lands on the
-  // affordance that fixes the ticket, not just a page that describes it.
-  // (`searchParams` is already read above for the roster's own view state.)
+  // Support diagnostics deep-link here with ?userId= to land on the role dialog.
   const deepLinkUserId = searchParams.get('userId');
 
   // Data fetching with error handling
@@ -244,18 +244,9 @@ const UserManagementPage: React.FC = () => {
     setRoleAssignTarget(user);
   }, []);
 
-  // Unknown ids are a quiet no-op: the admin still gets the roster, and the
-  // support ticket may simply name someone who was since deleted. Match on
-  // either id — supportDiagnosticActions falls back to the auth uuid when a
-  // user has no linked people row.
-  const deepLinkUser = useMemo(
-    () =>
-      deepLinkUserId
-        ? (users.find(user => user.id === deepLinkUserId || user.user_id === deepLinkUserId) ??
-          null)
-        : null,
-    [deepLinkUserId, users]
-  );
+  // Match on either id, then fall back to an auth-id lookup (see useDeepLinkedUser).
+  const deepLink = useDeepLinkedUser(deepLinkUserId, users, !hasNoRoster);
+  const deepLinkUser = deepLink.user;
 
   // Row-click selection wins over the deep link; the deep link only fills in
   // when nothing has been explicitly selected.
@@ -367,6 +358,8 @@ const UserManagementPage: React.FC = () => {
             showTitle
             actions={actionButtons}
           />
+
+          <DeepLinkLookupAlerts {...deepLink} />
 
           <UserListToolbar
             ready={!isLoading}

@@ -86,4 +86,11 @@ describe('AdminDashboard Needs a look URL state', () => {
     render(<AdminDashboard />, { initialRoute: '/admin/dashboard?triage=bogus' });
     expect(await screen.findByText('Showing all 2 open items.')).toBeInTheDocument();
   });
+
+  it('gives the Services health link the 44px target floor (MYK9-1535)', async () => {
+    render(<AdminDashboard />, { initialRoute: '/admin/dashboard' });
+    expect(await screen.findByRole('link', { name: /open system health/i })).toHaveClass(
+      'min-h-11'
+    );
+  });
 });

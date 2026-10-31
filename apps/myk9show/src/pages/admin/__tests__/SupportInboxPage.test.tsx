@@ -115,6 +115,20 @@ describe('SupportInboxPage', () => {
     expect(screen.getByText('Next checks')).toBeInTheDocument();
   });
 
+  it('gives every detail action the 44px floor and triage text the 14px floor (MYK9-1534, MYK9-1535)', () => {
+    hookState.tickets = [makeTicket({ isShowDayPriority: true })];
+    render(<SupportInboxPage />, { initialRoute: '/admin/support?status=all&ticketId=ticket-1' });
+
+    for (const name of [/^Open$/, /^Waiting$/, /^Resolved$/]) {
+      expect(screen.getByRole('button', { name })).toHaveClass('min-h-11');
+    }
+    expect(screen.getByRole('button', { name: /copy/i })).toHaveClass('min-h-11');
+    for (const name of [/Open reported page/i, /Open user access/i, /Check system health/i]) {
+      expect(screen.getByRole('link', { name })).toHaveClass('min-h-11');
+    }
+    expect(screen.getByText('Show day')).toHaveClass('text-xs');
+  });
+
   it('defaults to Open, counts every status, and says what it is showing', () => {
     hookState.tickets = [
       makeTicket({ id: 't-open-1' }),

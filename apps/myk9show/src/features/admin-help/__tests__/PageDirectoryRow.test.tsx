@@ -29,6 +29,7 @@ describe('PageDirectoryRow', () => {
     render(<PageDirectoryRow entry={entry} resolvedPath="/shows/SHOW_1" loading={false} />);
     const link = screen.getByRole('link', { name: /go to page/i });
     expect(link).toHaveAttribute('href', '/shows/SHOW_1');
+    expect(link).toHaveClass('min-h-11');
   });
 
   it('disables "Go to page" when loading', () => {

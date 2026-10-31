@@ -57,7 +57,7 @@ export function NeedsALookSection({
     return (
       <BoardCard>
         <Eyebrow as="h2">Needs a look</Eyebrow>
-        <p className="mt-2 text-[13px] text-foreground">Nothing is waiting on you.</p>
+        <p className="mt-2 text-xs text-foreground">Nothing is waiting on you.</p>
         <p className="mt-1 text-xs text-muted-foreground">
           No checks are failing and no alerts are unresolved. This list fills itself from those two
           places. It is not a to-do list you can add to.
@@ -99,7 +99,7 @@ export function NeedsALookSection({
             </span>
 
             <span className="min-w-0 flex-1">
-              <span className="block text-[13px] font-semibold text-foreground line-clamp-2 lg:line-clamp-1">
+              <span className="block text-xs font-semibold text-foreground line-clamp-2 lg:line-clamp-1">
                 {item.title}
               </span>
               <span className="mt-0.5 block truncate text-xs text-muted-foreground">

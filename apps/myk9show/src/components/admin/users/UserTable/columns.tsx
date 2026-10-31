@@ -150,7 +150,7 @@ export function buildColumns(
                   onViewUser(user);
                 }}
                 aria-label={`Open profile for ${fullName}`}
-                className={`block max-w-full truncate text-left font-semibold text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${density.fontSize}`}
+                className={`block min-h-11 max-w-full truncate text-left font-semibold text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${density.fontSize}`}
               >
                 {!user.firstName && !user.lastName ? (
                   <span className="italic text-muted-foreground">No name on file</span>

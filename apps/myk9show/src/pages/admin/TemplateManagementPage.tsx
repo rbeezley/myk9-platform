@@ -195,7 +195,12 @@ const TemplateManagementPage: React.FC = () => {
               The class rules currently seeded in the database, by registry.
             </p>
           </div>
-          <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
+          <Button
+            variant="outline"
+            className="min-h-11"
+            onClick={() => refetch()}
+            disabled={isFetching}
+          >
             <RefreshCw
               className={`mr-2 h-4 w-4 ${isFetching ? 'animate-spin' : ''}`}
               aria-hidden="true"

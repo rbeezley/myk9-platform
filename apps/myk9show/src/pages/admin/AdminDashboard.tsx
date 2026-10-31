@@ -26,6 +26,7 @@ import { useMemo } from 'react';
 import { useNow } from '@/hooks/useNow';
 import { Link } from 'react-router-dom';
 import { Settings, Users } from 'lucide-react';
+import { TodayCounts } from './AdminDashboard/TodayCounts';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -264,21 +265,7 @@ export default function AdminDashboard() {
               <aside className="flex flex-col gap-[18px]">
                 <BoardCard>
                   <Eyebrow as="h2">Today at a glance</Eyebrow>
-                  <dl className="mt-3 grid grid-cols-2 gap-y-3">
-                    {[
-                      ['Entries', counts?.entriesToday],
-                      ['Signups', counts?.signupsToday],
-                      ['Shows created', counts?.showsCreatedToday],
-                      ['Live shows', counts?.liveShows],
-                    ].map(([label, value]) => (
-                      <div key={String(label)}>
-                        <dt className="text-xs text-muted-foreground">{label}</dt>
-                        <dd className="mt-0.5 font-mono text-[19px] font-semibold tabular-nums text-foreground">
-                          {value ?? '—'}
-                        </dd>
-                      </div>
-                    ))}
-                  </dl>
+                  <TodayCounts counts={counts} now={now} />
                   {/* Fees processed is the fourth number the design asks for. It
                       has no clean source — money lives in Stripe and there is no
                       payments table — so it is left out rather than approximated. */}
@@ -317,7 +304,7 @@ export default function AdminDashboard() {
                   </ul>
                   <Link
                     to="/admin/health"
-                    className="mt-3 inline-block border-t border-border pt-2.5 text-xs font-medium text-foreground hover:underline"
+                    className="mt-3 inline-flex min-h-11 items-center border-t border-border pt-2.5 text-xs font-medium text-foreground hover:underline"
                   >
                     Open system health <span aria-hidden>→</span>
                   </Link>

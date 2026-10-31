@@ -229,6 +229,9 @@ begin
   raise notice 'PASS anon has no EXECUTE';
 end $$;
 
+-- Everything below runs as the class's assigned judge.
+select pg_temp.as_account('00000000-0000-0000-0000-000001514101');
+
 -- R. a dog in the ring (either indicator) makes the whole call refuse with no ids
 do $$
 declare
@@ -256,7 +259,6 @@ begin
 end $$;
 
 -- G. grown, shrunk and empty sets refuse and change nothing (assigned judge)
-select pg_temp.as_account('00000000-0000-0000-0000-000001514101');
 do $$
 declare
   v_reply jsonb;

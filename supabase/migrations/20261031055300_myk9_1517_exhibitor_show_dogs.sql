@@ -19,10 +19,11 @@
 -- Rejected alternatives: a view or a broadened `entries` policy (wider surface;
 -- PostgREST embeds would leak columns). Staff access is unchanged.
 --
--- The armband is resolved the way resolveEntryArmband does (MYK9-976): the entry's
--- own column, else the number assigned to that entry, else the number assigned to
--- the dog in this show. An entry with no armband by any route is left out: the list
--- exists to find and favorite by armband, the only identifier favorites key on.
+-- Only entries with their own `entries.armband` are listed. The favorites alert
+-- consumers (the in-app monitor and push-trigger-run-proximity) match on that column
+-- alone, so listing a dog whose number lives only in the `armbands` table would offer
+-- a heart that can never alert. Widening both consumers is a follow-up. A dog with no
+-- call name is shown by its registered name.
 
 CREATE OR REPLACE FUNCTION public.show_dogs_limited_view(
   p_show_id uuid,
@@ -91,8 +92,8 @@ BEGIN
 
   RETURN QUERY
   SELECT
-    r.armband_int,
-    d.call_name::text,
+    e.armband::integer,
+    coalesce(nullif(btrim(d.call_name), ''), d.name)::text,
     d.breed::text,
     e.handler::text,
     e.class_id,
@@ -102,36 +103,16 @@ BEGIN
     e.run_order::integer,
     coalesce(e.check_in_status, 'no-status')::text
   FROM public.entries e
-  CROSS JOIN LATERAL (
-    SELECT
-      CASE WHEN a.n ~ '^[0-9]{1,9}$' THEN a.n::integer END AS armband_int
-    FROM (
-      SELECT coalesce(
-        nullif(e.armband, ''),
-        (SELECT ab.armband_number
-           FROM public.armbands ab
-          WHERE ab.show_id = p_show_id
-            AND ab.entry_id = e.id
-            AND ab.is_available IS NOT TRUE
-          LIMIT 1),
-        (SELECT ab.armband_number
-           FROM public.armbands ab
-          WHERE ab.show_id = p_show_id
-            AND ab.dog_id = e.dog_id
-            AND ab.is_available IS NOT TRUE
-          LIMIT 1)
-      ) AS n
-    ) a
-  ) r
   LEFT JOIN public.dogs d ON d.id = e.dog_id
   LEFT JOIN public.classes c ON c.id = e.class_id
   LEFT JOIN public.trials t ON t.id = c.trial_id
   WHERE e.show_id = p_show_id
     AND e.deleted_at IS NULL
-    AND r.armband_int > 0
+    AND e.armband ~ '^[0-9]{1,9}$'
+    AND e.armband::integer > 0
     AND coalesce(e.entry_status, '') NOT IN
       ('withdrawn', 'scratched', 'absent', 'moved', 'not_accepted')
-  ORDER BY r.armband_int, t.date, c.name, e.class_id, e.id
+  ORDER BY e.armband::integer, t.date, c.name, e.class_id, e.id
   OFFSET greatest(coalesce(p_offset, 0), 0)
   LIMIT least(greatest(coalesce(p_limit, 1000), 1), 1000);
 END;

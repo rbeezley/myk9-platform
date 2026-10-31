@@ -2,8 +2,9 @@
 --
 -- Executes the INSTALLED function as each caller tier. Properties asserted:
 --   1. an exhibitor with a live entry in show A reads show A's dogs, including
---      another exhibitor's and one whose armband lives only in the armbands
---      table, with exactly the approved columns;
+--      another exhibitor's, with exactly the approved columns, a registered-name
+--      fallback for a dog with no call name, and no entry whose number lives only
+--      in the armbands table (alerts match entries.armband only);
 --   2. a withdrawn entry, a soft-deleted entry and an entry with no armband are
 --      not returned;
 --   3. an exhibitor whose only entry is in show B gets nothing for show A, and
@@ -105,19 +106,27 @@ VALUES
    '00000000-0000-0000-0000-000001517005', '00000000-0000-0000-0000-000001517113', 'Show B Handler',
    '201', 1, 'confirmed', 'pending', 25, 'no-status', NULL);
 
--- Armband held only in the armbands table (MYK9-976): dog 6 (owned by person 1) has an
--- entry with no armband of its own and an assigned armbands row.
+-- Number held only in the armbands table: dog 6 (owned by person 1) has an entry with
+-- no armband of its own. Alerts match entries.armband only, so it must NOT be listed.
+-- Dog 7 has an empty call name and must fall back to dogs.name.
 INSERT INTO public.dogs (id, name, call_name, breed, owner_id)
 VALUES ('00000000-0000-0000-0000-000001517136', 'MYK9-1517 Dog 6', 'Call6', 'Breed6',
+  '00000000-0000-0000-0000-000001517111'),
+ ('00000000-0000-0000-0000-000001517137', 'Registered Seven', '', 'Breed7',
   '00000000-0000-0000-0000-000001517111');
 INSERT INTO public.dog_registrations (dog_id, organization, registration_number, is_primary)
-VALUES ('00000000-0000-0000-0000-000001517136', 'AKC (American Kennel Club)', 'SR151706', true);
+VALUES ('00000000-0000-0000-0000-000001517136', 'AKC (American Kennel Club)', 'SR151706', true),
+ ('00000000-0000-0000-0000-000001517137', 'AKC (American Kennel Club)', 'SR151707', true);
 INSERT INTO public.entries (id, dog_id, class_id, show_id, trial_id, handler_id, handler, armband,
   run_order, entry_status, payment_status, entry_fee, check_in_status)
 VALUES ('00000000-0000-0000-0000-000001517207', '00000000-0000-0000-0000-000001517136',
    '00000000-0000-0000-0000-000001517104', '00000000-0000-0000-0000-000001517002',
    '00000000-0000-0000-0000-000001517004', '00000000-0000-0000-0000-000001517111', 'Assigned Handler',
-   NULL, 7, 'confirmed', 'pending', 25, 'no-status');
+   NULL, 7, 'confirmed', 'pending', 25, 'no-status'),
+ ('00000000-0000-0000-0000-000001517208', '00000000-0000-0000-0000-000001517137',
+   '00000000-0000-0000-0000-000001517105', '00000000-0000-0000-0000-000001517002',
+   '00000000-0000-0000-0000-000001517004', '00000000-0000-0000-0000-000001517111', 'Seven Handler',
+   '107', 8, 'confirmed', 'pending', 25, 'no-status');
 INSERT INTO public.armbands (show_id, dog_id, entry_id, armband_number, is_available)
 VALUES ('00000000-0000-0000-0000-000001517002', '00000000-0000-0000-0000-000001517136',
    '00000000-0000-0000-0000-000001517207', '104', false);
@@ -165,7 +174,7 @@ END $$;
 
 SET LOCAL ROLE authenticated;
 
--- 1. exhibitor X sees show A: 101 (own), 102 (Y's) and 104 (number only in armbands).
+-- 1. exhibitor X sees show A: 101 (own), 102 (Y's) and 107; not 104 (armbands table only).
 SELECT pg_temp.as_account('00000000-0000-0000-0000-000001517121');
 DO $$
 DECLARE
@@ -174,8 +183,8 @@ DECLARE
 BEGIN
   SELECT array_agg(armband ORDER BY armband) INTO v_armbands
   FROM public.show_dogs_limited_view('00000000-0000-0000-0000-000001517002');
-  IF v_armbands IS DISTINCT FROM ARRAY[101, 102, 104] THEN
-    RAISE EXCEPTION 'FAIL 1/2 exhibitor must read exactly armbands 101,102,104 (armbands-table number resolved; withdrawn, deleted and unnumbered left out), got %', v_armbands;
+  IF v_armbands IS DISTINCT FROM ARRAY[101, 102, 107] THEN
+    RAISE EXCEPTION 'FAIL 1/2 exhibitor must read exactly armbands 101,102,107 (number only in the armbands table, withdrawn, deleted and unnumbered left out), got %', v_armbands;
   END IF;
   SELECT * INTO r FROM public.show_dogs_limited_view('00000000-0000-0000-0000-000001517002')
   WHERE armband = 102;
@@ -185,6 +194,10 @@ BEGIN
      OR r.trial_name IS DISTINCT FROM 'MYK9-1517 Trial A'
      OR r.run_order IS DISTINCT FROM 4 OR r.check_in_status IS DISTINCT FROM 'no-status' THEN
     RAISE EXCEPTION 'FAIL 1 approved values wrong: %', r;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.show_dogs_limited_view('00000000-0000-0000-0000-000001517002')
+                 WHERE armband = 107 AND call_name = 'Registered Seven') THEN
+    RAISE EXCEPTION 'FAIL 1 a dog with no call name must fall back to its registered name';
   END IF;
   RAISE NOTICE 'PASS 1/2 exhibitor reads the show''s dogs, approved fields only';
 END $$;

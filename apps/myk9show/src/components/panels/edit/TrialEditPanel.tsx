@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { Switch } from '@/components/ui/switch';
 import {
   Select,
   SelectContent,
@@ -60,6 +61,8 @@ interface TrialEditFormData extends Record<string, unknown> {
   trialType?: string;
   // Additional optional fields
   image?: string;
+  /** MYK9-1514: ask the judge about stale classes (unset means on). */
+  askAboutStaleClasses: boolean;
 }
 
 const ACTUAL_TIME_MESSAGE = 'Please enter a valid time (e.g., 9:00 AM)';
@@ -87,6 +90,7 @@ const trialEditSchemaBase = z.object({
   type: z.string().optional().or(z.literal('')),
   trialType: z.string().optional().or(z.literal('')),
   image: z.string().optional().or(z.literal('')),
+  askAboutStaleClasses: z.boolean(),
   // Blank clears the time; anything else must be a readable clock time, or the save would drop it.
   timeStarted: z.string().optional().refine(isBlankOrTrialTime, ACTUAL_TIME_MESSAGE),
   timeEnded: z.string().optional().refine(isBlankOrTrialTime, ACTUAL_TIME_MESSAGE),
@@ -154,6 +158,7 @@ const trialToFormData = (trial: Partial<Trial>): TrialEditFormData => {
     order: trial.order || '1',
     trialType: trial.trialType || '',
     image: trial.image || '',
+    askAboutStaleClasses: trial.autoCompleteStaleClasses !== false,
   };
 };
 
@@ -182,6 +187,7 @@ const formDataToTrial = (formData: TrialEditFormData, timeZone: string): Partial
   order: formData.order,
   trialType: formData.trialType,
   image: formData.image,
+  autoCompleteStaleClasses: formData.askAboutStaleClasses,
 });
 
 // Tab type
@@ -191,7 +197,7 @@ type TabId = 'basic' | 'scheduling' | 'advanced';
 const TAB_FIELDS: Record<TabId, (keyof TrialEditFormData)[]> = {
   basic: ['name', 'trialNumber', 'eventNumber', 'status', 'trialType'],
   scheduling: ['trialDate', 'order', 'plannedStartTime', 'timeStarted', 'timeEnded'],
-  advanced: ['type', 'image'],
+  advanced: ['type', 'image', 'askAboutStaleClasses'],
 };
 
 // Form content component
@@ -532,6 +538,23 @@ const TrialEditForm: React.FC<TrialEditFormProps> = ({ activeTab, onTabChange, e
                   placeholder="https://example.com/trial-image.jpg"
                 />
               </FormField>
+
+              <div className="flex items-center justify-between gap-4">
+                <div className="space-y-0.5">
+                  <label htmlFor="askAboutStaleClasses" className="text-sm font-medium">
+                    Ask judges about unfinished classes
+                  </label>
+                  <p className="text-sm text-muted-foreground">
+                    When a judge moves to a different level, ask whether to mark the unscored dogs
+                    in the class they left absent and complete it.
+                  </p>
+                </div>
+                <Switch
+                  id="askAboutStaleClasses"
+                  checked={form.data.askAboutStaleClasses}
+                  onCheckedChange={checked => form.setValue('askAboutStaleClasses', checked)}
+                />
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -579,6 +602,10 @@ export const TrialEditPanel: React.FC<TrialEditPanelProps> = ({
   const handleSave = useCallback(
     async (formData: TrialEditFormData) => {
       const trialData = formDataToTrial(formData, getTrialTimezone(initialTrialData));
+      // Only write the switch when it changes: an untouched trial never sends the column.
+      if (formData.askAboutStaleClasses === (initialTrialData.autoCompleteStaleClasses !== false)) {
+        delete trialData.autoCompleteStaleClasses;
+      }
       if (onSave) {
         await onSave(trialData);
       }

@@ -157,6 +157,20 @@ describe('EntryFocusedRegistration', () => {
       expect(href.searchParams.get('returnForm')).toBe('registration-1');
     });
 
+    it('draws the menu items as 44px touch targets', async () => {
+      const { user } = render(
+        <EntryFocusedRegistration registration={registration()} {...props()} />
+      );
+
+      await user.click(screen.getByRole('button', { name: 'More actions for Alice Martin' }));
+      const item = await screen.findByRole('menuitem', { name: 'Add entry for Alice Martin' });
+      const items = screen.getAllByRole('menuitem');
+
+      expect(item).toHaveClass('min-h-11');
+      expect(items.length).toBeGreaterThan(1);
+      items.forEach(each => expect(each).toHaveClass('min-h-11'));
+    });
+
     it('greys it with the reason for a viewer who is not the trial secretary', async () => {
       const { user } = render(
         <TrialSecretaryAccessProvider reason="Trial secretary access only">

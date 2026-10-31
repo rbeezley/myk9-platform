@@ -42,6 +42,7 @@ export function EnrollmentBulkStatusItems({
         return (
           <DropdownMenuItem
             key={status}
+            className="min-h-11"
             disabled={eligible.length === 0}
             onClick={() =>
               onBulkStatusChange(

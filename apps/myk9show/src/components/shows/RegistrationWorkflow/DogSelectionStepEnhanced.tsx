@@ -177,7 +177,7 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
   const accessibleDogs = useMemo(() => filterAccessibleDogs(dogs), [dogs]);
 
   const canCreateNew = workflowConfig?.features?.createNew && canCreateExhibitor;
-  const exhibitorRoster = useExhibitorRoster(useEntryExhibitorId());
+  const exhibitorRoster = useExhibitorRoster(useEntryExhibitorId(), dogs);
 
   // Server-side dog search for roles that can view all dogs (secretary, admin).
   // The locally replicated roster is capped at what one query returned, so a

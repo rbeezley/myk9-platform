@@ -356,6 +356,31 @@ describe('HeaderActions trigger badge', () => {
     ).not.toHaveTextContent(/\d/);
   });
 
+  it('draws every row, including a greyed two-line one, as a 44px touch target', async () => {
+    act(() => {
+      usePageEditTargetStore.getState().registerShowTools(Symbol('t'), {
+        showId: SHOW_ID,
+        tools: [
+          ...TOOLS,
+          {
+            id: 'late-entry',
+            group: 'show-day',
+            title: 'Add late entry',
+            disabledReason: 'No classes with space',
+          },
+        ],
+        attention: IDLE,
+      });
+    });
+    render(<HeaderActions />, { wrapper });
+    await userEvent.click(screen.getByTestId('header-actions-trigger'));
+
+    const link = await screen.findByTestId('header-action-show-tool-people-at-show');
+    const greyed = screen.getByTestId('header-action-show-tool-late-entry');
+    expect(link).toHaveClass('min-h-11');
+    expect(greyed).toHaveClass('min-h-11');
+  });
+
   it('names the trigger Actions with the badge text inside it', () => {
     register({ count: 2, tone: 'urgent', incomplete: false });
     const trigger = screen.getByRole('button', { name: /^Actions/ });

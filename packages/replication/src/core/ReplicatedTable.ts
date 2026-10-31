@@ -68,6 +68,7 @@ import { isConflictSurfacingEnabled } from '../conflictConfig';
 import { evictCleanCacheRows, withQuotaEviction } from '../quota-eviction';
 import { putRowAndMutation, type QueuedWrite } from './putRowAndMutation';
 import { writeAndQueue, type WriteAndQueueResult } from './writeAndQueue';
+import type { SyncDeleteAuthority } from './syncDeleteAuthority';
 import {
   composeRetrySetOptions,
   isColdInsertAllowed,
@@ -1216,8 +1217,9 @@ export abstract class ReplicatedTable<T extends { id: string }> {
   /**
    * Delete a row from local cache
    */
-  async delete(id: string): Promise<void> {
+  async delete(id: string, by?: SyncDeleteAuthority): Promise<void> {
     const db = await this.init();
+    if (by?.aborted) return;
     const normalizedId = String(id);
     await db.delete(REPLICATION_STORES.REPLICATED_TABLES, [this.tableName, normalizedId]);
     this.logger.log(`[${this.tableName}] Deleted row: ${normalizedId}`);
@@ -1478,8 +1480,8 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     return explicit ?? (await this.getCurrentAuthUserId()) ?? undefined;
   }
 
-  async batchDelete(ids: string[]): Promise<void> {
-    return this.batchManager.batchDelete(ids);
+  async batchDelete(ids: string[], by?: SyncDeleteAuthority): Promise<void> {
+    return this.batchManager.batchDelete(ids, by);
   }
 
   /**
@@ -1489,9 +1491,10 @@ export abstract class ReplicatedTable<T extends { id: string }> {
    */
   async deleteRowsIfClean(
     ids: Iterable<string>,
-    remoteVersions?: ReadonlyMap<string, number>
+    remoteVersions?: ReadonlyMap<string, number>,
+    by?: SyncDeleteAuthority
   ): Promise<{ deleted: string[]; kept: string[] }> {
-    return this.batchManager.deleteRowsIfClean(ids, remoteVersions);
+    return this.batchManager.deleteRowsIfClean(ids, remoteVersions, by);
   }
 
   /** One-time repair for rows stuck at a `'pending'` data flag (MYK9-1055). */
@@ -1501,8 +1504,8 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     return this.batchManager.repairStuckPendingFlags(adapter);
   }
 
-  async clearCache(): Promise<void> {
-    await this.batchManager.clearCache();
+  async clearCache(by?: SyncDeleteAuthority): Promise<void> {
+    if (!(await this.batchManager.clearCache(by))) return;
 
     // Also reset sync metadata so next sync does a full fetch. `scopes: {}` clears
     // every per-scope watermark too, so a scoped sync after clearCache re-fetches
@@ -1658,7 +1661,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
    */
   async removeStaleEntries(
     serverIds: Set<string>,
-    options: { syncedBefore?: number; ownerAuthUserId?: string } = {}
+    options: { syncedBefore?: number; ownerAuthUserId?: string; by: SyncDeleteAuthority }
   ): Promise<number> {
     // Only the syncing account's own rows are ever stale to it: another
     // account's cache must survive this account's sync (MYK9-1133). Settled
@@ -1667,6 +1670,8 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       ? ownedBy(options.ownerAuthUserId)
       : await this.visibleRows();
     const db = await this.init();
+    // Right before the transaction opens: a cancelled sync deletes nothing.
+    if (options.by.aborted) return 0;
     const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
     const index = tx.store.index('tableName');
     const rows = ((await index.getAll(this.tableName)) as ReplicatedRow<T>[]).filter(
@@ -1680,6 +1685,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     }
 
     for (const row of selectStaleCleanRows(rows, serverIds, options)) {
+      if (options.by.aborted) break;
       await tx.store.delete([row.tableName, row.id]);
       removedCount++;
       this.logger.log(`[${this.tableName}] Removed stale entry: ${row.id}`);

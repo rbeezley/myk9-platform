@@ -1,3 +1,4 @@
+import type { SyncCacheWriter } from './syncCacheWriter';
 import type { DirtyRowComparePolicy } from './conflict/detectDirtyRowConflict';
 import type { SyncOptions } from './types';
 
@@ -14,6 +15,8 @@ export interface RemoteFetchContext<TLocal extends { id: string }> {
   since: number;
   localRows: TLocal[];
   forceFullSync: boolean;
+  /** Every delete in this hook goes through here (a cancelled sync deletes nothing). */
+  cache: SyncCacheWriter<TLocal>;
   /** Aborts this sync; hand it to the query builder's `.abortSignal(...)`. */
   signal?: AbortSignal;
 }
@@ -146,6 +149,8 @@ export interface SyncReplicatedTableAdapter<TRemote, TLocal extends { id: string
     serverIds: Set<string>;
     localRows: TLocal[];
     staleCleanupCompleted: boolean;
+    /** Every delete in this hook goes through here (a cancelled sync deletes nothing). */
+    cache: SyncCacheWriter<TLocal>;
   }) => Promise<void> | void;
 }
 

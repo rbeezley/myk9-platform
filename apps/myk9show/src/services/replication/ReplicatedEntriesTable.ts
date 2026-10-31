@@ -547,7 +547,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
         }
         return shouldSkip;
       },
-      afterSuccessfulSync: async ({ serverIds, localRows, staleCleanupCompleted }) => {
+      afterSuccessfulSync: async ({ serverIds, localRows, staleCleanupCompleted, cache }) => {
         const pendingCount = await this.getMutationPendingCount();
         for (const [id, deletedVersion] of this._deletedIds) {
           if (
@@ -568,7 +568,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
         for (const local of localRows) {
           if (local._localOnly && !serverIds.has(local.id)) {
             logger.log(`[${this.getTableName()}] Removing orphan local entry ${local.id}`);
-            await this.delete(local.id);
+            await cache.delete(local.id);
           }
         }
       },

@@ -105,6 +105,39 @@ describe('syncReplicatedTable cancellation (MYK9-1624)', () => {
     expect(adapter.afterSuccessfulSync).not.toHaveBeenCalled();
   });
 
+  it('an emptiness proof that answers after the abort deletes nothing', async () => {
+    const controller = new AbortController();
+    let release!: (proven: boolean) => void;
+    // A full fetch of zero rows over a warm replica: only this proof licenses cleanup.
+    const adapter = adapterFor(vi.fn(async () => []));
+    adapter.verifyScopeEmpty = () =>
+      new Promise<boolean>(resolve => {
+        release = resolve;
+      });
+
+    const pending = syncReplicatedTable(
+      table,
+      adapter,
+      {},
+      { signal: controller.signal, forceFullSync: true }
+    );
+    await vi.waitFor(() => expect(release).toBeTypeOf('function'));
+    controller.abort();
+    release(true);
+    const result = await pending;
+
+    expect(result.success).toBe(false);
+    expect(await table.get('1')).toMatchObject({ name: 'Warm A' });
+  });
+
+  it('the same proof, un-cancelled, does clean up (positive control)', async () => {
+    const adapter = adapterFor(vi.fn(async () => []));
+    adapter.verifyScopeEmpty = async () => true;
+    const result = await syncReplicatedTable(table, adapter, {}, { forceFullSync: true });
+    expect(result.success).toBe(true);
+    expect(await table.get('1')).toBeNull();
+  });
+
   it('an already-aborted signal starts nothing', async () => {
     const controller = new AbortController();
     controller.abort();

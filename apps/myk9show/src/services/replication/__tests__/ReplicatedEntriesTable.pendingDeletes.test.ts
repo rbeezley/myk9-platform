@@ -4,6 +4,7 @@
  * entries (this show's, server-backed, queued), so the pending delete does
  * not read as a missing row.
  */
+import { SyncCacheWriter } from '@myk9/replication';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fromAny } from '@total-typescript/shoehorn';
 import type {
@@ -193,6 +194,7 @@ describe('ReplicatedEntriesTable pending deletes (MYK9-762)', () => {
       serverIds: new Set(['e1']),
       localRows: [],
       staleCleanupCompleted: false,
+      cache: new SyncCacheWriter(table),
     });
     expect(await table.getEntriesByShow('show-1')).toHaveLength(1);
   });
@@ -208,6 +210,7 @@ describe('ReplicatedEntriesTable pending deletes (MYK9-762)', () => {
       serverIds: new Set(),
       localRows: [],
       staleCleanupCompleted: false,
+      cache: new SyncCacheWriter(table),
     });
     await seed({ id: 'e1', classId: 'c1', showId: 'show-1' });
     expect(await table.getEntriesByShow('show-1')).toEqual([]);
@@ -217,6 +220,7 @@ describe('ReplicatedEntriesTable pending deletes (MYK9-762)', () => {
       serverIds: new Set(),
       localRows: [],
       staleCleanupCompleted: true,
+      cache: new SyncCacheWriter(table),
     });
     expect(await table.getEntriesByShow('show-1')).toEqual([]);
 
@@ -226,6 +230,7 @@ describe('ReplicatedEntriesTable pending deletes (MYK9-762)', () => {
       serverIds: new Set(),
       localRows: [],
       staleCleanupCompleted: true,
+      cache: new SyncCacheWriter(table),
     });
     expect(adapter.shouldSkipRemoteRow?.({ id: 'e1' }, { local: null })).toBe(false);
   });

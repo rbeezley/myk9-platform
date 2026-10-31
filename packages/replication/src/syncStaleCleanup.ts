@@ -1,9 +1,12 @@
 import type { ReplicatedTable } from './core/ReplicatedTable';
+import type { SyncCacheWriter } from './syncCacheWriter';
 import { staleCleanupKeepIds } from './replicaCoverage';
 import type { SyncScope, SyncReplicatedTableAdapter } from './syncReplicatedTable.types';
 
 interface StaleCleanupInput<TRemote, TLocal extends { id: string }> {
   table: ReplicatedTable<TLocal>;
+  /** Every delete goes through this, so a cancelled sync deletes nothing. */
+  cache: SyncCacheWriter<TLocal>;
   adapter: SyncReplicatedTableAdapter<TRemote, TLocal>;
   scope: SyncScope;
   serverIds: Set<string>;
@@ -33,14 +36,14 @@ interface StaleCleanupInput<TRemote, TLocal extends { id: string }> {
 export async function runStaleCleanup<TRemote, TLocal extends { id: string }>(
   input: StaleCleanupInput<TRemote, TLocal>
 ): Promise<{ removed: number; completed: boolean }> {
-  const { table, adapter, serverIds, accountOwned, syncingAuthUserId } = input;
+  const { table, cache, adapter, serverIds, accountOwned, syncingAuthUserId } = input;
   const none = { removed: 0, completed: false };
   if (accountOwned && (await table.getCurrentAuthUserId()) !== syncingAuthUserId) return none;
   const ownerAuthUserId = accountOwned ? (syncingAuthUserId ?? undefined) : undefined;
 
   if (adapter.shouldCleanupStaleRows) {
     return {
-      removed: await table.removeStaleEntries(serverIds, { ownerAuthUserId }),
+      removed: await cache.removeStale(serverIds, { ownerAuthUserId }),
       completed: true,
     };
   }
@@ -64,7 +67,7 @@ export async function runStaleCleanup<TRemote, TLocal extends { id: string }>(
     ownerAuthUserId
   );
   if (!keep) return none;
-  const removed = await table.removeStaleEntries(keep, {
+  const removed = await cache.removeStale(keep, {
     syncedBefore: input.fetchStartedAt,
     ownerAuthUserId,
   });

@@ -4,13 +4,14 @@ import { repairStuckPendingFlagsOnce } from './core/repairStuckPendingFlags';
 import { reconcileDirtyRemoteRow } from './reconcileDirtyRemoteRow';
 import { anyRowNotOwnedBy, scopeStampDirective } from './rowOwnership';
 import { describeError } from './error-message';
+import { SyncCacheWriter } from './syncCacheWriter';
 import { ABORTED_SYNC_MESSAGE, abortableWait } from './abortable';
 import { abortReason } from './mutation-utils';
-import { countCoveredRows, getCoveredRemoteIds } from './replicaCoverage';
+import { countCoveredRows, countServerBackedRows, getCoveredRemoteIds } from './replicaCoverage';
+export { countServerBackedRows };
 import { overReplicaWatched, runStaleCleanup } from './syncStaleCleanup';
 import { beginRemoteCountPass, coverageFell } from './remoteCountCadence';
 import { isConflictSurfacingEnabled } from './conflictConfig';
-
 import type {
   SyncScope,
   SyncReplicatedTableAdapter,
@@ -46,8 +47,7 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
   let syncingAuthUserId: string | null = null;
   let accountOwned = false;
 
-  // A download-phase failure must not erase a prior upload-phase failure: both
-  // are real and independently actionable (Codex review, P2 follow-up).
+  // A download failure must not erase a prior upload failure (Codex review, P2).
   const failed = (operation: SyncResult['operation'], error: string): SyncResult => ({
     tableName: table.getTableName(),
     success: false,
@@ -60,10 +60,8 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
   });
 
   const getLocalRowsForScope = async (): Promise<TLocal[]> => {
-    // MYK9-774: getAllOrThrow, not getAll. These rows decide full vs
-    // incremental, which rows stale cleanup keeps, and the totalRows recorded
-    // for the scope; a failed device read answered as [] would record an empty
-    // scope as synced. A throw fails this sync instead.
+    // MYK9-774: getAllOrThrow, not getAll: a failed device read answered as []
+    // would record an empty scope as synced. A throw fails this sync instead.
     const rows = await table.getAllOrThrow(adapter.filterLocalRows ? undefined : scope.value);
     return adapter.filterLocalRows ? adapter.filterLocalRows(rows, scope) : rows;
   };
@@ -77,6 +75,7 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
   };
 
   const signal = options.signal;
+  const cache = new SyncCacheWriter(table, signal);
   // MYK9-1624: checked before every write, delete or stamp, so a cancelled sync
   // changes nothing after the fact, whatever its abandoned reads return later.
   const stopIfAborted = () => {
@@ -197,6 +196,7 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
     stopIfAborted();
     const remoteRows = await abortableWait(
       adapter.fetchRemoteRows({
+        cache,
         scope,
         since,
         localRows,
@@ -344,6 +344,7 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
     stopIfAborted();
     const cleanup = await runStaleCleanup({
       table,
+      cache,
       adapter,
       scope,
       serverIds,
@@ -360,7 +361,13 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
     const staleCleanupCompleted = cleanup.completed;
 
     stopIfAborted();
-    await adapter.afterSuccessfulSync?.({ scope, serverIds, localRows, staleCleanupCompleted });
+    await adapter.afterSuccessfulSync?.({
+      scope,
+      serverIds,
+      localRows,
+      staleCleanupCompleted,
+      cache,
+    });
 
     // Whole for THIS account: the fetch covered the server's count, nothing was
     // held back for another account's unsent work, every row taken over is now
@@ -475,8 +482,7 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
     };
   } catch (error) {
     if (signal?.aborted) {
-      // Cancelled, not failed: leave the table idle and say so in terms the
-      // callers' abort check already recognises. Nothing is stamped as whole.
+      // Cancelled, not failed: idle, worded so isAbortSyncError recognises it.
       await table.updateSyncMetadata({ syncStatus: 'idle', errorMessage: undefined });
       return failed(options.forceFullSync ? 'full-sync' : 'incremental-sync', ABORTED_SYNC_MESSAGE);
     }
@@ -491,9 +497,4 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
 
     return failed(options.forceFullSync ? 'full-sync' : 'incremental-sync', message);
   }
-}
-
-/** Rows the server already holds: everything but pending local creates. */
-export function countServerBackedRows(rows: readonly object[]): number {
-  return rows.filter(row => (row as { _localOnly?: unknown })._localOnly !== true).length;
 }

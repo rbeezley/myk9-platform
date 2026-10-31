@@ -5,6 +5,9 @@ import { MutationManager } from '../MutationManager';
 import { syncReplicatedTable } from '../syncReplicatedTable';
 import type { ReplicationConflictSnapshot, SyncResult } from '../types';
 
+/** A sync that has not been cancelled. */
+const LIVE = { aborted: false } as const;
+
 /**
  * MYK9-1133: the account a reader filters by is settled BEFORE any IndexedDB
  * transaction opens. With no persisted session the live lookup can take a
@@ -68,7 +71,7 @@ describe('a live identity lookup that takes a while (MYK9-1133)', () => {
     await table.batchSet([data('theirs')], undefined, 'user-b');
     await delay(5);
 
-    const removed = await table.removeStaleEntries(new Set(['keep']));
+    const removed = await table.removeStaleEntries(new Set(['keep']), { by: LIVE });
 
     expect(removed).toBe(1);
     expect((await table.getAllOrThrow()).map(r => r.id)).toEqual(['keep']);

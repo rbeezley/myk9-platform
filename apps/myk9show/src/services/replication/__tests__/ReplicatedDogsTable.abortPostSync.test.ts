@@ -4,6 +4,7 @@
  * means nothing is pruned.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { REPLICATION_STORES, databaseManager } from '@myk9/replication';
 import { ReplicatedDogsTable } from '../ReplicatedDogsTable';
 import { resetIdScanCadence } from '../idScanCadence';
 
@@ -39,13 +40,21 @@ function installServer(onIdRead: () => void) {
   return sentSignals;
 }
 
+/** The raw replica row, bypassing the table's (mocked) reads. */
+async function staleDogRow() {
+  const db = await databaseManager.getDatabase('tests');
+  return db.get(REPLICATION_STORES.REPLICATED_TABLES, ['dogs', 'dog-stale']);
+}
+
 describe('ReplicatedDogsTable post-download reconcile and cancellation (MYK9-1624)', () => {
   let table: ReplicatedDogsTable;
-  let pruned: ReturnType<typeof vi.fn>;
-
-  beforeEach(() => {
+  beforeEach(async () => {
+    await databaseManager.reset();
     resetIdScanCadence();
     table = new ReplicatedDogsTable();
+    // A stale dog the id read does not list: the real prune removes it.
+    await table.set('dog-stale', { id: 'dog-stale', name: 'Stale' } as never);
+    expect(await staleDogRow()).toBeDefined();
     const now = Date.now();
     vi.spyOn(table, 'getSyncMetadata').mockResolvedValue({
       tableName: 'dogs',
@@ -58,12 +67,11 @@ describe('ReplicatedDogsTable post-download reconcile and cancellation (MYK9-162
     vi.spyOn(table, 'getReplicatedRowIncludingOtherAccounts').mockResolvedValue(null);
     vi.spyOn(table, 'batchSet').mockResolvedValue();
     vi.spyOn(table, 'updateSyncMetadata').mockResolvedValue();
-    pruned = vi.fn(async () => 1);
-    (table as unknown as { removeStaleEntries: typeof pruned }).removeStaleEntries = pruned;
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     vi.restoreAllMocks();
+    await databaseManager.reset();
   });
 
   it('prunes with the signal on the id read when the pass is live', async () => {
@@ -73,7 +81,7 @@ describe('ReplicatedDogsTable post-download reconcile and cancellation (MYK9-162
     await table.sync('', { signal: controller.signal });
 
     expect(sent).toContain(controller.signal);
-    expect(pruned).toHaveBeenCalledTimes(1);
+    expect(await staleDogRow()).toBeUndefined();
   });
 
   it('an abort during the id read prunes nothing', async () => {
@@ -83,13 +91,13 @@ describe('ReplicatedDogsTable post-download reconcile and cancellation (MYK9-162
     const result = await table.sync('', { signal: controller.signal });
 
     expect(result.success).toBe(true);
-    expect(pruned).not.toHaveBeenCalled();
+    // The id response arrived after the cancel: the real prune refuses.
+    expect(await staleDogRow()).toBeDefined();
   });
 
-  it('an abort before the id read never sends it', async () => {
+  it('an abort after the download, before the id read, deletes nothing', async () => {
     const controller = new AbortController();
-    const idRead = vi.fn();
-    installServer(idRead);
+    installServer(() => {});
     // Aborts once the download phase has finished writing, before the reconcile.
     vi.spyOn(table, 'updateSyncMetadata').mockImplementation(async () => {
       controller.abort();
@@ -97,7 +105,6 @@ describe('ReplicatedDogsTable post-download reconcile and cancellation (MYK9-162
 
     await table.sync('', { signal: controller.signal });
 
-    expect(idRead).not.toHaveBeenCalled();
-    expect(pruned).not.toHaveBeenCalled();
+    expect(await staleDogRow()).toBeDefined();
   });
 });

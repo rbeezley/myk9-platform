@@ -24,6 +24,7 @@ import {
 } from '@/context/ReplicationSyncContext';
 import {
   ReplicatedTable,
+  SyncCacheWriter,
   abortableWait,
   configureConflictSurfacing,
   configureRemoteCountCadence,
@@ -184,7 +185,7 @@ async function applyAuthenticatedEntryResultReplicaVersion(signal?: AbortSignal)
   // version marker below must not claim a refresh that never happened.
   if (signal?.aborted) return;
   if (existingEntryIds.size > 0) {
-    await replicatedEntriesTable.clearCache();
+    await new SyncCacheWriter(replicatedEntriesTable, signal).clear();
   }
 
   try {

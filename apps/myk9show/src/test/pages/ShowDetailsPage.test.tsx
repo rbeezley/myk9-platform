@@ -64,6 +64,10 @@ const mockAuthContext = {
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => mockAuthContext,
 }));
+// Ringside admission has its own tests; the page is rendered here without a sync provider.
+vi.mock('@/features/at-show/useHasRingsideStaffAccess', () => ({
+  useHasRingsideStaffAccess: () => false,
+}));
 vi.mock('@/features/entitlement/useEntitlement', () => ({
   useEntitlement: () => ({
     canAuthorizePremium: true,

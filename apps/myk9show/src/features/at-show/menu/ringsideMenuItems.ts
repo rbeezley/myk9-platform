@@ -77,9 +77,9 @@ export function buildRingsideMenuItems(
           requiresConnection: true,
         }
       : null,
-    // Every viewer gets Results. A non-manager without entries lands on the public
-    // landing, whose Results block is empty until the show ends; MYK9-1544 (the
-    // staff-during-show results work) may narrow this later.
+    // Every viewer gets Results. A non-manager admitted to ringside (judge, steward,
+    // passcode) lands on the show page's tabbed view, whose Results tab applies the
+    // release gate (MYK9-1544); the public landing is only for non-ringside visitors.
     showId && showScope
       ? {
           id: 'results',

@@ -234,7 +234,10 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
           onCancel: onBack,
           onSave: handleSubmitClick,
           saveDisabled:
-            scoring.isSubmitting || !scoring.qualifying || scoring.disqualifyReasonMissing,
+            scoring.isSubmitting ||
+            !scoring.qualifying ||
+            scoring.disqualifyReasonMissing ||
+            scoring.hasUnresolvedTime,
           isSubmitting: scoring.isSubmitting,
         }}
       >

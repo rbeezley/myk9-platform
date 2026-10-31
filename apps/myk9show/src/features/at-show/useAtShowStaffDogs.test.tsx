@@ -59,6 +59,12 @@ vi.mock('./useAtShowClassList', () => ({
 import { useAtShowStaffDogs } from './useAtShowStaffDogs';
 
 describe('useAtShowStaffDogs', () => {
+  // The offline test spies navigator.onLine; under --sequence.shuffle it must not
+  // leak into whichever test runs next.
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('builds the dog list from the replica while the device is offline', async () => {
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
     getEntriesByShow.mockResolvedValue([

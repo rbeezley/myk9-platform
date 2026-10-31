@@ -1,5 +1,5 @@
 import { formatTimeLimitSeconds } from '@myk9/scoring-ui';
-import { parseSearchTimeDigits } from '@/components/ui/data-table/sorting';
+import { parseDuration } from '@myk9/core';
 
 /** Display codes used in UI buttons */
 export type PaperResult = 'Q' | 'NQ' | 'ABS' | 'EX' | 'DQ';
@@ -51,19 +51,13 @@ export const DEFAULT_SESSION_SETTINGS: SessionSettings = {
 };
 
 /**
- * Convert a TimeInput digit string to floating-point seconds.
- * "12345" → digits padded to "012345" → 1 min 23.45 sec → 83.45
- * A formatted time ("1:23.45", as a saved result is loaded) reads the same.
- * "" or "0" → 0
+ * A paper-scoring time field's text as seconds, read by the shared duration parser
+ * (MYK9-1503): "12345" and "1:23.45" are both 83.45. Empty, zero and unreadable text
+ * are 0; the panel refuses to save unreadable text, so 0 never stands for it.
  */
 export function digitsToSeconds(input: string): number {
-  const digits = parseSearchTimeDigits(input);
-  if (!digits || digits === '0') return 0;
-  const padded = digits.padStart(6, '0');
-  const min = parseInt(padded.slice(0, 2), 10);
-  const sec = parseInt(padded.slice(2, 4), 10);
-  const hundredths = parseInt(padded.slice(4, 6), 10);
-  return min * 60 + sec + hundredths / 100;
+  const parsed = parseDuration(input, 'search');
+  return parsed.ok ? parsed.seconds : 0;
 }
 
 /** localStorage key for persisting mode preference per user */

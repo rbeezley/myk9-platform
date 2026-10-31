@@ -176,20 +176,21 @@ export interface DayCheckInContext {
 }
 
 /**
- * Is the show's last trial day behind `now`, reckoned in that trial's own zone?
+ * Is the show's last day (its end date, else its start date) behind `now`,
+ * reckoned in the trial's own zone?
  *
- * The latest trial day across the group's classes decides, through the same
- * zone-aware rule as `isTrialDayPast`, so a device past midnight while the
- * trial's zone is still on the last day does not read the show as over. A group
- * with no usable trial date is never past: an unknown day is not a finished one.
+ * The show's own dates decide, never the exhibitor's entered classes: a
+ * multi-day show where only an early day was entered is still running. The zone
+ * comes from the group's classes; with none replicated the answer is "only once
+ * every zone agrees" (UTC-12, as `isEntryCloseDayPast`). An undated show is
+ * never past.
  */
 export function isShowPast(group: MyShowGroup, now: Date): boolean {
-  let last: MyShowClass | undefined;
-  for (const cls of group.dogs.flatMap(dog => dog.classes)) {
-    if (!hasUsableDate(cls.trialDate)) continue;
-    if (!last || calendarDayOf(cls.trialDate) > calendarDayOf(last.trialDate!)) last = cls;
-  }
-  return !!last && isTrialDayPast(last.trialDate, last.trialTimezone, now);
+  const order = group.orders[0];
+  const lastDay = order?.showEndDate ?? order?.showDate;
+  if (!hasUsableDate(lastDay)) return false;
+  const zone = group.dogs.flatMap(dog => dog.classes).find(cls => cls.trialTimezone)?.trialTimezone;
+  return calendarDayInZone(now, zone || LAST_ZONE_TO_ROLL_OVER) > calendarDayOf(lastDay);
 }
 
 /**

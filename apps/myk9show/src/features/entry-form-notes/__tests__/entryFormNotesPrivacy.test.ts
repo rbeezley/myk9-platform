@@ -56,7 +56,6 @@ describe('entry_form_notes stays on the officials surface', () => {
         'apps/myk9show/src/features/entry-form-notes/__tests__/EntryFormNotes.test.tsx',
         'apps/myk9show/src/features/entry-form-notes/__tests__/entryFormNotesPrivacy.test.ts',
         'apps/myk9show/src/features/entry-form-notes/useEntryFormNotes.ts',
-        'apps/myk9show/src/services/database/entry-form-notes/entryFormNotes.test.ts',
         'apps/myk9show/src/services/database/entry-form-notes/index.ts',
         'apps/myk9show/supabase/functions/_shared/appliedAclChecks.ts',
       ].sort()

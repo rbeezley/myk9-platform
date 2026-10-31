@@ -136,6 +136,16 @@ INSERT INTO t1634_expect
 SELECT '9 a Stripe form whose reference is overwritten keeps its total (order marker; would re-derive to 0)',
        pg_temp.total1634('00000000-0000-0000-0000-000001634063'), 3745;
 
+-- 11. After a full Stripe refund (the webhook stamps the order 'refunded') the form is still
+-- a Stripe form: the overwritten reference no longer marks it, the refunded order must.
+UPDATE public.stripe_orders SET status = 'refunded'
+ WHERE id = '00000000-0000-0000-0000-000001634091';
+UPDATE public.enrollments SET payment_reference = 'Refund note'
+ WHERE id = '00000000-0000-0000-0000-000001634063';
+INSERT INTO t1634_expect
+SELECT '11 a refunded Stripe order still marks the form (would re-derive to 0)',
+       pg_temp.total1634('00000000-0000-0000-0000-000001634063'), 3745;
+
 -- 10. The triggers move no money: paid, refund and status are untouched by an entry change.
 CREATE TEMP TABLE t1634_money ON COMMIT DROP AS
 SELECT paid_amount, refund_amount, payment_status FROM public.enrollments

@@ -10,8 +10,9 @@
 --     (submitShowRegistration's recordEnrollmentPayment), so a closed tab or a failed write
 --     left entries the total never counted;
 --   * nothing ever subtracted: a deleted unpaid entry's fee stayed in "$X due" and in
---     "Paid in full" (soft_delete_entry, the soft_delete_dog cascade and move-up
---     supersession all soft-delete entries without touching the total).
+--     "Paid in full" (soft_delete_entry and the soft_delete_dog cascade soft-delete entries
+--     without touching the total). Move-up supersession keeps the source entry live as
+--     'moved' with its fee and gives the destination fee 0, so it is unaffected here.
 --
 -- THE FIX. For a form not paid by online checkout, total_amount IS the sum of its
 -- non-deleted entries' entry_fee, in cents, and nothing else can set it:
@@ -25,9 +26,11 @@
 -- WHICH FORMS. A form paid by online checkout keeps the Stripe charge as its total
 -- (confirm_successful_checkout_enrollments writes it, processing fees included, and its
 -- entries can carry entry_fee 0). It is recognised by EITHER marker:
---   * a succeeded stripe_orders row linked to it (enrollment_id) or covering one of its
+--   * a captured stripe_orders row (any status but pending/failed/canceled/expired, so a
+--     later 'refunded' still counts) linked to it (enrollment_id) or covering one of its
 --     entries (entry_ids) - permanent, and nothing a desk payment or an exhibitor can
---     write;
+--     write. An unknown future status also counts, which keeps the stored total: the
+--     conservative side;
 --   * the Stripe payment intent in payment_reference ('pi_...') - present from the
 --     checkout INSERT itself, before the order row is linked. A later desk payment may
 --     overwrite payment_reference with a check number (record_enrollment_payment_core),
@@ -77,7 +80,7 @@ AS $$
       OR EXISTS (
            SELECT 1
              FROM public.stripe_orders o
-            WHERE o.status = 'succeeded'
+            WHERE o.status NOT IN ('pending', 'failed', 'canceled', 'cancelled', 'expired')
               AND (o.enrollment_id = p_enrollment_id
                    OR o.entry_ids && ARRAY(SELECT e.id FROM public.entries e
                                             WHERE e.registration_id = p_enrollment_id)));
@@ -113,23 +116,31 @@ SECURITY DEFINER
 SET search_path = ''
 AS $$
 DECLARE
-  v_ids uuid[];
+  v_id uuid;
+  v_total integer;
 BEGIN
-  IF TG_OP = 'INSERT' THEN
-    v_ids := ARRAY[NEW.registration_id];
-  ELSIF TG_OP = 'DELETE' THEN
-    v_ids := ARRAY[OLD.registration_id];
-  ELSE
-    v_ids := ARRAY[OLD.registration_id, NEW.registration_id];
-  END IF;
-
-  -- The UPDATE names total_amount, so trg_enrollments_derive_total recomputes it; the
-  -- WHERE skips Stripe forms and rows already right (no updated_at churn).
-  UPDATE public.enrollments en
-     SET total_amount = private.enrollment_entries_total_cents(en.id)
-   WHERE en.id = ANY (v_ids)
-     AND NOT private.enrollment_total_is_stripe(en.id, en.payment_reference)
-     AND en.total_amount IS DISTINCT FROM private.enrollment_entries_total_cents(en.id);
+  FOR v_id IN
+    SELECT DISTINCT x
+      FROM unnest(CASE TG_OP
+                    WHEN 'INSERT' THEN ARRAY[NEW.registration_id]
+                    WHEN 'DELETE' THEN ARRAY[OLD.registration_id]
+                    ELSE ARRAY[OLD.registration_id, NEW.registration_id]
+                  END) AS x
+     WHERE x IS NOT NULL
+  LOOP
+    -- Each helper runs once per touched form. The UPDATE names total_amount, so
+    -- trg_enrollments_derive_total recomputes it; rows already right are skipped (no
+    -- updated_at churn), and Stripe forms are left alone.
+    IF private.enrollment_total_is_stripe(
+         v_id, (SELECT en.payment_reference FROM public.enrollments en WHERE en.id = v_id)) THEN
+      CONTINUE;
+    END IF;
+    v_total := private.enrollment_entries_total_cents(v_id);
+    UPDATE public.enrollments en
+       SET total_amount = v_total
+     WHERE en.id = v_id
+       AND en.total_amount IS DISTINCT FROM v_total;
+  END LOOP;
 
   RETURN NULL;
 END;
@@ -143,6 +154,10 @@ REVOKE ALL ON FUNCTION private.enrollment_entries_total_cents(uuid) FROM PUBLIC,
 REVOKE ALL ON FUNCTION private.enrollment_total_is_stripe(uuid, text) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION private.enrollments_derive_total() FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION private.entries_refresh_enrollment_total() FROM PUBLIC, anon, authenticated;
+
+-- The order marker's entry_ids overlap test, served by an index rather than a scan.
+CREATE INDEX IF NOT EXISTS idx_stripe_orders_entry_ids_gin
+  ON public.stripe_orders USING gin (entry_ids);
 
 -- Backfill: every mail-in form whose stored total differs from its entries. total_amount
 -- only (the BEFORE trigger computes the value); paid_amount and refunds are untouched.

@@ -408,7 +408,8 @@ describe('AskQPanel', () => {
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'q' } });
     await user.click(screen.getByRole('button', { name: 'Send query' }));
     await screen.findByText('Bottom answer');
-    expect(scrollIntoView).toHaveBeenCalled();
+    // The stream's events land outside act(), so the follow effect can flush after the text commits.
+    await waitFor(() => expect(scrollIntoView).toHaveBeenCalled());
   });
 
   it('keeps scrolling as streamed tokens grow the answer', async () => {
@@ -433,11 +434,14 @@ describe('AskQPanel', () => {
 
     act(() => emit('token', 'First part. '));
     await screen.findByText(/First part\./);
+    // Each token reaches state on a requestAnimationFrame, outside act(): wait for its
+    // follow effect, so the baseline below counts the first token's scroll.
+    await waitFor(() => expect(scrollIntoView).toHaveBeenCalled());
     const afterFirst = scrollIntoView.mock.calls.length;
 
     act(() => emit('token', 'Second part.'));
     await screen.findByText(/Second part\./);
-    expect(scrollIntoView.mock.calls.length).toBeGreaterThan(afterFirst);
+    await waitFor(() => expect(scrollIntoView.mock.calls.length).toBeGreaterThan(afterFirst));
 
     await act(async () => {
       emit('done', {});

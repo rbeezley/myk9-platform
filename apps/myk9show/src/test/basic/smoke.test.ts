@@ -5,6 +5,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 import App from '../../App';
 
+// The app-level theme sync needs ThemeProvider, which this wrapper does not mount.
+vi.mock('@/hooks/useThemeSyncOnReconnect', () => ({ useThemeSyncOnReconnect: vi.fn() }));
+
 // Note: Supabase is mocked globally via src/test/setup.ts
 
 // Mock window.matchMedia for responsive components

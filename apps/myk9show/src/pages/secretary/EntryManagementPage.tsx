@@ -224,6 +224,13 @@ const EntryManagementPage: React.FC = () => {
     user,
   });
 
+  // Count plus newest update: a pull or reject touches updated_at, so capacity is re-read.
+  const entriesVersion = useMemo(
+    () =>
+      `${entries.length}:${entries.reduce((latest, entry) => Math.max(latest, entry.lastUpdated.getTime()), 0)}`,
+    [entries]
+  );
+
   useEntryManagementHeaderActions({
     showId: selectedShowId || undefined,
     canManage: manageScope.status === 'resolved' && manageScope.canManage,
@@ -233,6 +240,7 @@ const EntryManagementPage: React.FC = () => {
       registrationNeeded: registrationNeeded.count,
     },
     secretaryOnlyReason,
+    entriesVersion,
     // Full CSV of every entry, as the old toolbar button was; withheld while a status change is
     // in flight (handleExportCSV would silently do nothing). One export per view: the Waitlist
     // list registers its own waitlist CSV, and two rows both reading "Export CSV" could not be

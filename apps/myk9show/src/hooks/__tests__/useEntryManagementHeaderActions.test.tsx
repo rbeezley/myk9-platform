@@ -21,16 +21,17 @@ function mount(secretaryOnlyReason?: string) {
     <QueryClientProvider client={client}>{children}</QueryClientProvider>
   );
   return renderHook(
-    () =>
+    ({ entriesVersion }: { entriesVersion: string }) =>
       useEntryManagementHeaderActions({
         showId: 'show-1',
         canManage: true,
         counts,
         secretaryOnlyReason,
+        entriesVersion,
         exportEnabled: false,
         onExport: vi.fn(),
       }),
-    { wrapper }
+    { wrapper, initialProps: { entriesVersion: '1:100' } }
   );
 }
 
@@ -69,6 +70,24 @@ describe('Add late entry row capacity gate', () => {
     await waitFor(() =>
       expect(lateEntry()?.disabledReason).toBe('Class availability is unavailable')
     );
+  });
+
+  it('re-reads capacity when the entries change, so a pull that frees a spot re-enables it', async () => {
+    getClassesWithCapacityMock.mockResolvedValueOnce({
+      data: [{ available_spots: 0 }],
+      error: null,
+    });
+    const { rerender } = mount();
+    await waitFor(() => expect(lateEntry()?.disabledReason).toBe('No classes with space'));
+
+    getClassesWithCapacityMock.mockResolvedValueOnce({
+      data: [{ available_spots: 1 }],
+      error: null,
+    });
+    rerender({ entriesVersion: '1:200' });
+
+    await waitFor(() => expect(lateEntry()?.disabledReason).toBeUndefined());
+    expect(getClassesWithCapacityMock).toHaveBeenCalledTimes(2);
   });
 
   it('shows the role reason, and reads no capacity at all, for a viewer who is not the trial secretary', () => {

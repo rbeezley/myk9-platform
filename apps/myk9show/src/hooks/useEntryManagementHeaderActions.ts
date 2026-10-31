@@ -24,13 +24,19 @@ interface UseEntryManagementHeaderActionsOptions {
   counts: EntryListCounts;
   /** Set when the viewer manages the show but is not its trial secretary. */
   secretaryOnlyReason: string | undefined;
+  /**
+   * Changes whenever the page's entries do (a pull, a reject, a new entry), so the capacity
+   * answer behind Add late entry is re-read instead of kept for the life of the page.
+   */
+  entriesVersion: string;
   /** A show is open and no status change is in flight (the export's own gate). */
   exportEnabled: boolean;
   onExport: () => void;
 }
 
-/** Same key the retired Late entry card used, so a cached answer is shared. */
-const classCapacityKey = (showId: string) => ['show-workbench', showId, 'class-capacity'] as const;
+/** The retired Late entry card's key, plus the entries version that invalidates it. */
+const classCapacityKey = (showId: string, entriesVersion: string) =>
+  ['show-workbench', showId, 'class-capacity', entriesVersion] as const;
 
 async function hasOpenClass(showId: string): Promise<boolean> {
   const { data, error } = await getClassesWithCapacity(showId);
@@ -50,6 +56,7 @@ export function useEntryManagementHeaderActions({
   canManage,
   counts,
   secretaryOnlyReason,
+  entriesVersion,
   exportEnabled,
   onExport,
 }: UseEntryManagementHeaderActionsOptions): void {
@@ -57,7 +64,7 @@ export function useEntryManagementHeaderActions({
   // No capacity read at all when the viewer could not act on the answer. While it loads the row
   // stays enabled: a disabled flash is worse than a wizard that says the class is full.
   const capacity = useQuery({
-    queryKey: classCapacityKey(showId ?? ''),
+    queryKey: classCapacityKey(showId ?? '', entriesVersion),
     queryFn: () => hasOpenClass(showId ?? ''),
     enabled: Boolean(showId) && secretaryOnlyReason === undefined,
   });

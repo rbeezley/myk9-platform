@@ -58,10 +58,12 @@ export function YourEntriesTodayCard() {
   );
 
   const unconfirmed = isError || readState === 'unconfirmed' || readState === 'error';
+  // One completeness verdict for the list: the read is confirmed AND every
+  // class has a known day. Without it, "nothing today" is not a fact, and a
+  // list of rows may be missing a class.
+  const undated = hasUndatedClass(entries);
+  const incomplete = unconfirmed || undated;
 
-  // "Nothing today" is only a fact when the read is confirmed AND every class
-  // has a known day; otherwise the card gets the same link as an unconfirmed
-  // empty list.
   // Still reading is not a failed read: say nothing until the read settles, so
   // an ordinary load never flashes "couldn't check".
   const stillReading =
@@ -70,9 +72,7 @@ export function YourEntriesTodayCard() {
   const cannotSayNothingToday =
     presentation === 'identity-pending' ||
     presentation === 'unconfirmed-empty' ||
-    (presentation === 'known-rows' &&
-      rows.length === 0 &&
-      (unconfirmed || hasUndatedClass(entries)));
+    (presentation === 'known-rows' && rows.length === 0 && incomplete);
 
   if (stillReading && rows.length === 0) return null;
   if (cannotSayNothingToday) {
@@ -118,9 +118,11 @@ export function YourEntriesTodayCard() {
             </li>
           ))}
         </ul>
-        {unconfirmed && (
+        {incomplete && (
           <p className="mt-2 text-xs text-muted-foreground">
-            Showing saved entries; we couldn't confirm them just now.
+            {unconfirmed
+              ? "Showing saved entries; we couldn't confirm them just now."
+              : 'Some entries may be missing from this list. Open My Shows to check.'}
           </p>
         )}
       </Link>

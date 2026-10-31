@@ -203,6 +203,18 @@ describe('YourEntriesTodayCard', () => {
     expect(screen.getByRole('link', { name: /couldn't check today's entries/i })).toBeTruthy();
   });
 
+  it('warns that the list may be incomplete when an undated class sits beside known rows', () => {
+    const today = entryWith();
+    const undated = entryWith(
+      { id: 'c9', classId: 'class-9', trialDate: undefined },
+      { id: 'e9', registrationId: 'r9', dogName: 'Pip' }
+    );
+    mocks.entries = groupEntriesByOrder([today, undated]);
+    render(<YourEntriesTodayCard />);
+    expect(screen.getByText('Rex')).toBeTruthy();
+    expect(screen.getByText(/Some entries may be missing/)).toBeTruthy();
+  });
+
   it('keeps the saved-entries note when rows exist but the read is unconfirmed', () => {
     mocks.readState = 'unconfirmed';
     setEntries(entryWith());

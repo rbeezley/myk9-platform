@@ -81,6 +81,9 @@ export {
 export {
   parseDuration,
   formatDuration,
+  isUnresolvedDuration,
+  isDurationFailure,
+  type DurationFailure,
   SEARCH_MAX_DIGITS,
   MAX_TIME_MAX_DIGITS,
   type DurationKind,

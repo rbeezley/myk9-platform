@@ -45,16 +45,27 @@ export interface DurationSuggestion {
   formatted: string;
 }
 
-export type DurationResult =
-  | { ok: true; seconds: number; formatted: string }
-  | {
-      ok: false;
-      error: DurationErrorCode;
-      /** A sentence for the person, safe to show under the field. */
-      reason: string;
-      /** What an out-of-range seconds field would mean, when it has one. */
-      suggestion?: DurationSuggestion;
-    };
+export interface DurationSuccess {
+  ok: true;
+  seconds: number;
+  formatted: string;
+}
+
+export interface DurationFailure {
+  ok: false;
+  error: DurationErrorCode;
+  /** A sentence for the person, safe to show under the field. */
+  reason: string;
+  /** What an out-of-range seconds field would mean, when it has one. */
+  suggestion?: DurationSuggestion;
+}
+
+export type DurationResult = DurationSuccess | DurationFailure;
+
+/** Narrowing for packages compiled without strictNullChecks, where `.ok` does not. */
+export function isDurationFailure(result: DurationResult): result is DurationFailure {
+  return !result.ok;
+}
 
 /** Most digits a bare scoring time holds: mm ss cc. */
 export const SEARCH_MAX_DIGITS = 6;
@@ -224,4 +235,14 @@ export function parseDuration(input: string, kind: DurationKind): DurationResult
   if (/^\d+$/.test(text)) return parseBareDigits(text, kind);
   if (text.includes(':')) return parseColon(text, kind);
   return parseDotted(text, kind);
+}
+
+/**
+ * A stored field value that holds something typed but not yet a valid time.
+ * Callers refuse to save while this is true, so nothing is saved that the
+ * preview did not show; an empty field is not unresolved, just empty.
+ */
+export function isUnresolvedDuration(value: string, kind: DurationKind): boolean {
+  if (value.trim() === '') return false;
+  return !parseDuration(value, kind).ok;
 }

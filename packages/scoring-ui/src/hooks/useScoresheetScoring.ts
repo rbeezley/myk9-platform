@@ -9,7 +9,7 @@
 
 import { useState, useCallback, useRef } from 'react';
 
-import { formatSecondsAsMSSCC } from '@myk9/core';
+import { formatSecondsAsMSSCC, isUnresolvedDuration, parseDuration } from '@myk9/core';
 import type { AreaScore, ScoreData, ExtendedResult, ResolvedClassRules } from '../types';
 
 export interface ScoresheetScoringConfig {
@@ -60,6 +60,8 @@ export interface ScoresheetScoringReturn {
   ) => Promise<void>;
   buildScoreData: (extra?: Partial<ScoreData>) => ScoreData;
   validate: () => ValidationResult;
+  /** A typed time that is not a valid time yet; the sheet cannot be saved (MYK9-1503). */
+  hasUnresolvedTime: boolean;
   reset: () => void;
 }
 
@@ -146,18 +148,16 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
     if (validTimes.length === 0) return '0.00';
     if (validTimes.length === 1) return validTimes[0];
 
+    // Unreadable text counts for nothing here: validate() refuses to submit it.
     const totalSeconds = validTimes.reduce((sum, time) => {
-      const parts = time.split(':');
-      if (parts.length === 2) {
-        const minutes = parseInt(parts[0]) || 0;
-        const seconds = parseFloat(parts[1]) || 0;
-        return sum + (minutes * 60 + seconds);
-      }
-      return sum + (parseFloat(time) || 0);
+      const parsed = parseDuration(time, 'search');
+      return parsed.ok ? sum + parsed.seconds : sum;
     }, 0);
 
     return formatSecondsAsMSSCC(totalSeconds);
   }, [areas]);
+
+  const hasUnresolvedTime = areas.some(area => isUnresolvedDuration(area.time, 'search'));
 
   const buildScoreData = useCallback(
     (extra?: Partial<ScoreData>): ScoreData => {
@@ -206,14 +206,18 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
       errors.push('A disqualification needs a reason');
     }
 
+    // Nothing is saved that the field's preview did not show (MYK9-1503).
+    areas.forEach(area => {
+      if (isUnresolvedDuration(area.time, 'search')) {
+        errors.push(`${area.areaName} time is not a valid time`);
+      }
+    });
+
     if (rules.maxTimeSeconds > 0) {
       const totalTime = calculateTotalTime();
       if (totalTime !== '0.00') {
-        const parts = totalTime.split(':');
-        const totalSeconds =
-          parts.length === 2
-            ? (parseInt(parts[0]) || 0) * 60 + (parseFloat(parts[1]) || 0)
-            : parseFloat(totalTime) || 0;
+        const parsedTotal = parseDuration(totalTime, 'search');
+        const totalSeconds = parsedTotal.ok ? parsedTotal.seconds : 0;
         if (totalSeconds > rules.maxTimeSeconds) {
           warnings.push(
             `Time ${totalTime} exceeds max ${Math.floor(rules.maxTimeSeconds / 60)}:${String(rules.maxTimeSeconds % 60).padStart(2, '0')}`
@@ -223,7 +227,7 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
     }
 
     return { valid: errors.length === 0, errors, warnings };
-  }, [qualifying, disqualifyReasonMissing, rules.maxTimeSeconds, calculateTotalTime]);
+  }, [qualifying, disqualifyReasonMissing, areas, rules.maxTimeSeconds, calculateTotalTime]);
 
   const handleSubmit = useCallback(
     async (onSubmit: (data: ScoreData) => void | Promise<void>, extra?: Partial<ScoreData>) => {
@@ -280,6 +284,7 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
     handleSubmit,
     buildScoreData,
     validate,
+    hasUnresolvedTime,
     reset,
   };
 }

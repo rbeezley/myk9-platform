@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { formatDuration, parseDuration, type DurationKind } from './parseDuration';
+import {
+  formatDuration,
+  isUnresolvedDuration,
+  parseDuration,
+  type DurationKind,
+} from './parseDuration';
 
 type Case = [input: string, expected: string];
 
@@ -154,5 +159,14 @@ describe('formatDuration', () => {
     expect(formatDuration(83.45, 'search')).toBe('1:23.45');
     expect(formatDuration(59.999, 'search')).toBe('1:00.00');
     expect(formatDuration(270, 'max')).toBe('4:30');
+  });
+});
+
+describe('isUnresolvedDuration', () => {
+  it('flags typed-but-unreadable text, not empty or a valid time', () => {
+    expect(isUnresolvedDuration('', 'search')).toBe(false);
+    expect(isUnresolvedDuration('1:23.45', 'search')).toBe(false);
+    expect(isUnresolvedDuration('1:99', 'search')).toBe(true);
+    expect(isUnresolvedDuration('abc', 'max')).toBe(true);
   });
 });

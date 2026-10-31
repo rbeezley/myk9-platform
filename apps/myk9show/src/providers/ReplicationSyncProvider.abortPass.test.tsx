@@ -4,6 +4,7 @@
  * entry-replica refresh (it clears every cached entry), and the pass after
  * reconnecting starts fresh with its own, unaborted signal.
  */
+import { useEffect } from 'react';
 import { act, render, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -100,7 +101,12 @@ describe('ReplicationSyncProvider pass cancellation (MYK9-1624)', () => {
   let latest: ReplicationSyncContextValue | null;
 
   function Probe() {
-    latest = useReplicationSync();
+    const value = useReplicationSync();
+    // Captured in an effect, as the sibling provider tests do: the React Compiler lint
+    // forbids a component reassigning a variable declared outside it.
+    useEffect(() => {
+      latest = value;
+    });
     return null;
   }
 

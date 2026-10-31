@@ -44,7 +44,7 @@ export function PageDirectoryRow({ entry, resolvedPath, loading }: PageDirectory
       </div>
       <div className="shrink-0">
         {disabled ? (
-          <Button variant="outline" size="sm" disabled title={disabledReason}>
+          <Button variant="outline" className="min-h-11" disabled title={disabledReason}>
             {loading ? (
               <Loader2 className="mr-1 h-4 w-4 animate-spin" />
             ) : (
@@ -53,7 +53,7 @@ export function PageDirectoryRow({ entry, resolvedPath, loading }: PageDirectory
             Go to page
           </Button>
         ) : (
-          <Button asChild variant="outline" size="sm">
+          <Button asChild variant="outline" className="min-h-11">
             <Link to={resolvedPath}>
               <ArrowRight className="mr-1 h-4 w-4" />
               Go to page

@@ -149,7 +149,7 @@ export default function SupportInboxPage() {
                     <div className="flex items-center justify-between gap-2">
                       <span className="line-clamp-1 text-sm font-semibold">{ticket.subject}</span>
                       {ticket.isShowDayPriority && (
-                        <span className="shrink-0 rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-semibold text-destructive">
+                        <span className="shrink-0 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-semibold text-destructive">
                           Show day
                         </span>
                       )}
@@ -201,7 +201,7 @@ export default function SupportInboxPage() {
                       <Button
                         key={status}
                         type="button"
-                        size="sm"
+                        className="min-h-11"
                         variant={selectedTicket.status === status ? 'default' : 'outline'}
                         disabled={statusMutation.isPending}
                         onClick={() => setStatus(status)}
@@ -276,7 +276,7 @@ function DiagnosticsPanel({ ticket }: { ticket: SupportTicket }) {
             Actions use existing owner surfaces; raw values stay copyable for escalation.
           </p>
         </div>
-        <Button type="button" variant="outline" size="sm" onClick={copyDiagnostics}>
+        <Button type="button" variant="outline" className="min-h-11" onClick={copyDiagnostics}>
           <Copy className="mr-2 h-3.5 w-3.5" />
           {copyState === 'copied' ? 'Copied' : 'Copy'}
         </Button>
@@ -321,7 +321,7 @@ function DiagnosticsPanel({ ticket }: { ticket: SupportTicket }) {
             {diagnostics.clientErrors.map(error => (
               <div key={`${error.timestamp}-${error.message}`} className="rounded-md bg-muted p-2">
                 <p className="text-xs font-medium">{error.message}</p>
-                <p className="mt-1 text-[11px] text-muted-foreground">{error.source}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{error.source}</p>
               </div>
             ))}
           </div>
@@ -359,8 +359,7 @@ function InvestigationActions({
           <Button
             key={action.id}
             variant="outline"
-            size="sm"
-            className="w-full justify-start"
+            className="min-h-11 w-full justify-start"
             asChild
           >
             <Link to={action.href} aria-label={action.label}>
@@ -399,7 +398,7 @@ function NextChecks({
       <h5 className="text-xs font-semibold uppercase text-muted-foreground">Next checks</h5>
       <div className="mt-2 flex flex-wrap gap-2">
         {visibleChecks.map(check => (
-          <Button key={check.id} variant="secondary" size="sm" asChild>
+          <Button key={check.id} variant="secondary" className="min-h-11" asChild>
             <Link to={check.href}>{check.label}</Link>
           </Button>
         ))}

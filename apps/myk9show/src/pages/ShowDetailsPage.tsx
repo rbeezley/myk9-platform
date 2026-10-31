@@ -202,7 +202,7 @@ const ShowDetailsPage: React.FC = () => {
   const hasUserEntries = submittedEntryProjection.hasActiveEntries;
   const hasOwnedEntryHistory = submittedEntryProjection.historyCount > 0;
   const isAuthenticated = !!user;
-  const hasRingsideAccess = useHasRingsideStaffAccess(id);
+  const hasRingsideAccess = useHasRingsideStaffAccess(id, actualCurrentShow?.clubId);
   const requestedTab = searchParams.get('tab');
   const entryDogId = readEntryDogId(searchParams);
   const isWaitingForExhibitorEntryDefault =

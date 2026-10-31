@@ -1,16 +1,37 @@
 /**
- * Is this viewer admitted to ringside for the show by staff standing alone (no entry needed)?
+ * Is this viewer admitted to ringside for THIS show by staff standing alone (no entry needed)?
  *
- * The same two clauses `AtShowAccessGate` admits on first: a show-scoped passcode grant, or an
- * account staff role. The show page uses it so a judge, steward or passcode user reaches the
- * Results tab during the show instead of the public landing (MYK9-1544).
+ * Three show-scoped clauses: a show-scoped passcode grant (`AtShowAccessGate`'s first clause); an
+ * account staff role scoped to this show or its club (`hasRingsideAccountShowAccess`); or a judge
+ * assigned to classes in this show. A staff role held for another show or club does not count, so
+ * browsing an unrelated show keeps the public landing. The show page uses it so a judge, steward or
+ * passcode user reaches the Results tab during the show (MYK9-1544).
+ *
+ * A judge whose assignments cannot be known yet (offline cold boot: roles cached, identity not) is
+ * admitted rather than shown the wrong surface; the Results tab's release gate still applies.
  */
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { hasRingsideStaffRole } from './ringsideAccountAccess';
+import { UserRole } from '@/types/auth-types';
+import { hasRingsideAccountShowAccess } from './ringsideAccountAccess';
+import { useMyAtShowJudgeAssignments } from './useMyAtShowJudgeAssignments';
 import { useRehydrateRingsideGrant } from './useRehydrateRingsideGrant';
 
-export function useHasRingsideStaffAccess(showId: string | undefined): boolean {
-  const { hasRole } = useAuthContext();
+export function useHasRingsideStaffAccess(
+  showId: string | undefined,
+  clubId: string | undefined
+): boolean {
+  const { hasRole, userWithRoles } = useAuthContext();
   const grantRole = useRehydrateRingsideGrant(showId);
-  return Boolean(grantRole) || hasRingsideStaffRole(hasRole);
+  const judgeAssignments = useMyAtShowJudgeAssignments(showId);
+  if (grantRole) return true;
+  if (
+    showId &&
+    clubId &&
+    hasRingsideAccountShowAccess(userWithRoles, hasRole, { id: showId, clubId })
+  )
+    return true;
+  return (
+    hasRole(UserRole.JUDGE) &&
+    (judgeAssignments.isUnknown || judgeAssignments.assignedClassIds.size > 0)
+  );
 }

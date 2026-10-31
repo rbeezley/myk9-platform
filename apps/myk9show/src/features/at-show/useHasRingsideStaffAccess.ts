@@ -11,7 +11,7 @@
  * A judge whose assignments cannot be known yet (offline cold boot: roles cached, identity not) is
  * admitted rather than shown the wrong surface; the Results tab's release gate still applies.
  */
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useMyJudgedShows } from '@/features/messages/hooks/useMyJudgedShows';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -39,18 +39,21 @@ export function useHasRingsideStaffAccess(
     typeof navigator !== 'undefined' &&
     navigator.onLine;
   const refreshedKey = useRef<string | null>(null);
+  const [settledKey, setSettledKey] = useState<string | null>(null);
+  const key = `${showId}:${personId}`;
 
   // A cached list that omits this show may predate a just-added assignment (the
   // refresh the show-specific lookup used to do). Re-sync once per show and person
   // before treating the judge as unrelated to it.
   useEffect(() => {
-    const key = `${showId}:${personId}`;
     if (!canRefresh || refreshedKey.current === key) return;
     refreshedKey.current = key;
-    void syncTable('judge_assignments').then(() =>
-      queryClient.invalidateQueries({ queryKey: ['messages', 'judged-shows', personId] })
-    );
-  }, [canRefresh, personId, queryClient, showId, syncTable]);
+    void syncTable('judge_assignments')
+      .then(() =>
+        queryClient.invalidateQueries({ queryKey: ['messages', 'judged-shows', personId] })
+      )
+      .then(() => setSettledKey(key));
+  }, [canRefresh, key, personId, queryClient, syncTable]);
 
   if (grantRole) return true;
   if (
@@ -62,5 +65,10 @@ export function useHasRingsideStaffAccess(
   if (!hasRole(UserRole.JUDGE)) return false;
   if (judged.status === 'not-judge') return false;
   if (judged.status !== 'known') return true;
-  return !knownWithoutShow;
+  // An omitted show stays unknown (admitted, like the old show-specific lookup) while the
+  // refresh runs, after it fails (`syncTable` resolves either way; the table status says
+  // which), or when no refresh can run. Only a settled, successful refresh confirms it.
+  const omissionConfirmed =
+    settledKey === key && syncStatus.tablesStatus.judge_assignments === 'success';
+  return !(knownWithoutShow && omissionConfirmed);
 }

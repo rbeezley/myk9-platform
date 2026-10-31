@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { UserRole } from '@/types/auth-types';
 import { useHasRingsideStaffAccess } from './useHasRingsideStaffAccess';
 
@@ -78,15 +78,39 @@ describe('useHasRingsideStaffAccess (MYK9-1544)', () => {
     expect(access()).toBe(true);
   });
 
-  it('keeps the public landing for a judge assigned only at other shows', () => {
-    mockRoles = [UserRole.JUDGE];
-    mockJudged = { shows: [{ showId: 'show-2', firstTrialDate: null }], status: 'known' };
-    expect(access()).toBe(false);
+  describe('judge whose cached list omits this show', () => {
+    beforeEach(() => {
+      mockRoles = [UserRole.JUDGE];
+      mockJudged = { shows: [{ showId: 'show-2', firstTrialDate: null }], status: 'known' };
+    });
+
+    it('stays unknown while the refresh is in flight', () => {
+      mockSyncTable.mockReturnValue(new Promise(() => {}));
+      const { result } = renderHook(() => useHasRingsideStaffAccess('show-1', 'club-1'));
+      expect(result.current).toBe(true);
+    });
+
+    it('stays unknown when the refresh failed', async () => {
+      mockSyncTable.mockImplementation(() => {
+        mockJudgeTableStatus = 'error';
+        return Promise.resolve();
+      });
+      const { result } = renderHook(() => useHasRingsideStaffAccess('show-1', 'club-1'));
+      await waitFor(() => expect(mockSyncTable).toHaveBeenCalled());
+      await act(async () => {});
+      expect(result.current).toBe(true);
+    });
+
+    it('keeps the public landing once a successful refresh still omits the show', async () => {
+      const { result } = renderHook(() => useHasRingsideStaffAccess('show-1', 'club-1'));
+      await waitFor(() => expect(result.current).toBe(false));
+    });
   });
 
-  it('does not admit a judge with no assignment in this show', () => {
+  it('does not admit a judge with no assignment in this show once refreshed', async () => {
     mockRoles = [UserRole.JUDGE];
-    expect(access()).toBe(false);
+    const { result } = renderHook(() => useHasRingsideStaffAccess('show-1', 'club-1'));
+    await waitFor(() => expect(result.current).toBe(false));
   });
 
   it('admits a judge whose assignments cannot be known yet', () => {

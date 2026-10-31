@@ -75,8 +75,12 @@ export function AskQPanel() {
     [rulebookOrganization, rulebookSport, showId]
   );
 
+  // True while the thread's scroll container sits within PIN_THRESHOLD_PX of the bottom.
+  const pinnedToBottomRef = useRef(true);
+
   const handleSubmit = useCallback(
     (query: string) => {
+      pinnedToBottomRef.current = true;
       if (activeMode === 'app-help') {
         void support.askForHelp(query);
         clearSuggestedPrompt();
@@ -98,6 +102,7 @@ export function AskQPanel() {
 
   const handleExampleQuery = useCallback(
     (query: string, category: ExampleQuery['category']) => {
+      pinnedToBottomRef.current = true;
       setMode(category);
       if (category === 'app-help') {
         askq.reset();
@@ -261,8 +266,25 @@ export function AskQPanel() {
   // answer, and at the 20-entry cap a finished answer leaves the length unchanged.
   const newestText = askq.answer || lastEntry?.answer;
   useEffect(() => {
-    // Keep the newest question and answer in view above the fixed input.
-    if (isOpen && hasConversation) threadEndRef.current?.scrollIntoView?.({ block: 'end' });
+    // Track whether the reader is near the bottom; a scroll-up unpins until they return.
+    // Scroll events do not bubble, so listen in the capture phase and keep only the
+    // container that holds the thread.
+    if (!isOpen || !hasConversation) return;
+    const onScroll = (event: Event) => {
+      const scroller = event.target;
+      if (!(scroller instanceof HTMLElement) || !scroller.contains(threadEndRef.current)) return;
+      pinnedToBottomRef.current =
+        scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight <= PIN_THRESHOLD_PX;
+    };
+    document.addEventListener('scroll', onScroll, true);
+    return () => document.removeEventListener('scroll', onScroll, true);
+  }, [isOpen, hasConversation]);
+  useEffect(() => {
+    // Keep the newest question and answer in view above the fixed input, unless the reader
+    // scrolled up to look at something earlier.
+    if (isOpen && hasConversation && pinnedToBottomRef.current) {
+      threadEndRef.current?.scrollIntoView?.({ block: 'end' });
+    }
   }, [isOpen, hasConversation, askq.thread.length, askq.query, askq.status, newestText]);
   const liveAnswerShown =
     askq.status === 'done' &&
@@ -469,3 +491,5 @@ export function AskQPanel() {
     </SlideOverPanel>
   );
 }
+
+const PIN_THRESHOLD_PX = 48;

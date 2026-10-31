@@ -489,6 +489,77 @@ describe('AskQPanel', () => {
     await screen.findByText('Capped answer');
     expect(scrollIntoView).toHaveBeenCalled();
   });
+
+  describe('scroll following', () => {
+    async function setup() {
+      window.localStorage.clear();
+      const scrollIntoView = vi.fn();
+      Element.prototype.scrollIntoView = scrollIntoView;
+      let emit!: (event: string, data: unknown) => void;
+      let finish!: () => void;
+      vi.mocked(askqService.sendAskQQuery).mockResolvedValue(createMockStream());
+      vi.mocked(askqService.parseSSEStream).mockImplementation(
+        (_stream, onEvent) =>
+          new Promise<void>(resolve => {
+            emit = onEvent;
+            finish = resolve;
+          })
+      );
+      act(() => useAskQPanelStore.getState().open());
+      const { user } = render(<AskQPanel />, { initialRoute: '/shows/show-1' });
+      const ask = async (text: string) => {
+        fireEvent.change(screen.getByRole('textbox'), { target: { value: text } });
+        await user.click(screen.getByRole('button', { name: 'Send query' }));
+        await waitFor(() => expect(emit).toBeDefined());
+      };
+      await ask('first');
+      await screen.findByText('first');
+      const scroller = screen.getByText('first').closest('.overflow-auto') as HTMLElement;
+      return { scrollIntoView, scroller, ask, user, emit: () => emit, finish: () => finish };
+    }
+
+    function scrollTo(scroller: HTMLElement, scrollTop: number) {
+      Object.defineProperty(scroller, 'scrollHeight', { value: 2000, configurable: true });
+      Object.defineProperty(scroller, 'clientHeight', { value: 500, configurable: true });
+      scroller.scrollTop = scrollTop;
+      fireEvent.scroll(scroller);
+    }
+
+    it('follows streamed text while the reader is near the bottom', async () => {
+      const { scrollIntoView, scroller, emit } = await setup();
+      scrollTo(scroller, 1470); // 30px from the bottom
+      scrollIntoView.mockClear();
+      act(() => emit()('token', 'Streaming along'));
+      await screen.findByText(/Streaming along/);
+      expect(scrollIntoView).toHaveBeenCalled();
+    });
+
+    it('does not pull a reader who scrolled up back to the bottom', async () => {
+      const { scrollIntoView, scroller, emit } = await setup();
+      scrollTo(scroller, 200);
+      scrollIntoView.mockClear();
+      act(() => emit()('token', 'Streaming along'));
+      await screen.findByText(/Streaming along/);
+      act(() => emit()('token', ' and further'));
+      await screen.findByText(/and further/);
+      expect(scrollIntoView).not.toHaveBeenCalled();
+    });
+
+    it('scrolls to a newly submitted question even after scrolling up', async () => {
+      const { scrollIntoView, scroller, ask, emit, finish } = await setup();
+      await act(async () => {
+        emit()('token', 'Done answer');
+        emit()('done', {});
+        finish()();
+      });
+      await screen.findByText('Done answer');
+      scrollTo(scroller, 200);
+      scrollIntoView.mockClear();
+      await ask('second');
+      await screen.findByText('second');
+      expect(scrollIntoView).toHaveBeenCalled();
+    });
+  });
 });
 
 function createMockStream(answer?: string): ReadableStream<Uint8Array> {

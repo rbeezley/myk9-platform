@@ -23,6 +23,7 @@ import { useAnnouncementSubscription } from '@/hooks/useAnnouncementSubscription
 import { useMessageSubscription } from '@/hooks/useMessageSubscription';
 import { useNotificationMonitor } from '@/hooks/useNotificationMonitor';
 import { useAccountNotifications } from '@/hooks/useAccountNotifications';
+import { useThemeSyncOnReconnect } from '@/hooks/useThemeSyncOnReconnect';
 import { AudioSettingsProvider } from './context/AudioSettingsContext';
 import { StoreProvider } from './providers/StoreProvider';
 import { ReplicationSyncProvider } from './providers/ReplicationSyncProvider';
@@ -192,6 +193,11 @@ function AccountNotificationsInitializer() {
   return null;
 }
 
+function ThemeSyncInitializer() {
+  useThemeSyncOnReconnect();
+  return null;
+}
+
 function App() {
   // Initialize global error handler - deferred to not block initial render
   React.useEffect(() => {
@@ -227,6 +233,7 @@ function App() {
             <MessageSubscriptionInitializer />
             <NotificationMonitorInitializer />
             <AccountNotificationsInitializer />
+            <ThemeSyncInitializer />
             <AudioSettingsProvider>
               <UnsavedChangesRouteGuardProvider>
                 <ExhibitorOnboardingChecker>

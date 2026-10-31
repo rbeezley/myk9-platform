@@ -213,5 +213,7 @@ the pipeline.
 Per mode: the `opsx:ship` final report, or the Linear run summary from
 `references/linear-issue-run.md`. Add orchestration stats: units dispatched, model per unit,
 review rounds per unit, splits made at sizing (step 3 of "Verify, then weigh") and convergence
-overrides used, and anything you implemented yourself. That last item tells you how to
+overrides used, the deferred-review tally (filed, fixed, closed and still open, each filed one
+carrying its verdict from `docs/agents/issue-tracker.md` § Deferred review findings), and
+anything you implemented yourself. That last item tells you how to
 improve future dispatch prompts.

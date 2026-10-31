@@ -417,8 +417,11 @@ asking:
 | MYK9-654 | held · In Progress | #2872 | draft PR paused for an owner restructure decision  |
 ```
 
-Follow it with the orchestration stats from `../SKILL.md` and one line listing every judgement
-call made without asking. In continuous mode, add one line naming the stop condition that ended the
+Follow it with the orchestration stats from `../SKILL.md` (including the deferred-review tally)
+and one line listing every judgement call made without asking. Every `Deferred re-review:`
+issue this run filed carries a `show-day` / `polish` / `theoretical` verdict per
+`docs/agents/issue-tracker.md` § Deferred review findings; the `show-day` ones are the next
+wave's first batch. In continuous mode, add one line naming the stop condition that ended the
 run, and mark each `refill` issue in the table (e.g. `MYK9-321 (refill)`).
 
 ## Common mistakes

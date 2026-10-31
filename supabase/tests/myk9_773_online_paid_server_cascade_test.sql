@@ -82,9 +82,11 @@ VALUES ('00000000-0000-0000-0000-0000a7730061', '00000000-0000-0000-0000-0000a77
 INSERT INTO public.entries (id, show_id, trial_id, registration_id, entry_status,
                             payment_status, payment_method, entry_fee)
 VALUES
+  -- MYK9-1634: the form total is derived from its entries; A carries $100 so the
+  -- four entries (A 100, B 50, C 50, D 0) make the $200 enrollment.
   ('00000000-0000-0000-0000-0000a773000a', '00000000-0000-0000-0000-0000a7730011',
    '00000000-0000-0000-0000-0000a7730021', '00000000-0000-0000-0000-0000a7730061',
-   'submitted', 'pending', 'cash', 50),
+   'submitted', 'pending', 'cash', 100),
   ('00000000-0000-0000-0000-0000a773000b', '00000000-0000-0000-0000-0000a7730011',
    '00000000-0000-0000-0000-0000a7730021', '00000000-0000-0000-0000-0000a7730061',
    'submitted', 'pending', 'cash', 50),

@@ -212,7 +212,9 @@ BEGIN
    WHERE enrollment_id = '00000000-0000-0000-0000-000000677a51';
   SELECT total_amount, paid_amount INTO v_total, v_paid
     FROM public.enrollments WHERE id = '00000000-0000-0000-0000-000000677a51';
-  IF v_entry_status <> 'pending' OR v_rows <> 1 OR v_total <> 3000 OR v_paid <> 30 THEN
+  -- MYK9-1634: the total is derived from the form's live entries, so the unpaid
+  -- entry counts too (2 x $30 = 6000); no ledger row and no paid change, as before.
+  IF v_entry_status <> 'pending' OR v_rows <> 1 OR v_total <> 6000 OR v_paid <> 30 THEN
     RAISE EXCEPTION 'FAIL case 4: entry %, ledger rows %, total %, paid %',
       v_entry_status, v_rows, v_total, v_paid;
   END IF;

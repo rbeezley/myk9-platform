@@ -175,22 +175,37 @@ export interface DayCheckInContext {
   isPastShow: boolean;
 }
 
-/**
- * Is the show's last day (its end date, else its start date) behind `now`,
- * reckoned in the trial's own zone?
- *
- * The show's own dates decide, never the exhibitor's entered classes: a
- * multi-day show where only an early day was entered is still running. The zone
- * comes from the group's classes; with none replicated the answer is "only once
- * every zone agrees" (UTC-12, as `isEntryCloseDayPast`). An undated show is
- * never past.
- */
-export function isShowPast(group: MyShowGroup, now: Date): boolean {
+/** The show's last day: its end date, else its start date. Undefined when undated. */
+function showLastDayOf(group: MyShowGroup): Date | undefined {
   const order = group.orders[0];
   const lastDay = order?.showEndDate ?? order?.showDate;
-  if (!hasUsableDate(lastDay)) return false;
-  const zone = group.dogs.flatMap(dog => dog.classes).find(cls => cls.trialTimezone)?.trialTimezone;
-  return calendarDayInZone(now, zone || LAST_ZONE_TO_ROLL_OVER) > calendarDayOf(lastDay);
+  return hasUsableDate(lastDay) ? lastDay : undefined;
+}
+
+/**
+ * Is the show's last day (its end date, else its start date) behind `now` in
+ * EVERY trial's own zone?
+ *
+ * The show's own dates decide, never the exhibitor's entered classes: a
+ * multi-day show where only an early day was entered is still running. Each
+ * trial with a known date is reckoned in its own zone, so an eastern trial
+ * that is over never ends a western one still on its final day. With no zoned
+ * trial replicated the answer is "only once every zone agrees" (UTC-12, as
+ * `isEntryCloseDayPast`). An undated show is never past. My Shows' sections,
+ * its Upcoming filter and the check-in gate all read this one rule.
+ */
+export function isShowPastInTrialZones(group: MyShowGroup, now: Date): boolean {
+  const lastDay = showLastDayOf(group);
+  if (!lastDay) return false;
+  const lastDayKey = calendarDayOf(lastDay);
+  const zones = new Set<string>();
+  for (const dog of group.dogs) {
+    for (const cls of dog.classes) {
+      if (cls.trialTimezone && hasUsableDate(cls.trialDate)) zones.add(cls.trialTimezone);
+    }
+  }
+  if (zones.size === 0) return calendarDayInZone(now, LAST_ZONE_TO_ROLL_OVER) > lastDayKey;
+  return [...zones].every(zone => calendarDayInZone(now, zone) > lastDayKey);
 }
 
 /**
@@ -207,7 +222,7 @@ export function buildDayCheckInContext(
     now,
     ordersById: indexOrdersById(group),
     selfCheckinByClassId,
-    isPastShow: isShowPast(group, now),
+    isPastShow: isShowPastInTrialZones(group, now),
   };
 }
 
@@ -247,6 +262,16 @@ export function isClassCheckInEligibleAnyDay(cls: MyShowClass, ctx: DayCheckInCo
  */
 export function isClassCheckInAvailableToday(cls: MyShowClass, ctx: DayCheckInContext): boolean {
   if (ctx.isPastShow) return false;
+  const order = ctx.ordersById[cls.orderId];
+  const showLastDay = order?.showEndDate ?? order?.showDate;
+  // The class's OWN trial zone decides whether its show is over for it.
+  if (
+    cls.trialTimezone &&
+    hasUsableDate(showLastDay) &&
+    calendarDayInZone(ctx.now, cls.trialTimezone) > calendarDayOf(showLastDay)
+  ) {
+    return false;
+  }
   if (!isTrialDayToday(cls.trialDate, cls.trialTimezone, ctx.now)) return false;
   if (!isClassCheckInEligibleAnyDay(cls, ctx)) return false;
   return hasNoCheckInState(cls);

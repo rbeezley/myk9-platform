@@ -9,9 +9,10 @@ import {
   trialDayState,
   weekdayLabel,
   isEntryCloseDayPast,
-  isShowPast,
+  isShowPastInTrialZones as isShowPast,
   buildDayCheckInContext,
 } from './dayCheckIn';
+import { splitShowsIntoSections } from './myShowSections';
 import type { EntryClass, MyEntry } from './my-entries-types';
 import { withFixtureKind } from '@/test/fixtures/entryClassKind';
 
@@ -398,5 +399,48 @@ describe('isShowPast — the trial zone decides when the last day is over', () =
   it('never calls an undated show past', () => {
     const undated = group([makeClass()], { showDate: undefined, showEndDate: undefined });
     expect(isShowPast(undated, new Date('2030-01-01T00:00:00Z'))).toBe(false);
+  });
+});
+
+describe('two-timezone show and My Shows sections', () => {
+  const group = (classes: EntryClass[], row: Partial<MyEntry> = {}) =>
+    groupEntriesByShow(groupEntriesByOrder([makeRow(classes, row)], SATURDAY))[0]!;
+
+  it('keeps a show with a western trial still on its last day out of Past and checkable', () => {
+    const show = group(
+      [
+        makeClass({ id: 'e', classId: 'ce', trialDate: SUNDAY, trialTimezone: 'America/New_York' }),
+        makeClass({ id: 'w', classId: 'cw', trialDate: SUNDAY, trialTimezone: PACIFIC }),
+      ],
+      { showDate: SUNDAY, showEndDate: SUNDAY }
+    );
+    const now = new Date('2026-10-26T04:30:00Z'); // 00:30 Mon Eastern, 21:30 Sun Pacific
+    expect(isShowPast(show, now)).toBe(false);
+    const ctx = buildDayCheckInContext(show, now, undefined);
+    const [east, west] = show.dogs[0]!.classes;
+    expect(isClassCheckInAvailableToday(east!, ctx)).toBe(false);
+    expect(isClassCheckInAvailableToday(west!, ctx)).toBe(true);
+    expect(splitShowsIntoSections([show], now).past).toHaveLength(0);
+    // Once Pacific passes midnight too, every trial is over.
+    expect(isShowPast(show, new Date('2026-10-26T07:30:00Z'))).toBe(true);
+  });
+
+  it('east-of-trial device past local midnight keeps the show current, then Past after the trial zone', () => {
+    const show = group([makeClass({ trialDate: SUNDAY, trialTimezone: PACIFIC })], {
+      showDate: SUNDAY,
+      showEndDate: SUNDAY,
+    });
+    const afterLocalMidnight = new Date('2026-10-26T04:30:00Z'); // 21:30 Sun Pacific
+    const during = splitShowsIntoSections([show], afterLocalMidnight);
+    expect(during.today).toHaveLength(1);
+    expect(during.past).toHaveLength(0);
+    expect(
+      isClassCheckInAvailableToday(
+        show.dogs[0]!.classes[0]!,
+        buildDayCheckInContext(show, afterLocalMidnight, undefined)
+      )
+    ).toBe(true);
+    const after = splitShowsIntoSections([show], new Date('2026-10-26T07:30:00Z'));
+    expect(after.past).toHaveLength(1);
   });
 });

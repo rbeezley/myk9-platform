@@ -147,7 +147,13 @@ export function reconcileTheme(
     const isPending = cache?.pending.includes(field) ?? false;
     const changedAt = cache?.changedAt[field] ?? 0;
     const serverChangedAt = serverFieldChangedAt[field] ?? (legacyRow ? serverUpdatedAt : 0);
-    if (isPending && changedAt > serverChangedAt) {
+    // A seeded field is what the device was showing, not an edit with a time: it
+    // replaces a server default nobody set, never a value someone saved.
+    const seededOverUnsetDefault =
+      changedAt === SEEDED_CHANGED_AT &&
+      serverFieldChangedAt[field] === undefined &&
+      serverTheme[field] === DEFAULT_THEME_PREFERENCES[field];
+    if (isPending && (seededOverUnsetDefault || changedAt > serverChangedAt)) {
       (theme as unknown as Record<string, unknown>)[field] = device[field];
       toPush[field] = device[field];
     } else if (cache?.theme[field] !== serverTheme[field]) {

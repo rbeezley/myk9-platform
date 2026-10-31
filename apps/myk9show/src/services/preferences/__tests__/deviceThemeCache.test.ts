@@ -4,6 +4,7 @@ import {
   readDeviceTheme,
   reconcileTheme,
   recordLocalThemeChange,
+  seedDeviceTheme,
 } from '../deviceThemeCache';
 import { DEFAULT_THEME_PREFERENCES } from '@/types/user-preferences';
 
@@ -85,6 +86,42 @@ describe('deviceThemeCache', () => {
   it('applies every server field when this device has no copy', () => {
     const r = reconcileTheme(null, { ...SERVER, mode: 'dark' }, {}, 1000);
     expect(r.adoptedFromServer).toMatchObject({ mode: 'dark' });
+  });
+
+  describe('a seeded first copy (MYK9-1568)', () => {
+    const seedLarge = () => {
+      localStorage.setItem('fontScale', '1.4');
+      return seedDeviceTheme('u1');
+    };
+
+    it('beats a legacy row (no per-field times) that holds the default', () => {
+      const r = reconcileTheme(seedLarge(), { ...DEFAULT_THEME_PREFERENCES }, {}, Date.now());
+      expect(r.toPush).toEqual({ fontSize: 'extra-large' });
+      expect(r.theme.fontSize).toBe('extra-large');
+      expect(r.adoptedFromServer).not.toHaveProperty('fontSize');
+    });
+
+    it('beats an untimed default field in a timestamped row', () => {
+      const r = reconcileTheme(seedLarge(), { ...DEFAULT_THEME_PREFERENCES }, { mode: 9000 }, 9000);
+      expect(r.toPush).toEqual({ fontSize: 'extra-large' });
+    });
+
+    it('loses to a value the server holds that is not the default', () => {
+      const r = reconcileTheme(
+        seedLarge(),
+        { ...DEFAULT_THEME_PREFERENCES, fontSize: 'large' },
+        {},
+        Date.now()
+      );
+      expect(r.toPush).toEqual({});
+      expect(r.theme.fontSize).toBe('large');
+    });
+
+    it('loses to a default the user saved with its own field time', () => {
+      const r = reconcileTheme(seedLarge(), { ...DEFAULT_THEME_PREFERENCES }, { fontSize: 2 }, 2);
+      expect(r.toPush).toEqual({});
+      expect(r.theme.fontSize).toBe(DEFAULT_THEME_PREFERENCES.fontSize);
+    });
   });
 
   it('survives unreadable storage', () => {

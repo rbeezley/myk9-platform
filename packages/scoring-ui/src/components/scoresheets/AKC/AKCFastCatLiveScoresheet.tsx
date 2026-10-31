@@ -8,6 +8,7 @@
  *          points = mph * 2 (rounded to nearest integer)
  */
 
+import { parseDuration } from '@myk9/core';
 import React, { useState, useMemo, useCallback } from 'react';
 import { Button, Card, cn } from '@myk9/ui';
 import { ScoresheetShell } from '../../ScoresheetShell';
@@ -53,12 +54,8 @@ function calcMph(timeInSeconds: number): number {
 }
 
 function parseTimeToSeconds(timeString: string): number {
-  if (!timeString) return 0;
-  const parts = timeString.split(':');
-  if (parts.length === 2) {
-    return (parseInt(parts[0], 10) || 0) * 60 + (parseFloat(parts[1]) || 0);
-  }
-  return parseFloat(timeString) || 0;
+  const parsed = parseDuration(timeString, 'search');
+  return parsed.ok ? parsed.seconds : 0;
 }
 
 export const AKCFastCatLiveScoresheet: React.FC<LiveScoresheetProps> = ({
@@ -165,7 +162,8 @@ export const AKCFastCatLiveScoresheet: React.FC<LiveScoresheetProps> = ({
         actions={{
           onCancel: onBack,
           onSave: handleSubmitClick,
-          saveDisabled: isSubmitting || !fastcatResult || reasonMissing,
+          saveDisabled:
+            isSubmitting || !fastcatResult || reasonMissing || scoring.hasUnresolvedTime,
           isSubmitting,
         }}
       >

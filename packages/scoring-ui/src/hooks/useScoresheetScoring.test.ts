@@ -272,9 +272,36 @@ describe('useScoresheetScoring', () => {
     });
     expect(result.current.calculateTotalTime()).toBe('1:59.99');
     act(() => {
-      result.current.handleAreaUpdate(0, 'time', '0:30.00');
-      result.current.handleAreaUpdate(1, 'time', '0:29.999');
+      result.current.handleAreaUpdate(0, 'time', '0:29.99');
+      result.current.handleAreaUpdate(1, 'time', '0:30.01');
     });
     expect(result.current.calculateTotalTime()).toBe('1:00.00');
+  });
+
+  it('sums a typed 125 as 1.25 seconds, never 125 (MYK9-1503)', () => {
+    const rules = { ...defaultRules, areaCount: 2 };
+    const { result } = renderHook(() => useScoresheetScoring({ rules }));
+    act(() => {
+      result.current.handleAreaUpdate(0, 'time', '125');
+      result.current.handleAreaUpdate(1, 'time', '1:00.00');
+    });
+    expect(result.current.calculateTotalTime()).toBe('1:01.25');
+  });
+
+  it('flags text that is not a time yet, and refuses to submit it', async () => {
+    const onSubmit = vi.fn();
+    const { result } = renderHook(() => useScoresheetScoring({ rules: defaultRules }));
+    act(() => {
+      result.current.setQualifying('Q');
+      result.current.handleAreaUpdate(0, 'time', '1:99.00');
+    });
+    expect(result.current.hasUnresolvedTime).toBe(true);
+    expect(result.current.validate().valid).toBe(false);
+    await act(async () => {
+      await result.current.handleSubmit(onSubmit);
+    });
+    expect(onSubmit).not.toHaveBeenCalled();
+    act(() => result.current.handleAreaUpdate(0, 'time', '1:39.00'));
+    expect(result.current.hasUnresolvedTime).toBe(false);
   });
 });

@@ -12,7 +12,6 @@ export {
   formatTimeForDisplay,
   formatTimeLimitSeconds,
   parseTimeToMs,
-  formatTimeInputToMMSS,
 } from './timeUtils';
 
 export { buildResolvedClassRules, maxTimeForArea } from './buildResolvedClassRules';

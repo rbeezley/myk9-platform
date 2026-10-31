@@ -1,1 +1,0 @@
-export { TimeInput, default } from '../time-input';

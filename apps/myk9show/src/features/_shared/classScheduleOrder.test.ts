@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   calendarDayKey,
   compareClassSchedule,
-  parseClassTimeMinutes,
   type ClassScheduleKey,
 } from './classScheduleOrder';
 
@@ -39,13 +38,5 @@ describe('classScheduleOrder', () => {
       { day: '2026-10-14', time: 'c' },
     ];
     expect(sorted(rows).map(r => r.time)).toEqual(['b', 'c', 'a']);
-  });
-
-  it('parses 12 and 24 hour times', () => {
-    expect(parseClassTimeMinutes('12:00 AM')).toBe(0);
-    expect(parseClassTimeMinutes('12:15 PM')).toBe(735);
-    expect(parseClassTimeMinutes('13:30')).toBe(810);
-    expect(parseClassTimeMinutes('09:00:00')).toBe(540);
-    expect(parseClassTimeMinutes('soon')).toBeNull();
   });
 });

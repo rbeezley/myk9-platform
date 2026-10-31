@@ -1,4 +1,4 @@
-import { CLASS_STATUS, normalizeClassStatus } from '@myk9/core';
+import { CLASS_STATUS, formatClockTime, normalizeClassStatus, parseStoredClockTime } from '@myk9/core';
 import type { ClassStatusValue } from '@myk9/core';
 import { compareClassSchedule } from '@/features/_shared/classScheduleOrder';
 import { compareLevels } from '@/utils/schedule-summary';
@@ -20,9 +20,6 @@ import type {
 export function formatStartTime(time: string | null): string | null {
   if (!time) return null;
 
-  // Already in display format (e.g., "9:00 AM", "09:00 AM")
-  if (/^\d{1,2}:\d{2}\s?(AM|PM|am|pm)$/i.test(time)) return time;
-
   // Full ISO timestamp (e.g., "2026-04-04T09:00:00+00:00")
   if (time.includes('T') || time.includes('-')) {
     const d = new Date(time);
@@ -30,10 +27,9 @@ export function formatStartTime(time: string | null): string | null {
     return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   }
 
-  // Time-only (e.g., "09:00:00")
-  const d = new Date(`1970-01-01T${time}`);
-  if (isNaN(d.getTime())) return null;
-  return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  // Clock text, 12- or 24-hour (e.g., "9:00 AM", "09:00:00")
+  const minutes = parseStoredClockTime(time);
+  return minutes === null ? null : formatClockTime(minutes);
 }
 
 /** Minutes after midnight; null (untimed or unreadable) sorts after every timed value. */

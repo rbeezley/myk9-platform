@@ -1,3 +1,5 @@
+import { parseStoredClockTime } from '@myk9/core';
+
 /**
  * Parse the time strings a class can carry: an ISO instant, or a clock time
  * ('HH:MM', 'H:MM AM/PM') when the secretary entered one without a date.
@@ -9,21 +11,15 @@ export type ParsedClassTime =
   | { kind: 'instant'; ms: number }
   | { kind: 'clock'; minutes: number; hour24: number; minute: number };
 
-const CLOCK = /^(\d{1,2}):(\d{2})\s*(AM|PM)?/i;
-
 export function parseClassTime(value: string | null | undefined): ParsedClassTime | null {
   if (!value) return null;
   if (value.includes('T')) {
     const ms = Date.parse(value);
     return Number.isNaN(ms) ? null : { kind: 'instant', ms };
   }
-  const match = value.match(CLOCK);
-  if (!match) return null;
-  let hour = Number(match[1]);
-  const minute = Number(match[2]);
-  const meridiem = match[3]?.toUpperCase();
-  if (meridiem) hour = (hour % 12) + (meridiem === 'PM' ? 12 : 0);
-  return { kind: 'clock', minutes: hour * 60 + minute, hour24: hour, minute };
+  const minutes = parseStoredClockTime(value);
+  if (minutes === null) return null;
+  return { kind: 'clock', minutes, hour24: Math.floor(minutes / 60), minute: minutes % 60 };
 }
 
 /**

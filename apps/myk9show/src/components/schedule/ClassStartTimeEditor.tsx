@@ -1,9 +1,9 @@
 import { useEffect, useId, useState } from 'react';
-import type { KeyboardEvent } from 'react';
 import { Check, Pencil, X } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
+import { formatClockTime24, isUnresolvedClockTime, parseStoredClockTime } from '@myk9/core';
+import { ClockTimeInput } from '@myk9/scoring-ui';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { replicatedClassesTable } from '@/services/replication';
 import { classKeys } from '@/hooks/queries/useClassesDatabase';
 import { notifications } from '@/lib/notifications';
@@ -29,10 +29,11 @@ interface ClassStartTimeEditorProps {
   className?: string | undefined;
 }
 
-/** Converts a stored start_time value ("09:00:00", ISO timestamp) to an `<input type="time">` value ("09:00"). */
+/** Converts a stored start_time value ("09:00:00", "9:00 AM", ISO timestamp) to the editor's "HH:MM" draft. */
 function toTimeInputValue(startTime: string | null): string {
   if (!startTime) return '';
-  if (/^\d{2}:\d{2}(:\d{2})?$/.test(startTime)) return startTime.slice(0, 5);
+  const minutes = parseStoredClockTime(startTime);
+  if (minutes !== null) return formatClockTime24(minutes);
   if (startTime.includes('T')) {
     const d = new Date(startTime);
     if (!isNaN(d.getTime())) return d.toTimeString().slice(0, 5);
@@ -86,7 +87,7 @@ export function ClassStartTimeEditor({
   }
 
   async function save() {
-    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(draft)) {
+    if (draft === '' || isUnresolvedClockTime(draft)) {
       setError('Enter a valid time, like 9:00 AM.');
       return;
     }
@@ -126,36 +127,29 @@ export function ClassStartTimeEditor({
     }
   }
 
-  function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      void save();
-    } else if (e.key === 'Escape') {
-      e.preventDefault();
-      cancelEditing();
-    }
-  }
-
   if (isEditing) {
     return (
       <div className={cn('flex flex-wrap items-center gap-1.5 py-0.5', className)}>
         {label && <span className="text-xs text-muted-foreground">{label}</span>}
-        <Input
-          id={inputId}
-          type="time"
-          value={draft}
-          onChange={e => {
-            setDraft(e.target.value);
-            setError(null);
-          }}
-          onKeyDown={handleKeyDown}
-          autoFocus
-          disabled={isSaving}
-          aria-label={label ? `Start time for ${label}` : 'Start time'}
-          aria-invalid={!!error}
-          aria-describedby={error ? `${inputId}-error` : undefined}
-          className="h-11 w-[7.5rem] text-xs"
-        />
+        <div className="w-32">
+          <ClockTimeInput
+            id={inputId}
+            value={draft}
+            storage="hhmm"
+            onChange={value => {
+              setDraft(value);
+              setError(null);
+            }}
+            onSubmit={() => void save()}
+            onCancel={cancelEditing}
+            autoFocus
+            disabled={isSaving}
+            ariaLabel={label ? `Start time for ${label}` : 'Start time'}
+            invalid={!!error}
+            describedBy={error ? `${inputId}-error` : undefined}
+            reserveHint={false}
+          />
+        </div>
         <Button
           type="button"
           size="icon-lg"

@@ -1,5 +1,7 @@
 /** Clock and calendar helpers for the cockpit model, in a Trial's timezone. */
 
+import { formatClockTime, parseStoredClockTime } from '@myk9/core';
+
 export function dateKeyInTimeZone(date: Date, timeZone: string): string {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone,
@@ -22,21 +24,6 @@ export function minuteOfDayInTimeZone(date: Date, timeZone: string): number {
   return Number(values.hour) * 60 + Number(values.minute);
 }
 
-export function parseTime(value: string | null | undefined): number | null {
-  if (!value) return null;
-  const match = value.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
-  if (!match) return null;
-  let hour = Number(match[1]);
-  const minute = Number(match[2]);
-  const meridiem = match[3]?.toUpperCase();
-  if (meridiem) {
-    if (hour < 1 || hour > 12) return null;
-    hour = (hour % 12) + (meridiem === 'PM' ? 12 : 0);
-  }
-  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
-  return hour * 60 + minute;
-}
-
 export function operationalMinutes(
   value: string | null | undefined,
   timeZone: string
@@ -45,7 +32,7 @@ export function operationalMinutes(
     const instant = new Date(value);
     if (!Number.isNaN(instant.getTime())) return minuteOfDayInTimeZone(instant, timeZone);
   }
-  return parseTime(value);
+  return parseStoredClockTime(value);
 }
 
 export function formatClock(value: string | null | undefined, timeZone: string): string | null {
@@ -62,12 +49,8 @@ export function formatClock(value: string | null | undefined, timeZone: string):
         .replace(/\u202f/g, ' ');
     }
   }
-  const minutes = parseTime(value);
-  if (minutes == null) return value;
-  const hour = Math.floor(minutes / 60);
-  const minute = minutes % 60;
-  const hour12 = hour % 12 || 12;
-  return `${hour12}:${String(minute).padStart(2, '0')} ${hour >= 12 ? 'PM' : 'AM'}`;
+  const minutes = parseStoredClockTime(value);
+  return minutes === null ? value : formatClockTime(minutes);
 }
 
 export function formatTrialDate(date: string): string {

@@ -12,6 +12,8 @@
  * @module features/_shared/classScheduleOrder
  */
 
+import { parseStoredClockTime } from '@myk9/core';
+
 export interface ClassScheduleKey {
   /** `YYYY-MM-DD`, optionally followed by a time part (`T…`); ignored if absent. */
   day?: string | null | undefined;
@@ -24,23 +26,6 @@ export function calendarDayKey(value: string | null | undefined): string | null 
   return value ? (/^\d{4}-\d{2}-\d{2}/.exec(value)?.[0] ?? null) : null;
 }
 
-/** Minutes after midnight for a 12- or 24-hour time string, or null. */
-export function parseClassTimeMinutes(value: string | null | undefined): number | null {
-  const match = /^\s*(\d{1,2}):(\d{2})(?::\d{2})?\s*([AaPp])?\.?[Mm]?\.?\s*$/.exec(value ?? '');
-  if (!match) return null;
-  let hours = Number(match[1]);
-  const minutes = Number(match[2]);
-  const meridiem = match[3]?.toLowerCase();
-  if (minutes > 59) return null;
-  if (meridiem) {
-    if (hours < 1 || hours > 12) return null;
-    hours = (hours % 12) + (meridiem === 'p' ? 12 : 0);
-  } else if (hours > 23) {
-    return null;
-  }
-  return hours * 60 + minutes;
-}
-
 function compareNullable(a: string | number | null, b: string | number | null): number {
   if (a === b) return 0;
   if (a === null) return 1;
@@ -51,6 +36,6 @@ function compareNullable(a: string | number | null, b: string | number | null): 
 export function compareClassSchedule(a: ClassScheduleKey, b: ClassScheduleKey): number {
   return (
     compareNullable(calendarDayKey(a.day), calendarDayKey(b.day)) ||
-    compareNullable(parseClassTimeMinutes(a.time), parseClassTimeMinutes(b.time))
+    compareNullable(parseStoredClockTime(a.time), parseStoredClockTime(b.time))
   );
 }

@@ -8,9 +8,11 @@
  * and match the people id it names.
  */
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
+import { useOnlineStatus } from '@/lib/networkUtils';
+import { isValidUUID } from '@/utils/validation';
 import type { User } from '@/types/user-types';
 
 export interface DeepLinkedUser {
@@ -19,6 +21,8 @@ export interface DeepLinkedUser {
   notFound: boolean;
   /** The auth-id lookup itself failed (network/database), so the user may exist. */
   lookupFailed: boolean;
+  /** Offline: the auth-id lookup is paused until the connection returns, then runs on its own. */
+  needsConnection: boolean;
   retryLookup: () => void;
 }
 
@@ -36,7 +40,11 @@ export function useDeepLinkedUser(
     [deepLinkUserId, users]
   );
 
-  const needsLookup = !!deepLinkUserId && rosterReady && !direct;
+  const unresolved = !!deepLinkUserId && rosterReady && !direct;
+  // A hand-edited id that is not a UUID can never match `people.auth_user_id`;
+  // querying it would only make PostgreSQL reject it (22P02) as a "failure".
+  const malformedId = unresolved && !isValidUUID(deepLinkUserId);
+  const needsLookup = unresolved && !malformedId;
   const lookup = useQuery({
     queryKey: ['admin-deep-link-person', deepLinkUserId],
     queryFn: async () => {
@@ -58,10 +66,32 @@ export function useDeepLinkedUser(
   );
 
   const user = direct ?? resolved;
+  // A drop mid-request (or an offline cold boot while React Query still thinks it is
+  // online) fails the fetch instead of pausing it; while the device is offline that is
+  // the same "needs a connection" state.
+  const isOnline = useOnlineStatus();
+  const lostConnection = !isOnline;
+  const failedOffline = useRef(false);
+  const { isError, refetch } = lookup;
+  // React Query's online manager may never see the browser `online` event in that case,
+  // so refetch once ourselves when the connection returns.
+  useEffect(() => {
+    if (!needsLookup) return;
+    if (isError && !isOnline) {
+      failedOffline.current = true;
+    } else if (isError && isOnline && failedOffline.current) {
+      failedOffline.current = false;
+      void refetch();
+    }
+  }, [needsLookup, isError, isOnline, refetch]);
   return {
     user,
-    notFound: needsLookup && !user && lookup.isSuccess,
-    lookupFailed: needsLookup && !user && lookup.isError,
+    notFound: (malformedId || (needsLookup && lookup.isSuccess)) && !user,
+    lookupFailed: needsLookup && !user && lookup.isError && !lostConnection,
+    needsConnection:
+      needsLookup &&
+      !user &&
+      (lookup.fetchStatus === 'paused' || (lookup.isError && lostConnection)),
     retryLookup: () => void lookup.refetch(),
   };
 }

@@ -124,6 +124,9 @@ export function replicatedToTrial(replicated: ReplicatedTrial): SyncableTrial {
     // read the real timezone (not 'America/New_York') and registry-aware copy (not AKC).
     timezone: replicated.timezone ?? null,
     registryId: replicated.registryId ?? null,
+    ...(replicated.autoCompleteStaleClasses !== undefined && {
+      autoCompleteStaleClasses: replicated.autoCompleteStaleClasses,
+    }),
     // Sync metadata
     _version: replicated._version || 1,
     _lastModified: replicated._lastModified || new Date(),

@@ -21,6 +21,7 @@ import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable'
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import { logger } from '@/services/LoggingService';
 import { syncAtShowData } from './atShowDataAdapter';
+import { checkForStaleClass } from './staleClass/checkStaleClass';
 import { transitionToCompleted, transitionToInRing } from '@/utils/checkInTransitions';
 import { isHeldEntry } from '@/features/dogs/identity';
 import { classScoringRules } from '@/pages/scoring/classScoringRules';
@@ -322,6 +323,8 @@ export function useAtShowScoresheet({
       logger.warn('Could not verify class completion after scoring', 'at-show', {}, err as Error);
     }
     transitionToCompleted(entry.entryId);
+    // MYK9-1514: ask about a class left behind at another level; never blocks the judge.
+    if (showId) void checkForStaleClass(showId, completionClassId);
     onScored();
   };
 

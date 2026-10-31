@@ -144,6 +144,8 @@ export const useTrialStore = create<TrialStore>()((set, get) => ({
         replicatedUpdates.displayOrder = updates.order ? parseInt(updates.order, 10) : 0;
       if (updates.type !== undefined) replicatedUpdates.category = updates.type;
       if (updates.image !== undefined) replicatedUpdates.imageUrl = updates.image;
+      if (updates.autoCompleteStaleClasses != null)
+        replicatedUpdates.autoCompleteStaleClasses = updates.autoCompleteStaleClasses;
 
       if (currentReplicated) {
         await replicatedTrialsTable.updateTrial(id, {
@@ -168,6 +170,8 @@ export const useTrialStore = create<TrialStore>()((set, get) => ({
         definedUpdates.plannedStartTime = updates.plannedStartTime;
       if (updates.order !== undefined) definedUpdates.order = updates.order;
       if (updates.image !== undefined) definedUpdates.image = updates.image;
+      if (updates.autoCompleteStaleClasses != null)
+        definedUpdates.autoCompleteStaleClasses = updates.autoCompleteStaleClasses;
       if (updates.timeStarted !== undefined) definedUpdates.timeStarted = updates.timeStarted;
       if (updates.timeEnded !== undefined) definedUpdates.timeEnded = updates.timeEnded;
 

@@ -10275,6 +10275,7 @@ export type Database = {
           actual_end_time: string | null
           actual_start_time: string | null
           allow_self_checkin: boolean | null
+          auto_complete_stale_classes: boolean | null
           category: string | null
           confirmation_date: string | null
           created_at: string | null
@@ -10304,6 +10305,7 @@ export type Database = {
           actual_end_time?: string | null
           actual_start_time?: string | null
           allow_self_checkin?: boolean | null
+          auto_complete_stale_classes?: boolean | null
           category?: string | null
           confirmation_date?: string | null
           created_at?: string | null
@@ -10333,6 +10335,7 @@ export type Database = {
           actual_end_time?: string | null
           actual_start_time?: string | null
           allow_self_checkin?: boolean | null
+          auto_complete_stale_classes?: boolean | null
           category?: string | null
           confirmation_date?: string | null
           created_at?: string | null

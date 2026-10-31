@@ -10,7 +10,6 @@ const row = (over: Partial<ShowDogLimitedRow> = {}): ShowDogLimitedRow => ({
   class_name: 'Container Novice',
   trial_name: 'Trial A',
   trial_date: '2026-11-01',
-  run_position: 3,
   check_in_status: 'checked-in',
   ...over,
 });
@@ -22,7 +21,6 @@ describe('buildExhibitorDogs', () => {
       row({
         class_id: 'c2',
         class_name: 'Interior Novice',
-        run_position: 9,
         check_in_status: null,
       }),
       row({ armband: 102, call_name: 'Bo' }),
@@ -36,10 +34,21 @@ describe('buildExhibitorDogs', () => {
       handler: 'Amy',
       armband: 101,
     });
-    expect(zip.entries.map(e => [e.className, e.runOrder, e.checkInStatus])).toEqual([
-      ['Container Novice', 3, 'checked-in'],
-      ['Interior Novice', 9, 'no-status'],
+    expect(zip.entries.map(e => [e.className, e.checkInStatus])).toEqual([
+      ['Container Novice', 'checked-in'],
+      ['Interior Novice', 'no-status'],
     ]);
+  });
+
+  it('labels a class with its trial and date so multiday trial names stay distinguishable', () => {
+    const [sat, sun] = [
+      buildExhibitorDogs([row({ trial_name: 'Trial 1', trial_date: '2026-11-07' })])[0]!
+        .entries[0]!,
+      buildExhibitorDogs([row({ trial_name: 'Trial 1', trial_date: '2026-11-08' })])[0]!
+        .entries[0]!,
+    ];
+    expect(sat.trialLabel).toContain('Trial 1');
+    expect(sat.trialLabel).not.toEqual(sun.trialLabel);
   });
 
   it('never carries result data: nothing scored, released or placed', () => {

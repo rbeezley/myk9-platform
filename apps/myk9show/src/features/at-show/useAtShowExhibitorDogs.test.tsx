@@ -30,7 +30,6 @@ describe('useAtShowExhibitorDogs', () => {
           class_name: 'Container Novice',
           trial_name: 'Trial A',
           trial_date: '2026-11-01',
-          run_position: 2,
           check_in_status: 'no-status',
         },
       ],
@@ -56,7 +55,6 @@ describe('useAtShowExhibitorDogs', () => {
       class_name: 'Container Novice',
       trial_name: 'Trial A',
       trial_date: '2026-11-01',
-      run_position: null,
       check_in_status: null,
     });
     const full = Array.from({ length: 1000 }, (_, i) => row(i + 1));

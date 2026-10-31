@@ -5,6 +5,7 @@
  *
  * @module at-show/exhibitorDogIndex
  */
+import { formatTrialDate } from '@myk9/core';
 import type { StaffDog, StaffDogClassEntry } from './staffDogIndex';
 
 /** One row of the server function, exactly its approved columns. */
@@ -17,7 +18,6 @@ export interface ShowDogLimitedRow {
   class_name: string | null;
   trial_name: string | null;
   trial_date: string | null;
-  run_position: number | null;
   check_in_status: string | null;
 }
 
@@ -43,7 +43,10 @@ export function buildExhibitorDogs(rows: readonly ShowDogLimitedRow[]): StaffDog
       classId: row.class_id,
       routeClassIds: [],
       className: row.class_name ?? 'Class',
-      trialLabel: row.trial_name,
+      trialLabel:
+        [row.trial_name, row.trial_date ? formatTrialDate(row.trial_date) : '']
+          .filter(Boolean)
+          .join(' · ') || null,
       checkInStatus,
       isPulled: checkInStatus === 'pulled',
       isMoved: false,
@@ -53,7 +56,6 @@ export function buildExhibitorDogs(rows: readonly ShowDogLimitedRow[]): StaffDog
       faultCount: null,
       placement: null,
       resultsReleased: false,
-      runOrder: row.run_position,
     };
     dog.entries.push(entry);
   }

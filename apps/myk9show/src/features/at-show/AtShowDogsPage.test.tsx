@@ -166,7 +166,6 @@ describe('AtShowDogsPage as an exhibitor (MYK9-1517)', () => {
         faultCount: null,
         placement: null,
         resultsReleased: false,
-        runOrder: 4,
       },
     ],
     ...over,
@@ -191,7 +190,6 @@ describe('AtShowDogsPage as an exhibitor (MYK9-1517)', () => {
     const row = screen.getByTestId('at-show-dog-armband:7');
     expect(row).toHaveTextContent('Trial A');
     expect(row).toHaveTextContent('Container Novice');
-    expect(row).toHaveTextContent('Place in line 4');
     expect(row).toHaveTextContent(/Checked.?in/i);
     expect(row.querySelector('a')).toBeNull();
   });

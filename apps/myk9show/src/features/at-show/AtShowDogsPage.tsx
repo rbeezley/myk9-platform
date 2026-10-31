@@ -46,7 +46,7 @@ const DogRowBody: React.FC<{ to: string | null; children: React.ReactNode }> = (
     <div className={ROW_BODY}>{children}</div>
   );
 
-/** Class membership, run-order position and check-in status: the approved exhibitor fields. */
+/** Trial, class and check-in status: the approved exhibitor fields. */
 const ExhibitorClassLines: React.FC<{ dog: StaffDog }> = ({ dog }) => (
   <span className="block text-xs text-muted-foreground">
     {dog.entries.map(entry => (
@@ -54,7 +54,6 @@ const ExhibitorClassLines: React.FC<{ dog: StaffDog }> = ({ dog }) => (
         {[
           entry.trialLabel,
           entry.className,
-          entry.runOrder ? `Place in line ${entry.runOrder}` : null,
           getStatusDescriptor('entry', entry.checkInStatus).label,
         ]
           .filter(Boolean)

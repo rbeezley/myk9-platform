@@ -4,7 +4,7 @@
 -- exhibitor cannot browse the show's dogs to favorite a friend's. This adds ONE
 -- SECURITY DEFINER function that returns only the owner-approved columns
 -- (2026-10-30): armband, call name, breed, handler name, class membership,
--- run-order position and check-in status. Never contact details, owner address,
+-- and check-in status. Never contact details, owner address,
 -- fees, payment status or registration numbers, and no score or result field at
 -- all, so result-visibility rules cannot be bypassed through it.
 --
@@ -27,6 +27,12 @@
 -- alone, so listing a dog whose number lives only in the `armbands` table would offer
 -- a heart that can never alert. Widening both consumers is a follow-up. A dog with no
 -- call name is shown by its registered name.
+--
+-- Run-order position is deliberately NOT returned. Four review rounds showed that a
+-- place in line cannot be computed here without cloning the whole ringside queue
+-- (waiting-status membership, result statuses, armband fallback ordering, combined
+-- A/B classes), and a wrong place in line is worse than none for a "your turn" use.
+-- A server-side queue function shared with get_my_entry_queue_places is the follow-up.
 
 CREATE OR REPLACE FUNCTION public.show_dogs_limited_view(
   p_show_id uuid,
@@ -42,7 +48,6 @@ RETURNS TABLE (
   class_name text,
   trial_name text,
   trial_date date,
-  run_position integer,
   check_in_status text
 )
 LANGUAGE plpgsql
@@ -91,10 +96,7 @@ BEGIN
       e.handler AS entry_handler,
       e.handler_id,
       e.class_id AS entry_class_id,
-      e.run_order,
       e.check_in_status AS entry_check_in,
-      e.is_scored AS entry_is_scored,
-      e.is_in_ring AS entry_is_in_ring,
       d.call_name AS dog_call_name,
       d.name AS dog_name,
       d.breed AS dog_breed,
@@ -111,32 +113,6 @@ BEGIN
       AND e.deleted_at IS NULL
       AND (e.class_id IS NULL OR (c.id IS NOT NULL AND t.id IS NOT NULL))
       AND coalesce(e.entry_status, '') <> ALL (v_excluded)
-  ),
-  ranked AS (
-    -- Place in line (1 = next), by the shared queue rules (runQueue.ts pendingByRunOrder,
-    -- mirrored in push-trigger-run-proximity): only a dog still WAITING has a place. A
-    -- scored, in-ring, pulled or otherwise finished dog has none (NULL; the check-in
-    -- status says what it is). No score value is read out, only whether the dog is
-    -- still due to run.
-    SELECT
-      k.*,
-      CASE WHEN k.waiting THEN row_number() OVER (
-        PARTITION BY k.entry_class_id, k.waiting
-        ORDER BY coalesce(nullif(k.run_order, 0), k.armband_key), k.armband_key, k.entry_id
-      ) END AS run_position
-    FROM (
-      SELECT
-        l.*,
-        CASE WHEN l.entry_armband ~ '^[0-9]{1,9}$' THEN l.entry_armband::integer
-             ELSE 2147483647 END AS armband_key,
-        (
-          NOT coalesce(l.entry_is_scored, false)
-          AND NOT coalesce(l.entry_is_in_ring, false)
-          AND coalesce(l.entry_check_in, 'no-status') IN
-            ('no-status', 'checked-in', 'at-gate', 'come-to-gate', 'conflict')
-        ) AS waiting
-      FROM live l
-    ) k
   )
   SELECT
     r.entry_armband::integer,
@@ -147,9 +123,8 @@ BEGIN
     r.cls_name::text,
     r.trial_name::text,
     r.trial_date,
-    r.run_position::integer,
     coalesce(r.entry_check_in, 'no-status')::text
-  FROM ranked r
+  FROM live r
   WHERE (
       v_passcode
       OR (
@@ -171,7 +146,7 @@ END;
 $$;
 
 COMMENT ON FUNCTION public.show_dogs_limited_view(uuid, integer, integer) IS
-  'MYK9-1517. Owner-approved limited view of the show''s dogs for exhibitors and passcode sessions: armband, call name, breed, handler name, class, run-order position, check-in status. No contact, fee, payment, registration or score data. Zero rows unless the caller has a live entry in the show or a current passcode claim for it. Paged, at most 1000 rows per call.';
+  'MYK9-1517. Owner-approved limited view of the show''s dogs for exhibitors and passcode sessions: armband, call name, breed, handler name, class, check-in status. No contact, fee, payment, registration or score data. Zero rows unless the caller has a live entry in the show or a current passcode claim for it. Paged, at most 1000 rows per call.';
 
 -- anon and PUBLIC get EXECUTE by default; revoke both explicitly. A passcode
 -- session is an authenticated (anonymous-sign-in) JWT, so authenticated covers it.

@@ -37,8 +37,6 @@ export interface StaffDogClassEntry {
   faultCount: number | null;
   placement: number | null;
   resultsReleased: boolean;
-  /** Place in line (1 = next to run) among waiting dogs, derived server-side; exhibitor view only. */
-  runOrder?: number | null;
 }
 
 export interface StaffDog {

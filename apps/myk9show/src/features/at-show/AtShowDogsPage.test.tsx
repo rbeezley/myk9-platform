@@ -12,6 +12,10 @@ const mocks = vi.hoisted(() => ({
   loadFailed: false,
   isComplete: true,
   retry: vi.fn(),
+  staffShow: undefined as string | undefined,
+  exhibitorShow: undefined as string | undefined,
+  exhibitorDogs: [] as StaffDog[],
+  exhibitorFailed: false,
 }));
 
 vi.mock('./useRingsideEffectiveRole', () => ({
@@ -20,16 +24,33 @@ vi.mock('./useRingsideEffectiveRole', () => ({
 vi.mock('./useRehydrateRingsideGrant', () => ({
   useRehydrateRingsideGrant: () => mocks.rehydrated,
 }));
-vi.mock('./useAtShowStaffDogs', () => ({
-  useAtShowStaffDogs: () => ({
-    dogs: mocks.dogs,
-    showName: 'Spring Show',
-    isLoading: false,
-    isComplete: mocks.isComplete,
-    loadFailed: mocks.loadFailed,
-    onRetry: mocks.retry,
-  }),
+vi.mock('./useAtShowExhibitorDogs', () => ({
+  useAtShowExhibitorDogs: (showId: string | undefined) => {
+    mocks.exhibitorShow = showId;
+    return {
+      dogs: mocks.exhibitorDogs,
+      showName: '',
+      isLoading: false,
+      isComplete: true,
+      loadFailed: mocks.exhibitorFailed,
+      onRetry: mocks.retry,
+    };
+  },
 }));
+vi.mock('./useAtShowStaffDogs', () => ({
+  useAtShowStaffDogs: (showId: string | undefined) => {
+    mocks.staffShow = showId;
+    return staffResult();
+  },
+}));
+const staffResult = () => ({
+  dogs: mocks.dogs,
+  showName: 'Spring Show',
+  isLoading: false,
+  isComplete: mocks.isComplete,
+  loadFailed: mocks.loadFailed,
+  onRetry: mocks.retry,
+});
 vi.mock('./dogFavoritesSync', () => ({
   useAtShowDogFavoritesSynced: () => ({
     favoriteArmbands: mocks.favorites,
@@ -69,6 +90,8 @@ beforeEach(() => {
   mocks.loadFailed = false;
   mocks.isComplete = true;
   mocks.retry.mockReset();
+  mocks.exhibitorDogs = [];
+  mocks.exhibitorFailed = false;
   sessionStorage.clear();
   mocks.dogs = [
     dog({ key: 'd1', dogName: 'Zip', armband: 12, handler: 'Amy' }),
@@ -112,11 +135,95 @@ describe('AtShowDogsPage', () => {
     expect(mocks.toggle).toHaveBeenCalledWith(3);
   });
 
-  it.each(['exhibitor', null])('sends a %s role back to the class picker', role => {
-    mocks.role = role;
+  it('sends an unresolved role back to the class picker', () => {
+    mocks.role = null;
     renderRoutes('/at-show/s1/dogs');
     expect(screen.getByText('class picker')).toBeInTheDocument();
     expect(screen.queryByTestId('at-show-dogs')).not.toBeInTheDocument();
+  });
+});
+
+describe('AtShowDogsPage as an exhibitor (MYK9-1517)', () => {
+  const exhibitorDog = (over: Partial<StaffDog> = {}): StaffDog => ({
+    key: 'armband:7',
+    dogName: 'Friend',
+    breed: 'Poodle',
+    handler: 'Pat',
+    armband: 7,
+    entries: [
+      {
+        entryId: '7:c1',
+        classId: 'c1',
+        routeClassIds: [],
+        className: 'Container Novice',
+        trialLabel: 'Trial A',
+        checkInStatus: 'checked-in',
+        isPulled: false,
+        isMoved: false,
+        isScored: false,
+        resultText: null,
+        searchTime: null,
+        faultCount: null,
+        placement: null,
+        resultsReleased: false,
+      },
+    ],
+    ...over,
+  });
+
+  beforeEach(() => {
+    mocks.role = 'exhibitor';
+    mocks.dogs = [dog({ key: 'staff-only', dogName: 'ReplicaDog' })];
+    mocks.exhibitorDogs = [exhibitorDog()];
+  });
+
+  it('reads the server list, not the replica, and loads nothing for staff', () => {
+    renderRoutes('/at-show/s1/dogs');
+    expect(mocks.exhibitorShow).toBe('s1');
+    expect(mocks.staffShow).toBeUndefined();
+    expect(screen.getByText('Friend')).toBeInTheDocument();
+    expect(screen.queryByText('ReplicaDog')).not.toBeInTheDocument();
+  });
+
+  it('shows class, run order and check-in status without linking to the staff dog page', () => {
+    renderRoutes('/at-show/s1/dogs');
+    const row = screen.getByTestId('at-show-dog-armband:7');
+    expect(row).toHaveTextContent('Trial A');
+    expect(row).toHaveTextContent('Container Novice');
+    expect(row).toHaveTextContent(/Checked.?in/i);
+    expect(row.querySelector('a')).toBeNull();
+  });
+
+  it("searches, and favorites a friend's dog through the synced favorites", () => {
+    mocks.exhibitorDogs = [
+      exhibitorDog(),
+      exhibitorDog({ key: 'armband:8', dogName: 'Other', armband: 8, handler: 'Quinn' }),
+    ];
+    renderRoutes('/at-show/s1/dogs');
+    fireEvent.change(screen.getByLabelText('Search dogs'), { target: { value: 'quinn' } });
+    expect(screen.getByText('1 of 2 dogs')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Add Other to favorites/ }));
+    expect(mocks.toggle).toHaveBeenCalledWith(8);
+  });
+
+  it('explains an empty roster instead of claiming the show has no dogs', () => {
+    mocks.exhibitorDogs = [];
+    renderRoutes('/at-show/s1/dogs');
+    expect(screen.getByText(/for exhibitors with an entry in this show/)).toBeInTheDocument();
+  });
+
+  it('says the list needs a connection when the read fails', () => {
+    mocks.exhibitorDogs = [];
+    mocks.exhibitorFailed = true;
+    renderRoutes('/at-show/s1/dogs');
+    expect(screen.getByRole('alert')).toHaveTextContent(/needs a connection/);
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(mocks.retry).toHaveBeenCalled();
+  });
+
+  it('keeps the staff dog page closed to an exhibitor', () => {
+    renderRoutes('/at-show/s1/dogs/armband:7');
+    expect(screen.getByText('class picker')).toBeInTheDocument();
   });
 });
 

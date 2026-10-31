@@ -13,10 +13,12 @@ const STAFF_ACCOUNT_ROLES = [
   UserRole.CHAIRMAN,
   UserRole.JUDGE,
   UserRole.STEWARD,
+  UserRole.EXHIBITOR,
 ];
 
 /**
- * Staff door from the class picker to the show-wide dog finder (MYK9-1509). Reads
+ * Door from the class picker to the show-wide dog finder: staff (MYK9-1509) and
+ * exhibitors (MYK9-1517, a limited server-side view). Reads
  * the show's passcode grant first, then the account roles, the order
  * `resolveRingsideAccess` uses; the destination re-checks with the full hook.
  */
@@ -24,7 +26,7 @@ export function AtShowDogsLink({ showId }: { showId: string | undefined }) {
   const { hasRole } = useAuthContext();
   const grantRole = useRingsideGrantRole(showId);
   const isStaff = grantRole
-    ? isStaffRingsideRole(grantRole)
+    ? isStaffRingsideRole(grantRole) || grantRole === 'exhibitor'
     : STAFF_ACCOUNT_ROLES.some(role => hasRole(role));
   if (!isStaff || !showId) return null;
   return (

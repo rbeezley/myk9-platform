@@ -28,15 +28,22 @@ describe('AtShowDogsLink', () => {
     }
   );
 
-  it('offers nothing to an exhibitor-only account', () => {
+  it('offers the dog finder to an exhibitor account', () => {
     state.roles = new Set([UserRole.EXHIBITOR]);
     render(<AtShowDogsLink showId="s1" />);
-    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Find a dog/ })).toHaveAttribute(
+      'href',
+      '/at-show/s1/dogs'
+    );
   });
 
-  it('lets an exhibitor passcode grant override a staff account role', () => {
-    state.roles = new Set([UserRole.SECRETARY]);
+  it('offers the dog finder to an exhibitor passcode grant', () => {
     state.grant = 'exhibitor';
+    render(<AtShowDogsLink showId="s1" />);
+    expect(screen.getByRole('link', { name: /Find a dog/ })).toBeInTheDocument();
+  });
+
+  it('offers nothing to a viewer with no role or grant', () => {
     render(<AtShowDogsLink showId="s1" />);
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
   });

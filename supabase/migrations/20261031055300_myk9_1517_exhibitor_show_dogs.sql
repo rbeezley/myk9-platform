@@ -8,6 +8,8 @@
 -- fees, payment status or registration numbers, and no score or result field at
 -- all, so result-visibility rules cannot be bypassed through it.
 --
+-- Soft-deleted shows, classes, trials and dogs expose nothing.
+--
 -- Callable only by (a) a signed-in caller with a live entry in THAT show (as
 -- handler, owner or co-owner: the same arms as is_show_exhibitor) or (b) a
 -- ringside passcode session whose claim names that show and whose generation is
@@ -50,8 +52,19 @@ AS $$
 DECLARE
   v_person_id uuid;
   v_authorized boolean := false;
+  -- ONE status rule for authorization and listing: entries in these states are not
+  -- running, and a NULL status counts as live.
+  v_excluded constant text[] :=
+    ARRAY['withdrawn', 'scratched', 'absent', 'moved', 'not_accepted'];
 BEGIN
   IF p_show_id IS NULL OR auth.uid() IS NULL THEN
+    RETURN;
+  END IF;
+
+  -- A soft-deleted (or unknown) show has no roster, for anyone.
+  IF NOT EXISTS (
+    SELECT 1 FROM public.shows s WHERE s.id = p_show_id AND s.deleted_at IS NULL
+  ) THEN
     RETURN;
   END IF;
 
@@ -76,11 +89,13 @@ BEGIN
         LEFT JOIN public.dogs od ON od.id = e.dog_id
         WHERE e.show_id = p_show_id
           AND e.deleted_at IS NULL
-          AND e.entry_status NOT IN ('withdrawn', 'scratched')
+          AND coalesce(e.entry_status, '') <> ALL (v_excluded)
           AND (
             e.handler_id = v_person_id
-            OR od.owner_id = v_person_id
-            OR od.co_owner_id = v_person_id
+            OR (
+              od.deleted_at IS NULL
+              AND (od.owner_id = v_person_id OR od.co_owner_id = v_person_id)
+            )
           )
       );
     END IF;
@@ -103,15 +118,16 @@ BEGIN
     e.run_order::integer,
     coalesce(e.check_in_status, 'no-status')::text
   FROM public.entries e
-  LEFT JOIN public.dogs d ON d.id = e.dog_id
-  LEFT JOIN public.classes c ON c.id = e.class_id
-  LEFT JOIN public.trials t ON t.id = c.trial_id
+  JOIN public.dogs d ON d.id = e.dog_id AND d.deleted_at IS NULL
+  LEFT JOIN public.classes c ON c.id = e.class_id AND c.deleted_at IS NULL
+  LEFT JOIN public.trials t ON t.id = c.trial_id AND t.deleted_at IS NULL
   WHERE e.show_id = p_show_id
     AND e.deleted_at IS NULL
+    -- A soft-deleted class or trial takes its entries with it.
+    AND (e.class_id IS NULL OR (c.id IS NOT NULL AND t.id IS NOT NULL))
     AND e.armband ~ '^[0-9]{1,9}$'
     AND e.armband::integer > 0
-    AND coalesce(e.entry_status, '') NOT IN
-      ('withdrawn', 'scratched', 'absent', 'moved', 'not_accepted')
+    AND coalesce(e.entry_status, '') <> ALL (v_excluded)
   ORDER BY e.armband::integer, t.date, c.name, e.class_id, e.id
   OFFSET greatest(coalesce(p_offset, 0), 0)
   LIMIT least(greatest(coalesce(p_limit, 1000), 1), 1000);

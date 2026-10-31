@@ -14,7 +14,9 @@
 --      is regenerated (stale generation) or for another show;
 --   6. NULL show and no auth.uid() return nothing;
 --   7. the return type carries no contact, fee, payment, registration or score
---      column, and the row limit is the hard 2000;
+--      column, and pages are capped at 1000 rows;
+--   9. soft-deleted shows, classes and dogs expose nothing, and a caller whose only
+--      entry is not_accepted, moved or absent gets nothing;
 --   8. the function is closed to anon and PUBLIC, open to authenticated.
 --
 -- All fixtures roll back. Run with psql -X -v ON_ERROR_STOP=1 after migrations.
@@ -130,6 +132,74 @@ VALUES ('00000000-0000-0000-0000-000001517207', '00000000-0000-0000-0000-0000015
 INSERT INTO public.armbands (show_id, dog_id, entry_id, armband_number, is_available)
 VALUES ('00000000-0000-0000-0000-000001517002', '00000000-0000-0000-0000-000001517136',
    '00000000-0000-0000-0000-000001517207', '104', false);
+
+-- Soft-delete fixtures. Show A also holds a soft-deleted class and a soft-deleted dog,
+-- each with an armband and each reachable by exhibitor X; show C is soft-deleted and
+-- holds a live entry plus a passcode.
+INSERT INTO public.classes (id, trial_id, name, status, deleted_at)
+VALUES ('00000000-0000-0000-0000-000001517107', '00000000-0000-0000-0000-000001517004',
+  'Deleted Class', 'upcoming', now());
+INSERT INTO public.dogs (id, name, call_name, breed, owner_id, deleted_at)
+VALUES ('00000000-0000-0000-0000-000001517139', 'Deleted Dog', 'DeletedCall', 'DeletedBreed',
+  '00000000-0000-0000-0000-000001517111', now());
+INSERT INTO public.dog_registrations (dog_id, organization, registration_number, is_primary)
+VALUES ('00000000-0000-0000-0000-000001517139', 'AKC (American Kennel Club)', 'SR151709', true);
+INSERT INTO public.entries (id, dog_id, class_id, show_id, trial_id, handler_id, handler, armband,
+  run_order, entry_status, payment_status, entry_fee, check_in_status)
+VALUES
+  ('00000000-0000-0000-0000-000001517209', '00000000-0000-0000-0000-000001517131',
+   '00000000-0000-0000-0000-000001517107', '00000000-0000-0000-0000-000001517002',
+   '00000000-0000-0000-0000-000001517004', '00000000-0000-0000-0000-000001517111', 'Xena Handler',
+   '108', 1, 'confirmed', 'pending', 25, 'no-status'),
+  ('00000000-0000-0000-0000-000001517210', '00000000-0000-0000-0000-000001517139',
+   '00000000-0000-0000-0000-000001517103', '00000000-0000-0000-0000-000001517002',
+   '00000000-0000-0000-0000-000001517004', '00000000-0000-0000-0000-000001517111', 'Xena Handler',
+   '109', 2, 'confirmed', 'pending', 25, 'no-status');
+
+INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id, status, deleted_at)
+VALUES ('00000000-0000-0000-0000-000001517008', 'MYK9-1517 Deleted Show', 'AKC', current_date,
+  current_date, '00000000-0000-0000-0000-000001517001', 'published', now());
+INSERT INTO public.trials (id, show_id, name, date, registry_id)
+VALUES ('00000000-0000-0000-0000-000001517009', '00000000-0000-0000-0000-000001517008',
+  'MYK9-1517 Trial C', current_date, 'AKC');
+INSERT INTO public.classes (id, trial_id, name, status)
+VALUES ('00000000-0000-0000-0000-000001517108', '00000000-0000-0000-0000-000001517009',
+  'Container Novice C', 'upcoming');
+INSERT INTO public.entries (id, dog_id, class_id, show_id, trial_id, handler_id, handler, armband,
+  run_order, entry_status, payment_status, entry_fee, check_in_status)
+VALUES ('00000000-0000-0000-0000-000001517211', '00000000-0000-0000-0000-000001517131',
+   '00000000-0000-0000-0000-000001517108', '00000000-0000-0000-0000-000001517008',
+   '00000000-0000-0000-0000-000001517009', '00000000-0000-0000-0000-000001517111', 'Xena Handler',
+   '301', 1, 'confirmed', 'pending', 25, 'no-status');
+
+-- Person 6 (dog 8) has only entries that are not running: not_accepted, moved, absent.
+INSERT INTO public.people (id, first_name, last_name, email, auth_user_id)
+VALUES ('00000000-0000-0000-0000-000001517116', 'MYK9-1517', 'Person 6', 'myk91517-6@example.test', NULL);
+INSERT INTO auth.users (
+  id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
+  created_at, updated_at, raw_app_meta_data, raw_user_meta_data,
+  is_super_admin, is_sso_user, is_anonymous
+)
+VALUES ('00000000-0000-0000-0000-000001517126', '00000000-0000-0000-0000-000000000000',
+  'authenticated', 'authenticated', 'myk91517-6@example.test', '', now(), now(), now(),
+  '{}', '{}', false, false, false);
+UPDATE public.people SET auth_user_id = '00000000-0000-0000-0000-000001517126'
+WHERE id = '00000000-0000-0000-0000-000001517116';
+INSERT INTO public.dogs (id, name, call_name, breed, owner_id)
+VALUES ('00000000-0000-0000-0000-000001517138', 'MYK9-1517 Dog 8', 'Call8', 'Breed8',
+  '00000000-0000-0000-0000-000001517116');
+INSERT INTO public.dog_registrations (dog_id, organization, registration_number, is_primary)
+VALUES ('00000000-0000-0000-0000-000001517138', 'AKC (American Kennel Club)', 'SR151708', true);
+INSERT INTO public.entries (id, dog_id, class_id, show_id, trial_id, handler_id, handler, armband,
+  run_order, entry_status, payment_status, entry_fee, check_in_status)
+SELECT ('00000000-0000-0000-0000-00000151722' || n)::uuid, '00000000-0000-0000-0000-000001517138',
+  ('00000000-0000-0000-0000-00000151710' || n)::uuid, '00000000-0000-0000-0000-000001517002',
+  '00000000-0000-0000-0000-000001517004', '00000000-0000-0000-0000-000001517116', 'Six Handler',
+  (110 + n)::text, 20 + n, st, 'pending', 25, 'no-status'
+FROM unnest(array['not_accepted', 'moved', 'absent']) WITH ORDINALITY AS u(st, n);
+
+INSERT INTO public.show_passcodes (show_id, role, passcode_hash, created_at)
+VALUES ('00000000-0000-0000-0000-000001517008', 'steward', 'myk9-1517-hash-c', '2026-10-10T00:00:00Z');
 
 INSERT INTO public.show_passcodes (show_id, role, passcode_hash, created_at)
 VALUES ('00000000-0000-0000-0000-000001517002', 'steward', 'myk9-1517-hash', '2026-10-10T00:00:00Z');
@@ -253,6 +323,36 @@ BEGIN
     RAISE EXCEPTION 'FAIL 5 a stale-generation passcode must read nothing';
   END IF;
   RAISE NOTICE 'PASS 5 stale passcode generation reads nothing';
+END $$;
+
+-- 9. soft-deleted show/class/dog expose nothing; non-running-only caller gets nothing.
+SELECT pg_temp.as_account('00000000-0000-0000-0000-000001517121');
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM public.show_dogs_limited_view('00000000-0000-0000-0000-000001517008')) THEN
+    RAISE EXCEPTION 'FAIL 9 a soft-deleted show must return nothing to a caller with a live entry';
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.show_dogs_limited_view('00000000-0000-0000-0000-000001517002')
+             WHERE armband IN (108, 109) OR class_name = 'Deleted Class' OR call_name = 'DeletedCall') THEN
+    RAISE EXCEPTION 'FAIL 9 a soft-deleted class or dog must not be returned';
+  END IF;
+  RAISE NOTICE 'PASS 9 soft-deleted show, class and dog expose nothing';
+END $$;
+SELECT pg_temp.as_passcode('00000000-0000-0000-0000-000001517008', '2026-10-10T00:00:00Z');
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM public.show_dogs_limited_view('00000000-0000-0000-0000-000001517008')) THEN
+    RAISE EXCEPTION 'FAIL 9 a passcode for a soft-deleted show must return nothing';
+  END IF;
+  RAISE NOTICE 'PASS 9 passcode for a soft-deleted show reads nothing';
+END $$;
+SELECT pg_temp.as_account('00000000-0000-0000-0000-000001517126');
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM public.show_dogs_limited_view('00000000-0000-0000-0000-000001517002')) THEN
+    RAISE EXCEPTION 'FAIL 9 a caller whose only entries are not_accepted/moved/absent must read nothing';
+  END IF;
+  RAISE NOTICE 'PASS 9 non-running-only caller reads nothing';
 END $$;
 
 -- 6. NULL show, and no auth.uid().

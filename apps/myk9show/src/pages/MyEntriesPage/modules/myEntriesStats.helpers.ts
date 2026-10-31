@@ -243,11 +243,13 @@ export function isCompletedEntry(entry: MyEntry, now: Date): boolean {
 }
 
 /**
- * "Past" for the tab axis: the SAME trial-zone rule the My Shows check-in gate
- * uses (`isShowPastInTrialZones`), applied to this order's own classes, so the
- * Upcoming filter cannot call a show over while the gate still has its last
- * day running in the trial's zone (MYK9-1586). `isPastShowEntry` stays
- * device-local for the other callers, payments included.
+ * "Past" for the tab axis: the trial-zone rule the My Shows check-in gate uses
+ * (`isLastDayPastInZones`), so the Upcoming filter cannot call a show over
+ * while its last day is still running in the trial's zone (MYK9-1586). The
+ * zones are this order's own classes, where the gate unions every order at the
+ * show; the two differ only for split orders on a multi-zone show, on the last
+ * day, between the zones' midnights. `isPastShowEntry` stays device-local for
+ * the other callers, payments included.
  */
 function isShowPastInEntryTrialZones(entry: MyEntry, now: Date): boolean {
   const zones = entry.classes

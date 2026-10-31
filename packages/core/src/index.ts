@@ -74,8 +74,22 @@ export {
   formatTimeForDisplay,
   formatTimeLimitSeconds,
   parseTimeToMs,
-  formatTimeInputToMMSS,
 } from './utils/timeFormatting';
+
+// Typed-duration parser (the one parser every time field uses)
+export {
+  parseDuration,
+  formatDuration,
+  isUnresolvedDuration,
+  isDurationFailure,
+  type DurationFailure,
+  SEARCH_MAX_DIGITS,
+  MAX_TIME_MAX_DIGITS,
+  type DurationKind,
+  type DurationResult,
+  type DurationErrorCode,
+  type DurationSuggestion,
+} from './utils/parseDuration';
 
 // Date formatting utilities
 export {

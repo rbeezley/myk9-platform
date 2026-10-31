@@ -12,5 +12,4 @@ export {
   formatTimeForDisplay,
   formatTimeLimitSeconds,
   parseTimeToMs,
-  formatTimeInputToMMSS,
 } from '@myk9/core';

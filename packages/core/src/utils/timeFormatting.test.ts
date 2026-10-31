@@ -11,7 +11,6 @@ import {
   formatTimeForDisplay,
   formatTimeLimitSeconds,
   parseTimeToMs,
-  formatTimeInputToMMSS,
 } from './timeFormatting';
 
 describe('formatMilliseconds', () => {
@@ -216,60 +215,6 @@ describe('parseTimeToMs', () => {
 
   it('should handle fractional seconds', () => {
     expect(parseTimeToMs('1:30.5')).toBe(90500);
-  });
-});
-
-describe('formatTimeInputToMMSS', () => {
-  it('should format single digit as minutes', () => {
-    expect(formatTimeInputToMMSS('1')).toBe('01:00');
-  });
-
-  it('should format double digit as minutes', () => {
-    expect(formatTimeInputToMMSS('2')).toBe('02:00');
-  });
-
-  it('should format 3 digits as M:SS', () => {
-    expect(formatTimeInputToMMSS('130')).toBe('01:30');
-  });
-
-  it('should format 4 digits as MM:SS', () => {
-    expect(formatTimeInputToMMSS('0215')).toBe('02:15');
-  });
-
-  it('should pass through colon-format input', () => {
-    expect(formatTimeInputToMMSS('1:30')).toBe('01:30');
-  });
-
-  it('should return empty string for empty input', () => {
-    expect(formatTimeInputToMMSS('')).toBe('');
-  });
-
-  it('should handle seconds overflow (90 seconds)', () => {
-    expect(formatTimeInputToMMSS('0:90')).toBe('01:30');
-  });
-
-  it('should respect maxMinutes', () => {
-    expect(formatTimeInputToMMSS('10', 5)).toBe('05:00');
-  });
-
-  it('should cap at default max for 4-digit input', () => {
-    expect(formatTimeInputToMMSS('9900')).toBe('05:00');
-  });
-
-  it('should handle invalid seconds in 3-digit input', () => {
-    expect(formatTimeInputToMMSS('199')).toBe('01:00'); // 99 seconds >= 60
-  });
-
-  it('should strip non-digit non-colon characters', () => {
-    expect(formatTimeInputToMMSS('1a3b0')).toBe('01:30');
-  });
-
-  it('should cap at maxMinutes with colon format', () => {
-    expect(formatTimeInputToMMSS('10:30', 5)).toBe('05:00');
-  });
-
-  it('should zero out seconds when exactly at max minutes', () => {
-    expect(formatTimeInputToMMSS('5:30', 5)).toBe('05:00');
   });
 });
 

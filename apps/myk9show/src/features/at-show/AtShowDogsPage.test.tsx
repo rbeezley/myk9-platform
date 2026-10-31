@@ -206,6 +206,12 @@ describe('AtShowDogsPage as an exhibitor (MYK9-1517)', () => {
     expect(mocks.toggle).toHaveBeenCalledWith(8);
   });
 
+  it('explains an empty roster instead of claiming the show has no dogs', () => {
+    mocks.exhibitorDogs = [];
+    renderRoutes('/at-show/s1/dogs');
+    expect(screen.getByText(/for exhibitors with an entry in this show/)).toBeInTheDocument();
+  });
+
   it('says the list needs a connection when the read fails', () => {
     mocks.exhibitorDogs = [];
     mocks.exhibitorFailed = true;

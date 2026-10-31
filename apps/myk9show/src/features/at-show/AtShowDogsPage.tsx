@@ -177,7 +177,7 @@ export const AtShowDogsPage: React.FC = () => {
         <p className="py-10 text-center text-sm text-muted-foreground">
           {dogs.length === 0
             ? isExhibitor
-              ? 'No dogs in this show yet.'
+              ? 'No dogs to show. This list is for exhibitors with an entry in this show.'
               : 'No dogs on this device yet.'
             : 'No dogs match.'}
         </p>

@@ -46,8 +46,7 @@ VALUES ('00000000-0000-0000-0000-000001517106', '00000000-0000-0000-0000-0000015
 -- 5 exhibitor whose only show-A entry is withdrawn.
 INSERT INTO public.people (id, first_name, last_name, email, phone, auth_user_id)
 SELECT ('00000000-0000-0000-0000-00000151711' || n)::uuid, 'MYK9-1517', 'Person ' || n,
-       'myk91517-' || n || '@example.test', '555-010' || n,
-       ('00000000-0000-0000-0000-00000151712' || n)::uuid
+       'myk91517-' || n || '@example.test', '555-010' || n, NULL
 FROM generate_series(1, 5) n;
 
 INSERT INTO auth.users (
@@ -59,6 +58,10 @@ SELECT ('00000000-0000-0000-0000-00000151712' || n)::uuid, '00000000-0000-0000-0
        'authenticated', 'authenticated', 'myk91517-' || n || '@example.test', '', now(), now(), now(),
        '{}', '{}', false, false, false
 FROM generate_series(1, 5) n;
+
+-- Link after the auth users exist (the sign-in email invariant checks the match).
+UPDATE public.people SET auth_user_id = ('00000000-0000-0000-0000-00000151712' || right(id::text, 1))::uuid
+WHERE id::text LIKE '00000000-0000-0000-0000-00000151711%';
 
 -- Dogs 1..5 owned by people 1..5.
 INSERT INTO public.dogs (id, name, call_name, breed, owner_id)

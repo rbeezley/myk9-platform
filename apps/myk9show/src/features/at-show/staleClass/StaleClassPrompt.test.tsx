@@ -7,6 +7,8 @@ const mocks = vi.hoisted(() => ({
   toastSuccess: vi.fn(),
   toastInfo: vi.fn(),
   toastError: vi.fn(),
+  getClassById: vi.fn(),
+  updateClassStatus: vi.fn(),
 }));
 
 vi.mock('sonner', () => ({
@@ -17,6 +19,12 @@ vi.mock('@/hooks/useOptimisticScoring', () => ({
 }));
 vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
   replicatedEntriesTable: { getEntryById: mocks.getEntryById },
+}));
+vi.mock('@/services/replication/ReplicatedClassesTable', () => ({
+  replicatedClassesTable: { getClassById: mocks.getClassById },
+}));
+vi.mock('../ringsideCapabilities', () => ({
+  buildRingsideReplication: () => ({ updateClassStatus: mocks.updateClassStatus }),
 }));
 vi.mock('./checkStaleClass', () => ({ recheckStaleClass: mocks.recheck }));
 
@@ -40,6 +48,12 @@ describe('StaleClassPrompt', () => {
     useStaleClassPromptStore.setState({ prompt: null, snoozes: {} });
     mocks.getEntryById.mockResolvedValue({ armband: '101' });
     mocks.submitScore.mockResolvedValue(undefined);
+    mocks.getClassById.mockResolvedValue({
+      id: 'stale',
+      statusSource: 'derived',
+      classStatus: 'in_progress',
+    });
+    mocks.updateClassStatus.mockResolvedValue(undefined);
   });
 
   it('renders nothing until there is a prompt', () => {
@@ -98,5 +112,69 @@ describe('StaleClassPrompt', () => {
 
     await waitFor(() => expect(mocks.toastInfo).toHaveBeenCalled());
     expect(mocks.submitScore).not.toHaveBeenCalled();
+  });
+
+  const freshHit = {
+    classId: 'stale',
+    className: 'Container Novice A',
+    unscoredEntryIds: ['b', 'c'],
+    lastResultAtMs: 0,
+  };
+
+  it('completes a manually controlled class through the status write', async () => {
+    mocks.recheck.mockResolvedValue(freshHit);
+    mocks.getClassById.mockResolvedValue({
+      id: 'stale',
+      statusSource: 'manual',
+      classStatus: 'in_progress',
+    });
+    useStaleClassPromptStore.setState({ prompt });
+    render(<StaleClassPrompt />);
+
+    await userEvent.click(await screen.findByRole('button', { name: /Mark absent/ }));
+
+    await waitFor(() => expect(mocks.updateClassStatus).toHaveBeenCalledWith('stale', 'completed'));
+  });
+
+  it('does not touch the status of a server-derived class', async () => {
+    mocks.recheck.mockResolvedValue(freshHit);
+    useStaleClassPromptStore.setState({ prompt });
+    render(<StaleClassPrompt />);
+
+    await userEvent.click(await screen.findByRole('button', { name: /Mark absent/ }));
+
+    await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalled());
+    expect(mocks.updateClassStatus).not.toHaveBeenCalled();
+  });
+
+  it('keeps the prompt as a retry after a partial failure', async () => {
+    mocks.recheck.mockResolvedValue(freshHit);
+    mocks.submitScore
+      .mockResolvedValueOnce(undefined)
+      .mockImplementationOnce(async (options: { onError: (e: Error) => void }) => {
+        options.onError(new Error('queue full'));
+      });
+    useStaleClassPromptStore.setState({ prompt });
+    render(<StaleClassPrompt />);
+
+    await userEvent.click(await screen.findByRole('button', { name: /Mark absent/ }));
+
+    await waitFor(() => expect(mocks.toastError).toHaveBeenCalled());
+    expect(useStaleClassPromptStore.getState().prompt?.retry).toBe(true);
+    expect(mocks.toastSuccess).not.toHaveBeenCalled();
+  });
+
+  it('says the dogs are only saved on this device while offline', async () => {
+    mocks.recheck.mockResolvedValue(freshHit);
+    const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    useStaleClassPromptStore.setState({ prompt });
+    render(<StaleClassPrompt />);
+
+    await userEvent.click(await screen.findByRole('button', { name: /Mark absent/ }));
+
+    await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalled());
+    expect(mocks.toastSuccess.mock.calls[0]?.[0]).toMatch(/on this device.*back online/);
+    expect(mocks.toastSuccess.mock.calls[0]?.[0]).not.toMatch(/completed/);
+    online.mockRestore();
   });
 });

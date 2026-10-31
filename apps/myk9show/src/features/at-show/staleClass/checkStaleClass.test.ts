@@ -128,4 +128,39 @@ describe('stale-class check against the replica', () => {
     expect(await recheckStaleClass(prompt)).toBeNull();
     expect(mocks.syncAtShowData).toHaveBeenCalledWith('show');
   });
+
+  it('leaves a snoozed class out so another stale class is still offered', async () => {
+    const olderLong = new Date(NOW - 90 * 60_000).toISOString();
+    mocks.getClassesByTrial.mockResolvedValue([
+      ...classes,
+      { id: 'older', name: 'Older', level: 'Master', judgeId: 'j', classStatus: 'in_progress' },
+    ]);
+    entries.older = [
+      { id: 'e', isScored: true, scoringCompletedAt: olderLong },
+      { id: 'f', isScored: false },
+    ];
+    useStaleClassPromptStore.setState({
+      snoozes: { older: { untilMs: NOW + 600_000, scoredClassId: 'scored' } },
+    });
+    await checkForStaleClass('show', 'scored');
+    expect(useStaleClassPromptStore.getState().prompt?.classId).toBe('stale');
+  });
+
+  it('re-checks a retried prompt without needing the class to go idle again', async () => {
+    entries.stale = [
+      { id: 'a', isScored: true, scoringCompletedAt: new Date().toISOString() },
+      { id: 'b', isScored: false },
+    ];
+    const prompt = {
+      classId: 'stale',
+      className: 'Buried Excellent A',
+      unscoredEntryIds: ['b'],
+      lastResultAtMs: 0,
+      showId: 'show',
+      trialId: 'trial',
+      scoredClassId: 'scored',
+    };
+    expect(await recheckStaleClass(prompt)).toBeNull();
+    expect((await recheckStaleClass({ ...prompt, retry: true }))?.unscoredEntryIds).toEqual(['b']);
+  });
 });

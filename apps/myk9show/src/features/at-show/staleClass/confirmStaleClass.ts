@@ -16,6 +16,8 @@ export async function confirmStaleClass(
   deps: {
     recheck: (prompt: StaleClassPrompt) => Promise<StaleClassCandidate | null>;
     markAbsent: (entryId: string, classId: string, className: string) => Promise<void>;
+    /** Runs after the dogs are written; completes a class the server will not derive (manual status). */
+    completeIfManual: (classId: string) => Promise<void>;
   }
 ): Promise<ConfirmStaleClassResult> {
   const fresh = await deps.recheck(prompt);
@@ -23,6 +25,7 @@ export async function confirmStaleClass(
   for (const entryId of fresh.unscoredEntryIds) {
     await deps.markAbsent(entryId, fresh.classId, fresh.className);
   }
+  await deps.completeIfManual(fresh.classId);
   return {
     outcome: 'marked',
     className: fresh.className,

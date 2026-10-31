@@ -14,7 +14,11 @@ import {
   type StaleClassFields,
   type StaleEntryFields,
 } from './detectStaleClass';
-import { useStaleClassPromptStore, type StaleClassPrompt } from './staleClassPromptStore';
+import {
+  snoozedClassIds,
+  useStaleClassPromptStore,
+  type StaleClassPrompt,
+} from './staleClassPromptStore';
 
 /** How long the confirm step waits for the server before judging on the local replica. */
 const RECHECK_SYNC_TIMEOUT_MS = 8_000;
@@ -27,7 +31,8 @@ export interface StaleClassHit {
 /** `null` follows the show's default (on); only an explicit false turns the prompt off. */
 export async function evaluateStaleClass(
   scoredClassId: string,
-  nowMs: number
+  nowMs: number,
+  options: { excludeClassIds?: ReadonlySet<string>; ignoreIdle?: boolean } = {}
 ): Promise<StaleClassHit | null> {
   const scored = await replicatedClassesTable.getClassById(scoredClassId);
   const trialId = scored?.trialId;
@@ -50,7 +55,8 @@ export async function evaluateStaleClass(
   // Entries only for the classes that already pass the cheap clauses.
   const entriesByClassId = new Map<string, StaleEntryFields[]>();
   for (const c of classes) {
-    if (c.id === scoredClassId || c.classStatus !== 'in_progress') continue;
+    if (c.id === scoredClassId || options.excludeClassIds?.has(c.id)) continue;
+    if (c.classStatus !== 'in_progress') continue;
     if (!c.judgeId || c.judgeId !== scoredFields.judgeId) continue;
     entriesByClassId.set(c.id, await replicatedEntriesTable.getEntriesByClass(c.id));
   }
@@ -60,6 +66,7 @@ export async function evaluateStaleClass(
     classes,
     entriesByClassId,
     nowMs,
+    ...options,
   });
   return candidate ? { trialId, candidate } : null;
 }
@@ -68,7 +75,12 @@ export async function evaluateStaleClass(
 export async function checkForStaleClass(showId: string, scoredClassId: string): Promise<void> {
   try {
     const nowMs = Date.now();
-    const hit = await evaluateStaleClass(scoredClassId, nowMs);
+    const excludeClassIds = snoozedClassIds(
+      useStaleClassPromptStore.getState().snoozes,
+      scoredClassId,
+      nowMs
+    );
+    const hit = await evaluateStaleClass(scoredClassId, nowMs, { excludeClassIds });
     if (!hit) return;
     useStaleClassPromptStore
       .getState()
@@ -102,6 +114,8 @@ export async function recheckStaleClass(
       clearTimeout(timer);
     }
   }
-  const hit = await evaluateStaleClass(prompt.scoredClassId, Date.now());
+  const hit = await evaluateStaleClass(prompt.scoredClassId, Date.now(), {
+    ignoreIdle: prompt.retry === true,
+  });
   return hit && hit.candidate.classId === prompt.classId ? hit.candidate : null;
 }

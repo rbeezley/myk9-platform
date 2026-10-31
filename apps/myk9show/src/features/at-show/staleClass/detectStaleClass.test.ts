@@ -118,4 +118,42 @@ describe('detectStaleClass', () => {
     });
     expect(result?.classId).toBe('older');
   });
+
+  it('skips excluded (snoozed) classes before choosing the oldest', () => {
+    const older: StaleClassFields = { ...stale, id: 'older', name: 'Older', level: 'Master' };
+    const input = {
+      scoredClass: scored,
+      classes: [scored, stale, older],
+      entriesByClassId: new Map([
+        [stale.id, [scoredEntry('a', 20), unscoredEntry('b')]],
+        [older.id, [scoredEntry('c', 50), unscoredEntry('d')]],
+      ]),
+      nowMs: NOW,
+    };
+    expect(detectStaleClass({ ...input, excludeClassIds: new Set(['older']) })?.classId).toBe(
+      'excellent-buried'
+    );
+  });
+
+  it('on a retry, ignores the idle clause but still needs unscored dogs', () => {
+    const fresh = [scoredEntry('a', 1), unscoredEntry('b')];
+    expect(detect({ entries: fresh })).toBeNull();
+    const retry = detectStaleClass({
+      scoredClass: scored,
+      classes: [scored, stale],
+      entriesByClassId: new Map([[stale.id, fresh]]),
+      nowMs: NOW,
+      ignoreIdle: true,
+    });
+    expect(retry?.unscoredEntryIds).toEqual(['b']);
+    expect(
+      detectStaleClass({
+        scoredClass: scored,
+        classes: [scored, stale],
+        entriesByClassId: new Map([[stale.id, [scoredEntry('a', 1)]]]),
+        nowMs: NOW,
+        ignoreIdle: true,
+      })
+    ).toBeNull();
+  });
 });

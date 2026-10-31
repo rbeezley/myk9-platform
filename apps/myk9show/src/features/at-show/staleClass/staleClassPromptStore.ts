@@ -13,6 +13,8 @@ export interface StaleClassPrompt extends StaleClassCandidate {
   trialId: string;
   /** The class the judge had just scored in when this was offered. */
   scoredClassId: string;
+  /** Set after a partial write, so the retry does not need the class to go idle again. */
+  retry?: boolean;
 }
 
 interface Snooze {
@@ -38,6 +40,17 @@ export function isSnoozed(
 ): boolean {
   const snooze = snoozes[classId];
   return !!snooze && snooze.scoredClassId === scoredClassId && nowMs < snooze.untilMs;
+}
+
+/** Classes snoozed for this score, to leave out before the oldest stale class is chosen. */
+export function snoozedClassIds(
+  snoozes: Record<string, Snooze>,
+  scoredClassId: string,
+  nowMs: number
+): Set<string> {
+  return new Set(
+    Object.keys(snoozes).filter(classId => isSnoozed(snoozes, classId, scoredClassId, nowMs))
+  );
 }
 
 export const useStaleClassPromptStore = create<StaleClassPromptState>((set, get) => ({

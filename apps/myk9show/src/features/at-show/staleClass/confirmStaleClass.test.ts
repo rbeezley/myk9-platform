@@ -15,6 +15,7 @@ const prompt: StaleClassPrompt = {
 describe('confirmStaleClass', () => {
   it('marks only the dogs the fresh check still finds unscored', async () => {
     const markAbsent = vi.fn().mockResolvedValue(undefined);
+    const completeIfManual = vi.fn().mockResolvedValue(undefined);
     const recheck = vi.fn().mockResolvedValue({
       classId: 'stale',
       className: 'Container Novice A',
@@ -22,25 +23,29 @@ describe('confirmStaleClass', () => {
       lastResultAtMs: 0,
     });
 
-    const result = await confirmStaleClass(prompt, { recheck, markAbsent });
+    const result = await confirmStaleClass(prompt, { recheck, markAbsent, completeIfManual });
 
     expect(result).toEqual({ outcome: 'marked', className: 'Container Novice A', markedCount: 1 });
     expect(markAbsent).toHaveBeenCalledTimes(1);
     expect(markAbsent).toHaveBeenCalledWith('b', 'stale', 'Container Novice A');
+    expect(completeIfManual).toHaveBeenCalledWith('stale');
   });
 
   it('changes nothing when the synced state says the class no longer qualifies', async () => {
     const markAbsent = vi.fn();
+    const completeIfManual = vi.fn();
     const recheck = vi.fn().mockResolvedValue(null);
 
-    const result = await confirmStaleClass(prompt, { recheck, markAbsent });
+    const result = await confirmStaleClass(prompt, { recheck, markAbsent, completeIfManual });
 
     expect(result).toEqual({ outcome: 'not-needed', className: 'Container Novice A' });
     expect(markAbsent).not.toHaveBeenCalled();
+    expect(completeIfManual).not.toHaveBeenCalled();
   });
 
   it('stops at the first failed write rather than reporting success', async () => {
     const markAbsent = vi.fn().mockRejectedValueOnce(new Error('queue full'));
+    const completeIfManual = vi.fn();
     const recheck = vi.fn().mockResolvedValue({
       classId: 'stale',
       className: 'Container Novice A',
@@ -48,7 +53,10 @@ describe('confirmStaleClass', () => {
       lastResultAtMs: 0,
     });
 
-    await expect(confirmStaleClass(prompt, { recheck, markAbsent })).rejects.toThrow('queue full');
+    await expect(
+      confirmStaleClass(prompt, { recheck, markAbsent, completeIfManual })
+    ).rejects.toThrow('queue full');
     expect(markAbsent).toHaveBeenCalledTimes(1);
+    expect(completeIfManual).not.toHaveBeenCalled();
   });
 });

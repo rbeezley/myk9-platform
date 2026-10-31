@@ -97,6 +97,29 @@ function paymentLabel(group: ShowRegistrationGroup): string {
 const reviewLabel = getRegistrationReviewLabel;
 
 /**
+ * The review line. The list opens on every form (MYK9-1594), so a form that needs review has to
+ * be told apart from an accepted one at a glance: a warning-toned pill with a dot, not just the
+ * words. Payment due has its own red line beneath; missing information reads in the words.
+ */
+function ReviewLabel({ group, truncate }: { group: ShowRegistrationGroup; truncate: boolean }) {
+  const label = reviewLabel(group);
+  if (!group.attentionReasons.includes('pending_review')) {
+    return <p className={cn('font-medium', truncate && 'truncate')}>{label}</p>;
+  }
+  return (
+    <p className={cn('font-medium', truncate && 'truncate')}>
+      <span
+        data-testid="needs-review-marker"
+        className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-warning/15 px-2 py-0.5 ring-1 ring-inset ring-warning/50"
+      >
+        <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-warning" />
+        <span className="truncate">{label}</span>
+      </span>
+    </p>
+  );
+}
+
+/**
  * The row's next action as a real control. The row itself stays a `listitem`
  * whose click is a mouse convenience — making the row a `button` would strip
  * the announced semantics from the selection checkbox nested inside it — so
@@ -263,7 +286,7 @@ export function EntryRegistrationQueue({
                     <EntryFormTrialClasses entries={group.entries} truncate={false} />
 
                     <div className="text-sm">
-                      <p className="font-medium">{reviewLabel(group)}</p>
+                      <ReviewLabel group={group} truncate={false} />
                       <p
                         className={cn(
                           'text-xs text-muted-foreground',
@@ -308,7 +331,7 @@ export function EntryRegistrationQueue({
                     </div>
 
                     <div className="min-w-0 text-sm">
-                      <p className="truncate font-medium">{reviewLabel(group)}</p>
+                      <ReviewLabel group={group} truncate />
                       <p
                         className={cn(
                           'truncate text-xs text-muted-foreground',

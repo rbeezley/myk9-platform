@@ -166,10 +166,11 @@ describe('groupEntriesByShowRegistration', () => {
       )
     ).toEqual(['registration-mixed']);
     expect(countShowRegistrationQueueUnion(groups, ['missing-information', 'payment-due'])).toBe(1);
+    // All lists forms needing attention first (missing info, then review), the rest after.
     expect(selectShowRegistrationQueue(groups, ['all']).map(group => group.groupKey)).toEqual([
-      'registration-clear',
-      'registration-review',
       'registration-mixed',
+      'registration-review',
+      'registration-clear',
     ]);
     expect(
       groups.find(group => group.groupKey === 'registration-mixed')?.recommendedAction
@@ -178,6 +179,83 @@ describe('groupEntriesByShowRegistration', () => {
       label: 'Resolve missing information',
       affectedEntryIds: ['missing-1'],
     });
+  });
+
+  it('sorts forms needing attention first (missing info, review, payment, rest), then by submission time, before paginating', () => {
+    const at = (day: number) => new Date(Date.UTC(2026, 6, day, 12));
+    const accepted = {
+      entryStatus: EntryStatus.ACCEPTED,
+      paymentStatus: PaymentStatus.PAID_ONLINE,
+    };
+    const entries = [
+      // 51 clear forms, all older than the forms that need attention.
+      ...Array.from({ length: 51 }, (_, index) =>
+        entry({
+          id: `clear-${index}`,
+          registrationId: `reg-clear-${index}`,
+          dogId: `dog-clear-${index}`,
+          dogName: `Clear ${index}`,
+          ...accepted,
+          submittedAt: new Date(Date.UTC(2026, 5, 1, 12, index)),
+        })
+      ),
+      entry({
+        id: 'pay-new',
+        registrationId: 'reg-pay-new',
+        dogId: 'dog-pay-new',
+        dogName: 'Pay new',
+        entryStatus: EntryStatus.ACCEPTED,
+        submittedAt: at(20),
+      }),
+      entry({
+        id: 'pay-old',
+        registrationId: 'reg-pay-old',
+        dogId: 'dog-pay-old',
+        dogName: 'Pay old',
+        entryStatus: EntryStatus.ACCEPTED,
+        submittedAt: at(5),
+      }),
+      entry({
+        id: 'review-new',
+        registrationId: 'reg-review-new',
+        dogId: 'dog-review-new',
+        dogName: 'Review new',
+        submittedAt: at(21),
+      }),
+      entry({
+        id: 'missing-new',
+        registrationId: 'reg-missing-new',
+        dogId: 'dog-missing-new',
+        dogName: 'Missing new',
+        entryStatus: EntryStatus.MISSING_INFO,
+        rawEntryStatus: EntryStatus.MISSING_INFO,
+        submittedAt: at(22),
+      }),
+    ];
+    const groups = groupEntriesByShowRegistration(entries);
+
+    const built = buildShowRegistrationPage(groups, { queues: ['all'], pageIndex: 0 });
+
+    // Page 1 starts with the four forms that need attention, though the clear forms are older.
+    expect(built.page.items.slice(0, 4).map(group => group.groupKey)).toEqual([
+      'reg-missing-new',
+      'reg-review-new',
+      'reg-pay-old',
+      'reg-pay-new',
+    ]);
+    expect(built.page.items[4]?.groupKey).toBe('reg-clear-0');
+    expect(built.page.items).toHaveLength(50);
+    // The searched list follows the same order.
+    const searched = buildShowRegistrationPage(groups, {
+      queues: ['all'],
+      search: 'new',
+      pageIndex: 0,
+    });
+    expect(searched.page.items.map(group => group.groupKey)).toEqual([
+      'reg-missing-new',
+      'reg-review-new',
+      'reg-pay-new',
+    ]);
   });
 
   it('paginates an already-filtered registration result set with an exact range', () => {

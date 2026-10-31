@@ -50,6 +50,7 @@ export type EditableObjectKind = 'trial' | 'class' | 'club' | 'dog' | 'person';
 export const ACTION_GROUP_ORDER = [
   'page',
   'show',
+  'entry-lists',
   'show-day',
   'show-logistics',
   'list',
@@ -160,6 +161,8 @@ export type ActionRouteContext =
       shellMounted: boolean;
       /** At `/shows/:id` itself, where Select classes lives; absent = no (MYK9-1338). */
       showHome?: boolean;
+      /** At `/shows/:id/entries`, where "Open Entry Forms" would be a link to itself (MYK9-1594). */
+      entryForms?: boolean;
     }
   | { kind: 'global' };
 
@@ -224,6 +227,7 @@ export const SHELL_MOUNTED_CHILD_SEGMENTS = new Set<string>(SHOW_SHELL_CHILD_SEG
 
 /** `/shows/:id` itself, the home whose Overview hosts Select classes. */
 const SHOW_HOME_PATH = /^\/shows\/[^/]+\/?$/;
+const ENTRY_FORMS_PATH = /^\/shows\/[^/]+\/entries\/?$/;
 const SHOW_CHILD_PATH = /^\/shows\/[^/]+(?:\/([^/]+))?/;
 
 /**
@@ -255,6 +259,7 @@ export function parseActionRouteContext(pathname: string): ActionRouteContext {
       showId,
       shellMounted: isShowShellMountedPath(pathname),
       showHome: SHOW_HOME_PATH.test(pathname),
+      entryForms: ENTRY_FORMS_PATH.test(pathname),
     };
   }
   return { kind: 'global' };
@@ -277,7 +282,12 @@ export function mergeSearchOnlyHref(href: string, currentSearch: string): string
 const CLOSED_SHOW_STATUSES = new Set(['completed', 'cancelled']);
 
 function buildShowActions(
-  { showId, shellMounted, showHome = false }: Extract<ActionRouteContext, { kind: 'show' }>,
+  {
+    showId,
+    shellMounted,
+    showHome = false,
+    entryForms = false,
+  }: Extract<ActionRouteContext, { kind: 'show' }>,
   viewer: ActionViewer
 ): AppAction[] {
   if (!viewer.canManageShow) return [];
@@ -357,13 +367,18 @@ function buildShowActions(
       icon: 'add-classes',
     },
     buildSelectClassesAction(showId, showHome),
-    {
-      id: 'show-open-entry-management',
-      label: 'Open Entry Forms',
-      href: `/shows/${encoded}/entries`,
-      group: 'show',
-      icon: 'entry-forms',
-    },
+    // A link to the page the viewer is on is not an action (MYK9-1594).
+    ...(entryForms
+      ? []
+      : [
+          {
+            id: 'show-open-entry-management',
+            label: 'Open Entry Forms',
+            href: `/shows/${encoded}/entries`,
+            group: 'show' as const,
+            icon: 'entry-forms' as const,
+          },
+        ]),
     ...(CLOSED_SHOW_STATUSES.has(viewer.showStatus ?? '')
       ? []
       : [

@@ -9,8 +9,7 @@ import type { EntryManagementCockpitState } from '../entryManagementCockpitParam
 const BASE_STATE: EntryManagementCockpitState = {
   tab: 'registrations',
   exception: 'move-ups',
-  queues: ['needs-review'],
-  queuesNamed: false,
+  queues: ['all'],
   search: '',
   trialIds: [],
   classIds: [],
@@ -26,6 +25,8 @@ const CLASSES = [
   { id: 'c2', trialId: 't2', name: 'Interior Novice B' },
 ];
 
+const QUEUE_COUNTS = { 'needs-review': 4, 'missing-information': 1, 'payment-due': 3, all: 9 };
+
 function build(overrides: Partial<BuildEntryManagementFilterFieldsOptions> = {}) {
   const fields = buildEntryManagementFilterFields({
     state: BASE_STATE,
@@ -39,18 +40,55 @@ function build(overrides: Partial<BuildEntryManagementFilterFieldsOptions> = {})
     ]),
     counts: null,
     onScopeChange: vi.fn(),
+    queueCounts: QUEUE_COUNTS,
+    onQueuesChange: vi.fn(),
     ...overrides,
   });
-  return { trial: fields[0]!, class: fields[1]!, keys: fields.map(field => field.key) };
+  return {
+    status: fields[0]!,
+    trial: fields[1]!,
+    class: fields[2]!,
+    keys: fields.map(field => field.key),
+  };
 }
 
 describe('buildEntryManagementFilterFields', () => {
-  it('has Trial and Class as multi-selects, and no Payment status field (MYK9-906)', () => {
+  it('has Status, Trial and Class as multi-selects', () => {
     const fields = build();
-    expect(fields.keys).toEqual(['trial', 'class']);
+    expect(fields.keys).toEqual(['status', 'trial', 'class']);
+    expect(fields.status.kind).toBe('multiOptions');
     expect(fields.trial.kind).toBe('multiOptions');
     expect(fields.class.kind).toBe('multiOptions');
     expect(fields.trial.options.map(option => option.value)).toEqual(['t1', 't2']);
+  });
+
+  it('offers the three queues with their counts, and All is no filter rather than a choice', () => {
+    const { status } = build();
+    expect(status.options).toEqual([
+      { value: 'needs-review', label: 'Needs review', count: 4 },
+      { value: 'missing-information', label: 'Missing info', count: 1 },
+      { value: 'payment-due', label: 'Payment due', count: 3 },
+    ]);
+    expect(status.values).toEqual([]);
+    expect(describeAppliedFilter(status)).toBeNull();
+  });
+
+  it('reads the picked queues as the status, and hands the picks back as a union', () => {
+    const onQueuesChange = vi.fn();
+    const { status } = build({
+      state: { ...BASE_STATE, queues: ['needs-review', 'payment-due'] },
+      onQueuesChange,
+    });
+    expect(status.values).toEqual(['needs-review', 'payment-due']);
+    expect(describeAppliedFilter(status)).toBe('Status: Needs review, Payment due');
+    status.onChange(['needs-review', 'payment-due', 'missing-information']);
+    expect(onQueuesChange).toHaveBeenCalledWith([
+      'needs-review',
+      'payment-due',
+      'missing-information',
+    ]);
+    status.onChange([]);
+    expect(onQueuesChange).toHaveBeenLastCalledWith([]);
   });
 
   it('names the trial on each class when the show has more than one trial (settled rule 5)', () => {

@@ -54,8 +54,7 @@ test('registration focus remains clear across desktop, history, and narrow layou
       .getByRole('textbox', { name: SEARCH_LABEL })
       .fill(offlineSearchTerm ?? 'registration');
     await expect(queueRows).not.toHaveCount(0);
-    // One Show: menu and one Filter button (docs/plan-entries-filter-button.md).
-    await expect(page.getByRole('button', { name: /^Show:/ })).toBeVisible();
+    // One Filter button (docs/plan-entries-filter-button.md); the Show: select is gone (MYK9-1594).
     await expect(page.getByRole('button', { name: /^Filter/ })).toBeVisible();
     await expect(page.getByText(/Search covers the whole show/i)).toBeVisible();
   } finally {
@@ -98,7 +97,7 @@ test('Entry Management does not scroll sideways at 150% zoom on a phone', async 
   await page.setViewportSize(PHONE_AT_150_PERCENT_ZOOM);
   await signInAsSecretary(page, `/shows/${LIVE_SECRETARY_SHOW_ID}/entries`);
   await expect(page.getByRole('button', { name: SEARCH_LABEL })).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByRole('button', { name: /^Show:/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Filter/ })).toBeVisible();
   await expectNoHorizontalScroll(page, 'Entry Management');
 });
 
@@ -189,8 +188,8 @@ for (const viewport of [
 
 test('Entry Management deep-links to the existing Check-in desk', async ({ page }) => {
   await signInAsSecretary(page, `/shows/${LIVE_SECRETARY_SHOW_ID}/entries`);
-  await page.getByRole('button', { name: 'More', exact: true }).click();
-  await page.getByRole('link', { name: 'Open Check-in desk' }).click();
+  await page.getByTestId('header-actions-trigger').click();
+  await page.getByTestId('header-action-show-tool-people-at-show').click();
 
   await expect(page).toHaveURL(
     new RegExp(`/shows/${LIVE_SECRETARY_SHOW_ID}\\?tool=people-at-show`)

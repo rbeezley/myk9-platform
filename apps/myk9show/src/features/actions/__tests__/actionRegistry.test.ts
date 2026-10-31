@@ -565,3 +565,25 @@ describe('Select classes keeps the show home cockpit params (MYK9-1338)', () => 
     expect(selectClassesHref(SIBLING_CONTEXT)).toBe(absolute);
   });
 });
+
+describe('Open Entry Forms on Entry Forms (MYK9-1594)', () => {
+  const openEntryForms = (path: string) =>
+    resolveActions(parseActionRouteContext(path), secretary).filter(
+      action => action.id === 'show-open-entry-management'
+    );
+
+  it('is withheld on the Entry Forms page, where it would link to itself', () => {
+    expect(openEntryForms(`/shows/${SHOW_ID}/entries`)).toEqual([]);
+    expect(openEntryForms(`/shows/${SHOW_ID}/entries/`)).toEqual([]);
+  });
+
+  it('is still offered on every other page of the show', () => {
+    for (const path of [
+      `/shows/${SHOW_ID}`,
+      `/shows/${SHOW_ID}/results`,
+      `/shows/${SHOW_ID}/reports`,
+    ]) {
+      expect(openEntryForms(path), path).toHaveLength(1);
+    }
+  });
+});

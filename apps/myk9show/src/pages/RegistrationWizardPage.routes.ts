@@ -1,3 +1,8 @@
+import {
+  ENTRY_EXHIBITOR_PARAM,
+  ENTRY_RETURN_FORM_PARAM,
+} from '@/features/registration/entryExhibitorContext';
+
 export function isShowDeskLateEntryMode(searchParams: URLSearchParams): boolean {
   return searchParams.get('source') === 'show-desk' && searchParams.get('entryMode') === 'late';
 }
@@ -8,6 +13,23 @@ export function buildExhibitorRegistrationPath(showId: string): string {
 
 export function buildSecretaryRegistrationPath(showId: string): string {
   return `/secretary/register/${encodeURIComponent(showId)}`;
+}
+
+/**
+ * "Add entry for <exhibitor>" from an entry form (MYK9-1594): the secretary wizard opened on that
+ * person's dogs, returning to the same form afterwards. `formKey` is the form's `registration`
+ * key on Entry Forms.
+ */
+export function buildAddEntryForExhibitorPath(
+  showId: string,
+  exhibitorId: string,
+  formKey: string
+): string {
+  const params = new URLSearchParams({
+    [ENTRY_EXHIBITOR_PARAM]: exhibitorId,
+    [ENTRY_RETURN_FORM_PARAM]: formKey,
+  });
+  return `${buildSecretaryRegistrationPath(showId)}?${params.toString()}`;
 }
 
 export function buildShowDeskLateEntryPath(showId: string): string {
@@ -38,13 +60,20 @@ export interface RegistrationExitTarget {
 
 export function resolveRegistrationExit(
   showId: string,
-  opts: { isLateEntryMode: boolean; isInsideSidebar: boolean }
+  opts: { isLateEntryMode: boolean; isInsideSidebar: boolean; returnFormKey?: string | null }
 ): RegistrationExitTarget {
   // Secretary late entry: return to Entries, where the door lives (MYK9-954).
   if (opts.isLateEntryMode) {
     return {
       path: resolveRegistrationExitPath(showId, true),
       label: 'Back to Entries',
+    };
+  }
+  // "Add entry for <exhibitor>" from an entry form: back to that form (MYK9-1594).
+  if (opts.isInsideSidebar && opts.returnFormKey) {
+    return {
+      path: resolveRegistrationCompletionPath(showId, false, true, opts.returnFormKey),
+      label: 'Back to entry form',
     };
   }
   // Exhibitor self-service: they arrived from the public show page. Navigate
@@ -67,9 +96,15 @@ export const STAFF_RECEIPT_DONE_LABEL = 'Return to Entry Forms';
 export function resolveRegistrationCompletionPath(
   showId: string,
   isLateEntryMode: boolean,
-  isInsideSidebar = false
+  isInsideSidebar = false,
+  /** The Entry Forms form the entries were added from; staff flows return to it. */
+  returnFormKey: string | null = null
 ): string {
-  if (isLateEntryMode) return resolveRegistrationExitPath(showId, true)!;
-  if (isInsideSidebar) return `/shows/${encodeURIComponent(showId)}/entries`;
+  const entriesPath = `/shows/${encodeURIComponent(showId)}/entries`;
+  if (isLateEntryMode || isInsideSidebar) {
+    return returnFormKey
+      ? `${entriesPath}?${new URLSearchParams({ registration: returnFormKey }).toString()}`
+      : entriesPath;
+  }
   return `/shows/${encodeURIComponent(showId)}`;
 }

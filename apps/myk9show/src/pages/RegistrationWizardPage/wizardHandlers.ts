@@ -20,6 +20,7 @@ import {
   type PaymentDetails,
 } from '@/types/show-registration-types';
 import type { StepId } from '@/components/shows/RegistrationWorkflow/RegistrationWorkflow.types';
+import { resolveReturnFormKey } from '@/features/registration/entryExhibitorContext';
 import { selectedDogsOwner } from '@/features/registration/selectedDogsOwner';
 import { resolveRegistrationCompletionPath } from '../RegistrationWizardPage.routes';
 import { invalidateAccountTodayEntries } from '@/features/show-today/accountTodayEntriesKey';
@@ -111,7 +112,18 @@ export function createWizardHandlers(state: RegistrationWizardState) {
       notifications.success(
         isLateEntryMode ? 'Late entry completed successfully' : 'Entry submitted successfully'
       );
-      navigate(resolveRegistrationCompletionPath(showId, isLateEntryMode, state.isInsideSidebar));
+      navigate(
+        resolveRegistrationCompletionPath(
+          showId,
+          isLateEntryMode,
+          state.isInsideSidebar,
+          resolveReturnFormKey({
+            returnFormKey: state.returnFormKey,
+            exhibitorId: state.returnExhibitorId,
+            ownerId: ownerResolution.ok ? ownerResolution.ownerId : undefined,
+          })
+        )
+      );
       return;
     }
 

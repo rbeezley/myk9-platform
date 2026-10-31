@@ -126,16 +126,38 @@ function groupMatchesAnyQueue(
   return queues.some(queue => groupMatchesQueue(group, queue));
 }
 
+/**
+ * Forms that need something come before the rest (MYK9-1594): the list opens on every form, so
+ * the work has to be at the top. The tie order is `getRecommendedAction`'s precedence (missing
+ * information, then review, then payment); a form with several reasons sits where its first one
+ * puts it.
+ */
+const ATTENTION_RANK: Record<ShowRegistrationActionId, number> = {
+  'resolve-missing-information': 0,
+  'review-registration': 1,
+  'resolve-payment': 2,
+  'view-registration': 3,
+};
+
+/** Attention first, then oldest submission first. Sorted before pagination, never after. */
+export function compareShowRegistrations(
+  left: ShowRegistrationGroup,
+  right: ShowRegistrationGroup
+): number {
+  return (
+    ATTENTION_RANK[left.recommendedAction.id] - ATTENTION_RANK[right.recommendedAction.id] ||
+    left.submittedAt.getTime() - right.submittedAt.getTime()
+  );
+}
+
 export function selectShowRegistrationQueue(
   groups: ShowRegistrationGroup[],
   queues: readonly ShowRegistrationQueue[]
 ): ShowRegistrationGroup[] {
-  return groups
-    .filter(group => groupMatchesAnyQueue(group, queues))
-    .sort((left, right) => left.submittedAt.getTime() - right.submittedAt.getTime());
+  return groups.filter(group => groupMatchesAnyQueue(group, queues)).sort(compareShowRegistrations);
 }
 
-/** Distinct forms in any of the queues: the Show: trigger's count, never the sum of the queues'. */
+/** Distinct forms in any of the queues: the result line's count, never the sum of the queues'. */
 export function countShowRegistrationQueueUnion(
   groups: ShowRegistrationGroup[],
   queues: readonly ShowRegistrationQueue[]
@@ -330,9 +352,7 @@ export function buildShowRegistrationPage(
     searchResults.forEach(result => {
       matchingEntryIdsByGroup.set(result.group.groupKey, result.matchingEntryIds);
     });
-    effectiveGroups = searchResults
-      .map(result => result.group)
-      .sort((left, right) => left.submittedAt.getTime() - right.submittedAt.getTime());
+    effectiveGroups = searchResults.map(result => result.group).sort(compareShowRegistrations);
   } else {
     const scopedGroups = scopeShowRegistrationGroups(
       groups,

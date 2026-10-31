@@ -34,7 +34,9 @@ test.describe('Secretary Entry Creation', () => {
     await page.goto(`/secretary/entries/${TEST_SHOW_ID}`);
     await page.waitForSelector('text=Entry Forms', { timeout: 10000 });
 
-    await expect(page.getByRole('button', { name: 'Add Entry', exact: true })).toBeVisible();
+    await page.getByTestId('header-actions-trigger').click();
+    await expect(page.getByTestId('header-action-show-add-mail-in-entry')).toBeVisible();
+    await page.keyboard.press('Escape');
     await expect(page.getByRole('button', { name: /refresh/i })).toBeVisible();
   });
 
@@ -44,7 +46,8 @@ test.describe('Secretary Entry Creation', () => {
     await page.waitForSelector('text=Entry Forms', { timeout: 10000 });
 
     // MYK9-1242: no decision popover any more.
-    await page.getByRole('button', { name: 'Add Entry', exact: true }).click();
+    await page.getByTestId('header-actions-trigger').click();
+    await page.getByTestId('header-action-show-add-mail-in-entry').click();
     await expect(page.getByText('Who are you entering?')).toHaveCount(0);
     await page.waitForURL(`**/secretary/register/${TEST_SHOW_ID}`, { timeout: 10000 });
     await expect(page).toHaveURL(`/secretary/register/${TEST_SHOW_ID}`);

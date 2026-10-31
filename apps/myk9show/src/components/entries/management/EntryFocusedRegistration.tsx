@@ -3,6 +3,8 @@ import { ArrowLeft } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useTrialSecretaryOnlyReason } from '@/features/actions/TrialSecretaryAccessContext';
+import { buildAddEntryForExhibitorPath } from '@/pages/RegistrationWizardPage.routes';
 import { formatConfirmationNumberLabel } from '@/features/registration/confirmationNumberDisplay';
 import type { EntryStatus } from '@/types/show-registration-types';
 import { EnrollmentCard } from './EnrollmentCard';
@@ -46,6 +48,22 @@ export function EntryFocusedRegistration({
 
   const controls = useEnrollmentDialogControls(registration, enrollmentCardProps.paymentLedger);
   const checklist = buildFormChecklist(registration, controls);
+  // Another class or dog for someone already entered (MYK9-1594). The exhibitor is the dogs'
+  // owner, who is also whose enrollment the new entries join.
+  const secretaryOnlyReason = useTrialSecretaryOnlyReason();
+  const firstEntry = registration.entries[0];
+  const exhibitorId = firstEntry?.ownerId ?? firstEntry?.handlerId ?? null;
+  const addEntry =
+    firstEntry && exhibitorId
+      ? {
+          href: buildAddEntryForExhibitorPath(
+            firstEntry.showId,
+            exhibitorId,
+            registration.groupKey
+          ),
+          disabledReason: secretaryOnlyReason,
+        }
+      : undefined;
 
   return (
     <section
@@ -82,6 +100,7 @@ export function EntryFocusedRegistration({
             exhibitorName={registration.exhibitorName}
             entries={registration.entries}
             onBulkStatusChange={onBulkStatusChange}
+            addEntry={addEntry}
             onEmailExhibitor={
               enrollmentCardProps.onSendDecisionEmail && registration.enrollmentId
                 ? controls.email.openDialog

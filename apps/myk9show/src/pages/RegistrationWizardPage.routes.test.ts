@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  buildAddEntryForExhibitorPath,
   resolveRegistrationExit,
   resolveRegistrationExitPath,
   resolveRegistrationCompletionPath,
@@ -76,5 +77,42 @@ describe('staff receipt label', () => {
     expect(resolveRegistrationCompletionPath('s1', true)).toBe('/shows/s1/entries');
     expect(resolveRegistrationCompletionPath('s1', false, true)).toBe('/shows/s1/entries');
     expect(STAFF_RECEIPT_DONE_LABEL).toBe('Return to Entry Forms');
+  });
+});
+
+// MYK9-1594: "Add entry for <exhibitor>" from an entry form opens the secretary wizard on that
+// person and comes back to the same form.
+describe('add entry for an exhibitor from their entry form', () => {
+  const FORM = 'pi:abc 1';
+  const path = buildAddEntryForExhibitorPath('s1', 'person-1', FORM);
+
+  it('opens the secretary wizard naming the exhibitor and the form to return to', () => {
+    const [pathname, query] = path.split('?');
+    expect(pathname).toBe('/secretary/register/s1');
+    const params = new URLSearchParams(query);
+    expect(params.get('exhibitor')).toBe('person-1');
+    expect(params.get('returnForm')).toBe(FORM);
+  });
+
+  it('returns to that form, addressed by the same registration key the page reads', () => {
+    const completion = resolveRegistrationCompletionPath('s1', false, true, FORM);
+    const [pathname, query] = completion.split('?');
+    expect(pathname).toBe('/shows/s1/entries');
+    expect(new URLSearchParams(query).get('registration')).toBe(FORM);
+  });
+
+  it('names the form on the exit control too', () => {
+    const target = resolveRegistrationExit('s1', {
+      isLateEntryMode: false,
+      isInsideSidebar: true,
+      returnFormKey: FORM,
+    });
+    expect(target.label).toBe('Back to entry form');
+    expect(target.path).toBe(resolveRegistrationCompletionPath('s1', false, true, FORM));
+  });
+
+  it('is unchanged without a form to return to', () => {
+    expect(resolveRegistrationCompletionPath('s1', false, true, null)).toBe('/shows/s1/entries');
+    expect(resolveRegistrationCompletionPath('s1', false, false, FORM)).toBe('/shows/s1');
   });
 });

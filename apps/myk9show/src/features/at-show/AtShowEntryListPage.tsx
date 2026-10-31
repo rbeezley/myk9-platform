@@ -55,6 +55,7 @@ import { createAtShowDataDependencies } from './atShowDataAdapter';
 import { useAtShowEntryListActions } from './useAtShowEntryListActions';
 import { useAtShowEntryListHandlers } from './useAtShowEntryListHandlers';
 import { useMaxTimeGate } from './useMaxTimeGate';
+import { useAreaCountGate } from './useAreaCountGate';
 import { useAtShowEntryListUiState } from './useAtShowEntryListUiState';
 import { atShowLayoutSlots } from './slots/atShowLayoutSlots';
 import { atShowDialogSlots } from './slots/atShowDialogSlots';
@@ -238,15 +239,31 @@ export const AtShowEntryListPage: React.FC = () => {
     setSearchTerm,
   });
 
-  // MYK9-1099: a judge-set class with no max time asks for it before the first dog.
-  const { gateEntryClick } = useMaxTimeGate({
-    classIds: classId ? [classId] : [],
+  // MYK9-1625: a flexible-area class with no area count asks for it first, since
+  // the scoresheet and Max Time need it. Max time then waits its turn.
+  const { asking: askingAreaCount, gateEntryClick: areaCountGateEntryClick } = useAreaCountGate({
+    classId,
     ready: uiState.hasCompletedInitialLoad,
+    canManage: hasPermission('canManageClasses'),
+    showRole,
+    setAreaCountDialogOpen: uiActions.setAreaCountDialogOpen,
+    setAreaCountRequirements: uiActions.setAreaCountRequirements,
+  });
+
+  // MYK9-1099: a judge-set class with no max time asks for it before the first dog.
+  const { gateEntryClick: maxTimeGateEntryClick } = useMaxTimeGate({
+    classIds: classId ? [classId] : [],
+    ready: uiState.hasCompletedInitialLoad && !askingAreaCount,
     canSetMaxTime: hasPermission('canManageClasses'),
     showRole,
     setMaxTimeDialogOpen: uiActions.setMaxTimeDialogOpen,
     setMaxTimeRequiredWarning: uiActions.setMaxTimeRequiredWarning,
   });
+
+  const gateEntryClick = useCallback(
+    () => areaCountGateEntryClick() || maxTimeGateEntryClick(),
+    [areaCountGateEntryClick, maxTimeGateEntryClick]
+  );
 
   // ── Scoresheet route (wired fully in Phase 1h — may 404 until then) ────
   const buildScoreSheetRoute = useCallback(

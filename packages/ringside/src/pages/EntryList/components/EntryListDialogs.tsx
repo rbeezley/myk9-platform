@@ -309,6 +309,14 @@ export const EntryListDialogs: React.FC<EntryListDialogsProps> = ({
             setSettingsDialogOpen(true);
             return false;
           }}
+          {...(areaCountRequirements && !combined && hasPermission('canManageClasses')
+            ? {
+                onAreaCount: () => {
+                  setClassOptionsDialogOpen(false);
+                  setAreaCountDialogOpen(true);
+                },
+              }
+            : {})}
           onStatistics={handleStatisticsClick}
           onStatus={() => {
             setStatusDialogOpen(true);
@@ -397,10 +405,8 @@ export const EntryListDialogs: React.FC<EntryListDialogsProps> = ({
       {AreaCountSelectionDialog && classInfo && areaCountRequirements && (
         <AreaCountSelectionDialog
           isOpen={areaCountDialogOpen}
-          onClose={() => {
-            setAreaCountDialogOpen(false);
-            navigate(-1);
-          }}
+          // Dismissing leaves the list as it is: the picker prompts, it does not block.
+          onClose={() => setAreaCountDialogOpen(false)}
           classData={{
             id: classId ?? '',
             element: classInfo.element,

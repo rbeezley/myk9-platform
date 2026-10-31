@@ -51,8 +51,9 @@ export function useAtShowShowHydration(
   } | null>(null);
   const startedShowRef = useRef<string | null>(null);
   const passKeyRef = useRef<string | null>(null);
-  // One ordering for every marker read, initial and settled: only the latest
-  // issued read may set state (MYK9-1560).
+  // Counts marker reads. A read is current only while no later one was issued
+  // (MYK9-1560): the initial hydration re-reads if a settle overtook it, and a
+  // settled read applies only if it is the latest.
   const markerReadRef = useRef(0);
 
   useEffect(() => {
@@ -66,12 +67,22 @@ export function useAtShowShowHydration(
     // entries marker at once and leave the sync to the next online start (a
     // connection lost MID-sync is MYK9-1550). A later settled sync still
     // re-evaluates it below.
+    // The first answer for this show. Re-reads while a settled sync overtakes
+    // it, so an older read never records a state a newer sync has outdated; a
+    // stale show never touches the counter.
+    const settleFirstRead = async () => {
+      while (startedShowRef.current === forShow) {
+        const read = ++markerReadRef.current;
+        const state = (await readEntriesMarker(forShow)) ? 'arrived' : 'not-arrived';
+        if (startedShowRef.current !== forShow) return;
+        if (read === markerReadRef.current) {
+          setHydrated({ showId: forShow, state });
+          return;
+        }
+      }
+    };
     if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-      const read = ++markerReadRef.current;
-      void readEntriesMarker(forShow).then(onDevice => {
-        if (startedShowRef.current === forShow && read === markerReadRef.current)
-          setHydrated({ showId: forShow, state: onDevice ? 'arrived' : 'not-arrived' });
-      });
+      void settleFirstRead();
       return;
     }
     // Started before refresh() so both share one operation. Its result is not
@@ -80,13 +91,8 @@ export function useAtShowShowHydration(
     const outcome = syncAtShowData(forShow).then(noop, noop);
     // refresh() swallows sync failures (offline: keep the cached rows).
     void Promise.all([refresh(true).catch(() => {}), outcome]).then(
-      async () => {
-        // A reported success still has to leave every scope on the device (MYK9-1538).
-        const read = ++markerReadRef.current;
-        const state = (await readEntriesMarker(forShow)) ? 'arrived' : 'not-arrived';
-        if (startedShowRef.current === forShow && read === markerReadRef.current)
-          setHydrated({ showId: forShow, state });
-      },
+      // A reported success still has to leave every scope on the device (MYK9-1538).
+      settleFirstRead,
       () => {
         // Unreachable in practice (both inputs swallow rejections); never leave
         // the page on its skeleton if that changes.
@@ -108,10 +114,10 @@ export function useAtShowShowHydration(
       void readEntriesMarker(showId).then(onDevice => {
         if (!live || read !== markerReadRef.current) return;
         const next = onDevice ? 'arrived' : 'not-arrived';
+        // Before the first hydration has settled there is nothing to move: its
+        // own read sees this settle (the counter moved) and reads again.
         setHydrated(prev =>
-          // A settled sync that lands before the first hydration finishes is
-          // the newest answer: keep it, the older initial read is dropped above.
-          prev?.showId === showId && prev.state === next ? prev : { showId, state: next }
+          prev?.showId === showId && prev.state !== next ? { showId, state: next } : prev
         );
       });
     });

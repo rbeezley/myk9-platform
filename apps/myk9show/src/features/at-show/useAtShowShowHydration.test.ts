@@ -216,7 +216,7 @@ describe('useAtShowShowHydration', () => {
       expect(result.current).toBe('arrived');
     });
 
-    it('keeps a settled result that lands while the initial marker read is still pending (MYK9-1560)', async () => {
+    it('re-reads when a settled sync lands while the initial marker read is still pending (MYK9-1560)', async () => {
       goOffline();
       let settled: () => void = () => {};
       mocks.subscribeAtShowSyncSettled.mockImplementation((_id: string, cb: () => void) => {
@@ -237,6 +237,50 @@ describe('useAtShowShowHydration', () => {
         await initial.promise;
       });
       expect(result.current).toBe('not-arrived');
+    });
+
+    it('does not let an old show finishing late leave the new show pending (MYK9-1560)', async () => {
+      const a = deferred<{ success: boolean }>();
+      mocks.syncAtShowData.mockReturnValueOnce(a.promise).mockResolvedValue({ success: true });
+      mocks.hasShowEntriesSynced.mockResolvedValue(true);
+      const { result, rerender } = renderHook(
+        ({ showId }: { showId: string }) =>
+          useAtShowShowHydration(showId, IDLE_STATUS, settledRefresh()),
+        { initialProps: { showId: 'A' } }
+      );
+      rerender({ showId: 'B' });
+      await act(async () => {
+        a.resolve({ success: true });
+        await a.promise;
+      });
+      await waitFor(() => expect(result.current).toBe('arrived'));
+    });
+
+    it('keeps the first hydration pending when a settle lands before the list refresh ends', async () => {
+      let settled: () => void = () => {};
+      mocks.subscribeAtShowSyncSettled.mockImplementation((_id: string, cb: () => void) => {
+        settled = cb;
+        return vi.fn();
+      });
+      const refreshDone = deferred();
+      const sync = deferred<{ success: boolean }>();
+      mocks.syncAtShowData.mockReturnValue(sync.promise);
+      mocks.hasShowEntriesSynced.mockResolvedValue(true);
+      const refresh = vi
+        .fn<(forceSync: boolean) => Promise<void>>()
+        .mockReturnValue(refreshDone.promise);
+      const { result } = renderHook(() => useAtShowShowHydration('A', IDLE_STATUS, refresh));
+      await act(async () => {
+        sync.resolve({ success: true });
+        await sync.promise;
+        settled();
+      });
+      expect(result.current).toBe('pending');
+      await act(async () => {
+        refreshDone.resolve();
+        await refreshDone.promise;
+      });
+      await waitFor(() => expect(result.current).toBe('arrived'));
     });
 
     it('still waits on the sync when the start is online', async () => {

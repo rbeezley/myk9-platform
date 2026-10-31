@@ -291,10 +291,11 @@ BEGIN
     RAISE EXCEPTION 'FAIL 8 ACL: anon/PUBLIC must not execute, authenticated must';
   END IF;
 
-  SELECT array_agg(a ORDER BY a) INTO v_cols
-  FROM unnest(proargnames) WITH ORDINALITY AS t(a, i), pg_proc
-  WHERE pg_proc.oid = 'public.show_dogs_limited_view(uuid, integer, integer)'::regprocedure
-    AND proargmodes IS NOT NULL AND proargmodes[i] = 't';
+  SELECT array_agg(u.n ORDER BY u.n) INTO v_cols
+  FROM pg_proc p,
+       LATERAL unnest(p.proargnames, p.proargmodes) AS u(n, m)
+  WHERE p.oid = 'public.show_dogs_limited_view(uuid, integer, integer)'::regprocedure
+    AND u.m = 't';
   IF v_cols IS DISTINCT FROM ARRAY['armband', 'breed', 'call_name', 'check_in_status', 'class_id',
        'class_name', 'handler_name', 'run_position', 'trial_date', 'trial_name'] THEN
     RAISE EXCEPTION 'FAIL 7 return columns are not exactly the approved set: %', v_cols;

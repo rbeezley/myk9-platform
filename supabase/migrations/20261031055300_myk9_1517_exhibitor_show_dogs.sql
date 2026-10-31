@@ -8,7 +8,8 @@
 -- fees, payment status or registration numbers, and no score or result field at
 -- all, so result-visibility rules cannot be bypassed through it.
 --
--- Soft-deleted shows, classes, trials and dogs expose nothing.
+-- Soft-deleted shows, classes, trials and dogs expose nothing, and the access
+-- decision reads the same live-entry set as the listing (one definition).
 --
 -- Callable only by (a) a signed-in caller with a live entry in THAT show (as
 -- handler, owner or co-owner: the same arms as is_show_exhibitor) or (b) a
@@ -41,7 +42,7 @@ RETURNS TABLE (
   class_name text,
   trial_name text,
   trial_date date,
-  run_order integer,
+  run_position integer,
   check_in_status text
 )
 LANGUAGE plpgsql
@@ -51,9 +52,8 @@ SET search_path = ''
 AS $$
 DECLARE
   v_person_id uuid;
-  v_authorized boolean := false;
-  -- ONE status rule for authorization and listing: entries in these states are not
-  -- running, and a NULL status counts as live.
+  v_passcode boolean := false;
+  -- Entries in these states are not running; a NULL status counts as live.
   v_excluded constant text[] :=
     ARRAY['withdrawn', 'scratched', 'absent', 'moved', 'not_accepted'];
 BEGIN
@@ -69,73 +69,91 @@ BEGIN
   END IF;
 
   -- Passcode session: the claim must name this show and be the current generation.
-  IF (auth.jwt() -> 'app_metadata' ->> 'kind') = 'ringside_passcode'
-     AND nullif(auth.jwt() -> 'app_metadata' ->> 'show_id', '') = p_show_id::text
-     AND public.ringside_claim_generation_current() IS TRUE THEN
-    v_authorized := true;
-  END IF;
+  v_passcode :=
+    (auth.jwt() -> 'app_metadata' ->> 'kind') = 'ringside_passcode'
+    AND nullif(auth.jwt() -> 'app_metadata' ->> 'show_id', '') = p_show_id::text
+    AND public.ringside_claim_generation_current() IS TRUE;
 
-  IF NOT v_authorized THEN
-    SELECT p.id INTO v_person_id
-    FROM public.people p
-    WHERE p.auth_user_id = auth.uid()
-    LIMIT 1;
+  SELECT p.id INTO v_person_id
+  FROM public.people p
+  WHERE p.auth_user_id = auth.uid()
+  LIMIT 1;
 
-    IF v_person_id IS NOT NULL THEN
-      -- A live entry of this show as handler, owner or co-owner.
-      v_authorized := EXISTS (
-        SELECT 1
-        FROM public.entries e
-        LEFT JOIN public.dogs od ON od.id = e.dog_id
-        WHERE e.show_id = p_show_id
-          AND e.deleted_at IS NULL
-          AND coalesce(e.entry_status, '') <> ALL (v_excluded)
-          AND (
-            e.handler_id = v_person_id
-            OR (
-              od.deleted_at IS NULL
-              AND (od.owner_id = v_person_id OR od.co_owner_id = v_person_id)
-            )
-          )
-      );
-    END IF;
-  END IF;
-
-  IF NOT v_authorized THEN
-    RETURN;
-  END IF;
-
+  -- "Live entry" is defined ONCE, in `live`, and both the access decision and the
+  -- listing read it, so the caller can never be admitted by an entry the listing
+  -- would not show: not deleted, not in a non-running state, and its dog, class and
+  -- trial all live.
   RETURN QUERY
+  WITH live AS MATERIALIZED (
+    SELECT
+      e.id AS entry_id,
+      e.armband AS entry_armband,
+      e.handler AS entry_handler,
+      e.handler_id,
+      e.class_id AS entry_class_id,
+      e.run_order,
+      e.check_in_status AS entry_check_in,
+      d.call_name AS dog_call_name,
+      d.name AS dog_name,
+      d.breed AS dog_breed,
+      d.owner_id,
+      d.co_owner_id,
+      c.name AS cls_name,
+      t.name AS trial_name,
+      t.date AS trial_date
+    FROM public.entries e
+    JOIN public.dogs d ON d.id = e.dog_id AND d.deleted_at IS NULL
+    LEFT JOIN public.classes c ON c.id = e.class_id AND c.deleted_at IS NULL
+    LEFT JOIN public.trials t ON t.id = c.trial_id AND t.deleted_at IS NULL
+    WHERE e.show_id = p_show_id
+      AND e.deleted_at IS NULL
+      AND (e.class_id IS NULL OR (c.id IS NOT NULL AND t.id IS NOT NULL))
+      AND coalesce(e.entry_status, '') <> ALL (v_excluded)
+  ),
+  ranked AS (
+    -- The position in the class's run order (1 = first), derived from the internal
+    -- run_order key, which has gaps and need not start at 1.
+    SELECT
+      l.*,
+      CASE WHEN l.run_order IS NULL THEN NULL
+           ELSE dense_rank() OVER (PARTITION BY l.entry_class_id ORDER BY l.run_order)
+      END AS run_position
+    FROM live l
+  )
   SELECT
-    e.armband::integer,
-    coalesce(nullif(btrim(d.call_name), ''), d.name)::text,
-    d.breed::text,
-    e.handler::text,
-    e.class_id,
-    c.name::text,
-    t.name::text,
-    t.date,
-    e.run_order::integer,
-    coalesce(e.check_in_status, 'no-status')::text
-  FROM public.entries e
-  JOIN public.dogs d ON d.id = e.dog_id AND d.deleted_at IS NULL
-  LEFT JOIN public.classes c ON c.id = e.class_id AND c.deleted_at IS NULL
-  LEFT JOIN public.trials t ON t.id = c.trial_id AND t.deleted_at IS NULL
-  WHERE e.show_id = p_show_id
-    AND e.deleted_at IS NULL
-    -- A soft-deleted class or trial takes its entries with it.
-    AND (e.class_id IS NULL OR (c.id IS NOT NULL AND t.id IS NOT NULL))
-    AND e.armband ~ '^[0-9]{1,9}$'
-    AND e.armband::integer > 0
-    AND coalesce(e.entry_status, '') <> ALL (v_excluded)
-  ORDER BY e.armband::integer, t.date, c.name, e.class_id, e.id
+    r.entry_armband::integer,
+    coalesce(nullif(btrim(r.dog_call_name), ''), r.dog_name)::text,
+    r.dog_breed::text,
+    r.entry_handler::text,
+    r.entry_class_id,
+    r.cls_name::text,
+    r.trial_name::text,
+    r.trial_date,
+    r.run_position::integer,
+    coalesce(r.entry_check_in, 'no-status')::text
+  FROM ranked r
+  WHERE (
+      v_passcode
+      OR (
+        v_person_id IS NOT NULL
+        AND EXISTS (
+          SELECT 1 FROM live l
+          WHERE l.handler_id = v_person_id
+             OR l.owner_id = v_person_id
+             OR l.co_owner_id = v_person_id
+        )
+      )
+    )
+    AND r.entry_armband ~ '^[0-9]{1,9}$'
+    AND r.entry_armband::integer > 0
+  ORDER BY r.entry_armband::integer, r.trial_date, r.cls_name, r.entry_class_id, r.entry_id
   OFFSET greatest(coalesce(p_offset, 0), 0)
   LIMIT least(greatest(coalesce(p_limit, 1000), 1), 1000);
 END;
 $$;
 
 COMMENT ON FUNCTION public.show_dogs_limited_view(uuid, integer, integer) IS
-  'MYK9-1517. Owner-approved limited view of the show''s dogs for exhibitors and passcode sessions: armband, call name, breed, handler name, class, run order, check-in status. No contact, fee, payment, registration or score data. Zero rows unless the caller has a live entry in the show or a current passcode claim for it. Paged, at most 1000 rows per call.';
+  'MYK9-1517. Owner-approved limited view of the show''s dogs for exhibitors and passcode sessions: armband, call name, breed, handler name, class, run-order position, check-in status. No contact, fee, payment, registration or score data. Zero rows unless the caller has a live entry in the show or a current passcode claim for it. Paged, at most 1000 rows per call.';
 
 -- anon and PUBLIC get EXECUTE by default; revoke both explicitly. A passcode
 -- session is an authenticated (anonymous-sign-in) JWT, so authenticated covers it.

@@ -17,7 +17,7 @@ export interface ShowDogLimitedRow {
   class_name: string | null;
   trial_name: string | null;
   trial_date: string | null;
-  run_order: number | null;
+  run_position: number | null;
   check_in_status: string | null;
 }
 
@@ -53,7 +53,7 @@ export function buildExhibitorDogs(rows: readonly ShowDogLimitedRow[]): StaffDog
       faultCount: null,
       placement: null,
       resultsReleased: false,
-      runOrder: row.run_order,
+      runOrder: row.run_position,
     };
     dog.entries.push(entry);
   }

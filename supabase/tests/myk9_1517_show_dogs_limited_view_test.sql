@@ -172,6 +172,23 @@ VALUES ('00000000-0000-0000-0000-000001517211', '00000000-0000-0000-0000-0000015
    '00000000-0000-0000-0000-000001517009', '00000000-0000-0000-0000-000001517111', 'Xena Handler',
    '301', 1, 'confirmed', 'pending', 25, 'no-status');
 
+-- Person 7: only entry is in the soft-deleted class; person 7 also handles only the
+-- soft-deleted dog (entry in a live class). Neither may admit them.
+INSERT INTO public.people (id, first_name, last_name, email, auth_user_id)
+VALUES ('00000000-0000-0000-0000-000001517117', 'MYK9-1517', 'Person 7', 'myk91517-7@example.test', NULL);
+INSERT INTO auth.users (
+  id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
+  created_at, updated_at, raw_app_meta_data, raw_user_meta_data,
+  is_super_admin, is_sso_user, is_anonymous
+)
+VALUES ('00000000-0000-0000-0000-000001517127', '00000000-0000-0000-0000-000000000000',
+  'authenticated', 'authenticated', 'myk91517-7@example.test', '', now(), now(), now(),
+  '{}', '{}', false, false, false);
+UPDATE public.people SET auth_user_id = '00000000-0000-0000-0000-000001517127'
+WHERE id = '00000000-0000-0000-0000-000001517117';
+UPDATE public.entries SET handler_id = '00000000-0000-0000-0000-000001517117'
+WHERE id IN ('00000000-0000-0000-0000-000001517209', '00000000-0000-0000-0000-000001517210');
+
 -- Person 6 (dog 8) has only entries that are not running: not_accepted, moved, absent.
 INSERT INTO public.people (id, first_name, last_name, email, auth_user_id)
 VALUES ('00000000-0000-0000-0000-000001517116', 'MYK9-1517', 'Person 6', 'myk91517-6@example.test', NULL);
@@ -236,7 +253,7 @@ BEGIN
   WHERE pg_proc.oid = 'public.show_dogs_limited_view(uuid, integer, integer)'::regprocedure
     AND proargmodes IS NOT NULL AND proargmodes[i] = 't';
   IF v_cols IS DISTINCT FROM ARRAY['armband', 'breed', 'call_name', 'check_in_status', 'class_id',
-       'class_name', 'handler_name', 'run_order', 'trial_date', 'trial_name'] THEN
+       'class_name', 'handler_name', 'run_position', 'trial_date', 'trial_name'] THEN
     RAISE EXCEPTION 'FAIL 7 return columns are not exactly the approved set: %', v_cols;
   END IF;
   RAISE NOTICE 'PASS 7/8 approved columns only; anon and PUBLIC closed';
@@ -262,7 +279,7 @@ BEGIN
      OR r.handler_name IS DISTINCT FROM 'Yuri Handler'
      OR r.class_name IS DISTINCT FROM 'Container Novice 1'
      OR r.trial_name IS DISTINCT FROM 'MYK9-1517 Trial A'
-     OR r.run_order IS DISTINCT FROM 4 OR r.check_in_status IS DISTINCT FROM 'no-status' THEN
+     OR r.run_position IS DISTINCT FROM 2 OR r.check_in_status IS DISTINCT FROM 'no-status' THEN
     RAISE EXCEPTION 'FAIL 1 approved values wrong: %', r;
   END IF;
   IF NOT EXISTS (SELECT 1 FROM public.show_dogs_limited_view('00000000-0000-0000-0000-000001517002')
@@ -353,6 +370,17 @@ BEGIN
     RAISE EXCEPTION 'FAIL 9 a caller whose only entries are not_accepted/moved/absent must read nothing';
   END IF;
   RAISE NOTICE 'PASS 9 non-running-only caller reads nothing';
+END $$;
+
+-- 9b. a caller whose only entries sit in a soft-deleted class, or who handles only a
+-- soft-deleted dog, is not admitted to the roster.
+SELECT pg_temp.as_account('00000000-0000-0000-0000-000001517127');
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM public.show_dogs_limited_view('00000000-0000-0000-0000-000001517002')) THEN
+    RAISE EXCEPTION 'FAIL 9b a caller whose only entries are in a deleted class or a deleted dog must read nothing';
+  END IF;
+  RAISE NOTICE 'PASS 9b deleted-entity-only caller reads nothing';
 END $$;
 
 -- 6. NULL show, and no auth.uid().

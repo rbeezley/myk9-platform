@@ -10,7 +10,7 @@ const row = (over: Partial<ShowDogLimitedRow> = {}): ShowDogLimitedRow => ({
   class_name: 'Container Novice',
   trial_name: 'Trial A',
   trial_date: '2026-11-01',
-  run_order: 3,
+  run_position: 3,
   check_in_status: 'checked-in',
   ...over,
 });
@@ -19,7 +19,12 @@ describe('buildExhibitorDogs', () => {
   it("groups a dog's classes under its armband and carries run order and status", () => {
     const dogs = buildExhibitorDogs([
       row(),
-      row({ class_id: 'c2', class_name: 'Interior Novice', run_order: 9, check_in_status: null }),
+      row({
+        class_id: 'c2',
+        class_name: 'Interior Novice',
+        run_position: 9,
+        check_in_status: null,
+      }),
       row({ armband: 102, call_name: 'Bo' }),
     ]);
     expect(dogs).toHaveLength(2);

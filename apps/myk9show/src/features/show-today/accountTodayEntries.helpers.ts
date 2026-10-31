@@ -62,6 +62,20 @@ export function getFavoriteClassIdsForTrial(showId: string, trialId: string): Se
   return new Set(readJsonArray(buildFavoriteStorageKey(showId, trialId)));
 }
 
+/** Returns whether the write landed; a blocked or full store leaves the favorites unchanged. */
+export function setFavoriteClassIdsForTrial(
+  showId: string,
+  trialId: string,
+  classIds: Iterable<string>
+): boolean {
+  try {
+    writeJsonArray(buildFavoriteStorageKey(showId, trialId), Array.from(classIds));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function hydrateAccountTodayEntriesFromReplicatedRows(
   accountEntryIds: AccountTodayEntryId[],
   rows: ReplicatedRows

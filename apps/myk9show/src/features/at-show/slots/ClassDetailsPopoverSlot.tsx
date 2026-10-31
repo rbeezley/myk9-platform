@@ -105,19 +105,24 @@ const DetailBadge: React.FC<{ tier: BadgeTier; children: React.ReactNode }> = ({
   </span>
 );
 
-/** Read-only class details popover (host slot). See module header. */
-export const ClassDetailsPopover: React.FC<ClassDetailsPopoverProps> = ({
+/**
+ * Read-only class details popover (host slot). See module header. `sheet` (the
+ * class picker on a touch device) docks it to the bottom of the screen instead of
+ * anchoring it; the facts and rows are the same component either way.
+ */
+export const ClassDetailsPopover: React.FC<ClassDetailsPopoverProps & { sheet?: boolean }> = ({
   isOpen,
   onClose,
   anchorRef,
   data,
   position = 'bottom',
   showJudgeB,
+  sheet = false,
 }) => {
   const [coords, setCoords] = useState<PopoverCoords | null>(null);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || sheet) return;
 
     const frame = window.requestAnimationFrame(() => {
       setCoords(getPopoverCoords(anchorRef.current, position));
@@ -126,7 +131,7 @@ export const ClassDetailsPopover: React.FC<ClassDetailsPopoverProps> = ({
     return () => {
       window.cancelAnimationFrame(frame);
     };
-  }, [isOpen, anchorRef, position]);
+  }, [isOpen, anchorRef, position, sheet]);
 
   // Coords are frozen at open time and the card is position:fixed, so a scroll
   // or resize would detach it from the anchor — close instead of chasing it
@@ -138,7 +143,8 @@ export const ClassDetailsPopover: React.FC<ClassDetailsPopoverProps> = ({
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose();
     };
-    window.addEventListener('scroll', onClose, true);
+    // A docked sheet is not detached by scrolling the page behind it.
+    if (!sheet) window.addEventListener('scroll', onClose, true);
     window.addEventListener('resize', onClose);
     document.addEventListener('keydown', onKeyDown);
     return () => {
@@ -146,7 +152,7 @@ export const ClassDetailsPopover: React.FC<ClassDetailsPopoverProps> = ({
       window.removeEventListener('resize', onClose);
       document.removeEventListener('keydown', onKeyDown);
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, sheet]);
 
   if (!isOpen) return null;
 
@@ -162,8 +168,13 @@ export const ClassDetailsPopover: React.FC<ClassDetailsPopoverProps> = ({
 
       <div
         id="class-details-popover"
-        className="at-show-class-details fixed z-[100] w-[min(320px,calc(100vw-32px))] overflow-hidden rounded-xl border border-border bg-card shadow-xl animate-in fade-in-0 zoom-in-95 duration-150"
-        style={coords ? { top: coords.top, left: coords.left } : undefined}
+        className={cn(
+          'at-show-class-details fixed z-[100] overflow-hidden border border-border bg-card shadow-xl animate-in duration-150',
+          sheet
+            ? 'inset-x-0 bottom-0 max-h-[85vh] w-full overflow-y-auto rounded-t-2xl pb-[env(safe-area-inset-bottom)] slide-in-from-bottom'
+            : 'w-[min(320px,calc(100vw-32px))] rounded-xl fade-in-0 zoom-in-95'
+        )}
+        style={!sheet && coords ? { top: coords.top, left: coords.left } : undefined}
         role="dialog"
         aria-label="Class details"
       >

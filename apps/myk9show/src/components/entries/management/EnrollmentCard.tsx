@@ -77,6 +77,8 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
   // record_enrollment_payment caps refunds by and charges "Paid in Full" from.
   const paidDollars = netReceivedDollars(group);
   const remainingDollars = totalDollars - paidDollars;
+  // The form belongs to the exhibitor; a handler is named on each entry line instead.
+  const exhibitorLabel = group.exhibitorName ?? group.entries[0]?.ownerName ?? 'Unknown exhibitor';
   const dogGroups = useMemo(() => groupEnrollmentEntriesByDog(group.entries), [group.entries]);
   // Partial payment is a fact about the MONEY, not about the headline label: a
   // group can read "Paid by check" while only part of the total has arrived, and
@@ -152,7 +154,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
                 Entries
               </h3>
               <p className="text-sm text-muted-foreground">
-                {group.handlerName}
+                {exhibitorLabel}
                 {group.confirmationNumber && (
                   <> · {formatConfirmationNumberLabel(group.confirmationNumber)}</>
                 )}
@@ -246,7 +248,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
             <Receipt className="h-4 w-4 text-muted-foreground shrink-0" />
             <div>
               <h3 className="font-semibold">Payment</h3>
-              <span className="text-sm text-muted-foreground">{group.handlerName}</span>
+              <span className="text-sm text-muted-foreground">{exhibitorLabel}</span>
               {group.confirmationNumber && (
                 <span className="text-xs text-muted-foreground ml-2">
                   {formatConfirmationNumberLabel(group.confirmationNumber)}

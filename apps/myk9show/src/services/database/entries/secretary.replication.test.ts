@@ -446,6 +446,8 @@ describe('secretary entry read replication', () => {
           id: 'class-1',
           name: 'Excellent Standard',
           class_number: null,
+          element: null,
+          level: null,
           max_entries: 50,
         },
       }),

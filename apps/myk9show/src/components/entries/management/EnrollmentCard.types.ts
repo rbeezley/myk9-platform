@@ -7,7 +7,7 @@ import type { EnrollmentLedgerControls } from '@/hooks/useEnrollmentLedgerAction
 import type { EntryDecisionEmailJob, EntryDecisionEmailStatus } from '@/features/lifecycle-emails';
 
 export interface EnrollmentCardProps {
-  group: EnrollmentGroup;
+  group: EnrollmentGroup & { exhibitorName?: string };
   onStatusChange: (entryId: string, status: EntryStatus, withdrawalReason?: string) => void;
   onEntryRefunded?: () => void;
   onEntryRestored?: () => void;

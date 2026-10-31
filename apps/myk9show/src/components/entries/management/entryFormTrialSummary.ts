@@ -1,5 +1,6 @@
 import { formatWeekdayMonthDay } from '@/lib/format/dates';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
+import { compareClassOrder } from './entryClassOrder';
 
 /** One trial an entry form has entries in: "Sat, Nov 9 · Trial 1" and the classes entered there. */
 export interface TrialClassLine {
@@ -13,10 +14,6 @@ export interface TrialClassSummary {
   lines: TrialClassLine[];
   /** Classes on trials that did not fit. */
   hiddenClassCount: number;
-}
-
-interface TrialBucket extends TrialClassLine {
-  sortKey: string;
 }
 
 /** "Mon, Nov 9 · Trial 1", or whatever part of it is known. */
@@ -44,28 +41,20 @@ export function summarizeTrialClasses(
 ): TrialClassSummary {
   const all = entries.flatMap(entry => entry.classes);
   const active = all.filter(cls => cls.status === 'entered');
-  const shown = active.length > 0 ? active : all;
+  const shown = [...(active.length > 0 ? active : all)].sort(compareClassOrder);
 
-  const buckets = new Map<string, TrialBucket>();
+  const buckets = new Map<string, TrialClassLine>();
   for (const cls of shown) {
     const label = formatTrialLabel(cls.trialDate, cls.trialNumber);
     const key = cls.trialId ?? (label || 'unknown');
-    const bucket = buckets.get(key) ?? {
-      key,
-      label,
-      classes: [],
-      sortKey: `${cls.trialDate ?? '9999-12-31'}|${cls.trialNumber ?? ''}`,
-    };
+    const bucket = buckets.get(key) ?? { key, label, classes: [] };
     if (!bucket.classes.includes(cls.name)) bucket.classes.push(cls.name);
     buckets.set(key, bucket);
   }
 
-  const ordered = [...buckets.values()].sort((a, b) =>
-    a.sortKey.localeCompare(b.sortKey, undefined, { numeric: true })
-  );
-  const lines = ordered
-    .slice(0, maxLines)
-    .map(({ key, label, classes }) => ({ key, label, classes }));
+  // `shown` is already in trial date / number order, and a Map keeps insertion order.
+  const ordered = [...buckets.values()];
+  const lines = ordered.slice(0, maxLines);
   const hiddenClassCount = ordered
     .slice(maxLines)
     .reduce((count, bucket) => count + bucket.classes.length, 0);

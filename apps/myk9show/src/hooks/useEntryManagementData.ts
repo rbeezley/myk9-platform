@@ -157,6 +157,8 @@ export function mapSecretaryEntryToEntryManagementEntry(
             classId: entry.class_id,
             name: entry.class.name || 'Unknown Class',
             number: entry.class.class_number || '',
+            ...(entry.class.element ? { element: entry.class.element } : {}),
+            ...(entry.class.level ? { level: entry.class.level } : {}),
             fee: entry.entry_fee || 0,
             ...(entry.jump_height ? { jumpHeight: entry.jump_height } : {}),
             ...(entry.trial?.trial_type ? { trialType: entry.trial.trial_type } : {}),

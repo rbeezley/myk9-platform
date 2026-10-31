@@ -120,6 +120,8 @@ export interface SecretaryEntry {
     id: string;
     name: string;
     class_number: string | null;
+    element?: string | null;
+    level?: string | null;
     max_entries: number | null;
   } | null;
 }

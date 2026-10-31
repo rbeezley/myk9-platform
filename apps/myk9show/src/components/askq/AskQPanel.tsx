@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Send } from 'lucide-react';
 import { SlideOverPanel } from '@/components/panels/SlideOverPanel';
@@ -254,6 +254,12 @@ export function AskQPanel() {
 
   const isAskQMode = activeMode !== 'app-help';
   // The just-finished answer is still shown in the live slot below the thread.
+  const threadEndRef = useRef<HTMLDivElement>(null);
+  const hasConversation = askq.thread.length > 0 || askq.query !== '';
+  useEffect(() => {
+    // Keep the newest question and answer in view above the fixed input.
+    if (isOpen && hasConversation) threadEndRef.current?.scrollIntoView?.({ block: 'end' });
+  }, [isOpen, hasConversation, askq.thread.length, askq.query]);
   const lastEntry = askq.thread[askq.thread.length - 1];
   const liveAnswerShown =
     askq.status === 'done' &&
@@ -398,6 +404,8 @@ export function AskQPanel() {
           )}
         </div>
       )}
+
+      <div ref={threadEndRef} />
 
       {activeMode !== 'operator-support' && askq.thread.length > 0 && (
         <div className="flex items-center justify-between gap-2">

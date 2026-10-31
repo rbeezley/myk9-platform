@@ -263,5 +263,21 @@ describe('useAskQ', () => {
       });
       expect(result.current.thread[0]?.sources).toEqual({ entries: [{ call_name: 'Rex' }] });
     });
+
+    it('keeps the rate-limited status through New question and Clear history', async () => {
+      vi.mocked(askqService.sendAskQQuery).mockRejectedValue(
+        new askqService.RateLimitError(0, 10, '2026-11-01T00:00:00Z')
+      );
+      const { result } = renderHook(() => useAskQ(undefined, { userId: 'u1', scope: 'app' }));
+      await act(async () => {
+        await result.current.submitQuery('one');
+      });
+      expect(result.current.status).toBe('rate-limited');
+      act(() => result.current.newQuestion());
+      expect(result.current.status).toBe('rate-limited');
+      act(() => result.current.clearHistory());
+      expect(result.current.status).toBe('rate-limited');
+      expect(result.current.remaining).toBe(0);
+    });
   });
 });

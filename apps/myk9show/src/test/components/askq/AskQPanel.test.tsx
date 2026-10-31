@@ -390,6 +390,24 @@ describe('AskQPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Clear history' }));
     await waitFor(() => expect(screen.queryByText('Saved answer')).not.toBeInTheDocument());
   });
+
+  it('scrolls the newest question and answer into view', async () => {
+    window.localStorage.clear();
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    vi.mocked(askqService.sendAskQQuery).mockResolvedValue(createMockStream());
+    vi.mocked(askqService.parseSSEStream).mockImplementation(async (_stream, onEvent) => {
+      onEvent('token', 'Bottom answer');
+      onEvent('done', {});
+    });
+    act(() => useAskQPanelStore.getState().open());
+    const { user } = render(<AskQPanel />, { initialRoute: '/shows/show-1' });
+    expect(scrollIntoView).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'q' } });
+    await user.click(screen.getByRole('button', { name: 'Send query' }));
+    await screen.findByText('Bottom answer');
+    expect(scrollIntoView).toHaveBeenCalled();
+  });
 });
 
 function createMockStream(answer?: string): ReadableStream<Uint8Array> {

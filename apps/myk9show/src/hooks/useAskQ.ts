@@ -47,6 +47,16 @@ const INITIAL_STATE: AskQState = {
   error: null,
 };
 
+/** Cleared request state that keeps the usage counters and a still-active daily limit. */
+function freshState(prev: AskQState): AskQState {
+  return {
+    ...INITIAL_STATE,
+    status: prev.status === 'rate-limited' ? 'rate-limited' : INITIAL_STATE.status,
+    remaining: prev.remaining,
+    limit: prev.limit,
+  };
+}
+
 export interface AskQHistoryOptions {
   /** Signed-in user id; null while unresolved (thread stays in memory only). */
   userId: string | null;
@@ -246,14 +256,14 @@ export function useAskQ(sendQuery: AskQQuerySender = sendAskQQuery, history?: As
   useEffect(() => {
     if (!persistEnabled) return;
     cancel();
-    setState(prev => ({ ...INITIAL_STATE, remaining: prev.remaining, limit: prev.limit }));
+    setState(prev => freshState(prev));
     setThread(historyUserId ? loadAskQHistory(historyUserId, historyScope) : []);
   }, [persistEnabled, historyUserId, historyScope, cancel]);
 
   /** Starts a fresh question: drops the current answer, keeps saved history. */
   const newQuestion = useCallback(() => {
     cancel();
-    setState(prev => ({ ...INITIAL_STATE, remaining: prev.remaining, limit: prev.limit }));
+    setState(prev => freshState(prev));
   }, [cancel]);
 
   const clearHistory = useCallback(() => {
@@ -261,7 +271,7 @@ export function useAskQ(sendQuery: AskQQuerySender = sendAskQQuery, history?: As
     if (userId) clearAskQHistory(userId, scope);
     setThread([]);
     cancel();
-    setState(prev => ({ ...INITIAL_STATE, remaining: prev.remaining, limit: prev.limit }));
+    setState(prev => freshState(prev));
   }, [cancel]);
 
   return { ...state, thread, submitQuery, reset, cancel, newQuestion, clearHistory };

@@ -17,6 +17,8 @@
 --      column, and pages are capped at 1000 rows;
 --   9. soft-deleted shows, classes and dogs expose nothing, and a caller whose only
 --      entry is not_accepted, moved or absent gets nothing;
+--  10. run positions follow the ringside ordering (null/0 run order by armband, ties
+--      by armband);
 --   8. the function is closed to anon and PUBLIC, open to authenticated.
 --
 -- All fixtures roll back. Run with psql -X -v ON_ERROR_STOP=1 after migrations.
@@ -218,6 +220,38 @@ FROM unnest(array['not_accepted', 'moved', 'absent']) WITH ORDINALITY AS u(st, n
 INSERT INTO public.show_passcodes (show_id, role, passcode_hash, created_at)
 VALUES ('00000000-0000-0000-0000-000001517008', 'steward', 'myk9-1517-hash-c', '2026-10-10T00:00:00Z');
 
+-- Show D: run-position ordering fixture (own show so the show A counts stay put).
+INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id, status)
+VALUES ('00000000-0000-0000-0000-000001517010', 'MYK9-1517 Show D', 'AKC', current_date,
+  current_date, '00000000-0000-0000-0000-000001517001', 'published');
+INSERT INTO public.trials (id, show_id, name, date, registry_id)
+VALUES ('00000000-0000-0000-0000-000001517011', '00000000-0000-0000-0000-000001517010',
+  'MYK9-1517 Trial D', current_date, 'AKC');
+INSERT INTO public.classes (id, trial_id, name, status)
+VALUES ('00000000-0000-0000-0000-000001517109', '00000000-0000-0000-0000-000001517011',
+  'Order Class', 'upcoming');
+INSERT INTO public.entries (id, dog_id, class_id, show_id, trial_id, handler_id, handler, armband,
+  run_order, entry_status, payment_status, entry_fee, check_in_status)
+VALUES
+  ('00000000-0000-0000-0000-000001517231', '00000000-0000-0000-0000-000001517131',
+   '00000000-0000-0000-0000-000001517109', '00000000-0000-0000-0000-000001517010',
+   '00000000-0000-0000-0000-000001517011', '00000000-0000-0000-0000-000001517111', 'H', '143', 5,
+   'confirmed', 'pending', 25, 'no-status'),
+  ('00000000-0000-0000-0000-000001517232', '00000000-0000-0000-0000-000001517132',
+   '00000000-0000-0000-0000-000001517109', '00000000-0000-0000-0000-000001517010',
+   '00000000-0000-0000-0000-000001517011', '00000000-0000-0000-0000-000001517112', 'H', '141', 5,
+   'confirmed', 'pending', 25, 'no-status'),
+  ('00000000-0000-0000-0000-000001517233', '00000000-0000-0000-0000-000001517133',
+   '00000000-0000-0000-0000-000001517109', '00000000-0000-0000-0000-000001517010',
+   '00000000-0000-0000-0000-000001517011', '00000000-0000-0000-0000-000001517113', 'H', '142', 0,
+   'confirmed', 'pending', 25, 'no-status'),
+  ('00000000-0000-0000-0000-000001517234', '00000000-0000-0000-0000-000001517134',
+   '00000000-0000-0000-0000-000001517109', '00000000-0000-0000-0000-000001517010',
+   '00000000-0000-0000-0000-000001517011', '00000000-0000-0000-0000-000001517114', 'H', '140', NULL,
+   'confirmed', 'pending', 25, 'no-status');
+INSERT INTO public.show_passcodes (show_id, role, passcode_hash, created_at)
+VALUES ('00000000-0000-0000-0000-000001517010', 'steward', 'myk9-1517-hash-d', '2026-10-10T00:00:00Z');
+
 INSERT INTO public.show_passcodes (show_id, role, passcode_hash, created_at)
 VALUES ('00000000-0000-0000-0000-000001517002', 'steward', 'myk9-1517-hash', '2026-10-10T00:00:00Z');
 
@@ -381,6 +415,23 @@ BEGIN
     RAISE EXCEPTION 'FAIL 9b a caller whose only entries are in a deleted class or a deleted dog must read nothing';
   END IF;
   RAISE NOTICE 'PASS 9b deleted-entity-only caller reads nothing';
+END $$;
+
+-- 10. run position follows compareByRunOrder: key = run_order, or the armband when the
+-- run order is 0 or NULL; ties break by armband, then entry id. Expected order by key:
+-- 141 (5), 143 (5, tie after 141), 140 (NULL -> 140), 142 (0 -> 142).
+SELECT pg_temp.as_passcode('00000000-0000-0000-0000-000001517010', '2026-10-10T00:00:00Z');
+DO $$
+DECLARE
+  v integer[];
+BEGIN
+  SELECT array_agg(run_position ORDER BY armband) INTO v
+  FROM public.show_dogs_limited_view('00000000-0000-0000-0000-000001517010');
+  -- by armband 140, 141, 142, 143 -> positions 3, 1, 4, 2
+  IF v IS DISTINCT FROM ARRAY[3, 1, 4, 2] THEN
+    RAISE EXCEPTION 'FAIL 10 positions by armband 140..143 must be 3,1,4,2, got %', v;
+  END IF;
+  RAISE NOTICE 'PASS 10 run position follows the ringside ordering and tie-breaks';
 END $$;
 
 -- 6. NULL show, and no auth.uid().

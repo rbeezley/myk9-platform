@@ -110,15 +110,26 @@ BEGIN
       AND (e.class_id IS NULL OR (c.id IS NOT NULL AND t.id IS NOT NULL))
       AND coalesce(e.entry_status, '') <> ALL (v_excluded)
   ),
-  ranked AS (
-    -- The position in the class's run order (1 = first), derived from the internal
-    -- run_order key, which has gaps and need not start at 1.
+  keyed AS (
+    -- Mirrors compareByRunOrder (packages/ringside runQueue.ts): the sort key is the
+    -- run order, or the armband when the run order is null or 0; ties break by armband,
+    -- then entry id.
     SELECT
       l.*,
-      CASE WHEN l.run_order IS NULL THEN NULL
-           ELSE dense_rank() OVER (PARTITION BY l.entry_class_id ORDER BY l.run_order)
-      END AS run_position
+      CASE WHEN l.entry_armband ~ '^[0-9]{1,9}$' THEN l.entry_armband::integer
+           ELSE 2147483647 END AS armband_key
     FROM live l
+  ),
+  ranked AS (
+    -- Position in the class's run order (1 = first), derived from that key, which has
+    -- gaps and need not start at 1.
+    SELECT
+      k.*,
+      row_number() OVER (
+        PARTITION BY k.entry_class_id
+        ORDER BY coalesce(nullif(k.run_order, 0), k.armband_key), k.armband_key, k.entry_id
+      ) AS run_position
+    FROM keyed k
   )
   SELECT
     r.entry_armband::integer,

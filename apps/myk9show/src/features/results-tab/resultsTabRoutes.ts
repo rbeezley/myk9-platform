@@ -124,6 +124,11 @@ export function getNationalsLeaderboardHref(showId: string): string {
   return `/shows/${encodeURIComponent(showId)}/results?view=leaderboard`;
 }
 
+/** The staff-authorized ringside route for the board (MYK9-1540); judges and stewards cannot open the manage-only Results tab. */
+export function getRingsideNationalsLeaderboardHref(showId: string): string {
+  return `/at-show/${encodeURIComponent(showId)}/leaderboard`;
+}
+
 export function getResultsListHref(showId: string): string {
   return `/shows/${encodeURIComponent(showId)}/results`;
 }

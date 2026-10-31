@@ -16,6 +16,8 @@ export interface RingsideMenuContext {
   isOnline: boolean;
   /** A real account (not a passcode session). */
   hasAccount: boolean;
+  /** The show is a nationals show (the replicated show row); false while unknown. */
+  isNationals: boolean;
 }
 
 export type RingsideMenuAction = 'announcements' | 'askq' | 'show-info' | 'sign-out';
@@ -77,9 +79,9 @@ export function buildRingsideMenuItems(
           requiresConnection: true,
         }
       : null,
-    // Every viewer gets Results. A non-manager without entries lands on the public
-    // landing, whose Results block is empty until the show ends; MYK9-1544 (the
-    // staff-during-show results work) may narrow this later.
+    // Every viewer gets Results. A non-manager admitted to ringside (judge, steward,
+    // passcode) lands on the show page's tabbed view, whose Results tab applies the
+    // release gate (MYK9-1544); the public landing is only for non-ringside visitors.
     showId && showScope
       ? {
           id: 'results',

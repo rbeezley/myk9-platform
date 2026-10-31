@@ -124,4 +124,44 @@ describe('resolveShowAudience', () => {
       )
     ).toBe('pending');
   });
+
+  // MYK9-1544: a judge, steward or passcode user with no entries is admitted to
+  // ringside, so they reach the tabbed view (and its release-gated Results tab).
+  describe('ringside access (MYK9-1544)', () => {
+    const ringside = { isAuthenticated: true, hasRingsideAccess: true };
+
+    it('a ringside viewer with no entries gets the tabbed view, not the landing', () => {
+      expect(resolveShowAudience(input(ringside))).toBe('exhibitor');
+    });
+
+    it('does not wait on the entries query', () => {
+      expect(resolveShowAudience(input({ ...ringside, userEntriesLoading: true }))).toBe(
+        'exhibitor'
+      );
+    });
+
+    it('a ringside viewer who also holds entries stays on the tabbed view', () => {
+      expect(resolveShowAudience(input({ ...ringside, hasUserEntries: true }))).toBe('exhibitor');
+    });
+
+    it('a manager is still a manager', () => {
+      expect(resolveShowAudience(input({ ...ringside, canManageShow: true }))).toBe('management');
+    });
+
+    it('still waits for roles to resolve', () => {
+      expect(resolveShowAudience(input({ ...ringside, rbacLoading: true }))).toBe('pending');
+    });
+
+    it('public preview still forces the landing', () => {
+      expect(resolveShowAudience(input({ ...ringside, forcePublicPreview: true }))).toBe('public');
+    });
+
+    it('a signed-in visitor without ringside access and no entries still gets the landing', () => {
+      expect(resolveShowAudience(input({ isAuthenticated: true }))).toBe('public');
+    });
+
+    it('an anonymous visitor still gets the landing', () => {
+      expect(resolveShowAudience(input({ hasRingsideAccess: false }))).toBe('public');
+    });
+  });
 });

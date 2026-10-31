@@ -71,6 +71,7 @@ export function RingsideMenu({ showId }: { showId: string | undefined }) {
     canManageShow,
     isOnline,
     hasAccount: Boolean(user) && !user?.is_anonymous,
+    isNationals: showQuery.data?.isNationals === true,
   });
 
   // A slide-out closes before the next overlay or navigation begins.

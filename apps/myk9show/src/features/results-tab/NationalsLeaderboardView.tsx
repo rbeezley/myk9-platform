@@ -47,6 +47,9 @@ interface NationalsLeaderboardViewProps {
   /** A background refresh failed, so the ranks shown may be stale. */
   refreshFailed: boolean;
   onRetry: () => void;
+  /** Where Back goes; defaults to the Results tab's class list. */
+  backHref?: string;
+  backLabel?: string;
 }
 
 /**
@@ -60,6 +63,8 @@ export function NationalsLeaderboardView({
   showStartDate,
   refreshFailed,
   onRetry,
+  backHref,
+  backLabel = 'Back to classes',
 }: NationalsLeaderboardViewProps) {
   const board = useMemo(
     () => buildNationalsLeaderboard({ entries, classRows: rows, showStartDate }),
@@ -68,9 +73,9 @@ export function NationalsLeaderboardView({
   return (
     <div className="mt-4 space-y-4">
       <Button asChild variant="ghost" className="min-h-11 gap-2">
-        <Link to={getResultsListHref(showId)}>
+        <Link to={backHref ?? getResultsListHref(showId)}>
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-          Back to classes
+          {backLabel}
         </Link>
       </Button>
       {refreshFailed && <ResultsRefreshFailedAlert onRetry={onRetry} />}

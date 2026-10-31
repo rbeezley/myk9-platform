@@ -7,7 +7,9 @@
  * - `pending`    — authenticated visitor whose entries are still loading; we defer
  *                  the decision to avoid flashing the public landing before we know
  *                  they're an entered exhibitor.
- * - `exhibitor`  — entered exhibitor → tabbed details UI.
+ * - `exhibitor`  — entered exhibitor, or a non-manager admitted to ringside for
+ *                  this show (judge, steward, passcode user; MYK9-1544) → tabbed
+ *                  details UI, whose Results tab applies the release gate.
  * - `management` — anyone who manages THIS show (site admin, club-scoped
  *                  secretary, club-scoped club admin) → management shell.
  *
@@ -41,6 +43,12 @@ export interface ShowAudienceInput {
   /** The my-entries query is still resolving — can't yet tell public from exhibitor. */
   userEntriesLoading: boolean;
   hasUserEntries: boolean;
+  /**
+   * The viewer is admitted to ringside for THIS show by the at-show gate's staff
+   * rule (`useHasRingsideStaffAccess`). They never see the public landing, so
+   * they can reach Results during the show without holding an entry.
+   */
+  hasRingsideAccess?: boolean;
 }
 
 export function resolveShowAudience(input: ShowAudienceInput): ShowAudience {
@@ -52,6 +60,7 @@ export function resolveShowAudience(input: ShowAudienceInput): ShowAudience {
     isAuthenticated,
     userEntriesLoading,
     hasUserEntries,
+    hasRingsideAccess = false,
   } = input;
 
   if (forcePublicPreview && !isManagementSection) return 'public';
@@ -60,7 +69,7 @@ export function resolveShowAudience(input: ShowAudienceInput): ShowAudience {
 
   // Managers and management-section URLs always reach the non-public UI — they
   // never see the marketing landing.
-  if (!isManagementSection && !canManageShow) {
+  if (!isManagementSection && !canManageShow && !hasRingsideAccess) {
     // Defer while an authenticated visitor's entries resolve, so we don't flash
     // the public landing before discovering they're an entered exhibitor.
     if (isAuthenticated && userEntriesLoading) return 'pending';

@@ -17,9 +17,11 @@ import { ClassDetailsPopover } from './slots/ClassDetailsPopoverSlot';
 import {
   ClassOptionsDialog,
   ClassRequirementsDialog,
+  ClassSettingsDialog,
   ClassStatusDialog,
   MaxTimeDialog,
 } from './slots/classDialogs';
+import { useHasClassSettingsLinks } from './slots/classSettingsLinks';
 import { MaxTimeLookupDialog } from './slots/MaxTimeLookupDialog';
 import { buildRingsideReplication } from './ringsideCapabilities';
 import { toStatusUpdateFields } from './ringsideClassStatusMap';
@@ -33,7 +35,7 @@ import {
 } from './classCardDialogData';
 
 export type ClassCardDialogMode = 'details' | 'options';
-type OptionsView = 'menu' | 'requirements' | 'max-time' | 'status';
+type OptionsView = 'menu' | 'requirements' | 'max-time' | 'status' | 'settings';
 
 export interface ActiveClassCard {
   entry: ClassEntry;
@@ -52,6 +54,7 @@ interface AtShowClassCardDialogsProps {
   /** Touch devices get the details as a bottom sheet instead of an anchored popover. */
   sheet: boolean;
   canManageClasses: boolean;
+  showId: string | undefined;
   onClose: () => void;
 }
 
@@ -108,9 +111,11 @@ export function AtShowClassCardDialogs({
   anchorRef,
   sheet,
   canManageClasses,
+  showId,
   onClose,
 }: AtShowClassCardDialogsProps) {
   const entry = active?.entry ?? null;
+  const hasSettingsLinks = useHasClassSettingsLinks(showId);
   const [attempt, setAttempt] = useState(0);
   const liveRows = useLiveClasses(entry ? getClassIds(entry) : [], entry !== null, attempt);
   const live = liveRows?.find(row => row.id === entry?.id) ?? null;
@@ -162,7 +167,8 @@ export function AtShowClassCardDialogs({
         // Statistics opens from the dialog itself; the handler's presence shows the tile.
         onStatistics={() => {}}
         hideMaxTime={!canManageClasses}
-        hideSettings={!canManageClasses}
+        onSettings={() => show('settings')}
+        hideSettings={!canManageClasses || !hasSettingsLinks}
         hidePrintOptions
       />
       <ClassRequirementsDialog
@@ -170,6 +176,11 @@ export function AtShowClassCardDialogs({
         onClose={onClose}
         {...(canManageClasses ? { onSetMaxTime: () => show('max-time') } : {})}
         classData={{ ...classRequirementsData(entry, registry), per_area_times: perAreaMaxTimes }}
+      />
+      <ClassSettingsDialog
+        isOpen={optionsView === 'settings'}
+        onClose={onClose}
+        classData={classOptionsData(entry)}
       />
       <MaxTimeDialog
         isOpen={optionsView === 'max-time' && perAreaLookup.status === 'ready'}

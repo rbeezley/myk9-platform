@@ -429,7 +429,9 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
             showContext: pageShowContext,
             hasPermission,
             hideMaxTimeOption: !canManageClasses,
-            hideSettingsOption: !canManageClasses,
+            // A combined A/B view has no single class to carry to the Settings links (the page's
+            // dialog gets an empty class id), so it never offers Settings (MYK9-1627).
+            hideSettingsOption: true,
             // No printing at ringside — reports live on the secretary Reports page.
             hidePrintOptions: true,
             up: { label: 'Classes', to: resolveClassListRoute(showId) },

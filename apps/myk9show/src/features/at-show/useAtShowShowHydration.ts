@@ -18,6 +18,8 @@ import { subscribeAtShowSyncSettled, syncAtShowData } from './atShowDataAdapter'
  */
 export type ShowHydrationState = 'pending' | 'arrived' | 'not-arrived';
 
+const noop = () => {};
+
 /** Entries, trials and classes all synced here; unreadable counts as not synced. */
 const readEntriesMarker = isAtShowFullyOnDevice;
 
@@ -33,7 +35,7 @@ const readEntriesMarker = isAtShowFullyOnDevice;
  * scoresheet and show boundary already sync this way.
  *
  * The first hydration shares the page's in-flight `syncAtShowData` operation,
- * so its `success` is read without a second sync. The entries marker is read
+ * so it waits on it without a second sync. The show-on-device marker is read
  * once, inside the settle and before the state is set, so the page never
  * renders between the two answers. A later settled sync (e.g. "Save for show
  * day") upgrades `'not-arrived'` to `'arrived'` once the marker is there.
@@ -68,17 +70,15 @@ export function useAtShowShowHydration(
       });
       return;
     }
-    // Started before refresh() so both share one operation; a failed or
-    // rejected sync (offline) only means "did not arrive".
-    const outcome = syncAtShowData(forShow).then(
-      // Like `isSyncResultFailed`: only an explicit `success: false` is a failure.
-      result => result?.success !== false,
-      () => false
-    );
+    // Started before refresh() so both share one operation. Its result is not
+    // trusted: a sync that reports success can still leave a scope short, so the
+    // marker below decides, and a failed or rejected sync (offline) just settles.
+    const outcome = syncAtShowData(forShow).then(noop, noop);
     // refresh() swallows sync failures (offline: keep the cached rows).
     void Promise.all([refresh(true).catch(() => {}), outcome]).then(
-      async ([, success]) => {
-        const state = success || (await readEntriesMarker(forShow)) ? 'arrived' : 'not-arrived';
+      async () => {
+        // A reported success still has to leave every scope on the device (MYK9-1538).
+        const state = (await readEntriesMarker(forShow)) ? 'arrived' : 'not-arrived';
         if (startedShowRef.current === forShow) setHydrated({ showId: forShow, state });
       },
       () => {

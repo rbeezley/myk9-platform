@@ -286,7 +286,7 @@ describe('AtShowEntryListPage (Phase 1a shim)', () => {
   });
 
   it('says No Entries Yet for a genuinely empty class once the hydration arrived', async () => {
-    entriesScope.synced = false; // irrelevant: the hydration itself succeeded
+    entriesScope.synced = true; // the hydration succeeded and left the show on the device
     vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([] as never);
 
     renderPage();

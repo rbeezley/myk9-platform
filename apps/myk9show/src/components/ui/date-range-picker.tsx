@@ -10,10 +10,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
 import { isUnresolvedClockTime, parseStoredClockTime } from '@myk9/core';
-import { ClockTimeInput } from '@myk9/scoring-ui';
-import { CalendarIcon, Clock, X } from 'lucide-react';
+import { DateRangeTimeFields } from './date-range-time-fields';
+import { CalendarIcon, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -258,42 +257,16 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
             />
 
             {showTime && (
-              <div className="mt-3 grid grid-cols-2 gap-4 border-t pt-3">
-                <div className="space-y-1">
-                  <Label
-                    {...(startTimeId !== undefined && { htmlFor: startTimeId })}
-                    className="text-xs text-muted-foreground"
-                  >
-                    {startLabel} time
-                  </Label>
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-muted-foreground" />
-                    <ClockTimeInput
-                      {...(startTimeId !== undefined && { id: startTimeId })}
-                      value={startTime}
-                      onChange={handleStartTimeChange}
-                      placeholder="8:00 AM"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <Label
-                    {...(endTimeId !== undefined && { htmlFor: endTimeId })}
-                    className="text-xs text-muted-foreground"
-                  >
-                    {endLabel} time
-                  </Label>
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-muted-foreground" />
-                    <ClockTimeInput
-                      {...(endTimeId !== undefined && { id: endTimeId })}
-                      value={endTime}
-                      onChange={handleEndTimeChange}
-                      placeholder="5:00 PM"
-                    />
-                  </div>
-                </div>
-              </div>
+              <DateRangeTimeFields
+                startLabel={startLabel}
+                endLabel={endLabel}
+                startTime={startTime}
+                endTime={endTime}
+                startTimeId={startTimeId}
+                endTimeId={endTimeId}
+                onStartTimeChange={handleStartTimeChange}
+                onEndTimeChange={handleEndTimeChange}
+              />
             )}
           </div>
 

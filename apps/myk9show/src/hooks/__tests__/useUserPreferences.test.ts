@@ -111,7 +111,7 @@ describe('useUserPreferences (local-first)', () => {
     const { result } = renderHook(() => useUserPreferences('u1', onServerTheme));
     await waitFor(() => expect(result.current.preferences?.theme.mode).toBe('system'));
     expect(mockUpdate).not.toHaveBeenCalled();
-    expect(onServerTheme).toHaveBeenCalledWith({ mode: 'system' });
+    expect(onServerTheme).toHaveBeenCalledWith(expect.objectContaining({ mode: 'system' }));
     expect(readDeviceTheme('u1')?.pending).toEqual([]);
   });
 
@@ -144,17 +144,51 @@ describe('useUserPreferences (local-first)', () => {
     expect(onServerTheme).toHaveBeenCalledWith(DEFAULT_THEME_PREFERENCES);
   });
 
-  it('a stale sync does not overwrite an edit made while it ran', async () => {
+  it('a later edit waits for an in-flight push and is not undone by it', async () => {
     recordLocalThemeChange('u1', { mode: 'dark' }, 5000);
     let release: (v: unknown) => void = () => {};
     mockLoad.mockResolvedValue(serverRow({ mode: 'light' }, 4000));
     mockUpdate.mockImplementationOnce(() => new Promise(r => (release = r)));
     const { result } = renderHook(() => useUserPreferences('u1'));
-    await waitFor(() => expect(mockUpdate).toHaveBeenCalled());
+    await waitFor(() => expect(mockUpdate).toHaveBeenCalledTimes(1));
     mockUpdate.mockResolvedValue(serverRow({ mode: 'system' }, 9000));
-    await act(() => result.current.updatePreferences({ theme: { mode: 'system' } }));
+    let edit: Promise<void> = Promise.resolve();
+    act(() => {
+      edit = result.current.updatePreferences({ theme: { mode: 'system' } });
+    });
+    // One write at a time: the edit's push starts only after the first one lands.
+    await act(async () => {
+      await new Promise(r => setTimeout(r, 0));
+    });
+    expect(mockUpdate).toHaveBeenCalledTimes(1);
+    mockLoad.mockResolvedValue(serverRow({ mode: 'dark' }, 8000));
     release(serverRow({ mode: 'dark' }, 8000));
-    await waitFor(() => expect(readDeviceTheme('u1')?.theme.mode).toBe('system'));
+    await act(() => edit);
+    expect(mockUpdate).toHaveBeenCalledTimes(2);
+    expect(mockUpdate).toHaveBeenLastCalledWith(
+      'u1',
+      { theme: { mode: 'system' } },
+      { mode: expect.any(Number) }
+    );
+    expect(readDeviceTheme('u1')?.theme.mode).toBe('system');
+    expect(readDeviceTheme('u1')?.pending).toEqual([]);
+  });
+
+  it('drops a sync result that arrives after the user signed out', async () => {
+    let release: (v: unknown) => void = () => {};
+    mockLoad.mockImplementationOnce(() => new Promise(r => (release = r)));
+    const onServerTheme = vi.fn();
+    const { result, rerender } = renderHook(
+      ({ uid }: { uid: string | null }) => useUserPreferences(uid, onServerTheme),
+      { initialProps: { uid: 'u1' } }
+    );
+    await waitFor(() => expect(mockLoad).toHaveBeenCalledTimes(1));
+    rerender({ uid: null });
+    await act(async () => {
+      release(serverRow({ mode: 'dark' }, 1000));
+    });
+    expect(onServerTheme).not.toHaveBeenCalled();
+    expect(result.current.preferences).toBeNull();
   });
 
   it('online theme change saves to the device and the server', async () => {

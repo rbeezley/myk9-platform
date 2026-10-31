@@ -12,7 +12,7 @@
  * On sync, a pending field NEWER than the server's time for that field is
  * pushed; a pending field that is older, and every non-pending field, takes the
  * server's value. A server row from before per-field times falls back to the
- * row's `updated_at`. With no device copy at all, every server field is applied.
+ * row's `updated_at`. A server field this device does not hold is applied too.
  */
 import { DEFAULT_THEME_PREFERENCES, type ThemePreferences } from '@/types/user-preferences';
 
@@ -78,7 +78,7 @@ export interface ThemeReconciliation {
   theme: ThemePreferences;
   /** Pending local changes newer than the server's: send these. */
   toPush: Partial<ThemePreferences>;
-  /** Fields where the server's value replaced a different device value. */
+  /** Fields where the server's value replaced a different or missing device value. */
   adoptedFromServer: Partial<ThemePreferences>;
 }
 
@@ -98,10 +98,9 @@ export function reconcileTheme(
     if (isPending && changedAt > (serverFieldChangedAt[field] ?? serverUpdatedAt)) {
       (theme as unknown as Record<string, unknown>)[field] = device[field];
       toPush[field] = device[field];
-    } else if (
-      !cache ||
-      (cache.theme[field] !== undefined && cache.theme[field] !== serverTheme[field])
-    ) {
+    } else if (cache?.theme[field] !== serverTheme[field]) {
+      // Includes a field this device never held (no copy yet, or a partial one
+      // from an offline edit): its live value is a default, not the saved one.
       adopted[field] = serverTheme[field];
     }
   }

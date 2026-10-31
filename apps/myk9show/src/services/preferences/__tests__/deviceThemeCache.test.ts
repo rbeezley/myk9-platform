@@ -36,7 +36,15 @@ describe('deviceThemeCache', () => {
     const r = reconcileTheme(cache, { ...SERVER, mode: 'system' }, {}, 6000);
     expect(r.toPush).toEqual({});
     expect(r.theme.mode).toBe('system');
-    expect(r.adoptedFromServer).toEqual({ mode: 'system' });
+    expect(r.adoptedFromServer).toMatchObject({ mode: 'system' });
+  });
+
+  it('applies server fields a partial device copy does not hold', () => {
+    const cache = recordLocalThemeChange('u1', { fontSize: 'large' }, 9000);
+    const r = reconcileTheme(cache, { ...SERVER, mode: 'dark' }, {}, 6000);
+    expect(r.toPush).toEqual({ fontSize: 'large' });
+    expect(r.adoptedFromServer).toMatchObject({ mode: 'dark' });
+    expect(r.adoptedFromServer).not.toHaveProperty('fontSize');
   });
 
   it('resolves each field on its own', () => {

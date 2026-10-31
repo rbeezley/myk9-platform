@@ -4,7 +4,12 @@
  * Preferences are stored as a single JSONB blob in the `preferences` column.
  */
 
-import type { UserPreferences, PreferencesUpdate, DeviceOverrides } from '@/types/user-preferences';
+import type {
+  UserPreferences,
+  PreferencesUpdate,
+  DeviceOverrides,
+  ThemePreferences,
+} from '@/types/user-preferences';
 import {
   DEFAULT_THEME_PREFERENCES,
   DEFAULT_COMPETITION_PREFERENCES,
@@ -137,6 +142,35 @@ function toStoredPreferences(prefs: UserPreferences): StoredPreferences {
   return stored;
 }
 
+/**
+ * Per-field last-write-wins at the write (MYK9-1545): a theme field carrying a
+ * change time replaces the stored value only when that time is newer than the
+ * stored one, so an older device edit that lands late never undoes a newer one.
+ * Fields sent without a time (resets, legacy callers) always apply.
+ */
+export function newerThemeFields(
+  incoming: Partial<ThemePreferences>,
+  times: Record<string, number> | undefined,
+  current: UserPreferences
+): Partial<ThemePreferences> {
+  if (!times) return incoming;
+  return Object.fromEntries(
+    Object.entries(incoming).filter(
+      ([field]) =>
+        !(times[field] !== undefined && (current.themeChangedAt?.[field] ?? 0) > times[field])
+    )
+  ) as Partial<ThemePreferences>;
+}
+
+export function newerFieldTimes(
+  stored: Record<string, number> | undefined,
+  incoming: Record<string, number>
+): Record<string, number> {
+  const next = { ...stored };
+  for (const [field, at] of Object.entries(incoming)) next[field] = Math.max(next[field] ?? 0, at);
+  return next;
+}
+
 export class UserPreferencesService {
   private static instance: UserPreferencesService;
 
@@ -207,7 +241,9 @@ export class UserPreferencesService {
 
       const updated: UserPreferences = {
         ...current,
-        theme: updates.theme ? { ...current.theme, ...updates.theme } : current.theme,
+        theme: updates.theme
+          ? { ...current.theme, ...newerThemeFields(updates.theme, themeChangedAt, current) }
+          : current.theme,
         competition: updates.competition
           ? { ...current.competition, ...updates.competition }
           : current.competition,
@@ -223,7 +259,7 @@ export class UserPreferencesService {
             >)
           : current.deviceOverrides,
         ...(themeChangedAt
-          ? { themeChangedAt: { ...current.themeChangedAt, ...themeChangedAt } }
+          ? { themeChangedAt: newerFieldTimes(current.themeChangedAt, themeChangedAt) }
           : {}),
         updatedAt: new Date(),
       };

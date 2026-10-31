@@ -52,17 +52,38 @@ const LAST_ZONE_TO_ROLL_OVER = 'Etc/GMT+12';
 /** Trials carry a resolved zone; the migration default covers legacy rows. */
 const DEFAULT_TIMEZONE = 'America/New_York';
 
+/** Is this a usable trial date? An undefined or invalid one means the trial has not replicated. */
+function hasUsableDate(trialDate: Date | undefined): trialDate is Date {
+  return !!trialDate && !Number.isNaN(trialDate.getTime());
+}
+
 /**
- * Is the trial's calendar day the same day as `now`, reckoned in the trial's
- * timezone? False when the class carries no trial date.
+ * Whether a class's trial day is `now`: `today`, `not-today`, or `unknown` when
+ * the class carries no usable trial date (an entry can replicate before its
+ * trial or class does). The ONE day decision: every surface reads it, so
+ * "unknown" is never silently folded into "not today".
  */
+export type TrialDayState = 'today' | 'not-today' | 'unknown';
+
+/** The trial's calendar day against `now`, reckoned in the trial's timezone. */
+export function trialDayState(
+  trialDate: Date | undefined,
+  trialTimezone: string | undefined,
+  now: Date
+): TrialDayState {
+  if (!hasUsableDate(trialDate)) return 'unknown';
+  return calendarDayOf(trialDate) === calendarDayInZone(now, trialTimezone || DEFAULT_TIMEZONE)
+    ? 'today'
+    : 'not-today';
+}
+
+/** Is the trial's day known and equal to `now`'s? False while the day is unknown. */
 export function isTrialDayToday(
   trialDate: Date | undefined,
   trialTimezone: string | undefined,
   now: Date
 ): boolean {
-  if (!trialDate || Number.isNaN(trialDate.getTime())) return false;
-  return calendarDayOf(trialDate) === calendarDayInZone(now, trialTimezone || DEFAULT_TIMEZONE);
+  return trialDayState(trialDate, trialTimezone, now) === 'today';
 }
 
 /**

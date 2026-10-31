@@ -6,6 +6,7 @@ import {
   deriveDayCheckInTargets,
   isClassCheckInAvailableToday,
   isTrialDayToday,
+  trialDayState,
   weekdayLabel,
   isEntryCloseDayPast,
 } from './dayCheckIn';
@@ -89,6 +90,30 @@ describe('isTrialDayToday — the trial decides the day, not the device', () => 
 
   it('is false without a trial date', () => {
     expect(isTrialDayToday(undefined, PACIFIC, new Date('2026-10-24T16:00:00Z'))).toBe(false);
+  });
+});
+
+describe('trialDayState — unknown is not "not today" (MYK9-1557)', () => {
+  const SATURDAY_MORNING = new Date('2026-10-24T16:00:00Z');
+
+  it('is today on the trial day', () => {
+    expect(trialDayState(SATURDAY, PACIFIC, SATURDAY_MORNING)).toBe('today');
+  });
+
+  it('is not-today on another day', () => {
+    expect(trialDayState(new Date('2026-10-25T00:00:00'), PACIFIC, SATURDAY_MORNING)).toBe(
+      'not-today'
+    );
+  });
+
+  it('is unknown without a trial date, or with an invalid one', () => {
+    expect(trialDayState(undefined, PACIFIC, SATURDAY_MORNING)).toBe('unknown');
+    expect(trialDayState(new Date(Number.NaN), PACIFIC, SATURDAY_MORNING)).toBe('unknown');
+  });
+
+  it('moves from unknown to today when the trial date arrives', () => {
+    expect(trialDayState(undefined, undefined, SATURDAY_MORNING)).toBe('unknown');
+    expect(trialDayState(SATURDAY, PACIFIC, SATURDAY_MORNING)).toBe('today');
   });
 });
 

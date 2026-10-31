@@ -62,4 +62,36 @@ describe('My Shows — "Where to be today" (MYK9-1046)', () => {
     renderRows([{ ...left, classes: [makeClass({ status: 'withdrawn' })] }]);
     expect(screen.queryByRole('link', { name: /where to be today/i })).not.toBeInTheDocument();
   });
+
+  // MYK9-1557: an undated class is "unknown", never silently "not today".
+  it('says the day is unknown, and offers no link, while a class has no trial date yet', () => {
+    const undated = row('2026-10-24');
+    renderRows([{ ...undated, classes: [makeClass({ trialDate: undefined })] }]);
+    expect(screen.queryByRole('link', { name: /where to be today/i })).not.toBeInTheDocument();
+    expect(screen.getByText(/waiting on their trial date/i)).toBeInTheDocument();
+    expect(screen.getByText(/trial date not loaded yet/i)).toBeInTheDocument();
+  });
+
+  it('swaps the unknown note for the link once the trial arrives', () => {
+    const undated = row('2026-10-24');
+    const { rerender } = renderRows([
+      { ...undated, classes: [makeClass({ trialDate: undefined })] },
+    ]);
+    expect(screen.getByText(/waiting on their trial date/i)).toBeInTheDocument();
+    rerender(
+      <MyShowsList
+        filteredEntries={toOrders([row('2026-10-24')], NOW)}
+        source="confirmed"
+        seenResultReleaseKeys={new Set<string>()}
+        now={NOW}
+        onCheckInDay={vi.fn()}
+        onOpenCheckIn={vi.fn()}
+        onOpenEdit={vi.fn()}
+        onOpenReceipts={vi.fn()}
+        onLeaveClass={vi.fn()}
+      />
+    );
+    expect(screen.queryByText(/waiting on their trial date/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /where to be today/i })).toBeInTheDocument();
+  });
 });

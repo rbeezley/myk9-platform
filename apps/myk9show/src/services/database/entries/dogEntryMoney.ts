@@ -22,6 +22,9 @@ const SERVER_OWNED_PAYMENT_FIELDS = [
   'discount_amount',
   'refund_amount',
   'refunded_at',
+  // The money root: a move-up successor owes nothing itself, so a local overlay
+  // that drops this link strands its payment on the original entry.
+  'moved_from_entry_id',
 ] as const;
 
 /** Take the payment fields from the server row, everything else from `merged`. */

@@ -16,7 +16,8 @@
 -- rows. managed_show_ids is always empty since MYK9-114, so that arm is not
 -- restated.
 --
--- Filters restated from the view: live entries only (deleted_at IS NULL).
+-- Filters restated from the view: live entries only (deleted_at IS NULL); the show, trial
+-- and class must be live too, so a deleted class never ranks.
 -- Release gate: results_released_at IS NOT NULL on the entry's class (the
 -- same stamp the Results tab ranks by). An entry in an unreleased class is
 -- still returned (a withdrawal is a lifecycle fact the board shows) but its
@@ -63,6 +64,7 @@ BEGIN
   SELECT s.club_id, s.start_date, true INTO v_club_id, v_start, v_found
   FROM public.shows s
   WHERE s.id = p_show_id
+    AND s.deleted_at IS NULL
     AND s.is_nationals IS TRUE;
   IF v_found IS NOT TRUE THEN
     RETURN;
@@ -122,8 +124,8 @@ BEGIN
     t.date,
     v_start
   FROM public.entries e
-  JOIN public.classes c ON c.id = e.class_id
-  JOIN public.trials t ON t.id = c.trial_id
+  JOIN public.classes c ON c.id = e.class_id AND c.deleted_at IS NULL
+  JOIN public.trials t ON t.id = c.trial_id AND t.deleted_at IS NULL
   LEFT JOIN public.dogs d ON d.id = e.dog_id
   LEFT JOIN public.people hp ON hp.id = e.handler_id
   LEFT JOIN public.people op ON op.id = d.owner_id

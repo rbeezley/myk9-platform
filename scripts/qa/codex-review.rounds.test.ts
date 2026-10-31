@@ -225,6 +225,16 @@ describe('codex-review.sh rounds (MYK9-1590)', () => {
       );
     });
 
+    it('a findings verdict that says it could not complete the review claims no coverage', () => {
+      const repo = makeRepo();
+      const s = stubs(
+        `codex\nUnable to complete the review: the diff was too large.\n- [P2] src/a.ts:3 — a defect.\n`,
+        []
+      );
+      expect(run(repo, s).code).toBe(1);
+      expect(postedBodies(s)[0]?.split('\n')[1]).toBe('');
+    });
+
     it('a review that reported findings and then was interrupted claims no coverage', () => {
       const repo = makeRepo();
       const s = stubs(`${FINDING}Review was interrupted\n`, []);

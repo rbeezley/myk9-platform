@@ -125,6 +125,16 @@ abort_lines() {
   grep -E "^(ERROR: You've hit your usage limit|Review was interrupted)" "$LOG"
 }
 
+# 0 only when the review FINISHED: the CLI exited 0, printed no abort line, and
+# the verdict reports neither an incomplete review nor an inability to do one.
+# A findings verdict can say "Unable to complete the review" and still list a
+# defect, and its coverage claim would let the next round skip what it never
+# read (MYK9-1590, Codex round 2).
+review_finished() {
+  [ "$CLI_EXIT" -eq 0 ] && ! abort_lines > /dev/null &&
+    ! review_text_imatches '\breview[[:space:]]+(did not run|was interrupted|interrupted)\b|unable to complete the review' "$VERDICT"
+}
+
 # A P0/P1 can never be parked: a not-this-round tag on one is rewritten to a
 # normal finding IN THE LOG, which the evidence poster reads too, so the
 # instruction cannot wave a blocker through on either side.
@@ -177,7 +187,7 @@ if review_has_findings "$VERDICT"; then
     # Line 2 is the round-2 anchor's coverage claim (MYK9-1590): written only
     # when this review finished, so an aborted one can never narrow the next.
     COVERAGE=""
-    if [ "$CLI_EXIT" -eq 0 ] && ! abort_lines > /dev/null; then COVERAGE="Coverage: complete from ${COVERED_FROM:0:9}"; fi
+    if review_finished; then COVERAGE="Coverage: complete from ${COVERED_FROM:0:9}"; fi
     if ! "$GH" pr comment "$PR" --body "$(printf 'Codex findings for %s (not gate evidence):\n%s\n\n%s\n' "${HEAD_SHA:0:9}" "$COVERAGE" "$VERDICT")"; then
       echo "codex-review: findings were NOT posted (gh failed). Exit 2; nothing recorded — re-run once gh works." >&2
       exit 2

@@ -138,12 +138,12 @@ VALUES ('00000000-0000-0000-0000-000001517002', '00000000-0000-0000-0000-0000015
 -- Soft-delete fixtures. Show A also holds a soft-deleted class and a soft-deleted dog,
 -- each with an armband and each reachable by exhibitor X; show C is soft-deleted and
 -- holds a live entry plus a passcode.
-INSERT INTO public.classes (id, trial_id, name, status, deleted_at)
+INSERT INTO public.classes (id, trial_id, name, status)
 VALUES ('00000000-0000-0000-0000-000001517107', '00000000-0000-0000-0000-000001517004',
-  'Deleted Class', 'upcoming', now());
-INSERT INTO public.dogs (id, name, call_name, breed, owner_id, deleted_at)
+  'Deleted Class', 'upcoming');
+INSERT INTO public.dogs (id, name, call_name, breed, owner_id)
 VALUES ('00000000-0000-0000-0000-000001517139', 'Deleted Dog', 'DeletedCall', 'DeletedBreed',
-  '00000000-0000-0000-0000-000001517111', now());
+  '00000000-0000-0000-0000-000001517111');
 INSERT INTO public.dog_registrations (dog_id, organization, registration_number, is_primary)
 VALUES ('00000000-0000-0000-0000-000001517139', 'AKC (American Kennel Club)', 'SR151709', true);
 INSERT INTO public.entries (id, dog_id, class_id, show_id, trial_id, handler_id, handler, armband,
@@ -158,9 +158,9 @@ VALUES
    '00000000-0000-0000-0000-000001517004', '00000000-0000-0000-0000-000001517111', 'Xena Handler',
    '109', 2, 'confirmed', 'pending', 25, 'no-status');
 
-INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id, status, deleted_at)
+INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id, status)
 VALUES ('00000000-0000-0000-0000-000001517008', 'MYK9-1517 Deleted Show', 'AKC', current_date,
-  current_date, '00000000-0000-0000-0000-000001517001', 'published', now());
+  current_date, '00000000-0000-0000-0000-000001517001', 'published');
 INSERT INTO public.trials (id, show_id, name, date, registry_id)
 VALUES ('00000000-0000-0000-0000-000001517009', '00000000-0000-0000-0000-000001517008',
   'MYK9-1517 Trial C', current_date, 'AKC');
@@ -251,6 +251,15 @@ VALUES
    'confirmed', 'pending', 25, 'no-status');
 INSERT INTO public.show_passcodes (show_id, role, passcode_hash, created_at)
 VALUES ('00000000-0000-0000-0000-000001517010', 'steward', 'myk9-1517-hash-d', '2026-10-10T00:00:00Z');
+
+-- Soft-delete the class, dog and show only now: the entries triggers refuse a deleted
+-- parent at insert time, and the cascade triggers would otherwise delete the entries
+-- too. Replica mode skips those triggers so the entries stay live under deleted parents.
+SET LOCAL session_replication_role = replica;
+UPDATE public.classes SET deleted_at = now() WHERE id = '00000000-0000-0000-0000-000001517107';
+UPDATE public.dogs SET deleted_at = now() WHERE id = '00000000-0000-0000-0000-000001517139';
+UPDATE public.shows SET deleted_at = now() WHERE id = '00000000-0000-0000-0000-000001517008';
+SET LOCAL session_replication_role = origin;
 
 INSERT INTO public.show_passcodes (show_id, role, passcode_hash, created_at)
 VALUES ('00000000-0000-0000-0000-000001517002', 'steward', 'myk9-1517-hash', '2026-10-10T00:00:00Z');

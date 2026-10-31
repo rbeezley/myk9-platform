@@ -80,11 +80,10 @@ LOG="${CODEX_REVIEW_LOG:-/tmp/codex-review-${HEAD_SHA}.log}"
 # never infer success from a summary of changes or passing tests (MYK9-416).
 # This overrides developer_instructions for this review, not the user's config
 # file, and leaves the built-in review prompt and repository instructions intact.
-REVIEW_INSTRUCTIONS='Review verdict contract: Only assert a clean verdict after completing the requested whole-branch review and finding no actionable defects. In that case, begin the final verdict with exactly: No actionable defects found. Put any summary or validation details after that sentence. If there are actionable findings, report each as a bullet beginning with - [P0], - [P1], - [P2], or - [P3], as appropriate; do not emit a clean assertion. If the review cannot be completed, begin with: Unable to complete the review. Explain the blocker and do not emit a clean assertion. Passing tests or a change summary alone is not a review verdict. Report every actionable finding in the whole diff on this pass, ordered by severity with P0 first, rather than stopping after the first few, so a later round only confirms the fixes. Bug classes: when a finding is one instance of a pattern, name the pattern and list every instance in the diff inside that one finding, so later rounds do not find them one at a time. Origin: a defect is pre-existing only when the same defective code exists unchanged at the base commit, in lines this branch did not add or modify, and the branch does not make it more severe; cite its location. Anything in lines the branch added or changed, or any regression the branch causes, is a normal finding, and when unsure it is a normal finding. Pre-existing defects are not actionable for this branch and do not prevent a clean verdict: list them after the verdict under the heading Pre-existing defects, each as a bullet beginning with - [pre-existing P0], - [pre-existing P1], - [pre-existing P2], or - [pre-existing P3], never as a normal finding bullet.'
-
-# Likelihood (owner, 2026-10-31): rounds were spent fixing failures that
-# realistically never happen. A capped finding is listed, not blocking.
-REVIEW_INSTRUCTIONS="${REVIEW_INSTRUCTIONS} Likelihood: state each finding's realistic trigger (who does what, how often) in one clause. A finding that needs improbable timing (a disconnect inside one request, a race within one render) or a hand-crafted input is P3 at most, unless its outcome is lost or corrupted show-day data (scores, check-ins, entries, money) or a security or privacy exposure. Report such a capped finding after the verdict under the heading Not actionable this round, as a bullet beginning with - [unlikely P3], never as a normal finding bullet."
+REVIEW_INSTRUCTIONS='Review verdict contract: Only assert a clean verdict after completing the requested whole-branch review and finding no actionable defects. In that case, begin the final verdict with exactly: No actionable defects found. Put any summary or validation details after that sentence. If there are actionable findings, report each as a bullet beginning with - [P0], - [P1], - [P2], or - [P3], as appropriate; do not emit a clean assertion. If the review cannot be completed, begin with: Unable to complete the review. Explain the blocker and do not emit a clean assertion. Passing tests or a change summary alone is not a review verdict. Report every actionable finding in the whole diff on this pass, ordered by severity with P0 first, rather than stopping after the first few, so a later round only confirms the fixes. Bug classes: when a finding is one instance of a pattern, name the pattern and list every instance in the diff inside that one finding, so later rounds do not find them one at a time. Origin: a defect is pre-existing only when the same defective code exists unchanged at the base commit, in lines this branch did not add or modify, and the branch does not make it more severe; cite its location. Anything in lines the branch added or changed, or any regression the branch causes, is a normal finding, and when unsure it is a normal finding. Pre-existing defects are not actionable for this branch and do not prevent a clean verdict: list them after the verdict under the heading Pre-existing defects, each as a bullet beginning with - [pre-existing P0], - [pre-existing P1], - [pre-existing P2], or - [pre-existing P3], never as a normal finding bullet. Likelihood: state the realistic trigger of each finding (who does what, how often) in one clause. A finding that needs improbable timing (a disconnect inside one request, a race within one render) or a hand-crafted input is P3 at most, unless its outcome is lost or corrupted show-day data (scores, check-ins, entries, money) or a security or privacy exposure. Report such a capped finding after the verdict under the heading Not actionable this round, as a bullet beginning with - [unlikely P3], never as a normal finding bullet.'
+# The Likelihood sentence (owner, 2026-10-31) is part of the one contract, so
+# claude-review.sh and the adversarial lenses get it too (scripts/qa/review-contract.sh,
+# MYK9-1613): rounds were spent fixing failures that realistically never happen.
 
 # Round 2 and later (MYK9-1590): re-reading the whole branch every round
 # surfaced fresh minor findings in code that had already passed, so PRs rarely
@@ -135,13 +134,6 @@ review_finished() {
     ! review_text_imatches '\breview[[:space:]]+(did not run|was interrupted|interrupted)\b|unable to complete the review' "$VERDICT"
 }
 
-# A P0/P1 can never be parked: a not-this-round tag on one is rewritten to a
-# normal finding IN THE LOG, which the evidence poster reads too, so the
-# instruction cannot wave a blocker through on either side.
-if [ -f "$LOG" ]; then
-  sed -E 's/\[(earlier-round|unlikely) (P[01])\]/[\2]/' "$LOG" > "$LOG.norm" && mv "$LOG.norm" "$LOG"
-fi
-
 # The verdict is everything after the CLI's own "codex" marker line.
 VERDICT="$(review_last_block "$LOG")"
 if [ -z "$VERDICT" ]; then
@@ -165,13 +157,7 @@ fi
 
 echo "$VERDICT"
 review_note_preexisting codex-review "$VERDICT"
-NOT_THIS_ROUND='^[[:space:]]*- (\*\*)?\[(earlier-round|unlikely) P[0-9]\]'
-NTR="$(printf '%s\n' "$VERDICT" | grep -Ec "$NOT_THIS_ROUND" || true)"
-if [ "${NTR:-0}" -gt 0 ]; then
-  echo
-  echo "codex-review: ${NTR} finding(s) not actionable this round (earlier-round P2/P3 or unlikely). Not blocking; file the ones worth fixing in Linear before merge:"
-  printf '%s\n' "$VERDICT" | grep -E "$NOT_THIS_ROUND"
-fi
+review_note_not_this_round codex-review "$VERDICT"
 if review_has_findings "$VERDICT"; then
   echo
   echo "codex-review: findings above. Fix them, commit, and re-run — the evidence line is for the NEW head."

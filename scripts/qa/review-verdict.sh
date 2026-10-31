@@ -27,7 +27,26 @@
 # more: a prose bullet that merely mentions "[P1]" is not a finding (Codex
 # review of #2130). Shape 3 = a backticked location, then a hyphen, en dash
 # or em dash (spelled out; a wildcard here matched the word "is"), then the tag.
-REVIEW_FINDING_BULLET='^[[:space:]]*- ((\*\*)?\[P[0-9]\]|`[^`]+`[[:space:]]*(-|–|—)[[:space:]]*(\*\*)?\[P[0-9]\])'
+# A P0/P1 can never be parked (MYK9-1613): `[unlikely P1]` or `[earlier-round P0]`
+# is a finding for every consumer (both wrappers and the poster), whatever the
+# reviewer called it. Only P2/P3 take the not-this-round tags below.
+REVIEW_FINDING_BULLET='^[[:space:]]*- ((\*\*)?\[(P[0-9]|(unlikely|earlier-round) P[01])\]|`[^`]+`[[:space:]]*(-|–|—)[[:space:]]*(\*\*)?\[(P[0-9]|(unlikely|earlier-round) P[01])\])'
+
+# A finding the contract says is not actionable this round (MYK9-1590, 1613):
+# `[unlikely P3]` (the likelihood cap) or `[earlier-round P2|P3]` (code a
+# fix-range round already read). Never blocks; listed so the shipper can file
+# the ones worth fixing.
+REVIEW_NOT_THIS_ROUND_BULLET='^[[:space:]]*- (\*\*)?\[(unlikely|earlier-round) P[23]\]'
+
+# Print the not-this-round bullets; silent when none.
+review_note_not_this_round() {  # LABEL TEXT
+  local n
+  n="$(printf '%s\n' "$2" | grep -Ec "$REVIEW_NOT_THIS_ROUND_BULLET" || true)"
+  [ "${n:-0}" -gt 0 ] || return 0
+  echo
+  echo "$1: ${n} finding(s) not actionable this round (unlikely, or earlier-round P2/P3). Not blocking; file the ones worth fixing in Linear before merge:"
+  printf '%s\n' "$2" | grep -E "$REVIEW_NOT_THIS_ROUND_BULLET"
+}
 
 # A defect the reviewer found in code the branch did not touch (MYK9-1546).
 # It never blocks the gate: `[pre-existing P2]` cannot match REVIEW_FINDING_BULLET,

@@ -10,7 +10,9 @@ import { DEFAULT_THEME_PREFERENCES } from '@/types/user-preferences';
 const SERVER = { ...DEFAULT_THEME_PREFERENCES, mode: 'light' as const };
 
 describe('deviceThemeCache', () => {
-  beforeEach(() => localStorage.clear());
+  beforeEach(() => {
+    localStorage.clear();
+  });
 
   it('writes a local change with its time and marks it pending', () => {
     recordLocalThemeChange('u1', { mode: 'dark' }, 5000);

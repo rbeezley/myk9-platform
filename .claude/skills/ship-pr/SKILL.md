@@ -131,8 +131,10 @@ comments for every tier — never type an evidence line by hand.
   `bash scripts/qa/post-review-gate.sh $PR_NUMBER none <base-sha> <head-sha> "low-risk paths, CI green" /dev/null`
 - **`adversarial`** — run at least 2 subagent reviews with distinct
   bug-finding lenses (a migration path makes one lens `migration-auditor`
-  and requires `src/test/database/` green), fix every finding, save the
-  combined log, then post:
+  and requires `src/test/database/` green), each prompt carrying the output
+  of `bash scripts/qa/review-contract.sh` (the same contract Codex gets; an
+  `[unlikely P3]` or `[earlier-round P2|P3]` bullet never blocks, a P0/P1
+  always does), fix every finding, save the combined log, then post:
   `REVIEW_LENSES=$'<lens one>\n<lens two>' bash scripts/qa/post-review-gate.sh $PR_NUMBER adversarial <base-sha> <head-sha> "<N> lenses, all findings addressed" <log>`
   `<N>` must be 2 or more — the checker refuses `0`, `1`, and zero-padded counts
   — and it must EQUAL the number of distinct lens names in `REVIEW_LENSES`,

@@ -253,10 +253,14 @@ export function useAskQ(sendQuery: AskQQuerySender = sendAskQQuery, history?: As
 
   // On a user or show change: drop any in-flight or finished live answer (it belongs to the
   // old context) and load that context's saved thread. Unresolved user: memory only.
+  // The daily limit belongs to the user, so a different user starts with clean counters.
+  const stateUserIdRef = useRef(historyUserId);
   useEffect(() => {
     if (!persistEnabled) return;
     cancel();
-    setState(prev => freshState(prev));
+    const userChanged = stateUserIdRef.current !== historyUserId;
+    stateUserIdRef.current = historyUserId;
+    setState(prev => (userChanged ? INITIAL_STATE : freshState(prev)));
     setThread(historyUserId ? loadAskQHistory(historyUserId, historyScope) : []);
   }, [persistEnabled, historyUserId, historyScope, cancel]);
 

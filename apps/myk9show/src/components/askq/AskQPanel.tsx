@@ -256,11 +256,14 @@ export function AskQPanel() {
   // The just-finished answer is still shown in the live slot below the thread.
   const threadEndRef = useRef<HTMLDivElement>(null);
   const hasConversation = askq.thread.length > 0 || askq.query !== '';
+  const lastEntry = askq.thread[askq.thread.length - 1];
+  // Driven by the newest text and status, not thread length: streamed tokens grow the live
+  // answer, and at the 20-entry cap a finished answer leaves the length unchanged.
+  const newestText = askq.answer || lastEntry?.answer;
   useEffect(() => {
     // Keep the newest question and answer in view above the fixed input.
     if (isOpen && hasConversation) threadEndRef.current?.scrollIntoView?.({ block: 'end' });
-  }, [isOpen, hasConversation, askq.thread.length, askq.query]);
-  const lastEntry = askq.thread[askq.thread.length - 1];
+  }, [isOpen, hasConversation, askq.thread.length, askq.query, askq.status, newestText]);
   const liveAnswerShown =
     askq.status === 'done' &&
     askq.query !== '' &&

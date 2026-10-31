@@ -5,6 +5,7 @@ import { TERA_WORKING_COPY } from '@/components/askq/askq-config';
 import { useAskQPanelStore } from '@/store/useAskQPanelStore';
 import { act } from '@testing-library/react';
 import * as askqService from '@/services/askqService';
+import { ASKQ_HISTORY_MAX_ENTRIES, saveAskQHistory } from '@/hooks/askqHistory';
 
 vi.mock('@/services/askqService');
 
@@ -406,6 +407,86 @@ describe('AskQPanel', () => {
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'q' } });
     await user.click(screen.getByRole('button', { name: 'Send query' }));
     await screen.findByText('Bottom answer');
+    expect(scrollIntoView).toHaveBeenCalled();
+  });
+
+  it('keeps scrolling as streamed tokens grow the answer', async () => {
+    window.localStorage.clear();
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    let emit!: (event: string, data: unknown) => void;
+    let finish!: () => void;
+    vi.mocked(askqService.sendAskQQuery).mockResolvedValue(createMockStream());
+    vi.mocked(askqService.parseSSEStream).mockImplementation(
+      (_stream, onEvent) =>
+        new Promise<void>(resolve => {
+          emit = onEvent;
+          finish = resolve;
+        })
+    );
+    act(() => useAskQPanelStore.getState().open());
+    const { user } = render(<AskQPanel />, { initialRoute: '/shows/show-1' });
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'q' } });
+    await user.click(screen.getByRole('button', { name: 'Send query' }));
+    await waitFor(() => expect(emit).toBeDefined());
+
+    act(() => emit('token', 'First part. '));
+    await screen.findByText(/First part\./);
+    const afterFirst = scrollIntoView.mock.calls.length;
+
+    act(() => emit('token', 'Second part.'));
+    await screen.findByText(/Second part\./);
+    expect(scrollIntoView.mock.calls.length).toBeGreaterThan(afterFirst);
+
+    await act(async () => {
+      emit('done', {});
+      finish();
+    });
+  });
+
+  it('scrolls when an answer completes on a thread already at the 20-entry cap', async () => {
+    window.localStorage.clear();
+    const now = Date.now();
+    saveAskQHistory(
+      'user-1',
+      'show-1',
+      Array.from({ length: ASKQ_HISTORY_MAX_ENTRIES }, (_, i) => ({
+        id: `seed-${i}`,
+        question: `seed question ${i}`,
+        answer: `seed answer ${i}`,
+        toolsUsed: [],
+        sources: {},
+        queryLogId: null,
+        askedAt: now - (ASKQ_HISTORY_MAX_ENTRIES - i) * 1000,
+      }))
+    );
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    let emit!: (event: string, data: unknown) => void;
+    let finish!: () => void;
+    vi.mocked(askqService.sendAskQQuery).mockResolvedValue(createMockStream());
+    vi.mocked(askqService.parseSSEStream).mockImplementation(
+      (_stream, onEvent) =>
+        new Promise<void>(resolve => {
+          emit = onEvent;
+          finish = resolve;
+        })
+    );
+    act(() => useAskQPanelStore.getState().open());
+    const { user } = render(<AskQPanel />, { initialRoute: '/shows/show-1' });
+    await screen.findByText('seed question 19');
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'newest' } });
+    await user.click(screen.getByRole('button', { name: 'Send query' }));
+    await waitFor(() => expect(emit).toBeDefined());
+    await screen.findByText('newest');
+    scrollIntoView.mockClear();
+
+    await act(async () => {
+      emit('token', 'Capped answer');
+      emit('done', {});
+      finish();
+    });
+    await screen.findByText('Capped answer');
     expect(scrollIntoView).toHaveBeenCalled();
   });
 });

@@ -85,6 +85,16 @@ describe('AtShowLeaderboardPage', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('keeps the ringside return link when the read fails', () => {
+    mocks.readState = 'failed';
+    renderPage();
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /back to ringside/i })).toHaveAttribute(
+      'href',
+      '/at-show/show-1'
+    );
+  });
+
   it('returns to the ringside screen the menu was opened from', () => {
     useRingsideReturnStore.getState().set({
       returnTo: '/at-show/show-1?view=ring',

@@ -146,6 +146,8 @@ export function useResultsTabData(showId: string) {
     queryKey: showRankingKeyQueryKey(showId),
     queryFn: () => replicatedShowsTable.getShowById(showId),
     enabled: Boolean(showId),
+    // Reads IndexedDB; the default "online" mode would park it paused offline (MYK9-1540).
+    networkMode: 'always',
   });
   const isNationals = showQuery.data ? showQuery.data.isNationals === true : null;
   // The show row is replicated: a later sync (or the row arriving after a first empty read) must

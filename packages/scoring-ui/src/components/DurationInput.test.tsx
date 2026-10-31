@@ -131,4 +131,13 @@ describe('DurationInput', () => {
     expect(field().parentElement?.nextElementSibling).toBe(before);
     expect(before).toHaveClass('min-h-5');
   });
+
+  it('does not report a change when an existing time is focused and left untouched', () => {
+    const onValue = vi.fn();
+    render(<Harness initial="0:45.32" onValue={onValue} />);
+    fireEvent.focus(field());
+    fireEvent.blur(field());
+    expect(onValue).not.toHaveBeenCalled();
+    expect(field().value).toBe('0:45.32');
+  });
 });

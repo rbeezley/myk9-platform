@@ -116,8 +116,15 @@ export const DurationInput: React.FC<DurationInputProps> = ({
     onFocus?.();
   };
 
+  // Show the canonical text; tell the parent only if the stored value changed, so
+  // tabbing through an existing time never makes a pending edit.
+  const settle = (formatted: string) => {
+    if (formatted === reported.current) setText(formatted);
+    else report(formatted);
+  };
+
   const handleBlur = () => {
-    if (result.ok && text !== result.formatted) report(result.formatted);
+    if (result.ok && text !== result.formatted) settle(result.formatted);
     onCommit?.();
   };
 
@@ -127,7 +134,7 @@ export const DurationInput: React.FC<DurationInputProps> = ({
       onCancel();
     } else if ((e.key === 'Enter' || e.key === 'Tab') && onCommit && !e.shiftKey) {
       e.preventDefault();
-      if (result.ok && text !== result.formatted) report(result.formatted);
+      if (result.ok && text !== result.formatted) settle(result.formatted);
       onCommit();
     }
   };

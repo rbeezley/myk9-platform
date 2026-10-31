@@ -337,22 +337,17 @@ describe('EnrollmentCard', () => {
     });
   });
 
-  it('omits show-day check-in and waitlist actions from the registration menu', () => {
-    // Real waitlisting is per-class with position/capacity tracked in
-    // `waitlist_entries` (WaitlistManagementPage). The bulk status write maps
-    // WAITLIST → 'submitted', so it never creates membership and leaves the
-    // entry Pending — same reason Lane 2.2 (#827) omitted bulk Waitlist from
-    // the table multi-select bar.
+  it('has no Actions button: Accept all / Reject all live in the form header menu (MYK9-1600)', () => {
     render(<EnrollmentCard {...defaultProps} />);
-    fireEvent.click(screen.getByRole('button', { name: /^actions$/i }));
+    expect(screen.queryByRole('button', { name: /^actions$/i })).toBeNull();
+    expect(screen.queryByText('Accept all')).toBeNull();
+  });
 
-    // Registration decisions remain reachable here…
-    expect(screen.getByText('Accept all')).toBeTruthy();
-    expect(screen.getByText('Reject all')).toBeTruthy();
-    // …but show-day check-in belongs to the canonical Check-in desk, and real
-    // waitlisting belongs to Waitlist Management.
-    expect(screen.queryByText('Check In All')).toBeNull();
-    expect(screen.queryByText('Waitlist All')).toBeNull();
+  it('labels the payment control and keeps it a 44px target', () => {
+    render(<EnrollmentCard {...defaultProps} group={makeGroup({ enrollmentId: 'enroll-1' })} />);
+    const control = screen.getByRole('button', { name: 'Change payment' });
+    expect(control).toHaveTextContent('Change');
+    expect(control.className).toContain('min-h-11');
   });
 
   it('groups entries by dog inside an enrollment card', () => {

@@ -4,6 +4,7 @@ import type { EntryStatus } from '@/types/show-registration-types';
 import type { CheckInStatus } from '@myk9/core';
 import type { EmailLogEntry } from '@/hooks/useEmailStatus';
 import type { EnrollmentLedgerControls } from '@/hooks/useEnrollmentLedgerActions';
+import type { EnrollmentDialogControls } from './useEnrollmentDialogControls';
 import type { EntryDecisionEmailJob, EntryDecisionEmailStatus } from '@/features/lifecycle-emails';
 
 export interface EnrollmentCardProps {
@@ -25,7 +26,6 @@ export interface EnrollmentCardProps {
   showCheckInStatus?: boolean | undefined;
   /** Child Entries that matched the active whole-show search. */
   matchingEntryIds?: ReadonlySet<string> | undefined;
-  onBulkStatusChange: (entryIds: string[], status: EntryStatus) => void;
   /**
    * Cash/check payments, refunds and "Payment Due" resets (MYK9-677 ledger),
    * and "Paid in Full: Online" (MYK9-773), all written by the server.
@@ -44,4 +44,9 @@ export interface EnrollmentCardProps {
     ((job: EntryDecisionEmailJob, entry: EntryManagementEntry) => void) | undefined;
   onPrepareCorrectionEmail?:
     ((job: EntryDecisionEmailJob, entry: EntryManagementEntry) => void) | undefined;
+  /**
+   * Dialog state shared with the entry form's checklist and header menu, so one
+   * set of payment/email dialogs serves every door. Omitted, the card owns its own.
+   */
+  dialogControls?: EnrollmentDialogControls | undefined;
 }

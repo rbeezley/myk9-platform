@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ChevronDown, ChevronUp, Receipt, MoreHorizontal } from 'lucide-react';
+import { ChevronDown, ChevronUp, Receipt } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatRelativeTime } from '@/utils/format';
 import { EntryListCard } from './EntryListCard';
@@ -9,7 +9,7 @@ import { groupEnrollmentEntriesByDog } from './enrollmentDogGroups';
 import { getPaymentStatusBadge } from '@/utils/entryManagementUtils';
 import { PaymentStatus } from '@/types/show-registration-types';
 import type { EnrollmentCardProps } from './EnrollmentCard.types';
-import { EnrollmentBulkStatusItems } from './EnrollmentBulkStatusItems';
+import { useEnrollmentDialogControls } from './useEnrollmentDialogControls';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,13 +21,9 @@ import {
 } from '@/components/ui/dropdown-menu';
 import {
   EMPTY_FULL_PAYMENT_DIALOG,
-  netReceivedDollars,
   EMPTY_PARTIAL_DIALOG,
   EMPTY_REFUND_DIALOG,
-  resolvePartialPayment,
   resolveRefund,
-  type FullPaymentDialog,
-  type PartialDialog,
   type RefundDialog,
 } from './enrollmentPayment';
 import { EnrollmentFullPaymentDialog } from './EnrollmentFullPaymentDialog';
@@ -50,7 +46,6 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
   onEntryRemoved,
   showCheckInStatus = true,
   matchingEntryIds,
-  onBulkStatusChange,
   paymentLedger,
   emailStatusMap,
   juniorDeclaredEntryIds,
@@ -61,22 +56,30 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
   lifecycleDecisionEmailStatusMap,
   onReviewLifecycleEmail,
   onPrepareCorrectionEmail,
+  dialogControls,
 }) => {
   const [expanded, setExpanded] = useState(true);
-  const [fullDialog, setFullDialog] = useState<FullPaymentDialog>(EMPTY_FULL_PAYMENT_DIALOG);
-  const [partialDialog, setPartialDialog] = useState<PartialDialog>(EMPTY_PARTIAL_DIALOG);
   const [refundDialog, setRefundDialog] = useState<RefundDialog>(EMPTY_REFUND_DIALOG);
-  const [isSendingEmail, setIsSendingEmail] = useState(false);
-  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
-  const [emailMessage, setEmailMessage] = useState('');
-
-  const enrollmentId = group.enrollmentId ?? '';
-  const totalDollars =
-    group.totalAmountUnit === 'cents' ? group.totalAmount / 100 : group.totalAmount;
-  // Net received (MYK9-677): what the club still holds, the figure
-  // record_enrollment_payment caps refunds by and charges "Paid in Full" from.
-  const paidDollars = netReceivedDollars(group);
-  const remainingDollars = totalDollars - paidDollars;
+  // Standalone fallback: unused when the parent passes `dialogControls`. Called
+  // unconditionally on purpose (hook rules); do not make it conditional.
+  const ownControls = useEnrollmentDialogControls(group, paymentLedger);
+  const {
+    enrollmentId,
+    totalDollars,
+    paidDollars,
+    remainingDollars,
+    today,
+    fullDialog,
+    setFullDialog,
+    partialDialog,
+    setPartialDialog,
+    markPaidOnline,
+    openFullPayment,
+    openPartialPayment,
+    confirmFullPayment,
+    confirmPartialPayment,
+    email,
+  } = dialogControls ?? ownControls;
   // The form belongs to the exhibitor; a handler is named on each entry line instead.
   const exhibitorLabel = group.exhibitorName ?? group.entries[0]?.ownerName ?? 'Unknown exhibitor';
   const dogGroups = useMemo(() => groupEnrollmentEntriesByDog(group.entries), [group.entries]);
@@ -85,42 +88,6 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
   // gating this on the status hid the shortfall exactly when it mattered
   // (MYK9-495 round 2).
   const isPartiallyPaid = paidDollars > 0 && paidDollars < totalDollars;
-
-  // Online money is not the desk's (no ledger row), but the server runs the
-  // same entries cascade as a desk payment (MYK9-773).
-  const markPaidOnline = () => {
-    if (enrollmentId) void paymentLedger.markPaidOnline(enrollmentId);
-  };
-
-  // MYK9-677: cash and check money goes through the payments ledger, one row
-  // per payment with the day it was received.
-  const today = paymentLedger.todayInShowZone;
-  const openFullPayment = (method: FullPaymentDialog['method']) =>
-    setFullDialog({ open: true, method, checkNumber: '', receivedOn: today });
-
-  const confirmFullPayment = () => {
-    if (!enrollmentId || !fullDialog.receivedOn) return;
-    void paymentLedger.record(enrollmentId, {
-      kind: 'payment',
-      method: fullDialog.method,
-      amount: null,
-      receivedOn: fullDialog.receivedOn,
-      reference: fullDialog.method === 'check' ? fullDialog.checkNumber : null,
-    });
-    setFullDialog(EMPTY_FULL_PAYMENT_DIALOG);
-  };
-
-  const confirmPartialPayment = () => {
-    const result = resolvePartialPayment(
-      partialDialog.amountPaid,
-      partialDialog.method,
-      partialDialog.checkNumber,
-      partialDialog.receivedOn
-    );
-    if (!result || !enrollmentId) return;
-    void paymentLedger.record(enrollmentId, result);
-    setPartialDialog(EMPTY_PARTIAL_DIALOG);
-  };
 
   const openRefundDialog = (isPartial: boolean) => {
     setRefundDialog({
@@ -161,20 +128,6 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button size="sm" variant="outline" className="min-h-11 gap-1 px-3">
-                    Actions
-                    <MoreHorizontal className="h-4 w-4" aria-hidden />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <EnrollmentBulkStatusItems
-                    entries={group.entries}
-                    onBulkStatusChange={onBulkStatusChange}
-                  />
-                </DropdownMenuContent>
-              </DropdownMenu>
               <Button
                 size="icon"
                 variant="ghost"
@@ -274,13 +227,17 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
               ) : (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <button
+                    <Button
                       type="button"
-                      className="inline-flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity"
+                      variant="outline"
+                      size="sm"
+                      className="min-h-11 gap-2 px-3"
+                      aria-label="Change payment"
                     >
                       {getPaymentStatusBadge(group.paymentStatus)}
-                      <ChevronDown className="h-3 w-3 text-muted-foreground" />
-                    </button>
+                      <span className="text-xs font-medium">Change</span>
+                      <ChevronDown className="h-3 w-3 text-muted-foreground" aria-hidden />
+                    </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     {/* Grouped into three concerns so this 7-action money menu
@@ -306,17 +263,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
                       <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
                         Adjust
                       </DropdownMenuLabel>
-                      <DropdownMenuItem
-                        onClick={() =>
-                          setPartialDialog({
-                            open: true,
-                            amountPaid: '',
-                            method: 'cash',
-                            checkNumber: '',
-                            receivedOn: today,
-                          })
-                        }
-                      >
+                      <DropdownMenuItem onClick={openPartialPayment}>
                         Partial Payment…
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => openRefundDialog(false)}>
@@ -377,10 +324,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
       <EnrollmentCommunicationSection
         lastDecisionEmailedAt={lastDecisionEmailedAt}
         canSendDecisionEmail={Boolean(onSendDecisionEmail && enrollmentId)}
-        onEmail={() => {
-          setEmailMessage('');
-          setEmailDialogOpen(true);
-        }}
+        onEmail={email.openDialog}
       />
 
       <EnrollmentFullPaymentDialog
@@ -411,28 +355,28 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
       />
 
       <EnrollmentEmailDialog
-        open={emailDialogOpen}
+        open={email.open}
         onOpenChange={open => {
-          if (!isSendingEmail) setEmailDialogOpen(open);
+          if (!email.isSending) email.setOpen(open);
         }}
-        isSending={isSendingEmail}
+        isSending={email.isSending}
         ownerName={group.entries[0]?.ownerName}
-        message={emailMessage}
-        onMessageChange={setEmailMessage}
-        onCancel={() => setEmailDialogOpen(false)}
+        message={email.message}
+        onMessageChange={email.setMessage}
+        onCancel={() => email.setOpen(false)}
         onSend={async () => {
           if (!onSendDecisionEmail || !enrollmentId) return;
-          setIsSendingEmail(true);
+          email.setIsSending(true);
           const totalDollarsForEmail =
             group.totalAmountUnit === 'cents' ? group.totalAmount / 100 : group.totalAmount;
           const amountDue = Math.max(0, totalDollarsForEmail - group.paidAmount);
           await onSendDecisionEmail(
             enrollmentId,
-            emailMessage.trim() || undefined,
+            email.message.trim() || undefined,
             amountDue > 0 ? amountDue : undefined
           );
-          setIsSendingEmail(false);
-          setEmailDialogOpen(false);
+          email.setIsSending(false);
+          email.setOpen(false);
         }}
       />
     </Card>

@@ -4,14 +4,21 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { formatConfirmationNumberLabel } from '@/features/registration/confirmationNumberDisplay';
-import { EntryStatus } from '@/types/show-registration-types';
+import type { EntryStatus } from '@/types/show-registration-types';
 import { EnrollmentCard } from './EnrollmentCard';
 import type { EnrollmentCardProps } from './EnrollmentCard.types';
 import type { ShowRegistrationGroup } from './showRegistrationProjection';
-import { getRegistrationReviewLabel, STATUS_COMMAND_LABELS } from './reviewStateLabels';
+import { getRegistrationReviewLabel } from './reviewStateLabels';
+import { EntryFormChecklist } from './EntryFormChecklist';
+import { EntryFormFooter } from './EntryFormFooter';
+import { EntryFormHeaderMenu } from './EntryFormHeaderMenu';
+import { buildFormChecklist } from './formChecklist';
+import { useEnrollmentDialogControls } from './useEnrollmentDialogControls';
 
 interface EntryFocusedRegistrationProps extends Omit<EnrollmentCardProps, 'group'> {
   registration: ShowRegistrationGroup;
+  /** Accept/Reject for the checklist and the header menu (the shared bulk handler). */
+  onBulkStatusChange: (entryIds: string[], status: EntryStatus) => void;
   onBack?: () => void;
   /**
    * Move focus to the form's heading when it opens. On a narrow screen the form replaces the
@@ -25,6 +32,7 @@ const reviewLabel = getRegistrationReviewLabel;
 export function EntryFocusedRegistration({
   registration,
   onBack,
+  onBulkStatusChange,
   focusHeadingOnMount = false,
   ...enrollmentCardProps
 }: EntryFocusedRegistrationProps) {
@@ -35,6 +43,9 @@ export function EntryFocusedRegistration({
     if (focusHeadingOnMount) headingRef.current?.focus();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const controls = useEnrollmentDialogControls(registration, enrollmentCardProps.paymentLedger);
+  const checklist = buildFormChecklist(registration, controls);
 
   return (
     <section
@@ -48,16 +59,36 @@ export function EntryFocusedRegistration({
             Back to list
           </Button>
         )}
-        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">Entry form</p>
-        <h2 ref={headingRef} tabIndex={-1} className="mt-1 text-xl font-bold focus:outline-none">
-          {registration.exhibitorName}
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          {registration.confirmationNumber
-            ? formatConfirmationNumberLabel(registration.confirmationNumber)
-            : 'No confirmation number'}{' '}
-          · {registration.exhibitorEmail || 'No email'}
-        </p>
+        <div className="flex items-start gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">
+              Entry form
+            </p>
+            <h2
+              ref={headingRef}
+              tabIndex={-1}
+              className="mt-1 text-xl font-bold focus:outline-none"
+            >
+              {registration.exhibitorName}
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              {registration.confirmationNumber
+                ? formatConfirmationNumberLabel(registration.confirmationNumber)
+                : 'No confirmation number'}{' '}
+              · {registration.exhibitorEmail || 'No email'}
+            </p>
+          </div>
+          <EntryFormHeaderMenu
+            exhibitorName={registration.exhibitorName}
+            entries={registration.entries}
+            onBulkStatusChange={onBulkStatusChange}
+            onEmailExhibitor={
+              enrollmentCardProps.onSendDecisionEmail && registration.enrollmentId
+                ? controls.email.openDialog
+                : undefined
+            }
+          />
+        </div>
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <Badge
             variant="outline"
@@ -80,60 +111,22 @@ export function EntryFocusedRegistration({
       </header>
 
       <div className="space-y-4 p-4">
-        <div className="rounded-lg border border-primary/25 bg-primary/5 p-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-            Primary work
-          </p>
-          <p className="mt-2 font-semibold">{registration.recommendedAction.label}</p>
-          {registration.recommendedAction.id === 'view-registration' ? (
-            <p className="text-sm text-muted-foreground">
-              No action needed. All entries processed.
-            </p>
-          ) : (
-            <>
-              <p className="text-sm text-muted-foreground">
-                {registration.recommendedAction.affectedEntryIds.length} of{' '}
-                {registration.entryCount} {registration.entryCount === 1 ? 'Entry' : 'Entries'}{' '}
-                currently{' '}
-                {registration.recommendedAction.affectedEntryIds.length === 1 ? 'needs' : 'need'}{' '}
-                this action.
-              </p>
-              {registration.recommendedAction.id === 'review-registration' &&
-                registration.recommendedAction.affectedEntryIds.length > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <Button
-                      size="sm"
-                      className="min-h-11"
-                      onClick={() =>
-                        enrollmentCardProps.onBulkStatusChange(
-                          registration.recommendedAction.affectedEntryIds,
-                          EntryStatus.ACCEPTED
-                        )
-                      }
-                    >
-                      {STATUS_COMMAND_LABELS[EntryStatus.ACCEPTED]}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="min-h-11 border-destructive text-destructive hover:bg-destructive/10 hover:text-destructive"
-                      onClick={() =>
-                        enrollmentCardProps.onBulkStatusChange(
-                          registration.recommendedAction.affectedEntryIds,
-                          EntryStatus.REJECTED
-                        )
-                      }
-                    >
-                      {STATUS_COMMAND_LABELS[EntryStatus.REJECTED]}
-                    </Button>
-                  </div>
-                )}
-            </>
-          )}
-        </div>
+        <EntryFormChecklist
+          checklist={checklist}
+          onBulkStatusChange={onBulkStatusChange}
+          onOpenArmbandDialog={enrollmentCardProps.onOpenArmbandDialog}
+          onOpenEditEntry={enrollmentCardProps.onOpenEditEntry}
+          payment={controls}
+        />
 
-        <EnrollmentCard group={registration} {...enrollmentCardProps} />
+        <EnrollmentCard group={registration} {...enrollmentCardProps} dialogControls={controls} />
       </div>
+
+      <EntryFormFooter
+        totalDollars={controls.totalDollars}
+        paidDollars={controls.paidDollars}
+        remainingDollars={controls.remainingDollars}
+      />
     </section>
   );
 }

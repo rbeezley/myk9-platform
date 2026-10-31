@@ -13,12 +13,13 @@ const VALUE_CLASS = 'mt-0.5 font-mono text-[19px] font-semibold tabular-nums tex
  * The "Today at a glance" numbers. A count is a link only when an existing page
  * applies the filter it describes: /admin/users reads `from` as an exact created-at
  * lower bound, so Signups can deep-link with the same Eastern day start the count
- * uses. /shows (BrowseShowsPage) reads no status or date filter and there is no
+ * uses. Removed people are excluded from both (`people_select` RLS requires
+ * `deleted_at IS NULL`; the roster hides them by default). /shows (BrowseShowsPage) reads no status or date filter and there is no
  * cross-show entries list, so Entries, Shows created and Live shows render static
  * rather than as cards that look clickable.
  */
 export function TodayCounts({ counts, now }: TodayCountsProps) {
-  const signupsHref = `/admin/users?${new URLSearchParams({ from: easternDayStartIso(now), deleted: '1' })}`;
+  const signupsHref = `/admin/users?${new URLSearchParams({ from: easternDayStartIso(now) })}`;
   const cells: Array<{ label: string; value: number | undefined; href?: string }> = [
     { label: 'Entries', value: counts?.entriesToday },
     { label: 'Signups', value: counts?.signupsToday, href: signupsHref },

@@ -30,7 +30,7 @@ import { createEnhancedLazy, RouteLazyPresets } from '@/utils/enhancedLazyLoadin
 import { RingsideShowBoundary } from '@/features/at-show/RingsideShowBoundary';
 import { AtShowAccessGate } from '@/features/at-show/AtShowAccessGate';
 import { RingsideSessionHeartbeat } from '@/features/at-show/RingsideSessionHeartbeat';
-import { StaleClassPrompt } from '@/features/at-show/staleClass/StaleClassPrompt';
+import { StaleClassPromptHost } from '@/features/at-show/staleClass/StaleClassPromptHost';
 
 const AtShowEntryListPage = createEnhancedLazy(
   () => import('@/features/at-show/AtShowEntryListPage'),
@@ -90,7 +90,7 @@ function atShowElement(page: ReactNode): ReactNode {
             <RingsideShowBoundary>
               <AtShowPresenceBoundary>
                 <PageTransition>{page}</PageTransition>
-                <StaleClassPrompt />
+                <StaleClassPromptHost />
               </AtShowPresenceBoundary>
             </RingsideShowBoundary>
           </SuspenseWrapper>

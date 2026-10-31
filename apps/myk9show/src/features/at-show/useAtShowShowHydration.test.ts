@@ -184,6 +184,38 @@ describe('useAtShowShowHydration', () => {
       expect(result.current).toBe('arrived');
     });
 
+    it('lets only the latest settled read set state when reads finish out of order (MYK9-1560)', async () => {
+      goOffline();
+      let settled: () => void = () => {};
+      mocks.subscribeAtShowSyncSettled.mockImplementation((_id: string, cb: () => void) => {
+        settled = cb;
+        return vi.fn();
+      });
+      mocks.hasShowEntriesSynced.mockResolvedValue(true);
+      const { result } = renderHook(() => useAtShowShowHydration('A', IDLE_STATUS, neverRefresh()));
+      await act(async () => {});
+      expect(result.current).toBe('arrived');
+
+      const older = deferred<boolean>();
+      const newer = deferred<boolean>();
+      mocks.hasShowEntriesSynced
+        .mockReturnValueOnce(older.promise)
+        .mockReturnValueOnce(newer.promise);
+      await act(async () => {
+        settled();
+        settled();
+      });
+      await act(async () => {
+        newer.resolve(true);
+        await newer.promise;
+      });
+      await act(async () => {
+        older.resolve(false);
+        await older.promise;
+      });
+      expect(result.current).toBe('arrived');
+    });
+
     it('still waits on the sync when the start is online', async () => {
       mocks.syncAtShowData.mockReturnValue(new Promise(() => {}));
       const { result } = renderHook(() => useAtShowShowHydration('A', IDLE_STATUS, neverRefresh()));

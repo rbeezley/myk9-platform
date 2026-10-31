@@ -51,6 +51,7 @@ export function useAtShowShowHydration(
   } | null>(null);
   const startedShowRef = useRef<string | null>(null);
   const passKeyRef = useRef<string | null>(null);
+  const settledReadRef = useRef(0);
 
   useEffect(() => {
     if (!showId || startedShowRef.current === showId) return;
@@ -92,17 +93,25 @@ export function useAtShowShowHydration(
 
   useEffect(() => {
     if (!showId) return;
-    return subscribeAtShowSyncSettled(showId, () => {
+    let live = true;
+    const unsubscribe = subscribeAtShowSyncSettled(showId, () => {
       // Both directions (MYK9-1560): a settled sync can complete a partial
       // replica or leave a once-complete one short (a trial added whose classes
       // failed). Cached rows stay on screen either way; only the notice changes.
+      // Reads can finish out of order: only the latest one may set state.
+      const read = ++settledReadRef.current;
       void readEntriesMarker(showId).then(onDevice => {
+        if (!live || read !== settledReadRef.current) return;
         const next = onDevice ? 'arrived' : 'not-arrived';
         setHydrated(prev =>
           prev?.showId === showId && prev.state !== next ? { showId, state: next } : prev
         );
       });
     });
+    return () => {
+      live = false;
+      unsubscribe();
+    };
   }, [showId]);
 
   useEffect(() => {

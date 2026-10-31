@@ -1,8 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
-import { render } from '@/test/utils/testUtils';
+import { act, screen, waitFor } from '@testing-library/react';
+import { onlineManager } from '@tanstack/react-query';
+import { createTestQueryClient, render } from '@/test/utils/testUtils';
+import { queryKeys } from '@/lib/queryClient';
+import { mapDbUserToUser } from '@/hooks/queries/useUsersQuery';
+import type { DbUser } from '@/types/database-mappings';
 
 // The real get_admin_user_list row shape: no auth_user_id column.
+const AUTH_ID = '11111111-2222-3333-4444-555555555555';
+
 const RPC_ROW = {
   id: 'people-1',
   first_name: 'Jane',
@@ -67,10 +73,10 @@ describe('UserManagementPage ?userId= with an auth user id (MYK9-1533)', () => {
 
   it('opens the roles dialog for the people row that owns the auth id', async () => {
     mockMaybeSingle.mockResolvedValue({ data: { id: 'people-1' }, error: null });
-    render(<UserManagementPage />, { initialRoute: '/admin/users?userId=auth-abc' });
+    render(<UserManagementPage />, { initialRoute: `/admin/users?userId=${AUTH_ID}` });
 
     expect(await screen.findByTestId('manage-roles-dialog')).toHaveTextContent('people-1');
-    expect(mockEq).toHaveBeenCalledWith('people', 'id', 'auth_user_id', 'auth-abc');
+    expect(mockEq).toHaveBeenCalledWith('people', 'id', 'auth_user_id', AUTH_ID);
     expect(screen.queryByText(/user not found/i)).not.toBeInTheDocument();
   });
 
@@ -82,7 +88,9 @@ describe('UserManagementPage ?userId= with an auth user id (MYK9-1533)', () => {
 
   it('says user not found when the id matches no one, and keeps the list', async () => {
     mockMaybeSingle.mockResolvedValue({ data: null, error: null });
-    render(<UserManagementPage />, { initialRoute: '/admin/users?userId=ghost' });
+    render(<UserManagementPage />, {
+      initialRoute: '/admin/users?userId=99999999-2222-3333-4444-555555555555',
+    });
 
     expect(await screen.findByText(/user not found/i)).toBeInTheDocument();
     expect(screen.getByTestId('user-table')).toBeInTheDocument();
@@ -92,7 +100,7 @@ describe('UserManagementPage ?userId= with an auth user id (MYK9-1533)', () => {
   it('reports a failed lookup as an error with Retry, not as a missing user', async () => {
     mockMaybeSingle.mockResolvedValueOnce({ data: null, error: new Error('network down') });
     const { user } = render(<UserManagementPage />, {
-      initialRoute: '/admin/users?userId=auth-abc',
+      initialRoute: `/admin/users?userId=${AUTH_ID}`,
     });
 
     expect(await screen.findByText(/could not look up that user/i)).toBeInTheDocument();
@@ -101,6 +109,42 @@ describe('UserManagementPage ?userId= with an auth user id (MYK9-1533)', () => {
     mockMaybeSingle.mockResolvedValueOnce({ data: { id: 'people-1' }, error: null });
     await user.click(screen.getByRole('button', { name: 'Retry' }));
     expect(await screen.findByTestId('manage-roles-dialog')).toHaveTextContent('people-1');
+  });
+
+  it('says user not found for a non-UUID id without querying (MYK9-1567)', async () => {
+    render(<UserManagementPage />, { initialRoute: '/admin/users?userId=ghost' });
+
+    expect(await screen.findByText(/user not found/i)).toBeInTheDocument();
+    expect(screen.queryByText(/could not look up/i)).not.toBeInTheDocument();
+    expect(mockEq).not.toHaveBeenCalled();
+  });
+
+  it('shows a needs-connection state while offline and looks up on reconnect (MYK9-1567)', async () => {
+    mockMaybeSingle.mockResolvedValue({ data: { id: 'people-1' }, error: null });
+    // Offline with a cached roster: seed it so only the auth-id lookup is paused.
+    const queryClient = createTestQueryClient();
+    queryClient.setQueryData(
+      [...queryKeys.users.all, 'admin', { showDeleted: false }],
+      [{ ...mapDbUserToUser(RPC_ROW as unknown as DbUser), lastSignInAt: null }]
+    );
+    onlineManager.setOnline(false);
+    try {
+      render(<UserManagementPage />, {
+        initialRoute: `/admin/users?userId=${AUTH_ID}`,
+        queryClient,
+      });
+
+      expect(await screen.findByText(/needs a connection/i)).toBeInTheDocument();
+      expect(screen.queryByText(/user not found/i)).not.toBeInTheDocument();
+      expect(mockEq).not.toHaveBeenCalled();
+
+      act(() => onlineManager.setOnline(true));
+      expect(await screen.findByTestId('manage-roles-dialog')).toHaveTextContent('people-1');
+      expect(mockEq).toHaveBeenCalledWith('people', 'id', 'auth_user_id', AUTH_ID);
+      expect(screen.queryByText(/needs a connection/i)).not.toBeInTheDocument();
+    } finally {
+      onlineManager.setOnline(true);
+    }
   });
 
   it('says nothing about a missing user when no userId is given', async () => {

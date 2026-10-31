@@ -11,6 +11,7 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
+import { isValidUUID } from '@/utils/validation';
 import type { User } from '@/types/user-types';
 
 export interface DeepLinkedUser {
@@ -19,6 +20,8 @@ export interface DeepLinkedUser {
   notFound: boolean;
   /** The auth-id lookup itself failed (network/database), so the user may exist. */
   lookupFailed: boolean;
+  /** Offline: the auth-id lookup is paused until the connection returns, then runs on its own. */
+  needsConnection: boolean;
   retryLookup: () => void;
 }
 
@@ -36,7 +39,11 @@ export function useDeepLinkedUser(
     [deepLinkUserId, users]
   );
 
-  const needsLookup = !!deepLinkUserId && rosterReady && !direct;
+  const unresolved = !!deepLinkUserId && rosterReady && !direct;
+  // A hand-edited id that is not a UUID can never match `people.auth_user_id`;
+  // querying it would only make PostgreSQL reject it (22P02) as a "failure".
+  const malformedId = unresolved && !isValidUUID(deepLinkUserId);
+  const needsLookup = unresolved && !malformedId;
   const lookup = useQuery({
     queryKey: ['admin-deep-link-person', deepLinkUserId],
     queryFn: async () => {
@@ -60,8 +67,9 @@ export function useDeepLinkedUser(
   const user = direct ?? resolved;
   return {
     user,
-    notFound: needsLookup && !user && lookup.isSuccess,
+    notFound: (malformedId || (needsLookup && lookup.isSuccess)) && !user,
     lookupFailed: needsLookup && !user && lookup.isError,
+    needsConnection: needsLookup && !user && lookup.fetchStatus === 'paused',
     retryLookup: () => void lookup.refetch(),
   };
 }

@@ -2,12 +2,22 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import type { DeepLinkedUser } from './useDeepLinkedUser';
 
-/** Inline outcome of the support deep link's user lookup: a miss, or a failed lookup. */
+/** Inline outcome of the support deep link's user lookup: a miss, a failed lookup, or offline. */
 export function DeepLinkLookupAlerts({
   notFound,
   lookupFailed,
+  needsConnection,
   retryLookup,
-}: Pick<DeepLinkedUser, 'notFound' | 'lookupFailed' | 'retryLookup'>) {
+}: Pick<DeepLinkedUser, 'notFound' | 'lookupFailed' | 'needsConnection' | 'retryLookup'>) {
+  if (needsConnection) {
+    return (
+      <Alert>
+        <AlertDescription>
+          Opening that user needs a connection. It will open as soon as you are back online.
+        </AlertDescription>
+      </Alert>
+    );
+  }
   if (lookupFailed) {
     return (
       <Alert variant="destructive">

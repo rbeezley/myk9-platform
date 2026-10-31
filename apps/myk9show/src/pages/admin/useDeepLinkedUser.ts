@@ -17,6 +17,9 @@ export interface DeepLinkedUser {
   user: User | null;
   /** True only once the roster and any auth-id lookup have settled with no match. */
   notFound: boolean;
+  /** The auth-id lookup itself failed (network/database), so the user may exist. */
+  lookupFailed: boolean;
+  retryLookup: () => void;
 }
 
 export function useDeepLinkedUser(
@@ -55,6 +58,10 @@ export function useDeepLinkedUser(
   );
 
   const user = direct ?? resolved;
-  const lookupSettled = lookup.isSuccess || lookup.isError;
-  return { user, notFound: needsLookup && !user && lookupSettled };
+  return {
+    user,
+    notFound: needsLookup && !user && lookup.isSuccess,
+    lookupFailed: needsLookup && !user && lookup.isError,
+    retryLookup: () => void lookup.refetch(),
+  };
 }

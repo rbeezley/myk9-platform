@@ -17,7 +17,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { logger } from '@/services/LoggingService';
 import { Plus, Download, Search, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 // Hooks and services
 import { useAdminUsersQuery, useUpdateUserMutation } from '@/hooks/queries/useUsersQuery';
 import { User } from '@/types/user-types';
@@ -41,6 +40,7 @@ import { filterUsers, sortUsers, exportUsersCSV } from './UserManagementPage.hel
 import { UserListToolbar } from './UserListToolbar';
 import { useRefreshingNow } from './useRefreshingNow';
 import { useDeepLinkedUser } from './useDeepLinkedUser';
+import { DeepLinkLookupAlerts } from './DeepLinkLookupAlerts';
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -245,11 +245,8 @@ const UserManagementPage: React.FC = () => {
   }, []);
 
   // Match on either id, then fall back to an auth-id lookup (see useDeepLinkedUser).
-  const { user: deepLinkUser, notFound: deepLinkNotFound } = useDeepLinkedUser(
-    deepLinkUserId,
-    users,
-    !hasNoRoster
-  );
+  const deepLink = useDeepLinkedUser(deepLinkUserId, users, !hasNoRoster);
+  const deepLinkUser = deepLink.user;
 
   // Row-click selection wins over the deep link; the deep link only fills in
   // when nothing has been explicitly selected.
@@ -362,11 +359,7 @@ const UserManagementPage: React.FC = () => {
             actions={actionButtons}
           />
 
-          {deepLinkNotFound && (
-            <Alert variant="destructive">
-              <AlertDescription>User not found. Showing the full list instead.</AlertDescription>
-            </Alert>
-          )}
+          <DeepLinkLookupAlerts {...deepLink} />
 
           <UserListToolbar
             ready={!isLoading}

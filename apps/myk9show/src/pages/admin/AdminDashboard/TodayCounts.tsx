@@ -18,7 +18,7 @@ const VALUE_CLASS = 'mt-0.5 font-mono text-[19px] font-semibold tabular-nums tex
  * rather than as cards that look clickable.
  */
 export function TodayCounts({ counts, now }: TodayCountsProps) {
-  const signupsHref = `/admin/users?${new URLSearchParams({ from: easternDayStartIso(now) })}`;
+  const signupsHref = `/admin/users?${new URLSearchParams({ from: easternDayStartIso(now), deleted: '1' })}`;
   const cells: Array<{ label: string; value: number | undefined; href?: string }> = [
     { label: 'Entries', value: counts?.entriesToday },
     { label: 'Signups', value: counts?.signupsToday, href: signupsHref },

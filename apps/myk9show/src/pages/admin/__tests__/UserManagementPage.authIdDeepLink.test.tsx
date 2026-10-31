@@ -89,6 +89,20 @@ describe('UserManagementPage ?userId= with an auth user id (MYK9-1533)', () => {
     expect(screen.queryByTestId('manage-roles-dialog')).not.toBeInTheDocument();
   });
 
+  it('reports a failed lookup as an error with Retry, not as a missing user', async () => {
+    mockMaybeSingle.mockResolvedValueOnce({ data: null, error: new Error('network down') });
+    const { user } = render(<UserManagementPage />, {
+      initialRoute: '/admin/users?userId=auth-abc',
+    });
+
+    expect(await screen.findByText(/could not look up that user/i)).toBeInTheDocument();
+    expect(screen.queryByText(/user not found/i)).not.toBeInTheDocument();
+
+    mockMaybeSingle.mockResolvedValueOnce({ data: { id: 'people-1' }, error: null });
+    await user.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(await screen.findByTestId('manage-roles-dialog')).toHaveTextContent('people-1');
+  });
+
   it('says nothing about a missing user when no userId is given', async () => {
     render(<UserManagementPage />, { initialRoute: '/admin/users' });
     await screen.findByTestId('user-table');

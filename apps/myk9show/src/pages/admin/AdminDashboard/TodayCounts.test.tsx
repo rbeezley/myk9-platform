@@ -19,7 +19,10 @@ describe('TodayCounts', () => {
 
     const url = new URL(link.getAttribute('href')!, 'https://x.test');
     expect(url.pathname).toBe('/admin/users');
-    const start = parseUserListParams(url.searchParams).filters.dateRange.start;
+    const { filters } = parseUserListParams(url.searchParams);
+    // The count includes removed people, so the destination must too.
+    expect(filters.showDeleted).toBe(true);
+    const start = filters.dateRange.start;
     expect(start?.toISOString()).toBe(easternDayStartIso(NOW));
   });
 

@@ -72,19 +72,26 @@ export function downloadLeavesRowAsIs<T>(
  * Whether a download older than the stored row must be skipped. A row owned by
  * any account keeps the guard: this account's own row can hold an acknowledged
  * local write (MYK9-1050), and another account's newer row is the shared-device
- * case MYK9-1148 protects. Only an OWNERLESS row on an account-owned table is
- * overwritten (MYK9-1632): it predates MYK9-1133, so no acknowledged write and
- * no other account's newer download can be in it, and keeping it would leave the
- * scope foreign forever after a reseed or restore. Tables written without an
+ * case MYK9-1148 protects. Only an OWNERLESS row on an account-owned table that
+ * records no upload of this device's own is overwritten (MYK9-1632): a cache from
+ * before MYK9-1133, which keeping would leave foreign forever after a reseed or
+ * restore. An ownerless row CAN also come from a write made while the account
+ * was unsettled; if its acknowledged UPDATE moved the server version
+ * (`lastOwnUpload`), it keeps the guard. An acknowledged INSERT needs none: a
+ * download read before it does not contain the row. Tables written without an
  * owner keep the original rule.
  */
-function shouldKeepNewerRow<T extends { id: string }>(
+export function shouldKeepNewerRow<T extends { id: string }>(
   existingRow: ReplicatedRow<T> | undefined,
   remoteServerVersion: number | undefined,
   ownerAuthUserId: string | undefined
 ): boolean {
   if (!existingRow || !isOlderThanRow(existingRow, remoteServerVersion)) return false;
-  return ownerAuthUserId === undefined || existingRow.ownerAuthUserId !== undefined;
+  return (
+    ownerAuthUserId === undefined ||
+    existingRow.ownerAuthUserId !== undefined ||
+    existingRow.lastOwnUpload !== undefined
+  );
 }
 
 /**

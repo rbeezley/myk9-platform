@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { ReplicatedTable } from './core/ReplicatedTable';
+import { shouldKeepNewerRow } from './core/ReplicatedTableBatch';
 import { MutationManager } from './MutationManager';
 import { syncReplicatedTable, type SyncReplicatedTableAdapter } from './syncReplicatedTable';
 import type { SyncResult } from './types';
@@ -117,5 +118,77 @@ describe('foreign rows with a higher serverVersion heal in one sync (MYK9-1632)'
 
     expect((await table.getReplicatedRow('e1'))?.serverVersion).toBe(31);
     expect((await table.getReplicatedRow('e1'))?.data.name).toBe('stale-1');
+  });
+
+  it("still skips an older download for another account's row (MYK9-1148)", async () => {
+    await seed('user-b', 31);
+
+    await fullSync();
+
+    const raw = await table.getReplicatedRowIncludingOtherAccounts('e1');
+    expect(raw?.serverVersion).toBe(31);
+    expect(raw?.ownerAuthUserId).toBe('user-b');
+    expect(raw?.data.name).toBe('stale-1');
+  });
+
+  it('heals ownerless rows on the chunked write path too', async () => {
+    who.current = null;
+    await table.batchSetChunked(
+      [
+        { id: 'e1', showId: 'show-1', name: 'stale-1' },
+        { id: 'e2', showId: 'show-1', name: 'stale-2' },
+      ],
+      1,
+      new Map([
+        ['e1', 31],
+        ['e2', 31],
+      ])
+    );
+    who.current = 'user-a';
+
+    await table.batchSetChunked(
+      [
+        { id: 'e1', showId: 'show-1', name: 'server-1' },
+        { id: 'e2', showId: 'show-1', name: 'server-2' },
+      ],
+      1,
+      new Map([
+        ['e1', 2],
+        ['e2', 3],
+      ]),
+      'user-a'
+    );
+
+    const e2 = await table.getReplicatedRow('e2');
+    expect(e2?.data.name).toBe('server-2');
+    expect(e2?.serverVersion).toBe(3);
+    expect(e2?.ownerAuthUserId).toBe('user-a');
+  });
+});
+
+describe('shouldKeepNewerRow (MYK9-1632)', () => {
+  const row = (extra: Record<string, unknown>) =>
+    ({
+      tableName: 't',
+      id: 'r',
+      data: { id: 'r' },
+      version: 1,
+      lastSyncedAt: 0,
+      lastAccessedAt: 0,
+      isDirty: false,
+      syncStatus: 'synced',
+      serverVersion: 31,
+      ...extra,
+    }) as never;
+
+  it('heals only an ownerless row with no upload of its own', () => {
+    expect(shouldKeepNewerRow(row({}), 2, 'user-a')).toBe(false);
+    expect(shouldKeepNewerRow(row({ lastOwnUpload: { from: 30, to: 31 } }), 2, 'user-a')).toBe(
+      true
+    );
+    expect(shouldKeepNewerRow(row({ ownerAuthUserId: 'user-a' }), 2, 'user-a')).toBe(true);
+    expect(shouldKeepNewerRow(row({ ownerAuthUserId: 'user-b' }), 2, 'user-a')).toBe(true);
+    expect(shouldKeepNewerRow(row({}), 2, undefined)).toBe(true);
+    expect(shouldKeepNewerRow(row({}), 40, 'user-a')).toBe(false);
   });
 });

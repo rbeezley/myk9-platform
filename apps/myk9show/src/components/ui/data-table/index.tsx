@@ -35,7 +35,7 @@ import { matchesListSearch } from './listSearch';
 export type { ColumnDef } from '@tanstack/react-table';
 export { DataTableColumnHeader } from './data-table-column-header';
 export { DataTablePagination } from './data-table-pagination';
-export { levelProgressionSort, formatSearchTime, parseSearchTimeDigits } from './sorting';
+export { levelProgressionSort } from './sorting';
 export type {
   DataTableColumnMeta,
   EditComponentProps,
@@ -45,8 +45,6 @@ export type {
 export { filterByListSearch, matchesListSearch } from './listSearch';
 export { EditableCell } from './data-table-editable-cell';
 export type { EditableCellProps } from './data-table-editable-cell';
-export { TimeInput } from './data-table-time-input';
-export type { TimeInputProps } from './data-table-time-input';
 export { useScoringMode, ScoringProgress } from './data-table-scoring-mode';
 export type { UseScoringModeProps, UseScoringModeReturn } from './data-table-scoring-mode';
 

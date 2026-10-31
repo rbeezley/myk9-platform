@@ -48,7 +48,6 @@ export {
   formatTimeForDisplay,
   formatTimeLimitSeconds,
   parseTimeToMs,
-  formatTimeInputToMMSS,
 } from './utils/timeUtils';
 export { resultLabel } from './utils/resultLabel';
 export { buildResolvedClassRules, maxTimeForArea } from './utils/buildResolvedClassRules';

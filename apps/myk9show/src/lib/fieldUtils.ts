@@ -8,13 +8,7 @@ import {
   ValueConstraint,
 } from '@/types/field-definition-types';
 import { getFieldDefinition } from '@/data/fieldDefinitions';
-import {
-  msToDisplay,
-  displayToMs,
-  isValidTimeFormat,
-  parseTimeInput,
-  formatTimeRange,
-} from './timeUtils';
+import { msToDisplay, displayToMs, isValidTimeFormat, formatTimeRange } from './timeUtils';
 
 /**
  * Get visible field configurations for a template, sorted by display order
@@ -627,5 +621,4 @@ export function validateFieldValuesWithConstraints(
 // Legacy compatibility - maintain old function names for gradual migration
 export const durationToSeconds = (mmss: string): number => Math.floor(displayToMs(mmss) / 1000);
 export const secondsToMMSS = (seconds: number): string => msToDisplay(seconds * 1000, 'seconds');
-export const parseMMSSInput = parseTimeInput;
 export const isValidMMSSFormat = isValidTimeFormat;

@@ -16,6 +16,8 @@
 import { useState } from 'react';
 import type React from 'react';
 import type { MaxTimeDialogProps } from '@myk9/ringside';
+import { DurationInput } from '@myk9/scoring-ui';
+import { isDurationFailure, parseDuration } from '@myk9/core';
 import {
   Dialog,
   DialogContent,
@@ -24,16 +26,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { replicatedClassesTable } from '@/services/replication';
 import { handleOpenChange } from './dialogHelpers';
-import {
-  AREA_TIME_FIELDS,
-  maxTimeAreaCount,
-  parseMaxTimeInput,
-  toMinutesSeconds,
-} from './maxTimeInput';
+import { AREA_TIME_FIELDS, maxTimeAreaCount, toMinutesSeconds } from './maxTimeInput';
 import { maxTimeRangeForClass, useMaxTimeRange } from './maxTimeRule';
 import { MaxTimeQuickPicks } from './MaxTimeQuickPicks';
 
@@ -93,21 +89,28 @@ const MaxTimeForm: React.FC<MaxTimeDialogProps> = ({
     // A rulebook time is applied as it stands: area 1 carries it, and any other
     // area falls back to area 1 on the scoresheet.
     if (range.fixed) return { [AREA_TIME_FIELDS[0]]: range.fixed };
-    const seconds = values.map(parseMaxTimeInput);
-    const unreadable = seconds.findIndex(s => s === null || s < 1 || s > MAX_SECONDS);
+    const parsed = values.map(value => parseDuration(value, 'max'));
+    const unreadable = parsed.findIndex(
+      p => isDurationFailure(p) || p.seconds < 1 || p.seconds > MAX_SECONDS
+    );
     if (unreadable >= 0) {
+      const failure = parsed[unreadable];
+      const which = areaCount > 1 ? `the Area ${unreadable + 1}` : 'the';
       setError(
-        `Enter ${areaCount > 1 ? `the Area ${unreadable + 1}` : 'the'} max time in minutes and seconds, like 4:00.`
+        isDurationFailure(failure)
+          ? failure.reason
+          : `Enter ${which} max time in minutes and seconds, like 4:00.`
       );
       return null;
     }
-    if (seconds.some(s => s! < range.low || s! > range.high)) {
+    const seconds = parsed.map(p => (p.ok ? p.seconds : 0));
+    if (seconds.some(s => s < range.low || s > range.high)) {
       setError(
         `Max time for this class must be between ${toMinutesSeconds(range.low)} and ${toMinutesSeconds(range.high)}.`
       );
       return null;
     }
-    return Object.fromEntries(seconds.map((s, area) => [AREA_TIME_FIELDS[area], s as number]));
+    return Object.fromEntries(seconds.map((s, area) => [AREA_TIME_FIELDS[area], s]));
   };
 
   const save = async () => {
@@ -164,15 +167,14 @@ const MaxTimeForm: React.FC<MaxTimeDialogProps> = ({
                   <Label htmlFor={`ringside-max-time-${area + 1}`}>
                     {areaCount > 1 ? `Area ${area + 1} max time` : 'Max time'} (minutes:seconds)
                   </Label>
-                  <Input
+                  <DurationInput
+                    kind="max"
                     id={`ringside-max-time-${area + 1}`}
-                    inputMode="decimal"
-                    placeholder="m:ss"
                     value={value}
+                    range={known?.judgeSet ? { low: known.low, high: known.high } : undefined}
                     onFocus={() => setFocusedArea(area)}
-                    onChange={event => setAreaValue(area, event.target.value)}
-                    aria-invalid={error ? true : undefined}
-                    className="h-12 text-lg"
+                    onChange={next => setAreaValue(area, next)}
+                    className="h-12 rounded-md border border-input bg-background px-3 text-center text-lg"
                   />
                 </div>
               ))}

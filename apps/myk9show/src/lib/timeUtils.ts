@@ -96,60 +96,6 @@ export function isValidTimeFormat(timeString: string, allowHundredths: boolean =
 }
 
 /**
- * Parse flexible time input with validation
- *
- * @param input - User input time string
- * @returns Parsing result with milliseconds and validation status
- *
- * @example
- * parseTimeInput('1:30') // { ms: 90000, isValid: true, display: '1:30' }
- * parseTimeInput('1:27.35') // { ms: 87350, isValid: true, display: '1:27.35' }
- * parseTimeInput('1:') // { ms: 0, isValid: false, display: '1:', error: 'Incomplete time format' }
- */
-export function parseTimeInput(input: string): {
-  ms: number;
-  isValid: boolean;
-  display: string;
-  error?: string;
-} {
-  if (!input) {
-    return { ms: 0, isValid: true, display: '0:00' };
-  }
-
-  // Allow partial input while typing
-  const partialPattern = /^\d{0,2}:?\d{0,2}\.?\d{0,2}$/;
-  if (!partialPattern.test(input)) {
-    return {
-      ms: 0,
-      isValid: false,
-      display: input,
-      error: 'Invalid time format',
-    };
-  }
-
-  // Check if complete format
-  if (isValidTimeFormat(input)) {
-    return {
-      ms: displayToMs(input),
-      isValid: true,
-      display: input,
-    };
-  }
-
-  // Partial input - allow but don't convert
-  if (input.endsWith(':') || (input.includes('.') && !input.match(/\.\d{2}$/))) {
-    return {
-      ms: 0,
-      isValid: false,
-      display: input,
-      error: 'Incomplete time format',
-    };
-  }
-
-  return { ms: 0, isValid: false, display: input, error: 'Invalid format' };
-}
-
-/**
  * Format time range for display
  *
  * @param minMs - Minimum time in milliseconds
@@ -280,7 +226,6 @@ export function getTimeDisplayPrecision(
 // Legacy compatibility - maintain old function names for gradual migration
 export const durationToSeconds = (mmss: string): number => Math.floor(displayToMs(mmss) / 1000);
 export const secondsToMMSS = (seconds: number): string => msToDisplay(seconds * 1000);
-export const parseMMSSInput = parseTimeInput;
 export const isValidMMSSFormat = isValidTimeFormat;
 
 /**

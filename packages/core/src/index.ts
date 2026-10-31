@@ -74,7 +74,6 @@ export {
   formatTimeForDisplay,
   formatTimeLimitSeconds,
   parseTimeToMs,
-  formatTimeInputToMMSS,
 } from './utils/timeFormatting';
 
 // Typed-duration parser (the one parser every time field uses)

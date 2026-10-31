@@ -39,6 +39,7 @@ export interface DurationInputProps {
   /** Blur or Enter or Tab: the grid uses this to move to the next field. */
   onCommit?: (() => void) | undefined;
   onCancel?: (() => void) | undefined;
+  onFocus?: (() => void) | undefined;
   /** Renders a clear button once there is text; the string names it for screen readers. */
   clearLabel?: string | undefined;
   /** Extra id of an element (such as an outside warning) to describe the field. */
@@ -68,6 +69,7 @@ export const DurationInput: React.FC<DurationInputProps> = ({
   className,
   onCommit,
   onCancel,
+  onFocus,
   clearLabel,
   describedBy,
 }) => {
@@ -158,6 +160,7 @@ export const DurationInput: React.FC<DurationInputProps> = ({
           spellCheck={false}
           value={text}
           onChange={e => report(e.target.value)}
+          onFocus={onFocus}
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}
           placeholder={PLACEHOLDER[kind]}

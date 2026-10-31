@@ -1,7 +1,7 @@
 import React from 'react';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { TimeInput, formatSearchTime } from '@/components/ui/data-table';
+import { DurationInput } from '@myk9/scoring-ui';
 import type { ScoringRow, ScoringEdit } from './types';
 import { PendingCell } from './PendingCell';
 
@@ -20,27 +20,16 @@ export const SearchTimeCell: React.FC<SearchTimeCellProps> = ({
   rowIndex,
   onFieldChange,
 }) => {
-  // The table stores the carried form ("1:00.00" for 60 s) because saving needs
-  // valid seconds, but re-reading that as digits would corrupt the next keystroke
-  // (typing 6000 then 0 must give 6:00.00, not 10:00.00). Keep the typed digits
-  // and use them while they still describe the stored value.
-  const [typedDigits, setTypedDigits] = React.useState('');
-  const inputValue =
-    typedDigits && formatSearchTime(typedDigits) === item.searchTime
-      ? typedDigits
-      : item.searchTime;
-
   if (canEdit) {
     return (
       <div className="flex justify-center">
         <div className={cn('inline-block rounded-md', item.hasEdits && 'ring-2 ring-blue-500/30')}>
           <div className="flex items-center gap-1">
-            <TimeInput
-              value={inputValue}
-              onChange={digits => {
-                setTypedDigits(digits);
-                onFieldChange(item.entryId, 'searchTime', formatSearchTime(digits));
-              }}
+            <DurationInput
+              kind="search"
+              value={item.searchTime}
+              ariaLabel={`Search time for ${item.dogName}`}
+              onChange={value => onFieldChange(item.entryId, 'searchTime', value)}
               onCommit={() => {
                 // INTENT: committing a time jumps focus to the same row's Faults input
                 // (Enter/Tab field navigation). Keep this selector in sync with FaultsCell's
@@ -50,8 +39,7 @@ export const SearchTimeCell: React.FC<SearchTimeCellProps> = ({
                 ) as HTMLElement;
                 next?.focus();
               }}
-              onCancel={() => {}}
-              className="w-24 h-8 text-center font-mono"
+              className="h-8 w-24 rounded border border-input bg-background px-1 text-center font-mono text-sm"
             />
             {item.searchTime && (
               <button

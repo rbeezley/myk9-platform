@@ -16,6 +16,7 @@ import { toLocalDate } from '@/utils/date-format';
 import { isAccountedFor, isExpectedEntry } from '@/features/_shared/entryAccounting';
 import { isTrialDayAhead, isTrialDayToday } from '@/pages/MyEntriesPage/modules/dayCheckIn';
 import { getTrialTimezone } from '@/features/registries';
+import { indexEntriesById, resolveMoneyRoot } from '@/features/financial/moneyRoot';
 
 export interface DogActivityEntry {
   id: string;
@@ -23,6 +24,8 @@ export interface DogActivityEntry {
   payment_status?: string | null;
   payment_method?: string | null;
   entry_fee?: number | null;
+  /** MYK9-639 lineage: set on the successor of a move-up. */
+  moved_from_entry_id?: string | null;
   check_in_status?: string | null;
   deleted_at?: string | null;
   result_status?: string | null;
@@ -141,10 +144,37 @@ function hasRealResult(entry: DogActivityEntry, today: Date): boolean {
   );
 }
 
+/**
+ * A move-up successor is money-neutral (fee 0, pending); the balance sits on
+ * the entry it supersedes. Read payment from the money root through the same
+ * resolver My Shows uses. A chain that cannot be followed claims no payment
+ * (null reads neutral), never the successor's own neutral zero.
+ */
+function withMoneyRootPayment(entries: DogActivityEntry[]): DogActivityEntry[] {
+  const byId = indexEntriesById(
+    entries.map(entry => ({ id: entry.id, movedFromEntryId: entry.moved_from_entry_id, entry }))
+  );
+  return entries.map(entry => {
+    if (!entry.moved_from_entry_id) return entry;
+    const { root, problem } = resolveMoneyRoot(
+      { id: entry.id, movedFromEntryId: entry.moved_from_entry_id, entry },
+      byId
+    );
+    const money = problem ? null : root.entry;
+    return {
+      ...entry,
+      payment_status: money?.payment_status ?? null,
+      payment_method: money?.payment_method ?? null,
+      entry_fee: money?.entry_fee ?? null,
+    };
+  });
+}
+
 export function deriveDogActivity(
-  entries: DogActivityEntry[],
+  rawEntries: DogActivityEntry[],
   today: Date = new Date()
 ): DogActivity {
+  const entries = withMoneyRootPayment(rawEntries);
   const upcoming = entries
     .filter(entry => isLiveUpcomingEntry(entry, today))
     .sort((a, b) => (getEntryDisplayDate(a) ?? '').localeCompare(getEntryDisplayDate(b) ?? ''));

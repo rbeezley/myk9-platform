@@ -39,6 +39,11 @@ import {
   AUTHENTICATED_ENTRY_READ_COLUMNS_WITH_MOVE_UP_LINK,
 } from './entrySelects';
 import { withReleasedShowResults } from './releasedShowResults';
+import {
+  readDogEntryMoveUpLinks,
+  withServerPaymentFields,
+  withoutUnverifiedPayment,
+} from './dogEntryMoney';
 import { compareNewestFirst, compareRunOrder, readAllEntryPages } from './entryPagedRead';
 import { refreshShowEntriesForRead } from './refreshShowEntriesForRead';
 import { ensureShowEntriesSynced } from './requireShowEntriesSynced';
@@ -1154,6 +1159,7 @@ export const getEntriesByDog = async (dogId: string): Promise<DogEntriesReadResu
     const pendingRows = local.data.filter(row => local.pendingIds.has(rowId(row)));
     const pendingById = new Map(pendingRows.map(row => [rowId(row), row]));
     const serverIds = new Set(online.data.map(rowId));
+    const moveUpLinks = await readDogEntryMoveUpLinks(dogId);
 
     // The server is authoritative about which rows EXIST, the local replica
     // about rows whose writes it has not accepted yet. So: drop rows deleted
@@ -1165,7 +1171,11 @@ export const getEntriesByDog = async (dogId: string): Promise<DogEntriesReadResu
         .filter(row => !deleted.has(rowId(row)))
         .map(row => {
           const scored = scoredById.get(rowId(row));
-          const visibleRow = scored ? { ...row, ...scored } : row;
+          const movedFrom = moveUpLinks.get(rowId(row));
+          const visibleRow = {
+            ...(scored ? { ...row, ...scored } : row),
+            ...(movedFrom ? { moved_from_entry_id: movedFrom } : {}),
+          };
           const pending = pendingById.get(rowId(row));
           if (!pending) return visibleRow;
           // Overlay the pending FIELDS rather than swapping the whole row. The
@@ -1177,14 +1187,20 @@ export const getEntriesByDog = async (dogId: string): Promise<DogEntriesReadResu
           // prevent one.
           const serverRow = visibleRow as Record<string, unknown>;
           const localRow = pending as Record<string, unknown>;
-          return {
-            ...serverRow,
-            ...localRow,
-            class: localRow.class ?? serverRow.class,
-            show: localRow.show ?? serverRow.show,
-          };
+          // Money is the exception: payment fields stay server-confirmed.
+          return withServerPaymentFields(
+            {
+              ...serverRow,
+              ...localRow,
+              class: localRow.class ?? serverRow.class,
+              show: localRow.show ?? serverRow.show,
+            },
+            serverRow
+          );
         }),
-      ...pendingRows.filter(row => !serverIds.has(rowId(row))),
+      ...pendingRows
+        .filter(row => !serverIds.has(rowId(row)))
+        .map(row => withoutUnverifiedPayment(row)),
     ];
     return { data, error: null, verified: true, resultsVerified };
   } catch (error) {

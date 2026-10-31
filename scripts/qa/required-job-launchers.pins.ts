@@ -123,7 +123,8 @@ export const PINNED_SCRIPTS: readonly PinnedScript[] = [
   {
     pkgDir: '.',
     script: 'qa:codex-review:test',
-    command: 'vitest run scripts/qa/codex-review.test.ts scripts/qa/codex-review.rounds.test.ts',
+    command:
+      'vitest run scripts/qa/codex-review.test.ts scripts/qa/codex-review.rounds.test.ts scripts/qa/review-contract.test.ts',
   },
   {
     pkgDir: '.',

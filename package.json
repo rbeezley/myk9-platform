@@ -59,7 +59,7 @@
     "qa:issue-janitor:test": "vitest run scripts/qa/issue-janitor.test.ts scripts/qa/issue-janitor-readers.test.ts scripts/qa/issue-janitor-branches.test.ts",
     "qa:launcher-pin:test": "vitest run scripts/qa/required-job-launchers.test.ts",
     "qa:codex-review": "bash scripts/qa/codex-review.sh",
-    "qa:codex-review:test": "vitest run scripts/qa/codex-review.test.ts scripts/qa/codex-review.rounds.test.ts",
+    "qa:codex-review:test": "vitest run scripts/qa/codex-review.test.ts scripts/qa/codex-review.rounds.test.ts scripts/qa/review-contract.test.ts",
     "qa:claude-review": "bash scripts/qa/claude-review.sh",
     "qa:claude-review:test": "vitest run scripts/qa/claude-review.test.ts",
     "qa:post-review-gate:test": "vitest run scripts/qa/post-review-gate.test.ts",

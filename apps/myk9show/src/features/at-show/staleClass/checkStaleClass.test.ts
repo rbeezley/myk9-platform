@@ -6,7 +6,6 @@ const mocks = vi.hoisted(() => ({
   getClassesByTrial: vi.fn(),
   getEntriesByClass: vi.fn(),
   getTrialById: vi.fn(),
-  syncAtShowData: vi.fn(),
 }));
 
 vi.mock('@/services/replication/ReplicatedClassesTable', () => ({
@@ -21,12 +20,11 @@ vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
 vi.mock('@/services/replication/ReplicatedTrialsTable', () => ({
   replicatedTrialsTable: { getTrialById: mocks.getTrialById },
 }));
-vi.mock('../atShowDataAdapter', () => ({ syncAtShowData: mocks.syncAtShowData }));
 vi.mock('@/services/LoggingService', () => ({
   logger: { warn: vi.fn(), error: vi.fn(), log: vi.fn(), debug: vi.fn() },
 }));
 
-import { checkForStaleClass, evaluateStaleClass, recheckStaleClass } from './checkStaleClass';
+import { checkForStaleClass, evaluateStaleClass } from './checkStaleClass';
 import { useStaleClassPromptStore } from './staleClassPromptStore';
 
 const NOW = Date.now();
@@ -76,7 +74,6 @@ describe('stale-class check against the replica', () => {
     mocks.getClassesByTrial.mockResolvedValue(classes);
     mocks.getEntriesByClass.mockImplementation(async (id: string) => entries[id] ?? []);
     mocks.getTrialById.mockResolvedValue({ id: 'trial' });
-    mocks.syncAtShowData.mockResolvedValue(undefined);
   });
 
   it('finds the different-level class and ignores the same-level one', async () => {
@@ -111,24 +108,6 @@ describe('stale-class check against the replica', () => {
     await expect(checkForStaleClass('show', 'scored')).resolves.toBeUndefined();
   });
 
-  it('re-checks after pulling the show, so a dog scored elsewhere drops out', async () => {
-    const prompt = {
-      ...(await evaluateStaleClass('scored', NOW))!.candidate,
-      showId: 'show',
-      trialId: 'trial',
-      scoredClassId: 'scored',
-    };
-    // Another device scored the last dog; the pull brings that in.
-    mocks.syncAtShowData.mockImplementation(async () => {
-      entries.stale = [
-        { id: 'a', isScored: true, scoringCompletedAt: longAgo },
-        { id: 'b', isScored: true, scoringCompletedAt: longAgo },
-      ];
-    });
-    expect(await recheckStaleClass(prompt)).toBeNull();
-    expect(mocks.syncAtShowData).toHaveBeenCalledWith('show');
-  });
-
   it('leaves a snoozed class out so another stale class is still offered', async () => {
     const olderLong = new Date(NOW - 90 * 60_000).toISOString();
     mocks.getClassesByTrial.mockResolvedValue([
@@ -144,23 +123,5 @@ describe('stale-class check against the replica', () => {
     });
     await checkForStaleClass('show', 'scored');
     expect(useStaleClassPromptStore.getState().prompt?.classId).toBe('stale');
-  });
-
-  it('re-checks a retried prompt without needing the class to go idle again', async () => {
-    entries.stale = [
-      { id: 'a', isScored: true, scoringCompletedAt: new Date().toISOString() },
-      { id: 'b', isScored: false },
-    ];
-    const prompt = {
-      classId: 'stale',
-      className: 'Buried Excellent A',
-      unscoredEntryIds: ['b'],
-      lastResultAtMs: 0,
-      showId: 'show',
-      trialId: 'trial',
-      scoredClassId: 'scored',
-    };
-    expect(await recheckStaleClass(prompt)).toBeNull();
-    expect((await recheckStaleClass({ ...prompt, retry: true }))?.unscoredEntryIds).toEqual(['b']);
   });
 });

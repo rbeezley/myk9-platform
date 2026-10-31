@@ -135,25 +135,14 @@ describe('detectStaleClass', () => {
     );
   });
 
-  it('on a retry, ignores the idle clause but still needs unscored dogs', () => {
-    const fresh = [scoredEntry('a', 1), unscoredEntry('b')];
-    expect(detect({ entries: fresh })).toBeNull();
-    const retry = detectStaleClass({
-      scoredClass: scored,
-      classes: [scored, stale],
-      entriesByClassId: new Map([[stale.id, fresh]]),
-      nowMs: NOW,
-      ignoreIdle: true,
+  it('leaves a dog in the ring out of the dogs to mark, as the server does', () => {
+    const hit = detect({
+      entries: [
+        scoredEntry('a', 40),
+        unscoredEntry('b'),
+        { ...unscoredEntry('c'), isInRing: true },
+      ],
     });
-    expect(retry?.unscoredEntryIds).toEqual(['b']);
-    expect(
-      detectStaleClass({
-        scoredClass: scored,
-        classes: [scored, stale],
-        entriesByClassId: new Map([[stale.id, [scoredEntry('a', 1)]]]),
-        nowMs: NOW,
-        ignoreIdle: true,
-      })
-    ).toBeNull();
+    expect(hit?.unscoredEntryIds).toEqual(['b']);
   });
 });

@@ -15014,6 +15014,10 @@ export type Database = {
         Returns: undefined
       }
       ringside_claim_generation_current: { Args: never; Returns: boolean }
+      ringside_complete_stale_class: {
+        Args: { p_class_id: string; p_expected_entry_ids: string[] }
+        Returns: Json
+      }
       ringside_containment_rearm: { Args: { p_reason: string }; Returns: Json }
       ringside_containment_sample: { Args: never; Returns: undefined }
       ringside_replay_applied_version: {

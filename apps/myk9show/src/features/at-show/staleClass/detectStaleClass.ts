@@ -33,6 +33,8 @@ export interface StaleEntryFields {
   entryStatus?: string | undefined;
   checkInStatus?: string | undefined;
   isScored?: boolean | undefined;
+  /** A dog in the ring is never counted: the server leaves it out too. */
+  isInRing?: boolean | undefined;
   resultStatus?: string | undefined;
   deletedAt?: string | null | undefined;
 }
@@ -61,15 +63,12 @@ export function lastResultAtMs(entries: StaleEntryFields[]): number | null {
 }
 
 /** True when the class meets every clause of the rule except the class-identity ones. */
-function isStaleClass(
-  entries: StaleEntryFields[],
-  nowMs: number,
-  ignoreIdle: boolean
-): StaleClassCandidate | null {
+function isStaleClass(entries: StaleEntryFields[], nowMs: number): StaleClassCandidate | null {
   const last = lastResultAtMs(entries);
   if (last === null) return null;
-  if (!ignoreIdle && nowMs - last <= STALE_CLASS_IDLE_MS) return null;
-  const unscored = outstandingEntries(entries);
+  if (nowMs - last <= STALE_CLASS_IDLE_MS) return null;
+  // Same set `ringside_complete_stale_class` computes, so the ids the judge sees match.
+  const unscored = outstandingEntries(entries).filter(e => e.isInRing !== true);
   if (unscored.length === 0) return null;
   return {
     classId: '',
@@ -88,11 +87,6 @@ export interface DetectStaleClassInput {
   nowMs: number;
   /** Classes to skip (snoozed), removed BEFORE the oldest is chosen. */
   excludeClassIds?: ReadonlySet<string>;
-  /**
-   * A retry after a partial write: the judge already confirmed the idle class, and the dogs
-   * written absent just refreshed its last-result time, so the 15-minute clause is skipped.
-   */
-  ignoreIdle?: boolean;
 }
 
 /**
@@ -105,7 +99,6 @@ export function detectStaleClass({
   entriesByClassId,
   nowMs,
   excludeClassIds,
-  ignoreIdle = false,
 }: DetectStaleClassInput): StaleClassCandidate | null {
   if (!scoredClass.judgeId) return null;
   let best: StaleClassCandidate | null = null;
@@ -114,7 +107,7 @@ export function detectStaleClass({
     if (cls.judgeId !== scoredClass.judgeId) continue;
     if (!cls.level || !scoredClass.level || sameLevel(cls.level, scoredClass.level)) continue;
     if (cls.classStatus !== 'in_progress') continue;
-    const stale = isStaleClass(entriesByClassId.get(cls.id) ?? [], nowMs, ignoreIdle);
+    const stale = isStaleClass(entriesByClassId.get(cls.id) ?? [], nowMs);
     if (!stale) continue;
     if (best === null || stale.lastResultAtMs < best.lastResultAtMs) {
       best = { ...stale, classId: cls.id, className: cls.name };

@@ -1,34 +1,39 @@
 /**
- * "Mark absent & complete" (MYK9-1514): re-check against synced state, then mark only the
- * dogs that are still unscored absent. The class completes through the server's own
- * derivation once every dog is accounted for; nothing here sets a class status.
+ * "Mark absent & complete" (MYK9-1514): ONE server action with the dog ids the judge saw.
+ * `ringside_complete_stale_class` marks exactly those dogs absent and lets the class complete
+ * in a single transaction, or changes nothing and returns the dogs as they stand now. There is
+ * no per-dog loop here to fail halfway; offline, the same single call is queued and the server
+ * re-validates when it lands.
  */
-import type { StaleClassCandidate } from './detectStaleClass';
 import type { StaleClassPrompt } from './staleClassPromptStore';
+
+export type CompleteStaleClassReply =
+  { ok: true; markedCount: number } | { ok: false; currentEntryIds: string[] };
 
 export type ConfirmStaleClassResult =
   | { outcome: 'marked'; className: string; markedCount: number }
-  /** The class no longer qualifies on fresh data: nothing was changed. */
-  | { outcome: 'not-needed'; className: string };
+  /** Offline: the one call is queued; the server checks the dogs when it syncs. */
+  | { outcome: 'queued'; className: string; dogCount: number }
+  /** Nothing is left to mark: the class no longer needs this. */
+  | { outcome: 'not-needed'; className: string }
+  /** The dogs changed since the judge looked: nothing was written; ask again with these. */
+  | { outcome: 'changed'; className: string; currentEntryIds: string[] };
 
 export async function confirmStaleClass(
   prompt: StaleClassPrompt,
   deps: {
-    recheck: (prompt: StaleClassPrompt) => Promise<StaleClassCandidate | null>;
-    markAbsent: (entryId: string, classId: string, className: string) => Promise<void>;
-    /** Runs after the dogs are written; completes a class the server will not derive (manual status). */
-    completeIfManual: (classId: string) => Promise<void>;
+    isOnline: () => boolean;
+    complete: (classId: string, expectedEntryIds: string[]) => Promise<CompleteStaleClassReply>;
+    queue: (classId: string, expectedEntryIds: string[]) => Promise<void>;
   }
 ): Promise<ConfirmStaleClassResult> {
-  const fresh = await deps.recheck(prompt);
-  if (!fresh) return { outcome: 'not-needed', className: prompt.className };
-  for (const entryId of fresh.unscoredEntryIds) {
-    await deps.markAbsent(entryId, fresh.classId, fresh.className);
+  const { classId, className, unscoredEntryIds } = prompt;
+  if (!deps.isOnline()) {
+    await deps.queue(classId, unscoredEntryIds);
+    return { outcome: 'queued', className, dogCount: unscoredEntryIds.length };
   }
-  await deps.completeIfManual(fresh.classId);
-  return {
-    outcome: 'marked',
-    className: fresh.className,
-    markedCount: fresh.unscoredEntryIds.length,
-  };
+  const reply = await deps.complete(classId, unscoredEntryIds);
+  if (reply.ok) return { outcome: 'marked', className, markedCount: reply.markedCount };
+  if (reply.currentEntryIds.length === 0) return { outcome: 'not-needed', className };
+  return { outcome: 'changed', className, currentEntryIds: reply.currentEntryIds };
 }

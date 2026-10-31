@@ -1,27 +1,19 @@
 /**
- * Reads the replica and runs the stale-class rule (MYK9-1514). Used twice: after a
- * score submit to decide whether to ask, and again on "Mark absent & complete" so a
- * class is never completed from what the device believed minutes ago.
+ * Reads the replica and runs the stale-class rule (MYK9-1514) after a score submit, to
+ * decide whether to ask. Confirming is a single server action that re-validates the dogs
+ * itself (`ringside_complete_stale_class`), so nothing here is trusted at confirm time.
  */
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import { logger } from '@/services/LoggingService';
-import { syncAtShowData } from '../atShowDataAdapter';
 import {
   detectStaleClass,
   type StaleClassCandidate,
   type StaleClassFields,
   type StaleEntryFields,
 } from './detectStaleClass';
-import {
-  snoozedClassIds,
-  useStaleClassPromptStore,
-  type StaleClassPrompt,
-} from './staleClassPromptStore';
-
-/** How long the confirm step waits for the server before judging on the local replica. */
-const RECHECK_SYNC_TIMEOUT_MS = 8_000;
+import { snoozedClassIds, useStaleClassPromptStore } from './staleClassPromptStore';
 
 export interface StaleClassHit {
   trialId: string;
@@ -32,7 +24,7 @@ export interface StaleClassHit {
 export async function evaluateStaleClass(
   scoredClassId: string,
   nowMs: number,
-  options: { excludeClassIds?: ReadonlySet<string>; ignoreIdle?: boolean } = {}
+  options: { excludeClassIds?: ReadonlySet<string> } = {}
 ): Promise<StaleClassHit | null> {
   const scored = await replicatedClassesTable.getClassById(scoredClassId);
   const trialId = scored?.trialId;
@@ -88,34 +80,4 @@ export async function checkForStaleClass(showId: string, scoredClassId: string):
   } catch (err) {
     logger.warn('Stale-class check failed', 'at-show', {}, err as Error);
   }
-}
-
-/**
- * Re-run the rule against synced state. Online: pull the show first (bounded), so a dog
- * scored on another device drops out. Offline or slow: the local replica, which still
- * holds every write this device has queued. Returns the fresh candidate, or null when
- * the class no longer qualifies.
- */
-export async function recheckStaleClass(
-  prompt: StaleClassPrompt
-): Promise<StaleClassCandidate | null> {
-  if (typeof navigator === 'undefined' || navigator.onLine !== false) {
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    try {
-      await Promise.race([
-        syncAtShowData(prompt.showId),
-        new Promise<void>(resolve => {
-          timer = setTimeout(resolve, RECHECK_SYNC_TIMEOUT_MS);
-        }),
-      ]);
-    } catch (err) {
-      logger.warn('Stale-class recheck could not sync first', 'at-show', {}, err as Error);
-    } finally {
-      clearTimeout(timer);
-    }
-  }
-  const hit = await evaluateStaleClass(prompt.scoredClassId, Date.now(), {
-    ignoreIdle: prompt.retry === true,
-  });
-  return hit && hit.candidate.classId === prompt.classId ? hit.candidate : null;
 }

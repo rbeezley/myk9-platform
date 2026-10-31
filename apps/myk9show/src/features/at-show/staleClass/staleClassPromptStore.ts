@@ -13,8 +13,6 @@ export interface StaleClassPrompt extends StaleClassCandidate {
   trialId: string;
   /** The class the judge had just scored in when this was offered. */
   scoredClassId: string;
-  /** Set after a partial write, so the retry does not need the class to go idle again. */
-  retry?: boolean;
 }
 
 interface Snooze {
@@ -30,6 +28,8 @@ interface StaleClassPromptState {
   /** "Not yet". */
   snooze: (nowMs: number) => void;
   dismiss: () => void;
+  /** The class changed under the prompt: show the server's current dogs and ask again. */
+  replaceEntryIds: (entryIds: string[]) => void;
 }
 
 export function isSnoozed(
@@ -76,4 +76,8 @@ export const useStaleClassPromptStore = create<StaleClassPromptState>((set, get)
     });
   },
   dismiss: () => set({ prompt: null }),
+  replaceEntryIds: entryIds => {
+    const { prompt } = get();
+    if (prompt) set({ prompt: { ...prompt, unscoredEntryIds: entryIds } });
+  },
 }));

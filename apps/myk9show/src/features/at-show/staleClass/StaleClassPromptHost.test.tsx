@@ -1,18 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('@/hooks/useOptimisticScoring', () => ({
-  useOptimisticScoring: () => ({ submitScoreOptimistically: vi.fn() }),
-}));
-vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
-  replicatedEntriesTable: { getEntryById: vi.fn() },
-}));
 vi.mock('@/services/replication/ReplicatedClassesTable', () => ({
-  replicatedClassesTable: { getClassById: vi.fn() },
+  replicatedClassesTable: { queueCompleteStaleClass: vi.fn() },
 }));
-vi.mock('../ringsideCapabilities', () => ({
-  buildRingsideReplication: () => ({ updateClassStatus: vi.fn() }),
-}));
-vi.mock('./checkStaleClass', () => ({ recheckStaleClass: vi.fn() }));
+vi.mock('./completeStaleClassRpc', () => ({ completeStaleClassRpc: vi.fn() }));
 
 import { render, screen } from '@/test/utils/testUtils';
 import { StaleClassPromptHost } from './StaleClassPromptHost';

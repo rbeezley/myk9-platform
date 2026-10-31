@@ -228,6 +228,72 @@ describe('useUserPreferences (local-first)', () => {
     expect(result.current.preferences?.theme.mode).toBe('system');
   });
 
+  it('a field edited during a push never shows the server value the push settled on', async () => {
+    recordLocalThemeChange('u1', { mode: 'dark' }, 5000);
+    let release: (v: unknown) => void = () => {};
+    mockLoad.mockResolvedValue(serverRow({ mode: 'light' }, 4000));
+    mockUpdate.mockImplementationOnce(() => new Promise(r => (release = r)));
+    const applied: unknown[] = [];
+    const { result } = renderHook(() => useUserPreferences('u1', a => applied.push({ ...a })));
+    await waitFor(() => expect(mockUpdate).toHaveBeenCalledTimes(1));
+    mockUpdate.mockResolvedValue(serverRow({ mode: 'system' }, 9000));
+    let edit: Promise<void> = Promise.resolve();
+    act(() => {
+      edit = result.current.updatePreferences({ theme: { mode: 'system' } });
+    });
+    mockLoad.mockResolvedValue(serverRow({ mode: 'system' }, 9000));
+    // The server kept a newer value from another device; the local edit is newer still.
+    release(serverRow({ mode: 'light' }, 8000));
+    await act(() => edit);
+    expect(applied).not.toContainEqual(expect.objectContaining({ mode: 'light' }));
+    expect(readDeviceTheme('u1')?.theme.mode).toBe('system');
+  });
+
+  it('a reset never shows defaults for a field the server kept a newer value for', async () => {
+    recordLocalThemeChange('u1', { mode: 'dark' }, 5000);
+    mockLoad.mockResolvedValue(serverRow({ mode: 'dark' }, 5000));
+    mockUpdate.mockResolvedValue(serverRow({ mode: 'dark' }, 9000));
+    const applied: Array<Record<string, unknown>> = [];
+    const { result } = renderHook(() => useUserPreferences('u1', a => applied.push({ ...a })));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    applied.length = 0;
+    mockLoad.mockResolvedValue(serverRow({ mode: 'dark' }, 5000));
+    mockUpdate.mockResolvedValue(serverRow({ mode: 'dark' }, 9500));
+    await act(() => result.current.resetToDefaults('theme'));
+    expect(readDeviceTheme('u1')?.theme.mode).toBe('dark');
+    // The last mode the live theme was told about is what the device holds.
+    const lastMode = applied.filter(a => 'mode' in a).at(-1)?.mode;
+    expect(lastMode).toBe('dark');
+  });
+
+  it('a field edited while a reset syncs keeps its edit on the live theme', async () => {
+    mockLoad.mockResolvedValue(serverRow({}, 1000));
+    const applied: Array<Record<string, unknown>> = [];
+    const { result } = renderHook(() => useUserPreferences('u1', a => applied.push({ ...a })));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    applied.length = 0;
+    let release: (v: unknown) => void = () => {};
+    mockUpdate.mockImplementationOnce(() => new Promise(r => (release = r)));
+    let reset: Promise<void> = Promise.resolve();
+    act(() => {
+      reset = result.current.resetToDefaults('theme');
+    });
+    await waitFor(() => expect(mockUpdate).toHaveBeenCalledTimes(1));
+    mockUpdate.mockResolvedValue(serverRow({ colorScheme: 'grove' }, 9000));
+    mockLoad.mockResolvedValue(serverRow({ colorScheme: 'grove' }, 9000));
+    let edit: Promise<void> = Promise.resolve();
+    act(() => {
+      edit = result.current.updatePreferences({ theme: { colorScheme: 'grove' } });
+    });
+    release(serverRow({}, 8000));
+    await act(async () => {
+      await Promise.all([reset, edit]);
+    });
+    expect(readDeviceTheme('u1')?.theme.colorScheme).toBe('grove');
+    const last = applied.filter(a => 'colorScheme' in a).at(-1)?.colorScheme;
+    expect(last).toBe('grove');
+  });
+
   it('drops a sync result that arrives after the user signed out', async () => {
     let release: (v: unknown) => void = () => {};
     mockLoad.mockImplementationOnce(() => new Promise(r => (release = r)));

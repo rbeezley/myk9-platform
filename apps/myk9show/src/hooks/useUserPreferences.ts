@@ -151,10 +151,13 @@ export function useUserPreferences(
         throw new Error('No user ID provided');
       }
       if (category === 'theme') {
-        const defaults = buildDefaults(userId).theme;
-        await updatePreferences({ theme: defaults });
-        // The applied theme (mode, ring color) must follow the reset, not just the saved value.
-        onServerThemeRef.current?.(defaults);
+        await updatePreferences({ theme: buildDefaults(userId).theme });
+        // The applied theme (mode, ring color) must follow the reset, but only as
+        // far as it settled: a field the server kept, or one edited meanwhile, shows
+        // what the device holds after reconciliation, not the defaults.
+        if (isCurrent(userId)) {
+          onServerThemeRef.current?.(deviceThemeOrDefaults(readDeviceTheme(userId)));
+        }
         return;
       }
       if (!isOnline) throw new Error(NEEDS_CONNECTION_MESSAGE);

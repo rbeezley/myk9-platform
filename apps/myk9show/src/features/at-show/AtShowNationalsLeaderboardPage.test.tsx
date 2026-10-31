@@ -39,6 +39,9 @@ vi.mock('@/features/results-tab/useResultsTabData', () => ({
   }),
 }));
 
+const access = vi.hoisted(() => ({ staff: true }));
+vi.mock('./useHasRingsideStaffAccess', () => ({ useHasRingsideStaffAccess: () => access.staff }));
+
 function mount() {
   return render(
     <Routes>
@@ -50,6 +53,7 @@ function mount() {
 }
 
 beforeEach(() => {
+  access.staff = true;
   hook.isNationals = true;
   hook.rankingKeyState = 'ready';
   hook.readState = 'ready';
@@ -67,6 +71,13 @@ describe('AtShowNationalsLeaderboardPage (MYK9-1540)', () => {
     expect(screen.getByRole('heading', { name: 'Nationals Leaderboard' })).toBeInTheDocument();
     expect(screen.getByText('Dog 7')).toBeInTheDocument();
     expect(screen.queryByText('Dog 9')).not.toBeInTheDocument();
+  });
+
+  it('sends an exhibitor who is not ringside staff back to ringside (result privacy)', () => {
+    access.staff = false;
+    mount();
+    expect(screen.getByText('RINGSIDE HOME')).toBeInTheDocument();
+    expect(screen.queryByText('Dog 7')).not.toBeInTheDocument();
   });
 
   it('sends a non-nationals show back to the ringside class list', () => {

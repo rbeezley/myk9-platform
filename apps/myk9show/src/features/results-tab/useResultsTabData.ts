@@ -146,6 +146,8 @@ export function useResultsTabData(showId: string) {
     queryKey: showRankingKeyQueryKey(showId),
     queryFn: () => replicatedShowsTable.getShowById(showId),
     enabled: Boolean(showId),
+    // A replica read: it must run offline too (show-day data), like the ringside menu's show read.
+    networkMode: 'always',
   });
   const isNationals = showQuery.data ? showQuery.data.isNationals === true : null;
   // The show row is replicated: a later sync (or the row arriving after a first empty read) must

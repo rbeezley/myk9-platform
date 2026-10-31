@@ -18,6 +18,8 @@ export interface RingsideMenuContext {
   hasAccount: boolean;
   /** The show is a nationals show (the replicated show row); false while unknown. */
   isNationals: boolean;
+  /** Admitted to ringside as staff (account role or passcode grant), not merely as an exhibitor. */
+  isRingsideStaff: boolean;
 }
 
 export type RingsideMenuAction = 'announcements' | 'askq' | 'show-info' | 'sign-out';

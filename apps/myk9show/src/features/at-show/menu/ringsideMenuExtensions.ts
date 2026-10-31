@@ -10,13 +10,14 @@ import { getRingsideNationalsLeaderboardHref } from '@/features/results-tab/resu
 import type { RingsideMenuExtension } from './ringsideMenuItems';
 
 /**
- * Nationals shows only (MYK9-1540). Every ringside viewer sees it; what the board ranks is gated
- * by release, the same rule the Results tab applies, so an exhibitor sees released classes only.
+ * Nationals shows only (MYK9-1540), ringside staff only. The board reads secretary-entry rows,
+ * which carry no result-privacy rule, so an exhibitor must not reach it; the exhibitor path is the
+ * privacy-aware Results tab.
  */
 const nationalsLeaderboard: RingsideMenuExtension = {
   id: 'nationals-leaderboard',
-  build: ({ showId, isNationals }) =>
-    showId && isNationals
+  build: ({ showId, isNationals, isRingsideStaff }) =>
+    showId && isNationals && isRingsideStaff
       ? {
           id: 'nationals-leaderboard',
           label: 'Nationals Leaderboard',

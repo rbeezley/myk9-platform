@@ -13,6 +13,7 @@ const base: RingsideMenuContext = {
   isOnline: true,
   hasAccount: true,
   isNationals: false,
+  isRingsideStaff: true,
 };
 
 const ids = (context: RingsideMenuContext, extensions?: readonly RingsideMenuExtension[]) =>
@@ -112,10 +113,14 @@ describe('itemNeedsConnection', () => {
 describe('Nationals Leaderboard item (MYK9-1540)', () => {
   const nationals = { ...base, isNationals: true };
 
-  it('is offered on a nationals show to a judge or steward, a secretary and an exhibitor', () => {
+  it('is offered on a nationals show to a judge or steward, a secretary and a passcode user', () => {
     expect(ids(nationals)).toContain('nationals-leaderboard');
     expect(ids({ ...nationals, canManageShow: true })).toContain('nationals-leaderboard');
     expect(ids({ ...nationals, hasAccount: false })).toContain('nationals-leaderboard');
+  });
+
+  it('is absent for an exhibitor who is not ringside staff (result privacy)', () => {
+    expect(ids({ ...nationals, isRingsideStaff: false })).not.toContain('nationals-leaderboard');
   });
 
   it('is absent on a show that is not nationals', () => {

@@ -25,6 +25,7 @@ import { useAskQPanelStore } from '@/store/useAskQPanelStore';
 import { useMessageStore } from '@/store/messageStore';
 import { useNotificationStore } from '@/store/notificationStore';
 import { useShowManageScope } from '@/hooks/useShowManageScope';
+import { useHasRingsideStaffAccess } from '../useHasRingsideStaffAccess';
 import {
   OFFLINE_ITEM_NOTICE,
   buildRingsideMenuItems,
@@ -60,6 +61,7 @@ export function RingsideMenu({ showId }: { showId: string | undefined }) {
   });
   // The destination route's own gate, so the link and the page cannot disagree.
   const canManageShow = useShowManageScope(showId).canManage;
+  const isRingsideStaff = useHasRingsideStaffAccess(showId);
 
   const unread =
     useNotificationStore(s => s.unreadCount) +
@@ -72,6 +74,7 @@ export function RingsideMenu({ showId }: { showId: string | undefined }) {
     isOnline,
     hasAccount: Boolean(user) && !user?.is_anonymous,
     isNationals: showQuery.data?.isNationals === true,
+    isRingsideStaff,
   });
 
   // A slide-out closes before the next overlay or navigation begins.

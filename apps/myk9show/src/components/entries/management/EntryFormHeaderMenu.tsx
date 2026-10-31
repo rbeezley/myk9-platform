@@ -1,4 +1,4 @@
-import { Mail, MoreHorizontal } from 'lucide-react';
+import { Mail, MoreHorizontal, StickyNote } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -19,6 +19,8 @@ interface EntryFormHeaderMenuProps {
   onBulkStatusChange: (entryIds: string[], status: EntryStatus) => void;
   /** Present only when a decision email can be sent for this form. */
   onEmailExhibitor?: (() => void) | undefined;
+  /** Present only when the form has an enrollment row to note against. */
+  onAddNote?: (() => void) | undefined;
 }
 
 /**
@@ -31,6 +33,7 @@ export function EntryFormHeaderMenu({
   entries,
   onBulkStatusChange,
   onEmailExhibitor,
+  onAddNote,
 }: EntryFormHeaderMenuProps) {
   return (
     <DropdownMenu>
@@ -45,16 +48,24 @@ export function EntryFormHeaderMenu({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-64">
-        {onEmailExhibitor && (
+        {(onEmailExhibitor || onAddNote) && (
           <>
             <DropdownMenuGroup>
               <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
                 {exhibitorName}
               </DropdownMenuLabel>
-              <DropdownMenuItem onClick={onEmailExhibitor}>
-                <Mail className="h-4 w-4" aria-hidden />
-                Email exhibitor…
-              </DropdownMenuItem>
+              {onEmailExhibitor && (
+                <DropdownMenuItem onClick={onEmailExhibitor}>
+                  <Mail className="h-4 w-4" aria-hidden />
+                  Email exhibitor…
+                </DropdownMenuItem>
+              )}
+              {onAddNote && (
+                <DropdownMenuItem onClick={onAddNote}>
+                  <StickyNote className="h-4 w-4" aria-hidden />
+                  Add private note…
+                </DropdownMenuItem>
+              )}
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
           </>

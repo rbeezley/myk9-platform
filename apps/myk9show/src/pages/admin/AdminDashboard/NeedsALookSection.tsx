@@ -113,7 +113,7 @@ export function NeedsALookSection({
 
             <RemediationLink
               target={item.action.target}
-              className="inline-flex min-h-10 shrink-0 items-center self-start rounded-[9px] border border-border px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:self-auto"
+              className="inline-flex min-h-11 shrink-0 items-center self-start rounded-[9px] border border-border px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:self-auto"
             >
               {item.action.label}
             </RemediationLink>

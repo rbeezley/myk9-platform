@@ -256,7 +256,7 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
       )}
 
       {hasUnknownDayClass && (
-        <UnconfirmedReadNotice detail="Some classes are still waiting on their trial date, so we can't tell yet whether you run today. Check-in opens once it loads." />
+        <UnconfirmedReadNotice detail="Some classes are still waiting on their trial date, so we can't tell yet whether you run today. We need it to tell whether check-in is available." />
       )}
 
       {/* INTENT: the exhibitor is not told their entries are gone or wrong —

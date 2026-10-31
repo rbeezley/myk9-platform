@@ -68,6 +68,9 @@ const mockAuthState = vi.hoisted(() => ({
   user: null as { is_anonymous?: boolean } | null,
 }));
 
+// The ringside menu's staff check (MYK9-1540) resolves a role these auth mocks do not model.
+vi.mock('./useStaffDogGate', () => ({ useIsStaffDogViewer: () => false }));
+
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => mockAuthState,
 }));

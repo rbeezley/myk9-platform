@@ -62,6 +62,9 @@ const mockAuthState = vi.hoisted(() => ({
 const ownResults: { current: ReadonlyMap<string, OwnShowResult> } = { current: new Map() };
 vi.mock('./useMyShowResults', () => ({ useMyShowResults: () => ownResults.current }));
 
+// The ringside menu's staff check (MYK9-1540) resolves a role these auth mocks do not model.
+vi.mock('./useStaffDogGate', () => ({ useIsStaffDogViewer: () => false }));
+
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => mockAuthState,
 }));

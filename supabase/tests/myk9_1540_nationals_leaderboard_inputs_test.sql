@@ -283,8 +283,9 @@ BEGIN
 
   -- 3b. Deleted entries, classes and trials never rank (S1 still has exactly the 2 live rows).
   PERFORM public.myk9_1540_act_as(judge);
-  IF EXISTS (SELECT 1 FROM public.get_nationals_leaderboard_inputs(s1) r
-             WHERE r.entry_id = ANY(deleted_ids)) THEN
+  -- Aliased `lb`, not `r`: `r` is this block's record variable and would make the column ambiguous.
+  IF EXISTS (SELECT 1 FROM public.get_nationals_leaderboard_inputs(s1) lb
+             WHERE lb.entry_id = ANY(deleted_ids)) THEN
     RAISE EXCEPTION 'FAIL a soft-deleted entry, class or trial ranked';
   END IF;
 

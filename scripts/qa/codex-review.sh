@@ -8,7 +8,8 @@
 # 2026-08-23, PR #1770). And `--commit <sha>` reviews ONE commit, so on a
 # multi-commit branch it can land on a docs-only commit and vacuously pass.
 #
-# This wrapper always reviews the whole branch against the base, closes stdin
+# This wrapper reviews the whole branch against the base (round 2 and later of
+# a --post gate narrow to the fix range; see MYK9-1590 below), closes stdin
 # (an open stdin hangs the CLI), writes the full log to a file, and exits
 # NON-ZERO when the review did not run — the grep is anchored to line start
 # because the log echoes the diff, and a diff that mentions those phrases
@@ -81,8 +82,32 @@ LOG="${CODEX_REVIEW_LOG:-/tmp/codex-review-${HEAD_SHA}.log}"
 # file, and leaves the built-in review prompt and repository instructions intact.
 REVIEW_INSTRUCTIONS='Review verdict contract: Only assert a clean verdict after completing the requested whole-branch review and finding no actionable defects. In that case, begin the final verdict with exactly: No actionable defects found. Put any summary or validation details after that sentence. If there are actionable findings, report each as a bullet beginning with - [P0], - [P1], - [P2], or - [P3], as appropriate; do not emit a clean assertion. If the review cannot be completed, begin with: Unable to complete the review. Explain the blocker and do not emit a clean assertion. Passing tests or a change summary alone is not a review verdict. Report every actionable finding in the whole diff on this pass, ordered by severity with P0 first, rather than stopping after the first few, so a later round only confirms the fixes. Bug classes: when a finding is one instance of a pattern, name the pattern and list every instance in the diff inside that one finding, so later rounds do not find them one at a time. Origin: a defect is pre-existing only when the same defective code exists unchanged at the base commit, in lines this branch did not add or modify, and the branch does not make it more severe; cite its location. Anything in lines the branch added or changed, or any regression the branch causes, is a normal finding, and when unsure it is a normal finding. Pre-existing defects are not actionable for this branch and do not prevent a clean verdict: list them after the verdict under the heading Pre-existing defects, each as a bullet beginning with - [pre-existing P0], - [pre-existing P1], - [pre-existing P2], or - [pre-existing P3], never as a normal finding bullet.'
 
-echo "codex-review: ${BASE_REF} (${BASE_SHA:0:9}) .. HEAD (${HEAD_SHA:0:9}) -> ${LOG} (model ${MODEL:-config default})"
-"$CODEX" review --base "$BASE_REF" ${MODEL_ARGS[@]+"${MODEL_ARGS[@]}"} -c "developer_instructions=\"${REVIEW_INSTRUCTIONS}\"" < /dev/null > "$LOG" 2>&1
+# Likelihood (owner, 2026-10-31): rounds were spent fixing failures that
+# realistically never happen. A capped finding is listed, not blocking.
+REVIEW_INSTRUCTIONS="${REVIEW_INSTRUCTIONS} Likelihood: state each finding's realistic trigger (who does what, how often) in one clause. A finding that needs improbable timing (a disconnect inside one request, a race within one render) or a hand-crafted input is P3 at most, unless its outcome is lost or corrupted show-day data (scores, check-ins, entries, money) or a security or privacy exposure. Report such a capped finding after the verdict under the heading Not actionable this round, as a bullet beginning with - [unlikely P3], never as a normal finding bullet."
+
+# Round 2 and later (MYK9-1590): re-reading the whole branch every round
+# surfaced fresh minor findings in code that had already passed, so PRs rarely
+# converged inside the 3-round cap. When this PR already carries a codex
+# `Review gate:` line for an ancestor of HEAD, review only the commits since
+# that head; P0/P1 anywhere in the branch still block. Rewritten history (the
+# head is gone or not an ancestor) or a merge in the range falls back to the
+# whole-branch review. The evidence line still certifies BASE..HEAD.
+REVIEW_BASE="$BASE_REF"
+if [ "$POST" = 1 ] && PR="$("$GH" pr view --json number -q .number 2>/dev/null)" && [ -n "$PR" ] &&
+  GATES="$("$GH" pr view "$PR" --json comments -q '[.comments[].body | select(startswith("Review gate:"))] | join("\n")' 2>/dev/null)"; then
+  LAST="$(printf '%s\n' "$GATES" | grep -E '^Review gate: (independent/)?codex reviewed [0-9a-f]{7,40}\.\.[0-9a-f]{7,40} ' | tail -1 | sed -E 's/^[^.]*\.\.([0-9a-f]+) .*/\1/')"
+  if [ -n "$LAST" ] && LAST_SHA="$(git rev-parse --verify -q "${LAST}^{commit}")" &&
+    [ "$LAST_SHA" != "$HEAD_SHA" ] && git merge-base --is-ancestor "$LAST_SHA" HEAD &&
+    [ -z "$(git rev-list --merges "${LAST_SHA}..HEAD")" ]; then
+    REVIEW_BASE="$LAST_SHA"
+    REVIEW_INSTRUCTIONS="${REVIEW_INSTRUCTIONS/requested whole-branch review/requested fix-range review} Fix-range round: earlier rounds of this review already read ${BASE_SHA:0:9}..${LAST_SHA:0:9}; this round reviews ${LAST_SHA:0:9}..${HEAD_SHA:0:9}. Report as normal findings only (a) defects those commits introduce, including regressions they cause elsewhere, and (b) any P0 or P1 anywhere in the branch ${BASE_SHA:0:9}..${HEAD_SHA:0:9}. A P2 or P3 in code the earlier rounds already read is not actionable this round: list it after the verdict under the heading Not actionable this round, as a bullet beginning with - [earlier-round P2] or - [earlier-round P3]."
+    echo "codex-review: round 2+ — fix range ${LAST_SHA:0:9}..${HEAD_SHA:0:9} (last codex-reviewed head on PR #${PR})"
+  fi
+fi
+
+echo "codex-review: ${REVIEW_BASE} (${BASE_SHA:0:9}) .. HEAD (${HEAD_SHA:0:9}) -> ${LOG} (model ${MODEL:-config default})"
+"$CODEX" review --base "$REVIEW_BASE" ${MODEL_ARGS[@]+"${MODEL_ARGS[@]}"} -c "developer_instructions=\"${REVIEW_INSTRUCTIONS}\"" < /dev/null > "$LOG" 2>&1
 CLI_EXIT=$?
 
 abort_lines() {
@@ -110,8 +135,18 @@ fi
 # printed this wrapper's own "Review was interrupted" line at column 0, which
 # the anchored grep read as a real abort and threw away a completed review.
 
+# A P0/P1 can never be parked: a not-this-round tag on one is read as a normal
+# finding, so the instruction cannot be used to wave a blocker through.
+VERDICT="$(printf '%s\n' "$VERDICT" | sed -E 's/\[(earlier-round|unlikely) (P[01])\]/[\2]/')"
 echo "$VERDICT"
 review_note_preexisting codex-review "$VERDICT"
+NOT_THIS_ROUND='^[[:space:]]*- (\*\*)?\[(earlier-round|unlikely) P[0-9]\]'
+NTR="$(printf '%s\n' "$VERDICT" | grep -Ec "$NOT_THIS_ROUND" || true)"
+if [ "${NTR:-0}" -gt 0 ]; then
+  echo
+  echo "codex-review: ${NTR} finding(s) not actionable this round (earlier-round P2/P3 or unlikely). Not blocking; file the ones worth fixing in Linear before merge:"
+  printf '%s\n' "$VERDICT" | grep -E "$NOT_THIS_ROUND"
+fi
 if review_has_findings "$VERDICT"; then
   echo
   echo "codex-review: findings above. Fix them, commit, and re-run — the evidence line is for the NEW head."

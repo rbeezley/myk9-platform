@@ -587,7 +587,7 @@ describe('codex-review.sh', () => {
       .split('\n')
       .filter(line => !line.trimStart().startsWith('#'))
       .join('\n');
-    expect(src).toMatch(/review --base "\$BASE_REF"/);
+    expect(src).toMatch(/review --base "\$REVIEW_BASE"/);
     expect(src).not.toMatch(/--commit/);
   });
 

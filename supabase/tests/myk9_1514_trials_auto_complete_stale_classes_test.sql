@@ -242,6 +242,9 @@ begin
   if (v_reply ->> 'ok')::boolean is not false or jsonb_array_length(v_reply -> 'current_entry_ids') <> 0 then
     raise exception 'FAIL R is_in_ring dog did not refuse the whole call: %', v_reply;
   end if;
+  if v_reply ->> 'reason' is distinct from 'in_ring' then
+    raise exception 'FAIL R refusal reason should be in_ring: %', v_reply;
+  end if;
   perform pg_temp.q($q$update public.entries set is_in_ring = false, check_in_status = 'in-ring'
     where id = '00000000-0000-0000-0000-000001514135' returning 1$q$);
   v_reply := public.ringside_complete_stale_class('00000000-0000-0000-0000-000001514021',
@@ -369,6 +372,7 @@ begin
   v_reply := public.ringside_complete_stale_class('00000000-0000-0000-0000-000001514022',
     array['00000000-0000-0000-0000-000001514136']::uuid[]);
   if (v_reply ->> 'ok')::boolean is not false
+     or v_reply ->> 'reason' is distinct from 'not_in_progress'
      or pg_temp.absent_count('00000000-0000-0000-0000-000001514022') <> 0
      or pg_temp.q($q$select status from public.classes where id = '00000000-0000-0000-0000-000001514022'$q$) <> 'setup' then
     raise exception 'FAIL S a class that left in_progress was not refused untouched: %', v_reply;

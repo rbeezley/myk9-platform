@@ -63,13 +63,18 @@ describe('StaleClassPrompt', () => {
       )
     );
     expect(mocks.complete).toHaveBeenCalledTimes(1);
-    expect(mocks.complete).toHaveBeenCalledWith('stale', ['a', 'b', 'c']);
+    expect(mocks.complete).toHaveBeenCalledWith('show', 'stale', ['a', 'b', 'c']);
+    expect(mocks.complete).toHaveBeenCalledTimes(1);
     expect(useStaleClassPromptStore.getState().prompt).toBeNull();
   });
 
   it('re-asks with the server list when the class changed, then confirms that list', async () => {
     mocks.complete
-      .mockResolvedValueOnce({ ok: false, currentEntryIds: ['a', 'b', 'c', 'd'] })
+      .mockResolvedValueOnce({
+        ok: false,
+        currentEntryIds: ['a', 'b', 'c', 'd'],
+        reason: 'changed',
+      })
       .mockResolvedValueOnce({ ok: true, markedCount: 4 });
     useStaleClassPromptStore.setState({ prompt });
     render(<StaleClassPrompt />);
@@ -88,20 +93,20 @@ describe('StaleClassPrompt', () => {
     await userEvent.click(screen.getByRole('button', { name: /Mark absent/ }));
 
     await waitFor(() => expect(mocks.complete).toHaveBeenCalledTimes(2));
-    expect(mocks.complete).toHaveBeenLastCalledWith('stale', ['a', 'b', 'c', 'd']);
+    expect(mocks.complete).toHaveBeenLastCalledWith('show', 'stale', ['a', 'b', 'c', 'd']);
     await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalled());
     expect(useStaleClassPromptStore.getState().prompt).toBeNull();
   });
 
-  it('closes as already complete when the server finds no dogs left', async () => {
-    mocks.complete.mockResolvedValue({ ok: false, currentEntryIds: [] });
+  it('closes when the server finds no unscored dogs left', async () => {
+    mocks.complete.mockResolvedValue({ ok: false, currentEntryIds: [], reason: 'changed' });
     useStaleClassPromptStore.setState({ prompt });
     render(<StaleClassPrompt />);
 
     await userEvent.click(await screen.findByRole('button', { name: /Mark absent/ }));
 
     await waitFor(() =>
-      expect(mocks.toastInfo).toHaveBeenCalledWith('Container Novice A is already complete')
+      expect(mocks.toastInfo).toHaveBeenCalledWith('Container Novice A has no unscored dogs left')
     );
     expect(useStaleClassPromptStore.getState().prompt).toBeNull();
     expect(mocks.complete).toHaveBeenCalledTimes(1);
@@ -136,5 +141,32 @@ describe('StaleClassPrompt', () => {
     expect(navigator.onLine).toBe(true);
     expect(useStaleClassPromptStore.getState().prompt).not.toBeNull();
     expect(mocks.toastSuccess).not.toHaveBeenCalled();
+  });
+
+  it('says a dog is in the ring and snoozes, rather than claiming the class is complete', async () => {
+    mocks.complete.mockResolvedValue({ ok: false, currentEntryIds: [], reason: 'in_ring' });
+    useStaleClassPromptStore.setState({ prompt });
+    render(<StaleClassPrompt />);
+
+    await userEvent.click(await screen.findByRole('button', { name: /Mark absent/ }));
+
+    await waitFor(() =>
+      expect(mocks.toastInfo).toHaveBeenCalledWith(expect.stringMatching(/dog is in the ring/))
+    );
+    expect(mocks.toastInfo).not.toHaveBeenCalledWith(expect.stringMatching(/no unscored/));
+    expect(useStaleClassPromptStore.getState().prompt).toBeNull();
+    expect(useStaleClassPromptStore.getState().snoozes.stale).toBeDefined();
+  });
+
+  it('says the class is no longer in progress when a secretary changed it', async () => {
+    mocks.complete.mockResolvedValue({ ok: false, currentEntryIds: [], reason: 'not_in_progress' });
+    useStaleClassPromptStore.setState({ prompt });
+    render(<StaleClassPrompt />);
+
+    await userEvent.click(await screen.findByRole('button', { name: /Mark absent/ }));
+
+    await waitFor(() =>
+      expect(mocks.toastInfo).toHaveBeenCalledWith('Container Novice A is no longer in progress')
+    );
   });
 });

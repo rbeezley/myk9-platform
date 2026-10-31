@@ -32,7 +32,9 @@ export function StaleClassPrompt() {
   const confirm = async () => {
     setWorking(true);
     try {
-      const result = await confirmStaleClass(prompt, { complete: completeStaleClassRpc });
+      const result = await confirmStaleClass(prompt, {
+        complete: (classId, ids) => completeStaleClassRpc(prompt.showId, classId, ids),
+      });
       if (result.outcome === 'needs-connection') {
         // Online-only: nothing was marked or queued. Keep the prompt open to try again.
         toast.error("Needs a connection. Try again when you're back online.");
@@ -45,9 +47,20 @@ export function StaleClassPrompt() {
         toast.info(`${result.className} changed. ${n} ${n === 1 ? 'dog is' : 'dogs are'} left.`);
         return;
       }
+      if (result.outcome === 'refused') {
+        // Nothing was written. A dog in the ring means the class is in use: ask again later.
+        if (result.reason === 'in_ring') {
+          useStaleClassPromptStore.getState().snooze(Date.now());
+          toast.info(`A dog is in the ring in ${result.className}. Try again when it is done.`);
+        } else {
+          useStaleClassPromptStore.getState().dismiss();
+          toast.info(`${result.className} is no longer in progress`);
+        }
+        return;
+      }
       useStaleClassPromptStore.getState().dismiss();
       if (result.outcome === 'not-needed') {
-        toast.info(`${result.className} is already complete`);
+        toast.info(`${result.className} has no unscored dogs left`);
         return;
       }
       toast.success(`${result.className} completed, ${result.markedCount} marked absent`, {

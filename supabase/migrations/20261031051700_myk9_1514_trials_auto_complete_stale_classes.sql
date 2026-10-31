@@ -204,7 +204,9 @@ BEGIN
   -- A class a secretary cancelled or reset, or one with a dog in the ring, is
   -- not stale: refuse with no dogs to offer.
   IF v_class_status IS DISTINCT FROM 'in_progress' OR v_any_in_ring THEN
-    RETURN jsonb_build_object('ok', false, 'current_entry_ids', '[]'::jsonb);
+    RETURN jsonb_build_object('ok', false, 'current_entry_ids', '[]'::jsonb,
+      'reason', CASE WHEN v_class_status IS DISTINCT FROM 'in_progress'
+                     THEN 'not_in_progress' ELSE 'in_ring' END);
   END IF;
 
   SELECT coalesce(array_agg(DISTINCT x ORDER BY x), '{}'::uuid[])
@@ -212,7 +214,8 @@ BEGIN
     FROM unnest(coalesce(p_expected_entry_ids, '{}'::uuid[])) AS x;
 
   IF cardinality(v_expected) = 0 OR v_expected IS DISTINCT FROM v_current THEN
-    RETURN jsonb_build_object('ok', false, 'current_entry_ids', to_jsonb(v_current));
+    RETURN jsonb_build_object('ok', false, 'current_entry_ids', to_jsonb(v_current),
+      'reason', 'changed');
   END IF;
 
   -- 5. Mark exactly those entries absent: what the Absent chip writes (zero time,

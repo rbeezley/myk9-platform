@@ -7,13 +7,19 @@
  */
 import type { StaleClassPrompt } from './staleClassPromptStore';
 
+/** Why the server refused: the dogs changed, a dog is in the ring, or the class left in_progress. */
+export type StaleClassRefusal = 'changed' | 'in_ring' | 'not_in_progress';
+
 export type CompleteStaleClassReply =
-  { ok: true; markedCount: number } | { ok: false; currentEntryIds: string[] };
+  | { ok: true; markedCount: number }
+  | { ok: false; currentEntryIds: string[]; reason: StaleClassRefusal };
 
 export type ConfirmStaleClassResult =
   | { outcome: 'marked'; className: string; markedCount: number }
-  /** Nothing is left to mark: the class is already complete. */
+  /** Nothing is left to mark: no unscored dogs remain. */
   | { outcome: 'not-needed'; className: string }
+  /** A dog is in the ring, or the class is no longer in progress: nothing was written. */
+  | { outcome: 'refused'; className: string; reason: 'in_ring' | 'not_in_progress' }
   /** The dogs changed since the judge looked: nothing was written; ask again with these. */
   | { outcome: 'changed'; className: string; currentEntryIds: string[] }
   /** No usable connection: nothing was marked or queued; the prompt stays open. */
@@ -52,6 +58,9 @@ export async function confirmStaleClass(
     throw err;
   }
   if (reply.ok) return { outcome: 'marked', className, markedCount: reply.markedCount };
+  if (reply.reason === 'in_ring' || reply.reason === 'not_in_progress') {
+    return { outcome: 'refused', className, reason: reply.reason };
+  }
   if (reply.currentEntryIds.length === 0) return { outcome: 'not-needed', className };
   return { outcome: 'changed', className, currentEntryIds: reply.currentEntryIds };
 }

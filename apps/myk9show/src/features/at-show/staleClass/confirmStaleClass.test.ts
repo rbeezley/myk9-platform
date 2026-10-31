@@ -29,7 +29,11 @@ describe('confirmStaleClass', () => {
 
   it('returns the current dogs, and writes nothing more, when the set changed', async () => {
     const d = deps({
-      complete: vi.fn().mockResolvedValue({ ok: false, currentEntryIds: ['a', 'b', 'c', 'd'] }),
+      complete: vi.fn().mockResolvedValue({
+        ok: false,
+        currentEntryIds: ['a', 'b', 'c', 'd'],
+        reason: 'changed',
+      }),
     });
     const result = await confirmStaleClass(prompt, d);
 
@@ -42,7 +46,9 @@ describe('confirmStaleClass', () => {
   });
 
   it('reports not-needed when the server finds no dogs left', async () => {
-    const d = deps({ complete: vi.fn().mockResolvedValue({ ok: false, currentEntryIds: [] }) });
+    const d = deps({
+      complete: vi.fn().mockResolvedValue({ ok: false, currentEntryIds: [], reason: 'changed' }),
+    });
     expect(await confirmStaleClass(prompt, d)).toEqual({
       outcome: 'not-needed',
       className: 'Container Novice A',
@@ -74,4 +80,18 @@ describe('confirmStaleClass', () => {
     const d = deps({ complete: vi.fn().mockRejectedValue(err) });
     await expect(confirmStaleClass(prompt, d)).rejects.toThrow('permission denied');
   });
+
+  it.each(['in_ring', 'not_in_progress'] as const)(
+    'reports a %s refusal as refused, never as already complete',
+    async reason => {
+      const d = deps({
+        complete: vi.fn().mockResolvedValue({ ok: false, currentEntryIds: [], reason }),
+      });
+      expect(await confirmStaleClass(prompt, d)).toEqual({
+        outcome: 'refused',
+        className: 'Container Novice A',
+        reason,
+      });
+    }
+  );
 });

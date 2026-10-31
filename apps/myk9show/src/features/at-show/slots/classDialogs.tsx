@@ -5,18 +5,10 @@
  * the data handlers behind them are spike stubs owned by the host hooks.
  */
 import type React from 'react';
-import type { AreaCountSelectionDialogProps, ClassSettingsDialogProps } from '@myk9/ringside';
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import type { AreaCountSelectionDialogProps } from '@myk9/ringside';
 import { Button } from '@/components/ui/button';
 import { Layers } from 'lucide-react';
 import { ClassDialogShell } from './ClassDialogShell';
-import { handleOpenChange } from './dialogHelpers';
 
 // ClassOptionsDialog lives in ./ClassOptionsDialog (MYK9-1502).
 export { ClassOptionsDialog } from './ClassOptionsDialog';
@@ -34,34 +26,7 @@ export { ClassRequirementsDialog } from './RequirementsDialog';
 // ClassSettingsDialog — per-class settings.
 // ---------------------------------------------------------------------------
 
-export const ClassSettingsDialog: React.FC<ClassSettingsDialogProps> = ({
-  isOpen,
-  onClose,
-  classData,
-  onSettingsUpdate,
-}) => {
-  if (!isOpen) return null;
-
-  return (
-    <Dialog open onOpenChange={open => handleOpenChange(open, onClose)}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{classData.class_name} — Settings</DialogTitle>
-        </DialogHeader>
-        <DialogFooter>
-          {onSettingsUpdate && (
-            <Button variant="outline" onClick={onSettingsUpdate}>
-              Save
-            </Button>
-          )}
-          <Button variant="ghost" onClick={onClose}>
-            Close
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-};
+export { ClassSettingsDialog } from './ClassSettingsDialog';
 
 // MaxTimeDialog lives in ./MaxTimeDialog (it saves through the class replica).
 export { MaxTimeDialog } from './MaxTimeDialog';

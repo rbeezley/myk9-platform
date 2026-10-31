@@ -73,7 +73,7 @@ function toTimeOfDay(value: string): string {
 }
 
 /** The clock time entered for Start Time, as the instant on the class's trial date. */
-async function expectedStartInstant(
+export async function expectedStartInstant(
   classId: string,
   clockTime: string | undefined
 ): Promise<string> {

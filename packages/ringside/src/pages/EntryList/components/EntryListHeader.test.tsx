@@ -209,6 +209,22 @@ describe('EntryListHeader', () => {
     expect(trigger.className).toContain('focus-visible:ring-2');
   });
 
+  it('puts the class title on its own row under the Up control on phones (MYK9-1500)', () => {
+    renderHeader();
+
+    const heading = screen.getByRole('heading');
+    const row = heading.parentElement;
+    const block = row?.parentElement;
+    // Class names are pinned, not measured: jsdom has no layout. The browser measurement at 375px is the proof.
+    expect(screen.getByRole('banner').className).toContain('max-sm:flex-wrap');
+    expect(block?.className).toContain('max-sm:order-last');
+    expect(block?.className).toContain('max-sm:basis-full');
+    expect(row?.className).toContain('min-w-0');
+    expect(row?.className).toContain('max-w-full');
+    expect(heading.className).toContain('min-w-0');
+    expect(heading.className).toContain('break-words');
+  });
+
   it('keeps class details open after a click moves the pointer away', () => {
     renderHeader({ classInfo: { ...baseClassInfo, judgeName: 'J. Smith' } as ClassInfo });
     const trigger = screen.getByRole('button', { name: /Container Novice/i });

@@ -15,6 +15,10 @@ export interface EntryClass {
   classId?: string | null;
   name: string;
   number: string;
+  /** `classes.element` (Container, Interior, ...); absent when the read did not carry it. */
+  element?: string | null;
+  /** `classes.level` (Novice, Advanced, ...); absent when the read did not carry it. */
+  level?: string | null;
   fee: number;
   jumpHeight?: string;
   trialType?: string;

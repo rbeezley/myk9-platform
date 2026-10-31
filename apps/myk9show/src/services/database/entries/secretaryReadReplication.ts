@@ -348,6 +348,8 @@ export function toSecretaryEntry(
           id: cls.id,
           name: cls.name,
           class_number: replicatedClassNumber(cls),
+          element: cls.element ?? null,
+          level: cls.level ?? null,
           max_entries: cls.maxEntries ?? null,
         }
       : null,

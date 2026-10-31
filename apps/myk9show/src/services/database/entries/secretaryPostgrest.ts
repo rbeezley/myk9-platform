@@ -96,6 +96,8 @@ const SECRETARY_ENTRIES_BASE_SELECT = `
           id,
           name,
           class_number,
+          element,
+          level,
           max_entries
         )
       `;

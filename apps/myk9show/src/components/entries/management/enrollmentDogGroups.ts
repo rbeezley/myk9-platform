@@ -1,4 +1,5 @@
 import type { EntryManagementEntry } from '@/types/entry-management-types';
+import { sortEntriesByClassOrder } from './entryClassOrder';
 
 export interface EnrollmentDogGroup {
   dogKey: string;
@@ -25,5 +26,8 @@ export function groupEnrollmentEntriesByDog(entries: EntryManagementEntry[]): En
     });
   });
 
-  return Array.from(groups.values());
+  return Array.from(groups.values()).map(group => ({
+    ...group,
+    entries: sortEntriesByClassOrder(group.entries),
+  }));
 }

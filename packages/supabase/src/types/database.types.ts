@@ -3160,6 +3160,103 @@ export type Database = {
           },
         ]
       }
+      entry_form_notes: {
+        Row: {
+          body: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          enrollment_id: string
+          id: string
+          show_id: string
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          enrollment_id: string
+          id?: string
+          show_id: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          enrollment_id?: string
+          id?: string
+          show_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "entry_form_notes_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entry_form_notes_enrollment_id_fkey"
+            columns: ["enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "enrollments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entry_form_notes_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "shows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entry_form_notes_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_breed_stats"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "entry_form_notes_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_clean_sweep_dogs"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "entry_form_notes_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_fastest_times"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "entry_form_notes_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_judge_stats"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "entry_form_notes_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "entry_form_notes_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_stats_summary"
+            referencedColumns: ["show_id"]
+          },
+        ]
+      }
       entry_payment_links: {
         Row: {
           amount_cents: number
@@ -15140,6 +15237,20 @@ export type Database = {
           outcome: string
           request_id: string
           request_status: string
+        }[]
+      }
+      show_dogs_limited_view: {
+        Args: { p_limit?: number; p_offset?: number; p_show_id: string }
+        Returns: {
+          armband: number
+          breed: string
+          call_name: string
+          check_in_status: string
+          class_id: string
+          class_name: string
+          handler_name: string
+          trial_date: string
+          trial_name: string
         }[]
       }
       sign_in_email_drift: { Args: never; Returns: Json }

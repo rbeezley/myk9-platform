@@ -37,8 +37,8 @@ const readEntriesMarker = isAtShowFullyOnDevice;
  * The first hydration shares the page's in-flight `syncAtShowData` operation,
  * so it waits on it without a second sync. The show-on-device marker is read
  * once, inside the settle and before the state is set, so the page never
- * renders between the two answers. A later settled sync (e.g. "Save for show
- * day") upgrades `'not-arrived'` to `'arrived'` once the marker is there.
+ * renders between the two answers. Every later settled sync (e.g. "Save for show
+ * day") re-reads the marker and moves the state either way (MYK9-1560).
  */
 export function useAtShowShowHydration(
   showId: string | undefined,
@@ -62,7 +62,7 @@ export function useAtShowShowHydration(
     // only a connection can finish. The replica is the show: settle from the
     // entries marker at once and leave the sync to the next online start (a
     // connection lost MID-sync is MYK9-1550). A later settled sync still
-    // upgrades `'not-arrived'` below.
+    // re-evaluates it below.
     if (typeof navigator !== 'undefined' && navigator.onLine === false) {
       void readEntriesMarker(forShow).then(onDevice => {
         if (startedShowRef.current === forShow)
@@ -93,12 +93,13 @@ export function useAtShowShowHydration(
   useEffect(() => {
     if (!showId) return;
     return subscribeAtShowSyncSettled(showId, () => {
+      // Both directions (MYK9-1560): a settled sync can complete a partial
+      // replica or leave a once-complete one short (a trial added whose classes
+      // failed). Cached rows stay on screen either way; only the notice changes.
       void readEntriesMarker(showId).then(onDevice => {
-        if (!onDevice) return;
+        const next = onDevice ? 'arrived' : 'not-arrived';
         setHydrated(prev =>
-          prev?.showId === showId && prev.state === 'not-arrived'
-            ? { showId, state: 'arrived' }
-            : prev
+          prev?.showId === showId && prev.state !== next ? { showId, state: next } : prev
         );
       });
     });

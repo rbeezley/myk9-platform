@@ -159,6 +159,31 @@ describe('useAtShowShowHydration', () => {
       expect(result.current).toBe('arrived');
     });
 
+    it('downgrades arrived to not-arrived when a later settled sync leaves a scope short (MYK9-1560)', async () => {
+      goOffline();
+      let settled: () => void = () => {};
+      mocks.subscribeAtShowSyncSettled.mockImplementation((_id: string, cb: () => void) => {
+        settled = cb;
+        return vi.fn();
+      });
+      mocks.hasShowEntriesSynced.mockResolvedValue(true);
+      const { result } = renderHook(() => useAtShowShowHydration('A', IDLE_STATUS, neverRefresh()));
+      await act(async () => {});
+      expect(result.current).toBe('arrived');
+
+      structureState.onDevice = false;
+      await act(async () => {
+        settled();
+      });
+      expect(result.current).toBe('not-arrived');
+
+      structureState.onDevice = true;
+      await act(async () => {
+        settled();
+      });
+      expect(result.current).toBe('arrived');
+    });
+
     it('still waits on the sync when the start is online', async () => {
       mocks.syncAtShowData.mockReturnValue(new Promise(() => {}));
       const { result } = renderHook(() => useAtShowShowHydration('A', IDLE_STATUS, neverRefresh()));

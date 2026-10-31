@@ -46,7 +46,7 @@ VALUES ('00000000-0000-0000-0000-000001517106', '00000000-0000-0000-0000-0000015
 -- 5 exhibitor whose only show-A entry is withdrawn.
 INSERT INTO public.people (id, first_name, last_name, email, phone, auth_user_id)
 SELECT ('00000000-0000-0000-0000-00000151711' || n)::uuid, 'MYK9-1517', 'Person ' || n,
-       'secret-' || n || '@example.test', '555-010' || n,
+       'myk91517-' || n || '@example.test', '555-010' || n,
        ('00000000-0000-0000-0000-00000151712' || n)::uuid
 FROM generate_series(1, 5) n;
 

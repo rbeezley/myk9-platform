@@ -63,6 +63,7 @@ const launchCriticalSqlTests = [
   'show_organization_immutability_test.sql',
   'entries_insert_show_scope_test.sql',
   'enrollments_select_club_scope_test.sql',
+  'myk9_1601_entry_form_notes_test.sql',
   'show_publish_gate_trigger_test.sql',
   'club_authorization_gate_test.sql',
   'myk9_979_online_entries_switch_test.sql',

@@ -61,7 +61,7 @@ export function YourEntriesTodayCard() {
   // One completeness verdict for the list: the read is confirmed AND every
   // class has a known day. Without it, "nothing today" is not a fact, and a
   // list of rows may be missing a class.
-  const undated = hasUndatedClass(entries);
+  const undated = hasUndatedClass(entries, now);
   const incomplete = unconfirmed || undated;
 
   // Still reading is not a failed read: say nothing until the read settles, so

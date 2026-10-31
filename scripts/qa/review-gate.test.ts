@@ -2280,11 +2280,12 @@ describe('a fetch LONGER than GitHub declares is also unusable', () => {
 
 describe('the round-cap verdict (MYK9-1566)', () => {
   const HASH = 'c'.repeat(64);
+  const LOG = '- [P2] a lower finding\n- `a.ts:3` — [P3] another';
   const files = ['scripts/qa/review-gate.ts'];
   const heads = ['1111111', '2222222', HEAD];
   const round = (head: string, hash = HASH, reviewer = 'codex', at = '2026-10-30T10:00:00Z') =>
     comment(
-      `Review gate: ${reviewer} reviewed abc1234..${head} — 2 findings, not all addressed\nlog sha256: ${hash}`,
+      `Review gate: ${reviewer} reviewed abc1234..${head} — 2 findings, not all addressed\nlog sha256: ${hash}\n\n\`\`\`text\n${LOG}\n\`\`\``,
       at
     );
   const cap = (
@@ -2299,7 +2300,7 @@ describe('the round-cap verdict (MYK9-1566)', () => {
         '<details><summary>codex verdict</summary>',
         '',
         '```text',
-        over.log ?? '- [P2] a lower finding\n- `a.ts:3` — [P3] another',
+        over.log ?? LOG,
         '```',
         '',
         '</details>',
@@ -2366,7 +2367,27 @@ describe('the round-cap verdict (MYK9-1566)', () => {
   it('refuses a log whose hash matches no earlier round on that head', () => {
     const r = gate([...threeRounds(), cap({ hash: 'd'.repeat(64) })]);
     expect(r.state).toBe('failure');
-    expect(r.description).toContain('log sha256 matches none');
+    expect(r.description).toContain('log sha256 does not match');
+  });
+
+  it('refuses when a LATER round on the same head withdrew over a P1 (stale P2-only log)', () => {
+    const later = comment(
+      `Review gate: codex reviewed abc1234..${HEAD} — 1 findings, not all addressed\nlog sha256: ${'e'.repeat(64)}\n\n\`\`\`text\n- [P1] real\n\`\`\``,
+      '2026-10-30T10:30:00Z'
+    );
+    const r = gate([...threeRounds(), later, cap()]);
+    expect(r.state).toBe('failure');
+    expect(r.description).toContain('latest round');
+  });
+
+  it('refuses a cap edited to drop a P1 bullet while keeping the recorded hash', () => {
+    const p1Round = comment(
+      `Review gate: codex reviewed abc1234..${HEAD} — 1 findings, not all addressed\nlog sha256: ${HASH}\n\n\`\`\`text\n- [P1] real\n- [P2] x\n\`\`\``,
+      '2026-10-30T10:30:00Z'
+    );
+    const r = gate([round('1111111'), round('2222222'), p1Round, cap({ log: '- [P2] x' })]);
+    expect(r.state).toBe('failure');
+    expect(r.description).toContain('differs from the latest round');
   });
 
   it('refuses a hash that only matches a round on another head', () => {

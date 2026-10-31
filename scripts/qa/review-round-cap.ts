@@ -84,8 +84,18 @@ export function roundCapProblem(
   if (!hash || log.trim() === '') return 'must quote the round log and its log sha256';
   if (BLOCKING_FINDING_BULLET.test(log))
     return 'quotes a log that still carries a [P0] or [P1] bullet';
-  if (!rounds.some(e => sameHead(e.head, cap.head) && logHashOf(e.body) === hash)) {
-    return 'must quote the log of an earlier round recorded on this same head (log sha256 matches none)';
+  // The LATEST round recorded on this head (by last edit), not any earlier one: a
+  // later round with a P1 supersedes an earlier P2-only log. Hash AND quoted text
+  // must match it, so an edited cap that drops a P1 bullet under the old hash is refused.
+  const latest = rounds
+    .filter(e => sameHead(e.head, cap.head))
+    .sort((x, y) => x.updatedAt.localeCompare(y.updatedAt))
+    .at(-1);
+  if (!latest || logHashOf(latest.body) !== hash) {
+    return 'must quote the log of the latest round recorded on this same head (log sha256 does not match it)';
+  }
+  if (quotedLog(latest.body).trim() !== log.trim()) {
+    return 'quotes text that differs from the latest round recorded on this head';
   }
   return undefined;
 }

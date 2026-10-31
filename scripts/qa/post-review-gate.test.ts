@@ -1034,8 +1034,10 @@ describe('post-review-gate.sh round-cap verdict (MYK9-1566)', () => {
   const LOG = 'codex\nNo actionable P0 or P1 defects remain.\n\n- [P2] a lower finding\n';
   const logHash = (text: string) =>
     execFileSync('shasum', ['-a', '256'], { input: text, encoding: 'utf8' }).split(' ')[0]!;
-  const round = (head: string, hash: string) => ({
-    body: `Review gate: codex reviewed ${BASE}..${head} — 2 findings, not all addressed\nlog sha256: ${hash}`,
+  /** What the poster quotes for a log: the text after the `codex` marker line. */
+  const quoted = (log: string) => log.replace(/^codex\n/, '').replace(/\n$/, '');
+  const round = (head: string, hash: string, log = LOG) => ({
+    body: `Review gate: codex reviewed ${BASE}..${head} — 2 findings, not all addressed\nlog sha256: ${hash}\n\n\`\`\`text\n${quoted(log)}\n\`\`\``,
     created_at: '2026-10-30T10:00:00Z',
     updated_at: '2026-10-30T10:00:00Z',
     author_association: 'OWNER',
@@ -1051,8 +1053,8 @@ describe('post-review-gate.sh round-cap verdict (MYK9-1566)', () => {
     );
     return gh;
   }
-  const rounds = (hash: string, n = 3) =>
-    ['1111111', '2222222', HEAD.slice(0, 9), '4444444'].slice(0, n).map(h => round(h, hash));
+  const rounds = (hash: string, n = 3, log = LOG) =>
+    ['1111111', '2222222', HEAD.slice(0, 9), '4444444'].slice(0, n).map(h => round(h, hash, log));
   const post = (gh: { bin: string }, log: string, env: Record<string, string> = {}) =>
     run(['42', 'codex', BASE, HEAD, VERDICT, logFile(log)], gh.bin, {
       DEFERRED_REVIEW: 'MYK9-900',
@@ -1092,7 +1094,7 @@ describe('post-review-gate.sh round-cap verdict (MYK9-1566)', () => {
     'refuses a log carrying %j',
     bullet => {
       const log = `${LOG}${bullet}\n`;
-      const gh = ghWithComments(rounds(logHash(log)));
+      const gh = ghWithComments(rounds(logHash(log), 3, log));
       const r = post(gh, log);
       expect(r.code).toBe(2);
       expect(r.out).toContain('[P0] or [P1]');
@@ -1129,7 +1131,7 @@ describe('post-review-gate.sh round-cap verdict (MYK9-1566)', () => {
   it('refuses structured findings, which carry no priority to show "no P0/P1"', () => {
     const json = '[{"file":"a.ts","summary":"s","failure_scenario":"f"}]';
     const log = `No actionable P0 or P1 defects remain.\n\n\`\`\`json\n${json}\n\`\`\`\n`;
-    const gh = ghWithComments(rounds(logHash(log)));
+    const gh = ghWithComments(rounds(logHash(log), 3, log));
     expect(post(gh, log).code).toBe(2);
     expect(posted(gh)).toBe(false);
   });

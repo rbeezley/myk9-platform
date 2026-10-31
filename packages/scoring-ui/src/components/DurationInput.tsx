@@ -42,6 +42,12 @@ export interface DurationInputProps {
   onFocus?: (() => void) | undefined;
   /** Renders a clear button once there is text; the string names it for screen readers. */
   clearLabel?: string | undefined;
+  /**
+   * Keep one line free for the preview/error (default). The line appearing or
+   * vanishing on blur would shift the controls below between mouse-down and
+   * mouse-up and swallow the tap, so a compact grid cell opts out.
+   */
+  reserveHint?: boolean | undefined;
   /** Extra id of an element (such as an outside warning) to describe the field. */
   describedBy?: string | undefined;
 }
@@ -71,6 +77,7 @@ export const DurationInput: React.FC<DurationInputProps> = ({
   onCancel,
   onFocus,
   clearLabel,
+  reserveHint = true,
   describedBy,
 }) => {
   const autoId = React.useId();
@@ -202,7 +209,11 @@ export const DurationInput: React.FC<DurationInputProps> = ({
           </button>
         )}
       </div>
-      {hint && <div id={hintId}>{hint}</div>}
+      {(hint || reserveHint) && (
+        <div id={hintId} className={reserveHint ? 'min-h-5' : undefined}>
+          {hint}
+        </div>
+      )}
     </div>
   );
 };

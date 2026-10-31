@@ -27,8 +27,9 @@ export const SearchTimeCell: React.FC<SearchTimeCellProps> = ({
           <div className="flex items-center gap-1">
             <DurationInput
               kind="search"
+              reserveHint={false}
               value={item.searchTime}
-              ariaLabel={`Search time for ${item.dogName}`}
+              ariaLabel={`${item.dogName} search time`}
               onChange={value => onFieldChange(item.entryId, 'searchTime', value)}
               onCommit={() => {
                 // INTENT: committing a time jumps focus to the same row's Faults input

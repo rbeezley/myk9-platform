@@ -122,4 +122,13 @@ describe('DurationInput', () => {
     fireEvent.blur(field());
     expect(field().value).toBe('0:30');
   });
+
+  it('keeps the line under the field in place on blur so a tap below is not lost', () => {
+    render(<Harness />);
+    const before = field().parentElement?.nextElementSibling;
+    fireEvent.change(field(), { target: { value: '125' } });
+    fireEvent.blur(field());
+    expect(field().parentElement?.nextElementSibling).toBe(before);
+    expect(before).toHaveClass('min-h-5');
+  });
 });

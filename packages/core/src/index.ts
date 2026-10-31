@@ -91,6 +91,27 @@ export {
   type DurationSuggestion,
 } from './utils/parseDuration';
 
+// Clock-time (time of day) parser: the one parser every time-of-day field and sort reads
+export {
+  parseClockTime,
+  parseStoredClockTime,
+  compareClockTimes,
+  formatClockTime,
+  formatClockTime24,
+  storeClockTime,
+  isUnresolvedClockTime,
+  UNRESOLVED_MARK,
+  isClockTimeFailure,
+  TRIAL_HOURS_START_MINUTES,
+  TRIAL_HOURS_END_MINUTES,
+  type ClockTimeResult,
+  type ClockTimeSuccess,
+  type ClockTimeFailure,
+  type ClockTimeCandidate,
+  type ClockTimeErrorCode,
+  type ClockTimeStorage,
+} from './utils/parseClockTime';
+
 // Date formatting utilities
 export {
   formatDateMMDDYYYY,

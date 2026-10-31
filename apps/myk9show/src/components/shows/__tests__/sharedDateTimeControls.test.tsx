@@ -154,7 +154,7 @@ describe('trial date and start time: create and edit render the same two control
     const date = await screen.findByTestId('trial-date-field');
     expect(within(date).getByRole('button')).toHaveTextContent(/May 2, 2026/);
     expect(within(screen.getByTestId('trial-start-time-field')).getByRole('textbox')).toHaveValue(
-      '09:00 AM'
+      '9:00 AM'
     );
   });
 
@@ -171,8 +171,8 @@ describe('trial date and start time: create and edit render the same two control
     const time = within(await screen.findByTestId('trial-start-time-field')).getByRole('textbox');
     await user.clear(time);
     await user.type(time, '1:30 PM');
-    // The box's text is the start time, exactly as typed; the date is untouched.
-    expect(useWizardStore.getState().trials[0]?.startTimeDraft).toBe('1:30 PM');
+    // The draft is the start time the preview showed, in the stored spelling; the date is untouched.
+    expect(useWizardStore.getState().trials[0]?.startTimeDraft).toBe('01:30 PM');
     expect(useWizardStore.getState().trials[0]?.trialDate).toBe('2026-08-15');
 
     await user.clear(time);
@@ -256,6 +256,6 @@ describe('Edit Trial start time is its own field; the draft is what is validated
     const start = await screen.findByLabelText('Actual Start');
     await user.type(start, '9:15pm');
     await user.tab();
-    expect(start).toHaveValue('09:15 PM');
+    expect(start).toHaveValue('9:15 PM');
   });
 });

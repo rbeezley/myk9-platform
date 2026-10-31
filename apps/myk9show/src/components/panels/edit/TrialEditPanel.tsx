@@ -20,7 +20,7 @@ import type { Trial } from '@/components/trials/types/trial.types';
 import type { ClassStatusValue } from '@myk9/core';
 import { cn } from '@/lib/utils';
 import { FormField } from '@/components/common/FormField';
-import { TimeOfDayInput } from '@/components/common/TimeOfDayInput';
+import { ClockTimeInput } from '@myk9/scoring-ui';
 import { TrialDateField } from '@/components/trials/TrialDateField';
 import { TrialStartTimeField } from '@/components/trials/TrialStartTimeField';
 import { parseLocalDateString } from '@/utils/dateLocal';
@@ -72,9 +72,7 @@ const trialEditSchemaBase = z.object({
   trialDate: z.string().min(1, 'Please select a trial date'),
   eventNumber: z.string().min(1, 'Please enter an event number'),
   status: z.string().min(1, 'Please select a status'),
-  plannedStartTime: z
-    .string()
-    .regex(/^\d{1,2}:\d{2}\s?(AM|PM|am|pm)$/i, 'Please enter a valid time (e.g., 9:00 AM)'),
+  plannedStartTime: z.string().refine(hasTrialTime, 'Please enter a valid time (e.g., 9:00 AM)'),
   order: z.string().refine(
     val => {
       const n = parseInt(val, 10);
@@ -120,7 +118,7 @@ const ClearableTime: React.FC<{
   onChange: (value: string) => void;
 }> = ({ id, label, value, onChange }) => (
   <div className="flex items-center gap-2">
-    <TimeOfDayInput id={id} value={value} onChange={onChange} />
+    <ClockTimeInput id={id} value={value} onChange={onChange} />
     {value && (
       <Button
         type="button"

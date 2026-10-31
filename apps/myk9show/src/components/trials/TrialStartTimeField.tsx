@@ -1,8 +1,7 @@
 import React from 'react';
 import { Label } from '@/components/ui/label';
 import { RequiredMark } from '@/components/common/RequiredMark';
-import { TimeOfDayInput } from '@/components/common/TimeOfDayInput';
-import { cn } from '@/lib/utils';
+import { ClockTimeInput } from '@myk9/scoring-ui';
 import { FieldError } from '@/components/forms';
 
 interface TrialStartTimeFieldProps {
@@ -15,9 +14,9 @@ interface TrialStartTimeFieldProps {
 }
 
 /**
- * A trial's start time: one text field for both the wizard trial card and Edit
- * Trial (MYK9-931, M1). Valid times settle to "09:00 AM" on leaving the box;
- * empty and invalid text are kept as typed and reach validation untouched.
+ * A trial's start time: one smart clock-time field for both the wizard trial card
+ * and Edit Trial (MYK9-931, M1; MYK9-1504). Valid times are stored as "09:00 AM";
+ * empty and unresolved text are kept as typed and reach validation untouched.
  */
 export const TrialStartTimeField: React.FC<TrialStartTimeFieldProps> = ({
   id,
@@ -31,14 +30,14 @@ export const TrialStartTimeField: React.FC<TrialStartTimeFieldProps> = ({
       Start Time
       <RequiredMark />
     </Label>
-    <TimeOfDayInput
+    <ClockTimeInput
       id={id}
       value={value}
       onChange={onChange}
       onBlur={onBlur}
-      aria-invalid={!!error}
-      aria-describedby={error ? `${id}-error` : undefined}
-      className={cn(error && 'border-destructive')}
+      invalid={!!error}
+      describedBy={error ? `${id}-error` : undefined}
+      className={error ? 'h-11 border-destructive text-base' : undefined}
     />
     <FieldError field={id} message={error} />
   </div>

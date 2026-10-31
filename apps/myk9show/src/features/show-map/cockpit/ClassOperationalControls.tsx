@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Check, ChevronDown, Clock3, Pencil, X } from 'lucide-react';
-import { CLASS_STATUS, type ClassStatusValue } from '@myk9/core';
+import { CLASS_STATUS, isUnresolvedClockTime, type ClassStatusValue } from '@myk9/core';
+import { ClockTimeInput } from '@myk9/scoring-ui';
 import { toast } from 'sonner';
 
 import { ConfirmDialog } from '@/components/ui/alert-dialog';
@@ -205,8 +206,10 @@ export function ExpectedStartControl({
     );
   }
 
+  const unresolved = isUnresolvedClockTime(value);
+
   const save = async () => {
-    if (!value) return;
+    if (!value || unresolved) return;
     setIsSaving(true);
     try {
       await setRevisedExpectedStart(classId, clockTimeToInstant(trialDate, value, timeZone));
@@ -234,19 +237,23 @@ export function ExpectedStartControl({
 
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      <input
-        type="time"
-        value={value}
-        onChange={event => setValue(event.target.value)}
-        aria-label="Revised expected start"
-        className="min-h-11 rounded-md border border-input bg-background px-2 text-sm text-foreground"
-      />
+      <div className="w-36">
+        <ClockTimeInput
+          value={value}
+          storage="hhmm"
+          onChange={setValue}
+          ariaLabel="Revised expected start"
+          onSubmit={() => void save()}
+          onCancel={() => setIsEditing(false)}
+          disabled={isSaving}
+        />
+      </div>
       <Button
         type="button"
         size="icon"
         variant="ghost"
         onClick={() => void save()}
-        disabled={!value || isSaving}
+        disabled={!value || unresolved || isSaving}
         aria-label="Save expected start"
         className="h-11 w-11"
       >

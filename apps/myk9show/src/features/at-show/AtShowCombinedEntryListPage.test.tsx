@@ -39,6 +39,11 @@ vi.mock('@/services/replication', () => ({
 // The show's entries scope: synced by default so a genuinely empty list still
 // reads "No Entries Yet"; the not-on-device test flips it (MYK9-1520).
 const entriesScope = vi.hoisted(() => ({ synced: true }));
+const structureState = vi.hoisted(() => ({ onDevice: true }));
+vi.mock('./atShowClassListAdapter', async importOriginal => ({
+  ...(await importOriginal<typeof import('./atShowClassListAdapter')>()),
+  isAtShowStructureOnDevice: async () => structureState.onDevice,
+}));
 vi.mock('@/services/replication/entriesShowSyncState', async importOriginal => ({
   ...(await importOriginal<typeof import('@/services/replication/entriesShowSyncState')>()),
   hasShowEntriesSynced: vi.fn(async () => entriesScope.synced),
@@ -52,7 +57,13 @@ vi.mock('@/hooks/useAuthContext', async importOriginal => {
   const { UserRole } = await import('@/types/auth-types');
   return {
     ...actual,
-    useAuthContext: () => ({ getUserRoles: () => [UserRole.SITE_ADMIN] }),
+    useAuthContext: () => ({
+      getUserRoles: () => [UserRole.SITE_ADMIN],
+      // The ringside menu (MYK9-1508) reads these to route Stats and Results.
+      hasRole: () => false,
+      userWithRoles: null,
+      user: null,
+    }),
   };
 });
 
@@ -270,5 +281,47 @@ describe('AtShowCombinedEntryListPage (Phase 1h combined Section A/B)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Classes' }));
 
     expect(await screen.findByTestId('class-list-page')).toBeInTheDocument();
+  });
+
+  // MYK9-1509: an app-wide pass stuck on a dead connection leaves `isSyncing`
+  // true (cleanup is MYK9-1550). Offline it must not hold the skeleton.
+  describe('offline with the app-wide pass stuck syncing', () => {
+    const stuckSyncStatus: ReplicationSyncContextValue['status'] = {
+      isSyncing: true,
+      lastSyncAt: null,
+      error: null,
+      tablesStatus: { shows: 'syncing', trials: 'syncing', classes: 'syncing', entries: 'syncing' },
+    };
+
+    it('says the entries are not on this device, not the skeleton, for a never-saved show', async () => {
+      const offline = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+      try {
+        entriesScope.synced = false;
+        vi.mocked(replicatedTrialsTable.sync).mockResolvedValue({ success: false } as never);
+        vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([] as never);
+
+        renderPage(stuckSyncStatus);
+
+        expect(await screen.findByText('Entries are not on this device')).toBeInTheDocument();
+        expect(screen.queryByRole('status', { name: /Loading/ })).not.toBeInTheDocument();
+      } finally {
+        offline.mockRestore();
+      }
+    });
+
+    it('shows the saved empty class, not the skeleton, for a previously saved show', async () => {
+      const offline = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+      try {
+        vi.mocked(replicatedTrialsTable.sync).mockResolvedValue({ success: false } as never);
+        vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([] as never);
+
+        renderPage(stuckSyncStatus);
+
+        expect(await screen.findByText('No Entries Yet')).toBeInTheDocument();
+        expect(screen.queryByRole('status', { name: /Loading/ })).not.toBeInTheDocument();
+      } finally {
+        offline.mockRestore();
+      }
+    });
   });
 });

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
@@ -9,7 +9,8 @@ const classState = vi.hoisted(() => ({
   refresh: vi.fn(),
   groups: [] as unknown[],
   available: true,
-  syncGate: null as Promise<void> | null,
+  syncGate: null as Promise<unknown> | null,
+  settled: [] as Array<() => void>,
   realtime: null as null | {
     showId: string | undefined;
     classIds: readonly string[];
@@ -22,6 +23,12 @@ vi.mock('@/hooks/useReplicationSync', () => ({
 vi.mock('./atShowDataAdapter', async importOriginal => ({
   ...(await importOriginal<typeof import('./atShowDataAdapter')>()),
   syncAtShowData: () => classState.syncGate ?? Promise.resolve(),
+  subscribeAtShowSyncSettled: (_showId: string, listener: () => void) => {
+    classState.settled.push(listener);
+    return () => {
+      classState.settled = classState.settled.filter(l => l !== listener);
+    };
+  },
 }));
 vi.mock('./useAtShowRealtimeRefresh', () => ({
   useAtShowRealtimeRefresh: (
@@ -35,6 +42,11 @@ vi.mock('./useAtShowRealtimeRefresh', () => ({
 vi.mock('@/services/replication', () => ({
   replicatedEntriesTable: { getEntriesByShow, subscribe: vi.fn(() => vi.fn()) },
   replicatedArmbandsTable: { getByShow: vi.fn(async () => []), subscribe: vi.fn(() => vi.fn()) },
+}));
+const structureState = vi.hoisted(() => ({ onDevice: true }));
+vi.mock('./atShowClassListAdapter', async importOriginal => ({
+  ...(await importOriginal<typeof import('./atShowClassListAdapter')>()),
+  isAtShowStructureOnDevice: async () => structureState.onDevice,
 }));
 vi.mock('@/services/replication/entriesShowSyncState', () => ({
   hasShowEntriesSynced: async () => classState.available,
@@ -54,6 +66,12 @@ vi.mock('./useAtShowClassList', () => ({
 import { useAtShowStaffDogs } from './useAtShowStaffDogs';
 
 describe('useAtShowStaffDogs', () => {
+  // The offline test spies navigator.onLine; under --sequence.shuffle it must not
+  // leak into whichever test runs next.
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('builds the dog list from the replica while the device is offline', async () => {
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
     getEntriesByShow.mockResolvedValue([
@@ -119,6 +137,7 @@ describe('useAtShowStaffDogs', () => {
   });
 
   it('reports an incomplete replica until the show scope has a completed sync', async () => {
+    classState.syncGate = Promise.resolve({ success: false });
     classState.available = false;
     getEntriesByShow.mockResolvedValue([]);
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -129,7 +148,61 @@ describe('useAtShowStaffDogs', () => {
     await waitFor(() => expect(result.current.dogs).toEqual([]));
     await new Promise(resolve => setTimeout(resolve, 20));
     expect(result.current.isComplete).toBe(false);
+    classState.syncGate = null;
     classState.available = true;
+  });
+
+  it('reports an incomplete replica when the entries synced but the classes did not (MYK9-1538)', async () => {
+    classState.syncGate = Promise.resolve({ success: false });
+    structureState.onDevice = false;
+    getEntriesByShow.mockResolvedValue([]);
+    const { result } = setup();
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.isComplete).toBe(false);
+    classState.syncGate = null;
+    structureState.onDevice = true;
+  });
+
+  it('reports a complete replica when the entries, trials and classes all synced', async () => {
+    getEntriesByShow.mockResolvedValue([]);
+    const { result } = setup();
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.isComplete).toBe(true);
+  });
+
+  describe('cold offline reload (MYK9-1509)', () => {
+    // The show sync waits on the dead connection instead of rejecting.
+    function hangSync() {
+      classState.syncGate = new Promise<void>(() => {});
+      vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    }
+
+    afterEach(() => {
+      classState.syncGate = null;
+      classState.available = true;
+      vi.restoreAllMocks();
+    });
+
+    it('stops loading and lists the cached dogs of a saved show', async () => {
+      hangSync();
+      getEntriesByShow.mockResolvedValue([
+        { id: 'e1', dogId: 'd1', armband: '5', dogCallName: 'Willow', classId: 'c1' },
+      ]);
+      const { result } = setup();
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+      expect(result.current.dogs.map(dog => dog.dogName)).toEqual(['Willow']);
+      expect(result.current.isComplete).toBe(true);
+    });
+
+    it('stops loading and reports an incomplete list for a never-saved show', async () => {
+      hangSync();
+      classState.available = false;
+      getEntriesByShow.mockResolvedValue([]);
+      const { result } = setup();
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+      expect(result.current.dogs).toEqual([]);
+      expect(result.current.isComplete).toBe(false);
+    });
   });
 
   function setup() {
@@ -181,7 +254,7 @@ describe('useAtShowStaffDogs', () => {
   });
 
   it('keeps the partial notice when hydration settles without a completed sync', async () => {
-    classState.syncGate = Promise.resolve();
+    classState.syncGate = Promise.resolve({ success: false });
     classState.available = false;
     getEntriesByShow.mockResolvedValue([]);
     const { result } = setup();
@@ -189,5 +262,19 @@ describe('useAtShowStaffDogs', () => {
     expect(result.current.isComplete).toBe(false);
     classState.syncGate = null;
     classState.available = true;
+  });
+
+  it('flips to incomplete when a later sync adds a trial whose classes fail (MYK9-1560)', async () => {
+    getEntriesByShow.mockResolvedValue([]);
+    const { result } = setup();
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.isComplete).toBe(true);
+
+    structureState.onDevice = false;
+    await act(async () => {
+      classState.settled.forEach(listener => listener());
+    });
+    await waitFor(() => expect(result.current.isComplete).toBe(false));
+    structureState.onDevice = true;
   });
 });

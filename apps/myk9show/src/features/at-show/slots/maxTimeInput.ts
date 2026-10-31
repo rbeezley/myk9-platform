@@ -1,22 +1,14 @@
-/** Max-time entry parsing for the ringside Set Max Time dialog. */
+/** Max-time helpers for the ringside Set Max Time dialog. */
+import { formatDuration, parseDuration } from '@myk9/core';
 
 /**
- * What a judge types → seconds. The iPhone numeric pad has no colon, so besides
- * "4:30" accept "4.30", "430" and a bare "4" (one or two digits are minutes).
+ * What a judge types → seconds, or null when it is not a readable max time. The
+ * rules live in `parseDuration(…, 'max')` (@myk9/core): "4:30", "4.30" and "430"
+ * are 270 s, a bare "4" is four minutes, seconds past 59 are refused.
  */
 export function parseMaxTimeInput(raw: string): number | null {
-  const text = raw.trim();
-  const separated = /^(\d{1,2})[:.](\d{2})$/.exec(text);
-  if (separated) return toSeconds(separated[1], separated[2]);
-  if (/^\d{1,2}$/.test(text)) return Number(text) * 60;
-  const packed = /^(\d{1,2})(\d{2})$/.exec(text);
-  if (packed) return toSeconds(packed[1], packed[2]);
-  return null;
-}
-
-/** Seconds past 59 are a typo, not a time: refuse rather than save a different one. */
-function toSeconds(minutes: string, seconds: string): number | null {
-  return Number(seconds) > 59 ? null : Number(minutes) * 60 + Number(seconds);
+  const parsed = parseDuration(raw, 'max');
+  return parsed.ok ? parsed.seconds : null;
 }
 
 /** The class fields holding each area's max time, area 1 first (MYK9-1098). */
@@ -34,7 +26,7 @@ export function maxTimeAreaCount(areaCount: number | undefined): number {
 /** 150 → "2:30"; no time → "". */
 export function toMinutesSeconds(seconds: number | undefined): string {
   if (!seconds || seconds <= 0) return '';
-  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+  return formatDuration(seconds, 'max');
 }
 
 const STEP_SECONDS = 30;

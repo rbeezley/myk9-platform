@@ -53,8 +53,11 @@ const authState = vi.hoisted(() => ({
   user: null as { is_anonymous?: boolean } | null,
 }));
 
+// The picker resolves the ringside role (for Class Options gating) the way the
+// entry list does; this suite holds no RBAC role, so no one may manage classes.
 vi.mock('@/hooks/useAuthContext', () => ({
-  useAuthContext: () => authState,
+  useAuthContext: () => ({ ...authState, getUserRoles: () => [] }),
+  getPrimaryRole: () => null,
 }));
 
 import { AtShowClassListPage } from './AtShowClassListPage';

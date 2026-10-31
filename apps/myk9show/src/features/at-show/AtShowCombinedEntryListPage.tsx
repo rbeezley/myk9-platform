@@ -25,6 +25,7 @@
  * dialog via `applyCombinedRunOrder`.
  */
 
+import { RingsideMenu } from './menu/RingsideMenu';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -52,6 +53,7 @@ import { persistEntryRunOrder } from './persistEntryRunOrder';
 import { buildRingsideContextValue, buildRingsideReplication } from './ringsideCapabilities';
 import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
 import { useAtShowShowHydration } from './useAtShowShowHydration';
+import { PartialReplicaNotice } from './StaleReadNotice';
 import { AtShowEntriesNotOnDeviceAction } from './AtShowEntriesNotOnDeviceAction';
 import { createAtShowDataDependencies } from './atShowDataAdapter';
 import { useAtShowEntryListActions } from './useAtShowEntryListActions';
@@ -391,6 +393,7 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
             onDismiss={dismissNudge}
           />
         )}
+        {showHydration === 'not-arrived' && entries.length > 0 && <PartialReplicaNotice />}
         <EntryListPage
           classId={classIdA}
           combined={{
@@ -430,6 +433,7 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
             // No printing at ringside — reports live on the secretary Reports page.
             hidePrintOptions: true,
             up: { label: 'Classes', to: resolveClassListRoute(showId) },
+            menu: <RingsideMenu showId={showId} />,
           }}
         />
       </div>

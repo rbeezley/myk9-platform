@@ -1188,10 +1188,10 @@ export type Database = {
           results_released_by: string | null
           results_verified_at: string | null
           results_verified_by: string | null
-          ring_phase: string | null
-          ring_phase_time: string | null
           results_verified_fingerprint: string | null
           revised_expected_start: string | null
+          ring_phase: string | null
+          ring_phase_time: string | null
           scored_count: number | null
           section: string | null
           start_time: string | null
@@ -1251,10 +1251,10 @@ export type Database = {
           results_released_by?: string | null
           results_verified_at?: string | null
           results_verified_by?: string | null
-          ring_phase?: string | null
-          ring_phase_time?: string | null
           results_verified_fingerprint?: string | null
           revised_expected_start?: string | null
+          ring_phase?: string | null
+          ring_phase_time?: string | null
           scored_count?: number | null
           section?: string | null
           start_time?: string | null
@@ -1314,10 +1314,10 @@ export type Database = {
           results_released_by?: string | null
           results_verified_at?: string | null
           results_verified_by?: string | null
-          ring_phase?: string | null
-          ring_phase_time?: string | null
           results_verified_fingerprint?: string | null
           revised_expected_start?: string | null
+          ring_phase?: string | null
+          ring_phase_time?: string | null
           scored_count?: number | null
           section?: string | null
           start_time?: string | null
@@ -10275,6 +10275,7 @@ export type Database = {
           actual_end_time: string | null
           actual_start_time: string | null
           allow_self_checkin: boolean | null
+          auto_complete_stale_classes: boolean | null
           category: string | null
           confirmation_date: string | null
           created_at: string | null
@@ -10304,6 +10305,7 @@ export type Database = {
           actual_end_time?: string | null
           actual_start_time?: string | null
           allow_self_checkin?: boolean | null
+          auto_complete_stale_classes?: boolean | null
           category?: string | null
           confirmation_date?: string | null
           created_at?: string | null
@@ -10333,6 +10335,7 @@ export type Database = {
           actual_end_time?: string | null
           actual_start_time?: string | null
           allow_self_checkin?: boolean | null
+          auto_complete_stale_classes?: boolean | null
           category?: string | null
           confirmation_date?: string | null
           created_at?: string | null
@@ -13377,9 +13380,13 @@ export type Database = {
         Returns: boolean
       }
       entry_enrollment_select_show_ids: { Args: never; Returns: string[] }
+      entry_results_caller_has_no_show_access: {
+        Args: { p_show_id: string }
+        Returns: boolean
+      }
       entry_results_changed_since: {
         Args: { p_show_id: string; p_since: string }
-        Returns: { changed: boolean; server_now: string }
+        Returns: { caller_has_access: boolean; changed: boolean; server_now: string }
       }
       evaluate_entry_capacity: {
         Args: {
@@ -13702,6 +13709,8 @@ export type Database = {
           results_verified_by: string | null
           results_verified_fingerprint: string | null
           revised_expected_start: string | null
+          ring_phase: string | null
+          ring_phase_time: string | null
           scored_count: number | null
           section: string | null
           start_time: string | null
@@ -14014,6 +14023,27 @@ export type Database = {
         }[]
       }
       get_my_person_id: { Args: never; Returns: string }
+      get_nationals_leaderboard_inputs: {
+        Args: { p_show_id: string }
+        Returns: {
+          armband: string
+          check_in_status: string
+          class_id: string
+          class_results_released_at: string
+          dog_call_name: string
+          dog_id: string
+          dog_name: string
+          entry_id: string
+          entry_status: string
+          handler_name: string
+          is_scored: boolean
+          points_earned: number
+          result_status: string
+          search_time_seconds: number
+          show_start_date: string
+          trial_date: string
+        }[]
+      }
       get_own_entitlement_context: {
         Args: never
         Returns: {
@@ -14816,6 +14846,8 @@ export type Database = {
           results_verified_by: string | null
           results_verified_fingerprint: string | null
           revised_expected_start: string | null
+          ring_phase: string | null
+          ring_phase_time: string | null
           scored_count: number | null
           section: string | null
           start_time: string | null
@@ -15011,6 +15043,10 @@ export type Database = {
         Returns: undefined
       }
       ringside_claim_generation_current: { Args: never; Returns: boolean }
+      ringside_complete_stale_class: {
+        Args: { p_class_id: string; p_expected_entry_ids: string[] }
+        Returns: Json
+      }
       ringside_containment_rearm: { Args: { p_reason: string }; Returns: Json }
       ringside_containment_sample: { Args: never; Returns: undefined }
       ringside_replay_applied_version: {
@@ -15039,14 +15075,6 @@ export type Database = {
         Args: { p_payment_link_url?: string; p_waitlist_entry_id: string }
         Returns: string
       }
-      set_class_judge: {
-        Args: { p_class_id: string; p_person_id: string | null }
-        Returns: Json
-      }
-      set_class_tie_order: {
-        Args: { p_class_id: string; p_entry_ids: string[] }
-        Returns: number
-      }
       send_waitlist_offer_message_internal: {
         Args: {
           p_payment_link_url?: string
@@ -15058,6 +15086,14 @@ export type Database = {
       send_waitlist_withdrawal_message_internal: {
         Args: { p_sender_auth_user_id: string; p_waitlist_entry_id: string }
         Returns: string
+      }
+      set_class_judge: {
+        Args: { p_class_id: string; p_person_id: string | null }
+        Returns: Json
+      }
+      set_class_tie_order: {
+        Args: { p_class_id: string; p_entry_ids: string[] }
+        Returns: number
       }
       set_club_authorization: {
         Args: { p_authorized: boolean; p_club_id: string }

@@ -84,17 +84,24 @@ describe('withCombinedStatusLabel (MYK9-1526)', () => {
     expect(label(late, nextDay)).toBe('Start Time 11:00 PM');
   });
 
-  it("keeps A's Briefing time on a tie even when B's Expected start is earlier, like the card", () => {
-    expect(
-      label(
-        { ringPhase: 'briefing', ringPhaseTime: '10:00:00' },
-        {
-          ringPhase: 'briefing',
-          ringPhaseTime: '10:30:00',
-          revisedExpectedStart: '2026-10-30T14:00:00Z',
-        }
-      )
-    ).toBe('Briefing 10:00 AM');
+  it('shows the earlier Briefing when both sections are in it, whichever is A', () => {
+    const early = { ringPhase: 'briefing', ringPhaseTime: '10:00:00' } as const;
+    const late = { ringPhase: 'briefing', ringPhaseTime: '10:30:00' } as const;
+    expect(label(early, late)).toBe('Briefing 10:00 AM');
+    expect(label(late, early)).toBe('Briefing 10:00 AM');
+  });
+
+  it('shows the later Break Until when both sections are on Break', () => {
+    const early = { ringPhase: 'break', ringPhaseTime: '10:30:00' } as const;
+    const late = { ringPhase: 'break', ringPhaseTime: '10:45:00' } as const;
+    expect(label(early, late)).toBe('Break Until 10:45 AM');
+    expect(label(late, early)).toBe('Break Until 10:45 AM');
+  });
+
+  it('shows Offline Scoring whichever section has it', () => {
+    const briefing = { ringPhase: 'briefing', ringPhaseTime: '10:00:00' } as const;
+    expect(label({ ringPhase: 'offline_scoring' }, briefing)).toBe('Offline Scoring');
+    expect(label(briefing, { ringPhase: 'offline_scoring' })).toBe('Offline Scoring');
   });
 
   it('words the merged status with no time when neither section holds it', () => {

@@ -27,8 +27,9 @@
 --      for an entry while holding the class row.
 --   5. Direct anon/authenticated writes to both columns are refused.
 --
--- Grants: authenticated entries column SELECT gains both columns (56 -> 58);
--- anon stays 0 (explicit REVOKE; stated, not inherited).
+-- Grants: the authenticated entries column SELECT stays at 56 columns. Both
+-- columns are revoked from anon and authenticated on the base table (section
+-- 6b); the replica reads them only through the owner-run results views.
 --
 --   6. mark_class_results_verified refuses (MK018) while a ribbon tie in the
 --      class is still unresolved. Both entries results views carry

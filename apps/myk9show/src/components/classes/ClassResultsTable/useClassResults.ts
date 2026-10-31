@@ -11,7 +11,7 @@ import { notifications } from '@/lib/notifications';
 import type { ScentWorkEntry, ScentWorkClassConfig } from '@/types/scent-work-types';
 import type { UserPermissions } from '@/types/user-permissions';
 import type { RawEntryRow } from '@/hooks/queries/useClassEntriesRaw';
-import type { CheckInStatus } from '@myk9/core';
+import { isDurationFailure, parseDuration, type CheckInStatus } from '@myk9/core';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { SCORE_DETAIL_CLEAR_FIELDS } from '@/services/replication/scoreResetFields';
 import {
@@ -221,8 +221,9 @@ export function useClassResults({
       if (row.searchTime && !row.qualification) {
         return `${row.dogName}: Time entered without qualification`;
       }
-      if (row.searchTime && !/^\d{1,2}:[0-5]\d\.\d{2}$/.test(row.searchTime)) {
-        return `${row.dogName}: Invalid time format (use M:SS.HH)`;
+      const parsedTime = row.searchTime ? parseDuration(row.searchTime, 'search') : null;
+      if (parsedTime && isDurationFailure(parsedTime)) {
+        return `${row.dogName}: ${parsedTime.reason}`;
       }
     }
     return null;

@@ -5,12 +5,9 @@
  */
 
 import { useCallback, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { AlertCircle, ChevronRight } from 'lucide-react';
-import { groupSectionedClasses, getClassIds, type ClassEntry } from '@myk9/ringside';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { getClassIds, type ClassEntry } from '@myk9/ringside';
 import { Button } from '@/components/ui/button';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { cn } from '@/lib/utils';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { useOnlineStatus } from '@/lib/networkUtils';
@@ -24,27 +21,44 @@ import {
   type AtShowClassSummary,
   type AtShowTrialSummary,
 } from './myAtShowEntryDetails.helpers';
-import { loadCollapsedTrialIds, saveCollapsedTrialIds } from './atShowClassListState';
 import { formatAtShowClassTime } from './atShowClassTiming';
 import { getTrialTimezone } from '@/features/registries';
 import { useSelfCheckinStateMap } from '@/hooks/queries/useSelfCheckinEnabled';
-import { AtShowClassRow } from './AtShowClassRow';
+import { AtShowClassListSections } from './AtShowClassListSections';
 import { AtShowClassListSkeleton } from './AtShowClassListSkeleton';
 import { AtShowSetupSheetLink } from './AtShowSetupSheetLink';
 import { AtShowDogsLink } from './AtShowDogsLink';
 import { WIDE_COLUMN } from './atShowClassListLayout';
 import { formatAtShowTrialHeading } from './atShowTrialHeading';
 import { useNow } from '@/hooks/useNow';
-import { orderRingClassesByDay } from './orderRingClassesByDay';
+import { useCollapsedTrials } from './useCollapsedTrials';
+import { useAtShowPickerClasses } from './useAtShowPickerClasses';
+import { useAtShowClassCards } from './useAtShowClassCards';
+import { useAtShowClassRefresh } from './useAtShowClassRefresh';
+import {
+  AtShowClassListToolbar,
+  AtShowClassRefreshButton,
+  AtShowClassRefreshResult,
+} from './AtShowClassListToolbar';
+import {
+  AtShowClassListEmptyScreen,
+  AtShowClassListErrorScreen,
+  AtShowClassListNoAssignmentsScreen,
+} from './AtShowClassListScreens';
+import {
+  DEFAULT_CLASS_LIST_SORT,
+  DEFAULT_CLASS_LIST_TAB,
+  classMatchesSearch,
+  classMatchesTab,
+  countByTab,
+  sortClassCards,
+  sortYourRingCards,
+} from './atShowClassListFilter';
 
 /** The scopes the picker's own rows come from. */
 const CLASS_DATA_TABLES = ['shows', 'trials', 'classes'] as const;
 import { ClassListUpButton } from './ClassListUpButton';
-import {
-  sortClassesForAtShowScan,
-  sortClassesForYourRing,
-  yourRingScanPriority,
-} from './atShowClassListSort';
+import { RingsideMenu } from './menu/RingsideMenu';
 import { selectNextUpForCard } from './atShowNextUpPreview';
 import { useMyAtShowJudgeAssignments } from './useMyAtShowJudgeAssignments';
 import { OfflineReadyBadge } from '@/features/offline-readiness/OfflineReadyBadge';
@@ -114,55 +128,55 @@ export const AtShowClassListPage: React.FC = () => {
   // inconvenience; showing them nothing is a dead end at ringside.
   const scopeToAssignedClasses = isJudgeOnly && !assignmentsUnknown;
 
-  // Group A/B pairs into single combined entries per trial (AKC: Novice only;
-  // UKC: every level).
-  const groupedByTrial = useMemo(
-    () =>
-      groups
-        .map(g => ({
-          ...g,
-          classes: scopeToAssignedClasses
-            ? g.classes.filter(cls => assignedClassIds.has(cls.id))
-            : g.classes,
-        }))
-        .map(g => ({
-          trial: g.trial,
-          classes: sortClassesForAtShowScan(groupSectionedClasses(g.classes, organization)),
-        })),
-    [assignedClassIds, groups, scopeToAssignedClasses, organization]
-  );
-
   // Minute clock so the Today/past split follows a midnight rollover (MYK9-1224).
   const nowMs = useNow(60_000);
 
-  // Filter before A/B grouping so a judge assigned to only one section never
-  // gets an unassigned partner pulled into the pinned section.
-  const yourRingClasses = useMemo(
-    () =>
-      orderRingClassesByDay(
-        sortClassesForYourRing(
-          groups.flatMap(group => {
-            const assignedClasses = group.classes.filter(cls => assignedClassIds.has(cls.id));
-            const scanPriorities = new Map(
-              assignedClasses.map(cls => [cls.id, yourRingScanPriority(cls)])
-            );
+  // Card extras (heart, details, options, upload indicator) and their dialogs.
+  const { favoriteClassIds, rowProps, dialogs: cardDialogs } = useAtShowClassCards(showId, groups);
 
-            return groupSectionedClasses(assignedClasses, organization).map(entry => ({
-              entry,
-              scanPriority: Math.min(
-                ...getClassIds(entry).map(
-                  classId => scanPriorities.get(classId) ?? yourRingScanPriority(entry)
-                )
-              ),
-              trialTimeZone: getTrialTimezone(group.trial),
-              trialHeading: formatAtShowTrialHeading(group.trial),
-              trialDate: group.trial.date ?? group.trial.trial_date ?? undefined,
-            }));
-          })
+  const { groupedByTrial, yourRingClasses } = useAtShowPickerClasses({
+    groups,
+    organization,
+    scopeToAssignedClasses,
+    assignedClassIds,
+    favoriteClassIds,
+    nowMs,
+  });
+
+  // Tabs, search and sort narrow the cards already on the device (works offline).
+  const [tab, setTab] = useState(DEFAULT_CLASS_LIST_TAB);
+  const [search, setSearch] = useState('');
+  const [sort, setSort] = useState(DEFAULT_CLASS_LIST_SORT);
+  const allCards = useMemo(() => groupedByTrial.flatMap(group => group.classes), [groupedByTrial]);
+  const tabCounts = useMemo(() => countByTab(allCards), [allCards]);
+  const visibleByTrial = useMemo(
+    () =>
+      groupedByTrial.map(({ trial, classes }) => ({
+        trial,
+        classes: sortClassCards(
+          classes.filter(card => classMatchesTab(card, tab) && classMatchesSearch(card, search)),
+          sort
         ),
-        nowMs
+      })),
+    [groupedByTrial, tab, search, sort]
+  );
+  // Your ring follows the selected tab too: for a judge-only account it IS the picker,
+  // so a tab that hid it would hide their completed classes.
+  const visibleYourRing = useMemo(
+    () =>
+      sortYourRingCards(
+        yourRingClasses.filter(
+          ({ entry }) => classMatchesTab(entry, tab) && classMatchesSearch(entry, search)
+        ),
+        sort
       ),
-    [assignedClassIds, groups, organization, nowMs]
+    [yourRingClasses, tab, search, sort]
+  );
+
+  const { phase: refreshPhase, refresh: refreshClasses } = useAtShowClassRefresh(
+    showId,
+    isOnline,
+    refresh
   );
 
   // Exhibitor show day starts from owned entries, not ringside class
@@ -253,7 +267,22 @@ export const AtShowClassListPage: React.FC = () => {
   // `null` = no manual override yet, so the view tracks ownership as it
   // resolves (starts 'all' while ownEntryIds is still loading, flips to
   // 'mine' once entries are known) without fighting an explicit user choice.
-  const [manualView, setManualView] = useState<'mine' | 'all' | null>(null);
+  // Kept in the URL (`?view=`) so the ringside menu's return control restores it.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedView = searchParams.get('view');
+  const manualView = requestedView === 'mine' || requestedView === 'all' ? requestedView : null;
+  const setManualView = useCallback(
+    (next: 'mine' | 'all') =>
+      setSearchParams(
+        previous => {
+          const params = new URLSearchParams(previous);
+          params.set('view', next);
+          return params;
+        },
+        { replace: true }
+      ),
+    [setSearchParams]
+  );
   const view: 'mine' | 'all' =
     manualView ?? (isExhibitorOnly && ownEntryIds.size > 0 ? 'mine' : 'all');
 
@@ -269,38 +298,7 @@ export const AtShowClassListPage: React.FC = () => {
     [navigate, showId]
   );
 
-  // Trial sections default to open; we track the COLLAPSED ones so an empty
-  // record means "all expanded" (the page's original behavior). Persisted
-  // per-show so a judge's focus on one ring survives reloads.
-  const [collapsedTrialIds, setCollapsedTrialIds] = useState<Set<string>>(
-    () => new Set(showId ? loadCollapsedTrialIds(showId) : [])
-  );
-
-  // The `/at-show/:showId` route reuses this component instance across a param
-  // change (no remount), so re-load the per-show collapsed set whenever the
-  // show changes — otherwise the new show would inherit the previous show's
-  // collapsed sections and the next toggle would persist them under its key.
-  // React's "adjust state during render" pattern (no effect): reset when the
-  // tracked show id no longer matches the current one.
-  const [trackedShowId, setTrackedShowId] = useState(showId);
-  if (showId !== trackedShowId) {
-    setTrackedShowId(showId);
-    setCollapsedTrialIds(new Set(showId ? loadCollapsedTrialIds(showId) : []));
-  }
-
-  const toggleTrial = useCallback(
-    (trialId: string, open: boolean) => {
-      setCollapsedTrialIds(current => {
-        const next = new Set(current);
-        // `open` is the next desired state from the Collapsible: open => not collapsed.
-        if (open) next.delete(trialId);
-        else next.add(trialId);
-        if (showId) saveCollapsedTrialIds(showId, [...next]);
-        return next;
-      });
-    },
-    [showId]
-  );
+  const { collapsedTrialIds, toggleTrial } = useCollapsedTrials(showId);
 
   // Only a sync that can still make progress justifies a spinner. Offline,
   // `triggerSync` returns early and every table stays 'idle' -- a skeleton that
@@ -343,50 +341,27 @@ export const AtShowClassListPage: React.FC = () => {
     );
   }
 
+  const readySlot = <AtShowOfflineReadySlot showId={showId} isExhibitorOnly={isExhibitorOnly} />;
+
   if (error) {
     return (
-      <main className="ringside-root flex min-h-96 flex-col items-center justify-center gap-3 px-4 text-center">
-        <AlertCircle className="h-12 w-12 text-destructive" aria-hidden />
-        <h1 className="text-lg font-medium text-destructive">Failed to load classes</h1>
-        <p className="max-w-md text-sm text-muted-foreground">
-          The class list could not be read on this device. Try again, and if it keeps failing ask
-          the secretary to check this show.
-        </p>
-        <AtShowOfflineReadySlot showId={showId} isExhibitorOnly={isExhibitorOnly} />
-        <div className="flex w-full max-w-xs flex-col gap-2 sm:max-w-none sm:flex-row sm:justify-center">
-          <Button variant="outline" className="min-h-11 px-6" onClick={refresh}>
-            Try again
-          </Button>
-          <ClassListUpButton showId={showId} clubId={clubId} />
-        </div>
-      </main>
+      <AtShowClassListErrorScreen
+        showId={showId}
+        clubId={clubId}
+        readySlot={readySlot}
+        onRetry={refresh}
+      />
     );
   }
 
   if (isJudgeOnly && !assignmentsLoading && !assignmentsUnknown && assignedClassIds.size === 0) {
     return (
-      <main className="ringside-root flex min-h-96 flex-col items-center justify-center gap-3 px-4 text-center">
-        <AlertCircle className="h-12 w-12 text-muted-foreground" aria-hidden />
-        <h1 className="text-lg font-medium">
-          {assignmentError ? "We couldn't load your judge assignments" : 'No classes assigned yet'}
-        </h1>
-        <p className="max-w-md text-sm text-muted-foreground">
-          {assignmentError
-            ? 'Check your connection and try again. Your classes will appear here once assignments are available.'
-            : 'Your secretary has not assigned you to a class for this show yet. Ask them to add your judge assignment.'}
-        </p>
-        <AtShowOfflineReadySlot showId={showId} isExhibitorOnly={isExhibitorOnly} />
-        <div className="flex flex-col gap-2 sm:flex-row">
-          {assignmentError && (
-            <Button variant="outline" className="min-h-11" onClick={retryAssignments}>
-              Try again
-            </Button>
-          )}
-          <Button className="min-h-11" onClick={() => navigate('/judge/dashboard')}>
-            Back to Judge Dashboard
-          </Button>
-        </div>
-      </main>
+      <AtShowClassListNoAssignmentsScreen
+        readySlot={readySlot}
+        assignmentError={Boolean(assignmentError)}
+        onRetry={retryAssignments}
+        onBack={() => navigate('/judge/dashboard')}
+      />
     );
   }
 
@@ -405,29 +380,14 @@ export const AtShowClassListPage: React.FC = () => {
 
   if (!hasClasses) {
     return (
-      <main className="ringside-root flex min-h-96 flex-col items-center justify-center gap-3 px-4 text-center">
-        <h1 className="text-lg font-medium">
-          {classDataNeverReachedDevice ? 'Classes not on this device yet' : 'No classes'}
-        </h1>
-        <p className="max-w-md text-sm text-muted-foreground">
-          {!classDataNeverReachedDevice
-            ? 'This show has no classes yet.'
-            : classSyncFailed
-              ? "This show's classes could not be loaded onto this device. Try again, and if it keeps failing move somewhere with a better signal."
-              : "This device hasn't downloaded this show's classes, and there's no connection to fetch them now. Reconnect once and they'll be here for the rest of the day."}
-        </p>
-        {/* The branch a cold replica lands in is exactly the branch where
-            priming helps most, so the readiness action belongs here too. */}
-        <AtShowOfflineReadySlot showId={showId} isExhibitorOnly={isExhibitorOnly} />
-        <div className="flex w-full max-w-xs flex-col gap-2 sm:max-w-none sm:flex-row sm:justify-center">
-          {classDataNeverReachedDevice && (
-            <Button variant="outline" className="min-h-11 px-6" onClick={refresh}>
-              Try again
-            </Button>
-          )}
-          <ClassListUpButton showId={showId} clubId={clubId} />
-        </div>
-      </main>
+      <AtShowClassListEmptyScreen
+        showId={showId}
+        clubId={clubId}
+        readySlot={readySlot}
+        neverReachedDevice={classDataNeverReachedDevice}
+        syncFailed={classSyncFailed}
+        onRetry={refresh}
+      />
     );
   }
 
@@ -439,21 +399,25 @@ export const AtShowClassListPage: React.FC = () => {
     <main className={`ringside-root ${WIDE_COLUMN} px-4 py-4`}>
       <div className="mb-3 flex items-center justify-between gap-2">
         <ClassListUpButton showId={showId} clubId={clubId} />
-        {/* Gating this on `ownEntryIds.size > 0` alone hid the only route back
-            to an exhibitor's own dogs whenever ownership was merely UNKNOWN --
-            a cold device at the venue -- stranding them in the staff class
-            list. Offer the door whenever we have entries OR cannot rule them
-            out; the destination handles its own empty state. */}
-        {isExhibitorOnly && (ownEntryIds.size > 0 || ownershipUnknown) && (
-          <Button
-            type="button"
-            variant="ghost"
-            className="min-h-11 gap-1.5 px-3"
-            onClick={() => setManualView('mine')}
-          >
-            Your dogs today
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {/* Gating this on `ownEntryIds.size > 0` alone hid the only route back
+              to an exhibitor's own dogs whenever ownership was merely UNKNOWN --
+              a cold device at the venue -- stranding them in the staff class
+              list. Offer the door whenever we have entries OR cannot rule them
+              out; the destination handles its own empty state. */}
+          {isExhibitorOnly && (ownEntryIds.size > 0 || ownershipUnknown) && (
+            <Button
+              type="button"
+              variant="ghost"
+              className="min-h-11 gap-1.5 px-3"
+              onClick={() => setManualView('mine')}
+            >
+              Your dogs today
+            </Button>
+          )}
+          <AtShowClassRefreshButton phase={refreshPhase} onRefresh={() => void refreshClasses()} />
+          <RingsideMenu showId={showId} />
+        </div>
       </div>
 
       {showName && <h1 className="mb-4 text-center text-lg font-semibold">{showName}</h1>}
@@ -483,91 +447,33 @@ export const AtShowClassListPage: React.FC = () => {
         </section>
       )}
 
-      {yourRingClasses.length > 0 && (
-        <section
-          aria-labelledby="your-ring-heading"
-          className="mb-6 rounded-xl border border-primary/30 bg-primary/5 p-3"
-        >
-          <div className="mb-2 flex min-h-11 items-center gap-2 px-1">
-            <h2 id="your-ring-heading" className="min-w-0 flex-1 text-sm font-semibold">
-              Your ring
-            </h2>
-            <span className="shrink-0 rounded-full bg-[color:var(--chip-stone-bg)] px-2 py-0.5 text-xs font-medium text-[color:var(--chip-stone-fg)]">
-              {yourRingClasses.length}
-            </span>
-          </div>
-          <ul className="space-y-2">
-            {yourRingClasses.map(({ entry, trialTimeZone, trialHeading, dayBucket, isToday }) => (
-              <AtShowClassRow
-                key={entry.id}
-                entry={entry}
-                isExhibitorOnly={isExhibitorOnly}
-                onClick={handleClassClick}
-                trialTimeZone={trialTimeZone}
-                trialHeading={trialHeading}
-                dayBucket={dayBucket}
-                isToday={isToday}
-                nextUp={selectNextUpForCard(getClassIds(entry), nextUpByClassId)}
-                entryCountsAvailable={hasTrustedEntryCount(entry)}
-              />
-            ))}
-          </ul>
-        </section>
-      )}
+      <AtShowClassListToolbar
+        tab={tab}
+        onTabChange={setTab}
+        counts={tabCounts}
+        search={search}
+        onSearchChange={setSearch}
+        sort={sort}
+        onSortChange={setSort}
+      />
+      <AtShowClassRefreshResult phase={refreshPhase} />
 
-      {/* INTENT: For a judge-only account with known assignments, Your ring
-          IS the picker. Rendering the same rows again by trial doubles the
-          scroll without adding a navigation option. Broader staff and the
-          assignment-unknown fail-open retain the show-wide trial list. */}
-      {!scopeToAssignedClasses &&
-        groupedByTrial.map(({ trial, classes }) => {
-          if (classes.length === 0) return null;
-          const isOpen = !collapsedTrialIds.has(trial.id);
-          const trialTimeZone = getTrialTimezone(trial);
-          const trialLabel = formatAtShowTrialHeading(trial);
-          return (
-            <Collapsible
-              key={trial.id}
-              open={isOpen}
-              onOpenChange={open => toggleTrial(trial.id, open)}
-              className="mb-6"
-              data-testid={`at-show-trial-${trial.id}`}
-            >
-              <CollapsibleTrigger asChild>
-                <button
-                  type="button"
-                  className="flex min-h-11 w-full items-center gap-2 px-1 text-left text-sm font-medium text-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                  aria-label={`${isOpen ? 'Collapse' : 'Expand'} ${trialLabel}`}
-                >
-                  <ChevronRight
-                    size={16}
-                    className={cn('shrink-0 transition-transform', { 'rotate-90': isOpen })}
-                    aria-hidden="true"
-                  />
-                  <span className="min-w-0 flex-1 truncate">{trialLabel}</span>
-                  <span className="shrink-0 rounded-full bg-[color:var(--chip-stone-bg)] px-2 py-0.5 text-xs font-medium text-[color:var(--chip-stone-fg)]">
-                    {classes.length}
-                  </span>
-                </button>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <ul className="mt-2 space-y-2">
-                  {classes.map(entry => (
-                    <AtShowClassRow
-                      key={entry.id}
-                      entry={entry}
-                      isExhibitorOnly={isExhibitorOnly}
-                      onClick={handleClassClick}
-                      trialTimeZone={trialTimeZone}
-                      nextUp={selectNextUpForCard(getClassIds(entry), nextUpByClassId)}
-                      entryCountsAvailable={hasTrustedEntryCount(entry)}
-                    />
-                  ))}
-                </ul>
-              </CollapsibleContent>
-            </Collapsible>
-          );
+      <AtShowClassListSections
+        tab={tab}
+        yourRing={visibleYourRing}
+        byTrial={visibleByTrial}
+        scopeToAssignedClasses={scopeToAssignedClasses}
+        collapsedTrialIds={collapsedTrialIds}
+        onToggleTrial={toggleTrial}
+        cardProps={entry => ({
+          isExhibitorOnly,
+          onClick: handleClassClick,
+          nextUp: selectNextUpForCard(getClassIds(entry), nextUpByClassId),
+          entryCountsAvailable: hasTrustedEntryCount(entry),
+          ...rowProps(entry),
         })}
+      />
+      {cardDialogs}
     </main>
   );
 };

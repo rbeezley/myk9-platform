@@ -1,6 +1,11 @@
 /**
  * ManualTimeField -- the typed-time row under the timer (MYK9-1501).
  *
+ * The text goes through the shared DurationInput (MYK9-1503): digits fill from the
+ * right, a live line says what was understood, and the stored value stays the
+ * stopwatch's "m:ss.cc". Text that is not yet a time is held as typed so the
+ * sheet can refuse to submit it.
+ *
  * The judge may type a time instead of (or to correct) the stopwatch, so this
  * stays on every sheet, one tap away whenever the timer is stopped. One compact
  * row of about 48px: label, input, Max, and a clear button once there is a time.
@@ -8,7 +13,7 @@
  */
 
 import React from 'react';
-import { Input } from '@myk9/ui';
+import { DurationInput } from './DurationInput';
 
 export interface ManualTimeFieldProps {
   /** Visible label ("Area 1", "Recorded time"). Omit for a single unlabelled area. */
@@ -32,41 +37,29 @@ export const ManualTimeField: React.FC<ManualTimeFieldProps> = ({
   inputId,
   testId,
 }) => (
-  <div className="flex min-h-12 items-center gap-2 rounded-xl border border-border bg-card px-3 py-0.5">
+  <div className="flex min-h-12 items-start gap-2 rounded-xl border border-border bg-card px-3 py-0.5">
     {label && (
       <label
         htmlFor={inputId}
-        className="flex-shrink-0 text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+        className="flex h-11 flex-shrink-0 items-center text-xs font-semibold uppercase tracking-wide text-muted-foreground"
       >
         {label}
       </label>
     )}
-    <div className="relative min-w-0 flex-1">
-      <Input
-        id={inputId}
-        type="text"
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        placeholder="0:00.00"
-        className="h-11 rounded-lg border-2 pr-11 text-center font-mono text-base font-medium focus:border-primary"
-        aria-label={ariaLabel}
-        data-testid={testId}
-      />
-      {value && (
-        <button
-          type="button"
-          className="absolute right-0 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center text-muted-foreground hover:text-foreground"
-          aria-label={`Clear ${ariaLabel}`}
-          onClick={() => onChange('')}
-        >
-          <span aria-hidden="true" className="text-xl leading-none">
-            ×
-          </span>
-        </button>
-      )}
-    </div>
+    <DurationInput
+      kind="search"
+      id={inputId}
+      value={value}
+      onChange={onChange}
+      ariaLabel={ariaLabel}
+      testId={testId}
+      clearLabel={`Clear ${ariaLabel}`}
+      className="h-11 rounded-lg border-2 pr-11 text-center font-mono text-base font-medium focus:border-primary"
+    />
     {maxLabel !== undefined && (
-      <span className="flex-shrink-0 text-xs text-muted-foreground">Max: {maxLabel}</span>
+      <span className="flex h-11 flex-shrink-0 items-center text-xs text-muted-foreground">
+        Max: {maxLabel}
+      </span>
     )}
   </div>
 );

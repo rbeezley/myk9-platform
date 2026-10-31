@@ -49,8 +49,11 @@ const mockAuthState = vi.hoisted(() => ({
   user: null as { is_anonymous?: boolean } | null,
 }));
 
+// The picker resolves the ringside role (for Class Options gating) the way the
+// entry list does; this suite holds no RBAC role, so no one may manage classes.
 vi.mock('@/hooks/useAuthContext', () => ({
-  useAuthContext: () => mockAuthState,
+  useAuthContext: () => ({ ...mockAuthState, getUserRoles: () => [] }),
+  getPrimaryRole: () => null,
 }));
 
 import { AtShowClassListPage } from './AtShowClassListPage';
@@ -171,6 +174,11 @@ describe('AtShowClassListPage (Phase 1h class picker)', () => {
     expect(document.querySelectorAll('[data-family="class"]').length).toBeGreaterThan(0);
   });
 
+  it('offers the ringside menu beside the Up control (MYK9-1508)', async () => {
+    renderPage();
+    expect(await screen.findByRole('button', { name: 'Ringside menu' })).toBeInTheDocument();
+  });
+
   it('shows actual Class timing to staff', async () => {
     mockAuthState.hasRole = role => role === UserRole.SECRETARY;
     vi.mocked(replicatedClassesTable.getClassesByTrial).mockImplementation((async (
@@ -237,6 +245,7 @@ describe('AtShowClassListPage (Phase 1h class picker)', () => {
     expect(
       screen.queryByRole('status', { name: 'Loading at-show classes' })
     ).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Ringside menu' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Ringside' }));
     expect(await screen.findByText('RINGSIDE HOME')).toBeInTheDocument();
   });
@@ -250,6 +259,7 @@ describe('AtShowClassListPage (Phase 1h class picker)', () => {
     expect(
       screen.queryByRole('status', { name: 'Loading at-show classes' })
     ).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Ringside menu' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Ringside' }));
     expect(await screen.findByText('RINGSIDE HOME')).toBeInTheDocument();
   });

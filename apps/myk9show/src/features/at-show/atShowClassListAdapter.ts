@@ -21,6 +21,7 @@ import {
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
+import { gatherShowStructureScopes } from '@/features/offline-readiness/showStructureScopes';
 import { toRingsideClassStatus } from './ringsideClassStatusMap';
 import { getFavoriteClassIdsForTrial } from '@/features/show-today/accountTodayEntries.helpers';
 import { composeClassTitle } from '@/services/entryDisplay/entryDisplaySelectors';
@@ -140,7 +141,7 @@ export function refreshAtShowClassListEntries(
  */
 export async function isAtShowClassDataHydrated(
   showId: string,
-  groups: AtShowClassGroup[]
+  groups: readonly { trial: { id: string }; classes: readonly unknown[] }[]
 ): Promise<boolean> {
   const trialsMeta = (await replicatedTrialsTable.getSyncMetadata(showId)) as SyncMetadata | null;
   if (
@@ -162,6 +163,19 @@ export async function isAtShowClassDataHydrated(
     })
   );
   return classHydration.every(Boolean);
+}
+
+/**
+ * Are this show's trials and each trial's classes on this device? The trial and
+ * class half of the show-is-fully-here marker (see `atShowOnDevice.ts`).
+ *
+ * Coverage is counted from server-backed rows, never array lengths (MYK9-1560):
+ * a queued local delete still counts (the server has the row until it uploads)
+ * and a local-only create never stands in for a missing server row.
+ */
+export async function isAtShowStructureOnDevice(showId: string): Promise<boolean> {
+  const { trials, classes } = await gatherShowStructureScopes(showId);
+  return trials.hydrated && classes.hydrated;
 }
 
 /**

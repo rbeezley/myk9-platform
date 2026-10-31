@@ -1,6 +1,6 @@
 import { StatusBadge, getStatusDescriptor } from '@/components/status';
 import { shouldShowSection } from '@/components/classes/ClassDetailsMain.helpers';
-import { parseTime } from '@/features/show-map/cockpit/cockpitClock';
+import { compareClockTimes } from '@myk9/core';
 import { buildFullClassLabel } from '@/features/_shared/classLabel';
 import { compareLevels } from '@/utils/schedule-summary';
 import type { ColumnDef } from '@/components/ui/data-table';
@@ -15,18 +15,9 @@ function levelLabel(cls: ClassTableRow): string {
   );
 }
 
-/**
- * Clock-time order for the Time column: two unscheduled classes compare equal, and an
- * unscheduled class sorts after a scheduled one (`Infinity - Infinity` would be NaN).
- */
-export function compareClockTimes(a: string | null | undefined, b: string | null | undefined) {
-  const ma = parseTime(a);
-  const mb = parseTime(b);
-  if (ma === null && mb === null) return 0;
-  if (ma === null) return 1;
-  if (mb === null) return -1;
-  return ma - mb;
-}
+// The Time column sorts through the one clock-time order in @myk9/core: two unscheduled
+// classes compare equal and an unscheduled class sorts after a scheduled one.
+export { compareClockTimes };
 
 export interface ClassTableRow extends ClassInfo {
   trialLabel: string;

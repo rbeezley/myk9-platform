@@ -54,6 +54,8 @@ export interface TrialInput {
    *  toSupabaseRow so an offline-created or add-trials trial persists the
    *  show's zone instead of the DB's 'America/New_York' default. */
   timezone?: string | undefined;
+  /** MYK9-1514: false turns the judge's stale-class prompt off; unset means enabled. */
+  autoCompleteStaleClasses?: boolean | undefined;
   // Additional fields from Trial interface for updates
   image?: string | undefined;
   timeStarted?: string | undefined;

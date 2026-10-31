@@ -30,6 +30,7 @@ import { ShowExhibitorView } from '@/components/shows/ShowDetails/ShowExhibitorV
 import { heroViewerFromUser } from '@/components/common/heroParentLink';
 import { type ShowDetailTabsProps } from '@/components/shows/ShowDetails/ShowDetailTabs';
 import { resolveShowAudience } from './ShowDetailsPage.audience';
+import { useHasRingsideStaffAccess } from '@/features/at-show/useHasRingsideStaffAccess';
 import {
   buildShowDetailTabDefs,
   buildShowManagementTabDefs,
@@ -201,6 +202,7 @@ const ShowDetailsPage: React.FC = () => {
   const hasUserEntries = submittedEntryProjection.hasActiveEntries;
   const hasOwnedEntryHistory = submittedEntryProjection.historyCount > 0;
   const isAuthenticated = !!user;
+  const hasRingsideAccess = useHasRingsideStaffAccess(id, actualCurrentShow?.clubId);
   const requestedTab = searchParams.get('tab');
   const entryDogId = readEntryDogId(searchParams);
   const isWaitingForExhibitorEntryDefault =
@@ -229,6 +231,7 @@ const ShowDetailsPage: React.FC = () => {
     isAuthenticated,
     userEntriesLoading: exhibitorEntryDataState === 'loading',
     hasUserEntries: hasOwnedEntryHistory,
+    hasRingsideAccess,
   });
 
   // The Results badge counts what the Results tab renders: result groups from

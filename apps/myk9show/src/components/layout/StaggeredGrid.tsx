@@ -13,7 +13,7 @@
  *   </StaggeredGrid>
  */
 
-import { type ReactNode, Children, useMemo } from 'react';
+import { type ReactNode, Children, isValidElement, useMemo } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 
 interface StaggeredGridProps {
@@ -32,25 +32,23 @@ interface StaggeredGridProps {
   viewportAmount?: number;
 }
 
-const containerVariants = {
-  hidden: {},
-  visible: (staggerDelay: number) => ({
-    transition: {
-      staggerChildren: staggerDelay,
-    },
-  }),
-};
+/** Children past this position enter with the same delay, so a long list never waits seconds. */
+const MAX_STAGGER_STEPS = 12;
 
-const itemVariants = (duration: number, distance: number) => ({
+// Each child owns its entrance (MYK9-1549). A child that mounts after the
+// grid's first paint (a filter added cards) used to inherit a container whose
+// one-shot animation had already played, so it stayed at opacity 0 forever.
+const itemVariants = (duration: number, distance: number, staggerDelay: number) => ({
   hidden: { opacity: 0, y: distance },
-  visible: {
+  visible: (index: number) => ({
     opacity: 1,
     y: 0,
     transition: {
       duration,
       ease: 'easeOut' as const,
+      delay: Math.min(index, MAX_STAGGER_STEPS) * staggerDelay,
     },
-  },
+  }),
 });
 
 export function StaggeredGrid({
@@ -64,7 +62,10 @@ export function StaggeredGrid({
 }: StaggeredGridProps) {
   const reduced = useReducedMotion();
 
-  const variants = useMemo(() => itemVariants(duration, distance), [duration, distance]);
+  const variants = useMemo(
+    () => itemVariants(duration, distance, staggerDelay),
+    [duration, distance, staggerDelay]
+  );
 
   if (reduced) {
     return <div className={className}>{children}</div>;
@@ -73,21 +74,22 @@ export function StaggeredGrid({
   const childArray = Children.toArray(children);
 
   return (
-    <motion.div
-      className={className}
-      variants={containerVariants}
-      initial="hidden"
-      whileInView="visible"
-      viewport={{ once, amount: viewportAmount }}
-      custom={staggerDelay}
-    >
+    <div className={className}>
       {childArray.map((child, index) => (
-        // Wrapper motion.div is required for framer-motion stagger animations.
-        // It participates in CSS grid as a grid item, which is the correct behavior.
-        <motion.div key={index} variants={variants}>
+        // Wrapper motion.div is required for the entrance animation. It
+        // participates in CSS grid as a grid item, which is the correct behavior.
+        // Keyed by the child's own key (its item id), never its position.
+        <motion.div
+          key={isValidElement(child) && child.key != null ? child.key : index}
+          variants={variants}
+          custom={index}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once, amount: viewportAmount }}
+        >
           {child}
         </motion.div>
       ))}
-    </motion.div>
+    </div>
   );
 }

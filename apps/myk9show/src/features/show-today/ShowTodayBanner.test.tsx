@@ -107,7 +107,7 @@ describe('ShowTodayBanner', () => {
         {
           showId: 'show-early',
           showName: 'Morning Trial',
-          earliestClassTime: '08:5',
+          earliestClassTime: '08:05',
           entryCount: 1,
           classCount: 1,
         },

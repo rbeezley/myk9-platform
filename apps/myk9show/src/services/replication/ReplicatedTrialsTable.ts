@@ -49,6 +49,11 @@ export interface ReplicatedTrial {
   displayOrder?: number | undefined;
   category?: string | undefined;
   imageUrl?: string | undefined;
+  /**
+   * MYK9-1514: `false` turns the judge's stale-class prompt off for this trial. Undefined (the
+   * column is NULL, or not pushed yet) means enabled.
+   */
+  autoCompleteStaleClasses?: boolean | undefined;
   /** IANA timezone (migration 192 default 'America/New_York'); drives show-local date logic. */
   timezone?: string | undefined;
   /** Sanctioning body (migration 192 default 'AKC'); drives registry-aware copy + class structure. */
@@ -90,6 +95,7 @@ export function rowToTrial(row: TrialRow): ReplicatedTrial {
     displayOrder: row.display_order ?? undefined,
     category: row.category ?? undefined,
     imageUrl: row.image_url ?? undefined,
+    autoCompleteStaleClasses: row.auto_complete_stale_classes ?? undefined,
     timezone: row.timezone ?? undefined,
     registryId: row.registry_id ?? undefined,
     deletedAt: row.deleted_at ?? undefined,
@@ -165,6 +171,11 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
       display_order: trial.displayOrder ?? null,
       category: trial.category ?? null,
       image_url: trial.imageUrl ?? null,
+      // MYK9-1514: only sent once set, so a trial nobody touched never writes a column an
+      // older database may not have yet.
+      ...(trial.autoCompleteStaleClasses !== undefined && {
+        auto_complete_stale_classes: trial.autoCompleteStaleClasses,
+      }),
       // Registry (migration 192) — the write side of the registry column. Default to 'AKC'
       // (the DB default) when unset so this never writes NULL into the NOT-NULL column.
       registry_id: trial.registryId ?? 'AKC',

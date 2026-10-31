@@ -13,8 +13,9 @@ import { useState } from 'react';
 import type React from 'react';
 import type { ClassStatusDialogProps, ClassStatusValue } from '@myk9/ringside';
 import { Flag } from 'lucide-react';
+import { isUnresolvedClockTime } from '@myk9/core';
+import { ClockTimeInput } from '@myk9/scoring-ui';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { ClassDialogShell } from './ClassDialogShell';
@@ -152,19 +153,18 @@ const ClassStatusForm: React.FC<ClassStatusDialogProps> = ({
           className="flex flex-col gap-2"
           onSubmit={event => {
             event.preventDefault();
-            if (time) void save(picked.value, time);
+            if (time && !isUnresolvedClockTime(time)) void save(picked.value, time);
           }}
         >
           <Label htmlFor="class-status-time">{picked.timeLabel}</Label>
-          <Input
+          <ClockTimeInput
             id="class-status-time"
-            type="time"
             value={time}
-            onChange={event => setTime(event.target.value)}
-            required
+            storage="hhmm"
+            onChange={setTime}
             autoFocus
           />
-          <Button type="submit" disabled={saving || !time}>
+          <Button type="submit" disabled={saving || !time || isUnresolvedClockTime(time)}>
             Set {picked.label}
           </Button>
         </form>

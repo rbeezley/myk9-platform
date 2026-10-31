@@ -23,6 +23,8 @@ export interface Trial {
   registryId?: string | null;
   entryCloseDate?: string | null;
   timezone?: string | null;
+  /** MYK9-1514: false turns the judge's stale-class prompt off; unset means enabled. */
+  autoCompleteStaleClasses?: boolean | null;
   maxTotalEntries?: number | null;
   judge?: string | null;
   confirmationDate?: string | null;

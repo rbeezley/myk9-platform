@@ -1,40 +1,25 @@
 import { format } from 'date-fns';
+import {
+  formatClockTime,
+  formatClockTime24,
+  parseStoredClockTime,
+  storeClockTime,
+} from '@myk9/core';
 import { zonedTimeToUtcDate } from '@/features/lifecycle-emails/schedule';
 import { formatTime } from '@/lib/format/dates';
 
-/** Parse "9:05 AM" / "09:05 pm" into 24-hour parts, or null when it is not a time. */
-export function parseTimeOfDay(text: string): { hours: number; minutes: number } | null {
-  const match = text.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)?$/);
-  if (!match) return null;
-  let hours = parseInt(match[1] ?? '', 10);
-  const minutes = parseInt(match[2] ?? '', 10);
-  const period = match[3]?.toUpperCase();
-  if (period === 'PM' && hours !== 12) hours += 12;
-  if (period === 'AM' && hours === 12) hours = 0;
-  if (hours > 23 || minutes > 59) return null;
-  return { hours, minutes };
-}
-
 /** True when the text is a real time of day; empty or unparseable text means "no time". */
 export function hasTrialTime(text: string): boolean {
-  return parseTimeOfDay(text) !== null;
-}
-
-/** Zero-padded 12-hour "09:05 AM" from 24-hour parts (no Date: a time of day is not an instant). */
-export function formatTimeOfDay(hours: number, minutes: number): string {
-  const period = hours >= 12 ? 'PM' : 'AM';
-  const hour12 = hours % 12 === 0 ? 12 : hours % 12;
-  return `${String(hour12).padStart(2, '0')}:${String(minutes).padStart(2, '0')} ${period}`;
+  return parseStoredClockTime(text) !== null;
 }
 
 /**
- * One spelling for a time of day: zero-padded 12-hour, "09:05 AM" — the form Edit
- * Trial has always stored and validated. Unparseable text comes back trimmed.
+ * One spelling for a stored trial time of day: zero-padded 12-hour, "09:05 AM" — the
+ * form Edit Trial has always stored and validated. Unparseable text comes back trimmed.
  */
 export function normalizeTimeOfDay(text: string): string {
-  const parts = parseTimeOfDay(text);
-  if (!parts) return text.trim();
-  return formatTimeOfDay(parts.hours, parts.minutes);
+  const minutes = parseStoredClockTime(text);
+  return minutes === null ? text.trim() : storeClockTime(minutes, 'text');
 }
 
 /**
@@ -49,11 +34,9 @@ export function combineTrialDateTime(
   startTimeDraft: string | undefined
 ): string {
   if (!trialDate || !/^\d{4}-\d{2}-\d{2}$/.test(trialDate)) return '';
-  const parts = startTimeDraft === undefined ? null : parseTimeOfDay(startTimeDraft);
-  if (!parts) return '';
-  const hh = String(parts.hours).padStart(2, '0');
-  const mm = String(parts.minutes).padStart(2, '0');
-  return `${trialDate}T${hh}:${mm}:00`;
+  const minutes = parseStoredClockTime(startTimeDraft);
+  if (minutes === null) return '';
+  return `${trialDate}T${formatClockTime24(minutes)}:00`;
 }
 
 /** What Review shows for a trial's moment: exactly what will be saved, or "Not set". */
@@ -63,16 +46,10 @@ export function trialScheduleLabel(trial: {
 }): string {
   const combined = combineTrialDateTime(trial.trialDate, trial.startTimeDraft);
   if (!combined) return 'Not set';
-  const parts = parseTimeOfDay(trial.startTimeDraft ?? '');
+  const minutes = parseStoredClockTime(trial.startTimeDraft) ?? 0;
   const [year, month, day] = trial.trialDate.split('-').map(Number);
-  const at = new Date(
-    year ?? 2000,
-    (month ?? 1) - 1,
-    day ?? 1,
-    parts?.hours ?? 0,
-    parts?.minutes ?? 0
-  );
-  return format(at, "MMM d, yyyy 'at' h:mm a");
+  const at = new Date(year ?? 2000, (month ?? 1) - 1, day ?? 1);
+  return `${format(at, 'MMM d, yyyy')} at ${formatClockTime(minutes)}`;
 }
 
 export type TrialStartTimeIssue = 'blank' | 'invalid';
@@ -107,15 +84,15 @@ export function trialStartTimeMessage(issue: TrialStartTimeIssue, trialName?: st
  */
 export function clockOnDateToIso(date: string, clock: string, timeZone: string): string | null {
   const day = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
-  const time = parseTimeOfDay(clock);
-  if (!day || !time) return null;
+  const minutes = parseStoredClockTime(clock);
+  if (!day || minutes === null) return null;
   return zonedTimeToUtcDate(
     {
       year: Number(day[1]),
       month: Number(day[2]),
       day: Number(day[3]),
-      hour: time.hours,
-      minute: time.minutes,
+      hour: Math.floor(minutes / 60),
+      minute: minutes % 60,
       second: 0,
       millisecond: 0,
     },
@@ -126,6 +103,6 @@ export function clockOnDateToIso(date: string, clock: string, timeZone: string):
 /** A stored instant shown as a clock time in `timeZone`; text that is not an instant passes through. */
 export function isoToClock(value: string | undefined, timeZone: string): string {
   if (!value) return '';
-  if (parseTimeOfDay(value)) return value;
+  if (parseStoredClockTime(value) !== null) return value;
   return formatTime(value, timeZone) || value;
 }

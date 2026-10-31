@@ -264,6 +264,7 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
           ],
         }}
         up={context.up}
+        menu={context.menu}
         CompactOfflineIndicator={layout.CompactOfflineIndicator}
         SyncIndicator={layout.SyncIndicator}
         RefreshIndicator={layout.RefreshIndicator}

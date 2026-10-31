@@ -152,6 +152,26 @@ describe('deriveClassRowState', () => {
     expect(stateOf([makeRow([makeClass()])])).toEqual({ kind: 'check-in-available' });
   });
 
+  // MYK9-1557: an undated class is neither "opens on the day" nor "not run".
+  it('reads day-unknown, never opens-later or check-in, while the trial date has not replicated', () => {
+    expect(stateOf([makeRow([makeClass({ trialDate: undefined })])])).toEqual({
+      kind: 'day-unknown',
+    });
+  });
+
+  it('moves the row from day-unknown to check-in-available when the trial arrives', () => {
+    expect(stateOf([makeRow([makeClass({ trialDate: undefined })])])).toEqual({
+      kind: 'day-unknown',
+    });
+    expect(stateOf([makeRow([makeClass()])])).toEqual({ kind: 'check-in-available' });
+  });
+
+  it('reads opens-later for another day, not day-unknown', () => {
+    expect(stateOf([makeRow([makeClass({ trialDate: SUNDAY })])])).toEqual({
+      kind: 'opens-later',
+    });
+  });
+
   // MYK9-568 round 3: "opens-later" promises self check-in on the trial day.
   // That promise may only be made when the SAME eligibility the day-of gate
   // uses would already pass — otherwise a paid-but-still-pending exhibitor

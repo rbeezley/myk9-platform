@@ -1,17 +1,8 @@
 import React from 'react';
+import { resultStatusLabel, type ResultStatus } from './resultStatusLabel';
 
 /** Known result status values from the scoring system */
-export type ResultStatus = 'qualified' | 'nq' | 'absent' | 'excused' | 'disqualified' | 'withdrawn';
-
-/** Map from raw result_status to abbreviated label */
-const STATUS_LABELS: Record<ResultStatus, string> = {
-  qualified: 'Q',
-  nq: 'NQ',
-  absent: 'ABS',
-  excused: 'EX',
-  disqualified: 'DQ',
-  withdrawn: 'WD',
-};
+export type { ResultStatus };
 
 /** Map from abbreviated result_text to color class */
 const RESULT_COLORS: Record<string, string> = {
@@ -34,7 +25,7 @@ interface ResultBadgeProps {
  * Accepts raw result_status and abbreviates automatically.
  */
 export const ResultBadge: React.FC<ResultBadgeProps> = ({ resultStatus, variant = 'compact' }) => {
-  const label = STATUS_LABELS[resultStatus as ResultStatus] ?? resultStatus.toUpperCase();
+  const label = resultStatusLabel(resultStatus);
   const colorClass = RESULT_COLORS[label] ?? DEFAULT_COLOR;
 
   const sizeClass =

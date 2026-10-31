@@ -87,10 +87,30 @@ describe('ClassStatusDialog (MYK9-1513)', () => {
     expect(onStatusChange).toHaveBeenCalledWith(status, time);
   });
 
+  it('previews smart-typed digits and sends the 24-hour time it showed', async () => {
+    const { onStatusChange, onClose } = renderDialog();
+    fireEvent.click(screen.getByRole('button', { name: /^Briefing/ }));
+    fireEvent.change(screen.getByLabelText('Briefing time'), { target: { value: '130' } });
+    expect(screen.getByTestId('clock-time-preview')).toHaveTextContent('= 1:30 PM');
+    fireEvent.click(screen.getByRole('button', { name: 'Set Briefing' }));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(onStatusChange).toHaveBeenCalledWith('briefing', '13:30');
+  });
+
+  it('will not send a time that could be AM or PM until the person picks one', async () => {
+    const { onStatusChange } = renderDialog();
+    fireEvent.click(screen.getByRole('button', { name: /^Break/ }));
+    fireEvent.change(screen.getByLabelText('Break until'), { target: { value: '7' } });
+    expect(screen.getByRole('button', { name: 'Set Break' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: '7:00 PM' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Set Break' }));
+    await waitFor(() => expect(onStatusChange).toHaveBeenCalledWith('break', '19:00'));
+  });
+
   it("prefills the class's saved briefing time", () => {
     renderDialog({}, { briefing_time: '09:45' });
     fireEvent.click(screen.getByRole('button', { name: /^Briefing/ }));
-    expect(screen.getByLabelText('Briefing time')).toHaveValue('09:45');
+    expect(screen.getByLabelText('Briefing time')).toHaveValue('9:45 AM');
   });
 
   it('stays open and says so when the change fails', async () => {

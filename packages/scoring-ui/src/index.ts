@@ -48,7 +48,6 @@ export {
   formatTimeForDisplay,
   formatTimeLimitSeconds,
   parseTimeToMs,
-  formatTimeInputToMMSS,
 } from './utils/timeUtils';
 export { resultLabel } from './utils/resultLabel';
 export { buildResolvedClassRules, maxTimeForArea } from './utils/buildResolvedClassRules';
@@ -104,6 +103,8 @@ export {
   ScoresheetTimerCard,
   type ScoresheetTimerCardProps,
 } from './components/ScoresheetTimerCard';
+export { DurationInput, type DurationInputProps } from './components/DurationInput';
+export { ClockTimeInput, type ClockTimeInputProps } from './components/ClockTimeInput';
 export { ManualTimeField, type ManualTimeFieldProps } from './components/ManualTimeField';
 export { FaultStepper, type FaultStepperProps } from './components/FaultStepper';
 export {

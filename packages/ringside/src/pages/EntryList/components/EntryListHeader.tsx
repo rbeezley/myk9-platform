@@ -73,6 +73,8 @@ export interface EntryListHeaderProps {
   onRefresh: () => void;
   /** The Up control's label and fixed parent route (MYK9-1500). */
   up: { label: string; to: string };
+  /** Host-rendered menu control, shown at the end of the header (MYK9-1508). */
+  menu?: React.ReactNode;
   /** Actions menu items configuration */
   actionsMenu: ActionsMenuConfig;
   /** For combined view - show section badge */
@@ -109,6 +111,7 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
   onRefresh,
   actionsMenu,
   up,
+  menu,
   showSectionsBadge = false,
   refreshLongPressHandlers,
   CompactOfflineIndicator,
@@ -290,6 +293,7 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
           actionsMenu={actionsMenu}
           refreshLongPressHandlers={refreshLongPressHandlers}
         />
+        {menu}
       </div>
     </header>
   );

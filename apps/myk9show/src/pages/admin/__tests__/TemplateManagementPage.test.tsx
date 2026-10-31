@@ -149,6 +149,7 @@ describe('TemplateManagementPage', () => {
   it('lets an admin re-read the database after running a migration', async () => {
     const { user } = render(<TemplateManagementPage />);
 
+    expect(screen.getByRole('button', { name: /re-read database/i })).toHaveClass('min-h-11');
     await user.click(screen.getByRole('button', { name: /re-read database/i }));
 
     expect(refetch).toHaveBeenCalledTimes(1);

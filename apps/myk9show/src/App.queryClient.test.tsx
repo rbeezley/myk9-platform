@@ -31,6 +31,7 @@ vi.mock('@/hooks/useAnnouncementSubscription', () => ({
 }));
 vi.mock('@/hooks/useMessageSubscription', () => ({ useMessageSubscription: vi.fn() }));
 vi.mock('@/hooks/useNotificationMonitor', () => ({ useNotificationMonitor: vi.fn() }));
+vi.mock('@/hooks/useThemeSyncOnReconnect', () => ({ useThemeSyncOnReconnect: vi.fn() }));
 
 // App starts these development-only side-effect imports during module evaluation.
 // They are unrelated to query-client ownership and must not outlive this test worker.

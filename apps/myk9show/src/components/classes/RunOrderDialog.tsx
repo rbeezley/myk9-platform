@@ -115,8 +115,9 @@ export const RunOrderDialog: React.FC<RunOrderDialogProps> = ({
   const handleApply = async () => {
     if (!selected) return;
 
-    if (selected === 'manual') {
-      // manual: just close — the hook treats 'manual' as a no-op
+    if (selected === 'manual' && scope === 'all') {
+      // manual over the whole class: just close — the host opens drag mode.
+      // A single-section drag asks the renumber question first, like presets.
       setIsApplying(true);
       try {
         await onApply(selected, scope);
@@ -301,11 +302,7 @@ export const RunOrderDialog: React.FC<RunOrderDialogProps> = ({
               Cancel
             </Button>
             <Button onClick={handleApply} disabled={!selected || isApplying}>
-              {isApplying
-                ? 'Applying...'
-                : scope !== 'all' && selected !== 'manual'
-                  ? 'Next'
-                  : 'Apply'}
+              {isApplying ? 'Applying...' : scope !== 'all' ? 'Next' : 'Apply'}
             </Button>
           </DialogFooter>
         )}

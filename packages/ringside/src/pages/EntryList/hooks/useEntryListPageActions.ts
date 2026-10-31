@@ -97,6 +97,12 @@ export function useEntryListPageActions({
       // which the host handler does.
       if (preset === 'manual') {
         handleOpenDragMode();
+        // A single-section drag carries its scope + renumber choice to the host,
+        // which narrows the list to that section and applies the choice on drop.
+        // Called AFTER opening drag mode: opening resets any earlier scoped drag.
+        if (scope && scope !== 'all') {
+          await handlers.handleApplyRunOrder(preset, scope, renumberMode);
+        }
         return;
       }
       // The host REPORTS whether the order persisted (both hosts catch their own

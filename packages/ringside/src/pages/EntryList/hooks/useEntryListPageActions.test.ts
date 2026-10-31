@@ -14,11 +14,12 @@ function setup(persisted: boolean) {
   } as unknown as EntryListUiActions;
   const handlers = {
     handleApplyRunOrder: vi.fn().mockResolvedValue(persisted),
+    handleOpenDragMode: vi.fn(),
   } as unknown as EntryListHandlers;
   const { result } = renderHook(() =>
     useEntryListPageActions({ handlers, uiActions, printDialogType: null, currentEntries: [] })
   );
-  return { result, uiActions };
+  return { result, uiActions, handlers };
 }
 
 describe('useEntryListPageActions.handleApplyRunOrder', () => {
@@ -36,5 +37,22 @@ describe('useEntryListPageActions.handleApplyRunOrder', () => {
     await result.current.handleApplyRunOrder('armband-asc', 'A', 'preserve');
     expect(uiActions.setRunOrderDialogOpen).toHaveBeenCalledWith(false);
     expect(uiActions.setSortOrder).toHaveBeenCalledWith('run');
+  });
+
+  it('opens drag mode first, then hands a single-section manual drag its scope and renumber choice', async () => {
+    const { result, handlers } = setup(true);
+    await result.current.handleApplyRunOrder('manual', 'A', 'preserve');
+    expect(handlers.handleOpenDragMode).toHaveBeenCalledTimes(1);
+    expect(handlers.handleApplyRunOrder).toHaveBeenCalledWith('manual', 'A', 'preserve');
+    const open = vi.mocked(handlers.handleOpenDragMode).mock.invocationCallOrder[0];
+    const apply = vi.mocked(handlers.handleApplyRunOrder).mock.invocationCallOrder[0];
+    expect(open).toBeLessThan(apply);
+  });
+
+  it('a whole-class manual drag only opens drag mode', async () => {
+    const { result, handlers } = setup(true);
+    await result.current.handleApplyRunOrder('manual', 'all');
+    expect(handlers.handleOpenDragMode).toHaveBeenCalledTimes(1);
+    expect(handlers.handleApplyRunOrder).not.toHaveBeenCalled();
   });
 });

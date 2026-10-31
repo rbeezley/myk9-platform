@@ -60,6 +60,16 @@ describe('RunOrderDialogSlot (ringside run-order dialog)', () => {
     expect(onApplyOrder).not.toHaveBeenCalled();
   });
 
+  it('sends a single-section manual drag through onApplyOrder with its renumber choice', async () => {
+    const { user, onApplyOrder, onOpenDragMode } = setup(combined);
+    await user.click(screen.getByRole('button', { name: 'Section A' }));
+    await user.click(screen.getByText('Manual Drag and Drop'));
+    await user.click(screen.getByRole('button', { name: 'Next' }));
+    await user.click(screen.getByText(/Renumber all/i));
+    expect(onApplyOrder).toHaveBeenCalledWith('manual', 'A', 'renumber');
+    expect(onOpenDragMode).not.toHaveBeenCalled();
+  });
+
   it('stays open when the handler rejects', async () => {
     const { user, onApplyOrder, onClose } = setup(single);
     onApplyOrder.mockRejectedValueOnce(new Error('boom'));

@@ -123,8 +123,9 @@ export const COMBINED_PRESET_GROUPS: PresetGroup[] = [
   },
 ];
 
-// Scoped presets: applied to a single section only. No manual option: drag
-// mode reorders the whole list, so a drag could renumber the other section too.
+// Scoped presets: applied to a single section only. Manual drag is offered too:
+// the host narrows the list to that section while dragging and applies the
+// dialog's preserve/renumber choice to the other section on drop.
 export const SCOPED_PRESETS: PresetDef[] = [
   {
     preset: 'armband-asc',
@@ -144,4 +145,5 @@ export const SCOPED_PRESETS: PresetDef[] = [
     description: 'Randomly shuffle this section',
     icon: shuffleIcon,
   },
+  { ...MANUAL_PRESET, description: 'Drag this section into the order you want' },
 ];

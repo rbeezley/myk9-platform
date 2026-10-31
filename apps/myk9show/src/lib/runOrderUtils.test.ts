@@ -12,6 +12,7 @@ import {
   toMyK9ShowRunOrderPreset,
   calculateRunOrder,
   calculateRunOrderScoped,
+  calculateManualScopedRunOrder,
   storedRunOrder,
 } from './runOrderUtils';
 
@@ -120,5 +121,39 @@ describe('calculateRunOrderScoped preserve with an unset stored order', () => {
     );
     expect(result.map(r => r.id).sort()).toEqual(['a1', 'a2']);
     expect(result.every(r => r.runOrder > 0)).toBe(true);
+  });
+});
+
+describe('calculateManualScopedRunOrder', () => {
+  const entries = [
+    { id: 'a1', armband: '101', section: 'A', runOrder: 1 },
+    { id: 'b1', armband: '201', section: 'B', runOrder: 2 },
+    { id: 'a2', armband: '102', section: 'A', runOrder: 3 },
+    { id: 'b2', armband: '202', section: 'B', runOrder: 4 },
+  ];
+
+  it('preserve: reorders A within its own slots and never writes B', () => {
+    expect(calculateManualScopedRunOrder(entries, 'A', ['a2', 'a1'], 'preserve')).toEqual([
+      { id: 'a2', runOrder: 1 },
+      { id: 'a1', runOrder: 3 },
+    ]);
+  });
+
+  it('renumber: A first in the dragged order, then B in its current order', () => {
+    expect(calculateManualScopedRunOrder(entries, 'A', ['a2', 'a1'], 'renumber')).toEqual([
+      { id: 'a2', runOrder: 1 },
+      { id: 'a1', runOrder: 2 },
+      { id: 'b1', runOrder: 3 },
+      { id: 'b2', runOrder: 4 },
+    ]);
+  });
+
+  it('ignores ids from the other section and keeps undragged section entries last', () => {
+    expect(calculateManualScopedRunOrder(entries, 'A', ['b1', 'a2'], 'renumber')).toEqual([
+      { id: 'a2', runOrder: 1 },
+      { id: 'a1', runOrder: 2 },
+      { id: 'b1', runOrder: 3 },
+      { id: 'b2', runOrder: 4 },
+    ]);
   });
 });

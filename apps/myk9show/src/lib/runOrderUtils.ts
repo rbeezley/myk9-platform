@@ -236,7 +236,42 @@ export function calculateRunOrderScoped(
 
   // Reorder only the scoped section
   const reorderedScoped = calculateRunOrder(scopedEntries, preset);
+  return placeScopedOrder(scopedEntries, otherEntries, reorderedScoped, renumberMode);
+}
 
+/**
+ * Manual (drag) sibling of `calculateRunOrderScoped`: the steward has already
+ * ordered one section, so `orderedIds` replaces the preset. Same
+ * preserve/renumber rules as the presets, so a drag and a sort of one section
+ * leave the other section identically. Ids not in the section are ignored and
+ * section entries missing from `orderedIds` keep their relative order at the end.
+ */
+export function calculateManualScopedRunOrder(
+  entries: RunOrderEntry[],
+  section: string,
+  orderedIds: string[],
+  renumberMode: 'preserve' | 'renumber'
+): RunOrderResult[] {
+  const scopedEntries = entries.filter(e => e.section === section);
+  const otherEntries = entries
+    .filter(e => e.section !== section)
+    .sort(
+      (a, b) => (a.runOrder ?? Number.MAX_SAFE_INTEGER) - (b.runOrder ?? Number.MAX_SAFE_INTEGER)
+    );
+  const inSection = new Set(scopedEntries.map(e => e.id));
+  const ids = orderedIds.filter(id => inSection.has(id));
+  const placed = new Set(ids);
+  const tail = scopedEntries.filter(e => !placed.has(e.id)).map(e => e.id);
+  const reorderedScoped = [...ids, ...tail].map((id, i) => ({ id, runOrder: i + 1 }));
+  return placeScopedOrder(scopedEntries, otherEntries, reorderedScoped, renumberMode);
+}
+
+function placeScopedOrder(
+  scopedEntries: RunOrderEntry[],
+  otherEntries: RunOrderEntry[],
+  reorderedScoped: RunOrderResult[],
+  renumberMode: 'preserve' | 'renumber'
+): RunOrderResult[] {
   if (renumberMode === 'preserve') {
     // Results cover ONLY the scoped section; the other section is never written.
     const otherValues = new Set(

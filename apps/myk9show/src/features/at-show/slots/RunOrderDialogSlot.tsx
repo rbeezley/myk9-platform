@@ -41,7 +41,10 @@ export const RunOrderDialogSlot: React.FC<RunOrderDialogProps> = ({
       entries={dialogEntries}
       onApply={async (preset, scope, renumberMode) => {
         if (preset === 'manual') {
-          onOpenDragMode();
+          // A single-section drag goes through onApplyOrder so scope and the
+          // renumber choice reach the host; the whole class just opens drag mode.
+          if (toRingsideScope(scope) === 'all') onOpenDragMode();
+          else await onApplyOrder(preset, toRingsideScope(scope), renumberMode);
           return;
         }
         await onApplyOrder(preset, toRingsideScope(scope), renumberMode);

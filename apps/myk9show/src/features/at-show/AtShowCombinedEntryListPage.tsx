@@ -50,6 +50,7 @@ import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { areReplicationTablesPendingFirstSync } from '@/utils/replicationSyncEmptyState';
 import { notifyRunOrderPersistError } from './runOrderErrorToast';
 import { persistEntryRunOrder } from './persistEntryRunOrder';
+import { persistScopedManualRunOrder, type ScopedManualDrag } from './persistScopedManualRunOrder';
 import { buildRingsideContextValue, buildRingsideReplication } from './ringsideCapabilities';
 import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
 import { useAtShowShowHydration } from './useAtShowShowHydration';
@@ -166,6 +167,9 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
     ) : undefined;
   const [localEntries, setLocalEntries] = useState<Entry[]>([]);
   const [manualOrder, setManualOrder] = useState<Entry[]>([]);
+  // Set while the steward drags ONE section (dialog scope A/B + manual). Carries
+  // the dialog's preserve/renumber choice to the drop. Only honoured in drag mode.
+  const [scopedDrag, setScopedDrag] = useState<ScopedManualDrag | null>(null);
   // Mirrors AtShowEntryListPage. Without this the combined route presented an
   // empty ring as settled truth while the FIRST replication sync was still
   // running -- `isRefreshing` alone only covers a refetch, not the cold boot.
@@ -272,9 +276,13 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
   // ── Drag (run-order persist) ───────────────────────────────────────────
   // Same contract as the single-class AtShowEntryListPage — see
   // persistEntryRunOrder for the offline-first / RLS details.
+  const activeScopedDrag = uiState.isDragMode ? scopedDrag : null;
   const updateExhibitorOrder = useCallback(
-    (reordered: Entry[], previous: Entry[]) => persistEntryRunOrder(reordered, previous),
-    []
+    (reordered: Entry[], previous: Entry[]) =>
+      activeScopedDrag
+        ? persistScopedManualRunOrder(localEntries, reordered, activeScopedDrag)
+        : persistEntryRunOrder(reordered, previous),
+    [activeScopedDrag, localEntries]
   );
   // A drag whose write never QUEUED used to be silent on both routes: the
   // reordered list stayed on screen and the steward worked the gate from an
@@ -337,6 +345,16 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
     async (preset, scope, renumberMode) => {
       if (preset === 'manual') {
         uiActions.setIsDragMode(true);
+        if (scope === 'A' || scope === 'B') {
+          // Narrow the list to that section so the other section's rows are not
+          // on screen to drag, and a drop cannot cross the boundary.
+          setScopedDrag({ section: scope, renumberMode: renumberMode ?? 'renumber' });
+          setSectionFilter(scope);
+        } else {
+          // Whole-class manual: a scope left over from an earlier section drag
+          // must not turn this drag into a one-section write.
+          setScopedDrag(null);
+        }
         return false;
       }
       try {
@@ -355,14 +373,22 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
       await refresh();
       return true;
     },
-    [localEntries, refresh, uiActions]
+    [localEntries, refresh, uiActions, setSectionFilter]
   );
 
   // Section-aware run order is the ONE handler the combined route cannot take
   // from the shared bag: `applyCombinedRunOrder` honours the A/B `scope` and
   // `renumberMode` contract that a single-class renumber has no notion of.
   const handlers = useMemo(
-    () => ({ ...baseHandlers, handleApplyRunOrder }),
+    () => ({
+      ...baseHandlers,
+      handleApplyRunOrder,
+      // Any other way into drag mode (long press, whole-class manual) is not scoped.
+      handleOpenDragMode: () => {
+        setScopedDrag(null);
+        baseHandlers.handleOpenDragMode();
+      },
+    }),
     [baseHandlers, handleApplyRunOrder]
   );
 
@@ -399,7 +425,9 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
           combined={{
             classIds: { a: classIdA as string, b: classIdB as string },
             sectionFilter,
-            setSectionFilter,
+            // Locked to the dragged section until Done, so the other section
+            // cannot be brought back into the list mid-drag.
+            setSectionFilter: activeScopedDrag ? () => undefined : setSectionFilter,
           }}
           data={{ entries, classInfo }}
           dataStatus={{ isRefreshing, fetchError, refresh, notOnDevice }}

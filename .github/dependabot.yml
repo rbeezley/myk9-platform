@@ -74,6 +74,12 @@ updates:
       - dependency-name: '*'
         update-types:
           - 'version-update:semver-major'
+      # Astro 7.4+ requires Node >=22.23.4. Claude cloud supplies it, but the
+      # owner's Mac (Codex reviews, local builds) is still on 22.18. Remove this
+      # once the Mac runs >=22.23.4 (MYK9-1542).
+      - dependency-name: 'astro'
+        versions:
+          - '>=7.4.0'
 
   - package-ecosystem: 'github-actions'
     directory: '/'

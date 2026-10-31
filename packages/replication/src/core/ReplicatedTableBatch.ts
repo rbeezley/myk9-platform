@@ -69,6 +69,25 @@ export function downloadLeavesRowAsIs<T>(
 }
 
 /**
+ * Whether a download older than the stored row must be skipped. A row owned by
+ * any account keeps the guard: this account's own row can hold an acknowledged
+ * local write (MYK9-1050), and another account's newer row is the shared-device
+ * case MYK9-1148 protects. Only an OWNERLESS row on an account-owned table is
+ * overwritten (MYK9-1632): it predates MYK9-1133, so no acknowledged write and
+ * no other account's newer download can be in it, and keeping it would leave the
+ * scope foreign forever after a reseed or restore. Tables written without an
+ * owner keep the original rule.
+ */
+function shouldKeepNewerRow<T extends { id: string }>(
+  existingRow: ReplicatedRow<T> | undefined,
+  remoteServerVersion: number | undefined,
+  ownerAuthUserId: string | undefined
+): boolean {
+  if (!existingRow || !isOlderThanRow(existingRow, remoteServerVersion)) return false;
+  return ownerAuthUserId === undefined || existingRow.ownerAuthUserId !== undefined;
+}
+
+/**
  * Batch operations manager for a replicated table
  */
 export class ReplicatedTableBatchManager<T extends { id: string }> {
@@ -147,7 +166,7 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
       // carries an older version than the row now holds (MYK9-1050 review):
       // applying it would roll the acknowledged write back. Same transaction
       // as the put, so it is atomic against the ack.
-      if (existingRow && isOlderThanRow(existingRow, serverVersions?.get(normalizedId))) {
+      if (shouldKeepNewerRow(existingRow, serverVersions?.get(normalizedId), ownerAuthUserId)) {
         continue;
       }
 
@@ -280,7 +299,7 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
 
           if (!this.acceptsRemoteRow(normalizedId)) continue;
 
-          if (existingRow && isOlderThanRow(existingRow, serverVersions?.get(normalizedId))) {
+          if (shouldKeepNewerRow(existingRow, serverVersions?.get(normalizedId), ownerAuthUserId)) {
             continue;
           }
 

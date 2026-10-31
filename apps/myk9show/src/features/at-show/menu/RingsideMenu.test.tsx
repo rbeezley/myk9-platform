@@ -151,16 +151,17 @@ describe('RingsideMenu', () => {
     expect(useRingsideReturnStore.getState().target).toBeNull();
   });
 
-  it('says Settings needs a connection when offline, and does not navigate', async () => {
+  it('keeps Settings usable offline and opens it', async () => {
     mocks.online = false;
     const { user } = renderMenu();
     const nav = await openMenu(user);
     const settings = within(nav).getByRole('button', { name: /^Settings/ });
-    expect(settings).toHaveAttribute('aria-disabled', 'true');
-    expect(settings).toHaveTextContent('Needs a connection');
+    expect(settings).not.toHaveAttribute('aria-disabled');
+    expect(settings).not.toHaveTextContent('Needs a connection');
     await user.click(settings);
-    expect(screen.getByTestId('location')).toHaveTextContent('/at-show/show-1/class/class-1');
-    expect(useRingsideReturnStore.getState().target).toBeNull();
+    await waitFor(() =>
+      expect(screen.getByTestId('location')).toHaveTextContent('/account?section=appearance')
+    );
   });
 
   it('keeps Announcements and Sign out usable offline', async () => {

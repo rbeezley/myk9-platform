@@ -63,10 +63,14 @@ describe('buildRingsideMenuItems', () => {
     expect(unknown).not.toContain('results');
   });
 
-  it('marks Settings, Results and AskQ online-only, and Announcements and Sign out usable offline', () => {
+  it('marks Results and AskQ online-only, and Settings, Announcements and Sign out usable offline', () => {
     const online = (id: string) => find(base, id)?.requiresConnection;
-    expect([online('settings'), online('results'), online('askq')]).toEqual([true, true, true]);
-    expect([online('announcements'), online('sign-out')]).toEqual([false, false]);
+    expect([online('results'), online('askq')]).toEqual([true, true]);
+    expect([online('settings'), online('announcements'), online('sign-out')]).toEqual([
+      false,
+      false,
+      false,
+    ]);
   });
 
   it('puts extension items after the core set and before Sign out', () => {
@@ -103,7 +107,7 @@ describe('itemNeedsConnection', () => {
     const settings = find(base, 'settings')!;
     expect(itemNeedsConnection(results, false)).toBe(true);
     expect(itemNeedsConnection(results, true)).toBe(false);
-    expect(itemNeedsConnection(settings, false)).toBe(true);
+    expect(itemNeedsConnection(settings, false)).toBe(false);
     expect(itemNeedsConnection(find(base, 'announcements')!, false)).toBe(false);
   });
 });

@@ -20,7 +20,7 @@ const APP_ID = 'myk9show';
 /**
  * Build a full UserPreferences object from defaults for the given userId.
  */
-function buildDefaults(userId: string): UserPreferences {
+export function buildDefaults(userId: string): UserPreferences {
   const now = new Date();
   return {
     userId,
@@ -169,7 +169,12 @@ export class UserPreferencesService {
         logger.debug('No preferences found in database, returning defaults', 'preferences', {
           userId,
         });
-        return buildDefaults(userId);
+        // Never saved: epoch timestamps so a device copy always counts as newer.
+        return {
+          ...buildDefaults(userId),
+          lastModifiedAt: new Date(0),
+          updatedAt: new Date(0),
+        };
       }
 
       // data.preferences is a Json blob — cast to our known shape

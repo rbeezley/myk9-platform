@@ -13,6 +13,7 @@ import {
   Trash2,
   User,
   HardDrive,
+  WifiOff,
 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -31,13 +32,26 @@ import { SecuritySettings } from '@/components/preferences/SecuritySettings';
 import { DataSettings } from '@/components/preferences/DataSettings';
 import { InstallAppSettings } from '@/components/preferences/InstallAppSettings';
 import { useAuthUser } from '@/hooks/useAuthUser';
+import { useTheme } from '@/hooks/useTheme';
+import { useSettingsStore } from '@/store/settingsStore';
+import { useOnlineStatus } from '@/lib/networkUtils';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { ProfileSection, BillingSection, DeleteSection } from './AccountPage.sections';
 import type { Section, NavGroup } from './AccountPage.types';
-import type { PreferencesUpdate } from '@/types/user-preferences';
+import type { PreferencesUpdate, ThemePreferences } from '@/types/user-preferences';
 import { FormSkeleton } from '@/components/common/SkeletonLoaders';
 
 const NON_PREF_SECTIONS: ReadonlySet<Section> = new Set(['profile', 'billing', 'delete']);
+
+// These sections read or write the server directly (profile, plan, auth, deletion),
+// so offline they say so instead of failing a save. Appearance and Notifications
+// (sound, voice, haptics) are device settings and stay usable offline (MYK9-1545).
+const ONLINE_ONLY_SECTIONS: ReadonlySet<Section> = new Set([
+  'profile',
+  'billing',
+  'security',
+  'delete',
+]);
 
 const NAV_GROUPS: NavGroup[] = [
   {
@@ -81,12 +95,26 @@ export default function AccountPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [active, setActive] = useState<Section>(() => readSectionParam(searchParams) ?? 'profile');
   const user = useAuthUser();
+  const isOnline = useOnlineStatus();
+  const { mode, setThemeMode } = useTheme();
+  const updateSettings = useSettingsStore(s => s.updateSettings);
+  // A newer server value (another device) replaced this device's: apply it live.
+  const applyServerTheme = useCallback(
+    (adopted: Partial<ThemePreferences>) => {
+      if (adopted.mode) {
+        setThemeMode(adopted.mode);
+        updateSettings({ theme: adopted.mode === 'system' ? 'auto' : adopted.mode });
+      }
+      if (adopted.colorScheme) updateSettings({ accentColor: adopted.colorScheme });
+    },
+    [setThemeMode, updateSettings]
+  );
   const {
     preferences,
     loading: prefsLoading,
     updatePreferences,
     resetToDefaults,
-  } = useUserPreferences(user?.id ?? null);
+  } = useUserPreferences(user?.id ?? null, applyServerTheme);
   const [resetLoading, setResetLoading] = useState(false);
   const [flash, setFlash] = useState<{ msg: string; kind: 'success' | 'error' } | null>(null);
   const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -193,13 +221,23 @@ export default function AccountPage() {
         </div>
       );
     }
+    if (!isOnline && ONLINE_ONLY_SECTIONS.has(active)) {
+      return (
+        <Alert role="status" data-testid="account-needs-connection">
+          <WifiOff className="h-4 w-4" />
+          <AlertDescription>
+            Needs a connection. This section is available again once you are back online.
+          </AlertDescription>
+        </Alert>
+      );
+    }
     switch (active) {
       case 'profile':
         return <ProfileSection />;
       case 'appearance':
         return (
           <ThemeSelector
-            preferences={preferences?.theme}
+            preferences={preferences?.theme ? { ...preferences.theme, mode } : undefined}
             onUpdate={t => handleUpdate({ theme: t })}
             onReset={() => handleReset('theme')}
           />
@@ -294,8 +332,8 @@ export default function AccountPage() {
                 variant="ghost"
                 className="min-h-11 w-full justify-center px-3 text-muted-foreground md:justify-start md:text-sm"
                 onClick={() => handleReset()}
-                disabled={resetLoading}
-                title="Reset all settings"
+                disabled={resetLoading || !isOnline}
+                title={isOnline ? 'Reset all settings' : 'Needs a connection'}
               >
                 {resetLoading ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin md:mr-2" />

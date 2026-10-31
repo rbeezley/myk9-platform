@@ -7,6 +7,7 @@ import {
   parseShowDate,
   getPartiallyScoredState,
   isScoredEntry,
+  isCompletedEntry,
   countUpcomingClassesByDog,
 } from './myEntriesStats.helpers';
 import type { EntryClass, MyEntry } from './my-entries-types';
@@ -505,5 +506,40 @@ describe('unpublished classes are not a known upcoming schedule (MYK9-1147)', ()
       ],
     });
     expect(countUpcomingClassesByDog([draft], NOW)).toEqual({});
+  });
+});
+
+describe('isCompletedEntry — past is decided in the trial zone (MYK9-1586)', () => {
+  const mountainClass = (): EntryClass => ({
+    id: 'c1',
+    name: 'Class 1',
+    number: '1',
+    fee: 0,
+    status: 'entered',
+    entryStatus: EntryStatus.ACCEPTED,
+    entryStatusKind: 'accepted',
+    trialDate: new Date(2026, 9, 25),
+    trialTimezone: 'America/Denver',
+  });
+  const mountainShow = () =>
+    makeEntry({
+      showDate: new Date(2026, 9, 24),
+      showEndDate: new Date(2026, 9, 25),
+      classes: [mountainClass()],
+    });
+
+  it('keeps the entry Upcoming for a device east of the trial after local midnight', () => {
+    // 00:30 Monday the 26th Eastern is 22:30 Sunday the 25th Mountain: the last day is still running.
+    expect(isCompletedEntry(mountainShow(), new Date('2026-10-26T04:30:00Z'))).toBe(false);
+  });
+
+  it('is Completed once the trial zone passes its last day', () => {
+    expect(isCompletedEntry(mountainShow(), new Date('2026-10-26T07:30:00Z'))).toBe(true);
+  });
+
+  it('falls back to UTC-12 when no trial zone has replicated', () => {
+    const entry = makeEntry({ showDate: new Date(2026, 9, 25), classes: [] });
+    expect(isCompletedEntry(entry, new Date('2026-10-26T04:30:00Z'))).toBe(false);
+    expect(isCompletedEntry(entry, new Date('2026-10-26T12:30:00Z'))).toBe(true);
   });
 });

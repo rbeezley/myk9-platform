@@ -21,40 +21,18 @@ import {
   type MyShowGroup,
 } from './groupEntriesByShow';
 import type { MyEntry } from './my-entries-types';
+import {
+  calendarDayInZone,
+  calendarDayOf,
+  hasUsableDate,
+  isLastDayPastInZones,
+  LAST_ZONE_TO_ROLL_OVER,
+} from './showPastInZones';
 
-/** The calendar day (`YYYY-MM-DD`) a local-midnight `Date` stands for. */
-export function calendarDayOf(date: Date): string {
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${date.getFullYear()}-${month}-${day}`;
-}
-
-/** The calendar day (`YYYY-MM-DD`) an INSTANT falls on, in the given zone. */
-function calendarDayInZone(instant: Date, timeZone: string): string {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(instant);
-  const get = (type: Intl.DateTimeFormatPartTypes) =>
-    parts.find(part => part.type === type)?.value ?? '';
-  return `${get('year')}-${get('month')}-${get('day')}`;
-}
-
-/**
- * UTC-12: the last place on earth to reach any given calendar day. POSIX
- * inverts the sign in these names, so `Etc/GMT+12` IS UTC-12.
- */
-const LAST_ZONE_TO_ROLL_OVER = 'Etc/GMT+12';
+export { calendarDayOf };
 
 /** Trials carry a resolved zone; the migration default covers legacy rows. */
 const DEFAULT_TIMEZONE = 'America/New_York';
-
-/** Is this a usable trial date? An undefined or invalid one means the trial has not replicated. */
-function hasUsableDate(trialDate: Date | undefined): trialDate is Date {
-  return !!trialDate && !Number.isNaN(trialDate.getTime());
-}
 
 /**
  * Whether a class's trial day is `now`: `today`, `not-today`, or `unknown` when
@@ -195,17 +173,13 @@ function showLastDayOf(group: MyShowGroup): Date | undefined {
  * its Upcoming filter and the check-in gate all read this one rule.
  */
 export function isShowPastInTrialZones(group: MyShowGroup, now: Date): boolean {
-  const lastDay = showLastDayOf(group);
-  if (!lastDay) return false;
-  const lastDayKey = calendarDayOf(lastDay);
-  const zones = new Set<string>();
+  const zones: string[] = [];
   for (const dog of group.dogs) {
     for (const cls of dog.classes) {
-      if (cls.trialTimezone && hasUsableDate(cls.trialDate)) zones.add(cls.trialTimezone);
+      if (cls.trialTimezone && hasUsableDate(cls.trialDate)) zones.push(cls.trialTimezone);
     }
   }
-  if (zones.size === 0) return calendarDayInZone(now, LAST_ZONE_TO_ROLL_OVER) > lastDayKey;
-  return [...zones].every(zone => calendarDayInZone(now, zone) > lastDayKey);
+  return isLastDayPastInZones(showLastDayOf(group), zones, now);
 }
 
 /**

@@ -54,6 +54,7 @@ interface StoredPreferences {
   version?: number;
   lastModifiedBy?: string;
   syncConflicts?: string[];
+  themeChangedAt?: Record<string, number>;
 }
 
 /**
@@ -105,6 +106,7 @@ function mergeWithDefaults(
     lastModifiedBy: stored.lastModifiedBy ?? defaults.lastModifiedBy,
     syncConflicts:
       stored.syncConflicts != null ? stored.syncConflicts : (defaults.syncConflicts ?? []),
+    ...(stored.themeChangedAt ? { themeChangedAt: stored.themeChangedAt } : {}),
     lastSyncedAt: new Date(),
     lastModifiedAt: dbRow.updated_at ? new Date(dbRow.updated_at) : defaults.lastModifiedAt,
     createdAt: dbRow.created_at ? new Date(dbRow.created_at) : defaults.createdAt,
@@ -126,6 +128,9 @@ function toStoredPreferences(prefs: UserPreferences): StoredPreferences {
     version: prefs.version,
     lastModifiedBy: prefs.lastModifiedBy,
   };
+  if (prefs.themeChangedAt) {
+    stored.themeChangedAt = prefs.themeChangedAt;
+  }
   if (prefs.syncConflicts != null) {
     stored.syncConflicts = prefs.syncConflicts;
   }
@@ -189,7 +194,11 @@ export class UserPreferencesService {
     }
   }
 
-  async updatePreferences(userId: string, updates: PreferencesUpdate): Promise<UserPreferences> {
+  async updatePreferences(
+    userId: string,
+    updates: PreferencesUpdate,
+    themeChangedAt?: Record<string, number>
+  ): Promise<UserPreferences> {
     try {
       logger.debug('Updating user preferences', 'preferences', { userId, updates });
 
@@ -213,6 +222,9 @@ export class UserPreferencesService {
               DeviceOverrides
             >)
           : current.deviceOverrides,
+        ...(themeChangedAt
+          ? { themeChangedAt: { ...current.themeChangedAt, ...themeChangedAt } }
+          : {}),
         updatedAt: new Date(),
       };
 

@@ -6,10 +6,13 @@
  * a gate. Settings must open and change offline at the ringside.
  *
  * Conflict rule (last write wins, per field): each locally changed field records
- * when it changed and stays "pending" until the server accepted it. On sync, a
- * pending field whose change is NEWER than the server row's `updated_at` is
+ * when it changed and stays "pending" until the server accepted it. The server
+ * blob keeps the same per-field time (`themeChangedAt`), so an unrelated
+ * preference change on another device cannot outrank a field it did not touch.
+ * On sync, a pending field NEWER than the server's time for that field is
  * pushed; a pending field that is older, and every non-pending field, takes the
- * server's value (another device changed it later).
+ * server's value. A server row from before per-field times falls back to the
+ * row's `updated_at`. With no device copy at all, every server field is applied.
  */
 import { DEFAULT_THEME_PREFERENCES, type ThemePreferences } from '@/types/user-preferences';
 
@@ -82,6 +85,7 @@ export interface ThemeReconciliation {
 export function reconcileTheme(
   cache: DeviceThemeCache | null,
   serverTheme: ThemePreferences,
+  serverFieldChangedAt: Partial<Record<ThemeField, number>>,
   serverUpdatedAt: number
 ): ThemeReconciliation {
   const device = deviceThemeOrDefaults(cache);
@@ -91,10 +95,13 @@ export function reconcileTheme(
   for (const field of THEME_FIELDS) {
     const isPending = cache?.pending.includes(field) ?? false;
     const changedAt = cache?.changedAt[field] ?? 0;
-    if (isPending && changedAt > serverUpdatedAt) {
+    if (isPending && changedAt > (serverFieldChangedAt[field] ?? serverUpdatedAt)) {
       (theme as unknown as Record<string, unknown>)[field] = device[field];
       toPush[field] = device[field];
-    } else if (cache?.theme[field] !== undefined && cache.theme[field] !== serverTheme[field]) {
+    } else if (
+      !cache ||
+      (cache.theme[field] !== undefined && cache.theme[field] !== serverTheme[field])
+    ) {
       adopted[field] = serverTheme[field];
     }
   }
@@ -106,23 +113,27 @@ export function reconcileTheme(
 }
 
 /**
- * Settle fields after the server holds them: drop each from pending unless it
- * was edited again since `sentAt` (the change times seen when the sync began).
+ * Settle fields the server now holds: store `values` on the device and drop each
+ * field from pending. A field edited since `sentAt` (the change times seen when
+ * the sync began) is left alone, so a slow sync never overwrites a newer edit.
  */
-export function clearPending(
+export function settleFields(
   userId: string,
-  theme: ThemePreferences,
-  settled: ThemeField[],
+  values: Partial<ThemePreferences>,
   sentAt: Partial<Record<ThemeField, number>>
 ): DeviceThemeCache {
   const cache = readDeviceTheme(userId) ?? { theme: {}, changedAt: {}, pending: [] };
-  const stillPending = cache.pending.filter(
-    f => !settled.includes(f) || cache.changedAt[f] !== sentAt[f]
-  );
+  const theme = { ...cache.theme } as Record<string, unknown>;
+  let pending = cache.pending;
+  for (const field of Object.keys(values) as ThemeField[]) {
+    if (cache.changedAt[field] !== sentAt[field]) continue;
+    theme[field] = values[field];
+    pending = pending.filter(f => f !== field);
+  }
   const next: DeviceThemeCache = {
-    theme: { ...theme, ...Object.fromEntries(stillPending.map(f => [f, cache.theme[f]])) },
+    theme: theme as Partial<ThemePreferences>,
     changedAt: cache.changedAt,
-    pending: stillPending,
+    pending,
   };
   writeDeviceTheme(userId, next);
   return next;

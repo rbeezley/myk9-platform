@@ -97,7 +97,9 @@ describe('useUserPreferences (local-first)', () => {
     mockLoad.mockResolvedValue(serverRow({ mode: 'light' }, 4000));
     mockUpdate.mockResolvedValue(serverRow({ mode: 'dark' }, 9000));
     rerender();
-    await waitFor(() => expect(mockUpdate).toHaveBeenCalledWith('u1', { theme: { mode: 'dark' } }));
+    await waitFor(() =>
+      expect(mockUpdate).toHaveBeenCalledWith('u1', { theme: { mode: 'dark' } }, { mode: 5000 })
+    );
     await waitFor(() => expect(readDeviceTheme('u1')?.pending).toEqual([]));
     expect(result.current.preferences?.theme.mode).toBe('dark');
   });
@@ -113,13 +115,59 @@ describe('useUserPreferences (local-first)', () => {
     expect(readDeviceTheme('u1')?.pending).toEqual([]);
   });
 
+  it('offline cold start with nothing saved never waits on the server', async () => {
+    mockOnline = false;
+    mockLoad.mockReturnValue(new Promise(() => {}));
+    const { result } = renderHook(() => useUserPreferences('u1'));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.preferences?.theme).toEqual(DEFAULT_THEME_PREFERENCES);
+    expect(mockLoad).not.toHaveBeenCalled();
+  });
+
+  it('a first visit on a new device applies the saved server appearance', async () => {
+    mockLoad.mockResolvedValue(serverRow({ mode: 'dark', colorScheme: 'grove' }, 1000));
+    const onServerTheme = vi.fn();
+    renderHook(() => useUserPreferences('u1', onServerTheme));
+    await waitFor(() =>
+      expect(onServerTheme).toHaveBeenCalledWith(
+        expect.objectContaining({ mode: 'dark', colorScheme: 'grove' })
+      )
+    );
+  });
+
+  it('resetting the theme applies the defaults to the live theme', async () => {
+    mockOnline = false;
+    const onServerTheme = vi.fn();
+    const { result } = renderHook(() => useUserPreferences('u1', onServerTheme));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    await act(() => result.current.resetToDefaults('theme'));
+    expect(onServerTheme).toHaveBeenCalledWith(DEFAULT_THEME_PREFERENCES);
+  });
+
+  it('a stale sync does not overwrite an edit made while it ran', async () => {
+    recordLocalThemeChange('u1', { mode: 'dark' }, 5000);
+    let release: (v: unknown) => void = () => {};
+    mockLoad.mockResolvedValue(serverRow({ mode: 'light' }, 4000));
+    mockUpdate.mockImplementationOnce(() => new Promise(r => (release = r)));
+    const { result } = renderHook(() => useUserPreferences('u1'));
+    await waitFor(() => expect(mockUpdate).toHaveBeenCalled());
+    mockUpdate.mockResolvedValue(serverRow({ mode: 'system' }, 9000));
+    await act(() => result.current.updatePreferences({ theme: { mode: 'system' } }));
+    release(serverRow({ mode: 'dark' }, 8000));
+    await waitFor(() => expect(readDeviceTheme('u1')?.theme.mode).toBe('system'));
+  });
+
   it('online theme change saves to the device and the server', async () => {
     mockLoad.mockResolvedValue(serverRow({}, 1000));
     mockUpdate.mockResolvedValue(serverRow({ fontSize: 'large' }, 9000));
     const { result } = renderHook(() => useUserPreferences('u1'));
     await waitFor(() => expect(result.current.loading).toBe(false));
     await act(() => result.current.updatePreferences({ theme: { fontSize: 'large' } }));
-    expect(mockUpdate).toHaveBeenCalledWith('u1', { theme: { fontSize: 'large' } });
+    expect(mockUpdate).toHaveBeenCalledWith(
+      'u1',
+      { theme: { fontSize: 'large' } },
+      { fontSize: expect.any(Number) }
+    );
     expect(result.current.preferences?.theme.fontSize).toBe('large');
     expect(readDeviceTheme('u1')?.pending).toEqual([]);
   });

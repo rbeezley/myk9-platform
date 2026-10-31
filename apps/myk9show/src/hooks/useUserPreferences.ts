@@ -15,7 +15,8 @@ import {
   userPreferencesService,
 } from '@/services/preferences/userPreferencesService';
 import {
-  clearPending,
+  settleFields,
+  THEME_FIELDS,
   deviceThemeOrDefaults,
   readDeviceTheme,
   reconcileTheme,
@@ -49,6 +50,10 @@ export function useUserPreferences(
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const isOnline = useOnlineStatus();
+  const isOnlineRef = useRef(isOnline);
+  useEffect(() => {
+    isOnlineRef.current = isOnline;
+  }, [isOnline]);
 
   const currentUserIdRef = useRef<string | null>(null);
   const onServerThemeRef = useRef(onServerTheme);
@@ -67,28 +72,38 @@ export function useUserPreferences(
     const { theme, toPush, adoptedFromServer } = reconcileTheme(
       cache,
       server.theme,
+      (server.themeChangedAt ?? {}) as Partial<Record<keyof ThemePreferences, number>>,
       server.updatedAt.getTime()
     );
     const sentAt = { ...(cache?.changedAt ?? {}) };
-    writeDeviceTheme(uid, {
-      theme,
-      changedAt: cache?.changedAt ?? {},
-      pending: cache?.pending ?? [],
-    });
-    setPreferences({ ...server, theme });
+    const pushFields = Object.keys(toPush) as Array<keyof ThemePreferences>;
+    // Fields the server won hold the server's value now; each settle skips a
+    // field edited since this sync began, so a slow sync never undoes a newer edit.
+    const serverWon = Object.fromEntries(
+      THEME_FIELDS.filter(f => !pushFields.includes(f)).map(f => [f, theme[f]])
+    );
+    const settled = settleFields(uid, serverWon, sentAt);
+    setPreferences({ ...server, theme: deviceThemeOrDefaults(settled) });
     if (Object.keys(adoptedFromServer).length > 0) onServerThemeRef.current?.(adoptedFromServer);
-    if (Object.keys(toPush).length > 0) {
-      await userPreferencesService.updatePreferences(uid, { theme: toPush });
+    if (pushFields.length > 0) {
+      await userPreferencesService.updatePreferences(
+        uid,
+        { theme: toPush },
+        Object.fromEntries(pushFields.map(f => [f, sentAt[f] ?? Date.now()]))
+      );
+      settleFields(uid, toPush, sentAt);
     }
-    // Every field that was pending is now settled on the server (pushed, or
-    // replaced by a newer server value); an edit made mid-sync stays pending.
-    clearPending(uid, theme, cache?.pending ?? [], sentAt);
   }, []);
 
   const loadPreferences = useCallback(
     async (uid: string) => {
       const cache = readDeviceTheme(uid);
-      if (cache) showTheme(uid, deviceThemeOrDefaults(cache));
+      showTheme(uid, deviceThemeOrDefaults(cache));
+      // Offline the device copy (or defaults) is the whole answer: no server wait.
+      if (!isOnlineRef.current) {
+        setLoading(false);
+        return;
+      }
       try {
         setLoading(!cache);
         setError(null);
@@ -96,7 +111,6 @@ export function useUserPreferences(
         reportInfo('useUserPreferences', 'Preferences loaded successfully', { userId: uid });
       } catch (err: unknown) {
         // Offline or server trouble: the device copy (or defaults) is the answer.
-        if (!cache) showTheme(uid, deviceThemeOrDefaults(null));
         reportStoreError('loadPreferences', 'userPreferences', err);
       } finally {
         setLoading(false);
@@ -124,14 +138,16 @@ export function useUserPreferences(
       if (!isOnline) return;
 
       try {
-        const updated = await userPreferencesService.updatePreferences(userId, updates);
+        const fieldTimes = Object.fromEntries(
+          Object.entries(sentAt).filter(([f]) => themeUpdate && f in themeUpdate)
+        ) as Record<string, number>;
+        const updated = await userPreferencesService.updatePreferences(
+          userId,
+          updates,
+          themeUpdate ? fieldTimes : undefined
+        );
         if (themeUpdate) {
-          const cleared = clearPending(
-            userId,
-            updated.theme,
-            Object.keys(themeUpdate) as Array<keyof ThemePreferences>,
-            sentAt
-          );
+          const cleared = settleFields(userId, themeUpdate, sentAt);
           setPreferences({ ...updated, theme: deviceThemeOrDefaults(cleared) });
         } else {
           setPreferences(prev => ({ ...updated, theme: prev?.theme ?? updated.theme }));
@@ -158,6 +174,8 @@ export function useUserPreferences(
       if (category === 'theme') {
         const defaults = buildDefaults(userId).theme;
         await updatePreferences({ theme: defaults });
+        // The applied theme (mode, ring color) must follow the reset, not just the saved value.
+        onServerThemeRef.current?.(defaults);
         return;
       }
       if (!isOnline) throw new Error(NEEDS_CONNECTION_MESSAGE);

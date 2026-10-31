@@ -66,7 +66,8 @@ export const JudgesPicker: React.FC<JudgesPickerProps> = ({
   const [open, setOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [formState, setFormState] = useState<FormState>({ type: 'none' });
-  const [org, setOrg] = useState<string>('AKC');
+  const registryId = resolveConfiguredRegistryId(showOrganization);
+  const [org, setOrg] = useState<string>(registryId ?? 'AKC');
   const [judgeNumber, setJudgeNumber] = useState('');
   const [email, setEmail] = useState('');
   const [saving, setSaving] = useState(false);
@@ -74,20 +75,36 @@ export const JudgesPicker: React.FC<JudgesPickerProps> = ({
 
   const selectedIds = useMemo(() => selectedJudges.map(j => j.id), [selectedJudges]);
   const { qualified, others } = useMemo(
-    () => groupPeopleForJudges(people, selectedIds, searchTerm),
-    [people, selectedIds, searchTerm]
+    () => groupPeopleForJudges(people, selectedIds, searchTerm, showOrganization),
+    [people, selectedIds, searchTerm, showOrganization]
   );
+
+  // A chip for a judge the people list knows but who holds no credential for this registry.
+  const hasRegistryCredential = (personId: string) => {
+    const person = people.find(p => p.id === personId);
+    return !person || Boolean(judgeCredentialForShow(person, showOrganization));
+  };
+
+  const offeredCount = onSaveCredentials
+    ? qualified.length + others.length
+    : qualified.filter(person => judgeCredentialForShow(person, showOrganization)).length;
+  const showNoCredentialsLine =
+    Boolean(registryId) && !onSaveCredentials && offeredCount === 0 && searchTerm === '';
 
   const resetForm = () => {
     setFormState({ type: 'none' });
-    setOrg('AKC');
+    setOrg(registryId ?? 'AKC');
     setJudgeNumber('');
     setEmail('');
     setSaveError(null);
   };
 
   const handleSelect = (person: User, groupKey: string) => {
-    if (groupKey === GROUP_QUALIFIED && person.judgeInfo?.judgeNumber) {
+    // On a configured registry the number must be that registry's own (MYK9-1580).
+    const hasNumber = registryId
+      ? Boolean(judgeCredentialForShow(person, showOrganization))
+      : Boolean(person.judgeInfo?.judgeNumber);
+    if (groupKey === GROUP_QUALIFIED && hasNumber) {
       onAddJudge(person.id);
     } else if (onSaveCredentials) {
       // Either not yet qualified, or qualified but missing a judge number —
@@ -109,7 +126,7 @@ export const JudgesPicker: React.FC<JudgesPickerProps> = ({
     setSaveError(null);
     try {
       await onSaveCredentials(formState.person.id, {
-        organization: org,
+        organization: registryId ?? org,
         judgeNumber: judgeNumber.trim(),
         email: email.trim(),
       });
@@ -165,6 +182,9 @@ export const JudgesPicker: React.FC<JudgesPickerProps> = ({
               className="flex items-center gap-1.5 py-1.5 px-3 text-sm"
             >
               <span>{judge.name}</span>
+              {registryId && !hasRegistryCredential(judge.id) && (
+                <span className="text-warning text-xs">No {registryId} credentials</span>
+              )}
               {judge.judgeNumber && (
                 <span className="text-muted-foreground text-xs">
                   {judge.organization ? `${judge.organization} ` : ''}#{judge.judgeNumber}
@@ -205,11 +225,17 @@ export const JudgesPicker: React.FC<JudgesPickerProps> = ({
               // number cannot be completed here, so they are not offered.
               items: onSaveCredentials
                 ? qualified
-                : qualified.filter(person => person.judgeInfo?.judgeNumber),
+                : qualified.filter(person =>
+                    registryId
+                      ? judgeCredentialForShow(person, showOrganization)
+                      : person.judgeInfo?.judgeNumber
+                  ),
             },
             {
               groupKey: GROUP_OTHERS,
-              label: 'All People: No Credentials Yet',
+              label: registryId
+                ? `Other People: No ${registryId} Credentials Yet`
+                : 'All People: No Credentials Yet',
               items: onSaveCredentials ? others : [],
             },
           ]}
@@ -217,18 +243,27 @@ export const JudgesPicker: React.FC<JudgesPickerProps> = ({
           selectedItemIds={selectedIds}
           onSelect={handleSelect}
           footer={
-            onCreateJudge && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="w-full justify-start text-muted-foreground hover:text-primary"
-                onClick={handleOpenNewForm}
-              >
-                <Plus className="mr-2 h-3.5 w-3.5" />
-                Add new judge
-                <span className="ml-1 text-xs opacity-60">(person not in system)</span>
-              </Button>
+            (showNoCredentialsLine || onCreateJudge) && (
+              <>
+                {showNoCredentialsLine && (
+                  <p className="p-3 text-sm text-muted-foreground">
+                    No one has {registryId} credentials yet. A club admin can add them.
+                  </p>
+                )}
+                {onCreateJudge && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-start text-muted-foreground hover:text-primary"
+                    onClick={handleOpenNewForm}
+                  >
+                    <Plus className="mr-2 h-3.5 w-3.5" />
+                    Add new judge
+                    <span className="ml-1 text-xs opacity-60">(person not in system)</span>
+                  </Button>
+                )}
+              </>
             )
           }
         />
@@ -252,6 +287,7 @@ export const JudgesPicker: React.FC<JudgesPickerProps> = ({
             setOrg={setOrg}
             judgeNumber={judgeNumber}
             setJudgeNumber={setJudgeNumber}
+            {...(registryId && { lockedOrg: registryId })}
           />
           <div className="space-y-1">
             <Label htmlFor="judge-cred-email" className="text-xs">
@@ -300,6 +336,7 @@ export const JudgesPicker: React.FC<JudgesPickerProps> = ({
             resetForm();
           }}
           onCancel={resetForm}
+          {...(registryId && { lockedOrg: registryId })}
         />
       )}
     </div>

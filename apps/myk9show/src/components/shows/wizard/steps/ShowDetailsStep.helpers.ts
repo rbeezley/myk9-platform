@@ -4,6 +4,7 @@ import type { Club } from '@/types/club-types';
 import { UserRole } from '@/types/auth-types';
 import type { User } from '@/types/user-types';
 import type { ResolvedJudge } from './ShowDetailsStep.types';
+import { isPersonQualifiedForOrganization } from '@/features/judges/qualifiedJudges';
 import { resolveConfiguredRegistryId } from '@/features/registries';
 
 export type OrganizationEditMode = 'create' | 'clone' | 'add-trials' | 'add-classes';
@@ -133,13 +134,19 @@ export function groupPeopleForOfficial(
 export function groupPeopleForJudges(
   people: User[],
   selectedIds: string[],
-  searchTerm: string
+  searchTerm: string,
+  showOrganization?: string | null
 ): { qualified: User[]; others: User[] } {
   const sorted = getAllPeopleSorted(people);
   const available = sorted.filter(p => !selectedIds.includes(p.id));
   const filtered = filterPeopleByName(available, searchTerm);
+  // On a configured registry "qualified" means qualified FOR IT: a judge holding only another
+  // registry's credential cannot go on this show's paperwork (MYK9-1580).
+  const isQualified = resolveConfiguredRegistryId(showOrganization)
+    ? (p: User) => isPersonQualifiedForOrganization(p, showOrganization)
+    : (p: User) => (p.judgeInfo?.qualifications?.length ?? 0) > 0;
   return {
-    qualified: filtered.filter(p => (p.judgeInfo?.qualifications?.length ?? 0) > 0),
-    others: filtered.filter(p => (p.judgeInfo?.qualifications?.length ?? 0) === 0),
+    qualified: filtered.filter(isQualified),
+    others: filtered.filter(p => !isQualified(p)),
   };
 }

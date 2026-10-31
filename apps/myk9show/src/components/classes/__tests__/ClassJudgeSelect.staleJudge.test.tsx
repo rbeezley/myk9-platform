@@ -18,7 +18,8 @@ const STALE_JUDGE_ID = 'b0728006-4428-4b5d-8462-00015c26a35b';
 function renderSelect(
   assignedJudgeId: string | null,
   availableJudges: Array<{ id: string; name: string }> = [],
-  canAssign = true
+  canAssign = true,
+  organization?: string
 ) {
   return render(
     <ClassJudgeSelect
@@ -27,6 +28,7 @@ function renderSelect(
       assignedJudgeId={assignedJudgeId}
       availableJudges={availableJudges}
       canAssign={canAssign}
+      organization={organization}
       onJudgeChange={vi.fn()}
     />
   );
@@ -62,5 +64,12 @@ describe('ClassJudgeSelect with an empty eligible list', () => {
     renderSelect(null, [{ id: 'j1', name: 'Pat Lee' }], false);
 
     expect(screen.getByRole('combobox', { name: /judge for interior novice a/i })).toBeDisabled();
+  });
+
+  it('names the registry the assigned judge is not qualified for (MYK9-1580)', () => {
+    renderSelect(STALE_JUDGE_ID, [{ id: 'j1', name: 'Pat Lee' }], true, 'UKC');
+
+    expect(screen.getByText('Not qualified for UKC')).toBeInTheDocument();
+    expect(screen.queryByText(/unavailable/i)).toBeNull();
   });
 });

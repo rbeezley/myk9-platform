@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { DEFAULT_THEME_PREFERENCES } from '@/types/user-preferences';
 import { buildDefaults } from '@/services/preferences/userPreferencesService';
+import { useSettingsStore } from '@/store/settingsStore';
 import { recordLocalThemeChange, readDeviceTheme } from '@/services/preferences/deviceThemeCache';
 
 let mockOnline = true;
@@ -36,6 +37,7 @@ function serverRow(theme: Partial<typeof DEFAULT_THEME_PREFERENCES>, updatedAtMs
 describe('useUserPreferences (local-first)', () => {
   beforeEach(() => {
     localStorage.clear();
+    useSettingsStore.getState().updateSettings({ accentColor: 'clay' });
     mockOnline = true;
     mockLoad.mockReset();
     mockUpdate.mockReset();
@@ -49,6 +51,46 @@ describe('useUserPreferences (local-first)', () => {
     const { result } = renderHook(() => useUserPreferences('u1'));
     expect(result.current.preferences?.theme.mode).toBe('dark');
     await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.preferences?.theme.mode).toBe('dark');
+  });
+
+  it('first offline visit keeps the accessibility settings the device already shows', async () => {
+    localStorage.setItem('fontScale', '1.2');
+    localStorage.setItem('reduceMotion', 'true');
+    localStorage.setItem('highContrast', 'true');
+    localStorage.setItem('theme', 'dark');
+    useSettingsStore.getState().updateSettings({ accentColor: 'grove' });
+    mockOnline = false;
+    mockLoad.mockRejectedValue(new Error('offline'));
+    const { result } = renderHook(() => useUserPreferences('u1'));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.preferences?.theme).toEqual({
+      mode: 'dark',
+      colorScheme: 'grove',
+      fontSize: 'large',
+      reduceMotion: true,
+      highContrast: true,
+    });
+    expect(readDeviceTheme('u1')?.theme).toEqual(result.current.preferences?.theme);
+  });
+
+  it('a mode picked with the header toggle is not reverted when no server row exists', async () => {
+    localStorage.setItem('theme', 'dark');
+    mockLoad.mockResolvedValue({
+      ...buildDefaults('u1'),
+      updatedAt: new Date(0),
+      lastModifiedAt: new Date(0),
+    });
+    mockUpdate.mockImplementation(async (_uid: string, upd: { theme: object }) => ({
+      ...buildDefaults('u1'),
+      theme: { ...DEFAULT_THEME_PREFERENCES, ...upd.theme },
+    }));
+    const onServerTheme = vi.fn();
+    const { result } = renderHook(() => useUserPreferences('u1', onServerTheme));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    await waitFor(() => expect(mockUpdate).toHaveBeenCalled());
+    expect(onServerTheme).not.toHaveBeenCalledWith(expect.objectContaining({ mode: 'light' }));
+    expect(mockUpdate.mock.calls[0]?.[1]).toEqual({ theme: { mode: 'dark' } });
     expect(result.current.preferences?.theme.mode).toBe('dark');
   });
 

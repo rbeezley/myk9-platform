@@ -288,7 +288,7 @@ describe('EntryPanel', () => {
     );
 
     expect(screen.getByRole('button', { name: /^Q$/i })).toHaveAttribute('data-selected', 'true');
-    expect(screen.getByLabelText(/search time/i)).toHaveValue('12345');
+    expect(screen.getByLabelText(/search time/i)).toHaveValue('1:23.45');
     expect(screen.getByText('2')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^save$/i })).toBeInTheDocument();
   });
@@ -387,12 +387,32 @@ describe('EntryPanel', () => {
       return { onSave, input: screen.getByLabelText(/search time/i) as HTMLInputElement };
     };
 
-    it('cannot enter or save eight digits as 52 minutes', async () => {
+    it('tells the person eight digits do not fit, and cannot save them as 52 minutes', async () => {
       const { onSave, input } = renderQ();
       await userEvent.type(input, '52105210');
-      expect(input.value).toBe('521052');
+      expect(screen.getByRole('alert')).toHaveTextContent(/too many digits/i);
+      expect(screen.getByRole('button', { name: /^save$/i })).toBeDisabled();
+      expect(screen.getByRole('button', { name: /save & next/i })).toBeDisabled();
+      expect(onSave).not.toHaveBeenCalled();
+    });
+
+    it('shows what a typed 125 means before it is saved, and saves 1.25 seconds', async () => {
+      const { onSave, input } = renderQ();
+      await userEvent.type(input, '125');
+      expect(screen.getByTestId('duration-preview')).toHaveTextContent('= 0:01.25');
       await userEvent.click(screen.getByRole('button', { name: /^save$/i }));
-      expect(onSave).toHaveBeenCalledWith('Q', '521052', 0, undefined);
+      expect(onSave).toHaveBeenCalledWith('Q', '0:01.25', 0, undefined);
+      expect(digitsToSeconds('0:01.25')).toBe(1.25);
+    });
+
+    it('flags 99 seconds and saves nothing until the person picks a reading', async () => {
+      const { onSave, input } = renderQ();
+      await userEvent.type(input, '19945');
+      expect(screen.getByRole('alert')).toHaveTextContent('99 seconds is 2:39.45');
+      expect(screen.getByRole('button', { name: /^save$/i })).toBeDisabled();
+      await userEvent.click(screen.getByRole('button', { name: 'Use 2:39.45' }));
+      await userEvent.click(screen.getByRole('button', { name: /^save$/i }));
+      expect(onSave).toHaveBeenCalledWith('Q', '2:39.45', 0, undefined);
     });
 
     it('select-all then typing over a loaded 1:23.45 saves 1:30.00', async () => {
@@ -405,7 +425,7 @@ describe('EntryPanel', () => {
       await userEvent.tripleClick(input);
       await userEvent.keyboard('13000');
       await userEvent.click(screen.getByRole('button', { name: /^save$/i }));
-      expect(onSave).toHaveBeenCalledWith('Q', '13000', 0, undefined);
+      expect(onSave).toHaveBeenCalledWith('Q', '1:30.00', 0, undefined);
       expect(digitsToSeconds('13000')).toBe(90);
     });
 
@@ -416,7 +436,7 @@ describe('EntryPanel', () => {
       expect(screen.getByRole('button', { name: /^save$/i })).toBeEnabled();
       expect(screen.getByRole('button', { name: /save & next/i })).toBeEnabled();
       await userEvent.click(screen.getByRole('button', { name: /^save$/i }));
-      expect(onSave).toHaveBeenCalledWith('Q', '30001', 0, undefined);
+      expect(onSave).toHaveBeenCalledWith('Q', '3:00.01', 0, undefined);
     });
 
     it('allows a Q at the limit', async () => {

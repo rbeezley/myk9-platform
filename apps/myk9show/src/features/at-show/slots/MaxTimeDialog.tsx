@@ -94,13 +94,8 @@ const MaxTimeForm: React.FC<MaxTimeDialogProps> = ({
       p => isDurationFailure(p) || p.seconds < 1 || p.seconds > MAX_SECONDS
     );
     if (unreadable >= 0) {
-      const failure = parsed[unreadable];
       const which = areaCount > 1 ? `the Area ${unreadable + 1}` : 'the';
-      setError(
-        isDurationFailure(failure)
-          ? failure.reason
-          : `Enter ${which} max time in minutes and seconds, like 4:00.`
-      );
+      setError(`Enter ${which} max time in minutes and seconds, like 4:00.`);
       return null;
     }
     const seconds = parsed.map(p => (p.ok ? p.seconds : 0));

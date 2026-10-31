@@ -114,7 +114,7 @@ describe('MaxTimeDialog (MYK9-1086)', () => {
     });
     await clickSave();
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(/like 4:00/i);
+    expect(await screen.findByText(/like 4:00/i)).toHaveAttribute('role', 'alert');
     expect(updateClass).not.toHaveBeenCalled();
   });
 
@@ -167,7 +167,10 @@ describe('MaxTimeDialog (MYK9-1086)', () => {
     });
     await clickSave();
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(/1:00 and 3:00/);
+    expect(await screen.findByText(/class must be between 1:00 and 3:00/i)).toHaveAttribute(
+      'role',
+      'alert'
+    );
     expect(updateClass).not.toHaveBeenCalled();
   });
 
@@ -293,7 +296,10 @@ describe('MaxTimeDialog (MYK9-1086)', () => {
       fireEvent.change(areaInput(2), { target: { value: '' } });
       await clickSave();
 
-      expect(await screen.findByRole('alert')).toHaveTextContent(/area 2 max time/i);
+      expect(await screen.findByText(/enter the area 2 max time/i)).toHaveAttribute(
+        'role',
+        'alert'
+      );
       expect(updateClass).not.toHaveBeenCalled();
     });
 
@@ -302,7 +308,10 @@ describe('MaxTimeDialog (MYK9-1086)', () => {
       fireEvent.change(areaInput(2), { target: { value: '5:00' } });
       await clickSave();
 
-      expect(await screen.findByRole('alert')).toHaveTextContent(/1:00 and 3:00/);
+      expect(await screen.findByText(/class must be between 1:00 and 3:00/i)).toHaveAttribute(
+        'role',
+        'alert'
+      );
       expect(updateClass).not.toHaveBeenCalled();
     });
 
@@ -334,6 +343,25 @@ describe('MaxTimeDialog (MYK9-1086)', () => {
       await waitFor(() =>
         expect(updateClass).toHaveBeenCalledWith('class-a', { timeLimitSeconds: 150 })
       );
+    });
+
+    it('previews what the digits mean and range-checks inline before Save (MYK9-1503)', async () => {
+      render(<MaxTimeDialog isOpen classData={classData} onClose={vi.fn()} />);
+      await screen.findByText(/allowed: 1:00 to 3:00/i);
+      const input = screen.getByRole('textbox', { name: /max time/i });
+
+      fireEvent.change(input, { target: { value: '230' } });
+      expect(screen.getByTestId('duration-preview')).toHaveTextContent('= 2:30');
+      expect(input).toHaveAttribute('inputmode', 'numeric');
+
+      fireEvent.change(input, { target: { value: '9' } });
+      expect(screen.getByTestId('duration-error')).toHaveTextContent(
+        'Must be between 1:00 and 3:00.'
+      );
+
+      fireEvent.change(input, { target: { value: '299' } });
+      expect(screen.getByTestId('duration-error')).toHaveTextContent('99 seconds is 3:39');
+      expect(updateClass).not.toHaveBeenCalled();
     });
 
     it('fills the area the judge last tapped', async () => {

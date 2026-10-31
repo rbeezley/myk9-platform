@@ -234,6 +234,19 @@ describe('EntryManagementPage derives its gate from the one manage scope', () =>
     );
   });
 
+  it('leaves the Waitlist list its own export, so the menu never shows two "Export CSV" rows', () => {
+    render(
+      <Routes>
+        <Route path="/shows/:id/entries" element={<EntryManagementPage />} />
+      </Routes>,
+      { initialRoute: '/shows/show-1/entries?tab=exceptions&exception=waitlist' }
+    );
+
+    expect(usePageEditTargetStore.getState().exports.some(item => item.id === 'entries')).toBe(
+      false
+    );
+  });
+
   it('never flashes a denial while ownership is still resolving', () => {
     manageScopeState.value = {
       status: 'resolving',

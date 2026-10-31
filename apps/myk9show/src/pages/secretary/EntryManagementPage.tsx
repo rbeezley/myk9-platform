@@ -233,9 +233,14 @@ const EntryManagementPage: React.FC = () => {
       registrationNeeded: registrationNeeded.count,
     },
     secretaryOnlyReason,
-    // Full CSV of every entry, on every list, as the old toolbar button was; withheld while a
-    // status change is in flight, when handleExportCSV would silently do nothing.
-    exportEnabled: Boolean(selectedShowId) && !isProcessing,
+    // Full CSV of every entry, as the old toolbar button was; withheld while a status change is
+    // in flight (handleExportCSV would silently do nothing). One export per view: the Waitlist
+    // list registers its own waitlist CSV, and two rows both reading "Export CSV" could not be
+    // told apart.
+    exportEnabled:
+      Boolean(selectedShowId) &&
+      !isProcessing &&
+      !(cockpitUrl.state.tab === 'exceptions' && cockpitUrl.state.exception === 'waitlist'),
     onExport: () => void handleExportCSV(),
   });
 

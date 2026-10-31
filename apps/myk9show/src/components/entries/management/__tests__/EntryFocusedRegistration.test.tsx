@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { TrialSecretaryAccessProvider } from '@/features/actions/TrialSecretaryAccessContext';
 import { screen, within } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
@@ -126,6 +127,89 @@ describe('EntryFocusedRegistration', () => {
       payment.compareDocumentPosition(communication) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Email Exhibitor' })).toBeInTheDocument();
+  });
+
+  describe('Add entry for the exhibitor (MYK9-1594)', () => {
+    const props = () => ({
+      onStatusChange: vi.fn(),
+      onCheckInStatusChange: vi.fn(),
+      onOpenArmbandDialog: vi.fn(),
+      onEntryRemoved: vi.fn(),
+      onBulkStatusChange: vi.fn(),
+      paymentLedger: { record: vi.fn(), markPaidOnline: vi.fn(), todayInShowZone: '2026-09-17' },
+    });
+    const registration = () =>
+      groupEntriesByShowRegistration([
+        { ...entry('entry-1', 'Poppy', 'Alice Martin', 'dog-1'), ownerId: 'person-alice' },
+      ])[0]!;
+
+    it('offers "Add entry for <exhibitor>" in the header menu, opening the wizard on them and returning to this form', async () => {
+      const { user } = render(
+        <EntryFocusedRegistration registration={registration()} {...props()} />
+      );
+
+      await user.click(screen.getByRole('button', { name: 'More actions for Alice Martin' }));
+      const item = await screen.findByRole('menuitem', { name: 'Add entry for Alice Martin' });
+
+      const href = new URL(item.getAttribute('href') ?? '', 'http://localhost');
+      expect(href.pathname).toBe('/secretary/register/show-1');
+      expect(href.searchParams.get('exhibitor')).toBe('person-alice');
+      expect(href.searchParams.get('returnForm')).toBe('registration-1');
+    });
+
+    it('draws the menu items as 44px touch targets', async () => {
+      const { user } = render(
+        <EntryFocusedRegistration registration={registration()} {...props()} />
+      );
+
+      await user.click(screen.getByRole('button', { name: 'More actions for Alice Martin' }));
+      const item = await screen.findByRole('menuitem', { name: 'Add entry for Alice Martin' });
+      const items = screen.getAllByRole('menuitem');
+
+      expect(item).toHaveClass('min-h-11');
+      expect(items.length).toBeGreaterThan(1);
+      items.forEach(each => expect(each).toHaveClass('min-h-11'));
+    });
+
+    it('greys it with the reason for a viewer who is not the trial secretary', async () => {
+      const { user } = render(
+        <TrialSecretaryAccessProvider reason="Trial secretary access only">
+          <EntryFocusedRegistration registration={registration()} {...props()} />
+        </TrialSecretaryAccessProvider>
+      );
+
+      await user.click(screen.getByRole('button', { name: 'More actions for Alice Martin' }));
+      const item = await screen.findByRole('menuitem', { name: /Add entry for Alice Martin/ });
+
+      expect(item).toHaveAttribute('aria-disabled', 'true');
+      expect(item).toHaveTextContent('Trial secretary access only');
+    });
+
+    it('is not offered on an online-checkout form with no enrollment row to join', async () => {
+      const { user } = render(
+        <EntryFocusedRegistration
+          registration={{ ...registration(), enrollmentId: null }}
+          {...props()}
+        />
+      );
+
+      await user.click(screen.getByRole('button', { name: 'More actions for Alice Martin' }));
+      await screen.findByRole('menu');
+
+      expect(screen.queryByRole('menuitem', { name: /Add entry for/ })).toBeNull();
+    });
+
+    it('is not offered when the form names no exhibitor to add for', async () => {
+      const bare = groupEntriesByShowRegistration([
+        entry('entry-1', 'Poppy', 'Alice Martin', 'dog-1'),
+      ])[0]!;
+      const { user } = render(<EntryFocusedRegistration registration={bare} {...props()} />);
+
+      await user.click(screen.getByRole('button', { name: 'More actions for Alice Martin' }));
+      await screen.findByRole('menu');
+
+      expect(screen.queryByRole('menuitem', { name: /Add entry for/ })).toBeNull();
+    });
   });
 
   describe('To finish this form', () => {

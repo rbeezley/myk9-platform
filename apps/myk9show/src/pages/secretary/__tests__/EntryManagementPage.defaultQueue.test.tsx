@@ -1,10 +1,10 @@
 /**
- * MYK9-1276: with no queue in the URL, Entry Forms opens on the derived default (All when Needs
- * review is empty and forms exist), the derived value is never written to the URL, and a queue the
- * URL names or the secretary picks always wins.
+ * MYK9-1594: with no queue in the URL, Entry Forms opens on every form (no status filter, nothing
+ * written to the URL), forms needing attention first; a queue the URL names or the secretary picks
+ * in the Filter menu always wins. This replaces MYK9-1276's Needs review landing.
  */
 import { useLocation } from 'react-router-dom';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@/test/utils/testUtils';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
@@ -63,6 +63,9 @@ vi.mock('@/hooks/useEntryManagementData', () => ({
 vi.mock('../WaitlistManagementPage/index', () => ({ default: () => null }));
 vi.mock('@/components/entries/MoveUpRequestsTab', () => ({ MoveUpRequestsTab: () => null }));
 vi.mock('@/components/entries/PullManagementTab', () => ({ PullManagementTab: () => null }));
+vi.mock('@/services/database/day-of-operations', () => ({
+  getClassesWithCapacity: vi.fn(async () => ({ data: [{ available_spots: 2 }], error: null })),
+}));
 vi.mock('@/services/AuditService', () => ({ auditService: { log: vi.fn() } }));
 vi.mock('@/hooks/useMoveUpRequestsCount', () => ({
   useMoveUpRequestsCount: () => ({ count: 0, isLoading: false }),
@@ -116,25 +119,39 @@ const listedForms = async () =>
     'listitem'
   );
 
-describe('EntryManagementPage default queue (MYK9-1276)', () => {
+describe('EntryManagementPage default queue (MYK9-1594)', () => {
+  // cmdk scrolls the highlighted row into view; jsdom has no layout, so no scrollIntoView.
+  const originalScrollIntoView = Element.prototype.scrollIntoView;
+  beforeAll(() => {
+    Element.prototype.scrollIntoView = vi.fn();
+  });
+  afterAll(() => {
+    Element.prototype.scrollIntoView = originalScrollIntoView;
+  });
   beforeEach(() => {
     data.entries = [entry('e1'), entry('e2')];
   });
 
-  it('shows the forms, and leaves the URL without a queue, when Needs review is empty', async () => {
-    renderAt('/shows/show-1/entries');
-
-    expect(await listedForms()).toHaveLength(2);
-    expect(screen.queryByText('Nothing needs review')).toBeNull();
-    expect(screen.getByTestId('location-search')).toBeEmptyDOMElement();
-  });
-
-  it('lands on the Needs review queue when it has forms', async () => {
+  it('opens on every form, with no status filter and no queue in the URL', async () => {
     data.entries = [entry('e1'), entry('e2', { entryStatus: EntryStatus.PENDING })];
     renderAt('/shows/show-1/entries');
 
-    expect(await listedForms()).toHaveLength(1);
+    // The form that needs review does not hide the accepted one.
+    expect(await listedForms()).toHaveLength(2);
+    expect(screen.queryByText(/^Status:/)).toBeNull();
     expect(screen.getByTestId('location-search')).toBeEmptyDOMElement();
+  });
+
+  it('lists the form that needs review first, and marks it in the row', async () => {
+    data.entries = [
+      entry('e1', { submittedAt: new Date(2026, 6, 1, 8) }),
+      entry('e2', { entryStatus: EntryStatus.PENDING, submittedAt: new Date(2026, 6, 2, 8) }),
+    ];
+    renderAt('/shows/show-1/entries');
+
+    const rows = await listedForms();
+    expect(within(rows[0]!).getByTestId('needs-review-marker')).toHaveTextContent('Needs review');
+    expect(within(rows[1]!).queryByTestId('needs-review-marker')).toBeNull();
   });
 
   it('keeps an explicit queue=needs-review and names the count in All', async () => {
@@ -142,12 +159,13 @@ describe('EntryManagementPage default queue (MYK9-1276)', () => {
 
     expect(await screen.findByText('Nothing needs review')).toBeInTheDocument();
     expect(
-      screen.getByText('2 entry forms are in All. Choose All from the Show menu to see them.')
+      screen.getByText('2 entry forms are in All. Clear the Status filter to see them.')
     ).toBeInTheDocument();
     expect(screen.getByTestId('location-search')).toHaveTextContent('?queue=needs-review');
+    expect(screen.getByText('Status: Needs review')).toBeInTheDocument();
   });
 
-  it('judges the landing and the All count on the class in view, not the whole show', async () => {
+  it('judges the All count on the class in view, not the whole show', async () => {
     const inClass2 = (id: string, overrides: Partial<EntryManagementEntry> = {}) =>
       entry(id, {
         classes: [
@@ -164,18 +182,23 @@ describe('EntryManagementPage default queue (MYK9-1276)', () => {
     renderAt('/shows/show-1/entries?queue=needs-review&class=class-2');
     expect(await screen.findByText('Nothing needs review')).toBeInTheDocument();
     expect(
-      screen.getByText('1 entry form is in All. Choose All from the Show menu to see it.')
+      screen.getByText('1 entry form is in All. Clear the Status filter to see it.')
     ).toBeInTheDocument();
   });
 
-  it('writes and keeps Needs review when the secretary picks it from the Show: menu', async () => {
+  it('writes the status the secretary picks in the Filter menu into the URL, and unticking shows every form', async () => {
+    data.entries = [entry('e1'), entry('e2', { entryStatus: EntryStatus.PENDING })];
     const { user } = renderAt('/shows/show-1/entries');
     expect(await listedForms()).toHaveLength(2);
 
-    await user.click(await screen.findByRole('button', { name: /^Show:/ }));
-    await user.click(await screen.findByRole('menuitemcheckbox', { name: /Needs review/ }));
+    await user.click(await screen.findByRole('button', { name: /^Filter/ }));
+    await user.click(await screen.findByRole('option', { name: /Needs review/ }));
 
-    expect(await screen.findByText('Nothing needs review')).toBeInTheDocument();
+    expect(await listedForms()).toHaveLength(1);
     expect(screen.getByTestId('location-search')).toHaveTextContent('?queue=needs-review');
+
+    await user.click(await screen.findByRole('option', { name: /Needs review/ }));
+    expect(await listedForms()).toHaveLength(2);
+    expect(screen.getByTestId('location-search')).toHaveTextContent('?queue=all');
   });
 });

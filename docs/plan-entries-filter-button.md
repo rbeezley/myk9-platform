@@ -4,6 +4,8 @@
 
 > **Progress (2026-10-08):** Phases 1–6 merged for the Entries tab: #2809, #2811, #2817, #2822 (2026-10-08). Not deployed until a Deploy myK9Show run. Still open: the "After Oct 10" migration of the other lists.
 
+> **Reversed (MYK9-1594, owner 2026-10-31):** decision 1 and the "Show:" select are gone. Status (Needs review, Missing info, Payment due) is a multi-select field in the Filter menu beside Trial and Class; the form list opens on every form, attention first; Pulls, Move-ups, Registration number needed and Waitlist are "Entry lists" rows of the header Actions menu, each opening as a titled view with a way back; More and Add Entry left the page for the header Actions menu. Settled rules 1, 8 and 13 still describe the queue union and the empty-means-All write; the Needs review landing in rule 1 (MYK9-1276) is replaced.
+
 ## Goal
 
 The Entries tab toolbar carries a search box, a "Show:" select, two filter selects, a Clear all button, More and Add Entry. That is too much at once with no hierarchy. Replace the filter selects with one labelled **Filter** button that opens a searchable multi-select menu (Linear-style), show what is applied as plain sentences, and keep one primary button. Built as a `list-toolkit` component so every list can adopt it later; the Entries tab is the only user until after the Oct 10 show.

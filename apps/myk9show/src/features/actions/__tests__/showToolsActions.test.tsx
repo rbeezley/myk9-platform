@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { act, render, renderHook, screen } from '@testing-library/react';
+import { act, render, renderHook, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -102,10 +102,11 @@ beforeEach(() => {
 });
 
 describe('show tool groups', () => {
-  it('places Show day and Show logistics between the show and list sections', () => {
+  it('places Entry lists, Show day and Show logistics between the show and list sections', () => {
     expect(ACTION_GROUP_ORDER).toEqual([
       'page',
       'show',
+      'entry-lists',
       'show-day',
       'show-logistics',
       'list',
@@ -154,6 +155,7 @@ describe('resolveActions with registered show tools', () => {
     const groups = groupActions(resolveActions(route, viewer), {
       page: 'p',
       show: 's',
+      'entry-lists': 'Entry lists',
       'show-day': 'Show day',
       'show-logistics': 'Show logistics',
       list: 'l',
@@ -311,6 +313,72 @@ describe('HeaderActions trigger badge', () => {
       'href',
       `/secretary/volunteers?showId=${SHOW_ID}`
     );
+  });
+
+  it('lists the Entry lists group under its own heading, each row badged when it has a count (MYK9-1594)', async () => {
+    const lists: ShowToolItem[] = [
+      {
+        id: 'entry-list-pulls',
+        group: 'entry-lists',
+        title: 'Pulls',
+        href: `/shows/${SHOW_ID}/entries?tab=exceptions&exception=pulls`,
+        attentionLabel: '1',
+      },
+      {
+        id: 'entry-list-waitlist',
+        group: 'entry-lists',
+        title: 'Waitlist',
+        href: `/shows/${SHOW_ID}/entries?tab=exceptions&exception=waitlist`,
+      },
+    ];
+    act(() => {
+      usePageEditTargetStore.getState().registerShowTools(Symbol('t'), {
+        showId: SHOW_ID,
+        tools: lists,
+        attention: { count: 1, tone: 'routine', incomplete: false },
+      });
+    });
+    render(<HeaderActions />, { wrapper });
+
+    expect(screen.getByTestId('header-actions-badge')).toHaveTextContent('1 item needs attention');
+    await userEvent.click(screen.getByTestId('header-actions-trigger'));
+    const group = await screen.findByTestId('header-action-group-entry-lists');
+    expect(group).toHaveTextContent('Entry lists');
+    const pulls = within(group).getByTestId('header-action-show-tool-entry-list-pulls');
+    expect(pulls).toHaveAttribute(
+      'href',
+      `/shows/${SHOW_ID}/entries?tab=exceptions&exception=pulls`
+    );
+    expect(pulls).toHaveTextContent('1');
+    // Waitlist has no count today, so no badge.
+    expect(
+      within(group).getByTestId('header-action-show-tool-entry-list-waitlist')
+    ).not.toHaveTextContent(/\d/);
+  });
+
+  it('draws every row, including a greyed two-line one, as a 44px touch target', async () => {
+    act(() => {
+      usePageEditTargetStore.getState().registerShowTools(Symbol('t'), {
+        showId: SHOW_ID,
+        tools: [
+          ...TOOLS,
+          {
+            id: 'late-entry',
+            group: 'show-day',
+            title: 'Add late entry',
+            disabledReason: 'No classes with space',
+          },
+        ],
+        attention: IDLE,
+      });
+    });
+    render(<HeaderActions />, { wrapper });
+    await userEvent.click(screen.getByTestId('header-actions-trigger'));
+
+    const link = await screen.findByTestId('header-action-show-tool-people-at-show');
+    const greyed = screen.getByTestId('header-action-show-tool-late-entry');
+    expect(link).toHaveClass('min-h-11');
+    expect(greyed).toHaveClass('min-h-11');
   });
 
   it('names the trigger Actions with the badge text inside it', () => {

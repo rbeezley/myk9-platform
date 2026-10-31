@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import userEvent from '@testing-library/user-event';
 import { render, screen } from '@/test/utils/testUtils';
 import { Route, Routes } from 'react-router-dom';
 import EntryManagementPage from '../EntryManagementPage';
@@ -141,35 +140,21 @@ describe('EntryManagementPage at /secretary/entries, where the URL names no show
     auth.roles = ['secretary'];
   });
 
-  it('leaves Add Entry live for a real trial secretary', async () => {
-    renderWithoutShowId();
+  // MYK9-1594: the page's own Add Entry and More are gone; the header Actions menu, which reads
+  // the same access answer, owns them. What the page still owes the bare URL is that it opens for
+  // a real trial secretary instead of holding a denial or a "checking access" state.
+  it.each([['secretary'], ['site_admin'], ['club_admin']])(
+    'opens for a %s with no denial and no page-level Add Entry or More',
+    role => {
+      auth.roles = [role];
 
-    expect(screen.getByRole('button', { name: /^add entry$/i })).toBeEnabled();
-    expect(screen.queryByText('Trial secretary access only')).toBeNull();
-    // ...and never the "still asking" caption either: with no show to ask about,
-    // the role IS the answer, so there is nothing in flight.
-    expect(screen.queryByText(/checking your access/i)).toBeNull();
-  });
+      renderWithoutShowId();
 
-  it('leaves it live for a site admin', () => {
-    auth.roles = ['site_admin'];
-
-    renderWithoutShowId();
-
-    expect(screen.getByRole('button', { name: /^add entry$/i })).toBeEnabled();
-  });
-
-  it('still keeps the secretary flow from a club admin, who is not an operator anywhere', async () => {
-    const user = userEvent.setup();
-    auth.roles = ['club_admin'];
-
-    renderWithoutShowId();
-
-    expect(screen.queryByRole('button', { name: /^add entry$/i })).toBeNull();
-    expect(screen.getByRole('button', { name: /add entry for my dog/i })).toBeEnabled();
-    await user.click(screen.getByRole('button', { name: /^more$/i }));
-    // The late-entry door (moved here by MYK9-954) carries the same gate.
-    expect(await screen.findByRole('button', { name: /add late entry/i })).toBeDisabled();
-    expect(screen.getByText('Trial secretary access only')).toBeInTheDocument();
-  });
+      expect(screen.getByRole('heading', { name: 'Entry Forms' })).toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: /access restricted/i })).toBeNull();
+      expect(screen.queryByRole('button', { name: /add entry/i })).toBeNull();
+      expect(screen.queryByRole('button', { name: /^more$/i })).toBeNull();
+      expect(screen.queryByText(/checking your access/i)).toBeNull();
+    }
+  );
 });

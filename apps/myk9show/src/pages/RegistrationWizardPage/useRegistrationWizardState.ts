@@ -23,6 +23,10 @@ import {
   makeHandlerKey,
 } from '@/types/show-registration-types';
 import type { PaymentMethod, PaymentDetails } from '@/types/show-registration-types';
+import {
+  readEntryExhibitorId,
+  readEntryReturnFormKey,
+} from '@/features/registration/entryExhibitorContext';
 import { useRegistrationPermissions } from '@/hooks/useRegistrationPermissions';
 import { useReplicationSyncActions } from '@/hooks/useReplicationSyncActions';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
@@ -124,7 +128,14 @@ export function useRegistrationWizardState() {
     isLateEntryMode,
     isInsideSidebar,
   });
-  const exitTarget = resolveRegistrationExit(showId, { isLateEntryMode, isInsideSidebar });
+  // Staff only: "Add entry for <exhibitor>" on an entry form names the form to come back to.
+  const returnFormKey = isInsideSidebar ? readEntryReturnFormKey(searchParams) : null;
+  const returnExhibitorId = isInsideSidebar ? readEntryExhibitorId(searchParams) : null;
+  const exitTarget = resolveRegistrationExit(showId, {
+    isLateEntryMode,
+    isInsideSidebar,
+    returnFormKey,
+  });
 
   // Auth and permissions
   const { isSecretary, isClubAdmin, isSiteAdmin, canAssignArmbands } = useRegistrationPermissions();
@@ -593,6 +604,8 @@ export function useRegistrationWizardState() {
     navigate,
     isInsideSidebar,
     isLateEntryMode,
+    returnFormKey,
+    returnExhibitorId,
     exitTarget,
     workflowLabel,
     sidebarTitle,

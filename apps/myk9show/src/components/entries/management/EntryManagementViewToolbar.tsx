@@ -1,10 +1,10 @@
 /**
- * The Entries tab toolbar (docs/plan-entries-filter-button.md): the "Show:" menu of queues and
- * lists, a quiet search, one Filter button for Trial and Class, the applied filters as plain
- * sentences, and the result line. The three exception views (Waitlist, Pulls, Move-ups) render
- * their own search inside their own component, so only Show: is drawn here for them.
+ * The Entries tab toolbar (docs/plan-entries-filter-button.md): a quiet search, one Filter button
+ * for Status, Trial and Class, the applied filters as plain sentences, and the result line.
+ * Everything else the page holds is in the header Actions menu (MYK9-1594). The exception lists
+ * (Pulls, Move-ups, ...) are their own views and draw no toolbar.
  */
-import { useMemo, useRef, type ReactNode } from 'react';
+import { useMemo, useRef } from 'react';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { MASTER_DETAIL_QUERY } from '@/components/layout/MasterDetailLayout';
 import {
@@ -19,7 +19,6 @@ import type {
   EntryManagementTrial,
   useEntryManagementTrialClasses,
 } from '@/hooks/useEntryManagementTrialScope';
-import { EntryManagementShowMenu } from './EntryManagementShowMenu';
 import { countFormsByTrialAndClass } from './entryManagementFilterCounts';
 import { buildEntryManagementFilterFields } from './entryManagementFilterFields';
 
@@ -29,20 +28,8 @@ type TrialClasses = ReturnType<typeof useEntryManagementTrialClasses>;
 interface EntryManagementViewToolbarProps {
   cockpit: Pick<
     Cockpit,
-    | 'state'
-    | 'groups'
-    | 'queueCounts'
-    | 'queueSelectionCount'
-    | 'setQueues'
-    | 'setException'
-    | 'setScope'
-    | 'setSearch'
+    'state' | 'groups' | 'queueCounts' | 'setQueues' | 'setScope' | 'setSearch'
   >;
-  exceptionCounts: {
-    pulls: number;
-    moveUps: number | undefined;
-    registrationNeeded: number | undefined;
-  };
   trials: readonly EntryManagementTrial[];
   trialsLoaded: boolean;
   classes: Pick<
@@ -50,25 +37,22 @@ interface EntryManagementViewToolbarProps {
     'trialClasses' | 'classesLoaded' | 'classTrialById' | 'knownClassIds'
   >;
   onClearAll: () => void;
-  /** Registrations on screen after every filter, and in the show's whole queue. */
-  /** Null until the entries have loaded successfully: no sentence before then. */
+  /**
+   * Distinct forms on screen after every filter, and in the whole show (never a sum of queues).
+   * Null until the entries have loaded successfully: no sentence before then.
+   */
   result: { shown: number; total: number } | null;
-  /** Page-level actions (Add Entry, More), beside the controls instead of in a title row. */
-  actions?: ReactNode;
 }
 
 export function EntryManagementViewToolbar({
   cockpit,
-  exceptionCounts,
   trials,
   trialsLoaded,
   classes,
   onClearAll,
   result,
-  actions,
 }: EntryManagementViewToolbarProps) {
   const { state } = cockpit;
-  const isRegistrationsView = state.tab === 'registrations';
   const filterButtonRef = useRef<HTMLButtonElement>(null);
   const entriesLoaded = result !== null;
   const filterCounts = useMemo(
@@ -90,9 +74,11 @@ export function EntryManagementViewToolbar({
     classTrialById: classes.classTrialById,
     counts: filterCounts,
     onScopeChange: cockpit.setScope,
+    queueCounts: cockpit.queueCounts,
+    onQueuesChange: cockpit.setQueues,
   });
-  // From lg: Show:, search and Filter on one row, and the count only once the list is narrowed,
-  // because the queue is the work. On a phone or tablet the one row does not fit, so they stack.
+  // From lg: search and Filter on one row, and the count only once the list is narrowed, because
+  // the queue is the work. On a phone or tablet the one row does not fit, so they stack.
   const singleRow = useMediaQuery(MASTER_DETAIL_QUERY);
   const filtered =
     state.search.trim() !== '' ||
@@ -101,65 +87,42 @@ export function EntryManagementViewToolbar({
     state.classIds.length > 0;
 
   return (
-    <div className="flex flex-wrap items-start gap-x-3 gap-y-2">
-      <div className="min-w-0 flex-1 basis-[22rem]">
-        <ListToolbarLayout
-          compact={singleRow}
-          viewTabs={
-            <EntryManagementShowMenu
-              state={state}
-              counts={{ queueCounts: cockpit.queueCounts, ...exceptionCounts }}
-              selectionCount={cockpit.queueSelectionCount}
-              onQueuesChange={cockpit.setQueues}
-              onSelectException={cockpit.setException}
-              compact={singleRow}
+    <div className="min-w-0">
+      <ListToolbarLayout
+        compact={singleRow}
+        viewTabs={null}
+        filterBar={
+          // From lg the search is a fixed-width field; below it the group fills the row.
+          <div className="flex min-w-0 flex-1 items-center gap-2 lg:flex-none">
+            <ListSearchField
+              value={state.search}
+              onChange={cockpit.setSearch}
+              placeholder="Search exhibitor, dog, handler, armband, confirmation, class…"
             />
-          }
-          filterBar={
-            isRegistrationsView ? (
-              // From lg the search is a fixed-width field, so this group keeps its width and a long
-              // Show: summary truncates instead of sliding over the Filter button.
-              <div className="flex min-w-0 flex-1 items-center gap-2 lg:flex-none">
-                <ListSearchField
-                  value={state.search}
-                  onChange={cockpit.setSearch}
-                  placeholder="Search exhibitor, dog, handler, armband, confirmation, class…"
-                />
-                <ListFilterMenu fields={filterFields} triggerRef={filterButtonRef} />
-              </div>
-            ) : null
-          }
-          appliedFilters={
-            isRegistrationsView ? (
-              <ListAppliedFilters
-                fields={filterFields}
-                onClearAll={onClearAll}
-                alsoNarrowed={state.search.trim() !== ''}
-                focusTargetRef={filterButtonRef}
-              />
-            ) : null
-          }
-          resultLine={
-            isRegistrationsView && result ? (
-              <ListResultLine
-                shown={result.shown}
-                total={result.total}
-                noun={['form', 'forms']}
-                filtered={filtered}
-                onShowAll={onClearAll}
-                quietWhenUnfiltered={singleRow}
-              />
-            ) : null
-          }
-        />
-      </div>
-      {/* Wraps inside its own box: More + Add Entry are 277px wide, wider than a 260px phone at 150%
-          zoom, and a non-wrapping group pushed the whole page sideways (MYK9-1114). */}
-      {actions && (
-        <div className="flex min-w-0 max-w-full flex-none flex-wrap items-center gap-2">
-          {actions}
-        </div>
-      )}
+            <ListFilterMenu fields={filterFields} triggerRef={filterButtonRef} />
+          </div>
+        }
+        appliedFilters={
+          <ListAppliedFilters
+            fields={filterFields}
+            onClearAll={onClearAll}
+            alsoNarrowed={state.search.trim() !== ''}
+            focusTargetRef={filterButtonRef}
+          />
+        }
+        resultLine={
+          result ? (
+            <ListResultLine
+              shown={result.shown}
+              total={result.total}
+              noun={['form', 'forms']}
+              filtered={filtered}
+              onShowAll={onClearAll}
+              quietWhenUnfiltered={singleRow}
+            />
+          ) : null
+        }
+      />
     </div>
   );
 }

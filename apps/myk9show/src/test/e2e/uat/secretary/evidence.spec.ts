@@ -47,13 +47,14 @@ test.describe('Phase 1 UAT - Secretary evidence pass', () => {
     await expect(page.getByRole('heading', { name: 'Entry Forms' })).toBeVisible({
       timeout: 15000,
     });
-    await page.getByRole('button', { name: 'More', exact: true }).click();
-    await expect(page.getByRole('button', { name: 'Export Full CSV' })).toBeVisible();
+    await page.getByTestId('header-actions-trigger').click();
+    await expect(page.getByTestId('header-action-page-export-entries')).toBeVisible();
+    await page.keyboard.press('Escape');
     await attachScreenshot(page, testInfo, 'secretary-entry-management');
 
-    // Waitlist is a view in the page's "Show:" menu, beside the registration queues.
-    await page.getByRole('button', { name: /^Show:/ }).click();
-    await page.getByRole('menuitemradio', { name: 'Waitlist' }).click();
+    // Waitlist is an entry list in the header Actions menu (MYK9-1594).
+    await page.getByTestId('header-actions-trigger').click();
+    await page.getByTestId('header-action-show-tool-entry-list-waitlist').click();
     await expect(page.getByText(/Wait list settings:/)).toBeVisible();
     await attachScreenshot(page, testInfo, 'secretary-waitlist');
 

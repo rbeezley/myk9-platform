@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
   normalizeEntryManagementCockpitParams,
-  toggleQueueSelection,
   writeCockpitException,
   writeCockpitFocus,
   writeCockpitQueues,
@@ -17,7 +16,7 @@ function params(value = ''): URLSearchParams {
 
 describe('normalizeEntryManagementCockpitParams', () => {
   it.each([
-    ['', { queues: ['needs-review'], tab: 'registrations', exception: 'move-ups' }, ''],
+    ['', { queues: ['all'], tab: 'registrations', exception: 'move-ups' }, ''],
     [
       'attention=missing_information',
       { queues: ['missing-information'], tab: 'registrations', exception: 'move-ups' },
@@ -35,12 +34,12 @@ describe('normalizeEntryManagementCockpitParams', () => {
     ],
     [
       'tab=pulls&trial=trial-1&class=class-1',
-      { queues: ['needs-review'], tab: 'exceptions', exception: 'pulls' },
+      { queues: ['all'], tab: 'exceptions', exception: 'pulls' },
       'tab=exceptions&exception=pulls',
     ],
     [
       'tab=waitlist',
-      { queues: ['needs-review'], tab: 'exceptions', exception: 'waitlist' },
+      { queues: ['all'], tab: 'exceptions', exception: 'waitlist' },
       'tab=exceptions&exception=waitlist',
     ],
     // MYK9-754: waitlisted dogs live in waitlist_entries, never in an entries
@@ -48,38 +47,38 @@ describe('normalizeEntryManagementCockpitParams', () => {
     // than filtering entry rows that can never match.
     [
       'attention=waitlist',
-      { queues: ['needs-review'], tab: 'exceptions', exception: 'waitlist' },
+      { queues: ['all'], tab: 'exceptions', exception: 'waitlist' },
       'tab=exceptions&exception=waitlist',
     ],
     [
       'attention=move-ups',
-      { queues: ['needs-review'], tab: 'exceptions', exception: 'move-ups' },
+      { queues: ['all'], tab: 'exceptions', exception: 'move-ups' },
       'tab=exceptions',
     ],
     [
       'tab=exceptions&queue=pulled',
-      { queues: ['needs-review'], tab: 'exceptions', exception: 'pulls' },
+      { queues: ['all'], tab: 'exceptions', exception: 'pulls' },
       'tab=exceptions&exception=pulls',
     ],
     [
       'attention=pulled',
-      { queues: ['needs-review'], tab: 'exceptions', exception: 'pulls' },
+      { queues: ['all'], tab: 'exceptions', exception: 'pulls' },
       'tab=exceptions&exception=pulls',
     ],
     [
       'entryTab=scratches',
-      { queues: ['needs-review'], tab: 'exceptions', exception: 'pulls' },
+      { queues: ['all'], tab: 'exceptions', exception: 'pulls' },
       'tab=exceptions&exception=pulls',
     ],
     [
       'tab=exceptions&exception=waitlist',
-      { queues: ['needs-review'], tab: 'exceptions', exception: 'waitlist' },
+      { queues: ['all'], tab: 'exceptions', exception: 'waitlist' },
       'tab=exceptions&exception=waitlist',
     ],
     // MYK9-1162: the Registration number needed pane is URL state like the others.
     [
       'tab=exceptions&exception=registration-needed',
-      { queues: ['needs-review'], tab: 'exceptions', exception: 'registration-needed' },
+      { queues: ['all'], tab: 'exceptions', exception: 'registration-needed' },
       'tab=exceptions&exception=registration-needed',
     ],
     [
@@ -90,8 +89,7 @@ describe('normalizeEntryManagementCockpitParams', () => {
     [
       'queue=unsupported',
       {
-        queues: ['needs-review'],
-        queuesNamed: false,
+        queues: ['all'],
         tab: 'registrations',
         exception: 'move-ups',
       },
@@ -267,36 +265,23 @@ describe('normalizeEntryManagementCockpitParams', () => {
       expect(normalizeEntryManagementCockpitParams(next).state.classIds).toEqual(['c1', 'c2']);
     });
 
-    it('writes a picked queue, Needs review included, and an empty list as All (MYK9-1276)', () => {
+    it('writes a picked queue, Needs review included, and an empty list as All', () => {
       expect(writeCockpitQueues(params('queue=all'), ['needs-review']).toString()).toBe(
         'queue=needs-review'
       );
       expect(writeCockpitQueues(params(), []).toString()).toBe('queue=all');
     });
 
-    it('keeps an explicit queue=needs-review through normalization and marks it named', () => {
+    it('keeps an explicit queue=needs-review through normalization', () => {
       const normalized = normalizeEntryManagementCockpitParams(params('queue=needs-review'));
-      expect(normalized.state).toMatchObject({ queues: ['needs-review'], queuesNamed: true });
+      expect(normalized.state).toMatchObject({ queues: ['needs-review'] });
       expect(normalized.params.toString()).toBe('queue=needs-review');
     });
 
-    it('leaves a URL that names no queue without one, marked unnamed', () => {
+    it('opens on every form when the URL names no queue, and writes none back (MYK9-1594)', () => {
       const normalized = normalizeEntryManagementCockpitParams(params('search=Poppy'));
-      expect(normalized.state).toMatchObject({ queues: ['needs-review'], queuesNamed: false });
+      expect(normalized.state).toMatchObject({ queues: ['all'] });
       expect(normalized.params.toString()).toBe('search=Poppy');
-    });
-  });
-
-  describe('toggleQueueSelection', () => {
-    it.each([
-      [['needs-review'], 'payment-due', ['needs-review', 'payment-due']],
-      [['needs-review', 'payment-due'], 'needs-review', ['payment-due']],
-      [['payment-due'], 'payment-due', ['all']],
-      [['needs-review', 'payment-due'], 'all', ['all']],
-      [['all'], 'missing-information', ['missing-information']],
-      [['all'], 'all', ['all']],
-    ] as const)('%j toggling %s gives %j', (current, queue, expected) => {
-      expect(toggleQueueSelection(current, queue)).toEqual(expected);
     });
   });
 });

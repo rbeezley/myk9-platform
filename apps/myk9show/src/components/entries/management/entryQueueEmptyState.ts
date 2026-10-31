@@ -42,6 +42,6 @@ export function describeEmptyEntryQueue(
   const noun = one ? 'entry form is' : 'entry forms are';
   return {
     heading,
-    body: `${scopedAllCount.toLocaleString()} ${noun} in All. Choose All from the Show menu to see ${one ? 'it' : 'them'}.`,
+    body: `${scopedAllCount.toLocaleString()} ${noun} in All. Clear the Status filter to see ${one ? 'it' : 'them'}.`,
   };
 }

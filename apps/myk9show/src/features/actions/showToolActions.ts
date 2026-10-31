@@ -19,6 +19,15 @@ export const SHOW_DESK_TOOL_GROUP_HEADINGS = Object.fromEntries(
   SHOW_DESK_TOOL_GROUPS.map(group => [group.id, group.label])
 ) as Record<ShowDeskToolGroupId, string>;
 
+/**
+ * The Entry Forms page registers its lists in a third group (MYK9-1594). It is not a Show Desk
+ * panel group, so it stays out of `SHOW_DESK_TOOL_GROUPS` (which the show page's sheet renders).
+ */
+export const ENTRY_LISTS_GROUP = { id: 'entry-lists', label: 'Entry lists' } as const;
+
+/** Every group a registered show tool can sit in. */
+export type ShowToolGroupId = ShowDeskToolGroupId | typeof ENTRY_LISTS_GROUP.id;
+
 /** The URL contract every deep link relies on: `?tool=<id>` opens exactly that tool. */
 export const SHOW_DESK_TOOL_PARAM = 'tool';
 
@@ -28,7 +37,7 @@ export const SHOW_DESK_TOOL_PARAM = 'tool';
  */
 export interface ShowToolItem {
   id: string;
-  group: ShowDeskToolGroupId;
+  group: ShowToolGroupId;
   title: string;
   /** The row's badge ("2 urgent"), when the tool has something waiting. */
   attentionLabel?: string | undefined;

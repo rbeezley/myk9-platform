@@ -111,7 +111,8 @@ test.describe('Browse entries', () => {
     await expect(removeEntryItem).not.toBeVisible();
 
     // MYK9-1242: one Add Entry, straight to the secretary flow; no "who are you entering" choice.
-    await page.getByRole('button', { name: 'Add Entry', exact: true }).click();
+    await page.getByTestId('header-actions-trigger').click();
+    await page.getByTestId('header-action-show-add-mail-in-entry').click();
     await page.waitForURL(`**/secretary/register/${LIVE_SECRETARY_SHOW_ID}`, { timeout: 10_000 });
     await expect(page.getByRole('heading', { name: 'Select Dogs to Enter' })).toBeVisible({
       timeout: 15_000,

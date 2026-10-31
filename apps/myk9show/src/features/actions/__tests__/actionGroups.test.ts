@@ -12,6 +12,7 @@ import { resolveActions, type AppAction } from '@/features/actions/actionRegistr
 const HEADINGS: ActionGroupHeadings = {
   page: 'Ruby',
   show: 'Fall Scent Weekend',
+  'entry-lists': 'Entry lists',
   'show-day': 'Show day',
   'show-logistics': 'Show logistics',
   list: 'Dogs',

@@ -1,15 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { auditService } from '@/services/AuditService';
 import { useShowManageScope } from '@/hooks/useShowManageScope';
 import { trialSecretaryOnlyReason } from '@/features/actions/trialSecretaryAccess';
+import { TrialSecretaryAccessProvider } from '@/features/actions/TrialSecretaryAccessContext';
 import { AuditAction } from '@/types/audit-types';
-import { AlertCircle, Download, MoreHorizontal, UserCheck } from 'lucide-react';
-import { AddEntryButton } from '@/features/registration/AddEntryButton';
-import { WorkbenchLateEntryAction } from '@/features/show-workbench/WorkbenchLateEntryAction';
+import { AlertCircle } from 'lucide-react';
 import { TableSkeleton } from '@/components/common/SkeletonLoaders';
 
 import { useEntryManagementData } from '@/hooks/useEntryManagementData';
@@ -20,11 +19,13 @@ import {
 } from '@/hooks/useEntryManagementTrialScope';
 import { useEntryManagementCockpit } from '@/hooks/useEntryManagementCockpit';
 import { useMoveUpRequestsCount } from '@/hooks/useMoveUpRequestsCount';
+import { useEntryManagementHeaderActions } from '@/hooks/useEntryManagementHeaderActions';
 import { getEntryWindowTimezone } from '@/utils/entryWindowDate';
 import { useEnrollmentLedgerActions } from '@/hooks/useEnrollmentLedgerActions';
 import { ArmbandDialog, CompEntryDialog } from '@/components/entries/management';
 import { EntryManagementCockpit } from '@/components/entries/management/EntryManagementCockpit';
 import { EntryManagementViewToolbar } from '@/components/entries/management/EntryManagementViewToolbar';
+import { EntryListViewHeader } from '@/components/entries/management/EntryListViewHeader';
 import { EntryEditDialog } from '@/components/entries/EntryEditDialog';
 import { classifyEntryRemoval, isExhibitorRemoval } from '@/features/payments/pullReconciliation';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
@@ -38,7 +39,6 @@ import {
 } from '@/components/entries/management/entryManagementCockpitParams';
 import { parseListParam } from '@/components/list-toolkit';
 import { groupEntriesByShowRegistration } from '@/components/entries/management/showRegistrationProjection';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLink';
 import { EntryManagementUnresolvedShow } from './EntryManagementUnresolvedShow';
 import { EntryManagementExceptionPanes } from './EntryManagementExceptionPanes';
@@ -162,7 +162,7 @@ const EntryManagementPage: React.FC = () => {
   const showTimeZone = useMemo(() => getEntryWindowTimezone(trials), [trials]);
   const paymentLedger = useEnrollmentLedgerActions({ setEntries, showTimeZone });
 
-  // One shared cockpit for the page's Show: menu and Filter button AND the
+  // One shared cockpit for the page's Filter menu (Status, Trial, Class) AND the
   // registration list itself (MYK9-795) — previously computed inside
   // `EntryManagementCockpit`, lifted here so the unified view row (which spans
   // the registration queues AND the Waitlist/Pulls/Move-ups panes) and the
@@ -222,6 +222,34 @@ const EntryManagementPage: React.FC = () => {
     selectedShow,
     setError,
     user,
+  });
+
+  // Count plus newest update: a pull or reject touches updated_at, so capacity is re-read.
+  const entriesVersion = useMemo(
+    () =>
+      `${entries.length}:${entries.reduce((latest, entry) => Math.max(latest, entry.lastUpdated.getTime()), 0)}`,
+    [entries]
+  );
+
+  useEntryManagementHeaderActions({
+    showId: selectedShowId || undefined,
+    canManage: manageScope.status === 'resolved' && manageScope.canManage,
+    counts: {
+      pulls: pulledEntries.length,
+      moveUps: moveUpRequestsCount,
+      registrationNeeded: registrationNeeded.count,
+    },
+    secretaryOnlyReason,
+    entriesVersion,
+    // Full CSV of every entry, as the old toolbar button was; withheld while a status change is
+    // in flight (handleExportCSV would silently do nothing). One export per view: the Waitlist
+    // list registers its own waitlist CSV, and two rows both reading "Export CSV" could not be
+    // told apart.
+    exportEnabled:
+      Boolean(selectedShowId) &&
+      !isProcessing &&
+      !(cockpitUrl.state.tab === 'exceptions' && cockpitUrl.state.exception === 'waitlist'),
+    onExport: () => void handleExportCSV(),
   });
 
   const [compDialog, setCompDialog] = useState<{
@@ -310,44 +338,6 @@ const EntryManagementPage: React.FC = () => {
     );
   }
 
-  const entryActions = (
-    <>
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button type="button" variant="outline" className="gap-2">
-            <MoreHorizontal className="h-4 w-4" aria-hidden />
-            More
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent align="end" className="w-72 max-w-[calc(100vw-2rem)] space-y-2">
-          <p className="text-sm font-semibold">Entry tools</p>
-          <Button asChild variant="outline" size="sm" className="h-8 gap-2">
-            <Link
-              to={`/shows/${encodeURIComponent(selectedShowId || urlShowId || '')}?tool=people-at-show`}
-            >
-              <UserCheck className="h-4 w-4" aria-hidden />
-              Open Check-in desk
-            </Link>
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExportCSV}
-            disabled={!selectedShowId || isProcessing}
-            className="h-8 gap-2"
-          >
-            <Download className="h-4 w-4" />
-            Export Full CSV
-          </Button>
-          {/* Late entry is a mode of the secretary flow, not a second way to add
-              an entry, so it sits with the tools (MYK9-954 -> MYK9-1242). */}
-          <WorkbenchLateEntryAction showId={selectedShowId} disabledReason={secretaryOnlyReason} />
-        </PopoverContent>
-      </Popover>
-      <AddEntryButton showId={selectedShowId} secretaryOnlyReason={secretaryOnlyReason} />
-    </>
-  );
-
   return (
     <div className="manager-content-container container mx-auto space-y-4 p-4 sm:p-6">
       <ShowDeskReturnLink showId={selectedShowId || urlShowId} />
@@ -399,23 +389,20 @@ const EntryManagementPage: React.FC = () => {
         />
       )}
 
-      {/* MYK9-795: one unified view row replaces the Registrations/Exceptions
-          tabs, the queue buttons-with-counts, AND the Exceptions sub-tab
-          buttons. Selecting a registration queue shows the list below;
-          selecting Waitlist/Pulls/Move-ups swaps in that surface instead. */}
-      {selectedShowId && (
+      {/* MYK9-1594: Search and Filter are the whole toolbar. The exception lists (Pulls,
+          Move-ups, Registration number needed, Waitlist), Export CSV, People at show and Add late
+          entry are rows of the header Actions menu (`useEntryManagementHeaderActions`). A list
+          swaps this toolbar for its own title and a way back. */}
+      {selectedShowId && cockpitUrl.state.tab === 'exceptions' && (
+        <EntryListViewHeader exception={cockpitUrl.state.exception} />
+      )}
+      {selectedShowId && cockpitUrl.state.tab === 'registrations' && (
         <EntryManagementViewToolbar
           cockpit={cockpit}
-          exceptionCounts={{
-            pulls: pulledEntries.length,
-            moveUps: moveUpRequestsCount,
-            registrationNeeded: registrationNeeded.count,
-          }}
           trials={trials}
           trialsLoaded={trialsLoaded}
           classes={trialClassScope}
           onClearAll={handleClearEntryFilters}
-          actions={entryActions}
           result={
             canValidateFocus
               ? { shown: cockpit.page.total, total: cockpit.queueTotals.registrationCount }
@@ -480,49 +467,52 @@ const EntryManagementPage: React.FC = () => {
           */}
           {!isLoading && !loadError && (
             <div className="mt-6">
-              <EntryManagementCockpit
-                entries={entries}
-                cockpit={cockpit}
-                showHasNoRegistrations={registrationGroups.length === 0}
-                trialScopePending={trialScopePending}
-                trialClassesUnknown={trialClassesUnknown}
-                onRetryTrialClasses={() => void refetchTrialClasses()}
-                showId={selectedShowId}
-                {...(selectedShow?.name ? { showName: selectedShow.name } : {})}
-                busy={isProcessing}
-                lastEmailedMap={lastEmailedMap}
-                onStatusChange={handleStatusChange}
-                onCheckInStatusChange={handleCheckInStatusChange}
-                onOpenEditEntry={openEditEntry}
-                onOpenArmbandDialog={entry =>
-                  setArmbandDialog({
-                    open: true,
-                    entry,
-                    value: entry.armbandNumber || '',
-                  })
-                }
-                onOpenCompDialog={entry =>
-                  setCompDialog({
-                    open: true,
-                    entryId: entry.id,
-                    entryNumber: entry.entryNumber,
-                    dogName: entry.dogName,
-                    className: entry.classes[0]?.name ?? '',
-                  })
-                }
-                onUncompEntry={handleUncompEntry}
-                onEntryRemoved={handleEntryRemoved}
-                onBulkStatusChange={handleEnrollmentBulkStatusChange}
-                paymentLedger={paymentLedger}
-                onSendDecisionEmail={async (registrationId, message, amountDue) => {
-                  await handleSendDecisionEmail(registrationId, message, amountDue);
-                  const registrationIds = [
-                    ...new Set(entries.map(entry => entry.registrationId).filter(Boolean)),
-                  ];
-                  refreshEmailLog(registrationIds);
-                }}
-                onRefresh={() => loadEntries(selectedShowId)}
-              />
+              {/* The form's "Add entry for <exhibitor>" greys with the same reason as the header. */}
+              <TrialSecretaryAccessProvider reason={secretaryOnlyReason}>
+                <EntryManagementCockpit
+                  entries={entries}
+                  cockpit={cockpit}
+                  showHasNoRegistrations={registrationGroups.length === 0}
+                  trialScopePending={trialScopePending}
+                  trialClassesUnknown={trialClassesUnknown}
+                  onRetryTrialClasses={() => void refetchTrialClasses()}
+                  showId={selectedShowId}
+                  {...(selectedShow?.name ? { showName: selectedShow.name } : {})}
+                  busy={isProcessing}
+                  lastEmailedMap={lastEmailedMap}
+                  onStatusChange={handleStatusChange}
+                  onCheckInStatusChange={handleCheckInStatusChange}
+                  onOpenEditEntry={openEditEntry}
+                  onOpenArmbandDialog={entry =>
+                    setArmbandDialog({
+                      open: true,
+                      entry,
+                      value: entry.armbandNumber || '',
+                    })
+                  }
+                  onOpenCompDialog={entry =>
+                    setCompDialog({
+                      open: true,
+                      entryId: entry.id,
+                      entryNumber: entry.entryNumber,
+                      dogName: entry.dogName,
+                      className: entry.classes[0]?.name ?? '',
+                    })
+                  }
+                  onUncompEntry={handleUncompEntry}
+                  onEntryRemoved={handleEntryRemoved}
+                  onBulkStatusChange={handleEnrollmentBulkStatusChange}
+                  paymentLedger={paymentLedger}
+                  onSendDecisionEmail={async (registrationId, message, amountDue) => {
+                    await handleSendDecisionEmail(registrationId, message, amountDue);
+                    const registrationIds = [
+                      ...new Set(entries.map(entry => entry.registrationId).filter(Boolean)),
+                    ];
+                    refreshEmailLog(registrationIds);
+                  }}
+                  onRefresh={() => loadEntries(selectedShowId)}
+                />
+              </TrialSecretaryAccessProvider>
             </div>
           )}
         </>

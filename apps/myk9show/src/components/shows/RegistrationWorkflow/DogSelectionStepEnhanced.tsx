@@ -28,6 +28,8 @@ import { useRegistrationContext } from '@/hooks/useRegistrationContext';
 import { useDebounce } from '@myk9/scoring-ui';
 import { searchAllDogs, SEARCH_ALL_DOGS_LIMIT } from '@/services/database/dogs';
 import { mapDatabaseDogsArray } from '@/services/mappers/dogMappers';
+import { useEntryExhibitorId } from '@/features/registration/entryExhibitorContext';
+import { useExhibitorRoster } from './useExhibitorRoster';
 import { DogSearchInterface } from './DogSearchInterface';
 import { AddDogPanel } from '@/components/panels/edit';
 import { QuickCreateFlow } from './QuickCreateFlow';
@@ -175,6 +177,7 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
   const accessibleDogs = useMemo(() => filterAccessibleDogs(dogs), [dogs]);
 
   const canCreateNew = workflowConfig?.features?.createNew && canCreateExhibitor;
+  const exhibitorRoster = useExhibitorRoster(useEntryExhibitorId(), dogs);
 
   // Server-side dog search for roles that can view all dogs (secretary, admin).
   // The locally replicated roster is capped at what one query returned, so a
@@ -224,12 +227,20 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
   // Combined dog set passed to DogSearchInterface: locally-accessible dogs
   // (owned / club-scoped) plus any server-search results, de-duplicated by id.
   const searchableDogs = useMemo(() => {
+    // "Add entry for <exhibitor>": until the secretary types, offer that person's dogs.
+    if (exhibitorRoster.dogs && normalizedSearchQuery === '') return exhibitorRoster.dogs;
     if (!workflowConfig.features.advancedSearch) return accessibleDogs;
     if (serverDogs.length === 0) return accessibleDogs;
     const seen = new Set(accessibleDogs.map(d => d.id));
     const extras = serverDogs.filter(d => !seen.has(d.id));
     return [...accessibleDogs, ...extras];
-  }, [accessibleDogs, serverDogs, workflowConfig.features.advancedSearch]);
+  }, [
+    accessibleDogs,
+    serverDogs,
+    workflowConfig.features.advancedSearch,
+    exhibitorRoster.dogs,
+    normalizedSearchQuery,
+  ]);
 
   const unsortedDogs = useMemo(
     () =>
@@ -417,6 +428,11 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
             Search and filter to find dogs, then select which ones to register.
             {` (Max: ${getMaxDogsPerRegistration()} dogs)`}
           </p>
+          {exhibitorRoster.dogs && (
+            <p className="mt-1 text-sm font-medium" data-testid="exhibitor-entry-notice">
+              {`Adding entries for ${exhibitorRoster.ownerName ?? 'this exhibitor'}. They join the same entry form. Search to enter a different dog.`}
+            </p>
+          )}
         </div>
 
         {/* Unified search + list card */}

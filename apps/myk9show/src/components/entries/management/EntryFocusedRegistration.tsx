@@ -3,6 +3,8 @@ import { ArrowLeft } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useTrialSecretaryOnlyReason } from '@/features/actions/TrialSecretaryAccessContext';
+import { buildAddEntryForExhibitorPath } from '@/pages/RegistrationWizardPage.routes';
 import { formatConfirmationNumberLabel } from '@/features/registration/confirmationNumberDisplay';
 import type { EntryStatus } from '@/types/show-registration-types';
 import { EntryFormNotes } from '@/features/entry-form-notes/EntryFormNotes';
@@ -48,6 +50,25 @@ export function EntryFocusedRegistration({
   const [noteFocusRequest, setNoteFocusRequest] = useState(0);
   const controls = useEnrollmentDialogControls(registration, enrollmentCardProps.paymentLedger);
   const checklist = buildFormChecklist(registration, controls);
+  // Another class or dog for someone already entered (MYK9-1594). The exhibitor is the dogs'
+  // owner, who is also whose enrollment the new entries join.
+  const secretaryOnlyReason = useTrialSecretaryOnlyReason();
+  const firstEntry = registration.entries[0];
+  const exhibitorId = firstEntry?.ownerId ?? firstEntry?.handlerId ?? null;
+  // Only a form with an enrollment row: new entries join that enrollment (one per person per
+  // show). An online-checkout group (`pi:`/`entry:` key) has none, so the new entries would land
+  // on a different form; the header Actions → Add entry stays the path there.
+  const addEntry =
+    firstEntry && exhibitorId && registration.enrollmentId
+      ? {
+          href: buildAddEntryForExhibitorPath(
+            firstEntry.showId,
+            exhibitorId,
+            registration.groupKey
+          ),
+          disabledReason: secretaryOnlyReason,
+        }
+      : undefined;
 
   return (
     <section
@@ -84,6 +105,7 @@ export function EntryFocusedRegistration({
             exhibitorName={registration.exhibitorName}
             entries={registration.entries}
             onBulkStatusChange={onBulkStatusChange}
+            addEntry={addEntry}
             onEmailExhibitor={
               enrollmentCardProps.onSendDecisionEmail && registration.enrollmentId
                 ? controls.email.openDialog

@@ -125,8 +125,8 @@ test.describe('Phase 1 UAT - Secretary disposable entry management', () => {
       .poll(() => readSecretaryEntryState(seed.entryId), { timeout: 20_000 })
       .toMatchObject({ entry_status: 'confirmed' });
 
-    await page.getByRole('button', { name: 'More', exact: true }).click();
-    await page.getByRole('link', { name: 'Open Check-in desk' }).click();
+    await page.getByTestId('header-actions-trigger').click();
+    await page.getByTestId('header-action-show-tool-people-at-show').click();
     await expect(page).toHaveURL(new RegExp(`/shows/${seed.showId}\\?tool=people-at-show`));
 
     const toolsDialog = page.getByRole('dialog', { name: 'People at show' });

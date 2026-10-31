@@ -6,7 +6,10 @@ import { useHasRingsideStaffAccess } from './useHasRingsideStaffAccess';
 let mockRoles: UserRole[] = [];
 let mockScopes: Array<{ scopeType: string; scopeId: string; roleId: string }> = [];
 let mockGrantRole: 'judge' | 'steward' | null = null;
-let mockAssignments = { assignedClassIds: new Set<string>(), isUnknown: false };
+let mockJudged: {
+  shows: Array<{ showId: string; firstTrialDate: string | null }>;
+  status: string;
+} = { shows: [], status: 'known' };
 
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
@@ -17,8 +20,8 @@ vi.mock('@/hooks/useAuthContext', () => ({
 vi.mock('./useRehydrateRingsideGrant', () => ({
   useRehydrateRingsideGrant: () => mockGrantRole,
 }));
-vi.mock('./useMyAtShowJudgeAssignments', () => ({
-  useMyAtShowJudgeAssignments: () => mockAssignments,
+vi.mock('@/features/messages/hooks/useMyJudgedShows', () => ({
+  useMyJudgedShows: () => mockJudged,
 }));
 
 const access = (showId = 'show-1') =>
@@ -29,7 +32,7 @@ describe('useHasRingsideStaffAccess (MYK9-1544)', () => {
     mockRoles = [];
     mockScopes = [];
     mockGrantRole = null;
-    mockAssignments = { assignedClassIds: new Set(), isUnknown: false };
+    mockJudged = { shows: [], status: 'known' };
   });
 
   it('admits a passcode grant for the show', () => {
@@ -51,8 +54,20 @@ describe('useHasRingsideStaffAccess (MYK9-1544)', () => {
 
   it('admits a judge assigned to classes in this show', () => {
     mockRoles = [UserRole.JUDGE];
-    mockAssignments = { assignedClassIds: new Set(['c1']), isUnknown: false };
+    mockJudged = { shows: [{ showId: 'show-1', firstTrialDate: null }], status: 'known' };
     expect(access()).toBe(true);
+  });
+
+  it('admits a judge whose only assignment here is show-level (no class)', () => {
+    mockRoles = [UserRole.JUDGE];
+    mockJudged = { shows: [{ showId: 'show-1', firstTrialDate: '2026-11-01' }], status: 'known' };
+    expect(access()).toBe(true);
+  });
+
+  it('keeps the public landing for a judge assigned only at other shows', () => {
+    mockRoles = [UserRole.JUDGE];
+    mockJudged = { shows: [{ showId: 'show-2', firstTrialDate: null }], status: 'known' };
+    expect(access()).toBe(false);
   });
 
   it('does not admit a judge with no assignment in this show', () => {
@@ -62,7 +77,7 @@ describe('useHasRingsideStaffAccess (MYK9-1544)', () => {
 
   it('admits a judge whose assignments cannot be known yet', () => {
     mockRoles = [UserRole.JUDGE];
-    mockAssignments = { assignedClassIds: new Set(), isUnknown: true };
+    mockJudged = { shows: [], status: 'unknown' };
     expect(access()).toBe(true);
   });
 

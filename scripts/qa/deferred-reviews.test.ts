@@ -716,10 +716,7 @@ describe('deferred-reviews --self-test (offline, no gh/Linear calls)', () => {
   });
 
   it('a mutant that reconciles every override, not just the latest for the head, fails the self-test', () => {
-    const result = mutate(
-      'const latest = forHead.at(-1);',
-      'const latest = forHead.at(0);'
-    );
+    const result = mutate('const latest = forHead.at(-1);', 'const latest = forHead.at(0);');
     expect(result.status).not.toBe(0);
     expect(result.stdout).toContain('[only the latest override for the head carries debt]: FAIL');
   });
@@ -740,6 +737,7 @@ describe('deferralCandidatesForPr with a round-cap verdict (MYK9-1566)', () => {
       `Review gate: codex reviewed abc1234..${head} — ${verdict}`,
       ...extra,
       `log sha256: ${hash}`,
+      ...(verdict.startsWith('round cap') ? [] : ['Review completed: whole branch']),
       '',
       '```text',
       quote,

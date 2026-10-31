@@ -406,6 +406,15 @@ describe('codex-review.sh', () => {
     );
   });
 
+  it('a finished findings run withdraws WITH the completion marker; an interrupted one without it (MYK9-1566)', () => {
+    const done = stubGh();
+    expect(runPost(stubCodex(['codex', '- [P2] one', '- [P2] two'].join('\n')), done).code).toBe(1);
+    expect(bodies(done.calls)[1]).toContain('\nReview completed: whole branch\n');
+    const cut = stubGh();
+    runPost(stubCodex(['codex', '- [P2] one', '', 'Review was interrupted'].join('\n')), cut);
+    expect(bodies(cut.calls)[1]).not.toContain('Review completed: whole branch');
+  });
+
   it('posts and withdraws when a review reported findings AND then was interrupted', () => {
     // Findings come first: a review that found a defect and then hit a blocker
     // has still found a defect, and exiting 2 would leave an already-green gate

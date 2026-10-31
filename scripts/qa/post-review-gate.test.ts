@@ -209,6 +209,63 @@ describe('post-review-gate.sh', () => {
       expect(body).toContain('[P1] Something is broken');
     });
 
+    describe('completion marker (MYK9-1566)', () => {
+      const MARKER = 'Review completed: whole branch';
+      const withdraw = (log: string, env: Record<string, string>) => {
+        const gh = stubGh();
+        const r = run(
+          [
+            '--withdraw',
+            '42',
+            'codex',
+            '0a2020c7a',
+            '5af9af158',
+            '2 findings, not addressed',
+            logFile(log),
+          ],
+          gh.bin,
+          env
+        );
+        expect(r.code).toBe(0);
+        return readFileSync(gh.calls, 'utf8').split('--body\n')[1]!.split('\n---')[0]!;
+      };
+
+      it('writes the marker, outside the quoted log, for a finished run', () => {
+        const body = withdraw(FINDINGS, { REVIEW_COMPLETED: '1' });
+        expect(body.split('\n').slice(0, 4)).toEqual([
+          'Review gate: codex reviewed 0a2020c7a..5af9af158 — 2 findings, not addressed',
+          expect.stringMatching(/^log sha256: [0-9a-f]{64}$/),
+          MARKER,
+          '',
+        ]);
+      });
+
+      it('omits it when the wrapper did not mark the run completed', () => {
+        expect(withdraw(FINDINGS, { REVIEW_COMPLETED: '0' })).not.toContain(MARKER);
+        expect(withdraw(FINDINGS, {})).not.toContain(MARKER);
+      });
+
+      it.each([
+        'Could not inspect the remaining files.',
+        'I was unable to review the migrations.',
+        'This is a partial review of the branch.',
+        'I did not review the test files.',
+        'Unable to complete the review because the connection failed.',
+      ])('omits it when the first paragraph says %j', sentence => {
+        const body = withdraw(`codex\n${sentence}\n\n- [P2] a finding\n`, {
+          REVIEW_COMPLETED: '1',
+        });
+        expect(body).not.toContain(MARKER);
+      });
+
+      it('keeps it when an incomplete phrase appears only in a later paragraph', () => {
+        const body = withdraw('codex\n- [P2] a finding\n\nNote: remaining files are docs.\n', {
+          REVIEW_COMPLETED: '1',
+        });
+        expect(body).toContain(MARKER);
+      });
+    });
+
     it('withdraws from an INCOMPLETE review that still found a defect', () => {
       // A review that found a defect and then hit a blocker has still found a
       // defect. Refusing this withdrawal leaves the earlier clean attestation
@@ -1036,8 +1093,13 @@ describe('post-review-gate.sh round-cap verdict (MYK9-1566)', () => {
     execFileSync('shasum', ['-a', '256'], { input: text, encoding: 'utf8' }).split(' ')[0]!;
   /** What the poster quotes for a log: the text after the `codex` marker line. */
   const quoted = (log: string) => log.replace(/^codex\n/, '').replace(/\n$/, '');
-  const round = (head: string, hash: string, log = LOG) => ({
-    body: `Review gate: codex reviewed ${BASE}..${head} — 2 findings, not all addressed\nlog sha256: ${hash}\n\n\`\`\`text\n${quoted(log)}\n\`\`\``,
+  const round = (
+    head: string,
+    hash: string,
+    log = LOG,
+    marker = '\nReview completed: whole branch'
+  ) => ({
+    body: `Review gate: codex reviewed ${BASE}..${head} — 2 findings, not all addressed\nlog sha256: ${hash}${marker}\n\n\`\`\`text\n${quoted(log)}\n\`\`\``,
     created_at: '2026-10-30T10:00:00Z',
     updated_at: '2026-10-30T10:00:00Z',
     author_association: 'OWNER',
@@ -1080,6 +1142,18 @@ describe('post-review-gate.sh round-cap verdict (MYK9-1566)', () => {
       `log sha256: ${logHash(LOG)}`,
     ]);
     expect(body).toContain('- [P2] a lower finding');
+  });
+
+  it('refuses when the capped round recorded no completion marker', () => {
+    const gh = ghWithComments(
+      rounds(logHash(LOG)).map((c, i) =>
+        i === 2 ? round(HEAD.slice(0, 9), logHash(LOG), LOG, '') : c
+      )
+    );
+    const r = post(gh, LOG);
+    expect(r.code).toBe(2);
+    expect(r.out).toContain('does not support a round-cap verdict');
+    expect(posted(gh)).toBe(false);
   });
 
   it('refuses with fewer than 3 rounds', () => {

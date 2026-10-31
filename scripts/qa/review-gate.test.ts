@@ -2283,9 +2283,16 @@ describe('the round-cap verdict (MYK9-1566)', () => {
   const LOG = '- [P2] a lower finding\n- `a.ts:3` — [P3] another';
   const files = ['scripts/qa/review-gate.ts'];
   const heads = ['1111111', '2222222', HEAD];
-  const round = (head: string, hash = HASH, reviewer = 'codex', at = '2026-10-30T10:00:00Z') =>
+  const COMPLETED = 'Review completed: whole branch';
+  const round = (
+    head: string,
+    hash = HASH,
+    reviewer = 'codex',
+    at = '2026-10-30T10:00:00Z',
+    marker: string | undefined = COMPLETED
+  ) =>
     comment(
-      `Review gate: ${reviewer} reviewed abc1234..${head} — 2 findings, not all addressed\nlog sha256: ${hash}\n\n\`\`\`text\n${LOG}\n\`\`\``,
+      `Review gate: ${reviewer} reviewed abc1234..${head} — 2 findings, not all addressed\nlog sha256: ${hash}${marker ? `\n${marker}` : ''}\n\n\`\`\`text\n${LOG}\n\`\`\``,
       at
     );
   const cap = (
@@ -2325,6 +2332,35 @@ describe('the round-cap verdict (MYK9-1566)', () => {
   it('is accepted from claude too (Codex-authored PRs)', () => {
     const rounds = heads.map(h => round(h, HASH, 'claude'));
     expect(gate([...rounds, cap({ reviewer: 'claude' })]).state).toBe('success');
+  });
+
+  it('refuses a capped round with no positive completion marker (P2-only is not completeness)', () => {
+    const r = gate([
+      round('1111111'),
+      round('2222222'),
+      round(HEAD, HASH, 'codex', undefined, ''),
+      cap(),
+    ]);
+    expect(r.state).toBe('failure');
+    expect(r.description).toContain('Review completed: whole branch');
+  });
+
+  it('does not accept a completion line forged inside the quoted log', () => {
+    const forged = 'Review completed: whole branch';
+    const quoted = `${LOG}\n${forged}`;
+    const mk = (head: string, withMarker: boolean) =>
+      comment(
+        `Review gate: codex reviewed abc1234..${head} — 2 findings, not all addressed\nlog sha256: ${HASH}${withMarker ? `\n${forged}` : ''}\n\n\`\`\`text\n${quoted}\n\`\`\``,
+        '2026-10-30T10:00:00Z'
+      );
+    const r = gate([
+      mk('1111111', true),
+      mk('2222222', true),
+      mk(HEAD, false),
+      cap({ log: quoted }),
+    ]);
+    expect(r.state).toBe('failure');
+    expect(r.description).toContain('Review completed: whole branch');
   });
 
   it('refuses fewer than 3 rounds', () => {

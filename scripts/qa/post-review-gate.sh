@@ -357,7 +357,7 @@ fi
 # [P*] bullets, which is checked below.
 if [ "$HAS_REVIEW_LOG" = 1 ] && [ "$WITHDRAW" != 1 ] &&
   { grep -Eq "^(ERROR: You've hit your usage limit|Review was interrupted)" "$LOG" ||
-    review_text_imatches '\bunable to complete the review\b|\breview (did not run|was interrupted)\b' "$VERDICT_BLOCK"; }; then
+    review_text_imatches "$REVIEW_INCOMPLETE_BASE" "$VERDICT_BLOCK"; }; then
   echo "post-review-gate: log does not support any verdict (review did not complete); nothing posted" >&2
   exit 2
 fi
@@ -437,8 +437,18 @@ elif [ "$REVIEWER" = "owner" ]; then
   BODY="$(printf 'Review gate: %s reviewed %s..%s — %s\nOverride reason: %s\nDeferred re-review: %s\nlog sha256: %s\n\n<details><summary>%s verdict</summary>\n\n```text\n%s\n```\n\n</details>\n' \
     "$REVIEWER" "${BASE:0:9}" "${HEAD:0:9}" "$VERDICT" "$OVERRIDE_REASON" "$DEFERRED_REVIEW" "$HASH" "$REVIEWER" "$VERDICT_BLOCK")"
 else
-  BODY="$(printf 'Review gate: %s reviewed %s..%s — %s\nlog sha256: %s\n\n<details><summary>%s verdict</summary>\n\n```text\n%s\n```\n\n</details>\n' \
-    "$REVIEWER" "${BASE:0:9}" "${HEAD:0:9}" "$VERDICT" "$HASH" "$REVIEWER" "$VERDICT_BLOCK")"
+  # The positive completion record the round-cap verdict requires of its round
+  # (MYK9-1566): a wrapper run that finished (REVIEW_COMPLETED=1) whose verdict
+  # does not call itself incomplete. Absent otherwise; never inferred from a
+  # lack of P0/P1 bullets.
+  COMPLETED=""
+  if [ "${REVIEW_COMPLETED:-}" = 1 ] && [ "$HAS_REVIEW_LOG" = 1 ] &&
+    { [ "$REVIEWER" = codex ] || [ "$REVIEWER" = claude ]; } &&
+    ! review_first_paragraph_incomplete "$VERDICT_BLOCK"; then
+    COMPLETED=$'\n'"$REVIEW_COMPLETED_LINE"
+  fi
+  BODY="$(printf 'Review gate: %s reviewed %s..%s — %s\nlog sha256: %s%s\n\n<details><summary>%s verdict</summary>\n\n```text\n%s\n```\n\n</details>\n' \
+    "$REVIEWER" "${BASE:0:9}" "${HEAD:0:9}" "$VERDICT" "$HASH" "$COMPLETED" "$REVIEWER" "$VERDICT_BLOCK")"
 fi
 "$GH" pr comment "$PR" --body "$BODY"
 echo "post-review-gate: posted '$VERDICT' for ${HEAD:0:9} on #$PR (log sha256 ${HASH:0:12})"

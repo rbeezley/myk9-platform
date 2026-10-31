@@ -182,3 +182,22 @@ review_verdict_is_clean() {
   _review_clean_match '[.!?][[:space:]]+' "$paragraph" && return 0
   return 1
 }
+
+# The completion line a wrapper run earns (MYK9-1566). The round-cap verdict
+# needs a POSITIVE record that the capped round finished the whole-branch
+# review; a P2-only log with no P0/P1 bullet also describes a reviewer that
+# stopped halfway. The poster writes this line (outside the quoted log, so
+# reviewer text cannot forge it) only for a run the wrapper marked completed
+# (CLI exit 0, no usage-limit/interrupt abort) whose verdict's first paragraph
+# carries no incomplete-review statement.
+REVIEW_COMPLETED_LINE='Review completed: whole branch'
+
+# Incomplete-review statements: the base set the poster has always refused, plus
+# the phrasings a reviewer uses when it ran out of road mid-branch.
+REVIEW_INCOMPLETE_BASE='\bunable to complete the review\b|\breview (did not run|was interrupted)\b'
+REVIEW_INCOMPLETE_PHRASES="${REVIEW_INCOMPLETE_BASE}|\bcould not (inspect|review|finish|complete)\b|\bcould(n't| not) (fully )?(inspect|review)\b|\bunable to (review|inspect)\b|\bdid not (fully )?(review|inspect)\b|\bdidn't (fully )?(review|inspect)\b|\bpartial review\b|\bremaining files\b|\bnot (fully )?(reviewed|inspected)\b"
+
+# 0 when the verdict's first paragraph says the review was incomplete.
+review_first_paragraph_incomplete() {  # TEXT
+  review_text_imatches "$REVIEW_INCOMPLETE_PHRASES" "$(review_first_paragraph "$1")"
+}

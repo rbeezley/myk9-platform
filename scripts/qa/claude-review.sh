@@ -328,7 +328,11 @@ if review_has_findings "$VERDICT"; then
     # not read by review-gate.ts, so the gate would stay green over defects
     # someone just reported (Codex review of #2115, round 3).
     FOUND="$(review_finding_count "$VERDICT")"
-    if ! bash "$POSTER" --withdraw "$PR" claude "$BASE_SHA" "$HEAD_SHA" "${FOUND} findings, not addressed" "$LOG"; then
+    # Positive completion record for the round-cap verdict (MYK9-1566): only a
+    # run whose CLI exited 0 with no usage-limit/interrupt abort can earn it.
+    COMPLETED=0
+    if [ "$CLI_EXIT" -eq 0 ] && ! abort_lines > /dev/null; then COMPLETED=1; fi
+    if ! REVIEW_COMPLETED="$COMPLETED" bash "$POSTER" --withdraw "$PR" claude "$BASE_SHA" "$HEAD_SHA" "${FOUND} findings, not addressed" "$LOG"; then
       echo "claude-review: findings posted, but the earlier clean evidence for this head could NOT be withdrawn. Exit 2 — check the gate status by hand." >&2
       exit 2
     fi
@@ -397,7 +401,7 @@ if [ "$POST" = 1 ]; then
   fi
   N="$(review_finding_count "$PRIOR")"
   [ "${N:-0}" -gt 0 ] && VERDICT_LINE="$N findings, all addressed"
-  if ! bash "$POSTER" "$PR" claude "$BASE_SHA" "$HEAD_SHA" "$VERDICT_LINE" "$LOG"; then
+  if ! REVIEW_COMPLETED=1 bash "$POSTER" "$PR" claude "$BASE_SHA" "$HEAD_SHA" "$VERDICT_LINE" "$LOG"; then
     echo "claude-review: review was clean but the evidence was NOT posted (poster failed). Exit 2; nothing recorded." >&2
     exit 2
   fi

@@ -6,6 +6,10 @@
  *
  *   - at least ROUND_CAP_MIN_ROUNDS reviewer rounds on the PR (distinct heads);
  *   - the quoted log carries no `[P0]` / `[P1]` bullet;
+ *   - that round's evidence carries the POSITIVE `Review completed: whole
+ *     branch` line the poster writes for a finished wrapper run (never
+ *     inferred from the absence of P0/P1 bullets: a reviewer that stopped
+ *     halfway has none either);
  *   - a `Deferred re-review:` issue holds the remaining findings;
  *   - it is posted on the head that round reviewed (the gate's head match), and
  *     its `log sha256:` equals the one an earlier round comment on that head
@@ -80,6 +84,15 @@ export function hasStructuredFindings(log: string): boolean {
   return false;
 }
 
+/** The completion line post-review-gate.sh writes (REVIEW_COMPLETED_LINE in review-verdict.sh). */
+export const REVIEW_COMPLETED_LINE = /^Review completed: whole branch$/m;
+
+/** True when the evidence header (the part before the quoted log) carries the completion line. */
+export function hasCompletionMarker(body: string): boolean {
+  const open = body.indexOf('```text\n');
+  return REVIEW_COMPLETED_LINE.test(open < 0 ? body : body.slice(0, open));
+}
+
 export function logHashOf(body: string): string | undefined {
   return /^log sha256: ([0-9a-f]{64})$/m.exec(body)?.[1];
 }
@@ -134,6 +147,9 @@ export function roundCapProblem(
   }
   if (quotedLog(latest.body).trim() !== log.trim()) {
     return 'quotes text that differs from the latest round recorded on this head';
+  }
+  if (!hasCompletionMarker(latest.body)) {
+    return 'needs the latest round to record "Review completed: whole branch" (a finished review run), which that round lacks';
   }
   return undefined;
 }

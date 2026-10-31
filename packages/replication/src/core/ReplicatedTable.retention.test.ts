@@ -3,6 +3,9 @@ import { ReplicatedTable } from './ReplicatedTable';
 import { databaseManager } from './DatabaseManager';
 import type { SyncResult } from '../types';
 
+/** A sync that has not been cancelled. */
+const LIVE = { aborted: false } as const;
+
 interface Entry {
   id: string;
   name: string;
@@ -85,7 +88,7 @@ describe('replica retention through public reads and subscriptions', () => {
 
     await table.set('pending', { ...oldEntry, id: 'pending', name: 'Stale server' }, false);
     expect(await table.get('pending')).toMatchObject({ name: 'Local edit' });
-    expect(await table.removeStaleEntries(new Set(['kept']))).toBe(1);
+    expect(await table.removeStaleEntries(new Set(['kept']), { by: LIVE })).toBe(1);
     expect(await table.getAllLocalIds()).toEqual(new Set(['kept', 'pending']));
     expect(await table.getReplicatedRow('pending')).toMatchObject({
       isDirty: true,

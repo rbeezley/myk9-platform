@@ -1,20 +1,24 @@
 import type { ReplicatedTable } from './core/ReplicatedTable';
-import type { SyncOptions, SyncResult } from './types';
+import type { SyncResult } from './types';
 import { repairStuckPendingFlagsOnce } from './core/repairStuckPendingFlags';
 import { reconcileDirtyRemoteRow } from './reconcileDirtyRemoteRow';
 import { anyRowNotOwnedBy, scopeStampDirective } from './rowOwnership';
 import { describeError } from './error-message';
-import { countCoveredRows, getCoveredRemoteIds } from './replicaCoverage';
+import { SyncCacheWriter } from './syncCacheWriter';
+import { ABORTED_SYNC_MESSAGE, abortableWait } from './abortable';
+import { abortReason } from './mutation-utils';
+import { countCoveredRows, countServerBackedRows, getCoveredRemoteIds } from './replicaCoverage';
+export { countServerBackedRows };
 import { overReplicaWatched, runStaleCleanup } from './syncStaleCleanup';
 import { beginRemoteCountPass, coverageFell } from './remoteCountCadence';
-import {
-  configureConflictSurfacing as _configureConflictSurfacing,
-  isConflictSurfacingEnabled,
-  _resetConflictSurfacingForTests as _resetForTests,
-} from './conflictConfig';
-
-import type { SyncScope, SyncReplicatedTableAdapter } from './syncReplicatedTable.types';
+import { isConflictSurfacingEnabled } from './conflictConfig';
+import type {
+  SyncScope,
+  SyncReplicatedTableAdapter,
+  SyncReplicatedTableOptions,
+} from './syncReplicatedTable.types';
 export type {
+  SyncReplicatedTableOptions,
   SyncScope,
   RemoteFetchContext,
   RemoteRowCountContext,
@@ -26,39 +30,7 @@ export type {
  *  unforeseen path slips past the server-authoritative watermark. */
 const DEFAULT_FULL_SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
-export interface SyncReplicatedTableOptions extends Partial<SyncOptions> {
-  uploadPendingMutations?: () => Promise<unknown>;
-  incrementalBufferMs?: number;
-  /** Force a full re-sync when the last full sync is older than this many ms.
-   *  Self-heals a partially-stale replica that incremental sync would otherwise
-   *  never re-fetch (forceFullSync alone only fires on a fully empty replica).
-   *  Default {@link DEFAULT_FULL_SYNC_INTERVAL_MS} (24h). */
-  fullSyncIntervalMs?: number;
-  /** Phase 4 kill switch (docs/plan-show-presence.md §12). When false (default),
-   *  same-field collisions are silently resolved last-write-wins, matching the
-   *  pre-Phase-4 behavior exactly. Flip to true to surface conflicts as
-   *  `replication:conflict` events instead.
-   *
-   *  Per-call override takes precedence over `configureConflictSurfacing()`. */
-  conflictSurfacingEnabled?: boolean;
-}
-
-/**
- * Configure whether same-field collisions are surfaced globally.
- * Call this once during app boot (e.g. in ReplicationSyncProvider) after reading
- * the app-level feature flag. Prefer the per-call option in tests.
- *
- * Also gates the OCC upload precondition — when false, UPDATE mutations carry no
- * version WHERE clause, preserving last-write-wins behavior end-to-end.
- */
-export function configureConflictSurfacing(enabled: boolean): void {
-  _configureConflictSurfacing(enabled);
-}
-
-/** Reset to default (false). For test cleanup only. */
-export function _resetConflictSurfacingForTests(): void {
-  _resetForTests();
-}
+export { configureConflictSurfacing, _resetConflictSurfacingForTests } from './conflictConfig';
 
 export async function syncReplicatedTable<TRemote, TLocal extends { id: string }>(
   table: ReplicatedTable<TLocal>,
@@ -75,8 +47,7 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
   let syncingAuthUserId: string | null = null;
   let accountOwned = false;
 
-  // A download-phase failure must not erase a prior upload-phase failure: both
-  // are real and independently actionable (Codex review, P2 follow-up).
+  // A download failure must not erase a prior upload failure (Codex review, P2).
   const failed = (operation: SyncResult['operation'], error: string): SyncResult => ({
     tableName: table.getTableName(),
     success: false,
@@ -89,10 +60,8 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
   });
 
   const getLocalRowsForScope = async (): Promise<TLocal[]> => {
-    // MYK9-774: getAllOrThrow, not getAll. These rows decide full vs
-    // incremental, which rows stale cleanup keeps, and the totalRows recorded
-    // for the scope; a failed device read answered as [] would record an empty
-    // scope as synced. A throw fails this sync instead.
+    // MYK9-774: getAllOrThrow, not getAll: a failed device read answered as []
+    // would record an empty scope as synced. A throw fails this sync instead.
     const rows = await table.getAllOrThrow(adapter.filterLocalRows ? undefined : scope.value);
     return adapter.filterLocalRows ? adapter.filterLocalRows(rows, scope) : rows;
   };
@@ -105,7 +74,16 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
     return adapter.filterLocalRows ? adapter.filterLocalRows(rows, scope) : rows;
   };
 
+  const signal = options.signal;
+  const cache = new SyncCacheWriter(table, signal);
+  // MYK9-1624: checked before every write, delete or stamp, so a cancelled sync
+  // changes nothing after the fact, whatever its abandoned reads return later.
+  const stopIfAborted = () => {
+    if (signal?.aborted) throw abortReason(signal);
+  };
+
   try {
+    stopIfAborted();
     // MYK9-1055: once per table instance, heal rows a pre-MYK9-1050 build left stuck.
     await repairStuckPendingFlagsOnce(table, adapter);
 
@@ -132,6 +110,7 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
       metadata?.totalRows !== undefined &&
       metadata.syncedByAuthUserId !== syncingAuthUserId;
 
+    stopIfAborted();
     await table.updateSyncMetadata({ syncStatus: 'syncing', errorMessage: undefined });
 
     if (!options.skipMutationUpload && options.uploadPendingMutations) {
@@ -168,7 +147,11 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
       scopeNotStampedByMe ||
       fullSyncStale;
     const fell = coverageFell(localRows, metadata?.expectedRemoteRows);
-    const count = await beginRemoteCountPass(table, adapter, scope, forced || fell);
+    stopIfAborted();
+    const count = await abortableWait(
+      beginRemoteCountPass(table, adapter, scope, forced || fell, signal),
+      signal
+    );
     const expectedRemoteRows =
       typeof count.rawCount === 'number' && Number.isFinite(count.rawCount) && count.rawCount >= 0
         ? Math.floor(count.rawCount)
@@ -210,12 +193,19 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
         : 0;
 
     const fetchStartedAt = Date.now();
-    const remoteRows = await adapter.fetchRemoteRows({
-      scope,
-      since,
-      localRows,
-      forceFullSync,
-    });
+    stopIfAborted();
+    const remoteRows = await abortableWait(
+      adapter.fetchRemoteRows({
+        cache,
+        scope,
+        since,
+        localRows,
+        forceFullSync,
+        ...(signal ? { signal } : {}),
+      }),
+      signal
+    );
+    stopIfAborted();
 
     // The account must be the one that asked: rows fetched for another account
     // are never applied, and never written ownerless.
@@ -325,6 +315,7 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
       rowsAffected++;
     }
 
+    stopIfAborted();
     if (cleanRowsToCache.length > 0) {
       writtenIds.push(...cleanRowsToCache.map(r => r.id));
       await table.batchSet(
@@ -349,8 +340,11 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
       }
     };
 
+    // Stale cleanup deletes cached rows: the destructive step of a table sync.
+    stopIfAborted();
     const cleanup = await runStaleCleanup({
       table,
+      cache,
       adapter,
       scope,
       serverIds,
@@ -366,7 +360,14 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
     rowsAffected += cleanup.removed;
     const staleCleanupCompleted = cleanup.completed;
 
-    await adapter.afterSuccessfulSync?.({ scope, serverIds, localRows, staleCleanupCompleted });
+    stopIfAborted();
+    await adapter.afterSuccessfulSync?.({
+      scope,
+      serverIds,
+      localRows,
+      staleCleanupCompleted,
+      cache,
+    });
 
     // Whole for THIS account: the fetch covered the server's count, nothing was
     // held back for another account's unsent work, every row taken over is now
@@ -419,6 +420,7 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
       ? scopeStampDirective(writtenIds, syncingAuthUserId, wholeDownload)
       : undefined;
 
+    stopIfAborted();
     count.record(remoteRows.length, adapter.remotePageSize);
 
     await table.updateSyncMetadata(
@@ -479,6 +481,11 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
       ...(uploadError ? { uploadError } : {}),
     };
   } catch (error) {
+    if (signal?.aborted) {
+      // Cancelled, not failed: idle, worded so isAbortSyncError recognises it.
+      await table.updateSyncMetadata({ syncStatus: 'idle', errorMessage: undefined });
+      return failed(options.forceFullSync ? 'full-sync' : 'incremental-sync', ABORTED_SYNC_MESSAGE);
+    }
     const message = describeError(error);
     const stampOnFailure = accountOwned
       ? scopeStampDirective(writtenIds, syncingAuthUserId, false)
@@ -490,9 +497,4 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
 
     return failed(options.forceFullSync ? 'full-sync' : 'incremental-sync', message);
   }
-}
-
-/** Rows the server already holds: everything but pending local creates. */
-export function countServerBackedRows(rows: readonly object[]): number {
-  return rows.filter(row => (row as { _localOnly?: unknown })._localOnly !== true).length;
 }

@@ -42,12 +42,17 @@ export const DOG_REGISTRATION_ID_PASS_MAX_PAGES = 100;
  * any page fails or the page cap is reached: an incomplete id set must never
  * drive a removal.
  */
-export async function fetchVisibleRegistrationIds(): Promise<Set<string> | null> {
+export async function fetchVisibleRegistrationIds(
+  signal?: AbortSignal
+): Promise<Set<string> | null> {
   const ids = new Set<string>();
   let lastId: string | undefined;
 
   for (let page = 0; page < DOG_REGISTRATION_ID_PASS_MAX_PAGES; page++) {
+    // Cancelled: an incomplete id set must never drive a removal.
+    if (signal?.aborted) return null;
     let query = supabase.from('dog_registrations').select('id');
+    if (signal) query = query.abortSignal(signal);
     if (lastId !== undefined) query = query.gt('id', lastId);
     const { data, error } = await query
       .order('id', { ascending: true })

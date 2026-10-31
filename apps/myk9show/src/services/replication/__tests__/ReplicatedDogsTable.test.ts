@@ -1051,7 +1051,10 @@ describe('ReplicatedDogsTable', () => {
 
       expect(query.select).toHaveBeenCalledWith('id');
       expect(query.is).toHaveBeenCalledWith('deleted_at', null);
-      expect(removeSpy).toHaveBeenCalledWith(new Set(['1', '3']));
+      expect(removeSpy).toHaveBeenCalledWith(
+        new Set(['1', '3']),
+        expect.objectContaining({ by: expect.anything() })
+      );
       expect(removed).toBe(2);
     });
 
@@ -1168,7 +1171,10 @@ describe('ReplicatedDogsTable', () => {
       const result = await dogsTable.sync('owner-123');
 
       expect(result.success).toBe(true);
-      expect(reconcileSpy).toHaveBeenCalledWith('owner-123');
+      expect(reconcileSpy).toHaveBeenCalledWith(
+        'owner-123',
+        expect.objectContaining({ aborted: false })
+      );
     });
 
     it('a throwing reconcileDeleted does not fail the sync', async () => {

@@ -231,8 +231,9 @@ describe('ReplicationSyncProvider — auth guard', () => {
       );
     });
 
-    expect(syncSpies.entries).toHaveBeenCalledWith('show-1');
-    expect(syncSpies.classes).toHaveBeenCalledWith('trial-1');
+    const passOptions = { signal: expect.any(AbortSignal) };
+    expect(syncSpies.entries).toHaveBeenCalledWith('show-1', passOptions);
+    expect(syncSpies.classes).toHaveBeenCalledWith('trial-1', passOptions);
     expect(syncSpies.shows).not.toHaveBeenCalled();
     expect(syncSpies.dogs).not.toHaveBeenCalled();
     expect(syncSpies.clubs).not.toHaveBeenCalled();
@@ -263,7 +264,9 @@ describe('ReplicationSyncProvider — auth guard', () => {
       finish();
     });
     expect(syncSpies.entries).toHaveBeenCalledTimes(2);
-    expect(syncSpies.entries).toHaveBeenLastCalledWith('show-1');
+    expect(syncSpies.entries).toHaveBeenLastCalledWith('show-1', {
+      signal: expect.any(AbortSignal),
+    });
     expect(syncSpies.classes).toHaveBeenCalledTimes(2);
     expect(syncSpies.shows).not.toHaveBeenCalled();
   });

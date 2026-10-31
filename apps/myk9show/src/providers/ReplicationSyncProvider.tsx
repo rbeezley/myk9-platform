@@ -24,6 +24,8 @@ import {
 } from '@/context/ReplicationSyncContext';
 import {
   ReplicatedTable,
+  SyncCacheWriter,
+  abortableWait,
   configureConflictSurfacing,
   configureRemoteCountCadence,
   markRealtimeReconnected,
@@ -150,8 +152,10 @@ function warnRecoveredFromEmptyReplica(tableName: string): void {
   logger.warn('Replica recovered from unexpected empty state', 'replication', { tableName });
 }
 
-async function applyAuthenticatedEntryResultReplicaVersion(): Promise<void> {
+async function applyAuthenticatedEntryResultReplicaVersion(signal?: AbortSignal): Promise<void> {
   if (typeof window === 'undefined') return;
+  // MYK9-1624: an aborted pass (offline, unmount) starts nothing destructive.
+  if (signal?.aborted) return;
 
   try {
     if (
@@ -176,8 +180,12 @@ async function applyAuthenticatedEntryResultReplicaVersion(): Promise<void> {
   }
 
   const existingEntryIds = await replicatedEntriesTable.getAllLocalIds();
+  // Re-checked after the awaits above and right before the clear: offline
+  // downloads cannot refill a cache this empties (show-day data loss), and the
+  // version marker below must not claim a refresh that never happened.
+  if (signal?.aborted) return;
   if (existingEntryIds.size > 0) {
-    await replicatedEntriesTable.clearCache();
+    await new SyncCacheWriter(replicatedEntriesTable, signal).clear();
   }
 
   try {
@@ -189,12 +197,12 @@ async function applyAuthenticatedEntryResultReplicaVersion(): Promise<void> {
   logger.info('Entry result replica cache refreshed for authenticated result view', 'replication');
 }
 
-async function ensureAuthenticatedEntryResultReplicaVersion(): Promise<void> {
+async function ensureAuthenticatedEntryResultReplicaVersion(signal?: AbortSignal): Promise<void> {
   if (entryResultReplicaVersionPromise) {
     return entryResultReplicaVersionPromise;
   }
 
-  const operation = applyAuthenticatedEntryResultReplicaVersion();
+  const operation = applyAuthenticatedEntryResultReplicaVersion(signal);
   entryResultReplicaVersionPromise = operation;
   try {
     await operation;
@@ -224,6 +232,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
   const scopedSyncInFlight = useRef(false);
   const pendingFullSync = useRef(false);
   const syncInFlightRef = useRef(false);
+  const passControllerRef = useRef<AbortController | null>(null);
   const failedSyncToastIdsRef = useRef<string[]>([]);
 
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -303,6 +312,20 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
   );
 
   /**
+   * An aborted pass settles as cancelled, not complete: syncing clears, tables
+   * leave 'syncing', and lastSyncAt is not stamped (nothing finished).
+   */
+  const endAbortedPass = useCallback((names: readonly string[]) => {
+    logger.info('Sync pass cancelled', 'replication');
+    setStatus(prev => ({
+      ...prev,
+      isSyncing: false,
+      tablesStatus: { ...prev.tablesStatus, ...createTablesStatus(names, 'idle') },
+    }));
+    syncInFlightRef.current = false;
+  }, []);
+
+  /**
    * Trigger sync for all tables
    */
   const triggerSync = useCallback(
@@ -341,12 +364,18 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
       logger.info(targets ? 'Starting scoped ringside sync' : 'Starting full sync', 'replication');
       syncInFlightRef.current = true;
       scopedSyncInFlight.current = targets !== undefined;
+      // MYK9-1624: one controller per pass. Going offline or unmounting aborts it,
+      // which releases the upload and every table read, so a dead connection can
+      // never hold isSyncing or syncInFlightRef.
+      const controller = new AbortController();
+      const { signal } = controller;
+      passControllerRef.current = controller;
       setStatus(prev => ({ ...prev, isSyncing: true, error: null }));
 
       try {
         // Phase 1: Upload pending mutations to Supabase
         try {
-          const uploadResults = await mutationManager.uploadPendingMutations();
+          const uploadResults = await mutationManager.uploadPendingMutations({ signal });
           const succeeded = uploadResults.filter(r => r.success).length;
           if (uploadResults.length > 0) {
             logger.info('Phase 1 upload complete', 'replication', {
@@ -359,7 +388,17 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
           // Continue to Phase 2 even if upload fails
         }
 
-        await ensureAuthenticatedEntryResultReplicaVersion();
+        // An aborted pass ends here, before the entry-replica refresh (it clears
+        // every cached entry, which offline downloads cannot refill).
+        if (signal.aborted) {
+          endAbortedPass(selectedNames);
+          return;
+        }
+        await ensureAuthenticatedEntryResultReplicaVersion(signal);
+        if (signal.aborted) {
+          endAbortedPass(selectedNames);
+          return;
+        }
 
         // Phase 2: parallel download — one failure must not block others.
         setStatus(prev => ({
@@ -370,7 +409,8 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
         const syncResults = await Promise.all(
           selectedTables.map(async ({ name, table, scope }) => {
             try {
-              const result = await table.sync(scope);
+              // Bounded by the pass signal whatever a table does after its download.
+              const result = await abortableWait(table.sync(scope, { signal }), signal);
               return {
                 name,
                 ok: result.success,
@@ -378,6 +418,8 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
                 recoveredFromEmptyReplica: result.recoveredFromEmptyReplica ?? false,
               };
             } catch (err) {
+              if (signal.aborted)
+                return { name, ok: false, error: 'AbortError', recoveredFromEmptyReplica: false };
               logger.error('Table sync threw', 'replication', { name }, err as Error);
               return {
                 name,
@@ -388,6 +430,11 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
             }
           })
         );
+
+        if (signal.aborted) {
+          endAbortedPass(selectedNames);
+          return;
+        }
 
         const { tableStatusUpdates, downloadFailures, recoveredTables, abortedTables } =
           classifyTableSyncResults(syncResults, isAbortSyncError);
@@ -441,6 +488,10 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
           'replication'
         );
       } catch (error) {
+        if (signal.aborted) {
+          endAbortedPass(selectedNames);
+          return;
+        }
         const errorMessage = error instanceof Error ? error.message : 'Sync failed';
         logger.error('Sync error', 'replication', {}, error as Error);
         setStatus(prev => ({
@@ -450,6 +501,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
         }));
         syncInFlightRef.current = false;
       } finally {
+        if (passControllerRef.current === controller) passControllerRef.current = null;
         scopedSyncInFlight.current = false;
         if (pendingFullSync.current) {
           pendingFullSync.current = false;
@@ -461,8 +513,19 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
         }
       }
     },
-    [isAuthenticated, isOnline, syncScopeId, queryClient]
+    [isAuthenticated, isOnline, syncScopeId, queryClient, endAbortedPass]
   );
+
+  // Going offline (or unmounting) cancels the pass in flight (MYK9-1624).
+  useEffect(() => {
+    const abortPass = () => passControllerRef.current?.abort();
+    if (!isOnline) abortPass();
+    window.addEventListener('offline', abortPass);
+    return () => {
+      window.removeEventListener('offline', abortPass);
+    };
+  }, [isOnline]);
+  useEffect(() => () => passControllerRef.current?.abort(), []);
 
   // Keep ref in sync so effects always call latest version without re-triggering
   useEffect(() => {

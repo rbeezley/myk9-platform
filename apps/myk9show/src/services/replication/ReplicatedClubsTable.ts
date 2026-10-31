@@ -16,6 +16,8 @@ import {
   type RowRefetchAdapter,
   type SyncReplicatedTableAdapter,
   type SyncResult,
+  type SyncOptions,
+  SyncCacheWriter,
 } from '@myk9/replication';
 import { logger } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
@@ -189,7 +191,7 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
     };
   }
 
-  async sync(_syncScopeId?: string): Promise<SyncResult> {
+  async sync(_syncScopeId?: string, options?: Partial<SyncOptions>): Promise<SyncResult> {
     logger.log(`[${this.getTableName()}] Starting sync`);
 
     // MYK9-572 round 2: read the session ONCE up front — both the
@@ -242,6 +244,7 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
       {
         incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS,
         forceFullSync,
+        ...(options?.signal ? { signal: options.signal } : {}),
       }
     );
 
@@ -288,7 +291,7 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
       try {
         // MYK9-1302: the count and id read run when due, not after every pass.
         const removed = shouldRunIdScan(idScanKey(this.getTableName()), { result })
-          ? await this.reconcileVisibility()
+          ? await this.reconcileVisibility(new SyncCacheWriter(this, options?.signal))
           : 0;
         if (removed > 0) {
           logger.log(`[${this.getTableName()}] reconcileVisibility removed ${removed} stale rows`);
@@ -326,14 +329,16 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
    *
    * @returns number of stale rows removed.
    */
-  async reconcileVisibility(): Promise<number> {
+  async reconcileVisibility(
+    cache: SyncCacheWriter<ReplicatedClub> = new SyncCacheWriter(this)
+  ): Promise<number> {
+    const { signal } = cache;
     const PAGE_SIZE = 1000;
     const startedEpoch = idScanEpoch();
 
-    const { count, error: countError } = await supabase
-      .from('clubs')
-      .select('id', { count: 'exact', head: true })
-      .is('deleted_at', null);
+    let countQuery = supabase.from('clubs').select('id', { count: 'exact', head: true });
+    if (signal) countQuery = countQuery.abortSignal(signal);
+    const { count, error: countError } = await countQuery.is('deleted_at', null);
     if (countError || count == null) {
       // Any fetch failure → prune nothing. Pruning against a partial/absent
       // set could wipe rows that are still perfectly visible.
@@ -349,18 +354,16 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
       return 0;
     }
 
-    const { data, error } = await supabase
-      .from('clubs')
-      .select('id')
-      .is('deleted_at', null)
-      .limit(PAGE_SIZE);
+    let idsQuery = supabase.from('clubs').select('id');
+    if (signal) idsQuery = idsQuery.abortSignal(signal);
+    const { data, error } = await idsQuery.is('deleted_at', null).limit(PAGE_SIZE);
     if (error || !data) {
       return 0;
     }
 
     const liveIds = new Set(data.map(row => String((row as { id: string }).id)));
-    const removed = await this.removeStaleEntries(liveIds);
-    markIdScanCompleted(idScanKey(this.getTableName()), startedEpoch);
+    const removed = await cache.removeStale(liveIds);
+    if (!cache.aborted) markIdScanCompleted(idScanKey(this.getTableName()), startedEpoch);
     return removed;
   }
 

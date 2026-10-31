@@ -22,6 +22,7 @@ import { isOlderThanRow } from './ReplicatedTableRowState';
 import { MAX_CHUNK_SIZE } from '../constants';
 import { withQuotaEviction } from '../quota-eviction';
 import { deleteRowsIfClean, type DeleteRowsIfCleanResult } from './deleteRowsIfClean';
+import type { SyncDeleteAuthority } from './syncDeleteAuthority';
 import {
   repairStuckPendingFlags,
   type RepairStuckPendingFlagsResult,
@@ -364,8 +365,9 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
   /**
    * Batch delete
    */
-  async batchDelete(ids: string[]): Promise<void> {
+  async batchDelete(ids: string[], by?: SyncDeleteAuthority): Promise<void> {
     const db = await this.getDb();
+    if (by?.aborted) return;
     const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
 
     for (const id of ids) {
@@ -386,9 +388,12 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
    */
   async deleteRowsIfClean(
     ids: Iterable<string>,
-    remoteVersions?: ReadonlyMap<string, number>
+    remoteVersions?: ReadonlyMap<string, number>,
+    by?: SyncDeleteAuthority
   ): Promise<DeleteRowsIfCleanResult> {
     const db = await this.getDb();
+    // Nothing deleted: every id is reported kept, the safe answer.
+    if (by?.aborted) return { deleted: [], kept: [...new Set([...ids].map(String))] };
     const result = await deleteRowsIfClean(db, this.tableName, ids, remoteVersions);
     if (result.deleted.length > 0) {
       this.logger.log(`[${this.tableName}] Deleted ${result.deleted.length} clean rows`);
@@ -415,13 +420,16 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
   /**
    * Clear all cached rows for this table
    */
-  async clearCache(): Promise<void> {
+  /** Resolves false, having cleared nothing, when `by` has aborted. */
+  async clearCache(by?: SyncDeleteAuthority): Promise<boolean> {
     const db = await this.getDb();
+    if (by?.aborted) return false;
     const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
     const index = tx.store.index('tableName');
 
     const keys = await index.getAllKeys(this.tableName);
     for (const key of keys) {
+      if (by?.aborted) break;
       await tx.store.delete(key);
     }
 
@@ -429,5 +437,6 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
     this.logger.log(`[${this.tableName}] Cache cleared`);
 
     this.notifyListeners();
+    return true;
   }
 }

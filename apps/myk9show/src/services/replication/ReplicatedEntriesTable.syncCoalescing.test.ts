@@ -117,6 +117,95 @@ describe('ReplicatedEntriesTable sync coalescing', () => {
     expect(syncShow).toHaveBeenCalledTimes(2);
   });
 
+  describe('cancelled operations (MYK9-1624)', () => {
+    it('a sync after an aborted one waits it out, then starts its own with its own signal', async () => {
+      const first = deferred<SyncResult>();
+      syncShow.mockReturnValueOnce(first.promise);
+      const pass = new AbortController();
+      const aborted = table.sync('show-1', { signal: pass.signal }).catch(() => undefined);
+      await flush();
+
+      pass.abort();
+      const next = new AbortController();
+      const retry = table.sync('show-1', { signal: next.signal });
+      await flush();
+      // Not joined, and not started while the cancelled one is still winding down.
+      expect(syncShow).toHaveBeenCalledTimes(1);
+
+      first.reject(new DOMException('Aborted', 'AbortError'));
+      await Promise.all([aborted, retry]);
+      expect(syncShow).toHaveBeenCalledTimes(2);
+      expect(syncShow).toHaveBeenLastCalledWith('show-1', 'anonymous', false, next.signal);
+    });
+
+    it('a signal-less caller does not join an aborted operation either', async () => {
+      const first = deferred<SyncResult>();
+      syncShow.mockReturnValueOnce(first.promise);
+      const pass = new AbortController();
+      const aborted = table.sync('show-1', { signal: pass.signal }).catch(() => undefined);
+      await flush();
+      pass.abort();
+      const retry = table.sync('show-1');
+      first.resolve(ok());
+      await Promise.all([aborted, retry]);
+      expect(syncShow).toHaveBeenCalledTimes(2);
+    });
+
+    it('a signal-less joiner of a pass operation that then aborts gets a real sync, not the cancellation', async () => {
+      const first = deferred<SyncResult>();
+      syncShow.mockReturnValueOnce(first.promise);
+      const pass = new AbortController();
+      const owner = table.sync('show-1', { signal: pass.signal }).catch(() => undefined);
+      await flush();
+      const report = table.sync('show-1');
+
+      pass.abort();
+      first.resolve({ ...ok(), success: false, error: 'AbortError: the sync was cancelled' });
+      await owner;
+
+      await expect(report).resolves.toMatchObject({ success: true });
+      expect(syncShow).toHaveBeenCalledTimes(2);
+      expect(syncShow).toHaveBeenLastCalledWith('show-1', 'anonymous', false);
+    });
+
+    it('a forced signal-less joiner keeps its full sync when the operation it joined aborts', async () => {
+      const first = deferred<SyncResult>();
+      syncShow.mockReturnValueOnce(first.promise);
+      const pass = new AbortController();
+      const owner = table
+        .sync('show-1', { forceFullSync: true, signal: pass.signal })
+        .catch(() => undefined);
+      await flush();
+      const prime = table.sync('show-1', { forceFullSync: true });
+
+      pass.abort();
+      first.reject(new DOMException('Aborted', 'AbortError'));
+      await owner;
+
+      await expect(prime).resolves.toMatchObject({ success: true });
+      expect(syncShow).toHaveBeenLastCalledWith('show-1', 'anonymous', true);
+    });
+
+    it('a caller joining a live operation stops waiting when its own signal aborts', async () => {
+      const first = deferred<SyncResult>();
+      syncShow.mockReturnValueOnce(first.promise);
+      const running = table.sync('show-1');
+      const pass = new AbortController();
+      const joined = table.sync('show-1', { signal: pass.signal });
+      const outcome = joined.then(
+        () => 'settled',
+        () => 'rejected'
+      );
+
+      pass.abort();
+      expect(await outcome).toBe('rejected');
+      expect(syncShow).toHaveBeenCalledTimes(1);
+
+      first.resolve(ok());
+      await running;
+    });
+  });
+
   describe('whenShowSyncSettles (MYK9-1130)', () => {
     it('is null with no sync of the show running, and starts none', async () => {
       expect(table.whenShowSyncSettles('show-1')).toBeNull();

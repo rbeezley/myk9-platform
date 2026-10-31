@@ -158,6 +158,43 @@ describe('registrations ID pass', () => {
   });
 });
 
+describe('cancellation after the download (MYK9-1624)', () => {
+  it('an abort during the id read removes nothing', async () => {
+    const controller = new AbortController();
+    const server = serverShows();
+    server.onIdPage = async () => controller.abort();
+
+    const result = await table.sync(undefined, { signal: controller.signal });
+
+    expect(result.success).toBe(true);
+    expect(await table.get('reg-gone')).not.toBeNull();
+    expect(await table.get('reg-kept')).not.toBeNull();
+  });
+
+  it('an abort between the download and the id pass never sends the id read', async () => {
+    const controller = new AbortController();
+    const server = serverShows();
+    vi.spyOn(table, 'markServerBacked').mockImplementation(async () => {
+      controller.abort();
+    });
+
+    await table.sync(undefined, { signal: controller.signal });
+
+    expect(server.calls.some(call => call.method === 'limit')).toBe(false);
+    expect(await table.get('reg-gone')).not.toBeNull();
+  });
+
+  it('a live pass hands its signal to the id read and prunes', async () => {
+    const controller = new AbortController();
+    const server = serverShows();
+
+    await table.sync(undefined, { signal: controller.signal });
+
+    expect(server.calls.some(call => call.method === 'abortSignal')).toBe(true);
+    expect(await table.get('reg-gone')).toBeNull();
+  });
+});
+
 /** The dog row as the upload leaves it: clean and no longer local-only. */
 function uploadedDog(): ReplicatedDog {
   return { ...offlineDog(), _localOnly: undefined };

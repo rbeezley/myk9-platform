@@ -253,7 +253,7 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
           return undefined;
         }
       },
-      fetchRemoteRows: async ({ scope, since }) => {
+      fetchRemoteRows: async ({ scope, since, cache }) => {
         let query = supabase
           .from('trials')
           .select('*')
@@ -275,7 +275,7 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
         // concurrent queued writes; never use an unconditional local delete.
         const rows = data ?? [];
         const tombstones = rows.filter(row => row.deleted_at);
-        await this.deleteRowsIfClean(
+        await cache.deleteIfClean(
           tombstones.map(row => String(row.id)),
           new Map(
             tombstones
@@ -314,6 +314,7 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
       {
         forceFullSync: options?.forceFullSync === true,
         incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS,
+        ...(options?.signal ? { signal: options.signal } : {}),
       }
     );
 

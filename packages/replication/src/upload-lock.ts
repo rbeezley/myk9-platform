@@ -2,8 +2,15 @@
 export const UPLOAD_LOCK_NAME = 'replication-upload';
 
 type LockManagerLike = {
-  request: <R>(name: string, callback: () => Promise<R>) => Promise<R>;
+  request: {
+    <R>(name: string, callback: () => Promise<R>): Promise<R>;
+    <R>(name: string, options: { signal?: AbortSignal }, callback: () => Promise<R>): Promise<R>;
+  };
 };
+
+function abortError(signal: AbortSignal): unknown {
+  return signal.reason ?? new DOMException('Aborted', 'AbortError');
+}
 
 function webLocks(): LockManagerLike | undefined {
   if (typeof navigator === 'undefined') return undefined;
@@ -33,14 +40,32 @@ export class UploadLock {
     return webLocks() !== undefined;
   }
 
-  run<R>(callback: () => Promise<R>): Promise<R> {
+  /**
+   * With a `signal`, an abort while WAITING for the lock leaves the queue and
+   * rejects at once (an AbortError). Once the callback is running the signal is
+   * the callback's business, as the lock is already held.
+   */
+  run<R>(callback: () => Promise<R>, signal?: AbortSignal): Promise<R> {
     const locks = webLocks();
-    if (locks) return locks.request(UPLOAD_LOCK_NAME, callback);
+    if (locks) {
+      return signal
+        ? locks.request(UPLOAD_LOCK_NAME, { signal }, callback)
+        : locks.request(UPLOAD_LOCK_NAME, callback);
+    }
+    if (signal?.aborted) return Promise.reject(abortError(signal));
     if (!this.held) return this.runHeld(callback);
     return new Promise<R>((resolve, reject) => {
-      this.waiters.push(() => {
+      const start = () => {
+        signal?.removeEventListener('abort', onAbort);
         this.runHeld(callback).then(resolve, reject);
-      });
+      };
+      const onAbort = () => {
+        const index = this.waiters.indexOf(start);
+        if (index >= 0) this.waiters.splice(index, 1);
+        reject(abortError(signal as AbortSignal));
+      };
+      this.waiters.push(start);
+      signal?.addEventListener('abort', onAbort, { once: true });
     });
   }
 

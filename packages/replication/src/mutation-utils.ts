@@ -44,6 +44,15 @@ export class TimeoutError extends Error {
   }
 }
 
+/**
+ * Why a signal aborted. `AbortSignal.reason` and `throwIfAborted()` are missing
+ * on the oldest supported browsers (Safari 14.1, Chrome 87), so read the reason
+ * with a fallback and never call `throwIfAborted`.
+ */
+export function abortReason(signal: AbortSignal): unknown {
+  return signal.reason ?? new DOMException('Aborted', 'AbortError');
+}
+
 interface AbortablePromiseLike<T> extends PromiseLike<T> {
   abortSignal(signal: AbortSignal): PromiseLike<T>;
 }
@@ -85,7 +94,7 @@ export async function withTimeout<T>(
   signal?: AbortSignal
 ): Promise<T> {
   // A caller that already cancelled must not start the request at all.
-  signal?.throwIfAborted();
+  if (signal?.aborted) throw abortReason(signal);
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
   let abortController: AbortController | undefined;
   let boundedPromiseLike = promiseLike;
@@ -116,8 +125,9 @@ export async function withTimeout<T>(
   const abortPromise = signal
     ? new Promise<never>((_, reject) => {
         onAbort = () => {
-          reject(signal.reason);
-          abortController?.abort(signal.reason);
+          const reason = abortReason(signal);
+          reject(reason);
+          abortController?.abort(reason);
         };
         signal.addEventListener('abort', onAbort, { once: true });
       })

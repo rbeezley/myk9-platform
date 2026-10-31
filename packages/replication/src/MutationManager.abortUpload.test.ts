@@ -199,4 +199,80 @@ describe('MutationManager cancellable upload (MYK9-1550)', () => {
     expect(transport.sent).toEqual(['r2']);
     expect(await pendingIds()).toEqual([]);
   });
+
+  it('sends with a signal on a browser without throwIfAborted or signal.reason', async () => {
+    await db.put(PENDING, mutation('m1', 'r1', 1));
+    const listeners: Array<() => void> = [];
+    const bareSignal = {
+      aborted: false,
+      addEventListener: (_: string, fn: () => void) => listeners.push(fn),
+      removeEventListener: vi.fn(),
+    } as unknown as AbortSignal;
+
+    const results = await manager.uploadPendingMutations({ signal: bareSignal });
+
+    expect(transport.sent).toEqual(['r1']);
+    expect(results[0]?.success).toBe(true);
+    expect(await pendingIds()).toEqual([]);
+  });
+
+  describe('abort while waiting for the upload lock', () => {
+    type Waiter = { grant: () => void };
+    let release: () => void;
+    let waiters: Waiter[];
+
+    // A navigator.locks whose lock is held by "another tab" until `release()`.
+    function installHeldWebLock() {
+      let heldByOtherTab = true;
+      waiters = [];
+      const request = (_name: string, options: unknown, maybeCallback?: unknown) => {
+        const callback = (maybeCallback ?? options) as () => Promise<unknown>;
+        const signal = maybeCallback ? (options as { signal?: AbortSignal }).signal : undefined;
+        return new Promise((resolve, reject) => {
+          const run = () => callback().then(resolve, reject);
+          if (!heldByOtherTab) {
+            void run();
+            return;
+          }
+          const waiter: Waiter = { grant: () => void run() };
+          waiters.push(waiter);
+          signal?.addEventListener(
+            'abort',
+            () => {
+              waiters.splice(waiters.indexOf(waiter), 1);
+              reject(signal.reason);
+            },
+            { once: true }
+          );
+        });
+      };
+      release = () => {
+        heldByOtherTab = false;
+        waiters.splice(0).forEach(w => w.grant());
+      };
+      Object.defineProperty(globalThis, 'navigator', {
+        value: { onLine: true, locks: { request } },
+        configurable: true,
+      });
+    }
+
+    it('settles promptly, clears uploadInFlight, and the next upload proceeds once freed', async () => {
+      installHeldWebLock();
+      await db.put(PENDING, mutation('m1', 'r1', 1));
+      const controller = new AbortController();
+      const upload = manager.uploadPendingMutations({ signal: controller.signal });
+      await vi.waitFor(() => expect(waiters).toHaveLength(1));
+
+      controller.abort();
+
+      expect(await upload).toEqual([]);
+      expect((manager as unknown as { uploadInFlight: unknown }).uploadInFlight).toBeNull();
+      expect(transport.sent).toEqual([]);
+
+      release();
+      const results = await manager.uploadPendingMutations();
+      expect(transport.sent).toEqual(['r1']);
+      expect(results[0]?.success).toBe(true);
+    });
+  });
 });

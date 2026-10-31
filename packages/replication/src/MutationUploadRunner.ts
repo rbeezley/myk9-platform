@@ -124,7 +124,14 @@ export class MutationUploadRunner {
     // Without Web Locks an overlapping request skips and flags a rerun, as it
     // always has; queueing it behind the running pass would change that.
     if (this.isUploading && !this.uploadLock.isCrossTab()) return this.runUploadPass(signal);
-    return (await this.uploadLock.run(() => this.runUploadPass(signal))) ?? [];
+    try {
+      return (await this.uploadLock.run(() => this.runUploadPass(signal), signal)) ?? [];
+    } catch (error) {
+      // Aborted while still waiting for the lock (another tab's flush): nothing
+      // was started, so the queue is untouched. Settle as an empty pass.
+      if (signal?.aborted) return [];
+      throw error;
+    }
   }
 
   /** Run `work` under the upload lock (MYK9-771). Never call it from inside an upload. */

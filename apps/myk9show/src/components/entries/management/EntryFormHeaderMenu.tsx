@@ -1,4 +1,4 @@
-import { Mail, MoreHorizontal, PlusCircle } from 'lucide-react';
+import { Mail, MoreHorizontal, PlusCircle, StickyNote } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import {
@@ -22,6 +22,8 @@ interface EntryFormHeaderMenuProps {
   onEmailExhibitor?: (() => void) | undefined;
   /** "Add entry for <exhibitor>": the wizard opened on them, returning here. Absent: not offered. */
   addEntry?: { href: string; disabledReason?: string | undefined } | undefined;
+  /** Present only when the form has an enrollment row to note against. */
+  onAddNote?: (() => void) | undefined;
 }
 
 /**
@@ -35,6 +37,7 @@ export function EntryFormHeaderMenu({
   onBulkStatusChange,
   onEmailExhibitor,
   addEntry,
+  onAddNote,
 }: EntryFormHeaderMenuProps) {
   return (
     <DropdownMenu>
@@ -49,7 +52,7 @@ export function EntryFormHeaderMenu({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-64">
-        {(onEmailExhibitor || addEntry) && (
+        {(onEmailExhibitor || addEntry || onAddNote) && (
           <>
             <DropdownMenuGroup>
               <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
@@ -78,6 +81,12 @@ export function EntryFormHeaderMenu({
                 <DropdownMenuItem onClick={onEmailExhibitor} className="min-h-11">
                   <Mail className="h-4 w-4" aria-hidden />
                   Email exhibitor…
+                </DropdownMenuItem>
+              )}
+              {onAddNote && (
+                <DropdownMenuItem onClick={onAddNote} className="min-h-11">
+                  <StickyNote className="h-4 w-4" aria-hidden />
+                  Add private note…
                 </DropdownMenuItem>
               )}
             </DropdownMenuGroup>

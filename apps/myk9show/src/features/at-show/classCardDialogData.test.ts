@@ -58,4 +58,21 @@ describe('classDetailsData', () => {
     expect(data).not.toHaveProperty('completedEntries');
     expect(data.judgeName).toBe('Jane Judge');
   });
+
+  it('labels a combined A/B card with the merged status, not section A alone', () => {
+    const sectionA = {
+      id: 'class-1',
+      classStatus: 'in_progress',
+      ringPhase: null,
+    } as unknown as ReplicatedClass;
+    const sectionB = {
+      id: 'class-2',
+      classStatus: 'in_progress',
+      ringPhase: 'offline_scoring',
+    } as unknown as ReplicatedClass;
+    const combined = { ...entry, section: 'A & B', pairedClassId: 'class-2' } as ClassEntry;
+    expect(classDetailsData(combined, sectionA, 'America/New_York', true, sectionB)).toMatchObject({
+      statusLabel: 'Offline Scoring',
+    });
+  });
 });

@@ -196,6 +196,23 @@ Also inspect recorded In Progress and In Review PRs at resume, including unlabel
 reconcile confirmed merges and outstanding criteria before selecting new work. A pause never
 releases another executor's worktree or branch; agree takeover before overlapping edits.
 
+## Deferred review findings — triage at filing
+
+A convergence override, round cap or docs-only budget files the leftover review findings as a
+`Deferred re-review:` issue. About half of them need no work (owner triage of seven, 2026-10-31:
+three worth fixing, one polish, two closed, one already fixed), so the filer records a verdict on
+each finding in the issue, judged by who is hurt and how often, not by the reviewer's P-level
+alone: an admin-only P2 can be `theoretical`, an offline ringside P2 is `show-day`.
+
+| Verdict       | Meaning                                                                                          | What happens                                                                                                              |
+| ------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
+| `show-day`    | User-visible harm, or show-day data at risk                                                      | First batch of the next wave; the plan doc names it                                                                       |
+| `polish`      | Real but minor                                                                                   | Fixed when that code is next touched; not batched on its own                                                              |
+| `theoretical` | Needs improbable timing, hand-crafted input, or is recovered by Retry or a gate already in place | Propose closing with the reason, `needs:decision`; closed as "Closed by owner decision: <reason>" only on the owner's yes |
+
+Nothing closes automatically. An issue whose findings split across verdicts is split the same
+way, so each verdict moves on its own.
+
 ## Saved queues and verification batches
 
 | View                                                                                              | Contents                                                          |

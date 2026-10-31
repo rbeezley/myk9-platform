@@ -45,7 +45,7 @@ export function buildRingsideStatusInfo(
  * class card uses (`mergeSectionPhase`); this only formats it. Section A's label would hide B's
  * Offline Scoring, so the label is the merged phase's, or null when it has none (plain In Progress).
  */
-function buildCombinedStatusLabel(
+export function buildCombinedStatusLabel(
   a: ReplicatedClass,
   b: ReplicatedClass,
   timeZone: string

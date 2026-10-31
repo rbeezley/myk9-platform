@@ -336,7 +336,9 @@ lanes. Additions specific to the run:
 - **`adversarial` floor:** dispatch two `sonnet` lenses (read only, distinct bug-finding
   angles) in parallel. Fix or evidence every finding, then **re-run both lenses on the new
   head**: `post-review-gate.sh` posts "all findings addressed" only over a clean final log.
-  Pass the wrappers' current `scripts/qa/review-verdict.sh` contract to each lens. A valid clean
+  Paste the output of `bash scripts/qa/review-contract.sh` into each lens prompt: it is the
+  contract Codex gets, likelihood cap included, so a capped finding comes back as a
+  non-blocking `[unlikely P3]` instead of a `[P3]` that forces another round. A valid clean
   opening is `No actionable defects found.` The final log must contain no finding bullets or
   findings JSON, including fixed findings; preserve earlier findings/dispositions in separate history.
 - **`independent` floor pre-pass:** before the first `pnpm qa:codex-review --post`, run the
@@ -417,8 +419,11 @@ asking:
 | MYK9-654 | held · In Progress | #2872 | draft PR paused for an owner restructure decision  |
 ```
 
-Follow it with the orchestration stats from `../SKILL.md` and one line listing every judgement
-call made without asking. In continuous mode, add one line naming the stop condition that ended the
+Follow it with the orchestration stats from `../SKILL.md` (including the deferred-review tally)
+and one line listing every judgement call made without asking. Every `Deferred re-review:`
+issue this run filed carries a `show-day` / `polish` / `theoretical` verdict per
+`docs/agents/issue-tracker.md` § Deferred review findings; the `show-day` ones are the next
+wave's first batch. In continuous mode, add one line naming the stop condition that ended the
 run, and mark each `refill` issue in the table (e.g. `MYK9-321 (refill)`).
 
 ## Common mistakes

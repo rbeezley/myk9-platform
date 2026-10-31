@@ -261,7 +261,7 @@ describe('codex-review.sh rounds (MYK9-1590)', () => {
     const s = stubs(verdict, []);
     const r = run(repo, s);
     expect(r.code).toBe(1);
-    expect(r.out).toContain('- [P1] src/old.ts:9');
+    expect(r.out).toContain('- [unlikely P1] src/old.ts:9');
     const posted = postedBodies(s);
     expect(posted).toHaveLength(2);
     expect(posted[1]?.split('\n')[0]).toMatch(

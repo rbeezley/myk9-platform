@@ -24,6 +24,7 @@ import { isAccountedFor } from '@/features/_shared/entryAccounting';
 import { dominantStatus, dominantStatusKind } from './groupEntriesByOrder';
 import { isExpectedClass, isOutstandingClass } from './myShowLifecycle';
 import type { EntryClass, MyEntry } from './my-entries-types';
+import { hasUsableDate, isLastDayPastInZones } from './showPastInZones';
 
 /**
  * Parse a show date that may be a date-only string ("YYYY-MM-DD") or a full
@@ -238,7 +239,23 @@ export function getPartiallyScoredState(
  * link to the tabs, so they must agree with tab membership.
  */
 export function isCompletedEntry(entry: MyEntry, now: Date): boolean {
-  return isScoredEntry(entry) || isPastShowEntry(entry, now);
+  return isScoredEntry(entry) || isShowPastInEntryTrialZones(entry, now);
+}
+
+/**
+ * "Past" for the tab axis: the trial-zone rule the My Shows check-in gate uses
+ * (`isLastDayPastInZones`), so the Upcoming filter cannot call a show over
+ * while its last day is still running in the trial's zone (MYK9-1586). The
+ * zones are this order's own classes, where the gate unions every order at the
+ * show; the two differ only for split orders on a multi-zone show, on the last
+ * day, between the zones' midnights. `isPastShowEntry` stays device-local for
+ * the other callers, payments included.
+ */
+function isShowPastInEntryTrialZones(entry: MyEntry, now: Date): boolean {
+  const zones = entry.classes
+    .filter(cls => cls.trialTimezone && hasUsableDate(cls.trialDate))
+    .map(cls => cls.trialTimezone as string);
+  return isLastDayPastInZones(showLastDay(entry), zones, now);
 }
 
 export interface MyEntriesShowProgressStats {

@@ -15,6 +15,14 @@
  * row's `updated_at`. A server field this device does not hold is applied too.
  */
 import { DEFAULT_THEME_PREFERENCES, type ThemePreferences } from '@/types/user-preferences';
+import { readStoredMode } from '@/context/themeUtils';
+import {
+  FONT_SIZE_SCALES,
+  getStoredFontScale,
+  getStoredHighContrast,
+  getStoredReduceMotion,
+} from '@/context/themeClasses';
+import { useSettingsStore } from '@/store/settingsStore';
 
 type ThemeField = keyof ThemePreferences;
 
@@ -73,6 +81,46 @@ export function deviceThemeOrDefaults(cache: DeviceThemeCache | null): ThemePref
   return { ...DEFAULT_THEME_PREFERENCES, ...(cache?.theme ?? {}) };
 }
 
+/** The font size a stored scale stands for, read off the canonical map ('1.0' is medium). */
+function fontSizeForScale(scale: string | null): ThemePreferences['fontSize'] {
+  const match = Object.entries(FONT_SIZE_SCALES).find(
+    ([size, value]) => value === scale && size !== 'small'
+  );
+  return (
+    (match?.[0] as ThemePreferences['fontSize'] | undefined) ?? DEFAULT_THEME_PREFERENCES.fontSize
+  );
+}
+
+/** Pending time for a seeded field: beats a never-saved row (epoch 0), loses to any saved value. */
+const SEEDED_CHANGED_AT = 1;
+
+/**
+ * First device copy for a user with none (MYK9-1568): the values this device is
+ * already showing, from the stored font scale, motion and contrast, the theme
+ * mode and the settings-store accent. Fields with no local value take defaults.
+ * A field that differs from the default is pending at a time older than any
+ * saved server value, so it survives when the server has nothing, and a saved
+ * server value still wins.
+ */
+export function seedDeviceTheme(userId: string): DeviceThemeCache {
+  const scale = getStoredFontScale();
+  const theme: ThemePreferences = {
+    mode: readStoredMode(),
+    colorScheme: useSettingsStore.getState().settings.accentColor,
+    fontSize: fontSizeForScale(scale),
+    reduceMotion: getStoredReduceMotion() ?? DEFAULT_THEME_PREFERENCES.reduceMotion,
+    highContrast: getStoredHighContrast() ?? DEFAULT_THEME_PREFERENCES.highContrast,
+  };
+  const pending = THEME_FIELDS.filter(f => theme[f] !== DEFAULT_THEME_PREFERENCES[f]);
+  const seeded: DeviceThemeCache = {
+    theme,
+    changedAt: Object.fromEntries(pending.map(f => [f, SEEDED_CHANGED_AT])),
+    pending,
+  };
+  writeDeviceTheme(userId, seeded);
+  return seeded;
+}
+
 export interface ThemeReconciliation {
   /** What the device should hold after the sync. */
   theme: ThemePreferences;
@@ -99,7 +147,13 @@ export function reconcileTheme(
     const isPending = cache?.pending.includes(field) ?? false;
     const changedAt = cache?.changedAt[field] ?? 0;
     const serverChangedAt = serverFieldChangedAt[field] ?? (legacyRow ? serverUpdatedAt : 0);
-    if (isPending && changedAt > serverChangedAt) {
+    // A seeded field is what the device was showing, not an edit with a time: it
+    // replaces a server default nobody set, never a value someone saved.
+    const seededOverUnsetDefault =
+      changedAt === SEEDED_CHANGED_AT &&
+      serverFieldChangedAt[field] === undefined &&
+      serverTheme[field] === DEFAULT_THEME_PREFERENCES[field];
+    if (isPending && (seededOverUnsetDefault || changedAt > serverChangedAt)) {
       (theme as unknown as Record<string, unknown>)[field] = device[field];
       toPush[field] = device[field];
     } else if (cache?.theme[field] !== serverTheme[field]) {

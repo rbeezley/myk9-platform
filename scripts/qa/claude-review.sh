@@ -272,7 +272,7 @@ mkdir -p "$ROOT/.logs"
 LOG="${CLAUDE_REVIEW_LOG:-$ROOT/.logs/claude-review-${HEAD_SHA}.log}"
 
 # One contract, one owner: the paragraph codex-review.sh sends its reviewer.
-CONTRACT="$(sed -n "s/^REVIEW_INSTRUCTIONS='\(.*\)'\$/\1/p" "$HERE/codex-review.sh")"
+CONTRACT="$(bash "$HERE/review-contract.sh" 2>/dev/null)"
 if [ -z "$CONTRACT" ]; then
   echo "claude-review: could not read REVIEW_INSTRUCTIONS from codex-review.sh; refusing to review without the verdict contract (exit 2)." >&2
   exit 2
@@ -309,6 +309,7 @@ abort_lines() {
 VERDICT="$(cat "$LOG")"
 echo "$VERDICT"
 review_note_preexisting claude-review "$VERDICT"
+review_note_not_this_round claude-review "$VERDICT"
 
 # FINDINGS ARE PROCESSED BEFORE EVERY INCOMPLETENESS GUARD: a review that
 # reported a defect and then hit a blocker has still reported a defect, and

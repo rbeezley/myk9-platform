@@ -17,6 +17,8 @@
 --      column, and pages are capped at 1000 rows;
 --   9. soft-deleted shows, classes and dogs expose nothing, and a caller whose only
 --      entry is not_accepted, moved or absent gets nothing;
+--  10. a suspended person and a self-soft-deleted handler (existing principals) read nothing,
+--      while an active entrant and the passcode arm still read the roster;
 --   8. the function is closed to anon and PUBLIC, open to authenticated.
 --
 -- All fixtures roll back. Run with psql -X -v ON_ERROR_STOP=1 after migrations.
@@ -235,6 +237,41 @@ SET LOCAL session_replication_role = origin;
 INSERT INTO public.show_passcodes (show_id, role, passcode_hash, created_at)
 VALUES ('00000000-0000-0000-0000-000001517002', 'steward', 'myk9-1517-hash', '2026-10-10T00:00:00Z');
 
+-- Follow-up fixtures (live-person arm). Person 8 owns dog 9, person 9 only handles dog 1;
+-- both have an unnumbered live entry in show A (class 5), so they are admitted by the
+-- live-entry set but add no listed row. Each is later suspended / self-soft-deleted.
+INSERT INTO public.people (id, first_name, last_name, email, auth_user_id)
+SELECT ('00000000-0000-0000-0000-00000151711' || n)::uuid, 'MYK9-1517', 'Person ' || n,
+       'myk91517-' || n || '@example.test', NULL
+FROM generate_series(8, 9) n;
+INSERT INTO auth.users (
+  id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
+  created_at, updated_at, raw_app_meta_data, raw_user_meta_data,
+  is_super_admin, is_sso_user, is_anonymous
+)
+SELECT ('00000000-0000-0000-0000-00000151712' || n)::uuid, '00000000-0000-0000-0000-000000000000',
+       'authenticated', 'authenticated', 'myk91517-' || n || '@example.test', '', now(), now(), now(),
+       '{}', '{}', false, false, false
+FROM generate_series(8, 9) n;
+UPDATE public.people SET auth_user_id = ('00000000-0000-0000-0000-00000151712' || right(id::text, 1))::uuid
+WHERE id IN ('00000000-0000-0000-0000-000001517118', '00000000-0000-0000-0000-000001517119');
+INSERT INTO public.dogs (id, name, call_name, breed, owner_id)
+VALUES ('00000000-0000-0000-0000-000001517140', 'MYK9-1517 Dog 9', 'Call9', 'Breed9',
+  '00000000-0000-0000-0000-000001517118');
+INSERT INTO public.dog_registrations (dog_id, organization, registration_number, is_primary)
+VALUES ('00000000-0000-0000-0000-000001517140', 'AKC (American Kennel Club)', 'SR151710', true);
+INSERT INTO public.entries (id, dog_id, class_id, show_id, trial_id, handler_id, handler, armband,
+  run_order, entry_status, payment_status, entry_fee, check_in_status)
+VALUES
+  ('00000000-0000-0000-0000-000001517213', '00000000-0000-0000-0000-000001517140',
+   '00000000-0000-0000-0000-000001517105', '00000000-0000-0000-0000-000001517002',
+   '00000000-0000-0000-0000-000001517004', '00000000-0000-0000-0000-000001517118', 'Eight Handler',
+   NULL, 30, 'confirmed', 'pending', 25, 'no-status'),
+  ('00000000-0000-0000-0000-000001517214', '00000000-0000-0000-0000-000001517131',
+   '00000000-0000-0000-0000-000001517105', '00000000-0000-0000-0000-000001517002',
+   '00000000-0000-0000-0000-000001517004', '00000000-0000-0000-0000-000001517119', 'Nine Handler',
+   NULL, 31, 'confirmed', 'pending', 25, 'no-status');
+
 CREATE FUNCTION pg_temp.as_account(p_uid uuid) RETURNS void LANGUAGE sql AS $$
   SELECT set_config('request.jwt.claim.sub', p_uid::text, true),
          set_config('request.jwt.claims',
@@ -396,6 +433,59 @@ BEGIN
     RAISE EXCEPTION 'FAIL 9b a caller whose only entries are in a deleted class or a deleted dog must read nothing';
   END IF;
   RAISE NOTICE 'PASS 9b deleted-entity-only caller reads nothing';
+END $$;
+
+-- 10. live-person arm: an existing request principal for a suspended person, or for a
+-- person who soft-deleted themselves (handler-only, as soft_delete_person allows), reads
+-- nothing. The same callers read the roster first, so the denial is the status change.
+-- The protect-status trigger and soft_delete_person need staff/self context, so the
+-- state changes are applied as the fixture owner with triggers off, as the column writes
+-- those paths end in.
+SELECT pg_temp.as_account('00000000-0000-0000-0000-000001517128');
+DO $$
+BEGIN
+  IF (SELECT count(*) FROM public.show_dogs_limited_view('00000000-0000-0000-0000-000001517002')) <> 3 THEN
+    RAISE EXCEPTION 'FAIL 10 control: an active entrant (person 8) must read the roster';
+  END IF;
+END $$;
+SELECT pg_temp.as_account('00000000-0000-0000-0000-000001517129');
+DO $$
+BEGIN
+  IF (SELECT count(*) FROM public.show_dogs_limited_view('00000000-0000-0000-0000-000001517002')) <> 3 THEN
+    RAISE EXCEPTION 'FAIL 10 control: an active handler-only person (person 9) must read the roster';
+  END IF;
+END $$;
+RESET ROLE;
+SET LOCAL session_replication_role = replica;
+UPDATE public.people SET status = 'suspended' WHERE id = '00000000-0000-0000-0000-000001517118';
+UPDATE public.people SET deleted_at = now(), deleted_by = '00000000-0000-0000-0000-000001517129'
+WHERE id = '00000000-0000-0000-0000-000001517119';
+SET LOCAL session_replication_role = origin;
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_account('00000000-0000-0000-0000-000001517128');
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM public.show_dogs_limited_view('00000000-0000-0000-0000-000001517002')) THEN
+    RAISE EXCEPTION 'FAIL 10 a suspended person with an existing principal must read nothing';
+  END IF;
+  RAISE NOTICE 'PASS 10 suspended person reads nothing';
+END $$;
+SELECT pg_temp.as_account('00000000-0000-0000-0000-000001517129');
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM public.show_dogs_limited_view('00000000-0000-0000-0000-000001517002')) THEN
+    RAISE EXCEPTION 'FAIL 10 a self-soft-deleted handler must read nothing';
+  END IF;
+  RAISE NOTICE 'PASS 10 self-soft-deleted handler reads nothing';
+END $$;
+-- The passcode arm is independent of any person row.
+SELECT pg_temp.as_passcode('00000000-0000-0000-0000-000001517002', '2026-10-10T00:00:00Z');
+DO $$
+BEGIN
+  IF (SELECT count(*) FROM public.show_dogs_limited_view('00000000-0000-0000-0000-000001517002')) <> 3 THEN
+    RAISE EXCEPTION 'FAIL 10 the passcode arm must still read the roster';
+  END IF;
+  RAISE NOTICE 'PASS 10 passcode arm unaffected';
 END $$;
 
 -- 6. NULL show, and no auth.uid().

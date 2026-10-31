@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,7 @@ import { useTrialSecretaryOnlyReason } from '@/features/actions/TrialSecretaryAc
 import { buildAddEntryForExhibitorPath } from '@/pages/RegistrationWizardPage.routes';
 import { formatConfirmationNumberLabel } from '@/features/registration/confirmationNumberDisplay';
 import type { EntryStatus } from '@/types/show-registration-types';
+import { EntryFormNotes } from '@/features/entry-form-notes/EntryFormNotes';
 import { EnrollmentCard } from './EnrollmentCard';
 import type { EnrollmentCardProps } from './EnrollmentCard.types';
 import type { ShowRegistrationGroup } from './showRegistrationProjection';
@@ -46,6 +47,7 @@ export function EntryFocusedRegistration({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const [noteFocusRequest, setNoteFocusRequest] = useState(0);
   const controls = useEnrollmentDialogControls(registration, enrollmentCardProps.paymentLedger);
   const checklist = buildFormChecklist(registration, controls);
   // Another class or dog for someone already entered (MYK9-1594). The exhibitor is the dogs'
@@ -109,6 +111,9 @@ export function EntryFocusedRegistration({
                 ? controls.email.openDialog
                 : undefined
             }
+            onAddNote={
+              registration.enrollmentId ? () => setNoteFocusRequest(n => n + 1) : undefined
+            }
           />
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -142,6 +147,13 @@ export function EntryFocusedRegistration({
         />
 
         <EnrollmentCard group={registration} {...enrollmentCardProps} dialogControls={controls} />
+
+        {registration.enrollmentId && (
+          <EntryFormNotes
+            enrollmentId={registration.enrollmentId}
+            focusRequest={noteFocusRequest}
+          />
+        )}
       </div>
 
       <EntryFormFooter

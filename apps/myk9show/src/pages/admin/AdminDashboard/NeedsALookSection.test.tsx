@@ -43,6 +43,18 @@ describe('NeedsALookSection', () => {
     expect(screen.getByRole('option', { name: 'Deadlines (1)' })).toBeInTheDocument();
   });
 
+  it('gives each row action link the 44px touch-target floor', () => {
+    render(<Harness />);
+
+    // jsdom has no layout, so the class is the only observable proxy for the 44px box.
+    const links = screen.getAllByRole('link', { name: 'Open' });
+    expect(links).toHaveLength(ITEMS.length);
+    for (const link of links) {
+      expect(link).toHaveClass('min-h-11');
+      expect(link).not.toHaveClass('min-h-10');
+    }
+  });
+
   it('narrows the queue to the picked view and can show everything again', async () => {
     const { user } = render(<Harness />);
     expect(screen.getByText('Showing all 4 open items.')).toBeInTheDocument();

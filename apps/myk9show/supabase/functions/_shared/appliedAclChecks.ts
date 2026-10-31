@@ -47,6 +47,8 @@ export const AUTHENTICATED_TABLE_GRANTS: Readonly<Record<string, string>> = {
   email_log: 'SELECT',
   enrollments: 'SELECT,INSERT,UPDATE',
   entries: 'INSERT,UPDATE,DELETE',
+  // MYK9-1601: officials only (RLS); no DELETE, notes soft-delete.
+  entry_form_notes: 'SELECT,INSERT,UPDATE',
   entry_cart_items: 'SELECT,INSERT,UPDATE,DELETE',
   entry_carts: 'SELECT,INSERT,UPDATE,DELETE',
   entry_payment_links: 'SELECT',

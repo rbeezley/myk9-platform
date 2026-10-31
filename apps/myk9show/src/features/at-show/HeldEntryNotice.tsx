@@ -1,27 +1,10 @@
 import { useState } from 'react';
 import { ShieldAlert } from 'lucide-react';
 import { RingsideUpButton } from '@myk9/ui';
-import type { ScoreData } from '@myk9/scoring-ui';
 import { Button } from '@/components/ui/button';
 import { ScoreSubmitErrorBanner } from './ScoreSubmitErrorBanner';
-
-/**
- * What the live scoresheet submits for its Absent chip: a zero time and the
- * "Absent" reason, nothing timed. The server's held-entry guard allows exactly
- * this write and refuses any timed or other result.
- */
-const ABSENT_SCORE: ScoreData = {
-  resultText: 'ABS',
-  searchTime: '0.00',
-  nonQualifyingReason: 'Absent',
-  areas: {},
-  areaTimes: [],
-  correctCount: 0,
-  incorrectCount: 0,
-  faultCount: 0,
-  finishCallErrors: 0,
-  points: 0,
-};
+import { ABSENT_SCORE } from './absentScore';
+import type { ScoreData } from '@myk9/scoring-ui';
 
 interface HeldEntryNoticeProps {
   onBack: () => void;

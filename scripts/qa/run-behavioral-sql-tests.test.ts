@@ -184,6 +184,7 @@ const launchCriticalSqlTests = [
   'myk9_970_role_onboarding_test.sql',
   'show_email_delivery_history_test.sql',
   'user_roles_show_manager_read_test.sql',
+  'myk9_1514_trials_auto_complete_stale_classes_test.sql',
   'withdraw_own_entry_test.sql',
   'withdraw_or_pull_own_entry_test.sql',
   'myk9_778_no_owner_withdraw_after_show_completed_test.sql',

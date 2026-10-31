@@ -51,10 +51,8 @@ import {
   type OverviewDog,
   MyShowsListHeading,
 } from './modules';
-import {
-  getMyEntriesPresentation,
-  type MyEntriesPresentation,
-} from './modules/entriesIdentityState';
+import type { MyEntriesPresentation } from './modules/entriesIdentityState';
+import { useMyEntriesPresentation } from './modules/useMyEntriesPresentation';
 import {
   countDistinctShows,
   useEntryFilterStripVisible,
@@ -70,30 +68,26 @@ const MyEntriesPage: React.FC = () => {
   );
 
   // Data and filters
+  const entriesData = useMyEntriesData({
+    persistCheckInStatus: trackCheckIn,
+  });
   const {
     entries,
     balanceSummary,
     source: entriesSource,
     identityState,
-    readState,
     isLoading,
     isError,
     refreshing,
     refreshEntries,
     updateEntryCheckIn,
-  } = useMyEntriesData({
-    persistCheckInStatus: trackCheckIn,
-  });
+  } = entriesData;
   // MYK9-1523: coming back to the page re-reads it, held only while a check-in
-  // is saving. A return during the initial load needs no hold: `loadMyEntries`
-  // lets the newer read supersede the older one (`readSeq`).
+  // is saving (MYK9-1531: every in-flight check-in, not only the newest).
+  // A return during the initial load needs no hold: `loadMyEntries` lets the
+  // newer read supersede the older one (`readSeq`).
   useRefreshOnReturn(refreshEntries, true, checkInsInFlight > 0);
-  const entriesPresentation: MyEntriesPresentation = getMyEntriesPresentation({
-    identityState,
-    readState,
-    entryCount: entries.length,
-    isLoading,
-  });
+  const entriesPresentation: MyEntriesPresentation = useMyEntriesPresentation(entriesData);
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Wait list. Resolved BEFORE the filters below, which need the position count:

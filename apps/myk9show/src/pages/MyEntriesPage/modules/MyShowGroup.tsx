@@ -21,14 +21,13 @@ import { buildVenueMapsUrls, formatVenueAddress } from '@/utils/venueMaps';
 import type { ResultCardModel } from '@/features/result-card';
 import { EntryStatus } from '@/types/show-registration-types';
 import type { UserEntriesSource } from '@/services/database/entries';
-import { isTrialDayToday, type DayCheckInContext } from './dayCheckIn';
+import { buildDayCheckInContext, isTrialDayToday } from './dayCheckIn';
 import { indexOrdersById, type MyShowClass, type MyShowDog } from './groupEntriesByShow';
 import type { MyShowGroup as MyShowGroupModel } from './groupEntriesByShow';
 import { MyShowActionsMenu } from './MyShowActionsMenu';
 import { MyShowDogCard } from './MyShowDogCard';
 import type { LeaveClassTarget, MyEntry } from './my-entries-types';
 import { deriveMyEntryCardState } from './myEntryCardState';
-import { isPastShowEntry } from './myEntriesStats.helpers';
 import { formatDogNamesPossessive, formatShowHeaderDateRange } from './myShowHeaderFormat';
 import {
   derivePaidStrip,
@@ -100,7 +99,11 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
   const [dismissed, setDismissed] = React.useState<Set<string>>(() => new Set());
 
   const ordersById = React.useMemo(() => indexOrdersById(group), [group]);
-  const isPastShow = isPastShowEntry(group.orders[0], now);
+  const checkInContext = React.useMemo(
+    () => buildDayCheckInContext(group, now, selfCheckinByClassId),
+    [group, now, selfCheckinByClassId]
+  );
+  const { isPastShow } = checkInContext;
   const money = deriveShowMoneyState(group.orders, now, source);
   const moneyUnknown = money.kind === 'unknown';
   const refunds = refundNotesByDog(group.orders, source);
@@ -132,13 +135,6 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
     !isPastShow &&
     editableOrders.length === 0 &&
     orderStates.some(({ state }) => state.canRequestPostDeadlineHelp);
-
-  const checkInContext: DayCheckInContext = {
-    now,
-    ordersById,
-    selfCheckinByClassId,
-    isPastShow,
-  };
 
   // A show day is a day on which one of the exhibitor's entered classes runs, in
   // that trial's own zone (never the browser's). The at-show page answers

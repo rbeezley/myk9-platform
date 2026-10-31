@@ -28,36 +28,11 @@ import {
 import { formatWeekdayMonthDay } from '@/lib/format/dates';
 import { formatTrialLabel } from '@myk9/core';
 import { canLeaveClass } from './leaveClassRow';
-import { deriveClassRowState, type ClassRowKind } from './myShowDogState';
+import type { ClassRowKind } from './myShowDogState';
+import { CLASS_ROW_TEXT, classRowDisplay } from './classRowStatusText';
 import type { DayCheckInContext } from './dayCheckIn';
 import type { MyShowClass } from './groupEntriesByShow';
 import type { MyEntry } from './my-entries-types';
-
-/**
- * Copy and colour per state, chosen from the status vocabulary the rest of the
- * app already uses (`ENTRY_STATUS_DESCRIPTORS`) rather than a second palette.
- * `undefined` means the row renders something other than a plain word.
- */
-const STATE_WORDS: Partial<Record<ClassRowKind, { text: string; status: string }>> = {
-  'in-ring': { text: 'in the ring', status: 'in-ring' },
-  'at-gate': { text: 'at gate', status: 'at-gate' },
-  'come-to-gate': { text: 'come to gate', status: 'come-to-gate' },
-  conflict: { text: 'conflict', status: 'conflict' },
-  // MYK9-632 resolves the MYK9-582 deviation recorded here. The owner's ruling
-  // is that scratch and pull are the SAME act, so both rows say "pulled" — but
-  // they are that act at different MOMENTS (day-of at the gate vs. before the
-  // show), and the two descriptors are byte-identical (`complete` /
-  // `text-muted-foreground`), so a bare capitalisation difference would leave
-  // nothing for a screen reader to announce. The day-of row therefore says WHEN
-  // rather than taking a second word for the same act.
-  pulled: { text: 'pulled at the show', status: 'pulled' },
-  withdrawn: { text: 'withdrawn', status: 'withdrawn' },
-  scratched: { text: 'pulled', status: 'scratched' },
-  // A move-up's source row went somewhere; it was not pulled.
-  moved: { text: 'moved', status: 'moved' },
-  'not-accepted': { text: 'not accepted', status: 'not_accepted' },
-  'checked-in': { text: 'checked in', status: 'checked-in' },
-};
 
 /** States that carry a "change" link into the existing check-in dialog. */
 const CHANGEABLE: ReadonlySet<ClassRowKind> = new Set<ClassRowKind>([
@@ -111,8 +86,8 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
   onLeaveClass,
   onResultRevealClick,
 }) => {
-  const state = deriveClassRowState(cls, checkInContext);
-  const word = STATE_WORDS[state.kind];
+  const state = classRowDisplay(cls, checkInContext);
+  const word = state.word;
 
   const when = [
     cls.trialDate ? formatWeekdayMonthDay(cls.trialDate) : null,
@@ -171,11 +146,11 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
             aria-label={`Check in ${dogName} for ${cls.name}`}
             className={LINK_CLASS}
           >
-            Check in
+            {CLASS_ROW_TEXT.checkIn}
           </button>
         )}
         {state.kind === 'opens-later' && (
-          <span className="text-muted-foreground">Check in on the day</span>
+          <span className="text-muted-foreground">{CLASS_ROW_TEXT.opensLater}</span>
         )}
         {/* Ahead of the trial day AND not eligible for check-in that day
             either way (pending review, self check-in disabled, unresolved
@@ -187,17 +162,19 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
             the secretary, entry not accepted yet, or an unresolved class. The
             secretary owns check-in in every one of those cases. */}
         {state.kind === 'closed-today' && (
-          <span className="text-muted-foreground">check in with the secretary</span>
+          <span className="text-muted-foreground">{CLASS_ROW_TEXT.closedToday}</span>
         )}
-        {state.kind === 'not-run' && <span className="text-muted-foreground">not run</span>}
+        {state.kind === 'not-run' && (
+          <span className="text-muted-foreground">{CLASS_ROW_TEXT.notRun}</span>
+        )}
         {/* Settled without a score — absent, excused, withdrawn. The existing
             ResultBadge already names each one; only a row whose outcome was
             never recorded falls back to the bare word. */}
         {state.kind === 'absent' &&
-          (cls.resultStatus ? (
-            <ResultBadge resultStatus={cls.resultStatus} />
+          (state.outcomeStatus ? (
+            <ResultBadge resultStatus={state.outcomeStatus} />
           ) : (
-            <span className="text-muted-foreground">absent</span>
+            <span className="text-muted-foreground">{CLASS_ROW_TEXT.absent}</span>
           ))}
         {/* The one destructive verb on this page, anchored to the row that
             owns it. Muted rather than `text-destructive`: it sits beside a

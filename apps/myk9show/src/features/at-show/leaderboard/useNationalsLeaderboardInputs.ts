@@ -25,7 +25,6 @@ export function useNationalsLeaderboardInputs(showId: string, enabled: boolean) 
   useEffect(() => {
     if (!enabled || !showId) return;
     let timer: ReturnType<typeof setTimeout> | null = null;
-    let wasDown = false;
     const unsubscribe = subscribeToShowChanges(
       showId,
       () => {
@@ -35,10 +34,10 @@ export function useNationalsLeaderboardInputs(showId: string, enabled: boolean) 
       status => {
         if (status === 'SUBSCRIBED') {
           setLiveDown(false);
-          if (wasDown) void refetch();
-          wasDown = false;
+          // Every SUBSCRIBED re-reads, the first one included: a change made between the board's
+          // first read and the channel joining (or while it was re-enabled) was never signalled.
+          void refetch();
         } else {
-          wasDown = true;
           setLiveDown(true);
         }
       }

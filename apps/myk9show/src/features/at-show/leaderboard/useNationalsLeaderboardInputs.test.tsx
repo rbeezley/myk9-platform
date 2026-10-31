@@ -70,22 +70,23 @@ describe('useNationalsLeaderboardInputs', () => {
     expect(mocks.unsubscribe).toHaveBeenCalled();
   });
 
-  it('re-reads after the live channel reconnects and says so while it is down', async () => {
+  it('re-reads whenever the live channel joins and says so while it is down', async () => {
     const { result } = renderHook(() => useNationalsLeaderboardInputs('show-1', true), {
       wrapper: createTestWrapper(),
     });
     await waitFor(() => expect(mocks.fetchInputs).toHaveBeenCalledTimes(1));
 
+    // The first join re-reads too: anything that changed before the channel joined was missed.
     act(() => mocks.statusListener?.('SUBSCRIBED'));
     expect(result.current.liveDown).toBe(false);
-    expect(mocks.fetchInputs).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(mocks.fetchInputs).toHaveBeenCalledTimes(2));
 
     act(() => mocks.statusListener?.('CHANNEL_ERROR'));
     expect(result.current.liveDown).toBe(true);
 
     act(() => mocks.statusListener?.('SUBSCRIBED'));
     expect(result.current.liveDown).toBe(false);
-    await waitFor(() => expect(mocks.fetchInputs).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(mocks.fetchInputs).toHaveBeenCalledTimes(3));
   });
 
   it('neither reads nor subscribes while disabled', () => {

@@ -36,6 +36,18 @@ describe('ActivityTab upcoming-entry status line (2.B)', () => {
     expect(screen.queryByText('submitted')).toBeNull();
   });
 
+  // Regression guard only (MYK9-121 375px overlap): geometry is proven in a browser,
+  // jsdom has no layout. Pins that the title can shrink and the badge stacks narrow.
+  it('lets the title shrink and stacks the status badge under it on narrow widths', () => {
+    render(<ActivityTab dogId="dog-1" dogName="Buddy" role="exhibitor" />);
+    const badge = screen.getByText('Submitted — awaiting review');
+    const pair = badge.parentElement as HTMLElement;
+    expect(pair).toHaveClass('flex-col', 'sm:flex-row', 'min-w-0', 'flex-1');
+    expect(badge).not.toHaveClass('flex-shrink-0');
+    const title = screen.getByRole('link', { name: 'Heartland Scent Work' }).parentElement;
+    expect(title).toHaveClass('min-w-0', 'flex-1', 'break-words');
+  });
+
   it('shows a same-day score as preliminary with a class link and no unreleased placement', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-09-28T16:00:00Z'));

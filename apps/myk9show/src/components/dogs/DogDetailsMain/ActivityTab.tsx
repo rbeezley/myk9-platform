@@ -64,22 +64,24 @@ function UpcomingRow({
           </>
         )}
       </div>
-      <div className="flex-1 min-w-0">
-        {showHref ? (
-          <Link
-            to={showHref}
-            className="text-sm font-semibold hover:text-primary transition-colors"
-          >
-            {showName}
-          </Link>
-        ) : (
-          <span className="text-sm font-semibold">{showName}</span>
-        )}
-        <div className="text-xs text-muted-foreground mt-0.5">{className}</div>
+      <div className="flex min-w-0 flex-1 flex-col gap-1.5 sm:flex-row sm:items-start sm:gap-4">
+        <div className="min-w-0 flex-1 break-words">
+          {showHref ? (
+            <Link
+              to={showHref}
+              className="text-sm font-semibold hover:text-primary transition-colors"
+            >
+              {showName}
+            </Link>
+          ) : (
+            <span className="text-sm font-semibold">{showName}</span>
+          )}
+          <div className="text-xs text-muted-foreground mt-0.5">{className}</div>
+        </div>
+        <Badge variant="outline" className="max-w-full self-start text-xs sm:flex-shrink-0">
+          {statusLine}
+        </Badge>
       </div>
-      <Badge variant="outline" className="text-xs flex-shrink-0">
-        {statusLine}
-      </Badge>
     </div>
   );
 }

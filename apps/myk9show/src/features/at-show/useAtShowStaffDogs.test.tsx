@@ -10,6 +10,7 @@ const classState = vi.hoisted(() => ({
   groups: [] as unknown[],
   available: true,
   syncGate: null as Promise<unknown> | null,
+  settled: [] as Array<() => void>,
   realtime: null as null | {
     showId: string | undefined;
     classIds: readonly string[];
@@ -22,6 +23,12 @@ vi.mock('@/hooks/useReplicationSync', () => ({
 vi.mock('./atShowDataAdapter', async importOriginal => ({
   ...(await importOriginal<typeof import('./atShowDataAdapter')>()),
   syncAtShowData: () => classState.syncGate ?? Promise.resolve(),
+  subscribeAtShowSyncSettled: (_showId: string, listener: () => void) => {
+    classState.settled.push(listener);
+    return () => {
+      classState.settled = classState.settled.filter(l => l !== listener);
+    };
+  },
 }));
 vi.mock('./useAtShowRealtimeRefresh', () => ({
   useAtShowRealtimeRefresh: (
@@ -255,5 +262,19 @@ describe('useAtShowStaffDogs', () => {
     expect(result.current.isComplete).toBe(false);
     classState.syncGate = null;
     classState.available = true;
+  });
+
+  it('flips to incomplete when a later sync adds a trial whose classes fail (MYK9-1560)', async () => {
+    getEntriesByShow.mockResolvedValue([]);
+    const { result } = setup();
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.isComplete).toBe(true);
+
+    structureState.onDevice = false;
+    await act(async () => {
+      classState.settled.forEach(listener => listener());
+    });
+    await waitFor(() => expect(result.current.isComplete).toBe(false));
+    structureState.onDevice = true;
   });
 });

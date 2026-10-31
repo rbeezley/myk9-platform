@@ -7,7 +7,8 @@
  *
  * Role gating is unchanged: each tile shows only when its callback is present and
  * its `hide*` flag is off, and any subset renders with no empty headings. Settings
- * stays hidden until MYK9-1515 gives it content. Printing is not offered at the
+ * shows only when the host passes `onSettings` and leaves `hideSettings` off; the host does
+ * that only when Settings has a link the viewer can open (MYK9-1627). Printing is not offered at the
  * ring. Statistics opens ClassStatisticsDialog from the replicated entries.
  */
 import { useId, useState } from 'react';
@@ -18,6 +19,7 @@ import {
   Clock,
   Flag,
   Layers,
+  Settings,
   SlidersHorizontal,
   type LucideIcon,
 } from 'lucide-react';
@@ -101,10 +103,12 @@ const ClassOptionsBody: React.FC<ClassOptionsDialogProps> = ({
   onAreaCount,
   onStatistics,
   onStatus,
+  onSettings,
   hideRequirements,
   hideMaxTime,
   hideStatistics,
   hideStatus,
+  hideSettings,
 }) => {
   const [showStatistics, setShowStatistics] = useState(false);
   // Live: a max time saved on this or another device shows without reopening.
@@ -121,9 +125,15 @@ const ClassOptionsBody: React.FC<ClassOptionsDialogProps> = ({
   const showMaxTime = !hideMaxTime && !!onSetMaxTime;
   const showStatisticsTile = !hideStatistics && !!onStatistics;
   const showStatusTile = !hideStatus && !!onStatus;
+  const showSettingsTile = !hideSettings && !!onSettings;
 
   const showAreaCount = !!onAreaCount;
-  const compactCount = Number(showStatisticsTile) + Number(showStatusTile) + Number(showAreaCount);
+  // The area-count tile is always full width (MYK9-1625); the grid below holds the rest.
+  const compactCount =
+    Number(showStatisticsTile) +
+    Number(showStatusTile) +
+    Number(showAreaCount) +
+    Number(showSettingsTile);
   const cls = live?.[0] ?? null;
   const savedMaxTime = cls ? setMaxTimeText(cls, !!classData?.per_area_times) : null;
 
@@ -190,6 +200,17 @@ const ClassOptionsBody: React.FC<ClassOptionsDialogProps> = ({
               onClick={onStatus}
             >
               Update class status
+            </Tile>
+          )}
+          {showSettingsTile && onSettings && (
+            <Tile
+              wide={(compactCount - Number(showAreaCount)) % 2 === 1}
+              tone="class"
+              icon={Settings}
+              title="Settings"
+              onClick={onSettings}
+            >
+              Check-in mode and results visibility
             </Tile>
           )}
         </div>

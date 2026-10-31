@@ -34,9 +34,18 @@ export function parseUpdatedAtMs(value: unknown): number | null {
 export const REPLICATION_INCREMENTAL_BUFFER_MS = 60_000;
 
 /**
- * Smaller buffer for high-churn tables (entries, classes) where a 60s window
- * would re-fetch a large rolling set on every sync tick during a live show. Safe
- * because the server-authoritative watermark already prevents systemic drops —
- * here the buffer only absorbs sub-second boundary ties.
+ * Buffer for high-churn tables (entries, classes), smaller than the 60s default
+ * because it is re-read on every sync tick during a live show.
+ *
+ * It must exceed commit lag, not just absorb boundary ties: `updated_at` is
+ * stamped with `now()`, the transaction START time, so a row stamped at T can
+ * commit at T + d. If d is longer than this buffer, incremental sync advances
+ * its watermark past T and never sees the row until the 24h full sync.
+ * Measured on production pg_stat_statements (2026-10-31): the slowest write RPC
+ * peaked at 3.78s; load tests (MYK9-1468) showed p95 of 3.5-9.5s under
+ * concurrent syncs. 30s keeps a wide margin over both (MYK9-1497).
+ *
+ * Cost: each incremental sync re-reads the rows changed in the last 30s, an
+ * idempotent upsert of a few dozen rows at a live show.
  */
-export const REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN = 5_000;
+export const REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN = 30_000;

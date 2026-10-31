@@ -195,7 +195,7 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
   }, [classInfo]);
 
   return (
-    <header className="sticky top-0 z-10 flex min-h-[60px] items-center gap-2 rounded-b-xl border-b border-border bg-card p-3 sm:gap-4">
+    <header className="sticky top-0 z-10 flex min-h-[60px] items-center gap-2 max-sm:flex-wrap rounded-b-xl border-b border-border bg-card p-3 sm:gap-4">
       <RingsideUpButton label={up.label} onClick={() => navigate(up.to)} />
       <CompactOfflineIndicator />
       {/* Class info - explicit tap/click or keyboard activation to show details popup */}
@@ -203,7 +203,7 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
         ref={classInfoRef}
         data-class-info-trigger={hasExtraInfo ? '' : undefined}
         className={cn(
-          'flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-md px-1.5 py-1 text-center md:absolute md:left-1/2 md:top-1/2 md:max-w-[55%] md:flex-none md:-translate-x-1/2 md:-translate-y-1/2',
+          'flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-md px-1.5 py-1 text-center max-sm:order-last max-sm:basis-full md:absolute md:left-1/2 md:top-1/2 md:max-w-[55%] md:flex-none md:-translate-x-1/2 md:-translate-y-1/2',
           hasExtraInfo &&
             'group cursor-pointer transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
         )}
@@ -221,8 +221,8 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
             and a title that rewrapped each time bounced the whole list under the sticky
             header (owner report, 2026-10-09). Sized in em, not px, so the app's text scale
             (text-base is 20px at ringside) cannot under-reserve it again. */}
-        <div className="flex items-center justify-center gap-1 max-md:min-h-[2.5em] max-md:text-base">
-          <h1 className="m-0 text-balance max-md:line-clamp-2 text-center text-base font-[590] leading-tight tracking-tight text-foreground md:whitespace-nowrap md:text-lg md:leading-none">
+        <div className="flex min-w-0 max-w-full items-center justify-center gap-1 max-md:min-h-[2.5em] max-md:text-base">
+          <h1 className="m-0 min-w-0 break-words text-balance max-md:line-clamp-2 text-center text-base font-[590] leading-tight tracking-tight text-foreground md:whitespace-nowrap md:text-lg md:leading-none">
             {classInfo?.className?.toLowerCase().replace(/\b\w/g, l => l.toUpperCase()) ||
               'Loading...'}
           </h1>

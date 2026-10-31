@@ -50,7 +50,8 @@ export function isPrimaryKeyDuplicateError(
 export async function executeMutation(
   supabase: SupabaseClient,
   logger: Logger,
-  mutation: PendingMutation
+  mutation: PendingMutation,
+  signal?: AbortSignal
 ): Promise<MutationExecutionResult> {
   const { tableName, operation, data } = mutation;
 
@@ -64,7 +65,8 @@ export async function executeMutation(
         } = await withTimeout(
           supabase.rpc(mutation.rpc.name, mutation.rpc.args ?? data),
           TIMEOUT_PRESETS.standard,
-          `${tableName} rpc ${mutation.rpc.name}`
+          `${tableName} rpc ${mutation.rpc.name}`,
+          signal
         );
         if (error) {
           // An RPC INSERT can commit before its response reaches the client.
@@ -95,7 +97,8 @@ export async function executeMutation(
       } = await withTimeout(
         supabase.from(tableName).insert(data).select('id'),
         TIMEOUT_PRESETS.standard,
-        `${tableName} insert`
+        `${tableName} insert`,
+        signal
       );
       if (isPrimaryKeyDuplicateError(error, tableName, mutation.rowId)) {
         // Row already exists — retry hit a duplicate-key on a client-generated UUID.
@@ -137,7 +140,8 @@ export async function executeMutation(
             }
           ),
           TIMEOUT_PRESETS.standard,
-          `${tableName} rpc ${mutation.rpc.name}`
+          `${tableName} rpc ${mutation.rpc.name}`,
+          signal
         );
         if (error) {
           // A version-conflict raise (`40001`) would otherwise dead-letter,
@@ -201,7 +205,8 @@ export async function executeMutation(
       } = await withTimeout(
         updateQuery.select('id, version'),
         TIMEOUT_PRESETS.standard,
-        `${tableName} update`
+        `${tableName} update`,
+        signal
       );
       if (error) throw withHttpStatus(error, status);
       if (!rows || rows.length === 0) {
@@ -213,7 +218,8 @@ export async function executeMutation(
           const { data: check, error: checkError } = await withTimeout(
             supabase.from(tableName).select('version').eq('id', mutation.rowId).maybeSingle(),
             TIMEOUT_PRESETS.standard,
-            `${tableName} occ-check`
+            `${tableName} occ-check`,
+            signal
           );
           serverCheck = check as { version?: number } | null | undefined;
           serverCheckError = checkError;
@@ -238,7 +244,8 @@ export async function executeMutation(
       } = await withTimeout(
         supabase.from(tableName).delete().eq('id', mutation.rowId).select('id'),
         TIMEOUT_PRESETS.standard,
-        `${tableName} delete`
+        `${tableName} delete`,
+        signal
       );
       if (error) throw withHttpStatus(error, status);
       // 0 rows affected means either the row was already deleted (OK,

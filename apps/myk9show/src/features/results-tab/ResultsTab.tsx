@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ListChecks } from 'lucide-react';
 import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -126,8 +126,23 @@ export default function ResultsTab() {
   const isOnline = useIsOnline();
   const verification = useResultsVerifiedMutations();
   const isWide = useMediaQuery(MASTER_DETAIL_QUERY);
-  const [visibilityOpen, setVisibilityOpen] = useState(false);
+  const [visibilityOpen, setVisibilityOpen] = useState(
+    () => searchParams.get('visibility') === '1'
+  );
   const [coinFlipOpen, setCoinFlipOpen] = useState(false);
+  // The link's `visibility=1` only seeds the sheet; drop it so a refresh or Back does not reopen it.
+  const hasVisibilityParam = searchParams.has('visibility');
+  useEffect(() => {
+    if (!hasVisibilityParam) return;
+    setSearchParams(
+      previous => {
+        const next = new URLSearchParams(previous);
+        next.delete('visibility');
+        return next;
+      },
+      { replace: true }
+    );
+  }, [hasVisibilityParam, setSearchParams]);
   const timeZone = getTrialTimezone(trials[0]);
 
   const update = useCallback(

@@ -106,6 +106,14 @@ vi.mock('@/hooks/useAuthContext', async importOriginal => {
   };
 });
 
+// Whether this viewer may open the secretary pages Class Settings links to (MYK9-1627).
+const manageScope = vi.hoisted(() => ({
+  current: { status: 'resolved', canManage: true } as { status: string; canManage: boolean },
+}));
+vi.mock('@/hooks/useShowManageScope', () => ({
+  useShowManageScope: () => manageScope.current,
+}));
+
 const PENDING_ENTRY = {
   id: 'entry-1',
   classId: 'class-1',
@@ -173,6 +181,7 @@ const renderPage = (syncStatus: ReplicationSyncContextValue['status'] = settledS
 
 describe('AtShowEntryListPage (Phase 1a shim)', () => {
   beforeEach(() => {
+    manageScope.current = { status: 'resolved', canManage: true };
     authRoles.current = null;
     entriesScope.synced = true;
     entriesScope.gate = null;
@@ -200,6 +209,31 @@ describe('AtShowEntryListPage (Phase 1a shim)', () => {
     expect(screen.getByRole('button', { name: 'Ringside menu' })).toBeInTheDocument();
     expect(screen.getByText('Border Collie')).toBeInTheDocument();
     expect(screen.getByText('Jane Handler')).toBeInTheDocument();
+  });
+
+  describe('Class Options Settings tile (MYK9-1627)', () => {
+    const openClassOptions = async () => {
+      renderPage();
+      await screen.findByText('Rex');
+      fireEvent.click(screen.getByRole('button', { name: 'Actions menu' }));
+      fireEvent.click(await screen.findByRole('button', { name: 'Class Options' }));
+      await screen.findByText('Class options');
+    };
+
+    it('shows Settings to a class manager who can also open the secretary pages', async () => {
+      await openClassOptions();
+      expect(screen.getByRole('button', { name: 'Settings' })).toBeInTheDocument();
+    });
+
+    it.each([
+      { when: 'still resolving', scope: { status: 'resolving', canManage: false } },
+      { when: 'not a show manager', scope: { status: 'resolved', canManage: false } },
+    ])('hides Settings while the viewer is $when', async ({ scope }) => {
+      manageScope.current = scope;
+      await openClassOptions();
+      expect(screen.getByRole('button', { name: 'Status' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Settings' })).not.toBeInTheDocument();
+    });
   });
 
   it('reads a withdrawn dog armband from the cached show assignment without a network fetch', async () => {

@@ -49,6 +49,8 @@ export class MutationManager {
   /** Prevent startup/reconnect restore from racing an active queue flush. */
   private restoreInFlight: Promise<void> | null = null;
   private uploadInFlight: Promise<SyncResult[]> | null = null;
+  /** Signal the in-flight upload started with, so a new call can tell it is winding down. */
+  private uploadInFlightSignal: AbortSignal | undefined;
   private readonly identity: MutationIdentity;
   private readonly getCurrentUploadContext: () => Promise<MutationUploadAuthContext | null>;
   private readonly acquireQueueMutationLock: (() => () => void) | undefined;
@@ -563,7 +565,24 @@ export class MutationManager {
    * The per-tab `isUploading` guard still prevents re-entrancy within a tab, and
    * we fall back to it alone when Web Locks is unavailable (older engines, tests).
    */
-  async uploadPendingMutations(): Promise<SyncResult[]> {
+  async uploadPendingMutations(options: { signal?: AbortSignal } = {}): Promise<SyncResult[]> {
+    const { signal } = options;
+    // Cancelled before it began: nothing to do, queue untouched.
+    if (signal?.aborted) return [];
+
+    // An aborted upload is winding down (its request is being released). A new
+    // call must not join it or be told "already running": wait for it to settle,
+    // then start fresh so it sends whatever is still pending.
+    while (this.uploadInFlight && this.uploadInFlightSignal?.aborted) {
+      const winding = this.uploadInFlight;
+      await winding.catch(() => undefined);
+      if (this.uploadInFlight === winding) {
+        this.uploadInFlight = null;
+        this.uploadInFlightSignal = undefined;
+      }
+      if (signal?.aborted) return [];
+    }
+
     if (this.uploadInFlight) {
       // Preserve the runner's queued-while-running signal. Returning the
       // in-flight result here used to strand mutations queued by an auto-upload
@@ -580,12 +599,16 @@ export class MutationManager {
       return [];
     }
 
-    const upload = this.uploadRunner.uploadPendingMutations();
+    const upload = this.uploadRunner.uploadPendingMutations(signal);
     this.uploadInFlight = upload;
+    this.uploadInFlightSignal = signal;
     try {
       return await upload;
     } finally {
-      if (this.uploadInFlight === upload) this.uploadInFlight = null;
+      if (this.uploadInFlight === upload) {
+        this.uploadInFlight = null;
+        this.uploadInFlightSignal = undefined;
+      }
     }
   }
 

@@ -14,6 +14,7 @@ export function FocusedClassJudge({
   judgeName,
   assignedJudgeId,
   availableJudges,
+  organization,
   judgeListStatus,
   lockReason,
   onJudgeChange,
@@ -24,6 +25,8 @@ export function FocusedClassJudge({
   judgeName: string | null;
   assignedJudgeId: string | null;
   availableJudges: Array<{ id: string; name: string }>;
+  /** The show's organization; names the registry when the assigned judge is not qualified for it. */
+  organization?: string | null | undefined;
   judgeListStatus: JudgeListStatus;
   /** Why the judge cannot be changed here (`judgeLockReason`); null while it can. */
   lockReason: string | null;
@@ -75,6 +78,7 @@ export function FocusedClassJudge({
       classLabel={classLabel}
       assignedJudgeId={assignedJudgeId}
       availableJudges={availableJudges}
+      organization={organization}
       canAssign
       onJudgeChange={onJudgeChange}
     />

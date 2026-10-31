@@ -273,9 +273,9 @@ describe('watermark advancement', () => {
     const since = (offsetMs: number) =>
       `updated_at=gt.${encodeURIComponent(new Date(latest - offsetMs).toISOString())}`;
     // Each table re-reads a little before its watermark, so a row committed late
-    // behind it is not missed: five seconds for classes, a minute for the rest.
+    // behind it is not missed: thirty seconds for classes, a minute for the rest.
     expect(urls.find(url => url.includes('/classes?') && url.startsWith('GET'))).toContain(
-      since(5_000)
+      since(30_000)
     );
     expect(urls.find(url => url.includes('/dogs?select=*'))).toContain(since(60_000));
     expect(urls.find(url => url.includes('/shows?') && url.startsWith('GET'))).toContain(

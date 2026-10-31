@@ -25,7 +25,9 @@ import {
   getWizardClassIdentityKey,
   mergeSelectedClassesWithExisting,
   mergeTemplateWithRetainedClassDefinitions,
+  noJudgesNoticeFor,
 } from './ClassSelectionStep.helpers';
+import { useQualifiedWizardJudges } from './useQualifiedWizardJudges';
 
 interface ExistingClassInfo {
   trialId: string;
@@ -256,8 +258,16 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   // Get total classes across all trials
   const totalClasses = trials.reduce((sum, trial) => sum + trial.classes.length, 0);
 
-  // Prepare available judges from show's assigned judges
-  const availableJudges = show.judgeIds.map(judgeId => ({
+  // Only judges qualified for the show's registry are offered (MYK9-1580)
+  const { qualifiedJudgeIds, peopleLoaded } = useQualifiedWizardJudges(
+    show.judgeIds,
+    show.organization
+  );
+  const judgesNotice = noJudgesNoticeFor(show.judgeIds.length, qualifiedJudgeIds.length, {
+    peopleLoaded,
+    organization: show.organization,
+  });
+  const availableJudges = qualifiedJudgeIds.map(judgeId => ({
     judgeId,
     judgeName: judgeDetails[judgeId]?.name || 'Unknown Judge',
     assignedDate: new Date().toISOString().split('T')[0],
@@ -266,27 +276,30 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   }));
 
   useEffect(() => {
-    if (show.judgeIds.length !== 1) return;
-    const singleJudgeId = show.judgeIds[0];
+    if (qualifiedJudgeIds.length !== 1) return;
+    const singleJudgeId = qualifiedJudgeIds[0];
 
     trials.forEach(trial => {
       // Update flat judgeAssignments map for any unassigned class
       trial.classes.forEach(cls => {
         const className = cls.customizations?.className as string;
-        if (className && judgeAssignments[className] !== singleJudgeId) {
+        // Never change an existing assignment, only fill classes with no judge yet.
+        if (className && !judgeAssignments[className] && !cls.judgeId) {
           assignJudgeToClass(className, singleJudgeId);
         }
       });
 
       // Also sync judgeId into the trial class objects so ReviewStep can read it
-      const needsSync = trial.classes.some(cls => cls.judgeId !== singleJudgeId);
+      const needsSync = trial.classes.some(cls => !cls.judgeId);
       if (needsSync) {
         updateTrial(trial.id, {
-          classes: trial.classes.map(cls => ({ ...cls, judgeId: singleJudgeId })),
+          classes: trial.classes.map(cls =>
+            cls.judgeId ? cls : { ...cls, judgeId: singleJudgeId }
+          ),
         });
       }
     });
-  }, [show.judgeIds, trials, judgeAssignments, assignJudgeToClass, updateTrial]);
+  }, [qualifiedJudgeIds, trials, judgeAssignments, assignJudgeToClass, updateTrial]);
 
   // Update trial state
   const updateTrialState = (trialId: string, updates: Partial<TrialClassState>) => {
@@ -522,6 +535,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                           onSelectionChange={handleClassSelectionChange}
                           existingClasses={existingClassesForTrial}
                           availableJudges={availableJudges}
+                          noJudgesNotice={judgesNotice}
                           // F4: the show does not exist yet, so there is nothing to
                           // link to -- send the secretary back to the step that owns
                           // the judge roster instead.

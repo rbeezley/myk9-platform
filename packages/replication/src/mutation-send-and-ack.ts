@@ -31,14 +31,17 @@ export async function sendAndAcknowledge(params: {
   context: MutationUploadAuthContext;
   writtenOverlays?: WrittenFieldOverlayRegistry;
   inFlightWrites?: InFlightWriteRegistry;
+  signal?: AbortSignal;
 }): Promise<PendingMutation> {
-  const { db, logger, queueStore, mutation, context, writtenOverlays, inFlightWrites } = params;
+  const { db, logger, queueStore, mutation, context, writtenOverlays, inFlightWrites, signal } =
+    params;
   inFlightWrites?.begin(mutation);
   try {
     const { newServerVersion, remappedRowId } = await executeMutation(
       context.supabaseClient,
       logger,
-      mutation
+      mutation,
+      signal
     );
     const uploaded = remappedRowId
       ? await rowSync.remapUploadedRpcInsertRowId(db, logger, mutation, remappedRowId)

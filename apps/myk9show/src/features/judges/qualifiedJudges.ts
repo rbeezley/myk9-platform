@@ -85,3 +85,20 @@ export function selectQualifiedJudges(
 export type QualifiableJudge = User & {
   judgeQualifications?: readonly JudgeQualificationLike[] | null;
 };
+
+/**
+ * `isQualifiedForOrganization` for a `User` from the people store, whose qualifications
+ * live on `judgeInfo.qualifications` (with `judgeQualifications` as an alias).
+ */
+export function isPersonQualifiedForOrganization(
+  person: User,
+  organization: string | null | undefined
+): boolean {
+  return isQualifiedForOrganization(
+    {
+      id: person.id,
+      judgeQualifications: person.judgeInfo?.qualifications ?? person.judgeQualifications,
+    },
+    organization
+  );
+}

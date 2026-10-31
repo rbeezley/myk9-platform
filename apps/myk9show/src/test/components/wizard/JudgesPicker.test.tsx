@@ -306,9 +306,10 @@ describe('JudgesPicker on a registry show (MYK9-832)', () => {
     ...makeUser('3', 'Dana', true),
     judgeInfo: {
       judgeNumber: 'AKC-SW-1002',
+      // The user mapper always sets `status`; a qualification counts only when Active (MYK9-1580).
       qualifications: [
-        { judgeNumber: 'AKC-SW-1002', organization: 'AKC' },
-        { judgeNumber: 'UKC-77', organization: 'UKC' },
+        { judgeNumber: 'AKC-SW-1002', organization: 'AKC', status: 'Active' },
+        { judgeNumber: 'UKC-77', organization: 'UKC', status: 'Active' },
       ],
     },
   } as unknown as User;
@@ -316,7 +317,7 @@ describe('JudgesPicker on a registry show (MYK9-832)', () => {
     ...makeUser('4', 'Evan', true),
     judgeInfo: {
       judgeNumber: 'AKC-SW-1002',
-      qualifications: [{ judgeNumber: 'AKC-SW-1002', organization: 'AKC' }],
+      qualifications: [{ judgeNumber: 'AKC-SW-1002', organization: 'AKC', status: 'Active' }],
     },
   } as unknown as User;
 
@@ -339,10 +340,12 @@ describe('JudgesPicker on a registry show (MYK9-832)', () => {
     expect(screen.queryByText(/AKC-SW-1002/)).not.toBeInTheDocument();
   });
 
-  it('shows no number and no AKC badge for a judge without a UKC qualification', () => {
+  it('never offers an AKC-only judge, or an AKC badge, on a UKC show without credential rights', () => {
+    // MYK9-1580: an AKC-only judge cannot judge a UKC show, and with no way to add a UKC
+    // number here (no onSaveCredentials) the picker does not offer him at all.
     renderPicker();
     fireEvent.click(screen.getByText('Search and add judges'));
-    expect(screen.getByText('No UKC number')).toBeInTheDocument();
+    expect(screen.queryByText('Evan Smith')).not.toBeInTheDocument();
     expect(screen.queryByText(/AKC/)).not.toBeInTheDocument();
   });
 

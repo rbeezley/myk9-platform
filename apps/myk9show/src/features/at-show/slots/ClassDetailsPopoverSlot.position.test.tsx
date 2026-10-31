@@ -1,6 +1,6 @@
 import { createRef } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@/test/utils/testUtils';
+import { fireEvent, render, screen } from '@/test/utils/testUtils';
 import { ClassDetailsPopover } from './ClassDetailsPopoverSlot';
 
 function anchorAt(top: number, bottom: number) {
@@ -11,13 +11,13 @@ function anchorAt(top: number, bottom: number) {
   return el;
 }
 
-function renderPopover(anchor: HTMLElement) {
+function renderPopover(anchor: HTMLElement, onClose: () => void = () => {}) {
   const anchorRef = createRef<HTMLElement>();
   (anchorRef as { current: HTMLElement | null }).current = anchor;
   render(
     <ClassDetailsPopover
       isOpen
-      onClose={() => {}}
+      onClose={onClose}
       anchorRef={anchorRef}
       data={{ judgeName: 'Jane Judge' }}
     />
@@ -43,5 +43,16 @@ describe('ClassDetailsPopover anchored position', () => {
     await vi.waitFor(() => expect(dialog.style.bottom).toBe('108px'));
     expect(dialog.style.top).toBe('');
     expect(parseInt(dialog.style.maxHeight, 10)).toBeLessThanOrEqual(700 - 16);
+  });
+
+  it('stays open while its own contents scroll, but closes when the page behind scrolls', () => {
+    const onClose = vi.fn();
+    const dialog = renderPopover(anchorAt(700, 748), onClose);
+
+    fireEvent.scroll(dialog);
+    expect(onClose).not.toHaveBeenCalled();
+
+    fireEvent.scroll(document.body);
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });

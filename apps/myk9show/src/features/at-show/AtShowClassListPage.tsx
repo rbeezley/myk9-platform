@@ -52,6 +52,7 @@ import {
   classMatchesTab,
   countByTab,
   sortClassCards,
+  sortYourRingCards,
 } from './atShowClassListFilter';
 
 /** The scopes the picker's own rows come from. */
@@ -163,10 +164,13 @@ export const AtShowClassListPage: React.FC = () => {
   // so a tab that hid it would hide their completed classes.
   const visibleYourRing = useMemo(
     () =>
-      yourRingClasses.filter(
-        ({ entry }) => classMatchesTab(entry, tab) && classMatchesSearch(entry, search)
+      sortYourRingCards(
+        yourRingClasses.filter(
+          ({ entry }) => classMatchesTab(entry, tab) && classMatchesSearch(entry, search)
+        ),
+        sort
       ),
-    [yourRingClasses, tab, search]
+    [yourRingClasses, tab, search, sort]
   );
 
   const { phase: refreshPhase, refresh: refreshClasses } = useAtShowClassRefresh(

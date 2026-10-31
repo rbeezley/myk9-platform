@@ -17,7 +17,7 @@
  * 500-line ceiling (CLAUDE.md).
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Activity,
   ListChecks,
@@ -134,6 +134,7 @@ export const ClassDetailsPopover: React.FC<ClassDetailsPopoverProps & { sheet?: 
   sheet = false,
 }) => {
   const [coords, setCoords] = useState<PopoverCoords | null>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!isOpen || sheet) return;
@@ -158,11 +159,16 @@ export const ClassDetailsPopover: React.FC<ClassDetailsPopoverProps & { sheet?: 
       if (event.key === 'Escape') onClose();
     };
     // A docked sheet is not detached by scrolling the page behind it.
-    if (!sheet) window.addEventListener('scroll', onClose, true);
+    // Scrolling inside the card (it caps its height and scrolls) must not close it.
+    const onScroll = (event: Event) => {
+      if (event.target instanceof Node && popoverRef.current?.contains(event.target)) return;
+      onClose();
+    };
+    if (!sheet) window.addEventListener('scroll', onScroll, true);
     window.addEventListener('resize', onClose);
     document.addEventListener('keydown', onKeyDown);
     return () => {
-      window.removeEventListener('scroll', onClose, true);
+      window.removeEventListener('scroll', onScroll, true);
       window.removeEventListener('resize', onClose);
       document.removeEventListener('keydown', onKeyDown);
     };
@@ -181,6 +187,7 @@ export const ClassDetailsPopover: React.FC<ClassDetailsPopoverProps & { sheet?: 
       <div className="fixed inset-0 z-[90]" onClick={onClose} aria-hidden="true" />
 
       <div
+        ref={popoverRef}
         id="class-details-popover"
         className={cn(
           'at-show-class-details fixed z-[100] overflow-x-hidden border border-border bg-card shadow-xl animate-in duration-150',

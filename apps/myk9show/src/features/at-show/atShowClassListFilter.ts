@@ -111,3 +111,32 @@ export function sortClassCards(entries: ClassEntry[], sort: ClassListSort): Clas
       compareRunOrder(a, b)
   );
 }
+
+/**
+ * Sort Your ring without breaking its day grouping (today, upcoming, past): the sort
+ * applies inside each run of cards sharing a trial day and bucket, never across them.
+ */
+export function sortYourRingCards<
+  T extends { entry: ClassEntry; dayBucket: string; trialDate?: string | undefined },
+>(items: T[], sort: ClassListSort): T[] {
+  if (sort === 'run-order') return items;
+  const runs: T[][] = [];
+  for (const item of items) {
+    const run = runs[runs.length - 1];
+    const first = run?.[0];
+    if (run && first && first.dayBucket === item.dayBucket && first.trialDate === item.trialDate) {
+      run.push(item);
+    } else {
+      runs.push([item]);
+    }
+  }
+  return runs.flatMap(run => {
+    const order = new Map(
+      sortClassCards(
+        run.map(item => item.entry),
+        sort
+      ).map((e, i) => [e.id, i])
+    );
+    return [...run].sort((a, b) => (order.get(a.entry.id) ?? 0) - (order.get(b.entry.id) ?? 0));
+  });
+}

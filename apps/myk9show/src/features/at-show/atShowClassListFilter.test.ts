@@ -5,6 +5,7 @@ import {
   classMatchesTab,
   countByTab,
   sortClassCards,
+  sortYourRingCards,
 } from './atShowClassListFilter';
 
 function card(overrides: Partial<ClassEntry> = {}): ClassEntry {
@@ -129,5 +130,45 @@ describe('sortClassCards', () => {
     const before = ids(list);
     sortClassCards(list, 'element-level');
     expect(ids(list)).toEqual(before);
+  });
+});
+
+describe('sortYourRingCards', () => {
+  const item = (id: string, element: string, dayBucket: string, trialDate: string) => ({
+    entry: card({ id, element, level: 'Novice' }),
+    dayBucket,
+    trialDate,
+  });
+  const ids = (items: { entry: ClassEntry }[]) => items.map(i => i.entry.id);
+
+  const ring = [
+    item('t-interior', 'Interior', 'today', '2026-06-01'),
+    item('t-buried', 'Buried', 'today', '2026-06-01'),
+    item('u-exterior', 'Exterior', 'upcoming', '2026-06-02'),
+    item('u-container', 'Container', 'upcoming', '2026-06-02'),
+    item('p-buried', 'Buried', 'past', '2026-05-30'),
+  ];
+
+  it('leaves Run Order untouched', () => {
+    expect(sortYourRingCards(ring, 'run-order')).toBe(ring);
+  });
+
+  it('sorts inside each day but never moves a card across days', () => {
+    expect(ids(sortYourRingCards(ring, 'element-level'))).toEqual([
+      't-buried',
+      't-interior',
+      'u-container',
+      'u-exterior',
+      'p-buried',
+    ]);
+  });
+
+  it('keeps two days that share a bucket apart', () => {
+    const twoUpcoming = [
+      item('d1-z', 'Interior', 'upcoming', '2026-06-02'),
+      item('d1-a', 'Buried', 'upcoming', '2026-06-02'),
+      item('d2-a', 'Buried', 'upcoming', '2026-06-03'),
+    ];
+    expect(ids(sortYourRingCards(twoUpcoming, 'element-level'))).toEqual(['d1-a', 'd1-z', 'd2-a']);
   });
 });

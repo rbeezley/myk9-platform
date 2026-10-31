@@ -571,7 +571,9 @@ describe('AskQPanel', () => {
       scrollIntoView.mockClear();
       act(() => emit()('token', 'Streaming along'));
       await screen.findByText(/Streaming along/);
-      expect(scrollIntoView).toHaveBeenCalled();
+      // The token reaches state on a requestAnimationFrame, outside act(), so React may
+      // commit the text before it flushes the passive effect that follows the thread.
+      await waitFor(() => expect(scrollIntoView).toHaveBeenCalled());
     });
 
     it('scrolls to the newest answer after scroll up, close and reopen', async () => {
@@ -653,7 +655,9 @@ describe('AskQPanel', () => {
       scrollIntoView.mockClear();
       act(() => emit()('token', 'Streaming along'));
       await screen.findByText(/Streaming along/);
-      expect(scrollIntoView).toHaveBeenCalled();
+      // The token reaches state on a requestAnimationFrame, outside act(), so React may
+      // commit the text before it flushes the passive effect that follows the thread.
+      await waitFor(() => expect(scrollIntoView).toHaveBeenCalled());
     });
 
     it('does not pull a reader who scrolled up back to the bottom', async () => {

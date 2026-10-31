@@ -17,6 +17,7 @@ import {
   ClipboardList,
   Clock,
   Flag,
+  Layers,
   SlidersHorizontal,
   type LucideIcon,
 } from 'lucide-react';
@@ -97,6 +98,7 @@ const ClassOptionsBody: React.FC<ClassOptionsDialogProps> = ({
   classData,
   onRequirements,
   onSetMaxTime,
+  onAreaCount,
   onStatistics,
   onStatus,
   hideRequirements,
@@ -120,7 +122,8 @@ const ClassOptionsBody: React.FC<ClassOptionsDialogProps> = ({
   const showStatisticsTile = !hideStatistics && !!onStatistics;
   const showStatusTile = !hideStatus && !!onStatus;
 
-  const compactCount = Number(showStatisticsTile) + Number(showStatusTile);
+  const showAreaCount = !!onAreaCount;
+  const compactCount = Number(showStatisticsTile) + Number(showStatusTile) + Number(showAreaCount);
   const cls = live?.[0] ?? null;
   const savedMaxTime = cls ? setMaxTimeText(cls, !!classData?.per_area_times) : null;
 
@@ -157,12 +160,19 @@ const ClassOptionsBody: React.FC<ClassOptionsDialogProps> = ({
           )}
         </div>
       )}
-      {compactCount > 0 && (
+      {showAreaCount && onAreaCount && (
+        <Tile tone="class" icon={Layers} title="Search areas" onClick={onAreaCount} wide>
+          {cls?.areaCount
+            ? `${cls.areaCount} ${cls.areaCount === 1 ? 'area' : 'areas'} chosen`
+            : 'Choose how many search areas this class has'}
+        </Tile>
+      )}
+      {compactCount - Number(showAreaCount) > 0 && (
         // Two columns where they fit; one at about 320px. An odd last tile spans both.
         <div className="grid grid-cols-2 gap-2 max-[359px]:grid-cols-1">
           {showStatisticsTile && (
             <Tile
-              wide={compactCount === 1}
+              wide={compactCount - Number(showAreaCount) === 1}
               tone="class"
               icon={BarChart3}
               title="Statistics"
@@ -173,7 +183,7 @@ const ClassOptionsBody: React.FC<ClassOptionsDialogProps> = ({
           )}
           {showStatusTile && onStatus && (
             <Tile
-              wide={compactCount === 1}
+              wide={compactCount - Number(showAreaCount) === 1}
               tone="run"
               icon={Flag}
               title="Status"

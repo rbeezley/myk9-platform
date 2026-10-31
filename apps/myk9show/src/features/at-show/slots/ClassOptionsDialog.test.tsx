@@ -74,6 +74,16 @@ describe('ClassOptionsDialog (MYK9-1502)', () => {
     expect(screen.getByText('Update class status')).toBeInTheDocument();
   });
 
+  it('offers Search areas only for a flexible-area class, and reopens the picker (MYK9-1625)', async () => {
+    replica.classes.set('c1', { id: 'c1', areaCount: 3 });
+    const onAreaCount = vi.fn();
+    renderDialog({ onAreaCount });
+    expect(tileNames()).toContain('Search areas');
+    expect(await screen.findByText('3 areas chosen')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Search areas/ }));
+    expect(onAreaCount).toHaveBeenCalledTimes(1);
+  });
+
   it('fires the tile callbacks', () => {
     const { onRequirements, onSetMaxTime, onStatus } = renderDialog();
     fireEvent.click(screen.getByRole('button', { name: /Requirements/ }));

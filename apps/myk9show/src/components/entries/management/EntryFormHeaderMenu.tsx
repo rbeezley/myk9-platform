@@ -1,4 +1,5 @@
-import { Mail, MoreHorizontal, StickyNote } from 'lucide-react';
+import { Mail, MoreHorizontal, PlusCircle, StickyNote } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -19,6 +20,8 @@ interface EntryFormHeaderMenuProps {
   onBulkStatusChange: (entryIds: string[], status: EntryStatus) => void;
   /** Present only when a decision email can be sent for this form. */
   onEmailExhibitor?: (() => void) | undefined;
+  /** "Add entry for <exhibitor>": the wizard opened on them, returning here. Absent: not offered. */
+  addEntry?: { href: string; disabledReason?: string | undefined } | undefined;
   /** Present only when the form has an enrollment row to note against. */
   onAddNote?: (() => void) | undefined;
 }
@@ -33,6 +36,7 @@ export function EntryFormHeaderMenu({
   entries,
   onBulkStatusChange,
   onEmailExhibitor,
+  addEntry,
   onAddNote,
 }: EntryFormHeaderMenuProps) {
   return (
@@ -48,20 +52,39 @@ export function EntryFormHeaderMenu({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-64">
-        {(onEmailExhibitor || onAddNote) && (
+        {(onEmailExhibitor || addEntry || onAddNote) && (
           <>
             <DropdownMenuGroup>
               <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
                 {exhibitorName}
               </DropdownMenuLabel>
+              {addEntry &&
+                (addEntry.disabledReason ? (
+                  <DropdownMenuItem disabled title={addEntry.disabledReason} className="min-h-11">
+                    <PlusCircle className="h-4 w-4" aria-hidden />
+                    <span className="flex flex-col">
+                      <span>{`Add entry for ${exhibitorName}`}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {addEntry.disabledReason}
+                      </span>
+                    </span>
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem asChild className="min-h-11">
+                    <Link to={addEntry.href}>
+                      <PlusCircle className="h-4 w-4" aria-hidden />
+                      {`Add entry for ${exhibitorName}`}
+                    </Link>
+                  </DropdownMenuItem>
+                ))}
               {onEmailExhibitor && (
-                <DropdownMenuItem onClick={onEmailExhibitor}>
+                <DropdownMenuItem onClick={onEmailExhibitor} className="min-h-11">
                   <Mail className="h-4 w-4" aria-hidden />
                   Email exhibitor…
                 </DropdownMenuItem>
               )}
               {onAddNote && (
-                <DropdownMenuItem onClick={onAddNote}>
+                <DropdownMenuItem onClick={onAddNote} className="min-h-11">
                   <StickyNote className="h-4 w-4" aria-hidden />
                   Add private note…
                 </DropdownMenuItem>

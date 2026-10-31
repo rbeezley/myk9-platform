@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, within } from '@/test/utils/testUtils';
+import { afterAll, beforeAll, describe, it, expect, vi } from 'vitest';
+import { render, screen } from '@/test/utils/testUtils';
 import EntryManagementPage from '../EntryManagementPage';
 
 vi.mock('../WaitlistManagementPage/index', () => ({ default: () => <div>Waitlist Content</div> }));
@@ -77,50 +77,72 @@ vi.mock('@/hooks/queries/useTrialEntries', () => ({
   useTrialEntries: () => ({ data: [], isLoading: false }),
 }));
 
+vi.mock('@/services/database/day-of-operations', () => ({
+  getClassesWithCapacity: vi.fn(async () => ({ data: [{ available_spots: 2 }], error: null })),
+}));
 vi.mock('@/services/AuditService', () => ({
   auditService: { log: vi.fn() },
 }));
 
 describe('EntryManagementPage tab consolidation', () => {
-  // MYK9-795: the Registrations/Exceptions `PrimaryTabs`, the queue
-  // buttons-with-counts, and the Exceptions sub-tab buttons are unified into
-  // one `ListViewTabs` row with seven entries.
-  it('shows the seven unified views and no separate Registrations/Exceptions tabs', async () => {
-    const { user } = render(<EntryManagementPage />, { initialRoute: '/secretary/entries' });
-    await user.click(screen.getByRole('button', { name: /^Show:/ }));
-    expect(screen.queryByRole('tab')).not.toBeInTheDocument();
-    const menu = await screen.findByRole('menu');
-    for (const label of [
-      'Needs review',
-      'Missing info',
-      'Payment due',
-      'All',
-      'Waitlist',
-      'Pulls',
-      'Move-ups',
-    ]) {
-      const items = [
-        ...within(menu).queryAllByRole('menuitemcheckbox'),
-        ...within(menu).queryAllByRole('menuitemradio'),
-      ];
-      expect(items.some(item => item.textContent?.startsWith(label))).toBe(true);
-    }
+  // cmdk scrolls the highlighted row into view; jsdom has no layout, so no scrollIntoView.
+  const originalScrollIntoView = Element.prototype.scrollIntoView;
+  beforeAll(() => {
+    Element.prototype.scrollIntoView = vi.fn();
+  });
+  afterAll(() => {
+    Element.prototype.scrollIntoView = originalScrollIntoView;
   });
 
-  it('shows Waitlist content when ?tab=waitlist', () => {
+  // MYK9-795 unified the tabs into one view row; MYK9-1594 folded that row into the Filter menu's
+  // Status field and the header Actions menu's Entry lists, leaving Search and Filter.
+  it('has no tabs and no Show: select; the toolbar is Search and Filter', async () => {
+    const { user } = render(<EntryManagementPage />, { initialRoute: '/secretary/entries' });
+
+    expect(screen.queryByRole('tab')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Show:/ })).toBeNull();
+    expect(screen.getByRole('textbox', { name: /Search exhibitor, dog/ })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /^Filter/ }));
+    for (const label of ['Needs review', 'Missing info', 'Payment due']) {
+      expect(await screen.findByRole('option', { name: new RegExp(label) })).toBeInTheDocument();
+    }
+    // All is "no status filter", not a choice.
+    expect(screen.queryByRole('option', { name: /^All/ })).toBeNull();
+  });
+
+  it('shows Waitlist content, with its title and a way back, when ?tab=waitlist', () => {
     render(<EntryManagementPage />, { initialRoute: '/secretary/entries?tab=waitlist' });
     expect(screen.getByText('Waitlist Content')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Waitlist' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Back to entry forms' })).toBeInTheDocument();
   });
 
-  it('normalizes a legacy Move-ups tab to the Exceptions workspace', () => {
+  it('normalizes a legacy Move-ups tab to the Exceptions workspace, with a way back', () => {
     render(<EntryManagementPage />, { initialRoute: '/secretary/entries?tab=move-ups' });
-    expect(screen.getByRole('button', { name: /^Show:/ })).toHaveTextContent(/Move-ups/);
+    // The pane carries its own heading, so the header adds only the way back.
+    expect(screen.queryByRole('heading', { name: 'Move-ups' })).toBeNull();
+    expect(screen.getByRole('link', { name: 'Back to entry forms' })).toBeInTheDocument();
+    expect(screen.getByText('Move-ups Content')).toBeInTheDocument();
   });
 
-  it('normalizes legacy pulled exception links to the Pulls queue', async () => {
+  it('normalizes legacy pulled exception links to the Pulls queue, with a way back', async () => {
     render(<EntryManagementPage />, {
       initialRoute: '/secretary/entries?tab=exceptions&queue=pulled',
     });
-    expect(await screen.findByRole('button', { name: /^Show:/ })).toHaveTextContent(/Pulls/);
+    expect(await screen.findByRole('link', { name: 'Back to entry forms' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Pulls' })).toBeNull();
+    expect(screen.getByText('Pulls Content')).toBeInTheDocument();
+  });
+
+  it('Back to entry forms returns to the form list, and the exception list is gone', async () => {
+    const { user } = render(<EntryManagementPage />, {
+      initialRoute: '/secretary/entries?tab=exceptions&exception=pulls',
+    });
+
+    await user.click(await screen.findByRole('link', { name: 'Back to entry forms' }));
+
+    expect(screen.queryByText('Pulls Content')).toBeNull();
+    expect(await screen.findByRole('button', { name: /^Filter/ })).toBeInTheDocument();
   });
 });

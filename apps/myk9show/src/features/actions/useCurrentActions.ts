@@ -14,7 +14,7 @@ import {
   type AppAction,
   type ActionRouteContext,
 } from './actionRegistry';
-import { SHOW_DESK_TOOL_GROUP_HEADINGS } from './showToolActions';
+import { ENTRY_LISTS_GROUP, SHOW_DESK_TOOL_GROUP_HEADINGS } from './showToolActions';
 import { UserRole } from '@/types/auth-types';
 import { useEntryEligibleShows } from './useEntryEligibleShows';
 import { useAddEntryPickerStore } from './addEntryPickerStore';
@@ -188,6 +188,7 @@ export function useCurrentActions(): CurrentActions {
         page: pageKind ? pageObjectHeading(pageKind, pageTitle) : 'This page',
         show: showName?.trim() || 'This show',
         ...SHOW_DESK_TOOL_GROUP_HEADINGS,
+        [ENTRY_LISTS_GROUP.id]: ENTRY_LISTS_GROUP.label,
         list: listHeading(exportIdList),
         create: 'Create',
       }),

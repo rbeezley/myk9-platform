@@ -27,6 +27,7 @@ const LIST_HEADINGS: Readonly<Record<string, string>> = {
   classes: 'Classes',
   'class-results': 'Results',
   waitlist: 'Waitlist',
+  entries: 'Entry forms',
 };
 
 /** The "this list" heading: the list's own name, or a plain fallback when it has none. */

@@ -112,12 +112,18 @@ export function HeaderActions() {
 function ActionItem({ action }: { action: AppAction }) {
   const Icon = ACTION_ICONS[action.icon];
   const icon = <Icon className="text-muted-foreground" aria-hidden="true" />;
-  const tone = cn(action.destructive && 'text-destructive focus:text-destructive');
+  // 44px rows (docs/INTENT.md touch targets); the shared menu default is 36px.
+  const tone = cn('min-h-11', action.destructive && 'text-destructive focus:text-destructive');
   const testId = `header-action-${action.id}`;
 
   if (action.disabledReason) {
     return (
-      <DropdownMenuItem disabled data-testid={testId} title={action.disabledReason}>
+      <DropdownMenuItem
+        disabled
+        data-testid={testId}
+        title={action.disabledReason}
+        className={tone}
+      >
         {icon}
         <span className="flex flex-col">
           <span>{action.label}</span>

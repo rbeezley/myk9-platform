@@ -17,8 +17,8 @@ export const ENTRY_MANAGEMENT_EXCEPTIONS = [
 export type EntryManagementException = (typeof ENTRY_MANAGEMENT_EXCEPTIONS)[number];
 
 /**
- * Every id the Show: menu (`EntryManagementShowMenu`) can select
- * (MYK9-795): the four registration queues plus the four exception panes.
+ * Every view `writeCockpitView` can select (MYK9-795): the four registration queues plus the
+ * four exception panes.
  * The two id spaces are disjoint, so one `activeId` can describe either.
  */
 export type EntryManagementViewId = ShowRegistrationQueue | EntryManagementException;
@@ -28,15 +28,11 @@ export interface EntryManagementCockpitState {
   exception: EntryManagementException;
   /**
    * The registration queues shown together, never empty: exactly `['all']`, or one or more of
-   * the others in menu order (docs/plan-entries-filter-button.md, settled rule 1).
+   * the others in menu order (docs/plan-entries-filter-button.md, settled rule 1). A URL that
+   * names none opens on `['all']`: every form, with no status filter (MYK9-1594, replacing the
+   * Needs review default of MYK9-1276).
    */
   queues: ShowRegistrationQueue[];
-  /**
-   * Whether the URL (or a legacy param) names a queue. When it does not, `queues` is only the
-   * placeholder `['needs-review']` and `useEntryManagementCockpit` replaces it with the derived
-   * default (MYK9-1276); the derived value is never written back to the URL.
-   */
-  queuesNamed: boolean;
   search: string;
   trialIds: string[];
   classIds: string[];
@@ -107,23 +103,6 @@ export function canonicalQueues(values: readonly string[]): ShowRegistrationQueu
   return known.includes('all') ? ['all'] : known;
 }
 
-/**
- * The Show: menu's check on one queue. All clears the others; any other queue clears All; and
- * unchecking the last box shows All, never an empty list.
- */
-export function toggleQueueSelection(
-  current: readonly ShowRegistrationQueue[],
-  queue: ShowRegistrationQueue
-): ShowRegistrationQueue[] {
-  if (queue === 'all') return ['all'];
-  const others = current.filter(value => value !== 'all');
-  const next = others.includes(queue)
-    ? others.filter(value => value !== queue)
-    : [...others, queue];
-  const canonical = canonicalQueues(next);
-  return canonical.length > 0 ? canonical : ['all'];
-}
-
 function getQueues(source: URLSearchParams): {
   queues: ShowRegistrationQueue[];
   named: boolean;
@@ -138,7 +117,7 @@ function getQueues(source: URLSearchParams): {
   if (legacy === 'all' || legacy === 'accepted' || legacy === 'issues') return named(['all']);
   // The "Review N pending" links ask for Needs review by name.
   if (legacy === 'pending') return named(['needs-review']);
-  return { queues: ['needs-review'], named: false };
+  return { queues: ['all'], named: false };
 }
 
 /** The ids in a list param, dropping any the loaded list does not know (kept while unknown). */
@@ -208,7 +187,6 @@ export function normalizeEntryManagementCockpitParams(
       tab,
       exception,
       queues,
-      queuesNamed,
       search,
       trialIds,
       classIds,
@@ -224,8 +202,7 @@ export function writeCockpitQueues(
   const next = new URLSearchParams(source);
   const canonical = canonicalQueues(queues);
   const written = canonical.length > 0 ? canonical : (['all'] as const);
-  // A queue the user picks is always written, Needs review included: it is the only way an
-  // explicit pick differs from "no queue", which opens on the derived default (MYK9-1276).
+  // A queue the user picks is always written, so a link keeps the pick.
   setListParam(next, 'queue', written);
   next.delete('registration');
   return next;

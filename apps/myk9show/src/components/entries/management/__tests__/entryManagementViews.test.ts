@@ -1,77 +1,49 @@
 import { describe, expect, it } from 'vitest';
-import { buildEntryManagementViews } from '../entryManagementViews';
+import { buildEntryListTools, getEntryListHref, sumEntryListCounts } from '../entryManagementViews';
+import { normalizeEntryManagementCockpitParams } from '../entryManagementCockpitParams';
 
-describe('buildEntryManagementViews', () => {
-  const counts = {
-    queueCounts: {
-      'needs-review': 3,
-      'missing-information': 1,
-      'payment-due': 2,
-      all: 6,
-    },
-    pulls: 4,
-    moveUps: 5,
-    registrationNeeded: 2,
-  };
+describe('buildEntryListTools', () => {
+  const counts = { pulls: 4, moveUps: 5, registrationNeeded: 2 };
 
-  it('surfaces the four registration-queue counts and the two exception counts already available', () => {
-    const views = buildEntryManagementViews(counts);
-    expect(views.map(view => [view.id, view.count])).toEqual([
-      ['needs-review', 3],
-      ['missing-information', 1],
-      ['payment-due', 2],
-      ['all', 6],
-      ['waitlist', undefined],
-      ['pulls', 4],
-      ['move-ups', 5],
-      ['registration-needed', 2],
+  it('lists Pulls, Move-ups, Registration number needed and Waitlist in the Entry lists group', () => {
+    const tools = buildEntryListTools('show-1', counts);
+    expect(tools.map(tool => [tool.title, tool.group])).toEqual([
+      ['Pulls', 'entry-lists'],
+      ['Move-ups', 'entry-lists'],
+      ['Registration number needed', 'entry-lists'],
+      ['Waitlist', 'entry-lists'],
     ]);
   });
 
-  it('surfaces a Waitlist count when the caller has one', () => {
-    const views = buildEntryManagementViews({ ...counts, waitlist: 7 });
-    expect(views.find(view => view.id === 'waitlist')?.count).toBe(7);
+  it('badges a list with a non-zero count, and leaves Waitlist uncounted', () => {
+    const tools = buildEntryListTools('show-1', counts);
+    expect(tools.map(tool => tool.attentionLabel)).toEqual(['4', '5', '2', undefined]);
   });
 
-  it('omits the Waitlist count field entirely rather than showing a fake 0', () => {
-    const views = buildEntryManagementViews(counts);
-    const waitlistView = views.find(view => view.id === 'waitlist');
-    expect(waitlistView).toBeDefined();
-    expect('count' in (waitlistView ?? {})).toBe(false);
+  it('shows no badge for a zero or an unknown count rather than a confident 0', () => {
+    const tools = buildEntryListTools('show-1', {
+      pulls: 0,
+      moveUps: undefined,
+      registrationNeeded: undefined,
+    });
+    expect(tools.some(tool => 'attentionLabel' in tool)).toBe(false);
   });
 
-  // Codex finding on MYK9-795: a failed move-up read must not present as a
-  // confident zero. Same "omit the badge" convention as Waitlist above.
-  it('omits the Move-ups count field when the count is unknown, rather than showing a fake 0', () => {
-    const views = buildEntryManagementViews({ ...counts, moveUps: undefined });
-    const moveUpsView = views.find(view => view.id === 'move-ups');
-    expect(moveUpsView).toBeDefined();
-    expect('count' in (moveUpsView ?? {})).toBe(false);
-  });
-
-  it('labels the held-entry view and omits its count while it is unknown, never a fake 0', () => {
-    const labelled = buildEntryManagementViews(counts).find(
-      view => view.id === 'registration-needed'
+  it('links each list by the URL contract the page reads, so old deep links and menu rows agree', () => {
+    expect(getEntryListHref('show-1', 'pulls')).toBe(
+      '/shows/show-1/entries?tab=exceptions&exception=pulls'
     );
-    expect(labelled?.label).toBe('Registration number needed');
-    const unknown = buildEntryManagementViews({ ...counts, registrationNeeded: undefined }).find(
-      view => view.id === 'registration-needed'
-    );
-    expect('count' in (unknown ?? {})).toBe(false);
+    expect(getEntryListHref('show-1', 'move-ups')).toBe('/shows/show-1/entries?tab=exceptions');
+    for (const tool of buildEntryListTools('show-1', counts)) {
+      const query = new URLSearchParams(tool.href?.split('?')[1]);
+      expect(normalizeEntryManagementCockpitParams(query).state.tab).toBe('exceptions');
+    }
   });
 
-  it('gives every view a non-empty href-free (in-page) entry, in the approved order', () => {
-    const views = buildEntryManagementViews(counts);
-    expect(views.map(view => view.id)).toEqual([
-      'needs-review',
-      'missing-information',
-      'payment-due',
-      'all',
-      'waitlist',
-      'pulls',
-      'move-ups',
-      'registration-needed',
-    ]);
-    expect(views.every(view => view.href === undefined)).toBe(true);
+  it('sums only the counts that are known', () => {
+    expect(sumEntryListCounts(counts)).toBe(11);
+    expect(
+      sumEntryListCounts({ pulls: 1, moveUps: undefined, registrationNeeded: undefined })
+    ).toBe(1);
   });
 });

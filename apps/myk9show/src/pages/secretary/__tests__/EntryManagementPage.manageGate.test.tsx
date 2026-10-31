@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import userEvent from '@testing-library/user-event';
 import { render, screen } from '@/test/utils/testUtils';
+import { usePageEditTargetStore } from '@/features/actions/pageEditTarget';
 import { Route, Routes } from 'react-router-dom';
 import EntryManagementPage from '../EntryManagementPage';
-import { TRIAL_SECRETARY_CHECKING_REASON } from '@/features/actions/trialSecretaryAccess';
+import { TRIAL_SECRETARY_ONLY_REASON } from '@/features/actions/trialSecretaryAccess';
 
 /**
  * REV-2341 lens P, P4. This page carried its own gate —
@@ -17,6 +17,8 @@ import { TRIAL_SECRETARY_CHECKING_REASON } from '@/features/actions/trialSecreta
  * fails the scoped gate. Flipping the gate back to the role list reds the first
  * test here and nothing else.
  */
+const exportCsv = vi.hoisted(() => vi.fn());
+
 const manageScopeState = vi.hoisted<{
   value: {
     status: 'resolved' | 'resolving' | 'unavailable';
@@ -95,7 +97,7 @@ vi.mock('@/hooks/useEntryManagementActions', () => ({
     handleBulkCheckIn: vi.fn(),
     handleCheckInStatusUpdate: vi.fn(),
     handleBulkAction: vi.fn(),
-    handleExportCSV: vi.fn(),
+    handleExportCSV: exportCsv,
     handleCompEntry: vi.fn(),
     handleUncompEntry: vi.fn(),
   }),
@@ -110,13 +112,10 @@ vi.mock('@/hooks/queries/useClassesDatabase', () => ({
 vi.mock('@/hooks/queries/useTrialEntries', () => ({
   useTrialEntries: () => ({ data: [], isLoading: false }),
 }));
-vi.mock('@/services/AuditService', () => ({ auditService: { log: vi.fn() } }));
 vi.mock('@/services/database/day-of-operations', () => ({
-  getClassesWithCapacity: vi.fn(async () => ({
-    data: [{ class_id: 'class-1', available_spots: 2 }],
-    error: null,
-  })),
+  getClassesWithCapacity: vi.fn(async () => ({ data: [{ available_spots: 2 }], error: null })),
 }));
+vi.mock('@/services/AuditService', () => ({ auditService: { log: vi.fn() } }));
 
 /**
  * Mounted at the page's REAL path. The show id has to come from the route for
@@ -127,15 +126,19 @@ function renderAtShow() {
   return render(
     <Routes>
       <Route path="/shows/:id/entries" element={<EntryManagementPage />} />
-      <Route path="/secretary/register/:showId" element={<div>secretary wizard</div>} />
-      <Route path="/shows/:id/register" element={<div>exhibitor wizard</div>} />
     </Routes>,
     { initialRoute: '/shows/show-1/entries' }
   );
 }
 
+/** The rows Entry Forms hands the header Actions menu (`useEntryManagementHeaderActions`). */
+const registeredTool = (id: string) =>
+  usePageEditTargetStore.getState().showTools?.tools.find(tool => tool.id === id);
+
 describe('EntryManagementPage derives its gate from the one manage scope', () => {
   beforeEach(() => {
+    exportCsv.mockClear();
+    usePageEditTargetStore.setState({ showTools: null, showToolsOwner: null, exports: [] });
     manageScopeState.value = {
       status: 'resolved',
       canManage: true,
@@ -174,12 +177,16 @@ describe('EntryManagementPage derives its gate from the one manage scope', () =>
     expect(screen.getByRole('heading', { name: 'Entry Forms' })).toBeInTheDocument();
   });
 
-  // REV-2341 R-4 (reworked by MYK9-1242): the trial secretary's Add Entry goes
-  // straight to the secretary flow, no "Who are you entering?" choice. The
-  // mutation `trialSecretaryOnlyReason -> undefined` must still redden the club
-  // admin test below.
-  it('sends a club admin to the exhibitor own-dog path, since the secretary flow is secretary-only', async () => {
-    const user = userEvent.setup();
+  // MYK9-1594: the page has no Add Entry button or More menu; the header Actions menu is the one
+  // door (its Add entry gating is pinned in features/actions/__tests__/addEntryAction.test.ts).
+  it('draws no Add Entry button or More menu of its own', () => {
+    renderAtShow();
+
+    expect(screen.queryByRole('button', { name: /add entry/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^more$/i })).toBeNull();
+  });
+
+  it('greys the late-entry row in the header menu for a club admin, with the reason', () => {
     manageScopeState.value = {
       status: 'resolved',
       canManage: true,
@@ -190,49 +197,54 @@ describe('EntryManagementPage derives its gate from the one manage scope', () =>
 
     renderAtShow();
 
-    expect(screen.queryByRole('button', { name: /^add entry$/i })).toBeNull();
-    await user.click(screen.getByRole('button', { name: /add entry for my dog/i }));
-    expect(await screen.findByText('exhibitor wizard')).toBeInTheDocument();
+    expect(registeredTool('late-entry')).toMatchObject({
+      title: 'Add late entry',
+      disabledReason: TRIAL_SECRETARY_ONLY_REASON,
+    });
   });
 
-  it('greys the late-entry door for a club admin, with the reason, under More', async () => {
-    const user = userEvent.setup();
-    manageScopeState.value = {
-      status: 'resolved',
-      canManage: true,
-      canOperate: false,
-      hasOperationalStaffRole: false,
-      clubId: 'club-1',
-    };
-
+  it('keeps the late-entry row live for a trial secretary, going to the secretary flow', () => {
     renderAtShow();
-    await user.click(screen.getByRole('button', { name: /^more$/i }));
 
-    expect(await screen.findByRole('button', { name: /add late entry/i })).toBeDisabled();
-    expect(screen.getByText('Trial secretary access only')).toBeInTheDocument();
+    const lateEntry = registeredTool('late-entry');
+    expect(lateEntry?.href).toBe('/secretary/register/show-1?source=show-desk&entryMode=late');
+    expect(lateEntry?.disabledReason).toBeUndefined();
+    expect(registeredTool('people-at-show')?.href).toBe('/shows/show-1?tool=people-at-show');
   });
 
-  it('takes a trial secretary straight to the secretary flow, with no choice dialog — positive control', async () => {
-    const user = userEvent.setup();
-
+  it('offers Export CSV to the header while the form list is showing, running the page export', () => {
     renderAtShow();
-    await user.click(screen.getByRole('button', { name: /^add entry$/i }));
 
-    expect(await screen.findByText('secretary wizard')).toBeInTheDocument();
-    expect(screen.queryByText('Who are you entering?')).toBeNull();
-    expect(screen.queryByRole('button', { name: /add entry for someone else/i })).toBeNull();
-    expect(screen.queryByRole('button', { name: /add entry for my dog/i })).toBeNull();
+    const exported = usePageEditTargetStore.getState().exports.find(item => item.id === 'entries');
+    expect(exported).toBeDefined();
+    exported?.run();
+    expect(exportCsv).toHaveBeenCalledTimes(1);
   });
 
-  it('keeps late entry live for a trial secretary under More', async () => {
-    const user = userEvent.setup();
+  it('keeps Export CSV (the full file) on an entry list too, as the old toolbar did', () => {
+    render(
+      <Routes>
+        <Route path="/shows/:id/entries" element={<EntryManagementPage />} />
+      </Routes>,
+      { initialRoute: '/shows/show-1/entries?tab=exceptions&exception=pulls' }
+    );
 
-    renderAtShow();
-    await user.click(screen.getByRole('button', { name: /^more$/i }));
+    expect(usePageEditTargetStore.getState().exports.some(item => item.id === 'entries')).toBe(
+      true
+    );
+  });
 
-    expect(await screen.findByRole('heading', { name: 'Late entry' })).toBeInTheDocument();
-    expect(await screen.findByText('1 class with space')).toBeInTheDocument();
-    expect(screen.queryByText('Trial secretary access only')).toBeNull();
+  it('leaves the Waitlist list its own export, so the menu never shows two "Export CSV" rows', () => {
+    render(
+      <Routes>
+        <Route path="/shows/:id/entries" element={<EntryManagementPage />} />
+      </Routes>,
+      { initialRoute: '/shows/show-1/entries?tab=exceptions&exception=waitlist' }
+    );
+
+    expect(usePageEditTargetStore.getState().exports.some(item => item.id === 'entries')).toBe(
+      false
+    );
   });
 
   it('never flashes a denial while ownership is still resolving', () => {
@@ -247,10 +259,8 @@ describe('EntryManagementPage derives its gate from the one manage scope', () =>
     renderAtShow();
 
     expect(screen.queryByRole('heading', { name: /access restricted/i })).toBeNull();
-    // Waits rather than guessing: a real secretary never sees the club-admin wording.
-    const waiting = screen.getByRole('button', { name: /^add entry$/i });
-    expect(waiting).toBeDisabled();
-    expect(waiting).toHaveAttribute('title', TRIAL_SECRETARY_CHECKING_REASON);
-    expect(screen.queryByRole('button', { name: /add entry for my dog/i })).toBeNull();
+    // Nothing is offered to the header until ownership resolves: an item that appears late is
+    // honest, one shown and then withdrawn is not.
+    expect(registeredTool('late-entry')).toBeUndefined();
   });
 });

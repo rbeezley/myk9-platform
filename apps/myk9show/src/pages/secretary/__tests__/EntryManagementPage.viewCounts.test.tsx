@@ -5,11 +5,12 @@
  * the page renders from, so this proves the number on each button is the
  * number of registrations that view would list — not a hand-picked mock.
  */
-import { describe, it, expect, vi } from 'vitest';
+import { afterAll, beforeAll, describe, it, expect, vi } from 'vitest';
 import { mockViewportWidth } from '@/test/utils/mockViewportWidth';
 import { render, screen, within } from '@/test/utils/testUtils';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
+import { usePageEditTargetStore } from '@/features/actions/pageEditTarget';
 import EntryManagementPage from '../EntryManagementPage';
 
 function entry(overrides: Partial<EntryManagementEntry>): EntryManagementEntry {
@@ -49,6 +50,9 @@ const ENTRIES: EntryManagementEntry[] = [
 vi.mock('../WaitlistManagementPage/index', () => ({ default: () => null }));
 vi.mock('@/components/entries/MoveUpRequestsTab', () => ({ MoveUpRequestsTab: () => null }));
 vi.mock('@/components/entries/PullManagementTab', () => ({ PullManagementTab: () => null }));
+vi.mock('@/services/database/day-of-operations', () => ({
+  getClassesWithCapacity: vi.fn(async () => ({ data: [{ available_spots: 2 }], error: null })),
+}));
 vi.mock('@/services/AuditService', () => ({ auditService: { log: vi.fn() } }));
 
 vi.mock('@/hooks/useEntryManagementData', () => ({
@@ -78,6 +82,15 @@ vi.mock('@/hooks/useEntryManagementData', () => ({
 
 // A distinct, non-zero value proves the page surfaces THIS hook's count on
 // the Move-ups view tab, rather than a coincidental 0 both would report.
+vi.mock('@/hooks/useShowManageScope', () => ({
+  useShowManageScope: () => ({
+    status: 'resolved',
+    canManage: true,
+    canOperate: true,
+    hasOperationalStaffRole: true,
+    clubId: 'club-1',
+  }),
+}));
 vi.mock('@/hooks/useMoveUpRequestsCount', () => ({
   useMoveUpRequestsCount: () => ({ count: 5, isLoading: false }),
 }));
@@ -115,19 +128,36 @@ vi.mock('@/hooks/useEntryManagementTrialScope', () => ({
 }));
 
 describe('EntryManagementPage view-tab counts (MYK9-810)', () => {
-  it('shows one registration in Needs review, Missing info, and Payment due, and all three under All', async () => {
-    const view = render(<EntryManagementPage />, { initialRoute: '/secretary/entries' });
+  // cmdk scrolls the highlighted row into view; jsdom has no layout, so no scrollIntoView.
+  const originalScrollIntoView = Element.prototype.scrollIntoView;
+  beforeAll(() => {
+    Element.prototype.scrollIntoView = vi.fn();
+  });
+  afterAll(() => {
+    Element.prototype.scrollIntoView = originalScrollIntoView;
+  });
 
-    const { user } = view;
-    await user.click(await screen.findByRole('button', { name: /^Show:/ }));
-    const menu = await screen.findByRole('menu');
-    const itemText = (role: 'menuitemcheckbox' | 'menuitemradio', name: RegExp) =>
-      within(menu).getByRole(role, { name }).textContent;
-    expect(itemText('menuitemcheckbox', /Needs review/)).toBe('Needs review (1)');
-    expect(itemText('menuitemcheckbox', /Missing info/)).toBe('Missing info (1)');
-    expect(itemText('menuitemcheckbox', /Payment due/)).toBe('Payment due (1)');
-    expect(itemText('menuitemcheckbox', /^All/)).toBe('All (3)');
-    expect(itemText('menuitemradio', /Move-ups/)).toBe('Move-ups (5)');
+  it('counts one registration in Needs review, Missing info and Payment due in the Filter menu', async () => {
+    const { user } = render(<EntryManagementPage />, { initialRoute: '/secretary/entries' });
+
+    await user.click(await screen.findByRole('button', { name: /^Filter/ }));
+    const optionText = (name: RegExp) => screen.getByRole('option', { name }).textContent;
+    expect(await screen.findByRole('option', { name: /Needs review/ })).toBeInTheDocument();
+    expect(optionText(/Needs review/)).toBe('Needs review1');
+    expect(optionText(/Missing info/)).toBe('Missing info1');
+    expect(optionText(/Payment due/)).toBe('Payment due1');
+    // The list opens on all three forms.
+    const queue = await screen.findByRole('list', { name: 'Entry form work queue' });
+    expect(within(queue).getAllByRole('listitem')).toHaveLength(3);
+  });
+
+  it('carries the Move-ups count on its Entry lists row in the header Actions menu', async () => {
+    render(<EntryManagementPage />, { initialRoute: '/secretary/entries' });
+
+    await screen.findByRole('list', { name: 'Entry form work queue' });
+    const tools = usePageEditTargetStore.getState().showTools?.tools ?? [];
+    expect(tools.find(tool => tool.id === 'entry-list-move-ups')?.attentionLabel).toBe('5');
+    expect(usePageEditTargetStore.getState().showTools?.attention.count).toBe(5);
   });
 });
 
@@ -141,7 +171,7 @@ describe('EntryManagementPage status sentence (MYK9-906)', () => {
   it('keeps the whole-show total as the denominator while a class scope narrows the list', async () => {
     render(<EntryManagementPage />, { initialRoute: '/secretary/entries?queue=all&class=class-9' });
 
-    await screen.findByRole('button', { name: /^Show:/ });
+    await screen.findByRole('button', { name: /^Filter/ });
     expect(sentence()).toMatch(/^Showing 0 of 3 forms/);
   });
 
@@ -150,7 +180,7 @@ describe('EntryManagementPage status sentence (MYK9-906)', () => {
       initialRoute: '/secretary/entries?queue=all&class=class-9&search=nomatch',
     });
 
-    await screen.findByRole('button', { name: /^Show:/ });
+    await screen.findByRole('button', { name: /^Filter/ });
     expect(sentence()).toMatch(/^Showing 0 of 3 forms/);
   });
 
@@ -160,7 +190,7 @@ describe('EntryManagementPage status sentence (MYK9-906)', () => {
       initialRoute: '/secretary/entries?queue=all&paymentStatus=paid_online',
     });
 
-    await screen.findByRole('button', { name: /^Show:/ });
+    await screen.findByRole('button', { name: /^Filter/ });
     // Unfiltered, the toolbar's result line says nothing (the view select carries the totals): no
     // "Showing all 3 registrations." and no narrowed "Showing 1 of 3 registrations." The pager's own
     // "Showing 1–3 of 3 registrations" is a different status.

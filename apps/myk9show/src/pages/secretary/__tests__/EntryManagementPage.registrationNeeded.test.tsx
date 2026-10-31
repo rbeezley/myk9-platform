@@ -10,6 +10,7 @@ import { render, screen, waitFor, within } from '@/test/utils/testUtils';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { Dog } from '@/types/dog-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
+import { usePageEditTargetStore } from '@/features/actions/pageEditTarget';
 import EntryManagementPage from '../EntryManagementPage';
 
 function entry(id: string, dogId: string, dogName: string, held = false): EntryManagementEntry {
@@ -93,6 +94,15 @@ vi.mock('@/hooks/useDogStoreCompat', () => ({
     refetch: vi.fn(),
   }),
 }));
+vi.mock('@/hooks/useShowManageScope', () => ({
+  useShowManageScope: () => ({
+    status: 'resolved',
+    canManage: true,
+    canOperate: true,
+    hasOperationalStaffRole: true,
+    clubId: 'club-1',
+  }),
+}));
 vi.mock('@/hooks/useMoveUpRequestsCount', () => ({
   useMoveUpRequestsCount: () => ({ count: 0, refetch: vi.fn() }),
 }));
@@ -130,12 +140,21 @@ vi.mock('@/components/dogs/DogDetails/Registrations/DogRegistrationDialogs', () 
 vi.mock('../WaitlistManagementPage/index', () => ({ default: () => null }));
 vi.mock('@/components/entries/MoveUpRequestsTab', () => ({ MoveUpRequestsTab: () => null }));
 vi.mock('@/components/entries/PullManagementTab', () => ({ PullManagementTab: () => null }));
+vi.mock('@/services/database/day-of-operations', () => ({
+  getClassesWithCapacity: vi.fn(async () => ({ data: [{ available_spots: 2 }], error: null })),
+}));
 vi.mock('@/services/AuditService', () => ({ auditService: { log: vi.fn() } }));
 
 function LocationProbe() {
   const location = useLocation();
   return <output data-testid="location-search">{location.search}</output>;
 }
+
+/** The "Registration number needed" row Entry Forms hands the header Actions menu. */
+const listRow = () =>
+  usePageEditTargetStore
+    .getState()
+    .showTools?.tools.find(tool => tool.id === 'entry-list-registration-needed');
 
 const PANE = '/shows/show-1/entries?tab=exceptions&exception=registration-needed';
 
@@ -150,6 +169,7 @@ function page() {
 
 describe('EntryManagementPage registration number needed (MYK9-1162)', () => {
   beforeEach(() => {
+    usePageEditTargetStore.setState({ showTools: null, showToolsOwner: null, exports: [] });
     state.dogsReady = true;
     state.trialsFailed = false;
     // The server marks e1 and e2 as held (MYK9-1162); the pane never rederives it.
@@ -162,7 +182,7 @@ describe('EntryManagementPage registration number needed (MYK9-1162)', () => {
   });
 
   it('counts the entries awaiting a number on the menu and lists exactly those in the pane', async () => {
-    const { user } = render(page(), { initialRoute: PANE });
+    render(page(), { initialRoute: PANE });
 
     const rows = await screen.findAllByRole('listitem');
     expect(within(rows[0]!.closest('ul')!).getAllByRole('listitem')).toHaveLength(2);
@@ -170,17 +190,15 @@ describe('EntryManagementPage registration number needed (MYK9-1162)', () => {
     expect(screen.getByText('Juni')).toBeInTheDocument();
     expect(screen.queryByText('Ok')).toBeNull();
 
-    await user.click(screen.getByRole('button', { name: /^Show:/ }));
-    const menu = await screen.findByRole('menu');
-    expect(
-      within(menu).getByRole('menuitemradio', { name: /Registration number needed/ }).textContent
-    ).toBe('Registration number needed (2)');
+    // The count is the badge on the header Actions menu's "Entry lists" row (MYK9-1594).
+    expect(listRow()).toMatchObject({ title: 'Registration number needed', attentionLabel: '2' });
+    expect(screen.getByRole('link', { name: 'Back to entry forms' })).toBeInTheDocument();
   });
 
   it('keeps the pane in the URL, so a refresh or copied link reopens it', async () => {
     render(page(), { initialRoute: PANE });
 
-    await screen.findByRole('heading', { name: /Registration number needed/ });
+    await screen.findByText('Scout');
     await waitFor(() =>
       expect(screen.getByTestId('location-search')).toHaveTextContent(
         '?tab=exceptions&exception=registration-needed'
@@ -198,24 +216,19 @@ describe('EntryManagementPage registration number needed (MYK9-1162)', () => {
 
     await waitFor(() => expect(screen.queryByText('Scout')).toBeNull());
     expect(screen.getByText('Juni')).toBeInTheDocument();
-    await view.user.click(screen.getByRole('button', { name: /^Show:/ }));
-    expect(
-      within(await screen.findByRole('menu')).getByRole('menuitemradio', {
-        name: /Registration number needed/,
-      }).textContent
-    ).toBe('Registration number needed (1)');
+    await waitFor(() => expect(listRow()?.attentionLabel).toBe('1'));
   });
 
   it('shows no count, never a fake 0, until the dog roster has loaded', async () => {
     state.dogsReady = false;
-    const { user } = render(page(), { initialRoute: PANE });
+    render(page(), { initialRoute: PANE });
 
-    await user.click(await screen.findByRole('button', { name: /^Show:/ }));
+    // One heading: the pane's own, not a second from the view header.
     expect(
-      within(await screen.findByRole('menu')).getByRole('menuitemradio', {
-        name: /Registration number needed/,
-      }).textContent
-    ).toBe('Registration number needed');
+      await screen.findByRole('heading', { name: /Registration number needed/ })
+    ).toBeInTheDocument();
+    expect(listRow()).toBeDefined();
+    expect(listRow()).not.toHaveProperty('attentionLabel');
   });
 
   it('Pull / Withdraw opens that registration’s entry form in the All view', async () => {

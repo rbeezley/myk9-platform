@@ -44,6 +44,15 @@ export class TimeoutError extends Error {
   }
 }
 
+/**
+ * Why a signal aborted. `AbortSignal.reason` and `throwIfAborted()` are missing
+ * on the oldest supported browsers (Safari 14.1, Chrome 87), so read the reason
+ * with a fallback and never call `throwIfAborted`.
+ */
+export function abortReason(signal: AbortSignal): unknown {
+  return signal.reason ?? new DOMException('Aborted', 'AbortError');
+}
+
 interface AbortablePromiseLike<T> extends PromiseLike<T> {
   abortSignal(signal: AbortSignal): PromiseLike<T>;
 }
@@ -81,8 +90,11 @@ function isAbortablePromiseLike<T>(value: PromiseLike<T>): value is AbortablePro
 export async function withTimeout<T>(
   promiseLike: PromiseLike<T>,
   timeoutMs: number = DEFAULT_TIMEOUT_MS,
-  operationName: string = 'operation'
+  operationName: string = 'operation',
+  signal?: AbortSignal
 ): Promise<T> {
+  // A caller that already cancelled must not start the request at all.
+  if (signal?.aborted) throw abortReason(signal);
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
   let abortController: AbortController | undefined;
   let boundedPromiseLike = promiseLike;
@@ -107,10 +119,29 @@ export async function withTimeout<T>(
     }, timeoutMs);
   });
 
+  // A caller abort rejects this wait AND aborts the transport when it supports
+  // it, so the pending request is released even if the transport never settles.
+  let onAbort: (() => void) | undefined;
+  const abortPromise = signal
+    ? new Promise<never>((_, reject) => {
+        onAbort = () => {
+          const reason = abortReason(signal);
+          reject(reason);
+          abortController?.abort(reason);
+        };
+        signal.addEventListener('abort', onAbort, { once: true });
+      })
+    : undefined;
+
   try {
-    return await Promise.race([promise, timeoutPromise]);
+    return await Promise.race(
+      abortPromise ? [promise, timeoutPromise, abortPromise] : [promise, timeoutPromise]
+    );
   } finally {
     if (timeoutId) clearTimeout(timeoutId);
+    if (signal && onAbort) signal.removeEventListener('abort', onAbort);
+    // The losing `promise` may reject later (aborted transport); never leave it unhandled.
+    promise.catch(() => undefined);
   }
 }
 

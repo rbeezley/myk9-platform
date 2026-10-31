@@ -120,11 +120,18 @@ export class MutationUploadRunner {
     }, delay);
   }
 
-  async uploadPendingMutations(): Promise<SyncResult[]> {
+  async uploadPendingMutations(signal?: AbortSignal): Promise<SyncResult[]> {
     // Without Web Locks an overlapping request skips and flags a rerun, as it
     // always has; queueing it behind the running pass would change that.
-    if (this.isUploading && !this.uploadLock.isCrossTab()) return this.runUploadPass();
-    return (await this.uploadLock.run(() => this.runUploadPass())) ?? [];
+    if (this.isUploading && !this.uploadLock.isCrossTab()) return this.runUploadPass(signal);
+    try {
+      return (await this.uploadLock.run(() => this.runUploadPass(signal), signal)) ?? [];
+    } catch (error) {
+      // Aborted while still waiting for the lock (another tab's flush): nothing
+      // was started, so the queue is untouched. Settle as an empty pass.
+      if (signal?.aborted) return [];
+      throw error;
+    }
   }
 
   /** Run `work` under the upload lock (MYK9-771). Never call it from inside an upload. */
@@ -133,7 +140,10 @@ export class MutationUploadRunner {
   }
 
   // eslint-disable-next-line complexity -- branch order is part of queue correctness
-  private async runUploadPass(): Promise<SyncResult[]> {
+  private async runUploadPass(signal?: AbortSignal): Promise<SyncResult[]> {
+    // Aborted before the pass could start (or while it waited for the lock):
+    // touch nothing, the queue stays exactly as it was.
+    if (signal?.aborted) return [];
     // Prevent concurrent upload runs
     if (this.isUploading) {
       // A mutation may have been queued after the active pass captured its
@@ -198,6 +208,8 @@ export class MutationUploadRunner {
       let earliestBackoff: number | null = null;
 
       for (const mutation of sortedMutations) {
+        // Cancelled: start no further mutation. Unconfirmed ones stay pending.
+        if (signal?.aborted) break;
         if (mutationOwner.holdForPassOwner(mutation, passAuthUserId, blockedDependencyIds, skipped))
           continue;
 
@@ -288,6 +300,7 @@ export class MutationUploadRunner {
             context: executionContext,
             writtenOverlays: this.writtenOverlays,
             inFlightWrites: this.inFlightWrites,
+            signal,
           });
 
           // Remove the completed row before the pass-level backup. A concurrent
@@ -319,6 +332,11 @@ export class MutationUploadRunner {
             `[MutationManager] Mutation ${uploadedMutation.id} uploaded successfully`
           );
         } catch (error) {
+          // Cancelled mid-request: the server's answer is unknown, so the row
+          // stays pending untouched (no retry bump, no failure record). The
+          // retry is safe: inserts treat a duplicate key as success and updates
+          // carry the OCC token.
+          if (signal?.aborted) break;
           // MYK9-115. Checked before OccRejectionError: containment is a
           // back-off instruction, not a lost race. The score is NOT failed and
           // NOT retried this pass — it stays queued with its OCC token advanced

@@ -10,7 +10,8 @@ import { EntryFocusedRegistration } from '../EntryFocusedRegistration';
 vi.mock('@/hooks/useNetworkStatus', () => ({ useIsOnline: () => true }));
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
-    userWithRoles: { databaseUserId: 'person-me' },
+    personId: 'person-me',
+    personIdentityState: 'resolved',
     hasRole: () => false,
   }),
 }));

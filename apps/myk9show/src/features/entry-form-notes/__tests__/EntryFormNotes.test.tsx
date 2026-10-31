@@ -3,6 +3,7 @@ import { screen, waitFor } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { UserRole } from '@/types/auth-types';
 import {
+  ENTRY_FORM_NOTES_IDENTITY_MESSAGE,
   ENTRY_FORM_NOTES_OFFLINE_MESSAGE,
   ENTRY_FORM_NOTES_PRIVATE_LABEL,
   EntryFormNotes,
@@ -12,6 +13,7 @@ const h = vi.hoisted(() => ({
   online: true,
   personId: 'person-me' as string | undefined,
   siteAdmin: false,
+  identityMissing: false,
   notes: [] as unknown[],
   list: vi.fn(),
   add: vi.fn(),
@@ -22,7 +24,8 @@ const h = vi.hoisted(() => ({
 vi.mock('@/hooks/useNetworkStatus', () => ({ useIsOnline: () => h.online }));
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
-    userWithRoles: h.personId ? { databaseUserId: h.personId } : undefined,
+    personId: h.personId ?? null,
+    personIdentityState: h.personId ? 'resolved' : h.identityMissing ? 'missing' : 'unresolved',
     hasRole: (role: UserRole) => role === UserRole.SITE_ADMIN && h.siteAdmin,
   }),
 }));
@@ -52,6 +55,7 @@ describe('EntryFormNotes', () => {
     h.online = true;
     h.personId = 'person-me';
     h.siteAdmin = false;
+    h.identityMissing = false;
     h.notes = [
       note('n1', 'person-me', 'paid check 1123', 'Sam Secretary'),
       note('n2', 'person-other', 'bringing copy Saturday', 'Pat Colleague'),
@@ -129,6 +133,14 @@ describe('EntryFormNotes', () => {
     await user.click(screen.getByRole('button', { name: 'Add note' }));
     expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't add the note");
     expect(screen.getByLabelText('New note')).toHaveValue('keep me');
+  });
+
+  it('says so, and disables adding, while the person identity is unresolved', async () => {
+    h.personId = undefined;
+    render(<EntryFormNotes enrollmentId="enr-1" />);
+    await screen.findByText('paid check 1123');
+    expect(screen.getByText(ENTRY_FORM_NOTES_IDENTITY_MESSAGE)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add note' })).toBeDisabled();
   });
 
   it('gives every action a 44px target', async () => {

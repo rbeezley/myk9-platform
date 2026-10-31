@@ -78,19 +78,24 @@ export async function addEntryFormNote(
   if (error) throw error;
 }
 
-export async function updateEntryFormNote(id: string, body: string): Promise<void> {
-  const { error } = await untyped
+export const NOTE_CHANGE_REFUSED = 'You can no longer change this note.';
+
+/** RLS filters a row you may not change out silently (0 rows, no error): treat that as a refusal. */
+async function writeOwnNote(id: string, patch: Record<string, unknown>): Promise<void> {
+  const { data, error } = await untyped
     .from('entry_form_notes')
-    .update({ body: body.trim() })
-    .eq('id', id);
+    .update(patch)
+    .eq('id', id)
+    .select('id');
   if (error) throw error;
+  if (!data || data.length === 0) throw new Error(NOTE_CHANGE_REFUSED);
 }
 
-/** Soft delete. RLS limits it to the note's author or a site admin. */
-export async function deleteEntryFormNote(id: string): Promise<void> {
-  const { error } = await untyped
-    .from('entry_form_notes')
-    .update({ deleted_at: new Date().toISOString() })
-    .eq('id', id);
-  if (error) throw error;
+export function updateEntryFormNote(id: string, body: string): Promise<void> {
+  return writeOwnNote(id, { body: body.trim() });
+}
+
+/** Soft delete. RLS limits it to the note's author or a site admin; deletion is final. */
+export function deleteEntryFormNote(id: string): Promise<void> {
+  return writeOwnNote(id, { deleted_at: new Date().toISOString() });
 }

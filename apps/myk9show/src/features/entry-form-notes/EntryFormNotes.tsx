@@ -152,6 +152,9 @@ function NoteItem({ note, canChange, busy, onSave, onDelete }: NoteItemProps) {
 export const ENTRY_FORM_NOTES_IDENTITY_MESSAGE =
   'Still confirming who you are. You can add notes once your account is ready.';
 
+export const ENTRY_FORM_NOTES_NO_PROFILE_MESSAGE =
+  'Your account has no profile yet, so notes cannot be added.';
+
 interface EntryFormNotesProps {
   enrollmentId: string;
   /** Bump to focus the add-note input (the form menu's "Add private note"). */
@@ -160,19 +163,28 @@ interface EntryFormNotesProps {
 
 export function EntryFormNotes({ enrollmentId, focusRequest = 0 }: EntryFormNotesProps) {
   const online = useIsOnline();
-  const { userWithRoles, hasRole } = useAuthContext();
-  const personId = userWithRoles?.databaseUserId;
+  // personId is the canonical, offline-durable people.id (cached identity), not
+  // userWithRoles.databaseUserId (which is userProfile?.id and so is empty on a cold boot).
+  const { personId: resolvedPersonId, personIdentityState, hasRole } = useAuthContext();
+  const personId = resolvedPersonId ?? undefined;
   const isSiteAdmin = hasRole(UserRole.SITE_ADMIN);
   const notes = useEntryFormNotes(enrollmentId);
   const { add, update, remove } = useEntryFormNoteMutations(enrollmentId, personId);
   const [body, setBody] = useState('');
   const addRef = useRef<HTMLTextAreaElement>(null);
 
+  // Act only when the request increases past the last one handled, so an offline->online
+  // flip never re-focuses. Focus runs in a frame because Base UI's menu returns focus to its
+  // trigger as it closes, which can land after this effect.
+  const handledFocusRequest = useRef(0);
   useEffect(() => {
-    if (focusRequest > 0 && online) {
+    if (!online || focusRequest <= handledFocusRequest.current) return;
+    handledFocusRequest.current = focusRequest;
+    const frame = requestAnimationFrame(() => {
       addRef.current?.scrollIntoView?.({ block: 'center' });
       addRef.current?.focus();
-    }
+    });
+    return () => cancelAnimationFrame(frame);
   }, [focusRequest, online]);
 
   const submit = async () => {
@@ -190,6 +202,9 @@ export function EntryFormNotes({ enrollmentId, focusRequest = 0 }: EntryFormNote
       <h3 id={`entry-form-notes-${enrollmentId}`} className="text-sm font-semibold">
         Notes
       </h3>
+      {/* "Show officials" is official_show_ids(): site admins, the club's secretary, chairman
+          and steward, and a show-scoped steward. A steward who is also an exhibitor at their
+          own club's show can read notes on their own form; that is accepted. */}
       <p className="text-xs text-muted-foreground">{ENTRY_FORM_NOTES_PRIVATE_LABEL}</p>
 
       {!online ? (
@@ -216,7 +231,9 @@ export function EntryFormNotes({ enrollmentId, focusRequest = 0 }: EntryFormNote
             </Button>
             {!personId && (
               <p role="status" className="text-sm text-muted-foreground">
-                {ENTRY_FORM_NOTES_IDENTITY_MESSAGE}
+                {personIdentityState === 'missing'
+                  ? ENTRY_FORM_NOTES_NO_PROFILE_MESSAGE
+                  : ENTRY_FORM_NOTES_IDENTITY_MESSAGE}
               </p>
             )}
             {add.isError && (

@@ -12,6 +12,7 @@
 --      enrollment even if the client lies), edits her own, soft-deletes her own, and
 --      cannot edit or delete a colleague's note.
 --   6. A site admin sees every note and may edit or soft-delete any.
+--   9. Soft delete is final; deleting an author's people row nulls created_by and succeeds.
 --   8. A club-scoped steward reads the notes; a missing enrollment refuses with 42501
 --      like a foreign one; an author demoted from official cannot edit.
 --   7. relacl carries no anon grant, and no column-level ACL widens access.
@@ -282,8 +283,8 @@ DO $$
 DECLARE seen integer;
 BEGIN
   SELECT count(*) INTO seen FROM public.entry_form_notes
-   WHERE show_id = '00000000-0000-0000-0000-000000160011';
-  IF seen < 2 THEN RAISE EXCEPTION 'FAIL steward sees % Show A notes', seen; END IF;
+   WHERE id IN ('00000000-0000-0000-0000-000000160071','00000000-0000-0000-0000-000000160072');
+  IF seen <> 2 THEN RAISE EXCEPTION 'FAIL steward sees % of 2 Show A fixture notes', seen; END IF;
   RAISE NOTICE 'PASS club-scoped steward reads the show''s notes';
 END;
 $$;
@@ -334,8 +335,10 @@ SELECT set_config('request.jwt.claims',
 DO $$
 DECLARE seen integer; n integer;
 BEGIN
-  SELECT count(*) INTO seen FROM public.entry_form_notes;
-  IF seen < 4 THEN RAISE EXCEPTION 'FAIL site admin sees % notes (expected the 4 fixtures)', seen; END IF;
+  SELECT count(*) INTO seen FROM public.entry_form_notes
+   WHERE enrollment_id IN ('00000000-0000-0000-0000-000000160061',
+                           '00000000-0000-0000-0000-000000160062');
+  IF seen <> 4 THEN RAISE EXCEPTION 'FAIL site admin sees % of the 4 fixture-enrollment notes', seen; END IF;
   UPDATE public.entry_form_notes SET deleted_at = now()
    WHERE id = '00000000-0000-0000-0000-000000160072';
   GET DIAGNOSTICS n = ROW_COUNT;
@@ -344,5 +347,48 @@ BEGIN
 END;
 $$;
 RESET ROLE;
+
+-- Deletion is final (owner context; the guard trigger still fires). Note ...72 was
+-- soft-deleted above by the site admin.
+DO $$
+BEGIN
+  BEGIN
+    UPDATE public.entry_form_notes SET deleted_at = NULL
+     WHERE id = '00000000-0000-0000-0000-000000160072';
+    RAISE EXCEPTION 'FAIL a deleted note was restored';
+  EXCEPTION WHEN SQLSTATE '42501' THEN NULL;
+  END;
+  BEGIN
+    UPDATE public.entry_form_notes SET body = 'edited after delete'
+     WHERE id = '00000000-0000-0000-0000-000000160072';
+    RAISE EXCEPTION 'FAIL a deleted note was edited';
+  EXCEPTION WHEN SQLSTATE '42501' THEN NULL;
+  END;
+  RAISE NOTICE 'PASS soft delete is final';
+END;
+$$;
+
+-- Deleting an author's people row (FK ON DELETE SET NULL) must not be blocked by the
+-- guard, including for an already soft-deleted note. This author owns no dogs, so the
+-- MK001 owns-dogs trigger does not apply.
+insert into public.people (id, first_name, last_name)
+values ('00000000-0000-0000-0000-000000160057', 'Departing', 'Author');
+insert into public.entry_form_notes (id, enrollment_id, body, created_by, deleted_at)
+values
+  ('00000000-0000-0000-0000-000000160074', '00000000-0000-0000-0000-000000160061',
+   'live note', '00000000-0000-0000-0000-000000160057', null),
+  ('00000000-0000-0000-0000-000000160075', '00000000-0000-0000-0000-000000160061',
+   'deleted note', '00000000-0000-0000-0000-000000160057', now());
+DO $$
+DECLARE nulls integer;
+BEGIN
+  DELETE FROM public.people WHERE id = '00000000-0000-0000-0000-000000160057';
+  SELECT count(*) INTO nulls FROM public.entry_form_notes
+   WHERE id IN ('00000000-0000-0000-0000-000000160074','00000000-0000-0000-0000-000000160075')
+     AND created_by IS NULL;
+  IF nulls <> 2 THEN RAISE EXCEPTION 'FAIL author delete left % of 2 notes with NULL created_by', nulls; END IF;
+  RAISE NOTICE 'PASS deleting an author nulls created_by without being blocked';
+END;
+$$;
 
 rollback;

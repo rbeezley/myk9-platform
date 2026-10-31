@@ -17,6 +17,15 @@
 -- make the row unlocatable for the soft-delete UPDATE); readers filter
 -- `deleted_at IS NULL`. Only officials can read either way. No DELETE grant.
 --
+-- "Show officials" means official_show_ids(): a site admin, a club-scoped secretary,
+-- chairman or steward on their club's shows, and a show-scoped steward on that show. A
+-- steward who is also an exhibitor at their own club's show can therefore read notes on
+-- their own form. That is accepted: it is inherent to the officials definition.
+--
+-- Soft delete is final: once deleted_at is set the guard trigger refuses any change to
+-- body or deleted_at (no restore, no edit). The author's people row may be deleted: the
+-- FK sets created_by to NULL and the guard allows exactly that change.
+--
 -- Deliberate: an author who is no longer an official of the show (role ended or moved)
 -- cannot edit or delete their old notes; only a site admin can.
 --
@@ -56,12 +65,19 @@ BEGIN
       RAISE EXCEPTION 'not allowed' USING ERRCODE = '42501';
     END IF;
   ELSE
+    -- created_by may change only from a person to NULL: that is the FK's ON DELETE SET NULL
+    -- when the author's people row is deleted, and refusing it would block the person delete.
     IF NEW.id IS DISTINCT FROM OLD.id
        OR NEW.enrollment_id IS DISTINCT FROM OLD.enrollment_id
        OR NEW.show_id IS DISTINCT FROM OLD.show_id
-       OR NEW.created_by IS DISTINCT FROM OLD.created_by
+       OR (NEW.created_by IS DISTINCT FROM OLD.created_by AND NEW.created_by IS NOT NULL)
        OR NEW.created_at IS DISTINCT FROM OLD.created_at THEN
       RAISE EXCEPTION 'only the note text can change' USING ERRCODE = '42501';
+    END IF;
+    -- Deletion is final: a soft-deleted note can be neither edited nor restored.
+    IF OLD.deleted_at IS NOT NULL
+       AND (NEW.body IS DISTINCT FROM OLD.body OR NEW.deleted_at IS DISTINCT FROM OLD.deleted_at) THEN
+      RAISE EXCEPTION 'this note was deleted' USING ERRCODE = '42501';
     END IF;
     NEW.updated_at := now();
   END IF;

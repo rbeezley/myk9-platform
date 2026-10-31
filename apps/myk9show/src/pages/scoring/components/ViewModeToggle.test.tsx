@@ -11,8 +11,8 @@ describe('ViewModeToggle', () => {
     const user = userEvent.setup();
     render(<ViewModeToggle mode="split" onChange={onChange} />);
 
-    expect(screen.getByRole('tab', { name: 'List view', selected: true })).toBeInTheDocument();
-    const card = screen.getByRole('tab', { name: 'Card view', selected: false });
+    expect(screen.getByRole('tab', { name: 'List', selected: true })).toBeInTheDocument();
+    const card = screen.getByRole('tab', { name: 'Card', selected: false });
     await user.click(card);
     expect(onChange).toHaveBeenCalledWith('sequential');
   });

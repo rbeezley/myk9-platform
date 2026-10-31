@@ -218,5 +218,50 @@ describe('useAskQ', () => {
       });
       expect(result.current.thread).toHaveLength(1);
     });
+
+    it('drops an in-flight answer when the show changes and stores only displayed source fields', async () => {
+      let release!: () => void;
+      const gate = new Promise<void>(r => (release = r));
+      vi.mocked(askqService.sendAskQQuery).mockImplementation(async () => {
+        await gate;
+        return createMockStream([
+          { event: 'token', data: 'A' },
+          { event: 'done', data: {} },
+        ]);
+      });
+      const { result, rerender } = renderHook(
+        ({ scope }) => useAskQ(undefined, { userId: 'u1', scope }),
+        { initialProps: { scope: 'show-1' } }
+      );
+      let pending!: Promise<void>;
+      act(() => {
+        pending = result.current.submitQuery('one');
+      });
+      rerender({ scope: 'show-2' });
+      await act(async () => {
+        release();
+        await pending;
+      });
+      expect(result.current.thread).toEqual([]);
+      expect(window.localStorage.length).toBe(0);
+    });
+
+    it('persists only the source fields the panel renders', async () => {
+      vi.mocked(askqService.sendAskQQuery).mockImplementation(async () =>
+        createMockStream([
+          {
+            event: 'sources',
+            data: { entries: [{ call_name: 'Rex', handler_name: 'Pat', fault: 'x' }] },
+          },
+          { event: 'token', data: 'A' },
+          { event: 'done', data: {} },
+        ])
+      );
+      const { result } = renderHook(() => useAskQ(undefined, { userId: 'u1', scope: 'app' }));
+      await act(async () => {
+        await result.current.submitQuery('one');
+      });
+      expect(result.current.thread[0]?.sources).toEqual({ entries: [{ call_name: 'Rex' }] });
+    });
   });
 });

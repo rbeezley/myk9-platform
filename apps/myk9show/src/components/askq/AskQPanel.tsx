@@ -254,7 +254,12 @@ export function AskQPanel() {
 
   const isAskQMode = activeMode !== 'app-help';
   // The just-finished answer is still shown in the live slot below the thread.
-  const liveAnswerShown = askq.status === 'done' && askq.query !== '';
+  const lastEntry = askq.thread[askq.thread.length - 1];
+  const liveAnswerShown =
+    askq.status === 'done' &&
+    askq.query !== '' &&
+    lastEntry?.question === askq.query &&
+    lastEntry.answer === askq.answer;
   const visibleThread = liveAnswerShown ? askq.thread.slice(0, -1) : askq.thread;
 
   const content = isAskQMode ? (

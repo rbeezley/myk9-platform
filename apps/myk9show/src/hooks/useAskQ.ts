@@ -3,6 +3,7 @@ import { sendAskQQuery, parseSSEStream, RateLimitError } from '@/services/askqSe
 import {
   clearAskQHistory,
   loadAskQHistory,
+  projectSourcesForHistory,
   pruneAskQHistory,
   saveAskQHistory,
   type AskQHistoryEntry,
@@ -53,26 +54,25 @@ export interface AskQHistoryOptions {
   scope: string;
 }
 
+type HistoryKey = { userId: string | null; scope: string };
+
 export function useAskQ(sendQuery: AskQQuerySender = sendAskQQuery, history?: AskQHistoryOptions) {
   const [state, setState] = useState<AskQState>(INITIAL_STATE);
   const [thread, setThread] = useState<AskQHistoryEntry[]>([]);
   const historyUserId = history?.userId ?? null;
   const historyScope = history?.scope ?? 'app';
   const persistEnabled = history !== undefined;
-  const persistKeyRef = useRef<{ userId: string | null; scope: string }>({
+  const persistKeyRef = useRef<HistoryKey>({
     userId: historyUserId,
     scope: historyScope,
   });
   persistKeyRef.current = { userId: historyUserId, scope: historyScope };
 
-  // Load the saved thread when the user or show changes. Unresolved user: memory only.
-  useEffect(() => {
-    if (!persistEnabled) return;
-    setThread(historyUserId ? loadAskQHistory(historyUserId, historyScope) : []);
-  }, [persistEnabled, historyUserId, historyScope]);
-
-  const appendToThread = useCallback((entry: AskQHistoryEntry) => {
-    const { userId, scope } = persistKeyRef.current;
+  const appendToThread = useCallback((entry: AskQHistoryEntry, key: HistoryKey) => {
+    // Context changed mid-request: never file the answer under the new user or show.
+    const current = persistKeyRef.current;
+    if (current.userId !== key.userId || current.scope !== key.scope) return;
+    const { userId, scope } = key;
     setThread(prev => {
       const next = pruneAskQHistory([...prev, entry], entry.askedAt);
       if (userId) saveAskQHistory(userId, scope, next);
@@ -108,6 +108,7 @@ export function useAskQ(sendQuery: AskQQuerySender = sendAskQQuery, history?: As
       abortRef.current = new AbortController();
       const { signal } = abortRef.current;
 
+      const historyKey = persistKeyRef.current;
       answerRef.current = '';
       if (rafRef.current) {
         cancelAnimationFrame(rafRef.current);
@@ -182,15 +183,18 @@ export function useAskQ(sendQuery: AskQQuerySender = sendAskQQuery, history?: As
                 rafRef.current = null;
               }
               if (persistEnabled && answer) {
-                appendToThread({
-                  id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-                  question: message,
-                  answer,
-                  toolsUsed,
-                  sources,
-                  queryLogId,
-                  askedAt: Date.now(),
-                });
+                appendToThread(
+                  {
+                    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                    question: message,
+                    answer,
+                    toolsUsed,
+                    sources: projectSourcesForHistory(sources),
+                    queryLogId,
+                    askedAt: Date.now(),
+                  },
+                  historyKey
+                );
               }
               setState(prev => ({ ...prev, answer: answerRef.current, status: 'done' }));
               break;
@@ -236,6 +240,15 @@ export function useAskQ(sendQuery: AskQQuerySender = sendAskQQuery, history?: As
     cancel();
     setState(INITIAL_STATE);
   }, [cancel]);
+
+  // On a user or show change: drop any in-flight or finished live answer (it belongs to the
+  // old context) and load that context's saved thread. Unresolved user: memory only.
+  useEffect(() => {
+    if (!persistEnabled) return;
+    cancel();
+    setState(prev => ({ ...INITIAL_STATE, remaining: prev.remaining, limit: prev.limit }));
+    setThread(historyUserId ? loadAskQHistory(historyUserId, historyScope) : []);
+  }, [persistEnabled, historyUserId, historyScope, cancel]);
 
   /** Starts a fresh question: drops the current answer, keeps saved history. */
   const newQuestion = useCallback(() => {

@@ -54,6 +54,29 @@ function isEntry(value: unknown): value is AskQHistoryEntry {
   );
 }
 
+/** Fields `AskQSources` renders per source type; everything else is dropped before saving. */
+const DISPLAYED_SOURCE_FIELDS: Record<string, string[]> = {
+  rules: ['title', 'section'],
+  entries: ['call_name', 'dog_name', 'final_placement', 'result_status'],
+  classes: ['element', 'level', 'class_status'],
+  trials: ['trial_name', 'trial_date'],
+};
+
+export function projectSourcesForHistory(
+  sources: Record<string, unknown[]>
+): Record<string, unknown[]> {
+  const projected: Record<string, unknown[]> = {};
+  for (const [type, items] of Object.entries(sources)) {
+    const fields = DISPLAYED_SOURCE_FIELDS[type];
+    if (!fields || !Array.isArray(items)) continue;
+    projected[type] = items.map(item => {
+      const row = (item ?? {}) as Record<string, unknown>;
+      return Object.fromEntries(fields.filter(f => f in row).map(f => [f, row[f]]));
+    });
+  }
+  return projected;
+}
+
 export function loadAskQHistory(userId: string, scope: string): AskQHistoryEntry[] {
   try {
     const raw = window.localStorage.getItem(askqHistoryKey(userId, scope));

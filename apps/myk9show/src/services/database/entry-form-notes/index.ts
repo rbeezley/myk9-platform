@@ -72,14 +72,12 @@ export async function addEntryFormNote(
   body: string,
   createdBy: string
 ): Promise<void> {
-  const { error } = await supabase
-    .from('entry_form_notes')
-    .insert({
-      enrollment_id: enrollmentId,
-      show_id: showId,
-      body: body.trim(),
-      created_by: createdBy,
-    });
+  const { error } = await supabase.from('entry_form_notes').insert({
+    enrollment_id: enrollmentId,
+    show_id: showId,
+    body: body.trim(),
+    created_by: createdBy,
+  });
   if (error) throw error;
 }
 

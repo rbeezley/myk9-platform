@@ -94,7 +94,9 @@ describe('EntryFormNotes', () => {
     await screen.findByText('paid check 1123');
     await user.type(screen.getByLabelText('New note'), 'asked late');
     await user.click(screen.getByRole('button', { name: 'Add note' }));
-    await waitFor(() => expect(h.add).toHaveBeenCalledWith('enr-1', 'show-1', 'asked late', 'person-me'));
+    await waitFor(() =>
+      expect(h.add).toHaveBeenCalledWith('enr-1', 'show-1', 'asked late', 'person-me')
+    );
     await waitFor(() => expect(screen.getByLabelText('New note')).toHaveValue(''));
   });
 

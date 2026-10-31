@@ -1,4 +1,5 @@
 import React from 'react';
+import { resolveConfiguredRegistryId } from '@/features/registries';
 import {
   Select,
   SelectContent,
@@ -15,6 +16,11 @@ interface ClassJudgeSelectProps {
   classLabel: string;
   assignedJudgeId: string | null;
   availableJudges: Array<{ id: string; name: string }>;
+  /**
+   * The show's organization. The list is already narrowed to it, so an assigned judge outside
+   * a loaded list is one not qualified for that registry (MYK9-1580).
+   */
+  organization?: string | null | undefined;
   /** False when the show is unknown, so no assignment can be written. */
   canAssign: boolean;
   onJudgeChange: (classId: string, judgeId: string) => void;
@@ -28,6 +34,7 @@ export const ClassJudgeSelect: React.FC<ClassJudgeSelectProps> = ({
   classLabel,
   assignedJudgeId,
   availableJudges,
+  organization,
   canAssign,
   onJudgeChange,
 }) => {
@@ -42,10 +49,13 @@ export const ClassJudgeSelect: React.FC<ClassJudgeSelectProps> = ({
     // filtered to active qualifications and is empty while it loads or fails. Give
     // that value a label too, or it falls straight back to rendering the raw id.
     if (assignedJudgeId && !(assignedJudgeId in items)) {
-      items[assignedJudgeId] = 'Assigned judge (unavailable)';
+      const registry = resolveConfiguredRegistryId(organization);
+      items[assignedJudgeId] = registry
+        ? `Not qualified for ${registry}`
+        : 'Assigned judge (unavailable)';
     }
     return items;
-  }, [availableJudges, assignedJudgeId]);
+  }, [availableJudges, assignedJudgeId, organization]);
 
   return (
     <Select

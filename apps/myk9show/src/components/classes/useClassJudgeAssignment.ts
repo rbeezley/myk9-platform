@@ -91,6 +91,8 @@ export function useClassJudgeAssignment(
 
   return {
     availableJudges,
+    /** The show's organization, so the panel can say which registry a judge is not qualified for. */
+    showOrganization: show?.organization,
     judgeListStatus,
     judgeNamesFor,
     assignJudge: (cls: JudgeAssignableClass, judgeId: string) =>

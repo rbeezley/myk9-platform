@@ -25,6 +25,8 @@ interface SimpleClassSelectorProps {
   onSelectionChange: (classes: ClassDefinition[]) => void;
   existingClasses?: { className?: string; element: string; level: string; section: string }[]; // Classes already in trial to show as disabled
   availableJudges?: ShowJudgeAssignment[];
+  /** Overrides the empty-judges notice: `hidden`, or a more specific `message`. */
+  noJudgesNotice?: { hidden: boolean; message?: string | undefined } | undefined;
   judgeAssignments?: Record<string, string>; // classId -> judgeId
   onJudgeAssignmentChange?: (assignments: Record<string, string>) => void;
   /**
@@ -56,6 +58,7 @@ export const SimpleClassSelector: React.FC<SimpleClassSelectorProps> = ({
   existingClasses = [],
   addJudge,
   availableJudges = [],
+  noJudgesNotice,
   judgeAssignments = {},
   onJudgeAssignmentChange,
   customClassNames = EMPTY_CUSTOM_CLASS_NAMES,
@@ -270,12 +273,15 @@ export const SimpleClassSelector: React.FC<SimpleClassSelectorProps> = ({
         rendered at all, so this step silently lost the ability to assign one. Say so
         once, here, rather than repeating it on every element header.
       */}
-      {availableJudges.length === 0 && addJudge && (
+      {availableJudges.length === 0 && addJudge && !noJudgesNotice?.hidden && (
         <NoJudgesNotice
           {...(addJudge.onAddJudge
             ? { onAddJudge: addJudge.onAddJudge }
             : { showId: addJudge.showId })}
-          message="This show has no judges yet, so classes cannot be assigned one here. Add a judge and a judge picker appears on every element."
+          message={
+            noJudgesNotice?.message ??
+            'This show has no judges yet, so classes cannot be assigned one here. Add a judge and a judge picker appears on every element.'
+          }
           className="mb-4"
         />
       )}

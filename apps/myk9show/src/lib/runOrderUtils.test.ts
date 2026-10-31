@@ -98,4 +98,27 @@ describe('calculateRunOrderScoped preserve with an unset stored order', () => {
     ]);
     expect(result.every(r => r.runOrder > 0)).toBe(true);
   });
+
+  it('never writes 0 for one unset entry beside a real slot in the same section', () => {
+    // A lone unset order next to a real one: read as 0 it would be a distinct,
+    // usable slot, so preserve would write 0 back (the MYK9-1530 hazard).
+    const adapterEntries = [
+      { id: 'a1', armband: '101', section: 'A', exhibitorOrder: 0 },
+      { id: 'a2', armband: '102', section: 'A', exhibitorOrder: 2 },
+      { id: 'b1', armband: '201', section: 'B', exhibitorOrder: 1 },
+    ];
+    const result = calculateRunOrderScoped(
+      adapterEntries.map(e => ({
+        id: e.id,
+        armband: e.armband,
+        section: e.section,
+        runOrder: storedRunOrder(e),
+      })),
+      'armband-asc',
+      'A',
+      'preserve'
+    );
+    expect(result.map(r => r.id).sort()).toEqual(['a1', 'a2']);
+    expect(result.every(r => r.runOrder > 0)).toBe(true);
+  });
 });

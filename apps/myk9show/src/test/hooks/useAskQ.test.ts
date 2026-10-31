@@ -279,5 +279,29 @@ describe('useAskQ', () => {
       expect(result.current.status).toBe('rate-limited');
       expect(result.current.remaining).toBe(0);
     });
+
+    it('resets the rate limit when a different user signs in, but keeps it across a show change', async () => {
+      vi.mocked(askqService.sendAskQQuery).mockRejectedValue(
+        new askqService.RateLimitError(0, 10, '2026-11-01T00:00:00Z')
+      );
+      const { result, rerender } = renderHook(
+        ({ userId, scope }) => useAskQ(undefined, { userId, scope }),
+        { initialProps: { userId: 'u1', scope: 'show-1' } }
+      );
+      await act(async () => {
+        await result.current.submitQuery('one');
+      });
+      expect(result.current.status).toBe('rate-limited');
+
+      rerender({ userId: 'u1', scope: 'show-2' });
+      expect(result.current.status).toBe('rate-limited');
+      expect(result.current.remaining).toBe(0);
+      expect(result.current.limit).toBe(10);
+
+      rerender({ userId: 'u2', scope: 'show-2' });
+      expect(result.current.status).toBe('idle');
+      expect(result.current.remaining).toBeNull();
+      expect(result.current.limit).toBeNull();
+    });
   });
 });

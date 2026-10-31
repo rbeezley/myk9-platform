@@ -1,4 +1,4 @@
-import { formatTimeOfDay } from '@/components/trials/trialDateTime';
+import { storeClockTime } from '@myk9/core';
 
 const LEGACY_GENERATED_NAME =
   /^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday) Trial [1-9]\d*$/;
@@ -28,7 +28,7 @@ function recoverSchedule(trial: Record<string, unknown>): Record<string, unknown
       ? { trialDate: `${year}-${month}-${day}` }
       : {}),
     ...(!Object.prototype.hasOwnProperty.call(trial, 'startTimeDraft')
-      ? { startTimeDraft: formatTimeOfDay(Number(hours), Number(minutes)) }
+      ? { startTimeDraft: storeClockTime(Number(hours) * 60 + Number(minutes), 'text') }
       : {}),
   };
 }

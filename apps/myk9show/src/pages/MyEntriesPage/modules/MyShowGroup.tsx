@@ -21,7 +21,7 @@ import { buildVenueMapsUrls, formatVenueAddress } from '@/utils/venueMaps';
 import type { ResultCardModel } from '@/features/result-card';
 import { EntryStatus } from '@/types/show-registration-types';
 import type { UserEntriesSource } from '@/services/database/entries';
-import { buildDayCheckInContext, isTrialDayToday } from './dayCheckIn';
+import { buildDayCheckInContext, trialDayState } from './dayCheckIn';
 import { indexOrdersById, type MyShowClass, type MyShowDog } from './groupEntriesByShow';
 import type { MyShowGroup as MyShowGroupModel } from './groupEntriesByShow';
 import { MyShowActionsMenu } from './MyShowActionsMenu';
@@ -139,14 +139,16 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
   // A show day is a day on which one of the exhibitor's entered classes runs, in
   // that trial's own zone (never the browser's). The at-show page answers
   // "where do I go next?" for every dog; this is only the way in (MYK9-1046).
-  const hasClassToday =
-    !isPastShow &&
-    !!group.showId &&
-    group.dogs.some(dog =>
-      dog.classes.some(
-        cls => cls.status === 'entered' && isTrialDayToday(cls.trialDate, cls.trialTimezone, now)
-      )
-    );
+  const enteredDayStates = group.dogs.flatMap(dog =>
+    dog.classes
+      .filter(cls => cls.status === 'entered')
+      .map(cls => trialDayState(cls.trialDate, cls.trialTimezone, now))
+  );
+  const canShowToday = !isPastShow && !!group.showId;
+  const hasClassToday = canShowToday && enteredDayStates.includes('today');
+  // A class whose trial has not replicated has no known day, so "no class
+  // today" is not a fact: say so rather than show nothing (MYK9-1557).
+  const hasUnknownDayClass = canShowToday && !hasClassToday && enteredDayStates.includes('unknown');
 
   const mapAddress = formatVenueAddress([
     group.location.venue,
@@ -251,6 +253,20 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
           <span>Where to be today</span>
           <ArrowRight className="h-5 w-5" aria-hidden="true" />
         </Link>
+      )}
+
+      {hasUnknownDayClass && (
+        <div className="myk9-entries-strip border-border bg-muted/40 text-muted-foreground">
+          <div className="min-w-0">
+            <p className="myk9-entries-strip-head">
+              Some classes are still waiting on a trial date
+            </p>
+            <p className="myk9-entries-strip-body">
+              We can't tell yet whether you run today. We need the date to tell whether check-in is
+              available.
+            </p>
+          </div>
+        </div>
       )}
 
       {/* INTENT: the exhibitor is not told their entries are gone or wrong —

@@ -11,7 +11,7 @@
  */
 
 import { SEE_MY_SHOWS_TEXT, classRowDisplay } from './classRowStatusText';
-import { buildDayCheckInContext, isTrialDayToday } from './dayCheckIn';
+import { buildDayCheckInContext, trialDayState } from './dayCheckIn';
 import { groupEntriesByShow } from './groupEntriesByShow';
 import { formatTrialLabel } from '@myk9/core';
 import type { SelfCheckinState } from '@/hooks/queries/useSelfCheckinEnabled';
@@ -38,7 +38,11 @@ export function todayClassIds(entries: MyEntry[], now: Date): string[] {
   for (const group of groupEntriesByShow(entries)) {
     for (const dog of group.dogs) {
       for (const cls of dog.classes) {
-        if (cls.classId && !cls.isScored && isTrialDayToday(cls.trialDate, cls.trialTimezone, now))
+        if (
+          cls.classId &&
+          !cls.isScored &&
+          trialDayState(cls.trialDate, cls.trialTimezone, now) === 'today'
+        )
           ids.add(cls.classId);
       }
     }
@@ -54,23 +58,24 @@ const CHECK_IN_WORDING: ReadonlySet<ClassRowKind> = new Set<ClassRowKind>([
 ]);
 
 /**
+ * Does any class have an unknown trial day (its trial has not replicated yet)?
+ * "No rows today" is not a fact while one exists. Reads the same tri-state the
+ * My Shows row and strip read.
+ */
+export function hasUndatedClass(entries: MyEntry[], now: Date): boolean {
+  return groupEntriesByShow(entries).some(group =>
+    group.dogs.some(dog =>
+      dog.classes.some(cls => trialDayState(cls.trialDate, cls.trialTimezone, now) === 'unknown')
+    )
+  );
+}
+
+/**
  * `selfCheckinStateByClassId` is the card's extra caution. My Shows reads the
  * setting optimistically while it loads (and fails closed on error); the card
  * may only be MORE conservative, so a class whose setting is `'unknown'` never
  * gets check-in wording.
  */
-/**
- * Does any class lack a usable trial date (its trial has not replicated yet)?
- * Its day is unknown, so "no rows today" is not a fact while one exists.
- */
-export function hasUndatedClass(entries: MyEntry[]): boolean {
-  return groupEntriesByShow(entries).some(group =>
-    group.dogs.some(dog =>
-      dog.classes.some(cls => !cls.trialDate || Number.isNaN(cls.trialDate.getTime()))
-    )
-  );
-}
-
 export function selectTodayEntryRows(
   entries: MyEntry[],
   now: Date,
@@ -82,7 +87,7 @@ export function selectTodayEntryRows(
     const ctx = buildDayCheckInContext(group, now, selfCheckinByClassId);
     for (const dog of group.dogs) {
       for (const cls of dog.classes) {
-        if (!isTrialDayToday(cls.trialDate, cls.trialTimezone, now)) continue;
+        if (trialDayState(cls.trialDate, cls.trialTimezone, now) !== 'today') continue;
         const display = classRowDisplay(cls, ctx);
         const settingUnknown =
           cls.classId !== undefined && selfCheckinStateByClassId?.[cls.classId] === 'unknown';

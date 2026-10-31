@@ -1,4 +1,4 @@
-import { ChevronRight, Clock3, Star, User } from 'lucide-react';
+import { ChevronRight, Clock3, User } from 'lucide-react';
 import { getEffectiveClassStatus, type ClassEntry } from '@myk9/ringside';
 import { StatusBadge } from '@/components/status';
 import { cn } from '@/lib/utils';
@@ -8,6 +8,7 @@ import {
   OfflineScoringBadge,
   statusCarriesTime,
 } from './AtShowClassStatusInfo';
+import { AtShowClassCardFooter } from './AtShowClassCardFooter';
 import type { RingDayBucket } from './orderRingClassesByDay';
 import {
   isEmptyNextUpPreview,
@@ -15,7 +16,7 @@ import {
   type AtShowNextUpPreview,
 } from './atShowNextUpPreview';
 
-interface AtShowClassRowProps {
+export interface AtShowClassRowProps {
   entry: ClassEntry;
   isExhibitorOnly: boolean;
   onClick: (entry: ClassEntry) => void;
@@ -44,7 +45,25 @@ interface AtShowClassRowProps {
    * silently reinstated `0 / 0` (LESSONS last-hop-drop).
    */
   entryCountsAvailable: boolean;
+  /**
+   * Scores queued on this device for this class (MYK9-1506). Above zero the card
+   * shows the upload indicator and the Offline Scoring badge; zero shows neither.
+   */
+  queuedScoreCount?: number | undefined;
+  /** The heart. Omitted, the card has no favorite control. */
+  onToggleFavorite?: ((entry: ClassEntry) => void) | undefined;
+  /** The info icon. Omitted, the card has none. */
+  onShowDetails?:
+    ((entry: ClassEntry, anchor: HTMLElement, countsTrusted: boolean) => void) | undefined;
+  /** The ellipsis. Omitted for roles that may not open Class Options. */
+  onOpenOptions?: ((entry: ClassEntry, anchor: HTMLElement) => void) | undefined;
 }
+
+/** The props every card shares; the lists add the entry and, for Your ring, its day facts. */
+export type AtShowClassCardProps = Omit<
+  AtShowClassRowProps,
+  'entry' | 'trialTimeZone' | 'trialHeading' | 'dayBucket' | 'isToday'
+>;
 
 /**
  * The "who's in the ring, who's next" line.
@@ -99,22 +118,22 @@ export function AtShowClassRow({
   isToday,
   nextUp,
   entryCountsAvailable,
+  queuedScoreCount = 0,
+  onToggleFavorite,
+  onShowDetails,
+  onOpenOptions,
 }: AtShowClassRowProps) {
   const status = getEffectiveClassStatus(entry);
   const showNextUp = isLiveNextUpStatus(status) && !isEmptyNextUpPreview(nextUp);
 
   return (
     <li data-class-id={entry.id} data-day-bucket={dayBucket}>
-      {/* INTENT: in-ring gloved taps want ~48px rows — hence min-h-12. */}
-      <button
-        type="button"
-        onClick={() => onClick(entry)}
+      <div
         className={cn(
-          'flex min-h-12 w-full items-center gap-3 rounded-xl border bg-card px-4 py-3 text-left shadow-sm transition hover:border-primary/40 hover:shadow-md active:scale-[0.99]',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+          'rounded-xl border bg-card shadow-sm transition hover:border-primary/40 hover:shadow-md',
           // #923 tokenized the favorite (theme-aware, calm in dark). The
           // background tint is gone: it lightened the dark card just enough to
-          // drop text-muted-foreground to 4.26:1, under AA. The filled Star and
+          // drop text-muted-foreground to 4.26:1, under AA. The filled heart and
           // the primary border already carry the state, so this loses no signal.
           entry.is_favorite && 'border-primary',
           // Past days are quieter by surface only (no shadow; the border stays so the
@@ -123,88 +142,105 @@ export function AtShowClassRow({
           dayBucket === 'past' && 'shadow-none'
         )}
       >
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            {entry.is_favorite && <Star size={15} className="shrink-0 fill-primary text-primary" />}
-            <span className="truncate font-medium">{entry.class_name}</span>
+        {/* INTENT: in-ring gloved taps want ~48px rows — hence min-h-12. */}
+        <button
+          type="button"
+          onClick={() => onClick(entry)}
+          className={cn(
+            'flex min-h-12 w-full items-center gap-3 rounded-xl px-4 py-3 text-left active:scale-[0.99]',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
+          )}
+        >
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <span className="truncate font-medium">{entry.class_name}</span>
+            </div>
+            {trialHeading && (
+              <div className="mt-0.5 flex items-center gap-2 text-sm font-medium text-foreground/80">
+                <span className="truncate">{trialHeading}</span>
+                {isToday && (
+                  <span className="shrink-0 rounded-full bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground">
+                    Today
+                  </span>
+                )}
+              </div>
+            )}
+            {entry.judge_name && entry.judge_name !== 'No Judge Assigned' && (
+              <div className="mt-0.5 flex items-center gap-1 truncate text-sm text-muted-foreground">
+                <User size={13} className="shrink-0" />
+                {entry.judge_name}
+              </div>
+            )}
+            <AtShowClassStatusInfo entry={entry} status={status} trialTimeZone={trialTimeZone} />
+            {entry.start_time && !statusCarriesTime(entry, status) && (
+              <div className="mt-0.5 flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                <Clock3 size={13} className="shrink-0" aria-hidden />
+                {entry.revised_expected_start ? 'Expected' : 'Scheduled'}{' '}
+                {formatAtShowClassTime(entry.start_time, trialTimeZone)}
+              </div>
+            )}
+            {!isExhibitorOnly && entry.actual_start_time && (
+              <div className="mt-0.5 text-xs text-muted-foreground">
+                Started {formatAtShowClassTime(entry.actual_start_time, trialTimeZone)}
+                {entry.actual_end_time
+                  ? ` · Finished ${formatAtShowClassTime(entry.actual_end_time, trialTimeZone)}`
+                  : ''}
+              </div>
+            )}
+            {showNextUp && nextUp && <AtShowClassRowNextUp preview={nextUp} />}
           </div>
-          {trialHeading && (
-            <div className="mt-0.5 flex items-center gap-2 text-sm font-medium text-foreground/80">
-              <span className="truncate">{trialHeading}</span>
-              {isToday && (
-                <span className="shrink-0 rounded-full bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground">
-                  Today
-                </span>
-              )}
-            </div>
-          )}
-          {entry.judge_name && entry.judge_name !== 'No Judge Assigned' && (
-            <div className="mt-0.5 flex items-center gap-1 truncate text-sm text-muted-foreground">
-              <User size={13} className="shrink-0" />
-              {entry.judge_name}
-            </div>
-          )}
-          <AtShowClassStatusInfo entry={entry} status={status} trialTimeZone={trialTimeZone} />
-          {entry.start_time && !statusCarriesTime(entry, status) && (
-            <div className="mt-0.5 flex items-center gap-1 text-xs font-medium text-muted-foreground">
-              <Clock3 size={13} className="shrink-0" aria-hidden />
-              {entry.revised_expected_start ? 'Expected' : 'Scheduled'}{' '}
-              {formatAtShowClassTime(entry.start_time, trialTimeZone)}
-            </div>
-          )}
-          {!isExhibitorOnly && entry.actual_start_time && (
-            <div className="mt-0.5 text-xs text-muted-foreground">
-              Started {formatAtShowClassTime(entry.actual_start_time, trialTimeZone)}
-              {entry.actual_end_time
-                ? ` · Finished ${formatAtShowClassTime(entry.actual_end_time, trialTimeZone)}`
-                : ''}
-            </div>
-          )}
-          {showNextUp && nextUp && <AtShowClassRowNextUp preview={nextUp} />}
-        </div>
-        <div className="flex shrink-0 flex-col items-end gap-1">
-          {status === 'offline-scoring' ? (
-            <OfflineScoringBadge />
-          ) : (
-            <StatusBadge
-              family="class"
-              status={status}
-              className="px-2 py-0.5 text-xs font-medium"
-            />
-          )}
-          {/*
+          <div className="flex shrink-0 flex-col items-end gap-1">
+            {status === 'offline-scoring' || queuedScoreCount > 0 ? (
+              <OfflineScoringBadge />
+            ) : (
+              <StatusBadge
+                family="class"
+                status={status}
+                className="px-2 py-0.5 text-xs font-medium"
+              />
+            )}
+            {/*
             INTENT: an unknown count must never be spelled as a zero. On the
             judge's landing screen "0 of 0 scored" is a claim that the class is
             empty and finished; before the show's entry replica has been read
             that claim is simply unfounded (MYK9-637).
           */}
-          {/*
+            {/*
             MYK9-1184: an exhibitor's replica never holds every entry in a
             class (RLS admits only their own), so for them the count can never
             load and "not loaded" would be permanent. Omit the line instead.
           */}
-          {(entryCountsAvailable || !isExhibitorOnly) && (
-            <span className="text-xs text-muted-foreground">
-              {entryCountsAvailable ? (
-                <>
-                  <span aria-hidden>
-                    {entry.completed_count} / {entry.entry_count}
-                  </span>
-                  <span className="sr-only">
-                    {entry.completed_count} of {entry.entry_count} scored
-                  </span>
-                </>
-              ) : (
-                <>
-                  <span aria-hidden>—</span>
-                  <span className="sr-only">Entry count not loaded yet</span>
-                </>
-              )}
-            </span>
-          )}
-        </div>
-        <ChevronRight size={18} className="shrink-0 text-muted-foreground" />
-      </button>
+            {(entryCountsAvailable || !isExhibitorOnly) && (
+              <span className="text-xs text-muted-foreground">
+                {entryCountsAvailable ? (
+                  <>
+                    <span aria-hidden>
+                      {entry.completed_count} / {entry.entry_count}
+                    </span>
+                    <span className="sr-only">
+                      {entry.completed_count} of {entry.entry_count} scored
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span aria-hidden>—</span>
+                    <span className="sr-only">Entry count not loaded yet</span>
+                  </>
+                )}
+              </span>
+            )}
+          </div>
+          <ChevronRight size={18} className="shrink-0 text-muted-foreground" />
+        </button>
+        <AtShowClassCardFooter
+          entry={entry}
+          showProgress={entryCountsAvailable}
+          queuedScoreCount={queuedScoreCount}
+          onToggleFavorite={onToggleFavorite}
+          onShowDetails={onShowDetails}
+          onOpenOptions={onOpenOptions}
+        />
+      </div>
     </li>
   );
 }

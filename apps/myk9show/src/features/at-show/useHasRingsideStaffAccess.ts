@@ -3,26 +3,58 @@
  *
  * Three show-scoped clauses: a show-scoped passcode grant (`AtShowAccessGate`'s first clause); an
  * account staff role scoped to this show or its club (`hasRingsideAccountShowAccess`); or a judge
- * assigned to classes in this show. A staff role held for another show or club does not count, so
+ * with an active assignment at this show, class-level or show-level (the same
+ * affiliation source `useMyJudgedShows` reads). A staff role held for another show or club does not count, so
  * browsing an unrelated show keeps the public landing. The show page uses it so a judge, steward or
  * passcode user reaches the Results tab during the show (MYK9-1544).
  *
  * A judge whose assignments cannot be known yet (offline cold boot: roles cached, identity not) is
  * admitted rather than shown the wrong surface; the Results tab's release gate still applies.
  */
+import { useEffect, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useMyJudgedShows } from '@/features/messages/hooks/useMyJudgedShows';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { UserRole } from '@/types/auth-types';
 import { hasRingsideAccountShowAccess } from './ringsideAccountAccess';
-import { useMyAtShowJudgeAssignments } from './useMyAtShowJudgeAssignments';
 import { useRehydrateRingsideGrant } from './useRehydrateRingsideGrant';
 
 export function useHasRingsideStaffAccess(
   showId: string | undefined,
   clubId: string | undefined
 ): boolean {
+  const queryClient = useQueryClient();
   const { hasRole, userWithRoles } = useAuthContext();
+  const { status: syncStatus, syncTable } = useReplicationSync();
   const grantRole = useRehydrateRingsideGrant(showId);
-  const judgeAssignments = useMyAtShowJudgeAssignments(showId);
+  const judged = useMyJudgedShows(true);
+  const personId = userWithRoles?.databaseUserId;
+  const knownWithoutShow =
+    judged.status === 'known' && !judged.shows.some(show => show.showId === showId);
+  const canRefresh =
+    knownWithoutShow &&
+    Boolean(showId && personId) &&
+    syncStatus.tablesStatus.judge_assignments === 'success' &&
+    typeof navigator !== 'undefined' &&
+    navigator.onLine;
+  const refreshedKey = useRef<string | null>(null);
+  const [settledKey, setSettledKey] = useState<string | null>(null);
+  const key = `${showId}:${personId}`;
+
+  // A cached list that omits this show may predate a just-added assignment (the
+  // refresh the show-specific lookup used to do). Re-sync once per show and person
+  // before treating the judge as unrelated to it.
+  useEffect(() => {
+    if (!canRefresh || refreshedKey.current === key) return;
+    refreshedKey.current = key;
+    void syncTable('judge_assignments')
+      .then(() =>
+        queryClient.invalidateQueries({ queryKey: ['messages', 'judged-shows', personId] })
+      )
+      .then(() => setSettledKey(key));
+  }, [canRefresh, key, personId, queryClient, syncTable]);
+
   if (grantRole) return true;
   if (
     showId &&
@@ -30,8 +62,13 @@ export function useHasRingsideStaffAccess(
     hasRingsideAccountShowAccess(userWithRoles, hasRole, { id: showId, clubId })
   )
     return true;
-  return (
-    hasRole(UserRole.JUDGE) &&
-    (judgeAssignments.isUnknown || judgeAssignments.assignedClassIds.size > 0)
-  );
+  if (!hasRole(UserRole.JUDGE)) return false;
+  if (judged.status === 'not-judge') return false;
+  if (judged.status !== 'known') return true;
+  // An omitted show stays unknown (admitted, like the old show-specific lookup) while the
+  // refresh runs, after it fails (`syncTable` resolves either way; the table status says
+  // which), or when no refresh can run. Only a settled, successful refresh confirms it.
+  const omissionConfirmed =
+    settledKey === key && syncStatus.tablesStatus.judge_assignments === 'success';
+  return !(knownWithoutShow && omissionConfirmed);
 }

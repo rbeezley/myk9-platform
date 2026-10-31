@@ -16,6 +16,10 @@ export interface RingsideMenuContext {
   isOnline: boolean;
   /** A real account (not a passcode session). */
   hasAccount: boolean;
+  /** The show row's nationals flag; null until the replicated row is read. */
+  isNationals?: boolean | null;
+  /** Judge, steward or secretary/admin on this show (`useIsStaffDogViewer`). */
+  isStaff?: boolean;
 }
 
 export type RingsideMenuAction = 'announcements' | 'askq' | 'show-info' | 'sign-out';

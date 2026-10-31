@@ -10,9 +10,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { CalendarIcon, Clock, X } from 'lucide-react';
+import { isUnresolvedClockTime, parseStoredClockTime } from '@myk9/core';
+import { DateRangeTimeFields } from './date-range-time-fields';
+import { CalendarIcon, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -41,27 +41,25 @@ interface DateRangePickerProps {
   'aria-describedby'?: string | undefined;
 }
 
-function parseTime(timeStr: string): { hours: number; minutes: number } | null {
-  const match = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)?$/);
-  if (!match) return null;
-  let hours = parseInt(match[1]);
-  const minutes = parseInt(match[2]);
-  const period = match[3]?.toUpperCase();
-  if (period === 'PM' && hours !== 12) hours += 12;
-  if (period === 'AM' && hours === 12) hours = 0;
-  if (hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59) {
-    return { hours, minutes };
-  }
-  return null;
+/** True when the typed time already reads as `date`'s time, so the echo must not rewrite the digits. */
+function showsTime(timeStr: string, date: Date): boolean {
+  return parseStoredClockTime(timeStr) === date.getHours() * 60 + date.getMinutes();
 }
 
 function applyTime(date: Date, timeStr: string): Date {
   const d = new Date(date);
-  const time = parseTime(timeStr);
-  if (time) {
-    d.setHours(time.hours, time.minutes, 0, 0);
+  const minutes = parseStoredClockTime(timeStr);
+  if (minutes !== null) {
+    d.setHours(Math.floor(minutes / 60), minutes % 60, 0, 0);
   }
   return d;
+}
+
+/** `date` carrying a resolved draft `time`, or undefined when nothing would change. */
+function changedTime(date: Date | undefined, time: string): Date | undefined {
+  if (!date || parseStoredClockTime(time) === null) return undefined;
+  const next = applyTime(date, time);
+  return next.getTime() === date.getTime() ? undefined : next;
 }
 
 export const DateRangePicker: React.FC<DateRangePickerProps> = ({
@@ -102,12 +100,12 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
   const [prevEndKey, setPrevEndKey] = useState(endKey);
   if (startKey !== prevStartKey) {
     setPrevStartKey(startKey);
-    if (startDate) setStartTime(format(startDate, 'h:mm a'));
+    if (startDate && !showsTime(startTime, startDate)) setStartTime(format(startDate, 'h:mm a'));
     setDraftRange(current => ({ from: startDate, to: current?.to }));
   }
   if (endKey !== prevEndKey) {
     setPrevEndKey(endKey);
-    if (endDate) setEndTime(format(endDate, 'h:mm a'));
+    if (endDate && !showsTime(endTime, endDate)) setEndTime(format(endDate, 'h:mm a'));
     setDraftRange(current => ({ from: current?.from, to: endDate }));
   }
 
@@ -133,19 +131,32 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
     [onStartDateChange, onEndDateChange, startTime, endTime, keepEndWhilePicking]
   );
 
-  const handleStartTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setStartTime(e.target.value);
-    if (startDate) {
-      onStartDateChange(applyTime(startDate, e.target.value));
-    }
+  // Time edits stay local drafts until Done, so dismissing mid-edit leaves the parent's times alone.
+  const commitTimes = () => {
+    if (!showTime) return;
+    const nextStart = changedTime(startDate, startTime);
+    if (nextStart) onStartDateChange(nextStart);
+    const nextEnd = changedTime(endDate, endTime);
+    if (nextEnd) onEndDateChange(nextEnd);
   };
 
-  const handleEndTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setEndTime(e.target.value);
-    if (endDate) {
-      onEndDateChange(applyTime(endDate, e.target.value));
-    }
+  const handleDone = () => {
+    commitTimes();
+    setOpen(false);
   };
+
+  const handleOpenChange = (next: boolean) => {
+    if (!next && open) {
+      // Dismissed without Done: drop the drafts and show the parent's times again.
+      setStartTime(startDate ? format(startDate, 'h:mm a') : startDefaultTime);
+      setEndTime(endDate ? format(endDate, 'h:mm a') : endDefaultTime);
+    }
+    setOpen(next);
+  };
+
+  // A typed time that is not yet a time keeps the dates' old time, so Done waits for it.
+  const timesUnresolved =
+    showTime && (isUnresolvedClockTime(startTime) || isUnresolvedClockTime(endTime));
 
   const formatDisplay = () => {
     if (!startDate && !endDate) return '';
@@ -208,7 +219,7 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
         )}
       </div>
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent className="flex max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-3xl flex-col gap-0 overflow-hidden rounded-xl bg-popover p-0 shadow-2xl sm:max-h-[calc(100dvh-2rem)] sm:w-[calc(100vw-2rem)]">
           <DialogHeader className="shrink-0 border-b px-4 pb-3 pt-4 text-left sm:px-6 sm:pt-5">
             <DialogTitle className="pr-8 text-lg">Choose a date range</DialogTitle>
@@ -262,46 +273,16 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
             />
 
             {showTime && (
-              <div className="mt-3 grid grid-cols-2 gap-4 border-t pt-3">
-                <div className="space-y-1">
-                  <Label
-                    {...(startTimeId !== undefined && { htmlFor: startTimeId })}
-                    className="text-xs text-muted-foreground"
-                  >
-                    {startLabel} time
-                  </Label>
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-muted-foreground" />
-                    <Input
-                      {...(startTimeId !== undefined && { id: startTimeId })}
-                      type="text"
-                      value={startTime}
-                      onChange={handleStartTimeChange}
-                      placeholder="8:00 AM"
-                      className="flex-1"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <Label
-                    {...(endTimeId !== undefined && { htmlFor: endTimeId })}
-                    className="text-xs text-muted-foreground"
-                  >
-                    {endLabel} time
-                  </Label>
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-muted-foreground" />
-                    <Input
-                      {...(endTimeId !== undefined && { id: endTimeId })}
-                      type="text"
-                      value={endTime}
-                      onChange={handleEndTimeChange}
-                      placeholder="5:00 PM"
-                      className="flex-1"
-                    />
-                  </div>
-                </div>
-              </div>
+              <DateRangeTimeFields
+                startLabel={startLabel}
+                endLabel={endLabel}
+                startTime={startTime}
+                endTime={endTime}
+                startTimeId={startTimeId}
+                endTimeId={endTimeId}
+                onStartTimeChange={setStartTime}
+                onEndTimeChange={setEndTime}
+              />
             )}
           </div>
 
@@ -309,7 +290,7 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
             data-testid="date-range-picker-footer"
             className="shrink-0 border-t px-4 py-3 sm:px-6"
           >
-            <Button size="sm" onClick={() => setOpen(false)}>
+            <Button size="sm" disabled={timesUnresolved} onClick={handleDone}>
               Done
             </Button>
           </DialogFooter>

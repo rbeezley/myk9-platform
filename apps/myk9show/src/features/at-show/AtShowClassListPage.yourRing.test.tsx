@@ -1,6 +1,6 @@
 import { Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, render, screen, waitFor, within } from '@/test/utils/testUtils';
+import { act, fireEvent, render, screen, waitFor, within } from '@/test/utils/testUtils';
 import { ReplicationSyncTestProvider } from '@/test/utils/ReplicationSyncTestProvider';
 import type { ReplicationSyncContextValue } from '@/context/ReplicationSyncContext';
 import { UserRole, type UserWithRoles } from '@/types/auth-types';
@@ -42,8 +42,11 @@ const authState = vi.hoisted(() => ({
   user: null as { is_anonymous?: boolean } | null,
 }));
 
+// The picker resolves the ringside role (for Class Options gating) the way the
+// entry list does; this suite holds no RBAC role, so no one may manage classes.
 vi.mock('@/hooks/useAuthContext', () => ({
-  useAuthContext: () => authState,
+  useAuthContext: () => ({ ...authState, getUserRoles: () => [] }),
+  getPrimaryRole: () => null,
 }));
 
 import { AtShowClassListPage } from './AtShowClassListPage';
@@ -183,6 +186,33 @@ describe('AtShowClassListPage Your ring', () => {
     expect(screen.getAllByText(/Container Novice/)).toHaveLength(1);
     expect(screen.getAllByText(/Interior Excellent/)).toHaveLength(1);
     expect(screen.queryByTestId('at-show-trial-trial-1')).not.toBeInTheDocument();
+  });
+
+  it('keeps an assigned completed class reachable from the Completed tab', async () => {
+    authState.hasRole = role => role === UserRole.JUDGE;
+    authState.userWithRoles = { databaseUserId: 'judge-1' } as UserWithRoles;
+    authState.user = { is_anonymous: false };
+    vi.mocked(replicatedClassesTable.getClassesByTrial).mockResolvedValue([
+      INTERIOR_EXCELLENT,
+      { ...BURIED_ADVANCED, classStatus: 'completed' },
+    ] as never);
+    judgeAssignmentData.getActive.mockResolvedValue(
+      ['class-c', 'class-e'].map(classId => ({
+        id: `assignment-${classId}`,
+        personId: 'judge-1',
+        classId,
+        status: 'confirmed',
+      })) as never
+    );
+
+    renderPage();
+
+    const yourRing = await screen.findByRole('region', { name: 'Your ring' });
+    expect(within(yourRing).queryByText(/Buried Advanced/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: /Completed/ }));
+    const completed = await screen.findByRole('region', { name: 'Your ring' });
+    expect(within(completed).getByText(/Buried Advanced/)).toBeInTheDocument();
+    expect(within(completed).queryByText(/Interior Excellent/)).not.toBeInTheDocument();
   });
 
   it('names each trial day on Your ring cards so same-name classes are distinguishable (MYK9-1165)', async () => {

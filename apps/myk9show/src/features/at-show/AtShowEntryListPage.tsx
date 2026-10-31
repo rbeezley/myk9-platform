@@ -49,6 +49,7 @@ import { notifyRunOrderPersistError } from './runOrderErrorToast';
 import { persistEntryRunOrder } from './persistEntryRunOrder';
 import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
 import { useAtShowShowHydration } from './useAtShowShowHydration';
+import { PartialReplicaNotice } from './StaleReadNotice';
 import { AtShowEntriesNotOnDeviceAction } from './AtShowEntriesNotOnDeviceAction';
 import { createAtShowDataDependencies } from './atShowDataAdapter';
 import { useAtShowEntryListActions } from './useAtShowEntryListActions';
@@ -337,6 +338,7 @@ export const AtShowEntryListPage: React.FC = () => {
             onDismiss={dismissNudge}
           />
         )}
+        {showHydration === 'not-arrived' && entries.length > 0 && <PartialReplicaNotice />}
         <EntryListPage
           classId={classId}
           data={{ entries, classInfo }}

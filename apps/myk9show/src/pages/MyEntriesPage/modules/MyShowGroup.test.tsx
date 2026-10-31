@@ -480,6 +480,7 @@ describe('post-deadline help (MYK9-502)', () => {
         showDate: day('2026-08-01'),
         showEndDate: day('2026-08-02'),
         entryCloseDate: day('2026-07-01'),
+        classes: [makeClass({ id: 'c-closed-1', trialDate: day('2026-08-02') })],
       }),
     ]);
 

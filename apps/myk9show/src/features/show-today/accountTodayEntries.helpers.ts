@@ -58,8 +58,50 @@ export function buildFavoriteStorageKey(showId: string, trialId: string): string
   return `${FAVORITES_KEY_PREFIX}_${showId}_${trialId}`;
 }
 
+/** Fired when the class favorites change, so an open picker re-reads them. */
+export const CLASS_FAVORITES_CHANGED_EVENT = 'myk9:class-favorites-changed';
+
+/**
+ * Classes the user hearted OFF on purpose. The seeding below re-adds every class an
+ * exhibitor has an entry in, so without this list an un-hearted class would return on
+ * the next load; a dismissed class is skipped until the user hearts it again.
+ */
+function buildDismissedStorageKey(showId: string, trialId: string): string {
+  return `${FAVORITES_KEY_PREFIX}_dismissed_${showId}_${trialId}`;
+}
+
+export function setFavoriteClassDismissals(
+  showId: string,
+  trialId: string,
+  classIds: Iterable<string>
+): void {
+  try {
+    writeJsonArray(buildDismissedStorageKey(showId, trialId), Array.from(classIds));
+  } catch {
+    // Without the record the class may be re-seeded later; the favorite write itself stands.
+  }
+}
+
+export function getDismissedFavoriteClassIds(showId: string, trialId: string): Set<string> {
+  return new Set(readJsonArray(buildDismissedStorageKey(showId, trialId)));
+}
+
 export function getFavoriteClassIdsForTrial(showId: string, trialId: string): Set<string> {
   return new Set(readJsonArray(buildFavoriteStorageKey(showId, trialId)));
+}
+
+/** Returns whether the write landed; a blocked or full store leaves the favorites unchanged. */
+export function setFavoriteClassIdsForTrial(
+  showId: string,
+  trialId: string,
+  classIds: Iterable<string>
+): boolean {
+  try {
+    writeJsonArray(buildFavoriteStorageKey(showId, trialId), Array.from(classIds));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function hydrateAccountTodayEntriesFromReplicatedRows(
@@ -122,13 +164,17 @@ export function persistAccountTodayClassFavorites(
   for (const [trialId, classIds] of favoritesByTrial) {
     const key = buildFavoriteStorageKey(showId, trialId);
     const merged = new Set(readJsonArray(key));
+    const dismissed = getDismissedFavoriteClassIds(showId, trialId);
     const beforeSize = merged.size;
-    for (const classId of classIds) merged.add(classId);
+    for (const classId of classIds) if (!dismissed.has(classId)) merged.add(classId);
     if (merged.size !== beforeSize) {
       writeJsonArray(key, Array.from(merged));
       changed = true;
     }
   }
 
+  if (changed && typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(CLASS_FAVORITES_CHANGED_EVENT, { detail: { showId } }));
+  }
   return changed;
 }

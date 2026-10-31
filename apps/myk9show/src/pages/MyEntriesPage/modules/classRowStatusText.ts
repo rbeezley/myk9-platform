@@ -42,6 +42,7 @@ export const CLASS_ROW_TEXT = {
   checkIn: 'Check in',
   opensLater: 'Check in on the day',
   closedToday: 'check in with the secretary',
+  dayUnknown: 'trial date not loaded yet, check-in unavailable',
   notRun: 'not run',
   absent: 'absent',
 } as const;
@@ -60,6 +61,8 @@ export function classRowStatusText(kind: ClassRowKind): string | undefined {
       return CLASS_ROW_TEXT.opensLater;
     case 'closed-today':
       return CLASS_ROW_TEXT.closedToday;
+    case 'day-unknown':
+      return CLASS_ROW_TEXT.dayUnknown;
     case 'not-run':
       return CLASS_ROW_TEXT.notRun;
     case 'absent':

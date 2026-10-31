@@ -44,8 +44,11 @@ const createAppQueryCache = () =>
 // Create custom mutation cache
 const createAppMutationCache = () =>
   new MutationCache({
-    onError: (error, variables) => {
-      logger.error('Mutation error', 'query', { variables }, error as Error);
+    onError: (error, variables, _context, mutation) => {
+      // A mutation that carries private text (e.g. entry form notes) opts out of having its
+      // variables written to the persisted/forwarded log.
+      const logged = mutation.meta?.sensitiveVariables === true ? '[redacted]' : variables;
+      logger.error('Mutation error', 'query', { variables: logged }, error as Error);
     },
     onSuccess: (_data, _variables, _context, mutation) => {
       if (process.env.NODE_ENV === 'development') {

@@ -348,6 +348,43 @@ END;
 $$;
 RESET ROLE;
 
+-- hard_delete_show's reviewed FK manifest knows entry_form_notes (20261031163800): an
+-- unused show still deletes (no drift refusal), and a show holding notes is refused with
+-- MK615 and keeps its note. Without the manifest row, BOTH would raise MK615 for drift.
+insert into public.shows (id, name, organization, start_date, end_date, club_id, status)
+values ('00000000-0000-0000-0000-000000160013', 'MYK9-1601 Unused Show', 'AKC',
+        current_date + 10, current_date + 11, '00000000-0000-0000-0000-000000160001', 'draft');
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000160152', true);
+SELECT set_config('request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000000160152","role":"authenticated","app_metadata":{}}', true);
+DO $$
+DECLARE msg text; state text;
+BEGIN
+  PERFORM public.hard_delete_show('00000000-0000-0000-0000-000000160013');
+  IF EXISTS (SELECT 1 FROM public.shows WHERE id = '00000000-0000-0000-0000-000000160013') THEN
+    RAISE EXCEPTION 'FAIL unused show was not deleted';
+  END IF;
+  BEGIN
+    PERFORM public.hard_delete_show('00000000-0000-0000-0000-000000160011');
+  EXCEPTION WHEN OTHERS THEN
+    GET STACKED DIAGNOSTICS msg = MESSAGE_TEXT, state = RETURNED_SQLSTATE;
+  END;
+  IF state IS DISTINCT FROM 'MK615' THEN
+    RAISE EXCEPTION 'FAIL show with notes: expected MK615, got %: %', state, msg;
+  END IF;
+  IF msg ILIKE '%changed since hard_delete_show%' OR msg ILIKE '%entry_form_notes_show_id_fkey%' THEN
+    RAISE EXCEPTION 'FAIL manifest drift on entry_form_notes: %', msg;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.entry_form_notes
+                 WHERE id = '00000000-0000-0000-0000-000000160071') THEN
+    RAISE EXCEPTION 'FAIL a refused delete lost a note';
+  END IF;
+  RAISE NOTICE 'PASS hard_delete_show manifest classifies entry_form_notes';
+END;
+$$;
+RESET ROLE;
+
 -- Deletion is final (owner context; the guard trigger still fires). Note ...72 was
 -- soft-deleted above by the site admin.
 DO $$

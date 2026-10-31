@@ -23,7 +23,11 @@ export function useEntryFormNoteMutations(enrollmentId: string, personId: string
   const queryClient = useQueryClient();
   const refresh = () => queryClient.invalidateQueries({ queryKey: key(enrollmentId) });
 
+  // Note text is private: keep it out of the global mutation-error log (queryClient.ts).
+  const meta = { sensitiveVariables: true };
+
   const add = useMutation({
+    meta,
     mutationFn: async (body: string) => {
       if (!personId) throw new Error('Not signed in');
       await addEntryFormNote(enrollmentId, body, personId);
@@ -31,10 +35,12 @@ export function useEntryFormNoteMutations(enrollmentId: string, personId: string
     onSuccess: refresh,
   });
   const update = useMutation({
+    meta,
     mutationFn: ({ id, body }: { id: string; body: string }) => updateEntryFormNote(id, body),
     onSuccess: refresh,
   });
   const remove = useMutation({
+    meta,
     mutationFn: (id: string) => deleteEntryFormNote(id),
     onSuccess: refresh,
   });

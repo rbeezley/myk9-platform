@@ -130,6 +130,18 @@ export const ClockTimeInput: React.FC<ClockTimeInputProps> = ({
     }
   };
 
+  // The AM/PM answer for a phone's numeric keypad, which has no letters: shown whenever
+  // the field holds a time (or is asking which one), and read straight from the parse so a
+  // typed a/p and a pressed button can never disagree.
+  const hourMinutes = isClockTimeFailure(result)
+    ? result.candidates?.[0]?.minutesSinceMidnight
+    : result.minutesSinceMidnight;
+  const pressedPm = isClockTimeFailure(result) ? undefined : result.minutesSinceMidnight >= 12 * 60;
+  const chooseMeridiem = (pm: boolean) => {
+    if (hourMinutes === undefined) return;
+    report(formatClockTime((hourMinutes % (12 * 60)) + (pm ? 12 * 60 : 0)));
+  };
+
   const hasText = text.trim() !== '';
   const failure = isClockTimeFailure(result) ? result : undefined;
   let hint: React.ReactNode = null;
@@ -160,38 +172,61 @@ export const ClockTimeInput: React.FC<ClockTimeInputProps> = ({
 
   return (
     <div className="min-w-0 flex-1">
-      <Input
-        id={id}
-        type="text"
-        inputMode="numeric"
-        autoComplete="off"
-        enterKeyHint={onSubmit ? 'done' : 'next'}
-        spellCheck={false}
-        value={text}
-        onChange={e => report(e.target.value)}
-        onFocus={e => {
-          // Typing a new time replaces the old one instead of appending to it (MYK9-832).
-          e.currentTarget.select();
-          onFocus?.();
-        }}
-        // The click that focused the field would otherwise drop the selection on mouseup.
-        onMouseUp={e => e.preventDefault()}
-        onBlur={() => {
-          settle();
-          onBlur?.();
-        }}
-        onKeyDown={handleKeyDown}
-        placeholder={placeholder}
-        autoFocus={autoFocus}
-        disabled={disabled}
-        aria-label={ariaLabel}
-        aria-invalid={(failure && hasText) || invalid ? true : undefined}
-        aria-describedby={
-          [hint ? hintId : null, describedBy].filter(Boolean).join(' ') || undefined
-        }
-        data-testid={testId}
-        className={className ?? 'h-11 text-base'}
-      />
+      <div className="flex items-center gap-2">
+        <Input
+          id={id}
+          type="text"
+          inputMode="numeric"
+          autoComplete="off"
+          enterKeyHint={onSubmit ? 'done' : 'next'}
+          spellCheck={false}
+          value={text}
+          onChange={e => report(e.target.value)}
+          onFocus={e => {
+            // Typing a new time replaces the old one instead of appending to it (MYK9-832).
+            e.currentTarget.select();
+            onFocus?.();
+          }}
+          // The click that focused the field would otherwise drop the selection on mouseup.
+          onMouseUp={e => e.preventDefault()}
+          onBlur={() => {
+            settle();
+            onBlur?.();
+          }}
+          onKeyDown={handleKeyDown}
+          placeholder={placeholder}
+          autoFocus={autoFocus}
+          disabled={disabled}
+          aria-label={ariaLabel}
+          aria-invalid={(failure && hasText) || invalid ? true : undefined}
+          aria-describedby={
+            [hint ? hintId : null, describedBy].filter(Boolean).join(' ') || undefined
+          }
+          data-testid={testId}
+          className={className ?? 'h-11 text-base'}
+        />
+        {hourMinutes !== undefined && (
+          <div
+            role="group"
+            aria-label={`${ariaLabel ?? 'Time'}, AM or PM`}
+            className="flex shrink-0 overflow-hidden rounded-md border border-border"
+          >
+            {(['AM', 'PM'] as const).map(label => (
+              <button
+                key={label}
+                type="button"
+                disabled={disabled}
+                aria-pressed={pressedPm === undefined ? false : pressedPm === (label === 'PM')}
+                className="h-11 min-w-11 px-3 text-sm font-medium aria-pressed:bg-primary aria-pressed:text-primary-foreground"
+                onMouseDown={e => e.preventDefault()}
+                onClick={() => chooseMeridiem(label === 'PM')}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
       {(hint || reserveHint) && (
         <div id={hintId} className={reserveHint ? 'min-h-5' : undefined}>
           {hint}

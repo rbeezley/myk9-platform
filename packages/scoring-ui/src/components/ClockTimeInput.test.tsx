@@ -164,4 +164,39 @@ describe('ClockTimeInput', () => {
     expect(onSubmit).toHaveBeenCalledTimes(1);
     expect(field().value).toBe('9:00 AM');
   });
+
+  it('answers AM or PM with buttons when the keypad has no letters', () => {
+    const onValue = vi.fn();
+    render(<Harness onValue={onValue} />);
+    fireEvent.change(field(), { target: { value: '0600' } });
+    expect(screen.getByRole('button', { name: 'PM' })).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(screen.getByRole('button', { name: 'AM' }));
+    expect(onValue).toHaveBeenLastCalledWith('06:00 AM');
+    expect(field().value).toBe('6:00 AM');
+    expect(screen.getByRole('button', { name: 'AM' })).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(screen.getByRole('button', { name: 'PM' }));
+    expect(onValue).toHaveBeenLastCalledWith('06:00 PM');
+    expect(field().value).toBe('6:00 PM');
+  });
+
+  it('shows the AM/PM answer in the preview and follows a typed marker', () => {
+    render(<Harness />);
+    fireEvent.change(field(), { target: { value: '0600' } });
+    fireEvent.click(screen.getByRole('button', { name: 'AM' }));
+    fireEvent.change(field(), { target: { value: '6p' } });
+    expect(screen.getByTestId('clock-time-preview')).toHaveTextContent('= 6:00 PM');
+    expect(screen.getByRole('button', { name: 'PM' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'AM' })).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('resolves an ambiguous 7:00 through the AM/PM buttons and hides them for an empty field', () => {
+    const onValue = vi.fn();
+    render(<Harness onValue={onValue} />);
+    expect(screen.queryByRole('button', { name: 'AM' })).toBeNull();
+    fireEvent.change(field(), { target: { value: '7' } });
+    expect(screen.getByRole('button', { name: 'AM' })).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(screen.getByRole('button', { name: 'AM' }));
+    expect(onValue).toHaveBeenLastCalledWith('07:00 AM');
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
 });

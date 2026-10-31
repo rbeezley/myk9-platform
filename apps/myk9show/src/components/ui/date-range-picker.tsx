@@ -124,18 +124,31 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
     [onStartDateChange, onEndDateChange, startTime, endTime, keepEndWhilePicking]
   );
 
-  const handleStartTimeChange = (value: string) => {
-    setStartTime(value);
-    if (startDate) {
-      onStartDateChange(applyTime(startDate, value));
+  // Time edits stay local drafts until Done, so dismissing mid-edit leaves the parent's times alone.
+  const commitTimes = () => {
+    if (!showTime) return;
+    if (startDate && parseStoredClockTime(startTime) !== null) {
+      const next = applyTime(startDate, startTime);
+      if (next.getTime() !== startDate.getTime()) onStartDateChange(next);
+    }
+    if (endDate && parseStoredClockTime(endTime) !== null) {
+      const next = applyTime(endDate, endTime);
+      if (next.getTime() !== endDate.getTime()) onEndDateChange(next);
     }
   };
 
-  const handleEndTimeChange = (value: string) => {
-    setEndTime(value);
-    if (endDate) {
-      onEndDateChange(applyTime(endDate, value));
+  const handleDone = () => {
+    commitTimes();
+    setOpen(false);
+  };
+
+  const handleOpenChange = (next: boolean) => {
+    if (!next && open) {
+      // Dismissed without Done: drop the drafts and show the parent's times again.
+      setStartTime(startDate ? format(startDate, 'h:mm a') : startDefaultTime);
+      setEndTime(endDate ? format(endDate, 'h:mm a') : endDefaultTime);
     }
+    setOpen(next);
   };
 
   // A typed time that is not yet a time keeps the dates' old time, so Done waits for it.
@@ -203,7 +216,7 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
         )}
       </div>
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent className="flex max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-3xl flex-col gap-0 overflow-hidden rounded-xl bg-popover p-0 shadow-2xl sm:max-h-[calc(100dvh-2rem)] sm:w-[calc(100vw-2rem)]">
           <DialogHeader className="shrink-0 border-b px-4 pb-3 pt-4 text-left sm:px-6 sm:pt-5">
             <DialogTitle className="pr-8 text-lg">Choose a date range</DialogTitle>
@@ -264,8 +277,8 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
                 endTime={endTime}
                 startTimeId={startTimeId}
                 endTimeId={endTimeId}
-                onStartTimeChange={handleStartTimeChange}
-                onEndTimeChange={handleEndTimeChange}
+                onStartTimeChange={setStartTime}
+                onEndTimeChange={setEndTime}
               />
             )}
           </div>
@@ -274,7 +287,7 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
             data-testid="date-range-picker-footer"
             className="shrink-0 border-t px-4 py-3 sm:px-6"
           >
-            <Button size="sm" disabled={timesUnresolved} onClick={() => setOpen(false)}>
+            <Button size="sm" disabled={timesUnresolved} onClick={handleDone}>
               Done
             </Button>
           </DialogFooter>

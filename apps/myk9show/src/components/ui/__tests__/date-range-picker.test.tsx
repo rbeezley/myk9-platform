@@ -225,4 +225,47 @@ describe('DateRangePicker', () => {
     expect(onStartDateChange).toHaveBeenCalled();
     expect(onEndDateChange).not.toHaveBeenCalled();
   });
+
+  it('keeps time edits local: dismissing mid-edit leaves the parent time alone', async () => {
+    const user = userEvent.setup();
+    render(
+      <DateRangePicker
+        id="dates"
+        startDate={new Date(2026, 4, 11, 8, 0)}
+        endDate={new Date(2026, 4, 13, 17, 0)}
+        onStartDateChange={onStartDateChange}
+        onEndDateChange={onEndDateChange}
+      />
+    );
+    await user.click(screen.getByRole('button', { name: /may 11, 2026/i }));
+    const startField = screen.getByLabelText('Start time');
+    await user.clear(startField);
+    await user.type(startField, '9:75');
+    expect(screen.getByRole('button', { name: 'Done' })).toBeDisabled();
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(onStartDateChange).not.toHaveBeenCalled();
+    expect(onEndDateChange).not.toHaveBeenCalled();
+  });
+
+  it('commits a valid edited time to the parent only on Done', async () => {
+    const user = userEvent.setup();
+    render(
+      <DateRangePicker
+        id="dates"
+        startDate={new Date(2026, 4, 11, 8, 0)}
+        endDate={new Date(2026, 4, 13, 17, 0)}
+        onStartDateChange={onStartDateChange}
+        onEndDateChange={onEndDateChange}
+      />
+    );
+    await user.click(screen.getByRole('button', { name: /may 11, 2026/i }));
+    const startField = screen.getByLabelText('Start time');
+    await user.clear(startField);
+    await user.type(startField, '930');
+    expect(onStartDateChange).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Done' }));
+    expect(onStartDateChange).toHaveBeenCalledWith(new Date(2026, 4, 11, 9, 30, 0, 0));
+    expect(onEndDateChange).not.toHaveBeenCalled();
+  });
 });

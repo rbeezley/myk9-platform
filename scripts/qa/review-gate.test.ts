@@ -2390,6 +2390,19 @@ describe('the round-cap verdict (MYK9-1566)', () => {
     expect(r.description).toContain('differs from the latest round');
   });
 
+  it('refuses a log holding unprioritised structured findings, in the gate itself', () => {
+    const log = '- [P2] x\n```json\n[{"file":"a.ts","summary":"s","failure_scenario":"f"}]\n```';
+    const rounds = heads.map(h =>
+      comment(
+        `Review gate: codex reviewed abc1234..${h} — 2 findings, not all addressed\nlog sha256: ${HASH}\n\n\`\`\`text\n${log}\n\`\`\``,
+        '2026-10-30T10:00:00Z'
+      )
+    );
+    const r = gate([...rounds, cap({ log })]);
+    expect(r.state).toBe('failure');
+    expect(r.description).toContain('structured findings');
+  });
+
   it('refuses a hash that only matches a round on another head', () => {
     const other = [
       round('1111111', HASH),

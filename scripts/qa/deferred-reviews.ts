@@ -68,6 +68,7 @@ import {
   parseGateComments,
   type GateComment,
 } from './review-gate.ts';
+import { isRoundCapVerdict, roundCapProblem } from './review-round-cap.ts';
 
 /**
  * `DEFERRED_REVIEW`'s canonical shape check lives in `review-gate.ts` (search
@@ -216,18 +217,24 @@ function toGateComment(comment: RepoComment): GateComment {
  * The deferred ids that actually gated this merge, selected the way
  * `evaluateReviewGate` selects evidence: latest trusted gate line by
  * `updatedAt` among those whose head prefixes the MERGED head, and only when
- * that one line is an accepted `owner` override (round 1 review, P2-2).
+ * that one line is an accepted `owner` override (round 1 review, P2-2) or an
+ * accepted round-cap verdict (MYK9-1566), whose deferred issue is the same debt.
  */
 export function deferralCandidatesForPr(
   pr: PrView,
   comments: readonly RepoComment[]
 ): DeferralCandidate[] {
   const head = pr.headRefOid.toLowerCase();
-  const forHead = parseGateComments(comments.map(toGateComment))
+  const all = parseGateComments(comments.map(toGateComment));
+  const forHead = all
     .filter(evidence => head.startsWith(evidence.head.toLowerCase()))
     .sort((a, b) => a.updatedAt.localeCompare(b.updatedAt));
   const latest = forHead.at(-1);
-  if (!latest || !overrideAccepted(latest)) return [];
+  if (!latest) return [];
+  const capAccepted =
+    isRoundCapVerdict(latest.verdict) &&
+    roundCapProblem(latest, all, extractDeferredIds(latest.body).length > 0) === undefined;
+  if (!capAccepted && !overrideAccepted(latest)) return [];
   return extractDeferredIds(latest.body).map(id => ({
     pr: pr.number,
     head: pr.headRefOid.slice(0, 9),

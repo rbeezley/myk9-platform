@@ -717,10 +717,56 @@ describe('deferred-reviews --self-test (offline, no gh/Linear calls)', () => {
 
   it('a mutant that reconciles every override, not just the latest for the head, fails the self-test', () => {
     const result = mutate(
-      'const latest = forHead.at(-1);\n  if (!latest || !overrideAccepted(latest)) return [];',
-      'const latest = forHead.at(0);\n  if (!latest || !overrideAccepted(latest)) return [];'
+      'const latest = forHead.at(-1);',
+      'const latest = forHead.at(0);'
     );
     expect(result.status).not.toBe(0);
     expect(result.stdout).toContain('[only the latest override for the head carries debt]: FAIL');
+  });
+});
+
+describe('deferralCandidatesForPr with a round-cap verdict (MYK9-1566)', () => {
+  const pr = mergedPr(3455);
+  const hash = 'c'.repeat(64);
+  const quote = '- [P2] a lower finding';
+  const gateComment = (
+    head: string,
+    verdict: string,
+    extra: string[],
+    at: string
+  ): RepoComment => ({
+    issue: 3455,
+    body: [
+      `Review gate: codex reviewed abc1234..${head} — ${verdict}`,
+      ...extra,
+      `log sha256: ${hash}`,
+      '',
+      '```text',
+      quote,
+      '```',
+    ].join('\n'),
+    createdAt: at,
+    updatedAt: at,
+    author: 'rbeezley',
+    authorAssociation: 'OWNER',
+  });
+  const round = (head: string) =>
+    gateComment(head, '1 findings, not all addressed', [], '2026-10-30T10:00:00Z');
+  const cap = (extra = ['Deferred re-review: MYK9-900']) =>
+    gateComment('aaaaaaaaa', 'round cap, no P0/P1 open', extra, '2026-10-30T11:00:00Z');
+  const rounds = [round('1111111'), round('2222222'), round('aaaaaaaaa')];
+
+  it('surfaces the deferred issue of an accepted round-cap verdict', () => {
+    expect(deferralCandidatesForPr(pr, [...rounds, cap()])).toEqual([
+      { pr: 3455, head: 'aaaaaaaaa', id: 'MYK9-900' },
+    ]);
+  });
+
+  it('ignores a round-cap verdict the gate would refuse (only 2 rounds)', () => {
+    expect(deferralCandidatesForPr(pr, [rounds[0]!, rounds[2]!, cap()])).toEqual([]);
+  });
+
+  it('ignores a round-cap verdict with no deferred issue', () => {
+    expect(deferralCandidatesForPr(pr, [...rounds, cap([])])).toEqual([]);
   });
 });

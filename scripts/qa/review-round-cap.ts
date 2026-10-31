@@ -45,6 +45,41 @@ export function quotedLog(body: string): string {
   return end > start ? body.slice(start, end) : '';
 }
 
+/**
+ * Structured findings (a fenced JSON array of {file, summary, failure_scenario}
+ * objects) carry no priority, so a log holding them cannot show "no P0/P1".
+ * Same parse rule as REVIEW_FINDINGS_PARSER in review-verdict.sh.
+ */
+export function hasStructuredFindings(log: string): boolean {
+  const fence = /^[ \t]*```([A-Za-z]*)[ \t]*\n([\s\S]*?)^[ \t]*```[ \t]*$/gm;
+  for (const m of log.matchAll(fence)) {
+    const lang = (m[1] ?? '').toLowerCase();
+    const body = m[2] ?? '';
+    if (!(lang === 'json' || (lang === '' && body.trimStart().startsWith('[')))) continue;
+    try {
+      const parsed: unknown = JSON.parse(body);
+      if (
+        Array.isArray(parsed) &&
+        parsed.length > 0 &&
+        parsed.every(
+          o =>
+            o !== null &&
+            typeof o === 'object' &&
+            !Array.isArray(o) &&
+            ['file', 'summary', 'failure_scenario'].every(
+              k => typeof (o as Record<string, unknown>)[k] === 'string'
+            )
+        )
+      ) {
+        return true;
+      }
+    } catch {
+      // not JSON: not structured findings
+    }
+  }
+  return false;
+}
+
 export function logHashOf(body: string): string | undefined {
   return /^log sha256: ([0-9a-f]{64})$/m.exec(body)?.[1];
 }
@@ -82,6 +117,9 @@ export function roundCapProblem(
   const hash = logHashOf(cap.body);
   const log = quotedLog(cap.body);
   if (!hash || log.trim() === '') return 'must quote the round log and its log sha256';
+  if (hasStructuredFindings(log)) {
+    return 'quotes a log with unprioritised structured findings, which cannot show no P0/P1';
+  }
   if (BLOCKING_FINDING_BULLET.test(log))
     return 'quotes a log that still carries a [P0] or [P1] bullet';
   // The LATEST round recorded on this head (by last edit), not any earlier one: a

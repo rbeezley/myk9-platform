@@ -192,7 +192,7 @@ describe('useUserPreferences (local-first)', () => {
     const onServerTheme = vi.fn();
     const { result, rerender } = renderHook(
       ({ uid }: { uid: string | null }) => useUserPreferences(uid, onServerTheme),
-      { initialProps: { uid: 'u1' } }
+      { initialProps: { uid: 'u1' as string | null } }
     );
     await waitFor(() => expect(mockLoad).toHaveBeenCalledTimes(1));
     rerender({ uid: null });

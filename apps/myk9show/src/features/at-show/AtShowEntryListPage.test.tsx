@@ -65,6 +65,11 @@ const entriesScope = vi.hoisted(() => ({
   gate: null as Promise<void> | null,
   anonymous: false,
 }));
+const structureState = vi.hoisted(() => ({ onDevice: true }));
+vi.mock('./atShowClassListAdapter', async importOriginal => ({
+  ...(await importOriginal<typeof import('./atShowClassListAdapter')>()),
+  isAtShowStructureOnDevice: async () => structureState.onDevice,
+}));
 vi.mock('@/services/replication/entriesShowSyncState', async importOriginal => ({
   ...(await importOriginal<typeof import('@/services/replication/entriesShowSyncState')>()),
   hasShowEntriesSynced: vi.fn(async () => {
@@ -281,7 +286,7 @@ describe('AtShowEntryListPage (Phase 1a shim)', () => {
   });
 
   it('says No Entries Yet for a genuinely empty class once the hydration arrived', async () => {
-    entriesScope.synced = false; // irrelevant: the hydration itself succeeded
+    entriesScope.synced = true; // the hydration succeeded and left the show on the device
     vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([] as never);
 
     renderPage();

@@ -9,7 +9,7 @@ const classState = vi.hoisted(() => ({
   refresh: vi.fn(),
   groups: [] as unknown[],
   available: true,
-  syncGate: null as Promise<void> | null,
+  syncGate: null as Promise<unknown> | null,
   realtime: null as null | {
     showId: string | undefined;
     classIds: readonly string[];
@@ -35,6 +35,11 @@ vi.mock('./useAtShowRealtimeRefresh', () => ({
 vi.mock('@/services/replication', () => ({
   replicatedEntriesTable: { getEntriesByShow, subscribe: vi.fn(() => vi.fn()) },
   replicatedArmbandsTable: { getByShow: vi.fn(async () => []), subscribe: vi.fn(() => vi.fn()) },
+}));
+const structureState = vi.hoisted(() => ({ onDevice: true }));
+vi.mock('./atShowClassListAdapter', async importOriginal => ({
+  ...(await importOriginal<typeof import('./atShowClassListAdapter')>()),
+  isAtShowStructureOnDevice: async () => structureState.onDevice,
 }));
 vi.mock('@/services/replication/entriesShowSyncState', () => ({
   hasShowEntriesSynced: async () => classState.available,
@@ -125,6 +130,7 @@ describe('useAtShowStaffDogs', () => {
   });
 
   it('reports an incomplete replica until the show scope has a completed sync', async () => {
+    classState.syncGate = Promise.resolve({ success: false });
     classState.available = false;
     getEntriesByShow.mockResolvedValue([]);
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -135,7 +141,26 @@ describe('useAtShowStaffDogs', () => {
     await waitFor(() => expect(result.current.dogs).toEqual([]));
     await new Promise(resolve => setTimeout(resolve, 20));
     expect(result.current.isComplete).toBe(false);
+    classState.syncGate = null;
     classState.available = true;
+  });
+
+  it('reports an incomplete replica when the entries synced but the classes did not (MYK9-1538)', async () => {
+    classState.syncGate = Promise.resolve({ success: false });
+    structureState.onDevice = false;
+    getEntriesByShow.mockResolvedValue([]);
+    const { result } = setup();
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.isComplete).toBe(false);
+    classState.syncGate = null;
+    structureState.onDevice = true;
+  });
+
+  it('reports a complete replica when the entries, trials and classes all synced', async () => {
+    getEntriesByShow.mockResolvedValue([]);
+    const { result } = setup();
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.isComplete).toBe(true);
   });
 
   describe('cold offline reload (MYK9-1509)', () => {
@@ -222,7 +247,7 @@ describe('useAtShowStaffDogs', () => {
   });
 
   it('keeps the partial notice when hydration settles without a completed sync', async () => {
-    classState.syncGate = Promise.resolve();
+    classState.syncGate = Promise.resolve({ success: false });
     classState.available = false;
     getEntriesByShow.mockResolvedValue([]);
     const { result } = setup();

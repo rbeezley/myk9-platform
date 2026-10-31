@@ -1,31 +1,27 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ReplicationSyncContextValue } from '@/context/ReplicationSyncContext';
-import { hasShowEntriesSynced } from '@/services/replication/entriesShowSyncState';
+import { isAtShowFullyOnDevice } from './atShowOnDevice';
 import { subscribeAtShowSyncSettled, syncAtShowData } from './atShowDataAdapter';
 
 /**
- * Whether this show's entries are on this device, as far as the first hydration
- * can tell. The shared "is this show on the device" signal (MYK9-1520; the dog
+ * Whether this show (its entries, trials and classes) is on this device, as far
+ * as the first hydration can tell. The shared "is this show on the device" signal (MYK9-1520; the dog
  * pages need the same answer, MYK9-1538):
  *
  * - `'pending'`: the first hydration of this show is still running.
  * - `'arrived'`: the entries are on this device, from that hydration or from an
  *   earlier save. A hydration that failed (offline) on a previously saved
  *   device is still `'arrived'`: the cached rows are the show.
- * - `'not-arrived'`: the hydration did not succeed AND this show's entries scope
- *   has never completed a sync here. An empty list then means "not loaded", not
+ * - `'not-arrived'`: the hydration did not succeed AND some scope of this show
+ *   (entries, trials or classes) has never completed a sync here. An empty list then means "not loaded", not
  *   "none".
  */
 export type ShowHydrationState = 'pending' | 'arrived' | 'not-arrived';
 
-/** Treat an unreadable marker as not synced: the safe side is to say "not here". */
-async function readEntriesMarker(showId: string): Promise<boolean> {
-  try {
-    return await hasShowEntriesSynced(showId);
-  } catch {
-    return false;
-  }
-}
+const noop = () => {};
+
+/** Entries, trials and classes all synced here; unreadable counts as not synced. */
+const readEntriesMarker = isAtShowFullyOnDevice;
 
 /**
  * Hydrates the at-show page's own show (trials, their classes, its entries) the
@@ -39,7 +35,7 @@ async function readEntriesMarker(showId: string): Promise<boolean> {
  * scoresheet and show boundary already sync this way.
  *
  * The first hydration shares the page's in-flight `syncAtShowData` operation,
- * so its `success` is read without a second sync. The entries marker is read
+ * so it waits on it without a second sync. The show-on-device marker is read
  * once, inside the settle and before the state is set, so the page never
  * renders between the two answers. A later settled sync (e.g. "Save for show
  * day") upgrades `'not-arrived'` to `'arrived'` once the marker is there.
@@ -74,17 +70,15 @@ export function useAtShowShowHydration(
       });
       return;
     }
-    // Started before refresh() so both share one operation; a failed or
-    // rejected sync (offline) only means "did not arrive".
-    const outcome = syncAtShowData(forShow).then(
-      // Like `isSyncResultFailed`: only an explicit `success: false` is a failure.
-      result => result?.success !== false,
-      () => false
-    );
+    // Started before refresh() so both share one operation. Its result is not
+    // trusted: a sync that reports success can still leave a scope short, so the
+    // marker below decides, and a failed or rejected sync (offline) just settles.
+    const outcome = syncAtShowData(forShow).then(noop, noop);
     // refresh() swallows sync failures (offline: keep the cached rows).
     void Promise.all([refresh(true).catch(() => {}), outcome]).then(
-      async ([, success]) => {
-        const state = success || (await readEntriesMarker(forShow)) ? 'arrived' : 'not-arrived';
+      async () => {
+        // A reported success still has to leave every scope on the device (MYK9-1538).
+        const state = (await readEntriesMarker(forShow)) ? 'arrived' : 'not-arrived';
         if (startedShowRef.current === forShow) setHydrated({ showId: forShow, state });
       },
       () => {

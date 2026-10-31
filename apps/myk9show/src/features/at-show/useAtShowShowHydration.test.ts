@@ -1,4 +1,4 @@
-import { act, renderHook } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReplicationSyncContextValue } from '@/context/ReplicationSyncContext';
 import { useAtShowShowHydration } from './useAtShowShowHydration';
@@ -12,6 +12,11 @@ const mocks = vi.hoisted(() => ({
 vi.mock('./atShowDataAdapter', () => ({
   syncAtShowData: mocks.syncAtShowData,
   subscribeAtShowSyncSettled: mocks.subscribeAtShowSyncSettled,
+}));
+const structureState = vi.hoisted(() => ({ onDevice: true }));
+vi.mock('./atShowClassListAdapter', async importOriginal => ({
+  ...(await importOriginal<typeof import('./atShowClassListAdapter')>()),
+  isAtShowStructureOnDevice: async () => structureState.onDevice,
 }));
 vi.mock('@/services/replication/entriesShowSyncState', () => ({
   hasShowEntriesSynced: mocks.hasShowEntriesSynced,
@@ -39,7 +44,8 @@ describe('useAtShowShowHydration', () => {
     mocks.subscribeAtShowSyncSettled.mockReset().mockReturnValue(vi.fn());
   });
 
-  it('is pending, then arrived when the hydration succeeded', async () => {
+  it('is pending, then arrived when the hydration succeeded and the show is on the device', async () => {
+    mocks.hasShowEntriesSynced.mockResolvedValue(true);
     const sync = deferred<{ success: boolean }>();
     mocks.syncAtShowData.mockReturnValue(sync.promise);
     const { result } = renderHook(() => useAtShowShowHydration('A', IDLE_STATUS, settledRefresh()));
@@ -50,7 +56,15 @@ describe('useAtShowShowHydration', () => {
       await sync.promise;
     });
     expect(result.current).toBe('arrived');
-    expect(mocks.hasShowEntriesSynced).not.toHaveBeenCalled();
+  });
+
+  it('is not-arrived when the sync reported success but a scope is still short (MYK9-1538)', async () => {
+    mocks.syncAtShowData.mockResolvedValue({ success: true });
+    mocks.hasShowEntriesSynced.mockResolvedValue(true);
+    structureState.onDevice = false;
+    const { result } = renderHook(() => useAtShowShowHydration('A', IDLE_STATUS, settledRefresh()));
+    await waitFor(() => expect(result.current).toBe('not-arrived'));
+    structureState.onDevice = true;
   });
 
   it('is not-arrived when the hydration failed and no entries marker exists', async () => {
@@ -83,6 +97,7 @@ describe('useAtShowShowHydration', () => {
     expect(mocks.syncAtShowData).toHaveBeenCalledTimes(2);
     expect(result.current).toBe('pending');
 
+    mocks.hasShowEntriesSynced.mockResolvedValue(true);
     await act(async () => {
       b.resolve({ success: true });
       await b.promise;

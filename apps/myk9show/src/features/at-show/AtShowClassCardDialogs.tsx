@@ -9,7 +9,7 @@
  */
 import { useEffect, useState, type RefObject } from 'react';
 import { toast } from 'sonner';
-import type { ClassEntry } from '@myk9/ringside';
+import { getClassIds, type ClassEntry } from '@myk9/ringside';
 import { getTrialRegistry } from '@/features/registries';
 import { scoresheetKeyForClass } from '@/pages/scoring/types';
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
@@ -20,6 +20,7 @@ import {
   ClassStatusDialog,
   MaxTimeDialog,
 } from './slots/classDialogs';
+import { MaxTimeLookupDialog } from './slots/MaxTimeLookupDialog';
 import { buildRingsideReplication } from './ringsideCapabilities';
 import { toStatusUpdateFields } from './ringsideClassStatusMap';
 import { useLiveClasses } from './useLiveClasses';
@@ -71,11 +72,12 @@ type PerAreaLookup = { status: 'pending' | 'failed' } | { status: 'ready'; perAr
 function usePerAreaMaxTimes(
   trial: ReplicatedTrial | null,
   className: string | undefined,
-  enabled: boolean
+  enabled: boolean,
+  attempt: number
 ): PerAreaLookup {
   const [result, setResult] = useState<({ key: string } & PerAreaLookup) | null>(null);
   const trialId = trial?.id;
-  const key = `${trialId ?? ''}|${className ?? ''}`;
+  const key = `${trialId ?? ''}|${className ?? ''}|${attempt}`;
   useEffect(() => {
     if (!enabled || !trialId || !className) return;
     let cancelled = false;
@@ -109,22 +111,25 @@ export function AtShowClassCardDialogs({
   onClose,
 }: AtShowClassCardDialogsProps) {
   const entry = active?.entry ?? null;
-  const live = useLiveClasses(entry ? [entry.id] : [], entry !== null)?.[0] ?? null;
+  const [attempt, setAttempt] = useState(0);
+  const liveRows = useLiveClasses(entry ? getClassIds(entry) : [], entry !== null, attempt);
+  const live = liveRows?.find(row => row.id === entry?.id) ?? null;
+  const pairedLive = liveRows?.find(row => row.id !== entry?.id) ?? null;
   // Which options panel is open belongs to the card that opened it.
   const [view, setView] = useState<{ cardKey: string; view: OptionsView } | null>(null);
   const cardKey = entry ? `${entry.id}:${active?.mode}:${active?.session}` : '';
   const optionsView: OptionsView = view?.cardKey === cardKey ? view.view : 'menu';
-  const perAreaLookup = usePerAreaMaxTimes(
+  const timingLookup = usePerAreaMaxTimes(
     active?.trial ?? null,
     live?.name ?? undefined,
-    active?.mode === 'options'
+    active?.mode === 'options',
+    attempt
   );
+  // The lookup keys off the live row's name, so a read that finds no row can never settle:
+  // that is a failure to recover from, not a wait.
+  const perAreaLookup: PerAreaLookup =
+    active?.mode === 'options' && liveRows !== null && !live ? { status: 'failed' } : timingLookup;
   const perAreaMaxTimes = perAreaLookup.status === 'ready' && perAreaLookup.perArea;
-  // The max-time form sizes its inputs once, so it waits for the scoring mode rather
-  // than guessing single-area. A failed lookup has already said so; the menu stays.
-  const lookupFailed = perAreaLookup.status === 'failed';
-  const currentView: OptionsView =
-    optionsView === 'max-time' && lookupFailed ? 'menu' : optionsView;
 
   if (!active || !entry) return null;
 
@@ -136,7 +141,7 @@ export function AtShowClassCardDialogs({
         anchorRef={anchorRef}
         position="bottom"
         sheet={sheet}
-        data={classDetailsData(entry, live, active.trialTimeZone, active.countsTrusted)}
+        data={classDetailsData(entry, live, active.trialTimeZone, active.countsTrusted, pairedLive)}
       />
     );
   }
@@ -148,11 +153,11 @@ export function AtShowClassCardDialogs({
   return (
     <>
       <ClassOptionsDialog
-        isOpen={currentView === 'menu'}
+        isOpen={optionsView === 'menu'}
         onClose={onClose}
         classData={{ ...classOptionsData(entry), per_area_times: perAreaMaxTimes }}
         onRequirements={() => show('requirements')}
-        onSetMaxTime={() => (lookupFailed ? toast.error(LOOKUP_FAILED_MESSAGE) : show('max-time'))}
+        onSetMaxTime={() => show('max-time')}
         onStatus={() => show('status')}
         // Statistics opens from the dialog itself; the handler's presence shows the tile.
         onStatistics={() => {}}
@@ -161,18 +166,26 @@ export function AtShowClassCardDialogs({
         hidePrintOptions
       />
       <ClassRequirementsDialog
-        isOpen={currentView === 'requirements'}
+        isOpen={optionsView === 'requirements'}
         onClose={onClose}
-        {...(canManageClasses && !lookupFailed ? { onSetMaxTime: () => show('max-time') } : {})}
+        {...(canManageClasses ? { onSetMaxTime: () => show('max-time') } : {})}
         classData={{ ...classRequirementsData(entry, registry), per_area_times: perAreaMaxTimes }}
       />
       <MaxTimeDialog
-        isOpen={currentView === 'max-time' && perAreaLookup.status === 'ready'}
+        isOpen={optionsView === 'max-time' && perAreaLookup.status === 'ready'}
         onClose={onClose}
         classData={maxTimeData}
       />
+      {optionsView === 'max-time' && perAreaLookup.status !== 'ready' && (
+        <MaxTimeLookupDialog
+          className={entry.class_name}
+          failed={perAreaLookup.status === 'failed'}
+          onRetry={() => setAttempt(n => n + 1)}
+          onClose={onClose}
+        />
+      )}
       <ClassStatusDialog
-        isOpen={currentView === 'status'}
+        isOpen={optionsView === 'status'}
         onClose={onClose}
         onStatusChange={async (status, timeValue) => {
           const ringsideStatus = status as Parameters<

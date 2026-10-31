@@ -7,6 +7,7 @@
  * those components already take. Counts come from the card, so a dialog and the
  * card it was opened from can never disagree.
  */
+import { isCombinedEntry } from '@myk9/ringside';
 import type {
   ClassDetailsData,
   ClassEntry,
@@ -16,15 +17,25 @@ import type {
   MaxTimeDialogProps,
 } from '@myk9/ringside';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
-import { buildRingsideStatusInfo } from './ringsideStatusInfo';
+import { buildCombinedStatusLabel, buildRingsideStatusInfo } from './ringsideStatusInfo';
 
 export function classDetailsData(
   entry: ClassEntry,
   live: ReplicatedClass | null,
   timeZone: string,
-  countsTrusted: boolean
+  countsTrusted: boolean,
+  pairedLive: ReplicatedClass | null = null
 ): ClassDetailsData {
-  const statusLabel = live ? buildRingsideStatusInfo(live, timeZone).statusLabel : undefined;
+  // A combined A/B card shows the merged pair's status (the same merge the card uses),
+  // never one section's own label, which would hide the other section's phase.
+  const combined = isCombinedEntry(entry);
+  const statusLabel = combined
+    ? live && pairedLive
+      ? (buildCombinedStatusLabel(live, pairedLive, timeZone) ?? undefined)
+      : undefined
+    : live
+      ? buildRingsideStatusInfo(live, timeZone).statusLabel
+      : undefined;
   const limit = (card: number | undefined, stored: number | null | undefined) =>
     card ?? stored ?? undefined;
   const visibility = (live?.visibilityPreset ?? entry.visibility_preset) as

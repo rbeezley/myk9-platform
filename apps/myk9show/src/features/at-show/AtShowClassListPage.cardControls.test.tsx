@@ -232,6 +232,27 @@ describe('details and options', () => {
     expect(within(dialog).getByText('Judge Kowalski')).toBeInTheDocument();
   });
 
+  it("shows a combined A/B card's merged status in its details, not section A's", async () => {
+    const withPhase = (id: string, ringPhase: string | null) => {
+      const row = CLASSES.find(c => c.id === id) as Record<string, unknown>;
+      return { ...row, name: 'Container Novice', ringPhase };
+    };
+    const sectionA = withPhase('class-a', null);
+    const sectionB = withPhase('class-b', 'offline_scoring');
+    vi.mocked(replicatedClassesTable.getClassesByTrial).mockResolvedValue(
+      CLASSES.map(c => (c.id === 'class-a' ? sectionA : c.id === 'class-b' ? sectionB : c)) as never
+    );
+    vi.mocked(replicatedClassesTable.getClassById).mockImplementation((async (id: string) =>
+      id === 'class-a' ? sectionA : id === 'class-b' ? sectionB : null) as never);
+    renderPage();
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Class details for Container Novice A & B' })
+    );
+    const dialog = await screen.findByRole('dialog', { name: 'Class details' });
+    expect(await within(dialog).findByText('Offline Scoring')).toBeInTheDocument();
+  });
+
   it('hides the options ellipsis from roles that cannot manage classes', async () => {
     renderPage();
     await screen.findByText('Interior Excellent');
@@ -275,9 +296,30 @@ describe('options session', () => {
 describe('Set Max Time scoring-mode lookup', () => {
   const liveClass = { id: 'class-c', name: 'Interior Excellent' };
 
-  it('says so and keeps the menu when the scoring mode cannot be determined', async () => {
+  it('shows loading with a working Cancel while the class lookup is pending', async () => {
     role.primary = UserRole.SECRETARY;
-    lookup.scoresheetKey.mockRejectedValue(new Error('offline'));
+    lookup.scoresheetKey.mockReturnValue(new Promise(() => {}));
+    vi.mocked(replicatedClassesTable.getClassById).mockResolvedValue(liveClass as never);
+    renderPage();
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Class options for Interior Excellent' })
+    );
+    await waitFor(() => expect(lookup.scoresheetKey).toHaveBeenCalled());
+    fireEvent.click(await screen.findByRole('button', { name: 'Set Max Time' }));
+
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByRole('status')).toHaveTextContent(
+      'Checking how this class is timed'
+    );
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  it('shows an error with Retry when the lookup fails, and opens the form on retry', async () => {
+    role.primary = UserRole.SECRETARY;
+    lookup.scoresheetKey.mockRejectedValueOnce(new Error('offline'));
+    lookup.scoresheetKey.mockResolvedValue('AKC_SCENT_WORK');
     vi.mocked(replicatedClassesTable.getClassById).mockResolvedValue(liveClass as never);
     renderPage();
 
@@ -285,10 +327,31 @@ describe('Set Max Time scoring-mode lookup', () => {
       await screen.findByRole('button', { name: 'Class options for Interior Excellent' })
     );
     await waitFor(() => expect(lookup.toastError).toHaveBeenCalledTimes(1));
-
     fireEvent.click(await screen.findByRole('button', { name: 'Set Max Time' }));
-    expect(lookup.toastError).toHaveBeenCalledTimes(2);
-    expect(screen.getByRole('button', { name: 'Requirements' })).toBeInTheDocument();
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent("Couldn't check how this class is timed");
+    fireEvent.click(within(alert).getByRole('button', { name: 'Retry' }));
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+    expect(lookup.scoresheetKey).toHaveBeenCalledTimes(2);
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('offers Retry, not a stuck dialog, when the live class row never loads', async () => {
+    role.primary = UserRole.SECRETARY;
+    renderPage();
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Class options for Interior Excellent' })
+    );
+    fireEvent.click(await screen.findByRole('button', { name: 'Set Max Time' }));
+    const alert = await screen.findByRole('alert');
+    fireEvent.click(within(alert).getByRole('button', { name: 'Retry' }));
+    await waitFor(() =>
+      expect(vi.mocked(replicatedClassesTable.getClassById).mock.calls.length).toBeGreaterThan(2)
+    );
+    fireEvent.click(await screen.findByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 
   it('opens the form once the scoring mode is known', async () => {

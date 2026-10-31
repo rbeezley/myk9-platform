@@ -17,8 +17,9 @@
 --      column, and pages are capped at 1000 rows;
 --   9. soft-deleted shows, classes and dogs expose nothing, and a caller whose only
 --      entry is not_accepted, moved or absent gets nothing;
---  10. run positions follow the ringside ordering (null/0 run order by armband, ties
---      by armband);
+--  10. run positions are the place in line: ringside ordering for waiting dogs only
+--      (null/0 run order by armband, ties by armband); scored, in-ring and pulled
+--      dogs have none;
 --   8. the function is closed to anon and PUBLIC, open to authenticated.
 --
 -- All fixtures roll back. Run with psql -X -v ON_ERROR_STOP=1 after migrations.
@@ -249,6 +250,23 @@ VALUES
    '00000000-0000-0000-0000-000001517109', '00000000-0000-0000-0000-000001517010',
    '00000000-0000-0000-0000-000001517011', '00000000-0000-0000-0000-000001517114', 'H', '140', NULL,
    'confirmed', 'pending', 25, 'no-status');
+-- Not waiting: scored (run 1), pulled (run 2), in the ring (run 3). They sort ahead of
+-- every waiting dog but must have NO place in line and must not shift anyone's.
+INSERT INTO public.entries (id, dog_id, class_id, show_id, trial_id, handler_id, handler, armband,
+  run_order, entry_status, payment_status, entry_fee, check_in_status, is_scored)
+VALUES
+  ('00000000-0000-0000-0000-000001517235', '00000000-0000-0000-0000-000001517135',
+   '00000000-0000-0000-0000-000001517109', '00000000-0000-0000-0000-000001517010',
+   '00000000-0000-0000-0000-000001517011', '00000000-0000-0000-0000-000001517115', 'H', '139', 1,
+   'confirmed', 'pending', 25, 'checked-in', true),
+  ('00000000-0000-0000-0000-000001517236', '00000000-0000-0000-0000-000001517136',
+   '00000000-0000-0000-0000-000001517109', '00000000-0000-0000-0000-000001517010',
+   '00000000-0000-0000-0000-000001517011', '00000000-0000-0000-0000-000001517111', 'H', '138', 2,
+   'confirmed', 'pending', 25, 'pulled', false),
+  ('00000000-0000-0000-0000-000001517237', '00000000-0000-0000-0000-000001517137',
+   '00000000-0000-0000-0000-000001517109', '00000000-0000-0000-0000-000001517010',
+   '00000000-0000-0000-0000-000001517011', '00000000-0000-0000-0000-000001517111', 'H', '137', 3,
+   'confirmed', 'pending', 25, 'in-ring', false);
 INSERT INTO public.show_passcodes (show_id, role, passcode_hash, created_at)
 VALUES ('00000000-0000-0000-0000-000001517010', 'steward', 'myk9-1517-hash-d', '2026-10-10T00:00:00Z');
 
@@ -429,7 +447,8 @@ END $$;
 
 -- 10. run position follows compareByRunOrder: key = run_order, or the armband when the
 -- run order is 0 or NULL; ties break by armband, then entry id. Expected order by key:
--- 141 (5), 143 (5, tie after 141), 140 (NULL -> 140), 142 (0 -> 142).
+-- 141 (5), 143 (5, tie after 141), 140 (NULL -> 140), 142 (0 -> 142). Only WAITING dogs
+-- count (not scored, not in the ring, not pulled): 137/138/139 get NULL.
 SELECT pg_temp.as_passcode('00000000-0000-0000-0000-000001517010', '2026-10-10T00:00:00Z');
 DO $$
 DECLARE
@@ -437,9 +456,9 @@ DECLARE
 BEGIN
   SELECT array_agg(run_position ORDER BY armband) INTO v
   FROM public.show_dogs_limited_view('00000000-0000-0000-0000-000001517010');
-  -- by armband 140, 141, 142, 143 -> positions 3, 1, 4, 2
-  IF v IS DISTINCT FROM ARRAY[3, 1, 4, 2] THEN
-    RAISE EXCEPTION 'FAIL 10 positions by armband 140..143 must be 3,1,4,2, got %', v;
+  -- by armband 137..143: in-ring, pulled, scored have no place; then 3, 1, 4, 2
+  IF v IS DISTINCT FROM ARRAY[NULL, NULL, NULL, 3, 1, 4, 2]::integer[] THEN
+    RAISE EXCEPTION 'FAIL 10 positions by armband 137..143 must be NULL,NULL,NULL,3,1,4,2, got %', v;
   END IF;
   RAISE NOTICE 'PASS 10 run position follows the ringside ordering and tie-breaks';
 END $$;

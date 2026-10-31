@@ -93,6 +93,8 @@ BEGIN
       e.class_id AS entry_class_id,
       e.run_order,
       e.check_in_status AS entry_check_in,
+      e.is_scored AS entry_is_scored,
+      e.is_in_ring AS entry_is_in_ring,
       d.call_name AS dog_call_name,
       d.name AS dog_name,
       d.breed AS dog_breed,
@@ -110,26 +112,31 @@ BEGIN
       AND (e.class_id IS NULL OR (c.id IS NOT NULL AND t.id IS NOT NULL))
       AND coalesce(e.entry_status, '') <> ALL (v_excluded)
   ),
-  keyed AS (
-    -- Mirrors compareByRunOrder (packages/ringside runQueue.ts): the sort key is the
-    -- run order, or the armband when the run order is null or 0; ties break by armband,
-    -- then entry id.
-    SELECT
-      l.*,
-      CASE WHEN l.entry_armband ~ '^[0-9]{1,9}$' THEN l.entry_armband::integer
-           ELSE 2147483647 END AS armband_key
-    FROM live l
-  ),
   ranked AS (
-    -- Position in the class's run order (1 = first), derived from that key, which has
-    -- gaps and need not start at 1.
+    -- Place in line (1 = next), by the shared queue rules (runQueue.ts pendingByRunOrder,
+    -- mirrored in push-trigger-run-proximity): only a dog still WAITING has a place. A
+    -- scored, in-ring, pulled or otherwise finished dog has none (NULL; the check-in
+    -- status says what it is). No score value is read out, only whether the dog is
+    -- still due to run.
     SELECT
       k.*,
-      row_number() OVER (
-        PARTITION BY k.entry_class_id
+      CASE WHEN k.waiting THEN row_number() OVER (
+        PARTITION BY k.entry_class_id, k.waiting
         ORDER BY coalesce(nullif(k.run_order, 0), k.armband_key), k.armband_key, k.entry_id
-      ) AS run_position
-    FROM keyed k
+      ) END AS run_position
+    FROM (
+      SELECT
+        l.*,
+        CASE WHEN l.entry_armband ~ '^[0-9]{1,9}$' THEN l.entry_armband::integer
+             ELSE 2147483647 END AS armband_key,
+        (
+          NOT coalesce(l.entry_is_scored, false)
+          AND NOT coalesce(l.entry_is_in_ring, false)
+          AND coalesce(l.entry_check_in, 'no-status') IN
+            ('no-status', 'checked-in', 'at-gate', 'come-to-gate', 'conflict')
+        ) AS waiting
+      FROM live l
+    ) k
   )
   SELECT
     r.entry_armband::integer,

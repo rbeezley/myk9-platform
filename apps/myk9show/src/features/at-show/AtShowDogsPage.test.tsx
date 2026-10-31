@@ -191,7 +191,7 @@ describe('AtShowDogsPage as an exhibitor (MYK9-1517)', () => {
     const row = screen.getByTestId('at-show-dog-armband:7');
     expect(row).toHaveTextContent('Trial A');
     expect(row).toHaveTextContent('Container Novice');
-    expect(row).toHaveTextContent('Run order 4');
+    expect(row).toHaveTextContent('Place in line 4');
     expect(row).toHaveTextContent(/Checked.?in/i);
     expect(row.querySelector('a')).toBeNull();
   });

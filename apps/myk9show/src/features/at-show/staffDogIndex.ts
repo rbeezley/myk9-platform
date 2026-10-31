@@ -37,7 +37,7 @@ export interface StaffDogClassEntry {
   faultCount: number | null;
   placement: number | null;
   resultsReleased: boolean;
-  /** Position in the class run order (1 = first), derived server-side; exhibitor view only. */
+  /** Place in line (1 = next to run) among waiting dogs, derived server-side; exhibitor view only. */
   runOrder?: number | null;
 }
 

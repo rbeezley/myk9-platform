@@ -134,7 +134,7 @@ export const UKCRallyLiveScoresheet: React.FC<LiveScoresheetProps> = ({
         actions={{
           onCancel: onBack,
           onSave: handleSubmitClick,
-          saveDisabled: scoring.isSubmitting,
+          saveDisabled: scoring.isSubmitting || scoring.hasUnresolvedTime,
           isSubmitting: scoring.isSubmitting,
         }}
       >

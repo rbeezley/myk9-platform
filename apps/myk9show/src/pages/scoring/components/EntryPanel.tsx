@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { ConfirmDialog } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
-import { TimeInput } from '@/components/ui/data-table';
 import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import { cn } from '@/lib/utils';
-import { disqualifyHelpText, type ScoresheetSportType } from '@myk9/scoring-ui';
+import { DurationInput, disqualifyHelpText, type ScoresheetSportType } from '@myk9/scoring-ui';
+import { isUnresolvedDuration } from '@myk9/core';
 import type { ScoringEntry } from '../types';
 import {
   getReasonOptions,
@@ -110,7 +110,13 @@ export function EntryPanel({
   const timeWarning = displayTimeField
     ? overTimeLimitWarning(selectedResult, timeDigits, maxTimeSeconds)
     : null;
-  const canSave = !needsReason || reason.trim().length > 0;
+  // A time that is not readable yet is never saved as some other time (MYK9-1503).
+  const timeUnresolved = isUnresolvedDuration(timeDigits, 'search');
+  const timeUnreadable = displayTimeField && timeUnresolved;
+  // Unreadable text in a field that is now hidden (the result changed to NQ) is
+  // dropped, never saved as 0.
+  const timeToSave = timeUnresolved && !displayTimeField ? '' : timeDigits;
+  const canSave = (!needsReason || reason.trim().length > 0) && !timeUnreadable;
   const normalizedReason = needsReason ? reason.trim() : undefined;
   const canClearResult = !!onClearResult && (entry.isScored || entry.result);
 
@@ -183,14 +189,14 @@ export function EntryPanel({
               <span className="ml-1 text-muted-foreground normal-case">(optional)</span>
             )}
           </label>
-          <TimeInput
+          <DurationInput
+            kind="search"
             id="time-input"
             value={timeDigits}
             onChange={setTimeDigits}
-            onCommit={() => {}}
             onCancel={() => setTimeDigits('')}
             autoFocus
-            aria-describedby={timeWarning ? 'time-input-warning' : undefined}
+            describedBy={timeWarning ? 'time-input-warning' : undefined}
             className={cn(
               'h-12 text-xl text-center font-mono rounded-lg border-2 focus:border-primary',
               timeWarning && 'border-warning focus:border-warning'
@@ -278,14 +284,14 @@ export function EntryPanel({
           <Button
             variant="secondary"
             className="flex-1"
-            onClick={() => onSave(selectedResult!, timeDigits, faults, normalizedReason)}
+            onClick={() => onSave(selectedResult!, timeToSave, faults, normalizedReason)}
             disabled={isSaving || !canSave}
           >
             Save
           </Button>
           <Button
             className="flex-1"
-            onClick={() => onSaveAndNext(selectedResult!, timeDigits, faults, normalizedReason)}
+            onClick={() => onSaveAndNext(selectedResult!, timeToSave, faults, normalizedReason)}
             disabled={isSaving || !canSave}
           >
             {isSaving ? 'Saving...' : 'Save & Next'}

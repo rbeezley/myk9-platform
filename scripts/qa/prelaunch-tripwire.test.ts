@@ -10,6 +10,7 @@ import {
   runCommand,
   runTripwire,
   type TripwireFacts,
+  unappliedMigrations,
 } from './prelaunch-tripwire.ts';
 
 const CLUB_A = '11111111-1111-4111-8111-111111111111';
@@ -107,11 +108,13 @@ describe('runTripwire (the CLI core)', () => {
       calls.push([name, ...args]);
       if (name === 'psql') psqlEnvs.push(cmdEnv ?? {});
       if (name === 'git' && args[0] === 'fetch') return '';
+      if (name === 'git' && args[0] === 'ls-tree') return '20261029043900_a.sql\n';
       if (name === 'git' && args[0] === 'show') {
         if (main.fails) throw new Error('fatal: invalid object name');
         return block(main.status ?? 'ACTIVE');
       }
       const sql = args[args.length - 1] ?? '';
+      if (sql.includes('schema_migrations')) return '20261029043900\n';
       if (sql.includes('platform_settings')) return 'f\n';
       if (sql.includes('public.clubs')) return `${CLUB_A}\n${CLUB_B}\n`;
       throw new Error(`unexpected command ${name} ${args.join(' ')}`);
@@ -173,7 +176,7 @@ describe('runTripwire (the CLI core)', () => {
     }
   });
 
-  it.each([[['--db-push']], [['--functions-deploy']], [['--anything']]])(
+  it.each([[['--db-push']], [['--functions-deploy']], [['--deploy']], [['--anything']]])(
     'rejects an unknown argument: %j',
     argv => {
       const { approvalsPath, run } = setup();
@@ -191,6 +194,74 @@ describe('runTripwire (the CLI core)', () => {
     };
     const options = { approvalsPath, argv: [], env, command: failing };
     expect(runTripwire(options).code).toBe(2);
+  });
+});
+
+describe('unappliedMigrations (MYK9-1527)', () => {
+  const files = ['001_old.sql', '20261029043900_a.sql', '20261030174300_b.sql', 'README.md'];
+
+  it('passes when every timestamped migration is applied', () => {
+    expect(unappliedMigrations(files, ['20261029043900', '20261030174300'])).toEqual([]);
+  });
+
+  it('names the one that is missing', () => {
+    expect(unappliedMigrations(files, ['20261029043900'])).toEqual(['20261030174300']);
+  });
+
+  it('ignores the pre-2026 NNN_ files and non-migration files', () => {
+    expect(unappliedMigrations(files, [])).toEqual(['20261029043900', '20261030174300']);
+  });
+});
+
+describe('runTripwire migration check (MYK9-1527)', () => {
+  const dirs: string[] = [];
+  afterEach(() => {
+    for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true });
+  });
+  const MAIN_FILES = '20261029043900_a.sql\n20261030174300_b.sql\n';
+
+  function run(applied: string | Error, argv: string[] = []) {
+    const dir = mkdtempSync(join(tmpdir(), 'tripwire-'));
+    dirs.push(dir);
+    const approvalsPath = join(dir, 'standing-approvals.md');
+    writeFileSync(approvalsPath, block('ACTIVE'));
+    const command = (name: string, args: string[]): string => {
+      if (name === 'git' && args[0] === 'fetch') return '';
+      if (name === 'git' && args[0] === 'show') return block('ACTIVE');
+      if (name === 'git' && args[0] === 'ls-tree') return MAIN_FILES;
+      const sql = args[args.length - 1] ?? '';
+      if (sql.includes('schema_migrations')) {
+        if (applied instanceof Error) throw applied;
+        return applied;
+      }
+      if (sql.includes('platform_settings')) return 'f\n';
+      if (sql.includes('public.clubs')) return `${CLUB_A}\n${CLUB_B}\n`;
+      throw new Error(`unexpected command ${name} ${args.join(' ')}`);
+    };
+    return runTripwire({ approvalsPath, argv, env: { PGPASSWORD: 'secret' }, command });
+  }
+
+  it('passes when every migration on main is applied', () => {
+    expect(run('20261029043900\n20261030174300\n').code).toBe(0);
+  });
+
+  it('refuses by default, naming the unapplied version', () => {
+    expect(run('20261029043900\n')).toEqual({
+      code: 1,
+      reason: expect.stringContaining('20261030174300'),
+    });
+  });
+
+  it('cannot decide when schema_migrations is unreadable', () => {
+    expect(run(new Error('psql: connection refused')).code).toBe(2);
+  });
+
+  it('does not look at migrations under --merge', () => {
+    expect(run('20261029043900\n', ['--merge']).code).toBe(0);
+  });
+
+  it('under --merge, an unreadable schema_migrations is not consulted', () => {
+    expect(run(new Error('psql: connection refused'), ['--merge']).code).toBe(0);
   });
 });
 

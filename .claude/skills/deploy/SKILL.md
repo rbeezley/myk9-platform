@@ -22,6 +22,8 @@ source supabase/.env
 PGPASSWORD="$SUPABASE_DB_PASSWORD" pnpm qa:prelaunch-tripwire
 ```
 
+It also refuses (exit 1, naming the versions) while `origin/main` carries a migration `schema_migrations` lacks: `db push` is never pre-approved, so the frontend would otherwise ship ahead of its schema (MYK9-1527).
+
 The tripwire always queries the myK9 project (`sojmvhhwsjxmfistvzbe`) at an address fixed in the script; only the password comes from the environment, and other `PG*` variables are ignored.
 
 Exit 0: proceed, then leave the record the standing-approvals table names on the Linear issue. Exit 1 or 2: do **not** run the action; file or update the issue with `needs:operator` and the printed reason, and move on.

@@ -138,10 +138,22 @@ describe('manual time field', () => {
     expect(screen.getByText('Max: 3:00')).toBeInTheDocument();
   });
 
-  // A numeric keypad has no colon, so "1:23.45" could not be typed (it would become 123.45 s).
-  it('does not force a numeric keypad on the time input', () => {
+  // MYK9-1503: the numeric pad is the way in; digits fill from the right and a live
+  // line says what was understood before the judge leaves the field.
+  it('opens a numeric keypad and previews what the digits mean', () => {
     render(<AKCScentWorkLiveScoresheet {...props()} />);
-    const input = screen.getByLabelText('Area 1 time');
-    expect(input.getAttribute('inputmode')).toBeNull();
+    const input = screen.getByLabelText('Area 1 time') as HTMLInputElement;
+    expect(input.getAttribute('inputmode')).toBe('numeric');
+    fireEvent.change(input, { target: { value: '125' } });
+    expect(screen.getByTestId('duration-preview')).toHaveTextContent('= 0:01.25');
+    expect(input).toHaveAttribute('aria-describedby');
+  });
+
+  it('says why a time cannot be used and holds it as typed', () => {
+    render(<AKCScentWorkLiveScoresheet {...props()} />);
+    const input = screen.getByLabelText('Area 1 time') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: '1:99.00' } });
+    expect(screen.getByRole('alert')).toHaveTextContent('99 seconds is 2:39.00');
+    expect(input.value).toBe('1:99.00');
   });
 });

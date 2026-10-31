@@ -72,9 +72,7 @@ export function buildRingsideMenuItems(
           icon: Settings,
           href: '/account?section=appearance',
           returnScope: '/account',
-          // The Account page saves preferences through Supabase, so it fails offline.
-          // MYK9-1545 (local-first device preferences) removes this flag.
-          requiresConnection: true,
+          requiresConnection: false,
         }
       : null,
     // Every viewer gets Results. A non-manager admitted to ringside (judge, steward,

@@ -148,6 +148,8 @@ export interface UserPreferences {
   lastModifiedAt: Date;
   lastModifiedBy: string; // device ID
   syncConflicts?: string[];
+  /** When each theme field last changed (epoch ms), for per-field sync (MYK9-1545). */
+  themeChangedAt?: Record<string, number>;
 
   // Timestamps
   createdAt: Date;

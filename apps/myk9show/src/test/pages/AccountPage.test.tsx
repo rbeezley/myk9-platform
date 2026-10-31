@@ -91,6 +91,15 @@ vi.mock('@/hooks/useUserPreferences', () => ({
   }),
 }));
 
+let mockOnline = true;
+vi.mock('@/lib/networkUtils', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/lib/networkUtils')>()),
+  useOnlineStatus: () => mockOnline,
+}));
+vi.mock('@/hooks/useTheme', () => ({
+  useTheme: () => ({ mode: 'light', setThemeMode: vi.fn() }),
+}));
+
 // Stub heavy preference sub-components
 vi.mock('@/components/preferences/ThemeSelector', () => ({
   ThemeSelector: () => <div data-testid="theme-selector" />,
@@ -123,6 +132,7 @@ describe('AccountPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    mockOnline = true;
     mockAuthUserId = 'u-1';
     mockForm.isDirty = false;
     mockForm.saving = false;
@@ -132,6 +142,27 @@ describe('AccountPage', () => {
 
   const render = (initialRoute = '/account') =>
     renderWithProviders(<AccountPage />, { initialRoute });
+
+  // MYK9-1545: device settings open offline; server-backed sections say so.
+  it('offline keeps Appearance and Notifications usable', () => {
+    mockOnline = false;
+    render('/account?section=appearance');
+    expect(screen.getByTestId('theme-selector')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Notifications' }));
+    expect(screen.getByTestId('notification-settings')).toBeInTheDocument();
+    expect(screen.queryByTestId('account-needs-connection')).not.toBeInTheDocument();
+  });
+
+  it('offline says server-backed sections need a connection instead of rendering a form', () => {
+    mockOnline = false;
+    render();
+    expect(screen.getByTestId('account-needs-connection')).toHaveTextContent('Needs a connection');
+    expect(screen.queryByText('Personal information')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Security' }));
+    expect(screen.getByTestId('account-needs-connection')).toBeInTheDocument();
+    expect(screen.queryByTestId('security-settings')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Reset all settings/ })).toBeDisabled();
+  });
 
   it('renders the page heading', () => {
     render();

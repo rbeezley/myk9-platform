@@ -17,11 +17,22 @@ function compareLast<T extends string | number>(a: T | null, b: T | null): numbe
   return a < b ? -1 : 1;
 }
 
+function compareTrialName(a: string | null | undefined, b: string | null | undefined): number {
+  // Numbered trials were already ordered (and "Trial 1" equals "1"); only names decide here.
+  if (trialNumberValue(a) !== null || trialNumberValue(b) !== null) return 0;
+  const left = a?.trim() || null;
+  const right = b?.trim() || null;
+  if (left === null || right === null) return compareLast(left, right);
+  return left.localeCompare(right, undefined, { numeric: true });
+}
+
 /** Trial date, trial number, element, level. Anything unknown sorts last. */
 export function compareClassOrder(a: ClassOrderKey, b: ClassOrderKey): number {
   return (
     compareLast(calendarDayKey(a.trialDate), calendarDayKey(b.trialDate)) ||
     compareLast(trialNumberValue(a.trialNumber), trialNumberValue(b.trialNumber)) ||
+    // Trial names without a number ("UKC-Nosework") still keep each trial's classes together.
+    compareTrialName(a.trialNumber, b.trialNumber) ||
     compareLast(elementRank(a.element), elementRank(b.element)) ||
     compareLast(levelRank(a.level), levelRank(b.level))
   );

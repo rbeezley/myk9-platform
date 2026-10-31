@@ -33,12 +33,12 @@ import { DataSettings } from '@/components/preferences/DataSettings';
 import { InstallAppSettings } from '@/components/preferences/InstallAppSettings';
 import { useAuthUser } from '@/hooks/useAuthUser';
 import { useTheme } from '@/hooks/useTheme';
-import { useSettingsStore } from '@/store/settingsStore';
+import { useApplyServerTheme } from '@/hooks/useApplyServerTheme';
 import { useOnlineStatus } from '@/lib/networkUtils';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { ProfileSection, BillingSection, DeleteSection } from './AccountPage.sections';
 import type { Section, NavGroup } from './AccountPage.types';
-import type { PreferencesUpdate, ThemePreferences } from '@/types/user-preferences';
+import type { PreferencesUpdate } from '@/types/user-preferences';
 import { FormSkeleton } from '@/components/common/SkeletonLoaders';
 
 const NON_PREF_SECTIONS: ReadonlySet<Section> = new Set(['profile', 'billing', 'delete']);
@@ -96,19 +96,9 @@ export default function AccountPage() {
   const [active, setActive] = useState<Section>(() => readSectionParam(searchParams) ?? 'profile');
   const user = useAuthUser();
   const isOnline = useOnlineStatus();
-  const { mode, setThemeMode } = useTheme();
-  const updateSettings = useSettingsStore(s => s.updateSettings);
+  const { mode } = useTheme();
   // A newer server value (another device) replaced this device's: apply it live.
-  const applyServerTheme = useCallback(
-    (adopted: Partial<ThemePreferences>) => {
-      if (adopted.mode) {
-        setThemeMode(adopted.mode);
-        updateSettings({ theme: adopted.mode === 'system' ? 'auto' : adopted.mode });
-      }
-      if (adopted.colorScheme) updateSettings({ accentColor: adopted.colorScheme });
-    },
-    [setThemeMode, updateSettings]
-  );
+  const applyServerTheme = useApplyServerTheme();
   const {
     preferences,
     loading: prefsLoading,

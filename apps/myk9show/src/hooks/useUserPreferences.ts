@@ -15,14 +15,12 @@ import {
   userPreferencesService,
 } from '@/services/preferences/userPreferencesService';
 import {
-  settleFields,
-  THEME_FIELDS,
   deviceThemeOrDefaults,
   readDeviceTheme,
-  reconcileTheme,
   recordLocalThemeChange,
   writeDeviceTheme,
 } from '@/services/preferences/deviceThemeCache';
+import { enqueuePreferenceWrite, syncDeviceTheme } from '@/services/preferences/themeSync';
 import { useOnlineStatus } from '@/lib/networkUtils';
 import { reportInfo, reportStoreError } from '@/utils/standardizedErrorHandler';
 import type {
@@ -61,15 +59,6 @@ export function useUserPreferences(
     onServerThemeRef.current = onServerTheme;
   }, [onServerTheme]);
 
-  // Every server write goes through one queue. Each write replaces the whole
-  // preferences row, so two in flight from this device could land out of order;
-  // queued, they cannot, and the service's per-field times settle other devices.
-  const queueRef = useRef<Promise<unknown>>(Promise.resolve());
-  const enqueue = useCallback(<T>(task: () => Promise<T>): Promise<T> => {
-    const run = queueRef.current.then(task, task);
-    queueRef.current = run.catch(() => undefined);
-    return run;
-  }, []);
   // A result that arrives after sign-out, a user switch or unmount is dropped.
   const isCurrent = (uid: string) => currentUserIdRef.current === uid;
 
@@ -80,46 +69,12 @@ export function useUserPreferences(
   /** Pull the server row, reconcile with the device copy, push newer local edits. */
   const syncTheme = useCallback(
     (uid: string) =>
-      enqueue(async () => {
-        const server = await userPreferencesService.loadPreferences(uid);
-        if (!isCurrent(uid)) return;
-        const cache = readDeviceTheme(uid);
-        const { theme, toPush, adoptedFromServer } = reconcileTheme(
-          cache,
-          server.theme,
-          (server.themeChangedAt ?? {}) as Partial<Record<keyof ThemePreferences, number>>,
-          server.updatedAt.getTime()
-        );
-        const sentAt = { ...(cache?.changedAt ?? {}) };
-        const pushFields = Object.keys(toPush) as Array<keyof ThemePreferences>;
-        // Fields the server won hold the server's value now; each settle skips a
-        // field edited since this sync began, so a slow sync never undoes a newer edit.
-        const serverWon = Object.fromEntries(
-          THEME_FIELDS.filter(f => !pushFields.includes(f)).map(f => [f, theme[f]])
-        );
-        const settled = settleFields(uid, serverWon, sentAt);
-        setPreferences({ ...server, theme: deviceThemeOrDefaults(settled) });
-        if (Object.keys(adoptedFromServer).length > 0)
-          onServerThemeRef.current?.(adoptedFromServer);
-        if (pushFields.length > 0) {
-          const written = await userPreferencesService.updatePreferences(
-            uid,
-            { theme: toPush },
-            Object.fromEntries(pushFields.map(f => [f, sentAt[f] ?? Date.now()]))
-          );
-          // The write keeps a newer value another device saved meanwhile; settle
-          // to what the server holds, and apply any field it kept.
-          const held = Object.fromEntries(pushFields.map(f => [f, written.theme[f]]));
-          const after = settleFields(uid, held, sentAt);
-          if (!isCurrent(uid)) return;
-          const lost = Object.fromEntries(
-            pushFields.filter(f => written.theme[f] !== toPush[f]).map(f => [f, written.theme[f]])
-          );
-          setPreferences({ ...written, theme: deviceThemeOrDefaults(after) });
-          if (Object.keys(lost).length > 0) onServerThemeRef.current?.(lost);
-        }
+      syncDeviceTheme(uid, {
+        isCurrent: () => isCurrent(uid),
+        onPreferences: setPreferences,
+        onServerTheme: adopted => onServerThemeRef.current?.(adopted),
       }),
-    [enqueue]
+    []
   );
 
   const loadPreferences = useCallback(
@@ -164,7 +119,7 @@ export function useUserPreferences(
 
       if (hasServerOnly) {
         try {
-          const updated = await enqueue(() =>
+          const updated = await enqueuePreferenceWrite(userId, () =>
             userPreferencesService.updatePreferences(userId, serverOnly)
           );
           if (isCurrent(userId)) {
@@ -184,7 +139,7 @@ export function useUserPreferences(
       }
       reportInfo('useUserPreferences', 'Preferences updated successfully', { updates });
     },
-    [userId, isOnline, showTheme, enqueue, syncTheme]
+    [userId, isOnline, showTheme, syncTheme]
   );
 
   const resetToDefaults = useCallback(
@@ -202,7 +157,9 @@ export function useUserPreferences(
       if (!isOnline) throw new Error(NEEDS_CONNECTION_MESSAGE);
       try {
         setError(null);
-        const reset = await enqueue(() => userPreferencesService.resetToDefaults(userId, category));
+        const reset = await enqueuePreferenceWrite(userId, () =>
+          userPreferencesService.resetToDefaults(userId, category)
+        );
         if (!isCurrent(userId)) return;
         // The reset wrote the server row; mirror theme into the device copy.
         const cache = readDeviceTheme(userId);
@@ -219,7 +176,7 @@ export function useUserPreferences(
         throw err;
       }
     },
-    [userId, isOnline, updatePreferences, enqueue]
+    [userId, isOnline, updatePreferences]
   );
 
   // Initialize when userId changes

@@ -6,6 +6,7 @@ import { deriveEntryPresentation } from '@/services/entryDisplay/entryPresentati
 
 const show = { id: 's1', name: 'Show', start_date: '2099-05-01', end_date: '2099-05-02' };
 const row = (o: Partial<DogActivityEntry>): DogActivityEntry => ({
+  id: 'e1',
   entry_status: 'submitted',
   show,
   ...o,

@@ -38,6 +38,17 @@ describe('parseUpdatedAtMs', () => {
       REPLICATION_INCREMENTAL_BUFFER_MS
     );
     expect(REPLICATION_INCREMENTAL_BUFFER_MS).toBe(60_000);
-    expect(REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN).toBe(5_000);
+    expect(REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN).toBe(30_000);
+  });
+
+  it('high-churn buffer exceeds measured commit lag by at least 3x (MYK9-1497)', () => {
+    // Slowest write RPC on production pg_stat_statements, 2026-10-31.
+    const MEASURED_MAX_WRITE_MS = 3_780;
+    expect(REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN).toBeGreaterThanOrEqual(
+      3 * MEASURED_MAX_WRITE_MS
+    );
+    expect(REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN).toBeLessThanOrEqual(
+      REPLICATION_INCREMENTAL_BUFFER_MS
+    );
   });
 });

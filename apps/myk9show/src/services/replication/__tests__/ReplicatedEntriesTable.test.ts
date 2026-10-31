@@ -1311,8 +1311,8 @@ describe('ReplicatedEntriesTable', () => {
       expect(mockGt).toHaveBeenCalled();
       const gtArg = mockGt.mock.calls[0][1];
       expect(typeof gtArg).toBe('string'); // ISO timestamp string
-      // since = watermark - high-churn incremental buffer (5000ms for entries/classes)
-      expect(new Date(gtArg).getTime()).toBe(lastIncrementalSyncAt - 5000);
+      // since = watermark - high-churn incremental buffer (30000ms for entries/classes)
+      expect(new Date(gtArg).getTime()).toBe(lastIncrementalSyncAt - 30_000);
     });
 
     it('should preserve dirty local entries when remote has the same entry', async () => {

@@ -20,7 +20,7 @@ import { enrichClassRows, type EnrichableClassRow } from './loadVirtualUserEnric
 
 /** `REPLICATION_INCREMENTAL_BUFFER_MS` and `..._HIGH_CHURN` in packages/replication. */
 export const INCREMENTAL_BUFFER_MS = 60_000;
-export const INCREMENTAL_BUFFER_MS_HIGH_CHURN = 5_000;
+export const INCREMENTAL_BUFFER_MS_HIGH_CHURN = 30_000;
 
 /** PostgREST `max_rows`: one page of every keyset read. */
 export const KEYSET_PAGE_SIZE = 1000;

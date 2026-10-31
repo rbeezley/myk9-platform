@@ -38,8 +38,39 @@ describe('useAtShowExhibitorDogs', () => {
     });
     const { result } = renderHook(() => useAtShowExhibitorDogs('s1'), { wrapper });
     await waitFor(() => expect(result.current.dogs).toHaveLength(1));
-    expect(rpc).toHaveBeenCalledWith('show_dogs_limited_view', { p_show_id: 's1' });
+    expect(rpc).toHaveBeenCalledWith('show_dogs_limited_view', {
+      p_show_id: 's1',
+      p_offset: 0,
+      p_limit: 1000,
+    });
     expect(result.current.dogs[0]).toMatchObject({ dogName: 'Friend', armband: 7 });
+  });
+
+  it('pages until a short page so a big show is not truncated', async () => {
+    const row = (armband: number) => ({
+      armband,
+      call_name: `Dog${armband}`,
+      breed: 'Poodle',
+      handler_name: 'Pat',
+      class_id: 'c1',
+      class_name: 'Container Novice',
+      trial_name: 'Trial A',
+      trial_date: '2026-11-01',
+      run_order: null,
+      check_in_status: null,
+    });
+    const full = Array.from({ length: 1000 }, (_, i) => row(i + 1));
+    rpc
+      .mockResolvedValueOnce({ data: full, error: null })
+      .mockResolvedValueOnce({ data: [row(1001)], error: null });
+    const { result } = renderHook(() => useAtShowExhibitorDogs('s1'), { wrapper });
+    await waitFor(() => expect(result.current.dogs).toHaveLength(1001));
+    expect(rpc).toHaveBeenCalledTimes(2);
+    expect(rpc).toHaveBeenLastCalledWith('show_dogs_limited_view', {
+      p_show_id: 's1',
+      p_offset: 1000,
+      p_limit: 1000,
+    });
   });
 
   it('reports a failed read instead of an empty show', async () => {

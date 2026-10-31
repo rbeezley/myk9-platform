@@ -12,15 +12,23 @@
 -- handler, owner or co-owner: the same arms as is_show_exhibitor) or (b) a
 -- ringside passcode session whose claim names that show and whose generation is
 -- current. Anyone else, and anyone asking about another show, gets zero rows.
--- Rows are capped (p_limit is clamped to 2000), ordered by armband.
+-- Rows come in pages of at most 1000 (p_limit is clamped to 1..1000, matching
+-- PostgREST's max_rows so a page is never silently truncated), in a stable order;
+-- the client asks for the next page with p_offset until a short page returns.
 --
 -- Rejected alternatives: a view or a broadened `entries` policy (wider surface;
 -- PostgREST embeds would leak columns). Staff access is unchanged.
 --
--- An entry without an armband is left out: the list exists to find and favorite
--- by armband, and it is the only identifier favorites are keyed on.
+-- The armband is resolved the way resolveEntryArmband does (MYK9-976): the entry's
+-- own column, else the number assigned to that entry, else the number assigned to
+-- the dog in this show. An entry with no armband by any route is left out: the list
+-- exists to find and favorite by armband, the only identifier favorites key on.
 
-CREATE OR REPLACE FUNCTION public.show_dogs_limited_view(p_show_id uuid)
+CREATE OR REPLACE FUNCTION public.show_dogs_limited_view(
+  p_show_id uuid,
+  p_offset integer DEFAULT 0,
+  p_limit integer DEFAULT 1000
+)
 RETURNS TABLE (
   armband integer,
   call_name text,
@@ -83,7 +91,7 @@ BEGIN
 
   RETURN QUERY
   SELECT
-    e.armband::integer,
+    r.armband_int,
     d.call_name::text,
     d.breed::text,
     e.handler::text,
@@ -94,26 +102,47 @@ BEGIN
     e.run_order::integer,
     coalesce(e.check_in_status, 'no-status')::text
   FROM public.entries e
+  CROSS JOIN LATERAL (
+    SELECT
+      CASE WHEN a.n ~ '^[0-9]{1,9}$' THEN a.n::integer END AS armband_int
+    FROM (
+      SELECT coalesce(
+        nullif(e.armband, ''),
+        (SELECT ab.armband_number
+           FROM public.armbands ab
+          WHERE ab.show_id = p_show_id
+            AND ab.entry_id = e.id
+            AND ab.is_available IS NOT TRUE
+          LIMIT 1),
+        (SELECT ab.armband_number
+           FROM public.armbands ab
+          WHERE ab.show_id = p_show_id
+            AND ab.dog_id = e.dog_id
+            AND ab.is_available IS NOT TRUE
+          LIMIT 1)
+      ) AS n
+    ) a
+  ) r
   LEFT JOIN public.dogs d ON d.id = e.dog_id
   LEFT JOIN public.classes c ON c.id = e.class_id
   LEFT JOIN public.trials t ON t.id = c.trial_id
   WHERE e.show_id = p_show_id
     AND e.deleted_at IS NULL
-    AND e.armband ~ '^[0-9]{1,9}$'
-    AND e.armband::integer > 0
+    AND r.armband_int > 0
     AND coalesce(e.entry_status, '') NOT IN
       ('withdrawn', 'scratched', 'absent', 'moved', 'not_accepted')
-  ORDER BY e.armband::integer, t.date, c.name
-  LIMIT 2000;
+  ORDER BY r.armband_int, t.date, c.name, e.class_id, e.id
+  OFFSET greatest(coalesce(p_offset, 0), 0)
+  LIMIT least(greatest(coalesce(p_limit, 1000), 1), 1000);
 END;
 $$;
 
-COMMENT ON FUNCTION public.show_dogs_limited_view(uuid) IS
-  'MYK9-1517. Owner-approved limited view of the show''s dogs for exhibitors and passcode sessions: armband, call name, breed, handler name, class, run order, check-in status. No contact, fee, payment, registration or score data. Zero rows unless the caller has a live entry in the show or a current passcode claim for it. Capped at 2000 rows.';
+COMMENT ON FUNCTION public.show_dogs_limited_view(uuid, integer, integer) IS
+  'MYK9-1517. Owner-approved limited view of the show''s dogs for exhibitors and passcode sessions: armband, call name, breed, handler name, class, run order, check-in status. No contact, fee, payment, registration or score data. Zero rows unless the caller has a live entry in the show or a current passcode claim for it. Paged, at most 1000 rows per call.';
 
 -- anon and PUBLIC get EXECUTE by default; revoke both explicitly. A passcode
 -- session is an authenticated (anonymous-sign-in) JWT, so authenticated covers it.
-REVOKE ALL ON FUNCTION public.show_dogs_limited_view(uuid) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.show_dogs_limited_view(uuid) FROM anon;
-GRANT EXECUTE ON FUNCTION public.show_dogs_limited_view(uuid) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.show_dogs_limited_view(uuid) TO service_role;
+REVOKE ALL ON FUNCTION public.show_dogs_limited_view(uuid, integer, integer) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.show_dogs_limited_view(uuid, integer, integer) FROM anon;
+GRANT EXECUTE ON FUNCTION public.show_dogs_limited_view(uuid, integer, integer) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.show_dogs_limited_view(uuid, integer, integer) TO service_role;

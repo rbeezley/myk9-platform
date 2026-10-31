@@ -2,7 +2,8 @@
 --
 -- Executes the INSTALLED function as each caller tier. Properties asserted:
 --   1. an exhibitor with a live entry in show A reads show A's dogs, including
---      another exhibitor's, with exactly the approved columns;
+--      another exhibitor's and one whose armband lives only in the armbands
+--      table, with exactly the approved columns;
 --   2. a withdrawn entry, a soft-deleted entry and an entry with no armband are
 --      not returned;
 --   3. an exhibitor whose only entry is in show B gets nothing for show A, and
@@ -104,6 +105,23 @@ VALUES
    '00000000-0000-0000-0000-000001517005', '00000000-0000-0000-0000-000001517113', 'Show B Handler',
    '201', 1, 'confirmed', 'pending', 25, 'no-status', NULL);
 
+-- Armband held only in the armbands table (MYK9-976): dog 6 (owned by person 1) has an
+-- entry with no armband of its own and an assigned armbands row.
+INSERT INTO public.dogs (id, name, call_name, breed, owner_id)
+VALUES ('00000000-0000-0000-0000-000001517136', 'MYK9-1517 Dog 6', 'Call6', 'Breed6',
+  '00000000-0000-0000-0000-000001517111');
+INSERT INTO public.dog_registrations (dog_id, organization, registration_number, is_primary)
+VALUES ('00000000-0000-0000-0000-000001517136', 'AKC (American Kennel Club)', 'SR151706', true);
+INSERT INTO public.entries (id, dog_id, class_id, show_id, trial_id, handler_id, handler, armband,
+  run_order, entry_status, payment_status, entry_fee, check_in_status)
+VALUES ('00000000-0000-0000-0000-000001517207', '00000000-0000-0000-0000-000001517136',
+   '00000000-0000-0000-0000-000001517104', '00000000-0000-0000-0000-000001517002',
+   '00000000-0000-0000-0000-000001517004', '00000000-0000-0000-0000-000001517111', 'Assigned Handler',
+   NULL, 7, 'confirmed', 'pending', 25, 'no-status');
+INSERT INTO public.armbands (show_id, dog_id, entry_id, armband_number, is_available)
+VALUES ('00000000-0000-0000-0000-000001517002', '00000000-0000-0000-0000-000001517136',
+   '00000000-0000-0000-0000-000001517207', '104', false);
+
 INSERT INTO public.show_passcodes (show_id, role, passcode_hash, created_at)
 VALUES ('00000000-0000-0000-0000-000001517002', 'steward', 'myk9-1517-hash', '2026-10-10T00:00:00Z');
 
@@ -128,15 +146,15 @@ DO $$
 DECLARE
   v_cols text[];
 BEGIN
-  IF has_function_privilege('anon', 'public.show_dogs_limited_view(uuid)', 'EXECUTE')
-     OR has_function_privilege('public', 'public.show_dogs_limited_view(uuid)', 'EXECUTE')
-     OR NOT has_function_privilege('authenticated', 'public.show_dogs_limited_view(uuid)', 'EXECUTE') THEN
+  IF has_function_privilege('anon', 'public.show_dogs_limited_view(uuid, integer, integer)', 'EXECUTE')
+     OR has_function_privilege('public', 'public.show_dogs_limited_view(uuid, integer, integer)', 'EXECUTE')
+     OR NOT has_function_privilege('authenticated', 'public.show_dogs_limited_view(uuid, integer, integer)', 'EXECUTE') THEN
     RAISE EXCEPTION 'FAIL 8 ACL: anon/PUBLIC must not execute, authenticated must';
   END IF;
 
   SELECT array_agg(a ORDER BY a) INTO v_cols
   FROM unnest(proargnames) WITH ORDINALITY AS t(a, i), pg_proc
-  WHERE pg_proc.oid = 'public.show_dogs_limited_view(uuid)'::regprocedure
+  WHERE pg_proc.oid = 'public.show_dogs_limited_view(uuid, integer, integer)'::regprocedure
     AND proargmodes IS NOT NULL AND proargmodes[i] = 't';
   IF v_cols IS DISTINCT FROM ARRAY['armband', 'breed', 'call_name', 'check_in_status', 'class_id',
        'class_name', 'handler_name', 'run_order', 'trial_date', 'trial_name'] THEN
@@ -147,7 +165,7 @@ END $$;
 
 SET LOCAL ROLE authenticated;
 
--- 1. exhibitor X sees show A: dog 101 (own) and 102 (Y's), nothing else.
+-- 1. exhibitor X sees show A: 101 (own), 102 (Y's) and 104 (number only in armbands).
 SELECT pg_temp.as_account('00000000-0000-0000-0000-000001517121');
 DO $$
 DECLARE
@@ -156,8 +174,8 @@ DECLARE
 BEGIN
   SELECT array_agg(armband ORDER BY armband) INTO v_armbands
   FROM public.show_dogs_limited_view('00000000-0000-0000-0000-000001517002');
-  IF v_armbands IS DISTINCT FROM ARRAY[101, 102] THEN
-    RAISE EXCEPTION 'FAIL 1/2 exhibitor must read exactly armbands 101,102 (withdrawn, deleted and no-armband left out), got %', v_armbands;
+  IF v_armbands IS DISTINCT FROM ARRAY[101, 102, 104] THEN
+    RAISE EXCEPTION 'FAIL 1/2 exhibitor must read exactly armbands 101,102,104 (armbands-table number resolved; withdrawn, deleted and unnumbered left out), got %', v_armbands;
   END IF;
   SELECT * INTO r FROM public.show_dogs_limited_view('00000000-0000-0000-0000-000001517002')
   WHERE armband = 102;
@@ -207,7 +225,7 @@ END $$;
 SELECT pg_temp.as_passcode('00000000-0000-0000-0000-000001517002', '2026-10-10T00:00:00Z');
 DO $$
 BEGIN
-  IF (SELECT count(*) FROM public.show_dogs_limited_view('00000000-0000-0000-0000-000001517002')) <> 2 THEN
+  IF (SELECT count(*) FROM public.show_dogs_limited_view('00000000-0000-0000-0000-000001517002')) <> 3 THEN
     RAISE EXCEPTION 'FAIL 5 a current passcode session must read its show';
   END IF;
   IF EXISTS (SELECT 1 FROM public.show_dogs_limited_view('00000000-0000-0000-0000-000001517003')) THEN
@@ -241,14 +259,32 @@ BEGIN
   RAISE NOTICE 'PASS 6 NULL show and missing identity read nothing';
 END $$;
 
--- 7 (limit). The cap is a hard 2000 in the installed body.
+-- 7 (paging). A page is capped at 1000 rows in the installed body, and p_offset/p_limit
+-- walk the list in a stable order with no gaps or repeats.
+SELECT pg_temp.as_account('00000000-0000-0000-0000-000001517121');
+DO $$
+DECLARE
+  v_show constant uuid := '00000000-0000-0000-0000-000001517002';
+  v_a integer[];
+  v_b integer[];
+BEGIN
+  SELECT array_agg(armband) INTO v_a FROM public.show_dogs_limited_view(v_show, 0, 1);
+  SELECT array_agg(armband) INTO v_b FROM public.show_dogs_limited_view(v_show, 1, 1);
+  IF v_a IS DISTINCT FROM ARRAY[101] OR v_b IS DISTINCT FROM ARRAY[102] THEN
+    RAISE EXCEPTION 'FAIL 7 pages must walk 101 then 102, got % then %', v_a, v_b;
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.show_dogs_limited_view(v_show, 3, 1)) THEN
+    RAISE EXCEPTION 'FAIL 7 a page past the end must be empty';
+  END IF;
+  RAISE NOTICE 'PASS 7 paging walks the list without gaps or repeats';
+END $$;
 RESET ROLE;
 DO $$
 BEGIN
-  IF pg_get_functiondef('public.show_dogs_limited_view(uuid)'::regprocedure) NOT LIKE '%LIMIT 2000%' THEN
-    RAISE EXCEPTION 'FAIL 3 row limit missing from the installed function';
+  IF pg_get_functiondef('public.show_dogs_limited_view(uuid, integer, integer)'::regprocedure) NOT LIKE '%least(greatest(coalesce(p_limit, 1000), 1), 1000)%' THEN
+    RAISE EXCEPTION 'FAIL 7 the 1000-row page cap is missing from the installed function';
   END IF;
-  RAISE NOTICE 'PASS row limit present';
+  RAISE NOTICE 'PASS page cap present';
 END $$;
 
 ROLLBACK;

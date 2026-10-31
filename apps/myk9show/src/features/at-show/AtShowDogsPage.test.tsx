@@ -189,6 +189,7 @@ describe('AtShowDogsPage as an exhibitor (MYK9-1517)', () => {
   it('shows class, run order and check-in status without linking to the staff dog page', () => {
     renderRoutes('/at-show/s1/dogs');
     const row = screen.getByTestId('at-show-dog-armband:7');
+    expect(row).toHaveTextContent('Trial A');
     expect(row).toHaveTextContent('Container Novice');
     expect(row).toHaveTextContent('Run 4');
     expect(row).toHaveTextContent(/Checked.?in/i);

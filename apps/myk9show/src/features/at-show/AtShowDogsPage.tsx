@@ -52,6 +52,7 @@ const ExhibitorClassLines: React.FC<{ dog: StaffDog }> = ({ dog }) => (
     {dog.entries.map(entry => (
       <span key={entry.entryId} className="block truncate">
         {[
+          entry.trialLabel,
           entry.className,
           entry.runOrder ? `Run ${entry.runOrder}` : null,
           getStatusDescriptor('entry', entry.checkInStatus).label,

@@ -102,12 +102,21 @@ export function useUserPreferences(
         if (Object.keys(adoptedFromServer).length > 0)
           onServerThemeRef.current?.(adoptedFromServer);
         if (pushFields.length > 0) {
-          await userPreferencesService.updatePreferences(
+          const written = await userPreferencesService.updatePreferences(
             uid,
             { theme: toPush },
             Object.fromEntries(pushFields.map(f => [f, sentAt[f] ?? Date.now()]))
           );
-          settleFields(uid, toPush, sentAt);
+          // The write keeps a newer value another device saved meanwhile; settle
+          // to what the server holds, and apply any field it kept.
+          const held = Object.fromEntries(pushFields.map(f => [f, written.theme[f]]));
+          const after = settleFields(uid, held, sentAt);
+          if (!isCurrent(uid)) return;
+          const lost = Object.fromEntries(
+            pushFields.filter(f => written.theme[f] !== toPush[f]).map(f => [f, written.theme[f]])
+          );
+          setPreferences({ ...written, theme: deviceThemeOrDefaults(after) });
+          if (Object.keys(lost).length > 0) onServerThemeRef.current?.(lost);
         }
       }),
     [enqueue]

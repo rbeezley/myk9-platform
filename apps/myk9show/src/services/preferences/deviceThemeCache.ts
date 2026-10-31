@@ -92,10 +92,14 @@ export function reconcileTheme(
   const theme: ThemePreferences = { ...serverTheme };
   const toPush: Record<string, unknown> = {};
   const adopted: Record<string, unknown> = {};
+  // Only a row from before per-field times falls back to the row's time; in a
+  // timestamped row an untimed field was never changed there, so any edit beats it.
+  const legacyRow = Object.keys(serverFieldChangedAt).length === 0;
   for (const field of THEME_FIELDS) {
     const isPending = cache?.pending.includes(field) ?? false;
     const changedAt = cache?.changedAt[field] ?? 0;
-    if (isPending && changedAt > (serverFieldChangedAt[field] ?? serverUpdatedAt)) {
+    const serverChangedAt = serverFieldChangedAt[field] ?? (legacyRow ? serverUpdatedAt : 0);
+    if (isPending && changedAt > serverChangedAt) {
       (theme as unknown as Record<string, unknown>)[field] = device[field];
       toPush[field] = device[field];
     } else if (cache?.theme[field] !== serverTheme[field]) {

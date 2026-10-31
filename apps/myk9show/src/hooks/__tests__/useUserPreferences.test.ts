@@ -174,6 +174,18 @@ describe('useUserPreferences (local-first)', () => {
     expect(readDeviceTheme('u1')?.pending).toEqual([]);
   });
 
+  it('a push the server refuses as older settles to the server value and applies it', async () => {
+    recordLocalThemeChange('u1', { mode: 'dark' }, 5000);
+    mockLoad.mockResolvedValue(serverRow({ mode: 'light' }, 4000));
+    mockUpdate.mockResolvedValue(serverRow({ mode: 'system' }, 9000));
+    const onServerTheme = vi.fn();
+    const { result } = renderHook(() => useUserPreferences('u1', onServerTheme));
+    await waitFor(() => expect(onServerTheme).toHaveBeenCalledWith({ mode: 'system' }));
+    expect(readDeviceTheme('u1')?.theme.mode).toBe('system');
+    expect(readDeviceTheme('u1')?.pending).toEqual([]);
+    expect(result.current.preferences?.theme.mode).toBe('system');
+  });
+
   it('drops a sync result that arrives after the user signed out', async () => {
     let release: (v: unknown) => void = () => {};
     mockLoad.mockImplementationOnce(() => new Promise(r => (release = r)));

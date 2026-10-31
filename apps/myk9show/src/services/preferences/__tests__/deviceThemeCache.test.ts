@@ -47,6 +47,12 @@ describe('deviceThemeCache', () => {
     expect(r.adoptedFromServer).not.toHaveProperty('fontSize');
   });
 
+  it('an untimed field in a timestamped row does not fall back to the row time', () => {
+    const cache = recordLocalThemeChange('u1', { fontSize: 'large' }, 5000);
+    const r = reconcileTheme(cache, { ...SERVER }, { mode: 9000 }, 9000);
+    expect(r.toPush).toEqual({ fontSize: 'large' });
+  });
+
   it('resolves each field on its own', () => {
     recordLocalThemeChange('u1', { mode: 'dark' }, 5000);
     const cache = recordLocalThemeChange('u1', { fontSize: 'large' }, 7000);

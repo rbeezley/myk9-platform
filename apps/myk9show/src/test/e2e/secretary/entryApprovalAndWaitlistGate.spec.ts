@@ -11,9 +11,9 @@ import { LIVE_SECRETARY_SHOW_ID } from '../uat/shared/seededShows';
  * the Heartland Scent Work Classic demo seed, which ships fixtures built
  * specifically for this walk:
  *   - entries 053/054/057 are 'submitted'/'pending' -> the Entries tab's
- *     enrollment-group "Accept All / Reject All" actions (Cards view — the
- *     default Table view uses a flat per-row status menu instead, see
- *     components/entries/management/EntryFocusedRegistration.tsx).
+ *     entry form's header "More actions" menu ("Accept all" / "Reject all"
+ *     under "All entries on this form"; open a Review form from the queue, see
+ *     components/entries/management/EntryFormHeaderMenu.tsx).
  *   - entry 056 (Scout) is entry_status='move-up-requested' ("GAP FIXTURE #3",
  *     see supabase/seed-demo.sql section 6) -> the Move-ups tab.
  *
@@ -36,27 +36,27 @@ import { LIVE_SECRETARY_SHOW_ID } from '../uat/shared/seededShows';
 const ENTRIES_PATH = `/secretary/entries/${LIVE_SECRETARY_SHOW_ID}`;
 
 test.describe('Secretary entry approval + move-up gate', () => {
-  test('entries tab exposes Accept All / Reject All for pending registrations', async ({
+  test('entry form header menu exposes Accept all / Reject all for pending registrations', async ({
     page,
   }) => {
     await signInAsSecretary(page, `${ENTRIES_PATH}?tab=entries`);
     await expect(page).toHaveURL(new RegExp(`${escapeRegExp(ENTRIES_PATH)}\\?tab=entries`));
 
-    // The enrollment-group "Accept All / Reject All" actions only render in
-    // Cards view (Table view — the default — shows a flat per-row menu).
-    await page.getByRole('button', { name: 'Cards view' }).click();
+    // At least one pending registration (053/054/057 are seeded 'submitted') has a
+    // "Review for <exhibitor>" action in the queue; it opens that entry form.
+    const reviewAction = page.getByRole('button', { name: /^Review for / }).first();
+    await expect(reviewAction).toBeVisible({ timeout: 20_000 });
+    await reviewAction.click();
 
-    // At least one pending-registration enrollment group renders (053/054/057
-    // are seeded 'submitted'). Its "Actions" menu carries the decision gate.
-    // exact:true — a substring match also catches the page header's "More
-    // show actions" button, which renders first in DOM order.
-    const actionsButton = page.getByRole('button', { name: 'Actions', exact: true }).first();
-    await expect(actionsButton).toBeVisible({ timeout: 20_000 });
-    await actionsButton.click();
+    // The form-level menu beside the exhibitor's name carries the decision gate.
+    const form = page.getByRole('region', { name: /^Entry form for / });
+    await form.getByRole('button', { name: /^More actions for / }).click();
 
-    await expect(page.getByRole('menuitem', { name: 'Accept All' })).toBeVisible();
-    await expect(page.getByRole('menuitem', { name: 'Reject All' })).toBeVisible();
-    await expect(page.getByRole('menuitem', { name: 'Missing Info' })).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: 'Accept all' })).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: 'Reject all' })).toBeVisible();
+    await expect(
+      page.getByRole('menuitem', { name: 'Mark all missing information' })
+    ).toBeVisible();
 
     // Close the menu without acting — this is a structural/data-rendering
     // check, not a mutation.

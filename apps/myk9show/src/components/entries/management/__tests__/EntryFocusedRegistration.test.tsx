@@ -68,7 +68,7 @@ describe('EntryFocusedRegistration', () => {
     expect(screen.getAllByText('Bean').length).toBeGreaterThan(0);
     expect(screen.getByText('Handler: Alice Martin')).toBeInTheDocument();
     expect(screen.getByText('Handler: Jamie Lee')).toBeInTheDocument();
-    expect(screen.getByText('Review')).toBeInTheDocument();
+    expect(screen.getByText('2 entries need review')).toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: /change check-in status/i })
     ).not.toBeInTheDocument();
@@ -128,94 +128,270 @@ describe('EntryFocusedRegistration', () => {
     expect(screen.getByRole('button', { name: 'Email Exhibitor' })).toBeInTheDocument();
   });
 
-  it('shows Accept and Reject in the primary-work panel for a needs-review registration and wires them to the shared handler', async () => {
-    const registration = groupEntriesByShowRegistration([
-      entry('entry-1', 'Poppy', 'Alice Martin', 'dog-1'),
-      entry('entry-2', 'Bean', 'Jamie Lee', 'dog-2'),
-    ])[0]!;
-    const onBulkStatusChange = vi.fn();
-
-    const { user } = render(
-      <EntryFocusedRegistration
-        registration={registration}
-        onStatusChange={vi.fn()}
-        onCheckInStatusChange={vi.fn()}
-        onOpenArmbandDialog={vi.fn()}
-        onEntryRemoved={vi.fn()}
-        onBulkStatusChange={onBulkStatusChange}
-        paymentLedger={{ record: vi.fn(), markPaidOnline: vi.fn(), todayInShowZone: '2026-09-17' }}
-      />
-    );
-
-    const panel = screen.getByText('Review').closest('div')!;
-    const acceptButton = within(panel).getByRole('button', { name: 'Accept' });
-    const rejectButton = within(panel).getByRole('button', { name: 'Reject' });
-    expect(acceptButton).toBeInTheDocument();
-    expect(rejectButton).toBeInTheDocument();
-
-    await user.click(acceptButton);
-
-    expect(onBulkStatusChange).toHaveBeenCalledTimes(1);
-    expect(onBulkStatusChange).toHaveBeenCalledWith(
-      registration.recommendedAction.affectedEntryIds,
-      EntryStatus.ACCEPTED
-    );
-
-    // Same handler and entry ids as the overflow menu's Accept all.
-    const menuAcceptCallArgs = onBulkStatusChange.mock.calls[0];
-    expect(menuAcceptCallArgs[0]).toEqual(registration.entries.map(e => e.id));
-  });
-
-  it('does not render Accept/Reject buttons when no action is needed', () => {
-    const processedEntry = {
-      ...entry('entry-1', 'Poppy', 'Alice Martin', 'dog-1'),
-      entryStatus: EntryStatus.COMPLETED,
-      paymentStatus: PaymentStatus.PAID_ONLINE,
-      paidAmount: 25,
-    };
-    const registration = groupEntriesByShowRegistration([processedEntry])[0]!;
-
-    render(
-      <EntryFocusedRegistration
-        registration={registration}
-        onStatusChange={vi.fn()}
-        onCheckInStatusChange={vi.fn()}
-        onOpenArmbandDialog={vi.fn()}
-        onEntryRemoved={vi.fn()}
-        onBulkStatusChange={vi.fn()}
-        paymentLedger={{ record: vi.fn(), markPaidOnline: vi.fn(), todayInShowZone: '2026-09-17' }}
-      />
-    );
-
-    expect(screen.getByText('No action needed. All entries processed.')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Accept' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Reject' })).not.toBeInTheDocument();
-  });
-
-  it('uses singular verb agreement when exactly one entry needs the recommended action', () => {
-    const registration = groupEntriesByShowRegistration([
-      entry('entry-1', 'Poppy', 'Alice Martin', 'dog-1'),
-      {
-        ...entry('entry-2', 'Bean', 'Jamie Lee', 'dog-2'),
-        entryStatus: EntryStatus.COMPLETED,
-        paymentStatus: PaymentStatus.PAID_ONLINE,
-        paidAmount: 25,
+  describe('To finish this form', () => {
+    const baseProps = () => ({
+      onStatusChange: vi.fn(),
+      onCheckInStatusChange: vi.fn(),
+      onOpenArmbandDialog: vi.fn(),
+      onEntryRemoved: vi.fn(),
+      onBulkStatusChange: vi.fn(),
+      paymentLedger: {
+        record: vi.fn().mockResolvedValue(true),
+        markPaidOnline: vi.fn().mockResolvedValue(true),
+        todayInShowZone: '2026-09-17',
       },
-    ])[0]!;
+    });
+    const accepted = (id: string, dogName: string, dogId: string) => ({
+      ...entry(id, dogName, 'Alice Martin', dogId),
+      entryStatus: EntryStatus.ACCEPTED,
+      rawEntryStatus: 'confirmed',
+      armbandNumber: '201',
+    });
 
-    render(
-      <EntryFocusedRegistration
-        registration={registration}
-        onStatusChange={vi.fn()}
-        onCheckInStatusChange={vi.fn()}
-        onOpenArmbandDialog={vi.fn()}
-        onEntryRemoved={vi.fn()}
-        onBulkStatusChange={vi.fn()}
-        paymentLedger={{ record: vi.fn(), markPaidOnline: vi.fn(), todayInShowZone: '2026-09-17' }}
-      />
-    );
+    it('lists review, payment, armband and registration number, each with its buttons', async () => {
+      const props = baseProps();
+      const onOpenEditEntry = vi.fn();
+      const registration = groupEntriesByShowRegistration([
+        entry('entry-1', 'Poppy', 'Alice Martin', 'dog-1'),
+        {
+          ...accepted('entry-2', 'Bean', 'dog-2'),
+          armbandNumber: undefined as unknown as string,
+          awaitingRegistrationNumber: true,
+        },
+      ])[0]!;
+      const { user } = render(
+        <EntryFocusedRegistration
+          {...props}
+          registration={{ ...registration, enrollmentId: 'enrollment-1' }}
+          onOpenEditEntry={onOpenEditEntry}
+        />
+      );
 
-    expect(screen.getByText(/1 of 2 Entries currently needs this action\./)).toBeInTheDocument();
+      const list = screen.getByRole('region', { name: 'To finish this form' });
+      expect(within(list).getByText('5 to do')).toBeInTheDocument();
+      expect(within(list).getByText('1 entry needs review')).toBeInTheDocument();
+      expect(within(list).getByText(/due$/)).toBeInTheDocument();
+      expect(within(list).getByText('Poppy has no armband')).toBeInTheDocument();
+      expect(within(list).getByText('Bean has no armband')).toBeInTheDocument();
+      expect(within(list).getByText('Bean needs a registration number')).toBeInTheDocument();
+
+      await user.click(within(list).getByRole('button', { name: 'Accept' }));
+      expect(props.onBulkStatusChange).toHaveBeenCalledWith(['entry-1'], EntryStatus.ACCEPTED);
+      await user.click(within(list).getByRole('button', { name: 'Reject' }));
+      expect(props.onBulkStatusChange).toHaveBeenCalledWith(['entry-1'], EntryStatus.REJECTED);
+
+      await user.click(within(list).getByRole('button', { name: /assign armband to Bean/i }));
+      expect(props.onOpenArmbandDialog).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'entry-2' })
+      );
+      await user.click(within(list).getByRole('button', { name: /add registration number/i }));
+      expect(onOpenEditEntry).toHaveBeenCalledWith(expect.objectContaining({ id: 'entry-2' }));
+    });
+
+    it('collapses to one All set line with the Done summary when nothing is open', () => {
+      const registration = groupEntriesByShowRegistration([
+        {
+          ...accepted('entry-1', 'Poppy', 'dog-1'),
+          paymentStatus: PaymentStatus.PAID_BY_CHECK,
+          paidAmount: 25,
+        },
+        {
+          ...accepted('entry-2', 'Poppy', 'dog-1'),
+          paymentStatus: PaymentStatus.PAID_BY_CHECK,
+          paidAmount: 25,
+        },
+      ])[0]!;
+      render(
+        <EntryFocusedRegistration
+          {...baseProps()}
+          registration={{
+            ...registration,
+            enrollmentId: 'enrollment-1',
+            paymentStatus: PaymentStatus.PAID_BY_CHECK,
+            paidAmount: 50,
+          }}
+        />
+      );
+
+      expect(screen.getByText('All set.')).toBeInTheDocument();
+      expect(
+        screen.getByText(/2 accepted · \$50\.00 paid by check · armband 201/)
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/to do$/)).not.toBeInTheDocument();
+      expect(screen.getByText('Paid in full')).toBeInTheDocument();
+    });
+
+    it('names what is finished while items remain', () => {
+      const registration = groupEntriesByShowRegistration([
+        accepted('entry-1', 'Poppy', 'dog-1'),
+      ])[0]!;
+      render(
+        <EntryFocusedRegistration
+          {...baseProps()}
+          registration={{ ...registration, enrollmentId: 'enrollment-1' }}
+        />
+      );
+      expect(screen.getByText('Done: 1 accepted · armband 201')).toBeInTheDocument();
+      expect(screen.getByText('1 to do')).toBeInTheDocument();
+    });
+
+    it('offers no payment buttons on an online-checkout form (no enrollment row)', () => {
+      const registration = groupEntriesByShowRegistration([
+        accepted('entry-1', 'Poppy', 'dog-1'),
+      ])[0]!;
+      render(
+        <EntryFocusedRegistration
+          {...baseProps()}
+          registration={{ ...registration, enrollmentId: null }}
+        />
+      );
+      const list = screen.getByRole('region', { name: 'To finish this form' });
+      expect(within(list).getByText(/due$/)).toBeInTheDocument();
+      expect(within(list).queryByRole('button', { name: /Cash/ })).not.toBeInTheDocument();
+      expect(within(list).queryByRole('button', { name: /Check/ })).not.toBeInTheDocument();
+      expect(
+        within(list).queryByRole('button', { name: /More payment options/ })
+      ).not.toBeInTheDocument();
+    });
+
+    it('Cash... and the Payment badge menu record the same ledger payment', async () => {
+      const viaChecklist = baseProps();
+      const registration = groupEntriesByShowRegistration([
+        accepted('entry-1', 'Poppy', 'dog-1'),
+      ])[0]!;
+      const form = { ...registration, enrollmentId: 'enrollment-1' };
+      const first = render(<EntryFocusedRegistration {...viaChecklist} registration={form} />);
+      await first.user.click(screen.getByRole('button', { name: 'Cash…' }));
+      await first.user.click(screen.getByRole('button', { name: 'Confirm' }));
+      first.unmount();
+
+      const viaBadge = baseProps();
+      const second = render(<EntryFocusedRegistration {...viaBadge} registration={form} />);
+      await second.user.click(screen.getByRole('button', { name: 'Change payment' }));
+      await second.user.click(await screen.findByRole('menuitem', { name: 'Paid in Full: Cash…' }));
+      await second.user.click(screen.getByRole('button', { name: 'Confirm' }));
+
+      const expected = [
+        'enrollment-1',
+        {
+          kind: 'payment',
+          method: 'cash',
+          amount: null,
+          receivedOn: '2026-09-17',
+          reference: null,
+        },
+      ];
+      expect(viaChecklist.paymentLedger.record).toHaveBeenCalledTimes(1);
+      expect(viaChecklist.paymentLedger.record).toHaveBeenCalledWith(...expected);
+      expect(viaBadge.paymentLedger.record).toHaveBeenCalledWith(...expected);
+    });
+
+    it('Check... keeps the check number and received-on date; Partial and Online stay reachable', async () => {
+      const props = baseProps();
+      const registration = groupEntriesByShowRegistration([
+        accepted('entry-1', 'Poppy', 'dog-1'),
+      ])[0]!;
+      const { user } = render(
+        <EntryFocusedRegistration
+          {...props}
+          registration={{ ...registration, enrollmentId: 'enrollment-1' }}
+        />
+      );
+      await user.click(screen.getByRole('button', { name: 'Check…' }));
+      await user.type(screen.getByPlaceholderText('Check number (optional)'), '9');
+      await user.click(screen.getByRole('button', { name: 'Confirm' }));
+      expect(props.paymentLedger.record).toHaveBeenCalledWith('enrollment-1', {
+        kind: 'payment',
+        method: 'check',
+        amount: null,
+        receivedOn: '2026-09-17',
+        reference: '9',
+      });
+
+      await user.click(screen.getByRole('button', { name: 'More payment options' }));
+      await user.click(await screen.findByRole('menuitem', { name: 'Partial Payment…' }));
+      expect(screen.getByPlaceholderText('Amount of this payment ($)')).toBeInTheDocument();
+    });
+
+    it('Online goes to the server, not the ledger', async () => {
+      const props = baseProps();
+      const registration = groupEntriesByShowRegistration([
+        accepted('entry-1', 'Poppy', 'dog-1'),
+      ])[0]!;
+      const { user } = render(
+        <EntryFocusedRegistration
+          {...props}
+          registration={{ ...registration, enrollmentId: 'enrollment-1' }}
+        />
+      );
+      await user.click(screen.getByRole('button', { name: 'More payment options' }));
+      await user.click(await screen.findByRole('menuitem', { name: 'Paid in Full: Online' }));
+      expect(props.paymentLedger.markPaidOnline).toHaveBeenCalledWith('enrollment-1');
+      expect(props.paymentLedger.record).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('header menu', () => {
+    it('holds Email exhibitor and Accept all / Reject all, and the Entries section has no Actions button', async () => {
+      const onBulkStatusChange = vi.fn();
+      const onSendDecisionEmail = vi.fn().mockResolvedValue(undefined);
+      const registration = groupEntriesByShowRegistration([
+        entry('entry-1', 'Poppy', 'Alice Martin', 'dog-1'),
+        entry('entry-2', 'Bean', 'Jamie Lee', 'dog-2'),
+      ])[0]!;
+      const { user } = render(
+        <EntryFocusedRegistration
+          registration={{ ...registration, enrollmentId: 'enrollment-1' }}
+          onStatusChange={vi.fn()}
+          onCheckInStatusChange={vi.fn()}
+          onOpenArmbandDialog={vi.fn()}
+          onEntryRemoved={vi.fn()}
+          onBulkStatusChange={onBulkStatusChange}
+          onSendDecisionEmail={onSendDecisionEmail}
+          paymentLedger={{
+            record: vi.fn(),
+            markPaidOnline: vi.fn(),
+            todayInShowZone: '2026-09-17',
+          }}
+        />
+      );
+
+      expect(screen.queryByRole('button', { name: 'Actions' })).not.toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: 'More actions for Alice Martin' }));
+      expect(await screen.findByRole('menuitem', { name: /Email exhibitor/ })).toBeInTheDocument();
+      expect(screen.queryByText(/Add entry for/)).not.toBeInTheDocument();
+      await user.click(screen.getByRole('menuitem', { name: 'Accept all' }));
+      expect(onBulkStatusChange).toHaveBeenCalledWith(['entry-1', 'entry-2'], EntryStatus.ACCEPTED);
+
+      await user.click(screen.getByRole('button', { name: 'More actions for Alice Martin' }));
+      await user.click(await screen.findByRole('menuitem', { name: /Email exhibitor/ }));
+      expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    });
+
+    it('omits Email exhibitor when no decision email can be sent', async () => {
+      const registration = groupEntriesByShowRegistration([
+        entry('entry-1', 'Poppy', 'Alice Martin', 'dog-1'),
+      ])[0]!;
+      const { user } = render(
+        <EntryFocusedRegistration
+          registration={registration}
+          onStatusChange={vi.fn()}
+          onCheckInStatusChange={vi.fn()}
+          onOpenArmbandDialog={vi.fn()}
+          onEntryRemoved={vi.fn()}
+          onBulkStatusChange={vi.fn()}
+          paymentLedger={{
+            record: vi.fn(),
+            markPaidOnline: vi.fn(),
+            todayInShowZone: '2026-09-17',
+          }}
+        />
+      );
+      await user.click(screen.getByRole('button', { name: 'More actions for Alice Martin' }));
+      expect(await screen.findByRole('menuitem', { name: 'Accept all' })).toBeInTheDocument();
+      expect(screen.queryByRole('menuitem', { name: /Email exhibitor/ })).not.toBeInTheDocument();
+    });
   });
 
   it.each([

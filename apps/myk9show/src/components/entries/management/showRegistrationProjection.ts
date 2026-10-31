@@ -36,7 +36,7 @@ export interface ShowRegistrationGroup extends EnrollmentGroup {
   recommendedAction: ShowRegistrationRecommendedAction;
 }
 
-function entryAttentionReasons(entry: EntryManagementEntry): EntryAttentionReason[] {
+export function entryAttentionReasons(entry: EntryManagementEntry): EntryAttentionReason[] {
   return classifyEntryAttention({
     entryStatus: entry.entryStatus,
     rawEntryStatus: entry.rawEntryStatus,

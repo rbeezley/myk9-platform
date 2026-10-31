@@ -18,6 +18,7 @@ import {
   deviceThemeOrDefaults,
   readDeviceTheme,
   recordLocalThemeChange,
+  seedDeviceTheme,
   writeDeviceTheme,
 } from '@/services/preferences/deviceThemeCache';
 import { enqueuePreferenceWrite, syncDeviceTheme } from '@/services/preferences/themeSync';
@@ -79,7 +80,9 @@ export function useUserPreferences(
 
   const loadPreferences = useCallback(
     async (uid: string) => {
-      const cache = readDeviceTheme(uid);
+      // No device copy yet: start from what this device already shows, not defaults.
+      const saved = readDeviceTheme(uid);
+      const cache = saved ?? seedDeviceTheme(uid);
       showTheme(uid, deviceThemeOrDefaults(cache));
       // Offline the device copy (or defaults) is the whole answer: no server wait.
       if (!isOnlineRef.current) {
@@ -87,7 +90,7 @@ export function useUserPreferences(
         return;
       }
       try {
-        setLoading(!cache);
+        setLoading(!saved);
         setError(null);
         await syncTheme(uid);
         reportInfo('useUserPreferences', 'Preferences loaded successfully', { userId: uid });

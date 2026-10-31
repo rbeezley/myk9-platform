@@ -314,6 +314,7 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
       {
         forceFullSync: options?.forceFullSync === true,
         incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS,
+        ...(options?.signal ? { signal: options.signal } : {}),
       }
     );
 

@@ -1,4 +1,5 @@
 import type { DirtyRowComparePolicy } from './conflict/detectDirtyRowConflict';
+import type { SyncOptions } from './types';
 
 export interface SyncScope {
   /**
@@ -13,10 +14,13 @@ export interface RemoteFetchContext<TLocal extends { id: string }> {
   since: number;
   localRows: TLocal[];
   forceFullSync: boolean;
+  /** Aborts this sync; hand it to the query builder's `.abortSignal(...)`. */
+  signal?: AbortSignal;
 }
 
 export interface RemoteRowCountContext {
   scope: SyncScope;
+  signal?: AbortSignal;
 }
 
 export interface SyncReplicatedTableAdapter<TRemote, TLocal extends { id: string }> {
@@ -143,4 +147,21 @@ export interface SyncReplicatedTableAdapter<TRemote, TLocal extends { id: string
     localRows: TLocal[];
     staleCleanupCompleted: boolean;
   }) => Promise<void> | void;
+}
+
+export interface SyncReplicatedTableOptions extends Partial<SyncOptions> {
+  uploadPendingMutations?: () => Promise<unknown>;
+  incrementalBufferMs?: number;
+  /** Force a full re-sync when the last full sync is older than this many ms.
+   *  Self-heals a partially-stale replica that incremental sync would otherwise
+   *  never re-fetch (forceFullSync alone only fires on a fully empty replica).
+   *  Default 24h. */
+  fullSyncIntervalMs?: number;
+  /** Phase 4 kill switch (docs/plan-show-presence.md §12). When false (default),
+   *  same-field collisions are silently resolved last-write-wins, matching the
+   *  pre-Phase-4 behavior exactly. Flip to true to surface conflicts as
+   *  `replication:conflict` events instead.
+   *
+   *  Per-call override takes precedence over `configureConflictSurfacing()`. */
+  conflictSurfacingEnabled?: boolean;
 }

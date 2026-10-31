@@ -939,6 +939,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
       {
         forceFullSync: options?.forceFullSync === true,
         incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN,
+        ...(options?.signal ? { signal: options.signal } : {}),
       }
     );
 

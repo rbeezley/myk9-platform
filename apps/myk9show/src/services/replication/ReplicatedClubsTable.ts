@@ -16,6 +16,7 @@ import {
   type RowRefetchAdapter,
   type SyncReplicatedTableAdapter,
   type SyncResult,
+  type SyncOptions,
 } from '@myk9/replication';
 import { logger } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
@@ -189,7 +190,7 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
     };
   }
 
-  async sync(_syncScopeId?: string): Promise<SyncResult> {
+  async sync(_syncScopeId?: string, options?: Partial<SyncOptions>): Promise<SyncResult> {
     logger.log(`[${this.getTableName()}] Starting sync`);
 
     // MYK9-572 round 2: read the session ONCE up front — both the
@@ -242,6 +243,7 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
       {
         incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS,
         forceFullSync,
+        ...(options?.signal ? { signal: options.signal } : {}),
       }
     );
 
@@ -282,13 +284,13 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
     // (UnifiedAppLayout, ClubDetailPage) runs signed in, so this only ever
     // skips the guest path — exactly the one that must not prune.
     if (result.success) {
-      if (!isAuthenticated) {
+      if (!isAuthenticated || options?.signal?.aborted) {
         return result;
       }
       try {
         // MYK9-1302: the count and id read run when due, not after every pass.
         const removed = shouldRunIdScan(idScanKey(this.getTableName()), { result })
-          ? await this.reconcileVisibility()
+          ? await this.reconcileVisibility(options?.signal)
           : 0;
         if (removed > 0) {
           logger.log(`[${this.getTableName()}] reconcileVisibility removed ${removed} stale rows`);
@@ -326,14 +328,14 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
    *
    * @returns number of stale rows removed.
    */
-  async reconcileVisibility(): Promise<number> {
+  async reconcileVisibility(signal?: AbortSignal): Promise<number> {
     const PAGE_SIZE = 1000;
     const startedEpoch = idScanEpoch();
 
-    const { count, error: countError } = await supabase
-      .from('clubs')
-      .select('id', { count: 'exact', head: true })
-      .is('deleted_at', null);
+    if (signal?.aborted) return 0;
+    let countQuery = supabase.from('clubs').select('id', { count: 'exact', head: true });
+    if (signal) countQuery = countQuery.abortSignal(signal);
+    const { count, error: countError } = await countQuery.is('deleted_at', null);
     if (countError || count == null) {
       // Any fetch failure → prune nothing. Pruning against a partial/absent
       // set could wipe rows that are still perfectly visible.
@@ -349,16 +351,16 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
       return 0;
     }
 
-    const { data, error } = await supabase
-      .from('clubs')
-      .select('id')
-      .is('deleted_at', null)
-      .limit(PAGE_SIZE);
+    if (signal?.aborted) return 0;
+    let idsQuery = supabase.from('clubs').select('id');
+    if (signal) idsQuery = idsQuery.abortSignal(signal);
+    const { data, error } = await idsQuery.is('deleted_at', null).limit(PAGE_SIZE);
     if (error || !data) {
       return 0;
     }
 
     const liveIds = new Set(data.map(row => String((row as { id: string }).id)));
+    if (signal?.aborted) return 0;
     const removed = await this.removeStaleEntries(liveIds);
     markIdScanCompleted(idScanKey(this.getTableName()), startedEpoch);
     return removed;

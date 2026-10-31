@@ -6,6 +6,7 @@ import {
   type RowRefetchAdapter,
   type SyncReplicatedTableAdapter,
   type SyncResult,
+  type SyncOptions,
 } from '@myk9/replication';
 import { logger } from '@myk9/core';
 
@@ -149,7 +150,7 @@ export class ReplicatedPaperworkPrintsTable extends ReplicatedTable<ReplicatedPa
     };
   }
 
-  async sync(syncScopeId?: string): Promise<SyncResult> {
+  async sync(syncScopeId?: string, options?: Partial<SyncOptions>): Promise<SyncResult> {
     const showId = syncScopeId?.trim();
     if (!showId) {
       return {
@@ -182,7 +183,10 @@ export class ReplicatedPaperworkPrintsTable extends ReplicatedTable<ReplicatedPa
       this,
       adapter,
       { value: showId },
-      { incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS }
+      {
+        incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS,
+        ...(options?.signal ? { signal: options.signal } : {}),
+      }
     );
     if (!result.success && result.error && !isAbortSyncError(result.error)) {
       logger.error(`[${this.getTableName()}] Sync failed:`, result.error);

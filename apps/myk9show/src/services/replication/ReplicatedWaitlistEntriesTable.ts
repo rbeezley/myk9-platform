@@ -19,6 +19,7 @@ import {
   REPLICATION_INCREMENTAL_BUFFER_MS,
   type SyncReplicatedTableAdapter,
   type SyncResult,
+  type SyncOptions,
 } from '@myk9/replication';
 import { logger } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
@@ -105,7 +106,7 @@ export class ReplicatedWaitlistEntriesTable extends ReplicatedTable<ReplicatedWa
    * Sync waitlist entries from Supabase.
    * Incremental sync using updated_at column.
    */
-  async sync(_syncScopeId?: string): Promise<SyncResult> {
+  async sync(_syncScopeId?: string, options?: Partial<SyncOptions>): Promise<SyncResult> {
     logger.log(`[${this.getTableName()}] Starting sync`);
 
     const adapter: SyncReplicatedTableAdapter<WaitlistEntryRow, ReplicatedWaitlistEntry> = {
@@ -187,6 +188,7 @@ export class ReplicatedWaitlistEntriesTable extends ReplicatedTable<ReplicatedWa
       {},
       {
         incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS,
+        ...(options?.signal ? { signal: options.signal } : {}),
       }
     );
 

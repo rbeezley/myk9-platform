@@ -283,6 +283,7 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
       {
         forceFullSync: options?.forceFullSync === true,
         incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS,
+        ...(options?.signal ? { signal: options.signal } : {}),
       }
     );
 

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderHook } from '@testing-library/react';
+import { renderHook, waitFor } from '@testing-library/react';
 import { UserRole } from '@/types/auth-types';
 import { useHasRingsideStaffAccess } from './useHasRingsideStaffAccess';
 
@@ -14,8 +14,19 @@ let mockJudged: {
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
     hasRole: (role: UserRole) => mockRoles.includes(role),
-    userWithRoles: { scopes: mockScopes },
+    userWithRoles: { scopes: mockScopes, databaseUserId: 'person-1' },
   }),
+}));
+const mockSyncTable = vi.fn();
+let mockJudgeTableStatus = 'success';
+vi.mock('@/hooks/useReplicationSync', () => ({
+  useReplicationSync: () => ({
+    status: { tablesStatus: { judge_assignments: mockJudgeTableStatus } },
+    syncTable: mockSyncTable,
+  }),
+}));
+vi.mock('@tanstack/react-query', () => ({
+  useQueryClient: () => ({ invalidateQueries: vi.fn() }),
 }));
 vi.mock('./useRehydrateRingsideGrant', () => ({
   useRehydrateRingsideGrant: () => mockGrantRole,
@@ -33,6 +44,9 @@ describe('useHasRingsideStaffAccess (MYK9-1544)', () => {
     mockScopes = [];
     mockGrantRole = null;
     mockJudged = { shows: [], status: 'known' };
+    mockJudgeTableStatus = 'success';
+    mockSyncTable.mockReset();
+    mockSyncTable.mockResolvedValue(undefined);
   });
 
   it('admits a passcode grant for the show', () => {
@@ -84,5 +98,21 @@ describe('useHasRingsideStaffAccess (MYK9-1544)', () => {
   it('does not admit an exhibitor', () => {
     mockRoles = [UserRole.EXHIBITOR];
     expect(access()).toBe(false);
+  });
+
+  it('re-syncs judge assignments once when the cached list omits this show', async () => {
+    mockRoles = [UserRole.JUDGE];
+    mockJudged = { shows: [{ showId: 'show-2', firstTrialDate: null }], status: 'known' };
+    const { rerender } = renderHook(() => useHasRingsideStaffAccess('show-1', 'club-1'));
+    await waitFor(() => expect(mockSyncTable).toHaveBeenCalledWith('judge_assignments'));
+    rerender();
+    expect(mockSyncTable).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not re-sync when the cached list already has this show', () => {
+    mockRoles = [UserRole.JUDGE];
+    mockJudged = { shows: [{ showId: 'show-1', firstTrialDate: null }], status: 'known' };
+    access();
+    expect(mockSyncTable).not.toHaveBeenCalled();
   });
 });

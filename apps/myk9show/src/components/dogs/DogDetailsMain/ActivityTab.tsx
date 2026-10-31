@@ -25,9 +25,12 @@ interface ActivityTabProps {
 function UpcomingRow({
   entry,
   viewer,
+  paymentVerified,
 }: {
   entry: DogActivityEntry;
   viewer: 'exhibitor' | 'secretary';
+  /** Rows from an unverified replica may carry a stale pending payment; assert no money then. */
+  paymentVerified: boolean;
 }) {
   const showName = entry.show?.name ?? 'Unknown show';
   const className = entry.class?.name ?? 'Unknown class';
@@ -36,7 +39,14 @@ function UpcomingRow({
   // One composed status line in the viewer's voice — never the raw enum
   // ("submitted") or a bare "pending" (UX walk remediation 2.B).
   const { statusLine } = deriveEntryPresentation(
-    { entryStatus: entry.entry_status ?? null },
+    {
+      entryStatus: entry.entry_status ?? null,
+      ...(paymentVerified && {
+        paymentStatus: entry.payment_status ?? null,
+        paymentMethod: entry.payment_method ?? null,
+        entryFee: entry.entry_fee ?? null,
+      }),
+    },
     { viewer }
   );
 
@@ -227,7 +237,7 @@ const ActivityTab: React.FC<ActivityTabProps> = ({ dogId, dogName, role }) => {
           ) : (
             <div>
               {upcoming.map(e => (
-                <UpcomingRow key={e.id} entry={e} viewer={role} />
+                <UpcomingRow key={e.id} entry={e} viewer={role} paymentVerified={canTrustEmpty} />
               ))}
             </div>
           )}

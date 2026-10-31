@@ -216,7 +216,15 @@ const UpcomingShowsSection: React.FC<UpcomingShowsSectionProps> = ({
             const showName = entry.show?.name ?? 'Unknown show';
             const showHref = entry.show?.id ? `/shows/${entry.show.id}` : undefined;
             const { statusLine } = deriveEntryPresentation(
-              { entryStatus: entry.entry_status ?? null },
+              {
+                entryStatus: entry.entry_status ?? null,
+                // An unverified replica row can carry a stale pending payment.
+                ...(canTrustEmpty && {
+                  paymentStatus: entry.payment_status ?? null,
+                  paymentMethod: entry.payment_method ?? null,
+                  entryFee: entry.entry_fee ?? null,
+                }),
+              },
               { viewer }
             );
             return (

@@ -8,9 +8,10 @@
  * and match the people id it names.
  */
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
+import { useOnlineStatus } from '@/lib/networkUtils';
 import { isValidUUID } from '@/utils/validation';
 import type { User } from '@/types/user-types';
 
@@ -65,9 +66,24 @@ export function useDeepLinkedUser(
   );
 
   const user = direct ?? resolved;
-  // A drop mid-request fails the fetch (fetchStatus returns to idle, not paused);
-  // while the device is offline that is the same "needs a connection" state.
-  const lostConnection = typeof navigator !== 'undefined' && !navigator.onLine;
+  // A drop mid-request (or an offline cold boot while React Query still thinks it is
+  // online) fails the fetch instead of pausing it; while the device is offline that is
+  // the same "needs a connection" state.
+  const isOnline = useOnlineStatus();
+  const lostConnection = !isOnline;
+  const failedOffline = useRef(false);
+  const { isError, refetch } = lookup;
+  // React Query's online manager may never see the browser `online` event in that case,
+  // so refetch once ourselves when the connection returns.
+  useEffect(() => {
+    if (!needsLookup) return;
+    if (isError && !isOnline) {
+      failedOffline.current = true;
+    } else if (isError && isOnline && failedOffline.current) {
+      failedOffline.current = false;
+      void refetch();
+    }
+  }, [needsLookup, isError, isOnline, refetch]);
   return {
     user,
     notFound: (malformedId || (needsLookup && lookup.isSuccess)) && !user,

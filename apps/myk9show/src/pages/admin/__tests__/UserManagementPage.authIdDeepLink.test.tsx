@@ -160,6 +160,44 @@ describe('UserManagementPage ?userId= with an auth user id (MYK9-1533)', () => {
     }
   });
 
+  it('refetches and opens the user when the online event follows an offline-start failure (MYK9-1567)', async () => {
+    const onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    mockMaybeSingle.mockResolvedValueOnce({ data: null, error: new Error('Failed to fetch') });
+    try {
+      render(<UserManagementPage />, { initialRoute: `/admin/users?userId=${AUTH_ID}` });
+      expect(await screen.findByText(/needs a connection/i)).toBeInTheDocument();
+      expect(mockMaybeSingle).toHaveBeenCalledTimes(1);
+
+      mockMaybeSingle.mockResolvedValueOnce({ data: { id: 'people-1' }, error: null });
+      onLine.mockReturnValue(true);
+      act(() => {
+        window.dispatchEvent(new Event('online'));
+      });
+      expect(await screen.findByTestId('manage-roles-dialog')).toHaveTextContent('people-1');
+      expect(mockMaybeSingle).toHaveBeenCalledTimes(2);
+    } finally {
+      onLine.mockRestore();
+    }
+  });
+
+  it('the needs-connection alert has a Retry that refetches (MYK9-1567)', async () => {
+    const onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    mockMaybeSingle.mockResolvedValueOnce({ data: null, error: new Error('Failed to fetch') });
+    try {
+      const { user } = render(<UserManagementPage />, {
+        initialRoute: `/admin/users?userId=${AUTH_ID}`,
+      });
+      expect(await screen.findByText(/needs a connection/i)).toBeInTheDocument();
+
+      mockMaybeSingle.mockResolvedValueOnce({ data: { id: 'people-1' }, error: null });
+      await user.click(screen.getByRole('button', { name: 'Retry' }));
+      expect(await screen.findByTestId('manage-roles-dialog')).toHaveTextContent('people-1');
+      expect(mockMaybeSingle).toHaveBeenCalledTimes(2);
+    } finally {
+      onLine.mockRestore();
+    }
+  });
+
   it('says nothing about a missing user when no userId is given', async () => {
     render(<UserManagementPage />, { initialRoute: '/admin/users' });
     await screen.findByTestId('user-table');

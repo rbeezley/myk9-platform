@@ -12,8 +12,13 @@ export function DeepLinkLookupAlerts({
   if (needsConnection) {
     return (
       <Alert>
-        <AlertDescription>
-          Opening that user needs a connection. It will open as soon as you are back online.
+        <AlertDescription className="flex items-center justify-between gap-3">
+          <span>
+            Opening that user needs a connection. It will open as soon as you are back online.
+          </span>
+          <Button variant="outline" className="min-h-11 shrink-0" onClick={retryLookup}>
+            Retry
+          </Button>
         </AlertDescription>
       </Alert>
     );

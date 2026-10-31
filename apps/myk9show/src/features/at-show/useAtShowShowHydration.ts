@@ -51,7 +51,9 @@ export function useAtShowShowHydration(
   } | null>(null);
   const startedShowRef = useRef<string | null>(null);
   const passKeyRef = useRef<string | null>(null);
-  const settledReadRef = useRef(0);
+  // One ordering for every marker read, initial and settled: only the latest
+  // issued read may set state (MYK9-1560).
+  const markerReadRef = useRef(0);
 
   useEffect(() => {
     if (!showId || startedShowRef.current === showId) return;
@@ -65,8 +67,9 @@ export function useAtShowShowHydration(
     // connection lost MID-sync is MYK9-1550). A later settled sync still
     // re-evaluates it below.
     if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      const read = ++markerReadRef.current;
       void readEntriesMarker(forShow).then(onDevice => {
-        if (startedShowRef.current === forShow)
+        if (startedShowRef.current === forShow && read === markerReadRef.current)
           setHydrated({ showId: forShow, state: onDevice ? 'arrived' : 'not-arrived' });
       });
       return;
@@ -79,8 +82,10 @@ export function useAtShowShowHydration(
     void Promise.all([refresh(true).catch(() => {}), outcome]).then(
       async () => {
         // A reported success still has to leave every scope on the device (MYK9-1538).
+        const read = ++markerReadRef.current;
         const state = (await readEntriesMarker(forShow)) ? 'arrived' : 'not-arrived';
-        if (startedShowRef.current === forShow) setHydrated({ showId: forShow, state });
+        if (startedShowRef.current === forShow && read === markerReadRef.current)
+          setHydrated({ showId: forShow, state });
       },
       () => {
         // Unreachable in practice (both inputs swallow rejections); never leave
@@ -99,12 +104,14 @@ export function useAtShowShowHydration(
       // replica or leave a once-complete one short (a trial added whose classes
       // failed). Cached rows stay on screen either way; only the notice changes.
       // Reads can finish out of order: only the latest one may set state.
-      const read = ++settledReadRef.current;
+      const read = ++markerReadRef.current;
       void readEntriesMarker(showId).then(onDevice => {
-        if (!live || read !== settledReadRef.current) return;
+        if (!live || read !== markerReadRef.current) return;
         const next = onDevice ? 'arrived' : 'not-arrived';
         setHydrated(prev =>
-          prev?.showId === showId && prev.state !== next ? { showId, state: next } : prev
+          // A settled sync that lands before the first hydration finishes is
+          // the newest answer: keep it, the older initial read is dropped above.
+          prev?.showId === showId && prev.state === next ? prev : { showId, state: next }
         );
       });
     });

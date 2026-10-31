@@ -216,6 +216,29 @@ describe('useAtShowShowHydration', () => {
       expect(result.current).toBe('arrived');
     });
 
+    it('keeps a settled result that lands while the initial marker read is still pending (MYK9-1560)', async () => {
+      goOffline();
+      let settled: () => void = () => {};
+      mocks.subscribeAtShowSyncSettled.mockImplementation((_id: string, cb: () => void) => {
+        settled = cb;
+        return vi.fn();
+      });
+      const initial = deferred<boolean>();
+      mocks.hasShowEntriesSynced.mockReturnValueOnce(initial.promise).mockResolvedValue(false);
+      const { result } = renderHook(() => useAtShowShowHydration('A', IDLE_STATUS, neverRefresh()));
+      await act(async () => {});
+      expect(result.current).toBe('pending');
+
+      await act(async () => {
+        settled();
+      });
+      await act(async () => {
+        initial.resolve(true);
+        await initial.promise;
+      });
+      expect(result.current).toBe('not-arrived');
+    });
+
     it('still waits on the sync when the start is online', async () => {
       mocks.syncAtShowData.mockReturnValue(new Promise(() => {}));
       const { result } = renderHook(() => useAtShowShowHydration('A', IDLE_STATUS, neverRefresh()));

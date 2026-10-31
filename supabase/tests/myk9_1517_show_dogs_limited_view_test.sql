@@ -128,7 +128,12 @@ VALUES ('00000000-0000-0000-0000-000001517207', '00000000-0000-0000-0000-0000015
  ('00000000-0000-0000-0000-000001517208', '00000000-0000-0000-0000-000001517137',
    '00000000-0000-0000-0000-000001517105', '00000000-0000-0000-0000-000001517002',
    '00000000-0000-0000-0000-000001517004', '00000000-0000-0000-0000-000001517111', 'Seven Handler',
-   '107', 8, 'confirmed', 'pending', 25, 'no-status');
+   '107', 8, 'confirmed', 'pending', 25, 'no-status'),
+ -- A free-text armband ('12A') must be left out without failing the call (22P02).
+ ('00000000-0000-0000-0000-000001517209', '00000000-0000-0000-0000-000001517132',
+   '00000000-0000-0000-0000-000001517104', '00000000-0000-0000-0000-000001517002',
+   '00000000-0000-0000-0000-000001517004', '00000000-0000-0000-0000-000001517112', 'Yuri Handler',
+   '12A', 10, 'confirmed', 'pending', 25, 'no-status');
 INSERT INTO public.armbands (show_id, dog_id, entry_id, armband_number, is_available)
 VALUES ('00000000-0000-0000-0000-000001517002', '00000000-0000-0000-0000-000001517136',
    '00000000-0000-0000-0000-000001517207', '104', false);
@@ -281,7 +286,7 @@ BEGIN
   SELECT array_agg(armband ORDER BY armband) INTO v_armbands
   FROM public.show_dogs_limited_view('00000000-0000-0000-0000-000001517002');
   IF v_armbands IS DISTINCT FROM ARRAY[101, 102, 107] THEN
-    RAISE EXCEPTION 'FAIL 1/2 exhibitor must read exactly armbands 101,102,107 (number only in the armbands table, withdrawn, deleted and unnumbered left out), got %', v_armbands;
+    RAISE EXCEPTION 'FAIL 1/2 exhibitor must read exactly armbands 101,102,107 (number only in the armbands table, withdrawn, deleted, unnumbered and non-numeric left out), got %', v_armbands;
   END IF;
   SELECT * INTO r FROM public.show_dogs_limited_view('00000000-0000-0000-0000-000001517002')
   WHERE armband = 102;

@@ -137,8 +137,9 @@ BEGIN
         )
       )
     )
-    AND r.entry_armband ~ '^[0-9]{1,9}$'
-    AND r.entry_armband::integer > 0
+    -- CASE, not AND: Postgres does not promise to test the pattern before the
+    -- cast, and armband is free text, so one '12A' would fail the whole call.
+    AND CASE WHEN r.entry_armband ~ '^[0-9]{1,9}$' THEN r.entry_armband::integer > 0 ELSE false END
   ORDER BY r.entry_armband::integer, r.trial_date, r.cls_name, r.entry_class_id, r.entry_id
   OFFSET greatest(coalesce(p_offset, 0), 0)
   LIMIT least(greatest(coalesce(p_limit, 1000), 1), 1000);

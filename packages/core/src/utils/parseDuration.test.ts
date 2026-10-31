@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   formatDuration,
+  isDurationFailure,
   isUnresolvedDuration,
   parseDuration,
   type DurationKind,
@@ -59,6 +60,7 @@ const SEARCH: Case[] = [
   ['123:00', 'error:too-many-digits'],
   ['1234567', 'error:too-many-digits'],
   ['9999.99', 'error:too-large'],
+  ['99:99', 'error:too-large'],
   // letters and a minus sign
   ['abc', 'error:invalid-characters'],
   ['1:2O.45', 'error:invalid-characters'],
@@ -168,5 +170,12 @@ describe('isUnresolvedDuration', () => {
     expect(isUnresolvedDuration('1:23.45', 'search')).toBe(false);
     expect(isUnresolvedDuration('1:99', 'search')).toBe(true);
     expect(isUnresolvedDuration('abc', 'max')).toBe(true);
+  });
+});
+
+describe('isDurationFailure', () => {
+  it('tells a failure from a success', () => {
+    expect(isDurationFailure(parseDuration('abc', 'search'))).toBe(true);
+    expect(isDurationFailure(parseDuration('45', 'search'))).toBe(false);
   });
 });

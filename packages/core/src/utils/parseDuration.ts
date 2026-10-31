@@ -110,9 +110,6 @@ function fromParts(
   centis: number,
   kind: DurationKind
 ): DurationResult {
-  if (minutes > MAX_MINUTES) {
-    return fail('too-large', `${MAX_MINUTES} minutes is the most a time can hold.`);
-  }
   if (seconds >= 60) {
     const total = (minutes * 60 + seconds) * 100 + centis;
     const meant = kind === 'search' ? joinSearch(total) : joinMax(total / 100);

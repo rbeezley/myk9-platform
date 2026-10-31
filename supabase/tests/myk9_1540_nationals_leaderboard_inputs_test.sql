@@ -111,6 +111,12 @@ VALUES
   ('00000000-0000-0000-0000-000001540037', 'Golf Registered', 'Golf', 'Beagle', '00000000-0000-0000-0000-000001540014'),
   ('00000000-0000-0000-0000-000001540038', 'Hotel Registered', 'Hotel', 'Beagle', '00000000-0000-0000-0000-000001540014');
 
+-- entries_require_dog_registration() refuses an entry for a dog with no registration number.
+INSERT INTO public.dog_registrations (dog_id, organization, registration_number, is_primary)
+SELECT d.id, 'AKC (American Kennel Club)', 'SR1540' || right(d.id::text, 3), true
+FROM public.dogs d
+WHERE d.id::text LIKE '00000000-0000-0000-0000-00000154003_';
+
 INSERT INTO public.entries (
   id, dog_id, class_id, show_id, trial_id, handler, entry_status, payment_status,
   entry_fee, armband, run_order, is_scored, result_status, search_time_seconds,

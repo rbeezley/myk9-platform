@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   complete: vi.fn(),
+  queued: vi.fn(),
   toastSuccess: vi.fn(),
   toastInfo: vi.fn(),
   toastError: vi.fn(),
@@ -10,7 +11,10 @@ const mocks = vi.hoisted(() => ({
 vi.mock('sonner', () => ({
   toast: { success: mocks.toastSuccess, info: mocks.toastInfo, error: mocks.toastError },
 }));
-vi.mock('./completeStaleClassRpc', () => ({ completeStaleClassRpc: mocks.complete }));
+vi.mock('./completeStaleClassRpc', () => ({
+  completeStaleClassRpc: mocks.complete,
+  readQueuedScoreEntryIds: mocks.queued,
+}));
 
 import { render, screen, userEvent, waitFor } from '@/test/utils/testUtils';
 import { StaleClassPrompt } from './StaleClassPrompt';
@@ -31,6 +35,7 @@ describe('StaleClassPrompt', () => {
     vi.clearAllMocks();
     useStaleClassPromptStore.setState({ prompt: null, snoozes: {} });
     mocks.complete.mockResolvedValue({ ok: true, markedCount: 3 });
+    mocks.queued.mockResolvedValue(new Set<string>());
   });
 
   it('renders nothing until there is a prompt', () => {
@@ -168,5 +173,21 @@ describe('StaleClassPrompt', () => {
     await waitFor(() =>
       expect(mocks.toastInfo).toHaveBeenCalledWith('Container Novice A is no longer in progress')
     );
+  });
+
+  it('keeps the prompt and writes nothing while a listed dog still has a score uploading', async () => {
+    mocks.queued.mockResolvedValue(new Set(['b']));
+    useStaleClassPromptStore.setState({ prompt });
+    render(<StaleClassPrompt />);
+
+    await userEvent.click(await screen.findByRole('button', { name: /Mark absent/ }));
+
+    await waitFor(() =>
+      expect(mocks.toastInfo).toHaveBeenCalledWith(
+        "Scores for Container Novice A are still uploading. Try again once they're sent."
+      )
+    );
+    expect(mocks.complete).not.toHaveBeenCalled();
+    expect(useStaleClassPromptStore.getState().prompt).not.toBeNull();
   });
 });

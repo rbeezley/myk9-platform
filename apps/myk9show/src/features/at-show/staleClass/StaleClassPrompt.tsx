@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { logger } from '@/services/LoggingService';
-import { completeStaleClassRpc } from './completeStaleClassRpc';
+import { completeStaleClassRpc, readQueuedScoreEntryIds } from './completeStaleClassRpc';
 import { confirmStaleClass } from './confirmStaleClass';
 import { useStaleClassPromptStore } from './staleClassPromptStore';
 
@@ -34,7 +34,15 @@ export function StaleClassPrompt() {
     try {
       const result = await confirmStaleClass(prompt, {
         complete: (classId, ids) => completeStaleClassRpc(prompt.showId, classId, ids),
+        queuedScoreEntryIds: readQueuedScoreEntryIds,
       });
+      if (result.outcome === 'scores-uploading') {
+        // Nothing was written. Keep the prompt: the upload will finish on its own.
+        toast.info(
+          `Scores for ${result.className} are still uploading. Try again once they're sent.`
+        );
+        return;
+      }
       if (result.outcome === 'needs-connection') {
         // Online-only: nothing was marked or queued. Keep the prompt open to try again.
         toast.error("Needs a connection. Try again when you're back online.");

@@ -23,7 +23,9 @@ export type ConfirmStaleClassResult =
   /** The dogs changed since the judge looked: nothing was written; ask again with these. */
   | { outcome: 'changed'; className: string; currentEntryIds: string[] }
   /** No usable connection: nothing was marked or queued; the prompt stays open. */
-  | { outcome: 'needs-connection'; className: string };
+  | { outcome: 'needs-connection'; className: string }
+  /** A listed dog has a score queued on this device: the server would count it unscored. */
+  | { outcome: 'scores-uploading'; className: string };
 
 const NETWORK_MESSAGE =
   /failed to fetch|fetch failed|networkerror|network request failed|load failed|network error|timed? ?out|timeout|aborted|err_internet|offline/i;
@@ -47,9 +49,17 @@ export async function confirmStaleClass(
   prompt: StaleClassPrompt,
   deps: {
     complete: (classId: string, expectedEntryIds: string[]) => Promise<CompleteStaleClassReply>;
+    /** Entry ids with a score still queued on this device. */
+    queuedScoreEntryIds: () => Promise<ReadonlySet<string>>;
   }
 ): Promise<ConfirmStaleClassResult> {
   const { classId, className, unscoredEntryIds } = prompt;
+  // A dog scored offline whose score has not uploaded yet is still unscored on the server,
+  // so confirming now would mark a real run absent. Wait for the upload instead.
+  const queued = await deps.queuedScoreEntryIds();
+  if (unscoredEntryIds.some(id => queued.has(id))) {
+    return { outcome: 'scores-uploading', className };
+  }
   let reply: CompleteStaleClassReply;
   try {
     reply = await deps.complete(classId, unscoredEntryIds);

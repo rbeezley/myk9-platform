@@ -14,10 +14,24 @@ const prompt: StaleClassPrompt = {
 
 const deps = (over: Partial<Parameters<typeof confirmStaleClass>[1]> = {}) => ({
   complete: vi.fn().mockResolvedValue({ ok: true, markedCount: 3 }),
+  queuedScoreEntryIds: vi.fn().mockResolvedValue(new Set<string>()),
   ...over,
 });
 
 describe('confirmStaleClass', () => {
+  it('writes nothing while a listed dog still has a score queued on this device', async () => {
+    const d = deps({ queuedScoreEntryIds: vi.fn().mockResolvedValue(new Set(['b'])) });
+    const result = await confirmStaleClass(prompt, d);
+
+    expect(result).toEqual({ outcome: 'scores-uploading', className: 'Container Novice A' });
+    expect(d.complete).not.toHaveBeenCalled();
+  });
+
+  it('ignores queued scores for dogs that are not in the list', async () => {
+    const d = deps({ queuedScoreEntryIds: vi.fn().mockResolvedValue(new Set(['other-dog'])) });
+    expect((await confirmStaleClass(prompt, d)).outcome).toBe('marked');
+  });
+
   it('makes one server call with exactly the ids the judge saw', async () => {
     const d = deps();
     const result = await confirmStaleClass(prompt, d);

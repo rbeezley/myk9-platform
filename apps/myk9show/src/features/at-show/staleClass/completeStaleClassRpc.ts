@@ -1,7 +1,9 @@
 /** The online call to `ringside_complete_stale_class` (MYK9-1514); a thrown error means nothing changed. */
 import { supabase } from '@/services/database/supabaseClient';
 import { logger } from '@/services/LoggingService';
+import { mutationManager } from '@/services/replication/sharedMutationManager';
 import { syncAtShowData } from '../atShowDataAdapter';
+import { queuedScoreEntryIds } from '../useQueuedScoresByClass';
 import type { CompleteStaleClassReply, StaleClassRefusal } from './confirmStaleClass';
 
 const COMPLETE_STALE_CLASS_RPC = 'ringside_complete_stale_class';
@@ -36,4 +38,9 @@ export async function completeStaleClassRpc(
     currentEntryIds: reply.current_entry_ids ?? [],
     reason: reply.reason ?? 'changed',
   };
+}
+
+/** Entry ids whose score is still queued on this device (the same queue the class cards count). */
+export async function readQueuedScoreEntryIds(): Promise<ReadonlySet<string>> {
+  return queuedScoreEntryIds(await mutationManager.getPendingMutationsForTable('entries'));
 }

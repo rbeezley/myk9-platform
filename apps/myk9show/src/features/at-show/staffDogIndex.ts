@@ -37,6 +37,8 @@ export interface StaffDogClassEntry {
   faultCount: number | null;
   placement: number | null;
   resultsReleased: boolean;
+  /** Run-order position; only the exhibitor view (MYK9-1517) fills it. */
+  runOrder?: number | null;
 }
 
 export interface StaffDog {

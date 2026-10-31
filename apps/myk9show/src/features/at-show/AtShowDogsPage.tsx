@@ -1,20 +1,24 @@
 /**
- * Ringside staff dog finder (MYK9-1509): every dog in the show with search, sort,
- * and a Favorites tab, like v3's Home. Reads the replica, so it works offline.
- * A row opens the dog page; favorites reuse the armband sync the entry lists use.
+ * Ringside dog finder: every dog in the show with search, sort, and a Favorites tab,
+ * like v3's Home. Staff (MYK9-1509) read the replica, so it works offline; an exhibitor
+ * (MYK9-1517) reads the privacy-reviewed server list, online only. A staff row opens the
+ * dog page; favorites reuse the armband sync the entry lists use, for both.
  */
 import { useMemo, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { getStatusDescriptor } from '@/components/status';
 import { cn } from '@/lib/utils';
 import { useAtShowDogFavoritesSynced } from './dogFavoritesSync';
 import { useAtShowStaffDogs } from './useAtShowStaffDogs';
-import { useIsStaffDogViewer } from './useStaffDogGate';
+import { useAtShowExhibitorDogs } from './useAtShowExhibitorDogs';
+import { useDogViewerKind } from './useStaffDogGate';
 import {
   filterStaffDogs,
   formatDogCount,
   sortStaffDogs,
+  type StaffDog,
   type StaffDogSort,
   type StaffDogTab,
 } from './staffDogIndex';
@@ -27,14 +31,50 @@ const SORTS: ReadonlyArray<{ id: StaffDogSort; label: string }> = [
   { id: 'handler', label: 'Handler' },
 ];
 
+const ROW_BODY = 'flex min-h-11 min-w-0 flex-1 items-center gap-3';
+
+/** Staff rows open the dog page; the exhibitor view has no dog page to open. */
+const DogRowBody: React.FC<{ to: string | null; children: React.ReactNode }> = ({
+  to,
+  children,
+}) =>
+  to ? (
+    <Link to={to} className={ROW_BODY}>
+      {children}
+    </Link>
+  ) : (
+    <div className={ROW_BODY}>{children}</div>
+  );
+
+/** Class membership, run-order position and check-in status: the approved exhibitor fields. */
+const ExhibitorClassLines: React.FC<{ dog: StaffDog }> = ({ dog }) => (
+  <span className="block text-xs text-muted-foreground">
+    {dog.entries.map(entry => (
+      <span key={entry.entryId} className="block truncate">
+        {[
+          entry.className,
+          entry.runOrder ? `Run ${entry.runOrder}` : null,
+          getStatusDescriptor('entry', entry.checkInStatus).label,
+        ]
+          .filter(Boolean)
+          .join(' · ')}
+      </span>
+    ))}
+  </span>
+);
+
 export const AtShowDogsPage: React.FC = () => {
   const { showId } = useParams<{ showId: string }>();
-  const isStaff = useIsStaffDogViewer(showId);
-  const { dogs, showName, isLoading, isComplete, loadFailed, onRetry } = useAtShowStaffDogs(
-    isStaff ? showId : undefined
-  );
+  const kind = useDogViewerKind(showId);
+  const isExhibitor = kind === 'exhibitor';
+  // Both hooks always run; the one that does not apply gets no show and stays idle.
+  const staffDogs = useAtShowStaffDogs(kind === 'staff' ? showId : undefined);
+  const exhibitorDogs = useAtShowExhibitorDogs(isExhibitor ? showId : undefined);
+  const { dogs, showName, isLoading, isComplete, loadFailed, onRetry } = isExhibitor
+    ? exhibitorDogs
+    : staffDogs;
   const { favoriteArmbands, toggleFavoriteArmband } = useAtShowDogFavoritesSynced(
-    isStaff ? showId : undefined
+    kind ? showId : undefined
   );
   const [tab, setTab] = useState<StaffDogTab>(() => loadDogTab(showId));
   const [query, setQuery] = useState('');
@@ -45,8 +85,8 @@ export const AtShowDogsPage: React.FC = () => {
     [dogs, tab, query, favoriteArmbands, sort]
   );
 
-  // Staff only: an exhibitor or unresolved role goes back to the class picker.
-  if (!isStaff) return <Navigate to={`/at-show/${showId}`} replace />;
+  // Staff and exhibitors only: an unresolved role goes back to the class picker.
+  if (!kind) return <Navigate to={`/at-show/${showId}`} replace />;
 
   const selectTab = (next: StaffDogTab) => {
     setTab(next);
@@ -115,7 +155,11 @@ export const AtShowDogsPage: React.FC = () => {
       {loadFailed && dogs.length > 0 && <StaleReadNotice onRetry={onRetry} />}
       {loadFailed && dogs.length === 0 ? (
         <div className="flex flex-col items-center gap-3 py-10 text-center" role="alert">
-          <p className="text-sm text-muted-foreground">We couldn't read this show's dogs.</p>
+          <p className="text-sm text-muted-foreground">
+            {isExhibitor
+              ? "We couldn't load this show's dogs. The list needs a connection."
+              : "We couldn't read this show's dogs."}
+          </p>
           <Button variant="outline" onClick={onRetry}>
             Try again
           </Button>
@@ -131,7 +175,11 @@ export const AtShowDogsPage: React.FC = () => {
         </div>
       ) : visible.length === 0 ? (
         <p className="py-10 text-center text-sm text-muted-foreground">
-          {dogs.length === 0 ? 'No dogs on this device yet.' : 'No dogs match.'}
+          {dogs.length === 0
+            ? isExhibitor
+              ? 'No dogs in this show yet.'
+              : 'No dogs on this device yet.'
+            : 'No dogs match.'}
         </p>
       ) : (
         <ul className="space-y-2">
@@ -143,10 +191,7 @@ export const AtShowDogsPage: React.FC = () => {
                 className="flex min-h-12 items-center gap-2 rounded-xl border bg-card px-3 py-2 shadow-sm"
                 data-testid={`at-show-dog-${dog.key}`}
               >
-                <Link
-                  to={atShowDogPath(showId as string, dog.key)}
-                  className="flex min-h-11 min-w-0 flex-1 items-center gap-3"
-                >
+                <DogRowBody to={isExhibitor ? null : atShowDogPath(showId as string, dog.key)}>
                   <span className="shrink-0 rounded-full bg-[color:var(--chip-stone-bg)] px-2 py-0.5 text-xs font-medium text-[color:var(--chip-stone-fg)]">
                     {dog.armband != null ? `#${dog.armband}` : '—'}
                   </span>
@@ -155,8 +200,9 @@ export const AtShowDogsPage: React.FC = () => {
                     <span className="block truncate text-sm text-muted-foreground">
                       {[dog.breed, dog.handler].filter(Boolean).join(' · ')}
                     </span>
+                    {isExhibitor && <ExhibitorClassLines dog={dog} />}
                   </span>
-                </Link>
+                </DogRowBody>
                 {dog.armband != null && (
                   <button
                     type="button"

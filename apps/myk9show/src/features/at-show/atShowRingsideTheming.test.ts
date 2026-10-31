@@ -13,8 +13,11 @@ import path from 'node:path';
 
 const read = (p: string) => readFileSync(path.join(__dirname, p), 'utf8');
 const scoresheet = read('AtShowScoresheetPage.tsx');
-const classList = read('AtShowClassListPage.tsx');
+// The trial headers and count chips live in the sections component (MYK9-1506 split).
+const classList = read('AtShowClassListSections.tsx');
 const classRow = read('AtShowClassRow.tsx');
+// The favorite heart moved from the row's star to the card footer (MYK9-1506).
+const classFooter = read('AtShowClassCardFooter.tsx');
 
 describe('At-Show ringside — calm offline + tokenized status', () => {
   it('renders the offline state in a calm neutral tone, not alarm-orange', () => {
@@ -47,7 +50,7 @@ describe('At-Show ringside — calm offline + tokenized status', () => {
     // BASE class string, so it would still be green with the favorite styling
     // deleted outright -- a pin that proves only that someone typed the word.
     expect(classRow).toMatch(/is_favorite &&\s*'[^']*border-primary/);
-    expect(classRow).toContain('fill-primary text-primary');
+    expect(classFooter).toContain('fill-primary text-primary');
     expect(classRow).not.toContain('emerald');
   });
 

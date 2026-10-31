@@ -12,7 +12,7 @@
 -- the latest definition), minus the exhibitor arms: site admin, manager of the
 -- show's club, show- or club-scoped steward, a current ringside passcode claim
 -- (judge, steward or admin) for THIS show, and a judge assigned to a class of
--- this show. An exhibitor, another show's staff and a signed-out caller get no
+-- this show (entries or not). An exhibitor, another show's staff and a signed-out caller get no
 -- rows. managed_show_ids is always empty since MYK9-114, so that arm is not
 -- restated.
 --
@@ -85,12 +85,13 @@ BEGIN
   );
 
   IF NOT v_authorized AND ctx.assigned_class_ids IS NOT NULL THEN
+    -- A judge assigned to ANY class of this show, even one with no entries yet.
     v_authorized := EXISTS (
       SELECT 1
-      FROM public.entries ae
-      WHERE ae.show_id = p_show_id
-        AND ae.deleted_at IS NULL
-        AND ae.class_id = ANY(ctx.assigned_class_ids)
+      FROM public.classes ac
+      JOIN public.trials atr ON atr.id = ac.trial_id
+      WHERE atr.show_id = p_show_id
+        AND ac.id = ANY(ctx.assigned_class_ids)
     );
   END IF;
 
@@ -127,7 +128,9 @@ BEGIN
   LEFT JOIN public.people hp ON hp.id = e.handler_id
   LEFT JOIN public.people op ON op.id = d.owner_id
   WHERE e.show_id = p_show_id
-    AND e.deleted_at IS NULL;
+    AND e.deleted_at IS NULL
+  -- Stable order: the client pages this result under PostgREST's max_rows.
+  ORDER BY e.id;
 END;
 $$;
 

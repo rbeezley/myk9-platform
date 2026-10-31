@@ -6,6 +6,7 @@
  */
 import type { SecretaryEntry } from '@/services/database/entries';
 import { supabase } from '@/services/database/supabaseClient';
+import { POSTGREST_MAX_ROWS } from '@/services/replication/postgrestMaxRows';
 import type { ResultsClassRow } from '@/features/results-tab/buildResultsClassRows';
 
 export const NATIONALS_LEADERBOARD_INPUTS_RPC = 'get_nationals_leaderboard_inputs';
@@ -29,19 +30,38 @@ export interface NationalsLeaderboardInputRow {
   show_start_date: string | null;
 }
 
-type UntypedRpc = (
-  name: string,
-  args: { p_show_id: string }
-) => Promise<{ data: NationalsLeaderboardInputRow[] | null; error: { message: string } | null }>;
+interface RangedRpc {
+  range(
+    from: number,
+    to: number
+  ): PromiseLike<{
+    data: NationalsLeaderboardInputRow[] | null;
+    error: { message: string } | null;
+  }>;
+}
+type UntypedRpc = (name: string, args: { p_show_id: string }) => RangedRpc;
 
+/**
+ * Every row of the show. PostgREST caps one response at `max_rows` (1,000), and a nationals show
+ * can hold more entries than that, so this pages the function's stable `ORDER BY e.id` result and
+ * only returns once a short page proves the field is complete (a truncated board would rank
+ * wrongly without saying so).
+ */
 export async function fetchNationalsLeaderboardInputs(
   showId: string
 ): Promise<NationalsLeaderboardInputRow[]> {
   // The generated Database types predate the function; the row shape is pinned above.
   const rpc = supabase.rpc.bind(supabase) as unknown as UntypedRpc;
-  const { data, error } = await rpc(NATIONALS_LEADERBOARD_INPUTS_RPC, { p_show_id: showId });
-  if (error) throw new Error(error.message);
-  return data ?? [];
+  const rows: NationalsLeaderboardInputRow[] = [];
+  for (let from = 0; ; from += POSTGREST_MAX_ROWS) {
+    const { data, error } = await rpc(NATIONALS_LEADERBOARD_INPUTS_RPC, {
+      p_show_id: showId,
+    }).range(from, from + POSTGREST_MAX_ROWS - 1);
+    if (error) throw new Error(error.message);
+    const page = data ?? [];
+    rows.push(...page);
+    if (page.length < POSTGREST_MAX_ROWS) return rows;
+  }
 }
 
 export interface NationalsLeaderboardInputs {

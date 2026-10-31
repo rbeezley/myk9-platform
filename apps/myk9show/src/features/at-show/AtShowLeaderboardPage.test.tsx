@@ -6,9 +6,11 @@ import type { NationalsLeaderboardInputRow } from './leaderboard/nationalsLeader
 const mocks = vi.hoisted(() => ({
   role: 'judge' as string | null,
   show: { isNationals: true } as { isNationals: boolean } | null,
+  showFails: false,
   online: true,
   rows: null as NationalsLeaderboardInputRow[] | null,
   isError: false,
+  liveDown: false,
   enabledArgs: [] as boolean[],
   retry: vi.fn(),
 }));
@@ -19,7 +21,12 @@ vi.mock('./useRingsideEffectiveRole', () => ({
 vi.mock('./useRehydrateRingsideGrant', () => ({ useRehydrateRingsideGrant: () => null }));
 vi.mock('@/lib/networkUtils', () => ({ useOnlineStatus: () => mocks.online }));
 vi.mock('@/services/replication', () => ({
-  replicatedShowsTable: { getShowById: vi.fn(async () => mocks.show) },
+  replicatedShowsTable: {
+    getShowById: vi.fn(async () => {
+      if (mocks.showFails) throw new Error('replica read failed');
+      return mocks.show;
+    }),
+  },
 }));
 vi.mock('./leaderboard/useNationalsLeaderboardInputs', async () => {
   const actual = await vi.importActual<typeof import('./leaderboard/nationalsLeaderboardInputs')>(
@@ -32,6 +39,7 @@ vi.mock('./leaderboard/useNationalsLeaderboardInputs', async () => {
         inputs: mocks.rows ? actual.toLeaderboardInputs(mocks.rows) : null,
         isLoading: false,
         isError: mocks.isError,
+        liveDown: mocks.liveDown,
         retry: mocks.retry,
       };
     },
@@ -76,8 +84,10 @@ function renderPage() {
 beforeEach(() => {
   mocks.role = 'judge';
   mocks.show = { isNationals: true };
+  mocks.showFails = false;
   mocks.online = true;
   mocks.isError = false;
+  mocks.liveDown = false;
   mocks.enabledArgs = [];
   mocks.retry.mockReset();
   mocks.rows = [
@@ -159,6 +169,38 @@ describe('AtShowLeaderboardPage', () => {
     ).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: /back to ringside/i })).toBeInTheDocument();
     expect(mocks.enabledArgs.every(enabled => enabled === false)).toBe(true);
+  });
+
+  it('does not show cached rankings as live once the device goes offline', async () => {
+    mocks.online = false;
+    // The hook still holds rows from an earlier load.
+    renderPage();
+    expect(await screen.findByText('Needs a connection')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { name: 'Nationals Leaderboard' })
+    ).not.toBeInTheDocument();
+  });
+
+  it('says live updates are paused instead of leaving the board silently stale', async () => {
+    mocks.liveDown = true;
+    renderPage();
+    expect(await screen.findByText('Live updates paused')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Nationals Leaderboard' })).toBeInTheDocument();
+  });
+
+  it.each([
+    ['fails', true, { isNationals: true }],
+    ['has no row', false, null],
+  ])('explains a show lookup that %s, with retry and the way back', async (_label, fails, show) => {
+    mocks.rows = null;
+    mocks.showFails = fails;
+    mocks.show = show;
+    renderPage();
+    expect(await screen.findByRole('button', { name: 'Retry' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /back to ringside/i })).toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { name: 'Nationals Leaderboard' })
+    ).not.toBeInTheDocument();
   });
 
   it('keeps the ringside return link when the read fails', async () => {

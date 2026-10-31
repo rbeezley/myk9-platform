@@ -3,6 +3,7 @@
 -- Properties asserted:
 --   1. a judge assigned to ONE class of the show receives the rows of EVERY
 --      class (a complete field), with real points for released classes;
+--   1b. a judge assigned only to a class with no entries is admitted too;
 --   2. a show steward, whose results view masks points_earned, receives real
 --      points for released classes;
 --   3. an entry in an UNRELEASED class arrives with no score at all
@@ -27,7 +28,8 @@ VALUES
   ('00000000-0000-0000-0000-000001540011', NULL, 'Judge', 'J', 'myk9-1540-j@example.test'),
   ('00000000-0000-0000-0000-000001540012', NULL, 'Steward', 'ST', 'myk9-1540-st@example.test'),
   ('00000000-0000-0000-0000-000001540013', NULL, 'Exhibitor', 'X', 'myk9-1540-x@example.test'),
-  ('00000000-0000-0000-0000-000001540014', NULL, 'Owner', 'O', 'myk9-1540-o@example.test');
+  ('00000000-0000-0000-0000-000001540014', NULL, 'Owner', 'O', 'myk9-1540-o@example.test'),
+  ('00000000-0000-0000-0000-000001540015', NULL, 'Empty', 'J', 'myk9-1540-ej@example.test');
 
 INSERT INTO auth.users (
   id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -39,7 +41,8 @@ SELECT u.id::uuid, '00000000-0000-0000-0000-000000000000', 'authenticated', 'aut
 FROM (VALUES
   ('00000000-0000-0000-0000-000001540111', 'myk9-1540-j@example.test'),
   ('00000000-0000-0000-0000-000001540112', 'myk9-1540-st@example.test'),
-  ('00000000-0000-0000-0000-000001540113', 'myk9-1540-x@example.test')
+  ('00000000-0000-0000-0000-000001540113', 'myk9-1540-x@example.test'),
+  ('00000000-0000-0000-0000-000001540115', 'myk9-1540-ej@example.test')
 ) AS u(id, email);
 
 -- S1 and S2 are nationals; S3 is not.
@@ -64,7 +67,8 @@ INSERT INTO public.classes (id, trial_id, name, status)
 VALUES
   ('00000000-0000-0000-0000-00000154000a', '00000000-0000-0000-0000-000001540003', 'Container Novice', 'upcoming'),
   ('00000000-0000-0000-0000-00000154000b', '00000000-0000-0000-0000-000001540003', 'Interior Novice', 'upcoming'),
-  ('00000000-0000-0000-0000-00000154000c', '00000000-0000-0000-0000-000001540033', 'Container Novice', 'upcoming');
+  ('00000000-0000-0000-0000-00000154000c', '00000000-0000-0000-0000-000001540033', 'Container Novice', 'upcoming'),
+  ('00000000-0000-0000-0000-00000154000d', '00000000-0000-0000-0000-000001540003', 'Exterior Novice', 'upcoming');
 
 INSERT INTO public.dogs (id, name, call_name, breed, owner_id)
 VALUES
@@ -99,6 +103,12 @@ INSERT INTO public.judge_assignments (id, person_id, show_id, trial_id, class_id
 VALUES ('00000000-0000-0000-0000-000001540051', '00000000-0000-0000-0000-000001540011',
         '00000000-0000-0000-0000-000001540002', '00000000-0000-0000-0000-000001540003',
         '00000000-0000-0000-0000-00000154000a', 'confirmed');
+
+-- A second judge is assigned only to class D, which has no entries at all.
+INSERT INTO public.judge_assignments (id, person_id, show_id, trial_id, class_id, status)
+VALUES ('00000000-0000-0000-0000-000001540052', '00000000-0000-0000-0000-000001540015',
+        '00000000-0000-0000-0000-000001540002', '00000000-0000-0000-0000-000001540003',
+        '00000000-0000-0000-0000-00000154000d', 'confirmed');
 
 INSERT INTO public.show_passcodes (id, show_id, role, passcode_hash, passcode_ciphertext, created_at)
 VALUES ('00000000-0000-0000-0000-000001540061', '00000000-0000-0000-0000-000001540002',
@@ -140,6 +150,7 @@ DECLARE
   steward uuid := '00000000-0000-0000-0000-000001540112';
   exhibitor uuid := '00000000-0000-0000-0000-000001540113';
   nobody uuid := '00000000-0000-0000-0000-000001540199';
+  empty_judge uuid := '00000000-0000-0000-0000-000001540115';
   n integer;
   r record;
 BEGIN
@@ -171,6 +182,17 @@ BEGIN
      OR r.points_earned IS NOT NULL OR r.search_time_seconds IS NOT NULL
      OR r.class_results_released_at IS NOT NULL THEN
     RAISE EXCEPTION 'FAIL unreleased class leaked a score: %', r;
+  END IF;
+
+  -- 1b. A judge assigned only to a class with NO entries is still admitted to the show.
+  PERFORM public.myk9_1540_act_as(empty_judge);
+  SELECT count(*) INTO n FROM public.get_nationals_leaderboard_inputs(s1);
+  IF n <> 2 THEN
+    RAISE EXCEPTION 'FAIL judge assigned to an empty class received % rows, expected 2', n;
+  END IF;
+  SELECT count(*) INTO n FROM public.get_nationals_leaderboard_inputs(s2);
+  IF n <> 0 THEN
+    RAISE EXCEPTION 'FAIL judge received % rows from a show they are not assigned to', n;
   END IF;
 
   -- 2. Steward: real points on the released class.

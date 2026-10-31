@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { subscribeToShowChanges } from '@/features/show-live-sync/showChangeSignal';
 import { fetchNationalsLeaderboardInputs, toLeaderboardInputs } from './nationalsLeaderboardInputs';
@@ -17,14 +17,32 @@ export function useNationalsLeaderboardInputs(showId: string, enabled: boolean) 
     enabled: enabled && Boolean(showId),
   });
   const { refetch } = query;
+  // The change channel is the only thing that tells an open board a score moved. While it is down
+  // the board can go stale without an error, so it says so, and a reconnect re-reads everything
+  // missed in the gap.
+  const [liveDown, setLiveDown] = useState(false);
 
   useEffect(() => {
     if (!enabled || !showId) return;
     let timer: ReturnType<typeof setTimeout> | null = null;
-    const unsubscribe = subscribeToShowChanges(showId, () => {
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(() => void refetch(), REFRESH_DEBOUNCE_MS);
-    });
+    let wasDown = false;
+    const unsubscribe = subscribeToShowChanges(
+      showId,
+      () => {
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(() => void refetch(), REFRESH_DEBOUNCE_MS);
+      },
+      status => {
+        if (status === 'SUBSCRIBED') {
+          setLiveDown(false);
+          if (wasDown) void refetch();
+          wasDown = false;
+        } else {
+          wasDown = true;
+          setLiveDown(true);
+        }
+      }
+    );
     return () => {
       if (timer) clearTimeout(timer);
       unsubscribe();
@@ -36,6 +54,7 @@ export function useNationalsLeaderboardInputs(showId: string, enabled: boolean) 
     inputs,
     isLoading: query.isLoading,
     isError: query.isError,
+    liveDown,
     retry: () => void refetch(),
   };
 }

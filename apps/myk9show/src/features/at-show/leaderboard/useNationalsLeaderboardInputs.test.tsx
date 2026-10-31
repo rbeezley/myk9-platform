@@ -7,6 +7,7 @@ import { createTestQueryClient } from '@/test/utils/testUtils';
 const mocks = vi.hoisted(() => ({
   fetchInputs: vi.fn(),
   listener: null as null | (() => void),
+  statusListener: null as null | ((status: string) => void),
   unsubscribe: vi.fn(),
 }));
 
@@ -17,10 +18,13 @@ vi.mock('./nationalsLeaderboardInputs', async () => {
   return { ...actual, fetchNationalsLeaderboardInputs: mocks.fetchInputs };
 });
 vi.mock('@/features/show-live-sync/showChangeSignal', () => ({
-  subscribeToShowChanges: vi.fn((_showId: string, listener: () => void) => {
-    mocks.listener = listener;
-    return mocks.unsubscribe;
-  }),
+  subscribeToShowChanges: vi.fn(
+    (_showId: string, listener: () => void, statusListener?: (status: string) => void) => {
+      mocks.listener = listener;
+      mocks.statusListener = statusListener ?? null;
+      return mocks.unsubscribe;
+    }
+  ),
 }));
 
 import { useNationalsLeaderboardInputs } from './useNationalsLeaderboardInputs';
@@ -36,6 +40,7 @@ beforeEach(() => {
   mocks.fetchInputs.mockReset().mockResolvedValue([]);
   mocks.unsubscribe.mockReset();
   mocks.listener = null;
+  mocks.statusListener = null;
 });
 afterEach(() => {
   vi.useRealTimers();
@@ -63,6 +68,24 @@ describe('useNationalsLeaderboardInputs', () => {
 
     unmount();
     expect(mocks.unsubscribe).toHaveBeenCalled();
+  });
+
+  it('re-reads after the live channel reconnects and says so while it is down', async () => {
+    const { result } = renderHook(() => useNationalsLeaderboardInputs('show-1', true), {
+      wrapper: createTestWrapper(),
+    });
+    await waitFor(() => expect(mocks.fetchInputs).toHaveBeenCalledTimes(1));
+
+    act(() => mocks.statusListener?.('SUBSCRIBED'));
+    expect(result.current.liveDown).toBe(false);
+    expect(mocks.fetchInputs).toHaveBeenCalledTimes(1);
+
+    act(() => mocks.statusListener?.('CHANNEL_ERROR'));
+    expect(result.current.liveDown).toBe(true);
+
+    act(() => mocks.statusListener?.('SUBSCRIBED'));
+    expect(result.current.liveDown).toBe(false);
+    await waitFor(() => expect(mocks.fetchInputs).toHaveBeenCalledTimes(2));
   });
 
   it('neither reads nor subscribes while disabled', () => {

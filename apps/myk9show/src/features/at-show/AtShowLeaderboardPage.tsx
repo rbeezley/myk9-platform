@@ -35,7 +35,9 @@ export function AtShowLeaderboardPage() {
     networkMode: 'always',
   });
   const isNationals = showQuery.data ? showQuery.data.isNationals === true : null;
-  const { inputs, isLoading, isError, retry } = useNationalsLeaderboardInputs(
+  // A failed or empty show lookup is its own state, not an endless skeleton.
+  const showLookupFailed = showQuery.isError || (showQuery.isSuccess && !showQuery.data);
+  const { inputs, isLoading, isError, liveDown, retry } = useNationalsLeaderboardInputs(
     showId,
     isStaff && isNationals === true && isOnline
   );
@@ -53,21 +55,29 @@ export function AtShowLeaderboardPage() {
     </Button>
   );
 
+  const retryAll = () => {
+    if (showLookupFailed) void showQuery.refetch();
+    retry();
+  };
+  const loadError = (
+    <>
+      {back}
+      <Alert variant="destructive" className="mt-4">
+        <AlertTitle>Couldn&apos;t load the leaderboard</AlertTitle>
+        <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+          <span>Check your connection and try again.</span>
+          <Button type="button" variant="outline" className="min-h-11" onClick={retryAll}>
+            Retry
+          </Button>
+        </AlertDescription>
+      </Alert>
+    </>
+  );
+
   let body;
-  if (inputs) {
-    body = (
-      <NationalsLeaderboardView
-        showId={showId}
-        entries={inputs.entries}
-        rows={inputs.classRows}
-        showStartDate={inputs.showStartDate}
-        refreshFailed={isError}
-        onRetry={retry}
-        backHref={backHref}
-        backLabel="Back to ringside"
-      />
-    );
-  } else if (!isOnline) {
+  if (!isOnline) {
+    // Checked before the cache: rankings held from an earlier load may be out of date, and a
+    // stale board is worse than none (it ranks the field as if nothing had moved).
     body = (
       <>
         {back}
@@ -80,21 +90,33 @@ export function AtShowLeaderboardPage() {
         </Alert>
       </>
     );
-  } else if (isError) {
+  } else if (showLookupFailed && !inputs) {
+    body = loadError;
+  } else if (inputs) {
     body = (
       <>
-        {back}
-        <Alert variant="destructive" className="mt-4">
-          <AlertTitle>Couldn&apos;t load the leaderboard</AlertTitle>
-          <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
-            <span>Check your connection and try again.</span>
-            <Button type="button" variant="outline" className="min-h-11" onClick={retry}>
-              Retry
-            </Button>
-          </AlertDescription>
-        </Alert>
+        {liveDown && (
+          <Alert className="mt-2">
+            <AlertTitle>Live updates paused</AlertTitle>
+            <AlertDescription>
+              Rankings may be behind. They refresh when the connection returns.
+            </AlertDescription>
+          </Alert>
+        )}
+        <NationalsLeaderboardView
+          showId={showId}
+          entries={inputs.entries}
+          rows={inputs.classRows}
+          showStartDate={inputs.showStartDate}
+          refreshFailed={isError}
+          onRetry={retry}
+          backHref={backHref}
+          backLabel="Back to ringside"
+        />
       </>
     );
+  } else if (isError) {
+    body = loadError;
   } else {
     body = (
       <>

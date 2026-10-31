@@ -10,6 +10,26 @@ const sampleTabs: Tab[] = [
 ];
 
 describe('TabBar', () => {
+  it('ignores clicks on a disabled tab and marks it aria-disabled', async () => {
+    const onTabChange = vi.fn();
+    render(
+      <TabBar
+        tabs={[
+          { id: 'a', label: 'Alpha' },
+          { id: 'b', label: 'Beta', disabled: true },
+        ]}
+        activeTab="a"
+        onTabChange={onTabChange}
+      />
+    );
+    const beta = screen.getByRole('button', { name: /Beta/ });
+    expect(beta).toHaveAttribute('aria-disabled', 'true');
+    await userEvent.click(beta);
+    expect(onTabChange).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: /Alpha/ }));
+    expect(onTabChange).toHaveBeenCalledWith('a');
+  });
+
   it('should render all tabs', () => {
     render(<TabBar tabs={sampleTabs} activeTab="pending" onTabChange={() => {}} />);
     expect(screen.getByText('Pending')).toBeInTheDocument();

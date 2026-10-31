@@ -148,12 +148,65 @@ describe('calculateManualScopedRunOrder', () => {
     ]);
   });
 
-  it('ignores ids from the other section and keeps undragged section entries last', () => {
+  it('ignores ids from the other section; an undragged section entry keeps its position', () => {
+    // Only a2 is a Section A id here, so nothing moves.
     expect(calculateManualScopedRunOrder(entries, 'A', ['b1', 'a2'], 'renumber')).toEqual([
-      { id: 'a2', runOrder: 1 },
-      { id: 'a1', runOrder: 2 },
+      { id: 'a1', runOrder: 1 },
+      { id: 'a2', runOrder: 2 },
       { id: 'b1', runOrder: 3 },
       { id: 'b2', runOrder: 4 },
     ]);
+  });
+
+  describe('when the drag only saw part of the section', () => {
+    const scoredAndPending = [
+      ...['s1', 's2', 's3'].map((id, i) => ({
+        id,
+        armband: String(101 + i),
+        section: 'A',
+        runOrder: i + 1,
+      })),
+      ...['p1', 'p2', 'p3', 'p4', 'p5'].map((id, i) => ({
+        id,
+        armband: String(110 + i),
+        section: 'A',
+        runOrder: i + 4,
+      })),
+      { id: 'b1', armband: '201', section: 'B', runOrder: 9 },
+    ];
+
+    it('dragging among the Pending dogs leaves the scored dogs at 1-3 (preserve)', () => {
+      const result = calculateManualScopedRunOrder(
+        scoredAndPending,
+        'A',
+        ['p5', 'p1', 'p2', 'p3', 'p4'],
+        'preserve'
+      );
+      const byId = Object.fromEntries(result.map(r => [r.id, r.runOrder]));
+      expect(byId).toMatchObject({ s1: 1, s2: 2, s3: 3, p5: 4, p1: 5, p2: 6, p3: 7, p4: 8 });
+      expect(byId.b1).toBeUndefined();
+    });
+
+    it('a search that hides dogs only reshuffles the visible dogs within their own positions', () => {
+      // Visible after search: p1, p3, p5 (positions 4, 6, 8). p2 and p4 stay put.
+      const result = calculateManualScopedRunOrder(
+        scoredAndPending,
+        'A',
+        ['p5', 'p3', 'p1'],
+        'renumber'
+      );
+      const byId = Object.fromEntries(result.map(r => [r.id, r.runOrder]));
+      expect(byId).toMatchObject({
+        s1: 1,
+        s2: 2,
+        s3: 3,
+        p5: 4,
+        p2: 5,
+        p3: 6,
+        p4: 7,
+        p1: 8,
+        b1: 9,
+      });
+    });
   });
 });

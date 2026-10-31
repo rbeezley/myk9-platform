@@ -594,6 +594,8 @@ export interface EntryListCombinedMode {
   /** Which section the list is scoped to. */
   sectionFilter: 'all' | 'A' | 'B';
   setSectionFilter: (value: 'all' | 'A' | 'B') => void;
+  /** Grey out the other section tabs (e.g. while one section is being dragged). */
+  sectionFilterLocked?: boolean;
 }
 
 export interface EntryListPageProps {

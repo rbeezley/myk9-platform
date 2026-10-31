@@ -53,18 +53,20 @@ export function buildStatusTabs(
  */
 export function buildSectionTabs(
   counts: { all: number; A: number; B: number } | null | undefined,
-  entries: readonly Entry[]
+  entries: readonly Entry[],
+  lock?: { active: string } | null
 ): Tab[] {
   const c = counts ?? {
     all: entries.length,
     A: entries.filter(e => e.section === 'A').length,
     B: entries.filter(e => e.section === 'B').length,
   };
-  return [
+  const tabs: Tab[] = [
     { id: 'all', label: 'All Sections', count: c.all },
     { id: 'A', label: 'Section A', count: c.A },
     { id: 'B', label: 'Section B', count: c.B },
   ];
+  return lock ? tabs.map(t => (t.id === lock.active ? t : { ...t, disabled: true })) : tabs;
 }
 
 /**

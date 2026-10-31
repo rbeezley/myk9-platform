@@ -258,11 +258,22 @@ export function calculateManualScopedRunOrder(
     .sort(
       (a, b) => (a.runOrder ?? Number.MAX_SAFE_INTEGER) - (b.runOrder ?? Number.MAX_SAFE_INTEGER)
     );
-  const inSection = new Set(scopedEntries.map(e => e.id));
-  const ids = orderedIds.filter(id => inSection.has(id));
-  const placed = new Set(ids);
-  const tail = scopedEntries.filter(e => !placed.has(e.id)).map(e => e.id);
-  const reorderedScoped = [...ids, ...tail].map((id, i) => ({ id, runOrder: i + 1 }));
+  // `orderedIds` is only what the steward could SEE (one status tab, after the
+  // search filter). Start from the FULL section in its stored order: the dragged
+  // ids trade places among the positions they already hold, and every hidden
+  // entry keeps its own position.
+  const fullOrder = scopedEntries
+    .map((e, i) => ({ id: e.id, i, order: e.runOrder ?? Number.MAX_SAFE_INTEGER }))
+    .sort((x, y) => x.order - y.order || x.i - y.i)
+    .map(x => x.id);
+  const inSection = new Set(fullOrder);
+  const dragged = orderedIds.filter(id => inSection.has(id));
+  const draggedSet = new Set(dragged);
+  let next = 0;
+  const reorderedScoped = fullOrder.map((id, i) => ({
+    id: draggedSet.has(id) ? dragged[next++] : id,
+    runOrder: i + 1,
+  }));
   return placeScopedOrder(scopedEntries, otherEntries, reorderedScoped, renumberMode);
 }
 

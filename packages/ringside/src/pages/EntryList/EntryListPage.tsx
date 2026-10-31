@@ -152,8 +152,15 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
   );
 
   const sectionTabs = useMemo(
-    () => (isCombined ? buildSectionTabs(sectionCounts, entries) : []),
-    [isCombined, entries, sectionCounts]
+    () =>
+      isCombined
+        ? buildSectionTabs(
+            sectionCounts,
+            entries,
+            combined?.sectionFilterLocked ? { active: combined.sectionFilter } : null
+          )
+        : [],
+    [isCombined, entries, sectionCounts, combined?.sectionFilterLocked, combined?.sectionFilter]
   );
 
   const sortOptions = useMemo(

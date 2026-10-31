@@ -26,7 +26,7 @@
  */
 
 import { RingsideMenu } from './menu/RingsideMenu';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type SetStateAction } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -169,7 +169,9 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
   const [manualOrder, setManualOrder] = useState<Entry[]>([]);
   // Set while the steward drags ONE section (dialog scope A/B + manual). Carries
   // the dialog's preserve/renumber choice to the drop. Only honoured in drag mode.
-  const [scopedDrag, setScopedDrag] = useState<ScopedManualDrag | null>(null);
+  const [scopedDrag, setScopedDrag] = useState<
+    (ScopedManualDrag & { priorFilter: 'all' | 'A' | 'B' }) | null
+  >(null);
   // Mirrors AtShowEntryListPage. Without this the combined route presented an
   // empty ring as settled truth while the FIRST replication sync was still
   // running -- `isRefreshing` alone only covers a refetch, not the cold boot.
@@ -278,11 +280,15 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
   // persistEntryRunOrder for the offline-first / RLS details.
   const activeScopedDrag = uiState.isDragMode ? scopedDrag : null;
   const updateExhibitorOrder = useCallback(
-    (reordered: Entry[], previous: Entry[]) =>
-      activeScopedDrag
-        ? persistScopedManualRunOrder(localEntries, reordered, activeScopedDrag)
-        : persistEntryRunOrder(reordered, previous),
-    [activeScopedDrag, localEntries]
+    async (reordered: Entry[], previous: Entry[]) => {
+      if (!activeScopedDrag) return persistEntryRunOrder(reordered, previous);
+      // Compute from the REPLICATED rows: `localEntries` already carries the drag
+      // hook's optimistic exhibitorOrder, so a second drop inside the grace
+      // window would read optimistic numbers as the stored slots.
+      await persistScopedManualRunOrder(entries, reordered, activeScopedDrag);
+      void refresh();
+    },
+    [activeScopedDrag, entries, refresh]
   );
   // A drag whose write never QUEUED used to be silent on both routes: the
   // reordered list stayed on screen and the steward worked the gate from an
@@ -348,7 +354,11 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
         if (scope === 'A' || scope === 'B') {
           // Narrow the list to that section so the other section's rows are not
           // on screen to drag, and a drop cannot cross the boundary.
-          setScopedDrag({ section: scope, renumberMode: renumberMode ?? 'renumber' });
+          setScopedDrag({
+            section: scope,
+            renumberMode: renumberMode ?? 'renumber',
+            priorFilter: sectionFilter,
+          });
           setSectionFilter(scope);
         } else {
           // Whole-class manual: a scope left over from an earlier section drag
@@ -373,7 +383,7 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
       await refresh();
       return true;
     },
-    [localEntries, refresh, uiActions, setSectionFilter]
+    [localEntries, refresh, uiActions, setSectionFilter, sectionFilter]
   );
 
   // Section-aware run order is the ONE handler the combined route cannot take
@@ -390,6 +400,22 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
       },
     }),
     [baseHandlers, handleApplyRunOrder]
+  );
+
+  // Done ends drag mode through this setter: put back the section tab that was
+  // showing before a single-section drag narrowed the list.
+  const pageUiActions = useMemo(
+    () => ({
+      ...uiActions,
+      setIsDragMode: (value: SetStateAction<boolean>) => {
+        if (value === false && activeScopedDrag) {
+          setSectionFilter(activeScopedDrag.priorFilter);
+          setScopedDrag(null);
+        }
+        uiActions.setIsDragMode(value);
+      },
+    }),
+    [uiActions, activeScopedDrag, setSectionFilter]
   );
 
   // ── Ownership annotations (own-dog highlight + dogs-ahead pills) ────────
@@ -427,14 +453,15 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
             sectionFilter,
             // Locked to the dragged section until Done, so the other section
             // cannot be brought back into the list mid-drag.
-            setSectionFilter: activeScopedDrag ? () => undefined : setSectionFilter,
+            setSectionFilter,
+            sectionFilterLocked: Boolean(activeScopedDrag),
           }}
           data={{ entries, classInfo }}
           dataStatus={{ isRefreshing, fetchError, refresh, notOnDevice }}
           handlers={handlers}
           actions={actions}
           uiState={uiState}
-          uiActions={uiActions}
+          uiActions={pageUiActions}
           derived={{
             activeTab,
             sortOrder,

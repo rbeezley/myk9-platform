@@ -6,6 +6,8 @@ export interface Tab {
   label: string;
   count?: number;
   icon?: React.ReactNode;
+  /** Not selectable: rendered dimmed with aria-disabled, clicks ignored. */
+  disabled?: boolean;
 }
 
 export interface TabBarProps {
@@ -84,6 +86,7 @@ export const TabBar: React.FC<TabBarProps> = ({
               'hover:text-[var(--foreground)] hover:bg-[var(--muted)]',
               'active:scale-[0.98] active:transition-[100ms]',
               'motion-reduce:transition-none',
+              tab.disabled && 'opacity-50 cursor-not-allowed',
               activeTab === tab.id && [
                 'text-[var(--primary)]',
                 'border-b-[var(--primary)]',
@@ -97,7 +100,10 @@ export const TabBar: React.FC<TabBarProps> = ({
               // Compact variant
               variant === 'compact' && 'px-3.5 py-2.5 text-[0.8125rem] min-h-[40px]'
             )}
-            onClick={() => onTabChange(tab.id)}
+            onClick={() => {
+              if (!tab.disabled) onTabChange(tab.id);
+            }}
+            aria-disabled={tab.disabled || undefined}
             type="button"
           >
             {tab.icon && (

@@ -70,6 +70,7 @@ describe('TrialEditPanel stale-class switch (MYK9-1514)', () => {
     await user.type(await screen.findByLabelText(/trial name/i), ' B');
     await user.click(screen.getAllByRole('button', { name: /save changes/i })[0]!);
     await waitFor(() => expect(onSave).toHaveBeenCalled());
-    expect(onSave.mock.calls[0]?.[0]).not.toHaveProperty('autoCompleteStaleClasses');
+    const [saved] = onSave.mock.calls[0] as unknown as [Partial<Trial>];
+    expect(saved).not.toHaveProperty('autoCompleteStaleClasses');
   });
 });

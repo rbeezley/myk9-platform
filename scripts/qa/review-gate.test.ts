@@ -2277,3 +2277,158 @@ describe('a fetch LONGER than GitHub declares is also unusable', () => {
     expect(fileListIsUnusable(101, 100)).toBe(true);
   });
 });
+
+describe('the round-cap verdict (MYK9-1566)', () => {
+  const HASH = 'c'.repeat(64);
+  const files = ['scripts/qa/review-gate.ts'];
+  const heads = ['1111111', '2222222', HEAD];
+  const round = (head: string, hash = HASH, reviewer = 'codex', at = '2026-10-30T10:00:00Z') =>
+    comment(
+      `Review gate: ${reviewer} reviewed abc1234..${head} — 2 findings, not all addressed\nlog sha256: ${hash}`,
+      at
+    );
+  const cap = (
+    over: { head?: string; log?: string; hash?: string; deferred?: string; reviewer?: string } = {}
+  ) =>
+    comment(
+      [
+        `Review gate: ${over.reviewer ?? 'codex'} reviewed abc1234..${over.head ?? HEAD} — round cap, no P0/P1 open`,
+        ...(over.deferred === '' ? [] : [over.deferred ?? 'Deferred re-review: MYK9-900']),
+        `log sha256: ${over.hash ?? HASH}`,
+        '',
+        '<details><summary>codex verdict</summary>',
+        '',
+        '```text',
+        over.log ?? '- [P2] a lower finding\n- `a.ts:3` — [P3] another',
+        '```',
+        '',
+        '</details>',
+      ].join('\n'),
+      '2026-10-30T11:00:00Z'
+    );
+  const gate = (comments: GateComment[], headSha = HEAD) =>
+    evaluateReviewGate({
+      headSha,
+      comments,
+      changedFiles: files,
+      declaredFileCount: files.length,
+    });
+  const threeRounds = () => heads.map(h => round(h));
+
+  it('goes green: 3 rounds, no P0/P1 in the quote, a deferred issue, the reviewed head', () => {
+    const r = gate([...threeRounds(), cap()]);
+    expect(r.state).toBe('success');
+    expect(r.description).toContain('round cap, no P0/P1 open');
+  });
+
+  it('is accepted from claude too (Codex-authored PRs)', () => {
+    const rounds = heads.map(h => round(h, HASH, 'claude'));
+    expect(gate([...rounds, cap({ reviewer: 'claude' })]).state).toBe('success');
+  });
+
+  it('refuses fewer than 3 rounds', () => {
+    const r = gate([round('1111111'), round(HEAD), cap()]);
+    expect(r.state).toBe('failure');
+    expect(r.description).toContain('needs 3 reviewer rounds');
+  });
+
+  it('does not count two comments on one head as two rounds', () => {
+    const r = gate([round('1111111'), round(HEAD), round(HEAD), cap()]);
+    expect(r.description).toContain('found 2');
+  });
+
+  it.each([
+    '- [P0] data loss',
+    '- [P1] wrong total',
+    '- **[P1]** bold form',
+    '- `a.ts:1` — [P0] x',
+  ])('refuses a quoted log carrying %j', bullet => {
+    const r = gate([...threeRounds(), cap({ log: `${bullet}\n- [P2] fine` })]);
+    expect(r.state).toBe('failure');
+    expect(r.description).toContain('[P0] or [P1]');
+  });
+
+  it('refuses a missing or malformed deferred issue', () => {
+    for (const deferred of ['', 'Deferred re-review: myk9-900']) {
+      const r = gate([...threeRounds(), cap({ deferred })]);
+      expect(r.state).toBe('failure');
+      expect(r.description).toContain('Deferred re-review');
+    }
+  });
+
+  it('refuses a head other than the reviewed one: a later push needs a fresh round', () => {
+    const pushed = 'd'.repeat(40);
+    const r = gate([...threeRounds(), cap()], pushed);
+    expect(r.state).toBe('failure');
+    expect(r.description).toContain('no independent review recorded');
+  });
+
+  it('refuses a log whose hash matches no earlier round on that head', () => {
+    const r = gate([...threeRounds(), cap({ hash: 'd'.repeat(64) })]);
+    expect(r.state).toBe('failure');
+    expect(r.description).toContain('log sha256 matches none');
+  });
+
+  it('refuses a hash that only matches a round on another head', () => {
+    const other = [
+      round('1111111', HASH),
+      round('2222222'),
+      round('3333333'),
+      round(HEAD, 'e'.repeat(64)),
+    ];
+    const r = gate([...other, cap()]);
+    expect(r.state).toBe('failure');
+  });
+
+  it('refuses the owner, adversarial and none tokens wearing the verdict', () => {
+    for (const reviewer of ['owner', 'adversarial', 'none']) {
+      expect(gate([...threeRounds(), cap({ reviewer })]).state).toBe('failure');
+    }
+  });
+
+  it('refuses an untrusted author, who cannot supply rounds or the verdict', () => {
+    const outsider = (c: GateComment): GateComment => ({ ...c, authorAssociation: 'NONE' });
+    expect(gate([...threeRounds().map(outsider), cap()]).state).toBe('failure');
+    expect(gate([...threeRounds(), outsider(cap())]).state).toBe('failure');
+  });
+
+  it('does not make the verdict a shape for non-independent grammars', () => {
+    for (const tier of ['adversarial', 'none', 'owner'] as const) {
+      expect(VERDICT_BY_TIER[tier].test('round cap, no P0/P1 open')).toBe(false);
+    }
+  });
+
+  it('is judged by the same rules through the --round-cap-check probe the poster uses', () => {
+    const script = resolve(import.meta.dirname, 'review-gate.ts');
+    const probe = (comments: GateComment[], body: string) => {
+      const rest = comments.map(c => ({
+        body: c.body,
+        created_at: c.createdAt,
+        updated_at: c.createdAt,
+        author_association: c.authorAssociation,
+      }));
+      try {
+        execFileSync(
+          'node',
+          [
+            '--experimental-strip-types',
+            '--disable-warning=MODULE_TYPELESS_PACKAGE_JSON',
+            script,
+            '--round-cap-check',
+          ],
+          {
+            input: JSON.stringify([rest]),
+            env: { ...process.env, ROUND_CAP_BODY: body },
+            stdio: 'pipe',
+          }
+        );
+        return 0;
+      } catch (e) {
+        return (e as { status: number }).status;
+      }
+    };
+    expect(probe(threeRounds(), cap().body)).toBe(0);
+    expect(probe(threeRounds().slice(1), cap().body)).toBe(2);
+    expect(probe(threeRounds(), cap({ log: '- [P1] x' }).body)).toBe(2);
+  });
+});

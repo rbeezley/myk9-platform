@@ -145,6 +145,9 @@ commands check `main`, not the proposed change.
    on `git diff origin/main...HEAD` to find defects (never approve), fix what you agree with,
    and commit. It posts nothing and is not gate evidence; it counts as one Mac heavy job. The PR
    body records `pre-pass: N findings fixed`, and `Codex rounds: M` at the end (`ship-pr` Step 4).
+   After 3 Codex rounds with no `[P0]`/`[P1]` left and the rest filed under a `MYK9-<n>` issue,
+   the reviewing agent posts the `round cap, no P0/P1 open` verdict itself (`ship-pr` Step 3a,
+   `docs/PLAYBOOK.md` § 4); do not hand-post an `owner` override for that case.
 4. On failure, send the same agent (SendMessage, which keeps its context) a numbered defect list
    and re-review. **Max 3 rounds.** After that, escalate (see Model routing) or implement it
    yourself. A cheap model looping past the point where you'd be faster is waste.

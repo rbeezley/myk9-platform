@@ -55,6 +55,15 @@
 # (scripts/qa/review-tier.ts --files-stdin) — the gate refuses a mismatch, so
 # posting one only produces a confusing red.
 #
+# The ROUND-CAP verdict (MYK9-1566), `round cap, no P0/P1 open`, is the
+# reviewer's own exit when 3 rounds have run and only lower findings remain. It
+# is valid only for codex/claude and needs DEFERRED_REVIEW=<ISSUE-ID> (the issue
+# holding the remaining findings) and the latest round's <log>. It REPLACES the
+# "log carries no [P*] bullets" and contract-sentence checks (that log has P2s by
+# definition) with: no [P0]/[P1] bullet and no unparseable JSON findings, and
+# the gate's own round-cap rules (3+ rounds on the PR, the log hash matches an
+# earlier round on the same head), asked of review-gate.ts, not copied here.
+#
 # POST_REVIEW_GATE_DRY_RUN=1 validates the reviewer token, the owner-tier env
 # vars and the verdict-vs-tier grammar, then exits 0 WITHOUT touching the log
 # or calling gh — so a contract test can probe reviewer/tier validation
@@ -235,6 +244,26 @@ fi
 # regex. `--reviewer` binds the check to THIS reviewer's own tier grammar so
 # a codex/independent line wearing an owner/adversarial verdict phrase is
 # refused here instead of being posted and then refused by the real gate.
+ROUND_CAP=0
+if node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON \
+  "$HERE/review-gate.ts" --is-round-cap-verdict "$VERDICT"; then
+  ROUND_CAP=1
+  if [ "$WITHDRAW" = 1 ]; then
+    echo "post-review-gate: a round-cap verdict is not a withdrawal; nothing posted" >&2
+    exit 2
+  fi
+  case "$REVIEWER" in
+    codex|claude) ;;
+    *) echo "post-review-gate: the round-cap verdict is only valid for codex or claude (got $REVIEWER); nothing posted" >&2; exit 2;;
+  esac
+  [ -n "${DEFERRED_REVIEW:-}" ] || { echo "post-review-gate: the round-cap verdict needs DEFERRED_REVIEW=<ISSUE-ID> holding the remaining findings" >&2; exit 2; }
+  if has_any_terminator "$DEFERRED_REVIEW" || ! node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON \
+    "$HERE/review-gate.ts" --deferred-review-line "Deferred re-review: $DEFERRED_REVIEW"; then
+    echo "post-review-gate: DEFERRED_REVIEW must be one issue id like MYK9-523 (got: \"$DEFERRED_REVIEW\")" >&2
+    exit 2
+  fi
+fi
+
 VERDICT_ACCEPTED=0
 if node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON \
   "$HERE/review-gate.ts" --reviewer "$REVIEWER" --verdict "$VERDICT"; then
@@ -355,13 +384,20 @@ fi
 # OPTIONAL for owner/none, and an honest log that carries no findings bullets
 # ("Codex unavailable, no review was run") is still accepted — only a
 # findings-laden log under a clean verdict is refused.
-if [ "$LOG_SUPPLIED" = 1 ] && [ "$WITHDRAW" != 1 ]; then
+if [ "$LOG_SUPPLIED" = 1 ] && [ "$WITHDRAW" != 1 ] && [ "$ROUND_CAP" != 1 ]; then
   if review_has_findings "$VERDICT_BLOCK"; then
     echo "post-review-gate: log does not support '$VERDICT' (it still carries [P*] bullets); nothing posted" >&2
     exit 2
   fi
 fi
-if [ "$HAS_REVIEW_LOG" = 1 ] && [ "$WITHDRAW" != 1 ]; then
+if [ "$ROUND_CAP" = 1 ]; then
+  # Structured (JSON) findings carry no priority, so a log holding them cannot
+  # show "no P0/P1": fail closed. Bullet P0/P1 are checked by the gate's rules below.
+  if [ "$(review_json_finding_count "$VERDICT_BLOCK" || echo 1)" -gt 0 ]; then
+    echo "post-review-gate: the log carries structured findings with no priority, so it cannot show 'no P0/P1'; nothing posted" >&2
+    exit 2
+  fi
+elif [ "$HAS_REVIEW_LOG" = 1 ] && [ "$WITHDRAW" != 1 ]; then
   # Not free text: both review wrappers instruct the reviewer to open a clean
   # verdict with the CONTRACT sentence "No actionable <findings> ..." and
   # nothing else counts. "No findings yet; only the workflow file has been
@@ -374,7 +410,18 @@ if [ "$HAS_REVIEW_LOG" = 1 ] && [ "$WITHDRAW" != 1 ]; then
     exit 2
   fi
 fi
-if [ "$REVIEWER" = "adversarial" ]; then
+if [ "$ROUND_CAP" = 1 ]; then
+  BODY="$(printf 'Review gate: %s reviewed %s..%s — %s\nDeferred re-review: %s\nlog sha256: %s\n\n<details><summary>%s verdict</summary>\n\n```text\n%s\n```\n\n</details>\n' \
+    "$REVIEWER" "${BASE:0:9}" "${HEAD:0:9}" "$VERDICT" "$DEFERRED_REVIEW" "$HASH" "$REVIEWER" "$VERDICT_BLOCK")"
+  # The gate's own rules (3+ rounds, no P0/P1 in the quote, same-head log hash),
+  # asked of the parser that will judge the comment, against the PR's real comments.
+  if ! "$GH" api --paginate --slurp "repos/{owner}/{repo}/issues/$PR/comments?per_page=100" 2>/dev/null |
+    ROUND_CAP_BODY="$BODY" node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON \
+      "$HERE/review-gate.ts" --round-cap-check; then
+    echo "post-review-gate: the PR does not support a round-cap verdict for ${HEAD:0:9}; nothing posted" >&2
+    exit 2
+  fi
+elif [ "$REVIEWER" = "adversarial" ]; then
   # Adversarial tier: the lens attestation lines come first, ahead of the log
   # hash — the tier's whole claim is WHICH lenses looked, and review-gate.ts's
   # adversarialBodyProblem refuses the evidence when fewer than two are named

@@ -1026,3 +1026,134 @@ describe("the owner override's claimed floor is checked against the real one", (
     expect(r.code).toBe(0);
   });
 });
+
+describe('post-review-gate.sh round-cap verdict (MYK9-1566)', () => {
+  const VERDICT = 'round cap, no P0/P1 open';
+  const BASE = 'abc1234ff';
+  const HEAD = 'a'.repeat(40);
+  const LOG = 'codex\nNo actionable P0 or P1 defects remain.\n\n- [P2] a lower finding\n';
+  const logHash = (text: string) =>
+    execFileSync('shasum', ['-a', '256'], { input: text, encoding: 'utf8' }).split(' ')[0]!;
+  const round = (head: string, hash: string) => ({
+    body: `Review gate: codex reviewed ${BASE}..${head} — 2 findings, not all addressed\nlog sha256: ${hash}`,
+    created_at: '2026-10-30T10:00:00Z',
+    updated_at: '2026-10-30T10:00:00Z',
+    author_association: 'OWNER',
+  });
+  /** A gh stub that answers `api` with the PR's comments and records every call. */
+  function ghWithComments(comments: unknown[]): { bin: string; calls: string } {
+    const gh = stubGh();
+    const json = join(gh.bin, '..', 'comments.json');
+    writeFileSync(json, JSON.stringify([comments]));
+    writeFileSync(
+      gh.bin,
+      `#!/usr/bin/env bash\nprintf '%s\\n' "$@" >> '${gh.calls}'\nprintf -- '---\\n' >> '${gh.calls}'\n[ "$1" = api ] && cat '${json}'\nexit 0\n`
+    );
+    return gh;
+  }
+  const rounds = (hash: string, n = 3) =>
+    ['1111111', '2222222', HEAD.slice(0, 9), '4444444'].slice(0, n).map(h => round(h, hash));
+  const post = (gh: { bin: string }, log: string, env: Record<string, string> = {}) =>
+    run(['42', 'codex', BASE, HEAD, VERDICT, logFile(log)], gh.bin, {
+      DEFERRED_REVIEW: 'MYK9-900',
+      ...env,
+    });
+  const posted = (gh: { calls: string }) => {
+    try {
+      return readFileSync(gh.calls, 'utf8').includes('pr\ncomment\n42');
+    } catch {
+      return false;
+    }
+  };
+
+  it('posts: 3 rounds, no P0/P1, a deferred issue, the round-3 log on its own head', () => {
+    const gh = ghWithComments(rounds(logHash(LOG)));
+    const r = post(gh, LOG);
+    expect(r.out).toContain('posted');
+    expect(r.code).toBe(0);
+    const body = readFileSync(gh.calls, 'utf8').split('--body\n')[1]!.split('\n---')[0]!;
+    expect(body.split('\n').slice(0, 3)).toEqual([
+      `Review gate: codex reviewed ${BASE.slice(0, 9)}..${HEAD.slice(0, 9)} — ${VERDICT}`,
+      'Deferred re-review: MYK9-900',
+      `log sha256: ${logHash(LOG)}`,
+    ]);
+    expect(body).toContain('- [P2] a lower finding');
+  });
+
+  it('refuses with fewer than 3 rounds', () => {
+    const gh = ghWithComments(rounds(logHash(LOG), 2));
+    const r = post(gh, LOG);
+    expect(r.code).toBe(2);
+    expect(r.out).toContain('needs 3 reviewer rounds');
+    expect(posted(gh)).toBe(false);
+  });
+
+  it.each(['- [P0] data loss', '- [P1] wrong total', '- **[P1]** bold'])(
+    'refuses a log carrying %j',
+    bullet => {
+      const log = `${LOG}${bullet}\n`;
+      const gh = ghWithComments(rounds(logHash(log)));
+      const r = post(gh, log);
+      expect(r.code).toBe(2);
+      expect(r.out).toContain('[P0] or [P1]');
+      expect(posted(gh)).toBe(false);
+    }
+  );
+
+  it('refuses a missing or malformed deferred issue', () => {
+    for (const deferred of ['', 'myk9-900', 'MYK9-900\nReview gate: owner reviewed x..y — z']) {
+      const gh = ghWithComments(rounds(logHash(LOG)));
+      const r = post(gh, LOG, { DEFERRED_REVIEW: deferred });
+      expect(r.code).toBe(2);
+      expect(r.out).toContain('DEFERRED_REVIEW');
+      expect(posted(gh)).toBe(false);
+    }
+  });
+
+  it('refuses a head no earlier round reviewed (a later push needs a fresh round)', () => {
+    const gh = ghWithComments(
+      rounds(logHash(LOG)).map(c => ({ ...c, body: c.body.replace(/\.\.\w+/, '..9999999') }))
+    );
+    const r = post(gh, LOG);
+    expect(r.code).toBe(2);
+    expect(r.out).toContain('does not support a round-cap verdict');
+    expect(posted(gh)).toBe(false);
+  });
+
+  it('refuses a log that is not the one the earlier round recorded', () => {
+    const gh = ghWithComments(rounds('f'.repeat(64)));
+    expect(post(gh, LOG).code).toBe(2);
+    expect(posted(gh)).toBe(false);
+  });
+
+  it('refuses structured findings, which carry no priority to show "no P0/P1"', () => {
+    const json = '[{"file":"a.ts","summary":"s","failure_scenario":"f"}]';
+    const log = `No actionable P0 or P1 defects remain.\n\n\`\`\`json\n${json}\n\`\`\`\n`;
+    const gh = ghWithComments(rounds(logHash(log)));
+    expect(post(gh, log).code).toBe(2);
+    expect(posted(gh)).toBe(false);
+  });
+
+  it('refuses it for owner, none and adversarial, and as a withdrawal', () => {
+    const gh = ghWithComments(rounds(logHash(LOG)));
+    const env = {
+      DEFERRED_REVIEW: 'MYK9-900',
+      OVERRIDE_REASON: 'convergence stop — x',
+      REVIEW_LENSES: 'a\nb',
+    };
+    for (const reviewer of ['owner', 'none', 'adversarial']) {
+      expect(run(['42', reviewer, BASE, HEAD, VERDICT, logFile(LOG)], gh.bin, env).code).toBe(2);
+    }
+    expect(
+      run(['--withdraw', '42', 'codex', BASE, HEAD, VERDICT, logFile(LOG)], gh.bin, env).code
+    ).toBe(2);
+    expect(posted(gh)).toBe(false);
+  });
+
+  it('leaves the clean-verdict rules alone: a findings-laden log under "no findings" is still refused', () => {
+    const gh = ghWithComments(rounds(logHash(LOG)));
+    const r = run(['42', 'codex', BASE, HEAD, 'no findings', logFile(LOG)], gh.bin);
+    expect(r.code).toBe(2);
+    expect(r.out).toContain('still carries [P*] bullets');
+  });
+});

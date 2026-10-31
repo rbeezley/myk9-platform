@@ -37,6 +37,7 @@
  * reads these comments publishes a status with a write-capable token.
  */
 import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import {
   meetsFloor,
@@ -46,6 +47,7 @@ import {
   touchesMigration,
   type Tier,
 } from './review-tier.ts';
+import { isRoundCapVerdict, ROUND_CAP_VERDICT, roundCapProblem } from './review-round-cap.ts';
 import { fetchAddedFiles, verifyDependencyManifests } from './optional-review-inputs.ts';
 
 export const REVIEW_GATE_CONTEXT = 'Review gate';
@@ -225,7 +227,12 @@ export function tierForReviewer(reviewer: ReviewerToken): Tier {
 export const OVERRIDE_VERDICT = /^override, floor was (independent|adversarial)\.?$/i;
 
 export const VERDICT_BY_TIER: Readonly<Record<Tier, RegExp>> = {
-  independent: /^(no findings|\d+ findings?, all (addressed|fixed))\.?$/i,
+  // `round cap, no P0/P1 open` (MYK9-1566) is judged by roundCapProblem, which
+  // evaluateReviewGate and the poster both run; the grammar alone admits the text.
+  independent: new RegExp(
+    `^(?:(?:no findings|\\d+ findings?, all (?:addressed|fixed))\\.?|${ROUND_CAP_VERDICT.source.slice(1, -1)})$`,
+    'i'
+  ),
   adversarial: /^(?:[2-9]|[1-9]\d+) (?:lens|lenses), all findings addressed\.?$/i,
   none: /^low-risk paths, CI green\.?$/i,
   owner: OVERRIDE_VERDICT,
@@ -284,7 +291,7 @@ const OVERRIDE_REASON = /^Override reason: (?:.+ unavailable|convergence stop)\s
 // check, so `A-1` is fine — but an `i` flag made the letters decorative,
 // letting lowercase `myk9-523` parse despite the comment above claiming
 // uppercase (round 1 finding M-a).
-const DEFERRED_REVIEW = /^Deferred re-review: [A-Z][A-Z0-9]*-\d+$/m;
+export const DEFERRED_REVIEW = /^Deferred re-review: [A-Z][A-Z0-9]*-\d+$/m;
 
 /**
  * The full owner-override contract. Checks the trusted-association gate
@@ -540,6 +547,20 @@ export function evaluateReviewGate(input: EvaluateReviewGateInput): GateResult {
     : tiersEnabled
       ? verdictMatchesTier(latest.verdict, latest.tier)
       : VERDICT_BY_TIER.independent.test(latest.verdict.trim());
+  // The round-cap verdict is green only with its body contract (MYK9-1566).
+  if (accepted && !isOverride && isRoundCapVerdict(latest.verdict)) {
+    const all = parseGateComments(input.comments).filter(
+      e => tiersEnabled || LEGACY_REVIEWER_TOKENS.has(e.reviewer)
+    );
+    const problem = roundCapProblem(latest, all, DEFERRED_REVIEW.test(latest.body));
+    if (problem) {
+      return {
+        state: 'failure',
+        description: `round-cap verdict for ${short} ${problem}`,
+        evidence: latest,
+      };
+    }
+  }
   if (!accepted) {
     // Name what is missing for an override specifically — the association
     // check and the verdict grammar already produce the generic "not clean"
@@ -975,6 +996,37 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   if (overrideReasonLineFlag >= 0) {
     const line = process.argv[overrideReasonLineFlag + 1] ?? '';
     process.exit(OVERRIDE_REASON.test(line) ? 0 : 2);
+  }
+  // `--round-cap-check` (comments JSON, `gh api --slurp` shape, on stdin; the
+  // complete comment body about to be posted in ROUND_CAP_BODY): exit 0 when the
+  // gate's own evaluateReviewGate would accept that body as a round-cap verdict
+  // alongside those comments, 2 (reason on stderr) when not. The poster asks
+  // this instead of re-deriving the rules, so poster and judge cannot disagree.
+  if (process.argv.includes('--round-cap-check')) {
+    const comments: GateComment[] = flattenPages<RestComment>(readFileSync(0, 'utf8') || '[]').map(
+      c => ({
+        body: c.body,
+        createdAt: c.created_at,
+        updatedAt: c.updated_at,
+        author: c.user?.login,
+        authorAssociation: c.author_association,
+      })
+    );
+    const body = process.env.ROUND_CAP_BODY ?? '';
+    const head = parseGateComments([{ body, createdAt: '', authorAssociation: 'OWNER' }])[0]?.head;
+    const problem = head
+      ? roundCapProblem(
+          parseGateComments([{ body, createdAt: '9999', authorAssociation: 'OWNER' }])[0]!,
+          parseGateComments(comments),
+          DEFERRED_REVIEW.test(body)
+        )
+      : 'body does not start with a Review gate line';
+    if (problem) console.error(`round-cap verdict ${problem}`);
+    process.exit(problem ? 2 : 0);
+  }
+  const verdictProbeFlag = process.argv.indexOf('--is-round-cap-verdict');
+  if (verdictProbeFlag >= 0) {
+    process.exit(isRoundCapVerdict(process.argv[verdictProbeFlag + 1] ?? '') ? 0 : 2);
   }
   const deferredReviewLineFlag = process.argv.indexOf('--deferred-review-line');
   if (deferredReviewLineFlag >= 0) {

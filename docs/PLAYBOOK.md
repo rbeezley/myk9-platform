@@ -158,6 +158,25 @@ refuses evidence below. Four tiers, weakest to strongest: `none` < `owner` <
   real gate at the deferred floor once the harness is available and close the tracked
   issue.
 
+- **Round-cap verdict (MYK9-1566)** — the reviewing agent's own exit when the round
+  budget is spent and only lower findings remain; it replaces the hand-posted
+  `owner` convergence override for that case. It is the other harness's own round
+  (same `codex`/`claude` token, `independent` tier), not a waiver, and is green only when
+  ALL hold: the PR has at least 3 reviewer rounds (distinct heads, from `Review gate:
+codex|claude reviewed` comments, withdrawals included); the quoted log carries no
+  `[P0]`/`[P1]` bullet and no unprioritised structured findings; the body names a
+  `Deferred re-review: MYK9-<n>` issue holding the remaining findings; and it sits on
+  the head that round reviewed, with a `log sha256:` equal to an earlier round comment
+  on that same head, so it quotes that round's log. Post it with
+  `DEFERRED_REVIEW=<ISSUE-ID> bash scripts/qa/post-review-gate.sh "$PR" <codex|claude> <base-sha> <head-sha> "round cap, no P0/P1 open" <latest-round-log>`.
+  The poster asks `review-gate.ts --round-cap-check` against the PR's real comments, so
+  poster and gate cannot disagree. A later push moves the head and needs a fresh
+  round. The round count (3) and what counts as P0/P1 are unchanged; the `owner`
+  override remains for an unclosable P0/P1 or an unavailable reviewer. The docs-only
+  two-round budget (ship-pr Step 4) exits through this verdict once a third round
+  exists; before that it keeps the `owner` convergence stop, because the round count
+  is not changed here.
+
 **`human-fallback` is retired (MYK9-532).** It was the pre-tier token the `owner`
 override above replaces — the override is strictly stronger (it claims a floor,
 records `Override reason:` and `Deferred re-review:`, none of which the old

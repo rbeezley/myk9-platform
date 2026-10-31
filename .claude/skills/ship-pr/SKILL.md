@@ -142,6 +142,13 @@ comments for every tier — never type an evidence line by hand.
   refuses adversarial evidence whose body names fewer than two — or, on a
   migration diff, whose lenses do not include `migration-auditor` exactly.
 - **`independent`** — the cross-harness gate in Step 4 below, unchanged.
+- **round cap** (3 rounds spent, no `[P0]`/`[P1]` left, the rest filed) — the
+  reviewing agent posts it, no owner needed: file the residual findings under a
+  `MYK9-<n>` issue, then `DEFERRED_REVIEW=<ISSUE-ID> post-review-gate.sh $PR_NUMBER
+<codex|claude> <base-sha> <head-sha> "round cap, no P0/P1 open" <latest-round-log>`.
+  Refused unless the PR has 3+ rounds, the log has no P0/P1 bullet, the issue id
+  is well formed, and the log is the one a round on that same head recorded.
+  See `docs/PLAYBOOK.md` § 4.
 - **owner override** (harness genuinely unavailable) — claim the SAME floor
   `pnpm qa:review-tier` just printed (`override, floor was independent` or
   `override, floor was adversarial`; a mismatched claim is refused), set
@@ -205,7 +212,7 @@ The reviewer is `codex` or `claude` (whichever ran, i.e. the OTHER harness). The
 
 **Pre-existing defects** (`- [pre-existing P<n>]` bullets, which the wrapper lists after the verdict) are in code the branch did not touch, so they do not block the gate and the evidence comment carries them verbatim. Before merge, file each one as a MYK9 issue (`list_issues` with `includeArchived: true` first; a match gets a comment, not a duplicate). Do not fix them in this PR. Check the label yourself: a defect in lines the diff changed is a normal finding, whatever it is labelled (docs/lessons/README.md#review-scope-boundary).
 
-**Two-round budget for documentation-only diffs at the `independent` floor** (skills, references and runbooks under guardrail paths; a pure `docs/` or root `.md` diff has floor `none` and needs no Codex round, so the budget never applies to it). When a Codex round returns only P2 or lower, two rounds is the budget. Fix every P0/P1, file the residual findings as a follow-up issue linked from the PR, and post the gate with the `owner` override above, claiming the floor `pnpm qa:review-tier` prints (`override, floor was independent`; the poster refuses a claimed floor that differs from the real one), with `OVERRIDE_REASON="convergence stop — two-round budget, docs-only diff"` and `DEFERRED_REVIEW=<follow-up issue>` (an uppercase-prefix id like `MYK9-523`; the line counts only from an OWNER/MEMBER account). The grammar has no green line for residual P2s any other way. In an unattended run, post it only when the owner's run-start approval named this budget; otherwise leave the PR open with the residual findings filed.
+**Two-round budget for documentation-only diffs at the `independent` floor** (skills, references and runbooks under guardrail paths; a pure `docs/` or root `.md` diff has floor `none` and needs no Codex round, so the budget never applies to it). When a Codex round returns only P2 or lower, two rounds is the budget. Fix every P0/P1, file the residual findings as a follow-up issue linked from the PR, and post the gate with the `owner` override above, claiming the floor `pnpm qa:review-tier` prints (`override, floor was independent`; the poster refuses a claimed floor that differs from the real one), with `OVERRIDE_REASON="convergence stop — two-round budget, docs-only diff"` and `DEFERRED_REVIEW=<follow-up issue>` (an uppercase-prefix id like `MYK9-523`; the line counts only from an OWNER/MEMBER account). The round-cap verdict above is the same exit once a third round exists (it needs 3 reviewer rounds on the PR, and the round count is unchanged); before that, only the `owner` convergence stop above has a green line for residual P2s. In an unattended run, post it only when the owner's run-start approval named this budget; otherwise leave the PR open with the residual findings filed.
 
 Never report the PR as ready, arm auto-merge, or merge while a review is running.
 

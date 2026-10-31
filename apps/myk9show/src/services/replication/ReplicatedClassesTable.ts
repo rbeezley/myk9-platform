@@ -59,13 +59,9 @@ import type { TimeLimitRule } from './resolveClassTimeLimitRules';
  */
 type ClassRow = Database['public']['Tables']['classes']['Row'];
 
-/** MYK9-1514: the stale-class server action (see queueCompleteStaleClass). */
-export const COMPLETE_STALE_CLASS_RPC = 'ringside_complete_stale_class';
-
 /**
  * App-level Class type with camelCase fields and sync metadata
  */
-
 export interface ReplicatedClass {
   id: string;
   trialId?: string | undefined;
@@ -1110,29 +1106,6 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
     );
     this._lastMutationId = mutationId;
     return mutationId;
-  }
-
-  /**
-   * MYK9-1514, offline path of "Mark absent & complete": queue the ONE `ringside_complete_stale_class`
-   * call with the dog ids the judge saw. No per-dog writes and no local status change; the server
-   * re-validates the set when the call lands and does nothing if it no longer matches.
-   */
-  async queueCompleteStaleClass(classId: string, expectedEntryIds: string[]): Promise<void> {
-    const currentClass = await this.get(classId);
-    if (!currentClass) throw new Error(`Class ${classId} not found`);
-    const { mutationId } = await this.writeAndQueue(
-      classId,
-      { ...currentClass, _lastModified: new Date(), _syncStatus: 'pending' },
-      {
-        operation: 'UPDATE',
-        payload: { id: classId },
-        rpc: {
-          name: COMPLETE_STALE_CLASS_RPC,
-          args: { p_class_id: classId, p_expected_entry_ids: expectedEntryIds },
-        },
-      }
-    );
-    this._lastMutationId = mutationId;
   }
 
   /**

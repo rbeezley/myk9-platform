@@ -1,8 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('@/services/replication/ReplicatedClassesTable', () => ({
-  replicatedClassesTable: { queueCompleteStaleClass: vi.fn() },
-}));
 vi.mock('./completeStaleClassRpc', () => ({ completeStaleClassRpc: vi.fn() }));
 
 import { render, screen } from '@/test/utils/testUtils';

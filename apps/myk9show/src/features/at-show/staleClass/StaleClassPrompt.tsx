@@ -15,13 +15,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { logger } from '@/services/LoggingService';
 import { completeStaleClassRpc } from './completeStaleClassRpc';
 import { confirmStaleClass } from './confirmStaleClass';
 import { useStaleClassPromptStore } from './staleClassPromptStore';
-
-const isOnline = () => typeof navigator === 'undefined' || navigator.onLine !== false;
 
 export function StaleClassPrompt() {
   const prompt = useStaleClassPromptStore(state => state.prompt);
@@ -35,11 +32,12 @@ export function StaleClassPrompt() {
   const confirm = async () => {
     setWorking(true);
     try {
-      const result = await confirmStaleClass(prompt, {
-        isOnline,
-        complete: completeStaleClassRpc,
-        queue: (classId, ids) => replicatedClassesTable.queueCompleteStaleClass(classId, ids),
-      });
+      const result = await confirmStaleClass(prompt, { complete: completeStaleClassRpc });
+      if (result.outcome === 'needs-connection') {
+        // Online-only: nothing was marked or queued. Keep the prompt open to try again.
+        toast.error("Needs a connection. Try again when you're back online.");
+        return;
+      }
       if (result.outcome === 'changed') {
         // The class changed since the judge looked; nothing was written. Ask again.
         const n = result.currentEntryIds.length;
@@ -47,19 +45,12 @@ export function StaleClassPrompt() {
         toast.info(`${result.className} changed. ${n} ${n === 1 ? 'dog is' : 'dogs are'} left.`);
         return;
       }
-      // A queued confirmation changes nothing locally, so snooze the class or the next
-      // saved score would ask again and queue a duplicate.
-      if (result.outcome === 'queued') useStaleClassPromptStore.getState().snooze(Date.now());
-      else useStaleClassPromptStore.getState().dismiss();
+      useStaleClassPromptStore.getState().dismiss();
       if (result.outcome === 'not-needed') {
-        toast.info(`${result.className} no longer needs completing`);
+        toast.info(`${result.className} is already complete`);
         return;
       }
-      const message =
-        result.outcome === 'queued'
-          ? `${result.className}: ${result.dogCount} ${result.dogCount === 1 ? 'dog' : 'dogs'} will be marked absent and the class completed when you are back online.`
-          : `${result.className} completed, ${result.markedCount} marked absent`;
-      toast.success(message, {
+      toast.success(`${result.className} completed, ${result.markedCount} marked absent`, {
         action: {
           label: 'Review',
           onClick: () => navigate(`/at-show/${prompt.showId}/class/${prompt.classId}`),

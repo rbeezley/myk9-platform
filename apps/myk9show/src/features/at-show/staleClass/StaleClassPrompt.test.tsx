@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   complete: vi.fn(),
-  queue: vi.fn(),
   toastSuccess: vi.fn(),
   toastInfo: vi.fn(),
   toastError: vi.fn(),
@@ -10,9 +9,6 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('sonner', () => ({
   toast: { success: mocks.toastSuccess, info: mocks.toastInfo, error: mocks.toastError },
-}));
-vi.mock('@/services/replication/ReplicatedClassesTable', () => ({
-  replicatedClassesTable: { queueCompleteStaleClass: mocks.queue },
 }));
 vi.mock('./completeStaleClassRpc', () => ({ completeStaleClassRpc: mocks.complete }));
 
@@ -35,7 +31,6 @@ describe('StaleClassPrompt', () => {
     vi.clearAllMocks();
     useStaleClassPromptStore.setState({ prompt: null, snoozes: {} });
     mocks.complete.mockResolvedValue({ ok: true, markedCount: 3 });
-    mocks.queue.mockResolvedValue(undefined);
   });
 
   it('renders nothing until there is a prompt', () => {
@@ -51,7 +46,6 @@ describe('StaleClassPrompt', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Not yet' }));
 
     expect(mocks.complete).not.toHaveBeenCalled();
-    expect(mocks.queue).not.toHaveBeenCalled();
     expect(useStaleClassPromptStore.getState().prompt).toBeNull();
     expect(useStaleClassPromptStore.getState().snoozes.stale).toBeDefined();
   });
@@ -99,19 +93,24 @@ describe('StaleClassPrompt', () => {
     expect(useStaleClassPromptStore.getState().prompt).toBeNull();
   });
 
-  it('closes quietly when the server finds no dogs left', async () => {
+  it('closes as already complete when the server finds no dogs left', async () => {
     mocks.complete.mockResolvedValue({ ok: false, currentEntryIds: [] });
     useStaleClassPromptStore.setState({ prompt });
     render(<StaleClassPrompt />);
 
     await userEvent.click(await screen.findByRole('button', { name: /Mark absent/ }));
 
-    await waitFor(() => expect(mocks.toastInfo).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(mocks.toastInfo).toHaveBeenCalledWith('Container Novice A is already complete')
+    );
     expect(useStaleClassPromptStore.getState().prompt).toBeNull();
+    expect(mocks.complete).toHaveBeenCalledTimes(1);
   });
 
   it('keeps the prompt up and tells the judge when the call fails', async () => {
-    mocks.complete.mockRejectedValue(new Error('network'));
+    mocks.complete.mockRejectedValue(
+      Object.assign(new Error('permission denied'), { code: '42501' })
+    );
     useStaleClassPromptStore.setState({ prompt });
     render(<StaleClassPrompt />);
 
@@ -122,20 +121,20 @@ describe('StaleClassPrompt', () => {
     expect(mocks.toastSuccess).not.toHaveBeenCalled();
   });
 
-  it('queues one call while offline and says it completes when back online', async () => {
-    const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+  it('stays open with a connection message when the request cannot reach the server', async () => {
+    mocks.complete.mockRejectedValue(new TypeError('Failed to fetch'));
     useStaleClassPromptStore.setState({ prompt });
     render(<StaleClassPrompt />);
 
     await userEvent.click(await screen.findByRole('button', { name: /Mark absent/ }));
 
-    await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalled());
-    expect(mocks.queue).toHaveBeenCalledTimes(1);
-    expect(mocks.queue).toHaveBeenCalledWith('stale', ['a', 'b', 'c']);
-    expect(mocks.complete).not.toHaveBeenCalled();
-    expect(mocks.toastSuccess.mock.calls[0]?.[0]).toMatch(/back online/);
-    // Snoozed, so the next saved score does not ask again and queue a duplicate.
-    expect(useStaleClassPromptStore.getState().snoozes.stale).toBeDefined();
-    online.mockRestore();
+    await waitFor(() =>
+      expect(mocks.toastError).toHaveBeenCalledWith(
+        "Needs a connection. Try again when you're back online."
+      )
+    );
+    expect(navigator.onLine).toBe(true);
+    expect(useStaleClassPromptStore.getState().prompt).not.toBeNull();
+    expect(mocks.toastSuccess).not.toHaveBeenCalled();
   });
 });

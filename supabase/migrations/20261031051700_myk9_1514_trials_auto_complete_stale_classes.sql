@@ -67,6 +67,8 @@ COMMENT ON COLUMN public.trials.auto_complete_stale_classes IS
 --
 -- LOCK ORDER matches the scoring path (entry rows first, then the class row via
 -- its scoring-state trigger), so an overlapping score cannot deadlock with this.
+-- The set compared against the caller's ids is read AFTER the class row is locked, so
+-- an entry added between the entry-row locks and the class lock still refuses the call.
 --
 -- AUTHORIZATION is ringside_update_entry's, copied from the latest migration
 -- defining it (20260925143700): a manager, the class's assigned judge, or a
@@ -160,9 +162,29 @@ BEGIN
       USING errcode = '42501';
   END IF;
 
-  -- 4. The class's current unscored entries, row-locked so a score landing
-  -- between this read and the write below waits and is not overwritten. Entries
-  -- first, then the class row, as the scoring path does.
+  -- 4. Lock, in the scoring path's order: the class's unscored entry rows first, so
+  -- a score landing now waits and is not overwritten, then the class row.
+  PERFORM e.id
+     FROM public.entries e
+    WHERE e.class_id = p_class_id
+      AND e.deleted_at IS NULL
+      AND coalesce(e.entry_status, '') NOT IN
+          ('withdrawn', 'scratched', 'absent', 'moved', 'not_accepted')
+      AND e.check_in_status IS DISTINCT FROM 'pulled'
+      AND e.is_scored IS NOT TRUE
+      AND coalesce(e.result_status, '') NOT IN ('absent', 'excused', 'disqualified')
+      FOR UPDATE OF e;
+
+  SELECT c.status_source, c.status
+    INTO v_status_source, v_class_status
+    FROM public.classes c
+   WHERE c.id = p_class_id
+     FOR UPDATE OF c;
+
+  -- 4b. Only now read the set to compare. The read above locked the rows that existed
+  -- then; a day-of entry an official added between that read and the class lock is
+  -- not among them, so the set is re-read (a new statement sees it) and compared
+  -- against what the judge was shown. Same predicate as the lock above.
   SELECT coalesce(array_agg(s.id ORDER BY s.id), '{}'::uuid[]),
          coalesce(bool_or(s.in_ring), false)
     INTO v_current, v_any_in_ring
@@ -177,14 +199,7 @@ BEGIN
          AND e.check_in_status IS DISTINCT FROM 'pulled'
          AND e.is_scored IS NOT TRUE
          AND coalesce(e.result_status, '') NOT IN ('absent', 'excused', 'disqualified')
-         FOR UPDATE OF e
     ) s;
-
-  SELECT c.status_source, c.status
-    INTO v_status_source, v_class_status
-    FROM public.classes c
-   WHERE c.id = p_class_id
-     FOR UPDATE OF c;
 
   -- A class a secretary cancelled or reset, or one with a dog in the ring, is
   -- not stale: refuse with no dogs to offer.

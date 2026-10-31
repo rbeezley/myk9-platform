@@ -13,9 +13,7 @@ const prompt: StaleClassPrompt = {
 };
 
 const deps = (over: Partial<Parameters<typeof confirmStaleClass>[1]> = {}) => ({
-  isOnline: () => true,
   complete: vi.fn().mockResolvedValue({ ok: true, markedCount: 3 }),
-  queue: vi.fn().mockResolvedValue(undefined),
   ...over,
 });
 
@@ -26,7 +24,6 @@ describe('confirmStaleClass', () => {
 
     expect(d.complete).toHaveBeenCalledTimes(1);
     expect(d.complete).toHaveBeenCalledWith('stale', ['a', 'b', 'c']);
-    expect(d.queue).not.toHaveBeenCalled();
     expect(result).toEqual({ outcome: 'marked', className: 'Container Novice A', markedCount: 3 });
   });
 
@@ -52,18 +49,29 @@ describe('confirmStaleClass', () => {
     });
   });
 
-  it('queues ONE call offline and never calls the server', async () => {
-    const d = deps({ isOnline: () => false });
-    const result = await confirmStaleClass(prompt, d);
-
-    expect(d.queue).toHaveBeenCalledTimes(1);
-    expect(d.queue).toHaveBeenCalledWith('stale', ['a', 'b', 'c']);
-    expect(d.complete).not.toHaveBeenCalled();
-    expect(result).toEqual({ outcome: 'queued', className: 'Container Novice A', dogCount: 3 });
+  it('returns needs-connection for a fetch failure even when navigator.onLine is true', async () => {
+    const d = deps({ complete: vi.fn().mockRejectedValue(new TypeError('Failed to fetch')) });
+    expect(navigator.onLine).toBe(true);
+    expect(await confirmStaleClass(prompt, d)).toEqual({
+      outcome: 'needs-connection',
+      className: 'Container Novice A',
+    });
+    expect(d.complete).toHaveBeenCalledTimes(1);
   });
 
-  it('lets a failed call throw so the prompt stays up (the call is atomic, nothing is half done)', async () => {
-    const d = deps({ complete: vi.fn().mockRejectedValue(new Error('network')) });
-    await expect(confirmStaleClass(prompt, d)).rejects.toThrow('network');
+  it('treats a supabase-js wrapped fetch failure and a timeout as needs-connection', async () => {
+    for (const err of [
+      { message: 'TypeError: Failed to fetch', details: '', hint: '', code: '' },
+      Object.assign(new Error('The operation timed out'), { name: 'TimeoutError' }),
+    ]) {
+      const d = deps({ complete: vi.fn().mockRejectedValue(err) });
+      expect((await confirmStaleClass(prompt, d)).outcome).toBe('needs-connection');
+    }
+  });
+
+  it('lets a server-side error (authorization, validation) throw as it is', async () => {
+    const err = Object.assign(new Error('permission denied'), { code: '42501' });
+    const d = deps({ complete: vi.fn().mockRejectedValue(err) });
+    await expect(confirmStaleClass(prompt, d)).rejects.toThrow('permission denied');
   });
 });

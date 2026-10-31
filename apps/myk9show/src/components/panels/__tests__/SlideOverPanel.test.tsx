@@ -400,3 +400,19 @@ describe('SlideOverPanel focus trap skips hidden and inert controls', () => {
     expect(screen.getByLabelText('last-visible')).toHaveFocus();
   });
 });
+
+describe('SlideOverPanel close control', () => {
+  // INTENT.md target floor: the only route out of a panel is a 48px hit area.
+  it('renders the close button at 48x48 (h-12 w-12), never the old 32px h-8 w-8', () => {
+    render(
+      <SlideOverPanel open onClose={vi.fn()} title="Sized close">
+        <p>Body</p>
+      </SlideOverPanel>
+    );
+
+    const close = screen.getByRole('button', { name: 'Close panel' });
+    expect(close).toHaveClass('h-12', 'w-12');
+    expect(close).not.toHaveClass('h-8');
+    expect(close).not.toHaveClass('w-8');
+  });
+});

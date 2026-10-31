@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   },
   online: true,
   canManage: false,
+  staff: false,
   show: { clubId: 'club-1', location: '123 Main St, Springfield' } as Record<string, unknown>,
 }));
 
@@ -22,6 +23,7 @@ vi.mock('@/hooks/useAuthContext', () => ({ useAuthContext: () => mocks.auth }));
 vi.mock('@/hooks/useShowManageScope', () => ({
   useShowManageScope: () => ({ canManage: mocks.canManage }),
 }));
+vi.mock('../useStaffDogGate', () => ({ useIsStaffDogViewer: () => mocks.staff }));
 vi.mock('@/lib/networkUtils', () => ({ useOnlineStatus: () => mocks.online }));
 vi.mock('@/hooks/useGlobalSyncStatus', () => ({
   useGlobalSyncStatus: () => ({ status: 'synced', queueSize: 0 }),
@@ -78,6 +80,8 @@ describe('RingsideMenu', () => {
     mocks.auth.signOut.mockReset();
     mocks.online = true;
     mocks.canManage = false;
+    mocks.staff = false;
+    mocks.show = { clubId: 'club-1', location: '123 Main St, Springfield' };
     useRingsideReturnStore.getState().clear();
     useNotificationStore.setState({ isCenterOpen: false });
     useAskQPanelStore.getState().close();
@@ -241,5 +245,34 @@ describe('RingsideMenu', () => {
     ).toBeInTheDocument();
     expect(mocks.auth.signOut).not.toHaveBeenCalled();
     mocks.auth.getUserRoles = () => [];
+  });
+
+  it('opens the Nationals Leaderboard for staff on a nationals show and records where to return', async () => {
+    mocks.staff = true;
+    mocks.show = { ...mocks.show, isNationals: true };
+    const { user } = renderMenu();
+    const nav = await openMenu(user);
+    await user.click(await within(nav).findByRole('button', { name: 'Nationals Leaderboard' }));
+    await waitFor(() =>
+      expect(screen.getByTestId('location')).toHaveTextContent('/at-show/show-1/leaderboard')
+    );
+    expect(useRingsideReturnStore.getState().target).toMatchObject({
+      returnTo: '/at-show/show-1/class/class-1',
+      scope: '/at-show/show-1/leaderboard',
+    });
+  });
+
+  it('hides the Nationals Leaderboard on a non-nationals show and from non-staff', async () => {
+    mocks.staff = true;
+    const first = renderMenu();
+    const nav = await openMenu(first.user);
+    expect(within(nav).queryByRole('button', { name: 'Nationals Leaderboard' })).toBeNull();
+    first.unmount();
+
+    mocks.staff = false;
+    mocks.show = { ...mocks.show, isNationals: true };
+    const second = renderMenu();
+    const nav2 = await openMenu(second.user);
+    expect(within(nav2).queryByRole('button', { name: 'Nationals Leaderboard' })).toBeNull();
   });
 });

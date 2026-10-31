@@ -216,9 +216,9 @@ describe('EntryListHeader', () => {
     const row = heading.parentElement;
     const block = row?.parentElement;
     // Class names are pinned, not measured: jsdom has no layout. The browser measurement at 375px is the proof.
-    expect(screen.getByRole('banner').className).toContain('max-md:flex-wrap');
-    expect(block?.className).toContain('max-md:order-last');
-    expect(block?.className).toContain('max-md:basis-full');
+    expect(screen.getByRole('banner').className).toContain('max-sm:flex-wrap');
+    expect(block?.className).toContain('max-sm:order-last');
+    expect(block?.className).toContain('max-sm:basis-full');
     expect(row?.className).toContain('min-w-0');
     expect(row?.className).toContain('max-w-full');
     expect(heading.className).toContain('min-w-0');

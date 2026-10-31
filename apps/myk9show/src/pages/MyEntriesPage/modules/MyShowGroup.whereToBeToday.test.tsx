@@ -68,8 +68,9 @@ describe('My Shows — "Where to be today" (MYK9-1046)', () => {
     const undated = row('2026-10-24');
     renderRows([{ ...undated, classes: [makeClass({ trialDate: undefined })] }]);
     expect(screen.queryByRole('link', { name: /where to be today/i })).not.toBeInTheDocument();
-    expect(screen.getByText(/waiting on their trial date/i)).toBeInTheDocument();
+    expect(screen.getByText(/waiting on a trial date/i)).toBeInTheDocument();
     expect(screen.getByText(/trial date not loaded yet/i)).toBeInTheDocument();
+    expect(screen.queryByText(/couldn't reach the server/i)).not.toBeInTheDocument();
   });
 
   it('swaps the unknown note for the link once the trial arrives', () => {
@@ -77,7 +78,7 @@ describe('My Shows — "Where to be today" (MYK9-1046)', () => {
     const { rerender } = renderRows([
       { ...undated, classes: [makeClass({ trialDate: undefined })] },
     ]);
-    expect(screen.getByText(/waiting on their trial date/i)).toBeInTheDocument();
+    expect(screen.getByText(/waiting on a trial date/i)).toBeInTheDocument();
     rerender(
       <MyShowsList
         filteredEntries={toOrders([row('2026-10-24')], NOW)}
@@ -91,7 +92,7 @@ describe('My Shows — "Where to be today" (MYK9-1046)', () => {
         onLeaveClass={vi.fn()}
       />
     );
-    expect(screen.queryByText(/waiting on their trial date/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/waiting on a trial date/i)).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: /where to be today/i })).toBeInTheDocument();
   });
 });

@@ -195,7 +195,7 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
   }, [classInfo]);
 
   return (
-    <header className="sticky top-0 z-10 flex min-h-[60px] items-center gap-2 rounded-b-xl border-b border-border bg-card p-3 sm:gap-4">
+    <header className="sticky top-0 z-10 flex min-h-[60px] items-center gap-2 max-md:flex-wrap rounded-b-xl border-b border-border bg-card p-3 sm:gap-4">
       <RingsideUpButton label={up.label} onClick={() => navigate(up.to)} />
       <CompactOfflineIndicator />
       {/* Class info - explicit tap/click or keyboard activation to show details popup */}
@@ -203,7 +203,7 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
         ref={classInfoRef}
         data-class-info-trigger={hasExtraInfo ? '' : undefined}
         className={cn(
-          'flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-md px-1.5 py-1 text-center md:absolute md:left-1/2 md:top-1/2 md:max-w-[55%] md:flex-none md:-translate-x-1/2 md:-translate-y-1/2',
+          'flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-md px-1.5 py-1 text-center max-md:order-last max-md:basis-full md:absolute md:left-1/2 md:top-1/2 md:max-w-[55%] md:flex-none md:-translate-x-1/2 md:-translate-y-1/2',
           hasExtraInfo &&
             'group cursor-pointer transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
         )}

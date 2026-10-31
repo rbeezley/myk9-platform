@@ -209,12 +209,16 @@ describe('EntryListHeader', () => {
     expect(trigger.className).toContain('focus-visible:ring-2');
   });
 
-  it('constrains the title row to the space beside the Up control on phones (MYK9-1500)', () => {
+  it('puts the class title on its own row under the Up control on phones (MYK9-1500)', () => {
     renderHeader();
 
     const heading = screen.getByRole('heading');
     const row = heading.parentElement;
+    const block = row?.parentElement;
     // Class names are pinned, not measured: jsdom has no layout. The browser measurement at 375px is the proof.
+    expect(screen.getByRole('banner').className).toContain('max-md:flex-wrap');
+    expect(block?.className).toContain('max-md:order-last');
+    expect(block?.className).toContain('max-md:basis-full');
     expect(row?.className).toContain('min-w-0');
     expect(row?.className).toContain('max-w-full');
     expect(heading.className).toContain('min-w-0');

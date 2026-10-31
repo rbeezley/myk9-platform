@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestQueryClient } from '@/test/utils/testUtils';
@@ -30,8 +30,7 @@ vi.mock('@/features/show-live-sync/showChangeSignal', () => ({
 import { useNationalsLeaderboardInputs } from './useNationalsLeaderboardInputs';
 import type { NationalsLeaderboardInputRow } from './nationalsLeaderboardInputs';
 
-function createTestWrapper() {
-  const client = createTestQueryClient();
+function wrapperFor(client: QueryClient) {
   return function Wrapper({ children }: { children: ReactNode }) {
     return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
   };
@@ -70,9 +69,9 @@ const settle = (ms: number) =>
     await vi.advanceTimersByTimeAsync(ms);
   });
 
-function mount() {
+function mount(client: QueryClient = createTestQueryClient()) {
   return renderHook(() => useNationalsLeaderboardInputs('show-1', true), {
-    wrapper: createTestWrapper(),
+    wrapper: wrapperFor(client),
   });
 }
 
@@ -96,7 +95,7 @@ describe('useNationalsLeaderboardInputs', () => {
     expect(mocks.listener).not.toBeNull();
   });
 
-  it('collapses a burst of changes into one debounced re-read', async () => {
+  it('collapses a burst of changes into one refresh', async () => {
     mount();
     await settle(0);
     act(() => {
@@ -110,6 +109,25 @@ describe('useNationalsLeaderboardInputs', () => {
     expect(mocks.fetchInputs).toHaveBeenCalledTimes(2);
   });
 
+  it('still refreshes while changes keep arriving, instead of waiting for silence', async () => {
+    mount();
+    await settle(0);
+    for (let second = 0; second < 20; second++) {
+      act(() => mocks.listener?.());
+      await settle(1000);
+    }
+    // One event a second for 20 seconds: a refresh about every throttle window, not none.
+    expect(mocks.fetchInputs.mock.calls.length).toBeGreaterThanOrEqual(8);
+  });
+
+  it('re-reads when nothing was signalled at all (the feed does not cover every dependency)', async () => {
+    mount();
+    await settle(0);
+    expect(mocks.fetchInputs).toHaveBeenCalledTimes(1);
+    await settle(31_000);
+    expect(mocks.fetchInputs.mock.calls.length).toBeGreaterThanOrEqual(2);
+  });
+
   it('re-reads a change that lands during the first read instead of serving the stale one', async () => {
     const first = deferredRead();
     mocks.fetchInputs
@@ -121,14 +139,13 @@ describe('useNationalsLeaderboardInputs', () => {
     expect(mocks.fetchInputs).toHaveBeenCalledTimes(1);
 
     act(() => mocks.listener?.());
+    // The refresh timer fires while the first read is still running; React Query hands it the
+    // running read, so only the read's own re-check can still catch the change.
+    await settle(2000);
     await act(async () => {
       first.resolve([row('stale')]);
-      await vi.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(100);
     });
-    // The stale answer is discarded; the read goes round again after the settle pause.
-    expect(result.current.inputs).toBeNull();
-    await settle(1000);
-    expect(mocks.fetchInputs).toHaveBeenCalledTimes(2);
     expect(result.current.inputs?.entries.map(e => e.id)).toEqual(['fresh']);
   });
 
@@ -142,12 +159,35 @@ describe('useNationalsLeaderboardInputs', () => {
     await settle(0);
 
     act(() => mocks.statusListener?.('SUBSCRIBED'));
+    await settle(2000);
     await act(async () => {
       first.resolve([row('stale')]);
-      await vi.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(100);
     });
-    await settle(1000);
     expect(result.current.inputs?.entries.map(e => e.id)).toEqual(['fresh']);
+  });
+
+  it('does not accept a stale read after leaving and reopening the board mid-read', async () => {
+    const client = createTestQueryClient();
+    const first = deferredRead();
+    mocks.fetchInputs
+      .mockReset()
+      .mockReturnValueOnce(first.promise)
+      .mockResolvedValue([row('fresh')]);
+    const firstMount = mount(client);
+    await settle(0);
+    firstMount.unmount();
+
+    // Reopened while the abandoned read is still running (React Query keeps it).
+    const secondMount = mount(client);
+    await settle(0);
+    act(() => mocks.listener?.());
+    await settle(2000);
+    await act(async () => {
+      first.resolve([row('stale')]);
+      await vi.advanceTimersByTimeAsync(100);
+    });
+    expect(secondMount.result.current.inputs?.entries.map(e => e.id)).toEqual(['fresh']);
   });
 
   it('re-reads on a join after an idle first read, and says so while the channel is down', async () => {
@@ -178,9 +218,9 @@ describe('useNationalsLeaderboardInputs', () => {
 
   it('neither reads nor subscribes while disabled', async () => {
     renderHook(() => useNationalsLeaderboardInputs('show-1', false), {
-      wrapper: createTestWrapper(),
+      wrapper: wrapperFor(createTestQueryClient()),
     });
-    await settle(0);
+    await settle(30_000);
     expect(mocks.fetchInputs).not.toHaveBeenCalled();
     expect(mocks.listener).toBeNull();
   });

@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useEffect, useMemo, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { subscribeToShowChanges } from '@/features/show-live-sync/showChangeSignal';
 import {
   fetchNationalsLeaderboardInputs,
@@ -7,66 +7,69 @@ import {
   type NationalsLeaderboardInputRow,
 } from './nationalsLeaderboardInputs';
 
-/** A scoring burst is one refetch. */
-const REFRESH_DEBOUNCE_MS = 1500;
-/** Between two passes of one read, so a burst of changes settles before the next pass. */
-const PASS_SETTLE_MS = 500;
+/** A burst of change signals is one refresh; the timer is never reset, so steady traffic still refreshes. */
+const REFRESH_THROTTLE_MS = 1500;
+/**
+ * The backstop. The change feed signals only entries, classes and paperwork, and any signal can be
+ * lost (a dropped channel, a read that overlapped it), so the board is re-read on a timer too. It
+ * bounds how stale anything the feed misses can get (a renamed dog, a moved trial date).
+ */
+const RECONCILE_MS = 30_000;
+/** Passes one read may take when changes keep landing under it; the last pass is published. */
+const MAX_PASSES = 3;
 
-const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
+/**
+ * Change counter per show. Module-level on purpose: React Query keeps a read in flight across an
+ * unmount, so the counter that read compares against must survive the remount too.
+ */
+const changeCount = new Map<string, number>();
+const countOf = (showId: string) => changeCount.get(showId) ?? 0;
+const noteChange = (showId: string) => changeCount.set(showId, countOf(showId) + 1);
 
 /**
  * The leaderboard's server read (online only), kept current by the show's change signal.
- *
- * ONE refresh mechanism, so no trigger can lose a race with another:
- *  - every signal (a change, or the channel joining or re-joining) only MARKS the board dirty;
- *  - a read that finds the board marked dirty while it ran discards its result and reads again,
- *    so a change that lands during the first read (or between its pages, which are offset-based
- *    and can shift) is never served as current;
- *  - when no read is running, a marked board schedules one debounced read.
+ *  - A signal (a change, or the channel joining or re-joining) notes a change and schedules one
+ *    throttled refresh.
+ *  - A read that sees a change land while it ran reads again before publishing (a refresh cannot
+ *    restart the first read of a cold query, because React Query hands it the running one).
+ *  - A timer re-reads regardless, so what the feed never signals cannot stay wrong for long.
  */
 export function useNationalsLeaderboardInputs(showId: string, enabled: boolean) {
-  const dirtyRef = useRef(0);
-  const readingRef = useRef(false);
+  const queryClient = useQueryClient();
+  const queryKey = useMemo(() => ['at-show', 'nationals-leaderboard', showId] as const, [showId]);
   const query = useQuery({
-    queryKey: ['at-show', 'nationals-leaderboard', showId],
+    queryKey,
     queryFn: async (): Promise<NationalsLeaderboardInputRow[]> => {
-      readingRef.current = true;
-      try {
-        for (;;) {
-          const seen = dirtyRef.current;
-          const rows = await fetchNationalsLeaderboardInputs(showId);
-          if (dirtyRef.current === seen) return rows;
-          await sleep(PASS_SETTLE_MS);
-        }
-      } finally {
-        readingRef.current = false;
+      for (let pass = 1; ; pass++) {
+        const seen = countOf(showId);
+        const rows = await fetchNationalsLeaderboardInputs(showId);
+        if (countOf(showId) === seen || pass >= MAX_PASSES) return rows;
       }
     },
     enabled: enabled && Boolean(showId),
+    refetchInterval: RECONCILE_MS,
   });
   const { refetch } = query;
-  // The change channel is the only thing that tells an open board a score moved. While it is down
-  // the board can go stale without an error, so it says so; its re-join marks the board dirty.
+  // While the change channel is down the board can go stale without an error, so it says so.
   const [liveDown, setLiveDown] = useState(false);
 
   useEffect(() => {
     if (!enabled || !showId) return;
     let timer: ReturnType<typeof setTimeout> | null = null;
-    const markDirty = () => {
-      dirtyRef.current += 1;
-      if (timer) clearTimeout(timer);
+    const requestRefresh = () => {
+      noteChange(showId);
+      if (timer) return;
       timer = setTimeout(() => {
-        // A running read sees the mark itself and reads again; starting another would only be
-        // deduplicated into it.
-        if (!readingRef.current) void refetch();
-      }, REFRESH_DEBOUNCE_MS);
+        timer = null;
+        void queryClient.invalidateQueries({ queryKey, exact: true });
+      }, REFRESH_THROTTLE_MS);
     };
-    const unsubscribe = subscribeToShowChanges(showId, markDirty, status => {
+    const unsubscribe = subscribeToShowChanges(showId, requestRefresh, status => {
       if (status === 'SUBSCRIBED') {
         setLiveDown(false);
-        // Every join marks the board dirty, the first one included: a change made between the
-        // board's first read and the channel joining was never signalled.
-        markDirty();
+        // Every join counts as a change, the first one included: whatever moved before the
+        // channel joined was never signalled.
+        requestRefresh();
       } else {
         setLiveDown(true);
       }
@@ -75,7 +78,7 @@ export function useNationalsLeaderboardInputs(showId: string, enabled: boolean) 
       if (timer) clearTimeout(timer);
       unsubscribe();
     };
-  }, [enabled, showId, refetch]);
+  }, [enabled, showId, queryClient, queryKey]);
 
   const inputs = useMemo(() => (query.data ? toLeaderboardInputs(query.data) : null), [query.data]);
   return {

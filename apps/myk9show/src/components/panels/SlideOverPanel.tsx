@@ -387,7 +387,7 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
                   variant="ghost"
                   size="sm"
                   onClick={onClose}
-                  className="h-12 w-12 p-0"
+                  className="-my-2 -mr-2 h-12 w-12 p-0"
                   aria-label="Close panel"
                 >
                   <X className="h-5 w-5" />

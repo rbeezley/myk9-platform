@@ -24,7 +24,7 @@ interface UseEntryManagementHeaderActionsOptions {
   counts: EntryListCounts;
   /** Set when the viewer manages the show but is not its trial secretary. */
   secretaryOnlyReason: string | undefined;
-  /** The registrations list is on screen with the entries read (the export's own gate). */
+  /** A show is open and no status change is in flight (the export's own gate). */
   exportEnabled: boolean;
   onExport: () => void;
 }

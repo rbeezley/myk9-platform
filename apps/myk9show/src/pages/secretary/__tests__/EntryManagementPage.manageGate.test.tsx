@@ -221,7 +221,7 @@ describe('EntryManagementPage derives its gate from the one manage scope', () =>
     expect(exportCsv).toHaveBeenCalledTimes(1);
   });
 
-  it('offers no Export CSV on an entry list, where it would export nothing the list shows', () => {
+  it('keeps Export CSV (the full file) on an entry list too, as the old toolbar did', () => {
     render(
       <Routes>
         <Route path="/shows/:id/entries" element={<EntryManagementPage />} />
@@ -230,7 +230,7 @@ describe('EntryManagementPage derives its gate from the one manage scope', () =>
     );
 
     expect(usePageEditTargetStore.getState().exports.some(item => item.id === 'entries')).toBe(
-      false
+      true
     );
   });
 

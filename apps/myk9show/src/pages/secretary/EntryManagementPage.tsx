@@ -233,7 +233,9 @@ const EntryManagementPage: React.FC = () => {
       registrationNeeded: registrationNeeded.count,
     },
     secretaryOnlyReason,
-    exportEnabled: Boolean(selectedShowId) && cockpitUrl.state.tab === 'registrations',
+    // Full CSV of every entry, on every list, as the old toolbar button was; withheld while a
+    // status change is in flight, when handleExportCSV would silently do nothing.
+    exportEnabled: Boolean(selectedShowId) && !isProcessing,
     onExport: () => void handleExportCSV(),
   });
 

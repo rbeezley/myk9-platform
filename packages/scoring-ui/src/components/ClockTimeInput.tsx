@@ -22,6 +22,7 @@ import {
   parseClockTime,
   parseStoredClockTime,
   storeClockTime,
+  UNRESOLVED_MARK,
   type ClockTimeResult,
   type ClockTimeStorage,
 } from '@myk9/core';
@@ -55,13 +56,16 @@ export interface ClockTimeInputProps {
 /** What the field shows for a stored value: the one display format, or the raw text. */
 function displayFor(value: string): string {
   const minutes = parseStoredClockTime(value);
-  return minutes === null ? value : formatClockTime(minutes);
+  if (minutes !== null) return formatClockTime(minutes);
+  return value.endsWith(UNRESOLVED_MARK) ? value.slice(0, -UNRESOLVED_MARK.length) : value;
 }
 
 /** What the field stores for a parse of `text`. */
 function storedFor(text: string, result: ClockTimeResult, storage: ClockTimeStorage): string {
   if (result.ok) return storeClockTime(result.minutesSinceMidnight, storage);
-  return text.trim() === '' ? '' : text;
+  if (text.trim() === '') return '';
+  // "7:00" is still being decided, but would read as a stored 07:00 to the caller.
+  return parseStoredClockTime(text) === null ? text : `${text}${UNRESOLVED_MARK}`;
 }
 
 export const ClockTimeInput: React.FC<ClockTimeInputProps> = ({

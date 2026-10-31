@@ -18,5 +18,7 @@ describe('trial start time spelling', () => {
     expect(hasTrialTime('soon')).toBe(false);
     expect(hasTrialTime('09:00 AM')).toBe(true);
     expect(hasTrialTime('12:00 AM')).toBe(true);
+    // 7:00 still waiting on AM or PM is the input's marked text, never a time
+    expect(hasTrialTime('7:00?')).toBe(false);
   });
 });

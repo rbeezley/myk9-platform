@@ -182,8 +182,19 @@ export function parseClockTime(input: string): ClockTimeResult {
  */
 export function isUnresolvedClockTime(value: string): boolean {
   if (value.trim() === '') return false;
-  return !parseClockTime(value).ok;
+  // A field's value is a stored time (resolved, even 07:00 from a chosen 7 AM) or the
+  // typed text the input could not settle. Re-parsing it as typed input would call a
+  // resolved 07:00 ambiguous, so it is read as stored text. The input keeps an unsettled
+  // text from ever reading as stored (see UNRESOLVED_MARK).
+  return parseStoredClockTime(value) === null;
 }
+
+/**
+ * Appended to an unsettled text that would otherwise read as a stored time ("7:00" asked
+ * AM or PM, "13:30:45"), so a caller can never mistake what is still being decided for a
+ * resolved value. The input strips it again before showing the text.
+ */
+export const UNRESOLVED_MARK = '?';
 
 const STORED = /^\s*(\d{1,2}):(\d{2})(?::\d{2})?\s*([AaPp])?\.?[Mm]?\.?\s*$/;
 

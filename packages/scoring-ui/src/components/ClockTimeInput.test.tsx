@@ -1,7 +1,7 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { isUnresolvedClockTime, type ClockTimeStorage } from '@myk9/core';
+import { isUnresolvedClockTime, parseStoredClockTime, type ClockTimeStorage } from '@myk9/core';
 import { ClockTimeInput } from './ClockTimeInput';
 
 function Harness({
@@ -74,6 +74,24 @@ describe('ClockTimeInput', () => {
     fireEvent.click(screen.getByRole('button', { name: '7:00 PM' }));
     expect(onValue).toHaveBeenLastCalledWith('07:00 PM');
     expect(field().value).toBe('7:00 PM');
+  });
+
+  it('keeps a still-undecided 7:00 from ever reading as a stored time, and a chosen 7 AM resolved', () => {
+    const onValue = vi.fn();
+    render(<Harness storage="hhmm" onValue={onValue} />);
+    fireEvent.change(field(), { target: { value: '7:00' } });
+    const undecided = onValue.mock.calls.at(-1)?.[0] as string;
+    expect(parseStoredClockTime(undecided)).toBeNull();
+    expect(isUnresolvedClockTime(undecided)).toBe(true);
+    expect(field().value).toBe('7:00');
+    fireEvent.click(screen.getByRole('button', { name: '7:00 AM' }));
+    expect(onValue).toHaveBeenLastCalledWith('07:00');
+    expect(isUnresolvedClockTime('07:00')).toBe(false);
+  });
+
+  it('shows an undecided text without its marker when it is remounted', () => {
+    render(<Harness initial="7:00?" />);
+    expect(field().value).toBe('7:00');
   });
 
   it('says why an unreadable time cannot be used and links it to the field', () => {

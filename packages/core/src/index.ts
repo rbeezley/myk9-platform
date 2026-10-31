@@ -100,6 +100,7 @@ export {
   formatClockTime24,
   storeClockTime,
   isUnresolvedClockTime,
+  UNRESOLVED_MARK,
   isClockTimeFailure,
   TRIAL_HOURS_START_MINUTES,
   TRIAL_HOURS_END_MINUTES,

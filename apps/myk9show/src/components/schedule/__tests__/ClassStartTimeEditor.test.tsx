@@ -108,6 +108,19 @@ describe('ClassStartTimeEditor', () => {
     expect(screen.getAllByRole('alert')[0]).toHaveTextContent('7:00 AM or 7:00 PM');
   });
 
+  it('saves a chosen 7:00 AM, and refuses 7:00 until AM or PM is chosen', async () => {
+    const { user } = render(<ClassStartTimeEditor {...baseProps} startTime={null} />);
+
+    await user.click(screen.getByRole('button', { name: /edit start time/i }));
+    fireEvent.change(screen.getByLabelText('Start time'), { target: { value: '7:00' } });
+    await user.click(screen.getByRole('button', { name: /save start time/i }));
+    expect(updateClassMock).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: '7:00 AM' }));
+    await user.click(screen.getByRole('button', { name: /save start time/i }));
+    expect(updateClassMock).toHaveBeenCalledWith('class-1', { startTime: '07:00:00' });
+  });
+
   it('leaves an unset start unset: opening and cancelling never writes 1:00 AM or midnight', async () => {
     const { user } = render(<ClassStartTimeEditor {...baseProps} startTime={null} />);
 

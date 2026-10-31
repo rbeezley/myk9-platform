@@ -132,6 +132,13 @@ describe('unset versus midnight', () => {
     expect(isUnresolvedClockTime('9:')).toBe(true);
     expect(isUnresolvedClockTime('09:30 AM')).toBe(false);
   });
+
+  it('a stored 7:00 AM is resolved, not re-read as the ambiguous typed 7:00', () => {
+    expect(isUnresolvedClockTime('07:00')).toBe(false);
+    expect(isUnresolvedClockTime('07:00:00')).toBe(false);
+    expect(isUnresolvedClockTime('07:00 AM')).toBe(false);
+    expect(parseClockTime('7:00').ok).toBe(false);
+  });
 });
 
 describe('stored values', () => {

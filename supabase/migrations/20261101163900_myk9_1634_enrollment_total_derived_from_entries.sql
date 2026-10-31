@@ -24,9 +24,20 @@
 --
 -- WHICH FORMS. A form paid by online checkout keeps the Stripe charge as its total
 -- (confirm_successful_checkout_enrollments writes it, processing fees included, and its
--- entries can carry entry_fee 0). Its marker is the Stripe payment intent in
--- payment_reference ('pi_...'), written only by that trigger. payment_method is NOT the
--- marker: it defaults to 'online' on every row.
+-- entries can carry entry_fee 0). It is recognised by EITHER marker:
+--   * a succeeded stripe_orders row linked to it (enrollment_id) or covering one of its
+--     entries (entry_ids) - permanent, and nothing a desk payment or an exhibitor can
+--     write;
+--   * the Stripe payment intent in payment_reference ('pi_...') - present from the
+--     checkout INSERT itself, before the order row is linked. A later desk payment may
+--     overwrite payment_reference with a check number (record_enrollment_payment_core),
+--     which is why the order marker must also hold.
+-- payment_method is NOT a marker: it defaults to 'online' on every row.
+--
+-- CONCURRENCY. Changing an entry now locks its row and then its form's row, while
+-- record_enrollment_payment locks the form and then its entries. A delete and a payment
+-- on the same form at the same instant can deadlock; Postgres aborts one with 40P01, a
+-- retryable error that changes nothing. Accepted: rare, and nothing is written wrong.
 --
 -- WHAT COUNTS. Every non-deleted entry on the form, whatever its entry_status or
 -- payment_status. That is what the old running sum held (it never subtracted on scratch,
@@ -52,17 +63,28 @@ $$;
 COMMENT ON FUNCTION private.enrollment_entries_total_cents(uuid) IS
   'MYK9-1634: the derived total (cents) of an entry form: the sum of its non-deleted entries'' entry_fee.';
 
-CREATE OR REPLACE FUNCTION private.enrollment_total_is_stripe(p_payment_reference text)
+CREATE OR REPLACE FUNCTION private.enrollment_total_is_stripe(
+  p_enrollment_id uuid,
+  p_payment_reference text
+)
 RETURNS boolean
 LANGUAGE sql
-IMMUTABLE
+STABLE
+SECURITY DEFINER
 SET search_path = ''
 AS $$
-  SELECT COALESCE(p_payment_reference LIKE 'pi\_%', false);
+  SELECT COALESCE(p_payment_reference LIKE 'pi\_%', false)
+      OR EXISTS (
+           SELECT 1
+             FROM public.stripe_orders o
+            WHERE o.status = 'succeeded'
+              AND (o.enrollment_id = p_enrollment_id
+                   OR o.entry_ids && ARRAY(SELECT e.id FROM public.entries e
+                                            WHERE e.registration_id = p_enrollment_id)));
 $$;
 
-COMMENT ON FUNCTION private.enrollment_total_is_stripe(text) IS
-  'MYK9-1634: a form paid by online checkout carries its Stripe payment intent in payment_reference and keeps the Stripe charge as its total.';
+COMMENT ON FUNCTION private.enrollment_total_is_stripe(uuid, text) IS
+  'MYK9-1634: a form paid by online checkout (a succeeded Stripe order covers it, or its payment_reference is the Stripe intent) keeps the Stripe charge as its total.';
 
 -- BEFORE INSERT / UPDATE on enrollments: no writer can set a mail-in form's total.
 CREATE OR REPLACE FUNCTION private.enrollments_derive_total()
@@ -72,7 +94,7 @@ SECURITY DEFINER
 SET search_path = ''
 AS $$
 BEGIN
-  IF NOT private.enrollment_total_is_stripe(NEW.payment_reference) THEN
+  IF NOT private.enrollment_total_is_stripe(NEW.id, NEW.payment_reference) THEN
     NEW.total_amount := private.enrollment_entries_total_cents(NEW.id);
   END IF;
   RETURN NEW;
@@ -106,7 +128,7 @@ BEGIN
   UPDATE public.enrollments en
      SET total_amount = private.enrollment_entries_total_cents(en.id)
    WHERE en.id = ANY (v_ids)
-     AND NOT private.enrollment_total_is_stripe(en.payment_reference)
+     AND NOT private.enrollment_total_is_stripe(en.id, en.payment_reference)
      AND en.total_amount IS DISTINCT FROM private.enrollment_entries_total_cents(en.id);
 
   RETURN NULL;
@@ -118,7 +140,7 @@ CREATE TRIGGER trg_entries_refresh_enrollment_total
   FOR EACH ROW EXECUTE FUNCTION private.entries_refresh_enrollment_total();
 
 REVOKE ALL ON FUNCTION private.enrollment_entries_total_cents(uuid) FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION private.enrollment_total_is_stripe(text) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION private.enrollment_total_is_stripe(uuid, text) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION private.enrollments_derive_total() FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION private.entries_refresh_enrollment_total() FROM PUBLIC, anon, authenticated;
 
@@ -126,5 +148,5 @@ REVOKE ALL ON FUNCTION private.entries_refresh_enrollment_total() FROM PUBLIC, a
 -- only (the BEFORE trigger computes the value); paid_amount and refunds are untouched.
 UPDATE public.enrollments en
    SET total_amount = private.enrollment_entries_total_cents(en.id)
- WHERE NOT private.enrollment_total_is_stripe(en.payment_reference)
+ WHERE NOT private.enrollment_total_is_stripe(en.id, en.payment_reference)
    AND en.total_amount IS DISTINCT FROM private.enrollment_entries_total_cents(en.id);

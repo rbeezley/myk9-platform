@@ -124,6 +124,34 @@ INSERT INTO t1634_expect
 SELECT '8 a Stripe-paid form keeps its stored total',
        pg_temp.total1634('00000000-0000-0000-0000-000001634063'), 3745;
 
+-- 9. A desk payment that overwrites a Stripe form's reference (the ledger core writes the
+-- check number into payment_reference) keeps the Stripe total: a succeeded order covering
+-- the form's entry is the permanent marker. customer_id NULL keeps the checkout triggers out.
+INSERT INTO public.stripe_orders (id, show_id, status, amount_cents, entry_ids, stripe_payment_intent_id)
+VALUES ('00000000-0000-0000-0000-000001634091', '00000000-0000-0000-0000-000001634011',
+        'succeeded', 3745, ARRAY['00000000-0000-0000-0000-000001634083'::uuid], 'pi_1634fixture');
+UPDATE public.enrollments SET payment_reference = '2207'
+ WHERE id = '00000000-0000-0000-0000-000001634063';
+INSERT INTO t1634_expect
+SELECT '9 a Stripe form whose reference is overwritten keeps its total (order marker; would re-derive to 0)',
+       pg_temp.total1634('00000000-0000-0000-0000-000001634063'), 3745;
+
+-- 10. The triggers move no money: paid, refund and status are untouched by an entry change.
+CREATE TEMP TABLE t1634_money ON COMMIT DROP AS
+SELECT paid_amount, refund_amount, payment_status FROM public.enrollments
+ WHERE id = '00000000-0000-0000-0000-000001634062';
+UPDATE public.entries SET entry_fee = 45 WHERE id = '00000000-0000-0000-0000-000001634082';
+INSERT INTO t1634_expect
+SELECT '10 an entry change leaves paid, refund and status untouched',
+       (SELECT count(*)::int FROM public.enrollments en, t1634_money m
+         WHERE en.id = '00000000-0000-0000-0000-000001634062'
+           AND en.paid_amount IS NOT DISTINCT FROM m.paid_amount
+           AND en.refund_amount IS NOT DISTINCT FROM m.refund_amount
+           AND en.payment_status IS NOT DISTINCT FROM m.payment_status), 1;
+INSERT INTO t1634_expect
+SELECT '10b and still re-derives the total (45.00)',
+       pg_temp.total1634('00000000-0000-0000-0000-000001634062'), 4500;
+
 DO $$
 DECLARE r record; v_fail int := 0;
 BEGIN

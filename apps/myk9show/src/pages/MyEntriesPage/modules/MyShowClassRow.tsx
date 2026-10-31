@@ -164,6 +164,9 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
         {state.kind === 'closed-today' && (
           <span className="text-muted-foreground">{CLASS_ROW_TEXT.closedToday}</span>
         )}
+        {state.kind === 'day-unknown' && (
+          <span className="text-muted-foreground">{CLASS_ROW_TEXT.dayUnknown}</span>
+        )}
         {state.kind === 'not-run' && (
           <span className="text-muted-foreground">{CLASS_ROW_TEXT.notRun}</span>
         )}

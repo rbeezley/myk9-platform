@@ -1,4 +1,4 @@
-import { formatTrialLabel } from '@myk9/core';
+import { formatTrialLabel, parseStoredClockTime } from '@myk9/core';
 import type { RegistryId } from '@/features/registries';
 import { buildAttentionCountByClass, matchesCockpitFilter } from './secretaryCockpitAttention';
 import { ALL_DAYS } from './cockpitRoutes';
@@ -31,7 +31,6 @@ import {
   formatTrialDate,
   minuteOfDayInTimeZone,
   operationalMinutes,
-  parseTime,
 } from './cockpitClock';
 import { buildClassChecklist, summarizeClassChecklist } from './classChecklist';
 
@@ -159,7 +158,7 @@ function sortClasses(
   registryId: RegistryId
 ): SecretaryCockpitClass[] {
   return [...classes].sort((a, b) =>
-    compareCockpitClasses(a, b, cls => parseTime(cls.scheduledStart), registryId)
+    compareCockpitClasses(a, b, cls => parseStoredClockTime(cls.scheduledStart), registryId)
   );
 }
 
@@ -183,7 +182,7 @@ function nowMarkerIndex(
   // Quiet mode (MYK9-953 decision 3): only on the day that is actually today.
   if (trialDate !== dateKeyInTimeZone(snapshot.now, snapshot.timeZone)) return null;
   const nowMinutes = minuteOfDayInTimeZone(snapshot.now, snapshot.timeZone);
-  const timed = classes.map(cls => parseTime(cls.scheduledStart));
+  const timed = classes.map(cls => parseStoredClockTime(cls.scheduledStart));
   if (timed.every(value => value == null)) return null;
   const firstFutureIndex = timed.findIndex(value => value != null && value > nowMinutes);
   return firstFutureIndex < 0 ? classes.length : firstFutureIndex;

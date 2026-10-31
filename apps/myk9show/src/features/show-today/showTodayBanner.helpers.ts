@@ -1,3 +1,5 @@
+import { formatClockTime, parseStoredClockTime } from '@myk9/core/clock-time';
+
 export interface HydratedAccountTodayEntry {
   entryId: string;
   showId: string;
@@ -19,39 +21,12 @@ export interface ShowTodayBannerItem {
 export type ShowTodayBannerVariant = 'hidden' | 'single' | 'stacked';
 
 /**
- * Parse a class start time into 24h hour + minute components.
- *
- * The upstream value arrives from three different sources (class.startTime,
- * trial.plannedStartTime, or the RPC row), so it may be raw 24h ("08:00",
- * "08:00:00") OR already carry a meridiem ("8:00 AM"). Returns null when the
- * value can't be parsed.
- */
-function parseClassTimeParts(time: string): { hour24: number; minute: number } | null {
-  const trimmed = time.trim();
-  if (!trimmed) return null;
-
-  const meridiem = trimmed.match(/\b([AP]M)\b/i)?.[1]?.toUpperCase() as 'AM' | 'PM' | undefined;
-  const timeOnly = trimmed.replace(/\s*[AP]M\b/i, '').trim();
-  const [hourRaw = '', minuteRaw = ''] = timeOnly.split(':');
-  let hour = Number(hourRaw);
-  if (!Number.isFinite(hour)) return null;
-
-  const minute = Number(minuteRaw.match(/\d+/)?.[0] ?? '0');
-  if (meridiem === 'AM') hour = hour === 12 ? 0 : hour;
-  else if (meridiem === 'PM') hour = hour === 12 ? 12 : hour + 12;
-
-  return { hour24: hour, minute };
-}
-
-/**
  * Minutes-since-midnight for a class time, or null if unparseable. Used to order
  * times numerically — a raw lexicographic compare ranks "1:30 PM" before
  * "8:00 AM" because "1" < "8".
  */
 export function classTimeToMinutes(time: string | null | undefined): number | null {
-  if (!time) return null;
-  const parts = parseClassTimeParts(time);
-  return parts ? parts.hour24 * 60 + parts.minute : null;
+  return parseStoredClockTime(time);
 }
 
 /**
@@ -63,14 +38,10 @@ export function formatClassTime(time: string | null | undefined): string {
   const trimmed = time.trim();
   if (!trimmed) return 'Time pending';
 
-  const parts = parseClassTimeParts(trimmed);
-  if (!parts) return trimmed; // unparseable — show as-is
+  const minutes = parseStoredClockTime(trimmed);
+  if (minutes === null) return trimmed; // unparseable — show as-is
 
-  const minute = String(parts.minute).padStart(2, '0');
-  const period = parts.hour24 >= 12 ? 'PM' : 'AM';
-  const displayHour = parts.hour24 % 12 || 12;
-
-  return `${displayHour}:${minute} ${period}`;
+  return formatClockTime(minutes);
 }
 
 function compareNullableTimes(a: string | null, b: string | null): number {

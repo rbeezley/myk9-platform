@@ -62,11 +62,11 @@ const mockAuthState = vi.hoisted(() => ({
 const ownResults: { current: ReadonlyMap<string, OwnShowResult> } = { current: new Map() };
 vi.mock('./useMyShowResults', () => ({ useMyShowResults: () => ownResults.current }));
 
-// The ringside menu's staff check (MYK9-1540) resolves a role these auth mocks do not model.
-vi.mock('./useStaffDogGate', () => ({ useIsStaffDogViewer: () => false }));
-
+// The picker resolves the ringside role (for Class Options gating) the way the
+// entry list does; this suite holds no RBAC role, so no one may manage classes.
 vi.mock('@/hooks/useAuthContext', () => ({
-  useAuthContext: () => mockAuthState,
+  useAuthContext: () => ({ ...mockAuthState, getUserRoles: () => [] }),
+  getPrimaryRole: () => null,
 }));
 
 // The self-check-in cascade is a live Supabase read (@/hooks/queries/useSelfCheckinEnabled),

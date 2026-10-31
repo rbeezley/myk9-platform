@@ -10,8 +10,8 @@
  */
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { TimeOfDayInput } from '@/components/common/TimeOfDayInput';
-import { clockOnDateToIso } from '@/components/trials/trialDateTime';
+import { ClockTimeInput } from '@myk9/scoring-ui';
+import { clockOnDateToIso, hasTrialTime } from '@/components/trials/trialDateTime';
 import { replicatedClassesTable } from '@/services/replication';
 
 interface ClassActualStartEditorProps {
@@ -97,7 +97,7 @@ function ClassActualStartEditorForm({
   }
 
   const save = () => {
-    const iso = clockOnDateToIso(trialDate, draft, timeZone);
+    const iso = hasTrialTime(draft) ? clockOnDateToIso(trialDate, draft, timeZone) : null;
     if (!iso) {
       setError('Enter a time like 9:42 AM.');
       return;
@@ -107,16 +107,22 @@ function ClassActualStartEditorForm({
 
   return (
     <div className="mt-2 flex flex-wrap items-center gap-2">
-      <TimeOfDayInput
-        id={`class-start-${classId}`}
-        aria-label={`Start time for ${className}`}
-        value={draft}
-        onChange={value => {
-          setDraft(value);
-          setError(null);
-        }}
-        className="h-11 w-32"
-      />
+      <div className="w-36">
+        <ClockTimeInput
+          id={`class-start-${classId}`}
+          ariaLabel={`Start time for ${className}`}
+          value={draft}
+          onChange={value => {
+            setDraft(value);
+            setError(null);
+          }}
+          onSubmit={save}
+          onCancel={() => {
+            setEditing(false);
+            setError(null);
+          }}
+        />
+      </div>
       <Button type="button" size="touch" disabled={saving} onClick={save}>
         Save
       </Button>

@@ -1,3 +1,4 @@
+import { parseStoredClockTime } from '@myk9/core';
 import type { DbTrial } from '@/types/database-mappings';
 
 // TrialEditPanel's "Trial Number" field is a dedicated `type="number" min={1}
@@ -17,30 +18,12 @@ function explicitTrialNumber(trial: DbTrial): number | undefined {
   return value;
 }
 
-// Trial start times are persisted as free-text "h:mm a" (e.g. "9:00 AM"),
-// which does not sort correctly as a plain string across the 12/1 o'clock
-// boundary. Parse to minutes-since-midnight for a real chronological compare.
-function parseClockTimeMinutes(value: string | null | undefined): number | undefined {
-  if (!value) return undefined;
-  const match = value.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
-  if (!match) return undefined;
-  let hour = Number(match[1]);
-  const minute = Number(match[2]);
-  const meridiem = match[3]?.toUpperCase();
-  if (meridiem) {
-    if (hour < 1 || hour > 12) return undefined;
-    hour = (hour % 12) + (meridiem === 'PM' ? 12 : 0);
-  }
-  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return undefined;
-  return hour * 60 + minute;
-}
-
 type SortKey = readonly [number, number, string];
 
 function sortKeyFor(trial: DbTrial): SortKey {
   const minutes =
-    parseClockTimeMinutes(trial.planned_start_time) ??
-    parseClockTimeMinutes(trial.actual_start_time) ??
+    parseStoredClockTime(trial.planned_start_time) ??
+    parseStoredClockTime(trial.actual_start_time) ??
     Number.POSITIVE_INFINITY;
   return [minutes, trial.display_order ?? 0, trial.created_at ?? ''];
 }

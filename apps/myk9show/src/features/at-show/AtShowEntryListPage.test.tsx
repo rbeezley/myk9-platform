@@ -365,6 +365,20 @@ describe('AtShowEntryListPage (Phase 1a shim)', () => {
     expect(screen.queryByText('Entries are not on this device')).not.toBeInTheDocument();
   });
 
+  it('keeps the cached rows and adds only the partial notice when a later sync leaves the show short (MYK9-1560)', async () => {
+    renderPage();
+    expect(await screen.findByText('Rex')).toBeInTheDocument();
+    expect(screen.queryByText(/hasn't finished syncing this show/)).not.toBeInTheDocument();
+
+    structureState.onDevice = false;
+    await createAtShowDataDependencies().forceSyncEntriesAndClasses('show-1');
+
+    expect(await screen.findByText(/hasn't finished syncing this show/)).toBeInTheDocument();
+    expect(screen.getByText('Rex')).toBeInTheDocument();
+    expect(screen.queryByText('Entries are not on this device')).not.toBeInTheDocument();
+    structureState.onDevice = true;
+  });
+
   it('offers a retry instead of the badge to an anonymous passcode session', async () => {
     entriesScope.synced = false;
     entriesScope.anonymous = true;

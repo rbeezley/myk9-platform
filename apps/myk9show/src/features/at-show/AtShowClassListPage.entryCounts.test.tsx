@@ -68,11 +68,11 @@ const mockAuthState = vi.hoisted(() => ({
   user: null as { is_anonymous?: boolean } | null,
 }));
 
-// The ringside menu's staff check (MYK9-1540) resolves a role these auth mocks do not model.
-vi.mock('./useStaffDogGate', () => ({ useIsStaffDogViewer: () => false }));
-
+// The picker resolves the ringside role (for Class Options gating) the way the
+// entry list does; this suite holds no RBAC role, so no one may manage classes.
 vi.mock('@/hooks/useAuthContext', () => ({
-  useAuthContext: () => mockAuthState,
+  useAuthContext: () => ({ ...mockAuthState, getUserRoles: () => [] }),
+  getPrimaryRole: () => null,
 }));
 
 import { AtShowClassListPage } from './AtShowClassListPage';

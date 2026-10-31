@@ -43,7 +43,7 @@ UTC.
 
 | Stream                | Last reviewed SHA                          | Window end           | Run by                     | Run date   |
 | --------------------- | ------------------------------------------ | -------------------- | -------------------------- | ---------- |
-| `daily-commit-review` | `792773bfbcb8a9102c75ec1830eeb21c2095b620` | 2026-10-30T04:29:04Z | codex-daily-commit-review | 2026-10-30 |
+| `daily-commit-review` | `7ead2843f96d6d5598e004225620ad9a02e5460b` | 2026-10-31T04:28:20Z | codex-daily-commit-review | 2026-10-31 |
 
 If this row is ever `unset`, nobody has verified which commits the Codex daily stream has actually
 covered; the first run of either automation on this stream must take its default window and stamp a
@@ -146,6 +146,17 @@ they do not have.
 > it in turn adopted the 21-commit Claude inventory for `(542b6fa47, 20ada6552]` after counting it.
 > No coverage gap: this window begins exactly at the previous window's end.
 
+> **Provenance of the 2026-10-31 stamp.** The 35 commits from `792773bfb` to `4da0bc590` were
+> reviewed in one pass by `claude-daily-commit-review` and reported in
+> `docs/qa/claude-daily-commit-review-2026-10-31.md`. The previous row was verified before it was
+> honoured, and it is an unusually honest stamp: `docs/qa/codex-daily-commit-review-2026-10-30.md`
+> titles itself "Incomplete review; not a clean bill of health", adopted the Claude 33-commit
+> inventory for `(35c77a6c1, 1e863d802]` after counting it, completed only the one
+> report-and-cursor commit `792773bfb` (`git rev-list --count 1e863d802..792773bfb` returns 1), and
+> named the three commits it had NOT covered — `0c0ee971b`, `adb4cb3d1`, `07442f855`. All three
+> fall inside this window, which begins exactly at the commit that row stamped, so there is no
+> coverage gap and nothing was absorbed. `origin/main` was re-fetched after the review and had not
+> moved, so this stamp is the tip actually reviewed.
 
 ## Related
 

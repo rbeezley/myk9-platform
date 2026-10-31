@@ -2,14 +2,15 @@
  * How My Shows orders the exhibitor's shows: today's first, then upcoming soonest first, then past
  * (most recent first). Pure, so the page's order is pinned without rendering it.
  *
- * "Past" is the show card's own calendar-day rule (`isPastShowEntry`); "today" is a not-yet-past
+ * "Past" is the trial-zone rule (`isShowPastInTrialZones`), the same one the check-in gate reads; "today" is a not-yet-past
  * show whose first day has arrived, so a multi-day show that began yesterday is today's.
  *
  * @module MyEntriesPage/modules/myShowSections
  */
 
 import type { MyShowGroup } from './groupEntriesByShow';
-import { isPastShowEntry, startOfLocalDay } from './myEntriesStats.helpers';
+import { isShowPastInTrialZones } from './dayCheckIn';
+import { startOfLocalDay } from './myEntriesStats.helpers';
 
 /** The URL parameter that names a show's group key; the page scrolls to that show. */
 export const SELECTED_SHOW_PARAM = 'show';
@@ -31,7 +32,7 @@ export function splitShowsIntoSections(groups: readonly MyShowGroup[], now: Date
   const past: MyShowGroup[] = [];
   const todayStart = startOfLocalDay(now).getTime();
   for (const group of groups) {
-    if (isPastShowEntry(group.orders[0], now)) past.push(group);
+    if (isShowPastInTrialZones(group, now)) past.push(group);
     else if (startTime(group) <= todayStart) today.push(group);
     else upcoming.push(group);
   }

@@ -45,7 +45,6 @@ export const TrialDateField: React.FC<TrialDateFieldProps> = ({
       minDate={minDate}
       maxDate={maxDate}
       defaultMonth={defaultMonth}
-      showTime={false}
       aria-invalid={error ? true : undefined}
       aria-describedby={error ? `${id}-error` : undefined}
     />

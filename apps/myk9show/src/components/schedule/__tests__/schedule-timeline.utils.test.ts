@@ -224,6 +224,17 @@ describe('groupByDay', () => {
     expect(elements[0]!.startTime).toBe('9:00 AM');
   });
 
+  it('sorts times as times across noon, never as text (12:30 PM before 1:00 PM, 11:00 AM before both)', () => {
+    const rows = [
+      makeTimelineRow({ element: 'Scent', startTime: '1:00 PM', classId: 'cls-1' }),
+      makeTimelineRow({ element: 'Rally', startTime: '12:30 PM', classId: 'cls-2' }),
+      makeTimelineRow({ element: 'Obedience', startTime: '11:00 AM', classId: 'cls-3' }),
+      makeTimelineRow({ element: 'Agility', startTime: '12:05 AM', classId: 'cls-4' }),
+    ];
+    const elements = groupByDay(rows)[0]!.trials[0]!.elements;
+    expect(elements.map(e => e.element)).toEqual(['Agility', 'Obedience', 'Rally', 'Scent']);
+  });
+
   it('takes the earliest class by clock time and puts untimed elements last', () => {
     const rows = [
       makeTimelineRow({ element: 'Scent', startTime: '', classId: 'cls-1' }),

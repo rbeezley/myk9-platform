@@ -20,7 +20,7 @@ import {
   isClassCheckInAvailableToday,
   isClassCheckInEligibleAnyDay,
   isTrialDayPast,
-  isTrialDayToday,
+  trialDayState,
   type DayCheckInContext,
 } from './dayCheckIn';
 import type { MyShowClass, MyShowDog } from './groupEntriesByShow';
@@ -52,6 +52,7 @@ export type ClassRowKind =
   | 'opens-later'
   | 'not-yet-eligible'
   | 'closed-today'
+  | 'day-unknown'
   | 'not-run'
   | 'absent';
 
@@ -141,7 +142,11 @@ export function deriveClassRowState(cls: MyShowClass, ctx: DayCheckInContext): C
   // (self-check-in closed by the secretary, entry not accepted yet, class
   // relation unresolved) gets its own kind: "opens Saturday" ON Saturday reads
   // as a broken clock, and "not run" would be a lie — the run is still ahead.
-  const dayToday = isTrialDayToday(cls.trialDate, cls.trialTimezone, ctx.now);
+  // A class whose trial has not replicated has no day to compare: it is neither
+  // "opens on the day" nor "not run", and no check-in is offered (MYK9-1557).
+  const dayState = trialDayState(cls.trialDate, cls.trialTimezone, ctx.now);
+  if (!ctx.isPastShow && dayState === 'unknown') return { kind: 'day-unknown' };
+  const dayToday = dayState === 'today';
   const dayPast = isTrialDayPast(cls.trialDate, cls.trialTimezone, ctx.now);
   if (!ctx.isPastShow && dayToday) return { kind: 'closed-today' };
   if (!ctx.isPastShow && !dayPast) {

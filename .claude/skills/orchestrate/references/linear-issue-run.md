@@ -102,8 +102,9 @@ terminal command the run can type itself; it produced PR #2937 (MYK9-1122) on 20
   Record the evidence and apply the shared closeout contract; code on main or the helper's
   report alone cannot establish Done.
 - **True, and fixed how?** Run "Verify, then weigh" from `../SKILL.md`: reproduce the claim
-  on `main`, check it against archived issues and INTENT, and write the `premise:` and
-  `approach:` ledger fields. Route rejected premises through the shared disposition table.
+  on `main`, check it against archived issues and INTENT, and write the `premise:`,
+  `approach:` and `size:` ledger fields. Route rejected premises through the shared disposition
+  table. A split issue's sub-issues join the run queue in its place; the parent is not dispatched.
 - **Pre-work stops:** use the **Dispositions and holds** table in
   `docs/agents/issue-tracker.md`, including its state, label, owner and resume record.
   Evaluate every pre-work trigger in that table before dispatch, including money/owner approval,

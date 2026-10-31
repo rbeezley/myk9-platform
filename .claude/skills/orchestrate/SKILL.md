@@ -53,7 +53,8 @@ CPU; the Codex review and any verifier run for their PRs do.
 ## Verify, then weigh (before any worktree, state change or dispatch)
 
 An issue or task is a claim, written at one moment by one reader. Nothing is spent on it until
-both of these are done and recorded in the ledger row (`premise:` and `approach:`).
+all three of these are done and recorded in the ledger row (`premise:`, `approach:` and
+`size:`).
 
 1. **Reproduce the claim on current `main`.** Dispatch the `verifier` with what the issue
    names (the e2e spec, the browser at the stated route and width, the SQL, the failing test)
@@ -75,6 +76,16 @@ both of these are done and recorded in the ledger row (`premise:` and `approach:
    the copy, not the code; link to the surface that already does it, not a new page; fix the
    root cause the repro exposed, not the symptom. If the chosen approach changes what the
    criteria ask for, route the unresolved product decision through that same table.
+3. **Size it: one concern per PR.** Review findings scale with PR size, and every fix round adds
+   code the next round reads, so a broad PR rarely converges inside the 3-round cap (Wave 3,
+   2026-10-31: 7 of 9 reviewed PRs needed an override; MYK9-1506 bundled about ten class-card
+   features into one PR). If the criteria that survive step 1 cover more than one independent
+   concern (separate UI controls, separate data paths, separate surfaces), split before dispatch:
+   `save_issue` one sub-issue per concern with `parentId` set to the original, each carrying its
+   own criteria, and dispatch each as its own PR. The parent stays open until its last child
+   merges. Rule of thumb: a PR's criteria must fit one review read; more than about 3 criteria
+   on different files means split. Record `size: one concern` or `size: split into MYK9-a, MYK9-b`
+   (or `size: kept whole: <reason>` when the concerns cannot land apart).
 
 `docs/agents/issue-tracker.md` owns selection, dispositions, hold routing and evidence labels.
 Use it for every stop/resume/closeout rather than adding workflow-specific mappings here.
@@ -201,5 +212,6 @@ the pipeline.
 
 Per mode: the `opsx:ship` final report, or the Linear run summary from
 `references/linear-issue-run.md`. Add orchestration stats: units dispatched, model per unit,
-review rounds per unit, and anything you implemented yourself. That last item tells you how to
+review rounds per unit, splits made at sizing (step 3 of "Verify, then weigh") and convergence
+overrides used, and anything you implemented yourself. That last item tells you how to
 improve future dispatch prompts.

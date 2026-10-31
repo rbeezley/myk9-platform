@@ -55,7 +55,8 @@ const classes = [
     classStatus: 'in_progress',
   },
 ];
-const entries: Record<string, unknown[]> = {
+let entries: Record<string, unknown[]> = {};
+const freshEntries = (): Record<string, unknown[]> => ({
   stale: [
     { id: 'a', isScored: true, scoringCompletedAt: longAgo },
     { id: 'b', isScored: false },
@@ -64,11 +65,12 @@ const entries: Record<string, unknown[]> = {
     { id: 'c', isScored: true, scoringCompletedAt: longAgo },
     { id: 'd', isScored: false },
   ],
-};
+});
 
 describe('stale-class check against the replica', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    entries = freshEntries();
     useStaleClassPromptStore.setState({ prompt: null, snoozes: {} });
     mocks.getClassById.mockResolvedValue({ ...classes[0], trialId: 'trial' });
     mocks.getClassesByTrial.mockResolvedValue(classes);

@@ -367,6 +367,29 @@ describe('AskQPanel', () => {
       );
     });
   });
+
+  it('keeps the thread after close and reopen, and Clear history empties it', async () => {
+    window.localStorage.clear();
+    authState.userWithRoles.roles = ['exhibitor'];
+    vi.mocked(askqService.sendAskQQuery).mockResolvedValue(createMockStream());
+    vi.mocked(askqService.parseSSEStream).mockImplementation(async (_stream, onEvent) => {
+      onEvent('token', 'Saved answer');
+      onEvent('done', {});
+    });
+    act(() => useAskQPanelStore.getState().open());
+    const { user } = render(<AskQPanel />, { initialRoute: '/shows/show-1' });
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'my question' } });
+    await user.click(screen.getByRole('button', { name: 'Send query' }));
+    expect(await screen.findByText('Saved answer')).toBeInTheDocument();
+
+    act(() => useAskQPanelStore.getState().close());
+    act(() => useAskQPanelStore.getState().open());
+    expect(await screen.findByText('Saved answer')).toBeInTheDocument();
+    expect(screen.getByText('my question')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear history' }));
+    await waitFor(() => expect(screen.queryByText('Saved answer')).not.toBeInTheDocument());
+  });
 });
 
 function createMockStream(answer?: string): ReadableStream<Uint8Array> {

@@ -1,5 +1,12 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { sendAskQQuery, parseSSEStream, RateLimitError } from '@/services/askqService';
+import {
+  clearAskQHistory,
+  loadAskQHistory,
+  pruneAskQHistory,
+  saveAskQHistory,
+  type AskQHistoryEntry,
+} from './askqHistory';
 import type {
   AskQQuerySender,
   AskQQuestionMode,
@@ -39,8 +46,39 @@ const INITIAL_STATE: AskQState = {
   error: null,
 };
 
-export function useAskQ(sendQuery: AskQQuerySender = sendAskQQuery) {
+export interface AskQHistoryOptions {
+  /** Signed-in user id; null while unresolved (thread stays in memory only). */
+  userId: string | null;
+  /** Show id, or 'app' outside a show. */
+  scope: string;
+}
+
+export function useAskQ(sendQuery: AskQQuerySender = sendAskQQuery, history?: AskQHistoryOptions) {
   const [state, setState] = useState<AskQState>(INITIAL_STATE);
+  const [thread, setThread] = useState<AskQHistoryEntry[]>([]);
+  const historyUserId = history?.userId ?? null;
+  const historyScope = history?.scope ?? 'app';
+  const persistEnabled = history !== undefined;
+  const persistKeyRef = useRef<{ userId: string | null; scope: string }>({
+    userId: historyUserId,
+    scope: historyScope,
+  });
+  persistKeyRef.current = { userId: historyUserId, scope: historyScope };
+
+  // Load the saved thread when the user or show changes. Unresolved user: memory only.
+  useEffect(() => {
+    if (!persistEnabled) return;
+    setThread(historyUserId ? loadAskQHistory(historyUserId, historyScope) : []);
+  }, [persistEnabled, historyUserId, historyScope]);
+
+  const appendToThread = useCallback((entry: AskQHistoryEntry) => {
+    const { userId, scope } = persistKeyRef.current;
+    setThread(prev => {
+      const next = pruneAskQHistory([...prev, entry], entry.askedAt);
+      if (userId) saveAskQHistory(userId, scope, next);
+      return next;
+    });
+  }, []);
   const abortRef = useRef<AbortController | null>(null);
   const answerRef = useRef('');
   const rafRef = useRef<number | null>(null);
@@ -96,6 +134,7 @@ export function useAskQ(sendQuery: AskQQuerySender = sendAskQQuery) {
         let answer = '';
         let toolsUsed: string[] = [];
         let sources: Record<string, unknown[]> = {};
+        let queryLogId: string | null = null;
 
         await parseSSEStream(stream, (event, data) => {
           if (!mountedRef.current || signal.aborted) return;
@@ -128,6 +167,7 @@ export function useAskQ(sendQuery: AskQQuerySender = sendAskQQuery) {
                 responseTimeMs: number;
                 queryLogId: string | null;
               };
+              queryLogId = meta.queryLogId;
               setState(prev => ({
                 ...prev,
                 remaining: meta.remaining,
@@ -140,6 +180,17 @@ export function useAskQ(sendQuery: AskQQuerySender = sendAskQQuery) {
               if (rafRef.current) {
                 cancelAnimationFrame(rafRef.current);
                 rafRef.current = null;
+              }
+              if (persistEnabled && answer) {
+                appendToThread({
+                  id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                  question: message,
+                  answer,
+                  toolsUsed,
+                  sources,
+                  queryLogId,
+                  askedAt: Date.now(),
+                });
               }
               setState(prev => ({ ...prev, answer: answerRef.current, status: 'done' }));
               break;
@@ -167,7 +218,7 @@ export function useAskQ(sendQuery: AskQQuerySender = sendAskQQuery) {
       }
     },
 
-    [sendQuery]
+    [sendQuery, persistEnabled, appendToThread]
   );
 
   const cancel = useCallback(() => {
@@ -186,5 +237,19 @@ export function useAskQ(sendQuery: AskQQuerySender = sendAskQQuery) {
     setState(INITIAL_STATE);
   }, [cancel]);
 
-  return { ...state, submitQuery, reset, cancel };
+  /** Starts a fresh question: drops the current answer, keeps saved history. */
+  const newQuestion = useCallback(() => {
+    cancel();
+    setState(prev => ({ ...INITIAL_STATE, remaining: prev.remaining, limit: prev.limit }));
+  }, [cancel]);
+
+  const clearHistory = useCallback(() => {
+    const { userId, scope } = persistKeyRef.current;
+    if (userId) clearAskQHistory(userId, scope);
+    setThread([]);
+    cancel();
+    setState(prev => ({ ...INITIAL_STATE, remaining: prev.remaining, limit: prev.limit }));
+  }, [cancel]);
+
+  return { ...state, thread, submitQuery, reset, cancel, newQuestion, clearHistory };
 }

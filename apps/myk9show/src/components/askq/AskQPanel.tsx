@@ -32,7 +32,6 @@ export function AskQPanel() {
   const { isPremium } = useSubscriptionGate();
   const location = useLocation();
   const { user, userWithRoles } = useAuthContext();
-  const askq = useAskQ();
   const operator = useAskQ(sendOperatorSupportQuery);
   const support = useSupportHelp(user, userWithRoles);
   const isSiteAdmin = userWithRoles?.roles.includes(UserRole.SITE_ADMIN) ?? false;
@@ -43,6 +42,7 @@ export function AskQPanel() {
       location.pathname.match(/\/at-show\/([^/]+)/)?.[1],
     [location.pathname]
   );
+  const askq = useAskQ(undefined, { userId: user?.id ?? null, scope: showId ?? 'app' });
   const defaultMode: AskQPanelMode = showId ? 'show-data' : 'app-help';
   const [mode, setMode] = useState<AskQPanelMode | null>(null);
   const [rulebookOrganization, setRulebookOrganization] = useState('');
@@ -144,7 +144,7 @@ export function AskQPanel() {
   );
 
   const handleClose = useCallback(() => {
-    askq.reset();
+    askq.reset(); // current request only; the saved thread stays
     operator.reset();
     support.reset();
     setMode(null);
@@ -253,6 +253,9 @@ export function AskQPanel() {
   );
 
   const isAskQMode = activeMode !== 'app-help';
+  // The just-finished answer is still shown in the live slot below the thread.
+  const liveAnswerShown = askq.status === 'done' && askq.query !== '';
+  const visibleThread = liveAnswerShown ? askq.thread.slice(0, -1) : askq.thread;
 
   const content = isAskQMode ? (
     <>
@@ -312,11 +315,28 @@ export function AskQPanel() {
         </Alert>
       )}
 
-      {activeMode !== 'operator-support' && activeAskQ.status === 'idle' && (
-        <TeraDock>
-          <AskQExampleQueries onSelectQuery={handleExampleQuery} category={activeMode} />
-        </TeraDock>
-      )}
+      {activeMode !== 'operator-support' &&
+        visibleThread.map(entry => (
+          <div key={entry.id} className="space-y-3">
+            <AskQAnswer
+              query={entry.question}
+              answer={entry.answer}
+              toolsUsed={entry.toolsUsed}
+              isStreaming={false}
+              isComplete
+            />
+            <AskQSources sources={entry.sources} />
+            <AskQFeedback queryLogId={entry.queryLogId} />
+          </div>
+        ))}
+
+      {activeMode !== 'operator-support' &&
+        activeAskQ.status === 'idle' &&
+        askq.thread.length === 0 && (
+          <TeraDock>
+            <AskQExampleQueries onSelectQuery={handleExampleQuery} category={activeMode} />
+          </TeraDock>
+        )}
 
       {activeAskQ.query && (
         <>
@@ -371,6 +391,17 @@ export function AskQPanel() {
               Upgrade for more queries
             </a>
           )}
+        </div>
+      )}
+
+      {activeMode !== 'operator-support' && askq.thread.length > 0 && (
+        <div className="flex items-center justify-between gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={askq.newQuestion}>
+            New question
+          </Button>
+          <Button type="button" variant="ghost" size="sm" onClick={askq.clearHistory}>
+            Clear history
+          </Button>
         </div>
       )}
     </>

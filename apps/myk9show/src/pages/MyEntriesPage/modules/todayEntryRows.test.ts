@@ -142,8 +142,8 @@ describe('selectTodayEntryRows', () => {
   });
 
   it('never says "Check in" where My Shows, built from the same context, does not', () => {
-    // The device clock has passed midnight on the show's last day, so My Shows
-    // calls the show past; a zone still on the trial day keeps the class "today".
+    // The device clock has passed midnight on the show's last day, but the
+    // trial's zone is still on it: neither surface may call the show past.
     const deviceNow = new Date(2026, 9, 25, 0, 30);
     const zone = [
       'Pacific/Pago_Pago',
@@ -164,11 +164,11 @@ describe('selectTodayEntryRows', () => {
     const group = groupEntriesByShow(entries)[0]!;
     const cls = group.dogs[0]!.classes[0]!;
     const myShows = classRowDisplay(cls, buildDayCheckInContext(group, deviceNow, undefined));
-    expect(myShows.kind).not.toBe('check-in-available');
+    expect(myShows.kind).toBe('check-in-available');
 
     const rows = selectTodayEntryRows(entries, deviceNow, undefined);
     expect(rows).toHaveLength(1);
-    expect(rows[0]?.statusText).not.toBe('Check in');
+    expect(rows[0]?.statusText).toBe('Check in');
     expect(rows[0]?.statusText).toBe(myShows.text);
   });
 });

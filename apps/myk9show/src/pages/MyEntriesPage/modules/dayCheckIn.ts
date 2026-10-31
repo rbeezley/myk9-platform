@@ -21,7 +21,6 @@ import {
   type MyShowGroup,
 } from './groupEntriesByShow';
 import type { MyEntry } from './my-entries-types';
-import { isPastShowEntry } from './myEntriesStats.helpers';
 
 /** The calendar day (`YYYY-MM-DD`) a local-midnight `Date` stands for. */
 export function calendarDayOf(date: Date): string {
@@ -177,6 +176,23 @@ export interface DayCheckInContext {
 }
 
 /**
+ * Is the show's last trial day behind `now`, reckoned in that trial's own zone?
+ *
+ * The latest trial day across the group's classes decides, through the same
+ * zone-aware rule as `isTrialDayPast`, so a device past midnight while the
+ * trial's zone is still on the last day does not read the show as over. A group
+ * with no usable trial date is never past: an unknown day is not a finished one.
+ */
+export function isShowPast(group: MyShowGroup, now: Date): boolean {
+  let last: MyShowClass | undefined;
+  for (const cls of group.dogs.flatMap(dog => dog.classes)) {
+    if (!hasUsableDate(cls.trialDate)) continue;
+    if (!last || calendarDayOf(cls.trialDate) > calendarDayOf(last.trialDate!)) last = cls;
+  }
+  return !!last && isTrialDayPast(last.trialDate, last.trialTimezone, now);
+}
+
+/**
  * The one way to build a show's check-in context. My Shows and every card that
  * summarises it (Home's "Your entries today") call this, so a row can never say
  * "Check in" where My Shows offers none.
@@ -190,7 +206,7 @@ export function buildDayCheckInContext(
     now,
     ordersById: indexOrdersById(group),
     selfCheckinByClassId,
-    isPastShow: isPastShowEntry(group.orders[0], now),
+    isPastShow: isShowPast(group, now),
   };
 }
 

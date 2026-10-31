@@ -9,6 +9,8 @@ import {
   trialDayState,
   weekdayLabel,
   isEntryCloseDayPast,
+  isShowPast,
+  buildDayCheckInContext,
 } from './dayCheckIn';
 import type { EntryClass, MyEntry } from './my-entries-types';
 import { withFixtureKind } from '@/test/fixtures/entryClassKind';
@@ -343,5 +345,49 @@ describe('isEntryCloseDayPast with an unknown zone (Codex, PR #2201 round five)'
     expect(
       isEntryCloseDayPast(closeDay('2026-09-05'), undefined, new Date('2026-09-01T12:00:00Z'))
     ).toBe(false);
+  });
+});
+
+describe('isShowPast — the trial zone decides when the last day is over', () => {
+  const group = (classes: EntryClass[]) =>
+    groupEntriesByShow(groupEntriesByOrder([makeRow(classes)], SATURDAY))[0]!;
+  const lastDay = new Date(2026, 9, 25);
+  const mountainShow = group([
+    makeClass({ trialDate: SATURDAY, trialTimezone: 'America/Denver' }),
+    makeClass({
+      id: 'c2',
+      classId: 'class-2',
+      trialDate: lastDay,
+      trialTimezone: 'America/Denver',
+    }),
+  ]);
+
+  it('is not past for an east-of-trial device past midnight (Mountain still on the last day)', () => {
+    // 00:30 Monday the 26th Eastern is 22:30 Sunday the 25th Mountain.
+    const easternMidnight = new Date('2026-10-26T04:30:00Z');
+    expect(isShowPast(mountainShow, easternMidnight)).toBe(false);
+    expect(buildDayCheckInContext(mountainShow, easternMidnight, undefined).isPastShow).toBe(false);
+  });
+
+  it('is past once the trial zone passes its last day', () => {
+    const mountainMonday = new Date('2026-10-26T07:30:00Z'); // 00:30 Monday Mountain
+    expect(isShowPast(mountainShow, mountainMonday)).toBe(true);
+    expect(buildDayCheckInContext(mountainShow, mountainMonday, undefined).isPastShow).toBe(true);
+  });
+
+  it('is not past for a west-of-trial device still on the previous day', () => {
+    // Eastern show: 00:30 Monday Eastern is 21:30 Sunday Pacific; the show is over.
+    const easternShow = group([
+      makeClass({ trialDate: lastDay, trialTimezone: 'America/New_York' }),
+    ]);
+    const easternMonday = new Date('2026-10-26T04:30:00Z');
+    expect(isShowPast(easternShow, easternMonday)).toBe(true);
+    // And still on its last day at 23:30 Sunday Eastern, whatever the device says.
+    expect(isShowPast(easternShow, new Date('2026-10-26T03:30:00Z'))).toBe(false);
+  });
+
+  it('never calls a show with no usable trial date past', () => {
+    const undated = group([makeClass({ trialDate: undefined })]);
+    expect(isShowPast(undated, new Date('2030-01-01T00:00:00Z'))).toBe(false);
   });
 });

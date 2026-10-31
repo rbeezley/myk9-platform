@@ -248,9 +248,12 @@ describe('YourEntriesTodayCard', () => {
 
   // Finding 1: the past-show gate is My Shows' context builder, not the device day.
   it('uses My Shows context: a past show offers no "Check in"', () => {
-    // Show ended the day before; the class's own trial day is still today.
+    // The show's last trial day was yesterday in the trial's zone.
     setEntries(
-      entryWith({}, { showDate: new Date(2026, 9, 22), showEndDate: new Date(2026, 9, 23) })
+      entryWith(
+        { trialDate: new Date(2026, 9, 23) },
+        { showDate: new Date(2026, 9, 22), showEndDate: new Date(2026, 9, 23) }
+      )
     );
     render(<YourEntriesTodayCard />);
     expect(screen.queryByText('Check in')).toBeNull();

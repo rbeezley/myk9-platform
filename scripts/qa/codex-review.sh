@@ -88,21 +88,32 @@ REVIEW_INSTRUCTIONS="${REVIEW_INSTRUCTIONS} Likelihood: state each finding's rea
 
 # Round 2 and later (MYK9-1590): re-reading the whole branch every round
 # surfaced fresh minor findings in code that had already passed, so PRs rarely
-# converged inside the 3-round cap. When this PR already carries a codex
-# `Review gate:` line for an ancestor of HEAD, review only the commits since
-# that head; P0/P1 anywhere in the branch still block. Rewritten history (the
-# head is gone or not an ancestor) or a merge in the range falls back to the
-# whole-branch review. The evidence line still certifies BASE..HEAD.
+# converged inside the 3-round cap. The anchor is this wrapper's own latest
+# `Codex findings for <head>` comment, from a trusted author (an outsider's
+# comment on this public repo must never narrow a review), and only when its
+# line 2 records that the review COMPLETED from the branch's fork point or
+# earlier: a review that reported findings and then aborted, or one run
+# against a narrower base, never covered the range it would let us skip.
+# Then only <head>..HEAD is reviewed, and P0/P1 anywhere still block. A
+# missing, rebased or same head, or a merge in the range, falls back to the
+# whole branch. The evidence line still certifies BASE..HEAD.
 REVIEW_BASE="$BASE_REF"
+COVERED_FROM="$(git merge-base "$BASE_SHA" HEAD)"
+ANCHOR_JQ='[.comments[] | select(.authorAssociation == "OWNER" or .authorAssociation == "MEMBER" or .authorAssociation == "COLLABORATOR") | select(.body | startswith("Codex findings for")) | .body] | last // ""'
 if [ "$POST" = 1 ] && PR="$("$GH" pr view --json number -q .number 2>/dev/null)" && [ -n "$PR" ] &&
-  GATES="$("$GH" pr view "$PR" --json comments -q '[.comments[].body | select(startswith("Review gate:"))] | join("\n")' 2>/dev/null)"; then
-  LAST="$(printf '%s\n' "$GATES" | grep -E '^Review gate: (independent/)?codex reviewed [0-9a-f]{7,40}\.\.[0-9a-f]{7,40} ' | tail -1 | sed -E 's/^[^.]*\.\.([0-9a-f]+) .*/\1/')"
-  if [ -n "$LAST" ] && LAST_SHA="$(git rev-parse --verify -q "${LAST}^{commit}")" &&
+  ANCHOR="$("$GH" pr view "$PR" --json comments -q "$ANCHOR_JQ" 2>/dev/null)"; then
+  LAST="$(printf '%s\n' "$ANCHOR" | sed -nE '1s/^Codex findings for ([0-9a-f]{7,40}) .*/\1/p')"
+  FROM="$(printf '%s\n' "$ANCHOR" | sed -nE '2s/^Coverage: complete from ([0-9a-f]{7,40})$/\1/p')"
+  if [ -n "$LAST" ] && [ -n "$FROM" ] &&
+    LAST_SHA="$(git rev-parse --verify -q "${LAST}^{commit}")" &&
+    FROM_SHA="$(git rev-parse --verify -q "${FROM}^{commit}")" &&
+    git merge-base --is-ancestor "$FROM_SHA" "$COVERED_FROM" &&
     [ "$LAST_SHA" != "$HEAD_SHA" ] && git merge-base --is-ancestor "$LAST_SHA" HEAD &&
     [ -z "$(git rev-list --merges "${LAST_SHA}..HEAD")" ]; then
     REVIEW_BASE="$LAST_SHA"
+    COVERED_FROM="$FROM_SHA"
     REVIEW_INSTRUCTIONS="${REVIEW_INSTRUCTIONS/requested whole-branch review/requested fix-range review} Fix-range round: earlier rounds of this review already read ${BASE_SHA:0:9}..${LAST_SHA:0:9}; this round reviews ${LAST_SHA:0:9}..${HEAD_SHA:0:9}. Report as normal findings only (a) defects those commits introduce, including regressions they cause elsewhere, and (b) any P0 or P1 anywhere in the branch ${BASE_SHA:0:9}..${HEAD_SHA:0:9}. A P2 or P3 in code the earlier rounds already read is not actionable this round: list it after the verdict under the heading Not actionable this round, as a bullet beginning with - [earlier-round P2] or - [earlier-round P3]."
-    echo "codex-review: round 2+ — fix range ${LAST_SHA:0:9}..${HEAD_SHA:0:9} (last codex-reviewed head on PR #${PR})"
+    echo "codex-review: round 2+ — fix range ${LAST_SHA:0:9}..${HEAD_SHA:0:9} (last completed codex review on PR #${PR})"
   fi
 fi
 
@@ -113,6 +124,13 @@ CLI_EXIT=$?
 abort_lines() {
   grep -E "^(ERROR: You've hit your usage limit|Review was interrupted)" "$LOG"
 }
+
+# A P0/P1 can never be parked: a not-this-round tag on one is rewritten to a
+# normal finding IN THE LOG, which the evidence poster reads too, so the
+# instruction cannot wave a blocker through on either side.
+if [ -f "$LOG" ]; then
+  sed -E 's/\[(earlier-round|unlikely) (P[01])\]/[\2]/' "$LOG" > "$LOG.norm" && mv "$LOG.norm" "$LOG"
+fi
 
 # The verdict is everything after the CLI's own "codex" marker line.
 VERDICT="$(review_last_block "$LOG")"
@@ -135,9 +153,6 @@ fi
 # printed this wrapper's own "Review was interrupted" line at column 0, which
 # the anchored grep read as a real abort and threw away a completed review.
 
-# A P0/P1 can never be parked: a not-this-round tag on one is read as a normal
-# finding, so the instruction cannot be used to wave a blocker through.
-VERDICT="$(printf '%s\n' "$VERDICT" | sed -E 's/\[(earlier-round|unlikely) (P[01])\]/[\2]/')"
 echo "$VERDICT"
 review_note_preexisting codex-review "$VERDICT"
 NOT_THIS_ROUND='^[[:space:]]*- (\*\*)?\[(earlier-round|unlikely) P[0-9]\]'
@@ -159,7 +174,11 @@ if review_has_findings "$VERDICT"; then
     # A lost findings comment is not a cosmetic failure: the next clean run
     # counts N from these comments, so a silently dropped one makes the
     # evidence read "no findings" for a head that had them (Codex, #2115 P2).
-    if ! "$GH" pr comment "$PR" --body "$(printf 'Codex findings for %s (not gate evidence):\n\n%s\n' "${HEAD_SHA:0:9}" "$VERDICT")"; then
+    # Line 2 is the round-2 anchor's coverage claim (MYK9-1590): written only
+    # when this review finished, so an aborted one can never narrow the next.
+    COVERAGE=""
+    if [ "$CLI_EXIT" -eq 0 ] && ! abort_lines > /dev/null; then COVERAGE="Coverage: complete from ${COVERED_FROM:0:9}"; fi
+    if ! "$GH" pr comment "$PR" --body "$(printf 'Codex findings for %s (not gate evidence):\n%s\n\n%s\n' "${HEAD_SHA:0:9}" "$COVERAGE" "$VERDICT")"; then
       echo "codex-review: findings were NOT posted (gh failed). Exit 2; nothing recorded — re-run once gh works." >&2
       exit 2
     fi

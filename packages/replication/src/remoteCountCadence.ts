@@ -165,12 +165,20 @@ export interface RemoteCountPass {
 /** Decide, and when due run, this pass's remote count. */
 export async function beginRemoteCountPass(
   owner: object,
-  adapter: { getRemoteRowCount?: (context: { scope: SyncScope }) => Promise<number | undefined> },
+  adapter: {
+    getRemoteRowCount?: (context: {
+      scope: SyncScope;
+      signal?: AbortSignal;
+    }) => Promise<number | undefined>;
+  },
   scope: SyncScope,
-  forced: boolean
+  forced: boolean,
+  signal?: AbortSignal
 ): Promise<RemoteCountPass> {
   const decision = decideRemoteCount(owner, scope.value, forced);
-  const rawCount = decision.count ? await adapter.getRemoteRowCount?.({ scope }) : undefined;
+  const rawCount = decision.count
+    ? await adapter.getRemoteRowCount?.(signal ? { scope, signal } : { scope })
+    : undefined;
   // A failed count (undefined) must not burn the window or the reconnect epoch.
   const counted = decision.count && typeof rawCount === 'number' && Number.isFinite(rawCount);
   return {

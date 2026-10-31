@@ -303,6 +303,11 @@ export interface SyncOptions {
   priority?: 'critical' | 'high' | 'medium' | 'low';
   /** License key for multi-tenant filtering */
   licenseKey?: string;
+  /**
+   * Cancels this sync (MYK9-1624). The remote reads are released and nothing is
+   * written, deleted or stamped from the moment it aborts.
+   */
+  signal?: AbortSignal;
 }
 
 /**

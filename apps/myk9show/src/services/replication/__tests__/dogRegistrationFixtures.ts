@@ -92,6 +92,7 @@ export function installRegistrationsServer(server: RegistrationsServer): void {
         }
         return chain('select')(...args);
       },
+      abortSignal: chain('abortSignal'),
       gt: chain('gt'),
       or: chain('or'),
       eq: chain('eq'),

@@ -173,10 +173,10 @@ export class ReplicatedArmbandsTable extends ReplicatedTable<ReplicatedArmband> 
    * The scope argument is ignored: armbands always sync every show.
    */
   async sync(_syncScopeId?: string, options?: Partial<SyncOptions>): Promise<SyncResult> {
-    return this.runSync(options?.forceFullSync === true);
+    return this.runSync(options?.forceFullSync === true, options?.signal);
   }
 
-  private async runSync(forceFullSync: boolean): Promise<SyncResult> {
+  private async runSync(forceFullSync: boolean, signal?: AbortSignal): Promise<SyncResult> {
     logger.log(`[${this.getTableName()}] Starting sync`);
 
     // Rows a multi-page full sync read after its first page. The full read skips
@@ -278,7 +278,11 @@ export class ReplicatedArmbandsTable extends ReplicatedTable<ReplicatedArmband> 
       this,
       adapter,
       {},
-      { forceFullSync, incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS }
+      {
+        forceFullSync,
+        incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS,
+        ...(signal ? { signal } : {}),
+      }
     );
 
     if (!result.success && result.error && !isAbortSyncError(result.error)) {

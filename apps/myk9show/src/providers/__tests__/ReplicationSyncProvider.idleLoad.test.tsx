@@ -321,7 +321,7 @@ describe('ReplicationSyncProvider: idle load', () => {
         await latestContext!.triggerSync(TARGET);
       });
 
-      expect(syncSpies.entries.mock.calls).toEqual([['show-9']]);
+      expect(syncSpies.entries.mock.calls.map(call => call[0])).toEqual(['show-9']);
       expect(fullPassCount()).toBe(0);
       expect(latestContext!.status.tablesStatus.entries).toBe('success');
       expect(latestContext!.status.lastSyncAt?.getTime()).toBeGreaterThan(before?.getTime() ?? 0);

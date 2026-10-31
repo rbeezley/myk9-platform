@@ -16,6 +16,8 @@ import {
   databaseManager,
   REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN,
   REPLICATION_STORES,
+  abortableWait,
+  abortReason,
   type ColdInsertGuardMode,
   type MutationManager,
   type ReplicatedSetResult,
@@ -157,7 +159,10 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
   /** Most recent mutation ID from a create/update operation */
   private _lastMutationId: string | null = null;
   private _hasWarnedMissingShowScope = false;
-  private readonly _syncsByShow = new Map<string, { sync: Promise<SyncResult>; forced: boolean }>();
+  private readonly _syncsByShow = new Map<
+    string,
+    { sync: Promise<SyncResult>; forced: boolean; signal?: AbortSignal }
+  >();
 
   /**
    * IDs deleted locally this session. The download sync skips these
@@ -306,15 +311,48 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     // A forced full sync must not be answered by an incremental one already
     // running (MYK9-752): wait that one out, then run its own. Anything shares
     // a forced run; only an ordinary call shares an ordinary one.
-    if (running && (running.forced || !forceFullSync)) return running.sync;
-    const start = () => this.syncShow(showScopeId, principalId, forceFullSync);
+    // MYK9-1624: an operation whose owner cancelled it is winding down, never
+    // joined: the caller waits it out and then runs its own. A joiner with its
+    // own signal stops waiting when that signal aborts; the shared operation
+    // is not the joiner's to cancel.
+    const signal = options?.signal;
+    const syncKeyArgs = [showScopeId, principalId, options] as const;
+    if (running && !running.signal?.aborted && (running.forced || !forceFullSync)) {
+      // A joiner never inherits the owner's cancellation: when the op it joined
+      // ended because ITS owner's signal aborted, the joiner (not cancelled)
+      // runs its own sync, forced-full included.
+      const ownerSignal = running.signal;
+      const shared = ownerSignal
+        ? running.sync.then(
+            result => (ownerSignal.aborted && !signal?.aborted ? this.rerun(syncKeyArgs) : result),
+            error => {
+              if (ownerSignal.aborted && !signal?.aborted) return this.rerun(syncKeyArgs);
+              throw error;
+            }
+          )
+        : running.sync;
+      return signal ? abortableWait(shared, signal) : shared;
+    }
+    const start = () =>
+      signal
+        ? this.syncShow(showScopeId, principalId, forceFullSync, signal)
+        : this.syncShow(showScopeId, principalId, forceFullSync);
     // Start at once when nothing is running, as before: only a forced sync
-    // behind an ordinary one waits.
-    const sync = (running ? running.sync.then(noop, noop).then(start) : start()).finally(() => {
+    // behind an ordinary one (or any call behind a cancelled one) waits.
+    const waited = running ? abortableWait(running.sync.then(noop, noop), signal) : undefined;
+    const sync = (waited ? waited.then(start) : start()).finally(() => {
       if (this._syncsByShow.get(syncKey)?.sync === sync) this._syncsByShow.delete(syncKey);
     });
-    this._syncsByShow.set(syncKey, { sync, forced: forceFullSync });
+    this._syncsByShow.set(syncKey, { sync, forced: forceFullSync, ...(signal ? { signal } : {}) });
     return sync;
+  }
+
+  private rerun([showScopeId, principalId, options]: readonly [
+    string,
+    string,
+    Partial<SyncOptions> | undefined,
+  ]): Promise<SyncResult> {
+    return this.syncForPrincipal(showScopeId, principalId, options);
   }
 
   /**
@@ -348,7 +386,8 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
   private async syncShow(
     showScopeId: string,
     principalId: string,
-    forceFullSync = false
+    forceFullSync = false,
+    signal?: AbortSignal
   ): Promise<SyncResult> {
     logger.log(`[${this.getTableName()}] Starting sync`);
     const needsReceiptReferenceRefresh = !hasReceiptReferenceRefresh(showScopeId, principalId);
@@ -370,10 +409,12 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       remotePageSize: ENTRIES_REPLICATION_PAGE_SIZE,
       getRemoteRowCount: async () => {
         try {
-          const { count, error } = await supabase
+          let countQuery = supabase
             .from('view_authenticated_entry_results_replication')
             .select('id', { count: 'exact', head: true })
             .eq('show_id', showScopeId);
+          if (signal) countQuery = countQuery.abortSignal(signal);
+          const { count, error } = await countQuery;
 
           if (error) {
             logger.warn(
@@ -438,6 +479,11 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
           }
 
           query = query.eq('show_id', showScopeId);
+          // MYK9-1624: a cancelled sync stops paging and releases the request.
+          if (signal) {
+            if (signal.aborted) throw abortReason(signal);
+            query = query.abortSignal(signal);
+          }
           const response =
             typeof query.range === 'function'
               ? await query.range(0, ENTRIES_REPLICATION_PAGE_SIZE - 1)
@@ -531,6 +577,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     const syncOptions = {
       forceFullSync: forceFullSync || needsReceiptReferenceRefresh,
       incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN,
+      ...(signal ? { signal } : {}),
     };
     let result = await syncReplicatedTable(this, adapter, { value: showScopeId }, syncOptions);
     // MYK9-1521: a caller revoked to zero reads no rows, so an incremental pass

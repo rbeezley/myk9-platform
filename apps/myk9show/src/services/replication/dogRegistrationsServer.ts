@@ -2,6 +2,7 @@
  * The registrations replica's PostgREST reads (MYK9-1090): rows by id or by
  * dog, and the changes pass. Always the named column list, never `*`.
  */
+import { abortReason } from '@myk9/replication';
 import { supabase } from '@/services/database/supabaseClient';
 import { chunk, ID_CHUNK_SIZE } from '@/utils/chunkIds';
 import {
@@ -12,15 +13,16 @@ import {
 
 export async function fetchRegistrationsWhere(
   column: 'id' | 'dog_id',
-  values: readonly string[]
+  values: readonly string[],
+  signal?: AbortSignal
 ): Promise<DogRegistrationRow[]> {
   const rows: DogRegistrationRow[] = [];
   // Batched: the filter travels in the URL (MYK9-272).
   for (const batch of chunk(values, ID_CHUNK_SIZE)) {
-    const { data, error } = await supabase
-      .from('dog_registrations')
-      .select(DOG_REGISTRATION_SELECT)
-      .in(column, batch);
+    if (signal?.aborted) throw abortReason(signal);
+    let query = supabase.from('dog_registrations').select(DOG_REGISTRATION_SELECT);
+    if (signal) query = query.abortSignal(signal);
+    const { data, error } = await query.in(column, batch);
     if (error) throw new Error(`Supabase query failed: ${error.message}`);
     rows.push(...((data ?? []) as unknown as DogRegistrationRow[]));
   }

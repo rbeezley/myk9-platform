@@ -146,4 +146,138 @@ describe('useAskQ', () => {
     });
     expect(result.current.answer).toBe('Second');
   });
+
+  describe('persisted thread', () => {
+    const doneStream = (text: string) =>
+      createMockStream([
+        { event: 'token', data: text },
+        {
+          event: 'meta',
+          data: { remaining: 9, limit: 10, responseTimeMs: 1, queryLogId: 'log-1' },
+        },
+        { event: 'done', data: {} },
+      ]);
+
+    beforeEach(() => {
+      window.localStorage.clear();
+    });
+
+    it('appends answers, survives remount, and isolates users', async () => {
+      vi.mocked(askqService.sendAskQQuery).mockImplementation(async () => doneStream('A'));
+      const opts = { userId: 'u1', scope: 'show-1' };
+      const first = renderHook(() => useAskQ(undefined, opts));
+      await act(async () => {
+        await first.result.current.submitQuery('one');
+      });
+      await act(async () => {
+        await first.result.current.submitQuery('two');
+      });
+      expect(first.result.current.thread.map(e => e.question)).toEqual(['one', 'two']);
+      expect(first.result.current.thread[0]?.queryLogId).toBe('log-1');
+      first.unmount();
+
+      const again = renderHook(() => useAskQ(undefined, opts));
+      expect(again.result.current.thread.map(e => e.question)).toEqual(['one', 'two']);
+
+      const other = renderHook(() => useAskQ(undefined, { userId: 'u2', scope: 'show-1' }));
+      expect(other.result.current.thread).toEqual([]);
+    });
+
+    it('newQuestion keeps history; clearHistory removes it', async () => {
+      vi.mocked(askqService.sendAskQQuery).mockImplementation(async () => doneStream('A'));
+      const { result } = renderHook(() => useAskQ(undefined, { userId: 'u1', scope: 'app' }));
+      await act(async () => {
+        await result.current.submitQuery('one');
+      });
+      act(() => result.current.newQuestion());
+      expect(result.current.thread).toHaveLength(1);
+      expect(result.current.status).toBe('idle');
+      act(() => result.current.clearHistory());
+      expect(result.current.thread).toEqual([]);
+      expect(window.localStorage.length).toBe(0);
+    });
+
+    it('keeps the thread in memory only until the user id resolves', async () => {
+      vi.mocked(askqService.sendAskQQuery).mockImplementation(async () => doneStream('A'));
+      const { result } = renderHook(() => useAskQ(undefined, { userId: null, scope: 'app' }));
+      await act(async () => {
+        await result.current.submitQuery('one');
+      });
+      expect(result.current.thread).toHaveLength(1);
+      expect(window.localStorage.length).toBe(0);
+    });
+
+    it('still works with storage blocked', async () => {
+      vi.mocked(askqService.sendAskQQuery).mockImplementation(async () => doneStream('A'));
+      vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+        throw new Error('blocked');
+      });
+      const { result } = renderHook(() => useAskQ(undefined, { userId: 'u1', scope: 'app' }));
+      await act(async () => {
+        await result.current.submitQuery('one');
+      });
+      expect(result.current.thread).toHaveLength(1);
+    });
+
+    it('drops an in-flight answer when the show changes and stores only displayed source fields', async () => {
+      let release!: () => void;
+      const gate = new Promise<void>(r => (release = r));
+      vi.mocked(askqService.sendAskQQuery).mockImplementation(async () => {
+        await gate;
+        return createMockStream([
+          { event: 'token', data: 'A' },
+          { event: 'done', data: {} },
+        ]);
+      });
+      const { result, rerender } = renderHook(
+        ({ scope }) => useAskQ(undefined, { userId: 'u1', scope }),
+        { initialProps: { scope: 'show-1' } }
+      );
+      let pending!: Promise<void>;
+      act(() => {
+        pending = result.current.submitQuery('one');
+      });
+      rerender({ scope: 'show-2' });
+      await act(async () => {
+        release();
+        await pending;
+      });
+      expect(result.current.thread).toEqual([]);
+      expect(window.localStorage.length).toBe(0);
+    });
+
+    it('persists only the source fields the panel renders', async () => {
+      vi.mocked(askqService.sendAskQQuery).mockImplementation(async () =>
+        createMockStream([
+          {
+            event: 'sources',
+            data: { entries: [{ call_name: 'Rex', handler_name: 'Pat', fault: 'x' }] },
+          },
+          { event: 'token', data: 'A' },
+          { event: 'done', data: {} },
+        ])
+      );
+      const { result } = renderHook(() => useAskQ(undefined, { userId: 'u1', scope: 'app' }));
+      await act(async () => {
+        await result.current.submitQuery('one');
+      });
+      expect(result.current.thread[0]?.sources).toEqual({ entries: [{ call_name: 'Rex' }] });
+    });
+
+    it('keeps the rate-limited status through New question and Clear history', async () => {
+      vi.mocked(askqService.sendAskQQuery).mockRejectedValue(
+        new askqService.RateLimitError(0, 10, '2026-11-01T00:00:00Z')
+      );
+      const { result } = renderHook(() => useAskQ(undefined, { userId: 'u1', scope: 'app' }));
+      await act(async () => {
+        await result.current.submitQuery('one');
+      });
+      expect(result.current.status).toBe('rate-limited');
+      act(() => result.current.newQuestion());
+      expect(result.current.status).toBe('rate-limited');
+      act(() => result.current.clearHistory());
+      expect(result.current.status).toBe('rate-limited');
+      expect(result.current.remaining).toBe(0);
+    });
+  });
 });

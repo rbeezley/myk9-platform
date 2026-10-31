@@ -1,5 +1,13 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { sendAskQQuery, parseSSEStream, RateLimitError } from '@/services/askqService';
+import {
+  clearAskQHistory,
+  loadAskQHistory,
+  projectSourcesForHistory,
+  pruneAskQHistory,
+  saveAskQHistory,
+  type AskQHistoryEntry,
+} from './askqHistory';
 import type {
   AskQQuerySender,
   AskQQuestionMode,
@@ -39,8 +47,48 @@ const INITIAL_STATE: AskQState = {
   error: null,
 };
 
-export function useAskQ(sendQuery: AskQQuerySender = sendAskQQuery) {
+/** Cleared request state that keeps the usage counters and a still-active daily limit. */
+function freshState(prev: AskQState): AskQState {
+  return {
+    ...INITIAL_STATE,
+    status: prev.status === 'rate-limited' ? 'rate-limited' : INITIAL_STATE.status,
+    remaining: prev.remaining,
+    limit: prev.limit,
+  };
+}
+
+export interface AskQHistoryOptions {
+  /** Signed-in user id; null while unresolved (thread stays in memory only). */
+  userId: string | null;
+  /** Show id, or 'app' outside a show. */
+  scope: string;
+}
+
+type HistoryKey = { userId: string | null; scope: string };
+
+export function useAskQ(sendQuery: AskQQuerySender = sendAskQQuery, history?: AskQHistoryOptions) {
   const [state, setState] = useState<AskQState>(INITIAL_STATE);
+  const [thread, setThread] = useState<AskQHistoryEntry[]>([]);
+  const historyUserId = history?.userId ?? null;
+  const historyScope = history?.scope ?? 'app';
+  const persistEnabled = history !== undefined;
+  const persistKeyRef = useRef<HistoryKey>({
+    userId: historyUserId,
+    scope: historyScope,
+  });
+  persistKeyRef.current = { userId: historyUserId, scope: historyScope };
+
+  const appendToThread = useCallback((entry: AskQHistoryEntry, key: HistoryKey) => {
+    // Context changed mid-request: never file the answer under the new user or show.
+    const current = persistKeyRef.current;
+    if (current.userId !== key.userId || current.scope !== key.scope) return;
+    const { userId, scope } = key;
+    setThread(prev => {
+      const next = pruneAskQHistory([...prev, entry], entry.askedAt);
+      if (userId) saveAskQHistory(userId, scope, next);
+      return next;
+    });
+  }, []);
   const abortRef = useRef<AbortController | null>(null);
   const answerRef = useRef('');
   const rafRef = useRef<number | null>(null);
@@ -70,6 +118,7 @@ export function useAskQ(sendQuery: AskQQuerySender = sendAskQQuery) {
       abortRef.current = new AbortController();
       const { signal } = abortRef.current;
 
+      const historyKey = persistKeyRef.current;
       answerRef.current = '';
       if (rafRef.current) {
         cancelAnimationFrame(rafRef.current);
@@ -96,6 +145,7 @@ export function useAskQ(sendQuery: AskQQuerySender = sendAskQQuery) {
         let answer = '';
         let toolsUsed: string[] = [];
         let sources: Record<string, unknown[]> = {};
+        let queryLogId: string | null = null;
 
         await parseSSEStream(stream, (event, data) => {
           if (!mountedRef.current || signal.aborted) return;
@@ -128,6 +178,7 @@ export function useAskQ(sendQuery: AskQQuerySender = sendAskQQuery) {
                 responseTimeMs: number;
                 queryLogId: string | null;
               };
+              queryLogId = meta.queryLogId;
               setState(prev => ({
                 ...prev,
                 remaining: meta.remaining,
@@ -140,6 +191,20 @@ export function useAskQ(sendQuery: AskQQuerySender = sendAskQQuery) {
               if (rafRef.current) {
                 cancelAnimationFrame(rafRef.current);
                 rafRef.current = null;
+              }
+              if (persistEnabled && answer) {
+                appendToThread(
+                  {
+                    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                    question: message,
+                    answer,
+                    toolsUsed,
+                    sources: projectSourcesForHistory(sources),
+                    queryLogId,
+                    askedAt: Date.now(),
+                  },
+                  historyKey
+                );
               }
               setState(prev => ({ ...prev, answer: answerRef.current, status: 'done' }));
               break;
@@ -167,7 +232,7 @@ export function useAskQ(sendQuery: AskQQuerySender = sendAskQQuery) {
       }
     },
 
-    [sendQuery]
+    [sendQuery, persistEnabled, appendToThread]
   );
 
   const cancel = useCallback(() => {
@@ -186,5 +251,28 @@ export function useAskQ(sendQuery: AskQQuerySender = sendAskQQuery) {
     setState(INITIAL_STATE);
   }, [cancel]);
 
-  return { ...state, submitQuery, reset, cancel };
+  // On a user or show change: drop any in-flight or finished live answer (it belongs to the
+  // old context) and load that context's saved thread. Unresolved user: memory only.
+  useEffect(() => {
+    if (!persistEnabled) return;
+    cancel();
+    setState(prev => freshState(prev));
+    setThread(historyUserId ? loadAskQHistory(historyUserId, historyScope) : []);
+  }, [persistEnabled, historyUserId, historyScope, cancel]);
+
+  /** Starts a fresh question: drops the current answer, keeps saved history. */
+  const newQuestion = useCallback(() => {
+    cancel();
+    setState(prev => freshState(prev));
+  }, [cancel]);
+
+  const clearHistory = useCallback(() => {
+    const { userId, scope } = persistKeyRef.current;
+    if (userId) clearAskQHistory(userId, scope);
+    setThread([]);
+    cancel();
+    setState(prev => freshState(prev));
+  }, [cancel]);
+
+  return { ...state, thread, submitQuery, reset, cancel, newQuestion, clearHistory };
 }

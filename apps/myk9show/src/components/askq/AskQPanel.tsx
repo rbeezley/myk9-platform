@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useMemo, useState, type FormEvent } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Send } from 'lucide-react';
 import { SlideOverPanel } from '@/components/panels/SlideOverPanel';
 import { useAskQPanelStore } from '@/store/useAskQPanelStore';
 import { useAskQ } from '@/hooks/useAskQ';
+import { useThreadPinning } from './useThreadPinning';
 import { sendOperatorSupportQuery } from '@/services/askqService';
 import { useSubscriptionGate } from '@/hooks/useSubscriptionGate';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -75,12 +76,21 @@ export function AskQPanel() {
     [rulebookOrganization, rulebookSport, showId]
   );
 
-  // True while the thread's scroll container sits within PIN_THRESHOLD_PX of the bottom.
-  const pinnedToBottomRef = useRef(true);
+  const lastEntry = askq.thread[askq.thread.length - 1];
+  const hasConversation = askq.thread.length > 0 || askq.query !== '';
+  // Driven by the newest text and status, not thread length: streamed tokens grow the live
+  // answer, and at the 20-entry cap a finished answer leaves the length unchanged.
+  const newestText = askq.answer || lastEntry?.answer;
+  const { threadEndRef, pinToBottom } = useThreadPinning({
+    isOpen,
+    hasConversation,
+    conversationKey: `${user?.id ?? ''}:${showId ?? 'app'}`,
+    followToken: [askq.thread.length, askq.query, askq.status, newestText],
+  });
 
   const handleSubmit = useCallback(
     (query: string) => {
-      pinnedToBottomRef.current = true;
+      pinToBottom();
       if (activeMode === 'app-help') {
         void support.askForHelp(query);
         clearSuggestedPrompt();
@@ -97,12 +107,21 @@ export function AskQPanel() {
       askq.submitQuery(query, buildSubmitOptions(questionMode));
       clearSuggestedPrompt();
     },
-    [activeMode, askq, buildSubmitOptions, clearSuggestedPrompt, mode, operator, support]
+    [
+      activeMode,
+      askq,
+      buildSubmitOptions,
+      clearSuggestedPrompt,
+      mode,
+      operator,
+      pinToBottom,
+      support,
+    ]
   );
 
   const handleExampleQuery = useCallback(
     (query: string, category: ExampleQuery['category']) => {
-      pinnedToBottomRef.current = true;
+      pinToBottom();
       setMode(category);
       if (category === 'app-help') {
         askq.reset();
@@ -115,7 +134,7 @@ export function AskQPanel() {
       askq.submitQuery(query, buildSubmitOptions(category));
       clearSuggestedPrompt();
     },
-    [askq, buildSubmitOptions, clearSuggestedPrompt, support]
+    [askq, buildSubmitOptions, clearSuggestedPrompt, pinToBottom, support]
   );
 
   const handleTicketSubmit = useCallback(
@@ -259,33 +278,6 @@ export function AskQPanel() {
 
   const isAskQMode = activeMode !== 'app-help';
   // The just-finished answer is still shown in the live slot below the thread.
-  const threadEndRef = useRef<HTMLDivElement>(null);
-  const hasConversation = askq.thread.length > 0 || askq.query !== '';
-  const lastEntry = askq.thread[askq.thread.length - 1];
-  // Driven by the newest text and status, not thread length: streamed tokens grow the live
-  // answer, and at the 20-entry cap a finished answer leaves the length unchanged.
-  const newestText = askq.answer || lastEntry?.answer;
-  useEffect(() => {
-    // Track whether the reader is near the bottom; a scroll-up unpins until they return.
-    // Scroll events do not bubble, so listen in the capture phase and keep only the
-    // container that holds the thread.
-    if (!isOpen || !hasConversation) return;
-    const onScroll = (event: Event) => {
-      const scroller = event.target;
-      if (!(scroller instanceof HTMLElement) || !scroller.contains(threadEndRef.current)) return;
-      pinnedToBottomRef.current =
-        scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight <= PIN_THRESHOLD_PX;
-    };
-    document.addEventListener('scroll', onScroll, true);
-    return () => document.removeEventListener('scroll', onScroll, true);
-  }, [isOpen, hasConversation]);
-  useEffect(() => {
-    // Keep the newest question and answer in view above the fixed input, unless the reader
-    // scrolled up to look at something earlier.
-    if (isOpen && hasConversation && pinnedToBottomRef.current) {
-      threadEndRef.current?.scrollIntoView?.({ block: 'end' });
-    }
-  }, [isOpen, hasConversation, askq.thread.length, askq.query, askq.status, newestText]);
   const liveAnswerShown =
     askq.status === 'done' &&
     askq.query !== '' &&
@@ -430,7 +422,7 @@ export function AskQPanel() {
         </div>
       )}
 
-      <div ref={threadEndRef} />
+      <div ref={threadEndRef} data-testid="thread-end" />
 
       {activeMode !== 'operator-support' && askq.thread.length > 0 && (
         <div className="flex items-center justify-between gap-2">
@@ -491,5 +483,3 @@ export function AskQPanel() {
     </SlideOverPanel>
   );
 }
-
-const PIN_THRESHOLD_PX = 48;

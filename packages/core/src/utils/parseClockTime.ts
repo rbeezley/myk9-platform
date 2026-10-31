@@ -128,10 +128,10 @@ function resolve(hour: number, minute: number, meridiem: 'a' | 'p' | null): Cloc
   const only = fits[0];
   if (fits.length === 1 && only !== undefined) return success(only);
   const candidates = fits.map(m => ({ minutesSinceMidnight: m, formatted: formatClockTime(m) }));
-  const [first, second] = candidates;
+  // Only 7:00 fits twice (7 AM and 7 PM); every other hour 1 to 12 fits exactly one.
   return fail(
     'ambiguous',
-    first && second ? `Is that ${first.formatted} or ${second.formatted}?` : 'Add AM or PM.',
+    `Is that ${candidates[0]?.formatted} or ${candidates[1]?.formatted}?`,
     candidates
   );
 }

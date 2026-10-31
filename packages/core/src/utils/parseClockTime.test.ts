@@ -72,6 +72,8 @@ const CASES: Case[] = [
   ['9:30 - 10:00', 'error:invalid'],
   ['9:30 am pm', 'error:invalid'],
   ['9/30', 'error:invalid'],
+  ['9:30 10:00', 'error:invalid'],
+  ['930:15', 'error:bad-hour'],
   ['9:3', 'error:incomplete'],
   ['12345', 'error:too-many-digits'],
   ['25', 'error:bad-hour'],

@@ -1,4 +1,4 @@
-import { parseStoredClockTime } from '@myk9/core';
+import { parseStoredClockTime } from '@myk9/core/clock-time';
 
 /**
  * Parse the time strings a class can carry: an ISO instant, or a clock time

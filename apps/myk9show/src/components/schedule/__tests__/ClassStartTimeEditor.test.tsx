@@ -47,12 +47,12 @@ describe('ClassStartTimeEditor', () => {
     expect(screen.getByRole('button', { name: /edit start time/i })).toHaveTextContent('9:00 AM');
   });
 
-  it('formats a time without time zone as the same local input time', async () => {
+  it('shows a time without time zone as the same local time', async () => {
     const { user } = render(<ClassStartTimeEditor {...baseProps} startTime="09:00:00" />);
 
     await user.click(screen.getByRole('button', { name: /edit start time/i }));
 
-    expect(screen.getByLabelText('Start time')).toHaveValue('09:00');
+    expect(screen.getByLabelText('Start time')).toHaveValue('9:00 AM');
   });
 
   it('shows TBD when there is no start time yet', () => {
@@ -83,6 +83,39 @@ describe('ClassStartTimeEditor', () => {
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['classes', 'trial', 'trial-1'] });
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['classes', 'list'] });
     expect(screen.getByRole('button', { name: /edit start time/i })).toHaveTextContent('9:30 AM');
+  });
+
+  it('saves exactly the time the preview shows for typed digits, never a different one', async () => {
+    const { user } = render(<ClassStartTimeEditor {...baseProps} startTime={null} />);
+
+    await user.click(screen.getByRole('button', { name: /edit start time/i }));
+    fireEvent.change(screen.getByLabelText('Start time'), { target: { value: '130' } });
+    expect(screen.getByTestId('clock-time-preview')).toHaveTextContent('= 1:30 PM');
+    await user.click(screen.getByRole('button', { name: /save start time/i }));
+
+    expect(updateClassMock).toHaveBeenCalledWith('class-1', { startTime: '13:30:00' });
+    expect(screen.getByRole('button', { name: /edit start time/i })).toHaveTextContent('1:30 PM');
+  });
+
+  it('asks about a time that could be AM or PM and saves nothing until answered', async () => {
+    const { user } = render(<ClassStartTimeEditor {...baseProps} startTime={null} />);
+
+    await user.click(screen.getByRole('button', { name: /edit start time/i }));
+    fireEvent.change(screen.getByLabelText('Start time'), { target: { value: '7' } });
+    await user.click(screen.getByRole('button', { name: /save start time/i }));
+
+    expect(updateClassMock).not.toHaveBeenCalled();
+    expect(screen.getAllByRole('alert')[0]).toHaveTextContent('7:00 AM or 7:00 PM');
+  });
+
+  it('leaves an unset start unset: opening and cancelling never writes 1:00 AM or midnight', async () => {
+    const { user } = render(<ClassStartTimeEditor {...baseProps} startTime={null} />);
+
+    await user.click(screen.getByRole('button', { name: /edit start time/i }));
+    await user.click(screen.getByRole('button', { name: /cancel editing start time/i }));
+
+    expect(updateClassMock).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: /edit start time/i })).toHaveTextContent('TBD');
   });
 
   it('rejects invalid input with a plain-language message and does not save', async () => {

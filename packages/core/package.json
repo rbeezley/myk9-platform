@@ -10,6 +10,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./clock-time": {
+      "types": "./dist/clock-time.d.ts",
+      "import": "./dist/clock-time.js"
     }
   },
   "files": [
@@ -17,8 +21,8 @@
     "src"
   ],
   "scripts": {
-    "build": "tsup src/index.ts --format esm --dts",
-    "dev": "tsup src/index.ts --format esm --dts --watch",
+    "build": "tsup src/index.ts src/clock-time.ts --format esm --dts",
+    "dev": "tsup src/index.ts src/clock-time.ts --format esm --dts --watch",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",

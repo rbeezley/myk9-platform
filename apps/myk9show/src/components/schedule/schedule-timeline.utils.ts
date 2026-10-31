@@ -1,4 +1,9 @@
-import { CLASS_STATUS, formatClockTime, normalizeClassStatus, parseStoredClockTime } from '@myk9/core';
+import {
+  CLASS_STATUS,
+  formatClockTime,
+  normalizeClassStatus,
+  parseStoredClockTime,
+} from '@myk9/core';
 import type { ClassStatusValue } from '@myk9/core';
 import { compareClassSchedule } from '@/features/_shared/classScheduleOrder';
 import { compareLevels } from '@/utils/schedule-summary';

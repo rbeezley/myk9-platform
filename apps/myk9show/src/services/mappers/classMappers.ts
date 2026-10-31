@@ -2,6 +2,7 @@
 // Handles type conversion between classStore types and database types,
 // and replication-to-DB-row mapping for offline-first reads.
 
+import { formatClockTime, parseStoredClockTime } from '@myk9/core';
 import { mapFields } from './mapperUtils';
 import { pickConfirmedAssignment } from '@/services/database/_shared/classJudgeFields';
 import { resolveClassSection } from '@/services/entryDisplay/entryDisplaySelectors';
@@ -213,12 +214,8 @@ export const mapClassInputToUpdate = (updates: Partial<ClassInput>): DbClassUpda
 };
 
 function formatClassStartTime(value: string | null): string {
-  const parts = /^(\d{1,2}):(\d{2})/.exec(value ?? '');
-  if (!parts) return '';
-  const hour = Number(parts[1]);
-  const minute = Number(parts[2]);
-  if (hour > 23 || minute > 59) return '';
-  return `${hour % 12 || 12}:${parts[2]} ${hour < 12 ? 'AM' : 'PM'}`;
+  const minutes = parseStoredClockTime(value);
+  return minutes === null ? '' : formatClockTime(minutes);
 }
 
 /**

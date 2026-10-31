@@ -88,7 +88,7 @@ describe('TrialEditPanel (MYK9-1086)', () => {
     const { user } = renderPanel('UKC', onSave);
     await user.click(screen.getByRole('tab', { name: /scheduling/i }));
     await user.click(await screen.findByRole('button', { name: 'Clear Actual Start' }));
-    await user.type(screen.getByLabelText('Actual Start'), '930');
+    await user.type(screen.getByLabelText('Actual Start'), '9:75');
     await user.click(screen.getAllByRole('button', { name: /save changes/i })[0]!);
 
     expect(

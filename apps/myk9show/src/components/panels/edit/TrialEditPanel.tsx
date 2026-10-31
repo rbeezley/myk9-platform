@@ -72,9 +72,7 @@ const trialEditSchemaBase = z.object({
   trialDate: z.string().min(1, 'Please select a trial date'),
   eventNumber: z.string().min(1, 'Please enter an event number'),
   status: z.string().min(1, 'Please select a status'),
-  plannedStartTime: z
-    .string()
-    .refine(hasTrialTime, 'Please enter a valid time (e.g., 9:00 AM)'),
+  plannedStartTime: z.string().refine(hasTrialTime, 'Please enter a valid time (e.g., 9:00 AM)'),
   order: z.string().refine(
     val => {
       const n = parseInt(val, 10);

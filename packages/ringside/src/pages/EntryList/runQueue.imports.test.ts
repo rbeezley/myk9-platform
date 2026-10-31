@@ -11,6 +11,7 @@ import { describe, expect, it } from 'vitest';
  * erased and do not count.
  */
 const entry = resolve(__dirname, 'runQueue.ts');
+const CLOCK_TIME_ENTRY = '@myk9/core/clock-time';
 
 function runtimeSpecifiers(file: string): string[] {
   const source = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest);
@@ -41,6 +42,9 @@ describe('run-queue entry stays dependency-free', () => {
       if (seen.has(file)) continue;
       seen.add(file);
       for (const spec of runtimeSpecifiers(file)) {
+        // The clock-time parser is a dependency-free subpath of core (it has its own
+        // import check below), so it does not drag the core barrel into the entry chunk.
+        if (spec === CLOCK_TIME_ENTRY) continue;
         if (!spec.startsWith('.')) {
           found.push(`${file.replace(`${__dirname}/`, '')} -> ${spec}`);
           continue;
@@ -54,5 +58,14 @@ describe('run-queue entry stays dependency-free', () => {
       }
     }
     expect(found).toEqual([]);
+  });
+
+  it('allows only the dependency-free clock-time entry of core', () => {
+    const coreSrc = resolve(__dirname, '../../../../core/src');
+    expect(existsSync(resolve(coreSrc, 'clock-time.ts'))).toBe(true);
+    expect(runtimeSpecifiers(resolve(coreSrc, 'clock-time.ts'))).toEqual([
+      './utils/parseClockTime',
+    ]);
+    expect(runtimeSpecifiers(resolve(coreSrc, 'utils/parseClockTime.ts'))).toEqual([]);
   });
 });

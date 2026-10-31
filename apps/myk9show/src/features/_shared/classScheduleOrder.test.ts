@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  calendarDayKey,
-  compareClassSchedule,
-  type ClassScheduleKey,
-} from './classScheduleOrder';
+import { calendarDayKey, compareClassSchedule, type ClassScheduleKey } from './classScheduleOrder';
 
 const sorted = (rows: ClassScheduleKey[]) => [...rows].sort(compareClassSchedule);
 

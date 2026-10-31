@@ -101,6 +101,34 @@ describe('buildRingsideMenuItems', () => {
   });
 });
 
+describe('Nationals Leaderboard item (MYK9-1540)', () => {
+  const staffNationals = { ...base, isNationals: true, isStaff: true };
+
+  it('shows for ringside staff on a nationals show, returning via its own route', () => {
+    const item = find(staffNationals, 'nationals-leaderboard');
+    expect(item?.label).toBe('Nationals Leaderboard');
+    expect(item?.href).toBe('/at-show/show-1/leaderboard');
+    expect(item?.returnScope).toBe('/at-show/show-1/leaderboard');
+  });
+
+  it('is absent on a non-nationals show', () => {
+    expect(ids({ ...staffNationals, isNationals: false })).not.toContain('nationals-leaderboard');
+  });
+
+  it('is absent while the nationals flag is unread', () => {
+    expect(ids({ ...staffNationals, isNationals: null })).not.toContain('nationals-leaderboard');
+  });
+
+  it('is absent for a viewer who is not ringside staff', () => {
+    expect(ids({ ...staffNationals, isStaff: false })).not.toContain('nationals-leaderboard');
+    expect(ids({ ...base, isNationals: true })).not.toContain('nationals-leaderboard');
+  });
+
+  it('sits before Sign out', () => {
+    expect(ids(staffNationals).slice(-2)).toEqual(['nationals-leaderboard', 'sign-out']);
+  });
+});
+
 describe('itemNeedsConnection', () => {
   it('is true only for an online-only item while offline', () => {
     const results = find(base, 'results')!;

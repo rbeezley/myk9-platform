@@ -25,6 +25,7 @@ import { useAskQPanelStore } from '@/store/useAskQPanelStore';
 import { useMessageStore } from '@/store/messageStore';
 import { useNotificationStore } from '@/store/notificationStore';
 import { useShowManageScope } from '@/hooks/useShowManageScope';
+import { useIsStaffDogViewer } from '../useStaffDogGate';
 import {
   OFFLINE_ITEM_NOTICE,
   buildRingsideMenuItems,
@@ -60,6 +61,7 @@ export function RingsideMenu({ showId }: { showId: string | undefined }) {
   });
   // The destination route's own gate, so the link and the page cannot disagree.
   const canManageShow = useShowManageScope(showId).canManage;
+  const isStaff = useIsStaffDogViewer(showId);
 
   const unread =
     useNotificationStore(s => s.unreadCount) +
@@ -71,6 +73,8 @@ export function RingsideMenu({ showId }: { showId: string | undefined }) {
     canManageShow,
     isOnline,
     hasAccount: Boolean(user) && !user?.is_anonymous,
+    isNationals: showQuery.data ? showQuery.data.isNationals === true : null,
+    isStaff,
   });
 
   // A slide-out closes before the next overlay or navigation begins.

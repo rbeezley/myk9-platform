@@ -7,6 +7,7 @@
  *  - `/at-show/:showId/class/:classIdA/:classIdB` → combined Section A/B list (1h)
  *  - `/at-show/:showId/class/:classId/score/:entryId` → live scoresheet
  *  - `/at-show/:showId/dogs` + `/dogs/:dogKey`       → staff dog finder + dog page (MYK9-1509)
+ *  - `/at-show/:showId/leaderboard`                → nationals leaderboard (MYK9-1540)
  *  - `/at-show/:showId/setup-sheet`               → printable judge setup cheat sheet
  * Mounted OUTSIDE UnifiedAppLayout (full-screen ringside — no host sidebar or
  * header; see App.tsx), which is why the boundary's states use a full-screen
@@ -66,6 +67,11 @@ const AtShowClassListPage = createEnhancedLazy(
   { ...RouteLazyPresets.mediumPriority, displayName: 'AtShowClassListPage' }
 );
 
+const AtShowLeaderboardPage = createEnhancedLazy(
+  () => import('@/features/at-show/AtShowLeaderboardPage'),
+  { ...RouteLazyPresets.mediumPriority, displayName: 'AtShowLeaderboardPage' }
+);
+
 /**
  * Broadcast show presence while an at-show page is open. Reads `:showId` from the
  * route (so it must render inside the routed tree) and makes the admitted user a
@@ -116,6 +122,11 @@ export const AtShowRoutes = () => {
       {/* Staff dog finder + dog page (MYK9-1509). */}
       <Route path="/at-show/:showId/dogs" element={atShowElement(<AtShowDogsPage />)} />
       <Route path="/at-show/:showId/dogs/:dogKey" element={atShowElement(<AtShowDogPage />)} />
+      {/* Nationals leaderboard (MYK9-1540): staff only, nationals shows only. */}
+      <Route
+        path="/at-show/:showId/leaderboard"
+        element={atShowElement(<AtShowLeaderboardPage />)}
+      />
       {/* Printable judge setup cheat sheet (MYK9-1078): static, so it works offline. */}
       <Route
         path="/at-show/:showId/setup-sheet"

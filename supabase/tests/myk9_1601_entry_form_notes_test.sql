@@ -133,18 +133,27 @@ BEGIN
 END;
 $$;
 
--- 2. No function (RPC) other than the guard trigger reads the table.
+-- 2. No function (RPC) reads the table except a DECLARED, reviewed list. A new function
+--    that names the table fails here until someone adds it below with the reason it
+--    cannot hand note text to an exhibitor.
+--      entry_form_notes_guard: the table's own BEFORE trigger; returns only the new row.
+--      hard_delete_show: site-admin-only; names entry_form_notes_show_id_fkey in its FK
+--        manifest and counts rows to refuse the delete; never returns note text.
 DO $$
 DECLARE offenders text;
 BEGIN
-  SELECT string_agg(p.proname, ', ') INTO offenders
+  SELECT string_agg(n.nspname || '.' || p.proname, ', ') INTO offenders
   FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
-  WHERE n.nspname = 'public' AND p.proname <> 'entry_form_notes_guard'
-    AND p.prosrc ILIKE '%entry_form_notes%';
+  WHERE n.nspname NOT IN ('pg_catalog', 'information_schema')
+    AND p.prosrc ILIKE '%entry_form_notes%'
+    AND (n.nspname, p.proname) NOT IN (
+      ('public', 'entry_form_notes_guard'),
+      ('public', 'hard_delete_show')
+    );
   IF offenders IS NOT NULL THEN
-    RAISE EXCEPTION 'FAIL function(s) reference entry_form_notes: %', offenders;
+    RAISE EXCEPTION 'FAIL unreviewed function(s) reference entry_form_notes: %', offenders;
   END IF;
-  RAISE NOTICE 'PASS no RPC references entry_form_notes';
+  RAISE NOTICE 'PASS only reviewed functions reference entry_form_notes';
 END;
 $$;
 

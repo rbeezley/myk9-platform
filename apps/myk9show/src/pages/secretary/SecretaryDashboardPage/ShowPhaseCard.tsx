@@ -41,7 +41,9 @@ function CardActions({
   children,
 }: Pick<ShowPhaseCardProps, 'show' | 'pin'> & { children: ReactNode }) {
   return (
-    <div className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-1">
+    // min-w-0 + max-w-full, not shrink-0: at 150% zoom on a phone the card is narrower than
+    // Pin + its action, so the row must wrap inside the card instead of pushing past it (MYK9-1581).
+    <div className="ml-auto flex min-w-0 max-w-full flex-wrap items-center justify-end gap-1">
       {pin && <ShowPinButton showName={show.name} pin={pin} />}
       {children}
     </div>

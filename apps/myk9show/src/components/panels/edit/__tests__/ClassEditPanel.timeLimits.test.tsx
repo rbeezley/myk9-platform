@@ -68,6 +68,18 @@ describe('ClassEditPanel: time limits use the shared time field', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Must be between 0:01 and 9:59.');
   });
 
+  it('refuses to save a limit outside the range instead of saving it anyway', async () => {
+    const { user, onSave } = await openTiming(fullClass());
+    const limit1 = screen.getByLabelText('Time Limit 1');
+    await user.clear(limit1);
+    await user.type(limit1, '1200');
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+    expect(
+      await screen.findByText('Time limit 1 must be between 0:01 and 9:59')
+    ).toBeInTheDocument();
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
   it('refuses to save text it cannot read instead of clearing the limit', async () => {
     const { user, onSave } = await openTiming(fullClass());
     const limit1 = screen.getByLabelText('Time Limit 1');

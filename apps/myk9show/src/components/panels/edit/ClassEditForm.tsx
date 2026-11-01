@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { DurationInput } from '@myk9/scoring-ui';
+import { classDurationMaxSeconds } from '@/lib/validation';
 import { Clock, UserCheck, ClipboardList, Settings } from 'lucide-react';
 import { useShowStore } from '@/store/showStore';
 import { useUserStore } from '@/store/userStore';
@@ -62,25 +63,20 @@ function RequirementField({
   );
 }
 
-/** Longest limit the editor accepts: 9:59, or 15:00 for Detective. */
-function maxLimitSeconds(maxMinutes: number): number {
-  return maxMinutes > 9 ? maxMinutes * 60 : maxMinutes * 60 + 59;
-}
-
 /** A class duration (m:ss) typed through the one shared time field (MYK9-1503). */
 function ClassDurationField({
   id,
   label,
   value,
   onChange,
-  maxMinutes,
+  maxSeconds,
   error,
 }: {
   id: string;
   label: string;
   value: string;
   onChange: (value: string) => void;
-  maxMinutes: number;
+  maxSeconds: number;
   error?: string | undefined;
 }) {
   return (
@@ -90,7 +86,7 @@ function ClassDurationField({
         id={id}
         value={value}
         onChange={onChange}
-        range={{ low: 1, high: maxLimitSeconds(maxMinutes) }}
+        range={{ low: 1, high: maxSeconds }}
         className="h-11 max-w-32 rounded-md border border-input bg-background px-3 text-center font-mono text-base"
       />
     </FormField>
@@ -248,7 +244,7 @@ export const ClassEditForm: React.FC<{
                   label="Estimated Judging Time"
                   value={data.estimatedJudgingTime || ''}
                   onChange={value => form?.setValue('estimatedJudgingTime', value)}
-                  maxMinutes={data.element === 'Detective' ? 15 : 9}
+                  maxSeconds={classDurationMaxSeconds(data.element)}
                   error={form?.getError('estimatedJudgingTime')}
                 />
               </div>
@@ -276,7 +272,7 @@ export const ClassEditForm: React.FC<{
                   label="Time Limit 1"
                   value={data.timeLimit1 || ''}
                   onChange={value => form?.setValue('timeLimit1', value)}
-                  maxMinutes={data.element === 'Detective' ? 15 : 9}
+                  maxSeconds={classDurationMaxSeconds(data.element)}
                   error={form?.getError('timeLimit1')}
                 />
 
@@ -287,7 +283,7 @@ export const ClassEditForm: React.FC<{
                       label="Time Limit 2"
                       value={data.timeLimit2 || ''}
                       onChange={value => form?.setValue('timeLimit2', value)}
-                      maxMinutes={9}
+                      maxSeconds={classDurationMaxSeconds(data.element)}
                       error={form?.getError('timeLimit2')}
                     />
                   )}
@@ -298,7 +294,7 @@ export const ClassEditForm: React.FC<{
                     label="Time Limit 3"
                     value={data.timeLimit3 || ''}
                     onChange={value => form?.setValue('timeLimit3', value)}
-                    maxMinutes={9}
+                    maxSeconds={classDurationMaxSeconds(data.element)}
                     error={form?.getError('timeLimit3')}
                   />
                 )}

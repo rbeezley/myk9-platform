@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { isUnresolvedDuration } from '@myk9/core';
+import { formatDuration, isUnresolvedDuration, parseDuration } from '@myk9/core';
 import { canonicalizeWebsiteUrl } from './websiteUrl';
 
 export interface NormalizedWebsiteUrl {
@@ -297,7 +297,6 @@ export const clubSchemas = {
 // Zod helper: string that allows empty but never undefined (for required string fields with no min-length)
 const requiredString = z.string();
 
-// Zod helper: time-limit field — optional string, must parse as int if non-empty
 /** A class duration (m:ss): blank, or text the shared time field can read. */
 const durationField = (label: string) =>
   z
@@ -308,49 +307,84 @@ const durationField = (label: string) =>
       message: `Please enter ${label} as minutes and seconds, like 4:30`,
     });
 
+/** Longest class duration the editor accepts: 9:59, or 15:00 for Detective. */
+export function classDurationMaxSeconds(element: string | undefined): number {
+  return element === 'Detective' ? 15 * 60 : 9 * 60 + 59;
+}
+
+const CLASS_DURATIONS = [
+  ['estimatedJudgingTime', 'The estimated judging time'],
+  ['timeLimit1', 'Time limit 1'],
+  ['timeLimit2', 'Time limit 2'],
+  ['timeLimit3', 'Time limit 3'],
+] as const;
+
+/** A readable class duration outside the editor's range is refused, not saved (MYK9-1503). */
+function classDurationRangeIssues(
+  data: { element: string } & Partial<Record<(typeof CLASS_DURATIONS)[number][0], string | undefined>>
+): Array<{ path: string[]; message: string }> {
+  const high = classDurationMaxSeconds(data.element);
+  return CLASS_DURATIONS.flatMap(([field, label]) => {
+    const parsed = parseDuration(data[field] ?? '', 'max');
+    return parsed.ok && (parsed.seconds < 1 || parsed.seconds > high)
+      ? [
+          {
+            path: [field],
+            message: `${label} must be between ${formatDuration(1, 'max')} and ${formatDuration(high, 'max')}`,
+          },
+        ]
+      : [];
+  });
+}
+
 // Class validation schemas
 export const classSchemas = {
   /** Full mode — ClassData editing (element/level read-only but required) */
-  full: z.object({
-    element: z.string().min(1, 'Please enter an element'),
-    level: z.string().min(1, 'Please enter a level'),
-    section: requiredString,
-    status: z.string().min(1, 'Please select a status'),
-    estimatedJudgingTime: durationField('the estimated judging time'),
-    timeLimit1: durationField('time limit 1'),
-    timeLimit2: durationField('time limit 2'),
-    timeLimit3: durationField('time limit 3'),
-    judge: commonValidations.optionalString,
-    judgeId: commonValidations.optionalString,
-    gateSteward: commonValidations.optionalString,
-    tableSteward: commonValidations.optionalString,
-    timerSteward: commonValidations.optionalString,
-    ringSteward1: commonValidations.optionalString,
-    ringSteward2: commonValidations.optionalString,
-    ringSteward3: commonValidations.optionalString,
-    hidesUsed: commonValidations.optionalString,
-    distractionsUsed: commonValidations.optionalString,
-    itemsUsed: commonValidations.optionalString,
-    /** Blank (null) means no class limit. */
-    maxEntries: z
-      .number()
-      .int('Enter a whole number, or leave blank for no limit')
-      .min(1, 'The entry limit must be at least 1, or leave blank for no limit')
-      .nullable()
-      .optional(),
-    allowsWaitlist: z.boolean().nullable().optional(),
-    editedCapacity: z.array(z.enum(['maxEntries', 'allowsWaitlist'])).optional(),
-    preEntryFee: z
-      .number()
-      .min(0, 'Please enter a valid pre-entry fee')
-      .optional()
-      .or(z.literal(0)),
-    dayOfShowFee: z
-      .number()
-      .min(0, 'Please enter a valid day of show fee')
-      .optional()
-      .or(z.literal(0)),
-  }),
+  full: z
+    .object({
+      element: z.string().min(1, 'Please enter an element'),
+      level: z.string().min(1, 'Please enter a level'),
+      section: requiredString,
+      status: z.string().min(1, 'Please select a status'),
+      estimatedJudgingTime: durationField('the estimated judging time'),
+      timeLimit1: durationField('time limit 1'),
+      timeLimit2: durationField('time limit 2'),
+      timeLimit3: durationField('time limit 3'),
+      judge: commonValidations.optionalString,
+      judgeId: commonValidations.optionalString,
+      gateSteward: commonValidations.optionalString,
+      tableSteward: commonValidations.optionalString,
+      timerSteward: commonValidations.optionalString,
+      ringSteward1: commonValidations.optionalString,
+      ringSteward2: commonValidations.optionalString,
+      ringSteward3: commonValidations.optionalString,
+      hidesUsed: commonValidations.optionalString,
+      distractionsUsed: commonValidations.optionalString,
+      itemsUsed: commonValidations.optionalString,
+      /** Blank (null) means no class limit. */
+      maxEntries: z
+        .number()
+        .int('Enter a whole number, or leave blank for no limit')
+        .min(1, 'The entry limit must be at least 1, or leave blank for no limit')
+        .nullable()
+        .optional(),
+      allowsWaitlist: z.boolean().nullable().optional(),
+      editedCapacity: z.array(z.enum(['maxEntries', 'allowsWaitlist'])).optional(),
+      preEntryFee: z
+        .number()
+        .min(0, 'Please enter a valid pre-entry fee')
+        .optional()
+        .or(z.literal(0)),
+      dayOfShowFee: z
+        .number()
+        .min(0, 'Please enter a valid day of show fee')
+        .optional()
+        .or(z.literal(0)),
+    })
+    .superRefine((data, ctx) => {
+      for (const issue of classDurationRangeIssues(data))
+        ctx.addIssue({ code: 'custom', ...issue });
+    }),
 
   /** Simple mode — TrialClass editing */
   simple: z.object({

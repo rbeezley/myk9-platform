@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { appendFileSync, existsSync, readFileSync, rmSync } from 'node:fs';
+import { assertTestsSawMutants, type MutationReport } from './assertTestsSawMutants';
 import {
   MUTATION_TARGETS,
   exitCodeFor,
@@ -22,11 +23,21 @@ const results = runAllTargets(MUTATION_TARGETS, {
   readScore: target => {
     const path = reportPath(target);
     if (!existsSync(path)) return null;
+    let report: unknown;
     try {
-      return scoreFromReport(JSON.parse(readFileSync(path, 'utf8')));
+      report = JSON.parse(readFileSync(path, 'utf8'));
     } catch {
       return null;
     }
+    // A target whose tests never saw the mutated file fails with its real cause,
+    // not as a low score (MYK9-1657); the row then reads as unreadable.
+    try {
+      assertTestsSawMutants(target, report as MutationReport);
+    } catch (error) {
+      console.error(`\nSELF-CHECK FAILED: ${(error as Error).message}`);
+      return { score: null, reason: `self-check failed: ${(error as Error).message}` };
+    }
+    return scoreFromReport(report);
   },
 });
 

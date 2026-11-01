@@ -76,4 +76,14 @@ describe('scoreFromReport', () => {
     expect(scoreFromReport({})).toBeNull();
     expect(scoreFromReport({ files: {} })).toBeNull();
   });
+
+  it('shows the reader reason when a score is unreadable', () => {
+    const results = runAllTargets(['a'], {
+      spawn: () => 0,
+      readScore: () => ({ score: null, reason: 'self-check failed: ran zero tests' }),
+      log: () => {},
+    });
+    expect(results[0]?.passed).toBe(false);
+    expect(formatSummaryTable(results)).toContain('| a | self-check failed: ran zero tests |');
+  });
 });

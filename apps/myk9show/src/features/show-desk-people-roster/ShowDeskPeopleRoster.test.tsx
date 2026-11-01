@@ -218,7 +218,7 @@ describe('ShowDeskPeopleRoster', () => {
     const { user, container } = renderRoster();
 
     expect(await screen.findByRole('button', { name: /alice martin/i })).toBeInTheDocument();
-    expect(screen.getByRole('combobox', { name: /show: people roster views/i })).toHaveTextContent(
+    expect(screen.getByRole('combobox', { name: /view: people roster views/i })).toHaveTextContent(
       /all exhibitors/i
     );
 
@@ -732,7 +732,7 @@ describe('ShowDeskPeopleRoster', () => {
     expect(screen.getByRole('button', { name: /bea handler/i })).toBeInTheDocument();
     expect(screen.getByTestId('location')).toHaveTextContent('/shows/show-1/show-day');
 
-    await user.click(screen.getByRole('combobox', { name: /show: people roster views/i }));
+    await user.click(screen.getByRole('combobox', { name: /view: people roster views/i }));
     await user.click(await screen.findByRole('option', { name: /needs check-in/i }));
 
     expect(screen.queryByRole('button', { name: /bea handler/i })).not.toBeInTheDocument();
@@ -743,7 +743,7 @@ describe('ShowDeskPeopleRoster', () => {
 
     // Selecting "All exhibitors" (the default) removes the param entirely,
     // matching a fresh URL rather than an explicit `?view=all`.
-    await user.click(screen.getByRole('combobox', { name: /show: people roster views/i }));
+    await user.click(screen.getByRole('combobox', { name: /view: people roster views/i }));
     await user.click(await screen.findByRole('option', { name: /all exhibitors/i }));
     expect(screen.getByRole('button', { name: /bea handler/i })).toBeInTheDocument();
     expect(screen.getByTestId('location')).toHaveTextContent('/shows/show-1/show-day');
@@ -752,7 +752,7 @@ describe('ShowDeskPeopleRoster', () => {
   it('MYK9-812: the Show select carries live counts derived from the roster, not a separate query', async () => {
     const { user } = renderRoster([entry(), checkedInBeaEntry()]);
 
-    const select = await screen.findByRole('combobox', { name: /show: people roster views/i });
+    const select = await screen.findByRole('combobox', { name: /view: people roster views/i });
     expect(select).toHaveTextContent(/all exhibitors \(2\)/i);
     await user.click(select);
     expect(await screen.findByRole('option', { name: /needs check-in \(1\)/i })).toBeVisible();
@@ -797,7 +797,7 @@ describe('ShowDeskPeopleRoster', () => {
     goOffline();
     const { user } = renderRoster([entry(), checkedInBeaEntry()]);
 
-    await user.click(await screen.findByRole('combobox', { name: /show: people roster views/i }));
+    await user.click(await screen.findByRole('combobox', { name: /view: people roster views/i }));
     expect(await screen.findByRole('option', { name: /needs check-in \(1\)/i })).toBeVisible();
     await user.keyboard('{Escape}');
 

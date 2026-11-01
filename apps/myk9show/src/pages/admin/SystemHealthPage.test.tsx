@@ -128,7 +128,7 @@ describe('SystemHealthPage', () => {
   });
 
   async function pickView(user: ReturnType<typeof userEvent.setup>, name: RegExp) {
-    await user.click(screen.getByRole('combobox', { name: /show: filter checks by status/i }));
+    await user.click(screen.getByRole('combobox', { name: /view: filter checks by status/i }));
     await user.click(await screen.findByRole('option', { name }));
   }
 
@@ -158,7 +158,7 @@ describe('SystemHealthPage', () => {
     const { user } = render(<SystemHealthPage />);
 
     // Verdict chips and the view select read the same summary.
-    await user.click(screen.getByRole('combobox', { name: /show: filter checks by status/i }));
+    await user.click(screen.getByRole('combobox', { name: /view: filter checks by status/i }));
     expect(await screen.findByRole('option', { name: 'All (2)' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'Failing (0)' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'Unverified (1)' })).toBeInTheDocument();
@@ -336,7 +336,7 @@ describe('SystemHealthPage', () => {
 
     // A check whose own coverage is incomplete cannot report success, so it is
     // counted in the amber Unverified view rather than as a pass.
-    await user.click(screen.getByRole('combobox', { name: /show: filter checks by status/i }));
+    await user.click(screen.getByRole('combobox', { name: /view: filter checks by status/i }));
     expect(await screen.findByRole('option', { name: 'Unverified (1)' })).toBeInTheDocument();
     await user.keyboard('{Escape}');
 

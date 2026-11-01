@@ -229,7 +229,7 @@ describe('ClassResultsTable search/filter', () => {
   it('filters entries by dog name', async () => {
     const { user } = renderTable();
     // Switch to All tab so all entries are visible
-    await user.click(screen.getByRole('combobox', { name: 'Show: Result views' }));
+    await user.click(screen.getByRole('combobox', { name: 'View: Result views' }));
     await user.click(await screen.findByRole('option', { name: /^All/ }));
 
     const searchInput = screen.getByLabelText('Search by dog, handler, or armband...');
@@ -243,7 +243,7 @@ describe('ClassResultsTable search/filter', () => {
 
   it('filters entries by handler name', async () => {
     const { user } = renderTable();
-    await user.click(screen.getByRole('combobox', { name: 'Show: Result views' }));
+    await user.click(screen.getByRole('combobox', { name: 'View: Result views' }));
     await user.click(await screen.findByRole('option', { name: /^All/ }));
 
     const searchInput = screen.getByLabelText('Search by dog, handler, or armband...');
@@ -255,7 +255,7 @@ describe('ClassResultsTable search/filter', () => {
 
   it('filters entries by armband number', async () => {
     const { user } = renderTable();
-    await user.click(screen.getByRole('combobox', { name: 'Show: Result views' }));
+    await user.click(screen.getByRole('combobox', { name: 'View: Result views' }));
     await user.click(await screen.findByRole('option', { name: /^All/ }));
 
     const searchInput = screen.getByLabelText('Search by dog, handler, or armband...');
@@ -267,7 +267,7 @@ describe('ClassResultsTable search/filter', () => {
 
   it('search is case-insensitive', async () => {
     const { user } = renderTable();
-    await user.click(screen.getByRole('combobox', { name: 'Show: Result views' }));
+    await user.click(screen.getByRole('combobox', { name: 'View: Result views' }));
     await user.click(await screen.findByRole('option', { name: /^All/ }));
 
     const searchInput = screen.getByLabelText('Search by dog, handler, or armband...');
@@ -291,7 +291,7 @@ describe('ClassResultsTable search/filter', () => {
 
   it('clears search when clear button is clicked', async () => {
     const { user } = renderTable();
-    await user.click(screen.getByRole('combobox', { name: 'Show: Result views' }));
+    await user.click(screen.getByRole('combobox', { name: 'View: Result views' }));
     await user.click(await screen.findByRole('option', { name: /^All/ }));
 
     const searchInput = screen.getByLabelText('Search by dog, handler, or armband...');
@@ -329,7 +329,7 @@ describe('ClassResultsTable search/filter', () => {
 
   it('returns no results when search has no matches', async () => {
     const { user } = renderTable();
-    await user.click(screen.getByRole('combobox', { name: 'Show: Result views' }));
+    await user.click(screen.getByRole('combobox', { name: 'View: Result views' }));
     await user.click(await screen.findByRole('option', { name: /^All/ }));
 
     const searchInput = screen.getByLabelText('Search by dog, handler, or armband...');

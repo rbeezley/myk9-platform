@@ -108,7 +108,7 @@ describe('OnboardingInboxPage', () => {
     await user.click(screen.getByRole('button', { name: 'Save changes' }));
 
     expect(await screen.findByText(/No pending requests/i)).toBeInTheDocument();
-    await user.click(screen.getByRole('combobox', { name: /show: filter club onboarding/i }));
+    await user.click(screen.getByRole('combobox', { name: /view: filter club onboarding/i }));
     expect(
       within(await screen.findByRole('listbox')).getByRole('option', { name: /^contacted/i })
     ).toBeInTheDocument();
@@ -167,7 +167,7 @@ describe('OnboardingInboxPage', () => {
     render(<OnboardingInboxPage />, { initialRoute: '/admin/onboarding' });
 
     expect(await screen.findByText('Tri-State Kennel Club')).toBeInTheDocument();
-    await user.click(screen.getByRole('combobox', { name: /show: filter club onboarding/i }));
+    await user.click(screen.getByRole('combobox', { name: /view: filter club onboarding/i }));
     await user.click(
       within(await screen.findByRole('listbox')).getByRole('option', { name: /^contacted/i })
     );

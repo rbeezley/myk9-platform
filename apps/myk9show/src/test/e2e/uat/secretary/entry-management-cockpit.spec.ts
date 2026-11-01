@@ -54,7 +54,7 @@ test('registration focus remains clear across desktop, history, and narrow layou
       .getByRole('textbox', { name: SEARCH_LABEL })
       .fill(offlineSearchTerm ?? 'registration');
     await expect(queueRows).not.toHaveCount(0);
-    // One Filter button (docs/plan-entries-filter-button.md); the Show: select is gone (MYK9-1594).
+    // One Filter button (docs/plan-entries-filter-button.md); the View: select is gone (MYK9-1594).
     await expect(page.getByRole('button', { name: /^Filter/ })).toBeVisible();
     await expect(page.getByText(/Search covers the whole show/i)).toBeVisible();
   } finally {

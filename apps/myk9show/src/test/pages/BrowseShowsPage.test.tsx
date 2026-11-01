@@ -997,7 +997,7 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
 
       renderWithProviders(<BrowseShowsPage />, { route: '/shows?tab=managing' });
 
-      const select = await screen.findByRole('combobox', { name: 'Show: Show views' });
+      const select = await screen.findByRole('combobox', { name: 'View: Show views' });
       // The Draft view is selected, so the trigger reads Draft's own count.
       expect(select).toHaveTextContent(/^Draft \(1\)/);
       await userEvent.click(select);

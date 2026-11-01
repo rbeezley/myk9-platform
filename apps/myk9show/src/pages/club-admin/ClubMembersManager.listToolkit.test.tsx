@@ -105,7 +105,7 @@ describe('ClubMembersManager list toolkit', () => {
     expect(await screen.findByText('Ada Lovelace')).toBeInTheDocument();
     expect(screen.getByText('Grace Hopper')).toBeInTheDocument();
 
-    const select = screen.getByRole('combobox', { name: 'Show: Member views' });
+    const select = screen.getByRole('combobox', { name: 'View: Member views' });
     expect(select).toHaveTextContent(/^All \(2\)/);
     await userEvent.setup().click(select);
     const listbox = await screen.findByRole('listbox');
@@ -118,7 +118,7 @@ describe('ClubMembersManager list toolkit', () => {
     render(<ClubMembersManager clubId="club-1" clubName="Heartland Club" />);
     await screen.findByText('Ada Lovelace');
 
-    await user.click(screen.getByRole('combobox', { name: 'Show: Member views' }));
+    await user.click(screen.getByRole('combobox', { name: 'View: Member views' }));
     await user.click(await screen.findByRole('option', { name: /^Lapsed/ }));
 
     await waitFor(() => {
@@ -161,7 +161,7 @@ describe('ClubMembersManager list toolkit', () => {
     render(<ClubMembersManager clubId="club-1" clubName="Heartland Club" />, {
       initialRoute: '/?status=bogus',
     });
-    await screen.findByRole('combobox', { name: 'Show: Member views' });
+    await screen.findByRole('combobox', { name: 'View: Member views' });
     await waitFor(() =>
       expect(screen.getAllByRole('status').map(el => el.textContent)).toContain(
         'Showing all 2 members.'

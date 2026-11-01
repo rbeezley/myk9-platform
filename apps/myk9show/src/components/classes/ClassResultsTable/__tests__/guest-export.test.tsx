@@ -240,7 +240,7 @@ describe('ClassResultsTable guest Export CSV', () => {
 
   it('drops Check-in on the Completed tab, where the table has no such column', async () => {
     const { user } = render(<ClassResultsTable {...readOnlyProps} resultsReleasedAt={RELEASED} />);
-    await user.click(screen.getByRole('combobox', { name: 'Show: Result views' }));
+    await user.click(screen.getByRole('combobox', { name: 'View: Result views' }));
     await user.click(await screen.findByRole('option', { name: /Completed/ }));
     const download = captureCsvDownload();
     try {

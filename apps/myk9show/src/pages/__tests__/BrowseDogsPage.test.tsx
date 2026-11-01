@@ -423,7 +423,7 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
       const user = userEvent.setup();
       renderPage();
 
-      const select = screen.getByRole('combobox', { name: 'Show: Dog views' });
+      const select = screen.getByRole('combobox', { name: 'View: Dog views' });
       expect(select).toHaveTextContent(/^All \(/);
       await user.click(select);
       for (const label of ['Active', 'Retired', 'Deceased']) {
@@ -435,7 +435,7 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
       const user = userEvent.setup();
       renderPage();
 
-      await user.click(screen.getByRole('combobox', { name: 'Show: Dog views' }));
+      await user.click(screen.getByRole('combobox', { name: 'View: Dog views' }));
       await user.click(await screen.findByRole('option', { name: /^Retired/ }));
 
       expect(mockBrowseDogsReturn.setFilters).toHaveBeenCalled();

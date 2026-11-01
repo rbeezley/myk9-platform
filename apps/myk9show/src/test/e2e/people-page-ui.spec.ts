@@ -156,8 +156,8 @@ test.describe('People Page UI Improvements', () => {
       await page.goto('/people');
       await page.waitForLoadState('networkidle');
 
-      // The Judges view is an option of the labelled "Show:" select
-      await page.getByRole('combobox', { name: 'Show: People views' }).click();
+      // The Judges view is an option of the labelled "View:" select
+      await page.getByRole('combobox', { name: 'View: People views' }).click();
       await expect(page.getByRole('option', { name: /^Judges/ })).toBeVisible();
       await expect(page.locator('button:has-text("Has Dogs")')).toBeVisible();
     });
@@ -171,7 +171,7 @@ test.describe('People Page UI Improvements', () => {
       const initialCount = await page.locator('.myk9-people-sidebar-item').count();
 
       // Pick the Judges view
-      await page.getByRole('combobox', { name: 'Show: People views' }).click();
+      await page.getByRole('combobox', { name: 'View: People views' }).click();
       await page.getByRole('option', { name: /^Judges/ }).click();
 
       // Wait for filter to apply
@@ -187,8 +187,8 @@ test.describe('People Page UI Improvements', () => {
       await page.goto('/people');
       await page.waitForLoadState('networkidle');
 
-      // Pick the Judges view from the labelled "Show:" select
-      await page.getByRole('combobox', { name: 'Show: People views' }).click();
+      // Pick the Judges view from the labelled "View:" select
+      await page.getByRole('combobox', { name: 'View: People views' }).click();
       await page.getByRole('option', { name: /^Judges/ }).click();
 
       // The short result sentence states the count

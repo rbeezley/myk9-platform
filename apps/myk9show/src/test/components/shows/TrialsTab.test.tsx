@@ -161,7 +161,7 @@ describe('TrialsTab', () => {
 
     const { user } = render(<TrialsTab trials={trials} showId="show-1" trialStats={stats} />);
 
-    await user.click(screen.getByRole('combobox', { name: 'Show: Trial views' }));
+    await user.click(screen.getByRole('combobox', { name: 'View: Trial views' }));
     await user.click(await screen.findByRole('option', { name: /^Completed/ }));
     expect(screen.getByText('Derived Complete')).toBeInTheDocument();
     expect(screen.queryByText('Derived Pending')).not.toBeInTheDocument();

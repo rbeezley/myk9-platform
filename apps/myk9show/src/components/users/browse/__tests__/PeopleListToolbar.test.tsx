@@ -43,7 +43,7 @@ function renderToolbar(overrides: Partial<Parameters<typeof PeopleListToolbar>[0
 describe('PeopleListToolbar', () => {
   it('renders the built-in views as a Show select with counts', async () => {
     renderToolbar();
-    const select = screen.getByRole('combobox', { name: 'Show: People views' });
+    const select = screen.getByRole('combobox', { name: 'View: People views' });
     expect(select).toHaveTextContent('All (2)');
     await userEvent.click(select);
     expect(await screen.findByRole('option', { name: 'Judges (1)' })).toBeInTheDocument();
@@ -54,7 +54,7 @@ describe('PeopleListToolbar', () => {
     const { onFiltersChange } = renderToolbar({
       filters: { ...DEFAULT_PEOPLE_FILTERS, search: 'ada' },
     });
-    await userEvent.click(screen.getByRole('combobox', { name: 'Show: People views' }));
+    await userEvent.click(screen.getByRole('combobox', { name: 'View: People views' }));
     await userEvent.click(await screen.findByRole('option', { name: 'Judges (1)' }));
     expect(onFiltersChange).toHaveBeenCalledWith({
       ...DEFAULT_PEOPLE_FILTERS,
@@ -75,7 +75,7 @@ describe('PeopleListToolbar', () => {
       hasActiveFilters: true,
       filters: { ...DEFAULT_PEOPLE_FILTERS, role: 'judge', login: 'none', search: 'ada' },
     });
-    expect(screen.getByRole('combobox', { name: 'Show: People views' })).toHaveTextContent(
+    expect(screen.getByRole('combobox', { name: 'View: People views' })).toHaveTextContent(
       'Custom'
     );
     expect(screen.getByRole('status')).toHaveTextContent('Showing 0 of 2 people.');

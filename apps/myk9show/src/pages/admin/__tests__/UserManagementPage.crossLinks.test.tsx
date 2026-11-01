@@ -69,7 +69,7 @@ describe('UserManagementPage cross-links', () => {
 
   it('links to the role requests queue that feeds it', async () => {
     const { user } = renderPage();
-    await user.click(await screen.findByRole('combobox', { name: 'Show: User views' }));
+    await user.click(await screen.findByRole('combobox', { name: 'View: User views' }));
     await user.click(await screen.findByRole('option', { name: /role requests/i }));
     expect(screen.getByTestId('location')).toHaveTextContent('/admin/role-requests');
   });

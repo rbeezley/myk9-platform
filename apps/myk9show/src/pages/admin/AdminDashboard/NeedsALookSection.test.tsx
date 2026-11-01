@@ -35,7 +35,7 @@ describe('NeedsALookSection', () => {
   it('lists each category as a view with its own count', async () => {
     const { user } = render(<Harness />);
 
-    await user.click(screen.getByRole('combobox', { name: /show: filter what needs a look/i }));
+    await user.click(screen.getByRole('combobox', { name: /view: filter what needs a look/i }));
 
     expect(await screen.findByRole('option', { name: 'All (4)' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'Money (1)' })).toBeInTheDocument();
@@ -59,7 +59,7 @@ describe('NeedsALookSection', () => {
     const { user } = render(<Harness />);
     expect(screen.getByText('Showing all 4 open items.')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('combobox', { name: /show: filter what needs a look/i }));
+    await user.click(screen.getByRole('combobox', { name: /view: filter what needs a look/i }));
     await user.click(await screen.findByRole('option', { name: 'Service (2)' }));
 
     expect(screen.getByText('Edge function stale')).toBeInTheDocument();

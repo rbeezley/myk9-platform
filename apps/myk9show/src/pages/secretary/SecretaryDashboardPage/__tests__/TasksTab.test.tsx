@@ -243,7 +243,7 @@ describe('TasksTab — personal-only', () => {
     render(<TasksTab clubId="club-1" />, { wrapper });
 
     expect(screen.queryByText('Old task')).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole('combobox', { name: 'Show: Task views' }));
+    await userEvent.click(screen.getByRole('combobox', { name: 'View: Task views' }));
     await userEvent.click(
       within(await screen.findByRole('listbox')).getByRole('option', { name: /^All/ })
     );
@@ -302,7 +302,7 @@ describe('TasksTab — personal-only', () => {
     } as unknown as ReturnType<typeof useSecretaryTasks>);
 
     render(<TasksTab clubId="club-1" />, { wrapper });
-    const select = screen.getByRole('combobox', { name: 'Show: Task views' });
+    const select = screen.getByRole('combobox', { name: 'View: Task views' });
     expect(select).toHaveTextContent('Open (1)');
     await userEvent.click(select);
     expect(
@@ -350,10 +350,10 @@ describe('TasksTab — personal-only', () => {
     render(<TasksTab clubId="club-1" />, { wrapper });
     fireEvent.click(screen.getByText('+ Add Task'));
     // TaskAddForm is rendered; lockedShowId={null} means no show selector — the
-    // only combobox left is the page's own "Show:" view select.
+    // only combobox left is the page's own "View:" view select.
     expect(screen.getByPlaceholderText('Task title…')).toBeInTheDocument();
     expect(screen.getAllByRole('combobox').map(el => el.getAttribute('aria-label'))).toEqual([
-      'Show: Task views',
+      'View: Task views',
     ]);
   });
 

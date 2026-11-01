@@ -277,13 +277,35 @@ describe('SecretaryMessagesPage — filtered mode', () => {
 
   it('switches to the full-width email delivery mode without changing the show scope', async () => {
     renderAtUrl('/secretary/messages?showId=show-1');
-    await userEvent.click(screen.getByRole('combobox', { name: 'Show: Communication view' }));
+    await userEvent.click(screen.getByRole('combobox', { name: 'View: Communication view' }));
     await userEvent.click(await screen.findByRole('option', { name: 'Email delivery' }));
 
-    expect(screen.getByRole('combobox', { name: 'Show: Communication view' })).toHaveTextContent(
+    expect(screen.getByRole('combobox', { name: 'View: Communication view' })).toHaveTextContent(
       'Email delivery'
     );
     expect(screen.getByTestId('email-delivery-history')).toHaveTextContent('History for show-1');
+  });
+
+  it('labels the view switcher "View" and the show filter "Show" so no two controls share a label', () => {
+    renderAtUrl('/secretary/messages');
+    expect(screen.getByRole('combobox', { name: 'View: Communication view' })).toBeInTheDocument();
+    expect(screen.getByText('View:')).toBeInTheDocument();
+    expect(screen.getAllByText('Show:')).toHaveLength(1);
+    expect(screen.getByRole('combobox', { name: /^Show\b(?!:)/ })).toHaveTextContent('Any show');
+  });
+
+  it('Email delivery with no show chosen says how to see scheduled emails', async () => {
+    renderAtUrl('/secretary/messages');
+    await userEvent.click(screen.getByRole('combobox', { name: 'View: Communication view' }));
+    await userEvent.click(await screen.findByRole('option', { name: 'Email delivery' }));
+    expect(screen.getByText('Choose a show to see its scheduled emails')).toBeInTheDocument();
+  });
+
+  it('Email delivery with a show chosen drops the scheduled-emails hint', async () => {
+    renderAtUrl('/secretary/messages?showId=show-1');
+    await userEvent.click(screen.getByRole('combobox', { name: 'View: Communication view' }));
+    await userEvent.click(await screen.findByRole('option', { name: 'Email delivery' }));
+    expect(screen.queryByText('Choose a show to see its scheduled emails')).not.toBeInTheDocument();
   });
 
   it('search narrows the thread list by participant name', async () => {
@@ -295,7 +317,7 @@ describe('SecretaryMessagesPage — filtered mode', () => {
 
   it('the Inbox view count matches the visible thread count', () => {
     renderAtUrl('/secretary/messages?showId=show-1');
-    expect(screen.getByRole('combobox', { name: 'Show: Communication view' })).toHaveTextContent(
+    expect(screen.getByRole('combobox', { name: 'View: Communication view' })).toHaveTextContent(
       'Inbox (1)'
     );
   });

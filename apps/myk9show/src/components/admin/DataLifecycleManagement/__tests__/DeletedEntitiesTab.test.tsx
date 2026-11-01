@@ -195,7 +195,7 @@ describe('DeletedEntitiesTab', () => {
     await screen.findByTestId('section-show');
     expect(screen.getByText('Showing all 5 deleted items.')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('combobox', { name: /show: filter deleted items by type/i }));
+    await user.click(screen.getByRole('combobox', { name: /view: filter deleted items by type/i }));
     // Types with nothing in the trash do not get a view.
     expect(await screen.findByRole('option', { name: 'All (5)' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'Shows (3)' })).toBeInTheDocument();

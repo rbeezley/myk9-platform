@@ -104,7 +104,7 @@ describe('class search time limits persist (UKC max time)', () => {
       time_limit_seconds: 300,
       time_limit_area2_seconds: null,
     } as unknown as DbClassWithRelations);
-    expect(cls.timeLimit1).toBe('05:00');
+    expect(cls.timeLimit1).toBe('5:00');
     expect(cls.timeLimit2).toBe('');
     expect(mapDatabaseToClass(base as unknown as DbClassWithRelations).timeLimit1).toBe('');
   });

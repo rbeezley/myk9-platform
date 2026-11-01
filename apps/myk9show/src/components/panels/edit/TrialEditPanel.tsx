@@ -28,6 +28,7 @@ import { parseLocalDateString } from '@/utils/dateLocal';
 import { clockOnDateToIso, hasTrialTime, isoToClock } from '@/components/trials/trialDateTime';
 import { getTrialTimezone } from '@/features/registries';
 import { format } from 'date-fns';
+import { trialEditTypeOptions } from './trialEditTypeOptions';
 import { usePanelValidationNavigation, type FieldLocation } from './usePanelValidationNavigation';
 
 interface TrialEditPanelProps {
@@ -201,11 +202,17 @@ const TAB_FIELDS: Record<TabId, (keyof TrialEditFormData)[]> = {
 // Form content component
 interface TrialEditFormProps {
   eventNumber: { show: boolean; required: boolean };
+  organization: string | undefined;
   activeTab: TabId;
   onTabChange: (tab: TabId) => void;
 }
 
-const TrialEditForm: React.FC<TrialEditFormProps> = ({ activeTab, onTabChange, eventNumber }) => {
+const TrialEditForm: React.FC<TrialEditFormProps> = ({
+  activeTab,
+  onTabChange,
+  eventNumber,
+  organization,
+}) => {
   const { form } = useEditPanel<TrialEditFormData>();
 
   // Touch all fields on the departing tab before switching
@@ -391,12 +398,11 @@ const TrialEditForm: React.FC<TrialEditFormProps> = ({ activeTab, onTabChange, e
                       <SelectValue placeholder="Select trial type" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Scent Work">Scent Work</SelectItem>
-                      <SelectItem value="Agility">Agility</SelectItem>
-                      <SelectItem value="Obedience">Obedience</SelectItem>
-                      <SelectItem value="Rally">Rally</SelectItem>
-                      <SelectItem value="Conformation">Conformation</SelectItem>
-                      <SelectItem value="Other">Other</SelectItem>
+                      {trialEditTypeOptions(organization, form.data.trialType).map(type => (
+                        <SelectItem key={type} value={type}>
+                          {type}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </FormField>
@@ -632,6 +638,7 @@ export const TrialEditPanel: React.FC<TrialEditPanelProps> = ({
         activeTab={activeTab}
         onTabChange={setActiveTab}
         eventNumber={eventNumberRules}
+        organization={organization}
       />
     </EditPanelWrapper>
   );

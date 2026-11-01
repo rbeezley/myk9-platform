@@ -40,7 +40,7 @@ describe('MessageShowComposer', () => {
       screen.getByText('Send a show message to everyone or a targeted group.')
     ).toBeInTheDocument();
     expect(screen.queryByText(/announcement/i)).not.toBeInTheDocument();
-    expect(screen.getByLabelText('Title')).toHaveValue('Lunch is ready');
+    expect(screen.getByLabelText('Title')).toHaveValue('');
 
     await user.click(screen.getByRole('combobox', { name: 'Recipient' }));
     await user.click(await screen.findByRole('option', { name: 'A class' }));
@@ -48,7 +48,48 @@ describe('MessageShowComposer', () => {
 
     await user.click(screen.getByRole('combobox', { name: 'Recipient' }));
     await user.click(await screen.findByRole('option', { name: 'Everyone in show' }));
-    expect(screen.getByLabelText('Title')).toHaveValue('Lunch is ready');
+    expect(screen.getByLabelText('Title')).toHaveValue('');
+  });
+
+  it('opens empty with no template selected and Send disabled, so pressing Send sends nothing', async () => {
+    const { user } = render(<MessageShowComposer showId="show-1" classes={classes} />);
+
+    expect(screen.getByLabelText('Title')).toHaveValue('');
+    expect(screen.getByLabelText('Message')).toHaveValue('');
+    const send = screen.getByRole('button', { name: 'Send message' });
+    expect(send).toBeDisabled();
+    expect(send).toHaveAccessibleDescription('Add a title and message to send.');
+    await user.click(send);
+    expect(mockPostAnnouncement).not.toHaveBeenCalled();
+    expect(mockSendTargetedMessage).not.toHaveBeenCalled();
+  });
+
+  it('places Send after the message field and enables it once title and message exist', async () => {
+    const { user } = render(<MessageShowComposer showId="show-1" classes={classes} />);
+
+    const message = screen.getByLabelText('Message');
+    const send = screen.getByRole('button', { name: 'Send message' });
+    expect(message.compareDocumentPosition(send) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    await user.type(screen.getByLabelText('Title'), 'Hi');
+    expect(send).toBeDisabled();
+    await user.type(message, 'x');
+    expect(send).toBeEnabled();
+    expect(screen.queryByText('Add a title and message to send.')).not.toBeInTheDocument();
+  });
+
+  it('changing the class with no template chosen writes no template copy', async () => {
+    const { user } = render(<MessageShowComposer showId="show-1" classes={classes} />);
+
+    await user.click(screen.getByRole('combobox', { name: 'Recipient' }));
+    await user.click(await screen.findByRole('option', { name: 'A class' }));
+    await user.click(screen.getByRole('combobox', { name: 'Class' }));
+    await user.click(await screen.findByRole('option', { name: /Interior Advanced/ }));
+
+    expect(screen.getByLabelText('Message')).toHaveValue('');
+    expect(screen.getByRole('button', { name: 'Send message' })).toHaveAccessibleDescription(
+      'Write a message to send.'
+    );
   });
 
   it('sends everyone-in-show messages through announcements, not targeted messaging', async () => {
@@ -87,6 +128,7 @@ describe('MessageShowComposer', () => {
       <MessageShowComposer showId="show-1" classes={classes} showWideDeliveryLane="targeted" />
     );
 
+    await user.click(screen.getByRole('button', { name: 'Lunch ready' }));
     await user.click(screen.getByRole('button', { name: 'Send message' }));
 
     await waitFor(() => {
@@ -103,6 +145,7 @@ describe('MessageShowComposer', () => {
   it('sends quiet everyone-in-show messages with normal priority when push is unchecked', async () => {
     const { user } = render(<MessageShowComposer showId="show-1" classes={classes} />);
 
+    await user.click(screen.getByRole('button', { name: 'Lunch ready' }));
     await user.click(screen.getByRole('checkbox', { name: 'Send push alert' }));
     await user.click(screen.getByRole('button', { name: 'Send message' }));
 
@@ -166,6 +209,7 @@ describe('MessageShowComposer', () => {
 
     await user.click(screen.getByRole('combobox', { name: 'Recipient' }));
     await user.click(await screen.findByRole('option', { name: 'Everyone checked in' }));
+    await user.type(screen.getByLabelText('Message'), 'Quiet note');
     await user.click(screen.getByRole('checkbox', { name: 'Send push alert' }));
     await user.click(screen.getByRole('button', { name: 'Send message' }));
 

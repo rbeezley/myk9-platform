@@ -5,6 +5,7 @@
  * offline and the list is what was already here.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { isAbortSyncError } from '@/services/replication/syncErrorUtils';
 import { syncAtShowData } from './atShowDataAdapter';
 
 export type ClassRefreshPhase = 'idle' | 'refreshing' | 'done' | 'failed' | 'offline';
@@ -51,8 +52,10 @@ export function useAtShowClassRefresh(
       const outcome = await syncAtShowData(showId, { forceFullSync: true });
       reload();
       settle(outcome.success ? 'done' : 'failed');
-    } catch {
-      settle('failed');
+    } catch (error) {
+      // Going offline mid-refresh aborts the sync (MYK9-1629): that is the
+      // offline answer, not a failure.
+      settle(isAbortSyncError(error) ? 'offline' : 'failed');
     }
   }, [showId, isOnline, phase, reload, settle]);
 

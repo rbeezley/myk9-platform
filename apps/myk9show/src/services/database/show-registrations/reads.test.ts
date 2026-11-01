@@ -1,6 +1,5 @@
 import { createDatabaseError } from '@/services/database/databaseError';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { PaymentStatus } from '@/types/show-registration-types';
 import { createShowRegistration } from './reads';
 
 const mocks = vi.hoisted(() => ({
@@ -16,14 +15,7 @@ vi.mock('../supabaseClient', () => ({
   createDatabaseError,
 }));
 
-function makeExistingEnrollmentQuery(
-  overrides: Partial<{
-    payment_status: string;
-    payment_method: string | null;
-    total_amount: number | null;
-    paid_amount: number | null;
-  }> = {}
-) {
+function makeExistingEnrollmentQuery() {
   return {
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
@@ -35,15 +27,11 @@ function makeExistingEnrollmentQuery(
         confirmation_number: 'MK9-000123',
         status: 'draft',
         total_fees: 0,
-        payment_status: overrides.payment_status ?? 'pending',
-        payment_method: overrides.payment_method ?? null,
-        payment_reference: null,
-        total_amount: Object.prototype.hasOwnProperty.call(overrides, 'total_amount')
-          ? overrides.total_amount
-          : 3000,
-        paid_amount: Object.prototype.hasOwnProperty.call(overrides, 'paid_amount')
-          ? overrides.paid_amount
-          : 0,
+        payment_status: 'paid_by_check',
+        payment_method: 'check',
+        payment_reference: 'receipt-100',
+        total_amount: 3000,
+        paid_amount: 30,
         created_at: '2026-07-05T00:00:00Z',
         updated_at: '2026-07-05T00:00:00Z',
       },
@@ -141,233 +129,47 @@ describe('createShowRegistration', () => {
     expect(query.eq).toHaveBeenCalledWith('handler_id', 'handler-1');
   });
 
-  it('persists secretary-paid enrollment payment state on initial insert', async () => {
+  // MYK9-1634: the total, status, paid amount and method are the database's.
+  // The client writes the payment details it was given, and nothing else.
+  it('writes only the given payment details on insert, never money or status', async () => {
     const query = makeNewEnrollmentQuery();
     mocks.from.mockReturnValue(query);
 
-    const result = await createShowRegistration(
-      'show-1',
-      'handler-1',
-      'receipt-100',
-      { paymentReference: 'receipt-100', paymentDate: '2026-07-07' },
-      'secretary_paid',
-      7000
-    );
+    const result = await createShowRegistration('show-1', 'handler-1', {
+      paymentReference: 'receipt-100',
+      paymentDate: '2026-07-07',
+    });
 
     expect(result.error).toBeNull();
-    expect(query.insert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        show_id: 'show-1',
-        handler_id: 'handler-1',
-        payment_status: 'paid',
-        payment_method: 'secretary_paid',
-        payment_reference: 'receipt-100',
-        payment_date: '2026-07-07',
-        total_amount: 7000,
-        paid_amount: 70,
-      })
-    );
+    expect(query.insert).toHaveBeenCalledWith({
+      show_id: 'show-1',
+      handler_id: 'handler-1',
+      payment_reference: 'receipt-100',
+      payment_date: '2026-07-07',
+    });
   });
 
-  it('keeps check submissions pending because they are pay-at-show', async () => {
-    const query = makeNewEnrollmentQuery();
-    mocks.from.mockReturnValue(query);
-
-    const result = await createShowRegistration(
-      'show-1',
-      'handler-1',
-      undefined,
-      { checkNumber: '1001' },
-      'check',
-      7000
-    );
-
-    expect(result.error).toBeNull();
-    expect(query.insert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        payment_status: PaymentStatus.PENDING,
-        payment_method: 'check',
-        check_number: '1001',
-        total_amount: 7000,
-        paid_amount: 0,
-      })
-    );
-  });
-
-  it('keeps a partially paid existing enrollment pending after a secretary-paid add-on', async () => {
+  it('writes only the given details onto an existing enrollment and never blanks the rest', async () => {
     const existingQuery = makeExistingEnrollmentQuery();
     const updateQuery = makeExistingEnrollmentPaymentUpdateQuery();
     mocks.from.mockReturnValueOnce(existingQuery).mockReturnValueOnce(updateQuery);
 
-    const result = await createShowRegistration(
-      'show-1',
-      'handler-1',
-      'receipt-200',
-      { paymentReference: 'receipt-200', paymentDate: '2026-07-07' },
-      'secretary_paid',
-      7000
-    );
+    const result = await createShowRegistration('show-1', 'handler-1', { checkNumber: '1001' });
 
     expect(result.error).toBeNull();
-    expect(result.data?.id).toBe('enrollment-existing');
     expect(existingQuery.insert).not.toHaveBeenCalled();
-    expect(updateQuery.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        payment_status: PaymentStatus.PENDING,
-        payment_method: 'secretary_paid',
-        payment_reference: 'receipt-200',
-        payment_date: '2026-07-07',
-        total_amount: 10000,
-        paid_amount: 70,
-      })
-    );
+    expect(updateQuery.update).toHaveBeenCalledWith({ check_number: '1001' });
     expect(updateQuery.eq).toHaveBeenCalledWith('id', 'enrollment-existing');
   });
 
-  it('marks an existing enrollment paid when secretary-paid add-ons cover the full total', async () => {
-    const existingQuery = makeExistingEnrollmentQuery({
-      payment_status: 'paid',
-      payment_method: 'secretary_paid',
-      total_amount: 3000,
-      paid_amount: 30,
-    });
-    const updateQuery = makeExistingEnrollmentPaymentUpdateQuery();
-    mocks.from.mockReturnValueOnce(existingQuery).mockReturnValueOnce(updateQuery);
-
-    const result = await createShowRegistration(
-      'show-1',
-      'handler-1',
-      'receipt-200',
-      { paymentReference: 'receipt-200', paymentDate: '2026-07-07' },
-      'secretary_paid',
-      7000
-    );
-
-    expect(result.error).toBeNull();
-    expect(updateQuery.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        payment_status: 'paid',
-        total_amount: 10000,
-        paid_amount: 100,
-      })
-    );
-  });
-
-  it('preserves existing paid amount when a pay-later add-on updates total', async () => {
-    const existingQuery = makeExistingEnrollmentQuery({
-      payment_status: 'paid',
-      payment_method: 'secretary_paid',
-      total_amount: 7000,
-      paid_amount: 70,
-    });
-    const updateQuery = makeExistingEnrollmentPaymentUpdateQuery();
-    mocks.from.mockReturnValueOnce(existingQuery).mockReturnValueOnce(updateQuery);
-
-    const result = await createShowRegistration(
-      'show-1',
-      'handler-1',
-      undefined,
-      { checkNumber: '1001' },
-      'check',
-      3000
-    );
-
-    expect(result.error).toBeNull();
-    const updatePayload = updateQuery.update.mock.calls[0]?.[0];
-    expect(updatePayload).toEqual(
-      expect.objectContaining({
-        payment_status: PaymentStatus.PENDING,
-        payment_method: 'check',
-        check_number: '1001',
-        total_amount: 10000,
-      })
-    );
-    expect(updatePayload).not.toHaveProperty('paid_amount');
-  });
-
-  it('clears stale payment detail fields when an existing enrollment changes method', async () => {
-    const existingQuery = makeExistingEnrollmentQuery({
-      payment_status: 'paid',
-      payment_method: 'group_payment',
-      total_amount: 7000,
-      paid_amount: 70,
-    });
-    const updateQuery = makeExistingEnrollmentPaymentUpdateQuery();
-    mocks.from.mockReturnValueOnce(existingQuery).mockReturnValueOnce(updateQuery);
-
-    const result = await createShowRegistration(
-      'show-1',
-      'handler-1',
-      undefined,
-      { checkNumber: '1001' },
-      'check',
-      3000
-    );
-
-    expect(result.error).toBeNull();
-    expect(updateQuery.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        payment_method: 'check',
-        payment_reference: null,
-        check_number: '1001',
-        payment_date: null,
-        group_reference: null,
-        payment_notes: null,
-      })
-    );
-  });
-
-  it('does not rewrite existing enrollment financials for a waived add-on', async () => {
-    const existingQuery = makeExistingEnrollmentQuery({
-      payment_status: 'paid',
-      payment_method: 'secretary_paid',
-      total_amount: 7000,
-      paid_amount: 70,
-    });
+  it('makes no write onto an existing enrollment when no details are given', async () => {
+    const existingQuery = makeExistingEnrollmentQuery();
     mocks.from.mockReturnValueOnce(existingQuery);
 
-    const result = await createShowRegistration(
-      'show-1',
-      'handler-1',
-      undefined,
-      undefined,
-      'waived',
-      3000
-    );
+    const result = await createShowRegistration('show-1', 'handler-1', {});
 
     expect(result.error).toBeNull();
     expect(result.data?.id).toBe('enrollment-existing');
-    expect(existingQuery.insert).not.toHaveBeenCalled();
     expect(mocks.from).toHaveBeenCalledTimes(1);
-  });
-
-  it('marks a first waived submission as waived after the blank enrollment is created', async () => {
-    const existingQuery = makeExistingEnrollmentQuery({
-      payment_status: PaymentStatus.PENDING,
-      payment_method: null,
-      total_amount: null,
-      paid_amount: 0,
-    });
-    const updateQuery = makeExistingEnrollmentPaymentUpdateQuery();
-    mocks.from.mockReturnValueOnce(existingQuery).mockReturnValueOnce(updateQuery);
-
-    const result = await createShowRegistration(
-      'show-1',
-      'handler-1',
-      undefined,
-      undefined,
-      'waived',
-      3000
-    );
-
-    expect(result.error).toBeNull();
-    expect(updateQuery.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        payment_status: PaymentStatus.WAIVED,
-        payment_method: 'waived',
-        total_amount: 3000,
-        paid_amount: 0,
-      })
-    );
   });
 });

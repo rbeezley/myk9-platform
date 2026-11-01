@@ -58,6 +58,7 @@ export interface UseAtShowScoresheetResult {
   rules: ResolvedClassRules | null;
   /** Sport type string from the trial (preferred over class-name inference). */
   trialSportType: string | undefined;
+  trialId: string | undefined;
   trialDate: string | undefined;
   trialNumber: string | undefined;
   trialName: string | undefined;
@@ -97,6 +98,7 @@ export function useAtShowScoresheet({
   const [classInfo, setClassInfo] = useState<ClassInfo | null>(null);
   const [rules, setRules] = useState<ResolvedClassRules | null>(null);
   const [trialSportType, setTrialSportType] = useState<string | undefined>(undefined);
+  const [trialId, setTrialId] = useState<string | undefined>(undefined);
   const [trialDate, setTrialDate] = useState<string | undefined>(undefined);
   const [trialNumber, setTrialNumber] = useState<string | undefined>(undefined);
   const [trialName, setTrialName] = useState<string | undefined>(undefined);
@@ -140,6 +142,7 @@ export function useAtShowScoresheet({
       setClassInfo(null);
       setRules(null);
       setTrialSportType(undefined);
+      setTrialId(undefined);
       setTrialDate(undefined);
       setTrialNumber(undefined);
       setTrialName(undefined);
@@ -204,6 +207,7 @@ export function useAtShowScoresheet({
         if (cancelled) return;
         if (derived) setTrialSportType(derived);
         if (trial) {
+          setTrialId(trial.id);
           setTrialDate(trial.date || trial.trial_date);
           setTrialNumber(trial.trialNumber);
           setTrialName(trial.name);
@@ -333,6 +337,7 @@ export function useAtShowScoresheet({
     classInfo,
     rules,
     trialSportType,
+    trialId,
     trialDate,
     trialNumber,
     trialName,

@@ -22,6 +22,7 @@ import { isOlderThanRow } from './ReplicatedTableRowState';
 import { MAX_CHUNK_SIZE } from '../constants';
 import { withQuotaEviction } from '../quota-eviction';
 import { deleteRowsIfClean, type DeleteRowsIfCleanResult } from './deleteRowsIfClean';
+import type { SyncDeleteAuthority } from './syncDeleteAuthority';
 import {
   repairStuckPendingFlags,
   type RepairStuckPendingFlagsResult,
@@ -65,6 +66,32 @@ export function downloadLeavesRowAsIs<T>(
   if (existingRow.serverVersion !== serverVersion) return false;
   if (existingRow.ownerAuthUserId !== ownerAuthUserId) return false;
   return sameRowData(existingRow.data, data);
+}
+
+/**
+ * Whether a download older than the stored row must be skipped. A row owned by
+ * any account keeps the guard: this account's own row can hold an acknowledged
+ * local write (MYK9-1050), and another account's newer row is the shared-device
+ * case MYK9-1148 protects. Only an OWNERLESS row on an account-owned table that
+ * records no upload of this device's own is overwritten (MYK9-1632): a cache from
+ * before MYK9-1133, which keeping would leave foreign forever after a reseed or
+ * restore. An ownerless row CAN also come from a write made while the account
+ * was unsettled; if its acknowledged UPDATE moved the server version
+ * (`lastOwnUpload`), it keeps the guard. An acknowledged INSERT needs none: a
+ * download read before it does not contain the row. Tables written without an
+ * owner keep the original rule.
+ */
+export function shouldKeepNewerRow<T extends { id: string }>(
+  existingRow: ReplicatedRow<T> | undefined,
+  remoteServerVersion: number | undefined,
+  ownerAuthUserId: string | undefined
+): boolean {
+  if (!existingRow || !isOlderThanRow(existingRow, remoteServerVersion)) return false;
+  return (
+    ownerAuthUserId === undefined ||
+    existingRow.ownerAuthUserId !== undefined ||
+    existingRow.lastOwnUpload !== undefined
+  );
 }
 
 /**
@@ -146,7 +173,7 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
       // carries an older version than the row now holds (MYK9-1050 review):
       // applying it would roll the acknowledged write back. Same transaction
       // as the put, so it is atomic against the ack.
-      if (existingRow && isOlderThanRow(existingRow, serverVersions?.get(normalizedId))) {
+      if (shouldKeepNewerRow(existingRow, serverVersions?.get(normalizedId), ownerAuthUserId)) {
         continue;
       }
 
@@ -279,7 +306,7 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
 
           if (!this.acceptsRemoteRow(normalizedId)) continue;
 
-          if (existingRow && isOlderThanRow(existingRow, serverVersions?.get(normalizedId))) {
+          if (shouldKeepNewerRow(existingRow, serverVersions?.get(normalizedId), ownerAuthUserId)) {
             continue;
           }
 
@@ -364,8 +391,9 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
   /**
    * Batch delete
    */
-  async batchDelete(ids: string[]): Promise<void> {
+  async batchDelete(ids: string[], by?: SyncDeleteAuthority): Promise<void> {
     const db = await this.getDb();
+    if (by?.aborted) return;
     const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
 
     for (const id of ids) {
@@ -386,9 +414,12 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
    */
   async deleteRowsIfClean(
     ids: Iterable<string>,
-    remoteVersions?: ReadonlyMap<string, number>
+    remoteVersions?: ReadonlyMap<string, number>,
+    by?: SyncDeleteAuthority
   ): Promise<DeleteRowsIfCleanResult> {
     const db = await this.getDb();
+    // Nothing deleted: every id is reported kept, the safe answer.
+    if (by?.aborted) return { deleted: [], kept: [...new Set([...ids].map(String))] };
     const result = await deleteRowsIfClean(db, this.tableName, ids, remoteVersions);
     if (result.deleted.length > 0) {
       this.logger.log(`[${this.tableName}] Deleted ${result.deleted.length} clean rows`);
@@ -415,13 +446,16 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
   /**
    * Clear all cached rows for this table
    */
-  async clearCache(): Promise<void> {
+  /** Resolves false, having cleared nothing, when `by` has aborted. */
+  async clearCache(by?: SyncDeleteAuthority): Promise<boolean> {
     const db = await this.getDb();
+    if (by?.aborted) return false;
     const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
     const index = tx.store.index('tableName');
 
     const keys = await index.getAllKeys(this.tableName);
     for (const key of keys) {
+      if (by?.aborted) break;
       await tx.store.delete(key);
     }
 
@@ -429,5 +463,6 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
     this.logger.log(`[${this.tableName}] Cache cleared`);
 
     this.notifyListeners();
+    return true;
   }
 }

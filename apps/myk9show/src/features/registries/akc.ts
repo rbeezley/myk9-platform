@@ -67,6 +67,7 @@ const AKC_ELEMENTS: readonly ElementSpec[] = [
 ];
 
 const akcScentWork: RegistrySport = {
+  displayName: 'Scent Work',
   levels: AKC_LEVELS,
   elements: AKC_ELEMENTS,
   division: {

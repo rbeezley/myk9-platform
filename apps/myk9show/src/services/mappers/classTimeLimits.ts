@@ -1,25 +1,21 @@
 /**
  * Class search time limits: the class editor's "M:SS" strings ↔ the
  * `classes.time_limit_seconds` / `time_limit_area{2,3}_seconds` columns the
- * live scoresheet reads. A limit that is not persisted leaves the scoresheet
+ * live scoresheet reads. Both directions go through the shared @myk9/core
+ * duration rules (MYK9-1503). A limit that is not persisted leaves the scoresheet
  * on its fallback, so a time the secretary enters must reach the column.
  */
 
-/** "05:00" / "5:00" → 300; blank or unparseable → null (clears the limit). */
+import { formatTimeLimitSeconds, parseDuration } from '@myk9/core';
+
+/** "5:00" / "05:00" → 300; blank, unreadable or zero → null (clears the limit). */
 export function parseTimeLimitSeconds(value: string): number | null {
-  const match = /^\s*(\d{1,2}):([0-5]\d)\s*$/.exec(value);
-  if (!match) return null;
-  const seconds = Number(match[1]) * 60 + Number(match[2]);
-  return seconds > 0 ? seconds : null;
+  const result = parseDuration(value, 'max');
+  return result.ok && result.seconds > 0 ? result.seconds : null;
 }
 
-/** 300 → "05:00" (the TimePicker's own format); null/undefined → "". */
-export function formatTimeLimitSeconds(seconds: number | null | undefined): string {
-  if (seconds == null || seconds <= 0) return '';
-  const minutes = Math.floor(seconds / 60);
-  const rest = seconds % 60;
-  return `${String(minutes).padStart(2, '0')}:${String(rest).padStart(2, '0')}`;
-}
+/** 300 → "5:00", the shared time field's own format; null/undefined → "". */
+export { formatTimeLimitSeconds };
 
 /** The editor's touched time-limit fields as a `classes` update (untouched → absent). */
 export function mapTimeLimitUpdates(updates: {

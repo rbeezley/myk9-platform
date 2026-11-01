@@ -151,6 +151,7 @@ export function EntryFocusedRegistration({
         {registration.enrollmentId && (
           <EntryFormNotes
             enrollmentId={registration.enrollmentId}
+            showId={registration.entries[0]?.showId ?? ''}
             focusRequest={noteFocusRequest}
           />
         )}

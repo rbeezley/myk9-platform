@@ -158,7 +158,7 @@ describe('ScheduleBulkBar wiring (MYK9-1352)', () => {
     const [, status] = applyManualClassStatus.mock.calls[0]!;
 
     // The In progress filter hides Container Novice (not started) and drops its tick.
-    await user.click(screen.getByRole('combobox', { name: 'Show: Schedule filters' }));
+    await user.click(screen.getByRole('combobox', { name: 'View: Schedule filters' }));
     await user.click(await screen.findByRole('option', { name: /^In progress/ }));
     expect(screen.queryByRole('checkbox', { name: 'Select Container Novice' })).toBeNull();
 

@@ -19,7 +19,11 @@ export function useEntryFormNotes(enrollmentId: string) {
   });
 }
 
-export function useEntryFormNoteMutations(enrollmentId: string, personId: string | undefined) {
+export function useEntryFormNoteMutations(
+  enrollmentId: string,
+  showId: string,
+  personId: string | undefined
+) {
   const queryClient = useQueryClient();
   const refresh = () => queryClient.invalidateQueries({ queryKey: key(enrollmentId) });
 
@@ -30,7 +34,7 @@ export function useEntryFormNoteMutations(enrollmentId: string, personId: string
     meta,
     mutationFn: async (body: string) => {
       if (!personId) throw new Error('Not signed in');
-      await addEntryFormNote(enrollmentId, body, personId);
+      await addEntryFormNote(enrollmentId, showId, body, personId);
     },
     onSuccess: refresh,
   });

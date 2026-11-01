@@ -7,10 +7,8 @@ import {
   splitMsToCentis,
   formatSecondsAsMSSCC,
   formatMsAsMSSCC,
-  convertTimeToSeconds,
   formatTimeForDisplay,
   formatTimeLimitSeconds,
-  parseTimeToMs,
 } from './timeFormatting';
 
 describe('formatMilliseconds', () => {
@@ -106,40 +104,6 @@ describe('formatSecondsToTime', () => {
   });
 });
 
-describe('convertTimeToSeconds', () => {
-  it('should convert MM:SS.ss format', () => {
-    expect(convertTimeToSeconds('1:23.45')).toBe(83.45);
-  });
-
-  it('should convert SS.ss format', () => {
-    expect(convertTimeToSeconds('45.5')).toBe(45.5);
-  });
-
-  it('should return 0 for empty string', () => {
-    expect(convertTimeToSeconds('')).toBe(0);
-  });
-
-  it('should return 0 for whitespace', () => {
-    expect(convertTimeToSeconds('  ')).toBe(0);
-  });
-
-  it('should handle 0:00 format', () => {
-    expect(convertTimeToSeconds('0:00')).toBe(0);
-  });
-
-  it('should handle whole seconds', () => {
-    expect(convertTimeToSeconds('30')).toBe(30);
-  });
-
-  it('should handle MM:SS without fractional', () => {
-    expect(convertTimeToSeconds('2:30')).toBe(150);
-  });
-
-  it('should return 0 for invalid format with multiple colons', () => {
-    expect(convertTimeToSeconds('1:2:3')).toBe(0);
-  });
-});
-
 describe('formatTimeForDisplay', () => {
   it('should return 00:00.00 for null', () => {
     expect(formatTimeForDisplay(null)).toBe('00:00.00');
@@ -193,28 +157,6 @@ describe('formatTimeLimitSeconds', () => {
 
   it('should format 180 seconds as 3:00', () => {
     expect(formatTimeLimitSeconds(180)).toBe('3:00');
-  });
-});
-
-describe('parseTimeToMs', () => {
-  it('should parse 3:00 to 180000ms', () => {
-    expect(parseTimeToMs('3:00')).toBe(180000);
-  });
-
-  it('should parse 1:30 to 90000ms', () => {
-    expect(parseTimeToMs('1:30')).toBe(90000);
-  });
-
-  it('should return 0 for empty string', () => {
-    expect(parseTimeToMs('')).toBe(0);
-  });
-
-  it('should handle single digit minutes', () => {
-    expect(parseTimeToMs('0:30')).toBe(30000);
-  });
-
-  it('should handle fractional seconds', () => {
-    expect(parseTimeToMs('1:30.5')).toBe(90500);
   });
 });
 

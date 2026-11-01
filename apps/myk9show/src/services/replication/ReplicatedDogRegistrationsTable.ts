@@ -25,6 +25,8 @@ import {
   type RowRefetchAdapter,
   type SyncReplicatedTableAdapter,
   type SyncResult,
+  type SyncOptions,
+  SyncCacheWriter,
 } from '@myk9/replication';
 import { logger } from '@myk9/core';
 import { countRemoteRegistrations } from './registrationsRemoteCount';
@@ -154,7 +156,7 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
    * Changes pass, then (only after a successful one) the ID pass. No scope:
    * RLS decides which registrations this account sees, the dogs parity rule.
    */
-  async sync(): Promise<SyncResult> {
+  async sync(_syncScopeId?: string, options?: Partial<SyncOptions>): Promise<SyncResult> {
     logger.log(`[${this.getTableName()}] Starting sync`);
     const fence = this.deletionFence.open();
     const downloaded = new Set<string>();
@@ -176,7 +178,10 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
         this,
         adapter,
         {},
-        { incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS }
+        {
+          incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS,
+          ...(options?.signal ? { signal: options.signal } : {}),
+        }
       );
 
       if (!result.success && result.error && !isAbortSyncError(result.error)) {
@@ -184,13 +189,14 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
         return { ...result, error: getSyncErrorMessage(result.error) };
       }
       if (!result.success) return result;
+      const cache = new SyncCacheWriter(this, options?.signal);
       await this.markServerBacked(downloaded);
 
       // Side effect only: a failure here never turns a good download into a
       // failed sync.
       try {
         if (shouldRunIdScan(idScanKey(this.getTableName()), { result })) {
-          const idPass = await this.reconcileWithServerIds(fence);
+          const idPass = await this.reconcileWithServerIds(fence, cache);
           if (idPass && idPass.removed + idPass.fetched > 0) {
             logger.log(`[${this.getTableName()}] ID pass`, idPass);
           }
@@ -201,7 +207,7 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
       // After the downloads are stored, so a twin the changes pass or the
       // hydration just brought is seen.
       try {
-        await this.removeResolvedPlaceholders();
+        await this.removeResolvedPlaceholders(cache);
       } catch (err) {
         logger.warn(`[${this.getTableName()}] Placeholder cleanup skipped`, err);
       }
@@ -212,8 +218,12 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
   }
 
   /** Remove placeholders whose server twin is here, or whose dog is gone (by content). */
-  async removeResolvedPlaceholders(): Promise<number> {
-    const deleted = await removeResolvedPlaceholders(await this.init(), this.getTableName());
+  async removeResolvedPlaceholders(
+    cache?: SyncCacheWriter<ReplicatedDogRegistration>
+  ): Promise<number> {
+    const db = await this.init();
+    const run = () => removeResolvedPlaceholders(db, this.getTableName());
+    const deleted = cache ? await cache.guarded<string[]>([], run) : await run();
     if (deleted.length > 0) await this.notifyListeners();
     return deleted.length;
   }
@@ -226,30 +236,34 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
    * nothing is fetched or removed then. A fetched row this device confirmed
    * deleted since the pass began is not stored (`RegistrationDeletionFence`).
    */
-  async reconcileWithServerIds(fence?: number): Promise<RegistrationIdPassResult | null> {
+  async reconcileWithServerIds(
+    fence?: number,
+    cache: SyncCacheWriter<ReplicatedDogRegistration> = new SyncCacheWriter(this)
+  ): Promise<RegistrationIdPassResult | null> {
+    const { signal } = cache;
     const token = fence ?? this.deletionFence.open();
     const startedEpoch = idScanEpoch();
     try {
       const db = await this.init();
       const snapshot = await snapshotRegistrationRevisions(db, this.getTableName());
-      const serverIds = await fetchVisibleRegistrationIds();
+      const serverIds = await fetchVisibleRegistrationIds(signal);
       if (!serverIds) {
         logger.warn(`[${this.getTableName()}] ID pass read was incomplete; nothing removed`);
         return null;
       }
 
-      const { deleted, kept } = await pruneRegistrationsMissingFromServer(
-        db,
-        this.getTableName(),
-        serverIds,
-        snapshot
+      const { deleted, kept } = await cache.guarded({ deleted: [] as string[], kept: [] }, () =>
+        pruneRegistrationsMissingFromServer(db, this.getTableName(), serverIds, snapshot)
       );
       if (deleted.length > 0) await this.notifyListeners();
+      // A refused prune is not a completed pass: never stamp it, never go on.
+      if (cache.aborted) return null;
       await this.markServerBacked(serverIds);
 
       const localIds = await this.getAllLocalIds();
       const missing = [...serverIds].filter(id => !localIds.has(id));
-      const fetchedRows = missing.length > 0 ? await fetchRegistrationsWhere('id', missing) : [];
+      const fetchedRows =
+        missing.length > 0 ? await fetchRegistrationsWhere('id', missing, signal) : [];
       const fetched = await this.applyServerRows(fetchedRows);
       // Rows kept for "the next pass" (queued, dirty, written mid-pass) leave the
       // debt owed, so the next pass scans again instead of waiting an hour.

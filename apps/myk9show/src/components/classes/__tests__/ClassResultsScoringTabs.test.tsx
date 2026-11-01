@@ -176,16 +176,16 @@ describe('ClassResultsTable scoring tabs', () => {
   const rawUnscoredB = makeRawEntry('entry-2', false);
   const allRawEntries = [rawUnscoredA, rawUnscoredB, rawScoredA, rawScoredB];
 
-  // The result views are the shared list toolkit's labelled "Show:" select
+  // The result views are the shared list toolkit's labelled "View:" select
   // (MYK9-906) with the counts inside the option text.
   async function pickView(name: string) {
-    await userEvent.click(screen.getByRole('combobox', { name: 'Show: Result views' }));
+    await userEvent.click(screen.getByRole('combobox', { name: 'View: Result views' }));
     await userEvent.click(await screen.findByRole('option', { name: new RegExp(`^${name}`) }));
   }
 
   it('renders Pending, Completed, and All views', async () => {
     renderTable(allEntries, allRawEntries);
-    await userEvent.click(screen.getByRole('combobox', { name: 'Show: Result views' }));
+    await userEvent.click(screen.getByRole('combobox', { name: 'View: Result views' }));
     expect(await screen.findByRole('option', { name: /^Pending/ })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: /^Completed/ })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: /^All/ })).toBeInTheDocument();
@@ -193,7 +193,7 @@ describe('ClassResultsTable scoring tabs', () => {
 
   it('defaults to the Pending view', () => {
     renderTable(allEntries, allRawEntries);
-    expect(screen.getByRole('combobox', { name: 'Show: Result views' })).toHaveTextContent(
+    expect(screen.getByRole('combobox', { name: 'View: Result views' })).toHaveTextContent(
       /^Pending/
     );
   });
@@ -201,7 +201,7 @@ describe('ClassResultsTable scoring tabs', () => {
   it('shows counts inside the Pending and Completed options', async () => {
     renderTable(allEntries, allRawEntries);
     // Pending: 2 unscored entries, Completed: 2 scored entries
-    await userEvent.click(screen.getByRole('combobox', { name: 'Show: Result views' }));
+    await userEvent.click(screen.getByRole('combobox', { name: 'View: Result views' }));
     expect(await screen.findByRole('option', { name: 'Pending (2)' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'Completed (2)' })).toBeInTheDocument();
   });
@@ -254,7 +254,7 @@ describe('ClassResultsTable scoring tabs', () => {
   it('handles empty entries list', async () => {
     renderTable([]);
     // The view select should still render
-    await userEvent.click(screen.getByRole('combobox', { name: 'Show: Result views' }));
+    await userEvent.click(screen.getByRole('combobox', { name: 'View: Result views' }));
     expect(await screen.findByRole('option', { name: /^Pending/ })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: /^Completed/ })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: /^All/ })).toBeInTheDocument();

@@ -82,6 +82,17 @@ describe('BreedEntryCounts', () => {
     expect(screen.getByText(/Scent Work Breed Counts/i)).toBeInTheDocument();
   });
 
+  it('names the sport the registry uses', () => {
+    const { unmount } = render(<BreedEntryCounts {...baseProps} />);
+    expect(screen.getByText('AKC Scent Work Breed Counts')).toBeInTheDocument();
+    unmount();
+    const ukc = render(<BreedEntryCounts {...baseProps} organization="UKC" />);
+    expect(screen.getByText('UKC Nosework Breed Counts')).toBeInTheDocument();
+    ukc.unmount();
+    render(<BreedEntryCounts {...baseProps} organization="ASCA" />);
+    expect(screen.getByText('ASCA Scent Detection Breed Counts')).toBeInTheDocument();
+  });
+
   it('lists each breed row', () => {
     render(<BreedEntryCounts {...baseProps} />);
     expect(screen.getByText('Labrador Retriever')).toBeInTheDocument();

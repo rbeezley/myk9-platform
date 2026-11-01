@@ -352,7 +352,12 @@ describe('AtShowEntryListPage (Phase 1a shim)', () => {
     renderPage();
 
     try {
-      await waitFor(() => expect(replicatedTrialsTable.sync).toHaveBeenCalledWith('show-1'));
+      await waitFor(() =>
+        expect(replicatedTrialsTable.sync).toHaveBeenCalledWith(
+          'show-1',
+          expect.objectContaining({ signal: expect.any(AbortSignal) })
+        )
+      );
       expect(await screen.findByRole('status', { name: 'Loading entries' })).toBeInTheDocument();
       expect(screen.queryByText('No Entries Yet')).not.toBeInTheDocument();
     } finally {
@@ -467,7 +472,10 @@ describe('AtShowEntryListPage (Phase 1a shim)', () => {
     });
 
     expect(await screen.findByText('Rex')).toBeInTheDocument();
-    expect(replicatedEntriesTable.sync).toHaveBeenCalledWith('show-1');
+    expect(replicatedEntriesTable.sync).toHaveBeenCalledWith(
+      'show-1',
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
   });
 
   it('shows the loading skeleton, not No Entries Yet, while the first show hydration runs', async () => {
@@ -483,7 +491,12 @@ describe('AtShowEntryListPage (Phase 1a shim)', () => {
     renderPage();
 
     try {
-      await waitFor(() => expect(replicatedEntriesTable.sync).toHaveBeenCalledWith('show-1'));
+      await waitFor(() =>
+        expect(replicatedEntriesTable.sync).toHaveBeenCalledWith(
+          'show-1',
+          expect.objectContaining({ signal: expect.any(AbortSignal) })
+        )
+      );
       expect(screen.getByRole('status', { name: 'Loading entries' })).toBeInTheDocument();
       expect(screen.queryByText('No Entries Yet')).not.toBeInTheDocument();
     } finally {
@@ -497,12 +510,27 @@ describe('AtShowEntryListPage (Phase 1a shim)', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(replicatedTrialsTable.sync).toHaveBeenCalledWith('show-1');
-      expect(replicatedClassesTable.sync).toHaveBeenCalledWith('trial-1');
-      expect(replicatedClassesTable.sync).toHaveBeenCalledWith('trial-2');
-      expect(replicatedClassesTable.sync).not.toHaveBeenCalledWith('');
-      expect(replicatedEntriesTable.sync).toHaveBeenCalledWith('show-1');
-      expect(replicatedArmbandsTable.sync).toHaveBeenCalledWith('');
+      expect(replicatedTrialsTable.sync).toHaveBeenCalledWith(
+        'show-1',
+        expect.objectContaining({ signal: expect.any(AbortSignal) })
+      );
+      expect(replicatedClassesTable.sync).toHaveBeenCalledWith(
+        'trial-1',
+        expect.objectContaining({ signal: expect.any(AbortSignal) })
+      );
+      expect(replicatedClassesTable.sync).toHaveBeenCalledWith(
+        'trial-2',
+        expect.objectContaining({ signal: expect.any(AbortSignal) })
+      );
+      expect(replicatedClassesTable.sync).not.toHaveBeenCalledWith('', expect.anything());
+      expect(replicatedEntriesTable.sync).toHaveBeenCalledWith(
+        'show-1',
+        expect.objectContaining({ signal: expect.any(AbortSignal) })
+      );
+      expect(replicatedArmbandsTable.sync).toHaveBeenCalledWith(
+        '',
+        expect.objectContaining({ signal: expect.any(AbortSignal) })
+      );
     });
   });
 
@@ -514,7 +542,10 @@ describe('AtShowEntryListPage (Phase 1a shim)', () => {
     await Promise.all([first, second]);
 
     expect(replicatedEntriesTable.sync).toHaveBeenCalledTimes(1);
-    expect(replicatedEntriesTable.sync).toHaveBeenCalledWith('show-1');
+    expect(replicatedEntriesTable.sync).toHaveBeenCalledWith(
+      'show-1',
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
   });
 
   it('keeps cached classes available when show-scoped trial hydration is empty', async () => {
@@ -523,9 +554,15 @@ describe('AtShowEntryListPage (Phase 1a shim)', () => {
 
     await dependencies.forceSyncEntriesAndClasses('empty-show');
 
-    expect(replicatedTrialsTable.sync).toHaveBeenCalledWith('empty-show');
+    expect(replicatedTrialsTable.sync).toHaveBeenCalledWith(
+      'empty-show',
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
     expect(replicatedClassesTable.sync).not.toHaveBeenCalled();
-    expect(replicatedEntriesTable.sync).toHaveBeenCalledWith('empty-show');
+    expect(replicatedEntriesTable.sync).toHaveBeenCalledWith(
+      'empty-show',
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
   });
 
   it('syncs entries and their armband assignments for a scoped entry signal', async () => {
@@ -549,18 +586,36 @@ describe('AtShowEntryListPage (Phase 1a shim)', () => {
   it('falls back to complete show sync for an unscoped signal', async () => {
     await syncAtShowChangeSignals('show-1', [{ table: 'entries' }]);
 
-    expect(replicatedTrialsTable.sync).toHaveBeenCalledWith('show-1');
-    expect(replicatedClassesTable.sync).toHaveBeenCalledWith('trial-1');
-    expect(replicatedClassesTable.sync).toHaveBeenCalledWith('trial-2');
-    expect(replicatedEntriesTable.sync).toHaveBeenCalledWith('show-1');
+    expect(replicatedTrialsTable.sync).toHaveBeenCalledWith(
+      'show-1',
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
+    expect(replicatedClassesTable.sync).toHaveBeenCalledWith(
+      'trial-1',
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
+    expect(replicatedClassesTable.sync).toHaveBeenCalledWith(
+      'trial-2',
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
+    expect(replicatedEntriesTable.sync).toHaveBeenCalledWith(
+      'show-1',
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
   });
 
   it('resets a moved or deleted class locally before complete reconciliation', async () => {
     await syncAtShowChangeSignals('show-1', [{ table: 'classes', id: 'class-1' }]);
 
     expect(replicatedClassesTable.batchDelete).toHaveBeenCalledWith(['class-1']);
-    expect(replicatedTrialsTable.sync).toHaveBeenCalledWith('show-1');
-    expect(replicatedEntriesTable.sync).toHaveBeenCalledWith('show-1');
+    expect(replicatedTrialsTable.sync).toHaveBeenCalledWith(
+      'show-1',
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
+    expect(replicatedEntriesTable.sync).toHaveBeenCalledWith(
+      'show-1',
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
   });
 
   it('falls back to complete show sync when a signaled class is not local yet', async () => {
@@ -568,8 +623,14 @@ describe('AtShowEntryListPage (Phase 1a shim)', () => {
 
     await syncAtShowChangeSignals('show-1', [{ table: 'classes', classIds: ['new-class'] }]);
 
-    expect(replicatedTrialsTable.sync).toHaveBeenCalledWith('show-1');
-    expect(replicatedEntriesTable.sync).toHaveBeenCalledWith('show-1');
+    expect(replicatedTrialsTable.sync).toHaveBeenCalledWith(
+      'show-1',
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
+    expect(replicatedEntriesTable.sync).toHaveBeenCalledWith(
+      'show-1',
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
   });
 
   it('does not write in-ring status when a pending card is tapped for viewing', async () => {

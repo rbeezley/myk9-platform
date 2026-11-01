@@ -1,4 +1,5 @@
 import React from 'react';
+import { getRegistrySportName } from '@/features/registries';
 import { formatTrialLabel } from '@myk9/core';
 import type { ReportProps } from '@/lib/reports/types';
 import { formatReportDate } from '@/lib/reports/reportUtils';
@@ -27,7 +28,9 @@ export const JudgesSchedule: React.FC<ReportProps> = ({
     }
   }
 
-  const orgTitle = organization ? `${organization} Scent Work` : 'Scent Work';
+  const orgTitle = organization
+    ? `${organization} ${getRegistrySportName(organization)}`
+    : getRegistrySportName(organization);
 
   function sortClasses(classes: typeof allClasses): typeof allClasses {
     if (sortOrder === 'judge-name') {

@@ -77,3 +77,8 @@ export function getCoveredRemoteIds<TRemote, TLocal extends { id: string }>(
       .map(row => String(adapter.getRemoteId(row)))
   );
 }
+
+/** Rows the server already holds: everything but pending local creates. */
+export function countServerBackedRows(rows: readonly object[]): number {
+  return rows.filter(row => (row as { _localOnly?: unknown })._localOnly !== true).length;
+}

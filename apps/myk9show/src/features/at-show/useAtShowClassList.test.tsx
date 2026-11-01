@@ -216,7 +216,12 @@ describe('useAtShowClassList entry refresh', () => {
     const client = makeClient();
     renderHook(() => useAtShowClassList('show-1'), { wrapper: wrapper(client) });
 
-    await waitFor(() => expect(replicatedEntriesTable.sync).toHaveBeenCalledWith('show-1'));
+    await waitFor(() =>
+      expect(replicatedEntriesTable.sync).toHaveBeenCalledWith(
+        'show-1',
+        expect.objectContaining({ signal: expect.any(AbortSignal) })
+      )
+    );
   });
 
   it('reports entry counts as unknown until this show scope has synced', async () => {

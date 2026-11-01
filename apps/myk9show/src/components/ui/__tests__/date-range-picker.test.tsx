@@ -268,4 +268,25 @@ describe('DateRangePicker', () => {
     expect(onStartDateChange).toHaveBeenCalledWith(new Date(2026, 4, 11, 9, 30, 0, 0));
     expect(onEndDateChange).not.toHaveBeenCalled();
   });
+
+  it('keeps an unresolved typed time when the date changes (MYK9-1571)', async () => {
+    const user = userEvent.setup();
+    const props = {
+      id: 'dates',
+      endDate: new Date(2026, 4, 13, 17, 0),
+      onStartDateChange,
+      onEndDateChange,
+    };
+    const { rerender } = render(
+      <DateRangePicker {...props} startDate={new Date(2026, 4, 11, 8, 0)} />
+    );
+    await user.click(screen.getByRole('button', { name: /may 11, 2026/i }));
+    const startField = screen.getByLabelText('Start time');
+    await user.clear(startField);
+    await user.type(startField, '9:');
+
+    rerender(<DateRangePicker {...props} startDate={new Date(2026, 4, 12, 8, 0)} />);
+
+    expect(screen.getByLabelText('Start time')).toHaveValue('9:');
+  });
 });

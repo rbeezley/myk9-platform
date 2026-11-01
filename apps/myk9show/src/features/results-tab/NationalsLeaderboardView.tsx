@@ -14,11 +14,29 @@ import {
 } from '@/components/ui/table';
 import type { SecretaryEntry } from '@/services/database/entries';
 import type { ResultsClassRow } from './buildResultsClassRows';
-import { buildNationalsLeaderboard, NATIONALS_DAYS } from './nationalsLeaderboard';
+import {
+  buildNationalsLeaderboard,
+  NATIONALS_DAYS,
+  totalTimeLabel,
+  type NationalsLeaderboardRow,
+} from './nationalsLeaderboard';
 import { ResultsRefreshFailedAlert } from './ResultsRefreshFailedAlert';
 import { getNationalsLeaderboardHref, getResultsListHref } from './resultsTabRoutes';
 
 const DASH = '–';
+
+/** Total of the recorded times, with visible text for any run that has none (MYK9-1573). */
+function LeaderboardTotalTime({ row }: { row: NationalsLeaderboardRow }) {
+  const { timeSeconds, untimedNote } = totalTimeLabel(row);
+  return (
+    <>
+      {timeSeconds === null ? 'No time recorded' : formatSecondsAsMSSCC(timeSeconds)}
+      {untimedNote && timeSeconds !== null && (
+        <span className="block text-xs text-muted-foreground">{untimedNote}</span>
+      )}
+    </>
+  );
+}
 
 /** The way into the leaderboard from the class list; rendered only for a nationals show. */
 export function NationalsLeaderboardLink({
@@ -113,7 +131,7 @@ export function NationalsLeaderboardView({
                   <TableCell>{row.handlerName || DASH}</TableCell>
                   <TableCell className="text-right tabular-nums">{row.totalPoints}</TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {formatSecondsAsMSSCC(row.totalTimeSeconds)}
+                    <LeaderboardTotalTime row={row} />
                   </TableCell>
                   {NATIONALS_DAYS.map(day => (
                     <TableCell key={day} className="text-right tabular-nums">

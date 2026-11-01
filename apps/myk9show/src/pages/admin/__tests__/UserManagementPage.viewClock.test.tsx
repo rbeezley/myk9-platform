@@ -122,7 +122,7 @@ describe('UserManagementPage — one shared clock for view counts and filtering'
     // clock at mount, so hand real timers over for the pick and take fake ones back.
     vi.useRealTimers();
     const user = userEvent.setup();
-    await user.click(screen.getByRole('combobox', { name: 'Show: User views' }));
+    await user.click(screen.getByRole('combobox', { name: 'View: User views' }));
     await user.click(
       within(await screen.findByRole('listbox')).getByRole('option', {
         name: /Signed in, last 30 days/,
@@ -156,7 +156,7 @@ describe('UserManagementPage — one shared clock for view counts and filtering'
       );
     });
 
-    const viewSelect = screen.getByRole('combobox', { name: 'Show: User views' });
+    const viewSelect = screen.getByRole('combobox', { name: 'View: User views' });
     const badgeCount = Number(viewSelect.textContent?.match(/\((\d+)\)\s*$/)?.[1]);
 
     const status = screen.getByRole('status');

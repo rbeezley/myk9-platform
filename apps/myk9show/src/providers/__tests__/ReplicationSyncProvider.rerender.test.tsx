@@ -241,7 +241,7 @@ describe('ReplicationSyncProvider: context split (MYK9-1367)', () => {
     });
 
     // The pass really ran and moved the status (syncing -> success)...
-    expect(syncSpies.entries.mock.calls).toEqual([['show-9']]);
+    expect(syncSpies.entries.mock.calls.map(call => call[0])).toEqual(['show-9']);
     expect(latestStatus!.tablesStatus.entries).toBe('success');
     expect(renders.status).toBeGreaterThan(statusRendersBefore);
     // ...without re-rendering the consumer that reads no status.

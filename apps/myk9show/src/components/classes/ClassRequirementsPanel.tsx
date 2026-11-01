@@ -3,6 +3,7 @@ import { Clock, Target, AlertTriangle, MapPin, Eye, Layers, Timer } from 'lucide
 import { SlideOverPanel } from '@/components/panels/SlideOverPanel';
 import { Badge } from '@/components/ui/badge';
 import { useClassRequirements, type ClassRequirements } from '@/hooks/queries/useClassRequirements';
+import { getRegistrySportName } from '@/features/registries';
 import { cn } from '@/lib/utils';
 
 interface ClassRequirementsPanelProps {
@@ -209,7 +210,7 @@ export const ClassRequirementsPanel: React.FC<ClassRequirementsPanelProps> = ({
 
   const footer = organization ? (
     <span className="text-xs text-muted-foreground">
-      Source: {organization} Scent Work Regulations
+      Source: {organization} {getRegistrySportName(organization)} Regulations
     </span>
   ) : undefined;
 

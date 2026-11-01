@@ -428,6 +428,7 @@ describe('syncReplicatedTable', () => {
       serverIds: new Set(['1']),
       localRows: [expect.objectContaining({ id: '1' })],
       staleCleanupCompleted: false,
+      cache: expect.objectContaining({ aborted: false }),
     });
   });
 

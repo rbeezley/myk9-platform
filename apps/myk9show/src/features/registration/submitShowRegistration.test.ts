@@ -194,17 +194,13 @@ describe('submitShowRegistration', () => {
           payment: { method: 'check', receivedOn: '2026-07-07', reference: 'receipt-100' },
         })
       );
-      // The follow-up enrollment write carries only the payment details: no
-      // method, no total, so the RPC's total and paid_amount are not added to twice.
+      // MYK9-1634: the follow-up enrollment write carries only the payment
+      // details; the total, status and paid amount are the database's.
       expect(params.deps.createShowRegistration).toHaveBeenNthCalledWith(
         2,
         'show-1',
         'owner-1',
-        'receipt-100',
-        expect.objectContaining({ paymentReference: 'receipt-100', paymentDate: '2026-07-07' }),
-        undefined,
-        undefined,
-        { selfService: false }
+        expect.objectContaining({ paymentReference: 'receipt-100', paymentDate: '2026-07-07' })
       );
     });
 
@@ -281,6 +277,31 @@ describe('submitShowRegistration', () => {
     expect(params.deps.createShowRegistration).toHaveBeenCalledWith('show-1', 'owner-1');
   });
 
+  // MYK9-1634: the RPC sets the form's total and status in the same transaction as
+  // the entries, so with no payment details there is nothing left to write.
+  it('makes no second enrollment write when there are no payment details', async () => {
+    const params = makeParams({ paymentMethod: 'check', paymentDetails: undefined });
+
+    await submitShowRegistration(params);
+
+    expect(params.deps.submitShowEntries).toHaveBeenCalledTimes(1);
+    expect(params.deps.createShowRegistration).toHaveBeenCalledTimes(1);
+    expect(params.deps.createShowRegistration).toHaveBeenCalledWith('show-1', 'owner-1');
+  });
+
+  it("makes no second enrollment write for an exhibitor's own submit", async () => {
+    const params = makeParams({
+      submissionSource: 'self_service',
+      paymentMethod: 'check',
+      paymentDetails: { checkNumber: '1001' },
+    });
+
+    await submitShowRegistration(params);
+
+    expect(params.deps.submitShowEntries).toHaveBeenCalledTimes(1);
+    expect(params.deps.createShowRegistration).toHaveBeenCalledTimes(1);
+  });
+
   // MYK9-1518: the ordinary path surfaces no entryOutcomes (the receipt reads that as
   // "nothing unusual"), so the created entries travel in their own field for the
   // Receipt step's entry-blank downloads.
@@ -352,16 +373,10 @@ describe('submitShowRegistration', () => {
 
     const result = await submitShowRegistration(params);
 
-    expect(params.deps.createShowRegistration).toHaveBeenNthCalledWith(
-      2,
-      'show-1',
-      'owner-1',
-      'check-1',
-      { paymentReference: 'check-1', receivedMethod: 'check' },
-      undefined,
-      undefined,
-      { selfService: false }
-    );
+    expect(params.deps.createShowRegistration).toHaveBeenNthCalledWith(2, 'show-1', 'owner-1', {
+      paymentReference: 'check-1',
+      receivedMethod: 'check',
+    });
     expect(params.deps.claimNextArmband).toHaveBeenCalledTimes(1);
     expect(params.deps.claimNextArmband).toHaveBeenCalledWith('show-1', 'dog-1', {
       entryIds: ['entry-1'],

@@ -1,5 +1,5 @@
 /**
- * Built-in views with live counts, as a labelled "Show:" select — the list
+ * Built-in views with live counts, as a labelled "View:" select — the list
  * toolkit's replacement for stat cards. The count in each option IS the stat,
  * and picking one applies the view (MYK9-906: a row of underlined tabs read as
  * page navigation to a novice).
@@ -75,11 +75,11 @@ export function ListViewTabs({
         className={cn('shrink-0 text-sm font-medium text-foreground', compact && 'hidden')}
         aria-hidden="true"
       >
-        Show:
+        View:
       </span>
       <Select value={activeId ?? CUSTOM_ID} onValueChange={handleChange}>
         <SelectTrigger
-          aria-label={`Show: ${label}`}
+          aria-label={`View: ${label}`}
           className={cn(
             'w-auto min-w-0 max-w-[calc(100vw-5rem)] flex-1',
             compact ? 'sm:w-36 sm:flex-none' : 'sm:min-w-[12rem] sm:flex-none'

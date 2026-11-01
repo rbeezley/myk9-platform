@@ -156,4 +156,11 @@ describe('ShowEntryCounts', () => {
     const footer = document.querySelector('.stats-footer')!;
     expect(footer).toHaveTextContent('Dogs: 4');
   });
+
+  it("titles a UKC show with UKC's own sport name", () => {
+    render(<ShowEntryCounts {...baseProps} organization="UKC" />);
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+      'UKC Nosework Entry Counts'
+    );
+  });
 });

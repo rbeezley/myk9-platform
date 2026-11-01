@@ -16,7 +16,12 @@ vi.mock('@/services/replication/ReplicatedShowsTable', () => ({
   replicatedShowsTable: { get: getShow },
 }));
 
-import { resolveSportTypeForClass, scoresheetKeyForClass } from './types';
+import {
+  MISSING_TRIAL_TYPE_SPORT_TYPE,
+  UNRESOLVED_SPORT_TYPE,
+  resolveSportTypeForClass,
+  scoresheetKeyForClass,
+} from './types';
 
 describe('scoresheetKeyForClass (MYK9-1098)', () => {
   beforeEach(() => {
@@ -72,13 +77,43 @@ describe('stored trial_type forms (MYK9-1543)', () => {
   });
 
   it.each([
-    ['ASCA', 'mystery_sport'],
-    ['ASCA', null],
-    ['UKC', null],
-  ])('%s with trial type %s never resolves to the AKC sheet', async (organization, trialType) => {
-    getTrialById.mockResolvedValue({ id: 't1', showId: 's1', trialType });
-    getShow.mockResolvedValue({ id: 's1', organization });
-    expect(await resolveSportTypeForClass('t1')).toBe('unresolved');
-    expect(await scoresheetKeyForClass('t1', 'Interior Excellent A')).toBeNull();
+    ['ASCA', 'mystery_sport', 'unresolved'],
+    // MYK9-1574: a missing type is told apart so the page can name it.
+    ['ASCA', null, 'unresolved-missing-trial-type'],
+    ['UKC', null, 'unresolved-missing-trial-type'],
+  ])(
+    '%s with trial type %s never resolves to the AKC sheet',
+    async (organization, trialType, sport) => {
+      getTrialById.mockResolvedValue({ id: 't1', showId: 's1', trialType });
+      getShow.mockResolvedValue({ id: 's1', organization });
+      expect(await resolveSportTypeForClass('t1')).toBe(sport);
+      expect(await scoresheetKeyForClass('t1', 'Interior Excellent A')).toBeNull();
+    }
+  );
+});
+
+describe('trials with no trial type (MYK9-1574)', () => {
+  beforeEach(() => {
+    getTrialById.mockReset();
+    getShow.mockReset();
+  });
+
+  it.each(['UKC', 'ASCA'])('%s with a null trial type says the type is missing', async org => {
+    getTrialById.mockResolvedValue({ id: 't1', showId: 's1', trialType: null });
+    getShow.mockResolvedValue({ id: 's1', organization: org });
+    expect(await resolveSportTypeForClass('t1')).toBe(MISSING_TRIAL_TYPE_SPORT_TYPE);
+    expect(await scoresheetKeyForClass('t1', 'Interior')).toBeNull();
+  });
+
+  it('a UKC trial type with no sheet stays the generic unresolved result', async () => {
+    getTrialById.mockResolvedValue({ id: 't1', showId: 's1', trialType: 'Agility' });
+    getShow.mockResolvedValue({ id: 's1', organization: 'UKC' });
+    expect(await resolveSportTypeForClass('t1')).toBe(UNRESOLVED_SPORT_TYPE);
+  });
+
+  it('AKC with a null trial type keeps the class-name fallback', async () => {
+    getTrialById.mockResolvedValue({ id: 't1', showId: 's1', trialType: null });
+    getShow.mockResolvedValue({ id: 's1', organization: 'AKC' });
+    expect(await resolveSportTypeForClass('t1')).toBeNull();
   });
 });

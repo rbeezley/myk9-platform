@@ -1,4 +1,5 @@
 import React from 'react';
+import { getRegistrySportName } from '@/features/registries';
 import type { ReportProps } from '@/lib/reports/types';
 
 type ClassGroup = { level: string; section: string; count: number };
@@ -24,7 +25,9 @@ export const ShowEntryCounts: React.FC<ReportProps> = ({
 
   const uniquePeople = new Set(entries.map(e => e.handler)).size;
   const uniqueDogs = new Set(entries.map(e => e.registrationNumber ?? e.callName)).size;
-  const orgTitle = organization ? `${organization} Scent Work` : 'Scent Work';
+  const orgTitle = organization
+    ? `${organization} ${getRegistrySportName(organization)}`
+    : getRegistrySportName(organization);
 
   return (
     <div className="report-page">

@@ -16,6 +16,8 @@ import {
   type RowRefetchAdapter,
   type SyncReplicatedTableAdapter,
   type SyncResult,
+  type SyncOptions,
+  SyncCacheWriter,
 } from '@myk9/replication';
 import { logger } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
@@ -239,7 +241,7 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
     };
   }
 
-  async sync(syncScopeId: string): Promise<SyncResult> {
+  async sync(syncScopeId: string, options?: Partial<SyncOptions>): Promise<SyncResult> {
     logger.log(`[${this.getTableName()}] Starting sync`);
 
     const adapter: SyncReplicatedTableAdapter<DogRow, ReplicatedDog> = {
@@ -258,6 +260,7 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
       { value: syncScopeId },
       {
         incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS,
+        ...(options?.signal ? { signal: options.signal } : {}),
       }
     );
 
@@ -278,7 +281,10 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
       shouldRunIdScan(idScanKey(this.getTableName(), syncScopeId), { result })
     ) {
       try {
-        const removed = await this.reconcileDeleted(syncScopeId || undefined);
+        const removed = await this.reconcileDeleted(
+          syncScopeId || undefined,
+          new SyncCacheWriter(this, options?.signal)
+        );
         if (removed > 0) {
           logger.log(`[${this.getTableName()}] reconcileDeleted removed ${removed} stale rows`);
         }
@@ -315,7 +321,11 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
    * @param scopeValue Optional owner_id scope, mirroring the sync fetch filter.
    * @returns number of stale rows removed.
    */
-  async reconcileDeleted(scopeValue?: string): Promise<number> {
+  async reconcileDeleted(
+    scopeValue?: string,
+    cache: SyncCacheWriter<ReplicatedDog> = new SyncCacheWriter(this)
+  ): Promise<number> {
+    const { signal } = cache;
     const PAGE_SIZE = 1000;
     const startedEpoch = idScanEpoch();
     // Bound the loop so a server that keeps returning full pages can't spin forever.
@@ -324,7 +334,9 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
     let lastId: string | undefined;
 
     for (let page = 0; page < MAX_PAGES; page++) {
-      let query = supabase.from('dogs').select('id').is('deleted_at', null);
+      let query = supabase.from('dogs').select('id');
+      if (signal) query = query.abortSignal(signal);
+      query = query.is('deleted_at', null);
       if (scopeValue) {
         query = query.eq('owner_id', scopeValue);
       }
@@ -347,8 +359,11 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
         // Short page → we have the complete live id set; safe to reconcile.
         // A dirty dog the server deleted stays until its write settles; the next
         // due scan (within the hour) prunes it, so the completed read is stamped.
-        const removed = await this.removeStaleEntries(liveIds);
-        markIdScanCompleted(idScanKey(this.getTableName(), scopeValue), startedEpoch);
+        const removed = await cache.removeStale(liveIds);
+        // A refused (cancelled) prune is not a completed scan.
+        if (!cache.aborted) {
+          markIdScanCompleted(idScanKey(this.getTableName(), scopeValue), startedEpoch);
+        }
         return removed;
       }
 

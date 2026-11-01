@@ -137,7 +137,7 @@ test.describe('Phase 1 UAT - Secretary critical path', () => {
     // late entry and the entry lists are rows of the header Actions menu.
     await expect(page.getByRole('button', { name: 'Add Entry', exact: true })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'More', exact: true })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: /^Show:/ })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /^View:/ })).toHaveCount(0);
     await expect(
       page.getByRole('textbox', {
         name: 'Search exhibitor, dog, handler, armband, confirmation, class…',

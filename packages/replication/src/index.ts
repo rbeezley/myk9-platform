@@ -147,6 +147,9 @@ export {
   configureConflictSurfacing,
   countServerBackedRows,
 } from './syncReplicatedTable';
+export { ABORTED_SYNC_MESSAGE, abortableWait } from './abortable';
+export { SyncCacheWriter } from './syncCacheWriter';
+export type { SyncDeleteAuthority } from './core/syncDeleteAuthority';
 export { countCoveredRows } from './replicaCoverage';
 export {
   DEFAULT_REMOTE_COUNT_INTERVAL_MS,
@@ -178,6 +181,7 @@ export {
 export {
   TimeoutError,
   withTimeout,
+  abortReason,
   calculateBackoffDelay,
   backoffDelay,
   isRetryableError,

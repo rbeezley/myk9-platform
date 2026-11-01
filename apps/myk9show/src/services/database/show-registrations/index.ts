@@ -5,8 +5,4 @@
 // and from ../registrations/ (dog breed org records e.g. AKC numbers).
 // This module covers the persisted DB show registrations with confirmation numbers.
 
-export {
-  createShowRegistration,
-  getRegistrationByShowAndHandler,
-  updateRegistrationPayment,
-} from './reads';
+export { createShowRegistration, getRegistrationByShowAndHandler } from './reads';

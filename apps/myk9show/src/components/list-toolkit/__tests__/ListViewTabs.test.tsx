@@ -15,12 +15,12 @@ const VIEWS = [
 ];
 
 describe('ListViewTabs', () => {
-  it('is a labelled "Show:" select with the count inside each option', async () => {
+  it('is a labelled "View:" select with the count inside each option', async () => {
     const { user } = render(
       <ListViewTabs label="User views" activeId="all" onSelect={vi.fn()} views={VIEWS} />
     );
-    expect(screen.getByText('Show:')).toBeInTheDocument();
-    const select = screen.getByRole('combobox', { name: 'Show: User views' });
+    expect(screen.getByText('View:')).toBeInTheDocument();
+    const select = screen.getByRole('combobox', { name: 'View: User views' });
     expect(select).toHaveTextContent(`All (${(4812).toLocaleString()})`);
 
     await user.click(select);
@@ -36,14 +36,14 @@ describe('ListViewTabs', () => {
     const { user } = render(
       <ListViewTabs label="User views" activeId="all" onSelect={onSelect} views={VIEWS} />
     );
-    await user.click(screen.getByRole('combobox', { name: 'Show: User views' }));
+    await user.click(screen.getByRole('combobox', { name: 'View: User views' }));
     await user.click(await screen.findByRole('option', { name: 'Never signed in (312)' }));
     expect(onSelect).toHaveBeenCalledWith('never');
   });
 
   it('reads "Custom" when the filters match no view', () => {
     render(<ListViewTabs label="User views" activeId={null} onSelect={vi.fn()} views={VIEWS} />);
-    expect(screen.getByRole('combobox', { name: 'Show: User views' })).toHaveTextContent('Custom');
+    expect(screen.getByRole('combobox', { name: 'View: User views' })).toHaveTextContent('Custom');
   });
 
   it('navigates to the page behind an href view instead of applying a filter', async () => {
@@ -54,7 +54,7 @@ describe('ListViewTabs', () => {
         <LocationProbe />
       </>
     );
-    await user.click(screen.getByRole('combobox', { name: 'Show: User views' }));
+    await user.click(screen.getByRole('combobox', { name: 'View: User views' }));
     await user.click(await screen.findByRole('option', { name: 'Role requests' }));
 
     expect(screen.getByTestId('location')).toHaveTextContent('/admin/role-requests');
@@ -72,7 +72,7 @@ describe('ListViewTabs', () => {
       const { user } = render(
         <ListViewTabs label="Tickets" activeId="open" onSelect={vi.fn()} views={UNKNOWN} />
       );
-      const select = screen.getByRole('combobox', { name: 'Show: Tickets' });
+      const select = screen.getByRole('combobox', { name: 'View: Tickets' });
       expect(select).toHaveTextContent('Open (—)');
       expect(select).not.toHaveTextContent('(0)');
       // The dash carries its meaning in words for screen readers.
@@ -88,7 +88,7 @@ describe('ListViewTabs', () => {
 
     it('leaves known counts and count-less views unchanged', () => {
       render(<ListViewTabs label="User views" activeId="all" onSelect={vi.fn()} views={VIEWS} />);
-      const select = screen.getByRole('combobox', { name: 'Show: User views' });
+      const select = screen.getByRole('combobox', { name: 'View: User views' });
       expect(select).toHaveTextContent(`All (${(4812).toLocaleString()})`);
       expect(within(select).queryByRole('img')).not.toBeInTheDocument();
     });
@@ -98,7 +98,7 @@ describe('ListViewTabs', () => {
     const { user } = render(
       <ListViewTabs label="User views" activeId={null} onSelect={vi.fn()} views={VIEWS} />
     );
-    await user.click(screen.getByRole('combobox', { name: 'Show: User views' }));
+    await user.click(screen.getByRole('combobox', { name: 'View: User views' }));
     const options = await screen.findAllByRole('option');
     expect(options).toHaveLength(VIEWS.length + 1); // + Custom
     for (const option of options) expect(option.className).toContain('min-h-11');
@@ -107,10 +107,10 @@ describe('ListViewTabs', () => {
   it('can shrink on a narrow screen: the select is flexible and the label stays', () => {
     render(<ListViewTabs label="User views" activeId="all" onSelect={vi.fn()} views={VIEWS} />);
 
-    const trigger = screen.getByRole('combobox', { name: 'Show: User views' });
+    const trigger = screen.getByRole('combobox', { name: 'View: User views' });
     expect(trigger.className).toContain('min-w-0');
     expect(trigger.className).toContain('flex-1');
-    expect(screen.getByText('Show:').className).toContain('shrink-0');
+    expect(screen.getByText('View:').className).toContain('shrink-0');
     expect(trigger.closest('div')?.className).toContain('min-w-0');
   });
 });

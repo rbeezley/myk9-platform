@@ -6,7 +6,7 @@ import { getClassesByTrialId } from '@/services/database/classes';
 import type { CloneHydrationSnapshot } from '@/store/wizardStore';
 import type { Class, Show, ShowTrial } from '@/types/show-types';
 import type { ClassTemplate } from '@/types/template.types';
-import { getTrialTimezone } from '@/features/registries';
+import { getRegistrySportName, getTrialTimezone, listRegistries } from '@/features/registries';
 import { seedJuniorHandlerFee } from '@/pages/secretary/ShowCreationWizard/wizardJuniorHandlerFee';
 
 interface ClonePerson {
@@ -16,6 +16,22 @@ interface ClonePerson {
   email?: string | null | undefined;
   phone?: string | null | undefined;
   judgeQualifications?: Array<{ organization: string }> | null | undefined;
+}
+
+/**
+ * A source trial with no trial type would clone into a trial that refuses every scoresheet
+ * (UKC/ASCA never guess a sheet), so a missing type takes the registry's own sport. An
+ * unknown registry has no default to give, so the value stays as it was.
+ */
+function cloneTrialType(
+  organization: string | null | undefined,
+  trialType: string | undefined
+): string | undefined {
+  if (trialType?.trim()) return trialType;
+  const known = (listRegistries() as readonly string[]).includes(
+    (organization ?? '').trim().toUpperCase()
+  );
+  return known ? getRegistrySportName(organization) : trialType;
 }
 
 export async function getCloneSourceTrials(show: Show): Promise<ShowTrial[]> {
@@ -67,10 +83,11 @@ export function buildCloneSnapshot(args: {
     const sourceClasses = trial.classes || [];
     // Wizard state stores one template id per class. Normal trial data is single-sport, and
     // customizations preserve the visible class details if the template cannot be recovered.
+    const trialType = cloneTrialType(show.organization, trial.trialType);
     const template = resolveCloneTemplate({
       templates,
       organization: show.organization,
-      trialType: trial.trialType,
+      trialType,
       classes: sourceClasses,
     });
 
@@ -78,7 +95,7 @@ export function buildCloneSnapshot(args: {
       nameOverride: trial.name || 'Trial',
       trialDate: '',
       eventNumber: '',
-      trialType: trial.trialType,
+      trialType,
       classes: sourceClasses.map(cls => {
         const judgeId =
           (show.assignedJudges || []).find(judge => judge.assignedClasses?.includes(cls.id))

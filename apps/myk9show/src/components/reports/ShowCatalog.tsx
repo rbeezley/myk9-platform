@@ -1,4 +1,5 @@
 import React from 'react';
+import { getRegistrySportName } from '@/features/registries';
 import { formatTrialLabel } from '@myk9/core';
 import type { ReportProps, ReportEntry } from '@/lib/reports/types';
 import {
@@ -53,7 +54,9 @@ export const ShowCatalog: React.FC<ReportProps> = ({
     entriesByTrial.get(key)!.push(entry);
   }
 
-  const orgTitle = organization ? `${organization} Scent Work` : 'Scent Work';
+  const orgTitle = organization
+    ? `${organization} ${getRegistrySportName(organization)}`
+    : getRegistrySportName(organization);
 
   return (
     <div className="report-page">

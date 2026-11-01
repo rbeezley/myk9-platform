@@ -70,10 +70,8 @@ export {
   formatSecondsAsMSSCC,
   formatMsAsMSSCC,
   type TimeParts,
-  convertTimeToSeconds,
   formatTimeForDisplay,
   formatTimeLimitSeconds,
-  parseTimeToMs,
 } from './utils/timeFormatting';
 
 // Typed-duration parser (the one parser every time field uses)

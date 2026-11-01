@@ -157,11 +157,12 @@ export const ENTRY_FORM_NOTES_NO_PROFILE_MESSAGE =
 
 interface EntryFormNotesProps {
   enrollmentId: string;
+  showId: string;
   /** Bump to focus the add-note input (the form menu's "Add private note"). */
   focusRequest?: number;
 }
 
-export function EntryFormNotes({ enrollmentId, focusRequest = 0 }: EntryFormNotesProps) {
+export function EntryFormNotes({ enrollmentId, showId, focusRequest = 0 }: EntryFormNotesProps) {
   const online = useIsOnline();
   // personId is the canonical, offline-durable people.id (cached identity), not
   // userWithRoles.databaseUserId (which is userProfile?.id and so is empty on a cold boot).
@@ -169,7 +170,7 @@ export function EntryFormNotes({ enrollmentId, focusRequest = 0 }: EntryFormNote
   const personId = resolvedPersonId ?? undefined;
   const isSiteAdmin = hasRole(UserRole.SITE_ADMIN);
   const notes = useEntryFormNotes(enrollmentId);
-  const { add, update, remove } = useEntryFormNoteMutations(enrollmentId, personId);
+  const { add, update, remove } = useEntryFormNoteMutations(enrollmentId, showId, personId);
   const [body, setBody] = useState('');
   const addRef = useRef<HTMLTextAreaElement>(null);
 

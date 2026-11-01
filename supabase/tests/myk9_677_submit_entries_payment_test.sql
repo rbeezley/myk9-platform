@@ -7,7 +7,7 @@
 --   2. a replayed submission id records nothing again;
 --   3. a ledger failure after the entries are written rolls the entries back;
 --   4. with no p_payment the function behaves as before (no ledger row, the
---      entry stays pending, the enrollment total is the client's to write);
+--      entry stays pending; MYK9-1634: the total is the form's live, non-waived fees);
 --   5. an exhibitor cannot pass a payment.
 --
 --   psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f supabase/tests/myk9_677_submit_entries_payment_test.sql
@@ -212,7 +212,9 @@ BEGIN
    WHERE enrollment_id = '00000000-0000-0000-0000-000000677a51';
   SELECT total_amount, paid_amount INTO v_total, v_paid
     FROM public.enrollments WHERE id = '00000000-0000-0000-0000-000000677a51';
-  IF v_entry_status <> 'pending' OR v_rows <> 1 OR v_total <> 3000 OR v_paid <> 30 THEN
+  -- MYK9-1634: the total is derived from the form's live entries, so the unpaid
+  -- entry counts too (2 x $30 = 6000); no ledger row and no paid change, as before.
+  IF v_entry_status <> 'pending' OR v_rows <> 1 OR v_total <> 6000 OR v_paid <> 30 THEN
     RAISE EXCEPTION 'FAIL case 4: entry %, ledger rows %, total %, paid %',
       v_entry_status, v_rows, v_total, v_paid;
   END IF;
@@ -280,6 +282,31 @@ BEGIN
   RAISE NOTICE 'PASS a show-A secretary cannot touch show B''s enrollment: refused, nothing written';
 END;
 $$;
+
+-- The read above runs as the show-A secretary, whom RLS denies show B's enrollment, so
+-- every value comes back NULL and the IF cannot fire. Re-read as the table owner so
+-- "nothing written" is actually checked. MYK9-1634: the form's total is derived from its
+-- (zero) live entries, so its baseline is 0, not NULL.
+RESET ROLE;
+DO $$
+DECLARE
+  v_total integer; v_paid numeric; v_status text; v_entries integer; v_rows integer;
+BEGIN
+  SELECT total_amount, paid_amount, payment_status INTO v_total, v_paid, v_status
+    FROM public.enrollments WHERE id = '00000000-0000-0000-0000-000000677c51';
+  SELECT count(*) INTO v_entries FROM public.entries
+   WHERE registration_id = '00000000-0000-0000-0000-000000677c51';
+  SELECT count(*) INTO v_rows FROM public.show_payments
+   WHERE enrollment_id = '00000000-0000-0000-0000-000000677c51';
+  IF v_total IS DISTINCT FROM 0 OR v_paid IS DISTINCT FROM 0 OR v_status IS DISTINCT FROM 'pending'
+     OR v_entries <> 0 OR v_rows <> 0 THEN
+    RAISE EXCEPTION 'FAIL show B''s enrollment changed (owner read): total %, paid %, status %, entries %, ledger %',
+      v_total, v_paid, v_status, v_entries, v_rows;
+  END IF;
+  RAISE NOTICE 'PASS show B''s enrollment is untouched, read as the table owner';
+END;
+$$;
+SET LOCAL ROLE authenticated;
 
 -- 5. an exhibitor cannot pass a payment.
 DO $$

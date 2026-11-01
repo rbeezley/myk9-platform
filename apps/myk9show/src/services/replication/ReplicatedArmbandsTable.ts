@@ -173,10 +173,10 @@ export class ReplicatedArmbandsTable extends ReplicatedTable<ReplicatedArmband> 
    * The scope argument is ignored: armbands always sync every show.
    */
   async sync(_syncScopeId?: string, options?: Partial<SyncOptions>): Promise<SyncResult> {
-    return this.runSync(options?.forceFullSync === true);
+    return this.runSync(options?.forceFullSync === true, options?.signal);
   }
 
-  private async runSync(forceFullSync: boolean): Promise<SyncResult> {
+  private async runSync(forceFullSync: boolean, signal?: AbortSignal): Promise<SyncResult> {
     logger.log(`[${this.getTableName()}] Starting sync`);
 
     // Rows a multi-page full sync read after its first page. The full read skips
@@ -190,7 +190,7 @@ export class ReplicatedArmbandsTable extends ReplicatedTable<ReplicatedArmband> 
       countsTowardRemoteCoverage: remote => remote.is_available === false,
       // No remotePageSize: the fetch below pages to completion, so a full page
       // never means a truncated answer.
-      fetchRemoteRows: async ({ since, forceFullSync }) => {
+      fetchRemoteRows: async ({ since, forceFullSync, cache }) => {
         unwatermarkedIds.clear();
         // Paged by keyset on (updated_at, id), as judge assignments are: every
         // show's armbands can pass PostgREST's max_rows, and stale cleanup only
@@ -239,7 +239,7 @@ export class ReplicatedArmbandsTable extends ReplicatedTable<ReplicatedArmband> 
         // The atomic engine helper keeps rows with unsent work or a newer server
         // version, so a local assignment is never deleted here.
         const tombstones = latest.filter(row => row.is_available !== false);
-        await this.deleteRowsIfClean(
+        await cache.deleteIfClean(
           tombstones.map(row => String(row.id)),
           new Map(
             tombstones
@@ -278,7 +278,11 @@ export class ReplicatedArmbandsTable extends ReplicatedTable<ReplicatedArmband> 
       this,
       adapter,
       {},
-      { forceFullSync, incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS }
+      {
+        forceFullSync,
+        incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS,
+        ...(signal ? { signal } : {}),
+      }
     );
 
     if (!result.success && result.error && !isAbortSyncError(result.error)) {

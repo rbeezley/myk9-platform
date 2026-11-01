@@ -2,6 +2,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ReplicatedTable } from './ReplicatedTable';
 import type { SyncResult, SyncOptions } from '../types';
 
+/** A sync that has not been cancelled. */
+const LIVE = { aborted: false } as const;
+
 interface TestEntity {
   id: string;
   name: string;
@@ -1113,7 +1116,7 @@ describe('ReplicatedTable', () => {
       ]);
 
       const serverIds = new Set(['1', '3']);
-      const removed = await table.removeStaleEntries(serverIds);
+      const removed = await table.removeStaleEntries(serverIds, { by: LIVE });
 
       expect(removed).toBe(1);
       const all = await table.getAll();
@@ -1126,7 +1129,7 @@ describe('ReplicatedTable', () => {
       await table.set('2', { id: '2', name: 'Buddy' });
 
       const serverIds = new Set<string>(); // empty - all stale
-      const removed = await table.removeStaleEntries(serverIds);
+      const removed = await table.removeStaleEntries(serverIds, { by: LIVE });
 
       // Only non-dirty row should be removed
       expect(removed).toBe(1);
@@ -1142,7 +1145,7 @@ describe('ReplicatedTable', () => {
       ]);
 
       const serverIds = new Set(['1', '2']);
-      const removed = await table.removeStaleEntries(serverIds);
+      const removed = await table.removeStaleEntries(serverIds, { by: LIVE });
 
       expect(removed).toBe(0);
     });

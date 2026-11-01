@@ -64,3 +64,30 @@ describe('buildCloneSnapshot junior handler fee', () => {
     expect('juniorHandlerFee' in clone({ juniorHandlerFee: '0' }).show).toBe(false);
   });
 });
+
+describe('buildCloneSnapshot trial type (MYK9-1574)', () => {
+  const clone = (organization: string, trialType: unknown) =>
+    buildCloneSnapshot({
+      show: show({ organization } as Partial<Show>),
+      sourceTrials: [trial({ trialType } as Partial<ShowTrial>)],
+      people: [],
+      templates: [],
+    }).trials[0]?.trialType;
+
+  it.each([
+    ['UKC', 'Nosework'],
+    ['ASCA', 'Scent Detection'],
+    ['AKC', 'Scent Work'],
+  ])('fills a missing %s trial type with %s', (organization, expected) => {
+    expect(clone(organization, null)).toBe(expected);
+    expect(clone(organization, '')).toBe(expected);
+  });
+
+  it('keeps a trial type the source already had', () => {
+    expect(clone('UKC', 'Rally')).toBe('Rally');
+  });
+
+  it('leaves a missing type alone for a registry it does not know', () => {
+    expect(clone('Other', null)).toBeNull();
+  });
+});

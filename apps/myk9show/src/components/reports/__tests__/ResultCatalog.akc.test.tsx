@@ -316,7 +316,7 @@ describe('ResultCatalog on an AKC show (marked catalog)', () => {
       />
     );
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
-      'UKC Scent Work Show Results'
+      'UKC Nosework Show Results'
     );
     expect(screen.queryByText('Date of Birth')).not.toBeInTheDocument();
     // UKC/ASCA sign-off is out of MYK9-1009's scope: the per-class signature stays.

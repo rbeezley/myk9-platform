@@ -61,7 +61,7 @@ describe('ResultCatalog', () => {
   it('titles the report once per word (no "Scent Work Work")', () => {
     render(<ResultCatalog {...baseProps} organization="UKC" />);
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
-      /^UKC Scent Work Show Results$/
+      /^UKC Nosework Show Results$/
     );
   });
 

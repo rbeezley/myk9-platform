@@ -1,4 +1,5 @@
 import React from 'react';
+import { getRegistrySportName } from '@/features/registries';
 import type { ReportProps } from '@/lib/reports/types';
 
 export const BreedEntryCounts: React.FC<ReportProps> = ({
@@ -16,9 +17,10 @@ export const BreedEntryCounts: React.FC<ReportProps> = ({
   const sortedBreeds = [...breedMap.entries()].sort(([a], [b]) => a.localeCompare(b));
   const totalBreeds = sortedBreeds.length;
   const totalEntries = entries.length;
+  const sportName = getRegistrySportName(organization);
   const orgTitle = organization
-    ? `${organization} Scent Work Breed Counts`
-    : 'Scent Work Breed Counts';
+    ? `${organization} ${sportName} Breed Counts`
+    : `${sportName} Breed Counts`;
 
   return (
     <div className="report-page">

@@ -43,7 +43,7 @@ vi.mock('@/features/support/SupportTicketThread', () => ({
 }));
 
 function viewPicker() {
-  return screen.getByRole('combobox', { name: 'Show: Support tickets' });
+  return screen.getByRole('combobox', { name: 'View: Support tickets' });
 }
 
 function makeTicket(overrides: Partial<SupportTicket> = {}): SupportTicket {

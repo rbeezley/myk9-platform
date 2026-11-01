@@ -67,7 +67,7 @@ describe('EntryFormNotes', () => {
   });
 
   it('states the notes are private to officials and shows author and time', async () => {
-    render(<EntryFormNotes enrollmentId="enr-1" />);
+    render(<EntryFormNotes enrollmentId="enr-1" showId="show-1" />);
     expect(screen.getByText(ENTRY_FORM_NOTES_PRIVATE_LABEL)).toBeInTheDocument();
     expect(await screen.findByText('paid check 1123')).toBeInTheDocument();
     expect(screen.getByText(/Sam Secretary/)).toBeInTheDocument();
@@ -76,7 +76,7 @@ describe('EntryFormNotes', () => {
   });
 
   it("offers edit and delete only on the viewer's own notes", async () => {
-    render(<EntryFormNotes enrollmentId="enr-1" />);
+    render(<EntryFormNotes enrollmentId="enr-1" showId="show-1" />);
     await screen.findByText('paid check 1123');
     expect(screen.getAllByRole('button', { name: 'Edit' })).toHaveLength(1);
     expect(screen.getAllByRole('button', { name: 'Delete' })).toHaveLength(1);
@@ -84,22 +84,24 @@ describe('EntryFormNotes', () => {
 
   it('offers edit and delete on every note to a site admin', async () => {
     h.siteAdmin = true;
-    render(<EntryFormNotes enrollmentId="enr-1" />);
+    render(<EntryFormNotes enrollmentId="enr-1" showId="show-1" />);
     await screen.findByText('paid check 1123');
     expect(screen.getAllByRole('button', { name: 'Edit' })).toHaveLength(2);
   });
 
   it("adds a note under the caller's people id", async () => {
-    const { user } = render(<EntryFormNotes enrollmentId="enr-1" />);
+    const { user } = render(<EntryFormNotes enrollmentId="enr-1" showId="show-1" />);
     await screen.findByText('paid check 1123');
     await user.type(screen.getByLabelText('New note'), 'asked late');
     await user.click(screen.getByRole('button', { name: 'Add note' }));
-    await waitFor(() => expect(h.add).toHaveBeenCalledWith('enr-1', 'asked late', 'person-me'));
+    await waitFor(() =>
+      expect(h.add).toHaveBeenCalledWith('enr-1', 'show-1', 'asked late', 'person-me')
+    );
     await waitFor(() => expect(screen.getByLabelText('New note')).toHaveValue(''));
   });
 
   it('edits an own note', async () => {
-    const { user } = render(<EntryFormNotes enrollmentId="enr-1" />);
+    const { user } = render(<EntryFormNotes enrollmentId="enr-1" showId="show-1" />);
     await screen.findByText('paid check 1123');
     await user.click(screen.getByRole('button', { name: 'Edit' }));
     await user.type(screen.getByLabelText('Edit note'), '!');
@@ -108,7 +110,7 @@ describe('EntryFormNotes', () => {
   });
 
   it('soft deletes only after a confirm', async () => {
-    const { user } = render(<EntryFormNotes enrollmentId="enr-1" />);
+    const { user } = render(<EntryFormNotes enrollmentId="enr-1" showId="show-1" />);
     await screen.findByText('paid check 1123');
     await user.click(screen.getByRole('button', { name: 'Delete' }));
     expect(h.del).not.toHaveBeenCalled();
@@ -118,7 +120,7 @@ describe('EntryFormNotes', () => {
 
   it('shows a needs-connection state offline and never reads or lists as empty', () => {
     h.online = false;
-    render(<EntryFormNotes enrollmentId="enr-1" />);
+    render(<EntryFormNotes enrollmentId="enr-1" showId="show-1" />);
     expect(screen.getByText(ENTRY_FORM_NOTES_OFFLINE_MESSAGE)).toBeInTheDocument();
     expect(screen.queryByText('No notes yet.')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('New note')).not.toBeInTheDocument();
@@ -127,7 +129,7 @@ describe('EntryFormNotes', () => {
 
   it('keeps the draft and says so when adding fails', async () => {
     h.add.mockRejectedValue(new Error('boom'));
-    const { user } = render(<EntryFormNotes enrollmentId="enr-1" />);
+    const { user } = render(<EntryFormNotes enrollmentId="enr-1" showId="show-1" />);
     await screen.findByText('paid check 1123');
     await user.type(screen.getByLabelText('New note'), 'keep me');
     await user.click(screen.getByRole('button', { name: 'Add note' }));
@@ -137,14 +139,14 @@ describe('EntryFormNotes', () => {
 
   it('says so, and disables adding, while the person identity is unresolved', async () => {
     h.personId = undefined;
-    render(<EntryFormNotes enrollmentId="enr-1" />);
+    render(<EntryFormNotes enrollmentId="enr-1" showId="show-1" />);
     await screen.findByText('paid check 1123');
     expect(screen.getByText(ENTRY_FORM_NOTES_IDENTITY_MESSAGE)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Add note' })).toBeDisabled();
   });
 
   it('gives every action a 44px target', async () => {
-    render(<EntryFormNotes enrollmentId="enr-1" />);
+    render(<EntryFormNotes enrollmentId="enr-1" showId="show-1" />);
     await screen.findByText('paid check 1123');
     for (const name of ['Add note', 'Edit', 'Delete']) {
       expect(screen.getByRole('button', { name }).className).toContain('min-h-11');

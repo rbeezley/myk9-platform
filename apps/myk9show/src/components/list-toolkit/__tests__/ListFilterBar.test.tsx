@@ -28,7 +28,7 @@ function createdField(
 
 function renderBar(
   fields: ListFilterField[],
-  extra: { search?: string; onClearAll?: () => void } = {}
+  extra: { search?: string; onClearAll?: () => void; compact?: boolean } = {}
 ) {
   return render(
     <ListFilterBar
@@ -37,6 +37,7 @@ function renderBar(
       searchPlaceholder="Search people"
       fields={fields}
       {...(extra.onClearAll ? { onClearAll: extra.onClearAll } : {})}
+      {...(extra.compact ? { compact: true } : {})}
     />
   );
 }
@@ -135,6 +136,23 @@ describe('ListFilterBar', () => {
     await userEvent.click(screen.getByRole('button', { name: /^Created:/ }));
     await userEvent.click(screen.getByRole('button', { name: 'Any time' }));
     expect(onChange).toHaveBeenCalledWith({ start: null, end: null });
+  });
+
+  it('caps a select at 20rem by default, so it sizes to its value on a wide page', () => {
+    renderBar([roleField(null)]);
+
+    const trigger = screen.getByRole('combobox', { name: 'Role' });
+    expect(trigger).toHaveClass('w-auto', 'min-w-[10rem]');
+    expect(trigger).not.toHaveClass('flex-1');
+  });
+
+  it('lets a select shrink to its row in a narrow pane, so a long value truncates inside it (MYK9-1639)', () => {
+    renderBar([roleField('judge')], { compact: true });
+
+    const trigger = screen.getByRole('combobox', { name: 'Role' });
+    expect(trigger).toHaveClass('min-w-0', 'flex-1');
+    expect(trigger).not.toHaveClass('min-w-[10rem]');
+    expect(trigger.parentElement).toHaveClass('w-full', 'min-w-0');
   });
 
   it('shows "Clear all" only while a search or filter is active', async () => {

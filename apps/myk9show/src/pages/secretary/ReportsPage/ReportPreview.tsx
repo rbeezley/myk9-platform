@@ -17,6 +17,8 @@ import { omitHeldEntries } from './reportHeldEntries';
 import { isStaticOfficialPdfReport } from '@/features/organization-forms/officialPdfReports';
 import { NO_HOSTED_REPORT_DATA, type HostedReportData } from './useHostedReportData';
 import { releasePdfFrame, writeMarkupIntoFrame } from './reportPreviewFrame';
+import { isReportForeignToScope, type TrialReportOption } from './reportScopedRegistries';
+import { ForeignReportNotice } from './ForeignReportNotice';
 import { buildPages, selectionHasEntries } from './reportPreviewPages';
 import type { ReportDataState } from '@/hooks/queries/useReportData';
 import { resolveClassJudgeName } from '@/utils/classJudgeDisplay';
@@ -297,6 +299,13 @@ export function ReportPreview({
         This show could not be loaded, so there is nothing to build a report from.
       </div>
     );
+  }
+
+  if (
+    report &&
+    isReportForeignToScope(report.id, (trials ?? []) as unknown as TrialReportOption[], trialId)
+  ) {
+    return <ForeignReportNotice reportName={report.name} />;
   }
 
   if (dataState === 'unavailable') {

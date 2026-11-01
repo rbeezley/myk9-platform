@@ -1,68 +1,35 @@
 /**
  * Show registration queries — CRUD operations for the enrollments table.
  * One enrollment per person per show with auto-generated MK9-XXXXXX confirmation numbers.
+ *
+ * MYK9-1634: the client writes an enrollment's payment DETAILS only. Its total,
+ * payment status, paid amount and payment method are the database's (see
+ * `enrollmentPaymentFields.ts`).
  */
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import { mapDbToRegistration } from '../../mappers/registrationMappers';
 import type { Registration, DbRegistration } from '@/types/registration-types';
-import type { PaymentDetails, PaymentMethod } from '@/types/show-registration-types';
-import { buildSelfServiceEnrollmentPaymentFields } from './selfServiceEnrollmentFields';
-import {
-  buildEnrollmentPaymentFields,
-  hasEnrollmentPaymentInput,
-  shouldPreserveFinancialForWaived,
-} from './enrollmentPaymentFields';
+import type { PaymentDetails } from '@/types/show-registration-types';
+import { buildEnrollmentPaymentDetailFields } from './enrollmentPaymentFields';
 
 const POSTGRES_UNIQUE_VIOLATION = '23505';
 
-async function updateExistingEnrollmentPayment({
-  existing,
-  paymentReference,
-  paymentDetails,
-  paymentMethod,
-  totalAmountCents,
-  selfService,
-  startTime,
-}: {
-  existing: Registration;
-  paymentReference?: string | undefined;
-  paymentDetails?: PaymentDetails | undefined;
-  paymentMethod?: PaymentMethod | undefined;
-  totalAmountCents?: number | undefined;
-  selfService?: boolean | undefined;
-  startTime: number;
-}): Promise<{
+async function updateEnrollmentPaymentDetails(
+  existing: Registration,
+  paymentDetails: PaymentDetails | undefined,
+  startTime: number
+): Promise<{
   data: Registration | null;
   error: ReturnType<typeof createDatabaseError> | null;
 }> {
-  // An exhibitor submitting their own entries may not touch payment_status;
-  // trg_restrict_payment_status rejects the whole statement (MYK9-486).
-  const paymentFields = selfService
-    ? buildSelfServiceEnrollmentPaymentFields({
-        existingPaymentStatus: existing.paymentStatus,
-        existingTotalAmountCents: existing.totalAmount,
-        paymentMethod,
-        totalAmountCents,
-      })
-    : buildEnrollmentPaymentFields({
-        paymentReference,
-        paymentDetails,
-        paymentMethod,
-        totalAmountCents,
-        existingTotalAmountCents: existing.totalAmount,
-        existingPaidAmountDollars: existing.paidAmount,
-        includeEmptyPaymentDetails: paymentMethod !== undefined && paymentMethod !== 'waived',
-        preservePaidAmountForPending: true,
-        preserveFinancialForWaived: shouldPreserveFinancialForWaived(existing, paymentMethod),
-      });
-
-  if (Object.keys(paymentFields).length === 0) {
+  const detailFields = buildEnrollmentPaymentDetailFields(paymentDetails);
+  if (Object.keys(detailFields).length === 0) {
     return { data: existing, error: null };
   }
 
   const { data, error } = await supabase
     .from('enrollments')
-    .update(paymentFields)
+    .update(detailFields)
     .eq('id', existing.id)
     .select('*')
     .single();
@@ -78,24 +45,15 @@ async function updateExistingEnrollmentPayment({
 }
 
 /**
- * Create a new registration. The DB trigger auto-generates the confirmation number.
- * If a registration already exists for this show+handler (unique constraint),
- * falls back to returning the existing one.
+ * Get or create the person's enrollment for a show. The DB trigger
+ * auto-generates the confirmation number. Payment details, when given, are
+ * written onto it (only the ones given). If a concurrent insert wins the
+ * unique constraint, the existing row is used.
  */
 export const createShowRegistration = async (
   showId: string,
   handlerId: string,
-  paymentReference?: string,
-  paymentDetails?: PaymentDetails,
-  paymentMethod?: PaymentMethod,
-  totalAmountCents?: number,
-  /**
-   * Set for an exhibitor entering their own dogs. Restricts the write to the
-   * columns an unprivileged caller is allowed to change — no payment_status,
-   * no paid_amount, no null-out of secretary-entered payment details. See
-   * `selfServiceEnrollmentFields.ts` (MYK9-486).
-   */
-  options?: { selfService?: boolean | undefined }
+  paymentDetails?: PaymentDetails
 ): Promise<{
   data: Registration | null;
   error: ReturnType<typeof createDatabaseError> | null;
@@ -108,26 +66,7 @@ export const createShowRegistration = async (
       return existing;
     }
     if (existing.data) {
-      if (
-        !hasEnrollmentPaymentInput({
-          paymentReference,
-          paymentDetails,
-          paymentMethod,
-          totalAmountCents,
-        })
-      ) {
-        return existing;
-      }
-
-      return updateExistingEnrollmentPayment({
-        existing: existing.data,
-        paymentReference,
-        paymentDetails,
-        paymentMethod,
-        totalAmountCents,
-        selfService: options?.selfService,
-        startTime,
-      });
+      return updateEnrollmentPaymentDetails(existing.data, paymentDetails, startTime);
     }
 
     const { data, error } = await supabase
@@ -135,15 +74,7 @@ export const createShowRegistration = async (
       .insert({
         show_id: showId,
         handler_id: handlerId,
-        ...(options?.selfService
-          ? buildSelfServiceEnrollmentPaymentFields({ paymentMethod, totalAmountCents })
-          : buildEnrollmentPaymentFields({
-              paymentReference,
-              paymentDetails,
-              paymentMethod,
-              totalAmountCents,
-              includeEmptyPaymentDetails: true,
-            })),
+        ...buildEnrollmentPaymentDetailFields(paymentDetails),
       })
       .select('*')
       .single();
@@ -155,27 +86,10 @@ export const createShowRegistration = async (
       // Concurrent insert race: return the existing registration
       if (error.code === POSTGRES_UNIQUE_VIOLATION) {
         const existingAfterRace = await getRegistrationByShowAndHandler(showId, handlerId);
-        if (
-          existingAfterRace.error ||
-          !existingAfterRace.data ||
-          !hasEnrollmentPaymentInput({
-            paymentReference,
-            paymentDetails,
-            paymentMethod,
-            totalAmountCents,
-          })
-        ) {
+        if (existingAfterRace.error || !existingAfterRace.data) {
           return existingAfterRace;
         }
-        return updateExistingEnrollmentPayment({
-          existing: existingAfterRace.data,
-          paymentReference,
-          paymentDetails,
-          paymentMethod,
-          totalAmountCents,
-          selfService: options?.selfService,
-          startTime,
-        });
+        return updateEnrollmentPaymentDetails(existingAfterRace.data, paymentDetails, startTime);
       }
       throw createDatabaseError(error, 'enrollments', 'insert');
     }
@@ -232,50 +146,6 @@ export const getRegistrationByShowAndHandler = async (
       err instanceof Error ? err : new Error(String(err)),
       'enrollments',
       'select_by_show_handler'
-    );
-    return { data: null, error: dbError };
-  }
-};
-
-/**
- * Update a registration's payment status.
- */
-export const updateRegistrationPayment = async (
-  registrationId: string,
-  paymentStatus: string,
-  paymentReference?: string
-): Promise<{
-  data: Registration | null;
-  error: ReturnType<typeof createDatabaseError> | null;
-}> => {
-  const startTime = Date.now();
-
-  try {
-    const { data, error } = await supabase
-      .from('enrollments')
-      .update({
-        payment_status: paymentStatus,
-        payment_reference: paymentReference ?? null,
-      })
-      .eq('id', registrationId)
-      .select('*')
-      .single();
-
-    const duration = Date.now() - startTime;
-    logQuery('enrollments', 'update_payment', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'enrollments', 'update_payment');
-    }
-
-    return { data: mapDbToRegistration(data as DbRegistration), error: null };
-  } catch (err) {
-    const duration = Date.now() - startTime;
-    logQuery('enrollments', 'update_payment', duration, String(err));
-    const dbError = createDatabaseError(
-      err instanceof Error ? err : new Error(String(err)),
-      'enrollments',
-      'update_payment'
     );
     return { data: null, error: dbError };
   }

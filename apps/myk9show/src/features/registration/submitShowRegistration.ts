@@ -197,25 +197,18 @@ export async function submitShowRegistration({
     });
     if (!isStillActive(isActive)) return { aborted: true };
 
-    const createdOutcomes = rpcResult.outcomes.filter(outcome => outcome.outcome === 'created');
     submissionOutcomes = rpcResult.outcomes;
-    const createdAmountCents = createdOutcomes.reduce((sum, outcome) => sum + outcome.feeCents, 0);
+    const createdAny = rpcResult.outcomes.some(outcome => outcome.outcome === 'created');
 
-    if (createdOutcomes.length > 0) {
-      await recordEnrollmentPayment({
+    // MYK9-1634: the RPC already set the form's total and payment status in the
+    // same transaction as the entries. All that is left is the payment details a
+    // secretary typed (reference, check number, date, notes); an exhibitor's own
+    // submit has none to write.
+    if (createdAny && submissionSource !== 'self_service' && paymentDetails) {
+      await recordEnrollmentPaymentDetails({
         showId,
         ownerResolution,
-        // With a received payment the RPC already grew the enrollment total and
-        // recorded the money, so this write carries only the payment details
-        // (reference, date, notes): no method, no total, no status, no
-        // paid_amount, which would otherwise be added twice.
-        paymentMethod: receivedMethod ? undefined : submitMethod,
         paymentDetails,
-        totalAmountCents: receivedMethod ? undefined : createdAmountCents,
-        // An exhibitor entering their own dogs is not allowed to move
-        // enrollments.payment_status; the BEFORE UPDATE trigger rejects the
-        // whole statement, so nothing was entered at all (MYK9-486).
-        selfService: submissionSource === 'self_service',
         deps: resolvedDeps,
       });
       if (!isStillActive(isActive)) return { aborted: true };
@@ -307,34 +300,20 @@ async function ensureEnrollment({
   };
 }
 
-async function recordEnrollmentPayment({
+async function recordEnrollmentPaymentDetails({
   showId,
   ownerResolution,
-  paymentMethod,
   paymentDetails,
-  totalAmountCents,
-  selfService,
   deps,
 }: {
   showId: string;
   ownerResolution: SelectedDogsOwnerResult;
-  paymentMethod: PaymentMethod | undefined;
-  paymentDetails?: PaymentDetails | undefined;
-  totalAmountCents: number | undefined;
-  selfService: boolean;
+  paymentDetails: PaymentDetails;
   deps: SubmitShowRegistrationDeps;
 }): Promise<void> {
   assertResolvedEnrollmentOwner(ownerResolution);
 
-  const result = await deps.createShowRegistration(
-    showId,
-    ownerResolution.ownerId,
-    paymentDetails?.paymentReference,
-    paymentDetails,
-    paymentMethod,
-    totalAmountCents,
-    { selfService }
-  );
+  const result = await deps.createShowRegistration(showId, ownerResolution.ownerId, paymentDetails);
 
   if (result.error) {
     throw result.error;

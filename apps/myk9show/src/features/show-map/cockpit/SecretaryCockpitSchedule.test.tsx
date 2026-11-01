@@ -154,7 +154,7 @@ describe('SecretaryCockpitSchedule view tabs', () => {
   it('shows a live count on every view, computed from the Classes already on the page', async () => {
     const { user } = renderSchedule(snapshotWithMixedStates, 'all');
 
-    const select = screen.getByRole('combobox', { name: 'Show: Schedule filters' });
+    const select = screen.getByRole('combobox', { name: 'View: Schedule filters' });
     expect(select).toHaveTextContent('All (3)');
     await user.click(select);
     expect(await screen.findByRole('option', { name: 'In progress (1)' })).toBeInTheDocument();
@@ -181,7 +181,7 @@ describe('SecretaryCockpitSchedule view tabs', () => {
       />
     );
 
-    await user.click(screen.getByRole('combobox', { name: 'Show: Schedule filters' }));
+    await user.click(screen.getByRole('combobox', { name: 'View: Schedule filters' }));
     await user.click(await screen.findByRole('option', { name: /^Needs attention/ }));
 
     expect(onFilterChange).toHaveBeenCalledWith('needs-attention');
@@ -227,7 +227,7 @@ describe('SecretaryCockpitSchedule offline', () => {
     // nothing here ever fetches, so going offline changes nothing about them.
     expect(screen.getByText('Container Novice')).toBeInTheDocument();
     expect(screen.getByText('Interior Advanced')).toBeInTheDocument();
-    await user.click(screen.getByRole('combobox', { name: 'Show: Schedule filters' }));
+    await user.click(screen.getByRole('combobox', { name: 'View: Schedule filters' }));
     expect(await screen.findByRole('option', { name: 'In progress (1)' })).toBeInTheDocument();
     await user.keyboard('{Escape}');
 

@@ -17,11 +17,8 @@ import { omitHeldEntries } from './reportHeldEntries';
 import { isStaticOfficialPdfReport } from '@/features/organization-forms/officialPdfReports';
 import { NO_HOSTED_REPORT_DATA, type HostedReportData } from './useHostedReportData';
 import { releasePdfFrame, writeMarkupIntoFrame } from './reportPreviewFrame';
-import {
-  FOREIGN_REPORT_NOTICE_ID,
-  isReportForeignToScope,
-  type TrialReportOption,
-} from './reportScopedRegistries';
+import { isReportForeignToScope, type TrialReportOption } from './reportScopedRegistries';
+import { ForeignReportNotice } from './ForeignReportNotice';
 import { buildPages, selectionHasEntries } from './reportPreviewPages';
 import type { ReportDataState } from '@/hooks/queries/useReportData';
 import { resolveClassJudgeName } from '@/utils/classJudgeDisplay';
@@ -308,21 +305,7 @@ export function ReportPreview({
     report &&
     isReportForeignToScope(report.id, (trials ?? []) as unknown as TrialReportOption[], trialId)
   ) {
-    return (
-      <div
-        id={FOREIGN_REPORT_NOTICE_ID}
-        role="status"
-        aria-live="polite"
-        className="flex flex-col items-center justify-center gap-2 p-8 text-center"
-      >
-        <p className="font-medium">{report.name} is for another registry.</p>
-        <p className="max-w-prose text-sm text-muted-foreground">
-          This form belongs to a different registry than this show or the trial you have selected,
-          so it is not shown and cannot be printed or downloaded. Pick the trial it belongs to, or
-          choose a different form.
-        </p>
-      </div>
-    );
+    return <ForeignReportNotice reportName={report.name} />;
   }
 
   if (dataState === 'unavailable') {

@@ -25,7 +25,9 @@ interface UseAreaCountGateOptions {
   canManage: boolean;
   showRole: ShowRole | null | undefined;
   setAreaCountDialogOpen: (open: boolean) => void;
-  setAreaCountRequirements: (range: { min: number; max: number; maxTotalSeconds: number }) => void;
+  setAreaCountRequirements: (
+    range: { min: number; max: number; maxTotalSeconds: number } | null
+  ) => void;
 }
 
 export function useAreaCountGate({
@@ -57,6 +59,10 @@ export function useAreaCountGate({
     if (mayAsk && min != null && max != null) {
       // maxTotalSeconds is part of the shared dialog contract; this picker does not use it.
       setAreaCountRequirements({ min, max, maxTotalSeconds: 0 });
+    } else {
+      // The page stays mounted across classes: a class with no choice must not
+      // inherit the previous class's Search areas tile.
+      setAreaCountRequirements(null);
     }
   }, [mayAsk, min, max, setAreaCountRequirements]);
 

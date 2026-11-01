@@ -79,7 +79,7 @@ describe('useAreaCountGate (MYK9-1625)', () => {
     const { result, setAreaCountDialogOpen, setAreaCountRequirements } = setup(false);
     await settle();
     expect(setAreaCountDialogOpen).not.toHaveBeenCalled();
-    expect(setAreaCountRequirements).not.toHaveBeenCalled();
+    expect(setAreaCountRequirements).not.toHaveBeenCalledWith(expect.objectContaining({ min: 2 }));
     expect(result.current.gateEntryClick()).toBe(false);
   });
 
@@ -101,6 +101,40 @@ describe('useAreaCountGate (MYK9-1625)', () => {
     expect(setAreaCountDialogOpen).toHaveBeenCalledWith(true);
   });
 
+  it('clears the choices when the list moves to a class with none', async () => {
+    seed();
+    replica.rows.set('c2', {
+      id: 'c2',
+      element: 'Interior',
+      level: 'Novice',
+      classStatus: 'upcoming',
+    });
+    const setAreaCountDialogOpen = vi.fn();
+    const setAreaCountRequirements = vi.fn();
+    const { rerender } = renderHook(
+      ({ classId }: { classId: string }) =>
+        useAreaCountGate({
+          classId,
+          registry: 'AKC',
+          ready: true,
+          canManage: true,
+          showRole: undefined,
+          setAreaCountDialogOpen,
+          setAreaCountRequirements,
+        }),
+      { initialProps: { classId: 'c1' } }
+    );
+    await settle();
+    expect(setAreaCountRequirements).toHaveBeenLastCalledWith({
+      min: 2,
+      max: 3,
+      maxTotalSeconds: 0,
+    });
+    rerender({ classId: 'c2' });
+    await settle();
+    expect(setAreaCountRequirements).toHaveBeenLastCalledWith(null);
+  });
+
   it('asks nothing until the class registry is known', async () => {
     seed();
     const { result, setAreaCountDialogOpen } = setup(true, null);
@@ -114,7 +148,7 @@ describe('useAreaCountGate (MYK9-1625)', () => {
     const { result, setAreaCountDialogOpen, setAreaCountRequirements } = setup();
     await settle();
     expect(setAreaCountDialogOpen).not.toHaveBeenCalled();
-    expect(setAreaCountRequirements).not.toHaveBeenCalled();
+    expect(setAreaCountRequirements).not.toHaveBeenCalledWith(expect.objectContaining({ min: 2 }));
     expect(result.current.gateEntryClick()).toBe(false);
   });
 });

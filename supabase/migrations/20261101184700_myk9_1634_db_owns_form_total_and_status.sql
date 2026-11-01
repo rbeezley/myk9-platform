@@ -11,41 +11,33 @@
 -- Nothing ever subtracted: soft_delete_entry and the soft_delete_dog cascade left a deleted
 -- entry's fee in "$X due" and in "Paid in full".
 --
--- ONE DEFINITION, for every form, card-paid or not. What a form owes is
---   its captured Stripe charges (processing fees included)
---   + the entry_fee of every entry on it that is not deleted, not waived
---     (entries.payment_status = 'waived'; owner decision 2026-11-01: waived never counts,
---     and the entry keeps its normal fee for the record) and not covered by a captured order.
--- A card-paid entry is owed as its charge, a desk add-on at its fee; never both, never twice.
--- A captured order is any status but pending/failed/canceled/cancelled/expired, so a later
--- 'refunded' still counts: refunds are refunds, the charge was taken. payment_method and
--- the 'pi_' reference are not markers of anything.
---
--- CARD MONEY IS MONEY RECEIVED. Checkout never recorded it: a card-paid form sat at
--- paid_amount 0, so "Paid in full" would have charged the card amount again. A form's
--- captured charges now live in card_paid_cents AND in paid_amount ("the gross ever
--- received", as the ledger already defines it), so the ledger core, "Paid in full", the
--- refund cap and the client's balance read card money with no change of their own. A
--- recompute moves paid_amount by the CHANGE in card_paid_cents, so it is idempotent. The one
--- reader that changes is the ledger's "Payment Due" reversal: it resets paid_amount to the
--- card money, undoing only the desk's.
---
--- Triggers keep both so; nothing else can set them:
+-- ONE DEFINITION. A form's total is the sum of entry_fee over its entries that are not
+-- deleted and not waived (entries.payment_status = 'waived'; owner decision 2026-11-01:
+-- waived never counts, and the entry keeps its normal fee for the record). Triggers keep it
+-- so; nothing else can set it:
 --   * AFTER on entries: an insert, a delete, or a change of entry_fee, deletion, form or
---     waived-ness refreshes every form the row was or is on;
---   * AFTER on stripe_orders: a change of status, amount, linked form or covered entries
---     refreshes the forms involved (reading, never changing, the checkout triggers);
---   * BEFORE on enrollments: any INSERT, or an UPDATE naming total_amount, has total_amount
---     replaced by the derived figure, so a stale client's write is harmless;
---   * the money guard now also covers card_paid_cents.
-
+--     waived-ness recomputes the total of every form the row was or is on;
+--   * BEFORE on enrollments: any INSERT, or an UPDATE naming total_amount or
+--     payment_reference, has total_amount replaced by the derived figure, so a stale client's
+--     write is harmless.
+--
+-- STRIPE FORMS keep the Stripe charge (confirm_successful_checkout_enrollments writes it,
+-- processing fees included). Recognised on the server only, by EITHER marker:
+--   * a captured stripe_orders row (any status but pending/failed/canceled/cancelled/expired,
+--     so a later 'refunded' still counts) linked by enrollment_id or covering one of the
+--     form's entries via entry_ids: permanent, and nothing a desk payment or an exhibitor
+--     can write;
+--   * payment_reference 'pi_...', present from the checkout INSERT itself, before the order
+--     row is linked. A desk payment may later overwrite it with a check number
+--     (record_enrollment_payment_core), which is why the order marker must also hold.
+-- payment_method is NOT a marker: it defaults to 'online' on every row.
+--
 -- STATUS, in one direction. When a form's total GROWS (an add-on, a restore, a re-price up,
 -- an entry moved in) and the net received no longer covers it, a settled form ('paid',
 -- 'paid_by_cash', 'paid_by_check', 'waived') becomes 'pending'. Growth only, so an unrelated
 -- entry edit never flips a 'partial_refund' form; a shrinking total never promotes a status
 -- ("Paid in full" at $0 settles it, and a form holding more than it owes is a person's
--- call: no refund is ever automatic). One exception: a Stripe order event settles a pending
--- form its card money now covers in full, which checkout itself intends. restrict_payment_status_update accepts exactly that
+-- call: no refund is ever automatic). restrict_payment_status_update accepts exactly that
 -- derived change from an unprivileged caller, because an exhibitor's own add-on runs this
 -- trigger inside the exhibitor's request. The guard cannot tell that from the exhibitor's
 -- own PATCH, so an exhibitor may also reopen their own settled form while it truly owes
@@ -67,76 +59,10 @@
 -- foreign-key locks), and the second sums both. A bulk statement rewrites each form's total
 -- once per entry it touches, which is fine at tens of entries per form.
 --
--- MONEY. Nothing here charges, refunds or queues a refund. paid_amount moves in exactly two
--- ways: by a form's change in captured card money (the backfill moves MK9-000305 and 306 by
--- their $37.45 charges), and in submit_show_entries recording a secretary_paid /
--- group_payment submission, which the client used to record.
+-- MONEY. The backfill changes total_amount only. Nothing here creates or queues a refund or
+-- changes paid_amount, except submit_show_entries recording a secretary_paid / group_payment
+-- submission, which the client used to record.
 
--- Card money a form received, maintained by the triggers below (never by a caller). It is
--- also inside paid_amount, so paid_amount stays "the gross ever received" for every reader
--- (the ledger core, "Paid in full", the client's balance); this column is what lets a
--- recompute move paid_amount by the CHANGE in card money, so a replayed webhook or a second
--- recompute never adds a charge twice.
-ALTER TABLE public.enrollments
-  ADD COLUMN IF NOT EXISTS card_paid_cents integer NOT NULL DEFAULT 0;
-
-COMMENT ON COLUMN public.enrollments.card_paid_cents IS
-  'MYK9-1634: captured Stripe charges attributed to this form (cents); included in paid_amount. Written only by private.refresh_enrollment_money().';
-
--- The money guard now covers card_paid_cents too: a caller who could set it could make the
--- next recompute move paid_amount. Same predicate function, same WHEN shape plus the column.
-DROP TRIGGER trg_restrict_enrollment_money_columns ON public.enrollments;
-CREATE TRIGGER trg_restrict_enrollment_money_columns
-  BEFORE UPDATE ON public.enrollments
-  FOR EACH ROW
-  WHEN ((old.paid_amount IS DISTINCT FROM new.paid_amount)
-     OR (old.discount_amount IS DISTINCT FROM new.discount_amount)
-     OR (old.refund_amount IS DISTINCT FROM new.refund_amount)
-     OR (old.refund_notes IS DISTINCT FROM new.refund_notes)
-     OR (old.refunded_at IS DISTINCT FROM new.refunded_at)
-     OR (old.card_paid_cents IS DISTINCT FROM new.card_paid_cents))
-  EXECUTE FUNCTION public.restrict_enrollment_money_columns();
-
-DROP TRIGGER trg_restrict_enrollment_money_columns_insert ON public.enrollments;
-CREATE TRIGGER trg_restrict_enrollment_money_columns_insert
-  BEFORE INSERT ON public.enrollments
-  FOR EACH ROW
-  WHEN ((COALESCE(new.paid_amount, (0)::numeric) <> (0)::numeric)
-     OR (COALESCE(new.discount_amount, 0) <> 0)
-     OR (new.refund_amount IS NOT NULL)
-     OR (new.refund_notes IS NOT NULL)
-     OR (new.refunded_at IS NOT NULL)
-     OR (COALESCE(new.card_paid_cents, 0) <> 0))
-  EXECUTE FUNCTION public.restrict_enrollment_money_columns();
-
--- A captured order: any status but these, so a later 'refunded' still counts (the charge
--- was taken; refunds are tracked as refunds, not by forgetting the charge).
-CREATE OR REPLACE FUNCTION private.stripe_order_is_captured(p_status text)
-RETURNS boolean
-LANGUAGE sql
-IMMUTABLE
-SET search_path = ''
-AS $$
-  SELECT p_status IS NOT NULL
-     AND p_status NOT IN ('pending', 'failed', 'canceled', 'cancelled', 'expired');
-$$;
-
--- Card money attributed to a form: its captured orders' charges, processing fees included.
-CREATE OR REPLACE FUNCTION private.enrollment_card_cents(p_enrollment_id uuid)
-RETURNS integer
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = ''
-AS $$
-  SELECT COALESCE(sum(o.amount_cents), 0)::integer
-    FROM public.stripe_orders o
-   WHERE o.enrollment_id = p_enrollment_id
-     AND private.stripe_order_is_captured(o.status);
-$$;
-
--- What a form owes: its card charges, plus the fee of every live, non-waived entry that no
--- captured order covers (a card-paid entry is owed as its charge, never twice).
 CREATE OR REPLACE FUNCTION private.enrollment_owed_cents(p_enrollment_id uuid)
 RETURNS integer
 LANGUAGE sql
@@ -144,24 +70,40 @@ STABLE
 SECURITY DEFINER
 SET search_path = ''
 AS $$
-  SELECT private.enrollment_card_cents(p_enrollment_id)
-       + COALESCE((
-           SELECT round(sum(e.entry_fee) * 100)
-             FROM public.entries e
-            WHERE e.registration_id = p_enrollment_id
-              AND e.deleted_at IS NULL
-              AND e.payment_status IS DISTINCT FROM 'waived'
-              AND NOT EXISTS (
-                    SELECT 1 FROM public.stripe_orders o
-                     WHERE o.entry_ids @> ARRAY[e.id]
-                       AND private.stripe_order_is_captured(o.status))
-         ), 0)::integer;
+  SELECT COALESCE(round(sum(e.entry_fee) * 100), 0)::integer
+    FROM public.entries e
+   WHERE e.registration_id = p_enrollment_id
+     AND e.deleted_at IS NULL
+     AND e.payment_status IS DISTINCT FROM 'waived';
 $$;
 
 COMMENT ON FUNCTION private.enrollment_owed_cents(uuid) IS
-  'MYK9-1634: what an entry form owes (cents): its captured card charges plus the fees of its live, non-waived entries no captured order covers.';
+  'MYK9-1634: what an entry form owes (cents): the sum of entry_fee over its entries that are not deleted and not waived.';
 
--- BEFORE INSERT / UPDATE on enrollments: no writer can set a form's total.
+CREATE OR REPLACE FUNCTION private.enrollment_total_is_stripe(
+  p_enrollment_id uuid,
+  p_payment_reference text
+)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT COALESCE(p_payment_reference LIKE 'pi\_%', false)
+      OR EXISTS (
+           SELECT 1
+             FROM public.stripe_orders o
+            WHERE o.status NOT IN ('pending', 'failed', 'canceled', 'cancelled', 'expired')
+              AND (o.enrollment_id = p_enrollment_id
+                   OR o.entry_ids && ARRAY(SELECT e.id FROM public.entries e
+                                            WHERE e.registration_id = p_enrollment_id)));
+$$;
+
+COMMENT ON FUNCTION private.enrollment_total_is_stripe(uuid, text) IS
+  'MYK9-1634: a form paid by online checkout (a captured Stripe order covers it, or its payment_reference is the Stripe intent) keeps the Stripe charge as its total.';
+
+-- BEFORE INSERT / UPDATE on enrollments: no writer can set a mail-in form's total.
 CREATE OR REPLACE FUNCTION private.enrollments_derive_total()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -169,91 +111,20 @@ SECURITY DEFINER
 SET search_path = ''
 AS $$
 BEGIN
-  NEW.total_amount := private.enrollment_owed_cents(NEW.id);
+  IF NOT private.enrollment_total_is_stripe(NEW.id, NEW.payment_reference) THEN
+    NEW.total_amount := private.enrollment_owed_cents(NEW.id);
+  END IF;
   RETURN NEW;
 END;
 $$;
 
 -- Named to sort before trg_restrict_payment_status, so the guard sees the derived total.
 CREATE TRIGGER trg_enrollments_derive_total
-  BEFORE INSERT OR UPDATE OF total_amount ON public.enrollments
+  BEFORE INSERT OR UPDATE OF total_amount, payment_reference ON public.enrollments
   FOR EACH ROW EXECUTE FUNCTION private.enrollments_derive_total();
 
--- The one place a form's total, card money and derived status move.
---   * total_amount := what it owes; card_paid_cents := its card money, and paid_amount moves
---     by the change in card money (desk money is the ledger's, untouched here);
---   * the total GREW and the net received no longer covers it: a settled form reopens;
---   * p_card_event (a Stripe order changed): a pending form its card money now covers in
---     full is paid. Checkout marks the form paid itself, but when an order goes
---     pending -> succeeded its entries attach (and are counted at their fee) before the
---     order row reads as captured, which reopens the form for an instant; this settles it.
-CREATE OR REPLACE FUNCTION private.refresh_enrollment_money(
-  p_enrollment_id uuid,
-  p_card_event boolean
-)
-RETURNS void
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = ''
-AS $$
-DECLARE
-  v_old_total integer;
-  v_status text;
-  v_paid numeric;
-  v_refunded numeric;
-  v_old_card integer;
-  v_card integer;
-  v_new_total integer;
-  v_new_paid numeric;
-  v_net_cents numeric;
-  v_new_status text;
-BEGIN
-  -- Lock the form BEFORE summing. NO KEY UPDATE, not UPDATE: an entry INSERT already holds
-  -- KEY SHARE on its form from the foreign-key check, which FOR UPDATE would wait on, so two
-  -- concurrent inserts onto one form would deadlock; NO KEY UPDATE queues them instead.
-  SELECT en.total_amount, en.payment_status, COALESCE(en.paid_amount, 0),
-         COALESCE(en.refund_amount, 0), en.card_paid_cents
-    INTO v_old_total, v_status, v_paid, v_refunded, v_old_card
-    FROM public.enrollments en
-   WHERE en.id = p_enrollment_id
-     FOR NO KEY UPDATE;
-  IF NOT FOUND THEN
-    RETURN; -- the form went with its entries
-  END IF;
-
-  v_card := private.enrollment_card_cents(p_enrollment_id);
-  v_new_total := private.enrollment_owed_cents(p_enrollment_id);
-  v_new_paid := v_paid + (v_card - v_old_card) / 100.0;
-  v_net_cents := (v_new_paid - v_refunded) * 100;
-
-  v_new_status := CASE
-    WHEN v_new_total > COALESCE(v_old_total, 0)
-     AND v_net_cents < v_new_total
-     AND v_status IN ('paid', 'paid_by_cash', 'paid_by_check', 'waived')
-    THEN 'pending'
-    WHEN p_card_event
-     AND v_status = 'pending'
-     AND v_card > 0
-     AND v_net_cents >= v_new_total
-    THEN 'paid'
-    ELSE v_status
-  END;
-
-  IF v_new_total IS DISTINCT FROM v_old_total
-     OR v_card IS DISTINCT FROM v_old_card
-     OR v_new_status IS DISTINCT FROM v_status THEN
-    UPDATE public.enrollments en
-       SET total_amount = v_new_total,
-           card_paid_cents = v_card,
-           paid_amount = v_new_paid,
-           payment_status = v_new_status
-     WHERE en.id = p_enrollment_id;
-  END IF;
-END;
-$$;
-
--- AFTER on entries: refresh every form the row was or is on (ids in order, so a move between
--- two forms cannot deadlock with itself).
+-- AFTER on entries: keep each touched mail-in form's total equal to what it owes, and
+-- reopen a settled form the change left owing.
 CREATE OR REPLACE FUNCTION private.entries_refresh_enrollment_total()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -262,6 +133,11 @@ SET search_path = ''
 AS $$
 DECLARE
   v_id uuid;
+  v_old integer;
+  v_new integer;
+  v_status text;
+  v_reference text;
+  v_net_cents numeric;
 BEGIN
   FOR v_id IN
     SELECT DISTINCT x
@@ -273,8 +149,38 @@ BEGIN
      WHERE x IS NOT NULL
      ORDER BY x
   LOOP
-    PERFORM private.refresh_enrollment_money(v_id, false);
+    -- Lock the form BEFORE summing (ids in order, so a move between two forms cannot
+    -- deadlock with itself). NO KEY UPDATE, not UPDATE: an entry INSERT already holds KEY
+    -- SHARE on its form from the foreign-key check, which FOR UPDATE would wait on, so two
+    -- concurrent inserts onto one form would deadlock; NO KEY UPDATE queues them instead. Under READ COMMITTED the sum below then sees every entry
+    -- change committed before the lock was granted.
+    SELECT en.total_amount, en.payment_status, en.payment_reference,
+           (COALESCE(en.paid_amount, 0) - COALESCE(en.refund_amount, 0)) * 100
+      INTO v_old, v_status, v_reference, v_net_cents
+      FROM public.enrollments en
+     WHERE en.id = v_id
+       FOR NO KEY UPDATE;
+
+    -- A form deleted with its entries, or a Stripe form, is left alone.
+    IF NOT FOUND OR private.enrollment_total_is_stripe(v_id, v_reference) THEN
+      CONTINUE;
+    END IF;
+
+    v_new := private.enrollment_owed_cents(v_id);
+    IF v_new IS DISTINCT FROM v_old THEN
+      UPDATE public.enrollments en
+         SET total_amount = v_new,
+             payment_status = CASE
+               WHEN v_new > COALESCE(v_old, 0)
+                AND v_net_cents < v_new
+                AND v_status IN ('paid', 'paid_by_cash', 'paid_by_check', 'waived')
+               THEN 'pending'
+               ELSE en.payment_status
+             END
+       WHERE en.id = v_id;
+    END IF;
   END LOOP;
+
   RETURN NULL;
 END;
 $$;
@@ -297,59 +203,6 @@ CREATE TRIGGER trg_entries_refresh_enrollment_total_on_update
         OR (NEW.payment_status IS DISTINCT FROM 'waived')
            <> (OLD.payment_status IS DISTINCT FROM 'waived'))
   EXECUTE FUNCTION private.entries_refresh_enrollment_total();
-
--- AFTER on stripe_orders: an order captured, refunded to a status, re-linked or re-priced
--- changes its forms' card money and which entries it covers. Refreshes the forms it is or
--- was linked to, and the forms of every entry it covers or covered. Reads the checkout
--- triggers' result; changes none of them.
-CREATE OR REPLACE FUNCTION private.stripe_orders_refresh_enrollment_money()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = ''
-AS $$
-DECLARE
-  v_id uuid;
-  v_forms uuid[];
-  v_entries uuid[];
-BEGIN
-  v_forms := CASE TG_OP
-               WHEN 'INSERT' THEN ARRAY[NEW.enrollment_id]
-               WHEN 'DELETE' THEN ARRAY[OLD.enrollment_id]
-               ELSE ARRAY[OLD.enrollment_id, NEW.enrollment_id]
-             END;
-  v_entries := CASE TG_OP
-                 WHEN 'INSERT' THEN COALESCE(NEW.entry_ids, '{}')
-                 WHEN 'DELETE' THEN COALESCE(OLD.entry_ids, '{}')
-                 ELSE COALESCE(OLD.entry_ids, '{}') || COALESCE(NEW.entry_ids, '{}')
-               END;
-
-  FOR v_id IN
-    SELECT DISTINCT x
-      FROM (SELECT unnest(v_forms) AS x
-            UNION
-            SELECT e.registration_id FROM public.entries e WHERE e.id = ANY(v_entries)) s
-     WHERE x IS NOT NULL
-     ORDER BY x
-  LOOP
-    PERFORM private.refresh_enrollment_money(v_id, true);
-  END LOOP;
-  RETURN NULL;
-END;
-$$;
-
-CREATE TRIGGER trg_stripe_orders_refresh_enrollment_money
-  AFTER INSERT OR DELETE ON public.stripe_orders
-  FOR EACH ROW EXECUTE FUNCTION private.stripe_orders_refresh_enrollment_money();
-
-CREATE TRIGGER trg_stripe_orders_refresh_enrollment_money_on_update
-  AFTER UPDATE ON public.stripe_orders
-  FOR EACH ROW
-  WHEN (NEW.status IS DISTINCT FROM OLD.status
-        OR NEW.amount_cents IS DISTINCT FROM OLD.amount_cents
-        OR NEW.enrollment_id IS DISTINCT FROM OLD.enrollment_id
-        OR NEW.entry_ids IS DISTINCT FROM OLD.entry_ids)
-  EXECUTE FUNCTION private.stripe_orders_refresh_enrollment_money();
 
 -- The status guard, from its live definition, plus the one change the database derives.
 CREATE OR REPLACE FUNCTION public.restrict_payment_status_update()
@@ -376,24 +229,15 @@ BEGIN
 
     IF NEW.payment_status IS DISTINCT FROM OLD.payment_status THEN
         -- MYK9-1634: an exhibitor's own add-on onto a settled form reopens it in
-        -- private.refresh_enrollment_money(), inside the exhibitor's request.
-        -- That one change is allowed: settled -> 'pending' on a form whose total
-        -- (derived by trg_enrollments_derive_total) exceeds the net received
-        -- (paid_amount, card money included, minus refunds). It is the state the
-        -- database derives for that form, and moves no money.
+        -- private.entries_refresh_enrollment_total(), inside the exhibitor's request.
+        -- That one change is allowed: settled -> 'pending' on a mail-in form whose total
+        -- (already derived by trg_enrollments_derive_total) exceeds the net received.
+        -- It is the state the database derives for that form, and moves no money.
         IF NEW.payment_status = 'pending'
            AND OLD.payment_status IN ('paid', 'paid_by_cash', 'paid_by_check', 'waived')
+           AND NOT private.enrollment_total_is_stripe(NEW.id, NEW.payment_reference)
            AND COALESCE(NEW.total_amount, 0)
                > (COALESCE(NEW.paid_amount, 0) - COALESCE(NEW.refund_amount, 0)) * 100 THEN
-            RETURN NEW;
-        END IF;
-        -- And its mirror from a Stripe order event: pending -> 'paid' on a form whose
-        -- card money (with any desk money) now covers what it owes.
-        IF NEW.payment_status = 'paid'
-           AND OLD.payment_status = 'pending'
-           AND COALESCE(NEW.card_paid_cents, 0) > 0
-           AND (COALESCE(NEW.paid_amount, 0) - COALESCE(NEW.refund_amount, 0)) * 100
-               >= COALESCE(NEW.total_amount, 0) THEN
             RETURN NEW;
         END IF;
 
@@ -1066,228 +910,6 @@ END;
 $function$;
 
 
--- record_enrollment_payment_core, from its latest definition (20260926124700); the only
--- change is the reversal branch keeping card money (MYK9-1634).
-CREATE OR REPLACE FUNCTION private.record_enrollment_payment_core(
-  p_enrollment_id uuid,
-  p_kind text,
-  p_amount numeric DEFAULT NULL,
-  p_method text DEFAULT NULL,
-  p_received_on date DEFAULT NULL,
-  p_reference text DEFAULT NULL,
-  p_note text DEFAULT NULL,
-  p_client_payment_id uuid DEFAULT NULL
-)
-RETURNS jsonb
-LANGUAGE plpgsql
-SECURITY INVOKER
-SET search_path = ''
-AS $$
-DECLARE
-  v_show_id uuid;
-  v_paid numeric;
-  v_refunded numeric;
-  v_net numeric;
-  v_total_cents integer;
-  v_status text;
-  v_total_due numeric;
-  v_amount numeric;
-  v_tz text;
-  v_today date;
-  v_received date;
-  v_entry_status text;
-  v_group record;
-  v_existing public.show_payments%ROWTYPE;
-BEGIN
-  IF p_kind NOT IN ('payment', 'refund', 'reversal') OR p_kind IS NULL THEN
-    RAISE EXCEPTION 'unsupported payment kind: %', p_kind USING ERRCODE = '22023';
-  END IF;
-
-  SELECT e.show_id, COALESCE(e.paid_amount, 0), COALESCE(e.refund_amount, 0),
-         e.total_amount, e.payment_status
-    INTO v_show_id, v_paid, v_refunded, v_total_cents, v_status
-    FROM public.enrollments e
-   WHERE e.id = p_enrollment_id
-     FOR UPDATE;
-
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'enrollment % not found', p_enrollment_id USING ERRCODE = '22023';
-  END IF;
-
-  -- IDEMPOTENT RETRY. A payment sent with a key that already has a row was
-  -- recorded by an earlier call whose answer never arrived (or whose caller
-  -- failed after it): answer from the enrollment as it stands and write
-  -- nothing, so paid_amount is not added twice. The same key for a different
-  -- payment is a caller bug, refused. Checked after the enrollment lock, so two
-  -- concurrent calls with one key are serialized.
-  IF p_client_payment_id IS NOT NULL THEN
-    IF p_kind <> 'payment' THEN
-      RAISE EXCEPTION 'client_payment_id is only accepted for a payment' USING ERRCODE = '22023';
-    END IF;
-    SELECT * INTO v_existing FROM public.show_payments sp
-     WHERE sp.client_payment_id = p_client_payment_id;
-    IF FOUND THEN
-      IF v_existing.enrollment_id IS DISTINCT FROM p_enrollment_id
-         OR v_existing.kind <> 'payment'
-         OR v_existing.method IS DISTINCT FROM p_method
-         OR (p_amount IS NOT NULL AND v_existing.amount <> p_amount) THEN
-        RAISE EXCEPTION 'client_payment_id % was already used for a different payment',
-          p_client_payment_id USING ERRCODE = '22023';
-      END IF;
-      -- MYK9-773: the entries as they stand, so a retry answers like a record.
-      RETURN private.enrollment_payment_answer(p_enrollment_id);
-    END IF;
-  END IF;
-
-  -- NET RECEIVED: the ONE figure every branch below reads. paid_amount is the
-  -- gross ever received and refund_amount the cumulative amount handed back,
-  -- both on the enrollment. Read from the enrollment, not summed from the
-  -- ledger, on purpose: an enrollment paid before the ledger existed has no
-  -- rows, and a Stripe/other refund is recorded on the enrollment but never in
-  -- the ledger (it is not box money). The enrollment columns hold both.
-  v_net := v_paid - v_refunded;
-
-  v_tz := private.show_time_zone(v_show_id);
-  v_today := (now() AT TIME ZONE v_tz)::date;
-  v_received := COALESCE(p_received_on, v_today);
-  IF v_received > v_today THEN
-    RAISE EXCEPTION 'received date % is after today (%) on the show''s calendar', v_received, v_today
-      USING ERRCODE = '22023';
-  END IF;
-
-  IF p_kind = 'payment' THEN
-    IF p_method IS NULL OR p_method NOT IN ('cash', 'check') THEN
-      RAISE EXCEPTION 'a payment is recorded as cash or check, got %', p_method
-        USING ERRCODE = '22023';
-    END IF;
-    -- What is due: the enrollment's total (cents) when it has one, otherwise the
-    -- sum of its live entries' fees -- the rule enrollmentGrouping.ts applies.
-    v_total_due := COALESCE(
-      v_total_cents / 100.0,
-      (SELECT sum(en.entry_fee) FROM public.entries en
-        WHERE en.registration_id = p_enrollment_id AND en.deleted_at IS NULL)
-    );
-    -- NULL amount = "Paid in Full": whatever is still due after refunds.
-    v_amount := COALESCE(p_amount, GREATEST(COALESCE(v_total_due, 0) - v_net, 0));
-    IF v_amount < 0 OR v_amount <> round(v_amount, 2) THEN
-      RAISE EXCEPTION 'invalid payment amount %', v_amount USING ERRCODE = '22023';
-    END IF;
-    IF p_amount IS NOT NULL AND p_amount <= 0 THEN
-      RAISE EXCEPTION 'a payment amount must be greater than zero' USING ERRCODE = '22023';
-    END IF;
-
-    IF v_amount > 0 THEN
-      INSERT INTO public.show_payments
-        (show_id, enrollment_id, kind, amount, method, received_on, reference, note,
-         recorded_by, client_payment_id)
-      VALUES
-        (v_show_id, p_enrollment_id, 'payment', v_amount, p_method, v_received,
-         NULLIF(btrim(p_reference), ''), NULLIF(btrim(p_note), ''), auth.uid(),
-         p_client_payment_id);
-    END IF;
-
-    v_paid := v_paid + v_amount;
-    v_net := v_net + v_amount;
-    v_status := CASE
-      WHEN v_total_due IS NOT NULL AND v_net >= v_total_due THEN 'paid_by_' || p_method
-      ELSE 'pending'
-    END;
-
-    UPDATE public.enrollments
-       SET paid_amount = v_paid,
-           payment_status = v_status,
-           payment_reference = CASE
-             WHEN NULLIF(btrim(p_reference), '') IS NOT NULL THEN btrim(p_reference)
-             ELSE payment_reference END,
-           check_number = CASE
-             WHEN p_method = 'check' AND NULLIF(btrim(p_reference), '') IS NOT NULL
-               THEN btrim(p_reference)
-             ELSE check_number END,
-           updated_at = now()
-     WHERE id = p_enrollment_id;
-
-    v_entry_status := CASE WHEN v_status = 'pending' THEN 'pending' ELSE 'paid' END;
-
-  ELSIF p_kind = 'refund' THEN
-    IF p_amount IS NULL OR p_amount <= 0 OR p_amount <> round(p_amount, 2) THEN
-      RAISE EXCEPTION 'invalid refund amount %', p_amount USING ERRCODE = '22023';
-    END IF;
-    -- Capped by what is still held, so two $30 refunds of a $50 payment are
-    -- refused the second time.
-    IF p_amount > v_net THEN
-      RAISE EXCEPTION 'refund % exceeds the % still held (% paid, % already refunded)',
-        p_amount, v_net, v_paid, v_refunded USING ERRCODE = '22023';
-    END IF;
-    -- NULL method = refunded some other way (Stripe, other): not box money, so
-    -- the enrollment records it and the ledger does not.
-    IF p_method IS NOT NULL AND p_method NOT IN ('cash', 'check') THEN
-      RAISE EXCEPTION 'a desk refund is cash or check, got %', p_method USING ERRCODE = '22023';
-    END IF;
-
-    IF p_method IS NOT NULL THEN
-      INSERT INTO public.show_payments
-        (show_id, enrollment_id, kind, amount, method, received_on, reference, note, recorded_by)
-      VALUES
-        (v_show_id, p_enrollment_id, 'refund', -p_amount, p_method, v_received,
-         NULLIF(btrim(p_reference), ''), NULLIF(btrim(p_note), ''), auth.uid());
-    END IF;
-
-    UPDATE public.enrollments
-       -- 'refunded' once nothing is held; refund_amount accumulates.
-       SET payment_status = CASE WHEN p_amount = v_net THEN 'refunded' ELSE 'partial_refund' END,
-           refund_amount = v_refunded + p_amount,
-           refund_notes = NULLIF(btrim(p_note), ''),
-           refunded_at = now(),
-           updated_at = now()
-     WHERE id = p_enrollment_id;
-
-    v_entry_status := 'refunded';
-
-  ELSE -- reversal: "Payment Due" -- nothing was received after all.
-    -- Net every (method, day) group this enrollment recorded back to zero ON THE
-    -- DAY IT WAS RECORDED, so undoing a mail-in check does not take money out
-    -- of today's desk total, and undoing a desk payment does. A legacy
-    -- paid_amount with no ledger rows has nothing to reverse here; the
-    -- enrollment still resets, exactly as before the ledger.
-    FOR v_group IN
-      SELECT sp.method, sp.received_on, sum(sp.amount) AS net
-        FROM public.show_payments sp
-       WHERE sp.enrollment_id = p_enrollment_id
-       GROUP BY sp.method, sp.received_on
-      HAVING sum(sp.amount) <> 0
-    LOOP
-      INSERT INTO public.show_payments
-        (show_id, enrollment_id, kind, amount, method, received_on, reference, note, recorded_by)
-      VALUES
-        (v_show_id, p_enrollment_id, 'reversal', -v_group.net, v_group.method,
-         v_group.received_on, NULL, NULLIF(btrim(p_note), ''), auth.uid());
-    END LOOP;
-
-    -- Net received goes to zero on the enrollment too: nothing paid, nothing
-    -- handed back. Clearing only paid_amount would leave a refund_amount that
-    -- makes the net negative, and the next "Paid in Full" would charge it.
-    -- MYK9-1634: card money stays (paid_amount includes card_paid_cents); only
-    -- the desk's money is undone.
-    UPDATE public.enrollments
-       SET paid_amount = card_paid_cents / 100.0,
-           refund_amount = NULL,
-           refund_notes = NULL,
-           refunded_at = NULL,
-           payment_status = 'pending',
-           updated_at = now()
-     WHERE id = p_enrollment_id;
-
-    v_entry_status := 'pending';
-  END IF;
-
-  -- The entries cascade (MYK9-773 rule): one place, shared with
-  -- mark_enrollment_paid_online.
-  PERFORM private.cascade_enrollment_entry_payment_status(p_enrollment_id, v_entry_status);
-
-  RETURN private.enrollment_payment_answer(p_enrollment_id);
-END;
-$$;
-
 -- Grants as live today (CREATE OR REPLACE preserves them; restated so this migration, now
 -- the latest definition, carries the decision).
 REVOKE ALL ON FUNCTION public.submit_show_entries(uuid, uuid, jsonb, uuid, text, jsonb) FROM PUBLIC, anon;
@@ -1298,11 +920,7 @@ REVOKE ALL ON FUNCTION public.restrict_payment_status_update() FROM PUBLIC, anon
 GRANT EXECUTE ON FUNCTION public.restrict_payment_status_update() TO service_role;
 
 REVOKE ALL ON FUNCTION private.enrollment_owed_cents(uuid) FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION private.stripe_order_is_captured(text) FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION private.enrollment_card_cents(uuid) FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION private.refresh_enrollment_money(uuid, boolean) FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION private.stripe_orders_refresh_enrollment_money() FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION private.record_enrollment_payment_core(uuid, text, numeric, text, date, text, text, uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION private.enrollment_total_is_stripe(uuid, text) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION private.enrollments_derive_total() FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION private.entries_refresh_enrollment_total() FROM PUBLIC, anon, authenticated;
 
@@ -1310,17 +928,10 @@ REVOKE ALL ON FUNCTION private.entries_refresh_enrollment_total() FROM PUBLIC, a
 CREATE INDEX IF NOT EXISTS idx_stripe_orders_entry_ids_gin
   ON public.stripe_orders USING gin (entry_ids);
 
--- Backfill, card money first: a form's captured card charges move into card_paid_cents and,
--- by the same change, into paid_amount (the charge was received; nothing is charged,
--- refunded or moved). Then every total that differs from what the form owes. No status
--- changes: every form keeps its status. Forms left holding more than they owe are for a
--- person (MYK9-1635).
-UPDATE public.enrollments en
-   SET card_paid_cents = private.enrollment_card_cents(en.id),
-       paid_amount = COALESCE(en.paid_amount, 0)
-                     + (private.enrollment_card_cents(en.id) - en.card_paid_cents) / 100.0
- WHERE en.card_paid_cents IS DISTINCT FROM private.enrollment_card_cents(en.id);
-
+-- Backfill: every mail-in form whose stored total differs from what it owes. total_amount
+-- only (trg_enrollments_derive_total computes the value): no status, no paid amount, no
+-- refund. Forms left holding more than they owe are for a person (MYK9-1634 comments).
 UPDATE public.enrollments en
    SET total_amount = private.enrollment_owed_cents(en.id)
- WHERE en.total_amount IS DISTINCT FROM private.enrollment_owed_cents(en.id);
+ WHERE NOT private.enrollment_total_is_stripe(en.id, en.payment_reference)
+   AND en.total_amount IS DISTINCT FROM private.enrollment_owed_cents(en.id);

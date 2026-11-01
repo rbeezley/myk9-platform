@@ -9,8 +9,7 @@
 --   S5 an exhibitor's own add-on onto a form paid by check succeeds and reopens it;
 --   S6 "Paid in full" charges only what is owed, never the waived entry;
 --   G1 an unprivileged caller still cannot set a status;
---   G2 nor reopen a form that owes nothing more;
---   G3 the money guard covers card money (card_paid_cents).
+--   G2 nor reopen a form that owes nothing more.
 --
 --   psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f supabase/tests/myk9_1634_submission_status_test.sql
 -- All fixtures roll back.
@@ -215,36 +214,6 @@ BEGIN
     INSERT INTO t1634s_expect
     VALUES ('G2 nor reopen a form that owes nothing more', 'refused', 'refused');
   END;
-END;
-$$;
-
--- G3. Card money is the triggers' to write: a caller who could set card_paid_cents could
--- make the next recompute move paid_amount, so the money guard must FIRE on it. Its policy
--- (who may write) is unchanged and lets this psql session (session_user 'postgres')
--- through, so the guard is stubbed to refuse everything for this check: the assertion is
--- that a card_paid_cents write reaches it at all. Rolled back with the rest.
--- The stub lives inside a subtransaction that always ends in an exception, so it is undone
--- before S6 pays.
-DO $$
-DECLARE v_got text;
-BEGIN
-  BEGIN
-    EXECUTE $f$
-      CREATE OR REPLACE FUNCTION public.restrict_enrollment_money_columns()
-      RETURNS trigger LANGUAGE plpgsql SET search_path = '' AS $g$
-      BEGIN
-        RAISE EXCEPTION 'guard reached' USING ERRCODE = '42501';
-      END;
-      $g$
-    $f$;
-    UPDATE public.enrollments SET card_paid_cents = 99900
-     WHERE id = '00000000-0000-0000-0000-000001634a53';
-    RAISE EXCEPTION 'guard not reached';
-  EXCEPTION
-    WHEN insufficient_privilege THEN v_got := 'reached';
-    WHEN raise_exception THEN v_got := 'not reached';
-  END;
-  INSERT INTO t1634s_expect VALUES ('G3 the money guard covers card money', v_got, 'reached');
 END;
 $$;
 

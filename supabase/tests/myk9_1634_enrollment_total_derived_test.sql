@@ -1,7 +1,7 @@
 -- MYK9-1634: a mail-in entry form's total is the sum of its entries' fees, leaving out
 -- deleted and waived entries.
 --
--- Asserts:
+-- Asserts, on a mail-in form (no Stripe intent in payment_reference):
 --   1. a hand-set total on INSERT is replaced by the derived figure (no entries -> 0);
 --   2. inserting entries sets the total to the sum of their fees;
 --   3. soft-deleting an entry lowers it, and restoring it raises it back;
@@ -10,12 +10,10 @@
 --   6. a direct write of total_amount (the old client/server increments) is overridden;
 --   7. "Paid in full" (record_enrollment_payment, amount NULL) after a delete charges only
 --      the live entries;
+--   8. a Stripe-paid form (payment_reference 'pi_...') keeps its stored total, also once a
+--      desk payment overwrites the reference (9) and after a full refund (11);
 --  12. waiving an entry drops its fee, and un-waiving adds it back;
---  13. so do Comp and Undo Comp, which never name payment_status;
---  8/9/11/14/15/17 card money: a captured order's charge is owed and received, a desk add-on
---      is owed on top and reopens the form, a refunded or replayed order moves no money,
---      Paid in full charges the add-on only, a reversal keeps the card money, and an order
---      captured late settles the form it covers.
+--  13. so do Comp and Undo Comp, which never name payment_status.
 --
 -- Run with psql -X -v ON_ERROR_STOP=1 against a migrated database; fixtures roll back.
 
@@ -56,8 +54,7 @@ VALUES
   ('00000000-0000-0000-0000-000001634062', '00000000-0000-0000-0000-000001634011',
    '00000000-0000-0000-0000-000001634054', 'pending', 'cash', 1234);
 
--- 8 (setup). A card-paid form; its hand-set total is derived like any other (0 until its
--- order is captured).
+-- 8 (setup). A Stripe-paid form keeps its stored total, processing fees included.
 INSERT INTO public.enrollments (id, show_id, handler_id, payment_status, payment_method,
                                 payment_reference, total_amount)
 VALUES ('00000000-0000-0000-0000-000001634063', '00000000-0000-0000-0000-000001634011',
@@ -67,12 +64,6 @@ CREATE TEMP TABLE t1634_expect (label text, got integer, want integer) ON COMMIT
 
 CREATE OR REPLACE FUNCTION pg_temp.total1634(p_id uuid) RETURNS integer
 LANGUAGE sql AS $$ SELECT total_amount FROM public.enrollments WHERE id = p_id $$;
-
-CREATE OR REPLACE FUNCTION pg_temp.paid1634(p_id uuid) RETURNS integer
-LANGUAGE sql AS $$ SELECT round(paid_amount * 100)::integer FROM public.enrollments WHERE id = p_id $$;
-
-CREATE OR REPLACE FUNCTION pg_temp.pending1634(p_id uuid) RETURNS integer
-LANGUAGE sql AS $$ SELECT (payment_status = 'pending')::integer FROM public.enrollments WHERE id = p_id $$;
 
 INSERT INTO t1634_expect
 SELECT '1 hand-set total on insert becomes the derived 0',
@@ -147,90 +138,39 @@ INSERT INTO t1634_expect
 SELECT '13b undoing the comp adds the fee back',
        pg_temp.total1634('00000000-0000-0000-0000-000001634061'), 4000;
 
--- 8. A captured order linked to the form: its $37.45 charge (fees included) is owed AND
--- received, and the $0 entry it covers is not owed again. customer_id NULL keeps the
--- checkout triggers out; the order arrives already linked.
+-- 8. The Stripe form is untouched, even when one of its entries changes.
 INSERT INTO public.entries (id, show_id, trial_id, registration_id, entry_status,
                             payment_status, payment_method, entry_fee)
 VALUES ('00000000-0000-0000-0000-000001634083', '00000000-0000-0000-0000-000001634011',
         '00000000-0000-0000-0000-000001634021', '00000000-0000-0000-0000-000001634063',
-        'confirmed', 'pending', 'cash', 30);
-INSERT INTO public.stripe_orders (id, show_id, status, amount_cents, entry_ids,
-                                  stripe_payment_intent_id, enrollment_id)
-VALUES ('00000000-0000-0000-0000-000001634091', '00000000-0000-0000-0000-000001634011',
-        'succeeded', 3745, ARRAY['00000000-0000-0000-0000-000001634083'::uuid], 'pi_1634fixture',
-        '00000000-0000-0000-0000-000001634063');
+        'confirmed', 'pending', 'cash', 0);
+UPDATE public.enrollments SET total_amount = 3745
+ WHERE id = '00000000-0000-0000-0000-000001634063';
 INSERT INTO t1634_expect
-SELECT '8a a card form owes its charge, not the covered entry''s fee as well',
+SELECT '8 a Stripe-paid form keeps its stored total',
        pg_temp.total1634('00000000-0000-0000-0000-000001634063'), 3745;
-INSERT INTO t1634_expect
-SELECT '8b and has received it',
-       pg_temp.paid1634('00000000-0000-0000-0000-000001634063'), 3745;
 
--- 9. A desk add-on onto the card form (the Codex round-3 case): its $25 fee is owed on top
--- of the charge, nothing more is received, and the settled form reopens.
-INSERT INTO public.entries (id, show_id, trial_id, registration_id, entry_status,
-                            payment_status, payment_method, entry_fee)
-VALUES ('00000000-0000-0000-0000-000001634085', '00000000-0000-0000-0000-000001634011',
-        '00000000-0000-0000-0000-000001634021', '00000000-0000-0000-0000-000001634063',
-        'confirmed', 'pending', 'check', 25);
+-- 9. A desk payment that overwrites a Stripe form's reference (the ledger core writes the
+-- check number into payment_reference) keeps the Stripe total: a succeeded order covering
+-- the form's entry is the permanent marker. customer_id NULL keeps the checkout triggers out.
+INSERT INTO public.stripe_orders (id, show_id, status, amount_cents, entry_ids, stripe_payment_intent_id)
+VALUES ('00000000-0000-0000-0000-000001634091', '00000000-0000-0000-0000-000001634011',
+        'succeeded', 3745, ARRAY['00000000-0000-0000-0000-000001634083'::uuid], 'pi_1634fixture');
+UPDATE public.enrollments SET payment_reference = '2207'
+ WHERE id = '00000000-0000-0000-0000-000001634063';
 INSERT INTO t1634_expect
-SELECT '9a a desk add-on onto a card form is owed on top of the charge',
-       pg_temp.total1634('00000000-0000-0000-0000-000001634063'), 6245;
-INSERT INTO t1634_expect
-SELECT '9b received is still the charge',
-       pg_temp.paid1634('00000000-0000-0000-0000-000001634063'), 3745;
-INSERT INTO t1634_expect
-SELECT '9c and the card form reopens as pending',
-       pg_temp.pending1634('00000000-0000-0000-0000-000001634063'), 1;
+SELECT '9 a Stripe form whose reference is overwritten keeps its total (order marker; would re-derive to 0)',
+       pg_temp.total1634('00000000-0000-0000-0000-000001634063'), 3745;
 
--- 11. A refunded order still counts (the charge was taken), and a replayed status change
--- moves no money: card money is recomputed, never added again.
+-- 11. After a full Stripe refund (the webhook stamps the order 'refunded') the form is still
+-- a Stripe form: the overwritten reference no longer marks it, the refunded order must.
 UPDATE public.stripe_orders SET status = 'refunded'
  WHERE id = '00000000-0000-0000-0000-000001634091';
-UPDATE public.stripe_orders SET status = 'succeeded'
- WHERE id = '00000000-0000-0000-0000-000001634091';
-UPDATE public.stripe_orders SET status = 'refunded'
- WHERE id = '00000000-0000-0000-0000-000001634091';
+UPDATE public.enrollments SET payment_reference = 'Refund note'
+ WHERE id = '00000000-0000-0000-0000-000001634063';
 INSERT INTO t1634_expect
-SELECT '11a a refunded order still counts toward what is owed',
-       pg_temp.total1634('00000000-0000-0000-0000-000001634063'), 6245;
-INSERT INTO t1634_expect
-SELECT '11b replayed order changes never add the charge twice',
-       pg_temp.paid1634('00000000-0000-0000-0000-000001634063'), 3745;
-
--- 17. An order that goes pending -> succeeded settles a pending form its card money now
--- covers in full (checkout's own intent), and records the money.
-INSERT INTO public.people (id, first_name, last_name)
-VALUES ('00000000-0000-0000-0000-000001634056', 'Checkout', 'Exhibitor');
-INSERT INTO public.enrollments (id, show_id, handler_id, payment_status, payment_method)
-VALUES ('00000000-0000-0000-0000-000001634064', '00000000-0000-0000-0000-000001634011',
-        '00000000-0000-0000-0000-000001634056', 'pending', 'online');
-INSERT INTO public.entries (id, show_id, trial_id, registration_id, entry_status,
-                            payment_status, payment_method, entry_fee)
-VALUES ('00000000-0000-0000-0000-000001634086', '00000000-0000-0000-0000-000001634011',
-        '00000000-0000-0000-0000-000001634021', '00000000-0000-0000-0000-000001634064',
-        'confirmed', 'pending', 'online', 30);
-INSERT INTO public.stripe_orders (id, show_id, status, amount_cents, entry_ids,
-                                  stripe_payment_intent_id, enrollment_id)
-VALUES ('00000000-0000-0000-0000-000001634092', '00000000-0000-0000-0000-000001634011',
-        'pending', 3200, ARRAY['00000000-0000-0000-0000-000001634086'::uuid], 'pi_1634pending',
-        '00000000-0000-0000-0000-000001634064');
-INSERT INTO t1634_expect
-SELECT '17a an uncaptured order is not owed or received: the entry owes its fee',
-       pg_temp.total1634('00000000-0000-0000-0000-000001634064'), 3000;
-UPDATE public.stripe_orders SET status = 'succeeded'
- WHERE id = '00000000-0000-0000-0000-000001634092';
-INSERT INTO t1634_expect
-SELECT '17b once captured the form owes the charge',
-       pg_temp.total1634('00000000-0000-0000-0000-000001634064'), 3200;
-INSERT INTO t1634_expect
-SELECT '17c has received it',
-       pg_temp.paid1634('00000000-0000-0000-0000-000001634064'), 3200;
-INSERT INTO t1634_expect
-SELECT '17d and is paid',
-       (SELECT (payment_status = 'paid')::integer FROM public.enrollments
-         WHERE id = '00000000-0000-0000-0000-000001634064'), 1;
+SELECT '11 a refunded Stripe order still marks the form (would re-derive to 0)',
+       pg_temp.total1634('00000000-0000-0000-0000-000001634063'), 3745;
 
 -- 10. The triggers move no money: paid, refund and status are untouched by an entry change.
 CREATE TEMP TABLE t1634_money ON COMMIT DROP AS
@@ -287,25 +227,6 @@ BEGIN
       v_result->>'paid_amount';
   END IF;
   RAISE NOTICE 'PASS 7 Paid in full after a delete charges only the live entries (40)';
-
-  -- 14. Paid in full on the card form with a $25 desk add-on charges the $25 only.
-  v_result := public.record_enrollment_payment(
-    '00000000-0000-0000-0000-000001634063', 'payment', NULL, 'check', NULL, '1635', NULL);
-  IF (v_result->>'paid_amount')::numeric <> 62.45
-     OR v_result->>'payment_status' <> 'paid_by_check' THEN
-    RAISE EXCEPTION 'FAIL 14 Paid in full on a card form left paid % / %, want 62.45 / paid_by_check (the $25 add-on only)',
-      v_result->>'paid_amount', v_result->>'payment_status';
-  END IF;
-  RAISE NOTICE 'PASS 14 Paid in full on a card form charges only the desk add-on';
-
-  -- 15. "Payment Due" undoes the desk money and keeps the card money.
-  v_result := public.record_enrollment_payment(
-    '00000000-0000-0000-0000-000001634063', 'reversal', NULL, NULL, NULL, NULL, NULL);
-  IF (v_result->>'paid_amount')::numeric <> 37.45 THEN
-    RAISE EXCEPTION 'FAIL 15 a reversal on a card form left paid %, want 37.45 (the card money)',
-      v_result->>'paid_amount';
-  END IF;
-  RAISE NOTICE 'PASS 15 a reversal keeps the card money';
 END;
 $$;
 

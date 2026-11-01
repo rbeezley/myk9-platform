@@ -21,33 +21,21 @@ gives each fact one writer.
 
 ## Decisions
 
-1. **One formula for every form, card-paid or not.** Owed = the form's captured Stripe
-   charges (processing fees included) + the `entry_fee` of every entry that is not deleted,
-   not waived (`payment_status IS DISTINCT FROM 'waived'`; owner 2026-11-01: waived never
-   counts; the one live waived entry has `payment_method = 'check'`) and not covered by a
-   captured order's `entry_ids`. A card-paid entry is owed as its charge, a desk add-on at
-   its fee, never both. Captured = any status but pending/failed/canceled/cancelled/expired,
-   so a refunded order still counts. The `pi_` reference and `payment_method` mark nothing.
-   (Codex round 3 on #3513 showed why a separate "Stripe form keeps its charge" mode fails:
-   a desk add-on onto a card form was never owed.)
-2. **Card money is money received.** Checkout never recorded it (card forms sat at
-   `paid_amount = 0`, so "Paid in full" would charge the card amount again). A form's
-   captured charges live in a new `card_paid_cents` column AND in `paid_amount` ("the gross
-   ever received", the ledger's own definition), so the ledger core, "Paid in full", the
-   refund cap and the client's balance need no change. A recompute moves `paid_amount` by
-   the change in `card_paid_cents`, so it is idempotent. Both sides count the gross charge,
-   so Stripe-side refunds never double-count. The ledger's "Payment Due" reversal resets
-   `paid_amount` to the card money, undoing only the desk's. The money guard covers
-   `card_paid_cents`.
+1. **Owed = the sum of `entry_fee` over the form's entries that are not deleted and not
+   waived** (`payment_status IS DISTINCT FROM 'waived'`). Owner, 2026-11-01: waived never
+   counts. The predicate is the entry's `payment_status`, not `payment_method`: the one live
+   waived entry has `payment_method = 'check'`.
+2. **A Stripe form keeps its Stripe charge** (processing fees included). It is recognised on
+   the server only: a `stripe_orders` row whose status is not pending/failed/canceled/
+   cancelled/expired, linked by `enrollment_id` or covering one of its entries via
+   `entry_ids`; or `payment_reference LIKE 'pi\_%'`. `payment_method` is not a marker
+   (it defaults to `'online'`).
 3. **Status moves with the total in one direction only.** When a form's owed total _grows_
    (an add-on, a restore, a re-price up, an entry moved in) and the net received no longer
    covers it, a settled form (`paid`, `paid_by_cash`, `paid_by_check`, `waived`) becomes
    `pending`. A shrinking total never promotes a status: "Paid in full" at $0 settles it,
    and a form holding more than it owes is a person's call (no refund is ever automatic).
-   Growth only, so an unrelated entry edit never flips a `partial_refund` form. One
-   exception: a Stripe order event settles a pending form its card money now covers in
-   full (checkout's own intent; when an order goes pending -> succeeded its entries attach
-   before the order reads as captured, which reopens the form for an instant).
+   Growth only, so an unrelated entry edit never flips a `partial_refund` form.
 4. **Submission status is decided in `submit_show_entries`**, in the same transaction as
    the entry insert, replacing the client's second write:
    - received payment (`p_payment`): unchanged, the ledger core records it;
@@ -61,16 +49,15 @@ gives each fact one writer.
    `payment_status`, `paid_amount` or `payment_method`, and it no longer blanks details a
    secretary already entered. An exhibitor's self-service submit makes no enrollment write.
 6. **The status guard accepts the derived demotion.** `restrict_payment_status_update`
-   rejects an unprivileged status change unless it is one rule 3 derives: settled →
-   `pending` on a form whose derived total exceeds the net received, or pending → `paid`
-   on a form whose card money covers it. Without this, an
+   rejects an unprivileged status change unless it is exactly rule 3: settled → `pending`
+   on a non-Stripe form whose derived total exceeds the net received. Without this, an
    exhibitor's add-on onto a paid form would fail (the guard checks the JWT role, and the
    trigger runs in the exhibitor's request). The guard cannot tell the trigger from an
    exhibitor's own PATCH, so an exhibitor may also reopen their own settled form while it
    truly owes more than it holds: the state it should be in, with no money moved.
-7. **Backfill: card money, then totals.** No status, no refund. Preview (2026-11-01): 13
-   mail-in totals change; MK9-000305/306 keep their $37.45 totals and their `paid_amount`
-   moves 0 → 37.45 (the charge they received). No status needs to move: MK9-000320 is already pending, and every paid form keeps its
+7. **Backfill: `total_amount` only**, no status, no paid amount, no refund. Preview
+   (2026-10-31): 15 rows differ, 13 of them mail-in forms; the 2 Stripe forms (MK9-000305/306) are left alone. No
+   status needs to move: MK9-000320 is already pending, and every paid form keeps its
    status because the money is still held.
 8. **Forms holding more than they owe, for a person** (filed, not coded): MK9-000245–248
    (all entries deleted, check received) and MK9-000276 ($44 paid, $22 owed once the waived
@@ -105,22 +92,15 @@ Untouched entry writers covered by the trigger: `soft_delete_entry` / `soft_dele
 
 ### Phase 1: migration `20261101184700_myk9_1634_db_owns_form_total_and_status.sql`
 
-- `enrollments.card_paid_cents` (new, default 0); the money guard's two triggers re-created
-  to cover it.
-- `private.stripe_order_is_captured`, `private.enrollment_card_cents`,
-  `private.enrollment_owed_cents` (rule 1).
-- BEFORE INSERT / UPDATE OF `total_amount` on enrollments: the total is replaced by the
-  derived figure.
-- `private.refresh_enrollment_money(form, card_event)`: lock the form (`FOR NO KEY UPDATE`),
-  recompute total and card money, move `paid_amount` by the card change, apply rule 3.
-- AFTER on entries (INSERT/DELETE; every UPDATE behind a `WHEN` on fee, deletion, form or
-  waived-ness, so Comp / Undo Comp count) and AFTER on `stripe_orders` (INSERT/DELETE;
-  UPDATE when status, amount, form or covered entries change) call it.
+- `private.enrollment_owed_cents(uuid)`, `private.enrollment_total_is_stripe(uuid, text)`.
+- BEFORE INSERT / UPDATE OF `total_amount`, `payment_reference` on enrollments: a non-Stripe
+  form's total is replaced by the derived figure.
+- AFTER on entries (INSERT, DELETE, UPDATE OF `entry_fee`, `deleted_at`, `registration_id`,
+  `payment_status`; an update that changes none of fee, deletion, form or waived-ness
+  returns at once): lock each touched form (ids ordered), recompute, apply rule 3.
 - `restrict_payment_status_update` (from its live definition) with rule 6.
-- `submit_show_entries` (from `20261028024100`) with rule 4; `record_enrollment_payment_core`
-  (from `20260926124700`) with the reversal change (rule 2).
-- GIN index on `stripe_orders.entry_ids`; grants and REVOKEs on every new or replaced
-  function.
+- `submit_show_entries` (from `20261028024100`) with rule 4.
+- GIN index on `stripe_orders.entry_ids`; REVOKEs on every new function.
 - Backfill (rule 7).
 
 Lock order: an entry change locks the entry then its form; the ledger locks the form then
@@ -156,8 +136,8 @@ with 40P01, which is retryable and writes nothing. Accepted and documented.
 
 migration-auditor, then `pnpm qa:codex-review --post` (independent floor). Stop at a second
 finding on the same path. After merge, and only with the owner's OK: `supabase db push`
-from merged main; check on the applied DB that 0 forms differ from the derived total and
-that `card_paid_cents` equals each form's captured charges; advisors; Deploy myK9Show straight after the push (the deployed client still sends
+from merged main; check on the applied DB that 0 non-Stripe forms differ from the derived
+total; advisors; Deploy myK9Show straight after the push (the deployed client still sends
 the old writes until then; the BEFORE trigger neutralises its total, and pre-launch there
 is no traffic to double-count a group payment).
 

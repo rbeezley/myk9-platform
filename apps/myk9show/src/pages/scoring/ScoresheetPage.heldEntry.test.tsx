@@ -38,6 +38,7 @@ vi.mock('./classScoringRules', () => ({ classScoringRules: () => ({ maxTimeSecon
 vi.mock('./types', () => ({
   toScoringEntry: () => ({ entryId: 'entry-1', armband: 105 }),
   toClassInfo: () => ({ id: 'class-1', name: 'Container Novice' }),
+  MISSING_TRIAL_TYPE_SPORT_TYPE: 'unresolved-missing-trial-type',
   resolveSportTypeForClass: async () => 'scent-work',
   mapSportType: () => ({ organization: 'AKC', sportType: 'scent-work' }),
   detectScoresheetType: () => ({ organization: 'AKC', sportType: 'scent-work' }),

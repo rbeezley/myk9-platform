@@ -37,11 +37,13 @@ import { replicatedClassesTable } from '@/services/replication';
 import '@myk9/scoring-ui';
 import {
   mapSportType,
+  MISSING_TRIAL_TYPE_SPORT_TYPE,
   detectScoresheetType,
   toRegistryKey,
   toScoresheetEntry,
   toScoresheetClassInfo,
 } from '@/pages/scoring/types';
+import { MissingTrialTypeNotice } from '@/pages/scoring/MissingTrialTypeNotice';
 import { useAtShowScoresheet } from './useAtShowScoresheet';
 import { useAtShowStoragePersistence } from './useAtShowStoragePersistence';
 import { AtShowAddToHomeNudge } from './AtShowAddToHomeNudge';
@@ -283,6 +285,7 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
     classInfo,
     rules,
     trialSportType,
+    trialId,
     trialDate,
     trialNumber,
     trialName,
@@ -398,9 +401,13 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
         <div className="rounded-xl border bg-card p-6 text-center">
           <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
           <p className="text-lg font-medium mb-2">Scoresheet Not Available</p>
-          <p className="text-muted-foreground">
-            The scoresheet for {organization} {sportType} is not yet implemented.
-          </p>
+          {trialSportType === MISSING_TRIAL_TYPE_SPORT_TYPE ? (
+            <MissingTrialTypeNotice trialId={trialId} showId={showId} />
+          ) : (
+            <p className="text-muted-foreground">
+              The scoresheet for {organization} {sportType} is not yet implemented.
+            </p>
+          )}
           <RingsideUpButton label="Entries" onClick={onBack} />
         </div>
       </div>

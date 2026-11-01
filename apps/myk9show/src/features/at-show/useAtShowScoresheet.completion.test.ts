@@ -235,8 +235,14 @@ describe('useAtShowScoresheet completion wiring', () => {
     const { result } = renderScoresheet(vi.fn());
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     expect(result.current.entry?.entryId).toBe('entry-1');
-    expect(mocks.syncTrials).toHaveBeenCalledWith('show-1');
-    expect(mocks.syncEntries).toHaveBeenCalledWith('show-1');
+    expect(mocks.syncTrials).toHaveBeenCalledWith(
+      'show-1',
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
+    expect(mocks.syncEntries).toHaveBeenCalledWith(
+      'show-1',
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
     expect(mocks.transitionToInRing).toHaveBeenCalledOnce();
   });
 

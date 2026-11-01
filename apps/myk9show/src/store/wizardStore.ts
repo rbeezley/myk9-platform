@@ -5,17 +5,20 @@ import {
   resolvePremiumStyle,
   type PremiumStyle,
 } from '@/types/premium-types';
-import { resolveBrowserTrialTimezone } from '@/features/registries';
+import {
+  getRegistrySportName,
+  listRegistries,
+  resolveBrowserTrialTimezone,
+} from '@/features/registries';
 import { stepTransitionPatch } from './wizardStore.stepTransition';
 import { migrateWizardState, WIZARD_STORE_VERSION } from './wizardStore.migrations';
 import { createWizardPersistStorage } from './wizardStorage';
 
-/** Maps show organization to a default trial type (discipline). */
-const DEFAULT_TRIAL_TYPE: Partial<Record<string, string>> = {
-  AKC: 'Scent Work',
-  UKC: 'Nosework',
-  ASCA: 'Scent Detection',
-};
+/** Maps show organization to a default trial type (discipline); undefined for an unknown org. */
+function defaultTrialType(organization: string): string | undefined {
+  const id = organization.trim().toUpperCase();
+  return (listRegistries() as string[]).includes(id) ? getRegistrySportName(id) : undefined;
+}
 
 export type ShowDraft = WizardState['show'];
 export type CloneHydrationStatus = 'idle' | 'hydrating' | 'ready' | 'failed';
@@ -257,7 +260,7 @@ export const useWizardStore = create<WizardState & WizardActions>()(
             {
               ...trial,
               id: `trial-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-              trialType: trial.trialType ?? DEFAULT_TRIAL_TYPE[state.show.organization],
+              trialType: trial.trialType ?? defaultTrialType(state.show.organization),
             },
           ],
           trialsMovedCount: 0,
@@ -389,7 +392,7 @@ export const useWizardStore = create<WizardState & WizardActions>()(
             trials: snapshot.trials.map(trial => ({
               ...trial,
               id: `trial-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-              trialType: trial.trialType ?? DEFAULT_TRIAL_TYPE[show.organization],
+              trialType: trial.trialType ?? defaultTrialType(show.organization),
             })),
             isDirty: true,
           };

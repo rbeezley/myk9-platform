@@ -1,4 +1,5 @@
 import React from 'react';
+import { getRegistrySportName } from '@/features/registries';
 import { formatTrialLabel } from '@myk9/core';
 import type { ReportProps } from '@/lib/reports/types';
 import { formatFee } from '@/utils/format';
@@ -21,7 +22,9 @@ export const FinancialReport: React.FC<ReportProps> = ({
 }) => {
   const totals = calculateFinancialReportTotals(entries);
 
-  const orgTitle = organization ? `${organization} Scent Work` : 'Scent Work';
+  const orgTitle = organization
+    ? `${organization} ${getRegistrySportName(organization)}`
+    : getRegistrySportName(organization);
 
   const exhibitorMap = new Map<string, FinancialReportLine[]>();
   for (const line of totals.lines) {

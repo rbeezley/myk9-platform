@@ -67,6 +67,8 @@ export interface ElementSpec {
 }
 
 export interface RegistrySport {
+  /** What this registry calls the sport, e.g. "Scent Work" (AKC), "Nosework" (UKC). */
+  displayName: string;
   /** Every level this sport uses, with progression order. Superset of the keys elements reference. */
   levels: readonly LevelSpec[];
   /** Elements, each declaring its own level set + variants. */

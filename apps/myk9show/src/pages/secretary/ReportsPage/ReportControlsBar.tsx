@@ -78,6 +78,8 @@ interface ReportControlsBarProps {
   onDogChange: (value: string) => void;
   onSortChange: (value: string) => void;
   onPrint: () => void;
+  /** The report is for a registry outside this scope: nothing may be printed. */
+  printDisabled?: boolean;
   officialPdfAction?: OfficialPdfAction | undefined;
   judgeDay?: JudgeDayControl | undefined;
 }
@@ -97,6 +99,7 @@ export function ReportControlsBar({
   onDogChange,
   onSortChange,
   onPrint,
+  printDisabled = false,
   officialPdfAction,
   judgeDay,
 }: ReportControlsBarProps) {
@@ -276,7 +279,7 @@ export function ReportControlsBar({
             a blank sheet. A disabled Print sitting beside an enabled Download
             would still read as "printing is the main action, and it is broken". */}
         {!isPdfOnlyReport && (
-          <Button onClick={onPrint} className="w-full sm:w-auto">
+          <Button onClick={onPrint} disabled={printDisabled} className="w-full sm:w-auto">
             Print
           </Button>
         )}

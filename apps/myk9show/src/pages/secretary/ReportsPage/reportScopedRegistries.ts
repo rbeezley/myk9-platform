@@ -1,3 +1,4 @@
+import { getReportById, isReportOutsideRegistries } from '@/lib/reports/reportRegistry';
 import { resolveConfiguredRegistryId, type RegistryId } from '@/features/registries';
 
 export type TrialReportOption = {
@@ -34,4 +35,18 @@ export function getScopedRegistryIds(
     ids.add(normalized);
   }
   return [...ids];
+}
+
+/**
+ * True when the report belongs to a registry the selected trial (or, with no
+ * trial selected, the show) is not in. A deep link keeps such a report
+ * reachable, so the page must say so and withhold Print and Download.
+ */
+export function isReportForeignToScope(
+  reportId: string,
+  trials: readonly TrialReportOption[],
+  trialId: string
+): boolean {
+  const report = getReportById(reportId);
+  return !!report && isReportOutsideRegistries(report, getScopedRegistryIds(trials, trialId));
 }

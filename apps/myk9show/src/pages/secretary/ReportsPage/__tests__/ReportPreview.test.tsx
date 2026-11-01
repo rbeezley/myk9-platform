@@ -25,6 +25,9 @@ const trials = fromAny<DbTrial[], unknown>([
   },
 ]);
 
+const ukcTrials = fromAny<DbTrial[], unknown>([{ ...trials[0], registry_id: 'UKC' }]);
+const ascaTrials = fromAny<DbTrial[], unknown>([{ ...trials[0], registry_id: 'ASCA' }]);
+
 const classes = [
   {
     id: 'class-1',
@@ -402,7 +405,7 @@ describe('ReportPreview', () => {
         <ReportPreview
           reportType="asca-scent-detection-trial-roster"
           show={show}
-          trials={trials}
+          trials={ascaTrials}
           classes={classes}
           entries={entries}
           trialId="trial-1"
@@ -429,7 +432,7 @@ describe('ReportPreview', () => {
         <ReportPreview
           reportType="asca-scent-detection-trial-roster"
           show={show}
-          trials={trials}
+          trials={ascaTrials}
           classes={classes}
           entries={entries}
           trialId="all"
@@ -453,7 +456,7 @@ describe('ReportPreview', () => {
         <ReportPreview
           reportType="ukc-nosework-judges-book-element"
           show={show}
-          trials={trials}
+          trials={ukcTrials}
           classes={classes}
           entries={entries}
           trialId="trial-1"
@@ -476,7 +479,7 @@ describe('ReportPreview', () => {
         <ReportPreview
           reportType="ukc-nosework-trial-report"
           show={show}
-          trials={trials}
+          trials={ukcTrials}
           classes={classes}
           entries={entries}
           trialId="trial-1"
@@ -514,6 +517,29 @@ describe('ReportPreview', () => {
       );
 
       expect(screen.getByText(/different registry/i)).toBeInTheDocument();
+    });
+
+    it('says so instead of rendering an HTML report from another registry', () => {
+      const { container } = render(
+        <ReportPreview
+          reportType="trial-secretary-report"
+          show={show}
+          trials={ukcTrials}
+          classes={classes}
+          entries={entries}
+          trialId="trial-1"
+          classId="all"
+          dogId="all"
+          sortOrder="armband"
+          isLoading={false}
+          isError={false}
+          dataState="ready"
+          hasDownloadAction={false}
+        />
+      );
+
+      expect(screen.getByRole('status')).toHaveTextContent(/different registry/i);
+      expect(container.querySelector('iframe')).toBeNull();
     });
 
     it('reports a missing show as settled, not as loading forever', () => {

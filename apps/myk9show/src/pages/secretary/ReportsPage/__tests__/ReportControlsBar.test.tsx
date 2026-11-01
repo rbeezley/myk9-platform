@@ -49,6 +49,11 @@ describe('ReportControlsBar', () => {
     expect(screen.getByRole('button', { name: /print/i })).toBeInTheDocument();
   });
 
+  it('disables Print when the report is for another registry', () => {
+    render(<ReportControlsBar {...defaultProps} printDisabled />);
+    expect(screen.getByRole('button', { name: /print/i })).toBeDisabled();
+  });
+
   it('uses phone-width controls with desktop fixed widths restored at sm', () => {
     render(<ReportControlsBar {...defaultProps} />);
 

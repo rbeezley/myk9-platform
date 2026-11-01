@@ -2,8 +2,10 @@
 # The ONLY writer of `Review gate:` evidence comments. An agent that ran a
 # review calls this with the log; an agent that did not has no log to hash.
 # Format contract: line 1 is the evidence line scripts/qa/review-gate.ts
-# parses; line 2 is the sha256 of the review log; the rest is the verdict
-# block, fenced, so the PR carries what the reviewer actually said.
+# parses; next comes the sha256 of the review log (line 2, or line 3 when a
+# finished codex round records `Coverage: complete from <sha>` on line 2,
+# MYK9-1603); the rest is the verdict block, fenced, so the PR carries what the
+# reviewer actually said.
 #
 # With --withdraw it writes the MIRROR of that: an evidence line the checker
 # REJECTS, so a re-review that finds defects turns a green gate red. Without it

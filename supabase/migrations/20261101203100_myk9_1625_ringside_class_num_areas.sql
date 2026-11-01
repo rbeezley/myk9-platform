@@ -208,10 +208,11 @@ BEGIN
   -- from 1 to 3 (the scoresheet carries at most three area times). Never cleared from
   -- ringside: an unset count is what makes the picker ask.
   IF v_has_areas THEN
-    -- CASE, not OR: SQL does not promise to skip the cast for a non-number.
-    IF NOT CASE WHEN jsonb_typeof(v_fields -> 'num_areas') = 'number'
-                THEN (v_fields ->> 'num_areas')::numeric IN (1, 2, 3)
-                ELSE false END THEN
+    -- CASE, not OR: SQL does not promise to skip the cast for a non-number. The
+    -- parentheses keep the CASE's own THEN from ending the IF condition.
+    IF NOT (CASE WHEN jsonb_typeof(v_fields -> 'num_areas') = 'number'
+                 THEN (v_fields ->> 'num_areas')::numeric IN (1, 2, 3)
+                 ELSE false END) THEN
       RAISE EXCEPTION 'num_areas must be 1, 2 or 3' USING errcode = '22023';
     END IF;
     v_areas := (v_fields ->> 'num_areas')::numeric::integer;

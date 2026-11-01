@@ -201,7 +201,6 @@ async function main(): Promise<void> {
   console.log(
     `\n${count('caught')} caught, ${count('missed')} missed, ${count('error')} error of ${rows.filter(r => r.verdict !== 'ci-run').length} local mutants (logs in .logs/planted-bugs/).`
   );
-
 }
 
 void main();

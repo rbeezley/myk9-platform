@@ -4,10 +4,12 @@ import {
   baselineRed,
   classify,
   classifyCheck,
+  isVitestCheck,
   renderTable,
   uniqueChecks,
   validateManifest,
   type Mutant,
+  type Row,
 } from './lib';
 
 const good: Mutant = {
@@ -43,7 +45,6 @@ describe('validateManifest', () => {
     expect(validateManifest({}, () => true)).toEqual(['manifest must be an array']);
   });
 });
-
 
 const report = (failed: number, total: number) =>
   JSON.stringify({ numFailedTests: failed, numTotalTests: total });

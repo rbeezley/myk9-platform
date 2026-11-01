@@ -151,6 +151,18 @@ Rules the code enforces ([`handoff.ts`](../../scripts/cloud/handoff.ts)):
 
 Detailed reports and logs go in Actions artifacts with 30-day retention, referenced by run ID, attempt and digest. The PR or Linear record keeps the minimal receipt. Everything uploaded or published passes [`publication-scan.ts`](../../scripts/cloud/publication-scan.ts) first. That reuses the E2E artifact scanner over every secret-named variable in the environment (model keys, `GH_TOKEN`, `LINEAR_API_KEY`, test passwords). A hit, a scanner error, a missing staging directory or any directory inside it that cannot be listed blocks publication. Diagnostics name locations only, scrubbed of secret values (a file can be named after the key it holds).
 
+## Stall deadlines and local takeover
+
+A cloud session cannot be messaged and never reports that it stalled; on 2026-10-31 a fix session pushed nothing for over two hours before anyone looked (MYK9-1602). So the orchestrator starts [`scripts/cloud/watch-cloud-session.sh`](../../scripts/cloud/watch-cloud-session.sh) (Bash tool, `run_in_background`) **in the same turn as every cloud dispatch**: `bash scripts/cloud/watch-cloud-session.sh <issue> first|fix <dispatched-at>`. It matches the branch the way the lane reference does (prefix `claude/myk9-<n>-`, or any `claude/` branch whose PR says `Fixes MYK9-<n>`) and exits non-zero when:
+
+- **10**: no branch was pushed within 30 min of dispatch.
+- **11**: a branch exists but no ready PR within 60 min.
+- **12** (fix mode): the PR head still starts with the SHA the review's findings comment named (`Codex findings for <sha>`, `Claude findings for <sha>`, or a `Review gate:` withdrawal, from a trusted author) 10 min after that comment. This gives the still-running session 10 minutes to self-fix; a later clean gate line ("no findings", "N findings, all addressed") ends the watch. A fresh cloud fix session is no longer offered, because setup, install, build and push do not fit in 10 minutes: exit 12 means the orchestrator fixes the findings locally.
+
+Exit 0 is delivery; exit 3 means `gh` could not be reached and is not a verdict; exit 2 is a usage error only. The decision rule is `decide` in [`watch-cloud-session.ts`](../../scripts/cloud/watch-cloud-session.ts), covered by known-answer tests.
+
+**A stall exit (10, 11 or 12) is a local takeover, with no owner question.** The orchestrator fetches the existing branch into the issue worktree and dispatches a local implementer on it (with no branch pushed, a fresh branch from `origin/main`). The takeover adds commits on top and never force-pushes or rebases the cloud branch, never messages the session, and never starts a second cloud session on the same branch. The run summary lists every takeover. The procedure lives in the orchestrate skill's [lane reference](../../.claude/skills/orchestrate/references/linear-issue-run.md) (step 3).
+
 ## Known gaps
 
 - Codex cloud setup has not been run (it can't be from a Claude session). Record its versions here once it has.

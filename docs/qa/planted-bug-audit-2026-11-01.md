@@ -9,7 +9,7 @@ pnpm qa:planted-bugs                      # all local mutants, from a clean work
 pnpm qa:planted-bugs -- --only check-in   # substring match on mutant id
 ```
 
-The runner refuses to start on a dirty tree, runs every check once on the clean tree and aborts if any is already red (a red baseline would count every mutant as caught), then for each mutant does `git apply`, runs the checks, `git apply -R`, and prints `restored: clean` after asserting `git status --porcelain` is empty. It aborts the whole run if the tree is not clean. A mutant is **caught** if a check fails on a test assertion. A check that times out (10 min, `PLANTED_BUGS_CHECK_TIMEOUT_MS`), exits 126/127, or never reaches its assertions (no test files, config or compile error) is an **ERROR**, not a catch. Output for every check is written to `.logs/planted-bugs/`. Ctrl-C reverts the applied mutant before exiting. Total runtime is a few minutes.
+The runner refuses to start on a dirty tree, runs every check once on the clean tree and aborts if any is already red (a red baseline would count every mutant as caught), then for each mutant does `git apply`, runs the checks, `git apply -R`, and prints `restored: clean` after asserting `git status --porcelain` is empty. It aborts the whole run if the tree is not clean. Every local check must be a `vitest run` command; the runner appends `--reporter=json --outputFile=<abs>` and decides from that JSON report only, never the exit code or log text. A check is **caught** when `numFailedTests >= 1`, a pass when tests ran and none failed, and an **ERROR** when the report is missing, unparsable, has zero tests, or the check timed out (10 min, `PLANTED_BUGS_CHECK_TIMEOUT_MS`) or was signalled. A mutant is CAUGHT if any check caught it, else ERROR if any errored, else MISSED. The baseline must produce a passing report with at least one test per check or the run exits 2. Reports and logs go to `.logs/planted-bugs/`. Ctrl-C reverts the applied mutant before exiting. Total runtime is a few minutes.
 
 ## Results
 
@@ -36,7 +36,7 @@ SQL mutants (`kind: ci`) are patches against the latest `recalculate_class_place
 | sql-placement/03 most faults placed first                   | sql-placement   | CI-run (not run locally) | same                                                                               |
 | sql-placement/04 NQ entries eligible for placement          | sql-placement   | CI-run (not run locally) | same                                                                               |
 
-14 local mutants: 11 caught, 3 missed, 0 errored (re-run with error classification; verdicts unchanged). Every run printed `restored: clean`.
+14 local mutants: 11 CAUGHT, 3 MISSED, 0 ERROR (re-run with JSON-report verdicts; unchanged).
 
 ## Missed mutants (follow-ups, not fixed here)
 

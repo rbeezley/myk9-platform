@@ -374,7 +374,7 @@ describe('codex-review.sh', () => {
     const posted = bodies(gh.calls);
     expect(posted).toHaveLength(1);
     expect(posted[0]).toMatch(
-      /^Review gate: codex reviewed [0-9a-f]{9}\.\.[0-9a-f]{9} — no findings\nlog sha256: [0-9a-f]{64}\n/
+      /^Review gate: codex reviewed [0-9a-f]{9}\.\.[0-9a-f]{9} — no findings\nCoverage: complete from [0-9a-f]{9}\nlog sha256: [0-9a-f]{64}\n/
     );
     // The poster carries what the reviewer actually said, not just a claim.
     expect(posted[0]).toContain('No actionable defects found.');

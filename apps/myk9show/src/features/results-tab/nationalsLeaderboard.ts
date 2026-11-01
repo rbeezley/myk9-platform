@@ -71,8 +71,9 @@ export function leaderboardStatus(flags: {
 }
 
 /**
- * Points descending; at equal points a dog with every run timed ranks ahead of one with any
- * untimed run; then time ascending; armband breaks an exact tie so the order is stable.
+ * Points descending; at equal points fewer untimed runs rank first, and a dog with no recorded
+ * time at all ranks after one with any, so a missing time never reads as a fast one (MYK9-1573);
+ * then time ascending; armband breaks an exact tie.
  */
 export function compareLeaderboard(
   a: Pick<NationalsLeaderboardRow, 'totalPoints' | 'totalTimeSeconds' | 'untimedRuns' | 'armband'>,
@@ -80,7 +81,8 @@ export function compareLeaderboard(
 ): number {
   return (
     b.totalPoints - a.totalPoints ||
-    Number(a.untimedRuns > 0) - Number(b.untimedRuns > 0) ||
+    a.untimedRuns - b.untimedRuns ||
+    Number(a.totalTimeSeconds === 0) - Number(b.totalTimeSeconds === 0) ||
     a.totalTimeSeconds - b.totalTimeSeconds ||
     (a.armband ?? '').localeCompare(b.armband ?? '', undefined, { numeric: true })
   );

@@ -383,6 +383,29 @@ describe('buildNationalsLeaderboard', () => {
   });
 });
 
+describe('ranking among dogs with untimed runs (MYK9-1573)', () => {
+  const order = (rows: Parameters<typeof compareLeaderboard>[0][]) =>
+    [...rows].sort(compareLeaderboard).map(row => row.armband);
+
+  it('ranks fewer untimed runs first, whatever the partial totals', () => {
+    expect(
+      order([
+        { armband: 'A', totalPoints: 100, totalTimeSeconds: 60, untimedRuns: 2 },
+        { armband: 'B', totalPoints: 100, totalTimeSeconds: 80, untimedRuns: 1 },
+      ])
+    ).toEqual(['B', 'A']);
+  });
+
+  it('ranks a dog with no recorded time after one with a real time at the same untimed count', () => {
+    expect(
+      order([
+        { armband: 'A', totalPoints: 5, totalTimeSeconds: 0, untimedRuns: 1 },
+        { armband: 'B', totalPoints: 5, totalTimeSeconds: 10, untimedRuns: 1 },
+      ])
+    ).toEqual(['B', 'A']);
+  });
+});
+
 describe('totalTimeLabel (MYK9-1573)', () => {
   it('shows the total alone when every run is timed', () => {
     expect(totalTimeLabel({ totalTimeSeconds: 90, untimedRuns: 0 })).toEqual({

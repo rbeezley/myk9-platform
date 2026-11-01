@@ -1,6 +1,6 @@
 # The database owns an entry form's total and payment status
 
-> **Status:** Active
+> **Status:** Complete
 
 Linear: MYK9-1634. Supersedes the closed PR #3509 (convergence stop, 2026-11-01).
 

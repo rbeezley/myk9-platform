@@ -1,0 +1,13 @@
+diff --git a/packages/replication/src/mutation-ordering.ts b/packages/replication/src/mutation-ordering.ts
+index f372ffa8f..bc6e1d0a5 100644
+--- a/packages/replication/src/mutation-ordering.ts
++++ b/packages/replication/src/mutation-ordering.ts
+@@ -52,7 +52,7 @@ export function sortMutationsByDependencies(mutations: PendingMutation[]): Mutat
+     if (!mutation.dependsOn || mutation.dependsOn.length === 0) continue;
+ 
+     for (const depId of mutation.dependsOn) {
+-      if (mutationMap.has(depId)) {
++      if (!mutationMap.has(depId)) {
+         graph.get(depId)!.push(mutation.id);
+         inDegree.set(mutation.id, (inDegree.get(mutation.id) || 0) + 1);
+       }

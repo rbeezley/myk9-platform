@@ -1,0 +1,13 @@
+diff --git a/packages/replication/src/mutation-queue-capacity.ts b/packages/replication/src/mutation-queue-capacity.ts
+index a90c54c7d..f76da7a4d 100644
+--- a/packages/replication/src/mutation-queue-capacity.ts
++++ b/packages/replication/src/mutation-queue-capacity.ts
+@@ -7,7 +7,7 @@ export const QUEUE_MAX_SIZE = 1000;
+ export type MutationQueueCapacity = 'ok' | 'warning' | 'overflow';
+ 
+ export function getMutationQueueCapacity(count: number): MutationQueueCapacity {
+-  if (count >= QUEUE_MAX_SIZE) return 'overflow';
++  if (count > QUEUE_MAX_SIZE) return 'overflow';
+   if (count >= QUEUE_WARNING_THRESHOLD) return 'warning';
+   return 'ok';
+ }

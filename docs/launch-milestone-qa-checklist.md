@@ -35,6 +35,7 @@ Most gates also run in CI on every PR (marked **[CI]**). Re-running them togethe
   - [ ] `pnpm test:mutation:cart` — cart fee math ≥ gate (baseline 87.50%)
   - [ ] `pnpm test:mutation:placement` — placement math ≥ gate (baseline 85.67%)
   - [ ] `pnpm test:mutation:score-validator` / `pnpm test:mutation:replication-conflict` — review survivors (documented baselines, not yet gated)
+- [ ] `pnpm qa:planted-bugs` — show-day planted-bug audit (SQL, check-in, run order, queue, results release); run from a clean worktree **before each test show**, and file every MISSED row ([`planted-bug-audit-2026-11-01.md`](qa/planted-bug-audit-2026-11-01.md))
 
 ## 5. Database & security (Phase 3)
 

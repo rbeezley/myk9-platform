@@ -1,0 +1,13 @@
+diff --git a/apps/myk9show/src/services/replication/ReplicatedEntriesTable.ts b/apps/myk9show/src/services/replication/ReplicatedEntriesTable.ts
+index fe2dafc8a..971248a81 100644
+--- a/apps/myk9show/src/services/replication/ReplicatedEntriesTable.ts
++++ b/apps/myk9show/src/services/replication/ReplicatedEntriesTable.ts
+@@ -808,7 +808,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
+       },
+       // check_in_status is ringside-whitelisted; route through the RPC so judges/
+       // stewards can persist check-ins (updated_at is auto-managed, not intent).
+-      rpc: { name: RINGSIDE_RPC_FUNCTION, fields: { check_in_status: status } },
++      rpc: { name: RINGSIDE_RPC_FUNCTION, fields: { check_in_status: 'checked-in' } },
+     });
+     this.reportSetResult(entryId, result);
+     this._lastMutationId = mutationId;

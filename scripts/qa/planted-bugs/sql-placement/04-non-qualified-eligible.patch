@@ -1,0 +1,13 @@
+diff --git a/supabase/migrations/20261029043900_myk9_1473_coin_flip_tie_order.sql b/supabase/migrations/20261029043900_myk9_1473_coin_flip_tie_order.sql
+index 58e3afc16..4ef9fb9d3 100644
+--- a/supabase/migrations/20261029043900_myk9_1473_coin_flip_tie_order.sql
++++ b/supabase/migrations/20261029043900_myk9_1473_coin_flip_tie_order.sql
+@@ -131,7 +131,7 @@ BEGIN
+         e2.placement_tiebreak,
+         coalesce(
+           e2.is_scored = true
+-            AND e2.result_status = 'qualified'
++            AND e2.result_status IN ('qualified', 'nq')
+             AND e2.deleted_at IS NULL,
+           false
+         ) AS eligible,

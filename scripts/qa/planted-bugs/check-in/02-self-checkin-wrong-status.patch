@@ -1,0 +1,13 @@
+diff --git a/apps/myk9show/src/services/show-day/checkInStatus.ts b/apps/myk9show/src/services/show-day/checkInStatus.ts
+index c3fada95e..0651137f5 100644
+--- a/apps/myk9show/src/services/show-day/checkInStatus.ts
++++ b/apps/myk9show/src/services/show-day/checkInStatus.ts
+@@ -35,7 +35,7 @@ export async function updateSelfCheckInStatus(
+ ): Promise<void> {
+   const { error } = await supabase.rpc('self_checkin_entry', {
+     p_entry_id: entryId,
+-    p_new_status: status,
++    p_new_status: 'checked-in',
+   });
+ 
+   if (error) {

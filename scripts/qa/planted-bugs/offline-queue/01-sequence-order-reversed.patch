@@ -1,0 +1,13 @@
+diff --git a/packages/replication/src/mutation-ordering.ts b/packages/replication/src/mutation-ordering.ts
+index f372ffa8f..57ae89492 100644
+--- a/packages/replication/src/mutation-ordering.ts
++++ b/packages/replication/src/mutation-ordering.ts
+@@ -25,7 +25,7 @@ export function compareMutationOrder(a: PendingMutation, b: PendingMutation): nu
+   // breaks transitivity and yields an engine-defined sort.)
+   const seqA = a.sequenceNumber ?? -Infinity;
+   const seqB = b.sequenceNumber ?? -Infinity;
+-  if (seqA !== seqB) return seqA - seqB;
++  if (seqA !== seqB) return seqB - seqA;
+   return a.timestamp - b.timestamp;
+ }
+ 

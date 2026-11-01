@@ -1,0 +1,170 @@
+[
+  {
+    "id": "run-order/01-comparator-reversed",
+    "area": "run-order",
+    "patch": "run-order/01-comparator-reversed.patch",
+    "rationale": "Run-order comparator swapped: dogs run last-to-first",
+    "checks": ["cd packages/ringside && pnpm vitest run src/pages/EntryList/runQueue.test.ts"],
+    "kind": "local"
+  },
+  {
+    "id": "run-order/02-in-ring-dog-in-waiting-queue",
+    "area": "run-order",
+    "patch": "run-order/02-in-ring-dog-in-waiting-queue.patch",
+    "rationale": "In-ring dog left in the waiting queue (breaks the INTENT rule)",
+    "checks": ["cd packages/ringside && pnpm vitest run src/pages/EntryList/runQueue.test.ts"],
+    "kind": "local"
+  },
+  {
+    "id": "run-order/03-scored-dog-stays-queued",
+    "area": "run-order",
+    "patch": "run-order/03-scored-dog-stays-queued.patch",
+    "rationale": "Scored dog no longer dropped from the queue",
+    "checks": ["cd packages/ringside && pnpm vitest run src/pages/EntryList/runQueue.test.ts"],
+    "kind": "local"
+  },
+  {
+    "id": "run-order/04-next-candidates-off-by-one",
+    "area": "run-order",
+    "patch": "run-order/04-next-candidates-off-by-one.patch",
+    "rationale": "nextPendingCandidates returns limit+1 dogs",
+    "checks": ["cd packages/ringside && pnpm vitest run src/pages/EntryList/runQueue.test.ts"],
+    "kind": "local"
+  },
+  {
+    "id": "run-order/05-tie-break-armband-inverted",
+    "area": "run-order",
+    "patch": "run-order/05-tie-break-armband-inverted.patch",
+    "rationale": "Equal run-order tie-break by armband inverted",
+    "checks": ["cd packages/ringside && pnpm vitest run src/pages/EntryList/runQueue.test.ts"],
+    "kind": "local"
+  },
+  {
+    "id": "offline-queue/01-sequence-order-reversed",
+    "area": "offline-queue",
+    "patch": "offline-queue/01-sequence-order-reversed.patch",
+    "rationale": "Queued mutations upload newest-first (stale write wins)",
+    "checks": [
+      "cd packages/replication && pnpm vitest run src/mutation-ordering.test.ts src/mutation-queue-capacity.test.ts src/MutationManager.test.ts"
+    ],
+    "kind": "local"
+  },
+  {
+    "id": "offline-queue/02-dependency-ignored-when-present",
+    "area": "offline-queue",
+    "patch": "offline-queue/02-dependency-ignored-when-present.patch",
+    "rationale": "Dependency edge only recorded for missing deps (dependents upload first)",
+    "checks": [
+      "cd packages/replication && pnpm vitest run src/mutation-ordering.test.ts src/mutation-queue-capacity.test.ts src/MutationManager.test.ts"
+    ],
+    "kind": "local"
+  },
+  {
+    "id": "offline-queue/03-overflow-threshold-off-by-one",
+    "area": "offline-queue",
+    "patch": "offline-queue/03-overflow-threshold-off-by-one.patch",
+    "rationale": "Queue overflow flagged one mutation late (>= to >)",
+    "checks": [
+      "cd packages/replication && pnpm vitest run src/mutation-ordering.test.ts src/mutation-queue-capacity.test.ts src/MutationManager.test.ts"
+    ],
+    "kind": "local"
+  },
+  {
+    "id": "check-in/01-rpc-fields-hardcoded-status",
+    "area": "check-in",
+    "patch": "check-in/01-rpc-fields-hardcoded-status.patch",
+    "rationale": "Check-in RPC always sends checked-in whatever status was chosen",
+    "checks": [
+      "cd apps/myk9show && pnpm vitest run src/services/replication/ReplicatedEntriesTable.queuedRpc.test.ts src/services/replication/ReplicatedEntriesTable.durableFirst.test.ts src/services/show-day/__tests__/checkInStatus.test.ts"
+    ],
+    "kind": "local"
+  },
+  {
+    "id": "check-in/02-self-checkin-wrong-status",
+    "area": "check-in",
+    "patch": "check-in/02-self-checkin-wrong-status.patch",
+    "rationale": "Self check-in RPC always sends checked-in",
+    "checks": [
+      "cd apps/myk9show && pnpm vitest run src/services/replication/ReplicatedEntriesTable.queuedRpc.test.ts src/services/replication/ReplicatedEntriesTable.durableFirst.test.ts src/services/show-day/__tests__/checkInStatus.test.ts"
+    ],
+    "kind": "local"
+  },
+  {
+    "id": "check-in/03-report-counts-no-status-as-checked-in",
+    "area": "check-in",
+    "patch": "check-in/03-report-counts-no-status-as-checked-in.patch",
+    "rationale": "Check-in report counts no-status entries as checked in",
+    "checks": [
+      "cd apps/myk9show && pnpm vitest run src/services/replication/ReplicatedEntriesTable.queuedRpc.test.ts src/services/replication/ReplicatedEntriesTable.durableFirst.test.ts src/services/show-day/__tests__/checkInStatus.test.ts"
+    ],
+    "kind": "local"
+  },
+  {
+    "id": "results-release/01-manual-release-shows-at-class-complete",
+    "area": "results-release",
+    "patch": "results-release/01-manual-release-shows-at-class-complete.patch",
+    "rationale": "manual_release results shown when the class completes, before release",
+    "checks": ["cd packages/secretary && pnpm vitest run src/visibility"],
+    "kind": "local"
+  },
+  {
+    "id": "results-release/02-exhibitor-bypasses-visibility",
+    "area": "results-release",
+    "patch": "results-release/02-exhibitor-bypasses-visibility.patch",
+    "rationale": "Inverted permission: exhibitors bypass the visibility rules",
+    "checks": ["cd packages/secretary && pnpm vitest run src/visibility"],
+    "kind": "local"
+  },
+  {
+    "id": "results-release/03-class-override-applied-before-trial",
+    "area": "results-release",
+    "patch": "results-release/03-class-override-applied-before-trial.patch",
+    "rationale": "Class override applied before trial (trial wins over class)",
+    "checks": ["cd packages/secretary && pnpm vitest run src/visibility"],
+    "kind": "local"
+  },
+  {
+    "id": "sql-placement/01-deleted-entry-eligible",
+    "area": "sql-placement",
+    "patch": "sql-placement/01-deleted-entry-eligible.patch",
+    "rationale": "Soft-deleted entry still placed (dropped deleted_at filter)",
+    "checks": [
+      "supabase/tests/placement_soft_delete_ranking_test.sql, supabase/tests/myk9_1473_coin_flip_tie_order_test.sql, supabase/tests/class_status_auto_derivation_test.sql"
+    ],
+    "kind": "ci",
+    "note": "SQL behaviour tests run only in CI (no container runtime on the dev Mac); the patch edits the latest recalculate_class_placements migration."
+  },
+  {
+    "id": "sql-placement/02-ribbon-range-off-by-one",
+    "area": "sql-placement",
+    "patch": "sql-placement/02-ribbon-range-off-by-one.patch",
+    "rationale": "Ribbon range ends at 3rd instead of 4th (off-by-one)",
+    "checks": [
+      "supabase/tests/placement_soft_delete_ranking_test.sql, supabase/tests/myk9_1473_coin_flip_tie_order_test.sql, supabase/tests/class_status_auto_derivation_test.sql"
+    ],
+    "kind": "ci",
+    "note": "SQL behaviour tests run only in CI (no container runtime on the dev Mac); the patch edits the latest recalculate_class_placements migration."
+  },
+  {
+    "id": "sql-placement/03-faults-sorted-descending",
+    "area": "sql-placement",
+    "patch": "sql-placement/03-faults-sorted-descending.patch",
+    "rationale": "Most faults placed first (ordering flipped)",
+    "checks": [
+      "supabase/tests/placement_soft_delete_ranking_test.sql, supabase/tests/myk9_1473_coin_flip_tie_order_test.sql, supabase/tests/class_status_auto_derivation_test.sql"
+    ],
+    "kind": "ci",
+    "note": "SQL behaviour tests run only in CI (no container runtime on the dev Mac); the patch edits the latest recalculate_class_placements migration."
+  },
+  {
+    "id": "sql-placement/04-non-qualified-eligible",
+    "area": "sql-placement",
+    "patch": "sql-placement/04-non-qualified-eligible.patch",
+    "rationale": "NQ entries eligible for placement (status filter widened)",
+    "checks": [
+      "supabase/tests/placement_soft_delete_ranking_test.sql, supabase/tests/myk9_1473_coin_flip_tie_order_test.sql, supabase/tests/class_status_auto_derivation_test.sql"
+    ],
+    "kind": "ci",
+    "note": "SQL behaviour tests run only in CI (no container runtime on the dev Mac); the patch edits the latest recalculate_class_placements migration."
+  }
+]

@@ -1,0 +1,23 @@
+diff --git a/packages/secretary/src/visibility/visibility-cascade.ts b/packages/secretary/src/visibility/visibility-cascade.ts
+index 065c7f391..1f2f96e0b 100644
+--- a/packages/secretary/src/visibility/visibility-cascade.ts
++++ b/packages/secretary/src/visibility/visibility-cascade.ts
+@@ -28,14 +28,14 @@ export function resolveVisibilityCascade(
+ ): VisibilitySettings {
+   let result: VisibilitySettings = { ...show };
+ 
+-  if (trial) {
+-    result = applyOverride(result, trial, 'trial');
+-  }
+-
+   if (cls) {
+     result = applyOverride(result, cls, 'class');
+   }
+ 
++  if (trial) {
++    result = applyOverride(result, trial, 'trial');
++  }
++
+   return result;
+ }
+ 

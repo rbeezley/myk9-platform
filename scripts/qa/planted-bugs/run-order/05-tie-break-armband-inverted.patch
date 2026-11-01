@@ -1,0 +1,13 @@
+diff --git a/packages/ringside/src/pages/EntryList/runQueue.ts b/packages/ringside/src/pages/EntryList/runQueue.ts
+index 9682486ab..c0c714541 100644
+--- a/packages/ringside/src/pages/EntryList/runQueue.ts
++++ b/packages/ringside/src/pages/EntryList/runQueue.ts
+@@ -105,7 +105,7 @@ export function compareByRunOrder(a: RunQueueEntry, b: RunQueueEntry): number {
+     (a.exhibitorOrder || armbandSortKey(a.armband)) -
+     (b.exhibitorOrder || armbandSortKey(b.armband));
+   if (byKey !== 0) return byKey;
+-  const byArmband = armbandSortKey(a.armband) - armbandSortKey(b.armband);
++  const byArmband = armbandSortKey(b.armband) - armbandSortKey(a.armband);
+   if (byArmband !== 0) return byArmband;
+   return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+ }

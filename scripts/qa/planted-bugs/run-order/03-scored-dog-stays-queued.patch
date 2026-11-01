@@ -1,0 +1,12 @@
+diff --git a/packages/ringside/src/pages/EntryList/runQueue.ts b/packages/ringside/src/pages/EntryList/runQueue.ts
+index 9682486ab..b498eb762 100644
+--- a/packages/ringside/src/pages/EntryList/runQueue.ts
++++ b/packages/ringside/src/pages/EntryList/runQueue.ts
+@@ -87,7 +87,6 @@ const WAITING_STATUSES: ReadonlySet<string> = new Set([
+ 
+ /** Entries still due to run: unscored with a status that means "still to run" (or none yet). */
+ export function isInQueue(entry: RunQueueEntry): boolean {
+-  if (entry.isScored) return false;
+   return entry.status == null || WAITING_STATUSES.has(entry.status);
+ }
+ 

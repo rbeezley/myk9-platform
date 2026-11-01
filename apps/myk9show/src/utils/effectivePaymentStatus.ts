@@ -71,15 +71,31 @@ function dispositionOf(status: PaymentStatus): MoneyDisposition {
   }
 }
 
+/**
+ * `entryCardPaid` is the server-derived `entries.card_paid` flag (MYK9-1637);
+ * see branch 2b. Omit it (or pass false/null) for the unchanged desk rule.
+ */
 export function resolveEffectivePaymentStatus(
   entryPaymentStatus: PaymentStatus | null | undefined,
-  enrollmentPaymentStatus: PaymentStatus | null | undefined
+  enrollmentPaymentStatus: PaymentStatus | null | undefined,
+  entryCardPaid?: boolean | null
 ): PaymentStatus | null {
   // 1. The entry has no status of its own — the order fills in.
   if (entryPaymentStatus == null) return enrollmentPaymentStatus ?? null;
 
   // 2. No order to consult; the entry row is all there is.
   if (enrollmentPaymentStatus == null) return entryPaymentStatus;
+
+  // 2b. (MYK9-1637) Card money is attributed PER ENTRY by the server
+  //    (`entries.card_paid`: a succeeded Stripe order paid for this entry and
+  //    Stripe has not refunded it). The order's `pending` may be a sibling's
+  //    desk debt (e.g. a desk add-on that reopened the form), so it cannot
+  //    reopen an entry whose own status is a paid disposition. Only the paid
+  //    disposition qualifies: a comped or refunded card entry still follows
+  //    branch 3.
+  if (entryCardPaid === true && dispositionOf(entryPaymentStatus) === 'paid') {
+    return entryPaymentStatus;
+  }
 
   // 3. This entry's own money question is CLOSED, and the order disagrees about
   //    what happened to it. An entry-level waive or refund is a per-entry

@@ -358,7 +358,11 @@ BEGIN
       -- Still 56 after entries.placement_tiebreak and entries.placement_tie
       -- (20261029043900, MYK9-1473): result data, deliberately NOT granted on the
       -- base table; the replica reads them through the masked results views.
-      ('entries','authenticated',56),
+      -- 56 became 57 when entries.card_paid was added and granted SELECT to
+      -- authenticated (20261101213300, MYK9-1637): the money surfaces let a
+      -- card-paid entry stand over a reopened form. anon stays 0 (REVOKEd), and a
+      -- direct write cannot set it (trg_entries_derive_card_paid re-derives it).
+      ('entries','authenticated',57),
       ('judge_assignments','anon',10),
       ('judge_assignments','authenticated',12),
       ('dogs','anon',5),

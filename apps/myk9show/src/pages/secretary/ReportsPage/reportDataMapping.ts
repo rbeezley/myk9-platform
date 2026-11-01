@@ -145,6 +145,7 @@ function mapReportEntry(
     ...(e.discount_amount != null ? { discountAmount: Number(e.discount_amount) } : {}),
     ...(e.refund_amount != null ? { refundAmount: Number(e.refund_amount) } : {}),
     ...(e.comped != null ? { comped: Boolean(e.comped) } : {}),
+    ...(e.card_paid === true ? { cardPaid: true } : {}),
     // MYK9-639: carried so the report can follow a move-up back to the entry
     // that holds the money. Read defensively: the column reaches the views only
     // once migration 20260918193300 is applied.

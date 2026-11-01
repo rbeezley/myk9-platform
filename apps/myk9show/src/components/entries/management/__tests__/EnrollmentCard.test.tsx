@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { screen, fireEvent } from '@testing-library/react';
+import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { EnrollmentCard } from '../EnrollmentCard';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
@@ -59,6 +59,7 @@ function makeGroup(overrides: Partial<EnrollmentGroup> = {}): EnrollmentGroup {
     totalAmount: 5000,
     totalAmountUnit: 'cents',
     paidAmount: 50,
+    cardCoveredAmount: 0,
     paymentReference: null,
     paymentMethod: null,
     rawPaymentStatus: null,
@@ -334,6 +335,69 @@ describe('EnrollmentCard', () => {
 
       expect(record).toHaveBeenCalledWith('enroll-1', { kind: 'reversal' });
       expect(markPaidOnline).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('card money counts as received, never as desk-refundable (MYK9-1637)', () => {
+    it('a desk add-on onto a card-paid form shows only the add-on as due', () => {
+      render(
+        <EnrollmentCard
+          {...defaultProps}
+          group={makeGroup({
+            paymentStatus: PaymentStatus.PENDING,
+            totalAmount: 7500,
+            paidAmount: 0,
+            cardCoveredAmount: 50,
+          })}
+        />
+      );
+
+      expect(screen.getByText('($50.00 paid · $25.00 due)')).toBeInTheDocument();
+    });
+
+    it('offers to refund only the desk money, never the card money', () => {
+      render(
+        <EnrollmentCard
+          {...defaultProps}
+          paymentLedger={{
+            record: vi.fn().mockResolvedValue(true),
+            markPaidOnline: vi.fn(),
+            todayInShowZone: '2026-09-17',
+          }}
+          group={makeGroup({
+            paymentStatus: PaymentStatus.PARTIAL_REFUND,
+            totalAmount: 7500,
+            paidAmount: 25,
+            cardCoveredAmount: 50,
+          })}
+        />
+      );
+      fireEvent.click(screen.getByText('Partial Refund'));
+      fireEvent.click(screen.getByText('Refunded…'));
+
+      expect((screen.getByLabelText(/Refund Amount/i) as HTMLInputElement).value).toBe('25.00');
+    });
+
+    it('a decision email asks only for the unpaid add-on', async () => {
+      const onSendDecisionEmail = vi.fn().mockResolvedValue(undefined);
+      render(
+        <EnrollmentCard
+          {...defaultProps}
+          onSendDecisionEmail={onSendDecisionEmail}
+          group={makeGroup({
+            paymentStatus: PaymentStatus.PENDING,
+            totalAmount: 7500,
+            paidAmount: 0,
+            cardCoveredAmount: 50,
+          })}
+        />
+      );
+      fireEvent.click(screen.getByText('Email Exhibitor'));
+      fireEvent.click(screen.getByText('Send Email'));
+
+      await waitFor(() =>
+        expect(onSendDecisionEmail).toHaveBeenCalledWith('enroll-1', undefined, 25)
+      );
     });
   });
 

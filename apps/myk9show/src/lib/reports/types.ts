@@ -48,6 +48,8 @@ export interface ReportEntry {
   paymentStatus?: PaymentStatus | 'paid' | 'refunded';
   paymentMethod?: string;
   enrollmentPaymentStatus?: PaymentStatus | 'paid' | 'refunded';
+  /** MYK9-1637: server-derived `entries.card_paid`; see `resolveEffectivePaymentStatus`. */
+  cardPaid?: boolean;
   discountAmount?: number;
   refundAmount?: number;
   comped?: boolean;

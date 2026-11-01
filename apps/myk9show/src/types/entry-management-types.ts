@@ -122,9 +122,13 @@ export interface EntryManagementEntry {
    */
   withdrawalReasonCode?: string | null;
   enrollmentPaymentStatus?: PaymentStatus | null;
+  /** MYK9-1637: server-derived `entries.card_paid`; see `resolveEffectivePaymentStatus`. */
+  cardPaid?: boolean;
   enrollmentPaymentReference?: string | null;
   enrollmentTotalAmount?: number | null;
   enrollmentPaidAmount?: number | null;
+  /** MYK9-1637: card money the form holds (cents), from succeeded Stripe orders. */
+  enrollmentCardCoveredCents?: number | null;
   enrollmentRefundAmount?: number | null;
   enrollmentRefundNotes?: string | null;
   enrollmentRefundedAt?: string | null;

@@ -139,8 +139,8 @@ export function resolveRefund(
 }
 
 /**
- * MYK9-677: net received on an enrollment, `paid_amount - refund_amount`, the
- * same figure `record_enrollment_payment` reads for every branch. Read from the
+ * MYK9-677: desk money held on an enrollment, `paid_amount - refund_amount`: the
+ * cap `record_enrollment_payment` puts on a desk refund (card money is not in it). Read from the
  * enrollment's own refund column, not the group's display fallback (which sums
  * entry-level Stripe refunds when the enrollment has none), so the dialog's cap
  * and balance match what the server will accept.
@@ -152,4 +152,16 @@ export function netReceivedDollars(
   const refunded =
     group.entries.find(entry => entry.enrollmentRefundAmount != null)?.enrollmentRefundAmount ?? 0;
   return Math.max(0, group.paidAmount - refunded);
+}
+
+/**
+ * MYK9-1637: money received on an enrollment, desk and card: `netReceivedDollars`
+ * plus the card money its Stripe orders hold. The balance due and "Paid in Full"
+ * read this; a desk refund is capped by `netReceivedDollars` alone, because card
+ * money goes back only through Stripe.
+ */
+export function receivedDollars(
+  group: Pick<EnrollmentGroup, 'paidAmount' | 'cardCoveredAmount' | 'enrollmentId' | 'entries'>
+): number {
+  return netReceivedDollars(group) + group.cardCoveredAmount;
 }

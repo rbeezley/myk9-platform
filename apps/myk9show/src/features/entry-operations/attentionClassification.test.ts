@@ -166,3 +166,22 @@ describe('classifyClassAttention', () => {
     expect(classifyClassAttention({ reopenedAfterCloseoutAt: null })).toEqual([]);
   });
 });
+
+describe('classifyRawEntryAttention: card_paid (MYK9-1637)', () => {
+  const reopened = {
+    id: 'entry-1',
+    entry_status: 'accepted',
+    payment_status: 'paid',
+    registration: { payment_status: 'pending' },
+  };
+
+  it('does not raise payment_due for a card-paid entry under a reopened order', () => {
+    expect(classifyRawEntryAttention({ ...reopened, card_paid: true })).not.toContain(
+      'payment_due'
+    );
+  });
+
+  it('still raises payment_due when the entry is not card-paid', () => {
+    expect(classifyRawEntryAttention(reopened)).toContain('payment_due');
+  });
+});

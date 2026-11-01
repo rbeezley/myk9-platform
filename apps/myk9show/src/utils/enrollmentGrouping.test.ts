@@ -128,6 +128,22 @@ describe('groupEntriesByEnrollment', () => {
     expect(groups[0].totalAmountUnit).toBe('cents');
   });
 
+  it('carries the enrollment card money in dollars, apart from desk money (MYK9-1637)', () => {
+    const entries: EntryManagementEntry[] = [
+      {
+        ...base,
+        id: 'e1',
+        registrationId: 'reg-1',
+        enrollmentTotalAmount: 7500,
+        enrollmentPaidAmount: 25,
+        enrollmentCardCoveredCents: 5000,
+      },
+    ];
+    const [group] = groupEntriesByEnrollment(entries);
+    expect(group.cardCoveredAmount).toBe(50);
+    expect(group.paidAmount).toBe(25);
+  });
+
   it('populates refund fields from the first entry in the group', () => {
     const entries: EntryManagementEntry[] = [
       {

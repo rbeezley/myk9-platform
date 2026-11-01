@@ -136,3 +136,23 @@ describe('the exhibitor money surfaces agree on the unmasked balance (MYK9-495)'
     expect(screen.getByText('$30.00')).toBeInTheDocument();
   });
 });
+
+describe('card-paid entries under a reopened order (MYK9-1637)', () => {
+  it('does not count a card-paid entry as due while its order is pending', () => {
+    const summary = summarize([
+      row({ payment_status: 'paid', card_paid: true, registration: { payment_status: 'pending' } }),
+    ]);
+    expect(summary.amountDueCents).toBe(0);
+  });
+
+  it('still counts a paid entry that is not card-paid as due under a pending order', () => {
+    const summary = summarize([
+      row({
+        payment_status: 'paid',
+        card_paid: false,
+        registration: { payment_status: 'pending' },
+      }),
+    ]);
+    expect(summary.amountDueCents).toBe(3000);
+  });
+});

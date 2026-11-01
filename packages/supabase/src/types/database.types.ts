@@ -2262,6 +2262,7 @@ export type Database = {
       }
       enrollments: {
         Row: {
+          card_covered_cents: number
           check_number: string | null
           confirmation_number: string
           created_at: string
@@ -2284,6 +2285,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          card_covered_cents?: number
           check_number?: string | null
           confirmation_number?: string
           created_at?: string
@@ -2306,6 +2308,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          card_covered_cents?: number
           check_number?: string | null
           confirmation_number?: string
           created_at?: string
@@ -2404,6 +2407,7 @@ export type Database = {
           armband: string | null
           bonus_points: number | null
           capacity_override: boolean
+          card_paid: boolean
           check_in_status: string | null
           check_in_status_before_pull: string | null
           class_id: string | null
@@ -2506,6 +2510,7 @@ export type Database = {
           armband?: string | null
           bonus_points?: number | null
           capacity_override?: boolean
+          card_paid?: boolean
           check_in_status?: string | null
           check_in_status_before_pull?: string | null
           class_id?: string | null
@@ -2608,6 +2613,7 @@ export type Database = {
           armband?: string | null
           bonus_points?: number | null
           capacity_override?: boolean
+          card_paid?: boolean
           check_in_status?: string | null
           check_in_status_before_pull?: string | null
           class_id?: string | null
@@ -11506,6 +11512,7 @@ export type Database = {
           armband: string | null
           awaiting_registration_number: boolean | null
           bonus_points: number | null
+          card_paid: boolean | null
           check_in_status: string | null
           class_element: string | null
           class_id: string | null
@@ -11826,6 +11833,7 @@ export type Database = {
           armband: string | null
           awaiting_registration_number: boolean | null
           bonus_points: number | null
+          card_paid: boolean | null
           check_in_status: string | null
           class_element: string | null
           class_id: string | null

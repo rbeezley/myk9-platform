@@ -49,6 +49,8 @@ export interface SecretaryEntry {
   withdrawn_at?: string | null;
   payment_method: string | null;
   refund_amount: number | null;
+  /** MYK9-1637: server-derived; a succeeded, unrefunded Stripe order paid for this entry. */
+  card_paid?: boolean | null;
   refunded_at: string | null;
   stripe_payment_intent_id: string | null;
   /**
@@ -84,6 +86,7 @@ export interface SecretaryEntry {
     payment_reference: string | null;
     total_amount: number | null;
     paid_amount: number | null;
+    card_covered_cents: number | null;
     refund_amount: number | null;
     refund_notes: string | null;
     refunded_at: string | null;

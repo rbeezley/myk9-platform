@@ -10,7 +10,7 @@ function makeState(overrides: Partial<RefundDialog> = {}): RefundDialog {
 
 const baseProps = {
   onChange: vi.fn(),
-  paidDollars: 50,
+  refundableDollars: 50,
   onClose: vi.fn(),
   onConfirm: vi.fn(),
 };

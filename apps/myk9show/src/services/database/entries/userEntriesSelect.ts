@@ -32,6 +32,7 @@ const USER_ENTRIES_SELECT_BASE = `
       dog_image_url,
       deleted_at,
       refund_amount,
+      card_paid,
       refunded_at,
       submitted_at,
       created_at,

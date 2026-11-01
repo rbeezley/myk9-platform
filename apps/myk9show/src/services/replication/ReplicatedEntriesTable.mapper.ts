@@ -164,6 +164,8 @@ export interface ReplicatedEntry {
   comped_reason?: string | null | undefined;
   refundAmount?: number | undefined;
   refund_amount?: number | undefined;
+  cardPaid?: boolean | undefined;
+  card_paid?: boolean | undefined;
   refundedAt?: string | undefined;
   refunded_at?: string | undefined;
   stripePaymentIntentId?: string | undefined;
@@ -475,6 +477,9 @@ export function rowToEntry(row: EntryRow): ReplicatedEntry {
     trial_id: row.trial_id ?? undefined,
     refundAmount: row.refund_amount ?? undefined,
     refund_amount: row.refund_amount ?? undefined,
+    // MYK9-1637: server-derived, read-only. Never emitted by the upload path.
+    cardPaid: row.card_paid ?? undefined,
+    card_paid: row.card_paid ?? undefined,
     refundedAt: row.refunded_at ?? undefined,
     refunded_at: row.refunded_at ?? undefined,
     stripePaymentIntentId: row.stripe_payment_intent_id ?? undefined,

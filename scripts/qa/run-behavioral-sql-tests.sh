@@ -63,6 +63,7 @@ TEST_FILES=(
   "$TEST_DIR/myk9_1601_entry_form_notes_test.sql"
   "$TEST_DIR/myk9_1634_enrollment_total_derived_test.sql"
   "$TEST_DIR/myk9_1634_submission_status_test.sql"
+  "$TEST_DIR/myk9_1637_card_money_received_test.sql"
   "$TEST_DIR/show_publish_gate_trigger_test.sql"
   "$TEST_DIR/club_authorization_gate_test.sql"
   "$TEST_DIR/myk9_979_online_entries_switch_test.sql"

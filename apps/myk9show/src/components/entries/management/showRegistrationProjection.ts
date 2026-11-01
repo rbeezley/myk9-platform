@@ -42,6 +42,7 @@ export function entryAttentionReasons(entry: EntryManagementEntry): EntryAttenti
     rawEntryStatus: entry.rawEntryStatus,
     paymentStatus: entry.paymentStatus,
     enrollmentPaymentStatus: entry.enrollmentPaymentStatus,
+    cardPaid: entry.cardPaid,
   });
 }
 

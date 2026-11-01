@@ -22,6 +22,8 @@ const SERVER_OWNED_PAYMENT_FIELDS = [
   'discount_amount',
   'refund_amount',
   'refunded_at',
+  // MYK9-1637: server-derived card attribution, so a local overlay may not assert it.
+  'card_paid',
   // The money root: a move-up successor owes nothing itself, so a local overlay
   // that drops this link strands its payment on the original entry.
   'moved_from_entry_id',

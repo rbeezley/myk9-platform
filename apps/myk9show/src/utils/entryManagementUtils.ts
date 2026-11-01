@@ -58,11 +58,14 @@ export const mapPaymentStatus = (status?: string | null): PaymentStatus => {
  * the resolver never returns null.
  */
 export function getEffectivePaymentStatus(
-  entry: Pick<EntryManagementEntry, 'paymentStatus' | 'enrollmentPaymentStatus'>
+  entry: Pick<EntryManagementEntry, 'paymentStatus' | 'enrollmentPaymentStatus' | 'cardPaid'>
 ): PaymentStatus {
   return (
-    resolveEffectivePaymentStatus(entry.paymentStatus, entry.enrollmentPaymentStatus) ??
-    entry.paymentStatus
+    resolveEffectivePaymentStatus(
+      entry.paymentStatus,
+      entry.enrollmentPaymentStatus,
+      entry.cardPaid
+    ) ?? entry.paymentStatus
   );
 }
 
@@ -79,7 +82,7 @@ export function hasEntryLevelRefund(
 export function getEntryPaidAmount(
   entry: Pick<
     EntryManagementEntry,
-    'paymentStatus' | 'enrollmentPaymentStatus' | 'totalFee' | 'refundAmount'
+    'paymentStatus' | 'enrollmentPaymentStatus' | 'cardPaid' | 'totalFee' | 'refundAmount'
   >
 ): number {
   if (hasEntryLevelRefund(entry)) {

@@ -8,6 +8,7 @@
 --   S4 a check add-on onto a paid form grows the total and reopens it as 'pending';
 --   S5 an exhibitor's own add-on onto a form paid by check succeeds and reopens it;
 --   S6 "Paid in full" charges only what is owed, never the waived entry;
+--   S7 a group-payment add-on onto a card-paid form counts its card money (MYK9-1637);
 --   G1 an unprivileged caller still cannot set a status;
 --   G2 nor reopen a form that owes nothing more.
 --
@@ -216,6 +217,43 @@ BEGIN
   END;
 END;
 $$;
+
+-- S7 (MYK9-1637). A form a $30 card checkout paid, then a group-payment add-on: the card money
+-- and the group's $30 together cover the $60 it owes, so it is paid.
+INSERT INTO public.people (id, first_name, last_name, email)
+VALUES ('00000000-0000-0000-0000-000001634a04', 'Card', 'Exhibitor', 'myk9-1634-card@example.test');
+INSERT INTO public.dogs (id, name, call_name, breed, status, owner_id)
+VALUES ('00000000-0000-0000-0000-000001634a44', 'MYK9-1634 Card Dog', 'Card', 'Beagle', 'active',
+        '00000000-0000-0000-0000-000001634a04');
+INSERT INTO public.dog_registrations (dog_id, organization, registration_number, is_primary)
+VALUES ('00000000-0000-0000-0000-000001634a44', 'UKC', 'UKC16340004', true);
+INSERT INTO public.enrollments (id, show_id, handler_id, payment_status)
+VALUES ('00000000-0000-0000-0000-000001634a54', '00000000-0000-0000-0000-000001634a11',
+        '00000000-0000-0000-0000-000001634a04', 'pending');
+SET LOCAL ROLE service_role;
+INSERT INTO public.entries (id, dog_id, class_id, show_id, trial_id, registration_id,
+                            entry_status, payment_status, payment_method, entry_fee)
+VALUES ('00000000-0000-0000-0000-000001634a64', '00000000-0000-0000-0000-000001634a44',
+        '00000000-0000-0000-0000-000001634a31', '00000000-0000-0000-0000-000001634a11',
+        '00000000-0000-0000-0000-000001634a21', '00000000-0000-0000-0000-000001634a54',
+        'confirmed', 'paid', 'online', 30);
+INSERT INTO public.stripe_orders (id, stripe_payment_intent_id, amount_cents, status,
+                                  order_type, show_id, entry_ids)
+VALUES ('00000000-0000-0000-0000-000001634a74', 'pi_1634_s7', 3195, 'succeeded', 'entry',
+        '00000000-0000-0000-0000-000001634a11',
+        ARRAY['00000000-0000-0000-0000-000001634a64']::uuid[]);
+RESET ROLE;
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000001634b09', true);
+SELECT public.submit_show_entries(
+  '00000000-0000-0000-0000-000001634a11', '00000000-0000-0000-0000-000001634a54',
+  jsonb_build_array(jsonb_build_object('dog_id', '00000000-0000-0000-0000-000001634a44', 'class_id', '00000000-0000-0000-0000-000001634a32',
+    'handler_name', 'Card Exhibitor', 'client_fee_cents', 3000)),
+  '00000000-0000-0000-0000-000001634c07', 'group_payment');
+RESET ROLE;
+INSERT INTO t1634s_expect
+SELECT 'S7 a group add-on onto a card-paid form counts its card money',
+       pg_temp.form1634('00000000-0000-0000-0000-000001634a54'), '6000 30.00 paid group_payment';
 
 -- S6. "Paid in full" on the group form: $90 of entries, $30 waived, $30 received, so $30.
 SET LOCAL ROLE authenticated;

@@ -10,8 +10,9 @@
 --   6. a direct write of total_amount (the old client/server increments) is overridden;
 --   7. "Paid in full" (record_enrollment_payment, amount NULL) after a delete charges only
 --      the live entries;
---   8. a Stripe-paid form (payment_reference 'pi_...') keeps its stored total, also once a
---      desk payment overwrites the reference (9) and after a full refund (11);
+--   8. a card-paid form's total is its entries' fees too, not the Stripe charge (MYK9-1637
+--      re-baseline); a succeeded order covering an entry is card money held (9) and a
+--      refunded order is not (11);
 --  12. waiving an entry drops its fee, and un-waiving adds it back;
 --  13. so do Comp and Undo Comp, which never name payment_status.
 --
@@ -54,7 +55,7 @@ VALUES
   ('00000000-0000-0000-0000-000001634062', '00000000-0000-0000-0000-000001634011',
    '00000000-0000-0000-0000-000001634054', 'pending', 'cash', 1234);
 
--- 8 (setup). A Stripe-paid form keeps its stored total, processing fees included.
+-- 8 (setup). A card-paid form, written the old way with the charge as its total.
 INSERT INTO public.enrollments (id, show_id, handler_id, payment_status, payment_method,
                                 payment_reference, total_amount)
 VALUES ('00000000-0000-0000-0000-000001634063', '00000000-0000-0000-0000-000001634011',
@@ -64,6 +65,9 @@ CREATE TEMP TABLE t1634_expect (label text, got integer, want integer) ON COMMIT
 
 CREATE OR REPLACE FUNCTION pg_temp.total1634(p_id uuid) RETURNS integer
 LANGUAGE sql AS $$ SELECT total_amount FROM public.enrollments WHERE id = p_id $$;
+
+CREATE OR REPLACE FUNCTION pg_temp.card1634(p_id uuid) RETURNS integer
+LANGUAGE sql AS $$ SELECT card_covered_cents FROM public.enrollments WHERE id = p_id $$;
 
 INSERT INTO t1634_expect
 SELECT '1 hand-set total on insert becomes the derived 0',
@@ -138,39 +142,44 @@ INSERT INTO t1634_expect
 SELECT '13b undoing the comp adds the fee back',
        pg_temp.total1634('00000000-0000-0000-0000-000001634061'), 4000;
 
--- 8. The Stripe form is untouched, even when one of its entries changes.
+-- 8. MYK9-1637: one formula for every form. The card form's total is its entry's fee; the
+-- charge (processing fees included) stays on the order.
 INSERT INTO public.entries (id, show_id, trial_id, registration_id, entry_status,
                             payment_status, payment_method, entry_fee)
 VALUES ('00000000-0000-0000-0000-000001634083', '00000000-0000-0000-0000-000001634011',
         '00000000-0000-0000-0000-000001634021', '00000000-0000-0000-0000-000001634063',
-        'confirmed', 'pending', 'cash', 0);
+        'confirmed', 'pending', 'cash', 35);
 UPDATE public.enrollments SET total_amount = 3745
  WHERE id = '00000000-0000-0000-0000-000001634063';
 INSERT INTO t1634_expect
-SELECT '8 a Stripe-paid form keeps its stored total',
-       pg_temp.total1634('00000000-0000-0000-0000-000001634063'), 3745;
+SELECT '8 a card-paid form owes its entries'' fees, not the charge',
+       pg_temp.total1634('00000000-0000-0000-0000-000001634063'), 3500;
 
--- 9. A desk payment that overwrites a Stripe form's reference (the ledger core writes the
--- check number into payment_reference) keeps the Stripe total: a succeeded order covering
--- the form's entry is the permanent marker. customer_id NULL keeps the checkout triggers out.
+-- 9. A succeeded order covering the form's entry is card money held, whatever the
+-- form's payment_reference says. customer_id NULL keeps the checkout sync out.
 INSERT INTO public.stripe_orders (id, show_id, status, amount_cents, entry_ids, stripe_payment_intent_id)
 VALUES ('00000000-0000-0000-0000-000001634091', '00000000-0000-0000-0000-000001634011',
         'succeeded', 3745, ARRAY['00000000-0000-0000-0000-000001634083'::uuid], 'pi_1634fixture');
 UPDATE public.enrollments SET payment_reference = '2207'
  WHERE id = '00000000-0000-0000-0000-000001634063';
 INSERT INTO t1634_expect
-SELECT '9 a Stripe form whose reference is overwritten keeps its total (order marker; would re-derive to 0)',
-       pg_temp.total1634('00000000-0000-0000-0000-000001634063'), 3745;
+SELECT '9a a succeeded order covering an entry is card money held',
+       pg_temp.card1634('00000000-0000-0000-0000-000001634063'), 3500;
+INSERT INTO t1634_expect
+SELECT '9b and the total is still the fees',
+       pg_temp.total1634('00000000-0000-0000-0000-000001634063'), 3500;
 
--- 11. After a full Stripe refund (the webhook stamps the order 'refunded') the form is still
--- a Stripe form: the overwritten reference no longer marks it, the refunded order must.
+-- 11. An order the webhook marks 'refunded' holds no card money; the entry is still owed.
 UPDATE public.stripe_orders SET status = 'refunded'
  WHERE id = '00000000-0000-0000-0000-000001634091';
 UPDATE public.enrollments SET payment_reference = 'Refund note'
  WHERE id = '00000000-0000-0000-0000-000001634063';
 INSERT INTO t1634_expect
-SELECT '11 a refunded Stripe order still marks the form (would re-derive to 0)',
-       pg_temp.total1634('00000000-0000-0000-0000-000001634063'), 3745;
+SELECT '11a a refunded order holds no card money',
+       pg_temp.card1634('00000000-0000-0000-0000-000001634063'), 0;
+INSERT INTO t1634_expect
+SELECT '11b and the entry is still owed',
+       pg_temp.total1634('00000000-0000-0000-0000-000001634063'), 3500;
 
 -- 10. The triggers move no money: paid, refund and status are untouched by an entry change.
 CREATE TEMP TABLE t1634_money ON COMMIT DROP AS

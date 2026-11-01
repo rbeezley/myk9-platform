@@ -45,6 +45,8 @@ export function withEntryManagementMoneyRoots(
     // The enrollment/order facts belong to the root too: it is the row the
     // exhibitor's registration created and paid for, so this is also what puts
     // the destination back on the right order card.
+    // Card money is attributed to the entry that holds it, so it travels with the root.
+    ...(root.cardPaid !== undefined ? { cardPaid: root.cardPaid } : {}),
     ...(root.enrollmentPaymentStatus !== undefined
       ? { enrollmentPaymentStatus: root.enrollmentPaymentStatus }
       : {}),
@@ -56,6 +58,9 @@ export function withEntryManagementMoneyRoots(
       : {}),
     ...(root.enrollmentPaidAmount !== undefined
       ? { enrollmentPaidAmount: root.enrollmentPaidAmount }
+      : {}),
+    ...(root.enrollmentCardCoveredCents !== undefined
+      ? { enrollmentCardCoveredCents: root.enrollmentCardCoveredCents }
       : {}),
     ...(root.enrollmentRefundAmount !== undefined
       ? { enrollmentRefundAmount: root.enrollmentRefundAmount }

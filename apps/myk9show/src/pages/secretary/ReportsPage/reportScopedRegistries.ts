@@ -50,3 +50,6 @@ export function isReportForeignToScope(
   const report = getReportById(reportId);
   return !!report && isReportOutsideRegistries(report, getScopedRegistryIds(trials, trialId));
 }
+
+/** The preview's foreign-report notice; the disabled Print button points at it. */
+export const FOREIGN_REPORT_NOTICE_ID = 'foreign-report-notice';

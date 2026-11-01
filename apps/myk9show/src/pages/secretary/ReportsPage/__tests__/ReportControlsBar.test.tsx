@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
 import userEvent from '@testing-library/user-event';
 import { ReportControlsBar } from '../ReportControlsBar';
+import { FOREIGN_REPORT_NOTICE_ID } from '../reportScopedRegistries';
 
 const mockTrials = [
   { id: 'trial-1', name: 'Friday Trial 1', trial_number: 'Trial 1', date: '2026-04-12' },
@@ -51,7 +52,9 @@ describe('ReportControlsBar', () => {
 
   it('disables Print when the report is for another registry', () => {
     render(<ReportControlsBar {...defaultProps} printDisabled />);
-    expect(screen.getByRole('button', { name: /print/i })).toBeDisabled();
+    const print = screen.getByRole('button', { name: /print/i });
+    expect(print).toBeDisabled();
+    expect(print).toHaveAttribute('aria-describedby', FOREIGN_REPORT_NOTICE_ID);
   });
 
   it('uses phone-width controls with desktop fixed widths restored at sm', () => {

@@ -17,7 +17,11 @@ import { omitHeldEntries } from './reportHeldEntries';
 import { isStaticOfficialPdfReport } from '@/features/organization-forms/officialPdfReports';
 import { NO_HOSTED_REPORT_DATA, type HostedReportData } from './useHostedReportData';
 import { releasePdfFrame, writeMarkupIntoFrame } from './reportPreviewFrame';
-import { isReportForeignToScope, type TrialReportOption } from './reportScopedRegistries';
+import {
+  FOREIGN_REPORT_NOTICE_ID,
+  isReportForeignToScope,
+  type TrialReportOption,
+} from './reportScopedRegistries';
 import { buildPages, selectionHasEntries } from './reportPreviewPages';
 import type { ReportDataState } from '@/hooks/queries/useReportData';
 import { resolveClassJudgeName } from '@/utils/classJudgeDisplay';
@@ -306,6 +310,7 @@ export function ReportPreview({
   ) {
     return (
       <div
+        id={FOREIGN_REPORT_NOTICE_ID}
         role="status"
         aria-live="polite"
         className="flex flex-col items-center justify-center gap-2 p-8 text-center"

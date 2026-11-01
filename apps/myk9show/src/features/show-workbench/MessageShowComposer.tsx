@@ -323,12 +323,17 @@ export function MessageShowComposer({
         </div>
       </div>
 
-      <div className="mt-4 flex justify-end">
+      <div className="mt-4 flex flex-wrap items-center justify-end gap-3">
+        {!canSend && (
+          <p id="message-show-send-hint" className="text-sm text-muted-foreground">
+            {isAnnouncementLane ? 'Add a title and message to send.' : 'Write a message to send.'}
+          </p>
+        )}
         <Button
           type="button"
-          size="sm"
           onClick={handleSend}
           disabled={isSendingMessage || !canSend}
+          aria-describedby={canSend ? undefined : 'message-show-send-hint'}
         >
           <Send className="mr-2 h-4 w-4" aria-hidden="true" />
           {isSendingMessage ? 'Sending...' : 'Send message'}

@@ -58,6 +58,7 @@ describe('MessageShowComposer', () => {
     expect(screen.getByLabelText('Message')).toHaveValue('');
     const send = screen.getByRole('button', { name: 'Send message' });
     expect(send).toBeDisabled();
+    expect(send).toHaveAccessibleDescription('Add a title and message to send.');
     await user.click(send);
     expect(mockPostAnnouncement).not.toHaveBeenCalled();
     expect(mockSendTargetedMessage).not.toHaveBeenCalled();
@@ -74,6 +75,21 @@ describe('MessageShowComposer', () => {
     expect(send).toBeDisabled();
     await user.type(message, 'x');
     expect(send).toBeEnabled();
+    expect(screen.queryByText('Add a title and message to send.')).not.toBeInTheDocument();
+  });
+
+  it('changing the class with no template chosen writes no template copy', async () => {
+    const { user } = render(<MessageShowComposer showId="show-1" classes={classes} />);
+
+    await user.click(screen.getByRole('combobox', { name: 'Recipient' }));
+    await user.click(await screen.findByRole('option', { name: 'A class' }));
+    await user.click(screen.getByRole('combobox', { name: 'Class' }));
+    await user.click(await screen.findByRole('option', { name: /Interior Advanced/ }));
+
+    expect(screen.getByLabelText('Message')).toHaveValue('');
+    expect(screen.getByRole('button', { name: 'Send message' })).toHaveAccessibleDescription(
+      'Write a message to send.'
+    );
   });
 
   it('sends everyone-in-show messages through announcements, not targeted messaging', async () => {

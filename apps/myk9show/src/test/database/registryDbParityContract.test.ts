@@ -199,6 +199,20 @@ const CLASS_RULE_DELTAS: Readonly<Partial<Record<RegistryId, readonly ClassRuleD
       },
       apply: tuples => tuples,
     },
+    {
+      migration: '20261101203300_myk9_1631_asca_interior_area_counts.sql',
+      why: 'sets ASCA Interior Open, Advanced and Excellent to start at 1 area (MYK9-1631) — area counts only; no class is added, removed or relabelled',
+      proves: sql => {
+        expect(sql).toMatch(/SET area_count = 1/);
+        expect(sql).toMatch(/sport_code = 'asca-scent-detection'/);
+        expect(sql).toMatch(/element = 'Interior'/);
+        expect(sql).toMatch(/level IN \('Open', 'Advanced', 'Excellent'\)/);
+        expect(sql).not.toMatch(/INSERT INTO/i);
+        expect(sql).not.toMatch(/DELETE FROM/i);
+        expect(sql).not.toMatch(/SET\s+(level|element|section)\s*=/i);
+      },
+      apply: tuples => tuples,
+    },
   ],
   UKC: [
     {

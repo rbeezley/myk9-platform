@@ -93,8 +93,10 @@ calling prompt explicitly requests one.
 ## Escaped bugs
 
 When a finding is a bug an earlier walk or spec should have caught, apply "Escaped bugs" in
-`docs/agents/issue-tracker.md` and put the class-level check where it belongs: a new step in
-**Walk**, a wider viewport/role matrix in **Inputs**, or the area spec per `docs/qa/e2e-suite-map.md`.
+`docs/agents/issue-tracker.md`: the finding or Linear draft carries the `verifier gap:` line and
+names where the class-level check belongs (a new step in **Walk**, a wider viewport/role matrix in
+**Inputs**, or the area spec per `docs/qa/e2e-suite-map.md`). The fix PR makes that change; the
+audit only records it.
 
 ## Boundaries
 

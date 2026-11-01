@@ -99,7 +99,10 @@ async function assertRouteHealth(
     .toBeGreaterThan(20);
 
   await expect(page).not.toHaveURL(/\/sign-in/);
-  expect(new URL(page.url()).pathname, `${routeLabel}: route path`).toBe(expectedPath);
+  // A matrix path may carry a query (`?select=classes`); compare the route, not the query.
+  expect(new URL(page.url()).pathname, `${routeLabel}: route path`).toBe(
+    new URL(expectedPath, page.url()).pathname
+  );
 
   const overflow = await page.evaluate(() =>
     Math.max(0, document.documentElement.scrollWidth - window.innerWidth)
@@ -115,12 +118,12 @@ async function assertExhibitorStates(page: Page) {
 }
 
 async function assertSecretaryStates(page: Page) {
-  const waitlist = page.getByRole('tab', { name: 'Waitlist', exact: true });
-  await expect(waitlist).toBeVisible();
-  await waitlist.click();
-  await expect(waitlist).toHaveAttribute('aria-selected', 'true');
+  await openActionsMenu(page);
+  await page.getByTestId('header-action-show-tool-entry-list-waitlist').click();
+  await expect(page.getByRole('heading', { name: 'Waitlist', exact: true })).toBeVisible();
 
-  await page.getByRole('tab', { name: 'Entry Forms', exact: true }).click();
+  await page.getByRole('link', { name: 'Back to entry forms' }).click();
+  await expect(page.getByRole('heading', { name: 'Entry Forms' })).toBeVisible();
   // The quick-info cells sit in the show header's details panel, collapsed until opened.
   await page.getByRole('button', { name: 'Show details', exact: true }).click();
   await expect(page.getByText('Total Entries', { exact: true })).toBeVisible();

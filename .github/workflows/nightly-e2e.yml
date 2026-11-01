@@ -52,6 +52,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Reserve Supabase host ports
+        run: bash scripts/ci/reserve-supabase-ports.sh
+
       - name: Prepare isolated Supabase target
         run: pnpm qa:isolated-e2e:prepare
         env:

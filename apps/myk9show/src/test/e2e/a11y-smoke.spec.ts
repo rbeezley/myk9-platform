@@ -156,7 +156,10 @@ test.describe('a11y: authenticated role landings', () => {
 const ACCENTS = ['clay', 'grove', 'dusk', 'heather'] as const;
 
 test.describe('a11y: ringside Class Status dialog', () => {
-  test('meets color contrast in every accent, light and dark', async ({ page }) => {
+  // The title must match the a11y grep in playwright.ci.config.ts, or CI skips it silently.
+  test('Class Status dialog has no serious/critical violations: color contrast in every accent and mode', async ({
+    page,
+  }) => {
     const user = TEST_USERS.SECRETARY;
     if (!user.email || !user.password) {
       test.skip(true, 'secretary credentials absent from environment');

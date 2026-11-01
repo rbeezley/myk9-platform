@@ -282,7 +282,7 @@ bash scripts/bootstrap-worktree.sh   # installs deps, copies .env, builds packag
 
 ## Self Learning
 
-When I correct you or you catch yourself making a mistake, before continuing, add the lesson as a one-line rule under LESSONS so it never happens again.
+When I correct you or you catch yourself making a mistake, before continuing, add the lesson as a one-line rule under LESSONS so it never happens again. Its narrative section in `docs/lessons/README.md` carries one `**Guard:**` line: the program that catches the trap, a filed `MYK9-<n>` issue to build that check, or `human-only: <why>`; `lessonGuards.test.ts` fails without it.
 
 A LESSON may be **retired** once the trap is structurally impossible — a guard, test, lint rule, or type now catches it, or the code path no longer exists. Delete the line and cite the PR that made it unreachable in the commit message. LESSONS is for traps only a human could have known about; anything a check already enforces is noise.
 

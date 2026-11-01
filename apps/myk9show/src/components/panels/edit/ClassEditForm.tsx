@@ -13,7 +13,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { TimePicker } from '@/components/ui/time-picker';
+import { DurationInput } from '@myk9/scoring-ui';
+import { classDurationMaxSeconds } from '@/lib/validation';
 import { Clock, UserCheck, ClipboardList, Settings } from 'lucide-react';
 import { useShowStore } from '@/store/showStore';
 import { useUserStore } from '@/store/userStore';
@@ -59,6 +60,36 @@ function RequirementField({
         readOnly={hasRule && !autoFillMeta.isJudgeSettable}
       />
     </div>
+  );
+}
+
+/** A class duration (m:ss) typed through the one shared time field (MYK9-1503). */
+function ClassDurationField({
+  id,
+  label,
+  value,
+  onChange,
+  maxSeconds,
+  error,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  maxSeconds: number;
+  error?: string | undefined;
+}) {
+  return (
+    <FormField label={label} fieldId={id} error={error}>
+      <DurationInput
+        kind="max"
+        id={id}
+        value={value}
+        onChange={onChange}
+        range={{ low: 1, high: maxSeconds }}
+        className="h-11 max-w-32 rounded-md border border-input bg-background px-3 text-center font-mono text-base"
+      />
+    </FormField>
   );
 }
 
@@ -208,12 +239,13 @@ export const ClassEditForm: React.FC<{
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <TimePicker
+                <ClassDurationField
                   id="estimatedJudgingTime"
                   label="Estimated Judging Time"
                   value={data.estimatedJudgingTime || ''}
                   onChange={value => form?.setValue('estimatedJudgingTime', value)}
-                  maxMinutes={data.element === 'Detective' ? 15 : 9}
+                  maxSeconds={classDurationMaxSeconds(data.element)}
+                  error={form?.getError('estimatedJudgingTime')}
                 />
               </div>
 
@@ -235,32 +267,35 @@ export const ClassEditForm: React.FC<{
                   )}
                 </div>
 
-                <TimePicker
+                <ClassDurationField
                   id="timeLimit1"
                   label="Time Limit 1"
                   value={data.timeLimit1 || ''}
                   onChange={value => form?.setValue('timeLimit1', value)}
-                  maxMinutes={data.element === 'Detective' ? 15 : 9}
+                  maxSeconds={classDurationMaxSeconds(data.element)}
+                  error={form?.getError('timeLimit1')}
                 />
 
                 {data.element === 'Interior' &&
                   (data.level === 'Excellent' || data.level === 'Master') && (
-                    <TimePicker
+                    <ClassDurationField
                       id="timeLimit2"
                       label="Time Limit 2"
                       value={data.timeLimit2 || ''}
                       onChange={value => form?.setValue('timeLimit2', value)}
-                      maxMinutes={9}
+                      maxSeconds={classDurationMaxSeconds(data.element)}
+                      error={form?.getError('timeLimit2')}
                     />
                   )}
 
                 {data.element === 'Interior' && data.level === 'Master' && (
-                  <TimePicker
+                  <ClassDurationField
                     id="timeLimit3"
                     label="Time Limit 3"
                     value={data.timeLimit3 || ''}
                     onChange={value => form?.setValue('timeLimit3', value)}
-                    maxMinutes={9}
+                    maxSeconds={classDurationMaxSeconds(data.element)}
+                    error={form?.getError('timeLimit3')}
                   />
                 )}
               </div>

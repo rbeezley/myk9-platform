@@ -29,14 +29,29 @@ const seed = {
   resultStatus: 'pending',
 } as ReplicatedEntry;
 
-/** A thenable query chain: every builder step returns it, awaiting yields the rows. */
-function mockServerRows(rows: Record<string, unknown>[]) {
+/**
+ * A thenable query chain: every builder step returns it, awaiting yields the rows.
+ * `whileReading` runs once, as the first row read (not a head-only count) is answered.
+ */
+function mockServerRows(rows: Record<string, unknown>[], whileReading?: () => Promise<void>) {
   const chain: Record<string, unknown> = {};
-  for (const step of ['select', 'gt', 'or', 'order', 'eq', 'range', 'in']) {
+  for (const step of ['gt', 'or', 'order', 'eq', 'range', 'in']) {
     chain[step] = vi.fn(() => chain);
   }
-  chain.then = (resolve: (value: unknown) => unknown) =>
-    Promise.resolve({ data: rows, error: null, count: rows.length }).then(resolve);
+  let headOnly = false;
+  let pending = whileReading;
+  chain.select = vi.fn((_columns: string, options?: { head?: boolean }) => {
+    headOnly = options?.head === true;
+    return chain;
+  });
+  chain.then = async (resolve: (value: unknown) => unknown) => {
+    if (!headOnly && pending) {
+      const hook = pending;
+      pending = undefined;
+      await hook();
+    }
+    return resolve({ data: rows, error: null, count: rows.length });
+  };
   vi.mocked(supabase.from).mockReturnValue(chain as never);
   return chain;
 }
@@ -123,10 +138,14 @@ describe('ReplicatedEntriesTable pull after an acknowledged local score (MYK9-10
   });
 
   it('a download that read the server before the ack does not roll the acked score back', async () => {
-    await table.batchSet([{ ...seed, resultStatus: 'qualified' }], new Map([[ID, 7]]));
-    mockServerRows([
-      serverRow({ result_status: 'pending', final_placement: undefined, version: 6 }),
-    ]);
+    await table.batchSet([seed], new Map([[ID, 6]]));
+    // The score's upload is acknowledged (v7) after this download read the
+    // server (v6). A row already at v7 before the fetch began would instead be
+    // a server version regression, which the download heals (MYK9-1633).
+    mockServerRows(
+      [serverRow({ result_status: 'pending', final_placement: undefined, version: 6 })],
+      () => table.batchSet([{ ...seed, resultStatus: 'qualified' }], new Map([[ID, 7]]))
+    );
 
     await table.sync(SHOW);
 

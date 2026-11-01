@@ -1451,13 +1451,20 @@ export abstract class ReplicatedTable<T extends { id: string }> {
   async batchSet(
     items: T[],
     serverVersions?: Map<string, number>,
-    ownerAuthUserId?: string
+    ownerAuthUserId?: string,
+    versionsAtFetch?: ReadonlyMap<string, number>
   ): Promise<void> {
     return this.batchManager.batchSet(
       items,
       serverVersions,
-      await this.rowOwnerFor(ownerAuthUserId)
+      await this.rowOwnerFor(ownerAuthUserId),
+      versionsAtFetch
     );
+  }
+
+  /** For the sync engine: see ReplicatedTableBatchManager.cleanServerVersions. */
+  async cleanServerVersions(ids: Iterable<string>): Promise<Map<string, number>> {
+    return this.batchManager.cleanServerVersions(ids);
   }
 
   async batchSetChunked(

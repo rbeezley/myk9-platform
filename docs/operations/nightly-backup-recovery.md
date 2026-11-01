@@ -40,7 +40,8 @@ Formal accepted data-loss and recovery-time objectives remain outstanding.
 6. Recalculate placements using `public.recalculate_class_placements` for the affected show's
    non-deleted classes and its actual `is_nationals` value. Verify scoring values, placements,
    class status/finalization, version/timestamp advancement, and unchanged other-show data.
-7. Before reopening writes, test role-based app access, public results, and a real tablet pull.
+7. Before reopening writes, test role-based app access, public results, and a real tablet pull
+   (see [Devices after an in-place restore](#devices-after-an-in-place-restore)).
    Reconcile external payments and any post-backup changes separately. Record elapsed time and
    unrecovered data. Delete the disposable project after evidence is saved and deletion approved.
 
@@ -50,6 +51,23 @@ That route was **not tested** here. A new-project clone is also not application 
 configuration, API keys, Functions, Realtime and Storage require separate checks/reconfiguration.
 See [Supabase restore documentation](https://supabase.com/docs/guides/platform/backups) and
 [clone coverage](https://supabase.com/docs/guides/platform/clone-project).
+
+### Devices after an in-place restore
+
+An in-place restore (or pointing the app at a restored project, or a repair that rewrites
+`version` downward) gives rows lower server versions than devices already hold. Since
+MYK9-1633 devices recover **automatically on their next full sync**, with no operator step:
+
+- A device takes the restored copy of every row it holds **clean**. Rows with an unsent local
+  change (a queued score) are never overwritten; they upload or surface as conflicts as usual.
+  Capture those before the restore (step 1) — they may be the only copy of post-backup work.
+- A full sync runs when the device's row count no longer matches the server's (usual after a
+  restore: rows created after the backup disappear), when **Save for show day** is tapped on a
+  device that is not ready, and at least once a day while the app is open.
+- A ready device whose counts still match can show pre-restore values for up to a day. If that
+  matters on show day, confirm each ringside device's values against the restored data before
+  reopening writes (step 7); do not clear browser storage, which discards unsent scores.
+- Another account's rows on a shared device keep their cached copy until that account syncs.
 
 ## Rehearsal evidence
 

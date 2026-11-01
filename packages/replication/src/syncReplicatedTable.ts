@@ -25,9 +25,7 @@ export type {
   SyncReplicatedTableAdapter,
 } from './syncReplicatedTable.types';
 
-/** Default self-heal interval: force a full re-sync if the last full sync is
- *  older than this. Catches any residual watermark drift within a day even if an
- *  unforeseen path slips past the server-authoritative watermark. */
+/** Self-heal: a full re-sync once the last is a day old (watermark drift, MYK9-1633). */
 const DEFAULT_FULL_SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
 export { configureConflictSurfacing, _resetConflictSurfacingForTests } from './conflictConfig';
@@ -187,11 +185,12 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
     const persistedWatermark = metadata?.lastIncrementalSyncAt;
     const safeWatermark = Number.isFinite(persistedWatermark) ? (persistedWatermark as number) : 0;
     const rawSince = forceFullSync ? 0 : safeWatermark;
-    const since =
-      rawSince > (options.incrementalBufferMs ?? 0)
-        ? rawSince - (options.incrementalBufferMs ?? 0)
-        : 0;
-
+    const buffer = options.incrementalBufferMs ?? 0;
+    const since = rawSince > buffer ? rawSince - buffer : 0;
+    // MYK9-1633: how a full sync's write tells a restore from a race (shouldKeepNewerRow).
+    const versionsAtFetch = forceFullSync
+      ? await table.cleanServerVersions(localRows.map(r => r.id))
+      : undefined;
     const fetchStartedAt = Date.now();
     stopIfAborted();
     const remoteRows = await abortableWait(
@@ -321,7 +320,8 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
       await table.batchSet(
         cleanRowsToCache,
         serverVersionMap.size > 0 ? serverVersionMap : undefined,
-        syncingAuthUserId ?? undefined
+        syncingAuthUserId ?? undefined,
+        versionsAtFetch
       );
     }
     // The bulk write skips a row held at a newer server version (left foreign).

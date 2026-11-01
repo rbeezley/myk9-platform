@@ -1,0 +1,13 @@
+diff --git a/packages/ringside/src/pages/EntryList/runQueue.ts b/packages/ringside/src/pages/EntryList/runQueue.ts
+index 9682486ab..a076ad1bd 100644
+--- a/packages/ringside/src/pages/EntryList/runQueue.ts
++++ b/packages/ringside/src/pages/EntryList/runQueue.ts
+@@ -132,7 +132,7 @@ export function nextPendingCandidates<T extends RunQueueEntry>(
+   limit: number
+ ): T[] {
+   if (limit <= 0) return [];
+-  return pendingByRunOrder(entries).slice(0, limit);
++  return pendingByRunOrder(entries).slice(0, limit + 1);
+ }
+ 
+ /** Statuses that read "Pulled": not running, and not a withdrawal. */

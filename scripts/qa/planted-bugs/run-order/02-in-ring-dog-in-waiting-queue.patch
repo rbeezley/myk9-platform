@@ -1,0 +1,13 @@
+diff --git a/packages/ringside/src/pages/EntryList/runQueue.ts b/packages/ringside/src/pages/EntryList/runQueue.ts
+index 9682486ab..581cf4a4f 100644
+--- a/packages/ringside/src/pages/EntryList/runQueue.ts
++++ b/packages/ringside/src/pages/EntryList/runQueue.ts
+@@ -120,7 +120,7 @@ export function findInRingEntry<T extends RunQueueEntry>(entries: readonly T[]):
+  * dogs excluded. Does not mutate the input array.
+  */
+ export function pendingByRunOrder<T extends RunQueueEntry>(entries: readonly T[]): T[] {
+-  return entries.filter(entry => isInQueue(entry) && !isInRingEntry(entry)).sort(compareByRunOrder);
++  return entries.filter(entry => isInQueue(entry)).sort(compareByRunOrder);
+ }
+ 
+ /**

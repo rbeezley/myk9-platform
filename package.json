@@ -43,6 +43,8 @@
     "qa:db-drift:test": "vitest run scripts/qa/db-drift/*.test.ts",
     "qa:migrations:guard": "tsx scripts/qa/migration-version-guard.ts",
     "qa:types-drift": "bash scripts/qa/supabase-types-drift.sh",
+    "qa:planted-bugs": "tsx scripts/qa/planted-bugs/run.ts",
+    "qa:planted-bugs:test": "vitest run scripts/qa/planted-bugs/lib.test.ts",
     "qa:types-drift:test": "vitest run scripts/qa/supabase-types-drift.test.ts",
     "qa:migrations:guard:test": "vitest run scripts/qa/migration-version-guard.test.ts scripts/qa/migration-version-guard.provenance.test.ts scripts/qa/db-push-sweep.test.ts",
     "qa:bulk-pii": "tsx scripts/qa/check-bulk-pii.ts",

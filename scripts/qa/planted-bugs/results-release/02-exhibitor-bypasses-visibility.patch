@@ -1,0 +1,13 @@
+diff --git a/packages/secretary/src/visibility/visibility-cascade.ts b/packages/secretary/src/visibility/visibility-cascade.ts
+index 065c7f391..63a983f71 100644
+--- a/packages/secretary/src/visibility/visibility-cascade.ts
++++ b/packages/secretary/src/visibility/visibility-cascade.ts
+@@ -94,7 +94,7 @@ export function getVisibleResultFields(
+   userRole: VisibilityUserRole
+ ): VisibleResultFields {
+   // Staff bypass all restrictions — they need to see results to manage them
+-  if (userRole === 'judge' || userRole === 'admin' || userRole === 'secretary') {
++  if (userRole !== 'steward') {
+     return {
+       showPlacement: true,
+       showQualification: true,

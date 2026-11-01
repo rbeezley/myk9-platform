@@ -1,0 +1,13 @@
+diff --git a/packages/secretary/src/visibility/visibility-cascade.ts b/packages/secretary/src/visibility/visibility-cascade.ts
+index 065c7f391..b51061fa3 100644
+--- a/packages/secretary/src/visibility/visibility-cascade.ts
++++ b/packages/secretary/src/visibility/visibility-cascade.ts
+@@ -121,7 +121,7 @@ function shouldShowField(timing: VisibilityTiming, classState: ClassState): bool
+     case 'class_complete':
+       return classState === 'completed' || classState === 'released';
+     case 'manual_release':
+-      return classState === 'released';
++      return classState === 'completed' || classState === 'released';
+     default:
+       return false;
+   }

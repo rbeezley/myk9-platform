@@ -61,14 +61,16 @@ function optionText(label: string, count: number | undefined): string {
   return count === undefined ? label : `${label} (${count.toLocaleString()})`;
 }
 
-function OptionsControl({ field }: { field: ListOptionsFilterField }) {
+function OptionsControl({ field, compact }: { field: ListOptionsFilterField; compact: boolean }) {
   const allLabel = field.allLabel ?? `Any ${field.label.toLowerCase()}`;
   // A value the field no longer offers still shows — raw — so a stale URL is
   // visible and changeable rather than silently filtering.
   const stale = field.value !== null && !field.options.some(option => option.value === field.value);
 
   return (
-    <div className="flex items-center gap-2">
+    // A narrow pane gives the field its own row and lets the trigger shrink, so a
+    // long value (a show name) truncates instead of crossing the pane's border.
+    <div className={cn('flex items-center gap-2', compact && 'w-full min-w-0')}>
       <FieldLabel>{field.label}</FieldLabel>
       <Select
         value={field.value ?? ALL_VALUE}
@@ -76,7 +78,11 @@ function OptionsControl({ field }: { field: ListOptionsFilterField }) {
       >
         <SelectTrigger
           aria-label={field.label}
-          className="w-auto min-w-[10rem] max-w-[min(20rem,calc(100vw-6.5rem))]"
+          className={
+            compact
+              ? 'min-w-0 flex-1'
+              : 'w-auto min-w-[10rem] max-w-[min(20rem,calc(100vw-6.5rem))]'
+          }
         >
           <SelectValue />
         </SelectTrigger>
@@ -190,7 +196,7 @@ export function ListFilterBar({
       />
       {fields.map(field =>
         field.kind === 'options' ? (
-          <OptionsControl key={field.key} field={field} />
+          <OptionsControl key={field.key} field={field} compact={compact} />
         ) : (
           <DateRangeControl key={field.key} field={field} />
         )

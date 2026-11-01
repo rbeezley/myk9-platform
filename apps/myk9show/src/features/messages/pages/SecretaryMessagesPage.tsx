@@ -230,6 +230,7 @@ export default function SecretaryMessagesPage() {
             onSearchChange={setSearchTerm}
             searchPlaceholder="Search conversations..."
             fields={[showField]}
+            compact
           />
           {!isEmailView && (
             <ListResultLine

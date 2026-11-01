@@ -8,8 +8,6 @@ export {
   formatMilliseconds,
   formatSecondsToMMSS,
   formatSecondsToTime,
-  convertTimeToSeconds,
   formatTimeForDisplay,
   formatTimeLimitSeconds,
-  parseTimeToMs,
 } from '@myk9/core';

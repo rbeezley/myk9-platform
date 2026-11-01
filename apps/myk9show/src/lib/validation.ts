@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isUnresolvedDuration } from '@myk9/core';
 import { canonicalizeWebsiteUrl } from './websiteUrl';
 
 export interface NormalizedWebsiteUrl {
@@ -297,12 +298,15 @@ export const clubSchemas = {
 const requiredString = z.string();
 
 // Zod helper: time-limit field — optional string, must parse as int if non-empty
-const timeLimitField = (label: string) =>
+/** A class duration (m:ss): blank, or text the shared time field can read. */
+const durationField = (label: string) =>
   z
     .string()
     .optional()
     .or(z.literal(''))
-    .refine(v => !v || !isNaN(parseInt(v)), { message: `Please enter a valid ${label}` });
+    .refine(v => !v || !isUnresolvedDuration(v, 'max'), {
+      message: `Please enter ${label} as minutes and seconds, like 4:30`,
+    });
 
 // Class validation schemas
 export const classSchemas = {
@@ -312,10 +316,10 @@ export const classSchemas = {
     level: z.string().min(1, 'Please enter a level'),
     section: requiredString,
     status: z.string().min(1, 'Please select a status'),
-    estimatedJudgingTime: commonValidations.optionalString,
-    timeLimit1: timeLimitField('time limit 1'),
-    timeLimit2: timeLimitField('time limit 2'),
-    timeLimit3: timeLimitField('time limit 3'),
+    estimatedJudgingTime: durationField('the estimated judging time'),
+    timeLimit1: durationField('time limit 1'),
+    timeLimit2: durationField('time limit 2'),
+    timeLimit3: durationField('time limit 3'),
     judge: commonValidations.optionalString,
     judgeId: commonValidations.optionalString,
     gateSteward: commonValidations.optionalString,

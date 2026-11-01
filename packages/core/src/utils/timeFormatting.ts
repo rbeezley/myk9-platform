@@ -113,36 +113,6 @@ export function formatSecondsToTime(seconds: number | string | null): string {
 }
 
 /**
- * Convert time string (MM:SS.ss or SS.ss) to decimal seconds
- *
- * @param timeString - Time string in various formats
- * @returns Time in decimal seconds
- *
- * @example
- * convertTimeToSeconds("1:23.45") // 83.45
- * convertTimeToSeconds("45.5")    // 45.5
- */
-export function convertTimeToSeconds(timeString: string): number {
-  if (!timeString || timeString.trim() === '') return 0;
-
-  // Handle different time formats
-  if (timeString.includes(':')) {
-    // Format: MM:SS.ss or M:SS.ss
-    const parts = timeString.split(':');
-    if (parts.length === 2) {
-      const minutes = parseInt(parts[0] ?? '0', 10) || 0;
-      const seconds = parseFloat(parts[1] ?? '0') || 0;
-      return minutes * 60 + seconds;
-    }
-  } else {
-    // Format: SS.ss (just seconds)
-    return parseFloat(timeString) || 0;
-  }
-
-  return 0;
-}
-
-/**
  * Format time for display based on the input type
  * If the input is already in MM:SS format, return as-is
  * If the input is in seconds, convert to MM:SS.HH format
@@ -182,22 +152,4 @@ export function formatTimeLimitSeconds(seconds?: number | null): string {
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
   return `${mins}:${secs.toString().padStart(2, '0')}`;
-}
-
-/**
- * Parse a time string in "MM:SS" or "M:SS" format to milliseconds
- *
- * @param timeString - Time string (e.g., "3:00", "4:30")
- * @returns Time in milliseconds
- *
- * @example
- * parseTimeToMs("3:00") // 180000
- * parseTimeToMs("1:30") // 90000
- */
-export function parseTimeToMs(timeString: string): number {
-  if (!timeString) return 0;
-  const parts = timeString.split(':');
-  const minutes = parseFloat(parts[0] ?? '0') || 0;
-  const seconds = parseFloat(parts[1] ?? '0') || 0;
-  return (minutes * 60 + seconds) * 1000;
 }

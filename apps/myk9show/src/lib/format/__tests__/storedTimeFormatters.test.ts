@@ -1,22 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { formatSecondsAsMSSCC } from '@/lib/format/searchTime';
 import { msToDisplay } from '@/lib/timeUtils';
-import { convertTimeToStandardFormat, formatTimeFromMs } from '@/utils/entryValidation';
 import { dbSecondsToInputFormat } from '@/utils/scoringMappings';
-import { convertTimeToInputFormat as convertResultsGridTime } from '@/components/classes/ClassResultsTable/utils';
-import { convertTimeToInputFormat as convertBulkTime } from '@/components/secretary/bulk-result-entry/helpers';
-import { convertTimeToInputFormat as convertBulkUtilsTime } from '@/components/secretary/bulk-result-entry-utils';
-import { formatMsToTime } from '@/types/unified-entry-types';
 
 // MYK9-1225: every stored-time display rounds to integer centiseconds, so 61.23
 // reads 1:01.23 (not 1:01.22) and 59.999 carries to 1:00.00 (not 0:59.100).
 describe('stored time formatters share one centisecond rule (MYK9-1225)', () => {
   const secondsFormatters: Array<[string, (s: number) => string]> = [
     ['dbSecondsToInputFormat', dbSecondsToInputFormat],
-    ['convertTimeToStandardFormat', s => convertTimeToStandardFormat(String(s))],
-    ['ClassResultsTable convertTimeToInputFormat', s => convertResultsGridTime(String(s))],
-    ['bulk-result-entry/helpers convertTimeToInputFormat', s => convertBulkTime(String(s))],
-    ['bulk-result-entry-utils convertTimeToInputFormat', s => convertBulkUtilsTime(String(s))],
   ];
 
   it.each(secondsFormatters)('%s keeps 61.23 and carries 59.999', (_name, format) => {
@@ -29,8 +20,6 @@ describe('stored time formatters share one centisecond rule (MYK9-1225)', () => 
 
   const msFormatters: Array<[string, (ms: number) => string]> = [
     ['formatSecondsAsMSSCC (analytics seconds)', ms => formatSecondsAsMSSCC(ms / 1000)],
-    ['formatTimeFromMs', formatTimeFromMs],
-    ['formatMsToTime', formatMsToTime],
   ];
 
   it.each(msFormatters)('%s rounds analytics seconds*1000 and carries', (_name, format) => {

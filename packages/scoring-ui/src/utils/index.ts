@@ -8,10 +8,8 @@ export {
   formatMilliseconds,
   formatSecondsToMMSS,
   formatSecondsToTime,
-  convertTimeToSeconds,
   formatTimeForDisplay,
   formatTimeLimitSeconds,
-  parseTimeToMs,
 } from './timeUtils';
 
 export { buildResolvedClassRules, maxTimeForArea } from './buildResolvedClassRules';

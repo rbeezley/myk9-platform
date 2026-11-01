@@ -18,6 +18,7 @@ import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTa
 import { useScoringStore, type QualifyingResult } from '@/store/scoringStore';
 import { logger } from '@/services/LoggingService';
 import { mapQualificationToResultStatus } from '@/utils/scoringMappings';
+import { parseDuration } from '@myk9/core';
 
 export interface ScoreSubmissionData {
   entryId: string | number;
@@ -61,14 +62,13 @@ export interface OptimisticScoringOptions {
 }
 
 /**
- * Convert time string (M:SS.ss) to seconds
+ * The scoresheet's canonical time text ("1:23.45") as seconds, read by the same
+ * shared rule the sheet validated it with (MYK9-1503). The sheet refuses to
+ * submit unreadable text, so a failure here can only be blank.
  */
 function convertTimeToSeconds(timeStr: string): number {
-  if (!timeStr) return 0;
-  const parts = timeStr.split(':');
-  const mins = parseInt(parts[0], 10) || 0;
-  const secs = parseFloat(parts[1] || '0');
-  return mins * 60 + secs;
+  const parsed = parseDuration(timeStr, 'search');
+  return parsed.ok ? parsed.seconds : 0;
 }
 
 export function useOptimisticScoring() {

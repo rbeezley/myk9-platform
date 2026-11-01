@@ -44,10 +44,8 @@ export {
   formatMilliseconds,
   formatSecondsToMMSS,
   formatSecondsToTime,
-  convertTimeToSeconds,
   formatTimeForDisplay,
   formatTimeLimitSeconds,
-  parseTimeToMs,
 } from './utils/timeUtils';
 export { resultLabel } from './utils/resultLabel';
 export { buildResolvedClassRules, maxTimeForArea } from './utils/buildResolvedClassRules';

@@ -90,6 +90,12 @@ Linear drafts awaiting approval; top improvements; blocked coverage; and next pr
 write the compact lifecycle ledger to automation memory. Write a repository report only when the
 calling prompt explicitly requests one.
 
+## Escaped bugs
+
+When a finding is a bug an earlier walk or spec should have caught, apply "Escaped bugs" in
+`docs/agents/issue-tracker.md` and put the class-level check where it belongs: a new step in
+**Walk**, a wider viewport/role matrix in **Inputs**, or the area spec per `docs/qa/e2e-suite-map.md`.
+
 ## Boundaries
 
 - Audit only: no source edits, fixes, plans, OpenSpec changes, commits, or PRs.

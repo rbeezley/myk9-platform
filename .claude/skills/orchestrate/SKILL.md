@@ -87,6 +87,10 @@ all three of these are done and recorded in the ledger row (`premise:`, `approac
    on different files means split. Record `size: one concern` or `size: split into MYK9-a, MYK9-b`
    (or `size: kept whole: <reason>` when the concerns cannot land apart).
 
+   For an escaped bug (found after merge by a walk, staging, Sentry or a user), also record
+   `verifier gap:` in the ledger row and the `approach:` line, per **Escaped bugs** in
+   `docs/agents/issue-tracker.md`; the dispatch carries the check to update.
+
 `docs/agents/issue-tracker.md` owns selection, dispositions, hold routing and evidence labels.
 Use it for every stop/resume/closeout rather than adding workflow-specific mappings here.
 

@@ -77,6 +77,11 @@ describe('Edit class payload at the update layer', () => {
       expect(toggle).toBeChecked();
       expect(toggle).toHaveAccessibleDescription(/Follows show: On/);
       expect(screen.queryByRole('button', { name: 'Use the show setting' })).toBeNull();
+      // MYK9-1583: the copy names the real path to the wait list, not a removed tab.
+      expect(toggle).toHaveAccessibleDescription(/Entry Forms: open Actions, then Waitlist/);
+      expect(
+        screen.getByText(/Manage the queue from Entry Forms: open Actions, then Waitlist/)
+      ).toBeInTheDocument();
 
       await user.click(toggle);
       expect(toggle).toHaveAccessibleDescription(

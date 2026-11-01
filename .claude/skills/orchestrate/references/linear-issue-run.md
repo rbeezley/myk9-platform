@@ -289,7 +289,8 @@ is still clean. Run the review gate, with a maximum of 3 rounds.
   fix session is **no longer offered**: setup, install, build and a push do not fit in the
   10-minute deadline. Start the watcher in fix mode in the same turn the findings are posted
   (`run_in_background`):
-  `bash scripts/cloud/watch-cloud-session.sh "$N" fix "$(date -u +%Y-%m-%dT%H:%M:%SZ)"`.
+  `bash scripts/cloud/watch-cloud-session.sh "$N" fix "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$REVIEWED_SHA"`,
+  passing the head you reviewed so a round whose findings were not posted is still timed.
   It reads the findings comment (`Codex findings for <sha>`, `Claude findings for <sha>`, or a
   `Review gate:` withdrawal, from a trusted author) and gives the still-running session 10
   minutes from that comment to push a head that no longer starts with the reviewed SHA. Exit 0

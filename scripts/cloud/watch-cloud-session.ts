@@ -41,6 +41,11 @@ export type Observation = {
   headSha: string | null;
   /** The PR's comments, any order; `decide` picks the review ones. */
   gateComments: GateComment[];
+  /**
+   * Fix mode: the head the orchestrator reviewed, when it passed one. It wins over the posted
+   * comments, which may name an older head when the latest round was not posted.
+   */
+  reviewedSha?: string | null;
 };
 export type Decision =
   | { kind: 'wait' }
@@ -75,7 +80,7 @@ export type Classified = { kind: 'findings' | 'clean'; reviewedHead: string | nu
  * `reviewedHead` is the SHA the comment names (a prefix for findings comments).
  */
 export function classifyComment(body: string, authorAssociation: string): Classified | null {
-  if (!TRUSTED.has(authorAssociation)) return null;
+  if (!TRUSTED.has(authorAssociation.toUpperCase())) return null;
   const firstLine = body.split(/\r?\n/, 1)[0] ?? '';
   const found = FINDINGS_COMMENT.exec(firstLine);
   if (found) return { kind: 'findings', reviewedHead: found[1] ?? null };
@@ -113,11 +118,18 @@ export function decide(o: Observation, t: Thresholds = DEFAULT_THRESHOLDS): Deci
     .map(c => ({ at: c.createdAt, c: classifyComment(c.body, c.authorAssociation) }))
     .filter(x => x.c !== null)
     .sort((a, b) => b.at - a.at)[0];
-  if (latest?.c?.kind === 'clean') return { kind: 'ok', reason: 'the latest review gate is clean' };
+  const given = o.reviewedSha ?? null;
+  // A comment about another head than the one passed in says nothing about this round.
+  const latestIsThisRound =
+    latest &&
+    (given === null || latest.c?.reviewedHead == null || given.startsWith(latest.c.reviewedHead));
+  if (latestIsThisRound && latest?.c?.kind === 'clean') {
+    return { kind: 'ok', reason: 'the latest review gate is clean' };
+  }
   // The clock starts at the findings (quiet 10 min after findings means act), or at the dispatch
-  // when no findings comment is visible.
-  const clockStart = latest ? latest.at : o.dispatchedAt;
-  const reviewedHead = latest?.c?.reviewedHead ?? null;
+  // when no findings comment for this round is visible.
+  const clockStart = latestIsThisRound && latest ? latest.at : o.dispatchedAt;
+  const reviewedHead = given ?? (latestIsThisRound ? (latest?.c?.reviewedHead ?? null) : null);
   // Delivery is a head that is no longer the one reviewed. Commit dates are the fallback only
   // when the comment names no head: the committer's clock can predate the comment.
   const moved =
@@ -203,7 +215,9 @@ export function observe(
   let headCommitAt: number | null = null;
   let gateComments: GateComment[] = [];
   const pr = ready[0] ?? prs[0];
-  if (pr && (mode === 'fix' || ready.length > 0)) {
+  // First mode needs only the PR list; reading comments there could only turn a delivered PR into
+  // a gh failure.
+  if (pr && mode === 'fix') {
     const view = parseJson<{
       comments: { body: string; createdAt: string; authorAssociation: string }[];
       commits: { committedDate: string }[];
@@ -241,11 +255,17 @@ function envSeconds(name: string, fallback: number): number {
 
 /** One observation and decision; returns the process exit code (EXIT.WAIT = keep polling). */
 export function check(argv: string[], gh: Gh = realGh): number {
-  const [issue, mode, dispatched] = argv;
+  const [issue, mode, dispatched, reviewed] = argv;
   const at = dispatched ? parseTime(dispatched) : null;
-  if (!issue || !/^\d+$/.test(issue) || (mode !== 'first' && mode !== 'fix') || at === null) {
+  if (
+    !issue ||
+    !/^\d+$/.test(issue) ||
+    (mode !== 'first' && mode !== 'fix') ||
+    at === null ||
+    (reviewed !== undefined && (mode !== 'fix' || !/^[0-9a-f]{7,40}$/.test(reviewed)))
+  ) {
     console.error(
-      'usage: watch-cloud-session.sh <issue-number> <first|fix> <dispatched-at epoch|ISO>'
+      'usage: watch-cloud-session.sh <issue-number> <first|fix> <dispatched-at epoch|ISO> [reviewed-sha, fix only]'
     );
     return EXIT.USAGE;
   }
@@ -257,7 +277,10 @@ export function check(argv: string[], gh: Gh = realGh): number {
   };
   let decision: Decision;
   try {
-    decision = decide(observe(issue, mode, at, now, gh), thresholds);
+    decision = decide(
+      { ...observe(issue, mode, at, now, gh), reviewedSha: reviewed ?? null },
+      thresholds
+    );
   } catch (e) {
     if (!(e instanceof GhError)) throw e;
     console.error(`watch-cloud-session: ${e.message} (this is not a stall verdict)`);

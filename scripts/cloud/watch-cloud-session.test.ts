@@ -181,6 +181,26 @@ describe('decide, fix session', () => {
     expect(decide({ ...o, now: T0 + 10 * MIN })).toMatchObject({ code: EXIT.QUIET_AFTER_FINDINGS });
     expect(decide({ ...o, headCommitAt: T0 + 60 })).toMatchObject({ kind: 'ok' });
   });
+  it('an unposted round passed as reviewedSha is not delivered by an older comment', () => {
+    // The posted findings name def5678, but the orchestrator reviewed 7777777 without posting.
+    const o = fix({ headSha: '7777777cccc', reviewedSha: '7777777', dispatchedAt: T0 + 5 * MIN });
+    expect(decide({ ...o, now: T0 + 14 * MIN })).toEqual({ kind: 'wait' });
+    expect(decide({ ...o, now: T0 + 15 * MIN })).toMatchObject({
+      code: EXIT.QUIET_AFTER_FINDINGS,
+    });
+    expect(decide({ ...o, headSha: '8888888dddd', now: T0 + 15 * MIN })).toMatchObject({
+      kind: 'ok',
+    });
+  });
+  it('an older clean gate does not clear a newer unposted round', () => {
+    const o = fix({
+      headSha: '7777777cccc',
+      reviewedSha: '7777777',
+      gateComments: [{ body: gate('no findings'), createdAt: T0, authorAssociation: OWNER }],
+      now: T0 + 10 * MIN,
+    });
+    expect(decide(o)).toMatchObject({ code: EXIT.QUIET_AFTER_FINDINGS });
+  });
 });
 
 const SCRIPT = join(process.cwd(), 'scripts/cloud/watch-cloud-session.sh');
@@ -272,5 +292,20 @@ describe('watch-cloud-session.sh', () => {
   it('exits 2 on bad arguments', () => {
     expect(runScript({}, ['x', 'first', String(T0)], 1).status).toBe(EXIT.USAGE);
     expect(runScript({}, ['9', 'later', String(T0)], 1).status).toBe(EXIT.USAGE);
+    expect(runScript({}, ['9', 'first', String(T0), 'abc1234'], 1).status).toBe(EXIT.USAGE);
+    expect(runScript({}, ['9', 'fix', String(T0), 'not-a-sha'], 1).status).toBe(EXIT.USAGE);
+  });
+  it('a checker crash is exit 3, never a stall or a loop', () => {
+    const world = { prs: [pr], refs: [{}], view: { comments: null, commits: null } };
+    const r = runScript(world, ['9', 'fix', String(T0)], 30);
+    expect(r.status).toBe(EXIT.GH_UNREACHABLE);
+    expect(r.stderr).toContain('not a stall verdict');
+  });
+  it('fix mode with a reviewed SHA argument stalls on an unposted round', () => {
+    const head = { ...pr, headRefOid: '7777777cccc' };
+    const world = { prs: [head], refs: [{}], view: findingsView(T0 - 3600) };
+    expect(runScript(world, ['9', 'fix', String(T0), '7777777'], 11).status).toBe(
+      EXIT.QUIET_AFTER_FINDINGS
+    );
   });
 });

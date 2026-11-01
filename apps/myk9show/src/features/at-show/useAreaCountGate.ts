@@ -17,6 +17,8 @@ import { areaCountRangeFor, needsAreaCount } from './areaCountChoices';
 
 interface UseAreaCountGateOptions {
   classId: string | undefined;
+  /** The class's registry id; no prompt until it is known. */
+  registry: string | undefined;
   /** Wait for the list's first load before prompting. */
   ready: boolean;
   /** The caller's ringside permission to manage the class. */
@@ -28,6 +30,7 @@ interface UseAreaCountGateOptions {
 
 export function useAreaCountGate({
   classId,
+  registry,
   ready,
   canManage,
   showRole,
@@ -36,8 +39,8 @@ export function useAreaCountGate({
 }: UseAreaCountGateOptions) {
   const classes = useLiveClasses(classId ? [classId] : []);
   const cls = classes?.[0] ?? null;
-  const range = cls ? areaCountRangeFor(cls.element, cls.level) : null;
-  const needsCount = cls ? needsAreaCount(cls) : false;
+  const range = cls ? areaCountRangeFor(registry, cls.element, cls.level) : null;
+  const needsCount = cls ? needsAreaCount(registry, cls) : false;
 
   const { user } = useAuthContext();
   const assignment = useJudgeAssignedToClass({

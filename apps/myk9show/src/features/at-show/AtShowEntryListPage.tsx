@@ -244,6 +244,7 @@ export const AtShowEntryListPage: React.FC = () => {
   // the scoresheet and Max Time need it. Max time then waits its turn.
   const { asking: askingAreaCount, gateEntryClick: areaCountGateEntryClick } = useAreaCountGate({
     classId,
+    registry: classInfo?.registry,
     ready: uiState.hasCompletedInitialLoad,
     canManage: hasPermission('canManageClasses'),
     showRole,

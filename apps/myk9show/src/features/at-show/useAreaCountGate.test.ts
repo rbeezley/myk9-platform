@@ -40,12 +40,13 @@ function seed(over: Record<string, unknown> = {}) {
   });
 }
 
-function setup(canManage = true) {
+function setup(canManage = true, registry: string | null = 'AKC') {
   const setAreaCountDialogOpen = vi.fn();
   const setAreaCountRequirements = vi.fn();
   const hook = renderHook(() =>
     useAreaCountGate({
       classId: 'c1',
+      registry: registry ?? undefined,
       ready: true,
       canManage,
       showRole: undefined,
@@ -59,10 +60,10 @@ function setup(canManage = true) {
 describe('useAreaCountGate (MYK9-1625)', () => {
   beforeEach(() => {
     replica.rows.clear();
-    flexible['Interior|Master'] = { min: 2, max: 3 };
+    flexible['AKC|Interior|Master'] = { min: 2, max: 3 };
   });
   afterEach(() => {
-    delete flexible['Interior|Master'];
+    delete flexible['AKC|Interior|Master'];
   });
 
   it('opens the picker on load for a manager when the count is unset', async () => {
@@ -98,6 +99,14 @@ describe('useAreaCountGate (MYK9-1625)', () => {
     setAreaCountDialogOpen.mockClear();
     expect(result.current.gateEntryClick()).toBe(true);
     expect(setAreaCountDialogOpen).toHaveBeenCalledWith(true);
+  });
+
+  it('asks nothing until the class registry is known', async () => {
+    seed();
+    const { result, setAreaCountDialogOpen } = setup(true, null);
+    await settle();
+    expect(setAreaCountDialogOpen).not.toHaveBeenCalled();
+    expect(result.current.gateEntryClick()).toBe(false);
   });
 
   it('never asks about a class whose area count is not a choice', async () => {

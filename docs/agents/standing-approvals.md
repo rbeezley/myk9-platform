@@ -22,10 +22,12 @@ test-clubs:
   - 15bb0bae-fccd-465b-80db-c0018da97ead
   - 4d1813c0-0994-4c74-b567-cf210c720585
   - 9159e460-0edb-4d60-9fa2-2151d44bea30
+  - 73406ba3-e675-4e16-9799-489e75a3bc43
+  - 4b3f145d-b7d0-4983-9367-6dc29d92eb03
 ```
 
 - `status:` is `ACTIVE` (pre-approvals apply) or `OFF` (ask for everything, as the shared rules say).
-- `test-clubs:` lists every `public.clubs` id, soft-deleted ones included, that the owner has confirmed is a test club. These were captured on 2026-10-29: Darboshea Tervuren Club, Heartland Scent Work Club, Prairie Trail Dog Sports Club, WALK TEST club, Tulsa Agility Club (the Oct 10 test show), American Bloodhound Club, and five soft-deleted test or disposable clubs.
+- `test-clubs:` lists every `public.clubs` id, soft-deleted ones included, that the owner has confirmed is a test club. These were captured on 2026-10-29: Darboshea Tervuren Club, Heartland Scent Work Club, Prairie Trail Dog Sports Club, WALK TEST club, Tulsa Agility Club (the Oct 10 test show), American Bloodhound Club, and five soft-deleted test or disposable clubs. Added 2026-11-01 at the owner's request: MYK9-639 TEST 20261101 and MYK9-1393 TEST 20261101, synthetic fixtures Codex created for the MYK9-639 and MYK9-1393 Stripe Connect test-mode rehearsals.
 - A club that is not on the list stops every pre-approved action. If it is another test club, a person adds its id here in a PR. If it is a real club, launch (below).
 
 ## Pre-approved actions

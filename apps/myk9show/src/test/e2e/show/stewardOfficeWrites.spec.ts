@@ -141,7 +141,9 @@ async function seedRingEntry(): Promise<DisposableEntry & { showId: string; clas
   const { data: show, error: showError } = await client
     .from('shows')
     .select('id')
-    .eq('name', 'Heartland Scent Work Week')
+    // The fixture is found by its id range (MYK9-731), never by name (MYK9-1595).
+    .gte('id', 'dededede-0000-0000-0731-000000000000')
+    .lt('id', 'dededede-0000-0000-0732-000000000000')
     .order('start_date', { ascending: false })
     .limit(1)
     .single();

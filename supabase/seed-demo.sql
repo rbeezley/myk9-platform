@@ -6,7 +6,7 @@
 --   Heartland shows -- AKC ...010 with 4 trials and 11 classes, UKC ...011,
 --   ASCA ...012 -- plus one entry-free PAST Prairie Trail show that exists only
 --   as a cross-club class target (section 4c), the show-day fixture
---   `Heartland Scent Work Week` that is always running today (section 19,
+--   `Show-day fixture · <Mon D>` that is always running today (section 19,
 --   MYK9-731), 6 dogs, 13 hand-authored entries on the demo show) that
 --   preserves the golden paths. Every staging e2e spec and
 --   scheduled walk that needs a specific row points at this lean set;
@@ -524,7 +524,7 @@ SELECT public.seed_demo_assert_no_paid_strays();
 -- 19 calls public.seed_demo_restore_show_day_fixture(), which is insert-only
 -- (MYK9-731) and is "ready" only while a fixture show still carries its minted
 -- entries. The entry delete above just removed those, so without this every
--- reseed minted another "Heartland Scent Work Week" show on Find Shows.
+-- reseed minted another "Show-day fixture" show on Find Shows.
 -- The function (migration 20261022034100, MYK9-1309) deletes a fixture-range
 -- show only when nothing of money or a person's work hangs off it, and keeps
 -- and warns on an FK nobody listed; supabase/tests/
@@ -2608,7 +2608,7 @@ VALUES
 -- section no seeded show is ever in progress and the walks cannot reach
 -- self-check-in, the published running order or the announcements inbox.
 --
--- WHAT IT IS. `Heartland Scent Work Week`, AKC, under the Heartland club so the
+-- WHAT IT IS. `Show-day fixture · <Mon D>` (its start date; MYK9-1595), AKC, under the Heartland club so the
 -- demo secretary manages it: seven one-day trials, one per day from today to
 -- today + 6 in America/Chicago, each with one class (Container Novice A, 09:00)
 -- holding a published running order of two entries -- the demo exhibitor's

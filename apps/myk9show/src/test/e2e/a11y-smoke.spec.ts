@@ -180,6 +180,8 @@ test.describe('a11y: ringside Class Status dialog', () => {
       has: page.getByRole('group', { name: 'Class status' }),
     });
     await expect(statusDialog).toBeVisible({ timeout: 10000 });
+    // The Current marker is what MYK9-1556 fixed; without it the scan covers nothing.
+    await expect(statusDialog.getByText('Current', { exact: true })).toBeVisible();
 
     const failures: string[] = [];
     for (const accent of ACCENTS) {

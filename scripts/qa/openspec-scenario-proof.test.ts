@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   checkChange,
-  declaresTest,
+  runCli,
   evaluateChange,
   grandfatheredIds,
   GRANDFATHERED_FILE,
@@ -39,7 +39,7 @@ describe('openspec scenario proof', () => {
     });
     const result = checkChange(root, 'c1');
     expect(result.failures).toEqual([]);
-    expect(result.proofFiles).toEqual(['src/a.test.ts']);
+    expect(result.pointers).toEqual(['src/a.test.ts :: secretary closes the class']);
   });
 
   it('fails a MODIFIED scenario with no PROOF bullet', () => {
@@ -54,12 +54,12 @@ describe('openspec scenario proof', () => {
     expect(checkChange(root, 'c1').failures[0]?.reason).toContain('does not exist');
   });
 
-  it('fails when the test name is not in the file', () => {
+  it('fails a non-sql pointer whose test name is empty', () => {
     const root = repo({
-      [SPEC]: spec('ADDED', '- **PROOF** src/a.test.ts :: nothing like this'),
+      [SPEC]: spec('ADDED', '- **PROOF** src/a.test.ts :: '),
       'src/a.test.ts': TEST_FILE,
     });
-    expect(checkChange(root, 'c1').failures[0]?.reason).toContain('no live (non-skipped)');
+    expect(checkChange(root, 'c1').failures[0]?.reason).toContain('needs ":: <test name>"');
   });
 
   it('requires a test name except for .sql files', () => {
@@ -134,32 +134,6 @@ describe('openspec scenario proof', () => {
     expect(missing).toEqual([]);
   });
 
-  it('matches live declarations only', () => {
-    expect(declaresTest("// it('closes the class', () => {})\n", 'closes the class')).toBe(false);
-    expect(declaresTest("/* it('closes the class') */\n", 'closes the class')).toBe(false);
-    expect(declaresTest("it.skip('closes the class', () => {});", 'closes the class')).toBe(false);
-    expect(declaresTest("it.todo('closes the class');", 'closes the class')).toBe(false);
-    expect(declaresTest("it('closes the class', () => {});", 'closes the class')).toBe(true);
-    expect(declaresTest("it.only('closes the class now', () => {});", 'closes the class')).toBe(
-      true
-    );
-    expect(declaresTest("test.describe('closes the class', () => {});", 'closes the class')).toBe(
-      true
-    );
-    expect(
-      declaresTest("it.each([1, 2])('closes the class %i', () => {});", 'closes the class')
-    ).toBe(true);
-    expect(declaresTest('const x = "closes the class";', 'closes the class')).toBe(false);
-  });
-
-  it('rejects a scenario whose title survives only in a comment', () => {
-    const root = repo({
-      [SPEC]: spec('ADDED', '- **PROOF** src/a.test.ts :: gone test'),
-      'src/a.test.ts': "// it('gone test', () => {});\n",
-    });
-    expect(checkChange(root, 'c1').failures).toHaveLength(1);
-  });
-
   it('honours --change-root for a resolved planning home', () => {
     const root = repo({
       'elsewhere/c9/specs/cap/spec.md': spec(
@@ -169,7 +143,9 @@ describe('openspec scenario proof', () => {
       'src/a.test.ts': TEST_FILE,
     });
     expect(() => checkChange(root, 'c9')).toThrow();
-    expect(checkChange(root, 'c9', 'elsewhere/c9').proofFiles).toEqual(['src/a.test.ts']);
+    expect(checkChange(root, 'c9', 'elsewhere/c9').pointers).toEqual([
+      'src/a.test.ts :: secretary closes the class',
+    ]);
   });
 
   it('prints valid proof files after the grandfathered warning', () => {
@@ -182,6 +158,35 @@ describe('openspec scenario proof', () => {
     const verdict = evaluateChange(root, 'c1');
     expect(verdict.code).toBe(0);
     expect(verdict.stdout[0]).toContain('WARNING');
-    expect(verdict.stdout.slice(1)).toEqual(['src/a.test.ts']);
+    expect(verdict.stdout.slice(1)).toEqual(['src/a.test.ts :: secretary closes the class']);
+  });
+
+  describe('cli argument parsing', () => {
+    const proven = '- **PROOF** src/a.test.ts :: secretary closes the class';
+    const files = {
+      [SPEC]: spec('ADDED', proven),
+      'elsewhere/c9/specs/cap/spec.md': spec('ADDED', proven),
+      'src/a.test.ts': TEST_FILE,
+    };
+    const line = 'src/a.test.ts :: secretary closes the class';
+
+    it('resolves the default root from the id alone', () => {
+      expect(runCli(['c1'], repo(files))).toEqual({ code: 0, stdout: [line], stderr: [] });
+    });
+
+    it('accepts --change-root after the id', () => {
+      const verdict = runCli(['c9', '--change-root', 'elsewhere/c9'], repo(files));
+      expect(verdict.stdout).toEqual([line]);
+    });
+
+    it('accepts --change-root before the id', () => {
+      const verdict = runCli(['--change-root', 'elsewhere/c9', 'c9'], repo(files));
+      expect(verdict).toEqual({ code: 0, stdout: [line], stderr: [] });
+    });
+
+    it('exits 2 with usage when there is no id', () => {
+      expect(runCli([], repo(files)).code).toBe(2);
+      expect(runCli(['--change-root', 'elsewhere/c9'], repo(files)).code).toBe(2);
+    });
   });
 });

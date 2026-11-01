@@ -1,6 +1,8 @@
 /**
  * MYK9-1648: every ADDED or MODIFIED OpenSpec scenario names the test that
- * proves it, and the named test exists.
+ * proves it. Static checks only: a PROOF exists, its file exists, a non-.sql
+ * pointer names a test. Whether the named test is live is decided by running it
+ * filtered by name (`opsx:verify`), never by this script.
  *
  * Pointer format, a bullet inside the scenario after its WHEN/THEN bullets:
  *
@@ -10,9 +12,8 @@
  * A scenario may carry several PROOF bullets.
  *
  * Change mode: `tsx scripts/qa/openspec-scenario-proof.ts <change-id>` exits 1
- * listing each failing scenario, and on success prints the distinct proof files
- * (one per line) so the caller can run them. Whether they ran green is the
- * caller's job (`opsx:verify`).
+ * listing each failing scenario, and on success prints one `<path> :: <name>` line
+ * per distinct pointer (just `<path>` for .sql) so the caller runs each by name.
  *
  * `--change-root <dir>` (absolute or repo-relative) overrides `openspec/changes/<id>`
  * for a resolved planning home. Report mode: `--report` counts proven/unproven scenarios per main spec so
@@ -20,6 +21,7 @@
  */
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { parseArgs } from 'node:util';
 
 export interface ProofPointer {
   path: string;
@@ -41,10 +43,10 @@ export interface ScenarioFailure {
 const PROOF_LINE = /^\s*[-*]\s+\*\*PROOF\*\*\s+(.+?)\s*$/;
 
 export function parseProofPointer(text: string): ProofPointer {
-  const idx = text.indexOf(' :: ');
-  if (idx === -1) return { path: text.trim(), testName: null };
-  const name = text.slice(idx + 4).trim();
-  return { path: text.slice(0, idx).trim(), testName: name === '' ? null : name };
+  const m = /^(.*?)\s+::(?:\s+(.*))?$/.exec(text.trim());
+  if (!m) return { path: text.trim(), testName: null };
+  const name = (m[2] ?? '').trim();
+  return { path: (m[1] ?? '').trim(), testName: name === '' ? null : name };
 }
 
 /** All scenarios in a spec file, with the `## ` section each sits under. */
@@ -84,24 +86,8 @@ export function scenariosOwingProof(markdown: string): Scenario[] {
   return parseScenarios(markdown).filter(s => /^(ADDED|MODIFIED) Requirements\b/i.test(s.section));
 }
 
-function stripComments(source: string): string {
-  return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|\s)\/\/.*$/gm, '$1');
-}
-
-/**
- * True when `testName` is a substring of the title of a live `it`/`test`/`describe`
- * declaration (any `.only`/`.each(...)`/`.describe` chain, but never `.skip`/`.todo`).
- * A title left in a comment or on a skipped test does not count.
- */
-export function declaresTest(source: string, testName: string): boolean {
-  const decl =
-    /\b(?:it|test|describe)((?:\.\w+(?:\([^()]*\))?)*)\s*(?:\([^()]*\))?\s*\(\s*(['"`])((?:\\.|(?!\2)[^\\])*)\2/g;
-  for (const m of stripComments(source).matchAll(decl)) {
-    const chain = m[1] ?? '';
-    if (/\.(?:skip|todo)\b/.test(chain)) continue;
-    if ((m[3] ?? '').includes(testName)) return true;
-  }
-  return false;
+export function formatPointer(p: ProofPointer): string {
+  return p.testName === null ? p.path : `${p.path} :: ${p.testName}`;
 }
 
 export function checkScenario(scenario: Scenario, repoRoot: string): string[] {
@@ -113,19 +99,8 @@ export function checkScenario(scenario: Scenario, repoRoot: string): string[] {
       reasons.push(`PROOF file does not exist: ${proof.path}`);
       continue;
     }
-    if (proof.testName === null) {
-      if (!proof.path.endsWith('.sql'))
-        reasons.push(`PROOF needs ":: <test name>" (only .sql files may omit it): ${proof.path}`);
-      continue;
-    }
-    const source = readFileSync(abs, 'utf8');
-    const found = /\.[cm]?[jt]sx?$/.test(proof.path)
-      ? declaresTest(source, proof.testName)
-      : source.includes(proof.testName);
-    if (!found)
-      reasons.push(
-        `no live (non-skipped) it/test/describe declaration with that name in ${proof.path}: "${proof.testName}"`
-      );
+    if (proof.testName === null && !proof.path.endsWith('.sql'))
+      reasons.push(`PROOF needs ":: <test name>" (only .sql files may omit it): ${proof.path}`);
   }
   return reasons;
 }
@@ -143,7 +118,8 @@ function specFilesUnder(dir: string): string[] {
 
 export interface ChangeResult {
   failures: ScenarioFailure[];
-  proofFiles: string[];
+  /** Distinct `<path> :: <name>` lines (`<path>` for .sql) for the caller to run by name. */
+  pointers: string[];
   scenarioCount: number;
 }
 
@@ -154,7 +130,7 @@ export function checkChange(repoRoot: string, changeId: string, changeRoot?: str
   const specsDir = join(root, 'specs');
   if (!existsSync(root)) throw new Error(`No such change directory: ${root}`);
   const failures: ScenarioFailure[] = [];
-  const proofFiles = new Set<string>();
+  const pointers = new Set<string>();
   let scenarioCount = 0;
   for (const file of specFilesUnder(specsDir)) {
     const rel = file.slice(repoRoot.length + 1);
@@ -162,10 +138,10 @@ export function checkChange(repoRoot: string, changeId: string, changeRoot?: str
       scenarioCount += 1;
       const reasons = checkScenario(scenario, repoRoot);
       for (const reason of reasons) failures.push({ scenario: scenario.name, spec: rel, reason });
-      if (reasons.length === 0) scenario.proofs.forEach(p => proofFiles.add(p.path));
+      if (reasons.length === 0) scenario.proofs.forEach(p => pointers.add(formatPointer(p)));
     }
   }
-  return { failures, proofFiles: [...proofFiles].sort(), scenarioCount };
+  return { failures, pointers: [...pointers].sort(), scenarioCount };
 }
 
 export interface SpecReport {
@@ -216,7 +192,7 @@ export function evaluateChange(
         code: 0,
         stdout: [
           `WARNING: change "${changeId}" is grandfathered (MYK9-1648) with ${unproven} unproven scenario(s); not failing.`,
-          ...result.proofFiles,
+          ...result.pointers,
         ],
         stderr: [],
       };
@@ -229,27 +205,40 @@ export function evaluateChange(
       ],
     };
   }
-  return { code: 0, stdout: result.proofFiles, stderr: [] };
+  return { code: 0, stdout: result.pointers, stderr: [] };
+}
+
+export function runCli(argv: string[], repoRoot: string): ChangeVerdict {
+  const { values, positionals } = parseArgs({
+    args: argv,
+    allowPositionals: true,
+    options: { 'change-root': { type: 'string' }, report: { type: 'boolean' } },
+  });
+  if (values.report) {
+    const rows = reportSpecs(repoRoot);
+    const total = rows.reduce((n, r) => n + r.total, 0);
+    const unproven = rows.reduce((n, r) => n + r.unproven, 0);
+    return {
+      code: 0,
+      stdout: [
+        ...rows.map(r => `${r.unproven}\t${r.proven}/${r.total}\t${r.spec}`),
+        `TOTAL unproven ${unproven} of ${total} scenarios across ${rows.length} specs`,
+      ],
+      stderr: [],
+    };
+  }
+  const changeId = positionals[0];
+  if (!changeId)
+    return {
+      code: 2,
+      stdout: [],
+      stderr: ['Usage: openspec-scenario-proof.ts <change-id> [--change-root <dir>] | --report'],
+    };
+  return evaluateChange(repoRoot, changeId, values['change-root']);
 }
 
 function main(argv: string[]): number {
-  const repoRoot = resolve(__dirname, '../..');
-  if (argv.includes('--report')) {
-    const rows = reportSpecs(repoRoot);
-    for (const r of rows) console.log(`${r.unproven}\t${r.proven}/${r.total}\t${r.spec}`);
-    const total = rows.reduce((n, r) => n + r.total, 0);
-    const unproven = rows.reduce((n, r) => n + r.unproven, 0);
-    console.log(`TOTAL unproven ${unproven} of ${total} scenarios across ${rows.length} specs`);
-    return 0;
-  }
-  const rootFlag = argv.indexOf('--change-root');
-  const changeRoot = rootFlag === -1 ? undefined : argv[rootFlag + 1];
-  const changeId = argv.find((a, i) => !a.startsWith('-') && i !== rootFlag + 1);
-  if (!changeId) {
-    console.error('Usage: openspec-scenario-proof.ts <change-id> [--change-root <dir>] | --report');
-    return 2;
-  }
-  const verdict = evaluateChange(repoRoot, changeId, changeRoot);
+  const verdict = runCli(argv, resolve(__dirname, '../..'));
   verdict.stdout.forEach(l => console.log(l));
   verdict.stderr.forEach(l => console.error(l));
   return verdict.code;

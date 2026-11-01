@@ -83,9 +83,9 @@ Verify that an implementation matches the change artifacts (specs, tasks, design
        - Recommendation: "Review <file>:<lines> against requirement X"
 
    **Scenario Proof (hard gate)**:
-   - Run `pnpm qa:openspec-proof "<name>"` (changes listed in `scripts/qa/openspec-proof-grandfathered.txt` warn instead of fail; never add to that list). Every ADDED or MODIFIED scenario must carry a `- **PROOF** <test path> :: <test name>` bullet naming an existing test.
+   - Run `pnpm qa:openspec-proof "<name>" --change-root "<changeRoot>"` (changes listed in `scripts/qa/openspec-proof-grandfathered.txt` warn instead of fail; never add to that list). Every ADDED or MODIFIED scenario must carry a `- **PROOF** <test path> :: <test name>` bullet naming an existing test.
    - Any failure (no PROOF, missing file, missing test name) is a CRITICAL issue per scenario: "Scenario unproven: <scenario name>: <reason>".
-   - On success the command prints the distinct proof files. Run each (vitest files with `cd apps/myk9show && pnpm vitest run <file>` or the root project for `scripts/`, Playwright specs with the repo's e2e runner, `.sql` files via the SQL test workflow) and require them green. A proof file that fails, or that you could not run, is CRITICAL: "Scenario proof did not run green: <file>". SQL tests that only run in CI must be cited with the CI run that passed.
+   - On success the command prints the distinct proof files. Run each by location: `apps/myk9show/**` vitest files with `cd apps/myk9show && pnpm vitest run <file relative to apps/myk9show>`; `packages/<pkg>/**` with `pnpm --filter @myk9/<pkg> exec vitest run <file relative to the package>`; `scripts/**` with root `pnpm vitest run <file>`; Playwright specs with the repo's e2e runner; `.sql` files via the SQL test workflow. A grandfathered change still prints its valid proof files after the WARNING; run those too and require them green. A proof file that fails, or that you could not run, is CRITICAL: "Scenario proof did not run green: <file>". SQL tests that only run in CI must be cited with the CI run that passed.
 
    **Scenario Coverage**:
    - For each scenario in delta specs (marked with "#### Scenario:"):

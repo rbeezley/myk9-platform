@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   checkChange,
+  declaresTest,
   evaluateChange,
   grandfatheredIds,
   GRANDFATHERED_FILE,
@@ -58,7 +59,7 @@ describe('openspec scenario proof', () => {
       [SPEC]: spec('ADDED', '- **PROOF** src/a.test.ts :: nothing like this'),
       'src/a.test.ts': TEST_FILE,
     });
-    expect(checkChange(root, 'c1').failures[0]?.reason).toContain('test name not found');
+    expect(checkChange(root, 'c1').failures[0]?.reason).toContain('no live (non-skipped)');
   });
 
   it('requires a test name except for .sql files', () => {
@@ -131,5 +132,56 @@ describe('openspec scenario proof', () => {
       id => !existsSync(join(changes, id)) && !archived.some(a => a.endsWith(`-${id}`))
     );
     expect(missing).toEqual([]);
+  });
+
+  it('matches live declarations only', () => {
+    expect(declaresTest("// it('closes the class', () => {})\n", 'closes the class')).toBe(false);
+    expect(declaresTest("/* it('closes the class') */\n", 'closes the class')).toBe(false);
+    expect(declaresTest("it.skip('closes the class', () => {});", 'closes the class')).toBe(false);
+    expect(declaresTest("it.todo('closes the class');", 'closes the class')).toBe(false);
+    expect(declaresTest("it('closes the class', () => {});", 'closes the class')).toBe(true);
+    expect(declaresTest("it.only('closes the class now', () => {});", 'closes the class')).toBe(
+      true
+    );
+    expect(declaresTest("test.describe('closes the class', () => {});", 'closes the class')).toBe(
+      true
+    );
+    expect(
+      declaresTest("it.each([1, 2])('closes the class %i', () => {});", 'closes the class')
+    ).toBe(true);
+    expect(declaresTest('const x = "closes the class";', 'closes the class')).toBe(false);
+  });
+
+  it('rejects a scenario whose title survives only in a comment', () => {
+    const root = repo({
+      [SPEC]: spec('ADDED', '- **PROOF** src/a.test.ts :: gone test'),
+      'src/a.test.ts': "// it('gone test', () => {});\n",
+    });
+    expect(checkChange(root, 'c1').failures).toHaveLength(1);
+  });
+
+  it('honours --change-root for a resolved planning home', () => {
+    const root = repo({
+      'elsewhere/c9/specs/cap/spec.md': spec(
+        'ADDED',
+        '- **PROOF** src/a.test.ts :: secretary closes the class'
+      ),
+      'src/a.test.ts': TEST_FILE,
+    });
+    expect(() => checkChange(root, 'c9')).toThrow();
+    expect(checkChange(root, 'c9', 'elsewhere/c9').proofFiles).toEqual(['src/a.test.ts']);
+  });
+
+  it('prints valid proof files after the grandfathered warning', () => {
+    const body = `${spec('ADDED', '- **PROOF** src/a.test.ts :: secretary closes the class')}\n#### Scenario: S two\n- **THEN** c\n`;
+    const root = repo({
+      [SPEC]: body,
+      [GRANDFATHERED_FILE]: 'c1\n',
+      'src/a.test.ts': TEST_FILE,
+    });
+    const verdict = evaluateChange(root, 'c1');
+    expect(verdict.code).toBe(0);
+    expect(verdict.stdout[0]).toContain('WARNING');
+    expect(verdict.stdout.slice(1)).toEqual(['src/a.test.ts']);
   });
 });

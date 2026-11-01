@@ -71,7 +71,7 @@ Archive a completed change in the experimental workflow.
 
 5. **Check scenario proof (hard gate)**
 
-   Run `pnpm qa:openspec-proof "<name>"` (changes listed in `scripts/qa/openspec-proof-grandfathered.txt` warn instead of fail; never add to that list) (skip only for a change with no delta specs). It fails when any ADDED or MODIFIED scenario lacks a `- **PROOF** <test path> :: <test name>` bullet, or the pointed-to test file or test name does not exist. On failure, refuse to archive: list the unproven scenarios and tell the user to add the PROOF bullets and re-run `/opsx:verify`. Proof files must also have run green in the change's verification; if `/opsx:verify` has not been run on this implementation, run it first.
+   Run `pnpm qa:openspec-proof "<name>" --change-root "<changeRoot>"` (changes listed in `scripts/qa/openspec-proof-grandfathered.txt` warn instead of fail; never add to that list) (skip only for a change with no delta specs). It fails when any ADDED or MODIFIED scenario lacks a `- **PROOF** <test path> :: <test name>` bullet, or the pointed-to test file or test name does not exist. On failure, refuse to archive: list the unproven scenarios and tell the user to add the PROOF bullets and re-run `/opsx:verify`. Proof files must also have run green in the change's verification; if `/opsx:verify` has not been run on this implementation, run it first.
 
 6. **Assess delta spec sync state**
 

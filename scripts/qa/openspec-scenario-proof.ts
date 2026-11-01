@@ -14,7 +14,8 @@
  * (one per line) so the caller can run them. Whether they ran green is the
  * caller's job (`opsx:verify`).
  *
- * Report mode: `--report` counts proven/unproven scenarios per main spec so
+ * `--change-root <dir>` (absolute or repo-relative) overrides `openspec/changes/<id>`
+ * for a resolved planning home. Report mode: `--report` counts proven/unproven scenarios per main spec so
  * backfill can be prioritised. Always exits 0.
  */
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
@@ -83,6 +84,26 @@ export function scenariosOwingProof(markdown: string): Scenario[] {
   return parseScenarios(markdown).filter(s => /^(ADDED|MODIFIED) Requirements\b/i.test(s.section));
 }
 
+function stripComments(source: string): string {
+  return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|\s)\/\/.*$/gm, '$1');
+}
+
+/**
+ * True when `testName` is a substring of the title of a live `it`/`test`/`describe`
+ * declaration (any `.only`/`.each(...)`/`.describe` chain, but never `.skip`/`.todo`).
+ * A title left in a comment or on a skipped test does not count.
+ */
+export function declaresTest(source: string, testName: string): boolean {
+  const decl =
+    /\b(?:it|test|describe)((?:\.\w+(?:\([^()]*\))?)*)\s*(?:\([^()]*\))?\s*\(\s*(['"`])((?:\\.|(?!\2)[^\\])*)\2/g;
+  for (const m of stripComments(source).matchAll(decl)) {
+    const chain = m[1] ?? '';
+    if (/\.(?:skip|todo)\b/.test(chain)) continue;
+    if ((m[3] ?? '').includes(testName)) return true;
+  }
+  return false;
+}
+
 export function checkScenario(scenario: Scenario, repoRoot: string): string[] {
   if (scenario.proofs.length === 0) return ['no PROOF bullet'];
   const reasons: string[] = [];
@@ -97,8 +118,14 @@ export function checkScenario(scenario: Scenario, repoRoot: string): string[] {
         reasons.push(`PROOF needs ":: <test name>" (only .sql files may omit it): ${proof.path}`);
       continue;
     }
-    if (!readFileSync(abs, 'utf8').includes(proof.testName))
-      reasons.push(`test name not found in ${proof.path}: "${proof.testName}"`);
+    const source = readFileSync(abs, 'utf8');
+    const found = /\.[cm]?[jt]sx?$/.test(proof.path)
+      ? declaresTest(source, proof.testName)
+      : source.includes(proof.testName);
+    if (!found)
+      reasons.push(
+        `no live (non-skipped) it/test/describe declaration with that name in ${proof.path}: "${proof.testName}"`
+      );
   }
   return reasons;
 }
@@ -120,10 +147,12 @@ export interface ChangeResult {
   scenarioCount: number;
 }
 
-export function checkChange(repoRoot: string, changeId: string): ChangeResult {
-  const specsDir = join(repoRoot, 'openspec/changes', changeId, 'specs');
-  if (!existsSync(join(repoRoot, 'openspec/changes', changeId)))
-    throw new Error(`No such change: openspec/changes/${changeId}`);
+export function checkChange(repoRoot: string, changeId: string, changeRoot?: string): ChangeResult {
+  const root = changeRoot
+    ? resolve(repoRoot, changeRoot)
+    : join(repoRoot, 'openspec/changes', changeId);
+  const specsDir = join(root, 'specs');
+  if (!existsSync(root)) throw new Error(`No such change directory: ${root}`);
   const failures: ScenarioFailure[] = [];
   const proofFiles = new Set<string>();
   let scenarioCount = 0;
@@ -174,8 +203,12 @@ export interface ChangeVerdict {
   stderr: string[];
 }
 
-export function evaluateChange(repoRoot: string, changeId: string): ChangeVerdict {
-  const result = checkChange(repoRoot, changeId);
+export function evaluateChange(
+  repoRoot: string,
+  changeId: string,
+  changeRoot?: string
+): ChangeVerdict {
+  const result = checkChange(repoRoot, changeId, changeRoot);
   if (result.failures.length > 0) {
     const unproven = new Set(result.failures.map(f => `${f.spec}\0${f.scenario}`)).size;
     if (grandfatheredIds(repoRoot).includes(changeId))
@@ -183,6 +216,7 @@ export function evaluateChange(repoRoot: string, changeId: string): ChangeVerdic
         code: 0,
         stdout: [
           `WARNING: change "${changeId}" is grandfathered (MYK9-1648) with ${unproven} unproven scenario(s); not failing.`,
+          ...result.proofFiles,
         ],
         stderr: [],
       };
@@ -208,12 +242,14 @@ function main(argv: string[]): number {
     console.log(`TOTAL unproven ${unproven} of ${total} scenarios across ${rows.length} specs`);
     return 0;
   }
-  const changeId = argv.find(a => !a.startsWith('-'));
+  const rootFlag = argv.indexOf('--change-root');
+  const changeRoot = rootFlag === -1 ? undefined : argv[rootFlag + 1];
+  const changeId = argv.find((a, i) => !a.startsWith('-') && i !== rootFlag + 1);
   if (!changeId) {
-    console.error('Usage: openspec-scenario-proof.ts <change-id> | --report');
+    console.error('Usage: openspec-scenario-proof.ts <change-id> [--change-root <dir>] | --report');
     return 2;
   }
-  const verdict = evaluateChange(repoRoot, changeId);
+  const verdict = evaluateChange(repoRoot, changeId, changeRoot);
   verdict.stdout.forEach(l => console.log(l));
   verdict.stderr.forEach(l => console.error(l));
   return verdict.code;

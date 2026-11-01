@@ -29,7 +29,10 @@ export interface NationalsLeaderboardRow {
   dogName: string;
   handlerName: string;
   totalPoints: number;
+  /** Sum of the recorded times only; an untimed run adds nothing here (see `untimedRuns`). */
   totalTimeSeconds: number;
+  /** Scored runs with no usable time. Such a dog ranks behind equal-points dogs with all times. */
+  untimedRuns: number;
   /** Points scored on each day; null = nothing scored that day. */
   dayPoints: Record<NationalsDay, number | null>;
   status: NationalsLeaderboardStatus | null;
@@ -67,16 +70,47 @@ export function leaderboardStatus(flags: {
   return null;
 }
 
-/** Points descending, then time ascending; armband breaks an exact tie so the order is stable. */
+/**
+ * Points descending; at equal points fewer untimed runs rank first, and a dog with no recorded
+ * time at all ranks after one with any, so a missing time never reads as a fast one (MYK9-1573);
+ * then time ascending; armband breaks an exact tie.
+ */
 export function compareLeaderboard(
-  a: Pick<NationalsLeaderboardRow, 'totalPoints' | 'totalTimeSeconds' | 'armband'>,
-  b: Pick<NationalsLeaderboardRow, 'totalPoints' | 'totalTimeSeconds' | 'armband'>
+  a: Pick<NationalsLeaderboardRow, 'totalPoints' | 'totalTimeSeconds' | 'untimedRuns' | 'armband'>,
+  b: Pick<NationalsLeaderboardRow, 'totalPoints' | 'totalTimeSeconds' | 'untimedRuns' | 'armband'>
 ): number {
   return (
     b.totalPoints - a.totalPoints ||
+    a.untimedRuns - b.untimedRuns ||
+    Number(a.totalTimeSeconds === 0) - Number(b.totalTimeSeconds === 0) ||
     a.totalTimeSeconds - b.totalTimeSeconds ||
     (a.armband ?? '').localeCompare(b.armband ?? '', undefined, { numeric: true })
   );
+}
+
+/**
+ * A run with no recorded time: null, undefined, non-finite, or <= 0. A real search never takes 0 s,
+ * and a scored NQ is stored as 0 (`inputFormatToDbSeconds('')`), so 0 means "no time entered".
+ */
+function isUntimedRun(seconds: number | null | undefined): boolean {
+  return seconds == null || !Number.isFinite(seconds) || seconds <= 0;
+}
+
+/**
+ * What the Total Time cell says (MYK9-1573). A dog with untimed runs ranks behind equal-points
+ * dogs with every time, so its partial total carries a visible note of the runs it leaves out;
+ * a dog with no recorded time at all has no total (null). All text, nothing hover-only.
+ */
+export function totalTimeLabel(
+  row: Pick<NationalsLeaderboardRow, 'totalTimeSeconds' | 'untimedRuns'>
+): {
+  timeSeconds: number | null;
+  untimedNote: string | null;
+} {
+  if (row.untimedRuns === 0) return { timeSeconds: row.totalTimeSeconds, untimedNote: null };
+  const untimedNote =
+    row.untimedRuns === 1 ? '1 run has no time' : `${row.untimedRuns} runs have no time`;
+  return { timeSeconds: row.totalTimeSeconds > 0 ? row.totalTimeSeconds : null, untimedNote };
 }
 
 /** Result statuses that eliminate a dog from the nationals. */
@@ -192,7 +226,8 @@ export function buildNationalsLeaderboard({
       const points = entry.points_earned ?? 0;
       const day = competitionDay(trialDateByReleasedClass.get(entry.class_id!), showStartDate);
       row.totalPoints += points;
-      row.totalTimeSeconds += entry.search_time_seconds ?? 0;
+      if (isUntimedRun(entry.search_time_seconds)) row.untimedRuns += 1;
+      else row.totalTimeSeconds += entry.search_time_seconds!;
       row.dayPoints[day] = (row.dayPoints[day] ?? 0) + points;
     }
     rows.push({
@@ -222,6 +257,7 @@ function blankRow(
     handlerName: identity && identity.source !== 'unknown' ? (identity.name ?? '') : '',
     totalPoints: 0,
     totalTimeSeconds: 0,
+    untimedRuns: 0,
     dayPoints: { 1: null, 2: null, 3: null },
   };
 }

@@ -5,6 +5,7 @@ import type { SecretaryEntry } from '@/services/database/entries';
 import type { SyncableTrial, SyncableTrialClass } from '@/store/trial-store-types';
 import { buildResultsClassRows } from './buildResultsClassRows';
 import {
+  totalTimeLabel,
   buildNationalsLeaderboard,
   compareLeaderboard,
   competitionDay,
@@ -73,9 +74,9 @@ describe('leaderboardStatus', () => {
 describe('sort', () => {
   it('orders points descending, then time ascending', () => {
     const rows = [
-      { armband: '1', totalPoints: 10, totalTimeSeconds: 50 },
-      { armband: '2', totalPoints: 20, totalTimeSeconds: 90 },
-      { armband: '3', totalPoints: 20, totalTimeSeconds: 80 },
+      { armband: '1', totalPoints: 10, totalTimeSeconds: 50, untimedRuns: 0 },
+      { armband: '2', totalPoints: 20, totalTimeSeconds: 90, untimedRuns: 0 },
+      { armband: '3', totalPoints: 20, totalTimeSeconds: 80, untimedRuns: 0 },
     ].sort(compareLeaderboard);
     expect(rows.map(row => row.armband)).toEqual(['3', '2', '1']);
   });
@@ -278,6 +279,41 @@ describe('one eligibility rule, shared with the Results class list (MYK9-1516)',
   });
 });
 
+describe('an untimed run never ranks fastest (MYK9-1573)', () => {
+  it.each([
+    ['null', null],
+    ['a stored 0', 0],
+  ])('ranks a dog with %s time behind an equal-points dog with a recorded time', (_label, time) => {
+    const board = build([
+      entry({ armband: '1', points_earned: 20, search_time_seconds: time }),
+      entry({ armband: '2', points_earned: 20, search_time_seconds: 95 }),
+    ]);
+    expect(board.map(row => [row.rank, row.armband])).toEqual([
+      [1, '2'],
+      [2, '1'],
+    ]);
+  });
+
+  it('keeps a dog with one untimed run behind a fully timed dog even if its timed total is lower', () => {
+    const board = build([
+      entry({ armband: '1', class_id: 'c1', points_earned: 10, search_time_seconds: 30 }),
+      entry({ armband: '1', class_id: 'c2', points_earned: 10, search_time_seconds: 0 }),
+      entry({ armband: '2', class_id: 'c1', points_earned: 10, search_time_seconds: 60 }),
+      entry({ armband: '2', class_id: 'c2', points_earned: 10, search_time_seconds: 70 }),
+    ]);
+    expect(board.map(row => row.armband)).toEqual(['2', '1']);
+  });
+
+  it('stays a total order for equal rows', () => {
+    const a = { armband: '1', totalPoints: 5, totalTimeSeconds: 0, untimedRuns: 1 };
+    const b = { armband: '2', totalPoints: 5, totalTimeSeconds: 0, untimedRuns: 1 };
+    expect(compareLeaderboard(a, b)).toBeLessThan(0);
+    expect(compareLeaderboard(b, a)).toBeGreaterThan(0);
+    expect(compareLeaderboard(a, { ...a })).toBe(0);
+    expect(Number.isNaN(compareLeaderboard(a, b))).toBe(false);
+  });
+});
+
 describe('buildNationalsLeaderboard', () => {
   it('sums each armband across days and keeps points per day', () => {
     const [row] = build([
@@ -344,5 +380,50 @@ describe('buildNationalsLeaderboard', () => {
   it('lists a withdrawn dog with no released score nowhere, and an empty show as empty', () => {
     expect(build([entry({ entry_status: 'withdrawn', is_scored: false })])).toEqual([]);
     expect(build([])).toEqual([]);
+  });
+});
+
+describe('ranking among dogs with untimed runs (MYK9-1573)', () => {
+  const order = (rows: Parameters<typeof compareLeaderboard>[0][]) =>
+    [...rows].sort(compareLeaderboard).map(row => row.armband);
+
+  it('ranks fewer untimed runs first, whatever the partial totals', () => {
+    expect(
+      order([
+        { armband: 'A', totalPoints: 100, totalTimeSeconds: 60, untimedRuns: 2 },
+        { armband: 'B', totalPoints: 100, totalTimeSeconds: 80, untimedRuns: 1 },
+      ])
+    ).toEqual(['B', 'A']);
+  });
+
+  it('ranks a dog with no recorded time after one with a real time at the same untimed count', () => {
+    expect(
+      order([
+        { armband: 'A', totalPoints: 5, totalTimeSeconds: 0, untimedRuns: 1 },
+        { armband: 'B', totalPoints: 5, totalTimeSeconds: 10, untimedRuns: 1 },
+      ])
+    ).toEqual(['B', 'A']);
+  });
+});
+
+describe('totalTimeLabel (MYK9-1573)', () => {
+  it('shows the total alone when every run is timed', () => {
+    expect(totalTimeLabel({ totalTimeSeconds: 90, untimedRuns: 0 })).toEqual({
+      timeSeconds: 90,
+      untimedNote: null,
+    });
+  });
+
+  it('notes one or several runs with no time beside a partial total', () => {
+    expect(totalTimeLabel({ totalTimeSeconds: 90, untimedRuns: 1 }).untimedNote).toBe(
+      '1 run has no time'
+    );
+    expect(totalTimeLabel({ totalTimeSeconds: 90, untimedRuns: 2 }).untimedNote).toBe(
+      '2 runs have no time'
+    );
+  });
+
+  it('has no total when no run has a time', () => {
+    expect(totalTimeLabel({ totalTimeSeconds: 0, untimedRuns: 3 }).timeSeconds).toBeNull();
   });
 });

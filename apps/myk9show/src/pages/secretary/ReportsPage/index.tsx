@@ -28,6 +28,7 @@ import { useHostedReportData } from './useHostedReportData';
 import { blockedPrintMessage, resolvePrintReadiness } from './reportReadinessCopy';
 import { ReportPrintStatus } from './ReportPrintStatus';
 import { TrialFinancialsCard } from './TrialFinancialsCard';
+import { isReportForeignToScope } from './reportScopedRegistries';
 
 const DEFAULT_REPORT_ID = 'check-in-sheet';
 
@@ -293,7 +294,7 @@ export default function ReportsPage() {
     }
   };
 
-  const officialPdfAction = useOfficialReportDownload({
+  const downloadAction = useOfficialReportDownload({
     reportType,
     showId,
     currentShowName: currentShow?.name,
@@ -307,6 +308,10 @@ export default function ReportsPage() {
     sortOrder,
     isReady,
   });
+
+  // A deep link keeps a foreign-registry report reachable; it gets no Print and no Download.
+  const isForeignReport = isReportForeignToScope(reportType, trialOptions, trialId);
+  const officialPdfAction = isForeignReport ? undefined : downloadAction;
 
   return (
     // px-4: this project's `.container` compiles to width + max-widths only,
@@ -386,6 +391,7 @@ export default function ReportsPage() {
           onDogChange={setDogId}
           onSortChange={setSortOrder}
           onPrint={handlePrint}
+          printDisabled={isForeignReport}
           officialPdfAction={officialPdfAction}
           judgeDay={judgeDay.control && { ...judgeDay.control, onChange: handleJudgeDayChange }}
         />

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import { render, screen, waitFor } from '@/test/utils/testUtils';
 import { ReportPreview } from '../ReportPreview';
+import { FOREIGN_REPORT_NOTICE_ID } from '../reportScopedRegistries';
 import { getReportById } from '@/lib/reports/reportRegistry';
 import type { DbClass, DbEntry, DbTrial } from '@/types/database-mappings';
 import type { Show } from '@/types/show-types';
@@ -24,6 +25,9 @@ const trials = fromAny<DbTrial[], unknown>([
     registry_id: 'AKC',
   },
 ]);
+
+const ukcTrials = fromAny<DbTrial[], unknown>([{ ...trials[0], registry_id: 'UKC' }]);
+const ascaTrials = fromAny<DbTrial[], unknown>([{ ...trials[0], registry_id: 'ASCA' }]);
 
 const classes = [
   {
@@ -402,7 +406,7 @@ describe('ReportPreview', () => {
         <ReportPreview
           reportType="asca-scent-detection-trial-roster"
           show={show}
-          trials={trials}
+          trials={ascaTrials}
           classes={classes}
           entries={entries}
           trialId="trial-1"
@@ -429,7 +433,7 @@ describe('ReportPreview', () => {
         <ReportPreview
           reportType="asca-scent-detection-trial-roster"
           show={show}
-          trials={trials}
+          trials={ascaTrials}
           classes={classes}
           entries={entries}
           trialId="all"
@@ -453,7 +457,7 @@ describe('ReportPreview', () => {
         <ReportPreview
           reportType="ukc-nosework-judges-book-element"
           show={show}
-          trials={trials}
+          trials={ukcTrials}
           classes={classes}
           entries={entries}
           trialId="trial-1"
@@ -476,7 +480,7 @@ describe('ReportPreview', () => {
         <ReportPreview
           reportType="ukc-nosework-trial-report"
           show={show}
-          trials={trials}
+          trials={ukcTrials}
           classes={classes}
           entries={entries}
           trialId="trial-1"
@@ -513,7 +517,59 @@ describe('ReportPreview', () => {
         />
       );
 
-      expect(screen.getByText(/different registry/i)).toBeInTheDocument();
+      const notice = screen.getByRole('status');
+      expect(notice).toHaveTextContent(/is for another registry/i);
+      expect(notice).toHaveAttribute('id', FOREIGN_REPORT_NOTICE_ID);
+      expect(screen.queryByText(/is a downloadable form/i)).toBeNull();
+    });
+
+    it('still explains a download-only form with no action when the trial registry is unknown', () => {
+      const unknownTrials = fromAny<DbTrial[], unknown>([{ ...trials[0], registry_id: null }]);
+      render(
+        <ReportPreview
+          reportType="asca-scent-detection-trial-roster"
+          show={show}
+          trials={unknownTrials}
+          classes={classes}
+          entries={entries}
+          trialId="trial-1"
+          classId="all"
+          dogId="all"
+          sortOrder="armband"
+          isLoading={false}
+          isError={false}
+          dataState="ready"
+          hasDownloadAction={false}
+        />
+      );
+
+      expect(screen.getByText(/is a downloadable form/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/different registry than the trial you have selected/i)
+      ).toBeInTheDocument();
+    });
+
+    it('says so instead of rendering an HTML report from another registry', () => {
+      const { container } = render(
+        <ReportPreview
+          reportType="trial-secretary-report"
+          show={show}
+          trials={ukcTrials}
+          classes={classes}
+          entries={entries}
+          trialId="trial-1"
+          classId="all"
+          dogId="all"
+          sortOrder="armband"
+          isLoading={false}
+          isError={false}
+          dataState="ready"
+          hasDownloadAction={false}
+        />
+      );
+
+      expect(screen.getByRole('status')).toHaveTextContent(/different registry/i);
+      expect(container.querySelector('iframe')).toBeNull();
     });
 
     it('reports a missing show as settled, not as loading forever', () => {

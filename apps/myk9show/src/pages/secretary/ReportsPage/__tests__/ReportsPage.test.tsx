@@ -5,6 +5,7 @@ import ReportsPage, { resolveInitialReportId, resolveInitialReportScope } from '
 
 const mockReportState = vi.hoisted(() => ({
   trialOneRegistryId: 'AKC',
+  trialTwoRegistryId: null as string | null,
   isLoading: false,
   /** Overrides the derived state so the paused/stale paths are reachable. */
   dataState: null as null | 'loading' | 'unavailable' | 'stale' | 'refreshing' | 'error' | 'ready',
@@ -56,7 +57,13 @@ vi.mock('@/hooks/queries/useReportData', () => ({
         date: '2026-04-12',
         registry_id: mockReportState.trialOneRegistryId,
       },
-      { id: 'trial-2', name: 'Trial 2', trial_number: 'Trial 2', date: '2026-04-13' },
+      {
+        id: 'trial-2',
+        name: 'Trial 2',
+        trial_number: 'Trial 2',
+        date: '2026-04-13',
+        registry_id: mockReportState.trialTwoRegistryId,
+      },
     ],
     classes: mockReportState.isLoading
       ? undefined
@@ -217,6 +224,7 @@ vi.mock('../ReportPreview', () => ({
 describe('ReportsPage', () => {
   beforeEach(() => {
     mockReportState.trialOneRegistryId = 'AKC';
+    mockReportState.trialTwoRegistryId = null;
     mockReportState.isLoading = false;
     mockReportState.dataState = null;
     mockPrintState.records = [];
@@ -504,6 +512,40 @@ describe('ReportsPage', () => {
     ).toBeNull();
   });
 
+  it('withholds Print for an HTML report from another registry', async () => {
+    mockReportState.trialOneRegistryId = 'UKC';
+
+    render(<ReportsPage />, {
+      initialRoute: '/shows/show-1/reports?report=trial-secretary-report&trialId=trial-1',
+    });
+
+    expect(await screen.findByRole('button', { name: /^print$/i })).toBeDisabled();
+  });
+
+  it('withholds the UKC entry packet on an AKC show with no trial selected', async () => {
+    mockReportState.trialOneRegistryId = 'AKC';
+    mockReportState.trialTwoRegistryId = 'AKC';
+
+    render(<ReportsPage />, {
+      initialRoute: '/shows/show-1/reports?report=ukc-nosework-entry-form',
+    });
+
+    await screen.findByTestId('report-preview');
+    expect(screen.queryByRole('button', { name: /Download UKC Entry Form/i })).toBeNull();
+  });
+
+  it('withholds the download of a downloadable report from another registry (preview notice is covered in ReportPreview.test)', async () => {
+    mockReportState.trialOneRegistryId = 'AKC';
+
+    render(<ReportsPage />, {
+      initialRoute:
+        '/shows/show-1/reports?report=ukc-nosework-entry-form&trialId=trial-1&dogId=dog-1',
+    });
+
+    await screen.findByTestId('report-preview');
+    expect(screen.queryByRole('button', { name: /Download UKC Entry Form/i })).toBeNull();
+  });
+
   it('offers the official UKC entry form PDF when a UKC trial and dog are selected', async () => {
     mockReportState.trialOneRegistryId = 'UKC';
 
@@ -693,6 +735,12 @@ describe('resolveInitialReportId', () => {
 });
 
 describe('resolveInitialReportScope', () => {
+  beforeEach(() => {
+    mockReportState.trialOneRegistryId = 'AKC';
+    mockReportState.trialTwoRegistryId = null;
+    mockReportState.dataState = null;
+  });
+
   it('uses all scopes when no query params are provided', () => {
     expect(resolveInitialReportScope(new URLSearchParams())).toEqual({
       trialId: 'all',

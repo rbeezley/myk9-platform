@@ -10,7 +10,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { getReportById } from '@/lib/reports/reportRegistry';
 import { formatClassLabel } from '@/lib/utils';
 import { AlertTriangle, Download } from 'lucide-react';
-import type { TrialReportOption } from './reportScopedRegistries';
+import { FOREIGN_REPORT_NOTICE_ID, type TrialReportOption } from './reportScopedRegistries';
 import type { JudgeDayControl } from './useJudgeDayReportScope';
 import { formatTrialOptionLabel } from './trialOptionLabel';
 
@@ -78,6 +78,8 @@ interface ReportControlsBarProps {
   onDogChange: (value: string) => void;
   onSortChange: (value: string) => void;
   onPrint: () => void;
+  /** The report is for a registry outside this scope: nothing may be printed. */
+  printDisabled?: boolean;
   officialPdfAction?: OfficialPdfAction | undefined;
   judgeDay?: JudgeDayControl | undefined;
 }
@@ -97,6 +99,7 @@ export function ReportControlsBar({
   onDogChange,
   onSortChange,
   onPrint,
+  printDisabled = false,
   officialPdfAction,
   judgeDay,
 }: ReportControlsBarProps) {
@@ -276,7 +279,12 @@ export function ReportControlsBar({
             a blank sheet. A disabled Print sitting beside an enabled Download
             would still read as "printing is the main action, and it is broken". */}
         {!isPdfOnlyReport && (
-          <Button onClick={onPrint} className="w-full sm:w-auto">
+          <Button
+            onClick={onPrint}
+            disabled={printDisabled}
+            aria-describedby={printDisabled ? FOREIGN_REPORT_NOTICE_ID : undefined}
+            className="w-full sm:w-auto"
+          >
             Print
           </Button>
         )}

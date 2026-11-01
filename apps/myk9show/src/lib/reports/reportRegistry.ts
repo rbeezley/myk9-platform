@@ -559,6 +559,21 @@ export function getEnabledReports(): ReportDefinition[] {
 }
 
 /**
+ * A registry-specific report whose registry is not among `registryIds`. Generic reports
+ * (no registryId) and an omitted or empty list are never outside (MYK9-1584).
+ */
+export function isReportOutsideRegistries(
+  report: ReportDefinition,
+  registryIds: readonly RegistryId[] | undefined
+): boolean {
+  return (
+    !!registryIds?.length &&
+    report.registryId !== undefined &&
+    !registryIds.includes(report.registryId)
+  );
+}
+
+/**
  * Return the reports relevant to the registries represented by the current
  * report scope. Generic reports have no registryId and are always retained.
  * A selected report is retained even when its registry is outside the current
@@ -577,9 +592,6 @@ export function getReportsForRegistries(
   if (!registryIds?.length) return reports;
 
   return reports.filter(
-    report =>
-      report.registryId === undefined ||
-      registryIds.includes(report.registryId) ||
-      report.id === selectedReportId
+    report => !isReportOutsideRegistries(report, registryIds) || report.id === selectedReportId
   );
 }

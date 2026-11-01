@@ -146,7 +146,7 @@ describe('UserManagementPage (shared primitives migration)', () => {
   // copy of it.
   it('renders the user views in the Show select, with the role requests queue as a page link', async () => {
     const { user } = renderPage();
-    const select = screen.getByRole('combobox', { name: 'Show: User views' });
+    const select = screen.getByRole('combobox', { name: 'View: User views' });
     expect(select).toHaveTextContent(/^All \(/);
     await user.click(select);
     await user.click(await screen.findByRole('option', { name: /role requests/i }));

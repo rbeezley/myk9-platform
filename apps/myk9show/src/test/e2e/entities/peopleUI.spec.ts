@@ -60,7 +60,7 @@ test.describe('People UI — Browse (secretary)', () => {
   }) => {
     await gotoPeopleBrowse(page);
     await expect(page.getByPlaceholder('Search people')).toBeVisible();
-    await expect(page.getByRole('combobox', { name: 'Show: People views' })).toBeVisible();
+    await expect(page.getByRole('combobox', { name: 'View: People views' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Select people' })).toBeVisible();
     await expect(page.getByText('Select a person to see their details')).toBeVisible();
     await expect(page.getByRole('list', { name: 'People' })).toBeVisible();
@@ -82,7 +82,7 @@ test.describe('People UI — Browse (secretary)', () => {
     await expect(page.getByText(SHOWING_SOME)).toHaveCount(0);
 
     // Pick the Judges view from the select.
-    await page.getByRole('combobox', { name: 'Show: People views' }).click();
+    await page.getByRole('combobox', { name: 'View: People views' }).click();
     await page.getByRole('option', { name: /^Judges/ }).click();
     await expect(page.getByText(SHOWING_SOME)).toBeVisible();
 

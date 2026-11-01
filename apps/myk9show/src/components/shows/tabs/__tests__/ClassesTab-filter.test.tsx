@@ -37,7 +37,7 @@ describe('ClassesTab views (list toolkit)', () => {
   it('always shows the Show select, even when every class shares a status', async () => {
     const user = userEvent.setup();
     renderTab([makeClass(), makeClass()]);
-    await user.click(screen.getByRole('combobox', { name: 'Show: Class views' }));
+    await user.click(screen.getByRole('combobox', { name: 'View: Class views' }));
     expect(await screen.findByRole('option', { name: /^Pending/ })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: /^All/ })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: /^Completed/ })).toBeInTheDocument();
@@ -46,7 +46,7 @@ describe('ClassesTab views (list toolkit)', () => {
   it('offers every view when classes have mixed statuses', async () => {
     const user = userEvent.setup();
     renderTab([makeClass({ status: 'Scheduled' }), makeClass({ status: 'Completed' })]);
-    await user.click(screen.getByRole('combobox', { name: 'Show: Class views' }));
+    await user.click(screen.getByRole('combobox', { name: 'View: Class views' }));
     expect(await screen.findByRole('option', { name: /^All/ })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: /^Pending/ })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: /^Completed/ })).toBeInTheDocument();
@@ -58,7 +58,7 @@ describe('ClassesTab views (list toolkit)', () => {
       makeClass({ element: 'Interior', status: 'Scheduled' }),
       makeClass({ element: 'Exterior', status: 'Completed' }),
     ]);
-    await user.click(screen.getByRole('combobox', { name: 'Show: Class views' }));
+    await user.click(screen.getByRole('combobox', { name: 'View: Class views' }));
     await user.click(await screen.findByRole('option', { name: /^Pending/ }));
     expect(screen.getByText('Interior')).toBeInTheDocument();
     expect(screen.queryByText('Exterior')).not.toBeInTheDocument();
@@ -70,7 +70,7 @@ describe('ClassesTab views (list toolkit)', () => {
       makeClass({ element: 'Interior', status: 'Scheduled' }),
       makeClass({ element: 'Exterior', status: 'Completed' }),
     ]);
-    await user.click(screen.getByRole('combobox', { name: 'Show: Class views' }));
+    await user.click(screen.getByRole('combobox', { name: 'View: Class views' }));
     await user.click(await screen.findByRole('option', { name: /^Completed/ }));
     expect(screen.queryByText('Interior')).not.toBeInTheDocument();
     expect(screen.getByText('Exterior')).toBeInTheDocument();
@@ -82,10 +82,10 @@ describe('ClassesTab views (list toolkit)', () => {
       makeClass({ element: 'Interior', status: 'Scheduled' }),
       makeClass({ element: 'Exterior', status: 'Completed' }),
     ]);
-    await user.click(screen.getByRole('combobox', { name: 'Show: Class views' }));
+    await user.click(screen.getByRole('combobox', { name: 'View: Class views' }));
     await user.click(await screen.findByRole('option', { name: /^Pending/ }));
     expect(screen.queryByText('Exterior')).not.toBeInTheDocument();
-    await user.click(screen.getByRole('combobox', { name: 'Show: Class views' }));
+    await user.click(screen.getByRole('combobox', { name: 'View: Class views' }));
     await user.click(await screen.findByRole('option', { name: /^All/ }));
     expect(screen.getByText('Exterior')).toBeInTheDocument();
   });

@@ -183,9 +183,9 @@ test.describe('Dogs UI — Browse (secretary)', () => {
     ).toBeVisible();
     await page.keyboard.press('Escape');
 
-    // The labelled "Show:" view select replaces the old filter chips (MYK9-906);
+    // The labelled "View:" view select replaces the old filter chips (MYK9-906);
     // Breed, Sex and Owner filters were cut (search still covers them).
-    await expect(page.getByRole('combobox', { name: 'Show: Dog views' })).toBeVisible();
+    await expect(page.getByRole('combobox', { name: 'View: Dog views' })).toBeVisible();
 
     // Beside the list there is no Cards/Table toggle; staff get "Select dogs" for the table.
     await expect(page.getByRole('button', { name: 'Select dogs', exact: true })).toBeVisible();
@@ -204,7 +204,7 @@ test.describe('Dogs UI — Browse (secretary)', () => {
 
   test('Show select applies a status view and "Show all dogs" clears it', async ({ page }) => {
     await gotoDogsBrowse(page);
-    await page.getByRole('combobox', { name: 'Show: Dog views' }).click();
+    await page.getByRole('combobox', { name: 'View: Dog views' }).click();
     await page.getByRole('option', { name: /^Active/ }).click();
     await expect(page.getByText(/^Showing \d+ of \d+ dogs?\.$/)).toBeVisible();
     await page.getByRole('button', { name: 'Show all dogs' }).click();

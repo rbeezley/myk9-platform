@@ -230,14 +230,14 @@ describe('ClassResultsTable drag handle visibility', () => {
 
   it('shows drag handles on All tab for secretary (non-closed class)', async () => {
     const { user } = renderTable();
-    await user.click(screen.getByRole('combobox', { name: 'Show: Result views' }));
+    await user.click(screen.getByRole('combobox', { name: 'View: Result views' }));
     await user.click(await screen.findByRole('option', { name: /^All/ }));
     expect(screen.getAllByTestId('drag-handle').length).toBeGreaterThan(0);
   });
 
   it('hides drag handles on Completed tab', async () => {
     const { user } = renderTable();
-    await user.click(screen.getByRole('combobox', { name: 'Show: Result views' }));
+    await user.click(screen.getByRole('combobox', { name: 'View: Result views' }));
     await user.click(await screen.findByRole('option', { name: /^Completed/ }));
     expect(screen.queryByTestId('drag-handle')).not.toBeInTheDocument();
   });

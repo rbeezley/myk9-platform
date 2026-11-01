@@ -133,7 +133,7 @@ describe('ClassesTab', () => {
   });
 
   async function pickView(name: RegExp) {
-    await userEvent.click(screen.getByRole('combobox', { name: 'Show: Class views' }));
+    await userEvent.click(screen.getByRole('combobox', { name: 'View: Class views' }));
     await userEvent.click(within(await screen.findByRole('listbox')).getByRole('option', { name }));
   }
 
@@ -147,7 +147,7 @@ describe('ClassesTab', () => {
 
   it('hides the Mine view when the signed-in user has no entries in the show', async () => {
     render(<ClassesTab classes={mockClasses} showId="s1" userHasEntries={false} />);
-    await userEvent.click(screen.getByRole('combobox', { name: 'Show: Class views' }));
+    await userEvent.click(screen.getByRole('combobox', { name: 'View: Class views' }));
     expect(
       within(await screen.findByRole('listbox')).queryByRole('option', { name: /^Mine/ })
     ).not.toBeInTheDocument();

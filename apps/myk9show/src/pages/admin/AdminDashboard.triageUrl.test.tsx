@@ -60,7 +60,7 @@ function UrlProbe() {
   return <output data-testid="url-search">{useLocation().search}</output>;
 }
 
-const VIEW = { name: /show: filter what needs a look/i };
+const VIEW = { name: /view: filter what needs a look/i };
 
 describe('AdminDashboard Needs a look URL state', () => {
   it('applies the triage view from the URL and keeps unrelated params', async () => {

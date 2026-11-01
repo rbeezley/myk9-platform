@@ -243,7 +243,13 @@ export default function SecretaryMessagesPage() {
         </div>
         {isEmailView ? (
           <div className="flex-1 space-y-4 overflow-y-auto p-4 md:p-6">
-            {selectedShowId ? <ScheduledLifecycleEmailsPanel showId={selectedShowId} /> : null}
+            {selectedShowId ? (
+              <ScheduledLifecycleEmailsPanel showId={selectedShowId} />
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Choose a show to see its scheduled emails
+              </p>
+            )}
             <EmailDeliveryHistory showId={selectedShowId} />
           </div>
         ) : visibleThreads.length === 0 ? (

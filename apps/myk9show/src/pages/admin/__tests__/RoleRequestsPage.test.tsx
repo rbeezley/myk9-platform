@@ -122,7 +122,7 @@ describe('RoleRequestsPage', () => {
     // Approved requests live behind the "Approved" view.
     const approvedUser = userEvent.setup();
     await approvedUser.click(
-      await screen.findByRole('combobox', { name: /show: filter role requests/i })
+      await screen.findByRole('combobox', { name: /view: filter role requests/i })
     );
     await approvedUser.click(await screen.findByRole('option', { name: /^Approved/ }));
 
@@ -273,7 +273,7 @@ describe('RoleRequestsPage', () => {
 
     render(<RoleRequestsPage />, { initialRoute: '/admin/role-requests' });
 
-    await user.click(await screen.findByRole('combobox', { name: /show: filter role requests/i }));
+    await user.click(await screen.findByRole('combobox', { name: /view: filter role requests/i }));
     await user.click(await screen.findByRole('option', { name: /^Approved/ }));
     await user.click(await screen.findByRole('button', { name: 'View details' }));
 
@@ -285,7 +285,7 @@ describe('RoleRequestsPage', () => {
   it('shows the active status view in the labelled Show select', async () => {
     render(<RoleRequestsPage />, { initialRoute: '/admin/role-requests' });
 
-    const select = await screen.findByRole('combobox', { name: /show: filter role requests/i });
+    const select = await screen.findByRole('combobox', { name: /view: filter role requests/i });
     expect(select).toHaveTextContent(/^Pending/);
   });
 

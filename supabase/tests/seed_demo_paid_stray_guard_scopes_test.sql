@@ -152,12 +152,14 @@ DELETE FROM public.stripe_orders WHERE id = '00000000-0000-0000-0000-00000053830
 
 -- The second route: the order holds no show_id, but its enrollment sits on a
 -- show that cascades. The enrollment is left unpaid so the arm under test is
--- unambiguously the orders one.
+-- unambiguously the orders one. The order is 'pending': since MYK9-1634 a captured
+-- order's charge is money the form received, which would settle it as paid, and the
+-- orders arm matches an order whatever its status.
 INSERT INTO public.enrollments (id, show_id, handler_id, payment_status)
 VALUES ('00000000-0000-0000-0000-000000538202', 'dededede-0000-0000-0000-000000000011',
         '00000000-0000-0000-0000-000000538002', 'pending');
 INSERT INTO public.stripe_orders (id, amount_cents, status, enrollment_id)
-VALUES ('00000000-0000-0000-0000-000000538302', 5000, 'succeeded',
+VALUES ('00000000-0000-0000-0000-000000538302', 5000, 'pending',
         '00000000-0000-0000-0000-000000538202');
 
 DO $$

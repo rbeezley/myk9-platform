@@ -37,7 +37,7 @@
 -- STATUS. Two derived moves, both in private.refresh_enrollment_money:
 --   * a settled form ('paid', 'paid_by_cash', 'paid_by_check', 'waived') becomes 'pending'
 --     when its total grew or its card money shrank and money received no longer covers it;
---   * a 'pending' form becomes 'paid' when its card money grew and now covers it (a
+--   * a 'pending' or 'waived' form becomes 'paid' when its card money grew and now covers it (a
 --     capture, including a payment link that settles a desk form).
 -- Shrinking totals still never promote (MYK9-1634).
 --
@@ -171,7 +171,7 @@ BEGIN
             AND (v_total > COALESCE(v_old_total, 0) OR v_card < v_old_card)
             AND v_received < v_total
            THEN 'pending'
-           WHEN v_status = 'pending'
+           WHEN v_status IN ('pending', 'waived')
             AND v_card > v_old_card
             AND v_received >= v_total
            THEN 'paid'

@@ -21,6 +21,7 @@
 --  12. a checkout onto a form that still owes desk money leaves it 'pending' (the sync no
 --      longer marks an existing form paid), also when the card entry was already on it;
 --  13. an order Stripe refunds whole reopens a form it no longer covers.
+--  14. a checkout onto a waived form settles it 'paid' (the capture covers it).
 --
 -- Run with psql -X -v ON_ERROR_STOP=1 against a migrated database; fixtures roll back.
 
@@ -49,7 +50,8 @@ VALUES
   ('00000000-0000-0000-0000-000001637054', 'Link One', 'Exhibitor', NULL),
   ('00000000-0000-0000-0000-000001637055', 'Link Two', 'Exhibitor', NULL),
   ('00000000-0000-0000-0000-000001637056', 'Twice', 'Exhibitor', NULL),
-  ('00000000-0000-0000-0000-000001637057', 'Returning', 'Exhibitor', NULL);
+  ('00000000-0000-0000-0000-000001637057', 'Returning', 'Exhibitor', NULL),
+  ('00000000-0000-0000-0000-000001637058', 'Waived', 'Exhibitor', NULL);
 
 INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
 SELECT '00000000-0000-0000-0000-000001637051', id, '00000000-0000-0000-0000-000001637001',
@@ -60,7 +62,8 @@ INSERT INTO public.stripe_customers (id, person_id, stripe_customer_id)
 VALUES
   ('00000000-0000-0000-0000-000001637061', '00000000-0000-0000-0000-000001637052', 'cus_1637_card'),
   ('00000000-0000-0000-0000-000001637063', '00000000-0000-0000-0000-000001637053', 'cus_1637_covered'),
-  ('00000000-0000-0000-0000-000001637067', '00000000-0000-0000-0000-000001637057', 'cus_1637_returning');
+  ('00000000-0000-0000-0000-000001637067', '00000000-0000-0000-0000-000001637057', 'cus_1637_returning'),
+  ('00000000-0000-0000-0000-000001637068', '00000000-0000-0000-0000-000001637058', 'cus_1637_waived');
 
 CREATE TEMP TABLE t1637_expect (label text, got text, want text) ON COMMIT DROP;
 GRANT ALL ON t1637_expect TO authenticated;
@@ -234,6 +237,34 @@ INSERT INTO t1637_expect
 SELECT '12 a checkout onto a form that still owes desk money leaves it pending',
        pg_temp.money1637('00000000-0000-0000-0000-000001637307'),
        'total=3500 card=2000 paid=0.00 refund=0.00 status=pending';
+
+-- 14. A waived form (its one entry comped), then a $20 card checkout onto it. The sync
+-- attaches the card entry once the order already reads succeeded, so owed and card money
+-- grow together.
+INSERT INTO public.enrollments (id, show_id, handler_id, payment_status, payment_method)
+VALUES ('00000000-0000-0000-0000-000001637308', '00000000-0000-0000-0000-000001637011',
+        '00000000-0000-0000-0000-000001637058', 'waived', 'check');
+INSERT INTO public.entries (id, show_id, trial_id, registration_id, entry_status,
+                            payment_status, payment_method, entry_fee)
+VALUES ('00000000-0000-0000-0000-000001637151', '00000000-0000-0000-0000-000001637011',
+        '00000000-0000-0000-0000-000001637021', '00000000-0000-0000-0000-000001637308',
+        'confirmed', 'waived', 'check', 15);
+SET LOCAL ROLE service_role;
+INSERT INTO public.entries (id, show_id, trial_id, handler_id, entry_status, payment_status,
+                            payment_method, entry_fee)
+VALUES ('00000000-0000-0000-0000-000001637152', '00000000-0000-0000-0000-000001637011',
+        '00000000-0000-0000-0000-000001637021', '00000000-0000-0000-0000-000001637058',
+        'confirmed', 'paid', 'online', 20);
+INSERT INTO public.stripe_orders (id, customer_id, stripe_payment_intent_id, amount_cents,
+                                  status, order_type, show_id, entry_ids)
+VALUES ('00000000-0000-0000-0000-000001637210', '00000000-0000-0000-0000-000001637068',
+        'pi_1637_waived', 2130, 'succeeded', 'entry', '00000000-0000-0000-0000-000001637011',
+        ARRAY['00000000-0000-0000-0000-000001637152']::uuid[]);
+RESET ROLE;
+INSERT INTO t1637_expect
+SELECT '14 a checkout onto a waived form settles it paid',
+       pg_temp.money1637('00000000-0000-0000-0000-000001637308'),
+       'total=2000 card=2000 paid=0.00 refund=0.00 status=paid';
 
 -- The desk, as a secretary.
 SET LOCAL ROLE authenticated;

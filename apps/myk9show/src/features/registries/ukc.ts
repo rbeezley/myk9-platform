@@ -73,6 +73,7 @@ const UKC_ELEMENTS: readonly ElementSpec[] = [
 ];
 
 const ukcNosework: RegistrySport = {
+  displayName: 'Nosework',
   levels: UKC_LEVELS,
   elements: UKC_ELEMENTS,
 };

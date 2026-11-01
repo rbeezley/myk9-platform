@@ -177,4 +177,11 @@ describe('ShowCatalog', () => {
       expect(screen.getByText('Exterior Excellent')).toBeInTheDocument();
     });
   });
+
+  it("titles a UKC show with UKC's own sport name", () => {
+    render(<ShowCatalog {...baseProps} organization="UKC" />);
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+      'UKC Nosework Show Catalog'
+    );
+  });
 });

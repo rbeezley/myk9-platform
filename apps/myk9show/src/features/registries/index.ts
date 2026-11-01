@@ -7,7 +7,7 @@
  *   const scentWork = getSport(akc, 'scent-work');
  */
 
-export { listRegistries, getRegistry, getSport } from './lookup';
+export { listRegistries, getRegistry, getSport, getRegistrySportName } from './lookup';
 
 export type {
   Registry,

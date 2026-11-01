@@ -116,4 +116,9 @@ describe('WaitlistReport', () => {
     const row = within(classSection(/Container Novice A/)).getAllByRole('row')[1];
     expect(within(row).getAllByRole('cell')[2]).toHaveTextContent('—');
   });
+
+  it("titles a UKC show with UKC's own sport name", () => {
+    render(<WaitlistReport {...baseProps} organization="UKC" />);
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('UKC Nosework Waitlist');
+  });
 });

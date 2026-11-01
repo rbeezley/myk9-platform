@@ -92,6 +92,7 @@ const ASCA_ELEMENTS: readonly ElementSpec[] = [
 ];
 
 const ascaScentDetection: RegistrySport = {
+  displayName: 'Scent Detection',
   levels: ASCA_LEVELS,
   elements: ASCA_ELEMENTS,
 };

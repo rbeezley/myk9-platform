@@ -203,4 +203,23 @@ describe('FinancialReport', () => {
     const noArmCell = screen.getByText('NoArm');
     expect(noArmCell.parentElement?.querySelectorAll('td')[1]).toHaveTextContent('—');
   });
+
+  it("titles a UKC show with UKC's own sport name", () => {
+    render(<FinancialReport {...baseProps} organization="UKC" />);
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+      'UKC Nosework Financial Report'
+    );
+  });
+
+  it('titles an ASCA show Scent Detection and falls back to Scent Work with no organization', () => {
+    const { unmount } = render(<FinancialReport {...baseProps} organization="ASCA" />);
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+      'ASCA Scent Detection Financial Report'
+    );
+    unmount();
+    render(<FinancialReport {...baseProps} organization="" />);
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+      /^Scent Work Financial Report$/
+    );
+  });
 });

@@ -42,3 +42,15 @@ export function getSport(registry: Registry, sportId: string): RegistrySport {
   }
   return sport;
 }
+
+const DEFAULT_SPORT_NAME = 'Scent Work';
+
+/**
+ * The registry's own name for its scent sport (AKC "Scent Work", UKC "Nosework", ASCA "Scent
+ * Detection"). Case-insensitive; null, empty or unknown organizations fall back to "Scent Work".
+ */
+export function getRegistrySportName(organization: string | null | undefined): string {
+  const id = organization?.trim().toUpperCase();
+  if (!id || !Object.prototype.hasOwnProperty.call(REGISTRIES, id)) return DEFAULT_SPORT_NAME;
+  return REGISTRIES[id as RegistryId].sports['scent-work']?.displayName ?? DEFAULT_SPORT_NAME;
+}

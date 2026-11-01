@@ -89,4 +89,11 @@ describe('JudgesSchedule', () => {
     expect(rows[1]).toHaveTextContent('Alice Brown');
     expect(rows[2]).toHaveTextContent('Dr. Jane Smith');
   });
+
+  it("titles a UKC show with UKC's own sport name", () => {
+    render(<JudgesSchedule {...baseProps} organization="UKC" />);
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+      'UKC Nosework Show Judging Schedule'
+    );
+  });
 });

@@ -13,7 +13,7 @@ import {
 } from '@/lib/reports/reportUtils';
 import { formatArmbandDisplay } from '@/utils/armbandUtils';
 import { formatTrialLabel } from '@myk9/core';
-import { resolveConfiguredRegistryId } from '@/features/registries';
+import { getRegistrySportName, resolveConfiguredRegistryId } from '@/features/registries';
 import { sortClassesForAkcCatalog } from '@/lib/reports/catalogClassOrder';
 import { formatCatalogDate } from '@/lib/reports/catalogFields';
 import { AkcMarkedCatalogTable } from './AkcMarkedCatalogClass';
@@ -78,7 +78,9 @@ export const ResultCatalog: React.FC<ReportProps> = ({
   }
 
   const showIsAkc = allClasses.length > 0 && allClasses.every(cls => isAkcClass(cls.trialId));
-  const orgTitle = organization ? `${organization} Scent Work` : 'Scent Work';
+  const orgTitle = organization
+    ? `${organization} ${getRegistrySportName(organization)}`
+    : getRegistrySportName(organization);
 
   return (
     <div className="report-page">

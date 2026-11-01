@@ -139,16 +139,6 @@ DECLARE
   v_reference text;
   v_net_cents numeric;
 BEGIN
-  -- The ledger's entries cascade (pending -> paid) and every other edit that changes
-  -- neither fee, deletion, form nor waived-ness owe nothing different: no lock, no write.
-  IF TG_OP = 'UPDATE'
-     AND NEW.entry_fee IS NOT DISTINCT FROM OLD.entry_fee
-     AND (NEW.deleted_at IS NULL) = (OLD.deleted_at IS NULL)
-     AND NEW.registration_id IS NOT DISTINCT FROM OLD.registration_id
-     AND (NEW.payment_status IS DISTINCT FROM 'waived') = (OLD.payment_status IS DISTINCT FROM 'waived') THEN
-    RETURN NULL;
-  END IF;
-
   FOR v_id IN
     SELECT DISTINCT x
       FROM unnest(CASE TG_OP
@@ -196,9 +186,23 @@ END;
 $$;
 
 CREATE TRIGGER trg_entries_refresh_enrollment_total
-  AFTER INSERT OR DELETE OR UPDATE OF entry_fee, deleted_at, registration_id, payment_status
-  ON public.entries
+  AFTER INSERT OR DELETE ON public.entries
   FOR EACH ROW EXECUTE FUNCTION private.entries_refresh_enrollment_total();
+
+-- Every UPDATE, not UPDATE OF <columns>: that list matches only the columns the statement
+-- names, and Comp / Undo Comp write `comped` while trg_entries_comp_payment_status (BEFORE)
+-- moves payment_status to or from 'waived'. The WHEN clause reads NEW after the BEFORE
+-- triggers, so it sees that change; the ledger's entries cascade (pending -> paid) and
+-- every other edit that changes neither fee, deletion, form nor waived-ness skip it.
+CREATE TRIGGER trg_entries_refresh_enrollment_total_on_update
+  AFTER UPDATE ON public.entries
+  FOR EACH ROW
+  WHEN (NEW.entry_fee IS DISTINCT FROM OLD.entry_fee
+        OR (NEW.deleted_at IS NULL) <> (OLD.deleted_at IS NULL)
+        OR NEW.registration_id IS DISTINCT FROM OLD.registration_id
+        OR (NEW.payment_status IS DISTINCT FROM 'waived')
+           <> (OLD.payment_status IS DISTINCT FROM 'waived'))
+  EXECUTE FUNCTION private.entries_refresh_enrollment_total();
 
 -- The status guard, from its live definition, plus the one change the database derives.
 CREATE OR REPLACE FUNCTION public.restrict_payment_status_update()

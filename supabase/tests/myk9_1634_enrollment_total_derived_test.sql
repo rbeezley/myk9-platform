@@ -12,7 +12,8 @@
 --      the live entries;
 --   8. a Stripe-paid form (payment_reference 'pi_...') keeps its stored total, also once a
 --      desk payment overwrites the reference (9) and after a full refund (11);
---  12. waiving an entry drops its fee, and un-waiving adds it back.
+--  12. waiving an entry drops its fee, and un-waiving adds it back;
+--  13. so do Comp and Undo Comp, which never name payment_status.
 --
 -- Run with psql -X -v ON_ERROR_STOP=1 against a migrated database; fixtures roll back.
 
@@ -124,6 +125,17 @@ SELECT '12a waiving an entry drops its fee from the total',
 UPDATE public.entries SET payment_status = 'pending' WHERE id = '00000000-0000-0000-0000-000001634081';
 INSERT INTO t1634_expect
 SELECT '12b un-waiving it adds the fee back',
+       pg_temp.total1634('00000000-0000-0000-0000-000001634061'), 4000;
+
+-- 13. Comp and Undo Comp write `comped`; trg_entries_comp_payment_status (BEFORE) moves
+-- payment_status to and from 'waived', a column the statement never names.
+UPDATE public.entries SET comped = true WHERE id = '00000000-0000-0000-0000-000001634081';
+INSERT INTO t1634_expect
+SELECT '13a comping an entry drops its fee from the total',
+       pg_temp.total1634('00000000-0000-0000-0000-000001634061'), 0;
+UPDATE public.entries SET comped = false WHERE id = '00000000-0000-0000-0000-000001634081';
+INSERT INTO t1634_expect
+SELECT '13b undoing the comp adds the fee back',
        pg_temp.total1634('00000000-0000-0000-0000-000001634061'), 4000;
 
 -- 8. The Stripe form is untouched, even when one of its entries changes.

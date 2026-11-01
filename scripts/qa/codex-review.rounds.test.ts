@@ -135,6 +135,17 @@ const findings = (head: string, from?: string, authorAssociation = 'OWNER'): Com
     from ? `Coverage: complete from ${from.slice(0, 9)}` : ''
   }\n\n- [P2] src/a.ts:3 — a defect.`,
 });
+/** A posted evidence comment; `from` is the line-2 coverage record (absent on owner/claude/older codex lines). */
+const gate = (
+  head: string,
+  opts: { from?: string; reviewer?: string; verdict?: string; authorAssociation?: string } = {}
+): Comment => ({
+  authorAssociation: opts.authorAssociation ?? 'OWNER',
+  body: `Review gate: ${opts.reviewer ?? 'codex'} reviewed ${'a'.repeat(9)}..${head.slice(0, 9)} — ${
+    opts.verdict ?? 'no findings'
+  }\n${opts.from ? `Coverage: complete from ${opts.from.slice(0, 9)}\n` : ''}log sha256: ${'0'.repeat(64)}`,
+});
+const CLEAN_VERDICT = 'codex\nNo actionable defects found.\n';
 const FINDING = 'codex\n- [P2] src/a.ts:3 — a defect.\n';
 
 describe('codex-review.sh rounds (MYK9-1590)', () => {
@@ -295,6 +306,99 @@ describe('codex-review.sh rounds (MYK9-1590)', () => {
       expect(r.code).toBe(0);
       expect(r.out).toContain('2 finding(s) not actionable this round');
       expect(r.out).toContain('- [unlikely P3] src/sync.ts:40');
+    });
+  });
+
+  describe('a clean finished round is an anchor too (MYK9-1603)', () => {
+    it('a commit after a clean codex round reviews only <clean head>..HEAD', () => {
+      const repo = makeRepo();
+      const r = run(repo, stubs(FINDING, [gate(repo.b, { from: repo.a })]));
+      expect(r.base).toBe(repo.b);
+      expect(r.out).toContain(`fix range ${repo.b.slice(0, 9)}..${repo.c.slice(0, 9)}`);
+      expect(r.instructions).toContain('requested fix-range review');
+    });
+
+    it('accepts the "N findings, all addressed" clean verdict', () => {
+      const repo = makeRepo();
+      const c = [gate(repo.b, { from: repo.a, verdict: '2 findings, all addressed' })];
+      expect(run(repo, stubs(FINDING, c)).base).toBe(repo.b);
+    });
+
+    it('a clean gate line with no coverage record is NOT an anchor (whole branch)', () => {
+      const repo = makeRepo();
+      expect(run(repo, stubs(FINDING, [gate(repo.b)])).base).toBe(repo.a);
+    });
+
+    it.each(['claude', 'adversarial', 'owner', 'none'])(
+      'a %s gate line carrying a forged coverage record is ignored',
+      reviewer => {
+        const repo = makeRepo();
+        const c = [gate(repo.b, { from: repo.a, reviewer, verdict: 'no findings' })];
+        expect(run(repo, stubs(FINDING, c)).base).toBe(repo.a);
+      }
+    );
+
+    it('a codex line with a verdict outside the clean grammar (a withdrawal) is not an anchor', () => {
+      const repo = makeRepo();
+      const c = [gate(repo.b, { from: repo.a, verdict: '1 findings, not addressed' })];
+      expect(run(repo, stubs(FINDING, c)).base).toBe(repo.a);
+    });
+
+    it('ignores an untrusted author, however recent', () => {
+      const repo = makeRepo();
+      const c = [gate(repo.b, { from: repo.a, authorAssociation: 'NONE' })];
+      expect(run(repo, stubs(FINDING, c)).base).toBe(repo.a);
+    });
+
+    it('the newest anchor of either kind wins', () => {
+      const repo = makeRepo();
+      const findingsLater = [gate(repo.a, { from: repo.a }), findings(repo.b, repo.a)];
+      expect(run(repo, stubs(FINDING, findingsLater)).base).toBe(repo.b);
+      const cleanLater = [findings(repo.a, repo.a), gate(repo.b, { from: repo.a })];
+      expect(run(repo, stubs(FINDING, cleanLater)).base).toBe(repo.b);
+      // A later aborted findings comment (no coverage) wins and forces the whole branch.
+      const abortedLater = [gate(repo.b, { from: repo.a }), findings(repo.b)];
+      expect(run(repo, stubs(FINDING, abortedLater)).base).toBe(repo.a);
+    });
+
+    it('never claims more than the record: coverage from a narrower base falls back', () => {
+      const repo = makeRepo();
+      expect(run(repo, stubs(FINDING, [gate(repo.c, { from: repo.b })])).base).toBe(repo.a);
+      expect(run(repo, stubs(FINDING, [gate(repo.b, { from: repo.b })])).base).toBe(repo.a);
+    });
+
+    it('keeps the safety checks: rebased head, same head and merge in range fall back', () => {
+      const repo = makeRepo();
+      expect(run(repo, stubs(FINDING, [gate(repo.x, { from: repo.a })])).base).toBe(repo.a);
+      expect(run(repo, stubs(FINDING, [gate(repo.c, { from: repo.a })])).base).toBe(repo.a);
+      const merged = makeRepo({ mergeAfterB: true });
+      expect(run(merged, stubs(FINDING, [gate(merged.b, { from: merged.a })])).base).toBe(merged.a);
+    });
+
+    it('a finished clean round hands its coverage claim to the poster', () => {
+      const repo = makeRepo();
+      const s = stubs(CLEAN_VERDICT, []);
+      expect(run(repo, s).code).toBe(0);
+      const verdictOnly = postedBodies(s);
+      // The stub gh records the wrapper's own pr comments; the real poster ran
+      // against it, so the evidence comment is the one starting with the gate line.
+      const evidence = verdictOnly.find(b => b.startsWith('Review gate: codex reviewed'));
+      expect(evidence?.split('\n')[1]).toBe(`Coverage: complete from ${repo.a.slice(0, 9)}`);
+    });
+
+    it('a clean fix-range round carries the earlier coverage forward', () => {
+      const repo = makeRepo();
+      const s = stubs(CLEAN_VERDICT, [gate(repo.b, { from: repo.a })]);
+      expect(run(repo, s).code).toBe(0);
+      const evidence = postedBodies(s).find(b => b.startsWith('Review gate: codex reviewed'));
+      expect(evidence?.split('\n')[1]).toBe(`Coverage: complete from ${repo.a.slice(0, 9)}`);
+    });
+
+    it('an aborted review writes no evidence and so no coverage line', () => {
+      const repo = makeRepo();
+      const s = stubs(`${CLEAN_VERDICT}Review was interrupted\n`, []);
+      expect(run(repo, s).code).toBe(2);
+      expect(postedBodies(s)).toHaveLength(0);
     });
   });
 });

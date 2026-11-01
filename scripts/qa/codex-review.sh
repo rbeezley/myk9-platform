@@ -98,12 +98,27 @@ REVIEW_INSTRUCTIONS='Review verdict contract: Only assert a clean verdict after 
 # whole branch. The evidence line still certifies BASE..HEAD.
 REVIEW_BASE="$BASE_REF"
 COVERED_FROM="$(git merge-base "$BASE_SHA" HEAD)"
-ANCHOR_JQ='[.comments[] | select(.authorAssociation == "OWNER" or .authorAssociation == "MEMBER" or .authorAssociation == "COLLABORATOR") | select(.body | startswith("Codex findings for")) | .body] | last // ""'
+# MYK9-1603: a CLEAN finished round is an anchor too, so a CI-fix commit after
+# one reviews only <clean head>..HEAD. The clean `Review gate: codex reviewed
+# <a>..<b> — <verdict>` comment qualifies only when the poster recorded
+# `Coverage: complete from <sha>` on its line 2 (post-review-gate.sh writes it
+# for a finished codex round and no other tier or withdrawal), so an owner,
+# claude or adversarial line, or a codex line from an older poster, never claims
+# coverage no review read. The newest anchor of either kind wins.
+ANCHOR_JQ='[.comments[] | select(.authorAssociation == "OWNER" or .authorAssociation == "MEMBER" or .authorAssociation == "COLLABORATOR") | select(.body | split("\n") as $l | ($l[0] | startswith("Codex findings for")) or (($l[0] | test("^Review gate: codex reviewed [0-9a-f]{7,40}\\.\\.[0-9a-f]{7,40} — ")) and (($l[1] // "") | startswith("Coverage: complete from ")))) | .body] | last // ""'
 if [ "$POST" = 1 ] && PR="$("$GH" pr view --json number -q .number 2>/dev/null)" && [ -n "$PR" ] &&
   ANCHOR="$("$GH" pr view "$PR" --json comments -q "$ANCHOR_JQ" 2>/dev/null)"; then
   LAST="$(printf '%s\n' "$ANCHOR" | sed -nE '1s/^Codex findings for ([0-9a-f]{7,40}) .*/\1/p')"
+  ANCHOR_OK=1
+  if [ -z "$LAST" ]; then
+    LAST="$(printf '%s\n' "$ANCHOR" | sed -nE '1s/^Review gate: codex reviewed [0-9a-f]{7,40}\.\.([0-9a-f]{7,40}) — .*/\1/p')"
+    ANCHOR_VERDICT="$(printf '%s\n' "$ANCHOR" | sed -nE '1s/^Review gate: codex reviewed [0-9a-f]{7,40}\.\.[0-9a-f]{7,40} — (.*)$/\1/p')"
+    # One grammar: ask the parser that judges the comment which verdicts are clean.
+    node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON \
+      "$HERE/review-gate.ts" --reviewer codex --verdict "$ANCHOR_VERDICT" || ANCHOR_OK=0
+  fi
   FROM="$(printf '%s\n' "$ANCHOR" | sed -nE '2s/^Coverage: complete from ([0-9a-f]{7,40})$/\1/p')"
-  if [ -n "$LAST" ] && [ -n "$FROM" ] &&
+  if [ "$ANCHOR_OK" = 1 ] && [ -n "$LAST" ] && [ -n "$FROM" ] &&
     LAST_SHA="$(git rev-parse --verify -q "${LAST}^{commit}")" &&
     FROM_SHA="$(git rev-parse --verify -q "${FROM}^{commit}")" &&
     git merge-base --is-ancestor "$FROM_SHA" "$COVERED_FROM" &&
@@ -245,7 +260,9 @@ if [ "$POST" = 1 ]; then
   [ "${N:-0}" -gt 0 ] && VERDICT_LINE="$N findings, all addressed"
   # The wrapper runs without errexit; a poster failure (grammar refusal, gh
   # error) must not fall through to exit 0 as if evidence had been posted.
-  if ! bash "$POSTER" "$PR" codex "$BASE_SHA" "$HEAD_SHA" "$VERDICT_LINE" "$LOG"; then
+  # MYK9-1603: this branch is reached only for a finished review, so it may
+  # record the coverage claim the next round's anchor trusts.
+  if ! REVIEW_COVERAGE_FROM="$(review_finished && printf '%s' "${COVERED_FROM:0:9}")" bash "$POSTER" "$PR" codex "$BASE_SHA" "$HEAD_SHA" "$VERDICT_LINE" "$LOG"; then
     echo "codex-review: review was clean but the evidence was NOT posted (poster failed). Exit 2; nothing recorded." >&2
     exit 2
   fi

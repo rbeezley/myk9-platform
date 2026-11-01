@@ -2,8 +2,10 @@
 # The ONLY writer of `Review gate:` evidence comments. An agent that ran a
 # review calls this with the log; an agent that did not has no log to hash.
 # Format contract: line 1 is the evidence line scripts/qa/review-gate.ts
-# parses; line 2 is the sha256 of the review log; the rest is the verdict
-# block, fenced, so the PR carries what the reviewer actually said.
+# parses; next comes the sha256 of the review log (line 2, or line 3 when a
+# finished codex round records `Coverage: complete from <sha>` on line 2,
+# MYK9-1603); the rest is the verdict block, fenced, so the PR carries what the
+# reviewer actually said.
 #
 # With --withdraw it writes the MIRROR of that: an evidence line the checker
 # REJECTS, so a re-review that finds defects turns a green gate red. Without it
@@ -54,6 +56,13 @@
 # locally, the verdict's claimed floor is also checked against the real one
 # (scripts/qa/review-tier.ts --files-stdin) — the gate refuses a mismatch, so
 # posting one only produces a confusing red.
+#
+# REVIEW_COVERAGE_FROM=<sha> (codex tier, non-withdraw only; MYK9-1603): the
+# fork point-or-earlier the finished review covered. Written as `Coverage:
+# complete from <sha>` on line 2 of the evidence comment so scripts/qa/
+# codex-review.sh can anchor the next round on this clean head. Line 1 is
+# unchanged, and every other tier ignores the variable: the line is a claim
+# that a finished codex review read the range, nothing else may make it.
 #
 # POST_REVIEW_GATE_DRY_RUN=1 validates the reviewer token, the owner-tier env
 # vars and the verdict-vs-tier grammar, then exits 0 WITHOUT touching the log
@@ -390,8 +399,17 @@ elif [ "$REVIEWER" = "owner" ]; then
   BODY="$(printf 'Review gate: %s reviewed %s..%s — %s\nOverride reason: %s\nDeferred re-review: %s\nlog sha256: %s\n\n<details><summary>%s verdict</summary>\n\n```text\n%s\n```\n\n</details>\n' \
     "$REVIEWER" "${BASE:0:9}" "${HEAD:0:9}" "$VERDICT" "$OVERRIDE_REASON" "$DEFERRED_REVIEW" "$HASH" "$REVIEWER" "$VERDICT_BLOCK")"
 else
-  BODY="$(printf 'Review gate: %s reviewed %s..%s — %s\nlog sha256: %s\n\n<details><summary>%s verdict</summary>\n\n```text\n%s\n```\n\n</details>\n' \
-    "$REVIEWER" "${BASE:0:9}" "${HEAD:0:9}" "$VERDICT" "$HASH" "$REVIEWER" "$VERDICT_BLOCK")"
+  COVERAGE_LINE=""
+  if [ "$REVIEWER" = "codex" ] && [ "$WITHDRAW" != 1 ] && [ -n "${REVIEW_COVERAGE_FROM:-}" ]; then
+    case "$REVIEW_COVERAGE_FROM" in
+      *[!0-9a-f]*) echo "post-review-gate: REVIEW_COVERAGE_FROM must be a hex commit sha; nothing posted" >&2; exit 2;;
+    esac
+    [ "${#REVIEW_COVERAGE_FROM}" -ge 7 ] && [ "${#REVIEW_COVERAGE_FROM}" -le 40 ] || { echo "post-review-gate: REVIEW_COVERAGE_FROM must be 7-40 hex characters; nothing posted" >&2; exit 2; }
+    COVERAGE_LINE="Coverage: complete from ${REVIEW_COVERAGE_FROM}
+"
+  fi
+  BODY="$(printf 'Review gate: %s reviewed %s..%s — %s\n%slog sha256: %s\n\n<details><summary>%s verdict</summary>\n\n```text\n%s\n```\n\n</details>\n' \
+    "$REVIEWER" "${BASE:0:9}" "${HEAD:0:9}" "$VERDICT" "$COVERAGE_LINE" "$HASH" "$REVIEWER" "$VERDICT_BLOCK")"
 fi
 "$GH" pr comment "$PR" --body "$BODY"
 echo "post-review-gate: posted '$VERDICT' for ${HEAD:0:9} on #$PR (log sha256 ${HASH:0:12})"

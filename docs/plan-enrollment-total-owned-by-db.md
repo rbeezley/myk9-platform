@@ -144,6 +144,9 @@ is no traffic to double-count a group payment).
 ## Non-goals
 
 - Promoting a status when a total shrinks (rule 3).
+- Card money as money received (desk add-ons onto card-paid forms, Stripe refunds, payment
+  links): MYK9-1637, blocking the Stripe live cutover (MYK9-11). Tried in faa162264 and
+  reverted at the second convergence stop (owner, 2026-11-01).
 - Refunding or flagging money in code (rule 8 is a filed task).
 - Whether rejected or not-accepted entries count: they still do, as today.
 - Stripe fee breakdowns; ledger semantics.

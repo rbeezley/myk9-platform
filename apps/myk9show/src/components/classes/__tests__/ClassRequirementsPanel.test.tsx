@@ -68,6 +68,16 @@ describe('ClassRequirementsPanel', () => {
     expect(screen.getByText('Loading requirements...')).toBeInTheDocument();
   });
 
+  it("credits the registry's own sport name in the footer", () => {
+    mockUseClassRequirements.mockReturnValue({
+      requirements: makeRequirements({ organization: 'UKC' }),
+      isLoading: false,
+      error: null,
+    });
+    render(<ClassRequirementsPanel {...defaultProps} organization="UKC" />);
+    expect(screen.getByText('Source: UKC Nosework Regulations')).toBeInTheDocument();
+  });
+
   it('renders organization, element, and level badges in the header', () => {
     mockUseClassRequirements.mockReturnValue({
       requirements: makeRequirements(),

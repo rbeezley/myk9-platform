@@ -105,6 +105,7 @@ describe('generateScentWorkClasses — variant kinds', () => {
 
   it('continuation variant (ASCA Level C) keeps the base class AND adds the variant', () => {
     const ascaLike: RegistrySport = {
+      displayName: 'Scent Detection',
       levels: NOVICE,
       elements: [
         {
@@ -129,6 +130,7 @@ describe('generateScentWorkClasses — variant kinds', () => {
 
   it('ownership variant (A/B) replaces the base class', () => {
     const akcLike: RegistrySport = {
+      displayName: 'Scent Work',
       levels: NOVICE,
       elements: [
         {

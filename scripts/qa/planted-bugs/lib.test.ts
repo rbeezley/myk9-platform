@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   baselineRed,
   classify,
+  classifyCheck,
   renderTable,
   uniqueChecks,
   validateManifest,
@@ -77,5 +78,43 @@ describe('uniqueChecks / renderTable', () => {
     ]);
     expect(table).toContain('MISSED');
     expect(table).toContain('CI-run (not run locally)');
+  });
+});
+
+describe('classifyCheck', () => {
+  it('exit 1 with assertion output is caught', () => {
+    expect(
+      classifyCheck({ command: 'a', exitCode: 1, output: 'AssertionError: expected 1 to be 2' })
+    ).toBe('caught');
+  });
+  it('127 and 126 are errors', () => {
+    expect(classifyCheck({ command: 'a', exitCode: 127 })).toBe('error');
+    expect(classifyCheck({ command: 'a', exitCode: 126 })).toBe('error');
+  });
+  it('a timeout or signal kill is an error', () => {
+    expect(classifyCheck({ command: 'a', exitCode: null, signal: 'SIGTERM', timedOut: true })).toBe(
+      'error'
+    );
+    expect(classifyCheck({ command: 'a', exitCode: 1, timedOut: true })).toBe('error');
+  });
+  it('output showing the run never reached assertions is an error', () => {
+    for (const output of [
+      'No test files found, exiting with code 1',
+      'Transform failed with 1 error',
+      'SyntaxError: Unexpected token',
+    ]) {
+      expect(classifyCheck({ command: 'a', exitCode: 1, output })).toBe('error');
+    }
+  });
+  it('a clean exit is a pass', () => {
+    expect(classifyCheck({ command: 'a', exitCode: 0 })).toBe('pass');
+  });
+  it('classify: error only when no check caught it; baselineRed includes crashes', () => {
+    const caught = { command: 'a', exitCode: 1, output: 'AssertionError' };
+    const crash = { command: 'b', exitCode: 127 };
+    expect(classify([crash])).toBe('error');
+    expect(classify([crash, caught])).toBe('caught');
+    expect(classify([{ command: 'c', exitCode: 0 }, crash])).toBe('error');
+    expect(baselineRed([crash])).toEqual([crash]);
   });
 });

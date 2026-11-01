@@ -13,10 +13,40 @@ export interface Mutant {
 
 export interface CheckResult {
   command: string;
-  exitCode: number;
+  /** null when the process was killed by a signal or never started. */
+  exitCode: number | null;
+  signal?: string | null | undefined;
+  timedOut?: boolean | undefined;
+  /** Combined stdout+stderr, used to tell an assertion failure from a crash. */
+  output?: string | undefined;
 }
 
-export type Verdict = 'caught' | 'missed';
+export type CheckOutcome = 'pass' | 'caught' | 'error';
+export type Verdict = 'caught' | 'missed' | 'error';
+
+/** Output that shows the runner never reached an assertion. */
+const NEVER_ASSERTED = [
+  /No test files found/i,
+  /Transform failed/,
+  /SyntaxError/,
+  /Failed to load (?:url|config)/i,
+  /Error loading config/i,
+  /Startup Error/i,
+  /Cannot find (?:module|package)/i,
+];
+
+/**
+ * A non-zero exit is a catch only when a test assertion failed. A timeout, a
+ * missing command (127/126), a signal kill, or a run that never got to its
+ * assertions (collection/config/compile error) is an error, not a catch.
+ */
+export function classifyCheck(r: CheckResult): CheckOutcome {
+  if (r.exitCode === 0) return 'pass';
+  if (r.timedOut || r.signal || r.exitCode === null) return 'error';
+  if (r.exitCode === 126 || r.exitCode === 127) return 'error';
+  if (r.output && NEVER_ASSERTED.some(re => re.test(r.output!))) return 'error';
+  return 'caught';
+}
 
 export function validateManifest(
   value: unknown,
@@ -47,14 +77,16 @@ export function validateManifest(
   return errors;
 }
 
-/** A mutant is caught when any check exits non-zero. */
+/** Caught if any check caught it; error if the only failures were errors; else missed. */
 export function classify(results: CheckResult[]): Verdict {
-  return results.some(r => r.exitCode !== 0) ? 'caught' : 'missed';
+  const outcomes = results.map(classifyCheck);
+  if (outcomes.includes('caught')) return 'caught';
+  return outcomes.includes('error') ? 'error' : 'missed';
 }
 
 /** Checks already red on the clean tree would make every mutant look caught. */
 export function baselineRed(results: CheckResult[]): CheckResult[] {
-  return results.filter(r => r.exitCode !== 0);
+  return results.filter(r => classifyCheck(r) !== 'pass');
 }
 
 export function uniqueChecks(mutants: Mutant[]): string[] {

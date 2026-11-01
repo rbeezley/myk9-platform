@@ -120,6 +120,8 @@ For each unexpected behavior, decide before continuing:
 
 Use the finding patterns from `docs/qa/findings.md` when logging app bugs. Every confirmed app bug needs a finding entry unless it is fixed immediately and fully covered by a focused test in the same change.
 
+When the bug is one an earlier check should have caught (a prior walk, an existing spec), also apply "Escaped bugs" in `docs/agents/issue-tracker.md`: the class-level check goes in the area spec (Step 5, per `docs/qa/e2e-suite-map.md`), as a new walk step in this skill, or as a wider viewport/browser/role matrix, not only a test pinned to this instance.
+
 Don't queue app bugs for later — fixing mid-walk is the whole point. Each fix gets a real commit; don't mash them into one.
 
 ### Silent action checklist

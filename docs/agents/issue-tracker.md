@@ -196,6 +196,25 @@ Also inspect recorded In Progress and In Review PRs at resume, including unlabel
 reconcile confirmed merges and outstanding criteria before selecting new work. A pause never
 releases another executor's worktree or branch; agree takeover before overlapping edits.
 
+## Escaped bugs — fix the verifier too
+
+A bug is **escaped** when it was found after merge by something other than the PR's own checks:
+a role or `qa-feature` walk, staging, Sentry, production or a user. Its fix names the check that
+should have caught it, so the next bug of the same class does not escape the same way. Record, at
+triage and again in the close-out comment, one line:
+
+`verifier gap: <check that should have caught it> — <why it did not> — <change made | MYK9-n>`
+
+- **Check:** the existing e2e spec, walk step, or viewport/browser/role matrix
+  entry nearest the bug. If none exists, say `none` and name the surface it belongs on.
+- **Why:** wrong surface, wrong browser or viewport, wrong role, fixture too clean (no null, no
+  offline, no foreign timezone), or an assertion on source text.
+- **Change:** the fix PR updates that check so the class is covered (extend the area spec per
+  `docs/qa/e2e-suite-map.md`, add a walk step, widen the matrix). When that is too large for the
+  PR, file one issue for the verifier change and cite it. Both are valid; a blank is not. At
+  triage, before the fix exists, the third field reads `planned: <change>`.
+- A new `LESSONS` line is not the verifier change.
+
 ## Deferred review findings — triage at filing
 
 A convergence override, round cap or docs-only budget files the leftover review findings as a

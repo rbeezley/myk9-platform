@@ -247,11 +247,9 @@ describe('watch-cloud-session.sh', () => {
     expect(r.status).toBe(EXIT.NO_PUSH);
     expect(r.stdout).toContain('WATCH_STALL=');
   });
-  it('exits 11 when a branch exists but no ready PR within 60 min, naming the branch', () => {
-    const refs = [{ ref: 'refs/heads/claude/myk9-9-thing-xyz' }];
-    const r = runScript({ refs }, ['9', 'first', iso(T0)], 61);
+  it('exits 11 when a branch exists but no ready PR within 60 min', () => {
+    const r = runScript({ refs: [{}] }, ['9', 'first', iso(T0)], 61);
     expect(r.status).toBe(EXIT.NO_READY_PR);
-    expect(r.stdout).toContain('WATCH_BRANCH=claude/myk9-9-thing-xyz');
   });
   it('exits 12 when the head is unchanged 10 min after a findings comment', () => {
     const world = { prs: [pr], refs: [{}], view: findingsView(T0 - 3600) };

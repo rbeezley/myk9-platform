@@ -269,11 +269,14 @@ is still clean. Run the review gate, with a maximum of 3 rounds.
   | 2    | usage error only                                            | fix the invocation        |
 
   **A stall (10, 11 or 12) is a local takeover, with no owner question**: the Mac cannot tell a
-  slow cloud session from a dead one, so the deadline itself is the decision. Set `$BRANCH` for this issue first, never reuse an earlier issue's: on exit 11 or
-  12 it is the `WATCH_BRANCH=` line the watcher printed; on exit 10 nothing was pushed, so
-  `BRANCH="$PREFIX$SLUG"` and cut it from `origin/main` (`git -C "$MAIN" worktree add "$WT" -b
-"$BRANCH" origin/main`). Otherwise fetch it into the issue worktree (`git -C "$MAIN" fetch
-origin "$BRANCH" && git -C "$MAIN" worktree add "$WT" "$BRANCH"`) and dispatch a local implementer on it with the session's task text (for 12 the task is the findings, fixed in `$WT`). The takeover
+  slow cloud session from a dead one, so the deadline itself is the decision. Set `$BRANCH` for this issue first, never reuse an earlier issue's. On exit 12 it is the
+  PR's head branch. On exit 11, list this issue's branches
+  (`git -C "$MAIN" ls-remote origin "refs/heads/claude/myk9-$N-*"`): exactly one means it is
+  the session's; more than one (a leftover from an earlier attempt) is a hold naming them,
+  never a guess. On exit 10 nothing was pushed, so `BRANCH="$PREFIX$SLUG"`, cut from
+  `origin/main` (`git -C "$MAIN" worktree add "$WT" -b "$BRANCH" origin/main`). Otherwise fetch
+  it into the issue worktree (`git -C "$MAIN" fetch origin "$BRANCH" && git -C "$MAIN" worktree
+add "$WT" "$BRANCH"`) and dispatch a local implementer on it with the session's task text (for 12 the task is the findings, fixed in `$WT`). The takeover
   pushes commits on top and never force-pushes or rebases the cloud branch, which is the "never
   two writers" rule: do not message the session, and do not start a second cloud session on the
   same branch. Record the takeover in the ledger (issue, exit code, session URL, branch). The

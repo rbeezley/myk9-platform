@@ -41,8 +41,6 @@ export type Observation = {
   headSha: string | null;
   /** The PR's comments, any order; `decide` picks the review ones. */
   gateComments: GateComment[];
-  /** The session's branch: the matching PR's head, else the first pushed `claude/myk9-<n>-*`. */
-  branch?: string | null;
 };
 export type Decision =
   | { kind: 'wait' }
@@ -198,7 +196,7 @@ export function observe(
     ),
     issue
   );
-  const refs = parseJson<{ ref?: string }[]>(
+  const refs = parseJson<unknown[]>(
     gh(['api', `repos/{owner}/{repo}/git/matching-refs/heads/claude/myk9-${issue}-`]),
     'api matching-refs'
   );
@@ -230,7 +228,6 @@ export function observe(
     headCommitAt,
     headSha: pr?.headRefOid ?? null,
     gateComments,
-    branch: pr?.headRefName ?? refs[0]?.ref?.replace(/^refs\/heads\//, '') ?? null,
   };
 }
 
@@ -262,18 +259,14 @@ export function check(argv: string[], gh: Gh = realGh): number {
     quietS: envSeconds('WATCH_QUIET_S', DEFAULT_THRESHOLDS.quietS),
   };
   let decision: Decision;
-  let observed: Observation;
   try {
-    observed = observe(issue, mode, at, now, gh);
-    decision = decide(observed, thresholds);
+    decision = decide(observe(issue, mode, at, now, gh), thresholds);
   } catch (e) {
     if (!(e instanceof GhError)) throw e;
     console.error(`watch-cloud-session: ${e.message} (this is not a stall verdict)`);
     return EXIT.GH_UNREACHABLE;
   }
   if (decision.kind === 'wait') return EXIT.WAIT;
-  // The takeover needs the branch the session pushed (exit 11 has one, exit 10 none).
-  if (observed.branch) console.log(`WATCH_BRANCH=${observed.branch}`);
   if (decision.kind === 'ok') {
     console.log(`WATCH_OK=${decision.reason}`);
     return EXIT.OK;

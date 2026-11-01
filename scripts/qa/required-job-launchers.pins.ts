@@ -221,7 +221,8 @@ export const PINNED_SCRIPTS: readonly PinnedScript[] = [
   {
     pkgDir: '.',
     script: 'qa:isolated-e2e:test',
-    command: 'vitest run scripts/qa/isolated-e2e-*.test.ts',
+    command:
+      'vitest run scripts/qa/isolated-e2e-*.test.ts scripts/qa/reserve-supabase-ports.test.ts scripts/qa/port-conflict-diagnostics.test.ts',
   },
   // MYK9-1449: the browser smoke jobs build their own disposable local Supabase.
   {

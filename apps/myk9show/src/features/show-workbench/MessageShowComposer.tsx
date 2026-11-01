@@ -15,7 +15,6 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { useMessageMutations } from '@/hooks/mutations/useMessageMutations';
 import {
-  DEFAULT_MESSAGE_SHOW_TEMPLATE,
   MESSAGE_SHOW_TEMPLATES,
   buildMessageShowAnnouncementExpiresAt,
   buildMessageShowDraft,
@@ -58,13 +57,12 @@ export function MessageShowComposer({
 }: MessageShowComposerProps) {
   const defaultRecipient = allowedRecipients[0] ?? 'all_show';
   const [recipient, setRecipient] = useState<MessageShowRecipientType>(defaultRecipient);
-  const [selectedTemplateId, setSelectedTemplateId] = useState<MessageShowTemplateId>(
-    DEFAULT_MESSAGE_SHOW_TEMPLATE.id
-  );
+  // INTENT: a fresh composer is empty with no template chosen, so a reflex press of Send
+  // can never broadcast canned copy (MYK9-1616).
+  const [selectedTemplateId, setSelectedTemplateId] = useState<MessageShowTemplateId | null>(null);
   const [selectedClassId, setSelectedClassId] = useState(classes[0]?.id ?? '');
-  const initialDraft = buildMessageShowDraft(DEFAULT_MESSAGE_SHOW_TEMPLATE.id, classes[0]?.label);
-  const [title, setTitle] = useState(initialDraft.title);
-  const [message, setMessage] = useState(initialDraft.body);
+  const [title, setTitle] = useState('');
+  const [message, setMessage] = useState('');
   const [sendPushAlert, setSendPushAlert] = useState(true);
   const [isPostingAnnouncement, setIsPostingAnnouncement] = useState(false);
   const { postAnnouncement } = useWorkbenchAnnouncementPost();
@@ -79,18 +77,18 @@ export function MessageShowComposer({
       ? showWideDeliveryLane === 'announcement'
       : getMessageShowDeliveryLane(recipient) === 'announcement';
   const isSendingMessage = isSending || isPostingAnnouncement;
+  const canSend = Boolean(message.trim()) && (!isAnnouncementLane || Boolean(title.trim()));
   const recipientOptions = Object.entries(RECIPIENT_LABELS).filter(([value]) =>
     allowedRecipients.includes(value as MessageShowRecipientType)
   );
 
   function reset() {
     const nextClassId = classes[0]?.id ?? '';
-    const draft = buildMessageShowDraft(DEFAULT_MESSAGE_SHOW_TEMPLATE.id, classes[0]?.label);
     setRecipient(defaultRecipient);
-    setSelectedTemplateId(DEFAULT_MESSAGE_SHOW_TEMPLATE.id);
+    setSelectedTemplateId(null);
     setSelectedClassId(nextClassId);
-    setTitle(draft.title);
-    setMessage(draft.body);
+    setTitle('');
+    setMessage('');
     setSendPushAlert(true);
   }
 
@@ -114,6 +112,7 @@ export function MessageShowComposer({
   function handleClassChange(classId: string) {
     const nextClass = classes.find(cls => cls.id === classId) ?? null;
     setSelectedClassId(classId);
+    if (!selectedTemplateId) return;
     const draft = buildMessageShowDraft(selectedTemplateId, nextClass?.label);
     setTitle(draft.title);
     setMessage(draft.body);
@@ -231,10 +230,6 @@ export function MessageShowComposer({
             <RotateCcw className="mr-2 h-4 w-4" aria-hidden="true" />
             Reset
           </Button>
-          <Button type="button" size="sm" onClick={handleSend} disabled={isSendingMessage}>
-            <Send className="mr-2 h-4 w-4" aria-hidden="true" />
-            {isSendingMessage ? 'Sending...' : 'Send message'}
-          </Button>
         </div>
       </div>
 
@@ -326,6 +321,18 @@ export function MessageShowComposer({
             maxLength={5000}
           />
         </div>
+      </div>
+
+      <div className="mt-4 flex justify-end">
+        <Button
+          type="button"
+          size="sm"
+          onClick={handleSend}
+          disabled={isSendingMessage || !canSend}
+        >
+          <Send className="mr-2 h-4 w-4" aria-hidden="true" />
+          {isSendingMessage ? 'Sending...' : 'Send message'}
+        </Button>
       </div>
     </section>
   );

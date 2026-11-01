@@ -41,11 +41,8 @@ export type Observation = {
   headSha: string | null;
   /** The PR's comments, any order; `decide` picks the review ones. */
   gateComments: GateComment[];
-  /**
-   * Fix mode: the head the orchestrator reviewed, when it passed one. It wins over the posted
-   * comments, which may name an older head when the latest round was not posted.
-   */
-  reviewedSha?: string | null;
+  /** The session's branch: the matching PR's head, else the first pushed `claude/myk9-<n>-*`. */
+  branch?: string | null;
 };
 export type Decision =
   | { kind: 'wait' }
@@ -118,18 +115,12 @@ export function decide(o: Observation, t: Thresholds = DEFAULT_THRESHOLDS): Deci
     .map(c => ({ at: c.createdAt, c: classifyComment(c.body, c.authorAssociation) }))
     .filter(x => x.c !== null)
     .sort((a, b) => b.at - a.at)[0];
-  const given = o.reviewedSha ?? null;
-  // A comment about another head than the one passed in says nothing about this round.
-  const latestIsThisRound =
-    latest &&
-    (given === null || latest.c?.reviewedHead == null || given.startsWith(latest.c.reviewedHead));
-  if (latestIsThisRound && latest?.c?.kind === 'clean') {
-    return { kind: 'ok', reason: 'the latest review gate is clean' };
-  }
+  if (latest?.c?.kind === 'clean') return { kind: 'ok', reason: 'the latest review gate is clean' };
   // The clock starts at the findings (quiet 10 min after findings means act), or at the dispatch
-  // when no findings comment for this round is visible.
-  const clockStart = latestIsThisRound && latest ? latest.at : o.dispatchedAt;
-  const reviewedHead = given ?? (latestIsThisRound ? (latest?.c?.reviewedHead ?? null) : null);
+  // when no findings comment is visible. Findings that were never posted are not this watcher's
+  // job: the session cannot see them, so the orchestrator fixes them locally at once.
+  const clockStart = latest ? latest.at : o.dispatchedAt;
+  const reviewedHead = latest?.c?.reviewedHead ?? null;
   // Delivery is a head that is no longer the one reviewed. Commit dates are the fallback only
   // when the comment names no head: the committer's clock can predate the comment.
   const moved =
@@ -207,7 +198,7 @@ export function observe(
     ),
     issue
   );
-  const refs = parseJson<unknown[]>(
+  const refs = parseJson<{ ref?: string }[]>(
     gh(['api', `repos/{owner}/{repo}/git/matching-refs/heads/claude/myk9-${issue}-`]),
     'api matching-refs'
   );
@@ -239,6 +230,7 @@ export function observe(
     headCommitAt,
     headSha: pr?.headRefOid ?? null,
     gateComments,
+    branch: pr?.headRefName ?? refs[0]?.ref?.replace(/^refs\/heads\//, '') ?? null,
   };
 }
 
@@ -255,17 +247,11 @@ function envSeconds(name: string, fallback: number): number {
 
 /** One observation and decision; returns the process exit code (EXIT.WAIT = keep polling). */
 export function check(argv: string[], gh: Gh = realGh): number {
-  const [issue, mode, dispatched, reviewed] = argv;
+  const [issue, mode, dispatched] = argv;
   const at = dispatched ? parseTime(dispatched) : null;
-  if (
-    !issue ||
-    !/^\d+$/.test(issue) ||
-    (mode !== 'first' && mode !== 'fix') ||
-    at === null ||
-    (reviewed !== undefined && (mode !== 'fix' || !/^[0-9a-f]{7,40}$/.test(reviewed)))
-  ) {
+  if (!issue || !/^\d+$/.test(issue) || (mode !== 'first' && mode !== 'fix') || at === null) {
     console.error(
-      'usage: watch-cloud-session.sh <issue-number> <first|fix> <dispatched-at epoch|ISO> [reviewed-sha, fix only]'
+      'usage: watch-cloud-session.sh <issue-number> <first|fix> <dispatched-at epoch|ISO>'
     );
     return EXIT.USAGE;
   }
@@ -276,17 +262,18 @@ export function check(argv: string[], gh: Gh = realGh): number {
     quietS: envSeconds('WATCH_QUIET_S', DEFAULT_THRESHOLDS.quietS),
   };
   let decision: Decision;
+  let observed: Observation;
   try {
-    decision = decide(
-      { ...observe(issue, mode, at, now, gh), reviewedSha: reviewed ?? null },
-      thresholds
-    );
+    observed = observe(issue, mode, at, now, gh);
+    decision = decide(observed, thresholds);
   } catch (e) {
     if (!(e instanceof GhError)) throw e;
     console.error(`watch-cloud-session: ${e.message} (this is not a stall verdict)`);
     return EXIT.GH_UNREACHABLE;
   }
   if (decision.kind === 'wait') return EXIT.WAIT;
+  // The takeover needs the branch the session pushed (exit 11 has one, exit 10 none).
+  if (observed.branch) console.log(`WATCH_BRANCH=${observed.branch}`);
   if (decision.kind === 'ok') {
     console.log(`WATCH_OK=${decision.reason}`);
     return EXIT.OK;

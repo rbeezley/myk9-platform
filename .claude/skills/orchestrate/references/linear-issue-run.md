@@ -269,10 +269,11 @@ is still clean. Run the review gate, with a maximum of 3 rounds.
   | 2    | usage error only                                            | fix the invocation        |
 
   **A stall (10, 11 or 12) is a local takeover, with no owner question**: the Mac cannot tell a
-  slow cloud session from a dead one, so the deadline itself is the decision. Fetch the branch
-  into the issue worktree (`git -C "$MAIN" fetch origin "$BRANCH" && git -C "$MAIN" worktree add
-"$WT" "$BRANCH"`; with no branch pushed (10), cut a fresh `$BRANCH` from `origin/main`
-  instead) and dispatch a local implementer on it with the session's task text (for 12 the task is the findings, fixed in `$WT`). The takeover
+  slow cloud session from a dead one, so the deadline itself is the decision. Set `$BRANCH` for this issue first, never reuse an earlier issue's: on exit 11 or
+  12 it is the `WATCH_BRANCH=` line the watcher printed; on exit 10 nothing was pushed, so
+  `BRANCH="$PREFIX$SLUG"` and cut it from `origin/main` (`git -C "$MAIN" worktree add "$WT" -b
+"$BRANCH" origin/main`). Otherwise fetch it into the issue worktree (`git -C "$MAIN" fetch
+origin "$BRANCH" && git -C "$MAIN" worktree add "$WT" "$BRANCH"`) and dispatch a local implementer on it with the session's task text (for 12 the task is the findings, fixed in `$WT`). The takeover
   pushes commits on top and never force-pushes or rebases the cloud branch, which is the "never
   two writers" rule: do not message the session, and do not start a second cloud session on the
   same branch. Record the takeover in the ledger (issue, exit code, session URL, branch). The
@@ -289,8 +290,9 @@ is still clean. Run the review gate, with a maximum of 3 rounds.
   fix session is **no longer offered**: setup, install, build and a push do not fit in the
   10-minute deadline. Start the watcher in fix mode in the same turn the findings are posted
   (`run_in_background`):
-  `bash scripts/cloud/watch-cloud-session.sh "$N" fix "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$REVIEWED_SHA"`,
-  passing the head you reviewed so a round whose findings were not posted is still timed.
+  `bash scripts/cloud/watch-cloud-session.sh "$N" fix "$(date -u +%Y-%m-%dT%H:%M:%SZ)"`.
+  Findings that were never posted on the PR (your own review gate) get no watcher: the session
+  cannot see them, so fix them yourself in `$WT` at once, as for exit 12.
   It reads the findings comment (`Codex findings for <sha>`, `Claude findings for <sha>`, or a
   `Review gate:` withdrawal, from a trusted author) and gives the still-running session 10
   minutes from that comment to push a head that no longer starts with the reviewed SHA. Exit 0

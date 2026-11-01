@@ -2,7 +2,7 @@
 # Stall watcher for one Claude Code cloud session (MYK9-1602). Start it with the Bash tool's
 # run_in_background in the SAME turn as the dispatch; its exit is the orchestrator's signal.
 #
-#   bash scripts/cloud/watch-cloud-session.sh <issue-number> <first|fix> <dispatched-at> [reviewed-sha]
+#   bash scripts/cloud/watch-cloud-session.sh <issue-number> <first|fix> <dispatched-at>
 #
 # <dispatched-at> is the dispatch time as epoch seconds or ISO 8601. `first` watches a new
 # session on `claude/myk9-<n>-*` (or any `claude/` branch whose PR body says `Fixes MYK9-<n>`)

@@ -71,7 +71,7 @@ DECLARE
 BEGIN
   FOR v_show IN
     SELECT s.id, s.name,
-           coalesce((SELECT max(t.date) FROM public.trials t WHERE t.show_id = s.id),
+           coalesce((SELECT max(t.date) FROM public.trials t WHERE t.show_id = s.id AND t.deleted_at IS NULL),
                     (s.end_date AT TIME ZONE 'UTC')::date) AS last_day,
            EXISTS (SELECT 1 FROM public.entries fe
                    WHERE fe.id >= 'dededede-0000-0000-0731-000000000000'::uuid

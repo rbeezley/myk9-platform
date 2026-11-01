@@ -915,6 +915,10 @@ $function$;
 REVOKE ALL ON FUNCTION public.submit_show_entries(uuid, uuid, jsonb, uuid, text, jsonb) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.submit_show_entries(uuid, uuid, jsonb, uuid, text, jsonb) TO authenticated, service_role;
 
+-- The status guard is a trigger function; its live ACL is postgres + service_role only.
+REVOKE ALL ON FUNCTION public.restrict_payment_status_update() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.restrict_payment_status_update() TO service_role;
+
 REVOKE ALL ON FUNCTION private.enrollment_owed_cents(uuid) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION private.enrollment_total_is_stripe(uuid, text) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION private.enrollments_derive_total() FROM PUBLIC, anon, authenticated;

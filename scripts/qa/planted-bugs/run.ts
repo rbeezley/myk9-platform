@@ -191,7 +191,7 @@ async function main(): Promise<void> {
   console.log(renderTable(rows));
   assertClean('end of run');
   console.log(
-    `\n${rows.filter(r => r.verdict === 'missed').length} missed of ${rows.filter(r => r.verdict !== 'ci-run').length} local mutants.`
+    `\n${rows.filter(r => r.verdict === 'error').length} errored (a crashed check is not a catch; see .logs/planted-bugs/), ${rows.filter(r => r.verdict === 'missed').length} missed of ${rows.filter(r => r.verdict !== 'ci-run').length} local mutants.`
   );
 }
 

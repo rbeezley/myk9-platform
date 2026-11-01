@@ -26,13 +26,25 @@ beforeEach(() => {
 
 const SPACE_STACK = /(^|\s)(\S+:)?space-[xy]-/;
 
+/**
+ * The Add a dog button renders only once the step's dogs query resolves; until then the step
+ * shows "Loading...". Wait for that load to finish rather than on findByRole's 1 s default,
+ * which a loaded shuffled run can outlast (MYK9-1628).
+ */
+async function findAddDogButton() {
+  await waitFor(() => expect(screen.queryByText('Loading...')).not.toBeInTheDocument(), {
+    timeout: 5000,
+  });
+  return screen.getByRole('button', { name: /add a dog/i });
+}
+
 describe('StepDogs Add Dog', () => {
   it('opens a slide-out whose fixed overlay is outside the step’s space-y stack', async () => {
     const { user } = render(
       <StepDogs personId="person-1" onNext={vi.fn()} onBack={vi.fn()} onSkip={vi.fn()} />
     );
 
-    await user.click(await screen.findByRole('button', { name: /add a dog/i }));
+    await user.click(await findAddDogButton());
     // Add Dog opens on the registration number (MYK9-1162).
     await screen.findByLabelText(/Registration Number/i);
 
@@ -56,7 +68,7 @@ describe('StepDogs Add Dog', () => {
     const { user } = render(
       <StepDogs personId="person-1" onNext={vi.fn()} onBack={vi.fn()} onSkip={vi.fn()} />
     );
-    const opener = await screen.findByRole('button', { name: /add a dog/i });
+    const opener = await findAddDogButton();
     opener.focus();
     await user.click(opener);
     await chooseOption(

@@ -58,6 +58,8 @@ Parse the JSON to get:
 
    Use the **TodoWrite tool** to track progress through the artifacts.
 
+   **Scenario proof**: every scenario under ADDED or MODIFIED requirements ends with one or more bullets `- **PROOF** <repo-relative test path> :: <test name substring>` naming the test that proves it (prefer a Playwright spec or SQL behaviour test over a unit test; `:: <name>` may be omitted only for `.sql` files). `/opsx:verify` and `/opsx:archive` run `pnpm qa:openspec-proof <change>` and fail on a missing pointer or a pointer to a test that does not exist. Write the pointer when the test is written, during apply.
+
    Loop through artifacts in dependency order (artifacts with no pending dependencies first):
 
    a. **For each artifact that is `ready` (dependencies satisfied)**:

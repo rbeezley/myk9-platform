@@ -330,6 +330,9 @@ jobs:
           pnpm qa:plans:test
           pnpm qa:plans
 
+      - name: OpenSpec scenario proof checker
+        run: pnpm qa:openspec-proof:test
+
       - name: Supabase types drift contract
         run: pnpm qa:types-drift:test
 

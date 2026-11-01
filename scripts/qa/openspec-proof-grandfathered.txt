@@ -1,0 +1,52 @@
+# MYK9-1648: changes that already existed when the scenario-proof gate landed.
+# Their unproven scenarios warn instead of fail. NEVER ADD TO THIS LIST: a new
+# change must carry PROOF bullets. Entries only leave, when the change is
+# archived or backfilled.
+checkout-verification-terminal-state
+class-entry-operational-visibility
+context-aware-command-menu
+dog-identity-normalization
+enable-ringside-results-print
+exhibitor-journey-completion
+fix-ringside-passcode-offline-reload
+fix-secretary-tablet-header-overlap
+go-live-2026-07-11-gate-remediation
+handle-premium-publish-offline
+inline-bulk-actions-and-editable-status
+isolated-resettable-e2e-environment
+judge-ringside-reliability-remediation
+migrate-showday-realtime-to-broadcast
+model-realistic-show-day-load
+myk9-113-index-hygiene
+myk9-225-support-query-recovery
+myk9-226-cart-capacity-reproduction
+myk9-249-query-client
+myk9-254-results-closeout-consolidation
+myk9-259-public-landing-consistency
+myk9-670-exhibitor-capacity-guard
+myk9-691-premium-style-preview
+myk9-693-trial-wording
+myk9-694-premium-publish-recovery
+operational-views-and-display-presets
+optimize-micro-show-day-hot-paths
+persist-and-display-show-access-codes
+persist-offline-person-identity
+prevent-stale-dog-search-results
+primary-overview-schedule-and-setup-consolidation
+print-assigned-entry-handler
+rename-load-secretary-fixtures
+repair-admin-health-residual-contract
+repair-club-page-workflows
+repair-load-rehearsal-harness
+resolve-nightly-review-findings
+scheduled-database-exports
+secretary-day-completion
+secure-operator-support-askq
+separate-staging-production-environments
+show-attention-and-context-navigation
+show-day-entry-fact-consistency
+sms-ring-alert-delivery
+status-icon-grammar
+unified-financial-dashboard
+verify-batch3-scoring-placements
+verify-batch4-paperwork

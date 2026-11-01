@@ -12,7 +12,7 @@
 import { useState } from 'react';
 import type React from 'react';
 import type { ClassStatusDialogProps, ClassStatusValue } from '@myk9/ringside';
-import { Flag } from 'lucide-react';
+import { Check, Flag } from 'lucide-react';
 import { isUnresolvedClockTime } from '@myk9/core';
 import { ClockTimeInput } from '@myk9/scoring-ui';
 import { Button } from '@/components/ui/button';

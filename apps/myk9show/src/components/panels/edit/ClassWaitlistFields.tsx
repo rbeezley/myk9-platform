@@ -22,10 +22,10 @@ const onOff = (value: boolean) => (value ? 'On' : 'Off');
  * The class's entry limit (`classes.max_entries`) and "Allow wait list" switch
  * (`classes.allow_waitlist`) inside Edit class (MYK9-998). Shared by the full and the
  * simple form, because which one Edit class renders depends on the shape of the class it was
- * handed. The queue itself is managed under Entries, then Waitlist.
+ * handed. The queue itself is managed from Entry Forms: Actions, then Waitlist (MYK9-1583).
  *
  * MYK9-1019: the switch shows the class's effective setting. A class with no setting of its own
- * follows the show's "Allow wait lists" (Waitlist tab), and says so; flipping the switch makes
+ * follows the show's "Allow wait lists" (set on the Waitlist list), and says so; flipping the switch makes
  * it this class's own exception, which "Use the show setting" clears again. The show's value
  * comes from the replicated show row, so this reads correctly offline.
  */
@@ -92,13 +92,13 @@ export function ClassWaitlistFields({ showId }: { showId?: string | undefined })
             </Label>
             <p className="text-sm text-muted-foreground">
               When this class or the judge's day is full, new entries join the wait list instead of
-              being turned away. Manage the queue under Entries, then Waitlist.
+              being turned away. Manage the queue from Entry Forms: open Actions, then Waitlist.
             </p>
             <p className="text-sm" id="allowsWaitlist-source">
               {followsShow
                 ? showAllowsWaitlist === undefined
-                  ? "Follows the show's Allow wait lists setting (Waitlist tab)."
-                  : `Follows show: ${onOff(showAllowsWaitlist)}. Change it for every class on the Waitlist tab.`
+                  ? "Follows the show's Allow wait lists setting (Entry Forms, Actions, then Waitlist)."
+                  : `Follows show: ${onOff(showAllowsWaitlist)}. Change it for every class from Entry Forms: open Actions, then Waitlist.`
                 : `Set for this class only. ${showState ?? ''}`.trim()}
             </p>
             {!followsShow && (

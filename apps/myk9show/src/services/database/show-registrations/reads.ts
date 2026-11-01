@@ -15,6 +15,23 @@ import {
 
 const POSTGRES_UNIQUE_VIOLATION = '23505';
 
+/**
+ * MYK9-1634: the database derives a mail-in form's total_amount from its live entries, so
+ * when this runs (after submit_show_entries created them) the stored total already counts
+ * the entries this submission added. The payment builders reason about "the total before,
+ * plus what this submission adds", so they get the total before. A Stripe-paid form keeps
+ * its stored total (not derived from entries) and is used as is.
+ */
+export function totalBeforeSubmissionCents(
+  existing: Registration,
+  addedCents: number | undefined
+): number | undefined {
+  if (addedCents === undefined || existing.paymentReference?.startsWith('pi_')) {
+    return existing.totalAmount;
+  }
+  return Math.max(0, (existing.totalAmount ?? 0) - addedCents);
+}
+
 async function updateExistingEnrollmentPayment({
   existing,
   paymentReference,
@@ -35,12 +52,14 @@ async function updateExistingEnrollmentPayment({
   data: Registration | null;
   error: ReturnType<typeof createDatabaseError> | null;
 }> {
+  const totalBefore = totalBeforeSubmissionCents(existing, totalAmountCents);
+  const existingBefore: Registration = { ...existing, totalAmount: totalBefore };
   // An exhibitor submitting their own entries may not touch payment_status;
   // trg_restrict_payment_status rejects the whole statement (MYK9-486).
   const paymentFields = selfService
     ? buildSelfServiceEnrollmentPaymentFields({
         existingPaymentStatus: existing.paymentStatus,
-        existingTotalAmountCents: existing.totalAmount,
+        existingTotalAmountCents: totalBefore,
         paymentMethod,
         totalAmountCents,
       })
@@ -49,11 +68,11 @@ async function updateExistingEnrollmentPayment({
         paymentDetails,
         paymentMethod,
         totalAmountCents,
-        existingTotalAmountCents: existing.totalAmount,
+        existingTotalAmountCents: totalBefore,
         existingPaidAmountDollars: existing.paidAmount,
         includeEmptyPaymentDetails: paymentMethod !== undefined && paymentMethod !== 'waived',
         preservePaidAmountForPending: true,
-        preserveFinancialForWaived: shouldPreserveFinancialForWaived(existing, paymentMethod),
+        preserveFinancialForWaived: shouldPreserveFinancialForWaived(existingBefore, paymentMethod),
       });
 
   if (Object.keys(paymentFields).length === 0) {

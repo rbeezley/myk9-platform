@@ -283,6 +283,31 @@ BEGIN
 END;
 $$;
 
+-- The read above runs as the show-A secretary, whom RLS denies show B's enrollment, so
+-- every value comes back NULL and the IF cannot fire. Re-read as the table owner so
+-- "nothing written" is actually checked. MYK9-1634: the form's total is derived from its
+-- (zero) live entries, so its baseline is 0, not NULL.
+RESET ROLE;
+DO $$
+DECLARE
+  v_total integer; v_paid numeric; v_status text; v_entries integer; v_rows integer;
+BEGIN
+  SELECT total_amount, paid_amount, payment_status INTO v_total, v_paid, v_status
+    FROM public.enrollments WHERE id = '00000000-0000-0000-0000-000000677c51';
+  SELECT count(*) INTO v_entries FROM public.entries
+   WHERE registration_id = '00000000-0000-0000-0000-000000677c51';
+  SELECT count(*) INTO v_rows FROM public.show_payments
+   WHERE enrollment_id = '00000000-0000-0000-0000-000000677c51';
+  IF v_total IS DISTINCT FROM 0 OR v_paid IS DISTINCT FROM 0 OR v_status IS DISTINCT FROM 'pending'
+     OR v_entries <> 0 OR v_rows <> 0 THEN
+    RAISE EXCEPTION 'FAIL show B''s enrollment changed (owner read): total %, paid %, status %, entries %, ledger %',
+      v_total, v_paid, v_status, v_entries, v_rows;
+  END IF;
+  RAISE NOTICE 'PASS show B''s enrollment is untouched, read as the table owner';
+END;
+$$;
+SET LOCAL ROLE authenticated;
+
 -- 5. an exhibitor cannot pass a payment.
 DO $$
 BEGIN

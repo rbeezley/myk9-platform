@@ -1,7 +1,7 @@
 import { createDatabaseError } from '@/services/database/databaseError';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PaymentStatus } from '@/types/show-registration-types';
-import { createShowRegistration } from './reads';
+import { createShowRegistration, totalBeforeSubmissionCents } from './reads';
 
 const mocks = vi.hoisted(() => ({
   from: vi.fn(),
@@ -195,7 +195,9 @@ describe('createShowRegistration', () => {
   });
 
   it('keeps a partially paid existing enrollment pending after a secretary-paid add-on', async () => {
-    const existingQuery = makeExistingEnrollmentQuery();
+    // MYK9-1634: the stored total already counts the add-on (the database derives it from
+    // the entries the RPC just created): 3000 before + 7000 added.
+    const existingQuery = makeExistingEnrollmentQuery({ total_amount: 10000 });
     const updateQuery = makeExistingEnrollmentPaymentUpdateQuery();
     mocks.from.mockReturnValueOnce(existingQuery).mockReturnValueOnce(updateQuery);
 
@@ -228,7 +230,7 @@ describe('createShowRegistration', () => {
     const existingQuery = makeExistingEnrollmentQuery({
       payment_status: 'paid',
       payment_method: 'secretary_paid',
-      total_amount: 3000,
+      total_amount: 10000, // MYK9-1634: 3000 before + the 7000 add-on, already derived
       paid_amount: 30,
     });
     const updateQuery = makeExistingEnrollmentPaymentUpdateQuery();
@@ -257,7 +259,7 @@ describe('createShowRegistration', () => {
     const existingQuery = makeExistingEnrollmentQuery({
       payment_status: 'paid',
       payment_method: 'secretary_paid',
-      total_amount: 7000,
+      total_amount: 10000, // MYK9-1634: 7000 before + the 3000 add-on, already derived
       paid_amount: 70,
     });
     const updateQuery = makeExistingEnrollmentPaymentUpdateQuery();
@@ -339,6 +341,56 @@ describe('createShowRegistration', () => {
     expect(result.data?.id).toBe('enrollment-existing');
     expect(existingQuery.insert).not.toHaveBeenCalled();
     expect(mocks.from).toHaveBeenCalledTimes(1);
+  });
+
+  // MYK9-1634: the database derives a mail-in total from its live entries, so by the time
+  // this write runs the stored total already counts the entry just created.
+  it('marks a fresh group-payment form paid when the derived total already counts the new entry', async () => {
+    const existingQuery = makeExistingEnrollmentQuery({
+      payment_status: PaymentStatus.PENDING,
+      payment_method: null,
+      total_amount: 3000,
+      paid_amount: 0,
+    });
+    const updateQuery = makeExistingEnrollmentPaymentUpdateQuery();
+    mocks.from.mockReturnValueOnce(existingQuery).mockReturnValueOnce(updateQuery);
+
+    await createShowRegistration(
+      'show-1',
+      'handler-1',
+      undefined,
+      undefined,
+      'group_payment',
+      3000
+    );
+
+    expect(updateQuery.update).toHaveBeenCalledWith(
+      expect.objectContaining({ payment_status: 'paid', paid_amount: 30, total_amount: 3000 })
+    );
+  });
+
+  it('waives a fresh form when the derived total already counts the waived entry', async () => {
+    const existingQuery = makeExistingEnrollmentQuery({
+      payment_status: PaymentStatus.PENDING,
+      payment_method: null,
+      total_amount: 3000,
+      paid_amount: 0,
+    });
+    const updateQuery = makeExistingEnrollmentPaymentUpdateQuery();
+    mocks.from.mockReturnValueOnce(existingQuery).mockReturnValueOnce(updateQuery);
+
+    await createShowRegistration('show-1', 'handler-1', undefined, undefined, 'waived', 3000);
+
+    expect(updateQuery.update).toHaveBeenCalledWith(
+      expect.objectContaining({ payment_status: PaymentStatus.WAIVED, payment_method: 'waived' })
+    );
+  });
+
+  it('keeps a Stripe-paid form total as stored (not derived) when adding to it', () => {
+    expect(
+      totalBeforeSubmissionCents({ totalAmount: 3745, paymentReference: 'pi_123' } as never, 3000)
+    ).toBe(3745);
+    expect(totalBeforeSubmissionCents({ totalAmount: 6000 } as never, 3000)).toBe(3000);
   });
 
   it('marks a first waived submission as waived after the blank enrollment is created', async () => {

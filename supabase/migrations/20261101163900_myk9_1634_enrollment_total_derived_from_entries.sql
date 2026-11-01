@@ -127,7 +127,14 @@ BEGIN
                     ELSE ARRAY[OLD.registration_id, NEW.registration_id]
                   END) AS x
      WHERE x IS NOT NULL
+     ORDER BY x
   LOOP
+    -- Lock the form BEFORE summing (ids in order, so a move between two forms cannot
+    -- deadlock with itself). Under READ COMMITTED each statement below then sees every
+    -- entry change committed before the lock was granted: two staff deleting separate
+    -- entries of one form at once serialise here, and the second sums both deletions.
+    PERFORM 1 FROM public.enrollments en WHERE en.id = v_id FOR UPDATE;
+
     -- Each helper runs once per touched form. The UPDATE names total_amount, so
     -- trg_enrollments_derive_total recomputes it; rows already right are skipped (no
     -- updated_at churn), and Stripe forms are left alone.

@@ -195,7 +195,7 @@ DO $$
 DECLARE v_result jsonb;
 BEGIN
   v_result := public.record_enrollment_payment(
-    '00000000-0000-0000-0000-000001634061', 'payment', NULL, 'check', current_date, '1634', NULL);
+    '00000000-0000-0000-0000-000001634061', 'payment', NULL, 'check', NULL, '1634', NULL);
   IF (v_result->>'paid_amount')::numeric <> 40 THEN
     RAISE EXCEPTION 'FAIL 7 Paid in full charged % after a delete, want 40 (the live entry only)',
       v_result->>'paid_amount';

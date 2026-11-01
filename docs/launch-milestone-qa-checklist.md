@@ -36,6 +36,7 @@ Most gates also run in CI on every PR (marked **[CI]**). Re-running them togethe
   - [ ] `pnpm test:mutation:placement` — placement math ≥ gate (baseline 85.67%)
   - [ ] `pnpm test:mutation:score-validator` / `pnpm test:mutation:replication-conflict` — review survivors (documented baselines, not yet gated)
 - [ ] `pnpm qa:planted-bugs` — show-day planted-bug audit (SQL, check-in, run order, queue, results release); run from a clean worktree **before each test show**, and file every MISSED row ([`planted-bug-audit-2026-11-01.md`](qa/planted-bug-audit-2026-11-01.md))
+- [ ] `pnpm qa:golden-replay` — replays a real published trial (legacy v3 trial 27835) through `recalculate_class_placements` on a throwaway local stack and diffs every entry against v3's published places; exits non-zero on any diff and self-checks with a swapped placement (fixture and rules: `supabase/tests/fixtures/golden-replay/`; CI runs the same SQL in the behavioral SQL job)
 
 ## 5. Database & security (Phase 3)
 

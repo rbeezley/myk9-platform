@@ -36,7 +36,8 @@ import type { ShowChangeSignal } from '@/features/show-live-sync/showChangeSigna
 import { getTrialRegistry, getTrialTimezone } from '@/features/registries';
 import { buildRingsideStatusInfo, withCombinedStatusLabel } from './ringsideStatusInfo';
 import { scoresheetKeyForClass } from '@/pages/scoring/types';
-import { settledScopesOutcome, type AtShowSyncInFlight } from './atShowSyncOutcome';
+import type { AtShowSyncInFlight } from './atShowSyncOutcome';
+import { startAtShowSyncRun } from './atShowSyncRun';
 import {
   classifyEntries,
   countEntryAccounting,
@@ -81,38 +82,26 @@ export function syncAtShowData(showId: string, options?: { forceFullSync?: boole
   // Anything shares a forced run; only an ordinary call shares an ordinary one.
   if (running && (running.forced || !forceFullSync)) return running.operation;
   const existing = running?.operation;
-  // Options only when forced, so ordinary calls stay exactly as they were.
-  const syncArgs: [] | [{ forceFullSync: true }] = forceFullSync ? [{ forceFullSync: true }] : [];
-
-  const operation = (async () => {
-    if (existing) await existing.then(noop, noop);
-    const trialsResult = await replicatedTrialsTable.sync(showId, ...syncArgs);
-    const showTrials = await replicatedTrialsTable.getTrialsByShow(showId);
-    // allSettled, then rethrow: a scope that fails early must not settle the
-    // operation (and fire the readiness signal) while another scope is still
-    // writing rows (MYK9-766).
-    const results = await Promise.allSettled([
-      // Classes are scoped by trial_id, so hydrate only the trials that belong
-      // to this show. An empty scope would fetch every visible changed class.
-      ...showTrials.map(trial => replicatedClassesTable.sync(trial.id, ...syncArgs)),
-      replicatedEntriesTable.sync(showId, ...syncArgs),
-      // Armbands sync every show at once; see ReplicatedArmbandsTable.
-      replicatedArmbandsTable.sync('', ...syncArgs),
-    ]);
-    return settledScopesOutcome(trialsResult, results);
-  })();
+  const run = startAtShowSyncRun(showId, forceFullSync, existing);
+  const { operation } = run;
   atShowSyncsInFlight.set(showId, { operation, forced: forceFullSync });
-  const release = () => {
+  // MYK9-1629: going offline aborts this run, like the replication pass. The
+  // run leaves the map at once, so Try again starts fresh instead of joining it.
+  const onOffline = () => run.abort();
+  window.addEventListener('offline', onOffline);
+  const forget = () => {
+    window.removeEventListener('offline', onOffline);
     if (atShowSyncsInFlight.get(showId)?.operation === operation) {
       atShowSyncsInFlight.delete(showId);
     }
-    for (const listener of [...(syncSettledListeners.get(showId) ?? [])]) listener();
   };
-  void operation.then(release, release);
+  void operation.then(forget, forget);
+  // Listeners wait for the table syncs themselves to finish, even after an abort.
+  void run.underlyingSettled.then(() => {
+    for (const listener of [...(syncSettledListeners.get(showId) ?? [])]) listener();
+  });
   return operation;
 }
-
-function noop() {}
 
 /**
  * Pull only the authoritative replica path named by relevant Broadcast signals.

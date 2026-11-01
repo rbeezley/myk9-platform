@@ -1,5 +1,3 @@
-import { readFileSync } from 'node:fs';
-
 /**
  * Known-answer self-check for the mutation harness (MYK9-1657).
  *
@@ -43,8 +41,4 @@ export function assertTestsSawMutants(target: string, report: MutationReport): v
         '(check vitest.mutation.config.ts root, include and test-name filter).'
     );
   }
-}
-
-export function assertReportFileSawMutants(target: string, reportPath: string): void {
-  assertTestsSawMutants(target, JSON.parse(readFileSync(reportPath, 'utf8')) as MutationReport);
 }

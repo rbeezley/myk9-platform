@@ -69,7 +69,11 @@ Archive a completed change in the experimental workflow.
    explicit user instruction to archive before merge. When using an exception,
    record the reason in the archive summary.
 
-5. **Assess delta spec sync state**
+5. **Check scenario proof (hard gate)**
+
+   Run `pnpm qa:openspec-proof "<name>" --change-root "<changeRoot>"` (changes listed in `scripts/qa/openspec-proof-grandfathered.txt` warn instead of fail; never add to that list) (skip only for a change with no delta specs). It fails when any ADDED or MODIFIED scenario lacks a `- **PROOF** <test path> :: <test name>` bullet, or the pointed-to test file or test name does not exist. On failure, refuse to archive: list the unproven scenarios and tell the user to add the PROOF bullets and re-run `/opsx:verify`. Proof files must also have run green in the change's verification; if `/opsx:verify` has not been run on this implementation, run it first.
+
+6. **Assess delta spec sync state**
 
    Use `artifactPaths.specs.existingOutputPaths` from status JSON to check for delta specs. If none exist, proceed without sync prompt.
 
@@ -84,7 +88,7 @@ Archive a completed change in the experimental workflow.
 
    If user chooses sync, use Task tool (subagent_type: "general-purpose", prompt: "Use Skill tool to invoke openspec-sync-specs for change '<name>'. Delta spec analysis: <include the analyzed delta spec summary>"). Proceed to archive regardless of choice.
 
-6. **Perform the archive**
+7. **Perform the archive**
 
    Create an `archive` directory under `planningHome.changesDir` if it doesn't exist:
 
@@ -102,7 +106,7 @@ Archive a completed change in the experimental workflow.
    mv "<changeRoot>" "<planningHome.changesDir>/archive/YYYY-MM-DD-<name>"
    ```
 
-7. **Display summary**
+8. **Display summary**
 
    Show archive completion summary including:
    - Change name

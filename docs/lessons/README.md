@@ -1,6 +1,6 @@
 # Lessons (narratives)
 
-The rule for each of these lives in `CLAUDE.md` § LESSONS, one to three lines each with a pointer here. This file keeps the incident that produced it, verbatim as it was recorded, so the rule stays short without losing its evidence. Add a section here when you add a lesson; delete it when the lesson is retired (a lesson retires once a guard, test, lint rule, or type makes the trap structurally impossible — cite the PR in the commit message). `apps/myk9show/src/test/ci/instructionFileBudget.test.ts` fails when a CLAUDE.md pointer names a slug that is not a heading here.
+The rule for each of these lives in `CLAUDE.md` § LESSONS, one to three lines each with a pointer here. This file keeps the incident that produced it, verbatim as it was recorded, so the rule stays short without losing its evidence. Add a section here when you add a lesson; delete it when the lesson is retired (a lesson retires once a guard, test, lint rule, or type makes the trap structurally impossible — cite the PR in the commit message). `apps/myk9show/src/test/ci/instructionFileBudget.test.ts` fails when a CLAUDE.md pointer names a slug that is not a heading here. Each section a pointer names also carries one `**Guard:**` line (a program path, `MYK9-<n> (check not built yet)`, or `human-only: <why>`); `lessonGuards.test.ts` in the same directory enforces it and rejects `MYK9-TBD` placeholders.
 
 ## Budget
 
@@ -20,6 +20,8 @@ Nothing that is still a live trap only a human could have known about is removed
 **Why the shared block counts twice.** `docs/agents/shared-rules.md` (~4,200 words) is generated verbatim into both `CLAUDE.md` and `AGENTS.md`, and the test charges it to each. That is deliberate, not double-counting: Claude Code loads `CLAUDE.md` whole into every session and every subagent, Codex loads `AGENTS.md` whole, and neither ever loads the union. The per-session token cost each ceiling exists to bound is one WHOLE file, so a de-duplicated "union" budget would measure a number no harness ever pays. The consequence to keep in mind is that a sentence added to the shared rulebook costs two budgets, which is the correct price signal: it is read by two harnesses.
 
 ## no-docker
+
+**Guard:** human-only: a fact about the development machine, nothing to test
 
 This project does not use Docker; use the configured Supabase/staging workflows for database and browser verification instead.
 
@@ -41,45 +43,67 @@ CI runs vitest with `--sequence.shuffle` (`.github/workflows/ci.yml`); local run
 
 ## timeout-class-flake
 
+**Guard:** human-only: diagnosis depends on the host load that reproduces the flake
+
 Shuffled fast runs are NOT enough for a **timeout**-class flake — those need shuffle order AND a slow environment to surface, so replaying the CI seed on a fast Mac passes and "6+ shuffled runs" stays green while CI keeps failing. Reproduce with `taskpolicy -b pnpm vitest run <file> --coverage --sequence.shuffle` (efficiency cores + coverage instrumentation ≈ a loaded CI runner; 3/8 runs failed where plain runs were 0/N). And the `beforeEach` reset itself must be **O(1) in the leaked state's size** (`store.clear()`, not per-row deletes) — a reset that scales with the accumulation just moves the same timeout into the hook, which also has a 10s cap (ReplicatedClassesTable.test.ts, runs 32169874699/32178459045).
 
 ## git-branch-delete-denied
+
+**Guard:** human-only: the deny list is a harness permission, not repo code
 
 `git branch -D`/`-d`, `git update-ref -d` (the ref-level spelling of the same delete, closed 2026-09-24) and `git checkout -- <path>` are DENIED by permission rules here. Interactively that is a prompt; in a scheduled/unattended run it is a silent stall. Discard changes with `git apply -R` or `git restore`, merge with `gh pr merge --squash` WITHOUT `--delete-branch` (its local half fails anyway while a worktree holds the branch), and leave local branches for `branch-janitor` to report.
 
 ## functions-deploy-workdir
 
+**Guard:** MYK9-1654 (check not built yet)
+
 `supabase functions deploy --workdir apps/myk9show` follows that dir's `.temp/project-ref`, which once held the defunct `myK9Show-Working` ref — the deploy-to-the-wrong-project trap this rule was written for. **That premise no longer holds:** since #1582 (2026-08-02) the file is _tracked in git_ carrying the correct `sojmvhhwsjxmfistvzbe`, so every clone starts correct and a local `supabase link` that rewrites it now shows up in `git status` instead of drifting silently. Two consequences. (1) Do NOT "tidy up" the tracked `apps/myk9show/supabase/.temp/*` files just because `.gitignore` lists `**/supabase/.temp/` — gitignore does not apply to already-tracked files, and untracking them re-arms the original trap. (2) Still pass `--project-ref sojmvhhwsjxmfistvzbe` explicitly and confirm the "Deployed Functions on project ..." line names the right ref: the flag is free, the file is only correct by accident of that commit, and a deploy to the wrong project is not cheap to undo.
 
 ## dismiss-absorbed-chip
+
+**Guard:** human-only: concerns the Claude Code UI, outside the repo
 
 If work flagged as a background-task chip gets absorbed into the current session (e.g., it turns out to block the main task), dismiss the chip IMMEDIATELY — before continuing — or the user may start it and duplicate the work (PR #1441/#1442).
 
 ## edge-tests-jsdom
 
+**Guard:** MYK9-1654 (check not built yet)
+
 The app suite runs `environment: 'jsdom'` globally, which is a LIE for edge-function code — those files run under Deno and will never see a browser. jsdom installs its own `ArrayBuffer`, so a buffer built in test code is a different realm's object than the Node `crypto` vitest leaves in place (jsdom has no `subtle`), and `crypto.subtle.digest` rejects it with "2nd argument is not instance of ArrayBuffer, Buffer, TypedArray, or DataView". Whether it fires depends on the Node build: all three of `Uint8Array`, a fresh `ArrayBuffer`, and `.buffer` passed locally on Node 22.18 and the fresh-`ArrayBuffer` one failed on CI, so "it passes locally" proves nothing here. Put `// @vitest-environment node` at the top of any test covering an edge function, and hand WebCrypto the TypedArray view directly — copying into a fresh `ArrayBuffer` first looks safer and only adds one more object that has to belong to the right realm. `src/test/setup.ts` guards its `window`/`navigator` stubs behind `typeof window !== 'undefined'` so the node environment is available; do not un-guard them (MYK9-228 phase 3).
 
 ## postgrest-count-column
+
+**Guard:** MYK9-1654 (check not built yet)
 
 A PostgREST **count** must name a column, never `*`, on any column-allowlisted table: `select('*', { count:'exact', head:true })` on `public.entries` returns **403 with an empty message body** even though `head:true` returns no column values — the allowlist has no table-level SELECT, so `*` asks for columns the role cannot read. Use `select('id', …)`. React Query masks the throw as a retry, and if the tab is unfocused `canContinue()` is false so it parks at `fetchStatus:'paused'` forever — it looks like an offline bug, not a permissions one.
 
 ## postgrest-embed-grants
 
+**Guard:** MYK9-1654 (check not built yet)
+
 PostgREST requires table-level SELECT on every EMBEDDED relation — revoking anon on a table only ever reached via `table(col,...)` / `table!inner(...)` embeds turns a null embed into a hard 42501 that fails the WHOLE request. Grep for embeds, not just `.from('table')`.
 
 ## missing-column-not-drift
+
+**Guard:** human-only: a judgment about migration history against a stale branch
 
 A "missing" column is NOT automatically drift — before writing a repair migration, check `supabase_migrations.schema_migrations` AND recently merged PRs for a deliberate `drop_*`. A stale branch makes an intentional deletion look like an unapplied migration; re-adding the column silently reverts merged work (nearly happened with `20260725200000_drop_early_adopter_until`, already removed by #1470).
 
 ## stale-package-dist
 
+**Guard:** `scripts/qa/check-dist-fresh.ts`
+
 `tsc` errors about generated DB types (`Database['public']['Tables'][...]`) can come from a STALE `packages/supabase/dist/index.d.ts`, not your code, and app tests import every package's built `dist` — so a stale build gives a false FAILURE from `tsc` and a false PASS from vitest at once. `pnpm qa:dist-fresh` (`scripts/qa/check-dist-fresh.ts`) fails when any package's `src/` is newer than its `dist/`, and the app's `pnpm test` runs it first; running `pnpm exec vitest` directly skips it, so run the check yourself after editing a package.
 
 ## untracked-migration-sql
 
+**Guard:** human-only: the symptom is a confusing test failure; no program can tell scratch SQL from intended SQL
+
 Migration-parsing tests (e.g. `anonEntriesGrantContract`) read the whole `supabase/migrations/` directory, so an UNTRACKED scratch `.sql` left there fails them with a confusing ACL error. Keep experiments out of that directory.
 
 ## slideover-size-band
+
+**Guard:** MYK9-1654 (check not built yet)
 
 MYK9-99 (2026-07-26) found `SlideOverPanel`'s `size` prop genuinely inert: the chain hardcoded `md:max-w-lg lg:max-w-2xl xl:max-w-4xl`, so every panel rendered the same width and PR #1469's attempt to widen one form had no visible effect. The lesson was written that morning (#1476, 10:15) and PR #1482 fixed it that afternoon (14:29) by deriving the responsive width from `size`. The warning then sat in CLAUDE.md for six weeks describing behavior that had been corrected four hours after it was recorded, and on 2026-09-14 it cost a real edit: acting on it in #2221 I added `className="md:max-w-2xl"` to `ManageRegistrationsPanel`, a no-op duplicate of what `size="lg"` already supplies, caught in review and reverted.
 
@@ -104,21 +128,31 @@ Pick a migration timestamp against `origin/main`, not your branch — `migration
 
 ## sequence-privileges
 
+**Guard:** `supabase/tests/pre_rule_table_grants_test.sql`
+
 An ACL audit that covers only tables and columns is incomplete. When this was found (#1533) **no migration in this repo had ever GRANTed a sequence privilege** — every sequence statement was a REVOKE — so all three public sequences reached a migrations-only rebuild owner-only while live held them from `ALTER DEFAULT PRIVILEGES`. `20260730220000_codify_pre_rule_table_grants.sql` has since GRANTed `registration_confirmation_seq`, `frontend_logs_id_seq` and `ringside_conflict_seq`, so the blanket claim no longer holds; still assume a sequence is ungranted until the live ACL says otherwise. Do not try to resolve which sequences a table depends on: `enrollments` (named `registrations` until migration `130_rename_registrations_to_enrollments.sql`) reaches `registration_confirmation_seq` through `generate_confirmation_number()`, so a `pg_depend` ownership join, a name-prefix match, and grepping the migration you are pushing all miss it. List every `relkind='S'` in `public` instead — there are four (2026-09-08), so the exhaustive inventory is cheaper than any dependency walk and cannot produce a false all-clear. The query is in the `db-push` skill. A table INSERT grant is worthless if an invoker-run trigger's `nextval()` is not granted: `enrollments` INSERT dies 42501 "permission denied for sequence registration_confirmation_seq" because `generate_confirmation_number()` is plpgsql WITHOUT `SECURITY DEFINER`, and a BEFORE INSERT trigger fires before the RLS `WITH CHECK` — so RLS never gets to mask it. Check `relkind='S'` alongside `relkind='r'` (#1533).
 
 ## grant-contract-splitter
+
+**Guard:** human-only: the splitter semantics are the test's own behavior; authoring order is a judgment
 
 `anonEntriesGrantContract` replays every migration to fold anon's effective grants, and its statement splitter hoists `EXECUTE '...'` payloads out of `DO $$` blocks to the END of the file. A version-guarded `REVOKE ... ON ALL TABLES IN SCHEMA public FROM anon` inside a `DO` block therefore reads as running last and wiping every column allowlist, even though live Postgres runs it in place. Keep blanket revokes as plain statements, ordered BEFORE the grants they precede (#1533).
 
 ## grant-never-narrows
 
+**Guard:** MYK9-1654 (check not built yet)
+
 A `GRANT` can never narrow a broader `GRANT` an earlier migration already made — codifying an intended ACL that is tighter than the current one needs its own explicit `REVOKE`. Rebuilding from migrations and diffing is the only way to catch this; the migration text reads correct either way (`subscription_entitlement_grants` and `ringside_sessions`, #1533).
 
 ## headrefname-not-merged
 
+**Guard:** `scripts/reap-merged-branches.sh`
+
 "This branch matches a merged PR's `headRefName`" does NOT mean the branch is merged — it means a PR with that **name** merged. Commits pushed after the merge, or a re-created branch reusing a template name (`claude/vacation-myk9-<n>-a1`, `codex/nightly-qa-<date>`), leave the tip ahead of what actually landed. Compare the tip SHA against that PR's `headRefOid` before treating merged-PR as proof. This fired for real on 2026-08-03: the branch janitor deleted remote `codex/myk9-138-site-admin-clubs` as "provably merged" while it carried `b5c46c31f`, a commit never in `main` (PR #1555 merged at `72d706fa5`). Only the `git branch -D` deny saved the local copy. `scripts/reap-merged-branches.sh` now does the SHA check; the scheduled-task file still does not.
 
 ## replace-function-latest
+
+**Guard:** human-only: which migration is latest is a judgment about intent
 
 Before re-`CREATE OR REPLACE`-ing a Postgres function, `grep -l "CREATE OR REPLACE FUNCTION public.<fn>" supabase/migrations/` and copy from the LATEST hit, never from the file whose name looks canonical — rebuilding `create_show_with_children` off `20260510143000` silently reverted `registry_id` (20260630120000) and the `person_id` judge-assignment shape (20260618120000), which typecheck and tests cannot catch (#1484).
 
@@ -128,33 +162,49 @@ A **red** CI check is a verdict on the base it ran against, not on your diff —
 
 ## stale-health-check
 
+**Guard:** human-only: what a red check means depends on when it last ran
+
 Same trap one layer down: a red `/admin/health` check is a verdict from whenever it last **ran**, not from now — read the check's own `checked_at` before concluding the fix is undeployed. Keys outside `CONTINUOUS_HEALTH_CHECK_KEYS` (`applied_acl_grants`, `anon_grants`) re-measure only on the `full` run at 03:00 ET / 07:00 UTC; the 5-minute `continuous-health-check` cron copies the previous verdict forward **verbatim**, so a fixed check keeps reporting a byte-identical stale `detail` and a frozen `checked_at` for up to 24h. On 2026-08-17 this presented as a merge-is-not-deploy gap for #1648 and was not one: `cron-health-check` v20 had shipped at 16:51 UTC, one minute after the merge, but the board was replaying the 07:00 UTC failure. Prove deployment by grepping the live bundle (`get_edge_function`), never by the deploy timestamp — the one-minute gap could have gone either way. The fix is a full run, not a redeploy, and only the user can force one (`run_system_health_check_now()` is gated on `is_site_admin()`; the MCP role gets `42501` calling even that gate) — so ask them to click "Run now". Redeploying instead would be a pointless shared-system write that leaves the board red and invites a false causal story.
 
 ## view-predicate-audit
+
+**Guard:** human-only: an audit technique for reading view definitions
 
 Auditing a view for a soft-delete (or any row) predicate with `pg_get_viewdef(...) ilike '%deleted_at is null%'` reports FALSE POSITIVES, and two of them stack. The pattern matches nested subqueries that decide who the _caller_ is rather than which row is returned, and `%e.deleted_at%` also matches any alias ENDING in `e` — `own_e.deleted_at`. `view_authenticated_entry_results` hit both at once and read as filtered while returning tombstones to 11 live call sites. Slice the view's own top-level `WHERE` first (`substring(lower(def) from E'\n  where .*$')` — pg_get_viewdef's pretty form indents it exactly two spaces) and anchor the alias (`~ '(^|[^a-z0-9_.])e\.deleted_at is null'`). Also check `security_invoker`: `false` means the view runs as its owner and RLS is never a backstop, so the view body is the only guard.
 
 ## select-star-reexpands
 
+**Guard:** MYK9-1654 (check not built yet)
+
 `SELECT e.*` inside a view is frozen at creation but RE-EXPANDS on every rebuild, so adding one `WHERE` line can silently publish every column the base table gained since. `view_entry_with_results` (migration 094) froze at 70 columns while `entries` grew to 88 — a naive `DROP`+`CREATE` would have exposed `stripe_payment_intent_id`, `refund_amount`, `refund_notes`, `refund_decision` and 14 more to every authenticated caller. Replace the star with the explicit column list the live view already returns: it blocks the widening AND makes the output column set identical, so `CREATE OR REPLACE` works instead of `DROP` — which matters because `DROP` silently resets the view's ACL, and a `DROP` of a view others read needs `CASCADE` (four views read `view_stats_summary`). It does NOT save `security_invoker` — see the next line.
 
 ## replace-view-reloptions
+
+**Guard:** MYK9-1654 (check not built yet)
 
 `CREATE OR REPLACE VIEW` preserves a view's ACL but **RESETS its `reloptions`**: with no `WITH` clause the options are wiped and `security_invoker` falls back to its default of **false**, i.e. owner-run. Since these views are owned by a `BYPASSRLS` role and `authenticated` holds grants on them from `ALTER DEFAULT PRIVILEGES`, owner-run means no policy is consulted AND no base-column privilege is required — so on 2026-08-17 a migration that only added a `WHERE` line to three views handed every authenticated user `judge_notes`, `total_score`, `payment_status` and `entry_fee` for every entry platform-wide (20260817170000, reverted by 20260817190000). Two rules. Carry `WITH (security_invoker = ...)` INLINE on every `CREATE OR REPLACE VIEW`, or use `ALTER VIEW ... SET` when you only need the option. And verify `reloptions` after a push, not just the column list — an identical column set proves the statement succeeded, not that the view's metadata survived; the tell was that the one view rebuilt with an explicit `WITH` clause in the same push kept its setting while the three without lost theirs. Row-level tests cannot catch this (they run as owner or as an authorized caller and pass either way) — assert the metadata, folding NULL `reloptions` to false rather than skipping it.
 
 ## offline-identity-pairing
 
+**Guard:** human-only: a design question about which state is offline-durable
+
 "Offline-first" in this repo covers DOMAIN data only, and **fixing half of an offline gap leaves a state nobody designed.** The original trap — roles fetched into React state that was never persisted, so a cold offline boot settled at `userRoles: []` and `ProtectedRoute` rendered `fallback` for every gated route — is **fixed and pinned**: `context/rbacPermissionsCache.ts` persists the RBAC response per device (7-day TTL), `useRbacLifecycle.ts` writes it at `:140`/`:216` and hydrates from it at `:163`, `AuthContext.tsx:146-165` spreads those roles into `UserWithRoles`, and `test/e2e/offline-cold-boot.spec.ts` covers the cold-boot path (MYK9-200). Do not re-file it, and do not "fix" the warm path, which was always correct: a failed refresh spreads `...previous` and preserves roles. **What that fix did NOT carry is the identity those roles pair with.** `databaseUserId` still comes from the `people` lookup at `AuthContext.tsx:86-108` — a plain network query with no `networkMode`, so it PAUSES offline — and is spread in at `AuthContext.tsx:163` as `databaseUserId: userProfile?.id`. A cold offline boot therefore holds `hasRole(JUDGE) === true` and `personId === undefined` **simultaneously**, a combination neither the pre- nor post-MYK9-200 design anticipated. Any hook keyed on `databaseUserId` then disables its query, reports `isLoading: false` with an empty result, and states that emptiness as fact: `/at-show/:showId` told a judge standing at their assigned ring that their secretary had never assigned them, with the assignments in IndexedDB beneath them (fixed for that page in #1827; the AuthContext half is still open). Two rules. Before trusting `databaseUserId` on any offline-capable path, treat "unresolved identity" as its own state, never as "no rows". And when you make one half of a coupled pair offline-durable, ask what still is not — anything on the critical path to **rendering** (permissions, identity, feature flags, remote config) must be as offline-capable as the data itself, or it quietly re-couples an offline-first app to the network.
 
 ## partition-rearms-guards
+
+**Guard:** human-only: a review habit applied to downstream math
 
 A guard that is provably a **no-op over a whole dataset can wake up when you partition that dataset**, and every existing test passes either way. `summarizePaymentLedgerTotals` clamped `Math.max(0, gross - refunds)`; over the full ledger every refund row sits beside the charge it reverses, so `gross >= refunds` always held and the clamp was dead code — until `?year=` scoping split a 2026 refund from its 2025 charge and it reported "Net paid $0.00" for money that demonstrably came back. The same one-control change exposed two more of the same shape: a legacy full refund dated by the charge it reverses (`stripe_orders.refunded_at` existed but `useMyPayments` never selected it), and rows ordered by their parent order's `created_at` rather than each row's own date, so a 2026 refund of a 2024 charge sank below every 2026 transaction. All three were invisible while the list was one undifferentiated scroll, all three were caught by Codex and by nothing in CI. Before adding any filter, grouping, or scope to an existing list, grep the downstream math for clamps, `Math.max(0, ...)`, and "these always come in pairs" assumptions — partitioning re-arms every guard written when the set was whole (#1706).
 
 ## definer-deliberate-edge
 
+**Guard:** human-only: whether an omitted filter is deliberate needs a human reading the test header
+
 A `SECURITY DEFINER` function that omits a row-level filter its calling policy applies may be a **deliberate definer-only edge**, not drift — and "restate the predicate inside" is the right general rule that turns into a silent revert here. `manageable_show_ids()` has no `deleted_at` test because MYK9-126 _wants_ entries of DRAFT and SOFT-DELETED shows to stay visible to club-scoped managers even though `shows_select` hides those show rows; `entries_manager_policy_hashable_test.sql` pins it with a `can_manage_show()` parity assertion and says so in its header. Gating the non-admin arms reverted that decision, and nothing local caught it: typecheck, lint, the 17k-test suite and three mutation checks all passed, and Codex reviewed that exact diff and flagged something else. Only CI's behavioural SQL failed, with `manageable_show_ids diverges from can_manage_show`. This is the "a missing column is NOT automatically drift" rule one layer down — apply it to missing **predicates** too: before restating a filter into a definer function, grep `supabase/tests/` for a test naming that function and read its header. Corollary from the same PR: behavioural SQL tests **have never executed locally** (no container runtime on this Mac), so CI is always their first real run — never report one as verified on the strength of the allowlist-registration check, which only proves it is on the list (#1775).
 
 ## source-text-tests
+
+**Guard:** human-only: whether a test proves behavior is a judgment
 
 A test that greps the **source text** can only prove someone typed the thing; it cannot prove the thing does anything, so it will certify a no-op as a fix. `dropdownMenuOverflow.test.ts` asserts `collisionAvoidance={{ side: 'flip' }}` appears in `dropdown-menu.tsx` — but Base UI already defaults it (`collisionAvoidance.side || 'flip'`, identical in 1.6.0 and 1.7.0), so the asserted prop changed nothing. Worse, passing that object **replaces** `MenuPositioner`'s `DROPDOWN_COLLISION_AVOIDANCE = { fallbackAxisSide: 'none' }` wholesale, degrading it to `'end'` via `|| 'end'` and letting a tall menu jump to the horizontal axis instead of staying vertical and scrolling inside `--available-height` — the exact mechanism the MERGED half of MYK9-138 (#1555) depends on. The harm was in what the object **omitted**, which no source-grep can see. It survived two authors (`b5c46c31f`, `codex/dropdown-menu-flip`), a clean cherry-pick, 9 green tests, a passing non-vacuous mutation check, typecheck and lint; only reading `node_modules` caught it. Measured on `main` at 600px with 24px below the last row: the menu already flips to `side:top`, `--available-height` resolves to 520px, and it scrolls — the bug it "fixed" does not exist. Assert rendered geometry, not source strings; and when a fix's premise is "library X defaults to Y", read the installed package before believing it.
 
@@ -172,13 +222,19 @@ A test run piped through `tail`/`grep` reports the **filter's** exit code, not t
 
 ## vitest-timeout-names-it
 
+**Guard:** human-only: a diagnosis habit for timeout errors
+
 A vitest **`Test timed out in Nms`** names the `it()` — line `72:3`, the opening line of the test — not whatever was actually running when the clock expired. It therefore says NOTHING about which phase ran long, and reading it as though it were the failure of the assertion you happened to be looking at will send you after the wrong cause. That is how MYK9-287 burned a day: a 10s `findByText` experiment timed out at 10046ms, I recorded "the dialog does not appear within ten seconds, so the cause is not latency" as a committed code comment, and the truth was that `userEvent.type` of a 22-character string had eaten 11.2s before `findByText` ever ran. The tell was in the same log — the sibling test doing the identical type with no dialog wait took 1892ms. When a whole-test timeout is all you have, instrument the phases (`performance.now()` between steps) before concluding anything; two minutes of timing overturned a conclusion I had already acted on twice. Related: **`userEvent.type` into a CONTROLLED input bound to a persisted zustand store costs a full page re-render plus a `persist` write per character** — measured at ~512ms/char under `taskpolicy -b ... --coverage`, so a 22-character name is a 11-second CI liability for no coverage. Type the fewest characters the assertion needs (one, where the store's setter flips `isDirty` unconditionally). And the "documented recipe does not reproduce it" conclusion in that issue was also wrong: the recipe works, but a file holding ONE heavy test lands just under the cap — repeat the shape 3× in a scratch file to amplify it, which reproduced 2/3.
 
 ## confirm-click-destructive
 
+**Guard:** human-only: which row owns a click is a per-test judgment
+
 **The confirm click is a destructive click too, and it is the one that gets missed.** Anchoring the _first_ click to its row and then reaching for the confirmation page-wide is not half-safe, it is unsafe: `getByRole('button', {name: /revoke|delete|confirm/i}).last()` matches ANOTHER ROW's control when no dialog opened, and fires a second destruction on a target you never chose. Compounding it, **never assume a confirm step exists** — assert the dialog appeared before looking inside it; if it did not, the first click already did the work. Both halves fired together on 2026-08-31: Revoke on the Show Access tab has no confirmation (MYK9-284), so the page-wide fallback destroyed the canonical CI secretary's own appointment. Proof it was mine and not an app bug: `ClubShowAccessTab.tsx:265` calls `onRevoke(manager.personId, …)`, single-keyed, and `permission_audit_log` held two `club_secretary_revoked` rows 1.8s apart. Scope every confirm to the dialog (`page.locator('[role="dialog"]').getByRole(...)`), and record the count you expect after a destructive click, then assert it — one revoke means exactly one fewer appointment.
 
 ## deploy-probe-unique-string
+
+**Guard:** human-only: choosing a probe string is a judgment
 
 **A "is my fix deployed?" probe must match a string that exists ONLY in that change.** Grepping the deployed bundle for a phrase the change _touches_ proves nothing if the phrase predates it, and it fails in the direction that wastes the most time: it reports the fix as missing (or present) on evidence about some other code entirely. On 2026-08-31 I probed for `"restored by an administrator from Admin"`, which also lives in `apps/myk9show/src/components/dogs/common/deleteDogDialogCopy.ts:51` and was already present at `0f974754e~1` — I concluded MYK9-283 was "still reproducing" on a build that did not contain it, and retracted a diagnosis that had been correct. Pick a phrase introduced by the diff and confirm it is absent from `origin/main~1` before trusting either answer, and remember the bundle is split: crawl the chunk graph from `index.html`, since a lazily-loaded page chunk will not appear in the entry chunk. A deploy TIMESTAMP is not a substitute — see the `get_edge_function` rule above for the same principle on the functions side.
 
@@ -199,21 +255,31 @@ The two arms are both required: **check runs** report via `conclusion`, **status
 
 ## git-log-s-assertion
 
+**Guard:** human-only: an investigation habit
+
 When a test asserts the OPPOSITE of the fix you are about to make, `git log -S` the **assertion string**, not `git blame` the implementation line. Blame lands on the last refactor to touch that line, and a refactor's message describes the behaviour as something that "stays" or "remains" — which reads as incidental inheritance and invites you to overrule it. `-S` on the test text finds the commit that _chose_ it. On 2026-08-28 I changed `ShowDetailTabs` to forward `canManageShow` to `ShowMapTab`, rewriting a test that said the map is read-only for managers, and justified it in the commit message as a property "#1035 inherited during a refactor". `git log -S "renders the public Show Map as read-only"` returns exactly one commit: #291, _"feat(show-map): make public map read-only"_ — a deliberate feature PR, with "view-only public map" listed among the architectural commitments in `docs/archive/plan-show-map-workbench-collapse.md`. A second test I never ran pinned it and failed all three CI shards. This is the "a missing predicate is not automatically drift" rule at the React layer, plus its own twist: **the premise was also false.** I concluded the action layer was unreachable because I searched the Show Map tab for a per-row menu; the row actions live on Show Desk, where `ShowDeskPanel` drives `SecretaryCockpit` off `getRankedActions` (`move-up-entry`, `mark-checked-in`, `scratch-entry`, `edit-score`) and owns `ShowMapMoveUpDialog`. So "this is the only mount, therefore the capability is unreachable" was component-shaped reasoning about a capability that had been re-homed. Before concluding a feature has no path, grep the ACTION CATALOG, not just the component tree — and treat "I had to rewrite a test to make this work" as a stop sign, not a step.
 
 ## cascade-delete-vs-upsert
+
+**Guard:** human-only: enumerating children for a given change is a judgment
 
 Replacing a **cascading DELETE with an upsert** silently drops THREE separate properties, and only one of them is visible in the diff. The delete cleared soft-delete columns (so the row came back visible), reset the declared rows, and removed **undeclared** ones — an upsert does only the middle one, and only for the columns it names. F30 changed `shows.club_id` to `ON DELETE RESTRICT`, which forced `seed-demo.sql` to stop delete-recreating its clubs; that one change cost four review rounds, each finding a different one of these: `deleted_at` left set so the club reseeded invisible (every read filters `.is('deleted_at', null)`); `club_members` keeping a QA run's `suspended` status under `ON CONFLICT DO NOTHING`; undeclared members, `secretary_tasks` and — worst — undeclared **club-scoped `user_roles`** surviving, so every authorization walk starts from a contaminated grant table. No test failed at any point, because the seed still ran and still reported success. Two traps inside the trap: I cleared this seam once after checking the children were COLLISION-safe (a re-run would not error) and wrote "nothing relied on the cascade" — collision-safety and **reset** are different properties, and reset is the one a seed promises. Then, having fixed six tables, I exempted the seventh (`club_stripe_accounts`) because its declared row is upserted — the same wrong distinction, one paragraph later. Enumerate the children from `pg_constraint` (`contype='f'`, `confrelid=<parent>`, `confdeltype='c'`) and replicate the cascade explicitly, with no exemptions; pin the list in a test so a new CASCADE child fails until it is handled.
 
 ## last-hop-drop
 
+**Guard:** human-only: depends on each projection over each prop
+
 A field plumbed through the data layer can still be **dropped at the last hop**, and a unit test on the pure function is structurally incapable of seeing it. Fixing "a cancelled class must not count as an offered element" meant adding `status` to `ReportProps.allClasses` and populating it in `reportDataMapping` — but `HighInTrialReport` re-mapped the prop with a hand-picked `{ id, element, level }` and silently discarded it. The rule was therefore **inert everywhere a user could reach it** while `highInTrial.test.ts` stayed green, because those tests call `buildHighInTrial({ classes })` directly and construct the object the model wants rather than the object the app actually passes. Typecheck cannot help: the dropped field is optional, so the narrower literal still satisfies the parameter type. This is the F29 "works in isolation, nothing wires it" trap moved one layer in — there the component had no mount, here the mount exists and launders the data on the way through. Two rules. When a fix adds a field to a prop, grep for every `.map(` over that prop and check each projection carries it. And pin the behaviour with a test that renders the COMPONENT with the field set on the real prop shape, not one that calls the pure function — reverting the projection must fail something. Codex found it on the third review round of the same PR, after two earlier rounds had already reviewed that exact mapping (F26, 2026-08-30).
 
 ## comment-satisfies-grep
 
+**Guard:** human-only: a test-design habit
+
 **A comment naming the thing satisfies any grep-based test or guard — prose about code is indistinguishable from code to a text scan.** Fired THREE times on 2026-08-30, each caught only by mutation: `expect(action).toContain('|| [ -n "$dup" ]')` passed with the guard deleted, because the comment explaining the guard held the string; a CI-step comment naming `myEntriesZoomReflow.spec.ts` would have whitelisted that spec in a checker grepping workflows for "is this invoked anywhere"; and that checker read `.js`/`.ts`, so its OWN comments — which name spec files to explain themselves — fed its whitelist. The fix that held was DELETING the heuristic, not refining it: two rounds of patching the scan (strip `#` comments, then scope per-section) each left a new hole, and replacing inference-from-text with an explicit declaration was **16 lines shorter**. Assert behaviour — extract the shell/function and run it against a stub. When a guard must know "does anything invoke X", prefer a declared list that fails LOUD on omission over a scan that guesses; an allowlist is fine when its absence turns a check red, unlike the silent-skip allowlists above. Wiring assertions (does workflow W reference action A) remain fair as source text, because deleting the wiring deletes the string (#1883, #1885).
 
 ## mutation-actually-mutated
+
+**Guard:** human-only: a test-verification habit
 
 **A mutation test you don't confirm actually mutated is a green light you trust more than you should.** Two of mine were wrong on 2026-08-30 before I noticed. One "disabled" a guard on a subject that passes on its own merits, so the run proved nothing. The other anchored on `s.index('## PR Smoke')`, which also matches the `### PR Smoke` heading in an earlier section — so the row under test was inserted into a section nobody checks, and the mutation reported "caught" for the wrong reason. Both looked like clean results. The same substring bug had already shipped in product code minutes earlier, filing six specs under the wrong heading in `e2e-suite-map.md` while the checker stayed green. Match headings on the EXACT line (`l.rstrip() == heading`), never `index()`, and after mutating print WHERE the change landed before believing the verdict (#1885).
 
@@ -227,13 +293,19 @@ Both are the same shape: the test's setup never reaches the condition the guard 
 
 ## tsc-solution-tsconfig
 
+**Guard:** human-only: a tool behavior; the typecheck commands already exist and the trap is choosing the wrong one
+
 **`tsc --noEmit -p tsconfig.json` typechecks NOTHING in `apps/myk9show` and exits 0.** That file is solution-style — `"files": []` plus `references` to `tsconfig.app.json` and `tsconfig.node.json` — so pointing `-p` at it compiles an empty program and reports success without reading a source file; building references needs `--build`. It is a perfect silent pass: no output, exit 0, indistinguishable from a real clean run. On 2026-08-30 it certified three `TS2304: Cannot find name` errors in a change that `tsc -p tsconfig.app.json` rejected instantly, and earlier in the same session it passed an undefined identifier that only the TEST suite caught at runtime — which read as "types can't see JSX identifiers" when the truth was that nothing had been typechecked at all. Vitest transpiles without typechecking, so a green suite does not cover for it either. Use `pnpm typecheck` (turbo → the real projects) for the gate, and `pnpm --filter @myk9/show typecheck:app` for a fast scoped check (the same `tsconfig.app.json` program, run incrementally since MYK9-1482). Never `-p tsconfig.json`. The general shape: when a check is suspiciously fast and silent, verify it FAILS on a deliberate error before trusting that it passes.
 
 ## conflicting-pr-no-runs
 
+**Guard:** MYK9-1654 (check not built yet)
+
 **A PR that conflicts with its base gets NO workflow runs at all, and nothing anywhere says so.** GitHub computes `refs/pull/<n>/merge` for every `pull_request` event and silently skips the workflow when it cannot, so `opened`, `synchronize`, `reopened` and `ready_for_review` all fire and all produce zero runs. Every surface lies in the same direction: `gh workflow list` shows the workflow `active`, nothing sits in queued or waiting, no approval gate appears, and the Vercel checks still go green — Vercel builds the HEAD sha, not the merge ref — so the rollup looks populated rather than empty. It presents as "Actions is broken" or "my trigger config is wrong", and the tell that it is neither is another PR getting clean runs at the same moment. On 2026-08-31 this cost most of a session on PR #1897, spent on draft gating (a real but separate bug — every `ci.yml` job is gated on `draft == false`, so opening a draft "to get CI" gets none) and then on three more trigger types, while the answer was one API field. Before diagnosing a missing run as anything else, read `gh api repos/<owner>/<repo>/pulls/<n> --jq '{mergeable, mergeable_state, merge_commit_sha}'`: `merge_commit_sha: null` with `mergeable_state: "dirty"` IS the diagnosis. The fix is merging the base in — re-triggering cannot work, because there is nothing for the event to build. Companion to the "no pending ≠ settled" rule above: there, a small rollup meant not-yet-registered; here it means the run will never exist.
 
 ## measurement-harness
+
+**Guard:** human-only: a harness-design habit
 
 **A measurement harness is a program, and an unverified one reports its own bugs as findings about the app.** Auditing the registration wizard's contrast produced, in order: 1,113 "defects" (Chrome serialises this app's computed colours as `color(srgb 0.094 0.078 0.067)` — CSS Color 4, components **0–1**, not 8-bit — so a regex over the numbers read every colour as near-black and collapsed every ratio to ~1.0); then a repair that regex-matched the blue channel of `rgb(24, 20, 17)` as an alpha and divided by 17; then 504 phantom tap-target failures, because each 16×16 dog checkbox is wrapped in a clickable card and a finger never touches the box alone. Not one of these looked like a broken tool — they looked like a page in terrible shape, which is exactly the state of mind in which you start "fixing" working code. **Give any contrast/geometry harness known-answer checks that run every time (black-on-white == 21, white-on-white == 1) and print them alongside the findings.** Don't parse colour strings at all: composite over white and over black and recover the channels (`a = 1 - (overWhite - overBlack)/255`, `C = overBlack / a`), which is exact for every syntax. And before reporting a small control, walk for a larger clickable ancestor **or an associated `label[for]`** — a checkbox that fails 2.5.8 alone can be perfectly reachable.
 
@@ -251,6 +323,8 @@ Both are the same shape: the test's setup never reaches the condition the guard 
 
 ## dead-suite-reds
 
+**Guard:** human-only: a triage habit for suites that never ran
+
 **When a suite has NEVER run, its every red is a claim about the harness first and the app second — and today it was the harness every single time.** Playwright Regression executed 0 tests in 7 weeks; the first real run produced 12 failures that read like a product emergency and contained ZERO product bugs. In order: a guard recorded ringside RPCs only on the shared-staging host, so against the isolated target `ringsideRpcCalls` stayed `[]` while the page said "Score saved" (MYK9-270); a locator wanted a `link` wrapping an `h3` when `BrowseCard` renders `<h3><Link>`, reporting "no dogs" over 257 of them; `button[name="Assign", exact]` missed a control whose aria-label had become `Assign armband to <dog>` for WCAG 2.5.3; and a `RegExp` with capital `Change` and no `i` flag missed `${label}, change entry status for ...` (MYK9-271). Read the failure ARTIFACT before theorising — Playwright's error-context aria snapshot states outright whether a control rendered and whether it is disabled, which is exactly the question a log cannot answer, and it takes one `gh run download`. Corollary that cost the most: fixing one stale locator MOVES the failure to the next one, so audit every remaining locator in a dead spec against source in one pass rather than paying a 13-minute CI round trip per line.
 
 ## dead-suite-green
@@ -259,9 +333,13 @@ Both are the same shape: the test's setup never reaches the condition the guard 
 
 ## review-after-merge
 
+**Guard:** human-only: timing of a review against a merge is a process judgment
+
 **A review that finishes AFTER the merge is not a gate, it is an audit — and the findings land on `main` instead of blocking.** The Codex gate is listed as required for every PR, which quietly reads as "the review must happen", not "the review must happen FIRST". On 2026-09-05 I opened #2040, started `codex review --base origin/main`, and reported the PR as ready while the review was still running; it merged at 13:10:50Z (squashed, so the branch SHA is not in `main` — `git branch -r --contains` returns nothing and that is not evidence it failed to merge). The review then returned two real P2 findings, both defects in the fix itself, and both were already shipped. Nothing anywhere was red: 14/14 CI checks green, `mergeable: true`, and the review exited 0 _with_ findings — a passing exit code from `codex review` means "I ran", never "I approved" (see the usage-limit rule above for the other half of that same lie). The cost is a second PR, a second CI cycle, and a window where `main` carries a defect you already know about. Finish the review and act on its findings BEFORE announcing a PR as ready, and treat "review running" as a blocking state you say out loud, not a background task. Corollary: `--base origin/main` on a squash-merged branch still works after the fact, so a late review is worth reading — just do not confuse reading it with having gated on it (#2040 → #2042).
 
 ## discriminator-branches
+
+**Guard:** human-only: a design review habit
 
 **A fix that adds a discriminator creates NEW branches, and the bug it was filed against can survive inside one of them.** MYK9-395 was "the empty payout ledger says _No online payments yet_ beside a nonzero collected total". The fix split the empty state on that total — and picked `onlineCollectedCents`, which is NET (`grossCharged - refunded - makeWholeRefunded`, `financialSummary.ts` `derivePlatformIncome`). A history whose charges were ALL refunded nets to exactly zero, falls into the new `no-payments-yet` branch, and prints the original sentence over payments that demonstrably happened and were handed back. The filed reproduction was genuinely fixed; the filed _complaint_ was not. Every test passed, including a component test written specifically to catch a last-hop drop, because they all exercised the branch the reproduction described. Two rules. When a fix introduces a condition, re-read the ORIGINAL complaint against each new branch — "is the thing they reported still possible over here?" — not just against the path in the repro steps. And before discriminating on any money figure, check whether it is gross or net: a net total is zero in two completely different worlds (nothing happened / everything reversed), so it can never be the thing that tells them apart. Same shape as the "partitioning re-arms every guard written when the set was whole" rule, one step earlier: there an added filter woke a dead clamp, here an added branch inherited the original bug (#2040 → #2042).
 
@@ -275,17 +353,25 @@ Both are the same shape: the test's setup never reaches the condition the guard 
 
 ## pr-smoke-network
 
+**Guard:** `.github/workflows/ci.yml`
+
 **`E2E PR Smoke` fails on ANY failed network response, so a third-party script that only exists on the hosting platform reddens CI under `vite preview`.** `qa-regression-proof.spec.ts` collects console errors and non-2xx responses page-wide and asserts the list is empty; `/_vercel/insights/script.js` 404s on `localhost:4173` and failed the run on PR #2059 while every unit, type and build check was green. Gate platform-only scripts (Vercel Analytics, Speed Insights) on the hostname, and expect the same from any future host-provided asset.
 
 ## anchored-edit-after-format
+
+**Guard:** human-only: concerns an agent's own edit sequence
 
 **An anchored text edit written from the text you WROTE, not the text on disk, misses after the formatter runs — and a chained script then carries on past the miss.** Prettier rewraps long signatures and `(e) =>` parens, so a python/sed replacement keyed on the pre-format string finds zero matches and the script asserts; when that edit is one step of `edit && test && commit && push && review`, everything after it silently does not happen while the log still shows the earlier steps' success. Fired three times on 2026-09-05 in PR #2058: one round shipped a trust filter with none of its fixtures (7 red tests), and a Codex round reviewed a half-applied working tree. Re-read the file after any format step before anchoring, or anchor on structure with a regex (`re.sub(r"function comment\([\s\S]*?\n\}\n", …)`), and make a chained script stop at the first failed step instead of proceeding to commit and review.
 
 ## guard-word-split
 
+**Guard:** human-only: tokenizing correctness is verified per guard with fixtures
+
 **A guard that inspects a command by splitting it on whitespace is off for every path with a space in it — which is this repo's own path.** `git -C "/Users/richardbeezley/AI Projects/myk9-platform" push origin main` word-splits into `-C` `"/Users/richardbeezley/AI` `Projects/myk9-platform"` `push`: the value-skip eats the wrong token, `Projects/myk9-platform"` reads as the subcommand, and the push is allowed. Adjacency-based substring matching has the same hole from the other side — `git push` does not occur in `git -C /tmp push origin main`, and `git clean -f` does not occur in `git clean -df`. Tokenize quote-aware, then match on subcommand + flag SET, never on spelling or flag order. The same session then produced the failure mode BELOW while writing that fix, so treat both as one rule: a deny-guard's verdict must be replayed against known-answer fixtures on every change, and the fixtures must be mutation-checked, because a guard's failure mode is silence (#2062).
 
 ## local-self-reference
+
+**Guard:** MYK9-1654 (check not built yet)
 
 **`local s="$1" n=${#s}` measures the CALLER's `s`, not the one being assigned.** The shell expands every word of a command before running it, and `local` is a command — so the `${#s}` in that line is evaluated while `s` still holds whatever the enclosing scope had, which is usually empty. A tokenizer written that way loops zero times, emits nothing, exits 0, and every check built on it reads as "clean". Nothing warns: `bash -n` passes, `set -u` passes, the function is simply inert. Split the declaration (`local s="$1"` then `local n; n=${#s}`) whenever one `local` refers to another on the same line. Caught only because the script's own 32 known-answer fixtures went from 32/32 to 19/32 (#2062).
 
@@ -295,17 +381,25 @@ Both are the same shape: the test's setup never reaches the condition the guard 
 
 ## inflight-check
 
+**Guard:** human-only: whether to fix housekeeping noise is a judgment; qa:inflight sees only paths
+
 **A rule that says "check for in-flight work first" is worth nothing unless a program runs it.** On 2026-09-05 #2062 was open for 43 minutes, touching `.agents/skills`, when #2064 was started on the same directories; both then paid about a dozen review rounds on the same third-party files. The memory rule "list open PRs by file before any fix" existed and was skipped, because the second PR felt like a continuation rather than a start. `pnpm qa:inflight` (`scripts/qa/inflight.ts`) now fails when an open PR, another worktree — including its uncommitted files, which no PR list can show — or a recent unmerged local branch overlaps the paths on the current branch. Local branches older than 3 days remain counted as inventory, with `--verbose` expanding their details. `/commit` Step 0 and `ship-pr` Step 0 run it. The two checks a shell cannot make stay manual: Linear issues In Progress naming the paths, and `list_sessions`. And a forked audit session that meets housekeeping noise should file it, not fix it — that is how the first PR came to exist (#2065).
 
 ## cancelled-may-be-timeout
+
+**Guard:** human-only: a diagnosis habit for CI conclusions
 
 After #2110 stopped `main` runs being cancelled by the next merge, `gh run list --branch main` still showed eight consecutive runs with conclusion `cancelled` (261734e17 through e3ca44d1d). The first reading was that the concurrency fix had failed. It had not: `gh run view <id> --json jobs` showed every gating job `success` and only `Test myK9Show (coverage)` `cancelled`, with `startedAt` to `completedAt` spanning exactly 30 minutes on each run. That is the job's own `timeout-minutes: 30`; GitHub records a job timeout as `cancelled`, and the run inherits it. The job takes 20 to 29 minutes when it completes, and once every main push ran to completion the runner pool was shared by several runs at once and it crossed the cap. The old cancel-on-push behaviour had been cancelling these runs earlier for a different reason, so the timeout had never surfaced. #2120 raised the cap to 45 minutes; the first run under it completed the job in 31. On 2026-10-05 it timed out at 45 and blocked `pick-deploy-commit.sh` twice, so the job was deleted: the sharded `test-show` plus `test-show-coverage-gate` already collect, merge and ratchet the same coverage on push.
 
 ## zsh-read-path
 
+**Guard:** human-only: a shell quirk in an agent's own commands
+
 During the 2026-09-07 cleanup run, a worktree audit loop was written as `git worktree list --porcelain | ... | while read -r path branch; do ... wc -l ... tr -d ' ' ...; done`. Under zsh (this Mac's tool shell) `path` is a special array parameter tied to `PATH`: assigning a string to it replaces the search path with that one directory. From the first iteration on, every external command in the loop body reported `command not found: wc` and `command not found: tr`, the computed fields printed empty, and the loop exited 0, so the report read as "every worktree clean, no merged PR, no tip" rather than as a broken loop. Renaming the variable to `wtdir` made the identical loop correct. The same trap exists for `PATH`, `cdpath`/`CDPATH`, `fpath`/`FPATH`, and `manpath`/`MANPATH`; bash has no tied lowercase `path`, which is why the pattern is common in bash-derived scripts and only breaks here. Companion to `local-self-reference`: both are shells silently doing something other than what the line reads as, with exit 0.
 
 ## label-rule-vs-real-columns
+
+**Guard:** human-only: needs measuring against live data, which varies per rule
 
 On 2026-09-12 the show premium was found merging two classes that shared an element and a level, so it under-reported what a show offered. The fix derived the distinguishing words from the class `name` — anything element, level and section did not already account for — and shipped in `4259a1eb9`, with the same rule extracted for the registration wizard's chips in `b9c267a67`. Both were red-then-green, and both passed 19,661 shuffled tests, typecheck, lint and the quality ratchet.
 
@@ -315,9 +409,13 @@ Every test written for the rule used well-formed names, so it was correct on the
 
 ## orchestrated-change-rounds
 
+**Guard:** human-only: an orchestration process judgment
+
 PR #2210 (2026-09-13, MYK9-483) redesigned the registration wizard as four orchestrated implementer batches — deletions, stepper, entries panel, payment fixes — reviewed per batch and then handed to `pnpm qa:codex-review` once, at the end, as one 63-file diff. It took seven review rounds. None was noise: the reviewer reports the few most serious things it sees in the whole net diff, so rounds scale with diff size, and the per-batch reviews with their scope fences could not see cross-cutting interactions (a sticky panel inside an app-shell container that never scrolls; a payment method derived in two places) that only a whole-diff read exposes. Four of the seven rounds were one control — "Choose classes again" on the cart-expiry notice, a spec scenario added beyond the walk's findings — whose every fix on the singleton cart store opened the next lifecycle race: navigate-then-clear duplicated adds, an awaited abandon left Payment submittable, a fire-and-forget abandon nulled the replacement cart. The store's `loadCart` already drops an expired cart and the wizard's selections are React state, so deleting the control and reloading the route ended it. Richard's reaction — "feels like everything we do requires 5, 6, 7 reviews" — is the incident. The rules that follow: one PR per batch, run the review after the structural batch, spec only the audit findings, and stop at the second finding on one path rather than the third.
 
 ## review-scope-boundary
+
+**Guard:** human-only: a review triage judgment
 
 PR #2221 (2026-09-14, MYK9-518) ran a long review-gate loop in two distinct halves, and only the first half is what the existing convergence rule already covers. Across its first eight rounds, six were the same control's reveal mechanism — a `requestAnimationFrame`, then a request counter plus effect, then URL state, then a history guard, then a toggle, then push-vs-replace — because a disclosure that keeps a rarely-consulted surface conditionally present needs reveal state, a home for that state, a history contract, focus choreography, ARIA wiring and a hidden-case layout rule. Deleting the disclosure (registrations left Overview entirely; the identity rail summarises them and raises the existing list in a panel) ended that class, and the next review reported that the architectural core checked out.
 
@@ -345,21 +443,29 @@ Two things make it read as a verdict when it is not. The failing `it()` changes 
 
 ## docs-push-head-main
 
+**Guard:** MYK9-1654 (check not built yet)
+
 The orchestrator's docs-only direct-to-`main` flow ends with `git push origin HEAD:main`, which pushes whatever commit HEAD points at — not "the docs commit" as a concept. On 2026-09-18 (MYK9-631, commits 19812ca5d and f0c0ac6e2, reverted by 94b289843) a dispatched sub-agent had checked out its own feature branch inside the orchestrator's worktree rather than a worktree of its own; because a worktree's index is shared with whatever branch is checked out in it, a ledger commit made by the orchestrator swept up the sub-agent's STAGED deletion, and the next `HEAD:main` push carried the sub-agent's whole feature commit straight to `main` with no review gate. GitHub auto-closed the sub-agent's open PR (#2334) as merged, and Vercel built the commit from `main` as if it had gone through the normal path.
 
 **The rule.** Before any direct push to `main`, run one command that asserts all of: `git branch --show-current` is the session's own branch, the working tree was clean before this session's edits began, `git diff --cached --name-only` names only the intended docs file(s), and `git rev-list --count origin/main..HEAD` is exactly 1. Abort the push if any assertion fails. Separately, after dispatching an implementer (sub-agent), confirm it has its own worktree with `git worktree list` rather than assuming it followed instructions to create one — a sub-agent that reuses the orchestrator's worktree is invisible until its changes surface in someone else's commit.
 
 ## vitest-hook-returns-teardown
 
+**Guard:** MYK9-1654 (check not built yet)
+
 On 2026-10-12 a new unit test for `askCanEditDog` failed with `TypeError: Failed to fetch`, pointing at the line that made the Supabase `rpc` mock throw, although the function under test caught that error and returned `null` exactly as asserted. The file's hook was `beforeEach(() => rpc.mockReset())`. `mockReset()` returns the mock, so the concise arrow returned a function, and Vitest treats a function returned from `beforeEach` as a teardown for that test. After the body passed, Vitest called `rpc()` with no arguments, the throwing implementation fired, and the test failed on an error no assertion had produced. A sibling file with the same hook passed only because its mock resolved instead of throwing, so the extra call was silent there. Writing the hook with a block body (`beforeEach(() => { rpc.mockReset(); })`) fixed both; nothing else in the repository used the concise shape at the time.
 
 ## squash-against-merge-base
+
+**Guard:** MYK9-1654 (check not built yet)
 
 On 2026-10-13 (MYK9-1133, PR #2963) a branch of three `wip:` commits was squashed with `git reset --soft origin/main && git commit`. The worktree had been created from `origin/main` at 835a4f60e, but git worktrees share one set of refs and another session had fetched since, so `origin/main` was now a0015b5eb, three merged PRs later (#2961, #2962 and a docs commit). The reset moved the branch to the new main while leaving the working tree at the old one, so the single commit it made reverted those PRs: 121 files changed, 5,896 deletions where the work was 66 files and 73 deletions. It was pushed before the stat was read. The branch was unmerged and nothing reached `main`; the repair was a second commit with the tree from merging the original work into the current `origin/main` (built with `git commit-tree`, so no force-push), which `git diff origin/main --stat` then showed as 66 files with no deleted files.
 
 **The rule.** Squash against the point the branch left `main`: `git reset --soft "$(git merge-base HEAD origin/main)"`, then commit, then `git merge origin/main` or rebase. Before any push of a rewritten branch, read `git diff origin/main --stat` and `git diff origin/main --diff-filter=D --name-only`: a change that deletes files it never touched is this bug. Assume `origin/main` has moved whenever another session has been active, because fetching in any worktree moves it for all of them.
 
 ## shell-option-set
+
+**Guard:** human-only: depends on the invoking shell's flags, established per case
 
 On 2026-10-24 the daily commit review filed NCR-2026-10-24-03 ([MYK9-1404](https://linear.app/myk9-platform/issue/MYK9-1404)) against `.github/workflows/merge-conflict-status.yml`, added that day by #3248. The sweep step's body opens `set -uo pipefail` — conspicuously without `-e` — reads the open PRs with `gh api --paginate ... > prs.txt`, loops over that file, and verdicts on `[ "$post_failures" -eq 0 ]`. Read as a script, that is a guard that fails open: a failed listing leaves `prs.txt` empty, the loop never runs, the counter stays 0 and the job goes green, so a sweep that checked nothing reports a clean sweep. The finding named the file and line range, the per-PR failure path that IS counted correctly by contrast, and the known-answer fixture that would prove it — and then specified that fixture as the closure contract instead of running it.
 
@@ -370,6 +476,8 @@ What made this expensive is that the control flow was read correctly. Every stat
 **The rule.** A script's `set` line is not the whole option set. Before concluding that a shell guard fails open, establish the flags of the shell that invokes it: a GitHub Actions `run:` step (`bash -e {0}` by default, and `shell: bash` makes it `bash --noprofile --norc -eo pipefail {0}`), a git hook, `sh script.sh`, `bash script.sh` and a sourced file are five different option sets, and `$-` is the only authority. For any finding whose claim is "this guard does not fire", run the known-answer fixture **before filing**, not as the closure contract — both directions, with a control that shows the harness can tell them apart. On this Mac, build such a fixture by writing the stub, the extracted step body and a small driver with the file tools and then running `bash <driver>`: the Bash tool's classifier refuses a command containing a heredoc or a leading `PATH=` assignment.
 
 ## standing-approvals-dont-ask
+
+**Guard:** human-only: an agent conduct rule; the tripwire gates the action, not the asking
 
 On 2026-10-29, hours after standing approvals went live (MYK9-1485), the session that built them asked the owner in chat "Run Deploy myK9Show now to finish MYK9-1485?", ran the deploy on the owner's yes, and then announced the run as the issue's unattended proof. The owner caught it: "You asked if you could deploy and I answered yes." The criterion was "no prompt and no chat question"; the run proved only that the commands raised no tool permission prompt, and it was recorded on the issue as owner-approved instead. The earlier merge of PR #3402 counted because nothing about merging had been asked.
 

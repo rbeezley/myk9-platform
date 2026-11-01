@@ -86,6 +86,17 @@ Verify that an implementation matches the change artifacts (specs, tasks, design
        - Add WARNING: "Implementation may diverge from spec: <details>"
        - Recommendation: "Review <file>:<lines> against requirement X"
 
+   **Scenario Proof (hard gate)**:
+   - Run `pnpm qa:openspec-proof "<name>" --change-root "<changeRoot>"` (changes listed in `scripts/qa/openspec-proof-grandfathered.txt` warn instead of fail; never add to that list). Every ADDED or MODIFIED scenario must carry a `- **PROOF** <test path> :: <test name>` bullet naming an existing test.
+   - Any failure (no PROOF, missing file, missing test name) is a CRITICAL issue per scenario: "Scenario unproven: <scenario name>: <reason>".
+   - On success (and after a grandfathered WARNING) the command prints one line per distinct pointer: `<path> :: <name>`, or just `<path>` for `.sql`. The script only checks statically that pointers are present and files exist; YOU decide the test is live by running each pointer FILTERED BY NAME and reading the counts:
+     - `apps/myk9show/**` vitest: `cd apps/myk9show && pnpm vitest run <file relative to apps/myk9show> -t "<name>"`
+     - `packages/<pkg>/**` vitest: `pnpm --filter @myk9/<pkg> exec vitest run <file relative to the package> -t "<name>"`
+     - `scripts/**` vitest: `pnpm vitest run <file> -t "<name>"` from the repo root
+     - Playwright: the repo's e2e runner on the file with `--grep "<name>"`
+     - `.sql`: run the file via the SQL test workflow, or cite the CI run that passed (SQL tests only run in CI)
+   - Require at least 1 passed and 0 failed in each run's summary. Vitest exits 0 even when the name matches nothing (it reports `Tests  66 skipped`), so read the `Tests` line, never the exit code. `-t` and `--grep` take a regular expression: escape `( ) [ ] . * + ? | $ ^` in the name with a backslash. A run with 0 passed is CRITICAL: "Scenario proof names no live test: <pointer>". A failing run, or one you could not run, is CRITICAL: "Scenario proof did not run green: <pointer>".
+
    **Scenario Coverage**:
    - For each scenario in delta specs (marked with "#### Scenario:"):
      - Check if conditions are handled in code

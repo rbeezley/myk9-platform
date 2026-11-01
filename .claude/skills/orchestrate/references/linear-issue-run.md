@@ -398,6 +398,7 @@ the actual state and evidence explicitly after a fresh read:
 **Checks run** — <commands and results; review gate line; CI watcher verdict>
 **PR** — <url> (merged <sha> | open: <why>)
 **Risks / remaining work** — <or "none">
+**Verifier gap** — <escaped bugs only: `verifier gap:` line from issue-tracker.md "Escaped bugs">
 **Acceptance criteria** — <each criterion: met (evidence) | owed (what, by whom)>
 **Run notes** — implementer <model>, <N> review rounds, judgement calls: <list or "none">
 ```

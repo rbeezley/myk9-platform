@@ -4,7 +4,9 @@ name: Mutation tests
 # stryker.config.mjs (cart, score-validator, placement, replication-conflict).
 # The targets have existed since #719 but nothing scheduled them; a mutation
 # score that drifts down is a test suite that stopped biting, and the only way
-# to see the drift is to run it. Not a PR gate.
+# to see the drift is to run it. Not a PR gate. The runner runs every target even
+# when an earlier one is under threshold (MYK9-1652) and writes a score table to
+# the job summary.
 
 on:
   schedule:

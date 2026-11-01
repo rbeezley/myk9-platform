@@ -280,8 +280,18 @@ export const PINNED_SCRIPTS: readonly PinnedScript[] = [
   { pkgDir: '.', script: 'qa:plans', command: 'node --import tsx scripts/qa/plan-metadata.ts' },
   {
     pkgDir: '.',
+    script: 'qa:openspec-proof:test',
+    command: 'vitest run scripts/qa/openspec-scenario-proof.test.ts',
+  },
+  {
+    pkgDir: '.',
     script: 'qa:types-drift:test',
     command: 'vitest run scripts/qa/supabase-types-drift.test.ts',
+  },
+  {
+    pkgDir: '.',
+    script: 'qa:mutation-runner:test',
+    command: 'vitest run scripts/qa/mutation',
   },
   {
     pkgDir: '.',

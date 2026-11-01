@@ -68,6 +68,12 @@ describe('buildRingsideClassRpc (MYK9-1086 / MYK9-1096)', () => {
     });
   });
 
+  it('routes the area count a judge chooses (MYK9-1625)', () => {
+    expect(buildRingsideClassRpc(['areaCount'], { ...row, num_areas: 2 })?.fields).toEqual({
+      num_areas: 2,
+    });
+  });
+
   it('ignores bookkeeping keys when deciding', () => {
     expect(
       buildRingsideClassRpc(['classStatus', '_lastModified', '_syncStatus'], row)?.fields

@@ -18,6 +18,7 @@ import {
   ClipboardList,
   Clock,
   Flag,
+  Layers,
   Settings,
   SlidersHorizontal,
   type LucideIcon,
@@ -99,6 +100,7 @@ const ClassOptionsBody: React.FC<ClassOptionsDialogProps> = ({
   classData,
   onRequirements,
   onSetMaxTime,
+  onAreaCount,
   onStatistics,
   onStatus,
   onSettings,
@@ -125,8 +127,13 @@ const ClassOptionsBody: React.FC<ClassOptionsDialogProps> = ({
   const showStatusTile = !hideStatus && !!onStatus;
   const showSettingsTile = !hideSettings && !!onSettings;
 
+  const showAreaCount = !!onAreaCount;
+  // The area-count tile is always full width (MYK9-1625); the grid below holds the rest.
   const compactCount =
-    Number(showStatisticsTile) + Number(showStatusTile) + Number(showSettingsTile);
+    Number(showStatisticsTile) +
+    Number(showStatusTile) +
+    Number(showAreaCount) +
+    Number(showSettingsTile);
   const cls = live?.[0] ?? null;
   const savedMaxTime = cls ? setMaxTimeText(cls, !!classData?.per_area_times) : null;
 
@@ -163,12 +170,19 @@ const ClassOptionsBody: React.FC<ClassOptionsDialogProps> = ({
           )}
         </div>
       )}
-      {compactCount > 0 && (
+      {showAreaCount && onAreaCount && (
+        <Tile tone="class" icon={Layers} title="Search areas" onClick={onAreaCount} wide>
+          {cls?.areaCount
+            ? `${cls.areaCount} ${cls.areaCount === 1 ? 'area' : 'areas'} chosen`
+            : 'Choose how many search areas this class has'}
+        </Tile>
+      )}
+      {compactCount - Number(showAreaCount) > 0 && (
         // Two columns where they fit; one at about 320px. An odd last tile spans both.
         <div className="grid grid-cols-2 gap-2 max-[359px]:grid-cols-1">
           {showStatisticsTile && (
             <Tile
-              wide={compactCount === 1}
+              wide={compactCount - Number(showAreaCount) === 1}
               tone="class"
               icon={BarChart3}
               title="Statistics"
@@ -179,7 +193,7 @@ const ClassOptionsBody: React.FC<ClassOptionsDialogProps> = ({
           )}
           {showStatusTile && onStatus && (
             <Tile
-              wide={compactCount === 1}
+              wide={compactCount - Number(showAreaCount) === 1}
               tone="run"
               icon={Flag}
               title="Status"
@@ -190,7 +204,7 @@ const ClassOptionsBody: React.FC<ClassOptionsDialogProps> = ({
           )}
           {showSettingsTile && onSettings && (
             <Tile
-              wide={compactCount % 2 === 1}
+              wide={(compactCount - Number(showAreaCount)) % 2 === 1}
               tone="class"
               icon={Settings}
               title="Settings"

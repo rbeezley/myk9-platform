@@ -226,6 +226,8 @@ export interface ClassOptionsDialogProps {
   onRequirements?: () => void;
   onSetMaxTime?: () => void;
   onSettings?: () => void;
+  /** Reopens the area count picker; offered only for a flexible-area class. */
+  onAreaCount?: () => void;
   onStatistics?: () => boolean | void;
   onStatus?: () => void;
   onPrintCheckIn?: () => void;
@@ -258,14 +260,13 @@ export interface ScoresheetPrintDialogProps {
 }
 
 /**
- * Forces selection of an area count (1, 2, or 3 depending on
- * `areaCountRequirements`) for flexible-area classes. Shown at page
- * init when the class allows multiple areas and none has been chosen
- * yet — blocks the entry list until completed.
+ * Asks for the area count of a flexible-area class (within
+ * `areaCountRequirements`). The host opens it at page init when the class
+ * allows a choice and none has been made yet, and the class options dialog
+ * reopens it. It can be dismissed (`onClose`): the entry list is not blocked.
  *
- * The host implementation in apps/myk9q writes the chosen area count
- * + per-area seconds directly to the `classes` table via Supabase;
- * `onSave` fires after that round-trip completes.
+ * The host dialog saves the chosen count itself (through its class replica) and
+ * calls `onSave(count)` once the save has landed.
  */
 export interface AreaCountSelectionDialogProps {
   isOpen: boolean;
@@ -277,7 +278,7 @@ export interface AreaCountSelectionDialogProps {
     class_name: string;
   };
   areaCountRequirements: AreaCountRequirements;
-  onSave: () => void;
+  onSave: (count: number) => void;
 }
 
 /**

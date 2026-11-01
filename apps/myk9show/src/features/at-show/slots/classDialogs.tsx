@@ -5,9 +5,8 @@
  * the data handlers behind them are spike stubs owned by the host hooks.
  */
 import type React from 'react';
-import type { AreaCountSelectionDialogProps, ClassSettingsDialogProps } from '@myk9/ringside';
-import { Button } from '@/components/ui/button';
-import { Eye, Layers, SlidersHorizontal, UserCheck } from 'lucide-react';
+import type { ClassSettingsDialogProps } from '@myk9/ringside';
+import { Eye, SlidersHorizontal, UserCheck } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useIsOnline } from '@/hooks/useNetworkStatus';
@@ -114,36 +113,5 @@ export const ClassSettingsDialog: React.FC<ClassSettingsDialogProps> = ({
 // MaxTimeDialog lives in ./MaxTimeDialog (it saves through the class replica).
 export { MaxTimeDialog } from './MaxTimeDialog';
 
-// ---------------------------------------------------------------------------
-// AreaCountSelectionDialog — pick an area count for flexible-area classes.
-// ---------------------------------------------------------------------------
-
-export const AreaCountSelectionDialog: React.FC<AreaCountSelectionDialogProps> = ({
-  isOpen,
-  onClose,
-  classData,
-  areaCountRequirements,
-  onSave,
-}) => {
-  if (!isOpen) return null;
-
-  const counts: number[] = [];
-  for (let n = areaCountRequirements.min; n <= areaCountRequirements.max; n++) {
-    counts.push(n);
-  }
-
-  return (
-    <ClassDialogShell
-      icon={Layers}
-      eyebrow="Select areas"
-      className={classData.class_name}
-      onClose={onClose}
-    >
-      {counts.map(count => (
-        <Button key={count} variant="outline" className="min-h-11" onClick={onSave}>
-          {count} {count === 1 ? 'Area' : 'Areas'}
-        </Button>
-      ))}
-    </ClassDialogShell>
-  );
-};
+// AreaCountSelectionDialog lives in ./AreaCountSelectionDialog (it saves through the class replica).
+export { AreaCountSelectionDialog } from './AreaCountSelectionDialog';

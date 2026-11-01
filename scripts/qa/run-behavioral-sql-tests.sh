@@ -116,6 +116,7 @@ TEST_FILES=(
   "$TEST_DIR/myk9_1086_ringside_update_class_test.sql"
   "$TEST_DIR/myk9_1098_ringside_update_class_area_times_test.sql"
   "$TEST_DIR/myk9_1513_class_ring_phase_test.sql"
+  "$TEST_DIR/myk9_1625_ringside_class_num_areas_test.sql"
   "$TEST_DIR/myk9_677_show_payments_ledger_test.sql"
   "$TEST_DIR/myk9_677_submit_entries_payment_test.sql"
   "$TEST_DIR/myk9_773_inherited_refund_follows_payment_test.sql"

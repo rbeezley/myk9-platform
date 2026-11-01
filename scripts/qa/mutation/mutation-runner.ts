@@ -13,6 +13,8 @@ export interface TargetResult {
   target: string;
   /** Percent, or null when the score could not be read (runner crashed). */
   score: number | null;
+  /** Why the score is null, when the reader knows. */
+  reason?: string;
   threshold: number;
   exitCode: number;
   passed: boolean;
@@ -22,7 +24,7 @@ export interface RunDeps {
   /** Runs one Stryker target and returns its exit status (null = killed by signal). */
   spawn: (target: string) => number | null;
   /** Reads the target's score from its JSON report; null when unreadable. */
-  readScore: (target: string) => number | null;
+  readScore: (target: string) => number | { score: null; reason: string } | null;
   log?: (line: string) => void;
 }
 
@@ -52,10 +54,12 @@ export function runAllTargets(
     log(`\n=== Mutation target: ${target} ===`);
     const status = spawn(target);
     const exitCode = status ?? 1;
-    const score = readScore(target);
+    const read = readScore(target);
+    const score = typeof read === 'object' && read !== null ? null : read;
     results.push({
       target,
       score,
+      reason: typeof read === 'object' && read !== null ? read.reason : undefined,
       threshold: BREAK_THRESHOLD,
       exitCode,
       passed: exitCode === 0 && score !== null && score >= BREAK_THRESHOLD,
@@ -67,7 +71,9 @@ export function runAllTargets(
 export function formatSummaryTable(results: TargetResult[]): string {
   const rows = results.map(r => {
     const score =
-      r.score === null ? 'unreadable (runner crashed or no report)' : `${r.score.toFixed(2)}%`;
+      r.score === null
+        ? (r.reason ?? 'unreadable (runner crashed or no report)')
+        : `${r.score.toFixed(2)}%`;
     return `| ${r.target} | ${score} | ${r.threshold}% | ${r.passed ? 'pass' : 'FAIL'} |`;
   });
   return ['| Target | Score | Threshold | Result |', '| --- | --- | --- | --- |', ...rows].join(

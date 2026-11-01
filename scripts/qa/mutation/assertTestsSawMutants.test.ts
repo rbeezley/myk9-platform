@@ -30,7 +30,9 @@ describe('assertTestsSawMutants', () => {
       ...survivedWithoutRunningTests,
       ...Array.from({ length: 50 }, () => ({ status: 'NoCoverage', testsCompleted: 0 })),
     ];
-    expect(() => assertTestsSawMutants('placement', report(mixed))).toThrow(/20 covered mutants/);
+    expect(() => assertTestsSawMutants('placement', report(mixed))).toThrow(
+      /20 survived mutants ran zero tests/
+    );
   });
 
   it('passes when mutants are killed by running tests', () => {
@@ -53,5 +55,28 @@ describe('widenTestNamePattern', () => {
     const widened = widenTestNamePattern(stryker);
     expect(widened.test('suite does a thing')).toBe(true);
     expect(widened.test('suite > unrelated')).toBe(false);
+  });
+});
+
+describe('assertTestsSawMutants partly blind targets', () => {
+  const healthy = Array.from({ length: 10 }, () => ({ status: 'Survived', testsCompleted: 2 }));
+
+  it('fails on one survivor that ran zero tests among healthy ones, naming file:line', () => {
+    const blind = { status: 'Survived', testsCompleted: 0, location: { start: { line: 42 } } };
+    expect(() => assertTestsSawMutants('placement', report([...healthy, blind]))).toThrow(
+      /1 survived mutants ran zero tests \(e\.g\. a\.ts:42\)/
+    );
+  });
+
+  it('fails on a survivor with undefined testsCompleted', () => {
+    expect(() =>
+      assertTestsSawMutants('placement', report([...healthy, { status: 'Survived' }]))
+    ).toThrow(/ran zero tests/);
+  });
+
+  it('passes the healthy shape and exempts Timeout', () => {
+    expect(() =>
+      assertTestsSawMutants('placement', report([...healthy, { status: 'Timeout' }]))
+    ).not.toThrow();
   });
 });

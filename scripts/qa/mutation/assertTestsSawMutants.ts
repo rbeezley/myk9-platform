@@ -10,6 +10,7 @@
 export interface MutationReportMutant {
   status: string;
   testsCompleted?: number;
+  location?: { start?: { line?: number } };
 }
 
 export interface MutationReport {
@@ -30,6 +31,22 @@ export function assertTestsSawMutants(target: string, report: MutationReport): v
     throw new Error(
       `Mutation target "${target}" produced only ${covered.length} covered mutants ` +
         `(need ${MIN_COVERED_MUTANTS}); its mutate globs or tests are not wired to each other.`
+    );
+  }
+
+  // Partly blind: a name filter that misses only some tests leaves survivors
+  // that ran nothing. A survivor always ran at least one test when the harness
+  // works. Timeouts are exempt (Stryker omits testsCompleted on them).
+  const blind = Object.entries(report.files).flatMap(([file, { mutants }]) =>
+    mutants
+      .filter(mutant => mutant.status === 'Survived' && !mutant.testsCompleted)
+      .map(mutant => `${file}:${mutant.location?.start?.line ?? '?'}`)
+  );
+  if (blind.length > 0) {
+    throw new Error(
+      `Mutation target "${target}": ${blind.length} survived mutants ran zero tests ` +
+        `(e.g. ${blind[0]}). The harness is not feeding them to the tests ` +
+        '(check vitest.mutation.config.ts root, include and test-name filter).'
     );
   }
 

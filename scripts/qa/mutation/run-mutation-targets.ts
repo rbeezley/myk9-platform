@@ -35,7 +35,7 @@ const results = runAllTargets(MUTATION_TARGETS, {
       assertTestsSawMutants(target, report as MutationReport);
     } catch (error) {
       console.error(`\nSELF-CHECK FAILED: ${(error as Error).message}`);
-      return null;
+      return { score: null, reason: `self-check failed: ${(error as Error).message}` };
     }
     return scoreFromReport(report);
   },

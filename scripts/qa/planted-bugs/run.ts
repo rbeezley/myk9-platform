@@ -6,7 +6,7 @@
  *   pnpm qa:planted-bugs -- --only run-order   (substring match on mutant id)
  */
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -97,12 +97,19 @@ function killGroup(proc: ChildProcess): void {
   }
 }
 
-/** Async (not spawnSync) so a SIGINT/SIGTERM handler can run while a check is in flight. */
+/**
+ * Async (not spawnSync) so a SIGINT/SIGTERM handler can run while a check is in flight.
+ * The verdict comes from vitest's JSON report, never the exit code.
+ */
 function runCheck(command: string, logName: string): Promise<CheckResult> {
   return new Promise(done => {
+    mkdirSync(LOG_DIR, { recursive: true });
+    const reportPath = resolve(LOG_DIR, `${logName}.json`);
+    rmSync(reportPath, { force: true });
+    const full = `${command} --reporter=default --reporter=json --outputFile="${reportPath}"`;
     let output = '';
     let timedOut = false;
-    const proc = spawn('sh', ['-c', command], { cwd: ROOT, detached: true });
+    const proc = spawn('sh', ['-c', full], { cwd: ROOT, detached: true });
     child = proc;
     const timer = setTimeout(() => {
       timedOut = true;
@@ -110,17 +117,17 @@ function runCheck(command: string, logName: string): Promise<CheckResult> {
     }, CHECK_TIMEOUT_MS);
     proc.stdout.on('data', d => (output += d));
     proc.stderr.on('data', d => (output += d));
-    proc.on('close', (exitCode, signal) => {
+    const finish = (signal: string | null) => {
       clearTimeout(timer);
       child = undefined;
-      mkdirSync(LOG_DIR, { recursive: true });
-      writeFileSync(resolve(LOG_DIR, `${logName}.log`), `$ ${command}\n${output}`);
-      done({ command, exitCode, signal, timedOut, output });
-    });
+      writeFileSync(resolve(LOG_DIR, `${logName}.log`), `$ ${full}\n${output}`);
+      const report = existsSync(reportPath) ? readFileSync(reportPath, 'utf8') : null;
+      done({ command, signal, timedOut, report });
+    };
+    proc.on('close', (_code, signal) => finish(signal));
     proc.on('error', err => {
-      clearTimeout(timer);
-      child = undefined;
-      done({ command, exitCode: 127, output: String(err) });
+      output += String(err);
+      finish(null);
     });
   });
 }
@@ -154,7 +161,7 @@ async function main(): Promise<void> {
   const red = baselineRed(baseline);
   if (red.length > 0) {
     console.error(
-      `ABORT: checks are red on the clean tree, so every mutant would read as caught:\n${red.map(r => `  ${r.command}`).join('\n')}`
+      `ABORT: checks do not all pass with at least one test on the clean tree (logs in .logs/planted-bugs/):\n${red.map(r => `  ${r.command}`).join('\n')}`
     );
     process.exit(2);
   }
@@ -190,9 +197,11 @@ async function main(): Promise<void> {
   }
   console.log(renderTable(rows));
   assertClean('end of run');
+  const count = (v: string) => rows.filter(r => r.verdict === v).length;
   console.log(
-    `\n${rows.filter(r => r.verdict === 'error').length} errored (a crashed check is not a catch; see .logs/planted-bugs/), ${rows.filter(r => r.verdict === 'missed').length} missed of ${rows.filter(r => r.verdict !== 'ci-run').length} local mutants.`
+    `\n${count('caught')} caught, ${count('missed')} missed, ${count('error')} error of ${rows.filter(r => r.verdict !== 'ci-run').length} local mutants (logs in .logs/planted-bugs/).`
   );
+
 }
 
 void main();

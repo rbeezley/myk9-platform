@@ -44,77 +44,78 @@ describe('validateManifest', () => {
   });
 });
 
-describe('classify', () => {
-  it('is caught when any check exits non-zero, missed when all pass', () => {
-    expect(
-      classify([
-        { command: 'a', exitCode: 0 },
-        { command: 'b', exitCode: 1 },
-      ])
-    ).toBe('caught');
-    expect(classify([{ command: 'a', exitCode: 0 }])).toBe('missed');
+
+const report = (failed: number, total: number) =>
+  JSON.stringify({ numFailedTests: failed, numTotalTests: total });
+const res = (r: string | null, extra = {}) => ({ command: 'a', report: r, ...extra });
+
+describe('classifyCheck (JSON report only)', () => {
+  it('a failed test is caught', () => {
+    expect(classifyCheck(res(report(1, 5)))).toBe('caught');
+  });
+  it('all tests passing is pass', () => {
+    expect(classifyCheck(res(report(0, 5)))).toBe('pass');
+  });
+  it('zero tests is an error', () => {
+    expect(classifyCheck(res(report(0, 0)))).toBe('error');
+  });
+  it('a missing report (worker exited unexpectedly, crash) is an error', () => {
+    expect(classifyCheck(res(null))).toBe('error');
+  });
+  it('an unparsable or malformed report is an error', () => {
+    expect(classifyCheck(res('{not json'))).toBe('error');
+    expect(classifyCheck(res('{}'))).toBe('error');
+    expect(classifyCheck(res('null'))).toBe('error');
+  });
+  it('a timeout or signal is an error even with a failing report', () => {
+    expect(classifyCheck(res(report(1, 5), { timedOut: true }))).toBe('error');
+    expect(classifyCheck(res(report(1, 5), { signal: 'SIGKILL' }))).toBe('error');
   });
 });
 
-describe('baselineRed', () => {
-  it('returns the checks that are already red on the clean tree', () => {
-    expect(
-      baselineRed([
-        { command: 'a', exitCode: 0 },
-        { command: 'b', exitCode: 2 },
-      ])
-    ).toEqual([{ command: 'b', exitCode: 2 }]);
-    expect(baselineRed([{ command: 'a', exitCode: 0 }])).toEqual([]);
+describe('classify / baselineRed', () => {
+  it('caught beats error; error beats missed', () => {
+    expect(classify([res(null), res(report(1, 2))])).toBe('caught');
+    expect(classify([res(report(0, 2)), res(null)])).toBe('error');
+    expect(classify([res(report(0, 2))])).toBe('missed');
+  });
+  it('baseline flags anything that is not a passing report with tests', () => {
+    const bad = [res(null), res(report(0, 0)), res(report(2, 3))];
+    expect(baselineRed([res(report(0, 3)), ...bad])).toEqual(bad);
+  });
+});
+
+describe('isVitestCheck / manifest', () => {
+  it('accepts vitest runs and rejects anything else for a local mutant', () => {
+    expect(isVitestCheck('pnpm vitest run a.test.ts')).toBe(true);
+    expect(isVitestCheck('cd packages/ringside && pnpm vitest run src/a.test.ts')).toBe(true);
+    expect(isVitestCheck('pnpm test')).toBe(false);
+    expect(isVitestCheck('pnpm vitest run a.test.ts && echo ok')).toBe(false);
+    const errors = validateManifest([{ ...good, checks: ['pnpm test'] }], () => true);
+    expect(errors).toEqual([expect.stringContaining('local check must be a vitest run')]);
   });
 });
 
 describe('uniqueChecks / renderTable', () => {
-  it('dedupes local checks only and renders ci mutants as not run', () => {
+  it('dedupes local checks only and renders CAUGHT, MISSED, ERROR and CI rows distinctly', () => {
     const ci: Mutant = { ...good, id: 'sql', kind: 'ci', note: 'CI only', checks: ['psql x'] };
     expect(uniqueChecks([good, { ...good, id: 'b' }, ci])).toEqual(['pnpm vitest run a.test.ts']);
-    const table = renderTable([
-      { mutant: good, verdict: 'missed', caughtBy: [] },
+    const row = (id: string, verdict: Row['verdict']): Row => ({
+      mutant: { ...good, id },
+      verdict,
+      caughtBy: [],
+    });
+    const lines = renderTable([
+      row('c', 'caught'),
+      row('m', 'missed'),
+      row('e', 'error'),
       { mutant: ci, verdict: 'ci-run', caughtBy: [] },
-    ]);
-    expect(table).toContain('MISSED');
-    expect(table).toContain('CI-run (not run locally)');
-  });
-});
-
-describe('classifyCheck', () => {
-  it('exit 1 with assertion output is caught', () => {
-    expect(
-      classifyCheck({ command: 'a', exitCode: 1, output: 'AssertionError: expected 1 to be 2' })
-    ).toBe('caught');
-  });
-  it('127 and 126 are errors', () => {
-    expect(classifyCheck({ command: 'a', exitCode: 127 })).toBe('error');
-    expect(classifyCheck({ command: 'a', exitCode: 126 })).toBe('error');
-  });
-  it('a timeout or signal kill is an error', () => {
-    expect(classifyCheck({ command: 'a', exitCode: null, signal: 'SIGTERM', timedOut: true })).toBe(
-      'error'
-    );
-    expect(classifyCheck({ command: 'a', exitCode: 1, timedOut: true })).toBe('error');
-  });
-  it('output showing the run never reached assertions is an error', () => {
-    for (const output of [
-      'No test files found, exiting with code 1',
-      'Transform failed with 1 error',
-      'SyntaxError: Unexpected token',
-    ]) {
-      expect(classifyCheck({ command: 'a', exitCode: 1, output })).toBe('error');
-    }
-  });
-  it('a clean exit is a pass', () => {
-    expect(classifyCheck({ command: 'a', exitCode: 0 })).toBe('pass');
-  });
-  it('classify: error only when no check caught it; baselineRed includes crashes', () => {
-    const caught = { command: 'a', exitCode: 1, output: 'AssertionError' };
-    const crash = { command: 'b', exitCode: 127 };
-    expect(classify([crash])).toBe('error');
-    expect(classify([crash, caught])).toBe('caught');
-    expect(classify([{ command: 'c', exitCode: 0 }, crash])).toBe('error');
-    expect(baselineRed([crash])).toEqual([crash]);
+    ]).split('\n');
+    expect(lines.find(l => l.includes('| c:'))).toContain('CAUGHT');
+    expect(lines.find(l => l.includes('| m:'))).toContain('MISSED');
+    const errorRow = lines.find(l => l.includes('| e:'))!;
+    expect(errorRow).toContain('ERROR');
+    expect(errorRow).not.toContain('MISSED');
+    expect(lines.find(l => l.includes('| sql:'))).toContain('CI-run (not run locally)');
   });
 });

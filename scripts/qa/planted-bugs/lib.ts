@@ -13,39 +13,38 @@ export interface Mutant {
 
 export interface CheckResult {
   command: string;
-  /** null when the process was killed by a signal or never started. */
-  exitCode: number | null;
   signal?: string | null | undefined;
   timedOut?: boolean | undefined;
-  /** Combined stdout+stderr, used to tell an assertion failure from a crash. */
-  output?: string | undefined;
+  /** Text of vitest's JSON report, or null when no file was written. */
+  report: string | null;
 }
 
 export type CheckOutcome = 'pass' | 'caught' | 'error';
 export type Verdict = 'caught' | 'missed' | 'error';
 
-/** Output that shows the runner never reached an assertion. */
-const NEVER_ASSERTED = [
-  /No test files found/i,
-  /Transform failed/,
-  /SyntaxError/,
-  /Failed to load (?:url|config)/i,
-  /Error loading config/i,
-  /Startup Error/i,
-  /Cannot find (?:module|package)/i,
-];
-
 /**
- * A non-zero exit is a catch only when a test assertion failed. A timeout, a
- * missing command (127/126), a signal kill, or a run that never got to its
- * assertions (collection/config/compile error) is an error, not a catch.
+ * Per-check verdict from vitest's JSON report ONLY; the exit code and the log
+ * text are never consulted. A failed test is the only evidence of a catch, and a
+ * run that did not produce a report with at least one test is an error.
  */
 export function classifyCheck(r: CheckResult): CheckOutcome {
-  if (r.exitCode === 0) return 'pass';
-  if (r.timedOut || r.signal || r.exitCode === null) return 'error';
-  if (r.exitCode === 126 || r.exitCode === 127) return 'error';
-  if (r.output && NEVER_ASSERTED.some(re => re.test(r.output!))) return 'error';
-  return 'caught';
+  if (r.timedOut || r.signal || r.report === null) return 'error';
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(r.report);
+  } catch {
+    return 'error';
+  }
+  const { numFailedTests, numTotalTests } = (parsed ?? {}) as Record<string, unknown>;
+  if (typeof numFailedTests !== 'number' || typeof numTotalTests !== 'number') return 'error';
+  if (numFailedTests >= 1) return 'caught';
+  return numTotalTests >= 1 ? 'pass' : 'error';
+}
+
+/** A local check must be a vitest run, so the runner can read its JSON report. */
+const VITEST_CHECK = /^(?:cd [\w./-]+ && )?pnpm vitest run(?: [^;&|<>$`]*)?$/;
+export function isVitestCheck(command: string): boolean {
+  return VITEST_CHECK.test(command);
 }
 
 export function validateManifest(
@@ -65,6 +64,11 @@ export function validateManifest(
     if (!Array.isArray(m?.checks) || m.checks.length === 0 || m.checks.some(c => !c)) {
       errors.push(`${label}: checks must be a non-empty list of commands`);
     }
+    if (m?.kind === 'local' && Array.isArray(m.checks)) {
+      for (const c of m.checks) {
+        if (!isVitestCheck(c)) errors.push(`${label}: local check must be a vitest run: ${c}`);
+      }
+    }
     if (m?.kind === 'ci' && !m.note) errors.push(`${label}: a ci mutant needs a note`);
     if (m?.id) {
       if (ids.has(m.id)) errors.push(`${label}: duplicate id`);
@@ -77,14 +81,14 @@ export function validateManifest(
   return errors;
 }
 
-/** Caught if any check caught it; error if the only failures were errors; else missed. */
+/** Caught if any check caught; else error if any errored; else missed. */
 export function classify(results: CheckResult[]): Verdict {
   const outcomes = results.map(classifyCheck);
   if (outcomes.includes('caught')) return 'caught';
   return outcomes.includes('error') ? 'error' : 'missed';
 }
 
-/** Checks already red on the clean tree would make every mutant look caught. */
+/** Checks that are not green on the clean tree (failed, or no usable report). */
 export function baselineRed(results: CheckResult[]): CheckResult[] {
   return results.filter(r => classifyCheck(r) !== 'pass');
 }
@@ -106,8 +110,10 @@ export function renderTable(rows: Row[]): string {
       verdict === 'ci-run'
         ? 'CI-run (not run locally)'
         : verdict === 'caught'
-          ? 'caught'
-          : 'MISSED';
+          ? 'CAUGHT'
+          : verdict === 'error'
+            ? 'ERROR (no usable test report; not a catch)'
+            : 'MISSED';
     const by = verdict === 'ci-run' ? mutant.checks.join('; ') : caughtBy.join('; ') || 'none';
     lines.push(`| ${mutant.id}: ${mutant.rationale} | ${mutant.area} | ${result} | ${by} |`);
   }

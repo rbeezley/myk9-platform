@@ -77,7 +77,7 @@ the ledger core for desk money, the MYK9-1634 trigger for the total.
    **This changes an acceptance criterion** ("the refund cap counts card money held, net
    of Stripe refunds"): counting card money in the desk cap lets a secretary hand card
    money back in cash, then Stripe refunds it again. Card money is refunded through
-   `stripe-refund-entry` / `stripe-refund-show` only. Needs the owner's OK before Phase 1.
+   `stripe-refund-entry` / `stripe-refund-show` only. Owner approved, 2026-11-01.
 6. **"Paid in full"** charges total − net received, so it charges only what no card and no
    desk money covers.
 7. **Backfill**: every form's `total_amount` and `card_covered_cents` recomputed; no

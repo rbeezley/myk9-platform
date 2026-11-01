@@ -1,6 +1,7 @@
 import { test, expect, Page, type TestInfo } from '@playwright/test';
 import { signInAsSecretary } from '../helpers/testUsers';
 import { LIVE_SECRETARY_SHOW_ID } from '../uat/shared/seededShows';
+import { openActionsMenu } from '../helpers/actionsMenu';
 
 /**
  * UI tests for the Entry Management page (secretary role).
@@ -71,23 +72,28 @@ test.describe('Browse entries', () => {
     await signInAsSecretary(page);
     await gotoEntries(page);
 
-    await page.getByRole('textbox', { name: 'Search entries' }).fill('Willow');
+    await page.getByRole('textbox', { name: /^Search exhibitor/ }).fill('Willow');
 
     // Willow is a dog seeded into the maintained secretary show (Heartland).
     await expect(page.getByText('Willow').first()).toBeVisible();
 
-    await page.getByRole('textbox', { name: 'Search entries' }).fill('');
+    await page.getByRole('textbox', { name: /^Search exhibitor/ }).fill('');
   });
 
-  test('tab navigation: Entries / Waitlist outer tabs', async ({ page }) => {
+  test('Entry lists: the header Actions menu opens the waitlist view and Back returns to Entry Forms', async ({
+    page,
+  }) => {
     await signInAsSecretary(page);
     await gotoEntries(page);
 
-    await page.getByRole('tab', { name: 'Waitlist', exact: true }).click();
+    await openActionsMenu(page);
+    await page.getByTestId('header-action-show-tool-entry-list-waitlist').click();
     await expect(page.getByText(/Wait list settings:/)).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Waitlist', exact: true })).toBeVisible();
 
-    await page.getByRole('tab', { name: 'Entry Forms', exact: true }).click();
+    await page.getByRole('link', { name: 'Back to entry forms' }).click();
     await expect(page.getByRole('heading', { name: 'Entry Forms' })).toBeVisible();
+    await expect(page.getByRole('textbox', { name: /^Search exhibitor/ })).toBeVisible();
   });
 
   test('entry row Actions menu teardown does not block the Add entries decision point', async ({

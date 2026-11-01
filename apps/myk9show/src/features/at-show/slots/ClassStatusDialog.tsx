@@ -139,15 +139,7 @@ const ClassStatusForm: React.FC<ClassStatusDialogProps> = ({
             >
               <span className="flex w-full items-center justify-between gap-2 font-medium">
                 <span>{option.label}</span>
-                {isCurrent && (
-                  // Foreground text, not the accent: accent text on the muted button fell
-                  // below 4.5:1 in four theme combinations (MYK9-1556). The accent stays on
-                  // the icon (non-text, 3:1) and the border.
-                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-foreground">
-                    <Check className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
-                    Current
-                  </span>
-                )}
+                {isCurrent && <span className="text-xs font-normal text-primary">Current</span>}
               </span>
               <span className="text-xs font-normal text-muted-foreground">
                 {option.description}

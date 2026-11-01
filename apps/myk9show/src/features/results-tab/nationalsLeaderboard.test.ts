@@ -5,6 +5,7 @@ import type { SecretaryEntry } from '@/services/database/entries';
 import type { SyncableTrial, SyncableTrialClass } from '@/store/trial-store-types';
 import { buildResultsClassRows } from './buildResultsClassRows';
 import {
+  totalTimeLabel,
   buildNationalsLeaderboard,
   compareLeaderboard,
   competitionDay,
@@ -379,5 +380,27 @@ describe('buildNationalsLeaderboard', () => {
   it('lists a withdrawn dog with no released score nowhere, and an empty show as empty', () => {
     expect(build([entry({ entry_status: 'withdrawn', is_scored: false })])).toEqual([]);
     expect(build([])).toEqual([]);
+  });
+});
+
+describe('totalTimeLabel (MYK9-1573)', () => {
+  it('shows the total alone when every run is timed', () => {
+    expect(totalTimeLabel({ totalTimeSeconds: 90, untimedRuns: 0 })).toEqual({
+      timeSeconds: 90,
+      untimedNote: null,
+    });
+  });
+
+  it('notes one or several runs with no time beside a partial total', () => {
+    expect(totalTimeLabel({ totalTimeSeconds: 90, untimedRuns: 1 }).untimedNote).toBe(
+      '1 run has no time'
+    );
+    expect(totalTimeLabel({ totalTimeSeconds: 90, untimedRuns: 2 }).untimedNote).toBe(
+      '2 runs have no time'
+    );
+  });
+
+  it('has no total when no run has a time', () => {
+    expect(totalTimeLabel({ totalTimeSeconds: 0, untimedRuns: 3 }).timeSeconds).toBeNull();
   });
 });

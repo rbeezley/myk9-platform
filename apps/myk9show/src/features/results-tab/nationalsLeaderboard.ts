@@ -94,6 +94,23 @@ function isUntimedRun(seconds: number | null | undefined): boolean {
   return seconds == null || !Number.isFinite(seconds) || seconds <= 0;
 }
 
+/**
+ * What the Total Time cell says (MYK9-1573). A dog with untimed runs ranks behind equal-points
+ * dogs with every time, so its partial total carries a visible note of the runs it leaves out;
+ * a dog with no recorded time at all has no total (null). All text, nothing hover-only.
+ */
+export function totalTimeLabel(
+  row: Pick<NationalsLeaderboardRow, 'totalTimeSeconds' | 'untimedRuns'>
+): {
+  timeSeconds: number | null;
+  untimedNote: string | null;
+} {
+  if (row.untimedRuns === 0) return { timeSeconds: row.totalTimeSeconds, untimedNote: null };
+  const untimedNote =
+    row.untimedRuns === 1 ? '1 run has no time' : `${row.untimedRuns} runs have no time`;
+  return { timeSeconds: row.totalTimeSeconds > 0 ? row.totalTimeSeconds : null, untimedNote };
+}
+
 /** Result statuses that eliminate a dog from the nationals. */
 const ELIMINATING_RESULTS: ReadonlySet<string> = new Set(['excused', 'disqualified']);
 

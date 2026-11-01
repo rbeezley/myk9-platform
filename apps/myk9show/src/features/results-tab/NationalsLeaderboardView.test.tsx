@@ -52,15 +52,17 @@ describe('NationalsLeaderboardView total time (MYK9-1573)', () => {
       entry({ armband: '102', class_id: 'c2', points_earned: 10, search_time_seconds: 0 }),
     ]);
 
-    expect(within(rowFor('Dog 102')).getByText('+ 1 run without a time')).toBeInTheDocument();
-    expect(within(rowFor('Dog 101')).queryByText(/without a time/)).not.toBeInTheDocument();
+    expect(within(rowFor('Dog 102')).getByText('1 run has no time')).toBeInTheDocument();
+    expect(
+      within(rowFor('Dog 101')).queryByText(/has no time|have no time/)
+    ).not.toBeInTheDocument();
   });
 
-  it('shows a dash, not 0:00.00, for a dog with no recorded time at all', () => {
+  it('says No time recorded, not 0:00.00, for a dog with no recorded time at all', () => {
     renderBoard([entry({ armband: '103', points_earned: 5, search_time_seconds: null })]);
 
     const row = rowFor('Dog 103');
     expect(within(row).queryByText('0:00.00')).not.toBeInTheDocument();
-    expect(within(row).getByTitle('1 run without a time')).toBeInTheDocument();
+    expect(within(row).getByText('No time recorded')).toBeVisible();
   });
 });

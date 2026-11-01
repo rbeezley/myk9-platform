@@ -17,6 +17,7 @@ import type { ResultsClassRow } from './buildResultsClassRows';
 import {
   buildNationalsLeaderboard,
   NATIONALS_DAYS,
+  totalTimeLabel,
   type NationalsLeaderboardRow,
 } from './nationalsLeaderboard';
 import { ResultsRefreshFailedAlert } from './ResultsRefreshFailedAlert';
@@ -24,18 +25,15 @@ import { getNationalsLeaderboardHref, getResultsListHref } from './resultsTabRou
 
 const DASH = '–';
 
-/**
- * Total of the recorded times only (MYK9-1573). A dog with untimed runs ranks behind
- * equal-points dogs with every time, so its partial total says how many runs it leaves out.
- */
+/** Total of the recorded times, with visible text for any run that has none (MYK9-1573). */
 function LeaderboardTotalTime({ row }: { row: NationalsLeaderboardRow }) {
-  if (row.untimedRuns === 0) return <>{formatSecondsAsMSSCC(row.totalTimeSeconds)}</>;
-  const note = `${row.untimedRuns} ${row.untimedRuns === 1 ? 'run' : 'runs'} without a time`;
-  if (row.totalTimeSeconds === 0) return <span title={note}>{DASH}</span>;
+  const { timeSeconds, untimedNote } = totalTimeLabel(row);
   return (
     <>
-      {formatSecondsAsMSSCC(row.totalTimeSeconds)}
-      <span className="block text-xs text-muted-foreground">+ {note}</span>
+      {timeSeconds === null ? 'No time recorded' : formatSecondsAsMSSCC(timeSeconds)}
+      {untimedNote && timeSeconds !== null && (
+        <span className="block text-xs text-muted-foreground">{untimedNote}</span>
+      )}
     </>
   );
 }

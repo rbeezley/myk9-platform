@@ -97,7 +97,7 @@ export function ClassWaitlistFields({ showId }: { showId?: string | undefined })
             <p className="text-sm" id="allowsWaitlist-source">
               {followsShow
                 ? showAllowsWaitlist === undefined
-                  ? "Follows the show's Allow wait lists setting (Entry Forms, Actions, then Waitlist)."
+                  ? "Follows the show's Allow wait lists setting. Change it from Entry Forms: open Actions, then Waitlist."
                   : `Follows show: ${onOff(showAllowsWaitlist)}. Change it for every class from Entry Forms: open Actions, then Waitlist.`
                 : `Set for this class only. ${showState ?? ''}`.trim()}
             </p>

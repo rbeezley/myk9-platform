@@ -25,6 +25,7 @@ import { logger } from '@/services/LoggingService';
 import { transitionToCompleted, transitionToInRing } from '@/utils/checkInTransitions';
 import { getScoresheetComponent } from '@myk9/scoring-ui';
 import { classScoringRules } from './classScoringRules';
+import { MissingTrialTypeNotice } from './MissingTrialTypeNotice';
 import type { ResolvedClassRules, ScoreData } from '@myk9/scoring-ui';
 
 // Ensure all live scoresheets are registered (import triggers self-registration)
@@ -35,6 +36,7 @@ import {
   toScoringEntry,
   toClassInfo,
   resolveSportTypeForClass,
+  MISSING_TRIAL_TYPE_SPORT_TYPE,
   mapSportType,
   detectScoresheetType,
   toRegistryKey,
@@ -70,6 +72,7 @@ export function ScoresheetPage() {
   const [classInfo, setClassInfo] = useState<ClassInfo | null>(null);
   const [rules, setRules] = useState<ResolvedClassRules | null>(null);
   const [trialSportType, setTrialSportType] = useState<string | undefined>(undefined);
+  const [trialId, setTrialId] = useState<string | undefined>(undefined);
   const [trialDate, setTrialDate] = useState<string | undefined>(undefined);
   const [trialNumber, setTrialNumber] = useState<string | undefined>(undefined);
   const [trialName, setTrialName] = useState<string | undefined>(undefined);
@@ -111,6 +114,7 @@ export function ScoresheetPage() {
           setTrialSportType(derived);
         }
         if (trial) {
+          setTrialId(trial.id);
           setTrialDate(trial.date || trial.trial_date);
           setTrialNumber(trial.trialNumber);
           setTrialName(trial.name);
@@ -254,9 +258,13 @@ export function ScoresheetPage() {
         <div className="rounded-xl border bg-card p-6 text-center">
           <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
           <p className="text-lg font-medium mb-2">Scoresheet Not Available</p>
-          <p className="text-muted-foreground">
-            The scoresheet for {organization} {sportType} is not yet implemented.
-          </p>
+          {trialSportType === MISSING_TRIAL_TYPE_SPORT_TYPE ? (
+            <MissingTrialTypeNotice trialId={trialId} showId={breadcrumb.showId} />
+          ) : (
+            <p className="text-muted-foreground">
+              The scoresheet for {organization} {sportType} is not yet implemented.
+            </p>
+          )}
         </div>
       </div>
     );

@@ -436,6 +436,13 @@ export function deriveSportType(
  */
 export const UNRESOLVED_SPORT_TYPE = 'unresolved';
 
+/**
+ * Sport code for a UKC/ASCA trial that has no trial type at all. Reads as unknown in
+ * `mapSportType` like {@link UNRESOLVED_SPORT_TYPE}, but lets the page say WHY and
+ * where to fix it instead of showing a bare "not available".
+ */
+export const MISSING_TRIAL_TYPE_SPORT_TYPE = 'unresolved-missing-trial-type';
+
 /** Registries whose sheets must never be guessed from a class name. */
 const STRICT_REGISTRIES = new Set(['ASCA', 'UKC']);
 
@@ -450,7 +457,8 @@ export async function resolveSportTypeForClass(
   if (!show?.organization) return null;
   const derived = deriveSportType(show.organization, trial.trialType);
   if (derived) return derived;
-  return STRICT_REGISTRIES.has(show.organization.toUpperCase()) ? UNRESOLVED_SPORT_TYPE : null;
+  if (!STRICT_REGISTRIES.has(show.organization.toUpperCase())) return null;
+  return trial.trialType?.trim() ? UNRESOLVED_SPORT_TYPE : MISSING_TRIAL_TYPE_SPORT_TYPE;
 }
 
 /**

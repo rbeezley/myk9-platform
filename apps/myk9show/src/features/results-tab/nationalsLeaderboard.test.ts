@@ -73,9 +73,9 @@ describe('leaderboardStatus', () => {
 describe('sort', () => {
   it('orders points descending, then time ascending', () => {
     const rows = [
-      { armband: '1', totalPoints: 10, totalTimeSeconds: 50 },
-      { armband: '2', totalPoints: 20, totalTimeSeconds: 90 },
-      { armband: '3', totalPoints: 20, totalTimeSeconds: 80 },
+      { armband: '1', totalPoints: 10, totalTimeSeconds: 50, untimedRuns: 0 },
+      { armband: '2', totalPoints: 20, totalTimeSeconds: 90, untimedRuns: 0 },
+      { armband: '3', totalPoints: 20, totalTimeSeconds: 80, untimedRuns: 0 },
     ].sort(compareLeaderboard);
     expect(rows.map(row => row.armband)).toEqual(['3', '2', '1']);
   });
@@ -275,6 +275,41 @@ describe('one eligibility rule, shared with the Results class list (MYK9-1516)',
         .map(item => item.id)
         .sort()
     ).toEqual(classList);
+  });
+});
+
+describe('an untimed run never ranks fastest (MYK9-1573)', () => {
+  it.each([
+    ['null', null],
+    ['a stored 0', 0],
+  ])('ranks a dog with %s time behind an equal-points dog with a recorded time', (_label, time) => {
+    const board = build([
+      entry({ armband: '1', points_earned: 20, search_time_seconds: time }),
+      entry({ armband: '2', points_earned: 20, search_time_seconds: 95 }),
+    ]);
+    expect(board.map(row => [row.rank, row.armband])).toEqual([
+      [1, '2'],
+      [2, '1'],
+    ]);
+  });
+
+  it('keeps a dog with one untimed run behind a fully timed dog even if its timed total is lower', () => {
+    const board = build([
+      entry({ armband: '1', class_id: 'c1', points_earned: 10, search_time_seconds: 30 }),
+      entry({ armband: '1', class_id: 'c2', points_earned: 10, search_time_seconds: 0 }),
+      entry({ armband: '2', class_id: 'c1', points_earned: 10, search_time_seconds: 60 }),
+      entry({ armband: '2', class_id: 'c2', points_earned: 10, search_time_seconds: 70 }),
+    ]);
+    expect(board.map(row => row.armband)).toEqual(['2', '1']);
+  });
+
+  it('stays a total order for equal rows', () => {
+    const a = { armband: '1', totalPoints: 5, totalTimeSeconds: 0, untimedRuns: 1 };
+    const b = { armband: '2', totalPoints: 5, totalTimeSeconds: 0, untimedRuns: 1 };
+    expect(compareLeaderboard(a, b)).toBeLessThan(0);
+    expect(compareLeaderboard(b, a)).toBeGreaterThan(0);
+    expect(compareLeaderboard(a, { ...a })).toBe(0);
+    expect(Number.isNaN(compareLeaderboard(a, b))).toBe(false);
   });
 });
 

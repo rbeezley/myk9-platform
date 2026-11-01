@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { ReplicatedTable } from './core/ReplicatedTable';
-import { shouldKeepNewerRow } from './core/ReplicatedTableBatch';
+import { shouldKeepNewerRow } from './core/downloadRowGuards';
 import { MutationManager } from './MutationManager';
 import { syncReplicatedTable, type SyncReplicatedTableAdapter } from './syncReplicatedTable';
 import type { SyncResult } from './types';
@@ -9,7 +9,8 @@ import type { SyncResult } from './types';
  * MYK9-1632: cached rows that carry a HIGHER serverVersion than the server (a
  * reseed, a restore) and are ownerless or another account's must be healed by
  * ONE sync, or the scope can never be stamped owned. Rows the syncing account
- * owns keep the MYK9-1050 protection.
+ * owns heal too when nothing moved them during the fetch (MYK9-1633); the
+ * MYK9-1050 race is covered in syncReplicatedTable.versionRegression.test.ts.
  */
 
 interface LocalRow {
@@ -111,13 +112,13 @@ describe('foreign rows with a higher serverVersion heal in one sync (MYK9-1632)'
     expect((await table.getSyncMetadata('show-1'))?.syncedByAuthUserId).toBe('user-a');
   });
 
-  it('still skips an older download for a row the syncing account owns (MYK9-1050)', async () => {
+  it('heals rows the syncing account owns that nothing moved during the fetch (MYK9-1633)', async () => {
     await seed('user-a', 31);
 
     await fullSync();
 
-    expect((await table.getReplicatedRow('e1'))?.serverVersion).toBe(31);
-    expect((await table.getReplicatedRow('e1'))?.data.name).toBe('stale-1');
+    expect((await table.getReplicatedRow('e1'))?.serverVersion).toBe(2);
+    expect((await table.getReplicatedRow('e1'))?.data.name).toBe('server-1');
   });
 
   it("still skips an older download for another account's row (MYK9-1148)", async () => {
@@ -190,5 +191,14 @@ describe('shouldKeepNewerRow (MYK9-1632)', () => {
     expect(shouldKeepNewerRow(row({ ownerAuthUserId: 'user-b' }), 2, 'user-a')).toBe(true);
     expect(shouldKeepNewerRow(row({}), 2, undefined)).toBe(true);
     expect(shouldKeepNewerRow(row({}), 40, 'user-a')).toBe(false);
+  });
+
+  it('heals an owned row whose version did not move since the fetch began (MYK9-1633)', () => {
+    const own = row({ ownerAuthUserId: 'user-a', lastOwnUpload: { from: 30, to: 31 } });
+    expect(shouldKeepNewerRow(own, 2, 'user-a', 31)).toBe(false);
+    expect(shouldKeepNewerRow(own, 2, 'user-a', 30)).toBe(true);
+    expect(shouldKeepNewerRow(own, 2, 'user-a', undefined)).toBe(true);
+    expect(shouldKeepNewerRow(row({ ownerAuthUserId: 'user-b' }), 2, 'user-a', 31)).toBe(true);
+    expect(shouldKeepNewerRow(row({}), 2, undefined, 31)).toBe(false);
   });
 });

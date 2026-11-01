@@ -18,7 +18,7 @@ import type { IDBPDatabase } from 'idb';
 import type { ReplicatedRow } from '../types';
 import type { Logger } from '../dependencies';
 import { REPLICATION_STORES } from './DatabaseManager';
-import { isOlderThanRow } from './ReplicatedTableRowState';
+import { downloadLeavesRowAsIs, shouldKeepNewerRow } from './downloadRowGuards';
 import { MAX_CHUNK_SIZE } from '../constants';
 import { withQuotaEviction } from '../quota-eviction';
 import { deleteRowsIfClean, type DeleteRowsIfCleanResult } from './deleteRowsIfClean';
@@ -28,71 +28,6 @@ import {
   type RepairStuckPendingFlagsResult,
   type StuckRepairAdapter,
 } from './repairStuckPendingFlags';
-
-/** Structural equality over the JSON-shaped data a replicated row carries. */
-function sameRowData(left: unknown, right: unknown): boolean {
-  if (Object.is(left, right)) return true;
-  if (typeof left !== 'object' || typeof right !== 'object' || left === null || right === null) {
-    return false;
-  }
-  if (Array.isArray(left) !== Array.isArray(right)) return false;
-  if (Array.isArray(left) && Array.isArray(right)) {
-    return left.length === right.length && left.every((item, i) => sameRowData(item, right[i]));
-  }
-  const leftRecord = left as Record<string, unknown>;
-  const rightRecord = right as Record<string, unknown>;
-  const leftKeys = Object.keys(leftRecord).filter(key => leftRecord[key] !== undefined);
-  const rightKeys = Object.keys(rightRecord).filter(key => rightRecord[key] !== undefined);
-  if (leftKeys.length !== rightKeys.length) return false;
-  return leftKeys.every(
-    key => key in rightRecord && sameRowData(leftRecord[key], rightRecord[key])
-  );
-}
-
-/**
- * True when storing this download would leave the row as the device already
- * holds it: same data, same server version, same owner, and the row is a clean
- * synced copy (a conflict or pending-delete row is always rewritten). Such a
- * row still gets its bookkeeping put (`lastSyncedAt` feeds the stale-row
- * cleanup), but it is not a change (MYK9-1332).
- */
-export function downloadLeavesRowAsIs<T>(
-  existingRow: ReplicatedRow<T> | undefined,
-  data: T,
-  serverVersion: number | undefined,
-  ownerAuthUserId: string | undefined
-): boolean {
-  if (!existingRow || existingRow.isDirty || existingRow.syncStatus !== 'synced') return false;
-  if (existingRow.serverVersion !== serverVersion) return false;
-  if (existingRow.ownerAuthUserId !== ownerAuthUserId) return false;
-  return sameRowData(existingRow.data, data);
-}
-
-/**
- * Whether a download older than the stored row must be skipped. A row owned by
- * any account keeps the guard: this account's own row can hold an acknowledged
- * local write (MYK9-1050), and another account's newer row is the shared-device
- * case MYK9-1148 protects. Only an OWNERLESS row on an account-owned table that
- * records no upload of this device's own is overwritten (MYK9-1632): a cache from
- * before MYK9-1133, which keeping would leave foreign forever after a reseed or
- * restore. An ownerless row CAN also come from a write made while the account
- * was unsettled; if its acknowledged UPDATE moved the server version
- * (`lastOwnUpload`), it keeps the guard. An acknowledged INSERT needs none: a
- * download read before it does not contain the row. Tables written without an
- * owner keep the original rule.
- */
-export function shouldKeepNewerRow<T extends { id: string }>(
-  existingRow: ReplicatedRow<T> | undefined,
-  remoteServerVersion: number | undefined,
-  ownerAuthUserId: string | undefined
-): boolean {
-  if (!existingRow || !isOlderThanRow(existingRow, remoteServerVersion)) return false;
-  return (
-    ownerAuthUserId === undefined ||
-    existingRow.ownerAuthUserId !== undefined ||
-    existingRow.lastOwnUpload !== undefined
-  );
-}
 
 /**
  * Batch operations manager for a replicated table
@@ -125,12 +60,13 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
   async batchSet(
     items: T[],
     serverVersions?: Map<string, number>,
-    ownerAuthUserId?: string
+    ownerAuthUserId?: string,
+    versionsAtFetch?: ReadonlyMap<string, number>
   ): Promise<void> {
     // Bulk sync downloads are the most likely point to overflow the storage
     // quota. Evict + retry once on a quota abort instead of letting it escape.
     await withQuotaEviction(
-      () => this.batchSetOnce(items, serverVersions, ownerAuthUserId),
+      () => this.batchSetOnce(items, serverVersions, ownerAuthUserId, versionsAtFetch),
       () => this.relieveQuota(),
       this.logger
     );
@@ -140,7 +76,8 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
   private async batchSetOnce(
     items: T[],
     serverVersions?: Map<string, number>,
-    ownerAuthUserId?: string
+    ownerAuthUserId?: string,
+    versionsAtFetch?: ReadonlyMap<string, number>
   ): Promise<void> {
     const db = await this.getDb();
     const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
@@ -173,7 +110,14 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
       // carries an older version than the row now holds (MYK9-1050 review):
       // applying it would roll the acknowledged write back. Same transaction
       // as the put, so it is atomic against the ack.
-      if (shouldKeepNewerRow(existingRow, serverVersions?.get(normalizedId), ownerAuthUserId)) {
+      if (
+        shouldKeepNewerRow(
+          existingRow,
+          serverVersions?.get(normalizedId),
+          ownerAuthUserId,
+          versionsAtFetch?.get(normalizedId)
+        )
+      ) {
         continue;
       }
 
@@ -213,6 +157,33 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
     // and on a quiet table that is the same unchanged rows each time; notifying
     // anyway made every registrations pass refetch the dog rosters (MYK9-1332).
     if (changedRows > 0) this.notifyListeners();
+  }
+
+  /**
+   * The serverVersion of each of `ids` that is stored clean, read in one
+   * transaction. A full sync reads it just before its fetch, as the
+   * `versionsAtFetch` its write passes to {@link batchSet} (MYK9-1633). A row
+   * with a write pending is left out, so it keeps the guard. A failed read
+   * answers with no versions: every row keeps the guard, and the sync goes on.
+   */
+  async cleanServerVersions(ids: Iterable<string>): Promise<Map<string, number>> {
+    const versions = new Map<string, number>();
+    try {
+      const db = await this.getDb();
+      const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readonly');
+      for (const id of ids) {
+        const row = (await tx.store.get([this.tableName, String(id)])) as
+          ReplicatedRow<T> | undefined;
+        if (row && !row.isDirty && row.serverVersion !== undefined) {
+          versions.set(row.id, row.serverVersion);
+        }
+      }
+      await tx.done;
+      return versions;
+    } catch (error) {
+      this.logger.log(`[${this.tableName}] Could not read server versions before a fetch:`, error);
+      return new Map();
+    }
   }
 
   /**

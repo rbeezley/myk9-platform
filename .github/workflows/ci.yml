@@ -336,6 +336,9 @@ jobs:
       - name: Supabase types drift contract
         run: pnpm qa:types-drift:test
 
+      - name: Mutation runner contract
+        run: pnpm qa:mutation-runner:test
+
       - name: Migration version guard
         if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
         env:

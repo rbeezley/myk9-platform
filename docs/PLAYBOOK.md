@@ -11,7 +11,7 @@ See also: [`CLAUDE.md`](../CLAUDE.md) for hard rules (worktrees, merges, migrati
 1. `opsx:explore` — think through the idea, investigate the problem, clarify requirements before committing to an approach.
 2. `opsx:propose` — creates the OpenSpec change (`openspec/changes/<id>/`) with proposal, design, specs, and `tasks.md` in one step. This **is** the plan — do not also write a `docs/plan-*.md` for the same work.
 3. Implement: `opsx:apply` (direct) or `orchestrate` (cheaper-model sub-agents implement, you stay as reviewer/gatekeeper; it also runs a picked list of Linear issues to merge) or `opsx:ship` (full end-to-end: propose → implement → PR → review → merge → archive, autonomous).
-4. `opsx:verify` — confirm implementation matches the change artifacts before archiving.
+4. `opsx:verify` — confirm implementation matches the change artifacts before archiving. It runs `pnpm qa:openspec-proof <id>` and requires the printed proof files to run green. Every ADDED or MODIFIED scenario ends with a `- **PROOF** <repo-relative test path> :: <test name substring>` bullet (`:: <name>` may be omitted only for `.sql` files; prefer a Playwright spec or SQL behaviour test). `pnpm qa:openspec-proof --report` counts unproven scenarios per main spec; existing specs are not backfilled.
 5. `opsx:archive` — closes out the change. `tasks.md` must show a testing phase completed (config's task rules enforce this).
 
 **When to use `docs/plan-*.md` instead:** multi-change roadmaps, audits whose findings are the deliverable, and living reference material (token tables, specs — promote these to `openspec/specs/` via `opsx:sync` instead). If a `docs/` plan already exists when the change is created, add `> Tracked in openspec change: <id>` under its status line.

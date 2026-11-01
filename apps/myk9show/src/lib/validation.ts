@@ -321,7 +321,9 @@ const CLASS_DURATIONS = [
 
 /** A readable class duration outside the editor's range is refused, not saved (MYK9-1503). */
 function classDurationRangeIssues(
-  data: { element: string } & Partial<Record<(typeof CLASS_DURATIONS)[number][0], string | undefined>>
+  data: { element: string } & Partial<
+    Record<(typeof CLASS_DURATIONS)[number][0], string | undefined>
+  >
 ): Array<{ path: string[]; message: string }> {
   const high = classDurationMaxSeconds(data.element);
   return CLASS_DURATIONS.flatMap(([field, label]) => {

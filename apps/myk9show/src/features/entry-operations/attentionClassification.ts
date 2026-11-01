@@ -22,12 +22,16 @@ export interface OperationalEntryInput {
   rawEntryStatus?: string | null | undefined;
   paymentStatus?: PaymentStatus | null | undefined;
   enrollmentPaymentStatus?: PaymentStatus | null | undefined;
+  /** MYK9-1637: server-derived `entries.card_paid`. */
+  cardPaid?: boolean | null | undefined;
 }
 
 export interface RawOperationalEntryInput {
   id?: string | null;
   entry_status?: string | null;
   payment_status?: string | null;
+  /** MYK9-1637: server-derived `entries.card_paid`. */
+  card_paid?: boolean | null;
   registration?: { payment_status?: string | null } | null;
   /**
    * MYK9-639: set on the DESTINATION of a move-up. Its `payment_status` is
@@ -115,6 +119,7 @@ export function classifyRawEntryAttention(
     ...(moneyEntry.registration?.payment_status != null
       ? { enrollmentPaymentStatus: mapPaymentStatus(moneyEntry.registration.payment_status) }
       : {}),
+    cardPaid: moneyEntry.card_paid,
   });
 
   if (entry.moved_from_entry_id && (!scope || moneyEntry === entry)) {
@@ -152,9 +157,13 @@ function resolveRawMoneyEntry(
  * `pending` must still raise an entry row that reads paid.
  */
 export function getEffectivePaymentStatus(
-  entry: Pick<OperationalEntryInput, 'paymentStatus' | 'enrollmentPaymentStatus'>
+  entry: Pick<OperationalEntryInput, 'paymentStatus' | 'enrollmentPaymentStatus' | 'cardPaid'>
 ): PaymentStatus | null {
-  return resolveEffectivePaymentStatus(entry.paymentStatus, entry.enrollmentPaymentStatus);
+  return resolveEffectivePaymentStatus(
+    entry.paymentStatus,
+    entry.enrollmentPaymentStatus,
+    entry.cardPaid
+  );
 }
 
 export function classifyClassAttention(cls: OperationalClassInput): ClassAttentionReason[] {

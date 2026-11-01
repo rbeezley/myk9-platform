@@ -127,3 +127,53 @@ describe('getEffectivePaymentStatus (entry management / card badges)', () => {
     ).toBe(30);
   });
 });
+
+describe('resolveEffectivePaymentStatus: card_paid (MYK9-1637)', () => {
+  it("keeps a card-paid entry paid when its order is reopened by a sibling's desk debt", () => {
+    expect(
+      resolveEffectivePaymentStatus(PaymentStatus.PAID_ONLINE, PaymentStatus.PENDING, true)
+    ).toBe(PaymentStatus.PAID_ONLINE);
+  });
+
+  it('still reopens a paid entry that is not card-paid', () => {
+    expect(
+      resolveEffectivePaymentStatus(PaymentStatus.PAID_ONLINE, PaymentStatus.PENDING, false)
+    ).toBe(PaymentStatus.PENDING);
+    expect(
+      resolveEffectivePaymentStatus(PaymentStatus.PAID_ONLINE, PaymentStatus.PENDING, null)
+    ).toBe(PaymentStatus.PENDING);
+    expect(resolveEffectivePaymentStatus(PaymentStatus.PAID_ONLINE, PaymentStatus.PENDING)).toBe(
+      PaymentStatus.PENDING
+    );
+  });
+
+  it('does not let the flag rescue a pending entry', () => {
+    expect(resolveEffectivePaymentStatus(PaymentStatus.PENDING, PaymentStatus.PENDING, true)).toBe(
+      PaymentStatus.PENDING
+    );
+    expect(
+      resolveEffectivePaymentStatus(PaymentStatus.PENDING, PaymentStatus.PAID_ONLINE, true)
+    ).toBe(PaymentStatus.PENDING);
+  });
+
+  it('leaves a comped or refunded card entry to the settled-terminal branch', () => {
+    expect(resolveEffectivePaymentStatus(PaymentStatus.WAIVED, PaymentStatus.PENDING, true)).toBe(
+      PaymentStatus.WAIVED
+    );
+    expect(
+      resolveEffectivePaymentStatus(PaymentStatus.REFUNDED, PaymentStatus.PAID_ONLINE, true)
+    ).toBe(PaymentStatus.REFUNDED);
+  });
+
+  it('is read by the Entry Management money function', () => {
+    const entry = {
+      paymentStatus: PaymentStatus.PAID_ONLINE,
+      enrollmentPaymentStatus: PaymentStatus.PENDING,
+      totalFee: 50,
+      refundAmount: null,
+    };
+    expect(getEntryPaidAmount({ ...entry, cardPaid: true })).toBe(50);
+    expect(getEffectivePaymentStatus({ ...entry, cardPaid: true })).toBe(PaymentStatus.PAID_ONLINE);
+    expect(getEntryPaidAmount(entry)).toBe(0);
+  });
+});

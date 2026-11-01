@@ -22,6 +22,8 @@
 --      longer marks an existing form paid), also when the card entry was already on it;
 --  13. an order Stripe refunds whole reopens a form it no longer covers.
 --  14. a checkout onto a waived form settles it 'paid' (the capture covers it).
+--  15. entries.card_paid marks exactly the card-paid entries: set by a capture, cleared by a
+--      Stripe refund stamp or an order refunded whole, and no writer can set it.
 --
 -- Run with psql -X -v ON_ERROR_STOP=1 against a migrated database; fixtures roll back.
 
@@ -329,6 +331,14 @@ SELECT '13 an order refunded whole reopens the form it covered',
        pg_temp.money1637(pg_temp.form1637('00000000-0000-0000-0000-000001637053')),
        'total=3500 card=0 paid=0.00 refund=0.00 status=pending';
 
+-- 15a. A direct write of card_paid on a desk entry is replaced by the derived value.
+UPDATE public.entries SET card_paid = true WHERE id = '00000000-0000-0000-0000-000001637103';
+INSERT INTO t1637_expect
+SELECT '15a a direct card_paid write is replaced by the derived value',
+       (SELECT card_paid::text FROM public.entries
+         WHERE id = '00000000-0000-0000-0000-000001637103'),
+       'false';
+
 -- 6. A Stripe refund of the $30 card entry (stripe-refund-entry's stamp, service role only).
 SET LOCAL ROLE service_role;
 UPDATE public.entries
@@ -339,6 +349,15 @@ INSERT INTO t1637_expect
 SELECT '6 a Stripe refund leaves both owed and held: balance and status unchanged',
        pg_temp.money1637(pg_temp.form1637('00000000-0000-0000-0000-000001637052')),
        'total=4500 card=2000 paid=25.00 refund=25.00 status=partial_refund';
+
+-- 15b. Which entries read card-paid at the end: the capture set them (1, 7b, 8, 12, 14), the
+-- Stripe refund stamp cleared 101 (6), the whole-order refund cleared 111 (13), and the
+-- link's unlisted entry, the desk add-on and the failed-order-only state never had it.
+INSERT INTO t1637_expect
+SELECT '15b card_paid marks exactly the card-paid entries',
+       (SELECT string_agg(right(id::text, 3), ',' ORDER BY id) FROM public.entries
+         WHERE show_id = '00000000-0000-0000-0000-000001637011' AND card_paid),
+       '102,121,122,131,142,152';
 
 DO $$
 DECLARE r record; v_fail int := 0;

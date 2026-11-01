@@ -128,6 +128,8 @@ export type EntryBalanceRawRow = Record<string, unknown> & {
   entry_status?: string | null;
   payment_status?: string | null;
   payment_method?: string | null;
+  /** MYK9-1637: server-derived; a succeeded, unrefunded Stripe order paid for this entry. */
+  card_paid?: boolean | null;
   entry_fee?: number | null;
   deleted_at?: string | null;
   moved_from_entry_id?: string | null;
@@ -190,7 +192,8 @@ export function mapEntryRowToBalanceSource(row: EntryBalanceRawRow): EntryBalanc
       row.payment_status != null ? mapPaymentStatus(row.payment_status) : null,
       row.registration?.payment_status != null
         ? mapPaymentStatus(row.registration.payment_status)
-        : null
+        : null,
+      row.card_paid === true
     ) ?? PaymentStatus.PENDING;
 
   return {

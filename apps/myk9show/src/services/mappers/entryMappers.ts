@@ -84,6 +84,8 @@ export const mapReplicatedEntryToDbRow = (
     discount_amount: entry.discountAmount ?? entry.discount_amount ?? null,
     refund_amount: entry.refundAmount ?? entry.refund_amount ?? null,
     refunded_at: entry.refundedAt ?? entry.refunded_at ?? null,
+    // MYK9-1637: server-derived card attribution; the money rule reads it.
+    card_paid: entry.cardPaid ?? entry.card_paid ?? false,
     comped: entry.comped ?? null,
     comped_reason: entry.compedReason ?? entry.comped_reason ?? null,
     is_scored: entry.isScored ?? false,

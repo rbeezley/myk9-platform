@@ -123,7 +123,8 @@ function getEffectivePaymentStatus(entry: ReportEntry): string {
   const mappedEntryStatus = mapPaymentStatus(entryStatus);
   const resolved = resolveEffectivePaymentStatus(
     mappedEntryStatus,
-    mapPaymentStatus(enrollmentStatus)
+    mapPaymentStatus(enrollmentStatus),
+    entry.cardPaid
   );
 
   // Ties (both sides mapping to the same enum member) keep the entry's raw

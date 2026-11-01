@@ -148,7 +148,8 @@ function getOwnEntryPaymentStatus(
     ? mapPaymentStatus(rowStatus as string)
     : (resolveEffectivePaymentStatus(
         rowStatus != null ? mapPaymentStatus(rowStatus) : null,
-        registrationPaymentStatus != null ? mapPaymentStatus(registrationPaymentStatus) : null
+        registrationPaymentStatus != null ? mapPaymentStatus(registrationPaymentStatus) : null,
+        entry.card_paid === true
       ) ?? PaymentStatus.PENDING);
   const refundAmount = Number(entry.refund_amount ?? 0);
   const entryFee = Number(entry.entry_fee ?? 0);

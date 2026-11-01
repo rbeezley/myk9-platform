@@ -380,3 +380,24 @@ describe('financialReportTotals', () => {
     expect(totals.paymentBreakdown.map(bucket => bucket.label)).toEqual(['Refunded']);
   });
 });
+
+describe('financialReportTotals: card_paid (MYK9-1637)', () => {
+  const reopened = {
+    paymentStatus: PaymentStatus.PAID_ONLINE,
+    enrollmentPaymentStatus: PaymentStatus.PENDING,
+    paymentMethod: 'online',
+    entryFee: 50,
+  };
+
+  it('counts a card-paid entry as collected under a reopened order', () => {
+    const totals = calculateFinancialReportTotals([entry({ ...reopened, cardPaid: true })]);
+    expect(totals.summary.collected).toBe(50);
+    expect(totals.summary.outstanding).toBe(0);
+  });
+
+  it('still reads the entry as outstanding when it is not card-paid', () => {
+    const totals = calculateFinancialReportTotals([entry(reopened)]);
+    expect(totals.summary.collected).toBe(0);
+    expect(totals.summary.outstanding).toBe(50);
+  });
+});

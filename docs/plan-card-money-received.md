@@ -91,6 +91,16 @@ the ledger core for desk money, the MYK9-1634 trigger for the total.
 7. **Backfill**: every form's `total_amount` and `card_covered_cents` recomputed; no
    status, `paid_amount` or refund change. Card forms' totals drop from the charge to the
    entry fees. All live data is test data (owner, 2026-11-01).
+8. **Card-paid entries stay paid under a reopened form** (Codex round 1 P1; owner chose
+   "server marks card entries", 2026-11-01). A desk add-on reopens a card form to
+   `pending`, and the shared rule `resolveEffectivePaymentStatus` lets an order's
+   `pending` override a `paid` entry, so every money surface showed the card fees as due
+   again. The server now derives `entries.card_paid` (same predicate as
+   `card_covered_cents`), and the rule lets a card-paid entry whose own status is paid
+   stand. Desk money is still form-level, so desk-paid entries keep MYK9-495's behaviour.
+9. **A capture settles a waived form too** (Codex round 1 P2): the sync attaches the card
+   entry after the order reads succeeded, so owed and card money grow together; `waived`
+   promotes to `paid` on the same rule as `pending`.
 
 ## Phases
 

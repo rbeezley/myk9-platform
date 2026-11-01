@@ -184,6 +184,7 @@ export function mapSecretaryEntryToEntryManagementEntry(
           : null,
       totalFee: entry.entry_fee || 0,
       refundAmount: entry.refund_amount ?? null,
+      cardPaid: entry.card_paid === true,
     }),
     // MYK9-639: the supersession link, so every count, total, badge and gate on
     // this page follows a move-up back to the entry that holds the money. Typed
@@ -235,6 +236,7 @@ export function mapSecretaryEntryToEntryManagementEntry(
     // Entry-level Stripe payment/refund state (migration 20260609220000)
     paymentMethod: entry.payment_method ?? null,
     refundAmount: entry.refund_amount ?? null,
+    ...(entry.card_paid === true ? { cardPaid: true } : {}),
     refundedAt: entry.refunded_at ?? null,
     stripePaymentIntentId: entry.stripe_payment_intent_id ?? null,
     // MYK9-632: the free-text note belongs to either act. `withdrawalReasonCode`

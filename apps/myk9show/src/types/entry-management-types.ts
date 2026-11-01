@@ -122,6 +122,8 @@ export interface EntryManagementEntry {
    */
   withdrawalReasonCode?: string | null;
   enrollmentPaymentStatus?: PaymentStatus | null;
+  /** MYK9-1637: server-derived `entries.card_paid`; see `resolveEffectivePaymentStatus`. */
+  cardPaid?: boolean;
   enrollmentPaymentReference?: string | null;
   enrollmentTotalAmount?: number | null;
   enrollmentPaidAmount?: number | null;

@@ -5,7 +5,7 @@
  *   pnpm qa:planted-bugs            (run from a clean worktree)
  *   pnpm qa:planted-bugs -- --only run-order   (substring match on mutant id)
  */
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -58,6 +58,7 @@ for (const [signal, code] of [
   ['SIGTERM', 143],
 ] as const) {
   process.on(signal, () => {
+    child?.kill('SIGKILL');
     revertApplied();
     console.error(`${signal}: tree is ${porcelain() ? 'DIRTY' : 'clean'}`);
     process.exit(code);
@@ -85,26 +86,45 @@ function assertClean(when: string, manifest: Mutant[] = []): void {
   console.error(`restored: clean (${when})`);
 }
 
-function runCheck(command: string, logName: string): CheckResult {
-  const r = spawnSync('sh', ['-c', command], {
-    cwd: ROOT,
-    encoding: 'utf8',
-    timeout: CHECK_TIMEOUT_MS,
-    maxBuffer: 64 * 1024 * 1024,
+let child: ChildProcess | undefined;
+
+/** Async (not spawnSync) so a SIGINT/SIGTERM handler can run while a check is in flight. */
+function runCheck(command: string, logName: string): Promise<CheckResult> {
+  return new Promise(done => {
+    let output = '';
+    let timedOut = false;
+    const proc = spawn('sh', ['-c', command], { cwd: ROOT });
+    child = proc;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      proc.kill('SIGKILL');
+    }, CHECK_TIMEOUT_MS);
+    proc.stdout.on('data', d => (output += d));
+    proc.stderr.on('data', d => (output += d));
+    proc.on('close', (exitCode, signal) => {
+      clearTimeout(timer);
+      child = undefined;
+      mkdirSync(LOG_DIR, { recursive: true });
+      writeFileSync(resolve(LOG_DIR, `${logName}.log`), `$ ${command}\n${output}`);
+      done({ command, exitCode, signal, timedOut, output });
+    });
+    proc.on('error', err => {
+      clearTimeout(timer);
+      child = undefined;
+      done({ command, exitCode: 127, output: String(err) });
+    });
   });
-  const output = `${r.stdout ?? ''}${r.stderr ?? ''}`;
-  mkdirSync(LOG_DIR, { recursive: true });
-  writeFileSync(resolve(LOG_DIR, `${logName}.log`), `$ ${command}\n${output}`);
-  const timedOut = (r.error as NodeJS.ErrnoException | undefined)?.code === 'ETIMEDOUT';
-  return { command, exitCode: r.status, signal: r.signal, timedOut, output };
 }
 
 const slug = (s: string) => s.replace(/[^a-z0-9]+/gi, '-').slice(0, 80);
 
-function main(): void {
-  const only = process.argv.includes('--only')
-    ? process.argv[process.argv.indexOf('--only') + 1]
-    : undefined;
+async function main(): Promise<void> {
+  const onlyIdx = process.argv.indexOf('--only');
+  const only = onlyIdx >= 0 ? process.argv[onlyIdx + 1] : undefined;
+  if (onlyIdx >= 0 && (!only || only.startsWith('--'))) {
+    console.error('ABORT: --only needs a value (substring of a mutant id)');
+    process.exit(2);
+  }
   const manifest: unknown = JSON.parse(readFileSync(resolve(DIR, 'manifest.json'), 'utf8'));
   const errors = validateManifest(manifest, p => existsSync(resolve(DIR, p)));
   if (errors.length > 0) {
@@ -118,9 +138,11 @@ function main(): void {
   }
   assertClean('before baseline', manifest as Mutant[]);
 
-  const red = baselineRed(
-    uniqueChecks(mutants).map((c, i) => runCheck(c, `baseline-${i}-${slug(c)}`))
-  );
+  const baseline: CheckResult[] = [];
+  for (const [i, c] of uniqueChecks(mutants).entries()) {
+    baseline.push(await runCheck(c, `baseline-${i}-${slug(c)}`));
+  }
+  const red = baselineRed(baseline);
   if (red.length > 0) {
     console.error(
       `ABORT: checks are red on the clean tree, so every mutant would read as caught:\n${red.map(r => `  ${r.command}`).join('\n')}`
@@ -144,7 +166,9 @@ function main(): void {
     applied = patch;
     let results: CheckResult[] = [];
     try {
-      results = mutant.checks.map((c, i) => runCheck(c, `${slug(mutant.id)}-${i}`));
+      for (const [i, c] of mutant.checks.entries()) {
+        results.push(await runCheck(c, `${slug(mutant.id)}-${i}`));
+      }
     } finally {
       if (!revertApplied()) process.exit(2);
     }
@@ -162,4 +186,4 @@ function main(): void {
   );
 }
 
-main();
+void main();

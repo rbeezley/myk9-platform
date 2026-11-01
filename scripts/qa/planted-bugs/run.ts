@@ -58,7 +58,7 @@ for (const [signal, code] of [
   ['SIGTERM', 143],
 ] as const) {
   process.on(signal, () => {
-    child?.kill('SIGKILL');
+    if (child) killGroup(child);
     revertApplied();
     console.error(`${signal}: tree is ${porcelain() ? 'DIRTY' : 'clean'}`);
     process.exit(code);
@@ -88,16 +88,25 @@ function assertClean(when: string, manifest: Mutant[] = []): void {
 
 let child: ChildProcess | undefined;
 
+/** Kill the check and everything it spawned (vitest workers), not just the shell. */
+function killGroup(proc: ChildProcess): void {
+  try {
+    process.kill(-proc.pid!, 'SIGKILL');
+  } catch {
+    proc.kill('SIGKILL');
+  }
+}
+
 /** Async (not spawnSync) so a SIGINT/SIGTERM handler can run while a check is in flight. */
 function runCheck(command: string, logName: string): Promise<CheckResult> {
   return new Promise(done => {
     let output = '';
     let timedOut = false;
-    const proc = spawn('sh', ['-c', command], { cwd: ROOT });
+    const proc = spawn('sh', ['-c', command], { cwd: ROOT, detached: true });
     child = proc;
     const timer = setTimeout(() => {
       timedOut = true;
-      proc.kill('SIGKILL');
+      killGroup(proc);
     }, CHECK_TIMEOUT_MS);
     proc.stdout.on('data', d => (output += d));
     proc.stderr.on('data', d => (output += d));

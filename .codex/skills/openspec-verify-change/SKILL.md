@@ -95,7 +95,7 @@ Verify that an implementation matches the change artifacts (specs, tasks, design
      - `scripts/**` vitest: `pnpm vitest run <file> -t "<name>"` from the repo root
      - Playwright: the repo's e2e runner on the file with `--grep "<name>"`
      - `.sql`: run the file via the SQL test workflow, or cite the CI run that passed (SQL tests only run in CI)
-   - Require at least 1 passed and 0 failed in each run's summary. Vitest exits 0 even when the name matches nothing (it reports `Tests  66 skipped`), so read the `Tests` line, never the exit code. A run with 0 passed is CRITICAL: "Scenario proof names no live test: <pointer>". A failing run, or one you could not run, is CRITICAL: "Scenario proof did not run green: <pointer>".
+   - Require at least 1 passed and 0 failed in each run's summary. Vitest exits 0 even when the name matches nothing (it reports `Tests  66 skipped`), so read the `Tests` line, never the exit code. `-t` and `--grep` take a regular expression: escape `( ) [ ] . * + ? | $ ^` in the name with a backslash. A run with 0 passed is CRITICAL: "Scenario proof names no live test: <pointer>". A failing run, or one you could not run, is CRITICAL: "Scenario proof did not run green: <pointer>".
 
    **Scenario Coverage**:
    - For each scenario in delta specs (marked with "#### Scenario:"):

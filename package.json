@@ -112,6 +112,7 @@
     "support:triage": "tsx scripts/support-triage/run.ts",
     "support:triage:test": "vitest run scripts/support-triage/*.test.ts",
     "support:triage:typecheck": "tsc --noEmit -p scripts/support-triage/tsconfig.json",
+    "qa:mutation-runner:test": "vitest run scripts/qa/mutation/mutation-runner.test.ts",
     "test:mutation": "tsx scripts/qa/mutation/run-mutation-targets.ts",
     "test:mutation:cart": "MYK9_MUTATION_TARGET=cart stryker run stryker.config.mjs",
     "test:mutation:score-validator": "MYK9_MUTATION_TARGET=score-validator stryker run stryker.config.mjs",

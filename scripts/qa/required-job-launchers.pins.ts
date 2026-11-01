@@ -285,6 +285,11 @@ export const PINNED_SCRIPTS: readonly PinnedScript[] = [
   },
   {
     pkgDir: '.',
+    script: 'qa:mutation-runner:test',
+    command: 'vitest run scripts/qa/mutation/mutation-runner.test.ts',
+  },
+  {
+    pkgDir: '.',
     script: 'qa:migrations:guard:test',
     command:
       'vitest run scripts/qa/migration-version-guard.test.ts scripts/qa/migration-version-guard.provenance.test.ts scripts/qa/db-push-sweep.test.ts',

@@ -2,9 +2,10 @@
  * MYK9-486 — exhibitor + non-card submit, end to end through the real writer.
  *
  * Only the Supabase transport is mocked. `submitPaymentStep`,
- * `submitShowRegistration`, `createShowRegistration` and
- * `updateExistingEnrollmentPayment` all run for real, so the assertions below
- * are about the statement that actually reaches PostgREST.
+ * `submitShowRegistration` and `createShowRegistration` all run for real, so
+ * the assertions below are about the statement that actually reaches PostgREST.
+ * Since MYK9-1634 the client writes payment details only; the database owns the
+ * total and status.
  *
  * The bug: the self-service submit path issued
  *   UPDATE public.enrollments SET payment_status = 'pending', payment_method = 'check', …
@@ -198,13 +199,13 @@ describe('MYK9-486 — exhibitor non-card submit never writes enrollments.paymen
     await submitPaymentStep(ctx);
 
     expect(notificationErrorMock).not.toHaveBeenCalled();
-    expect(updates.length).toBeGreaterThan(0);
-    for (const payload of updates) {
-      expect(payload).not.toHaveProperty('payment_status');
-      expect(payload).not.toHaveProperty('paid_amount');
-    }
-    // The declared intent is recorded as a METHOD, which the trigger allows.
-    expect(updates.at(-1)).toEqual({ payment_method: 'check', total_amount: 2500 });
+    // MYK9-1634: the exhibitor's submit makes no enrollment write at all. The
+    // definer RPC records the method and the database derives the total.
+    expect(updates).toEqual([]);
+    expect(rpcMock).toHaveBeenCalledWith(
+      'submit_show_entries',
+      expect.objectContaining({ p_payment_method: 'check' })
+    );
     expect(ctx.markStepComplete).toHaveBeenCalledWith(2);
   });
 
@@ -220,11 +221,8 @@ describe('MYK9-486 — exhibitor non-card submit never writes enrollments.paymen
     await submitPaymentStep(ctx);
 
     expect(notificationErrorMock).not.toHaveBeenCalled();
-    for (const payload of updates) {
-      expect(payload).not.toHaveProperty('payment_status');
-      expect(payload).not.toHaveProperty('payment_method');
-    }
-    expect(updates.at(-1)).toEqual({ total_amount: 9630 + 2500 });
+    // MYK9-1634: no client write; the database reopens the form if it now owes.
+    expect(updates).toEqual([]);
     expect(ctx.markStepComplete).toHaveBeenCalledWith(2);
   });
 
@@ -277,13 +275,19 @@ describe('MYK9-486 — exhibitor non-card submit never writes enrollments.paymen
     expect(ctx.markStepComplete).toHaveBeenCalledWith(2);
   });
 
-  it('still writes payment_status for the organizer (staff) path', async () => {
+  // MYK9-1634: the status is the database's on the staff path too; the
+  // submit RPC sets it in the same transaction as the entries.
+  it('writes no payment_status, total or paid amount on the organizer (staff) path', async () => {
     const { updates } = installTransport(makeEnrollmentRow());
-    const ctx = makeContext({ currentWorkflowMode: 'secretary_new', paymentMethod: 'check' });
+    const ctx = makeContext({
+      currentWorkflowMode: 'secretary_new',
+      paymentMethod: 'check',
+      paymentDetails: { checkNumber: '1001' },
+    });
 
     await submitPaymentStep(ctx);
 
-    expect(updates.some(payload => 'payment_status' in payload)).toBe(true);
+    expect(updates).toEqual([{ check_number: '1001' }]);
     expect(rpcMock).toHaveBeenCalledWith(
       'submit_show_entries',
       expect.not.objectContaining({ p_payment: expect.anything() })

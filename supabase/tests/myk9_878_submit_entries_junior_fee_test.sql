@@ -339,9 +339,16 @@ SELECT pg_temp.expect('7 cash: stamped with the secretary''s people id',
 SELECT pg_temp.expect('7 cash: the ledger row is the junior fee, not the client''s 30.00',
   (SELECT sum(amount)::numeric(10, 2)::text FROM public.show_payments
     WHERE enrollment_id = '00000000-0000-0000-0000-000000878d01'), '15.00');
-SELECT pg_temp.expect('7 cash: the enrollment total (cents) is the junior fee',
+-- MYK9-1634: the total is derived from every live entry on the form. This form also
+-- holds an earlier case's $30 entry, so the total is that 3000 plus this junior 1500;
+-- the junior fee itself is pinned by the entry and ledger checks above.
+SELECT pg_temp.expect('7 cash: the enrollment total (cents) counts the junior fee, not the client''s 30.00',
   (SELECT total_amount::text FROM public.enrollments
-    WHERE id = '00000000-0000-0000-0000-000000878d01'), '1500');
+    WHERE id = '00000000-0000-0000-0000-000000878d01'), '4500');
+SELECT pg_temp.expect('7 cash: the form''s other live entry is the earlier $30 one',
+  (SELECT round(sum(entry_fee) * 100)::text FROM public.entries
+    WHERE registration_id = '00000000-0000-0000-0000-000000878d01' AND deleted_at IS NULL
+      AND entry_fee <> 15), '3000');
 SELECT pg_temp.expect('7 cash: paid equals the junior fee',
   (SELECT paid_amount::numeric(10, 2)::text FROM public.enrollments
     WHERE id = '00000000-0000-0000-0000-000000878d01'), '15.00');

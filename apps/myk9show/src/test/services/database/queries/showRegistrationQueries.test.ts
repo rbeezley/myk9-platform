@@ -2,7 +2,6 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   createShowRegistration,
   getRegistrationByShowAndHandler,
-  updateRegistrationPayment,
 } from '@/services/database/show-registrations';
 import { mockSupabase, createChainableQuery } from '@/test/mocks/supabase';
 
@@ -76,10 +75,12 @@ describe('show-registrations', () => {
       expect(result.error).toBeDefined();
     });
 
-    it('passes payment reference when provided', async () => {
+    it('accepts payment details when provided', async () => {
       mockSupabase.from.mockReturnValue(createChainableQuery({ data: MOCK_DB_ROW, error: null }));
 
-      const result = await createShowRegistration('show-abc', 'handler-xyz', 'pi_test123');
+      const result = await createShowRegistration('show-abc', 'handler-xyz', {
+        paymentReference: 'receipt-123',
+      });
 
       expect(result.error).toBeNull();
       expect(result.data).not.toBeNull();
@@ -114,32 +115,6 @@ describe('show-registrations', () => {
       );
 
       const result = await getRegistrationByShowAndHandler('show-abc', 'handler-xyz');
-
-      expect(result.data).toBeNull();
-      expect(result.error).toBeDefined();
-    });
-  });
-
-  describe('updateRegistrationPayment', () => {
-    it('updates payment status successfully', async () => {
-      const updatedRow = { ...MOCK_DB_ROW, payment_status: 'paid', payment_reference: 'pi_abc' };
-      mockSupabase.from.mockReturnValue(createChainableQuery({ data: updatedRow, error: null }));
-
-      const result = await updateRegistrationPayment('reg-001', 'paid', 'pi_abc');
-
-      expect(result.error).toBeNull();
-      expect(result.data?.paymentStatus).toBe('paid');
-    });
-
-    it('returns error on failure', async () => {
-      mockSupabase.from.mockReturnValue(
-        createChainableQuery({
-          data: null,
-          error: { message: 'not found', code: 'PGRST116' },
-        })
-      );
-
-      const result = await updateRegistrationPayment('reg-nonexistent', 'paid');
 
       expect(result.data).toBeNull();
       expect(result.error).toBeDefined();

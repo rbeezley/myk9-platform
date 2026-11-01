@@ -104,6 +104,21 @@ VALUES
   ('00000000-0000-0000-0000-000000677066', '00000000-0000-0000-0000-000000677011',
    '00000000-0000-0000-0000-000000677057', 'pending', 'cash', 5000);
 
+-- MYK9-1634: a mail-in form's total is derived from its live entries, so each
+-- net-received form carries one pending entry at its fee ($50, $50, $30).
+INSERT INTO public.entries (id, show_id, trial_id, registration_id, entry_status,
+                            payment_status, payment_method, entry_fee)
+VALUES
+  ('00000000-0000-0000-0000-000000677093', '00000000-0000-0000-0000-000000677011',
+   '00000000-0000-0000-0000-000000677021', '00000000-0000-0000-0000-000000677063',
+   'submitted', 'pending', 'cash', 50),
+  ('00000000-0000-0000-0000-000000677094', '00000000-0000-0000-0000-000000677011',
+   '00000000-0000-0000-0000-000000677021', '00000000-0000-0000-0000-000000677064',
+   'submitted', 'pending', 'check', 50),
+  ('00000000-0000-0000-0000-000000677095', '00000000-0000-0000-0000-000000677011',
+   '00000000-0000-0000-0000-000000677021', '00000000-0000-0000-0000-000000677065',
+   'submitted', 'pending', 'cash', 30);
+
 -- Entry-status parity fixture: an ordinary entry, a waived one and one refunded
 -- on its own, all on enrollment ...066.
 INSERT INTO public.entries (id, show_id, trial_id, registration_id, entry_status,

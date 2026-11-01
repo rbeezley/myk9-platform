@@ -63,6 +63,8 @@ jobs:
           sudo iptables -I DOCKER-USER 2 -d 172.16.0.0/12 -j RETURN
           sudo iptables -I DOCKER-USER 3 -d 192.168.0.0/16 -j RETURN
           sudo iptables -I DOCKER-USER 4 -j DROP
+      - name: Reserve Supabase host ports
+        run: bash scripts/ci/reserve-supabase-ports.sh
       - name: Prepare disposable local Supabase
         run: pnpm qa:isolated-e2e:prepare
       - name: Verify isolated target

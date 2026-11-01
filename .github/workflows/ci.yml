@@ -409,6 +409,9 @@ jobs:
           MYK9_SQL_TEST_REQUIRE: '1'
         run: bash scripts/qa/run-financial-sql-tests.sh
 
+      - name: Reserve Supabase host ports
+        run: bash scripts/ci/reserve-supabase-ports.sh
+
       - name: Start clean local Supabase
         run: supabase start --exclude edge-runtime,imgproxy,logflare,mailpit,postgres-meta,studio,supavisor,vector
 
@@ -718,6 +721,9 @@ jobs:
             exit 1
           fi
 
+      - name: Reserve Supabase host ports
+        run: bash scripts/ci/reserve-supabase-ports.sh
+
       - name: Prepare isolated Supabase target
         run: pnpm qa:isolated-e2e:prepare
         env:
@@ -876,6 +882,9 @@ jobs:
             echo "::error::Repository secrets are withheld from Dependabot-triggered runs (missing: ${missing[*]}). Register the E2E_* passwords under Settings -> Secrets and variables -> Dependabot, or push a human commit to this branch. See .github/dependabot.yml."
             exit 1
           fi
+
+      - name: Reserve Supabase host ports
+        run: bash scripts/ci/reserve-supabase-ports.sh
 
       - name: Prepare isolated Supabase target
         run: pnpm qa:isolated-e2e:prepare

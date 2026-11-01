@@ -5,6 +5,7 @@ import { pathToFileURL } from 'node:url';
 import { LOAD_SHOW_ENTRY_COUNT } from '../../apps/myk9show/src/test/load/loadFixture';
 import { ISOLATED_FUNCTION_SECRETS, stageAppEdgeFunctions } from './isolated-e2e-functions';
 import { LOCAL_E2E_PROJECT_REF, resolveIsolatedE2eTarget } from './isolated-e2e-target';
+import { describePortHolder, detectBindFailurePort } from './port-conflict-diagnostics';
 
 export interface LocalSupabaseEnvironment {
   apiUrl: string;
@@ -359,15 +360,21 @@ function prepare() {
   assertPreparationIntent(process.env);
   const staged = stageAppEdgeFunctions(process.cwd(), process.env);
   console.log(`Staged ${staged.functionDirs.length} app edge functions beside the root ones`);
-  runCommand(
-    'Supabase start',
-    resolveSupabaseCliCommand(process.env),
-    localSupabaseStartArgs(),
-    process.env,
-    {
-      silent: true,
-    }
-  );
+  try {
+    runCommand(
+      'Supabase start',
+      resolveSupabaseCliCommand(process.env),
+      localSupabaseStartArgs(),
+      process.env,
+      {
+        silent: true,
+      }
+    );
+  } catch (error) {
+    const port = detectBindFailurePort(error instanceof Error ? error.message : String(error));
+    if (port !== null) console.error(describePortHolder(port));
+    throw error;
+  }
   const local = readLocalEnvironment(process.env);
   const jobEnv = { ...process.env, ...buildJobEnvironment(local) };
   resolveIsolatedE2eTarget(jobEnv);

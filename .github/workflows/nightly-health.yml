@@ -52,6 +52,9 @@ jobs:
       - name: Build shared packages
         run: pnpm -r --filter='./packages/*' build
 
+      - name: Reserve Supabase host ports
+        run: bash scripts/ci/reserve-supabase-ports.sh
+
       # Writes the loopback VITE_SUPABASE_URL / MYK9_E2E_* values into GITHUB_ENV,
       # so every later step (and the dev server Playwright starts) targets this
       # runner's own stack. No E2E_*_EMAIL secrets anywhere in this job: the seed
@@ -178,6 +181,9 @@ jobs:
 
       - name: Build shared packages
         run: pnpm -r --filter='./packages/*' build
+
+      - name: Reserve Supabase host ports
+        run: bash scripts/ci/reserve-supabase-ports.sh
 
       - name: Prepare isolated Supabase target
         run: pnpm qa:isolated-e2e:prepare

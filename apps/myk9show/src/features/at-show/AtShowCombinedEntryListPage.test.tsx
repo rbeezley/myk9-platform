@@ -233,7 +233,10 @@ describe('AtShowCombinedEntryListPage (Phase 1h combined Section A/B)', () => {
 
     expect(await screen.findByText('Rex')).toBeInTheDocument();
     expect(screen.getByText('Bella')).toBeInTheDocument();
-    expect(replicatedEntriesTable.sync).toHaveBeenCalledWith('show-1');
+    expect(replicatedEntriesTable.sync).toHaveBeenCalledWith(
+      'show-1',
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
   });
 
   it('shows the loading skeleton, not No Entries Yet, while the first show hydration runs', async () => {
@@ -249,7 +252,12 @@ describe('AtShowCombinedEntryListPage (Phase 1h combined Section A/B)', () => {
     renderPage();
 
     try {
-      await waitFor(() => expect(replicatedEntriesTable.sync).toHaveBeenCalledWith('show-1'));
+      await waitFor(() =>
+        expect(replicatedEntriesTable.sync).toHaveBeenCalledWith(
+          'show-1',
+          expect.objectContaining({ signal: expect.any(AbortSignal) })
+        )
+      );
       expect(screen.getByRole('status', { name: 'Loading combined entries' })).toBeInTheDocument();
       expect(screen.queryByText('No Entries Yet')).not.toBeInTheDocument();
     } finally {

@@ -52,11 +52,23 @@ describe('syncAtShowData forceFullSync', () => {
     trialsSync.mockResolvedValue({ success: true });
     await syncAtShowData('show-a', { forceFullSync: true });
 
-    expect(trialsSync).toHaveBeenCalledWith('show-a', { forceFullSync: true });
-    expect(classesSync).toHaveBeenCalledWith('trial-1', { forceFullSync: true });
-    expect(entriesSync).toHaveBeenCalledWith('show-a', { forceFullSync: true });
+    expect(trialsSync).toHaveBeenCalledWith(
+      'show-a',
+      expect.objectContaining({ forceFullSync: true, signal: expect.any(AbortSignal) })
+    );
+    expect(classesSync).toHaveBeenCalledWith(
+      'trial-1',
+      expect.objectContaining({ forceFullSync: true, signal: expect.any(AbortSignal) })
+    );
+    expect(entriesSync).toHaveBeenCalledWith(
+      'show-a',
+      expect.objectContaining({ forceFullSync: true, signal: expect.any(AbortSignal) })
+    );
     // Armbands sync every show at once (MYK9-1300), forced as the other tables are.
-    expect(replicatedArmbandsTable.sync).toHaveBeenCalledWith('', { forceFullSync: true });
+    expect(replicatedArmbandsTable.sync).toHaveBeenCalledWith(
+      '',
+      expect.objectContaining({ forceFullSync: true, signal: expect.any(AbortSignal) })
+    );
   });
 
   it('an ordinary call shares the sync already running', async () => {
@@ -83,7 +95,10 @@ describe('syncAtShowData forceFullSync', () => {
     first.resolve();
     await Promise.all([incremental, forced]);
     expect(trialsSync).toHaveBeenCalledTimes(2);
-    expect(trialsSync).toHaveBeenLastCalledWith('show-c', { forceFullSync: true });
+    expect(trialsSync).toHaveBeenLastCalledWith(
+      'show-c',
+      expect.objectContaining({ forceFullSync: true, signal: expect.any(AbortSignal) })
+    );
   });
 
   it('a forced call still runs when the sync it waited out failed', async () => {
@@ -94,7 +109,10 @@ describe('syncAtShowData forceFullSync', () => {
 
     first.reject(new Error('Failed to fetch'));
     await Promise.all([incremental, forced]);
-    expect(trialsSync).toHaveBeenLastCalledWith('show-d', { forceFullSync: true });
+    expect(trialsSync).toHaveBeenLastCalledWith(
+      'show-d',
+      expect.objectContaining({ forceFullSync: true, signal: expect.any(AbortSignal) })
+    );
   });
 
   it('later ordinary callers share the forced run', async () => {

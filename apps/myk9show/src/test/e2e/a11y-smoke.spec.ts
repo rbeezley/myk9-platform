@@ -2,6 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { TEST_USERS } from './helpers/testUsers';
 import { signIn } from './uat/shared/auth';
+import { LIVE_SECRETARY_SHOW_ID } from './uat/shared/seededShows';
 
 /**
  * Accessibility smoke (Dynamic QA — Phase 6).
@@ -147,4 +148,70 @@ test.describe('a11y: authenticated role landings', () => {
       await assertNoBlockingViolations(page, `${name} (${path})`, AUTHED_EXCLUDED_RULES);
     });
   }
+});
+
+// MYK9-1638 (owed by MYK9-1556): the ringside Class Status dialog's Current marker
+// failed 4.5:1 in four accent/mode pairs. Every accent and mode is scanned here,
+// because a token change that fixes one pair can break another.
+const ACCENTS = ['clay', 'grove', 'dusk', 'heather'] as const;
+
+test.describe('a11y: ringside Class Status dialog', () => {
+  // The title must match the a11y grep in playwright.ci.config.ts, or CI skips it silently.
+  test('Class Status dialog has no serious/critical violations: color contrast in every accent and mode', async ({
+    page,
+  }) => {
+    const user = TEST_USERS.SECRETARY;
+    if (!user.email || !user.password) {
+      test.skip(true, 'secretary credentials absent from environment');
+    }
+    const path = `/at-show/${LIVE_SECRETARY_SHOW_ID}`;
+    await signIn(page, user.email, user.password, path);
+    await page.goto(path);
+    await waitForAppShell(page);
+
+    await page.getByRole('tab', { name: /^Completed/ }).click();
+    await page
+      .getByRole('button', { name: /^Class options for / })
+      .first()
+      .click();
+    const options = page.getByRole('dialog');
+    await options.getByRole('button', { name: /^Status/ }).click();
+    const statusDialog = page.getByRole('dialog').filter({
+      has: page.getByRole('group', { name: 'Class status' }),
+    });
+    await expect(statusDialog).toBeVisible({ timeout: 10000 });
+    // The Current marker is what MYK9-1556 fixed; without it the scan covers nothing.
+    await expect(statusDialog.getByText('Current', { exact: true })).toBeVisible();
+
+    const failures: string[] = [];
+    for (const accent of ACCENTS) {
+      for (const dark of [false, true]) {
+        // The same class trio applyThemeClasses sets (src/context/themeClasses.ts).
+        await page.evaluate(
+          ({ accent, dark }) => {
+            const root = document.documentElement;
+            root.dataset.accent = accent;
+            root.classList.remove('theme-light', 'theme-dark', 'dark');
+            root.classList.add(dark ? 'theme-dark' : 'theme-light');
+            if (dark) root.classList.add('dark');
+            root.style.colorScheme = dark ? 'dark' : 'light';
+          },
+          { accent, dark }
+        );
+        await page.waitForTimeout(500);
+        const results = await new AxeBuilder({ page })
+          .include('[role="dialog"]')
+          .withRules(['color-contrast'])
+          .analyze();
+        for (const v of results.violations) {
+          for (const n of v.nodes) {
+            failures.push(
+              `${accent}/${dark ? 'dark' : 'light'}: ${n.target.join(' ')} ${n.failureSummary ?? ''}`
+            );
+          }
+        }
+      }
+    }
+    expect(failures, failures.join('\n')).toEqual([]);
+  });
 });

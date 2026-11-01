@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   balanceAfterPayment,
   netReceivedDollars,
+  receivedDollars,
   resolvePartialPayment,
 } from '../enrollmentPayment';
 
@@ -43,5 +44,32 @@ describe('netReceivedDollars (MYK9-677)', () => {
     expect(netReceivedDollars({ enrollmentId: null, paidAmount: 40, entries: entries(10) })).toBe(
       40
     );
+  });
+});
+
+describe('receivedDollars (MYK9-1637)', () => {
+  const entries = (enrollmentRefundAmount: number | null) =>
+    [{ enrollmentRefundAmount }] as unknown as Parameters<typeof receivedDollars>[0]['entries'];
+
+  it('is desk money net of desk refunds, plus card money', () => {
+    expect(
+      receivedDollars({
+        enrollmentId: 'enr-1',
+        paidAmount: 50,
+        cardCoveredAmount: 35,
+        entries: entries(30),
+      })
+    ).toBe(55);
+  });
+
+  it('is desk money alone when no card money is held', () => {
+    expect(
+      receivedDollars({
+        enrollmentId: 'enr-1',
+        paidAmount: 50,
+        cardCoveredAmount: 0,
+        entries: entries(30),
+      })
+    ).toBe(20);
   });
 });

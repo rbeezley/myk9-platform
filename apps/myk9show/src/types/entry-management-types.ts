@@ -125,6 +125,8 @@ export interface EntryManagementEntry {
   enrollmentPaymentReference?: string | null;
   enrollmentTotalAmount?: number | null;
   enrollmentPaidAmount?: number | null;
+  /** MYK9-1637: card money the form holds (cents), from succeeded Stripe orders. */
+  enrollmentCardCoveredCents?: number | null;
   enrollmentRefundAmount?: number | null;
   enrollmentRefundNotes?: string | null;
   enrollmentRefundedAt?: string | null;

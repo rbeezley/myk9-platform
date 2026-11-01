@@ -21,7 +21,8 @@ import { REFUND_METHODS, type RefundDialog } from './enrollmentPayment';
 interface EnrollmentRefundDialogProps {
   state: RefundDialog;
   onChange: (next: RefundDialog) => void;
-  paidDollars: number;
+  /** Desk money held: a desk refund can hand back no more (card money goes back through Stripe). */
+  refundableDollars: number;
   onClose: () => void;
   onConfirm: () => void;
 }
@@ -34,7 +35,7 @@ interface EnrollmentRefundDialogProps {
 export const EnrollmentRefundDialog: React.FC<EnrollmentRefundDialogProps> = ({
   state,
   onChange,
-  paidDollars,
+  refundableDollars,
   onClose,
   onConfirm,
 }) => (
@@ -44,10 +45,10 @@ export const EnrollmentRefundDialog: React.FC<EnrollmentRefundDialogProps> = ({
         <DialogTitle>{state.isPartial ? 'Record Partial Refund' : 'Record Refund'}</DialogTitle>
       </DialogHeader>
       <div className="space-y-3 py-2">
-        {paidDollars > 0 && (
+        {refundableDollars > 0 && (
           <div className="text-sm text-muted-foreground">
-            Amount paid:{' '}
-            <span className="font-medium text-foreground">${paidDollars.toFixed(2)}</span>
+            Paid at the desk:{' '}
+            <span className="font-medium text-foreground">${refundableDollars.toFixed(2)}</span>
           </div>
         )}
 

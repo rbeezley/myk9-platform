@@ -5,6 +5,7 @@ import {
   EMPTY_FULL_PAYMENT_DIALOG,
   EMPTY_PARTIAL_DIALOG,
   netReceivedDollars,
+  receivedDollars,
   resolvePartialPayment,
   type FullPaymentDialog,
   type PartialDialog,
@@ -30,9 +31,10 @@ export function useEnrollmentDialogControls(
   const enrollmentId = group.enrollmentId ?? '';
   const totalDollars =
     group.totalAmountUnit === 'cents' ? group.totalAmount / 100 : group.totalAmount;
-  // Net received (MYK9-677): what the club still holds, the figure
-  // record_enrollment_payment caps refunds by and charges "Paid in Full" from.
-  const paidDollars = netReceivedDollars(group);
+  // Money received, desk and card (MYK9-1637): what "Paid in Full" charges the rest of.
+  const paidDollars = receivedDollars(group);
+  // What the desk may hand back: desk money only (card money is refunded through Stripe).
+  const refundableDollars = netReceivedDollars(group);
   const remainingDollars = totalDollars - paidDollars;
   const today = paymentLedger.todayInShowZone;
 
@@ -84,6 +86,7 @@ export function useEnrollmentDialogControls(
     enrollmentId,
     totalDollars,
     paidDollars,
+    refundableDollars,
     remainingDollars,
     today,
     fullDialog,

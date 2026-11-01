@@ -55,24 +55,32 @@ the ledger core for desk money, the MYK9-1634 trigger for the total.
 
 ## Decisions
 
-1. **Owed** = Σ `entry_fee` over the form's entries with `deleted_at IS NULL` and
-   `payment_status` not `waived` and not `refunded`. Adding `refunded` is new: an entry
-   whose card money went back no longer owes (a desk refund refunds desk money and does
-   not change the entry's status, so it is unaffected). Phase 0 confirms the entry status
-   values the refund flows actually write.
-2. **Card-covered** (cents) = Σ `entry_fee` over live, owed entries listed in a captured
-   order's `entry_ids` (captured = status not pending/failed/canceled/cancelled/expired,
-   the MYK9-1634 predicate). Stored as `enrollments.card_covered_cents`, written only by
-   the same refresh function that writes `total_amount`, so every client reader can
-   compute the balance without a join. The money-column guard covers it.
-3. **Refresh triggers**: the existing MYK9-1634 entries triggers (now for every form),
-   plus one statement on capture: the existing `sync_enrollment_on_payment_success` /
-   `sync_inserted_checkout_enrollment` paths refresh every form whose entries the order
-   covers (not only `enrollment_id`), which also settles a payment-link form.
-4. **Status**: a form is settled when net received ≥ total. Card capture settles to `paid`
-   (as today); a desk add-on that pushes total past net reopens it to `pending` (MYK9-1634
-   rule 3, now without the Stripe exemption); the desk payment then settles it
-   `paid_by_<method>`. Shrinking never promotes (unchanged).
+1. **Owed** = Σ `entry_fee` over the form's entries with `deleted_at IS NULL`,
+   `payment_status` not `waived`, and **no Stripe refund stamp** (`refund_amount IS NULL`).
+   Not `payment_status = 'refunded'`: a desk refund's cascade marks every entry
+   `refunded` too (with no stamp), which would zero a mail-in form's total. Only the
+   service role can write `entries.refund_amount` (`trg_restrict_entry_refund_columns`),
+   and only the Stripe refund flows do, so the stamp means "Stripe refunded this entry".
+2. **Card-paid entry** = one a `succeeded` order lists in `entry_ids`, with no Stripe
+   refund stamp. **Card-covered** (cents) = Σ `entry_fee` over the form's card-paid
+   entries, deleted or not (money the club still holds, as `paid_amount` keeps a deleted
+   entry's desk money). Stored as `enrollments.card_covered_cents`; the BEFORE derive
+   trigger recomputes it on every write that names it, so no caller can set it, and the
+   money-column guard is not needed for it.
+3. **Refresh triggers**: the MYK9-1634 entries triggers (now for every form, plus a change
+   of the refund stamp), and one AFTER trigger on `stripe_orders` (a succeeded INSERT, or
+   a change of status or `entry_ids`) that refreshes every form the order's entries are
+   on. A sync-path refresh alone would not do: during a pending → succeeded UPDATE the
+   entries attach in the BEFORE trigger, while the order still reads pending. The checkout
+   sync no longer forces `paid` on an existing form (it did, which would have hidden an
+   unpaid desk add-on) and creates new forms `pending`; the refresh settles them.
+4. **Status** (one function, `private.refresh_enrollment_money`): a settled form becomes
+   `pending` when its total grew or its card money shrank and money received no longer
+   covers it; a `pending` form becomes `paid` when its card money grew and now covers it
+   (a capture, a payment link). The status guard allows both derived moves for an
+   unprivileged caller. Shrinking totals never promote (unchanged). The desk's entries
+   cascade skips card-paid entries (an existing guard would otherwise reject "Payment
+   Due" on a card form: online entries can only be marked paid or refunded).
 5. **Desk refund cap = desk net** (`paid_amount - refund_amount`), not net received.
    **This changes an acceptance criterion** ("the refund cap counts card money held, net
    of Stripe refunds"): counting card money in the desk cap lets a secretary hand card
@@ -88,44 +96,50 @@ the ledger core for desk money, the MYK9-1634 trigger for the total.
 
 ### Phase 0: verify the facts the design rests on
 
-Answer each from code or the live catalog, and record the answer here before Phase 1:
+Answered 2026-11-01:
 
-- Entry `payment_status` values written by `stripe-refund-entry`, `stripe-refund-show`
-  (`stamp_show_refund_entries`), `stripe-approve-refund` and the dashboard-refund path in
-  `stripe-webhook`; whether any of them leaves a partially refunded entry, and what it
-  should count as.
-- Whether an entry can appear in two captured orders' `entry_ids` (a retried link). If
-  yes, coverage is still per entry, so nothing double-counts; pin it in a test.
-- Every order status value in use (`stripe_orders.status` CHECK) against the captured
-  predicate.
-- Which readers show a card form's total today: `send-registration-email` (index.ts:260),
-  `CheckoutSuccessPage.tsx`, `lib/stripe.ts`, `EnrollmentCard.tsx`,
-  `useEnrollmentDialogControls.ts`, `enrollmentGrouping.ts`, `useEntryManagementData.ts`,
-  the secretary read paths (`secretaryPostgrest.ts`, `secretaryReadReplication.ts`), and
-  the entry-blank `FeesSection`s. Any that should show the charge read
-  `stripe_orders.amount_cents` instead of `total_amount`.
+- **Refund writes.** `stripe-refund-entry` (`buildEntryRefundStamp`) and
+  `stamp_show_refund_entries` stamp `refund_amount`, `refunded_at` and
+  `payment_status = 'refunded'`. Make-whole refunds (cart overflow) refund money for
+  entries never accepted, and dashboard refunds alert for manual reconciliation; neither
+  stamps an entry. A desk refund's cascade sets `refunded` with no stamp. Hence the stamp,
+  not the status, is the predicate (decision 1). A partially refunded entry is stamped,
+  so it leaves both sides; any remainder the club kept is not shown on the form.
+- **Two orders, one entry.** None live (4 orders, all succeeded, 4 entries on 2 forms, no
+  payment links). Coverage is an `EXISTS`, so it cannot double-count; pinned in case 8.
+- **Order statuses**: pending, processing, succeeded, failed, refunded, cancelled. Only
+  `succeeded` is card money held; `processing` has not arrived and `refunded` went back.
+- **Readers.** `CheckoutSuccessPage` and `lib/stripe.ts` read `stripe_orders.amount_cents`
+  (unchanged). `send-registration-email` is sent for entry-form submissions and shows the
+  form's entry total (unchanged in meaning). Entry Management's balance, footer,
+  checklist and decision email read money received through `receivedDollars`; the desk
+  refund dialog reads `netReceivedDollars`.
 
 ### Phase 1: migration
 
-- `enrollments.card_covered_cents integer NOT NULL DEFAULT 0`, guarded by
-  `restrict_enrollment_money_columns`; added to the secretary replication select.
-- `private.enrollment_owed_cents`: add the `refunded` exclusion.
-- `private.enrollment_card_covered_cents(uuid)`; GIN index on `entry_ids` already exists.
-- Refresh function writes both columns for every form; drop
-  `private.enrollment_total_is_stripe` and the BEFORE trigger's Stripe branch.
-- `restrict_payment_status_update`: drop the non-Stripe condition from the reopen
-  allowance; net received includes card-covered.
-- `private.record_enrollment_payment_core` (copy from its latest definition): "Paid in
-  full" uses net received; the refund cap uses desk net (decision 5); the reversal is
-  unchanged.
-- The two checkout sync functions refresh every covered form.
-- REVOKEs on new functions; backfill.
+Migration `20261101213300_myk9_1637_card_money_received.sql`:
+
+- `enrollments.card_covered_cents`, derived by `trg_enrollments_derive_total`.
+- `private.enrollment_owed_cents` (stamp exclusion), `private.entry_is_card_paid`,
+  `private.enrollment_card_covered_cents`, `private.refresh_enrollment_money`; the
+  entries triggers call the refresh; `trg_stripe_orders_refresh_enrollments(_on_update)`.
+- `sync_enrollment_on_payment_success`: no forced `paid`, no total write.
+- `restrict_payment_status_update`: both derived moves, money received includes card.
+- `private.cascade_enrollment_entry_payment_status`: skips card-paid entries.
+- `private.record_enrollment_payment_core`: "Paid in full" and the status use money
+  received; the refund cap uses desk net; 'refunded' only when nothing is held;
+  "Payment Due" leaves a form card money covers `paid`.
+- `submit_show_entries`: a secretary-paid / group submission counts card money.
+- `private.enrollment_total_is_stripe` dropped; backfill of the two derived columns.
 
 ### Phase 2: client
 
-- One shared balance helper (`total − (paid − refund) − card_covered`) replaces each
-  reader's own subtraction; the `Database` types regenerate after the push.
-- Readers from Phase 0 that mean "the charge" switch to the order amount.
+- `card_covered_cents` read on both secretary paths (PostgREST and replication) and
+  carried to `EnrollmentGroup.cardCoveredAmount` (dollars).
+- `receivedDollars(group)` = desk net + card money: the balance, footer, checklist and
+  decision email. The desk refund dialog keeps `netReceivedDollars` (decision 5).
+- `database.types.ts` carries the column by hand until the post-push regeneration.
+- No reader that means "the charge" read `total_amount`, so none switches.
 
 ### Phase 3: testing
 

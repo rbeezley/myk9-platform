@@ -2262,6 +2262,7 @@ export type Database = {
       }
       enrollments: {
         Row: {
+          card_covered_cents: number
           check_number: string | null
           confirmation_number: string
           created_at: string
@@ -2284,6 +2285,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          card_covered_cents?: number
           check_number?: string | null
           confirmation_number?: string
           created_at?: string
@@ -2306,6 +2308,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          card_covered_cents?: number
           check_number?: string | null
           confirmation_number?: string
           created_at?: string

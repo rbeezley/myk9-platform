@@ -57,6 +57,9 @@ export function withEntryManagementMoneyRoots(
     ...(root.enrollmentPaidAmount !== undefined
       ? { enrollmentPaidAmount: root.enrollmentPaidAmount }
       : {}),
+    ...(root.enrollmentCardCoveredCents !== undefined
+      ? { enrollmentCardCoveredCents: root.enrollmentCardCoveredCents }
+      : {}),
     ...(root.enrollmentRefundAmount !== undefined
       ? { enrollmentRefundAmount: root.enrollmentRefundAmount }
       : {}),

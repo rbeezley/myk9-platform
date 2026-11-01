@@ -58,6 +58,7 @@ interface SecretaryEnrollment {
   payment_reference: string | null;
   total_amount: number | null;
   paid_amount: number | null;
+  card_covered_cents: number | null;
   refund_amount: number | null;
   refund_notes: string | null;
   refunded_at: string | null;
@@ -156,7 +157,7 @@ async function loadSecretaryEnrollmentsMap(
     const { data, error } = await supabase
       .from('enrollments')
       .select(
-        'id, confirmation_number, payment_status, payment_reference, total_amount, paid_amount, refund_amount, refund_notes, refunded_at'
+        'id, confirmation_number, payment_status, payment_reference, total_amount, paid_amount, card_covered_cents, refund_amount, refund_notes, refunded_at'
       )
       .in('id', uniqueIds);
 
@@ -304,6 +305,7 @@ export function toSecretaryEntry(
           payment_reference: enrollment.payment_reference,
           total_amount: enrollment.total_amount,
           paid_amount: enrollment.paid_amount,
+          card_covered_cents: enrollment.card_covered_cents,
           refund_amount: enrollment.refund_amount,
           refund_notes: enrollment.refund_notes,
           refunded_at: enrollment.refunded_at,

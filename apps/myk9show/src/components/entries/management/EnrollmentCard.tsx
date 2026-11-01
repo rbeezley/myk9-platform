@@ -67,6 +67,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
     enrollmentId,
     totalDollars,
     paidDollars,
+    refundableDollars,
     remainingDollars,
     today,
     fullDialog,
@@ -93,7 +94,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
     setRefundDialog({
       ...EMPTY_REFUND_DIALOG,
       open: true,
-      amount: isPartial ? '' : paidDollars.toFixed(2),
+      amount: isPartial ? '' : refundableDollars.toFixed(2),
       isPartial,
     });
   };
@@ -101,7 +102,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
   const confirmRefund = () => {
     const result = resolveRefund(
       refundDialog.amount,
-      paidDollars,
+      refundableDollars,
       refundDialog.method,
       refundDialog.notes,
       today
@@ -349,7 +350,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
       <EnrollmentRefundDialog
         state={refundDialog}
         onChange={setRefundDialog}
-        paidDollars={paidDollars}
+        refundableDollars={refundableDollars}
         onClose={() => setRefundDialog(EMPTY_REFUND_DIALOG)}
         onConfirm={confirmRefund}
       />
@@ -367,9 +368,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
         onSend={async () => {
           if (!onSendDecisionEmail || !enrollmentId) return;
           email.setIsSending(true);
-          const totalDollarsForEmail =
-            group.totalAmountUnit === 'cents' ? group.totalAmount / 100 : group.totalAmount;
-          const amountDue = Math.max(0, totalDollarsForEmail - group.paidAmount);
+          const amountDue = Math.max(0, remainingDollars);
           await onSendDecisionEmail(
             enrollmentId,
             email.message.trim() || undefined,

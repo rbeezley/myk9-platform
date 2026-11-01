@@ -19,6 +19,11 @@ export interface EnrollmentGroup {
   totalAmountUnit: 'cents' | 'dollars';
   /** Amount already recorded as paid, in dollars. */
   paidAmount: number;
+  /**
+   * MYK9-1637: card money the enrollment holds, in dollars: the fees of entries a
+   * succeeded Stripe order paid for. Never in `paidAmount`, which is desk money.
+   */
+  cardCoveredAmount: number;
   paymentReference: string | null;
   /**
    * `entries.payment_method` — the only field that records HOW payment arrived.
@@ -72,6 +77,7 @@ export function groupEntriesByEnrollment(allEntries: EntryManagementEntry[]): En
         // Dollar-unit groups start at 0 and accumulate per-entry below;
         // mixing the enrollment figure in would double-count.
         paidAmount: hasEnrollmentTotal ? (entry.enrollmentPaidAmount ?? 0) : 0,
+        cardCoveredAmount: hasEnrollmentTotal ? (entry.enrollmentCardCoveredCents ?? 0) / 100 : 0,
         paymentReference: entry.enrollmentPaymentReference ?? null,
         paymentMethod: entry.paymentMethod ?? null,
         rawPaymentStatus: entry.rawPaymentStatus ?? null,

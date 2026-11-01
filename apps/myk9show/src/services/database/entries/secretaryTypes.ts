@@ -84,6 +84,7 @@ export interface SecretaryEntry {
     payment_reference: string | null;
     total_amount: number | null;
     paid_amount: number | null;
+    card_covered_cents: number | null;
     refund_amount: number | null;
     refund_notes: string | null;
     refunded_at: string | null;

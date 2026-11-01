@@ -255,14 +255,19 @@ BEGIN
   END IF;
 
   -- The payment itself still recorded (this call also exercises that the
-  -- rebuild kept the MYK9-677 payment block intact, not just the fallback).
-  -- Cases 1 and 2 passed no `p_payment`, so that block never ran for them;
-  -- this is the only call in this test that grows `total_amount`.
+  -- rebuild kept the MYK9-677 payment block intact, not just the fallback):
+  -- only this call passed `p_payment`, so paid_amount is exactly its $30.
+  -- MYK9-1634: the total is now derived from the form's live entries, so it
+  -- counts all three $30 entries (cases 1 and 2 included), not just this one.
   SELECT total_amount INTO enrollment_total FROM public.enrollments WHERE id = mailin_reg_id;
-  IF enrollment_total IS DISTINCT FROM 3000 THEN
+  IF enrollment_total IS DISTINCT FROM 9000 THEN
     RAISE EXCEPTION
-      'FAIL enrollment total after the $30 payment-bearing entry is % (expected 3000)',
+      'FAIL enrollment total after three $30 entries is % (expected 9000, derived from entries)',
       enrollment_total;
+  END IF;
+  IF (SELECT paid_amount FROM public.enrollments WHERE id = mailin_reg_id) IS DISTINCT FROM 30 THEN
+    RAISE EXCEPTION 'FAIL the payment-bearing call did not record its $30: paid_amount %',
+      (SELECT paid_amount FROM public.enrollments WHERE id = mailin_reg_id);
   END IF;
 
   ----------------------------------------------------------------------------

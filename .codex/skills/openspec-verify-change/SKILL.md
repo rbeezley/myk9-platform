@@ -87,7 +87,7 @@ Verify that an implementation matches the change artifacts (specs, tasks, design
        - Recommendation: "Review <file>:<lines> against requirement X"
 
    **Scenario Proof (hard gate)**:
-   - Run `pnpm qa:openspec-proof "<name>" (changes listed in `scripts/qa/openspec-proof-grandfathered.txt` warn instead of fail; never add to that list)`. Every ADDED or MODIFIED scenario must carry a `- **PROOF** <test path> :: <test name>` bullet naming an existing test.
+   - Run `pnpm qa:openspec-proof "<name>"` (changes listed in `scripts/qa/openspec-proof-grandfathered.txt` warn instead of fail; never add to that list). Every ADDED or MODIFIED scenario must carry a `- **PROOF** <test path> :: <test name>` bullet naming an existing test.
    - Any failure (no PROOF, missing file, missing test name) is a CRITICAL issue per scenario: "Scenario unproven: <scenario name>: <reason>".
    - On success the command prints the distinct proof files. Run each (vitest files with `cd apps/myk9show && pnpm vitest run <file>` or the root project for `scripts/`, Playwright specs with the repo's e2e runner, `.sql` files via the SQL test workflow) and require them green. A proof file that fails, or that you could not run, is CRITICAL: "Scenario proof did not run green: <file>". SQL tests that only run in CI must be cited with the CI run that passed.
 

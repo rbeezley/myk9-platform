@@ -46,8 +46,25 @@ describe('validateManifest', () => {
   });
 });
 
-const report = (failed: number, total: number) =>
-  JSON.stringify({ numFailedTests: failed, numTotalTests: total });
+// Shapes taken from vitest's JSON reporter: a suite that fails to collect has
+// status "failed" and no failed assertion results.
+const report = (failed: number, total: number, collectFailed = false) =>
+  JSON.stringify({
+    success: failed === 0 && !collectFailed,
+    numFailedTests: failed,
+    numTotalTests: total,
+    numFailedTestSuites: (failed > 0 ? 1 : 0) + (collectFailed ? 1 : 0),
+    testResults: [
+      {
+        status: failed > 0 ? 'failed' : 'passed',
+        assertionResults: [
+          ...Array.from({ length: failed }, () => ({ status: 'failed' })),
+          ...Array.from({ length: total - failed }, () => ({ status: 'passed' })),
+        ],
+      },
+      ...(collectFailed ? [{ status: 'failed', assertionResults: [] }] : []),
+    ],
+  });
 const res = (r: string | null, extra = {}) => ({ command: 'a', report: r, ...extra });
 
 describe('classifyCheck (JSON report only)', () => {
@@ -68,6 +85,17 @@ describe('classifyCheck (JSON report only)', () => {
     expect(classifyCheck(res('{}'))).toBe('error');
     expect(classifyCheck(res('null'))).toBe('error');
   });
+  it('a suite that failed to collect beside a passing one is an error, not a pass', () => {
+    expect(classifyCheck(res(report(0, 5, true)))).toBe('error');
+  });
+  it('a failed test beside a suite that failed to collect is an error, not a catch', () => {
+    expect(classifyCheck(res(report(1, 5, true)))).toBe('error');
+  });
+  it('success: false with no failed test and no testResults is an error', () => {
+    expect(
+      classifyCheck(res(JSON.stringify({ success: false, numFailedTests: 0, numTotalTests: 3 })))
+    ).toBe('error');
+  });
   it('a timeout or signal is an error even with a failing report', () => {
     expect(classifyCheck(res(report(1, 5), { timedOut: true }))).toBe('error');
     expect(classifyCheck(res(report(1, 5), { signal: 'SIGKILL' }))).toBe('error');
@@ -81,7 +109,7 @@ describe('classify / baselineRed', () => {
     expect(classify([res(report(0, 2))])).toBe('missed');
   });
   it('baseline flags anything that is not a passing report with tests', () => {
-    const bad = [res(null), res(report(0, 0)), res(report(2, 3))];
+    const bad = [res(null), res(report(0, 0)), res(report(2, 3)), res(report(0, 3, true))];
     expect(baselineRed([res(report(0, 3)), ...bad])).toEqual(bad);
   });
 });

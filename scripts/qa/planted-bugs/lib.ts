@@ -24,8 +24,11 @@ export type Verdict = 'caught' | 'missed' | 'error';
 
 /**
  * Per-check verdict from vitest's JSON report ONLY; the exit code and the log
- * text are never consulted. A failed test is the only evidence of a catch, and a
- * run that did not produce a report with at least one test is an error.
+ * text are never consulted. The run-level fields decide, not derived counts:
+ * - pass: `success: true` with at least one test;
+ * - caught: at least one failed test while every suite collected;
+ * - error: anything else (no report, a suite that failed to collect, zero
+ *   tests, a timeout or a signal). A mutant that breaks collection is not a catch.
  */
 export function classifyCheck(r: CheckResult): CheckOutcome {
   if (r.timedOut || r.signal || r.report === null) return 'error';
@@ -35,10 +38,24 @@ export function classifyCheck(r: CheckResult): CheckOutcome {
   } catch {
     return 'error';
   }
-  const { numFailedTests, numTotalTests } = (parsed ?? {}) as Record<string, unknown>;
+  const report = (parsed ?? {}) as Record<string, unknown>;
+  const { success, numFailedTests, numTotalTests, testResults } = report;
   if (typeof numFailedTests !== 'number' || typeof numTotalTests !== 'number') return 'error';
-  if (numFailedTests >= 1) return 'caught';
-  return numTotalTests >= 1 ? 'pass' : 'error';
+  if (numTotalTests < 1) return 'error';
+  if (success === true && numFailedTests === 0) return 'pass';
+  // A suite that failed to collect has no failed assertion; its failure is not
+  // evidence that a test saw the mutant.
+  if (!Array.isArray(testResults)) return 'error';
+  const collectFailed = (testResults as Record<string, unknown>[]).some(
+    t =>
+      t.status === 'failed' &&
+      !(
+        Array.isArray(t.assertionResults) &&
+        (t.assertionResults as Record<string, unknown>[]).some(a => a.status === 'failed')
+      )
+  );
+  if (collectFailed) return 'error';
+  return numFailedTests >= 1 ? 'caught' : 'error';
 }
 
 /** A local check must be a vitest run, so the runner can read its JSON report. */

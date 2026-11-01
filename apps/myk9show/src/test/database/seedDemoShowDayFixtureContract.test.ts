@@ -35,12 +35,21 @@ const RANGE_LOW = "'dededede-0000-0000-0731-000000000000'::uuid";
 const RANGE_HIGH = "'dededede-0000-0000-0732-000000000000'::uuid";
 const RETIRED_SHOW = 'dededede-0000-0000-0000-000000000014';
 
+// MYK9-1595 replaced the restore (a named fixture, retire before minting); the lookup and
+// the ACL still come from the MYK9-731 migration, which CREATE OR REPLACE leaves in place.
+const restoreFn = stripSqlComments(
+  readFileSync(
+    join(repoRoot, 'supabase/migrations/20261101221700_myk9_1595_fixture_retire_and_name.sql'),
+    'utf8'
+  )
+);
+
 /** The restore's body, from its CREATE to the end of its dollar-quote. */
 const restoreBody = (() => {
-  const start = fn.indexOf(
+  const start = restoreFn.indexOf(
     'CREATE OR REPLACE FUNCTION public.seed_demo_restore_show_day_fixture()'
   );
-  return fn.slice(start, fn.indexOf('$fn$;', start));
+  return restoreFn.slice(start, restoreFn.indexOf('$fn$;', start));
 })();
 
 describe('seed-demo show-day fixture (MYK9-731)', () => {
@@ -129,6 +138,21 @@ describe('seed-demo show-day fixture (MYK9-731)', () => {
     expect(restoreBody).toContain("'09:00'::time");
     expect(fn).toMatch(/s\.deleted_at IS NULL AND t\.deleted_at IS NULL/);
     expect(fn).toMatch(/c\.deleted_at IS NULL AND e\.deleted_at IS NULL/);
+  });
+
+  it('retires stale fixtures once, immediately before minting, and names the show (MYK9-1595)', () => {
+    const retire = restoreBody.indexOf('PERFORM public.seed_demo_retire_stale_fixture_shows();');
+    expect(retire, 'retire call not found').toBeGreaterThan(-1);
+    expect(restoreBody.split('seed_demo_retire_stale_fixture_shows').length - 1).toBe(1);
+    // After the ready-fixture early return (no ready fixture means this is the mint path)...
+    expect(retire).toBeGreaterThan(restoreBody.indexOf("'created', false"));
+    // ...and before the new show's id is drawn and anything is inserted.
+    const mint = restoreBody.indexOf(`v_show := (${MARKER}`);
+    expect(mint).toBeGreaterThan(retire);
+    expect(restoreBody.indexOf('INSERT INTO public.shows')).toBeGreaterThan(retire);
+    // "Show-day fixture \u00b7 Oct 30": middle dot, month abbreviation, day without a leading zero.
+    expect(restoreBody).toContain("'Show-day fixture \u00b7 ' || to_char(v_today, 'Mon FMDD')");
+    expect(restoreBody).not.toContain('Heartland Scent Work Week');
   });
 
   it('is service-role only: a SECURITY DEFINER restore and an INVOKER lookup', () => {

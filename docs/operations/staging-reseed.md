@@ -63,7 +63,7 @@ psql "$(cat supabase/.temp/pooler-url)" -v ON_ERROR_STOP=1 -f supabase/seed-demo
 
 ## Show-day fixture restore (between reseeds)
 
-The show-day fixture (`Heartland Scent Work Week`) goes stale seven days after
+The show-day fixture (`Show-day fixture · <Mon D>`, its start date) goes stale seven days after
 it was created, and a walk or a person can soft-delete it from the app. On
 2026-10-01 the demo secretary account deleted the old fixed fixture show
 (`dededede-0000-0000-0000-000000000014`) from the app, which stamped its trials,
@@ -84,13 +84,17 @@ MYK9-731) is **insert-only**:
   - Willow (`exhibitor@`, run 1) and Cooper (`secretary@`, run 2) in every class;
   - armbands, the judge fixture, self-check-in, and two normal-priority
     announcements.
-- It never updates or deletes an existing row. Older fixture shows, including
-  the retired `...014`, stay as they are and age into the past. A **reseed**
-  retires the stale ones (MYK9-1281): section 0 (after the paid-stray guard)
-  deletes each fixture show nothing of a person's hangs off, then section 19
-  mints one fresh fixture. A fixture show someone entered, enrolled in or paid
-  for is kept (the reseed logs a warning if a show it tried to delete is held by
-  an unlisted constraint). `...014` is never touched.
+- It never updates an existing row. On the mint path (and in a **reseed**'s
+  section 0, after the paid-stray guard) it first calls
+  `seed_demo_retire_stale_fixture_shows()` (MYK9-1281, MYK9-1595), which deletes
+  each STALE fixture show (last trial before today in America/Chicago) that
+  nothing of a person's or of money hangs off. The fixture's own minted entries
+  (ids in the fixture range) do not count as a person's work; today's ready
+  fixture is never retired. A fixture show someone entered, enrolled in or paid
+  for is kept; trial packet snapshots do not count, the retire deletes them
+  with the show (the reseed logs a warning if a show it tried to delete is held by
+  an unlisted constraint). Walks that add entries to a fixture clean them up
+  themselves. `...014` is never touched.
 - Section 19 of `seed-demo.sql` calls the same function, so the reseed and the
   restore cannot drift apart.
 

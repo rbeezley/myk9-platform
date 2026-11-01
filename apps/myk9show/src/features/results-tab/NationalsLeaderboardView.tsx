@@ -14,11 +14,31 @@ import {
 } from '@/components/ui/table';
 import type { SecretaryEntry } from '@/services/database/entries';
 import type { ResultsClassRow } from './buildResultsClassRows';
-import { buildNationalsLeaderboard, NATIONALS_DAYS } from './nationalsLeaderboard';
+import {
+  buildNationalsLeaderboard,
+  NATIONALS_DAYS,
+  type NationalsLeaderboardRow,
+} from './nationalsLeaderboard';
 import { ResultsRefreshFailedAlert } from './ResultsRefreshFailedAlert';
 import { getNationalsLeaderboardHref, getResultsListHref } from './resultsTabRoutes';
 
 const DASH = '–';
+
+/**
+ * Total of the recorded times only (MYK9-1573). A dog with untimed runs ranks behind
+ * equal-points dogs with every time, so its partial total says how many runs it leaves out.
+ */
+function LeaderboardTotalTime({ row }: { row: NationalsLeaderboardRow }) {
+  if (row.untimedRuns === 0) return <>{formatSecondsAsMSSCC(row.totalTimeSeconds)}</>;
+  const note = `${row.untimedRuns} ${row.untimedRuns === 1 ? 'run' : 'runs'} without a time`;
+  if (row.totalTimeSeconds === 0) return <span title={note}>{DASH}</span>;
+  return (
+    <>
+      {formatSecondsAsMSSCC(row.totalTimeSeconds)}
+      <span className="block text-xs text-muted-foreground">+ {note}</span>
+    </>
+  );
+}
 
 /** The way into the leaderboard from the class list; rendered only for a nationals show. */
 export function NationalsLeaderboardLink({
@@ -113,7 +133,7 @@ export function NationalsLeaderboardView({
                   <TableCell>{row.handlerName || DASH}</TableCell>
                   <TableCell className="text-right tabular-nums">{row.totalPoints}</TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {formatSecondsAsMSSCC(row.totalTimeSeconds)}
+                    <LeaderboardTotalTime row={row} />
                   </TableCell>
                   {NATIONALS_DAYS.map(day => (
                     <TableCell key={day} className="text-right tabular-nums">

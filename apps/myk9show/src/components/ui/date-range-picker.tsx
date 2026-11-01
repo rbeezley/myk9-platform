@@ -100,12 +100,17 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
   const [prevEndKey, setPrevEndKey] = useState(endKey);
   if (startKey !== prevStartKey) {
     setPrevStartKey(startKey);
-    if (startDate && !showsTime(startTime, startDate)) setStartTime(format(startDate, 'h:mm a'));
+    // A typed time that is not yet a time (MYK9-1571) stays as typed when the date changes.
+    if (startDate && !showsTime(startTime, startDate) && !isUnresolvedClockTime(startTime)) {
+      setStartTime(format(startDate, 'h:mm a'));
+    }
     setDraftRange(current => ({ from: startDate, to: current?.to }));
   }
   if (endKey !== prevEndKey) {
     setPrevEndKey(endKey);
-    if (endDate && !showsTime(endTime, endDate)) setEndTime(format(endDate, 'h:mm a'));
+    if (endDate && !showsTime(endTime, endDate) && !isUnresolvedClockTime(endTime)) {
+      setEndTime(format(endDate, 'h:mm a'));
+    }
     setDraftRange(current => ({ from: current?.from, to: endDate }));
   }
 

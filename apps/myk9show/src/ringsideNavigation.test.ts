@@ -114,7 +114,22 @@ describe('OFFLINE_SHELL_ALLOWLIST', () => {
     expect(covered(path)).toBe(true);
   });
 
-  it.each(['/', '/account', '/showsomething', '/entries', '/at-shows'])(
+  // The query string is not part of pathname, which is what the SW matches.
+  it.each(['/exhibitor/entries', '/exhibitor/entries/', '/exhibitor/entries/abc'])(
+    'covers My Shows path %s',
+    path => {
+      expect(covered(path)).toBe(true);
+    }
+  );
+
+  it.each(['/exhibitor', '/exhibitor/account', '/exhibitor/entries-foo', '/exhibitor/entriesx/1'])(
+    'leaves other exhibitor path %s untouched',
+    path => {
+      expect(covered(path)).toBe(false);
+    }
+  );
+
+  it.each(['/', '/account', '/showsomething', '/entries', '/at-shows', '/exhibitors/entries'])(
     'leaves %s untouched',
     path => {
       expect(covered(path)).toBe(false);

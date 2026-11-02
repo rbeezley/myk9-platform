@@ -158,3 +158,26 @@ describe('evaluate-gating-jobs refuses input it cannot trust', () => {
     expect(verdict.code).toBe(UNTRUSTWORTHY);
   });
 });
+
+describe('the TZ job in ci.yml (MYK9-1655)', () => {
+  const ci = readFileSync(resolve(repoRoot, '.github/workflows/ci.yml'), 'utf8');
+  const start = ci.indexOf('\n  test-show-tz:\n');
+  const rest = ci.slice(start + 1);
+  const next = rest.slice(1).search(/\n {2}[a-z][\w-]*:\n/);
+  const block = next === -1 ? rest : rest.slice(0, next + 1);
+
+  it('isolates the right job block', () => {
+    expect(start).toBeGreaterThan(-1);
+    expect(block).toContain('Test myK9Show, TZ Pacific/Honolulu');
+    expect(block).not.toContain('test-show-coverage-gate:');
+  });
+
+  it('carries job-level continue-on-error so a red shard cannot fail the CI run', () => {
+    // pick-deploy-commit.sh lists runs with --status success.
+    expect(block).toMatch(/\n {4}continue-on-error: true\n/);
+  });
+
+  it('is not in the test aggregator needs', () => {
+    expect(ci).not.toMatch(/needs:[^\n]*test-show-tz/);
+  });
+});

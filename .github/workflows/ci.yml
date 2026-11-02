@@ -566,8 +566,17 @@ jobs:
   # aggregator's needs and from main-required-checks; promote it after a green
   # track record. It is listed as informational in
   # scripts/ci/evaluate-gating-jobs.sh, so a failed shard does not make a main
-  # run non-promotable; keep that list in step with the matrix. No coverage: test-show already measures that, and v8 coverage
-  # is the slowest part of a shard.
+  # run non-promotable; keep that list in step with the matrix.
+  #
+  # `continue-on-error: true` keeps a red shard from turning the whole CI run
+  # into `failure`. scripts/qa/pick-deploy-commit.sh (the active Deploy
+  # myK9Show selector) lists runs with `--status success`, so without it one
+  # red TZ shard would make an owner deploy skip that commit or reject an
+  # explicit pin. The shard still shows red on the job itself. Remove it when
+  # the job is promoted to required (MYK9-1655).
+  #
+  # No coverage: test-show already measures that, and v8 coverage is the
+  # slowest part of a shard.
   #
   # Six shards to match test-show: without coverage a shard should land well
   # under the 11m the coverage-enabled ones take, and the repo is public so
@@ -576,6 +585,7 @@ jobs:
     name: Test myK9Show, TZ Pacific/Honolulu (${{ matrix.shard }}/6)
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    continue-on-error: true
     if: github.event_name == 'push' || github.event.pull_request.draft == false
     strategy:
       fail-fast: false

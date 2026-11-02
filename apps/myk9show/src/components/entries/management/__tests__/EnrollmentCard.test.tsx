@@ -399,6 +399,35 @@ describe('EnrollmentCard', () => {
         expect(onSendDecisionEmail).toHaveBeenCalledWith('enroll-1', undefined, 25)
       );
     });
+
+    // MYK9-1604: the email once used gross paidAmount (75 - 50 = 25), which
+    // understated the balance after a partial refund. Net received is
+    // 50 - 20 = 30, so the form still owes 45 and the email must say the same.
+    it('a decision email after a partial refund asks for the net balance, matching the panel', async () => {
+      const onSendDecisionEmail = vi.fn().mockResolvedValue(undefined);
+      render(
+        <EnrollmentCard
+          {...defaultProps}
+          onSendDecisionEmail={onSendDecisionEmail}
+          group={makeGroup({
+            paymentStatus: PaymentStatus.PARTIAL_REFUND,
+            totalAmount: 7500,
+            paidAmount: 50,
+            cardCoveredAmount: 0,
+            entries: [makeEntry({ totalFee: 75, paidAmount: 50, enrollmentRefundAmount: 20 })],
+          })}
+        />
+      );
+
+      expect(screen.getByText('($30.00 paid · $45.00 due)')).toBeInTheDocument();
+
+      fireEvent.click(screen.getByText('Email Exhibitor'));
+      fireEvent.click(screen.getByText('Send Email'));
+
+      await waitFor(() =>
+        expect(onSendDecisionEmail).toHaveBeenCalledWith('enroll-1', undefined, 45)
+      );
+    });
   });
 
   it('has no Actions button: Accept all / Reject all live in the form header menu (MYK9-1600)', () => {

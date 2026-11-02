@@ -415,8 +415,8 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
         />
       </PageShell>
 
-      {/* Dialogs and panels: OUTSIDE PageShell, so the panel's host sits beside the
-          shell's `space-y-6` content rather than inside it. */}
+      {/* Dialogs and panels: OUTSIDE PageShell. SlideOverPanel is not portaled, so inside
+          the shell's `space-y-6` a fixed overlay would pick up a 24px top margin. */}
       <UserDetailsDialogs
         person={person}
         formData={{

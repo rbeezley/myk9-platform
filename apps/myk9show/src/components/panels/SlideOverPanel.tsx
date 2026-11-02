@@ -34,6 +34,13 @@ export interface SlideOverPanelProps {
    * closes waits for it, so only one slide-out is ever on screen.
    */
   onExited?: () => void;
+  /**
+   * Render into <body> instead of inline (MYK9-1666). Only for a panel whose host sits
+   * inside a stacking context (a `sticky z-10` header) that would trap the panel's z-50
+   * under root-level sticky chrome. Off by default: a portaled panel also sits above
+   * root-level z-50 notices such as the offline banner.
+   */
+  portal?: boolean;
 }
 
 // Matches the `duration-300` slide/fade classes below; the panel stays mounted
@@ -42,18 +49,18 @@ const PANEL_ANIMATION_MS = 300;
 
 /**
  * True when `el` is on the page BEHIND this panel: inside the same top-level
- * tree as the panel's `anchor`, but outside the overlay. The overlay itself
- * portals to <body>, so the page it opened over is found from `anchor`, a hidden
- * marker rendered where the panel sits in the React tree. A portaled popup lives
- * in its own child of <body>, so it is never "behind".
+ * tree as the panel, but outside the overlay. Inline, the tree is found from the overlay
+ * itself; for a `portal` panel the overlay is a child of <body>, so it is found from
+ * `anchor`, a hidden marker rendered where the panel sits in the React tree.
+ * A portaled popup lives in its own child of <body>, so it is never "behind".
  */
 function isBehindPanel(
   el: Element | null,
   overlay: Element | null | undefined,
   anchor: Element | null
 ): boolean {
-  if (!el || !overlay || !anchor || el === document.body || overlay.contains(el)) return false;
-  let root: Element = anchor;
+  if (!el || !overlay || el === document.body || overlay.contains(el)) return false;
+  let root: Element = anchor ?? overlay;
   while (root.parentElement && root.parentElement !== document.body) root = root.parentElement;
   return root.contains(el);
 }
@@ -103,6 +110,7 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
   footer,
   preventClose = false,
   onExited,
+  portal = false,
 }) => {
   const panelRef = useRef<HTMLDivElement>(null);
   const actionBarRef = useRegisterActionBar<HTMLDivElement>();
@@ -318,8 +326,6 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
     }
   };
 
-  const anchor = <span ref={anchorRef} hidden data-slide-over-anchor="" />;
-
   if (!mounted || (!open && !isAnimating)) {
     return null;
   }
@@ -435,18 +441,21 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
     </div>
   );
 
-  // Portal to <body> so the panel's z-50 competes at the root stacking context.
-  // Rendered inline, a host ancestor that makes its own stacking context (a
-  // `sticky z-10` header) traps the panel under root-level sticky chrome such as
-  // the at-show announcement feed (z-40), which then covers the Close button
-  // (MYK9-1666). Base UI popups also portal to <body>, and mount later, so they
-  // still stack above the panel.
-  return (
-    <>
-      {anchor}
-      {createPortal(panelContent, document.body)}
-    </>
-  );
+  if (portal) {
+    // To <body> so the panel's z-50 competes at the root stacking context: inline, a
+    // `sticky z-10` host would trap it under the at-show feed (z-40) and cover Close.
+    // Base UI popups also portal to <body> and mount later, so they stack above it.
+    return (
+      <>
+        <span ref={anchorRef} hidden data-slide-over-anchor="" />
+        {createPortal(panelContent, document.body)}
+      </>
+    );
+  }
+
+  // Render directly - fixed positioning handles layering, and this allows
+  // Base UI components (Select, etc.) to work properly with their own portals
+  return panelContent;
 };
 
 export default SlideOverPanel;

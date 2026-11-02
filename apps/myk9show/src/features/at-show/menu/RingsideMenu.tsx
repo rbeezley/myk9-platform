@@ -157,6 +157,9 @@ export function RingsideMenu({ showId }: { showId: string | undefined }) {
         title="Menu"
         side="left"
         size="sm"
+        // INTENT: rendered inside the entry-list header (`sticky z-10`), which would trap the
+        // panel under the announcement feed (z-40) and cover Close (MYK9-1666).
+        portal
       >
         <nav aria-label="Ringside menu" className="space-y-1">
           {items.map(item => {

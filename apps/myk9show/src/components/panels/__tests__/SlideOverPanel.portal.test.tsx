@@ -7,7 +7,7 @@ describe('SlideOverPanel stacking (MYK9-1666)', () => {
   it('mounts under <body>, outside a host that makes its own stacking context', () => {
     const { container } = render(
       <header style={{ position: 'sticky', top: 0, zIndex: 10 }}>
-        <SlideOverPanel open onClose={() => {}} title="Menu">
+        <SlideOverPanel open portal onClose={() => {}} title="Menu">
           <p>content</p>
         </SlideOverPanel>
       </header>
@@ -17,5 +17,17 @@ describe('SlideOverPanel stacking (MYK9-1666)', () => {
     expect(container.contains(dialog)).toBe(false);
     expect(dialog.closest('header')).toBeNull();
     expect(dialog.parentElement).toBe(document.body);
+  });
+
+  it('renders inline inside its host by default', () => {
+    render(
+      <header data-testid="host">
+        <SlideOverPanel open onClose={() => {}} title="Menu">
+          <p>content</p>
+        </SlideOverPanel>
+      </header>
+    );
+
+    expect(screen.getByTestId('host')).toContainElement(screen.getByRole('dialog'));
   });
 });

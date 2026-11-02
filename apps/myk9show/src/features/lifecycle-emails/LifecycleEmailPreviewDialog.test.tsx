@@ -49,13 +49,15 @@ describe('LifecycleEmailPreviewDialog', () => {
   });
 
   it('keeps a parent space-y margin off the panel backdrop', () => {
-    // The cockpit renders this as the last child of a `space-y-4` container. The panel portals to
-    // <body>, so its `fixed inset-0` backdrop is never a child of that container and cannot pick
-    // up `margin-top: 1rem`, which would leave an undimmed strip.
-    const { container } = renderPreview();
-    const backdrop = document.querySelector('.slide-over-panel')?.parentElement;
+    // The cockpit renders this as the last child of a `space-y-4` container. SlideOverPanel is not
+    // portaled and its backdrop is `fixed inset-0`, so a direct-child backdrop would get
+    // `margin-top: 1rem` and leave an undimmed strip. Measured in the app's own CSS: a fixed
+    // child directly under `.space-y-4` has 16px margin-top; inside a `display: contents`
+    // wrapper it has 0px. jsdom has no Tailwind CSS, so this pins the wrapper.
+    renderPreview();
+    const panel = document.querySelector('.slide-over-panel');
+    const backdrop = panel?.parentElement;
     expect(backdrop).toHaveClass('fixed', 'inset-0');
-    expect(backdrop?.parentElement).toBe(document.body);
-    expect(container.contains(backdrop as HTMLElement)).toBe(false);
+    expect(backdrop?.parentElement).toHaveClass('contents');
   });
 });

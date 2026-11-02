@@ -94,6 +94,18 @@ describe('RingsideMenu', () => {
     expect(button.className).toMatch(/\bw-12\b/);
   });
 
+  it('mounts its panel under <body>, escaping a sticky z-10 host (MYK9-1666)', async () => {
+    const { user, container } = render(
+      <header style={{ position: 'sticky', top: 0, zIndex: 10 }}>
+        <RingsideMenu showId="show-1" />
+      </header>
+    );
+    await user.click(screen.getByRole('button', { name: 'Ringside menu' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog.parentElement).toBe(document.body);
+    expect(container.contains(dialog)).toBe(false);
+  });
+
   it('lists the core items for a signed-in exhibitor, none of them staff-only', async () => {
     const { user } = renderMenu();
     const nav = await openMenu(user);

@@ -65,8 +65,8 @@ const club = {
 } as Club;
 
 describe('ClubDetails page frame (MYK9-930)', () => {
-  // Dialogs and panels render OUTSIDE the shell, so they sit beside PageShell's `space-y-6`
-  // content rather than inside it.
+  // SlideOverPanel is not portaled: inside PageShell's `space-y-6` it would pick up a
+  // 24px top margin on a fixed overlay. Dialogs and panels render OUTSIDE the shell.
   it('renders its dialogs and edit panel outside the PageShell spacing container', () => {
     render(<ClubDetails selectedClub={club} />);
 

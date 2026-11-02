@@ -83,9 +83,10 @@ export function JudgeSuppliesSection({ trialId, onEditJudge }: JudgeSuppliesSect
       </div>
 
       {/* INTENT: a sibling of the card, not a child. The card has `backdrop-filter`, which makes it
-          the containing block for `position: fixed`, so a panel inside it would be sized to the card
-          instead of the viewport (the panel now portals to <body>, which also avoids this). The
-          `contents` wrapper is harmless belt and braces against the parent's `space-y-6` margin. */}
+          the containing block for `position: fixed`; SlideOverPanel is not portaled, so inside the
+          card the panel would be sized to the card instead of the viewport. The `contents`
+          wrapper keeps the parent's `space-y-6` margin off the panel's fixed backdrop (it would
+          otherwise leave a 24px undimmed strip along the top). */}
       <div className="contents">
         {openJudge && (
           <ManageJudgeSuppliesDialog

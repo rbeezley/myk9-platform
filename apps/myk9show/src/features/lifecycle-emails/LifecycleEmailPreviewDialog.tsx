@@ -79,9 +79,9 @@ export function LifecycleEmailPreviewDialog({
 
   return (
     // INTENT: the `contents` wrapper keeps a parent's `space-y-*` margin off the panel's fixed
-    // backdrop; the cockpit renders this as the last child of a `space-y-4` container. The panel
-    // now portals to <body>, which already keeps the backdrop out of that container, so this is
-    // belt and braces: the wrapper has no box, so a margin has nothing to apply to.
+    // backdrop. SlideOverPanel is not portaled and the cockpit renders this as the last child of a
+    // `space-y-4` container, so without it the backdrop gets `margin-top: 1rem` (an undimmed
+    // strip along the top). The wrapper has no box, so the margin has nothing to apply to.
     <div className="contents">
       <SlideOverPanel
         open={open}

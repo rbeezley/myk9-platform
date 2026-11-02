@@ -5,6 +5,7 @@ import { groupEntriesByShow, indexOrdersById } from './groupEntriesByShow';
 import {
   deriveDayCheckInTargets,
   isClassCheckInAvailableToday,
+  isClassCheckInEligibleAnyDay,
   isTrialDayToday,
   trialDayState,
   weekdayLabel,
@@ -15,6 +16,12 @@ import {
 import { splitShowsIntoSections } from './myShowSections';
 import type { EntryClass, MyEntry } from './my-entries-types';
 import { withFixtureKind } from '@/test/fixtures/entryClassKind';
+import { makeClass as makeDatedClass } from '@/test/fixtures/myShowsFixtures';
+import {
+  makeDirtyRow,
+  makeUndatedClass,
+  makeZonelessClass,
+} from '@/test/fixtures/missingValuesFixtures';
 
 const SATURDAY = new Date('2026-10-24T00:00:00');
 const SUNDAY = new Date('2026-10-25T00:00:00');
@@ -442,5 +449,58 @@ describe('two-timezone show and My Shows sections', () => {
     ).toBe(true);
     const after = splitShowsIntoSections([show], new Date('2026-10-26T07:30:00Z'));
     expect(after.past).toHaveLength(1);
+  });
+});
+
+describe('missing-values fixture: the check-in gate (MYK9-1557, MYK9-1655)', () => {
+  const NOW = new Date('2026-10-24T17:00:00Z'); // Saturday midday, Central (the fixtures' zone)
+
+  function dogFor(classes: EntryClass[]) {
+    const { dog, ordersById } = buildDog([makeDirtyRow(classes)], NOW);
+    return { dog, ctx: { now: NOW, ordersById, isPastShow: false } };
+  }
+
+  it('never offers the one-tap check-in for a class with no trial date, but keeps its dated sibling', () => {
+    const { dog, ctx } = dogFor([
+      makeDatedClass({ id: 'c-dated', classId: 'class-dated' }),
+      makeUndatedClass(),
+    ]);
+
+    const targets = deriveDayCheckInTargets(dog, ctx);
+
+    expect(targets.classes.map(cls => cls.id)).toEqual(['c-dated']);
+    expect(targets.weekday).toBe('Saturday');
+  });
+
+  it('keeps the undated class check-in eligible, so it reaches check-in once its date arrives', () => {
+    const { dog, ctx } = dogFor([makeUndatedClass()]);
+    const [cls] = dog.classes;
+
+    expect(isClassCheckInEligibleAnyDay(cls, ctx)).toBe(true);
+    expect(isClassCheckInAvailableToday(cls, ctx)).toBe(false);
+
+    const arrived = dogFor([makeDatedClass({ id: 'c-undated', classId: 'class-undated' })]);
+    expect(isClassCheckInAvailableToday(arrived.dog.classes[0], arrived.ctx)).toBe(true);
+  });
+
+  it('reads the day as unknown, not not-today, without a trial date', () => {
+    expect(trialDayState(makeUndatedClass().trialDate, 'America/Chicago', NOW)).toBe('unknown');
+  });
+
+  it('falls back to Eastern for a trial with no timezone, not UTC or the device', () => {
+    const { trialDate, trialTimezone } = makeZonelessClass();
+    expect(trialTimezone).toBeUndefined();
+    // 03:00Z is Friday 11pm Eastern (EDT) but already Saturday in UTC.
+    expect(trialDayState(trialDate, trialTimezone, new Date('2026-10-24T03:00:00Z'))).toBe(
+      'not-today'
+    );
+    // 04:00Z is midnight Saturday Eastern.
+    expect(trialDayState(trialDate, trialTimezone, new Date('2026-10-24T04:00:00Z'))).toBe('today');
+    expect(weekdayLabel(trialDate, trialTimezone)).toBe('Saturday');
+  });
+
+  it('still offers check-in on the trial day for a zoneless trial', () => {
+    const { dog, ctx } = dogFor([makeZonelessClass()]);
+    expect(deriveDayCheckInTargets(dog, ctx).classes.map(cls => cls.id)).toEqual(['c-zoneless']);
   });
 });

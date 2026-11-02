@@ -296,7 +296,8 @@ export const PINNED_SCRIPTS: readonly PinnedScript[] = [
   {
     pkgDir: '.',
     script: 'qa:planted-bugs:test',
-    command: 'vitest run scripts/qa/planted-bugs/lib.test.ts scripts/qa/planted-bugs-sql-workflow.test.ts',
+    command:
+      'vitest run scripts/qa/planted-bugs/lib.test.ts scripts/qa/planted-bugs-sql-workflow.test.ts',
   },
   {
     pkgDir: '.',

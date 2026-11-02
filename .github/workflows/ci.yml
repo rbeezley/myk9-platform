@@ -554,6 +554,67 @@ jobs:
           path: apps/myk9show/.vitest-reports/shard-${{ matrix.shard }}.json
           retention-days: 1
 
+  # Same unit suite as test-show, run with the device clock in UTC-10.
+  # CI runs in UTC, so a test or product path that only works when the device
+  # day equals the trial day stays invisible (the timezone class escaped six
+  # times: MYK9-288, 505, 714, 1174, 1354, 1554). Pacific/Honolulu is far from
+  # UTC and from the seeded trial zones, so the device day and the trial day
+  # differ for most of every day.
+  #
+  # NON-required on purpose (owner decision 2026-11-02): the job is new and its
+  # shard time is unproven. It is deliberately absent from the `test`
+  # aggregator's needs and from main-required-checks; promote it after a green
+  # track record. It is listed as informational in
+  # scripts/ci/evaluate-gating-jobs.sh, so a failed shard does not make a main
+  # run non-promotable; keep that list in step with the matrix.
+  #
+  # `continue-on-error: true` keeps a red shard from turning the whole CI run
+  # into `failure`. scripts/qa/pick-deploy-commit.sh (the active Deploy
+  # myK9Show selector) lists runs with `--status success`, so without it one
+  # red TZ shard would make an owner deploy skip that commit or reject an
+  # explicit pin. The shard still shows red on the job itself. Remove it when
+  # the job is promoted to required (MYK9-1655).
+  #
+  # No coverage: test-show already measures that, and v8 coverage is the
+  # slowest part of a shard.
+  #
+  # Six shards to match test-show: without coverage a shard should land well
+  # under the 11m the coverage-enabled ones take, and the repo is public so
+  # runner minutes are free. Re-measure once real runs exist.
+  test-show-tz:
+    name: Test myK9Show, TZ Pacific/Honolulu (${{ matrix.shard }}/6)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: true
+    if: github.event_name == 'push' || github.event.pull_request.draft == false
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6]
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.23.4'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared packages
+        run: pnpm -r --filter='./packages/*' build
+
+      - name: Test myK9Show under TZ=Pacific/Honolulu (shard ${{ matrix.shard }}/6)
+        working-directory: apps/myk9show
+        run: pnpm exec vitest run --exclude '**/integration/**' --exclude '**/debug-*.test.*' --sequence.shuffle --shard=${{ matrix.shard }}/6
+        env:
+          TZ: Pacific/Honolulu
+          NODE_OPTIONS: --max-old-space-size=4096
+
   # Merges the 6 shards' coverage blobs into one whole-app coverage report,
   # then gates the PR on two things in the same vitest invocation:
   #   1. The per-directory floors declared in apps/myk9show/vitest.config.ts

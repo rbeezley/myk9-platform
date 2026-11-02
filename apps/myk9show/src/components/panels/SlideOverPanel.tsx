@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -44,9 +45,15 @@ const PANEL_ANIMATION_MS = 300;
  * tree as the panel's overlay (which is not portaled), but outside the overlay.
  * A portaled popup lives in its own child of <body>, so it is never "behind".
  */
-function isBehindPanel(el: Element | null, overlay: Element | null | undefined): boolean {
-  if (!el || !overlay || el === document.body || overlay.contains(el)) return false;
-  let root: Element = overlay;
+// The panel portals to <body>, so the page it opened over is found from `anchor`,
+// a hidden marker rendered where the panel sits in the React tree.
+function isBehindPanel(
+  el: Element | null,
+  overlay: Element | null | undefined,
+  anchor: Element | null
+): boolean {
+  if (!el || !overlay || !anchor || el === document.body || overlay.contains(el)) return false;
+  let root: Element = anchor;
   while (root.parentElement && root.parentElement !== document.body) root = root.parentElement;
   return root.contains(el);
 }
@@ -108,6 +115,7 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
   const wasOpenRef = useRef(false);
   // Initialize mounted to true - portal is always ready in modern React
   const [mounted] = useState(true);
+  const anchorRef = useRef<HTMLSpanElement>(null);
   const [isAnimating, setIsAnimating] = useState(false);
 
   // Track open prop changes using render-time sync for animation state
@@ -200,7 +208,7 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
         // made: a menu that opened the panel hands focus back to its trigger as
         // it closes (MYK9-1081). That trigger, not the vanished menu item, is
         // where focus goes back on close.
-        const behind = isBehindPanel(active, overlay);
+        const behind = isBehindPanel(active, overlay, anchorRef.current);
         const opener = returnFocusRef.current;
         if (behind && (!opener || !opener.isConnected || opener === document.body)) {
           returnFocusRef.current = active as HTMLElement;
@@ -309,6 +317,8 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
       onClose();
     }
   };
+
+  const anchor = <span ref={anchorRef} hidden data-slide-over-anchor="" />;
 
   if (!mounted || (!open && !isAnimating)) {
     return null;
@@ -425,9 +435,18 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
     </div>
   );
 
-  // Render directly - fixed positioning handles layering, and this allows
-  // Base UI components (Select, etc.) to work properly with their own portals
-  return panelContent;
+  // Portal to <body> so the panel's z-50 competes at the root stacking context.
+  // Rendered inline, a host ancestor that makes its own stacking context (a
+  // `sticky z-10` header) traps the panel under root-level sticky chrome such as
+  // the at-show announcement feed (z-40), which then covers the Close button
+  // (MYK9-1666). Base UI popups also portal to <body>, and mount later, so they
+  // still stack above the panel.
+  return (
+    <>
+      {anchor}
+      {createPortal(panelContent, document.body)}
+    </>
+  );
 };
 
 export default SlideOverPanel;

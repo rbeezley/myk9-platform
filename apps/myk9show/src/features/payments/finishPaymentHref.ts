@@ -28,8 +28,12 @@ export function buildFinishPaymentHref(showId: string, entryIds: string[]): stri
  * populated cart across shows, which may be another show's. The scope lives in
  * the URL so it survives a reload and the 409 repricing reload.
  */
-export function buildScopedCartHref(showId: string): string {
+export function buildScopedCartHref(
+  showId: string,
+  extraParams: Record<string, string> = {}
+): string {
   const params = new URLSearchParams();
   params.set(ENTRY_SCOPE_SHOW_PARAM, showId);
+  for (const [key, value] of Object.entries(extraParams)) params.set(key, value);
   return `/cart?${params.toString()}`;
 }

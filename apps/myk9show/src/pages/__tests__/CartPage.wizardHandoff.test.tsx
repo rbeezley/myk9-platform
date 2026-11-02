@@ -7,7 +7,8 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { waitFor } from '@testing-library/react';
-import { render } from '@/test/utils/testUtils';
+import { Route, Routes } from 'react-router-dom';
+import { render, screen } from '@/test/utils/testUtils';
 import { createFakeCartDb, fakeCart, fakeCartItem, type FakeCartDb } from '@/test/utils/fakeCartDb';
 
 const holder = vi.hoisted(() => ({ db: null as unknown as FakeCartDb }));
@@ -46,6 +47,7 @@ vi.mock('@/components/cart/CartSummary', () => ({
 }));
 
 import CartPage from '@/pages/CartPage';
+import CheckoutCancelPage from '@/pages/CheckoutCancelPage';
 import { useCartStore } from '@/store/cartStore';
 import { resetEnsureCartInFlight } from '@/store/cartStore.ensureCart';
 import { submitRegistrationCartCheckout } from '@/features/registration/registrationCartCheckout';
@@ -158,5 +160,26 @@ describe('wizard hand-off opens the submitted show cart (MYK9-1661)', () => {
     expect(holder.db.items.filter(i => i.cart_id === 'cart-d').map(i => i.entry_fee_cents)).toEqual(
       [feeD * 100]
     );
+  });
+
+  it.each([
+    ['differing amounts', 20, 35],
+    ['equal amounts', 30, 30],
+  ])('a Stripe cancel return lands on show A, not show D, with %s', async (_label, feeA, feeD) => {
+    seed(feeD);
+    await submitShowA(feeA);
+
+    const { user } = render(
+      <Routes>
+        <Route path="/checkout/cancel" element={<CheckoutCancelPage />} />
+        <Route path="/cart" element={<CartPage />} />
+      </Routes>,
+      { initialRoute: '/checkout/cancel' }
+    );
+    await user.click(await screen.findByRole('button', { name: 'Return to Your Entry' }));
+
+    await waitFor(() => expect(useCartStore.getState().cart?.id).toBe('cart-a'));
+    expect(useCartStore.getState().cart?.show_id).toBe(SHOW_A);
+    expect(holder.db.items.filter(i => i.cart_id === 'cart-d')).toHaveLength(1);
   });
 });

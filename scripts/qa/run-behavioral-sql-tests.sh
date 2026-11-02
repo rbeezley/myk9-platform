@@ -229,6 +229,31 @@ TEST_FILES=(
   "$TEST_DIR/golden_replay_trial_27835_test.sql"
 )
 
+# MYK9-1659: optional file arguments run ONLY those registered tests, against the
+# same loopback guard. The planted-bug audit uses this to run the placement tests
+# per mutant (scripts/qa/planted-bugs/run.ts --kind ci). No arguments keeps the
+# full-suite behavior above, concurrency harness included. An argument must name
+# a file already in TEST_FILES (bare name or supabase/tests/<name>), so this can
+# never execute a path the exhaustive list does not own.
+FILTERED=0
+if [ "$#" -gt 0 ]; then
+  FILTERED=1
+  SELECTED=()
+  for arg in "$@"; do
+    wanted="$TEST_DIR/$(basename "$arg")"
+    found=0
+    for registered in "${TEST_FILES[@]}"; do
+      if [ "$registered" = "$wanted" ]; then found=1; fi
+    done
+    if [ "$found" -ne 1 ] || [[ "$arg" != "$(basename "$arg")" && "$arg" != "supabase/tests/$(basename "$arg")" ]]; then
+      echo "FAIL: $arg is not a registered behavioral SQL test." >&2
+      exit 1
+    fi
+    SELECTED+=("$wanted")
+  done
+  TEST_FILES=("${SELECTED[@]}")
+fi
+
 for test_file in "${TEST_FILES[@]}"; do
   if [ ! -f "$test_file" ]; then
     echo "FAIL: missing behavioral SQL test $test_file." >&2
@@ -240,7 +265,9 @@ done
 
 # MYK9-1472: two-session races against hard_delete_show's row locks, lock
 # timeout, deadlock and FK-DDL ordering. The fake-psql contract test skips it.
-if [ "${MYK9_SKIP_HARD_DELETE_CONCURRENCY:-0}" = "1" ]; then
+if [ "$FILTERED" = "1" ]; then
+  echo "SKIP: hard-delete concurrency harness (named test files only)"
+elif [ "${MYK9_SKIP_HARD_DELETE_CONCURRENCY:-0}" = "1" ]; then
   echo "SKIP: local hard-delete concurrency harness (source-contract test mode)"
 else
   MYK9_BEHAVIORAL_SQL_DATABASE_URL="$DATABASE_URL" \

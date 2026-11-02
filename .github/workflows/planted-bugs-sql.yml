@@ -1,0 +1,83 @@
+# Planted-bug audit, SQL half (MYK9-1659). Manual dispatch ONLY: never push,
+# pull_request or schedule, because it runs a full local Supabase stack once per
+# audit, not once per commit.
+#
+# MYK9-1653 committed four `kind: ci` mutants (sql-placement/01..04) that patch
+# recalculate_class_placements. SQL behaviour tests cannot run on a dev Mac (no
+# container runtime), so this job is where they run. For each mutant the runner
+# (scripts/qa/planted-bugs/run.ts --kind ci) applies the patch, re-applies the
+# patched function to the database, runs the named SQL tests, records CAUGHT or
+# MISSED, reverts the patch and restores the function; run-sql.ts explains why a
+# function re-apply instead of a `supabase db reset` per mutant.
+#
+# Touches no shared database: no secrets, no `supabase link`, no project ref.
+# The runner refuses any database URL that is not a loopback postgres.
+name: Planted bugs (SQL)
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: planted-bugs-sql
+  cancel-in-progress: false
+
+jobs:
+  planted-bugs-sql:
+    name: SQL placement mutants
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: supabase/setup-cli@v3
+        with:
+          version: 2.122.0 # exact pin, never latest; see MYK9-1662
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.23.4'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Same stack as ci.yml's sql-tests job.
+      - name: Reserve Supabase host ports
+        run: bash scripts/ci/reserve-supabase-ports.sh
+
+      - name: Start clean local Supabase
+        run: supabase start --exclude edge-runtime,imgproxy,logflare,mailpit,postgres-meta,studio,supavisor,vector
+
+      - name: Apply all migrations without seed data
+        run: supabase db reset --no-seed
+
+      # Baselines run first inside the runner and abort the audit if any named
+      # test is not green on the clean database. The table is the same markdown
+      # the local runner prints. A MISSED mutant is a result (exit 0); an ERROR
+      # (harness could not prove the mutant reached the database) fails the job.
+      - name: Run SQL planted-bug mutants
+        env:
+          MYK9_BEHAVIORAL_SQL_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+        run: |
+          status=0
+          pnpm exec tsx scripts/qa/planted-bugs/run.ts --kind ci > "$RUNNER_TEMP/planted-bugs-sql.md" || status=$?
+          {
+            echo '## Planted-bug audit: SQL placement mutants'
+            echo
+            cat "$RUNNER_TEMP/planted-bugs-sql.md"
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$status"
+
+      - name: Upload mutant logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: planted-bugs-sql-logs
+          path: .logs/planted-bugs/
+          if-no-files-found: ignore

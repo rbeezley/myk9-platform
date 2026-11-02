@@ -3,6 +3,11 @@ import { describe, expect, it } from 'vitest';
 import { formatSecondsAsMSSCC } from '@/lib/format/searchTime';
 import type { SecretaryEntry } from '@/services/database/entries';
 import type { SyncableTrial, SyncableTrialClass } from '@/store/trial-store-types';
+import {
+  makeNullTimeScoredEntry,
+  makeScoredResultEntry,
+  makeZeroTimeNqEntry,
+} from '@/test/fixtures/missingValuesFixtures';
 import { buildResultsClassRows } from './buildResultsClassRows';
 import {
   totalTimeLabel,
@@ -425,5 +430,46 @@ describe('totalTimeLabel (MYK9-1573)', () => {
 
   it('has no total when no run has a time', () => {
     expect(totalTimeLabel({ totalTimeSeconds: 0, untimedRuns: 3 }).timeSeconds).toBeNull();
+  });
+});
+
+describe('missing-values fixture: untimed and 0-time runs (MYK9-1573, MYK9-1655)', () => {
+  it('does not rank a null-time scored run fastest against a timed equal-points dog', () => {
+    const board = build([
+      makeNullTimeScoredEntry({ armband: '1', points_earned: 20 }),
+      makeScoredResultEntry({ armband: '2', points_earned: 20, search_time_seconds: 95 }),
+    ]);
+
+    expect(board.map(row => [row.rank, row.armband, row.untimedRuns])).toEqual([
+      [1, '2', 0],
+      [2, '1', 1],
+    ]);
+    expect(board[1]!.totalTimeSeconds).toBe(0);
+    expect(totalTimeLabel(board[1]!).timeSeconds).toBeNull();
+  });
+
+  it('counts a 0-time NQ as an untimed run with no points, and keeps the dog on the board', () => {
+    const board = build([
+      makeScoredResultEntry({
+        armband: '1',
+        class_id: 'c1',
+        points_earned: 10,
+        search_time_seconds: 40,
+      }),
+      makeZeroTimeNqEntry({ armband: '1', class_id: 'c2' }),
+    ]);
+
+    expect(board).toHaveLength(1);
+    expect(board[0]).toMatchObject({ totalPoints: 10, totalTimeSeconds: 40, untimedRuns: 1 });
+    expect(totalTimeLabel(board[0]!).untimedNote).toBe('1 run has no time');
+  });
+
+  it('ranks a dog whose only run is a 0-time NQ behind a dog with a recorded time at equal points', () => {
+    const board = build([
+      makeZeroTimeNqEntry({ armband: '1' }),
+      makeScoredResultEntry({ armband: '2', points_earned: 0, search_time_seconds: 120 }),
+    ]);
+
+    expect(board.map(row => row.armband)).toEqual(['2', '1']);
   });
 });

@@ -228,8 +228,8 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub }) => {
         </div>
       </PageShell>
 
-      {/* All Dialogs and Panels: OUTSIDE PageShell. SlideOverPanel is not portaled, so inside
-          the shell's `space-y-6` a fixed overlay would pick up a 24px top margin. */}
+      {/* All Dialogs and Panels: OUTSIDE PageShell, so the panel's host sits beside the
+          shell's `space-y-6` content rather than inside it. */}
       <ClubDialogs
         club={selectedClub}
         showEditPanel={state.showEditPanel}

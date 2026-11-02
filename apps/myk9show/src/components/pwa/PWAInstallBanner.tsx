@@ -56,7 +56,10 @@ export function PWAInstallBanner() {
 
   return (
     <>
-      <div className="fixed top-0 left-0 right-0 z-[60] bg-gradient-to-r from-primary to-primary/80 text-primary-foreground shadow-md animate-in slide-in-from-top duration-300">
+      {/* Layer order (MYK9-1666): page chrome sits BELOW the panel/dialog layer (z-50) so a
+          panel's Close is never covered. 45 keeps the banner above sticky page chrome (the
+          at-show feed is z-40); the fixed AppHeader (z-50) is offset below it, never overlapping. */}
+      <div className="fixed top-0 left-0 right-0 z-[45] bg-gradient-to-r from-primary to-primary/80 text-primary-foreground shadow-md animate-in slide-in-from-top duration-300">
         <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-2.5 sm:px-6">
           {isIOSSafari ? (
             <Share className="h-5 w-5 shrink-0" />

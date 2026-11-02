@@ -42,11 +42,11 @@ const PANEL_ANIMATION_MS = 300;
 
 /**
  * True when `el` is on the page BEHIND this panel: inside the same top-level
- * tree as the panel's overlay (which is not portaled), but outside the overlay.
- * A portaled popup lives in its own child of <body>, so it is never "behind".
+ * tree as the panel's `anchor`, but outside the overlay. The overlay itself
+ * portals to <body>, so the page it opened over is found from `anchor`, a hidden
+ * marker rendered where the panel sits in the React tree. A portaled popup lives
+ * in its own child of <body>, so it is never "behind".
  */
-// The panel portals to <body>, so the page it opened over is found from `anchor`,
-// a hidden marker rendered where the panel sits in the React tree.
 function isBehindPanel(
   el: Element | null,
   overlay: Element | null | undefined,

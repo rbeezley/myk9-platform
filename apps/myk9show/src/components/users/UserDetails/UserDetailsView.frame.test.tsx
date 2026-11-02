@@ -57,8 +57,8 @@ function Providers({ children }: { children: React.ReactNode }) {
 }
 
 describe('Person detail page frame (MYK9-930)', () => {
-  // SlideOverPanel is not portaled: inside PageShell's `space-y-6` it would pick up a
-  // 24px top margin on a fixed overlay. Dialogs and panels render OUTSIDE the shell.
+  // Dialogs and panels render OUTSIDE the shell, so they sit beside PageShell's `space-y-6`
+  // content rather than inside it.
   it('renders its dialogs and edit panel outside the PageShell spacing container', () => {
     render(<UserDetailsView person={person} />);
 

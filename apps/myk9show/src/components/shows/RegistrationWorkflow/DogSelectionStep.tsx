@@ -388,16 +388,14 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
           </div>
         )}
 
-        <div className="relative z-[60]">
-          <AddRegistrationPanel
-            open={registrationDogId !== null}
-            onClose={closeRegistrationEditor}
-            onSave={saveRegistrationForm}
-            announceSaved={false}
-            className="md:max-w-2xl lg:max-w-3xl"
-            dogName={dogs.find(dog => dog.id === registrationDogId)?.callName}
-          />
-        </div>
+        <AddRegistrationPanel
+          open={registrationDogId !== null}
+          onClose={closeRegistrationEditor}
+          onSave={saveRegistrationForm}
+          announceSaved={false}
+          className="md:max-w-2xl lg:max-w-3xl"
+          dogName={dogs.find(dog => dog.id === registrationDogId)?.callName}
+        />
       </div>
     );
   };

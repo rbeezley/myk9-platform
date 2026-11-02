@@ -46,7 +46,7 @@
     "qa:migrations:guard": "tsx scripts/qa/migration-version-guard.ts",
     "qa:types-drift": "bash scripts/qa/supabase-types-drift.sh",
     "qa:planted-bugs": "tsx scripts/qa/planted-bugs/run.ts",
-    "qa:planted-bugs:test": "vitest run scripts/qa/planted-bugs/lib.test.ts",
+    "qa:planted-bugs:test": "vitest run scripts/qa/planted-bugs/lib.test.ts scripts/qa/planted-bugs-sql-workflow.test.ts",
     "qa:golden-replay": "bash scripts/qa/run-golden-replay.sh",
     "qa:golden-replay:build": "tsx scripts/qa/golden-replay/build.ts",
     "qa:golden-replay:test": "vitest run scripts/qa/golden-replay/build.test.ts",

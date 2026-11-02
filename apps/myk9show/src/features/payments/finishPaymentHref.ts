@@ -21,3 +21,15 @@ export function buildFinishPaymentHref(showId: string, entryIds: string[]): stri
   params.set(ENTRY_SCOPE_ENTRIES_PARAM, entryIds.join(','));
   return `/cart?${params.toString()}`;
 }
+
+/**
+ * The wizard's Submit & pay hand-off (MYK9-1661): `/cart` scoped to the show
+ * just submitted. Without `showId` the cart page opens the exhibitor's newest
+ * populated cart across shows, which may be another show's. The scope lives in
+ * the URL so it survives a reload and the 409 repricing reload.
+ */
+export function buildScopedCartHref(showId: string): string {
+  const params = new URLSearchParams();
+  params.set(ENTRY_SCOPE_SHOW_PARAM, showId);
+  return `/cart?${params.toString()}`;
+}

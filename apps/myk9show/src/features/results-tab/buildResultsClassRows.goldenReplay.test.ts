@@ -136,8 +136,19 @@ function build(entries: SecretaryEntry[]): ResultsClassRow[] {
   });
 }
 
-/** Every disagreement between what a class row displays and what v3 published. */
-function diffs(c: FixtureClass, ci: number, row: ResultsClassRow | undefined): string[] {
+/**
+ * Every disagreement between what a class row displays and what it was given.
+ * The builder displays; it does not rank. Whether placements are RIGHT is the SQL
+ * golden replay's job (supabase/tests/golden_replay_trial_27835_test.sql), so a
+ * placement here is compared with the placement in the builder's input, while
+ * labels, counts, display and order are compared with v3.
+ */
+function diffs(
+  c: FixtureClass,
+  ci: number,
+  row: ResultsClassRow | undefined,
+  inputPlacement: Map<string, number | null>
+): string[] {
   if (!row) return [`class ${ci}: no row built`];
   const out: string[] = [];
   const shown = new Map(row.entries.map(r => [r.armband, r]));
@@ -156,12 +167,6 @@ function diffs(c: FixtureClass, ci: number, row: ResultsClassRow | undefined): s
   if (row.tieEntries.length !== qualified.length) {
     out.push(`class ${ci}: ${row.tieEntries.length} ranked entries, v3 ${qualified.length}`);
   }
-  const groups = new Map<string, FixtureEntry[]>();
-  for (const e of qualified) {
-    const k = `${e.totalFaults}|${e.searchTimeSeconds}`;
-    groups.set(k, [...(groups.get(k) ?? []), e]);
-  }
-  const groupOf = (e: FixtureEntry) => groups.get(`${e.totalFaults}|${e.searchTimeSeconds}`) ?? [e];
   for (const e of c.entries) {
     const r = shown.get(String(e.armband));
     if (!r) {
@@ -176,26 +181,11 @@ function diffs(c: FixtureClass, ci: number, row: ResultsClassRow | undefined): s
         out.push(`class ${ci} armband ${e.armband}: non-qualifier placed ${r.placement}`);
       continue;
     }
-    const group = groupOf(e);
-    const places = group.map(g => g.finalPlacement ?? -1).sort((a, b) => a - b);
-    const best = places[0] ?? -1;
-    if (group.length === 1 || best > 4) {
-      // Untied, or RULE 2 (a tie below 4th): this dog's own v3 place must be the one displayed.
-      if (r.placement !== e.finalPlacement) {
-        out.push(
-          `class ${ci} armband ${e.armband}: placement ${r.placement}, v3 ${e.finalPlacement}`
-        );
-      }
-    } else {
-      // RULE 1: the displayed set over the tie group must equal v3's set.
-      const displayed = group
-        .map(g => shown.get(String(g.armband))?.placement ?? -1)
-        .sort((a, b) => a - b);
-      if (displayed.join() !== places.join()) {
-        out.push(
-          `class ${ci} armband ${e.armband}: tie places ${displayed.join()}, v3 ${places.join()}`
-        );
-      }
+    const given = inputPlacement.get(String(e.armband)) ?? null;
+    if (r.placement !== given) {
+      out.push(
+        `class ${ci} armband ${e.armband}: displayed placement ${r.placement}, given ${given}`
+      );
     }
   }
   // The list reads best place first, unplaced dogs last.
@@ -212,13 +202,19 @@ function diffs(c: FixtureClass, ci: number, row: ResultsClassRow | undefined): s
 
 const allDiffs = (entries: SecretaryEntry[]) => {
   const rows = build(entries);
-  return fixture.classes.flatMap((c, i) =>
-    diffs(
+  return fixture.classes.flatMap((c, i) => {
+    const given = new Map(
+      entries
+        .filter(e => e.class_id === classId(i))
+        .map(e => [String(e.armband), e.final_placement ?? null] as const)
+    );
+    return diffs(
       c,
       i,
-      rows.find(r => r.id === classId(i))
-    )
-  );
+      rows.find(r => r.id === classId(i)),
+      given
+    );
+  });
 };
 
 describe('Results tab rows replayed from the real published v3 trial', () => {
@@ -230,7 +226,7 @@ describe('Results tab rows replayed from the real published v3 trial', () => {
     );
   });
 
-  it('displays every entry with the v3 label, placement and counts', () => {
+  it('displays every entry with the v3 label and counts, and the placement it was given', () => {
     expect(allDiffs(toSecretaryEntries(fixture.classes))).toEqual([]);
   });
 
@@ -252,17 +248,5 @@ describe('Results tab rows replayed from the real published v3 trial', () => {
     );
     expect(found.length).toBeGreaterThan(0);
     expect(found.join('\n')).toContain(`armband ${nq?.armband}: label Q, v3 nq`);
-  });
-
-  it('negative control: a swapped placement in the input is reported', () => {
-    const entries = toSecretaryEntries(fixture.classes);
-    const first = entries.find(e => e.final_placement === 1);
-    const second = entries.find(e => e.final_placement === 2 && e.class_id === first?.class_id);
-    expect(first && second).toBeTruthy();
-    if (first && second) {
-      first.final_placement = 2;
-      second.final_placement = 1;
-    }
-    expect(allDiffs(entries).length).toBeGreaterThan(0);
   });
 });

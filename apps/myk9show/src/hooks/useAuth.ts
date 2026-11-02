@@ -131,6 +131,20 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Back online: nudge auth-js to resolve the session now so a valid one
+    // confirms promptly (MYK9-834). A null may just be the refresh failing on
+    // the network, so it is ignored; SIGNED_OUT is the definitive signal.
+    const onReconnect = () => {
+      supabase.auth
+        .getSession()
+        .then(({ data: { session } }) => {
+          if (!session?.user) return;
+          setUser(prev => (prev?.id === session.user.id ? prev : session.user));
+        })
+        .catch(() => undefined);
+    };
+    window.addEventListener('online', onReconnect);
+
     let authEventReceived = false;
     let disposed = false;
     // Get initial session
@@ -196,6 +210,7 @@ export function useAuth() {
 
     return () => {
       disposed = true;
+      window.removeEventListener('online', onReconnect);
       subscription.unsubscribe();
     };
   }, []);

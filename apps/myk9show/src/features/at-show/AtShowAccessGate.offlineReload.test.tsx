@@ -12,6 +12,7 @@
 
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { Routes, Route } from 'react-router-dom';
+import { act, waitFor } from '@testing-library/react';
 import { render, screen } from '@/test/utils/testUtils';
 import { AtShowAccessGate } from './AtShowAccessGate';
 import { useRingsideGrantStore } from '@/store/ringsideGrantStore';
@@ -166,7 +167,10 @@ describe('AtShowAccessGate offline-reload fallback', () => {
   // unconfirmed by construction. Once the device is back online and the
   // session turns out to be genuinely gone (not merely offline-unconfirmed),
   // a grant left over in the store must not keep admitting the ring.
-  it('clears a stale offline-fallback grant once back online with a confirmed absence of a user', async () => {
+  // MYK9-834: a null user is never a verdict, even for a gate mounted after
+  // the device came back online -- it is the stale null from the failed offline
+  // refresh. Definitive invalidation arrives as SIGNED_OUT (useAuth clears).
+  it('keeps an offline-fallback grant when mounted online with a still-null user', () => {
     useRingsideGrantStore.getState().setGrant({
       showId: 'show-1',
       role: 'judge',
@@ -179,8 +183,8 @@ describe('AtShowAccessGate offline-reload fallback', () => {
 
     renderGate();
 
-    expect(await screen.findByText('SIGN IN PAGE')).toBeInTheDocument();
-    expect(useRingsideGrantStore.getState().activeGrant).toBeNull();
+    expect(screen.getByText('AT SHOW CONTENT')).toBeInTheDocument();
+    expect(useRingsideGrantStore.getState().activeGrant).not.toBeNull();
   });
 
   it('keeps admitting from an offline-fallback grant while still offline (does not treat it as stale)', () => {
@@ -207,7 +211,7 @@ describe('AtShowAccessGate offline-reload fallback', () => {
   // (React bails out of `setUser(null)` when it's already null) produces no
   // re-render on its own -- so reconnecting must itself force one via a real
   // `online` event, with no remount and no user/store change beyond that.
-  it('revalidates a stale offline-fallback grant on a live reconnect, with no remount', async () => {
+  it('revalidates on a live reconnect: keeps a null user, clears a real session without the claim', async () => {
     useRingsideGrantStore.getState().setGrant({
       showId: 'show-1',
       role: 'judge',
@@ -221,12 +225,22 @@ describe('AtShowAccessGate offline-reload fallback', () => {
     renderGate();
     expect(screen.getByText('AT SHOW CONTENT')).toBeInTheDocument();
 
-    // Reconnect live, in place -- no renderGate() call, no user/store change
-    // beyond the connectivity event itself.
-    setOnline(true);
+    // Reconnect live, in place. The user is still the stale null: not a verdict.
+    await act(async () => setOnline(true));
+    await act(async () => {});
+    expect(screen.getByText('AT SHOW CONTENT')).toBeInTheDocument();
+    expect(useRingsideGrantStore.getState().activeGrant).not.toBeNull();
 
-    expect(await screen.findByText('SIGN IN PAGE')).toBeInTheDocument();
-    expect(useRingsideGrantStore.getState().activeGrant).toBeNull();
+    // A real session that lacks the claim IS a verdict.
+    mockUser = { id: 'someone-else', is_anonymous: true, app_metadata: {} };
+    // Nudge a re-render so the mocked context is re-read.
+    act(() => {
+      const grant = useRingsideGrantStore.getState().activeGrant;
+      useRingsideGrantStore.setState({ activeGrant: grant && { ...grant } });
+    });
+
+    await waitFor(() => expect(useRingsideGrantStore.getState().activeGrant).toBeNull());
+    expect(screen.queryByText('AT SHOW CONTENT')).not.toBeInTheDocument();
   });
 
   // The revalidation guard is scoped to `unconfirmedOffline` ONLY — an

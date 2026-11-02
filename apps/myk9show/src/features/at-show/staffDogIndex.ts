@@ -37,6 +37,8 @@ export interface StaffDogClassEntry {
   faultCount: number | null;
   placement: number | null;
   resultsReleased: boolean;
+  /** Place in the ringside waiting queue (exhibitor view only; null/absent when not waiting). */
+  runPosition?: number | null | undefined;
 }
 
 export interface StaffDog {

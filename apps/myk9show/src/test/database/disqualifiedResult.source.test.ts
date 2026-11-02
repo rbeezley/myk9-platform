@@ -90,10 +90,13 @@ describe('server rules that treat excused as accounted-for also cover disqualifi
     expect(fn.body).toContain("NEW.result_status IS DISTINCT FROM 'disqualified'");
   });
 
+  // MYK9-1578 moved the waiting-queue rule into entry_queue_places_for_classes,
+  // shared by get_my_entry_queue_places and show_dogs_limited_view.run_position.
   it('get_my_entry_queue_places does not queue a DQ', () => {
     const fn = definitions.get('get_my_entry_queue_places')!;
-    expect(fn.file).toBe('20261011003700_myk9_1011_disqualified_result.sql');
-    expect(fn.body).toContain("NOT IN ('absent', 'excused', 'disqualified')");
+    expect(fn.body).toContain('public.entry_queue_places_for_classes(');
+    const shared = definitions.get('entry_queue_places_for_classes')!;
+    expect(shared.body).toContain("NOT IN ('absent', 'excused', 'disqualified')");
   });
 
   it('get_own_entitlement_context counts a DQ as a scored result', () => {

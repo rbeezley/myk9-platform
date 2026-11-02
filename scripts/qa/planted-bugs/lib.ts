@@ -211,3 +211,27 @@ export function classifySqlCheck(r: {
   if (r.exitCode === 0) return 'pass';
   return r.exitCode === 3 ? 'caught' : 'error';
 }
+
+/** libpq variables that can redirect a loopback-looking URL to another server. */
+const REDIRECTING_PG_ENV = ['PGHOSTADDR', 'PGSERVICE', 'PGSERVICEFILE', 'PGPASSFILE', 'PGHOST'];
+export function scrubPgEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const out = { ...env };
+  for (const key of REDIRECTING_PG_ENV) delete out[key];
+  return out;
+}
+
+/**
+ * Why a SQL check failed: the failing test file and the first `ERROR:` line of
+ * the runner log. Printed in the table so a reader can tell a test's own RAISE
+ * from an unrelated script error (a missing relation, a syntax error).
+ */
+export function firstSqlError(log: string): string | undefined {
+  let file: string | undefined;
+  for (const line of log.split('\n')) {
+    const header = /^── (.+) ──$/.exec(line);
+    if (header) file = header[1];
+    const error = /ERROR:\s+(.+)$/.exec(line);
+    if (error) return `${file ?? 'unknown file'}: ${error[1]!.trim()}`;
+  }
+  return undefined;
+}

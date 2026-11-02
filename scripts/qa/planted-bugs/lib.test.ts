@@ -11,6 +11,8 @@ import {
   uniqueChecks,
   classifySqlCheck,
   extractFunctionDdl,
+  firstSqlError,
+  scrubPgEnv,
   isLoopbackDatabaseUrl,
   patchedFiles,
   splitSqlCheck,
@@ -255,5 +257,37 @@ describe('ci SQL mutants (MYK9-1659)', () => {
     expect(classifySqlCheck({ exitCode: null })).toBe('error');
     expect(classifySqlCheck({ exitCode: 3, timedOut: true })).toBe('error');
     expect(classifySqlCheck({ exitCode: 3, signal: 'SIGKILL' })).toBe('error');
+  });
+});
+
+describe('SQL evidence and env scrubbing (MYK9-1659)', () => {
+  it('names the failing file and the first ERROR line', () => {
+    const log = [
+      '── placement_soft_delete_ranking_test.sql ──',
+      'NOTICE: ok',
+      '── myk9_1473_coin_flip_tie_order_test.sql ──',
+      'psql:supabase/tests/x.sql:40: ERROR:  FAIL tie order: expected 1 got 2',
+      'psql:supabase/tests/x.sql:40: ERROR:  later',
+    ].join('\n');
+    expect(firstSqlError(log)).toBe(
+      'myk9_1473_coin_flip_tie_order_test.sql: FAIL tie order: expected 1 got 2'
+    );
+    expect(firstSqlError('all good')).toBeUndefined();
+    expect(firstSqlError('ERROR:  relation "x" does not exist')).toBe(
+      'unknown file: relation "x" does not exist'
+    );
+  });
+
+  it('strips every libpq variable that can redirect the connection', () => {
+    const env = scrubPgEnv({
+      PATH: '/bin',
+      PGHOST: 'h',
+      PGHOSTADDR: '1.2.3.4',
+      PGSERVICE: 's',
+      PGSERVICEFILE: 'f',
+      PGPASSFILE: 'p',
+      PGOPTIONS: 'keep',
+    });
+    expect(env).toEqual({ PATH: '/bin', PGOPTIONS: 'keep' });
   });
 });

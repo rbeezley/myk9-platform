@@ -14,7 +14,7 @@
  * pg_get_functiondef must CHANGE once the mutant is applied and must EQUAL the
  * baseline again after the restore, or the run aborts.
  */
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
@@ -22,8 +22,10 @@ import {
   classifySqlCheck,
   combineOutcomes,
   extractFunctionDdl,
+  firstSqlError,
   isLoopbackDatabaseUrl,
   patchedFiles,
+  scrubPgEnv,
   splitSqlCheck,
   uniqueChecks,
   type CheckOutcome,
@@ -44,7 +46,12 @@ function abort(message: string): never {
 }
 
 function psql(url: string, args: string[]) {
-  return spawnSync('psql', [url, '-X', '-v', 'ON_ERROR_STOP=1', ...args], { encoding: 'utf8' });
+  // Bounded, so a restore cannot hang behind a stray transaction; scrubbed, so a
+  // PGHOSTADDR or service file cannot redirect the loopback URL.
+  return spawnSync('psql', [url, '-X', '-v', 'ON_ERROR_STOP=1', ...args], {
+    encoding: 'utf8',
+    env: { ...scrubPgEnv(process.env), PGOPTIONS: '-c lock_timeout=30s -c statement_timeout=120s' },
+  });
 }
 
 function functionHash(url: string, signature: string): string {
@@ -54,8 +61,10 @@ function functionHash(url: string, signature: string): string {
     `select md5(pg_get_functiondef('${signature}'::regprocedure))`,
   ]);
   const hash = r.stdout.trim();
+  // Throws, never exits: this runs inside the try that holds an applied patch,
+  // and process.exit would skip the finally that reverts and restores.
   if (r.status !== 0 || !/^[0-9a-f]{32}$/.test(hash)) {
-    abort(`could not read ${signature} from the database:\n${r.stderr}`);
+    throw new Error(`could not read ${signature} from the database:\n${r.stderr}`);
   }
   return hash;
 }
@@ -66,25 +75,64 @@ function applyDdl(url: string, ddl: string, scratch: string): boolean {
   return psql(url, ['-1', '-f', file]).status === 0;
 }
 
-function runSqlCheck(ctx: Ctx, url: string, check: string, logName: string): CheckOutcome {
+interface SqlCheckResult {
+  outcome: CheckOutcome;
+  /** First failing file and ERROR line, for the table. */
+  evidence?: string | undefined;
+}
+
+/**
+ * Async and detached so the SIGINT/SIGTERM handler in run.ts can run while a check
+ * is in flight, and so a timeout kills the whole group (bash AND its psql, which
+ * would otherwise keep its locks).
+ */
+function runSqlCheck(
+  ctx: Ctx,
+  url: string,
+  check: string,
+  logName: string
+): Promise<SqlCheckResult> {
   const logDir = resolve(ctx.root, '.logs/planted-bugs');
   mkdirSync(logDir, { recursive: true });
-  const r = spawnSync(
-    'bash',
-    [resolve(ctx.root, 'scripts/qa/run-behavioral-sql-tests.sh'), ...splitSqlCheck(check)],
-    {
-      cwd: ctx.root,
-      encoding: 'utf8',
-      timeout: CHECK_TIMEOUT_MS,
-      killSignal: 'SIGKILL',
-      env: { ...process.env, MYK9_BEHAVIORAL_SQL_DATABASE_URL: url },
-    }
-  );
-  writeFileSync(resolve(logDir, `${logName}.log`), `${r.stdout}\n${r.stderr}`);
-  return classifySqlCheck({
-    exitCode: r.status,
-    signal: r.signal,
-    timedOut: (r.error as NodeJS.ErrnoException | undefined)?.code === 'ETIMEDOUT',
+  return new Promise(done => {
+    const proc = spawn(
+      'bash',
+      [resolve(ctx.root, 'scripts/qa/run-behavioral-sql-tests.sh'), ...splitSqlCheck(check)],
+      {
+        cwd: ctx.root,
+        detached: true,
+        env: { ...scrubPgEnv(process.env), MYK9_BEHAVIORAL_SQL_DATABASE_URL: url },
+      }
+    );
+    let output = '';
+    let timedOut = false;
+    const kill = () => {
+      try {
+        process.kill(-proc.pid!, 'SIGKILL');
+      } catch {
+        proc.kill('SIGKILL');
+      }
+    };
+    const timer = setTimeout(() => {
+      timedOut = true;
+      kill();
+    }, CHECK_TIMEOUT_MS);
+    proc.stdout.on('data', d => (output += d));
+    proc.stderr.on('data', d => (output += d));
+    let finished = false;
+    const finish = (exitCode: number | null, signal: string | null) => {
+      if (finished) return;
+      finished = true;
+      clearTimeout(timer);
+      writeFileSync(resolve(logDir, `${logName}.log`), output);
+      const outcome = classifySqlCheck({ exitCode, signal, timedOut });
+      done({ outcome, evidence: outcome === 'caught' ? firstSqlError(output) : undefined });
+    };
+    proc.on('close', finish);
+    proc.on('error', err => {
+      output += String(err);
+      finish(null, null);
+    });
   });
 }
 
@@ -107,11 +155,13 @@ function definitionsFor(ctx: Ctx, mutant: Mutant, patchPath: string) {
   return abort(`${mutant.id}: no patched file defines ${mutant.reapplyFunction}`);
 }
 
-export function runSqlMutants(
+export async function runSqlMutants(
   ctx: Ctx,
   mutants: Mutant[],
-  git: (...args: string[]) => { status: number | null; stderr: string }
-): Row[] {
+  git: (...args: string[]) => { status: number | null; stderr: string },
+  /** Tells run.ts which patch is applied, so its SIGINT/SIGTERM handler can revert it. */
+  onApplied: (patch: string | undefined) => void
+): Promise<Row[]> {
   const url = process.env.MYK9_BEHAVIORAL_SQL_DATABASE_URL ?? '';
   if (!isLoopbackDatabaseUrl(url)) {
     abort('MYK9_BEHAVIORAL_SQL_DATABASE_URL must be a local loopback database URL.');
@@ -119,7 +169,7 @@ export function runSqlMutants(
   const scratch = mkdtempSync(resolve(tmpdir(), 'planted-sql-'));
   try {
     for (const [i, c] of uniqueChecks(mutants, 'ci').entries()) {
-      if (runSqlCheck(ctx, url, c, `baseline-${i}-${slug(c)}`) !== 'pass') {
+      if ((await runSqlCheck(ctx, url, c, `baseline-${i}-${slug(c)}`)).outcome !== 'pass') {
         abort(
           `baseline check is not green on the clean database (logs in .logs/planted-bugs/): ${c}`
         );
@@ -132,25 +182,36 @@ export function runSqlMutants(
       const patchPath = resolve(ctx.dir, mutant.patch);
       const { path, clean } = definitionsFor(ctx, mutant, patchPath);
       if (git('apply', patchPath).status !== 0) abort(`patch does not apply: ${mutant.patch}`);
-      const outcomes: CheckOutcome[] = [];
+      onApplied(patchPath);
+      const results: SqlCheckResult[] = [];
       try {
         const mutated = extractFunctionDdl(readFileSync(path, 'utf8'), signature);
-        if (mutated === clean) {
-          outcomes.push('error');
-        } else if (!applyDdl(url, mutated, scratch)) {
-          outcomes.push('error');
+        if (mutated === clean || !applyDdl(url, mutated, scratch)) {
+          results.push({ outcome: 'error' });
         } else if (functionHash(url, signature) === baseline) {
-          outcomes.push('error');
+          results.push({ outcome: 'error' });
         } else {
           for (const [i, c] of mutant.checks.entries()) {
-            outcomes.push(runSqlCheck(ctx, url, c, `${slug(mutant.id)}-${i}`));
+            results.push(await runSqlCheck(ctx, url, c, `${slug(mutant.id)}-${i}`));
           }
         }
+      } catch (err) {
+        // Any failure while the mutant is live is an ERROR row, never an exit: the
+        // finally below must still revert the patch and restore the function.
+        console.error(`${mutant.id}: ${String(err)}`);
+        results.push({ outcome: 'error' });
       } finally {
         if (git('apply', '-R', patchPath).status !== 0) {
           abort(`could not revert ${mutant.patch}; run: git apply -R "${patchPath}"`);
         }
-        if (!applyDdl(url, clean, scratch) || functionHash(url, signature) !== baseline) {
+        onApplied(undefined);
+        let restored = false;
+        try {
+          restored = applyDdl(url, clean, scratch) && functionHash(url, signature) === baseline;
+        } catch (err) {
+          console.error(String(err));
+        }
+        if (!restored) {
           abort(
             `the database function was not restored after ${mutant.id}; later results would be void`
           );
@@ -158,8 +219,10 @@ export function runSqlMutants(
       }
       rows.push({
         mutant,
-        verdict: combineOutcomes(outcomes),
-        caughtBy: outcomes.includes('caught') ? mutant.checks : [],
+        verdict: combineOutcomes(results.map(r => r.outcome)),
+        caughtBy: results.flatMap(r =>
+          r.outcome === 'caught' ? [r.evidence ?? 'no ERROR line in log'] : []
+        ),
       });
     }
     return rows;

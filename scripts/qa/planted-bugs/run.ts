@@ -166,7 +166,14 @@ async function main(): Promise<void> {
   assertClean('before baseline', manifest as Mutant[]);
 
   if (kind === 'ci') {
-    const rows = runSqlMutants({ root: ROOT, dir: DIR }, mutants, (...args) => sh('git', args));
+    const rows = await runSqlMutants(
+      { root: ROOT, dir: DIR },
+      mutants,
+      (...args) => sh('git', args),
+      patch => {
+        applied = patch;
+      }
+    );
     console.log(renderTable(rows));
     assertClean('end of run');
     const n = (v: string) => rows.filter(r => r.verdict === v).length;

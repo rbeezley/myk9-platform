@@ -279,6 +279,37 @@ describe('AtShowCombinedEntryListPage (Phase 1h combined Section A/B)', () => {
     expect(screen.getByRole('button', { name: 'Save for show day' })).toBeInTheDocument();
   });
 
+  it('the empty state shows the shared Up control, which goes to the class list on a direct link', async () => {
+    entriesScope.synced = true;
+    vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([] as never);
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Classes' }));
+
+    expect(await screen.findByTestId('class-list-page')).toBeInTheDocument();
+  });
+
+  it('the not-on-device state shows the shared Up control, which goes to the class list on a direct link', async () => {
+    entriesScope.synced = false;
+    vi.mocked(replicatedTrialsTable.sync).mockResolvedValue({ success: false } as never);
+    vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([] as never);
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Classes' }));
+
+    expect(await screen.findByTestId('class-list-page')).toBeInTheDocument();
+  });
+
+  it('Go Back from a genuinely empty combined class goes to the show class list on a direct link', async () => {
+    entriesScope.synced = true;
+    vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([] as never);
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('button', { name: /go back/i }));
+
+    expect(await screen.findByTestId('class-list-page')).toBeInTheDocument();
+  });
+
   // MYK9-1500: a combined list's Up is the same fixed route as a single list's.
   it('Up goes to the show class list, and there is no "Back to main app" exit', async () => {
     renderPage();

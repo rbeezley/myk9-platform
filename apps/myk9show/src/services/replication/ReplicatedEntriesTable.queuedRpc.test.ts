@@ -12,7 +12,7 @@ import {
   MutationManager,
   REPLICATION_STORES,
 } from '@myk9/replication';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { ReplicatedEntriesTable, type ReplicatedEntry } from './ReplicatedEntriesTable';
 import { supabase } from '@/services/database/supabaseClient';
 
@@ -66,7 +66,7 @@ describe('a queued ringside write meeting a pull (MYK9-1236)', () => {
   let table: ReplicatedEntriesTable;
   let manager: MutationManager;
   let rpcCalls: RpcCall[];
-  let rpcMock: ReturnType<typeof vi.fn>;
+  let rpcMock: Mock<(name: string, args: RpcCall) => Promise<unknown>>;
   let serverVersion: number;
   let serverFields: Record<string, unknown>;
   let acknowledgeRpc: (args: RpcCall) => Promise<void>;
@@ -242,22 +242,24 @@ describe('a queued ringside write meeting a pull (MYK9-1236)', () => {
     expect(rpcCalls).toHaveLength(1);
   });
 
-  // MYK9-1658: a check-in other than the default must reach the RPC field, or a
-  // steward marking a dog at gate / conflict / not checked in writes "checked-in".
-  it.each(['at-gate', 'conflict', 'no-status'] as const)(
-    'uploads check_in_status %s through the ringside RPC',
-    async status => {
-      await table.batchSet([seed], new Map([[ID, 8]]));
+  describe('check-in status upload (MYK9-1658)', () => {
+    // MYK9-1658: a check-in other than the default must reach the RPC field, or a
+    // steward marking a dog at gate / conflict / not checked in writes "checked-in".
+    it.each(['at-gate', 'conflict', 'no-status'] as const)(
+      'uploads check_in_status %s through the ringside RPC',
+      async status => {
+        await table.batchSet([seed], new Map([[ID, 8]]));
 
-      await table.updateCheckInStatus(ID, status);
+        await table.updateCheckInStatus(ID, status);
 
-      await vi.waitFor(() =>
-        expect(rpcMock).toHaveBeenCalledWith(
-          'ringside_update_entry',
-          expect.objectContaining({ p_fields: { check_in_status: status } })
-        )
-      );
-      expect(serverFields).toEqual({ check_in_status: status });
-    }
-  );
+        await vi.waitFor(() =>
+          expect(rpcMock).toHaveBeenCalledWith(
+            'ringside_update_entry',
+            expect.objectContaining({ p_fields: { check_in_status: status } })
+          )
+        );
+        expect(serverFields).toEqual({ check_in_status: status });
+      }
+    );
+  });
 });

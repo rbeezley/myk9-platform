@@ -108,31 +108,56 @@ describe('loadRingsideNavigation', () => {
 });
 
 describe('OFFLINE_SHELL_ALLOWLIST', () => {
-  const covered = (path: string) => OFFLINE_SHELL_ALLOWLIST.some(re => re.test(path));
+  // Workbox NavigationRoute tests the allowlist against pathname + search, not pathname alone.
+  const covered = (path: string) => {
+    const url = new URL(path, 'https://myk9show.com');
+    return OFFLINE_SHELL_ALLOWLIST.some(re => re.test(url.pathname + url.search));
+  };
 
-  it.each(['/at-show', '/at-show/show-1', '/shows', '/shows/abc'])('covers %s', path => {
+  it.each([
+    '/at-show',
+    '/at-show/show-1',
+    '/at-show/abc?view=all',
+    '/shows',
+    '/shows/abc',
+    '/shows?month=2026-11',
+  ])('covers %s', path => {
     expect(covered(path)).toBe(true);
   });
 
-  // The query string is not part of pathname, which is what the SW matches.
-  it.each(['/exhibitor/entries', '/exhibitor/entries/', '/exhibitor/entries/abc'])(
-    'covers My Shows path %s',
-    path => {
-      expect(covered(path)).toBe(true);
-    }
-  );
+  it.each([
+    '/exhibitor/entries',
+    '/exhibitor/entries/',
+    '/exhibitor/entries/abc',
+    '/exhibitor/entries?resultEntryId=1',
+    '/exhibitor/entries?waitlistOffer=o-9&tab=upcoming',
+  ])('covers My Shows path %s', path => {
+    expect(covered(path)).toBe(true);
+  });
 
-  it.each(['/exhibitor', '/exhibitor/account', '/exhibitor/entries-foo', '/exhibitor/entriesx/1'])(
-    'leaves other exhibitor path %s untouched',
-    path => {
-      expect(covered(path)).toBe(false);
-    }
-  );
+  it.each([
+    '/exhibitor',
+    '/exhibitor/account',
+    '/exhibitor/entries-foo',
+    '/exhibitor/entries-foo?x=1',
+    '/exhibitor/entriesx/1',
+    '/exhibitor/entriesx?x=1',
+  ])('leaves other exhibitor path %s untouched', path => {
+    expect(covered(path)).toBe(false);
+  });
 
-  it.each(['/', '/account', '/showsomething', '/entries', '/at-shows', '/exhibitors/entries'])(
-    'leaves %s untouched',
-    path => {
-      expect(covered(path)).toBe(false);
-    }
-  );
+  it.each([
+    '/',
+    '/account',
+    '/showsomething',
+    '/showsx',
+    '/showsx?x=1',
+    '/entries',
+    '/at-shows',
+    '/at-showx',
+    '/at-showx?x=1',
+    '/exhibitors/entries',
+  ])('leaves %s untouched', path => {
+    expect(covered(path)).toBe(false);
+  });
 });

@@ -7,9 +7,9 @@
  * not `/exhibitor/*`, because other account pages are unreviewed offline.
  */
 export const OFFLINE_SHELL_ALLOWLIST: RegExp[] = [
-  /^\/at-show(?:\/|$)/,
-  /^\/shows(?:\/|$)/,
-  /^\/exhibitor\/entries(?:\/|$)/,
+  /^\/at-show(?:[/?]|$)/,
+  /^\/shows(?:[/?]|$)/,
+  /^\/exhibitor\/entries(?:[/?]|$)/,
 ];
 
 const APP_SHELL_MARKER = 'name="myk9-supabase-origin"';

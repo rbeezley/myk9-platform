@@ -23,6 +23,8 @@ import { goOffline, reportOffline, supabaseRouteGlob } from './helpers/offlineBa
 
 const SHOW_ID = 'dededede-0000-0000-0000-000000000010'; // Heartland Scent Work Classic
 const AT_SHOW_URL = `/at-show/${SHOW_ID}`;
+const CLASS_ID = 'dec1a55e-0000-0000-0000-000000000032'; // a Heartland class with seeded entries
+const CLASS_URL = `${AT_SHOW_URL}/class/${CLASS_ID}`;
 
 /**
  * Like `goOffline`, but the backend can be switched back on mid-test.
@@ -169,6 +171,55 @@ test.describe('offline cold boot', () => {
     await expect(
       page.getByRole('status').filter({ hasText: /offline ready|offline copy: saved/i })
     ).toHaveCount(0);
+  });
+  // MYK9-1520 / MYK9-1655. The never-synced half: a show this device NEVER saved.
+  // Offline, its class page once read "No Entries Yet" although the class had entries,
+  // because every walk ran online with the show already on the device. "Never saved" is
+  // staged by signing in elsewhere (the show page hydrates the show, so we wipe the
+  // replica as the test above does) and then cold-booting offline straight onto the class.
+  test('a show never saved on this device says its entries are not here, never No Entries Yet', async ({
+    page,
+    context,
+  }) => {
+    await signInAsSecretary(page, AT_SHOW_URL);
+    await page.waitForURL(`**${AT_SHOW_URL}`, { timeout: 30_000 });
+    await expect(
+      page
+        .getByRole('status')
+        .filter({ hasText: /offline ready|offline copy: saved/i })
+        .or(page.getByRole('button', { name: /save for show day/i }))
+        .first()
+    ).toBeVisible({ timeout: 45_000 });
+
+    await page.evaluate(async () => {
+      await new Promise<void>(resolve => {
+        const request = indexedDB.deleteDatabase('myK9_Replication');
+        request.onsuccess = () => resolve();
+        request.onerror = () => resolve();
+        request.onblocked = () => resolve();
+      });
+    });
+
+    const interceptedCount = await goOffline(context);
+    await page.goto(CLASS_URL, { waitUntil: 'domcontentloaded' });
+
+    // Positive control first: the not-on-device state IS on this page, so the absence
+    // check below is made against a page that finished deciding.
+    await expect(page.getByRole('heading', { name: 'Entries are not on this device' })).toBeVisible(
+      { timeout: 45_000 }
+    );
+    await expect(page.getByRole('button', { name: /try again/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'No Entries Yet' })).toHaveCount(0);
+
+    // The show's class list makes the same claim instead of "No classes".
+    await page.goto(AT_SHOW_URL, { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'Classes not on this device yet' })).toBeVisible(
+      { timeout: 45_000 }
+    );
+    await expect(page.getByRole('heading', { name: 'No classes' })).toHaveCount(0);
+
+    // Prove the backend really was unreachable.
+    expect(interceptedCount()).toBeGreaterThan(0);
   });
   // MYK9-347. The exhibitor half of this arc, and a different failure from the
   // secretary one above: nothing crashed and nothing was denied — the app was

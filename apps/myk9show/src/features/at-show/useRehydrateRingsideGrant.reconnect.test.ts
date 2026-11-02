@@ -10,7 +10,7 @@
  * before supabase-js had a chance to refresh.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest';
 import { renderHook, act, cleanup } from '@testing-library/react';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { useRehydrateRingsideGrant } from './useRehydrateRingsideGrant';
@@ -105,7 +105,7 @@ const refreshAs =
 describe('useRehydrateRingsideGrant — reconnect with a pending auth verdict (MYK9-834)', () => {
   const originalOnLine = window.navigator.onLine;
   let transport: Transport;
-  let signOutSpy: ReturnType<typeof vi.fn>;
+  let signOutSpy: Mock<(...args: unknown[]) => void>;
 
   async function bootOfflineAndRecoverFromClaim(options: { autoRefresh?: boolean } = {}) {
     transport = offline;

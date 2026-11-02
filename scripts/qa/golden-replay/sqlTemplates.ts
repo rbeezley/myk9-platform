@@ -204,6 +204,11 @@ BEGIN
     INTO v_base, v_diffs
   FROM pg_temp.golden_diffs('pg_temp.golden_expected') d WHERE d.reason IS NOT NULL;
 
+  -- Surface the real disagreements now, so a control that aborts later cannot hide them.
+  IF v_base > 0 THEN
+    RAISE NOTICE E'GOLDEN_REPLAY_DIFF % entries disagree with the published v3 results\\n%', v_base, v_diffs;
+  END IF;
+
   -- The controls run on golden_ours: the answer key rewritten to what our
   -- function placed, which agrees with itself by construction, so they hold
   -- whatever the real replay finds.

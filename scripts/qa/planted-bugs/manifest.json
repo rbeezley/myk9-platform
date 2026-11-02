@@ -75,7 +75,7 @@
     "patch": "check-in/01-rpc-fields-hardcoded-status.patch",
     "rationale": "Check-in RPC always sends checked-in whatever status was chosen",
     "checks": [
-      "cd apps/myk9show && pnpm vitest run src/services/replication/ReplicatedEntriesTable.queuedRpc.test.ts src/services/replication/ReplicatedEntriesTable.durableFirst.test.ts src/services/show-day/__tests__/checkInStatus.test.ts"
+      "cd apps/myk9show && pnpm vitest run src/services/replication/ReplicatedEntriesTable.queuedRpc.test.ts src/services/replication/ReplicatedEntriesTable.durableFirst.test.ts src/services/show-day/__tests__/checkInStatus.test.ts src/features/show-map/showMapCheckInOptimisticUpdates.test.ts"
     ],
     "kind": "local"
   },
@@ -85,7 +85,7 @@
     "patch": "check-in/02-self-checkin-wrong-status.patch",
     "rationale": "Self check-in RPC always sends checked-in",
     "checks": [
-      "cd apps/myk9show && pnpm vitest run src/services/replication/ReplicatedEntriesTable.queuedRpc.test.ts src/services/replication/ReplicatedEntriesTable.durableFirst.test.ts src/services/show-day/__tests__/checkInStatus.test.ts"
+      "cd apps/myk9show && pnpm vitest run src/services/replication/ReplicatedEntriesTable.queuedRpc.test.ts src/services/replication/ReplicatedEntriesTable.durableFirst.test.ts src/services/show-day/__tests__/checkInStatus.test.ts src/features/show-map/showMapCheckInOptimisticUpdates.test.ts"
     ],
     "kind": "local"
   },
@@ -95,7 +95,7 @@
     "patch": "check-in/03-report-counts-no-status-as-checked-in.patch",
     "rationale": "Check-in report counts no-status entries as checked in",
     "checks": [
-      "cd apps/myk9show && pnpm vitest run src/services/replication/ReplicatedEntriesTable.queuedRpc.test.ts src/services/replication/ReplicatedEntriesTable.durableFirst.test.ts src/services/show-day/__tests__/checkInStatus.test.ts"
+      "cd apps/myk9show && pnpm vitest run src/services/replication/ReplicatedEntriesTable.queuedRpc.test.ts src/services/replication/ReplicatedEntriesTable.durableFirst.test.ts src/services/show-day/__tests__/checkInStatus.test.ts src/features/show-map/showMapCheckInOptimisticUpdates.test.ts"
     ],
     "kind": "local"
   },

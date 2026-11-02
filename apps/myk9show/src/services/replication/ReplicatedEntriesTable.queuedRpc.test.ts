@@ -66,6 +66,7 @@ describe('a queued ringside write meeting a pull (MYK9-1236)', () => {
   let table: ReplicatedEntriesTable;
   let manager: MutationManager;
   let rpcCalls: RpcCall[];
+  let rpcMock: ReturnType<typeof vi.fn>;
   let serverVersion: number;
   let serverFields: Record<string, unknown>;
   let acknowledgeRpc: (args: RpcCall) => Promise<void>;
@@ -84,21 +85,20 @@ describe('a queued ringside write meeting a pull (MYK9-1236)', () => {
     window.addEventListener('replication:conflict', onConflict);
     // The server is already at token 8: a write against token 3 is rejected with
     // that version, and a write against 8 is accepted.
-    const client = {
-      rpc: vi.fn(async (_name: string, args: RpcCall) => {
-        rpcCalls.push(args);
-        if (args.p_expected_version === serverVersion) {
-          Object.assign(serverFields, args.p_fields);
-          serverVersion += 1;
-          await acknowledgeRpc(args);
-          return { data: serverVersion, error: null };
-        }
-        return {
-          data: null,
-          error: { code: '40001', message: 'Version conflict', details: String(serverVersion) },
-        };
-      }),
-    } as unknown as SupabaseClient;
+    rpcMock = vi.fn(async (_name: string, args: RpcCall) => {
+      rpcCalls.push(args);
+      if (args.p_expected_version === serverVersion) {
+        Object.assign(serverFields, args.p_fields);
+        serverVersion += 1;
+        await acknowledgeRpc(args);
+        return { data: serverVersion, error: null };
+      }
+      return {
+        data: null,
+        error: { code: '40001', message: 'Version conflict', details: String(serverVersion) },
+      };
+    });
+    const client = { rpc: rpcMock } as unknown as SupabaseClient;
     manager = new MutationManager(client, {
       retryBackoffBase: 60_000,
       getCurrentUserId: async () => AUTH,
@@ -241,4 +241,23 @@ describe('a queued ringside write meeting a pull (MYK9-1236)', () => {
     ]);
     expect(rpcCalls).toHaveLength(1);
   });
+
+  // MYK9-1658: a check-in other than the default must reach the RPC field, or a
+  // steward marking a dog at gate / conflict / not checked in writes "checked-in".
+  it.each(['at-gate', 'conflict', 'no-status'] as const)(
+    'uploads check_in_status %s through the ringside RPC',
+    async status => {
+      await table.batchSet([seed], new Map([[ID, 8]]));
+
+      await table.updateCheckInStatus(ID, status);
+
+      await vi.waitFor(() =>
+        expect(rpcMock).toHaveBeenCalledWith(
+          'ringside_update_entry',
+          expect.objectContaining({ p_fields: { check_in_status: status } })
+        )
+      );
+      expect(serverFields).toEqual({ check_in_status: status });
+    }
+  );
 });

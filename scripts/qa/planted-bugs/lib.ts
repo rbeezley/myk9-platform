@@ -70,6 +70,20 @@ export function isVitestCheck(command: string): boolean {
   return VITEST_CHECK.test(command);
 }
 
+function kindErrors(m: Partial<Mutant>, label: string): string[] {
+  const errors: string[] = [];
+  if (m?.kind === 'local' && Array.isArray(m.checks)) {
+    for (const c of m.checks) {
+      if (!isVitestCheck(c)) errors.push(`${label}: local check must be a vitest run: ${c}`);
+    }
+  }
+  if (m?.kind === 'ci' && !m.note) errors.push(`${label}: a ci mutant needs a note`);
+  if (m?.kind === 'ci' && !SQL_FUNCTION_SIGNATURE.test(m.reapplyFunction ?? '')) {
+    errors.push(`${label}: a ci mutant needs reapplyFunction like schema.name(argtypes)`);
+  }
+  return errors;
+}
+
 export function validateManifest(
   value: unknown,
   patchExists: (patch: string) => boolean
@@ -87,15 +101,7 @@ export function validateManifest(
     if (!Array.isArray(m?.checks) || m.checks.length === 0 || m.checks.some(c => !c)) {
       errors.push(`${label}: checks must be a non-empty list of commands`);
     }
-    if (m?.kind === 'local' && Array.isArray(m.checks)) {
-      for (const c of m.checks) {
-        if (!isVitestCheck(c)) errors.push(`${label}: local check must be a vitest run: ${c}`);
-      }
-    }
-    if (m?.kind === 'ci' && !m.note) errors.push(`${label}: a ci mutant needs a note`);
-    if (m?.kind === 'ci' && !SQL_FUNCTION_SIGNATURE.test(m.reapplyFunction ?? '')) {
-      errors.push(`${label}: a ci mutant needs reapplyFunction like schema.name(argtypes)`);
-    }
+    errors.push(...kindErrors(m, label));
     if (m?.id) {
       if (ids.has(m.id)) errors.push(`${label}: duplicate id`);
       ids.add(m.id);
@@ -153,7 +159,7 @@ export function renderTable(rows: Row[]): string {
 // `ci` SQL mutants (MYK9-1659). Pure helpers; run-sql.ts does the I/O.
 // ---------------------------------------------------------------------------
 
-const SQL_FUNCTION_SIGNATURE = /^[a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]*\([a-z0-9_\[\], ]*\)$/;
+const SQL_FUNCTION_SIGNATURE = /^[a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]*\([a-z0-9_[\], ]*\)$/;
 
 /** Same shape the behavioral runner enforces: a throwaway loopback stack, nothing shared. */
 const LOOPBACK_URL =

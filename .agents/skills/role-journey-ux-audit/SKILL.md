@@ -68,7 +68,7 @@ For every major route and requested viewport:
    `/at-show/<X>` and one of its class pages. Every list must say it is not on this device
    ("Classes not on this device yet", "Entries are not on this device") with a way to retry;
    "No classes" or "No Entries Yet" is a finding. Assert the not-on-device text is visible
-   before trusting any absence. Steps 1-7 run online with the show already saved, so they
+   before trusting any absence. Steps 1-6 run online with the show already saved, so they
    cannot surface this class.
 
 Exercise required CRUD without approval only against an isolated local Supabase fixture or through

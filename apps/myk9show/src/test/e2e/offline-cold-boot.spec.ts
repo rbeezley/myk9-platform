@@ -175,8 +175,8 @@ test.describe('offline cold boot', () => {
   // MYK9-1520 / MYK9-1655. The never-synced half: a show this device NEVER saved.
   // Offline, its class page once read "No Entries Yet" although the class had entries,
   // because every walk ran online with the show already on the device. "Never saved" is
-  // staged by signing in elsewhere (the show page hydrates the show, so we wipe the
-  // replica as the test above does) and then cold-booting offline straight onto the class.
+  // staged by wiping the replica after sign-in, as the test above does, and then
+  // cold-booting offline straight onto the class.
   test('a show never saved on this device says its entries are not here, never No Entries Yet', async ({
     page,
     context,
@@ -216,6 +216,7 @@ test.describe('offline cold boot', () => {
     await expect(page.getByRole('heading', { name: 'Classes not on this device yet' })).toBeVisible(
       { timeout: 45_000 }
     );
+    await expect(page.getByRole('button', { name: /try again/i })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'No classes' })).toHaveCount(0);
 
     // Prove the backend really was unreachable.

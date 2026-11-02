@@ -64,6 +64,14 @@ For every major route and requested viewport:
    from Find Shows or the People directory. Every staff control offered there is a finding: the
    server's predicates are club-scoped, so it will refuse what the client offered. Steps 1-6 walk
    the persona's own data and cannot surface this class on their own.
+8. Never-synced offline (MYK9-1520): go offline, then cold-reload `/at-show/<X>` and one of its
+   class pages, in both states a device can be in. (a) The show is saved but its classes and
+   entries never synced: every list must say it is not on this device ("Classes not on this
+   device yet", "Entries are not on this device") with a way to retry; "No classes" or "No
+   Entries Yet" is a finding. (b) Nothing about the show is saved: the whole page must say
+   "This show isn't saved on this device"; the lists never mount, so do not look for list
+   copy there. Assert the expected text is visible before trusting any absence. Steps 1-6 run
+   online with the show already saved, so they cannot surface this class.
 
 Exercise required CRUD without approval only against an isolated local Supabase fixture or through
 an established non-persisting interception. Every write to hosted/shared Supabase—including seeded

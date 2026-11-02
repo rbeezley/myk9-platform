@@ -199,6 +199,8 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
         action={notOnDevice}
         // A deep link can open this with no (or foreign) history, so go to the
         // fixed class list the header's Up uses rather than back.
+        up={context.up}
+        onUp={() => navigate(context.up.to)}
         onGoBack={() => navigate(context.up.to)}
       />
     );
@@ -214,7 +216,10 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
             ? 'Neither section has entries yet. They will appear here once they are registered.'
             : "This class doesn't have any entries yet. Entries will appear once they are registered."
         }
-        onGoBack={() => navigate(-1)}
+        // Same as not-on-device: a deep link has no (or foreign) history.
+        up={context.up}
+        onUp={() => navigate(context.up.to)}
+        onGoBack={() => navigate(context.up.to)}
       />
     );
   }
@@ -421,6 +426,7 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
         classInfo={classInfo}
         localEntries={localEntries}
         hasPermission={hasPermission}
+        upTo={context.up.to}
         hideMaxTimeOption={context.hideMaxTimeOption}
         hideSettingsOption={context.hideSettingsOption}
         activeStatusPopup={activeStatusPopup}

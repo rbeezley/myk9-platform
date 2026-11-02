@@ -82,6 +82,8 @@ export interface EntryListDialogsProps {
   combined?: { classIds: { a: string; b: string } } | undefined;
   classInfo: ClassInfo | null;
   localEntries: Entry[];
+  /** The list's fixed parent. Cancelling the required max-time prompt goes here, never back through history (a direct link has none). */
+  upTo: string;
 
   // Permission predicate over narrow EntryList union.
   hasPermission: (permission: EntryListPermission) => boolean;
@@ -183,6 +185,7 @@ export const EntryListDialogs: React.FC<EntryListDialogsProps> = ({
   combined,
   classInfo,
   localEntries,
+  upTo,
   hasPermission,
   hideMaxTimeOption,
   hideSettingsOption,
@@ -244,7 +247,7 @@ export const EntryListDialogs: React.FC<EntryListDialogsProps> = ({
     setMaxTimeDialogOpen(false);
     if (maxTimeRequiredWarning) {
       setMaxTimeRequiredWarning(false);
-      if (!maxTimeSavedRef.current) navigate(-1);
+      if (!maxTimeSavedRef.current) navigate(upTo);
     }
     maxTimeSavedRef.current = false;
   };

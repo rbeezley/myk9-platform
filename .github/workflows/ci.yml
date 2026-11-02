@@ -564,7 +564,9 @@ jobs:
   # NON-required on purpose (owner decision 2026-11-02): the job is new and its
   # shard time is unproven. It is deliberately absent from the `test`
   # aggregator's needs and from main-required-checks; promote it after a green
-  # track record. No coverage: test-show already measures that, and v8 coverage
+  # track record. It is listed as informational in
+  # scripts/ci/evaluate-gating-jobs.sh, so a failed shard does not make a main
+  # run non-promotable; keep that list in step with the matrix. No coverage: test-show already measures that, and v8 coverage
   # is the slowest part of a shard.
   #
   # Six shards to match test-show: without coverage a shard should land well

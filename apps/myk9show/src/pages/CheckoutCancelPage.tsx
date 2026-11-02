@@ -27,6 +27,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/componen
 import { useCartStore, useCartItems } from '@/store/cartStore';
 import { readTrustedRecoveryInfo } from '@/store/cartStore.recoveryInfo';
 import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
+import { buildScopedCartHref } from '@/features/payments/finishPaymentHref';
 import { continueShoppingTarget } from '@/features/registration/continueShoppingTarget';
 import { useCancelledCheckoutSession } from './CheckoutCancelPage.session';
 import { CHECKOUT_HOLD_ENDED_MESSAGE, checkoutHoldEnded } from '@/features/payments/checkoutHold';
@@ -43,6 +44,11 @@ export default function CheckoutCancelPage() {
   const recoveryInfo = useCartStore(state => state.cartRecoveryInfo);
   const recoveryShowId = readTrustedRecoveryInfo(recoveryInfo, profile?.id)?.showId ?? null;
   const returnShowId = cart?.show_id ?? recoveryShowId;
+  // MYK9-1661: scope the way back to the show whose checkout was cancelled; the
+  // unscoped cart opens the newest populated cart across shows.
+  const cartReturnHref = returnShowId
+    ? buildScopedCartHref(returnShowId, { checkout: 'cancelled' })
+    : '/cart?checkout=cancelled';
   const items = useCartItems();
   const itemCount = items.length;
 
@@ -181,7 +187,7 @@ export default function CheckoutCancelPage() {
               the calm "checkout cancelled, your cart is saved" banner. Gating this
               button on itemCount made that banner unreachable in the normal flow.
             */}
-            <Button className="w-full" onClick={() => navigate('/cart?checkout=cancelled')}>
+            <Button className="w-full" onClick={() => navigate(cartReturnHref)}>
               <ClipboardList className="h-4 w-4 mr-2" />
               Return to Your Entry
             </Button>

@@ -52,7 +52,7 @@ describe('submitRegistrationCartCheckout', () => {
       jumpHeight: '16',
       entryFeeCents: 2500,
     });
-    expect(deps.navigate).toHaveBeenCalledWith('/cart');
+    expect(deps.navigate).toHaveBeenCalledWith('/cart?showId=show-1');
   });
 
   it('abandons a partially populated cart when adding a later item fails', async () => {
@@ -115,7 +115,7 @@ describe('submitRegistrationCartCheckout', () => {
     expect(deps.clearCart).toHaveBeenCalledTimes(1);
     expect(deps.ensureCart).toHaveBeenCalledTimes(1);
     expect(deps.addItem).toHaveBeenCalledTimes(1);
-    expect(deps.navigate).toHaveBeenCalledWith('/cart');
+    expect(deps.navigate).toHaveBeenCalledWith('/cart?showId=show-1');
   });
 
   it("surfaces the opener's own message when the cart cannot be opened", async () => {

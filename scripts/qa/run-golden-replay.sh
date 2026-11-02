@@ -64,7 +64,7 @@ if psql "$URL" -X -v ON_ERROR_STOP=1 -f "$SCRATCH/swapped.sql" >"$SCRATCH/swappe
   echo "FAIL: the swapped-placement fixture replayed green; the golden replay cannot go red." >&2
   exit 1
 fi
-if ! grep -q "FAIL golden replay: 2 entries disagree" "$SCRATCH/swapped.log"; then
+if ! grep -q "GOLDEN_REPLAY_DIFF" "$SCRATCH/swapped.log"; then
   echo "FAIL: the swapped fixture failed for the wrong reason:" >&2
   cat "$SCRATCH/swapped.log" >&2
   exit 1

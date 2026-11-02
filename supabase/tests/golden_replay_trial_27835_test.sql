@@ -31,7 +31,9 @@
 -- Known-answer controls inside this file (a replay that cannot go red proves
 -- nothing): CONTROL A swaps the v3 places of two untied dogs and requires the
 -- comparison to report a diff; CONTROL B swaps two members of a ribbon tie and
--- requires it to report none. Both run on an answer key copied from our own
+-- requires it to report none; CONTROL C moves a tie below 4th off its shared
+-- place (RULE 2) and CONTROL D places an NQ (RULE 3), each of which must be
+-- reported; CONTROL E requires the unmodified key to report nothing. All run on an answer key copied from our own
 -- placements, so they hold whatever the real replay finds (the tolerance is real and not a blanket pass).
 --
 -- Run: pnpm qa:golden-replay (throwaway local stack), or in CI by
@@ -532,10 +534,10 @@ BEGIN
   ) t;
 
   -- Guard the fixture: the replay is vacuous without ties, an NQ and 2+ classes.
-  IF v_classes < 2 OR v_ribbon_ties + v_lower_ties = 0 OR v_nonq = 0
+  IF v_classes < 2 OR v_ribbon_ties = 0 OR v_lower_ties = 0 OR v_nonq = 0
      OR NOT EXISTS (SELECT 1 FROM pg_temp.golden_expected WHERE result_status = 'nq') THEN
-    RAISE EXCEPTION 'FAIL golden replay fixture is too thin: % classes, % tie groups, % non-qualifiers',
-      v_classes, v_ribbon_ties + v_lower_ties, v_nonq;
+    RAISE EXCEPTION 'FAIL golden replay fixture is too thin (needs 2+ classes, a ribbon tie, a tie below 4th, an NQ): % classes, % ribbon ties, % ties below 4th, % non-qualifiers',
+      v_classes, v_ribbon_ties, v_lower_ties, v_nonq;
   END IF;
   IF (SELECT count(*) FROM public.entries e JOIN pg_temp.golden_class c USING (class_id)
       WHERE e.final_placement IS NOT NULL) = 0 THEN
@@ -560,8 +562,9 @@ BEGIN
   WHERE c.class_key = o.class_key AND e.class_id = c.class_id AND e.armband = o.armband;
   SELECT count(*) INTO v_n FROM pg_temp.golden_diffs('pg_temp.golden_ours') d WHERE d.reason IS NOT NULL;
   IF v_n <> 0 THEN
-    RAISE EXCEPTION 'FAIL golden replay: our own placements disagree with themselves (% diffs); the comparison is broken', v_n;
+    RAISE EXCEPTION 'FAIL golden replay control E: the unmodified answer key reported % diffs; the comparison always fires', v_n;
   END IF;
+  RAISE NOTICE 'PASS control E: the unmodified answer key reports no diffs';
 
   -- CONTROL A: swap the v3 places of two untied dogs (1st and 2nd of one class).
   CREATE TEMP TABLE golden_swapped AS TABLE pg_temp.golden_ours;
@@ -621,8 +624,41 @@ BEGIN
   END IF;
   RAISE NOTICE 'PASS control B: swapping two members of a ribbon tie is tolerated (RULE 1)';
 
+  -- CONTROL C: a tie below 4th whose answer key moves off the shared place
+  -- (RULE 2) must be reported. The whole group shifts by one: a single member
+  -- below the best is real v3 behaviour (consecutive places) and is tolerated.
+  TRUNCATE pg_temp.golden_swapped;
+  INSERT INTO pg_temp.golden_swapped SELECT * FROM pg_temp.golden_ours;
+  SELECT class_key, total_faults, search_time_seconds INTO v_tie
+  FROM pg_temp.golden_ours WHERE result_status = 'qualified'
+  GROUP BY 1, 2, 3 HAVING count(*) > 1 AND min(v3_place) > 4
+  ORDER BY 1 LIMIT 1;
+  IF v_tie.class_key IS NULL THEN
+    RAISE EXCEPTION 'FAIL golden replay control C: no tie below 4th in the fixture';
+  END IF;
+  UPDATE pg_temp.golden_swapped s SET v3_place = s.v3_place + 1
+   WHERE s.class_key = v_tie.class_key AND s.total_faults = v_tie.total_faults
+     AND s.search_time_seconds = v_tie.search_time_seconds AND s.result_status = 'qualified';
+  SELECT count(*) INTO v_n FROM pg_temp.golden_diffs('pg_temp.golden_swapped') d WHERE d.reason IS NOT NULL;
+  IF v_n = 0 THEN
+    RAISE EXCEPTION 'FAIL golden replay control C: moving a tie below 4th off its shared place found no diff; RULE 2 accepts anything';
+  END IF;
+  RAISE NOTICE 'PASS control C: a tie below 4th off its shared place is reported (% diffs)', v_n;
+
+  -- CONTROL D: a placement on a non-qualifier must be reported (RULE 3).
+  TRUNCATE pg_temp.golden_swapped;
+  INSERT INTO pg_temp.golden_swapped SELECT * FROM pg_temp.golden_ours;
+  UPDATE pg_temp.golden_swapped SET v3_place = 1
+   WHERE (class_key, armband) = (SELECT class_key, armband FROM pg_temp.golden_ours
+                                 WHERE result_status = 'nq' ORDER BY 1, 2 LIMIT 1);
+  SELECT count(*) INTO v_n FROM pg_temp.golden_diffs('pg_temp.golden_swapped') d WHERE d.reason IS NOT NULL;
+  IF v_n = 0 THEN
+    RAISE EXCEPTION 'FAIL golden replay control D: a placed non-qualifier found no diff; RULE 3 never fires';
+  END IF;
+  RAISE NOTICE 'PASS control D: a placement on a non-qualifier is reported (% diffs)', v_n;
+
   IF v_base > 0 THEN
-    RAISE EXCEPTION E'FAIL golden replay: % entries disagree with the published v3 results\n%', v_base, v_diffs;
+    RAISE EXCEPTION E'FAIL golden replay: GOLDEN_REPLAY_DIFF % entries disagree with the published v3 results\n%', v_base, v_diffs;
   END IF;
   RAISE NOTICE 'PASS golden replay: % classes, % qualified entries placed as v3 published (% ribbon tie groups matched as sets, % tie groups below 4th share a place), % non-qualifiers unplaced',
     v_classes, v_qualified, v_ribbon_ties, v_lower_ties, v_nonq;

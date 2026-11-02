@@ -127,7 +127,16 @@ describe('generated SQL', () => {
 
   it('names the two rule differences and both known-answer controls', () => {
     const sql = buildSql(fixture);
-    for (const needle of ['RULE 1', 'RULE 2', 'RULE 3', 'CONTROL A', 'CONTROL B']) {
+    for (const needle of [
+      'RULE 1',
+      'RULE 2',
+      'RULE 3',
+      'CONTROL A',
+      'CONTROL B',
+      'CONTROL C',
+      'CONTROL D',
+      'CONTROL E',
+    ]) {
       expect(sql).toContain(needle);
     }
   });

@@ -63,6 +63,12 @@
  * (`AtShowAccessGate.test.tsx`'s "admits an anonymous user with a matching
  * passcode grant") — clearing on it would be a regression, not a fix.
  *
+ * A null `user` after reconnect is NOT a verdict (MYK9-834): it is the stale
+ * null from the failed offline refresh, and any instance mounted after the
+ * `online` event sees the same thing. Only a non-null user whose claim does not
+ * match the grant clears it; definitive invalidation arrives as SIGNED_OUT and
+ * a different identity as SIGNED_IN, both handled (clearing) in useAuth.
+ *
  * Connectivity is read via `useSyncExternalStore` subscribed to the browser's
  * `online`/`offline` events, not a bare `navigator.onLine` read in the render
  * body: a plain read is only ever fresh when *something else* re-renders this
@@ -119,11 +125,15 @@ export function useRehydrateRingsideGrant(
       : null;
   // Only an offline-fallback grant is subject to reconnect revalidation — see
   // the module docstring for why an ordinary grant must NOT be swept up here.
+  // A null user is never a verdict (MYK9-834): it may be the stale null left by
+  // a failed offline refresh. SIGNED_OUT / SIGNED_IN handling in useAuth clears
+  // the grant on definitive invalidation or a different identity.
   const staleGrant =
     resolvable &&
     storeRole &&
     isOnline &&
     activeGrant?.unconfirmedOffline === true &&
+    !!user &&
     deriveRingsideRoleFromClaim(user, showId) !== storeRole;
 
   useEffect(() => {

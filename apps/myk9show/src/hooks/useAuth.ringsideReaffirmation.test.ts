@@ -72,6 +72,12 @@ describe('ringside identity reaffirmation with real hooks and durable store', ()
     await waitFor(() => expect(reloaded.result.current.role).toBe('judge'));
     expect(useRingsideGrantStore.getState().activeGrant?.unconfirmedOffline).toBe(true);
     await act(async () => online(true));
+    // MYK9-834: reconnect alone is not a verdict. The null session is still
+    // the stale one from the failed offline refresh, so the claim is kept...
+    expect(reloaded.result.current.role).toBe('judge');
+    expect(readPersistedRingsideClaim('show-1')).toBe('judge');
+    // ...until the auth layer definitively reports the session gone.
+    await act(async () => transport.listener('SIGNED_OUT', null));
     await waitFor(() => expect(reloaded.result.current.role).toBeNull());
     expect(readPersistedRingsideClaim('show-1')).toBeNull();
   });

@@ -1,4 +1,6 @@
 // @vitest-environment node
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   baselineRed,
@@ -7,6 +9,11 @@ import {
   isVitestCheck,
   renderTable,
   uniqueChecks,
+  classifySqlCheck,
+  extractFunctionDdl,
+  isLoopbackDatabaseUrl,
+  patchedFiles,
+  splitSqlCheck,
   validateManifest,
   type Mutant,
   type Row,
@@ -146,5 +153,107 @@ describe('uniqueChecks / renderTable', () => {
     expect(errorRow).toContain('ERROR');
     expect(errorRow).not.toContain('MISSED');
     expect(lines.find(l => l.includes('| sql:'))).toContain('CI-run (not run locally)');
+  });
+});
+
+describe('ci SQL mutants (MYK9-1659)', () => {
+  const sig = 'public.recalculate_class_placements(uuid[], boolean)';
+
+  it('requires a reapplyFunction signature on a ci mutant', () => {
+    const ci: Mutant = { ...good, kind: 'ci', note: 'n', checks: ['a.sql'] };
+    expect(validateManifest([ci], () => true)).toEqual([
+      expect.stringContaining('needs reapplyFunction'),
+    ]);
+    expect(validateManifest([{ ...ci, reapplyFunction: sig }], () => true)).toEqual([]);
+    expect(
+      validateManifest([{ ...ci, reapplyFunction: "x'; drop table y; --" }], () => true)
+    ).toHaveLength(1);
+  });
+
+  it('dedupes checks per kind', () => {
+    const ci: Mutant = { ...good, id: 'ci', kind: 'ci', note: 'n', checks: ['a.sql, b.sql'] };
+    expect(uniqueChecks([good, ci, { ...ci, id: 'ci2' }], 'ci')).toEqual(['a.sql, b.sql']);
+  });
+
+  it('accepts only a loopback database URL', () => {
+    expect(isLoopbackDatabaseUrl('postgresql://postgres:postgres@127.0.0.1:54322/postgres')).toBe(
+      true
+    );
+    expect(isLoopbackDatabaseUrl('postgresql://postgres:postgres@localhost:54322/postgres')).toBe(
+      true
+    );
+    for (const bad of [
+      '',
+      'postgresql://postgres:postgres@db.sojmvhhwsjxmfistvzbe.supabase.co:5432/postgres',
+      'postgresql://postgres:postgres@127.0.0.1:54322/postgres?hostaddr=10.0.0.1',
+      'postgresql://postgres:postgres@127.0.0.1:99999/postgres',
+    ]) {
+      expect(isLoopbackDatabaseUrl(bad)).toBe(false);
+    }
+  });
+
+  it('splits a comma-separated check into files', () => {
+    expect(splitSqlCheck('supabase/tests/a.sql, supabase/tests/b.sql,')).toEqual([
+      'supabase/tests/a.sql',
+      'supabase/tests/b.sql',
+    ]);
+  });
+
+  it('extracts one function and nothing around it', () => {
+    const sql = [
+      'ALTER TABLE t ADD COLUMN c int;',
+      'CREATE OR REPLACE FUNCTION public.recalculate_class_placements(',
+      '  p uuid[], q boolean DEFAULT false',
+      ')',
+      'RETURNS void',
+      'AS $$',
+      'BEGIN',
+      '  PERFORM 1;',
+      'END;',
+      '$$;',
+      'REVOKE ALL ON FUNCTION public.recalculate_class_placements(uuid[], boolean) FROM PUBLIC;',
+    ].join('\n');
+    const ddl = extractFunctionDdl(sql, sig);
+    expect(ddl.startsWith('CREATE OR REPLACE FUNCTION public.recalculate_class_placements(')).toBe(
+      true
+    );
+    expect(ddl.endsWith('$$;\n')).toBe(true);
+    expect(ddl).toContain('PERFORM 1;');
+    expect(ddl).not.toContain('ALTER TABLE');
+    expect(ddl).not.toContain('REVOKE');
+    expect(() => extractFunctionDdl(sql, 'public.other(int)')).toThrow('not found');
+    expect(() => extractFunctionDdl(sql.replace('$$;', ''), sig)).toThrow('closing');
+  });
+
+  it('extracts the real function from the real migration, and a mutant changes it', () => {
+    const root = resolve(import.meta.dirname, '../../..');
+    const mutant = (
+      JSON.parse(readFileSync(resolve(import.meta.dirname, 'manifest.json'), 'utf8')) as Mutant[]
+    ).filter(m => m.kind === 'ci');
+    expect(mutant.length).toBeGreaterThan(0);
+    for (const m of mutant) {
+      const patch = readFileSync(resolve(import.meta.dirname, m.patch), 'utf8');
+      const [file] = patchedFiles(patch);
+      expect(file).toMatch(/^supabase\/migrations\//);
+      const clean = extractFunctionDdl(
+        readFileSync(resolve(root, file!), 'utf8'),
+        m.reapplyFunction!
+      );
+      // The mutant's removed line must sit inside the extracted function, or the
+      // re-applied definition would not carry the bug into the database.
+      const removed = patch.split('\n').filter(l => l.startsWith('-') && !l.startsWith('---'));
+      expect(removed.length).toBeGreaterThan(0);
+      for (const line of removed) expect(clean).toContain(line.slice(1));
+    }
+  });
+
+  it('only a clean psql exit 3 is a catch', () => {
+    expect(classifySqlCheck({ exitCode: 0 })).toBe('pass');
+    expect(classifySqlCheck({ exitCode: 3 })).toBe('caught');
+    expect(classifySqlCheck({ exitCode: 1 })).toBe('error');
+    expect(classifySqlCheck({ exitCode: 2 })).toBe('error');
+    expect(classifySqlCheck({ exitCode: null })).toBe('error');
+    expect(classifySqlCheck({ exitCode: 3, timedOut: true })).toBe('error');
+    expect(classifySqlCheck({ exitCode: 3, signal: 'SIGKILL' })).toBe('error');
   });
 });

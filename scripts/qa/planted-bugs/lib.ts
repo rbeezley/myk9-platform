@@ -9,6 +9,12 @@ export interface Mutant {
   kind: MutantKind;
   /** Why a `ci` mutant cannot run locally, and which check carries it. */
   note?: string;
+  /**
+   * `ci` SQL mutants only: the function the patched migration redefines, as a
+   * regprocedure signature (`public.f(uuid[], boolean)`). The runner re-applies
+   * that one definition to the live database; see run-sql.ts.
+   */
+  reapplyFunction?: string;
 }
 
 export interface CheckResult {
@@ -87,6 +93,9 @@ export function validateManifest(
       }
     }
     if (m?.kind === 'ci' && !m.note) errors.push(`${label}: a ci mutant needs a note`);
+    if (m?.kind === 'ci' && !SQL_FUNCTION_SIGNATURE.test(m.reapplyFunction ?? '')) {
+      errors.push(`${label}: a ci mutant needs reapplyFunction like schema.name(argtypes)`);
+    }
     if (m?.id) {
       if (ids.has(m.id)) errors.push(`${label}: duplicate id`);
       ids.add(m.id);
@@ -100,7 +109,10 @@ export function validateManifest(
 
 /** Caught if any check caught; else error if any errored; else missed. */
 export function classify(results: CheckResult[]): Verdict {
-  const outcomes = results.map(classifyCheck);
+  return combineOutcomes(results.map(classifyCheck));
+}
+
+export function combineOutcomes(outcomes: CheckOutcome[]): Verdict {
   if (outcomes.includes('caught')) return 'caught';
   return outcomes.includes('error') ? 'error' : 'missed';
 }
@@ -110,8 +122,8 @@ export function baselineRed(results: CheckResult[]): CheckResult[] {
   return results.filter(r => classifyCheck(r) !== 'pass');
 }
 
-export function uniqueChecks(mutants: Mutant[]): string[] {
-  return [...new Set(mutants.filter(m => m.kind === 'local').flatMap(m => m.checks))];
+export function uniqueChecks(mutants: Mutant[], kind: MutantKind = 'local'): string[] {
+  return [...new Set(mutants.filter(m => m.kind === kind).flatMap(m => m.checks))];
 }
 
 export interface Row {
@@ -135,4 +147,67 @@ export function renderTable(rows: Row[]): string {
     lines.push(`| ${mutant.id}: ${mutant.rationale} | ${mutant.area} | ${result} | ${by} |`);
   }
   return lines.join('\n');
+}
+
+// ---------------------------------------------------------------------------
+// `ci` SQL mutants (MYK9-1659). Pure helpers; run-sql.ts does the I/O.
+// ---------------------------------------------------------------------------
+
+const SQL_FUNCTION_SIGNATURE = /^[a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]*\([a-z0-9_\[\], ]*\)$/;
+
+/** Same shape the behavioral runner enforces: a throwaway loopback stack, nothing shared. */
+const LOOPBACK_URL =
+  /^postgresql:\/\/postgres:postgres@(127\.0\.0\.1|localhost):(\d{1,5})\/postgres$/;
+export function isLoopbackDatabaseUrl(url: string): boolean {
+  const port = LOOPBACK_URL.exec(url)?.[2];
+  return port !== undefined && Number(port) >= 1 && Number(port) <= 65535;
+}
+
+/** A `ci` mutant's check is a comma-separated list of supabase/tests files. */
+export function splitSqlCheck(check: string): string[] {
+  return check
+    .split(',')
+    .map(f => f.trim())
+    .filter(Boolean);
+}
+
+/**
+ * Pull one function's `CREATE OR REPLACE FUNCTION ... $$;` statement out of a
+ * migration. Ends at the first line that is exactly `$$;` after the opening
+ * `AS $$`. Throws rather than guessing when the function or its end is absent.
+ */
+export function extractFunctionDdl(sql: string, signature: string): string {
+  const name = signature.slice(0, signature.indexOf('('));
+  const start = sql.search(
+    new RegExp(`^CREATE OR REPLACE FUNCTION ${name.replace('.', '\\.')}\\(`, 'mi')
+  );
+  if (start < 0) throw new Error(`CREATE OR REPLACE FUNCTION ${name} not found`);
+  const rest = sql.slice(start);
+  const open = rest.search(/^AS \$\$\s*$/m);
+  if (open < 0) throw new Error(`${name}: no "AS $$" body opener`);
+  const close = rest.slice(open).search(/^\$\$;\s*$/m);
+  if (close < 0) throw new Error(`${name}: no closing "$$;" line`);
+  return `${rest.slice(0, open + close)}$$;\n`;
+}
+
+/** `b/<path>` targets of a unified diff, in order. */
+export function patchedFiles(patch: string): string[] {
+  return [...patch.matchAll(/^\+\+\+ b\/(.+)$/gm)].map(m => m[1]!);
+}
+
+/**
+ * psql exit codes: 0 ok, 2 connection failure, 3 a script error under
+ * ON_ERROR_STOP (a RAISE EXCEPTION in a test). The behavioral runner exits 1 for
+ * its own guards and propagates psql's status otherwise (set -e). Only a clean 3
+ * is a catch; a 1, 2, timeout or signal is the harness failing, not a test seeing
+ * the mutant.
+ */
+export function classifySqlCheck(r: {
+  exitCode: number | null;
+  signal?: string | null | undefined;
+  timedOut?: boolean | undefined;
+}): CheckOutcome {
+  if (r.timedOut || r.signal || r.exitCode === null) return 'error';
+  if (r.exitCode === 0) return 'pass';
+  return r.exitCode === 3 ? 'caught' : 'error';
 }

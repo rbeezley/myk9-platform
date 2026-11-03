@@ -270,12 +270,12 @@ The **Officers** tab tracks the club's formal officers. Click **Assign Officer**
 
 All shots to be captured and added to `docs/training/screenshot-shot-list.md`. Status as of 2026-10-28 (stale = the app no longer looks like the caption; recapture before `verified`):
 
-| Shot ID | Section | Description                                                    | Status       |
-| ------- | ------- | -------------------------------------------------------------- | ------------ |
-| C-01    | § 1     | Club Settings form — all fields visible                        | ready, stale |
-| C-02    | § 2     | Club Admin → Shows list                                        | ready        |
-| C-03    | § 3     | Members page — member row with Show Manager badge              | ready, stale |
-| C-04    | § 4     | Payments page — pre-onboarding "Connect payment account" state | ready, stale |
-| C-05    | § 5     | Payments page — payout history table                           | ready, stale |
-| C-06    | § 7     | Club Members page — members list                               | ready, stale |
-| C-07    | § 7     | Add Member dialog                                              | ready        |
+| Shot ID | Section | Description                                                    | Status                          |
+| ------- | ------- | -------------------------------------------------------------- | ------------------------------- |
+| C-01    | § 1     | Club Settings form — all fields visible                        | captured 2026-10-28 (MYK9-1462) |
+| C-02    | § 2     | Club Admin → Shows list                                        | ready                           |
+| C-03    | § 3     | Members page — member row with Show Manager badge              | captured 2026-10-28 (MYK9-1462) |
+| C-04    | § 4     | Payments page — pre-onboarding "Connect payment account" state | captured 2026-10-28 (MYK9-1462) |
+| C-05    | § 5     | Payments page — payout history table                           | captured 2026-10-28 (MYK9-1462) |
+| C-06    | § 7     | Club Members page — members list                               | captured 2026-10-28 (MYK9-1462) |
+| C-07    | § 7     | Add Member dialog                                              | ready                           |

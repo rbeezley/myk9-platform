@@ -24,6 +24,7 @@ import { createEntryCheckoutSession, STRIPE_CHECKOUT_SESSION_ID_TOKEN } from './
 /** The redirect URLs the client asked the edge function to hand Stripe. */
 async function redirectUrlsFor(options?: {
   splitCheckoutId?: string;
+  showId?: string;
 }): Promise<{ success_url: string; cancel_url: string }> {
   invoke.mockResolvedValue({
     data: { url: 'https://checkout.stripe.com/c/pay/cs_test_x' },
@@ -77,6 +78,20 @@ describe('createEntryCheckoutSession cancel_url', () => {
     const parsed = new URL(cancel_url);
     expect(parsed.origin).toBe('https://app.test');
     expect(parsed.pathname).toBe('/checkout/cancel');
+  });
+
+  // MYK9-1673: the cancel return must resolve the checkout's own show.
+  it('carries the show id AND the unencoded session token', async () => {
+    const { cancel_url } = await redirectUrlsFor({ showId: 'show-uuid-1' });
+    expect(cancel_url).toContain('show=show-uuid-1');
+    expect(cancel_url).toContain('session_id={CHECKOUT_SESSION_ID}');
+    expect(cancel_url).not.toContain('%7B');
+    expect(cancel_url).not.toContain('%7D');
+  });
+
+  it('omits the show param when no show id is given', async () => {
+    const { cancel_url } = await redirectUrlsFor();
+    expect(cancel_url).not.toContain('show=');
   });
 });
 

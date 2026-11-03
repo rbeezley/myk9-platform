@@ -367,7 +367,10 @@ export default function CartPage() {
       }
 
       // This will redirect to Stripe Checkout for the remaining confirmed entries.
-      await createEntryCheckoutSession(cart.id, splitCheckoutId ? { splitCheckoutId } : undefined);
+      await createEntryCheckoutSession(cart.id, {
+        showId: cart.show_id,
+        ...(splitCheckoutId ? { splitCheckoutId } : {}),
+      });
       // If we get here, the redirect didn't happen (shouldn't normally occur)
     } catch (err) {
       // Say what the server actually said. It distinguishes failures the

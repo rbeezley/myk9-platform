@@ -120,7 +120,7 @@ export const STRIPE_CHECKOUT_SESSION_ID_TOKEN = '{CHECKOUT_SESSION_ID}';
  */
 export async function createEntryCheckoutSession(
   cartId: string,
-  options?: { splitCheckoutId?: string }
+  options?: { splitCheckoutId?: string; showId?: string }
 ): Promise<void> {
   if (!cartId) {
     throw new Error('Cart ID is required');
@@ -137,6 +137,9 @@ export async function createEntryCheckoutSession(
   }
 
   const extraQuery = extraParams.toString();
+  const cancelParams = new URLSearchParams();
+  if (options?.showId) cancelParams.set('show', options.showId);
+  const cancelQuery = cancelParams.toString();
   const successUrl =
     `${window.location.origin}/checkout/success` +
     `?session_id=${STRIPE_CHECKOUT_SESSION_ID_TOKEN}` +
@@ -156,9 +159,13 @@ export async function createEntryCheckoutSession(
         // that their payment was cancelled, one click from paying again
         // (MYK9-509). Concatenated, never through URLSearchParams — see
         // STRIPE_CHECKOUT_SESSION_ID_TOKEN for what encoding the braces costs.
+        //
+        // MYK9-1673: also carries the checkout's own show, so a full-page return
+        // does not have to guess it from storage another tab may have rewritten.
         cancel_url:
           `${window.location.origin}/checkout/cancel` +
-          `?session_id=${STRIPE_CHECKOUT_SESSION_ID_TOKEN}`,
+          `?session_id=${STRIPE_CHECKOUT_SESSION_ID_TOKEN}` +
+          (cancelQuery ? `&${cancelQuery}` : ''),
       },
     });
 

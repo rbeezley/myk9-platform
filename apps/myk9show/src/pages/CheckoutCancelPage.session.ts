@@ -78,3 +78,24 @@ export function useCancelledCheckoutSession(): CancelSessionState {
   if (verdict?.sessionId !== sessionId) return { status: 'checking', sessionId };
   return { status: verdict.paid ? 'paid' : 'unresolved', sessionId };
 }
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * The show the cancelled checkout belonged to (MYK9-1673).
+ *
+ * Order: the `show` param on the Stripe cancel URL (the checkout's own show,
+ * and the only source that survives another tab opening a different show while
+ * Checkout is open), then the in-memory cart, then the trusted recovery show.
+ * A missing or malformed param (legacy links) falls through to today's
+ * behaviour. A forged well-formed param is harmless: the scoped cart route
+ * loads only the signed-in exhibitor's own carts under RLS.
+ */
+export function resolveCancelReturnShowId(
+  urlShowParam: string | null,
+  cartShowId: string | null | undefined,
+  recoveryShowId: string | null | undefined
+): string | null {
+  if (urlShowParam && UUID_PATTERN.test(urlShowParam)) return urlShowParam;
+  return cartShowId ?? recoveryShowId ?? null;
+}

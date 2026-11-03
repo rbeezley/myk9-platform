@@ -12,7 +12,7 @@
  */
 
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   XCircle,
   CheckCircle,
@@ -29,7 +29,10 @@ import { readTrustedRecoveryInfo } from '@/store/cartStore.recoveryInfo';
 import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
 import { buildScopedCartHref } from '@/features/payments/finishPaymentHref';
 import { continueShoppingTarget } from '@/features/registration/continueShoppingTarget';
-import { useCancelledCheckoutSession } from './CheckoutCancelPage.session';
+import {
+  resolveCancelReturnShowId,
+  useCancelledCheckoutSession,
+} from './CheckoutCancelPage.session';
 import { CHECKOUT_HOLD_ENDED_MESSAGE, checkoutHoldEnded } from '@/features/payments/checkoutHold';
 
 export default function CheckoutCancelPage() {
@@ -43,7 +46,14 @@ export default function CheckoutCancelPage() {
   const { profile } = useExhibitorProfile();
   const recoveryInfo = useCartStore(state => state.cartRecoveryInfo);
   const recoveryShowId = readTrustedRecoveryInfo(recoveryInfo, profile?.id)?.showId ?? null;
-  const returnShowId = cart?.show_id ?? recoveryShowId;
+  // MYK9-1673: the cancel URL names the checkout's own show; storage is shared
+  // across tabs and can name another one, so it is only the fallback.
+  const [searchParams] = useSearchParams();
+  const returnShowId = resolveCancelReturnShowId(
+    searchParams.get('show'),
+    cart?.show_id,
+    recoveryShowId
+  );
   // MYK9-1661: scope the way back to the show whose checkout was cancelled; the
   // unscoped cart opens the newest populated cart across shows.
   const cartReturnHref = returnShowId

@@ -21,6 +21,8 @@ const SUPPORT_TERM_NORMALIZATIONS: Record<string, string> = {
 };
 const SUPPORT_DOMAIN_TERMS = new Set([
   'add',
+  'area',
+  'areas',
   'armband',
   'catalog',
   'checkin',
@@ -49,6 +51,7 @@ const SUPPORT_DOMAIN_TERMS = new Set([
   'send',
   'show',
   'steward',
+  'timer',
   'waitlist',
 ]);
 

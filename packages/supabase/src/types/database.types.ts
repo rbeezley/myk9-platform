@@ -13485,13 +13485,20 @@ export type Database = {
         Returns: boolean
       }
       entry_enrollment_select_show_ids: { Args: never; Returns: string[] }
+      entry_queue_places_for_classes: {
+        Args: { p_class_ids: string[] }
+        Returns: {
+          entry_id: string
+          place: number
+        }[]
+      }
       entry_results_caller_has_no_show_access: {
         Args: { p_show_id: string }
         Returns: boolean
       }
       entry_results_changed_since: {
         Args: { p_show_id: string; p_since: string }
-        Returns: { caller_has_access: boolean; changed: boolean; server_now: string }
+        Returns: Record<string, unknown>
       }
       evaluate_entry_capacity: {
         Args: {
@@ -15193,7 +15200,7 @@ export type Database = {
         Returns: string
       }
       set_class_judge: {
-        Args: { p_class_id: string; p_person_id: string | null }
+        Args: { p_class_id: string; p_person_id: string }
         Returns: Json
       }
       set_class_tie_order: {

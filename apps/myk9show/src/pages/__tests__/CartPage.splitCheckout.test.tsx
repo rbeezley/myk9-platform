@@ -278,6 +278,7 @@ describe('CartPage split checkout wiring', () => {
       waitlistEntries: [{ id: 'wait-1', position: 2, className: 'Full Class' }],
     });
     expect(createEntryCheckoutSessionMock).toHaveBeenCalledWith('cart-1', {
+      showId: 'show-1',
       splitCheckoutId: storedSummary.correlationId,
     });
   });
@@ -459,7 +460,7 @@ describe('CartPage split checkout wiring', () => {
     await waitFor(() =>
       expect(checkoutWithWaitlistMock).toHaveBeenCalledWith('exhibitor-1', new Set())
     );
-    expect(createEntryCheckoutSessionMock).toHaveBeenCalledWith('cart-1', undefined);
+    expect(createEntryCheckoutSessionMock).toHaveBeenCalledWith('cart-1', { showId: 'show-1' });
     expect(sessionStorage.getItem(STORAGE_KEYS.CART_SPLIT_CHECKOUT)).toBeNull();
   });
 

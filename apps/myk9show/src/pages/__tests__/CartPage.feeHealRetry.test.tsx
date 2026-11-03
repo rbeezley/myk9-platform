@@ -166,8 +166,8 @@ describe('CartPage retry after a fee heal (MYK9-838)', () => {
     await waitFor(() => expect(createEntryCheckoutSessionMock).toHaveBeenCalledTimes(2));
     // Both attempts hand the server the cart id and nothing priced on the client.
     expect(createEntryCheckoutSessionMock.mock.calls).toEqual([
-      ['cart-1', undefined],
-      ['cart-1', undefined],
+      ['cart-1', { showId: 'show-1' }],
+      ['cart-1', { showId: 'show-1' }],
     ]);
   });
 

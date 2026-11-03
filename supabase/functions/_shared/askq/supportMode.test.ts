@@ -2,14 +2,11 @@ import { describe, expect, it } from 'vitest';
 import {
   SUPPORT_HANDOFF_MESSAGE,
   buildSupportModePrompt,
-  findSupportGuideEvidence,
-  getSupportEscalationForAnswer,
   getSupportEscalationForQuestion,
   getSupportModeTools,
   parseSupportAnswer,
 } from './supportMode.ts';
 import { ASKQ_GUIDES } from './documentAssets.ts';
-import type { AskQGuideAsset } from './documentContext.ts';
 import { isPaymentOrRefundQuestion } from './supportPaymentPolicy.ts';
 import type { ToolDefinition } from './types.ts';
 
@@ -18,15 +15,6 @@ const tools: ToolDefinition[] = [
     name: 'get_entry_results',
     description: '',
     input_schema: { type: 'object', properties: {}, required: [] },
-  },
-];
-
-const guides: AskQGuideAsset[] = [
-  {
-    id: 'secretary-guide',
-    title: 'Secretary Guide',
-    audience: 'Trial secretaries',
-    content: 'Open Entries Management and choose Add mail-in entry.',
   },
 ];
 
@@ -44,117 +32,77 @@ describe('AskQ support mode', () => {
   });
 
   it('injects the human-escalation payment rule into the server prompt', () => {
-    const prompt = buildSupportModePrompt('base prompt');
+    const prompt = buildSupportModePrompt('base prompt', ASKQ_GUIDES);
 
     expect(prompt).toContain('Never answer questions about payments');
     expect(prompt).toContain('must escalate to a human ticket');
     expect(prompt).toContain('verified user-guide context');
     expect(prompt).toContain('SUPPORT_ANSWER');
     expect(prompt).toContain('SUPPORT_HANDOFF');
+    expect(prompt).toContain('SUPPORT_QUOTE [<guide id>]:');
   });
 
-  it('finds server-side guide evidence before support answers can be accepted', () => {
-    expect(findSupportGuideEvidence('How do I add a mail-in entry?', guides)).toEqual([
-      expect.objectContaining({
-        id: 'secretary-guide',
-        matchedTerms: expect.arrayContaining(['add', 'mail', 'entry']),
-      }),
-    ]);
-    expect(findSupportGuideEvidence('How do I get a refund?', guides)).toEqual([]);
+  it('lists every guide id in the prompt', () => {
+    const prompt = buildSupportModePrompt('base prompt', ASKQ_GUIDES);
+    for (const guide of ASKQ_GUIDES) expect(prompt).toContain(guide.id);
   });
 
-  it('rejects unsupported questions that overlap with real guide vocabulary', () => {
-    expect(findSupportGuideEvidence('Can I delete my account?', ASKQ_GUIDES)).toEqual([]);
-    expect(findSupportGuideEvidence('Do you support agility trials?', ASKQ_GUIDES)).toEqual([]);
-    expect(findSupportGuideEvidence('How do I remove a dog?', ASKQ_GUIDES)).toEqual([]);
-    expect(findSupportGuideEvidence('How do I delete my dog profile?', ASKQ_GUIDES)).toEqual([]);
-  });
-
-  // MYK9-1678: scoring-time questions had no domain term, so the judge guide never matched.
-  it('finds the ringside guide for timing and area questions', () => {
+  // Questions the guides do not answer reach the model, which hands off; quotes decide acceptance.
+  it('lets ordinary app-help questions through to the model', () => {
     for (const question of [
       'how do I time a two-area search?',
-      'How do I record the time for each area?',
-    ]) {
-      expect(findSupportGuideEvidence(question, ASKQ_GUIDES)).toEqual(
-        expect.arrayContaining([expect.objectContaining({ id: 'judge-steward-quickstart' })])
-      );
-    }
-    // Generic "time" and "search" stay out of the domain set: the guides do not answer these.
-    for (const offTopic of [
-      'What time is it in Denver?',
       'How do I change my time zone?',
       "How do I search for another user's email?",
+      'How do I remove show access for a member?',
     ]) {
-      expect(findSupportGuideEvidence(offTopic, ASKQ_GUIDES)).toEqual([]);
+      expect(getSupportEscalationForQuestion(question)).toBeNull();
     }
   });
 
-  it('finds evidence for documented support-guide workflows', () => {
-    expect(findSupportGuideEvidence('How do I create a show?', ASKQ_GUIDES)).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          id: 'secretary-guide',
-          matchedTerms: expect.arrayContaining(['create', 'show']),
-        }),
-      ])
-    );
-    expect(findSupportGuideEvidence('How do I send a message?', ASKQ_GUIDES)).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          id: 'secretary-guide',
-          matchedTerms: expect.arrayContaining(['send', 'message']),
-        }),
-      ])
-    );
-    expect(findSupportGuideEvidence('How do I check in?', ASKQ_GUIDES)).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          id: 'secretary-guide',
-          matchedTerms: expect.arrayContaining(['check', 'exhibitor']),
-        }),
-      ])
-    );
-    expect(findSupportGuideEvidence('How do I manage the waitlist?', ASKQ_GUIDES)).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          id: 'secretary-guide',
-          matchedTerms: expect.arrayContaining(['manage', 'waitlist']),
-        }),
-      ])
-    );
+  it('escalates destructive questions before the model unless they target access, entries or members', () => {
+    for (const question of [
+      'Can I delete my account?',
+      'How do I delete my dog profile?',
+      'How do I remove a dog?',
+    ]) {
+      expect(getSupportEscalationForQuestion(question)).toMatchObject({
+        escalate: true,
+        reason: 'low_confidence',
+      });
+    }
   });
 
-  it('fails closed unless a marked answer also has server-side guide evidence', () => {
-    expect(getSupportEscalationForAnswer('SUPPORT_ANSWER\nOpen Entries Management.')).toMatchObject(
-      {
-        reason: 'low_confidence',
-      }
-    );
-    expect(
-      getSupportEscalationForAnswer('SUPPORT_ANSWER\nOpen Entries Management.', true)
-    ).toBeNull();
-    expect(getSupportEscalationForAnswer(SUPPORT_HANDOFF_MESSAGE)).toMatchObject({
-      reason: 'low_confidence',
+  it('checks payment before the destructive guard', () => {
+    expect(getSupportEscalationForQuestion('Delete my card and refund me')).toMatchObject({
+      reason: 'payment_or_refund',
     });
-    expect(getSupportEscalationForAnswer('Open Entries Management.')).toMatchObject({
-      reason: 'low_confidence',
-    });
-    expect(getSupportEscalationForAnswer('')).toMatchObject({ reason: 'low_confidence' });
   });
 
-  it('strips the support answer marker before streaming the response', () => {
-    expect(parseSupportAnswer('SUPPORT_ANSWER\nOpen Entries Management.', true)).toEqual({
-      answerText: 'Open Entries Management.',
-      escalation: null,
-    });
-    expect(parseSupportAnswer('SUPPORT_ANSWER\nOpen Entries Management.').escalation).toMatchObject(
-      {
-        reason: 'low_confidence',
-      }
+  it('accepts a verified answer and strips the marker and quote lines', () => {
+    const quote =
+      'Tap Record Area 1 time (then Record Area 2 time, and so on; the button names the area).';
+    const parsed = parseSupportAnswer(
+      `SUPPORT_ANSWER\nTime each area.\nSUPPORT_QUOTE [judge-steward-quickstart]: "${quote}"`,
+      ASKQ_GUIDES
     );
-    expect(parseSupportAnswer('SUPPORT_HANDOFF\nI need help.').escalation).toMatchObject({
-      reason: 'low_confidence',
-    });
+    expect(parsed.escalation).toBeNull();
+    expect(parsed.answerText).toBe('Time each area.');
+    expect(parsed.guideSources).toEqual([
+      expect.objectContaining({ id: 'judge-steward-quickstart', quote, content: quote }),
+    ]);
+  });
+
+  it('escalates handoffs, unquoted answers and plain text with the low-confidence payload', () => {
+    for (const text of [
+      `SUPPORT_HANDOFF\n${SUPPORT_HANDOFF_MESSAGE}`,
+      'SUPPORT_ANSWER\nOpen Entries Management.',
+      'Open Entries Management.',
+      '',
+    ]) {
+      expect(parseSupportAnswer(text, ASKQ_GUIDES)).toMatchObject({
+        escalation: { escalate: true, reason: 'low_confidence' },
+        guideSources: [],
+      });
+    }
   });
 });

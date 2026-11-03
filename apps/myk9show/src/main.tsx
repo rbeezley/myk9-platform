@@ -15,6 +15,7 @@ import { QueryProvider } from './providers/QueryProvider';
 import { logger } from '@/services/LoggingService';
 import { initializeSettings } from './store/settingsStore';
 import { setupPwa, applyPwaUpdate } from '@/services/pwa/pwaUpdate';
+import { setupStaleSchemaRecovery } from '@/services/pwa/staleSchemaRecovery';
 import { monitoring } from './services/MonitoringService';
 import { setupRouterPageViewTracking } from './services/RouterPageViewTracking';
 import { installSupportErrorCapture } from './features/support/supportDiagnostics';
@@ -61,6 +62,10 @@ if (import.meta.env.DEV && 'serviceWorker' in navigator) {
     },
   });
 }
+
+// A build older than the offline database (or a tab outlived by a newer build)
+// cannot use it: reload once onto the newest build, or ask the user to.
+setupStaleSchemaRecovery();
 
 logger.debug('Starting myK9Show...', 'app', {});
 

@@ -1,0 +1,90 @@
+/**
+ * MYK9-1663: a build older than the device's database must report a stale
+ * schema (not crash, not delete the data), and a tab told to close its
+ * connection by a newer build must report it too.
+ */
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import 'fake-indexeddb/auto';
+import { openDB } from 'idb';
+import { DatabaseManager, REPLICATION_STORES } from './DatabaseManager';
+import { onStaleSchema, type StaleSchemaReason } from './staleSchema';
+
+const DB_NAME = 'test-stale-schema-db';
+const NEWER = 9;
+const OLDER = 7;
+
+function collect(): { reasons: StaleSchemaReason[]; stop: () => void } {
+  const reasons: StaleSchemaReason[] = [];
+  const stop = onStaleSchema(reason => reasons.push(reason));
+  return { reasons, stop };
+}
+
+describe('DatabaseManager stale schema', () => {
+  let manager: DatabaseManager | undefined;
+
+  beforeEach(() => {
+    indexedDB.deleteDatabase(DB_NAME);
+  });
+
+  afterEach(async () => {
+    await manager?.reset();
+    manager = undefined;
+    indexedDB.deleteDatabase(DB_NAME);
+  });
+
+  it('signals version-error, rejects the open, and keeps the newer data', async () => {
+    const newer = await openDB(DB_NAME, NEWER, {
+      upgrade(db) {
+        db.createObjectStore(REPLICATION_STORES.PENDING_MUTATIONS, { keyPath: 'id' });
+      },
+    });
+    await newer.put(REPLICATION_STORES.PENDING_MUTATIONS, { id: 'queued-score' });
+    newer.close();
+
+    const { reasons, stop } = collect();
+    manager = new DatabaseManager({}, DB_NAME, OLDER);
+
+    await expect(manager.getDatabase('entries')).rejects.toMatchObject({ name: 'VersionError' });
+    expect(reasons).toEqual(['version-error']);
+    stop();
+
+    const reopened = await openDB(DB_NAME, NEWER);
+    expect(await reopened.get(REPLICATION_STORES.PENDING_MUTATIONS, 'queued-score')).toEqual({
+      id: 'queued-score',
+    });
+    reopened.close();
+  });
+
+  it('signals version-change and closes the connection when a newer build upgrades', async () => {
+    const { reasons, stop } = collect();
+    manager = new DatabaseManager({}, DB_NAME, OLDER);
+    const db = await manager.getDatabase('entries');
+    const closeSpy = vi.spyOn(db, 'close');
+
+    const upgraded = await openDB(DB_NAME, NEWER);
+
+    expect(closeSpy).toHaveBeenCalled();
+    expect(reasons).toEqual(['version-change']);
+    expect(manager.isInitialized()).toBe(false);
+    stop();
+    upgraded.close();
+  });
+
+  it('keeps notifying other listeners when one throws, and stops after unsubscribe', async () => {
+    const good: StaleSchemaReason[] = [];
+    const stopBad = onStaleSchema(() => {
+      throw new Error('boom');
+    });
+    const stopGood = onStaleSchema(reason => good.push(reason));
+
+    manager = new DatabaseManager({}, DB_NAME, OLDER);
+    const db = await manager.getDatabase('entries');
+    expect(db).toBeDefined();
+    const upgraded = await openDB(DB_NAME, NEWER);
+    expect(good).toEqual(['version-change']);
+
+    stopBad();
+    stopGood();
+    upgraded.close();
+  });
+});

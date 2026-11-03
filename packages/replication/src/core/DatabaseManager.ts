@@ -22,6 +22,7 @@ import {
   CIRCUIT_BREAKER_THRESHOLD,
 } from '../constants';
 import { withTimeout } from '../mutation-utils';
+import { emitStaleSchema, isVersionError } from './staleSchema';
 import {
   writeMutationBackup,
   parseMutationBackup,
@@ -300,6 +301,7 @@ export class DatabaseManager {
         db.close();
         sharedDB = null;
         dbInitPromise = null;
+        emitStaleSchema('version-change');
       };
       return db;
     });
@@ -426,6 +428,14 @@ export class DatabaseManager {
       dbInitInProgress = false;
       dbInitPromise = null;
       sharedDB = null;
+
+      // MYK9-1663: this build is older than the device's database. recover()
+      // deletes the database, which would discard queued offline scores the
+      // newer build can still replay, so report it and leave the data alone.
+      if (isVersionError(error)) {
+        emitStaleSchema('version-error');
+        throw error;
+      }
 
       await this.recover();
 

@@ -75,6 +75,8 @@ function runWithFakeCli(options: FakeCli = {}) {
       ...process.env,
       SUPABASE_DB_PORT: '',
       SUPABASE_API_PORT: '',
+      // Answer port probes from this (empty) list so no test touches real host ports.
+      RUN_SQL_LOCAL_BUSY_PORTS: '',
       ...env,
       SUPABASE_BIN: bin,
     },
@@ -167,6 +169,19 @@ describe('run-sql-local.sh', () => {
     expect(Number(db)).toBe(Number(api) + 1);
     expect(Number(api)).toBeGreaterThanOrEqual(40000);
     expect(Number(db)).toBeLessThanOrEqual(41999);
+  });
+
+  // Known answer: with the derived api (or db) port busy, the loop moves one slot on (+2).
+  it.each(['api', 'db'] as const)('steps past a busy %s port to the next slot', busy => {
+    const [, db, api] =
+      runWithFakeCli({ failStart: true }).ports?.match(/^db=(\d+) api=(\d+)$/) ?? [];
+    const nextApi = Number(api) === 41998 ? 40000 : Number(api) + 2;
+    const result = runWithFakeCli({
+      failStart: true,
+      env: { RUN_SQL_LOCAL_BUSY_PORTS: busy === 'api' ? String(api) : String(db) },
+    });
+    expect(result.started).toBe(true);
+    expect(result.ports).toBe(`db=${nextApi + 1} api=${nextApi}`);
   });
 
   it('honours SUPABASE_DB_PORT and defaults the api port beside it', () => {

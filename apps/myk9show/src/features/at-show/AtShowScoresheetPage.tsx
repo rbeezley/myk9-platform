@@ -52,6 +52,7 @@ import { HeldEntryNotice } from './HeldEntryNotice';
 import { ScoreSubmitErrorBanner } from './ScoreSubmitErrorBanner';
 import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
 import { useJudgeAssignedToClass } from './useJudgeAssignedToClass';
+import { AtShowScoresheetIdentityUnavailable } from './AtShowScoresheetIdentityUnavailable';
 import { useAtShowAudioMute } from './useAtShowAudioMute';
 import { badgeClass } from './slots/atShowChrome.helpers';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -156,6 +157,12 @@ export const AtShowScoresheetPage: React.FC = () => {
 
   if (assignmentCheck.status === 'checking') {
     return <AtShowScoresheetSkeleton />;
+  }
+
+  if (assignmentCheck.status === 'identity-unavailable') {
+    return (
+      <AtShowScoresheetIdentityUnavailable onRetry={assignmentCheck.retry} onBack={handleBack} />
+    );
   }
 
   if (assignmentCheck.status === 'unassigned') {

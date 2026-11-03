@@ -8,16 +8,30 @@ import { renderHook, waitFor } from '@testing-library/react';
 
 import { UserRole as ShowRole } from '@/types/auth-types';
 
-const { getAll, sync, authIdentity } = vi.hoisted(() => ({
+const { getAll, sync, authIdentity, retryIdentity } = vi.hoisted(() => ({
+  retryIdentity: vi.fn(),
   getAll: vi.fn(),
   sync: vi.fn(),
   // Mutable so the unresolved-identity case is reachable. It previously was a
   // fixed 'judge-1', which is exactly why the offline cold-boot hang below went
   // unnoticed: the one input that breaks this hook could not be varied.
-  authIdentity: { databaseUserId: 'judge-1' as string | undefined },
+  authIdentity: {
+    databaseUserId: 'judge-1' as string | undefined,
+    personIdentityState: 'resolved' as 'unresolved' | 'resolved' | 'missing',
+    fetching: false,
+    failed: false,
+  },
 }));
 vi.mock('@/hooks/useAuthContext', () => ({
-  useAuthContext: () => ({ userWithRoles: { databaseUserId: authIdentity.databaseUserId } }),
+  useAuthContext: () => ({
+    userWithRoles: { databaseUserId: authIdentity.databaseUserId },
+    personIdentityState: authIdentity.personIdentityState,
+    personIdentityLookup: {
+      fetching: authIdentity.fetching,
+      failed: authIdentity.failed,
+      retry: retryIdentity,
+    },
+  }),
 }));
 vi.mock('@/services/replication', () => ({
   replicatedJudgeAssignmentsTable: { getAll, getAllOrThrow: getAll, sync },
@@ -30,6 +44,10 @@ const CONFIRMED = { id: 'a1', personId: 'judge-1', classId: 'class-1', status: '
 describe('useJudgeAssignedToClass', () => {
   beforeEach(() => {
     authIdentity.databaseUserId = 'judge-1';
+    authIdentity.personIdentityState = 'resolved';
+    authIdentity.fetching = false;
+    authIdentity.failed = false;
+    retryIdentity.mockReset();
     getAll.mockReset();
     sync.mockReset();
     sync.mockResolvedValue({ success: true });
@@ -246,6 +264,65 @@ describe('useJudgeAssignedToClass', () => {
     );
 
     expect(result.current.status).toBe('checking');
+  });
+
+  // MYK9-1675: online, "no personId" is not always "merely pending". A finished
+  // lookup with no row (`missing`) or one that exhausted its retries never
+  // delivers an id on its own, so 'checking' strands the judge on a skeleton.
+  // Not `not-applicable` either: that mounts the engine, which writes in-ring.
+  describe('identity that will not arrive on its own (online)', () => {
+    const run = () =>
+      renderHook(() =>
+        useJudgeAssignedToClass({
+          showRole: ShowRole.JUDGE,
+          isAnonymous: false,
+          classId: 'class-1',
+        })
+      );
+
+    beforeEach(() => {
+      authIdentity.databaseUserId = undefined;
+      vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
+      getAll.mockResolvedValue([]);
+    });
+
+    it('reports identity-unavailable when the people lookup found no row', () => {
+      authIdentity.personIdentityState = 'missing';
+      expect(run().result.current.status).toBe('identity-unavailable');
+    });
+
+    it('reports identity-unavailable when the lookup failed with no cached pairing', () => {
+      authIdentity.personIdentityState = 'unresolved';
+      authIdentity.failed = true;
+      expect(run().result.current.status).toBe('identity-unavailable');
+    });
+
+    it('keeps checking while the lookup is in flight, even after an earlier failure', () => {
+      authIdentity.personIdentityState = 'unresolved';
+      authIdentity.failed = true;
+      authIdentity.fetching = true;
+      expect(run().result.current.status).toBe('checking');
+    });
+
+    it('keeps checking while the lookup has not finished or failed', () => {
+      authIdentity.personIdentityState = 'unresolved';
+      expect(run().result.current.status).toBe('checking');
+    });
+
+    it('retry asks the identity lookup again', () => {
+      authIdentity.personIdentityState = 'missing';
+      const gate = run().result.current;
+      if (gate.status !== 'identity-unavailable') throw new Error('expected identity-unavailable');
+      gate.retry();
+      expect(retryIdentity).toHaveBeenCalledTimes(1);
+    });
+
+    it('stays not-applicable offline even when the lookup failed', () => {
+      vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+      authIdentity.personIdentityState = 'unresolved';
+      authIdentity.failed = true;
+      expect(run().result.current).toEqual({ status: 'not-applicable' });
+    });
   });
 
   it('resumes the normal fail-open path once identity resolves', async () => {

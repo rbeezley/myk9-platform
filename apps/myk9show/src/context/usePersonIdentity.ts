@@ -7,7 +7,7 @@ import {
   loadPersonIdentityCache,
   savePersonIdentityCache,
 } from './personIdentityCache';
-import type { PersonIdentityState } from './authContextTypes';
+import type { PersonIdentityLookup, PersonIdentityState } from './authContextTypes';
 
 export interface PersonProfile {
   id: string;
@@ -22,11 +22,15 @@ export function usePersonIdentity(userId: string | undefined): {
   personId: string | null;
   personIdentityState: PersonIdentityState;
   hasUsablePersonId: boolean;
+  lookup: PersonIdentityLookup;
 } {
   const {
     data: userProfile,
     dataUpdatedAt: userProfileUpdatedAt,
     isPlaceholderData,
+    isError,
+    isFetching,
+    refetch,
   } = useQuery<PersonProfile | null>({
     queryKey: ['userProfile', userId],
     queryFn: async () => {
@@ -86,6 +90,18 @@ export function usePersonIdentity(userId: string | undefined): {
       ? null
       : (authoritativeUserProfile?.id ?? cachedPersonIdentity?.personId ?? null);
 
+  // MYK9-1675: `unresolved` conflates "still asking" with "asked and failed".
+  // Consumers that must not wait forever (the scoresheet gate) need the split,
+  // plus a way to ask again; failure only counts while no lookup has succeeded.
+  const lookup = useMemo<PersonIdentityLookup>(
+    () => ({
+      fetching: isFetching,
+      failed: isError && !authoritativeLookupSucceeded,
+      retry: () => void refetch(),
+    }),
+    [isFetching, isError, authoritativeLookupSucceeded, refetch]
+  );
+
   // Do not clear during pre-session boot: the cached pairing is what makes a
   // cold offline session useful. Clear only after a real account transition.
   const previousAuthedUserIdRef = useRef<string | undefined>(userId);
@@ -113,5 +129,6 @@ export function usePersonIdentity(userId: string | undefined): {
     personId,
     personIdentityState,
     hasUsablePersonId: Boolean(personId),
+    lookup,
   };
 }

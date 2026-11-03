@@ -322,7 +322,7 @@ export function MessageCenterPanel() {
 
     return (
       <div className="flex-1 overflow-y-auto">
-        {announcements.length > 0 && (
+        {(announcements.length > 0 || isFiltering) && (
           <AnnouncementListControlsBar
             query={messageQuery}
             sort={messageSort}
@@ -330,7 +330,10 @@ export function MessageCenterPanel() {
             onSortChange={setMessageSort}
           />
         )}
-        {messagesLoading && !hasShowMessages ? (
+        {/* A search that empties a loaded list is "no match", not loading or an error. */}
+        {!hasShowMessages && isFiltering && (announcements.length > 0 || threads.length > 0) ? (
+          <EmptyPanelState icon={MessageSquare} title="No announcements match" />
+        ) : messagesLoading && !hasShowMessages ? (
           <div className="p-6 text-sm text-muted-foreground">Loading messages...</div>
         ) : messagesError && !hasShowMessages ? (
           <div className="space-y-3 p-6">
@@ -339,8 +342,6 @@ export function MessageCenterPanel() {
               Try again
             </Button>
           </div>
-        ) : !hasShowMessages && isFiltering ? (
-          <EmptyPanelState icon={MessageSquare} title="No announcements match" />
         ) : !hasShowMessages ? (
           <EmptyPanelState
             icon={MessageSquare}

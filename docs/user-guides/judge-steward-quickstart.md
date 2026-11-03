@@ -89,12 +89,12 @@ The entry list updates to show the saved result. The secretary sees it once it s
 
 ### Classes with more than one area
 
-A class with two or three areas has a tab for each area. Time each area on its own:
+A class with two or three areas shows one time field per area under the timer, labelled with the area's name. Time each area on its own:
 
 1. For each area, tap **Start**, then **Stop** when that area is finished.
-2. Tap **Record Area 1 time** (then **Record Area 2 time**, and so on). Stopping the timer alone does not put the time on the sheet.
-3. Before you tap **Save**, check that every area shows a time and the total looks right. A time left at "--" means that area was not recorded.
-4. Then choose the result and confirm as above.
+2. Tap **Record Area 1 time** (then **Record Area 2 time**, and so on; the button names the area). Stopping the timer alone does not put the time on the sheet. You can also type a time into an area's field.
+3. Before you tap **Save**, check that every area's field has a time.
+4. Choose the result and tap **Save**. On the **Score Confirmation** screen, check each area time and the total before **Confirm & Submit**. An area showing "--" was not recorded: tap **Cancel** and fix it.
 
 ---
 

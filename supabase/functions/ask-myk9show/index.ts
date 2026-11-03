@@ -25,8 +25,6 @@ import {
 } from '../_shared/askq/requestRouting.ts';
 import {
   buildSupportModePrompt,
-  findSupportGuideEvidence,
-  getSupportEscalationForAnswer,
   getSupportEscalationForQuestion,
   isSupportModeEnabled,
   parseSupportAnswer,
@@ -189,9 +187,6 @@ Deno.serve(async (req: Request) => {
     const supportQuestionEscalation = effectiveSupportMode
       ? getSupportEscalationForQuestion(message)
       : null;
-    const supportGuideEvidence = effectiveSupportMode
-      ? findSupportGuideEvidence(message, ASKQ_GUIDES)
-      : [];
 
     if (supportQuestionEscalation) {
       const responseTimeMs = Date.now() - startTime;
@@ -206,31 +201,6 @@ Deno.serve(async (req: Request) => {
       }
 
       return buildSupportEscalationStream(supportQuestionEscalation, {
-        remaining,
-        limit,
-        responseTimeMs,
-        queryLogId: logRow?.id ?? null,
-      });
-    }
-
-    if (effectiveSupportMode && supportGuideEvidence.length === 0) {
-      const responseTimeMs = Date.now() - startTime;
-      if (logRow?.id) {
-        await serviceClient
-          .from('chatbot_query_log')
-          .update({
-            tools_used: ['support_escalation'],
-            response_time_ms: responseTimeMs,
-          })
-          .eq('id', logRow.id);
-      }
-
-      const lowConfidenceEscalation = getSupportEscalationForAnswer('');
-      if (!lowConfidenceEscalation) {
-        return jsonResponse({ error: 'Internal server error' }, 500);
-      }
-
-      return buildSupportEscalationStream(lowConfidenceEscalation, {
         remaining,
         limit,
         responseTimeMs,
@@ -338,16 +308,13 @@ Deno.serve(async (req: Request) => {
     });
     const baseSystemPrompt = `${buildMyK9ShowPrompt(userContext, documentContext)}${buildModePrompt(questionMode)}`;
     const systemPrompt = effectiveSupportMode
-      ? buildSupportModePrompt(baseSystemPrompt)
+      ? buildSupportModePrompt(baseSystemPrompt, getDocumentGuides(questionMode))
       : baseSystemPrompt;
     const activeTools = getActiveTools(questionMode, effectiveSupportMode);
 
     const messages = [{ role: 'user' as const, content: message }];
     const toolsUsed: string[] = [];
     const sources: ChatResponse['sources'] = {};
-    if (supportGuideEvidence.length > 0) {
-      sources.guide = supportGuideEvidence;
-    }
 
     let result = await callClaude(messages, anthropicKey, activeTools, systemPrompt);
     let iterations = 0;
@@ -392,14 +359,25 @@ Deno.serve(async (req: Request) => {
     const textBlock = result.content.find(b => b.type === 'text');
     const fullText = textBlock?.text ?? '';
     const parsedSupportAnswer = effectiveSupportMode
-      ? parseSupportAnswer(fullText, supportGuideEvidence.length > 0)
+      ? parseSupportAnswer(fullText, getDocumentGuides(questionMode))
       : null;
+    if (parsedSupportAnswer && parsedSupportAnswer.guideSources.length > 0) {
+      sources.guide = parsedSupportAnswer.guideSources;
+    }
     const responseText = parsedSupportAnswer?.answerText ?? fullText;
     const responseTimeMs = Date.now() - startTime;
     // Update the provisional log row with actual data
     const supportAnswerEscalation = parsedSupportAnswer?.escalation ?? null;
     const loggedTools = supportAnswerEscalation
-      ? [...new Set([...toolsUsed, 'support_escalation'])]
+      ? [
+          ...new Set([
+            ...toolsUsed,
+            'support_escalation',
+            parsedSupportAnswer?.escalationCause === 'quote_rejected'
+              ? 'support_quote_rejected'
+              : 'support_handoff',
+          ]),
+        ]
       : [...new Set(toolsUsed)];
 
     if (logRow?.id) {

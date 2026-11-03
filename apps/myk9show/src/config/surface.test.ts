@@ -28,7 +28,6 @@ describe('isPathInWizardAllowlist', () => {
   it('allows the marketing landing, auth, and wizard paths', () => {
     expect(isPathInWizardAllowlist('/')).toBe(true);
     expect(isPathInWizardAllowlist('/sign-in')).toBe(true);
-    expect(isPathInWizardAllowlist('/app')).toBe(true);
     expect(isPathInWizardAllowlist('/help/credentials')).toBe(true);
     expect(isPathInWizardAllowlist('/secretary/create-show/wizard')).toBe(true);
     expect(isPathInWizardAllowlist('/secretary/dashboard')).toBe(true);

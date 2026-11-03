@@ -29,7 +29,6 @@ export const WIZARD_SURFACE_PATHS = [
   '/reset-password',
   '/auth/callback',
   '/account',
-  '/app',
   '/help/credentials',
   '/secretary',
   '/secretary/dashboard',

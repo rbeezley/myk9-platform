@@ -15,26 +15,26 @@ The runner refuses to start on a dirty tree, runs every check once on the clean 
 
 SQL mutants (`kind: ci`) are patches against the latest `recalculate_class_placements` migration; the behaviour tests under `supabase/tests/` run only in CI (no container runtime on the development Mac). The dispatch-only `Planted bugs (SQL)` workflow (MYK9-1659) runs them: [run 41550065563](https://github.com/rbeezley/myk9-platform/actions/runs/41550065563), 2026-11-03, on `59477c43d` (#3563), baseline green first, verdicts from the run's `planted-bugs-sql-logs` artifact.
 
-| Mutant                                                      | Area            | Result                   | Caught by                                                                          |
-| ----------------------------------------------------------- | --------------- | ------------------------ | ---------------------------------------------------------------------------------- |
-| run-order/01 comparator swapped, dogs run last-to-first     | run-order       | caught                   | ringside `runQueue.test.ts`                                                        |
-| run-order/02 in-ring dog left in the waiting queue          | run-order       | caught                   | ringside `runQueue.test.ts`                                                        |
-| run-order/03 scored dog stays queued                        | run-order       | caught                   | ringside `runQueue.test.ts`                                                        |
-| run-order/04 `nextPendingCandidates` returns limit+1        | run-order       | caught                   | ringside `runQueue.test.ts`                                                        |
-| run-order/05 armband tie-break inverted                     | run-order       | caught                   | ringside `runQueue.test.ts`                                                        |
-| offline-queue/01 sequence order reversed (newest first)     | offline-queue   | caught                   | replication `mutation-ordering`, `MutationManager` tests                           |
-| offline-queue/02 dependency edge recorded only when missing | offline-queue   | caught                   | replication `mutation-ordering`, `MutationManager` tests                           |
-| offline-queue/03 overflow threshold `>=` to `>`             | offline-queue   | caught                   | replication `mutation-queue-capacity.test.ts`                                      |
-| check-in/01 check-in RPC always sends `checked-in`          | check-in        | caught (MYK9-1658)       | `ReplicatedEntriesTable.queuedRpc.test.ts`                                         |
-| check-in/02 self check-in RPC always sends `checked-in`     | check-in        | caught (MYK9-1658)       | `checkInStatus.test.ts`                                                            |
-| check-in/03 report counts `no-status` entries as checked in | check-in        | caught (MYK9-1658)       | `showMapCheckInOptimisticUpdates.test.ts`                                          |
-| results-release/01 `manual_release` shows at class complete | results-release | caught                   | secretary `visibility` tests                                                       |
-| results-release/02 exhibitors bypass visibility (inverted)  | results-release | caught                   | secretary `visibility` tests                                                       |
-| results-release/03 class override applied before trial      | results-release | caught                   | secretary `visibility` tests                                                       |
-| sql-placement/01 soft-deleted entry still placed            | sql-placement   | caught (CI)              | `placement_soft_delete_ranking_test.sql` 1.2                                       |
-| sql-placement/02 ribbon range ends at 3rd (off-by-one)      | sql-placement   | caught (CI)              | `myk9_1473_coin_flip_tie_order_test.sql` 3g (setup check)                          |
-| sql-placement/03 most faults placed first                   | sql-placement   | caught (CI)              | `placement_soft_delete_ranking_test.sql` 6.2                                       |
-| sql-placement/04 NQ entries eligible for placement          | sql-placement   | caught (CI)              | `myk9_1473_coin_flip_tie_order_test.sql` 3g (setup check)                          |
+| Mutant                                                      | Area            | Result             | Caught by                                                 |
+| ----------------------------------------------------------- | --------------- | ------------------ | --------------------------------------------------------- |
+| run-order/01 comparator swapped, dogs run last-to-first     | run-order       | caught             | ringside `runQueue.test.ts`                               |
+| run-order/02 in-ring dog left in the waiting queue          | run-order       | caught             | ringside `runQueue.test.ts`                               |
+| run-order/03 scored dog stays queued                        | run-order       | caught             | ringside `runQueue.test.ts`                               |
+| run-order/04 `nextPendingCandidates` returns limit+1        | run-order       | caught             | ringside `runQueue.test.ts`                               |
+| run-order/05 armband tie-break inverted                     | run-order       | caught             | ringside `runQueue.test.ts`                               |
+| offline-queue/01 sequence order reversed (newest first)     | offline-queue   | caught             | replication `mutation-ordering`, `MutationManager` tests  |
+| offline-queue/02 dependency edge recorded only when missing | offline-queue   | caught             | replication `mutation-ordering`, `MutationManager` tests  |
+| offline-queue/03 overflow threshold `>=` to `>`             | offline-queue   | caught             | replication `mutation-queue-capacity.test.ts`             |
+| check-in/01 check-in RPC always sends `checked-in`          | check-in        | caught (MYK9-1658) | `ReplicatedEntriesTable.queuedRpc.test.ts`                |
+| check-in/02 self check-in RPC always sends `checked-in`     | check-in        | caught (MYK9-1658) | `checkInStatus.test.ts`                                   |
+| check-in/03 report counts `no-status` entries as checked in | check-in        | caught (MYK9-1658) | `showMapCheckInOptimisticUpdates.test.ts`                 |
+| results-release/01 `manual_release` shows at class complete | results-release | caught             | secretary `visibility` tests                              |
+| results-release/02 exhibitors bypass visibility (inverted)  | results-release | caught             | secretary `visibility` tests                              |
+| results-release/03 class override applied before trial      | results-release | caught             | secretary `visibility` tests                              |
+| sql-placement/01 soft-deleted entry still placed            | sql-placement   | caught (CI)        | `placement_soft_delete_ranking_test.sql` 1.2              |
+| sql-placement/02 ribbon range ends at 3rd (off-by-one)      | sql-placement   | caught (CI)        | `myk9_1473_coin_flip_tie_order_test.sql` 3g (setup check) |
+| sql-placement/03 most faults placed first                   | sql-placement   | caught (CI)        | `placement_soft_delete_ranking_test.sql` 6.2              |
+| sql-placement/04 NQ entries eligible for placement          | sql-placement   | caught (CI)        | `myk9_1473_coin_flip_tie_order_test.sql` 3g (setup check) |
 
 14 local mutants: 11 CAUGHT, 3 MISSED, 0 ERROR (re-run with JSON-report verdicts; unchanged).
 

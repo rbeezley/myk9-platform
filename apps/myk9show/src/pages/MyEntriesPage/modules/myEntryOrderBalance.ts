@@ -58,6 +58,8 @@ export interface OrderBalanceContext {
   showName: string;
   showDate?: Date | undefined;
   showEndDate?: Date | undefined;
+  /** The order's trial zones, so "show over" matches the card (MYK9-1607). */
+  trialZones?: string[] | undefined;
   entryStatus: EntryStatus;
   paymentStatus: PaymentStatus;
   paymentMethod: string | null;
@@ -72,6 +74,7 @@ function toBalanceSources(classes: EntryClass[], ctx: OrderBalanceContext): Entr
     showName: ctx.showName,
     showDate: ctx.showDate,
     showEndDate: ctx.showEndDate,
+    trialZones: ctx.trialZones,
     entryStatus: cls.entryStatus ?? ctx.entryStatus,
     paymentStatus: cls.paymentStatus ?? ctx.paymentStatus,
     // `null` is meaningful here (an explicit unresolved-online payment) and

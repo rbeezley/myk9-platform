@@ -247,7 +247,7 @@ export function getContextualStatusMessage(
     // row there is missing scoring data, not a run the exhibitor still has to
     // make. Promising "still to run" on a finished show would be a fresh lie in
     // the same shape as the one this branch exists to remove.
-    if (isPastShowEntry({ showDate: entry.showDate, showEndDate: entry.showEndDate }, new Date())) {
+    if (isPastShowEntry(entry, new Date())) {
       return {
         message: `${remainingClasses} ${plural} without a result`,
         className: 'text-muted-foreground',

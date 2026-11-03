@@ -56,3 +56,18 @@ export function isLastDayPastInZones(
   if (zoneList.length === 0) return calendarDayInZone(now, LAST_ZONE_TO_ROLL_OVER) > lastDayKey;
   return zoneList.every(zone => calendarDayInZone(now, zone) > lastDayKey);
 }
+
+/**
+ * The trial timezones an entry's classes run in. A class counts only when its
+ * trial has replicated with a usable date, so a half-loaded row cannot pin the
+ * answer to a zone it has no date for.
+ */
+export function trialZonesOf(
+  classes: Iterable<{ trialTimezone?: string | undefined; trialDate?: Date | undefined }>
+): string[] {
+  const zones: string[] = [];
+  for (const cls of classes) {
+    if (cls.trialTimezone && hasUsableDate(cls.trialDate)) zones.push(cls.trialTimezone);
+  }
+  return zones;
+}

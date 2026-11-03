@@ -58,10 +58,10 @@ describe('required max time prompt (MYK9-1099)', () => {
     expect(dialog?.showWarning).toBe(true);
   });
 
-  it('Cancel leaves the list', () => {
+  it("Cancel goes to the list's fixed parent, never back through history", () => {
     renderRequired();
     act(() => dialog?.onClose());
-    expect(navigateSpy).toHaveBeenCalledWith(-1);
+    expect(navigateSpy).toHaveBeenCalledWith('/at-show/show-1');
     expect(uiActionSpy.setMaxTimeRequiredWarning).toHaveBeenCalledWith(false);
   });
 

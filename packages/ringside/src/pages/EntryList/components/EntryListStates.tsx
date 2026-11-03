@@ -10,6 +10,7 @@
  */
 import React from 'react';
 import { ArrowLeft, CloudOff, Users } from 'lucide-react';
+import { RingsideUpButton } from '@myk9/ui';
 
 export interface EntryListSkeletonProps {
   /** Combined A/B renders an extra tab row, so its skeleton reserves one. */
@@ -68,15 +69,21 @@ export const EntryListSkeleton: React.FC<EntryListSkeletonProps> = ({
 export interface EntryListEmptyStateProps {
   className?: string | undefined;
   description: string;
+  /** The list's fixed parent, the same Up the populated header renders. */
+  up: { label: string; to: string };
+  onUp: () => void;
   onGoBack: () => void;
 }
 
 export const EntryListEmptyState: React.FC<EntryListEmptyStateProps> = ({
   className,
   description,
+  up,
+  onUp,
   onGoBack,
 }) => (
   <div className="p-3">
+    <RingsideUpButton label={up.label} onClick={onUp} />
     <div className="flex flex-col items-center justify-center gap-2 px-3 py-8 text-center text-muted-foreground">
       {/* These used semantic class names (`empty-state-icon`, `btn
           btn-secondary`, ...) that have had NO CSS since the Tailwind
@@ -101,6 +108,8 @@ export interface EntryListNotOnDeviceStateProps {
   className?: string | undefined;
   /** The host's save-for-offline action; the page never builds a second one. */
   action: React.ReactNode;
+  up: { label: string; to: string };
+  onUp: () => void;
   onGoBack: () => void;
 }
 
@@ -112,9 +121,12 @@ export interface EntryListNotOnDeviceStateProps {
 export const EntryListNotOnDeviceState: React.FC<EntryListNotOnDeviceStateProps> = ({
   className,
   action,
+  up,
+  onUp,
   onGoBack,
 }) => (
   <div className="p-3">
+    <RingsideUpButton label={up.label} onClick={onUp} />
     <div className="flex flex-col items-center justify-center gap-2 px-3 py-8 text-center text-muted-foreground">
       <CloudOff size={48} aria-hidden="true" />
       <h2 className="m-0 text-lg font-semibold text-foreground">Entries are not on this device</h2>

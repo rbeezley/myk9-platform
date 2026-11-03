@@ -91,6 +91,42 @@ describe('evaluate-gating-jobs, against recorded real CI runs', () => {
   });
 });
 
+describe('evaluate-gating-jobs and the non-required TZ shards (MYK9-1655)', () => {
+  // The TZ shards are informational: a failed shard must not block promotion
+  // of a run whose gating jobs all passed. No recorded run contains them yet,
+  // so the payloads below are recorded runs plus synthesized
+  // `Test myK9Show, TZ Pacific/Honolulu (n/6)` jobs, in the shape CI emits.
+  const tzShard = (shard: number, conclusion: string) => ({
+    name: `Test myK9Show, TZ Pacific/Honolulu (${shard}/6)`,
+    conclusion,
+    status: 'completed',
+  });
+
+  it('promotes a run whose ONLY failure is one TZ shard', () => {
+    const full = JSON.parse(fixture('33880999020-full-success.json')) as {
+      total_count: number;
+      jobs: unknown[];
+    };
+    const jobs = [
+      ...full.jobs,
+      ...[1, 2, 3, 4, 5, 6].map(n => tzShard(n, n === 3 ? 'failure' : 'success')),
+    ];
+    const verdict = evaluate(JSON.stringify({ total_count: jobs.length, jobs }));
+    expect(verdict.code).toBe(PROMOTABLE);
+    expect(verdict.stdout).toContain('Test myK9Show, TZ Pacific/Honolulu (3/6) (failure)');
+  });
+
+  it('still BLOCKS when a TZ shard fails alongside a failed gating job', () => {
+    const failed = JSON.parse(fixture('33832052383-test-packages-failed.json')) as {
+      jobs: unknown[];
+    };
+    const jobs = [...failed.jobs, tzShard(3, 'failure')];
+    const verdict = evaluate(JSON.stringify({ total_count: jobs.length, jobs }));
+    expect(verdict.code).toBe(BLOCKED);
+    expect(verdict.stderr).toContain('job Test packages concluded failure');
+  });
+});
+
 describe('evaluate-gating-jobs refuses input it cannot trust', () => {
   it('rejects a non-payload', () => {
     expect(evaluate('"nope"').code).toBe(UNTRUSTWORTHY);
@@ -120,5 +156,28 @@ describe('evaluate-gating-jobs refuses input it cannot trust', () => {
     };
     const verdict = evaluate(JSON.stringify({ total_count: 14, jobs: full.jobs.slice(0, 8) }));
     expect(verdict.code).toBe(UNTRUSTWORTHY);
+  });
+});
+
+describe('the TZ job in ci.yml (MYK9-1655)', () => {
+  const ci = readFileSync(resolve(repoRoot, '.github/workflows/ci.yml'), 'utf8');
+  const start = ci.indexOf('\n  test-show-tz:\n');
+  const rest = ci.slice(start + 1);
+  const next = rest.slice(1).search(/\n {2}[a-z][\w-]*:\n/);
+  const block = next === -1 ? rest : rest.slice(0, next + 1);
+
+  it('isolates the right job block', () => {
+    expect(start).toBeGreaterThan(-1);
+    expect(block).toContain('Test myK9Show, TZ Pacific/Honolulu');
+    expect(block).not.toContain('test-show-coverage-gate:');
+  });
+
+  it('carries job-level continue-on-error so a red shard cannot fail the CI run', () => {
+    // pick-deploy-commit.sh lists runs with --status success.
+    expect(block).toMatch(/\n {4}continue-on-error: true\n/);
+  });
+
+  it('is not in the test aggregator needs', () => {
+    expect(ci).not.toMatch(/needs:[^\n]*test-show-tz/);
   });
 });

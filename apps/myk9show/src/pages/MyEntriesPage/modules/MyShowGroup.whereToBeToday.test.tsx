@@ -7,6 +7,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { day, makeClass, makeRow, NOW, toOrders } from '@/test/fixtures/myShowsFixtures';
+import { makeUndatedClass, makeZonelessClass } from '@/test/fixtures/missingValuesFixtures';
 import { MyShowsList } from './MyShowsList';
 import type { MyEntry } from './my-entries-types';
 
@@ -93,6 +94,35 @@ describe('My Shows — "Where to be today" (MYK9-1046)', () => {
       />
     );
     expect(screen.queryByText(/waiting on a trial date/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /where to be today/i })).toBeInTheDocument();
+  });
+});
+
+describe('My Shows — "Where to be today" on missing values (MYK9-1557, MYK9-1655)', () => {
+  const base = row('2026-10-24');
+
+  it('says the day is unknown for a class with no trial date, never "nothing today"', () => {
+    renderRows([{ ...base, classes: [makeUndatedClass()] }]);
+    expect(screen.queryByRole('link', { name: /where to be today/i })).not.toBeInTheDocument();
+    expect(screen.getByText(/waiting on a trial date/i)).toBeInTheDocument();
+  });
+
+  it('keeps the link when an undated class sits beside a class that runs today', () => {
+    renderRows([{ ...base, classes: [makeUndatedClass(), makeClass({ id: 'c-dated' })] }]);
+    expect(screen.getByRole('link', { name: /where to be today/i })).toBeInTheDocument();
+    expect(screen.queryByText(/waiting on a trial date/i)).not.toBeInTheDocument();
+  });
+
+  it('reckons a trial with no timezone in Eastern, so Friday 11pm Eastern is not yet the day', () => {
+    // 03:00Z on the 24th: Saturday in UTC, still Friday night in Eastern.
+    const fridayNightEastern = new Date('2026-10-24T03:00:00Z');
+    renderRows([{ ...base, classes: [makeZonelessClass()] }], fridayNightEastern);
+    expect(screen.queryByRole('link', { name: /where to be today/i })).not.toBeInTheDocument();
+  });
+
+  it('shows the link for a trial with no timezone once Eastern reaches the trial day', () => {
+    const saturdayEastern = new Date('2026-10-24T14:00:00Z');
+    renderRows([{ ...base, classes: [makeZonelessClass()] }], saturdayEastern);
     expect(screen.getByRole('link', { name: /where to be today/i })).toBeInTheDocument();
   });
 });

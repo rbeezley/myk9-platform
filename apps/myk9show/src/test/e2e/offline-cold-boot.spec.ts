@@ -23,6 +23,8 @@ import { goOffline, reportOffline, supabaseRouteGlob } from './helpers/offlineBa
 
 const SHOW_ID = 'dededede-0000-0000-0000-000000000010'; // Heartland Scent Work Classic
 const AT_SHOW_URL = `/at-show/${SHOW_ID}`;
+const CLASS_ID = 'dec1a55e-0000-0000-0000-000000000032'; // a Heartland class with seeded entries
+const CLASS_URL = `${AT_SHOW_URL}/class/${CLASS_ID}`;
 
 /**
  * Like `goOffline`, but the backend can be switched back on mid-test.
@@ -169,6 +171,58 @@ test.describe('offline cold boot', () => {
     await expect(
       page.getByRole('status').filter({ hasText: /offline ready|offline copy: saved/i })
     ).toHaveCount(0);
+  });
+  // MYK9-1520 / MYK9-1655. The never-synced half, in the two states a device can be in.
+  // Every other walk runs online with the show already saved, so none of them can see this.
+  //
+  // (a) The state MYK9-1520 fixed: the device KNOWS the show (its row is saved) but never
+  //     synced its trials, classes or entries. Offline, the class page read "No Entries Yet"
+  //     although the class had entries. Staged by deleting those tables' rows and sync
+  //     markers from the replica after sign-in and keeping the `shows` rows.
+  test('a show saved without its entries says they are not here, never No Entries Yet', async ({
+    page,
+    context,
+  }) => {
+    await primeThenClearReplica(page, { keepShowRow: true });
+
+    const interceptedCount = await goOffline(context);
+    await page.goto(CLASS_URL, { waitUntil: 'domcontentloaded' });
+
+    // Positive control first: the not-on-device state IS on this page, so the absence
+    // check below is made against a page that finished deciding.
+    await expect(page.getByRole('heading', { name: 'Entries are not on this device' })).toBeVisible(
+      { timeout: 45_000 }
+    );
+    await expect(page.getByRole('button', { name: /try again/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'No Entries Yet' })).toHaveCount(0);
+
+    // The show's class list makes the same claim instead of "No classes".
+    await page.goto(AT_SHOW_URL, { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'Classes not on this device yet' })).toBeVisible(
+      { timeout: 45_000 }
+    );
+    await expect(page.getByRole('button', { name: /try again/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'No classes' })).toHaveCount(0);
+
+    // Prove the backend really was unreachable.
+    expect(interceptedCount()).toBeGreaterThan(0);
+  });
+
+  // (b) Nothing about the show saved at all. `RingsideShowBoundary` stops before either
+  //     list mounts and says the whole show is missing, so the lists are never asked.
+  test('a show never saved on this device says so at the show level', async ({ page, context }) => {
+    await primeThenClearReplica(page, { keepShowRow: false });
+
+    const interceptedCount = await goOffline(context);
+    await page.goto(CLASS_URL, { waitUntil: 'domcontentloaded' });
+
+    await expect(page.getByText("This show isn't saved on this device")).toBeVisible({
+      timeout: 45_000,
+    });
+    await expect(page.getByRole('heading', { name: 'No Entries Yet' })).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'No classes' })).toHaveCount(0);
+
+    expect(interceptedCount()).toBeGreaterThan(0);
   });
   // MYK9-347. The exhibitor half of this arc, and a different failure from the
   // secretary one above: nothing crashed and nothing was denied — the app was
@@ -400,4 +454,61 @@ async function expectOfflineReady(page: Page, timeout: number, primeWhenNotReady
       { timeout }
     )
     .toBe('ready');
+}
+
+/**
+ * Sign in online, wait for the at-show page to settle, then strip the replica to a
+ * never-synced state while the session and RBAC cache stay intact.
+ *
+ * `keepShowRow: true` deletes the trials, classes and entries rows plus their
+ * `sync_metadata` markers and leaves `shows` alone: the device knows the show but never
+ * synced its lists. `false` deletes the whole database: the device knows nothing.
+ */
+async function primeThenClearReplica(page: Page, options: { keepShowRow: boolean }) {
+  await signInAsSecretary(page, AT_SHOW_URL);
+  await page.waitForURL(`**${AT_SHOW_URL}`, { timeout: 30_000 });
+  await expect(
+    page
+      .getByRole('status')
+      .filter({ hasText: /offline ready|offline copy: saved/i })
+      .or(page.getByRole('button', { name: /save for show day/i }))
+      .first()
+  ).toBeVisible({ timeout: 45_000 });
+
+  await page.evaluate(async keepShowRow => {
+    const DB_NAME = 'myK9_Replication';
+    if (!keepShowRow) {
+      await new Promise<void>(resolve => {
+        const request = indexedDB.deleteDatabase(DB_NAME);
+        request.onsuccess = () => resolve();
+        request.onerror = () => resolve();
+        request.onblocked = () => resolve();
+      });
+      return;
+    }
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open(DB_NAME);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const cleared = new Set(['trials', 'classes', 'entries']);
+    const clearStore = (storeName: string) =>
+      new Promise<void>((resolve, reject) => {
+        const tx = db.transaction(storeName, 'readwrite');
+        const request = tx.objectStore(storeName).openCursor();
+        request.onsuccess = () => {
+          const cursor = request.result;
+          if (!cursor) return;
+          if (cleared.has((cursor.value as { tableName?: string }).tableName ?? '')) {
+            cursor.delete();
+          }
+          cursor.continue();
+        };
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    await clearStore('replicated_tables');
+    await clearStore('sync_metadata');
+    db.close();
+  }, options.keepShowRow);
 }

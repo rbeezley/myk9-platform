@@ -4,6 +4,8 @@
  *
  *   pnpm qa:planted-bugs            (run from a clean worktree)
  *   pnpm qa:planted-bugs -- --only run-order   (substring match on mutant id)
+ *   pnpm qa:planted-bugs -- --kind ci          (SQL mutants; planted-bugs-sql workflow only,
+ *                                               needs MYK9_BEHAVIORAL_SQL_DATABASE_URL)
  */
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -20,6 +22,7 @@ import {
   type Mutant,
   type Row,
 } from './lib';
+import { runSqlMutants } from './run-sql';
 
 const DIR = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(DIR, '../../..');
@@ -147,12 +150,40 @@ async function main(): Promise<void> {
     console.error(`Invalid manifest:\n${errors.join('\n')}`);
     process.exit(2);
   }
-  const mutants = (manifest as Mutant[]).filter(m => !only || m.id.includes(only));
+  const kindIdx = process.argv.indexOf('--kind');
+  const kind = kindIdx >= 0 ? process.argv[kindIdx + 1] : undefined;
+  if (kindIdx >= 0 && kind !== 'ci') {
+    console.error('ABORT: --kind only accepts "ci"');
+    process.exit(2);
+  }
+  const mutants = (manifest as Mutant[]).filter(
+    m => (!only || m.id.includes(only)) && (kind !== 'ci' || m.kind === 'ci')
+  );
   if (mutants.length === 0) {
-    console.error(`ABORT: no mutant id contains "${only}"`);
+    console.error(`ABORT: no ${kind ?? ''} mutant id contains "${only ?? ''}"`);
     process.exit(2);
   }
   assertClean('before baseline', manifest as Mutant[]);
+
+  if (kind === 'ci') {
+    const rows = await runSqlMutants(
+      { root: ROOT, dir: DIR },
+      mutants,
+      (...args) => sh('git', args),
+      patch => {
+        applied = patch;
+      }
+    );
+    console.log(renderTable(rows));
+    assertClean('end of run');
+    const n = (v: string) => rows.filter(r => r.verdict === v).length;
+    console.log(
+      `\n${n('caught')} caught, ${n('missed')} missed, ${n('error')} error of ${rows.length} SQL mutants.`
+    );
+    // A MISSED mutant is a finding, not a failure; an ERROR means the harness lied.
+    if (n('error') > 0) process.exitCode = 1;
+    return;
+  }
 
   const baseline: CheckResult[] = [];
   for (const [i, c] of uniqueChecks(mutants).entries()) {

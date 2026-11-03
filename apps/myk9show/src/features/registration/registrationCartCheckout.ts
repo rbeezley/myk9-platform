@@ -2,6 +2,7 @@ import {
   parseJuniorHandlerFee,
   type ShowFeeInfo,
 } from '@/components/shows/RegistrationWorkflow/PaymentStep/utils';
+import { buildScopedCartHref } from '@/features/payments/finishPaymentHref';
 import type { EnsureCartResult, NewCartItem } from '@/store/cartStore';
 import type { ClassSelectionData, HandlerInfo } from '@/types/show-registration-types';
 import { registrationToCartItems } from '@/utils/registrationToCartItems';
@@ -106,5 +107,5 @@ export async function submitRegistrationCartCheckout({
   // retired where the entries are actually filed: the non-card submit paths
   // call `discardDraftsWithoutFinalSave`, and a verified card checkout prunes
   // the filed lines from `CheckoutSuccessPage`.
-  deps.navigate('/cart');
+  deps.navigate(buildScopedCartHref(showId));
 }

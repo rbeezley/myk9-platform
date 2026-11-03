@@ -75,7 +75,7 @@
     "patch": "check-in/01-rpc-fields-hardcoded-status.patch",
     "rationale": "Check-in RPC always sends checked-in whatever status was chosen",
     "checks": [
-      "cd apps/myk9show && pnpm vitest run src/services/replication/ReplicatedEntriesTable.queuedRpc.test.ts src/services/replication/ReplicatedEntriesTable.durableFirst.test.ts src/services/show-day/__tests__/checkInStatus.test.ts"
+      "cd apps/myk9show && pnpm vitest run src/services/replication/ReplicatedEntriesTable.queuedRpc.test.ts src/services/replication/ReplicatedEntriesTable.durableFirst.test.ts src/services/show-day/__tests__/checkInStatus.test.ts src/features/show-map/showMapCheckInOptimisticUpdates.test.ts"
     ],
     "kind": "local"
   },
@@ -85,7 +85,7 @@
     "patch": "check-in/02-self-checkin-wrong-status.patch",
     "rationale": "Self check-in RPC always sends checked-in",
     "checks": [
-      "cd apps/myk9show && pnpm vitest run src/services/replication/ReplicatedEntriesTable.queuedRpc.test.ts src/services/replication/ReplicatedEntriesTable.durableFirst.test.ts src/services/show-day/__tests__/checkInStatus.test.ts"
+      "cd apps/myk9show && pnpm vitest run src/services/replication/ReplicatedEntriesTable.queuedRpc.test.ts src/services/replication/ReplicatedEntriesTable.durableFirst.test.ts src/services/show-day/__tests__/checkInStatus.test.ts src/features/show-map/showMapCheckInOptimisticUpdates.test.ts"
     ],
     "kind": "local"
   },
@@ -95,7 +95,7 @@
     "patch": "check-in/03-report-counts-no-status-as-checked-in.patch",
     "rationale": "Check-in report counts no-status entries as checked in",
     "checks": [
-      "cd apps/myk9show && pnpm vitest run src/services/replication/ReplicatedEntriesTable.queuedRpc.test.ts src/services/replication/ReplicatedEntriesTable.durableFirst.test.ts src/services/show-day/__tests__/checkInStatus.test.ts"
+      "cd apps/myk9show && pnpm vitest run src/services/replication/ReplicatedEntriesTable.queuedRpc.test.ts src/services/replication/ReplicatedEntriesTable.durableFirst.test.ts src/services/show-day/__tests__/checkInStatus.test.ts src/features/show-map/showMapCheckInOptimisticUpdates.test.ts"
     ],
     "kind": "local"
   },
@@ -132,7 +132,8 @@
       "supabase/tests/placement_soft_delete_ranking_test.sql, supabase/tests/myk9_1473_coin_flip_tie_order_test.sql, supabase/tests/class_status_auto_derivation_test.sql"
     ],
     "kind": "ci",
-    "note": "SQL behaviour tests run only in CI (no container runtime on the dev Mac); the patch edits the latest recalculate_class_placements migration."
+    "note": "SQL behaviour tests run only in CI (no container runtime on the dev Mac); the patch edits the latest recalculate_class_placements migration.",
+    "reapplyFunction": "public.recalculate_class_placements(uuid[], boolean)"
   },
   {
     "id": "sql-placement/02-ribbon-range-off-by-one",
@@ -143,7 +144,8 @@
       "supabase/tests/placement_soft_delete_ranking_test.sql, supabase/tests/myk9_1473_coin_flip_tie_order_test.sql, supabase/tests/class_status_auto_derivation_test.sql"
     ],
     "kind": "ci",
-    "note": "SQL behaviour tests run only in CI (no container runtime on the dev Mac); the patch edits the latest recalculate_class_placements migration."
+    "note": "SQL behaviour tests run only in CI (no container runtime on the dev Mac); the patch edits the latest recalculate_class_placements migration.",
+    "reapplyFunction": "public.recalculate_class_placements(uuid[], boolean)"
   },
   {
     "id": "sql-placement/03-faults-sorted-descending",
@@ -154,7 +156,8 @@
       "supabase/tests/placement_soft_delete_ranking_test.sql, supabase/tests/myk9_1473_coin_flip_tie_order_test.sql, supabase/tests/class_status_auto_derivation_test.sql"
     ],
     "kind": "ci",
-    "note": "SQL behaviour tests run only in CI (no container runtime on the dev Mac); the patch edits the latest recalculate_class_placements migration."
+    "note": "SQL behaviour tests run only in CI (no container runtime on the dev Mac); the patch edits the latest recalculate_class_placements migration.",
+    "reapplyFunction": "public.recalculate_class_placements(uuid[], boolean)"
   },
   {
     "id": "sql-placement/04-non-qualified-eligible",
@@ -165,6 +168,7 @@
       "supabase/tests/placement_soft_delete_ranking_test.sql, supabase/tests/myk9_1473_coin_flip_tie_order_test.sql, supabase/tests/class_status_auto_derivation_test.sql"
     ],
     "kind": "ci",
-    "note": "SQL behaviour tests run only in CI (no container runtime on the dev Mac); the patch edits the latest recalculate_class_placements migration."
+    "note": "SQL behaviour tests run only in CI (no container runtime on the dev Mac); the patch edits the latest recalculate_class_placements migration.",
+    "reapplyFunction": "public.recalculate_class_placements(uuid[], boolean)"
   }
 ]

@@ -331,6 +331,44 @@ describe('behavioral SQL test harness', () => {
     expect(invokedFiles).toEqual([...launchCriticalSqlTests].sort());
   });
 
+  it('runs only the named registered files when given arguments (MYK9-1659)', () => {
+    const { result, psqlCalls } = runWithFakePsql(
+      [
+        'bash',
+        runner,
+        'placement_soft_delete_ranking_test.sql',
+        'supabase/tests/myk9_1473_coin_flip_tie_order_test.sql',
+      ],
+      'postgresql://postgres:postgres@127.0.0.1:54322/postgres'
+    );
+
+    expect(result.status).toBe(0);
+    expect(psqlCalls.map(line => basename(line.match(/ -f (.+)$/)?.[1] ?? ''))).toEqual([
+      'placement_soft_delete_ranking_test.sql',
+      'myk9_1473_coin_flip_tie_order_test.sql',
+    ]);
+    expect(result.stdout).toContain('BEHAVIORAL SQL TESTS PASSED (2 files)');
+    // The two-session harness is full-suite only, and says so.
+    expect(result.stdout).toContain(
+      'SKIP: hard-delete concurrency harness (named test files only)'
+    );
+  });
+
+  it.each([
+    'not_registered_test.sql',
+    '../../etc/passwd',
+    'other/dir/placement_soft_delete_ranking_test.sql',
+  ])('refuses to run %s and never reaches psql', arg => {
+    const { result, psqlCalls } = runWithFakePsql(
+      ['bash', runner, arg],
+      'postgresql://postgres:postgres@127.0.0.1:54322/postgres'
+    );
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('is not a registered behavioral SQL test');
+    expect(psqlCalls).toEqual([]);
+  });
+
   it('uses the current shows schema in the recoverable access-code fixture', () => {
     expect(recoverableAccessFixture).toContain(
       'id, name, organization, start_date, end_date, club_id, status'

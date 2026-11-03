@@ -98,6 +98,19 @@ describe('updateReplicatedCheckInStatus', () => {
     expect(updateEntry).not.toHaveBeenCalled();
   });
 
+  // MYK9-1658: pin that the chosen status, not a hard-coded 'checked-in', is sent.
+  it.each(['at-gate', 'conflict', 'no-status'] as const)(
+    'sends self check-in status %s as p_new_status',
+    async status => {
+      await updateSelfCheckInStatus('entry-1', status);
+
+      expect(rpc).toHaveBeenCalledWith('self_checkin_entry', {
+        p_entry_id: 'entry-1',
+        p_new_status: status,
+      });
+    }
+  );
+
   it('queues day-of scratch as a Pull: special_requests untouched, withdrawal_reason_code cleared', async () => {
     await expect(updateReplicatedDayOfScratch('entry-1', 'Dog absent')).resolves.toBe('mutation-1');
 

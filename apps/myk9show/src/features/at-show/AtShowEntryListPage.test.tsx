@@ -340,6 +340,37 @@ describe('AtShowEntryListPage (Phase 1a shim)', () => {
     expect(await screen.findByTestId('class-list-page')).toBeInTheDocument();
   });
 
+  it('the empty state shows the shared Up control, which goes to the class list on a direct link', async () => {
+    entriesScope.synced = true;
+    vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([] as never);
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Classes' }));
+
+    expect(await screen.findByTestId('class-list-page')).toBeInTheDocument();
+  });
+
+  it('the not-on-device state shows the shared Up control, which goes to the class list on a direct link', async () => {
+    entriesScope.synced = false;
+    failShowSync();
+    vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([] as never);
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Classes' }));
+
+    expect(await screen.findByTestId('class-list-page')).toBeInTheDocument();
+  });
+
+  it('Go Back from a genuinely empty class goes to the show class list on a direct link', async () => {
+    entriesScope.synced = true;
+    vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([] as never);
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('button', { name: /go back/i }));
+
+    expect(await screen.findByTestId('class-list-page')).toBeInTheDocument();
+  });
+
   it('holds the skeleton, not No Entries Yet, until the entries marker is read', async () => {
     entriesScope.synced = false;
     failShowSync();

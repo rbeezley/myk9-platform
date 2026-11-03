@@ -171,6 +171,19 @@ describe('CartPage retry after a fee heal (MYK9-838)', () => {
     ]);
   });
 
+  it('keeps the URL show scope on the 409 reload (MYK9-1661)', async () => {
+    createEntryCheckoutSessionMock.mockRejectedValueOnce(
+      new CheckoutSessionError(HEAL_MESSAGE, 409)
+    );
+
+    const { user } = render(<CartPage />, { initialRoute: '/cart?showId=show-a' });
+    await user.click(screen.getByRole('button', { name: 'Checkout' }));
+
+    await waitFor(() =>
+      expect(loadActiveCartMock).toHaveBeenCalledWith('exhibitor-1', { showId: 'show-a' })
+    );
+  });
+
   it('does not reload the cart for a failure that is not a re-pricing', async () => {
     createEntryCheckoutSessionMock.mockRejectedValueOnce(
       new CheckoutSessionError('This club cannot take card payments yet.', 403)

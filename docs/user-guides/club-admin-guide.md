@@ -13,7 +13,7 @@
 
 How to set up your club's profile, assign secretaries to shows, and connect your bank account to receive show payouts.
 
-If you've used other show-management software before, the main change is that entries, payments, and results all flow through one place — you do not need to log into a separate payment processor to see your balance. Exhibitors can pay by card online, and your secretary can also record a Card, Check or Cash payment on an entry.
+If you've used other show-management software before, the main change is that entries, payments, and results all flow through one place — you do not need to log into a separate payment processor to see your balance. Exhibitors can pay by card online, and your secretary can also record a Check or Cash payment on an entry.
 
 ---
 

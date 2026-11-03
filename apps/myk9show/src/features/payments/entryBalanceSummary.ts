@@ -368,7 +368,7 @@ export function summarizeEntryBalances(
     existing.entryCloseDay = existing.entryCloseDay ?? entry.entryCloseDay ?? null;
     // Over only once EVERY row's zone is past the last day (rows can run in
     // different trial zones), so the first-rolled zone cannot close it early.
-    existing.isPastShow = existing.isPastShow && isPastShowEntry(entry, now);
+    existing.isPastShow = (existing.isPastShow ?? false) && isPastShowEntry(entry, now);
     existing.displayEntryIds = existing.displayEntryIds ?? [];
     existing.displayEntryIds.push(...entryIdsForDisplay(entry));
     existing.entryIds.push(...entryIdsForPayment(entry));

@@ -5,7 +5,7 @@
  * `onDirtyChange`; the host's route guard owns the single "Discard this score?"
  * prompt, so Up, Cancel and the back gesture are all held to it.
  */
-import { useEffect, useState, type ReactNode } from 'react';
+import { useLayoutEffect, useState, type ReactNode } from 'react';
 import { RingsideUpButton } from '@myk9/ui';
 import type { ScoresheetScoringReturn } from './useScoresheetScoring';
 
@@ -58,11 +58,13 @@ export function useScoresheetLeave({
     Boolean(extraDirty?.());
   const dirty = isDirty();
 
-  useEffect(() => {
+  // Reported in the layout phase, in the same commit as the edit, so a host that
+  // writes a ref has it before any following navigation runs (MYK9-1552).
+  useLayoutEffect(() => {
     onDirtyChange?.(dirty);
   }, [dirty, onDirtyChange]);
   // A sheet that unmounts (saved, or replaced by an error screen) holds nothing.
-  useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
+  useLayoutEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
 
   const upButton = <RingsideUpButton label={backLabel ?? 'Entries'} onClick={onBack} />;
 

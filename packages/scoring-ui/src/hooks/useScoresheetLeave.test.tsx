@@ -3,6 +3,7 @@
  * correction to a saved score (fault count, reason, found/correct flags) is held
  * by the host's route guard.
  */
+import { useLayoutEffect } from 'react';
 import { renderHook } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { useScoresheetLeave, type UseScoresheetLeaveOptions } from './useScoresheetLeave';
@@ -58,5 +59,27 @@ describe('useScoresheetLeave dirtiness', () => {
     );
     unmount();
     expect(onDirtyChange).toHaveBeenLastCalledWith(false);
+  });
+});
+
+describe('useScoresheetLeave report timing (MYK9-1552)', () => {
+  it('reports a change in the layout phase, before any passive effect can run', () => {
+    // A parent layout effect runs after its children's and before passive effects.
+    const seenByParentLayout: boolean[] = [];
+    let latest = false;
+    const onDirtyChange = (dirty: boolean) => {
+      latest = dirty;
+    };
+    const { rerender } = renderHook(
+      (props: { scoring: ScoresheetScoringReturn }) => {
+        useScoresheetLeave({ scoring: props.scoring, onBack: vi.fn(), onDirtyChange });
+        useLayoutEffect(() => {
+          seenByParentLayout.push(latest);
+        });
+      },
+      { initialProps: { scoring: scoringWith() } }
+    );
+    rerender({ scoring: scoringWith({ qualifying: 'NQ' }) });
+    expect(seenByParentLayout.at(-1)).toBe(true);
   });
 });

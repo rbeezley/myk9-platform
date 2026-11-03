@@ -23,6 +23,13 @@ import {
 } from '../constants';
 import { withTimeout } from '../mutation-utils';
 import {
+  StaleSchemaError,
+  getStaleSchemaLatch,
+  isVersionError,
+  latchStaleSchema,
+  resetStaleSchemaLatch,
+} from './staleSchema';
+import {
   writeMutationBackup,
   parseMutationBackup,
   MUTATION_BACKUP_STORAGE_KEY,
@@ -293,13 +300,16 @@ export class DatabaseManager {
       },
     }).then(db => {
       this.logger.log(`[DatabaseManager] openDB() promise resolved!`);
-      db.onversionchange = () => {
+      db.onversionchange = event => {
         this.logger.warn(
           `[DatabaseManager] Another instance requested upgrade — closing connection`
         );
         db.close();
         sharedDB = null;
         dbInitPromise = null;
+        // newVersion === null is a deleteDB (another tab's recovery): reconnect
+        // on the next call. A number is a newer build upgrading: this build is stale.
+        if (event.newVersion !== null) latchStaleSchema('version-change');
       };
       return db;
     });
@@ -312,6 +322,9 @@ export class DatabaseManager {
    * SINGLETON PATTERN: All tables share the same DB instance to prevent upgrade deadlocks
    */
   async getDatabase(tableName: string): Promise<IDBPDatabase> {
+    const stale = getStaleSchemaLatch();
+    if (stale) throw new StaleSchemaError(stale);
+
     this.logger.log(
       `[${tableName}] init() called - sharedDB: ${!!sharedDB}, dbInitPromise: ${!!dbInitPromise}`
     );
@@ -427,6 +440,14 @@ export class DatabaseManager {
       dbInitPromise = null;
       sharedDB = null;
 
+      // MYK9-1663: this build is older than the device's database. recover()
+      // deletes the database, which would discard queued offline scores the
+      // newer build can still replay, so report it and leave the data alone.
+      if (isVersionError(error)) {
+        latchStaleSchema('version-error');
+        throw error;
+      }
+
       await this.recover();
 
       // If recover() re-opened successfully, return it
@@ -482,12 +503,15 @@ export class DatabaseManager {
     this.consecutiveFailures = 0;
     this.circuitOpen = false;
     this.isRecovering = false;
+    resetStaleSchemaLatch();
   }
 
   /**
    * Record a getAll/init failure. Trips circuit breaker after threshold.
    */
   recordFailure(): void {
+    // A stale schema is not a failing database; never count it toward recover().
+    if (getStaleSchemaLatch()) return;
     this.consecutiveFailures++;
     this.logger.warn(
       `[DatabaseManager] Failure recorded (${this.consecutiveFailures}/${CIRCUIT_BREAKER_THRESHOLD})`
@@ -514,6 +538,11 @@ export class DatabaseManager {
    * Auto-recover: force-close, nuke IndexedDB, re-open, emit event
    */
   private async recover(): Promise<void> {
+    // MYK9-1663: the newer build owns this database and its queued scores.
+    if (getStaleSchemaLatch()) {
+      this.logger.warn(`[DatabaseManager] Stale schema latched — refusing to delete the database`);
+      return;
+    }
     if (this.isRecovering) return;
     this.isRecovering = true;
 

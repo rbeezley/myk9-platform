@@ -42,6 +42,7 @@ import { ExhibitorOnboardingChecker } from './components/exhibitor';
 
 // PWA Install
 import { PWAInstallBanner } from './components/pwa/PWAInstallBanner';
+import { StaleSchemaBanner } from './components/common/StaleSchemaBanner';
 import { RbacOfflineNotice } from './components/common/RbacOfflineNotice';
 import { NewRoleStepBanner } from './components/exhibitor/NewRoleStepBanner';
 
@@ -249,6 +250,7 @@ function App() {
                         <PWAInstallBanner />
                         <RbacOfflineNotice />
                         <AppHeader />
+                        <StaleSchemaBanner />
                         <RingsideReturnBar />
                         <NotificationCenter />
                         <AppToaster />

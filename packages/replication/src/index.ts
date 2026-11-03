@@ -118,6 +118,8 @@ export {
   getActiveTransactionCount,
   waitForActiveTransactions,
 } from './core/DatabaseManager';
+export { onStaleSchema, getStaleSchemaLatch } from './core/staleSchema';
+export type { StaleSchemaReason, StaleSchemaListener } from './core/staleSchema';
 export type {
   ReplicationIndexDefinition,
   ReplicationStoreDefinition,

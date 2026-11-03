@@ -163,31 +163,22 @@ test.describe('Phase 1 UAT - Secretary disposable entry management', () => {
 });
 
 /**
- * Open the armband dialog from the FOCUSED entry card.
+ * Open the armband dialog from the "To finish this form" checklist.
  *
- * Both of this helper's old locators addressed names the app no longer emits,
- * and neither could ever have matched:
- *
- * - `button[name="Assign", exact]` — the control's visible text is "Assign",
- *   but its accessible name comes from `aria-label={`Assign armband to
- *   ${dogName}`}` (EntryListCard), so an exact match on "Assign" fails. The
- *   assigned variant reads `"<n>, change armband for <dog>"`.
- * - `button[name="Actions", exact]` — RowActionMenu's trigger is labelled
- *   "Actions for <dog>" (default "Row actions"), never bare "Actions".
- *
- * A WCAG 2.5.3 accessible-name change broke this and nothing noticed, because
- * Playwright Regression had never executed a test (MYK9-271).
- *
- * Scoped to the card rather than the page: the old page-wide `.first()`/
- * `.last()` could pick up a control from another region entirely, which turns
- * a missing affordance into an unrelated click.
+ * The entry-form section renders two buttons with the same accessible name,
+ * `Assign armband to <dog>`: the checklist item (EntryFormChecklist, the form's
+ * primary work since MYK9-1600) and the one on the entry card (EntryListCard).
+ * A page-wide or section-wide match is a strict-mode violation, so this targets
+ * the checklist action inside its own region. The seeded entry has no armband,
+ * so the checklist item is the control present in this state (the checklist
+ * item exists only while the armband is missing, so there is no "change" variant
+ * here).
  */
 async function openArmbandDialog(entryCard: Locator, dogName: string) {
-  const armbandButton = entryCard.getByRole('button', {
-    name: new RegExp(
-      `(assign armband to ${escapeRegExp(dogName)}|change armband for ${escapeRegExp(dogName)})`,
-      'i'
-    ),
+  const checklist = entryCard.getByRole('region', { name: 'To finish this form' });
+  const armbandButton = checklist.getByRole('button', {
+    name: `Assign armband to ${dogName}`,
+    exact: true,
   });
   await expect(armbandButton).toBeVisible({ timeout: 10000 });
   await armbandButton.click();

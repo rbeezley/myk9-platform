@@ -85,7 +85,9 @@ describe('StaleSchemaBanner', () => {
     expect(screen.getByRole('alert')).toBeInTheDocument();
   });
 
-  it('Reload calls applyPwaUpdate once and nothing reloads on its own', async () => {
+  it('Reload calls applyPwaUpdate once, nothing reloads on its own, then falls back to a reload', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    mocks.applyPwaUpdate.mockResolvedValue(undefined);
     const { user } = render(<Shell />);
     signal('version-error');
     expect(mocks.applyPwaUpdate).not.toHaveBeenCalled();
@@ -95,5 +97,38 @@ describe('StaleSchemaBanner', () => {
 
     expect(mocks.applyPwaUpdate).toHaveBeenCalledTimes(1);
     expect(reload).not.toHaveBeenCalled();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+    expect(reload).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
+
+  it('offline: disables Reload, never reloads, and re-enables when back online', async () => {
+    const onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    const { user } = render(<Shell />);
+    signal('version-change');
+
+    expect(screen.getByText('Reconnect to the internet, then reload.')).toBeInTheDocument();
+    const button = screen.getByRole('button', { name: 'Reload' });
+    expect(button).toBeDisabled();
+    await user.click(button);
+    expect(mocks.applyPwaUpdate).not.toHaveBeenCalled();
+    expect(reload).not.toHaveBeenCalled();
+
+    onLine.mockReturnValue(true);
+    act(() => {
+      window.dispatchEvent(new Event('online'));
+    });
+    expect(screen.getByRole('button', { name: 'Reload' })).toBeEnabled();
+    onLine.mockRestore();
+  });
+
+  it('clears the fixed header via the shared top-offset variables (class check; jsdom has no layout)', () => {
+    mocks.latch = 'version-error';
+    render(<Shell />);
+    const cls = screen.getByRole('alert').className;
+    expect(cls).toContain('var(--pwa-banner-height,0px)+var(--app-header-height,3rem)');
+    expect(cls).toContain('sticky');
   });
 });

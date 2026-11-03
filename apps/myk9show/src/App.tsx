@@ -249,8 +249,8 @@ function App() {
                       <div className="min-h-screen transition-colors duration-300 bg-background text-foreground">
                         <PWAInstallBanner />
                         <RbacOfflineNotice />
-                        <StaleSchemaBanner />
                         <AppHeader />
+                        <StaleSchemaBanner />
                         <RingsideReturnBar />
                         <NotificationCenter />
                         <AppToaster />

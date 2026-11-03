@@ -13,7 +13,7 @@ The runner refuses to start on a dirty tree, runs every check once on the clean 
 
 ## Results
 
-SQL mutants (`kind: ci`) are patches against the latest `recalculate_class_placements` migration; the behaviour tests under `supabase/tests/` run only in CI (no container runtime on the development Mac), so they are listed, not run. Their verdict needs a CI run with the patch applied.
+SQL mutants (`kind: ci`) are patches against the latest `recalculate_class_placements` migration; the behaviour tests under `supabase/tests/` run only in CI (no container runtime on the development Mac). The dispatch-only `Planted bugs (SQL)` workflow (MYK9-1659) runs them: [run 41550065563](https://github.com/rbeezley/myk9-platform/actions/runs/41550065563), 2026-11-03, on `59477c43d` (#3563), baseline green first, verdicts from the run's `planted-bugs-sql-logs` artifact.
 
 | Mutant                                                      | Area            | Result                   | Caught by                                                                          |
 | ----------------------------------------------------------- | --------------- | ------------------------ | ---------------------------------------------------------------------------------- |
@@ -25,20 +25,22 @@ SQL mutants (`kind: ci`) are patches against the latest `recalculate_class_place
 | offline-queue/01 sequence order reversed (newest first)     | offline-queue   | caught                   | replication `mutation-ordering`, `MutationManager` tests                           |
 | offline-queue/02 dependency edge recorded only when missing | offline-queue   | caught                   | replication `mutation-ordering`, `MutationManager` tests                           |
 | offline-queue/03 overflow threshold `>=` to `>`             | offline-queue   | caught                   | replication `mutation-queue-capacity.test.ts`                                      |
-| check-in/01 check-in RPC always sends `checked-in`          | check-in        | **MISSED**               | none                                                                               |
-| check-in/02 self check-in RPC always sends `checked-in`     | check-in        | **MISSED**               | none (the test only ever uses `checked-in`)                                        |
-| check-in/03 report counts `no-status` entries as checked in | check-in        | **MISSED**               | none (`markCheckInReportCheckedIn` has no test)                                    |
+| check-in/01 check-in RPC always sends `checked-in`          | check-in        | caught (MYK9-1658)       | `ReplicatedEntriesTable.queuedRpc.test.ts`                                         |
+| check-in/02 self check-in RPC always sends `checked-in`     | check-in        | caught (MYK9-1658)       | `checkInStatus.test.ts`                                                            |
+| check-in/03 report counts `no-status` entries as checked in | check-in        | caught (MYK9-1658)       | `showMapCheckInOptimisticUpdates.test.ts`                                          |
 | results-release/01 `manual_release` shows at class complete | results-release | caught                   | secretary `visibility` tests                                                       |
 | results-release/02 exhibitors bypass visibility (inverted)  | results-release | caught                   | secretary `visibility` tests                                                       |
 | results-release/03 class override applied before trial      | results-release | caught                   | secretary `visibility` tests                                                       |
-| sql-placement/01 soft-deleted entry still placed            | sql-placement   | CI-run (not run locally) | `placement_soft_delete_ranking_test.sql`, `myk9_1473_coin_flip_tie_order_test.sql` |
-| sql-placement/02 ribbon range ends at 3rd (off-by-one)      | sql-placement   | CI-run (not run locally) | same                                                                               |
-| sql-placement/03 most faults placed first                   | sql-placement   | CI-run (not run locally) | same                                                                               |
-| sql-placement/04 NQ entries eligible for placement          | sql-placement   | CI-run (not run locally) | same                                                                               |
+| sql-placement/01 soft-deleted entry still placed            | sql-placement   | caught (CI)              | `placement_soft_delete_ranking_test.sql` 1.2                                       |
+| sql-placement/02 ribbon range ends at 3rd (off-by-one)      | sql-placement   | caught (CI)              | `myk9_1473_coin_flip_tie_order_test.sql` 3g (setup check)                          |
+| sql-placement/03 most faults placed first                   | sql-placement   | caught (CI)              | `placement_soft_delete_ranking_test.sql` 6.2                                       |
+| sql-placement/04 NQ entries eligible for placement          | sql-placement   | caught (CI)              | `myk9_1473_coin_flip_tie_order_test.sql` 3g (setup check)                          |
 
 14 local mutants: 11 CAUGHT, 3 MISSED, 0 ERROR (re-run with JSON-report verdicts; unchanged).
 
-## Missed mutants (follow-ups, not fixed here)
+After MYK9-1658 (2026-11-02, #3546) the check-in mutants are caught: 14 local mutants, 14 CAUGHT. The 4 SQL mutants are all CAUGHT in CI, so all 18 are caught. sql-placement/02 and /04 are caught only by test 3g's setup check (the recorded coin flips no longer place the class), not by an assertion aimed at the ribbon range or NQ eligibility; a test change that loosens 3g's setup could hide them.
+
+## Missed mutants (fixed by MYK9-1658, 2026-11-02)
 
 - check-in/01: pin `updateCheckInStatus` queueing the RPC with `fields: { check_in_status: <the status passed> }` for a status other than `checked-in` (e.g. `at-gate`).
 - check-in/02: assert `self_checkin_entry` receives `p_new_status` for a non-default status.

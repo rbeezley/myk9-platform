@@ -61,13 +61,7 @@ set -euo pipefail
 # every entry is a job that can be broken without blocking a deploy.
 INFORMATIONAL_JOBS='[
   "Test myK9Show (coverage)",
-  "Supabase types drift (report-only)",
-  "Test myK9Show, TZ Pacific/Honolulu (1/6)",
-  "Test myK9Show, TZ Pacific/Honolulu (2/6)",
-  "Test myK9Show, TZ Pacific/Honolulu (3/6)",
-  "Test myK9Show, TZ Pacific/Honolulu (4/6)",
-  "Test myK9Show, TZ Pacific/Honolulu (5/6)",
-  "Test myK9Show, TZ Pacific/Honolulu (6/6)"
+  "Supabase types drift (report-only)"
 ]'
 
 # Must each be present AND `success`. Deliberately the aggregators rather than

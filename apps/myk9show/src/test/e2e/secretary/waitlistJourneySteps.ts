@@ -81,7 +81,7 @@ export async function joinFullClassAsWillow(exhibitor: Page, admin: SupabaseClie
   await exhibitor.getByText(/I have read and agree to the .* entry agreement/i).click();
   await exhibitor.getByRole('button', { name: /^Submit & pay$/ }).click();
 
-  await expect(exhibitor).toHaveURL(/\/cart$/, { timeout: 15_000 });
+  await expect(exhibitor).toHaveURL(`/cart?showId=${SHOW_ID}`, { timeout: 15_000 });
   await exhibitor.getByRole('button', { name: /^Join the wait list \(1 request\)$/ }).click();
   await expect(exhibitor).toHaveURL(/\/checkout\/success\?waitlist=1/, { timeout: 20_000 });
 

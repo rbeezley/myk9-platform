@@ -71,9 +71,10 @@ describe('scheduled export workflow contract', () => {
     expect(readFileSync('.github/workflows/ci.yml', 'utf8')).toContain(
       'uses: ./.github/actions/setup-backup-clients'
     );
-    expect(exportWorkflow).toContain(
-      "BACKUP_FORCE_RUN: ${{ github.event_name == 'workflow_dispatch' }}"
-    );
+    expect(exportWorkflow.match(/BACKUP_FORCE_RUN: \$\{\{ (.*) \}\}/g)).toEqual([
+      "BACKUP_FORCE_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.force }}",
+      "BACKUP_FORCE_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.force }}",
+    ]);
     expect(exportWorkflow).toContain('Select weekend daytime show window');
     expect(exportWorkflow).toContain(
       'BACKUP_DATABASE_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}'
@@ -104,5 +105,31 @@ describe('scheduled export workflow contract', () => {
     expect(healthWorkflow).not.toContain('needs:');
     expect(readFileSync('.github/workflows/ci.yml', 'utf8')).toContain('pnpm qa:backups:test');
     expect(readFileSync('.github/workflows/ci.yml', 'utf8')).toContain('pnpm qa:backups:typecheck');
+  });
+
+  it('lets the pg_cron dispatch (force=false) defer to the due-slot selector and enable flag', () => {
+    const exportWorkflow = readFileSync(
+      '.github/workflows/independent-database-exports.yml',
+      'utf8'
+    );
+    const migration = readFileSync(
+      'supabase/migrations/20261103182300_myk9_1642_export_dispatch_cron.sql',
+      'utf8'
+    );
+    // A manual dispatch still forces; the cron dispatch sends force=false.
+    expect(exportWorkflow).toMatch(/force:\n(?:.*\n)*?\s+type: boolean\n\s+default: true/);
+    expect(exportWorkflow).toContain(
+      "if: vars.MYK9_EXPORTS_ENABLED == 'true' || (github.event_name == 'workflow_dispatch' && inputs.force)"
+    );
+    expect(migration).toContain("jsonb_build_object('force', 'false')");
+    expect(migration).toContain('actions/workflows/independent-database-exports.yml/dispatches');
+    expect(migration).toContain("'ref', 'main'");
+    expect(migration).toContain("where name = 'github_export_dispatch_token'");
+    expect(migration).toMatch(
+      /REVOKE EXECUTE ON FUNCTION private\.dispatch_database_export\(text\) FROM PUBLIC, anon, authenticated, service_role;/
+    );
+    expect(migration).toContain(
+      "cron.unschedule(jobid) FROM cron.job WHERE jobname = 'database-export-dispatch'"
+    );
   });
 });

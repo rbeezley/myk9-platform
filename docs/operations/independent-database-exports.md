@@ -17,7 +17,9 @@ for those cases; do not claim zero score loss.
 
 ## Cadence
 
-The export workflow wakes hourly at minute 7 in UTC, avoiding the congested top of the hour.
+The export workflow is dispatched hourly at minute 3 UTC by Supabase `pg_cron` (MYK9-1642; see
+`nightly-backup-recovery.md`, Hourly export trigger), because GitHub drops scheduled runs. Its own
+GitHub `schedule` (minute 7 UTC, avoiding the congested top of the hour) is an idempotent fallback.
 The TypeScript selector uses `MYK9_EXPORT_TIME_ZONE`
 (default UTC), `MYK9_EXPORT_WEEKEND_DAYS` (default `0,5,6`), and `MYK9_EXPORT_NIGHTLY_HOUR`
 (default `3`) to export hourly during the daytime on selected show weekends and once

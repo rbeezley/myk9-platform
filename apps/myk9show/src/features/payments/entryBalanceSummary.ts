@@ -366,7 +366,9 @@ export function summarizeEntryBalances(
     // day wins so one relation-less row cannot erase a deadline the others
     // carry.
     existing.entryCloseDay = existing.entryCloseDay ?? entry.entryCloseDay ?? null;
-    existing.isPastShow = existing.isPastShow || isPastShowEntry(entry, now);
+    // Over only once EVERY row's zone is past the last day (rows can run in
+    // different trial zones), so the first-rolled zone cannot close it early.
+    existing.isPastShow = existing.isPastShow && isPastShowEntry(entry, now);
     existing.displayEntryIds = existing.displayEntryIds ?? [];
     existing.displayEntryIds.push(...entryIdsForDisplay(entry));
     existing.entryIds.push(...entryIdsForPayment(entry));

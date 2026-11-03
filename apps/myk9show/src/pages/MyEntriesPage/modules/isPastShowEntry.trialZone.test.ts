@@ -240,6 +240,19 @@ describe('entryBalanceSummary shares the trial-zone rule', () => {
     expect(isCurrentSummaryEntry({ ...row, trialZones: undefined }, DEVICE_AHEAD)).toBe(false);
   });
 
+  it.each([
+    ['east first', [FAR_EAST_ZONE, TRIAL_ZONE]],
+    ['west first', [TRIAL_ZONE, FAR_EAST_ZONE]],
+  ])('isPastShow stays false while any row zone is on the last day (%s)', (_label, zones) => {
+    const rows = zones.map((zone, i) => source({ id: `entry-${i}`, showTimezone: zone }));
+    const summary = summarizeEntryBalances(rows, DEVICE_AHEAD);
+    expect(summary.kind).toBe('known');
+    if (summary.kind === 'known') {
+      expect(summary.onlineShowBalances).toHaveLength(1);
+      expect(summary.onlineShowBalances[0].isPastShow).toBe(false);
+    }
+  });
+
   it('a raw row uses its own trial zone, not the show primary trial zone', () => {
     const rawRow = {
       id: 'entry-raw',

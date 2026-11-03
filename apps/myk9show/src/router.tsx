@@ -8,7 +8,7 @@ import { ClubAdminRoutes } from './routes/clubAdminRoutes';
 import { PublicRoutes } from './routes/publicRoutes';
 import { AtShowRoutes } from './routes/atShowRoutes';
 import { AuthAliasRoutes } from './routes/authAliasRoutes';
-import AppEntryRedirect, { APP_ENTRY_PATH } from './routes/AppEntryRedirect';
+import AppEntryRedirect, { APP_ENTRY_PATH } from './pages/AppEntryRedirect';
 import { UnifiedAppLayout } from './components/layout/UnifiedAppLayout';
 import { WizardSurfaceGate } from './components/WizardSurfaceGate';
 import { PageLoadingFallback } from './components/common/PageLoadingFallback';

@@ -13,7 +13,7 @@
 
 How to set up your club's profile, assign secretaries to shows, and connect your bank account to receive show payouts.
 
-If you've used other show-management software before, the main change is that entries, payments, and results all flow through one place — you do not collect checks or log into a separate payment processor to see your balance.
+If you've used other show-management software before, the main change is that entries, payments, and results all flow through one place — you do not need to log into a separate payment processor to see your balance. Exhibitors can pay by card online, and your secretary can also record a Card, Check or Cash payment on an entry.
 
 ---
 
@@ -101,7 +101,7 @@ If your club needs any of those done, ask your secretary — or grant secretary 
 
 Show access is managed from the **Members** tab of your club's page, on its **Show Access** tab and in each member's action menu, not from the show itself. This is how you give **someone else** the operational role — you do not grant it to yourself. Your own club admin role already covers your club's shows (see [Section 2](#section-2--your-clubs-shows)).
 
-When you appoint someone to show access, they can manage any of your club's shows, and they get the two things your own role does not carry: entering on an exhibitor's behalf (mail-in, phone, walk-up) and late entries, and volunteer scheduling. Everything else — entries, run order, show-day operations, results, and registry submission — they share with you.
+When you appoint someone to show access, they can manage any of your club's shows, and they get the three things your own role does not carry: entering on an exhibitor's behalf (mail-in, phone, walk-up) and late entries, entering results from paper scoresheets, and volunteer scheduling. Everything else — entries, run order, show-day operations, results, and registry submission — they share with you.
 
 **The person does not need to be a club member.** Appointment is the grant, and club membership is not checked, so you can appoint a hired or professional secretary who is not on your roster. A member whose membership lapses, is suspended, or is resigned keeps show access until you revoke it.
 
@@ -135,9 +135,9 @@ Before your club can receive entry fee revenue, a treasurer needs to complete St
 - Your club's EIN (it's on the club's tax paperwork)
 - The club's legal name and mailing address
 - One of the club's checks — use the club's bank account, not a personal one
-- The treasurer's name, date of birth, home address, and the last 4 digits of their Social Security number
+- The treasurer's name, date of birth, home address, and Social Security number (at least the last 4 digits)
 
-> **Why the SSN?** Stripe is required by law to verify the identity of the account representative. They ask for the last 4 digits only — not the full number.
+> **Why the SSN?** Stripe is required by law to verify the identity of the account representative. Stripe handles identity verification and usually starts with the last 4 digits. If it cannot verify the person that way, it may ask for more, such as the full number. Enter it only on Stripe's own pages.
 
 **Steps:**
 
@@ -201,7 +201,7 @@ A show whose net amount is still being worked out reads **Net pending**.
 ## Section 6 — Common Treasurer Questions
 
 **"Stripe is asking for my SSN — is this normal?"**
-Yes. Stripe requires identity verification for all account representatives before enabling payouts. They ask for the last 4 digits of your SSN, not the full number. This is a legal requirement, not a myK9Show policy.
+Yes. Stripe requires identity verification for all account representatives before enabling payouts. They usually start with the last 4 digits, and may ask for more if they cannot verify the person that way. This is a legal requirement, not a myK9Show policy.
 
 **"When will we get paid?"**
 Three days after your show's end date. Your bank typically posts it the following business day. See [Section 5](#section-5--payout-timing-and-history).
@@ -262,7 +262,7 @@ The **Officers** tab tracks the club's formal officers. Click **Assign Officer**
 
 - [Club Treasurer Guide — Receiving Show Payouts](../operations/stripe-treasurer-guide.md) — full Stripe walkthrough
 - [Secretary Guide](secretary-guide.md) — for the person managing show day
-- Support: [placeholder — contact email or support page]
+- Support: [support@myk9show.com](mailto:support@myk9show.com)
 
 ---
 

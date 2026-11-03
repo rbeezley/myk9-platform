@@ -53,7 +53,8 @@ After you're in, you land on the class list for the show. A judge with assigned 
 Tapping a class opens its entry list — the dogs in run order, on the **Pending** tab. Scored dogs move to the **Completed** tab.
 
 1. Each entry shows the **armband number**, the **dog's call name**, the **breed**, and the **handler**.
-2. Tap an entry to open its scoresheet.
+2. **Stewards:** this list is yours to read. Use it to call dogs to the line. If you tap an entry, the scoresheet shows **No Scoring Access**, because stewards view ringside but do not score. Tap **Entries** to go back.
+3. **Judges and others allowed to score:** tap an entry to open its scoresheet.
 
 ![Entry list — dogs in run order with armband number, call name, breed, and handler; Pending and Completed tabs (tablet)](../screenshots/J-03.png)
 
@@ -61,7 +62,7 @@ Tapping a class opens its entry list — the dogs in run order, on the **Pending
 
 ## Score a dog
 
-Record the result as soon as the dog finishes — it reaches the secretary instantly.
+This section is for the judge, or anyone the secretary has given scoring access. Record the result as soon as the dog finishes. It saves on your device first, then sends to the secretary.
 
 1. Tap the entry to open the scoresheet.
 2. Tap **Start** when the dog begins.
@@ -70,7 +71,13 @@ Record the result as soon as the dog finishes — it reaches the secretary insta
 5. Tap **Save**.
 6. Check the **Score Confirmation** screen, then tap **Confirm & Submit**. **Cancel** takes you back to fix it.
 
-The entry list updates to show the saved result. The secretary sees it right away — they don't re-enter anything.
+After you confirm, a panel shows the result is saved on this device, and shows **Score saved** once it has reached the secretary. From there:
+
+- **Back to Entries** returns to the list.
+- **Correct this score** reopens the sheet with what you entered, so you can fix it.
+- Optional shortcut: the next dogs by run order are listed under **Or jump straight to whoever is at the gate**. Tap one to open that dog's scoresheet.
+
+The entry list updates to show the saved result. The secretary sees it once it syncs. They don't re-enter anything.
 
 ![Scoresheet — timer counting up with Stop button; Qualified / NQ / Absent / Excused / DQ chips below (tablet)](../screenshots/J-04.png)
 
@@ -79,6 +86,15 @@ The entry list updates to show the saved result. The secretary sees it right awa
 ![Entry list Completed tab — three entries each showing placement pill, Q badge, and time (tablet)](../screenshots/J-06.png)
 
 > **The timer is not the score.** Stopping the timer does not save anything. The result is only recorded when you tap **Save** and then **Confirm & Submit**.
+
+### Classes with more than one area
+
+A class with two or three areas has a tab for each area. Time each area on its own:
+
+1. For each area, tap **Start**, then **Stop** when that area is finished.
+2. Tap **Record Area 1 time** (then **Record Area 2 time**, and so on). Stopping the timer alone does not put the time on the sheet.
+3. Before you tap **Save**, check that every area shows a time and the total looks right. A time left at "--" means that area was not recorded.
+4. Then choose the result and confirm as above.
 
 ---
 
@@ -90,6 +106,7 @@ Show venues often have weak signal. The app is built for it.
 - The sync label at the top reads **Offline**, then **Waiting to sync** while scores are queued. This is normal at most venues.
 - A chip at the top reads **Offline ready** once the show is saved on the device, and **Preparing offline copy…** until then.
 - Your work is saved on the device and **syncs automatically** when signal returns. The label changes to **Synced**.
+- On the class list, **Offline copy: saved on this device** means the show is stored on your device. **Saved on this device** after a score means it has not reached the secretary yet.
 
 **Scores not showing for the secretary after signal returns?** Reload the page once you have a solid connection. If entries are still missing, find the trial secretary.
 

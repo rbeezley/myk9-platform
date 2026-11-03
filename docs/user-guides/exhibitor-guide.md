@@ -63,7 +63,7 @@ If this is your first time, you'll need an account before entering a show.
 Before entering a show, your dog needs a profile in your account.
 
 1. Go to **My Dogs** in the navigation.
-2. Click **Add Dog**. The panel opens on the **Registration** tab.
+2. Open **Actions** → **Add Dog**. (Before you have any dogs, the page shows an **Add Dog** button instead.) The panel opens on the **Registration** tab.
 3. Choose the **Registration Organization**, type the **Registration Number**, and click **Find dog**. If the dog is already in myK9Show, you are offered that dog instead of a second copy. If the number belongs to a dog you cannot see, you are told it is already registered to another dog. Contact the show secretary.
 4. Otherwise, fill in the **Registered Name** and **Registered Breed** (the other registration fields are optional), then click **Save and continue**.
 
@@ -154,7 +154,9 @@ Each show has an **Actions** menu: **Add Entry**, **Change handler or jump heigh
 
 ## Section 6 — See Your Place in the Run Order
 
-You see your own dogs' place in line, not the whole run order. Open the show page (**Actions → View show page**) and choose the **My Entries** tab. **Where to be & when** lists each of your classes by day, with the start time, your armband number, and your place.
+Before show day, open the show page (**Actions → View show page**) and choose the **My Entries** tab. **Where to be & when** lists each of your classes by day, with the start time, your armband number, and your place.
+
+On show day, a **Go to show day** button appears. Tap it, then **See all classes**. Open a class to see your dog and the other handlers' dogs in that class. Each dog has a **Favorite** control, so you can follow the dogs you care about.
 
 1. Go to **My Shows**.
 2. Open the show's **Actions** menu → **View show page**.
@@ -297,11 +299,11 @@ If the club denies a request, you cannot send the same request again from this p
 
 ## Still need help?
 
-- [KB: enter-a-show](#) — step-by-step for the registration wizard
-- [KB: entry-status](#) — what each status badge means
-- [KB: find-run-order](#) — how to see your class schedule
-- [KB: check-in](#) — show-day check-in walkthrough
-- [KB: view-results](#) — where results appear and when
+- [Enter a show](#section-4--enter-a-show) — step-by-step for the entry form
+- [Track your entry](#section-5--track-your-entry) — what each status badge means
+- [See your place in the run order](#section-6--see-your-place-in-the-run-order) — how to see your class schedule
+- [Check in on show day](#section-7--check-in-on-show-day) — show-day check-in walkthrough
+- [View your results](#section-8--view-your-results) — where results appear and when
 
 ---
 

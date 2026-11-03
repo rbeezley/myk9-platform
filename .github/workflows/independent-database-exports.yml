@@ -4,8 +4,18 @@ name: Independent Database Export
 
 on:
   schedule:
+    # Fallback only: GitHub drops scheduled runs (MYK9-1642). The primary hourly
+    # trigger is Supabase pg_cron dispatch. A run in an already-covered slot is a no-op.
     - cron: '7 * * * *' # avoid top-of-hour congestion; selector applies local due slots
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      force:
+        description: >-
+          Export now, ignoring the due-slot selector. Supabase pg_cron
+          (database-export-dispatch, MYK9-1642) sends "false" every hour so the
+          selector decides; a manual dispatch defaults to true.
+        type: boolean
+        default: true
 
 concurrency:
   group: independent-database-export
@@ -14,7 +24,7 @@ concurrency:
 jobs:
   export:
     name: Export and verify database
-    if: vars.MYK9_EXPORTS_ENABLED == 'true' || github.event_name == 'workflow_dispatch'
+    if: vars.MYK9_EXPORTS_ENABLED == 'true' || (github.event_name == 'workflow_dispatch' && inputs.force)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -46,12 +56,12 @@ jobs:
           BACKUP_DATABASE_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
           BACKUP_TIME_ZONE: ${{ vars.MYK9_EXPORT_TIME_ZONE }}
           BACKUP_WEEKEND_DAYS: ${{ vars.MYK9_EXPORT_WEEKEND_DAYS }}
-          BACKUP_FORCE_RUN: ${{ github.event_name == 'workflow_dispatch' }}
+          BACKUP_FORCE_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.force }}
       - name: Export, encrypt, upload, and verify
         if: steps.window.outputs.should_run == 'true'
         run: pnpm exec tsx scripts/backup/export-cli.ts
         env:
-          BACKUP_FORCE_RUN: ${{ github.event_name == 'workflow_dispatch' }}
+          BACKUP_FORCE_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.force }}
           BACKUP_DATABASE_URL: postgresql://postgres.sojmvhhwsjxmfistvzbe@aws-1-us-east-2.pooler.supabase.com:5432/postgres
           BACKUP_DATABASE_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
           BACKUP_PROJECT_REF: sojmvhhwsjxmfistvzbe

@@ -6,7 +6,7 @@ Evidence recorded 2026-09-07. Source: `myK9-platform` (`sojmvhhwsjxmfistvzbe`).
 ## Current decision
 
 Keep daily physical backups; defer paid PITR until revenue. Separate hourly Friday–Sunday
-exports are planned, not configured. A nightly backup cannot recover changes made after its
+exports are dispatched by `pg_cron` (see Hourly export trigger below). A nightly backup cannot recover changes made after its
 timestamp. Use the actual timestamp shown in the dashboard, not an assumed midnight cutoff.
 Formal accepted data-loss and recovery-time objectives remain outstanding.
 
@@ -68,6 +68,39 @@ MYK9-1633 devices recover **automatically on their next full sync**, with no ope
   matters on show day, confirm each ringside device's values against the restored data before
   reopening writes (step 7); do not clear browser storage, which discards unsent scores.
 - Another account's rows on a shared device keep their cached copy until that account syncs.
+
+## Hourly export trigger (MYK9-1642)
+
+GitHub drops `schedule` runs (4 to 6 fired per day Oct 29 to Nov 2), so the hourly export is
+triggered by Supabase `pg_cron`, not GitHub's cron.
+
+- **Trigger:** cron job `database-export-dispatch` (`3 * * * *`, UTC) runs
+  `private.dispatch_database_export`, which uses `pg_net` to POST GitHub's
+  `workflow_dispatch` for `independent-database-exports.yml` (ref `main`, `inputs.force=false`).
+  `force=false` means the workflow's due-slot selector decides, so weekday hours and covered
+  slots are no-ops. A manual dispatch defaults to `force=true` and exports regardless. The
+  GitHub `schedule` trigger remains as a fallback; a second run in a covered slot does nothing.
+- **Secret:** Vault name `github_export_dispatch_token`, a fine-grained token on
+  `rbeezley/myk9-platform` with **Actions: read and write**. Without it the job does nothing
+  (NOTICE) and `/admin/health` lists the missing Vault secret.
+- **Rotate:** create the new token, then
+  `select vault.update_secret((select id from vault.secrets where name = 'github_export_dispatch_token'), '<new token>');`
+  and check the next response below. Revoke the old token on GitHub.
+- **Verify:**
+
+  ```sql
+  select jobid, jobname, schedule, active from cron.job where jobname = 'database-export-dispatch';
+  select status_code, content, created from net._http_response order by created desc limit 5;
+  ```
+
+  A healthy dispatch returns `204`. `401`/`403`/`404` means a bad or expired token or a
+  missing permission; `422` means the workflow or ref is wrong.
+
+- **Missed slot:** run `gh workflow run independent-database-exports.yml --ref main` (forces an
+  export), or Actions, Independent Database Export, Run workflow. Then check the `pg_net`
+  response above to find why the cron missed.
+- **Recovery project:** the "disable copied cron jobs" step above covers this job. A restored
+  copy must not dispatch exports for the production project.
 
 ## Rehearsal evidence
 

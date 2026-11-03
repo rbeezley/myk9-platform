@@ -70,6 +70,19 @@ describe('AskQ support mode', () => {
     expect(findSupportGuideEvidence('How do I delete my dog profile?', ASKQ_GUIDES)).toEqual([]);
   });
 
+  // MYK9-1678: scoring-time questions had no domain term, so the judge guide never matched.
+  it('finds the ringside guide for timing and area questions', () => {
+    for (const question of [
+      'how do I time a two-area search?',
+      'How do I record the time for each area?',
+    ]) {
+      expect(findSupportGuideEvidence(question, ASKQ_GUIDES)).toEqual(
+        expect.arrayContaining([expect.objectContaining({ id: 'judge-steward-quickstart' })])
+      );
+    }
+    expect(findSupportGuideEvidence('What time is it in Denver?', ASKQ_GUIDES)).toEqual([]);
+  });
+
   it('finds evidence for documented support-guide workflows', () => {
     expect(findSupportGuideEvidence('How do I create a show?', ASKQ_GUIDES)).toEqual(
       expect.arrayContaining([

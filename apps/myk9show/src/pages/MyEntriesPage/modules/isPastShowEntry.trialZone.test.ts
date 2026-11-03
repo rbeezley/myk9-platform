@@ -130,10 +130,7 @@ describe('callers agree with the trial-zone rule near device midnight', () => {
       paymentStatus: PaymentStatus.PAID_ONLINE,
       submittedAt: PAID_AT,
       lastUpdated: PAID_AT,
-      classes: [
-        makeClass({ id: 'c1', isScored: true, status: 'completed' }),
-        makeClass({ id: 'c2' }),
-      ],
+      classes: [makeClass({ id: 'c1', isScored: true }), makeClass({ id: 'c2' })],
     };
     const message = () =>
       getContextualStatusMessage(

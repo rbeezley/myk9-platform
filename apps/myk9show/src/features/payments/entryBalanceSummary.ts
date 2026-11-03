@@ -3,6 +3,7 @@ import { mapEntryStatus, mapPaymentStatus } from '@/utils/entryManagementUtils';
 import { resolveEffectivePaymentStatus } from '@/utils/effectivePaymentStatus';
 import { parseShowDate } from '@/pages/MyEntriesPage/modules/myEntriesStats.helpers';
 import { isLastDayPastInZones } from '@/pages/MyEntriesPage/modules/showPastInZones';
+import { resolveTrialTimezone } from '@/pages/MyEntriesPage/modules/entryRowTrial';
 import { buildFinishPaymentHref } from './finishPaymentHref';
 import { getTrialTimezone } from '@/features/registries';
 import { getEntryWindowTimezone, type EntryWindowTrial } from '@/utils/entryWindowDate';
@@ -186,6 +187,11 @@ function resolveShowTimezone(row: EntryBalanceRawRow): string {
   return getTrialTimezone(row.trial ?? row.class?.trial ?? null);
 }
 
+function rowTrialZones(row: EntryBalanceRawRow): string[] | undefined {
+  const zone = resolveTrialTimezone(row.trial, row.class?.trial);
+  return zone ? [zone] : undefined;
+}
+
 export function mapEntryRowToBalanceSource(row: EntryBalanceRawRow): EntryBalanceSource {
   const show = row.show;
   // The ORDER's status may not mask this ENTRY's (MYK9-495): `enrollments` is
@@ -211,6 +217,10 @@ export function mapEntryRowToBalanceSource(row: EntryBalanceRawRow): EntryBalanc
     showEndDate: parseShowDate(show?.end_date),
     entryCloseDay: toEntryCloseDay(show?.entry_close_date),
     showTimezone: resolveShowTimezone(row),
+    // The zone of the trial THIS row is in, the same resolution My Shows uses,
+    // so "the show is over" agrees across both surfaces (MYK9-1607). Unknown
+    // stays unset and the show-zone fallback applies.
+    trialZones: rowTrialZones(row),
     entryStatus: mapEntryStatus(row.entry_status ?? 'pending'),
     paymentStatus,
     paymentMethod: row.payment_method ?? null,

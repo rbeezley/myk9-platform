@@ -110,9 +110,10 @@ export function deriveShowMoneyState(
   const amountCents = dueOrders.reduce((sum, order) => sum + onlineDueCentsOf(order), 0);
 
   if (dueOrders.length > 0) {
-    // Every order in a group belongs to the same show, so any one of them
-    // answers "is this show over?".
-    const isPast = isPastShowEntry(dueOrders[0], now);
+    // Orders in one show can run in different trial zones, so the show is
+    // over only once EVERY due order's zone is past its last day; Pay now
+    // stays while any of them is still on it, whatever the array order.
+    const isPast = dueOrders.every(order => isPastShowEntry(order, now));
     const paymentEntryIds = dueOrders.flatMap(
       order => order.balance?.paymentEntryIds ?? order.balance?.dueEntryIds ?? []
     );

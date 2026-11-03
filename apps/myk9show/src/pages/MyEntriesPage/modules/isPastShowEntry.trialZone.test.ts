@@ -4,6 +4,7 @@ import { withFixtureKind } from '@/test/fixtures/entryClassKind';
 import { onlineLedgerFor } from '@/test/fixtures/myShowsFixtures';
 import {
   isCurrentSummaryEntry,
+  mapEntryRowToBalanceSource,
   type EntryBalanceSource,
 } from '@/features/payments/entryBalanceSummary';
 import { summarizeEntryBalances } from '@/features/payments/entryBalanceSummary';
@@ -180,6 +181,31 @@ describe('callers agree with the trial-zone rule near device midnight', () => {
   });
 });
 
+describe('deriveShowMoneyState across orders in different trial zones', () => {
+  const eastOrder = makeRow({
+    id: 'e-east',
+    classes: [makeClass({ id: 'c-east', trialTimezone: FAR_EAST_ZONE })],
+  });
+  const westOrder = makeRow({
+    id: 'e-west',
+    registrationId: 'r2',
+    dogId: 'd2',
+    dogName: 'Bella',
+    classes: [makeClass({ id: 'c-west', trialTimezone: TRIAL_ZONE })],
+  });
+
+  it.each([
+    ['east first', [eastOrder, westOrder]],
+    ['west first', [westOrder, eastOrder]],
+  ])('keeps Pay now while one zone is still on the last day (%s)', (_label, input) => {
+    const orders = groupEntriesByOrder(input, DEVICE_AHEAD);
+    expect(orders.length).toBe(2);
+    const state = deriveShowMoneyState(orders, DEVICE_AHEAD, 'confirmed');
+    expect(state.kind).toBe('balance-due');
+    expect(state.paymentHref).not.toBeNull();
+  });
+});
+
 describe('entryBalanceSummary shares the trial-zone rule', () => {
   function source(overrides: Partial<EntryBalanceSource> = {}): EntryBalanceSource {
     return {
@@ -212,6 +238,36 @@ describe('entryBalanceSummary shares the trial-zone rule', () => {
     const row = source({ showTimezone: FAR_EAST_ZONE, trialZones: [TRIAL_ZONE] });
     expect(isCurrentSummaryEntry(row, DEVICE_AHEAD)).toBe(true);
     expect(isCurrentSummaryEntry({ ...row, trialZones: undefined }, DEVICE_AHEAD)).toBe(false);
+  });
+
+  it('a raw row uses its own trial zone, not the show primary trial zone', () => {
+    const rawRow = {
+      id: 'entry-raw',
+      show_id: 'show-1',
+      entry_status: 'accepted',
+      payment_status: 'pending',
+      payment_method: 'online',
+      entry_fee: 25,
+      show: {
+        id: 'show-1',
+        name: 'Aloha Classic',
+        start_date: '2026-06-10',
+        end_date: '2026-06-10',
+        trials: [
+          { id: 't-primary', date: '2026-06-09', timezone: FAR_EAST_ZONE },
+          { id: 't-entered', date: '2026-06-10', timezone: TRIAL_ZONE },
+        ],
+      },
+      trial: { id: 't-entered', timezone: TRIAL_ZONE },
+    };
+    const mapped = mapEntryRowToBalanceSource(rawRow);
+    expect(mapped.showTimezone).toBe(FAR_EAST_ZONE);
+    expect(mapped.trialZones).toEqual([TRIAL_ZONE]);
+    expect(isCurrentSummaryEntry(mapped, DEVICE_AHEAD)).toBe(true);
+    const summary = summarizeEntryBalances([mapped], DEVICE_AHEAD);
+    if (summary.kind === 'known') {
+      expect(summary.onlineShowBalances[0].isPastShow).toBe(false);
+    }
   });
 
   it('with no zone at all uses the UTC-12 fallback', () => {

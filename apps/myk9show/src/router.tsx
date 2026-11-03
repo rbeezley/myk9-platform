@@ -8,6 +8,7 @@ import { ClubAdminRoutes } from './routes/clubAdminRoutes';
 import { PublicRoutes } from './routes/publicRoutes';
 import { AtShowRoutes } from './routes/atShowRoutes';
 import { AuthAliasRoutes } from './routes/authAliasRoutes';
+import AppEntryRedirect, { APP_ENTRY_PATH } from './routes/AppEntryRedirect';
 import { UnifiedAppLayout } from './components/layout/UnifiedAppLayout';
 import { WizardSurfaceGate } from './components/WizardSurfaceGate';
 import { PageLoadingFallback } from './components/common/PageLoadingFallback';
@@ -38,6 +39,7 @@ export const router = createBrowserRouter(
             </PageTransition>
           }
         />
+        <Route path={APP_ENTRY_PATH} element={<AppEntryRedirect />} />
         <Route
           path="/pricing-page"
           element={

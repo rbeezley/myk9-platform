@@ -115,6 +115,8 @@ describe('OFFLINE_SHELL_ALLOWLIST', () => {
   };
 
   it.each([
+    '/app',
+    '/app?source=pwa',
     '/at-show',
     '/at-show/show-1',
     '/at-show/abc?view=all',

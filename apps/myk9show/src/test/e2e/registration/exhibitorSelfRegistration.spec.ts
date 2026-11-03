@@ -315,7 +315,7 @@ test('exhibitor card entry hands off to cart checkout without enrollment writes'
 
   await submitAndPay.click();
 
-  await expect(page).toHaveURL(/\/cart$/, { timeout: 15000 });
+  await expect(page).toHaveURL(`/cart?showId=${SHOW_ID}`, { timeout: 15000 });
   for (const viewport of VIEWPORTS) {
     await page.setViewportSize(viewport);
     await expect(page.getByText('Total', { exact: true }).locator('..')).toContainText(

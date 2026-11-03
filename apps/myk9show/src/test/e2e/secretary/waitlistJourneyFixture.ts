@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { expect } from '@playwright/test';
+import { TEST_USERS } from '../helpers/testUsers';
 
 /**
  * Service-role setup, teardown and cron access for `waitlistJourney.spec.ts` (MYK9-971).
@@ -124,6 +125,7 @@ export async function prepareFullClass(admin: SupabaseClient): Promise<Snapshot>
     'turn automatic offers on',
     admin.from('shows').update({ waitlist_auto_offer: true }).eq('id', SHOW_ID)
   );
+  await discardActiveCarts(admin);
   return {
     maxEntries: cls.max_entries,
     allowWaitlist: cls.allow_waitlist,
@@ -268,6 +270,27 @@ export async function mailInHeadNoticeCount(
 }
 
 /**
+ * Drops the demo exhibitor's unsubmitted cart for the show. A journey that stops before its cart
+ * is submitted leaves the wait-list request there, and the next journey's wizard would restore it
+ * and toggle Willow's selection back off.
+ */
+async function discardActiveCarts(admin: SupabaseClient): Promise<void> {
+  const profileId = await exhibitorProfileId(
+    admin,
+    await authUserId(admin, TEST_USERS.DEMO_EXHIBITOR.email)
+  );
+  await ok(
+    'discard unsubmitted carts',
+    admin
+      .from('entry_carts')
+      .delete()
+      .eq('exhibitor_id', profileId)
+      .eq('show_id', SHOW_ID)
+      .eq('status', 'active')
+  );
+}
+
+/**
  * Puts the seed back: the journey's entries and wait-list rows go, the class closes again, and
  * Juniper returns to the queue. Later Nightly specs in the same pass read this show.
  */
@@ -276,6 +299,7 @@ export async function restoreFullClass(
   snapshot: Snapshot,
   since: string
 ): Promise<void> {
+  await discardActiveCarts(admin);
   const rows = await waitlistRows(admin);
   const promoted = rows.map(r => r.promoted_entry_id).filter((id): id is string => !!id);
   if (promoted.length > 0) {

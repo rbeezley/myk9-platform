@@ -68,11 +68,13 @@ jobs:
 
   # Its OWN job, because `job.status` inside a shard would describe only that
   # shard. `needs.test-show-tz.result` is failure if any of the six failed.
+  # Only a run on main reports: a manual dispatch on a feature branch (to try a
+  # fix) must not close the tracking issue while main is still failing.
   report-status:
     name: Report status to the tracking issue
     runs-on: ubuntu-latest
     needs: [test-show-tz]
-    if: always()
+    if: always() && github.ref == 'refs/heads/main'
     permissions:
       contents: read
       issues: write

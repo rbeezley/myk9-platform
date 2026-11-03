@@ -153,4 +153,9 @@ describe('the Honolulu TZ job left ci.yml (MYK9-1671)', () => {
   it('reports the whole matrix verdict, not a single shard', () => {
     expect(nightly).toContain('outcome: ${{ needs.test-show-tz.result }}');
   });
+
+  it('reports only for a run on main, so a branch dispatch cannot close the alert', () => {
+    const reportJob = nightly.slice(nightly.indexOf('report-status:'));
+    expect(reportJob).toMatch(/^\s+if: always\(\) && github\.ref == 'refs\/heads\/main'$/m);
+  });
 });

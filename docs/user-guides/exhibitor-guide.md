@@ -311,22 +311,22 @@ If the club denies a request, you cannot send the same request again from this p
 
 All shots from `docs/training/screenshot-shot-list.md`. Status as of 2026-10-28 (stale = the app no longer looks like the caption; recapture before `verified`):
 
-| Shot ID | Section | Description                                                   | Status                     |
-| ------- | ------- | ------------------------------------------------------------- | -------------------------- |
-| E-01    | § 1     | Shows list with entry status badges                           | captured 2026-06-19        |
-| E-02    | § 1     | Show detail — "Enter This Show" CTA                           | captured 2026-06-19        |
-| E-03    | § 2     | Sign-up form                                                  | captured 2026-06-19        |
-| E-04    | § 3     | My Dogs list                                                  | captured 2026-06-19, stale |
-| E-05    | § 3     | Add Dog form                                                  | captured 2026-06-19, stale |
-| E-06    | § 4     | Registration wizard — Step 1 (class selection)                | captured 2026-06-19, stale |
-| E-07    | § 4     | Registration wizard — Step 1 with class selected + cart toast | captured 2026-06-19, stale |
-| E-08    | § 4     | Confirmation receipt                                          | captured 2026-06-20        |
-| E-09    | § 5     | My Shows — Pending entry card                                 | captured 2026-06-19, stale |
-| E-10    | § 5     | My Shows — Accepted entry card                                | captured 2026-06-19, stale |
-| E-11    | § 5     | My Shows — show card                                          | captured 2026-06-19, stale |
-| E-12    | § 6     | Class detail — run order with armband number                  | captured 2026-06-19, stale |
-| E-13    | § 7     | Show Today banner                                             | captured 2026-06-20        |
-| E-14    | § 7     | Entry card — "Not Checked In" status pill                     | captured 2026-06-19, stale |
-| E-15    | § 7     | Entry card — Checked In state                                 | captured 2026-06-19, stale |
-| E-16    | § 8     | Entry card — Q result badge                                   | captured 2026-06-19, stale |
-| E-17    | § 8     | Class results page                                            | captured 2026-06-19        |
+| Shot ID | Section | Description                                                   | Status                          |
+| ------- | ------- | ------------------------------------------------------------- | ------------------------------- |
+| E-01    | § 1     | Shows list with entry status badges                           | captured 2026-06-19             |
+| E-02    | § 1     | Show detail — "Enter This Show" CTA                           | captured 2026-06-19             |
+| E-03    | § 2     | Sign-up form                                                  | captured 2026-06-19             |
+| E-04    | § 3     | My Dogs list                                                  | captured 2026-10-28 (MYK9-1462) |
+| E-05    | § 3     | Add Dog form                                                  | captured 2026-10-28 (MYK9-1462) |
+| E-06    | § 4     | Registration wizard — Step 1 (class selection)                | captured 2026-10-28 (MYK9-1462) |
+| E-07    | § 4     | Registration wizard — Step 1 with class selected + cart toast | captured 2026-10-28 (MYK9-1462) |
+| E-08    | § 4     | Confirmation receipt                                          | captured 2026-06-20             |
+| E-09    | § 5     | My Shows — Pending entry card                                 | captured 2026-10-28 (MYK9-1462) |
+| E-10    | § 5     | My Shows — Accepted entry card                                | captured 2026-10-28 (MYK9-1462) |
+| E-11    | § 5     | My Shows — show card                                          | captured 2026-10-28 (MYK9-1462) |
+| E-12    | § 6     | Class detail — run order with armband number                  | captured 2026-10-28 (MYK9-1462) |
+| E-13    | § 7     | Show Today banner                                             | captured 2026-10-28 (MYK9-1462) |
+| E-14    | § 7     | Entry card — "Not Checked In" status pill                     | captured 2026-10-28 (MYK9-1462) |
+| E-15    | § 7     | Entry card — Checked In state                                 | captured 2026-10-28 (MYK9-1462) |
+| E-16    | § 8     | Entry card — Q result badge                                   | captured 2026-10-28 (MYK9-1462) |
+| E-17    | § 8     | Class results page                                            | captured 2026-06-19             |

@@ -2,7 +2,7 @@
 
 **Status:** `qa-draft`
 **Audience:** Judges and ring stewards
-**Last verified:** 2026-10-28 — text checked against `main` at `0b537a807`; screenshots J-02, J-04 and J-05 recaptured 2026-10-28 against `main` at `542b6fa47`; non-author reviewer still pending
+**Last verified:** 2026-10-28 — text checked against `main` at `0b537a807`; screenshot J-02 recaptured 2026-10-28 against `main` at `542b6fa47`, and J-04 and J-05 recaptured 2026-11-03 against `main` at `2bc5b842e` (MYK9-1677); non-author reviewer still pending
 **Verified by:** text accuracy pass (documentation QA checklist, author walkthrough step list: labels, routes and flow steps checked against `apps/myk9show/src` and `packages/scoring-ui`); no browser walkthrough, screenshots re-captured 2026-10-28 from a throwaway local stack (no browser walkthrough of the text)
 
 > **Note:** This is a QA-draft guide written as a testing instrument. Screenshots (J-01…J-06) and the access-paths diagram are captured; a non-author reviewer pass is still needed — see the checklist at the end. Do not publish to customers until status is `verified`.
@@ -81,7 +81,7 @@ The entry list updates to show the saved result. The secretary sees it once it s
 
 ![Scoresheet — timer counting up with Stop button; Qualified / NQ / Absent / Excused / DQ chips below (tablet)](../screenshots/J-04.png)
 
-![Scoresheet — timer stopped with Resume and Reset timer; Qualified chosen from the Qualified / NQ / Absent / Excused / DQ chips (tablet)](../screenshots/J-05.png)
+![Scoresheet — timer stopped with Resume and Reset timer; the time filled in and the Qualified / NQ / Absent / Excused / DQ chips ready (tablet)](../screenshots/J-05.png)
 
 ![Entry list Completed tab — three entries each showing placement pill, Q badge, and time (tablet)](../screenshots/J-06.png)
 
@@ -132,14 +132,14 @@ Find the trial secretary at the show desk. They control access codes, the run or
 
 ## Screenshot Checklist
 
-Shots from `docs/training/screenshot-shot-list.md`. All captured 2026-06-25 against staging. Rechecked against the code 2026-10-28; "may be stale" means the caption no longer matches the current screen.
+Shots from `docs/training/screenshot-shot-list.md`. Captured 2026-06-25 against staging unless the Status cell gives a later date.
 
-| Shot ID                          | Section           | Description                    | Viewport | Status                            |
-| -------------------------------- | ----------------- | ------------------------------ | -------- | --------------------------------- |
-| J-01                             | Get into ringside | Passcode entry screen          | Mobile   | captured 2026-06-25               |
-| J-02                             | Find your class   | Class list by trial            | Tablet   | captured 2026-06-25, may be stale |
-| J-03                             | See the run order | Entry list in run order        | Tablet   | captured 2026-06-25               |
-| J-04                             | Score a dog       | Scoresheet — timer running     | Tablet   | captured 2026-06-25, may be stale |
-| J-05                             | Score a dog       | Q / NQ / Absent buttons        | Tablet   | captured 2026-06-25, may be stale |
-| J-06                             | Score a dog       | Entry list with a saved result | Tablet   | captured 2026-06-25               |
-| `at-show-access-paths` (diagram) | Get into ringside | The two ways into ringside     | —        | drawn 2026-06-25                  |
+| Shot ID                          | Section           | Description                    | Viewport | Status                          |
+| -------------------------------- | ----------------- | ------------------------------ | -------- | ------------------------------- |
+| J-01                             | Get into ringside | Passcode entry screen          | Mobile   | captured 2026-06-25             |
+| J-02                             | Find your class   | Class list by trial            | Tablet   | captured 2026-10-28 (MYK9-1462) |
+| J-03                             | See the run order | Entry list in run order        | Tablet   | captured 2026-06-25             |
+| J-04                             | Score a dog       | Scoresheet — timer running     | Tablet   | captured 2026-11-03 (MYK9-1677) |
+| J-05                             | Score a dog       | Q / NQ / Absent buttons        | Tablet   | captured 2026-11-03 (MYK9-1677) |
+| J-06                             | Score a dog       | Entry list with a saved result | Tablet   | captured 2026-06-25             |
+| `at-show-access-paths` (diagram) | Get into ringside | The two ways into ringside     | —        | drawn 2026-06-25                |

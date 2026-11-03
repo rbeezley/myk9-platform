@@ -7,6 +7,8 @@
  * not `/exhibitor/*`, because other account pages are unreviewed offline.
  */
 export const OFFLINE_SHELL_ALLOWLIST: RegExp[] = [
+  // The installed app's start_url (MYK9-1674): a cold offline launch must get the shell.
+  /^\/app(?:[/?]|$)/,
   /^\/at-show(?:[/?]|$)/,
   /^\/shows(?:[/?]|$)/,
   /^\/exhibitor\/entries(?:[/?]|$)/,

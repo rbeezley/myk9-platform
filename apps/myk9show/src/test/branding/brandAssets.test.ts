@@ -52,6 +52,19 @@ describe('myK9Show brand assets', () => {
     expect(manifest.background_color).toBe('#f5f4ed');
   });
 
+  it('starts the installed app at the redirect-only /app route inside scope /', () => {
+    const manifest = JSON.parse(readFileSync(join(appRoot, 'public/manifest.json'), 'utf8')) as {
+      id: string;
+      start_url: string;
+      scope: string;
+    };
+
+    expect(manifest.start_url).toBe('/app');
+    expect(manifest.scope).toBe('/');
+    // Pins the install identity so existing Chromium installs (id defaulted to the old start_url) keep it.
+    expect(manifest.id).toBe('/');
+  });
+
   it('uses a dedicated padded icon for maskable PWA contexts', () => {
     const manifest = JSON.parse(readFileSync(join(appRoot, 'public/manifest.json'), 'utf8')) as {
       icons: Array<{ src: string; purpose?: string }>;

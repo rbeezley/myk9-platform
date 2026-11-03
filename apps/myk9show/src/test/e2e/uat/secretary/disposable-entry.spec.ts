@@ -165,12 +165,12 @@ test.describe('Phase 1 UAT - Secretary disposable entry management', () => {
 /**
  * Open the armband dialog from the "To finish this form" checklist.
  *
- * The entry-form section renders two buttons with the same accessible name,
- * `Assign armband to <dog>`: the checklist item (EntryFormChecklist, the form's
- * primary work since MYK9-1600) and the one on the entry card (EntryListCard).
- * A page-wide or section-wide match is a strict-mode violation, so this targets
- * the checklist action inside its own region. The seeded entry has no armband,
- * so the checklist item is the control present in this state (the checklist
+ * The entry form exposes one control named `Assign armband to <dog>`: the
+ * checklist item (EntryFormChecklist, the form's primary work since MYK9-1600).
+ * The entry card drops its own Assign button while the checklist lists the dog
+ * (MYK9-1672). The locator stays scoped to the checklist region so it keeps
+ * targeting the checklist control. The seeded entry has no armband, so the
+ * checklist item is the control present in this state (the checklist
  * item exists only while the armband is missing, so there is no "change" variant
  * here).
  */

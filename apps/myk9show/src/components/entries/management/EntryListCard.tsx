@@ -50,6 +50,7 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
   onStatusChange,
   onCheckInStatusChange,
   onOpenArmbandDialog,
+  hideAssignArmband,
   onOpenEditEntry,
   onCompEntry,
   onUncompEntry,
@@ -140,7 +141,7 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                 </Badge>
                 <ChevronDown className="h-3 w-3 text-muted-foreground" />
               </button>
-            ) : (
+            ) : hideAssignArmband?.(entry) ? null : (
               <button
                 className="inline-flex min-h-11 items-center gap-1 rounded border border-dashed border-border/50 px-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 onClick={() => onOpenArmbandDialog(entry)}

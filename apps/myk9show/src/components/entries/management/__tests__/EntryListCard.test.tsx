@@ -85,6 +85,27 @@ const defaultProps = {
   onEntryRemoved: vi.fn(),
 };
 
+describe('EntryListCard - Assign armband (MYK9-1672)', () => {
+  it('renders Assign for an entry with no armband when the prop is absent', () => {
+    render(<EntryListCard {...defaultProps} />);
+    expect(screen.getByRole('button', { name: 'Assign armband to Fido' })).toBeInTheDocument();
+  });
+
+  it('renders no Assign when hideAssignArmband claims the entry, but keeps Change armband', () => {
+    const { rerender } = render(<EntryListCard {...defaultProps} hideAssignArmband={() => true} />);
+    expect(screen.queryByRole('button', { name: /Assign armband/ })).toBeNull();
+
+    rerender(
+      <EntryListCard
+        {...defaultProps}
+        entries={[makeEntry({ armbandNumber: '42' })]}
+        hideAssignArmband={() => true}
+      />
+    );
+    expect(screen.getByRole('button', { name: /change armband for Fido/i })).toBeInTheDocument();
+  });
+});
+
 describe('EntryListCard - Edit entry lives in an always-present row menu (MYK9-928)', () => {
   const cases: Array<[string, Partial<EntryManagementEntry>]> = [
     ['an ordinary entry', {}],

@@ -40,6 +40,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
   onEntryRestored,
   onCheckInStatusChange,
   onOpenArmbandDialog,
+  hideAssignArmband,
   onOpenEditEntry,
   onCompEntry,
   onUncompEntry,
@@ -173,6 +174,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
                       onEntryRestored={onEntryRestored}
                       onCheckInStatusChange={onCheckInStatusChange}
                       onOpenArmbandDialog={onOpenArmbandDialog}
+                      hideAssignArmband={hideAssignArmband}
                       onOpenEditEntry={onOpenEditEntry}
                       onCompEntry={onCompEntry}
                       onUncompEntry={onUncompEntry}

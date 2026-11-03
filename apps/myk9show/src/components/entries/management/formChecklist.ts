@@ -49,6 +49,9 @@ const PAID_BY: Partial<Record<PaymentStatus, string>> = {
   [PaymentStatus.PAID_ONLINE]: ' online',
 };
 
+/** The key that makes two entries "the same dog" for the checklist (one item per dog). */
+export const entryDogKey = (entry: EntryManagementEntry) => entry.dogId || entry.dogName;
+
 /** The first entry of each dog that passes `matches`, one per dog, in form order. */
 function onePerDog(
   entries: readonly EntryManagementEntry[],
@@ -57,7 +60,7 @@ function onePerDog(
   const seen = new Set<string>();
   const found: EntryManagementEntry[] = [];
   for (const entry of entries) {
-    const key = entry.dogId || entry.dogName;
+    const key = entryDogKey(entry);
     if (seen.has(key) || !matches(entry)) continue;
     seen.add(key);
     found.push(entry);

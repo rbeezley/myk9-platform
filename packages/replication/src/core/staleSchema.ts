@@ -36,6 +36,41 @@ export function isVersionError(error: unknown): boolean {
   );
 }
 
+/** Thrown by the database manager once a stale schema has been latched. */
+export class StaleSchemaError extends Error {
+  readonly reason: StaleSchemaReason;
+  constructor(reason: StaleSchemaReason) {
+    super(`Offline database schema is stale (${reason}); reload onto the newer build`);
+    this.name = 'StaleSchemaError';
+    this.reason = reason;
+  }
+}
+
+/**
+ * Latched for the life of the page once a stale schema is seen. While latched
+ * the manager neither re-opens, counts failures, nor runs recover(): every
+ * failed read would otherwise trip the circuit breaker and delete the newer
+ * build's database, with its queued offline scores.
+ */
+let latchedReason: StaleSchemaReason | null = null;
+
+export function getStaleSchemaLatch(): StaleSchemaReason | null {
+  return latchedReason;
+}
+
+/** Latch and emit once. Returns false (and emits nothing) when already latched. */
+export function latchStaleSchema(reason: StaleSchemaReason): boolean {
+  if (latchedReason !== null) return false;
+  latchedReason = reason;
+  emitStaleSchema(reason);
+  return true;
+}
+
+/** Test-only: clear the latch (DatabaseManager.reset() calls this). */
+export function resetStaleSchemaLatch(): void {
+  latchedReason = null;
+}
+
 /** Notify every subscriber. A throwing listener never blocks the others or the caller. */
 export function emitStaleSchema(reason: StaleSchemaReason): void {
   for (const listener of Array.from(listeners)) {

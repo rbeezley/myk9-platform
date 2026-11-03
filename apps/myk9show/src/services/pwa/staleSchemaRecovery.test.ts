@@ -12,6 +12,7 @@ vi.mock('@/services/LoggingService', () => ({
 
 import {
   handleStaleSchema,
+  resetStaleSchemaRecoveryForTests,
   STALE_SCHEMA_GUARD_WINDOW_MS,
   type StaleSchemaDeps,
 } from './staleSchemaRecovery';
@@ -25,6 +26,7 @@ function makeDeps(overrides: Partial<StaleSchemaDeps> = {}) {
     readGuard: vi.fn(() => guard),
     writeGuard: vi.fn((at: number) => {
       guard = at;
+      return true;
     }),
     isSensitiveRoute: vi.fn(() => false),
     updateAndReload: vi.fn(() => Promise.resolve()),
@@ -38,6 +40,7 @@ function makeDeps(overrides: Partial<StaleSchemaDeps> = {}) {
 describe('handleStaleSchema', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetStaleSchemaRecoveryForTests();
   });
 
   it('reloads on the first signal and records the guard', () => {
@@ -63,6 +66,7 @@ describe('handleStaleSchema', () => {
     const deps = makeDeps();
     handleStaleSchema('version-error', deps);
     deps.clock.at = 1_000_000 + STALE_SCHEMA_GUARD_WINDOW_MS;
+    resetStaleSchemaRecoveryForTests(); // a real reload would have started a fresh page
 
     expect(handleStaleSchema('version-error', deps)).toBe('reloading');
     expect(deps.updateAndReload).toHaveBeenCalledTimes(2);
@@ -76,9 +80,28 @@ describe('handleStaleSchema', () => {
     expect(deps.showReloadPrompt).toHaveBeenCalledTimes(1);
   });
 
-  it('still reloads a VersionError on a sensitive route (the store is unusable)', () => {
+  it('never auto-reloads a version-error on a sensitive route', () => {
     const deps = makeDeps({ isSensitiveRoute: vi.fn(() => true) });
+    expect(handleStaleSchema('version-error', deps)).toBe('prompted');
+    expect(deps.updateAndReload).not.toHaveBeenCalled();
+    expect(deps.writeGuard).not.toHaveBeenCalled();
+    expect(deps.showReloadPrompt).toHaveBeenCalledTimes(1);
+  });
+
+  it('prompts instead of reloading when the guard cannot be written', () => {
+    const deps = makeDeps({ writeGuard: vi.fn(() => false) });
+    expect(handleStaleSchema('version-error', deps)).toBe('prompted');
+    expect(deps.updateAndReload).not.toHaveBeenCalled();
+    expect(deps.showReloading).not.toHaveBeenCalled();
+    expect(deps.showReloadPrompt).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores a second signal once a reload has started', () => {
+    const deps = makeDeps();
     expect(handleStaleSchema('version-error', deps)).toBe('reloading');
+    expect(handleStaleSchema('version-change', deps)).toBe('ignored');
+    expect(deps.showReloading).toHaveBeenCalledTimes(1);
+    expect(deps.showReloadPrompt).not.toHaveBeenCalled();
     expect(deps.updateAndReload).toHaveBeenCalledTimes(1);
   });
 

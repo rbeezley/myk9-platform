@@ -87,4 +87,62 @@ describe('DatabaseManager stale schema', () => {
     stopGood();
     upgraded.close();
   });
+
+  it('never deletes the newer database when reads keep failing after a VersionError', async () => {
+    const newer = await openDB(DB_NAME, NEWER, {
+      upgrade(db) {
+        db.createObjectStore(REPLICATION_STORES.PENDING_MUTATIONS, { keyPath: 'id' });
+      },
+    });
+    await newer.put(REPLICATION_STORES.PENDING_MUTATIONS, { id: 'queued-score' });
+    newer.close();
+
+    const { reasons, stop } = collect();
+    manager = new DatabaseManager({}, DB_NAME, OLDER);
+    const openSpy = vi.spyOn(indexedDB, 'open');
+    const deleteSpy = vi.spyOn(indexedDB, 'deleteDatabase');
+
+    await expect(manager.getDatabase('entries')).rejects.toMatchObject({ name: 'VersionError' });
+    const opensAfterFirst = openSpy.mock.calls.length;
+
+    // The real read path: each failed read calls recordFailure(); 3 trips the breaker.
+    for (let i = 0; i < 5; i++) {
+      await expect(manager.getDatabase('entries')).rejects.toMatchObject({
+        name: 'StaleSchemaError',
+      });
+      manager.recordFailure();
+    }
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    expect(deleteSpy).not.toHaveBeenCalled();
+    expect(openSpy.mock.calls.length).toBe(opensAfterFirst);
+    expect(manager.isCircuitOpen()).toBe(false);
+    expect(reasons).toEqual(['version-error']);
+    stop();
+    openSpy.mockRestore();
+    deleteSpy.mockRestore();
+
+    const reopened = await openDB(DB_NAME, NEWER);
+    expect(await reopened.get(REPLICATION_STORES.PENDING_MUTATIONS, 'queued-score')).toEqual({
+      id: 'queued-score',
+    });
+    reopened.close();
+  });
+
+  it('refuses to recover after a versionchange, even when failures trip the breaker', async () => {
+    const { reasons, stop } = collect();
+    manager = new DatabaseManager({}, DB_NAME, OLDER);
+    await manager.getDatabase('entries');
+    const upgraded = await openDB(DB_NAME, NEWER);
+    const deleteSpy = vi.spyOn(indexedDB, 'deleteDatabase');
+
+    for (let i = 0; i < 4; i++) manager.recordFailure();
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    expect(deleteSpy).not.toHaveBeenCalled();
+    expect(reasons).toEqual(['version-change']);
+    stop();
+    deleteSpy.mockRestore();
+    upgraded.close();
+  });
 });

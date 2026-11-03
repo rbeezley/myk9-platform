@@ -7,9 +7,10 @@
  * app reloads onto the newer build.
  *
  * INTENT: a judge mid-scoresheet is never reloaded by surprise. On a sensitive
- * route a versionchange only shows a persistent "reload when ready" message;
- * the newer tab already holds the data. A VersionError may reload (the store is
- * unusable anyway) but at most once per window, so a stale cache cannot loop.
+ * route either signal only shows a persistent "reload when ready" message; the
+ * queued scores stay safe in the newer build's database. Elsewhere we reload at
+ * most once per window, and only if that window can be recorded, so a stale
+ * cache or blocked sessionStorage cannot loop.
  */
 
 import { toast } from 'sonner';
@@ -25,7 +26,8 @@ const TOAST_ID = 'stale-schema';
 export interface StaleSchemaDeps {
   now: () => number;
   readGuard: () => number | null;
-  writeGuard: (at: number) => void;
+  /** Returns false when the guard could not be persisted. */
+  writeGuard: (at: number) => boolean;
   isSensitiveRoute: () => boolean;
   /** Ask the service worker for the newest build and reload onto it. */
   updateAndReload: () => Promise<void>;
@@ -49,8 +51,10 @@ const defaultDeps: StaleSchemaDeps = {
   writeGuard: at => {
     try {
       window.sessionStorage.setItem(STALE_SCHEMA_GUARD_KEY, String(at));
+      return true;
     } catch {
-      /* storage blocked: the reload still happens once per page load */
+      // Storage blocked: without a persisted guard a stale cache would reload forever.
+      return false;
     }
   },
   isSensitiveRoute: isOnSensitiveRoute,
@@ -79,14 +83,23 @@ const defaultDeps: StaleSchemaDeps = {
   },
 };
 
+let reloadStarted = false;
+
+/** Test-only: forget that this page already started a reload. */
+export function resetStaleSchemaRecoveryForTests(): void {
+  reloadStarted = false;
+}
+
 /** Decide what to do about one stale-schema signal. Exported for tests. */
 export function handleStaleSchema(
   reason: StaleSchemaReason,
   deps: StaleSchemaDeps = defaultDeps
-): 'reloading' | 'prompted' {
+): 'reloading' | 'prompted' | 'ignored' {
+  // A reload is already under way; a second toast would replace "Reloading…".
+  if (reloadStarted) return 'ignored';
   logger.warn('Offline database schema is stale', 'pwa', { data: { reason } });
 
-  if (reason === 'version-change' && deps.isSensitiveRoute()) {
+  if (deps.isSensitiveRoute()) {
     deps.showReloadPrompt();
     return 'prompted';
   }
@@ -98,7 +111,11 @@ export function handleStaleSchema(
     return 'prompted';
   }
 
-  deps.writeGuard(now);
+  if (!deps.writeGuard(now)) {
+    deps.showReloadPrompt();
+    return 'prompted';
+  }
+  reloadStarted = true;
   deps.showReloading();
   void deps.updateAndReload();
   return 'reloading';

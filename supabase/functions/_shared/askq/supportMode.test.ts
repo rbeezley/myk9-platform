@@ -82,11 +82,11 @@ describe('AskQ support mode', () => {
     const quote =
       'Tap Record Area 1 time (then Record Area 2 time, and so on; the button names the area).';
     const parsed = parseSupportAnswer(
-      `SUPPORT_ANSWER\nTime each area.\nSUPPORT_QUOTE [judge-steward-quickstart]: "${quote}"`,
+      `SUPPORT_ANSWER\nTime each area, then record the area time.\nSUPPORT_QUOTE [judge-steward-quickstart]: "${quote}"`,
       ASKQ_GUIDES
     );
     expect(parsed.escalation).toBeNull();
-    expect(parsed.answerText).toBe('Time each area.');
+    expect(parsed.answerText).toBe('Time each area, then record the area time.');
     expect(parsed.guideSources).toEqual([
       expect.objectContaining({ id: 'judge-steward-quickstart', quote, content: quote }),
     ]);
@@ -104,5 +104,19 @@ describe('AskQ support mode', () => {
         guideSources: [],
       });
     }
+  });
+
+  it('records why it escalated, for the log only', () => {
+    expect(
+      parseSupportAnswer(`SUPPORT_HANDOFF\n${SUPPORT_HANDOFF_MESSAGE}`, ASKQ_GUIDES)
+    ).toMatchObject({
+      escalationCause: 'handoff',
+    });
+    expect(
+      parseSupportAnswer('SUPPORT_ANSWER\nOpen Entries Management.', ASKQ_GUIDES)
+    ).toMatchObject({
+      escalationCause: 'quote_rejected',
+      escalation: { reason: 'low_confidence' },
+    });
   });
 });

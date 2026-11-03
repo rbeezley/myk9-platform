@@ -369,7 +369,15 @@ Deno.serve(async (req: Request) => {
     // Update the provisional log row with actual data
     const supportAnswerEscalation = parsedSupportAnswer?.escalation ?? null;
     const loggedTools = supportAnswerEscalation
-      ? [...new Set([...toolsUsed, 'support_escalation'])]
+      ? [
+          ...new Set([
+            ...toolsUsed,
+            'support_escalation',
+            parsedSupportAnswer?.escalationCause === 'quote_rejected'
+              ? 'support_quote_rejected'
+              : 'support_handoff',
+          ]),
+        ]
       : [...new Set(toolsUsed)];
 
     if (logRow?.id) {

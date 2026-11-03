@@ -3,14 +3,15 @@ import { isPaymentOrRefundQuestion } from './supportPaymentPolicy.ts';
 import {
   MIN_QUOTE_WORDS,
   SUPPORT_ANSWER_MARKER,
+  SUPPORT_HANDOFF_MARKER,
   SUPPORT_QUOTE_MARKER,
+  type SupportQuoteRefusal,
   type VerifiedGuideQuote,
   verifySupportAnswerQuotes,
 } from './supportQuoteEvidence.ts';
 import type { ToolDefinition } from './types.ts';
 
 export const SUPPORT_HANDOFF_MESSAGE = 'I need to get a person to help with that.';
-const SUPPORT_HANDOFF_MARKER = 'SUPPORT_HANDOFF';
 
 const DESTRUCTIVE_ACTION_TERMS = new Set(['delete', 'remove', 'deleted', 'removing', 'deleting']);
 const DESTRUCTIVE_ACTION_TARGETS = new Set(['access', 'entry', 'entries', 'member', 'members']);
@@ -70,6 +71,8 @@ function hasUnsupportedDestructiveIntent(message: string): boolean {
 export interface ParsedSupportAnswer {
   answerText: string;
   escalation: SupportEscalationPayload | null;
+  /** Why an escalation happened; for logging only, never shown to the user. */
+  escalationCause: SupportQuoteRefusal | null;
   guideSources: VerifiedGuideQuote[];
 }
 
@@ -91,12 +94,14 @@ export function parseSupportAnswer(
     return {
       answerText: verified.answerText,
       escalation: null,
+      escalationCause: null,
       guideSources: verified.guideSources,
     };
   }
   return {
     answerText: answerText.trim(),
     escalation: getSupportLowConfidenceEscalation(),
+    escalationCause: verified.reason,
     guideSources: [],
   };
 }

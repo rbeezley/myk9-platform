@@ -2,7 +2,10 @@ import type { AskQGuideAsset } from './documentContext.ts';
 
 export const SUPPORT_ANSWER_MARKER = 'SUPPORT_ANSWER';
 export const SUPPORT_QUOTE_MARKER = 'SUPPORT_QUOTE';
+export const SUPPORT_HANDOFF_MARKER = 'SUPPORT_HANDOFF';
 export const MIN_QUOTE_WORDS = 8;
+/** A quote must share this many distinct content words with the answer it backs. */
+export const MIN_SHARED_CONTENT_WORDS = 3;
 
 export interface VerifiedGuideQuote {
   id: string;
@@ -13,56 +16,109 @@ export interface VerifiedGuideQuote {
   content: string;
 }
 
+export type SupportQuoteRefusal = 'handoff' | 'quote_rejected';
+
 export type SupportQuoteVerification =
-  { ok: true; answerText: string; guideSources: VerifiedGuideQuote[] } | { ok: false };
+  | { ok: true; answerText: string; guideSources: VerifiedGuideQuote[] }
+  | { ok: false; reason: SupportQuoteRefusal };
 
-const QUOTE_LINE_RE = /^SUPPORT_QUOTE\s*\[([^\]]+)\]\s*:\s*["“”](.+?)["“”]?\s*$/;
+const DECORATION = '\\s*_`#>\\-';
+const ANSWER_LINE_RE = new RegExp(`^[${DECORATION}]*${SUPPORT_ANSWER_MARKER}[\\s*_\`:]*(.*)$`);
+const QUOTE_START_RE = new RegExp(`^[${DECORATION}]*${SUPPORT_QUOTE_MARKER}`);
+const QUOTE_LINE_RE = new RegExp(
+  `^[${DECORATION}]*${SUPPORT_QUOTE_MARKER}[\\s*_\`]*\\[([^\\]]+)\\][\\s*_\`]*:?[\\s*_\`]*["“”](.+)["“”][\\s.,;:!?)*_\`]*$`
+);
+const STRAY_MARKER_RE = new RegExp(`${SUPPORT_ANSWER_MARKER}|${SUPPORT_QUOTE_MARKER}`, 'g');
 
-/** Flattens markdown and typography so a copied sentence compares equal to its source. */
+const STOPWORDS = new Set(
+  'that this with from then they them have your will when what each into also only been more than here there which does about would could should their these those where while after before'.split(
+    ' '
+  )
+);
+
+/** Word tokens of markdown text: link text kept, list/heading markers and punctuation dropped. */
+export function tokenizeQuoteText(text: string): string[] {
+  return (
+    text
+      .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+      .replace(/(^|\s)\d{1,3}[.)](?=\s)/gm, '$1 ')
+      .replace(/[‘’]/g, "'")
+      .toLowerCase()
+      .match(/[\p{L}\p{N}]+(?:'[\p{L}\p{N}]+)*/gu) ?? []
+  );
+}
+
+/** Readable flattened form of the same normalisation, for display and tests. */
 export function normalizeQuoteText(text: string): string {
-  return text
-    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
-    .replace(/^[ \t]*(?:>[ \t]*)*(?:#{1,6}[ \t]+|[-*+][ \t]+|\d+[.)][ \t]+)?/gm, '')
-    .replace(/[*`]+/g, '')
-    .replace(/(^|[^A-Za-z0-9])_+|_+(?=[^A-Za-z0-9]|$)/g, '$1')
-    .replace(/[‘’]/g, "'")
-    .replace(/[“”]/g, '"')
-    .replace(/[–—]/g, '-')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .toLowerCase();
+  return tokenizeQuoteText(text).join(' ');
+}
+
+function containsSequence(haystack: string[], needle: string[]): boolean {
+  if (needle.length === 0 || needle.length > haystack.length) return false;
+  const last = haystack.length - needle.length;
+  for (let i = 0; i <= last; i++) {
+    let j = 0;
+    while (j < needle.length && haystack[i + j] === needle[j]) j++;
+    if (j === needle.length) return true;
+  }
+  return false;
+}
+
+function contentWords(tokens: string[]): Set<string> {
+  return new Set(tokens.filter(t => t.length >= 4 && !STOPWORDS.has(t)));
+}
+
+function sharesEnoughWords(quoteTokens: string[], answerWords: Set<string>): boolean {
+  let shared = 0;
+  for (const word of contentWords(quoteTokens)) if (answerWords.has(word)) shared++;
+  return shared >= MIN_SHARED_CONTENT_WORDS;
 }
 
 /**
  * Accepts a support answer only when it starts with the answer marker and every
- * SUPPORT_QUOTE line is a real, long enough substring of the guide it names.
+ * SUPPORT_QUOTE line is a long enough, word-for-word run of the guide it names
+ * that also backs the answer's own content words.
  */
 export function verifySupportAnswerQuotes(
   rawText: string,
   guides: AskQGuideAsset[]
 ): SupportQuoteVerification {
-  const trimmed = rawText.trim();
-  if (!trimmed.startsWith(SUPPORT_ANSWER_MARKER)) return { ok: false };
+  const lines = rawText.replace(/\r\n?/g, '\n').trim().split('\n');
+  const first = ANSWER_LINE_RE.exec(lines[0] ?? '');
+  if (!first) return { ok: false, reason: 'handoff' };
 
-  const answerLines: string[] = [];
+  const answerLines: string[] = first[1].trim() ? [first[1].trim()] : [];
+  const quoteLines: string[] = [];
+  for (const line of lines.slice(1)) {
+    (QUOTE_START_RE.test(line) ? quoteLines : answerLines).push(line);
+  }
+
+  const answerText = answerLines
+    .join('\n')
+    .replace(STRAY_MARKER_RE, '')
+    .replace(/\*{2}\s*\*{2}/g, '')
+    .trim();
+  if (answerLines.some(l => l.includes(SUPPORT_HANDOFF_MARKER))) {
+    return { ok: false, reason: 'handoff' };
+  }
+  const answerWords = contentWords(tokenizeQuoteText(answerText));
+  const rejected: SupportQuoteVerification = { ok: false, reason: 'quote_rejected' };
+
   const guideSources: VerifiedGuideQuote[] = [];
-  for (const line of trimmed.slice(SUPPORT_ANSWER_MARKER.length).split('\n')) {
-    if (!line.trim().startsWith(SUPPORT_QUOTE_MARKER)) {
-      answerLines.push(line);
-      continue;
-    }
+  for (const line of quoteLines) {
     const match = QUOTE_LINE_RE.exec(line.trim());
-    const guide = match ? guides.find(g => g.id === match[1].trim()) : undefined;
-    if (!match || !guide) return { ok: false };
+    const id = match?.[1].trim().replace(/\.md$/i, '');
+    const guide = id ? guides.find(g => g.id === id) : undefined;
+    if (!match || !guide) return rejected;
 
     const quote = match[2].trim();
-    const normalizedQuote = normalizeQuoteText(quote);
-    const wordCount = normalizedQuote.split(' ').filter(Boolean).length;
+    const quoteTokens = tokenizeQuoteText(quote);
     if (
-      wordCount < MIN_QUOTE_WORDS ||
-      !normalizeQuoteText(guide.content).includes(normalizedQuote)
+      quoteTokens.length < MIN_QUOTE_WORDS ||
+      !containsSequence(tokenizeQuoteText(guide.content), quoteTokens) ||
+      !sharesEnoughWords(quoteTokens, answerWords)
     ) {
-      return { ok: false };
+      return rejected;
     }
     guideSources.push({
       id: guide.id,
@@ -73,7 +129,6 @@ export function verifySupportAnswerQuotes(
     });
   }
 
-  const answerText = answerLines.join('\n').trim();
-  if (guideSources.length === 0 || !answerText) return { ok: false };
+  if (guideSources.length === 0 || !answerText) return rejected;
   return { ok: true, answerText, guideSources };
 }

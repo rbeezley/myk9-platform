@@ -16,6 +16,12 @@ import { MESSAGE_CENTER_TABS, pickOpenTab, type MessageCenterTab } from './messa
 import { AnnouncementItem } from '@/components/announcements/AnnouncementItem';
 import { getAnnouncementAuthor } from '@/types/announcement-types';
 import { usePanelModeFocus } from '@/components/panels/usePanelModeFocus';
+import {
+  filterAndSortAnnouncements,
+  matchesQuery,
+  type AnnouncementSort,
+} from './announcementListControls';
+import { AnnouncementListControlsBar } from './AnnouncementListControlsBar';
 import { MessageCenterComposeForm } from './MessageCenterComposeForm';
 import { useMyJudgedShows } from '@/features/messages/hooks/useMyJudgedShows';
 import { readRouteShowId, selectComposeShows } from '@/features/messages/messageComposeShows';
@@ -136,6 +142,8 @@ export function MessageCenterPanel() {
   // null while closed; set on open to the first tab holding unread items (MYK9-1180).
   const [activeTab, setActiveTab] = useState<MessageCenterTab | null>(null);
   const [unreadOnly, setUnreadOnly] = useState(false);
+  const [messageQuery, setMessageQuery] = useState('');
+  const [messageSort, setMessageSort] = useState<AnnouncementSort>('newest');
   const [isComposing, setIsComposing] = useState(false);
   const composeBarRef = useRef<HTMLDivElement>(null);
   const composeBodyRef = useRef<HTMLDivElement>(null);
@@ -189,6 +197,10 @@ export function MessageCenterPanel() {
   };
   const totalUnread = tabUnread.notifications + tabUnread.showMessages;
   if (!isCenterOpen && activeTab !== null) setActiveTab(null);
+  if (!isCenterOpen && (messageQuery !== '' || messageSort !== 'newest')) {
+    setMessageQuery('');
+    setMessageSort('newest');
+  }
   if (isCenterOpen && activeTab === null) setActiveTab(pickOpenTab(tabUnread));
   const selectedTab = activeTab ?? pickOpenTab(tabUnread);
 
@@ -295,16 +307,29 @@ export function MessageCenterPanel() {
   }
 
   function renderShowMessagesTab() {
-    const filteredAnnouncements = unreadOnly
-      ? announcements.filter(announcement => !announcement.is_read)
-      : announcements;
-    const visibleThreads = unreadOnly
-      ? threads.filter(thread => (thread.unread_count ?? 0) > 0)
-      : threads;
+    const filteredAnnouncements = filterAndSortAnnouncements(announcements, {
+      query: messageQuery,
+      sort: messageSort,
+      unreadOnly,
+    });
+    const visibleThreads = threads.filter(
+      thread =>
+        (!unreadOnly || (thread.unread_count ?? 0) > 0) &&
+        matchesQuery(messageQuery, thread.show_name, thread.last_message_preview)
+    );
+    const isFiltering = messageQuery.trim() !== '';
     const hasShowMessages = filteredAnnouncements.length > 0 || visibleThreads.length > 0;
 
     return (
       <div className="flex-1 overflow-y-auto">
+        {announcements.length > 0 && (
+          <AnnouncementListControlsBar
+            query={messageQuery}
+            sort={messageSort}
+            onQueryChange={setMessageQuery}
+            onSortChange={setMessageSort}
+          />
+        )}
         {messagesLoading && !hasShowMessages ? (
           <div className="p-6 text-sm text-muted-foreground">Loading messages...</div>
         ) : messagesError && !hasShowMessages ? (
@@ -314,6 +339,8 @@ export function MessageCenterPanel() {
               Try again
             </Button>
           </div>
+        ) : !hasShowMessages && isFiltering ? (
+          <EmptyPanelState icon={MessageSquare} title="No announcements match" />
         ) : !hasShowMessages ? (
           <EmptyPanelState
             icon={MessageSquare}

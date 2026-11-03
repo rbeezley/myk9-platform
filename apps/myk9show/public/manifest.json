@@ -6,6 +6,7 @@
   "background_color": "#f5f4ed",
   "display": "standalone",
   "orientation": "any",
+  "id": "/",
   "scope": "/",
   "start_url": "/app",
   "categories": ["sports", "utilities"],

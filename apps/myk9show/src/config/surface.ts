@@ -20,6 +20,8 @@ export const isWizardSurface = currentSurface === 'wizard';
 // is a promise that the page works end-to-end for an early-access user.
 export const WIZARD_SURFACE_PATHS = [
   '/',
+  // Installed-app start_url (MYK9-1674): redirects like `/`, so it must clear the gate.
+  '/app',
   '/sign-in',
   '/sign-up',
   '/login',

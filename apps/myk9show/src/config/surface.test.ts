@@ -33,6 +33,10 @@ describe('isPathInWizardAllowlist', () => {
     expect(isPathInWizardAllowlist('/secretary/dashboard')).toBe(true);
   });
 
+  it('allows the installed-app entry route /app (MYK9-1674)', () => {
+    expect(isPathInWizardAllowlist('/app')).toBe(true);
+  });
+
   it('allows show landing pages and their sub-paths (premium entry, etc.)', () => {
     expect(isPathInWizardAllowlist('/shows/abc-123')).toBe(true);
     expect(isPathInWizardAllowlist('/shows/abc-123/entry-blank')).toBe(true);

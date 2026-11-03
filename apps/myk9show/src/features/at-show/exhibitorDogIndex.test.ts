@@ -63,6 +63,15 @@ describe('buildExhibitorDogs', () => {
     });
   });
 
+  it('carries the server run position per class entry, null when absent or not waiting', () => {
+    const [dog] = buildExhibitorDogs([
+      row({ run_position: 3 }),
+      row({ class_id: 'c2', run_position: null }),
+      row({ class_id: 'c3' }),
+    ]);
+    expect(dog!.entries.map(e => e.runPosition)).toEqual([3, null, null]);
+  });
+
   it('marks a pulled dog pulled', () => {
     const entry = buildExhibitorDogs([row({ check_in_status: 'pulled' })])[0]!.entries[0]!;
     expect(entry.isPulled).toBe(true);

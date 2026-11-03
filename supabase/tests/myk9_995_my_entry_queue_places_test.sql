@@ -313,4 +313,70 @@ begin
 end;
 $$;
 
+-- 8. MYK9-1578: show_dogs_limited_view's run_position is the SAME place. Read as the
+-- owner, every dog it lists carries the fixture's `expected` (the value the ringside
+-- TypeScript queue is pinned to), and the stranger's dogs in class B carry theirs.
+-- Listing rules (entry status, soft delete, armband format) decide WHICH rows appear;
+-- the place of every row that does appear must still match.
+do $$
+declare
+  bad text;
+  n_checked integer;
+  listing jsonb;
+begin
+  perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000995101', true);
+  perform set_config('request.jwt.claims',
+    jsonb_build_object('sub', '00000000-0000-0000-0000-000000995101', 'role', 'authenticated')::text, true);
+  perform set_config('role', 'authenticated', true);
+
+  select coalesce(jsonb_agg(to_jsonb(v)), '[]'::jsonb) into listing
+    from public.show_dogs_limited_view('00000000-0000-0000-0000-000000995002') v;
+  reset role;
+
+  create temp table listed on commit drop as
+    select * from jsonb_to_recordset(listing)
+      as t(armband integer, class_name text, run_position integer);
+
+  select count(*) into n_checked
+    from listed l join fixture f on f.armband = l.armband::text and f.class = right(l.class_name, 1);
+  if n_checked < 10 then
+    raise exception 'FAIL run_position: only % fixture rows joined the listing', n_checked;
+  end if;
+
+  select string_agg(format('%s: expected %s, got %s', f.key,
+      coalesce(f.expected::text, 'null'), coalesce(l.run_position::text, 'null')), '; ')
+    into bad
+    from listed l
+    join fixture f on f.armband = l.armband::text and f.class = right(l.class_name, 1)
+   where l.run_position is distinct from f.expected;
+  if bad is not null then
+    raise exception 'FAIL run_position parity: %', bad;
+  end if;
+
+  -- The stranger's dog 303 (class B, run order 3) is 2nd: the owner's b2 (run order 2)
+  -- is ahead of it and the in-ring 301 is outside the waiting queue.
+  if (select l.run_position from listed l where l.armband = 303) is distinct from 2 then
+    raise exception 'FAIL run_position: stranger dog 303 expected 2, got %',
+      (select l.run_position from listed l where l.armband = 303);
+  end if;
+  raise notice 'PASS show_dogs_limited_view run_position matches the shared fixture';
+end;
+$$;
+
+-- 9. The shared function is internal: no API role can execute it.
+do $$
+begin
+  if has_function_privilege('anon', 'public.entry_queue_places_for_classes(uuid[])', 'EXECUTE')
+     or has_function_privilege('authenticated', 'public.entry_queue_places_for_classes(uuid[])', 'EXECUTE')
+     or exists (
+       select 1 from pg_proc p, aclexplode(p.proacl) a
+        where p.oid = 'public.entry_queue_places_for_classes(uuid[])'::regprocedure
+          and a.grantee = 0
+     ) then
+    raise exception 'FAIL grants on entry_queue_places_for_classes';
+  end if;
+  raise notice 'PASS entry_queue_places_for_classes is not callable through the API';
+end;
+$$;
+
 rollback;

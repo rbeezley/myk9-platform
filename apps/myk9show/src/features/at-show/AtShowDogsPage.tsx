@@ -9,6 +9,7 @@ import { Link, Navigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getStatusDescriptor } from '@/components/status';
+import { formatPlaceInLine } from '@myk9/ringside';
 import { cn } from '@/lib/utils';
 import { useAtShowDogFavoritesSynced } from './dogFavoritesSync';
 import { useAtShowStaffDogs } from './useAtShowStaffDogs';
@@ -55,6 +56,7 @@ const ExhibitorClassLines: React.FC<{ dog: StaffDog }> = ({ dog }) => (
           entry.trialLabel,
           entry.className,
           getStatusDescriptor('entry', entry.checkInStatus).label,
+          entry.runPosition ? formatPlaceInLine(entry.runPosition) : null,
         ]
           .filter(Boolean)
           .join(' · ')}

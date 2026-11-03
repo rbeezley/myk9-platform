@@ -19,6 +19,12 @@ export interface ShowDogLimitedRow {
   trial_name: string | null;
   trial_date: string | null;
   check_in_status: string | null;
+  /**
+   * Place in the ringside waiting queue, counted on the server by the rule
+   * get_my_entry_queue_places uses (MYK9-1578). NULL when not waiting; absent
+   * before that migration is applied.
+   */
+  run_position?: number | null;
 }
 
 /** Group the per-class rows into one dog per armband (armbands are unique per show). */
@@ -56,6 +62,7 @@ export function buildExhibitorDogs(rows: readonly ShowDogLimitedRow[]): StaffDog
       faultCount: null,
       placement: null,
       resultsReleased: false,
+      runPosition: row.run_position ?? null,
     };
     dog.entries.push(entry);
   }

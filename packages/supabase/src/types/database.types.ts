@@ -15257,6 +15257,7 @@ export type Database = {
           class_id: string
           class_name: string
           handler_name: string
+          run_position: number
           trial_date: string
           trial_name: string
         }[]

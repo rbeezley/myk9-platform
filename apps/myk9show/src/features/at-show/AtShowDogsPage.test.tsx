@@ -194,6 +194,21 @@ describe('AtShowDogsPage as an exhibitor (MYK9-1517)', () => {
     expect(row.querySelector('a')).toBeNull();
   });
 
+  it('shows the server run position in ringside wording, and nothing when there is none', () => {
+    const base = exhibitorDog().entries[0]!;
+    mocks.exhibitorDogs = [
+      exhibitorDog({ entries: [{ ...base, runPosition: 3 }] }),
+      exhibitorDog({
+        key: 'armband:8',
+        armband: 8,
+        entries: [{ ...base, entryId: '8:c1', runPosition: null }],
+      }),
+    ];
+    renderRoutes('/at-show/s1/dogs');
+    expect(screen.getByTestId('at-show-dog-armband:7')).toHaveTextContent('3rd up');
+    expect(screen.getByTestId('at-show-dog-armband:8')).not.toHaveTextContent(/ up/);
+  });
+
   it("searches, and favorites a friend's dog through the synced favorites", () => {
     mocks.exhibitorDogs = [
       exhibitorDog(),

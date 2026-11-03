@@ -70,6 +70,10 @@ pnpm-debug.log*
 **/.claude/skills/*-workspace/
 supabase/.temp/
 **/supabase/.temp/
+# `supabase start` writes branch state here; an untracked copy made the
+# planted-bugs SQL runner abort its clean-tree check (MYK9-1659).
+supabase/.branches/
+**/supabase/.branches/
 
 # Auto Claude data directory
 .auto-claude/

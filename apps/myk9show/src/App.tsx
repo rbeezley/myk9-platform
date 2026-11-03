@@ -42,6 +42,7 @@ import { ExhibitorOnboardingChecker } from './components/exhibitor';
 
 // PWA Install
 import { PWAInstallBanner } from './components/pwa/PWAInstallBanner';
+import { StaleSchemaBanner } from './components/common/StaleSchemaBanner';
 import { RbacOfflineNotice } from './components/common/RbacOfflineNotice';
 import { NewRoleStepBanner } from './components/exhibitor/NewRoleStepBanner';
 
@@ -248,6 +249,7 @@ function App() {
                       <div className="min-h-screen transition-colors duration-300 bg-background text-foreground">
                         <PWAInstallBanner />
                         <RbacOfflineNotice />
+                        <StaleSchemaBanner />
                         <AppHeader />
                         <RingsideReturnBar />
                         <NotificationCenter />

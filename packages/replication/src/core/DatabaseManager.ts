@@ -300,14 +300,16 @@ export class DatabaseManager {
       },
     }).then(db => {
       this.logger.log(`[DatabaseManager] openDB() promise resolved!`);
-      db.onversionchange = () => {
+      db.onversionchange = event => {
         this.logger.warn(
           `[DatabaseManager] Another instance requested upgrade — closing connection`
         );
         db.close();
         sharedDB = null;
         dbInitPromise = null;
-        latchStaleSchema('version-change');
+        // newVersion === null is a deleteDB (another tab's recovery): reconnect
+        // on the next call. A number is a newer build upgrading: this build is stale.
+        if (event.newVersion !== null) latchStaleSchema('version-change');
       };
       return db;
     });

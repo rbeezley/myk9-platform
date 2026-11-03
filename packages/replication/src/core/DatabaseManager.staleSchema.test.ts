@@ -7,7 +7,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import 'fake-indexeddb/auto';
 import { openDB } from 'idb';
 import { DatabaseManager, REPLICATION_STORES } from './DatabaseManager';
-import { onStaleSchema, type StaleSchemaReason } from './staleSchema';
+import { onStaleSchema, getStaleSchemaLatch, type StaleSchemaReason } from './staleSchema';
 
 const DB_NAME = 'test-stale-schema-db';
 const NEWER = 9;
@@ -68,6 +68,27 @@ describe('DatabaseManager stale schema', () => {
     expect(manager.isInitialized()).toBe(false);
     stop();
     upgraded.close();
+  });
+
+  it('does not latch when another tab deletes the database, and reconnects', async () => {
+    const { reasons, stop } = collect();
+    manager = new DatabaseManager({}, DB_NAME, OLDER);
+    const db = await manager.getDatabase('entries');
+    const closeSpy = vi.spyOn(db, 'close');
+
+    await new Promise<void>((resolve, reject) => {
+      const req = indexedDB.deleteDatabase(DB_NAME);
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    });
+
+    expect(closeSpy).toHaveBeenCalled();
+    expect(reasons).toEqual([]);
+    expect(getStaleSchemaLatch()).toBeNull();
+    expect(manager.isInitialized()).toBe(false);
+    const again = await manager.getDatabase('entries');
+    expect(again).toBeDefined();
+    stop();
   });
 
   it('keeps notifying other listeners when one throws, and stops after unsubscribe', async () => {

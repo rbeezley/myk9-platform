@@ -2,6 +2,8 @@ import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { mapEntryStatus, mapPaymentStatus } from '@/utils/entryManagementUtils';
 import { resolveEffectivePaymentStatus } from '@/utils/effectivePaymentStatus';
 import { parseShowDate } from '@/pages/MyEntriesPage/modules/myEntriesStats.helpers';
+import { isLastDayPastInZones } from '@/pages/MyEntriesPage/modules/showPastInZones';
+import { resolveTrialTimezone } from '@/pages/MyEntriesPage/modules/entryRowTrial';
 import { buildFinishPaymentHref } from './finishPaymentHref';
 import { getTrialTimezone } from '@/features/registries';
 import { getEntryWindowTimezone, type EntryWindowTrial } from '@/utils/entryWindowDate';
@@ -40,6 +42,12 @@ export interface EntryBalanceSource {
    * copy must too.
    */
   showTimezone?: string | undefined;
+  /**
+   * The trial zones this row's order runs in (its classes'), when the caller
+   * has them. "The show is over" is reckoned in these, falling back to
+   * `showTimezone`, then to the no-zone rule (UTC-12) (MYK9-1607).
+   */
+  trialZones?: string[] | undefined;
   entryStatus: EntryStatus;
   paymentStatus: PaymentStatus;
   paymentMethod?: string | null | undefined;
@@ -179,6 +187,11 @@ function resolveShowTimezone(row: EntryBalanceRawRow): string {
   return getTrialTimezone(row.trial ?? row.class?.trial ?? null);
 }
 
+function rowTrialZones(row: EntryBalanceRawRow): string[] | undefined {
+  const zone = resolveTrialTimezone(row.trial, row.class?.trial);
+  return zone ? [zone] : undefined;
+}
+
 export function mapEntryRowToBalanceSource(row: EntryBalanceRawRow): EntryBalanceSource {
   const show = row.show;
   // The ORDER's status may not mask this ENTRY's (MYK9-495): `enrollments` is
@@ -204,6 +217,10 @@ export function mapEntryRowToBalanceSource(row: EntryBalanceRawRow): EntryBalanc
     showEndDate: parseShowDate(show?.end_date),
     entryCloseDay: toEntryCloseDay(show?.entry_close_date),
     showTimezone: resolveShowTimezone(row),
+    // The zone of the trial THIS row is in, the same resolution My Shows uses,
+    // so "the show is over" agrees across both surfaces (MYK9-1607). Unknown
+    // stays unset and the show-zone fallback applies.
+    trialZones: rowTrialZones(row),
     entryStatus: mapEntryStatus(row.entry_status ?? 'pending'),
     paymentStatus,
     paymentMethod: row.payment_method ?? null,
@@ -214,18 +231,19 @@ export function mapEntryRowToBalanceSource(row: EntryBalanceRawRow): EntryBalanc
   };
 }
 
-function startOfLocalDay(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
-}
-
 function showLastDay(entry: EntryBalanceSource): Date | undefined {
   return entry.showEndDate ?? entry.showDate;
 }
 
+/**
+ * The shared trial-zone "show is over" rule (`showPastInZones`), the same one
+ * My Shows sections and the Pay-now link use, so a balance never flips to
+ * "past" at a different instant than the card beside it (MYK9-1607). Only the
+ * instant moves; no amount depends on it.
+ */
 function isPastShowEntry(entry: EntryBalanceSource, now: Date): boolean {
-  const lastDay = showLastDay(entry);
-  if (!lastDay) return false;
-  return startOfLocalDay(lastDay).getTime() < startOfLocalDay(now).getTime();
+  const zones = entry.trialZones ?? (entry.showTimezone ? [entry.showTimezone] : []);
+  return isLastDayPastInZones(showLastDay(entry), zones, now);
 }
 
 /**
@@ -348,7 +366,9 @@ export function summarizeEntryBalances(
     // day wins so one relation-less row cannot erase a deadline the others
     // carry.
     existing.entryCloseDay = existing.entryCloseDay ?? entry.entryCloseDay ?? null;
-    existing.isPastShow = existing.isPastShow || isPastShowEntry(entry, now);
+    // Over only once EVERY row's zone is past the last day (rows can run in
+    // different trial zones), so the first-rolled zone cannot close it early.
+    existing.isPastShow = (existing.isPastShow ?? false) && isPastShowEntry(entry, now);
     existing.displayEntryIds = existing.displayEntryIds ?? [];
     existing.displayEntryIds.push(...entryIdsForDisplay(entry));
     existing.entryIds.push(...entryIdsForPayment(entry));

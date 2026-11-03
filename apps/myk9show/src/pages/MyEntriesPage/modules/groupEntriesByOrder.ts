@@ -17,6 +17,7 @@
 import { EntryStatus } from '@/types/show-registration-types';
 import type { EntryStatusKind } from '@/services/entryDisplay/entryDisplaySelectors';
 import { buildOrderBalance } from './myEntryOrderBalance';
+import { trialZonesOf } from './showPastInZones';
 import type { MyEntry, MyEntryDogGroup } from './my-entries-types';
 
 // Highest-priority status wins when merging class rows for the same dog, and
@@ -239,6 +240,7 @@ export function groupEntriesByOrder(rawEntries: MyEntry[], now: Date = new Date(
         showName: order.showName,
         showDate: order.showDate,
         showEndDate: order.showEndDate,
+        trialZones: trialZonesOf(classes),
         entryStatus,
         paymentStatus: order.paymentStatus,
         paymentMethod: order.paymentMethod,

@@ -19,15 +19,19 @@ import type { EntryClass, MyEntry } from './my-entries-types';
 /**
  * MYK9-1607: every "is the show over?" caller reckons in the trial's zone.
  *
- * The show's last day is Jun 10. At 05:00Z on Jun 11 a UTC device already
- * reads Jun 11 (old device-local rule: past) while a Honolulu trial is still
- * on Jun 10 at 19:00 (trial-zone rule: NOT past). Ten hours later Honolulu
- * rolls over too.
+ * The show's last day is Jun 10. The clocks are built from the DEVICE's local
+ * time so the old device-local rule says "past" on any machine timezone:
+ * DEVICE_AHEAD is 00:30 local on Jun 11. The trial zone is UTC-12
+ * (Etc/GMT+12), which is still on Jun 10 for any device offset between
+ * UTC-11 and UTC+12, so the trial-zone rule says "not past". ZONE_ROLLED is
+ * Jun 13 local, past in UTC-12 too for every real device offset.
  */
 const LAST_DAY = new Date(2026, 5, 10);
-const DEVICE_AHEAD = new Date('2026-06-11T05:00:00Z');
-const ZONE_ROLLED = new Date('2026-06-11T10:00:00Z');
-const HONOLULU = 'Pacific/Honolulu';
+const DEVICE_AHEAD = new Date(2026, 5, 11, 0, 30);
+const ZONE_ROLLED = new Date(2026, 5, 13, 0, 30);
+const TRIAL_ZONE = 'Etc/GMT+12';
+// UTC+14: already past Jun 10 whenever DEVICE_AHEAD happens.
+const FAR_EAST_ZONE = 'Etc/GMT-14';
 const PAID_AT = new Date('2026-06-09T10:00:00Z');
 
 function makeClass(overrides: Partial<EntryClass> = {}): EntryClass {
@@ -41,7 +45,7 @@ function makeClass(overrides: Partial<EntryClass> = {}): EntryClass {
     status: 'entered',
     paymentStatus: PaymentStatus.PENDING,
     paymentMethod: null,
-    trialTimezone: HONOLULU,
+    trialTimezone: TRIAL_ZONE,
     trialDate: LAST_DAY,
     ...overrides,
   });
@@ -87,7 +91,7 @@ describe('isPastShowEntry', () => {
   it('with no trial zone waits until every zone agrees (UTC-12)', () => {
     const noZone = makeRow({ classes: [makeClass({ trialTimezone: undefined })] });
     expect(isPastShowEntry(noZone, DEVICE_AHEAD)).toBe(false);
-    expect(isPastShowEntry(noZone, new Date('2026-06-11T12:00:00Z'))).toBe(true);
+    expect(isPastShowEntry(noZone, ZONE_ROLLED)).toBe(true);
   });
 
   it('never calls an undated show past', () => {
@@ -188,7 +192,7 @@ describe('entryBalanceSummary shares the trial-zone rule', () => {
       paymentStatus: PaymentStatus.PENDING,
       paymentMethod: 'online',
       totalFee: 25,
-      showTimezone: HONOLULU,
+      showTimezone: TRIAL_ZONE,
       ...overrides,
     };
   }
@@ -205,20 +209,21 @@ describe('entryBalanceSummary shares the trial-zone rule', () => {
   });
 
   it('prefers the order trial zones over the show zone', () => {
-    const row = source({ showTimezone: 'America/Chicago', trialZones: [HONOLULU] });
+    const row = source({ showTimezone: FAR_EAST_ZONE, trialZones: [TRIAL_ZONE] });
     expect(isCurrentSummaryEntry(row, DEVICE_AHEAD)).toBe(true);
+    expect(isCurrentSummaryEntry({ ...row, trialZones: undefined }, DEVICE_AHEAD)).toBe(false);
   });
 
   it('with no zone at all uses the UTC-12 fallback', () => {
     const row = source({ showTimezone: undefined });
     expect(isCurrentSummaryEntry(row, DEVICE_AHEAD)).toBe(true);
-    expect(isCurrentSummaryEntry(row, new Date('2026-06-11T12:00:00Z'))).toBe(false);
+    expect(isCurrentSummaryEntry(row, ZONE_ROLLED)).toBe(false);
   });
 
   it('leaves the balance totals unchanged away from the boundary', () => {
     const summary = summarizeEntryBalances(
       [source({ totalFee: 25 }), source({ id: 'entry-2', totalFee: 30 })],
-      new Date('2026-06-01T12:00:00Z')
+      new Date(2026, 5, 1, 12)
     );
     expect(summary.kind).toBe('known');
     if (summary.kind === 'known') {

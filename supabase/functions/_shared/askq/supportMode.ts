@@ -1,6 +1,8 @@
 import type { AskQGuideAsset } from './documentContext.ts';
 import { isPaymentOrRefundQuestion } from './supportPaymentPolicy.ts';
 import {
+  MAX_QUOTE_TOKENS,
+  MAX_QUOTES,
   MIN_QUOTE_WORDS,
   SUPPORT_ANSWER_MARKER,
   SUPPORT_HANDOFF_MARKER,
@@ -40,9 +42,9 @@ export function buildSupportModePrompt(basePrompt: string, guides: AskQGuideAsse
 SUPPORT MODE:
 - The user is asking from the in-app Get Help panel.
 - Answer app-help questions only from the verified user-guide context already included in this prompt.
-- If the guides answer the question, respond with ${SUPPORT_ANSWER_MARKER} on its own line, then 1 to 3 lines in exactly this form, and nothing else: ${SUPPORT_QUOTE_MARKER} [<guide id>]: "<passage copied exactly from that guide>"
+- If the guides answer the question, respond with ${SUPPORT_ANSWER_MARKER} on its own line, then 1 to ${MAX_QUOTES} lines in exactly this form, and nothing else: ${SUPPORT_QUOTE_MARKER} [<guide id>]: "<passage copied exactly from that guide>"
 - Write no explanation of your own and do not reword anything: the user is shown only the passages you copy.
-- Pick the passages that answer the question: whole steps or whole sentences, in the order a user would follow them, at least ${MIN_QUOTE_WORDS} words each. A passage not found word for word in the named guide rejects the whole answer.
+- Pick the passages that answer the question: whole steps or whole sentences, in the order a user would follow them, between ${MIN_QUOTE_WORDS} and ${MAX_QUOTE_TOKENS} words each. If a passage is longer than ${MAX_QUOTE_TOKENS} words, split it into separate quote lines at sentence or step boundaries. A passage not found word for word in the named guide rejects the whole answer.
 - Valid guide ids: ${guideIds}
 - If the guide context does not answer the question, begin the response with ${SUPPORT_HANDOFF_MARKER} on its own line, then say only: "${SUPPORT_HANDOFF_MESSAGE}" Do not guess or invent steps.
 - Never answer questions about payments, charges, Stripe, billing, payouts, or refunds. Those must escalate to a human ticket.`;

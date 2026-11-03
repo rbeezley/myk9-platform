@@ -40,6 +40,10 @@ describe('AskQ support mode', () => {
     expect(prompt).toContain('SUPPORT_ANSWER');
     expect(prompt).toContain('SUPPORT_HANDOFF');
     expect(prompt).toContain('SUPPORT_QUOTE [<guide id>]:');
+    // MYK9-1679: the multi-area passage is over the maximum, so the model must know to split it.
+    expect(prompt).toContain('between 8 and 120 words each');
+    expect(prompt).toContain('split it into separate quote lines');
+    expect(prompt).toContain('1 to 3 lines');
     expect(prompt).toContain('Write no explanation of your own');
   });
 

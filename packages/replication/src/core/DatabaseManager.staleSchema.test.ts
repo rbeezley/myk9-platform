@@ -145,4 +145,17 @@ describe('DatabaseManager stale schema', () => {
     deleteSpy.mockRestore();
     upgraded.close();
   });
+
+  it('recover() itself refuses to delete while stale, whoever calls it', async () => {
+    manager = new DatabaseManager({}, DB_NAME, OLDER);
+    await manager.getDatabase('entries');
+    const upgraded = await openDB(DB_NAME, NEWER);
+    const deleteSpy = vi.spyOn(indexedDB, 'deleteDatabase');
+
+    await (manager as unknown as { recover: () => Promise<void> }).recover();
+
+    expect(deleteSpy).not.toHaveBeenCalled();
+    deleteSpy.mockRestore();
+    upgraded.close();
+  });
 });

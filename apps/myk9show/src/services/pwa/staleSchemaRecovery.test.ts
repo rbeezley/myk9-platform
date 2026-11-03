@@ -56,6 +56,7 @@ describe('handleStaleSchema', () => {
     const deps = makeDeps();
     handleStaleSchema('version-error', deps);
     deps.clock.at = 1_000_000 + STALE_SCHEMA_GUARD_WINDOW_MS - 1;
+    resetStaleSchemaRecoveryForTests(); // the reloaded page starts fresh; only the guard persists
 
     expect(handleStaleSchema('version-error', deps)).toBe('prompted');
     expect(deps.updateAndReload).toHaveBeenCalledTimes(1);

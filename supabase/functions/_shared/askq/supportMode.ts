@@ -47,12 +47,10 @@ const SUPPORT_DOMAIN_TERMS = new Set([
   'schedule',
   'score',
   'scoring',
-  'search',
   'secretary',
   'send',
   'show',
   'steward',
-  'time',
   'timer',
   'waitlist',
 ]);

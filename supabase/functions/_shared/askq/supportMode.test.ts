@@ -80,7 +80,14 @@ describe('AskQ support mode', () => {
         expect.arrayContaining([expect.objectContaining({ id: 'judge-steward-quickstart' })])
       );
     }
-    expect(findSupportGuideEvidence('What time is it in Denver?', ASKQ_GUIDES)).toEqual([]);
+    // Generic "time" and "search" stay out of the domain set: the guides do not answer these.
+    for (const offTopic of [
+      'What time is it in Denver?',
+      'How do I change my time zone?',
+      "How do I search for another user's email?",
+    ]) {
+      expect(findSupportGuideEvidence(offTopic, ASKQ_GUIDES)).toEqual([]);
+    }
   });
 
   it('finds evidence for documented support-guide workflows', () => {

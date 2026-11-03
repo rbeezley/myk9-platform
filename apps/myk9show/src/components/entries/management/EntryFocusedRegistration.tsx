@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { useTrialSecretaryOnlyReason } from '@/features/actions/TrialSecretaryAccessContext';
 import { buildAddEntryForExhibitorPath } from '@/pages/RegistrationWizardPage.routes';
 import { formatConfirmationNumberLabel } from '@/features/registration/confirmationNumberDisplay';
+import type { EntryManagementEntry } from '@/types/entry-management-types';
 import type { EntryStatus } from '@/types/show-registration-types';
 import { EntryFormNotes } from '@/features/entry-form-notes/EntryFormNotes';
 import { EnrollmentCard } from './EnrollmentCard';
@@ -15,7 +16,7 @@ import { getRegistrationReviewLabel } from './reviewStateLabels';
 import { EntryFormChecklist } from './EntryFormChecklist';
 import { EntryFormFooter } from './EntryFormFooter';
 import { EntryFormHeaderMenu } from './EntryFormHeaderMenu';
-import { buildFormChecklist } from './formChecklist';
+import { buildFormChecklist, entryDogKey } from './formChecklist';
 import { useEnrollmentDialogControls } from './useEnrollmentDialogControls';
 
 interface EntryFocusedRegistrationProps extends Omit<EnrollmentCardProps, 'group'> {
@@ -50,6 +51,13 @@ export function EntryFocusedRegistration({
   const [noteFocusRequest, setNoteFocusRequest] = useState(0);
   const controls = useEnrollmentDialogControls(registration, enrollmentCardProps.paymentLedger);
   const checklist = buildFormChecklist(registration, controls);
+  // The checklist owns "Assign armband" for each dog it lists (MYK9-1672); the entry cards below
+  // keep only "Change armband". A dog the checklist does not list keeps the card's Assign.
+  const checklistArmbandDogs = new Set(
+    checklist.items.flatMap(item => (item.kind === 'armband' ? [entryDogKey(item.entry)] : []))
+  );
+  const hideAssignArmband = (entry: EntryManagementEntry) =>
+    checklistArmbandDogs.has(entryDogKey(entry));
   // Another class or dog for someone already entered (MYK9-1594). The exhibitor is the dogs'
   // owner, who is also whose enrollment the new entries join.
   const secretaryOnlyReason = useTrialSecretaryOnlyReason();
@@ -146,7 +154,12 @@ export function EntryFocusedRegistration({
           payment={controls}
         />
 
-        <EnrollmentCard group={registration} {...enrollmentCardProps} dialogControls={controls} />
+        <EnrollmentCard
+          group={registration}
+          {...enrollmentCardProps}
+          hideAssignArmband={hideAssignArmband}
+          dialogControls={controls}
+        />
 
         {registration.enrollmentId && (
           <EntryFormNotes

@@ -129,6 +129,58 @@ describe('EntryFocusedRegistration', () => {
     expect(screen.getByRole('button', { name: 'Email Exhibitor' })).toBeInTheDocument();
   });
 
+  describe('one armband control per dog (MYK9-1672)', () => {
+    const renderForm = (entries: EntryManagementEntry[]) => {
+      const registration = groupEntriesByShowRegistration(entries)[0]!;
+      return render(
+        <EntryFocusedRegistration
+          registration={registration}
+          onStatusChange={vi.fn()}
+          onCheckInStatusChange={vi.fn()}
+          onOpenArmbandDialog={vi.fn()}
+          onEntryRemoved={vi.fn()}
+          onBulkStatusChange={vi.fn()}
+          paymentLedger={{
+            record: vi.fn(),
+            markPaidOnline: vi.fn(),
+            todayInShowZone: '2026-09-17',
+          }}
+        />
+      );
+    };
+
+    it('a dog with no armband gets exactly one Assign control, the checklist item', () => {
+      renderForm([entry('entry-1', 'Poppy', 'Alice Martin', 'dog-1')]);
+
+      const assign = screen.getAllByRole('button', { name: /Assign armband to Poppy/ });
+      expect(assign).toHaveLength(1);
+      expect(
+        within(screen.getByRole('region', { name: 'To finish this form' })).getByRole('button', {
+          name: 'Assign armband to Poppy',
+        })
+      ).toBe(assign[0]);
+    });
+
+    it('a dog with an armband keeps the card Change armband and has no checklist item', () => {
+      renderForm([{ ...entry('entry-1', 'Poppy', 'Alice Martin', 'dog-1'), armbandNumber: '201' }]);
+
+      expect(screen.queryByRole('button', { name: /Assign armband to Poppy/ })).toBeNull();
+      expect(screen.getAllByRole('button', { name: /change armband for Poppy/i })).toHaveLength(1);
+    });
+
+    it('a dog the checklist does not list keeps the card Assign (waitlisted entry)', () => {
+      renderForm([
+        {
+          ...entry('entry-1', 'Poppy', 'Alice Martin', 'dog-1'),
+          entryStatus: EntryStatus.WAITLIST,
+        },
+      ]);
+
+      expect(screen.getAllByRole('button', { name: /Assign armband to Poppy/ })).toHaveLength(1);
+      expect(screen.queryByRole('region', { name: 'To finish this form' })).toBeNull();
+    });
+  });
+
   describe('Add entry for the exhibitor (MYK9-1594)', () => {
     const props = () => ({
       onStatusChange: vi.fn(),

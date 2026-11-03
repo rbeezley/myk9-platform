@@ -13,6 +13,12 @@ export interface EntryListCardProps {
     status: CheckInStatus
   ) => void;
   onOpenArmbandDialog: (entry: EntryManagementEntry) => void;
+  /**
+   * MYK9-1672: true for an entry whose armband is already owed through another control on the
+   * page (the entry form's checklist). The card then renders no "Assign armband" button for it,
+   * so the form never shows two controls with one name. "Change armband" is unaffected.
+   */
+  hideAssignArmband?: ((entry: EntryManagementEntry) => boolean) | undefined;
   onOpenEditEntry?: ((entry: EntryManagementEntry) => void) | undefined;
   onCompEntry?: ((entryId: string) => void) | undefined;
   onUncompEntry?: ((entryId: string) => void) | undefined;

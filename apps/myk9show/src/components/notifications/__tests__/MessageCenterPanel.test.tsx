@@ -663,6 +663,47 @@ describe('MessageCenterPanel', () => {
     expect(screen.queryByRole('tab', { name: 'Announcements' })).not.toBeInTheDocument();
   });
 
+  it('searches and sorts show announcements', async () => {
+    const { useAnnouncementStore } = await import('@/store/announcementStore');
+    (
+      useAnnouncementStore as unknown as { setState: (s: Record<string, unknown>) => void }
+    ).setState({
+      announcements: [
+        {
+          id: 'n',
+          title: 'Newest note',
+          content: 'x',
+          priority: 'normal',
+          is_read: true,
+          created_at: '2026-11-03T10:00:00Z',
+        },
+        {
+          id: 'u',
+          title: 'Urgent weather',
+          content: 'Rain delay',
+          priority: 'urgent',
+          is_read: false,
+          created_at: '2026-11-01T10:00:00Z',
+        },
+      ],
+      unreadCount: 1,
+    });
+
+    renderPanel();
+    fireEvent.click(screen.getByRole('tab', { name: /Show messages/ }));
+    const titles = () => screen.getAllByTestId('announcement-item').map(el => el.textContent ?? '');
+
+    expect(titles()[0]).toContain('Newest note');
+    fireEvent.change(screen.getByLabelText('Sort show messages'), {
+      target: { value: 'priority' },
+    });
+    expect(titles()[0]).toContain('Urgent weather');
+    fireEvent.change(screen.getByLabelText('Search show messages'), { target: { value: 'rain' } });
+    expect(titles()).toHaveLength(1);
+    fireEvent.change(screen.getByLabelText('Search show messages'), { target: { value: 'zzz' } });
+    expect(screen.getByText('No announcements match')).toBeInTheDocument();
+  });
+
   it('shows a retry action when message loading fails', async () => {
     const subscribe = vi.fn();
     const { useMessageStore } = await import('@/store/messageStore');

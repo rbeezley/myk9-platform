@@ -119,7 +119,11 @@ if ! destroy_stack; then
   exit 1
 fi
 
+# RUN_SQL_LOCAL_BUSY_PORTS is a test seam: when set (even empty), it lists the busy ports and /dev/tcp is never probed.
 port_in_use() {
+  if [ -n "${RUN_SQL_LOCAL_BUSY_PORTS+x}" ]; then
+    case " $RUN_SQL_LOCAL_BUSY_PORTS " in *" $1 "*) return 0 ;; *) return 1 ;; esac
+  fi
   (exec 3<>"/dev/tcp/127.0.0.1/$1") 2>/dev/null
 }
 

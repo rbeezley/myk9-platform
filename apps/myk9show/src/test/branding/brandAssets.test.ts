@@ -59,6 +59,7 @@ describe('myK9Show brand assets', () => {
       scope: string;
     };
 
+    expect(manifest.id).toBe('/');
     expect(manifest.start_url).toBe('/app');
     expect(manifest.scope).toBe('/');
     // Pins the install identity so existing Chromium installs (id defaulted to the old start_url) keep it.

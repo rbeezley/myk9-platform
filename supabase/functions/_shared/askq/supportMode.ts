@@ -40,9 +40,9 @@ export function buildSupportModePrompt(basePrompt: string, guides: AskQGuideAsse
 SUPPORT MODE:
 - The user is asking from the in-app Get Help panel.
 - Answer app-help questions only from the verified user-guide context already included in this prompt.
-- If the guide context answers the question, begin the response with ${SUPPORT_ANSWER_MARKER} on its own line, then give the answer.
-- After the answer, add one or more lines in exactly this form: ${SUPPORT_QUOTE_MARKER} [<guide id>]: "<exact sentence or sentences copied from that guide>"
-- Copy the quoted text exactly from the guide, at least ${MIN_QUOTE_WORDS} words, without rewording. A quote that is not found word for word in the named guide rejects the whole answer.
+- If the guides answer the question, respond with ${SUPPORT_ANSWER_MARKER} on its own line, then 1 to 3 lines in exactly this form, and nothing else: ${SUPPORT_QUOTE_MARKER} [<guide id>]: "<passage copied exactly from that guide>"
+- Write no explanation of your own and do not reword anything: the user is shown only the passages you copy.
+- Pick the passages that answer the question: whole steps or whole sentences, in the order a user would follow them, at least ${MIN_QUOTE_WORDS} words each. A passage not found word for word in the named guide rejects the whole answer.
 - Valid guide ids: ${guideIds}
 - If the guide context does not answer the question, begin the response with ${SUPPORT_HANDOFF_MARKER} on its own line, then say only: "${SUPPORT_HANDOFF_MESSAGE}" Do not guess or invent steps.
 - Never answer questions about payments, charges, Stripe, billing, payouts, or refunds. Those must escalate to a human ticket.`;

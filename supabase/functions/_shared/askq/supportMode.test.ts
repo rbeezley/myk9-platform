@@ -40,6 +40,7 @@ describe('AskQ support mode', () => {
     expect(prompt).toContain('SUPPORT_ANSWER');
     expect(prompt).toContain('SUPPORT_HANDOFF');
     expect(prompt).toContain('SUPPORT_QUOTE [<guide id>]:');
+    expect(prompt).toContain('Write no explanation of your own');
   });
 
   it('lists every guide id in the prompt', () => {
@@ -78,7 +79,7 @@ describe('AskQ support mode', () => {
     });
   });
 
-  it('accepts a verified answer and strips the marker and quote lines', () => {
+  it('accepts a verified answer and shows only the quoted passage', () => {
     const quote =
       'Tap Record Area 1 time (then Record Area 2 time, and so on; the button names the area).';
     const parsed = parseSupportAnswer(
@@ -86,7 +87,7 @@ describe('AskQ support mode', () => {
       ASKQ_GUIDES
     );
     expect(parsed.escalation).toBeNull();
-    expect(parsed.answerText).toBe('Time each area, then record the area time.');
+    expect(parsed.answerText).toBe(`From the Ringside Quickstart:\n“${quote}”`);
     expect(parsed.guideSources).toEqual([
       expect.objectContaining({ id: 'judge-steward-quickstart', quote, content: quote }),
     ]);

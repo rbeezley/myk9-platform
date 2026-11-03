@@ -4,8 +4,8 @@ export const SUPPORT_ANSWER_MARKER = 'SUPPORT_ANSWER';
 export const SUPPORT_QUOTE_MARKER = 'SUPPORT_QUOTE';
 export const SUPPORT_HANDOFF_MARKER = 'SUPPORT_HANDOFF';
 export const MIN_QUOTE_WORDS = 8;
-/** A quote must share this many distinct content words with the answer it backs. */
-export const MIN_SHARED_CONTENT_WORDS = 3;
+export const MAX_QUOTES = 3;
+export const MAX_QUOTE_TOKENS = 120;
 
 export interface VerifiedGuideQuote {
   id: string;
@@ -27,13 +27,6 @@ const ANSWER_LINE_RE = new RegExp(`^[${DECORATION}]*${SUPPORT_ANSWER_MARKER}[\\s
 const QUOTE_START_RE = new RegExp(`^[${DECORATION}]*${SUPPORT_QUOTE_MARKER}`);
 const QUOTE_LINE_RE = new RegExp(
   `^[${DECORATION}]*${SUPPORT_QUOTE_MARKER}[\\s*_\`]*\\[([^\\]]+)\\][\\s*_\`]*:?[\\s*_\`]*["“”](.+)["“”][\\s.,;:!?)*_\`]*$`
-);
-const STRAY_MARKER_RE = new RegExp(`${SUPPORT_ANSWER_MARKER}|${SUPPORT_QUOTE_MARKER}`, 'g');
-
-const STOPWORDS = new Set(
-  'that this with from then they them have your will when what each into also only been more than here there which does about would could should their these those where while after before'.split(
-    ' '
-  )
 );
 
 /** Word tokens of markdown text: link text kept, list/heading markers and punctuation dropped. */
@@ -64,20 +57,35 @@ function containsSequence(haystack: string[], needle: string[]): boolean {
   return false;
 }
 
-function contentWords(tokens: string[]): Set<string> {
-  return new Set(tokens.filter(t => t.length >= 4 && !STOPWORDS.has(t)));
+/** Plain-text form of a verified passage: markdown syntax removed, whitespace collapsed. */
+export function toDisplayPassage(quote: string): string {
+  return quote
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/(\*\*|__|`)/g, '')
+    .replace(/^\s*(?:[#>]+|[-*+]|\d{1,3}[.)])\s+/, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/^["“”]+|["“”]+$/g, '')
+    .trim();
 }
 
-function sharesEnoughWords(quoteTokens: string[], answerWords: Set<string>): boolean {
-  let shared = 0;
-  for (const word of contentWords(quoteTokens)) if (answerWords.has(word)) shared++;
-  return shared >= MIN_SHARED_CONTENT_WORDS;
+function formatAnswer(sources: VerifiedGuideQuote[]): string {
+  const groups: VerifiedGuideQuote[][] = [];
+  for (const source of sources) {
+    const last = groups[groups.length - 1];
+    if (last && last[0].id === source.id) last.push(source);
+    else groups.push([source]);
+  }
+  return groups
+    .map(g => [`From the ${g[0].title}:`, ...g.map(s => `“${s.quote}”`)].join('\n'))
+    .join('\n\n');
 }
 
 /**
  * Accepts a support answer only when it starts with the answer marker and every
- * SUPPORT_QUOTE line is a long enough, word-for-word run of the guide it names
- * that also backs the answer's own content words.
+ * SUPPORT_QUOTE line (at most 3) is a long enough, word-for-word run of the guide
+ * it names. The shown answer is built from the verified passages alone; any prose
+ * the model wrote is discarded.
  */
 export function verifySupportAnswerQuotes(
   rawText: string,
@@ -87,22 +95,16 @@ export function verifySupportAnswerQuotes(
   const first = ANSWER_LINE_RE.exec(lines[0] ?? '');
   if (!first) return { ok: false, reason: 'handoff' };
 
-  const answerLines: string[] = first[1].trim() ? [first[1].trim()] : [];
+  const proseLines: string[] = [first[1]];
   const quoteLines: string[] = [];
   for (const line of lines.slice(1)) {
-    (QUOTE_START_RE.test(line) ? quoteLines : answerLines).push(line);
+    (QUOTE_START_RE.test(line) ? quoteLines : proseLines).push(line);
   }
-
-  const answerText = answerLines
-    .join('\n')
-    .replace(STRAY_MARKER_RE, '')
-    .replace(/\*{2}\s*\*{2}/g, '')
-    .trim();
-  if (answerLines.some(l => l.includes(SUPPORT_HANDOFF_MARKER))) {
+  if (proseLines.some(l => l.includes(SUPPORT_HANDOFF_MARKER))) {
     return { ok: false, reason: 'handoff' };
   }
-  const answerWords = contentWords(tokenizeQuoteText(answerText));
   const rejected: SupportQuoteVerification = { ok: false, reason: 'quote_rejected' };
+  if (quoteLines.length === 0 || quoteLines.length > MAX_QUOTES) return rejected;
 
   const guideSources: VerifiedGuideQuote[] = [];
   for (const line of quoteLines) {
@@ -115,20 +117,21 @@ export function verifySupportAnswerQuotes(
     const quoteTokens = tokenizeQuoteText(quote);
     if (
       quoteTokens.length < MIN_QUOTE_WORDS ||
-      !containsSequence(tokenizeQuoteText(guide.content), quoteTokens) ||
-      !sharesEnoughWords(quoteTokens, answerWords)
+      quoteTokens.length > MAX_QUOTE_TOKENS ||
+      !containsSequence(tokenizeQuoteText(guide.content), quoteTokens)
     ) {
       return rejected;
     }
+    const display = toDisplayPassage(quote);
+    if (!display) return rejected;
     guideSources.push({
       id: guide.id,
       title: guide.title,
       audience: guide.audience,
-      quote,
-      content: quote,
+      quote: display,
+      content: display,
     });
   }
 
-  if (guideSources.length === 0 || !answerText) return rejected;
-  return { ok: true, answerText, guideSources };
+  return { ok: true, answerText: formatAnswer(guideSources), guideSources };
 }

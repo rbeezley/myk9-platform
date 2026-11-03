@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { ASKQ_GUIDES } from './documentAssets.ts';
-import { normalizeQuoteText, verifySupportAnswerQuotes } from './supportQuoteEvidence.ts';
+import {
+  normalizeQuoteText,
+  tokenizeQuoteText,
+  verifySupportAnswerQuotes,
+} from './supportQuoteEvidence.ts';
 
 const GOOD_QUOTE =
   'Tap Record Area 1 time (then Record Area 2 time, and so on; the button names the area).';
@@ -8,22 +12,105 @@ const ANSWER = 'SUPPORT_ANSWER\nTime each area, then tap the Record button for t
 const quoteLine = (id: string, quote: string) => `SUPPORT_QUOTE [${id}]: "${quote}"`;
 const verify = (...lines: string[]) => verifySupportAnswerQuotes(lines.join('\n'), ASKQ_GUIDES);
 
+const ID = 'judge-steward-quickstart';
+const TITLE = 'Ringside Quickstart';
+const STEP_QUOTE = 'Tap Ringside in the sidebar. If one show is running today, it opens.';
+const SECRETARY_QUOTE =
+  'Show details: Actions → Edit show (the Actions button sits in the top bar, left of the bell; on a phone it is the lightning icon)';
+
 describe('verifySupportAnswerQuotes', () => {
-  it('accepts a real quote and strips the marker and quote lines', () => {
-    const result = verify(ANSWER, quoteLine('judge-steward-quickstart', GOOD_QUOTE));
+  it('shows only the verified passage, grouped under the guide title', () => {
+    const result = verify(ANSWER, quoteLine(ID, GOOD_QUOTE));
     expect(result).toEqual({
       ok: true,
-      answerText: 'Time each area, then tap the Record button for that area.',
+      answerText: `From the ${TITLE}:\n“${GOOD_QUOTE}”`,
       guideSources: [
         {
-          id: 'judge-steward-quickstart',
-          title: expect.any(String),
+          id: ID,
+          title: TITLE,
           audience: expect.any(String),
           quote: GOOD_QUOTE,
           content: GOOD_QUOTE,
         },
       ],
     });
+  });
+
+  it('makes two groups for two guides, and one group for consecutive quotes of one guide', () => {
+    const result = verify(
+      ANSWER,
+      quoteLine(ID, STEP_QUOTE),
+      quoteLine(ID, GOOD_QUOTE),
+      quoteLine('secretary-guide', SECRETARY_QUOTE)
+    );
+    expect(result.ok && result.answerText).toBe(
+      `From the ${TITLE}:\n“${STEP_QUOTE}”\n“${GOOD_QUOTE}”\n\nFrom the Secretary Guide:\n“${SECRETARY_QUOTE}”`
+    );
+  });
+
+  it('never shows model prose before or between quotes', () => {
+    const result = verify(
+      'SUPPORT_ANSWER: Here is my own advice.',
+      'More of my own words.',
+      quoteLine(ID, STEP_QUOTE),
+      'Then do something invented.',
+      quoteLine(ID, GOOD_QUOTE)
+    );
+    expect(result.ok && result.answerText).toBe(
+      `From the ${TITLE}:\n“${STEP_QUOTE}”\n“${GOOD_QUOTE}”`
+    );
+  });
+
+  it('escalates as handoff when the prose contains SUPPORT_HANDOFF', () => {
+    expect(verify(ANSWER, 'SUPPORT_HANDOFF', quoteLine(ID, GOOD_QUOTE))).toEqual({
+      ok: false,
+      reason: 'handoff',
+    });
+    expect(verify('SUPPORT_ANSWER SUPPORT_HANDOFF', quoteLine(ID, GOOD_QUOTE))).toEqual({
+      ok: false,
+      reason: 'handoff',
+    });
+  });
+
+  it('rejects a fourth quote', () => {
+    const q = quoteLine(ID, GOOD_QUOTE);
+    expect(verify(ANSWER, q, q, q).ok).toBe(true);
+    expect(verify(ANSWER, q, q, q, q)).toEqual({ ok: false, reason: 'quote_rejected' });
+  });
+
+  it('rejects a quote over 120 tokens and accepts one of exactly 120', () => {
+    const guide = ASKQ_GUIDES.find(g => g.id === ID)!;
+    const words = tokenizeQuoteText(guide.content);
+    const run = (n: number) => words.slice(0, n).join(' ');
+    expect(verify(ANSWER, quoteLine(ID, run(121))).ok).toBe(false);
+    expect(verify(ANSWER, quoteLine(ID, run(120))).ok).toBe(true);
+  });
+
+  it('strips markdown from the displayed passage', () => {
+    const result = verify(
+      ANSWER,
+      quoteLine(ID, '1. Tap **Ringside** in the sidebar. If one show is `running` today, it opens.')
+    );
+    expect(result.ok && result.answerText).toBe(
+      `From the ${TITLE}:\n“Tap Ringside in the sidebar. If one show is running today, it opens.”`
+    );
+  });
+
+  it('accepts a terse answer and shows the quote only (Codex case a)', () => {
+    const result = verify(
+      'SUPPORT_ANSWER\nTap Ringside in the sidebar.',
+      quoteLine(ID, STEP_QUOTE)
+    );
+    expect(result.ok && result.answerText).toBe(`From the ${TITLE}:\n“${STEP_QUOTE}”`);
+  });
+
+  it('never shows an invented time-zone instruction (Codex case b)', () => {
+    const result = verify(
+      'SUPPORT_ANSWER\nChange the time zone in Basic Info.',
+      quoteLine('secretary-guide', SECRETARY_QUOTE)
+    );
+    expect(result.ok && result.answerText).toBe(`From the Secretary Guide:\n“${SECRETARY_QUOTE}”`);
+    expect(result.ok && result.answerText).not.toMatch(/time zone|Basic Info/i);
   });
 
   it('verifies a quote that keeps the markdown bold from the source', () => {
@@ -94,8 +181,7 @@ describe('normalizeQuoteText', () => {
 });
 
 describe('verifySupportAnswerQuotes tolerance', () => {
-  const ID = 'judge-steward-quickstart';
-  const STEP_QUOTE =
+  const TAP_QUOTE =
     'Tap Start when the dog begins. Tap Stop when the dog finishes or time is called.';
   const STEP_ANSWER =
     'SUPPORT_ANSWER\nTap Start when the dog begins, then tap Stop when time is called.';
@@ -114,10 +200,7 @@ describe('verifySupportAnswerQuotes tolerance', () => {
       'SUPPORT_ANSWER: Time each area, then tap the Record button for that area.',
       `- SUPPORT_QUOTE [${ID}] "${GOOD_QUOTE}"`
     );
-    expect(result).toMatchObject({
-      ok: true,
-      answerText: 'Time each area, then tap the Record button for that area.',
-    });
+    expect(result).toMatchObject({ ok: true, answerText: `From the ${TITLE}:\n“${GOOD_QUOTE}”` });
   });
 
   it('accepts a period or ").": after the closing quote, and CRLF', () => {
@@ -133,7 +216,7 @@ describe('verifySupportAnswerQuotes tolerance', () => {
       quoteLine(ID, '2. Tap Start when the dog begins. 3. Tap Stop when the dog finishes')
     );
     expect(result.ok).toBe(true);
-    expect(verify(STEP_ANSWER, quoteLine(ID, STEP_QUOTE)).ok).toBe(true);
+    expect(verify(STEP_ANSWER, quoteLine(ID, TAP_QUOTE)).ok).toBe(true);
   });
 
   it('accepts curly quotes, dashes and a .md id', () => {
@@ -163,17 +246,6 @@ describe('verifySupportAnswerQuotes tolerance', () => {
     expect(
       verify(ANSWER, quoteLine(ID, 'Tap Record Area 1 time (then Record Area 2 time, and so o')).ok
     ).toBe(false);
-  });
-
-  it('rejects an invented answer backed by an unrelated real guide sentence', () => {
-    const result = verify(
-      'SUPPORT_ANSWER\nOpen Settings, choose Billing, and upgrade your membership plan for free.',
-      quoteLine(
-        ID,
-        'Find the trial secretary at the show desk. They control access codes, the run order, and results.'
-      )
-    );
-    expect(result).toEqual({ ok: false, reason: 'quote_rejected' });
   });
 
   it('accepts a real answer that paraphrases its quote', () => {
@@ -211,5 +283,6 @@ describe('verifySupportAnswerQuotes tolerance', () => {
     );
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.answerText).not.toMatch(/SUPPORT_/);
+    if (result.ok) expect(result.answerText).not.toMatch(/Time each area/);
   });
 });

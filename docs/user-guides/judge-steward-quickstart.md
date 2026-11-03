@@ -132,7 +132,7 @@ Find the trial secretary at the show desk. They control access codes, the run or
 
 ## Screenshot Checklist
 
-Shots from `docs/training/screenshot-shot-list.md`. All captured 2026-06-25 against staging. Rechecked against the code 2026-10-28; "may be stale" means the caption no longer matches the current screen.
+Shots from `docs/training/screenshot-shot-list.md`. Captured 2026-06-25 against staging unless the Status cell gives a later date.
 
 | Shot ID                          | Section           | Description                    | Viewport | Status                          |
 | -------------------------------- | ----------------- | ------------------------------ | -------- | ------------------------------- |

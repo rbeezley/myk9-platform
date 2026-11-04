@@ -100,7 +100,8 @@ describe('AtShowSetupSheetPage', () => {
 
     expect(screen.getByTestId('setup-table-vehicles-containers')).toBeInTheDocument();
     expect(screen.getByTestId('setup-table-interior-exterior')).toBeInTheDocument();
-    expect(screen.queryByTestId('setup-table-handler-discrimination')).not.toBeInTheDocument();
+    const hd = screen.getByTestId('setup-table-handler-discrimination');
+    expect(within(hd).getByText('4 min; timing stops at Alert')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Print' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Classes' }));
     expect(screen.getByTestId('class-list')).toBeInTheDocument();

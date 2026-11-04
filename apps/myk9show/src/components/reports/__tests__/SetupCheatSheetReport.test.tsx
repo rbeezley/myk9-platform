@@ -14,6 +14,22 @@ function pageRules(html: string): string[] {
 }
 
 describe('UKCSetupCheatSheetReport', () => {
+  it('renders the Handler Discrimination page with its four levels after the two sides', () => {
+    render(<UKCSetupCheatSheetReport {...props} />);
+
+    const hd = screen.getByTestId('setup-table-handler-discrimination');
+    const headers = within(hd)
+      .getAllByRole('columnheader')
+      .map(h => h.textContent);
+    expect(headers.join('|')).toMatch(/Novice.*Advanced.*Excellent.*Master/);
+    expect(headers.join('|')).not.toMatch(/Superior|Elite/);
+    expect(within(hd).getByText('4 min; timing stops at Alert')).toBeInTheDocument();
+    const pages = [...document.querySelectorAll('[data-setup-page]')].map(el =>
+      el.getAttribute('data-setup-page')
+    );
+    expect(pages).toEqual(['vehicles-containers', 'interior-exterior', 'handler-discrimination']);
+  });
+
   it('renders the two landscape sides as tables with every level as a column', () => {
     render(<UKCSetupCheatSheetReport {...props} />);
 
@@ -38,7 +54,7 @@ describe('UKCSetupCheatSheetReport', () => {
     render(<UKCSetupCheatSheetReport {...props} />);
 
     const footers = screen.getAllByText(/UKC Official Nosework Rulebook/);
-    expect(footers).toHaveLength(2);
+    expect(footers).toHaveLength(3);
   });
 });
 

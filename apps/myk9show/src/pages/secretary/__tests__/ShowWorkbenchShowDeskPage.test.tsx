@@ -576,101 +576,100 @@ describe('ShowWorkbenchShowDeskPage', () => {
       expect(screen.queryByText('Trial secretary access only')).toBeNull();
     });
   });
-});
 
-// MYK9-1597: the header Actions trigger count is the sum of the row badges, on the rendered menu.
-describe('Show Desk Actions trigger and row badges', () => {
-  // Outside the page's describe, so its beforeEach does not run here: reset what these tests touch.
-  beforeEach(() => {
-    usePageEditTargetStore.setState({ showTools: null, showToolsOwner: null });
-    deskSignals.incidents = [];
-    deskSignals.tasks = [];
-  });
-
-  const incident = (id: string, severity: string) => ({
-    id,
-    severity,
-    occurred_at: '2026-05-19T14:30:00.000Z',
-  });
-
-  async function openMenu() {
-    getEntriesForShowMock.mockResolvedValue({ data: [], error: null });
-    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    render(
-      <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={['/shows/show-1/show-day']}>
-          <HeaderActions />
-          <Routes>
-            <Route path="/shows/:id/show-day" element={<ShowWorkbenchShowDeskPage />} />
-          </Routes>
-        </MemoryRouter>
-      </QueryClientProvider>
-    );
-    await screen.findByTestId('show-desk-panel');
-    await userEvent.click(await screen.findByTestId('header-actions-trigger'));
-    await screen.findByTestId('header-action-show-tool-tasks-notes');
-  }
-
-  const rowBadges = () =>
-    ['tasks-notes', 'incident-log'].map(id => {
-      const row = screen.getByTestId(`header-action-show-tool-${id}`);
-      return within(row).queryByTestId(`header-action-show-tool-${id}-badge`)?.textContent ?? null;
+  // MYK9-1597: the header Actions trigger count is the sum of the row badges, on the rendered menu.
+  describe('Show Desk Actions trigger and row badges', () => {
+    const incident = (id: string, severity: string) => ({
+      id,
+      severity,
+      occurred_at: '2026-05-19T14:30:00.000Z',
     });
 
-  it('marks the Tasks and notes row with the same count the trigger shows', async () => {
-    deskSignals.tasks = [{ id: 't1', status: 'todo' }];
-    await openMenu();
-    await waitFor(() =>
-      expect(screen.getByTestId('header-actions-badge')).toHaveTextContent('1 item needs attention')
-    );
-    expect(rowBadges()).toEqual(['1 open', null]);
-  });
+    async function openMenu() {
+      getEntriesForShowMock.mockResolvedValue({ data: [], error: null });
+      const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      render(
+        <QueryClientProvider client={queryClient}>
+          <MemoryRouter initialEntries={['/shows/show-1/show-day']}>
+            <HeaderActions />
+            <Routes>
+              <Route path="/shows/:id/show-day" element={<ShowWorkbenchShowDeskPage />} />
+            </Routes>
+          </MemoryRouter>
+        </QueryClientProvider>
+      );
+      await screen.findByTestId('show-desk-panel');
+      await userEvent.click(await screen.findByTestId('header-actions-trigger'));
+      await screen.findByTestId('header-action-show-tool-tasks-notes');
+    }
 
-  it('keeps the trigger count equal to the sum of the row badges across incidents and tasks', async () => {
-    deskSignals.incidents = [incident('i1', 'reportable'), incident('i2', 'reportable')];
-    deskSignals.tasks = [
-      { id: 't1', status: 'todo' },
-      { id: 't2', status: 'todo' },
-      { id: 't3', status: 'done' },
-    ];
-    await openMenu();
-    await waitFor(() =>
-      expect(screen.getByTestId('header-actions-badge')).toHaveTextContent('4 items need attention')
-    );
-    const [tasks, incidents] = rowBadges();
-    const sum = [tasks, incidents].reduce((n, text) => n + Number.parseInt(text ?? '0', 10), 0);
-    expect(tasks).toBe('2 open');
-    expect(incidents).toBe('2 reportable');
-    expect(sum).toBe(4);
-    expect(screen.getByTestId('header-actions-badge')).toHaveAttribute('data-tone', 'urgent');
-  });
+    const rowBadges = () =>
+      ['tasks-notes', 'incident-log'].map(id => {
+        const row = screen.getByTestId(`header-action-show-tool-${id}`);
+        return (
+          within(row).queryByTestId(`header-action-show-tool-${id}-badge`)?.textContent ?? null
+        );
+      });
 
-  it('draws the tasks badge calm and gives a lone open task a routine trigger', async () => {
-    deskSignals.tasks = [{ id: 't1', status: 'todo' }];
-    await openMenu();
-    await waitFor(() =>
-      expect(screen.getByTestId('header-actions-badge')).toHaveAttribute('data-tone', 'routine')
-    );
-    expect(screen.getByTestId('header-action-show-tool-tasks-notes-badge')).not.toHaveClass(
-      'bg-destructive'
-    );
-  });
+    it('marks the Tasks and notes row with the same count the trigger shows', async () => {
+      deskSignals.tasks = [{ id: 't1', status: 'todo' }];
+      await openMenu();
+      await waitFor(() =>
+        expect(screen.getByTestId('header-actions-badge')).toHaveTextContent(
+          '1 item needs attention'
+        )
+      );
+      expect(rowBadges()).toEqual(['1 open', null]);
+    });
 
-  it('puts no badge on the Tasks row when nothing is open, and none when tasks are unread', async () => {
-    deskSignals.tasks = [{ id: 't1', status: 'done' }];
-    await openMenu();
-    expect(rowBadges()).toEqual([null, null]);
-  });
+    it('keeps the trigger count equal to the sum of the row badges across incidents and tasks', async () => {
+      deskSignals.incidents = [incident('i1', 'reportable'), incident('i2', 'reportable')];
+      deskSignals.tasks = [
+        { id: 't1', status: 'todo' },
+        { id: 't2', status: 'todo' },
+        { id: 't3', status: 'done' },
+      ];
+      await openMenu();
+      await waitFor(() =>
+        expect(screen.getByTestId('header-actions-badge')).toHaveTextContent(
+          '4 items need attention'
+        )
+      );
+      const [tasks, incidents] = rowBadges();
+      const sum = [tasks, incidents].reduce((n, text) => n + Number.parseInt(text ?? '0', 10), 0);
+      expect(tasks).toBe('2 open');
+      expect(incidents).toBe('2 reportable');
+      expect(sum).toBe(4);
+      expect(screen.getByTestId('header-actions-badge')).toHaveAttribute('data-tone', 'urgent');
+    });
 
-  it('keeps the incomplete trigger and no task badge when the tasks read is unknown', async () => {
-    deskSignals.tasks = undefined;
-    deskSignals.incidents = [incident('i1', 'reportable')];
-    await openMenu();
-    await waitFor(() =>
-      expect(screen.getByTestId('header-actions-badge')).toHaveTextContent(
-        '1 item needs attention, and some could not be checked'
-      )
-    );
-    expect(rowBadges()).toEqual([null, '1 reportable']);
+    it('draws the tasks badge calm and gives a lone open task a routine trigger', async () => {
+      deskSignals.tasks = [{ id: 't1', status: 'todo' }];
+      await openMenu();
+      await waitFor(() =>
+        expect(screen.getByTestId('header-actions-badge')).toHaveAttribute('data-tone', 'routine')
+      );
+      expect(screen.getByTestId('header-action-show-tool-tasks-notes-badge')).not.toHaveClass(
+        'bg-destructive'
+      );
+    });
+
+    it('puts no badge on the Tasks row when nothing is open, and none when tasks are unread', async () => {
+      deskSignals.tasks = [{ id: 't1', status: 'done' }];
+      await openMenu();
+      expect(rowBadges()).toEqual([null, null]);
+    });
+
+    it('keeps the incomplete trigger and no task badge when the tasks read is unknown', async () => {
+      deskSignals.tasks = undefined;
+      deskSignals.incidents = [incident('i1', 'reportable')];
+      await openMenu();
+      await waitFor(() =>
+        expect(screen.getByTestId('header-actions-badge')).toHaveTextContent(
+          '1 item needs attention, and some could not be checked'
+        )
+      );
+      expect(rowBadges()).toEqual([null, '1 reportable']);
+    });
   });
 });

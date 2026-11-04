@@ -101,7 +101,7 @@ export function DogBulkStatusMenu({ dogName, entries, onStatusChange }: DogBulkS
       </DropdownMenu>
 
       <AlertDialog open={dialog === 'pull'} onOpenChange={open => !open && close()}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-h-[90dvh] overflow-y-auto">
           <AlertDialogHeader>
             <AlertDialogTitle>
               Pull {dogName} from {pull.eligible.length}{' '}

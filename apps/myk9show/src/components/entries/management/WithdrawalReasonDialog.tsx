@@ -61,7 +61,7 @@ export const WithdrawalReasonDialog: React.FC<WithdrawalReasonDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-sm">
+      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>

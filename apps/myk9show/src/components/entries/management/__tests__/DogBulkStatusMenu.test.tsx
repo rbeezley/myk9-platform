@@ -21,8 +21,8 @@ vi.mock('@/lib/supabase', async importOriginal => {
 vi.mock('sonner', () => ({
   toast: { success: toastSuccess, error: toastError, info: vi.fn() },
 }));
-vi.mock('@/features/payments/useWithdrawalRefundSuggestion', () => ({
-  useWithdrawalRefundSuggestion: () => ({
+vi.mock('@/features/payments/useWithdrawalRefundPreview', () => ({
+  useWithdrawalRefundPreview: () => ({
     data: {
       hasPolicy: true,
       refundCents: 2500,

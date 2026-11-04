@@ -1,4 +1,4 @@
-import { useWithdrawalRefundSuggestion } from '@/features/payments/useWithdrawalRefundSuggestion';
+import { useWithdrawalRefundPreview } from '@/features/payments/useWithdrawalRefundPreview';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { describeEntryRun, type DogBulkEligibility } from './dogBulkStatusEligibility';
 import { isStripeRefundable } from './refundEligibility';
@@ -9,7 +9,7 @@ const dollars = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 function SuggestedRefund({ entry }: { entry: EntryManagementEntry }) {
   const feeCents = Math.round((entry.totalFee ?? 0) * 100);
   const refundable = isStripeRefundable(entry);
-  const { data, isLoading } = useWithdrawalRefundSuggestion(entry.id, feeCents, refundable);
+  const { data, isLoading } = useWithdrawalRefundPreview(entry.id, feeCents, refundable);
   if (!refundable) {
     return <span className="text-muted-foreground">No online payment to refund</span>;
   }
@@ -30,7 +30,7 @@ export function ExcludedEntries({ excluded }: Pick<DogBulkEligibility, 'excluded
   return (
     <div className="text-sm">
       <p className="font-medium">Left as they are</p>
-      <ul className="list-disc pl-5 text-muted-foreground">
+      <ul className="max-h-32 list-disc overflow-y-auto pl-5 text-muted-foreground">
         {excluded.map(({ entry, label, reason }) => (
           <li key={entry.id}>
             {label} ({reason})
@@ -56,7 +56,7 @@ export function WithdrawPreview({
         Withdraw {dogName} from {count} {count === 1 ? 'entry' : 'entries'}. No refund is issued
         here; refunds are approved per entry afterwards.
       </p>
-      <ul className="space-y-1 text-sm">
+      <ul className="max-h-[40dvh] space-y-1 overflow-y-auto text-sm">
         {eligibility.eligible.map(entry => (
           <li key={entry.id} className="flex flex-col">
             <span className="font-medium">{describeEntryRun(entry)}</span>

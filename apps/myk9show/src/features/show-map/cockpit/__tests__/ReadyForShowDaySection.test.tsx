@@ -59,6 +59,7 @@ function renderSection(
       now={new Date(now)}
       entryBreakdownByClassId={new Map([['c1', { entered: 4, pending: 0 }]])}
       paperwork={paperwork}
+      printTrackingInUse
       {...overrides}
     />
   );

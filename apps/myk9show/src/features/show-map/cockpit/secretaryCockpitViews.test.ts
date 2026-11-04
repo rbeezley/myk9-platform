@@ -47,6 +47,8 @@ function makeSnapshot(): SecretaryCockpitSnapshot {
     timeZone: 'America/Chicago',
     registryId: 'AKC',
     now: NOW,
+    printTrackingInUse: true,
+    checklistInUse: true,
     trials: [{ id: 'trial-1', date: '2026-07-20', name: 'Trial 1', number: 'Trial 1', order: 0 }],
     classes: [
       makeClass({

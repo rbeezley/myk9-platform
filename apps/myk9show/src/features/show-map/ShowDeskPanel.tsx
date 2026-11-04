@@ -91,7 +91,11 @@ export default function ShowDeskPanel({
   );
   // One class projection for paperwork fingerprints, shared with Reports -- never the camelCase
   // tree rows, which lack the facts a fingerprint includes (time limit, area count).
-  const { byClassId: paperworkByClassId, available: paperworkAvailable } = useShowClassPaperwork({
+  const {
+    byClassId: paperworkByClassId,
+    available: paperworkAvailable,
+    hasPrintRecords,
+  } = useShowClassPaperwork({
     showId: show.id,
     trials: trialRefs,
     classes,
@@ -109,10 +113,14 @@ export default function ShowDeskPanel({
         returnTo,
         now: effectiveScopeNow,
         paperworkByClassId,
+        paperworkAvailable,
+        hasPrintRecords,
       }),
     [
       classes,
       effectiveScopeNow,
+      hasPrintRecords,
+      paperworkAvailable,
       paperworkByClassId,
       pendingSignals,
       returnTo,
@@ -186,6 +194,7 @@ export default function ShowDeskPanel({
           now={effectiveScopeNow}
           entryBreakdownByClassId={entryBreakdownByClassId}
           paperwork={{ byClassId: paperworkByClassId, available: paperworkAvailable }}
+          printTrackingInUse={snapshot.printTrackingInUse}
         />
       )}
       <SecretaryCockpit

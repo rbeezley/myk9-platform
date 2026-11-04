@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { ArrowRight, CheckCircle2, CircleHelp, Clock3, Printer, RefreshCw } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -30,7 +30,14 @@ function StateIcon({ state }: { state: ClassChecklistState }) {
   return <Clock3 className="h-4 w-4 text-muted-foreground" aria-hidden="true" />;
 }
 
-function ChecklistStepRow({ item }: { item: ClassChecklistItem }) {
+function ChecklistStepRow({
+  item,
+  quiet,
+}: {
+  item: ClassChecklistItem;
+  /** Never used: "Not done" is dropped, because nothing here was ever chosen. */
+  quiet: boolean;
+}) {
   return (
     <div
       className={cn(
@@ -42,8 +49,53 @@ function ChecklistStepRow({ item }: { item: ClassChecklistItem }) {
         <StateIcon state={item.state} />
         {item.label}
       </div>
-      <span className="text-xs text-muted-foreground">{item.detail ?? STATE_TEXT[item.state]}</span>
+      {!(quiet && item.state === 'todo' && !item.detail) && (
+        <span className="text-xs text-muted-foreground">
+          {item.detail ?? STATE_TEXT[item.state]}
+        </span>
+      )}
     </div>
+  );
+}
+
+const HEADING_CLASS = 'text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground';
+
+/**
+ * The checklist's heading and count. Until the show uses the checklist (MYK9-1620) it sits
+ * collapsed under a quiet "Class checklist" disclosure with no "0 of 7 done"; reachable, not nagging.
+ */
+function ChecklistFrame({
+  summary,
+  collapsed,
+  children,
+}: {
+  summary: ReturnType<typeof summarizeClassChecklist>;
+  collapsed: boolean;
+  children: ReactNode;
+}) {
+  if (collapsed) {
+    return (
+      <details className="group" data-testid="class-checklist-disclosure">
+        <summary className={cn(HEADING_CLASS, 'flex min-h-11 cursor-pointer items-center')}>
+          Class checklist
+        </summary>
+        {children}
+      </details>
+    );
+  }
+  return (
+    <section aria-labelledby="class-checklist-heading">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h3 id="class-checklist-heading" className={HEADING_CLASS}>
+          Class checklist
+        </h3>
+        <span className="text-xs font-medium text-muted-foreground">
+          {summary.done} of {summary.total} done
+          {summary.unknown > 0 ? ` · ${summary.unknown} unknown` : ''}
+        </span>
+      </div>
+      {children}
+    </section>
   );
 }
 
@@ -55,12 +107,18 @@ export function ClassChecklistSection({
   paperwork,
   timeZone,
   onCommand,
+  printTrackingInUse,
+  checklistInUse,
 }: {
   showId: string;
   sourceClass: SecretaryCockpitClass;
   paperwork: readonly SecretaryCockpitPaperwork[];
   timeZone: string;
   onCommand: (commandId: string) => void;
+  /** From the cockpit snapshot (MYK9-1620). False drops "Not confirmed printed" on the rows. */
+  printTrackingInUse: boolean;
+  /** From the cockpit snapshot (MYK9-1620). False collapses the checklist and drops its counts. */
+  checklistInUse: boolean;
 }) {
   // MYK9-1319: the after-scoring items are status only; a complete class has ONE handoff to Results.
   const resultsHref = getCockpitResultsControlHref({
@@ -144,6 +202,7 @@ export function ClassChecklistSection({
                 item={item}
                 timeZone={timeZone}
                 onCommand={onCommand}
+                printTrackingInUse={printTrackingInUse}
                 {...rowProps(item)}
               />
             ))}
@@ -151,19 +210,7 @@ export function ClassChecklistSection({
         </section>
       )}
       {items.length > 0 && (
-        <section aria-labelledby="class-checklist-heading">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h3
-              id="class-checklist-heading"
-              className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground"
-            >
-              Class checklist
-            </h3>
-            <span className="text-xs font-medium text-muted-foreground">
-              {summary.done} of {summary.total} done
-              {summary.unknown > 0 ? ` · ${summary.unknown} unknown` : ''}
-            </span>
-          </div>
+        <ChecklistFrame summary={summary} collapsed={!checklistInUse}>
           <ol className="mt-2 space-y-2">
             {items.map(item => (
               <li key={item.id}>
@@ -172,26 +219,28 @@ export function ClassChecklistSection({
                     item={{ ...item.paperwork, label: item.label }}
                     timeZone={timeZone}
                     onCommand={onCommand}
+                    printTrackingInUse={printTrackingInUse}
                     {...rowProps(item.paperwork)}
                   />
                 ) : (
-                  <ChecklistStepRow item={item} />
+                  <ChecklistStepRow item={item} quiet={!checklistInUse} />
                 )}
               </li>
             ))}
           </ol>
-          {/* INTENT: starting and scoring end on Overview; check, release, print and initials
-              happen on Results. This is the one handoff between them, offered once the class is
-              complete (MYK9-1319). */}
-          {sourceClass.lifecycle === 'complete' && (
-            <Button asChild variant="outline" className="mt-2 min-h-11 gap-2">
-              <Link to={resultsHref}>
-                Continue on Results
-                <ArrowRight className="h-4 w-4" aria-hidden="true" />
-              </Link>
-            </Button>
-          )}
-        </section>
+        </ChecklistFrame>
+      )}
+      {/* INTENT: starting and scoring end on Overview; check, release, print and initials
+          happen on Results. This is the one handoff between them, offered once the class is
+          complete (MYK9-1319). It stays outside the checklist disclosure: a class that never
+          printed still has this handoff (MYK9-1620). */}
+      {items.length > 0 && sourceClass.lifecycle === 'complete' && (
+        <Button asChild variant="outline" className="mt-2 min-h-11 gap-2">
+          <Link to={resultsHref}>
+            Continue on Results
+            <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </Link>
+        </Button>
       )}
       <ClassPrintPanel
         open={printIds !== null && panelItems.length > 0}

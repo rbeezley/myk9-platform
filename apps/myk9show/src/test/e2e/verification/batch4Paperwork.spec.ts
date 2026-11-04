@@ -58,13 +58,26 @@ for (const width of [375, 1280]) {
     const page = secretary.page;
     await page.setViewportSize({ width, height: 900 });
     await page.reload();
-    await expect(
-      page.getByRole('checkbox', { name: 'Select Check-in sheet to print', exact: true })
-    ).toBeVisible();
-    await page
-      .getByRole('checkbox', { name: 'Select Check-in sheet to print', exact: true })
-      .check();
-    await page.getByRole('checkbox', { name: 'Select Score sheets to print', exact: true }).check();
+    // The checklist is expanded while the print read is unavailable, then collapses once it
+    // settles with no records (MYK9-1620), so a disclosure opened early can close again. Tick
+    // both sheets in one retried step that re-opens it whenever it is there and closed; the
+    // ticks live in section state and survive the collapse.
+    const checklist = page.getByTestId('class-checklist-disclosure');
+    const sheet = (name: string) =>
+      page.getByRole('checkbox', { name: `Select ${name} to print`, exact: true });
+    await expect(async () => {
+      if (
+        (await checklist.count()) > 0 &&
+        !(await checklist.evaluate(el => (el as HTMLDetailsElement).open))
+      ) {
+        await checklist.getByText('Class checklist', { exact: true }).click({ timeout: 2_000 });
+      }
+      await sheet('Check-in sheet').check({ timeout: 3_000 });
+      await sheet('Score sheets').check({ timeout: 3_000 });
+      await expect(
+        page.getByRole('button', { name: 'Print selected (2)', exact: true })
+      ).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 45_000 });
     await page.getByRole('button', { name: 'Print selected (2)', exact: true }).click();
     await expect(
       page.getByRole('heading', { name: 'Print selected sheets', exact: true })

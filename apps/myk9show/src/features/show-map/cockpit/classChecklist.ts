@@ -55,6 +55,11 @@ const SIGNED: ReadonlySet<string> = new Set([
   SHOW_MAP_WRAP_UP_STATUS.SUBMITTED_TO_REGISTRY,
 ]);
 
+/** A judge sign-off is recorded: the one checklist item a person ticks that is not a print. */
+export function isJudgeSignedOff(wrapUpStatus: string | null | undefined): boolean {
+  return Boolean(wrapUpStatus && SIGNED.has(wrapUpStatus));
+}
+
 // `entriesKnown` is false when Show Day could not read the entries (it nulls both counts). The
 // tree then sees zero entries: no paperwork rows exist, and a Complete class classifies as
 // "ready for wrap-up". Neither is a fact about the class, so both read as unknown.

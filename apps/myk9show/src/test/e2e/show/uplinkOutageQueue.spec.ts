@@ -317,10 +317,11 @@ async function expectTrial3Judge(page: Page, text: string) {
   await page.reload();
   await page.getByRole('button', { name: /^Expand Trial 3/ }).click({ timeout: 30_000 });
   for (const cls of TRIAL_3_CLASS_NAMES) {
-    // The nearest ancestor holding the whole row (its "N of 7 steps done" line too).
+    // The class's text column: name button plus the "area · judge" line. (The "N of 7 steps done"
+    // strip is hidden until the show uses the checklist, MYK9-1620, so it cannot anchor this.)
     const row = page
       .getByRole('button', { name: cls, exact: true })
-      .locator('xpath=ancestor::*[contains(normalize-space(.), "steps done")][1]');
+      .locator('xpath=ancestor::div[contains(@class, "min-w-0")][1]');
     await expect(row).toContainText(text, { timeout: 15_000 });
   }
 }

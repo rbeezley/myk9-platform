@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { buildSecretaryCockpitSnapshot } from './buildSecretaryCockpitSnapshot';
-import type { ShowMapTree } from '../showMapTypes';
+import { SHOW_MAP_WRAP_UP_STATUS, type ShowMapTree } from '../showMapTypes';
+import type { SecretaryCockpitPaperwork } from './secretaryCockpitTypes';
 
 const tree: ShowMapTree = {
   root: { id: 'show:show-1', type: 'show', label: 'Show', childrenCount: 1 },
@@ -197,5 +198,92 @@ describe('buildSecretaryCockpitSnapshot', () => {
         .filter(action => action.operatorOnly === true)
         .map(action => action.label)
     ).toEqual(['Enter results from scoresheet']);
+  });
+  describe('usage flags (MYK9-1620)', () => {
+    const build = (input: {
+      paperwork?: Map<string, SecretaryCockpitPaperwork[]>;
+      paperworkAvailable?: boolean;
+      hasPrintRecords?: boolean;
+      judgeSignedOffAt?: string;
+      wrapUpStatus?: string;
+    }) =>
+      buildSecretaryCockpitSnapshot({
+        showId: 'show-1',
+        trials: [],
+        classes: [
+          {
+            id: 'class-1',
+            trialId: 'trial-1',
+            name: 'Container Novice',
+            ...(input.judgeSignedOffAt ? { judgeSignedOffAt: input.judgeSignedOffAt } : {}),
+          },
+        ],
+        tree: input.wrapUpStatus
+          ? {
+              ...tree,
+              nodesById: {
+                ...tree.nodesById,
+                'class:class-1': {
+                  ...tree.nodesById['class:class-1']!,
+                  wrapUpStatus: { value: input.wrapUpStatus, label: 'x', kind: 'complete' },
+                },
+              },
+            }
+          : tree,
+        pendingSignals: [],
+        returnTo: '/shows/show-1',
+        now: new Date('2026-07-20T15:10:00.000Z'),
+        ...(input.paperwork ? { paperworkByClassId: input.paperwork } : {}),
+        ...(input.hasPrintRecords === undefined ? {} : { hasPrintRecords: input.hasPrintRecords }),
+        ...(input.paperworkAvailable === undefined
+          ? {}
+          : { paperworkAvailable: input.paperworkAvailable }),
+      });
+    const row = (extra: Partial<SecretaryCockpitPaperwork>): SecretaryCockpitPaperwork => ({
+      reportId: 'check-in-sheet',
+      label: 'Check-in sheet',
+      state: 'unconfirmed',
+      ...extra,
+    });
+
+    it('marks both unused when no sheet was printed and nothing was signed', () => {
+      const snapshot = build({ paperwork: new Map([['class-1', [row({})]]]) });
+      expect(snapshot).toMatchObject({ printTrackingInUse: false, checklistInUse: false });
+    });
+
+    it('marks both in use once any sheet has a print record', () => {
+      const snapshot = build({
+        paperwork: new Map([
+          ['class-1', [row({})]],
+          ['class-2', [row({ state: 'current', printedAt: '2026-07-20T14:00:00Z' })]],
+        ]),
+      });
+      expect(snapshot).toMatchObject({ printTrackingInUse: true, checklistInUse: true });
+    });
+
+    it('treats unreadable print records as in use', () => {
+      const snapshot = build({ paperwork: new Map(), paperworkAvailable: false });
+      expect(snapshot).toMatchObject({ printTrackingInUse: true, checklistInUse: true });
+    });
+
+    it('counts a raw print record the per-class map leaves out (emergency packet, entryless class)', () => {
+      const snapshot = build({ paperwork: new Map([['class-1', []]]), hasPrintRecords: true });
+      expect(snapshot).toMatchObject({ printTrackingInUse: true, checklistInUse: true });
+    });
+
+    it('counts a stored judge sign-off even when the derived wrap-up status is absent', () => {
+      const snapshot = build({ judgeSignedOffAt: '2026-07-20T20:00:00Z' });
+      expect(snapshot).toMatchObject({ printTrackingInUse: false, checklistInUse: true });
+    });
+
+    it('counts a recorded judge sign-off for the checklist only', () => {
+      const snapshot = build({ wrapUpStatus: SHOW_MAP_WRAP_UP_STATUS.SIGNED_BY_JUDGE });
+      expect(snapshot).toMatchObject({ printTrackingInUse: false, checklistInUse: true });
+    });
+
+    it('does not count an auto-derived scoring-complete state', () => {
+      const snapshot = build({ wrapUpStatus: SHOW_MAP_WRAP_UP_STATUS.CLASS_READY_FOR_WRAP_UP });
+      expect(snapshot).toMatchObject({ printTrackingInUse: false, checklistInUse: false });
+    });
   });
 });

@@ -162,6 +162,13 @@ export interface SecretaryCockpitSnapshot {
   /** The show's sanctioning registry (MYK9-825) — drives level-progression order on the schedule. */
   registryId: RegistryId;
   now: Date;
+  /**
+   * Any sheet on the show was printed from the app or recorded as printed (MYK9-1620), or the
+   * print records could not be read. False hides "Not confirmed printed" and "Prepare" chips.
+   */
+  printTrackingInUse: boolean;
+  /** `printTrackingInUse` or a judge sign-off is recorded. False hides the checklist strip. */
+  checklistInUse: boolean;
   trials: readonly SecretaryCockpitTrial[];
   classes: readonly SecretaryCockpitClass[];
   administrativeAttention?: readonly SecretaryCockpitAttention[];
@@ -212,6 +219,10 @@ export interface TrialScheduleGroupModel {
 }
 
 export interface FocusedClassModel extends ScheduledClassModel {
+  /** From the snapshot (MYK9-1620): false hides "Not confirmed printed" on paperwork rows. */
+  printTrackingInUse: boolean;
+  /** From the snapshot (MYK9-1620): false collapses the checklist under a quiet disclosure. */
+  checklistInUse: boolean;
   entryRows: readonly SecretaryCockpitEntryRow[];
   actualStart: EvidenceValue<string>;
   actualFinish: EvidenceValue<string>;

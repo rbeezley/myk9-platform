@@ -43,6 +43,8 @@ describe('ClassChecklistSection after-scoring items (MYK9-1032)', () => {
         paperwork={paperwork}
         timeZone="America/New_York"
         onCommand={vi.fn()}
+        printTrackingInUse
+        checklistInUse
       />
     );
 
@@ -90,6 +92,8 @@ describe('ClassChecklistSection after-scoring items (MYK9-1032)', () => {
         paperwork={paperwork}
         timeZone="America/New_York"
         onCommand={vi.fn()}
+        printTrackingInUse
+        checklistInUse
       />
     );
     // Print opens beside the page (no link to Reports), and only these two sheets can be ticked.
@@ -127,6 +131,8 @@ describe('ClassChecklistSection batch print', () => {
         paperwork={[sheet('check-in-sheet', 'Check-in sheet'), sheet('scoresheet', 'Score sheets')]}
         timeZone="America/New_York"
         onCommand={vi.fn()}
+        printTrackingInUse
+        checklistInUse
       />
     );
     expect(screen.queryByRole('button', { name: /Print selected/ })).not.toBeInTheDocument();
@@ -165,6 +171,8 @@ describe('ClassChecklistSection batch print', () => {
         paperwork={paperwork}
         timeZone="America/New_York"
         onCommand={vi.fn()}
+        printTrackingInUse
+        checklistInUse
       />
     );
     // Desktop keeps this section mounted while the focused class changes.
@@ -205,6 +213,8 @@ describe('ClassChecklistSection batch print without checklist items', () => {
         ]}
         timeZone="America/New_York"
         onCommand={vi.fn()}
+        printTrackingInUse
+        checklistInUse
       />
     );
     expect(screen.queryByRole('region', { name: 'Class checklist' })).not.toBeInTheDocument();

@@ -22,6 +22,7 @@ export function CockpitPaperworkRow({
   onPrint,
   selected,
   onSelectedChange,
+  printTrackingInUse = true,
 }: {
   item: SecretaryCockpitPaperwork;
   timeZone: string;
@@ -35,6 +36,11 @@ export function CockpitPaperworkRow({
   /** With `onSelectedChange`, shows a checkbox so several sheets print together. */
   selected?: boolean;
   onSelectedChange?: (selected: boolean) => void;
+  /**
+   * False until the show has printed or recorded a sheet (MYK9-1620): the row then drops the
+   * "Not confirmed printed" line and keeps its Print button. Defaults to true (Results).
+   */
+  printTrackingInUse?: boolean;
 }) {
   const { user } = useAuthContext();
   const [isRecording, setIsRecording] = useState(false);
@@ -53,6 +59,8 @@ export function CockpitPaperworkRow({
       : printStateUnknown
         ? 'Print anyway'
         : 'Print';
+  const showStatusLine =
+    printTrackingInUse || item.state !== 'unconfirmed' || Boolean(item.printedAt);
   const canUndo = Boolean(user && item.recordId && item.coveredByScope === 'class');
   const recordAsPrinted = async () => {
     if (!user || !item.confirmation) return;
@@ -105,34 +113,36 @@ export function CockpitPaperworkRow({
             )}
             {item.label}
           </div>
-          <div className="mt-1 text-xs text-muted-foreground">
-            {item.printedAt
-              ? `${stale ? 'Stale · ' : ''}Printed ${formatTime(item.printedAt, timeZone)}${item.printedBy ? ` by ${item.printedBy}` : ''}${item.coveredByScope === 'trial' || item.coveredByScope === 'show' ? ` · Printed with the whole ${item.coveredByScope}` : ''}`
-              : printStateUnknown
-                ? 'Print history unavailable'
-                : 'Not confirmed printed'}
-            {stale ? ' · Class data changed after printing' : ''}
-            {canUndo && (
-              <>
-                {' · '}
-                <button
-                  type="button"
-                  className="inline-flex min-h-11 items-center font-medium text-primary underline-offset-4 hover:underline"
-                  aria-label={`Mark ${item.label} not printed`}
-                  onClick={() =>
-                    void voidPaperworkPrint({
-                      recordId: item.recordId!,
-                      user: user!,
-                      reason: 'Marked not printed from the Overview',
-                      failureMessage: 'Could not mark that not printed.',
-                    })
-                  }
-                >
-                  Undo
-                </button>
-              </>
-            )}
-          </div>
+          {showStatusLine && (
+            <div className="mt-1 text-xs text-muted-foreground">
+              {item.printedAt
+                ? `${stale ? 'Stale · ' : ''}Printed ${formatTime(item.printedAt, timeZone)}${item.printedBy ? ` by ${item.printedBy}` : ''}${item.coveredByScope === 'trial' || item.coveredByScope === 'show' ? ` · Printed with the whole ${item.coveredByScope}` : ''}`
+                : printStateUnknown
+                  ? 'Print history unavailable'
+                  : 'Not confirmed printed'}
+              {stale ? ' · Class data changed after printing' : ''}
+              {canUndo && (
+                <>
+                  {' · '}
+                  <button
+                    type="button"
+                    className="inline-flex min-h-11 items-center font-medium text-primary underline-offset-4 hover:underline"
+                    aria-label={`Mark ${item.label} not printed`}
+                    onClick={() =>
+                      void voidPaperworkPrint({
+                        recordId: item.recordId!,
+                        user: user!,
+                        reason: 'Marked not printed from the Overview',
+                        failureMessage: 'Could not mark that not printed.',
+                      })
+                    }
+                  >
+                    Undo
+                  </button>
+                </>
+              )}
+            </div>
+          )}
         </div>
         {item.printHref && onPrint && (
           <Button

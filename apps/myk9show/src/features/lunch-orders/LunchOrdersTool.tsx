@@ -1,4 +1,6 @@
 import { formatTrialLabel } from '@myk9/core';
+import { useCallback, useState } from 'react';
+import { useShowDeskCloseGuard } from '@/features/show-map/showDeskCloseGuard';
 import { formatEntryDate } from '@/lib/format/dates';
 import { LunchOrdersDay } from './LunchOrdersDay';
 import { useVolunteersOnDays } from './useLunchOrders';
@@ -20,6 +22,18 @@ interface LunchOrdersToolProps {
  * it carries no reminders and contributes nothing to the Actions badge (MYK9-1694).
  */
 export function LunchOrdersTool({ showId, trials }: LunchOrdersToolProps) {
+  const [dirtyDays, setDirtyDays] = useState<ReadonlySet<string>>(new Set());
+  const markDay = useCallback((trialId: string, dirty: boolean) => {
+    setDirtyDays(current => {
+      if (current.has(trialId) === dirty) return current;
+      const next = new Set(current);
+      if (dirty) next.add(trialId);
+      else next.delete(trialId);
+      return next;
+    });
+  }, []);
+  // Closing the Show Desk panel with unsaved rows asks first.
+  useShowDeskCloseGuard(dirtyDays.size > 0);
   const volunteers = useVolunteersOnDays(
     showId,
     trials.map(trial => trial.id)
@@ -51,7 +65,12 @@ export function LunchOrdersTool({ showId, trials }: LunchOrdersToolProps) {
                 </span>
               ) : null}
             </h4>
-            <LunchOrdersDay showId={showId} trialId={trial.id} volunteers={volunteers} />
+            <LunchOrdersDay
+              showId={showId}
+              trialId={trial.id}
+              volunteers={volunteers}
+              onDirtyChange={markDay}
+            />
           </div>
         ))
       )}

@@ -8,9 +8,8 @@
 -- Authorization mirrors trial_judge_supplies (20260703124000): can_manage_trial() or site
 -- admin, for every command. No exhibitor or anon surface reads this table.
 --
--- Redefines hard_delete_show from 20261031163800 (MYK9-1601) plus the trial_lunch_orders
--- manifest row. PR #3600 (MYK9-1588) also redefines it: whichever merges second must carry
--- both changes. The new trial_id edge is 'disposable' (planning data, not participant, money
+-- Redefines hard_delete_show from 20261104171900 (MYK9-1588) plus the trial_lunch_orders
+-- manifest row. The new trial_id edge is 'disposable' (planning data, not participant, money
 -- or audit evidence).
 
 CREATE TABLE public.trial_lunch_orders (
@@ -179,6 +178,8 @@ BEGIN
     RAISE EXCEPTION 'Permission denied: only site administrators can permanently delete shows'
       USING ERRCODE = '42501';
   END IF;
+
+  PERFORM public.require_recent_reauth();
 
   PERFORM pg_catalog.set_config('lock_timeout', '2s', true);
 

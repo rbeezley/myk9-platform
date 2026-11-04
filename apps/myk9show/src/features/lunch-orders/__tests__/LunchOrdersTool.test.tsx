@@ -74,12 +74,15 @@ describe('LunchOrdersTool', () => {
     expect(saveMock).not.toHaveBeenCalled();
   });
 
-  it('saves the typed lunch order for a person on blur, as one row for that day', async () => {
+  it('saves a typed lunch order for a person only when Save is pressed, as one row for that day', async () => {
     const user = userEvent.setup();
     render(<LunchOrdersTool showId="show-1" trials={[{ id: 'trial-1', name: 'Saturday' }]} />);
 
     await user.type(await screen.findByLabelText('Lunch order for Jo Judge'), 'Wrap');
     await user.tab();
+    expect(saveMock).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Save lunch order for Jo Judge' }));
 
     await waitFor(() =>
       expect(saveMock).toHaveBeenCalledWith({
@@ -89,6 +92,7 @@ describe('LunchOrdersTool', () => {
         name: 'Jo Judge',
         role: 'judge',
         lunchOrder: 'Wrap',
+        dietaryNote: '',
       })
     );
   });

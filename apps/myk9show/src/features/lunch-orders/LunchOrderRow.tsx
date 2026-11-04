@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useLunchRowSave } from './useLunchOrders';
@@ -6,90 +6,63 @@ import { LUNCH_TEXT_MAX, lunchRoleLabel, type LunchListItem } from './lunchOrder
 
 type RemoveState = 'idle' | 'removing' | 'error';
 
-export interface LunchOrderPatch {
-  lunchOrder?: string | undefined;
-  dietaryNote?: string | undefined;
-}
-
 interface LunchOrderRowProps {
   item: LunchListItem;
   trialId: string;
+  /** Told whether this row holds typed text that is not saved yet. */
+  onDirtyChange: (rowKey: string, dirty: boolean) => void;
   onRemove?: ((item: LunchListItem) => Promise<void>) | undefined;
 }
 
 /**
- * One person's lunch order and dietary note.
- *
- * - Every blur, and the row unmounting (closing the Show Desk panel never fires a blur), hands the
- *   fields that differ from the baseline to the row's save queue (useLunchRowSave). Nothing is
- *   skipped: the queue runs them in order, even after this row is gone.
- * - A field the person has not touched follows newer values from the server (another device's
- *   edit); a field they are typing in is never overwritten.
+ * One person's lunch order and dietary note, saved with an explicit Save button.
+ * Newer server values replace the fields only while the row is not dirty, so a refetch never
+ * clobbers text being typed.
  */
-export function LunchOrderRow({ item, trialId, onRemove }: LunchOrderRowProps) {
-  const { save, pending } = useLunchRowSave(trialId, item.key);
+export function LunchOrderRow({ item, trialId, onDirtyChange, onRemove }: LunchOrderRowProps) {
+  const save = useLunchRowSave(trialId);
   const [lunchOrder, setLunchOrder] = useState(item.lunchOrder);
   const [dietaryNote, setDietaryNote] = useState(item.dietaryNote);
-  // What the database holds (or is about to hold) as far as this row knows; "dirty" means
-  // differing from it.
+  // What the database holds as far as this row knows; dirty means differing from it.
   const [baseLunch, setBaseLunch] = useState(item.lunchOrder);
   const [baseDietary, setBaseDietary] = useState(item.dietaryNote);
-  // The last values the parent passed down, to notice a background refetch.
+  // The last server values passed down, to notice a refetch that changed them.
   const [seenLunch, setSeenLunch] = useState(item.lunchOrder);
   const [seenDietary, setSeenDietary] = useState(item.dietaryNote);
   const [removeState, setRemoveState] = useState<RemoveState>('idle');
 
-  if (item.lunchOrder !== seenLunch) {
+  const dirty = lunchOrder !== baseLunch || dietaryNote !== baseDietary;
+
+  // A refetch brought different server values: adopt them only when nothing typed is at stake.
+  if (item.lunchOrder !== seenLunch || item.dietaryNote !== seenDietary) {
     setSeenLunch(item.lunchOrder);
-    if (lunchOrder === baseLunch) setLunchOrder(item.lunchOrder);
-    setBaseLunch(item.lunchOrder);
-  }
-  if (item.dietaryNote !== seenDietary) {
     setSeenDietary(item.dietaryNote);
-    if (dietaryNote === baseDietary) setDietaryNote(item.dietaryNote);
+    if (!dirty) {
+      setLunchOrder(item.lunchOrder);
+      setDietaryNote(item.dietaryNote);
+    }
+    // Dirty means "differs from what is saved", so the baseline always follows the server.
+    setBaseLunch(item.lunchOrder);
     setBaseDietary(item.dietaryNote);
   }
 
-  function dirtyPatch(): LunchOrderPatch {
-    const patch: LunchOrderPatch = {};
-    if (lunchOrder !== baseLunch) patch.lunchOrder = lunchOrder;
-    if (dietaryNote !== baseDietary) patch.dietaryNote = dietaryNote;
-    return patch;
-  }
+  useEffect(() => {
+    onDirtyChange(item.key, dirty);
+    return () => onDirtyChange(item.key, false);
+  }, [dirty, item.key, onDirtyChange]);
 
-  function flush() {
-    const patch = dirtyPatch();
-    if (Object.keys(patch).length === 0) return;
-    // Treated as saved right away so a second blur sends only what changed since; a failure
-    // makes those fields dirty again so Try again resends them.
-    if (patch.lunchOrder !== undefined) setBaseLunch(patch.lunchOrder);
-    if (patch.dietaryNote !== undefined) setBaseDietary(patch.dietaryNote);
+  function saveRow() {
+    const sent = { lunchOrder, dietaryNote };
     save.mutate(
-      { item, patch },
+      { item, ...sent },
       {
-        onError: () => {
-          if (patch.lunchOrder !== undefined)
-            setBaseLunch(current => (current === patch.lunchOrder ? item.lunchOrder : current));
-          if (patch.dietaryNote !== undefined)
-            setBaseDietary(current => (current === patch.dietaryNote ? item.dietaryNote : current));
+        onSuccess: () => {
+          setBaseLunch(sent.lunchOrder);
+          setBaseDietary(sent.dietaryNote);
         },
       }
     );
   }
-
-  // Closing the panel unmounts without a blur: queue whatever is still unsaved.
-  const latest = useRef({ patch: dirtyPatch(), item, mutate: save.mutate });
-  useEffect(() => {
-    latest.current = { patch: dirtyPatch(), item, mutate: save.mutate };
-  });
-  useEffect(
-    () => () => {
-      const { patch, item: current, mutate } = latest.current;
-      if (Object.keys(patch).length === 0) return;
-      mutate({ item: current, patch });
-    },
-    []
-  );
 
   async function remove() {
     if (!onRemove) return;
@@ -109,19 +82,22 @@ export function LunchOrderRow({ item, trialId, onRemove }: LunchOrderRowProps) {
           <span className="font-normal text-muted-foreground">{lunchRoleLabel(item.role)}</span>
         </p>
         <p className="min-h-4 text-xs" role="status" aria-live="polite">
-          {(pending > 0 || removeState === 'removing') && (
+          {(save.isPending || removeState === 'removing') && (
             <span className="text-muted-foreground">Saving...</span>
           )}
-          {pending === 0 && removeState !== 'removing' && save.isSuccess && (
-            <span className="text-muted-foreground">Saved</span>
-          )}
-          {pending === 0 && save.isError && (
+          {!save.isPending && save.isError && (
             <span className="text-destructive">
               Could not save. Check your connection.{' '}
-              <button type="button" className="underline" onClick={flush}>
+              <button type="button" className="underline" onClick={saveRow}>
                 Try again
               </button>
             </span>
+          )}
+          {!save.isPending && !save.isError && dirty && (
+            <span className="text-muted-foreground">Not saved</span>
+          )}
+          {!save.isPending && !save.isError && !dirty && save.isSuccess && (
+            <span className="text-muted-foreground">Saved</span>
           )}
           {removeState === 'error' && (
             <span className="text-destructive">
@@ -140,7 +116,6 @@ export function LunchOrderRow({ item, trialId, onRemove }: LunchOrderRowProps) {
           maxLength={LUNCH_TEXT_MAX}
           value={lunchOrder}
           onChange={event => setLunchOrder(event.target.value)}
-          onBlur={flush}
         />
         <Input
           aria-label={`Dietary note for ${item.name}`}
@@ -148,20 +123,24 @@ export function LunchOrderRow({ item, trialId, onRemove }: LunchOrderRowProps) {
           maxLength={LUNCH_TEXT_MAX}
           value={dietaryNote}
           onChange={event => setDietaryNote(event.target.value)}
-          onBlur={flush}
         />
       </div>
-      {onRemove && item.savedId !== null && !item.assigned && (
+      <div className="mt-2 flex flex-wrap gap-2">
         <Button
           type="button"
-          variant="ghost"
           size="sm"
-          className="mt-2"
-          onClick={() => void remove()}
+          aria-label={`Save lunch order for ${item.name}`}
+          disabled={!dirty || save.isPending}
+          onClick={saveRow}
         >
-          Remove {item.name}
+          Save
         </Button>
-      )}
+        {onRemove && item.savedId !== null && !item.assigned && (
+          <Button type="button" variant="ghost" size="sm" onClick={() => void remove()}>
+            Remove {item.name}
+          </Button>
+        )}
+      </div>
     </li>
   );
 }

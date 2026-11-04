@@ -1,8 +1,8 @@
-import { useMutation, useMutationState, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
 import { queryKeys } from '@/lib/queryClient';
 import { lunchOrdersService, type SaveLunchOrderInput } from './lunchOrdersService';
-import type { LunchListItem, LunchOrderRow } from './lunchOrders';
+import type { LunchListItem } from './lunchOrders';
 
 export function useTrialLunchOrders(trialId: string) {
   const queryClient = useQueryClient();
@@ -34,64 +34,33 @@ export function useTrialLunchOrders(trialId: string) {
 
 export interface LunchRowSaveInput {
   item: Pick<LunchListItem, 'savedId' | 'personId' | 'name' | 'role'>;
-  patch: Pick<SaveLunchOrderInput, 'lunchOrder' | 'dietaryNote'>;
-}
-
-/** The saved row for a person on this day, as the cache last read it. */
-export function findSavedRow(
-  rows: readonly LunchOrderRow[] | undefined,
-  item: LunchRowSaveInput['item']
-): LunchOrderRow | undefined {
-  if (!rows) return undefined;
-  if (item.personId) return rows.find(row => row.person_id === item.personId);
-  const name = item.name.trim().toLowerCase();
-  return rows.find(row => row.person_id === null && row.name.trim().toLowerCase() === name);
+  lunchOrder: string;
+  dietaryNote: string;
 }
 
 /**
- * Saves for ONE row. The mutation `scope` makes TanStack Query run this row's saves strictly one
- * after another, and they live in the MutationCache, so a queued save still runs after the row
- * (or the whole panel) unmounts. The target row is resolved when the save RUNS, from the
- * refetched list, never from an id captured when it was queued, so a second quick edit updates
- * the row the first one created instead of inserting a duplicate.
+ * The explicit Save for one row: writes BOTH fields. The row is found by its saved id first
+ * (added people, and anyone already saved); otherwise it is inserted, with the (trial, person)
+ * unique index and the service's 23505 fallback covering a save from another device. Never
+ * matched by name when an id exists, so two same-name added people stay separate rows.
  */
-export function useLunchRowSave(trialId: string, rowKey: string) {
+export function useLunchRowSave(trialId: string) {
   const queryClient = useQueryClient();
-  const mutationKey = ['lunch-order-save', trialId, rowKey] as const;
-
-  const save = useMutation({
-    mutationKey,
-    scope: { id: `lunch-order:${trialId}:${rowKey}` },
+  return useMutation({
     // Names and dietary notes are private (queryClient.ts redacts variables with this flag).
     meta: { sensitiveVariables: true },
-    mutationFn: ({ item, patch }: LunchRowSaveInput) => {
-      const saved = findSavedRow(
-        queryClient.getQueryData<LunchOrderRow[]>(queryKeys.lunchOrders(trialId)),
-        item
-      );
-      return lunchOrdersService.save({
+    mutationFn: ({ item, lunchOrder, dietaryNote }: LunchRowSaveInput) =>
+      lunchOrdersService.save({
         trialId,
-        savedId: saved?.id ?? item.savedId,
+        savedId: item.savedId,
         personId: item.personId,
         name: item.name,
         role: item.role,
-        ...patch,
-      });
-    },
-    // Returned so the next queued save starts only after the list has refetched.
-    // refetchType 'all': after the panel closes the list has no observer, but the next queued
-    // save still needs the refetched row to update instead of inserting again.
-    onSuccess: () =>
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.lunchOrders(trialId),
-        refetchType: 'all',
+        lunchOrder,
+        dietaryNote,
       }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.lunchOrders(trialId) }),
   });
-
-  // Queued saves count as pending, so "Saved" is never claimed while one is still waiting.
-  const pending = useMutationState({ filters: { mutationKey, status: 'pending' } }).length;
-
-  return { save, pending };
 }
 
 /** A volunteer working a day. `trialId` is null for a show-wide duty, which covers every day. */

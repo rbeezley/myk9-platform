@@ -41,7 +41,25 @@ const item: LunchListItem = {
   assigned: true,
 };
 
-describe('LunchOrderRow edits', () => {
+function panel(trials = [{ id: 'trial-1', name: 'Sat' }]) {
+  return (
+    <ShowDeskToolPanel
+      tools={[
+        {
+          id: 'lunch-orders',
+          group: 'show-logistics',
+          title: 'Lunch orders',
+          summary: 'Plan lunch',
+          content: <LunchOrdersTool showId="show-1" trials={trials} />,
+        } as never,
+      ]}
+    />
+  );
+}
+
+const noop = () => undefined;
+
+describe('LunchOrderRow explicit Save', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.save.mockResolvedValue(undefined);
@@ -51,59 +69,133 @@ describe('LunchOrderRow edits', () => {
     mocks.volunteers = { data: [], isLoading: false, isError: false, refetch: vi.fn() };
   });
 
-  it('follows a newer server value on an untouched field and saves only the field typed', async () => {
+  it('marks the row Not saved when a field differs, and sends nothing until Save is pressed', async () => {
     const user = userEvent.setup();
-    const { rerender } = render(
+    render(
       <ul>
-        <LunchOrderRow item={item} trialId="trial-1" />
+        <LunchOrderRow item={item} trialId="trial-1" onDirtyChange={noop} />
+      </ul>
+    );
+    const save = screen.getByRole('button', { name: 'Save lunch order for Jo Judge' });
+    expect(save).toBeDisabled();
+    expect(screen.queryByText('Not saved')).not.toBeInTheDocument();
+
+    await user.type(screen.getByLabelText('Dietary note for Jo Judge'), 'No dairy');
+    await user.tab();
+
+    expect(screen.getByText('Not saved')).toBeInTheDocument();
+    expect(save).toBeEnabled();
+    expect(mocks.save).not.toHaveBeenCalled();
+  });
+
+  it('Save sends both fields with the row identity, then shows Saved', async () => {
+    const user = userEvent.setup();
+    render(
+      <ul>
+        <LunchOrderRow item={item} trialId="trial-1" onDirtyChange={noop} />
       </ul>
     );
 
-    // Another device saved a dietary note and a new lunch order while this row sat untouched.
+    await user.type(screen.getByLabelText('Dietary note for Jo Judge'), 'No dairy');
+    await user.click(screen.getByRole('button', { name: 'Save lunch order for Jo Judge' }));
+
+    await waitFor(() =>
+      expect(mocks.save).toHaveBeenCalledWith({
+        trialId: 'trial-1',
+        savedId: 'row-1',
+        personId: 'p-1',
+        name: 'Jo Judge',
+        role: 'judge',
+        lunchOrder: 'Wrap',
+        dietaryNote: 'No dairy',
+      })
+    );
+    expect(await screen.findByText('Saved')).toBeInTheDocument();
+    expect(screen.queryByText('Not saved')).not.toBeInTheDocument();
+  });
+
+  it('two same-name added people each save to their own row id', async () => {
+    const user = userEvent.setup();
+    const twin = (id: string): LunchListItem => ({
+      ...item,
+      key: `s:${id}`,
+      savedId: id,
+      personId: null,
+      name: 'Pat Guest',
+      role: 'other',
+      lunchOrder: '',
+      assigned: false,
+    });
+    render(
+      <ul>
+        <LunchOrderRow item={twin('row-a')} trialId="trial-1" onDirtyChange={noop} />
+        <LunchOrderRow item={twin('row-b')} trialId="trial-1" onDirtyChange={noop} />
+      </ul>
+    );
+
+    const lunch = screen.getAllByLabelText('Lunch order for Pat Guest');
+    await user.type(lunch[1]!, 'Soup');
+    await user.click(screen.getAllByRole('button', { name: 'Save lunch order for Pat Guest' })[1]!);
+
+    await waitFor(() => expect(mocks.save).toHaveBeenCalledTimes(1));
+    expect(mocks.save.mock.calls[0]?.[0]).toMatchObject({ savedId: 'row-b', lunchOrder: 'Soup' });
+  });
+
+  it('a refetch updates a clean row but never clobbers a dirty one', async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(
+      <ul>
+        <LunchOrderRow item={item} trialId="trial-1" onDirtyChange={noop} />
+      </ul>
+    );
+
     rerender(
       <ul>
         <LunchOrderRow
-          item={{ ...item, lunchOrder: 'Salad', dietaryNote: 'No dairy' }}
+          item={{ ...item, lunchOrder: 'Salad' }}
           trialId="trial-1"
+          onDirtyChange={noop}
         />
       </ul>
     );
-    expect(screen.getByLabelText('Dietary note for Jo Judge')).toHaveValue('No dairy');
     expect(screen.getByLabelText('Lunch order for Jo Judge')).toHaveValue('Salad');
 
     await user.type(screen.getByLabelText('Lunch order for Jo Judge'), '!');
-    await user.tab();
-
-    await waitFor(() => expect(mocks.save).toHaveBeenCalledTimes(1));
-    expect(mocks.save).toHaveBeenCalledWith({
-      trialId: 'trial-1',
-      savedId: 'row-1',
-      personId: 'p-1',
-      name: 'Jo Judge',
-      role: 'judge',
-      lunchOrder: 'Salad!',
-    });
-  });
-
-  it('keeps text being typed when a refetch brings a different server value', async () => {
-    const user = userEvent.setup();
-    const { rerender } = render(
-      <ul>
-        <LunchOrderRow item={item} trialId="trial-1" />
-      </ul>
-    );
-
-    await user.type(screen.getByLabelText('Lunch order for Jo Judge'), 'X');
     rerender(
       <ul>
-        <LunchOrderRow item={{ ...item, lunchOrder: 'Soup' }} trialId="trial-1" />
+        <LunchOrderRow
+          item={{ ...item, lunchOrder: 'Soup' }}
+          trialId="trial-1"
+          onDirtyChange={noop}
+        />
       </ul>
     );
 
-    expect(screen.getByLabelText('Lunch order for Jo Judge')).toHaveValue('WrapX');
+    expect(screen.getByLabelText('Lunch order for Jo Judge')).toHaveValue('Salad!');
+    expect(screen.getByText('Not saved')).toBeInTheDocument();
   });
 
-  it('saves an unsaved edit when the Show Desk panel is closed with Escape', async () => {
+  it('shows a save failure with Try again, which sends the same fields again', async () => {
+    mocks.save.mockRejectedValueOnce(new Error('offline')).mockResolvedValue(undefined);
+    const user = userEvent.setup();
+    render(
+      <ul>
+        <LunchOrderRow item={item} trialId="trial-1" onDirtyChange={noop} />
+      </ul>
+    );
+
+    await user.type(screen.getByLabelText('Lunch order for Jo Judge'), '!');
+    await user.click(screen.getByRole('button', { name: 'Save lunch order for Jo Judge' }));
+    expect(await screen.findByText(/Could not save/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
+
+    await waitFor(() => expect(mocks.save).toHaveBeenCalledTimes(2));
+    expect(mocks.save.mock.calls[1]?.[0]).toMatchObject({ lunchOrder: 'Wrap!' });
+    expect(await screen.findByText('Saved')).toBeInTheDocument();
+  });
+
+  it('closing the panel with an unsaved row asks first; Stay keeps the typed text, Leave closes', async () => {
     mocks.judges = {
       data: [{ person_id: 'p-judge', judge_name: 'Jo Judge' }],
       isLoading: false,
@@ -111,37 +203,43 @@ describe('LunchOrderRow edits', () => {
       refetch: vi.fn(),
     };
     const user = userEvent.setup();
-    render(
-      <ShowDeskToolPanel
-        tools={[
-          {
-            id: 'lunch-orders',
-            group: 'show-logistics',
-            title: 'Lunch orders',
-            summary: 'Plan lunch',
-            content: <LunchOrdersTool showId="show-1" trials={[{ id: 'trial-1', name: 'Sat' }]} />,
-          } as never,
-        ]}
-      />,
-      { initialRoute: '/shows/show-1?tool=lunch-orders' }
-    );
+    render(panel(), { initialRoute: '/shows/show-1?tool=lunch-orders' });
 
     await user.type(await screen.findByLabelText('Lunch order for Jo Judge'), 'Wrap');
+    await user.keyboard('{Escape}');
+
+    expect(
+      await screen.findByText('You have unsaved lunch orders. Leave without saving?')
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Stay' }));
+    expect(screen.getByLabelText('Lunch order for Jo Judge')).toHaveValue('Wrap');
     expect(mocks.save).not.toHaveBeenCalled();
 
-    // Escape closes the sheet; the field never blurs, so the unmount flush must save it.
+    await user.keyboard('{Escape}');
+    await user.click(await screen.findByRole('button', { name: 'Leave' }));
+    await waitFor(() =>
+      expect(screen.queryByLabelText('Lunch order for Jo Judge')).not.toBeInTheDocument()
+    );
+    expect(mocks.save).not.toHaveBeenCalled();
+  });
+
+  it('closes without asking when every row is saved', async () => {
+    mocks.judges = {
+      data: [{ person_id: 'p-judge', judge_name: 'Jo Judge' }],
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    };
+    const user = userEvent.setup();
+    render(panel(), { initialRoute: '/shows/show-1?tool=lunch-orders' });
+
+    await screen.findByLabelText('Lunch order for Jo Judge');
     await user.keyboard('{Escape}');
 
     await waitFor(() =>
-      expect(mocks.save).toHaveBeenCalledWith({
-        trialId: 'trial-1',
-        savedId: null,
-        personId: 'p-judge',
-        name: 'Jo Judge',
-        role: 'judge',
-        lunchOrder: 'Wrap',
-      })
+      expect(screen.queryByLabelText('Lunch order for Jo Judge')).not.toBeInTheDocument()
     );
+    expect(screen.queryByText(/unsaved lunch orders/)).not.toBeInTheDocument();
   });
 
   it('shows a removal failure in the row with a retry', async () => {
@@ -152,7 +250,12 @@ describe('LunchOrderRow edits', () => {
     const user = userEvent.setup();
     render(
       <ul>
-        <LunchOrderRow item={{ ...item, assigned: false }} trialId="trial-1" onRemove={onRemove} />
+        <LunchOrderRow
+          item={{ ...item, assigned: false }}
+          trialId="trial-1"
+          onDirtyChange={noop}
+          onRemove={onRemove}
+        />
       </ul>
     );
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,18 +18,40 @@ import { useTrialLunchOrders, type VolunteersOnDaysResult } from './useLunchOrde
 
 interface LunchOrdersDayProps {
   showId: string;
+  /** Told whether any row on this day holds unsaved text. */
+  onDirtyChange: (trialId: string, dirty: boolean) => void;
   trialId: string;
   volunteers: VolunteersOnDaysResult;
 }
 
 /** The Lunch orders list for one show day: the day's assignments first, then "Add person". */
-export function LunchOrdersDay({ showId, trialId, volunteers }: LunchOrdersDayProps) {
+export function LunchOrdersDay({
+  showId,
+  trialId,
+  volunteers,
+  onDirtyChange,
+}: LunchOrdersDayProps) {
   const { query, save, remove } = useTrialLunchOrders(trialId);
   const judges = useTrialJudges(trialId);
   const officials = useShowOfficials(showId);
   const [newName, setNewName] = useState('');
   const [newRole, setNewRole] = useState<LunchRole>('club_member');
   const [addError, setAddError] = useState(false);
+  const [dirtyRows, setDirtyRows] = useState<ReadonlySet<string>>(new Set());
+  const markRow = useCallback((rowKey: string, dirty: boolean) => {
+    setDirtyRows(current => {
+      if (current.has(rowKey) === dirty) return current;
+      const next = new Set(current);
+      if (dirty) next.add(rowKey);
+      else next.delete(rowKey);
+      return next;
+    });
+  }, []);
+  const anyDirty = dirtyRows.size > 0;
+  useEffect(() => {
+    onDirtyChange(trialId, anyDirty);
+    return () => onDirtyChange(trialId, false);
+  }, [anyDirty, onDirtyChange, trialId]);
 
   if (query.isError) {
     return (
@@ -104,6 +126,7 @@ export function LunchOrdersDay({ showId, trialId, volunteers }: LunchOrdersDayPr
               key={item.key}
               item={item}
               trialId={trialId}
+              onDirtyChange={markRow}
               onRemove={async target => {
                 if (target.savedId) await remove.mutateAsync(target.savedId);
               }}

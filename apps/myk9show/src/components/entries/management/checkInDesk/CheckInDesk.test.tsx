@@ -5,6 +5,8 @@ import { render } from '@/test/utils/testUtils';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { CheckInDesk } from './CheckInDesk';
+import { buildCheckInDeskClasses } from './checkInDeskModel';
+import type { Trial } from '@/components/trials/types/trial.types';
 
 const h = vi.hoisted(() => ({
   schedule: { readPending: false, readFailed: false, retry: vi.fn() },
@@ -257,5 +259,33 @@ describe('CheckInDesk', () => {
       />
     );
     expect(screen.getByRole('region', { name: 'Alice Martin' })).toHaveTextContent('Not active');
+  });
+});
+
+describe('buildCheckInDeskClasses', () => {
+  it('carries a stored class name into the roster projection', () => {
+    const trial: Trial = {
+      id: 'trial-1',
+      showId: 'show-1',
+      showName: 'Spring Specialty',
+      name: 'Trial 1',
+      trialNumber: '1',
+      trialDate: '2026-07-08',
+      timezone: 'America/New_York',
+      status: 'Scheduled',
+    };
+    const classes = buildCheckInDeskClasses([trial], {
+      'trial-1': [
+        {
+          id: 'class-1',
+          name: 'Container Novice A Stake',
+          element: 'Container',
+          level: 'Novice',
+          section: 'A',
+          startTime: '09:00',
+        },
+      ],
+    });
+    expect(classes[0]?.name).toBe('Container Novice A Stake');
   });
 });

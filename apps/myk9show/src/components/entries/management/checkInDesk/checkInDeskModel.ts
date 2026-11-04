@@ -40,7 +40,7 @@ export function buildCheckInDeskClasses(
   trialClasses: Readonly<
     Record<
       string,
-      readonly Pick<TrialClass, 'id' | 'element' | 'level' | 'section' | 'startTime'>[]
+      readonly Pick<TrialClass, 'id' | 'name' | 'element' | 'level' | 'section' | 'startTime'>[]
     >
   >
 ): PeopleRosterClassInfo[] {
@@ -61,7 +61,7 @@ export function buildCheckInDeskClasses(
     });
     return (trialClasses[trial.id] ?? []).map(cls => ({
       id: cls.id,
-      name: `${cls.element} ${cls.level}`,
+      name: cls.name?.trim() || `${cls.element} ${cls.level}`,
       time: cls.startTime || '',
       ...(ring ? { ring } : {}),
       trialId: trial.id,

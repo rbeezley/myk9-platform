@@ -15,7 +15,7 @@ interface Props {
  */
 export function AtShowScoresheetIdentityUnavailable({ onRetry, onBack }: Props) {
   return (
-    <div className="ringside-root flex flex-col items-center justify-center h-96 gap-4 px-4 text-center">
+    <main className="ringside-root flex flex-col items-center justify-center h-96 gap-4 px-4 text-center">
       <AlertCircle className="h-12 w-12 text-destructive" />
       <p className="text-lg font-medium text-destructive">
         We couldn&apos;t confirm your account for this class
@@ -28,6 +28,6 @@ export function AtShowScoresheetIdentityUnavailable({ onRetry, onBack }: Props) 
         <Button onClick={onRetry}>Retry</Button>
         <RingsideUpButton label="Entries" onClick={onBack} />
       </div>
-    </div>
+    </main>
   );
 }

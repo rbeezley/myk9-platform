@@ -259,7 +259,7 @@ export const QuickAdvancePanel: React.FC<QuickAdvancePanelProps> = ({
   useScoresSentToast(saveState, sawQueued);
 
   return (
-    <div className="ringside-root container mx-auto max-w-2xl px-4 py-6">
+    <main className="ringside-root container mx-auto max-w-2xl px-4 py-6">
       <div className="rounded-xl border bg-card p-5">
         <div
           role="status"
@@ -324,6 +324,6 @@ export const QuickAdvancePanel: React.FC<QuickAdvancePanelProps> = ({
           </div>
         )}
       </div>
-    </div>
+    </main>
   );
 };

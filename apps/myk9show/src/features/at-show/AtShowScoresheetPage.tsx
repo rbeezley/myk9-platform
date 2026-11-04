@@ -31,7 +31,6 @@ import { RingsideUpButton } from '@myk9/ui';
 import { ScoresheetLeaveGuard } from '@/components/navigation/ScoresheetLeaveGuard';
 import { useScoresheetDirty } from '@/components/navigation/useScoresheetDirty';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/common/SkeletonLoaders';
 import { getScoresheetComponent } from '@myk9/scoring-ui';
 import { replicatedClassesTable } from '@/services/replication';
 // Import triggers self-registration of all LiveScoresheet variants.
@@ -63,6 +62,7 @@ import { useAudioWarnings } from '@/hooks/useAudioWarnings';
 import { DEFAULT_AUDIO_SETTINGS } from '@/constants/audioSettings';
 import { speakRemainingSeconds } from './atShowVoiceAnnouncement';
 import { QuickAdvancePanel } from './quickAdvancePanel';
+import { AtShowScoresheetSkeleton } from './AtShowScoresheetSkeleton';
 import {
   COMBINED_PARAM,
   buildAtShowScoreSheetRoute,
@@ -142,7 +142,7 @@ export const AtShowScoresheetPage: React.FC = () => {
   // denial blocks every side effect, not just the final submit.
   if (!hasPermission('canScore')) {
     return (
-      <div className="ringside-root container max-w-2xl mx-auto px-4 py-6">
+      <main className="ringside-root container max-w-2xl mx-auto px-4 py-6">
         <div className="rounded-xl border bg-card p-6 text-center">
           <ShieldAlert className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
           <p className="text-lg font-medium mb-2">No Scoring Access</p>
@@ -152,7 +152,7 @@ export const AtShowScoresheetPage: React.FC = () => {
           </p>
           <RingsideUpButton label="Entries" onClick={handleBack} />
         </div>
-      </div>
+      </main>
     );
   }
 
@@ -168,7 +168,7 @@ export const AtShowScoresheetPage: React.FC = () => {
 
   if (assignmentCheck.status === 'unassigned') {
     return (
-      <div className="ringside-root container max-w-2xl mx-auto px-4 py-6">
+      <main className="ringside-root container max-w-2xl mx-auto px-4 py-6">
         <div className="rounded-xl border bg-card p-6 text-center">
           <ShieldAlert className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
           <p className="text-lg font-medium mb-2">You&apos;re not assigned to judge this class</p>
@@ -190,7 +190,7 @@ export const AtShowScoresheetPage: React.FC = () => {
             </p>
           )}
         </div>
-      </div>
+      </main>
     );
   }
 
@@ -211,40 +211,6 @@ interface ScoresheetContentProps {
   entryId: string | undefined;
   combined: string | null;
   onBack: () => void;
-}
-
-function AtShowScoresheetSkeleton() {
-  return (
-    <div
-      role="status"
-      aria-label="Loading scoresheet"
-      className="ringside-root mx-auto max-w-2xl space-y-4 px-4 py-6"
-    >
-      <div className="flex items-center justify-between gap-4">
-        <Skeleton className="h-11 w-28" />
-        <Skeleton className="h-6 w-24 rounded-full" />
-      </div>
-      <div className="rounded-xl border bg-card p-4">
-        <div className="mb-5 flex items-start justify-between gap-4">
-          <div className="space-y-2">
-            <Skeleton className="h-5 w-40" />
-            <Skeleton className="h-4 w-28" />
-          </div>
-          <Skeleton className="h-12 w-16 rounded-lg" />
-        </div>
-        <Skeleton className="mb-5 h-28 w-full rounded-xl" />
-        <div className="grid grid-cols-2 gap-3">
-          {Array.from({ length: 6 }).map((_, index) => (
-            <Skeleton key={index} className="h-14 rounded-lg" />
-          ))}
-        </div>
-      </div>
-      <div className="flex gap-3">
-        <Skeleton className="h-11 flex-1" />
-        <Skeleton className="h-11 flex-1" />
-      </div>
-    </div>
-  );
 }
 
 /**
@@ -368,7 +334,7 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
 
   if (error || !entry || !classInfo || !rules) {
     return (
-      <div className="ringside-root flex flex-col items-center justify-center h-96 gap-4">
+      <main className="ringside-root flex flex-col items-center justify-center h-96 gap-4">
         <AlertCircle className="h-12 w-12 text-destructive" />
         <p className="text-lg font-medium text-destructive">
           {error || 'Failed to load scoresheet'}
@@ -377,7 +343,7 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
           <Button onClick={retry}>Retry</Button>
           <RingsideUpButton label="Entries" onClick={onBack} />
         </div>
-      </div>
+      </main>
     );
   }
 
@@ -385,14 +351,18 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
   // later leaves the sheet working; the server refuses that save and the banner
   // above shows why.
   if (awaitingRegistrationNumber) {
+    // HeldEntryNotice is shared with the secretary ScoresheetPage, whose layout
+    // already supplies the page main, so the ringside landmark lives here (MYK9-1555).
     return (
-      <HeldEntryNotice
-        onBack={onBack}
-        submit={submit}
-        submitError={submitError}
-        onDismissError={clearSubmitError}
-        onCheckAgain={reload}
-      />
+      <main>
+        <HeldEntryNotice
+          onBack={onBack}
+          submit={submit}
+          submitError={submitError}
+          onDismissError={clearSubmitError}
+          onCheckAgain={reload}
+        />
+      </main>
     );
   }
 
@@ -405,7 +375,7 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
 
   if (!LiveScoresheet) {
     return (
-      <div className="ringside-root container max-w-2xl mx-auto px-4 py-6">
+      <main className="ringside-root container max-w-2xl mx-auto px-4 py-6">
         <div className="rounded-xl border bg-card p-6 text-center">
           <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
           <p className="text-lg font-medium mb-2">Scoresheet Not Available</p>
@@ -418,12 +388,12 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
           )}
           <RingsideUpButton label="Entries" onClick={onBack} />
         </div>
-      </div>
+      </main>
     );
   }
 
   return (
-    <div className="ringside-root">
+    <main className="ringside-root">
       {showAddToHomeNudge && (
         // iOS Safari, not installed, persistence not granted: without Add-to-Home
         // the browser purges IndexedDB (and the backup) after 7 days idle, which
@@ -492,7 +462,7 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
           </>
         }
       />
-    </div>
+    </main>
   );
 };
 

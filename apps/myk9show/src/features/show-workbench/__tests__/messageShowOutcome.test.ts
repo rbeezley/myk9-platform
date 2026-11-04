@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { TargetedSendResult } from '../messageShowEmail';
+import { parseTargetedSendResult } from '../messageShowEmail';
 import { describeSendOutcome } from '../messageShowOutcome';
 
 const email = (
@@ -138,5 +139,33 @@ describe('describeSendOutcome', () => {
   ])('$name', ({ input, status, clear, message, link }) => {
     const outcome = describeSendOutcome(input);
     expect(outcome).toEqual({ status, clear, message, showHistoryLink: link });
+  });
+
+  it('reports a legacy-only response (function older than the client) as a success', () => {
+    const legacy = parseTargetedSendResult({ sent_to: 4, total_recipients: 5, push_sent: 0 });
+    expect(legacy).toEqual({ inboxSent: 4, pushSent: 0, peopleReached: 5, email: null });
+    expect(
+      describeSendOutcome({ result: legacy, announcementPosted: false, emailRequested: false })
+    ).toEqual({
+      status: 'success',
+      clear: true,
+      message: 'Posted in the app.',
+      showHistoryLink: false,
+    });
+  });
+
+  it('prefers the per-channel fields when both shapes are present', () => {
+    expect(
+      parseTargetedSendResult({
+        inbox_sent: 0,
+        people_reached: 0,
+        sent_to: 0,
+        total_recipients: 0,
+        push_sent: 2,
+      })
+    ).toMatchObject({ inboxSent: 0, peopleReached: 0, pushSent: 2 });
+    expect(
+      parseTargetedSendResult({ inbox_sent: 3, people_reached: 3, sent_to: 9, total_recipients: 9 })
+    ).toMatchObject({ inboxSent: 3, peopleReached: 3 });
   });
 });

@@ -134,20 +134,35 @@ describe('ShowAboutPage (MYK9-1683)', () => {
   });
 
   it('hides the Landing page card when the landing page switch is off, and keeps Premium (MYK9-1686)', () => {
-    harness.outlet = { ...harness.outlet, show: { ...show, usesLandingPage: false } as Show };
+    harness.outlet = {
+      show: { ...show, usesLandingPage: false } as Show,
+      canManageShow: true,
+      judges: [],
+      managerEntryCount: 12,
+    };
     render(<ShowAboutPage />, { initialRoute: '/shows/show-1/about' });
     expect(screen.queryByTestId('landing-card')).toBeNull();
     expect(screen.getByTestId('premium-card')).toBeInTheDocument();
   });
 
   it('hides the Landing page card for a show that has never set the switch', () => {
-    harness.outlet = { ...harness.outlet, show: { ...show, usesLandingPage: undefined } as Show };
+    harness.outlet = {
+      show: { ...show, usesLandingPage: undefined } as Show,
+      canManageShow: true,
+      judges: [],
+      managerEntryCount: 12,
+    };
     render(<ShowAboutPage />, { initialRoute: '/shows/show-1/about' });
     expect(screen.queryByTestId('landing-card')).toBeNull();
   });
 
   it('falls back to the premium card when a link targets the hidden landing card', async () => {
-    harness.outlet = { ...harness.outlet, show: { ...show, usesLandingPage: false } as Show };
+    harness.outlet = {
+      show: { ...show, usesLandingPage: false } as Show,
+      canManageShow: true,
+      judges: [],
+      managerEntryCount: 12,
+    };
     render(<ShowAboutPage />, { initialRoute: '/shows/show-1/about#setup-publish-landing' });
     await waitFor(() => expect(Element.prototype.scrollIntoView).toHaveBeenCalled());
     expect(

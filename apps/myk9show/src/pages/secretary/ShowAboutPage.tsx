@@ -12,6 +12,7 @@ import {
   SETUP_PUBLISH_ANCHOR,
 } from '@/features/show-workbench/setupReadinessSignals';
 import { resolveShowUses } from '@/features/show-workbench/showUses';
+import { useShowWithLiveUses } from '@/features/show-workbench/useShowWithLiveUses';
 import { getShowStyle } from '@/features/registries';
 import { AboutThisShowCard } from '@/components/shows/overview/AboutThisShowCard';
 import {
@@ -40,7 +41,7 @@ export default function ShowAboutPage() {
   const anchor = publishAnchorFromHash(hash);
   // MYK9-1686: no public landing page, no Landing page card. Premium stays; a link to the hidden
   // card's anchor falls back to it.
-  const { usesLandingPage } = resolveShowUses(show);
+  const { usesLandingPage } = resolveShowUses(useShowWithLiveUses(show));
   const scrollTarget =
     anchor === LANDING_CARD_ANCHOR && !usesLandingPage ? PREMIUM_CARD_ANCHOR : anchor;
 

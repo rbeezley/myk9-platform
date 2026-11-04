@@ -3,6 +3,7 @@ import { screen, waitFor } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import type { Show } from '@/types/show-types';
 import ShowAboutPage from '../ShowAboutPage';
+import { useShowStore } from '@/store/showStore';
 
 const harness = vi.hoisted(() => ({
   outlet: undefined as unknown,
@@ -170,5 +171,21 @@ describe('ShowAboutPage (MYK9-1683)', () => {
         .mocked(Element.prototype.scrollIntoView)
         .mock.contexts.some(el => (el as Element).id === 'setup-publish-premium')
     ).toBe(true);
+  });
+
+  it('follows a switch flipped locally before the cached show catches up', () => {
+    harness.outlet = {
+      show: { ...show, usesLandingPage: false } as Show,
+      canManageShow: true,
+      judges: [],
+      managerEntryCount: 12,
+    };
+    useShowStore.setState({ shows: [{ ...show, usesLandingPage: true } as Show] });
+    try {
+      render(<ShowAboutPage />, { initialRoute: '/shows/show-1/about' });
+      expect(screen.getByTestId('landing-card')).toBeInTheDocument();
+    } finally {
+      useShowStore.setState({ shows: [] });
+    }
   });
 });

@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 
 import { getShowEditHref } from '@/components/shows/showEditRoutes';
 import { useShowSettings } from '@/hooks/queries/useShowSettingsDatabase';
+import { useShowWithLiveUses } from '@/features/show-workbench/useShowWithLiveUses';
 import type { Show } from '@/types/show-types';
 
 import { dismissSuggestion, pickSuggestion } from './showUsesSuggestions';
@@ -13,7 +14,8 @@ import { dismissSuggestion, pickSuggestion } from './showUsesSuggestions';
  * counts toward "Everything is handled". Dismissing stores per show per switch and hides the note
  * for the rest of this visit, so a dismissal never reveals the next suggestion straight away.
  */
-export function ShowUsesSuggestionNote({ show }: { show: Show }) {
+export function ShowUsesSuggestionNote({ show: routeShow }: { show: Show }) {
+  const show = useShowWithLiveUses(routeShow);
   const settings = useShowSettings(show.id);
   const [dismissedNow, setDismissedNow] = useState(false);
   const suggestion = dismissedNow
@@ -26,7 +28,7 @@ export function ShowUsesSuggestionNote({ show }: { show: Show }) {
         {suggestion.text}{' '}
         <Link
           to={getShowEditHref(show.id, 'venue')}
-          className="font-medium text-primary underline-offset-4 hover:underline"
+          className="inline-flex min-h-11 items-center px-1 font-medium text-primary underline-offset-4 hover:underline"
         >
           Turn it on
         </Link>

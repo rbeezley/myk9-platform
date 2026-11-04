@@ -157,7 +157,10 @@ export function computeSetupReadinessSignals(input: SetupReadinessInput): SetupR
   // be a dead end.
   const experienceIsPublished =
     input.premiumInfo?.experienceIsPublished ?? input.show.experienceIsPublished;
-  if (usesLandingPage && premiumState === 'published-current' && !experienceIsPublished) {
+  // A club that publishes its own premium has no generated premium to wait on, so its landing
+  // page warns on its own (a suppressed premium line must not hide an unpublished landing page).
+  const premiumSettled = premiumState === 'published-current' || publishesOwnPremium;
+  if (usesLandingPage && premiumSettled && !experienceIsPublished) {
     signals.push({
       id: 'landing-content-unpublished',
       label: 'Landing page not published',

@@ -8,6 +8,7 @@ import { useOfflineReadiness } from '@/features/offline-readiness/useOfflineRead
 import { usePublishInfo } from '@/features/premium/usePublishInfo';
 import type { ClassEntryBreakdown } from '@/features/entry-operations/classEntryBreakdown';
 import type { ShowMapClassInput, ShowMapTrialInput } from '../showMapTypes';
+import { useShowWithLiveUses } from '@/features/show-workbench/useShowWithLiveUses';
 import type { Show } from '@/types/show-types';
 
 import {
@@ -69,7 +70,7 @@ function LineRow({ line }: { line: ReadyLine }) {
 }
 
 function ReadyForShowDayContent({
-  show,
+  show: routeShow,
   trials,
   classes,
   entryBreakdownByClassId,
@@ -77,6 +78,7 @@ function ReadyForShowDayContent({
   printTrackingInUse,
   offlinePromptOpen,
 }: Omit<ReadyForShowDaySectionProps, 'now'> & { offlinePromptOpen: boolean }) {
+  const show = useShowWithLiveUses(routeShow);
   const publishInfo = usePublishInfo(show.id, true);
   const { readiness } = useOfflineReadiness(show.id);
 

@@ -62,6 +62,13 @@ describe('PublishAttentionChip', () => {
     expect(screen.getByRole('button', { name: 'landing page not yet published' })).toBeVisible();
   });
 
+  it('warns about the landing page with no generated premium when the club publishes its own', () => {
+    store.shows = [{ id: 'show-1', usesLandingPage: true, publishesOwnPremium: true }];
+    control.value = { infoState: 'ready', hasPublishedPremium: false, landingUnpublished: true };
+    render(<PublishAttentionChip showId="show-1" canManageShow onOpen={vi.fn()} />);
+    expect(screen.getByRole('button', { name: 'landing page not yet published' })).toBeVisible();
+  });
+
   it('says nothing about the landing page when the show has no public landing page', () => {
     store.shows = [{ id: 'show-1', usesLandingPage: false }];
     control.value = { infoState: 'ready', hasPublishedPremium: true, landingUnpublished: true };

@@ -317,6 +317,18 @@ describe('isSetupReady', () => {
       );
     });
 
+    it('still warns about an unpublished landing page when the club publishes its own premium', () => {
+      expect(
+        ids({
+          usesLandingPage: true,
+          publishesOwnPremium: true,
+          publishedPremiumUrl: null,
+          publishedPremiumAt: null,
+          experienceIsPublished: false,
+        })
+      ).toEqual(['landing-content-unpublished']);
+    });
+
     it('emits no premium signal when the club publishes its own, either state, and restores it when off', () => {
       const unpublished = { publishedPremiumUrl: null, publishedPremiumAt: null };
       const stale = { updatedAt: '2026-06-01T00:00:00Z' };

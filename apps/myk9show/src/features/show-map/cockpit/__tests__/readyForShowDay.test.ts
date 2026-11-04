@@ -242,6 +242,17 @@ describe('buildReadyForShowDay', () => {
       expect(statusOf(withShow({ usesLandingPage: true }, info), 'premium')).toBe('fail');
     });
 
+    it('fails the premium line on an unpublished landing page even when the club publishes its own', () => {
+      const info = premiumInfo({
+        publishedPremiumUrl: null,
+        publishedPremiumAt: null,
+        experienceIsPublished: false,
+      });
+      expect(
+        statusOf(withShow({ usesLandingPage: true, publishesOwnPremium: true }, info), 'premium')
+      ).toBe('fail');
+    });
+
     it('does not fail the premium line on an unpublished premium when the club publishes its own', () => {
       const info = premiumInfo({ publishedPremiumUrl: null, publishedPremiumAt: null });
       expect(statusOf(withShow({ publishesOwnPremium: true }, info), 'premium')).toBe('pass');

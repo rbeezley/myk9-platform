@@ -32,16 +32,18 @@ export const PublishAttentionChip: React.FC<PublishAttentionChipProps> = ({
   const show = useShowStore(state => state.shows.find(candidate => candidate.id === showId));
   const uses = resolveShowUses(show);
   if (!canManageShow || infoState !== 'ready') return null;
-  // MYK9-1686: the switches decide which nudges exist at all.
-  const target = !hasPublishedPremium
-    ? uses.publishesOwnPremium
-      ? null
-      : { label: 'premium list not yet published', anchor: PREMIUM_CARD_ANCHOR }
-    : landingUnpublished && uses.usesLandingPage
-      ? // "Publish landing page" lives on the premium card, not the landing card (INTENT:
-        // readiness links land on the fix).
-        { label: 'landing page not yet published', anchor: PREMIUM_CARD_ANCHOR }
-      : null;
+  // MYK9-1686: the switches decide which nudges exist at all. A club that publishes its own
+  // premium list has no premium nudge but still hears about an unpublished landing page.
+  const landingNudge =
+    uses.usesLandingPage && landingUnpublished && (hasPublishedPremium || uses.publishesOwnPremium);
+  // "Publish landing page" lives on the premium card, not the landing card (INTENT: readiness
+  // links land on the fix).
+  const target =
+    !hasPublishedPremium && !uses.publishesOwnPremium
+      ? { label: 'premium list not yet published', anchor: PREMIUM_CARD_ANCHOR }
+      : landingNudge
+        ? { label: 'landing page not yet published', anchor: PREMIUM_CARD_ANCHOR }
+        : null;
   if (!target) return null;
   return (
     <>

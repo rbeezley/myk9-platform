@@ -459,6 +459,7 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
         <ShowEditVenueTab
           showId={typeof data.id === 'string' && data.id.length > 0 ? data.id : undefined}
           showStatus={initialStatus ?? data.status}
+          isActive={activeTab === 'venue'}
         />
 
         <ShowEditPremiumTab

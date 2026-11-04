@@ -116,6 +116,7 @@ function renderTab(props: { showId?: string | undefined; status?: string } = {})
       <ShowEditVenueTab
         showId={'showId' in props ? props.showId : ROUTE_SHOW_ID}
         showStatus={props.status ?? 'published'}
+        isActive
       />
     </Tabs>
   );
@@ -209,6 +210,32 @@ describe('ShowEditVenueTab (Venue & policies)', () => {
     );
   });
 
+  it('keeps an unsaved Wi-Fi draft when the secretary visits another tab and comes back', async () => {
+    const tree = (value: string) => (
+      <Tabs value={value}>
+        <ShowEditVenueTab
+          showId={ROUTE_SHOW_ID}
+          showStatus="published"
+          isActive={value === 'venue'}
+        />
+      </Tabs>
+    );
+    const { rerender } = render(tree('venue'));
+    fireEvent.change(await screen.findByLabelText('Network Name'), { target: { value: 'Draft' } });
+    rerender(tree('basic'));
+    rerender(tree('venue'));
+    expect(screen.getByLabelText('Network Name')).toHaveValue('Draft');
+  });
+
+  it('does not read anything until the tab is first visited', () => {
+    render(
+      <Tabs value="basic">
+        <ShowEditVenueTab showId={ROUTE_SHOW_ID} showStatus="published" isActive={false} />
+      </Tabs>
+    );
+    expect(db.reads).toEqual([]);
+  });
+
   it('asks for a saved show first when the show has no id yet', () => {
     renderTab({ showId: undefined });
     expect(screen.getByText(/Save the show first/)).toBeInTheDocument();
@@ -252,7 +279,7 @@ describe('ShowEditVenueTab (Venue & policies)', () => {
     render(
       <>
         <Tabs value="venue">
-          <ShowEditVenueTab showId={ROUTE_SHOW_ID} showStatus="published" />
+          <ShowEditVenueTab showId={ROUTE_SHOW_ID} showStatus="published" isActive />
         </Tabs>
         <LabelsFromProductionPath />
       </>

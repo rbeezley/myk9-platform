@@ -117,3 +117,47 @@ describe('trials with no trial type (MYK9-1574)', () => {
     expect(await resolveSportTypeForClass('t1')).toBeNull();
   });
 });
+
+/**
+ * MYK9-1656: the registry x trial_type matrix. MYK9-1574 escaped because coverage
+ * ran on AKC, where the class-name fallback hides a missing trial_type. A blank is
+ * null, empty or whitespace; a cloned show carries what the clone fills in.
+ */
+describe('registry x trial_type matrix (MYK9-1656)', () => {
+  beforeEach(() => {
+    getTrialById.mockReset();
+    getShow.mockReset();
+  });
+
+  const sheet = async (organization: string, trialType: string | null) => {
+    getTrialById.mockResolvedValue({ id: 't1', showId: 's1', trialType });
+    getShow.mockResolvedValue({ id: 's1', organization });
+    return {
+      sport: await resolveSportTypeForClass('t1'),
+      key: await scoresheetKeyForClass('t1', 'Interior Excellent A'),
+    };
+  };
+
+  it.each([
+    ['UKC', 'Nosework', 'ukc-nosework', 'UKC_NOSEWORK'],
+    ['ASCA', 'Scent Detection', 'asca-scent-detection', 'ASCA_SCENT_DETECTION'],
+    ['AKC', 'Scent Work', 'akc-scent-work', 'AKC_SCENT_WORK'],
+  ])('%s "%s" scores on %s', async (organization, trialType, sport, key) => {
+    expect(await sheet(organization, trialType)).toEqual({ sport, key });
+  });
+
+  it.each([
+    ['UKC', null],
+    ['UKC', ''],
+    ['UKC', '   '],
+    ['ASCA', null],
+    ['ASCA', ''],
+    ['ASCA', '   '],
+  ])('%s with trial type %j refuses the sheet and says the type is missing', async (org, type) => {
+    expect(await sheet(org, type)).toEqual({ sport: MISSING_TRIAL_TYPE_SPORT_TYPE, key: null });
+  });
+
+  it.each([null, '', '   '])('AKC with trial type %j still scores by class name', async type => {
+    expect(await sheet('AKC', type)).toEqual({ sport: null, key: 'AKC_SCENT_WORK' });
+  });
+});

@@ -16,6 +16,11 @@ mutation boundary, and report destination from the calling prompt. Default perso
 nontechnical first-time user. If viewports are unspecified, fully walk mobile and desktop, then use
 tablet as a responsive-difference pass.
 
+For a judge or `/at-show` walk, registry is an input dimension: walk one show per registry (AKC, UKC,
+ASCA; a show never mixes them) and open a scoresheet in each, including a trial with a blank trial
+type and a show cloned from one. The AKC class-name fallback hides a missing trial type, so an
+AKC-only walk cannot catch it (MYK9-1574).
+
 Example invocation: “Use `role-journey-ux-audit` for the secretary role on desktop and tablet,
 including safe show and entry CRUD.”
 

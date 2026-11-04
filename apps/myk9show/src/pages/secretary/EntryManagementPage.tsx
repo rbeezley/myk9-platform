@@ -10,7 +10,6 @@ import { TrialSecretaryAccessProvider } from '@/features/actions/TrialSecretaryA
 import { AuditAction } from '@/types/audit-types';
 import { AlertCircle } from 'lucide-react';
 import { TableSkeleton } from '@/components/common/SkeletonLoaders';
-
 import { useEntryManagementData } from '@/hooks/useEntryManagementData';
 import { useEntryManagementActions } from '@/hooks/useEntryManagementActions';
 import {
@@ -524,6 +523,7 @@ const EntryManagementPage: React.FC = () => {
           {...(selectedShow?.name ? { showName: selectedShow.name } : {})}
           exception={cockpitUrl.state.exception}
           pulledEntries={pulledEntries}
+          entries={entries}
           entriesUnknown={Boolean(loadError)}
           entriesLoading={isLoading}
           registrationNeeded={registrationNeeded}

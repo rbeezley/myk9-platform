@@ -29,6 +29,7 @@ export const ENTRY_LIST_LABELS: Record<EntryManagementException, string> = {
   'move-ups': 'Move-ups',
   'registration-needed': 'Registration number needed',
   waitlist: 'Waitlist',
+  'check-in': 'Check-in desk',
 };
 
 /** Menu order. */
@@ -37,6 +38,7 @@ const ENTRY_LIST_ORDER: readonly EntryManagementException[] = [
   'move-ups',
   'registration-needed',
   'waitlist',
+  'check-in',
 ];
 
 export interface EntryListCounts {
@@ -67,6 +69,7 @@ export function buildEntryListTools(showId: string, counts: EntryListCounts): Sh
     'move-ups': counts.moveUps,
     'registration-needed': counts.registrationNeeded,
     waitlist: undefined,
+    'check-in': undefined,
   };
   return ENTRY_LIST_ORDER.map(exception => ({
     id: `entry-list-${exception}`,

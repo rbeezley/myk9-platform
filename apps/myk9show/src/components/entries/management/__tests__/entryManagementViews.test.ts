@@ -5,19 +5,20 @@ import { normalizeEntryManagementCockpitParams } from '../entryManagementCockpit
 describe('buildEntryListTools', () => {
   const counts = { pulls: 4, moveUps: 5, registrationNeeded: 2 };
 
-  it('lists Pulls, Move-ups, Registration number needed and Waitlist in the Entry lists group', () => {
+  it('lists Pulls, Move-ups, Registration number needed, Waitlist and Check-in desk in the Entry lists group', () => {
     const tools = buildEntryListTools('show-1', counts);
     expect(tools.map(tool => [tool.title, tool.group])).toEqual([
       ['Pulls', 'entry-lists'],
       ['Move-ups', 'entry-lists'],
       ['Registration number needed', 'entry-lists'],
       ['Waitlist', 'entry-lists'],
+      ['Check-in desk', 'entry-lists'],
     ]);
   });
 
   it('badges a list with a non-zero count, and leaves Waitlist uncounted', () => {
     const tools = buildEntryListTools('show-1', counts);
-    expect(tools.map(tool => tool.attentionLabel)).toEqual(['4', '5', '2', undefined]);
+    expect(tools.map(tool => tool.attentionLabel)).toEqual(['4', '5', '2', undefined, undefined]);
   });
 
   it('shows no badge for a zero or an unknown count rather than a confident 0', () => {
@@ -38,6 +39,22 @@ describe('buildEntryListTools', () => {
       const query = new URLSearchParams(tool.href?.split('?')[1]);
       expect(normalizeEntryManagementCockpitParams(query).state.tab).toBe('exceptions');
     }
+  });
+
+  it('opens the Check-in desk and keeps its not-checked-in filter in the URL', () => {
+    expect(getEntryListHref('show-1', 'check-in')).toBe(
+      '/shows/show-1/entries?tab=exceptions&exception=check-in'
+    );
+    const kept = normalizeEntryManagementCockpitParams(
+      new URLSearchParams('tab=exceptions&exception=check-in&checkin=pending')
+    );
+    expect(kept.state.exception).toBe('check-in');
+    expect(kept.params.toString()).toBe('tab=exceptions&exception=check-in&checkin=pending');
+    // The filter belongs to the desk: any other list drops it.
+    const dropped = normalizeEntryManagementCockpitParams(
+      new URLSearchParams('tab=exceptions&exception=pulls&checkin=pending')
+    );
+    expect(dropped.params.toString()).toBe('tab=exceptions&exception=pulls');
   });
 
   it('sums only the counts that are known', () => {

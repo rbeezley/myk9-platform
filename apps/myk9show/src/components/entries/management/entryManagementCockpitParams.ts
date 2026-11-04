@@ -13,6 +13,7 @@ export const ENTRY_MANAGEMENT_EXCEPTIONS = [
   'pulls',
   'waitlist',
   'registration-needed',
+  'check-in',
 ] as const;
 export type EntryManagementException = (typeof ENTRY_MANAGEMENT_EXCEPTIONS)[number];
 
@@ -173,6 +174,10 @@ export function normalizeEntryManagementCockpitParams(
   if (tab === 'exceptions') {
     params.set('tab', 'exceptions');
     if (exception !== 'move-ups') params.set('exception', exception);
+    // The Check-in desk's "not checked in" filter (a link the Overview chip can target).
+    if (exception === 'check-in' && source.get('checkin') === 'pending') {
+      params.set('checkin', 'pending');
+    }
   } else {
     if (queuesNamed) setListParam(params, 'queue', queues);
     if (search) params.set('search', search);
@@ -251,6 +256,7 @@ export function writeCockpitTab(
   if (tab === 'registrations') {
     next.delete('tab');
     next.delete('exception');
+    next.delete('checkin');
     return next;
   }
 

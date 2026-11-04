@@ -82,6 +82,8 @@ interface BuildPeopleRosterOptions {
 }
 
 const TERMINAL_CHECK_IN_STATUSES = new Set<CheckInStatus>(['checked-in', 'pulled', 'completed']);
+/** Past check-in already: writing 'checked-in' now would walk the run backwards (MYK9-1691). */
+const UNDERWAY_CHECK_IN_STATUSES = new Set<CheckInStatus>(['at-gate', 'come-to-gate', 'in-ring']);
 const TERMINAL_ENTRY_STATUSES = new Set<EntryStatus>([
   EntryStatus.REJECTED,
   EntryStatus.WAITLIST,
@@ -212,6 +214,10 @@ function checkInEligibility(
   const status = cls.checkInStatus ?? 'no-status';
   if (TERMINAL_CHECK_IN_STATUSES.has(status)) {
     return { eligible: false, reason: status === 'checked-in' ? null : 'Not active' };
+  }
+
+  if (UNDERWAY_CHECK_IN_STATUSES.has(status)) {
+    return { eligible: false, reason: 'Already underway' };
   }
 
   if (entry.entryStatus !== EntryStatus.ACCEPTED) {

@@ -168,8 +168,26 @@ export function EntryFocusedRegistration({
           onOpenEditEntry={enrollmentCardProps.onOpenEditEntry}
           onCheckInAll={entryIds => void checkIn.checkIn(registration.exhibitorName, entryIds)}
           checkInBusy={checkIn.busyIds.size > 0}
+          checkInUnknown={checkIn.scheduleFailed}
           payment={controls}
         />
+
+        {checkIn.scheduleFailed && (
+          <div
+            role="alert"
+            className="flex flex-wrap items-center gap-3 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+          >
+            <span>Couldn't load the show schedule, so check-in is unavailable.</span>
+            <Button
+              size="sm"
+              variant="outline"
+              className="min-h-11"
+              onClick={checkIn.retrySchedule}
+            >
+              Retry
+            </Button>
+          </div>
+        )}
 
         {checkIn.error && (
           <p

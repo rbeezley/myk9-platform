@@ -19,6 +19,9 @@ export interface EntryFormCheckIn {
   eligibleIds: ReadonlySet<string>;
   busyIds: ReadonlySet<string>;
   error: string | null;
+  /** The schedule behind eligibility failed to read: no eligibility is known, so never "All set". */
+  scheduleFailed: boolean;
+  retrySchedule: () => void;
   checkIn: (personName: string, entryIds: readonly string[]) => Promise<void>;
 }
 
@@ -33,7 +36,7 @@ export function useEntryFormCheckIn(
   onRefreshEntries?: () => void | Promise<void>
 ): EntryFormCheckIn {
   const now = useMinuteClock();
-  const { trials, trialClasses } = useShowDeskScheduleRead();
+  const { trials, trialClasses, readFailed, retry } = useShowDeskScheduleRead();
   const { checkedInIds, busyIds, error, checkIn } = useCheckInDeskActions(onRefreshEntries);
 
   const classes = useMemo(
@@ -52,7 +55,15 @@ export function useEntryFormCheckIn(
     () => eligibleCheckInEntryIds(shownEntries, classes, now),
     [classes, now, shownEntries]
   );
-  return { entries: shownEntries, eligibleIds, busyIds, error, checkIn };
+  return {
+    entries: shownEntries,
+    eligibleIds,
+    busyIds,
+    error,
+    scheduleFailed: readFailed,
+    retrySchedule: () => void retry(),
+    checkIn,
+  };
 }
 
 const EntryFormCheckInContext = createContext<EntryFormCheckIn | null>(null);

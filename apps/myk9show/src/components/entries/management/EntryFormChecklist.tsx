@@ -16,6 +16,8 @@ interface EntryFormChecklistProps {
   onCheckInAll?: ((entryIds: string[]) => void) | undefined;
   /** True while any of the form's check-in writes is in flight. */
   checkInBusy?: boolean | undefined;
+  /** Show-day eligibility is not known (schedule loading or failed): never claim "All set". */
+  checkInUnknown?: boolean | undefined;
   /** The same openers the Payment section's menu uses (no second implementation). */
   payment: {
     openFullPayment: (method: 'cash' | 'check') => void;
@@ -62,9 +64,12 @@ export function EntryFormChecklist({
   onOpenEditEntry,
   onCheckInAll,
   checkInBusy = false,
+  checkInUnknown = false,
   payment,
 }: EntryFormChecklistProps) {
   const { items, done } = checklist;
+
+  if (items.length === 0 && checkInUnknown) return null;
 
   if (items.length === 0) {
     return (

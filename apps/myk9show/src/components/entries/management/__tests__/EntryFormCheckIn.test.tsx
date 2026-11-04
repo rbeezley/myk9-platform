@@ -7,7 +7,10 @@ import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { groupEntriesByShowRegistration } from '../showRegistrationProjection';
 import { EntryFocusedRegistration } from '../EntryFocusedRegistration';
 
-const h = vi.hoisted(() => ({ updateReplicatedCheckInStatus: vi.fn() }));
+const h = vi.hoisted(() => ({
+  updateReplicatedCheckInStatus: vi.fn(),
+  schedule: { readPending: false, readFailed: false, retry: vi.fn() },
+}));
 
 vi.mock('@/services/show-day/checkInStatus', () => ({
   updateReplicatedCheckInStatus: h.updateReplicatedCheckInStatus,
@@ -15,9 +18,7 @@ vi.mock('@/services/show-day/checkInStatus', () => ({
 
 vi.mock('@/pages/secretary/useShowDeskScheduleRead', () => ({
   useShowDeskScheduleRead: () => ({
-    readPending: false,
-    readFailed: false,
-    retry: vi.fn(),
+    ...h.schedule,
     trials: [
       {
         id: 'trial-1',
@@ -106,6 +107,8 @@ const twoEntries = () => [
 describe('check-in on the entry form (MYK9-1691)', () => {
   beforeEach(() => {
     h.updateReplicatedCheckInStatus.mockReset().mockResolvedValue(undefined);
+    h.schedule.readFailed = false;
+    h.schedule.retry.mockReset();
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(SHOW_DAY);
   });
@@ -174,5 +177,44 @@ describe('check-in on the entry form (MYK9-1691)', () => {
     await user.click(screen.getByRole('button', { name: 'Actions for Poppy' }));
     await screen.findByRole('menuitem', { name: /Edit entry|Remove entry/ });
     expect(screen.queryByRole('menuitem', { name: /Check in/ })).not.toBeInTheDocument();
+  });
+
+  it('leaves out runs already at the gate, called to the gate or in the ring', () => {
+    const underway = (
+      id: string,
+      dog: string,
+      classId: string,
+      status: 'at-gate' | 'come-to-gate' | 'in-ring'
+    ) =>
+      entry(id, dog, classId, {
+        classes: [
+          {
+            id: `class-entry-${id}`,
+            classId,
+            name: 'Class',
+            number: id,
+            fee: 25,
+            status: 'entered',
+            checkInStatus: status,
+          },
+        ],
+      });
+    renderForm([
+      entry('entry-1', 'Poppy', 'class-1'),
+      underway('entry-2', 'Bean', 'class-2', 'at-gate'),
+      underway('entry-3', 'Maple', 'class-3', 'in-ring'),
+      underway('entry-4', 'Fern', 'class-1', 'come-to-gate'),
+    ]);
+    const checklist = screen.getByRole('region', { name: 'To finish this form' });
+    expect(within(checklist).getByText('1 run to check in')).toBeInTheDocument();
+  });
+
+  it('says so, with a retry, when the schedule cannot be read, never "All set"', async () => {
+    h.schedule.readFailed = true;
+    const { user } = renderForm(twoEntries());
+    expect(screen.getByRole('alert')).toHaveTextContent("Couldn't load the show schedule");
+    expect(screen.queryByText('All set.')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(h.schedule.retry).toHaveBeenCalledTimes(1);
   });
 });

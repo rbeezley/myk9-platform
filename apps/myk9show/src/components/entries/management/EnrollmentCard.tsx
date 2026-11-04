@@ -5,6 +5,7 @@ import { ChevronDown, ChevronUp, Receipt } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatRelativeTime } from '@/utils/format';
 import { EntryListCard } from './EntryListCard';
+import { DogBulkStatusMenu } from './DogBulkStatusMenu';
 import { groupEnrollmentEntriesByDog } from './enrollmentDogGroups';
 import { getPaymentStatusBadge } from '@/utils/entryManagementUtils';
 import { PaymentStatus } from '@/types/show-registration-types';
@@ -164,6 +165,11 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
                           {dogGroup.entries.length}{' '}
                           {dogGroup.entries.length === 1 ? 'entry' : 'entries'}
                         </span>
+                        <DogBulkStatusMenu
+                          dogName={dogGroup.dogName}
+                          entries={dogGroup.entries}
+                          onStatusChange={onStatusChange}
+                        />
                       </span>
                     </div>
                     <EntryListCard

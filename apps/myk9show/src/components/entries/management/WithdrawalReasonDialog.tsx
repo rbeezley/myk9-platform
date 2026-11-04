@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, type ReactNode } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -24,12 +24,20 @@ interface WithdrawalReasonDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onConfirm: (reason: string) => void;
+  /** MYK9-1688: dog-level Withdraw reuses this dialog and its two reasons, with its own title. */
+  title?: string;
+  confirmLabel?: string;
+  /** Shown above the reason field (the dog-level scope and the read-only refund suggestions). */
+  children?: ReactNode;
 }
 
 export const WithdrawalReasonDialog: React.FC<WithdrawalReasonDialogProps> = ({
   open,
   onOpenChange,
   onConfirm,
+  title = 'Record Withdrawal Reason',
+  confirmLabel = 'Confirm Withdrawal',
+  children,
 }) => {
   const [reason, setReason] = useState<WithdrawalReason | ''>('');
   const [notes, setNotes] = useState('');
@@ -53,11 +61,12 @@ export const WithdrawalReasonDialog: React.FC<WithdrawalReasonDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-sm">
+      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Record Withdrawal Reason</DialogTitle>
+          <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3 py-2">
+          {children}
           <div className="space-y-1.5">
             <Label htmlFor="withdrawal-reason">
               Reason <span className="text-destructive">*</span>
@@ -98,7 +107,7 @@ export const WithdrawalReasonDialog: React.FC<WithdrawalReasonDialogProps> = ({
             Cancel
           </Button>
           <Button onClick={handleConfirm} disabled={!reason}>
-            Confirm Withdrawal
+            {confirmLabel}
           </Button>
         </DialogFooter>
       </DialogContent>

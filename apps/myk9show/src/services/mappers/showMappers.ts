@@ -11,6 +11,7 @@ import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTa
 import { getTrialTimezone } from '@/features/registries';
 import { formatTrialTypeLabel } from '@/types/template.types';
 import { requireShowClubId } from '@/services/database/shows/requireShowClub';
+import { showUsesFromRow } from '@/services/replication/showUsesColumns';
 
 /**
  * Maps ShowInput (from Zustand store) to DbShowInsert (for Supabase insertion)
@@ -320,6 +321,7 @@ export const mapDatabaseToShow = (
     acceptCheckPayments: dbShow.accept_check_payments ?? undefined,
     acceptCashPayments: dbShow.accept_cash_payments ?? undefined,
     onlineEntriesEnabled: dbShow.online_entries_enabled ?? undefined,
+    ...showUsesFromRow(dbShow),
     // TODO: Remove cast after regenerating Supabase types (run `supabase gen types`)
     confirmationMessage:
       ((dbShow as Record<string, unknown>).confirmation_message as string) || undefined,
@@ -649,6 +651,11 @@ export const mapReplicatedShowToDbRow = (
       accept_check_payments: 'acceptCheckPayments',
       accept_cash_payments: 'acceptCashPayments',
       online_entries_enabled: 'onlineEntriesEnabled',
+      uses_device_scoring: 'usesDeviceScoring',
+      uses_paper_packet: 'usesPaperPacket',
+      uses_volunteers: 'usesVolunteers',
+      uses_landing_page: 'usesLandingPage',
+      publishes_own_premium: 'publishesOwnPremium',
       logo_url: 'logoUrl',
       cover_image_url: 'coverImageUrl',
       accent_color: 'accentColor',

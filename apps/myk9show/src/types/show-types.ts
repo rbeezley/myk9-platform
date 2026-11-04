@@ -142,6 +142,12 @@ export interface Show {
   acceptCheckPayments?: boolean | undefined;
   acceptCashPayments?: boolean | undefined;
   onlineEntriesEnabled?: boolean | undefined;
+  /** MYK9-1685 "This show uses…" switches (shows.uses_* / publishes_own_premium). */
+  usesDeviceScoring?: boolean | undefined;
+  usesPaperPacket?: boolean | undefined;
+  usesVolunteers?: boolean | undefined;
+  usesLandingPage?: boolean | undefined;
+  publishesOwnPremium?: boolean | undefined;
   /**
    * `shows.allow_waitlist`: "Allow wait lists" for the whole show. A class with no setting of
    * its own follows it (MYK9-1019). Written only by the Waitlist tab's settings card.
@@ -207,6 +213,12 @@ export interface ShowInput {
   acceptCheckPayments?: boolean | undefined;
   acceptCashPayments?: boolean | undefined;
   onlineEntriesEnabled?: boolean | undefined;
+  /** MYK9-1685 "This show uses…" switches (shows.uses_* / publishes_own_premium). */
+  usesDeviceScoring?: boolean | undefined;
+  usesPaperPacket?: boolean | undefined;
+  usesVolunteers?: boolean | undefined;
+  usesLandingPage?: boolean | undefined;
+  publishesOwnPremium?: boolean | undefined;
   isNationals?: boolean | undefined;
   // Experience style — drives all 4 touchpoints (migration 195)
   style?: string | null;

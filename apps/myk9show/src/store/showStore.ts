@@ -31,6 +31,7 @@ import {
   readShowsOrThrow,
 } from './showStoreReads';
 import { invalidateVenuePinIfLocationChanged } from '@/features/maps/invalidateVenuePin';
+import { pickShowUsesUpdates } from '@/services/replication/showUsesColumns';
 
 /**
  * Convert ReplicatedShow (database schema) to Show (app schema)
@@ -67,6 +68,11 @@ export function replicatedToShow(replicated: ReplicatedShow): Show {
     acceptCashPayments: replicated.acceptCashPayments,
     onlineEntriesEnabled: replicated.onlineEntriesEnabled,
     allowsWaitlist: replicated.allowsWaitlist,
+    usesDeviceScoring: replicated.usesDeviceScoring,
+    usesPaperPacket: replicated.usesPaperPacket,
+    usesVolunteers: replicated.usesVolunteers,
+    usesLandingPage: replicated.usesLandingPage,
+    publishesOwnPremium: replicated.publishesOwnPremium,
     serverVersion: replicated.serverVersion,
     // Preserve the Nationals placement flag across sync/reload. Dropping it here
     // would surface as undefined → showToFormData defaults false → an unrelated
@@ -190,6 +196,12 @@ export interface ShowInput {
   acceptCheckPayments?: boolean | undefined;
   acceptCashPayments?: boolean | undefined;
   onlineEntriesEnabled?: boolean | undefined;
+  /** MYK9-1685 "This show uses…" switches. */
+  usesDeviceScoring?: boolean | undefined;
+  usesPaperPacket?: boolean | undefined;
+  usesVolunteers?: boolean | undefined;
+  usesLandingPage?: boolean | undefined;
+  publishesOwnPremium?: boolean | undefined;
   isNationals?: boolean | undefined;
   style?: string | null;
   assignedJudges?: ShowJudgeAssignment[] | undefined;
@@ -421,6 +433,7 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
       // Style is persisted only by Preview's narrow RPC command. Generic show
       // edits must not carry a stale style snapshot into a full-row mutation.
       if (updates.isNationals !== undefined) replicatedUpdates.isNationals = updates.isNationals;
+      Object.assign(replicatedUpdates, pickShowUsesUpdates(updates));
 
       const showMutationId = await replicatedShowsTable.updateShow(id, replicatedUpdates);
 

@@ -8633,6 +8633,11 @@ export type Database = {
           withdrawal_retention_type: string | null
           withdrawal_retention_value: number | null
           zip_code: string | null
+          publishes_own_premium: boolean
+          uses_device_scoring: boolean
+          uses_landing_page: boolean
+          uses_paper_packet: boolean
+          uses_volunteers: boolean
         }
         Insert: {
           accent_color?: string | null
@@ -8704,6 +8709,11 @@ export type Database = {
           withdrawal_retention_type?: string | null
           withdrawal_retention_value?: number | null
           zip_code?: string | null
+          publishes_own_premium?: boolean
+          uses_device_scoring?: boolean
+          uses_landing_page?: boolean
+          uses_paper_packet?: boolean
+          uses_volunteers?: boolean
         }
         Update: {
           accent_color?: string | null
@@ -8775,6 +8785,11 @@ export type Database = {
           withdrawal_retention_type?: string | null
           withdrawal_retention_value?: number | null
           zip_code?: string | null
+          publishes_own_premium?: boolean
+          uses_device_scoring?: boolean
+          uses_landing_page?: boolean
+          uses_paper_packet?: boolean
+          uses_volunteers?: boolean
         }
         Relationships: [
           {

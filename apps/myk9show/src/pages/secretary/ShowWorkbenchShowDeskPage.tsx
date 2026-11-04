@@ -4,6 +4,8 @@ import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { useSecretaryShowEntriesQuery } from '@/hooks/queries/useEntriesDatabase';
 import { useShowJudges } from '@/hooks/queries/useShowJudges';
+import { useShowStore } from '@/store/showStore';
+import { useShowSettings } from '@/hooks/queries/useShowSettingsDatabase';
 import { useShowManageScope } from '@/hooks/useShowManageScope';
 import { trialSecretaryOnlyReason } from '@/features/actions/trialSecretaryAccess';
 import { useShowDeskToolsRegistration } from '@/features/actions/pageEditTarget';
@@ -50,6 +52,7 @@ import {
   ShowDeskScheduleUnavailable,
 } from './ShowDeskScheduleReadState';
 import { useShowDeskScheduleRead } from './useShowDeskScheduleRead';
+import { filterShowDeskTools } from './showDeskToolSwitches';
 import { toIncidentEntryOption } from './showDeskIncidentEntryOptions';
 
 /** Stable identities so a missing read does not remint an array each render. */
@@ -253,7 +256,7 @@ export function ShowWorkbenchShowDeskPage() {
   );
 
   // The order inside each group is the order in the sheet (MYK9-954).
-  const showDeskTools = useMemo<ShowDeskToolSection[]>(() => {
+  const allShowDeskTools = useMemo<ShowDeskToolSection[]>(() => {
     if (!currentShow) return [];
 
     return [
@@ -377,6 +380,23 @@ export function ShowWorkbenchShowDeskPage() {
     showEntriesLoading,
     secretaryOnlyReason,
   ]);
+
+  // MYK9-1685: "This show uses…" switches hide a tool's row (never its data). The replica row is
+  // read first so a flip shows at once; an unknown value (still loading, read failed) keeps the row.
+  const replicaShow = useShowStore(state =>
+    currentShow ? state.shows.find(candidate => candidate.id === currentShow.id) : undefined
+  );
+  const showSettings = useShowSettings(currentShow?.id ?? null);
+  const showDeskTools = useMemo(
+    () =>
+      filterShowDeskTools(allShowDeskTools, {
+        selfCheckin: showSettings.data?.selfCheckinEnabled,
+        deviceScoring: replicaShow?.usesDeviceScoring ?? currentShow?.usesDeviceScoring,
+        paperPacket: replicaShow?.usesPaperPacket ?? currentShow?.usesPaperPacket,
+        volunteers: replicaShow?.usesVolunteers ?? currentShow?.usesVolunteers,
+      }),
+    [allShowDeskTools, currentShow, replicaShow, showSettings.data?.selfCheckinEnabled]
+  );
 
   // Which body this page renders. The early returns below and the header registration read the
   // SAME booleans, so the Actions menu never offers a `?tool=` row while no panel exists.

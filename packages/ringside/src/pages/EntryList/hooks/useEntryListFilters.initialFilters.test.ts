@@ -22,7 +22,7 @@ function entry(over: Partial<Entry> & { id: string; armband: number }): Entry {
 
 const entries: Entry[] = [
   entry({ id: 'p', armband: 1, callName: 'Pending Pup' }),
-  entry({ id: 'd', armband: 2, callName: 'Done Dog', isScored: true, resultStatus: 'qualified' }),
+  entry({ id: 'd', armband: 2, callName: 'Done Dog', isScored: true, resultText: 'Qualified' }),
 ];
 
 describe('useEntryListFilters initialFilters (MYK9-1551)', () => {

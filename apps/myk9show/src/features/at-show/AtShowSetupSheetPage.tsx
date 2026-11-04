@@ -23,7 +23,8 @@ import { renderReportToHtml } from '@/lib/reports/reportRenderer';
 import { writeMarkupIntoFrame } from '@/pages/secretary/ReportsPage/reportPreviewFrame';
 import { printIframe } from '@/pages/secretary/ReportsPage/reportPreviewUtils';
 import { useAtShowClassList } from './useAtShowClassList';
-import { setupSheetRegistryIds } from './setupSheetRegistries';
+import { atShowSetupSheetPath, setupSheetRegistryIds } from './setupSheetRegistries';
+import { useRingsideTrip } from './menu/useRingsideTrip';
 
 /** The print document: the sheets alone, with the report stylesheet. */
 export function setupSheetPrintHtml(sheets: readonly SetupSheet[]): string {
@@ -41,6 +42,11 @@ export function setupSheetPrintHtml(sheets: readonly SetupSheet[]): string {
 export function AtShowSetupSheetPage() {
   const { showId } = useParams<{ showId: string }>();
   const navigate = useNavigate();
+  // Opened from the ringside menu on an entry list, Up goes back to that list (MYK9-1697).
+  const back = useRingsideTrip(
+    atShowSetupSheetPath(showId ?? ''),
+    `/at-show/${encodeURIComponent(showId ?? '')}`
+  );
   const { groups, isLoading, error, refresh } = useAtShowClassList(showId);
   const sheets = setupSheetRegistryIds(groups)
     .map(registryId => getSetupSheet(registryId))
@@ -62,8 +68,8 @@ export function AtShowSetupSheetPage() {
     <main className="ringside-root px-4 py-4">
       <div className="mb-4 flex items-center justify-between gap-2">
         <RingsideUpButton
-          label="Classes"
-          onClick={() => navigate(`/at-show/${encodeURIComponent(showId ?? '')}`)}
+          label={back.label}
+          onClick={() => navigate(back.to, { state: back.state })}
         />
         {sheets.length > 0 && (
           <Button className="min-h-11 gap-2 px-4" onClick={handlePrint}>

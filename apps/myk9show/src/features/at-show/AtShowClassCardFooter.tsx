@@ -68,7 +68,10 @@ export function AtShowClassCardFooter({
           {queuedScoresLabel(queuedScoreCount)}
         </div>
       )}
-      <div className="flex min-h-12 items-center gap-2">
+      {/* Wraps rather than overflows: on a 320px phone the wider "Offline Scoring"
+          badge would push the buttons past the card, so they drop to a line of
+          their own, still right-aligned and 48px. */}
+      <div className="flex min-h-12 flex-wrap items-center gap-2">
         {status}
         {hasProgress ? (
           <>
@@ -78,43 +81,45 @@ export function AtShowClassCardFooter({
         ) : (
           <span className="flex-1" />
         )}
-        {onShowDetails && (
-          <button
-            type="button"
-            aria-label={`Class details for ${entry.class_name}`}
-            aria-haspopup="dialog"
-            className={ICON_BUTTON}
-            onClick={event => onShowDetails(entry, event.currentTarget, showProgress)}
-          >
-            <Info size={20} aria-hidden />
-          </button>
-        )}
-        {onToggleFavorite && (
-          <button
-            type="button"
-            aria-label={`Favorite ${entry.class_name}`}
-            aria-pressed={entry.is_favorite}
-            className={ICON_BUTTON}
-            onClick={() => onToggleFavorite(entry)}
-          >
-            <Heart
-              size={20}
-              aria-hidden
-              className={cn(entry.is_favorite && 'fill-primary text-primary')}
-            />
-          </button>
-        )}
-        {onOpenOptions && (
-          <button
-            type="button"
-            aria-label={`Class options for ${entry.class_name}`}
-            aria-haspopup="dialog"
-            className={ICON_BUTTON}
-            onClick={event => onOpenOptions(entry, event.currentTarget)}
-          >
-            <MoreHorizontal size={20} aria-hidden />
-          </button>
-        )}
+        <div className="ml-auto flex shrink-0 items-center gap-2">
+          {onShowDetails && (
+            <button
+              type="button"
+              aria-label={`Class details for ${entry.class_name}`}
+              aria-haspopup="dialog"
+              className={ICON_BUTTON}
+              onClick={event => onShowDetails(entry, event.currentTarget, showProgress)}
+            >
+              <Info size={20} aria-hidden />
+            </button>
+          )}
+          {onToggleFavorite && (
+            <button
+              type="button"
+              aria-label={`Favorite ${entry.class_name}`}
+              aria-pressed={entry.is_favorite}
+              className={ICON_BUTTON}
+              onClick={() => onToggleFavorite(entry)}
+            >
+              <Heart
+                size={20}
+                aria-hidden
+                className={cn(entry.is_favorite && 'fill-primary text-primary')}
+              />
+            </button>
+          )}
+          {onOpenOptions && (
+            <button
+              type="button"
+              aria-label={`Class options for ${entry.class_name}`}
+              aria-haspopup="dialog"
+              className={ICON_BUTTON}
+              onClick={event => onOpenOptions(entry, event.currentTarget)}
+            >
+              <MoreHorizontal size={20} aria-hidden />
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

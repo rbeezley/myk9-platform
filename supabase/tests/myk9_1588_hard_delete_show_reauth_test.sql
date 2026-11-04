@@ -9,10 +9,29 @@ BEGIN;
 INSERT INTO public.clubs (id, name)
 VALUES ('00000000-0000-0000-0000-000001588001', 'MYK9-1588 fixture club');
 
-INSERT INTO public.people (id, first_name, last_name, auth_user_id)
+INSERT INTO public.people (id, first_name, last_name, email, auth_user_id)
 VALUES
-  ('00000000-0000-0000-0000-000001588011', 'Site', 'Admin', '00000000-0000-0000-0000-000001588021'),
-  ('00000000-0000-0000-0000-000001588012', 'Plain', 'Exhibitor', '00000000-0000-0000-0000-000001588022');
+  ('00000000-0000-0000-0000-000001588011', 'Site', 'Admin', 'myk9-1588-admin@example.test', NULL),
+  ('00000000-0000-0000-0000-000001588012', 'Plain', 'Exhibitor', 'myk9-1588-plain@example.test', NULL);
+
+-- people.auth_user_id REFERENCES auth.users(id): create the sign-ins first, then link.
+INSERT INTO auth.users (
+  id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
+  created_at, updated_at, raw_app_meta_data, raw_user_meta_data,
+  is_super_admin, is_sso_user, is_anonymous
+)
+VALUES
+  ('00000000-0000-0000-0000-000001588021', '00000000-0000-0000-0000-000000000000',
+   'authenticated', 'authenticated', 'myk9-1588-admin@example.test', '', now(), now(), now(),
+   '{}', '{}', false, false, false),
+  ('00000000-0000-0000-0000-000001588022', '00000000-0000-0000-0000-000000000000',
+   'authenticated', 'authenticated', 'myk9-1588-plain@example.test', '', now(), now(), now(),
+   '{}', '{}', false, false, false);
+
+UPDATE public.people SET auth_user_id = '00000000-0000-0000-0000-000001588021'
+WHERE id = '00000000-0000-0000-0000-000001588011';
+UPDATE public.people SET auth_user_id = '00000000-0000-0000-0000-000001588022'
+WHERE id = '00000000-0000-0000-0000-000001588012';
 
 INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
 SELECT '00000000-0000-0000-0000-000001588011', id, NULL, true,

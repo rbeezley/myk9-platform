@@ -2,9 +2,12 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useCanSendTargetedShowMessages } from '../useCanSendTargetedShowMessages';
 
-const auth = vi.hoisted(() => ({
-  value: { isSecretary: false, isAdmin: false, hasRole: (_role: string) => false },
-}));
+type AuthStub = { isSecretary: boolean; isAdmin: boolean; hasRole: (role: string) => boolean };
+
+const auth = vi.hoisted(() => {
+  const value: AuthStub = { isSecretary: false, isAdmin: false, hasRole: () => false };
+  return { value };
+});
 vi.mock('@/hooks/useAuthContext', () => ({ useAuthContext: () => auth.value }));
 
 describe('useCanSendTargetedShowMessages', () => {

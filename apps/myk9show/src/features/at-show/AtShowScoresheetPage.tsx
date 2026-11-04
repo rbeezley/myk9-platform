@@ -351,14 +351,18 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
   // later leaves the sheet working; the server refuses that save and the banner
   // above shows why.
   if (awaitingRegistrationNumber) {
+    // HeldEntryNotice is shared with the secretary ScoresheetPage, whose layout
+    // already supplies the page main, so the ringside landmark lives here (MYK9-1555).
     return (
-      <HeldEntryNotice
-        onBack={onBack}
-        submit={submit}
-        submitError={submitError}
-        onDismissError={clearSubmitError}
-        onCheckAgain={reload}
-      />
+      <main>
+        <HeldEntryNotice
+          onBack={onBack}
+          submit={submit}
+          submitError={submitError}
+          onDismissError={clearSubmitError}
+          onCheckAgain={reload}
+        />
+      </main>
     );
   }
 

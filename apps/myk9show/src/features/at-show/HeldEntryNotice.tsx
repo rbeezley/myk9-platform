@@ -44,7 +44,7 @@ export function HeldEntryNotice({
     onDismissError();
   };
   return (
-    <main className="ringside-root container max-w-2xl mx-auto px-4 py-6">
+    <div className="ringside-root container max-w-2xl mx-auto px-4 py-6">
       {message && <ScoreSubmitErrorBanner message={message} onDismiss={dismiss} />}
       <div role="alert" className="rounded-xl border bg-card p-6 text-center">
         <ShieldAlert className="h-12 w-12 text-warning mx-auto mb-4" aria-hidden />
@@ -60,6 +60,6 @@ export function HeldEntryNotice({
           <RingsideUpButton label="Entries" onClick={onBack} />
         </div>
       </div>
-    </main>
+    </div>
   );
 }

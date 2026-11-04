@@ -1,3 +1,4 @@
+import { Settings } from 'lucide-react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, within } from '@/test/utils/testUtils';
@@ -15,7 +16,8 @@ const mocks = vi.hoisted(() => ({
   },
   online: true,
   canManage: false,
-  staff: false,
+  dogKind: null as 'staff' | 'exhibitor' | null,
+  trials: [] as Record<string, unknown>[],
   show: { clubId: 'club-1', location: '123 Main St, Springfield' } as Record<string, unknown>,
 }));
 
@@ -23,13 +25,14 @@ vi.mock('@/hooks/useAuthContext', () => ({ useAuthContext: () => mocks.auth }));
 vi.mock('@/hooks/useShowManageScope', () => ({
   useShowManageScope: () => ({ canManage: mocks.canManage }),
 }));
-vi.mock('../useStaffDogGate', () => ({ useIsStaffDogViewer: () => mocks.staff }));
+vi.mock('../useStaffDogGate', () => ({ useDogViewerKind: () => mocks.dogKind }));
 vi.mock('@/lib/networkUtils', () => ({ useOnlineStatus: () => mocks.online }));
 vi.mock('@/hooks/useGlobalSyncStatus', () => ({
   useGlobalSyncStatus: () => ({ status: 'synced', queueSize: 0 }),
 }));
 vi.mock('@/services/replication', () => ({
   replicatedShowsTable: { getShowById: vi.fn(async () => mocks.show) },
+  replicatedTrialsTable: { getTrialsByShow: vi.fn(async () => mocks.trials) },
 }));
 vi.mock('@/hooks/queries/useShowOfficials', () => ({
   useShowOfficials: () => ({
@@ -80,7 +83,8 @@ describe('RingsideMenu', () => {
     mocks.auth.signOut.mockReset();
     mocks.online = true;
     mocks.canManage = false;
-    mocks.staff = false;
+    mocks.dogKind = null;
+    mocks.trials = [];
     mocks.show = { clubId: 'club-1', location: '123 Main St, Springfield' };
     useRingsideReturnStore.getState().clear();
     useNotificationStore.setState({ isCenterOpen: false });
@@ -275,7 +279,7 @@ describe('RingsideMenu', () => {
   });
 
   it('opens the Nationals Leaderboard for staff on a nationals show and records where to return', async () => {
-    mocks.staff = true;
+    mocks.dogKind = 'staff';
     mocks.show = { ...mocks.show, isNationals: true };
     const { user } = renderMenu();
     const nav = await openMenu(user);
@@ -290,16 +294,98 @@ describe('RingsideMenu', () => {
   });
 
   it('hides the Nationals Leaderboard on a non-nationals show and from non-staff', async () => {
-    mocks.staff = true;
+    mocks.dogKind = 'staff';
     const first = renderMenu();
     const nav = await openMenu(first.user);
     expect(within(nav).queryByRole('button', { name: 'Nationals Leaderboard' })).toBeNull();
     first.unmount();
 
-    mocks.staff = false;
+    mocks.dogKind = null;
+    mocks.trials = [];
     mocks.show = { ...mocks.show, isNationals: true };
     const second = renderMenu();
     const nav2 = await openMenu(second.user);
     expect(within(nav2).queryByRole('button', { name: 'Nationals Leaderboard' })).toBeNull();
+  });
+
+  // MYK9-1697 (D2): the class list's stacked buttons moved into the menu.
+  it('leads with Find a dog and the cheat sheet for a judge on a UKC show', async () => {
+    mocks.dogKind = 'staff';
+    mocks.trials = [{ id: 't1', registry_id: 'UKC' }];
+    const { user } = renderMenu();
+    const nav = await openMenu(user);
+    await within(nav).findByRole('button', { name: 'Judge setup cheat sheet' });
+    const labels = within(nav)
+      .getAllByRole('button')
+      .map(button => button.textContent);
+    expect(labels.slice(0, 3)).toEqual(['Find a dog', 'Judge setup cheat sheet', 'Announcements']);
+
+    await user.click(within(nav).getByRole('button', { name: 'Find a dog' }));
+    await waitFor(() =>
+      expect(screen.getByTestId('location')).toHaveTextContent('/at-show/show-1/dogs')
+    );
+  });
+
+  it('offers Find a dog to an exhibitor the finder admits, but never the cheat sheet', async () => {
+    mocks.dogKind = 'exhibitor';
+    mocks.auth.hasRole = role => role === 'exhibitor';
+    mocks.trials = [{ id: 't1', registry_id: 'UKC' }];
+    const { user } = renderMenu();
+    const nav = await openMenu(user);
+    expect(within(nav).getByRole('button', { name: 'Find a dog' })).toBeInTheDocument();
+    expect(within(nav).queryByRole('button', { name: 'Judge setup cheat sheet' })).toBeNull();
+  });
+
+  it('offers neither door to a viewer the dog finder would turn away, or a cheat sheet on an ASCA show', async () => {
+    mocks.trials = [{ id: 't1', registry_id: 'ASCA' }];
+    const { user } = renderMenu();
+    const nav = await openMenu(user);
+    expect(within(nav).queryByRole('button', { name: 'Find a dog' })).toBeNull();
+    expect(within(nav).queryByRole('button', { name: 'Judge setup cheat sheet' })).toBeNull();
+  });
+
+  // MYK9-1697 (D6): one menu on the entry list.
+  it('lists the class actions first under "This class" and runs one after the panel closes', async () => {
+    const onRunOrder = vi.fn();
+    const { user } = render(
+      <RingsideMenu
+        showId="show-1"
+        classActions={[
+          { id: 'run-order', label: 'Set Run Order', icon: Settings, onSelect: onRunOrder },
+          {
+            id: 'recalculate',
+            label: 'Recalculate Placements',
+            icon: Settings,
+            onSelect: vi.fn(),
+            disabled: true,
+          },
+        ]}
+      />,
+      { initialRoute: '/at-show/show-1/class/class-1' }
+    );
+    await user.click(screen.getByRole('button', { name: 'Ringside menu' }));
+    const group = await screen.findByRole('region', { name: 'This class' });
+    expect(within(group).getByRole('button', { name: 'Recalculate Placements' })).toBeDisabled();
+
+    await user.click(within(group).getByRole('button', { name: 'Set Run Order' }));
+    await waitFor(() => expect(onRunOrder).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
+  it('names the unread count it shows on the menu button (axe label-content-name-mismatch)', () => {
+    useNotificationStore.setState({ unreadCount: 2 });
+    try {
+      renderMenu();
+      const button = screen.getByRole('button', { name: 'Ringside menu, 2 unread' });
+      expect(button).toHaveTextContent('2');
+    } finally {
+      useNotificationStore.setState({ unreadCount: 0 });
+    }
+  });
+
+  it('has no "This class" group without class actions (the class list)', async () => {
+    const { user } = renderMenu('/at-show/show-1');
+    await openMenu(user);
+    expect(screen.queryByRole('region', { name: 'This class' })).toBeNull();
   });
 });

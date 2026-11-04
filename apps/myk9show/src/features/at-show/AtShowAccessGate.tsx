@@ -8,7 +8,7 @@ import { useAccountTodayAutoFavorites } from '@/features/show-today/accountToday
 import { useHasAnyEntryForShow } from './useHasAnyEntryForShow';
 import { useLocalEntryForShowToday } from './useLocalEntryForShowToday';
 import { useRehydrateRingsideGrant } from './useRehydrateRingsideGrant';
-import { AtShowAnnouncementFeed } from './AtShowAnnouncementFeed';
+import { AtShowAnnouncementSubscription } from './AtShowAnnouncementSubscription';
 import { hasRingsideStaffRole } from './ringsideAccountAccess';
 
 function FullScreen({ children }: { children: ReactNode }) {
@@ -75,7 +75,7 @@ export function AtShowAccessGate({ children }: { children: ReactNode }) {
   }
 
   if (grantRole || hasAccountStaffRole || accountToday.hasAccountEntryForShow || admittedLocally) {
-    return <AtShowAnnouncementFeed showId={showId}>{children}</AtShowAnnouncementFeed>;
+    return <AtShowAnnouncementSubscription showId={showId}>{children}</AtShowAnnouncementSubscription>;
   }
 
   if (user && accountToday.isLoading) {

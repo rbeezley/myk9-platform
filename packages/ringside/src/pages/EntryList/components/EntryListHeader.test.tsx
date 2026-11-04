@@ -116,9 +116,8 @@ describe('EntryListHeader', () => {
         trialNumber: 'Saturday T 2',
       } as ClassInfo,
     });
-    const header = document.querySelector('header')!;
-    expect(header.textContent).toContain('Saturday T 2');
-    expect(header.textContent).not.toMatch(/Trial Saturday|Trial Trial/);
+    const trialLine = screen.getByText(/Saturday T 2/);
+    expect(trialLine.textContent).not.toMatch(/Trial Saturday|Trial Trial/);
   });
 
   it('renders the class name in title case', () => {
@@ -178,7 +177,33 @@ describe('EntryListHeader', () => {
     expect(screen.getByTestId('offline')).not.toBeNull();
   });
 
-  it('hides staff print actions when the actions menu disables print options', () => {
+  // MYK9-1697 (D6): one menu. The header draws no ⋮ of its own; it hands the
+  // class actions to the host's menu slot.
+  it('has no actions menu of its own and hands the class actions to the host menu', () => {
+    const onRunOrderClick = vi.fn();
+    const menu = vi.fn((actions: readonly { label: string; onSelect: () => void }[]) => (
+      <button type="button" onClick={() => actions[0]?.onSelect()}>
+        Ringside menu
+      </button>
+    ));
+    renderHeader({
+      actionsMenu: { ...defaultProps.actionsMenu, showRunOrder: true, onRunOrderClick },
+      menu,
+    });
+
+    expect(screen.queryByRole('button', { name: /actions menu/i })).toBeNull();
+    expect(menu.mock.calls[0]?.[0].map(action => action.label)).toEqual(['Set Run Order']);
+    fireEvent.click(screen.getByRole('button', { name: 'Ringside menu' }));
+    expect(onRunOrderClick).toHaveBeenCalledTimes(1);
+  });
+
+  it('still renders a plain menu node as given', () => {
+    renderHeader({ menu: <button type="button">Ringside menu</button> });
+    expect(screen.getByRole('button', { name: 'Ringside menu' })).toBeInTheDocument();
+  });
+
+  it('withholds print actions from the host menu when print options are disabled', () => {
+    const menu = vi.fn((_actions: readonly { label: string }[]) => null);
     renderHeader({
       actionsMenu: {
         ...defaultProps.actionsMenu,
@@ -189,40 +214,43 @@ describe('EntryListHeader', () => {
           { label: 'Scoresheet', onClick: vi.fn(), icon: 'scoresheet' },
         ],
       },
+      menu,
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /actions menu/i }));
-
-    expect(screen.getByText('Refresh')).not.toBeNull();
-    expect(screen.queryByText('Check-In Sheet')).toBeNull();
-    expect(screen.queryByText('Results Sheet')).toBeNull();
-    expect(screen.queryByText('Scoresheet')).toBeNull();
+    expect(menu.mock.calls[0]?.[0]).toEqual([]);
   });
 
-  it('keeps the actions menu trigger touch-safe at every viewport', () => {
-    renderHeader();
+  // MYK9-1697 (D3): refresh sits in the bar, as on the class list, at 48px.
+  it('refreshes from a 48px icon in the bar and spins while refreshing', () => {
+    const onRefresh = vi.fn();
+    renderHeader({ onRefresh });
 
-    const trigger = screen.getByRole('button', { name: /actions menu/i });
-    expect(trigger.className).toContain('min-h-11');
-    expect(trigger.className).toContain('min-w-11');
-    expect(trigger.className).toContain('sm:min-h-12');
-    expect(trigger.className).toContain('focus-visible:ring-2');
+    const refresh = screen.getByRole('button', { name: 'Refresh entries' });
+    expect(refresh.className).toContain('h-12');
+    expect(refresh.className).toContain('w-12');
+    fireEvent.click(refresh);
+    expect(onRefresh).toHaveBeenCalledTimes(1);
   });
 
-  it('puts the class title on its own row under the Up control on phones (MYK9-1500)', () => {
+  it('pins the class name with the bar and lets it wrap on its own row on phones (D7)', () => {
     renderHeader();
 
     const heading = screen.getByRole('heading');
-    const row = heading.parentElement;
-    const block = row?.parentElement;
+    const block = heading.parentElement;
     // Class names are pinned, not measured: jsdom has no layout. The browser measurement at 375px is the proof.
+    expect(screen.getByRole('banner')).toContainElement(heading);
     expect(screen.getByRole('banner').className).toContain('max-sm:flex-wrap');
     expect(block?.className).toContain('max-sm:order-last');
     expect(block?.className).toContain('max-sm:basis-full');
-    expect(row?.className).toContain('min-w-0');
-    expect(row?.className).toContain('max-w-full');
-    expect(heading.className).toContain('min-w-0');
     expect(heading.className).toContain('break-words');
+    expect(heading.className).not.toContain('line-clamp');
+  });
+
+  it('puts the trial line under the pinned bar, so it scrolls away (D7)', () => {
+    renderHeader();
+
+    const trialLine = screen.getByText(/May 28/);
+    expect(screen.getByRole('banner')).not.toContainElement(trialLine);
   });
 
   it('keeps class details open after a click moves the pointer away', () => {

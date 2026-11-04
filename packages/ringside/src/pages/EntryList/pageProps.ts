@@ -62,6 +62,11 @@ import type { EntryListData, ClassInfo } from './types';
 import type { EntryListDialogSlots } from './dialogSlots';
 import type { EntryListHandlers, EntryListActions } from './hookContracts';
 import type { TabType, SortType } from './hooks/useEntryListFilters';
+import type { ClassMenuAction } from './components/entryListHeaderHelpers';
+
+/** The header's menu slot: a fixed control, or one built from this class's actions. */
+export type EntryListMenuSlot =
+  ReactNode | ((classActions: readonly ClassMenuAction[]) => ReactNode);
 
 // =============================================================================
 // EntryListLayoutSlots — UI primitive slots the host injects (PR E2d-2a)
@@ -691,7 +696,7 @@ export interface EntryListPageProps {
      */
     hideSettingsOption: boolean;
     /**
-     * True means the actions menu hides the print options entirely. Reports are
+     * True means the class actions omit the print options entirely. Reports are
      * a host concern: the at-show ringside surface deliberately offers no
      * printing (reports live on the secretary Reports page), so the host sets
      * this. Optional — omitting it preserves the default (print shown for
@@ -706,8 +711,10 @@ export interface EntryListPageProps {
     /**
      * Host-rendered menu control (MYK9-1508), placed at the end of the header.
      * Omitted means no menu, which is how the scoresheet-adjacent hosts opt out.
+     * A function receives this class's actions (MYK9-1697): the header has no
+     * menu of its own, so a host that wants them lists them in its menu.
      */
-    menu?: ReactNode;
+    menu?: EntryListMenuSlot;
   };
 }
 

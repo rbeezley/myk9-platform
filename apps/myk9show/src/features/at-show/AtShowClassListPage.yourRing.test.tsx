@@ -209,7 +209,7 @@ describe('AtShowClassListPage Your ring', () => {
 
     const yourRing = await screen.findByRole('region', { name: 'Your ring' });
     expect(within(yourRing).queryByText(/Buried Advanced/)).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('tab', { name: /Completed/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /Done/ }));
     const completed = await screen.findByRole('region', { name: 'Your ring' });
     expect(within(completed).getByText(/Buried Advanced/)).toBeInTheDocument();
     expect(within(completed).queryByText(/Interior Excellent/)).not.toBeInTheDocument();

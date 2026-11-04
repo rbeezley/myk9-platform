@@ -153,11 +153,11 @@ export function AtShowClassRow({
         >
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <span className="truncate font-medium">{entry.class_name}</span>
+              <span className="min-w-0 break-words font-medium">{entry.class_name}</span>
             </div>
             {trialHeading && (
               <div className="mt-0.5 flex items-center gap-2 text-sm font-medium text-foreground/80">
-                <span className="truncate">{trialHeading}</span>
+                <span className="min-w-0">{trialHeading}</span>
                 {isToday && (
                   <span className="shrink-0 rounded-full bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground">
                     Today
@@ -166,7 +166,7 @@ export function AtShowClassRow({
               </div>
             )}
             {entry.judge_name && entry.judge_name !== 'No Judge Assigned' && (
-              <div className="mt-0.5 flex items-center gap-1 truncate text-sm text-muted-foreground">
+              <div className="mt-0.5 flex min-w-0 items-start gap-1 break-words text-sm text-muted-foreground">
                 <User size={13} className="shrink-0" />
                 {entry.judge_name}
               </div>
@@ -189,50 +189,55 @@ export function AtShowClassRow({
             )}
             {showNextUp && nextUp && <AtShowClassRowNextUp preview={nextUp} />}
           </div>
-          <div className="flex shrink-0 flex-col items-end gap-1">
-            {status === 'offline-scoring' || queuedScoreCount > 0 ? (
-              <OfflineScoringBadge />
-            ) : (
-              <StatusBadge
-                family="class"
-                status={status}
-                className="px-2 py-0.5 text-xs font-medium"
-              />
-            )}
-            {/*
-            INTENT: an unknown count must never be spelled as a zero. On the
-            judge's landing screen "0 of 0 scored" is a claim that the class is
-            empty and finished; before the show's entry replica has been read
-            that claim is simply unfounded (MYK9-637).
-          */}
-            {/*
-            MYK9-1184: an exhibitor's replica never holds every entry in a
-            class (RLS admits only their own), so for them the count can never
-            load and "not loaded" would be permanent. Omit the line instead.
-          */}
-            {(entryCountsAvailable || !isExhibitorOnly) && (
-              <span className="text-xs text-muted-foreground">
-                {entryCountsAvailable ? (
-                  <>
-                    <span aria-hidden>
-                      {entry.completed_count} / {entry.entry_count}
-                    </span>
-                    <span className="sr-only">
-                      {entry.completed_count} of {entry.entry_count} scored
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <span aria-hidden>—</span>
-                    <span className="sr-only">Entry count not loaded yet</span>
-                  </>
-                )}
-              </span>
-            )}
-          </div>
           <ChevronRight size={18} className="shrink-0 text-muted-foreground" />
         </button>
+        {/* MYK9-1697 (D5): status and count live in the footer row, so the
+            class name, trial line and judge get the card's full width. */}
         <AtShowClassCardFooter
+          status={
+            // Phones stack the count under the badge so the row keeps its three 48px buttons.
+            <span className="flex shrink-0 flex-col items-start gap-0.5 sm:flex-row sm:items-center sm:gap-2">
+              {status === 'offline-scoring' || queuedScoreCount > 0 ? (
+                <OfflineScoringBadge />
+              ) : (
+                <StatusBadge
+                  family="class"
+                  status={status}
+                  className="px-2 py-0.5 text-xs font-medium"
+                />
+              )}
+              {/*
+                INTENT: an unknown count must never be spelled as a zero. On the
+                judge's landing screen "0 of 0 scored" is a claim that the class is
+                empty and finished; before the show's entry replica has been read
+                that claim is simply unfounded (MYK9-637).
+              */}
+              {/*
+                MYK9-1184: an exhibitor's replica never holds every entry in a
+                class (RLS admits only their own), so for them the count can never
+                load and "not loaded" would be permanent. Omit the line instead.
+              */}
+              {(entryCountsAvailable || !isExhibitorOnly) && (
+                <span className="text-xs tabular-nums text-muted-foreground">
+                  {entryCountsAvailable ? (
+                    <>
+                      <span aria-hidden>
+                        {entry.completed_count} / {entry.entry_count}
+                      </span>
+                      <span className="sr-only">
+                        {entry.completed_count} of {entry.entry_count} scored
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span aria-hidden>—</span>
+                      <span className="sr-only">Entry count not loaded yet</span>
+                    </>
+                  )}
+                </span>
+              )}
+            </span>
+          }
           entry={entry}
           showProgress={entryCountsAvailable}
           queuedScoreCount={queuedScoreCount}

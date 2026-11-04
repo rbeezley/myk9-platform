@@ -4,7 +4,7 @@
  * Combined mode hides the one-class options (recalculate placements, class
  * settings), and with them the only route to Set Max Time. AKC Interior and
  * Exterior Novice are judge-set and run combined, so their judge had no way to set
- * the time at ringside. The actions menu now offers it, and the dialog gets class
+ * the time at ringside. The class actions (host menu) now offer it, and the dialog gets class
  * A with class B as its pair, so one save sets both.
  */
 import React from 'react';
@@ -62,9 +62,9 @@ describe('combined A/B: Set Max Time (MYK9-1086)', () => {
     for (const key of Object.keys(uiActionSpy)) delete uiActionSpy[key];
   });
 
-  it('offers Set Max Time in the actions menu and opens the dialog', () => {
+  it('offers Set Max Time in the class menu and opens the dialog', () => {
     renderPage(withMaxTime(makeCombinedProps({ loaded: true, entries: ENTRIES })));
-    fireEvent.click(screen.getByRole('button', { name: /actions menu/i }));
+    fireEvent.click(screen.getByRole('button', { name: /class menu/i }));
     fireEvent.click(screen.getByRole('button', { name: /set max time \(a & b\)/i }));
 
     expect(uiActionSpy.setMaxTimeDialogOpen).toHaveBeenCalledWith(true);
@@ -110,7 +110,7 @@ describe('combined A/B: Set Max Time (MYK9-1086)', () => {
 
   it('is not offered when the host hides max time', () => {
     renderPage(withMaxTime(makeCombinedProps({ loaded: true, entries: ENTRIES }), { hide: true }));
-    fireEvent.click(screen.getByRole('button', { name: /actions menu/i }));
+    fireEvent.click(screen.getByRole('button', { name: /class menu/i }));
     expect(screen.queryByRole('button', { name: /set max time/i })).not.toBeInTheDocument();
   });
 
@@ -118,7 +118,7 @@ describe('combined A/B: Set Max Time (MYK9-1086)', () => {
     renderPage(
       withMaxTime(makeSingleClassProps({ loaded: true, entries: ENTRIES }), { open: true })
     );
-    fireEvent.click(screen.getByRole('button', { name: /actions menu/i }));
+    fireEvent.click(screen.getByRole('button', { name: /class menu/i }));
 
     expect(screen.queryByRole('button', { name: /set max time/i })).not.toBeInTheDocument();
     expect(maxTimeDialogProps?.classData.id).toBe('class-a');

@@ -438,9 +438,11 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
             // No printing at ringside — reports live on the secretary Reports page.
             hidePrintOptions: true,
             up: { label: 'Classes', to: resolveClassListRoute(showId) },
-            menu: (
+            // One menu (MYK9-1697): the class actions list inside it.
+            menu: classActions => (
               <RingsideMenu
                 showId={showId}
+                classActions={classActions}
                 snapshot={{
                   kind: 'entries',
                   filters: { activeTab, searchTerm, sortBy: sortOrder, sectionFilter },

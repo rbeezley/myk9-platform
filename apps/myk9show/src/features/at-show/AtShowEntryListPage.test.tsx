@@ -217,7 +217,7 @@ describe('AtShowEntryListPage (Phase 1a shim)', () => {
     const openClassOptions = async () => {
       renderPage();
       await screen.findByText('Rex');
-      fireEvent.click(screen.getByRole('button', { name: 'Actions menu' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Ringside menu' }));
       fireEvent.click(await screen.findByRole('button', { name: 'Class Options' }));
       await screen.findByText('Class options');
     };
@@ -704,10 +704,10 @@ describe('AtShowEntryListPage (Phase 1a shim)', () => {
     expect(await screen.findByTestId('class-list-page')).toBeInTheDocument();
   });
 
-  it('offers no "Back to main app" exit in the header or the actions menu', async () => {
+  it('offers no "Back to main app" exit in the header or the ringside menu', async () => {
     renderPage();
     await screen.findByText('Rex');
-    fireEvent.click(screen.getByRole('button', { name: 'Actions menu' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ringside menu' }));
 
     expect(screen.queryByText('Back to main app')).toBeNull();
     expect(screen.queryByRole('button', { name: /main app/i })).toBeNull();

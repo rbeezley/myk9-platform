@@ -21,18 +21,18 @@ _Does this duplicate an existing page?_ No. It adds no page, sheet or control. I
 
 ## Owner decisions
 
-Asked one at a time; each records the answer here before code.
+Asked one at a time; answered by the owner 2026-11-04. D1–D6 and D8 took the recommendation. **D7 did not:** the owner chose to pin the top bar **plus one class-name line** (about 100px, 12%); the name wraps rather than clamps, and the trial line scrolls away.
 
 | #   | Question                                                                      | Recommendation                                                                                                                                           | Answer |
 | --- | ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| D1  | The sticky Announcements bar above every ringside screen                      | Delete it. ☰ › Announcements opens the same Message Center with the same unread count, and ☰'s badge already shows it. Keeps the scoresheet calm.      | _open_ |
-| D2  | Find a dog and Judge setup cheat sheet (full-width buttons in the class list) | Move both into ☰, under the MYK9-1508 items' "places to go" rule (with the return bar).                                                                 | _open_ |
-| D3  | Refresh (header icon on classes, inside ⋮ on entries)                         | Header icon on both lists, same spot, just left of ☰.                                                                                                   | _open_ |
-| D4  | Status tabs truncate ("In Prog…", "Compl…")                                   | Rename to Pending · Running · Favorites · Done, sized to their words.                                                                                    | _open_ |
-| D5  | Class card text truncates                                                     | Move the status badge and the scored count down into the card's footer row beside the progress bar, so name and trial line use the full width.           | _open_ |
-| D6  | Entry list has ⋮ and ☰ side by side                                          | Delete ⋮. Its items (Set Run Order, Class Options, Set Max Time, Recalculate Placements) become a "This class" group at the top of ☰ on the entry list. | _open_ |
-| D7  | Entry list header is 165px and sticky                                         | Only the top bar (Up, filter, refresh, ☰: ~68px, 8%) stays pinned; the class name and trial line sit under it and scroll away.                          | _open_ |
-| D8  | Acceptance criteria                                                           | Confirm MYK9-1697's draft criteria as written, with "sticky chrome ≤15%" measured on the entry list and the scoresheet.                                  | _open_ |
+| D1  | The sticky Announcements bar above every ringside screen                      | Delete it. ☰ › Announcements opens the same Message Center with the same unread count, and ☰'s badge already shows it. Keeps the scoresheet calm.      | Recommended ✓ |
+| D2  | Find a dog and Judge setup cheat sheet (full-width buttons in the class list) | Move both into ☰, under the MYK9-1508 items' "places to go" rule (with the return bar).                                                                 | Recommended ✓ |
+| D3  | Refresh (header icon on classes, inside ⋮ on entries)                         | Header icon on both lists, same spot, just left of ☰.                                                                                                   | Recommended ✓ |
+| D4  | Status tabs truncate ("In Prog…", "Compl…")                                   | Rename to Pending · Running · Favorites · Done, sized to their words.                                                                                    | Recommended ✓ |
+| D5  | Class card text truncates                                                     | Move the status badge and the scored count down into the card's footer row beside the progress bar, so name and trial line use the full width.           | Recommended ✓ |
+| D6  | Entry list has ⋮ and ☰ side by side                                          | Delete ⋮. Its items (Set Run Order, Class Options, Set Max Time, Recalculate Placements) become a "This class" group at the top of ☰ on the entry list. | Recommended ✓ |
+| D7  | Entry list header is 165px and sticky                                         | Only the top bar (Up, filter, refresh, ☰: ~68px, 8%) stays pinned; the class name and trial line sit under it and scroll away.                          | Bar + one-line name |
+| D8  | Acceptance criteria                                                           | Confirm MYK9-1697's draft criteria as written, with "sticky chrome ≤15%" measured on the entry list and the scoresheet.                                  | Recommended ✓ |
 
 No decision is needed for: one-row search + sort at phone width (F11), show name on one wrapping line, and scoresheet header lines wrapping instead of truncating (F9). Those follow from the goal and touch no commitment.
 
@@ -59,7 +59,7 @@ No decision is needed for: one-row search + sort at phone width (F11), show name
 ### Phase C — entry list and scoresheet (F4, F6, F9)
 
 - `EntryListHeader` (packages/ringside): ⋮ removed; the host passes the class actions into `RingsideMenu` as a "This class" group (D6). Long-press hard refresh stays on the refresh icon.
-- Sticky region = the top bar only; title block below it scrolls (D7). Title still opens the class details popover.
+- Sticky region = the top bar plus one class-name line (D7, owner choice); the name wraps instead of clamping and the trial line scrolls away. The name still opens the class details popover.
 - `ScoresheetHeader` (packages/scoring-ui): lines wrap; class, judge, date and trial on one wrapping line.
 
 **Exit:** sticky chrome ≤122px (15% of 812) on the entry list and the scoresheet at 375; ⋮ absent; every former ⋮ action reachable in ≤2 taps from ☰.

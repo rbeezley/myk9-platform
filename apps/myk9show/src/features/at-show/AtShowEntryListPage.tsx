@@ -400,9 +400,11 @@ export const AtShowEntryListPage: React.FC = () => {
             // the Access-upload workflow that doesn't belong here).
             hidePrintOptions: true,
             up: { label: 'Classes', to: resolveClassListRoute(showId) },
-            menu: (
+            // One menu (MYK9-1697): the class actions list inside it.
+            menu: classActions => (
               <RingsideMenu
                 showId={showId}
+                classActions={classActions}
                 snapshot={{
                   kind: 'entries',
                   filters: { activeTab, searchTerm, sortBy: sortOrder, sectionFilter: 'all' },

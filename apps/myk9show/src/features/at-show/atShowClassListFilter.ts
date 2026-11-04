@@ -13,15 +13,15 @@ export type ClassListSort = 'run-order' | 'element-level' | 'level-element';
 
 export const CLASS_LIST_TABS: readonly { id: ClassListTab; label: string }[] = [
   { id: 'pending', label: 'Pending' },
-  { id: 'in-progress', label: 'In Progress' },
+  { id: 'in-progress', label: 'Running' },
   { id: 'favorites', label: 'Favorites' },
-  { id: 'completed', label: 'Completed' },
+  { id: 'completed', label: 'Done' },
 ];
 
 export const CLASS_LIST_SORTS: readonly { id: ClassListSort; label: string }[] = [
   { id: 'run-order', label: 'Run Order' },
-  { id: 'element-level', label: 'Element → Level' },
-  { id: 'level-element', label: 'Level → Element' },
+  { id: 'element-level', label: 'By element' },
+  { id: 'level-element', label: 'By level' },
 ];
 
 export const DEFAULT_CLASS_LIST_TAB: ClassListTab = 'pending';

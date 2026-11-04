@@ -17,6 +17,7 @@
 import React from 'react';
 import { vi } from 'vitest';
 import type { EntryListPageProps } from '../pageProps';
+import type { ClassMenuAction } from '../components/entryListHeaderHelpers';
 
 /** Captured from the mocked EntryListContent so tests can drive its callbacks. */
 export const contentSpy: {
@@ -165,8 +166,39 @@ export function makeSingleClassProps(cse: ParityCase = {}): EntryListPageProps {
       hasPermission: () => true,
       showId: 'show-1',
       up: { label: 'Classes', to: '/at-show/show-1' },
+      menu: (classActions: readonly ClassMenuAction[]) => <TestClassMenu actions={classActions} />,
     },
   } as unknown as EntryListPageProps;
+}
+
+/**
+ * Stand-in for the host's ringside menu (MYK9-1697): the header has no menu of
+ * its own and hands the class actions to the host's, so tests open this one to
+ * reach them, exactly as a judge opens ☰.
+ */
+function TestClassMenu({ actions }: { actions: readonly ClassMenuAction[] }) {
+  const [open, setOpen] = React.useState(false);
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)}>
+        Class menu
+      </button>
+      {open &&
+        actions.map(action => (
+          <button
+            key={action.id}
+            type="button"
+            disabled={action.disabled}
+            onClick={() => {
+              setOpen(false);
+              action.onSelect();
+            }}
+          >
+            {action.label}
+          </button>
+        ))}
+    </>
+  );
 }
 
 /**

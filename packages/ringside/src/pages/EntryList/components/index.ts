@@ -55,10 +55,10 @@ export type { EntryListHeaderProps } from './EntryListHeader';
 export { EntryListDialogs } from './EntryListDialogs';
 export type { EntryListDialogsProps } from './EntryListDialogs';
 
-// Header helper components (action menu, trial info, status/section
-// badges). Used by EntryListHeader.tsx which arrives in E2d-2b.
-export { ActionsDropdownMenu, TrialInfo, getStatusBadge } from './entryListHeaderHelpers';
-export type { PrintOption, ActionsMenuConfig } from './entryListHeaderHelpers';
+// Header helpers (class actions for the host menu, trial info, status
+// badges). Used by EntryListHeader.tsx.
+export { buildClassMenuActions, TrialInfo, getStatusBadge } from './entryListHeaderHelpers';
+export type { PrintOption, ActionsMenuConfig, ClassMenuAction } from './entryListHeaderHelpers';
 
 export {
   EntryListSkeleton,

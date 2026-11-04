@@ -2,9 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Route, Routes } from 'react-router-dom';
 import { fireEvent, render, screen, within } from '@/test/utils/testUtils';
 import type { AtShowClassGroup } from './atShowClassListAdapter';
-import { AtShowSetupSheetLink } from './AtShowSetupSheetLink';
 import { AtShowSetupSheetPage } from './AtShowSetupSheetPage';
-import { atShowSetupSheetPath, setupSheetRegistryIds } from './setupSheetRegistries';
+import { setupSheetRegistryIds } from './setupSheetRegistries';
 
 const classList = vi.hoisted(() => ({
   groups: [] as unknown[],
@@ -51,35 +50,6 @@ describe('setupSheetRegistryIds', () => {
   it('lists UKC and AKC once each and drops ASCA', () => {
     expect(setupSheetRegistryIds(groupsFor('UKC', 'ASCA', 'UKC', 'AKC'))).toEqual(['UKC', 'AKC']);
     expect(setupSheetRegistryIds(groupsFor('ASCA'))).toEqual([]);
-  });
-});
-
-describe('AtShowSetupSheetLink', () => {
-  it('links a UKC or AKC show to the at-show setup sheet route', () => {
-    render(
-      <AtShowSetupSheetLink showId="show-1" groups={groupsFor('UKC')} isExhibitorOnly={false} />
-    );
-
-    expect(screen.getByRole('link', { name: /judge setup cheat sheet/i })).toHaveAttribute(
-      'href',
-      atShowSetupSheetPath('show-1')
-    );
-  });
-
-  it('renders nothing for an ASCA-only show', () => {
-    render(
-      <AtShowSetupSheetLink showId="show-1" groups={groupsFor('ASCA')} isExhibitorOnly={false} />
-    );
-
-    expect(screen.queryByRole('link', { name: /setup cheat sheet/i })).not.toBeInTheDocument();
-  });
-});
-
-describe('AtShowSetupSheetLink for exhibitors', () => {
-  it('renders nothing for an exhibitor-only account', () => {
-    render(<AtShowSetupSheetLink showId="show-1" groups={groupsFor('UKC')} isExhibitorOnly />);
-
-    expect(screen.queryByRole('link', { name: /setup cheat sheet/i })).not.toBeInTheDocument();
   });
 });
 

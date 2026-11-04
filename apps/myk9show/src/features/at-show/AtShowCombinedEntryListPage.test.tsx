@@ -314,7 +314,7 @@ describe('AtShowCombinedEntryListPage (Phase 1h combined Section A/B)', () => {
   it('Up goes to the show class list, and there is no "Back to main app" exit', async () => {
     renderPage();
     await screen.findByText('Rex');
-    fireEvent.click(screen.getByRole('button', { name: 'Actions menu' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ringside menu' }));
     expect(screen.queryByText('Back to main app')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'Classes' }));

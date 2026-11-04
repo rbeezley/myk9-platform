@@ -260,7 +260,7 @@ describe('AtShowEntryListPage — class dialogs use the same pair as the badges 
     renderPage();
 
     await screen.findByText('Pending');
-    await user.click(screen.getByRole('button', { name: 'Actions menu' }));
+    await user.click(screen.getByRole('button', { name: 'Ringside menu' }));
     await user.click(await screen.findByRole('button', { name: 'Class Options' }));
     await user.click(await screen.findByRole('button', { name: 'Requirements' }));
 

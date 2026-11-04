@@ -6,7 +6,8 @@
  * page's Results tab, the Message Center, AskQ). Nothing here re-implements one.
  */
 import type { LucideIcon } from 'lucide-react';
-import { Bell, Info, LifeBuoy, LogOut, Medal, Settings } from 'lucide-react';
+import { Bell, Dog, FileText, Info, LifeBuoy, LogOut, Medal, Settings } from 'lucide-react';
+import { atShowSetupSheetPath } from '../setupSheetRegistries';
 import { ringsideMenuExtensions } from './ringsideMenuExtensions';
 
 export interface RingsideMenuContext {
@@ -20,6 +21,16 @@ export interface RingsideMenuContext {
   isNationals?: boolean | null;
   /** Judge, steward or secretary/admin on this show (`useIsStaffDogViewer`). */
   isStaff?: boolean;
+  /**
+   * The dog finder admits this viewer: `useDogViewerKind` is not null, the same
+   * gate `AtShowDogsPage` applies, so the item and the page cannot disagree.
+   */
+  canFindDogs?: boolean;
+  /**
+   * The show has a judge setup cheat sheet (a registry with one; ASCA has none)
+   * and the viewer is not exhibitor-only (MYK9-1078).
+   */
+  hasSetupSheet?: boolean;
 }
 
 export type RingsideMenuAction = 'announcements' | 'askq' | 'show-info' | 'sign-out';
@@ -61,6 +72,28 @@ export function buildRingsideMenuItems(
   const { showId } = context;
   const showScope = showId ? `/shows/${showId}` : null;
   const items: Array<RingsideMenuItem | null> = [
+    // MYK9-1697 (D2): the class list's two stacked buttons moved here. Both
+    // pages live under /at-show and own their way back, like the leaderboard.
+    showId && context.canFindDogs
+      ? {
+          id: 'find-dog',
+          label: 'Find a dog',
+          icon: Dog,
+          href: `/at-show/${showId}/dogs`,
+          returnScope: `/at-show/${showId}/dogs`,
+          requiresConnection: false,
+        }
+      : null,
+    showId && context.hasSetupSheet
+      ? {
+          id: 'setup-sheet',
+          label: 'Judge setup cheat sheet',
+          icon: FileText,
+          href: atShowSetupSheetPath(showId),
+          returnScope: atShowSetupSheetPath(showId),
+          requiresConnection: false,
+        }
+      : null,
     {
       id: 'announcements',
       label: 'Announcements',

@@ -218,4 +218,45 @@ describe('buildReadyForShowDay', () => {
     expect(result.lines.map(line => line.id)).not.toContain('paperwork');
     expect(result.allClear).toBe(true);
   });
+
+  describe('show uses switches (MYK9-1686)', () => {
+    const premiumInfo = (over: Record<string, unknown>) => ({
+      publishedPremiumUrl: 'https://example.com/p.pdf',
+      publishedPremiumAt: '2026-10-01T00:00:00Z',
+      updatedAt: '2026-10-01T00:00:00Z',
+      experienceIsPublished: true,
+      ...over,
+    });
+    const withShow = (showOver: Partial<Show>, info: ReturnType<typeof premiumInfo>) => {
+      const base = allGood();
+      return buildReadyForShowDay({
+        ...base,
+        setup: { ...base.setup, show: show(showOver) },
+        premiumInfo: info,
+      });
+    };
+
+    it('does not fail the premium line on an unpublished landing page while the switch is off', () => {
+      const info = premiumInfo({ experienceIsPublished: false });
+      expect(statusOf(withShow({ usesLandingPage: false }, info), 'premium')).toBe('pass');
+      expect(statusOf(withShow({ usesLandingPage: true }, info), 'premium')).toBe('fail');
+    });
+
+    it('fails the premium line on an unpublished landing page even when the club publishes its own', () => {
+      const info = premiumInfo({
+        publishedPremiumUrl: null,
+        publishedPremiumAt: null,
+        experienceIsPublished: false,
+      });
+      expect(
+        statusOf(withShow({ usesLandingPage: true, publishesOwnPremium: true }, info), 'premium')
+      ).toBe('fail');
+    });
+
+    it('does not fail the premium line on an unpublished premium when the club publishes its own', () => {
+      const info = premiumInfo({ publishedPremiumUrl: null, publishedPremiumAt: null });
+      expect(statusOf(withShow({ publishesOwnPremium: true }, info), 'premium')).toBe('pass');
+      expect(statusOf(withShow({ publishesOwnPremium: false }, info), 'premium')).toBe('fail');
+    });
+  });
 });

@@ -7,6 +7,7 @@ import {
   PREMIUM_CARD_ANCHOR,
   SHOW_STATUS_CONTROL_ANCHOR,
 } from './publishReadiness';
+import { resolveShowUses } from './showUses';
 import { getSelectClassesHref } from '@/pages/secretary/selectClassesRoutes';
 
 export type SetupReadinessSignalId =
@@ -126,8 +127,14 @@ export function computeSetupReadinessSignals(input: SetupReadinessInput): SetupR
       href: `#${SHOW_STATUS_CONTROL_ANCHOR}`,
     });
   }
+  // MYK9-1686: a club that publishes its own premium list is never nudged to publish one here,
+  // and a show without a public landing page has no landing snapshot to publish. Suppressing at
+  // the source clears the Ready line and the Show Desk chip together.
+  const { usesLandingPage, publishesOwnPremium } = resolveShowUses(input.show);
   const premiumState = classifyPremiumPublishState(input.premiumInfo ?? input.show);
-  if (premiumState === 'published-stale') {
+  if (publishesOwnPremium) {
+    // no premium nudge
+  } else if (premiumState === 'published-stale') {
     signals.push({
       id: 'exhibitor-materials-unpublished',
       label: 'Premium changed since publish',
@@ -150,7 +157,10 @@ export function computeSetupReadinessSignals(input: SetupReadinessInput): SetupR
   // be a dead end.
   const experienceIsPublished =
     input.premiumInfo?.experienceIsPublished ?? input.show.experienceIsPublished;
-  if (premiumState === 'published-current' && !experienceIsPublished) {
+  // A club that publishes its own premium has no generated premium to wait on, so its landing
+  // page warns on its own (a suppressed premium line must not hide an unpublished landing page).
+  const premiumSettled = premiumState === 'published-current' || publishesOwnPremium;
+  if (usesLandingPage && premiumSettled && !experienceIsPublished) {
     signals.push({
       id: 'landing-content-unpublished',
       label: 'Landing page not published',

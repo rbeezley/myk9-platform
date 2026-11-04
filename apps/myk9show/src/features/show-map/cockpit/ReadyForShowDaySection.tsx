@@ -8,6 +8,7 @@ import { useOfflineReadiness } from '@/features/offline-readiness/useOfflineRead
 import { usePublishInfo } from '@/features/premium/usePublishInfo';
 import type { ClassEntryBreakdown } from '@/features/entry-operations/classEntryBreakdown';
 import type { ShowMapClassInput, ShowMapTrialInput } from '../showMapTypes';
+import { useShowWithLiveUses } from '@/features/show-workbench/useShowWithLiveUses';
 import type { Show } from '@/types/show-types';
 
 import {
@@ -17,6 +18,7 @@ import {
   type ReadyLine,
 } from './readyForShowDay';
 import type { SecretaryCockpitPaperwork } from './secretaryCockpitTypes';
+import { ShowUsesSuggestionNote } from './ShowUsesSuggestionNote';
 
 interface ReadyForShowDaySectionProps {
   show: Show;
@@ -68,7 +70,7 @@ function LineRow({ line }: { line: ReadyLine }) {
 }
 
 function ReadyForShowDayContent({
-  show,
+  show: routeShow,
   trials,
   classes,
   entryBreakdownByClassId,
@@ -76,6 +78,7 @@ function ReadyForShowDayContent({
   printTrackingInUse,
   offlinePromptOpen,
 }: Omit<ReadyForShowDaySectionProps, 'now'> & { offlinePromptOpen: boolean }) {
+  const show = useShowWithLiveUses(routeShow);
   const publishInfo = usePublishInfo(show.id, true);
   const { readiness } = useOfflineReadiness(show.id);
 
@@ -124,14 +127,17 @@ function ReadyForShowDayContent({
 
   if (result.allClear) {
     return (
-      <section
-        aria-label="Ready for show day"
-        role="status"
-        className="flex items-center gap-3 rounded-xl border border-success/30 bg-success/10 px-4 py-3 text-sm font-medium text-success"
-      >
-        <CheckCircle2 className="h-5 w-5 shrink-0" aria-hidden="true" />
-        Everything is handled.
-      </section>
+      <>
+        <section
+          aria-label="Ready for show day"
+          role="status"
+          className="flex items-center gap-3 rounded-xl border border-success/30 bg-success/10 px-4 py-3 text-sm font-medium text-success"
+        >
+          <CheckCircle2 className="h-5 w-5 shrink-0" aria-hidden="true" />
+          Everything is handled.
+        </section>
+        <ShowUsesSuggestionNote show={show} />
+      </>
     );
   }
 
@@ -148,6 +154,7 @@ function ReadyForShowDayContent({
           <LineRow key={line.id} line={line} />
         ))}
       </ul>
+      <ShowUsesSuggestionNote show={show} />
     </section>
   );
 }

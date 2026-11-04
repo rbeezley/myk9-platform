@@ -184,7 +184,7 @@ describe('computeSetupReadinessSignals', () => {
     // PremiumDownloadCard, so the chip must land there — the landing card
     // itself has no publish control.
     const signals = computeSetupReadinessSignals({
-      show: show({ experienceIsPublished: false }),
+      show: show({ experienceIsPublished: false, usesLandingPage: true }),
       trials: [trial()],
       classes: [cls()],
       judges: ['j1'],
@@ -300,5 +300,50 @@ describe('isSetupReady', () => {
         judges: ['j1'],
       })
     ).toBe(false);
+  });
+
+  describe('show uses switches (MYK9-1686)', () => {
+    const base = { trials: [trial()], classes: [cls()], judges: ['j1'] };
+    const ids = (overrides: Partial<Show>) =>
+      computeSetupReadinessSignals({ ...base, show: show(overrides) }).map(s => s.id);
+
+    it('emits no landing signal while the landing page switch is off, and restores it when on', () => {
+      expect(ids({ experienceIsPublished: false, usesLandingPage: false })).not.toContain(
+        'landing-content-unpublished'
+      );
+      expect(ids({ experienceIsPublished: false })).not.toContain('landing-content-unpublished');
+      expect(ids({ experienceIsPublished: false, usesLandingPage: true })).toContain(
+        'landing-content-unpublished'
+      );
+    });
+
+    it('still warns about an unpublished landing page when the club publishes its own premium', () => {
+      expect(
+        ids({
+          usesLandingPage: true,
+          publishesOwnPremium: true,
+          publishedPremiumUrl: null,
+          publishedPremiumAt: null,
+          experienceIsPublished: false,
+        })
+      ).toEqual(['landing-content-unpublished']);
+    });
+
+    it('emits no premium signal when the club publishes its own, either state, and restores it when off', () => {
+      const unpublished = { publishedPremiumUrl: null, publishedPremiumAt: null };
+      const stale = { updatedAt: '2026-06-01T00:00:00Z' };
+      expect(ids({ ...unpublished, publishesOwnPremium: true })).not.toContain(
+        'exhibitor-materials-unpublished'
+      );
+      expect(ids({ ...stale, publishesOwnPremium: true })).not.toContain(
+        'exhibitor-materials-unpublished'
+      );
+      expect(ids({ ...unpublished, publishesOwnPremium: false })).toContain(
+        'exhibitor-materials-unpublished'
+      );
+      expect(ids({ ...stale, publishesOwnPremium: false })).toContain(
+        'exhibitor-materials-unpublished'
+      );
+    });
   });
 });

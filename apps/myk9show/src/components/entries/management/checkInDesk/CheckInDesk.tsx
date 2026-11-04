@@ -15,7 +15,7 @@ import {
   readCheckInFilter,
   writeCheckInFilter,
   type CheckInDeskFilter,
-} from './checkInDesk';
+} from './checkInDeskModel';
 import { useCheckInDeskActions } from './useCheckInDeskActions';
 
 interface CheckInDeskProps {

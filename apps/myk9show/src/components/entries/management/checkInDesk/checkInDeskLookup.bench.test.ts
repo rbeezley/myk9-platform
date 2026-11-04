@@ -11,7 +11,7 @@ import {
   buildPeopleRoster,
   filterPeopleRoster,
 } from '@/features/show-desk-people-roster/peopleRoster';
-import { buildCheckInDeskPeople, filterCheckInDesk } from './checkInDesk';
+import { buildCheckInDeskPeople, filterCheckInDesk } from './checkInDeskModel';
 
 function makeEntries(count: number): EntryManagementEntry[] {
   return Array.from({ length: count }, (_, index) => ({

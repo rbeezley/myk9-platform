@@ -90,7 +90,6 @@ function ShowWorkbenchShowDeskBody() {
     data: showEntriesData,
     isLoading: showEntriesLoading,
     isError: showEntriesIsError,
-    error: showEntriesError,
     refetch: refetchShowEntries,
   } = useSecretaryShowEntriesQuery(showId ?? '', Boolean(showId));
   const showEntries = useMemo(() => showEntriesData ?? EMPTY_ENTRIES, [showEntriesData]);
@@ -365,11 +364,7 @@ function ShowWorkbenchShowDeskBody() {
     hospitalityJudges,
     incidentAttentionLabel,
     incidentEntryOptions,
-    refetchShowEntries,
     showClasses,
-    showEntries,
-    showEntriesError,
-    showEntriesLoading,
     secretaryOnlyReason,
   ]);
 

@@ -43,6 +43,8 @@ import type {
   ReportWaitlistRow,
   TrialOfficials,
 } from '@/lib/reports/types';
+import { useHospitalityPlan } from '@/features/lunch-orders/useHospitalityPlan';
+import type { HospitalityPlanDay } from '@/features/lunch-orders/hospitalityPlan';
 import { useWaitlistReportQuery } from './useWaitlistReportQuery';
 
 /** Report ids whose component needs entry-form data passed in. */
@@ -54,6 +56,9 @@ export const JUDGE_SUPPLY_REPORT_IDS = new Set(['judge-supply-checklist']);
 /** Report ids whose component needs waitlist rows passed in. */
 export const WAITLIST_REPORT_IDS = new Set(['waitlist-report']);
 
+/** Report ids whose component needs the Hospitality plan days passed in (MYK9-1695). */
+export const HOSPITALITY_REPORT_IDS = new Set(['hospitality-plan']);
+
 /** Report ids whose component prints the show's named chairman / secretary (MYK9-1386). */
 export const OFFICIALS_REPORT_IDS = new Set(['trial-chairman-report', 'trial-secretary-report']);
 
@@ -64,12 +69,15 @@ export interface HostedReportDataOptions {
   dogId?: string | undefined;
   /** The page's settled class ids; `undefined` while they are not settled. */
   classIds?: readonly string[] | undefined;
+  /** The show's trial ids, one hospitality day each. */
+  trialIds?: readonly string[] | undefined;
 }
 
 export interface HostedReportData {
   entryFormData?: ReportEntryFormData;
   judgeSupplies?: ReportAsyncData<unknown[]>;
   waitlist?: ReportAsyncData<ReportWaitlistRow[]>;
+  hospitalityPlan?: ReportAsyncData<HospitalityPlanDay[]>;
   officials?: TrialOfficials;
   /**
    * Readiness of the hosted reads the selected report needs; `ready` when it
@@ -91,6 +99,7 @@ export function useHostedReportData({
   trialId,
   dogId,
   classIds,
+  trialIds,
 }: HostedReportDataOptions): HostedReportData {
   const queryClient = useQueryClient();
   const needsEntryForm = ENTRY_FORM_REPORT_IDS.has(reportType) && Boolean(showId);
@@ -112,6 +121,9 @@ export function useHostedReportData({
 
   const waitlistQuery = useWaitlistReportQuery(showId, classIds, needsWaitlist);
 
+  const needsHospitality = HOSPITALITY_REPORT_IDS.has(reportType) && Boolean(showId);
+  const hospitalityQuery = useHospitalityPlan(showId, trialIds ?? [], needsHospitality);
+
   // One trial's report: 'all' (trialId undefined) prints no officials, so it reads none.
   const needsOfficials =
     OFFICIALS_REPORT_IDS.has(reportType) && Boolean(showId) && Boolean(trialId);
@@ -121,6 +133,7 @@ export function useHostedReportData({
     ...(needsEntryForm ? [entryForm.readiness] : []),
     ...(needsSupplies ? [readinessOf(supplies)] : []),
     ...(needsWaitlist ? [readinessOf(waitlistQuery)] : []),
+    ...(needsHospitality ? [hospitalityQuery.readiness] : []),
     // MYK9-1386: a failed or offline officials read prints the form's blank
     // lines (what it always did), so it settles rather than blocking Print;
     // only an in-flight read does, so the names are not printed late.
@@ -167,10 +180,21 @@ export function useHostedReportData({
     [needsWaitlist, waitlistRows, waitlistLoading, waitlistError]
   );
 
+  const { days: hospitalityDays, isLoading: hospitalityLoading } = hospitalityQuery;
+  const { isError: hospitalityError } = hospitalityQuery;
+  const hospitalityPlan = useMemo<ReportAsyncData<HospitalityPlanDay[]> | undefined>(
+    () =>
+      needsHospitality
+        ? { data: hospitalityDays, isLoading: hospitalityLoading, isError: hospitalityError }
+        : undefined,
+    [needsHospitality, hospitalityDays, hospitalityLoading, hospitalityError]
+  );
+
   return {
     ...(entryFormData ? { entryFormData } : {}),
     ...(judgeSupplies ? { judgeSupplies } : {}),
     ...(waitlist ? { waitlist } : {}),
+    ...(hospitalityPlan ? { hospitalityPlan } : {}),
     ...(needsOfficials && officialsQuery.data ? { officials: officialsQuery.data } : {}),
     hostedState,
     refetch: () => {
@@ -179,6 +203,7 @@ export function useHostedReportData({
       }
       if (needsSupplies) void supplies.refetch();
       if (needsOfficials) void officialsQuery.refetch();
+      if (needsHospitality) hospitalityQuery.refetch();
       if (needsWaitlist) {
         void queryClient.invalidateQueries({
           queryKey: queryKeys.showWaitlistReport(showId ?? ''),

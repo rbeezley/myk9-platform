@@ -8,6 +8,7 @@ import type { DbTrial, DbClass, DbEntry } from '@/types/database-mappings';
 import type { PaymentStatus } from '@/types/show-registration-types';
 import type { Show } from '@/types/show-types';
 import type { DogRegistrationLike, MappedDogRegistrationLike } from '@/features/dogs/identity';
+import type { HospitalityPlanDay } from '@/features/lunch-orders/hospitalityPlan';
 import type { RegistryId } from '@/features/registries';
 import type { ProjectedEntryHandler } from '@/services/database/entries/entryHandlerProjection';
 
@@ -296,6 +297,8 @@ export interface ReportProps {
   entryFormData?: ReportEntryFormData;
   judgeSupplies?: ReportAsyncData<unknown[]>;
   waitlist?: ReportAsyncData<ReportWaitlistRow[]>;
+  /** Hospitality plan days (MYK9-1695), resolved by the host. */
+  hospitalityPlan?: ReportAsyncData<HospitalityPlanDay[]>;
   /** See `UKCTrialReportContext` — populated only for the UKC Trial Report. */
   ukcTrialReportContext?: UKCTrialReportContext | null;
   /** See `TrialOfficials` — populated only for the AKC Trial Chair's / Secretary's reports. */

@@ -422,7 +422,7 @@ export function buildShowReportProps({
   sortOrder: string;
 } & Pick<
   ReportProps,
-  'entryFormData' | 'judgeSupplies' | 'waitlist' | 'catalogProfilesReadComplete'
+  'entryFormData' | 'judgeSupplies' | 'waitlist' | 'hospitalityPlan' | 'catalogProfilesReadComplete'
 >): ReportProps {
   const targetTrialIds = trialId === 'all' ? trials.map(t => t.id) : [trialId];
   const shouldFilterClass = report.scopes.includes('class') && classId !== 'all';

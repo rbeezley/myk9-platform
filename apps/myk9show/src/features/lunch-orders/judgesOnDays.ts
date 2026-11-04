@@ -104,19 +104,27 @@ async function fetchJudgeAssignments(
 
 export interface JudgesOnDaysResult {
   byTrial: Map<string, JudgeOnDay[]>;
+  /** True once an answer exists (an empty map before that is not "no judges"). */
+  hasData: boolean;
   isLoading: boolean;
   isError: boolean;
   refetch: () => void;
 }
 
-export function useJudgesOnDays(showId: string, trialIds: readonly string[]): JudgesOnDaysResult {
+export function useJudgesOnDays(
+  showId: string,
+  trialIds: readonly string[],
+  enabled = true
+): JudgesOnDaysResult {
   const query = useQuery({
     queryKey: [...queryKeys.showJudges(showId), 'lunch-days', [...trialIds].sort()],
+    enabled,
     queryFn: async () =>
       resolveJudgesOnDays(trialIds, await fetchJudgeAssignments(showId, trialIds)),
   });
   return {
     byTrial: query.data ?? new Map(),
+    hasData: query.data !== undefined,
     isLoading: query.isLoading,
     isError: query.isError,
     refetch: () => void query.refetch(),

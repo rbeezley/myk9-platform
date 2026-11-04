@@ -147,14 +147,17 @@ export interface VolunteersOnDaysResult {
  */
 export function useVolunteersOnDays(
   showId: string,
-  trialIds: readonly string[]
+  trialIds: readonly string[],
+  enabled = true
 ): VolunteersOnDaysResult {
   const general = useQuery({
     queryKey: queryKeys.lunchVolunteersGeneral(showId, trialIds),
+    enabled,
     queryFn: () => fetchGeneralDuties(showId, trialIds),
   });
   const byClass = useQuery({
     queryKey: queryKeys.lunchVolunteersByClass(showId),
+    enabled,
     queryFn: () => fetchClassDuties(showId),
   });
 

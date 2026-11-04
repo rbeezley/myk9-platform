@@ -137,6 +137,8 @@ function getEmailTypeLabel(sourceKind: string, lifecycleStepType: string | null)
       return 'Waitlist notification';
     case 'registry_results_submission':
       return 'Results submission';
+    case 'show_message':
+      return 'Show message';
     default:
       return 'Email';
   }

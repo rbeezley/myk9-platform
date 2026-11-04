@@ -43,6 +43,23 @@ describe('email delivery history read model', () => {
     expect(row.relevantAt).toBe('2026-08-17T10:02:00Z');
   });
 
+  it('labels show message emails plainly', () => {
+    const row = normalizeEmailDeliveryRow({
+      id: 'attempt-2',
+      show_id: 'show-1',
+      source_kind: 'show_message',
+      lifecycle_step_type: null,
+      related_id: 'msg-1',
+      recipient_name: null,
+      recipient_email: 'a@example.com',
+      attempted_at: '2026-11-04T12:00:00Z',
+      status_updated_at: null,
+      delivery_status: 'sent',
+      failure_summary: null,
+    });
+    expect(row.typeLabel).toBe('Show message');
+  });
+
   it('routes failures to the existing owner surface', () => {
     expect(getEmailRecoveryHref('registration_confirmation', 'show-1')).toBe(
       '/shows/show-1/entries'

@@ -1,8 +1,10 @@
-import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
+import { RESEND_BATCH_EMAILS_URL, sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
 import type { EmailAudience, EmailRecipient } from './targeting.ts';
 
 const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
-const EMAIL_CHUNK_SIZE = 10;
+// Resend's batch endpoint takes up to 100 emails per call; batches go one at a time
+// so a large show stays under the provider's request-rate limit.
+const EMAIL_BATCH_SIZE = 100;
 
 export const SHOW_MESSAGE_EMAIL_TYPE = 'show_message';
 
@@ -78,7 +80,7 @@ export function buildShowMessageEmailHtml(args: {
 </html>`;
 }
 
-// Sends one email per recipient through Resend and reports what happened. Never
+// Sends one email per recipient through Resend's batch endpoint and reports what happened. Never
 // throws for a single bad address: a failure is a counted, logged result.
 export function createShowMessageEmailSender(deps: {
   apiKey: string | undefined;
@@ -103,51 +105,58 @@ export function createShowMessageEmailSender(deps: {
       show_id: args.showId,
     });
 
-    for (let i = 0; i < args.recipients.length; i += EMAIL_CHUNK_SIZE) {
-      const chunk = args.recipients.slice(i, i + EMAIL_CHUNK_SIZE);
-      await Promise.all(
-        chunk.map(async recipient => {
-          if (!deps.apiKey) {
-            failed++;
-            logRows.push(row(recipient, 'failed', null, 'email_not_configured'));
-            return;
-          }
-          try {
-            const response = await sendResendEmailWithRetry(
-              {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  Authorization: `Bearer ${deps.apiKey}`,
-                },
-                body: JSON.stringify({
-                  from: FROM_EMAIL,
-                  to: recipient.email,
-                  subject: buildShowMessageEmailSubject(args.showName),
-                  html: buildShowMessageEmailHtml({
-                    showName: args.showName,
-                    body: args.body,
-                    name: recipient.name,
-                  }),
+    for (let i = 0; i < args.recipients.length; i += EMAIL_BATCH_SIZE) {
+      const batch = args.recipients.slice(i, i + EMAIL_BATCH_SIZE);
+      const failBatch = (error: string) => {
+        for (const recipient of batch) logRows.push(row(recipient, 'failed', null, error));
+        failed += batch.length;
+      };
+      if (!deps.apiKey) {
+        failBatch('email_not_configured');
+        continue;
+      }
+      try {
+        const response = await sendResendEmailWithRetry(
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${deps.apiKey}`,
+            },
+            body: JSON.stringify(
+              batch.map(recipient => ({
+                from: FROM_EMAIL,
+                to: recipient.email,
+                subject: buildShowMessageEmailSubject(args.showName),
+                html: buildShowMessageEmailHtml({
+                  showName: args.showName,
+                  body: args.body,
+                  name: recipient.name,
                 }),
-              },
-              deps.fetchImpl ? { fetchImpl: deps.fetchImpl } : {}
-            );
-            if (!response.ok) {
-              await response.text();
-              failed++;
-              logRows.push(row(recipient, 'failed', null, `provider_http_${response.status}`));
-              return;
-            }
-            const result = (await response.json()) as { id?: string };
-            sent++;
-            logRows.push(row(recipient, 'sent', result.id ?? null, null));
-          } catch {
-            failed++;
-            logRows.push(row(recipient, 'failed', null, 'email_delivery_error'));
-          }
-        })
-      );
+              }))
+            ),
+          },
+          { url: RESEND_BATCH_EMAILS_URL, ...(deps.fetchImpl ? { fetchImpl: deps.fetchImpl } : {}) }
+        );
+        if (!response.ok) {
+          await response.text();
+          failBatch(`provider_http_${response.status}`);
+          continue;
+        }
+        const result = (await response.json()) as { data?: { id?: string }[] };
+        const ids = result.data ?? [];
+        if (ids.length !== batch.length) {
+          // Cannot map ids back to people, so none of them can be claimed as sent.
+          failBatch('provider_response_mismatch');
+          continue;
+        }
+        batch.forEach((recipient, index) => {
+          sent++;
+          logRows.push(row(recipient, 'sent', ids[index]?.id ?? null, null));
+        });
+      } catch {
+        failBatch('email_delivery_error');
+      }
     }
 
     return { sent, failed, logRows };

@@ -238,31 +238,109 @@ describe('createShowMessageEmailSender', () => {
     ],
   };
 
-  it('posts one escaped email per recipient and logs sent and failed attempts', async () => {
-    const fetchImpl = vi
-      .fn()
-      .mockResolvedValueOnce(new Response(JSON.stringify({ id: 'resend-1' }), { status: 200 }))
-      .mockResolvedValueOnce(new Response('bad', { status: 422 }));
+  const batchOk = (n: number, prefix: string) =>
+    new Response(
+      JSON.stringify({ data: Array.from({ length: n }, (_, i) => ({ id: `${prefix}-${i}` })) }),
+      { status: 200 }
+    );
+
+  it('posts one escaped batch and maps returned ids to recipients', async () => {
+    const fetchImpl = vi.fn().mockResolvedValueOnce(batchOk(2, 'resend'));
     const sender = createShowMessageEmailSender({ apiKey: 'key', fetchImpl });
 
     const result = await sender(args);
 
-    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(fetchImpl.mock.calls[0][0]).toBe('https://api.resend.com/emails/batch');
     const payload = JSON.parse(fetchImpl.mock.calls[0][1].body);
-    expect(payload.to).toBe('a@example.com');
-    expect(payload.html).toContain('Fall &lt;Trial&gt;');
-    expect(result.sent).toBe(1);
-    expect(result.failed).toBe(1);
-    expect(result.logRows).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          status: 'sent',
-          resend_message_id: 'resend-1',
-          show_id: 'show-1',
-        }),
-        expect.objectContaining({ status: 'failed', error_message: 'provider_http_422' }),
-      ])
+    expect(payload).toHaveLength(2);
+    expect(payload[0].to).toBe('a@example.com');
+    expect(payload[0].html).toContain('Fall &lt;Trial&gt;');
+    expect(result.sent).toBe(2);
+    expect(result.failed).toBe(0);
+    expect(result.logRows).toEqual([
+      expect.objectContaining({
+        recipient_email: 'a@example.com',
+        status: 'sent',
+        resend_message_id: 'resend-0',
+        show_id: 'show-1',
+        related_id: 'msg-1',
+      }),
+      expect.objectContaining({
+        recipient_email: 'b@example.com',
+        status: 'sent',
+        resend_message_id: 'resend-1',
+      }),
+    ]);
+  });
+
+  it('splits 250 recipients into sequential batches of at most 100', async () => {
+    const recipients = Array.from({ length: 250 }, (_, i) => ({
+      email: `p${i}@example.com`,
+      name: `P${i}`,
+    }));
+    let inFlight = 0;
+    let maxInFlight = 0;
+    const fetchImpl = vi.fn(async (_url: string, init: { body: string }) => {
+      inFlight++;
+      maxInFlight = Math.max(maxInFlight, inFlight);
+      await Promise.resolve();
+      inFlight--;
+      const size = JSON.parse(init.body).length;
+      return batchOk(size, `id${fetchImpl.mock.calls.length}`);
+    });
+    const sender = createShowMessageEmailSender({
+      apiKey: 'key',
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+
+    const result = await sender({ ...args, recipients });
+
+    expect(fetchImpl.mock.calls.map(c => JSON.parse(c[1].body).length)).toEqual([100, 100, 50]);
+    expect(maxInFlight).toBe(1);
+    expect(result.sent).toBe(250);
+    expect(result.logRows).toHaveLength(250);
+    expect(result.logRows[0]).toEqual(
+      expect.objectContaining({ recipient_email: 'p0@example.com', resend_message_id: 'id1-0' })
     );
+    expect(result.logRows[100]).toEqual(
+      expect.objectContaining({ recipient_email: 'p100@example.com', resend_message_id: 'id2-0' })
+    );
+    expect(result.logRows[249]).toEqual(
+      expect.objectContaining({ recipient_email: 'p249@example.com', resend_message_id: 'id3-49' })
+    );
+  });
+
+  it('logs each recipient of a failing batch as failed with the provider status', async () => {
+    const recipients = Array.from({ length: 150 }, (_, i) => ({
+      email: `p${i}@example.com`,
+      name: `P${i}`,
+    }));
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(new Response('bad', { status: 422 }))
+      .mockResolvedValueOnce(batchOk(50, 'ok'));
+    const result = await createShowMessageEmailSender({ apiKey: 'key', fetchImpl })({
+      ...args,
+      recipients,
+    });
+
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(result.failed).toBe(100);
+    expect(result.sent).toBe(50);
+    expect(
+      result.logRows
+        .slice(0, 100)
+        .every(r => r.status === 'failed' && r.error_message === 'provider_http_422')
+    ).toBe(true);
+    expect(result.logRows.slice(100).every(r => r.status === 'sent')).toBe(true);
+  });
+
+  it('fails the batch rather than guessing when the id count does not match', async () => {
+    const fetchImpl = vi.fn().mockResolvedValueOnce(batchOk(1, 'x'));
+    const result = await createShowMessageEmailSender({ apiKey: 'key', fetchImpl })(args);
+    expect(result.failed).toBe(2);
+    expect(result.logRows.every(r => r.error_message === 'provider_response_mismatch')).toBe(true);
   });
 
   it('logs every recipient as failed when Resend is not configured', async () => {

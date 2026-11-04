@@ -141,6 +141,8 @@ export interface AppAction {
   destructive?: boolean;
   /** A short status pill shown after the label ("2 urgent"), never part of the search text. */
   badge?: string;
+  /** `routine` draws the badge calm (secondary); absent is the alarming default. */
+  badgeTone?: 'routine';
   /**
    * Search-only synonyms for the command palette, never displayed. For words a
    * user will type that the label deliberately does not carry (MYK9-672).

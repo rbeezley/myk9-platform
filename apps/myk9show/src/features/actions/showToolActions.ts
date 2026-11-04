@@ -41,6 +41,8 @@ export interface ShowToolItem {
   title: string;
   /** The row's badge ("2 urgent"), when the tool has something waiting. */
   attentionLabel?: string | undefined;
+  /** `routine` draws the row badge calm; absent keeps the alarming default (incidents). */
+  attentionTone?: 'routine' | undefined;
   /**
    * Where the row goes when the tool is only a door to another page (Volunteers). Absent means
    * the panel: `?tool=<id>`.
@@ -59,6 +61,7 @@ export function buildShowToolActions(tools: readonly ShowToolItem[] | undefined)
     group: tool.group,
     icon: 'tool',
     ...(tool.attentionLabel ? { badge: tool.attentionLabel } : {}),
+    ...(tool.attentionLabel && tool.attentionTone ? { badgeTone: tool.attentionTone } : {}),
     ...(tool.disabledReason ? { disabledReason: tool.disabledReason } : {}),
   }));
 }

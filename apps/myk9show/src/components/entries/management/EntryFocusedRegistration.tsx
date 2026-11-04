@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useNotificationStore } from '@/store/notificationStore';
+import { useCanSendTargetedShowMessages } from '@/features/messages/hooks/useCanSendTargetedShowMessages';
 import { useTrialSecretaryOnlyReason } from '@/features/actions/TrialSecretaryAccessContext';
 import { buildAddEntryForExhibitorPath } from '@/pages/RegistrationWizardPage.routes';
 import { formatConfirmationNumberLabel } from '@/features/registration/confirmationNumberDisplay';
@@ -98,8 +99,9 @@ export function EntryFocusedRegistration({
   // (MYK9-1693). The decision-email dialog stays on the Communication section.
   const openComposeFor = useNotificationStore(s => s.openComposeFor);
   const ownerId = firstEntry?.ownerId;
+  const canSendTargeted = useCanSendTargetedShowMessages();
   const emailExhibitor =
-    firstEntry && ownerId
+    canSendTargeted && firstEntry && ownerId
       ? () =>
           openComposeFor({
             showId: firstEntry.showId,

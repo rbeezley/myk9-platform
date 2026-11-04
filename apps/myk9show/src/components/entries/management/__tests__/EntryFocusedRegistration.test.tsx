@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TrialSecretaryAccessProvider } from '@/features/actions/TrialSecretaryAccessContext';
 import { screen, within } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
@@ -7,6 +7,11 @@ import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { groupEntriesByShowRegistration } from '../showRegistrationProjection';
 import { EntryFocusedRegistration } from '../EntryFocusedRegistration';
+
+const targetedSend = vi.hoisted(() => ({ allowed: true }));
+vi.mock('@/features/messages/hooks/useCanSendTargetedShowMessages', () => ({
+  useCanSendTargetedShowMessages: () => targetedSend.allowed,
+}));
 
 function entry(
   id: string,
@@ -45,6 +50,10 @@ function entry(
 }
 
 describe('EntryFocusedRegistration', () => {
+  beforeEach(() => {
+    targetedSend.allowed = true;
+  });
+
   it('keeps registration context while preserving each child Entry handler', () => {
     const registration = groupEntriesByShowRegistration([
       entry('entry-1', 'Poppy', 'Alice Martin', 'dog-1'),
@@ -566,6 +575,31 @@ describe('EntryFocusedRegistration', () => {
         personName: 'Alice Martin',
       });
       expect(onSendDecisionEmail).not.toHaveBeenCalled();
+    });
+
+    it('omits Email exhibitor for a viewer who cannot send targeted messages (club admin)', async () => {
+      targetedSend.allowed = false;
+      const registration = groupEntriesByShowRegistration([
+        { ...entry('entry-1', 'Poppy', 'Alice Martin', 'dog-1'), ownerId: 'person-alice' },
+      ])[0]!;
+      const { user } = render(
+        <EntryFocusedRegistration
+          registration={registration}
+          onStatusChange={vi.fn()}
+          onCheckInStatusChange={vi.fn()}
+          onOpenArmbandDialog={vi.fn()}
+          onEntryRemoved={vi.fn()}
+          onBulkStatusChange={vi.fn()}
+          paymentLedger={{
+            record: vi.fn(),
+            markPaidOnline: vi.fn(),
+            todayInShowZone: '2026-09-17',
+          }}
+        />
+      );
+      await user.click(screen.getByRole('button', { name: 'More actions for Alice Martin' }));
+      expect(await screen.findByRole('menuitem', { name: 'Accept all' })).toBeInTheDocument();
+      expect(screen.queryByRole('menuitem', { name: /Email exhibitor/ })).not.toBeInTheDocument();
     });
 
     it('omits Email exhibitor when the form has no owner to message', async () => {

@@ -8,6 +8,7 @@ import { useAnnouncementStore } from '@/store/announcementStore';
 import { useMessageStore } from '@/store/messageStore';
 import { useShowStore } from '@/store/showStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { useCanSendTargetedShowMessages } from '@/features/messages/hooks/useCanSendTargetedShowMessages';
 import { acknowledgeAccountNotifications } from '@/services/notifications/accountNotificationAcks';
 import { formatRelativeTime } from '@/lib/timeUtils';
 import { PRIORITY_BORDER } from './notification-styles';
@@ -149,7 +150,7 @@ export function MessageCenterPanel() {
 
   const isStaffDestination = isSecretary || isAdmin || hasRole('club_admin');
   const canPostShowWideMessage = author.isOfficial;
-  const canSendTargetedShowMessages = isSecretary || isAdmin || hasRole('trial_secretary');
+  const canSendTargetedShowMessages = useCanSendTargetedShowMessages();
   const canComposeShowMessage = canPostShowWideMessage || canSendTargetedShowMessages;
   const composeAllowedRecipients: MessageShowRecipientType[] = canComposeShowMessage
     ? ['all_show', ...(canSendTargetedShowMessages ? (['class', 'checked_in'] as const) : [])]

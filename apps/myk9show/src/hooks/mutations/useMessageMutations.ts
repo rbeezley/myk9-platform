@@ -69,9 +69,12 @@ export function useMessageMutations() {
         const email = parseMessageShowEmailResult(data);
         const inApp = target.emailOnly ? '' : `Message sent to ${recipientCount} exhibitors. `;
         if (email) {
-          const copy = `${inApp}${buildEmailResultCopy(email)}`.trim();
+          const logNote = email.logFailed
+            ? ' Sent, but it may not show in Email delivery history.'
+            : '';
+          const copy = `${inApp}${buildEmailResultCopy(email)}${logNote}`.trim();
           // A skipped or failed address is something the secretary must see and act on.
-          const needsAttention = email.failed > 0 || email.missing.length > 0;
+          const needsAttention = email.failed > 0 || email.missing.length > 0 || email.logFailed;
           if (needsAttention) {
             notifications.warning(copy, { duration: 15000 });
           } else {

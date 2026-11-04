@@ -5,8 +5,10 @@ export interface MessageShowEmailResult {
   recipients: number;
   sent: number;
   failed: number;
-  /** People in the audience with no email address on file, by name. */
+  /** People in the audience with no usable email address on file, by name. */
   missing: string[];
+  /** The email went out but could not be recorded in Email delivery history. */
+  logFailed: boolean;
 }
 
 export function parseMessageShowEmailResult(data: unknown): MessageShowEmailResult | null {
@@ -20,6 +22,7 @@ export function parseMessageShowEmailResult(data: unknown): MessageShowEmailResu
     missing: Array.isArray(row.email_missing)
       ? row.email_missing.filter((name): name is string => typeof name === 'string')
       : [],
+    logFailed: row.email_log_failed === true,
   };
 }
 
@@ -37,13 +40,13 @@ function peopleLabel(count: number): string {
 }
 
 function missingSentence(missing: string[]): string {
-  return `No email address on file for ${peopleLabel(missing.length)}: ${missing.join(', ')}.`;
+  return `No usable email address on file for ${peopleLabel(missing.length)}: ${missing.join(', ')}.`;
 }
 
 /** Plain-words promise shown before Send: who gets the email, and who cannot. */
 export function buildEmailAudienceCopy(audience: string, preview: MessageShowEmailResult): string {
   if (preview.recipients === 0) {
-    return `No one in ${audience} has an email address on file, so no email will be sent. ${missingSentence(preview.missing)}`.trim();
+    return `No one in ${audience} has a usable email address on file, so no email will be sent. ${missingSentence(preview.missing)}`.trim();
   }
   const base = `Will also email ${peopleLabel(preview.recipients)} in ${audience}.`;
   return preview.missing.length ? `${base} ${missingSentence(preview.missing)}` : base;

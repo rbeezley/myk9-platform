@@ -115,31 +115,54 @@ export function createShowMessageEmailSender(deps: {
         failBatch('email_not_configured');
         continue;
       }
-      try {
-        const response = await sendResendEmailWithRetry(
+      const post = (payload: unknown, url?: string) =>
+        sendResendEmailWithRetry(
           {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               Authorization: `Bearer ${deps.apiKey}`,
             },
-            body: JSON.stringify(
-              batch.map(recipient => ({
-                from: FROM_EMAIL,
-                to: recipient.email,
-                subject: buildShowMessageEmailSubject(args.showName),
-                html: buildShowMessageEmailHtml({
-                  showName: args.showName,
-                  body: args.body,
-                  name: recipient.name,
-                }),
-              }))
-            ),
+            body: JSON.stringify(payload),
           },
-          { url: RESEND_BATCH_EMAILS_URL, ...(deps.fetchImpl ? { fetchImpl: deps.fetchImpl } : {}) }
+          { ...(url ? { url } : {}), ...(deps.fetchImpl ? { fetchImpl: deps.fetchImpl } : {}) }
         );
+      const emailFor = (recipient: EmailRecipient) => ({
+        from: FROM_EMAIL,
+        to: recipient.email,
+        subject: buildShowMessageEmailSubject(args.showName),
+        html: buildShowMessageEmailHtml({
+          showName: args.showName,
+          body: args.body,
+          name: recipient.name,
+        }),
+      });
+      try {
+        const response = await post(batch.map(emailFor), RESEND_BATCH_EMAILS_URL);
         if (!response.ok) {
           await response.text();
+          if (response.status >= 400 && response.status < 500 && response.status !== 429) {
+            // Resend rejects a whole batch for one bad address. Retry the people one at a
+            // time so a single bad address cannot sink the rest.
+            for (const recipient of batch) {
+              try {
+                const single = await post(emailFor(recipient));
+                if (!single.ok) {
+                  await single.text();
+                  failed++;
+                  logRows.push(row(recipient, 'failed', null, `provider_http_${single.status}`));
+                  continue;
+                }
+                const one = (await single.json()) as { id?: string };
+                sent++;
+                logRows.push(row(recipient, 'sent', one.id ?? null, null));
+              } catch {
+                failed++;
+                logRows.push(row(recipient, 'failed', null, 'email_delivery_error'));
+              }
+            }
+            continue;
+          }
           failBatch(`provider_http_${response.status}`);
           continue;
         }

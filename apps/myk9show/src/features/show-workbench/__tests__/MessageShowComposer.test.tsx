@@ -295,7 +295,7 @@ describe('MessageShowComposer', () => {
 
       expect(
         screen.getByText(
-          'Will also email 5 people in everyone in the show. No email address on file for 1 person: Bob Smith.'
+          'Will also email 5 people in everyone in the show. No usable email address on file for 1 person: Bob Smith.'
         )
       ).toBeInTheDocument();
       expect(mockEmailAudience).toHaveBeenLastCalledWith('show-1', { type: 'all_show' }, true);
@@ -345,6 +345,34 @@ describe('MessageShowComposer', () => {
         );
       });
       expect(mockPostAnnouncement).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the draft when the email fails and retries only the email', async () => {
+      mockSendTargetedMessage.mockResolvedValueOnce(null);
+      const { user } = render(<MessageShowComposer showId="show-1" classes={classes} allowEmail />);
+
+      await user.click(screen.getByRole('checkbox', { name: 'Also send by email' }));
+      await user.type(screen.getByLabelText('Title'), 'Venue changed');
+      await user.type(screen.getByLabelText('Message'), 'We moved to Hall B');
+      await user.click(screen.getByRole('button', { name: 'Send message' }));
+
+      const retry = await screen.findByRole('button', { name: 'Send the email again' });
+      expect(screen.getByLabelText('Message')).toHaveValue('We moved to Hall B');
+      expect(screen.getByRole('button', { name: 'Send message' })).toBeDisabled();
+
+      await user.click(retry);
+
+      await waitFor(() => expect(mockSendTargetedMessage).toHaveBeenCalledTimes(2));
+      expect(mockSendTargetedMessage).toHaveBeenLastCalledWith(
+        'show-1',
+        { type: 'all_show', sendPush: false, emailOnly: true },
+        'We moved to Hall B'
+      );
+      expect(mockPostAnnouncement).toHaveBeenCalledTimes(1);
+      await waitFor(() => expect(screen.getByLabelText('Message')).toHaveValue(''));
+      expect(
+        screen.queryByRole('button', { name: 'Send the email again' })
+      ).not.toBeInTheDocument();
     });
 
     it('does not send email when the option stays off', async () => {

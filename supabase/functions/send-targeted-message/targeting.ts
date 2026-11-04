@@ -45,7 +45,8 @@ export interface EmailRecipient {
 
 export interface EmailAudience {
   recipients: EmailRecipient[];
-  // People in the audience with no email address on file, named so the secretary
+  // People in the audience with no usable email address (none on file, or one that is
+  // malformed), named so the secretary
   // can reach them another way. Never silently dropped.
   missing: string[];
 }
@@ -95,6 +96,12 @@ export function uniqueAccountRecipients(
 // Resolve who an "also send by email" message goes to, from the SAME entries the
 // inbox thread audience comes from. Dedupes by person (one person with three dogs
 // gets one email) and by address (two people sharing an inbox get one email).
+// Conservative shape check: one @, something before it, a dot inside the domain, no
+// spaces. A malformed address would 422 a whole Resend batch, so it is named instead.
+export function isUsableEmailAddress(email: string): boolean {
+  return /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)+$/.test(email);
+}
+
 export function resolveEmailAudience(
   entries: EntryRecipientSource[],
   senderId: string
@@ -112,7 +119,7 @@ export function resolveEmailAudience(
       if (seenPeople.has(personKey)) continue;
       seenPeople.add(personKey);
 
-      if (!email) {
+      if (!email || !isUsableEmailAddress(email)) {
         missing.push(contact.name);
         continue;
       }

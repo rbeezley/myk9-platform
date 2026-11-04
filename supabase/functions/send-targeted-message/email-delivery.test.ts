@@ -113,6 +113,26 @@ describe('resolveEmailAudience', () => {
     })),
   })) satisfies EntryRecipientSource[];
 
+  it('names people whose address is malformed instead of sending to it', () => {
+    const audience = resolveEmailAudience(
+      [
+        {
+          armband: null,
+          authUserIds: [],
+          contacts: [
+            { personId: 'p1', authUserId: null, name: 'Typo', email: 'n/a' },
+            { personId: 'p2', authUserId: null, name: 'Space', email: 'a b@example.com' },
+            { personId: 'p3', authUserId: null, name: 'NoDot', email: 'a@localhost' },
+            { personId: 'p4', authUserId: null, name: 'Good', email: 'good@example.com' },
+          ],
+        },
+      ],
+      'sender-1'
+    );
+    expect(audience.recipients).toEqual([{ email: 'good@example.com', name: 'Good' }]);
+    expect(audience.missing).toEqual(['Typo', 'Space', 'NoDot']);
+  });
+
   it('dedupes people, names people with no address, and skips the sender', () => {
     expect(resolveEmailAudience(source, 'sender-1')).toEqual({
       recipients: [{ email: 'ann@example.com', name: 'Ann Smith' }],
@@ -311,27 +331,73 @@ describe('createShowMessageEmailSender', () => {
     );
   });
 
-  it('logs each recipient of a failing batch as failed with the provider status', async () => {
+  it('retries a rejected batch one recipient at a time so one bad address cannot sink the rest', async () => {
+    const recipients = [
+      { email: 'a@example.com', name: 'A' },
+      { email: 'bad@example.com', name: 'Bad' },
+      { email: 'c@example.com', name: 'C' },
+    ];
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(new Response('bad', { status: 422 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ id: 'one-a' }), { status: 200 }))
+      .mockResolvedValueOnce(new Response('bad', { status: 422 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ id: 'one-c' }), { status: 200 }));
+    const result = await createShowMessageEmailSender({ apiKey: 'key', fetchImpl })({
+      ...args,
+      recipients,
+    });
+
+    expect(fetchImpl.mock.calls.map(c => c[0])).toEqual([
+      'https://api.resend.com/emails/batch',
+      'https://api.resend.com/emails',
+      'https://api.resend.com/emails',
+      'https://api.resend.com/emails',
+    ]);
+    expect(JSON.parse(fetchImpl.mock.calls[2][1].body).to).toBe('bad@example.com');
+    expect(result.sent).toBe(2);
+    expect(result.failed).toBe(1);
+    expect(result.logRows).toEqual([
+      expect.objectContaining({
+        recipient_email: 'a@example.com',
+        status: 'sent',
+        resend_message_id: 'one-a',
+      }),
+      expect.objectContaining({
+        recipient_email: 'bad@example.com',
+        status: 'failed',
+        error_message: 'provider_http_422',
+      }),
+      expect.objectContaining({
+        recipient_email: 'c@example.com',
+        status: 'sent',
+        resend_message_id: 'one-c',
+      }),
+    ]);
+  });
+
+  it('logs each recipient of a failing batch as failed with the provider status on a 5xx', async () => {
     const recipients = Array.from({ length: 150 }, (_, i) => ({
       email: `p${i}@example.com`,
       name: `P${i}`,
     }));
     const fetchImpl = vi
       .fn()
-      .mockResolvedValueOnce(new Response('bad', { status: 422 }))
+      .mockResolvedValueOnce(new Response('x', { status: 500 }))
+      .mockResolvedValueOnce(new Response('x', { status: 500 }))
+      .mockResolvedValueOnce(new Response('x', { status: 500 }))
       .mockResolvedValueOnce(batchOk(50, 'ok'));
     const result = await createShowMessageEmailSender({ apiKey: 'key', fetchImpl })({
       ...args,
       recipients,
     });
 
-    expect(fetchImpl).toHaveBeenCalledTimes(2);
     expect(result.failed).toBe(100);
     expect(result.sent).toBe(50);
     expect(
       result.logRows
         .slice(0, 100)
-        .every(r => r.status === 'failed' && r.error_message === 'provider_http_422')
+        .every(r => r.status === 'failed' && r.error_message === 'provider_http_500')
     ).toBe(true);
     expect(result.logRows.slice(100).every(r => r.status === 'sent')).toBe(true);
   });

@@ -72,6 +72,12 @@ export function MessageShowComposer({
   const [sendPushAlert, setSendPushAlert] = useState(true);
   const [sendEmail, setSendEmail] = useState(false);
   const [isPostingAnnouncement, setIsPostingAnnouncement] = useState(false);
+  // Set when the announcement posted but its email did not go out. The draft stays put so
+  // the secretary can retry only the email; re-posting would duplicate the announcement.
+  const [pendingEmail, setPendingEmail] = useState<{
+    recipient: MessageShowRecipientType;
+    body: string;
+  } | null>(null);
   const { postAnnouncement } = useWorkbenchAnnouncementPost();
   const { sendTargetedMessage, isSending } = useMessageMutations();
 
@@ -111,6 +117,7 @@ export function MessageShowComposer({
   }
 
   function handleSent() {
+    setPendingEmail(null);
     reset();
     onSent?.();
   }
@@ -134,6 +141,30 @@ export function MessageShowComposer({
     const draft = buildMessageShowDraft(selectedTemplateId, nextClass?.label);
     setTitle(draft.title);
     setMessage(draft.body);
+  }
+
+  async function sendAnnouncementEmail(target: MessageShowRecipientType, body: string) {
+    // The announcement is the in-app copy; the server only mails the audience.
+    const result = await sendTargetedMessage(
+      showId,
+      { type: target, sendPush: false, emailOnly: true },
+      body
+    );
+    if (result) {
+      handleSent();
+    } else {
+      setPendingEmail({ recipient: target, body });
+    }
+  }
+
+  async function handleResendEmail() {
+    if (!pendingEmail) return;
+    setIsPostingAnnouncement(true);
+    try {
+      await sendAnnouncementEmail(pendingEmail.recipient, pendingEmail.body);
+    } finally {
+      setIsPostingAnnouncement(false);
+    }
   }
 
   async function handleSend() {
@@ -160,19 +191,15 @@ export function MessageShowComposer({
           undoErrorMessage: 'Could not remove show message',
           onPosted: () => {
             handledPost = true;
-            handleSent();
+            // With email on, the form is cleared only once the email call has succeeded.
+            if (!emailRequested) handleSent();
           },
         });
-        if (posted && !handledPost) {
+        if (posted && !emailRequested && !handledPost) {
           handleSent();
         }
         if (posted && emailRequested) {
-          // The announcement is the in-app copy; the server only mails the audience.
-          await sendTargetedMessage(
-            showId,
-            { type: recipient, sendPush: false, emailOnly: true },
-            message.trim()
-          );
+          await sendAnnouncementEmail(recipient, message.trim());
         }
       } finally {
         setIsPostingAnnouncement(false);
@@ -381,6 +408,32 @@ export function MessageShowComposer({
         </div>
       </div>
 
+      {pendingEmail ? (
+        <div
+          role="alert"
+          className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900"
+        >
+          <p>
+            Your message is posted in the app, but the email did not go out. Your text is still
+            here.
+          </p>
+          <div className="flex gap-2">
+            <Button type="button" size="sm" onClick={handleResendEmail} disabled={isSendingMessage}>
+              Send the email again
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={handleSent}
+              disabled={isSendingMessage}
+            >
+              Dismiss
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
       <div className="mt-4 flex flex-wrap items-center justify-end gap-3">
         {!canSend && (
           <p id="message-show-send-hint" className="text-sm text-muted-foreground">
@@ -390,7 +443,7 @@ export function MessageShowComposer({
         <Button
           type="button"
           onClick={handleSend}
-          disabled={isSendingMessage || !canSend}
+          disabled={isSendingMessage || !canSend || pendingEmail !== null}
           aria-describedby={canSend ? undefined : 'message-show-send-hint'}
         >
           <Send className="mr-2 h-4 w-4" aria-hidden="true" />

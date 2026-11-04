@@ -117,12 +117,20 @@ export default function ReportsPage() {
     () => (classes as Array<{ id: string }> | undefined)?.map(c => c.id),
     [classes]
   );
+  const hospitalityTrials = useMemo(
+    () =>
+      ((trials ?? currentShow?.trials ?? []) as Array<{ id: string; date?: string | null }>).map(
+        t => ({ id: t.id, date: t.date })
+      ),
+    [currentShow?.trials, trials]
+  );
   const hosted = useHostedReportData({
     reportType,
     showId: show?.id,
     trialId: trialId !== 'all' ? trialId : undefined,
     dogId: dogId !== 'all' ? dogId : undefined,
     classIds: reportClassIds,
+    trials: hospitalityTrials,
   });
   const printReadiness = resolvePrintReadiness(dataState, hosted.hostedState);
   // During a paused/loading or cold-replica report-trials query, retain the

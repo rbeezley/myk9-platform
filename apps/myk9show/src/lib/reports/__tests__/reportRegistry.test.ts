@@ -22,13 +22,14 @@ function renderReport(report: ReportDefinition) {
 describe('reportRegistry', () => {
   // 37 since F26 added `high-in-trial` (AKC Scent Work Chapter 6 §8) and the
   // UKC Nosework Trial Report was split from the legacy dynamic report id. 39 since
-  // MYK9-1078 added the UKC and AKC judge setup cheat sheets.
-  it('has 39 total entries', () => {
-    expect(reportRegistry).toHaveLength(39);
+  // MYK9-1078 added the UKC and AKC judge setup cheat sheets. 40 since MYK9-1695 added
+  // the hospitality plan report.
+  it('has 40 total entries', () => {
+    expect(reportRegistry).toHaveLength(40);
   });
 
-  it('has exactly 39 enabled entries', () => {
-    expect(getEnabledReports()).toHaveLength(39);
+  it('has exactly 40 enabled entries', () => {
+    expect(getEnabledReports()).toHaveLength(40);
   });
 
   // MYK9-661: under the show-phase headings a registry form sits beside generic
@@ -165,7 +166,7 @@ describe('reportRegistry', () => {
       expect(missing).toEqual([]);
     });
 
-    it('assigns every one of the 39 entries to exactly one phase bucket', () => {
+    it('assigns every one of the 40 entries to exactly one phase bucket', () => {
       const counts = PHASES.map(phase => reportRegistry.filter(r => r.phase === phase).length);
       expect(counts.reduce((sum, n) => sum + n, 0)).toBe(reportRegistry.length);
     });

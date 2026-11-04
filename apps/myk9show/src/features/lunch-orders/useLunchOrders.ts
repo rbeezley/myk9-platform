@@ -137,6 +137,7 @@ async function fetchClassDuties(showId: string): Promise<VolunteerOnDay[]> {
 export interface VolunteersOnDaysResult {
   data: VolunteerOnDay[] | undefined;
   isLoading: boolean;
+  isFetching: boolean;
   isError: boolean;
   refetch: () => void;
 }
@@ -147,20 +148,24 @@ export interface VolunteersOnDaysResult {
  */
 export function useVolunteersOnDays(
   showId: string,
-  trialIds: readonly string[]
+  trialIds: readonly string[],
+  enabled = true
 ): VolunteersOnDaysResult {
   const general = useQuery({
     queryKey: queryKeys.lunchVolunteersGeneral(showId, trialIds),
+    enabled,
     queryFn: () => fetchGeneralDuties(showId, trialIds),
   });
   const byClass = useQuery({
     queryKey: queryKeys.lunchVolunteersByClass(showId),
+    enabled,
     queryFn: () => fetchClassDuties(showId),
   });
 
   return {
     data: general.data && byClass.data ? [...general.data, ...byClass.data] : undefined,
     isLoading: general.isLoading || byClass.isLoading,
+    isFetching: general.isFetching || byClass.isFetching,
     isError: general.isError || byClass.isError,
     refetch: () => {
       if (general.isError) void general.refetch();

@@ -22,6 +22,7 @@ import { StewardReport } from '@/components/reports/StewardReport';
 import { AKCJudgeReport } from '@/components/reports/AKCJudgeReport';
 import { TrialSecretaryCertification } from '@/components/reports/TrialSecretaryCertification';
 import { JudgeSupplyChecklistReport } from '@/components/reports/JudgeSupplyChecklistReport';
+import { HospitalityPlanReport } from '@/components/reports/HospitalityPlanReport';
 import { HighInTrialReport } from '@/components/reports/HighInTrialReport';
 import { UKCSetupCheatSheetReport } from '@/components/reports/UKCSetupCheatSheetReport';
 import { AKCSetupCheatSheetReport } from '@/components/reports/AKCSetupCheatSheetReport';
@@ -519,6 +520,18 @@ export const reportRegistry: ReportDefinition[] = [
     defaultSort: '',
     component: JudgeSupplyChecklistReport,
     enabled: true,
+  },
+  {
+    id: 'hospitality-plan',
+    name: 'Hospitality plan',
+    phase: 'before',
+    scopes: ['show'],
+    sortOptions: [],
+    defaultSort: '',
+    component: HospitalityPlanReport,
+    enabled: true,
+    // A show with nobody entered yet still has a headcount to plan lunch around.
+    rendersWithoutEntries: true,
   },
   // MYK9-1078: static setup cheat sheets. One card per registry, both rendered by
   // the shared SetupCheatSheet; the registry filter keeps each off the other's shows

@@ -145,7 +145,7 @@ export {
   RegularResultBadges,
   ResultBadges,
   StatusBadgeContent,
-  ActionsDropdownMenu,
+  buildClassMenuActions,
   TrialInfo as EntryListTrialInfo,
   getStatusBadge,
   parseOrganizationData,
@@ -159,6 +159,7 @@ export type {
   SuccessToastProps,
   PrintOption,
   ActionsMenuConfig,
+  ClassMenuAction,
 } from './pages/EntryList';
 
 export { useEntryListFilters } from './pages/EntryList';

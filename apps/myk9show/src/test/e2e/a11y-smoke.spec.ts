@@ -169,7 +169,7 @@ test.describe('a11y: ringside Class Status dialog', () => {
     await page.goto(path);
     await waitForAppShell(page);
 
-    await page.getByRole('tab', { name: /^Completed/ }).click();
+    await page.getByRole('tab', { name: /^Done/ }).click();
     await page
       .getByRole('button', { name: /^Class options for / })
       .first()

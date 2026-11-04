@@ -301,7 +301,7 @@ describe.each(PAGES)('class-scoped Results Sheet availability — $name', page =
       </MemoryRouter>
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /actions menu/i }));
+    fireEvent.click(screen.getByRole('button', { name: /class menu/i }));
 
     expect(screen.getByRole('button', { name: 'Results Sheet' })).toBeEnabled();
   });
@@ -323,7 +323,7 @@ describe.each(PAGES)('class-scoped Results Sheet availability — $name', page =
         </MemoryRouter>
       );
 
-      fireEvent.click(screen.getByRole('button', { name: /actions menu/i }));
+      fireEvent.click(screen.getByRole('button', { name: /class menu/i }));
 
       expect(screen.getByRole('button', { name: 'Results Sheet' })).toBeDisabled();
     }
@@ -365,7 +365,7 @@ describe('combined class-scoped Results Sheet availability', () => {
         </MemoryRouter>
       );
 
-      fireEvent.click(screen.getByRole('button', { name: /actions menu/i }));
+      fireEvent.click(screen.getByRole('button', { name: /class menu/i }));
 
       expect(screen.getByRole('button', { name: 'Results Sheet' })).toBeEnabled();
     }

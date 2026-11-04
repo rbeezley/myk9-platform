@@ -15,6 +15,7 @@ import { useAtShowDogFavoritesSynced } from './dogFavoritesSync';
 import { useAtShowStaffDogs } from './useAtShowStaffDogs';
 import { useAtShowExhibitorDogs } from './useAtShowExhibitorDogs';
 import { useDogViewerKind } from './useStaffDogGate';
+import { useRingsideTrip } from './menu/useRingsideTrip';
 import {
   filterStaffDogs,
   formatDogCount,
@@ -81,6 +82,8 @@ export const AtShowDogsPage: React.FC = () => {
   const [tab, setTab] = useState<StaffDogTab>(() => loadDogTab(showId));
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<StaffDogSort>('armband');
+  // Opened from the ringside menu on an entry list, Up goes back to that list (MYK9-1697).
+  const back = useRingsideTrip(`/at-show/${showId}/dogs`, `/at-show/${showId}`);
 
   const visible = useMemo(
     () => sortStaffDogs(filterStaffDogs(dogs, { tab, query, favoriteArmbands }), sort),
@@ -101,11 +104,12 @@ export const AtShowDogsPage: React.FC = () => {
   return (
     <main className="ringside-root mx-auto max-w-2xl px-4 py-4" data-testid="at-show-dogs">
       <Link
-        to={`/at-show/${showId}`}
+        to={back.to}
+        state={back.state}
         className="mb-2 inline-flex min-h-11 items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" aria-hidden />
-        Classes
+        {back.label}
       </Link>
       <h1 className="mb-3 text-center text-lg font-semibold">{showName || 'Dogs'}</h1>
 

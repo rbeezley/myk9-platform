@@ -36,8 +36,10 @@ export function AtShowClassListToolbar({
   onSortChange,
 }: AtShowClassListToolbarProps) {
   return (
-    <div className="mb-4 space-y-3">
-      <div role="tablist" aria-label="Class status" className="grid grid-cols-4 gap-1">
+    <div className="mb-3 space-y-2">
+      {/* Each tab is as wide as its word (MYK9-1697, D4): equal quarters cut
+          "Favorites" while "Done" had room to spare. */}
+      <div role="tablist" aria-label="Class status" className="flex gap-1">
         {CLASS_LIST_TABS.map(({ id, label }) => (
           <button
             key={id}
@@ -48,19 +50,20 @@ export function AtShowClassListToolbar({
             aria-controls={CLASS_LIST_PANEL_ID}
             onClick={() => onTabChange(id)}
             className={cn(
-              'flex min-h-12 flex-col items-center justify-center rounded-lg border px-1 text-sm font-medium transition-colors',
+              'flex min-h-12 min-w-0 flex-auto flex-col items-center justify-center rounded-lg border px-1 text-sm font-medium transition-colors',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
               tab === id
                 ? 'border-primary bg-primary text-primary-foreground'
                 : 'border-border bg-card text-foreground hover:bg-accent'
             )}
           >
-            <span className="max-w-full truncate">{label}</span>
+            <span className="whitespace-nowrap">{label}</span>
             <span className="text-xs tabular-nums">{counts[id]}</span>
           </button>
         ))}
       </div>
-      <div className="flex flex-col gap-2 sm:flex-row">
+      {/* One row at every width: stacked, the sort took a 48px row of its own. */}
+      <div className="flex gap-2">
         <div className="relative min-w-0 flex-1">
           <Search
             size={16}
@@ -72,7 +75,7 @@ export function AtShowClassListToolbar({
             value={search}
             onChange={event => onSearchChange(event.target.value)}
             aria-label="Search classes"
-            placeholder="Search class, judge, level"
+            placeholder="Search"
             className="min-h-12 w-full rounded-lg border border-input bg-background pl-9 pr-3 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
         </div>
@@ -82,7 +85,7 @@ export function AtShowClassListToolbar({
             if (isClassListSort(event.target.value)) onSortChange(event.target.value);
           }}
           aria-label="Sort classes"
-          className="min-h-12 rounded-lg border border-input bg-background px-3 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="min-h-12 w-40 shrink-0 rounded-lg border border-input bg-background px-2 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-auto sm:px-3"
         >
           {CLASS_LIST_SORTS.map(({ id, label }) => (
             <option key={id} value={id}>

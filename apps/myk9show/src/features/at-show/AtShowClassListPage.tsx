@@ -26,8 +26,6 @@ import { getTrialTimezone } from '@/features/registries';
 import { useSelfCheckinStateMap } from '@/hooks/queries/useSelfCheckinEnabled';
 import { AtShowClassListSections } from './AtShowClassListSections';
 import { AtShowClassListSkeleton } from './AtShowClassListSkeleton';
-import { AtShowSetupSheetLink } from './AtShowSetupSheetLink';
-import { AtShowDogsLink } from './AtShowDogsLink';
 import { WIDE_COLUMN } from './atShowClassListLayout';
 import { formatAtShowTrialHeading } from './atShowTrialHeading';
 import { useNow } from '@/hooks/useNow';
@@ -80,7 +78,7 @@ function AtShowOfflineReadySlot({
 }) {
   if (isExhibitorOnly) return null;
   return (
-    <div className="mb-4 flex justify-center">
+    <div className="mb-2 flex justify-center">
       <OfflineReadyBadge showId={showId} />
     </div>
   );
@@ -399,7 +397,7 @@ export const AtShowClassListPage: React.FC = () => {
     // scrolling through the class list mid-show, so the column widens with
     // the display instead of being capped at phone width forever.
     <main className={`ringside-root ${WIDE_COLUMN} px-4 py-4`}>
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <ClassListUpButton showId={showId} clubId={clubId} />
         <div className="flex items-center gap-2">
           {/* Gating this on `ownEntryIds.size > 0` alone hid the only route back
@@ -422,13 +420,16 @@ export const AtShowClassListPage: React.FC = () => {
         </div>
       </div>
 
-      {showName && <h1 className="mb-4 text-center text-lg font-semibold">{showName}</h1>}
+      {/* MYK9-1697: the show name wraps on one compact block, and Find a dog
+          and the cheat sheet live in the ringside menu, so the first class is
+          in the top half of a phone screen. */}
+      {showName && (
+        <h1 className="mb-1 text-balance text-center text-base font-semibold leading-tight">
+          {showName}
+        </h1>
+      )}
 
       <AtShowOfflineReadySlot showId={showId} isExhibitorOnly={isExhibitorOnly} />
-
-      <AtShowDogsLink showId={showId} />
-
-      <AtShowSetupSheetLink showId={showId} groups={groups} isExhibitorOnly={isExhibitorOnly} />
 
       {/* MYK9-1184: the exhibitor's way back to "Your dogs today" is a button,
           so name what this all-days list is. */}

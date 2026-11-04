@@ -208,7 +208,7 @@ describe('AKCScentWorkLiveScoresheet', () => {
     expect(submitBtn).toBeDisabled();
   });
 
-  it('titles the trial date and the trial on separate lines, with no em dash', () => {
+  it('titles the trial date and the trial as separate parts, with no em dash', () => {
     render(
       <AKCScentWorkLiveScoresheet
         {...defaultProps}
@@ -217,6 +217,8 @@ describe('AKCScentWorkLiveScoresheet', () => {
     );
     const heading = screen.getByRole('heading', { level: 1 });
     expect(heading.textContent).not.toContain('\u2014');
-    expect(heading.querySelectorAll('span.block')).toHaveLength(2);
+    // One wrapping line since MYK9-1697: two parts, a middle dot between, never an em dash.
+    expect(heading.querySelectorAll(':scope > span')).toHaveLength(2);
+    expect(heading.textContent).toMatch(/\s·\s/);
   });
 });

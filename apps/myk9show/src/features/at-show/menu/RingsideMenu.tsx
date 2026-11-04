@@ -19,13 +19,16 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { useGlobalSyncStatus } from '@/hooks/useGlobalSyncStatus';
 import { useOnlineStatus } from '@/lib/networkUtils';
 import { cn } from '@/lib/utils';
-import { replicatedShowsTable } from '@/services/replication';
+import type { ClassMenuAction } from '@myk9/ringside';
+import { replicatedShowsTable, replicatedTrialsTable } from '@/services/replication';
 import { useAnnouncementStore } from '@/store/announcementStore';
 import { useAskQPanelStore } from '@/store/useAskQPanelStore';
 import { useMessageStore } from '@/store/messageStore';
 import { useNotificationStore } from '@/store/notificationStore';
 import { useShowManageScope } from '@/hooks/useShowManageScope';
-import { useIsStaffDogViewer } from '../useStaffDogGate';
+import { useDogViewerKind } from '../useStaffDogGate';
+import { isExhibitorOnlyForAtShow } from '../myAtShowEntryDetails.helpers';
+import { setupSheetRegistryIds } from '../setupSheetRegistries';
 import {
   OFFLINE_ITEM_NOTICE,
   buildRingsideMenuItems,
@@ -42,14 +45,20 @@ const ROW_CLASS =
 export function RingsideMenu({
   showId,
   snapshot,
+  classActions = [],
 }: {
   showId: string | undefined;
   snapshot?: RingsideListSnapshot;
+  /**
+   * The entry list's actions on its class (MYK9-1697, D6), listed first under
+   * "This class". The entry list has this one menu; it no longer draws a ⋮.
+   */
+  classActions?: readonly ClassMenuAction[];
 }) {
   const navigate = useNavigate();
   const location = useLocation();
   useRestoreRingsideScroll(snapshot !== undefined);
-  const { user, signOut, getUserRoles } = useAuthContext();
+  const { user, signOut, getUserRoles, hasRole } = useAuthContext();
   const isOnline = useOnlineStatus();
   const globalSync = useGlobalSyncStatus();
   const setReturn = useRingsideReturnStore(s => s.set);
@@ -69,12 +78,24 @@ export function RingsideMenu({
   });
   // The destination route's own gate, so the link and the page cannot disagree.
   const canManageShow = useShowManageScope(showId).canManage;
-  const isStaff = useIsStaffDogViewer(showId);
+  const dogViewerKind = useDogViewerKind(showId);
+  // Its own small read of the trials replica (works offline and on a cold
+  // entry-list deep link, where the class list's cache is empty).
+  const trialsQuery = useQuery({
+    queryKey: ['at-show', 'trials', showId],
+    queryFn: () => replicatedTrialsTable.getTrialsByShow(showId as string),
+    enabled: !!showId,
+    networkMode: 'always',
+  });
+  const hasSetupSheet =
+    !isExhibitorOnlyForAtShow(hasRole) &&
+    setupSheetRegistryIds((trialsQuery.data ?? []).map(trial => ({ trial }))).length > 0;
 
   const unread =
     useNotificationStore(s => s.unreadCount) +
     useAnnouncementStore(s => s.unreadCount) +
     useMessageStore(s => s.unreadCount);
+  const unreadBadge = unread > 9 ? '9+' : String(unread);
 
   const items = buildRingsideMenuItems({
     showId,
@@ -82,7 +103,9 @@ export function RingsideMenu({
     isOnline,
     hasAccount: Boolean(user) && !user?.is_anonymous,
     isNationals: showQuery.data ? showQuery.data.isNationals === true : null,
-    isStaff,
+    isStaff: dogViewerKind === 'staff',
+    canFindDogs: dogViewerKind !== null,
+    hasSetupSheet,
   });
 
   // A slide-out closes before the next overlay or navigation begins.
@@ -141,17 +164,16 @@ export function RingsideMenu({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        aria-label="Ringside menu"
+        // The visible badge text is part of the name (axe label-content-name-mismatch);
+        // since MYK9-1697 this badge is the only on-screen sign of new announcements.
+        aria-label={unread > 0 ? `Ringside menu, ${unreadBadge} unread` : 'Ringside menu'}
         aria-haspopup="dialog"
         className="relative inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-md text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <Menu className="h-5 w-5" aria-hidden />
         {unread > 0 && (
-          <span
-            className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground"
-            aria-label={`${unread} unread`}
-          >
-            {unread > 9 ? '9+' : unread}
+          <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground">
+            {unreadBadge}
           </span>
         )}
       </button>
@@ -167,9 +189,37 @@ export function RingsideMenu({
         side="left"
         size="sm"
         // INTENT: rendered inside the entry-list header (`sticky z-10`), which would trap the
-        // panel under the announcement feed (z-40) and cover Close (MYK9-1666).
+        // panel inside that stacking context and cover Close (MYK9-1666).
         portal
       >
+        {classActions.length > 0 && (
+          <section aria-labelledby="ringside-menu-this-class" className="mb-3 border-b pb-3">
+            <h3
+              id="ringside-menu-this-class"
+              className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+            >
+              This class
+            </h3>
+            <div className="space-y-1">
+              {classActions.map(action => {
+                const Icon = action.icon;
+                return (
+                  <button
+                    key={action.id}
+                    type="button"
+                    className={ROW_CLASS}
+                    disabled={action.disabled}
+                    aria-disabled={action.disabled || undefined}
+                    onClick={() => closeThen(action.onSelect)}
+                  >
+                    <Icon className="h-5 w-5 shrink-0" aria-hidden />
+                    <span className="min-w-0 flex-1">{action.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        )}
         <nav aria-label="Ringside menu" className="space-y-1">
           {items.map(item => {
             const Icon = item.icon;

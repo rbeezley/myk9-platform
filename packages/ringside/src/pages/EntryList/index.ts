@@ -217,7 +217,7 @@ export {
   ResetMenuPopup,
   SelfCheckinDisabledDialog,
   SuccessToast,
-  ActionsDropdownMenu,
+  buildClassMenuActions,
   TrialInfo,
   getStatusBadge,
   EntryListContent,
@@ -232,6 +232,7 @@ export type {
   SuccessToastProps,
   PrintOption,
   ActionsMenuConfig,
+  ClassMenuAction,
   // PR E2d-2b
   EntryListContentProps,
   EntryListHeaderProps,

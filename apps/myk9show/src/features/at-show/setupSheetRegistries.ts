@@ -7,7 +7,9 @@ import type { AtShowClassGroup } from './atShowClassListAdapter';
  * (MYK9-1078), in first-seen order. Read through `getTrialRegistry`, never the raw column.
  * ASCA has no sheet, so an ASCA-only show returns an empty list.
  */
-export function setupSheetRegistryIds(groups: readonly AtShowClassGroup[]): RegistryId[] {
+export function setupSheetRegistryIds(
+  groups: readonly Pick<AtShowClassGroup, 'trial'>[]
+): RegistryId[] {
   const ids: RegistryId[] = [];
   for (const { trial } of groups) {
     const id = getTrialRegistry(trial).id;

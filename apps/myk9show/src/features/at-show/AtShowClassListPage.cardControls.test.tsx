@@ -115,7 +115,7 @@ function renderPage() {
 }
 
 const cardNames = () =>
-  Array.from(document.querySelectorAll('li[data-class-id] span.truncate.font-medium')).map(
+  Array.from(document.querySelectorAll('li[data-class-id] span.break-words.font-medium')).map(
     el => el.textContent
   );
 
@@ -145,18 +145,18 @@ describe('tabs, search and sort', () => {
     const pending = await screen.findByRole('tab', { name: /Pending/ });
     expect(pending).toHaveAttribute('aria-selected', 'true');
     expect(pending).toHaveTextContent('3');
-    expect(screen.getByRole('tab', { name: /In Progress/ })).toHaveTextContent('1');
+    expect(screen.getByRole('tab', { name: /Running/ })).toHaveTextContent('1');
     expect(screen.getByRole('tab', { name: /Favorites/ })).toHaveTextContent('0');
-    expect(screen.getByRole('tab', { name: /Completed/ })).toHaveTextContent('1');
+    expect(screen.getByRole('tab', { name: /Done/ })).toHaveTextContent('1');
     expect(cardNames()).not.toContain('Exterior Master');
   });
 
   it('filters the list by tab', async () => {
     renderPage();
-    fireEvent.click(await screen.findByRole('tab', { name: /Completed/ }));
+    fireEvent.click(await screen.findByRole('tab', { name: /Done/ }));
     expect(cardNames()).toEqual(['Exterior Master']);
 
-    fireEvent.click(screen.getByRole('tab', { name: /In Progress/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /Running/ }));
     expect(cardNames()).toEqual(['Container Novice A & B']);
   });
 
@@ -179,7 +179,7 @@ describe('tabs, search and sort', () => {
       within(sort)
         .getAllByRole('option')
         .map(o => o.textContent)
-    ).toEqual(['Run Order', 'Element → Level', 'Level → Element']);
+    ).toEqual(['Run Order', 'By element', 'By level']);
 
     fireEvent.change(sort, { target: { value: 'element-level' } });
     expect(cardNames()).toEqual([
@@ -411,5 +411,27 @@ describe('refresh', () => {
     renderPage();
     fireEvent.click(await screen.findByRole('button', { name: 'Refresh classes' }));
     expect((await screen.findAllByText(/Couldn't refresh/)).length).toBeGreaterThan(0);
+  });
+});
+
+// MYK9-1697 (D2, D5): the body is the list. Find a dog and the cheat sheet are
+// ringside-menu items, and each card's status sits in its footer row.
+describe('phone layout', () => {
+  it('leaves Find a dog and the cheat sheet to the ringside menu', async () => {
+    renderPage();
+    await screen.findByRole('tablist', { name: 'Class status' });
+    expect(screen.queryByRole('link', { name: /find a dog/i })).toBeNull();
+    expect(screen.queryByRole('link', { name: /setup cheat sheet/i })).toBeNull();
+    expect(screen.getByRole('button', { name: /^Ringside menu/ })).toBeInTheDocument();
+  });
+
+  it('puts each card status in the footer row, so the name has the full width', async () => {
+    renderPage();
+    await screen.findByRole('tablist', { name: 'Class status' });
+    const card = document.querySelector('li[data-class-id]') as HTMLElement;
+    const openButton = card.querySelector('button') as HTMLElement;
+    const footer = card.querySelector('.border-t') as HTMLElement;
+    expect(footer.textContent).toMatch(/\d+ \/ \d+|—/);
+    expect(openButton.textContent).not.toMatch(/\d+ \/ \d+/);
   });
 });

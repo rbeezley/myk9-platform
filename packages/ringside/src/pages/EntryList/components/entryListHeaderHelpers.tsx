@@ -2,7 +2,7 @@
  * EntryListHeader Helper Components
  *
  * Extracted from EntryListHeader.tsx to reduce complexity.
- * Contains actions menu, trial info, and status badge components.
+ * Contains the class-action list, trial info, and status badge components.
  *
  * PR E2d-2a — moved from apps/myk9q to @myk9/ringside. The host's
  * dateUtils re-export was a pass-through to @myk9/core, so this file
@@ -18,8 +18,6 @@
 
 import React from 'react';
 import {
-  RefreshCw,
-  MoreVertical,
   Printer,
   ClipboardCheck,
   ClipboardList,
@@ -27,6 +25,7 @@ import {
   Trophy,
   Settings,
   Timer,
+  type LucideIcon,
 } from 'lucide-react';
 import { formatTrialDate, formatTrialLabel } from '@myk9/core';
 import { getStatusDescriptor } from '@myk9/ui';
@@ -70,172 +69,77 @@ export function pairMaxTimeAction(
 }
 
 // ============================================================================
-// Actions Dropdown Menu
+// Class actions (MYK9-1697)
 // ============================================================================
 
 /**
- * Shared classes for a row in the actions dropdown (was `.action-menu-item` in
- * ringside.css). One source of truth for all menu buttons.
- *
- * `appearance-none border-0 bg-transparent` re-applies the native-button reset
- * the old CSS had (`background: none; border: none`). The package builds with
- * Tailwind preflight OFF (and is consumed in preflight-off contexts), so the
- * reset must be explicit — same reason DogCard authors `border-solid` inline.
+ * One action on the class the entry list is showing. The header no longer draws
+ * its own ⋮ menu: the host's ringside menu lists these under "This class", so
+ * the entry list has one menu, not two side by side (owner decision D6).
  */
-const ACTION_MENU_ITEM_CLASS =
-  'flex w-full cursor-pointer appearance-none items-center gap-3 border-0 bg-transparent px-4 py-3 text-left text-sm text-foreground transition-colors hover:bg-muted active:bg-input disabled:cursor-not-allowed disabled:opacity-50';
-
-const ACTION_MENU_TRIGGER_CLASS =
-  'inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:bg-input sm:min-h-12 sm:min-w-12';
-
-interface ActionsDropdownMenuProps {
-  isOpen: boolean;
-  onToggle: () => void;
-  onClose: () => void;
-  isRefreshing: boolean;
-  onRefresh: () => void;
-  actionsMenu: ActionsMenuConfig;
-  /** Long press handlers for hard refresh */
-  refreshLongPressHandlers?: {
-    onMouseDown: (e: React.MouseEvent) => void;
-    onMouseUp: (e: React.MouseEvent) => void;
-    onMouseLeave: (e: React.MouseEvent) => void;
-    onTouchStart: (e: React.TouchEvent) => void;
-    onTouchEnd: (e: React.TouchEvent) => void;
-  };
+export interface ClassMenuAction {
+  id: 'run-order' | 'max-time' | 'class-options' | 'recalculate' | `print-${PrintOption['icon']}`;
+  label: string;
+  icon: LucideIcon;
+  onSelect: () => void;
+  disabled?: boolean;
 }
 
-export const ActionsDropdownMenu: React.FC<ActionsDropdownMenuProps> = ({
-  isOpen,
-  onToggle,
-  onClose,
-  isRefreshing,
-  onRefresh,
-  actionsMenu,
-  refreshLongPressHandlers,
-}) => {
-  const handleRefresh = () => {
-    onClose();
-    onRefresh();
-  };
-
-  const handleRunOrder = () => {
-    onClose();
-    actionsMenu.onRunOrderClick?.();
-  };
-
-  const handleRecalculate = () => {
-    onClose();
-    actionsMenu.onRecalculatePlacements?.();
-  };
-
-  const handleClassSettings = () => {
-    onClose();
-    actionsMenu.onClassSettingsClick?.();
-  };
-
-  const handleSetMaxTime = () => {
-    onClose();
-    actionsMenu.onSetMaxTimeClick?.();
-  };
-
-  const handlePrintOption = (option: PrintOption) => {
-    onClose();
-    option.onClick();
-  };
-  const visiblePrintOptions =
-    actionsMenu.showPrintOptions === false ? [] : actionsMenu.printOptions;
-  const hasSecondaryActions =
-    (actionsMenu.showRunOrder && actionsMenu.onRunOrderClick) ||
-    (actionsMenu.showRecalculatePlacements && actionsMenu.onRecalculatePlacements) ||
-    (actionsMenu.showClassSettings && actionsMenu.onClassSettingsClick) ||
-    actionsMenu.onSetMaxTimeClick;
-
-  return (
-    <div className="relative" data-actions-menu>
-      <button
-        type="button"
-        className={ACTION_MENU_TRIGGER_CLASS}
-        onClick={onToggle}
-        aria-label="Actions menu"
-        title="More Actions"
-      >
-        <MoreVertical className="h-5 w-5" />
-      </button>
-
-      {isOpen && (
-        <div className="absolute right-0 top-[calc(100%+0.5rem)] z-[100] mr-1 min-w-[220px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-border bg-card shadow-lg">
-          {/* Refresh - Primary action (long press for full page reload) */}
-          <button
-            onClick={handleRefresh}
-            className={ACTION_MENU_ITEM_CLASS}
-            disabled={isRefreshing}
-            title="Refresh (long press for full reload)"
-            {...refreshLongPressHandlers}
-          >
-            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'rotating' : ''}`} />
-            Refresh
-          </button>
-
-          {hasSecondaryActions && <div className="my-1 h-px bg-border" />}
-
-          {/* Secondary actions */}
-          {actionsMenu.showRunOrder && actionsMenu.onRunOrderClick && (
-            <button onClick={handleRunOrder} className={ACTION_MENU_ITEM_CLASS}>
-              <ListOrdered className="h-4 w-4" />
-              Set Run Order
-            </button>
-          )}
-          {actionsMenu.showRecalculatePlacements && actionsMenu.onRecalculatePlacements && (
-            <button
-              onClick={handleRecalculate}
-              className={ACTION_MENU_ITEM_CLASS}
-              disabled={actionsMenu.isRecalculatingPlacements}
-            >
-              <Trophy
-                className={`h-4 w-4 ${actionsMenu.isRecalculatingPlacements ? 'rotating' : ''}`}
-              />
-              Recalculate Placements
-            </button>
-          )}
-          {actionsMenu.showClassSettings && actionsMenu.onClassSettingsClick && (
-            <button onClick={handleClassSettings} className={ACTION_MENU_ITEM_CLASS}>
-              <Settings className="h-4 w-4" />
-              Class Options
-            </button>
-          )}
-          {actionsMenu.onSetMaxTimeClick && (
-            <button onClick={handleSetMaxTime} className={ACTION_MENU_ITEM_CLASS}>
-              <Timer className="h-4 w-4" />
-              Set Max Time (A &amp; B)
-            </button>
-          )}
-
-          {visiblePrintOptions.length > 0 && <div className="my-1 h-px bg-border" />}
-
-          {/* Print options */}
-          {visiblePrintOptions.map((option, index) => (
-            <button
-              key={index}
-              onClick={() => handlePrintOption(option)}
-              className={ACTION_MENU_ITEM_CLASS}
-              disabled={option.disabled}
-            >
-              {option.icon === 'checkin' ? (
-                <Printer className="h-4 w-4" />
-              ) : option.icon === 'scoresheet' ? (
-                <ClipboardList className="h-4 w-4" />
-              ) : (
-                <ClipboardCheck className="h-4 w-4" />
-              )}
-              {option.label}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+const PRINT_ICONS: Record<PrintOption['icon'], LucideIcon> = {
+  checkin: Printer,
+  scoresheet: ClipboardList,
+  results: ClipboardCheck,
 };
+
+/** The class actions this viewer may take, in the order the old ⋮ menu listed them. */
+export function buildClassMenuActions(config: ActionsMenuConfig): ClassMenuAction[] {
+  const actions: ClassMenuAction[] = [];
+  if (config.showRunOrder && config.onRunOrderClick) {
+    actions.push({
+      id: 'run-order',
+      label: 'Set Run Order',
+      icon: ListOrdered,
+      onSelect: config.onRunOrderClick,
+    });
+  }
+  if (config.showRecalculatePlacements && config.onRecalculatePlacements) {
+    actions.push({
+      id: 'recalculate',
+      label: 'Recalculate Placements',
+      icon: Trophy,
+      onSelect: config.onRecalculatePlacements,
+      disabled: Boolean(config.isRecalculatingPlacements),
+    });
+  }
+  if (config.showClassSettings && config.onClassSettingsClick) {
+    actions.push({
+      id: 'class-options',
+      label: 'Class Options',
+      icon: Settings,
+      onSelect: config.onClassSettingsClick,
+    });
+  }
+  if (config.onSetMaxTimeClick) {
+    actions.push({
+      id: 'max-time',
+      label: 'Set Max Time (A & B)',
+      icon: Timer,
+      onSelect: config.onSetMaxTimeClick,
+    });
+  }
+  if (config.showPrintOptions !== false) {
+    for (const option of config.printOptions) {
+      actions.push({
+        id: `print-${option.icon}`,
+        label: option.label,
+        icon: PRINT_ICONS[option.icon],
+        onSelect: option.onClick,
+        ...(option.disabled !== undefined && { disabled: option.disabled }),
+      });
+    }
+  }
+  return actions;
+}
 
 // ============================================================================
 // Trial Info Display

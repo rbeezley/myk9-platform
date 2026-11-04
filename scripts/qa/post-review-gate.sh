@@ -396,9 +396,12 @@ if [ "$REVIEWER" = "adversarial" ]; then
   # (#3613 posted at exit 0, then went red: "claims 2 lenses but names 4").
   # Ask the gate's own parser about the finished body, never a copied regex.
   BODY_LENS_COUNT="$(printf '%s' "$BODY" | node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON \
-    "$HERE/review-gate.ts" --adversarial-lens-count)"
+    "$HERE/review-gate.ts" --adversarial-lens-count)" || {
+    echo "post-review-gate: the lens-count probe (review-gate.ts --adversarial-lens-count) failed; nothing posted" >&2
+    exit 2
+  }
   if [ "$BODY_LENS_COUNT" != "$LENS_COUNT" ]; then
-    echo "post-review-gate: the gate would count $BODY_LENS_COUNT distinct lenses in the posted body, but REVIEW_LENSES names $LENS_COUNT; a log line starting 'Adversarial subagent review:' counts as a lens, so reword it; nothing posted" >&2
+    echo "post-review-gate: the gate would count $BODY_LENS_COUNT distinct lenses in the posted body, but REVIEW_LENSES names $LENS_COUNT; a log line starting 'Adversarial subagent review:' counts as a lens (reword it), and lens names differing only by Unicode spaces count once; nothing posted" >&2
     exit 2
   fi
 elif [ "$REVIEWER" = "owner" ]; then

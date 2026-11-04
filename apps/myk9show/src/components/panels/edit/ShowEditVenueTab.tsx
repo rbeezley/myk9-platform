@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { MapPin } from 'lucide-react';
 import { TabsContent } from '@/components/ui/tabs';
+import { ShowUsesSwitches } from './ShowUsesSwitches';
 import { ShowSettingsCards } from '@/components/shows/ShowDetails/ShowSettingsCards';
 
 interface ShowEditVenueTabProps {
@@ -13,7 +14,7 @@ interface ShowEditVenueTabProps {
 }
 
 /**
- * Venue pin, Wi-Fi, withdrawal policy and (cancelled shows only) refund-all. Each card saves
+ * The "This show uses…" switches, venue pin, Wi-Fi, withdrawal policy and (cancelled shows only) refund-all. Each card saves
  * itself, so nothing here joins the Edit form's dirty state or its Save button.
  */
 export function ShowEditVenueTab({ showId, showStatus, isActive }: ShowEditVenueTabProps) {
@@ -29,8 +30,9 @@ export function ShowEditVenueTab({ showId, showStatus, isActive }: ShowEditVenue
     >
       {!visited ? null : showId ? (
         <>
+          <ShowUsesSwitches showId={showId} />
           <p className="text-sm text-muted-foreground">
-            These cards save on their own; you do not need to press Save for the show.
+            These cards and switches save on their own; you do not need to press Save for the show.
           </p>
           <ShowSettingsCards showId={showId} showStatus={showStatus} />
         </>

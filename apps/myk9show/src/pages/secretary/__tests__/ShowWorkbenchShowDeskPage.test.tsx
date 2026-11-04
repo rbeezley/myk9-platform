@@ -78,10 +78,30 @@ vi.mock('@/components/common/LoadingSkeleton', () => ({
   LoadingSkeleton: () => <div data-testid="loading-skeleton" />,
 }));
 
+/** MYK9-1685: the "This show uses…" switches as the page reads them. */
+const usesSwitches = vi.hoisted(() => ({
+  show: {} as Record<string, boolean>,
+  selfCheckinEnabled: undefined as boolean | undefined,
+}));
+
 vi.mock('@/hooks/useFastShowDetails', () => ({
   useFastShowDetails: () => ({
-    show: { id: 'show-1', name: 'Bluegrass Classic', startDate: '2026-03-22' },
+    show: {
+      id: 'show-1',
+      name: 'Bluegrass Classic',
+      startDate: '2026-03-22',
+      ...usesSwitches.show,
+    },
     isLoading: false,
+  }),
+}));
+
+vi.mock('@/hooks/queries/useShowSettingsDatabase', () => ({
+  useShowSettings: () => ({
+    data:
+      usesSwitches.selfCheckinEnabled === undefined
+        ? undefined
+        : { selfCheckinEnabled: usesSwitches.selfCheckinEnabled },
   }),
 }));
 
@@ -141,6 +161,7 @@ vi.mock('@/features/show-map/ShowDeskPanel', () => ({
           here: several mount heavy children this file does not stub. Each id is
           listed, so adding a tool with a secretary-only link and not listing it
           is a visible omission rather than a silent one. */}
+      <div data-testid="panel-tool-ids">{tools.map(tool => tool.id).join(',')}</div>
       <ol data-testid="tool-inventory">
         {tools.map(tool => (
           <li key={tool.id}>{`${tool.group}:${tool.id}`}</li>
@@ -211,6 +232,8 @@ describe('ShowWorkbenchShowDeskPage', () => {
   beforeEach(() => {
     usePageEditTargetStore.setState({ showTools: null, showToolsOwner: null });
     getEntriesForShowMock.mockReset();
+    usesSwitches.show = {};
+    usesSwitches.selfCheckinEnabled = undefined;
     trialStoreState.trials = [];
     trialStoreState.trialClasses = {};
     trialStoreState.trialsReadStatus = 'ready';
@@ -283,6 +306,60 @@ describe('ShowWorkbenchShowDeskPage', () => {
     expect(screen.getByTestId('people-roster-entry-count')).toHaveTextContent('8');
     expect(screen.getByTestId('people-roster-class-entry-counts')).toHaveTextContent('8');
     expect(screen.getByTestId('self-checkin-tool')).toHaveTextContent('Self check-in for show-1');
+  });
+
+  // MYK9-1685: each "This show uses…" switch hides its Actions row when off and restores it when
+  // on, on the page's real tool list. An unknown value keeps the row (the default case above).
+  describe.each([
+    [
+      'Exhibitor self check-in',
+      'self-checkin',
+      () => (usesSwitches.selfCheckinEnabled = false),
+      () => (usesSwitches.selfCheckinEnabled = true),
+    ],
+    [
+      'Judges score on devices',
+      'access-codes',
+      () => (usesSwitches.show.usesDeviceScoring = false),
+      () => (usesSwitches.show.usesDeviceScoring = true),
+    ],
+    [
+      'Paper fallback packet',
+      'emergency-trial-packet',
+      () => (usesSwitches.show.usesPaperPacket = false),
+      () => (usesSwitches.show.usesPaperPacket = true),
+    ],
+    [
+      'Volunteer tracking',
+      'volunteers',
+      () => (usesSwitches.show.usesVolunteers = false),
+      () => (usesSwitches.show.usesVolunteers = true),
+    ],
+  ])('%s switch', (_label, toolId, turnOff, turnOn) => {
+    // The header menu's tools (what the Actions menu lists); the panel keeps resolving all of them.
+    async function inventory() {
+      getEntriesForShowMock.mockResolvedValue({ data: [], error: null });
+      renderPage();
+      await screen.findByTestId('show-desk-panel');
+      const menu = usePageEditTargetStore.getState().showTools?.tools ?? [];
+      return menu.map(tool => tool.id);
+    }
+
+    it('off hides only its row', async () => {
+      turnOff();
+      const rows = await inventory();
+      expect(rows).not.toContain(toolId);
+      expect(rows).toHaveLength(7);
+      // A deep link still opens it: the panel is handed the full list.
+      expect(screen.getByTestId('panel-tool-ids')).toHaveTextContent(toolId);
+    });
+
+    it('on keeps its row', async () => {
+      turnOn();
+      const rows = await inventory();
+      expect(rows).toContain(toolId);
+      expect(rows).toHaveLength(8);
+    });
   });
 
   // MYK9-954: the sheet used to hold eleven tools. Eight stay, in two groups;

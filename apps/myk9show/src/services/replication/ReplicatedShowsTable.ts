@@ -33,6 +33,7 @@ import { invalidateVenuePinIfLocationChanged } from '@/features/maps/invalidateV
 import type { Database } from '@/types/supabase';
 import { withStoredDays, withTypedDays } from './showCalendarDays';
 import { rowToShow } from './showRowMapping';
+import { SHOW_USES_FIELD_COLUMNS, showUsesColumns, withShowUsesDefaults } from './showUsesColumns';
 import { mapShowStatusToDb } from './showStatusMapping';
 import { formatDateLocal } from '@/utils/dateLocal';
 
@@ -73,6 +74,12 @@ export interface ReplicatedShow {
   acceptCheckPayments?: boolean | undefined;
   acceptCashPayments?: boolean | undefined;
   onlineEntriesEnabled?: boolean | undefined;
+  /** MYK9-1685 "This show uses…" switches (shows.uses_* / publishes_own_premium). */
+  usesDeviceScoring?: boolean | undefined;
+  usesPaperPacket?: boolean | undefined;
+  usesVolunteers?: boolean | undefined;
+  usesLandingPage?: boolean | undefined;
+  publishesOwnPremium?: boolean | undefined;
   /**
    * shows.allow_waitlist (MYK9-1019), read-only here: the Waitlist tab's settings card writes it
    * directly, so a rebuilt row never carries a cached copy back over it.
@@ -156,6 +163,7 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
       ...(show.onlineEntriesEnabled !== undefined
         ? { online_entries_enabled: show.onlineEntriesEnabled }
         : {}),
+      ...showUsesColumns(show),
       logo_url: show.logoUrl ?? null,
       cover_image_url: show.coverImageUrl ?? null,
       accent_color: show.accentColor ?? null,
@@ -415,6 +423,11 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
     if (!('latitude' in resolvedUpdates)) delete updatePayload.latitude;
     if (!('longitude' in resolvedUpdates)) delete updatePayload.longitude;
     delete updatePayload.online_entries_enabled; // MYK9-979: RPC-owned, see above.
+    // MYK9-1685: each "This show uses…" switch saves on its own, so an unrelated edit (a venue
+    // pin, a fee) must not carry this device's cached copy over a toggle made elsewhere.
+    for (const [field, column] of SHOW_USES_FIELD_COLUMNS) {
+      if (!(field in resolvedUpdates)) delete updatePayload[column];
+    }
 
     const { mutationId } = await this.writeAndQueue(showId, updatedShow, {
       operation: 'UPDATE',
@@ -453,7 +466,7 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
     const clubId = requireShowClubId(show.clubId);
     const id = crypto.randomUUID();
     const newShow: ReplicatedShow = {
-      ...withTypedDays(show),
+      ...withShowUsesDefaults(withTypedDays(show)),
       clubId,
       id,
       _version: 1,

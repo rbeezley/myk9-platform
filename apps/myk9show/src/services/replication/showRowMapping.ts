@@ -5,6 +5,7 @@
 import type { ShowExperienceSnapshot } from '@/features/experience/experienceSnapshot';
 import type { Database } from '@/types/supabase';
 import type { ReplicatedShow } from './ReplicatedShowsTable';
+import { showUsesFromRow } from './showUsesColumns';
 
 type ShowRow = Database['public']['Tables']['shows']['Row'];
 
@@ -44,6 +45,7 @@ export function rowToShow(row: ShowRow): ReplicatedShow {
     acceptCashPayments: row.accept_cash_payments ?? undefined,
     onlineEntriesEnabled: row.online_entries_enabled ?? undefined,
     allowsWaitlist: row.allow_waitlist ?? undefined,
+    ...showUsesFromRow(row),
     serverVersion: row.version,
     logoUrl: row.logo_url ?? undefined,
     coverImageUrl: row.cover_image_url ?? undefined,

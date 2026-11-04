@@ -144,7 +144,7 @@ describe('EntryListCard - Edit entry lives in an always-present row menu (MYK9-9
     const { user } = render(<EntryListCard {...defaultProps} entries={[makeEntry()]} />);
     await user.click(screen.getByRole('button', { name: 'Actions for Fido' }));
     expect(screen.queryByRole('menuitem', { name: 'Edit entry' })).not.toBeInTheDocument();
-    expect(await screen.findByRole('menuitem', { name: 'Remove entry' })).toBeInTheDocument();
+    expect(await screen.findByRole('menuitem', { name: /^Remove entry/ })).toBeInTheDocument();
   });
 });
 
@@ -312,7 +312,9 @@ describe('EntryListCard - check-in button affordance', () => {
     render(<EntryListCard {...defaultProps} onOpenEditEntry={vi.fn()} />);
 
     await user.click(screen.getByRole('button', { name: 'Actions for Fido' }));
-    const items = (await screen.findAllByRole('menuitem')).map(item => item.textContent);
+    const items = (await screen.findAllByRole('menuitem')).map(
+      item => item.querySelector('span > span')?.textContent ?? item.textContent
+    );
     expect(items).toEqual(['Edit entry', 'Remove entry']);
   });
 
@@ -321,7 +323,9 @@ describe('EntryListCard - check-in button affordance', () => {
     render(<EntryListCard {...defaultProps} />);
 
     await user.click(screen.getByRole('button', { name: 'Actions for Fido' }));
-    const items = (await screen.findAllByRole('menuitem')).map(item => item.textContent);
+    const items = (await screen.findAllByRole('menuitem')).map(
+      item => item.querySelector('span > span')?.textContent ?? item.textContent
+    );
     expect(items).toEqual(['Remove entry']);
   });
 
@@ -342,7 +346,7 @@ describe('EntryListCard - check-in button affordance', () => {
     render(<EntryListCard {...defaultProps} onEntryRemoved={onEntryRemoved} />);
 
     await user.click(screen.getByRole('button', { name: 'Actions for Fido' }));
-    await user.click(await screen.findByRole('menuitem', { name: 'Remove entry' }));
+    await user.click(await screen.findByRole('menuitem', { name: /^Remove entry/ }));
 
     const dialog = await screen.findByRole('alertdialog', { name: 'Delete the entry for Fido?' });
     expect(deleteMocks.remove).not.toHaveBeenCalled();
@@ -383,7 +387,7 @@ describe('EntryListCard - check-in button affordance', () => {
       render(<EntryListCard {...defaultProps} onEntryRemoved={onEntryRemoved} />);
 
       await user.click(screen.getByRole('button', { name: 'Actions for Fido' }));
-      await user.click(await screen.findByRole('menuitem', { name: 'Remove entry' }));
+      await user.click(await screen.findByRole('menuitem', { name: /^Remove entry/ }));
 
       const dialog = await screen.findByRole('alertdialog', { name: /Delete the entry for Fido/ });
       expect(await within(dialog).findByText(reason)).toBeInTheDocument();
@@ -414,7 +418,7 @@ describe('EntryListCard - check-in button affordance', () => {
     render(<EntryListCard {...defaultProps} onEntryRestored={onEntryRestored} />);
 
     await user.click(screen.getByRole('button', { name: 'Actions for Fido' }));
-    await user.click(await screen.findByRole('menuitem', { name: 'Remove entry' }));
+    await user.click(await screen.findByRole('menuitem', { name: /^Remove entry/ }));
     const dialog = await screen.findByRole('alertdialog', { name: 'Delete the entry for Fido?' });
     const confirm = within(dialog).getByRole('button', { name: 'Delete entry' });
     await waitFor(() => expect(confirm).toBeEnabled());
@@ -487,5 +491,33 @@ describe('EntryListCard - class rows name their trial and day (MYK9-1107)', () =
     const chip = screen.getByRole('button', { name: /change entry status for Fido in Novice A/i });
     expect(chip.getAttribute('aria-label')).not.toMatch(/undefined|Invalid|null/);
     expect(chip.getAttribute('aria-label')).toMatch(/in Novice A$/);
+  });
+});
+
+describe('EntryListCard - one verb set with one line of help each (MYK9-1687)', () => {
+  it('explains Pull and Withdraw in the status menu and names the second one as a verb', async () => {
+    const user = userEvent.setup();
+    render(<EntryListCard {...defaultProps} entries={[makeEntry()]} />);
+
+    await user.click(screen.getByRole('button', { name: /change entry status for Fido/i }));
+    const pull = await screen.findByRole('menuitem', { name: 'Pull' });
+    expect(pull).toHaveAccessibleDescription(
+      'Not competing, for any reason. No refund promise; the club decides.'
+    );
+    const withdraw = screen.getByRole('menuitem', { name: /^Withdraw/ });
+    expect(withdraw).toHaveTextContent('Withdraw…');
+    expect(withdraw).toHaveAccessibleDescription(
+      'Only for In Season or Judge Change. Refund per the premium.'
+    );
+    expect(screen.queryByRole('menuitem', { name: 'Withdrawn' })).not.toBeInTheDocument();
+  });
+
+  it('explains Remove entry in the row menu', async () => {
+    const user = userEvent.setup();
+    render(<EntryListCard {...defaultProps} entries={[makeEntry()]} />);
+
+    await user.click(screen.getByRole('button', { name: 'Actions for Fido' }));
+    const remove = await screen.findByRole('menuitem', { name: /^Remove entry/ });
+    expect(remove).toHaveTextContent('Entered by mistake. Removes this entry.');
   });
 });

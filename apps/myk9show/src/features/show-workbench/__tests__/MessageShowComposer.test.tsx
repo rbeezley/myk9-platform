@@ -13,6 +13,12 @@ vi.mock('../workbenchAnnouncementPost', () => ({
   }),
 }));
 
+const mockEmailAudience = vi.hoisted(() => vi.fn());
+
+vi.mock('@/features/messages/hooks/useMessageEmailAudience', () => ({
+  useMessageEmailAudience: mockEmailAudience,
+}));
+
 vi.mock('@/hooks/mutations/useMessageMutations', () => ({
   useMessageMutations: () => ({
     sendTargetedMessage: mockSendTargetedMessage,
@@ -30,7 +36,16 @@ describe('MessageShowComposer', () => {
     vi.clearAllMocks();
     mockMessageMutationState.isSending = false;
     mockPostAnnouncement.mockResolvedValue(true);
-    mockSendTargetedMessage.mockResolvedValue({ total_recipients: 8 });
+    mockEmailAudience.mockReturnValue({
+      data: { recipients: 5, sent: 0, failed: 0, missing: ['Bob Smith'] },
+      isError: false,
+    });
+    mockSendTargetedMessage.mockResolvedValue({
+      inboxSent: 8,
+      pushSent: 0,
+      peopleReached: 8,
+      email: null,
+    });
   });
 
   it('describes everyone-in-show as a show message, not an announcement choice', async () => {
@@ -266,5 +281,187 @@ describe('MessageShowComposer', () => {
     const classTrigger = screen.getByRole('combobox', { name: 'Class' });
     expect(classTrigger).toHaveTextContent('Container Novice A · 8 entries');
     expect(classTrigger).not.toHaveTextContent('class-1');
+  });
+
+  describe('Also send by email', () => {
+    it('is not offered unless the caller allows it', () => {
+      render(<MessageShowComposer showId="show-1" classes={classes} />);
+
+      expect(
+        screen.queryByRole('checkbox', { name: 'Also send by email' })
+      ).not.toBeInTheDocument();
+    });
+
+    it('states who will get the email, by count and audience, before Send', async () => {
+      const { user } = render(<MessageShowComposer showId="show-1" classes={classes} allowEmail />);
+
+      expect(screen.queryByText(/Will also email/)).not.toBeInTheDocument();
+      await user.click(screen.getByRole('checkbox', { name: 'Also send by email' }));
+
+      expect(
+        screen.getByText(
+          'Will also email 5 people in everyone in the show. No usable email address on file for 1 person: Bob Smith.'
+        )
+      ).toBeInTheDocument();
+      expect(mockEmailAudience).toHaveBeenLastCalledWith('show-1', { type: 'all_show' }, true);
+    });
+
+    it('sends the email option with the class audience through the targeted path', async () => {
+      const { user } = render(
+        <MessageShowComposer
+          showId="show-1"
+          classes={classes}
+          allowEmail
+          allowedRecipients={['class']}
+        />
+      );
+
+      await user.click(screen.getByRole('checkbox', { name: 'Also send by email' }));
+      await user.type(screen.getByLabelText('Message'), 'Venue changed');
+      await user.click(screen.getByRole('button', { name: 'Send message' }));
+
+      await waitFor(() => {
+        expect(mockSendTargetedMessage).toHaveBeenCalledWith(
+          'show-1',
+          { type: 'class', classId: 'class-1', sendPush: true, sendEmail: true },
+          'Venue changed'
+        );
+      });
+      expect(mockEmailAudience).toHaveBeenCalledWith(
+        'show-1',
+        { type: 'class', classId: 'class-1' },
+        true
+      );
+    });
+
+    it('mails a show-wide announcement through an email-only send, not a second inbox copy', async () => {
+      const { user } = render(<MessageShowComposer showId="show-1" classes={classes} allowEmail />);
+
+      await user.click(screen.getByRole('checkbox', { name: 'Also send by email' }));
+      await user.type(screen.getByLabelText('Title'), 'Venue changed');
+      await user.type(screen.getByLabelText('Message'), 'We moved to Hall B');
+      await user.click(screen.getByRole('button', { name: 'Send message' }));
+
+      await waitFor(() => {
+        expect(mockSendTargetedMessage).toHaveBeenCalledWith(
+          'show-1',
+          { type: 'all_show', sendPush: false, emailOnly: true },
+          'We moved to Hall B'
+        );
+      });
+      expect(mockPostAnnouncement).toHaveBeenCalledTimes(1);
+    });
+
+    const emailResult = (failed: number) => ({
+      inboxSent: 4,
+      pushSent: 0,
+      peopleReached: 4,
+      email: { recipients: 4, sent: 4 - failed, failed, missing: [], logFailed: false },
+    });
+
+    it('keeps the text and shows a plain result when the announcement email request errors', async () => {
+      mockSendTargetedMessage.mockResolvedValueOnce(null);
+      const { user } = render(<MessageShowComposer showId="show-1" classes={classes} allowEmail />);
+
+      await user.click(screen.getByRole('checkbox', { name: 'Also send by email' }));
+      await user.type(screen.getByLabelText('Title'), 'Venue changed');
+      await user.type(screen.getByLabelText('Message'), 'We moved to Hall B');
+      await user.click(screen.getByRole('button', { name: 'Send message' }));
+
+      expect(await screen.findByText(/Posted in the app. The email did not go out./)).toBeVisible();
+      expect(screen.getByLabelText('Message')).toHaveValue('We moved to Hall B');
+      expect(screen.getByRole('link', { name: 'See Email delivery history' })).toHaveAttribute(
+        'href',
+        '/secretary/messages?showId=show-1&view=email'
+      );
+      expect(screen.queryByRole('button', { name: /again/i })).not.toBeInTheDocument();
+      expect(mockSendTargetedMessage).toHaveBeenCalledTimes(1);
+      expect(mockPostAnnouncement).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole('button', { name: 'Send message' })).toBeEnabled();
+    });
+
+    it('keeps the text and counts failed emails on a targeted send, and Reset clears the result', async () => {
+      mockSendTargetedMessage.mockResolvedValueOnce(emailResult(2));
+      const { user } = render(
+        <MessageShowComposer
+          showId="show-1"
+          classes={classes}
+          allowEmail
+          allowedRecipients={['checked_in']}
+        />
+      );
+
+      await user.click(screen.getByRole('checkbox', { name: 'Also send by email' }));
+      await user.type(screen.getByLabelText('Message'), 'Gate moved');
+      await user.click(screen.getByRole('button', { name: 'Send message' }));
+
+      expect(
+        await screen.findByText(/Posted in the app. Emailed 2 people. 2 emails did not go out./)
+      ).toBeVisible();
+      expect(screen.getByLabelText('Message')).toHaveValue('Gate moved');
+
+      await user.click(screen.getByRole('button', { name: 'Reset' }));
+
+      expect(screen.queryByText(/did not go out/)).not.toBeInTheDocument();
+      expect(screen.getByLabelText('Message')).toHaveValue('');
+    });
+
+    it('keeps the text and never calls onSent when no one was reached', async () => {
+      mockSendTargetedMessage.mockResolvedValueOnce({
+        inboxSent: 0,
+        pushSent: 0,
+        peopleReached: 0,
+        email: { recipients: 0, sent: 0, failed: 0, missing: [], logFailed: false },
+      });
+      const onSent = vi.fn();
+      const { user } = render(
+        <MessageShowComposer
+          showId="show-1"
+          classes={classes}
+          allowEmail
+          onSent={onSent}
+          allowedRecipients={['checked_in']}
+        />
+      );
+
+      await user.click(screen.getByRole('checkbox', { name: 'Also send by email' }));
+      await user.type(screen.getByLabelText('Message'), 'Gate moved');
+      await user.click(screen.getByRole('button', { name: 'Send message' }));
+
+      expect(await screen.findByText(/No one was reached\./)).toBeVisible();
+      expect(screen.getByLabelText('Message')).toHaveValue('Gate moved');
+      expect(screen.queryByText(/Posted in the app/)).not.toBeInTheDocument();
+      expect(onSent).not.toHaveBeenCalled();
+    });
+
+    it('clears the form when every email went out', async () => {
+      mockSendTargetedMessage.mockResolvedValueOnce(emailResult(0));
+      const { user } = render(
+        <MessageShowComposer
+          showId="show-1"
+          classes={classes}
+          allowEmail
+          allowedRecipients={['checked_in']}
+        />
+      );
+
+      await user.click(screen.getByRole('checkbox', { name: 'Also send by email' }));
+      await user.type(screen.getByLabelText('Message'), 'Gate moved');
+      await user.click(screen.getByRole('button', { name: 'Send message' }));
+
+      await waitFor(() => expect(screen.getByLabelText('Message')).toHaveValue(''));
+      expect(screen.queryByText(/did not go out/)).not.toBeInTheDocument();
+    });
+
+    it('does not send email when the option stays off', async () => {
+      const { user } = render(<MessageShowComposer showId="show-1" classes={classes} allowEmail />);
+
+      await user.type(screen.getByLabelText('Title'), 'Hi');
+      await user.type(screen.getByLabelText('Message'), 'x');
+      await user.click(screen.getByRole('button', { name: 'Send message' }));
+
+      await waitFor(() => expect(mockPostAnnouncement).toHaveBeenCalled());
+      expect(mockSendTargetedMessage).not.toHaveBeenCalled();
+    });
   });
 });

@@ -24,6 +24,7 @@ const classifiedProductionResendWriters = {
   'supabase/functions/send-lifecycle-email/lifecycle-email-shared.ts': 'show-owned',
   'supabase/functions/send-registration-email/index.ts': 'show-owned',
   'supabase/functions/send-results/index.ts': 'show-owned',
+  'supabase/functions/send-targeted-message/emailDelivery.ts': 'show-owned',
   'supabase/functions/send-waitlist-invite/index.ts': 'platform-waitlist',
 } as const;
 
@@ -177,5 +178,18 @@ describe('MYK9-180 show email delivery source contract', () => {
     const page = source('apps/myk9show/src/features/messages/pages/SecretaryMessagesPage.tsx');
     expect(page).toContain('DeliveryHistory');
     expect(page).not.toContain("from('email_log')");
+  });
+});
+
+describe('MYK9-1692 show message email history', () => {
+  it('the latest history function definition lists show_message in allowlist, map and scope', () => {
+    const contents = source(
+      'supabase/migrations/20261104181900_myk9_1692_show_message_email_history.sql'
+    );
+    expect(contents).toContain("WHEN 'show_message' THEN 'show_message'");
+    expect(contents).toContain("'show_message'\n      )");
+    expect(contents).toContain("WHEN 'show_message' THEN true");
+    expect(contents).toContain('SECURITY DEFINER');
+    expect(contents).toContain("SET search_path = ''");
   });
 });

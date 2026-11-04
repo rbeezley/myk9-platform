@@ -8,6 +8,7 @@ import {
   isPresenceSuppressed,
   type RingsideSessionSource,
 } from './targeting.ts';
+import { createShowMessageEmailSender } from './emailDelivery.ts';
 import {
   createSendTargetedMessageHandler,
   type PushSubscriptionRow,
@@ -124,5 +125,10 @@ const sendPasscodePushes: SendPasscodePushes = async args => {
 
 handle<SendTargetedMessagePayload>(
   { auth: 'jwt', origins: MYK9SHOW_ORIGINS },
-  createSendTargetedMessageHandler({ sendPasscodePushes })
+  createSendTargetedMessageHandler({
+    sendPasscodePushes,
+    sendShowMessageEmails: createShowMessageEmailSender({
+      apiKey: Deno.env.get('RESEND_API_KEY'),
+    }),
+  })
 );

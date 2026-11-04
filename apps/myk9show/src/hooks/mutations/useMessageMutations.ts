@@ -3,6 +3,11 @@ import { useMessageStore } from '@/store/messageStore';
 import { supabase } from '@/lib/supabase-client';
 import { notifications } from '@/lib/notifications';
 import type { MessageTarget } from '@/features/messages/types';
+import {
+  parseTargetedSendResult,
+  type TargetedSendResult,
+} from '@/features/show-workbench/messageShowEmail';
+import { describeSendOutcome } from '@/features/show-workbench/messageShowOutcome';
 
 export function useMessageMutations() {
   const [isSending, setIsSending] = useState(false);
@@ -39,7 +44,11 @@ export function useMessageMutations() {
   );
 
   const sendTargetedMessage = useCallback(
-    async (showId: string, target: MessageTarget, body: string) => {
+    async (
+      showId: string,
+      target: MessageTarget,
+      body: string
+    ): Promise<TargetedSendResult | null> => {
       setIsSending(true);
       try {
         const { data, error } = await supabase.functions.invoke('send-targeted-message', {
@@ -48,22 +57,41 @@ export function useMessageMutations() {
             target_type: target.type,
             ...(target.classId ? { class_id: target.classId } : {}),
             send_push: target.sendPush === true,
+            ...(target.sendEmail || target.emailOnly ? { send_email: true } : {}),
+            ...(target.emailOnly ? { email_only: true } : {}),
             body,
           },
         });
 
         if (error) throw error;
 
-        const recipientCount = Number(data?.total_recipients ?? data?.sent_to ?? 0);
-        if (recipientCount <= 0) {
-          notifications.error('No matching recipients to message');
-          return null;
+        const result = parseTargetedSendResult(data);
+        const outcome = describeSendOutcome({
+          result,
+          // An email-only call follows an announcement post, which is the in-app copy.
+          announcementPosted: target.emailOnly === true,
+          emailRequested: target.sendEmail === true || target.emailOnly === true,
+        });
+        // A skipped or failed channel is something the secretary must see and act on.
+        const logNote =
+          result.email?.logFailed && outcome.status !== 'none'
+            ? ' Sent, but it may not show in Email delivery history.'
+            : '';
+        const copy = `${outcome.message}${logNote}`;
+        if (outcome.status === 'none') {
+          notifications.error(copy, { duration: 15000 });
+        } else if (outcome.status === 'success' && !logNote && !result.email?.missing.length) {
+          notifications.success(copy);
+        } else {
+          notifications.warning(copy, { duration: 15000 });
         }
-
-        notifications.success(`Message sent to ${recipientCount} exhibitors`);
-        return data;
+        return result;
       } catch {
-        notifications.error('Failed to send targeted message');
+        notifications.error(
+          target.emailOnly
+            ? 'Posted in the app, but the email could not be sent'
+            : 'Failed to send targeted message'
+        );
         return null;
       } finally {
         setIsSending(false);

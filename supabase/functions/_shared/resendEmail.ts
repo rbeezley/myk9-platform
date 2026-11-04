@@ -1,4 +1,5 @@
 const RESEND_EMAILS_URL = 'https://api.resend.com/emails';
+export const RESEND_BATCH_EMAILS_URL = 'https://api.resend.com/emails/batch';
 const MAX_RETRY_DELAY_MS = 2000;
 
 export interface ResendEmailRequestInit extends Omit<RequestInit, 'body'> {
@@ -12,6 +13,8 @@ export interface ResendRetryEvent {
 }
 
 export interface ResendRetryDependencies {
+  // Defaults to the single-send endpoint; pass RESEND_BATCH_EMAILS_URL for a batch.
+  url?: string;
   fetchImpl?: typeof fetch;
   sleep?: (delayMs: number) => Promise<void>;
   now?: () => number;
@@ -191,6 +194,7 @@ export async function sendResendEmailWithRetry(
         },
       };
   const fetchImpl = dependencies.fetchImpl ?? fetch;
+  const url = dependencies.url ?? RESEND_EMAILS_URL;
   const sleep = dependencies.sleep ?? defaultSleep;
   const random = dependencies.random ?? Math.random;
   const now = dependencies.now ?? Date.now;
@@ -206,7 +210,7 @@ export async function sendResendEmailWithRetry(
     }
     let response: Response;
     try {
-      response = await fetchImpl(RESEND_EMAILS_URL, requestInit);
+      response = await fetchImpl(url, requestInit);
     } catch (error) {
       if (isAbortError(error) || attempt === 3) throw error;
       const delayMs = fallbackDelayMs(attempt, random);

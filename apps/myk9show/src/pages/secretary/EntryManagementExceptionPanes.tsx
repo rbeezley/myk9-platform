@@ -24,7 +24,7 @@ interface EntryManagementExceptionPanesProps {
     isError: boolean;
     retry: () => void;
   };
-  onRefreshEntries: () => void;
+  onRefreshEntries: () => void | Promise<void>;
   onMoveUpsChanged: () => void;
   onOpenEntry: (entry: EntryManagementEntry) => void;
 }
@@ -75,6 +75,7 @@ export function EntryManagementExceptionPanes({
           loading={entriesLoading}
           unknown={entriesUnknown}
           onRetry={onRefreshEntries}
+          onRefreshEntries={onRefreshEntries}
         />
       )}
       {exception === 'waitlist' && <WaitlistManagementPage showId={showId} />}

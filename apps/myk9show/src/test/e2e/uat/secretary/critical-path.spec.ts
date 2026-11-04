@@ -133,8 +133,8 @@ test.describe('Phase 1 UAT - Secretary critical path', () => {
     await expect(page.getByRole('heading', { name: 'Entry Forms' })).toBeVisible({
       timeout: 15000,
     });
-    // MYK9-1594: the toolbar is Search and Filter. Add entry, Export CSV, People at show, Add
-    // late entry and the entry lists are rows of the header Actions menu.
+    // MYK9-1594: the toolbar is Search and Filter. Add entry, Export CSV, Add
+    // late entry and the entry lists (Check-in desk among them) are rows of the header Actions menu.
     await expect(page.getByRole('button', { name: 'Add Entry', exact: true })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'More', exact: true })).toHaveCount(0);
     await expect(page.getByRole('button', { name: /^View:/ })).toHaveCount(0);
@@ -150,7 +150,7 @@ test.describe('Phase 1 UAT - Secretary critical path', () => {
     await expect(page.getByTestId('header-action-show-add-mail-in-entry')).toBeVisible();
     await expect(page.getByTestId('header-action-page-export-entries')).toBeVisible();
     await expect(page.getByTestId('header-action-show-tool-late-entry')).toBeVisible();
-    await expect(page.getByTestId('header-action-show-tool-people-at-show')).toBeVisible();
+    await expect(page.getByTestId('header-action-show-tool-entry-list-check-in')).toBeVisible();
     // A link to the page you are on is not an action.
     await expect(page.getByTestId('header-action-show-open-entry-management')).toHaveCount(0);
     await expect(page.getByTestId('header-action-show-tool-entry-list-waitlist')).toBeVisible();

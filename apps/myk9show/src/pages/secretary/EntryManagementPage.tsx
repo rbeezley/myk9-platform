@@ -389,7 +389,7 @@ const EntryManagementPage: React.FC = () => {
       )}
 
       {/* MYK9-1594: Search and Filter are the whole toolbar. The exception lists (Pulls,
-          Move-ups, Registration number needed, Waitlist), Export CSV, People at show and Add late
+          Move-ups, Registration number needed, Waitlist), Export CSV and Add late
           entry are rows of the header Actions menu (`useEntryManagementHeaderActions`). A list
           swaps this toolbar for its own title and a way back. */}
       {selectedShowId && cockpitUrl.state.tab === 'exceptions' && (

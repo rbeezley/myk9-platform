@@ -6,10 +6,6 @@ import {
   useShowDeskToolsRegistration,
 } from '@/features/actions/pageEditTarget';
 import type { ShowToolItem } from '@/features/actions/showToolActions';
-import {
-  getShowDeskPeopleAtShowHref,
-  SHOW_DESK_PEOPLE_AT_SHOW_TOOL_ID,
-} from '@/features/show-desk-people-roster/peopleRosterRoutes';
 import { buildShowDeskLateEntryPath } from '@/pages/RegistrationWizardPage.routes';
 import {
   buildEntryListTools,
@@ -46,8 +42,8 @@ async function hasOpenClass(showId: string): Promise<boolean> {
 
 /**
  * What Entry Forms hands the header Actions menu (MYK9-1594): the four entry lists (badged when
- * one has something waiting, which also lights the Actions button), People at show and Add late
- * entry, and Export CSV. These were the toolbar's Show: select, More popover and Add Entry; the
+ * one has something waiting, which also lights the Actions button), Add late entry
+ * (the Check-in desk is one of the lists), and Export CSV. These were the toolbar's Show: select, More popover and Add Entry; the
  * header menu is the one menu, and the show page's own `useShowDeskToolsRegistration` replaces
  * this registration when the viewer leaves for it.
  */
@@ -80,12 +76,6 @@ export function useEntryManagementHeaderActions({
     if (!showId) return [];
     return [
       ...buildEntryListTools(showId, { pulls, moveUps, registrationNeeded }),
-      {
-        id: SHOW_DESK_PEOPLE_AT_SHOW_TOOL_ID,
-        group: 'show-day',
-        title: 'People at show',
-        href: getShowDeskPeopleAtShowHref({ showId }),
-      },
       {
         // Late entry is a mode of the secretary flow, not a second way to add an entry
         // (MYK9-954 -> MYK9-1242), so it keeps the flow's own access reason.

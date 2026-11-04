@@ -60,10 +60,10 @@ describe('ShowDeskToolPanel', () => {
   function makeTools(): ShowDeskToolSection[] {
     return [
       {
-        id: 'people-at-show',
+        id: 'self-checkin',
         group: 'show-day',
-        title: 'People at show',
-        summary: 'Look up exhibitors',
+        title: 'Self check-in',
+        summary: 'Control self check-in',
         layout: 'wide',
         content: <div data-testid="people-tool">People content</div>,
       },
@@ -176,8 +176,8 @@ describe('ShowDeskToolPanel', () => {
   });
 
   it('uses the wide layout only for a tool that asks for it', async () => {
-    const wide = renderDesk({ route: '/shows/show-1?tool=people-at-show' });
-    expect(screen.getByRole('dialog', { name: 'People at show' })).toHaveAttribute(
+    const wide = renderDesk({ route: '/shows/show-1?tool=self-checkin' });
+    expect(screen.getByRole('dialog', { name: 'Self check-in' })).toHaveAttribute(
       'data-layout',
       'wide'
     );

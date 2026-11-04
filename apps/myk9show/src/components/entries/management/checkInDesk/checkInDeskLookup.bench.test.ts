@@ -10,7 +10,7 @@ import type { EntryManagementEntry } from '@/types/entry-management-types';
 import {
   buildPeopleRoster,
   filterPeopleRoster,
-} from '@/features/show-desk-people-roster/peopleRoster';
+} from '@/components/entries/management/checkInDesk/peopleRoster';
 import { buildCheckInDeskPeople, filterCheckInDesk } from './checkInDeskModel';
 
 function makeEntries(count: number): EntryManagementEntry[] {

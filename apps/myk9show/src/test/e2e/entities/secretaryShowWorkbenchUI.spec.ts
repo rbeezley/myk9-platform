@@ -44,16 +44,17 @@ test.describe('Secretary show management UI', () => {
     healthByTest.delete(testInfo.testId);
   });
 
-  test('renders the four-tab show home for a managed show', async ({ page }, testInfo) => {
+  test('renders the five-tab show home for a managed show', async ({ page }, testInfo) => {
     await openShowSetup(page);
 
-    // MYK9-957: four tabs; Setup and Show Day folded into the Overview home.
+    // MYK9-957, MYK9-1683: five tabs; Setup and Show Day folded into the Show Desk home, About last.
     await expect(page.getByRole('link', { name: 'Show Desk' })).toHaveCount(0);
     await expect(page.getByRole('tab')).toHaveText([
-      /^Overview/,
+      /^Show Desk/,
       /^Entries/,
       /^Results/,
       /^Reports/,
+      /^About/,
     ]);
     // Link crawl: nothing on the home links to a retired section URL; those
     // exist only as redirects (MYK9-957 AC).
@@ -70,8 +71,8 @@ test.describe('Secretary show management UI', () => {
     await expect(page.getByTestId('header-actions-trigger')).toBeVisible();
 
     await expect(page.getByRole('heading', { name: 'Show schedule' })).toBeVisible();
-    // The publishing cards sit in the show header's details panel, collapsed until opened.
-    await page.getByRole('button', { name: 'Show details', exact: true }).click();
+    // The publishing cards live on the About tab (MYK9-1683).
+    await page.getByRole('tab', { name: /^About/ }).click();
     await expect(page.getByRole('heading', { name: 'Premium List' }).first()).toBeVisible();
 
     const toolsMenu = await openToolsMenu(page);

@@ -124,8 +124,8 @@ async function assertSecretaryStates(page: Page) {
 
   await page.getByRole('link', { name: 'Back to entry forms' }).click();
   await expect(page.getByRole('heading', { name: 'Entry Forms' })).toBeVisible();
-  // The quick-info cells sit in the show header's details panel, collapsed until opened.
-  await page.getByRole('button', { name: 'Show details', exact: true }).click();
+  // The quick-info cells live on the read-only About tab (MYK9-1683).
+  await page.getByRole('tab', { name: /^About/ }).click();
   await expect(page.getByText('Total Entries', { exact: true })).toBeVisible();
   expect(await page.locator(':disabled').count(), 'secretary disabled controls').toBeGreaterThan(0);
 

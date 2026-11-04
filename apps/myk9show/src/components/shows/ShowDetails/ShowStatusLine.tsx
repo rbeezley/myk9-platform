@@ -7,14 +7,14 @@ import type { Show } from '@/types/show-types';
 /**
  * ONE status line under the show's title (MYK9-1282): "Published ▾ · premium list not yet
  * published". The status is still the publish/unpublish menu, and the publishing nudge still
- * opens the details panel on the card that fixes it; they just read as one sentence instead of a
- * green pill beside an amber chip. The nudge belongs to the Overview, where the cards are.
+ * opens the About tab on the card that fixes it; they just read as one sentence instead of a
+ * green pill beside an amber chip. The nudge shows on Show Desk; the cards it points at live on About (MYK9-1683).
  */
 export const ShowStatusLine: React.FC<{
   show: Show;
   canManageShow: boolean;
   showPublishing: boolean;
-  onOpenPublishing: () => void;
+  onOpenPublishing: (anchor: string) => void;
 }> = ({ show, canManageShow, showPublishing, onOpenPublishing }) => (
   <span id={SHOW_STATUS_CONTROL_ANCHOR} className="inline-flex scroll-mt-20 items-center gap-x-1.5">
     <ShowStatusPill

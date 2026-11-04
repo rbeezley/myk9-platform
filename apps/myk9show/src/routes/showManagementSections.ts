@@ -1,37 +1,38 @@
 /**
- * The secretary show page is ONE row of four tabs, and every tab is a real page
- * (MYK9-630 phase 2; `docs/plan-secretary-show-actions.md`). Overview is
- * `/shows/:id` itself -- the secretary's show home, which absorbed Setup and
- * Show Day (MYK9-957, `docs/plan-secretary-show-home.md`); the other three are
- * children.
+ * The secretary show page is ONE row of five tabs, and every tab is a real page
+ * (MYK9-630 phase 2; `docs/plan-secretary-show-actions.md`). Show Desk (id
+ * `overview`) is `/shows/:id` itself -- the secretary's show home, which absorbed
+ * Setup and Show Day (MYK9-957, `docs/plan-secretary-show-home.md`); the other
+ * four are children. About (MYK9-1683) is the read-only facts-and-publishing tab.
  *
  * This file is the single source of that row: the tab strip, the router's
  * child routes, the legacy redirects and the actions registry all read it, so
  * a seventh tab cannot appear in one of them and not the others.
  */
 
-export const SHOW_TAB_IDS = ['overview', 'entries', 'results', 'reports'] as const;
+export const SHOW_TAB_IDS = ['overview', 'entries', 'results', 'reports', 'about'] as const;
 
 export type ShowTabId = (typeof SHOW_TAB_IDS)[number];
 
-export type ShowManagementSectionPath = 'entries' | 'results' | 'reports';
+export type ShowManagementSectionPath = 'entries' | 'results' | 'reports' | 'about';
 
 export interface ShowTabDef {
   id: ShowTabId;
   label: string;
-  /** Path segment under `/shows/:id`; empty string for Overview. */
+  /** Path segment under `/shows/:id`; empty string for Show Desk. */
   path: '' | ShowManagementSectionPath;
 }
 
-/** The four tabs, in order (owner, 2026-10-02: Setup and Show Day folded into Overview). */
+/** The five tabs, in order (owner, 2026-10-02: Setup and Show Day folded into Show Desk; 2026-11-03: About). */
 export const SHOW_TABS: readonly ShowTabDef[] = [
-  { id: 'overview', label: 'Overview', path: '' },
+  { id: 'overview', label: 'Show Desk', path: '' },
   { id: 'entries', label: 'Entry Forms', path: 'entries' },
   { id: 'results', label: 'Results', path: 'results' },
   { id: 'reports', label: 'Reports', path: 'reports' },
+  { id: 'about', label: 'About', path: 'about' },
 ];
 
-/** The tabs that are child routes of `/shows/:id` (Overview is the index). */
+/** The tabs that are child routes of `/shows/:id` (Show Desk is the index). */
 export const SHOW_MANAGEMENT_SECTIONS: readonly {
   id: ShowTabId;
   label: string;
@@ -50,7 +51,7 @@ export const SHOW_MANAGEMENT_SECTIONS: readonly {
  * Results is a STEP inside Results now, not a peer of it.
  */
 export interface LegacyShowSectionTarget {
-  /** Tab path; '' is the show home (Overview). */
+  /** Tab path; '' is the show home (Show Desk). */
   path: '' | ShowManagementSectionPath;
   search?: Record<string, string>;
   /** Rewrite the retired Setup tab's own params (`legacySetupToHomeSearch`). */
@@ -87,7 +88,7 @@ export const LEGACY_SHOW_TAB_PARAM_REDIRECTS: Readonly<
 
 /**
  * Every child route path `publicRoutes.tsx` mounts under `/shows/:id` — the
- * five tabs, which render behind `ShowManagementSectionRoute`, plus the legacy URLs
+ * tabs, which render behind `ShowManagementSectionRoute`, plus the legacy URLs
  * that redirect into them (the retired Class Management `classes/:trialId` among
  * them), which render their redirect bare.
  *

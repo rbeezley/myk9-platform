@@ -8,7 +8,6 @@ import {
   SHOW_HEADER_HEIGHT_VAR,
   SHOW_TAB_STRIP_CLASS,
 } from '../showStickyLayout';
-import { SHOW_DETAILS_PANEL_ID } from '../ShowDetailsPanel';
 import type { ShowDetailTabsProps } from '../ShowDetailTabs';
 import { buildShowManagementTabDefs } from '@/pages/ShowDetailsPage.tabDefs';
 import type { Show } from '@/types/show-types';
@@ -121,6 +120,16 @@ vi.mock('@/features/offline-readiness/OfflineReadyBadge', () => ({
 vi.mock('@/components/shows/ShowDetails/ShowSyncStatus', () => ({
   useSyncNote: () => ({ label: 'All changes saved', needsAttention: false }),
 }));
+const publishControl = vi.hoisted(() => ({
+  value: {
+    infoState: 'loading' as 'ready' | 'loading' | 'unavailable' | 'offline',
+    hasPublishedPremium: false,
+    landingUnpublished: false,
+  },
+}));
+vi.mock('@/features/premium/usePremiumPublishControl', () => ({
+  usePremiumPublishControl: () => publishControl.value,
+}));
 vi.mock('@/features/premium/PremiumDownloadCard', () => ({
   PremiumDownloadCard: ({
     canManageShow,
@@ -154,14 +163,16 @@ vi.mock('@/components/panels/edit/ShowEditPanel', () => ({
     onClose,
     onDelete,
     onSave,
+    initialTab,
   }: {
     open: boolean;
+    initialTab?: string;
     onClose: () => void;
     onDelete?: { kind: string; targets: { id: string; name: string }[] };
     onSave?: (data: Record<string, unknown>) => Promise<void>;
   }) =>
     open ? (
-      <div data-testid="edit-panel-open">
+      <div data-testid="edit-panel-open" data-initial-tab={initialTab}>
         <button type="button" data-testid="edit-panel-close" onClick={onClose}>
           Close
         </button>
@@ -262,6 +273,7 @@ function renderShell(
             <Route path="entries" element={<div data-testid="outlet-child">entries</div>} />
             <Route path="results" element={<div data-testid="outlet-child">results</div>} />
             <Route path="reports" element={<div data-testid="outlet-child">reports</div>} />
+            <Route path="about" element={<div data-testid="outlet-child">about</div>} />
             <Route
               path="classes/:trialId"
               element={<div data-testid="outlet-child">class management</div>}
@@ -287,7 +299,12 @@ beforeEach(() => {
  */
 function LocationProbe() {
   const location = useLocation();
-  return <span data-testid="probe-url">{`${location.pathname}${location.search}`}</span>;
+  return (
+    <>
+      <span data-testid="probe-url">{`${location.pathname}${location.search}`}</span>
+      <span data-testid="probe-hash">{location.hash}</span>
+    </>
+  );
 }
 
 function BackButton() {
@@ -329,16 +346,6 @@ describe('ShowManagementShell', () => {
     );
   });
 
-  // The deleted Show Day header warned when show data changed after the
-  // premium was published; on the home that warning is the premium card's.
-  it('turns on the premium card stale warning for managers', () => {
-    renderShell();
-    expect(screen.getByTestId('premium-download-card')).toHaveAttribute(
-      'data-show-stale-badge',
-      'true'
-    );
-  });
-
   it('carries no visible page-level action button: Edit show lives in the Actions menu (MYK9-928)', () => {
     renderShell();
     const header = screen.getByTestId('page-header-actions');
@@ -364,11 +371,11 @@ describe('ShowManagementShell', () => {
   });
 
   // MYK9-957: Setup and Show Day folded into the Overview, the secretary's show home.
-  it('renders exactly four tabs, in the decided order', () => {
+  it('renders exactly five tabs, in the decided order', () => {
     renderShell();
     expect(
       screen.getAllByRole('tab').map(tab => tab.textContent?.replace(/\d+$/, '').trim())
-    ).toEqual(['Overview', 'Entry Forms', 'Results', 'Reports']);
+    ).toEqual(['Show Desk', 'Entry Forms', 'Results', 'Reports', 'About']);
   });
 
   it('carries NO standalone page links above the tabs — the tabs are the only row', () => {
@@ -429,9 +436,12 @@ describe('ShowManagementShell', () => {
     expect(screen.getByTestId('page-header-actions')).toHaveAttribute('data-omit-title', 'true');
   });
 
-  it('lights Overview on the retired Class Management URL, which redirects into the home', () => {
+  it('lights Show Desk on the retired Class Management URL, which redirects into the home', () => {
     renderShell({ activeManagementSection: 'classes' }, '/shows/show-1/classes/trial-1');
-    expect(screen.getByRole('tab', { name: /^Overview/ })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: /^Show Desk/ })).toHaveAttribute(
+      'aria-selected',
+      'true'
+    );
   });
 
   it('badges Entries with the show entry count the page already read', () => {
@@ -445,14 +455,6 @@ describe('ShowManagementShell', () => {
     expect(screen.getByRole('tab', { name: /^Entry Forms/ })).toBeInTheDocument();
   });
 
-  it('renders the publish row anchor with the premium cards on Overview', () => {
-    renderShell();
-    const anchor = document.getElementById('setup-publish');
-    expect(anchor).toBeInTheDocument();
-    expect(screen.getByTestId('premium-download-card')).toBeInTheDocument();
-    expect(screen.getByTestId('landing-page-card')).toBeInTheDocument();
-  });
-
   it('structurally unmounts management UI until the management scope resolves', () => {
     manageScope.status = 'resolving';
     manageScope.canManage = false;
@@ -460,7 +462,6 @@ describe('ShowManagementShell', () => {
     renderShell();
 
     expect(screen.getByRole('status', { name: /loading content/i })).toBeInTheDocument();
-    expect(screen.queryByTestId('premium-download-card')).toBeNull();
     expect(screen.queryByTestId('detail-hero')).toBeNull();
   });
 
@@ -472,7 +473,6 @@ describe('ShowManagementShell', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent("We couldn't verify show access.");
     expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
-    expect(screen.queryByTestId('premium-download-card')).toBeNull();
     expect(screen.queryByTestId('detail-hero')).toBeNull();
   });
 
@@ -492,34 +492,82 @@ describe('ShowManagementShell', () => {
     manageScope.status = 'resolving';
     view.rerenderShell();
     expect(screen.getByRole('status', { name: /loading content/i })).toBeInTheDocument();
-    expect(screen.queryByTestId('premium-download-card')).toBeNull();
+    expect(screen.queryByRole('tab')).toBeNull();
 
     manageScope.status = 'resolved';
     manageScope.canManage = false;
     view.rerenderShell();
-    expect(screen.queryByTestId('premium-download-card')).toBeNull();
+    expect(screen.queryByRole('tab')).toBeNull();
 
     manageScope.canManage = true;
     view.rerenderShell();
-    expect(screen.getByTestId('premium-download-card')).toHaveAttribute('data-can-manage', 'true');
+    expect(screen.getAllByRole('tab').length).toBeGreaterThan(0);
   });
 
-  it.each(['reports', 'results', 'entries', 'setup'] as const)(
-    'keeps the publish row OFF the %s section (Overview only, decision 2)',
-    section => {
-      renderShell({ activeManagementSection: section }, `/shows/show-1/${section}`);
-      expect(document.getElementById('setup-publish')).toBeNull();
-      expect(screen.queryByTestId('premium-download-card')).toBeNull();
-      expect(screen.queryByTestId('landing-page-card')).toBeNull();
+  // MYK9-1683: the publish cards' one home is About; the shell no longer mounts any of them.
+  it('mounts no publishing cards of its own, on any tab', () => {
+    renderShell();
+    expect(document.getElementById('setup-publish')).toBeNull();
+    expect(screen.queryByTestId('premium-download-card')).toBeNull();
+    expect(screen.queryByTestId('landing-page-card')).toBeNull();
+  });
+
+  it.each(['setup-publish', 'setup-publish-premium', 'setup-publish-landing'])(
+    'replaces a #%s link with the About tab, keeping the anchor',
+    anchor => {
+      renderShell({}, `/shows/show-1#${anchor}`, <LocationProbe />);
+      expect(screen.getByTestId('probe-url')).toHaveTextContent('/shows/show-1/about');
+      expect(screen.getByTestId('probe-hash')).toHaveTextContent(`#${anchor}`);
     }
   );
+
+  // A Needs-attention chip appends `?returnTo=` after its bare `#anchor`, so the router reads the
+  // whole tail as the hash. It still means the premium card.
+  it('replaces a #anchor?returnTo= cockpit link with the About tab on that card', () => {
+    renderShell(
+      {},
+      '/shows/show-1#setup-publish-premium?returnTo=%2Fshows%2Fshow-1',
+      <LocationProbe />
+    );
+    expect(screen.getByTestId('probe-url')).toHaveTextContent('/shows/show-1/about');
+    expect(screen.getByTestId('probe-hash')).toHaveTextContent(/^#setup-publish-premium$/);
+  });
+
+  it('opens About on the premium card from the status-line nudge, replacing history', () => {
+    publishControl.value = {
+      infoState: 'ready',
+      hasPublishedPremium: false,
+      landingUnpublished: false,
+    };
+    renderShell({}, '/shows/show-1', <LocationProbe />);
+    fireEvent.click(screen.getByRole('button', { name: 'premium list not yet published' }));
+    expect(screen.getByTestId('probe-url')).toHaveTextContent('/shows/show-1/about');
+    expect(screen.getByTestId('probe-hash')).toHaveTextContent('#setup-publish-premium');
+  });
+
+  it('opens About on the premium card (where Publish landing page lives) when only the landing page is unpublished', () => {
+    publishControl.value = {
+      infoState: 'ready',
+      hasPublishedPremium: true,
+      landingUnpublished: true,
+    };
+    renderShell({}, '/shows/show-1', <LocationProbe />);
+    fireEvent.click(screen.getByRole('button', { name: 'landing page not yet published' }));
+    expect(screen.getByTestId('probe-hash')).toHaveTextContent('#setup-publish-premium');
+  });
+
+  it('shows the About tab last and renders its route through the outlet', () => {
+    renderShell({ activeManagementSection: 'about' }, '/shows/show-1/about');
+    expect(screen.getByTestId('outlet-child')).toHaveTextContent('about');
+    expect(screen.getByRole('tab', { name: /^About/ })).toHaveAttribute('aria-selected', 'true');
+  });
 
   // MYK9-955: the manager Overview is the secretary's home -- the Show Day
   // cockpit plus About this show, not the exhibitor's Overview tab.
   it('renders the show home at /shows/:id — Overview is a tab, not a redirect', async () => {
     renderShell();
     expect(await screen.findByTestId('show-home-cockpit')).toBeInTheDocument();
-    expect(screen.getByTestId('about-this-show')).toBeInTheDocument();
+    expect(screen.queryByTestId('about-this-show')).toBeNull();
     expect(screen.queryByTestId('show-overview-tab')).toBeNull();
   });
 
@@ -546,41 +594,11 @@ describe('ShowManagementShell', () => {
     expect(screen.queryByRole('link', { name: 'Bergen KC' })).toBeNull();
   });
 
-  it('carries the one-line header on Overview too, with the details collapsed', () => {
+  it('carries a one-line header with no chevron and no details panel', () => {
     renderShell();
     expect(screen.queryByTestId('detail-hero')).toBeNull();
-    expect(screen.getByRole('button', { name: 'Show details' })).toHaveAttribute(
-      'aria-expanded',
-      'false'
-    );
-    expect(document.getElementById(SHOW_DETAILS_PANEL_ID)?.className).toContain('invisible');
-  });
-
-  it('opens the details panel from the chevron, and remembers the choice', () => {
-    renderShell();
-    fireEvent.click(screen.getByRole('button', { name: 'Show details' }));
-    expect(screen.getByRole('button', { name: 'Hide show details' })).toHaveAttribute(
-      'aria-expanded',
-      'true'
-    );
-    expect(document.getElementById(SHOW_DETAILS_PANEL_ID)?.className).not.toContain('invisible');
-    expect(localStorage.getItem('myk9.showDetailsOpen')).toBe('1');
-    fireEvent.click(screen.getByRole('button', { name: 'Hide show details' }));
-    expect(localStorage.getItem('myk9.showDetailsOpen')).toBe('0');
-  });
-
-  it('carries the publishing cards on Overview only', () => {
-    renderShell();
-    expect(screen.getByTestId('premium-download-card')).toBeInTheDocument();
-    expect(screen.getByTestId('landing-page-card')).toBeInTheDocument();
-  });
-
-  it('opens the details panel for a link to something inside it (#setup-publish-premium)', () => {
-    renderShell({}, '/shows/show-1#setup-publish-premium');
-    expect(screen.getByRole('button', { name: 'Hide show details' })).toHaveAttribute(
-      'aria-expanded',
-      'true'
-    );
+    expect(screen.queryByRole('button', { name: /show details/i })).toBeNull();
+    expect(document.getElementById('show-details-panel')).toBeNull();
   });
 
   it('pins the compact header and the tab strip, and publishes their height for the page below', () => {
@@ -596,7 +614,7 @@ describe('ShowManagementShell', () => {
   it('pins the header and the tab strip on Overview too', () => {
     renderShell();
     expect(
-      screen.getByRole('tab', { name: /^Overview/ }).closest('div[class*="sticky"]')
+      screen.getByRole('tab', { name: /^Show Desk/ }).closest('div[class*="sticky"]')
     ).not.toBeNull();
     expect(document.documentElement.style.getPropertyValue(SHOW_HEADER_HEIGHT_VAR)).not.toBe('');
   });
@@ -618,6 +636,18 @@ describe('ShowManagementShell', () => {
     expect(screen.queryByTestId('edit-panel-open')).toBeNull();
     fireEvent.click(screen.getByTestId('in-page-nav'));
     expect(screen.getByTestId('edit-panel-open')).toBeInTheDocument();
+  });
+
+  it("opens the edit panel on the tab a later in-app link names (About's Venue & policies link)", () => {
+    renderShell({}, '/shows/show-1', <InPageNavigator to="?edit=true&editTab=venue" />);
+    fireEvent.click(screen.getByTestId('in-page-nav'));
+    expect(screen.getByTestId('edit-panel-open')).toHaveAttribute('data-initial-tab', 'venue');
+  });
+
+  it('opens a later link that names no tab on Basic Info', () => {
+    renderShell({}, '/shows/show-1', <InPageNavigator to="?edit=true" />);
+    fireEvent.click(screen.getByTestId('in-page-nav'));
+    expect(screen.getByTestId('edit-panel-open')).toHaveAttribute('data-initial-tab', 'basic');
   });
 
   it('opens the edit panel ON the section the secretary is working in, and leaves them there', () => {

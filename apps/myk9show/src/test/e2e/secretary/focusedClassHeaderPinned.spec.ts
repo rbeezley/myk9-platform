@@ -79,9 +79,9 @@ async function probe(page: Page) {
         }
       }
       // Show header and tab strip, measured by their own elements whether or not they are sticky:
-      // the Overview tab's tablist is the strip, and the page's header sits directly above it.
+      // the Show Desk tab's tablist is the strip, and the page's header sits directly above it.
       const tablist = [...document.querySelectorAll<HTMLElement>('[role="tab"]')]
-        .find(el => el.textContent?.trim().startsWith('Overview'))
+        .find(el => el.textContent?.trim().startsWith('Show Desk'))
         ?.closest<HTMLElement>('[role="tablist"]');
       const stripBottom = Math.max(
         tablist?.getBoundingClientRect().bottom ?? Number.NaN,

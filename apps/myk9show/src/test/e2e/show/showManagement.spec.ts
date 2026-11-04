@@ -82,9 +82,9 @@ test.describe('Show management workflow', () => {
     }
 
     const tabs = page.getByRole('tab');
-    // MYK9-957: four tabs; Setup and Show Day folded into Overview.
-    await expect(tabs).toHaveCount(4);
-    await expect(tabs).toHaveText([/^Overview/, /^Entries/, /^Results/, /^Reports/]);
+    // MYK9-957, MYK9-1683: five tabs; Setup and Show Day folded into Show Desk, About last.
+    await expect(tabs).toHaveCount(5);
+    await expect(tabs).toHaveText([/^Show Desk/, /^Entries/, /^Results/, /^Reports/, /^About/]);
 
     // Each tab is a real page: selecting one changes the URL.
     await page.getByRole('tab', { name: /^Entries/ }).click();

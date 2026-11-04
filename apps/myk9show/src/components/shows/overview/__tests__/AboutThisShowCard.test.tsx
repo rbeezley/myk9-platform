@@ -28,7 +28,7 @@ describe('AboutThisShowCard (MYK9-955)', () => {
       initialRoute: '/shows/show-1?focus=class-1',
     });
 
-    // It lives in the show header's details panel, which is already folded: no second disclosure.
+    // It lives on the read-only About tab: no second disclosure.
     expect(screen.queryByRole('button', { name: /about this show/i })).toBeNull();
     expect(screen.getByTestId('officials')).toBeInTheDocument();
     expect(screen.getByTestId('judges')).toBeInTheDocument();

@@ -112,15 +112,15 @@ describe('resolveResultsTabCount', () => {
   });
 });
 
-describe("buildShowManagementTabDefs — the secretary's one row of four", () => {
-  it('is exactly the four decided tabs, in order (MYK9-957)', () => {
+describe("buildShowManagementTabDefs — the secretary's one row of five", () => {
+  it('is exactly the five decided tabs, in order (MYK9-957, MYK9-1683)', () => {
     expect(
       buildShowManagementTabDefs({
         catalogEntryCount: 517,
         managerEntryDataUnavailable: false,
         resultsCount: 2,
       }).map(tab => tab.label)
-    ).toEqual(['Overview', 'Entry Forms', 'Results', 'Reports']);
+    ).toEqual(['Show Desk', 'Entry Forms', 'Results', 'Reports', 'About']);
   });
 
   it('carries the tab ids the route model declares', () => {

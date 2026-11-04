@@ -164,7 +164,7 @@ test.describe('Shows list with a detail pane', () => {
     });
   }
 
-  test('at 1440 the list folds from Entry Forms, whose cockpit keeps its queue and detail, and returns on Overview', async ({
+  test('at 1440 the list folds from Entry Forms, whose cockpit keeps its queue and detail, and returns on Show Desk', async ({
     page,
   }) => {
     // Signs in, then cold-loads the Entries and Overview cockpits against shared staging.
@@ -187,7 +187,7 @@ test.describe('Shows list with a detail pane', () => {
       await expect(page.getByRole('button', { name: 'Back to list' })).toHaveCount(0);
     }).toPass({ timeout: 10_000 });
 
-    await page.getByRole('tab', { name: 'Overview' }).click();
+    await page.getByRole('tab', { name: 'Show Desk' }).click();
     await expect(showsList(page)).toBeVisible();
     await expectCockpitFollowsItsWidth(page, 'split');
   });

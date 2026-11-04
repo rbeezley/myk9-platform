@@ -90,13 +90,20 @@ const ALLOWED: Record<string, Allowance> = {
       'reads that single result instead of re-deriving one.',
     count: 1,
   },
+  'features/messages/hooks/useCanSendTargetedShowMessages.ts': {
+    reason:
+      'Genuinely global, verified: decides the CAPABILITY (secretary or admin may send a targeted ' +
+      'message; a club admin is announcements-only), not WHICH show. Every caller picks the show ' +
+      'from a list already scoped to shows the person manages, and the server re-checks the club.',
+    count: 1,
+  },
   'components/notifications/MessageCenterPanel.tsx': {
     reason:
       'Genuinely global, verified: `staffShows` is built from `currentShowIds`, so the compose ' +
       'destination list is already scoped to shows in context. These booleans decide the ' +
       'CAPABILITY (may I send show-wide / target classes), not WHICH show — there is no ' +
       'club-owned record here to scope against.',
-    count: 2,
+    count: 1,
   },
   'components/shows/RegistrationWorkflow/ClassSelectionStep.tsx': {
     reason:

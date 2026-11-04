@@ -15,7 +15,7 @@ import {
   type PersonUpdate,
 } from '@/services/database/users';
 import type { DbUser, DbUserInsert } from '@/types/database-mappings';
-import { supabase } from '@/services/database/supabaseClient';
+import { fetchAdminUserListRows } from './adminUserListPaging';
 import { logger } from '@/services/LoggingService';
 import { ensureError } from '@myk9/core';
 import { extractRoles } from '@/services/mappers/userMappers';
@@ -199,15 +199,9 @@ export function useAdminUsersQuery(showDeleted: boolean) {
     queryKey: [...queryKeys.users.all, 'admin', { showDeleted }],
     queryFn: async (): Promise<AdminUser[]> => {
       try {
-        const { data, error } = await supabase.rpc('get_admin_user_list', {
-          show_deleted: showDeleted,
-        });
+        const data = await fetchAdminUserListRows(showDeleted);
 
-        if (error) {
-          throw new Error(error.message);
-        }
-
-        return (data ?? []).map((row: Record<string, unknown>): AdminUser => ({
+        return data.map((row: Record<string, unknown>): AdminUser => ({
           ...mapDbUserToUser(row as unknown as DbUser),
           lastSignInAt: (row.last_sign_in_at as string) || null,
         }));

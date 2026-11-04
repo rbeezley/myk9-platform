@@ -68,7 +68,8 @@ import UserManagementPage from '../UserManagementPage';
 describe('UserManagementPage ?userId= with an auth user id (MYK9-1533)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockRpc.mockResolvedValue({ data: [RPC_ROW], error: null });
+    // The roster is read in .range() pages (MYK9-1561).
+    mockRpc.mockReturnValue({ range: () => Promise.resolve({ data: [RPC_ROW], error: null }) });
   });
 
   it('opens the roles dialog for the people row that owns the auth id', async () => {

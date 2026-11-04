@@ -7,6 +7,14 @@ import type {
 
 export type PersonIdentityState = 'unresolved' | 'resolved' | 'missing';
 
+/** Progress of the `people` lookup behind `personIdentityState`, with a way to ask again. */
+export interface PersonIdentityLookup {
+  fetching: boolean;
+  /** Retries exhausted and no lookup has ever succeeded for this account. */
+  failed: boolean;
+  retry: () => void;
+}
+
 export interface UserRoleWithDetails {
   role_id: string;
   role?: {
@@ -91,6 +99,8 @@ export interface AuthContextType {
   lastName: string | null;
   /** Whether the authoritative person lookup resolved, confirmed no row, or is unavailable. */
   personIdentityState?: PersonIdentityState;
+  /** Whether that lookup is in flight or failed, and a retry. */
+  personIdentityLookup?: PersonIdentityLookup;
   /** Whether a person id is available for account-scoped replicated reads. */
   hasUsablePersonId?: boolean;
   /** The cached or authoritative person id used by account-scoped reads. */

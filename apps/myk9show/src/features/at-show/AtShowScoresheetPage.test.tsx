@@ -52,6 +52,7 @@ vi.mock('@/hooks/useAuthContext', async importOriginal => {
     useAuthContext: () => ({
       getUserRoles: () => mockRoles,
       userWithRoles: { databaseUserId: mockPersonId },
+      personId: mockPersonId,
       user: { is_anonymous: mockIsAnonymous },
     }),
   };

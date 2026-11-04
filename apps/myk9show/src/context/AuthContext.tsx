@@ -92,7 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   const identity = usePersonIdentity(auth.user?.id);
-  const { userProfile, personId, personIdentityState, hasUsablePersonId } = identity;
+  const { userProfile, personId, personIdentityState, hasUsablePersonId, lookup } = identity;
 
   // Enforce account suspension — sign out if status is 'suspended'
   useEffect(() => {
@@ -112,9 +112,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [userProfile?.status]);
 
-  // Build userWithRoles - priority: mock user > database RBAC > default exhibitor
-  // Deps use primitive/stable values (IDs, not object references) to avoid re-creating
-  // this object when Supabase returns a new User reference for the same identity.
+  // userWithRoles - priority: mock user > database RBAC > default exhibitor. Deps are
+  // primitives (IDs) so a new Supabase User reference for the same identity is a no-op.
   const userWithRoles = useMemo((): UserWithRoles | null => {
     if (!auth.user) return null;
 
@@ -348,14 +347,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       firstName: userProfile?.first_name ?? null,
       lastName: userProfile?.last_name ?? null,
       personIdentityState,
+      personIdentityLookup: lookup,
       hasUsablePersonId,
       personId,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [
-      // Use auth.user and auth.loading instead of the whole auth object.
-      // auth is a plain object literal recreated on every useAuth() call, so including it
-      // as a dep would recreate the context value on every AuthProvider render.
+      // auth.user/auth.loading, not `auth`: that literal is recreated on every
+      // useAuth() call and would rebuild this value on every render.
       auth.user,
       auth.loading,
       userWithRoles,
@@ -384,6 +383,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       userProfile?.last_name,
       personId,
       personIdentityState,
+      lookup,
       hasUsablePersonId,
     ]
   );

@@ -7,6 +7,12 @@ import { isActiveJudgeAssignmentStatus } from '@/services/database/judges/assign
 export type JudgeAssignmentGateResult =
   | { status: 'not-applicable' }
   | { status: 'checking' }
+  /**
+   * Online, signed-in judge whose person lookup finished without an id (no
+   * `people` row) or failed with no cached pairing. It will not resolve on its
+   * own; the page shows Retry and a way out instead of a skeleton.
+   */
+  | { status: 'identity-unavailable'; retry: () => void }
   | { status: 'assigned' }
   | { status: 'unassigned' };
 
@@ -57,8 +63,14 @@ export function useJudgeAssignedToClass({
   isAnonymous,
   classId,
 }: Args): JudgeAssignmentGateResult {
-  const { userWithRoles } = useAuthContext();
-  const personId = userWithRoles?.databaseUserId ?? null;
+  const {
+    personId: identityPersonId,
+    personIdentityState,
+    personIdentityLookup,
+  } = useAuthContext();
+  // Cache-inclusive id (live `people` lookup OR the cached pairing), so a judge
+  // whose online lookup failed but who has a cached pairing still proceeds.
+  const personId = identityPersonId ?? null;
   const applicable = !isAnonymous && showRole === ShowRole.JUDGE;
 
   // The lookup key for the CURRENT inputs; null while inapplicable or identity
@@ -144,7 +156,7 @@ export function useJudgeAssignedToClass({
 
   // Identity unresolved -> fail OPEN, not 'checking'.
   //
-  // `databaseUserId` comes from a `people` lookup in AuthContext that declares
+  // The live `people` lookup in AuthContext declares
   // no networkMode, so it inherits 'online' and PAUSES offline -- a judge who
   // cold-boots at a ringside with no signal has `personId === null`
   // indefinitely. `lookupKey` is then null, the effect returns early, `resolved`
@@ -172,7 +184,21 @@ export function useJudgeAssignedToClass({
     // flash and get yanked away. My first pass at this fix missed that window
     // by treating unresolved identity as an offline-only condition.
     const identityCanStillArrive = typeof navigator === 'undefined' || navigator.onLine !== false;
-    return identityCanStillArrive ? { status: 'checking' } : { status: 'not-applicable' };
+    if (!identityCanStillArrive) return { status: 'not-applicable' };
+
+    // MYK9-1675: "online with no personId" is NOT always pending. A lookup that
+    // finished with no row (`missing`) or exhausted its retries with no cached
+    // pairing never delivers an id by itself, so waiting strands the judge on a
+    // skeleton. Surface that as its own terminal state rather than failing open
+    // (which would mount the engine and write `in-ring` for a possibly-denied
+    // judge). A refetch in flight (Retry, focus, reconnect) is pending again.
+    const lookup = personIdentityLookup;
+    const settledWithoutId =
+      !lookup?.fetching && (personIdentityState === 'missing' || lookup?.failed === true);
+    if (settledWithoutId && lookup) {
+      return { status: 'identity-unavailable', retry: lookup.retry };
+    }
+    return { status: 'checking' };
   }
 
   if (resolved && resolved.key === lookupKey) return { status: resolved.value };

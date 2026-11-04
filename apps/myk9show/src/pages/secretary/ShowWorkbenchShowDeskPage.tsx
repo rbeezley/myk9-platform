@@ -332,6 +332,13 @@ function ShowWorkbenchShowDeskBody() {
         group: 'show-logistics',
         title: 'Tasks and notes',
         summary: 'Keep show-specific reminders together',
+        // Same value the trigger sums, so the row can never disagree with the badge. Routine
+        // work: the label is a count only and the tone stays calm (urgent is incidents only).
+        ...(tasksOpenCount !== null &&
+          tasksOpenCount > 0 && {
+            attentionLabel: `${tasksOpenCount} open`,
+            attentionTone: 'routine' as const,
+          }),
         content: <TasksNotesCard showId={currentShow.id} clubId={currentShow.clubId} />,
       },
       {
@@ -363,6 +370,7 @@ function ShowWorkbenchShowDeskBody() {
     incidentEntryOptions,
     showClasses,
     secretaryOnlyReason,
+    tasksOpenCount,
   ]);
 
   // MYK9-1685: "This show uses…" switches hide a tool's row (never its data). The replica row is

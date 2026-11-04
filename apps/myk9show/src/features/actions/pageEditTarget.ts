@@ -195,11 +195,12 @@ export function useShowDeskToolsRegistration(
   const { count, tone, incomplete } = attention;
   // Only the header's metadata, never `content`: a new ReactNode each render would re-register.
   const items: ShowToolItem[] = tools.map(
-    ({ id, group, title, attentionLabel, href, disabledReason }) => ({
+    ({ id, group, title, attentionLabel, attentionTone, href, disabledReason }) => ({
       id,
       group,
       title,
       ...(attentionLabel ? { attentionLabel } : {}),
+      ...(attentionLabel && attentionTone ? { attentionTone } : {}),
       ...(href ? { href } : {}),
       ...(disabledReason ? { disabledReason } : {}),
     })

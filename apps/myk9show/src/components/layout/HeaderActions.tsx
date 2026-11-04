@@ -139,7 +139,11 @@ function ActionItem({ action }: { action: AppAction }) {
           {icon}
           <span className="min-w-0 flex-1 truncate">{action.label}</span>
           {action.badge && (
-            <Badge variant="destructive" className="shrink-0">
+            <Badge
+              variant={action.badgeTone === 'routine' ? 'secondary' : 'destructive'}
+              className="shrink-0"
+              data-testid={`${testId}-badge`}
+            >
               {action.badge}
             </Badge>
           )}

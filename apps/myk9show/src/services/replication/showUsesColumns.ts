@@ -50,3 +50,19 @@ export function pickShowUsesUpdates(updates: ShowUsesValues): ShowUsesValues {
   }
   return picked;
 }
+
+/** What a show uses before anyone touches a switch (matches the migration's column defaults). */
+const SHOW_USES_DEFAULTS = {
+  usesDeviceScoring: true,
+  usesPaperPacket: false,
+  usesVolunteers: false,
+  usesLandingPage: false,
+  publishesOwnPremium: false,
+} as const;
+
+/** A locally created show carries the defaults, so it reads the same offline as after sync. */
+export function withShowUsesDefaults<T extends ShowUsesValues>(show: T): T {
+  const filled: ShowUsesValues = { ...SHOW_USES_DEFAULTS };
+  Object.assign(filled, pickShowUsesUpdates(show));
+  return { ...show, ...filled };
+}

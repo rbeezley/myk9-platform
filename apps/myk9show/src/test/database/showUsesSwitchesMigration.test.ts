@@ -36,6 +36,10 @@ describe('20261104014300_myk9_1685_show_uses_switches.sql', () => {
     );
   });
 
+  it('touches every show so replicas re-pull the new columns', () => {
+    expect(flat).toContain('UPDATE public.shows SET updated_at = now();');
+  });
+
   it('deletes nothing and adds no grants (shows has table-level grants only)', () => {
     expect(flat).not.toMatch(/\b(DELETE|DROP|TRUNCATE|GRANT|REVOKE)\b/i);
   });

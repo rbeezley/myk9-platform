@@ -33,7 +33,7 @@ import { invalidateVenuePinIfLocationChanged } from '@/features/maps/invalidateV
 import type { Database } from '@/types/supabase';
 import { withStoredDays, withTypedDays } from './showCalendarDays';
 import { rowToShow } from './showRowMapping';
-import { SHOW_USES_FIELD_COLUMNS, showUsesColumns } from './showUsesColumns';
+import { SHOW_USES_FIELD_COLUMNS, showUsesColumns, withShowUsesDefaults } from './showUsesColumns';
 import { mapShowStatusToDb } from './showStatusMapping';
 import { formatDateLocal } from '@/utils/dateLocal';
 
@@ -466,7 +466,7 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
     const clubId = requireShowClubId(show.clubId);
     const id = crypto.randomUUID();
     const newShow: ReplicatedShow = {
-      ...withTypedDays(show),
+      ...withShowUsesDefaults(withTypedDays(show)),
       clubId,
       id,
       _version: 1,

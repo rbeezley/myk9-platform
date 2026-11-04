@@ -410,6 +410,8 @@ export function ShowWorkbenchShowDeskPage() {
   const entriesFailed = showEntriesIsError && showEntries.length === 0;
   const deskRenders = !deskLoading && !showEntriesLoading && !scheduleUnavailable && !entriesFailed;
 
+  // Switched-off tools leave the Actions menu only: the panel still resolves every id, so an
+  // existing `?tool=` deep link (Reports, Class Settings) keeps opening its tool.
   // The header Actions menu lists these tools and carries their attention badge while this
   // page is mounted, for the viewer who manages the show (the gate `useCurrentActions` uses)
   // and only while the desk body, which owns the panel, is on screen.
@@ -468,7 +470,7 @@ export function ShowWorkbenchShowDeskPage() {
           classes={showClasses}
           entries={showMapEntries}
           canManageShow
-          tools={showDeskTools}
+          tools={allShowDeskTools}
           entryBreakdownByClassId={entryBreakdownByClassId}
         />
       </Suspense>

@@ -64,4 +64,29 @@ describe('ReplicatedShowsTable "This show uses…" fields (MYK9-1685)', () => {
     const payload = write.mock.calls[0]![2].payload;
     for (const [, column] of FIELDS) expect(payload).not.toHaveProperty(column);
   });
+
+  it('createShow materializes the switch defaults in the local row and the INSERT', async () => {
+    const { table, write } = tableWith(base);
+
+    const created = await table.createShow({
+      name: 'New',
+      organization: 'AKC',
+      startDate: '2026-12-01',
+      endDate: '2026-12-02',
+      clubId: '11111111-1111-4111-8111-111111111111',
+    });
+
+    expect(created).toMatchObject({
+      usesDeviceScoring: true,
+      usesPaperPacket: false,
+      usesVolunteers: false,
+      usesLandingPage: false,
+      publishesOwnPremium: false,
+    });
+    expect(write.mock.calls[0]![2].payload).toMatchObject({
+      uses_device_scoring: true,
+      uses_paper_packet: false,
+      uses_volunteers: false,
+    });
+  });
 });

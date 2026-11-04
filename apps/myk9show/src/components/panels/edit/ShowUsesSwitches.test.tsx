@@ -40,8 +40,9 @@ describe('ShowUsesSwitches (MYK9-1685)', () => {
     expect(screen.getAllByRole('switch')).toHaveLength(6);
     expect(screen.getByRole('switch', { name: 'Exhibitor self check-in' })).toBeChecked();
     expect(screen.getByRole('switch', { name: 'Judges score on devices' })).toBeChecked();
-    expect(screen.getByRole('switch', { name: 'Paper fallback packet' })).not.toBeChecked();
-    expect(screen.getByRole('switch', { name: 'Volunteer tracking' })).not.toBeChecked();
+    // Unknown reads as on, like the Actions rows that stay visible until the value arrives.
+    expect(screen.getByRole('switch', { name: 'Paper fallback packet' })).toBeChecked();
+    expect(screen.getByRole('switch', { name: 'Volunteer tracking' })).toBeChecked();
     expect(screen.getByRole('switch', { name: 'Public landing page' })).not.toBeChecked();
     expect(
       screen.getByRole('switch', { name: 'We publish our own premium list' })
@@ -50,8 +51,8 @@ describe('ShowUsesSwitches (MYK9-1685)', () => {
 
   it.each([
     ['Judges score on devices', 'usesDeviceScoring', false, { usesDeviceScoring: true }],
-    ['Paper fallback packet', 'usesPaperPacket', true, {}],
-    ['Volunteer tracking', 'usesVolunteers', true, {}],
+    ['Paper fallback packet', 'usesPaperPacket', true, { usesPaperPacket: false }],
+    ['Volunteer tracking', 'usesVolunteers', true, { usesVolunteers: false }],
     ['Public landing page', 'usesLandingPage', true, {}],
     ['We publish our own premium list', 'publishesOwnPremium', true, {}],
   ])('toggling "%s" saves %s=%s through updateShow', async (label, field, next, seed) => {

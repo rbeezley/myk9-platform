@@ -29,7 +29,11 @@ interface ShowUsesRow {
   field: UsesField;
   label: string;
   description: string;
-  /** What the switch reads as before the show's row carries a value. */
+  /**
+   * What the switch reads as before the show's row carries a value. It matches the Actions row,
+   * which stays visible while the value is unknown, so a cached pre-migration show never shows an
+   * "off" switch beside a visible row.
+   */
   fallback: boolean;
 }
 
@@ -44,13 +48,13 @@ const SHOW_USES_ROWS: readonly ShowUsesRow[] = [
     field: 'usesPaperPacket',
     label: 'Paper fallback packet',
     description: 'Shows the Emergency trial packet row for a printed backup of the day.',
-    fallback: false,
+    fallback: true,
   },
   {
     field: 'usesVolunteers',
     label: 'Volunteer tracking',
     description: 'Shows the Volunteers row for helper assignments and gaps.',
-    fallback: false,
+    fallback: true,
   },
   {
     field: 'usesLandingPage',

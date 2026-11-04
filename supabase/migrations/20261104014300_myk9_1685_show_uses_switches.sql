@@ -17,8 +17,8 @@
 -- harmless. No GRANT/REVOKE is therefore added. No view selects shows.*.
 --
 -- BACKFILL, so nothing that exists today disappears. Only rows that need a
--- change are touched. update_shows_updated_at (BEFORE UPDATE) bumps
--- updated_at on those rows, which is wanted: replicas pull on updated_at, so
+-- change get a value; a final UPDATE touches every show so replicas re-pull. update_shows_updated_at (BEFORE UPDATE) bumps
+-- updated_at on the rows it changes, which is wanted: replicas pull on updated_at, so
 -- they pick the new columns up. The UPDATEs run as the migration role, which
 -- the publish/club gates carve out (they gate authenticated/anon only).
 -- =============================================================================
@@ -57,5 +57,9 @@ UPDATE public.shows s
    SET uses_landing_page = true
  WHERE s.uses_landing_page = false
    AND (s.experience_is_published OR s.experience_published_at IS NOT NULL);
+
+-- Replicas pull on updated_at: touch every show so cached copies re-pull and carry the new
+-- columns (the defaults on rows no backfill above changed would otherwise never reach them).
+UPDATE public.shows SET updated_at = now();
 
 COMMIT;

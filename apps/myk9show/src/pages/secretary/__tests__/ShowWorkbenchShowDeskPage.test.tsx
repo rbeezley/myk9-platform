@@ -161,6 +161,7 @@ vi.mock('@/features/show-map/ShowDeskPanel', () => ({
           here: several mount heavy children this file does not stub. Each id is
           listed, so adding a tool with a secretary-only link and not listing it
           is a visible omission rather than a silent one. */}
+      <div data-testid="panel-tool-ids">{tools.map(tool => tool.id).join(',')}</div>
       <ol data-testid="tool-inventory">
         {tools.map(tool => (
           <li key={tool.id}>{`${tool.group}:${tool.id}`}</li>
@@ -335,26 +336,28 @@ describe('ShowWorkbenchShowDeskPage', () => {
       () => (usesSwitches.show.usesVolunteers = true),
     ],
   ])('%s switch', (_label, toolId, turnOff, turnOn) => {
+    // The header menu's tools (what the Actions menu lists); the panel keeps resolving all of them.
     async function inventory() {
       getEntriesForShowMock.mockResolvedValue({ data: [], error: null });
       renderPage();
       await screen.findByTestId('show-desk-panel');
-      return within(screen.getByTestId('tool-inventory'))
-        .getAllByRole('listitem')
-        .map(item => item.textContent ?? '');
+      const menu = usePageEditTargetStore.getState().showTools?.tools ?? [];
+      return menu.map(tool => tool.id);
     }
 
     it('off hides only its row', async () => {
       turnOff();
       const rows = await inventory();
-      expect(rows.some(row => row.endsWith(`:${toolId}`))).toBe(false);
+      expect(rows).not.toContain(toolId);
       expect(rows).toHaveLength(7);
+      // A deep link still opens it: the panel is handed the full list.
+      expect(screen.getByTestId('panel-tool-ids')).toHaveTextContent(toolId);
     });
 
     it('on keeps its row', async () => {
       turnOn();
       const rows = await inventory();
-      expect(rows.some(row => row.endsWith(`:${toolId}`))).toBe(true);
+      expect(rows).toContain(toolId);
       expect(rows).toHaveLength(8);
     });
   });

@@ -68,8 +68,8 @@ describe('ShowAboutPage (MYK9-1683)', () => {
       expect.stringContaining('google.com/maps')
     );
     expect(screen.getByText(/ExpoGuest/)).toBeInTheDocument();
-    expect(screen.getByText(/Full refund through/)).toBeInTheDocument();
-    expect(screen.getByText(/\$5\.00 is kept/)).toBeInTheDocument();
+    expect(screen.getByText(/Full refund of the entry fee until/)).toBeInTheDocument();
+    expect(screen.getByText(/after that, \$5\.00 is kept/)).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Entries and fees' })).toBeInTheDocument();
     expect(screen.getByTestId('officials')).toBeInTheDocument();
     expect(screen.getByTestId('judges')).toBeInTheDocument();
@@ -107,6 +107,16 @@ describe('ShowAboutPage (MYK9-1683)', () => {
     render(<ShowAboutPage />, { initialRoute: '/shows/show-1/about' });
     expect(screen.getByText('No Wi-Fi set.')).toBeInTheDocument();
     expect(screen.getByText(/club default withdrawal policy/)).toBeInTheDocument();
+  });
+
+  it('does not invent empty facts when the reads are paused with nothing cached', () => {
+    harness.wifi = { data: undefined, isLoading: false, isError: false };
+    harness.policy = { data: undefined, isLoading: false, isError: false };
+    render(<ShowAboutPage />, { initialRoute: '/shows/show-1/about' });
+    expect(screen.queryByText('No Wi-Fi set.')).toBeNull();
+    expect(screen.queryByText(/club default withdrawal policy/)).toBeNull();
+    expect(screen.getByText(/Wi-Fi is unavailable/)).toBeInTheDocument();
+    expect(screen.getByText(/withdrawal policy is unavailable/)).toBeInTheDocument();
   });
 
   it.each(['setup-publish', 'setup-publish-premium', 'setup-publish-landing'])(

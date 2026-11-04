@@ -45,8 +45,9 @@ export function ShowAboutWhere({ show }: { show: Show }) {
         <Wifi className="mt-0.5 h-4 w-4 flex-none text-muted-foreground" aria-hidden="true" />
         {wifi.isLoading ? (
           <Skeleton className="h-5 w-40" aria-label="Loading venue Wi-Fi" />
-        ) : wifi.isError ? (
-          <span>Venue Wi-Fi could not be loaded.</span>
+        ) : !wifi.data ? (
+          // Errored OR paused offline with nothing cached: not a confirmed "no Wi-Fi".
+          <span>Venue Wi-Fi is unavailable right now.</span>
         ) : network ? (
           <span>
             Wi-Fi: {network}
@@ -85,8 +86,8 @@ export function ShowAboutWithdrawal({ showId }: { showId: string }) {
       <h2 className="font-semibold">Withdrawal policy</h2>
       {policy.isLoading ? (
         <Skeleton className="h-5 w-56" aria-label="Loading withdrawal policy" />
-      ) : policy.isError ? (
-        <p className="text-sm">The withdrawal policy could not be loaded.</p>
+      ) : !policy.data ? (
+        <p className="text-sm">The withdrawal policy is unavailable right now.</p>
       ) : lines.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           This show uses the club default withdrawal policy.

@@ -148,7 +148,7 @@ function AuthorizedShowManagementShell({
   // come back null and snap the panel back to Basic Info while the secretary
   // was looking at Judges (F4/F12).
   const [showEditPanel, setShowEditPanel] = useState(() => searchParams.get('edit') === 'true');
-  const [editPanelTab] = useState<ShowEditTab>(() =>
+  const [editPanelTab, setEditPanelTab] = useState<ShowEditTab>(() =>
     normalizeShowEditTab(searchParams.get(SHOW_EDIT_TAB_PARAM))
   );
   const editParam = searchParams.get('edit');
@@ -184,9 +184,19 @@ function AuthorizedShowManagementShell({
   const [seenEditParam, setSeenEditParam] = useState(editParam);
   if (editParam !== seenEditParam) {
     setSeenEditParam(editParam);
-    // A later arrival opens on Basic Info: the deep link's tab was a one-shot
-    // instruction for the load that carried it, not a standing preference.
-    if (editParam === 'true') openEditPanel();
+    // A later arrival opens on the tab ITS link names (About's "Venue & policies" link), or on
+    // Basic Info when the link names none: a tab from an earlier load is a one-shot instruction,
+    // not a standing preference.
+    if (editParam === 'true') {
+      const requestedTab = searchParams.get(SHOW_EDIT_TAB_PARAM);
+      if (requestedTab !== null) {
+        setEditPanelTab(normalizeShowEditTab(requestedTab));
+        setEditPanelOpenedByLink(true);
+        setShowEditPanel(true);
+      } else {
+        openEditPanel();
+      }
+    }
   }
 
   // Hidden for a viewer `soft_delete_show` would refuse (a show-scoped secretary, say).

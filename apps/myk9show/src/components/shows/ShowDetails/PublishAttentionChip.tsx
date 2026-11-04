@@ -1,9 +1,6 @@
 import React from 'react';
 import { usePremiumPublishControl } from '@/features/premium/usePremiumPublishControl';
-import {
-  LANDING_CARD_ANCHOR,
-  PREMIUM_CARD_ANCHOR,
-} from '@/features/show-workbench/publishReadiness';
+import { PREMIUM_CARD_ANCHOR } from '@/features/show-workbench/publishReadiness';
 
 interface PublishAttentionChipProps {
   showId: string;
@@ -34,7 +31,9 @@ export const PublishAttentionChip: React.FC<PublishAttentionChipProps> = ({
   const target = !hasPublishedPremium
     ? { label: 'premium list not yet published', anchor: PREMIUM_CARD_ANCHOR }
     : landingUnpublished
-      ? { label: 'landing page not yet published', anchor: LANDING_CARD_ANCHOR }
+      ? // "Publish landing page" lives on the premium card, not the landing card (INTENT:
+        // readiness links land on the fix).
+        { label: 'landing page not yet published', anchor: PREMIUM_CARD_ANCHOR }
       : null;
   if (!target) return null;
   return (

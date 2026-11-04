@@ -29,10 +29,10 @@ describe('PublishAttentionChip', () => {
 
   it('says the landing page is not published once the premium list is', () => {
     control.value = { infoState: 'ready', hasPublishedPremium: true, landingUnpublished: true };
-    render(<PublishAttentionChip showId="show-1" canManageShow onOpen={vi.fn()} />);
-    expect(
-      screen.getByRole('button', { name: 'landing page not yet published' })
-    ).toBeInTheDocument();
+    const onOpen = vi.fn();
+    render(<PublishAttentionChip showId="show-1" canManageShow onOpen={onOpen} />);
+    fireEvent.click(screen.getByRole('button', { name: 'landing page not yet published' }));
+    expect(onOpen).toHaveBeenCalledWith('setup-publish-premium');
   });
 
   it('renders nothing once both are published', () => {

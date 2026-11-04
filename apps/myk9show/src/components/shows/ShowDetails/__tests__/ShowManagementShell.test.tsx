@@ -163,14 +163,16 @@ vi.mock('@/components/panels/edit/ShowEditPanel', () => ({
     onClose,
     onDelete,
     onSave,
+    initialTab,
   }: {
     open: boolean;
+    initialTab?: string;
     onClose: () => void;
     onDelete?: { kind: string; targets: { id: string; name: string }[] };
     onSave?: (data: Record<string, unknown>) => Promise<void>;
   }) =>
     open ? (
-      <div data-testid="edit-panel-open">
+      <div data-testid="edit-panel-open" data-initial-tab={initialTab}>
         <button type="button" data-testid="edit-panel-close" onClick={onClose}>
           Close
         </button>
@@ -543,7 +545,7 @@ describe('ShowManagementShell', () => {
     expect(screen.getByTestId('probe-hash')).toHaveTextContent('#setup-publish-premium');
   });
 
-  it('opens About on the landing card when only the landing page is unpublished', () => {
+  it('opens About on the premium card (where Publish landing page lives) when only the landing page is unpublished', () => {
     publishControl.value = {
       infoState: 'ready',
       hasPublishedPremium: true,
@@ -551,7 +553,7 @@ describe('ShowManagementShell', () => {
     };
     renderShell({}, '/shows/show-1', <LocationProbe />);
     fireEvent.click(screen.getByRole('button', { name: 'landing page not yet published' }));
-    expect(screen.getByTestId('probe-hash')).toHaveTextContent('#setup-publish-landing');
+    expect(screen.getByTestId('probe-hash')).toHaveTextContent('#setup-publish-premium');
   });
 
   it('shows the About tab last and renders its route through the outlet', () => {
@@ -634,6 +636,18 @@ describe('ShowManagementShell', () => {
     expect(screen.queryByTestId('edit-panel-open')).toBeNull();
     fireEvent.click(screen.getByTestId('in-page-nav'));
     expect(screen.getByTestId('edit-panel-open')).toBeInTheDocument();
+  });
+
+  it("opens the edit panel on the tab a later in-app link names (About's Venue & policies link)", () => {
+    renderShell({}, '/shows/show-1', <InPageNavigator to="?edit=true&editTab=venue" />);
+    fireEvent.click(screen.getByTestId('in-page-nav'));
+    expect(screen.getByTestId('edit-panel-open')).toHaveAttribute('data-initial-tab', 'venue');
+  });
+
+  it('opens a later link that names no tab on Basic Info', () => {
+    renderShell({}, '/shows/show-1', <InPageNavigator to="?edit=true" />);
+    fireEvent.click(screen.getByTestId('in-page-nav'));
+    expect(screen.getByTestId('edit-panel-open')).toHaveAttribute('data-initial-tab', 'basic');
   });
 
   it('opens the edit panel ON the section the secretary is working in, and leaves them there', () => {

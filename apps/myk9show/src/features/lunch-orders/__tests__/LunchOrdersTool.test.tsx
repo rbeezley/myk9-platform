@@ -11,8 +11,14 @@ const { saveMock, listMock } = vi.hoisted(() => ({
 vi.mock('../lunchOrdersService', () => ({
   lunchOrdersService: { listForTrial: listMock, save: saveMock, remove: vi.fn() },
 }));
-vi.mock('@/features/judge-supplies/useTrialJudges', () => ({
-  useTrialJudges: () => ({ data: [{ person_id: 'p-judge', judge_name: 'Jo Judge' }] }),
+vi.mock('../judgesOnDays', async importOriginal => ({
+  ...(await importOriginal<typeof import('../judgesOnDays')>()),
+  useJudgesOnDays: () => ({
+    byTrial: new Map([['trial-1', [{ person_id: 'p-judge', judge_name: 'Jo Judge' }]]]),
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+  }),
 }));
 vi.mock('@/hooks/queries/useShowOfficials', () => ({
   useShowOfficials: () => ({

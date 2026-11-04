@@ -23,7 +23,15 @@ const mocks = vi.hoisted(() => ({
 vi.mock('../lunchOrdersService', () => ({
   lunchOrdersService: { listForTrial: mocks.list, save: mocks.save, remove: mocks.remove },
 }));
-vi.mock('@/features/judge-supplies/useTrialJudges', () => ({ useTrialJudges: () => mocks.judges }));
+vi.mock('../judgesOnDays', async importOriginal => ({
+  ...(await importOriginal<typeof import('../judgesOnDays')>()),
+  useJudgesOnDays: () => ({
+    byTrial: new Map([['trial-1', mocks.judges.data]]),
+    isLoading: mocks.judges.isLoading,
+    isError: mocks.judges.isError,
+    refetch: mocks.judges.refetch,
+  }),
+}));
 vi.mock('@/hooks/queries/useShowOfficials', () => ({ useShowOfficials: () => mocks.officials }));
 vi.mock('../useLunchOrders', async importOriginal => ({
   ...(await importOriginal<typeof import('../useLunchOrders')>()),

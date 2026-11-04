@@ -10,7 +10,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useShowOfficials } from '@/hooks/queries/useShowOfficials';
-import { useTrialJudges } from '@/features/judge-supplies/useTrialJudges';
+import type { JudgesOnDaysResult } from './judgesOnDays';
 import { collectLunchCandidates } from './lunchCandidates';
 import { LunchOrderRow } from './LunchOrderRow';
 import { buildLunchOrderList, LUNCH_NAME_MAX, LUNCH_ROLES, type LunchRole } from './lunchOrders';
@@ -22,6 +22,7 @@ interface LunchOrdersDayProps {
   onDirtyChange: (trialId: string, dirty: boolean) => void;
   trialId: string;
   volunteers: VolunteersOnDaysResult;
+  judges: JudgesOnDaysResult;
 }
 
 /** The Lunch orders list for one show day: the day's assignments first, then "Add person". */
@@ -29,10 +30,10 @@ export function LunchOrdersDay({
   showId,
   trialId,
   volunteers,
+  judges,
   onDirtyChange,
 }: LunchOrdersDayProps) {
   const { query, save, remove } = useTrialLunchOrders(trialId);
-  const judges = useTrialJudges(trialId);
   const officials = useShowOfficials(showId);
   const [newName, setNewName] = useState('');
   const [newRole, setNewRole] = useState<LunchRole>('club_member');
@@ -47,7 +48,8 @@ export function LunchOrdersDay({
       return next;
     });
   }, []);
-  const anyDirty = dirtyRows.size > 0;
+  // An unsent Add person name counts too: leaving would lose it.
+  const anyDirty = dirtyRows.size > 0 || newName.trim() !== '';
   useEffect(() => {
     onDirtyChange(trialId, anyDirty);
     return () => onDirtyChange(trialId, false);
@@ -68,7 +70,7 @@ export function LunchOrdersDay({
     query.data ?? [],
     collectLunchCandidates({
       trialId,
-      judges: judges.data ?? [],
+      judges: judges.byTrial.get(trialId) ?? [],
       officials: officials.data,
       volunteers: volunteers.data ?? [],
     })
@@ -103,7 +105,7 @@ export function LunchOrdersDay({
             type="button"
             className="underline"
             onClick={() => {
-              if (judges.isError) void judges.refetch();
+              if (judges.isError) judges.refetch();
               if (officials.isError) void officials.refetch();
               volunteers.refetch();
             }}

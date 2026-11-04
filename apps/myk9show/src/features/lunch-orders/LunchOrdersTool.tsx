@@ -1,5 +1,6 @@
 import { formatTrialLabel } from '@myk9/core';
 import { useCallback, useState } from 'react';
+import { useJudgesOnDays } from './judgesOnDays';
 import { useShowDeskCloseGuard } from '@/features/show-map/showDeskCloseGuard';
 import { formatEntryDate } from '@/lib/format/dates';
 import { LunchOrdersDay } from './LunchOrdersDay';
@@ -34,6 +35,10 @@ export function LunchOrdersTool({ showId, trials }: LunchOrdersToolProps) {
   }, []);
   // Closing the Show Desk panel with unsaved rows asks first.
   useShowDeskCloseGuard(dirtyDays.size > 0);
+  const judges = useJudgesOnDays(
+    showId,
+    trials.map(trial => trial.id)
+  );
   const volunteers = useVolunteersOnDays(
     showId,
     trials.map(trial => trial.id)
@@ -69,6 +74,7 @@ export function LunchOrdersTool({ showId, trials }: LunchOrdersToolProps) {
               showId={showId}
               trialId={trial.id}
               volunteers={volunteers}
+              judges={judges}
               onDirtyChange={markDay}
             />
           </div>

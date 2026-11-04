@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   Sheet,
@@ -8,9 +8,17 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import { ConfirmDialog } from '@/components/ui/alert-dialog';
+import { UnsavedChangesRouteGuard } from '@/components/navigation/UnsavedChangesRouteGuard';
 import { cn } from '@/lib/utils';
 import { ShowDeskCloseGuardContext } from './showDeskCloseGuard';
 import { SHOW_DESK_TOOL_PARAM, type ShowToolItem } from '@/features/actions/showToolActions';
+
+const LEAVE_COPY = {
+  title: 'You have unsaved lunch orders. Leave without saving?',
+  description: 'Anything not saved will be lost.',
+  stayLabel: 'Stay',
+  leaveLabel: 'Leave',
+};
 
 /** A show tool as the page composes it: the header's metadata plus the panel's content. */
 export interface ShowDeskToolSection extends ShowToolItem {
@@ -46,15 +54,24 @@ export function ShowDeskToolPanel({ tools }: ShowDeskToolPanelProps) {
     return () => window.removeEventListener('beforeunload', warn);
   }, [dirty]);
 
-  const closeTool = () =>
-    setSearchParams(
-      current => {
-        const next = new URLSearchParams(current);
-        next.delete(SHOW_DESK_TOOL_PARAM);
-        return next;
-      },
-      { replace: true }
-    );
+  // The panel's own close (after the person chose Leave) must not trip the router guard below,
+  // which stops everything else: browser Back and switching to another `?tool=`.
+  const selfNavigation = useRef(0);
+  const closeTool = () => {
+    selfNavigation.current += 1;
+    try {
+      setSearchParams(
+        current => {
+          const next = new URLSearchParams(current);
+          next.delete(SHOW_DESK_TOOL_PARAM);
+          return next;
+        },
+        { replace: true }
+      );
+    } finally {
+      selfNavigation.current -= 1;
+    }
+  };
 
   const handleOpenChange = (open: boolean) => {
     if (open) return;
@@ -67,6 +84,12 @@ export function ShowDeskToolPanel({ tools }: ShowDeskToolPanelProps) {
 
   return (
     <ShowDeskCloseGuardContext.Provider value={setDirty}>
+      <UnsavedChangesRouteGuard
+        isDirty={dirty}
+        subject="lunch orders"
+        dialog={LEAVE_COPY}
+        selfNavigationRef={selfNavigation}
+      />
       <Sheet open={tool !== undefined} onOpenChange={handleOpenChange}>
         {tool && (
           <SheetContent
@@ -89,9 +112,9 @@ export function ShowDeskToolPanel({ tools }: ShowDeskToolPanelProps) {
       <ConfirmDialog
         open={confirmingLeave}
         onOpenChange={setConfirmingLeave}
-        title="You have unsaved lunch orders. Leave without saving?"
-        confirmLabel="Leave"
-        cancelLabel="Stay"
+        title={LEAVE_COPY.title}
+        confirmLabel={LEAVE_COPY.leaveLabel}
+        cancelLabel={LEAVE_COPY.stayLabel}
         onConfirm={() => {
           setDirty(false);
           closeTool();

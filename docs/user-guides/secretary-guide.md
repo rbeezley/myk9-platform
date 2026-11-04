@@ -25,13 +25,13 @@
 
 Open a show and you get **one row of five tabs**. Everything in this guide lives on one of them:
 
-| Tab             | What it is                                                                                                                                                                                            |
-| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Show Desk**   | Your show home: a **Needs attention** strip, the schedule by trial and day, and the selected class's panel with its status, timing, run order and actions. Called Overview before November 2026.      |
-| **Entry Forms** | One form per exhibitor, with the dogs and classes they entered. Search and **Filter** find a form; the header **Actions** menu holds the lists (Pulls, Move-ups, Waitlist and the rest).              |
-| **Results**     | The show's classes with what each needs next: check the scores, release them, print, collect the judge's initials. **Submit to AKC** (or UKC, ASCA) and **Close the show** sit above the list.        |
-| **Reports**     | Printing: labels, check-in sheets, score sheets, catalogs and registry reports.                                                                                                                       |
-| **About**       | The show's facts, read only: where it is, entry fees, the withdrawal policy, officials and judges. The **Premium List** card that publishes the premium list is here. **Edit show** changes anything. |
+| Tab             | What it is                                                                                                                                                                                                          |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Show Desk**   | Your show home: a **Needs attention** strip, the schedule by trial and day, and the selected class's panel with its status, timing, run order and actions. Called Overview before November 2026.                    |
+| **Entry Forms** | One form per mail-in entry set or online checkout, with the dogs and classes they entered. Search and **Filter** find a form; the header **Actions** menu holds the lists (Pulls, Move-ups, Waitlist and the rest). |
+| **Results**     | The show's classes with what each needs next: check the scores, release them, print, collect the judge's initials. **Submit to AKC** (or UKC, ASCA) and **Close the show** sit above the list.                      |
+| **Reports**     | Printing: labels, check-in sheets, score sheets, catalogs and registry reports.                                                                                                                                     |
+| **About**       | The show's facts, read only: where it is, entry fees, the withdrawal policy, officials and judges. The **Premium List** card that publishes the premium list is here. **Edit show** changes anything.               |
 
 The **Actions** button in the top bar changes with the page you are on. On **Show Desk** it holds the show-day and show-logistics tools below. On **Entry Forms** it holds the entry lists instead (card 4).
 
@@ -42,7 +42,7 @@ The **Actions** button in the top bar changes with the page you are on. On **Sho
 | **Access codes**: judge and ringside codes                                             | **Tasks and notes**: show-specific reminders               |
 | **Emergency trial packet**: the printed paper fallback                                 | **Incident log**: record incidents while fresh             |
 
-> **A tool you do not use can be switched off.** In **Edit show → Venue & policies**, the **This show uses…** switches hide **Self check-in**, **Access codes**, **Emergency trial packet** and **Volunteers** from this menu. Nothing is deleted, and switching one back on brings the row back with its data. A new show shows all four. See card 3.
+> **A tool you do not use can be switched off.** In **Edit show → Venue & policies**, the **This show uses…** switches hide **Self check-in**, **Access codes**, **Emergency trial packet** and **Volunteers** from this menu. Nothing is deleted, and switching one back on brings the row back with its data. A new show starts with **Self check-in** and **Access codes** showing, and **Emergency trial packet** and **Volunteers** hidden until you switch them on. See card 3.
 
 ### Reading the schedule
 
@@ -86,8 +86,8 @@ On the show page, open the **status pill** under the show's name and choose **Pu
 ## 3 · Edit a show, or reassign a judge
 
 - **Show details:** **Actions → Edit show** (the Actions button sits in the top bar, left of the bell; on a phone it is the lightning icon), or **Edit show** on the **About** tab. The edit panel opens over the page you are on, with tabs **Basic Info**, **Officials**, **Judges**, **Fees**, **Venue & policies** and **Premium**.
-- **Venue & policies:** this tab saves each card or switch on its own, so there is no Save to press for it. It holds, in order:
-  - **This show uses…** switches for the optional tools: **Exhibitor self check-in**, **Judges score on devices**, **Paper fallback packet**, **Volunteer tracking**, **Public landing page**, and **We publish our own premium list**. A club that never uses a tool can turn it off. The first four hide their row in the Show Desk **Actions** menu. **Public landing page** shows or hides the Landing page card and its reminder. **We publish our own premium list** stops the premium list reminder. Nothing is deleted when you turn a tool off. **Exhibitor self check-in** needs a connection to change. In the week before the show, **Ready for show day** (see Getting ready for show day) may offer one quiet suggestion for a tool that is off, such as "Want judges to score on their phones?", with a **Turn it on** link to this tab. The X beside it hides that suggestion on that device.
+- **Venue & policies:** each card or switch on this tab saves on its own, so the panel's **Save Changes** is not needed for it. The switches save the moment you flip them. The pin, WiFi and policy cards each have their own button (**Save pin**, **Save**, **Save policy**). It holds, in order:
+  - **This show uses…** switches for the optional tools: **Exhibitor self check-in**, **Judges score on devices**, **Paper fallback packet**, **Volunteer tracking**, **Public landing page**, and **We publish our own premium list**. A club that never uses a tool can turn it off. A new show has self check-in and judges scoring on devices on, and the paper packet, volunteer tracking, public landing page and own premium list off, so switch on the packet or volunteers if you want those rows. The first four hide their row in the Show Desk **Actions** menu. **Public landing page** shows or hides the Landing page card and its reminder. **We publish our own premium list** stops the premium list reminder. Nothing is deleted when you turn a tool off. **Exhibitor self check-in** needs a connection to change. In the week before the show, **Ready for show day** (see Getting ready for show day) may offer one quiet suggestion for a tool that is off, such as "Want judges to score on their phones?", with a **Turn it on** link to this tab. The X beside it hides that suggestion on that device.
   - **Venue Map Pin**, **Venue WiFi** (network name and password, printed on the armband labels) and the **Withdrawal Refund Policy** for this show (**Save policy**). **About** shows the address, Wi-Fi and withdrawal policy read only.
 
   ![Edit show on the Venue & policies tab, with the This show uses switches](../screenshots/S-25.png)
@@ -105,7 +105,7 @@ On the show page, open the **status pill** under the show's name and choose **Pu
 
 ## 4 · Approve or accept online entries
 
-**Entry Forms.** The list opens on every form, one row per exhibitor, with the forms that need you at the top: missing information first, then review, then payment, then the rest. The **Next action** column says what each one needs (**Resolve missing information**, **Review**, **Resolve payment**, or **View**).
+**Entry Forms.** The list opens on every form, one row per mail-in entry set or online checkout (an exhibitor who checked out twice online has two forms), with the forms that need you at the top: missing information first, then review, then payment, then the rest. The **Next action** column says what each one needs (**Resolve missing information**, **Review**, **Resolve payment**, or **View**).
 
 ![Entry Forms with the list on the left and the selected exhibitor's form on the right](../screenshots/S-07.png)
 
@@ -120,18 +120,18 @@ The header **Actions** button holds the rest. On **Entry Forms** it lists:
 
 ![The Actions menu open on Entry Forms, with the Entry lists group](../screenshots/S-23.png)
 
-Click a form to open it. At the top is the exhibitor's name and a **⋯** menu beside it:
+Click a form to open it. At the top is the exhibitor's name and a **⋯** menu beside it. Add entry for, Email exhibitor… and Add private note… appear only on mail-in (paper) forms. A form from an online checkout lacks them; use the header **Actions → Add entry** instead, and the **$ due** card below has no Cash… or Check… buttons either (online payments follow Stripe).
 
 - **Add entry for** the exhibitor opens the entry flow already on them (card 5).
 - **Email exhibitor…** writes to them about this form.
 - **Add private note…** keeps a note on the form. Only show officials can see it. The exhibitor never does.
-- Under **All entries on this form**: **Accept all**, **Mark all pending**, **Mark all missing information**, **Pull all** and **Reject all**. They apply to every entry on the form. An item reads "2 of 3" when only some entries can change (already scored, say), and is greyed out when none can.
+- Under **All entries on this form**: **Accept all** and **Reject all**. They apply to every entry on the form. An item reads "2 of 3" when only some entries can change (already scored, say), and is greyed out when none can.
 
 Under it, **To finish this form** lists only what is left, one card each, with the button that does it:
 
 - **N entries need review**: **Accept** or **Reject**.
 - **N entries are missing information**: use **Edit entry** on the entry's menu.
-- **$ due**: **Cash…**, **Check…**, or the more options (**Partial Payment…**, **Paid in Full: Online**).
+- **$ due** (mail-in forms): **Cash…**, **Check…**, or the more options (**Partial Payment…**, **Paid in Full: Online**).
 - **A dog has no armband**: **Assign**.
 - **A dog needs a registration number**: **Add number**.
 - **On a show day, N runs to check in**: **Check in all** (card 18).
@@ -224,7 +224,7 @@ Three jobs look alike. Pick by the reason, because each one treats the money dif
 Pull and Withdraw are never the same thing, and neither one refunds anyone by itself.
 
 - **One entry.** On the exhibitor's form, click the status beside the class (Pending, Accepted and so on). The menu has **Pull** and **Withdraw…**, each with its one-line help. **Remove entry** is in the **⋯** menu beside the dog on that entry's row, next to **Edit entry**, **Check in** and **Change class…**. It asks you to confirm. There is no Delete entry in the edit panel any more.
-- **All of one dog's entries.** Beside the dog's name on the form, the **⋯** menu offers "Pull Maple from all entries" and "Withdraw Maple…" (with the dog's own name). Each asks once, then does every entry that can still change. Entries that have already run or been moved are left as they are, and the box lists them. The Withdraw box shows the refund the premium suggests for each entry, and issues none.
+- **All of one dog's entries.** Beside the dog's name on the form, the **⋯** menu offers "Pull Maple from all entries" and "Withdraw Maple…" (with the dog's own name). Each asks once, then does every entry of that dog on this form that can still change. The same exhibitor's other forms stay as they are. Entries that have already run or been moved are left as they are, and the box lists them. The Withdraw box shows the refund the premium suggests for each entry, and issues none.
 
 **Entry Forms → Actions → Entry lists → Pulls** (the page heading reads _Pull Management_).
 
@@ -258,7 +258,7 @@ The **Show messages** tab of Message Center lists the show's announcements and m
 
 ## 10 · Payments
 
-Payment status shows on every exhibitor's form in **Entry Forms**; **Filter → Status → Payment due** lists the ones still owing. A form with money owed has a **$ due** card under **To finish this form** with **Cash…** and **Check…** buttons to record what you were handed.
+Payment status shows on every exhibitor's form in **Entry Forms**; **Filter → Status → Payment due** lists the ones still owing. A mail-in form with money owed has a **$ due** card under **To finish this form** with **Cash…** and **Check…** buttons to record what you were handed. An online-checkout form has no such buttons; its status follows Stripe.
 
 > **The label tells you how it was paid, when the app knows.** An entry recorded as a cheque reads **Paid by check**, cash reads **Paid by cash**, and one you marked paid yourself reads **Paid — recorded by secretary**.
 >
@@ -327,7 +327,7 @@ All under **Show Desk → Actions**:
 - **Tasks and notes**: reminders for this show.
 - **Emergency trial packet**: prepare or confirm the printed paper fallback, in case devices or signal fail on the day.
 
-Volunteers and the Emergency trial packet only show here while their **This show uses…** switch is on (card 3).
+Volunteers and the Emergency trial packet only show here while their **This show uses…** switch is on (card 3). Both start off on a new show.
 
 ---
 

@@ -7,6 +7,7 @@ import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { CheckInDesk } from './CheckInDesk';
 
 const h = vi.hoisted(() => ({
+  schedule: { readPending: false, readFailed: false, retry: vi.fn() },
   updateReplicatedCheckInStatus: vi.fn(),
 }));
 
@@ -16,6 +17,7 @@ vi.mock('@/services/show-day/checkInStatus', () => ({
 
 vi.mock('@/pages/secretary/useShowDeskScheduleRead', () => ({
   useShowDeskScheduleRead: () => ({
+    ...h.schedule,
     trials: [
       {
         id: 'trial-1',
@@ -127,6 +129,9 @@ function renderDesk(entries: EntryManagementEntry[], route = '/shows/show-1/entr
 
 describe('CheckInDesk', () => {
   beforeEach(() => {
+    h.schedule.readFailed = false;
+    h.schedule.readPending = false;
+    h.schedule.retry.mockReset();
     h.updateReplicatedCheckInStatus.mockReset();
     h.updateReplicatedCheckInStatus.mockResolvedValue(null);
   });
@@ -227,5 +232,30 @@ describe('CheckInDesk', () => {
     await user.click(screen.getByRole('button', { name: /show all/i }));
     expect(screen.getByRole('region', { name: 'Bea Handler' })).toBeInTheDocument();
     expect(screen.getByTestId('location').textContent).not.toContain('checkin');
+  });
+
+  it('offers a schedule retry instead of treating an unread schedule as settled', async () => {
+    h.schedule.readFailed = true;
+    const { user } = renderDesk([entry()]);
+    await user.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(h.schedule.retry).toHaveBeenCalledTimes(1);
+  });
+
+  it('lets refreshed data win over the local check-in once the entry is pulled', async () => {
+    const { user, rerender } = renderDesk([entry()]);
+    await user.click(screen.getByRole('button', { name: 'Check in Poppy, Container Novice A' }));
+    await waitFor(() => expect(h.updateReplicatedCheckInStatus).toHaveBeenCalled());
+    const pulled = entry({ classes: [{ ...entry().classes[0]!, checkInStatus: 'pulled' }] });
+    rerender(
+      <CheckInDesk
+        showId="show-1"
+        entries={[pulled]}
+        loading={false}
+        unknown={false}
+        onRetry={vi.fn()}
+        currentDate={NOW}
+      />
+    );
+    expect(screen.getByRole('region', { name: 'Alice Martin' })).toHaveTextContent('Not active');
   });
 });

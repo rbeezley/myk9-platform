@@ -29,6 +29,7 @@ interface CheckInDeskProps {
   currentDate?: Date | null;
 }
 
+const SETTLED = new Set<string | undefined>(['checked-in', 'pulled', 'completed']);
 const EXHIBITOR_NOUN = ['exhibitor', 'exhibitors'] as const;
 
 /**
@@ -48,7 +49,7 @@ export function CheckInDesk({
   const filter = readCheckInFilter(searchParams);
   const [search, setSearch] = useState('');
   const [now, setNow] = useState(() => new Date());
-  const { trials, trialClasses } = useShowDeskScheduleRead();
+  const { trials, trialClasses, readPending, readFailed, retry } = useShowDeskScheduleRead();
   const { checkedInIds, busyIds, error, notice, checkIn } = useCheckInDeskActions();
 
   useEffect(() => {
@@ -68,7 +69,9 @@ export function CheckInDesk({
   const shownEntries = useMemo(
     () =>
       entries.map(entry =>
-        checkedInIds.has(entry.id)
+        // Local override only until refreshed data speaks: a pull or completion
+        // that arrives later is not masked by it.
+        checkedInIds.has(entry.id) && entry.classes.every(cls => !SETTLED.has(cls.checkInStatus))
           ? {
               ...entry,
               classes: entry.classes.map(cls => ({
@@ -104,17 +107,25 @@ export function CheckInDesk({
   const setFilter = (next: CheckInDeskFilter) =>
     setSearchParams(previous => writeCheckInFilter(previous, next), { replace: true });
 
-  if (loading) {
+  if (loading || (readPending && trials.length === 0)) {
     return <div className="py-6 text-sm text-muted-foreground">Loading exhibitors...</div>;
   }
-  if (unknown) {
+  if (unknown || readFailed) {
     return (
       <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm">
         <p className="font-medium text-destructive">Couldn't load exhibitors.</p>
         <p className="mt-1 text-muted-foreground">
           We could not load the exhibitor list. Retry, or carry on from the class schedule.
         </p>
-        <Button variant="outline" size="sm" className="mt-3" onClick={onRetry}>
+        <Button
+          variant="outline"
+          size="sm"
+          className="mt-3"
+          onClick={() => {
+            if (unknown) onRetry();
+            if (readFailed) void retry();
+          }}
+        >
           Retry
         </Button>
       </div>

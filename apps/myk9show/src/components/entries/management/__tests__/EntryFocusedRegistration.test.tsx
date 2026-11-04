@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { TrialSecretaryAccessProvider } from '@/features/actions/TrialSecretaryAccessContext';
 import { screen, within } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
+import { useNotificationStore } from '@/store/notificationStore';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { groupEntriesByShowRegistration } from '../showRegistrationProjection';
@@ -527,7 +528,7 @@ describe('EntryFocusedRegistration', () => {
       const onBulkStatusChange = vi.fn();
       const onSendDecisionEmail = vi.fn().mockResolvedValue(undefined);
       const registration = groupEntriesByShowRegistration([
-        entry('entry-1', 'Poppy', 'Alice Martin', 'dog-1'),
+        { ...entry('entry-1', 'Poppy', 'Alice Martin', 'dog-1'), ownerId: 'person-alice' },
         entry('entry-2', 'Bean', 'Jamie Lee', 'dog-2'),
       ])[0]!;
       const { user } = render(
@@ -551,16 +552,23 @@ describe('EntryFocusedRegistration', () => {
 
       await user.click(screen.getByRole('button', { name: 'More actions for Alice Martin' }));
       expect(await screen.findByRole('menuitem', { name: /Email exhibitor/ })).toBeInTheDocument();
-      expect(screen.queryByText(/Add entry for/)).not.toBeInTheDocument();
+      expect(screen.getByText(/Add entry for Alice Martin/)).toBeInTheDocument();
       await user.click(screen.getByRole('menuitem', { name: 'Accept all' }));
       expect(onBulkStatusChange).toHaveBeenCalledWith(['entry-1', 'entry-2'], EntryStatus.ACCEPTED);
 
       await user.click(screen.getByRole('button', { name: 'More actions for Alice Martin' }));
       await user.click(await screen.findByRole('menuitem', { name: /Email exhibitor/ }));
-      expect(await screen.findByRole('dialog')).toBeInTheDocument();
+      // Opens the show message composer scoped to this owner and show, not a decision-email dialog.
+      expect(useNotificationStore.getState().isCenterOpen).toBe(true);
+      expect(useNotificationStore.getState().composeRequest).toEqual({
+        showId: 'show-1',
+        personId: 'person-alice',
+        personName: 'Alice Martin',
+      });
+      expect(onSendDecisionEmail).not.toHaveBeenCalled();
     });
 
-    it('omits Email exhibitor when no decision email can be sent', async () => {
+    it('omits Email exhibitor when the form has no owner to message', async () => {
       const registration = groupEntriesByShowRegistration([
         entry('entry-1', 'Poppy', 'Alice Martin', 'dog-1'),
       ])[0]!;

@@ -23,6 +23,7 @@ import {
 } from './announcementListControls';
 import { AnnouncementListControlsBar } from './AnnouncementListControlsBar';
 import { MessageCenterComposeForm } from './MessageCenterComposeForm';
+import { EmptyPanelState } from './MessageCenterEmptyState';
 import { useMyJudgedShows } from '@/features/messages/hooks/useMyJudgedShows';
 import { readRouteShowId, selectComposeShows } from '@/features/messages/messageComposeShows';
 import type {
@@ -93,29 +94,12 @@ function NotificationItem({
   );
 }
 
-function EmptyPanelState({
-  icon: Icon,
-  title,
-  body,
-}: {
-  icon: typeof Inbox;
-  title: string;
-  body?: string | undefined;
-}) {
-  return (
-    <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
-      <Icon className="mb-3 h-8 w-8 text-muted-foreground/30" />
-      <p className="text-sm text-muted-foreground">{title}</p>
-      {body && <p className="mt-1 text-xs text-muted-foreground">{body}</p>}
-    </div>
-  );
-}
-
 export function MessageCenterPanel() {
   const navigate = useNavigate();
   const location = useLocation();
   const isCenterOpen = useNotificationStore(s => s.isCenterOpen);
   const closeCenter = useNotificationStore(s => s.closeCenter);
+  const composeRequest = useNotificationStore(s => s.composeRequest);
   const recentAlerts = useNotificationStore(s => s.recentAlerts);
   const notificationUnread = useNotificationStore(s => s.unreadCount);
   const markAllRead = useNotificationStore(s => s.markAllRead);
@@ -160,6 +144,8 @@ export function MessageCenterPanel() {
   });
   // A closed Message Center always reopens on the list, never mid-compose.
   if (!isCenterOpen && isComposing) setIsComposing(false);
+  // "Email exhibitor…" opens the panel straight into compose, scoped to one person.
+  if (isCenterOpen && composeRequest && !isComposing) setIsComposing(true);
 
   const isStaffDestination = isSecretary || isAdmin || hasRole('club_admin');
   const canPostShowWideMessage = author.isOfficial;
@@ -240,6 +226,7 @@ export function MessageCenterPanel() {
 
   function handleCloseCompose() {
     setIsComposing(false);
+    if (composeRequest) useNotificationStore.setState({ composeRequest: null });
   }
 
   // Escape, the backdrop and the X all land here: while composing they step
@@ -436,6 +423,7 @@ export function MessageCenterPanel() {
             emptyMessage={composeEmptyMessage}
             manageRecipients={composeAllowedRecipients}
             manageShowWideLane={composeShowWideDeliveryLane}
+            composeRequest={composeRequest}
           />
         </div>
       ) : (

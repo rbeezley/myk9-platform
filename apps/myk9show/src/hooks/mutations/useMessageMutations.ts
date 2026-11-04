@@ -56,6 +56,7 @@ export function useMessageMutations() {
             show_id: showId,
             target_type: target.type,
             ...(target.classId ? { class_id: target.classId } : {}),
+            ...(target.personId ? { person_id: target.personId } : {}),
             send_push: target.sendPush === true,
             ...(target.sendEmail || target.emailOnly ? { send_email: true } : {}),
             ...(target.emailOnly ? { email_only: true } : {}),

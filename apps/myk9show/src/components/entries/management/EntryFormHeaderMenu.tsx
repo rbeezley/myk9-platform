@@ -18,7 +18,7 @@ interface EntryFormHeaderMenuProps {
   exhibitorName: string;
   entries: EntryManagementEntry[];
   onBulkStatusChange: (entryIds: string[], status: EntryStatus) => void;
-  /** Present only when a decision email can be sent for this form. */
+  /** Present only when the form has an exhibitor (owner) to message. */
   onEmailExhibitor?: (() => void) | undefined;
   /** "Add entry for <exhibitor>": the wizard opened on them, returning here. Absent: not offered. */
   addEntry?: { href: string; disabledReason?: string | undefined } | undefined;

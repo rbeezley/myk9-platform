@@ -3,6 +3,7 @@ import { ArrowLeft } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useNotificationStore } from '@/store/notificationStore';
 import { useTrialSecretaryOnlyReason } from '@/features/actions/TrialSecretaryAccessContext';
 import { buildAddEntryForExhibitorPath } from '@/pages/RegistrationWizardPage.routes';
 import { formatConfirmationNumberLabel } from '@/features/registration/confirmationNumberDisplay';
@@ -93,6 +94,20 @@ export function EntryFocusedRegistration({
         }
       : undefined;
 
+  // "Email exhibitor…" opens the show message composer, locked to this exhibitor and show
+  // (MYK9-1693). The decision-email dialog stays on the Communication section.
+  const openComposeFor = useNotificationStore(s => s.openComposeFor);
+  const ownerId = firstEntry?.ownerId;
+  const emailExhibitor =
+    firstEntry && ownerId
+      ? () =>
+          openComposeFor({
+            showId: firstEntry.showId,
+            personId: ownerId,
+            personName: registration.exhibitorName,
+          })
+      : undefined;
+
   return (
     <section
       className="overflow-hidden rounded-xl border bg-card shadow-sm"
@@ -129,11 +144,7 @@ export function EntryFocusedRegistration({
             entries={registration.entries}
             onBulkStatusChange={onBulkStatusChange}
             addEntry={addEntry}
-            onEmailExhibitor={
-              enrollmentCardProps.onSendDecisionEmail && registration.enrollmentId
-                ? controls.email.openDialog
-                : undefined
-            }
+            onEmailExhibitor={emailExhibitor}
             onAddNote={
               registration.enrollmentId ? () => setNoteFocusRequest(n => n + 1) : undefined
             }

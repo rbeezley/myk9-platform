@@ -32,6 +32,8 @@ function snapshotWithCounts(
     timeZone: 'America/Chicago',
     registryId: 'AKC',
     now: new Date('2026-08-28T19:00:00Z'),
+    printTrackingInUse: true,
+    checklistInUse: true,
     trials: [{ id: 'trial-1', date: '2026-08-28', number: '1', order: 0 }],
     classes: [
       {

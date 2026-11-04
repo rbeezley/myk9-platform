@@ -11,6 +11,7 @@ import type { ShowDeskPendingSignal } from '../showDeskPendingSignals';
 import type { SecretaryCockpitEntryRow } from './secretaryCockpitTypes';
 import type { ShowMapAction } from '../showMapActions';
 import type { ShowMapClassInput, ShowMapTree, ShowMapTrialInput } from '../showMapTypes';
+import { isChecklistInUse, isPrintTrackingInUse } from './checklistUsage';
 import {
   getCockpitClassDetailsHref,
   getCockpitPaperScoringHref,
@@ -35,6 +36,11 @@ export interface BuildSecretaryCockpitSnapshotInput {
   returnTo: string;
   now: Date;
   paperworkByClassId?: ReadonlyMap<string, readonly SecretaryCockpitPaperwork[]>;
+  /**
+   * False when the class rows or the server print read failed. Defaults to true; false makes
+   * print tracking count as in use, so no paperwork state is hidden for lack of evidence.
+   */
+  paperworkAvailable?: boolean;
 }
 
 function lifecycleFor(status: string | undefined): CockpitLifecycle | null {
@@ -217,7 +223,15 @@ export function buildSecretaryCockpitSnapshot({
   returnTo,
   now,
   paperworkByClassId,
+  paperworkAvailable = true,
 }: BuildSecretaryCockpitSnapshotInput): SecretaryCockpitSnapshot {
+  const printTrackingInUse = isPrintTrackingInUse({ paperworkByClassId, paperworkAvailable });
+  const checklistInUse = isChecklistInUse({
+    printTrackingInUse,
+    classes: classes.map(classItem => ({
+      wrapUpStatus: tree.nodesById[`class:${classItem.id}`]?.wrapUpStatus?.value,
+    })),
+  });
   const timeZone = getTrialTimezone(trials[0]);
   // A show is single-registry by rule (MYK9-490), so the first trial's
   // registry speaks for all of them — same convention as getTrialTimezone above.
@@ -228,6 +242,8 @@ export function buildSecretaryCockpitSnapshot({
     timeZone,
     registryId,
     now,
+    printTrackingInUse,
+    checklistInUse,
     trials: trials.map((trial, index) => ({
       id: trial.id,
       date: trial.trialDate,

@@ -27,6 +27,8 @@ interface ReadyForShowDaySectionProps {
     byClassId: ReadonlyMap<string, readonly SecretaryCockpitPaperwork[]>;
     available: boolean;
   };
+  /** From the cockpit snapshot (MYK9-1620). */
+  printTrackingInUse: boolean;
 }
 
 const ICON_CLASS = 'mt-0.5 h-5 w-5 shrink-0';
@@ -70,6 +72,7 @@ function ReadyForShowDayContent({
   classes,
   entryBreakdownByClassId,
   paperwork,
+  printTrackingInUse,
 }: Omit<ReadyForShowDaySectionProps, 'now'>) {
   const publishInfo = usePublishInfo(show.id, true);
   const { readiness } = useOfflineReadiness(show.id);
@@ -97,6 +100,8 @@ function ReadyForShowDayContent({
         // The paperwork map is built from the entries: with them unread it is empty, not printed.
         available: paperwork.available && entryBreakdownByClassId !== undefined,
       }),
+      // Unreadable entries leave the line as "can't check" rather than hiding it.
+      printTrackingInUse: printTrackingInUse || entryBreakdownByClassId === undefined,
       offline: readiness,
     });
   }, [
@@ -104,6 +109,7 @@ function ReadyForShowDayContent({
     entryBreakdownByClassId,
     paperwork.available,
     paperwork.byClassId,
+    printTrackingInUse,
     publishInfo.data,
     publishInfo.fetchStatus,
     publishInfo.isError,

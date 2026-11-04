@@ -355,6 +355,8 @@ export function SecretaryCockpitFocusedClass({
           paperwork={focused.paperwork}
           timeZone={timeZone}
           onCommand={onCommand}
+          printTrackingInUse={focused.printTrackingInUse}
+          checklistInUse={focused.checklistInUse}
         />
       </div>
     </aside>

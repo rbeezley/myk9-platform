@@ -112,7 +112,8 @@ function toScheduledClass(
   cls: SecretaryCockpitClass,
   label: string,
   timeZone: string,
-  derivedAttentionCount = cls.attention.length
+  derivedAttentionCount = cls.attention.length,
+  checklistInUse = true
 ): ScheduledClassModel {
   const scheduledStart = cls.scheduledStart ?? null;
   return {
@@ -137,7 +138,8 @@ function toScheduledClass(
     attentionCount: derivedAttentionCount,
     closeout: cls.closeout ?? 'none',
     primaryAction: primaryActionFor(cls),
-    checklist: checklistFor(cls),
+    // A feature never used is invisible, not unfinished (MYK9-1620): no "0 of 7" strip.
+    checklist: checklistInUse ? checklistFor(cls) : null,
   };
 }
 
@@ -198,8 +200,11 @@ function preparationAttention(
   trial: SecretaryCockpitTrial,
   nowMinutes: number,
   allowUntimed: boolean,
-  timeZone: string
+  timeZone: string,
+  printTrackingInUse: boolean
 ): SecretaryCockpitAttention[] {
+  // A show that never printed from the app is not nagged to prepare sheets (MYK9-1620).
+  if (!printTrackingInUse) return [];
   if (cls.lifecycle !== 'not-started') return [];
   const expectedMinutes = operationalMinutes(
     cls.revisedExpectedStart ?? cls.scheduledStart,
@@ -258,7 +263,8 @@ function buildAttention(
           trial,
           nowMinutes,
           cls.id === nextNotStarted?.id,
-          snapshot.timeZone
+          snapshot.timeZone,
+          snapshot.printTrackingInUse
         )
       : [];
   });
@@ -305,13 +311,22 @@ function toFocusedClass(
   cls: SecretaryCockpitClass,
   label: string,
   timeZone: string,
-  derivedAttentionCount: number
+  derivedAttentionCount: number,
+  usage: Pick<SecretaryCockpitSnapshot, 'printTrackingInUse' | 'checklistInUse'>
 ): FocusedClassModel {
-  const scheduled = toScheduledClass(cls, label, timeZone, derivedAttentionCount);
+  const scheduled = toScheduledClass(
+    cls,
+    label,
+    timeZone,
+    derivedAttentionCount,
+    usage.checklistInUse
+  );
   const actionsFor = (group: SecretaryCockpitAction['group']) =>
     cls.actions.filter(action => action.group === group);
   return {
     ...scheduled,
+    printTrackingInUse: usage.printTrackingInUse,
+    checklistInUse: usage.checklistInUse,
     actualStart: evidence(cls.actualStart, 'recorded'),
     actualFinish: evidence(cls.actualFinish, 'recorded'),
     paperwork: cls.paperwork.map(item => ({ ...item, evidence: paperworkEvidence(item.state) })),
@@ -352,7 +367,8 @@ function buildTrialGroups(
             cls,
             labelOf(cls),
             snapshot.timeZone,
-            attentionCountByClass.get(cls.id) ?? 0
+            attentionCountByClass.get(cls.id) ?? 0,
+            snapshot.checklistInUse
           )
         ),
         nowMarkerIndex: nowMarkerIndex(visibleClasses, trial.date, snapshot),
@@ -428,7 +444,13 @@ export function buildSecretaryCockpitModel(
     // with `matchesCockpitFilter`, so a tab's count can't diverge from what
     // the schedule renders (MYK9-812).
     daySchedule: dayClasses.map(cls =>
-      toScheduledClass(cls, labelOf(cls), snapshot.timeZone, attentionCountByClass.get(cls.id) ?? 0)
+      toScheduledClass(
+        cls,
+        labelOf(cls),
+        snapshot.timeZone,
+        attentionCountByClass.get(cls.id) ?? 0,
+        snapshot.checklistInUse
+      )
     ),
     trialGroups: buildTrialGroups(
       snapshot,
@@ -445,7 +467,8 @@ export function buildSecretaryCockpitModel(
           focused,
           labelOf(focused),
           snapshot.timeZone,
-          allAttention.filter(item => item.classId === focused.id).length
+          allAttention.filter(item => item.classId === focused.id).length,
+          snapshot
         )
       : null,
   };

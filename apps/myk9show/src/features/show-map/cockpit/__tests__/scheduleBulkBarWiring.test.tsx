@@ -75,6 +75,8 @@ const snapshot: SecretaryCockpitSnapshot = {
   timeZone: 'America/Chicago',
   registryId: 'AKC',
   now: new Date('2026-07-20T14:00:00.000Z'),
+  printTrackingInUse: true,
+  checklistInUse: true,
   trials: [
     { id: 'trial-1', date: '2026-07-20', number: '1', order: 0 },
     { id: 'trial-2', date: '2026-07-21', number: '2', order: 1 },

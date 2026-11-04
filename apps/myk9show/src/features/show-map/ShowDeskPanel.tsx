@@ -109,10 +109,12 @@ export default function ShowDeskPanel({
         returnTo,
         now: effectiveScopeNow,
         paperworkByClassId,
+        paperworkAvailable,
       }),
     [
       classes,
       effectiveScopeNow,
+      paperworkAvailable,
       paperworkByClassId,
       pendingSignals,
       returnTo,
@@ -186,6 +188,7 @@ export default function ShowDeskPanel({
           now={effectiveScopeNow}
           entryBreakdownByClassId={entryBreakdownByClassId}
           paperwork={{ byClassId: paperworkByClassId, available: paperworkAvailable }}
+          printTrackingInUse={snapshot.printTrackingInUse}
         />
       )}
       <SecretaryCockpit

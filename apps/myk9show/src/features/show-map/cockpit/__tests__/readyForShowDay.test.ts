@@ -119,6 +119,7 @@ function allGood(overrides: Partial<ReadyForShowDayInput> = {}): ReadyForShowDay
     },
     entryBreakdownByClassId: new Map([['c1', { entered: 5, pending: 0 }]]),
     paperwork: { status: 'pass', outstanding: 0 },
+    printTrackingInUse: true,
     offline: { ready: true, missing: [], asOf: 1 },
     ...overrides,
   };
@@ -196,5 +197,13 @@ describe('buildReadyForShowDay', () => {
     const line = result.lines.find(candidate => candidate.id === 'paperwork');
     expect(line?.href).toBe('/shows/show-1?day=2026-10-20');
     expect(line?.detail).toBe('3 sheets for the first day need printing');
+  });
+
+  it('omits the paperwork line, rather than passing it, while print tracking is unused (MYK9-1620)', () => {
+    const result = buildReadyForShowDay(
+      allGood({ paperwork: { status: 'fail', outstanding: 3 }, printTrackingInUse: false })
+    );
+    expect(result.lines.map(line => line.id)).not.toContain('paperwork');
+    expect(result.allClear).toBe(true);
   });
 });

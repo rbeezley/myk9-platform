@@ -45,6 +45,8 @@ const focused: FocusedClassModel = {
   closeout: 'none',
   primaryAction: null,
   checklist: null,
+  printTrackingInUse: true,
+  checklistInUse: true,
   actualStart: { evidence: 'unknown', value: null },
   actualFinish: { evidence: 'unknown', value: null },
   paperwork: [

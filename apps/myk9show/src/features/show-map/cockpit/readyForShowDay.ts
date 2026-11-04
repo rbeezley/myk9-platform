@@ -132,6 +132,11 @@ export interface ReadyForShowDayInput {
   /** Per-class entry counts; undefined while the entries read is unavailable. */
   entryBreakdownByClassId: ReadonlyMap<string, ClassEntryBreakdown> | undefined;
   paperwork: FirstDayPaperwork;
+  /**
+   * Print tracking is in use on this show, or could not be checked (MYK9-1620). False omits the
+   * paperwork line: a feature the secretary never chose to use is invisible, not unfinished.
+   */
+  printTrackingInUse: boolean;
   /** This device's offline readiness; null when it could not be measured. */
   offline: OfflineReadiness | null;
 }
@@ -225,7 +230,7 @@ export function buildReadyForShowDay(input: ReadyForShowDayInput): ReadyForShowD
     premiumLine,
     setupLine('visible', 'Show visible to exhibitors', signals, ['show-not-visible']),
     entriesLine,
-    paperworkLine,
+    ...(input.printTrackingInUse ? [paperworkLine] : []),
     offlineLine,
   ];
   return { lines, allClear: lines.every(line => line.status === 'pass') };

@@ -11,7 +11,8 @@ const trials: NonNullable<ReportProps['allTrials']> = [
 
 const days: HospitalityPlanDay[] = [
   {
-    trialId: 'sat',
+    date: '2026-11-07',
+    trialIds: ['sat'],
     total: 3,
     roles: [
       { role: 'judge', label: 'Judge', count: 1, names: ['Ann Adams'] },
@@ -30,7 +31,7 @@ const days: HospitalityPlanDay[] = [
       },
     ],
   },
-  { trialId: 'sun', total: 0, roles: [], orders: [] },
+  { date: '2026-11-08', trialIds: ['sun'], total: 0, roles: [], orders: [] },
 ];
 
 function renderReport(hospitalityPlan: ReportProps['hospitalityPlan']) {
@@ -51,8 +52,8 @@ describe('HospitalityPlanReport', () => {
 
     const pages = screen.getAllByTestId(/^hospitality-day-/);
     expect(pages.map(p => p.getAttribute('data-testid'))).toEqual([
-      'hospitality-day-sat',
-      'hospitality-day-sun',
+      'hospitality-day-2026-11-07',
+      'hospitality-day-2026-11-08',
     ]);
 
     const sat = within(pages[0]!);
@@ -62,10 +63,24 @@ describe('HospitalityPlanReport', () => {
     expect(sat.getByText('No nuts')).toBeInTheDocument();
   });
 
+  it('prints two same-date trials as one page headed by both trials', () => {
+    renderReport({
+      data: [{ ...days[0]!, trialIds: ['sat', 'sun'] }],
+      isLoading: false,
+      isError: false,
+    });
+
+    const pages = screen.getAllByTestId(/^hospitality-day-/);
+    expect(pages).toHaveLength(1);
+    expect(within(pages[0]!).getByRole('heading', { level: 2 }).textContent).toBe(
+      '1 and 2, 11/7/2026'
+    );
+  });
+
   it('still prints a useful headcount when no one has a lunch order', () => {
     renderReport({ data: [{ ...days[0]!, orders: [] }], isLoading: false, isError: false });
 
-    const sat = within(screen.getByTestId('hospitality-day-sat'));
+    const sat = within(screen.getByTestId('hospitality-day-2026-11-07'));
     expect(sat.getByText('Ann Adams')).toBeInTheDocument();
     expect(sat.getByText('No lunch orders yet.')).toBeInTheDocument();
   });
@@ -74,7 +89,7 @@ describe('HospitalityPlanReport', () => {
     renderReport({ data: days, isLoading: false, isError: false });
 
     expect(
-      within(screen.getByTestId('hospitality-day-sun')).getByText(
+      within(screen.getByTestId('hospitality-day-2026-11-08')).getByText(
         'No one is assigned to this day yet.'
       )
     ).toBeInTheDocument();

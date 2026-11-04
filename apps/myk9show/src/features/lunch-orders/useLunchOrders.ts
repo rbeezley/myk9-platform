@@ -137,6 +137,7 @@ async function fetchClassDuties(showId: string): Promise<VolunteerOnDay[]> {
 export interface VolunteersOnDaysResult {
   data: VolunteerOnDay[] | undefined;
   isLoading: boolean;
+  isFetching: boolean;
   isError: boolean;
   refetch: () => void;
 }
@@ -164,6 +165,7 @@ export function useVolunteersOnDays(
   return {
     data: general.data && byClass.data ? [...general.data, ...byClass.data] : undefined,
     isLoading: general.isLoading || byClass.isLoading,
+    isFetching: general.isFetching || byClass.isFetching,
     isError: general.isError || byClass.isError,
     refetch: () => {
       if (general.isError) void general.refetch();

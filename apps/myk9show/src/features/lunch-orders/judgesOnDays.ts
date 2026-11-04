@@ -107,6 +107,8 @@ export interface JudgesOnDaysResult {
   /** True once an answer exists (an empty map before that is not "no judges"). */
   hasData: boolean;
   isLoading: boolean;
+  /** True while any read is in flight, including a refetch over cached rows. */
+  isFetching: boolean;
   isError: boolean;
   refetch: () => void;
 }
@@ -126,6 +128,7 @@ export function useJudgesOnDays(
     byTrial: query.data ?? new Map(),
     hasData: query.data !== undefined,
     isLoading: query.isLoading,
+    isFetching: query.isFetching,
     isError: query.isError,
     refetch: () => void query.refetch(),
   };

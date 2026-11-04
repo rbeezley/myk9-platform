@@ -43,7 +43,10 @@ import type {
   ReportWaitlistRow,
   TrialOfficials,
 } from '@/lib/reports/types';
-import { useHospitalityPlan } from '@/features/lunch-orders/useHospitalityPlan';
+import {
+  useHospitalityPlan,
+  type HospitalityTrialRef,
+} from '@/features/lunch-orders/useHospitalityPlan';
 import type { HospitalityPlanDay } from '@/features/lunch-orders/hospitalityPlan';
 import { useWaitlistReportQuery } from './useWaitlistReportQuery';
 
@@ -69,8 +72,8 @@ export interface HostedReportDataOptions {
   dogId?: string | undefined;
   /** The page's settled class ids; `undefined` while they are not settled. */
   classIds?: readonly string[] | undefined;
-  /** The show's trial ids, one hospitality day each. */
-  trialIds?: readonly string[] | undefined;
+  /** The show's trials; those sharing a date are one hospitality day. */
+  trials?: readonly HospitalityTrialRef[] | undefined;
 }
 
 export interface HostedReportData {
@@ -99,7 +102,7 @@ export function useHostedReportData({
   trialId,
   dogId,
   classIds,
-  trialIds,
+  trials,
 }: HostedReportDataOptions): HostedReportData {
   const queryClient = useQueryClient();
   const needsEntryForm = ENTRY_FORM_REPORT_IDS.has(reportType) && Boolean(showId);
@@ -122,7 +125,7 @@ export function useHostedReportData({
   const waitlistQuery = useWaitlistReportQuery(showId, classIds, needsWaitlist);
 
   const needsHospitality = HOSPITALITY_REPORT_IDS.has(reportType) && Boolean(showId);
-  const hospitalityQuery = useHospitalityPlan(showId, trialIds ?? [], needsHospitality);
+  const hospitalityQuery = useHospitalityPlan(showId, trials ?? [], needsHospitality);
 
   // One trial's report: 'all' (trialId undefined) prints no officials, so it reads none.
   const needsOfficials =

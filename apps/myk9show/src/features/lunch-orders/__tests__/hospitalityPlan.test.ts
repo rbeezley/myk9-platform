@@ -70,14 +70,18 @@ function saved(
 
 const judgesByDay = resolveJudgesOnDays(DAYS, assignments);
 
-function day(trialId: string, rows: LunchOrderRow[]) {
-  return buildHospitalityPlanDay({
+function trialInput(trialId: string, rows: LunchOrderRow[]) {
+  return {
     trialId,
     saved: rows,
     judges: judgesByDay.get(trialId) ?? [],
     officials,
     volunteers,
-  });
+  };
+}
+
+function day(trialId: string, rows: LunchOrderRow[]) {
+  return buildHospitalityPlanDay('2026-11-07', [trialInput(trialId, rows)]);
 }
 
 describe('buildHospitalityPlanDay', () => {
@@ -152,5 +156,67 @@ describe('buildHospitalityPlanDay', () => {
 
     expect(plan.orders.map(o => o.name)).toEqual(['Dee Dietary']);
     expect(plan.total).toBe(7);
+  });
+
+  describe('two trials on one date', () => {
+    const both = (satRows: LunchOrderRow[], sunRows: LunchOrderRow[]) =>
+      buildHospitalityPlanDay('2026-11-07', [
+        trialInput('sat', satRows),
+        trialInput('sun', sunRows),
+      ]);
+
+    it('counts shared officials, show-wide judges and volunteers once, and keeps both trials judges', () => {
+      const plan = both([], []);
+
+      expect(plan.trialIds).toEqual(['sat', 'sun']);
+      // Ann (Saturday class) and Bo (show-wide) judge; Sue, Stan and Vic work both trials.
+      expect(plan.roles.find(r => r.role === 'judge')?.names).toEqual(['Ann Adams', 'Bo Baker']);
+      expect(plan.roles.find(r => r.role === 'steward')?.names).toEqual(['Stan Stone']);
+      expect(plan.roles.find(r => r.role === 'volunteer')?.names).toEqual([
+        'Vic Vance',
+        'Wes West',
+      ]);
+      expect(plan.total).toBe(6);
+    });
+
+    it('shows one row for a person who ordered in both trials, with both orders when they differ', () => {
+      const plan = both(
+        [
+          saved({
+            id: 'a',
+            name: 'Stan Stone',
+            person_id: 'st1',
+            role: 'steward',
+            lunch_order: 'Soup',
+          }),
+        ],
+        [
+          saved({
+            id: 'b',
+            trial_id: 'sun',
+            name: 'Stan Stone',
+            person_id: 'st1',
+            role: 'steward',
+            lunch_order: 'Sandwich',
+            dietary_note: 'No onion',
+          }),
+        ]
+      );
+
+      expect(plan.orders).toHaveLength(1);
+      expect(plan.orders[0]).toMatchObject({
+        name: 'Stan Stone',
+        lunchOrder: 'Soup; Sandwich',
+        dietaryNote: 'No onion',
+      });
+      expect(plan.total).toBe(6);
+    });
+
+    it('keeps an identical order once', () => {
+      const row = (id: string, trial_id: string) =>
+        saved({ id, trial_id, name: 'Pat', role: 'exhibitor', lunch_order: 'Wrap' });
+
+      expect(both([row('a', 'sat')], [row('b', 'sun')]).orders[0]?.lunchOrder).toBe('Wrap');
+    });
   });
 });

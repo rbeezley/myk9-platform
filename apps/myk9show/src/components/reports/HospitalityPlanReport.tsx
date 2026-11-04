@@ -44,13 +44,13 @@ export const HospitalityPlanReport: React.FC<ReportProps> = ({
     );
   }
 
-  const trials = [...allTrials].sort(
-    (a, b) => a.date.localeCompare(b.date) || a.trialNumber.localeCompare(b.trialNumber)
-  );
-  const daysByTrial = new Map(hospitalityPlan.data.map(day => [day.trialId, day]));
-  const pages = trials.flatMap(trial => {
-    const day = daysByTrial.get(trial.id);
-    return day ? [{ trial, day }] : [];
+  const trialById = new Map(allTrials.map(trial => [trial.id, trial]));
+  const pages = hospitalityPlan.data.map(day => {
+    const dayTrials = day.trialIds.flatMap(id => trialById.get(id) ?? []);
+    const labels = dayTrials.map(trial =>
+      formatTrialLabel({ name: trial.name, trialNumber: trial.trialNumber })
+    );
+    return { day, heading: [labels.join(' and '), day.date ? formatReportDate(day.date) : ''] };
   });
 
   if (pages.length === 0) {
@@ -64,13 +64,14 @@ export const HospitalityPlanReport: React.FC<ReportProps> = ({
 
   return (
     <>
-      {pages.map(({ trial, day }) => (
-        <div key={trial.id} className="report-page" data-testid={`hospitality-day-${trial.id}`}>
+      {pages.map(({ day, heading }) => (
+        <div
+          key={day.trialIds.join('+')}
+          className="report-page"
+          data-testid={`hospitality-day-${day.date}`}
+        >
           <Header showName={showName} />
-          <h2 className="catalog-trial-header">
-            {formatTrialLabel({ name: trial.name, trialNumber: trial.trialNumber })}
-            {trial.date ? `, ${formatReportDate(trial.date)}` : ''}
-          </h2>
+          <h2 className="catalog-trial-header">{heading.filter(Boolean).join(', ')}</h2>
 
           <h3 style={{ fontSize: '15px', margin: '12px 0 0' }}>
             Headcount: {day.total} {day.total === 1 ? 'person' : 'people'}

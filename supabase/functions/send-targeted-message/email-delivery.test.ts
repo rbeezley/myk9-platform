@@ -196,8 +196,6 @@ describe('send-targeted-message email delivery', () => {
     expect(result).toMatchObject({
       inbox_sent: 0,
       people_reached: 1,
-      sent_to: 0,
-      total_recipients: 1,
       email_recipients: 1,
       email_sent: 1,
     });

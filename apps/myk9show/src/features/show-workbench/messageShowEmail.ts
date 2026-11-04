@@ -23,13 +23,10 @@ export interface TargetedSendResult {
 
 export function parseTargetedSendResult(data: unknown): TargetedSendResult {
   const row = (data && typeof data === 'object' ? data : {}) as Record<string, unknown>;
-  // A function deployed before MYK9-1692 reports only sent_to / total_recipients. Read
-  // those so deploy skew never turns a successful send into "No one was reached".
-  const perChannel = 'inbox_sent' in row || 'people_reached' in row;
   return {
-    inboxSent: Number((perChannel ? row.inbox_sent : row.sent_to) ?? 0),
+    inboxSent: Number(row.inbox_sent ?? 0),
     pushSent: Number(row.push_sent ?? 0),
-    peopleReached: Number((perChannel ? row.people_reached : row.total_recipients) ?? 0),
+    peopleReached: Number(row.people_reached ?? 0),
     email: parseMessageShowEmailResult(data),
   };
 }

@@ -359,9 +359,6 @@ export function createSendTargetedMessageHandler(deps: {
         inbox_sent: 0,
         push_sent: 0,
         people_reached: 0,
-        // Legacy aliases for clients built before MYK9-1692.
-        sent_to: 0,
-        total_recipients: 0,
         ...emailFields(emailAudience),
       };
     }
@@ -459,16 +456,11 @@ export function createSendTargetedMessageHandler(deps: {
       emailLogFailed = !(await writeEmailLog(supabase, emailResult.logRows));
     }
 
-    const peopleReached = countPeopleReached(entries, accountRecipientIds, emailSucceededTo);
-
     return {
       // Per-channel outcomes. people_reached counts a person once, by inbox or by an email
       // that actually went out (a failed attempt is not "reached").
       inbox_sent: insertedMessageIds.length,
-      people_reached: peopleReached,
-      // Legacy aliases for clients built before MYK9-1692.
-      sent_to: insertedMessageIds.length,
-      total_recipients: peopleReached,
+      people_reached: countPeopleReached(entries, accountRecipientIds, emailSucceededTo),
       group_label: groupLabel,
       push_sent: pushResult.sent,
       push_suppressed: pushResult.suppressed,

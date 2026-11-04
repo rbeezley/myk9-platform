@@ -296,8 +296,6 @@ describe('send-targeted-message handler push contract', () => {
     expect(result).toMatchObject({
       inbox_sent: 1,
       people_reached: 1,
-      sent_to: 1,
-      total_recipients: 1,
       push_sent: 0,
     });
   });

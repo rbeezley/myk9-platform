@@ -19,8 +19,10 @@ export function isPrintTrackingInUse(input: {
   paperworkByClassId: ReadonlyMap<string, readonly SecretaryCockpitPaperwork[]> | undefined;
   /** False when the class rows or the server print read failed (`useShowClassPaperwork`). */
   paperworkAvailable: boolean;
+  /** Any raw print record exists for the show (`useShowClassPaperwork.hasPrintRecords`). */
+  hasPrintRecords?: boolean | undefined;
 }): boolean {
-  if (!input.paperworkAvailable) return true;
+  if (!input.paperworkAvailable || input.hasPrintRecords) return true;
   for (const rows of input.paperworkByClassId?.values() ?? []) {
     for (const row of rows) {
       if (row.state === 'unknown' || row.printedAt || row.recordId) return true;
@@ -37,7 +39,17 @@ export function isPrintTrackingInUse(input: {
  */
 export function isChecklistInUse(input: {
   printTrackingInUse: boolean;
-  classes: readonly { wrapUpStatus?: string | null | undefined }[];
+  /**
+   * `judgeSignedOffAt` is the stored sign-off; `wrapUpStatus` is derived from the entries, so it
+   * can mask a stored sign-off while the entries are unreadable.
+   */
+  classes: readonly {
+    wrapUpStatus?: string | null | undefined;
+    judgeSignedOffAt?: string | null | undefined;
+  }[];
 }): boolean {
-  return input.printTrackingInUse || input.classes.some(cls => isJudgeSignedOff(cls.wrapUpStatus));
+  return (
+    input.printTrackingInUse ||
+    input.classes.some(cls => Boolean(cls.judgeSignedOffAt) || isJudgeSignedOff(cls.wrapUpStatus))
+  );
 }

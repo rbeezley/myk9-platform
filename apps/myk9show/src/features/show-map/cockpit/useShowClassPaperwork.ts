@@ -103,6 +103,12 @@ export function useShowClassPaperwork(input: {
     byClassId,
     available,
     /**
+     * Any print record exists for the show, read raw: the per-class map leaves out emergency
+     * packets and rows for classes without entries, so it cannot answer "was this ever used"
+     * (MYK9-1620).
+     */
+    hasPrintRecords: (prints.data?.length ?? 0) > 0,
+    /**
      * The full class rows (carry `results_released_at` and, MYK9-1031, the paper check);
      * undefined until read.
      */

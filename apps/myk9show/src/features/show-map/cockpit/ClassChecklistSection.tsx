@@ -228,18 +228,19 @@ export function ClassChecklistSection({
               </li>
             ))}
           </ol>
-          {/* INTENT: starting and scoring end on Overview; check, release, print and initials
-              happen on Results. This is the one handoff between them, offered once the class is
-              complete (MYK9-1319). */}
-          {sourceClass.lifecycle === 'complete' && (
-            <Button asChild variant="outline" className="mt-2 min-h-11 gap-2">
-              <Link to={resultsHref}>
-                Continue on Results
-                <ArrowRight className="h-4 w-4" aria-hidden="true" />
-              </Link>
-            </Button>
-          )}
         </ChecklistFrame>
+      )}
+      {/* INTENT: starting and scoring end on Overview; check, release, print and initials
+          happen on Results. This is the one handoff between them, offered once the class is
+          complete (MYK9-1319). It stays outside the checklist disclosure: a class that never
+          printed still has this handoff (MYK9-1620). */}
+      {items.length > 0 && sourceClass.lifecycle === 'complete' && (
+        <Button asChild variant="outline" className="mt-2 min-h-11 gap-2">
+          <Link to={resultsHref}>
+            Continue on Results
+            <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </Link>
+        </Button>
       )}
       <ClassPrintPanel
         open={printIds !== null && panelItems.length > 0}

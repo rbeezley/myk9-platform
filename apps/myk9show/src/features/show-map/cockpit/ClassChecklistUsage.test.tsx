@@ -89,6 +89,33 @@ function renderCockpit(usage: { printTrackingInUse: boolean; checklistInUse: boo
   );
 }
 
+describe('Continue on Results with the checklist collapsed (MYK9-1620)', () => {
+  it('stays reachable on a complete class that never printed', () => {
+    const snapshot = makeSnapshot({ printTrackingInUse: false, checklistInUse: false });
+    const complete = { ...snapshot.classes[0]!, lifecycle: 'complete' as const };
+    const model = buildSecretaryCockpitModel(
+      { ...snapshot, classes: [complete] },
+      { filter: 'all', focusedClassId: 'class-1' }
+    );
+    render(
+      <SecretaryCockpitFocusedClass
+        showId="show-1"
+        focused={model.focusedClass}
+        sourceClass={complete}
+        trial={snapshot.trials[0]!}
+        attention={[]}
+        timeZone="America/Chicago"
+        canManageShow
+        onCommand={vi.fn()}
+      />
+    );
+    const disclosure = screen.getByTestId('class-checklist-disclosure');
+    const link = screen.getByRole('link', { name: /Continue on Results/ });
+    expect(link).toBeInTheDocument();
+    expect(disclosure.contains(link)).toBe(false);
+  });
+});
+
 describe('unused print tracking and checklist on the real cockpit shape (MYK9-1620)', () => {
   it('shows no strip, no "Not confirmed printed", no "Not done" and keeps Print and the checklist reachable', () => {
     renderCockpit({ printTrackingInUse: false, checklistInUse: false });

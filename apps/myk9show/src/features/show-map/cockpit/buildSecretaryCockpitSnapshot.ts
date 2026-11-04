@@ -41,6 +41,8 @@ export interface BuildSecretaryCockpitSnapshotInput {
    * print tracking count as in use, so no paperwork state is hidden for lack of evidence.
    */
   paperworkAvailable?: boolean;
+  /** Any raw print record exists for the show; see `isPrintTrackingInUse`. */
+  hasPrintRecords?: boolean;
 }
 
 function lifecycleFor(status: string | undefined): CockpitLifecycle | null {
@@ -224,12 +226,18 @@ export function buildSecretaryCockpitSnapshot({
   now,
   paperworkByClassId,
   paperworkAvailable = true,
+  hasPrintRecords = false,
 }: BuildSecretaryCockpitSnapshotInput): SecretaryCockpitSnapshot {
-  const printTrackingInUse = isPrintTrackingInUse({ paperworkByClassId, paperworkAvailable });
+  const printTrackingInUse = isPrintTrackingInUse({
+    paperworkByClassId,
+    paperworkAvailable,
+    hasPrintRecords,
+  });
   const checklistInUse = isChecklistInUse({
     printTrackingInUse,
     classes: classes.map(classItem => ({
       wrapUpStatus: tree.nodesById[`class:${classItem.id}`]?.wrapUpStatus?.value,
+      judgeSignedOffAt: classItem.judgeSignedOffAt,
     })),
   });
   const timeZone = getTrialTimezone(trials[0]);

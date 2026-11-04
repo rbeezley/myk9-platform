@@ -203,12 +203,21 @@ describe('buildSecretaryCockpitSnapshot', () => {
     const build = (input: {
       paperwork?: Map<string, SecretaryCockpitPaperwork[]>;
       paperworkAvailable?: boolean;
+      hasPrintRecords?: boolean;
+      judgeSignedOffAt?: string;
       wrapUpStatus?: string;
     }) =>
       buildSecretaryCockpitSnapshot({
         showId: 'show-1',
         trials: [],
-        classes: [{ id: 'class-1', trialId: 'trial-1', name: 'Container Novice' }],
+        classes: [
+          {
+            id: 'class-1',
+            trialId: 'trial-1',
+            name: 'Container Novice',
+            ...(input.judgeSignedOffAt ? { judgeSignedOffAt: input.judgeSignedOffAt } : {}),
+          },
+        ],
         tree: input.wrapUpStatus
           ? {
               ...tree,
@@ -225,6 +234,7 @@ describe('buildSecretaryCockpitSnapshot', () => {
         returnTo: '/shows/show-1',
         now: new Date('2026-07-20T15:10:00.000Z'),
         ...(input.paperwork ? { paperworkByClassId: input.paperwork } : {}),
+        ...(input.hasPrintRecords === undefined ? {} : { hasPrintRecords: input.hasPrintRecords }),
         ...(input.paperworkAvailable === undefined
           ? {}
           : { paperworkAvailable: input.paperworkAvailable }),
@@ -254,6 +264,16 @@ describe('buildSecretaryCockpitSnapshot', () => {
     it('treats unreadable print records as in use', () => {
       const snapshot = build({ paperwork: new Map(), paperworkAvailable: false });
       expect(snapshot).toMatchObject({ printTrackingInUse: true, checklistInUse: true });
+    });
+
+    it('counts a raw print record the per-class map leaves out (emergency packet, entryless class)', () => {
+      const snapshot = build({ paperwork: new Map([['class-1', []]]), hasPrintRecords: true });
+      expect(snapshot).toMatchObject({ printTrackingInUse: true, checklistInUse: true });
+    });
+
+    it('counts a stored judge sign-off even when the derived wrap-up status is absent', () => {
+      const snapshot = build({ judgeSignedOffAt: '2026-07-20T20:00:00Z' });
+      expect(snapshot).toMatchObject({ printTrackingInUse: false, checklistInUse: true });
     });
 
     it('counts a recorded judge sign-off for the checklist only', () => {

@@ -267,6 +267,61 @@ describe('peopleRoster', () => {
     );
   });
 
+  // MYK9-1690: a run past check-in shows its real ringside status, never "Not checked in", and
+  // stays out of the pending view so the desk cannot walk it back to checked-in.
+  it.each([
+    ['at-gate', 'At Gate'],
+    ['come-to-gate', 'Come to Gate'],
+    ['in-ring', 'In Ring'],
+  ] as const)('shows a %s run as %s and keeps it out of the pending view', (status, label) => {
+    const classAt = (checkInStatus: 'no-status' | typeof status) => ({
+      id: 'class-1',
+      name: 'Container Novice A',
+      number: '1',
+      fee: 25,
+      status: 'entered' as const,
+      checkInStatus,
+    });
+    const roster = buildPeopleRoster({
+      entries: [
+        entry({ classes: [classAt(status)] }),
+        entry({
+          id: 'entry-2',
+          dogId: 'dog-2',
+          dogName: 'Biscuit',
+          handlerId: 'person-2',
+          handlerAuthUserId: 'auth-2',
+          handlerName: 'Bea Handler',
+          handlerPersonName: 'Bea Handler',
+          ownerId: 'person-2',
+          ownerName: 'Bea Handler',
+          classes: [classAt('no-status')],
+        }),
+      ],
+      presence: [],
+    });
+
+    const underway = roster.find(person => person.name === 'Alice Martin')!;
+    expect(underway.classRows[0]).toEqual(
+      expect.objectContaining({
+        statusLabel: label,
+        statusValue: status,
+        checkInStatus: status,
+        eligibleForCheckIn: false,
+      })
+    );
+    expect(underway.eligibleCount).toBe(0);
+    expect(underway.badge).not.toMatch(/due/);
+
+    const fresh = roster.find(person => person.name === 'Bea Handler')!;
+    expect(fresh.classRows[0]).toEqual(
+      expect.objectContaining({ statusLabel: 'Not checked in', eligibleForCheckIn: true })
+    );
+    expect(filterPeopleRoster(roster, '', 'needs-check-in').map(person => person.name)).toEqual([
+      'Bea Handler',
+    ]);
+  });
+
   // MYK9-632: 'withdrawn' became its own class status instead of folding onto
   // 'scratched'. The roster's terminal set is spelled as class statuses, so a
   // new member that was not added there would put a withdrawn dog back on the

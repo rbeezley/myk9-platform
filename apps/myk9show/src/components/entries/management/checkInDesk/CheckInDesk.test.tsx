@@ -288,8 +288,9 @@ describe('CheckInDesk', () => {
     // read promise settles.
     const inRing = entry({ classes: [{ ...entry().classes[0]!, checkInStatus: 'in-ring' }] });
     rerender(<CheckInDesk {...props} entries={[inRing]} />);
+    expect(screen.getByRole('region', { name: 'Alice Martin' })).toHaveTextContent('In Ring');
     expect(screen.getByRole('region', { name: 'Alice Martin' })).not.toHaveTextContent(
-      'Checked-in'
+      /Checked-in|Not checked in/
     );
     const pulled = entry({ classes: [{ ...entry().classes[0]!, checkInStatus: 'pulled' }] });
     rerender(<CheckInDesk {...props} entries={[pulled]} />);
@@ -303,6 +304,53 @@ describe('CheckInDesk', () => {
         'Not checked in'
       )
     );
+  });
+});
+
+describe('CheckInDesk — runs already underway (MYK9-1690)', () => {
+  const props = {
+    showId: 'show-1',
+    loading: false,
+    unknown: false,
+    onRetry: vi.fn(),
+    currentDate: NOW,
+  };
+  const at = (id: string, classId: string, checkInStatus: 'no-status' | 'at-gate' | 'in-ring') =>
+    entry({
+      id,
+      classes: [{ ...entry().classes[0]!, id, classId, checkInStatus }],
+    });
+
+  beforeEach(() => {
+    h.updateReplicatedCheckInStatus.mockReset();
+    h.updateReplicatedCheckInStatus.mockResolvedValue(null);
+  });
+
+  it.each([
+    ['at-gate', 'At Gate'],
+    ['in-ring', 'In Ring'],
+  ] as const)('shows a %s run as %s with no Check in button', (status, label) => {
+    render(<CheckInDesk {...props} entries={[at('entry-1', 'class-1', status)]} />);
+    const region = screen.getByRole('region', { name: 'Alice Martin' });
+    expect(region).toHaveTextContent(label);
+    expect(region).not.toHaveTextContent('Not checked in');
+    expect(screen.queryByRole('button', { name: /^Check in Poppy/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Check in all eligible/ })).toBeDisabled();
+  });
+
+  it('leaves an underway run out of a bulk check-in', async () => {
+    const { user } = render(
+      <CheckInDesk
+        {...props}
+        entries={[at('entry-1', 'class-1', 'at-gate'), at('entry-3', 'class-2', 'no-status')]}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /Check in all eligible/ }));
+
+    await waitFor(() => expect(h.updateReplicatedCheckInStatus).toHaveBeenCalledTimes(1));
+    expect(h.updateReplicatedCheckInStatus).toHaveBeenCalledWith('entry-3', 'checked-in');
+    expect(screen.getByRole('region', { name: 'Alice Martin' })).toHaveTextContent('At Gate');
   });
 });
 

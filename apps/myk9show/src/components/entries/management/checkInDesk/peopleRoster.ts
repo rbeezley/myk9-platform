@@ -217,7 +217,8 @@ function checkInEligibility(
   }
 
   if (UNDERWAY_CHECK_IN_STATUSES.has(status)) {
-    return { eligible: false, reason: 'Already underway' };
+    // No reason text: the row shows the ringside status itself (At Gate, In Ring), MYK9-1690.
+    return { eligible: false, reason: null };
   }
 
   if (entry.entryStatus !== EntryStatus.ACCEPTED) {

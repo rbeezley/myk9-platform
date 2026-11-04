@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 import { Check, ChevronDown, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { StatusBadge, StatusIcon, getStatusDescriptor } from '@/components/status';
@@ -7,6 +7,7 @@ import type { EntryStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { resolveEntryStatusActions, type EntryStatusActionDefinition } from './entryActions';
 import { getEntryStatusStateLabel } from './reviewStateLabels';
+import { getStatusActionHelp } from './entryVerbHelp';
 import { REVERT_CANCELLED, useScoredRevertGuard } from './useScoredRevertGuard';
 
 interface EntryStatusPopoverProps {
@@ -29,6 +30,7 @@ export function EntryStatusPopover({
   additionalContent,
 }: EntryStatusPopoverProps) {
   const [open, setOpen] = useState(false);
+  const helpIdPrefix = useId();
   const [pendingActionId, setPendingActionId] = useState<string | null>(null);
   const [failedAction, setFailedAction] = useState<EntryStatusActionDefinition | null>(null);
   const [queuedOffline, setQueuedOffline] = useState(false);
@@ -102,18 +104,38 @@ export function EntryStatusPopover({
             <span>{currentStatusLabel} (current)</span>
             <Check className="ml-auto h-4 w-4" aria-hidden />
           </div>
-          {actions.map(action => (
-            <button
-              key={action.id}
-              type="button"
-              role="menuitem"
-              className="flex min-h-11 w-full items-center gap-2 rounded-md px-2 text-left text-sm hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
-              onClick={() => void runAction(action)}
-            >
-              <StatusIcon family="entry" status={action.statusTarget} size="sm" decorative />
-              <span>{typeof action.label === 'function' ? action.label(entry) : action.label}</span>
-            </button>
-          ))}
+          {actions.map(action => {
+            const help = getStatusActionHelp(action.id);
+            const helpId = `${helpIdPrefix}-${action.id}`;
+            return (
+              <button
+                key={action.id}
+                type="button"
+                role="menuitem"
+                aria-labelledby={help ? `${helpId}-label` : undefined}
+                aria-describedby={help ? helpId : undefined}
+                className={cn(
+                  'flex min-h-11 w-full gap-2 rounded-md px-2 text-left text-sm hover:bg-accent focus-visible:bg-accent focus-visible:outline-none',
+                  help ? 'items-start py-1.5' : 'items-center'
+                )}
+                onClick={() => void runAction(action)}
+              >
+                <span className={help ? 'mt-0.5' : undefined}>
+                  <StatusIcon family="entry" status={action.statusTarget} size="sm" decorative />
+                </span>
+                <span className="flex min-w-0 flex-col">
+                  <span id={help ? `${helpId}-label` : undefined}>
+                    {typeof action.label === 'function' ? action.label(entry) : action.label}
+                  </span>
+                  {help && (
+                    <span id={helpId} className="text-xs text-muted-foreground">
+                      {help}
+                    </span>
+                  )}
+                </span>
+              </button>
+            );
+          })}
           {additionalContent && (
             <div
               className="mt-2 border-t pt-2"

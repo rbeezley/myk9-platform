@@ -57,7 +57,7 @@ test.describe('Exhibitor post-payment lifecycle', () => {
     await expect(statusMenuTrigger).toBeVisible({ timeout: 20_000 });
     await statusMenuTrigger.click();
 
-    await page.getByRole('menuitem', { name: 'Withdrawn' }).click();
+    await page.getByRole('menuitem', { name: /^Withdraw/ }).click();
     await expect(page.getByRole('dialog', { name: 'Record Withdrawal Reason' })).toBeVisible();
 
     // Cancel out — confirming would (a) actually withdraw a shared seed entry

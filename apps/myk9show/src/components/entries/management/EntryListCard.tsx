@@ -43,6 +43,8 @@ import { isPaymentRequestable } from './paymentRequestEligibility';
 import { EntryDecisionEmailStatusBadge } from '@/features/lifecycle-emails';
 import type { EntryListCardProps } from './EntryListCard.types';
 import { EntryStatusPopover } from './EntryStatusPopover';
+import { ENTRY_VERB_HELP } from './entryVerbHelp';
+import { WithdrawMenuItem } from './WithdrawMenuItem';
 import { formatTrialLabel } from './entryFormTrialSummary';
 import { useEntryChangeClass } from './useEntryChangeClass';
 
@@ -173,6 +175,7 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                   {
                     id: 'remove',
                     label: 'Remove entry',
+                    description: ENTRY_VERB_HELP.remove,
                     icon: <Trash2 />,
                     variant: 'destructive',
                     onSelect: () => setRemoveDialog({ open: true, entry }),
@@ -312,15 +315,7 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                             <p className="px-2 pb-1 text-xs font-medium text-muted-foreground">
                               Other entry actions
                             </p>
-                            <button
-                              type="button"
-                              role="menuitem"
-                              data-status-popover-action
-                              className="flex min-h-11 w-full items-center gap-2 rounded-md px-2 text-left text-sm hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
-                              onClick={() => openWithdrawalDialog(entry.id)}
-                            >
-                              Withdrawn
-                            </button>
+                            <WithdrawMenuItem onSelect={() => openWithdrawalDialog(entry.id)} />
                             {(isPaymentRequestable(entry) || isStripeRefundable(entry)) && (
                               <>
                                 <p className="mt-2 px-2 pb-1 text-xs font-medium text-muted-foreground">

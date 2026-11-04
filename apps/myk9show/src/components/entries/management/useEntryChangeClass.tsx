@@ -64,10 +64,14 @@ function toNode(entry: EntryManagementEntry): ShowMapNode {
  * (`useShowMapActionExecutor` → `moveUpShowMapEntry`) are the Overview's, so the two doors
  * are one action. Money-neutral exactly as there: nothing here touches a fee.
  */
-export function useEntryChangeClass(showId: string, entries: readonly EntryManagementEntry[]) {
+export function useEntryChangeClass(
+  showId: string,
+  entries: readonly EntryManagementEntry[],
+  onEntriesChanged?: () => void
+) {
   const isOnline = useIsOnline();
   const classes = useChangeClassClasses(showId);
-  const executor = useShowMapActionExecutor({ showId });
+  const executor = useShowMapActionExecutor({ showId, onEntriesChanged });
   const { moveUpAction } = executor;
 
   const openEntry = moveUpAction

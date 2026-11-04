@@ -1,4 +1,7 @@
-import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+
+import { queryKeys } from '@/lib/queryClient';
 
 import { replicatedClassesTable, replicatedTrialsTable } from '@/services/replication';
 import type { BuildShowMapTreeInput } from './showMapTypes';
@@ -12,8 +15,19 @@ type ChangeClassClass = BuildShowMapTreeInput['classes'][number];
  * element, level, section, status and the trial's date and number.
  */
 export function useChangeClassClasses(showId: string): ChangeClassClass[] | undefined {
+  const queryClient = useQueryClient();
+  // Another device starting or completing a class reaches the replica, not this query: re-read
+  // on every replicated class change while mounted (as `useShowClassRows` does).
+  useEffect(() => {
+    if (!showId) return;
+    return replicatedClassesTable.subscribe(
+      () => void queryClient.invalidateQueries({ queryKey: queryKeys.showClasses(showId) }),
+      { emitCurrent: false }
+    );
+  }, [queryClient, showId]);
+
   const { data } = useQuery({
-    queryKey: ['show-map', 'change-class-classes', showId],
+    queryKey: [...queryKeys.showClasses(showId), 'change-class'],
     enabled: Boolean(showId),
     // Class status moves during a show; re-read on mount rather than serve a stale "not started".
     staleTime: 0,

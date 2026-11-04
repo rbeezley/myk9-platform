@@ -259,13 +259,18 @@ describe('Change class: two doors, one action (MYK9-1614)', () => {
   });
 
   it('the entry form row menu submits through the same moveUpShowMapEntry call', async () => {
-    const { user } = render(<EntryListCard {...cardProps} entries={[makeFormEntry()]} />);
+    const onEntryRestored = vi.fn();
+    const { user } = render(
+      <EntryListCard {...cardProps} entries={[makeFormEntry()]} onEntryRestored={onEntryRestored} />
+    );
     await user.click(screen.getByRole('button', { name: /Actions for Rex/ }));
     await user.click(await screen.findByRole('menuitem', { name: /Change class/ }));
     await chooseAdvancedAndConfirm(user);
 
     await waitFor(() => expect(mocks.moveUpShowMapEntry).toHaveBeenCalledWith(EXPECTED_SUBMIT));
     expect(mocks.moveUpShowMapEntry).toHaveBeenCalledTimes(1);
+    // The form holds its own copy of the entries; it must re-read after the change.
+    await waitFor(() => expect(onEntryRestored).toHaveBeenCalledTimes(1));
   });
 
   it('lists the dog’s own-trial classes and leaves out the class it is already in', async () => {

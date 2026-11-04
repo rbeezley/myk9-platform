@@ -88,7 +88,7 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
     entry: EntryManagementEntry | null;
   }>({ open: false, entry: null });
 
-  const changeClass = useEntryChangeClass(entries[0]?.showId ?? '', entries);
+  const changeClass = useEntryChangeClass(entries[0]?.showId ?? '', entries, onEntryRestored);
 
   const openWithdrawalDialog = (entryId: string) => {
     setWithdrawalDialog({ open: true, entryId });

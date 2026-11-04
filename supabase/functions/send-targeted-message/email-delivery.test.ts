@@ -174,6 +174,28 @@ describe('send-targeted-message email delivery', () => {
     });
   });
 
+  it('counts unlinked exhibitors reached only by email, so the audience is not reported empty', async () => {
+    const { supabase } = makeSupabase([
+      {
+        armband: '201',
+        dog: { owner: person('p9', 'Una', 'una@example.com', null), co_owner: null },
+        handler: person('p9', 'Una', 'una@example.com', null),
+      },
+    ]);
+    const handler = createSendTargetedMessageHandler({
+      sendPasscodePushes: noPush,
+      sendShowMessageEmails: emailSenderStub(),
+    });
+
+    const result = await handler({
+      body: { show_id: 'show-1', target_type: 'all_show', body: 'Hi', send_email: true },
+      user: { id: 'sender-1' },
+      supabase,
+    });
+
+    expect(result).toMatchObject({ total_recipients: 1, email_recipients: 1, email_sent: 1 });
+  });
+
   it('does not email when the option is off', async () => {
     const { supabase } = makeSupabase();
     const sendShowMessageEmails = emailSenderStub();

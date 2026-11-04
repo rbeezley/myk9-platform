@@ -6,6 +6,7 @@ import type { MessageTarget } from '@/features/messages/types';
 import {
   buildEmailResultCopy,
   parseMessageShowEmailResult,
+  type TargetedSendResult,
 } from '@/features/show-workbench/messageShowEmail';
 
 export function useMessageMutations() {
@@ -43,7 +44,11 @@ export function useMessageMutations() {
   );
 
   const sendTargetedMessage = useCallback(
-    async (showId: string, target: MessageTarget, body: string) => {
+    async (
+      showId: string,
+      target: MessageTarget,
+      body: string
+    ): Promise<TargetedSendResult | null> => {
       setIsSending(true);
       try {
         const { data, error } = await supabase.functions.invoke('send-targeted-message', {
@@ -61,12 +66,14 @@ export function useMessageMutations() {
         if (error) throw error;
 
         const recipientCount = Number(data?.total_recipients ?? data?.sent_to ?? 0);
-        if (recipientCount <= 0) {
+        const email = parseMessageShowEmailResult(data);
+        // Nobody reached by any channel. An email result means the audience was resolved
+        // (even if everyone lacked an address), so its outcome is reported instead.
+        if (recipientCount <= 0 && !email) {
           notifications.error('No matching recipients to message');
           return null;
         }
 
-        const email = parseMessageShowEmailResult(data);
         const inApp = target.emailOnly ? '' : `Message sent to ${recipientCount} exhibitors. `;
         if (email) {
           const logNote = email.logFailed
@@ -83,7 +90,7 @@ export function useMessageMutations() {
         } else {
           notifications.success(`Message sent to ${recipientCount} exhibitors`);
         }
-        return data;
+        return { recipients: recipientCount, email };
       } catch {
         notifications.error(
           target.emailOnly

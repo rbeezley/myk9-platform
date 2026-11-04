@@ -26,7 +26,11 @@ import {
   type MessageShowRecipientType,
   type MessageShowTemplateId,
 } from './messageShow';
-import { buildEmailAudienceCopy, describeEmailAudience } from './messageShowEmail';
+import {
+  buildEmailAudienceCopy,
+  describeEmailAudience,
+  type TargetedSendResult,
+} from './messageShowEmail';
 import { WorkbenchPushAlertToggle } from './WorkbenchPushAlertToggle';
 import { getWorkbenchAnnouncementPriority } from './workbenchAnnouncementPriority';
 import { useWorkbenchAnnouncementPost } from './workbenchAnnouncementPost';
@@ -72,12 +76,9 @@ export function MessageShowComposer({
   const [sendPushAlert, setSendPushAlert] = useState(true);
   const [sendEmail, setSendEmail] = useState(false);
   const [isPostingAnnouncement, setIsPostingAnnouncement] = useState(false);
-  // Set when the announcement posted but its email did not go out. The draft stays put so
-  // the secretary can retry only the email; re-posting would duplicate the announcement.
-  const [pendingEmail, setPendingEmail] = useState<{
-    recipient: MessageShowRecipientType;
-    body: string;
-  } | null>(null);
+  // Set when the message went out in the app but the email did not (all of it, or some
+  // addresses). The text stays; nothing is re-sent automatically.
+  const [emailNotice, setEmailNotice] = useState<{ failed: number | null } | null>(null);
   const { postAnnouncement } = useWorkbenchAnnouncementPost();
   const { sendTargetedMessage, isSending } = useMessageMutations();
 
@@ -114,10 +115,10 @@ export function MessageShowComposer({
     setMessage('');
     setSendPushAlert(true);
     setSendEmail(false);
+    setEmailNotice(null);
   }
 
   function handleSent() {
-    setPendingEmail(null);
     reset();
     onSent?.();
   }
@@ -143,28 +144,13 @@ export function MessageShowComposer({
     setMessage(draft.body);
   }
 
-  async function sendAnnouncementEmail(target: MessageShowRecipientType, body: string) {
-    // The announcement is the in-app copy; the server only mails the audience.
-    const result = await sendTargetedMessage(
-      showId,
-      { type: target, sendPush: false, emailOnly: true },
-      body
-    );
-    if (result) {
-      handleSent();
-    } else {
-      setPendingEmail({ recipient: target, body });
+  // The one outcome rule: clear the form only when everything requested went out.
+  function finishSend(result: TargetedSendResult | null, emailRequestFailed = false) {
+    if (emailRequestFailed || (result?.email && result.email.failed > 0)) {
+      setEmailNotice({ failed: emailRequestFailed ? null : (result?.email?.failed ?? null) });
+      return;
     }
-  }
-
-  async function handleResendEmail() {
-    if (!pendingEmail) return;
-    setIsPostingAnnouncement(true);
-    try {
-      await sendAnnouncementEmail(pendingEmail.recipient, pendingEmail.body);
-    } finally {
-      setIsPostingAnnouncement(false);
-    }
+    if (result) handleSent();
   }
 
   async function handleSend() {
@@ -172,6 +158,8 @@ export function MessageShowComposer({
       toast.error('Add a title and message before sending');
       return;
     }
+
+    setEmailNotice(null);
 
     if (isAnnouncementLane) {
       setIsPostingAnnouncement(true);
@@ -199,7 +187,13 @@ export function MessageShowComposer({
           handleSent();
         }
         if (posted && emailRequested) {
-          await sendAnnouncementEmail(recipient, message.trim());
+          // The announcement is the in-app copy; the server only mails the audience.
+          const emailResult = await sendTargetedMessage(
+            showId,
+            { type: recipient, sendPush: false, emailOnly: true },
+            message.trim()
+          );
+          finishSend(emailResult, emailResult === null);
         }
       } finally {
         setIsPostingAnnouncement(false);
@@ -213,7 +207,7 @@ export function MessageShowComposer({
         { type: 'all_show', sendPush: sendPushAlert, ...emailOption },
         message.trim()
       );
-      if (result) handleSent();
+      finishSend(result);
       return;
     }
 
@@ -236,7 +230,7 @@ export function MessageShowComposer({
         },
         message.trim()
       );
-      if (result) handleSent();
+      finishSend(result);
       return;
     }
 
@@ -245,7 +239,7 @@ export function MessageShowComposer({
       { type: 'checked_in', sendPush: sendPushAlert, ...emailOption },
       message.trim()
     );
-    if (result) handleSent();
+    finishSend(result);
   }
 
   return (
@@ -408,29 +402,23 @@ export function MessageShowComposer({
         </div>
       </div>
 
-      {pendingEmail ? (
+      {emailNotice ? (
         <div
-          role="alert"
-          className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900"
+          role="status"
+          className="mt-4 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900"
         >
           <p>
-            Your message is posted in the app, but the email did not go out. Your text is still
-            here.
-          </p>
-          <div className="flex gap-2">
-            <Button type="button" size="sm" onClick={handleResendEmail} disabled={isSendingMessage}>
-              Send the email again
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={handleSent}
-              disabled={isSendingMessage}
+            {emailNotice.failed === null
+              ? 'Posted in the app. The email did not go out.'
+              : `Posted in the app. ${emailNotice.failed} ${emailNotice.failed === 1 ? 'email' : 'emails'} did not go out.`}{' '}
+            Nothing was sent again. Your text is still here.{' '}
+            <Link
+              className="underline"
+              to={`/secretary/messages?showId=${encodeURIComponent(showId)}&view=email`}
             >
-              Dismiss
-            </Button>
-          </div>
+              See Email delivery history
+            </Link>
+          </p>
         </div>
       ) : null}
 
@@ -443,7 +431,7 @@ export function MessageShowComposer({
         <Button
           type="button"
           onClick={handleSend}
-          disabled={isSendingMessage || !canSend || pendingEmail !== null}
+          disabled={isSendingMessage || !canSend}
           aria-describedby={canSend ? undefined : 'message-show-send-hint'}
         >
           <Send className="mr-2 h-4 w-4" aria-hidden="true" />

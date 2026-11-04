@@ -40,7 +40,7 @@ describe('MessageShowComposer', () => {
       data: { recipients: 5, sent: 0, failed: 0, missing: ['Bob Smith'] },
       isError: false,
     });
-    mockSendTargetedMessage.mockResolvedValue({ total_recipients: 8 });
+    mockSendTargetedMessage.mockResolvedValue({ recipients: 8, email: null });
   });
 
   it('describes everyone-in-show as a show message, not an announcement choice', async () => {
@@ -347,7 +347,12 @@ describe('MessageShowComposer', () => {
       expect(mockPostAnnouncement).toHaveBeenCalledTimes(1);
     });
 
-    it('keeps the draft when the email fails and retries only the email', async () => {
+    const emailResult = (failed: number) => ({
+      recipients: 4,
+      email: { recipients: 4, sent: 4 - failed, failed, missing: [], logFailed: false },
+    });
+
+    it('keeps the text and shows a plain result when the announcement email request errors', async () => {
       mockSendTargetedMessage.mockResolvedValueOnce(null);
       const { user } = render(<MessageShowComposer showId="show-1" classes={classes} allowEmail />);
 
@@ -356,23 +361,59 @@ describe('MessageShowComposer', () => {
       await user.type(screen.getByLabelText('Message'), 'We moved to Hall B');
       await user.click(screen.getByRole('button', { name: 'Send message' }));
 
-      const retry = await screen.findByRole('button', { name: 'Send the email again' });
+      expect(await screen.findByText(/Posted in the app. The email did not go out./)).toBeVisible();
       expect(screen.getByLabelText('Message')).toHaveValue('We moved to Hall B');
-      expect(screen.getByRole('button', { name: 'Send message' })).toBeDisabled();
-
-      await user.click(retry);
-
-      await waitFor(() => expect(mockSendTargetedMessage).toHaveBeenCalledTimes(2));
-      expect(mockSendTargetedMessage).toHaveBeenLastCalledWith(
-        'show-1',
-        { type: 'all_show', sendPush: false, emailOnly: true },
-        'We moved to Hall B'
+      expect(screen.getByRole('link', { name: 'See Email delivery history' })).toHaveAttribute(
+        'href',
+        '/secretary/messages?showId=show-1&view=email'
       );
+      expect(screen.queryByRole('button', { name: /again/i })).not.toBeInTheDocument();
+      expect(mockSendTargetedMessage).toHaveBeenCalledTimes(1);
       expect(mockPostAnnouncement).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole('button', { name: 'Send message' })).toBeEnabled();
+    });
+
+    it('keeps the text and counts failed emails on a targeted send, and Reset clears the result', async () => {
+      mockSendTargetedMessage.mockResolvedValueOnce(emailResult(2));
+      const { user } = render(
+        <MessageShowComposer
+          showId="show-1"
+          classes={classes}
+          allowEmail
+          allowedRecipients={['checked_in']}
+        />
+      );
+
+      await user.click(screen.getByRole('checkbox', { name: 'Also send by email' }));
+      await user.type(screen.getByLabelText('Message'), 'Gate moved');
+      await user.click(screen.getByRole('button', { name: 'Send message' }));
+
+      expect(await screen.findByText(/Posted in the app. 2 emails did not go out./)).toBeVisible();
+      expect(screen.getByLabelText('Message')).toHaveValue('Gate moved');
+
+      await user.click(screen.getByRole('button', { name: 'Reset' }));
+
+      expect(screen.queryByText(/did not go out/)).not.toBeInTheDocument();
+      expect(screen.getByLabelText('Message')).toHaveValue('');
+    });
+
+    it('clears the form when every email went out', async () => {
+      mockSendTargetedMessage.mockResolvedValueOnce(emailResult(0));
+      const { user } = render(
+        <MessageShowComposer
+          showId="show-1"
+          classes={classes}
+          allowEmail
+          allowedRecipients={['checked_in']}
+        />
+      );
+
+      await user.click(screen.getByRole('checkbox', { name: 'Also send by email' }));
+      await user.type(screen.getByLabelText('Message'), 'Gate moved');
+      await user.click(screen.getByRole('button', { name: 'Send message' }));
+
       await waitFor(() => expect(screen.getByLabelText('Message')).toHaveValue(''));
-      expect(
-        screen.queryByRole('button', { name: 'Send the email again' })
-      ).not.toBeInTheDocument();
+      expect(screen.queryByText(/did not go out/)).not.toBeInTheDocument();
     });
 
     it('does not send email when the option stays off', async () => {

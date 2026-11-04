@@ -133,6 +133,28 @@ export function resolveEmailAudience(
   return { recipients, missing };
 }
 
+// People reached by ANY channel: inbox accounts plus emailed people, one count per person
+// (a person with an account and an address is one). Unlinked exhibitors who only have an
+// address are still reached, so an email-only audience is never reported as empty.
+export function countPeopleReached(
+  entries: EntryRecipientSource[],
+  accountRecipientIds: string[],
+  emailRecipients: EmailRecipient[]
+): number {
+  const reached = new Set<string>(accountRecipientIds.map(id => `auth:${id}`));
+  const emailed = new Set(emailRecipients.map(recipient => recipient.email.toLowerCase()));
+  for (const entry of entries) {
+    for (const contact of entry.contacts ?? []) {
+      const email = contact.email?.trim().toLowerCase() ?? '';
+      if (!email || !emailed.has(email)) continue;
+      reached.add(
+        contact.authUserId ? `auth:${contact.authUserId}` : `person:${contact.personId ?? email}`
+      );
+    }
+  }
+  return reached.size;
+}
+
 export function callerRoleAuthorizesShow(
   role: CallerRoleSource,
   show: { id: string; club_id: string | null }

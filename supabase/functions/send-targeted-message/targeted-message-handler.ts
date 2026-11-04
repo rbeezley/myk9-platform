@@ -14,6 +14,7 @@ import {
   resolveEmailAudience,
   RINGSIDE_SESSION_PUSH_TARGET_SELECT,
   ringsideSessionMatchesTarget,
+  countPeopleReached,
   targetArmbands,
   uniqueAccountRecipients,
   type CallerRoleSource,
@@ -446,9 +447,9 @@ export function createSendTargetedMessageHandler(deps: {
 
     return {
       sent_to: insertedMessageIds.length,
-      total_recipients: emailOnly
-        ? entries.length
-        : accountRecipientIds.length + ringsideTargets.length,
+      total_recipients:
+        countPeopleReached(entries, accountRecipientIds, emailAudience?.recipients ?? []) +
+        ringsideTargets.length,
       group_label: groupLabel,
       push_sent: pushResult.sent,
       push_suppressed: pushResult.suppressed,

@@ -5,10 +5,11 @@ import { useMessageMutations } from './useMessageMutations';
 const mockInvoke = vi.hoisted(() => vi.fn());
 const mockWarning = vi.hoisted(() => vi.fn());
 const mockSuccess = vi.hoisted(() => vi.fn());
+const mockError = vi.hoisted(() => vi.fn());
 
 vi.mock('@/lib/supabase-client', () => ({ supabase: { functions: { invoke: mockInvoke } } }));
 vi.mock('@/lib/notifications', () => ({
-  notifications: { warning: mockWarning, success: mockSuccess, error: vi.fn() },
+  notifications: { warning: mockWarning, success: mockSuccess, error: mockError },
 }));
 
 describe('sendTargetedMessage email history note', () => {
@@ -43,5 +44,36 @@ describe('sendTargetedMessage email history note', () => {
       expect.anything()
     );
     expect(mockSuccess).not.toHaveBeenCalled();
+  });
+
+  it('returns the email result and does not say "no recipients" for an email-only audience', async () => {
+    mockInvoke.mockResolvedValue({
+      data: {
+        sent_to: 0,
+        total_recipients: 0,
+        email_recipients: 0,
+        email_sent: 0,
+        email_failed: 0,
+        email_missing: ['Una Smith'],
+      },
+      error: null,
+    });
+    const { result } = renderHook(() => useMessageMutations());
+
+    let sendResult: unknown;
+    await act(async () => {
+      sendResult = await result.current.sendTargetedMessage(
+        'show-1',
+        { type: 'class', classId: 'c1', sendEmail: true },
+        'Hello'
+      );
+    });
+
+    expect(sendResult).toMatchObject({ recipients: 0, email: { missing: ['Una Smith'] } });
+    expect(mockError).not.toHaveBeenCalled();
+    expect(mockWarning).toHaveBeenCalledWith(
+      expect.stringContaining('Una Smith'),
+      expect.anything()
+    );
   });
 });

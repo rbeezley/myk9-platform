@@ -11,6 +11,12 @@ export interface MessageShowEmailResult {
   logFailed: boolean;
 }
 
+/** One send, as the composer sees it: people reached by any channel, and the email outcome. */
+export interface TargetedSendResult {
+  recipients: number;
+  email: MessageShowEmailResult | null;
+}
+
 export function parseMessageShowEmailResult(data: unknown): MessageShowEmailResult | null {
   if (!data || typeof data !== 'object') return null;
   const row = data as Record<string, unknown>;

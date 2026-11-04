@@ -5,6 +5,7 @@ import { RegistrationNeededPane } from '@/components/entries/RegistrationNeededP
 import type { RegistrationNeededRow } from '@/components/entries/management/registrationNeeded';
 import type { EntryManagementException } from '@/components/entries/management/entryManagementCockpitParams';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
+import { CheckInDesk } from '@/components/entries/management/checkInDesk/CheckInDesk';
 import WaitlistManagementPage from './WaitlistManagementPage/index';
 
 interface EntryManagementExceptionPanesProps {
@@ -12,6 +13,8 @@ interface EntryManagementExceptionPanesProps {
   showName?: string | undefined;
   exception: EntryManagementException;
   pulledEntries: EntryManagementEntry[];
+  /** Every entry on the show, for the Check-in desk. */
+  entries: EntryManagementEntry[];
   /** The entries read failed: every list derived from it is unknown, not empty. */
   entriesUnknown: boolean;
   entriesLoading: boolean;
@@ -36,6 +39,7 @@ export function EntryManagementExceptionPanes({
   showName,
   exception,
   pulledEntries,
+  entries,
   entriesUnknown,
   entriesLoading,
   registrationNeeded,
@@ -63,6 +67,15 @@ export function EntryManagementExceptionPanes({
             />
           </CardContent>
         </Card>
+      )}
+      {exception === 'check-in' && (
+        <CheckInDesk
+          showId={showId}
+          entries={entries}
+          loading={entriesLoading}
+          unknown={entriesUnknown}
+          onRetry={onRefreshEntries}
+        />
       )}
       {exception === 'waitlist' && <WaitlistManagementPage showId={showId} />}
       {exception === 'registration-needed' && (

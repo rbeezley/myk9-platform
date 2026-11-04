@@ -10,6 +10,8 @@ interface SearchBarProps {
   'aria-label'?: string;
   /** Compact size for inline/toolbar use */
   size?: 'default' | 'sm';
+  /** Focus the input when the bar mounts (a view whose first act is searching). */
+  autoFocus?: boolean;
 }
 
 // `clearButton` is the hit area, `clearIcon` only the glyph inside it. They were
@@ -39,6 +41,7 @@ export function SearchBar({
   className,
   'aria-label': ariaLabel,
   size = 'default',
+  autoFocus = false,
 }: SearchBarProps) {
   const styles = sizeConfig[size];
 
@@ -54,6 +57,7 @@ export function SearchBar({
         type="text"
         placeholder={placeholder}
         value={value}
+        autoFocus={autoFocus}
         onChange={e => onChange(e.target.value)}
         onKeyDown={e => {
           // Clearing text is the whole job of this Escape; it must not also close a dialog around it.

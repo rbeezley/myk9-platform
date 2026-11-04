@@ -22,6 +22,16 @@ describe('getShowJudgesHref', () => {
     expect(href).toContain(`${SHOW_EDIT_TAB_PARAM}=judges`);
   });
 
+  it('opens the Edit panel on the Venue & policies tab', () => {
+    const href = getShowEditHref('show-1', 'venue');
+    expect(href).toBe(`/shows/show-1?edit=true&${SHOW_EDIT_TAB_PARAM}=venue`);
+    expect(normalizeShowEditTab('venue')).toBe('venue');
+  });
+
+  it('places venue between fees and premium', () => {
+    expect(SHOW_EDIT_TABS).toEqual(['basic', 'personnel', 'judges', 'fees', 'venue', 'premium']);
+  });
+
   it('omits the tab param for the default tab, keeping existing links byte-identical', () => {
     expect(getShowEditHref('show-1')).toBe('/shows/show-1?edit=true');
     expect(getShowEditHref('show-1', DEFAULT_SHOW_EDIT_TAB)).toBe('/shows/show-1?edit=true');

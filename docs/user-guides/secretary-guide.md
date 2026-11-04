@@ -211,7 +211,7 @@ Whether open spots are offered automatically, the judge's daily capacity, how lo
 
 > **Needs a connection.** Offer Spot, Withdraw offer and Remove need a signal; at the show with none, they read **Online only**.
 
-## 8 · Handle pulls, scratches and refunds
+## 8 · Handle pulls, withdrawals and refunds
 
 Three jobs look alike. Pick by the reason, because each one treats the money differently:
 
@@ -284,7 +284,7 @@ Choose **Armband ↑**, **Armband ↓**, or **Random**. The order applies immedi
 
 > You can also reach this from a class's page — **Set run order** takes you straight to that class on **Show Desk**.
 
-To put one dog in a specific spot, open **Run order → Reorder manually...**. Each dog has **Move up**, **Move down** and **Move to...** controls. A dog that has run, or is in the ring, keeps its place and shows why; other dogs move around it. **Undo** appears for a few seconds after any run-order change.
+To put one dog in a specific spot, open **Run order → Reorder manually...**. Each dog has **Move up**, **Move down** and **Move to…** controls. A dog that has run, or is in the ring, keeps its place and shows why; other dogs move around it. **Undo** appears for a few seconds after any run-order change.
 
 > Armband ↑, Armband ↓ and Random sort every dog that has not run again, so they replace anything you placed by hand. Place dogs last.
 

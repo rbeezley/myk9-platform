@@ -55,13 +55,14 @@ const SHOW_USES_ROWS: readonly ShowUsesRow[] = [
   {
     field: 'usesLandingPage',
     label: 'Public landing page',
-    description: 'Gives the show a public page exhibitors can visit.',
+    description: 'Shows the Landing page card and its reminder until the page is published.',
     fallback: false,
   },
   {
     field: 'publishesOwnPremium',
     label: 'We publish our own premium list',
-    description: 'Lets your club publish its own premium list for this show.',
+    description:
+      'Your club shares its premium list itself, so myK9 stops reminding you to publish one.',
     fallback: false,
   },
 ];

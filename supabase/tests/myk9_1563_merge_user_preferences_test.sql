@@ -3,8 +3,9 @@
 -- ever writes the caller's own row (RLS, SECURITY INVOKER). Fixtures roll back.
 --
 -- Two devices that read the same row and then save are modelled as two calls
--- made one after the other with a stale view: the function never reads the
--- client's copy, so the second call cannot erase the first.
+-- made one after the other. That proves the function merges against the STORED
+-- row, never the client's copy (a lost-update proxy). It does not prove
+-- concurrency: true atomicity relies on the SELECT ... FOR UPDATE row lock.
 
 BEGIN;
 
@@ -112,6 +113,28 @@ BEGIN
     NULL;
   END;
   RAISE NOTICE 'PASS an unknown category is rejected';
+END;
+$$;
+
+-- Squat: user B passing user A's id (or any id that is not B's) is refused and
+-- creates no row.
+DO $$
+DECLARE
+  v_n integer;
+BEGIN
+  BEGIN
+    PERFORM public.merge_user_preferences(
+      '00000000-0000-0000-0000-0000000015c3', 'myk9show', 'privacy', '{}'::jsonb);
+    RAISE EXCEPTION 'FAIL a caller passed another user''s user_id';
+  EXCEPTION WHEN insufficient_privilege THEN
+    NULL;
+  END;
+  SELECT count(*) INTO v_n FROM public.user_preferences
+   WHERE user_id = '00000000-0000-0000-0000-0000000015c3';
+  IF v_n <> 0 THEN
+    RAISE EXCEPTION 'FAIL a row was created for another user''s user_id';
+  END IF;
+  RAISE NOTICE 'PASS passing another user''s user_id raises 42501 and creates no row';
 END;
 $$;
 

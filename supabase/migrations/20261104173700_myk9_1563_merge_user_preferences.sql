@@ -45,6 +45,14 @@ BEGIN
     RAISE EXCEPTION 'p_theme_changed_at must be a JSON object' USING ERRCODE = '22023';
   END IF;
 
+  -- user_id is the caller's auth uid (the client passes useAuth().user.id, and
+  -- every live row has user_id = auth_user_id). Refuse any other value, or a
+  -- caller could pre-create a row for someone else's user_id and lock them out
+  -- of their own preferences (the (user_id, app) key is unique).
+  IF p_user_id IS DISTINCT FROM v_auth THEN
+    RAISE EXCEPTION 'p_user_id must be the calling user' USING ERRCODE = '42501';
+  END IF;
+
   -- Make sure the row exists. A row that already exists (even another user's)
   -- is left untouched here; RLS decides below whether this caller may lock it.
   INSERT INTO public.user_preferences (user_id, auth_user_id, app, preferences)

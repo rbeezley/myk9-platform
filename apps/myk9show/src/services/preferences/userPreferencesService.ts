@@ -244,7 +244,7 @@ export class UserPreferencesService {
       // Nothing to merge: read the row as it stands.
       if (!blob) return await this.loadPreferences(userId);
 
-      // Theme times without a theme patch still advance (legacy callers).
+      // Theme change times travel only with a theme patch; without one they are not sent.
       return mergeWithDefaults(userId, blob, { updated_at: new Date().toISOString() });
     } catch (error) {
       logger.error('Failed to update user preferences', 'preferences', { userId }, error as Error);

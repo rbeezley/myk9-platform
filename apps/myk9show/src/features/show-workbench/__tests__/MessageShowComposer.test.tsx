@@ -40,7 +40,12 @@ describe('MessageShowComposer', () => {
       data: { recipients: 5, sent: 0, failed: 0, missing: ['Bob Smith'] },
       isError: false,
     });
-    mockSendTargetedMessage.mockResolvedValue({ recipients: 8, email: null });
+    mockSendTargetedMessage.mockResolvedValue({
+      inboxSent: 8,
+      pushSent: 0,
+      peopleReached: 8,
+      email: null,
+    });
   });
 
   it('describes everyone-in-show as a show message, not an announcement choice', async () => {
@@ -348,7 +353,9 @@ describe('MessageShowComposer', () => {
     });
 
     const emailResult = (failed: number) => ({
-      recipients: 4,
+      inboxSent: 4,
+      pushSent: 0,
+      peopleReached: 4,
       email: { recipients: 4, sent: 4 - failed, failed, missing: [], logFailed: false },
     });
 
@@ -388,13 +395,43 @@ describe('MessageShowComposer', () => {
       await user.type(screen.getByLabelText('Message'), 'Gate moved');
       await user.click(screen.getByRole('button', { name: 'Send message' }));
 
-      expect(await screen.findByText(/Posted in the app. 2 emails did not go out./)).toBeVisible();
+      expect(
+        await screen.findByText(/Posted in the app. Emailed 2 people. 2 emails did not go out./)
+      ).toBeVisible();
       expect(screen.getByLabelText('Message')).toHaveValue('Gate moved');
 
       await user.click(screen.getByRole('button', { name: 'Reset' }));
 
       expect(screen.queryByText(/did not go out/)).not.toBeInTheDocument();
       expect(screen.getByLabelText('Message')).toHaveValue('');
+    });
+
+    it('keeps the text and never calls onSent when no one was reached', async () => {
+      mockSendTargetedMessage.mockResolvedValueOnce({
+        inboxSent: 0,
+        pushSent: 0,
+        peopleReached: 0,
+        email: { recipients: 0, sent: 0, failed: 0, missing: [], logFailed: false },
+      });
+      const onSent = vi.fn();
+      const { user } = render(
+        <MessageShowComposer
+          showId="show-1"
+          classes={classes}
+          allowEmail
+          onSent={onSent}
+          allowedRecipients={['checked_in']}
+        />
+      );
+
+      await user.click(screen.getByRole('checkbox', { name: 'Also send by email' }));
+      await user.type(screen.getByLabelText('Message'), 'Gate moved');
+      await user.click(screen.getByRole('button', { name: 'Send message' }));
+
+      expect(await screen.findByText(/No one was reached\./)).toBeVisible();
+      expect(screen.getByLabelText('Message')).toHaveValue('Gate moved');
+      expect(screen.queryByText(/Posted in the app/)).not.toBeInTheDocument();
+      expect(onSent).not.toHaveBeenCalled();
     });
 
     it('clears the form when every email went out', async () => {

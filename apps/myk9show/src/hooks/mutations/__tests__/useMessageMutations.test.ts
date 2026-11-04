@@ -25,7 +25,9 @@ vi.mock('@/store/messageStore', () => ({
 vi.mock('@/lib/supabase-client', () => ({
   supabase: {
     functions: {
-      invoke: vi.fn().mockResolvedValue({ data: { sent_to: 5 }, error: null }),
+      invoke: vi
+        .fn()
+        .mockResolvedValue({ data: { inbox_sent: 5, people_reached: 5 }, error: null }),
     },
   },
 }));
@@ -98,7 +100,7 @@ describe('useMessageMutations', () => {
     const { supabase } = await import('@/lib/supabase-client');
     const { notifications } = await import('@/lib/notifications');
     vi.mocked(supabase.functions.invoke).mockResolvedValueOnce({
-      data: { sent_to: 0, total_recipients: 0 },
+      data: { inbox_sent: 0, push_sent: 0, people_reached: 0 },
       error: null,
     });
     const { result } = renderHook(() => useMessageMutations());
@@ -112,8 +114,11 @@ describe('useMessageMutations', () => {
       );
     });
 
-    expect(sendResult).toBeNull();
-    expect(notifications.error).toHaveBeenCalledWith('No matching recipients to message');
-    expect(notifications.success).not.toHaveBeenCalledWith(expect.stringContaining('0 exhibitors'));
+    expect(sendResult).toMatchObject({ inboxSent: 0, pushSent: 0, peopleReached: 0 });
+    expect(notifications.error).toHaveBeenCalledWith(
+      expect.stringContaining('No one was reached.'),
+      expect.anything()
+    );
+    expect(notifications.success).not.toHaveBeenCalled();
   });
 });

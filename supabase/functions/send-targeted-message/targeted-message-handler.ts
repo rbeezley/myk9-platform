@@ -20,6 +20,7 @@ import {
   type CallerRoleSource,
   type EntryContactSource,
   type EntryPersonRow,
+  type EmailRecipient,
   type EntryRecipientSource,
   type RingsideSessionSource,
   type TargetType,
@@ -354,7 +355,12 @@ export function createSendTargetedMessageHandler(deps: {
     }
 
     if (entries.length === 0) {
-      return { sent_to: 0, total_recipients: 0, push_sent: 0, ...emailFields(emailAudience) };
+      return {
+        inbox_sent: 0,
+        push_sent: 0,
+        people_reached: 0,
+        ...emailFields(emailAudience),
+      };
     }
 
     const accountRecipientIds = emailOnly ? [] : uniqueAccountRecipients(entries, user.id);
@@ -431,6 +437,7 @@ export function createSendTargetedMessageHandler(deps: {
     let emailSent = 0;
     let emailFailed = 0;
     let emailLogFailed = false;
+    let emailSucceededTo: EmailRecipient[] = [];
     if (emailAudience && emailAudience.recipients.length > 0) {
       if (!deps.sendShowMessageEmails) throw new HttpError(500, 'Email delivery is unavailable');
       const emailResult = await deps.sendShowMessageEmails({
@@ -442,14 +449,18 @@ export function createSendTargetedMessageHandler(deps: {
       });
       emailSent = emailResult.sent;
       emailFailed = emailResult.failed;
+      const sentTo = new Set(
+        emailResult.logRows.filter(row => row.status === 'sent').map(row => row.recipient_email)
+      );
+      emailSucceededTo = emailAudience.recipients.filter(recipient => sentTo.has(recipient.email));
       emailLogFailed = !(await writeEmailLog(supabase, emailResult.logRows));
     }
 
     return {
-      sent_to: insertedMessageIds.length,
-      total_recipients:
-        countPeopleReached(entries, accountRecipientIds, emailAudience?.recipients ?? []) +
-        ringsideTargets.length,
+      // Per-channel outcomes. people_reached counts a person once, by inbox or by an email
+      // that actually went out (a failed attempt is not "reached").
+      inbox_sent: insertedMessageIds.length,
+      people_reached: countPeopleReached(entries, accountRecipientIds, emailSucceededTo),
       group_label: groupLabel,
       push_sent: pushResult.sent,
       push_suppressed: pushResult.suppressed,

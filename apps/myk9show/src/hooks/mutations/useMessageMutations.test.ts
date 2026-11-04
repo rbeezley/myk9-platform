@@ -20,7 +20,8 @@ describe('sendTargetedMessage email history note', () => {
   it('warns that the send may not show in Email delivery history', async () => {
     mockInvoke.mockResolvedValue({
       data: {
-        total_recipients: 4,
+        inbox_sent: 4,
+        people_reached: 4,
         email_recipients: 4,
         email_sent: 4,
         email_failed: 0,
@@ -46,11 +47,9 @@ describe('sendTargetedMessage email history note', () => {
     expect(mockSuccess).not.toHaveBeenCalled();
   });
 
-  it('returns the email result and does not say "no recipients" for an email-only audience', async () => {
+  it('names people with no usable address when nobody could be reached', async () => {
     mockInvoke.mockResolvedValue({
       data: {
-        sent_to: 0,
-        total_recipients: 0,
         email_recipients: 0,
         email_sent: 0,
         email_failed: 0,
@@ -69,11 +68,11 @@ describe('sendTargetedMessage email history note', () => {
       );
     });
 
-    expect(sendResult).toMatchObject({ recipients: 0, email: { missing: ['Una Smith'] } });
-    expect(mockError).not.toHaveBeenCalled();
-    expect(mockWarning).toHaveBeenCalledWith(
-      expect.stringContaining('Una Smith'),
+    expect(sendResult).toMatchObject({ peopleReached: 0, email: { missing: ['Una Smith'] } });
+    expect(mockError).toHaveBeenCalledWith(
+      expect.stringContaining('No one was reached. No usable email address'),
       expect.anything()
     );
+    expect(mockSuccess).not.toHaveBeenCalled();
   });
 });

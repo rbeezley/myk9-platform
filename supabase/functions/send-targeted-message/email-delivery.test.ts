@@ -193,7 +193,54 @@ describe('send-targeted-message email delivery', () => {
       supabase,
     });
 
-    expect(result).toMatchObject({ total_recipients: 1, email_recipients: 1, email_sent: 1 });
+    expect(result).toMatchObject({
+      inbox_sent: 0,
+      people_reached: 1,
+      email_recipients: 1,
+      email_sent: 1,
+    });
+  });
+
+  it('does not count failed email attempts as people reached', async () => {
+    const { supabase } = makeSupabase([
+      {
+        armband: '201',
+        dog: { owner: person('p9', 'Una', 'una@example.com', null), co_owner: null },
+        handler: person('p9', 'Una', 'una@example.com', null),
+      },
+    ]);
+    const failingSender = vi.fn(async () => ({
+      sent: 0,
+      failed: 1,
+      logRows: [
+        {
+          recipient_email: 'una@example.com',
+          email_type: 'show_message',
+          related_id: null,
+          resend_message_id: null,
+          status: 'failed' as const,
+          error_message: 'provider_http_422',
+          show_id: 'show-1',
+        },
+      ],
+    }));
+    const handler = createSendTargetedMessageHandler({
+      sendPasscodePushes: noPush,
+      sendShowMessageEmails: failingSender,
+    });
+
+    const result = await handler({
+      body: { show_id: 'show-1', target_type: 'all_show', body: 'Hi', send_email: true },
+      user: { id: 'sender-1' },
+      supabase,
+    });
+
+    expect(result).toMatchObject({
+      inbox_sent: 0,
+      people_reached: 0,
+      email_sent: 0,
+      email_failed: 1,
+    });
   });
 
   it('does not email when the option is off', async () => {

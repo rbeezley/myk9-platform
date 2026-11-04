@@ -11,10 +11,24 @@ export interface MessageShowEmailResult {
   logFailed: boolean;
 }
 
-/** One send, as the composer sees it: people reached by any channel, and the email outcome. */
+/** One send, channel by channel, as send-targeted-message reports it. */
 export interface TargetedSendResult {
-  recipients: number;
+  /** Inbox messages created (0 for an email-only send). */
+  inboxSent: number;
+  pushSent: number;
+  /** Distinct people reached by an inbox copy or an email that actually went out. */
+  peopleReached: number;
   email: MessageShowEmailResult | null;
+}
+
+export function parseTargetedSendResult(data: unknown): TargetedSendResult {
+  const row = (data && typeof data === 'object' ? data : {}) as Record<string, unknown>;
+  return {
+    inboxSent: Number(row.inbox_sent ?? 0),
+    pushSent: Number(row.push_sent ?? 0),
+    peopleReached: Number(row.people_reached ?? 0),
+    email: parseMessageShowEmailResult(data),
+  };
 }
 
 export function parseMessageShowEmailResult(data: unknown): MessageShowEmailResult | null {
@@ -41,7 +55,7 @@ export function describeEmailAudience(
   return 'everyone in the show';
 }
 
-function peopleLabel(count: number): string {
+export function peopleLabel(count: number): string {
   return `${count} ${count === 1 ? 'person' : 'people'}`;
 }
 
@@ -56,12 +70,4 @@ export function buildEmailAudienceCopy(audience: string, preview: MessageShowEma
   }
   const base = `Will also email ${peopleLabel(preview.recipients)} in ${audience}.`;
   return preview.missing.length ? `${base} ${missingSentence(preview.missing)}` : base;
-}
-
-/** Outcome shown after Send, naming anyone who was skipped or whose email failed. */
-export function buildEmailResultCopy(result: MessageShowEmailResult): string {
-  const parts = [`Emailed ${peopleLabel(result.sent)}.`];
-  if (result.failed > 0) parts.push(`${peopleLabel(result.failed)} could not be emailed.`);
-  if (result.missing.length) parts.push(missingSentence(result.missing));
-  return parts.join(' ');
 }

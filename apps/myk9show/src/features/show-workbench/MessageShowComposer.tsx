@@ -31,6 +31,7 @@ import {
   describeEmailAudience,
   type TargetedSendResult,
 } from './messageShowEmail';
+import { describeSendOutcome, type SendOutcome } from './messageShowOutcome';
 import { WorkbenchPushAlertToggle } from './WorkbenchPushAlertToggle';
 import { getWorkbenchAnnouncementPriority } from './workbenchAnnouncementPriority';
 import { useWorkbenchAnnouncementPost } from './workbenchAnnouncementPost';
@@ -78,7 +79,7 @@ export function MessageShowComposer({
   const [isPostingAnnouncement, setIsPostingAnnouncement] = useState(false);
   // Set when the message went out in the app but the email did not (all of it, or some
   // addresses). The text stays; nothing is re-sent automatically.
-  const [emailNotice, setEmailNotice] = useState<{ failed: number | null } | null>(null);
+  const [notice, setNotice] = useState<SendOutcome | null>(null);
   const { postAnnouncement } = useWorkbenchAnnouncementPost();
   const { sendTargetedMessage, isSending } = useMessageMutations();
 
@@ -115,7 +116,7 @@ export function MessageShowComposer({
     setMessage('');
     setSendPushAlert(true);
     setSendEmail(false);
-    setEmailNotice(null);
+    setNotice(null);
   }
 
   function handleSent() {
@@ -144,13 +145,11 @@ export function MessageShowComposer({
     setMessage(draft.body);
   }
 
-  // The one outcome rule: clear the form only when everything requested went out.
-  function finishSend(result: TargetedSendResult | null, emailRequestFailed = false) {
-    if (emailRequestFailed || (result?.email && result.email.failed > 0)) {
-      setEmailNotice({ failed: emailRequestFailed ? null : (result?.email?.failed ?? null) });
-      return;
-    }
-    if (result) handleSent();
+  // The outcome is computed in one pure function; the form clears only when it says so.
+  function finishSend(result: TargetedSendResult | null, announcementPosted = false) {
+    const outcome = describeSendOutcome({ result, announcementPosted, emailRequested });
+    if (outcome.clear) handleSent();
+    else setNotice(outcome);
   }
 
   async function handleSend() {
@@ -159,7 +158,7 @@ export function MessageShowComposer({
       return;
     }
 
-    setEmailNotice(null);
+    setNotice(null);
 
     if (isAnnouncementLane) {
       setIsPostingAnnouncement(true);
@@ -193,7 +192,7 @@ export function MessageShowComposer({
             { type: recipient, sendPush: false, emailOnly: true },
             message.trim()
           );
-          finishSend(emailResult, emailResult === null);
+          finishSend(emailResult, true);
         }
       } finally {
         setIsPostingAnnouncement(false);
@@ -402,22 +401,24 @@ export function MessageShowComposer({
         </div>
       </div>
 
-      {emailNotice ? (
+      {notice ? (
         <div
           role="status"
           className="mt-4 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900"
         >
           <p>
-            {emailNotice.failed === null
-              ? 'Posted in the app. The email did not go out.'
-              : `Posted in the app. ${emailNotice.failed} ${emailNotice.failed === 1 ? 'email' : 'emails'} did not go out.`}{' '}
-            Nothing was sent again. Your text is still here.{' '}
-            <Link
-              className="underline"
-              to={`/secretary/messages?showId=${encodeURIComponent(showId)}&view=email`}
-            >
-              See Email delivery history
-            </Link>
+            {notice.message} Nothing was sent again. Your text is still here.
+            {notice.showHistoryLink ? (
+              <>
+                {' '}
+                <Link
+                  className="underline"
+                  to={`/secretary/messages?showId=${encodeURIComponent(showId)}&view=email`}
+                >
+                  See Email delivery history
+                </Link>
+              </>
+            ) : null}
           </p>
         </div>
       ) : null}

@@ -4,10 +4,10 @@ import { supabase } from '@/lib/supabase-client';
 import { notifications } from '@/lib/notifications';
 import type { MessageTarget } from '@/features/messages/types';
 import {
-  buildEmailResultCopy,
-  parseMessageShowEmailResult,
+  parseTargetedSendResult,
   type TargetedSendResult,
 } from '@/features/show-workbench/messageShowEmail';
+import { describeSendOutcome } from '@/features/show-workbench/messageShowOutcome';
 
 export function useMessageMutations() {
   const [isSending, setIsSending] = useState(false);
@@ -65,32 +65,27 @@ export function useMessageMutations() {
 
         if (error) throw error;
 
-        const recipientCount = Number(data?.total_recipients ?? data?.sent_to ?? 0);
-        const email = parseMessageShowEmailResult(data);
-        // Nobody reached by any channel. An email result means the audience was resolved
-        // (even if everyone lacked an address), so its outcome is reported instead.
-        if (recipientCount <= 0 && !email) {
-          notifications.error('No matching recipients to message');
-          return null;
-        }
-
-        const inApp = target.emailOnly ? '' : `Message sent to ${recipientCount} exhibitors. `;
-        if (email) {
-          const logNote = email.logFailed
+        const result = parseTargetedSendResult(data);
+        const outcome = describeSendOutcome({
+          result,
+          // An email-only call follows an announcement post, which is the in-app copy.
+          announcementPosted: target.emailOnly === true,
+          emailRequested: target.sendEmail === true || target.emailOnly === true,
+        });
+        // A skipped or failed channel is something the secretary must see and act on.
+        const logNote =
+          result.email?.logFailed && outcome.status !== 'none'
             ? ' Sent, but it may not show in Email delivery history.'
             : '';
-          const copy = `${inApp}${buildEmailResultCopy(email)}${logNote}`.trim();
-          // A skipped or failed address is something the secretary must see and act on.
-          const needsAttention = email.failed > 0 || email.missing.length > 0 || email.logFailed;
-          if (needsAttention) {
-            notifications.warning(copy, { duration: 15000 });
-          } else {
-            notifications.success(copy);
-          }
+        const copy = `${outcome.message}${logNote}`;
+        if (outcome.status === 'none') {
+          notifications.error(copy, { duration: 15000 });
+        } else if (outcome.status === 'success' && !logNote && !result.email?.missing.length) {
+          notifications.success(copy);
         } else {
-          notifications.success(`Message sent to ${recipientCount} exhibitors`);
+          notifications.warning(copy, { duration: 15000 });
         }
-        return { recipients: recipientCount, email };
+        return result;
       } catch {
         notifications.error(
           target.emailOnly

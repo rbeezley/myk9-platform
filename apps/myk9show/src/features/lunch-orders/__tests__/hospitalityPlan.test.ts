@@ -218,5 +218,30 @@ describe('buildHospitalityPlanDay', () => {
 
       expect(both([row('a', 'sat')], [row('b', 'sun')]).orders[0]?.lunchOrder).toBe('Wrap');
     });
+
+    it('keeps two hand-added people with the same name apart, in one trial and across trials', () => {
+      const alex = (id: string, trial_id: string, order: string) =>
+        saved({ id, trial_id, name: 'Alex Smith', role: 'club_member', lunch_order: order });
+
+      const oneTrial = day('sat', [alex('a', 'sat', 'Soup'), alex('b', 'sat', 'Wrap')]);
+      expect(oneTrial.roles.find(r => r.role === 'club_member')?.count).toBe(2);
+      expect(oneTrial.orders.map(o => o.lunchOrder).sort()).toEqual(['Soup', 'Wrap']);
+      expect(oneTrial.total).toBe(7);
+
+      const twoTrials = buildHospitalityPlanDay('2026-11-07', [
+        trialInput('sat', [alex('a', 'sat', 'Soup')]),
+        trialInput('sun', [alex('b', 'sun', 'Wrap')]),
+      ]);
+      expect(twoTrials.roles.find(r => r.role === 'club_member')?.count).toBe(2);
+      expect(twoTrials.orders).toHaveLength(2);
+    });
+
+    it('counts a judge with a person id in both trials once', () => {
+      const plan = both([], []);
+
+      expect(
+        plan.roles.find(r => r.role === 'judge')?.names.filter(n => n === 'Bo Baker')
+      ).toHaveLength(1);
+    });
   });
 });

@@ -44,20 +44,35 @@ function joinDistinct(values: Array<string | null>): string | null {
 }
 
 /**
- * The same person saved in two trials of one date becomes one row. Identity follows the list:
- * person id when there is one, otherwise the name. Differing orders are all kept, joined.
+ * The same person saved in two trials of one date becomes one row, matched by person id only.
+ * A row with no person id (someone typed in by hand) is never merged by name: two people can
+ * share a name, and the Lunch list keeps them apart. Differing orders are all kept, joined.
  */
 function mergeSavedRows(rows: readonly LunchOrderRow[]): LunchOrderRow[] {
-  const groups = new Map<string, LunchOrderRow[]>();
+  const byPerson = new Map<string, LunchOrderRow[]>();
+  const merged: LunchOrderRow[] = [];
   for (const row of rows) {
-    const key = row.person_id ? `p:${row.person_id}` : `n:${row.name.trim().toLowerCase()}`;
-    groups.set(key, [...(groups.get(key) ?? []), row]);
+    if (!row.person_id) {
+      merged.push(row);
+      continue;
+    }
+    const group = byPerson.get(row.person_id);
+    if (group) group.push(row);
+    else {
+      const fresh = [row];
+      byPerson.set(row.person_id, fresh);
+      merged.push(row);
+    }
   }
-  return [...groups.values()].map(group => ({
-    ...group[0]!,
-    lunch_order: joinDistinct(group.map(row => row.lunch_order)),
-    dietary_note: joinDistinct(group.map(row => row.dietary_note)),
-  }));
+  return merged.map(row => {
+    const group = row.person_id ? byPerson.get(row.person_id) : undefined;
+    if (!group || group.length < 2) return row;
+    return {
+      ...row,
+      lunch_order: joinDistinct(group.map(r => r.lunch_order)),
+      dietary_note: joinDistinct(group.map(r => r.dietary_note)),
+    };
+  });
 }
 
 /**

@@ -268,10 +268,14 @@ describe('UKC Handler Discrimination data', () => {
 
   it('Excellent: bagged glove in an open box, random numbering, on leash, 3 min', () => {
     expect(get('article', 'excellent')).toMatch(
-      /sealed plastic bag marked with the armband number/
+      /brought in a sealed bag marked with the armband number/
     );
     expect(get('layout', 'excellent')).toMatch(/marked 1 to 12 at random/);
-    expect(get('prep', 'excellent')).toMatch(/no sooner than 15 min before the section/);
+    expect(get('prep', 'excellent')).toMatch(/^No sooner than 15 min before the section/);
+    expect(get('prep', 'excellent')).toMatch(
+      /takes the glove out of the bag, places glove and bag side by side in an open box/
+    );
+    expect(get('prep', 'excellent')).toMatch(/no one else touches either/);
     expect(get('start', 'excellent')).toMatch(/^On leash/);
     expect(get('time', 'excellent')).toMatch(/^Not over 3 min/);
   });

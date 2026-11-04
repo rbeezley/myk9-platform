@@ -79,7 +79,7 @@ const HD_ROWS: readonly SetupRow[] = [
     perHdLevel(
       '1 clean cotton glove scented by the handler; the only glove in the class',
       '1 cotton glove scented by the handler',
-      '1 cotton glove scented by the handler, in a sealed plastic bag marked with the armband number',
+      '1 cotton glove scented by the handler, brought in a sealed bag marked with the armband number',
       '1 personal item (keys, shoe, sock, shirt), not a glove or undergarment, free of food'
     )
   ),
@@ -90,7 +90,7 @@ const HD_ROWS: readonly SetupRow[] = [
     perHdLevel(
       'Handler faces away and drops the glove in a box; judge closes it; judge or steward sets it in line',
       'Steward takes the empty box from the line; handler faces away and drops the glove in it; judge closes it and returns it to the space',
-      'Handlers in a group of 12 place bag and glove in an open box no sooner than 15 min before the section, then leave',
+      'No sooner than 15 min before the section, handler takes the glove out of the bag, places glove and bag side by side in an open box, then leaves; no one else touches either',
       'Handlers drop items at prep no sooner than 15 min before the section; steward uses tongs to adjust an item'
     )
   ),

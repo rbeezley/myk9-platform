@@ -12,12 +12,12 @@ Index of all customer-facing guides and their current status. Every guide listed
 
 ## Planned Guides
 
-| Title                                               | Audience                | Status     | Priority | Notes                                                                                                             |
-| --------------------------------------------------- | ----------------------- | ---------- | -------- | ----------------------------------------------------------------------------------------------------------------- |
-| [Secretary Guide](secretary-guide.md)               | Trial secretaries       | `qa-draft` | high     | Phase 0 gate met (2026-06-19); screenshot list partially captured; § 11 Closeout stub (feature not built)         |
-| [Exhibitor Guide](exhibitor-guide.md)               | Dog exhibitors          | `qa-draft` | high     | Text re-verified against `main` 2026-10-28; 12 of 17 screenshots recaptured 2026-10-28; non-author review pending |
-| [Ringside Quickstart](judge-steward-quickstart.md)  | Judges, stewards        | `qa-draft` | medium   | Text re-verified against `main` 2026-10-28; J-02 recaptured 2026-10-28, J-04/J-05 2026-11-03; live walk pending   |
-| [Club Admin & Treasurer Guide](club-admin-guide.md) | Club admins, treasurers | `qa-draft` | medium   | Text re-verified against `main` 2026-10-28; 5 of 7 screenshots recaptured 2026-10-28; non-author review pending   |
+| Title                                               | Audience                | Status     | Priority | Notes                                                                                                                                     |
+| --------------------------------------------------- | ----------------------- | ---------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| [Secretary Guide](secretary-guide.md)               | Trial secretaries       | `qa-draft` | high     | Text re-verified against `main` 2026-11-04; all 8 screenshots recaptured and 3 added (S-23 to S-25) 2026-11-04; non-author review pending |
+| [Exhibitor Guide](exhibitor-guide.md)               | Dog exhibitors          | `qa-draft` | high     | Text re-verified against `main` 2026-10-28; 12 of 17 screenshots recaptured 2026-10-28; non-author review pending                         |
+| [Ringside Quickstart](judge-steward-quickstart.md)  | Judges, stewards        | `qa-draft` | medium   | Text re-verified against `main` 2026-10-28; J-02 recaptured 2026-10-28, J-04/J-05 2026-11-03; live walk pending                           |
+| [Club Admin & Treasurer Guide](club-admin-guide.md) | Club admins, treasurers | `qa-draft` | medium   | Text re-verified against `main` 2026-10-28; 5 of 7 screenshots recaptured 2026-10-28; non-author review pending                           |
 
 ## Planned Outlines (safe to draft now — gate only blocks publication with screenshots)
 

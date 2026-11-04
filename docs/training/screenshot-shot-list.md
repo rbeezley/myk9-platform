@@ -48,25 +48,29 @@ Every screenshot and diagram in final documentation and training materials must 
 > workbench collapsed into Show Desk, and sixteen files were deleted rather than left to
 > be reused by mistake.
 
-| Shot ID | Description                              | Route                                                               | Account               | Viewport | Expected state                                                  | Guide card                   | Status                |
-| ------- | ---------------------------------------- | ------------------------------------------------------------------- | --------------------- | -------- | --------------------------------------------------------------- | ---------------------------- | --------------------- |
-| S-01    | Secretary dashboard                      | `/secretary/dashboard`                                              | `secretary@myk9t.com` | Desktop  | Managed shows listed with the needs-attention summary           | Before you start             | `captured 2026-08-30` |
-| S-02    | Create Show wizard — Step 1              | `/secretary/create-show/wizard`                                     | `secretary@myk9t.com` | Desktop  | Four-step tracker; clone option; starred required fields        | 1 · Create a show            | `captured 2026-08-30` |
-| S-07    | Entry Management — Needs review queue    | `/shows/:showId/entry-management`                                   | `secretary@myk9t.com` | Desktop  | Queue chips with counts; rows offering Review                   | 3 · Approve entries          | `captured 2026-08-30` |
-| S-10    | Entry Management — Exceptions / Waitlist | `/shows/:showId/entry-management?tab=exceptions&exception=waitlist` | `secretary@myk9t.com` | Desktop  | Exceptions tab with the waitlist selected                       | 6 · Manage the waitlist      | `captured 2026-08-30` |
-| S-12    | Reports — Check-in Sheet                 | `/shows/:showId/reports`                                            | `secretary@myk9t.com` | Desktop  | Report / Trial / Class / Sort controls and Print                | 11 · Print check-in sheets   | `captured 2026-08-30` |
-| S-15    | Show Desk — focused class                | `/shows/:showId/show-desk`                                          | `secretary@myk9t.com` | Desktop  | Focused class with the Run order control and Move up per entry  | 10 · Run order, 15 · Move up | `captured 2026-08-30` |
-| S-20    | Results — visibility presets             | `/shows/:showId/results-control`                                    | `secretary@myk9t.com` | Desktop  | Readiness panel; Immediately / After Class / After Review       | 19 · Release results         | `captured 2026-08-30` |
-| S-22    | Submit Results                           | `/shows/:showId/submit-results`                                     | `secretary@myk9t.com` | Desktop  | Send to AKC, Download XML, Mark as submitted; closeout guidance | 20 · Submit to the registry  | `captured 2026-08-30` |
+| Shot ID | Description                             | Route                                                      | Account               | Viewport | Expected state                                                             | Guide card                  | Status                |
+| ------- | --------------------------------------- | ---------------------------------------------------------- | --------------------- | -------- | -------------------------------------------------------------------------- | --------------------------- | --------------------- |
+| S-01    | Home                                    | `/secretary/dashboard`                                     | `secretary@myk9t.com` | Desktop  | Managed shows listed with the needs-attention summary                      | Before you start            | `captured 2026-11-04` |
+| S-02    | Add Show wizard, Step 1                 | `/secretary/create-show/wizard`                            | `secretary@myk9t.com` | Desktop  | Four-step tracker; clone option; starred required fields                   | 1 · Create a show           | `captured 2026-11-04` |
+| S-07    | Entry Forms, list and the selected form | `/shows/:showId/entries`                                   | `secretary@myk9t.com` | Desktop  | Search and Filter; attention-first list; "To finish this form" with Accept | 4 · Approve entries         | `captured 2026-11-04` |
+| S-10    | Entry Forms, Waitlist list              | `/shows/:showId/entries?tab=exceptions&exception=waitlist` | `secretary@myk9t.com` | Desktop  | Waitlist with Wait list settings and a card per judge-day                  | 7 · Manage the waitlist     | `captured 2026-11-04` |
+| S-12    | Reports, Check-in Sheet                 | `/shows/:showId/reports` (choose Check-in Sheet)           | `secretary@myk9t.com` | Desktop  | Trial / Class / Sort controls and Print above the preview                  | 12 · Print check-in sheets  | `captured 2026-11-04` |
+| S-15    | Show Desk, a class selected             | `/shows/:showId` (click a class)                           | `secretary@myk9t.com` | Desktop  | Class panel scrolled to Run order and the class work buttons               | 11 · Run order              | `captured 2026-11-04` |
+| S-20    | Results, Visibility settings            | `/shows/:showId/results` (More, Visibility settings)       | `secretary@myk9t.com` | Desktop  | Results readiness; Immediately / After Class / After Review show defaults  | 23 · Release results        | `captured 2026-11-04` |
+| S-22    | Submit Results                          | `/shows/:showId/results?step=submit`                       | `secretary@myk9t.com` | Desktop  | Send to AKC, Download XML, Mark as submitted; closeout guidance            | 24 · Submit to the registry | `captured 2026-11-04` |
+| S-23    | Entry Forms, header Actions menu        | `/shows/:showId/entries` (open Actions)                    | `secretary@myk9t.com` | Desktop  | Entry lists group, Add late entry, Export CSV                              | 4 · Approve entries         | `captured 2026-11-04` |
+| S-24    | Entry Forms, Check-in desk              | `/shows/:showId/entries?tab=exceptions&exception=check-in` | `secretary@myk9t.com` | Desktop  | Search, view switch, an exhibitor block with armband, class and status     | 18 · Check dogs in          | `captured 2026-11-04` |
+| S-25    | Edit show, Venue & policies             | `/shows/:showId?edit=true&editTab=venue`                   | `secretary@myk9t.com` | Desktop  | "This show uses..." switches at the top of the tab                         | 3 · Edit a show             | `captured 2026-11-04` |
 
-**Capturing these again.** Two things bite, both discovered the hard way:
+**Capturing these again.** Two things bite:
 
-1. Show-scoped pages open on a tall header that fills a 1280×800 viewport, so a plain
-   screenshot returns the header and none of the tab content. Scroll first.
-2. Show Desk and Entry Management render a real `[role="tablist"]`; Reports, Results and
-   Submit Results render tab-_looking_ navigation with **no tablist role**, so a scroll
-   anchored on that selector silently does nothing there. Anchor on the tablist when it
-   exists, fall back to a fixed offset, and verify the page actually moved.
+1. The show header is tall and sticky. On Reports the controls sit under it after a card is chosen, so
+   scroll the element you want into view (`scrollIntoView({ block: 'center' })`) rather than the window.
+   On Entry Forms and Show Desk the right-hand panel scrolls on its own: move the mouse over it
+   before using the wheel.
+2. The demo show's data is thin (one entry per class, nothing on show day), so the Check-in desk reads
+   "Not active" and no class has two entries to reorder. Do not create or change staging records to
+   fill a shot; say what the shot cannot show in the guide's alt text.
 
 Cards without a shot are intentional, not missing.
 

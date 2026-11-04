@@ -855,6 +855,31 @@ describe('post-review-gate.sh', () => {
       expect(() => readFileSync(gh.calls, 'utf8')).toThrow();
     });
 
+    // A withdrawal only ever turns the gate red, and the gate rejects its verdict
+    // before counting lenses, so the body-count check must not block it: an
+    // adversarial re-review that found defects has to be able to retract an
+    // earlier clean attestation whatever its log looks like (Codex, #3616).
+    it('still withdraws when the findings log uses the attestation prefix', () => {
+      const gh = stubGh();
+      const log = logFile(
+        [
+          'Adversarial subagent review: consumer-correctness — found a defect.',
+          '- [P1] Something is broken',
+          '',
+        ].join('\n')
+      );
+      const r = run(
+        ['--withdraw', '42', 'adversarial', 'abc1234', 'def5678', '1 findings, not addressed', log],
+        gh.bin,
+        { REVIEW_LENSES: 'consumer-correctness\ntest-validity' }
+      );
+      expect(r.code).toBe(0);
+      const body = readFileSync(gh.calls, 'utf8').split('--body\n')[1]!.split('\n---')[0]!;
+      expect(body.split('\n')[0]).toBe(
+        'Review gate: adversarial reviewed abc1234..def5678 — 1 findings, not addressed'
+      );
+    });
+
     it('posts a log that describes its lenses without the attestation prefix', () => {
       const gh = stubGh();
       const log = logFile(

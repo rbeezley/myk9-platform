@@ -16,7 +16,10 @@ import { IncidentLogCard } from '@/features/show-workbench/IncidentLogCard';
 import { EmergencyTrialPacketTool } from '@/features/emergency-trial-packet/EmergencyTrialPacketTool';
 import { TasksNotesCard } from '@/features/show-workbench/TasksNotesCard';
 import { VolunteersCard } from '@/features/show-workbench/VolunteersCard';
-import { getRetiredPeopleAtShowRedirect } from '@/components/entries/management/checkInDesk/checkInDeskRoutes';
+import {
+  getCheckInDeskHref,
+  getRetiredPeopleAtShowRedirect,
+} from '@/components/entries/management/checkInDesk/checkInDeskRoutes';
 import { SelfCheckinTool } from '@/features/show-workbench/SelfCheckinTool';
 import { getTrialTimezone } from '@/features/registries';
 import { useResultSubmissions } from '@/hooks/mutations/useResultSubmission';
@@ -268,6 +271,15 @@ function ShowWorkbenchShowDeskBody() {
     if (!currentShow) return [];
 
     return [
+      {
+        id: 'check-in-desk',
+        group: 'show-day',
+        title: 'Check-in desk',
+        summary: 'Look up exhibitors by name, dog or armband and check them in',
+        // A door only: the header row goes to Entry Forms' Check-in desk, so there is no panel body.
+        href: getCheckInDeskHref({ showId: currentShow.id }),
+        content: null,
+      },
       {
         id: 'self-checkin',
         group: 'show-day',

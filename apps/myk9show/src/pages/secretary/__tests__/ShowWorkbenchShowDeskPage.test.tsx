@@ -6,6 +6,7 @@ import { ShowWorkbenchShowDeskPage } from '@/pages/secretary/ShowWorkbenchShowDe
 import type { ReactNode } from 'react';
 import { queryKeys } from '@/lib/queryClient';
 import { usePageEditTargetStore } from '@/features/actions/pageEditTarget';
+import { getCheckInDeskHref } from '@/components/entries/management/checkInDesk/checkInDeskRoutes';
 
 const getEntriesForShowMock = vi.hoisted(() => vi.fn());
 /**
@@ -288,7 +289,7 @@ describe('ShowWorkbenchShowDeskPage', () => {
     expect(await screen.findByTestId('show-desk-panel')).toBeInTheDocument();
     // Once the desk body renders, its tools reach the header for this show.
     expect(usePageEditTargetStore.getState().showTools?.showId).toBe('show-1');
-    expect(usePageEditTargetStore.getState().showTools?.tools).toHaveLength(7);
+    expect(usePageEditTargetStore.getState().showTools?.tools).toHaveLength(8);
     expect(screen.getByTestId('panel-entry-count')).toHaveTextContent('8');
     expect(screen.getByTestId('panel-class-entry-counts')).toHaveTextContent('8');
     expect(screen.getByTestId('panel-class-scored-counts')).toHaveTextContent('3');
@@ -336,7 +337,7 @@ describe('ShowWorkbenchShowDeskPage', () => {
       turnOff();
       const rows = await inventory();
       expect(rows).not.toContain(toolId);
-      expect(rows).toHaveLength(6);
+      expect(rows).toHaveLength(7);
       // A deep link still opens it: the panel is handed the full list.
       expect(screen.getByTestId('panel-tool-ids')).toHaveTextContent(toolId);
     });
@@ -345,7 +346,7 @@ describe('ShowWorkbenchShowDeskPage', () => {
       turnOn();
       const rows = await inventory();
       expect(rows).toContain(toolId);
-      expect(rows).toHaveLength(7);
+      expect(rows).toHaveLength(8);
     });
   });
 
@@ -362,7 +363,24 @@ describe('ShowWorkbenchShowDeskPage', () => {
     );
   });
 
-  it('keeps exactly seven tools in two groups, in sheet order', async () => {
+  it('offers a Check-in desk door in the Show Desk Actions menu (MYK9-1690)', async () => {
+    getEntriesForShowMock.mockResolvedValue({ data: [], error: null });
+
+    renderPage();
+
+    expect(await screen.findByTestId('show-desk-panel')).toBeInTheDocument();
+    const door = usePageEditTargetStore
+      .getState()
+      .showTools?.tools.find(tool => tool.id === 'check-in-desk');
+    expect(door).toEqual({
+      id: 'check-in-desk',
+      group: 'show-day',
+      title: 'Check-in desk',
+      href: getCheckInDeskHref({ showId: 'show-1' }),
+    });
+  });
+
+  it('keeps exactly eight tools in two groups, in sheet order', async () => {
     getEntriesForShowMock.mockResolvedValue({ data: [], error: null });
 
     renderPage();
@@ -372,6 +390,7 @@ describe('ShowWorkbenchShowDeskPage', () => {
       .getAllByRole('listitem')
       .map(item => item.textContent);
     expect(inventory).toEqual([
+      'show-day:check-in-desk',
       'show-day:self-checkin',
       'show-day:access-codes',
       'show-day:emergency-trial-packet',

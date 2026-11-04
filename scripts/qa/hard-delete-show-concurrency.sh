@@ -172,7 +172,7 @@ run_rpc() {
     -v VERBOSITY=verbose -v ON_ERROR_STOP=1 <<SQL
 BEGIN;
 SELECT pg_catalog.set_config('request.jwt.claim.sub', '$admin_auth_id', true);
-SELECT pg_catalog.set_config('request.jwt.claims', '{"sub":"$admin_auth_id","role":"authenticated"}', true);
+SELECT pg_catalog.set_config('request.jwt.claims', jsonb_build_object('sub', '$admin_auth_id', 'role', 'authenticated', 'amr', jsonb_build_array(jsonb_build_object('method', 'password', 'timestamp', pg_catalog.extract(epoch FROM pg_catalog.now())::bigint)))::text, true);
 SELECT public.hard_delete_show('$show_id');
 COMMIT;
 SQL

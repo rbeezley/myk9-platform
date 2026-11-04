@@ -245,7 +245,8 @@ BEGIN
 
   PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000001472109', true);
   PERFORM set_config('request.jwt.claims',
-    '{"sub":"00000000-0000-0000-0000-000001472109","role":"authenticated"}', true);
+    jsonb_build_object('sub', '00000000-0000-0000-0000-000001472109', 'role', 'authenticated',
+      'amr', jsonb_build_array(jsonb_build_object('method', 'password', 'timestamp', extract(epoch FROM now())::bigint)))::text, true);
   IF NOT public.is_platform_admin() THEN
     RAISE EXCEPTION 'FAIL MYK9-1472: the site_admin fixture is not recognized';
   END IF;

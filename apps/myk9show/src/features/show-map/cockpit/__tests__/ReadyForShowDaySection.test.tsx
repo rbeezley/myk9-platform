@@ -163,7 +163,7 @@ describe('ReadyForShowDaySection', () => {
       renderSection(NIGHT_BEFORE, { show: suggestionShow({}) });
       expect(screen.getByText('Everything is handled.')).toBeInTheDocument();
       expect(screen.getAllByRole('button', { name: 'Dismiss suggestion' })).toHaveLength(1);
-      expect(screen.getByText(/score on their phones/)).toBeInTheDocument();
+      expect(screen.getByText(/printed backup packet/)).toBeInTheDocument();
     });
 
     it('dismisses, and stays gone after a re-render and a remount', async () => {
@@ -180,8 +180,9 @@ describe('ReadyForShowDaySection', () => {
     });
 
     it('never nags when storage is unavailable', () => {
-      const spy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
-        throw new Error('blocked');
+      const spy = vi.spyOn(window.localStorage, 'getItem').mockImplementation(key => {
+        if (key.startsWith('myk9:show-uses-suggestion-dismissed')) throw new Error('blocked');
+        return null;
       });
       try {
         renderSection(NIGHT_BEFORE, { show: suggestionShow({}) });

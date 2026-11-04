@@ -25,7 +25,7 @@ const nationalsLeaderboard: RingsideMenuExtension = {
       icon: Trophy,
       href,
       returnScope: href,
-      requiresConnection: false,
+      requiresConnection: true,
     };
   },
 };

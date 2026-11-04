@@ -24,8 +24,8 @@ export function AtShowLeaderboardPage() {
   const isStaff = useIsStaffDogViewer(showId);
   const isOnline = useOnlineStatus();
   // The ringside screen the menu was opened from; the class picker when the URL was opened directly.
-  const returnTo = useRingsideReturnStore(state =>
-    state.target?.scope === getAtShowLeaderboardHref(showId) ? state.target.returnTo : null
+  const trip = useRingsideReturnStore(state =>
+    state.target?.scope === getAtShowLeaderboardHref(showId) ? state.target : null
   );
   // Same query key the class list and menu use, so this reads the cache; the replica works offline.
   const showQuery = useQuery({
@@ -45,10 +45,10 @@ export function AtShowLeaderboardPage() {
   // Staff only, and only on a nationals show: anyone else goes back to the class picker.
   if (!isStaff || isNationals === false) return <Navigate to={`/at-show/${showId}`} replace />;
 
-  const backHref = returnTo ?? `/at-show/${encodeURIComponent(showId)}`;
+  const backHref = trip?.returnTo ?? `/at-show/${encodeURIComponent(showId)}`;
   const back = (
-    <Button asChild variant="ghost" className="min-h-11 gap-2">
-      <Link to={backHref}>
+    <Button asChild variant="ghost" className="min-h-12 gap-2">
+      <Link to={backHref} state={trip?.state}>
         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
         Back to ringside
       </Link>
@@ -111,6 +111,7 @@ export function AtShowLeaderboardPage() {
           refreshFailed={isError}
           onRetry={retry}
           backHref={backHref}
+          backState={trip?.state}
           backLabel="Back to ringside"
         />
       </>

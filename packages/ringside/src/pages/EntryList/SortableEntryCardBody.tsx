@@ -280,7 +280,12 @@ const SortableEntryCardBodyImpl: React.FC<SortableEntryCardBodyProps> = ({
       )}
       nameAddon={
         isOwnEntry ? (
-          <span className="rounded-full bg-primary/15 px-2 py-0.5 text-xs font-bold text-primary">
+          <span
+            className={cn(
+              'rounded-full px-2 py-0.5 text-xs font-bold',
+              variant === 'hero' ? 'text-primary-foreground' : 'bg-primary/15 text-foreground'
+            )}
+          >
             Your dog
           </span>
         ) : undefined

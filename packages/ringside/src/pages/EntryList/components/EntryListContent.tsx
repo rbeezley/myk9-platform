@@ -210,7 +210,7 @@ export const EntryListContent: React.FC<EntryListContentProps> = ({
     />
   );
   const sectionLabel = (text: string) => (
-    <h3 className="mb-2 mt-1 px-1 text-sm font-semibold text-muted-foreground">{text}</h3>
+    <h2 className="mb-2 mt-1 px-1 text-sm font-semibold text-muted-foreground">{text}</h2>
   );
 
   if (entries.length === 0) {
@@ -269,8 +269,8 @@ export const EntryListContent: React.FC<EntryListContentProps> = ({
                   <Target size={22} aria-hidden="true" />
                 </div>
                 <div>
-                  <p className="text-base font-bold text-primary">Ring is clear</p>
-                  <p className="text-sm text-primary/80">Waiting for the next dog</p>
+                  <p className="text-base font-bold text-foreground">Ring is clear</p>
+                  <p className="text-sm text-muted-foreground">Waiting for the next dog</p>
                 </div>
               </div>
             )}

@@ -26,6 +26,7 @@
  */
 
 import { RingsideMenu } from './menu/RingsideMenu';
+import { useRingsideListSnapshot } from './menu/useRingsideListSnapshot';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -175,6 +176,7 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
       areReplicationTablesPendingFirstSync(syncStatus, ['shows', 'trials', 'classes', 'entries']));
 
   // ── Filters (section filter ON → All / Section A / Section B tabs) ─────
+  const savedFilters = useRingsideListSnapshot('entries')?.filters;
   const {
     activeTab,
     setActiveTab,
@@ -192,6 +194,7 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
     sectionCounts,
   } = useEntryListFilters({
     entries: localEntries,
+    initialFilters: savedFilters,
     // The host owns the counting rule; the package groups rows by what it is
     // handed rather than re-deriving one it cannot see (MYK9-645).
     entryClassification: classInfo?.entryClassification,
@@ -385,7 +388,7 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
 
   return (
     <RingsideProvider value={contextValue}>
-      <div className="ringside-root">
+      <main className="ringside-root">
         {showAddToHomeNudge && (
           <AtShowAddToHomeNudge
             reason={nudgeReason}
@@ -435,10 +438,18 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
             // No printing at ringside — reports live on the secretary Reports page.
             hidePrintOptions: true,
             up: { label: 'Classes', to: resolveClassListRoute(showId) },
-            menu: <RingsideMenu showId={showId} />,
+            menu: (
+              <RingsideMenu
+                showId={showId}
+                snapshot={{
+                  kind: 'entries',
+                  filters: { activeTab, searchTerm, sortBy: sortOrder, sectionFilter },
+                }}
+              />
+            ),
           }}
         />
-      </div>
+      </main>
     </RingsideProvider>
   );
 };

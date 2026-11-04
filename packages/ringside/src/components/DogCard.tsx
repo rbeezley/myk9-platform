@@ -85,7 +85,7 @@ export const DogCard = React.memo<DogCardProps>(
             <div
               className={cn(
                 'flex h-14 w-14 min-w-14 items-center justify-center rounded-2xl border-2 border-solid border-white/20 font-bold shadow-md',
-                isHero ? 'bg-white text-primary' : 'bg-primary text-primary-foreground',
+                isHero ? 'bg-white text-neutral-900' : 'bg-primary text-primary-foreground',
                 isLong ? 'text-[0.9375rem]' : 'text-lg'
               )}
               data-testid="dog-card-armband"
@@ -95,7 +95,7 @@ export const DogCard = React.memo<DogCardProps>(
           </div>
 
           <div className={cn('min-w-0 flex-1', favoriteButton && !trailing ? 'pr-12' : 'pr-2')}>
-            <h4
+            <p
               className={cn(
                 'mb-1 flex flex-wrap items-center gap-2 font-[590] leading-snug tracking-tight',
                 isHero ? 'text-lg text-primary-foreground' : 'text-base text-foreground'
@@ -103,11 +103,11 @@ export const DogCard = React.memo<DogCardProps>(
             >
               {callName}
               {nameAddon}
-            </h4>
+            </p>
             <p
               className={cn(
                 'mb-0.5 text-sm font-medium',
-                isHero ? 'text-primary-foreground/85' : 'text-muted-foreground'
+                isHero ? 'text-primary-foreground' : 'text-muted-foreground'
               )}
             >
               {breed}
@@ -115,7 +115,7 @@ export const DogCard = React.memo<DogCardProps>(
             <p
               className={cn(
                 'text-sm font-medium',
-                isHero ? 'text-primary-foreground/85' : 'text-muted-foreground'
+                isHero ? 'text-primary-foreground' : 'text-muted-foreground'
               )}
             >
               {handler}

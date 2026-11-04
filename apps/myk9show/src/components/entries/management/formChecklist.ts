@@ -26,7 +26,9 @@ export type FormChecklistItem =
       title: string;
       detail: string;
       entry: EntryManagementEntry;
-    };
+    }
+  /** Show day only (MYK9-1691): runs the Check-in desk would check in, in one tap. */
+  | { kind: 'check-in'; id: string; title: string; detail: string; entryIds: string[] };
 
 export interface FormChecklist {
   items: FormChecklistItem[];
@@ -81,7 +83,9 @@ const dogNames = (entries: readonly EntryManagementEntry[]) =>
  */
 export function buildFormChecklist(
   registration: ShowRegistrationGroup,
-  money: { paidDollars: number; remainingDollars: number }
+  money: { paidDollars: number; remainingDollars: number },
+  /** Entries eligible for check-in right now (`eligibleCheckInEntryIds`); empty off a show day. */
+  eligibleCheckInIds: ReadonlySet<string> = new Set()
 ): FormChecklist {
   const { entries } = registration;
   const withReason = (reason: 'pending_review' | 'missing_information' | 'payment_due') =>
@@ -174,6 +178,17 @@ export function buildFormChecklist(
       title: `${entry.dogName} needs a registration number`,
       detail: '',
       entry,
+    });
+  }
+
+  const checkInEntries = entries.filter(entry => eligibleCheckInIds.has(entry.id));
+  if (checkInEntries.length > 0) {
+    items.push({
+      kind: 'check-in',
+      id: 'check-in',
+      title: `${checkInEntries.length} ${checkInEntries.length === 1 ? 'run' : 'runs'} to check in`,
+      detail: dogNames(checkInEntries),
+      entryIds: checkInEntries.map(entry => entry.id),
     });
   }
 

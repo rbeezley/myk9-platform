@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,7 @@ import { EntryFormChecklist } from './EntryFormChecklist';
 import { EntryFormFooter } from './EntryFormFooter';
 import { EntryFormHeaderMenu } from './EntryFormHeaderMenu';
 import { buildFormChecklist, entryDogKey } from './formChecklist';
+import { EntryFormCheckInProvider, useEntryFormCheckIn } from './useEntryFormCheckIn';
 import { useEnrollmentDialogControls } from './useEnrollmentDialogControls';
 
 interface EntryFocusedRegistrationProps extends Omit<EnrollmentCardProps, 'group'> {
@@ -29,15 +30,18 @@ interface EntryFocusedRegistrationProps extends Omit<EnrollmentCardProps, 'group
    * list, so the row that was tapped is gone and focus would otherwise fall to the page.
    */
   focusHeadingOnMount?: boolean;
+  /** Re-reads the page's entries; a check-in shows at once and hands over to it when it lands. */
+  onRefreshEntries?: (() => void | Promise<void>) | undefined;
 }
 
 const reviewLabel = getRegistrationReviewLabel;
 
 export function EntryFocusedRegistration({
-  registration,
+  registration: loadedRegistration,
   onBack,
   onBulkStatusChange,
   focusHeadingOnMount = false,
+  onRefreshEntries,
   ...enrollmentCardProps
 }: EntryFocusedRegistrationProps) {
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -48,9 +52,20 @@ export function EntryFocusedRegistration({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Check-in on the form (MYK9-1691): the Check-in desk's write and eligibility. Everything below
+  // reads the form with a just-made check-in applied, so the count, the rows and the chip agree.
+  const checkIn = useEntryFormCheckIn(
+    loadedRegistration.entries[0]?.showId ?? '',
+    loadedRegistration.entries,
+    onRefreshEntries
+  );
+  const registration = useMemo(
+    () => ({ ...loadedRegistration, entries: checkIn.entries }),
+    [loadedRegistration, checkIn.entries]
+  );
   const [noteFocusRequest, setNoteFocusRequest] = useState(0);
   const controls = useEnrollmentDialogControls(registration, enrollmentCardProps.paymentLedger);
-  const checklist = buildFormChecklist(registration, controls);
+  const checklist = buildFormChecklist(registration, controls, checkIn.eligibleIds);
   // The checklist owns "Assign armband" for each dog it lists (MYK9-1672); the entry cards below
   // keep only "Change armband". A dog the checklist does not list keeps the card's Assign.
   const checklistArmbandDogs = new Set(
@@ -151,15 +166,28 @@ export function EntryFocusedRegistration({
           onBulkStatusChange={onBulkStatusChange}
           onOpenArmbandDialog={enrollmentCardProps.onOpenArmbandDialog}
           onOpenEditEntry={enrollmentCardProps.onOpenEditEntry}
+          onCheckInAll={entryIds => void checkIn.checkIn(registration.exhibitorName, entryIds)}
+          checkInBusy={checkIn.busyIds.size > 0}
           payment={controls}
         />
 
-        <EnrollmentCard
-          group={registration}
-          {...enrollmentCardProps}
-          hideAssignArmband={hideAssignArmband}
-          dialogControls={controls}
-        />
+        {checkIn.error && (
+          <p
+            role="status"
+            className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+          >
+            {checkIn.error}
+          </p>
+        )}
+
+        <EntryFormCheckInProvider value={checkIn}>
+          <EnrollmentCard
+            group={registration}
+            {...enrollmentCardProps}
+            hideAssignArmband={hideAssignArmband}
+            dialogControls={controls}
+          />
+        </EntryFormCheckInProvider>
 
         {registration.enrollmentId && (
           <EntryFormNotes

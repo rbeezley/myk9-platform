@@ -89,3 +89,40 @@ export function filterCheckInDesk(
 ): PeopleRosterPerson[] {
   return filterPeopleRoster(people, search, filter === 'not-checked-in' ? 'needs-check-in' : 'all');
 }
+
+/**
+ * Optimistic until the entries re-read lands. Only a class with no ringside status yet flips:
+ * at-gate, in-ring, pulled or completed from a later read are never masked. Shared by the
+ * Check-in desk and the entry form so both show a check-in the same way.
+ */
+export function applyOptimisticCheckIn(
+  entries: readonly EntryManagementEntry[],
+  checkedInIds: ReadonlySet<string>
+): EntryManagementEntry[] {
+  if (checkedInIds.size === 0) return [...entries];
+  return entries.map(entry =>
+    checkedInIds.has(entry.id)
+      ? {
+          ...entry,
+          classes: entry.classes.map(cls =>
+            !cls.checkInStatus || cls.checkInStatus === 'no-status'
+              ? { ...cls, checkInStatus: 'checked-in' as const, checkInTime: new Date() }
+              : cls
+          ),
+        }
+      : entry
+  );
+}
+
+/** The entries with at least one class the Check-in desk would offer "Check in" for today. */
+export function eligibleCheckInEntryIds(
+  entries: readonly EntryManagementEntry[],
+  classes: readonly PeopleRosterClassInfo[],
+  currentDate: Date
+): Set<string> {
+  const ids = new Set<string>();
+  for (const person of buildCheckInDeskPeople(entries, classes, currentDate)) {
+    for (const row of person.classRows) if (row.eligibleForCheckIn) ids.add(row.entryId);
+  }
+  return ids;
+}

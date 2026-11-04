@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ClipboardCheck } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { formatStartTime } from '@/components/schedule/schedule-timeline.utils';
 import { useShowDeskScheduleRead } from '@/pages/secretary/useShowDeskScheduleRead';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import {
+  applyOptimisticCheckIn,
   buildCheckInDeskClasses,
   buildCheckInDeskPeople,
   filterCheckInDesk,
@@ -17,6 +18,7 @@ import {
   type CheckInDeskFilter,
 } from './checkInDeskModel';
 import { useCheckInDeskActions } from './useCheckInDeskActions';
+import { useMinuteClock } from './useMinuteClock';
 
 interface CheckInDeskProps {
   showId: string;
@@ -50,15 +52,9 @@ export function CheckInDesk({
   const [searchParams, setSearchParams] = useSearchParams();
   const filter = readCheckInFilter(searchParams);
   const [search, setSearch] = useState('');
-  const [now, setNow] = useState(() => new Date());
+  const now = useMinuteClock(currentDate);
   const { trials, trialClasses, readPending, readFailed, retry } = useShowDeskScheduleRead();
   const { checkedInIds, busyIds, error, notice, checkIn } = useCheckInDeskActions(onRefreshEntries);
-
-  useEffect(() => {
-    if (currentDate) return undefined;
-    const interval = window.setInterval(() => setNow(new Date()), 60_000);
-    return () => window.clearInterval(interval);
-  }, [currentDate]);
 
   const classes = useMemo(
     () =>
@@ -69,26 +65,12 @@ export function CheckInDesk({
     [showId, trialClasses, trials]
   );
   const shownEntries = useMemo(
-    () =>
-      entries.map(entry =>
-        // Optimistic until the entries re-read lands. Only a class with no ringside status yet
-        // flips: at-gate, in-ring, pulled or completed from a later read are never masked.
-        checkedInIds.has(entry.id)
-          ? {
-              ...entry,
-              classes: entry.classes.map(cls =>
-                !cls.checkInStatus || cls.checkInStatus === 'no-status'
-                  ? { ...cls, checkInStatus: 'checked-in' as const, checkInTime: new Date() }
-                  : cls
-              ),
-            }
-          : entry
-      ),
+    () => applyOptimisticCheckIn(entries, checkedInIds),
     [checkedInIds, entries]
   );
   const people = useMemo(
-    () => buildCheckInDeskPeople(shownEntries, classes, currentDate ?? now),
-    [classes, currentDate, now, shownEntries]
+    () => buildCheckInDeskPeople(shownEntries, classes, now),
+    [classes, now, shownEntries]
   );
   const visible = useMemo(
     () => filterCheckInDesk(people, search, filter),

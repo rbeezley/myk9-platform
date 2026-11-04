@@ -47,6 +47,7 @@ import { ENTRY_VERB_HELP } from './entryVerbHelp';
 import { WithdrawMenuItem } from './WithdrawMenuItem';
 import { formatTrialLabel } from './entryFormTrialSummary';
 import { useEntryChangeClass } from './useEntryChangeClass';
+import { EntryFormCheckedInChip, useEntryFormCheckInAction } from './useEntryFormCheckIn';
 
 export const EntryListCard: React.FC<EntryListCardProps> = ({
   entries,
@@ -91,6 +92,7 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
   }>({ open: false, entry: null });
 
   const changeClass = useEntryChangeClass(entries[0]?.showId ?? '', entries, onEntryRestored);
+  const checkInAction = useEntryFormCheckInAction();
 
   const openWithdrawalDialog = (entryId: string) => {
     setWithdrawalDialog({ open: true, entryId });
@@ -171,6 +173,7 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                     onSelect: () => onOpenEditEntry?.(entry),
                     hidden: !onOpenEditEntry,
                   },
+                  checkInAction(entry),
                   changeClass.actionFor(entry),
                   {
                     id: 'remove',
@@ -372,6 +375,8 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                       )}
                     </div>
                   )}
+
+                  <EntryFormCheckedInChip cls={cls} />
 
                   {/* Check-in has its own high-throughput desk. Keep this legacy
                     control for callers that still need it, but do not duplicate

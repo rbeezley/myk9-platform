@@ -95,7 +95,7 @@ export const DogCard = React.memo<DogCardProps>(
           </div>
 
           <div className={cn('min-w-0 flex-1', favoriteButton && !trailing ? 'pr-12' : 'pr-2')}>
-            <p
+            <h3
               className={cn(
                 'mb-1 flex flex-wrap items-center gap-2 font-[590] leading-snug tracking-tight',
                 isHero ? 'text-lg text-primary-foreground' : 'text-base text-foreground'
@@ -103,7 +103,7 @@ export const DogCard = React.memo<DogCardProps>(
             >
               {callName}
               {nameAddon}
-            </p>
+            </h3>
             <p
               className={cn(
                 'mb-0.5 text-sm font-medium',

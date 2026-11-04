@@ -250,6 +250,7 @@ export const EntryListContent: React.FC<EntryListContentProps> = ({
           offsets against the wrong axis, so cards jumped to visibly wrong slots
           and reorder was unusable on every layout except one column. */}
       <SortableContext items={entryIds} strategy={rectSortingStrategy}>
+        {!showNowAndNext && <h2 className="sr-only">Entries</h2>}
         {showNowAndNext && (
           <div className="mb-4 flex flex-col">
             {sectionLabel('In the ring')}

@@ -35,6 +35,8 @@ export interface ShowDetailTabsProps {
   onRetryEntryData?: (() => void) | undefined;
   exhibitorEntryRows?: readonly SubmittedEntryDbRow[];
   exhibitorEntryDataState?: SubmittedEntryReadState;
+  /** Manager About tab only: the catalog entry count, `null` while unavailable (no false zero). */
+  managerEntryCount?: number | null;
 }
 
 /**

@@ -1,12 +1,9 @@
 import React, { useRef } from 'react';
-import { ChevronDown } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { formatDateRange } from '@/utils/date-format';
 import type { HeroParent } from '@/components/common/DetailHero';
 import { cn } from '@/lib/utils';
 import { usePublishedHeightVar } from '@/hooks/usePublishedHeightVar';
-import { SHOW_DETAILS_PANEL_ID } from './ShowDetailsPanel';
 import { SHOW_HEADER_CLASS, SHOW_HEADER_HEIGHT_VAR } from './showStickyLayout';
 
 interface ShowHeaderProps {
@@ -21,15 +18,12 @@ interface ShowHeaderProps {
   controls: React.ReactNode;
   /** The show's one status line (status, plus a publishing nudge), under the name. */
   status?: React.ReactNode;
-  /** Whether the details panel is open, and the chevron that toggles it. */
-  detailsOpen: boolean;
-  onToggleDetails: () => void;
 }
 
 /**
  * The show's header on every management tab: name, dates and the status controls in one line,
- * pinned under the app header from `lg` up, with a chevron that opens the details panel under it
- * (`ShowDetailsPanel`). Its height is measured and published as `--show-header-h` (see
+ * pinned under the app header from `lg` up. The show's facts live on the About tab, not behind a
+ * control here (MYK9-1683). Its height is measured and published as `--show-header-h` (see
  * `showStickyLayout`), since the controls wrap on a narrow window.
  * The host club is plain text, not a link: a link here would need a 44px target (docs/INTENT.md),
  * which does not fit one line.
@@ -43,8 +37,6 @@ export const ShowHeader: React.FC<ShowHeaderProps> = ({
   entryCount,
   controls,
   status,
-  detailsOpen,
-  onToggleDetails,
 }) => {
   const headerRef = useRef<HTMLDivElement>(null);
   usePublishedHeightVar(headerRef, SHOW_HEADER_HEIGHT_VAR);
@@ -58,8 +50,8 @@ export const ShowHeader: React.FC<ShowHeaderProps> = ({
     <div
       ref={headerRef}
       className={cn(
-        // Phones: the name and the chevron share the first row, the status controls get the whole
-        // second row. From lg it is one line (name, controls, chevron).
+        // Phones: the name gets the first row, the status controls the whole second row. From lg it
+        // is one line (name, controls).
         'flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-border bg-background py-2 lg:flex-nowrap',
         SHOW_HEADER_CLASS
       )}
@@ -78,22 +70,6 @@ export const ShowHeader: React.FC<ShowHeaderProps> = ({
           {status}
         </p>
       </div>
-      {/* DOM order (name, chevron, controls) is the phone reading and tab order; lg moves the chevron last. */}
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        className="min-h-11 min-w-11 flex-none lg:order-last"
-        aria-expanded={detailsOpen}
-        aria-controls={SHOW_DETAILS_PANEL_ID}
-        aria-label={detailsOpen ? 'Hide show details' : 'Show details'}
-        onClick={onToggleDetails}
-      >
-        <ChevronDown
-          className={cn('h-4 w-4 transition-transform', detailsOpen && 'rotate-180')}
-          aria-hidden="true"
-        />
-      </Button>
       <div className="flex w-full min-w-0 flex-wrap items-center gap-2 lg:w-auto lg:flex-initial lg:justify-end">
         {controls}
       </div>

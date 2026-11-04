@@ -358,6 +358,7 @@ function renderPage(showId = 'show-1', subPath = '', query = '') {
         <Routes>
           <Route path="/shows/:id" element={<ShowDetailsPage />}>
             <Route path="entries" element={<div data-testid="canonical-entries-child" />} />
+            <Route path="about" element={<div data-testid="canonical-about-child" />} />
           </Route>
         </Routes>
       </MemoryRouter>
@@ -867,7 +868,7 @@ describe('ShowDetailsPage', () => {
     expect(screen.queryByRole('button', { name: /more show actions/i })).toBeNull();
   });
 
-  it('gives a manager ONE row of four tabs and no standalone page links (MYK9-957)', () => {
+  it('gives a manager ONE row of five tabs and no standalone page links (MYK9-957)', () => {
     // MYK9-630 phase 2 (Richard: "there are 11 or more and difficult to tell if
     // they are tabs or links or buttons"). The five-link row above the old
     // six-tab strip is deleted: Show Desk, Entry Management, Reports, Results
@@ -878,7 +879,7 @@ describe('ShowDetailsPage', () => {
 
     expect(
       screen.getAllByRole('tab').map(tab => tab.textContent?.replace(/\d+$/, '').trim())
-    ).toEqual(['Overview', 'Entry Forms', 'Results', 'Reports']);
+    ).toEqual(['Show Desk', 'Entry Forms', 'Results', 'Reports', 'About']);
     expect(screen.queryByTestId('canonical-show-management-nav')).not.toBeInTheDocument();
     expect(screen.queryByRole('combobox', { name: /show management section/i })).toBeNull();
     for (const label of ['Show Desk', 'Entry Management', 'Reports', 'Results', 'Submit Results']) {
@@ -924,29 +925,22 @@ describe('ShowDetailsPage', () => {
     expect(screen.queryByRole('link', { name: /manage in workbench/i })).not.toBeInTheDocument();
   });
 
-  // Regression: the Show Desk publish exception links to #setup-publish on the
-  // primary Overview. The anchor must remain in the shared management shell so
-  // the exception lands on the existing publish cards rather than a dead route.
-  it('renders the #setup-publish anchor target on the primary Overview', () => {
-    // isSecretary=true makes canManageShow true, which is the gate the anchor
-    // renders under — so this also implicitly asserts that auth gate. If a
-    // refactor moves the anchor behind a different gate, expect this to fail.
-    mockAuthContext.isSecretary = true;
-    // mockShow (beforeEach) has no publishedPremiumUrl/At/experienceIsPublished,
-    // so the unpublished chip is what a secretary sees here.
+  // Regression: the Show Desk publish exception links to #setup-publish-premium. The cards' one
+  // home is the About tab (MYK9-1683), so the link must land there with its anchor intact, not on
+  // the Show Desk where nothing carries that id any more.
+  it.each(['setup-publish', 'setup-publish-premium', 'setup-publish-landing'])(
+    'sends a manager arriving at #%s to the About tab',
+    async anchor => {
+      mockAuthContext.isSecretary = true;
 
-    renderPage('show-1');
+      renderPage('show-1', '', `#${anchor}`);
 
-    expect(screen.queryByTestId('canonical-setup-child')).not.toBeInTheDocument();
-    const anchorTarget = document.getElementById('setup-publish');
-    expect(anchorTarget).toBeInTheDocument();
-    // The chips emit href="#setup-publish-premium" / "#setup-publish-landing"
-    // (see SetupAdaptiveHeader.test / setupReadinessSignals.test); matching
-    // elements holding the actual cards mean the fragment jump lands on the
-    // fix, not on an empty div.
-    expect(document.getElementById('setup-publish-premium')).toHaveTextContent('Premium List');
-    expect(document.getElementById('setup-publish-landing')).toBeInTheDocument();
-  });
+      expect(await screen.findByTestId('canonical-about-child')).toBeInTheDocument();
+      expect(screen.getByTestId('page-location')).toHaveTextContent(
+        `/shows/show-1/about#${anchor}`
+      );
+    }
+  );
 
   it('renders canonical child sections instead of styled landing for direct management URLs', () => {
     mockAuthContext.user = null;
@@ -1372,10 +1366,10 @@ describe('ShowDetailsPage', () => {
       expect(await screen.findByTestId('canonical-entries-child')).toBeInTheDocument();
     });
 
-    it('gets the four-tab management strip, like a secretary', () => {
+    it('gets the five-tab management strip, like a secretary', () => {
       renderPage();
 
-      for (const label of [/^Overview/, /^Entry Forms/, /^Results/, /^Reports/]) {
+      for (const label of [/^Show Desk/, /^Entry Forms/, /^Results/, /^Reports/, /^About/]) {
         expect(screen.getByRole('tab', { name: label })).toBeInTheDocument();
       }
     });

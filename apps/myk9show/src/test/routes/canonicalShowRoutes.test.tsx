@@ -143,6 +143,9 @@ vi.mock('@/pages/secretary/EntryManagementPage', () => ({
 vi.mock('@/pages/secretary/ReportsPage', () => ({
   default: () => <div data-testid="production-reports">Reports</div>,
 }));
+vi.mock('@/pages/secretary/ShowAboutPage', () => ({
+  default: () => <div data-testid="production-about">About</div>,
+}));
 vi.mock('@/pages/secretary/ShowResultsSection', () => ({
   default: () => <div data-testid="production-results">Results</div>,
 }));
@@ -156,12 +159,14 @@ const PRODUCTION_SECTION_TEST_IDS: Record<ShowManagementSectionPath, string> = {
   entries: 'production-entry-management',
   results: 'production-results',
   reports: 'production-reports',
+  about: 'production-about',
 };
 
 const HARNESS_SECTION_TEST_IDS: Record<ShowManagementSectionPath, string> = {
   entries: 'entries-section',
   results: 'results-section',
   reports: 'reports-section',
+  about: 'about-section',
 };
 
 function LocationProbe() {
@@ -203,6 +208,7 @@ function CanonicalShowRouteHarness() {
         <Route path="entries" element={<div data-testid="entries-section">Entries</div>} />
         <Route path="results" element={<div data-testid="results-section">Results</div>} />
         <Route path="reports" element={<div data-testid="reports-section">Reports</div>} />
+        <Route path="about" element={<div data-testid="about-section">About</div>} />
       </Route>
     </Routes>
   );

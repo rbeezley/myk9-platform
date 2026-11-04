@@ -50,6 +50,7 @@ const ShowDetailsPage = lazyWithRetry(() => import('@/pages/ShowDetailsPage'));
 const ShowsMasterDetailPage = lazyWithRetry(() => import('@/pages/ShowsMasterDetailPage'));
 const EntryManagementPage = lazyWithRetry(() => import('@/pages/secretary/EntryManagementPage'));
 const ReportsPage = lazyWithRetry(() => import('@/pages/secretary/ReportsPage'));
+const ShowAboutPage = lazyWithRetry(() => import('@/pages/secretary/ShowAboutPage'));
 const ShowResultsSection = lazyWithRetry(() => import('@/pages/secretary/ShowResultsSection'));
 const TrialDetailsPage = lazyWithRetry(() => import('@/pages/TrialDetailsPage'));
 const ClassDetailsPage = lazyWithRetry(() => import('@/pages/ClassDetailsPage'));
@@ -89,6 +90,7 @@ const SHOW_MANAGEMENT_SECTION_ELEMENTS: Record<ShowManagementSectionPath, ReactN
   entries: <EntryManagementPage />,
   results: <ShowResultsSection />,
   reports: <ReportsPage />,
+  about: <ShowAboutPage />,
 };
 
 function ShowManagementSectionRoute({ children }: { children: ReactNode }) {

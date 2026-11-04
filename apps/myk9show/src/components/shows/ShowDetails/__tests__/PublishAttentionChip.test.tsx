@@ -19,11 +19,12 @@ describe('PublishAttentionChip', () => {
     control.value = { infoState: 'ready', hasPublishedPremium: false, landingUnpublished: false };
   });
 
-  it('says the premium list is not published, and opens the details panel on click', () => {
+  it('says the premium list is not published, and opens About on the premium card on click', () => {
     const onOpen = vi.fn();
     render(<PublishAttentionChip showId="show-1" canManageShow onOpen={onOpen} />);
     fireEvent.click(screen.getByRole('button', { name: 'premium list not yet published' }));
     expect(onOpen).toHaveBeenCalledTimes(1);
+    expect(onOpen).toHaveBeenCalledWith('setup-publish-premium');
   });
 
   it('says the landing page is not published once the premium list is', () => {

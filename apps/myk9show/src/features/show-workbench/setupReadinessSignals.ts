@@ -3,6 +3,7 @@ import type { SyncableTrial } from '@/store/trial-store-types';
 import { classifyPremiumPublishState, type PremiumPublishStateInput } from './premiumPublishState';
 import {
   isShowListingLive,
+  LANDING_CARD_ANCHOR,
   PREMIUM_CARD_ANCHOR,
   SHOW_STATUS_CONTROL_ANCHOR,
 } from './publishReadiness';
@@ -24,10 +25,17 @@ export interface SetupReadinessSignal {
   href: string;
 }
 
-// Anchor id for the publish section. The cards render in the shared manager
-// shell on the primary Overview, so exception links can land on the existing
-// publishing controls without reviving a Setup-only destination.
+// Anchor id for the publish section. The cards live on the About tab (MYK9-1683),
+// so exception links land on the existing publishing controls without reviving
+// a Setup-only destination.
 export const SETUP_PUBLISH_ANCHOR = 'setup-publish';
+
+/** Hash targets on the About tab: a link to one of them opens About and scrolls to it. */
+export const PUBLISH_PANEL_ANCHORS: ReadonlySet<string> = new Set([
+  SETUP_PUBLISH_ANCHOR,
+  PREMIUM_CARD_ANCHOR,
+  LANDING_CARD_ANCHOR,
+]);
 
 /** The only class fact the signals read; the full Show Desk class row is assignable to it. */
 export interface SetupReadinessClass {

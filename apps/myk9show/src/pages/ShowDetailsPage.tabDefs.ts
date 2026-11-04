@@ -17,7 +17,15 @@
  * `view_public_entry_results` so unreleased placements never arrive (MYK9-419).
  */
 
-import { LayoutDashboard, Trophy, ListChecks, ClipboardList, Medal, FileText } from 'lucide-react';
+import {
+  LayoutDashboard,
+  Trophy,
+  ListChecks,
+  ClipboardList,
+  Medal,
+  FileText,
+  Info,
+} from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { SHOW_TABS, type ShowTabId } from '@/routes/showManagementSections';
 import { type PrimaryTabDef } from '@/components/common/PrimaryTabs';
@@ -53,6 +61,7 @@ const SHOW_TAB_ICONS: Record<ShowTabId, LucideIcon> = {
   entries: ClipboardList,
   results: Medal,
   reports: FileText,
+  about: Info,
 };
 
 export interface ShowDetailTabDefsInput {

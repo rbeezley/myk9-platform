@@ -18,8 +18,7 @@ const baseUrl =
 /**
  * The show's facts on the secretary's home (MYK9-955): officials, judges and sharing, with "Edit
  * show" (opens the existing edit panel) and "View as exhibitor" (the public preview, which carries
- * its own way back). It lives in the show header's details panel, which is already folded, so it
- * is not a second disclosure.
+ * its own way back). It lives on the About tab (MYK9-1683), which is read-only: "Edit show" is the one way in.
  */
 export function AboutThisShowCard({
   show,

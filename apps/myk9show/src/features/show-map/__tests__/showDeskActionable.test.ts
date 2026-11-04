@@ -2,34 +2,30 @@ import { describe, expect, it } from 'vitest';
 import { computeShowDeskActionable } from '../showDeskActionable';
 
 describe('computeShowDeskActionable', () => {
-  it('sums incidents + hospitality + tasks into one count', () => {
+  it('sums incidents + tasks into one count', () => {
     const result = computeShowDeskActionable({
       incidentReportableCount: 2,
-      hospitalityReminderCount: 3,
       tasksOpenCount: 4,
     });
 
-    expect(result.count).toBe(9);
+    expect(result.count).toBe(6);
   });
 
-  // Regression guard: the bug this change fixes is that ONLY incidents reached
-  // the trigger badge. These assertions prove hospitality and tasks each move
-  // the count on their own, with no incident present.
-  it('reflects hospitality reminders even when there are no incidents', () => {
-    const result = computeShowDeskActionable({
+  // MYK9-1694: lunch planning is not an action item. The signals type has no hospitality
+  // term, and a stray one passed through a cast must not move the badge.
+  it('ignores any hospitality figure: lunch planning never counts toward the badge', () => {
+    const signals = {
       incidentReportableCount: 0,
-      hospitalityReminderCount: 5,
       tasksOpenCount: 0,
-    });
+      hospitalityReminderCount: 7,
+    };
 
-    expect(result.count).toBe(5);
-    expect(result.tone).toBe('routine');
+    expect(computeShowDeskActionable(signals).count).toBe(0);
   });
 
   it('reflects open tasks even when there are no incidents', () => {
     const result = computeShowDeskActionable({
       incidentReportableCount: 0,
-      hospitalityReminderCount: 0,
       tasksOpenCount: 3,
     });
 
@@ -37,21 +33,9 @@ describe('computeShowDeskActionable', () => {
     expect(result.tone).toBe('routine');
   });
 
-  it('counts hospitality + tasks together without any incident', () => {
-    const result = computeShowDeskActionable({
-      incidentReportableCount: 0,
-      hospitalityReminderCount: 2,
-      tasksOpenCount: 6,
-    });
-
-    expect(result.count).toBe(8);
-    expect(result.tone).toBe('routine');
-  });
-
   it('is zero and routine when nothing is actionable', () => {
     const result = computeShowDeskActionable({
       incidentReportableCount: 0,
-      hospitalityReminderCount: 0,
       tasksOpenCount: 0,
     });
 
@@ -62,11 +46,10 @@ describe('computeShowDeskActionable', () => {
   it('escalates to the urgent tone only when a reportable incident exists', () => {
     const result = computeShowDeskActionable({
       incidentReportableCount: 1,
-      hospitalityReminderCount: 4,
       tasksOpenCount: 0,
     });
 
-    expect(result.count).toBe(5);
+    expect(result.count).toBe(1);
     expect(result.tone).toBe('urgent');
   });
 });
@@ -82,7 +65,6 @@ describe('computeShowDeskActionable — unread sources (audit H2)', () => {
   it('marks the result incomplete when incidents could not be read', () => {
     const result = computeShowDeskActionable({
       incidentReportableCount: null,
-      hospitalityReminderCount: 0,
       tasksOpenCount: 0,
     });
 
@@ -93,7 +75,6 @@ describe('computeShowDeskActionable — unread sources (audit H2)', () => {
   it('marks the result incomplete when tasks could not be read', () => {
     const result = computeShowDeskActionable({
       incidentReportableCount: 0,
-      hospitalityReminderCount: 0,
       tasksOpenCount: null,
     });
 
@@ -103,7 +84,6 @@ describe('computeShowDeskActionable — unread sources (audit H2)', () => {
   it('is complete when every source was read, even at zero', () => {
     const result = computeShowDeskActionable({
       incidentReportableCount: 0,
-      hospitalityReminderCount: 0,
       tasksOpenCount: 0,
     });
 
@@ -113,18 +93,16 @@ describe('computeShowDeskActionable — unread sources (audit H2)', () => {
   it('still counts what it did read, so partial knowledge is not discarded', () => {
     const result = computeShowDeskActionable({
       incidentReportableCount: null,
-      hospitalityReminderCount: 2,
       tasksOpenCount: 3,
     });
 
-    expect(result.count).toBe(5);
+    expect(result.count).toBe(3);
     expect(result.incomplete).toBe(true);
   });
 
   it('does not claim urgency it cannot substantiate', () => {
     const result = computeShowDeskActionable({
       incidentReportableCount: null,
-      hospitalityReminderCount: 1,
       tasksOpenCount: 0,
     });
 

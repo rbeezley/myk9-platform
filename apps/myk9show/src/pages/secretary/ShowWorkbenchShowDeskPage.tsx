@@ -11,7 +11,7 @@ import { trialSecretaryOnlyReason } from '@/features/actions/trialSecretaryAcces
 import { useShowDeskToolsRegistration } from '@/features/actions/pageEditTarget';
 import { TrialSecretaryAccessProvider } from '@/features/actions/TrialSecretaryAccessContext';
 import { ShowAccessCodesCard } from '@/components/secretary/ShowAccessCodesCard';
-import { JudgeHospitalityCard } from '@/features/show-workbench/JudgeHospitalityCard';
+import { LunchOrdersTool } from '@/features/lunch-orders/LunchOrdersTool';
 import { IncidentLogCard } from '@/features/show-workbench/IncidentLogCard';
 import { EmergencyTrialPacketTool } from '@/features/emergency-trial-packet/EmergencyTrialPacketTool';
 import { TasksNotesCard } from '@/features/show-workbench/TasksNotesCard';
@@ -29,7 +29,6 @@ import {
   showIncidentCloseoutQueryKey,
 } from '@/services/database/show-incidents';
 import { summarizeShowIncidents } from '@/features/show-workbench/showIncidents';
-import { useJudgeHospitalityReminderCount } from '@/features/show-workbench/useJudgeHospitalityReminderCount';
 import { useSecretaryTasks } from '@/hooks/queries/useSecretaryTasks';
 import type { SecretaryTask } from '@/pages/secretary/SecretaryDashboardPage/types';
 import { computeShowDeskActionable } from '@/features/show-map/showDeskActionable';
@@ -191,13 +190,6 @@ function ShowWorkbenchShowDeskBody() {
     [currentShow?.assignedJudges, showClasses, showJudgeRoster]
   );
 
-  // Stable id/name list shared by the hospitality card content and the
-  // reminder-count hook so the trigger badge and the card never disagree.
-  const hospitalityJudges = useMemo(
-    () => effectiveJudges.map(judge => ({ id: judge.judgeId, name: judge.judgeName })),
-    [effectiveJudges]
-  );
-
   const incidentEntryOptions = useMemo(() => {
     const classById = new Map(showClasses.map(cls => [cls.id, cls]));
     return showMapEntries
@@ -233,14 +225,8 @@ function ShowWorkbenchShowDeskBody() {
   }, [incidentSummary]);
 
   // Aggregate every attention-worthy tool into one ambient signal for the
-  // Actions trigger badge. Without this, hospitality reminders and open
-  // tasks were invisible until the secretary opened a tool. Tasks share the
-  // React Query cache with TasksNotesCard; hospitality reads the same
-  // localStorage the card writes (kept live via useJudgeHospitalityReminderCount).
-  const hospitalityReminderCount = useJudgeHospitalityReminderCount(
-    showId ?? '',
-    hospitalityJudges
-  );
+  // Actions trigger badge. Without this, open tasks were invisible until the
+  // secretary opened a tool. Tasks share the React Query cache with TasksNotesCard.
   const { data: showTasksData } = useSecretaryTasks(showId);
   const showTasks = useMemo(() => showTasksData ?? EMPTY_TASKS, [showTasksData]);
   /**
@@ -260,10 +246,9 @@ function ShowWorkbenchShowDeskBody() {
     () =>
       computeShowDeskActionable({
         incidentReportableCount: incidentsKnown ? incidentSummary.reportableCount : null,
-        hospitalityReminderCount,
         tasksOpenCount,
       }),
-    [hospitalityReminderCount, incidentsKnown, incidentSummary.reportableCount, tasksOpenCount]
+    [incidentsKnown, incidentSummary.reportableCount, tasksOpenCount]
   );
 
   // The order inside each group is the order in the sheet (MYK9-954).
@@ -335,11 +320,12 @@ function ShowWorkbenchShowDeskBody() {
         content: <VolunteersCard showId={currentShow.id} disabledReason={secretaryOnlyReason} />,
       },
       {
-        id: 'judge-hospitality',
+        id: 'lunch-orders',
         group: 'show-logistics',
-        title: 'Judge hospitality',
-        summary: 'Track judge meals, breaks, and show-day notes',
-        content: <JudgeHospitalityCard showId={currentShow.id} judges={hospitalityJudges} />,
+        title: 'Lunch orders',
+        summary: 'Plan lunch for everyone working each day',
+        // Planning only: no attentionLabel, and nothing here feeds the Actions badge (MYK9-1694).
+        content: <LunchOrdersTool showId={currentShow.id} trials={associatedTrials} />,
       },
       {
         id: 'tasks-notes',
@@ -373,7 +359,6 @@ function ShowWorkbenchShowDeskBody() {
     associatedTrials,
     currentShow,
     effectiveJudges,
-    hospitalityJudges,
     incidentAttentionLabel,
     incidentEntryOptions,
     showClasses,

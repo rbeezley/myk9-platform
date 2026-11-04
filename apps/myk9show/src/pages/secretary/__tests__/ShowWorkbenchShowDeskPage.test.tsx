@@ -123,10 +123,6 @@ vi.mock('@/services/database/show-incidents', () => ({
   listShowIncidentCloseout: vi.fn(async () => []),
 }));
 
-vi.mock('@/features/show-workbench/useJudgeHospitalityReminderCount', () => ({
-  useJudgeHospitalityReminderCount: () => 0,
-}));
-
 vi.mock('@/hooks/queries/useSecretaryTasks', () => ({
   useSecretaryTasks: () => ({ data: [] }),
 }));
@@ -395,7 +391,7 @@ describe('ShowWorkbenchShowDeskPage', () => {
       'show-day:access-codes',
       'show-day:emergency-trial-packet',
       'show-logistics:volunteers',
-      'show-logistics:judge-hospitality',
+      'show-logistics:lunch-orders',
       'show-logistics:tasks-notes',
       'show-logistics:incident-log',
     ]);

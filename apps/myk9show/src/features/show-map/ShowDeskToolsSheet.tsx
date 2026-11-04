@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   Sheet,
@@ -7,8 +7,18 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
+import { ConfirmDialog } from '@/components/ui/alert-dialog';
+import { UnsavedChangesRouteGuard } from '@/components/navigation/UnsavedChangesRouteGuard';
 import { cn } from '@/lib/utils';
+import { ShowDeskCloseGuardContext } from './showDeskCloseGuard';
 import { SHOW_DESK_TOOL_PARAM, type ShowToolItem } from '@/features/actions/showToolActions';
+
+const LEAVE_COPY = {
+  title: 'You have unsaved lunch orders. Leave without saving?',
+  description: 'Anything not saved will be lost.',
+  stayLabel: 'Stay',
+  leaveLabel: 'Leave',
+};
 
 /** A show tool as the page composes it: the header's metadata plus the panel's content. */
 export interface ShowDeskToolSection extends ShowToolItem {
@@ -33,37 +43,83 @@ export function ShowDeskToolPanel({ tools }: ShowDeskToolPanelProps) {
   const requestedId = searchParams.get(SHOW_DESK_TOOL_PARAM);
   const tool = requestedId ? tools.find(candidate => candidate.id === requestedId) : undefined;
 
+  // A tool with unsaved work reports it through useShowDeskCloseGuard; closing then asks first.
+  const [dirty, setDirty] = useState(false);
+  const [confirmingLeave, setConfirmingLeave] = useState(false);
+
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirty]);
+
+  // The panel's own close (after the person chose Leave) must not trip the router guard below,
+  // which stops everything else: browser Back and switching to another `?tool=`.
+  const selfNavigation = useRef(0);
+  const closeTool = () => {
+    selfNavigation.current += 1;
+    try {
+      setSearchParams(
+        current => {
+          const next = new URLSearchParams(current);
+          next.delete(SHOW_DESK_TOOL_PARAM);
+          return next;
+        },
+        { replace: true }
+      );
+    } finally {
+      selfNavigation.current -= 1;
+    }
+  };
+
   const handleOpenChange = (open: boolean) => {
     if (open) return;
-    setSearchParams(
-      current => {
-        const next = new URLSearchParams(current);
-        next.delete(SHOW_DESK_TOOL_PARAM);
-        return next;
-      },
-      { replace: true }
-    );
+    if (dirty) {
+      setConfirmingLeave(true);
+      return;
+    }
+    closeTool();
   };
 
   return (
-    <Sheet open={tool !== undefined} onOpenChange={handleOpenChange}>
-      {tool && (
-        <SheetContent
-          side="right"
-          className={cn(
-            'flex w-full flex-col gap-0 overflow-hidden p-0',
-            tool.layout === 'wide' ? 'sm:max-w-2xl lg:max-w-3xl xl:max-w-4xl' : 'sm:max-w-md'
-          )}
-          data-layout={tool.layout === 'wide' ? 'wide' : 'compact'}
-          data-testid="show-desk-tool-panel"
-        >
-          <SheetHeader className="border-b px-6 py-4 text-left">
-            <SheetTitle>{tool.title}</SheetTitle>
-            <SheetDescription>{tool.summary}</SheetDescription>
-          </SheetHeader>
-          <div className="flex-1 overflow-y-auto px-6 py-4">{tool.content}</div>
-        </SheetContent>
-      )}
-    </Sheet>
+    <ShowDeskCloseGuardContext.Provider value={setDirty}>
+      <UnsavedChangesRouteGuard
+        isDirty={dirty}
+        subject="lunch orders"
+        dialog={LEAVE_COPY}
+        selfNavigationRef={selfNavigation}
+      />
+      <Sheet open={tool !== undefined} onOpenChange={handleOpenChange}>
+        {tool && (
+          <SheetContent
+            side="right"
+            className={cn(
+              'flex w-full flex-col gap-0 overflow-hidden p-0',
+              tool.layout === 'wide' ? 'sm:max-w-2xl lg:max-w-3xl xl:max-w-4xl' : 'sm:max-w-md'
+            )}
+            data-layout={tool.layout === 'wide' ? 'wide' : 'compact'}
+            data-testid="show-desk-tool-panel"
+          >
+            <SheetHeader className="border-b px-6 py-4 text-left">
+              <SheetTitle>{tool.title}</SheetTitle>
+              <SheetDescription>{tool.summary}</SheetDescription>
+            </SheetHeader>
+            <div className="flex-1 overflow-y-auto px-6 py-4">{tool.content}</div>
+          </SheetContent>
+        )}
+      </Sheet>
+      <ConfirmDialog
+        open={confirmingLeave}
+        onOpenChange={setConfirmingLeave}
+        title={LEAVE_COPY.title}
+        confirmLabel={LEAVE_COPY.leaveLabel}
+        cancelLabel={LEAVE_COPY.stayLabel}
+        onConfirm={() => {
+          setDirty(false);
+          closeTool();
+        }}
+      />
+    </ShowDeskCloseGuardContext.Provider>
   );
 }

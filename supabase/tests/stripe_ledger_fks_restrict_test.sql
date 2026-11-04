@@ -183,7 +183,8 @@ BEGIN
   PERFORM set_config('request.jwt.claim.sub', admin_auth_id::text, true);
   PERFORM set_config(
     'request.jwt.claims',
-    jsonb_build_object('sub', admin_auth_id, 'role', 'authenticated')::text,
+    jsonb_build_object('sub', admin_auth_id, 'role', 'authenticated',
+      'amr', jsonb_build_array(jsonb_build_object('method', 'password', 'timestamp', extract(epoch FROM now())::bigint)))::text,
     true
   );
 

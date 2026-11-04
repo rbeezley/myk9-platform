@@ -225,6 +225,7 @@ TEST_FILES=(
   "$TEST_DIR/myk9_1327_set_class_judge_test.sql"
   "$TEST_DIR/myk9_1327_one_judge_per_class_test.sql"
   "$TEST_DIR/myk9_1472_hard_delete_show_money_guards_test.sql"
+  "$TEST_DIR/myk9_1588_hard_delete_show_reauth_test.sql"
   "$TEST_DIR/myk9_1473_coin_flip_tie_order_test.sql"
   "$TEST_DIR/golden_replay_trial_27835_test.sql"
 )

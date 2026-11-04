@@ -160,7 +160,7 @@ run_rpc() {
   PGAPPNAME="$app_name" psql "$DATABASE_URL" -X -v VERBOSITY=verbose -v ON_ERROR_STOP=1 <<SQL
 BEGIN;
 SELECT pg_catalog.set_config('request.jwt.claim.sub', '$ADMIN_AUTH_ID', true);
-SELECT pg_catalog.set_config('request.jwt.claims', '{"sub":"$ADMIN_AUTH_ID","role":"authenticated"}', true);
+SELECT pg_catalog.set_config('request.jwt.claims', jsonb_build_object('sub', '$ADMIN_AUTH_ID', 'role', 'authenticated', 'amr', jsonb_build_array(jsonb_build_object('method', 'password', 'timestamp', extract(epoch FROM pg_catalog.now())::bigint)))::text, true);
 SELECT public.hard_delete_show('$show_id');
 COMMIT;
 SQL
@@ -172,7 +172,7 @@ run_deadlock_rpc() {
 BEGIN;
 SET LOCAL deadlock_timeout = '500ms';
 SELECT pg_catalog.set_config('request.jwt.claim.sub', '$ADMIN_AUTH_ID', true);
-SELECT pg_catalog.set_config('request.jwt.claims', '{"sub":"$ADMIN_AUTH_ID","role":"authenticated"}', true);
+SELECT pg_catalog.set_config('request.jwt.claims', jsonb_build_object('sub', '$ADMIN_AUTH_ID', 'role', 'authenticated', 'amr', jsonb_build_array(jsonb_build_object('method', 'password', 'timestamp', extract(epoch FROM pg_catalog.now())::bigint)))::text, true);
 SELECT public.hard_delete_show('$show_id');
 COMMIT;
 SQL
@@ -318,7 +318,7 @@ start_schema_ddl_race() {
     >"$scratch_dir/schema-ddl-rpc.log" 2>&1 <<SQL &
 BEGIN;
 SELECT pg_catalog.set_config('request.jwt.claim.sub', '$ADMIN_AUTH_ID', true);
-SELECT pg_catalog.set_config('request.jwt.claims', '{"sub":"$ADMIN_AUTH_ID","role":"authenticated"}', true);
+SELECT pg_catalog.set_config('request.jwt.claims', jsonb_build_object('sub', '$ADMIN_AUTH_ID', 'role', 'authenticated', 'amr', jsonb_build_array(jsonb_build_object('method', 'password', 'timestamp', extract(epoch FROM pg_catalog.now())::bigint)))::text, true);
 SELECT public.hard_delete_show('$ddl_show_id');
 SELECT pg_sleep(3);
 COMMIT;

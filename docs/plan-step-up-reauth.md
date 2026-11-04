@@ -54,6 +54,17 @@ delete user", "the invitation could not be sent"). No cron, webhook, script or s
 invokes any of the three, so no exemption is needed. `stepUpReauthParity.test.ts` holds the
 declared list of every gated edge caller across both trees.
 
+### Permanent show delete (MYK9-1588)
+
+| UI entry point                                                                                          | Server path                               | Gate placed                                                |
+| ------------------------------------------------------------------------------------------------------- | ----------------------------------------- | ---------------------------------------------------------- |
+| Site-admin permanent show delete: `services/database/shows/writes.ts` `hardDeleteShow` (Data Lifecycle) | `hard_delete_show` RPC (SECURITY DEFINER) | after the site-admin check, before the lock and any delete |
+
+A permanent show delete cannot be undone, so it meets this plan's criterion like the permanent
+user delete does. `hardDeleteShow` is `supabase.rpc` on the one app client, so `stepUpFetch.ts`
+prompts on `MKAUT` and replays with no call-site change. `myk9_1588_hard_delete_show_reauth_test.sql`
+covers stale, missing and fresh proof.
+
 ### Deliberately not gated
 
 - `grant_show_official` / `revoke_show_official`: naming someone on a show's paperwork. Since

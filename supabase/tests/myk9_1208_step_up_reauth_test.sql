@@ -122,6 +122,76 @@ BEGIN
 END;
 $$;
 
+-- MYK9-1585: a revoke records when access ended, not just that it did.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM public.user_roles ur JOIN public.roles r ON r.id = ur.role_id
+    WHERE ur.user_id = '00000000-0000-0000-0000-000000120813'
+      AND ur.club_id = '00000000-0000-0000-0000-000000120801'
+      AND r.name = 'secretary' AND ur.is_active = false
+      AND ur.deactivated_at IS NOT NULL
+  ) THEN
+    RAISE EXCEPTION 'FAIL revoke_club_secretary left deactivated_at NULL';
+  END IF;
+  RAISE NOTICE 'PASS revoke_club_secretary stamps deactivated_at';
+END;
+$$;
+
+-- MYK9-1585: re-granting the same secretary clears the stamp (active row, no deactivated_at).
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000120821', true);
+SELECT set_config('request.jwt.claims', jsonb_build_object(
+  'sub', '00000000-0000-0000-0000-000000120821', 'role', 'authenticated', 'amr', jsonb_build_array(jsonb_build_object(
+    'method', 'password', 'timestamp', extract(epoch FROM now())::bigint - 30)))::text, true);
+
+SELECT public.grant_club_secretary(
+  '00000000-0000-0000-0000-000000120813', '00000000-0000-0000-0000-000000120801');
+
+RESET ROLE;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM public.user_roles ur JOIN public.roles r ON r.id = ur.role_id
+    WHERE ur.user_id = '00000000-0000-0000-0000-000000120813'
+      AND ur.club_id = '00000000-0000-0000-0000-000000120801'
+      AND r.name = 'secretary' AND ur.is_active = true
+      AND ur.deactivated_at IS NULL
+  ) THEN
+    RAISE EXCEPTION 'FAIL re-grant left deactivated_at set on an active row';
+  END IF;
+  RAISE NOTICE 'PASS re-grant clears deactivated_at (trigger)';
+END;
+$$;
+
+-- MYK9-1585: a direct reactivation as the table owner clears the stamp too, and a plain
+-- deactivation does not stamp (only the revoke functions do).
+DO $$
+DECLARE
+  v_stamp timestamptz;
+  v_id uuid;
+BEGIN
+  SELECT ur.id INTO v_id FROM public.user_roles ur
+  WHERE ur.user_id = '00000000-0000-0000-0000-000000120813'
+    AND ur.club_id = '00000000-0000-0000-0000-000000120801';
+
+  UPDATE public.user_roles SET is_active = false WHERE id = v_id;
+  SELECT deactivated_at INTO v_stamp FROM public.user_roles WHERE id = v_id;
+  IF v_stamp IS NOT NULL THEN
+    RAISE EXCEPTION 'FAIL a bare deactivation stamped deactivated_at';
+  END IF;
+
+  UPDATE public.user_roles SET deactivated_at = now() WHERE id = v_id;
+  UPDATE public.user_roles SET is_active = true WHERE id = v_id;
+  SELECT deactivated_at INTO v_stamp FROM public.user_roles WHERE id = v_id;
+  IF v_stamp IS NOT NULL THEN
+    RAISE EXCEPTION 'FAIL a direct reactivation left deactivated_at set';
+  END IF;
+  RAISE NOTICE 'PASS direct reactivation clears deactivated_at; bare deactivation does not stamp';
+END;
+$$;
+
 -- 3. Someone who was never allowed reads "not allowed", not a password prompt.
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000120824', true);

@@ -12,14 +12,8 @@ import {
 import { useShowOfficials } from '@/hooks/queries/useShowOfficials';
 import { useTrialJudges } from '@/features/judge-supplies/useTrialJudges';
 import { collectLunchCandidates } from './lunchCandidates';
-import { LunchOrderRow, type LunchOrderPatch } from './LunchOrderRow';
-import {
-  buildLunchOrderList,
-  LUNCH_NAME_MAX,
-  LUNCH_ROLES,
-  type LunchListItem,
-  type LunchRole,
-} from './lunchOrders';
+import { LunchOrderRow } from './LunchOrderRow';
+import { buildLunchOrderList, LUNCH_NAME_MAX, LUNCH_ROLES, type LunchRole } from './lunchOrders';
 import { useTrialLunchOrders, type VolunteersOnDaysResult } from './useLunchOrders';
 
 interface LunchOrdersDayProps {
@@ -57,16 +51,6 @@ export function LunchOrdersDay({ showId, trialId, volunteers }: LunchOrdersDayPr
       volunteers: volunteers.data ?? [],
     })
   );
-
-  async function saveItem(item: LunchListItem, patch: LunchOrderPatch) {
-    await save.mutateAsync({
-      savedId: item.savedId,
-      personId: item.personId,
-      name: item.name,
-      role: item.role,
-      ...patch,
-    });
-  }
 
   async function addPerson() {
     const name = newName.trim();
@@ -119,7 +103,7 @@ export function LunchOrdersDay({ showId, trialId, volunteers }: LunchOrdersDayPr
             <LunchOrderRow
               key={item.key}
               item={item}
-              onSave={saveItem}
+              trialId={trialId}
               onRemove={async target => {
                 if (target.savedId) await remove.mutateAsync(target.savedId);
               }}

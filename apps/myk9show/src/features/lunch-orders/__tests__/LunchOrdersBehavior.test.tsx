@@ -52,11 +52,10 @@ describe('LunchOrderRow edits', () => {
   });
 
   it('follows a newer server value on an untouched field and saves only the field typed', async () => {
-    const onSave = vi.fn().mockResolvedValue(undefined);
     const user = userEvent.setup();
     const { rerender } = render(
       <ul>
-        <LunchOrderRow item={item} onSave={onSave} />
+        <LunchOrderRow item={item} trialId="trial-1" />
       </ul>
     );
 
@@ -65,7 +64,7 @@ describe('LunchOrderRow edits', () => {
       <ul>
         <LunchOrderRow
           item={{ ...item, lunchOrder: 'Salad', dietaryNote: 'No dairy' }}
-          onSave={onSave}
+          trialId="trial-1"
         />
       </ul>
     );
@@ -75,23 +74,29 @@ describe('LunchOrderRow edits', () => {
     await user.type(screen.getByLabelText('Lunch order for Jo Judge'), '!');
     await user.tab();
 
-    expect(onSave).toHaveBeenCalledTimes(1);
-    expect(onSave).toHaveBeenCalledWith(expect.anything(), { lunchOrder: 'Salad!' });
+    await waitFor(() => expect(mocks.save).toHaveBeenCalledTimes(1));
+    expect(mocks.save).toHaveBeenCalledWith({
+      trialId: 'trial-1',
+      savedId: 'row-1',
+      personId: 'p-1',
+      name: 'Jo Judge',
+      role: 'judge',
+      lunchOrder: 'Salad!',
+    });
   });
 
   it('keeps text being typed when a refetch brings a different server value', async () => {
-    const onSave = vi.fn().mockResolvedValue(undefined);
     const user = userEvent.setup();
     const { rerender } = render(
       <ul>
-        <LunchOrderRow item={item} onSave={onSave} />
+        <LunchOrderRow item={item} trialId="trial-1" />
       </ul>
     );
 
     await user.type(screen.getByLabelText('Lunch order for Jo Judge'), 'X');
     rerender(
       <ul>
-        <LunchOrderRow item={{ ...item, lunchOrder: 'Soup' }} onSave={onSave} />
+        <LunchOrderRow item={{ ...item, lunchOrder: 'Soup' }} trialId="trial-1" />
       </ul>
     );
 
@@ -147,7 +152,7 @@ describe('LunchOrderRow edits', () => {
     const user = userEvent.setup();
     render(
       <ul>
-        <LunchOrderRow item={{ ...item, assigned: false }} onSave={vi.fn()} onRemove={onRemove} />
+        <LunchOrderRow item={{ ...item, assigned: false }} trialId="trial-1" onRemove={onRemove} />
       </ul>
     );
 

@@ -44,6 +44,7 @@ import { EntryDecisionEmailStatusBadge } from '@/features/lifecycle-emails';
 import type { EntryListCardProps } from './EntryListCard.types';
 import { EntryStatusPopover } from './EntryStatusPopover';
 import { formatTrialLabel } from './entryFormTrialSummary';
+import { useEntryChangeClass } from './useEntryChangeClass';
 
 export const EntryListCard: React.FC<EntryListCardProps> = ({
   entries,
@@ -86,6 +87,8 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
     open: boolean;
     entry: EntryManagementEntry | null;
   }>({ open: false, entry: null });
+
+  const changeClass = useEntryChangeClass(entries[0]?.showId ?? '', entries);
 
   const openWithdrawalDialog = (entryId: string) => {
     setWithdrawalDialog({ open: true, entryId });
@@ -166,6 +169,7 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                     onSelect: () => onOpenEditEntry?.(entry),
                     hidden: !onOpenEditEntry,
                   },
+                  changeClass.actionFor(entry),
                   {
                     id: 'remove',
                     label: 'Remove entry',
@@ -434,6 +438,7 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
           <CardContent>{entryList}</CardContent>
         </Card>
       )}
+      {changeClass.dialog}
       <WithdrawalReasonDialog
         open={withdrawalDialog.open}
         onOpenChange={open =>

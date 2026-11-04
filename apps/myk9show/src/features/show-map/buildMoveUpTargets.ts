@@ -63,7 +63,7 @@ export function buildMoveUpClassLabeler(
 /**
  * When `availableSpotsByClassId` is supplied, a class with no free seat stays
  * listed, flagged `isFull`. Capacity is advisory: the write path refuses a full
- * class either way.
+ * class either way. Classes in the source class's own trial are listed first.
  */
 export function buildMoveUpTargets(
   classes: BuildShowMapTreeInput['classes'],
@@ -79,10 +79,13 @@ export function buildMoveUpTargets(
   const orderKey = (cls: (typeof targets)[number]['cls']) =>
     `${cls.trialDate ?? ''}|${cls.trialNumber ?? ''}|${cls.trialId}`;
 
+  // The common change is a move-up inside the dog's own trial, so those come first.
+  const currentTrialId = classes.find(cls => cls.id === currentClassId)?.trialId;
+
   return targets
     .map(({ cls, isFull }) => {
       return {
-        key: orderKey(cls),
+        key: `${cls.trialId === currentTrialId ? '0' : '1'}|${orderKey(cls)}`,
         target: {
           id: cls.id,
           isFull,

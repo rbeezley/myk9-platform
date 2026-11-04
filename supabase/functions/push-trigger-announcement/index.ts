@@ -1,5 +1,5 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
-import webpush from 'npm:web-push@3';
+import webpush from 'npm:web-push@3.6.7';
 
 import { assertAudienceQuerySucceeded } from '../_shared/fanoutErrors.ts';
 import type { EntryAudienceRow, RolePersonRow } from '../_shared/entryAudience.ts';

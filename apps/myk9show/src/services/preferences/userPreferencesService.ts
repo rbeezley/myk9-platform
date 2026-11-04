@@ -4,12 +4,7 @@
  * Preferences are stored as a single JSONB blob in the `preferences` column.
  */
 
-import type {
-  UserPreferences,
-  PreferencesUpdate,
-  DeviceOverrides,
-  ThemePreferences,
-} from '@/types/user-preferences';
+import type { UserPreferences, PreferencesUpdate, DeviceOverrides } from '@/types/user-preferences';
 import {
   DEFAULT_THEME_PREFERENCES,
   DEFAULT_COMPETITION_PREFERENCES,
@@ -142,34 +137,14 @@ function toStoredPreferences(prefs: UserPreferences): StoredPreferences {
   return stored;
 }
 
-/**
- * Per-field last-write-wins at the write (MYK9-1545): a theme field carrying a
- * change time replaces the stored value only when that time is newer than the
- * stored one, so an older device edit that lands late never undoes a newer one.
- * Fields sent without a time (resets, legacy callers) always apply.
- */
-export function newerThemeFields(
-  incoming: Partial<ThemePreferences>,
-  times: Record<string, number> | undefined,
-  current: UserPreferences
-): Partial<ThemePreferences> {
-  if (!times) return incoming;
-  return Object.fromEntries(
-    Object.entries(incoming).filter(
-      ([field]) =>
-        !(times[field] !== undefined && (current.themeChangedAt?.[field] ?? 0) > times[field])
-    )
-  ) as Partial<ThemePreferences>;
-}
-
-export function newerFieldTimes(
-  stored: Record<string, number> | undefined,
-  incoming: Record<string, number>
-): Record<string, number> {
-  const next = { ...stored };
-  for (const [field, at] of Object.entries(incoming)) next[field] = Math.max(next[field] ?? 0, at);
-  return next;
-}
+const MERGE_CATEGORIES = [
+  'theme',
+  'competition',
+  'notifications',
+  'data',
+  'privacy',
+  'deviceOverrides',
+] as const;
 
 export class UserPreferencesService {
   private static instance: UserPreferencesService;
@@ -228,6 +203,12 @@ export class UserPreferencesService {
     }
   }
 
+  /**
+   * Merge each changed category in the database (MYK9-1563). The merge, and the
+   * per-field newer-change-time check for theme fields, run atomically on the
+   * row in `merge_user_preferences`, so two devices saving at once cannot erase
+   * each other. The theme change times travel with the theme category only.
+   */
   async updatePreferences(
     userId: string,
     updates: PreferencesUpdate,
@@ -236,36 +217,35 @@ export class UserPreferencesService {
     try {
       logger.debug('Updating user preferences', 'preferences', { userId, updates });
 
-      // Load current from DB, merge updates
-      const current = await this.loadPreferences(userId);
+      let blob: StoredPreferences | null = null;
+      for (const category of MERGE_CATEGORIES) {
+        const patch = updates[category];
+        if (!patch) continue;
+        const { data, error } = await supabase.rpc('merge_user_preferences', {
+          p_user_id: userId,
+          p_app: APP_ID,
+          p_category: category,
+          // JSON round-trip: the patch is plain data and may hold `undefined`.
+          p_patch: JSON.parse(JSON.stringify(patch)),
+          ...(category === 'theme' && themeChangedAt ? { p_theme_changed_at: themeChangedAt } : {}),
+        });
+        if (error) {
+          logger.error(
+            'Supabase RPC error merging preferences',
+            'preferences',
+            { userId, category, error: error.message },
+            error as unknown as Error
+          );
+          throw error;
+        }
+        blob = data as unknown as StoredPreferences;
+      }
 
-      const updated: UserPreferences = {
-        ...current,
-        theme: updates.theme
-          ? { ...current.theme, ...newerThemeFields(updates.theme, themeChangedAt, current) }
-          : current.theme,
-        competition: updates.competition
-          ? { ...current.competition, ...updates.competition }
-          : current.competition,
-        notifications: updates.notifications
-          ? { ...current.notifications, ...updates.notifications }
-          : current.notifications,
-        data: updates.data ? { ...current.data, ...updates.data } : current.data,
-        privacy: updates.privacy ? { ...current.privacy, ...updates.privacy } : current.privacy,
-        deviceOverrides: updates.deviceOverrides
-          ? ({ ...current.deviceOverrides, ...updates.deviceOverrides } as Record<
-              string,
-              DeviceOverrides
-            >)
-          : current.deviceOverrides,
-        ...(themeChangedAt
-          ? { themeChangedAt: newerFieldTimes(current.themeChangedAt, themeChangedAt) }
-          : {}),
-        updatedAt: new Date(),
-      };
+      // Nothing to merge: read the row as it stands.
+      if (!blob) return await this.loadPreferences(userId);
 
-      await this.upsertPreferences(userId, updated);
-      return updated;
+      // Theme change times travel only with a theme patch; without one they are not sent.
+      return mergeWithDefaults(userId, blob, { updated_at: new Date().toISOString() });
     } catch (error) {
       logger.error('Failed to update user preferences', 'preferences', { userId }, error as Error);
       throw error;

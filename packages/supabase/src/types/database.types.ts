@@ -14606,6 +14606,16 @@ export type Database = {
         Args: { p_enrollment_id: string }
         Returns: Json
       }
+      merge_user_preferences: {
+        Args: {
+          p_app: string
+          p_category: string
+          p_patch: Json
+          p_theme_changed_at?: Json
+          p_user_id: string
+        }
+        Returns: Json
+      }
       move_up_entry: {
         Args: {
           p_entry_id: string

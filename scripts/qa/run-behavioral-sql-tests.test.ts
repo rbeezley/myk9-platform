@@ -222,7 +222,9 @@ const launchCriticalSqlTests = [
   'myk9_1327_set_class_judge_test.sql',
   'myk9_1327_one_judge_per_class_test.sql',
   'myk9_1472_hard_delete_show_money_guards_test.sql',
+  'myk9_1588_hard_delete_show_reauth_test.sql',
   'myk9_1473_coin_flip_tie_order_test.sql',
+  'myk9_1563_merge_user_preferences_test.sql',
   'golden_replay_trial_27835_test.sql',
 ];
 

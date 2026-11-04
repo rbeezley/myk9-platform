@@ -132,6 +132,7 @@ export function MessageCenterComposeForm({
         classes={classes}
         allowedRecipients={recipients}
         showWideDeliveryLane={isJudgeLane ? 'announcement' : manageShowWideLane}
+        allowEmail={!isJudgeLane}
         showHistoryLink={false}
         onSent={onSent}
       />

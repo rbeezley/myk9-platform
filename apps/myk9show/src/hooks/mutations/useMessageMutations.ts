@@ -3,6 +3,10 @@ import { useMessageStore } from '@/store/messageStore';
 import { supabase } from '@/lib/supabase-client';
 import { notifications } from '@/lib/notifications';
 import type { MessageTarget } from '@/features/messages/types';
+import {
+  buildEmailResultCopy,
+  parseMessageShowEmailResult,
+} from '@/features/show-workbench/messageShowEmail';
 
 export function useMessageMutations() {
   const [isSending, setIsSending] = useState(false);
@@ -48,6 +52,8 @@ export function useMessageMutations() {
             target_type: target.type,
             ...(target.classId ? { class_id: target.classId } : {}),
             send_push: target.sendPush === true,
+            ...(target.sendEmail || target.emailOnly ? { send_email: true } : {}),
+            ...(target.emailOnly ? { email_only: true } : {}),
             body,
           },
         });
@@ -60,10 +66,27 @@ export function useMessageMutations() {
           return null;
         }
 
-        notifications.success(`Message sent to ${recipientCount} exhibitors`);
+        const email = parseMessageShowEmailResult(data);
+        const inApp = target.emailOnly ? '' : `Message sent to ${recipientCount} exhibitors. `;
+        if (email) {
+          const copy = `${inApp}${buildEmailResultCopy(email)}`.trim();
+          // A skipped or failed address is something the secretary must see and act on.
+          const needsAttention = email.failed > 0 || email.missing.length > 0;
+          if (needsAttention) {
+            notifications.warning(copy, { duration: 15000 });
+          } else {
+            notifications.success(copy);
+          }
+        } else {
+          notifications.success(`Message sent to ${recipientCount} exhibitors`);
+        }
         return data;
       } catch {
-        notifications.error('Failed to send targeted message');
+        notifications.error(
+          target.emailOnly
+            ? 'Posted in the app, but the email could not be sent'
+            : 'Failed to send targeted message'
+        );
         return null;
       } finally {
         setIsSending(false);

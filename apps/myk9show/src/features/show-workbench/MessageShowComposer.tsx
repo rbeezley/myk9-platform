@@ -13,6 +13,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { useMessageEmailAudience } from '@/features/messages/hooks/useMessageEmailAudience';
+import type { MessageTarget } from '@/features/messages/types';
 import { useMessageMutations } from '@/hooks/mutations/useMessageMutations';
 import {
   MESSAGE_SHOW_TEMPLATES,
@@ -24,6 +26,7 @@ import {
   type MessageShowRecipientType,
   type MessageShowTemplateId,
 } from './messageShow';
+import { buildEmailAudienceCopy, describeEmailAudience } from './messageShowEmail';
 import { WorkbenchPushAlertToggle } from './WorkbenchPushAlertToggle';
 import { getWorkbenchAnnouncementPriority } from './workbenchAnnouncementPriority';
 import { useWorkbenchAnnouncementPost } from './workbenchAnnouncementPost';
@@ -35,6 +38,8 @@ interface MessageShowComposerProps {
   showHistoryLink?: boolean;
   allowedRecipients?: readonly MessageShowRecipientType[];
   showWideDeliveryLane?: MessageShowDeliveryLane;
+  /** Offer "Also send by email". Secretaries and admins only: the server enforces it. */
+  allowEmail?: boolean;
 }
 
 const RECIPIENT_LABELS: Record<MessageShowRecipientType, string> = {
@@ -54,6 +59,7 @@ export function MessageShowComposer({
   showHistoryLink = true,
   allowedRecipients = ['all_show', 'class', 'checked_in'],
   showWideDeliveryLane = 'announcement',
+  allowEmail = false,
 }: MessageShowComposerProps) {
   const defaultRecipient = allowedRecipients[0] ?? 'all_show';
   const [recipient, setRecipient] = useState<MessageShowRecipientType>(defaultRecipient);
@@ -64,6 +70,7 @@ export function MessageShowComposer({
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
   const [sendPushAlert, setSendPushAlert] = useState(true);
+  const [sendEmail, setSendEmail] = useState(false);
   const [isPostingAnnouncement, setIsPostingAnnouncement] = useState(false);
   const { postAnnouncement } = useWorkbenchAnnouncementPost();
   const { sendTargetedMessage, isSending } = useMessageMutations();
@@ -78,6 +85,16 @@ export function MessageShowComposer({
       : getMessageShowDeliveryLane(recipient) === 'announcement';
   const isSendingMessage = isSending || isPostingAnnouncement;
   const canSend = Boolean(message.trim()) && (!isAnnouncementLane || Boolean(title.trim()));
+  const emailRequested = allowEmail && sendEmail;
+  const emailOption = emailRequested ? { sendEmail: true } : {};
+  const emailTarget: MessageTarget | null =
+    recipient === 'class'
+      ? selectedClass
+        ? { type: 'class', classId: selectedClass.id }
+        : null
+      : { type: recipient };
+  const emailAudienceQuery = useMessageEmailAudience(showId, emailTarget, emailRequested);
+  const emailAudience = describeEmailAudience(recipient, selectedClass?.label);
   const recipientOptions = Object.entries(RECIPIENT_LABELS).filter(([value]) =>
     allowedRecipients.includes(value as MessageShowRecipientType)
   );
@@ -90,6 +107,7 @@ export function MessageShowComposer({
     setTitle('');
     setMessage('');
     setSendPushAlert(true);
+    setSendEmail(false);
   }
 
   function handleSent() {
@@ -148,6 +166,14 @@ export function MessageShowComposer({
         if (posted && !handledPost) {
           handleSent();
         }
+        if (posted && emailRequested) {
+          // The announcement is the in-app copy; the server only mails the audience.
+          await sendTargetedMessage(
+            showId,
+            { type: recipient, sendPush: false, emailOnly: true },
+            message.trim()
+          );
+        }
       } finally {
         setIsPostingAnnouncement(false);
       }
@@ -157,7 +183,7 @@ export function MessageShowComposer({
     if (recipient === 'all_show') {
       const result = await sendTargetedMessage(
         showId,
-        { type: 'all_show', sendPush: sendPushAlert },
+        { type: 'all_show', sendPush: sendPushAlert, ...emailOption },
         message.trim()
       );
       if (result) handleSent();
@@ -175,7 +201,12 @@ export function MessageShowComposer({
       }
       const result = await sendTargetedMessage(
         showId,
-        { type: 'class', classId: selectedClass.id, sendPush: sendPushAlert },
+        {
+          type: 'class',
+          classId: selectedClass.id,
+          sendPush: sendPushAlert,
+          ...emailOption,
+        },
         message.trim()
       );
       if (result) handleSent();
@@ -184,7 +215,7 @@ export function MessageShowComposer({
 
     const result = await sendTargetedMessage(
       showId,
-      { type: 'checked_in', sendPush: sendPushAlert },
+      { type: 'checked_in', sendPush: sendPushAlert, ...emailOption },
       message.trim()
     );
     if (result) handleSent();
@@ -298,6 +329,33 @@ export function MessageShowComposer({
         onCheckedChange={setSendPushAlert}
         description="Use for time-sensitive updates. Otherwise this sends quietly."
       />
+
+      {allowEmail ? (
+        <div>
+          <WorkbenchPushAlertToggle
+            id="message-show-email"
+            label="Also send by email"
+            checked={sendEmail}
+            onCheckedChange={setSendEmail}
+            description="Reaches exhibitors who do not have the app open or push turned on."
+          />
+          {sendEmail ? (
+            <p
+              id="message-show-email-audience"
+              className="mt-2 text-sm text-muted-foreground"
+              aria-live="polite"
+            >
+              {emailAudienceQuery.data
+                ? buildEmailAudienceCopy(emailAudience, emailAudienceQuery.data)
+                : emailAudienceQuery.isError
+                  ? `Could not count email recipients. Everyone in ${emailAudience} with an email address on file will still get it.`
+                  : emailTarget
+                    ? 'Counting who will get the email...'
+                    : 'Select a class to see who will get the email.'}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
         {isAnnouncementLane ? (

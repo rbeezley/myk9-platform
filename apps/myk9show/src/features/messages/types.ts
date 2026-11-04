@@ -38,6 +38,10 @@ export interface MessageTarget {
   type: MessageTargetType;
   classId?: string;
   sendPush?: boolean;
+  /** Also email everyone in the audience who has an address (resolved server-side). */
+  sendEmail?: boolean;
+  /** Email only: the in-app copy is posted elsewhere (the show-wide announcement lane). */
+  emailOnly?: boolean;
 }
 
 export interface SendTargetedMessageParams {

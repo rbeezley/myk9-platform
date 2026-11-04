@@ -13,6 +13,12 @@ vi.mock('../workbenchAnnouncementPost', () => ({
   }),
 }));
 
+const mockEmailAudience = vi.hoisted(() => vi.fn());
+
+vi.mock('@/features/messages/hooks/useMessageEmailAudience', () => ({
+  useMessageEmailAudience: mockEmailAudience,
+}));
+
 vi.mock('@/hooks/mutations/useMessageMutations', () => ({
   useMessageMutations: () => ({
     sendTargetedMessage: mockSendTargetedMessage,
@@ -30,6 +36,10 @@ describe('MessageShowComposer', () => {
     vi.clearAllMocks();
     mockMessageMutationState.isSending = false;
     mockPostAnnouncement.mockResolvedValue(true);
+    mockEmailAudience.mockReturnValue({
+      data: { recipients: 5, sent: 0, failed: 0, missing: ['Bob Smith'] },
+      isError: false,
+    });
     mockSendTargetedMessage.mockResolvedValue({ total_recipients: 8 });
   });
 
@@ -266,5 +276,86 @@ describe('MessageShowComposer', () => {
     const classTrigger = screen.getByRole('combobox', { name: 'Class' });
     expect(classTrigger).toHaveTextContent('Container Novice A · 8 entries');
     expect(classTrigger).not.toHaveTextContent('class-1');
+  });
+
+  describe('Also send by email', () => {
+    it('is not offered unless the caller allows it', () => {
+      render(<MessageShowComposer showId="show-1" classes={classes} />);
+
+      expect(
+        screen.queryByRole('checkbox', { name: 'Also send by email' })
+      ).not.toBeInTheDocument();
+    });
+
+    it('states who will get the email, by count and audience, before Send', async () => {
+      const { user } = render(<MessageShowComposer showId="show-1" classes={classes} allowEmail />);
+
+      expect(screen.queryByText(/Will also email/)).not.toBeInTheDocument();
+      await user.click(screen.getByRole('checkbox', { name: 'Also send by email' }));
+
+      expect(
+        screen.getByText(
+          'Will also email 5 people in everyone in the show. No email address on file for 1 person: Bob Smith.'
+        )
+      ).toBeInTheDocument();
+      expect(mockEmailAudience).toHaveBeenLastCalledWith('show-1', { type: 'all_show' }, true);
+    });
+
+    it('sends the email option with the class audience through the targeted path', async () => {
+      const { user } = render(
+        <MessageShowComposer
+          showId="show-1"
+          classes={classes}
+          allowEmail
+          allowedRecipients={['class']}
+        />
+      );
+
+      await user.click(screen.getByRole('checkbox', { name: 'Also send by email' }));
+      await user.type(screen.getByLabelText('Message'), 'Venue changed');
+      await user.click(screen.getByRole('button', { name: 'Send message' }));
+
+      await waitFor(() => {
+        expect(mockSendTargetedMessage).toHaveBeenCalledWith(
+          'show-1',
+          { type: 'class', classId: 'class-1', sendPush: true, sendEmail: true },
+          'Venue changed'
+        );
+      });
+      expect(mockEmailAudience).toHaveBeenCalledWith(
+        'show-1',
+        { type: 'class', classId: 'class-1' },
+        true
+      );
+    });
+
+    it('mails a show-wide announcement through an email-only send, not a second inbox copy', async () => {
+      const { user } = render(<MessageShowComposer showId="show-1" classes={classes} allowEmail />);
+
+      await user.click(screen.getByRole('checkbox', { name: 'Also send by email' }));
+      await user.type(screen.getByLabelText('Title'), 'Venue changed');
+      await user.type(screen.getByLabelText('Message'), 'We moved to Hall B');
+      await user.click(screen.getByRole('button', { name: 'Send message' }));
+
+      await waitFor(() => {
+        expect(mockSendTargetedMessage).toHaveBeenCalledWith(
+          'show-1',
+          { type: 'all_show', sendPush: false, emailOnly: true },
+          'We moved to Hall B'
+        );
+      });
+      expect(mockPostAnnouncement).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not send email when the option stays off', async () => {
+      const { user } = render(<MessageShowComposer showId="show-1" classes={classes} allowEmail />);
+
+      await user.type(screen.getByLabelText('Title'), 'Hi');
+      await user.type(screen.getByLabelText('Message'), 'x');
+      await user.click(screen.getByRole('button', { name: 'Send message' }));
+
+      await waitFor(() => expect(mockPostAnnouncement).toHaveBeenCalled());
+      expect(mockSendTargetedMessage).not.toHaveBeenCalled();
+    });
   });
 });

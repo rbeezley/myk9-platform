@@ -1,18 +1,24 @@
 import { HttpError } from '../_shared/http/responses.ts';
 import { applyActiveRoleValidity } from '../_shared/roleValidity.ts';
+import { emailFields, writeEmailLog, type SendShowMessageEmails } from './emailDelivery.ts';
 import {
   ACCOUNT_PUSH_SUBSCRIPTION_SELECT,
   buildAccountPushTargets,
   buildGroupLabel,
+  contactFromPerson,
+  ENTRY_PERSON_FIELDS,
   CALLER_ROLE_SELECT,
   callerRoleAuthorizesShow,
   mergePushTargetsBySubscriptionId,
   normalizeTargetType,
+  resolveEmailAudience,
   RINGSIDE_SESSION_PUSH_TARGET_SELECT,
   ringsideSessionMatchesTarget,
   targetArmbands,
   uniqueAccountRecipients,
   type CallerRoleSource,
+  type EntryContactSource,
+  type EntryPersonRow,
   type EntryRecipientSource,
   type RingsideSessionSource,
   type TargetType,
@@ -33,6 +39,14 @@ export interface SendTargetedMessagePayload {
   target_type?: TargetType;
   body?: string;
   send_push?: boolean;
+  // Also email every recipient in the audience who has an address on file. The
+  // address list is resolved here from the audience; the client never sends one.
+  send_email?: boolean;
+  // Skip the inbox thread + push and only email (the show-wide lane posts its
+  // in-app copy as an announcement, so it must not be duplicated into threads).
+  email_only?: boolean;
+  // Resolve and count the audience without writing or sending anything.
+  dry_run?: boolean;
 }
 
 export interface PushSubscriptionRow {
@@ -67,15 +81,16 @@ export interface TargetedMessageSupabaseClient {
 interface ShowRow {
   id: string;
   club_id: string | null;
+  name?: string | null;
 }
 
 interface EntryRecipientRow {
   armband?: unknown;
   dog?: {
-    owner?: { auth_user_id?: string | null } | null;
-    co_owner?: { auth_user_id?: string | null } | null;
+    owner?: EntryPersonRow | null;
+    co_owner?: EntryPersonRow | null;
   } | null;
-  handler?: { auth_user_id?: string | null } | null;
+  handler?: EntryPersonRow | null;
 }
 
 interface ClassInfoRow {
@@ -144,7 +159,7 @@ async function fetchEntriesForTarget(
   let query = supabase
     .from('entries')
     .select(
-      'armband, dog:dogs(owner:people!owner_id(auth_user_id), co_owner:people!co_owner_id(auth_user_id)), handler:people!handler_id(auth_user_id)'
+      `armband, dog:dogs(owner:people!owner_id(${ENTRY_PERSON_FIELDS}), co_owner:people!co_owner_id(${ENTRY_PERSON_FIELDS})), handler:people!handler_id(${ENTRY_PERSON_FIELDS})`
     )
     .eq('show_id', showId)
     .is('deleted_at', null);
@@ -167,6 +182,9 @@ async function fetchEntriesForTarget(
       entry.dog?.co_owner?.auth_user_id,
       entry.handler?.auth_user_id,
     ],
+    contacts: [entry.dog?.owner, entry.dog?.co_owner, entry.handler]
+      .map(contactFromPerson)
+      .filter((contact): contact is EntryContactSource => contact !== null),
   }));
 }
 
@@ -281,14 +299,20 @@ async function fetchAccountRecipientPushTargets(
   return buildAccountPushTargets(subscriptions, presenceBySubscriptionId);
 }
 
-export function createSendTargetedMessageHandler(deps: { sendPasscodePushes: SendPasscodePushes }) {
+export function createSendTargetedMessageHandler(deps: {
+  sendPasscodePushes: SendPasscodePushes;
+  sendShowMessageEmails?: SendShowMessageEmails;
+}) {
   return async ({ body: payload, user, supabase }: TargetedMessageHandlerContext) => {
     if (!user) throw new HttpError(401, 'Unauthorized');
 
     const showId = payload.show_id;
     const targetType = normalizeTargetType(payload.target_type);
     const body = payload.body?.trim();
+    const emailOnly = payload.email_only === true;
+    const sendEmail = payload.send_email === true || emailOnly;
     const sendPush = payload.send_push === true;
+    const dryRun = payload.dry_run === true;
 
     if (!showId || !body) {
       throw new HttpError(400, 'Missing required fields: show_id, body');
@@ -296,7 +320,7 @@ export function createSendTargetedMessageHandler(deps: { sendPasscodePushes: Sen
 
     const { data: show } = (await supabase
       .from('shows')
-      .select('id, club_id')
+      .select('id, club_id, name')
       .eq('id', showId)
       .single()) as SupabaseQueryResult<ShowRow>;
 
@@ -322,11 +346,17 @@ export function createSendTargetedMessageHandler(deps: { sendPasscodePushes: Sen
       fetchClassInfo(supabase, payload.class_id),
     ]);
 
-    if (entries.length === 0) {
-      return { sent_to: 0, total_recipients: 0, push_sent: 0 };
+    const emailAudience = sendEmail ? resolveEmailAudience(entries, user.id) : null;
+
+    if (dryRun) {
+      return { dry_run: true, total_recipients: entries.length, ...emailFields(emailAudience) };
     }
 
-    const accountRecipientIds = uniqueAccountRecipients(entries, user.id);
+    if (entries.length === 0) {
+      return { sent_to: 0, total_recipients: 0, push_sent: 0, ...emailFields(emailAudience) };
+    }
+
+    const accountRecipientIds = emailOnly ? [] : uniqueAccountRecipients(entries, user.id);
     const armbands = targetArmbands(entries);
     const groupLabel = buildGroupLabel({
       targetType,
@@ -385,22 +415,46 @@ export function createSendTargetedMessageHandler(deps: { sendPasscodePushes: Sen
       );
     }
     const pushTargets = mergePushTargetsBySubscriptionId(ringsideTargets, accountPushTargets);
-    const pushResult = await deps.sendPasscodePushes({
-      supabase,
-      body,
-      messageId: insertedMessageIds[0] ?? null,
-      showId,
-      targets: pushTargets,
-    });
+    const pushResult = emailOnly
+      ? { attempted: 0, sent: 0, suppressed: 0, failed: 0, dead: 0 }
+      : await deps.sendPasscodePushes({
+          supabase,
+          body,
+          messageId: insertedMessageIds[0] ?? null,
+          showId,
+          targets: pushTargets,
+        });
+
+    // Email last: the inbox copy is already durable, so a mail failure is a counted
+    // result the secretary sees, never a reason to lose or repeat the in-app send.
+    let emailSent = 0;
+    let emailFailed = 0;
+    let emailLogFailed = false;
+    if (emailAudience && emailAudience.recipients.length > 0) {
+      if (!deps.sendShowMessageEmails) throw new HttpError(500, 'Email delivery is unavailable');
+      const emailResult = await deps.sendShowMessageEmails({
+        showId,
+        showName: show.name?.trim() || 'your show',
+        body,
+        messageId: insertedMessageIds[0] ?? null,
+        recipients: emailAudience.recipients,
+      });
+      emailSent = emailResult.sent;
+      emailFailed = emailResult.failed;
+      emailLogFailed = !(await writeEmailLog(supabase, emailResult.logRows));
+    }
 
     return {
       sent_to: insertedMessageIds.length,
-      total_recipients: accountRecipientIds.length + ringsideTargets.length,
+      total_recipients: emailOnly
+        ? entries.length
+        : accountRecipientIds.length + ringsideTargets.length,
       group_label: groupLabel,
       push_sent: pushResult.sent,
       push_suppressed: pushResult.suppressed,
       push_failed: pushResult.failed,
       dead_subs_cleaned: pushResult.dead,
+      ...emailFields(emailAudience, emailSent, emailFailed, emailLogFailed),
     };
   };
 }

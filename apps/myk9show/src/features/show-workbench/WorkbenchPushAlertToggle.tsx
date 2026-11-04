@@ -5,6 +5,7 @@ interface WorkbenchPushAlertToggleProps {
   checked: boolean;
   description: string;
   id: string;
+  label?: string;
   onCheckedChange: (checked: boolean) => void;
 }
 
@@ -12,6 +13,7 @@ export function WorkbenchPushAlertToggle({
   checked,
   description,
   id,
+  label = 'Send push alert',
   onCheckedChange,
 }: WorkbenchPushAlertToggleProps) {
   return (
@@ -19,7 +21,7 @@ export function WorkbenchPushAlertToggle({
       <Checkbox id={id} checked={checked} onCheckedChange={onCheckedChange} />
       <div className="space-y-1">
         <Label htmlFor={id} className="text-sm font-medium">
-          Send push alert
+          {label}
         </Label>
         <p className="text-xs text-muted-foreground">{description}</p>
       </div>

@@ -1,8 +1,53 @@
 export type TargetType = 'class' | 'checked_in' | 'all_show';
 
+export interface EntryContactSource {
+  personId: string | null;
+  authUserId: string | null;
+  name: string;
+  email: string | null;
+}
+
 export interface EntryRecipientSource {
   armband: string | null;
   authUserIds: Array<string | null | undefined>;
+  // The same people as authUserIds (owner, co-owner, handler), with the fields an
+  // email needs. Optional so push/inbox-only callers and fixtures stay unchanged.
+  contacts?: EntryContactSource[];
+}
+
+export interface EntryPersonRow {
+  id?: string | null;
+  auth_user_id?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  email?: string | null;
+}
+
+export const ENTRY_PERSON_FIELDS = 'id, auth_user_id, first_name, last_name, email';
+
+export function contactFromPerson(
+  person: EntryPersonRow | null | undefined
+): EntryContactSource | null {
+  if (!person) return null;
+  const name = [person.first_name, person.last_name].filter(Boolean).join(' ').trim();
+  return {
+    personId: person.id ?? null,
+    authUserId: person.auth_user_id ?? null,
+    name: name || 'Unnamed exhibitor',
+    email: person.email ?? null,
+  };
+}
+
+export interface EmailRecipient {
+  email: string;
+  name: string;
+}
+
+export interface EmailAudience {
+  recipients: EmailRecipient[];
+  // People in the audience with no email address on file, named so the secretary
+  // can reach them another way. Never silently dropped.
+  missing: string[];
 }
 
 export interface RingsideSessionSource {
@@ -45,6 +90,40 @@ export function uniqueAccountRecipients(
     }
   }
   return [...recipients];
+}
+
+// Resolve who an "also send by email" message goes to, from the SAME entries the
+// inbox thread audience comes from. Dedupes by person (one person with three dogs
+// gets one email) and by address (two people sharing an inbox get one email).
+export function resolveEmailAudience(
+  entries: EntryRecipientSource[],
+  senderId: string
+): EmailAudience {
+  const seenPeople = new Set<string>();
+  const seenEmails = new Set<string>();
+  const recipients: EmailRecipient[] = [];
+  const missing: string[] = [];
+
+  for (const entry of entries) {
+    for (const contact of entry.contacts ?? []) {
+      if (contact.authUserId && contact.authUserId === senderId) continue;
+      const email = contact.email?.trim() ?? '';
+      const personKey = contact.personId ?? (email ? email.toLowerCase() : contact.name);
+      if (seenPeople.has(personKey)) continue;
+      seenPeople.add(personKey);
+
+      if (!email) {
+        missing.push(contact.name);
+        continue;
+      }
+      const emailKey = email.toLowerCase();
+      if (seenEmails.has(emailKey)) continue;
+      seenEmails.add(emailKey);
+      recipients.push({ email, name: contact.name });
+    }
+  }
+
+  return { recipients, missing };
 }
 
 export function callerRoleAuthorizesShow(

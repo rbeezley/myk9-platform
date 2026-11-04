@@ -24,6 +24,7 @@ const classifiedProductionResendWriters = {
   'supabase/functions/send-lifecycle-email/lifecycle-email-shared.ts': 'show-owned',
   'supabase/functions/send-registration-email/index.ts': 'show-owned',
   'supabase/functions/send-results/index.ts': 'show-owned',
+  'supabase/functions/send-targeted-message/emailDelivery.ts': 'show-owned',
   'supabase/functions/send-waitlist-invite/index.ts': 'platform-waitlist',
 } as const;
 

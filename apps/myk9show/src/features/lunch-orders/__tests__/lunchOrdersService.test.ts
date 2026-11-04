@@ -63,6 +63,19 @@ describe('lunchOrdersService.save', () => {
     expect(insertMock).not.toHaveBeenCalled();
   });
 
+  it('sends only the changed field, leaving the other as another device saved it', async () => {
+    await lunchOrdersService.save({
+      trialId: 'trial-1',
+      savedId: 'row-9',
+      personId: 'person-1',
+      name: 'Jo Judge',
+      role: 'judge',
+      dietaryNote: 'Vegetarian',
+    });
+
+    expect(updateMock).toHaveBeenCalledWith({ dietary_note: 'Vegetarian' });
+  });
+
   it('updates the existing row when another device saved the same person first', async () => {
     insertMock.mockResolvedValue({ error: { code: '23505', message: 'duplicate' } });
 

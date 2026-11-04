@@ -271,6 +271,14 @@ export const queryKeys = {
   volunteerGeneralAssignments: (showId: string) =>
     ['volunteer-assignments', 'general', showId] as const,
 
+  // Lunch orders (MYK9-1694). The volunteer keys EXTEND the volunteer-assignment keys, so the
+  // existing assignment mutations' invalidations (prefix match) refresh the lunch roster too.
+  lunchOrders: (trialId: string) => ['trial-lunch-orders', trialId] as const,
+  lunchVolunteersGeneral: (showId: string, trialIds: readonly string[]) =>
+    ['volunteer-assignments', 'general', showId, 'lunch-days', [...trialIds].sort()] as const,
+  lunchVolunteersByClass: (showId: string) =>
+    ['volunteer-assignments', 'class', showId, 'lunch-days'] as const,
+
   // Legacy aliases for backward compatibility with existing showEntries key
   classEntries: (classId: string) => ['entries', 'class', classId] as const,
   dogEntries: (dogId: string) => ['entries', 'dog', dogId] as const,

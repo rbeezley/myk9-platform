@@ -51,7 +51,7 @@ export function LunchOrdersTool({ showId, trials }: LunchOrdersToolProps) {
                 </span>
               ) : null}
             </h4>
-            <LunchOrdersDay showId={showId} trialId={trial.id} volunteers={volunteers.data ?? []} />
+            <LunchOrdersDay showId={showId} trialId={trial.id} volunteers={volunteers} />
           </div>
         ))
       )}

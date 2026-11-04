@@ -12,7 +12,7 @@ import {
 import { useShowOfficials } from '@/hooks/queries/useShowOfficials';
 import { useTrialJudges } from '@/features/judge-supplies/useTrialJudges';
 import { collectLunchCandidates } from './lunchCandidates';
-import { LunchOrderRow } from './LunchOrderRow';
+import { LunchOrderRow, type LunchOrderPatch } from './LunchOrderRow';
 import {
   buildLunchOrderList,
   LUNCH_NAME_MAX,
@@ -20,12 +20,12 @@ import {
   type LunchListItem,
   type LunchRole,
 } from './lunchOrders';
-import { useTrialLunchOrders, type VolunteerOnDay } from './useLunchOrders';
+import { useTrialLunchOrders, type VolunteersOnDaysResult } from './useLunchOrders';
 
 interface LunchOrdersDayProps {
   showId: string;
   trialId: string;
-  volunteers: readonly VolunteerOnDay[];
+  volunteers: VolunteersOnDaysResult;
 }
 
 /** The Lunch orders list for one show day: the day's assignments first, then "Add person". */
@@ -54,18 +54,17 @@ export function LunchOrdersDay({ showId, trialId, volunteers }: LunchOrdersDayPr
       trialId,
       judges: judges.data ?? [],
       officials: officials.data,
-      volunteers,
+      volunteers: volunteers.data ?? [],
     })
   );
 
-  async function saveItem(item: LunchListItem, lunchOrder: string, dietaryNote: string) {
+  async function saveItem(item: LunchListItem, patch: LunchOrderPatch) {
     await save.mutateAsync({
       savedId: item.savedId,
       personId: item.personId,
       name: item.name,
       role: item.role,
-      lunchOrder,
-      dietaryNote,
+      ...patch,
     });
   }
 
@@ -79,8 +78,6 @@ export function LunchOrdersDay({ showId, trialId, volunteers }: LunchOrdersDayPr
         personId: null,
         name,
         role: newRole,
-        lunchOrder: '',
-        dietaryNote: '',
       });
       setNewName('');
     } catch {
@@ -88,9 +85,31 @@ export function LunchOrdersDay({ showId, trialId, volunteers }: LunchOrdersDayPr
     }
   }
 
+  const rosterFailed = judges.isError || officials.isError || volunteers.isError;
+  const rosterLoading = judges.isLoading || officials.isLoading || volunteers.isLoading;
+
   return (
     <div className="space-y-3">
-      {items.length === 0 ? (
+      {rosterFailed && (
+        <p className="text-sm text-destructive" role="alert">
+          Some people could not be loaded, so this list may be missing names.{' '}
+          <button
+            type="button"
+            className="underline"
+            onClick={() => {
+              if (judges.isError) void judges.refetch();
+              if (officials.isError) void officials.refetch();
+              volunteers.refetch();
+            }}
+          >
+            Retry
+          </button>
+        </p>
+      )}
+      {rosterLoading && !rosterFailed && (
+        <p className="text-sm text-muted-foreground">Loading the day's people...</p>
+      )}
+      {items.length === 0 && (rosterFailed || rosterLoading) ? null : items.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           No one is assigned to this day yet. Use Add person to start the list.
         </p>

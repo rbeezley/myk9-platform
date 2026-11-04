@@ -37,6 +37,9 @@ vi.mock('../useLunchOrders', async importOriginal => {
     ...actual,
     useVolunteersOnDays: () => ({
       data: [{ personId: 'p-vol', name: 'Vic Volunteer', trialId: 'trial-1' }],
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
     }),
   };
 });
@@ -86,7 +89,6 @@ describe('LunchOrdersTool', () => {
         name: 'Jo Judge',
         role: 'judge',
         lunchOrder: 'Wrap',
-        dietaryNote: '',
       })
     );
   });
@@ -105,8 +107,6 @@ describe('LunchOrdersTool', () => {
         personId: null,
         name: 'Pat Guest',
         role: 'club_member',
-        lunchOrder: '',
-        dietaryNote: '',
       })
     );
   });

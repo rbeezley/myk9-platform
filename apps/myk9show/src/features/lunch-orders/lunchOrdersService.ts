@@ -13,8 +13,9 @@ export interface SaveLunchOrderInput {
   personId: string | null;
   name: string;
   role: LunchRole;
-  lunchOrder: string;
-  dietaryNote: string;
+  /** Only the fields the person changed; an omitted field is left as the database has it. */
+  lunchOrder?: string | undefined;
+  dietaryNote?: string | undefined;
 }
 
 export const lunchOrdersService = {
@@ -30,12 +31,12 @@ export const lunchOrdersService = {
 
   /** Writes the one row for this person on this day: update when it exists, insert otherwise. */
   async save(input: SaveLunchOrderInput): Promise<void> {
-    const fields = {
-      lunch_order: cleanLunchText(input.lunchOrder),
-      dietary_note: cleanLunchText(input.dietaryNote),
-    };
+    const fields: { lunch_order?: string | null; dietary_note?: string | null } = {};
+    if (input.lunchOrder !== undefined) fields.lunch_order = cleanLunchText(input.lunchOrder);
+    if (input.dietaryNote !== undefined) fields.dietary_note = cleanLunchText(input.dietaryNote);
 
     if (input.savedId) {
+      if (Object.keys(fields).length === 0) return;
       const { error } = await supabase
         .from('trial_lunch_orders')
         .update(fields)

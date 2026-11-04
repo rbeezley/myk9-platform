@@ -12,7 +12,7 @@
 // client now delivers in-app only; push originates here.
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
-import webpush from 'npm:web-push@3';
+import webpush from 'npm:web-push@3.6.7';
 
 import { handle } from '../_shared/http/handler.ts';
 import { HttpError } from '../_shared/http/responses.ts';

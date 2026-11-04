@@ -35,6 +35,8 @@ import {
 
 interface UseShowMapActionExecutorInput {
   showId: string;
+  /** A change or reversal landed; a surface holding its own copy of the entries re-reads. */
+  onEntriesChanged?: (() => void) | undefined;
 }
 
 interface MutationInput {
@@ -64,7 +66,10 @@ export interface ShowMapScratchUndoMutationInput extends ShowMapScratchUndoInput
 
 export const MOVE_UP_UNDO_BANNER_TIMEOUT_MS = 8000;
 
-export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInput) {
+export function useShowMapActionExecutor({
+  showId,
+  onEntriesChanged,
+}: UseShowMapActionExecutorInput) {
   const queryClient = useQueryClient();
   const [scratchAction, setScratchAction] = useState<ShowMapAction | null>(null);
   const [moveUpAction, setMoveUpAction] = useState<ShowMapAction | null>(null);
@@ -310,6 +315,7 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
     onSuccess: () => {
       toast.success('Class change undone');
       setLastMoveUp(null);
+      onEntriesChanged?.();
     },
     onError: error => {
       toast.error(getMoveUpErrorMessage(error, 'That class change could not be undone.'));
@@ -352,6 +358,7 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
       }, MOVE_UP_UNDO_BANNER_TIMEOUT_MS);
       setMoveUpAction(null);
       toast.success('Class changed');
+      onEntriesChanged?.();
     },
     onError: error => {
       // Not getUserFriendlyError: in production that hunts for a PostgREST
@@ -374,8 +381,10 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
   const moveUpReversal = useShowMapMoveUpReversal({
     entryId: moveUpEntryId,
     onClose: () => setMoveUpAction(null),
-    onReversed: classIds =>
-      [moveUpAction?.classId, ...classIds].forEach(id => invalidateShowMapActionQueries(id)),
+    onReversed: classIds => {
+      [moveUpAction?.classId, ...classIds].forEach(id => invalidateShowMapActionQueries(id));
+      onEntriesChanged?.();
+    },
   });
 
   const messageHandlerMutation = useMutation({

@@ -35,6 +35,8 @@ const REGRESSION_SPECS = [
   // that don't exist (PayPal, chargebacks, payment plans); MYK9-617 deleted
   // them. Real payment journeys are tracked in MYK9-42.
   '**/show/atShowJudgeScoring.spec.ts',
+  // MYK9-1656: the scoresheet under every registry; hermetic reads, no writes.
+  '**/show/atShowScoresheetRegistries.spec.ts',
   '**/show/atShowOfflineScoring.spec.ts',
   // MYK9-1487: two-device offline OCC conflict on a disposable entry; skips unless isolated.
   '**/show/atShowMultiDeviceOfflineSync.spec.ts',

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Show, ShowTrial } from '@/types/show-types';
+import { deriveSportType } from '@/pages/scoring/types';
 import { buildCloneSnapshot } from './cloneFromShow';
 
 const show = (overrides: Partial<Show> = {}) =>
@@ -89,5 +90,28 @@ describe('buildCloneSnapshot trial type (MYK9-1574)', () => {
 
   it('leaves a missing type alone for a registry it does not know', () => {
     expect(clone('Other', null)).toBeNull();
+  });
+});
+
+/**
+ * MYK9-1656: a clone of a show whose trial had no type must end on a type that
+ * resolves to the registry's scoresheet; MYK9-1574's cloned UKC/ASCA shows never did.
+ */
+describe('a cloned show with a blank source trial type scores (MYK9-1656)', () => {
+  it.each([
+    ['UKC', null, 'ukc-nosework'],
+    ['UKC', '', 'ukc-nosework'],
+    ['UKC', '   ', 'ukc-nosework'],
+    ['ASCA', null, 'asca-scent-detection'],
+    ['ASCA', '', 'asca-scent-detection'],
+    ['AKC', null, 'akc-scent-work'],
+  ])('%s trial type %j clones to sport %s', (organization, trialType, sport) => {
+    const cloned = buildCloneSnapshot({
+      show: show({ organization } as Partial<Show>),
+      sourceTrials: [trial({ trialType } as Partial<ShowTrial>)],
+      people: [],
+      templates: [],
+    }).trials[0]?.trialType;
+    expect(deriveSportType(organization, cloned)).toBe(sport);
   });
 });

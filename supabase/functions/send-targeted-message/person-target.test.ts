@@ -10,7 +10,7 @@ function chain(result: { data?: unknown; error?: unknown }) {
     select: vi.fn(() => query),
     eq: vi.fn(() => query),
     is: vi.fn(() => query),
-    or: vi.fn(() => query),
+    or: vi.fn((_filter: string) => query),
     in: vi.fn(() => query),
     upsert: vi.fn((_rows: unknown, _options?: unknown) => query),
     insert: vi.fn((_rows: unknown) => query),
@@ -51,6 +51,7 @@ const ENTRIES = [
 function makeSupabase() {
   const threadUpserts: unknown[][] = [];
   const messageInserts: unknown[][] = [];
+  const entryFilters: string[] = [];
   const supabase = {
     from: vi.fn((table: string) => {
       if (table === 'shows') {
@@ -59,7 +60,15 @@ function makeSupabase() {
       if (table === 'user_roles') {
         return chain({ data: [{ club_id: 'c', roles: { name: 'secretary' } }] });
       }
-      if (table === 'entries') return chain({ data: ENTRIES });
+      if (table === 'dogs') return chain({ data: [{ id: 'dog-1' }, { id: 'dog-2' }] });
+      if (table === 'entries') {
+        const query = chain({ data: ENTRIES });
+        query.or.mockImplementation((filter: string) => {
+          entryFilters.push(filter);
+          return query;
+        });
+        return query;
+      }
       if (table === 'show_message_threads') {
         const query = chain({ data: [{ id: 't-1', participant_id: 'u-ann' }] });
         query.upsert.mockImplementation(rows => {
@@ -80,7 +89,7 @@ function makeSupabase() {
       throw new Error(`Unexpected table: ${table}`);
     }),
   };
-  return { supabase, threadUpserts, messageInserts };
+  return { supabase, threadUpserts, messageInserts, entryFilters };
 }
 
 const noPush = vi.fn(async () => ({ attempted: 0, sent: 0, suppressed: 0, failed: 0, dead: 0 }));
@@ -147,6 +156,44 @@ describe('send-targeted-message person scope', () => {
       email_missing: [],
       people_reached: 1,
     });
+  });
+
+  it('filters the person in the database (handler or their dogs), not after a capped fetch', async () => {
+    const { supabase, entryFilters } = makeSupabase();
+    const { handler } = handlerWith();
+
+    await handler({
+      body: {
+        show_id: 'show-1',
+        target_type: 'person',
+        person_id: 'p-ann',
+        send_email: true,
+        dry_run: true,
+      },
+      user: { id: 'sender-1' },
+      supabase,
+    });
+
+    expect(entryFilters).toEqual(['handler_id.eq.p-ann,dog_id.in.(dog-1,dog-2)']);
+  });
+
+  it('rejects a person_id that is not a plain id before it reaches a filter string', async () => {
+    const { supabase, entryFilters } = makeSupabase();
+    const { handler } = handlerWith();
+
+    await expect(
+      handler({
+        body: {
+          show_id: 'show-1',
+          target_type: 'person',
+          person_id: 'x),handler_id.neq.(y',
+          body: 'Hi',
+        },
+        user: { id: 'sender-1' },
+        supabase,
+      })
+    ).rejects.toMatchObject({ status: 400 });
+    expect(entryFilters).toHaveLength(0);
   });
 
   it('works for a person who is only the handler, and names them when they have no address', async () => {

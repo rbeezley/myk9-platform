@@ -554,7 +554,18 @@ describe('Email exhibitor: the composer opened scoped to one person (MYK9-1693)'
 
     expect(screen.queryByTestId('message-show-composer')).not.toBeInTheDocument();
     expect(
-      screen.getByText('You can only email exhibitors in shows you manage.')
+      screen.getByText('Emailing an exhibitor needs a secretary or admin role for this show.')
+    ).toBeInTheDocument();
+  });
+
+  it('refuses a club admin, who has no targeted-send permission, on a show they manage', () => {
+    authContext = heartlandClubAdmin();
+    render(<MessageCenterPanel />, { initialRoute: '/' });
+    act(() => useNotificationStore.getState().openComposeFor(request));
+
+    expect(screen.queryByTestId('message-show-composer')).not.toBeInTheDocument();
+    expect(
+      screen.getByText('Emailing an exhibitor needs a secretary or admin role for this show.')
     ).toBeInTheDocument();
   });
 });

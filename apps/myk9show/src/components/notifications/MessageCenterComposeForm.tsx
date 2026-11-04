@@ -106,10 +106,16 @@ export function MessageCenterComposeForm({
   }
 
   function renderComposer() {
-    if (composeRequest && (!selected || selected.id !== composeRequest.showId || isJudgeLane)) {
+    // Targeted sends (which includes one person) are secretary or admin only: the server
+    // rejects a club admin, whose composer is limited to show-wide announcements.
+    const canSendTargeted = manageRecipients.includes('class');
+    if (
+      composeRequest &&
+      (!selected || selected.id !== composeRequest.showId || isJudgeLane || !canSendTargeted)
+    ) {
       return (
         <p className="text-sm text-muted-foreground">
-          You can only email exhibitors in shows you manage.
+          Emailing an exhibitor needs a secretary or admin role for this show.
         </p>
       );
     }

@@ -75,7 +75,9 @@ export function AtShowAccessGate({ children }: { children: ReactNode }) {
   }
 
   if (grantRole || hasAccountStaffRole || accountToday.hasAccountEntryForShow || admittedLocally) {
-    return <AtShowAnnouncementSubscription showId={showId}>{children}</AtShowAnnouncementSubscription>;
+    return (
+      <AtShowAnnouncementSubscription showId={showId}>{children}</AtShowAnnouncementSubscription>
+    );
   }
 
   if (user && accountToday.isLoading) {

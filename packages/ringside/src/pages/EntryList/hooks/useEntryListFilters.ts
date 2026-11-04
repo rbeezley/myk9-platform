@@ -142,7 +142,15 @@ function getPriorityDiff(
   return 0; // No priority difference
 }
 
+export interface EntryListFiltersSnapshot {
+  activeTab: TabType;
+  sortBy: SortType;
+  searchTerm: string;
+  sectionFilter: SectionFilter;
+}
+
 interface UseEntryListFiltersOptions {
+  initialFilters?: EntryListFiltersSnapshot | undefined;
   entries: Entry[];
   /** Enable manual sort option (default: false) */
   supportManualSort?: boolean;
@@ -216,12 +224,15 @@ export const useEntryListFilters = ({
   entryClassification,
   manualOrder,
   defaultSort = 'armband',
+  initialFilters,
 }: UseEntryListFiltersOptions) => {
   // Filter and sort state
-  const [activeTab, setActiveTab] = useState<TabType>('pending');
-  const [sortBy, setSortBy] = useState<SortType>(defaultSort);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sectionFilter, setSectionFilter] = useState<SectionFilter>('all');
+  const [activeTab, setActiveTab] = useState<TabType>(initialFilters?.activeTab ?? 'pending');
+  const [sortBy, setSortBy] = useState<SortType>(initialFilters?.sortBy ?? defaultSort);
+  const [searchTerm, setSearchTerm] = useState(initialFilters?.searchTerm ?? '');
+  const [sectionFilter, setSectionFilter] = useState<SectionFilter>(
+    initialFilters?.sectionFilter ?? 'all'
+  );
 
   // ==========================================================================
   // PRE-COMPUTED VALUES

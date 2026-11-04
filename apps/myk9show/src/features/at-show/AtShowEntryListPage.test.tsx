@@ -206,7 +206,9 @@ describe('AtShowEntryListPage (Phase 1a shim)', () => {
     renderPage();
     expect(await screen.findByText('Rex')).toBeInTheDocument();
     // The menu's positive control: the scoresheet test asserts its absence there.
-    expect(screen.getByRole('button', { name: 'Ringside menu' })).toBeInTheDocument();
+    expect(screen.getByRole('main')).toContainElement(
+      screen.getByRole('button', { name: 'Ringside menu' })
+    );
     expect(screen.getByText('Border Collie')).toBeInTheDocument();
     expect(screen.getByText('Jane Handler')).toBeInTheDocument();
   });

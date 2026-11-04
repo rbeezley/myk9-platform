@@ -59,6 +59,7 @@ import {
 const CLASS_DATA_TABLES = ['shows', 'trials', 'classes'] as const;
 import { ClassListUpButton } from './ClassListUpButton';
 import { RingsideMenu } from './menu/RingsideMenu';
+import { useRingsideListSnapshot } from './menu/useRingsideListSnapshot';
 import { selectNextUpForCard } from './atShowNextUpPreview';
 import { useMyAtShowJudgeAssignments } from './useMyAtShowJudgeAssignments';
 import { OfflineReadyBadge } from '@/features/offline-readiness/OfflineReadyBadge';
@@ -144,9 +145,10 @@ export const AtShowClassListPage: React.FC = () => {
   });
 
   // Tabs, search and sort narrow the cards already on the device (works offline).
-  const [tab, setTab] = useState(DEFAULT_CLASS_LIST_TAB);
-  const [search, setSearch] = useState('');
-  const [sort, setSort] = useState(DEFAULT_CLASS_LIST_SORT);
+  const saved = useRingsideListSnapshot('classes');
+  const [tab, setTab] = useState(saved?.tab ?? DEFAULT_CLASS_LIST_TAB);
+  const [search, setSearch] = useState(saved?.search ?? '');
+  const [sort, setSort] = useState(saved?.sort ?? DEFAULT_CLASS_LIST_SORT);
   const allCards = useMemo(() => groupedByTrial.flatMap(group => group.classes), [groupedByTrial]);
   const tabCounts = useMemo(() => countByTab(allCards), [allCards]);
   const visibleByTrial = useMemo(
@@ -397,7 +399,7 @@ export const AtShowClassListPage: React.FC = () => {
     // scrolling through the class list mid-show, so the column widens with
     // the display instead of being capped at phone width forever.
     <main className={`ringside-root ${WIDE_COLUMN} px-4 py-4`}>
-      <div className="mb-3 flex items-center justify-between gap-2">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <ClassListUpButton showId={showId} clubId={clubId} />
         <div className="flex items-center gap-2">
           {/* Gating this on `ownEntryIds.size > 0` alone hid the only route back
@@ -416,7 +418,7 @@ export const AtShowClassListPage: React.FC = () => {
             </Button>
           )}
           <AtShowClassRefreshButton phase={refreshPhase} onRefresh={() => void refreshClasses()} />
-          <RingsideMenu showId={showId} />
+          <RingsideMenu showId={showId} snapshot={{ kind: 'classes', tab, search, sort }} />
         </div>
       </div>
 

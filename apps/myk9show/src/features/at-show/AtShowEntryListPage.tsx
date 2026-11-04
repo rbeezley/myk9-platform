@@ -27,6 +27,7 @@
  */
 
 import { RingsideMenu } from './menu/RingsideMenu';
+import { useRingsideListSnapshot } from './menu/useRingsideListSnapshot';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -172,6 +173,7 @@ export const AtShowEntryListPage: React.FC = () => {
   const [manualOrder, setManualOrder] = useState<Entry[]>([]);
 
   // ── Filters (pure ringside hook, called shim-side — Path A) ────────────
+  const savedFilters = useRingsideListSnapshot('entries')?.filters;
   const {
     activeTab,
     setActiveTab,
@@ -186,6 +188,7 @@ export const AtShowEntryListPage: React.FC = () => {
     entryCounts,
   } = useEntryListFilters({
     entries: localEntries,
+    initialFilters: savedFilters,
     // The host owns the counting rule; the package groups rows by what it is
     // handed rather than re-deriving one it cannot see (MYK9-645).
     entryClassification: classInfo?.entryClassification,
@@ -350,7 +353,7 @@ export const AtShowEntryListPage: React.FC = () => {
     <RingsideProvider value={contextValue}>
       {/* `.ringside-root` scopes the ported myK9Q visual layer (@myk9/ringside
           styles) to this subtree only — no bleed into the rest of myK9Show. */}
-      <div className="ringside-root">
+      <main className="ringside-root">
         {showAddToHomeNudge && (
           <AtShowAddToHomeNudge
             reason={nudgeReason}
@@ -397,10 +400,18 @@ export const AtShowEntryListPage: React.FC = () => {
             // the Access-upload workflow that doesn't belong here).
             hidePrintOptions: true,
             up: { label: 'Classes', to: resolveClassListRoute(showId) },
-            menu: <RingsideMenu showId={showId} />,
+            menu: (
+              <RingsideMenu
+                showId={showId}
+                snapshot={{
+                  kind: 'entries',
+                  filters: { activeTab, searchTerm, sortBy: sortOrder, sectionFilter: 'all' },
+                }}
+              />
+            ),
           }}
         />
-      </div>
+      </main>
     </RingsideProvider>
   );
 };

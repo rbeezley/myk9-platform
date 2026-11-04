@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ListChecks } from 'lucide-react';
 import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -87,7 +87,7 @@ function everyClassReleasedAndInitialed(rows: readonly ResultsClassRow[]): boole
  * The page owns only the URL state and the release call. Reads are `useResultsTabData`'s, and
  * Release is the `useReleaseResults` mutation; this is the one place a class is released (MYK9-1318).
  */
-export default function ResultsTab() {
+export default function ResultsTab({ showStatsLink }: { showStatsLink?: ReactNode } = {}) {
   const showId = getShowIdParam(useParams<{ showId?: string; id?: string }>());
   const [searchParams, setSearchParams] = useSearchParams();
   const urlState = readResultsTabUrlState(searchParams);
@@ -433,6 +433,7 @@ export default function ResultsTab() {
     <div className="mt-4 space-y-4">
       <h1 className="sr-only">Results</h1>
       {refreshFailed && <ResultsRefreshFailedAlert onRetry={retry} />}
+      {showStatsLink && entries.some(entry => entry.is_scored === true) && showStatsLink}
       <NationalsLeaderboardLink showId={showId} isNationals={isNationals} />
       <ResultsFinishRow
         showId={showId}

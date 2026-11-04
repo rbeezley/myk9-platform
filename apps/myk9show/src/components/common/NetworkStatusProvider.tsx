@@ -78,7 +78,7 @@ const NetworkStatusIndicator: React.FC = () => {
           <AlertDescription className="flex items-center justify-between">
             <div>
               <div className="font-medium text-orange-800">No internet connection</div>
-              <div className="text-sm text-orange-600">
+              <div className="text-sm text-orange-800">
                 Changes will be saved locally and synced when connection is restored.
               </div>
             </div>

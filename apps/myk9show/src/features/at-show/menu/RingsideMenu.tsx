@@ -32,15 +32,23 @@ import {
   itemNeedsConnection,
   type RingsideMenuItem,
 } from './ringsideMenuItems';
-import { useRingsideReturnStore } from './ringsideReturnStore';
+import { useRingsideReturnStore, type RingsideListSnapshot } from './ringsideReturnStore';
 import { RingsideShowInfo } from './RingsideShowInfo';
+import { useRestoreRingsideScroll } from './useRingsideListSnapshot';
 
 const ROW_CLASS =
   'flex min-h-12 w-full items-center gap-3 rounded-md px-3 text-left text-sm font-medium text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-disabled:opacity-60';
 
-export function RingsideMenu({ showId }: { showId: string | undefined }) {
+export function RingsideMenu({
+  showId,
+  snapshot,
+}: {
+  showId: string | undefined;
+  snapshot?: RingsideListSnapshot;
+}) {
   const navigate = useNavigate();
   const location = useLocation();
+  useRestoreRingsideScroll(snapshot !== undefined);
   const { user, signOut, getUserRoles } = useAuthContext();
   const isOnline = useOnlineStatus();
   const globalSync = useGlobalSyncStatus();
@@ -113,6 +121,7 @@ export function RingsideMenu({ showId }: { showId: string | undefined }) {
       setReturn({
         returnTo: `${location.pathname}${location.search}`,
         scope: item.returnScope ?? href.split('?')[0] ?? href,
+        ...(snapshot && { state: { ringsideList: snapshot, scrollY: window.scrollY } }),
       });
       closeThen(() => navigate(href));
       return;
@@ -208,7 +217,7 @@ export function RingsideMenu({ showId }: { showId: string | undefined }) {
           })}
         </nav>
       </SlideOverPanel>
-      {askqMounted && <AskQPanel />}
+      {askqMounted && <AskQPanel portal />}
       <SignOutWarningDialog
         context={signOutWarning}
         onCancel={() => setSignOutWarning(null)}

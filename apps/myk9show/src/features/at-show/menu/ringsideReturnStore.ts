@@ -6,12 +6,24 @@
  * `scope` keeps the bar on the destination's own pages only.
  */
 import { create } from 'zustand';
+import type { EntryListFiltersSnapshot } from '@myk9/ringside';
+import type { ClassListSort, ClassListTab } from '../atShowClassListFilter';
+
+export type RingsideListSnapshot =
+  | { kind: 'classes'; tab: ClassListTab; search: string; sort: ClassListSort }
+  | { kind: 'entries'; filters: EntryListFiltersSnapshot };
+
+export interface RingsideReturnLocationState {
+  ringsideList: RingsideListSnapshot;
+  scrollY?: number;
+}
 
 export interface RingsideReturn {
   /** The ringside screen to come back to, path plus query. */
   returnTo: string;
   /** Route prefix of the destination; the bar shows only under it. */
   scope: string;
+  state?: RingsideReturnLocationState | undefined;
   /** True once the user has actually left ringside; only then may arriving back end the trip. */
   departed?: boolean;
 }

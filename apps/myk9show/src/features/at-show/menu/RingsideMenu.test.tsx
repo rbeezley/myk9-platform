@@ -219,6 +219,21 @@ describe('RingsideMenu', () => {
     );
   });
 
+  it('keeps cached official contacts but explains external maps and weather offline', async () => {
+    mocks.online = false;
+    const { user } = renderMenu();
+    const nav = await openMenu(user);
+    await user.click(within(nav).getByRole('button', { name: 'Show info' }));
+    const info = within(await screen.findByTestId('ringside-show-info'));
+    expect(info.getByRole('link', { name: /Sam Secretary/ })).toHaveAttribute(
+      'href',
+      'mailto:sam@example.com'
+    );
+    expect(info.getByText('123 Main St, Springfield')).toBeInTheDocument();
+    expect(info.getByRole('status')).toHaveTextContent('Maps and weather need a connection');
+    expect(info.queryByRole('link', { name: 'Weather' })).not.toBeInTheDocument();
+  });
+
   it('opens the Message Center over the screen without navigating', async () => {
     const { user } = renderMenu();
     const nav = await openMenu(user);

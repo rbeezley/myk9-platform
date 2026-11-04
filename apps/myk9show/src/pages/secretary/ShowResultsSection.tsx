@@ -1,10 +1,16 @@
 import { lazy, Suspense } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, BarChart3 } from 'lucide-react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import { resolveShowDeskReturn } from '@/features/show-map/cockpit/cockpitRoutes';
 import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLink';
+import { useOnlineStatus } from '@/lib/networkUtils';
 
+const ShowStats = lazy(() =>
+  import('@/components/analytics/ShowStatsSubTab').then(module => ({
+    default: module.ShowStatsSubTab,
+  }))
+);
 const ResultsTab = lazy(() => import('@/features/results-tab/ResultsTab'));
 const ResultsSubmissionPage = lazy(() => import('@/pages/secretary/ResultsSubmissionPage'));
 const ShowCloseStep = lazy(() => import('@/pages/secretary/ShowCloseStep'));
@@ -23,10 +29,16 @@ export default function ShowResultsSection() {
   const showId = params.showId ?? params.id ?? '';
   const [searchParams] = useSearchParams();
   const step = searchParams.get('step');
+  const isFinishStep = step === 'submit' || step === 'close';
+  const isOnline = useOnlineStatus();
+  const showingStats = searchParams.get('resultsView') === 'show-stats';
+  const nextParams = new URLSearchParams(searchParams);
+  if (showingStats) nextParams.delete('resultsView');
+  else nextParams.set('resultsView', 'show-stats');
 
   return (
     <Suspense fallback={<LoadingSkeleton variant="cards" count={2} />}>
-      {step === 'submit' || step === 'close' ? (
+      {isFinishStep ? (
         <div className="mt-4 space-y-4">
           {/* One back link: to where the secretary came from (Overview, via returnTo) when there
               is one, otherwise to the class list (MYK9-1263). */}
@@ -43,8 +55,40 @@ export default function ShowResultsSection() {
           )}
           {step === 'submit' ? <ResultsSubmissionPage /> : <ShowCloseStep />}
         </div>
+      ) : showingStats ? (
+        <section className="mt-4 space-y-4">
+          <Link
+            to={{ search: nextParams.toString() }}
+            className="inline-flex min-h-12 items-center gap-2 px-3"
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+            Back to Results
+          </Link>
+          <h1 className="text-xl font-semibold">Show Stats</h1>
+          {isOnline ? (
+            <ShowStats showId={showId} />
+          ) : (
+            <p role="status">Show Stats needs a connection.</p>
+          )}
+        </section>
       ) : (
-        <ResultsTab />
+        <ResultsTab
+          showStatsLink={
+            isOnline ? (
+              <Link
+                to={{ search: nextParams.toString() }}
+                className="mt-4 inline-flex min-h-12 items-center gap-2 rounded-md border px-3 text-sm font-medium"
+              >
+                <BarChart3 className="h-4 w-4" aria-hidden="true" />
+                Show Stats
+              </Link>
+            ) : (
+              <p role="status" className="mt-4 text-sm text-muted-foreground">
+                Show Stats needs a connection.
+              </p>
+            )
+          }
+        />
       )}
     </Suspense>
   );

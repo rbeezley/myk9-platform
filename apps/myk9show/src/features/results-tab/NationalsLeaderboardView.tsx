@@ -48,7 +48,7 @@ export function NationalsLeaderboardLink({
 }) {
   if (isNationals !== true) return null;
   return (
-    <Button asChild variant="outline" className="min-h-11 gap-2">
+    <Button asChild variant="outline" className="min-h-12 gap-2">
       <Link to={getNationalsLeaderboardHref(showId)}>
         <Trophy className="h-4 w-4" aria-hidden="true" />
         Nationals leaderboard
@@ -67,6 +67,7 @@ interface NationalsLeaderboardViewProps {
   onRetry: () => void;
   /** Where the back button goes; the Results class list by default, ringside's own screen elsewhere. */
   backHref?: string;
+  backState?: unknown;
   backLabel?: string;
 }
 
@@ -82,6 +83,7 @@ export function NationalsLeaderboardView({
   refreshFailed,
   onRetry,
   backHref,
+  backState,
   backLabel = 'Back to classes',
 }: NationalsLeaderboardViewProps) {
   const board = useMemo(
@@ -90,8 +92,8 @@ export function NationalsLeaderboardView({
   );
   return (
     <div className="mt-4 space-y-4">
-      <Button asChild variant="ghost" className="min-h-11 gap-2">
-        <Link to={backHref ?? getResultsListHref(showId)}>
+      <Button asChild variant="ghost" className="min-h-12 gap-2">
+        <Link to={backHref ?? getResultsListHref(showId)} state={backState}>
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
           {backLabel}
         </Link>

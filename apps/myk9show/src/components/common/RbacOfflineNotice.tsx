@@ -27,7 +27,7 @@ export const RbacOfflineNotice: React.FC = () => {
         <ShieldAlert className="h-4 w-4 text-orange-600" />
         <AlertDescription>
           <div className="font-medium text-orange-800">Working offline</div>
-          <div className="text-sm text-orange-600">
+          <div className="text-sm text-orange-800">
             Using your saved permissions as of {asOf}. They will refresh automatically when the
             connection returns.
           </div>

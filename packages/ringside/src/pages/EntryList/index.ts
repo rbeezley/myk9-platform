@@ -110,7 +110,13 @@ export type { GateStatus, QuickAdvanceEntry } from './quickAdvanceCandidates';
 
 // ── Hooks ────────────────────────────────────────────────────────────────
 export { useEntryListFilters } from './hooks/useEntryListFilters';
-export type { TabType, EntryGroup, SortType, SectionFilter } from './hooks/useEntryListFilters';
+export type {
+  TabType,
+  EntryGroup,
+  SortType,
+  SectionFilter,
+  EntryListFiltersSnapshot,
+} from './hooks/useEntryListFilters';
 
 export { useDragAndDropEntries } from './hooks/useDragAndDropEntries';
 

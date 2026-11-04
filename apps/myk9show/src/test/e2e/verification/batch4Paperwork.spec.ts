@@ -58,12 +58,23 @@ for (const width of [375, 1280]) {
     const page = secretary.page;
     await page.setViewportSize({ width, height: 900 });
     await page.reload();
-    // A fresh class has no print records, so the checklist starts collapsed (MYK9-1620). The
-    // disclosure appears once the print read settles; open it before ticking sheets.
+    // The checklist starts collapsed on a show with no print records and expanded once the show
+    // uses it or its print read is unavailable (MYK9-1620), and it can settle either way after
+    // load. Open the disclosure whenever it is there and closed, until the sheets are reachable.
     const checklist = page.getByTestId('class-checklist-disclosure');
-    await expect(checklist).toBeVisible();
-    await checklist.getByText('Class checklist', { exact: true }).click();
-    await expect(checklist).toHaveJSProperty('open', true);
+    const firstSheet = page.getByRole('checkbox', {
+      name: 'Select Check-in sheet to print',
+      exact: true,
+    });
+    await expect(async () => {
+      if (
+        (await checklist.count()) > 0 &&
+        !(await checklist.evaluate(el => (el as HTMLDetailsElement).open))
+      ) {
+        await checklist.getByText('Class checklist', { exact: true }).click({ timeout: 2_000 });
+      }
+      await expect(firstSheet).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 30_000 });
     await expect(
       page.getByRole('checkbox', { name: 'Select Check-in sheet to print', exact: true })
     ).toBeVisible();

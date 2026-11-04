@@ -63,8 +63,14 @@ export function useJudgeAssignedToClass({
   isAnonymous,
   classId,
 }: Args): JudgeAssignmentGateResult {
-  const { userWithRoles, personIdentityState, personIdentityLookup } = useAuthContext();
-  const personId = userWithRoles?.databaseUserId ?? null;
+  const {
+    personId: identityPersonId,
+    personIdentityState,
+    personIdentityLookup,
+  } = useAuthContext();
+  // Cache-inclusive id (live `people` lookup OR the cached pairing), so a judge
+  // whose online lookup failed but who has a cached pairing still proceeds.
+  const personId = identityPersonId ?? null;
   const applicable = !isAnonymous && showRole === ShowRole.JUDGE;
 
   // The lookup key for the CURRENT inputs; null while inapplicable or identity
@@ -150,7 +156,7 @@ export function useJudgeAssignedToClass({
 
   // Identity unresolved -> fail OPEN, not 'checking'.
   //
-  // `databaseUserId` comes from a `people` lookup in AuthContext that declares
+  // The live `people` lookup in AuthContext declares
   // no networkMode, so it inherits 'online' and PAUSES offline -- a judge who
   // cold-boots at a ringside with no signal has `personId === null`
   // indefinitely. `lookupKey` is then null, the effect returns early, `resolved`

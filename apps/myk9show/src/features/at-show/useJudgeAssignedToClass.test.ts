@@ -17,6 +17,8 @@ const { getAll, sync, authIdentity, retryIdentity } = vi.hoisted(() => ({
   // unnoticed: the one input that breaks this hook could not be varied.
   authIdentity: {
     databaseUserId: 'judge-1' as string | undefined,
+    // Cache-inclusive id (live lookup OR cached pairing); independent of databaseUserId.
+    personId: 'judge-1' as string | null,
     personIdentityState: 'resolved' as 'unresolved' | 'resolved' | 'missing',
     fetching: false,
     failed: false,
@@ -25,6 +27,7 @@ const { getAll, sync, authIdentity, retryIdentity } = vi.hoisted(() => ({
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
     userWithRoles: { databaseUserId: authIdentity.databaseUserId },
+    personId: authIdentity.personId,
     personIdentityState: authIdentity.personIdentityState,
     personIdentityLookup: {
       fetching: authIdentity.fetching,
@@ -44,6 +47,7 @@ const CONFIRMED = { id: 'a1', personId: 'judge-1', classId: 'class-1', status: '
 describe('useJudgeAssignedToClass', () => {
   beforeEach(() => {
     authIdentity.databaseUserId = 'judge-1';
+    authIdentity.personId = 'judge-1';
     authIdentity.personIdentityState = 'resolved';
     authIdentity.fetching = false;
     authIdentity.failed = false;
@@ -228,6 +232,7 @@ describe('useJudgeAssignedToClass', () => {
    */
   it('fails open when identity has not resolved AND cannot arrive (offline)', async () => {
     authIdentity.databaseUserId = undefined;
+    authIdentity.personId = null;
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
     getAll.mockResolvedValue([]);
 
@@ -252,6 +257,7 @@ describe('useJudgeAssignedToClass', () => {
     // so an unassigned judge would leave the dog in-ring with no score and see
     // the sheet flash and vanish once identity resolved.
     authIdentity.databaseUserId = undefined;
+    authIdentity.personId = null;
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
     getAll.mockResolvedValue([]);
 
@@ -282,6 +288,7 @@ describe('useJudgeAssignedToClass', () => {
 
     beforeEach(() => {
       authIdentity.databaseUserId = undefined;
+      authIdentity.personId = null;
       vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
       getAll.mockResolvedValue([]);
     });
@@ -295,6 +302,15 @@ describe('useJudgeAssignedToClass', () => {
       authIdentity.personIdentityState = 'unresolved';
       authIdentity.failed = true;
       expect(run().result.current.status).toBe('identity-unavailable');
+    });
+
+    it('proceeds to the assignment check when a cached pairing exists despite a failed lookup', async () => {
+      authIdentity.personId = 'judge-1';
+      authIdentity.personIdentityState = 'unresolved';
+      authIdentity.failed = true;
+      getAll.mockResolvedValue([CONFIRMED]);
+      const { result } = run();
+      await waitFor(() => expect(result.current.status).toBe('assigned'));
     });
 
     it('keeps checking while the lookup is in flight, even after an earlier failure', () => {

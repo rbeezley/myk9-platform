@@ -26,6 +26,7 @@ vi.mock('@/hooks/useAuthContext', async importOriginal => {
     useAuthContext: () => ({
       getUserRoles: () => [UserRole.JUDGE],
       userWithRoles: { databaseUserId: undefined },
+      personId: null,
       user: { is_anonymous: false },
       personIdentityState: identity.state,
       personIdentityLookup: {

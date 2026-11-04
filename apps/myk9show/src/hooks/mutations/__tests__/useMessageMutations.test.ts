@@ -73,6 +73,30 @@ describe('useMessageMutations', () => {
     });
   });
 
+  it('sends the one-person scope with exactly that person id and email on', async () => {
+    const { supabase } = await import('@/lib/supabase-client');
+    const { result } = renderHook(() => useMessageMutations());
+
+    await act(async () => {
+      await result.current.sendTargetedMessage(
+        'show-1',
+        { type: 'person', personId: 'person-9', sendPush: true, sendEmail: true },
+        'Bring your vet papers'
+      );
+    });
+
+    expect(supabase.functions.invoke).toHaveBeenLastCalledWith('send-targeted-message', {
+      body: {
+        show_id: 'show-1',
+        target_type: 'person',
+        person_id: 'person-9',
+        send_push: true,
+        send_email: true,
+        body: 'Bring your vet papers',
+      },
+    });
+  });
+
   it('passes targeted push intent to the edge function', async () => {
     const { supabase } = await import('@/lib/supabase-client');
     const { result } = renderHook(() => useMessageMutations());

@@ -28,6 +28,7 @@ import {
 } from './messageShow';
 import {
   buildEmailAudienceCopy,
+  buildPersonEmailCopy,
   describeEmailAudience,
   type TargetedSendResult,
 } from './messageShowEmail';
@@ -45,6 +46,11 @@ interface MessageShowComposerProps {
   showWideDeliveryLane?: MessageShowDeliveryLane;
   /** Offer "Also send by email". Secretaries and admins only: the server enforces it. */
   allowEmail?: boolean;
+  /**
+   * Opened from "Email exhibitor…": the audience is locked to this one person (no recipient or
+   * class choice) and email delivery starts on. Needs `allowEmail`.
+   */
+  person?: { id: string; name: string };
 }
 
 const RECIPIENT_LABELS: Record<MessageShowRecipientType, string> = {
@@ -65,6 +71,7 @@ export function MessageShowComposer({
   allowedRecipients = ['all_show', 'class', 'checked_in'],
   showWideDeliveryLane = 'announcement',
   allowEmail = false,
+  person,
 }: MessageShowComposerProps) {
   const defaultRecipient = allowedRecipients[0] ?? 'all_show';
   const [recipient, setRecipient] = useState<MessageShowRecipientType>(defaultRecipient);
@@ -75,7 +82,7 @@ export function MessageShowComposer({
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
   const [sendPushAlert, setSendPushAlert] = useState(true);
-  const [sendEmail, setSendEmail] = useState(false);
+  const [sendEmail, setSendEmail] = useState(Boolean(person));
   const [isPostingAnnouncement, setIsPostingAnnouncement] = useState(false);
   // Set when the message went out in the app but the email did not (all of it, or some
   // addresses). The text stays; nothing is re-sent automatically.
@@ -88,15 +95,17 @@ export function MessageShowComposer({
     [classes, selectedClassId]
   );
   const isAnnouncementLane =
-    recipient === 'all_show'
+    !person &&
+    (recipient === 'all_show'
       ? showWideDeliveryLane === 'announcement'
-      : getMessageShowDeliveryLane(recipient) === 'announcement';
+      : getMessageShowDeliveryLane(recipient) === 'announcement');
   const isSendingMessage = isSending || isPostingAnnouncement;
   const canSend = Boolean(message.trim()) && (!isAnnouncementLane || Boolean(title.trim()));
   const emailRequested = allowEmail && sendEmail;
   const emailOption = emailRequested ? { sendEmail: true } : {};
-  const emailTarget: MessageTarget | null =
-    recipient === 'class'
+  const emailTarget: MessageTarget | null = person
+    ? { type: 'person', personId: person.id }
+    : recipient === 'class'
       ? selectedClass
         ? { type: 'class', classId: selectedClass.id }
         : null
@@ -115,7 +124,7 @@ export function MessageShowComposer({
     setTitle('');
     setMessage('');
     setSendPushAlert(true);
-    setSendEmail(false);
+    setSendEmail(Boolean(person));
     setNotice(null);
   }
 
@@ -200,6 +209,16 @@ export function MessageShowComposer({
       return;
     }
 
+    if (person) {
+      const result = await sendTargetedMessage(
+        showId,
+        { type: 'person', personId: person.id, sendPush: sendPushAlert, ...emailOption },
+        message.trim()
+      );
+      finishSend(result);
+      return;
+    }
+
     if (recipient === 'all_show') {
       const result = await sendTargetedMessage(
         showId,
@@ -249,7 +268,9 @@ export function MessageShowComposer({
             Show Messages
           </h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            Send a show message to everyone or a targeted group.
+            {person
+              ? `Send a message to ${person.name}.`
+              : 'Send a show message to everyone or a targeted group.'}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -285,23 +306,30 @@ export function MessageShowComposer({
       </div>
 
       <div className="mt-4 flex flex-col gap-3">
-        <div className="space-y-2">
-          <Label id="message-show-recipient-label">Recipient</Label>
-          <Select value={recipient} onValueChange={handleRecipientChange}>
-            <SelectTrigger className="w-full" aria-labelledby="message-show-recipient-label">
-              <SelectValue>{RECIPIENT_LABELS[recipient]}</SelectValue>
-            </SelectTrigger>
-            <SelectContent className="w-full">
-              {recipientOptions.map(([value, label]) => (
-                <SelectItem key={value} value={value}>
-                  {label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {person ? (
+          <div className="space-y-1">
+            <p className="text-sm font-medium">To</p>
+            <p className="text-sm text-muted-foreground">{person.name}</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <Label id="message-show-recipient-label">Recipient</Label>
+            <Select value={recipient} onValueChange={handleRecipientChange}>
+              <SelectTrigger className="w-full" aria-labelledby="message-show-recipient-label">
+                <SelectValue>{RECIPIENT_LABELS[recipient]}</SelectValue>
+              </SelectTrigger>
+              <SelectContent className="w-full">
+                {recipientOptions.map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
 
-        {recipient === 'class' ? (
+        {!person && recipient === 'class' ? (
           <div className="space-y-2">
             <Label id="message-show-class-label">Class</Label>
             <Select
@@ -366,9 +394,13 @@ export function MessageShowComposer({
               aria-live="polite"
             >
               {emailAudienceQuery.data
-                ? buildEmailAudienceCopy(emailAudience, emailAudienceQuery.data)
+                ? person
+                  ? buildPersonEmailCopy(person.name, emailAudienceQuery.data)
+                  : buildEmailAudienceCopy(emailAudience, emailAudienceQuery.data)
                 : emailAudienceQuery.isError
-                  ? `Could not count email recipients. Everyone in ${emailAudience} with an email address on file will still get it.`
+                  ? person
+                    ? `Could not check ${person.name}'s email address. It will be sent if one is on file.`
+                    : `Could not count email recipients. Everyone in ${emailAudience} with an email address on file will still get it.`
                   : emailTarget
                     ? 'Counting who will get the email...'
                     : 'Select a class to see who will get the email.'}

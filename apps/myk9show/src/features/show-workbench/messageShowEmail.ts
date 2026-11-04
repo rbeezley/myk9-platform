@@ -63,6 +63,13 @@ function missingSentence(missing: string[]): string {
   return `No usable email address on file for ${peopleLabel(missing.length)}: ${missing.join(', ')}.`;
 }
 
+/** The one-person promise before Send: who gets the email, or that they cannot be emailed. */
+export function buildPersonEmailCopy(name: string, preview: MessageShowEmailResult): string {
+  return preview.recipients > 0
+    ? `Will email ${name}.`
+    : `${name} has no usable email address on file, so no email will be sent.`;
+}
+
 /** Plain-words promise shown before Send: who gets the email, and who cannot. */
 export function buildEmailAudienceCopy(audience: string, preview: MessageShowEmailResult): string {
   if (preview.recipients === 0) {

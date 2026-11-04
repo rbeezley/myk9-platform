@@ -8,6 +8,12 @@ export interface AlertEntry {
   read: boolean;
 }
 
+export interface ComposeRequest {
+  showId: string;
+  personId: string;
+  personName: string;
+}
+
 interface NotificationState {
   preferences: NotificationPreferences;
   permissionStatus: NotificationPermission;
@@ -15,6 +21,8 @@ interface NotificationState {
   recentAlerts: AlertEntry[];
   unreadCount: number;
   isCenterOpen: boolean;
+  /** Set by "Email exhibitor…": the compose panel opens scoped to this one person. */
+  composeRequest: ComposeRequest | null;
 
   updatePreferences: (prefs: Partial<NotificationPreferences>) => void;
   requestPermission: () => Promise<void>;
@@ -25,6 +33,7 @@ interface NotificationState {
   dismissAlert: (id: string) => void;
   openCenter: () => void;
   closeCenter: () => void;
+  openComposeFor: (request: ComposeRequest) => void;
 }
 
 const MAX_RECENT_ALERTS = 50;
@@ -42,6 +51,7 @@ export const useNotificationStore = create<NotificationState>()(
       recentAlerts: [],
       unreadCount: 0,
       isCenterOpen: false,
+      composeRequest: null,
 
       updatePreferences: prefs =>
         set(state => {
@@ -118,7 +128,8 @@ export const useNotificationStore = create<NotificationState>()(
         }),
 
       openCenter: () => set({ isCenterOpen: true }),
-      closeCenter: () => set({ isCenterOpen: false }),
+      closeCenter: () => set({ isCenterOpen: false, composeRequest: null }),
+      openComposeFor: composeRequest => set({ isCenterOpen: true, composeRequest }),
     }),
     {
       name: 'myk9-notification-preferences',

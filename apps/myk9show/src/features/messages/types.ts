@@ -32,11 +32,13 @@ export interface SendMessageParams {
   body: string;
 }
 
-export type MessageTargetType = 'class' | 'checked_in' | 'all_show';
+export type MessageTargetType = 'class' | 'checked_in' | 'all_show' | 'person';
 
 export interface MessageTarget {
   type: MessageTargetType;
   classId?: string;
+  /** With type 'person': the one exhibitor (people.id) the message goes to. */
+  personId?: string;
   sendPush?: boolean;
   /** Also email everyone in the audience who has an address (resolved server-side). */
   sendEmail?: boolean;

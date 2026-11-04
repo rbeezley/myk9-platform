@@ -17,7 +17,13 @@ export function useMessageEmailAudience(
   enabled: boolean
 ) {
   return useQuery<MessageShowEmailResult>({
-    queryKey: ['message-email-audience', showId, target?.type, target?.classId ?? null],
+    queryKey: [
+      'message-email-audience',
+      showId,
+      target?.type,
+      target?.classId ?? null,
+      target?.personId ?? null,
+    ],
     enabled: enabled && !!target,
     staleTime: 0,
     gcTime: 0,
@@ -30,6 +36,7 @@ export function useMessageEmailAudience(
           show_id: showId,
           target_type: target?.type,
           ...(target?.classId ? { class_id: target.classId } : {}),
+          ...(target?.personId ? { person_id: target.personId } : {}),
           send_email: true,
           dry_run: true,
           // No `body` on purpose: a function deployed before dry_run existed ignores the

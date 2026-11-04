@@ -16,7 +16,7 @@
  * show store also holds another club's show and a club-less probe.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { screen, fireEvent, within, waitFor } from '@testing-library/react';
+import { screen, fireEvent, within, waitFor, act } from '@testing-library/react';
 import { render, userEvent } from '@/test/utils/testUtils';
 import { MessageCenterPanel } from '../MessageCenterPanel';
 import { useNotificationStore } from '@/store/notificationStore';
@@ -87,10 +87,12 @@ vi.mock('@/features/show-workbench/MessageShowComposer', async () => {
       showId,
       allowedRecipients,
       showWideDeliveryLane,
+      person,
     }: {
       showId: string;
       allowedRecipients?: string[];
       showWideDeliveryLane?: string;
+      person?: { id: string; name: string };
     }) => {
       // The real composer keeps its recipient choice in local state, so a stale
       // instance carries a lane the next show does not allow (Codex, PR #2443).
@@ -101,6 +103,8 @@ vi.mock('@/features/show-workbench/MessageShowComposer', async () => {
           data-mounted-for={mountedFor}
           data-allowed-recipients={allowedRecipients?.join(',') ?? ''}
           data-show-wide-lane={showWideDeliveryLane ?? ''}
+          data-person-id={person?.id ?? ''}
+          data-person-name={person?.name ?? ''}
         >
           Composer for {showId}
         </div>
@@ -520,5 +524,48 @@ describe('secretary who also judges', () => {
         'Blue Sky Scent Work Weekend',
       ])
     );
+  });
+});
+
+describe('Email exhibitor: the composer opened scoped to one person (MYK9-1693)', () => {
+  const request = { showId: 'heartland-ukc', personId: 'person-9', personName: 'Alice Martin' };
+
+  it('opens straight into compose for that show and person, then returns to the list', () => {
+    render(<MessageCenterPanel />, { initialRoute: '/secretary/entries/heartland-ukc' });
+    act(() => useNotificationStore.getState().openComposeFor(request));
+
+    const dialog = screen.getByRole('dialog', { name: /compose show message/i });
+    const composer = within(dialog).getByTestId('message-show-composer');
+    expect(composer).toHaveAttribute('data-mounted-for', 'heartland-ukc');
+    expect(composer).toHaveAttribute('data-person-id', 'person-9');
+    expect(composer).toHaveAttribute('data-person-name', 'Alice Martin');
+    expect(within(dialog).getByText('Send a message to Alice Martin.')).toBeInTheDocument();
+
+    fireEvent.click(within(dialog).getByRole('button', { name: /back/i }));
+    expect(useNotificationStore.getState().composeRequest).toBeNull();
+    expect(screen.queryByTestId('message-show-composer')).not.toBeInTheDocument();
+  });
+
+  it('refuses a show the person does not manage instead of offering the composer', () => {
+    render(<MessageCenterPanel />, { initialRoute: '/' });
+    act(() =>
+      useNotificationStore.getState().openComposeFor({ ...request, showId: 'blue-sky-weekend' })
+    );
+
+    expect(screen.queryByTestId('message-show-composer')).not.toBeInTheDocument();
+    expect(
+      screen.getByText('Emailing an exhibitor needs a secretary or admin role for this show.')
+    ).toBeInTheDocument();
+  });
+
+  it('refuses a club admin, who has no targeted-send permission, on a show they manage', () => {
+    authContext = heartlandClubAdmin();
+    render(<MessageCenterPanel />, { initialRoute: '/' });
+    act(() => useNotificationStore.getState().openComposeFor(request));
+
+    expect(screen.queryByTestId('message-show-composer')).not.toBeInTheDocument();
+    expect(
+      screen.getByText('Emailing an exhibitor needs a secretary or admin role for this show.')
+    ).toBeInTheDocument();
   });
 });

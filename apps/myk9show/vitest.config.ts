@@ -95,6 +95,7 @@ export default defineConfig({
       '../../supabase/functions/sentry-dashboard-metrics/index.source.test.ts',
       '../../supabase/functions/send-targeted-message/targeted-message-handler.test.ts',
       '../../supabase/functions/send-targeted-message/email-delivery.test.ts',
+      '../../supabase/functions/send-targeted-message/person-target.test.ts',
       '../../supabase/functions/deliver-trial-packet/*.test.ts',
       // Trial-packet delivery moved out of the function directory so the
       // automated generator shares it; the glob above no longer reaches it.

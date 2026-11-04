@@ -15,6 +15,7 @@ import {
   resolveComposeShow,
   type ComposeShowOption,
 } from '@/features/messages/messageComposeShows';
+import type { ComposeRequest } from '@/store/notificationStore';
 import type {
   MessageShowDeliveryLane,
   MessageShowRecipientType,
@@ -34,6 +35,8 @@ export interface MessageCenterComposeFormProps {
   /** Lanes for a show the person manages; a judged show is always show-wide only. */
   manageRecipients: MessageShowRecipientType[];
   manageShowWideLane: MessageShowDeliveryLane;
+  /** "Email exhibitor…": the show and the one person the message is locked to. */
+  composeRequest?: ComposeRequest | null;
 }
 
 const JUDGE_RECIPIENTS: MessageShowRecipientType[] = ['all_show'];
@@ -46,14 +49,19 @@ export function MessageCenterComposeForm({
   emptyMessage,
   manageRecipients,
   manageShowWideLane,
+  composeRequest,
 }: MessageCenterComposeFormProps) {
   const [pickedShowId, setPickedShowId] = useState('');
-  const { selected, locked } = resolveComposeShow(options, routeShowId, pickedShowId);
+  const { selected, locked } = resolveComposeShow(
+    options,
+    composeRequest?.showId ?? routeShowId,
+    pickedShowId
+  );
   const selectedShowId = selected?.id ?? '';
   const isJudgeLane = selected?.lane === 'judge';
   const recipients = isJudgeLane ? JUDGE_RECIPIENTS : manageRecipients;
   // Only a class message needs the class list; a show-wide-only lane never reads it.
-  const needsClasses = !!selectedShowId && recipients.includes('class');
+  const needsClasses = !composeRequest && !!selectedShowId && recipients.includes('class');
   const {
     data: classes = [],
     isError: classesError,
@@ -98,6 +106,19 @@ export function MessageCenterComposeForm({
   }
 
   function renderComposer() {
+    // Targeted sends (which includes one person) are secretary or admin only: the server
+    // rejects a club admin, whose composer is limited to show-wide announcements.
+    const canSendTargeted = manageRecipients.includes('class');
+    if (
+      composeRequest &&
+      (!selected || selected.id !== composeRequest.showId || isJudgeLane || !canSendTargeted)
+    ) {
+      return (
+        <p className="text-sm text-muted-foreground">
+          Emailing an exhibitor needs a secretary or admin role for this show.
+        </p>
+      );
+    }
     if (!selectedShowId) {
       return options.length > 0 ? (
         <p className="text-sm text-muted-foreground">Select a show to continue.</p>
@@ -127,12 +148,15 @@ export function MessageCenterComposeForm({
       // Keyed by show: the composer keeps its recipient choice in local state, and a
       // judged-only show allows fewer lanes than a managed one.
       <MessageShowComposer
-        key={selectedShowId}
+        key={`${selectedShowId}:${composeRequest?.personId ?? ''}`}
         showId={selectedShowId}
         classes={classes}
         allowedRecipients={recipients}
         showWideDeliveryLane={isJudgeLane ? 'announcement' : manageShowWideLane}
         allowEmail={!isJudgeLane}
+        {...(composeRequest
+          ? { person: { id: composeRequest.personId, name: composeRequest.personName } }
+          : {})}
         showHistoryLink={false}
         onSent={onSent}
       />
@@ -142,7 +166,9 @@ export function MessageCenterComposeForm({
   return (
     <div className="space-y-4 p-3">
       <p className="text-sm text-muted-foreground">
-        Send a show message to everyone, a class, or checked-in exhibitors.
+        {composeRequest
+          ? `Send a message to ${composeRequest.personName}.`
+          : 'Send a show message to everyone, a class, or checked-in exhibitors.'}
       </p>
       {pendingMessage && <p className="text-sm text-muted-foreground">{pendingMessage}</p>}
       {renderShowField()}

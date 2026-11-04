@@ -830,6 +830,50 @@ describe('post-review-gate.sh', () => {
       expect(lines[3]).toMatch(/^log sha256: [0-9a-f]{64}$/);
     });
 
+    // MYK9-1696: the gate counts `Adversarial subagent review:` lines anywhere in
+    // the comment, including the quoted log. A log that summarised each lens
+    // under that prefix posted at exit 0 on #3613, then the gate read 4 lenses
+    // against a "2 lenses" verdict and went red. The poster now asks the gate's
+    // own lens parser about the finished body before posting.
+    it('refuses a log whose quoted body makes the gate count different lenses (#3613 shape)', () => {
+      const gh = stubGh();
+      const log = logFile(
+        [
+          'No actionable defects found.',
+          '',
+          'Adversarial subagent review: consumer-correctness — every consumer checked.',
+          '',
+          'Adversarial subagent review: test-validity — mutations went red.',
+          '',
+        ].join('\n')
+      );
+      const r = run(['42', 'adversarial', 'abc1234', 'def5678', VERDICT, log], gh.bin, {
+        REVIEW_LENSES: 'consumer-correctness\ntest-validity',
+      });
+      expect(r.code).toBe(2);
+      expect(r.out).toContain('the gate would count 4 distinct lenses in the posted body');
+      expect(() => readFileSync(gh.calls, 'utf8')).toThrow();
+    });
+
+    it('posts a log that describes its lenses without the attestation prefix', () => {
+      const gh = stubGh();
+      const log = logFile(
+        [
+          'No actionable defects found.',
+          '',
+          'Lens consumer-correctness: every consumer checked.',
+          'Lens test-validity: mutations went red.',
+          '',
+        ].join('\n')
+      );
+      const r = run(['42', 'adversarial', 'abc1234', 'def5678', VERDICT, log], gh.bin, {
+        REVIEW_LENSES: 'consumer-correctness\ntest-validity',
+      });
+      expect(r.code).toBe(0);
+      const body = readFileSync(gh.calls, 'utf8').split('--body\n')[1]!.split('\n---')[0]!;
+      expect(body).toContain('Lens test-validity: mutations went red.');
+    });
+
     describe('against a real diff that touches supabase/migrations/', () => {
       function migrationRepo(): { dir: string; base: string; head: string } {
         const dir = mkdtempSync(join(tmpdir(), 'migration-repo-'));

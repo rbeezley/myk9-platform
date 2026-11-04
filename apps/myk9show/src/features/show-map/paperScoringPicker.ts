@@ -5,7 +5,7 @@ import {
   buildFullClassLabel,
 } from '@/features/_shared/classLabel';
 import type { ShowMapClassInput } from './showMapTypes';
-import { formatTrialIdentity } from '@/features/show-desk-people-roster/peopleRoster';
+import { formatTrialIdentity } from '@/components/entries/management/checkInDesk/peopleRoster';
 import { getPaperScoringClassHref } from '@/pages/scoring/scoringRoutes';
 import { formatDateOnly } from '@/lib/format/dates';
 

@@ -47,7 +47,7 @@ vi.mock('@/services/database/supabaseClient', () => ({
 }));
 
 const TOOLS: ShowToolItem[] = [
-  { id: 'people-at-show', group: 'show-day', title: 'People at show' },
+  { id: 'self-checkin', group: 'show-day', title: 'Self check-in' },
   { id: 'access-codes', group: 'show-day', title: 'Access codes' },
   {
     id: 'volunteers',
@@ -122,7 +122,7 @@ describe('resolveActions with registered show tools', () => {
   it('offers each tool as a ?tool= link in its section, with its attention label as the badge', () => {
     const tools = resolveActions(route, viewer).filter(a => a.group.startsWith('show-'));
     expect(tools.map(a => [a.id, a.group, a.href, a.badge])).toEqual([
-      ['show-tool-people-at-show', 'show-day', '?tool=people-at-show', undefined],
+      ['show-tool-self-checkin', 'show-day', '?tool=self-checkin', undefined],
       ['show-tool-access-codes', 'show-day', '?tool=access-codes', undefined],
       [
         'show-tool-volunteers',
@@ -375,7 +375,7 @@ describe('HeaderActions trigger badge', () => {
     render(<HeaderActions />, { wrapper });
     await userEvent.click(screen.getByTestId('header-actions-trigger'));
 
-    const link = await screen.findByTestId('header-action-show-tool-people-at-show');
+    const link = await screen.findByTestId('header-action-show-tool-self-checkin');
     const greyed = screen.getByTestId('header-action-show-tool-late-entry');
     expect(link).toHaveClass('min-h-11');
     expect(greyed).toHaveClass('min-h-11');

@@ -1,5 +1,5 @@
 import { lazy, Suspense, useMemo } from 'react';
-import { useParams } from 'react-router-dom';
+import { Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { useSecretaryShowEntriesQuery } from '@/hooks/queries/useEntriesDatabase';
@@ -16,8 +16,7 @@ import { IncidentLogCard } from '@/features/show-workbench/IncidentLogCard';
 import { EmergencyTrialPacketTool } from '@/features/emergency-trial-packet/EmergencyTrialPacketTool';
 import { TasksNotesCard } from '@/features/show-workbench/TasksNotesCard';
 import { VolunteersCard } from '@/features/show-workbench/VolunteersCard';
-import { ShowDeskPeopleRoster } from '@/features/show-desk-people-roster/ShowDeskPeopleRoster';
-import { SHOW_DESK_PEOPLE_AT_SHOW_TOOL_ID } from '@/features/show-desk-people-roster/peopleRosterRoutes';
+import { getRetiredPeopleAtShowRedirect } from '@/components/entries/management/checkInDesk/checkInDeskRoutes';
 import { SelfCheckinTool } from '@/features/show-workbench/SelfCheckinTool';
 import { getTrialTimezone } from '@/features/registries';
 import { useResultSubmissions } from '@/hooks/mutations/useResultSubmission';
@@ -61,11 +60,21 @@ const EMPTY_TASKS: SecretaryTask[] = [];
 
 const ShowDeskPanel = lazy(() => import('@/features/show-map/ShowDeskPanel'));
 
+/** The retired `?tool=people-at-show` link lands on Entry Forms' Check-in desk (MYK9-1690). */
+export function ShowWorkbenchShowDeskPage() {
+  const params = useParams<{ showId?: string; id?: string }>();
+  const [searchParams] = useSearchParams();
+  const showId = params.showId ?? params.id;
+  const checkInDeskHref = showId ? getRetiredPeopleAtShowRedirect(showId, searchParams) : null;
+  if (checkInDeskHref) return <Navigate to={checkInDeskHref} replace />;
+  return <ShowWorkbenchShowDeskBody />;
+}
+
 /**
  * The secretary's show home: the manager Overview at `/shows/:id` (MYK9-955),
  * which absorbed Show Day and Setup (MYK9-957).
  */
-export function ShowWorkbenchShowDeskPage() {
+function ShowWorkbenchShowDeskBody() {
   const params = useParams<{ showId?: string; id?: string }>();
   const showId = params.showId ?? params.id;
   const { show: currentShow, isLoading } = useFastShowDetails(showId);
@@ -261,23 +270,6 @@ export function ShowWorkbenchShowDeskPage() {
 
     return [
       {
-        id: SHOW_DESK_PEOPLE_AT_SHOW_TOOL_ID,
-        group: 'show-day',
-        title: 'People at show',
-        summary: 'Look up exhibitors, armbands, class entries, and check-in status',
-        layout: 'wide',
-        content: (
-          <ShowDeskPeopleRoster
-            showId={currentShow.id}
-            classes={showClasses}
-            entries={showEntries}
-            isLoading={showEntriesLoading}
-            loadError={showEntriesError}
-            onRetry={() => void refetchShowEntries()}
-          />
-        ),
-      },
-      {
         id: 'self-checkin',
         group: 'show-day',
         title: 'Self check-in',
@@ -444,7 +436,7 @@ export function ShowWorkbenchShowDeskPage() {
   if (entriesFailed) {
     return (
       <ShowDeskEntriesFailed
-        pausedWhat="Entry counts, People at show, and Show Map are"
+        pausedWhat="Entry counts, Check-in desk, and Show Map are"
         onRetry={() => void refetchShowEntries()}
       />
     );

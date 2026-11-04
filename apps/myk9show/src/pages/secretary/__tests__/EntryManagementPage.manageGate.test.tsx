@@ -209,7 +209,10 @@ describe('EntryManagementPage derives its gate from the one manage scope', () =>
     const lateEntry = registeredTool('late-entry');
     expect(lateEntry?.href).toBe('/secretary/register/show-1?source=show-desk&entryMode=late');
     expect(lateEntry?.disabledReason).toBeUndefined();
-    expect(registeredTool('people-at-show')?.href).toBe('/shows/show-1?tool=people-at-show');
+    expect(registeredTool('entry-list-check-in')?.href).toBe(
+      '/shows/show-1/entries?tab=exceptions&exception=check-in'
+    );
+    expect(registeredTool('people-at-show')).toBeUndefined();
   });
 
   it('offers Export CSV to the header while the form list is showing, running the page export', () => {

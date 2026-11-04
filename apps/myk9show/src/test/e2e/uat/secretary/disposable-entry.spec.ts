@@ -126,23 +126,18 @@ test.describe('Phase 1 UAT - Secretary disposable entry management', () => {
       .toMatchObject({ entry_status: 'confirmed' });
 
     await page.getByTestId('header-actions-trigger').click();
-    await page.getByTestId('header-action-show-tool-people-at-show').click();
-    await expect(page).toHaveURL(new RegExp(`/shows/${seed.showId}\\?tool=people-at-show`));
+    await page.getByTestId('header-action-show-tool-entry-list-check-in').click();
+    await expect(page).toHaveURL(
+      new RegExp(`/shows/${seed.showId}/entries\\?tab=exceptions&exception=check-in`)
+    );
 
-    const toolsDialog = page.getByRole('dialog', { name: 'People at show' });
-    await expect(toolsDialog).toBeVisible();
-    // The roster's search has no aria-label, so its name is its placeholder.
-    await toolsDialog
-      .getByRole('textbox', { name: /search name, dog, armband/i })
-      .fill(seed.dogName);
+    // The desk's search has no aria-label, so its name is its placeholder.
+    await page.getByRole('textbox', { name: /search name, dog, armband/i }).fill(seed.dogName);
 
-    const personRow = page.getByRole('button').filter({ hasText: seed.dogName });
-    await expect(personRow).toHaveCount(1);
-    await personRow.click();
-
-    const classRow = page.getByText(seed.dogName, { exact: true }).locator('..').locator('..');
+    const classRow = page.locator('section').filter({ hasText: seed.dogName });
+    await expect(classRow).toHaveCount(1);
     await expect(classRow.getByText(seed.armband, { exact: true })).toBeVisible();
-    await classRow.getByRole('button', { name: 'Check in', exact: true }).click();
+    await classRow.getByRole('button', { name: `Check in ${seed.dogName}` }).click();
     await expect(classRow.getByText('Checked-in', { exact: true })).toBeVisible({
       timeout: 10_000,
     });

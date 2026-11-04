@@ -260,6 +260,50 @@ describe('CheckInDesk', () => {
     );
     expect(screen.getByRole('region', { name: 'Alice Martin' })).toHaveTextContent('Not active');
   });
+
+  it('re-reads the entries after a check-in and drops its local flip once the read lands', async () => {
+    let finishRefresh: () => void = () => {};
+    const onRefreshEntries = vi.fn(
+      () =>
+        new Promise<void>(resolve => {
+          finishRefresh = resolve;
+        })
+    );
+    const props = {
+      showId: 'show-1',
+      loading: false,
+      unknown: false,
+      onRetry: vi.fn(),
+      onRefreshEntries,
+      currentDate: NOW,
+    };
+    const { user, rerender } = render(<CheckInDesk {...props} entries={[entry()]} />);
+    await user.click(screen.getByRole('button', { name: 'Check in Poppy, Container Novice A' }));
+
+    await waitFor(() => expect(onRefreshEntries).toHaveBeenCalledTimes(1));
+    // Optimistic flip holds while the read is in flight.
+    expect(screen.getByRole('region', { name: 'Alice Martin' })).toHaveTextContent('Checked-in');
+
+    // A later ringside status in the shared entries is never masked by the flip, even before the
+    // read promise settles.
+    const inRing = entry({ classes: [{ ...entry().classes[0]!, checkInStatus: 'in-ring' }] });
+    rerender(<CheckInDesk {...props} entries={[inRing]} />);
+    expect(screen.getByRole('region', { name: 'Alice Martin' })).not.toHaveTextContent(
+      'Checked-in'
+    );
+    const pulled = entry({ classes: [{ ...entry().classes[0]!, checkInStatus: 'pulled' }] });
+    rerender(<CheckInDesk {...props} entries={[pulled]} />);
+    expect(screen.getByRole('region', { name: 'Alice Martin' })).toHaveTextContent('Not active');
+
+    // Once the read lands the flip is gone and the shared entries speak alone.
+    finishRefresh();
+    rerender(<CheckInDesk {...props} entries={[entry()]} />);
+    await waitFor(() =>
+      expect(screen.getByRole('region', { name: 'Alice Martin' })).toHaveTextContent(
+        'Not checked in'
+      )
+    );
+  });
 });
 
 describe('buildCheckInDeskClasses', () => {

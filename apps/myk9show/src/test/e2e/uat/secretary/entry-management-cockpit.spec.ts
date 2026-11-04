@@ -189,11 +189,13 @@ for (const viewport of [
 test('Entry Management deep-links to the existing Check-in desk', async ({ page }) => {
   await signInAsSecretary(page, `/shows/${LIVE_SECRETARY_SHOW_ID}/entries`);
   await page.getByTestId('header-actions-trigger').click();
-  await page.getByTestId('header-action-show-tool-people-at-show').click();
+  await page.getByTestId('header-action-show-tool-entry-list-check-in').click();
 
   await expect(page).toHaveURL(
-    new RegExp(`/shows/${LIVE_SECRETARY_SHOW_ID}\\?tool=people-at-show`)
+    new RegExp(`/shows/${LIVE_SECRETARY_SHOW_ID}/entries\\?tab=exceptions&exception=check-in`)
   );
-  const toolsDialog = page.getByRole('dialog', { name: 'People at show' });
-  await expect(toolsDialog).toBeVisible();
+  await expect(page.getByRole('textbox', { name: /search name, dog, armband/i })).toBeVisible();
+  // One Check-in desk row: the retired People at show row is gone.
+  await page.getByTestId('header-actions-trigger').click();
+  await expect(page.getByTestId('header-action-show-tool-people-at-show')).toHaveCount(0);
 });

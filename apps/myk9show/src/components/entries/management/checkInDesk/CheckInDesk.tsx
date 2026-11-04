@@ -25,11 +25,12 @@ interface CheckInDeskProps {
   loading: boolean;
   unknown: boolean;
   onRetry: () => void;
+  /** Re-reads the page's entries; the optimistic check-in flip lasts only until it lands. */
+  onRefreshEntries?: () => void | Promise<void>;
   /** Fixed clock for tests; the desk otherwise ticks once a minute. */
   currentDate?: Date | null;
 }
 
-const SETTLED = new Set<string | undefined>(['checked-in', 'pulled', 'completed']);
 const EXHIBITOR_NOUN = ['exhibitor', 'exhibitors'] as const;
 
 /**
@@ -43,6 +44,7 @@ export function CheckInDesk({
   loading,
   unknown,
   onRetry,
+  onRefreshEntries,
   currentDate,
 }: CheckInDeskProps) {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -50,7 +52,7 @@ export function CheckInDesk({
   const [search, setSearch] = useState('');
   const [now, setNow] = useState(() => new Date());
   const { trials, trialClasses, readPending, readFailed, retry } = useShowDeskScheduleRead();
-  const { checkedInIds, busyIds, error, notice, checkIn } = useCheckInDeskActions();
+  const { checkedInIds, busyIds, error, notice, checkIn } = useCheckInDeskActions(onRefreshEntries);
 
   useEffect(() => {
     if (currentDate) return undefined;
@@ -69,16 +71,16 @@ export function CheckInDesk({
   const shownEntries = useMemo(
     () =>
       entries.map(entry =>
-        // Local override only until refreshed data speaks: a pull or completion
-        // that arrives later is not masked by it.
-        checkedInIds.has(entry.id) && entry.classes.every(cls => !SETTLED.has(cls.checkInStatus))
+        // Optimistic until the entries re-read lands. Only a class with no ringside status yet
+        // flips: at-gate, in-ring, pulled or completed from a later read are never masked.
+        checkedInIds.has(entry.id)
           ? {
               ...entry,
-              classes: entry.classes.map(cls => ({
-                ...cls,
-                checkInStatus: 'checked-in' as const,
-                checkInTime: new Date(),
-              })),
+              classes: entry.classes.map(cls =>
+                !cls.checkInStatus || cls.checkInStatus === 'no-status'
+                  ? { ...cls, checkInStatus: 'checked-in' as const, checkInTime: new Date() }
+                  : cls
+              ),
             }
           : entry
       ),

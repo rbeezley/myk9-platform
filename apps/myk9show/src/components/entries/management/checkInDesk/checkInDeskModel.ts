@@ -8,8 +8,8 @@ import {
   filterPeopleRoster,
   type PeopleRosterClassInfo,
   type PeopleRosterPerson,
-} from '@/features/show-desk-people-roster/peopleRoster';
-import { buildTrialRingResolver } from '@/features/show-desk-people-roster/trialRingLabel';
+} from '@/components/entries/management/checkInDesk/peopleRoster';
+import { buildTrialRingResolver } from '@/components/entries/management/checkInDesk/trialRingLabel';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import type { Trial, TrialClass } from '@/components/trials/types/trial.types';
 import { getTrialTimezone } from '@/features/registries';

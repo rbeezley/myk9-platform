@@ -9,7 +9,6 @@ import {
   matchesOperationalAttentionFilter,
 } from '@/features/entry-operations/attentionClassification';
 import { normalizeEntryManagementSearchParams } from '@/components/entries/management/entryManagementFilters';
-import { SHOW_DESK_PEOPLE_AT_SHOW_TOOL_ID } from '@/features/show-desk-people-roster/peopleRosterRoutes';
 
 const show = {
   id: 'show-1',
@@ -434,7 +433,7 @@ describe('computeShowDeskPendingSignals', () => {
       expect(normalized.mode).toBe('review');
     });
 
-    it('check-in count matches accepted/confirmed entries not yet checked in, and href round-trips to People at show, pre-filtered (MYK9-826)', () => {
+    it('check-in count matches accepted/confirmed entries not yet checked in, and href opens the Check-in desk filtered to not checked in (MYK9-1690)', () => {
       const rawEntries = [
         { entry_status: 'accepted', check_in_status: null },
         { entry_status: 'confirmed' },
@@ -461,13 +460,9 @@ describe('computeShowDeskPendingSignals', () => {
       expect(checkIn?.count).toBe(3);
       expect(checkIn?.href).toBeTruthy();
 
-      // MYK9-826: Entry Management's `mode=day-of` had no check-in control
-      // (its URL normalisation dropped `mode` entirely). The card now lands
-      // on the Show Desk's own People-at-show roster instead, pre-filtered.
-      const params = new URLSearchParams(checkIn!.href!.split('?')[1]);
-      expect(params.get('tool')).toBe(SHOW_DESK_PEOPLE_AT_SHOW_TOOL_ID);
-      expect(params.get('view')).toBe('needs-check-in');
-      expect(checkIn!.href).toMatch(/^\/shows\/show-1\?/);
+      expect(checkIn!.href).toBe(
+        '/shows/show-1/entries?tab=exceptions&exception=check-in&checkin=pending'
+      );
     });
 
     it('excludes terminal/pulled entries from waiting-review and payment-due counts', () => {

@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ShowWorkbenchShowDeskPage } from '@/pages/secretary/ShowWorkbenchShowDeskPage';
 import type { ReactNode } from 'react';
@@ -167,7 +167,7 @@ vi.mock('@/features/show-map/ShowDeskPanel', () => ({
           <li key={tool.id}>{`${tool.group}:${tool.id}`}</li>
         ))}
       </ol>
-      {(['people-at-show', 'self-checkin', 'volunteers'] as const).map(id => {
+      {(['self-checkin', 'volunteers'] as const).map(id => {
         const tool = tools.find(item => item.id === id);
         if (!tool) return null;
         return (
@@ -176,23 +176,6 @@ vi.mock('@/features/show-map/ShowDeskPanel', () => ({
           </div>
         );
       })}
-    </div>
-  ),
-}));
-
-vi.mock('@/features/show-desk-people-roster/ShowDeskPeopleRoster', () => ({
-  ShowDeskPeopleRoster: ({
-    entries,
-    classes,
-  }: {
-    entries: unknown[];
-    classes: Array<{ entryCount: number }>;
-  }) => (
-    <div data-testid="people-roster">
-      <span data-testid="people-roster-entry-count">{entries.length}</span>
-      <span data-testid="people-roster-class-entry-counts">
-        {classes.map(cls => cls.entryCount).join(',')}
-      </span>
     </div>
   ),
 }));
@@ -207,7 +190,12 @@ vi.mock('@/hooks/useShowManageScope', () => ({
   useShowManageScope: () => manageScopeState.value,
 }));
 
-function renderPage(initialEntries?: unknown[]) {
+function LocationProbe() {
+  const location = useLocation();
+  return <div data-testid="entries-location">{`${location.pathname}${location.search}`}</div>;
+}
+
+function renderPage(initialEntries?: unknown[], route = '/shows/show-1/show-day') {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
@@ -217,9 +205,10 @@ function renderPage(initialEntries?: unknown[]) {
 
   const result = render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={['/shows/show-1/show-day']}>
+      <MemoryRouter initialEntries={[route]}>
         <Routes>
           <Route path="/shows/:id/show-day" element={<ShowWorkbenchShowDeskPage />} />
+          <Route path="/shows/:id/entries" element={<LocationProbe />} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>
@@ -299,12 +288,10 @@ describe('ShowWorkbenchShowDeskPage', () => {
     expect(await screen.findByTestId('show-desk-panel')).toBeInTheDocument();
     // Once the desk body renders, its tools reach the header for this show.
     expect(usePageEditTargetStore.getState().showTools?.showId).toBe('show-1');
-    expect(usePageEditTargetStore.getState().showTools?.tools).toHaveLength(8);
+    expect(usePageEditTargetStore.getState().showTools?.tools).toHaveLength(7);
     expect(screen.getByTestId('panel-entry-count')).toHaveTextContent('8');
     expect(screen.getByTestId('panel-class-entry-counts')).toHaveTextContent('8');
     expect(screen.getByTestId('panel-class-scored-counts')).toHaveTextContent('3');
-    expect(screen.getByTestId('people-roster-entry-count')).toHaveTextContent('8');
-    expect(screen.getByTestId('people-roster-class-entry-counts')).toHaveTextContent('8');
     expect(screen.getByTestId('self-checkin-tool')).toHaveTextContent('Self check-in for show-1');
   });
 
@@ -349,7 +336,7 @@ describe('ShowWorkbenchShowDeskPage', () => {
       turnOff();
       const rows = await inventory();
       expect(rows).not.toContain(toolId);
-      expect(rows).toHaveLength(7);
+      expect(rows).toHaveLength(6);
       // A deep link still opens it: the panel is handed the full list.
       expect(screen.getByTestId('panel-tool-ids')).toHaveTextContent(toolId);
     });
@@ -358,7 +345,7 @@ describe('ShowWorkbenchShowDeskPage', () => {
       turnOn();
       const rows = await inventory();
       expect(rows).toContain(toolId);
-      expect(rows).toHaveLength(8);
+      expect(rows).toHaveLength(7);
     });
   });
 
@@ -367,7 +354,15 @@ describe('ShowWorkbenchShowDeskPage', () => {
   //   add-entries   -> Entries "Add Entry" (EntryManagementPage.manageGate.test.tsx)
   //   show-closeout -> Results step 3 "Close the show" (ShowResultsSection.test.tsx)
   //   schedule-slip -> the class's expected-start change (SecretaryCockpitFocusedClass.test.tsx)
-  it('keeps exactly eight tools in two groups, in sheet order', async () => {
+  it('sends a retired ?tool=people-at-show link to the Check-in desk, keeping the not-checked-in view', async () => {
+    renderPage(undefined, '/shows/show-1/show-day?tool=people-at-show&view=needs-check-in');
+
+    expect(await screen.findByTestId('entries-location')).toHaveTextContent(
+      '/shows/show-1/entries?tab=exceptions&exception=check-in&checkin=pending'
+    );
+  });
+
+  it('keeps exactly seven tools in two groups, in sheet order', async () => {
     getEntriesForShowMock.mockResolvedValue({ data: [], error: null });
 
     renderPage();
@@ -377,7 +372,6 @@ describe('ShowWorkbenchShowDeskPage', () => {
       .getAllByRole('listitem')
       .map(item => item.textContent);
     expect(inventory).toEqual([
-      'show-day:people-at-show',
       'show-day:self-checkin',
       'show-day:access-codes',
       'show-day:emergency-trial-packet',

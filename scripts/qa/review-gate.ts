@@ -37,6 +37,7 @@
  * reads these comments publishes a status with a write-capable token.
  */
 import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import {
   meetsFloor,
@@ -980,6 +981,16 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   if (deferredReviewLineFlag >= 0) {
     const line = process.argv[deferredReviewLineFlag + 1] ?? '';
     process.exit(DEFERRED_REVIEW.test(line) ? 0 : 2);
+  }
+  // `--adversarial-lens-count` (comment body on stdin): prints how many DISTINCT
+  // lenses adversarialBodyProblem would count in that body. The quoted log sits
+  // inside the body, so a log line that starts "Adversarial subagent review:"
+  // counts too; post-review-gate.sh asks this before posting rather than
+  // publishing a body the gate then refuses (MYK9-1696, #3613).
+  if (process.argv.includes('--adversarial-lens-count')) {
+    const body = readFileSync(0, 'utf8');
+    process.stdout.write(`${new Set(adversarialLensNames(body)).size}\n`);
+    process.exit(0);
   }
   process.exitCode = runCli();
 }

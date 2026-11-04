@@ -391,6 +391,23 @@ if [ "$REVIEWER" = "adversarial" ]; then
   LENS_BLOCK="$(printf '%s\n' "$LENS_LINES" | sed 's/^/Adversarial subagent review: /')"
   BODY="$(printf 'Review gate: %s reviewed %s..%s — %s\n%s\nlog sha256: %s\n\n<details><summary>%s verdict</summary>\n\n```text\n%s\n```\n\n</details>\n' \
     "$REVIEWER" "${BASE:0:9}" "${HEAD:0:9}" "$VERDICT" "$LENS_BLOCK" "$HASH" "$REVIEWER" "$VERDICT_BLOCK")"
+  # The gate counts lens lines ANYWHERE in the body, quoted log included, so a
+  # log that summarises a lens under the attestation prefix changes the count
+  # (#3613 posted at exit 0, then went red: "claims 2 lenses but names 4").
+  # Ask the gate's own parser about the finished body, never a copied regex.
+  # Clean posts only: the gate rejects a withdrawal's verdict before counting
+  # lenses, and a withdrawal must always be able to retract a clean record.
+  if [ "$WITHDRAW" != 1 ]; then
+    BODY_LENS_COUNT="$(printf '%s' "$BODY" | node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON \
+      "$HERE/review-gate.ts" --adversarial-lens-count)" || {
+      echo "post-review-gate: the lens-count probe (review-gate.ts --adversarial-lens-count) failed; nothing posted" >&2
+      exit 2
+    }
+    if [ "$BODY_LENS_COUNT" != "$LENS_COUNT" ]; then
+      echo "post-review-gate: the gate would count $BODY_LENS_COUNT distinct lenses in the posted body, but REVIEW_LENSES names $LENS_COUNT; a log line starting 'Adversarial subagent review:' counts as a lens (reword it), and lens names differing only by Unicode spaces count once; nothing posted" >&2
+      exit 2
+    fi
+  fi
 elif [ "$REVIEWER" = "owner" ]; then
   # Owner tier: Override reason and Deferred re-review are the 2nd and 3rd
   # lines, ahead of the log hash — overrideAccepted (review-gate.ts) matches

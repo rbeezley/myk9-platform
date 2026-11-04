@@ -1,17 +1,18 @@
 /**
- * IA-1 (MYK9-1296): Wi-Fi, the per-show withdrawal policy and refund-all live in the Edit show
- * details panel, keyed on the show the route opened. They used to exist only on the unlinked
- * /secretary/settings page, which read the store's `selectedShowId`.
+ * IA-1 (MYK9-1296), moved by MYK9-1682: the venue pin, Wi-Fi, the per-show withdrawal policy and
+ * refund-all live on the Edit show panel's "Venue & policies" tab, keyed on the show the route
+ * opened. They used to exist only on the unlinked /secretary/settings page (then the header
+ * details panel), which read the store's `selectedShowId`.
  */
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
-import { ShowDetailsPanel } from '../ShowDetailsPanel';
+import { Tabs } from '@/components/ui/tabs';
+import { ShowEditVenueTab } from '../ShowEditVenueTab';
 import { ArmbandLabelCell } from '@/components/reports/labels/ArmbandLabelCell';
 import { DEFAULT_CONTENT_CONFIG } from '@/lib/labels/armbandLabelTypes';
 import { useArmbandLabelData } from '@/hooks/queries/useArmbandLabelData';
-import type { Show } from '@/types/show-types';
 
 const ROUTE_SHOW_ID = 'route-show-7';
 
@@ -109,17 +110,14 @@ vi.mock('@/components/common/LazyComponents', () => ({
   ),
 }));
 
-const show = { id: ROUTE_SHOW_ID, name: 'Route Show', status: 'published' } as unknown as Show;
-
-function renderPanel(props: { canManageShow?: boolean; open?: boolean; status?: string } = {}) {
+function renderTab(props: { showId?: string | undefined; status?: string } = {}) {
   return render(
-    <ShowDetailsPanel
-      show={props.status ? ({ ...show, status: props.status } as Show) : show}
-      canManageShow={props.canManageShow ?? true}
-      entryCount={0}
-      open={props.open ?? true}
-      showPublishing={false}
-    />
+    <Tabs value="venue">
+      <ShowEditVenueTab
+        showId={'showId' in props ? props.showId : ROUTE_SHOW_ID}
+        showStatus={props.status ?? 'published'}
+      />
+    </Tabs>
   );
 }
 
@@ -132,16 +130,16 @@ beforeEach(() => {
   db.entries = [];
 });
 
-describe('ShowDetailsPanel settings cards (IA-1)', () => {
+describe('ShowEditVenueTab (Venue & policies)', () => {
   it('renders the Wi-Fi card on the route show', async () => {
-    renderPanel();
+    renderTab();
     expect(await screen.findByText('Venue WiFi')).toBeInTheDocument();
     expect(db.reads).toContain(`shows:venue_wifi_network:${ROUTE_SHOW_ID}`);
     expect(db.reads.some(read => read.includes('store-show-OTHER'))).toBe(false);
   });
 
   it('renders the per-show withdrawal policy card and writes to the route show', async () => {
-    renderPanel();
+    renderTab();
     await waitFor(() => screen.getByLabelText('Amount kept (USD)'));
     fireEvent.change(screen.getByLabelText('Amount kept (USD)'), { target: { value: '10' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save policy' }));
@@ -157,7 +155,7 @@ describe('ShowDetailsPanel settings cards (IA-1)', () => {
   });
 
   it('renders the venue map pin card and saves the pin to the route show', async () => {
-    renderPanel();
+    renderTab();
     expect(await screen.findByText('Venue Map Pin')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'simulate-pin-drag' }));
     fireEvent.click(screen.getByRole('button', { name: /save pin/i }));
@@ -170,18 +168,18 @@ describe('ShowDetailsPanel settings cards (IA-1)', () => {
   });
 
   it('keeps refund-all off a live show: it appears only once the show is cancelled', async () => {
-    renderPanel({ status: 'published' });
+    renderTab({ status: 'published' });
     expect(await screen.findByText('Venue WiFi')).toBeInTheDocument();
     expect(screen.queryByText('Refund all entries')).not.toBeInTheDocument();
   });
 
   it('shows refund-all for a cancelled show', async () => {
-    renderPanel({ status: 'cancelled' });
+    renderTab({ status: 'cancelled' });
     expect(await screen.findByText('Refund all entries')).toBeInTheDocument();
   });
 
   it('refund-all reads the status of the route show and nothing about the store show', async () => {
-    renderPanel({ status: 'cancelled' });
+    renderTab({ status: 'cancelled' });
     expect(await screen.findByText('Refund all entries')).toBeInTheDocument();
     // `status` is the refund-all card's own read; the other cards select other columns.
     await waitFor(() => expect(db.reads).toContain(`shows:status:${ROUTE_SHOW_ID}`));
@@ -189,14 +187,14 @@ describe('ShowDetailsPanel settings cards (IA-1)', () => {
   });
 
   it('shows a loading state, not the inputs, until the saved Wi-Fi has loaded', () => {
-    renderPanel();
+    renderTab();
     expect(screen.getByLabelText('Loading venue WiFi')).toBeInTheDocument();
     expect(screen.queryByLabelText('Network Name')).not.toBeInTheDocument();
   });
 
   it('shows Try again, and no inputs, when the Wi-Fi read fails; Try again refetches', async () => {
     db.failWifi = true;
-    renderPanel();
+    renderTab();
     const retry = await screen.findByRole('button', { name: 'Try again' });
     expect(screen.queryByLabelText('Network Name')).not.toBeInTheDocument();
     const readsBefore = db.reads.filter(read => read.startsWith('shows:venue_wifi')).length;
@@ -211,20 +209,15 @@ describe('ShowDetailsPanel settings cards (IA-1)', () => {
     );
   });
 
-  it('shows none of the cards to a viewer who cannot manage the show', () => {
-    renderPanel({ canManageShow: false });
+  it('asks for a saved show first when the show has no id yet', () => {
+    renderTab({ showId: undefined });
+    expect(screen.getByText(/Save the show first/)).toBeInTheDocument();
     expect(screen.queryByText('Venue WiFi')).not.toBeInTheDocument();
     expect(screen.queryByText('Venue Map Pin')).not.toBeInTheDocument();
-    expect(screen.queryByText('Refund all entries')).not.toBeInTheDocument();
-  });
-
-  it('does not mount the cards while the panel is closed', () => {
-    renderPanel({ open: false });
-    expect(screen.queryByTestId('show-settings-cards')).not.toBeInTheDocument();
     expect(db.reads).toEqual([]);
   });
 
-  it('the Wi-Fi saved in the panel is what the armband labels print, via useArmbandLabelData', async () => {
+  it('the Wi-Fi saved on the tab is what the armband labels print, via useArmbandLabelData', async () => {
     db.entries = [
       {
         id: 'e1',
@@ -258,7 +251,9 @@ describe('ShowDetailsPanel settings cards (IA-1)', () => {
     }
     render(
       <>
-        <ShowDetailsPanel show={show} canManageShow entryCount={0} open showPublishing={false} />
+        <Tabs value="venue">
+          <ShowEditVenueTab showId={ROUTE_SHOW_ID} showStatus="published" />
+        </Tabs>
         <LabelsFromProductionPath />
       </>
     );

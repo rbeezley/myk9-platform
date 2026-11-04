@@ -175,6 +175,7 @@ describe('the show edit tab names', () => {
       'Officials',
       'Judges',
       'Fees',
+      'Venue & policies',
       'Premium',
     ]);
   });

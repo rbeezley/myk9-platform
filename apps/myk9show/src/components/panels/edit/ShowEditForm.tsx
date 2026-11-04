@@ -1,7 +1,7 @@
 /**
  * ShowEditForm - Internal form component for ShowEditPanel
  *
- * Renders the tabbed form (Basic Info, Officials, Judges, Fees)
+ * Renders the tabbed form (Basic Info, Officials, Judges, Fees, Venue & policies, Premium)
  * using the EditPanel context for data and update callbacks.
  */
 
@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Calendar, Users, UserCheck, DollarSign, FileText, Plus } from 'lucide-react';
+import { Calendar, Users, UserCheck, DollarSign, FileText, MapPin, Plus } from 'lucide-react';
 import { useTemplateStore } from '@/store/templateStore';
 import { useClubStore } from '@/store/clubStore';
 import { useUserStore } from '@/store/userStore';
@@ -27,6 +27,7 @@ import type { ShowEditFormData } from './ShowEditPanel.types';
 import { ShowEditBasicInfoTab } from './ShowEditBasicInfoTab';
 import { ShowEditFeesTab } from './ShowEditFeesTab';
 import { ShowEditPremiumTab } from './ShowEditPremiumTab';
+import { ShowEditVenueTab } from './ShowEditVenueTab';
 import { ShowEditAddJudgeDialog } from './ShowEditAddJudge';
 import { useShowEditJudgeCreate } from './useShowEditJudgeCreate';
 import type { ShowEditTab } from '@/components/shows/showEditRoutes';
@@ -194,24 +195,46 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
         onValueChange={value => onTabChange(value as ShowEditTab)}
         className="w-full"
       >
-        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 transition-all duration-300 ease-out">
-          <TabsTrigger value="basic" className="gap-2 rounded-lg transition-all duration-300">
+        <TabsList className="flex w-full justify-start overflow-x-auto bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 transition-all duration-300 ease-out">
+          <TabsTrigger
+            value="basic"
+            className="shrink-0 gap-2 rounded-lg transition-all duration-300"
+          >
             <Calendar className="h-4 w-4" />
             Basic Info
           </TabsTrigger>
-          <TabsTrigger value="personnel" className="gap-2 rounded-lg transition-all duration-300">
+          <TabsTrigger
+            value="personnel"
+            className="shrink-0 gap-2 rounded-lg transition-all duration-300"
+          >
             <Users className="h-4 w-4" />
             Officials
           </TabsTrigger>
-          <TabsTrigger value="judges" className="gap-2 rounded-lg transition-all duration-300">
+          <TabsTrigger
+            value="judges"
+            className="shrink-0 gap-2 rounded-lg transition-all duration-300"
+          >
             <UserCheck className="h-4 w-4" />
             Judges
           </TabsTrigger>
-          <TabsTrigger value="fees" className="gap-2 rounded-lg transition-all duration-300">
+          <TabsTrigger
+            value="fees"
+            className="shrink-0 gap-2 rounded-lg transition-all duration-300"
+          >
             <DollarSign className="h-4 w-4" />
             Fees
           </TabsTrigger>
-          <TabsTrigger value="premium" className="gap-2 rounded-lg transition-all duration-300">
+          <TabsTrigger
+            value="venue"
+            className="shrink-0 gap-2 rounded-lg transition-all duration-300"
+          >
+            <MapPin className="h-4 w-4" />
+            Venue &amp; policies
+          </TabsTrigger>
+          <TabsTrigger
+            value="premium"
+            className="shrink-0 gap-2 rounded-lg transition-all duration-300"
+          >
             <FileText className="h-4 w-4" />
             Premium
           </TabsTrigger>
@@ -432,6 +455,11 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
 
         {/* Fees Tab */}
         <ShowEditFeesTab data={data} form={form} handleCheckboxChange={handleCheckboxChange} />
+
+        <ShowEditVenueTab
+          showId={typeof data.id === 'string' && data.id.length > 0 ? data.id : undefined}
+          showStatus={initialStatus ?? data.status}
+        />
 
         <ShowEditPremiumTab
           data={data}

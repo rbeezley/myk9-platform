@@ -5,7 +5,11 @@
  * out of the app through `beforeunload`.
  */
 import { useEffect } from 'react';
-import { UnsavedChangesRouteGuard, type SelfNavigationRef } from './UnsavedChangesRouteGuard';
+import {
+  UnsavedChangesRouteGuard,
+  type DirtyRef,
+  type SelfNavigationRef,
+} from './UnsavedChangesRouteGuard';
 
 const DISCARD_SCORE_COPY = {
   title: 'Discard this score?',
@@ -16,9 +20,12 @@ const DISCARD_SCORE_COPY = {
 
 export function ScoresheetLeaveGuard({
   isDirty,
+  dirtyRef,
   selfNavigationRef,
 }: {
   isDirty: boolean;
+  /** Written with every dirty report so a navigation reads the live value (MYK9-1552). */
+  dirtyRef?: DirtyRef;
   /** Raised around a navigation the page makes itself, e.g. leaving after a save. */
   selfNavigationRef?: SelfNavigationRef;
 }) {
@@ -36,6 +43,7 @@ export function ScoresheetLeaveGuard({
   return (
     <UnsavedChangesRouteGuard
       isDirty={isDirty}
+      dirtyRef={dirtyRef}
       subject="this score"
       dialog={DISCARD_SCORE_COPY}
       selfNavigationRef={selfNavigationRef}

@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { RingsideUpButton } from '@myk9/ui';
 import { ScoresheetLeaveGuard } from '@/components/navigation/ScoresheetLeaveGuard';
+import { useScoresheetDirty } from '@/components/navigation/useScoresheetDirty';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
 import { getScoresheetComponent } from '@myk9/scoring-ui';
@@ -260,7 +261,7 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
 }) => {
   const navigate = useNavigate();
   // The sheet reports whether leaving would lose work; the guard owns the one prompt.
-  const [sheetDirty, setSheetDirty] = useState(false);
+  const { sheetDirty, dirtyRef, onDirtyChange: setSheetDirty } = useScoresheetDirty();
   // MYK9-83: saving lands on a "Saved" state with optional up-next chips
   // instead of navigating away on its own. NOTHING here auto-advances — the
   // judge either taps a candidate or goes back to the list (the default).
@@ -433,7 +434,7 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
           onDismiss={dismissNudge}
         />
       )}
-      <ScoresheetLeaveGuard isDirty={sheetDirty} />
+      <ScoresheetLeaveGuard isDirty={sheetDirty} dirtyRef={dirtyRef} />
       {submitError && <ScoreSubmitErrorBanner message={submitError} onDismiss={clearSubmitError} />}
       {(isSyncing || hasSyncError) && (
         <div

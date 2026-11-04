@@ -13,6 +13,7 @@ import { Loader2, AlertCircle, ArrowLeft, WifiOff } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { ScoresheetLeaveGuard } from '@/components/navigation/ScoresheetLeaveGuard';
+import { useScoresheetDirty } from '@/components/navigation/useScoresheetDirty';
 import { useSelfNavigation } from '@/components/panels/edit/useSelfNavigation';
 import { ScoresheetLoadingSkeleton } from '@/components/scoring/ScoringLoadingSkeletons';
 import { useOptimisticScoring } from '@/hooks/useOptimisticScoring';
@@ -66,7 +67,7 @@ export function ScoresheetPage() {
     clearSubmitError,
   } = useOptimisticScoring();
 
-  const [sheetDirty, setSheetDirty] = useState(false);
+  const { sheetDirty, dirtyRef, onDirtyChange: setSheetDirty } = useScoresheetDirty();
   const { selfNavigationRef, runSelfNavigation } = useSelfNavigation();
   const [entry, setEntry] = useState<ScoringEntry | null>(null);
   const [classInfo, setClassInfo] = useState<ClassInfo | null>(null);
@@ -323,7 +324,11 @@ export function ScoresheetPage() {
         </div>
       )}
       <MaxTimeNotSetNotice maxTimeSeconds={rules.maxTimeSeconds} registryKey={registryKey} />
-      <ScoresheetLeaveGuard isDirty={sheetDirty} selfNavigationRef={selfNavigationRef} />
+      <ScoresheetLeaveGuard
+        isDirty={sheetDirty}
+        dirtyRef={dirtyRef}
+        selfNavigationRef={selfNavigationRef}
+      />
       <LiveScoresheet
         entry={toScoresheetEntry(entry, classInfo)}
         classInfo={toScoresheetClassInfo(classInfo, trialDate, trialNumber, trialName)}

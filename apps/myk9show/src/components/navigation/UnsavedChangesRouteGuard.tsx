@@ -29,6 +29,15 @@ import {
 export type SelfNavigationRef = { current: number };
 
 /**
+ * Live dirty flag a form writes in the same call that reports a change. State
+ * reaches the blocker only after the form, the guard and the registry have each
+ * re-rendered; a navigation inside that window (an immediate Back after an
+ * edit) would pass. When given, the ref decides at navigation time and
+ * `isDirty` is only the rendered copy of it (MYK9-1552).
+ */
+export type DirtyRef = { current: boolean };
+
+/**
  * Copy for a guard whose situation is not "unsaved edits" — e.g. records that
  * were already saved but have no entry yet. Omit it for the default
  * "Leave <subject>?" prompt.
@@ -42,6 +51,7 @@ export interface UnsavedChangesDialogCopy {
 
 interface UnsavedChangesRouteGuardProps {
   isDirty: boolean;
+  dirtyRef?: DirtyRef | undefined;
   subject: string;
   selfNavigationRef?: SelfNavigationRef | undefined;
   /** Replaces the default dialog text. Memoize it: it is compared by identity. */
@@ -52,6 +62,11 @@ interface UnsavedChangesRouteGuardProps {
    * page, and the work on it, in place.
    */
   pathScoped?: boolean | undefined;
+}
+
+/** The ref when the form supplies one, else the last rendered value. */
+function isDirtyNow(guard: { isDirty: boolean; dirtyRef?: DirtyRef | undefined }): boolean {
+  return guard.dirtyRef ? guard.dirtyRef.current : guard.isDirty;
 }
 
 /** True while the form owning this guard is navigating on its own behalf. */
@@ -84,6 +99,7 @@ export function UnsavedChangesRouteGuardProvider({ children }: { children: React
       if (
         existing &&
         existing.isDirty === guard.isDirty &&
+        existing.dirtyRef === guard.dirtyRef &&
         existing.subject === guard.subject &&
         existing.selfNavigationRef === guard.selfNavigationRef &&
         existing.dialog === guard.dialog &&
@@ -123,6 +139,7 @@ export function UnsavedChangesRouteGuardProvider({ children }: { children: React
  */
 export function UnsavedChangesRouteGuard({
   isDirty,
+  dirtyRef,
   subject,
   selfNavigationRef,
   dialog,
@@ -135,15 +152,26 @@ export function UnsavedChangesRouteGuard({
   useEffect(() => {
     if (!registry || !dataRouterContext) return;
 
-    registry.register({ id, isDirty, subject, selfNavigationRef, dialog, pathScoped });
+    registry.register({ id, isDirty, dirtyRef, subject, selfNavigationRef, dialog, pathScoped });
     return () => registry.unregister(id);
-  }, [dataRouterContext, id, isDirty, registry, subject, selfNavigationRef, dialog, pathScoped]);
+  }, [
+    dataRouterContext,
+    id,
+    isDirty,
+    dirtyRef,
+    registry,
+    subject,
+    selfNavigationRef,
+    dialog,
+    pathScoped,
+  ]);
 
   if (!dataRouterContext || registry) return null;
 
   return (
     <DataRouterUnsavedChangesGuard
       isDirty={isDirty}
+      dirtyRef={dirtyRef}
       subject={subject}
       selfNavigationRef={selfNavigationRef}
       dialog={dialog}
@@ -170,7 +198,6 @@ function DataRouterUnsavedChangesBlocker({
   // Blocking is decided at navigation time (function form of useBlocker) so a
   // form that raises its self-navigation counter between render and its own
   // navigate() call is honoured — see SelfNavigationRef.
-  const dirtyGuards = useMemo(() => guards.filter(guard => guard.isDirty), [guards]);
   // Named when the block happens, not at render: with several dirty forms
   // mounted, the one that stops this navigation is whichever is not currently
   // self-navigating, and naming a different form would tell the user they are
@@ -181,14 +208,14 @@ function DataRouterUnsavedChangesBlocker({
   }>({ subject: 'this page' });
   const shouldBlock = useCallback<BlockerFunction>(
     args => {
-      const blocking = dirtyGuards.find(
-        guard => !isSelfNavigating(guard) && !staysOnPath(guard, args)
+      const blocking = guards.find(
+        guard => isDirtyNow(guard) && !isSelfNavigating(guard) && !staysOnPath(guard, args)
       );
       if (!blocking) return false;
       setBlocked({ subject: blocking.subject, dialog: blocking.dialog });
       return true;
     },
-    [dirtyGuards]
+    [guards]
   );
   const blocker = useBlocker(shouldBlock);
 
@@ -206,6 +233,7 @@ function DataRouterUnsavedChangesBlocker({
 
 function DataRouterUnsavedChangesGuard({
   isDirty,
+  dirtyRef,
   subject,
   selfNavigationRef,
   dialog,
@@ -213,8 +241,10 @@ function DataRouterUnsavedChangesGuard({
 }: UnsavedChangesRouteGuardProps) {
   const shouldBlock = useCallback<BlockerFunction>(
     args =>
-      isDirty && !isSelfNavigating({ selfNavigationRef }) && !staysOnPath({ pathScoped }, args),
-    [isDirty, selfNavigationRef, pathScoped]
+      isDirtyNow({ isDirty, dirtyRef }) &&
+      !isSelfNavigating({ selfNavigationRef }) &&
+      !staysOnPath({ pathScoped }, args),
+    [isDirty, dirtyRef, selfNavigationRef, pathScoped]
   );
   const blocker = useBlocker(shouldBlock);
 

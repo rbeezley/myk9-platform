@@ -11,6 +11,17 @@ const control = vi.hoisted(() => ({
   },
 }));
 
+const store = vi.hoisted(() => ({
+  shows: [{ id: 'show-1', usesLandingPage: true, publishesOwnPremium: false }] as Record<
+    string,
+    unknown
+  >[],
+}));
+vi.mock('@/store/showStore', () => ({
+  useShowStore: (selector: (s: { shows: unknown[] }) => unknown) =>
+    selector({ shows: store.shows }),
+}));
+
 vi.mock('@/features/premium/usePremiumPublishControl', () => ({
   usePremiumPublishControl: () => control.value,
 }));

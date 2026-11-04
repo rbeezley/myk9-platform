@@ -4,9 +4,14 @@ import { Mail } from 'lucide-react';
 import { PremiumDownloadCard } from '@/features/premium/PremiumDownloadCard';
 import { LandingPageCard } from '@/features/premium/LandingPageCard';
 import {
+  LANDING_CARD_ANCHOR,
+  PREMIUM_CARD_ANCHOR,
+} from '@/features/show-workbench/publishReadiness';
+import {
   publishAnchorFromHash,
   SETUP_PUBLISH_ANCHOR,
 } from '@/features/show-workbench/setupReadinessSignals';
+import { resolveShowUses } from '@/features/show-workbench/showUses';
 import { getShowStyle } from '@/features/registries';
 import { AboutThisShowCard } from '@/components/shows/overview/AboutThisShowCard';
 import {
@@ -33,13 +38,18 @@ export default function ShowAboutPage() {
   const { show, canManageShow, judges, managerEntryCount } = useShowManagementOutlet();
   const { hash, key } = useLocation();
   const anchor = publishAnchorFromHash(hash);
+  // MYK9-1686: no public landing page, no Landing page card. Premium stays; a link to the hidden
+  // card's anchor falls back to it.
+  const { usesLandingPage } = resolveShowUses(show);
+  const scrollTarget =
+    anchor === LANDING_CARD_ANCHOR && !usesLandingPage ? PREMIUM_CARD_ANCHOR : anchor;
 
   // A router link to `#anchor` is a pushState, not fragment navigation, so the browser never
   // scrolls on its own. Keyed on the navigation (`key`) so a repeat click scrolls again.
   useEffect(() => {
-    if (!anchor) return;
-    document.getElementById(anchor)?.scrollIntoView({ block: 'start' });
-  }, [anchor, key]);
+    if (!scrollTarget) return;
+    document.getElementById(scrollTarget)?.scrollIntoView({ block: 'start' });
+  }, [scrollTarget, key]);
 
   return (
     <div className="space-y-3">
@@ -49,7 +59,7 @@ export default function ShowAboutPage() {
         className="grid scroll-mt-20 grid-cols-1 gap-3 rounded-md sm:grid-cols-2"
       >
         <PremiumDownloadCard showId={show.id} showStaleBadge={true} canManageShow={canManageShow} />
-        <LandingPageCard showId={show.id} showStyle={getShowStyle(show)} />
+        {usesLandingPage && <LandingPageCard showId={show.id} showStyle={getShowStyle(show)} />}
       </div>
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <ShowAboutWhere show={show} />

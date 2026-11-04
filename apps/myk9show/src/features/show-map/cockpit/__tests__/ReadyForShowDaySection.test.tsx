@@ -1,4 +1,5 @@
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fromAny } from '@total-typescript/shoehorn';
 
@@ -13,6 +14,10 @@ const offline = vi.hoisted(() => ({ current: null as unknown }));
 
 vi.mock('@/features/premium/usePublishInfo', () => ({
   usePublishInfo: () => publishInfo.current,
+}));
+const settings = vi.hoisted(() => ({ selfCheckinEnabled: true as boolean | undefined }));
+vi.mock('@/hooks/queries/useShowSettingsDatabase', () => ({
+  useShowSettings: () => ({ data: { selfCheckinEnabled: settings.selfCheckinEnabled } }),
 }));
 vi.mock('@/features/offline-readiness/useOfflineReadiness', () => ({
   useOfflineReadiness: () => ({ readiness: offline.current }),
@@ -114,5 +119,76 @@ describe('ReadyForShowDaySection', () => {
     expect(screen.queryByText('Everything is handled.')).not.toBeInTheDocument();
     // Paperwork is built from the entries, so it can't pass while they are unread either.
     expect(screen.getAllByText("Can't check right now")).toHaveLength(2);
+  });
+
+  describe('suggestions (MYK9-1686)', () => {
+    const NIGHT_BEFORE = '2026-10-19T16:00:00Z';
+    const allOn = {
+      usesDeviceScoring: true,
+      usesPaperPacket: true,
+      usesVolunteers: true,
+      usesLandingPage: true,
+    };
+    const suggestionShow = (over: Partial<Show>) => fromAny<Show, unknown>({ ...show, ...over });
+
+    beforeEach(() => {
+      window.localStorage.clear();
+      settings.selfCheckinEnabled = true;
+    });
+
+    it.each([
+      ['selfCheckin', { ...allOn }, false, /check themselves in/],
+      ['deviceScoring', { ...allOn, usesDeviceScoring: false }, true, /score on their phones/],
+      ['paperPacket', { ...allOn, usesPaperPacket: false }, true, /printed backup packet/],
+      ['volunteers', { ...allOn, usesVolunteers: false }, true, /volunteer helpers/],
+      ['landingPage', { ...allOn, usesLandingPage: false }, true, /public landing page/],
+    ])('suggests %s when only that switch is off', (_key, uses, checkin, text) => {
+      settings.selfCheckinEnabled = checkin;
+      renderSection(NIGHT_BEFORE, { show: suggestionShow(uses) });
+      expect(screen.getByText(text)).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Turn it on' })).toHaveAttribute(
+        'href',
+        expect.stringContaining('venue')
+      );
+    });
+
+    it('suggests nothing when every switch is on, and nothing for own-premium', () => {
+      renderSection(NIGHT_BEFORE, {
+        show: suggestionShow({ ...allOn, publishesOwnPremium: false }),
+      });
+      expect(screen.queryByRole('button', { name: 'Dismiss suggestion' })).toBeNull();
+    });
+
+    it('shows one suggestion at a time, in order, and does not count toward "Everything is handled"', () => {
+      renderSection(NIGHT_BEFORE, { show: suggestionShow({}) });
+      expect(screen.getByText('Everything is handled.')).toBeInTheDocument();
+      expect(screen.getAllByRole('button', { name: 'Dismiss suggestion' })).toHaveLength(1);
+      expect(screen.getByText(/score on their phones/)).toBeInTheDocument();
+    });
+
+    it('dismisses, and stays gone after a re-render and a remount', async () => {
+      const user = userEvent.setup();
+      const { unmount } = renderSection(NIGHT_BEFORE, {
+        show: suggestionShow({ ...allOn, usesPaperPacket: false }),
+      });
+      await user.click(screen.getByRole('button', { name: 'Dismiss suggestion' }));
+      expect(screen.queryByText(/printed backup packet/)).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Dismiss suggestion' })).toBeNull();
+      unmount();
+      renderSection(NIGHT_BEFORE, { show: suggestionShow({ ...allOn, usesPaperPacket: false }) });
+      expect(screen.queryByText(/printed backup packet/)).toBeNull();
+    });
+
+    it('never nags when storage is unavailable', () => {
+      const spy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+        throw new Error('blocked');
+      });
+      try {
+        renderSection(NIGHT_BEFORE, { show: suggestionShow({}) });
+        expect(screen.queryByRole('button', { name: 'Dismiss suggestion' })).toBeNull();
+      } finally {
+        spy.mockRestore();
+      }
+    });
   });
 });

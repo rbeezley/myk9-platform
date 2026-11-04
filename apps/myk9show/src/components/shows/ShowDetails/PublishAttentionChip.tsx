@@ -1,5 +1,7 @@
 import React from 'react';
 import { usePremiumPublishControl } from '@/features/premium/usePremiumPublishControl';
+import { resolveShowUses } from '@/features/show-workbench/showUses';
+import { useShowStore } from '@/store/showStore';
 import { PREMIUM_CARD_ANCHOR } from '@/features/show-workbench/publishReadiness';
 
 interface PublishAttentionChipProps {
@@ -27,10 +29,15 @@ export const PublishAttentionChip: React.FC<PublishAttentionChipProps> = ({
     true,
     canManageShow
   );
+  const show = useShowStore(state => state.shows.find(candidate => candidate.id === showId));
+  const uses = resolveShowUses(show);
   if (!canManageShow || infoState !== 'ready') return null;
+  // MYK9-1686: the switches decide which nudges exist at all.
   const target = !hasPublishedPremium
-    ? { label: 'premium list not yet published', anchor: PREMIUM_CARD_ANCHOR }
-    : landingUnpublished
+    ? uses.publishesOwnPremium
+      ? null
+      : { label: 'premium list not yet published', anchor: PREMIUM_CARD_ANCHOR }
+    : landingUnpublished && uses.usesLandingPage
       ? // "Publish landing page" lives on the premium card, not the landing card (INTENT:
         // readiness links land on the fix).
         { label: 'landing page not yet published', anchor: PREMIUM_CARD_ANCHOR }

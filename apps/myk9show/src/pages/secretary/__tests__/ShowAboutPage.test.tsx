@@ -40,6 +40,7 @@ const show = {
   clubName: 'Heartland Club',
   preEntryFee: '25',
   assignedJudges: [],
+  usesLandingPage: true,
 } as unknown as Show;
 
 beforeEach(() => {
@@ -130,5 +131,29 @@ describe('ShowAboutPage (MYK9-1683)', () => {
   it('does not scroll without a publish anchor', () => {
     render(<ShowAboutPage />, { initialRoute: '/shows/show-1/about' });
     expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled();
+  });
+
+  it('hides the Landing page card when the landing page switch is off, and keeps Premium (MYK9-1686)', () => {
+    harness.outlet = { ...harness.outlet, show: { ...show, usesLandingPage: false } as Show };
+    render(<ShowAboutPage />, { initialRoute: '/shows/show-1/about' });
+    expect(screen.queryByTestId('landing-card')).toBeNull();
+    expect(screen.getByTestId('premium-card')).toBeInTheDocument();
+  });
+
+  it('hides the Landing page card for a show that has never set the switch', () => {
+    harness.outlet = { ...harness.outlet, show: { ...show, usesLandingPage: undefined } as Show };
+    render(<ShowAboutPage />, { initialRoute: '/shows/show-1/about' });
+    expect(screen.queryByTestId('landing-card')).toBeNull();
+  });
+
+  it('falls back to the premium card when a link targets the hidden landing card', async () => {
+    harness.outlet = { ...harness.outlet, show: { ...show, usesLandingPage: false } as Show };
+    render(<ShowAboutPage />, { initialRoute: '/shows/show-1/about#setup-publish-landing' });
+    await waitFor(() => expect(Element.prototype.scrollIntoView).toHaveBeenCalled());
+    expect(
+      vi
+        .mocked(Element.prototype.scrollIntoView)
+        .mock.contexts.some(el => (el as Element).id === 'setup-publish-premium')
+    ).toBe(true);
   });
 });

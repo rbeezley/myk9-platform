@@ -16,7 +16,6 @@ import type { ReplicationSyncContextValue } from '@/context/ReplicationSyncConte
 import { AtShowEntryListPage } from './AtShowEntryListPage';
 import type { RingsideReturnLocationState } from './menu/ringsideReturnStore';
 import {
-  replicatedArmbandsTable,
   replicatedShowsTable,
   replicatedClassesTable,
   replicatedEntriesTable,

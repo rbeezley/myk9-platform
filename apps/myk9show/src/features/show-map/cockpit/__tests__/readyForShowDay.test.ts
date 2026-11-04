@@ -191,6 +191,18 @@ describe('buildReadyForShowDay', () => {
     expect(line?.status).toBe('fail');
   });
 
+  it('does not fail the offline line before the prompt window opens', () => {
+    const offline = { ready: false, missing: ['classes'], asOf: null };
+    const before = buildReadyForShowDay(allGood({ offline, offlinePromptOpen: false }));
+    const line = before.lines.find(candidate => candidate.id === 'offline');
+    expect(line?.status).toBe('unknown');
+    expect(line?.detail).toMatch(/closer to show day/);
+    expect(before.allClear).toBe(false);
+    expect(
+      statusOf(buildReadyForShowDay(allGood({ offline, offlinePromptOpen: true })), 'offline')
+    ).toBe('fail');
+  });
+
   it('links failing paperwork to the first day of the Overview', () => {
     const result = buildReadyForShowDay(allGood({ paperwork: { status: 'fail', outstanding: 3 } }));
     const line = result.lines.find(candidate => candidate.id === 'paperwork');

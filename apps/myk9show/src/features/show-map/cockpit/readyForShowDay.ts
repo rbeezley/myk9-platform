@@ -134,6 +134,11 @@ export interface ReadyForShowDayInput {
   paperwork: FirstDayPaperwork;
   /** This device's offline readiness; null when it could not be measured. */
   offline: OfflineReadiness | null;
+  /**
+   * Whether the offline prompt window is open (`isInOfflinePromptWindow`, MYK9-1621). Before it,
+   * an unsaved device is not a failure. Defaults to true.
+   */
+  offlinePromptOpen?: boolean;
 }
 
 const CANT_CHECK = "Can't check right now";
@@ -208,12 +213,18 @@ export function buildReadyForShowDay(input: ReadyForShowDayInput): ReadyForShowD
     ? { ...offlineBase, status: 'unknown', detail: CANT_CHECK }
     : input.offline.ready
       ? { ...offlineBase, status: 'pass' }
-      : {
-          ...offlineBase,
-          status: 'fail',
-          detail:
-            'This device is not saved for offline use. Use the Save for show day button at the top of the page.',
-        };
+      : input.offlinePromptOpen === false
+        ? {
+            ...offlineBase,
+            status: 'unknown',
+            detail: "Save it on the device you'll use, closer to show day",
+          }
+        : {
+            ...offlineBase,
+            status: 'fail',
+            detail:
+              'This device is not saved for offline use. Use the Save for show day button at the top of the page.',
+          };
 
   const lines: ReadyLine[] = [
     setupLine('setup', 'Show details, trials and classes complete', signals, [

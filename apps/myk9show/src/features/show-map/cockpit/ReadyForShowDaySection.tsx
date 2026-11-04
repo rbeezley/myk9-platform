@@ -3,6 +3,7 @@ import { AlertTriangle, CheckCircle2, CircleHelp } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { getTrialTimezone } from '@/features/registries';
+import { isInOfflinePromptWindow } from '@/features/offline-readiness/offlinePromptWindow';
 import { useOfflineReadiness } from '@/features/offline-readiness/useOfflineReadiness';
 import { usePublishInfo } from '@/features/premium/usePublishInfo';
 import type { ClassEntryBreakdown } from '@/features/entry-operations/classEntryBreakdown';
@@ -70,7 +71,8 @@ function ReadyForShowDayContent({
   classes,
   entryBreakdownByClassId,
   paperwork,
-}: Omit<ReadyForShowDaySectionProps, 'now'>) {
+  offlinePromptOpen,
+}: Omit<ReadyForShowDaySectionProps, 'now'> & { offlinePromptOpen: boolean }) {
   const publishInfo = usePublishInfo(show.id, true);
   const { readiness } = useOfflineReadiness(show.id);
 
@@ -98,6 +100,7 @@ function ReadyForShowDayContent({
         available: paperwork.available && entryBreakdownByClassId !== undefined,
       }),
       offline: readiness,
+      offlinePromptOpen,
     });
   }, [
     classes,
@@ -108,6 +111,7 @@ function ReadyForShowDayContent({
     publishInfo.fetchStatus,
     publishInfo.isError,
     readiness,
+    offlinePromptOpen,
     show,
     trials,
   ]);
@@ -152,5 +156,13 @@ export function ReadyForShowDaySection({ now, ...rest }: ReadyForShowDaySectionP
   if (!isReadyForShowDayWindow({ startDate: rest.show.startDate, now, timeZone })) return null;
   // Keyed by show: the offline probe keeps its last answer until it re-measures, so a reused
   // instance would show the previous show's readiness.
-  return <ReadyForShowDayContent key={rest.show.id} {...rest} />;
+  const offlinePromptOpen = isInOfflinePromptWindow({
+    firstDay: rest.show.startDate,
+    lastDay: rest.show.endDate,
+    timeZone,
+    now,
+  });
+  return (
+    <ReadyForShowDayContent key={rest.show.id} {...rest} offlinePromptOpen={offlinePromptOpen} />
+  );
 }

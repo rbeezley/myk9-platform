@@ -189,7 +189,22 @@ describe('AtShowCombinedEntryListPage restores the Ringside list snapshot (MYK9-
     expect(screen.getByRole('searchbox')).toHaveValue('');
   });
 
-  it('restores the Section B filter, search term and sort from the snapshot', async () => {
+  it('restores the Section B filter on its own, with no search term', async () => {
+    renderReturningFromMenu({
+      ringsideList: {
+        kind: 'entries',
+        filters: { activeTab: 'pending', sortBy: 'armband', searchTerm: '', sectionFilter: 'B' },
+      },
+    });
+
+    expect(await screen.findByText('Bella')).toBeInTheDocument();
+    // Only the section filter can hide Rex here: the search box is empty.
+    expect(screen.queryByText('Rex')).not.toBeInTheDocument();
+    openSearchAndSort();
+    expect(screen.getByRole('searchbox')).toHaveValue('');
+  });
+
+  it('restores the search term and sort on their own, across all sections', async () => {
     renderReturningFromMenu({
       ringsideList: {
         kind: 'entries',
@@ -197,14 +212,13 @@ describe('AtShowCombinedEntryListPage restores the Ringside list snapshot (MYK9-
           activeTab: 'pending',
           sortBy: 'armband',
           searchTerm: 'bel',
-          sectionFilter: 'B',
+          sectionFilter: 'all',
         },
       },
     });
 
     expect(await screen.findByText('Bella')).toBeInTheDocument();
     expect(screen.queryByText('Rex')).not.toBeInTheDocument();
-
     openSearchAndSort();
     expect(screen.getByRole('searchbox')).toHaveValue('bel');
     expect(screen.getByRole('radio', { name: 'Armband' })).toBeChecked();

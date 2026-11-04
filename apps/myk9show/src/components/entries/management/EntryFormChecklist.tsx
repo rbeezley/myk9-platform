@@ -12,6 +12,12 @@ interface EntryFormChecklistProps {
   onBulkStatusChange: (entryIds: string[], status: EntryStatus) => void;
   onOpenArmbandDialog: (entry: EntryManagementEntry) => void;
   onOpenEditEntry?: ((entry: EntryManagementEntry) => void) | undefined;
+  /** "Check in all" on a show day; omitted, a check-in item renders without its button. */
+  onCheckInAll?: ((entryIds: string[]) => void) | undefined;
+  /** True while any of the form's check-in writes is in flight. */
+  checkInBusy?: boolean | undefined;
+  /** Show-day eligibility is not known (schedule loading or failed): never claim "All set". */
+  checkInUnknown?: boolean | undefined;
   /** The same openers the Payment section's menu uses (no second implementation). */
   payment: {
     openFullPayment: (method: 'cash' | 'check') => void;
@@ -56,9 +62,14 @@ export function EntryFormChecklist({
   onBulkStatusChange,
   onOpenArmbandDialog,
   onOpenEditEntry,
+  onCheckInAll,
+  checkInBusy = false,
+  checkInUnknown = false,
   payment,
 }: EntryFormChecklistProps) {
   const { items, done } = checklist;
+
+  if (items.length === 0 && checkInUnknown) return null;
 
   if (items.length === 0) {
     return (
@@ -183,6 +194,26 @@ export function EntryFormChecklist({
                         onClick={() => onOpenEditEntry(item.entry)}
                       >
                         Add number
+                      </Button>
+                    ) : null
+                  }
+                />
+              );
+            case 'check-in':
+              return (
+                <ItemCard
+                  key={item.id}
+                  item={item}
+                  inline
+                  actions={
+                    onCheckInAll ? (
+                      <Button
+                        size="sm"
+                        className="min-h-11"
+                        disabled={checkInBusy}
+                        onClick={() => onCheckInAll(item.entryIds)}
+                      >
+                        {checkInBusy ? 'Checking in...' : 'Check in all'}
                       </Button>
                     ) : null
                   }

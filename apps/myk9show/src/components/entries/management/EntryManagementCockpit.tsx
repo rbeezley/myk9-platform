@@ -83,7 +83,7 @@ interface EntryManagementCockpitProps {
     message?: string,
     amountDue?: number
   ) => Promise<void>;
-  onRefresh: () => void;
+  onRefresh: () => void | Promise<void>;
   paymentLedger: EnrollmentLedgerControls;
 }
 
@@ -347,6 +347,7 @@ export function EntryManagementCockpit({
               onStatusChange={handleStatusChangeWithDecisionPrompt}
               onEntryRefunded={onRefresh}
               onEntryRestored={onRefresh}
+              onRefreshEntries={onRefresh}
               onCheckInStatusChange={onCheckInStatusChange}
               onOpenEditEntry={onOpenEditEntry}
               onOpenArmbandDialog={onOpenArmbandDialog}

@@ -8,7 +8,7 @@ const ids = [
   'access-codes',
   'emergency-trial-packet',
   'volunteers',
-  'judge-hospitality',
+  'lunch-orders',
   'tasks-notes',
   'incident-log',
 ];

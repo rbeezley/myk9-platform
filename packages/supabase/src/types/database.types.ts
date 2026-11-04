@@ -10026,6 +10026,57 @@ export type Database = {
           },
         ]
       }
+      trial_lunch_orders: {
+        Row: {
+          created_at: string
+          dietary_note: string | null
+          id: string
+          lunch_order: string | null
+          name: string
+          person_id: string | null
+          role: string
+          trial_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          dietary_note?: string | null
+          id?: string
+          lunch_order?: string | null
+          name: string
+          person_id?: string | null
+          role: string
+          trial_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          dietary_note?: string | null
+          id?: string
+          lunch_order?: string | null
+          name?: string
+          person_id?: string | null
+          role?: string
+          trial_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trial_lunch_orders_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trial_lunch_orders_trial_id_fkey"
+            columns: ["trial_id"]
+            isOneToOne: false
+            referencedRelation: "trials"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trial_packet_generation_claims: {
         Row: {
           attempts: number

@@ -7,9 +7,10 @@
  *  - Ch. 6-10: per-level requirements (§2 odors and height, §4/§5 elements, §5/§6 time)
  * Maximum element times are the same for every element at a level (Ch. 6 §5 = 3, Ch. 7 §5 = 4,
  * Ch. 8 §6 = 5, Ch. 9 §6 = 6, Ch. 10 §6 = 6), so they sit in the column header.
- * UKC Handler Discrimination (Ch. 11) is out of scope for this card; the shape has room for it.
+ * UKC Handler Discrimination (Ch. 11) is page 3, in ukcHandlerDiscriminationSetupRules.ts (MYK9-1641).
  */
 
+import { ukcHandlerDiscriminationPage } from './ukcHandlerDiscriminationSetupRules';
 import type { SetupElementGroup, SetupLevelColumn, SetupRow, SetupSheet } from './setupRules.types';
 import { UKC_INTERIOR_AND_EXTERIOR_NOTES, UKC_VEHICLE_AND_CONTAINER_NOTES } from './ukcSetupNotes';
 
@@ -237,7 +238,7 @@ export const ukcSetupSheet: SetupSheet = {
   registryId: 'UKC',
   title: 'UKC Nosework Judge Setup Cheat Sheet',
   edition:
-    'Source: UKC Official Nosework Rulebook, Chapters 2, 3, 4 and 6 to 10 (docs/rulebooks/ukc-nose-work-rules.txt)',
+    'Source: UKC Official Nosework Rulebook, Chapters 2, 3, 4, 6 to 10 and 11 (docs/rulebooks/ukc-nose-work-rules.txt)',
   tableFontPt: 11,
   pages: [
     {
@@ -253,6 +254,10 @@ export const ukcSetupSheet: SetupSheet = {
       columns: UKC_LEVEL_COLUMNS,
       groups: [INTERIOR_GROUP, EXTERIOR_GROUP],
       notes: UKC_INTERIOR_AND_EXTERIOR_NOTES,
+    },
+    {
+      ...ukcHandlerDiscriminationPage,
+      title: 'Page 3: Handler Discrimination (separate sheet, print single-sided)',
     },
   ],
 };

@@ -61,8 +61,8 @@ describe('UKC setup data', () => {
 
   it('covers 4 grid elements across the 5 levels, with times in the header', () => {
     const elements = ukcSetupSheet.pages.flatMap(p => p.groups.map(g => g.elementKey));
-    expect(elements).toEqual(['vehicle', 'container', 'interior', 'exterior']);
-    for (const page of ukcSetupSheet.pages) {
+    expect(elements).toEqual(['vehicle', 'container', 'interior', 'exterior', 'hd']);
+    for (const page of ukcSetupSheet.pages.filter(p => p.id !== 'handler-discrimination')) {
       expect(page.columns.map(c => c.key)).toEqual(levels);
       expect(page.columns.map(c => c.note)).toEqual([
         'Max time 3 min',
@@ -72,7 +72,7 @@ describe('UKC setup data', () => {
         'Max time 6 min',
       ]);
     }
-    for (const element of elements) {
+    for (const element of elements.filter(e => e !== 'hd')) {
       for (const level of levels) {
         expect(getSetupValue(ukcSetupSheet, element, 'hides', level)).toBeTruthy();
       }
@@ -209,5 +209,86 @@ describe('AKC Handler Discrimination data', () => {
     const quotes = steward?.excerpts.map(e => e.quote).join(' ') ?? '';
     expect(quotes).toMatch(/the judge must designate another individual to set the hides/);
     expect(quotes).toMatch(/latex, nitrile, or vinyl gloves/);
+  });
+});
+
+describe('UKC Handler Discrimination data', () => {
+  const get = (row: string, level: string) => getSetupValue(ukcSetupSheet, 'hd', row, level);
+
+  it('is page 3 of the UKC sheet with its own four HD levels', () => {
+    expect(ukcSetupSheet.pages.map(p => p.id)).toEqual([
+      'vehicles-containers',
+      'interior-exterior',
+      'handler-discrimination',
+    ]);
+    const page = ukcSetupSheet.pages[2];
+    expect(page?.columns.map(c => c.key)).toEqual(['novice', 'advanced', 'excellent', 'master']);
+    expect(akcSetupSheet.pages).toHaveLength(3);
+  });
+
+  it('fills every row for every level', () => {
+    const rows = ukcSetupSheet.pages[2]?.groups[0]?.rows ?? [];
+    expect(rows.map(r => r.id)).toEqual([
+      'area',
+      'layout',
+      'box',
+      'article',
+      'prep',
+      'target',
+      'other-scents',
+      'distractions',
+      'start',
+      'time',
+      'calls',
+    ]);
+    for (const r of rows) {
+      for (const level of ['novice', 'advanced', 'excellent', 'master']) {
+        expect(get(r.id, level)?.trim()).toBeTruthy();
+      }
+    }
+  });
+
+  it('Novice: 12 boxes in a line 24 in apart, one cotton glove, no distractions, 3 min', () => {
+    expect(get('layout', 'novice')).toMatch(/^12 boxes in a straight line.*24 in or more apart/);
+    expect(get('article', 'novice')).toMatch(/^1 clean cotton glove/);
+    expect(get('other-scents', 'novice')).toMatch(/^None/);
+    expect(get('distractions', 'novice')).toMatch(/^None/);
+    expect(get('start', 'novice')).toMatch(/^On leash/);
+    expect(get('time', 'novice')).toMatch(/^Not over 3 min/);
+  });
+
+  it('Advanced: 11 judge-scented gloves among 12, steward removes the empty box', () => {
+    expect(get('other-scents', 'advanced')).toBe(
+      '11 judge-scented cotton gloves, 12 gloves in 12 boxes'
+    );
+    expect(get('prep', 'advanced')).toMatch(/^Steward takes the empty box from the line/);
+    expect(get('calls', 'advanced')).toMatch(/incorrect Alert ends the search/);
+    expect(get('start', 'advanced')).toMatch(/^On leash/);
+  });
+
+  it('Excellent: bagged glove in an open box, random numbering, on leash, 3 min', () => {
+    expect(get('article', 'excellent')).toMatch(
+      /sealed plastic bag marked with the armband number/
+    );
+    expect(get('layout', 'excellent')).toMatch(/marked 1 to 12 at random/);
+    expect(get('prep', 'excellent')).toMatch(/no sooner than 15 min before the section/);
+    expect(get('start', 'excellent')).toMatch(/^On leash/);
+    expect(get('time', 'excellent')).toMatch(/^Not over 3 min/);
+  });
+
+  it('Master: 2,400 sq ft, personal item (not a glove), scattered boxes, off leash, 4 min', () => {
+    expect(get('area', 'master')).toMatch(/^At least 40 x 60 ft \(2,400 sq ft\)/);
+    expect(get('area', 'master')).toMatch(/6 x 4 ft handler station/);
+    expect(get('article', 'master')).toMatch(/not a glove or undergarment/);
+    expect(get('box', 'master')).toMatch(/^12 x 9 x 3 in/);
+    expect(get('layout', 'master')).toMatch(/6 ft or more from any item or ring edge/);
+    expect(get('start', 'master')).toMatch(/leash off at the station/);
+    expect(get('time', 'master')).toMatch(/^4 min/);
+    expect(get('calls', 'master')).toMatch(/Sits or Downs at the item/);
+  });
+
+  it('carries cited stewarding, article and Master station notes', () => {
+    const headings = ukcSetupSheet.pages[2]?.notes.map(n => n.heading);
+    expect(headings).toEqual(['Stewards', 'Articles', 'Master station']);
   });
 });

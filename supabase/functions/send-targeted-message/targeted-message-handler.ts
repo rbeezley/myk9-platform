@@ -5,21 +5,21 @@ import {
   ACCOUNT_PUSH_SUBSCRIPTION_SELECT,
   buildAccountPushTargets,
   buildGroupLabel,
-  contactFromPerson,
   ENTRY_PERSON_FIELDS,
   CALLER_ROLE_SELECT,
   callerRoleAuthorizesShow,
+  entrySource,
   mergePushTargetsBySubscriptionId,
   normalizeTargetType,
   resolveEmailAudience,
+  scopeEntriesToPerson,
   RINGSIDE_SESSION_PUSH_TARGET_SELECT,
   ringsideSessionMatchesTarget,
   countPeopleReached,
   targetArmbands,
   uniqueAccountRecipients,
   type CallerRoleSource,
-  type EntryContactSource,
-  type EntryPersonRow,
+  type EntryPeopleRow,
   type EmailRecipient,
   type EntryRecipientSource,
   type RingsideSessionSource,
@@ -38,6 +38,9 @@ type PushTarget = { session: RingsideSessionSource; subscription: PushSubscripti
 export interface SendTargetedMessagePayload {
   show_id?: string;
   class_id?: string;
+  // With target_type 'person': the one exhibitor (people.id) to message. They must be the
+  // owner, co-owner or handler on a live entry in this show.
+  person_id?: string;
   target_type?: TargetType;
   body?: string;
   send_push?: boolean;
@@ -84,15 +87,6 @@ interface ShowRow {
   id: string;
   club_id: string | null;
   name?: string | null;
-}
-
-interface EntryRecipientRow {
-  armband?: unknown;
-  dog?: {
-    owner?: EntryPersonRow | null;
-    co_owner?: EntryPersonRow | null;
-  } | null;
-  handler?: EntryPersonRow | null;
 }
 
 interface ClassInfoRow {
@@ -156,7 +150,8 @@ async function fetchEntriesForTarget(
   supabase: TargetedMessageSupabaseClient,
   showId: string,
   targetType: TargetType,
-  classId: string | undefined
+  classId: string | undefined,
+  personId: string | undefined
 ): Promise<EntryRecipientSource[]> {
   let query = supabase
     .from('entries')
@@ -169,6 +164,8 @@ async function fetchEntriesForTarget(
   if (targetType === 'class') {
     if (!classId) throw new HttpError(400, 'Missing required field: class_id');
     query = query.eq('class_id', classId);
+  } else if (targetType === 'person') {
+    if (!personId) throw new HttpError(400, 'Missing required field: person_id');
   } else if (targetType === 'checked_in') {
     query = query.in('check_in_status', ['checked-in', 'at-gate', 'come-to-gate', 'in-ring']);
   }
@@ -176,18 +173,10 @@ async function fetchEntriesForTarget(
   const { data, error } = await query;
   if (error) throw new HttpError(500, 'Failed to resolve message recipients');
 
-  const entries = Array.isArray(data) ? (data as EntryRecipientRow[]) : [];
-  return entries.map(entry => ({
-    armband: entry.armband ? String(entry.armband) : null,
-    authUserIds: [
-      entry.dog?.owner?.auth_user_id,
-      entry.dog?.co_owner?.auth_user_id,
-      entry.handler?.auth_user_id,
-    ],
-    contacts: [entry.dog?.owner, entry.dog?.co_owner, entry.handler]
-      .map(contactFromPerson)
-      .filter((contact): contact is EntryContactSource => contact !== null),
-  }));
+  const rows = Array.isArray(data) ? (data as EntryPeopleRow[]) : [];
+  return targetType === 'person' && personId
+    ? scopeEntriesToPerson(rows, personId)
+    : rows.map(entrySource);
 }
 
 async function fetchClassInfo(
@@ -347,9 +336,14 @@ export function createSendTargetedMessageHandler(deps: {
 
     await assertClassBelongsToShow(supabase, payload.class_id, showId);
     const [entries, classInfo] = await Promise.all([
-      fetchEntriesForTarget(supabase, showId, targetType, payload.class_id),
+      fetchEntriesForTarget(supabase, showId, targetType, payload.class_id, payload.person_id),
       fetchClassInfo(supabase, payload.class_id),
     ]);
+
+    if (targetType === 'person' && entries.length === 0) {
+      // Not on any live entry in THIS show: say so without confirming who they are.
+      throw new HttpError(404, 'Exhibitor not found in this show');
+    }
 
     const emailAudience = sendEmail ? resolveEmailAudience(entries, user.id) : null;
 

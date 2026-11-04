@@ -1,4 +1,4 @@
-export type TargetType = 'class' | 'checked_in' | 'all_show';
+export type TargetType = 'class' | 'checked_in' | 'all_show' | 'person';
 
 export interface EntryContactSource {
   personId: string | null;
@@ -77,7 +77,56 @@ export const CALLER_ROLE_SELECT =
   'id, club_id, show_id, auth_user_id, is_active, roles!inner(name)';
 
 export function normalizeTargetType(value: unknown): TargetType {
-  return value === 'checked_in' || value === 'all_show' ? value : 'class';
+  return value === 'checked_in' || value === 'all_show' || value === 'person' ? value : 'class';
+}
+
+// An entry as the recipient query returns it: the dog's owner and co-owner, and the handler.
+export interface EntryPeopleRow {
+  armband?: unknown;
+  dog?: { owner?: EntryPersonRow | null; co_owner?: EntryPersonRow | null } | null;
+  handler?: EntryPersonRow | null;
+}
+
+export function entryPeople(row: EntryPeopleRow): EntryPersonRow[] {
+  return [row.dog?.owner, row.dog?.co_owner, row.handler].filter(
+    (person): person is EntryPersonRow => !!person
+  );
+}
+
+export function entrySource(row: EntryPeopleRow): EntryRecipientSource {
+  return {
+    armband: row.armband ? String(row.armband) : null,
+    authUserIds: [
+      row.dog?.owner?.auth_user_id,
+      row.dog?.co_owner?.auth_user_id,
+      row.handler?.auth_user_id,
+    ],
+    contacts: entryPeople(row)
+      .map(contactFromPerson)
+      .filter((contact): contact is EntryContactSource => contact !== null),
+  };
+}
+
+// The one-person audience: only entries where `personId` is the owner, co-owner or handler,
+// and on each only THAT person (the co-owner or handler on the same entry is not messaged).
+// No armband is carried, so ringside favorite-matching can never widen it. Empty when the
+// person is not on any of the rows, which the handler reports without naming anyone.
+export function scopeEntriesToPerson(
+  rows: EntryPeopleRow[],
+  personId: string
+): EntryRecipientSource[] {
+  return rows.flatMap(row => {
+    const person = entryPeople(row).find(candidate => candidate.id === personId);
+    if (!person) return [];
+    const contact = contactFromPerson(person);
+    return [
+      {
+        armband: null,
+        authUserIds: [person.auth_user_id],
+        contacts: contact ? [contact] : [],
+      },
+    ];
+  });
 }
 
 export function uniqueAccountRecipients(
@@ -200,6 +249,7 @@ export function buildGroupLabel(args: {
 }): string {
   if (args.targetType === 'checked_in') return 'Sent to everyone checked in';
   if (args.targetType === 'all_show') return 'Sent to everyone in the show';
+  if (args.targetType === 'person') return 'Sent to you by the show secretary';
 
   if (args.classNumber || args.className) {
     const classId = args.classNumber ? `Class ${args.classNumber}` : 'class';

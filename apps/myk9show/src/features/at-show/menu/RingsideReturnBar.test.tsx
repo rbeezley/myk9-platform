@@ -10,9 +10,12 @@ function Pages() {
     <>
       <RingsideReturnBar />
       <button onClick={() => navigate('/account?section=appearance')}>go settings</button>
+      <button onClick={() => navigate('/at-show/show-1/leaderboard')}>go leaderboard</button>
+      <button onClick={() => navigate('/elsewhere')}>leave</button>
       <Routes>
         <Route path="/at-show/:showId/class/:classId" element={<div>entry list</div>} />
         <Route path="/account" element={<div>settings page</div>} />
+        <Route path="/at-show/:showId/leaderboard" element={<div>leaderboard page</div>} />
         <Route path="/elsewhere" element={<div>elsewhere</div>} />
       </Routes>
     </>
@@ -79,6 +82,22 @@ describe('RingsideReturnBar', () => {
     const back = await screen.findByRole('button', { name: 'Back to ringside' });
     await user.click(back);
     expect(await screen.findByText('entry list')).toBeInTheDocument();
+    await waitFor(() => expect(useRingsideReturnStore.getState().target).toBeNull());
+  });
+
+  it('consumes a leaderboard trip when leaving its route', async () => {
+    useRingsideReturnStore.getState().set({
+      returnTo: '/at-show/show-1/class/class-1',
+      scope: '/at-show/show-1/leaderboard',
+      state: {
+        ringsideList: { kind: 'classes', tab: 'pending', search: 'Novice', sort: 'run-order' },
+      },
+    });
+    const { user } = render(<Pages />, { initialRoute: '/at-show/show-1/class/class-1' });
+    await user.click(screen.getByRole('button', { name: 'go leaderboard' }));
+    expect(await screen.findByText('leaderboard page')).toBeInTheDocument();
+    await waitFor(() => expect(useRingsideReturnStore.getState().target?.departed).toBe(true));
+    await user.click(screen.getByRole('button', { name: 'leave' }));
     await waitFor(() => expect(useRingsideReturnStore.getState().target).toBeNull());
   });
 });

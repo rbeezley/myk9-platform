@@ -7,6 +7,12 @@ interface OfflineReadyBadgeProps {
   note?: string | undefined;
   /** Whether the note needs the secretary's attention (conflict, error) rather than reassures. */
   noteNeedsAttention?: boolean | undefined;
+  /**
+   * MYK9-1621: false = before the show's prompt window (`isInOfflinePromptWindow`). An unsaved
+   * device then shows no amber sentence, only a quiet "Save for show day" button. Defaults to
+   * true so ringside surfaces keep the prompt.
+   */
+  inPromptWindow?: boolean | undefined;
 }
 
 /**
@@ -30,7 +36,12 @@ interface OfflineReadyBadgeProps {
  * contain the visible words breaks WCAG 2.5.3 (Label in Name) for anyone
  * driving the app by voice.
  */
-export function OfflineReadyBadge({ showId, note, noteNeedsAttention }: OfflineReadyBadgeProps) {
+export function OfflineReadyBadge({
+  showId,
+  note,
+  noteNeedsAttention,
+  inPromptWindow = true,
+}: OfflineReadyBadgeProps) {
   const { readiness, priming, primeFailed, prime } = useOfflineReadiness(showId);
 
   const noteText = note ? (
@@ -77,6 +88,37 @@ export function OfflineReadyBadge({ showId, note, noteNeedsAttention }: OfflineR
   const actionDetail = primeFailed
     ? "Couldn't save the show to this device. You may be offline. Try again once you have a connection."
     : 'This device would not survive losing internet for this show. Save the show to this device.';
+
+  // Outside the window nothing is wrong yet, but the action stays reachable. A failed save is the
+  // user's own action coming back, so it keeps its message.
+  if (!inPromptWindow && !primeFailed) {
+    return (
+      <span className="inline-flex min-h-11 flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+        {noteText && (
+          <span role="status" className="inline-flex items-center">
+            {noteText}
+          </span>
+        )}
+        <button
+          type="button"
+          onClick={() => void prime()}
+          disabled={priming}
+          title={actionDetail}
+          data-offline-missing={readiness.missing.join(',')}
+          className="inline-flex min-h-11 items-center gap-2 rounded-md px-3 text-sm text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-70"
+        >
+          {priming ? (
+            <>
+              <RefreshCw className="h-4 w-4 animate-spin" aria-hidden />
+              Saving to this device…
+            </>
+          ) : (
+            'Save for show day'
+          )}
+        </button>
+      </span>
+    );
+  }
 
   return (
     <span className="inline-flex min-h-11 flex-wrap items-center gap-x-2 gap-y-1 text-sm">

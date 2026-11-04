@@ -109,6 +109,7 @@ describe('Nationals Leaderboard item (MYK9-1540)', () => {
     expect(item?.label).toBe('Nationals Leaderboard');
     expect(item?.href).toBe('/at-show/show-1/leaderboard');
     expect(item?.returnScope).toBe('/at-show/show-1/leaderboard');
+    expect(item?.requiresConnection).toBe(true);
   });
 
   it('is absent on a non-nationals show', () => {

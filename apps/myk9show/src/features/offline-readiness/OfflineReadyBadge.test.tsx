@@ -156,4 +156,63 @@ describe('OfflineReadyBadge', () => {
       'Offline copy: saved on this device·Changes saved on this device, will sync when online'
     );
   });
+
+  describe('outside the prompt window (MYK9-1621)', () => {
+    it('shows no amber sentence but keeps a quiet, primable Save for show day button', async () => {
+      hookState.readiness = { ready: false, missing: ['classes'], asOf: null };
+
+      render(<OfflineReadyBadge showId="show-1" inPromptWindow={false} />);
+
+      expect(screen.queryByText(/not saved on this device/i)).not.toBeInTheDocument();
+      const button = screen.getByRole('button', { name: 'Save for show day' });
+      expect(button.className).toContain('min-h-11');
+      expect(button.className).not.toContain('warning');
+      await userEvent.click(button);
+      expect(primeSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('still shows the sync note', () => {
+      hookState.readiness = { ready: false, missing: ['classes'], asOf: null };
+
+      render(
+        <OfflineReadyBadge
+          showId="show-1"
+          inPromptWindow={false}
+          note="Sync needs attention"
+          noteNeedsAttention
+        />
+      );
+
+      expect(screen.getByRole('status')).toHaveTextContent('Sync needs attention');
+      expect(screen.getByRole('button', { name: 'Save for show day' })).toBeInTheDocument();
+    });
+
+    it('keeps the failure message after a failed save', () => {
+      hookState.readiness = { ready: false, missing: ['classes'], asOf: null };
+      hookState.primeFailed = true;
+
+      render(<OfflineReadyBadge showId="show-1" inPromptWindow={false} />);
+
+      expect(screen.getByRole('status')).toHaveTextContent("Couldn't save the offline copy");
+      expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+    });
+
+    it('leaves the ready state unchanged', () => {
+      hookState.readiness = { ready: true, missing: [], asOf: null };
+
+      render(<OfflineReadyBadge showId="show-1" inPromptWindow={false} note="All changes saved" />);
+
+      const status = screen.getByRole('status');
+      expect(status).toHaveTextContent('Offline copy: saved on this device');
+      expect(status).toHaveTextContent('All changes saved');
+    });
+
+    it('shows the amber prompt inside the window', () => {
+      hookState.readiness = { ready: false, missing: ['classes'], asOf: null };
+
+      render(<OfflineReadyBadge showId="show-1" inPromptWindow />);
+
+      expect(screen.getByText('Offline copy: not saved on this device')).toBeInTheDocument();
+    });
+  });
 });

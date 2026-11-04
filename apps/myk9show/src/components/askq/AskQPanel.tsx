@@ -27,7 +27,7 @@ import { UserRole } from '@/types/auth-types';
 import { AskQAppHelpContent } from './AskQAppHelpContent';
 import { AskQModeSelector } from './AskQModeSelector';
 
-export function AskQPanel() {
+export function AskQPanel({ portal = false }: { portal?: boolean } = {}) {
   const { isOpen, close, suggestedPrompt, promptRequestId, clearSuggestedPrompt } =
     useAskQPanelStore();
   const { isPremium } = useSubscriptionGate();
@@ -454,6 +454,7 @@ export function AskQPanel() {
     <SlideOverPanel
       open={isOpen}
       onClose={handleClose}
+      portal={portal}
       title="Ask for help"
       subtitle="AskQ"
       size="sm"

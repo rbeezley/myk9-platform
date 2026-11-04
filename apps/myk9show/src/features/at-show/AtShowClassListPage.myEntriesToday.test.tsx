@@ -316,7 +316,7 @@ describe('AtShowClassListPage — exhibitor "Your dogs today" default', () => {
     expect(screen.getByTestId('search')).toHaveTextContent('?view=all');
   });
 
-  it('returns from a menu destination opened in All classes to All classes', async () => {
+  it('returns from a menu destination opened in All classes with the same All classes search and sort', async () => {
     mockAuthState.hasRole = role => role === UserRole.EXHIBITOR;
     mockAuthState.user = { id: 'user-1' };
     seedOwnedEntry();
@@ -336,12 +336,19 @@ describe('AtShowClassListPage — exhibitor "Your dogs today" default', () => {
 
     await user.click(await screen.findByRole('button', { name: 'See all classes' }));
     expect(await screen.findByText(/Container Novice/)).toBeInTheDocument();
+    await user.type(screen.getByRole('searchbox', { name: 'Search classes' }), 'Novice');
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: 'Sort classes' }),
+      'level-element'
+    );
     await user.click(screen.getByRole('button', { name: 'Ringside menu' }));
     await user.click(await screen.findByRole('button', { name: 'Settings' }));
     expect(await screen.findByText('ACCOUNT PAGE', {}, { timeout: 3000 })).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Back to ringside' }));
     expect(await screen.findByText(/Container Novice/)).toBeInTheDocument();
+    expect(screen.getByRole('searchbox', { name: 'Search classes' })).toHaveValue('Novice');
+    expect(screen.getByRole('combobox', { name: 'Sort classes' })).toHaveValue('level-element');
     expect(screen.queryByTestId('at-show-my-entries-today')).not.toBeInTheDocument();
   });
 

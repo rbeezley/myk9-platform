@@ -23,7 +23,7 @@ export function RingsideShowInfo({
   location: string | null;
   isOnline: boolean;
 }) {
-  const { data: officials } = useShowOfficials(isOnline ? showId : undefined);
+  const { data: officials } = useShowOfficials(showId);
   const contacts = [
     ...(officials?.secretaries ?? []).map(person => ({ person, role: 'Secretary' })),
     ...(officials?.chairmen ?? []).map(person => ({ person, role: 'Chairman' })),
@@ -51,7 +51,7 @@ export function RingsideShowInfo({
           Secretary and chairman contacts need a connection.
         </p>
       )}
-      {location && (
+      {location && isOnline && (
         <>
           <a
             href={buildVenueMapsUrls(location).viewOnMapsUrl}
@@ -75,6 +75,14 @@ export function RingsideShowInfo({
             Weather
           </a>
         </>
+      )}
+      {location && !isOnline && (
+        <div className="px-3 py-2 text-sm">
+          <p className="font-medium">{location}</p>
+          <p className="text-xs text-muted-foreground" role="status">
+            Maps and weather need a connection.
+          </p>
+        </div>
       )}
     </div>
   );

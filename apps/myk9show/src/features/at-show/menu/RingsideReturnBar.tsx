@@ -15,6 +15,9 @@ export function RingsideReturnBar() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const atRingside = isRingsidePath(pathname);
+  const withinDestination = target
+    ? pathname === target.scope || pathname.startsWith(`${target.scope}/`)
+    : false;
 
   const markDeparted = useRingsideReturnStore(s => s.markDeparted);
 
@@ -23,18 +26,24 @@ export function RingsideReturnBar() {
   // the user has actually left it.
   useEffect(() => {
     if (!target) return;
-    if (!atRingside && !target.departed) markDeparted();
-    else if (atRingside && target.departed) clear();
-  }, [atRingside, target, clear, markDeparted]);
+    if (isRingsidePath(target.scope)) {
+      // The leaderboard is itself under /at-show and owns its own Back link.
+      if (withinDestination && !target.departed) markDeparted();
+      else if (!withinDestination && target.departed) clear();
+    } else if (!atRingside && !target.departed) {
+      markDeparted();
+    } else if (atRingside && target.departed) {
+      clear();
+    }
+  }, [atRingside, withinDestination, target, clear, markDeparted]);
 
-  if (!target || atRingside) return null;
-  if (pathname !== target.scope && !pathname.startsWith(`${target.scope}/`)) return null;
+  if (!target || atRingside || !withinDestination) return null;
 
   // Always the recorded URL: stepping back by history index can land on an
   // unrelated page once the user has navigated around the destination.
   const goBack = () => {
     clear();
-    navigate(target.returnTo);
+    navigate(target.returnTo, { state: target.state });
   };
 
   return (

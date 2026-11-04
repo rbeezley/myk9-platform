@@ -17,7 +17,7 @@
 export const SHOW_EDIT_TAB_PARAM = 'editTab';
 
 /** Tabs the Edit panel can be deep-linked to. Must match `ShowEditForm`'s tab values. */
-export const SHOW_EDIT_TABS = ['basic', 'personnel', 'judges', 'fees', 'premium'] as const;
+export const SHOW_EDIT_TABS = ['basic', 'personnel', 'judges', 'fees', 'venue', 'premium'] as const;
 
 export type ShowEditTab = (typeof SHOW_EDIT_TABS)[number];
 

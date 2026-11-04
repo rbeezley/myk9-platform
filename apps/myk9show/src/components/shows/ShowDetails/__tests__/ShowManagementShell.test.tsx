@@ -519,6 +519,18 @@ describe('ShowManagementShell', () => {
     }
   );
 
+  // A Needs-attention chip appends `?returnTo=` after its bare `#anchor`, so the router reads the
+  // whole tail as the hash. It still means the premium card.
+  it('replaces a #anchor?returnTo= cockpit link with the About tab on that card', () => {
+    renderShell(
+      {},
+      '/shows/show-1#setup-publish-premium?returnTo=%2Fshows%2Fshow-1',
+      <LocationProbe />
+    );
+    expect(screen.getByTestId('probe-url')).toHaveTextContent('/shows/show-1/about');
+    expect(screen.getByTestId('probe-hash')).toHaveTextContent(/^#setup-publish-premium$/);
+  });
+
   it('opens About on the premium card from the status-line nudge, replacing history', () => {
     publishControl.value = {
       infoState: 'ready',

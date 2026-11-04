@@ -36,7 +36,7 @@ import {
 import { useShowStore, type ShowInput } from '@/store/showStore';
 import { showQueryKeys } from '@/hooks/queries/useShowsDatabase';
 import { SHOW_TABS, type ShowTabId } from '@/routes/showManagementSections';
-import { PUBLISH_PANEL_ANCHORS } from '@/features/show-workbench/setupReadinessSignals';
+import { publishAnchorFromHash } from '@/features/show-workbench/setupReadinessSignals';
 import type { Show } from '@/types/show-types';
 import type { GeneratedPremium } from '@/types/premium-types';
 import { useShowManageScope } from '@/hooks/useShowManageScope';
@@ -215,12 +215,12 @@ function AuthorizedShowManagementShell({
   // Every `#setup-publish*` link (readiness signals, the status-line nudge) means the publish
   // cards, and those live on About (MYK9-1683). Replace, like a tab click, so Back leaves the show.
   const { hash, search } = useLocation();
-  const publishAnchor = PUBLISH_PANEL_ANCHORS.has(hash.slice(1));
+  const publishAnchor = publishAnchorFromHash(hash);
   useEffect(() => {
     if (publishAnchor && activeManagementSection !== 'about') {
-      navigate(`${canonicalShowHref}/about${search}${hash}`, { replace: true });
+      navigate(`${canonicalShowHref}/about${search}#${publishAnchor}`, { replace: true });
     }
-  }, [publishAnchor, activeManagementSection, canonicalShowHref, search, hash, navigate]);
+  }, [publishAnchor, activeManagementSection, canonicalShowHref, search, navigate]);
   const openPublishing = (anchor: string) =>
     navigate(`${canonicalShowHref}/about#${anchor}`, { replace: true });
   const detailsEntryCount = entryDataUnavailable ? null : catalogEntryCount;

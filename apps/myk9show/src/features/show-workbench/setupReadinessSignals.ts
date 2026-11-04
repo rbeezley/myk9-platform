@@ -37,6 +37,16 @@ export const PUBLISH_PANEL_ANCHORS: ReadonlySet<string> = new Set([
   LANDING_CARD_ANCHOR,
 ]);
 
+/**
+ * The publish card a location hash points at, or null. Cockpit attention links append
+ * `?returnTo=` after their bare `#anchor`, so the router hands back `#anchor?returnTo=…` as the
+ * hash; only the part before `?` names the card.
+ */
+export function publishAnchorFromHash(hash: string): string | null {
+  const anchor = hash.replace(/^#/, '').split('?')[0] ?? '';
+  return PUBLISH_PANEL_ANCHORS.has(anchor) ? anchor : null;
+}
+
 /** The only class fact the signals read; the full Show Desk class row is assignable to it. */
 export interface SetupReadinessClass {
   judgeName?: string | undefined;

@@ -4,7 +4,7 @@ import { Mail } from 'lucide-react';
 import { PremiumDownloadCard } from '@/features/premium/PremiumDownloadCard';
 import { LandingPageCard } from '@/features/premium/LandingPageCard';
 import {
-  PUBLISH_PANEL_ANCHORS,
+  publishAnchorFromHash,
   SETUP_PUBLISH_ANCHOR,
 } from '@/features/show-workbench/setupReadinessSignals';
 import { getShowStyle } from '@/features/registries';
@@ -32,12 +32,12 @@ import { useShowManagementOutlet } from '@/components/shows/ShowDetails/showMana
 export default function ShowAboutPage() {
   const { show, canManageShow, judges, managerEntryCount } = useShowManagementOutlet();
   const { hash, key } = useLocation();
-  const anchor = hash.slice(1);
+  const anchor = publishAnchorFromHash(hash);
 
   // A router link to `#anchor` is a pushState, not fragment navigation, so the browser never
   // scrolls on its own. Keyed on the navigation (`key`) so a repeat click scrolls again.
   useEffect(() => {
-    if (!PUBLISH_PANEL_ANCHORS.has(anchor)) return;
+    if (!anchor) return;
     document.getElementById(anchor)?.scrollIntoView({ block: 'start' });
   }, [anchor, key]);
 

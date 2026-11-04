@@ -261,6 +261,45 @@ describe('send-targeted-message email delivery', () => {
     expect(result).not.toHaveProperty('email_recipients');
   });
 
+  it('rejects a missing body unless it is a dry run', async () => {
+    const { supabase } = makeSupabase();
+    const sendShowMessageEmails = emailSenderStub();
+    const handler = createSendTargetedMessageHandler({
+      sendPasscodePushes: noPush,
+      sendShowMessageEmails,
+    });
+
+    await expect(
+      handler({
+        body: { show_id: 'show-1', target_type: 'all_show', send_email: true },
+        user: { id: 'sender-1' },
+        supabase,
+      })
+    ).rejects.toMatchObject({ status: 400 });
+    expect(sendShowMessageEmails).not.toHaveBeenCalled();
+    expect(supabase.from).not.toHaveBeenCalledWith('show_messages');
+  });
+
+  it('dry run without a body counts the audience and writes nothing', async () => {
+    const { supabase } = makeSupabase();
+    const sendShowMessageEmails = emailSenderStub();
+    const handler = createSendTargetedMessageHandler({
+      sendPasscodePushes: noPush,
+      sendShowMessageEmails,
+    });
+
+    const result = await handler({
+      body: { show_id: 'show-1', target_type: 'all_show', send_email: true, dry_run: true },
+      user: { id: 'sender-1' },
+      supabase,
+    });
+
+    expect(result).toMatchObject({ dry_run: true, email_recipients: 1 });
+    expect(sendShowMessageEmails).not.toHaveBeenCalled();
+    expect(supabase.from).not.toHaveBeenCalledWith('show_messages');
+    expect(supabase.from).not.toHaveBeenCalledWith('email_log');
+  });
+
   it('dry run counts the audience and writes nothing', async () => {
     const { supabase } = makeSupabase();
     const sendShowMessageEmails = emailSenderStub();

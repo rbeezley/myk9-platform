@@ -301,6 +301,7 @@ async function fetchAccountRecipientPushTargets(
   return buildAccountPushTargets(subscriptions, presenceBySubscriptionId);
 }
 
+// Deploy order: deploy this function before the frontend (MYK9-1692).
 export function createSendTargetedMessageHandler(deps: {
   sendPasscodePushes: SendPasscodePushes;
   sendShowMessageEmails?: SendShowMessageEmails;
@@ -310,13 +311,15 @@ export function createSendTargetedMessageHandler(deps: {
 
     const showId = payload.show_id;
     const targetType = normalizeTargetType(payload.target_type);
-    const body = payload.body?.trim();
+    const body = payload.body?.trim() ?? '';
     const emailOnly = payload.email_only === true;
     const sendEmail = payload.send_email === true || emailOnly;
     const sendPush = payload.send_push === true;
     const dryRun = payload.dry_run === true;
 
-    if (!showId || !body) {
+    // A dry run sends nothing, so it needs no body (the audience preview omits it on
+    // purpose: a handler without dry_run support 400s here instead of broadcasting).
+    if (!showId || (!body && !dryRun)) {
       throw new HttpError(400, 'Missing required fields: show_id, body');
     }
 

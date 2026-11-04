@@ -21,6 +21,9 @@ export function useMessageEmailAudience(
     enabled: enabled && !!target,
     staleTime: 0,
     gcTime: 0,
+    // A preview must never repeat or fire on its own beyond the one visible request.
+    retry: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke('send-targeted-message', {
         body: {
@@ -29,7 +32,9 @@ export function useMessageEmailAudience(
           ...(target?.classId ? { class_id: target.classId } : {}),
           send_email: true,
           dry_run: true,
-          body: 'preview',
+          // No `body` on purpose: a function deployed before dry_run existed ignores the
+          // flag, and without a body it 400s (main's send-targeted-message handler,
+          // `if (!showId || !body) throw new HttpError(400, ...)`) instead of broadcasting.
         },
       });
       if (error) throw error;

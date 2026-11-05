@@ -461,6 +461,13 @@ while :; do
 
   echo "$(date +%H:%M:%S) total=$TOTAL $RESULT"
 
+  # Before the verdict exits: a conflicting PR still gets the base-run Review gate
+  # STATUS (usually red), which would otherwise exit 1 naming it (MYK9-1710).
+  if [[ "$RESULT" == waiting:* || "$RESULT" == required-failed:* ]] && base_conflict "$RESPONSE" "$REQUIRED"; then
+    echo "PR conflicts with its base; merge the base in. No workflow runs register for a conflicting PR."
+    exit 6
+  fi
+
   case "$RESULT" in
     green)
       echo "GREEN on $PINNED: every required check answered green ($TOTAL checks seen)"
@@ -500,11 +507,6 @@ while :; do
       exit 5
       ;;
   esac
-
-  if [[ "$RESULT" == waiting:* ]] && base_conflict "$RESPONSE" "$REQUIRED"; then
-    echo "PR conflicts with its base; merge the base in. No workflow runs register for a conflicting PR."
-    exit 6
-  fi
 
   if [ "$(date +%s)" -gt "$DEADLINE" ]; then
     echo "TIMEOUT after ${TIMEOUT_SECONDS}s: $RESULT — NOT a verdict"

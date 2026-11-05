@@ -12,6 +12,7 @@
 # mergeable_verdict <pull-json>: echoes `conflict`, `unknown` or `ok`. Pure.
 # Anything unparseable is `unknown`: an unreadable answer must not stop a watch.
 mergeable_verdict() {
+  [ -n "$1" ] || { echo unknown; return; } # a failed fetch prints nothing
   printf '%s' "$1" | jq -r '
     if (.mergeable == false) or ((.mergeable_state // "") == "dirty") then "conflict"
     elif .mergeable == null then "unknown"
@@ -19,10 +20,13 @@ mergeable_verdict() {
 }
 
 # no_required_registered <rollup-json> <required-json-array>: true when none of
-# the required names has registered a check yet, the shape a conflicting PR keeps.
+# the required names has registered a CHECK RUN yet, the shape a conflicting PR
+# keeps. Status contexts (`.context`) are ignored: `Review gate` is a required
+# status posted by a pull_request_target run against the base, so it registers
+# on a conflicting PR too, and counting it would hide every conflict.
 no_required_registered() {
   printf '%s' "$1" | jq -e --argjson req "$2" \
-    '[.statusCheckRollup[] | (.name // .context)] as $seen | all($req[]; . as $r | $seen | index($r) | not)' >/dev/null 2>&1
+    '[.statusCheckRollup[] | select(.name != null) | .name] as $seen | all($req[]; . as $r | $seen | index($r) | not)' >/dev/null 2>&1
 }
 
 fetch_mergeable() {
@@ -59,7 +63,7 @@ extra_self_test() {
   bc_check() { # bc_check <label> <expect 0|1> <pull-json> <rollup>
     STUB_PULL="$3"
     fetch_mergeable() { printf '%s' "$STUB_PULL"; }
-    base_conflict "$4" "$req"
+    base_conflict "$4" '["Quality Checks","Test","Review gate"]' # the real set carries the Review gate status
     got=$?
     [ "$got" = "$2" ] || { echo "SELF-TEST FAIL [base-conflict-$1]: expected rc $2, got $got"; ok=1; }
   }
@@ -69,6 +73,13 @@ extra_self_test() {
   bc_check null-keeps-waiting 1 '{"mergeable":null,"mergeable_state":"unknown"}' "$none"
   bc_check mergeable-unchanged 1 '{"mergeable":true,"mergeable_state":"clean"}' "$none"
   bc_check conflicting-but-runs-registered 1 '{"mergeable":false,"mergeable_state":"dirty"}' "$some"
+  # The real conflicting shape: the base-run Review gate status is present, red or green.
+  local gate_red='{"statusCheckRollup":[{"context":"Review gate","state":"FAILURE"}]}'
+  local gate_green='{"statusCheckRollup":[{"context":"Review gate","state":"SUCCESS"}]}'
+  bc_check conflicting-review-gate-red 0 '{"mergeable":false,"mergeable_state":"dirty"}' "$gate_red"
+  bc_check conflicting-review-gate-green 0 '{"mergeable":false,"mergeable_state":"dirty"}' "$gate_green"
+  bc_check mergeable-review-gate-red 1 '{"mergeable":true,"mergeable_state":"blocked"}' "$gate_red"
+  mv_check empty-fetch unknown ''
   eval "$real_fetch"
 
   # REST payloads reach the same verdicts (MYK9-1414): lower-case enums, a

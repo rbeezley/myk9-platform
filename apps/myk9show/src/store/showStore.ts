@@ -492,6 +492,9 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
       // Style is owned by Preview's update_show_style RPC; a generic settings
       // save must not optimistically persist its stale form snapshot.
       if (updates.isNationals !== undefined) definedUpdates.isNationals = updates.isNationals;
+      // MYK9-1622: without the switch fields, this rebuild from the pre-save copy put the old
+      // value back over the replica's new one, and the switch snapped back off.
+      Object.assign(definedUpdates, pickShowUsesUpdates(updates));
 
       const updatedShow: Show = {
         ...currentShow,

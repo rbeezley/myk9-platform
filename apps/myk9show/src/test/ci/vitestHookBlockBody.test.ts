@@ -89,5 +89,7 @@ describe('vitest hook block-body guard: repository', () => {
     // Positive control: the scan must actually see files that use hooks.
     expect(hookFiles).toBeGreaterThan(50);
     expect(offenders).toEqual([]);
-  });
+    // Whole-repo scan: ~12s on a shuffled, coverage-instrumented CI shard, so the
+    // default 10s cap is too tight.
+  }, 60_000);
 });

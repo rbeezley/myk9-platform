@@ -79,7 +79,7 @@ A PostgREST **count** must name a column, never `*`, on any column-allowlisted t
 
 ## postgrest-embed-grants
 
-**Guard:** MYK9-1654 (check not built yet)
+**Guard:** `apps/myk9show/src/test/ci/postgrestEmbedGrants.test.ts`
 
 PostgREST requires table-level SELECT on every EMBEDDED relation — revoking anon on a table only ever reached via `table(col,...)` / `table!inner(...)` embeds turns a null embed into a hard 42501 that fails the WHOLE request. Grep for embeds, not just `.from('table')`.
 

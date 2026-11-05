@@ -322,6 +322,10 @@ describe('CheckInDesk — runs already underway (MYK9-1690)', () => {
     });
 
   beforeEach(() => {
+    // The schedule mock is shared module state; a prior test (shuffled order) may leave it failed.
+    h.schedule.readFailed = false;
+    h.schedule.readPending = false;
+    h.schedule.retry.mockReset();
     h.updateReplicatedCheckInStatus.mockReset();
     h.updateReplicatedCheckInStatus.mockResolvedValue(null);
   });

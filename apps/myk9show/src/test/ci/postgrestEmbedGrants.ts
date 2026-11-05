@@ -1,3 +1,4 @@
+import { posix } from 'node:path';
 import ts from 'typescript';
 
 /**
@@ -75,25 +76,128 @@ export function extractEmbedItems(select: string): EmbedItem[] {
   return out;
 }
 
-function stringValue(node: ts.Node | undefined, consts: Map<string, string>): string | null {
+/** Reads a repo-relative path; undefined when the file does not exist. */
+export type ReadFile = (path: string) => string | undefined;
+
+/** Top-level `const` initializers and named imports of one file, for constant resolution. */
+interface FileInfo {
+  locals: Map<string, ts.Expression>;
+  imports: Map<string, { spec: string; exported: string }>;
+}
+
+const MAX_CONST_DEPTH = 3;
+const parsedFiles = new WeakMap<ReadFile, Map<string, FileInfo | null>>();
+
+function parse(fileName: string, source: string): ts.SourceFile {
+  return ts.createSourceFile(
+    fileName,
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    fileName.endsWith('x') ? ts.ScriptKind.TSX : ts.ScriptKind.TS
+  );
+}
+
+function infoOf(sf: ts.SourceFile): FileInfo {
+  const info: FileInfo = { locals: new Map(), imports: new Map() };
+  for (const st of sf.statements) {
+    if (ts.isVariableStatement(st)) {
+      for (const d of st.declarationList.declarations) {
+        if (ts.isIdentifier(d.name) && d.initializer) info.locals.set(d.name.text, d.initializer);
+      }
+    } else if (
+      ts.isImportDeclaration(st) &&
+      ts.isStringLiteral(st.moduleSpecifier) &&
+      st.importClause?.namedBindings &&
+      ts.isNamedImports(st.importClause.namedBindings)
+    ) {
+      for (const el of st.importClause.namedBindings.elements) {
+        info.imports.set(el.name.text, {
+          spec: st.moduleSpecifier.text,
+          exported: (el.propertyName ?? el.name).text,
+        });
+      }
+    }
+  }
+  return info;
+}
+
+/** Repo-relative path candidates for a RELATIVE or `@/` import specifier; none for packages. */
+function importCandidates(fromFile: string, spec: string): string[] {
+  let base: string;
+  if (spec.startsWith('@/')) base = posix.join('apps/myk9show/src', spec.slice(2));
+  else if (spec.startsWith('./') || spec.startsWith('../'))
+    base = posix.join(posix.dirname(fromFile), spec);
+  else return [];
+  return [`${base}.ts`, `${base}.tsx`, `${base}/index.ts`, `${base}/index.tsx`, base];
+}
+
+interface Ctx {
+  readFile: ReadFile | undefined;
+  cache: Map<string, FileInfo | null>;
+}
+
+function loadInfo(ctx: Ctx, path: string): FileInfo | null {
+  if (ctx.cache.has(path)) return ctx.cache.get(path) ?? null;
+  const src = ctx.readFile?.(path);
+  const info = src === undefined ? null : infoOf(parse(path, src));
+  ctx.cache.set(path, info);
+  return info;
+}
+
+/** Value of constant `name` in `file`, following one import per hop, bounded and cycle-safe. */
+function resolveConst(
+  ctx: Ctx,
+  file: string,
+  info: FileInfo,
+  name: string,
+  depth: number,
+  seen: Set<string>
+): string | null {
+  const key = `${file}#${name}`;
+  if (depth > MAX_CONST_DEPTH || seen.has(key)) return null;
+  const next = new Set(seen).add(key);
+  const init = info.locals.get(name);
+  if (init) return stringValue(init, ctx, file, info, depth, next);
+  const imp = info.imports.get(name);
+  if (!imp) return null;
+  for (const cand of importCandidates(file, imp.spec)) {
+    const target = loadInfo(ctx, cand);
+    if (target) return resolveConst(ctx, cand, target, imp.exported, depth + 1, next);
+  }
+  return null;
+}
+
+function stringValue(
+  node: ts.Node | undefined,
+  ctx: Ctx,
+  file: string,
+  info: FileInfo,
+  depth = 0,
+  seen: Set<string> = new Set()
+): string | null {
   if (!node) return null;
+  const rec = (n: ts.Node) => stringValue(n, ctx, file, info, depth, seen);
   if (ts.isStringLiteralLike(node)) return node.text;
   if (ts.isTemplateExpression(node)) {
-    // Substitutions are dropped; they are field lists or fragments, not relation names we can see.
-    return node.head.text + node.templateSpans.map(sp => ' ' + sp.literal.text).join('');
+    // A substitution that is not a resolvable string constant is dropped (a space stands in).
+    return (
+      node.head.text +
+      node.templateSpans.map(sp => (rec(sp.expression) ?? ' ') + sp.literal.text).join('')
+    );
   }
-  if (ts.isIdentifier(node)) return consts.get(node.text) ?? null;
+  if (ts.isIdentifier(node)) return resolveConst(ctx, file, info, node.text, depth, seen);
   if (
     ts.isParenthesizedExpression(node) ||
     ts.isAsExpression(node) ||
     ts.isSatisfiesExpression(node)
   )
-    return stringValue(node.expression, consts);
+    return rec(node.expression);
   return null;
 }
 
 /** Walk a call chain's receivers down to the `.from('<table>')` that starts it. */
-function baseOfChain(expr: ts.Expression, consts: Map<string, string>): string | null {
+function baseOfChain(expr: ts.Expression, val: (n: ts.Node) => string | null): string | null {
   let cur: ts.Node = expr;
   for (;;) {
     if (ts.isCallExpression(cur)) {
@@ -103,7 +207,7 @@ function baseOfChain(expr: ts.Expression, consts: Map<string, string>): string |
         callee.name.text === 'from' &&
         cur.arguments.length === 1
       ) {
-        return stringValue(cur.arguments[0], consts);
+        return val(cur.arguments[0]);
       }
       cur = callee;
     } else if (ts.isPropertyAccessExpression(cur) || ts.isNonNullExpression(cur)) {
@@ -114,24 +218,23 @@ function baseOfChain(expr: ts.Expression, consts: Map<string, string>): string |
   }
 }
 
-/** Every `.from('<base>')...select('<string with embeds>')` chain in a source file. */
-export function findEmbedSites(source: string, fileName = 'f.ts'): EmbedSite[] {
+/**
+ * Every `.from('<base>')...select('<string with embeds>')` chain in a source file.
+ * `${CONST}` substitutions resolve through top-level string constants in this file
+ * or imported (relative / `@/`) from a file `readFile` can supply.
+ */
+export function findEmbedSites(
+  source: string,
+  fileName = 'f.ts',
+  readFile?: ReadFile
+): EmbedSite[] {
   if (!source.includes('.select(')) return [];
-  const sf = ts.createSourceFile(
-    fileName,
-    source,
-    ts.ScriptTarget.Latest,
-    true,
-    fileName.endsWith('x') ? ts.ScriptKind.TSX : ts.ScriptKind.TS
-  );
-  const consts = new Map<string, string>();
-  for (const st of sf.statements) {
-    if (!ts.isVariableStatement(st)) continue;
-    for (const d of st.declarationList.declarations) {
-      if (ts.isIdentifier(d.name) && d.initializer && ts.isStringLiteralLike(d.initializer))
-        consts.set(d.name.text, d.initializer.text);
-    }
-  }
+  const sf = parse(fileName, source);
+  const info = infoOf(sf);
+  let cache = readFile ? parsedFiles.get(readFile) : undefined;
+  if (readFile && !cache) parsedFiles.set(readFile, (cache = new Map()));
+  const ctx: Ctx = { readFile, cache: cache ?? new Map() };
+  const val = (n: ts.Node) => stringValue(n, ctx, fileName, info);
   const sites: EmbedSite[] = [];
   const visit = (node: ts.Node) => {
     if (
@@ -140,9 +243,9 @@ export function findEmbedSites(source: string, fileName = 'f.ts'): EmbedSite[] {
       node.expression.name.text === 'select' &&
       node.arguments.length >= 1
     ) {
-      const sel = stringValue(node.arguments[0], consts);
+      const sel = val(node.arguments[0]);
       if (sel && sel.includes('(')) {
-        const base = baseOfChain(node.expression.expression, consts);
+        const base = baseOfChain(node.expression.expression, val);
         if (base) {
           const line = sf.getLineAndCharacterOfPosition(node.getStart()).line + 1;
           for (const { name, star } of extractEmbedItems(sel)) {

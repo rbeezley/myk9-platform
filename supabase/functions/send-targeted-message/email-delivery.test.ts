@@ -14,6 +14,10 @@ function chain(result: { data?: unknown; error?: unknown }) {
     is: vi.fn(() => query),
     or: vi.fn(() => query),
     in: vi.fn(() => query),
+    // The entries reader pages by id; any continuation page is past the fixture.
+    gt: vi.fn(() => chain({ data: [] })),
+    order: vi.fn(() => query),
+    limit: vi.fn(() => query),
     upsert: vi.fn(() => query),
     insert: vi.fn((_rows: unknown) => query),
     single: vi.fn(async () => settled),
@@ -35,12 +39,14 @@ const person = (id: string, first: string, email: string | null, authUserId: str
 
 const ENTRIES = [
   {
+    id: 'e-101',
     armband: '101',
     dog: { owner: person('p1', 'Ann', 'ann@example.com', 'u1'), co_owner: null },
     handler: person('p2', 'Bob', null, 'u2'),
   },
   {
     // Ann again on a second dog: must not get a second email.
+    id: 'e-102',
     armband: '102',
     dog: { owner: person('p1', 'Ann', 'ann@example.com', 'u1'), co_owner: null },
     handler: person('sender-person', 'Sam', 'sam@example.com', 'sender-1'),
@@ -177,6 +183,7 @@ describe('send-targeted-message email delivery', () => {
   it('counts unlinked exhibitors reached only by email, so the audience is not reported empty', async () => {
     const { supabase } = makeSupabase([
       {
+        id: 'e-201',
         armband: '201',
         dog: { owner: person('p9', 'Una', 'una@example.com', null), co_owner: null },
         handler: person('p9', 'Una', 'una@example.com', null),
@@ -204,6 +211,7 @@ describe('send-targeted-message email delivery', () => {
   it('does not count failed email attempts as people reached', async () => {
     const { supabase } = makeSupabase([
       {
+        id: 'e-201',
         armband: '201',
         dog: { owner: person('p9', 'Una', 'una@example.com', null), co_owner: null },
         handler: person('p9', 'Una', 'una@example.com', null),

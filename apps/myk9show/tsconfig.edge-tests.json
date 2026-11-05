@@ -78,7 +78,8 @@
     "../../supabase/functions/sentry-dashboard-metrics/index.source.test.ts",
     "../../supabase/functions/send-targeted-message/targeted-message-handler.test.ts",
     "../../supabase/functions/send-targeted-message/email-delivery.test.ts",
-    "../../supabase/functions/send-targeted-message/person-target.test.ts"
+    "../../supabase/functions/send-targeted-message/person-target.test.ts",
+    "../../supabase/functions/send-targeted-message/audience-pagination.test.ts"
   ],
   "exclude": []
 }

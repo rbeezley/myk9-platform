@@ -26,6 +26,8 @@ export interface SecretaryCockpitAttention {
   label: string;
   reason: string;
   destination: CockpitDestination | null;
+  /** Page the destination opens, added to the pill's accessible name (MYK9-1618). */
+  destinationName?: string;
 }
 
 export interface SecretaryCockpitAction {

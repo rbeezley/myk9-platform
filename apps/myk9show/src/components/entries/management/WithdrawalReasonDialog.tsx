@@ -29,6 +29,11 @@ interface WithdrawalReasonDialogProps {
   confirmLabel?: string;
   /** Shown above the reason field (the dog-level scope and the read-only refund suggestions). */
   children?: ReactNode;
+  /**
+   * MYK9-1615: why the confirm must wait even with a reason chosen (the dog-level refund
+   * outcomes are not all known yet). Null or omitted means nothing else is pending.
+   */
+  confirmBlockedReason?: string | null;
 }
 
 export const WithdrawalReasonDialog: React.FC<WithdrawalReasonDialogProps> = ({
@@ -38,6 +43,7 @@ export const WithdrawalReasonDialog: React.FC<WithdrawalReasonDialogProps> = ({
   title = 'Record Withdrawal Reason',
   confirmLabel = 'Confirm Withdrawal',
   children,
+  confirmBlockedReason = null,
 }) => {
   const [reason, setReason] = useState<WithdrawalReason | ''>('');
   const [notes, setNotes] = useState('');
@@ -53,7 +59,7 @@ export const WithdrawalReasonDialog: React.FC<WithdrawalReasonDialogProps> = ({
   };
 
   const handleConfirm = () => {
-    if (!reason) return;
+    if (!reason || confirmBlockedReason) return;
     const combined = notes.trim() ? `${reason}: ${notes.trim()}` : reason;
     onConfirm(combined);
     reset();
@@ -96,17 +102,21 @@ export const WithdrawalReasonDialog: React.FC<WithdrawalReasonDialogProps> = ({
               rows={3}
             />
           </div>
-          {!reason && (
+          {!reason ? (
             <p className="text-xs text-muted-foreground">
               Select a withdrawal reason to confirm the withdrawal.
             </p>
+          ) : (
+            confirmBlockedReason && (
+              <p className="text-xs text-muted-foreground">{confirmBlockedReason}</p>
+            )
           )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => handleOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleConfirm} disabled={!reason}>
+          <Button onClick={handleConfirm} disabled={!reason || !!confirmBlockedReason}>
             {confirmLabel}
           </Button>
         </DialogFooter>

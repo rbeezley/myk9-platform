@@ -8,7 +8,7 @@
  * withdrawal time (now). It shows a figure only; nothing here issues or records a refund, and it
  * does not touch the post-withdrawal query cache.
  */
-import { useQuery } from '@tanstack/react-query';
+import { useQueries } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { getTrialTimezone } from '@/features/registries';
 import {
@@ -17,21 +17,33 @@ import {
   type WithdrawalRefundSuggestion,
 } from './withdrawalPolicy';
 
-export function useWithdrawalRefundPreview(
-  entryId: string | null | undefined,
-  entryFeeCents: number,
-  enabled = true
-) {
-  return useQuery<WithdrawalRefundSuggestion>({
+export interface WithdrawalRefundPreviewRequest {
+  entryId: string;
+  entryFeeCents: number;
+  enabled: boolean;
+}
+
+/**
+ * MYK9-1615: one preview per entry, read together so a dog-level confirm can tell whether every
+ * entry has an outcome. Results come back in request order.
+ */
+export function useWithdrawalRefundPreviews(requests: readonly WithdrawalRefundPreviewRequest[]) {
+  return useQueries({
+    queries: requests.map(r => withdrawalRefundPreviewQuery(r.entryId, r.entryFeeCents, r.enabled)),
+  });
+}
+
+function withdrawalRefundPreviewQuery(entryId: string, entryFeeCents: number, enabled: boolean) {
+  return {
     queryKey: ['withdrawal-refund-preview', entryId, entryFeeCents],
     enabled: enabled && !!entryId,
     // The answer depends on the clock (before or after the cutoff day): never reuse a stale one.
     staleTime: 0,
-    queryFn: async () => {
+    queryFn: async (): Promise<WithdrawalRefundSuggestion> => {
       const { data, error } = await supabase
         .from('entries')
         .select('withdrawal_policy_snapshot, trials(timezone)')
-        .eq('id', entryId as string)
+        .eq('id', entryId)
         .single();
       if (error) throw error;
       const row = data as unknown as Record<string, unknown>;
@@ -47,5 +59,5 @@ export function useWithdrawalRefundPreview(
         getTrialTimezone(trial)
       );
     },
-  });
+  };
 }

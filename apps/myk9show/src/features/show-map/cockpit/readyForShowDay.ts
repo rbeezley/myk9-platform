@@ -9,6 +9,7 @@ import {
   type SetupReadinessSignal,
   type SetupReadinessSignalId,
 } from '@/features/show-workbench/setupReadinessSignals';
+import { resolveShowUses } from '@/features/show-workbench/showUses';
 
 import { getShowHomeHref } from './cockpitRoutes';
 import type { SecretaryCockpitPaperwork } from './secretaryCockpitTypes';
@@ -171,17 +172,24 @@ export function buildReadyForShowDay(input: ReadyForShowDayInput): ReadyForShowD
     ...(input.premiumInfo ? { premiumInfo: input.premiumInfo } : {}),
   });
 
-  const premiumLine: ReadyLine = input.premiumInfo
-    ? setupLine('premium', 'Premium published and current', signals, [
-        'exhibitor-materials-unpublished',
-        'landing-content-unpublished',
-      ])
-    : {
-        id: 'premium',
-        label: 'Premium published and current',
-        status: 'unknown',
-        detail: CANT_CHECK,
-      };
+  // MYK9-1622: a club that publishes its own premium gets no myK9 premium line (a pass would
+  // claim a premium myK9 never checked); its landing page, if it uses one, is its own line.
+  // Otherwise publishing the premium also publishes the landing page, so one line covers both.
+  const { usesLandingPage, publishesOwnPremium } = resolveShowUses(input.setup.show);
+  const publishLine = (id: string, label: string, signalIds: readonly SetupReadinessSignalId[]) =>
+    input.premiumInfo
+      ? setupLine(id, label, signals, signalIds)
+      : ({ id, label, status: 'unknown', detail: CANT_CHECK } satisfies ReadyLine);
+  const publishLines: ReadyLine[] = publishesOwnPremium
+    ? usesLandingPage
+      ? [publishLine('landing', 'Landing page published', ['landing-content-unpublished'])]
+      : []
+    : [
+        publishLine('premium', 'Premium published and current', [
+          'exhibitor-materials-unpublished',
+          'landing-content-unpublished',
+        ]),
+      ];
 
   const pending = input.entryBreakdownByClassId ? sumPending(input.entryBreakdownByClassId) : null;
   const entriesLine: ReadyLine =
@@ -238,7 +246,7 @@ export function buildReadyForShowDay(input: ReadyForShowDayInput): ReadyForShowD
       'no-classes',
     ]),
     setupLine('judges', 'Judges assigned to every class', signals, ['judges-missing']),
-    premiumLine,
+    ...publishLines,
     setupLine('visible', 'Show visible to exhibitors', signals, ['show-not-visible']),
     entriesLine,
     ...(input.printTrackingInUse ? [paperworkLine] : []),

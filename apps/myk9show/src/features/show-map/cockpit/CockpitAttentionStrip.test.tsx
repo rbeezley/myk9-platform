@@ -2,6 +2,8 @@ import { screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { render } from '@/test/utils/testUtils';
+import type { ShowMapTree } from '../showMapTypes';
+import { buildSecretaryCockpitSnapshot } from './buildSecretaryCockpitSnapshot';
 import { CockpitAttentionStrip } from './CockpitAttentionStrip';
 import type { SecretaryCockpitAttention } from './secretaryCockpitTypes';
 
@@ -54,6 +56,45 @@ describe('CockpitAttentionStrip', () => {
     });
     expect(link).toHaveAttribute('href', '/print/class-1');
     expect(link).toHaveAttribute('title', 'Starts 10:45');
+  });
+
+  it('names the destination of a pending-work chip in its accessible name (MYK9-1618)', () => {
+    const snapshot = buildSecretaryCockpitSnapshot({
+      showId: 'show-1',
+      trials: [],
+      classes: [],
+      tree: { nodes: {}, rootIds: [], diagnostics: [] } as unknown as ShowMapTree,
+      pendingSignals: [
+        {
+          id: 'entries-waiting-checkin',
+          count: 2,
+          priority: 'high',
+          label: 'Check in 2 entries',
+          destinationName: 'Check-in desk',
+          href: '/shows/show-1/entries?tab=exceptions&exception=check-in&checkin=pending',
+          scope: { kind: 'show', showId: 'show-1' },
+        },
+      ],
+      returnTo: '/shows/show-1',
+      now: new Date('2026-07-20T15:10:00.000Z'),
+    });
+    const attention = snapshot.administrativeAttention ?? [];
+    render(
+      <CockpitAttentionStrip
+        items={attention}
+        all={attention}
+        overflowCount={0}
+        classNameById={new Map()}
+        onCommand={vi.fn()}
+      />
+    );
+
+    const chip = screen.getByRole('link', { name: 'Check in 2 entries, opens Check-in desk' });
+    expect(chip).toHaveTextContent(/^Check in 2 entries$/);
+    expect(chip).toHaveAttribute(
+      'href',
+      `/shows/show-1/entries?tab=exceptions&exception=check-in&checkin=pending&returnTo=${encodeURIComponent('/shows/show-1')}`
+    );
   });
 
   it('runs a command pill through onCommand', async () => {

@@ -137,6 +137,12 @@ describe('computeShowDeskPendingSignals', () => {
       priority: 'high',
     });
     expect(signals[0]?.label).toContain('Check in 1 entry');
+    // MYK9-1618: the chip keeps its count wording but names where it goes, and goes there
+    // already filtered to entries not yet checked in.
+    expect(signals[0]?.destinationName).toBe('Check-in desk');
+    expect(signals[0]?.href).toBe(
+      '/shows/show-1/entries?tab=exceptions&exception=check-in&checkin=pending'
+    );
   });
 
   it('counts null and undefined check_in_status as waiting for accepted entries (real DB rows)', () => {

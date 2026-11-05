@@ -22,17 +22,18 @@ vi.mock('sonner', () => ({
   toast: { success: toastSuccess, error: toastError, info: vi.fn() },
 }));
 vi.mock('@/features/payments/useWithdrawalRefundPreview', () => ({
-  useWithdrawalRefundPreview: () => ({
-    data: {
-      hasPolicy: true,
-      refundCents: 2500,
-      retainedCents: 500,
-      requiresManual: false,
-      reason: 'after_cutoff',
-      policy: null,
-    },
-    isLoading: false,
-  }),
+  useWithdrawalRefundPreviews: (requests: readonly unknown[]) =>
+    requests.map(() => ({
+      data: {
+        refundCents: 2500,
+        retainedCents: 500,
+        requiresManual: false,
+        reason: 'after_cutoff',
+      },
+      isError: false,
+      isFetching: false,
+      refetch: vi.fn(),
+    })),
 }));
 vi.mock('@/components/ui/select', () => ({
   Select: ({

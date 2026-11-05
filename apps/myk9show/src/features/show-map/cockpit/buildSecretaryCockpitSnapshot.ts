@@ -205,6 +205,7 @@ function administrativeAttention(
     kind: signal.priority === 'medium' ? 'administrative' : 'blocker',
     label: signal.label,
     reason: signal.label,
+    ...(signal.destinationName ? { destinationName: signal.destinationName } : {}),
     destination: signal.href
       ? {
           kind: 'href',

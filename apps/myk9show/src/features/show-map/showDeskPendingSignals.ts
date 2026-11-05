@@ -10,6 +10,7 @@ import {
 } from '@/features/entry-operations/attentionClassification';
 import { getEntryManagementHref } from '@/features/entry-operations/entryAttentionRoutes';
 import { getCheckInDeskHref } from '@/components/entries/management/checkInDesk/checkInDeskRoutes';
+import { ENTRY_LIST_LABELS } from '@/components/entries/management/entryManagementViews';
 import { isTrialDateToday } from '@/features/_shared/trialDateEligibility';
 
 /**
@@ -52,6 +53,11 @@ export interface ShowDeskPendingSignal {
    * exists yet — per spec, such a signal MUST NOT render as a link.
    */
   href: string | null;
+  /**
+   * Name of the page `href` opens, when the label alone does not say it (MYK9-1618): the chip
+   * keeps its count wording and carries the destination in its accessible name.
+   */
+  destinationName?: string;
   /** Show (and, when relevant, narrower) scope this signal was computed within. */
   scope: ShowDeskPendingSignalScope;
 }
@@ -183,6 +189,7 @@ export function computeShowDeskPendingSignals({
       label: `Check in ${waitingCheckIn} ${waitingCheckIn === 1 ? 'entry' : 'entries'}`,
       // MYK9-1690: opens the Check-in desk already filtered to not checked in.
       href: getCheckInDeskHref({ showId, notCheckedIn: true }),
+      destinationName: ENTRY_LIST_LABELS['check-in'],
       scope,
     });
   }

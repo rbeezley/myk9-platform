@@ -17,8 +17,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { useWithdrawalRefundPreviews } from '@/features/payments/useWithdrawalRefundPreview';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { ENTRY_VERB_HELP } from './entryVerbHelp';
+import { isStripeRefundable } from './refundEligibility';
+import {
+  entryFeeCents,
+  everyOutcomeKnown,
+  resolveWithdrawRefundOutcome,
+} from './withdrawRefundOutcome';
 import { resolveDogBulkEligibility, type DogBulkVerb } from './dogBulkStatusEligibility';
 import { runDogBulkStatus, type DogStatusChange } from './dogBulkStatusRun';
 import { ExcludedEntries, WithdrawPreview } from './DogBulkStatusPreview';
@@ -41,7 +48,32 @@ export function DogBulkStatusMenu({ dogName, entries, onStatusChange }: DogBulkS
   const pull = useMemo(() => resolveDogBulkEligibility(entries, 'pull'), [entries]);
   const withdraw = useMemo(() => resolveDogBulkEligibility(entries, 'withdraw'), [entries]);
 
-  const close = () => setDialog(null);
+  // MYK9-1615: every eligible entry's refund is read before Withdraw may confirm. A failed read
+  // blocks it until a retry succeeds or the secretary chooses to set those refunds at approval.
+  const [refundsAtApproval, setRefundsAtApproval] = useState(false);
+  const previews = useWithdrawalRefundPreviews(
+    withdraw.eligible.map(entry => ({
+      entryId: entry.id,
+      entryFeeCents: entryFeeCents(entry),
+      enabled: dialog === 'withdraw' && isStripeRefundable(entry),
+    }))
+  );
+  const outcomes = withdraw.eligible.map((entry, i) =>
+    resolveWithdrawRefundOutcome(entry, previews[i], refundsAtApproval)
+  );
+  const withdrawBlockedReason = everyOutcomeKnown(outcomes)
+    ? null
+    : outcomes.some(o => o.kind === 'failed')
+      ? 'Try the refund policy again, or choose to set refunds when approving.'
+      : 'Waiting for the refund policy check.';
+  const retryPreviews = () => {
+    for (const preview of previews) if (preview.isError) void preview.refetch();
+  };
+
+  const close = () => {
+    setDialog(null);
+    setRefundsAtApproval(false);
+  };
   const run = async (verb: DogBulkVerb, withdrawalReason?: string) => {
     const targets = (verb === 'pull' ? pull : withdraw).eligible;
     close();
@@ -123,8 +155,17 @@ export function DogBulkStatusMenu({ dogName, entries, onStatusChange }: DogBulkS
         onConfirm={reason => void run('withdraw', reason)}
         title={`Withdraw ${dogName}`}
         confirmLabel={`Withdraw ${dogName}`}
+        confirmBlockedReason={withdrawBlockedReason}
       >
-        {dialog === 'withdraw' && <WithdrawPreview dogName={dogName} eligibility={withdraw} />}
+        {dialog === 'withdraw' && (
+          <WithdrawPreview
+            dogName={dogName}
+            eligibility={withdraw}
+            outcomes={outcomes}
+            onRetry={retryPreviews}
+            onRefundsAtApproval={() => setRefundsAtApproval(true)}
+          />
+        )}
       </WithdrawalReasonDialog>
     </>
   );

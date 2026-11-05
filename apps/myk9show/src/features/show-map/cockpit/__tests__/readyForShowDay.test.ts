@@ -242,21 +242,72 @@ describe('buildReadyForShowDay', () => {
       expect(statusOf(withShow({ usesLandingPage: true }, info), 'premium')).toBe('fail');
     });
 
-    it('fails the premium line on an unpublished landing page even when the club publishes its own', () => {
-      const info = premiumInfo({
-        publishedPremiumUrl: null,
-        publishedPremiumAt: null,
-        experienceIsPublished: false,
-      });
-      expect(
-        statusOf(withShow({ usesLandingPage: true, publishesOwnPremium: true }, info), 'premium')
-      ).toBe('fail');
+    // MYK9-1622: a club that publishes its own premium gets no myK9 premium line at all, not a
+    // passing one; the landing page, when the show uses one, is checked on its own line.
+    const unpublished = { publishedPremiumUrl: null, publishedPremiumAt: null };
+    const lineIds = (result: ReturnType<typeof buildReadyForShowDay>) =>
+      result.lines.map(line => line.id);
+    const lineFor = (result: ReturnType<typeof buildReadyForShowDay>, id: string) =>
+      result.lines.find(line => line.id === id);
+
+    it('omits the premium line when the club publishes its own and there is no landing page', () => {
+      const result = withShow(
+        { publishesOwnPremium: true, usesLandingPage: false },
+        premiumInfo(unpublished)
+      );
+      expect(lineIds(result)).not.toContain('premium');
+      expect(lineIds(result)).not.toContain('landing');
+      expect(result.lines.some(line => /premium/i.test(line.label))).toBe(false);
+      expect(result.allClear).toBe(true);
     });
 
-    it('does not fail the premium line on an unpublished premium when the club publishes its own', () => {
-      const info = premiumInfo({ publishedPremiumUrl: null, publishedPremiumAt: null });
-      expect(statusOf(withShow({ publishesOwnPremium: true }, info), 'premium')).toBe('pass');
-      expect(statusOf(withShow({ publishesOwnPremium: false }, info), 'premium')).toBe('fail');
+    it('checks the landing page on its own line when the club publishes its own premium', () => {
+      const failing = withShow(
+        { publishesOwnPremium: true, usesLandingPage: true },
+        premiumInfo({ ...unpublished, experienceIsPublished: false })
+      );
+      expect(lineIds(failing)).not.toContain('premium');
+      expect(lineFor(failing, 'landing')).toMatchObject({
+        label: 'Landing page published',
+        status: 'fail',
+        detail: 'Landing page not published',
+      });
+      expect(lineFor(failing, 'landing')?.href).toBeTruthy();
+
+      const passing = withShow(
+        { publishesOwnPremium: true, usesLandingPage: true },
+        premiumInfo({ ...unpublished, experienceIsPublished: true })
+      );
+      expect(lineIds(passing)).not.toContain('premium');
+      expect(lineFor(passing, 'landing')?.status).toBe('pass');
+    });
+
+    it("says it can't check the landing page, never pass, when the publish read is missing", () => {
+      const base = allGood();
+      const result = buildReadyForShowDay({
+        ...base,
+        setup: {
+          ...base.setup,
+          show: show({ publishesOwnPremium: true, usesLandingPage: true }),
+        },
+        premiumInfo: null,
+      });
+      expect(lineIds(result)).not.toContain('premium');
+      expect(lineFor(result, 'landing')?.status).toBe('unknown');
+    });
+
+    it('keeps the premium line, and no separate landing line, when myK9 publishes the premium', () => {
+      for (const usesLandingPage of [true, false]) {
+        const result = withShow(
+          { publishesOwnPremium: false, usesLandingPage },
+          premiumInfo(unpublished)
+        );
+        expect(lineFor(result, 'premium')).toMatchObject({
+          label: 'Premium published and current',
+          status: 'fail',
+        });
+        expect(lineIds(result)).not.toContain('landing');
+      }
     });
   });
 });

@@ -52,10 +52,11 @@ export function findViewViolations(rawSql: string): ViewViolation[] {
         detail: 'no inline WITH (security_invoker = ...)',
       });
     }
-    const withoutCounts = body.replace(/\w+\s*\(\s*\*\s*\)/g, ' ');
-    const star = /(?:\b[\w"]+\.\*)|(?:\bSELECT\s+(?:DISTINCT\s+)?\*)|(?:,\s*\*)/i.exec(
-      withoutCounts
-    );
+    const withoutCounts = body.replace(/\w+\s*\(\s*(?:[\w"]+\s*\.\s*)?\*\s*\)/g, ' ');
+    const star =
+      /(?:\b[\w"]+\.\*)|(?:\bSELECT\s+(?:DISTINCT\s+(?:ON\s*\([^)]*\)\s*)?)?\*)|(?:,\s*\*)/i.exec(
+        withoutCounts
+      );
     if (star) {
       violations.push({
         view,

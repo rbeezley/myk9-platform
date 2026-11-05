@@ -35,6 +35,29 @@ describe('view migration lint fixtures (red/green)', () => {
     expect(findViewViolations(b).map(v => v.problem)).toEqual(['select-star']);
   });
 
+  it('flags SELECT DISTINCT e.* and SELECT DISTINCT ON (x) *', () => {
+    const w = 'CREATE VIEW public.v WITH (security_invoker = true) AS ';
+    expect(
+      findViewViolations(`${w}SELECT DISTINCT e.* FROM entries e;`).map(v => v.problem)
+    ).toEqual(['select-star']);
+    expect(
+      findViewViolations(`${w}SELECT DISTINCT ON (e.id) * FROM entries e;`).map(v => v.problem)
+    ).toEqual(['select-star']);
+  });
+
+  it('does not flag whole-row function arguments', () => {
+    const w = 'CREATE VIEW public.v WITH (security_invoker = true) AS ';
+    for (const expr of [
+      'to_jsonb(e.*)',
+      'row_to_json( t . * )',
+      'json_agg(t.*)',
+      'count(e.*)',
+      'to_jsonb("E".*)',
+    ]) {
+      expect(findViewViolations(`${w}SELECT e.id, ${expr} AS j FROM entries e;`)).toEqual([]);
+    }
+  });
+
   it('flags a view created inside a DO block EXECUTE string', () => {
     const sql = `DO $$ BEGIN EXECUTE 'CREATE OR REPLACE VIEW public.v AS SELECT e.* FROM entries e'; END $$;`;
     expect(findViewViolations(sql).map(v => v.problem)).toEqual([

@@ -54,7 +54,8 @@ export function findViewViolations(rawSql: string): ViewViolation[] {
     }
     const withoutCounts = body.replace(/\w+\s*\(\s*(?:[\w"]+\s*\.\s*)?\*\s*\)/g, ' ');
     const star =
-      /(?:\b[\w"]+\.\*)|(?:\bSELECT\s+(?:DISTINCT\s+(?:ON\s*\([^)]*\)\s*)?)?\*)|(?:,\s*\*)/i.exec(
+      // DISTINCT ON keys may contain one level of nested parens: ON (lower(e.id)) *
+      /(?:\b[\w"]+\.\*)|(?:\bSELECT\s+(?:DISTINCT\s+(?:ON\s*\((?:[^()]|\([^()]*\))*\)\s*)?)?\*)|(?:,\s*\*)/i.exec(
         withoutCounts
       );
     if (star) {

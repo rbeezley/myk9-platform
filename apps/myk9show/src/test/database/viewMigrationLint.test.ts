@@ -43,6 +43,11 @@ describe('view migration lint fixtures (red/green)', () => {
     expect(
       findViewViolations(`${w}SELECT DISTINCT ON (e.id) * FROM entries e;`).map(v => v.problem)
     ).toEqual(['select-star']);
+    expect(
+      findViewViolations(
+        `${w}SELECT DISTINCT ON (lower(e.id), date_trunc('day', e.created_at)) * FROM entries e;`
+      ).map(v => v.problem)
+    ).toEqual(['select-star']);
   });
 
   it('does not flag whole-row function arguments', () => {

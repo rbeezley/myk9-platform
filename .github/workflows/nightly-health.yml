@@ -211,7 +211,12 @@ jobs:
           E2E_JUDGE_PASSWORD: ${{ secrets.E2E_JUDGE_PASSWORD }}
           E2E_DEMO_EXHIBITOR_PASSWORD: ${{ secrets.E2E_DEMO_EXHIBITOR_PASSWORD }}
 
+      # MYK9-1715: this install pulls ~140 apt packages; a slow Azure mirror held
+      # it for 53 minutes once (normally ~0.5). Cap it so a slow mirror fails this
+      # advisory job fast instead of delaying report-status. The chromium installs
+      # feed the verdict, so they stay uncapped: a mirror must not turn the run red.
       - name: Install Playwright browser
+        timeout-minutes: 10
         run: pnpm --filter @myk9/show exec playwright install --with-deps webkit
 
       # MYK9-1467: boot each edge function the app calls before the sweep, so a page's

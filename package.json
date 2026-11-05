@@ -82,7 +82,7 @@
     "qa:edge-function-drift:test": "vitest run scripts/qa/edge-function-drift.test.ts scripts/qa/edge-function-imports.test.ts",
     "qa:worktree-liveness": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/qa/worktree-liveness.ts",
     "qa:worktree-liveness:test": "vitest run scripts/qa/worktree-liveness.test.ts",
-    "qa:primary-checkout:test": "vitest run scripts/qa/primary-checkout.test.ts scripts/bootstrap-worktree.test.ts scripts/qa/push-hold.test.ts scripts/qa/push-main-docs-only.test.ts",
+    "qa:primary-checkout:test": "vitest run scripts/qa/primary-checkout.test.ts scripts/bootstrap-worktree.test.ts scripts/qa/push-hold.test.ts scripts/qa/push-main-docs-only.test.ts scripts/qa/push-squash-base.test.ts",
     "qa:shellcheck": "bash scripts/qa/shellcheck-sc2318.sh",
     "qa:shellcheck:test": "vitest run scripts/qa/shellcheck-sc2318.test.ts",
     "qa:no-ci-polling:test": "vitest run scripts/qa/no-ci-polling.test.ts",

@@ -11,3 +11,4 @@ run_check() {
 }
 run_check push-hold.ts
 run_check push-main-docs-only.ts
+run_check push-squash-base.ts

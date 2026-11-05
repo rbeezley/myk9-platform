@@ -163,7 +163,7 @@ export const PINNED_SCRIPTS: readonly PinnedScript[] = [
     pkgDir: '.',
     script: 'qa:primary-checkout:test',
     command:
-      'vitest run scripts/qa/primary-checkout.test.ts scripts/bootstrap-worktree.test.ts scripts/qa/push-hold.test.ts scripts/qa/push-main-docs-only.test.ts',
+      'vitest run scripts/qa/primary-checkout.test.ts scripts/bootstrap-worktree.test.ts scripts/qa/push-hold.test.ts scripts/qa/push-main-docs-only.test.ts scripts/qa/push-squash-base.test.ts',
   },
   {
     pkgDir: '.',

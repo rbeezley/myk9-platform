@@ -2,6 +2,7 @@ import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { onlineManager } from '@tanstack/react-query';
 import { render } from '@/test/utils/testUtils';
 import { mockSupabase } from '@/test/mocks/supabase';
 import { DogBulkStatusMenu } from '../DogBulkStatusMenu';
@@ -148,6 +149,36 @@ describe('Dog-level Withdraw: refund-policy gate (MYK9-1615)', () => {
     expect(onStatusChange).toHaveBeenCalledWith('e1', EntryStatus.CANCELLED, 'In-Season Dog');
     expect(onStatusChange).toHaveBeenCalledWith('e2', EntryStatus.CANCELLED, 'In-Season Dog');
     expect(invoke).not.toHaveBeenCalled();
+  });
+
+  it('offers the approval fallback offline, where the policy read pauses instead of failing', async () => {
+    single.mockResolvedValue(POLICY_ROW);
+    onlineManager.setOnline(false);
+    try {
+      const { user, onStatusChange } = await openWithdraw();
+
+      expect(await screen.findAllByText("Couldn't check the refund policy")).toHaveLength(2);
+      expect(screen.queryByText('Checking policy…')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Withdraw Rex' })).toBeDisabled();
+
+      await user.click(screen.getByRole('button', { name: 'Set refunds when approving' }));
+      await user.click(screen.getByRole('button', { name: 'Withdraw Rex' }));
+      await waitFor(() => expect(onStatusChange).toHaveBeenCalledTimes(2));
+      expect(onStatusChange).toHaveBeenCalledWith('e1', EntryStatus.CANCELLED, 'In-Season Dog');
+      expect(single).not.toHaveBeenCalled();
+      expect(invoke).not.toHaveBeenCalled();
+    } finally {
+      onlineManager.setOnline(true);
+    }
+  });
+
+  it('keeps the recovery buttons at the 44px touch floor', async () => {
+    single.mockResolvedValue(POLICY_READ_FAILED);
+    await openWithdraw();
+    await screen.findAllByText("Couldn't check the refund policy");
+    for (const name of ['Try again', 'Set refunds when approving']) {
+      expect(screen.getByRole('button', { name })).toHaveClass('min-h-11');
+    }
   });
 
   it('lets the secretary withdraw with the refund left to approval, as an explicit choice', async () => {

@@ -67,7 +67,9 @@ export function DogBulkStatusMenu({ dogName, entries, onStatusChange }: DogBulkS
       ? 'Try the refund policy again, or choose to set refunds when approving.'
       : 'Waiting for the refund policy check.';
   const retryPreviews = () => {
-    for (const preview of previews) if (preview.isError) void preview.refetch();
+    for (const preview of previews) {
+      if (preview.isError || preview.isPaused) void preview.refetch();
+    }
   };
 
   const close = () => {

@@ -18,6 +18,8 @@ export interface RefundPreviewState {
   data: WithdrawalRefundSuggestion | undefined;
   isError: boolean;
   isFetching: boolean;
+  /** Offline: React Query parks the read instead of failing it, so it is just as unavailable. */
+  isPaused: boolean;
 }
 
 export function entryFeeCents(entry: Pick<EntryManagementEntry, 'totalFee'>): number {
@@ -36,7 +38,7 @@ export function resolveWithdrawRefundOutcome(
       ? { kind: 'at-approval', maxCents, chosen: false }
       : { kind: 'suggested', refundCents: preview.data.refundCents };
   }
-  if (preview?.isError && !preview.isFetching) {
+  if (preview?.isPaused || (preview?.isError && !preview.isFetching)) {
     return refundsAtApproval ? { kind: 'at-approval', maxCents, chosen: true } : { kind: 'failed' };
   }
   return { kind: 'checking' };

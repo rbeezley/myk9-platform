@@ -32,6 +32,7 @@ vi.mock('@/features/payments/useWithdrawalRefundPreview', () => ({
       },
       isError: false,
       isFetching: false,
+      isPaused: false,
       refetch: vi.fn(),
     })),
 }));

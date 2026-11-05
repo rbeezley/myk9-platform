@@ -81,10 +81,15 @@ export function WithdrawPreview({
             withdraw now and set each refund when you approve it.
           </p>
           <div className="flex flex-wrap gap-2">
-            <Button type="button" size="sm" variant="outline" onClick={onRetry}>
+            <Button type="button" variant="outline" className="min-h-11" onClick={onRetry}>
               Try again
             </Button>
-            <Button type="button" size="sm" variant="outline" onClick={onRefundsAtApproval}>
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-11"
+              onClick={onRefundsAtApproval}
+            >
               Set refunds when approving
             </Button>
           </div>

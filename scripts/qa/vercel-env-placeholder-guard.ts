@@ -31,13 +31,15 @@ export function placeholderKeys(content: string): string[] {
     const line = raw.trim();
     if (!line || line.startsWith('#')) continue;
     const match = /^(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/.exec(line);
-    if (!match) continue;
-    let value = match[2].trim();
+    const key = match?.[1];
+    const rawValue = match?.[2];
+    if (key === undefined || rawValue === undefined) continue;
+    let value = rawValue.trim();
     const quote = value[0];
     if ((quote === '"' || quote === "'") && value.indexOf(quote, 1) > 0) {
       value = value.slice(1, value.indexOf(quote, 1));
     }
-    if (value === PLACEHOLDER) keys.push(match[1]);
+    if (value === PLACEHOLDER) keys.push(key);
   }
   return keys;
 }

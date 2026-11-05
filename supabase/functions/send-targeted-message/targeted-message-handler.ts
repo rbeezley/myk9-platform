@@ -5,34 +5,27 @@ import {
   ACCOUNT_PUSH_SUBSCRIPTION_SELECT,
   buildAccountPushTargets,
   buildGroupLabel,
-  ENTRY_PERSON_FIELDS,
   CALLER_ROLE_SELECT,
   callerRoleAuthorizesShow,
-  entrySource,
   mergePushTargetsBySubscriptionId,
   normalizeTargetType,
   resolveEmailAudience,
-  scopeEntriesToPerson,
   RINGSIDE_SESSION_PUSH_TARGET_SELECT,
   ringsideSessionMatchesTarget,
   countPeopleReached,
   targetArmbands,
   uniqueAccountRecipients,
   type CallerRoleSource,
-  type EntryPeopleRow,
   type EmailRecipient,
-  type EntryRecipientSource,
   type RingsideSessionSource,
   type TargetType,
 } from './targeting.ts';
+import { fetchEntriesForTarget } from './entry-audience.ts';
 
 // Chunk size for the account push-subscription user_id IN(...) filter, matching
 // push-trigger-announcement. Keeps large checked_in / all_show sends under
 // PostgREST URL length limits.
 const ACCOUNT_PUSH_FETCH_CHUNK_SIZE = 100;
-
-// Ids interpolated into a PostgREST filter string must be plain id characters.
-const SAFE_ID = /^[A-Za-z0-9_-]+$/;
 
 type RingsidePresence = Pick<RingsideSessionSource, 'lastSeenAt' | 'lastSeenRoute'>;
 
@@ -78,6 +71,9 @@ interface SupabaseQuery<T = unknown> extends PromiseLike<SupabaseQueryResult<T>>
   is(column: string, value: unknown): SupabaseQuery<T>;
   or(filter: string): SupabaseQuery<T>;
   in(column: string, values: readonly unknown[]): SupabaseQuery<T>;
+  gt(column: string, value: unknown): SupabaseQuery<T>;
+  order(column: string, options?: { ascending?: boolean }): SupabaseQuery<T>;
+  limit(count: number): SupabaseQuery<T>;
   upsert(rows: unknown, options?: unknown): SupabaseQuery<T>;
   insert(rows: unknown): SupabaseQuery<T>;
   single(): Promise<SupabaseQueryResult<T>>;
@@ -148,63 +144,6 @@ function subscriptionFromSession(row: RingsideSessionRow): PushSubscriptionRow |
     ? row.push_subscriptions[0]
     : row.push_subscriptions;
   return joined ?? null;
-}
-
-// A person is on an entry as the handler or as their dog's owner or co-owner.
-async function personEntryFilter(
-  supabase: TargetedMessageSupabaseClient,
-  personId: string
-): Promise<string> {
-  const { data, error } = await supabase
-    .from('dogs')
-    .select('id')
-    .or(`owner_id.eq.${personId},co_owner_id.eq.${personId}`);
-  if (error) throw new HttpError(500, 'Failed to resolve message recipients');
-  const dogIds = ((data ?? []) as Array<{ id: string }>)
-    .map(dog => dog.id)
-    .filter(id => SAFE_ID.test(id));
-  return [
-    `handler_id.eq.${personId}`,
-    ...(dogIds.length ? [`dog_id.in.(${dogIds.join(',')})`] : []),
-  ].join(',');
-}
-
-async function fetchEntriesForTarget(
-  supabase: TargetedMessageSupabaseClient,
-  showId: string,
-  targetType: TargetType,
-  classId: string | undefined,
-  personId: string | undefined
-): Promise<EntryRecipientSource[]> {
-  let query = supabase
-    .from('entries')
-    .select(
-      `armband, dog:dogs(owner:people!owner_id(${ENTRY_PERSON_FIELDS}), co_owner:people!co_owner_id(${ENTRY_PERSON_FIELDS})), handler:people!handler_id(${ENTRY_PERSON_FIELDS})`
-    )
-    .eq('show_id', showId)
-    .is('deleted_at', null);
-
-  if (targetType === 'class') {
-    if (!classId) throw new HttpError(400, 'Missing required field: class_id');
-    query = query.eq('class_id', classId);
-  } else if (targetType === 'person') {
-    if (!personId || !SAFE_ID.test(personId)) {
-      throw new HttpError(400, 'Missing or invalid field: person_id');
-    }
-    // Filtered in the database, not after the fetch: a show past PostgREST's row cap would
-    // otherwise hide this person's entries and report a false "not found".
-    query = query.or(await personEntryFilter(supabase, personId));
-  } else if (targetType === 'checked_in') {
-    query = query.in('check_in_status', ['checked-in', 'at-gate', 'come-to-gate', 'in-ring']);
-  }
-
-  const { data, error } = await query;
-  if (error) throw new HttpError(500, 'Failed to resolve message recipients');
-
-  const rows = Array.isArray(data) ? (data as EntryPeopleRow[]) : [];
-  return targetType === 'person' && personId
-    ? scopeEntriesToPerson(rows, personId)
-    : rows.map(entrySource);
 }
 
 async function fetchClassInfo(

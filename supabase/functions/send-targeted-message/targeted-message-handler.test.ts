@@ -18,6 +18,10 @@ function chain(result: QueryResult) {
     is: vi.fn(() => query),
     or: vi.fn(() => query),
     in: vi.fn(() => query),
+    // The entries reader pages by id; any continuation page is past the fixture.
+    gt: vi.fn(() => chain({ data: [] })),
+    order: vi.fn(() => query),
+    limit: vi.fn(() => query),
     upsert: vi.fn(() => query),
     insert: vi.fn((_rows: unknown) => query),
     delete: vi.fn(() => query),
@@ -58,6 +62,7 @@ function makeSupabase() {
         return chain({
           data: [
             {
+              id: 'e-101',
               armband: '101',
               dog: {
                 owner: { auth_user_id: 'owner-1' },
@@ -172,6 +177,7 @@ function makePresenceSupabase() {
         return chain({
           data: [
             {
+              id: 'e-999',
               armband: '999',
               dog: {
                 owner: { auth_user_id: 'owner-present' },
@@ -231,6 +237,7 @@ function makePresenceSupabase() {
 function makeChunkSupabase(recipientCount: number) {
   const inUserIdChunkSizes: number[] = [];
   const entries = Array.from({ length: recipientCount }, (_, i) => ({
+    id: `e-${i}`,
     armband: String(1000 + i),
     dog: { owner: { auth_user_id: `owner-${i}` }, co_owner: { auth_user_id: null } },
     handler: { auth_user_id: null },
@@ -246,6 +253,9 @@ function makeChunkSupabase(recipientCount: number) {
         if (column === 'user_id') inUserIdChunkSizes.push(values.length);
         return query;
       }),
+      gt: vi.fn(() => recordingChain({ data: [] })),
+      order: vi.fn(() => query),
+      limit: vi.fn(() => query),
       upsert: vi.fn(() => query),
       insert: vi.fn((_rows: unknown) => query),
       single: vi.fn(async () => result),

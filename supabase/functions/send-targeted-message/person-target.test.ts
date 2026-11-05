@@ -12,6 +12,10 @@ function chain(result: { data?: unknown; error?: unknown }) {
     is: vi.fn(() => query),
     or: vi.fn((_filter: string) => query),
     in: vi.fn(() => query),
+    // The entries reader pages by id; any continuation page is past the fixture.
+    gt: vi.fn(() => chain({ data: [] })),
+    order: vi.fn(() => query),
+    limit: vi.fn(() => query),
     upsert: vi.fn((_rows: unknown, _options?: unknown) => query),
     insert: vi.fn((_rows: unknown) => query),
     single: vi.fn(async () => settled),
@@ -34,11 +38,13 @@ const person = (id: string, first: string, email: string | null, authUserId: str
 // Ann owns the dog, Bob handles it; Cy owns a second dog. Ann is also a co-owner of Cy's dog.
 const ENTRIES = [
   {
+    id: 'e-101',
     armband: '101',
     dog: { owner: person('p-ann', 'Ann', 'ann@example.com', 'u-ann'), co_owner: null },
     handler: person('p-bob', 'Bob', null, 'u-bob'),
   },
   {
+    id: 'e-102',
     armband: '102',
     dog: {
       owner: person('p-cy', 'Cy', 'cy@example.com', 'u-cy'),
@@ -174,7 +180,11 @@ describe('send-targeted-message person scope', () => {
       supabase,
     });
 
-    expect(entryFilters).toEqual(['handler_id.eq.p-ann,dog_id.in.(dog-1,dog-2)']);
+    // Once per page: the first page and the empty continuation that ends the read.
+    expect(entryFilters).toEqual([
+      'handler_id.eq.p-ann,dog_id.in.(dog-1,dog-2)',
+      'handler_id.eq.p-ann,dog_id.in.(dog-1,dog-2)',
+    ]);
   });
 
   it('rejects a person_id that is not a plain id before it reaches a filter string', async () => {

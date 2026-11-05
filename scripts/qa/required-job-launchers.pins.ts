@@ -273,6 +273,16 @@ export const PINNED_SCRIPTS: readonly PinnedScript[] = [
   },
   {
     pkgDir: '.',
+    script: 'qa:shellcheck',
+    command: 'bash scripts/qa/shellcheck-sc2318.sh',
+  },
+  {
+    pkgDir: '.',
+    script: 'qa:shellcheck:test',
+    command: 'vitest run scripts/qa/shellcheck-sc2318.test.ts',
+  },
+  {
+    pkgDir: '.',
     script: 'qa:doc-staleness:strict',
     command: 'node scripts/check-doc-staleness.js --strict',
   },

@@ -67,7 +67,7 @@ If work flagged as a background-task chip gets absorbed into the current session
 
 ## edge-tests-jsdom
 
-**Guard:** MYK9-1654 (check not built yet)
+**Guard:** `apps/myk9show/src/test/ci/cryptoSubtleNodePragma.test.ts`
 
 The app suite runs `environment: 'jsdom'` globally, which is a LIE for edge-function code — those files run under Deno and will never see a browser. jsdom installs its own `ArrayBuffer`, so a buffer built in test code is a different realm's object than the Node `crypto` vitest leaves in place (jsdom has no `subtle`), and `crypto.subtle.digest` rejects it with "2nd argument is not instance of ArrayBuffer, Buffer, TypedArray, or DataView". Whether it fires depends on the Node build: all three of `Uint8Array`, a fresh `ArrayBuffer`, and `.buffer` passed locally on Node 22.18 and the fresh-`ArrayBuffer` one failed on CI, so "it passes locally" proves nothing here. Put `// @vitest-environment node` at the top of any test covering an edge function, and hand WebCrypto the TypedArray view directly — copying into a fresh `ArrayBuffer` first looks safer and only adds one more object that has to belong to the right realm. `src/test/setup.ts` guards its `window`/`navigator` stubs behind `typeof window !== 'undefined'` so the node environment is available; do not un-guard them (MYK9-228 phase 3).
 

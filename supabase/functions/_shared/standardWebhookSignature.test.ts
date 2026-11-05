@@ -1,3 +1,7 @@
+// @vitest-environment node
+//
+// crypto.subtle rejects buffers built under the global jsdom environment on some
+// Node builds (LESSON edge-tests-jsdom); guarded by cryptoSubtleNodePragma.test.ts.
 import { describe, expect, it } from 'vitest';
 
 import { verifyStandardWebhookSignature } from './standardWebhookSignature';

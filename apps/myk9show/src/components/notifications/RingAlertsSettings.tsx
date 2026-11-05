@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Bell, Loader2, Send, MessageSquareText } from 'lucide-react';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { usePushSubscription } from '@/hooks/usePushSubscription';
+import { useReconcilePushOnMount } from '@/hooks/useReconcilePushOnMount';
 import { useNotificationStore } from '@/store/notificationStore';
 import { syncNotificationPreferences } from '@/features/notifications/notificationPreferenceSync';
 import {
@@ -55,7 +56,7 @@ export function RingAlertsSettings() {
   const permissionStatus = useNotificationStore(state => state.permissionStatus);
   const updatePreferences = useNotificationStore(state => state.updatePreferences);
   const { user } = useAuthContext();
-  const { subscribe, unsubscribe, isSupported: isPushSupported } = usePushSubscription();
+  const { subscribe, unsubscribe, reconcile, isSupported: isPushSupported } = usePushSubscription();
   const [smsPreference, setSmsPreference] = useState<SmsNotificationPreference | null>(null);
   const [ringAlertsEnabled, setRingAlertsEnabledState] = useState(true);
   const [phone, setPhone] = useState('');
@@ -109,6 +110,8 @@ export function RingAlertsSettings() {
       active = false;
     };
   }, [user?.id, updatePreferences]);
+
+  const isReconciling = useReconcilePushOnMount(user?.id, reconcile);
 
   const hasValidConsent = isValidSmsConsent(smsPreference, phone);
   const optedOutAt = smsPreference?.sms_opt_out_at ?? null;
@@ -329,7 +332,7 @@ export function RingAlertsSettings() {
           <Switch
             id="push-enabled"
             checked={preferences.pushEnabled}
-            disabled={!ringAlertsEnabled || !isPushSupported || isPushLoading}
+            disabled={!ringAlertsEnabled || !isPushSupported || isPushLoading || isReconciling}
             onCheckedChange={handlePushToggle}
           />
         </div>

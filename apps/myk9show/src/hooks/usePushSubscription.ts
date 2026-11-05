@@ -21,6 +21,22 @@ export function usePushSubscription() {
   const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined;
   const isSupported = isPushSupported() && !!vapidKey;
 
+  /** Upserts this device's subscription for the signed-in auth user. Shared by subscribe and reconcile. */
+  async function saveSubscription(
+    userId: string,
+    data: { endpoint: string; keys: { p256dh: string; auth: string } }
+  ) {
+    return supabase.from('push_subscriptions').upsert(
+      {
+        user_id: userId,
+        endpoint: data.endpoint,
+        p256dh: data.keys.p256dh,
+        auth: data.keys.auth,
+      },
+      { onConflict: 'endpoint' }
+    );
+  }
+
   async function subscribe(): Promise<{ ok: boolean; reason?: string }> {
     if (!user?.id || !vapidKey) return { ok: false, reason: 'not-supported' };
 
@@ -39,15 +55,7 @@ export function usePushSubscription() {
     try {
       const subscriptionData = await subscribeToPush(vapidKey);
 
-      const { error } = await supabase.from('push_subscriptions').upsert(
-        {
-          user_id: user.id,
-          endpoint: subscriptionData.endpoint,
-          p256dh: subscriptionData.keys.p256dh,
-          auth: subscriptionData.keys.auth,
-        },
-        { onConflict: 'endpoint' }
-      );
+      const { error } = await saveSubscription(user.id, subscriptionData);
 
       if (error) {
         console.error('Failed to save push subscription:', error.message);
@@ -110,5 +118,42 @@ export function usePushSubscription() {
     }
   }
 
-  return { subscribe, unsubscribe, isSupported };
+  /**
+   * Aligns the persisted `pushEnabled` flag with what this device really holds.
+   * Never prompts and never creates a subscription: a browser subscription the
+   * server lacks (or holds for another user) is re-saved for the current user;
+   * anything else reads Off. `unavailable` (could not ask) leaves it untouched.
+   */
+  async function reconcile(): Promise<void> {
+    if (!user?.id) return;
+
+    // A device that cannot do push (or a build without a VAPID key) can never
+    // receive one, so a stale local "On" must not survive here either.
+    if (
+      !isSupported ||
+      (typeof Notification !== 'undefined' && Notification.permission === 'denied')
+    ) {
+      updatePreferences({ pushEnabled: false });
+      return;
+    }
+
+    try {
+      const lookup = await lookupExistingSubscription();
+      if (lookup.status === 'unavailable') return;
+      if (lookup.status === 'none') {
+        updatePreferences({ pushEnabled: false });
+        return;
+      }
+      const { error } = await saveSubscription(user.id, lookup.subscription);
+      if (error) {
+        console.error('Failed to re-save push subscription:', error.message);
+      }
+      updatePreferences({ pushEnabled: !error });
+    } catch (err) {
+      console.error('Push reconcile failed:', err);
+      updatePreferences({ pushEnabled: false });
+    }
+  }
+
+  return { subscribe, unsubscribe, reconcile, isSupported };
 }

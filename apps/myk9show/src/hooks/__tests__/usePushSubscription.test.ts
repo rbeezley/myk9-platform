@@ -217,4 +217,93 @@ describe('usePushSubscription', () => {
 
     expect(mockUpdatePreferences).toHaveBeenCalledWith({ pushEnabled: false });
   });
+
+  describe('reconcile', () => {
+    const browserSub = {
+      endpoint: 'https://push.example.com/sub1',
+      keys: { p256dh: 'key1', auth: 'auth1' },
+    };
+
+    it('turns the flag off when the browser holds no subscription (stale local true)', async () => {
+      const { result } = renderHook(() => usePushSubscription());
+      await act(async () => {
+        await result.current.reconcile();
+      });
+      expect(mockUpdatePreferences).toHaveBeenCalledWith({ pushEnabled: false });
+      expect(mockUpsert).not.toHaveBeenCalled();
+    });
+
+    it('re-saves a browser subscription the server lacks and keeps the flag on', async () => {
+      const { lookupExistingSubscription, subscribeToPush } = await import('@myk9/notifications');
+      vi.mocked(lookupExistingSubscription).mockResolvedValueOnce({
+        status: 'subscribed',
+        subscription: browserSub,
+      });
+      const { result } = renderHook(() => usePushSubscription());
+      await act(async () => {
+        await result.current.reconcile();
+      });
+      expect(mockUpsert).toHaveBeenCalledWith(
+        { user_id: 'user-123', endpoint: browserSub.endpoint, p256dh: 'key1', auth: 'auth1' },
+        { onConflict: 'endpoint' }
+      );
+      expect(mockUpdatePreferences).toHaveBeenCalledWith({ pushEnabled: true });
+      expect(subscribeToPush).not.toHaveBeenCalled();
+    });
+
+    it('reads Off when the re-save fails', async () => {
+      const { lookupExistingSubscription } = await import('@myk9/notifications');
+      vi.mocked(lookupExistingSubscription).mockResolvedValueOnce({
+        status: 'subscribed',
+        subscription: browserSub,
+      });
+      mockUpsert.mockResolvedValueOnce({ error: { message: 'boom' } } as never);
+      const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const { result } = renderHook(() => usePushSubscription());
+      await act(async () => {
+        await result.current.reconcile();
+      });
+      errSpy.mockRestore();
+      expect(mockUpdatePreferences).toHaveBeenCalledWith({ pushEnabled: false });
+      expect(mockUpdatePreferences).not.toHaveBeenCalledWith({ pushEnabled: true });
+    });
+
+    it('leaves the flag alone when the subscription state is unavailable', async () => {
+      const { lookupExistingSubscription } = await import('@myk9/notifications');
+      vi.mocked(lookupExistingSubscription).mockResolvedValueOnce({ status: 'unavailable' });
+      const { result } = renderHook(() => usePushSubscription());
+      await act(async () => {
+        await result.current.reconcile();
+      });
+      expect(mockUpdatePreferences).not.toHaveBeenCalled();
+      expect(mockUpsert).not.toHaveBeenCalled();
+    });
+
+    it('reads Off without asking the browser when permission is denied', async () => {
+      Object.defineProperty(globalThis, 'Notification', {
+        value: { permission: 'denied' },
+        configurable: true,
+        writable: true,
+      });
+      const { lookupExistingSubscription } = await import('@myk9/notifications');
+      const { result } = renderHook(() => usePushSubscription());
+      await act(async () => {
+        await result.current.reconcile();
+      });
+      expect(mockUpdatePreferences).toHaveBeenCalledWith({ pushEnabled: false });
+      expect(lookupExistingSubscription).not.toHaveBeenCalled();
+    });
+
+    it('reads Off on a device that cannot do push at all', async () => {
+      const { isPushSupported, lookupExistingSubscription } = await import('@myk9/notifications');
+      vi.mocked(isPushSupported).mockReturnValue(false);
+      const { result } = renderHook(() => usePushSubscription());
+      await act(async () => {
+        await result.current.reconcile();
+      });
+      vi.mocked(isPushSupported).mockReturnValue(true);
+      expect(mockUpdatePreferences).toHaveBeenCalledWith({ pushEnabled: false });
+      expect(lookupExistingSubscription).not.toHaveBeenCalled();
+    });
+  });
 });

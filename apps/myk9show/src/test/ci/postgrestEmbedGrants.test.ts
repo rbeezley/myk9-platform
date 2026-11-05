@@ -39,9 +39,12 @@ import { extractEmbeds, findEmbedSites, type ReadFile } from './postgrestEmbedGr
  * Known limits: (1) section C records column COUNTS, not names, so a column
  * grant is taken to cover any column an embed names; (2) a nested embed
  * (`a(b(c))`) is checked against the top-level base's roles, not against `a`'s.
- * A call that provably never runs for a role goes in SITE_ALLOWLIST with the
+ * A call that provably never runs for a role goes in SITE_ALLOWLIST, keyed to
+ * ONE query by a select-string match (zero or several matches fail the scan),
+ * with the
  * evidence; a call anon really can run is a bug to fix in the database, never
- * an allowlist entry.
+ * an allowlist entry. A base outside the contract (a view) is reported unless
+ * UNKNOWN_BASES names it with a reason.
  */
 
 const REPO_ROOT = resolve(__dirname, '../../../../..');
@@ -61,6 +64,13 @@ interface SiteAllow {
   base: string;
   embed: string;
   role: Role;
+  /**
+   * A substring (or RegExp, to anchor with `^`) of the site's select string (after constant resolution,
+   * whitespace collapsed to single spaces). It must match exactly ONE query
+   * site in `file` for this base/embed/role: zero is "stale", two is
+   * "ambiguous", and either fails the scan. Survives line moves.
+   */
+  match: string | RegExp;
   /** The evidence the call never runs for this role. */
   reason: string;
 }
@@ -72,14 +82,15 @@ function violationsIn(
   columnGranted: Set<string>,
   unresolvable: ReadonlySet<string> = new Set(),
   siteAllow: readonly SiteAllow[] = [],
-  readFile: ReadFile = p => files[p]
-): { violations: Violation[]; unknown: string[]; embedCount: number; unusedAllow: SiteAllow[] } {
+  readFile: ReadFile = p => files[p],
+  unknownBases: ReadonlyMap<string, string> = new Map()
+): { violations: Violation[]; unknown: string[]; embedCount: number; allowProblems: string[] } {
   const violations: Violation[] = [];
-  const used = new Set<SiteAllow>();
+  const matched = new Map<SiteAllow, Set<string>>();
   const unknown = new Set<string>();
   let embedCount = 0;
   for (const [file, src] of Object.entries(files)) {
-    for (const { line, base, embed: named, star } of findEmbedSites(src, file, readFile)) {
+    for (const { line, base, embed: named, star, select } of findEmbedSites(src, file, readFile)) {
       embedCount++;
       const embed = FK_HINT_TARGETS[named] ?? named;
       const e = contract.get(embed);
@@ -88,21 +99,28 @@ function violationsIn(
         continue;
       }
       const b = contract.get(base);
-      if (!b) continue; // a view or unknown base: nothing to compare against
+      if (!b) {
+        // A view or other relation outside the contract: nothing to compare against,
+        // so it is reported unless UNKNOWN_BASES names it with a reason.
+        if (!unknownBases.has(base)) unknown.add(`${file}:${line} base ${base} (embeds ${embed})`);
+        continue;
+      }
       for (const role of ROLES) {
         // Column grants serve an embed that names its columns; `*` needs table-level SELECT.
         const servedByColumns = columnGranted.has(`${embed}:${role}`) && !star;
         // A role reads the base through table SELECT or through column grants (section C).
         const readsBase = hasTableSelect(b[role]) || columnGranted.has(`${base}:${role}`);
-        const allowed = siteAllow.find(
-          a => a.file === file && a.base === base && a.embed === embed && a.role === role
-        );
         if (readsBase && !hasTableSelect(e[role]) && !servedByColumns) {
-          if (allowed) {
-            used.add(allowed);
-            continue;
-          }
-          violations.push({ site: `${file}:${line}`, base, embed, role });
+          const allowed = siteAllow.filter(
+            a =>
+              a.file === file &&
+              a.base === base &&
+              a.embed === embed &&
+              a.role === role &&
+              (typeof a.match === 'string' ? select.includes(a.match) : a.match.test(select))
+          );
+          for (const a of allowed) matched.set(a, (matched.get(a) ?? new Set()).add(`${line}`));
+          if (allowed.length === 0) violations.push({ site: `${file}:${line}`, base, embed, role });
         }
       }
     }
@@ -111,7 +129,11 @@ function violationsIn(
     violations,
     unknown: [...unknown].sort(),
     embedCount,
-    unusedAllow: siteAllow.filter(a => !used.has(a)),
+    allowProblems: siteAllow.flatMap(a => {
+      const n = matched.get(a)?.size ?? 0;
+      const id = `${a.file} ${a.base} > ${a.embed} (${a.role}) match ${typeof a.match === 'string' ? JSON.stringify(a.match) : String(a.match)}`;
+      return n === 1 ? [] : [`${n === 0 ? 'stale' : 'ambiguous'}: ${id}`];
+    }),
   };
 }
 
@@ -133,6 +155,13 @@ const FK_HINT_TARGETS: Readonly<Record<string, string>> = {
   handler_id: 'people', // entries.handler_id (migration 003)
 };
 
+/**
+ * Base relations (`.from('<name>')`) that are real but outside the section A
+ * contract, e.g. views, so there is no grant row to compare against. Empty:
+ * add one only with a reason naming what the relation is.
+ */
+const UNKNOWN_BASES: ReadonlyMap<string, string> = new Map<string, string>([]);
+
 /** Embed names that cannot be checked at all. Empty: add one only with a reason. */
 const UNRESOLVABLE_EMBEDS: ReadonlySet<string> = new Set<string>();
 
@@ -147,6 +176,7 @@ const SITE_ALLOWLIST: readonly SiteAllow[] = [
     base: 'dogs',
     embed: 'dog_registrations',
     role: 'anon',
+    match: 'height, date_of_birth, registrations:dog_registrations',
     reason:
       'selects dogs.height and date_of_birth, outside the anon dogs columns; entry-form eligibility check',
   },
@@ -155,6 +185,7 @@ const SITE_ALLOWLIST: readonly SiteAllow[] = [
     base: 'dogs',
     embed: 'dog_registrations',
     role: 'anon',
+    match: 'call_name, registrations:dog_registrations(id, created_at, organization',
     reason:
       'onboarding redirects to /sign-in without a user and the query is keyed on the people-row personId; anon has neither',
   },
@@ -163,40 +194,75 @@ const SITE_ALLOWLIST: readonly SiteAllow[] = [
     base: 'classes',
     embed: 'entries',
     role: 'anon',
+    match: 'entries ( id, class_id )',
     reason:
-      'runs only inside the `session?.user && !session.user.is_anonymous` branch of postgrestGetClassById',
+      'runs only inside the `session?.user && !session.user.is_anonymous` branch of postgrestGetClassById; the anonymous branch must not gain this embed (a second match fails as ambiguous)',
   },
   {
     file: 'apps/myk9show/src/services/database/dogs/dogDetailRead.ts',
     base: 'dogs',
     embed: 'health_records',
     role: 'anon',
+    match: /^\*, owner:people/,
     reason:
+      'readServerDog: ' +
       'select star on dogs: anon holds only dogs(id, name, call_name, breed, image_url) column grants, so the base read is denied before the embed; the owner:people embed also names phone and address columns anon lacks',
+  },
+  {
+    file: 'apps/myk9show/src/services/database/dogs/dogDetailRead.ts',
+    base: 'dogs',
+    embed: 'health_records',
+    role: 'anon',
+    match: /^owner:people/,
+    reason:
+      'readDeviceDog supplemental read: dogs rows come from the replica; the owner:people embed names phone and address columns anon lacks',
   },
   {
     file: 'apps/myk9show/src/services/database/dogs/reads.ts',
     base: 'dogs',
     embed: 'dog_registrations',
     role: 'anon',
+    match: 'email ), registrations:dog_registrations(*)',
     reason:
-      'updateDog and searchAllDogs: updateDog is a write needing auth, searchAllDogs is secretary-only and selects dogs `*`; both denied to anon on the base',
+      'updateDog: a write that needs auth; select star on dogs is outside the anon column grant',
+  },
+  {
+    file: 'apps/myk9show/src/services/database/dogs/reads.ts',
+    base: 'dogs',
+    embed: 'dog_registrations',
+    role: 'anon',
+    match: 'email, phone ), registrations:dog_registrations(*)',
+    reason:
+      'searchAllDogs: secretary-only (see its comment) and selects dogs star, denied to anon on the base',
   },
   {
     file: 'apps/myk9show/src/services/database/judges/reads.ts',
     base: 'people',
     embed: 'judge_qualifications',
     role: 'anon',
+    match: 'judge_qualifications!inner(',
     reason:
-      'people.phone/street_address etc. in PEOPLE_MAPPER_COLUMNS are outside the anon people columns (id, first_name, last_name, email), so anon is denied on the base before the embed',
+      'PEOPLE_MAPPER_COLUMNS includes phone, address and others beyond the anon people columns (id, first_name, last_name, email), so anon is denied on the base before the embed',
   },
   {
     file: 'apps/myk9show/src/services/database/users/reads.ts',
     base: 'people',
     embed: 'judge_qualifications',
     role: 'anon',
+    match: /deleted_by, judge_qualifications\(/,
     reason:
-      'people.phone/street_address etc. in PEOPLE_MAPPER_COLUMNS are outside the anon people columns (id, first_name, last_name, email), so anon is denied on the base before the embed',
+      'getAllUsers: ' +
+      'PEOPLE_MAPPER_COLUMNS includes phone, address and others beyond the anon people columns (id, first_name, last_name, email), so anon is denied on the base before the embed',
+  },
+  {
+    file: 'apps/myk9show/src/services/database/users/reads.ts',
+    base: 'people',
+    embed: 'judge_qualifications',
+    role: 'anon',
+    match: 'active ), judge_qualifications(',
+    reason:
+      'getUserById: ' +
+      'PEOPLE_MAPPER_COLUMNS includes phone, address and others beyond the anon people columns (id, first_name, last_name, email), so anon is denied on the base before the embed',
   },
 ];
 
@@ -273,12 +339,19 @@ describe('postgrest embed grants guard: known answers', () => {
 
   it('a site allowlist entry suppresses exactly that site', () => {
     const allow: SiteAllow[] = [
-      { file: 'a.ts', base: 'shows', embed: 'secrets', role: 'anon', reason: 'test' },
+      {
+        file: 'a.ts',
+        base: 'shows',
+        embed: 'secrets',
+        role: 'anon',
+        match: 'id, secrets',
+        reason: 'test',
+      },
     ];
     const src = `db.from('shows').select('id, secrets(name)');`;
     const run = (files: Record<string, string>, a = allow) =>
       violationsIn(files, FIXTURE, new Set(), new Set(), a);
-    expect(run({ 'a.ts': src })).toMatchObject({ violations: [], unusedAllow: [] });
+    expect(run({ 'a.ts': src })).toMatchObject({ violations: [], allowProblems: [] });
     expect(run({ 'b.ts': src }).violations).toHaveLength(1); // other file
     expect(
       run({ 'a.ts': `db.from('shows').select('id, secrets(name), clubs(n)');` }).violations
@@ -286,7 +359,9 @@ describe('postgrest embed grants guard: known answers', () => {
     expect(run({ 'a.ts': `db.from('clubs').select('id, secrets(name)');` }).violations).toEqual([
       { site: 'a.ts:1', base: 'clubs', embed: 'secrets', role: 'anon' },
     ]); // other base
-    expect(run({ 'a.ts': `db.from('shows').select('id, clubs(n)');` }).unusedAllow).toEqual(allow);
+    expect(run({ 'a.ts': `db.from('shows').select('id, clubs(n)');` }).allowProblems).toEqual([
+      'stale: a.ts shows > secrets (anon) match "id, secrets"',
+    ]);
   });
 
   it('resolves ${CONST} substitutions from the same file and from imports', () => {
@@ -319,6 +394,60 @@ describe('postgrest embed grants guard: known answers', () => {
       violationsIn({ ...deep, 'c3.ts': `export const C3 = 'secrets(n)';` }, FIXTURE, new Set())
         .violations
     ).toHaveLength(1);
+  });
+
+  it('keys an allowlist entry to one query: a sibling query in the same file is still checked', () => {
+    const allow: SiteAllow[] = [
+      {
+        file: 'a.ts',
+        base: 'shows',
+        embed: 'secrets',
+        role: 'anon',
+        match: 'id, secrets',
+        reason: 'test',
+      },
+    ];
+    const files = {
+      'a.ts': [
+        `db.from('shows').select('id, secrets(name)');`,
+        `db.from('shows').select('id, name, secrets(name)');`,
+      ].join('\n'),
+    };
+    const r = violationsIn(files, FIXTURE, new Set(), new Set(), allow);
+    expect(r.violations).toEqual([
+      { site: 'a.ts:2', base: 'shows', embed: 'secrets', role: 'anon' },
+    ]);
+    expect(r.allowProblems).toEqual([]);
+  });
+
+  it('fails an ambiguous or stale allowlist key', () => {
+    const entry = (match: string | RegExp): SiteAllow => ({
+      file: 'a.ts',
+      base: 'shows',
+      embed: 'secrets',
+      role: 'anon',
+      match,
+      reason: 'test',
+    });
+    const twoSites = {
+      'a.ts': `db.from('shows').select('id, secrets(name)');\ndb.from('shows').select('id, secrets(name)');`,
+    };
+    const run = (files: Record<string, string>, match: string | RegExp) =>
+      violationsIn(files, FIXTURE, new Set(), new Set(), [entry(match)]);
+    expect(run(twoSites, 'secrets').allowProblems).toEqual([
+      'ambiguous: a.ts shows > secrets (anon) match "secrets"',
+    ]);
+    expect(run(twoSites, /^nope/).allowProblems).toEqual([
+      'stale: a.ts shows > secrets (anon) match /^nope/',
+    ]);
+  });
+
+  it('reports a base outside the contract unless it is allowlisted with a reason', () => {
+    const files = { 'a.ts': `db.from('some_view').select('id, clubs(name)');` };
+    const run = (bases: ReadonlyMap<string, string>) =>
+      violationsIn(files, FIXTURE, new Set(), new Set(), [], undefined, bases);
+    expect(run(new Map()).unknown).toEqual(['a.ts:1 base some_view (embeds clubs)']);
+    expect(run(new Map([['some_view', 'a view']])).unknown).toEqual([]);
   });
 
   it('extracts nested, !inner, !fk_hint and alias:name embeds', () => {
@@ -394,18 +523,22 @@ describe('postgrest embed grants guard: repository', () => {
     const columnGranted = parseColumnGrantRows(contractSql);
     expect(columnGranted.has('classes:anon')).toBe(true); // positive control
 
-    const { violations, unknown, embedCount, unusedAllow } = violationsIn(
+    const { violations, unknown, embedCount, allowProblems } = violationsIn(
       files,
       contract,
       columnGranted,
       UNRESOLVABLE_EMBEDS,
       SITE_ALLOWLIST,
-      rel => files[rel] ?? readRepoFile(rel)
+      rel => files[rel] ?? readRepoFile(rel),
+      UNKNOWN_BASES
     );
     // Positive control: 220 embeds before constant resolution, 266 after.
     expect(embedCount).toBeGreaterThan(250);
-    expect(unknown, 'add to UNRESOLVABLE_EMBEDS with a reason, or fix the select').toEqual([]);
-    expect(unusedAllow, 'stale SITE_ALLOWLIST entry: remove it').toEqual([]);
+    expect(
+      unknown,
+      'add to UNRESOLVABLE_EMBEDS / UNKNOWN_BASES with a reason, or fix the select'
+    ).toEqual([]);
+    expect(allowProblems, 'fix or remove the SITE_ALLOWLIST entry').toEqual([]);
     expect(
       violations.map(v => `${v.site}: ${v.base} > ${v.embed} lacks SELECT for ${v.role}`)
     ).toEqual([]);

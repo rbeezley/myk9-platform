@@ -14,6 +14,8 @@ export interface EmbedSite {
   embed: string;
   /** The embed selects `*` (or nothing), which a column-granted role cannot run. */
   star: boolean;
+  /** The select string after constant resolution, whitespace collapsed to single spaces. */
+  select: string;
 }
 
 export interface EmbedItem {
@@ -249,7 +251,7 @@ export function findEmbedSites(
         if (base) {
           const line = sf.getLineAndCharacterOfPosition(node.getStart()).line + 1;
           for (const { name, star } of extractEmbedItems(sel)) {
-            sites.push({ line, base, embed: name, star });
+            sites.push({ line, base, embed: name, star, select: sel.replace(/\s+/g, ' ').trim() });
           }
         }
       }

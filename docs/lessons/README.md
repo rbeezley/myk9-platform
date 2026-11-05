@@ -73,9 +73,9 @@ The app suite runs `environment: 'jsdom'` globally, which is a LIE for edge-func
 
 ## postgrest-count-column
 
-**Guard:** MYK9-1654 (check not built yet)
+**Guard:** `apps/myk9show/src/test/ci/postgrestCountColumn.test.ts`
 
-A PostgREST **count** must name a column, never `*`, on any column-allowlisted table: `select('*', { count:'exact', head:true })` on `public.entries` returns **403 with an empty message body** even though `head:true` returns no column values — the allowlist has no table-level SELECT, so `*` asks for columns the role cannot read. Use `select('id', …)`. React Query masks the throw as a retry, and if the tab is unfocused `canContinue()` is false so it parks at `fetchStatus:'paused'` forever — it looks like an offline bug, not a permissions one.
+A PostgREST **count** must name a column, never `*`, on any column-allowlisted table: `select('*', { count:'exact', head:true })` on `public.entries` returns **403 with an empty message body** even though `head:true` returns no column values — the allowlist has no table-level SELECT, so `*` asks for columns the role cannot read. Use `select('id', …)`. React Query masks the throw as a retry, and if the tab is unfocused `canContinue()` is false so it parks at `fetchStatus:'paused'` forever — it looks like an offline bug, not a permissions one. The guard scans `.from(<table>).select(...)` chains with the TypeScript AST and cross-checks its declared table list against migration column-level `GRANT SELECT`s; a builder held in a variable before `.select` is out of scope.
 
 ## postgrest-embed-grants
 

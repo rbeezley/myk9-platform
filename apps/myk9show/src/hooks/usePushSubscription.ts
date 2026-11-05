@@ -118,11 +118,27 @@ export function usePushSubscription() {
     }
   }
 
+  /** The account-level opt-out the server senders honour; null when unknown. */
+  async function serverPushEnabled(userId: string): Promise<boolean | null> {
+    const { data, error } = await supabase
+      .from('notification_preferences')
+      .select('push_enabled')
+      .eq('auth_user_id', userId)
+      .maybeSingle();
+    if (error || !data) return null;
+    return data.push_enabled ?? null;
+  }
+
   /**
-   * Aligns the persisted `pushEnabled` flag with what this device really holds.
-   * Never prompts and never creates a subscription: a browser subscription the
-   * server lacks (or holds for another user) is re-saved for the current user;
-   * anything else reads Off. `unavailable` (could not ask) leaves it untouched.
+   * Aligns the persisted `pushEnabled` flag with what the server can actually
+   * do for this device. Never prompts and never creates a subscription:
+   * - the browser holds a subscription → re-saved for the current user; On only
+   *   if that save succeeds (RLS refuses a row another account owns, so that
+   *   reads Off) and the account has not opted out server-side;
+   * - no subscription, denied permission or an unsupported device → Off;
+   * - `unavailable` (could not ask) → left untouched.
+   * It never writes the server opt-out flag itself: a device-local state must
+   * not switch the whole account's alerts on or off.
    */
   async function reconcile(): Promise<void> {
     if (!user?.id) return;
@@ -147,8 +163,13 @@ export function usePushSubscription() {
       const { error } = await saveSubscription(user.id, lookup.subscription);
       if (error) {
         console.error('Failed to re-save push subscription:', error.message);
+        updatePreferences({ pushEnabled: false });
+        return;
       }
-      updatePreferences({ pushEnabled: !error });
+      // The senders skip an account whose server flag is false, so reading On
+      // here would be the same lie this reconcile exists to remove.
+      const optedIn = (await serverPushEnabled(user.id)) !== false;
+      updatePreferences({ pushEnabled: optedIn });
     } catch (err) {
       console.error('Push reconcile failed:', err);
       updatePreferences({ pushEnabled: false });

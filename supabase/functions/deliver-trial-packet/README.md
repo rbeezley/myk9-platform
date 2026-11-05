@@ -7,7 +7,7 @@ This function is the **manual** path: a show manager pressed the button and the 
 Deploy only after `20260820220000_emergency_trial_packets.sql` is applied:
 
 ```bash
-supabase functions deploy deliver-trial-packet --no-verify-jwt
+supabase functions deploy deliver-trial-packet --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt
 ```
 
 The shared HTTP handler validates the bearer token internally. Deployment and linked-database migration are shared-system writes and require explicit approval.

@@ -31,7 +31,7 @@
 - `pnpm openspec validate secure-operator-support-askq --strict` passed.
 - `git diff --check` passed and the worktree contains only the scoped implementation and OpenSpec files.
 - `supabase db push` applied `20260724180000_reserve_operator_support_query.sql` to the linked project; `supabase migration list --linked` confirms matching local and remote versions.
-- `supabase functions deploy ask-operator-support --no-verify-jwt` deployed the function to the linked project; an unauthenticated live POST returned HTTP 503 with `Operator Support is unavailable`, confirming the runtime is reachable and the server switch remains closed.
+- `supabase functions deploy ask-operator-support --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt` deployed the function to the linked project; an unauthenticated live POST returned HTTP 503 with `Operator Support is unavailable`, confirming the runtime is reachable and the server switch remains closed.
 
 ## Issues by Priority
 

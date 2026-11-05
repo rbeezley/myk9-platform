@@ -11,7 +11,7 @@ Supabase Auth Hook that sends auth emails (signup confirmation, password reset, 
 ## Deployment
 
 ```bash
-supabase functions deploy send-auth-email --no-verify-jwt
+supabase functions deploy send-auth-email --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt
 ```
 
 Then configure as Auth Hook in Supabase Dashboard → Authentication → Hooks → Send Email.

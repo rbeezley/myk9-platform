@@ -210,9 +210,9 @@ scoring endpoint can return, so offline queues and show-day traffic pass through
 ## Deploy
 
 `supabase db push` for `20261017163700_myk9_1208_step_up_reauth.sql`;
-`supabase functions deploy stripe-refund-entry stripe-refund-show stripe-approve-refund`
+`supabase functions deploy stripe-refund-entry stripe-refund-show stripe-approve-refund --project-ref sojmvhhwsjxmfistvzbe`
 (myk9show tree) and `send-auth-email` (root tree); then a Deploy myK9Show run for the client.
-MYK9-1393 adds `supabase functions deploy stripe-connect-onboard` (myk9show tree) and
+MYK9-1393 adds `supabase functions deploy stripe-connect-onboard --project-ref sojmvhhwsjxmfistvzbe` (myk9show tree) and
 `admin-delete-user admin-invite-user` (root tree); the client already handles the refusal.
 Deploy the client before or with the functions so the prompt exists when the server starts
 refusing.

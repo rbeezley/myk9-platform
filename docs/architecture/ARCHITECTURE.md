@@ -292,7 +292,7 @@ Each sport has its own scoring configuration defined in `@myk9/scoring` and a co
 
 1. Create the function directory under `supabase/functions/<name>/` (platform, ringside, notifications) or `apps/myk9show/supabase/functions/<name>/` (Stripe billing, cron)
 2. Add an `index.ts` with the handler (follow existing functions for CORS, auth, and error handling patterns)
-3. Deploy with `supabase functions deploy <name> --no-verify-jwt`
+3. Deploy with `supabase functions deploy <name> --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt`
 
 ### Adding a new shared package
 

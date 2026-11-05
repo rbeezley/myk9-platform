@@ -683,7 +683,7 @@ Notifications link to the existing filtered My Entries surface and format deadli
 4. **Deploy the function:**
 
    ```bash
-   supabase functions deploy <function-name> --no-verify-jwt
+   supabase functions deploy <function-name> --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt
    ```
 
 5. **Set any required secrets:**

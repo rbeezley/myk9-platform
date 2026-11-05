@@ -5,7 +5,7 @@
 // form). Auto-grants access on first send and is idempotent on
 // access_invite_sent_at — a duplicate call is a no-op success.
 //
-// Deploy: supabase functions deploy send-waitlist-invite --no-verify-jwt
+// Deploy: supabase functions deploy send-waitlist-invite --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt
 //
 // Caller: apps/myk9show/src/components/landing/v2/WaitlistFormLanding.tsx
 // fires this fire-and-forget right after a successful insert when the

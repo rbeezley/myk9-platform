@@ -51,18 +51,37 @@ interface Offender {
 
 type Consts = Map<string, ts.Node>;
 
-/** Same-file `const x = <init>` and `function x() {}` declarations, by name. */
+/**
+ * Same-file `const x = <init>` and `function x() {}` declarations, by name.
+ * The map ignores scope, so a name declared (or bound as a parameter) more
+ * than once is AMBIGUOUS and left out: it then resolves as unverifiable rather
+ * than to whichever declaration happened to come last.
+ */
 function collectDeclarations(sf: ts.SourceFile): Consts {
   const map: Consts = new Map();
+  const ambiguous = new Set<string>();
+  const add = (name: string, node: ts.Node) => {
+    if (map.has(name) || ambiguous.has(name)) {
+      ambiguous.add(name);
+      map.delete(name);
+    } else {
+      map.set(name, node);
+    }
+  };
   const visit = (node: ts.Node) => {
-    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer) {
-      map.set(node.name.text, node.initializer);
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name)) {
+      if (node.initializer) add(node.name.text, node.initializer);
+      else ambiguous.add(node.name.text);
     } else if (ts.isFunctionDeclaration(node) && node.name && node.body) {
-      map.set(node.name.text, node.body);
+      add(node.name.text, node.body);
+    } else if (ts.isParameter(node) && ts.isIdentifier(node.name)) {
+      ambiguous.add(node.name.text);
+      map.delete(node.name.text);
     }
     ts.forEachChild(node, visit);
   };
   visit(sf);
+  for (const name of ambiguous) map.delete(name);
   return map;
 }
 
@@ -182,16 +201,15 @@ export function findCountStarOffenders(
       node.arguments.length >= 2
     ) {
       const columns = stringLiteral(node.arguments[0], decls);
-      // An options arg we cannot resolve on a `*` select is unverifiable: fail it.
-      const counts = hasCountOption(node.arguments[1], decls) !== false;
+      const countOption = hasCountOption(node.arguments[1], decls);
       const table = findFromTable(node.expression.expression, decls);
-      if (
-        counts &&
-        columns !== undefined &&
-        hasStarColumn(columns) &&
-        table &&
-        tables.includes(table)
-      ) {
+      // Unverifiable is a failure in both directions: an options arg we cannot
+      // resolve on a `*` select, or a column arg we cannot resolve on a
+      // definite count. Neither can be proved safe on an allowlisted table.
+      const starOrUnknown = columns === undefined || hasStarColumn(columns);
+      const countOrUnknown = countOption !== false;
+      const bothUnknown = columns === undefined && countOption !== true;
+      if (starOrUnknown && countOrUnknown && !bothUnknown && table && tables.includes(table)) {
         found.push({
           table,
           line: sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1,
@@ -257,6 +275,22 @@ describe('PostgREST count names a column on column-allowlisted tables', () => {
     it('is red when a "*" select has options that cannot be resolved', () => {
       const src = `import { OPTS } from './o';\nsupabase.from('entries').select('*', OPTS);`;
       expect(findCountStarOffenders(src)).toHaveLength(1);
+    });
+
+    it('treats a name declared twice in a file as unverifiable, not the last one', () => {
+      // The later `opts` (no count) must not shadow the earlier counting one.
+      const src = `function a() {\n  const opts = { count: 'exact', head: true };\n  return supabase.from('entries').select('*', opts);\n}\nfunction b() {\n  const opts = { head: true };\n  return opts;\n}`;
+      expect(findCountStarOffenders(src)).toEqual([{ table: 'entries', line: 3 }]);
+    });
+
+    it('is red when the column list cannot be resolved but the count is definite', () => {
+      const src = `import { COLS } from './c';\nsupabase.from('entries').select(COLS, { count: 'exact', head: true });`;
+      expect(findCountStarOffenders(src)).toEqual([{ table: 'entries', line: 2 }]);
+    });
+
+    it('is green when neither the column list nor the options can be resolved', () => {
+      const src = `import { COLS, OPTS } from './c';\nsupabase.from('entries').select(COLS, OPTS);`;
+      expect(findCountStarOffenders(src)).toEqual([]);
     });
 
     it('is green when a const resolves to a named column or no count', () => {

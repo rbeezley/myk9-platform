@@ -12,6 +12,7 @@ on:
       # The Playwright testMatch controls discovery after a workflow has started.
       - '!apps/myk9show/src/test/e2e/verification/batch3Scoring.spec.ts'
       - '!apps/myk9show/src/test/e2e/verification/batch4Paperwork.spec.ts'
+      - '!apps/myk9show/src/test/e2e/verification/batch1Followups.spec.ts'
       - '!apps/myk9show/src/test/e2e/verification/disposableClass.ts'
 
 permissions:

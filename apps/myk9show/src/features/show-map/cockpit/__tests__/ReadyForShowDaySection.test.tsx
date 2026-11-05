@@ -121,6 +121,47 @@ describe('ReadyForShowDaySection', () => {
     expect(screen.getAllByText("Can't check right now")).toHaveLength(2);
   });
 
+  describe('own premium list (MYK9-1622)', () => {
+    const ownPremiumShow = (usesLandingPage: boolean) =>
+      fromAny<Show, unknown>({ ...show, publishesOwnPremium: true, usesLandingPage });
+
+    beforeEach(() => {
+      publishInfo.current = {
+        fetchStatus: 'idle',
+        isError: false,
+        data: {
+          publishedLocator: null,
+          publishedPath: null,
+          publishedAt: null,
+          updatedAt: '2026-10-01T00:00:00Z',
+          experienceIsPublished: false,
+        },
+      };
+    });
+
+    it('renders no premium line, only the landing page check, when the show uses one', () => {
+      renderSection('2026-10-15T16:00:00Z', { show: ownPremiumShow(true) });
+      expect(screen.getByText('Ready for show day')).toBeInTheDocument();
+      expect(screen.queryByText('Premium published and current')).not.toBeInTheDocument();
+      expect(screen.getByText('Landing page published')).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /Landing page not published/ })).toBeInTheDocument();
+    });
+
+    it('renders neither line, and is all clear, without a landing page', () => {
+      renderSection('2026-10-19T16:00:00Z', { show: ownPremiumShow(false) });
+      expect(screen.getByText('Everything is handled.')).toBeInTheDocument();
+      expect(screen.queryByText('Premium published and current')).not.toBeInTheDocument();
+      expect(screen.queryByText('Landing page published')).not.toBeInTheDocument();
+    });
+
+    it('still lists the premium line when myK9 publishes the premium', () => {
+      renderSection('2026-10-15T16:00:00Z', {
+        show: fromAny<Show, unknown>({ ...show, publishesOwnPremium: false }),
+      });
+      expect(screen.getByText('Premium published and current')).toBeInTheDocument();
+    });
+  });
+
   describe('suggestions (MYK9-1686)', () => {
     const NIGHT_BEFORE = '2026-10-19T16:00:00Z';
     const allOn = {

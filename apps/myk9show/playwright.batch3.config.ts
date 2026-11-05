@@ -13,7 +13,11 @@ assertPlaywrightRunAllowed('playwright.batch3.config.ts', process.env, {
 
 export default defineConfig({
   ...base,
-  testMatch: ['**/batch3Scoring.spec.ts', '**/batch4Paperwork.spec.ts'],
+  testMatch: [
+    '**/batch3Scoring.spec.ts',
+    '**/batch4Paperwork.spec.ts',
+    '**/batch1Followups.spec.ts',
+  ],
   projects: [{ name: 'isolated-batch3-proof' }],
   timeout: 6 * 60_000,
 });

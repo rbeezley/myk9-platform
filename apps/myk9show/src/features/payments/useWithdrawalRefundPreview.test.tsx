@@ -2,7 +2,10 @@ import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useWithdrawalRefundPreview } from './useWithdrawalRefundPreview';
+import { useWithdrawalRefundPreviews } from './useWithdrawalRefundPreview';
+
+const useWithdrawalRefundPreview = (entryId: string, entryFeeCents: number) =>
+  useWithdrawalRefundPreviews([{ entryId, entryFeeCents, enabled: true }])[0]!;
 
 const { single } = vi.hoisted(() => ({ single: vi.fn() }));
 

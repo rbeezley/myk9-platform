@@ -53,6 +53,10 @@ export function CockpitAttentionStrip({
         const className = item.classId ? classNameById.get(item.classId) : undefined;
         const text = className ? `${className} · ${item.label}` : item.label;
         const tone = cn(CHIP_CLASS, CHIP_TONE[item.kind]);
+        // MYK9-1618: the visible text stays the count; the name also says where it goes.
+        const accessibleName = item.destinationName
+          ? `${text}, opens ${item.destinationName}`
+          : undefined;
         if (!item.destination) {
           return (
             <span key={item.id} className={tone} title={item.reason}>
@@ -67,6 +71,7 @@ export function CockpitAttentionStrip({
               to={item.destination.href}
               className={cn(tone, 'hover:underline')}
               title={item.reason}
+              aria-label={accessibleName}
             >
               {text}
             </Link>
@@ -79,6 +84,7 @@ export function CockpitAttentionStrip({
             type="button"
             className={cn(tone, 'hover:underline')}
             title={item.reason}
+            aria-label={accessibleName}
             onClick={() => onCommand(commandId)}
           >
             {text}

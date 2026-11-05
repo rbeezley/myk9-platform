@@ -6,7 +6,7 @@ vi.stubEnv('VITE_VAPID_PUBLIC_KEY', 'test-vapid-key');
 
 // Hoist mock variables so they are available in vi.mock factory closures
 const {
-  mockUpsert,
+  mockRpc,
   mockDelete,
   mockFrom,
   mockMaybeSingle,
@@ -18,7 +18,9 @@ const {
     eq: mockEq,
     then: (r: (v: unknown) => void) => r({ error: null }),
   }));
-  const mockUpsert = vi.fn(() => Promise.resolve({ error: null }));
+  const mockRpc = vi.fn<
+    (name: string, args: Record<string, unknown>) => Promise<{ error: { message: string } | null }>
+  >(() => Promise.resolve({ error: null }));
   const mockDelete = vi.fn(() => ({ eq: mockEq }));
   const mockMaybeSingle = vi.fn(() =>
     Promise.resolve<{ data: { push_enabled: boolean | null } | null; error: unknown }>({
@@ -27,12 +29,12 @@ const {
     })
   );
   const mockSelect = vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: mockMaybeSingle })) }));
-  const mockFrom = vi.fn(() => ({ upsert: mockUpsert, delete: mockDelete, select: mockSelect }));
+  const mockFrom = vi.fn(() => ({ delete: mockDelete, select: mockSelect }));
   const mockUpdatePreferences = vi.fn();
   const mockRequestPermission = vi.fn();
   return {
     mockEq,
-    mockUpsert,
+    mockRpc,
     mockDelete,
     mockFrom,
     mockMaybeSingle,
@@ -60,7 +62,7 @@ vi.mock('@myk9/notifications', async importOriginal => ({
 
 // Mock supabase client — uses hoisted mockFrom
 vi.mock('@/services/database/supabaseClient', () => ({
-  supabase: { from: mockFrom },
+  supabase: { from: mockFrom, rpc: mockRpc },
 }));
 
 // Mock auth context
@@ -120,16 +122,11 @@ describe('usePushSubscription', () => {
 
     expect(response).toEqual({ ok: true });
     expect(subscribeToPush).toHaveBeenCalledWith('test-vapid-key');
-    expect(mockFrom).toHaveBeenCalledWith('push_subscriptions');
-    expect(mockUpsert).toHaveBeenCalledWith(
-      {
-        user_id: 'user-123',
-        endpoint: 'https://push.example.com/sub1',
-        p256dh: 'key1',
-        auth: 'auth1',
-      },
-      { onConflict: 'endpoint' }
-    );
+    expect(mockRpc).toHaveBeenCalledWith('claim_my_push_subscription', {
+      p_endpoint: 'https://push.example.com/sub1',
+      p_p256dh: 'key1',
+      p_auth: 'auth1',
+    });
     expect(mockUpdatePreferences).toHaveBeenCalledWith({ pushEnabled: true });
   });
 
@@ -244,7 +241,7 @@ describe('usePushSubscription', () => {
         await result.current.reconcile();
       });
       expect(mockUpdatePreferences).toHaveBeenCalledWith({ pushEnabled: false });
-      expect(mockUpsert).not.toHaveBeenCalled();
+      expect(mockRpc).not.toHaveBeenCalled();
     });
 
     it('re-saves a browser subscription the server lacks and keeps the flag on', async () => {
@@ -257,10 +254,11 @@ describe('usePushSubscription', () => {
       await act(async () => {
         await result.current.reconcile();
       });
-      expect(mockUpsert).toHaveBeenCalledWith(
-        { user_id: 'user-123', endpoint: browserSub.endpoint, p256dh: 'key1', auth: 'auth1' },
-        { onConflict: 'endpoint' }
-      );
+      expect(mockRpc).toHaveBeenCalledWith('claim_my_push_subscription', {
+        p_endpoint: browserSub.endpoint,
+        p_p256dh: 'key1',
+        p_auth: 'auth1',
+      });
       expect(mockUpdatePreferences).toHaveBeenCalledWith({ pushEnabled: true });
       expect(subscribeToPush).not.toHaveBeenCalled();
     });
@@ -281,15 +279,15 @@ describe('usePushSubscription', () => {
       expect(mockUpdatePreferences).not.toHaveBeenCalledWith({ pushEnabled: true });
     });
 
-    it('reads Off when another account owns the endpoint (RLS refuses the re-save)', async () => {
+    it('reads Off when the claim RPC is refused', async () => {
       const { lookupExistingSubscription } = await import('@myk9/notifications');
       vi.mocked(lookupExistingSubscription).mockResolvedValueOnce({
         status: 'subscribed',
         subscription: browserSub,
       });
-      mockUpsert.mockResolvedValueOnce({
-        error: { message: 'new row violates row-level security policy' },
-      } as never);
+      mockRpc.mockResolvedValueOnce({
+        error: { message: 'Sign in to turn on push notifications' },
+      });
       const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       const { result } = renderHook(() => usePushSubscription());
       await act(async () => {
@@ -306,7 +304,7 @@ describe('usePushSubscription', () => {
         status: 'subscribed',
         subscription: browserSub,
       });
-      mockUpsert.mockResolvedValueOnce({ error: { message: 'boom' } } as never);
+      mockRpc.mockResolvedValueOnce({ error: { message: 'boom' } });
       const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       const { result } = renderHook(() => usePushSubscription());
       await act(async () => {
@@ -325,7 +323,7 @@ describe('usePushSubscription', () => {
         await result.current.reconcile();
       });
       expect(mockUpdatePreferences).not.toHaveBeenCalled();
-      expect(mockUpsert).not.toHaveBeenCalled();
+      expect(mockRpc).not.toHaveBeenCalled();
     });
 
     it('reads Off without asking the browser when permission is denied', async () => {

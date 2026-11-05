@@ -8,6 +8,18 @@ import { supabase } from '@/services/database/supabaseClient';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useNotificationStore } from '@/store/notificationStore';
 
+/** The claim RPC is newer than the generated `Database` types; narrow it here. */
+interface PushSubscriptionRpc {
+  rpc: (
+    functionName: string,
+    args: Record<string, unknown>
+  ) => PromiseLike<{ error: { message: string } | null }>;
+}
+
+function pushSubscriptionRpc(): PushSubscriptionRpc {
+  return supabase as unknown as PushSubscriptionRpc;
+}
+
 /**
  * Manages the push subscription lifecycle:
  * subscribe (browser + Supabase), unsubscribe, and sync status.
@@ -21,20 +33,21 @@ export function usePushSubscription() {
   const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined;
   const isSupported = isPushSupported() && !!vapidKey;
 
-  /** Upserts this device's subscription for the signed-in auth user. Shared by subscribe and reconcile. */
-  async function saveSubscription(
-    userId: string,
-    data: { endpoint: string; keys: { p256dh: string; auth: string } }
-  ) {
-    return supabase.from('push_subscriptions').upsert(
-      {
-        user_id: userId,
-        endpoint: data.endpoint,
-        p256dh: data.keys.p256dh,
-        auth: data.keys.auth,
-      },
-      { onConflict: 'endpoint' }
-    );
+  /**
+   * Claims this device's endpoint for the signed-in auth user. Shared by
+   * subscribe and reconcile. Goes through a SECURITY DEFINER RPC because the
+   * endpoint may still belong to another account that used this browser, and
+   * RLS would refuse a direct upsert onto that row.
+   */
+  async function saveSubscription(data: {
+    endpoint: string;
+    keys: { p256dh: string; auth: string };
+  }) {
+    return pushSubscriptionRpc().rpc('claim_my_push_subscription', {
+      p_endpoint: data.endpoint,
+      p_p256dh: data.keys.p256dh,
+      p_auth: data.keys.auth,
+    });
   }
 
   async function subscribe(): Promise<{ ok: boolean; reason?: string }> {
@@ -55,7 +68,7 @@ export function usePushSubscription() {
     try {
       const subscriptionData = await subscribeToPush(vapidKey);
 
-      const { error } = await saveSubscription(user.id, subscriptionData);
+      const { error } = await saveSubscription(subscriptionData);
 
       if (error) {
         console.error('Failed to save push subscription:', error.message);
@@ -133,8 +146,7 @@ export function usePushSubscription() {
    * Aligns the persisted `pushEnabled` flag with what the server can actually
    * do for this device. Never prompts and never creates a subscription:
    * - the browser holds a subscription → re-saved for the current user; On only
-   *   if that save succeeds (RLS refuses a row another account owns, so that
-   *   reads Off) and the account has not opted out server-side;
+   *   if that save succeeds (the claim RPC failing reads Off) and the account has not opted out server-side;
    * - no subscription, denied permission or an unsupported device → Off;
    * - `unavailable` (could not ask) → left untouched.
    * It never writes the server opt-out flag itself: a device-local state must
@@ -160,7 +172,7 @@ export function usePushSubscription() {
         updatePreferences({ pushEnabled: false });
         return;
       }
-      const { error } = await saveSubscription(user.id, lookup.subscription);
+      const { error } = await saveSubscription(lookup.subscription);
       if (error) {
         console.error('Failed to re-save push subscription:', error.message);
         updatePreferences({ pushEnabled: false });

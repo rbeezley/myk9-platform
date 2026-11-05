@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { captureRestAuth, dataAbsent, requireRead, type RestAuth } from './helpers/liveCanary';
 import {
   installSharedStagingWriteGuard,
@@ -343,6 +343,31 @@ const expectedToRun = (row: ReplicatedEntryRow) =>
   !NOT_EXPECTED_TO_RUN.has((row.entry_status ?? '').trim().toLowerCase()) &&
   row.check_in_status !== 'pulled';
 
+/**
+ * MYK9-1697 (#3617) moved the count out of the button that opens the class and
+ * into the card's footer: a visible "2 / 5" (aria-hidden) beside a screen-reader
+ * "2 of 5 scored". Both are checked against the expected total, and neither
+ * through the progress bar, which phones hide.
+ */
+async function expectFooterCount(row: Locator, classId: string, count: number) {
+  const why = `class ${classId} has ${count} entries expected to run; its card footer must say so`;
+  const outsideButton = (locator: Locator) => locator.locator('xpath=ancestor::button');
+
+  const visible = row.getByText(new RegExp(`^\\s*\\d+ / ${count}\\s*$`));
+  await expect(visible, why).toBeVisible({ timeout: 30000 });
+  await expect(outsideButton(visible), `${why} (not the class button)`).toHaveCount(0);
+  const scored = Number(((await visible.textContent()) ?? '').split('/')[0]?.trim());
+  expect(Number.isInteger(scored), `${why}: "${await visible.textContent()}"`).toBe(true);
+
+  // The same numbers as a screen reader hears them: a text node in the row's
+  // accessibility tree, where the aria-hidden "2 / 5" is absent.
+  const spoken = `${scored} of ${count} scored`;
+  const spokenNode = row.getByText(new RegExp(`^\\s*${spoken}\\s*$`));
+  await expect(spokenNode, why).toHaveCount(1);
+  await expect(outsideButton(spokenNode), `${why} (not the class button)`).toHaveCount(0);
+  expect(await row.ariaSnapshot(), why).toMatch(new RegExp(`^\\s*- text: .*\\b${spoken}\\b`, 'm'));
+}
+
 test('the ringside class list shows each class its real entry count, never "0 / 0" (MYK9-637)', async ({
   page,
 }) => {
@@ -390,12 +415,7 @@ test('the ringside class list shows each class its real entry count, never "0 / 
   // Each class against ITS OWN row: two classes with the same count must not
   // let one of them regress to "0 / 0" behind the other.
   for (const { id, count } of target.classes) {
-    await expect(
-      trial
-        .locator(`li[data-class-id="${id}"]`)
-        .getByRole('button', { name: new RegExp(`\\b\\d+ of ${count} scored\\b`) }),
-      `class ${id} has ${count} entries expected to run; its row must say so`
-    ).toBeVisible({ timeout: 30000 });
+    await expectFooterCount(trial.locator(`li[data-class-id="${id}"]`), id, count);
   }
   noteChecked(
     `trial ${target.trialId} on show ${target.showId}: ` +

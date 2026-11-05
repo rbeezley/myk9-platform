@@ -59,34 +59,28 @@ export interface Violation {
 
 const git = (args: string[]): string => execFileSync('git', args, { encoding: 'utf8' });
 
+/**
+ * Judge every commit the push adds, never the net tree diff: a source commit that a later commit
+ * reverts cancels out of the tree diff yet still lands on main unreviewed. Commits already on the
+ * remote are excluded by the range, so merging origin/main in adds none of main's own files; a
+ * merge commit is compared with all its parents at once (`-c`), which lists only content the
+ * merge itself introduced (conflict resolutions), while a merged-in local branch is judged
+ * through its own commits.
+ */
 export function findViolations(range: MainPushRange): Violation[] {
-  if (ZERO_SHA.test(range.remoteSha)) return perCommitViolations(range.localSha);
-  // Judge what the push changes on main: the tree diff remote -> local. A per-commit list would
-  // refuse a docs commit that merged origin/main in (the merge's diff against its first parent
-  // lists every file main brought in), while a local feature merged in still shows up here.
-  const files = git(['diff', '--name-only', '--no-renames', '-z', range.remoteSha, range.localSha])
-    .split('\0')
-    .filter(Boolean)
-    .filter(file => !isDocsOnlyPath(file));
-  return files.flatMap(file => {
-    const commits = git(['log', '--format=%H', `${range.remoteSha}..${range.localSha}`, '--', file])
-      .split('\n')
-      .filter(Boolean);
-    return (commits.length > 0 ? commits : [range.localSha]).map(commit => ({ commit, file }));
-  });
-}
-
-/** A brand-new `main` on the remote has no tree to diff against, so every new commit is judged. */
-function perCommitViolations(localSha: string): Violation[] {
-  const commits = git(['rev-list', localSha, '--not', '--remotes']).split('\n').filter(Boolean);
+  const revs = ZERO_SHA.test(range.remoteSha)
+    ? [range.localSha, '--not', '--remotes']
+    : [`${range.remoteSha}..${range.localSha}`];
+  const commits = git(['rev-list', ...revs])
+    .split('\n')
+    .filter(Boolean);
   const violations: Violation[] = [];
   for (const commit of commits) {
-    // -m: a merge is compared with each parent, so files it pulls in are seen.
     // --no-renames: both sides of a rename are listed. -z: paths with spaces stay whole.
     const files = git([
       'diff-tree',
       '-r',
-      '-m',
+      '-c',
       '--root',
       '--no-renames',
       '--no-commit-id',

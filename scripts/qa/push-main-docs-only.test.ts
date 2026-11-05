@@ -167,6 +167,19 @@ describe('pre-push hook: pushes to main', () => {
     expect(f.remoteMain()).toBe(before);
   });
 
+  it('refuses a source commit that was reverted before the push', () => {
+    const f = fixture();
+    const before = f.remoteMain();
+    const feature = f.commit('apps/myk9show/src/feature.ts', 'feature');
+    f.git('revert', '--no-edit', 'HEAD');
+    f.commit('docs/plan-after-revert.md', 'docs');
+    const result = f.push('HEAD:refs/heads/main');
+    expect(result.code).not.toBe(0);
+    expect(result.output).toContain(feature.slice(0, 12));
+    expect(result.output).toContain('apps/myk9show/src/feature.ts');
+    expect(f.remoteMain()).toBe(before);
+  });
+
   it('leaves a push of non-docs commits to a feature branch alone', () => {
     const f = fixture();
     f.commit('apps/myk9show/src/feature.ts', 'feature');

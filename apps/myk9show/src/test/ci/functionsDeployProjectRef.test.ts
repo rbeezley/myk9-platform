@@ -25,9 +25,30 @@ import { describe, expect, it } from 'vitest';
 const REPO_ROOT = resolve(__dirname, '../../../../..');
 export const PROJECT_REF = 'sojmvhhwsjxmfistvzbe';
 const TRACKED_REF_FILE = 'apps/myk9show/supabase/.temp/project-ref';
-const SCANNED = ['*.sh', '*.md', '*.ts', '*.yml', '*.yaml', '*.json'];
+const SCANNED = [
+  '*.sh',
+  '*.md',
+  '*.mdx',
+  '*.ts',
+  '*.tsx',
+  '*.yml',
+  '*.yaml',
+  '*.json',
+  '*.sql',
+  '*.toml',
+];
 /** Frozen history: archived docs and archived OpenSpec changes are never edited. */
 const EXCLUDED_PREFIXES = ['docs/archive/', 'openspec/changes/archive/'];
+/** Verification records quote the command as it was actually run; rewriting them falsifies evidence. */
+const EXCLUDED_PATTERN = /^openspec\/changes\/[^/]+\/verification\.md$/;
+/** Flags that take a separate value, so the token after them is not the function name. */
+const VALUE_FLAGS = new Set([
+  '--workdir',
+  '--project-ref',
+  '--import-map',
+  '--env-file',
+  '--profile',
+]);
 /** This file holds the known-answer fixtures, which are deliberately flagless. */
 const SELF = 'apps/myk9show/src/test/ci/functionsDeployProjectRef.test.ts';
 
@@ -69,16 +90,35 @@ function statements(source: string): Array<{ line: number; text: string }> {
   return out;
 }
 
+/** The first function-name argument after `deploy`, skipping flags and their values. */
+function deployTarget(args: string): string | undefined {
+  const tokens = args.trim().split(/\s+/);
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i].replace(/^[`'"(]+|[`'")]+$/g, '');
+    if (!token) continue;
+    if (/^(;|&&|\|\|?|#)/.test(token)) return undefined;
+    if (token.startsWith('-')) {
+      if (VALUE_FLAGS.has(token)) i++;
+      continue;
+    }
+    return token;
+  }
+  return undefined;
+}
+
 export function findViolations(source: string, known: ReadonlySet<string>): Violation[] {
-  const deploy = /supabase\s+functions\s+deploy\s+([^\s`'")]+)/g;
+  const deploy = /supabase(?:@\S+)?\s+functions\s+deploy\b/g;
   const flag = new RegExp(`--project-ref[ =]${PROJECT_REF}(?![a-z0-9])`);
   const violations: Violation[] = [];
   for (const { line, text } of statements(source)) {
     for (const m of text.matchAll(deploy)) {
-      if (!isFunctionName(m[1], known)) continue;
       // The statement from this command onward; a second command on the same
       // line needs its own flag, so cut at the next occurrence.
-      const rest = text.slice(m.index).split(/supabase\s+functions\s+deploy/)[1] ?? '';
+      const rest = text
+        .slice(m.index + m[0].length)
+        .split(/supabase(?:@\S+)?\s+functions\s+deploy\b/)[0];
+      const name = deployTarget(rest);
+      if (!name || !isFunctionName(name, known)) continue;
       if (!flag.test(rest)) violations.push({ line, text: text.trim() });
     }
   }
@@ -94,7 +134,9 @@ function trackedFiles(): string[] {
   return out
     .split('\0')
     .filter(Boolean)
-    .filter(f => f !== SELF && !EXCLUDED_PREFIXES.some(p => f.startsWith(p)));
+    .filter(
+      f => f !== SELF && !EXCLUDED_PREFIXES.some(p => f.startsWith(p)) && !EXCLUDED_PATTERN.test(f)
+    );
 }
 
 describe('functions deploy --project-ref guard (known answers)', () => {
@@ -143,6 +185,35 @@ describe('functions deploy --project-ref guard (known answers)', () => {
     ).toEqual([]);
     expect(findViolations('supabase functions deploy are not pre-approved', known)).toEqual([]);
     expect(findViolations('Never run `supabase functions deploy`.', known)).toEqual([]);
+  });
+
+  it('finds the name after leading flags, including the --workdir form the lesson is about', () => {
+    expect(
+      findViolations('supabase functions deploy --workdir apps/myk9show resend-webhook', known)
+    ).toHaveLength(1);
+    expect(findViolations('supabase functions deploy --no-verify-jwt a-b', known)).toHaveLength(1);
+    expect(
+      findViolations(
+        `supabase functions deploy --workdir apps/myk9show --project-ref ${PROJECT_REF} a-b`,
+        known
+      )
+    ).toEqual([]);
+  });
+
+  it('matches versioned and wrapped invocations', () => {
+    expect(findViolations('npx supabase@2.114.0 functions deploy a-b', known)).toHaveLength(1);
+    expect(findViolations('pnpm exec supabase functions deploy a-b', known)).toHaveLength(1);
+    expect(
+      findViolations(
+        `npx supabase@2.114.0 functions deploy a-b --project-ref ${PROJECT_REF}`,
+        known
+      )
+    ).toEqual([]);
+  });
+
+  it('follows a SQL-comment continuation', () => {
+    const sql = `--   2. supabase functions deploy a-b c-d \\\n--        --project-ref ${PROJECT_REF}`;
+    expect(findViolations(sql, known)).toEqual([]);
   });
 
   it('requires the flag per command when two share a line', () => {

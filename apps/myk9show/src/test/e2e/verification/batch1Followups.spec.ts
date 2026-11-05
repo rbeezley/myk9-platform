@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import { registerDisposableProofHooks } from './disposableClass';
+import { openActionsMenu } from '../helpers/actionsMenu';
 import {
   evidence,
   fixture,
@@ -253,7 +254,13 @@ test('dog Withdraw offline: refunds left to approval as an explicit choice (MYK9
 
 async function showWithUses(
   client: Client,
-  uses: { publishes_own_premium: boolean; uses_landing_page: boolean }
+  uses: {
+    publishes_own_premium: boolean;
+    uses_landing_page: boolean;
+    uses_device_scoring?: boolean;
+    uses_paper_packet?: boolean;
+    uses_volunteers?: boolean;
+  }
 ) {
   const id = randomUUID();
   // Three days out keeps it inside the 1..7 day Ready window in any US timezone.
@@ -319,3 +326,164 @@ for (const [label, uses, expected] of [
     await screenshot(page, info, `ready-${label}`);
   });
 }
+
+// ---- MYK9-1622: the "This show uses…" switches, end to end ----
+
+/** Turn one Edit show switch to `on`; it saves on toggle, with no Save button. */
+async function setSwitch(page: Page, name: string, on: boolean) {
+  const control = page.getByRole('switch', { name, exact: true });
+  await expect(control).toBeEnabled({ timeout: 30_000 });
+  if ((await control.getAttribute('aria-checked')) !== String(on)) await control.click();
+  await expect(control).toHaveAttribute('aria-checked', String(on), { timeout: 30_000 });
+}
+
+async function openUsesSwitches(page: Page, showId: string) {
+  await page.goto(`/shows/${showId}?edit=true&editTab=venue`);
+  await expect(page.getByRole('heading', { name: 'This show uses…' })).toBeVisible({
+    timeout: 60_000,
+  });
+}
+
+async function showUsesRow(client: Client, showId: string) {
+  const show = await client
+    .from('shows')
+    .select(
+      'uses_device_scoring,uses_paper_packet,uses_volunteers,uses_landing_page,publishes_own_premium'
+    )
+    .eq('id', showId)
+    .single();
+  if (show.error) throw show.error;
+  const settings = await client
+    .from('show_visibility_settings')
+    .select('self_checkin_enabled')
+    .eq('show_id', showId)
+    .maybeSingle();
+  if (settings.error) throw settings.error;
+  return { ...show.data, self_checkin_enabled: settings.data?.self_checkin_enabled ?? null };
+}
+
+const GATED_ROWS = ['Self check-in', 'Access codes', 'Emergency trial packet', 'Volunteers'];
+const TOOL_SWITCHES = [
+  'Exhibitor self check-in',
+  'Judges score on devices',
+  'Paper fallback packet',
+  'Volunteer tracking',
+];
+
+/** Which gated Actions rows the Show Desk menu shows, with an ungated row as a control. */
+async function gatedRowsShown(page: Page, showId: string) {
+  await page.goto(`/shows/${showId}`);
+  const menu = await openActionsMenu(page);
+  await expect(menu.getByRole('menuitem', { name: /^Check-in desk/ })).toBeVisible({
+    timeout: 30_000,
+  });
+  const shown: string[] = [];
+  for (const row of GATED_ROWS) {
+    if ((await menu.getByRole('menuitem', { name: new RegExp(`^${row}`) }).count()) > 0) {
+      shown.push(row);
+    }
+  }
+  await page.keyboard.press('Escape');
+  return shown;
+}
+
+test('tool switches save per show, hide and restore Actions rows, and lose no data (MYK9-1622)', async ({
+  browser,
+}, info) => {
+  const client = isolatedClient();
+  const showId = await showWithUses(client, {
+    publishes_own_premium: false,
+    uses_landing_page: false,
+    uses_device_scoring: true,
+    uses_paper_packet: true,
+    uses_volunteers: true,
+  });
+  const volunteer = `Proof Volunteer ${showId.slice(0, 8)}`;
+  const seeded = await client.from('volunteers').insert({ show_id: showId, name: volunteer });
+  if (seeded.error) throw seeded.error;
+
+  const secretary = await rolePage(browser, 'SECRETARY', `/shows/${showId}`);
+  const page = secretary.page;
+  expect(await gatedRowsShown(page, showId)).toEqual(GATED_ROWS);
+
+  await openUsesSwitches(page, showId);
+  for (const name of TOOL_SWITCHES) await setSwitch(page, name, false);
+  await screenshot(page, info, 'switches-off');
+  await expect
+    .poll(() => showUsesRow(client, showId), { timeout: 60_000 })
+    .toMatchObject({
+      uses_device_scoring: false,
+      uses_paper_packet: false,
+      uses_volunteers: false,
+      self_checkin_enabled: false,
+    });
+  expect(await gatedRowsShown(page, showId)).toEqual([]);
+  const kept = await client.from('volunteers').select('name').eq('show_id', showId);
+  if (kept.error) throw kept.error;
+  expect(kept.data).toEqual([{ name: volunteer }]);
+
+  await openUsesSwitches(page, showId);
+  for (const name of TOOL_SWITCHES) await setSwitch(page, name, true);
+  await expect
+    .poll(() => showUsesRow(client, showId), { timeout: 60_000 })
+    .toMatchObject({
+      uses_device_scoring: true,
+      uses_paper_packet: true,
+      uses_volunteers: true,
+      self_checkin_enabled: true,
+    });
+
+  // A fresh browser proves the server copy, not this tab's replica.
+  const fresh = await rolePage(browser, 'SECRETARY', `/shows/${showId}`);
+  expect(await gatedRowsShown(fresh.page, showId)).toEqual(GATED_ROWS);
+  await fresh.page.goto(`/secretary/volunteers?showId=${showId}`);
+  await expect(fresh.page.getByText(volunteer)).toBeVisible({ timeout: 30_000 });
+  expect(secretary.nonLocalSocketUrls).toEqual([]);
+  await evidence(info, 'tool-switches', { showId, server: await showUsesRow(client, showId) });
+  await screenshot(fresh.page, info, 'volunteer-kept');
+});
+
+test('own premium switch removes the publish nudge; Premium card stays (MYK9-1622)', async ({
+  browser,
+}, info) => {
+  const client = isolatedClient();
+  const showId = await showWithUses(client, {
+    publishes_own_premium: false,
+    uses_landing_page: true,
+  });
+  const secretary = await rolePage(browser, 'SECRETARY', `/shows/${showId}`);
+  const page = secretary.page;
+  const premiumNudge = page.getByRole('button', { name: 'premium list not yet published' });
+  const landingNudge = page.getByRole('button', { name: 'landing page not yet published' });
+  await expect(premiumNudge).toBeVisible({ timeout: 60_000 });
+
+  await openUsesSwitches(page, showId);
+  await setSwitch(page, 'We publish our own premium list', true);
+  await expect
+    .poll(() => showUsesRow(client, showId), { timeout: 60_000 })
+    .toMatchObject({ publishes_own_premium: true });
+  await page.goto(`/shows/${showId}`);
+  // The landing nudge appearing proves the publish read settled before the absence check.
+  await expect(landingNudge).toBeVisible({ timeout: 60_000 });
+  await expect(premiumNudge).toHaveCount(0);
+  await screenshot(page, info, 'own-premium-nudge');
+
+  await openUsesSwitches(page, showId);
+  await setSwitch(page, 'Public landing page', false);
+  await expect
+    .poll(() => showUsesRow(client, showId), { timeout: 60_000 })
+    .toMatchObject({ uses_landing_page: false, publishes_own_premium: true });
+  await page.goto(`/shows/${showId}/about`);
+  await expect(page.getByRole('heading', { name: 'Premium List' })).toBeVisible({
+    timeout: 60_000,
+  });
+  await expect(page.getByRole('heading', { name: 'Public Landing Page' })).toHaveCount(0);
+  await page.goto(`/shows/${showId}`);
+  await expect(page.getByRole('heading', { name: 'Ready for show day' })).toBeVisible({
+    timeout: 60_000,
+  });
+  await expect(premiumNudge).toHaveCount(0);
+  await expect(landingNudge).toHaveCount(0);
+  await evidence(info, 'own-premium-switch', { showId, server: await showUsesRow(client, showId) });
+  await screenshot(page, info, 'own-premium-no-landing');
+});

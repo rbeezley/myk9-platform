@@ -383,7 +383,12 @@ These specs may become Nightly coverage, but they are not in the scheduled comma
 
 - MYK9-1618: the Overview check-in chip's accessible name says "opens Check-in desk", it lands on the desk filtered to entries not checked in, and the desk's search box has focus.
 - MYK9-1615: the dog-level Withdraw dialog on a synthetic paid-online form. A blocked refund-policy read keeps Withdraw disabled, Try again recovers, and the withdrawal then commits with no refund. Offline, the dialog offers the explicit choice to set refunds when approving.
-- MYK9-1622: the Ready for show day lines for the own-premium and landing-page switch combinations.
+- MYK9-1622: the Ready for show day lines for the own-premium and landing-page switch combinations. Also the "This show uses…" switches in Edit show:
+  - the four tool switches save per show and hide their Actions rows;
+  - turning them back on restores the rows, checked in a fresh browser;
+  - a seeded volunteer survives the off/on round trip;
+  - turning on own premium swaps the premium nudge for the landing nudge;
+  - turning off the landing page drops the landing nudge and the landing card, while the Premium card stays.
 
 It runs in the short `playwright.batch3.config.ts` job. Every non-loopback request is aborted, so nothing reaches Stripe.
 

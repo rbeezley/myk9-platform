@@ -457,7 +457,7 @@ On 2026-10-12 a new unit test for `askCanEditDog` failed with `TypeError: Failed
 
 ## squash-against-merge-base
 
-**Guard:** MYK9-1654 (check not built yet)
+**Guard:** `scripts/qa/push-squash-base.ts`
 
 On 2026-10-13 (MYK9-1133, PR #2963) a branch of three `wip:` commits was squashed with `git reset --soft origin/main && git commit`. The worktree had been created from `origin/main` at 835a4f60e, but git worktrees share one set of refs and another session had fetched since, so `origin/main` was now a0015b5eb, three merged PRs later (#2961, #2962 and a docs commit). The reset moved the branch to the new main while leaving the working tree at the old one, so the single commit it made reverted those PRs: 121 files changed, 5,896 deletions where the work was 66 files and 73 deletions. It was pushed before the stat was read. The branch was unmerged and nothing reached `main`; the repair was a second commit with the tree from merging the original work into the current `origin/main` (built with `git commit-tree`, so no force-push), which `git diff origin/main --stat` then showed as 66 files with no deleted files.
 

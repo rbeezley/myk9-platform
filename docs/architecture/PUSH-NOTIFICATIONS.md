@@ -67,9 +67,9 @@ Delivery is tracked, not assumed (pg_net never reports back to the trigger):
 ## Edge Function Deployment
 
 ```bash
-supabase functions deploy send-push-notification --no-verify-jwt
-supabase functions deploy push-trigger-class-status --no-verify-jwt
-supabase functions deploy push-trigger-scoring --no-verify-jwt
+supabase functions deploy send-push-notification --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt
+supabase functions deploy push-trigger-class-status --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt
+supabase functions deploy push-trigger-scoring --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt
 ```
 
 ## Troubleshooting

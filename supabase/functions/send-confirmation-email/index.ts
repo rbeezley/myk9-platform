@@ -3,7 +3,7 @@
 // Styled confirmation email — sent on trials.confirmation_date via pg_cron.
 // Called with { trial_id } or with no body (batch mode: process today's trials).
 //
-// Deploy: supabase functions deploy send-confirmation-email --no-verify-jwt
+// Deploy: supabase functions deploy send-confirmation-email --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt
 //
 // Idempotent: tracks per-entry send state in entries.confirmation_email_* columns.
 // The pg_cron job (migration 193) calls this at 09:00 UTC each day.

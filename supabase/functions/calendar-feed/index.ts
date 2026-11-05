@@ -9,7 +9,7 @@
 // inside it still supplies its own date and timezone, so a multi-day show that
 // spans a DST change stays correct.
 //
-// Deploy: supabase functions deploy calendar-feed --no-verify-jwt
+// Deploy: supabase functions deploy calendar-feed --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt
 //
 // WHY THIS DOES NOT USE THE SHARED `handle()` ENVELOPE:
 // that envelope calls `req.json()` unconditionally, rejects non-POST with 405,

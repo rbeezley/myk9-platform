@@ -225,6 +225,7 @@ Never report the PR as ready, arm auto-merge, or merge while a review is running
 #    those contexts on the pinned SHA.
 #      0 green · 1 REQUIRED check failed · 2 head moved
 #      3 timeout (NOT a verdict) · 5 required green, non-required failed
+#      6 PR conflicts with its base (no runs will register): merge the base in
 bash scripts/qa/watch-pr-checks.sh $PR_NUMBER
 
 # 2. Switch to main repo BEFORE merging
@@ -321,6 +322,7 @@ git worktree remove "<worktree path from Step 0>" --force 2>/dev/null || true
 - NEVER remove the worktree before merge is confirmed, main is updated, AND close-out (Step 6) is done
 - Any push that changes the head after the gate — including a merge from `main` — re-runs the gate
 - Worktree removal is ALWAYS the final command
+- If the watcher exits 6, the PR conflicts with its base: merge `origin/main` in and push (a new head, so the gate re-runs).
 - If the watcher times out (exit 3), use Path B: with the user's explicit merge authorization, arm auto-merge, then watch or stop as the Asynchronous merge protocol says; under standing approvals alone, stop without arming it.
 - NEVER treat "no pending checks" as green. Use `scripts/qa/watch-pr-checks.sh` — it pins the SHA, waits for the ruleset's required contexts, and fails closed on unknown conclusions.
 - NEVER collapse a non-required failure into a blocking one, or into silence. Exit 5 is that case, and it carries two required confirmations.

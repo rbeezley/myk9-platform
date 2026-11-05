@@ -159,7 +159,7 @@ cd apps/myk9show && pnpm test:e2e    # E2E tests (playwright)
 Edge Functions deploy separately via Supabase CLI:
 
 ```bash
-supabase functions deploy <function-name> --no-verify-jwt
+supabase functions deploy <function-name> --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt
 ```
 
 Functions handle authentication internally, so `--no-verify-jwt` is required.

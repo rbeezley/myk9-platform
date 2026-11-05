@@ -1,5 +1,5 @@
 // Ban the caller's auth identity after self-service person deletion.
-// Deploy: supabase functions deploy revoke-self-auth-identity --no-verify-jwt
+// Deploy: supabase functions deploy revoke-self-auth-identity --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 

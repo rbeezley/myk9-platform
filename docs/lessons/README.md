@@ -55,7 +55,7 @@ Shuffled fast runs are NOT enough for a **timeout**-class flake — those need s
 
 ## functions-deploy-workdir
 
-**Guard:** MYK9-1654 (check not built yet)
+**Guard:** `apps/myk9show/src/test/ci/functionsDeployProjectRef.test.ts`
 
 `supabase functions deploy --workdir apps/myk9show` follows that dir's `.temp/project-ref`, which once held the defunct `myK9Show-Working` ref — the deploy-to-the-wrong-project trap this rule was written for. **That premise no longer holds:** since #1582 (2026-08-02) the file is _tracked in git_ carrying the correct `sojmvhhwsjxmfistvzbe`, so every clone starts correct and a local `supabase link` that rewrites it now shows up in `git status` instead of drifting silently. Two consequences. (1) Do NOT "tidy up" the tracked `apps/myk9show/supabase/.temp/*` files just because `.gitignore` lists `**/supabase/.temp/` — gitignore does not apply to already-tracked files, and untracking them re-arms the original trap. (2) Still pass `--project-ref sojmvhhwsjxmfistvzbe` explicitly and confirm the "Deployed Functions on project ..." line names the right ref: the flag is free, the file is only correct by accident of that commit, and a deploy to the wrong project is not cheap to undo.
 
@@ -67,7 +67,7 @@ If work flagged as a background-task chip gets absorbed into the current session
 
 ## edge-tests-jsdom
 
-**Guard:** MYK9-1654 (check not built yet)
+**Guard:** `apps/myk9show/src/test/ci/cryptoSubtleNodePragma.test.ts`
 
 The app suite runs `environment: 'jsdom'` globally, which is a LIE for edge-function code — those files run under Deno and will never see a browser. jsdom installs its own `ArrayBuffer`, so a buffer built in test code is a different realm's object than the Node `crypto` vitest leaves in place (jsdom has no `subtle`), and `crypto.subtle.digest` rejects it with "2nd argument is not instance of ArrayBuffer, Buffer, TypedArray, or DataView". Whether it fires depends on the Node build: all three of `Uint8Array`, a fresh `ArrayBuffer`, and `.buffer` passed locally on Node 22.18 and the fresh-`ArrayBuffer` one failed on CI, so "it passes locally" proves nothing here. Put `// @vitest-environment node` at the top of any test covering an edge function, and hand WebCrypto the TypedArray view directly — copying into a fresh `ArrayBuffer` first looks safer and only adds one more object that has to belong to the right realm. `src/test/setup.ts` guards its `window`/`navigator` stubs behind `typeof window !== 'undefined'` so the node environment is available; do not un-guard them (MYK9-228 phase 3).
 
@@ -299,7 +299,7 @@ Both are the same shape: the test's setup never reaches the condition the guard 
 
 ## conflicting-pr-no-runs
 
-**Guard:** MYK9-1654 (check not built yet)
+**Guard:** `scripts/qa/watch-pr-checks.sh`
 
 **A PR that conflicts with its base gets NO workflow runs at all, and nothing anywhere says so.** GitHub computes `refs/pull/<n>/merge` for every `pull_request` event and silently skips the workflow when it cannot, so `opened`, `synchronize`, `reopened` and `ready_for_review` all fire and all produce zero runs. Every surface lies in the same direction: `gh workflow list` shows the workflow `active`, nothing sits in queued or waiting, no approval gate appears, and the Vercel checks still go green — Vercel builds the HEAD sha, not the merge ref — so the rollup looks populated rather than empty. It presents as "Actions is broken" or "my trigger config is wrong", and the tell that it is neither is another PR getting clean runs at the same moment. On 2026-08-31 this cost most of a session on PR #1897, spent on draft gating (a real but separate bug — every `ci.yml` job is gated on `draft == false`, so opening a draft "to get CI" gets none) and then on three more trigger types, while the answer was one API field. Before diagnosing a missing run as anything else, read `gh api repos/<owner>/<repo>/pulls/<n> --jq '{mergeable, mergeable_state, merge_commit_sha}'`: `merge_commit_sha: null` with `mergeable_state: "dirty"` IS the diagnosis. The fix is merging the base in — re-triggering cannot work, because there is nothing for the event to build. Companion to the "no pending ≠ settled" rule above: there, a small rollup meant not-yet-registered; here it means the run will never exist.
 
@@ -371,7 +371,7 @@ Both are the same shape: the test's setup never reaches the condition the guard 
 
 ## local-self-reference
 
-**Guard:** MYK9-1654 (check not built yet)
+**Guard:** `scripts/qa/shellcheck-sc2318.sh`
 
 **`local s="$1" n=${#s}` measures the CALLER's `s`, not the one being assigned.** The shell expands every word of a command before running it, and `local` is a command — so the `${#s}` in that line is evaluated while `s` still holds whatever the enclosing scope had, which is usually empty. A tokenizer written that way loops zero times, emits nothing, exits 0, and every check built on it reads as "clean". Nothing warns: `bash -n` passes, `set -u` passes, the function is simply inert. Split the declaration (`local s="$1"` then `local n; n=${#s}`) whenever one `local` refers to another on the same line. Caught only because the script's own 32 known-answer fixtures went from 32/32 to 19/32 (#2062).
 

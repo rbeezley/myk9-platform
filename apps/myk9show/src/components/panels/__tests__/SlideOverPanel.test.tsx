@@ -7,13 +7,17 @@ import { selectReservedBottom, useActionBarStore } from '@/store/actionBarStore'
 
 const reservedBottom = () => selectReservedBottom(useActionBarStore.getState());
 
+// MYK9-99 regression pin: `size` must reach the panel as its own md+ cap (it was
+// once inert, every size rendering the same width). Below md the panel is full
+// width with no cap at all (MYK9-1712); the rendered geometry was checked in a
+// real browser, which a class list cannot prove.
 describe('SlideOverPanel responsive sizing', () => {
   it.each([
     ['sm', 'md:max-w-md'],
     ['md', 'md:max-w-lg'],
     ['lg', 'md:max-w-2xl'],
     ['xl', 'md:max-w-4xl'],
-  ] as const)('keeps the %s width from tablet through desktop breakpoints', (size, expected) => {
+  ] as const)('caps the %s panel at %s and nothing below md', (size, expected) => {
     render(
       <SlideOverPanel open onClose={vi.fn()} title={`${size} panel`} size={size}>
         <p>Body</p>
@@ -21,35 +25,8 @@ describe('SlideOverPanel responsive sizing', () => {
     );
 
     const panel = screen.getByRole('dialog').querySelector('.slide-over-panel');
-    const responsiveMaxWidths = [...(panel?.classList ?? [])].filter(className =>
-      /^(sm|md|lg|xl):max-w-/.test(className)
-    );
-
-    expect(responsiveMaxWidths.sort()).toEqual(['sm:max-w-none', expected].sort());
-  });
-
-  // The assertion above filters on `^(sm|md|lg|xl):max-w-` and so never sees the
-  // UNPREFIXED base, which is the class that governs width below 640px. Without
-  // this, giving every size the same base — all four identical on a phone, the
-  // exact failure MYK9-99 described — left the suite 16/16 green.
-  it.each([
-    ['sm', 'max-w-md'],
-    ['md', 'max-w-lg'],
-    ['lg', 'max-w-2xl'],
-    ['xl', 'max-w-4xl'],
-  ] as const)('keeps a distinct %s width below the sm breakpoint', (size, expected) => {
-    render(
-      <SlideOverPanel open onClose={vi.fn()} title={`${size} panel`} size={size}>
-        <p>Body</p>
-      </SlideOverPanel>
-    );
-
-    const panel = screen.getByRole('dialog').querySelector('.slide-over-panel');
-    const baseMaxWidths = [...(panel?.classList ?? [])].filter(className =>
-      /^max-w-/.test(className)
-    );
-
-    expect(baseMaxWidths).toEqual([expected]);
+    const maxWidths = [...(panel?.classList ?? [])].filter(c => /(^|:)max-w-/.test(c));
+    expect(maxWidths).toEqual([expected]);
   });
 });
 
@@ -96,7 +73,7 @@ describe('SlideOverPanel side support', () => {
 
     const panel = screen.getByRole('dialog').querySelector('.slide-over-panel');
     expect(panel).toHaveClass('right-0');
-    expect(panel).toHaveClass('rounded-l-xl');
+    expect(panel).toHaveClass('md:rounded-l-xl');
   });
 
   it('can render as a left-side panel', () => {
@@ -108,7 +85,7 @@ describe('SlideOverPanel side support', () => {
 
     const panel = screen.getByRole('dialog').querySelector('.slide-over-panel');
     expect(panel).toHaveClass('left-0');
-    expect(panel).toHaveClass('rounded-r-xl');
+    expect(panel).toHaveClass('md:rounded-r-xl');
   });
 });
 

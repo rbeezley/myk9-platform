@@ -79,7 +79,7 @@ A PostgREST **count** must name a column, never `*`, on any column-allowlisted t
 
 ## postgrest-embed-grants
 
-**Guard:** MYK9-1654 (check not built yet)
+**Guard:** `apps/myk9show/src/test/ci/postgrestEmbedGrants.test.ts`
 
 PostgREST requires table-level SELECT on every EMBEDDED relation — revoking anon on a table only ever reached via `table(col,...)` / `table!inner(...)` embeds turns a null embed into a hard 42501 that fails the WHOLE request. Grep for embeds, not just `.from('table')`.
 
@@ -103,7 +103,7 @@ Migration-parsing tests (e.g. `anonEntriesGrantContract`) read the whole `supaba
 
 ## slideover-size-band
 
-**Guard:** MYK9-1654 (check not built yet)
+**Retired 2026-11-05 (MYK9-1712, #3632).** `SlideOverPanel` no longer has the 640-767px band: `sizeClasses` is `w-full md:max-w-<size>` and the mobile block is `rounded-none md:rounded-{l,r}-xl`, with no `sm:` override, so the panel is full width below 768px and sized by `size` from 768px. The trap is structurally gone; the narrative below is the history and describes the old behavior.
 
 MYK9-99 (2026-07-26) found `SlideOverPanel`'s `size` prop genuinely inert: the chain hardcoded `md:max-w-lg lg:max-w-2xl xl:max-w-4xl`, so every panel rendered the same width and PR #1469's attempt to widen one form had no visible effect. The lesson was written that morning (#1476, 10:15) and PR #1482 fixed it that afternoon (14:29) by deriving the responsive width from `size`. The warning then sat in CLAUDE.md for six weeks describing behavior that had been corrected four hours after it was recorded, and on 2026-09-14 it cost a real edit: acting on it in #2221 I added `className="md:max-w-2xl"` to `ManageRegistrationsPanel`, a no-op duplicate of what `size="lg"` already supplies, caught in review and reverted.
 
@@ -443,7 +443,7 @@ Two things make it read as a verdict when it is not. The failing `it()` changes 
 
 ## docs-push-head-main
 
-**Guard:** MYK9-1654 (check not built yet)
+**Guard:** `scripts/qa/push-main-docs-only.ts`
 
 The orchestrator's docs-only direct-to-`main` flow ends with `git push origin HEAD:main`, which pushes whatever commit HEAD points at — not "the docs commit" as a concept. On 2026-09-18 (MYK9-631, commits 19812ca5d and f0c0ac6e2, reverted by 94b289843) a dispatched sub-agent had checked out its own feature branch inside the orchestrator's worktree rather than a worktree of its own; because a worktree's index is shared with whatever branch is checked out in it, a ledger commit made by the orchestrator swept up the sub-agent's STAGED deletion, and the next `HEAD:main` push carried the sub-agent's whole feature commit straight to `main` with no review gate. GitHub auto-closed the sub-agent's open PR (#2334) as merged, and Vercel built the commit from `main` as if it had gone through the normal path.
 

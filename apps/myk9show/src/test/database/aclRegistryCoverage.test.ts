@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { readdirSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
+import { parseContractGrantRows } from './tableGrantContract';
 import { AUTHENTICATED_TABLE_GRANTS } from '../../../supabase/functions/_shared/appliedAclChecks';
 
 /**
@@ -80,14 +81,7 @@ function tablesSurvivingMigrations(): Map<string, string> {
 const contractSql = readFileSync(CONTRACT_SQL, 'utf8');
 
 /** Section A's `expected(tbl, authenticated, anon, service_role)` VALUES list. */
-const contractGrantRows = new Set(
-  [
-    ...contractSql
-      .split('WITH expected(tbl, authenticated, anon, service_role) AS (VALUES')[1]
-      .split('\n  )')[0]
-      .matchAll(/^\s*\('([a-z_]+)','[^']*','[^']*','[^']*'\),?\s*$/gm),
-  ].map(match => match[1])
-);
+const contractGrantRows = new Set(parseContractGrantRows(contractSql).keys());
 
 /** The `relname NOT IN (...)` completeness list that guards section A. */
 const contractCompletenessList = new Set(

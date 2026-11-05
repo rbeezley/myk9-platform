@@ -66,10 +66,10 @@ function isBehindPanel(
 }
 
 const sizeClasses = {
-  sm: 'max-w-md w-full md:max-w-md',
-  md: 'max-w-lg w-full md:max-w-lg',
-  lg: 'max-w-2xl w-full md:max-w-2xl',
-  xl: 'max-w-4xl w-full md:max-w-4xl',
+  sm: 'w-full md:max-w-md',
+  md: 'w-full md:max-w-lg',
+  lg: 'w-full md:max-w-2xl',
+  xl: 'w-full md:max-w-4xl',
 };
 
 // Premium design constants - solid, consistent with our design system
@@ -358,14 +358,10 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
           // Premium border and shadow
           isLeft ? 'border-r border-border' : appleDesign.border,
           appleDesign.shadow,
-          // Corner radius for visual polish
-          isLeft ? 'rounded-r-xl' : 'rounded-l-xl',
-          // Size classes
+          // Size classes: full width below md, capped at `size` from md up
           sizeClasses[size],
-          // Mobile: Full screen on small devices
-          isLeft
-            ? 'sm:max-w-none sm:w-full sm:rounded-none md:rounded-r-xl'
-            : 'sm:max-w-none sm:w-full sm:rounded-none md:rounded-l-xl',
+          // Mobile (below md): full screen, square corners; rounded edge from md up
+          isLeft ? 'rounded-none md:rounded-r-xl' : 'rounded-none md:rounded-l-xl',
           // Animation - remove transform when open to prevent stacking context issues
           // (transforms create new containing blocks that break Select dropdown positioning)
           `transition-all ${appleDesign.animation.duration} ${appleDesign.animation.easing}`,

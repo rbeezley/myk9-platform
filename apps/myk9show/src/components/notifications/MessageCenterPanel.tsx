@@ -410,7 +410,7 @@ export function MessageCenterPanel() {
       title={isComposing ? 'Compose show message' : 'Message Center'}
       side="right"
       size="sm"
-      // sm:max-w-none governs 640-767px, so the width goes through className.
+      // Composing widens the panel from md up; below md it is full width anyway.
       className={isComposing ? 'md:max-w-2xl' : ''}
       {...(isComposing ? { showBackButton: true, onBack: handleCloseCompose } : unreadHeaderProps)}
     >

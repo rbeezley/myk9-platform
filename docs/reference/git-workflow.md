@@ -47,4 +47,4 @@ Branches named `pr-###`, scratch branches, or temporary review branches should b
 
 Verify the commit's filelist matches the scope before pushing. If anything outside the in-scope list is staged, open a PR instead.
 
-As of 2026-06-14 the `main` rulesets grant the admin role (the owner token) `bypass_mode: always`, so a direct push genuinely succeeds — the PR and required-checks gates are bypassed for that identity. The bypass is actor-based, not path-scoped, so this scope restriction is enforced by convention, not by GitHub.
+As of 2026-06-14 the `main` rulesets grant the admin role (the owner token) `bypass_mode: always`, so a direct push genuinely succeeds — the PR and required-checks gates are bypassed for that identity. The bypass is actor-based, not path-scoped, so GitHub does not enforce this scope; the local `pre-push` hook does (`scripts/qa/push-main-docs-only.ts`, MYK9-1713), and its in-scope list must change together with the list above.

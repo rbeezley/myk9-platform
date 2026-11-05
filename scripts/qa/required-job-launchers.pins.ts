@@ -368,5 +368,4 @@ export const PINNED_RAW_INVOCATIONS: readonly string[] = [
   'pnpm exec tsx scripts/verify-e2e-auth-preflight.ts --check-roles secretary admin judge',
   'pnpm exec tsx scripts/verify-e2e-auth-preflight.ts --check-roles secretary exhibitor',
   'pnpm exec tsx scripts/verify-artifact-secrets.ts --skip-zip-files playwright-report-ci',
-  'pnpm --filter @myk9/show exec playwright install --with-deps chromium',
 ];

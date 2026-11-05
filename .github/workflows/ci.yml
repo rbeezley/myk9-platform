@@ -773,43 +773,14 @@ jobs:
       - name: Prove the bundle targets the local stack
         run: bash scripts/ci/assert-local-smoke-bundle.sh apps/myk9show/dist
 
-      # Cache the browser payload by the lockfile so Playwright downloads only
-      # when the pinned browser version changes. Keep --with-deps to guarantee
-      # the runner has the system libraries required by Chromium.
-      - name: Cache Playwright browser
-        uses: actions/cache@v6
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
-
-      # MYK9-1335: the slow half of --with-deps is apt downloading Chromium's
-      # system packages, not the browser: on 2026-10-22 the Azure Ubuntu mirror
-      # took ~10 min for a few MB, three runs in a row, and pushed the job past
-      # its cap with the tests themselves passing. Keep the downloaded .debs in
-      # a runner-owned cache so a warm run installs them without the mirror.
-      - name: Cache Playwright system packages
-        uses: actions/cache@v6
-        with:
-          path: ~/.cache/playwright-apt
-          key: ${{ runner.os }}-${{ runner.arch }}-playwright-apt-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: ${{ runner.os }}-${{ runner.arch }}-playwright-apt-
-
-      - name: Point apt at the package cache
-        run: |
-          mkdir -p ~/.cache/playwright-apt/partial
-          echo "Dir::Cache::Archives \"$HOME/.cache/playwright-apt\";" \
-            | sudo tee /etc/apt/apt.conf.d/99-playwright-cache
-
-      # Its own cap, so a slow mirror reads as this step timing out, not as a
-      # cancelled test run.
+      # Browser and apt packages are cached by the shared action (MYK9-1335,
+      # MYK9-1715). Its own cap, so a slow mirror on a cache miss reads as
+      # this step timing out, not as a cancelled test run.
       - name: Install Playwright browser
         timeout-minutes: 12
-        run: pnpm --filter @myk9/show exec playwright install --with-deps chromium
-
-      # apt writes the archive as root; hand it back so the cache can save it.
-      - name: Hand the package cache back to the runner
-        if: always()
-        run: sudo chown -R "$(id -u):$(id -g)" ~/.cache/playwright-apt
+        uses: ./.github/actions/install-playwright
+        with:
+          browser: chromium
 
       - name: Run a11y smoke
         working-directory: apps/myk9show
@@ -934,43 +905,14 @@ jobs:
       - name: Prove the bundle targets the local stack
         run: bash scripts/ci/assert-local-smoke-bundle.sh apps/myk9show/dist
 
-      # Cache the browser payload by the lockfile so Playwright downloads only
-      # when the pinned browser version changes. Keep --with-deps to guarantee
-      # the runner has the system libraries required by Chromium.
-      - name: Cache Playwright browser
-        uses: actions/cache@v6
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
-
-      # MYK9-1335: the slow half of --with-deps is apt downloading Chromium's
-      # system packages, not the browser: on 2026-10-22 the Azure Ubuntu mirror
-      # took ~10 min for a few MB, three runs in a row, and pushed the job past
-      # its cap with the tests themselves passing. Keep the downloaded .debs in
-      # a runner-owned cache so a warm run installs them without the mirror.
-      - name: Cache Playwright system packages
-        uses: actions/cache@v6
-        with:
-          path: ~/.cache/playwright-apt
-          key: ${{ runner.os }}-${{ runner.arch }}-playwright-apt-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: ${{ runner.os }}-${{ runner.arch }}-playwright-apt-
-
-      - name: Point apt at the package cache
-        run: |
-          mkdir -p ~/.cache/playwright-apt/partial
-          echo "Dir::Cache::Archives \"$HOME/.cache/playwright-apt\";" \
-            | sudo tee /etc/apt/apt.conf.d/99-playwright-cache
-
-      # Its own cap, so a slow mirror reads as this step timing out, not as a
-      # cancelled test run.
+      # Browser and apt packages are cached by the shared action (MYK9-1335,
+      # MYK9-1715). Its own cap, so a slow mirror on a cache miss reads as
+      # this step timing out, not as a cancelled test run.
       - name: Install Playwright browser
         timeout-minutes: 12
-        run: pnpm --filter @myk9/show exec playwright install --with-deps chromium
-
-      # apt writes the archive as root; hand it back so the cache can save it.
-      - name: Hand the package cache back to the runner
-        if: always()
-        run: sudo chown -R "$(id -u):$(id -g)" ~/.cache/playwright-apt
+        uses: ./.github/actions/install-playwright
+        with:
+          browser: chromium
 
       - name: Run E2E PR Smoke
         working-directory: apps/myk9show

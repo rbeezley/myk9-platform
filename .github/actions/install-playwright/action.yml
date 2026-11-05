@@ -1,0 +1,64 @@
+name: Install Playwright browser
+description: >-
+  Install one Playwright browser and its system packages, with both cached so a
+  warm run never waits on the Ubuntu apt mirror (MYK9-1335, MYK9-1715).
+
+# Why this exists: `playwright install --with-deps` downloads ~140 MB of .debs
+# from the Azure Ubuntu mirror on every run. The mirror is fast most days and
+# very slow on some (MYK9-1335: ~10 min for a few MB, three PR runs in a row;
+# MYK9-1715: 53 min for WebKit's 185 packages). The browser itself comes from
+# Playwright's CDN and is cached separately.
+#
+# Put `timeout-minutes` on the calling step, not here: composite steps cannot
+# carry one, and only the caller knows whether a slow install may fail its job.
+
+inputs:
+  browser:
+    description: Playwright browser to install (chromium, webkit or firefox).
+    required: true
+
+runs:
+  using: composite
+  steps:
+    # The runner image decides which packages apt still needs, so it is part
+    # of the package key: a new image saves its own set instead of re-hitting
+    # the mirror for the difference on every run of an exact-key hit.
+    - name: Read the runner image
+      id: image
+      shell: bash
+      run: echo "id=${ImageOS:-unknown}-${ImageVersion:-unknown}" >> "$GITHUB_OUTPUT"
+
+    - name: Cache Playwright browser
+      uses: actions/cache@v6
+      with:
+        path: ~/.cache/ms-playwright
+        key: ${{ runner.os }}-playwright-${{ inputs.browser }}-${{ hashFiles('pnpm-lock.yaml') }}
+
+    - name: Cache Playwright system packages
+      uses: actions/cache@v6
+      with:
+        path: ~/.cache/playwright-apt
+        key: ${{ runner.os }}-${{ runner.arch }}-playwright-apt-${{ inputs.browser }}-${{ steps.image.outputs.id }}-${{ hashFiles('pnpm-lock.yaml') }}
+        restore-keys: |
+          ${{ runner.os }}-${{ runner.arch }}-playwright-apt-${{ inputs.browser }}-
+
+    - name: Point apt at the package cache
+      shell: bash
+      run: |
+        mkdir -p ~/.cache/playwright-apt/partial
+        echo "Dir::Cache::Archives \"$HOME/.cache/playwright-apt\";" \
+          | sudo tee /etc/apt/apt.conf.d/99-playwright-cache >/dev/null
+
+    - name: Install the browser and its system packages
+      shell: bash
+      env:
+        BROWSER: ${{ inputs.browser }}
+      run: pnpm --filter @myk9/show exec playwright install --with-deps "$BROWSER"
+
+    # apt writes the archive as root; hand it back so the cache can save it.
+    - name: Hand the package cache back to the runner
+      if: always()
+      shell: bash
+      run: |
+        sudo chown -R "$(id -u):$(id -g)" ~/.cache/playwright-apt
+        echo "cached .debs: $(find ~/.cache/playwright-apt -maxdepth 1 -name '*.deb' | wc -l)"

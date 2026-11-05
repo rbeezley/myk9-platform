@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
-# Check trusted operator holds before any pushed ref leaves this checkout.
+# Check trusted operator holds, then what a push to main carries, before any pushed ref leaves.
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
-node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON \
-  "$HERE/scripts/qa/push-hold.ts"
+# git sends the ref lines on stdin exactly once; capture them so every check below reads the same
+# input. A further check is one more `printf ... | node ...` line.
+PUSH_REFS="$(cat)"
+run_check() {
+  printf '%s\n' "$PUSH_REFS" |
+    node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON "$HERE/scripts/qa/$1"
+}
+run_check push-hold.ts
+run_check push-main-docs-only.ts

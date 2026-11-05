@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 
 import { SELECT_CLASSES } from '@/pages/secretary/selectClassesRoutes';
 
+import { cockpitDaysKey } from './cockpitDayFilter';
 import { leaveSelectClassesSearch } from './cockpitRoutes';
 import {
   EMPTY_SCHEDULE_SELECTION,
@@ -42,7 +43,7 @@ export function useScheduleClassSelection(
 ): ScheduleClassSelection {
   const [searchParams, setSearchParams] = useSearchParams();
   const active = searchParams.get('select') === SELECT_CLASSES;
-  const dayKey = model.day.allDays ? 'all' : (model.day.selected ?? '');
+  const dayKey = cockpitDaysKey(model.day.allDays ? [] : model.day.days);
   const [held, setHeld] = useState({ dayKey, selection: EMPTY_SCHEDULE_SELECTION });
 
   // Reset during render, not in an effect, so no render ever acts on the stale ticks.

@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import { getReportsForRegistries } from '@/lib/reports/reportRegistry';
 import { orderReportPhases, type ShowTimePhase } from '@/lib/reports/reportPhaseOrder';
 import type { ReportDefinition, ReportPhase } from '@/lib/reports/types';
-import { ALL_DAYS, getShowHomeHref } from '@/features/show-map/cockpit/cockpitRoutes';
+import { getShowHomeHref } from '@/features/show-map/cockpit/cockpitRoutes';
 
 import type { ReportPrintChip } from './buildReportPrintChips';
 import {
@@ -135,7 +135,7 @@ function ReportCard({
       </div>
       {showId && REPORTS_ALSO_ON_OVERVIEW.has(report.id) && (
         <Link
-          to={getShowHomeHref({ showId, state: { selectedDay: ALL_DAYS, filter: 'all' } })}
+          to={getShowHomeHref({ showId, state: { selectedDays: [], filter: 'all' } })}
           className="inline-flex min-h-[44px] items-center text-xs font-medium text-muted-foreground underline underline-offset-4 hover:text-foreground"
         >
           Also on Overview, per class

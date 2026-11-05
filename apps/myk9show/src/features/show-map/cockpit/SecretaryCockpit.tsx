@@ -1,11 +1,10 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
-import { CalendarDays, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { Link, useLocation, useNavigationType, useSearchParams } from 'react-router-dom';
 import { useTrialRowActions } from '@/components/shows/tabs/useTrialRowActions';
 import { getAddClassesHref } from '@/pages/secretary/ShowCreationWizard/addClassesHref';
 
 import { Button } from '@/components/ui/button';
-import { formatWeekdayMonthDay } from '@/lib/format/dates';
 import { cn } from '@/lib/utils';
 import {
   FOCUSED_CLASS_PANEL_CLASS,
@@ -17,8 +16,10 @@ import { useElementWidth } from '@/hooks/useElementWidth';
 import { COCKPIT_SPLIT_COLUMNS, isCockpitSplit } from './cockpitSplit';
 
 import type { ClassEntryBreakdown } from '@/features/entry-operations/classEntryBreakdown';
-import { ALL_DAYS, buildSecretaryCockpitModel } from './secretaryCockpitModel';
+import { buildSecretaryCockpitModel } from './secretaryCockpitModel';
 import { useSecretaryCockpitUrlState } from './useSecretaryCockpitUrlState';
+import { cockpitDaysKey } from './cockpitDayFilter';
+import { CockpitDayFilterMenu } from './CockpitDayFilterMenu';
 import { CockpitAttentionStrip } from './CockpitAttentionStrip';
 import { SecretaryCockpitFocusedClass } from './SecretaryCockpitFocusedClass';
 import { useFocusedClassSetupActions } from './FocusedClassSetupActions';
@@ -166,9 +167,13 @@ export function SecretaryCockpit({
 
   useEffect(() => {
     const updates: Parameters<typeof updateState>[0] = {};
-    // All days is the URL's default (no `day`), so it is never written back.
-    if (!model.day.allDays && model.day.selected && state.selectedDay !== model.day.selected) {
-      updates.selectedDay = model.day.selected;
+    // All days is the URL's default (no `day`), so it is never written back. Ticks naming no day
+    // of this show are dropped from the URL so the chip reads what the schedule shows.
+    if (
+      (state.selectedDays?.length ?? 0) > 0 &&
+      cockpitDaysKey(state.selectedDays ?? []) !== cockpitDaysKey(model.day.days)
+    ) {
+      updates.selectedDays = model.day.days;
     }
     if (focusedId && state.focusedClassId !== focusedId) {
       updates.focusedClassId = focusedId;
@@ -179,11 +184,10 @@ export function SecretaryCockpit({
     if (Object.keys(updates).length > 0) updateState(updates, { replace: true });
   }, [
     focusedId,
-    model.day.allDays,
-    model.day.selected,
+    model.day.days,
     state.anchor,
     state.focusedClassId,
-    state.selectedDay,
+    state.selectedDays,
     updateState,
   ]);
 
@@ -217,38 +221,13 @@ export function SecretaryCockpit({
 
   return (
     <div className="space-y-5" data-testid="secretary-cockpit">
-      {model.day.available.length > 1 && (
-        <div className="flex flex-wrap items-center gap-2" aria-label="Show day">
-          <CalendarDays className="h-4 w-4 text-muted-foreground" />
-          <Button
-            type="button"
-            size="sm"
-            variant={model.day.allDays ? 'default' : 'outline'}
-            aria-pressed={model.day.allDays}
-            className="min-h-11"
-            onClick={() =>
-              updateState({ selectedDay: ALL_DAYS, focusedClassId: undefined, anchor: undefined })
-            }
-          >
-            All days
-          </Button>
-          {model.day.available.map(day => (
-            <Button
-              key={day}
-              type="button"
-              size="sm"
-              variant={!model.day.allDays && model.day.selected === day ? 'default' : 'outline'}
-              aria-pressed={!model.day.allDays && model.day.selected === day}
-              className="min-h-11"
-              onClick={() =>
-                updateState({ selectedDay: day, focusedClassId: undefined, anchor: undefined })
-              }
-            >
-              {formatWeekdayMonthDay(day)}
-            </Button>
-          ))}
-        </div>
-      )}
+      <CockpitDayFilterMenu
+        snapshot={snapshot}
+        days={model.day}
+        onChange={selectedDays =>
+          updateState({ selectedDays, focusedClassId: undefined, anchor: undefined })
+        }
+      />
 
       {isEveryClassComplete(snapshot.classes) && <CockpitResultsHandoff showId={snapshot.showId} />}
 

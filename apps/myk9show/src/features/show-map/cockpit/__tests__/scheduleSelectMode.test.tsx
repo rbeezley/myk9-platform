@@ -1,5 +1,5 @@
 import { screen, within } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { render } from '@/test/utils/testUtils';
 import { SecretaryCockpit } from '../SecretaryCockpit';
@@ -93,7 +93,13 @@ const expandTrial2 = async (user: ReturnType<typeof renderCockpit>['user']) => {
 };
 
 describe('Select classes on the schedule (MYK9-1324)', () => {
+  const originalScrollIntoView = Element.prototype.scrollIntoView;
+  afterEach(() => {
+    Element.prototype.scrollIntoView = originalScrollIntoView;
+  });
   beforeEach(() => {
+    // cmdk (the day Filter menu) scrolls rows into view; jsdom has no scrollIntoView.
+    Element.prototype.scrollIntoView = vi.fn();
     showQuery.mockReturnValue({ data: { id: 'show-1', organization: 'AKC' } });
     judgesQuery.mockReturnValue({ data: [JANE] });
     upsertClassJudgeAssignment.mockReset();
@@ -227,7 +233,7 @@ describe('Select classes on the schedule (MYK9-1324)', () => {
 
     expect(tick('Buried Novice')).toBeChecked();
     expect(tick('Container Novice')).not.toBeChecked();
-    expect(screen.getByRole('status')).toHaveTextContent(/one trial at a time/);
+    expect(screen.getByText(/one trial at a time/)).toBeInTheDocument();
   });
 
   it('collapsing the trial that holds the selection clears it', async () => {
@@ -242,11 +248,12 @@ describe('Select classes on the schedule (MYK9-1324)', () => {
     expect(screen.queryByRole('button', { name: 'Change status' })).not.toBeInTheDocument();
   });
 
-  it('a day chip clears the selection', async () => {
+  it('changing the day filter clears the selection', async () => {
     const { user } = renderCockpit();
     await user.click(tick('Container Novice'));
 
-    await user.click(screen.getByRole('button', { name: /Jul 20/ }));
+    await user.click(screen.getByRole('button', { name: 'Filter' }));
+    await user.click(await screen.findByRole('option', { name: /Jul 20/ }));
 
     expect(tick('Container Novice')).not.toBeChecked();
     expect(screen.queryByRole('button', { name: 'Change status' })).not.toBeInTheDocument();

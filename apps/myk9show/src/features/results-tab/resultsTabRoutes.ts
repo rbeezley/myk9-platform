@@ -5,7 +5,7 @@
  * `classId` and `trialId` are what Overview's links into Results already emit
  * (`getCockpitResultsControlHref`), so a class selected from there opens here unchanged.
  */
-import { ALL_DAYS, getShowHomeHref } from '@/features/show-map/cockpit/cockpitRoutes';
+import { getShowHomeHref } from '@/features/show-map/cockpit/cockpitRoutes';
 import { getPaperScoringEntryHref } from '@/pages/scoring/scoringRoutes';
 import type { ResultsTabReadState } from './useResultsTabData';
 import { isResultsStatusFilterId, type ResultsStatusFilterId } from './resultsNextAction';
@@ -61,7 +61,7 @@ export function getResultsClassHref(showId: string, classId: string, search = ''
 export function getOverviewFocusHref(showId: string, classId: string): string {
   return getShowHomeHref({
     showId,
-    state: { selectedDay: ALL_DAYS, filter: 'all', focusedClassId: classId },
+    state: { selectedDays: [], filter: 'all', focusedClassId: classId },
   });
 }
 

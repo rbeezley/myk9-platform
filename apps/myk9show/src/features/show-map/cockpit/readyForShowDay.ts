@@ -11,6 +11,7 @@ import {
 } from '@/features/show-workbench/setupReadinessSignals';
 import { resolveShowUses } from '@/features/show-workbench/showUses';
 
+import { parseCockpitDays } from './cockpitDayFilter';
 import { getShowHomeHref } from './cockpitRoutes';
 import type { SecretaryCockpitPaperwork } from './secretaryCockpitTypes';
 
@@ -217,7 +218,10 @@ export function buildReadyForShowDay(input: ReadyForShowDayInput): ReadyForShowD
             detail: `${input.paperwork.outstanding} sheet${input.paperwork.outstanding === 1 ? '' : 's'} for the first day ${input.paperwork.outstanding === 1 ? 'needs' : 'need'} printing`,
             href: getShowHomeHref({
               showId,
-              state: { filter: 'all', selectedDay: earliestTrialDate(input.setup.trials) },
+              state: {
+                filter: 'all',
+                selectedDays: parseCockpitDays(earliestTrialDate(input.setup.trials)),
+              },
             }),
           };
 

@@ -88,7 +88,7 @@ export function SecretaryRunSheet({
                 // it just opens the desk. parentTrial can be unresolved while the trial
                 // store loads, or when the route carries no trialId.
                 ...(runOrderDay
-                  ? { selectedDay: runOrderDay, focusedClassId: currentClass.id }
+                  ? { selectedDays: [runOrderDay], focusedClassId: currentClass.id }
                   : {}),
               },
             })}

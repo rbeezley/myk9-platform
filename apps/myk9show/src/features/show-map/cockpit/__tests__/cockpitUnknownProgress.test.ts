@@ -61,7 +61,7 @@ function snapshotWithCounts(
 }
 
 const STATE: SecretaryCockpitState = {
-  selectedDay: '2026-08-28',
+  selectedDays: ['2026-08-28'],
   filter: 'all',
 };
 

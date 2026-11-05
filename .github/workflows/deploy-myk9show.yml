@@ -100,7 +100,15 @@ jobs:
       - name: Refuse a pulled env with [SENSITIVE] placeholders
         env:
           SENSITIVE_PLACEHOLDER_ALLOWLIST: VITE_SENTRY_DSN,VITE_PUBLIC_SURFACE
-        run: node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/qa/vercel-env-placeholder-guard.ts
+        # Load the guard from THIS workflow's revision, not the checked-out
+        # deploy commit: a rollback to a commit that predates the guard must
+        # still be checked (and must not fail for lack of the script).
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin "$GITHUB_SHA"
+          git show FETCH_HEAD:scripts/qa/vercel-env-placeholder-guard.ts >"$RUNNER_TEMP/vercel-env-placeholder-guard.ts"
+          node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON \
+            "$RUNNER_TEMP/vercel-env-placeholder-guard.ts" .vercel/.env.production.local
 
       - name: Build
         run: pnpm dlx "$VERCEL_CLI" build --prod --token="$VERCEL_TOKEN"

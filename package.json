@@ -83,6 +83,8 @@
     "qa:worktree-liveness": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/qa/worktree-liveness.ts",
     "qa:worktree-liveness:test": "vitest run scripts/qa/worktree-liveness.test.ts",
     "qa:primary-checkout:test": "vitest run scripts/qa/primary-checkout.test.ts scripts/bootstrap-worktree.test.ts scripts/qa/push-hold.test.ts",
+    "qa:shellcheck": "bash scripts/qa/shellcheck-sc2318.sh",
+    "qa:shellcheck:test": "vitest run scripts/qa/shellcheck-sc2318.test.ts",
     "qa:no-ci-polling:test": "vitest run scripts/qa/no-ci-polling.test.ts",
     "qa:prelaunch-tripwire": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/qa/prelaunch-tripwire.ts",
     "qa:prelaunch-tripwire:test": "vitest run scripts/qa/prelaunch-tripwire.test.ts scripts/qa/deploy-migration-guard.test.ts scripts/qa/vercel-env-placeholder-guard.test.ts",

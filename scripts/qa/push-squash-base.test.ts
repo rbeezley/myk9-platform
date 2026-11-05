@@ -2,10 +2,12 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { chmodSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { parseBranchPushes } from './push-squash-base';
 
 const HOOKS = resolve(import.meta.dirname, '../../.githooks');
+// Each case runs real git pushes through the hook (~2-3s); the root project's 5s default flakes under load.
+vi.setConfig({ testTimeout: 30_000 });
 const roots: string[] = [];
 
 afterEach(() => {
@@ -134,6 +136,36 @@ describe('pre-push hook: squash against a moved origin/main', () => {
     f.git('rebase', '-q', 'origin/main');
     const result = f.push(['--force', 'origin', 'feature']);
     expect(result.code, result.output).toBe(0);
+  });
+
+  it('lets a rebase onto the new main followed by a new commit on a file main changed through', () => {
+    const f = fixture();
+    f.mainMoves();
+    f.git('rebase', '-q', 'origin/main');
+    f.commit('merged/a.ts', 'build on PR A');
+    const result = f.push(['origin', 'feature']);
+    expect(result.code, result.output).toBe(0);
+  });
+
+  it('lets an amend that edits a file main changed through after a rebase', () => {
+    const f = fixture();
+    expect(f.push(['-u', 'origin', 'feature']).code).toBe(0);
+    f.mainMoves();
+    f.git('rebase', '-q', 'origin/main');
+    writeFileSync(join(f.git('rev-parse', '--show-toplevel').trim(), 'merged/b.ts'), 'tweak\n');
+    f.git('commit', '-qa', '--amend', '--no-edit');
+    const result = f.push(['--force', 'origin', 'feature']);
+    expect(result.code, result.output).toBe(0);
+  });
+
+  it('resolves HEAD when the push names it explicitly (HEAD:refs/heads/feature)', () => {
+    const f = fixture();
+    f.mainMoves();
+    f.git('reset', '--soft', 'origin/main');
+    f.git('commit', '-qm', 'squashed');
+    const result = f.push(['origin', 'HEAD:refs/heads/feature']);
+    expect(result.code).toBe(1);
+    expect(result.output).toContain('merged/a.ts');
   });
 
   it('lets a normal fast-forward push through', () => {

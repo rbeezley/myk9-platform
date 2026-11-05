@@ -6,8 +6,8 @@
  * makes one commit that reverts main's newer PRs. That commit touches every reverted file, so its
  * own diff cannot reveal it; comparing it with the branch's previous tip can. For each branch push
  * (not main) that is a rewrite (previous tip is not an ancestor of the new tip), we take the files
- * the branch changed against main before and after, and refuse the ones that are new AND were
- * changed by main between the two merge-bases.
+ * the files main changed between the old and new merge-base, and refuse the ones the new tip holds
+ * exactly as they were at the old merge-base, i.e. main's newer change was undone.
  *
  * Previous tip: the remote sha when it is known locally, else the newest reflog tip that is not an
  * ancestor of the new one. Neither: skip.
@@ -70,12 +70,22 @@ function previousTip(push: BranchPush): string | null {
     const remote = tryGit(['rev-parse', '--verify', '-q', `${push.remoteSha}^{commit}`])?.trim();
     if (remote) return isAncestor(remote, push.localSha) ? null : remote;
   }
-  if (!push.localRef.startsWith('refs/heads/')) return null;
-  const entries = tryGit(['log', '-g', '--format=%H', '-n', '50', push.localRef]) ?? '';
+  // `git push origin HEAD:refs/heads/x` reports the local ref as HEAD; use the branch it names.
+  const localRef =
+    push.localRef === 'HEAD'
+      ? (tryGit(['symbolic-ref', '-q', 'HEAD'])?.trim() ?? '')
+      : push.localRef;
+  if (!localRef.startsWith('refs/heads/')) return null;
+  const entries = tryGit(['log', '-g', '--format=%H', '-n', '50', localRef]) ?? '';
   return entries.split('\n').find(sha => sha && !isAncestor(sha, push.localSha)) ?? null;
 }
 
-/** Files this rewrite touches only because it undid newer changes on origin/main. */
+/**
+ * Files this rewrite puts back to main's OLDER content: origin/main changed them between the old
+ * and new merge-base, yet the new tip holds them exactly as they were at the old merge-base
+ * (both absent counts). That is the reset-onto-a-moved-main signature. Judging content, not file
+ * names, lets a rebase onto the new main followed by real edits to the same files through.
+ */
 export function findSuspectFiles(push: BranchPush): string[] {
   const prev = previousTip(push);
   if (!prev || prev === push.localSha) return [];
@@ -83,11 +93,8 @@ export function findSuspectFiles(push: BranchPush): string[] {
   const oldBase = tryGit(['merge-base', prev, BASE_REF])?.trim();
   const newBase = tryGit(['merge-base', push.localSha, BASE_REF])?.trim();
   if (!oldBase || !newBase || oldBase === newBase) return [];
-  const prevFiles = files(oldBase, prev);
-  const mainMoved = files(oldBase, newBase);
-  return [...files(newBase, push.localSha)]
-    .filter(f => !prevFiles.has(f) && mainMoved.has(f))
-    .sort();
+  const differsFromOldBase = files(oldBase, push.localSha);
+  return [...files(oldBase, newBase)].filter(f => !differsFromOldBase.has(f)).sort();
 }
 
 export function main(input: string): number {
@@ -104,8 +111,8 @@ export function main(input: string): number {
       return 0;
     }
     process.stderr.write(
-      `PUSH BLOCKED: this rewrite touches ${suspects.length} file(s) its previous tip never did, ` +
-        `and origin/main changed them since the branch left it. It reverts main's newer work ` +
+      `PUSH BLOCKED: this rewrite puts ${suspects.length} file(s) back to how they were before ` +
+        `origin/main's newer changes. It reverts main's newer work ` +
         `(squashed against a moved origin/main?):\n${lines}\n` +
         `Fix: find the original tip in the reflog (git reflog <branch>), then rebuild the commit from ` +
         `the merge-base: git reset --soft "$(git merge-base HEAD origin/main)" && git commit, then ` +

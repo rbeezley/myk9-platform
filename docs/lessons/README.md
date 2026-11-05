@@ -443,7 +443,7 @@ Two things make it read as a verdict when it is not. The failing `it()` changes 
 
 ## docs-push-head-main
 
-**Guard:** MYK9-1654 (check not built yet)
+**Guard:** `scripts/qa/push-main-docs-only.ts`
 
 The orchestrator's docs-only direct-to-`main` flow ends with `git push origin HEAD:main`, which pushes whatever commit HEAD points at — not "the docs commit" as a concept. On 2026-09-18 (MYK9-631, commits 19812ca5d and f0c0ac6e2, reverted by 94b289843) a dispatched sub-agent had checked out its own feature branch inside the orchestrator's worktree rather than a worktree of its own; because a worktree's index is shared with whatever branch is checked out in it, a ledger commit made by the orchestrator swept up the sub-agent's STAGED deletion, and the next `HEAD:main` push carried the sub-agent's whole feature commit straight to `main` with no review gate. GitHub auto-closed the sub-agent's open PR (#2334) as merged, and Vercel built the commit from `main` as if it had gone through the normal path.
 

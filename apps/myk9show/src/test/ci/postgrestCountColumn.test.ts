@@ -344,11 +344,15 @@ describe('PostgREST count names a column on column-allowlisted tables', () => {
     }
     const files = roots.flatMap(r => listSourceFiles(r));
     expect(files.length).toBeGreaterThan(100);
-    const offenders = files.flatMap(file =>
-      findCountStarOffenders(readFileSync(file, 'utf8')).map(
+    const offenders = files.flatMap(file => {
+      const source = readFileSync(file, 'utf8');
+      // An offender is a `.select` property access, so a file without the word cannot hold
+      // one; skipping its parse keeps the whole-repo scan inside CI's coverage-slowed budget.
+      if (!source.includes('select')) return [];
+      return findCountStarOffenders(source).map(
         o => `${relative(REPO_ROOT, file)}:${o.line} (${o.table})`
-      )
-    );
+      );
+    });
     expect(offenders).toEqual([]);
-  });
+  }, 60_000);
 });

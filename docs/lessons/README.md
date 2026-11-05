@@ -174,13 +174,13 @@ Auditing a view for a soft-delete (or any row) predicate with `pg_get_viewdef(..
 
 ## select-star-reexpands
 
-**Guard:** MYK9-1654 (check not built yet)
+**Guard:** `apps/myk9show/src/test/database/viewMigrationLint.test.ts`
 
 `SELECT e.*` inside a view is frozen at creation but RE-EXPANDS on every rebuild, so adding one `WHERE` line can silently publish every column the base table gained since. `view_entry_with_results` (migration 094) froze at 70 columns while `entries` grew to 88 — a naive `DROP`+`CREATE` would have exposed `stripe_payment_intent_id`, `refund_amount`, `refund_notes`, `refund_decision` and 14 more to every authenticated caller. Replace the star with the explicit column list the live view already returns: it blocks the widening AND makes the output column set identical, so `CREATE OR REPLACE` works instead of `DROP` — which matters because `DROP` silently resets the view's ACL, and a `DROP` of a view others read needs `CASCADE` (four views read `view_stats_summary`). It does NOT save `security_invoker` — see the next line.
 
 ## replace-view-reloptions
 
-**Guard:** MYK9-1654 (check not built yet)
+**Guard:** `apps/myk9show/src/test/database/viewMigrationLint.test.ts`
 
 `CREATE OR REPLACE VIEW` preserves a view's ACL but **RESETS its `reloptions`**: with no `WITH` clause the options are wiped and `security_invoker` falls back to its default of **false**, i.e. owner-run. Since these views are owned by a `BYPASSRLS` role and `authenticated` holds grants on them from `ALTER DEFAULT PRIVILEGES`, owner-run means no policy is consulted AND no base-column privilege is required — so on 2026-08-17 a migration that only added a `WHERE` line to three views handed every authenticated user `judge_notes`, `total_score`, `payment_status` and `entry_fee` for every entry platform-wide (20260817170000, reverted by 20260817190000). Two rules. Carry `WITH (security_invoker = ...)` INLINE on every `CREATE OR REPLACE VIEW`, or use `ALTER VIEW ... SET` when you only need the option. And verify `reloptions` after a push, not just the column list — an identical column set proves the statement succeeded, not that the view's metadata survived; the tell was that the one view rebuilt with an explicit `WITH` clause in the same push kept its setting while the three without lost theirs. Row-level tests cannot catch this (they run as owner or as an authorized caller and pass either way) — assert the metadata, folding NULL `reloptions` to false rather than skipping it.
 

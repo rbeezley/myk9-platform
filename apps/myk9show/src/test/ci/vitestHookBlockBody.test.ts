@@ -19,10 +19,15 @@ import { describe, expect, it } from 'vitest';
 
 const REPO_ROOT = resolve(__dirname, '../../../../..');
 const HOOKS = new Set(['beforeEach', 'afterEach', 'beforeAll', 'afterAll']);
+/** `hook(` + optional `async` + params + optional return type + `=>` + anything but `{`. */
+const CONCISE_HOOK_HINT =
+  /\b(?:before|after)(?:Each|All)\(\s*(?:async\s+)?(?:\([^()]*\)|[A-Za-z_$][\w$]*)\s*(?::[^=]*)?=>\s*(?!\{)/;
 
 /** 1-based line numbers of hook calls whose first argument is a concise-body arrow. */
 export function conciseHookLines(source: string): number[] {
-  if (!/\b(before|after)(Each|All)\b/.test(source)) return [];
+  // Cheap prefilter so the AST parse runs only on files that look like they hold
+  // a concise hook (parsing every test file took ~12s on a coverage CI shard).
+  if (!CONCISE_HOOK_HINT.test(source)) return [];
   const sf = ts.createSourceFile('f.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   const lines: number[] = [];
   const visit = (node: ts.Node) => {
@@ -48,6 +53,13 @@ describe('vitest hook block-body guard: known answers', () => {
     expect(conciseHookLines('beforeEach(() => fn.mockReset());')).toEqual([1]);
     expect(conciseHookLines('afterEach(async () => teardown(m));')).toEqual([1]);
     expect(conciseHookLines('beforeAll(() => setup());\nafterAll(() => stop());')).toEqual([1, 2]);
+  });
+
+  it('flags concise arrows the prefilter must not skip: typed, multi-line, one-param', () => {
+    expect(conciseHookLines('beforeEach((): void => fn());')).toEqual([1]);
+    expect(conciseHookLines('afterEach(async (): Promise<void> =>\n  teardown(m));')).toEqual([1]);
+    expect(conciseHookLines('beforeEach(ctx => ctx.reset());')).toEqual([1]);
+    expect(conciseHookLines('beforeEach(({ task }) => log(task));')).toEqual([1]);
   });
 
   it('passes a braced body, sync or async', () => {
@@ -89,7 +101,6 @@ describe('vitest hook block-body guard: repository', () => {
     // Positive control: the scan must actually see files that use hooks.
     expect(hookFiles).toBeGreaterThan(50);
     expect(offenders).toEqual([]);
-    // Whole-repo scan: ~12s on a shuffled, coverage-instrumented CI shard, so the
-    // default 10s cap is too tight.
-  }, 60_000);
+    // Whole-repo read: headroom over the default 10s cap on a coverage CI shard.
+  }, 30_000);
 });

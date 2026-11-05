@@ -82,7 +82,9 @@ jobs:
           E2E_DEMO_EXHIBITOR_PASSWORD: ${{ secrets.E2E_DEMO_EXHIBITOR_PASSWORD }}
 
       - name: Install Playwright browser
-        run: pnpm --filter @myk9/show exec playwright install --with-deps chromium
+        uses: ./.github/actions/install-playwright
+        with:
+          browser: chromium
 
       # MYK9-1467: boot each edge function the app calls before the sweep, so a page's
       # first call does not pay the start-up inside the 5 s settle window. Prints
@@ -211,13 +213,16 @@ jobs:
           E2E_JUDGE_PASSWORD: ${{ secrets.E2E_JUDGE_PASSWORD }}
           E2E_DEMO_EXHIBITOR_PASSWORD: ${{ secrets.E2E_DEMO_EXHIBITOR_PASSWORD }}
 
-      # MYK9-1715: this install pulls ~140 apt packages; a slow Azure mirror held
-      # it for 53 minutes once (normally ~0.5). Cap it so a slow mirror fails this
-      # advisory job fast instead of delaying report-status. The chromium installs
-      # feed the verdict, so they stay uncapped: a mirror must not turn the run red.
+      # MYK9-1715: the shared action caches WebKit's 185 apt packages, so a warm
+      # run never waits on the mirror (it once held this step 53 minutes). The cap
+      # covers a cache miss on a slow-mirror day: it fails this advisory job fast
+      # instead of delaying report-status. The chromium installs feed the verdict,
+      # so they stay uncapped: a mirror must not turn the run red.
       - name: Install Playwright browser
         timeout-minutes: 10
-        run: pnpm --filter @myk9/show exec playwright install --with-deps webkit
+        uses: ./.github/actions/install-playwright
+        with:
+          browser: webkit
 
       # MYK9-1467: boot each edge function the app calls before the sweep, so a page's
       # first call does not pay the start-up inside the 5 s settle window. Prints
@@ -298,7 +303,9 @@ jobs:
         run: pnpm -r --filter='./packages/*' build
 
       - name: Install Playwright browser
-        run: pnpm --filter @myk9/show exec playwright install --with-deps chromium
+        uses: ./.github/actions/install-playwright
+        with:
+          browser: chromium
 
       - name: Probe the public routes on myk9show.com
         working-directory: apps/myk9show

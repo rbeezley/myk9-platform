@@ -121,7 +121,10 @@ describe('nightly health workflow', () => {
     expect(job).toContain("MYK9_NIGHTLY_HEALTH_PROJECTS: 'webkit,mobile-safari'");
     // Installing chromium here would silently produce a run with no browser
     // for either configured project.
-    expect(job).toContain('playwright install --with-deps webkit');
+    // The install runs through the shared cached action (MYK9-1715).
+    expect(job).toContain('uses: ./.github/actions/install-playwright');
+    expect(job).toMatch(/browser: webkit\n/);
+    expect(job).not.toMatch(/browser: chromium\n/);
   });
 
   it.each(HEALTH_JOBS)('runs the credential preflight before route health in %s', jobName => {

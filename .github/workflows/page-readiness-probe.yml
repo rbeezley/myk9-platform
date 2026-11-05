@@ -51,7 +51,9 @@ jobs:
         run: pnpm -r --filter='./packages/*' build
 
       - name: Install Playwright Chromium
-        run: pnpm --filter @myk9/show exec playwright install --with-deps chromium
+        uses: ./.github/actions/install-playwright
+        with:
+          browser: chromium
 
       - name: Build production bundle
         working-directory: apps/myk9show

@@ -104,7 +104,9 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=6144
 
       - name: Install Playwright browser
-        run: pnpm --filter @myk9/show exec playwright install --with-deps chromium
+        uses: ./.github/actions/install-playwright
+        with:
+          browser: chromium
 
       - name: Run Playwright Regression
         run: pnpm qa:playwright:regression

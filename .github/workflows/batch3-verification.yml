@@ -97,7 +97,9 @@ jobs:
         env:
           NODE_OPTIONS: --max-old-space-size=6144
       - name: Install Chromium
-        run: pnpm --filter @myk9/show exec playwright install --with-deps chromium
+        uses: ./.github/actions/install-playwright
+        with:
+          browser: chromium
       - name: Compile proof tests
         working-directory: apps/myk9show
         run: pnpm exec tsc --noEmit -p tsconfig.show-day.json

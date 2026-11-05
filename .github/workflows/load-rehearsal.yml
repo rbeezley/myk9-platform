@@ -399,7 +399,9 @@ jobs:
           psql --version
 
       - name: Install Playwright Chromium
-        run: pnpm --filter @myk9/show exec playwright install --with-deps chromium
+        uses: ./.github/actions/install-playwright
+        with:
+          browser: chromium
 
       - name: Build production bundle for load serving
         working-directory: apps/myk9show

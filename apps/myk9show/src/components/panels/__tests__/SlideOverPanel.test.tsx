@@ -7,6 +7,29 @@ import { selectReservedBottom, useActionBarStore } from '@/store/actionBarStore'
 
 const reservedBottom = () => selectReservedBottom(useActionBarStore.getState());
 
+// MYK9-99 regression pin: `size` must reach the panel as its own md+ cap (it was
+// once inert, every size rendering the same width). Below md the panel is full
+// width with no cap at all (MYK9-1712); the rendered geometry was checked in a
+// real browser, which a class list cannot prove.
+describe('SlideOverPanel responsive sizing', () => {
+  it.each([
+    ['sm', 'md:max-w-md'],
+    ['md', 'md:max-w-lg'],
+    ['lg', 'md:max-w-2xl'],
+    ['xl', 'md:max-w-4xl'],
+  ] as const)('caps the %s panel at %s and nothing below md', (size, expected) => {
+    render(
+      <SlideOverPanel open onClose={vi.fn()} title={`${size} panel`} size={size}>
+        <p>Body</p>
+      </SlideOverPanel>
+    );
+
+    const panel = screen.getByRole('dialog').querySelector('.slide-over-panel');
+    const maxWidths = [...(panel?.classList ?? [])].filter(c => /(^|:)max-w-/.test(c));
+    expect(maxWidths).toEqual([expected]);
+  });
+});
+
 describe('SlideOverPanel action-bar registration', () => {
   it('reserves the footer height while the panel is open and releases it on close', () => {
     const rectSpy = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({

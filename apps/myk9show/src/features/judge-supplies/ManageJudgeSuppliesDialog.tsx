@@ -89,7 +89,6 @@ export function ManageJudgeSuppliesDialog({
       onClose={() => onOpenChange(false)}
       title={`Manage supplies — ${judge.judge_name}`}
       size="md"
-      className="sm:max-w-lg"
       footer={
         <div className="flex justify-end">
           <Button variant="outline" onClick={() => onOpenChange(false)}>

@@ -258,7 +258,7 @@ Then `grep -n "function applyShowScope" supabase/functions/_shared/askq/toolExec
   data must call `applyShowScope`. A reviewer should reject a new
   `serviceClient.from('<tenant table>')` in `toolExecutor.ts` that doesn't.
 - Deployment is out of scope here: after merge, a human must
-  `supabase functions deploy ask-myk9show` (per project deploy rules) for the fix
+  `supabase functions deploy ask-myk9show --project-ref sojmvhhwsjxmfistvzbe` (per project deploy rules) for the fix
   to take effect in staging/prod. Note that in the PR description.
 - Follow-up deferred: the impossible-UUID sentinel is a pragmatic fail-closed.
   A stricter design would have `executeTool` refuse scoped tools outright when

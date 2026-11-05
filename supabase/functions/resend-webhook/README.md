@@ -12,7 +12,7 @@ Receives Resend webhook events (delivery, bounce, complaint) and updates email_l
 ## Deployment
 
 ```bash
-supabase functions deploy resend-webhook --no-verify-jwt
+supabase functions deploy resend-webhook --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt
 ```
 
 Then configure webhook URL in Resend Dashboard → Webhooks.

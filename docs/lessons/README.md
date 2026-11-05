@@ -55,7 +55,7 @@ Shuffled fast runs are NOT enough for a **timeout**-class flake — those need s
 
 ## functions-deploy-workdir
 
-**Guard:** MYK9-1654 (check not built yet)
+**Guard:** `apps/myk9show/src/test/ci/functionsDeployProjectRef.test.ts`
 
 `supabase functions deploy --workdir apps/myk9show` follows that dir's `.temp/project-ref`, which once held the defunct `myK9Show-Working` ref — the deploy-to-the-wrong-project trap this rule was written for. **That premise no longer holds:** since #1582 (2026-08-02) the file is _tracked in git_ carrying the correct `sojmvhhwsjxmfistvzbe`, so every clone starts correct and a local `supabase link` that rewrites it now shows up in `git status` instead of drifting silently. Two consequences. (1) Do NOT "tidy up" the tracked `apps/myk9show/supabase/.temp/*` files just because `.gitignore` lists `**/supabase/.temp/` — gitignore does not apply to already-tracked files, and untracking them re-arms the original trap. (2) Still pass `--project-ref sojmvhhwsjxmfistvzbe` explicitly and confirm the "Deployed Functions on project ..." line names the right ref: the flag is free, the file is only correct by accident of that commit, and a deploy to the wrong project is not cheap to undo.
 

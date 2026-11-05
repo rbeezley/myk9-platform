@@ -18,7 +18,7 @@ export function AccountSectionList({ groups, onSelect }: AccountSectionListProps
   return (
     <nav aria-label="Account sections" className="space-y-5">
       {groups.map(group => (
-        <section key={group.label} aria-label={group.label}>
+        <div key={group.label}>
           {/* A heading that only repeats its one row ("Security" over Security) is noise. */}
           {!(group.items.length === 1 && group.items[0].label === group.label) && (
             <h2 className="mb-1.5 px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -42,7 +42,7 @@ export function AccountSectionList({ groups, onSelect }: AccountSectionListProps
               </li>
             ))}
           </ul>
-        </section>
+        </div>
       ))}
     </nav>
   );

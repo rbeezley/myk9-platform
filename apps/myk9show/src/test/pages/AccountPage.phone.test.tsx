@@ -30,6 +30,9 @@ vi.mock('@/components/notifications/NotificationSettings', () => ({
 vi.mock('@/components/preferences/SecuritySettings', () => ({
   SecuritySettings: () => <div data-testid="security-settings" />,
 }));
+vi.mock('@/components/preferences/InstallAppSettings', () => ({
+  InstallAppSettings: () => <div data-testid="install-settings" />,
+}));
 
 const SECTION_LABELS = [
   'Profile',
@@ -73,6 +76,22 @@ describe('AccountPage on a phone (MYK9-1717)', () => {
     expect(screen.queryByTestId('notification-settings')).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 1, name: 'Account' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Security' })).toBeInTheDocument();
+  });
+
+  it('starts each view at the top with focus on its title, but not on first load', () => {
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
+    render();
+    expect(scrollTo).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Install app' }));
+    expect(scrollTo).toHaveBeenCalledWith(0, 0);
+    expect(screen.getByRole('heading', { level: 1, name: 'Install app' })).toHaveFocus();
+
+    scrollTo.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: 'Back to Account' }));
+    expect(scrollTo).toHaveBeenCalledWith(0, 0);
+    expect(screen.getByRole('heading', { level: 1, name: 'Account' })).toHaveFocus();
+    scrollTo.mockRestore();
   });
 
   it('a deep link opens its section directly, and Back goes to the list', () => {

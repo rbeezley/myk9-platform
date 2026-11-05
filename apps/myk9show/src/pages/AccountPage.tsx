@@ -106,6 +106,22 @@ export default function AccountPage() {
   // On a phone, the bare /account URL is the section list; a section param
   // (deep link or a tapped row) opens that section with a Back control.
   const showPhoneList = isPhone && readSectionParam(searchParams) === null;
+  const phoneSectionOpen = isPhone && !showPhoneList;
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const phoneViewKey = isPhone ? (showPhoneList ? 'list' : `section:${active}`) : null;
+  const previousPhoneViewKey = useRef(phoneViewKey);
+
+  // Moving between the phone list and a section swaps the whole view in place:
+  // start it at the top (the list scrolls on a short phone) and move focus to
+  // its title, since the row or Back button that had focus just unmounted.
+  useEffect(() => {
+    if (previousPhoneViewKey.current === phoneViewKey) return;
+    const wasPhoneView = previousPhoneViewKey.current !== null;
+    previousPhoneViewKey.current = phoneViewKey;
+    if (phoneViewKey === null || !wasPhoneView) return;
+    window.scrollTo(0, 0);
+    headingRef.current?.focus({ preventScroll: true });
+  }, [phoneViewKey]);
   const user = useAuthUser();
   const isOnline = useOnlineStatus();
   const { mode } = useTheme();
@@ -304,9 +320,9 @@ export default function AccountPage() {
     // ~110px of empty space above the title (MYK9-1717).
     <div className="min-h-screen bg-background">
       <div className="container mx-auto max-w-4xl px-4 py-4 md:py-8">
-        {isPhone && !showPhoneList && <AccountSectionBack onBack={handlePhoneBack} />}
-        <h1 className="mb-4 text-2xl font-bold md:mb-8">
-          {isPhone && !showPhoneList ? activeLabel : 'Account'}
+        {phoneSectionOpen && <AccountSectionBack onBack={handlePhoneBack} />}
+        <h1 ref={headingRef} tabIndex={-1} className="mb-4 text-2xl font-bold outline-none md:mb-8">
+          {phoneSectionOpen ? activeLabel : 'Account'}
         </h1>
 
         {/* Rendered as a fixed overlay (not in normal flow) so the flash never
@@ -316,7 +332,7 @@ export default function AccountPage() {
         {flash && (
           <div
             data-testid="account-flash-overlay"
-            className="fixed left-1/2 top-24 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2"
+            className="fixed left-1/2 top-[calc(var(--app-top-inset,3rem)+0.5rem)] z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2"
           >
             {flash.kind === 'success' ? (
               <Alert className="border-success/30 bg-success/10 text-success shadow-lg">

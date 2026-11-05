@@ -16,7 +16,12 @@ function run(body: string, name: string) {
   return spawnSync('bash', [script, file], { encoding: 'utf8' });
 }
 
-describe('shellcheck-sc2318.sh', () => {
+// The Mac has no shellcheck; CI always does (the runner image ships it, and the
+// Quality Checks step installs it if not). Skip locally, never in CI.
+const hasShellcheck = spawnSync('shellcheck', ['--version']).status === 0;
+const describeIfShellcheck = hasShellcheck || process.env.CI ? describe : describe.skip;
+
+describeIfShellcheck('shellcheck-sc2318.sh', () => {
   it('fails on a local that references a variable declared on the same line', () => {
     const r = run('f() {\n  local s="$1" n=${#s}\n  echo "$n"\n}\n', 'hit.sh');
     expect(r.status).not.toBe(0);

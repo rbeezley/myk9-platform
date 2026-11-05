@@ -103,7 +103,7 @@ Migration-parsing tests (e.g. `anonEntriesGrantContract`) read the whole `supaba
 
 ## slideover-size-band
 
-**Retired 2026-11-05 (MYK9-1712).** `SlideOverPanel` no longer has the 640-767px band: `sizeClasses` is `w-full md:max-w-<size>` and the mobile block is `rounded-none md:rounded-{l,r}-xl`, with no `sm:` override, so the panel is full width below 768px and sized by `size` from 768px. The trap is structurally gone; the narrative below is the history and describes the old behavior.
+**Retired 2026-11-05 (MYK9-1712, #3632).** `SlideOverPanel` no longer has the 640-767px band: `sizeClasses` is `w-full md:max-w-<size>` and the mobile block is `rounded-none md:rounded-{l,r}-xl`, with no `sm:` override, so the panel is full width below 768px and sized by `size` from 768px. The trap is structurally gone; the narrative below is the history and describes the old behavior.
 
 MYK9-99 (2026-07-26) found `SlideOverPanel`'s `size` prop genuinely inert: the chain hardcoded `md:max-w-lg lg:max-w-2xl xl:max-w-4xl`, so every panel rendered the same width and PR #1469's attempt to widen one form had no visible effect. The lesson was written that morning (#1476, 10:15) and PR #1482 fixed it that afternoon (14:29) by deriving the responsive width from `size`. The warning then sat in CLAUDE.md for six weeks describing behavior that had been corrected four hours after it was recorded, and on 2026-09-14 it cost a real edit: acting on it in #2221 I added `className="md:max-w-2xl"` to `ManageRegistrationsPanel`, a no-op duplicate of what `size="lg"` already supplies, caught in review and reverted.
 

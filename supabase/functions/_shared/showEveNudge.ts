@@ -255,7 +255,7 @@ export function buildShowEveNudgePayload({
     // replace the first instead of showing both.
     type: `show-eve:${showId}`,
     title: `${showName} ${verb} tomorrow`,
-    body: 'You judge or run rings tomorrow. Open the show now, while you have internet, so it works without internet at the venue.',
+    body: "You're working this show tomorrow. Open the show now, while you have internet, so it works without internet at the venue.",
     // Tapping the notification opens the show, which primes the device — the
     // reminder and the fix are the same action.
     data: { actionUrl: `/at-show/${showId}` },

@@ -101,6 +101,10 @@ describe('buildShowEveNudgePayload', () => {
     });
 
     expect(payload.title).toContain('Cedar Falls Scent Work');
+    expect(payload.body).toBe(
+      "You're working this show tomorrow. Open the show now, while you have internet, so it works without internet at the venue."
+    );
+    expect(payload.body).not.toMatch(/\b(judges?|rings?)\b/i);
     expect(payload.body).toMatch(/open the show/i);
     expect(payload.body).toMatch(/without internet/i);
     // Deep link so the tap itself primes the device. The service worker reads

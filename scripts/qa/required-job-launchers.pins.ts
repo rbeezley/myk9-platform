@@ -174,7 +174,7 @@ export const PINNED_SCRIPTS: readonly PinnedScript[] = [
     pkgDir: '.',
     script: 'qa:prelaunch-tripwire:test',
     command:
-      'vitest run scripts/qa/prelaunch-tripwire.test.ts scripts/qa/deploy-migration-guard.test.ts',
+      'vitest run scripts/qa/prelaunch-tripwire.test.ts scripts/qa/deploy-migration-guard.test.ts scripts/qa/vercel-env-placeholder-guard.test.ts',
   },
   {
     pkgDir: '.',

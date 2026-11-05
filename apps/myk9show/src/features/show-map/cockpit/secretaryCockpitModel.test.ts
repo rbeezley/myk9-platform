@@ -166,7 +166,10 @@ describe('buildSecretaryCockpitModel schedule projection', () => {
   });
 
   it('groups Trials in configured order and keeps timed, tied, then untimed Classes stable', () => {
-    const model = buildSecretaryCockpitModel(makeSnapshot(), { filter: 'all' });
+    const model = buildSecretaryCockpitModel(makeSnapshot(), {
+      filter: 'all',
+      selectedDays: ['2026-07-20'],
+    });
 
     expect(model.trialGroups.map(group => group.trialId)).toEqual(['trial-1', 'trial-2']);
     expect(model.trialGroups[0]?.label).toBe('Trial 1 · July 20');
@@ -459,7 +462,7 @@ describe('buildSecretaryCockpitModel show home', () => {
   });
 
   it('shows every trial in All days, opening only the default day', () => {
-    const model = buildSecretaryCockpitModel(makeSnapshot(), { filter: 'all', selectedDay: 'all' });
+    const model = buildSecretaryCockpitModel(makeSnapshot(), { filter: 'all', selectedDays: [] });
 
     expect(model.day).toMatchObject({ allDays: true, selected: '2026-07-20' });
     expect(model.trialGroups.map(group => [group.trialId, group.defaultOpen])).toEqual([
@@ -476,7 +479,7 @@ describe('buildSecretaryCockpitModel show home', () => {
   it('opens the trial the URL anchors on in All days, even on another day (MYK9-1320)', () => {
     const model = buildSecretaryCockpitModel(makeSnapshot(), {
       filter: 'all',
-      selectedDay: 'all',
+      selectedDays: [],
       anchor: 'trial-3',
     });
 
@@ -490,7 +493,7 @@ describe('buildSecretaryCockpitModel show home', () => {
   it('opens every trial when one day is chosen', () => {
     const model = buildSecretaryCockpitModel(makeSnapshot(), {
       filter: 'all',
-      selectedDay: '2026-07-21',
+      selectedDays: ['2026-07-21'],
     });
 
     expect(model.day.allDays).toBe(false);
@@ -499,8 +502,92 @@ describe('buildSecretaryCockpitModel show home', () => {
     ]);
   });
 
+  describe('MYK9-1719: several ticked days', () => {
+    const threeDays = () =>
+      makeSnapshot({
+        trials: [
+          ...makeSnapshot().trials,
+          { id: 'trial-4', date: '2026-07-22', name: 'Trial 4', number: 'Trial 4', order: 3 },
+        ],
+      });
+
+    it('shows only the ticked days, opening the default day when it is in scope', () => {
+      const model = buildSecretaryCockpitModel(threeDays(), {
+        filter: 'all',
+        selectedDays: ['2026-07-22', '2026-07-20'],
+      });
+
+      expect(model.day).toMatchObject({
+        allDays: false,
+        days: ['2026-07-20', '2026-07-22'],
+        selected: '2026-07-20',
+        isToday: false,
+      });
+      expect(model.trialGroups.map(group => [group.trialId, group.defaultOpen])).toEqual([
+        ['trial-1', true],
+        ['trial-2', true],
+        ['trial-4', false],
+      ]);
+      expect(model.daySchedule.map(row => row.id)).not.toContain('tomorrow');
+    });
+
+    it('falls back to the earliest ticked day when the default day is out of scope', () => {
+      const model = buildSecretaryCockpitModel(threeDays(), {
+        filter: 'all',
+        selectedDays: ['2026-07-22', '2026-07-21'],
+      });
+
+      expect(model.day.selected).toBe('2026-07-21');
+      expect(model.trialGroups.map(group => [group.trialId, group.defaultOpen])).toEqual([
+        ['trial-3', true],
+        ['trial-4', false],
+      ]);
+    });
+
+    it('none ticked, or every day ticked, means all days', () => {
+      const none = buildSecretaryCockpitModel(threeDays(), { filter: 'all', selectedDays: [] });
+      const every = buildSecretaryCockpitModel(threeDays(), {
+        filter: 'all',
+        selectedDays: ['2026-07-20', '2026-07-21', '2026-07-22'],
+      });
+
+      expect(none.day.allDays).toBe(true);
+      expect(every.day.allDays).toBe(true);
+      expect(every.trialGroups.map(group => group.trialId)).toEqual(
+        none.trialGroups.map(group => group.trialId)
+      );
+      expect(none.trialGroups).toHaveLength(4);
+    });
+
+    it('ignores ticks that name no day of the show', () => {
+      const model = buildSecretaryCockpitModel(threeDays(), {
+        filter: 'all',
+        selectedDays: ['2026-01-01'],
+      });
+
+      expect(model.day).toMatchObject({ allDays: true, days: [] });
+    });
+
+    it('is "today" only when exactly today is ticked', () => {
+      const today = '2026-07-20';
+      expect(
+        buildSecretaryCockpitModel(threeDays(), { filter: 'all', selectedDays: [today] }).day
+          .isToday
+      ).toBe(true);
+      expect(
+        buildSecretaryCockpitModel(threeDays(), { filter: 'all', selectedDays: [] }).day.isToday
+      ).toBe(false);
+      expect(
+        buildSecretaryCockpitModel(threeDays(), {
+          filter: 'all',
+          selectedDays: [today, '2026-07-21'],
+        }).day.isToday
+      ).toBe(false);
+    });
+  });
+
   it('keeps the default focus on the default day in All days', () => {
-    const model = buildSecretaryCockpitModel(makeSnapshot(), { filter: 'all', selectedDay: 'all' });
+    const model = buildSecretaryCockpitModel(makeSnapshot(), { filter: 'all', selectedDays: [] });
 
     expect(model.focusedClass?.id).toBe('active');
   });
@@ -508,7 +595,7 @@ describe('buildSecretaryCockpitModel show home', () => {
   it('stays quiet before the show: no "starts in" reminder for a class tomorrow', () => {
     // 09:35 in Chicago on July 19; `upcoming` starts 10:00 on July 20.
     const before = makeSnapshot({ now: new Date('2026-07-19T14:35:00.000Z') });
-    const model = buildSecretaryCockpitModel(before, { filter: 'all', selectedDay: 'all' });
+    const model = buildSecretaryCockpitModel(before, { filter: 'all', selectedDays: [] });
 
     expect(model.attention.all.filter(item => item.kind === 'preparation')).toEqual([]);
     expect(model.trialGroups.every(group => group.nowMarkerIndex === null)).toBe(true);

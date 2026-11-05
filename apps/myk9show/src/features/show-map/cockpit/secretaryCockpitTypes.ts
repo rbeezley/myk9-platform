@@ -177,7 +177,8 @@ export interface SecretaryCockpitSnapshot {
 }
 
 export interface SecretaryCockpitState {
-  selectedDay?: string | undefined;
+  /** The ticked show days; empty or absent means every day (MYK9-1719). */
+  selectedDays?: readonly string[] | undefined;
   focusedClassId?: string | undefined;
   /** The URL's anchor; when it names a trial, that trial opens whatever the day (MYK9-1320). */
   anchor?: string | undefined;
@@ -237,8 +238,14 @@ export interface FocusedClassModel extends ScheduledClassModel {
 
 export interface SecretaryCockpitModel {
   day: {
-    /** The chosen day, or in All days the default day whose trials start open. */
+    /**
+     * The one ticked day; otherwise (several ticked, or every day) the default day whose trials
+     * start open, or the earliest ticked day when the default is out of scope.
+     */
     selected: string | null;
+    /** The ticked days that exist on this show, sorted. Empty means every day. */
+    days: readonly string[];
+    /** No day is ticked, or the ticks cover every show day. */
     allDays: boolean;
     available: readonly string[];
     isToday: boolean;

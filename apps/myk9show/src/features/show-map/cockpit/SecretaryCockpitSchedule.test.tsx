@@ -48,7 +48,7 @@ const snapshotWithUnmatchedFilter: SecretaryCockpitSnapshot = {
 function renderSchedule(snapshot: SecretaryCockpitSnapshot, filter: 'all' | 'needs-attention') {
   const model = buildSecretaryCockpitModel(snapshot, {
     filter,
-    selectedDay: undefined,
+    selectedDays: undefined,
     focusedClassId: undefined,
   });
   return render(
@@ -170,7 +170,7 @@ describe('SecretaryCockpitSchedule view tabs', () => {
     const onFilterChange = vi.fn();
     const model = buildSecretaryCockpitModel(snapshotWithMixedStates, {
       filter: 'all',
-      selectedDay: undefined,
+      selectedDays: undefined,
       focusedClassId: undefined,
     });
     const { user } = render(
@@ -212,7 +212,7 @@ describe('SecretaryCockpitSchedule offline', () => {
 
     const model = buildSecretaryCockpitModel(snapshotWithMixedStates, {
       filter: 'all',
-      selectedDay: undefined,
+      selectedDays: undefined,
       focusedClassId: undefined,
     });
     const { user } = render(

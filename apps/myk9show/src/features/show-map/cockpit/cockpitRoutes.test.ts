@@ -9,6 +9,7 @@ import {
   getCockpitResultsControlHref,
   getCockpitSubmitResultsHref,
   getShowHomeHref,
+  getShowHomeTrialHref,
   leaveSelectClassesSearch,
   selectClassesAnchor,
   normalizeCockpitUrlState,
@@ -18,7 +19,7 @@ import {
 } from './cockpitRoutes';
 
 const context = {
-  selectedDay: '2026-07-20',
+  selectedDays: ['2026-07-20'],
   filter: 'needs-attention' as const,
   focusedClassId: 'class/1',
   anchor: 'trial-1',
@@ -36,7 +37,7 @@ describe('Show Desk context routes', () => {
         new URLSearchParams('day=2026-07-20&filter=bad&focus=class-1&anchor=trial-1')
       )
     ).toEqual({
-      selectedDay: '2026-07-20',
+      selectedDays: ['2026-07-20'],
       filter: 'all',
       focusedClassId: 'class-1',
       anchor: 'trial-1',
@@ -61,7 +62,7 @@ describe('Show Desk context routes', () => {
     const previous = new URLSearchParams('tool=people-at-show&view=needs-check-in');
 
     expect(
-      writeCockpitUrlState(previous, { ...context, selectedDay: '2026-07-21' }).toString()
+      writeCockpitUrlState(previous, { ...context, selectedDays: ['2026-07-21'] }).toString()
     ).toBe(
       'day=2026-07-21&filter=needs-attention&focus=class%2F1&anchor=trial-1&tool=people-at-show&view=needs-check-in'
     );
@@ -157,10 +158,36 @@ describe('Show Desk context routes', () => {
   });
 
   it('treats a missing day as All days and never writes it back', () => {
-    expect(normalizeCockpitUrlState(new URLSearchParams()).selectedDay).toBe('all');
+    expect(normalizeCockpitUrlState(new URLSearchParams()).selectedDays).toEqual([]);
     expect(
-      writeCockpitUrlState(new URLSearchParams(), { selectedDay: 'all', filter: 'all' }).toString()
+      writeCockpitUrlState(new URLSearchParams(), { selectedDays: [], filter: 'all' }).toString()
     ).toBe('');
+  });
+
+  it('MYK9-1719: writes ticked days comma-joined and sorted, and reads them back', () => {
+    const written = writeCockpitUrlState(new URLSearchParams(), {
+      selectedDays: ['2026-11-07', '2026-11-06'],
+      filter: 'all',
+    });
+    expect(written.get('day')).toBe('2026-11-06,2026-11-07');
+    expect(normalizeCockpitUrlState(written).selectedDays).toEqual(['2026-11-06', '2026-11-07']);
+  });
+
+  it('MYK9-1719: reads a legacy single day, and drops invalid entries from a list', () => {
+    expect(normalizeCockpitUrlState(new URLSearchParams('day=2026-11-06')).selectedDays).toEqual([
+      '2026-11-06',
+    ]);
+    expect(
+      normalizeCockpitUrlState(new URLSearchParams('day=bad,2026-11-07,2026-11-6,2026-11-07'))
+        .selectedDays
+    ).toEqual(['2026-11-07']);
+    expect(normalizeCockpitUrlState(new URLSearchParams('day=all')).selectedDays).toEqual([]);
+  });
+
+  it('MYK9-1719: deep links that name one date still write a single `day`', () => {
+    expect(getShowHomeTrialHref('show-1', { id: 'trial-1', date: '2026-11-06' })).toBe(
+      '/shows/show-1?day=2026-11-06&anchor=trial-1'
+    );
   });
 
   it('still accepts the LEGACY /show-desk spelling and canonicalizes it forward', () => {
@@ -230,7 +257,7 @@ describe('Select classes on the schedule (MYK9-1324)', () => {
   it("the cockpit's own URL writes keep the mode and its returnTo", () => {
     const written = writeCockpitUrlState(
       new URLSearchParams('select=classes&returnTo=%2Fshows%2Fshow-1'),
-      { selectedDay: '2026-10-10', filter: 'all', focusedClassId: undefined, anchor: undefined }
+      { selectedDays: ['2026-10-10'], filter: 'all', focusedClassId: undefined, anchor: undefined }
     );
     expect(written.get('select')).toBe('classes');
     expect(written.get('returnTo')).toBe('/shows/show-1');
@@ -238,7 +265,7 @@ describe('Select classes on the schedule (MYK9-1324)', () => {
 
     expect(
       writeCockpitUrlState(new URLSearchParams('returnTo=%2Fshows%2Fshow-1'), {
-        selectedDay: undefined,
+        selectedDays: undefined,
         filter: 'all',
         focusedClassId: undefined,
         anchor: undefined,

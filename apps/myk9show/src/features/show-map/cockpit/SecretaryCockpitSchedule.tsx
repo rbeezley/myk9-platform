@@ -8,6 +8,7 @@ import type { ClassEntryBreakdown } from '@/features/entry-operations/classEntry
 import { CockpitTrialGroup } from './CockpitTrialGroup';
 import { ScheduleSelectHeader } from './ScheduleSelectHeader';
 import type { ScheduleClassSelection } from './useScheduleClassSelection';
+import { cockpitDaysKey } from './cockpitDayFilter';
 import { buildCockpitScheduleViews } from './secretaryCockpitViews';
 import type {
   CockpitFilter,
@@ -47,9 +48,11 @@ export function SecretaryCockpitSchedule({
   select?: ScheduleClassSelection | undefined;
 }) {
   const selecting = select?.active ? select : undefined;
+  const dayKey = cockpitDaysKey(model.day.allDays ? [] : model.day.days);
   const classById = new Map(sourceClasses.map(classItem => [classItem.id, classItem]));
+  const scopeDays = new Set(model.day.allDays ? model.day.available : model.day.days);
   const trialIdsForSelectedDay = new Set(
-    sourceTrials.filter(trial => trial.date === model.day.selected).map(trial => trial.id)
+    sourceTrials.filter(trial => scopeDays.has(trial.date)).map(trial => trial.id)
   );
   const hasAnyClassForSelectedDay = sourceClasses.some(classItem =>
     trialIdsForSelectedDay.has(classItem.trialId)
@@ -73,7 +76,7 @@ export function SecretaryCockpitSchedule({
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div>
               <h2 id="cockpit-schedule-title" className="text-2xl font-semibold tracking-tight">
-                {model.day.isToday && !model.day.allDays ? "Today's schedule" : 'Show schedule'}
+                {model.day.isToday ? "Today's schedule" : 'Show schedule'}
               </h2>
               <p className="text-sm text-muted-foreground">
                 Pick a class to see its checklist. Filters apply to this schedule only.
@@ -112,13 +115,13 @@ export function SecretaryCockpitSchedule({
           <div className="rounded-xl border bg-card px-4 py-8 text-center text-sm text-muted-foreground">
             {hasAnyClassForSelectedDay && filter !== 'all'
               ? 'No Classes match this filter.'
-              : 'No Classes are scheduled for this day yet.'}
+              : `No Classes are scheduled for ${scopeDays.size > 1 ? 'these days' : 'this day'} yet.`}
           </div>
         )}
         {model.trialGroups.map(group => (
           <CockpitTrialGroup
             // Re-key on the day choice so each choice starts from its own default.
-            key={`${group.trialId}:${model.day.allDays ? 'all' : model.day.selected}`}
+            key={`${group.trialId}:${dayKey}`}
             group={group}
             showId={showId}
             model={model}

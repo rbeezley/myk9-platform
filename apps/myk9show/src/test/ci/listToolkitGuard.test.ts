@@ -55,11 +55,6 @@ const ARIA_PRESSED_DECLARED: Record<string, { count: number; reason: string }> =
     count: 1,
     reason: 'focus toggle on a schedule row, not a filter',
   },
-  'features/show-map/cockpit/SecretaryCockpit.tsx': {
-    count: 2,
-    reason:
-      'show-day picker (All days / one day, MYK9-955): one-tap day row kept on purpose; a select costs a tap on show day (MYK9-967 owner decision)',
-  },
   'features/at-show/AtShowScoresheetPage.tsx': { count: 1, reason: 'ringside scoring toggle' },
   'features/at-show/AtShowClassCardFooter.tsx': {
     count: 1,

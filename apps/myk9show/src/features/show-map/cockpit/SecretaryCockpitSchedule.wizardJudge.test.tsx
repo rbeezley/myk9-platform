@@ -104,7 +104,7 @@ function renderScheduleFromWizard() {
   });
   const model = buildSecretaryCockpitModel(snapshot, {
     filter: 'all',
-    selectedDay: undefined,
+    selectedDays: undefined,
     focusedClassId: undefined,
   });
   return render(

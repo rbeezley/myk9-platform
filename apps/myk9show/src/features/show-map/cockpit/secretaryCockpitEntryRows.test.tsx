@@ -132,7 +132,7 @@ describe('cockpit entry rows carry the stranded actions', () => {
   it('renders a control that emits the commandId, and only for a manager', async () => {
     const { snapshot } = buildSnapshot();
     const model = buildSecretaryCockpitModel(snapshot, {
-      selectedDay: null,
+      selectedDays: undefined,
       filter: 'all',
       focusedClassId: 'class-1',
       anchor: undefined,

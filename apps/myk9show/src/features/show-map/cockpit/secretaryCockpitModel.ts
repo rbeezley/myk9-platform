@@ -1,7 +1,6 @@
 import { formatTrialLabel, parseStoredClockTime } from '@myk9/core';
 import type { RegistryId } from '@/features/registries';
 import { buildAttentionCountByClass, matchesCockpitFilter } from './secretaryCockpitAttention';
-import { ALL_DAYS } from './cockpitRoutes';
 import {
   buildCockpitClassLabelResolver,
   compareCockpitClasses,
@@ -35,7 +34,6 @@ import {
 import { buildClassChecklist, summarizeClassChecklist } from './classChecklist';
 
 const ATTENTION_LIMIT = 3;
-export { ALL_DAYS } from './cockpitRoutes';
 const PREPARATION_WINDOW_MINUTES = 30;
 const PRE_CLASS_PAPERWORK = new Set(['check-in-sheet', 'scoresheet', 'armband-labels']);
 
@@ -398,21 +396,30 @@ export function buildSecretaryCockpitModel(
 ): SecretaryCockpitModel {
   const trials = sortedTrials(snapshot);
   const available = [...new Set(trials.map(trial => trial.date))].sort();
-  const allDays = state.selectedDay === ALL_DAYS;
+  // Ticks that name no day of this show are ignored; none left (or every day ticked) is All days.
+  const days = (state.selectedDays ?? []).filter(day => available.includes(day)).sort();
+  const allDays = days.length === 0 || days.length === available.length;
+  const defaultDay = selectDay(snapshot);
+  // The day whose trials start open: the one ticked day, else the default day when it is in
+  // scope, else the earliest ticked day.
   const selectedDay =
-    state.selectedDay && available.includes(state.selectedDay)
-      ? state.selectedDay
-      : selectDay(snapshot);
-  const scopeTrials = allDays ? trials : trials.filter(trial => trial.date === selectedDay);
+    days.length === 1
+      ? days[0]!
+      : days.length === 0 || (defaultDay !== null && days.includes(defaultDay))
+        ? defaultDay
+        : days[0]!;
+  const daySet = new Set(days);
+  const scopeTrials = allDays ? trials : trials.filter(trial => daySet.has(trial.date));
+  const multiDayScope = new Set(scopeTrials.map(trial => trial.date)).size > 1;
   const dayClasses = classesForTrials(snapshot, scopeTrials);
   const explicitFocus = state.focusedClassId
     ? dayClasses.find(cls => cls.id === state.focusedClassId)
     : undefined;
-  // In All days, the default focus comes from the default day, not from a
+  // Across several days, the default focus comes from the open day, not from a
   // stale in-progress class on another day.
   const focused =
     explicitFocus ??
-    (allDays
+    (multiDayScope
       ? focusClass(
           classesForTrials(
             snapshot,
@@ -429,9 +436,10 @@ export function buildSecretaryCockpitModel(
   return {
     day: {
       selected: selectedDay,
+      days,
       allDays,
       available,
-      isToday: selectedDay === dateKeyInTimeZone(snapshot.now, snapshot.timeZone),
+      isToday: days.length === 1 && days[0] === dateKeyInTimeZone(snapshot.now, snapshot.timeZone),
     },
     attention: {
       items: allAttention.slice(0, ATTENTION_LIMIT),
@@ -454,7 +462,7 @@ export function buildSecretaryCockpitModel(
     ),
     trialGroups: buildTrialGroups(
       snapshot,
-      allDays ? selectedDay : null,
+      multiDayScope ? selectedDay : null,
       focused?.id,
       state.anchor,
       state.filter,

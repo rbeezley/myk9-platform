@@ -4,10 +4,8 @@ import { getPaperScoringClassHref } from '@/pages/scoring/scoringRoutes';
 import { getReportScopeSearchParams } from '@/lib/reports/reportScope';
 import type { ReportScope } from '@/lib/reports/types';
 
+import { parseCockpitDays, serializeCockpitDays } from './cockpitDayFilter';
 import type { CockpitFilter } from './secretaryCockpitTypes';
-
-/** The All days choice; the URL leaves `day` unset for it. */
-export const ALL_DAYS = 'all';
 
 const COCKPIT_FILTERS: ReadonlySet<string> = new Set([
   'all',
@@ -17,7 +15,8 @@ const COCKPIT_FILTERS: ReadonlySet<string> = new Set([
 ]);
 
 export interface CockpitUrlState {
-  selectedDay?: string | undefined;
+  /** The ticked show days; empty or absent means every day (MYK9-1719). */
+  selectedDays?: readonly string[] | undefined;
   filter: CockpitFilter;
   focusedClassId?: string | undefined;
   anchor?: string | undefined;
@@ -30,12 +29,13 @@ export function getCockpitAnchorElementId(anchor: string): string {
 export function normalizeCockpitUrlState(params: URLSearchParams): CockpitUrlState {
   const rawFilter = params.get('filter');
   const filter = COCKPIT_FILTERS.has(rawFilter ?? '') ? (rawFilter as CockpitFilter) : 'all';
-  // No `day` means All days, the show home's default (MYK9-955).
-  const selectedDay = params.get('day')?.match(/^\d{4}-\d{2}-\d{2}$/)?.[0] ?? ALL_DAYS;
+  // No `day` means All days, the show home's default (MYK9-955). A lone date is the older
+  // single-day link; a comma list is the ticked set.
+  const selectedDays = parseCockpitDays(params.get('day'));
   const focusedClassId = params.get('focus')?.trim() || undefined;
   const anchor = params.get('anchor')?.trim() || undefined;
   return {
-    selectedDay,
+    selectedDays,
     filter,
     ...(focusedClassId ? { focusedClassId } : {}),
     ...(anchor ? { anchor } : {}),
@@ -47,7 +47,8 @@ export function writeCockpitUrlState(
   state: CockpitUrlState
 ): URLSearchParams {
   const params = new URLSearchParams();
-  if (state.selectedDay && state.selectedDay !== ALL_DAYS) params.set('day', state.selectedDay);
+  const day = serializeCockpitDays(state.selectedDays);
+  if (day) params.set('day', day);
   if (state.filter !== 'all') params.set('filter', state.filter);
   if (state.focusedClassId) params.set('focus', state.focusedClassId);
   if (state.anchor) params.set('anchor', state.anchor);
@@ -207,7 +208,7 @@ export function getShowHomeTrialHref(
     showId,
     state: {
       filter: 'all',
-      selectedDay: trial.date?.match(/^\d{4}-\d{2}-\d{2}$/)?.[0] ?? ALL_DAYS,
+      selectedDays: parseCockpitDays(trial.date),
       anchor: trial.id,
     },
   });

@@ -75,6 +75,34 @@ describe.each(sheets)('%s: phone layout', (_name, Sheet) => {
   });
 });
 
+// MYK9-1718: Start/Stop is the most time-critical tap on the sheet, so it is a 56px-tall
+// thumb target that takes the whole controls row (alone, there is no sibling to share with).
+describe.each(sheets.filter(([name]) => name !== 'UKC Obedience'))(
+  '%s: Start is a thumb-sized button',
+  (_name, Sheet) => {
+    it('is at least 56px tall and fills the timer card controls row', () => {
+      render(<Sheet {...props()} />);
+      const start = screen.getByTestId('timer-start');
+      expect(start.className).toMatch(/(^|\s)h-14(\s|$)/);
+      expect(start.className).toMatch(/flex-\[2\]/);
+      const row = start.parentElement as HTMLElement;
+      expect(row.parentElement).toBe(screen.getByTestId('scoresheet-timer-card'));
+      expect(Array.from(row.children).filter(c => c.tagName === 'BUTTON')).toEqual([start]);
+    });
+  }
+);
+
+describe('UKC Nosework dual timer: Start and Pause Search are thumb-sized', () => {
+  it('keeps Start at 56px, then Pause Search at 56px once the search is running', () => {
+    const p = props();
+    render(<UKCNoseworkLiveScoresheet {...p} rules={{ ...p.rules, timerMode: 'dual' }} />);
+    const start = screen.getByTestId('timer-start');
+    expect(start.className).toMatch(/(^|\s)h-14(\s|$)/);
+    fireEvent.click(start);
+    expect(screen.getByTestId('timer-pause').className).toMatch(/(^|\s)h-14(\s|$)/);
+  });
+});
+
 describe('ResultChoiceChips faults', () => {
   it('puts the label and both 44px steppers on one row, with the stepper hit areas', () => {
     render(

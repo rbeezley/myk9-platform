@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle,
   Bell,
@@ -36,7 +36,13 @@ import { useTheme } from '@/hooks/useTheme';
 import { useApplyServerTheme } from '@/hooks/useApplyServerTheme';
 import { useOnlineStatus } from '@/lib/networkUtils';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { ProfileSection, BillingSection, DeleteSection } from './AccountPage.sections';
+import {
+  ACCOUNT_PHONE_QUERY,
+  AccountSectionBack,
+  AccountSectionList,
+} from './AccountPage.phoneNav';
 import type { Section, NavGroup } from './AccountPage.types';
 import type { PreferencesUpdate } from '@/types/user-preferences';
 import { FormSkeleton } from '@/components/common/SkeletonLoaders';
@@ -93,7 +99,13 @@ function readSectionParam(searchParams: URLSearchParams): Section | null {
 
 export default function AccountPage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [active, setActive] = useState<Section>(() => readSectionParam(searchParams) ?? 'profile');
+  const isPhone = useMediaQuery(ACCOUNT_PHONE_QUERY);
+  // On a phone, the bare /account URL is the section list; a section param
+  // (deep link or a tapped row) opens that section with a Back control.
+  const showPhoneList = isPhone && readSectionParam(searchParams) === null;
   const user = useAuthUser();
   const isOnline = useOnlineStatus();
   const { mode } = useTheme();
@@ -193,15 +205,51 @@ export default function AccountPage() {
     (section: Section) => {
       setActive(section);
       const nextParams = new URLSearchParams(searchParams);
-      if (section === 'profile') {
+      if (section === 'profile' && !isPhone) {
         nextParams.delete('section');
       } else {
         nextParams.set('section', section);
       }
-      setSearchParams(nextParams, { replace: true });
+      // A phone pushes so the device's own Back button returns to the list.
+      setSearchParams(
+        nextParams,
+        isPhone ? { state: { fromAccountList: true } } : { replace: true }
+      );
     },
-    [searchParams, setSearchParams]
+    [isPhone, searchParams, setSearchParams]
   );
+
+  const handlePhoneBack = useCallback(() => {
+    const state = location.state as { fromAccountList?: boolean } | null;
+    if (state?.fromAccountList) {
+      navigate(-1);
+      return;
+    }
+    // Arrived by deep link: there is no list entry behind us to go back to.
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete('section');
+    setSearchParams(nextParams, { replace: true });
+  }, [location.state, navigate, searchParams, setSearchParams]);
+
+  const resetButton = (
+    <Button
+      variant="ghost"
+      className="min-h-11 w-full justify-center px-3 text-muted-foreground md:justify-start md:text-sm"
+      onClick={() => handleReset()}
+      disabled={resetLoading || !isOnline}
+      title={isOnline ? 'Reset all settings' : 'Needs a connection'}
+    >
+      {resetLoading ? (
+        <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+      ) : (
+        <RotateCcw className="mr-2 h-3.5 w-3.5" />
+      )}
+      Reset all settings
+    </Button>
+  );
+
+  const activeLabel =
+    NAV_GROUPS.flatMap(group => group.items).find(item => item.key === active)?.label ?? 'Account';
 
   const renderSection = () => {
     if (!NON_PREF_SECTIONS.has(active) && prefsLoading) {
@@ -252,9 +300,14 @@ export default function AccountPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background pt-20">
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
-        <h1 className="text-2xl font-bold mb-8">Account</h1>
+    // The app shell already clears the fixed header; the old pt-20 here stacked
+    // ~110px of empty space above the title (MYK9-1717).
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto max-w-4xl px-4 py-4 md:py-8">
+        {isPhone && !showPhoneList && <AccountSectionBack onBack={handlePhoneBack} />}
+        <h1 className="mb-4 text-2xl font-bold md:mb-8">
+          {isPhone && !showPhoneList ? activeLabel : 'Account'}
+        </h1>
 
         {/* Rendered as a fixed overlay (not in normal flow) so the flash never
             shifts the nav/content layout below — see account-page-ux-remediation
@@ -279,64 +332,55 @@ export default function AccountPage() {
           </div>
         )}
 
-        <div className="flex flex-col gap-6 md:flex-row md:gap-8">
-          <nav className="w-full md:w-52 md:shrink-0" aria-label="Account sections">
-            <div className="-mx-4 overflow-x-auto px-4 pb-2 md:mx-0 md:overflow-visible md:px-0 md:pb-0">
-              <div className="flex w-max gap-2 md:block md:w-auto">
-                {NAV_GROUPS.map(group => (
-                  <div key={group.label || 'danger'} className="contents md:mb-4 md:block">
-                    {group.label && (
-                      <p className="sr-only px-3 mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground md:not-sr-only">
-                        {group.label}
-                      </p>
-                    )}
-                    <ul className="contents md:block md:space-y-0.5">
-                      {group.items.map(({ key, label, icon: Icon }) => (
-                        <li key={key} className="contents md:block">
-                          <button
-                            onClick={() => handleSectionChange(key)}
-                            aria-current={active === key ? 'page' : undefined}
-                            className={`flex min-h-11 w-auto items-center gap-2.5 whitespace-nowrap rounded-md px-3 py-2 text-sm transition-colors md:w-full md:whitespace-normal ${
-                              active === key
-                                ? key === 'delete'
-                                  ? 'bg-destructive/10 text-destructive font-medium'
-                                  : 'bg-primary/10 text-primary font-medium'
-                                : key === 'delete'
-                                  ? 'text-destructive/70 hover:bg-destructive/5 hover:text-destructive'
-                                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                            }`}
-                          >
-                            <Icon className="h-4 w-4 shrink-0" />
-                            {label}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
-            </div>
+        {isPhone ? (
+          showPhoneList ? (
+            <>
+              <AccountSectionList groups={NAV_GROUPS} onSelect={handleSectionChange} />
+              <div className="mt-4">{resetButton}</div>
+            </>
+          ) : (
+            renderSection()
+          )
+        ) : (
+          // Tablet and desktop (768px and up): the sidebar of sections.
+          <div className="flex flex-row gap-8">
+            <nav className="w-52 shrink-0" aria-label="Account sections">
+              {NAV_GROUPS.map(group => (
+                <div key={group.label} className="mb-4">
+                  <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    {group.label}
+                  </p>
+                  <ul className="space-y-0.5">
+                    {group.items.map(({ key, label, icon: Icon }) => (
+                      <li key={key}>
+                        <button
+                          onClick={() => handleSectionChange(key)}
+                          aria-current={active === key ? 'page' : undefined}
+                          className={`flex min-h-11 w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors ${
+                            active === key
+                              ? key === 'delete'
+                                ? 'bg-destructive/10 text-destructive font-medium'
+                                : 'bg-primary/10 text-primary font-medium'
+                              : key === 'delete'
+                                ? 'text-destructive/70 hover:bg-destructive/5 hover:text-destructive'
+                                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                          }`}
+                        >
+                          <Icon className="h-4 w-4 shrink-0" />
+                          {label}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
 
-            <div className="mt-3 border-t border-border/50 pt-3 md:mt-4 md:pt-4">
-              <Button
-                variant="ghost"
-                className="min-h-11 w-full justify-center px-3 text-muted-foreground md:justify-start md:text-sm"
-                onClick={() => handleReset()}
-                disabled={resetLoading || !isOnline}
-                title={isOnline ? 'Reset all settings' : 'Needs a connection'}
-              >
-                {resetLoading ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin md:mr-2" />
-                ) : (
-                  <RotateCcw className="h-3.5 w-3.5 md:mr-2" />
-                )}
-                <span className="sr-only md:not-sr-only">Reset all settings</span>
-              </Button>
-            </div>
-          </nav>
+              <div className="border-t border-border/50 pt-4">{resetButton}</div>
+            </nav>
 
-          <div className="w-full min-w-0 md:flex-1">{renderSection()}</div>
-        </div>
+            <div className="min-w-0 flex-1">{renderSection()}</div>
+          </div>
+        )}
       </div>
     </div>
   );

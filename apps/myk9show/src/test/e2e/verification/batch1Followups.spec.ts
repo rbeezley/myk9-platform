@@ -151,8 +151,11 @@ async function openDogWithdraw(page: Page) {
 function watchRefundCalls(page: Page) {
   const calls: string[] = [];
   page.on('request', request => {
-    const url = request.url();
-    if (/\/functions\/v1\/|stripe/i.test(url)) calls.push(url);
+    // A refund can only start at a refund edge function or Stripe itself; local reads of the
+    // club's Stripe settings (club_stripe_accounts, platform_settings) are not refunds.
+    const url = new URL(request.url());
+    const refundFunction = /\/functions\/v1\/[^/]*refund/i.test(url.pathname);
+    if (refundFunction || /(^|\.)stripe\.com$/i.test(url.hostname)) calls.push(url.href);
   });
   return calls;
 }

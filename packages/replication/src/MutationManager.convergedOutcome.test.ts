@@ -36,7 +36,9 @@ describe('a write whose outcome the server already reached (MYK9-1104)', () => {
     tableName = await resetForStaleRowTest();
   });
 
-  afterEach(() => teardownStaleRowTest(manager));
+  afterEach(async () => {
+    await teardownStaleRowTest(manager);
+  });
 
   /** Clean at version 3, then the device writes `Done` and its own stamp (1). */
   async function seedDeviceCompletion(table: RefetchingEntriesTable) {
@@ -146,7 +148,9 @@ describe('adopting converged fields rechecks the row since detection (MYK9-1104 
     tableName = await resetForStaleRowTest();
   });
 
-  afterEach(() => teardownStaleRowTest(undefined));
+  afterEach(async () => {
+    await teardownStaleRowTest(undefined);
+  });
 
   it('a local edit landing between detection and reconcile is never overwritten', async () => {
     const table = new RefetchingEntriesTable(

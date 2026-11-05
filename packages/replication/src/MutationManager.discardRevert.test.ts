@@ -83,7 +83,9 @@ describe('Discard reverts the row (MYK9-1076)', () => {
     tableName = await resetForStaleRowTest();
   });
 
-  afterEach(() => teardownStaleRowTest(manager));
+  afterEach(async () => {
+    await teardownStaleRowTest(manager);
+  });
 
   async function start(table: EditableEntriesTable, supabase = refusingServer()) {
     manager = startStaleRowManager(table, supabase).manager;

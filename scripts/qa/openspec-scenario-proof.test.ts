@@ -14,7 +14,9 @@ import {
 } from './openspec-scenario-proof';
 
 const roots: string[] = [];
-afterEach(() => roots.splice(0).forEach(r => rmSync(r, { recursive: true, force: true })));
+afterEach(() => {
+  roots.splice(0).forEach(r => rmSync(r, { recursive: true, force: true }));
+});
 
 function repo(files: Record<string, string>) {
   const root = mkdtempSync(join(tmpdir(), 'scenario-proof-'));

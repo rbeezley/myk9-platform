@@ -114,7 +114,9 @@ describe('checkPromptParity', () => {
     );
   });
 
-  afterAll(() => rmSync(root, { recursive: true, force: true }));
+  afterAll(() => {
+    rmSync(root, { recursive: true, force: true });
+  });
 
   it('reports a match when the installed body equals the documented block', () => {
     const [result] = checkPromptParity({

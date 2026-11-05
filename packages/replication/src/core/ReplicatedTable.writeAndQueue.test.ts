@@ -77,7 +77,9 @@ describe('ReplicatedTable.writeAndQueue (MYK9-1471)', () => {
     await (await databaseManager.getDatabase('test')).clear(REPLICATION_STORES.REPLICATED_TABLES);
   });
 
-  afterEach(() => teardownStaleRowTest(manager));
+  afterEach(async () => {
+    await teardownStaleRowTest(manager);
+  });
 
   async function start(table: WritingTable, supabase = refusingServer()) {
     manager = startStaleRowManager(table, supabase).manager;

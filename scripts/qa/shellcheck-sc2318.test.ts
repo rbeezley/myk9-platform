@@ -8,7 +8,9 @@ import { afterAll, describe, expect, it } from 'vitest';
 // MYK9-1709: known-answer fixtures for the SC2318 guard (LESSON local-self-reference).
 const script = path.resolve(__dirname, 'shellcheck-sc2318.sh');
 const dir = mkdtempSync(path.join(tmpdir(), 'sc2318-'));
-afterAll(() => rmSync(dir, { recursive: true, force: true }));
+afterAll(() => {
+  rmSync(dir, { recursive: true, force: true });
+});
 
 function run(body: string, name: string) {
   const file = path.join(dir, name);

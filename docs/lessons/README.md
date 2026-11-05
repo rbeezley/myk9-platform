@@ -140,7 +140,7 @@ An ACL audit that covers only tables and columns is incomplete. When this was fo
 
 ## grant-never-narrows
 
-**Guard:** MYK9-1654 (check not built yet)
+**Guard:** `supabase/tests/pre_rule_table_grants_test.sql`
 
 A `GRANT` can never narrow a broader `GRANT` an earlier migration already made — codifying an intended ACL that is tighter than the current one needs its own explicit `REVOKE`. Rebuilding from migrations and diffing is the only way to catch this; the migration text reads correct either way (`subscription_entitlement_grants` and `ringside_sessions`, #1533).
 

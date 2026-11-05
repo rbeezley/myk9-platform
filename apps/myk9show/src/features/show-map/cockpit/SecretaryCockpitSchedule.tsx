@@ -115,7 +115,7 @@ export function SecretaryCockpitSchedule({
           <div className="rounded-xl border bg-card px-4 py-8 text-center text-sm text-muted-foreground">
             {hasAnyClassForSelectedDay && filter !== 'all'
               ? 'No Classes match this filter.'
-              : 'No Classes are scheduled for this day yet.'}
+              : `No Classes are scheduled for ${scopeDays.size > 1 ? 'these days' : 'this day'} yet.`}
           </div>
         )}
         {model.trialGroups.map(group => (

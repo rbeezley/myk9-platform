@@ -233,7 +233,12 @@ describe('Select classes on the schedule (MYK9-1324)', () => {
 
     expect(tick('Buried Novice')).toBeChecked();
     expect(tick('Container Novice')).not.toBeChecked();
-    expect(screen.getByText(/one trial at a time/)).toBeInTheDocument();
+    // The day filter adds its own status region, so find the one that announces this message.
+    expect(
+      screen
+        .getAllByRole('status')
+        .some(region => /one trial at a time/.test(region.textContent ?? ''))
+    ).toBe(true);
   });
 
   it('collapsing the trial that holds the selection clears it', async () => {

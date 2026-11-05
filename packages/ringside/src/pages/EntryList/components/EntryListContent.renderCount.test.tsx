@@ -183,6 +183,21 @@ describe('EntryListContent render counts (60 entries)', () => {
         toJSON: () => ({}),
       };
     });
+    // Activation walks every droppable's ancestor chain calling getComputedStyle
+    // (~740 calls, ~1.2ms each in jsdom, ~1s of the test's ~1.4s and the cause of
+    // a 5s timeout on a loaded CI runner). Nothing in this fixture restyles, so
+    // answer each element once.
+    const realComputedStyle = window.getComputedStyle.bind(window);
+    const styles = new WeakMap<Element, CSSStyleDeclaration>();
+    const computedStyle = vi.spyOn(window, 'getComputedStyle').mockImplementation((el, pseudo) => {
+      if (pseudo) return realComputedStyle(el, pseudo);
+      let style = styles.get(el);
+      if (!style) {
+        style = realComputedStyle(el);
+        styles.set(el, style);
+      }
+      return style;
+    });
     try {
       const entries = sixty();
       const Harness = () => {
@@ -218,6 +233,7 @@ describe('EntryListContent render counts (60 entries)', () => {
       expect(start).toBeLessThanOrEqual(2);
       for (const frame of frames) expect(frame).toBeLessThanOrEqual(2);
     } finally {
+      computedStyle.mockRestore();
       rect.mockRestore();
     }
   });

@@ -8613,6 +8613,7 @@ export type Database = {
           published_premium_path: string | null
           published_premium_url: string | null
           published_premium_version: number | null
+          publishes_own_premium: boolean
           results_released_at: string | null
           results_visible_to_all: boolean | null
           secretary_email: string | null
@@ -8622,6 +8623,10 @@ export type Database = {
           status: string | null
           style: string
           updated_at: string | null
+          uses_device_scoring: boolean
+          uses_landing_page: boolean
+          uses_paper_packet: boolean
+          uses_volunteers: boolean
           venue_name: string | null
           venue_wifi_network: string | null
           venue_wifi_password: string | null
@@ -8633,11 +8638,6 @@ export type Database = {
           withdrawal_retention_type: string | null
           withdrawal_retention_value: number | null
           zip_code: string | null
-          publishes_own_premium: boolean
-          uses_device_scoring: boolean
-          uses_landing_page: boolean
-          uses_paper_packet: boolean
-          uses_volunteers: boolean
         }
         Insert: {
           accent_color?: string | null
@@ -8689,6 +8689,7 @@ export type Database = {
           published_premium_path?: string | null
           published_premium_url?: string | null
           published_premium_version?: number | null
+          publishes_own_premium?: boolean
           results_released_at?: string | null
           results_visible_to_all?: boolean | null
           secretary_email?: string | null
@@ -8698,6 +8699,10 @@ export type Database = {
           status?: string | null
           style?: string
           updated_at?: string | null
+          uses_device_scoring?: boolean
+          uses_landing_page?: boolean
+          uses_paper_packet?: boolean
+          uses_volunteers?: boolean
           venue_name?: string | null
           venue_wifi_network?: string | null
           venue_wifi_password?: string | null
@@ -8709,11 +8714,6 @@ export type Database = {
           withdrawal_retention_type?: string | null
           withdrawal_retention_value?: number | null
           zip_code?: string | null
-          publishes_own_premium?: boolean
-          uses_device_scoring?: boolean
-          uses_landing_page?: boolean
-          uses_paper_packet?: boolean
-          uses_volunteers?: boolean
         }
         Update: {
           accent_color?: string | null
@@ -8765,6 +8765,7 @@ export type Database = {
           published_premium_path?: string | null
           published_premium_url?: string | null
           published_premium_version?: number | null
+          publishes_own_premium?: boolean
           results_released_at?: string | null
           results_visible_to_all?: boolean | null
           secretary_email?: string | null
@@ -8774,6 +8775,10 @@ export type Database = {
           status?: string | null
           style?: string
           updated_at?: string | null
+          uses_device_scoring?: boolean
+          uses_landing_page?: boolean
+          uses_paper_packet?: boolean
+          uses_volunteers?: boolean
           venue_name?: string | null
           venue_wifi_network?: string | null
           venue_wifi_password?: string | null
@@ -8785,11 +8790,6 @@ export type Database = {
           withdrawal_retention_type?: string | null
           withdrawal_retention_value?: number | null
           zip_code?: string | null
-          publishes_own_premium?: boolean
-          uses_device_scoring?: boolean
-          uses_landing_page?: boolean
-          uses_paper_packet?: boolean
-          uses_volunteers?: boolean
         }
         Relationships: [
           {
@@ -10074,6 +10074,48 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "trials"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trial_lunch_orders_trial_id_fkey"
+            columns: ["trial_id"]
+            isOneToOne: false
+            referencedRelation: "view_breed_stats"
+            referencedColumns: ["trial_id"]
+          },
+          {
+            foreignKeyName: "trial_lunch_orders_trial_id_fkey"
+            columns: ["trial_id"]
+            isOneToOne: false
+            referencedRelation: "view_clean_sweep_dogs"
+            referencedColumns: ["trial_id"]
+          },
+          {
+            foreignKeyName: "trial_lunch_orders_trial_id_fkey"
+            columns: ["trial_id"]
+            isOneToOne: false
+            referencedRelation: "view_fastest_times"
+            referencedColumns: ["trial_id"]
+          },
+          {
+            foreignKeyName: "trial_lunch_orders_trial_id_fkey"
+            columns: ["trial_id"]
+            isOneToOne: false
+            referencedRelation: "view_judge_stats"
+            referencedColumns: ["trial_id"]
+          },
+          {
+            foreignKeyName: "trial_lunch_orders_trial_id_fkey"
+            columns: ["trial_id"]
+            isOneToOne: false
+            referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["trial_id"]
+          },
+          {
+            foreignKeyName: "trial_lunch_orders_trial_id_fkey"
+            columns: ["trial_id"]
+            isOneToOne: false
+            referencedRelation: "view_stats_summary"
+            referencedColumns: ["trial_id"]
           },
         ]
       }
@@ -13195,6 +13237,10 @@ export type Database = {
           outcome: string
         }[]
       }
+      claim_my_push_subscription: {
+        Args: { p_auth: string; p_endpoint: string; p_p256dh: string }
+        Returns: undefined
+      }
       claim_registration_number_needed_job: {
         Args: {
           p_body: string
@@ -14019,6 +14065,7 @@ export type Database = {
           published_premium_path: string | null
           published_premium_url: string | null
           published_premium_version: number | null
+          publishes_own_premium: boolean
           results_released_at: string | null
           results_visible_to_all: boolean | null
           secretary_email: string | null
@@ -14028,6 +14075,10 @@ export type Database = {
           status: string | null
           style: string
           updated_at: string | null
+          uses_device_scoring: boolean
+          uses_landing_page: boolean
+          uses_paper_packet: boolean
+          uses_volunteers: boolean
           venue_name: string | null
           venue_wifi_network: string | null
           venue_wifi_password: string | null
@@ -15152,6 +15203,7 @@ export type Database = {
           published_premium_path: string | null
           published_premium_url: string | null
           published_premium_version: number | null
+          publishes_own_premium: boolean
           results_released_at: string | null
           results_visible_to_all: boolean | null
           secretary_email: string | null
@@ -15161,6 +15213,10 @@ export type Database = {
           status: string | null
           style: string
           updated_at: string | null
+          uses_device_scoring: boolean
+          uses_landing_page: boolean
+          uses_paper_packet: boolean
+          uses_volunteers: boolean
           venue_name: string | null
           venue_wifi_network: string | null
           venue_wifi_password: string | null
@@ -15607,6 +15663,62 @@ export type Database = {
   }
   storage: {
     Tables: {
+      bucket_lifecycle_states: {
+        Row: {
+          bucket_id: string
+          claim_id: string | null
+          claim_until: string | null
+          continuation: Json | null
+          failure_count: number
+          generation: string | null
+          last_completed_at: string | null
+          last_error: Json | null
+          last_result: Json | null
+          last_started_at: string | null
+          last_success_at: string | null
+          next_run_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          bucket_id: string
+          claim_id?: string | null
+          claim_until?: string | null
+          continuation?: Json | null
+          failure_count?: number
+          generation?: string | null
+          last_completed_at?: string | null
+          last_error?: Json | null
+          last_result?: Json | null
+          last_started_at?: string | null
+          last_success_at?: string | null
+          next_run_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          bucket_id?: string
+          claim_id?: string | null
+          claim_until?: string | null
+          continuation?: Json | null
+          failure_count?: number
+          generation?: string | null
+          last_completed_at?: string | null
+          last_error?: Json | null
+          last_result?: Json | null
+          last_started_at?: string | null
+          last_success_at?: string | null
+          next_run_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bucket_lifecycle_states_bucket_id_fkey"
+            columns: ["bucket_id"]
+            isOneToOne: true
+            referencedRelation: "buckets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       buckets: {
         Row: {
           allowed_mime_types: string[] | null
@@ -15706,6 +15818,30 @@ export type Database = {
           id?: string
           type?: Database["storage"]["Enums"]["buckettype"]
           updated_at?: string
+        }
+        Relationships: []
+      }
+      lifecycle_abandoned_artifacts: {
+        Row: {
+          attempted_at: string
+          bucket_id: string
+          key: string
+          name: string
+          version: string | null
+        }
+        Insert: {
+          attempted_at?: string
+          bucket_id: string
+          key: string
+          name: string
+          version?: string | null
+        }
+        Update: {
+          attempted_at?: string
+          bucket_id?: string
+          key?: string
+          name?: string
+          version?: string | null
         }
         Relationships: []
       }
@@ -15954,6 +16090,14 @@ export type Database = {
         Args: { bucketid: string; metadata: Json; name: string; owner: string }
         Returns: undefined
       }
+      delete_lifecycle_objects: {
+        Args: { object_ids: string[] }
+        Returns: {
+          id: string
+          is_delete_marker: boolean
+          metadata: Json
+        }[]
+      }
       extension: { Args: { name: string }; Returns: string }
       filename: { Args: { name: string }; Returns: string }
       foldername: { Args: { name: string }; Returns: string[] }
@@ -16012,6 +16156,10 @@ export type Database = {
         }[]
       }
       operation: { Args: never; Returns: string }
+      reconcile_lifecycle_state: {
+        Args: { policy_changed: boolean; target_bucket_id: string }
+        Returns: undefined
+      }
       search: {
         Args: {
           bucketname: string

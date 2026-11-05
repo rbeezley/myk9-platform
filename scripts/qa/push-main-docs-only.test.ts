@@ -135,6 +135,38 @@ describe('pre-push hook: pushes to main', () => {
     expect(f.remoteMain()).toBe(before);
   });
 
+  it('lets a docs commit through after origin/main (with app commits) was merged into it', () => {
+    const f = fixture();
+    // Someone else's reviewed app change lands on remote main (a PR merge, simulated).
+    f.git('checkout', '-qb', 'other');
+    f.commit('apps/myk9show/src/merged-elsewhere.ts', 'merged via PR');
+    expect(f.push('other:refs/heads/main', { MYK9_ALLOW_NON_DOCS_MAIN_PUSH: '1' }).code).toBe(0);
+    // Locally: a docs commit on the old main, then `git merge origin/main`.
+    f.git('checkout', '-q', 'main');
+    const docs = f.commit('docs/plan-after-merge.md', 'docs');
+    f.git('fetch', '-q', 'origin');
+    f.git('merge', '-q', '--no-edit', 'origin/main');
+    const result = f.push('HEAD:refs/heads/main');
+    expect(result.code, result.output).toBe(0);
+    expect(result.output).not.toContain('merged-elsewhere.ts');
+    expect(f.git('merge-base', '--is-ancestor', docs, f.remoteMain()).trim()).toBe('');
+  });
+
+  it('still refuses a local feature branch merged into main', () => {
+    const f = fixture();
+    const before = f.remoteMain();
+    f.git('checkout', '-qb', 'feature');
+    const feature = f.commit('apps/myk9show/src/feature.ts', 'feature');
+    f.git('checkout', '-q', 'main');
+    f.commit('docs/plan-x.md', 'docs');
+    f.git('merge', '-q', '--no-ff', '--no-edit', 'feature');
+    const result = f.push('HEAD:refs/heads/main');
+    expect(result.code).not.toBe(0);
+    expect(result.output).toContain(feature.slice(0, 12));
+    expect(result.output).toContain('apps/myk9show/src/feature.ts');
+    expect(f.remoteMain()).toBe(before);
+  });
+
   it('leaves a push of non-docs commits to a feature branch alone', () => {
     const f = fixture();
     f.commit('apps/myk9show/src/feature.ts', 'feature');

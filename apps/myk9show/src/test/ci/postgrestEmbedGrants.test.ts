@@ -51,8 +51,9 @@ function violationsIn(
   const unknown = new Set<string>();
   let embedCount = 0;
   for (const [file, src] of Object.entries(files)) {
-    for (const { line, base, embed } of findEmbedSites(src, file)) {
+    for (const { line, base, embed: named, star } of findEmbedSites(src, file)) {
       embedCount++;
+      const embed = FK_HINT_TARGETS[named] ?? named;
       const e = contract.get(embed);
       if (!e) {
         if (!unresolvable.has(embed)) unknown.add(`${file}:${line} ${base} > ${embed}`);
@@ -61,11 +62,9 @@ function violationsIn(
       const b = contract.get(base);
       if (!b) continue; // a view or unknown base: nothing to compare against
       for (const role of ROLES) {
-        if (
-          hasTableSelect(b[role]) &&
-          !hasTableSelect(e[role]) &&
-          !columnGranted.has(`${embed}:${role}`)
-        ) {
+        // Column grants serve an embed that names its columns; `*` needs table-level SELECT.
+        const servedByColumns = columnGranted.has(`${embed}:${role}`) && !star;
+        if (hasTableSelect(b[role]) && !hasTableSelect(e[role]) && !servedByColumns) {
           violations.push({ site: `${file}:${line}`, base, embed, role });
         }
       }
@@ -75,20 +74,24 @@ function violationsIn(
 }
 
 /**
- * Embed names that are not contract tables, so they cannot be checked: each is
- * a PostgREST FK-column hint, whose target table this guard cannot resolve
- * without a schema. Listed rather than silently passed; a new unresolvable
- * name fails the scan until it is added here with a reason.
+ * PostgREST FK-column hints used as embed names (`dog:dog_id(...)`), resolved to
+ * the table their foreign key targets so the embed is checked, not skipped.
+ * Read from pg_constraint on 2026-11-05 for the bases that use them (entries,
+ * stripe_orders, entry_status_history, and dogs for owner_id). A new hint name
+ * fails the scan as "not in contract" until it is mapped here.
  */
-const UNRESOLVABLE_EMBEDS: ReadonlySet<string> = new Set([
-  'dog_id', // FK-column hint on entries / stripe_orders
-  'class_id', // FK-column hint on entries
-  'owner_id', // FK-column hint on entries
-  'show_id', // FK-column hint on entries / stripe_orders
-  'trial_id', // FK-column hint on entries
-  'registration_id', // FK-column hint on entries
-  'changed_by', // FK-column hint on entry_status_history
-]);
+const FK_HINT_TARGETS: Readonly<Record<string, string>> = {
+  dog_id: 'dogs',
+  class_id: 'classes',
+  owner_id: 'people', // dogs.owner_id; other tables' owner_id point at auth.users
+  show_id: 'shows',
+  trial_id: 'trials',
+  registration_id: 'enrollments',
+  changed_by: 'people', // entry_status_history.changed_by
+};
+
+/** Embed names that cannot be checked at all. Empty: add one only with a reason. */
+const UNRESOLVABLE_EMBEDS: ReadonlySet<string> = new Set<string>();
 
 const row = (anon: string, authenticated: string): TableGrantRow => ({
   anon,
@@ -118,10 +121,32 @@ describe('postgrest embed grants guard: known answers', () => {
     expect(check(`db.from('secrets').select('id, shows(name)');`).violations).toEqual([]);
   });
 
-  it('accepts a column-granted embed target', () => {
+  it('accepts a column-granted embed target that names its columns', () => {
     expect(
       check(`db.from('shows').select('id, secrets(name)');`, ['secrets:anon']).violations
     ).toEqual([]);
+  });
+
+  it('flags `*` (or no columns) on a column-granted embed target', () => {
+    const expected = [{ site: 'a.ts:1', base: 'shows', embed: 'secrets', role: 'anon' }];
+    expect(
+      check(`db.from('shows').select('id, secrets(*)');`, ['secrets:anon']).violations
+    ).toEqual(expected);
+    expect(check(`db.from('shows').select('id, secrets()');`, ['secrets:anon']).violations).toEqual(
+      expected
+    );
+  });
+
+  it('resolves an FK-column hint to the table it points at', () => {
+    // shows_id is not a hint; show_id is, and resolves to shows.
+    expect(check(`db.from('secrets').select('id, show:show_id(name)');`).unknown).toEqual([]);
+    expect(
+      violationsIn(
+        { 'a.ts': `db.from('shows').select('id, x:dog_id(name)');` },
+        new Map([...FIXTURE, ['dogs', row('', 'SELECT')]]),
+        new Set()
+      ).violations
+    ).toEqual([{ site: 'a.ts:1', base: 'shows', embed: 'dogs', role: 'anon' }]);
   });
 
   it('extracts nested, !inner, !fk_hint and alias:name embeds', () => {

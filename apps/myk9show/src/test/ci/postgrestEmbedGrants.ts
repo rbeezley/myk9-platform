@@ -11,6 +11,31 @@ export interface EmbedSite {
   base: string;
   /** Embedded relation name as PostgREST resolves it (alias and `!hint` stripped). */
   embed: string;
+  /** The embed selects `*` (or nothing), which a column-granted role cannot run. */
+  star: boolean;
+}
+
+export interface EmbedItem {
+  name: string;
+  star: boolean;
+}
+
+/** Top-level comma-separated items of one paren level of a select string. */
+function splitTopLevel(s: string): string[] {
+  let depth = 0;
+  let start = 0;
+  const items: string[] = [];
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (c === '(') depth++;
+    else if (c === ')') depth--;
+    else if (c === ',' && depth === 0) {
+      items.push(s.slice(start, i));
+      start = i + 1;
+    }
+  }
+  items.push(s.slice(start));
+  return items;
 }
 
 /** Aggregate functions that look like `name(...)` but are not embeds. */
@@ -24,23 +49,14 @@ const AGGREGATES = new Set(['count', 'sum', 'avg', 'min', 'max']);
  * (`col->>k`) are not embeds.
  */
 export function extractEmbeds(select: string): string[] {
-  const out: string[] = [];
-  const walk = (s: string) => {
-    let depth = 0;
-    let start = 0;
-    const items: string[] = [];
-    for (let i = 0; i < s.length; i++) {
-      const c = s[i];
-      if (c === '(') depth++;
-      else if (c === ')') depth--;
-      else if (c === ',' && depth === 0) {
-        items.push(s.slice(start, i));
-        start = i + 1;
-      }
-    }
-    items.push(s.slice(start));
+  return extractEmbedItems(select).map(item => item.name);
+}
 
-    for (const raw of items) {
+/** As `extractEmbeds`, also saying whether each embed selects `*` (or names no columns). */
+export function extractEmbedItems(select: string): EmbedItem[] {
+  const out: EmbedItem[] = [];
+  const walk = (s: string) => {
+    for (const raw of splitTopLevel(s)) {
       const item = raw.replace(/\s+/g, '');
       const open = item.indexOf('(');
       if (open < 0 || !item.endsWith(')')) continue;
@@ -49,8 +65,10 @@ export function extractEmbeds(select: string): string[] {
       const afterAlias = head.includes(':') && !head.includes('::') ? head.split(':')[1] : head;
       const name = afterAlias.split('!')[0];
       if (!/^[a-z_][a-z0-9_]*$/i.test(name) || AGGREGATES.has(name)) continue;
-      out.push(name);
-      walk(item.slice(open + 1, -1));
+      const inner = item.slice(open + 1, -1);
+      const columns = splitTopLevel(inner).filter(Boolean);
+      out.push({ name, star: columns.length === 0 || columns.includes('*') });
+      walk(inner);
     }
   };
   walk(select);
@@ -127,7 +145,9 @@ export function findEmbedSites(source: string, fileName = 'f.ts'): EmbedSite[] {
         const base = baseOfChain(node.expression.expression, consts);
         if (base) {
           const line = sf.getLineAndCharacterOfPosition(node.getStart()).line + 1;
-          for (const embed of extractEmbeds(sel)) sites.push({ line, base, embed });
+          for (const { name, star } of extractEmbedItems(sel)) {
+            sites.push({ line, base, embed: name, star });
+          }
         }
       }
     }

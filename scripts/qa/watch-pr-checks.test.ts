@@ -7,6 +7,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 
 const repositoryRoot = resolve(import.meta.dirname, '../..');
 const watcher = resolve(repositoryRoot, 'scripts/qa/watch-pr-checks.sh');
+const helper = resolve(repositoryRoot, 'scripts/qa/watch-pr-checks-mergeable.sh');
 const source = readFileSync(watcher, 'utf8');
 
 const scratchDirs: string[] = [];
@@ -24,7 +25,7 @@ function runMutated(replace: string, withText: string) {
   const dir = mkdtempSync(join(tmpdir(), 'watch-pr-checks-'));
   scratchDirs.push(dir);
   const copy = join(dir, 'watch-pr-checks.sh');
-  copyFileSync(watcher, copy);
+  copyFileSync(helper, join(dir, 'watch-pr-checks-mergeable.sh'));
   writeFileSync(copy, source.replace(replace, withText));
   chmodSync(copy, 0o755);
 
@@ -58,7 +59,15 @@ type Status = { context: string; state: string };
  * `pad` bulks every check run with an `output.text` of that many characters,
  * the way a real REST row carries far more than the watcher reads.
  */
-function restStub(checkRuns: CheckRun[], statuses: Status[], head = 'deadbeef', pad = 0) {
+const CLEAN_PULL = '{"mergeable":true,"mergeable_state":"clean","merge_commit_sha":"abc"}';
+
+function restStub(
+  checkRuns: CheckRun[],
+  statuses: Status[],
+  head = 'deadbeef',
+  pad = 0,
+  pull = CLEAN_PULL
+) {
   const dir = mkdtempSync(join(tmpdir(), 'watch-pr-checks-rest-'));
   scratchDirs.push(dir);
   const log = join(dir, 'calls.log');
@@ -88,7 +97,8 @@ function restStub(checkRuns: CheckRun[], statuses: Status[], head = 'deadbeef', 
       '  *graphql*) echo "HTTP 403: GitHub GraphQL is not available" >&2; exit 1 ;;',
       `  *"/rulesets/"*) echo '["Quality Checks","Test","A11y smoke","E2E PR Smoke"]' ;;`,
       '  *"/rulesets"*) echo 17085332 ;;',
-      `  *"/pulls/"*) echo ${head} ;;`,
+      `  *"/pulls/"*"head.sha"*) echo ${head} ;;`,
+      `  *"/pulls/"*) echo ${JSON.stringify(pull)} | jq -r . ;;`,
       '  *"/check-runs"*) serve check-runs.json ;;',
       '  *"/status"*) serve statuses.json ;;',
       '  *"/actions/runs"*) serve workflow-runs.json ;;',
@@ -333,6 +343,49 @@ describe('watch-pr-checks harness', () => {
     expect(result.stdout).toContain('head moved deadbeef -> cafef00d');
   });
 
+  // MYK9-1710: a conflicting PR gets no workflow runs, so only the Vercel context
+  // ever registers. The watcher must say so (exit 6) instead of timing out.
+  describe('base conflict', () => {
+    const onlyVercel: Status[] = [{ context: 'Vercel Preview Comments', state: 'success' }];
+    const runWith = (pull: string, runs: CheckRun[] = []) =>
+      pollOnce(restStub(runs, onlyVercel, 'deadbeef', 0, pull).dir);
+
+    it('exits 6 with a clear message when the PR conflicts and no required run registered', () => {
+      const result = runWith(
+        '{"mergeable":false,"mergeable_state":"dirty","merge_commit_sha":null}'
+      );
+
+      expect(result.status, result.stdout + result.stderr).toBe(6);
+      expect(result.stdout).toContain('PR conflicts with its base; merge the base in');
+    });
+
+    it('keeps waiting (times out, exit 3) while mergeable is null (not computed yet)', () => {
+      const result = runWith(
+        '{"mergeable":null,"mergeable_state":"unknown","merge_commit_sha":null}'
+      );
+
+      expect(result.status, result.stdout + result.stderr).toBe(3);
+    });
+
+    it('keeps waiting (exit 3) on a mergeable PR whose runs have not registered', () => {
+      expect(runWith(CLEAN_PULL).status).toBe(3);
+    });
+
+    it('does not even read mergeable once a required run has registered', () => {
+      const stub = restStub(
+        [{ name: 'Quality Checks', conclusion: null }],
+        onlyVercel,
+        'deadbeef',
+        0,
+        '{"mergeable":false,"mergeable_state":"dirty"}'
+      );
+
+      const result = pollOnce(stub.dir);
+
+      expect(result.status, result.stdout + result.stderr).toBe(3);
+    });
+  });
+
   it('keeps the Vercel quota note off non-Vercel failures', () => {
     const result = runMutated('case "$n" in Vercel*) ;; *) return 1 ;; esac', ':');
 
@@ -526,6 +579,7 @@ describe('watch-pr-checks harness', () => {
       '3  timed out',
       '4  self-test failed',
       '5  required checks are green but a NON-required check failed',
+      '6  PR conflicts with its base',
     ]) {
       expect(source).toContain(code);
     }

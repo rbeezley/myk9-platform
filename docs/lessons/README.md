@@ -299,7 +299,7 @@ Both are the same shape: the test's setup never reaches the condition the guard 
 
 ## conflicting-pr-no-runs
 
-**Guard:** MYK9-1654 (check not built yet)
+**Guard:** `scripts/qa/watch-pr-checks.sh`
 
 **A PR that conflicts with its base gets NO workflow runs at all, and nothing anywhere says so.** GitHub computes `refs/pull/<n>/merge` for every `pull_request` event and silently skips the workflow when it cannot, so `opened`, `synchronize`, `reopened` and `ready_for_review` all fire and all produce zero runs. Every surface lies in the same direction: `gh workflow list` shows the workflow `active`, nothing sits in queued or waiting, no approval gate appears, and the Vercel checks still go green — Vercel builds the HEAD sha, not the merge ref — so the rollup looks populated rather than empty. It presents as "Actions is broken" or "my trigger config is wrong", and the tell that it is neither is another PR getting clean runs at the same moment. On 2026-08-31 this cost most of a session on PR #1897, spent on draft gating (a real but separate bug — every `ci.yml` job is gated on `draft == false`, so opening a draft "to get CI" gets none) and then on three more trigger types, while the answer was one API field. Before diagnosing a missing run as anything else, read `gh api repos/<owner>/<repo>/pulls/<n> --jq '{mergeable, mergeable_state, merge_commit_sha}'`: `merge_commit_sha: null` with `mergeable_state: "dirty"` IS the diagnosis. The fix is merging the base in — re-triggering cannot work, because there is nothing for the event to build. Companion to the "no pending ≠ settled" rule above: there, a small rollup meant not-yet-registered; here it means the run will never exist.
 

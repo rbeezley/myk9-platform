@@ -14,6 +14,7 @@
 #   3  timed out — explicitly NOT a verdict
 #   4  self-test failed — the harness is broken; believe nothing it reports
 #   5  required checks are green but a NON-required check failed — caller decides
+#   6  PR conflicts with its base: no workflow runs will ever register (MYK9-1710)
 #
 # ---------------------------------------------------------------------------
 # WHY THIS EXISTS
@@ -75,6 +76,8 @@ set -uo pipefail
 
 REPO="${MYK9_PR_REPO:-rbeezley/myk9-platform}"
 RULESET_NAME="${MYK9_PR_RULESET:-main-required-checks}"
+# shellcheck source=scripts/qa/watch-pr-checks-mergeable.sh
+. "$(dirname "${BASH_SOURCE[0]}")/watch-pr-checks-mergeable.sh"
 
 # Classification is an ALLOWLIST OF PASSING, not a denylist of failing.
 #
@@ -339,20 +342,7 @@ self_test() {
   got=$(outstanding "{\"statusCheckRollup\":[$(row 'Quality Checks' CI '' 2026-10-02T19:20:25Z 200 3),$(row Lint CI '' 2026-10-02T19:00:00Z 100 1),$(row Lint CI SUCCESS 2026-10-02T19:20:25Z 200 4),$(row Docs CI '' 2026-10-02T19:20:25Z 200 5)]}" "$req")
   [ "$got" = "Docs" ] || { echo "SELF-TEST FAIL [outstanding]: expected 'Docs', got '$got'"; ok=1; }
 
-  # 22. REST payloads reach the same verdicts (MYK9-1414): lower-case enums, a
-  #     status context's state, and the draft->ready stale rule, which only works
-  #     when workflowName is joined from the run id.
-  rest() { # rest <label> <expected> <check-runs> <statuses>
-    got=$(verdict "$(rest_rollup "$3" "$4" '[{"id":100,"name":"CI"},{"id":200,"name":"CI"}]')" "$req")
-    [ "$got" = "$2" ] || { echo "SELF-TEST FAIL [rest-$1]: expected '$2', got '$got'"; ok=1; }
-  }
-  run_() { # run_ <name> <status> <conclusion|null> <run> <job>
-    printf '{"name":"%s","status":"%s","conclusion":%s,"started_at":"2026-10-25T19:00:00Z","details_url":"https://github.com/o/r/actions/runs/%s/job/%s"}' "$1" "$2" "$3" "$4" "$5"
-  }
-  rest failure 'required-failed:Test' "[$(run_ 'Quality Checks' completed '"success"' 100 1),$(run_ Test completed '"failure"' 100 2)]" '[]'
-  rest status-failure 'preview-failed:Vercel - app' "[$(run_ 'Quality Checks' completed '"success"' 100 1),$(run_ Test completed '"skipped"' 100 2)]" '[{"context":"Vercel - app","state":"failure","created_at":"2026-10-25T19:00:00Z"}]'
-  rest stale-skip 'waiting:Quality Checks, Test' "[$(run_ 'Quality Checks' completed '"skipped"' 100 1),$(run_ Test completed '"skipped"' 100 2),$(run_ 'Quality Checks' in_progress null 200 3)]" '[]'
-  rest green 'green' "[$(run_ 'Quality Checks' completed '"success"' 100 1),$(run_ Test completed '"success"' 100 2)]" '[{"context":"Vercel - app","state":"pending","created_at":"2026-10-25T19:00:00Z"}]'
+  extra_self_test "$req" || ok=1  # mergeable classifier + REST fixtures (watch-pr-checks-mergeable.sh)
 
   # 20. The Vercel quota note applies only when every failure is a Vercel one.
   preview_note_applies "Vercel - app, Vercel - docs" || { echo "SELF-TEST FAIL [note-vercel]"; ok=1; }
@@ -470,6 +460,13 @@ while :; do
   TOTAL=$(printf '%s' "$RESPONSE" | jq '.statusCheckRollup | length')
 
   echo "$(date +%H:%M:%S) total=$TOTAL $RESULT"
+
+  # Before the verdict exits: a conflicting PR still gets the base-run Review gate
+  # STATUS (usually red), which would otherwise exit 1 naming it (MYK9-1710).
+  if [[ "$RESULT" == waiting:* || "$RESULT" == required-failed:* ]] && base_conflict "$RESPONSE" "$REQUIRED"; then
+    echo "PR conflicts with its base; merge the base in. No workflow runs register for a conflicting PR."
+    exit 6
+  fi
 
   case "$RESULT" in
     green)

@@ -31,11 +31,13 @@ const mockSubscribe = vi.fn<
   () => Promise<{ ok: true } | { ok: false; reason: 'permission-denied' | 'subscribe-failed' }>
 >(() => Promise.resolve({ ok: true }));
 const mockUnsubscribe = vi.fn(() => Promise.resolve({ ok: true as const }));
+const mockReconcile = vi.fn<() => Promise<void>>(() => Promise.resolve());
 
 vi.mock('@/hooks/usePushSubscription', () => ({
   usePushSubscription: vi.fn(() => ({
     subscribe: mockSubscribe,
     unsubscribe: mockUnsubscribe,
+    reconcile: mockReconcile,
     isSupported: true,
   })),
 }));
@@ -174,8 +176,10 @@ beforeEach(() => {
   mockedUsePushSubscription.mockImplementation(() => ({
     subscribe: mockSubscribe,
     unsubscribe: mockUnsubscribe,
+    reconcile: mockReconcile,
     isSupported: true,
   }));
+  mockReconcile.mockResolvedValue(undefined);
   mockSubscribe.mockResolvedValue({ ok: true });
   mockUnsubscribe.mockResolvedValue({ ok: true });
   mockLoadSmsNotificationPreference.mockResolvedValue(null);
@@ -187,6 +191,44 @@ beforeEach(() => {
     permissionStatus: 'default' as NotificationPermission,
   });
   useSettingsStore.getState().updateSettings({ hapticFeedback: true });
+});
+
+/** The push switch is disabled while the mount-time reconcile runs; wait it out before tapping. */
+async function enabledPushSwitch() {
+  const pushSwitch = await screen.findByRole('switch', { name: /push notifications/i });
+  await waitFor(() => expect(pushSwitch).not.toHaveAttribute('aria-disabled', 'true'));
+  return pushSwitch;
+}
+
+describe('NotificationSettings push reconcile on mount', () => {
+  it('flips a stale persisted On to Off once reconcile finds no device subscription', async () => {
+    useNotificationStore.setState({
+      preferences: { ...DEFAULT_PREFERENCES, pushEnabled: true },
+    });
+    mockReconcile.mockImplementation(() => {
+      useNotificationStore.getState().updatePreferences({ pushEnabled: false });
+      return Promise.resolve();
+    });
+    render(<NotificationSettings />);
+    const pushSwitch = await screen.findByRole('switch', { name: /push notifications/i });
+    await waitFor(() => expect(pushSwitch).not.toBeChecked());
+    expect(mockReconcile).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the push switch disabled while reconcile is in flight', async () => {
+    let finish!: () => void;
+    mockReconcile.mockImplementation(
+      () =>
+        new Promise<void>(resolve => {
+          finish = resolve;
+        })
+    );
+    render(<NotificationSettings />);
+    const pushSwitch = await screen.findByRole('switch', { name: /push notifications/i });
+    expect(pushSwitch).toHaveAttribute('aria-disabled', 'true');
+    finish();
+    await waitFor(() => expect(pushSwitch).not.toHaveAttribute('aria-disabled', 'true'));
+  });
 });
 
 describe('NotificationSettings', () => {
@@ -295,7 +337,7 @@ describe('NotificationSettings', () => {
     // notification_preferences, so a preference that only ever lands in
     // localStorage silently stops applying once the PWA is closed.
     render(<NotificationSettings />);
-    fireEvent.click(screen.getByRole('switch', { name: /push/i }));
+    fireEvent.click(await enabledPushSwitch());
 
     await waitFor(() => expect(mockSyncNotificationPreferences).toHaveBeenCalled());
     expect(mockSyncNotificationPreferences.mock.calls[0][0]).toBe('test-user-id');
@@ -316,14 +358,14 @@ describe('NotificationSettings', () => {
 
   it('calls subscribe when push is toggled on', async () => {
     render(<NotificationSettings />);
-    fireEvent.click(screen.getByRole('switch', { name: /push notifications/i }));
+    fireEvent.click(await enabledPushSwitch());
     await waitFor(() => expect(mockSubscribe).toHaveBeenCalledTimes(1));
   });
 
   it('shows warning when push permission denied', async () => {
     mockSubscribe.mockResolvedValueOnce({ ok: false, reason: 'permission-denied' });
     render(<NotificationSettings />);
-    fireEvent.click(screen.getByRole('switch', { name: /push notifications/i }));
+    fireEvent.click(await enabledPushSwitch());
     await waitFor(() =>
       expect(notifications.warning).toHaveBeenCalledWith(
         'Push notifications blocked. Check browser settings.'
@@ -348,7 +390,7 @@ describe('NotificationSettings', () => {
     mockSubscribe.mockResolvedValueOnce({ ok: false, reason: 'subscribe-failed' });
     render(<NotificationSettings />);
 
-    const pushSwitch = screen.getByRole('switch', { name: /push notifications/i });
+    const pushSwitch = await enabledPushSwitch();
     expect(pushSwitch).toHaveAttribute('data-state', 'unchecked');
 
     fireEvent.click(pushSwitch);
@@ -379,7 +421,7 @@ describe('NotificationSettings', () => {
     );
     render(<NotificationSettings />);
 
-    const pushSwitch = screen.getByRole('switch', { name: /push notifications/i });
+    const pushSwitch = await enabledPushSwitch();
     fireEvent.click(pushSwitch);
 
     expect(await screen.findByText('Turning on…')).toBeInTheDocument();

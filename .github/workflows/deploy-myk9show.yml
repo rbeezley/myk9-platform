@@ -93,6 +93,15 @@ jobs:
       - name: Pull production project settings and env
         run: pnpm dlx "$VERCEL_CLI" pull --yes --environment=production --token="$VERCEL_TOKEN"
 
+      # MYK9-1699: `vercel pull` writes the literal [SENSITIVE] for any env var
+      # marked Sensitive, and the build bakes it into the bundle. Fail before
+      # building. VITE_SENTRY_DSN and VITE_PUBLIC_SURFACE are owner-owed under
+      # MYK9-1699: remove them from this list once re-added as Config variables.
+      - name: Refuse a pulled env with [SENSITIVE] placeholders
+        env:
+          SENSITIVE_PLACEHOLDER_ALLOWLIST: VITE_SENTRY_DSN,VITE_PUBLIC_SURFACE
+        run: node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/qa/vercel-env-placeholder-guard.ts
+
       - name: Build
         run: pnpm dlx "$VERCEL_CLI" build --prod --token="$VERCEL_TOKEN"
 

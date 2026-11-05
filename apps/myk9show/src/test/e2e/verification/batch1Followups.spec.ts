@@ -437,7 +437,11 @@ test('tool switches save per show, hide and restore Actions rows, and lose no da
   const fresh = await rolePage(browser, 'SECRETARY', `/shows/${showId}`);
   expect(await gatedRowsShown(fresh.page, showId)).toEqual(GATED_ROWS);
   await fresh.page.goto(`/secretary/volunteers?showId=${showId}`);
-  await expect(fresh.page.getByText(volunteer)).toBeVisible({ timeout: 30_000 });
+  // The page shows a first name and last initial ("Proof Volunteer e."), not the stored name.
+  await expect(fresh.page.getByText('1 volunteer', { exact: true })).toBeVisible({
+    timeout: 30_000,
+  });
+  await expect(fresh.page.getByText(new RegExp(`^Proof Volunteer ${showId[0]}\\.`))).toBeVisible();
   expect(secretary.nonLocalSocketUrls).toEqual([]);
   await evidence(info, 'tool-switches', { showId, server: await showUsesRow(client, showId) });
   await screenshot(fresh.page, info, 'volunteer-kept');

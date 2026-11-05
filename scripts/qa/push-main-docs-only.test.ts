@@ -152,6 +152,21 @@ describe('pre-push hook: pushes to main', () => {
     expect(f.git('merge-base', '--is-ancestor', docs, f.remoteMain()).trim()).toBe('');
   });
 
+  it('refuses an evil merge that adds a source file in the merge commit itself', () => {
+    const f = fixture();
+    const before = f.remoteMain();
+    f.git('checkout', '-qb', 'side');
+    f.commit('docs/plan-side.md', 'docs on side');
+    f.git('checkout', '-q', 'main');
+    f.commit('docs/plan-main.md', 'docs on main');
+    f.git('merge', '-q', '--no-ff', '--no-commit', 'side');
+    f.commit('apps/myk9show/src/evil.ts', 'merge with a source file');
+    const result = f.push('HEAD:refs/heads/main');
+    expect(result.code).not.toBe(0);
+    expect(result.output).toContain('apps/myk9show/src/evil.ts');
+    expect(f.remoteMain()).toBe(before);
+  });
+
   it('still refuses a local feature branch merged into main', () => {
     const f = fixture();
     const before = f.remoteMain();

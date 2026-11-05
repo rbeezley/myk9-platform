@@ -30,7 +30,9 @@ describe('a stale full-row write re-fetches its row (MYK9-771)', () => {
     tableName = await resetForStaleRowTest();
   });
 
-  afterEach(() => teardownStaleRowTest(manager));
+  afterEach(async () => {
+    await teardownStaleRowTest(manager);
+  });
 
   function startManager(table: ReplicatedTable<LocalEntry>, supabase: SupabaseClient) {
     const started = startStaleRowManager(table, supabase);

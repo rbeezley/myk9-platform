@@ -451,7 +451,7 @@ The orchestrator's docs-only direct-to-`main` flow ends with `git push origin HE
 
 ## vitest-hook-returns-teardown
 
-**Guard:** MYK9-1654 (check not built yet)
+**Guard:** `apps/myk9show/eslint.config.js`
 
 On 2026-10-12 a new unit test for `askCanEditDog` failed with `TypeError: Failed to fetch`, pointing at the line that made the Supabase `rpc` mock throw, although the function under test caught that error and returned `null` exactly as asserted. The file's hook was `beforeEach(() => rpc.mockReset())`. `mockReset()` returns the mock, so the concise arrow returned a function, and Vitest treats a function returned from `beforeEach` as a teardown for that test. After the body passed, Vitest called `rpc()` with no arguments, the throwing implementation fired, and the test failed on an error no assertion had produced. A sibling file with the same hook passed only because its mock resolved instead of throwing, so the extra call was silent there. Writing the hook with a block body (`beforeEach(() => { rpc.mockReset(); })`) fixed both; nothing else in the repository used the concise shape at the time.
 

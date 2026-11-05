@@ -6,7 +6,9 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { runGuard } from './migration-version-guard';
 
 const roots: string[] = [];
-afterEach(() => roots.splice(0).forEach(root => rmSync(root, { recursive: true, force: true })));
+afterEach(() => {
+  roots.splice(0).forEach(root => rmSync(root, { recursive: true, force: true }));
+});
 const path = 'supabase/migrations/20260905000000_fixture.sql';
 function fixture() {
   const root = mkdtempSync(join(tmpdir(), 'migration-provenance-'));

@@ -38,7 +38,9 @@ describe('a sync download lands inside a stale-row re-fetch (MYK9-794)', () => {
     tableName = await resetForStaleRowTest();
   });
 
-  afterEach(() => teardownStaleRowTest(manager));
+  afterEach(async () => {
+    await teardownStaleRowTest(manager);
+  });
 
   /**
    * Runs steps 1-4, with `betweenDownloadAndApply` after step 3, then upload

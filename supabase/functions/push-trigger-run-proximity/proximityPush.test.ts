@@ -35,7 +35,9 @@ const row = (userId: string, device: string) => ({
   auth: 'a',
 });
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe('createProximityPushPort', () => {
   it('reads subscriptions once for all recipients and sends to every device', async () => {

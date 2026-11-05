@@ -371,7 +371,7 @@ Both are the same shape: the test's setup never reaches the condition the guard 
 
 ## local-self-reference
 
-**Guard:** MYK9-1654 (check not built yet)
+**Guard:** `scripts/qa/shellcheck-sc2318.sh`
 
 **`local s="$1" n=${#s}` measures the CALLER's `s`, not the one being assigned.** The shell expands every word of a command before running it, and `local` is a command — so the `${#s}` in that line is evaluated while `s` still holds whatever the enclosing scope had, which is usually empty. A tokenizer written that way loops zero times, emits nothing, exits 0, and every check built on it reads as "clean". Nothing warns: `bash -n` passes, `set -u` passes, the function is simply inert. Split the declaration (`local s="$1"` then `local n; n=${#s}`) whenever one `local` refers to another on the same line. Caught only because the script's own 32 known-answer fixtures went from 32/32 to 19/32 (#2062).
 

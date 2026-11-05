@@ -322,6 +322,13 @@ jobs:
       - name: Code-quality ratchets
         run: pnpm qa:code-quality-ratchet
 
+      # MYK9-1709: SC2318 only (`local s="$1" n=${#s}` reads the caller's s).
+      - name: Shellcheck SC2318 (local self-reference)
+        run: |
+          command -v shellcheck >/dev/null || sudo apt-get install -y --no-install-recommends shellcheck
+          pnpm qa:shellcheck:test
+          pnpm qa:shellcheck
+
       - name: Doc staleness check
         run: pnpm qa:doc-staleness:strict
 

@@ -26,6 +26,7 @@ import { ListFilterBar, ListResultLine, ListViewTabs } from '@/components/list-t
 import { GENERAL_DUTY_ROLES } from '@/types/volunteer';
 import type { ListFilterField, ListView } from '@/components/list-toolkit';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ErrorState } from '@/components/common/ErrorState';
 import { useVolunteerFilters } from './useVolunteerFilters';
 import type { Volunteer, ClassInfo } from '@/types/volunteer';
 
@@ -51,7 +52,12 @@ export default function VolunteerSchedulingPage() {
   }, [routeShowId, selectedShowId, selectShow]);
   const showTrials = trials.filter(t => t.showId === activeShowId);
 
-  const { data: volunteers = [], isLoading: loadingVols } = useVolunteers(showId);
+  const {
+    data: volunteers = [],
+    isLoading: loadingVols,
+    isError: volunteersFailed,
+    refetch: refetchVolunteers,
+  } = useVolunteers(showId);
   const { data: classAssignments = [], isLoading: loadingCA } =
     useVolunteerClassAssignments(showId);
   const { data: generalAssignments = [], isLoading: loadingGA } =
@@ -186,6 +192,19 @@ export default function VolunteerSchedulingPage() {
         >
           Go to your shows
         </Link>
+      </div>
+    );
+  }
+
+  // MYK9-1726: a failed load leaves `volunteers` at its [] default, and the pickers would then
+  // say the show has no volunteers yet, inviting the secretary to add everyone again.
+  if (volunteersFailed) {
+    return (
+      <div className="p-4 md:p-6">
+        <ErrorState
+          message="Couldn't load this show's volunteers"
+          onRetry={() => void refetchVolunteers()}
+        />
       </div>
     );
   }

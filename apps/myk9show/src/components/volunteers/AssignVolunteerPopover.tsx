@@ -21,7 +21,7 @@ function emptyMessage(volunteers: Volunteer[], excludeIds: string[], search: str
     return 'No volunteers yet. Add people with Add Volunteer at the top of this page.';
   const excluded = new Set(excludeIds);
   if (volunteers.every(v => excluded.has(v.id))) {
-    return 'Everyone on the volunteer list is already assigned here.';
+    return 'All your volunteers already have this job.';
   }
   return `No volunteers match "${search}".`;
 }

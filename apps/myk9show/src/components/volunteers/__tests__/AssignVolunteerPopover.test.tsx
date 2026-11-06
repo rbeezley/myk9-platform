@@ -113,9 +113,7 @@ describe('AssignVolunteerPopover', () => {
         <AssignVolunteerPopover {...defaultProps} excludeIds={['v-1', 'v-2', 'v-3']} />
       );
       await user.click(screen.getByRole('button', { name: /assign/i }));
-      expect(
-        screen.getByText('Everyone on the volunteer list is already assigned here.')
-      ).toBeInTheDocument();
+      expect(screen.getByText('All your volunteers already have this job.')).toBeInTheDocument();
     });
 
     it('names the search when it matches nobody', async () => {

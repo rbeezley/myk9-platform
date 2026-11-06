@@ -448,7 +448,7 @@ describe('ShowDeskPanel cockpit', () => {
     );
   });
 
-  it('renders unresolved closeout attention as information instead of a false link', () => {
+  it('opens Results from the close-out attention pill (MYK9-1727)', () => {
     render(
       <ShowDeskPanel
         show={show}
@@ -469,8 +469,9 @@ describe('ShowDeskPanel cockpit', () => {
       { initialRoute: '/shows/show-1/show-day' }
     );
 
-    expect(screen.getAllByText('Close out 1 result')).not.toHaveLength(0);
-    expect(screen.queryByRole('link', { name: /close out 1 result/i })).not.toBeInTheDocument();
+    const link = screen.getAllByRole('link', { name: /close out 1 result/i })[0];
+    expect(link).toHaveAccessibleName('Close out 1 result, opens Results');
+    expect(link?.getAttribute('href')).toMatch(/^\/shows\/show-1\/results\?returnTo=/);
   });
 
   it('hides staff entry attention when the viewer cannot manage the Show', () => {

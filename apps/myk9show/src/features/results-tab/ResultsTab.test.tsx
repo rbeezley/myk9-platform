@@ -287,7 +287,7 @@ describe('ResultsTab list', () => {
       'href',
       '/shows/show-1/results?status=all&classId=class-ready'
     );
-    expect(screen.getByRole('link', { name: 'Overview: Containers Excellent' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Show Desk: Containers Excellent' })).toHaveAttribute(
       'href',
       '/shows/show-1?focus=class-ring'
     );
@@ -880,7 +880,7 @@ describe('ResultsTab one-tap release (MYK9-1264)', () => {
 
     expect(screen.queryByRole('button', { name: 'Release results' })).not.toBeInTheDocument();
     expect(
-      screen.getByText(/Mark it complete on\s+Overview, then its scores can be checked here/)
+      screen.getByText(/Mark it complete on\s+Show Desk, then its scores can be checked here/)
     ).toBeInTheDocument();
     expect(
       screen.queryByRole('link', { name: /Mark Class Complete on Overview/ })

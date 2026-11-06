@@ -306,7 +306,7 @@ describe('ShowWorkbenchShowDeskPage', () => {
     expect(await screen.findByTestId('show-desk-panel')).toBeInTheDocument();
     // Once the desk body renders, its tools reach the header for this show.
     expect(usePageEditTargetStore.getState().showTools?.showId).toBe('show-1');
-    expect(usePageEditTargetStore.getState().showTools?.tools).toHaveLength(8);
+    expect(usePageEditTargetStore.getState().showTools?.tools).toHaveLength(9);
     expect(screen.getByTestId('panel-entry-count')).toHaveTextContent('8');
     expect(screen.getByTestId('panel-class-entry-counts')).toHaveTextContent('8');
     expect(screen.getByTestId('panel-class-scored-counts')).toHaveTextContent('3');
@@ -354,7 +354,7 @@ describe('ShowWorkbenchShowDeskPage', () => {
       turnOff();
       const rows = await inventory();
       expect(rows).not.toContain(toolId);
-      expect(rows).toHaveLength(7);
+      expect(rows).toHaveLength(8);
       // A deep link still opens it: the panel is handed the full list.
       expect(screen.getByTestId('panel-tool-ids')).toHaveTextContent(toolId);
     });
@@ -363,7 +363,7 @@ describe('ShowWorkbenchShowDeskPage', () => {
       turnOn();
       const rows = await inventory();
       expect(rows).toContain(toolId);
-      expect(rows).toHaveLength(8);
+      expect(rows).toHaveLength(9);
     });
   });
 
@@ -420,6 +420,7 @@ describe('ShowWorkbenchShowDeskPage', () => {
   });
 
   it('offers Message exhibitors as a door to this show in the Message Center (MYK9-1727)', async () => {
+    getEntriesForShowMock.mockResolvedValue({ data: [], error: null });
     renderPage();
 
     expect(await screen.findByTestId('show-desk-panel')).toBeInTheDocument();

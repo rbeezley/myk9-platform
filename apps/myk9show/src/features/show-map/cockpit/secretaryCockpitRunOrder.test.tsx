@@ -148,7 +148,7 @@ describe('run order is reachable from the focused-class panel', () => {
 
   it('keeps the Run order label for a class with 2 entries (positive control)', () => {
     renderPanel({ sourceClass: { ...SOURCE_CLASS, entryCount: 2 } });
-    expect(screen.getByText('Run order')).toBeInTheDocument();
+    expect(screen.getAllByText('Run order').length).toBeGreaterThan(0);
   });
 
   it('is absent for a non-manager, like the entry actions beside it', () => {

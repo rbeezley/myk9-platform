@@ -5,12 +5,9 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { ShowMapRunOrderMenu } from '../ShowMapRunOrderMenu';
 import { formatTime } from '@/lib/format/dates';
-import { countLabel } from '@/utils/pluralize';
 import type { SecretaryCockpitRunOrderControls } from './secretaryCockpitTypes';
-import {
-  formatClassEntryBreakdown,
-  type ClassEntryBreakdown,
-} from '@/features/entry-operations/classEntryBreakdown';
+import type { ClassEntryBreakdown } from '@/features/entry-operations/classEntryBreakdown';
+import { buildFocusedClassFacts } from './focusedClassFacts';
 
 import { CockpitActionLink } from './CockpitActionLink';
 import { ClassChecklistSection } from './ClassChecklistSection';
@@ -33,6 +30,8 @@ import {
   FOCUSED_CLASS_SCROLL_MARGIN_CLASS_IN_PANEL,
   type FocusedClassPinMode,
 } from '@/components/shows/ShowDetails/showStickyLayout';
+
+const NO_ENTRIES: ClassEntryBreakdown = { entered: 0, pending: 0 };
 
 export function SecretaryCockpitFocusedClass({
   showId,
@@ -92,37 +91,16 @@ export function SecretaryCockpitFocusedClass({
     (Boolean(sourceClass.revisedExpectedStart) &&
       !scheduledClockValue(sourceClass.scheduledStart ?? null));
 
-  const entryCount = sourceClass.entryCount ?? null;
-  // "2 of 2 scored" already says how many entries; the bare count is only the
-  // fallback when progress is unknown (owner, 2026-10-03).
-  // Same rule as the class card: before scoring can begin it would only read "0 of N".
-  const progress = focused.progress.value;
-  const scoringBegun =
-    progress !== null &&
-    (progress.completed > 0 ||
-      focused.lifecycle.value === 'in-progress' ||
-      focused.lifecycle.value === 'complete');
-  // The schedule row's count, so the header and the row never disagree about one class
-  // ("0 entries" above "1 pending" below, MYK9-1727); the bare count only when it is unread.
-  const breakdown = entryBreakdownByClassId
-    ? (entryBreakdownByClassId.get(focused.id) ?? { entered: 0, pending: 0 })
-    : undefined;
-  const breakdownText = breakdown ? formatClassEntryBreakdown(breakdown) : undefined;
   // The Run order menu hides itself below 2 entries, so its label does too.
   const runOrderEntryCount =
     sourceClass.runListCount ?? sourceClass.entryCount ?? focused.entryRows.length;
-  const facts = [
-    scoringBegun
-      ? `${progress.completed} of ${progress.total} scored`
-      : breakdownText
-        ? breakdownText.entered
-        : entryCount === null
-          ? null
-          : countLabel(entryCount, 'entry', 'entries'),
-    breakdownText?.pending ?? null,
+  const facts = buildFocusedClassFacts({
+    focused,
+    entryCount: sourceClass.entryCount ?? null,
+    breakdown: entryBreakdownByClassId?.get(focused.id) ?? (entryBreakdownByClassId && NO_ENTRIES),
     // With the Judge setting below, the header would only repeat it.
-    !judgeControl && focused.judgeName ? `Judge ${focused.judgeName}` : null,
-  ].filter(Boolean);
+    showJudge: !judgeControl,
+  });
 
   return (
     <aside className="rounded-xl border bg-card text-card-foreground shadow-sm">

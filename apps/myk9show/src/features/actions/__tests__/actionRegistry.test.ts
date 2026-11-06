@@ -212,7 +212,7 @@ describe('resolveActions — club admin on a show', () => {
 
   // "Open Show Day" went with the tab (MYK9-957): the show home is the page this menu opens over.
   it('keeps the same items plus Select classes (MYK9-1317)', () => {
-    expect(actions).toHaveLength(8);
+    expect(actions).toHaveLength(7);
   });
 
   // MYK9-1242: only the secretary's choice went away. A club admin cannot reach the

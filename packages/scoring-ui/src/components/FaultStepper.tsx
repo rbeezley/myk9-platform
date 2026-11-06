@@ -1,6 +1,6 @@
 /**
- * FaultStepper -- "Faults [-] 0 [+]" on one row, with 44px steppers (MYK9-1501,
- * MYK9-140). Shared by every scent-work sheet so the faults control is the same
+ * FaultStepper -- "Faults [-] 0 [+]" on one centered row, with 44px steppers
+ * (MYK9-1501, MYK9-140, MYK9-1724). Shared by every scent-work sheet so the faults control is the same
  * size and shape everywhere.
  *
  * `max` is the registry's fault limit (ASCA); at the limit the + stops and the
@@ -38,7 +38,7 @@ export const FaultStepper: React.FC<FaultStepperProps> = ({
   const atMax = hasMax && value >= max;
   return (
     <div className={className}>
-      <div className="flex min-h-12 items-center justify-between gap-3">
+      <div className="flex min-h-12 items-center justify-center gap-4">
         <span className="text-base font-semibold">
           Faults
           {hasMax && (
@@ -85,7 +85,9 @@ export const FaultStepper: React.FC<FaultStepperProps> = ({
           </button>
         </div>
       </div>
-      {atMax && maxNote && <div className="text-sm font-medium text-red-500">{maxNote}</div>}
+      {atMax && maxNote && (
+        <div className="text-center text-sm font-medium text-red-500">{maxNote}</div>
+      )}
     </div>
   );
 };

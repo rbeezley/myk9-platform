@@ -2,6 +2,7 @@ import { unwrap, type IDBPDatabase } from 'idb';
 import type { Logger } from './dependencies';
 import { REPLICATION_STORES } from './core/DatabaseManager';
 import { withAcknowledgedSyncFlag } from './core/ReplicatedTableRowState';
+import { supersedeOlderQueuedWrites } from './mutation-supersede';
 import { writtenColumnsOf, type WrittenFieldOverlay } from './mutation-written-overlay';
 import type { PendingMutation, ReplicatedRow } from './types';
 
@@ -49,11 +50,20 @@ export async function markReplicatedRowSynced(
     // succeeded by the time the queue read does.
     queueRead.onsuccess = () => {
       const existingRow = rowRead.result as ReplicatedRow<unknown> | undefined;
-      if (!existingRow) return;
       try {
+        // In the same transaction, so the restamp that follows the ack
+        // (updateMutationServerVersions) never sees a write this one replaced.
+        const queue = tx.objectStore(REPLICATION_STORES.PENDING_MUTATIONS);
+        const superseded = supersedeOlderQueuedWrites(
+          mutation,
+          queueRead.result as PendingMutation[]
+        );
+        for (const id of superseded.removed) queue.delete(id);
+        for (const rewritten of superseded.rewritten) queue.put(rewritten);
+        if (!existingRow) return;
         const acknowledged = acknowledgedRow(
           existingRow,
-          queueRead.result as PendingMutation[],
+          superseded.remaining,
           mutation,
           newServerVersion,
           overlayWritten

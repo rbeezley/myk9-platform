@@ -59,7 +59,7 @@ export function HeaderActions() {
           type="button"
           variant="default"
           size="touch"
-          className="relative min-w-11 px-1.5 text-xs sm:min-h-11 sm:gap-1 sm:px-3 sm:text-sm"
+          className="relative min-w-11 px-1 text-xs sm:min-h-11 sm:gap-1 sm:px-3 sm:text-sm"
           data-testid="header-actions-trigger"
         >
           <span>Actions</span>

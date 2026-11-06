@@ -137,7 +137,7 @@ const AppHeader: React.FC = () => {
                   variant="ghost"
                   size="sm"
                   onClick={openMobileNav}
-                  className="md:hidden -ml-2 min-h-11 min-w-11 rounded-lg p-2"
+                  className="md:hidden -ml-1 min-[400px]:-ml-2 min-h-11 min-w-11 rounded-lg p-2"
                   aria-label="Open navigation"
                 >
                   <Menu className="h-5 w-5" />

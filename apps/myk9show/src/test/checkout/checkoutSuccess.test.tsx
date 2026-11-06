@@ -401,31 +401,6 @@ describe('CheckoutSuccessPage', () => {
     expect(screen.queryByText('Registration #')).not.toBeInTheDocument();
   });
 
-  it('re-asks the rail own-entries count once the checkout is confirmed', async () => {
-    mockSingle.mockResolvedValue({
-      data: {
-        id: 'order-uuid',
-        status: 'succeeded',
-        amount_cents: 7500,
-        entry_ids: [],
-        show_id: 'show-uuid',
-        paid_at: '2026-04-13T10:00:00Z',
-        stripe_payment_intent_id: 'pi_3TgoK2AIej2Q9UtX3HSHZh3M',
-        shows: { name: 'Spring Invitational' },
-        enrollment: { confirmation_number: 'MK9-000042' },
-      },
-      error: null,
-    });
-    const client = createTestQueryClient();
-    const invalidate = vi.spyOn(client, 'invalidateQueries');
-
-    renderSuccessPage('cs_test_abc123', client);
-
-    await waitFor(() => {
-      expect(invalidate).toHaveBeenCalledWith({ queryKey: ['own-entries', 'server-has-any'] });
-    });
-  });
-
   it('shows the Stripe id as a payment reference, never as Confirmation #', async () => {
     mockSingle.mockResolvedValue({
       data: {

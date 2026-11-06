@@ -116,24 +116,18 @@ describe('buildRailEntries', () => {
   });
 });
 
-// MYK9-1491: a staff account that is also an exhibitor sees My Entries only with entries of its own.
-describe('rail count by own entries', () => {
-  function count(roles: UserRole[], ownEntries: 'yes' | 'no' | 'unknown'): number {
-    const config = buildUnifiedSidebarConfig(roles, CLUB, 'Jamie', undefined, ownEntries);
-    return buildRailEntries(config.groups).length;
-  }
-
-  it.each([
-    ['yes', 4],
-    ['unknown', 4],
-    ['no', 3],
-  ] as const)('secretary + exhibitor with own entries %s has %i items', (state, expected) => {
-    expect(count([UserRole.SECRETARY, UserRole.EXHIBITOR], state)).toBe(expected);
-  });
-
-  it('leaves an exhibitor-only rail unchanged whatever the answer', () => {
-    expect(count([UserRole.EXHIBITOR], 'no')).toBe(4);
-    expect(count([UserRole.EXHIBITOR], 'yes')).toBe(4);
+// MYK9-1525: a staff account that is also an exhibitor always has My Entries, entries or not.
+describe('My Entries for staff who are also exhibitors', () => {
+  it('is on the secretary + exhibitor rail', () => {
+    const config = buildUnifiedSidebarConfig(
+      [UserRole.SECRETARY, UserRole.EXHIBITOR],
+      CLUB,
+      'Jamie'
+    );
+    const hrefs = buildRailEntries(config.groups).flatMap(entry =>
+      entry.kind === 'item' ? [entry.item.href] : []
+    );
+    expect(hrefs).toContain('/exhibitor/entries');
   });
 });
 

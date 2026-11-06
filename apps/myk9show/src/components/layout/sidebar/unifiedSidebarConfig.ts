@@ -42,7 +42,6 @@ import { UserRole, USER_ROLE_HIERARCHY } from '@/types/auth-types';
 import { ROLE_LABELS } from '@/services/rbac/roleUiConstants';
 import { isWizardSurface, isPathInWizardAllowlist } from '@/config/surface';
 import type { SidebarConfig, NavGroup, NavItem, NavRailLink, NavRailMenu } from './types';
-import type { OwnEntriesState } from '@/hooks/useHasOwnEntries';
 import { browseTabsForRoles, hasExhibitorGroupRoles, isExhibitorOnlyRoles } from './browseTabs';
 import { formatShowDateRange } from '@/lib/format/dates';
 import { truncateRailTitle } from './currentShow';
@@ -110,8 +109,7 @@ export function buildUnifiedSidebarConfig(
   userRoles: readonly UserRole[],
   clubContext?: ClubContext,
   firstName?: string | null,
-  currentShowNav?: CurrentShowNav,
-  ownEntries: OwnEntriesState = 'unknown'
+  currentShowNav?: CurrentShowNav
 ): SidebarConfig {
   const groups: NavGroup[] = [];
   const hasSiteAdmin = hasAnyRole(userRoles, [UserRole.SITE_ADMIN]);
@@ -197,8 +195,9 @@ export function buildUnifiedSidebarConfig(
 
     // 5. As Exhibitor section (exhibitor with other roles): the rarest destination, so last of the
     // shared items
-    // Only a confirmed absence of the viewer's own entries hides it: unknown keeps it (MYK9-1491).
-    if (hasExhibitorGroupRoles(userRoles) && ownEntries !== 'no') {
+    // Always shown to an exhibitor with other roles, entries or not: hiding it until a first
+    // entry could not be kept fresh (MYK9-1491, removed by owner decision in MYK9-1525).
+    if (hasExhibitorGroupRoles(userRoles)) {
       groups.push({
         title: 'As Exhibitor',
         items: [

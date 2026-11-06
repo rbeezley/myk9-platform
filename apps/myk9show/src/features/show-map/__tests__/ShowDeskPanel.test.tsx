@@ -181,11 +181,13 @@ describe('ShowDeskPanel cockpit', () => {
     await user.click(screen.getByRole('button', { name: 'Filter' }));
     await user.click(await screen.findByRole('option', { name: /^In progress/ }));
     expect(screen.queryByRole('button', { name: 'Container Novice' })).not.toBeInTheDocument();
-    expect(screen.getAllByRole('heading', { name: 'Container Novice' })).not.toHaveLength(0);
-    expect(
-      screen.getByText('Focused Class is outside the current schedule filter.')
-    ).toBeInTheDocument();
+    // MYK9-1727: a class the filter hides is not left open beside the schedule.
+    expect(screen.queryByRole('heading', { name: 'Container Novice' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Interior Advanced' })).toBeInTheDocument();
+
+    // Unticking the status brings the class that was open back.
+    await user.click(screen.getByRole('button', { name: 'Remove filter Status: In progress' }));
+    expect(screen.getAllByRole('heading', { name: 'Container Novice' })).not.toHaveLength(0);
   });
 
   it('mounts the focused Class panel once, inline, on a narrow viewport', async () => {
@@ -250,6 +252,34 @@ describe('ShowDeskPanel cockpit', () => {
     } finally {
       cockpitWidth.value = null;
     }
+  });
+
+  // MYK9-1727: on a wide cockpit, a class the filter hides leaves a prompt, not its panel.
+  it('shows a pick-a-class prompt in the split column when the filter hides the open class', () => {
+    cockpitWidth.value = 1000;
+    onTestFinished(() => {
+      cockpitWidth.value = null;
+    });
+    render(
+      <ShowDeskPanel
+        show={show}
+        trials={[trial]}
+        classes={[
+          { id: 'class-1', trialId: 'trial-1', name: 'Container Novice', status: 'Scheduled' },
+          { id: 'class-2', trialId: 'trial-1', name: 'Interior Advanced', status: 'In Progress' },
+        ]}
+        entries={[]}
+        canManageShow
+        scopeNow={now}
+      />,
+      { initialRoute: '/shows/show-1/show-day?focus=class-1&filter=in-progress' }
+    );
+
+    expect(screen.queryByTestId('cockpit-split-focus')).not.toBeInTheDocument();
+    expect(screen.getByTestId('cockpit-split-empty')).toHaveTextContent(
+      'Pick a class from the schedule to see its checklist.'
+    );
+    expect(screen.queryByRole('heading', { name: 'Container Novice' })).not.toBeInTheDocument();
   });
 
   it('restores the URL-backed schedule anchor without changing Class focus', async () => {

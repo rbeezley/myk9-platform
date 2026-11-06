@@ -267,21 +267,10 @@ export function SecretaryCockpit({
           }
           select={canManageShow ? selection : undefined}
         />
-        {!isSplit && !focusedClassIsVisible && !selecting && model.focusedClass && (
-          <div
-            className="space-y-2"
-            data-testid="cockpit-inline-focus"
-            aria-label="Focused Class outside current schedule filter"
-          >
-            <p className="text-sm text-muted-foreground">
-              Focused Class is outside the current schedule filter.
-            </p>
-            {focusedPanel}
-          </div>
-        )}
         {/* Kept while selecting: split, the panel has its own column beside the schedule rather
-            than sitting inside the tick list. */}
-        {isSplit && model.focusedClass && (
+            than sitting inside the tick list. It only ever shows a class the schedule shows
+            (MYK9-1727): a class the filter hides waits, still in the URL, until the filter clears. */}
+        {isSplit && model.focusedClass && focusedClassIsVisible && (
           <div
             ref={splitPanelRef}
             className={cn(
@@ -292,6 +281,14 @@ export function SecretaryCockpit({
           >
             {focusedPanel}
           </div>
+        )}
+        {isSplit && !(model.focusedClass && focusedClassIsVisible) && (
+          <p
+            className="col-start-2 row-start-2 rounded-xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground"
+            data-testid="cockpit-split-empty"
+          >
+            Pick a class from the schedule to see its checklist.
+          </p>
         )}
       </div>
       {/* Mounted for managers even with nothing ticked, so a toast's "Retry failed" still reads

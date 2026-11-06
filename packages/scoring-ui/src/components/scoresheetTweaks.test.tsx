@@ -76,7 +76,7 @@ describe('TimerResetButton', () => {
   it('is a labelled button that resets', () => {
     const onReset = vi.fn();
     render(<TimerResetButton visible onReset={onReset} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Reset timer' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Reset' }));
     expect(onReset).toHaveBeenCalledTimes(1);
   });
 });

@@ -14,11 +14,11 @@ import { Card } from '@myk9/ui';
 
 /** Primary timer button (Start, Stop, Resume): fills the row beside Reset. */
 export const timerPrimaryButtonClass =
-  'h-14 min-w-0 flex-[2] rounded-xl text-xl font-semibold shadow-sm hover:brightness-110';
+  'h-20 min-w-0 flex-[2] rounded-xl text-2xl font-semibold shadow-sm hover:brightness-110';
 
 /** Secondary timer button (Reset, Finish): the smaller half of the row. */
 export const timerSecondaryButtonClass =
-  'h-14 min-w-0 flex-1 gap-2 rounded-xl text-base font-semibold';
+  'h-20 flex-none gap-2 rounded-xl px-4 text-base font-semibold';
 
 export interface ScoresheetTimerCardProps {
   /** The big elapsed time. */

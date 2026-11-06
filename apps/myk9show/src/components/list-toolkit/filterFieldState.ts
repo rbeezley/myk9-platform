@@ -12,6 +12,15 @@ export function isFieldActive(field: ListMenuFilterField): boolean {
   return field.value.start !== null || field.value.end !== null;
 }
 
+/**
+ * How many picks a field adds to the Filter button's badge (MYK9-1727): each ticked value of a
+ * multi-pick field counts, so three ticks read 3, not the number of fields touched.
+ */
+export function appliedPickCount(field: ListMenuFilterField): number {
+  if (field.kind === 'multiOptions') return field.values.length;
+  return isFieldActive(field) ? 1 : 0;
+}
+
 /** The field's options are not known yet, so its values cannot be shown by name. */
 export function isFieldLoading(field: ListMenuFilterField): boolean {
   return field.kind !== 'dateRange' && field.loading === true;

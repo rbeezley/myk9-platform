@@ -384,15 +384,20 @@ async function expectGatedRows(page: Page, showId: string, expected: string[]) {
   await expect(menu.getByRole('menuitem', { name: /^Check-in desk/ })).toBeVisible({
     timeout: 30_000,
   });
+  // The ungated Check-in desk row rides in the same snapshot as a positive control, so an empty
+  // read (the menu closed or unmounted mid-poll) can never pass as "no gated rows".
   await expect
     .poll(
       async () => {
-        const names = await menu.getByRole('menuitem').allInnerTexts();
-        return GATED_ROWS.filter(row => names.some(name => name.trim().startsWith(row)));
+        const names = (await menu.getByRole('menuitem').allInnerTexts()).map(name => name.trim());
+        return {
+          control: names.some(name => name.startsWith('Check-in desk')),
+          rows: GATED_ROWS.filter(row => names.some(name => name.startsWith(row))),
+        };
       },
       { timeout: 15_000 }
     )
-    .toEqual(expected);
+    .toEqual({ control: true, rows: expected });
   await page.keyboard.press('Escape');
 }
 

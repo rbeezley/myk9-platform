@@ -26,12 +26,13 @@ vi.mock('@myk9/scoring-ui', () => ({
 }));
 
 import { testSound, speakWithConfig } from '@myk9/notifications';
+import type { ReconcileOutcome } from '@/hooks/usePushSubscription';
 
 const mockSubscribe = vi.fn<
   () => Promise<{ ok: true } | { ok: false; reason: 'permission-denied' | 'subscribe-failed' }>
 >(() => Promise.resolve({ ok: true }));
 const mockUnsubscribe = vi.fn(() => Promise.resolve({ ok: true as const }));
-const mockReconcile = vi.fn<() => Promise<void>>(() => Promise.resolve());
+const mockReconcile = vi.fn<() => Promise<ReconcileOutcome>>(() => Promise.resolve('settled'));
 
 vi.mock('@/hooks/usePushSubscription', () => ({
   usePushSubscription: vi.fn(() => ({
@@ -179,7 +180,7 @@ beforeEach(() => {
     reconcile: mockReconcile,
     isSupported: true,
   }));
-  mockReconcile.mockResolvedValue(undefined);
+  mockReconcile.mockResolvedValue('settled');
   mockSubscribe.mockResolvedValue({ ok: true });
   mockUnsubscribe.mockResolvedValue({ ok: true });
   mockLoadSmsNotificationPreference.mockResolvedValue(null);
@@ -207,7 +208,7 @@ describe('NotificationSettings push reconcile on mount', () => {
     });
     mockReconcile.mockImplementation(() => {
       useNotificationStore.getState().updatePreferences({ pushEnabled: false });
-      return Promise.resolve();
+      return Promise.resolve('settled');
     });
     render(<NotificationSettings />);
     const pushSwitch = await screen.findByRole('switch', { name: /push notifications/i });
@@ -249,8 +250,8 @@ describe('NotificationSettings push reconcile on mount', () => {
     let finish!: () => void;
     mockReconcile.mockImplementation(
       () =>
-        new Promise<void>(resolve => {
-          finish = resolve;
+        new Promise<ReconcileOutcome>(resolve => {
+          finish = () => resolve('settled');
         })
     );
     render(<NotificationSettings />);

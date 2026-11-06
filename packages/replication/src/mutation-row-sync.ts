@@ -31,10 +31,14 @@ export async function markReplicatedRowSynced(
     'readwrite'
   );
   let token = newServerVersion;
+  // A throw inside the success callback aborts the transaction with a null error; keep the
+  // original so the log names the real cause.
+  let thrown: unknown;
   await new Promise<void>((resolve, reject) => {
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
-    tx.onabort = () => reject(tx.error ?? new Error('Acknowledgement transaction aborted'));
+    tx.onabort = () =>
+      reject(thrown ?? tx.error ?? new Error('Acknowledgement transaction aborted'));
     const rows = tx.objectStore(REPLICATION_STORES.REPLICATED_TABLES);
     const rowRead = rows.get([mutation.tableName, String(mutation.rowId)]);
     const queueRead = tx
@@ -46,15 +50,20 @@ export async function markReplicatedRowSynced(
     queueRead.onsuccess = () => {
       const existingRow = rowRead.result as ReplicatedRow<unknown> | undefined;
       if (!existingRow) return;
-      const acknowledged = acknowledgedRow(
-        existingRow,
-        queueRead.result as PendingMutation[],
-        mutation,
-        newServerVersion,
-        overlayWritten
-      );
-      token = acknowledged.token;
-      rows.put(acknowledged.row);
+      try {
+        const acknowledged = acknowledgedRow(
+          existingRow,
+          queueRead.result as PendingMutation[],
+          mutation,
+          newServerVersion,
+          overlayWritten
+        );
+        token = acknowledged.token;
+        rows.put(acknowledged.row);
+      } catch (error) {
+        thrown = error;
+        tx.abort();
+      }
     };
   });
   return token;

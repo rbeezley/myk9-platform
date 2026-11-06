@@ -78,6 +78,15 @@ describe('ResultLabelsReport', () => {
     buildLabelStylesheetMock.mockClear();
   });
 
+  it('renders the preview on paper colours regardless of theme (MYK9-1722)', () => {
+    render(<ResultLabelsReport {...baseProps} />);
+    const cells = screen.getAllByTestId('label-preview-cell');
+    expect(cells.length).toBeGreaterThan(0);
+    for (const el of [...cells, screen.getByTestId('label-preview-page')]) {
+      expect(el).toHaveStyle({ backgroundColor: '#fff', color: '#000' });
+    }
+  });
+
   it('renders the inline config panel', () => {
     render(<ResultLabelsReport {...baseProps} />);
     expect(screen.getByText(/Label Size/i)).toBeInTheDocument();

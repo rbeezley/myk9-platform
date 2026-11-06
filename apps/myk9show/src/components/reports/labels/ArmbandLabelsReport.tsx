@@ -16,6 +16,7 @@ import {
   type PaperworkDescriptor,
 } from '@/features/show-map/cockpit/paperworkPrintState';
 import { ArmbandLabelCell } from './ArmbandLabelCell';
+import { LabelPreviewSheet } from './LabelPreviewSheet';
 import { LabelSetupSection, SetupEyebrow } from './LabelModeChrome';
 import { LabelCalibrationPanel } from './LabelCalibrationPanel';
 import { generatePasscodesFromShowId } from '@myk9/core';
@@ -435,38 +436,12 @@ export const ArmbandLabelsReport: React.FC<ArmbandLabelsReportProps> = ({
 
       {/* Live label preview */}
       {pages.map(page => (
-        <div
+        <LabelPreviewSheet
           key={page.pageNumber}
-          style={{
-            display: 'grid',
-            gridTemplateColumns: `repeat(${template.columns}, ${template.labelWidth}in)`,
-            columnGap: `${template.gapX}in`,
-            rowGap: `${template.gapY}in`,
-            margin: '0 auto',
-            marginBottom: '16px',
-            border: '1px dashed var(--border)',
-            padding: '8px',
-          }}
-        >
-          {page.cells.map((cell, i) => (
-            <div
-              key={i}
-              style={{
-                width: `${template.labelWidth}in`,
-                height: `${template.labelHeight}in`,
-                border:
-                  cell.type === 'item' ? '1px solid var(--border)' : '1px dashed var(--border)',
-                boxSizing: 'border-box',
-                overflow: 'hidden',
-                padding: '0.08in 0.12in',
-              }}
-            >
-              {cell.type === 'item' && cell.item && (
-                <ArmbandLabelCell item={cell.item} {...sharedCellProps} />
-              )}
-            </div>
-          ))}
-        </div>
+          page={page}
+          template={template}
+          renderItem={item => <ArmbandLabelCell item={item} {...sharedCellProps} />}
+        />
       ))}
     </div>
   );

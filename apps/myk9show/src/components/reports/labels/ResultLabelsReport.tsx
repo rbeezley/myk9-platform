@@ -15,6 +15,7 @@ import type { DbTrial, DbClass, DbEntry } from '@/types/database-mappings';
 import type { Show } from '@/types/show-types';
 import type { ReportScope } from '@/lib/reports/types';
 import { ResultLabelCell } from './ResultLabelCell';
+import { LabelPreviewSheet } from './LabelPreviewSheet';
 import { LabelSetupSection, SetupEyebrow } from './LabelModeChrome';
 import { LabelCalibrationPanel } from './LabelCalibrationPanel';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -222,35 +223,12 @@ export const ResultLabelsReport: React.FC<ResultLabelsReportProps> = ({
         !isUnavailable &&
         !isError &&
         pages.map(page => (
-          <div
+          <LabelPreviewSheet
             key={page.pageNumber}
-            style={{
-              display: 'grid',
-              gridTemplateColumns: `repeat(${template.columns}, ${template.labelWidth}in)`,
-              columnGap: `${template.gapX}in`,
-              rowGap: `${template.gapY}in`,
-              margin: '0 auto 16px',
-              border: '1px dashed var(--border)',
-              padding: '8px',
-            }}
-          >
-            {page.cells.map((cell, i) => (
-              <div
-                key={i}
-                style={{
-                  width: `${template.labelWidth}in`,
-                  height: `${template.labelHeight}in`,
-                  border:
-                    cell.type === 'item' ? '1px solid var(--border)' : '1px dashed var(--border)',
-                  boxSizing: 'border-box',
-                  overflow: 'hidden',
-                  padding: '0.08in 0.12in',
-                }}
-              >
-                {cell.type === 'item' && cell.item && <ResultLabelCell item={cell.item} />}
-              </div>
-            ))}
-          </div>
+            page={page}
+            template={template}
+            renderItem={item => <ResultLabelCell item={item} />}
+          />
         ))}
     </div>
   );

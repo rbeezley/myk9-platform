@@ -899,7 +899,8 @@ describe('ShowDetailsPage', () => {
     const list = tabs[0].closest('[role="tablist"]');
     expect(list).not.toBeNull();
     expect(tabs.every(tab => tab.closest('[role="tablist"]') === list)).toBe(true);
-    expect(tabs[0].closest('[class*="overflow-x-auto"]')).toBeNull();
+    // Below lg nothing scrolls; the lg-prefixed scroller is the desktop strip.
+    expect(list).not.toHaveClass('overflow-x-auto');
   });
 
   it('hides the management tabs from exhibitors with entries', () => {

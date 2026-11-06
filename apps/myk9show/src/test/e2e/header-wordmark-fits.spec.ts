@@ -284,12 +284,17 @@ test.describe('header wordmark fits', () => {
       expect(bounds!.height, `Actions touch height @ ${width}`).toBeGreaterThanOrEqual(44);
       expect(bounds!.x, `Actions left edge @ ${width}`).toBeGreaterThanOrEqual(0);
       expect(bounds!.x + bounds!.width, `Actions right edge @ ${width}`).toBeLessThanOrEqual(width);
-      // Icon-only below `sm`, measured as WIDTH rather than as text: an
-      // `sr-only` label is still in the DOM and still in `innerText`.
+      // MYK9-1729: the trigger says "Actions" in words at every phone width, so a first-time
+      // secretary can tell what the button holds. innerText excludes nothing visible, and the
+      // label is no longer an `sr-only` span, so it reads as the whole text.
+      expect(
+        await trigger.innerText(),
+        `@ ${width}px the trigger must carry the visible word "Actions"`
+      ).toBe('Actions');
       expect(
         bounds!.width,
-        `@ ${width}px the trigger must be icon-only — a written label costs the wordmark 45px it does not have`
-      ).toBeLessThanOrEqual(56);
+        `@ ${width}px the compact labelled trigger stays slim so the wordmark keeps its room`
+      ).toBeLessThanOrEqual(80);
 
       if (width === 375) {
         await test.info().attach('header-375-secretary-actions', {
@@ -299,19 +304,15 @@ test.describe('header wordmark fits', () => {
       }
     }
 
-    // From `sm` up the written label comes back, where the header has the room.
+    // From `sm` up the chevron joins the label, so the trigger widens.
     await page.setViewportSize({ width: 1280, height: 900 });
-    // Poll the WIDTH. `toHaveText(/Actions/)` is not a sync point here: the
-    // icon-only trigger already carries "Actions" as its `sr-only` label, so it
-    // matched before the media query flipped and the box read 44px (CI config,
-    // 2026-09-23). Polling toward "labelled" is safe in this direction -- the
-    // regression it guards is a label that never comes back, which still times
-    // out red.
+    // Poll the WIDTH: the chevron appears when the media query flips, and the box is 66px
+    // until it does.
     await expect
       .poll(async () => (await trigger.boundingBox())?.width ?? 0, {
-        message: 'the labelled desktop trigger is wider than the icon',
+        message: 'the desktop trigger is wider than the compact phone one',
       })
-      .toBeGreaterThan(56);
+      .toBeGreaterThan(80);
     assertWordmarkFits(await measureWordmark(page), 'secretary @ 1280');
     await test.info().attach('header-desktop-secretary-actions', {
       body: await page.locator('nav').first().screenshot(),

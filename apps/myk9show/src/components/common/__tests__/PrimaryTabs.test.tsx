@@ -21,6 +21,19 @@ const tabsWithoutIcons: PrimaryTabDef[] = [
   { id: 'details', label: 'Details' },
 ];
 
+describe('PrimaryTabs fit', () => {
+  it('keeps every tab, with its count after its label in reading order', () => {
+    render(
+      <PrimaryTabs tabs={tabsWithIcons} value="classes" onValueChange={vi.fn()} fit>
+        <TabsContent value="classes">content</TabsContent>
+      </PrimaryTabs>
+    );
+
+    const tabs = screen.getAllByRole('tab');
+    expect(tabs.map(tab => tab.textContent)).toEqual(['Classes5', 'Entries12', 'Settings']);
+  });
+});
+
 describe('PrimaryTabs', () => {
   it('renders tabs with labels', () => {
     render(

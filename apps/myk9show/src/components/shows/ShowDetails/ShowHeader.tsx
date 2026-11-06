@@ -50,16 +50,22 @@ export const ShowHeader: React.FC<ShowHeaderProps> = ({
     <div
       ref={headerRef}
       className={cn(
-        // Phones: the name gets the first row, the status controls the whole second row. From lg it
-        // is one line (name, controls).
-        'flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-border bg-background py-2 lg:flex-nowrap',
+        // Phones: the name (one line, truncated) and facts on top, the device line and presence on one
+        // row under them, so Show Desk starts in the top half of a 375x812 screen (MYK9-1729). From lg
+        // it is one line (name, controls).
+        'flex flex-wrap items-center gap-x-3 gap-y-0 border-b border-border bg-background py-1 lg:flex-nowrap lg:gap-y-2 lg:py-2',
         SHOW_HEADER_CLASS
       )}
     >
       {/* The name keeps a floor; the controls wrap onto a second line before it truncates. */}
       <div className="min-w-0 flex-1 basis-48 lg:min-w-[14rem]">
         <div className="flex min-w-0 items-center gap-2">
-          <h1 className="text-lg font-semibold leading-tight lg:truncate">{name}</h1>
+          <h1
+            title={name}
+            className="min-w-0 truncate text-lg font-semibold leading-tight sm:overflow-visible sm:whitespace-normal lg:overflow-hidden lg:whitespace-nowrap"
+          >
+            {name}
+          </h1>
           {organization && <Badge variant="default">{organization}</Badge>}
         </div>
         <p className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
@@ -70,7 +76,7 @@ export const ShowHeader: React.FC<ShowHeaderProps> = ({
           {status}
         </p>
       </div>
-      <div className="flex w-full min-w-0 flex-wrap items-center gap-2 lg:w-auto lg:flex-initial lg:justify-end">
+      <div className="flex w-full min-w-0 flex-wrap items-center justify-between gap-x-1 gap-y-0 lg:w-auto lg:gap-x-2 lg:flex-initial lg:justify-end lg:gap-y-2">
         {controls}
       </div>
     </div>

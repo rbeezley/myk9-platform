@@ -887,17 +887,19 @@ describe('ShowDetailsPage', () => {
     }
   });
 
-  it('keeps the one tab row scrollable at phone widths with no fixed minimum width', () => {
+  it('keeps all five tabs in one tab row that never scrolls sideways (MYK9-1729)', () => {
     mockAuthContext.isSecretary = true;
 
     renderPage();
 
-    const list = screen.getAllByRole('tab')[0].closest('[class*="overflow-x-auto"]');
-    expect(list?.className).toContain('overflow-x-auto');
-    expect(list?.className).toContain('max-w-full');
-    // No min-w-* or fixed pixel widths that force desktop layout on phones
-    expect(list?.className).not.toMatch(/min-w-\[/);
-    expect(list?.className).not.toMatch(/w-\[\d/);
+    // Geometry at 375/768/1280 is measured in a real browser (MYK9-1729); jsdom has no layout, so
+    // this pins the structure: one tablist, every tab in it, and no scroll container around them.
+    const tabs = screen.getAllByRole('tab');
+    expect(tabs).toHaveLength(5);
+    const list = tabs[0].closest('[role="tablist"]');
+    expect(list).not.toBeNull();
+    expect(tabs.every(tab => tab.closest('[role="tablist"]') === list)).toBe(true);
+    expect(tabs[0].closest('[class*="overflow-x-auto"]')).toBeNull();
   });
 
   it('hides the management tabs from exhibitors with entries', () => {

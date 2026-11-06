@@ -1,6 +1,6 @@
 import { Fragment } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { ChevronDown, MoreHorizontal } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -18,9 +18,6 @@ import { headerShowsActions } from '@/features/actions/actionGroups';
 import type { AppAction } from '@/features/actions/actionRegistry';
 import { ActionableBadge } from '@/features/actions/ActionableBadge';
 import { Badge } from '@/components/ui/badge';
-import { useMediaQuery } from '@/hooks/useMediaQuery';
-
-const LABEL_BREAKPOINT_QUERY = '(min-width: 640px)';
 
 /**
  * The one Actions menu, in the app header left of the notifications bell, the
@@ -37,22 +34,20 @@ const LABEL_BREAKPOINT_QUERY = '(min-width: 640px)';
  * in, the lists on screen, Create -- each item with its icon (CRUD standard decision 6), so
  * the viewer can tell what an item applies to.
  *
- * Below `sm` the trigger is ICON-ONLY with a screen-reader label. The labelled
- * button cost the brand wordmark 45px it does not have at 360-414px, so signed
- * in with actions the wordmark rendered as "myK9S..." on every phone
- * (`src/test/e2e/header-wordmark-fits.spec.ts` measures it). The label returns
- * from `sm` up, where the room exists.
+ * The trigger always carries the written label "Actions", at every width (MYK9-1729: the
+ * icon-only "..." below `sm` told a first-time secretary nothing about what it held). From `sm`
+ * the chevron joins it. Below `sm` it is the compact form (14px label, tight padding, no chevron)
+ * so the brand wordmark still keeps the room it needs at 360-414px
+ * (`src/test/e2e/header-wordmark-fits.spec.ts` measures it).
  *
  * The trigger is the solid primary fill, the shared `default` button variant
  * (owner decision 2026-10-20, MYK9-1268): a grey outline did not stand out, and
  * most of what a secretary can do on a page lives here, including Add Dog,
- * Person and Club (MYK9-1267). Both the labelled and the icon-only trigger take it.
+ * Person and Club (MYK9-1267).
  */
 export function HeaderActions() {
   const { groups, showToolsAttention } = useCurrentActions();
   const { pathname } = useLocation();
-  // Fail narrow: without matchMedia we render the icon, which always fits.
-  const showsLabel = useMediaQuery(LABEL_BREAKPOINT_QUERY, false);
 
   if (!headerShowsActions(groups, pathname === '/dogs' || pathname.startsWith('/dogs/')))
     return null;
@@ -64,27 +59,13 @@ export function HeaderActions() {
           type="button"
           variant="default"
           size="touch"
-          // 44px at every width, level with the search box and icons beside it (owner, MYK9-1727);
-          // the touch size alone grows to 48px from `sm`.
-          className={cn(
-            'relative gap-1 sm:min-h-11',
-            showsLabel ? 'px-3' : 'min-w-11 justify-center px-2'
-          )}
+          className="relative min-w-11 px-1.5 text-xs sm:min-h-11 sm:gap-1 sm:px-3 sm:text-sm"
           data-testid="header-actions-trigger"
         >
-          {showsLabel ? (
-            <>
-              <span>Actions</span>
-              <ChevronDown className="h-4 w-4" aria-hidden="true" />
-            </>
-          ) : (
-            <>
-              <span className="sr-only">Actions</span>
-              <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
-            </>
-          )}
+          <span>Actions</span>
+          <ChevronDown className="hidden sm:block" aria-hidden="true" />
           {showToolsAttention && (
-            // Pinned to the corner so it adds no width: the icon-only trigger has no room to
+            // Pinned to the corner so it adds no width: the compact trigger has no room to
             // give the wordmark back (header-wordmark-fits.spec.ts).
             <ActionableBadge
               {...showToolsAttention}

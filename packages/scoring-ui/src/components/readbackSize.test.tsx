@@ -46,6 +46,14 @@ describe('Score Confirmation read-back is readable at arm’s length', () => {
     expect(reason).not.toHaveClass('text-2xl');
   });
 
+  it('shows the armband and dog name large, so the score goes on the right dog', () => {
+    renderDialog();
+    expect(screen.getByTestId('confirmation-armband')).toHaveTextContent('7');
+    expect(screen.getByTestId('confirmation-armband')).toHaveClass('text-3xl');
+    expect(screen.getByTestId('confirmation-dog-name')).toHaveTextContent('Rex');
+    expect(screen.getByTestId('confirmation-dog-name')).toHaveClass('text-2xl');
+  });
+
   it('enlarges each row label too', () => {
     renderDialog();
     expect(screen.getByText('Total time')).toHaveClass('text-lg');

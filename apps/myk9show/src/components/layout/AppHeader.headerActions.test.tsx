@@ -239,7 +239,6 @@ describe('AppHeader Actions menu — secretary on a show route', () => {
       'Add Trial',
       'Add classes',
       'Select classes',
-      'Open Entry Forms',
       'Close out show',
       'Add Show',
       'Add Dog',
@@ -281,10 +280,6 @@ describe('AppHeader Actions menu — secretary on a show route', () => {
     expect(within(menu).getByText('Add entry').closest('a')).toHaveAttribute(
       'href',
       '/secretary/register/show-1'
-    );
-    expect(within(menu).getByText('Open Entry Forms').closest('a')).toHaveAttribute(
-      'href',
-      '/shows/show-1/entries'
     );
     expect(within(menu).getByText('Add Trial').closest('a')).toHaveAttribute(
       'href',

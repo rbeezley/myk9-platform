@@ -569,7 +569,7 @@ describe('ResultsTab detail', () => {
 
     expect(screen.getByText('Still in the ring')).toBeInTheDocument();
     expect(
-      screen.getByText('This class is run and marked complete on Overview.')
+      screen.getByText('This class is run and marked complete on Show Desk.')
     ).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /on Overview/ })).not.toBeInTheDocument();
   });

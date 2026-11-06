@@ -113,7 +113,7 @@ describe('ShowDeskPanel cockpit', () => {
     expect(
       screen.getByRole('button', { name: /^(Collapse|Expand) Friday AM · June 12/i })
     ).toBeInTheDocument();
-    expect(screen.getAllByText('Focused Class · Friday AM')).not.toHaveLength(0);
+    expect(screen.getAllByText('Selected class · Friday AM')).not.toHaveLength(0);
     expect(screen.getAllByRole('heading', { name: 'Interior Advanced' })).not.toHaveLength(0);
 
     await user.click(screen.getByText('Container Novice'));
@@ -358,7 +358,7 @@ describe('ShowDeskPanel cockpit', () => {
     expect(screen.queryByText(/Select a Class to focus it/)).not.toBeInTheDocument();
     expect(
       screen.getByText(
-        'Show-day work has not started. Entries are on the Entry Forms tab, and show setup is here on Overview.'
+        'Show-day work has not started. Entries are on the Entry Forms tab, and show setup is here on Show Desk.'
       )
     ).toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/their normal pages/);

@@ -45,7 +45,11 @@ const snapshotWithUnmatchedFilter: SecretaryCockpitSnapshot = {
   ],
 };
 
-function renderSchedule(snapshot: SecretaryCockpitSnapshot, filter: 'all' | 'needs-attention') {
+function renderSchedule(
+  snapshot: SecretaryCockpitSnapshot,
+  filter: 'all' | 'needs-attention',
+  manager = false
+) {
   const model = buildSecretaryCockpitModel(snapshot, {
     statuses: filter === 'all' ? [] : ['needs-attention'],
     selectedDays: undefined,
@@ -59,6 +63,7 @@ function renderSchedule(snapshot: SecretaryCockpitSnapshot, filter: 'all' | 'nee
       sourceTrials={snapshot.trials}
       filtered={filter !== 'all'}
       onFocusClass={vi.fn()}
+      renderTrialActions={manager ? () => null : undefined}
     />
   );
 }
@@ -67,22 +72,44 @@ describe('SecretaryCockpitSchedule empty states', () => {
   it('reports no scheduled Classes when the show has no Trials at all, filter set to all', () => {
     renderSchedule(snapshotWithNoTrials, 'all');
 
-    expect(screen.getByText('No Classes are scheduled for this day yet.')).toBeInTheDocument();
+    expect(screen.getByText('No classes are scheduled for this day yet.')).toBeInTheDocument();
   });
 
   it('still reports no scheduled Classes — not a filter mismatch — when a non-all filter is active and the show has no Trials at all', () => {
     renderSchedule(snapshotWithNoTrials, 'needs-attention');
 
-    expect(screen.getByText('No Classes are scheduled for this day yet.')).toBeInTheDocument();
-    expect(screen.queryByText('No Classes match this filter.')).not.toBeInTheDocument();
+    expect(screen.getByText('No classes are scheduled for this day yet.')).toBeInTheDocument();
+    expect(screen.queryByText('No classes match this filter.')).not.toBeInTheDocument();
+  });
+
+  it('offers Add classes to a manager on an empty schedule, into the show-level Add classes flow', () => {
+    renderSchedule(snapshotWithNoTrials, 'all', true);
+
+    expect(screen.getByRole('link', { name: 'Add classes' })).toHaveAttribute(
+      'href',
+      '/secretary/create-show/wizard?showId=show-1&mode=add-classes'
+    );
+  });
+
+  it('offers no Add classes link to someone who cannot manage the show', () => {
+    renderSchedule(snapshotWithNoTrials, 'all');
+
+    expect(screen.queryByRole('link', { name: 'Add classes' })).not.toBeInTheDocument();
+  });
+
+  it('offers no Add classes link when the filter hides classes that exist', () => {
+    renderSchedule(snapshotWithUnmatchedFilter, 'needs-attention', true);
+
+    expect(screen.getByText('No classes match this filter.')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Add classes' })).not.toBeInTheDocument();
   });
 
   it('reports a filter mismatch when Classes exist today but none match the active filter', () => {
     renderSchedule(snapshotWithUnmatchedFilter, 'needs-attention');
 
-    expect(screen.getByText('No Classes match this filter.')).toBeInTheDocument();
+    expect(screen.getByText('No classes match this filter.')).toBeInTheDocument();
     expect(
-      screen.queryByText('No Classes are scheduled for this day yet.')
+      screen.queryByText('No classes are scheduled for this day yet.')
     ).not.toBeInTheDocument();
   });
 });
@@ -164,7 +191,7 @@ describe('SecretaryCockpitSchedule filtering', () => {
   it('says no Classes match when a status is ticked and none does', () => {
     renderSchedule(snapshotWithUnmatchedFilter, 'needs-attention');
 
-    expect(screen.getByText('No Classes match this filter.')).toBeInTheDocument();
+    expect(screen.getByText('No classes match this filter.')).toBeInTheDocument();
   });
 });
 

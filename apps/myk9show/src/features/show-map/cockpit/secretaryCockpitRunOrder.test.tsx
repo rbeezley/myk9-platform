@@ -135,6 +135,22 @@ describe('run order is reachable from the focused-class panel', () => {
     );
   });
 
+  it.each([0, 1])(
+    'hides the empty Run order label for a class with %i entries (MYK9-1727)',
+    count => {
+      renderPanel({
+        sourceClass: { ...SOURCE_CLASS, entryCount: count },
+        focused: { ...FOCUSED, entryRows: [] },
+      });
+      expect(screen.queryByText('Run order')).toBeNull();
+    }
+  );
+
+  it('keeps the Run order label for a class with 2 entries (positive control)', () => {
+    renderPanel({ sourceClass: { ...SOURCE_CLASS, entryCount: 2 } });
+    expect(screen.getByText('Run order')).toBeInTheDocument();
+  });
+
   it('is absent for a non-manager, like the entry actions beside it', () => {
     renderPanel({ canManageShow: false });
     expect(screen.queryByRole('button', { name: /run order/i })).toBeNull();

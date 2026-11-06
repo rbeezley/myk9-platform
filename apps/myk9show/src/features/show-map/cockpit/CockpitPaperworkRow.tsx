@@ -102,16 +102,18 @@ export function CockpitPaperworkRow({
             />
           </label>
         )}
-        <div className="min-w-0 flex-1">
+        {/* A floor on the label's width: below it the Print button wraps to its own line rather than
+            squeezing the label to nothing behind it (375px, MYK9-1727). */}
+        <div className="min-w-[9rem] flex-1">
           <div className="flex items-center gap-2 font-medium">
             {current ? (
-              <CheckCircle2 className="h-4 w-4 text-success" />
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-success" />
             ) : stale ? (
-              <RefreshCw className="h-4 w-4 text-warning" />
+              <RefreshCw className="h-4 w-4 shrink-0 text-warning" />
             ) : (
-              <Clock3 className="h-4 w-4 text-muted-foreground" />
+              <Clock3 className="h-4 w-4 shrink-0 text-muted-foreground" />
             )}
-            {item.label}
+            <span className="min-w-0 break-words">{item.label}</span>
           </div>
           {showStatusLine && (
             <div className="mt-1 text-xs text-muted-foreground">
@@ -132,7 +134,7 @@ export function CockpitPaperworkRow({
                       void voidPaperworkPrint({
                         recordId: item.recordId!,
                         user: user!,
-                        reason: 'Marked not printed from the Overview',
+                        reason: 'Marked not printed from Show Desk',
                         failureMessage: 'Could not mark that not printed.',
                       })
                     }

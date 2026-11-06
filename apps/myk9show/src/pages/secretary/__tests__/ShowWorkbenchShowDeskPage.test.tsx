@@ -151,7 +151,13 @@ vi.mock('@/features/show-map/ShowDeskPanel', () => ({
   }: {
     entries: unknown[];
     classes: Array<{ entryCount: number; scoredCount: number }>;
-    tools: Array<{ id: string; group: string; content: ReactNode; defaultOpen?: boolean }>;
+    tools: Array<{
+      id: string;
+      group: string;
+      href?: string;
+      content: ReactNode;
+      defaultOpen?: boolean;
+    }>;
   }) => (
     <div data-testid="show-desk-panel">
       <div data-testid="panel-entry-count">{entries.length}</div>
@@ -172,7 +178,9 @@ vi.mock('@/features/show-map/ShowDeskPanel', () => ({
       <div data-testid="panel-tool-ids">{tools.map(tool => tool.id).join(',')}</div>
       <ol data-testid="tool-inventory">
         {tools.map(tool => (
-          <li key={tool.id}>{`${tool.group}:${tool.id}`}</li>
+          <li key={tool.id} data-href={tool.href ?? ''}>
+            {`${tool.group}:${tool.id}`}
+          </li>
         ))}
       </ol>
       {(['self-checkin', 'volunteers'] as const).map(id => {
@@ -403,11 +411,22 @@ describe('ShowWorkbenchShowDeskPage', () => {
       'show-day:self-checkin',
       'show-day:access-codes',
       'show-day:emergency-trial-packet',
+      'show-day:message-exhibitors',
       'show-logistics:volunteers',
       'show-logistics:lunch-orders',
       'show-logistics:tasks-notes',
       'show-logistics:incident-log',
     ]);
+  });
+
+  it('offers Message exhibitors as a door to this show in the Message Center (MYK9-1727)', async () => {
+    renderPage();
+
+    expect(await screen.findByTestId('show-desk-panel')).toBeInTheDocument();
+    const row = within(screen.getByTestId('tool-inventory'))
+      .getAllByRole('listitem')
+      .find(item => item.textContent === 'show-day:message-exhibitors');
+    expect(row).toHaveAttribute('data-href', '/secretary/messages?showId=show-1');
   });
 
   it('keeps cached Show Desk counts visible when a background refresh fails', async () => {

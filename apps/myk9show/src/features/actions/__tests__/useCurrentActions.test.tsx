@@ -127,7 +127,6 @@ describe('useCurrentActions — ownership must be resolved before anything is of
       'show-add-new-trial',
       'show-add-classes',
       'show-select-classes',
-      'show-open-entry-management',
       'show-close-out',
     ]);
   });
@@ -224,6 +223,22 @@ describe('useCurrentActions — labelled sections (CRUD standard decision 6)', (
     expect(ids).not.toContain('show-close-out');
     expect(ids).toContain('show-settings');
   });
+
+  it.each([
+    ['2999-01-01', false],
+    ['2000-01-01', true],
+  ])(
+    'with a stored start date of %s, Close out show offered: %s (MYK9-1727)',
+    (startDate, offered) => {
+      useShowStore.setState({
+        shows: [{ id: SHOW_ID, name: 'Fall Scent Weekend', startDate }] as never,
+      });
+      const { result } = renderHook(() => useCurrentActions(), { wrapper });
+      const ids = result.current.actions.map(action => action.id);
+      expect(ids.includes('show-close-out')).toBe(offered);
+      expect(ids).toContain('show-settings');
+    }
+  );
 
   it('falls back to "This show" before the store has the show', () => {
     const { result } = renderHook(() => useCurrentActions(), { wrapper });

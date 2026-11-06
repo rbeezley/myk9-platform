@@ -32,7 +32,7 @@ export function buildEntryManagementRelatedLinks({
   const items: RelatedContextLinkItem[] = [
     {
       key: 'trial-details',
-      label: 'Trial on Overview',
+      label: 'Trial on Show Desk',
       href: getShowHomeTrialHref(showId, { id: trialFilter }),
     },
   ];

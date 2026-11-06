@@ -92,7 +92,9 @@ export function CockpitTrialGroup({
   const summary = [
     entryTotal === null ? null : plural(entryTotal, 'entry', 'entries'),
     `${plural(group.summary.classCount, 'class', 'classes')} (${group.summary.inProgressCount} in progress)`,
-    group.summary.attentionCount > 0 ? `${group.summary.attentionCount} need attention` : null,
+    group.summary.attentionCount > 0
+      ? `${group.summary.attentionCount} ${group.summary.attentionCount === 1 ? 'needs' : 'need'} attention`
+      : null,
   ]
     .filter(Boolean)
     .join(' · ');
@@ -286,7 +288,7 @@ export function CockpitTrialGroup({
             )}
             {group.classes.length === 0 && (
               <div className="px-4 py-8 text-center text-sm text-muted-foreground">
-                No Classes match this filter.
+                No classes match this filter.
               </div>
             )}
           </div>

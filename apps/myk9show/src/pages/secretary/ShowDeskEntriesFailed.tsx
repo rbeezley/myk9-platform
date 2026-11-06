@@ -16,7 +16,7 @@ export function ShowDeskEntriesFailed({
     <div className="rounded-md border border-destructive/40 bg-destructive/5 p-4 text-sm">
       <p className="font-medium text-destructive">Couldn't load show entries.</p>
       <p className="mt-1 text-muted-foreground">
-        {pausedWhat} paused so they do not show a false zero-entry state.
+        {pausedWhat} paused so they do not show zero entries by mistake.
       </p>
       <Button type="button" variant="outline" size="sm" className="mt-3 min-h-11" onClick={onRetry}>
         Retry

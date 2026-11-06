@@ -18,14 +18,19 @@ describe('FocusedClassHeader', () => {
 
   it('does not pin when the cockpit disables pinning below its viewport floor', () => {
     render(
-      <FocusedClassHeader eyebrow="Focused Class" title="Buried Novice A" facts="" pinMode="none" />
+      <FocusedClassHeader
+        eyebrow="Selected class"
+        title="Buried Novice A"
+        facts=""
+        pinMode="none"
+      />
     );
     expect(screen.getByTestId('focused-class-header').className).not.toMatch(/sticky|top-\[/);
   });
   it('pins from lg up, under the show header and tabs, and not below lg', () => {
     render(
       <FocusedClassHeader
-        eyebrow="Focused Class"
+        eyebrow="Selected class"
         title="Buried Novice A"
         facts="1 entry"
         pinMode="page"
@@ -43,7 +48,7 @@ describe('FocusedClassHeader', () => {
   it('in the split panel pins to the panel top, and the panel scrolls itself from lg up', () => {
     render(
       <FocusedClassHeader
-        eyebrow="Focused Class"
+        eyebrow="Selected class"
         title="Buried Novice A"
         facts=""
         pinMode="panel"
@@ -75,7 +80,7 @@ describe('FocusedClassHeader', () => {
 
   it('publishes its height for scroll margins and removes it on unmount', () => {
     const { unmount } = render(
-      <FocusedClassHeader eyebrow="Focused Class" title="Buried Novice A" facts="" />
+      <FocusedClassHeader eyebrow="Selected class" title="Buried Novice A" facts="" />
     );
     expect(document.documentElement.style.getPropertyValue(FOCUSED_CLASS_HEADER_HEIGHT_VAR)).toBe(
       '0px'

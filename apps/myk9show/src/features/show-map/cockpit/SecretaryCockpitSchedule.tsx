@@ -1,8 +1,10 @@
 import type { ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ListResultLine } from '@/components/list-toolkit';
+import { getAddClassesHref } from '@/pages/secretary/ShowCreationWizard/addClassesHref';
 import type { ClassEntryBreakdown } from '@/features/entry-operations/classEntryBreakdown';
 
 import { CockpitTrialGroup } from './CockpitTrialGroup';
@@ -125,8 +127,16 @@ export function SecretaryCockpitSchedule({
         {model.trialGroups.length === 0 && (
           <div className="rounded-xl border bg-card px-4 py-8 text-center text-sm text-muted-foreground">
             {hasAnyClassForSelectedDay && filtered
-              ? 'No Classes match this filter.'
-              : `No Classes are scheduled for ${scopeDays.size > 1 ? 'these days' : 'this day'} yet.`}
+              ? 'No classes match this filter.'
+              : `No classes are scheduled for ${scopeDays.size > 1 ? 'these days' : 'this day'} yet.`}
+            {/* Managers only: the same gate as the trial menu, and the same Add classes flow. */}
+            {renderTrialActions && !(hasAnyClassForSelectedDay && filtered) && (
+              <div className="mt-3">
+                <Button asChild variant="outline" className="min-h-11">
+                  <Link to={getAddClassesHref(showId)}>Add classes</Link>
+                </Button>
+              </div>
+            )}
           </div>
         )}
         {model.trialGroups.map(group => (

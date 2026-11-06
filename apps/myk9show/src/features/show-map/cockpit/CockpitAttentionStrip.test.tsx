@@ -64,6 +64,8 @@ describe('CockpitAttentionStrip', () => {
     });
     expect(link).toHaveAttribute('href', '/print/class-1');
     expect(link).toHaveAttribute('title', 'Starts 10:45');
+    // Touch and screen readers get the reason too: a title is never read out or shown on a phone.
+    expect(link).toHaveAccessibleDescription('Starts 10:45');
   });
 
   it('names the destination of a pending-work chip in its accessible name (MYK9-1618)', () => {

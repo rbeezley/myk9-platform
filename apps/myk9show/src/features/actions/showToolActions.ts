@@ -1,4 +1,4 @@
-import type { AppAction } from './actionRegistry';
+import type { ActionIconName, AppAction } from './actionRegistry';
 
 /**
  * The two Tools groups (owner, 2026-10-02 -- MYK9-954), which are also the show page's
@@ -52,6 +52,22 @@ export interface ShowToolItem {
   disabledReason?: string | undefined;
 }
 
+/**
+ * Each show tool's own icon, by tool id, so the Actions rows tell apart at a glance (MYK9-1727).
+ * A tool not listed here (the Entry Forms lists register their own) keeps the generic wrench.
+ */
+const SHOW_TOOL_ICONS: Readonly<Record<string, ActionIconName>> = {
+  'check-in-desk': 'check-in',
+  'self-checkin': 'self-check-in',
+  'access-codes': 'access-codes',
+  'emergency-trial-packet': 'emergency-packet',
+  'message-exhibitors': 'message',
+  volunteers: 'volunteers',
+  'lunch-orders': 'lunch',
+  'tasks-notes': 'notes',
+  'incident-log': 'incident',
+};
+
 /** One row per registered show tool: a link that opens the tool's panel, or its own page. */
 export function buildShowToolActions(tools: readonly ShowToolItem[] | undefined): AppAction[] {
   return (tools ?? []).map(tool => ({
@@ -59,7 +75,7 @@ export function buildShowToolActions(tools: readonly ShowToolItem[] | undefined)
     label: tool.title,
     href: tool.href ?? `?${SHOW_DESK_TOOL_PARAM}=${encodeURIComponent(tool.id)}`,
     group: tool.group,
-    icon: 'tool',
+    icon: SHOW_TOOL_ICONS[tool.id] ?? 'tool',
     ...(tool.attentionLabel ? { badge: tool.attentionLabel } : {}),
     ...(tool.attentionLabel && tool.attentionTone ? { badgeTone: tool.attentionTone } : {}),
     ...(tool.disabledReason ? { disabledReason: tool.disabledReason } : {}),

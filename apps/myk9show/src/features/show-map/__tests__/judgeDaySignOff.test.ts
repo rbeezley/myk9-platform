@@ -119,6 +119,32 @@ describe("judge's end-of-day sign-off (MYK9-1030)", () => {
     expect(collect?.href).toBe('/shows/show-1/results?trialId=trial-1&classId=c2');
   });
 
+  it("counts each class's initials once in the Needs attention strip (MYK9-1727)", () => {
+    const trials = [trial('trial-1', SATURDAY)];
+    const classes = [cls('c1', 'trial-1', 'Completed'), cls('c2', 'trial-1', 'Completed')];
+    const tree = build({ trials, classes });
+    const pendingSignals = computeShowDeskPendingSignals({ showId: 'show-1', tree, entries: [] });
+    expect(pendingSignals.map(signal => signal.id)).toContain('classes-needing-signature');
+
+    const snapshot = buildSecretaryCockpitSnapshot({
+      showId: 'show-1',
+      trials,
+      classes,
+      tree,
+      pendingSignals,
+      returnTo: '/shows/show-1',
+      now: new Date('2026-10-10T22:00:00Z'),
+    });
+
+    // The per-class items stay; the show-level duplicate of them goes.
+    expect(snapshot.administrativeAttention?.map(item => item.id) ?? []).not.toContain(
+      'classes-needing-signature'
+    );
+    expect(snapshot.classes.flatMap(item => item.attention.map(attention => attention.id))).toEqual(
+      ['collect-judge-signature:class:c1', 'collect-judge-signature:class:c2']
+    );
+  });
+
   it('reads the registry done wording once signed, with nothing left to do on Overview', () => {
     const signed = { judgeSignedOffAt: '2026-10-10T21:00:00Z' };
     const tree = build({

@@ -1,5 +1,5 @@
 /**
- * The Show Desk status filter (MYK9-1727): which of In progress / Needs attention / Needs closeout
+ * The Show Desk status filter (MYK9-1727): which of In progress / Needs attention / Needs wrap-up
  * are ticked, how that rides in the URL, and the Filter-menu field built from it. An empty list
  * means every class; several ticks show a class matching ANY of them. The URL keeps its `filter`
  * param: a lone value (`filter=needs-attention`, every older link) and a comma list both read here;
@@ -16,7 +16,7 @@ import type { CockpitStatus, SecretaryCockpitModel } from './secretaryCockpitTyp
 export const COCKPIT_STATUSES: readonly { id: CockpitStatus; label: string }[] = [
   { id: 'in-progress', label: 'In progress' },
   { id: 'needs-attention', label: 'Needs attention' },
-  { id: 'needs-closeout', label: 'Needs closeout' },
+  { id: 'needs-closeout', label: 'Needs wrap-up' },
 ];
 
 const STATUS_IDS: ReadonlySet<string> = new Set(COCKPIT_STATUSES.map(status => status.id));

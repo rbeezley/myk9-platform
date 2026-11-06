@@ -8,7 +8,7 @@ import { useMoreBelow } from './useMoreBelow';
 // reports once on observe, as the real one does.
 let observers: { callback: () => void }[] = [];
 class StubResizeObserver {
-  constructor(private readonly callback: () => void) {
+  constructor(readonly callback: () => void) {
     observers.push(this);
   }
   observe() {

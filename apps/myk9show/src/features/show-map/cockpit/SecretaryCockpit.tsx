@@ -117,6 +117,7 @@ export function SecretaryCockpit({
       pinMode={pinMode}
       canManageShow={canManageShow}
       onCommand={onCommand}
+      entryBreakdownByClassId={entryBreakdownByClassId}
       {...(runOrder !== undefined && { runOrder })}
       {...(canManageShow &&
         sourceClass && {

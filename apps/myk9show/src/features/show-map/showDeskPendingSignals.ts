@@ -3,6 +3,7 @@ import { SHOW_MAP_WRAP_UP_STATUS } from './showMapTypes';
 import type { ShowMapTree } from './showMapTypes';
 import type { EntryLike } from './attention';
 import { getShowMapNodeId } from './showMapTree';
+import { getCockpitResultsControlHref } from './cockpit/cockpitRoutes';
 import { countRawEntryManagementPendingBucket } from '@/utils/entryCountSelectors';
 import {
   classifyRawEntryAttention,
@@ -89,7 +90,7 @@ export const SHOW_DESK_SIGNAL_INTERACTION: Record<ShowDeskPendingSignalId, 'navi
     'entries-waiting-review': 'navigate',
     'entries-waiting-checkin': 'navigate',
     'entries-payment-due': 'navigate',
-    'classes-needing-signature': 'filter',
+    'classes-needing-signature': 'navigate',
     'results-pending-closeout': 'navigate',
   };
 
@@ -220,10 +221,12 @@ export function computeShowDeskPendingSignals({
       count: needingSignature,
       priority: 'high',
       label: judgeSignOffWording(showRegistryId(tree)).pendingSignalLabel(needingSignature),
-      // No verified single-class-management destination provably matches this
-      // count unit (class rows, not entry rows) yet — omit as non-actionable
-      // per spec rather than link to a dead end.
-      href: null,
+      // The count is classes, and the Results tab lists classes with the judge sign-off on each
+      // (MYK9-1031), so it opens on the same unit (MYK9-1727). It is the show-wide list, not a
+      // per-class link: the cockpit shows the per-class links beside this and drops this chip
+      // when they cover every counted class.
+      href: getCockpitResultsControlHref({ showId }),
+      destinationName: 'Results',
       scope,
     });
   }
@@ -238,7 +241,9 @@ export function computeShowDeskPendingSignals({
       count: pendingCloseout,
       priority: 'medium',
       label: `Close out ${pendingCloseout} ${pendingCloseout === 1 ? 'result' : 'results'}`,
-      href: null,
+      // Classes again, so the same class list on Results, not the show-level close step.
+      href: getCockpitResultsControlHref({ showId }),
+      destinationName: 'Results',
       scope,
     });
   }

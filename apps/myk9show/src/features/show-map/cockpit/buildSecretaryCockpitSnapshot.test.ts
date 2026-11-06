@@ -179,8 +179,20 @@ describe('buildSecretaryCockpitSnapshot', () => {
         'Enter results from scoresheet',
         'View entries and results',
         'Class reports',
+        'Entries for this class',
       ])
     );
+    // Entry Forms filtered to this class (pulls, no-shows, waitlist), and back to the Show Desk.
+    expect(
+      snapshot.classes[0]?.actions.find(action => action.label === 'Entries for this class')
+    ).toMatchObject({
+      destination: {
+        kind: 'href',
+        href: `/shows/show-1/entries?trial=trial-1&class=class-1&queue=all&returnTo=${encodeURIComponent(
+          '/shows/show-1/show-day?focus=class-1'
+        )}`,
+      },
+    });
     expect(
       snapshot.classes[0]?.actions.find(action => action.label === 'View entries and results')
     ).toMatchObject({

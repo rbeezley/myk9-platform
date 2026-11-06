@@ -7,6 +7,10 @@ import { ShowMapRunOrderMenu } from '../ShowMapRunOrderMenu';
 import { formatTime } from '@/lib/format/dates';
 import { countLabel } from '@/utils/pluralize';
 import type { SecretaryCockpitRunOrderControls } from './secretaryCockpitTypes';
+import {
+  formatClassEntryBreakdown,
+  type ClassEntryBreakdown,
+} from '@/features/entry-operations/classEntryBreakdown';
 
 import { CockpitActionLink } from './CockpitActionLink';
 import { ClassChecklistSection } from './ClassChecklistSection';
@@ -43,6 +47,7 @@ export function SecretaryCockpitFocusedClass({
   runOrder,
   setupActions,
   judgeControl,
+  entryBreakdownByClassId,
 }: {
   showId: string;
   focused: FocusedClassModel | null;
@@ -60,6 +65,8 @@ export function SecretaryCockpitFocusedClass({
   setupActions?: ReactNode;
   /** The Judge setting (MYK9-1323); the cockpit owns its pending assignment. Managers only. */
   judgeControl?: ReactNode;
+  /** Entered/pending per class, the schedule row's own count (MYK9-943); absent until entries are read. */
+  entryBreakdownByClassId?: ReadonlyMap<string, ClassEntryBreakdown> | undefined;
 }) {
   // Which class's hand-placement list is open; scoped by id so focusing another
   // class closes it rather than carrying it over.
@@ -67,7 +74,7 @@ export function SecretaryCockpitFocusedClass({
   if (!focused || !sourceClass || !trial) {
     return (
       <aside className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">
-        Select a Class from the schedule to see its work and paperwork.
+        Pick a class from the schedule to see its work and paperwork.
       </aside>
     );
   }
@@ -95,12 +102,24 @@ export function SecretaryCockpitFocusedClass({
     (progress.completed > 0 ||
       focused.lifecycle.value === 'in-progress' ||
       focused.lifecycle.value === 'complete');
+  // The schedule row's count, so the header and the row never disagree about one class
+  // ("0 entries" above "1 pending" below, MYK9-1727); the bare count only when it is unread.
+  const breakdown = entryBreakdownByClassId
+    ? (entryBreakdownByClassId.get(focused.id) ?? { entered: 0, pending: 0 })
+    : undefined;
+  const breakdownText = breakdown ? formatClassEntryBreakdown(breakdown) : undefined;
+  // The Run order menu hides itself below 2 entries, so its label does too.
+  const runOrderEntryCount =
+    sourceClass.runListCount ?? sourceClass.entryCount ?? focused.entryRows.length;
   const facts = [
     scoringBegun
       ? `${progress.completed} of ${progress.total} scored`
-      : entryCount === null
-        ? null
-        : countLabel(entryCount, 'entry', 'entries'),
+      : breakdownText
+        ? breakdownText.entered
+        : entryCount === null
+          ? null
+          : countLabel(entryCount, 'entry', 'entries'),
+    breakdownText?.pending ?? null,
     // With the Judge setting below, the header would only repeat it.
     !judgeControl && focused.judgeName ? `Judge ${focused.judgeName}` : null,
   ].filter(Boolean);
@@ -110,7 +129,7 @@ export function SecretaryCockpitFocusedClass({
       {/* No overflow-hidden on the card: it would turn the card into the header's scroll
           container and the header would never pin. */}
       <FocusedClassHeader
-        eyebrow={`Focused Class · ${formatTrialIdentity(trial)}`}
+        eyebrow={`Selected class · ${formatTrialIdentity(trial)}`}
         title={focused.name}
         facts={facts.join(' · ')}
         pinMode={pinMode}
@@ -218,7 +237,7 @@ export function SecretaryCockpitFocusedClass({
                 gated on the move-up list below: auto-sort availability has nothing
                 to do with which entries can move up. The menu hides itself
                 below 2 entries. See docs/plan-f29b-operational-actions-home.md. */}
-            {canManageShow && runOrder && (
+            {canManageShow && runOrder && runOrderEntryCount >= 2 && (
               <>
                 <dt className="text-muted-foreground mt-2 [@container(min-width:24rem)]:mt-0">
                   Run order
@@ -227,9 +246,7 @@ export function SecretaryCockpitFocusedClass({
                   <ShowMapRunOrderMenu
                     classId={focused.id}
                     classLabel={focused.name}
-                    entryCount={
-                      sourceClass.runListCount ?? sourceClass.entryCount ?? focused.entryRows.length
-                    }
+                    entryCount={runOrderEntryCount}
                     onAutoSort={runOrder.onAutoSort}
                     isAutoSorting={runOrder.isAutoSorting}
                     onEnterReorderMode={({ classId }) => setPlacingClassId(classId)}

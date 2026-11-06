@@ -19,6 +19,14 @@ import { UserRole } from '@/types/auth-types';
 import { useEntryEligibleShows } from './useEntryEligibleShows';
 import { useAddEntryPickerStore } from './addEntryPickerStore';
 
+/** Today as `YYYY-MM-DD` on the viewer's own calendar. */
+function localCalendarDay(): string {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${now.getFullYear()}-${month}-${day}`;
+}
+
 export interface CurrentActions {
   route: ActionRouteContext;
   actions: AppAction[];
@@ -76,6 +84,13 @@ export function useCurrentActions(): CurrentActions {
     showId ? state.shows.find(show => show.id === showId)?.status : undefined
   );
   const showStatus = storedShowStatus ?? queriedShow?.status;
+  // Has the show's first day arrived? Read from the same two sources, against the viewer's own
+  // calendar day (the device is at the show). Unknown stays unknown: the row is kept (MYK9-1727).
+  const storedShowStartDate = useShowStore(state =>
+    showId ? state.shows.find(show => show.id === showId)?.startDate : undefined
+  );
+  const showStartDate = storedShowStartDate ?? queriedShow?.startDate;
+  const showStarted = showStartDate ? showStartDate.slice(0, 10) <= localCalendarDay() : undefined;
 
   // The detail page on screen, when it registered an Edit it lets this viewer use.
   const pageTarget = usePageEditTargetStore(state => state.target);
@@ -127,6 +142,7 @@ export function useCurrentActions(): CurrentActions {
         canAddEntries,
         entryShows,
         showStatus,
+        showStarted,
       }),
     [
       route,
@@ -140,6 +156,7 @@ export function useCurrentActions(): CurrentActions {
       canAddEntries,
       entryShows,
       showStatus,
+      showStarted,
       pageKind,
       pageCanEdit,
       pageAddClassesHref,

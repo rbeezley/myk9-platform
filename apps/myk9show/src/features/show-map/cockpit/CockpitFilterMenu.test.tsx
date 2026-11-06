@@ -78,7 +78,7 @@ describe('CockpitFilterMenu', () => {
     await user.click(screen.getByRole('button', { name: 'Filter' }));
     expect(await screen.findByRole('option', { name: /In progress/ })).toHaveTextContent('1');
     expect(screen.getByRole('option', { name: /Needs attention/ })).toHaveTextContent('0');
-    expect(screen.getByRole('option', { name: /Needs closeout/ })).toHaveTextContent('0');
+    expect(screen.getByRole('option', { name: /Needs wrap-up/ })).toHaveTextContent('0');
     expect(screen.getByText('Status')).toBeInTheDocument();
     expect(screen.queryByText('Day')).not.toBeInTheDocument();
   });

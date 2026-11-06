@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { AlertTriangle, ChevronDown } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -21,7 +21,8 @@ const CHIP_CLASS =
 
 /**
  * One line of pills (layout A, owner, 2026-10-02): each names the class and
- * the problem, and opens the place to fix it. The reason is the pill's title.
+ * the problem, and opens the place to fix it. The reason is the pill's title (hover) and its
+ * accessible description (touch and screen readers), where a title alone is never read.
  *
  * The heading folds the pills away (MYK9-1727): on a phone each pill takes its own row, so
  * there it starts folded with the count still showing; wider screens start open.
@@ -75,42 +76,61 @@ export function CockpitAttentionStrip({
             const className = item.classId ? classNameById.get(item.classId) : undefined;
             const text = className ? `${className} · ${item.label}` : item.label;
             const tone = cn(CHIP_CLASS, CHIP_TONE[item.kind]);
+            // A reason that only repeats the pill adds nothing to read out.
+            const reasonId =
+              item.reason && item.reason !== text && item.reason !== item.label
+                ? `cockpit-attention-reason-${item.id}`
+                : undefined;
+            const reasonNote = reasonId && (
+              <span id={reasonId} className="sr-only">
+                {item.reason}
+              </span>
+            );
             // MYK9-1618: the visible text stays the count; the name also says where it goes.
             const accessibleName = item.destinationName
               ? `${text}, opens ${item.destinationName}`
               : undefined;
             if (!item.destination) {
               return (
-                <span key={item.id} className={tone} title={item.reason}>
-                  {text}
-                </span>
+                <Fragment key={item.id}>
+                  <span className={tone} title={item.reason} aria-describedby={reasonId}>
+                    {text}
+                  </span>
+                  {reasonNote}
+                </Fragment>
               );
             }
             if (item.destination.kind === 'href') {
               return (
-                <Link
-                  key={item.id}
-                  to={item.destination.href}
-                  className={cn(tone, 'hover:underline')}
-                  title={item.reason}
-                  aria-label={accessibleName}
-                >
-                  {text}
-                </Link>
+                <Fragment key={item.id}>
+                  <Link
+                    to={item.destination.href}
+                    className={cn(tone, 'hover:underline')}
+                    title={item.reason}
+                    aria-label={accessibleName}
+                    aria-describedby={reasonId}
+                  >
+                    {text}
+                  </Link>
+                  {reasonNote}
+                </Fragment>
               );
             }
             const { commandId } = item.destination;
             return (
-              <button
-                key={item.id}
-                type="button"
-                className={cn(tone, 'hover:underline')}
-                title={item.reason}
-                aria-label={accessibleName}
-                onClick={() => onCommand(commandId)}
-              >
-                {text}
-              </button>
+              <Fragment key={item.id}>
+                <button
+                  type="button"
+                  className={cn(tone, 'hover:underline')}
+                  title={item.reason}
+                  aria-label={accessibleName}
+                  aria-describedby={reasonId}
+                  onClick={() => onCommand(commandId)}
+                >
+                  {text}
+                </button>
+                {reasonNote}
+              </Fragment>
             );
           })}
         {open && overflowCount > 0 && !showAll && (

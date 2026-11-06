@@ -14,6 +14,7 @@ import type { ShowMapClassInput, ShowMapTree, ShowMapTrialInput } from '../showM
 import { isChecklistInUse, isPrintTrackingInUse } from './checklistUsage';
 import {
   getCockpitClassDetailsHref,
+  getCockpitEntryManagementHref,
   getCockpitPaperScoringHref,
   getCockpitReportHref,
 } from './cockpitRoutes';
@@ -23,6 +24,7 @@ import type {
   CockpitLifecycle,
   SecretaryCockpitAction,
   SecretaryCockpitAttention,
+  SecretaryCockpitClass,
   SecretaryCockpitPaperwork,
   SecretaryCockpitSnapshot,
 } from './secretaryCockpitTypes';
@@ -171,6 +173,21 @@ function classWorkActions(input: {
       group: 'class-work',
     },
     {
+      // The door to this class's pulls, no-shows and waitlist: Entry Forms, filtered to the class.
+      id: `class-entries:${input.classId}`,
+      label: 'Entries for this class',
+      destination: {
+        kind: 'href',
+        href: getCockpitEntryManagementHref({
+          showId: input.showId,
+          trialId: input.trialId,
+          classId: input.classId,
+          returnTo: input.returnTo,
+        }),
+      },
+      group: 'class-work',
+    },
+    {
       id: `paper-scoring:${input.classId}`,
       label: 'Enter results from scoresheet',
       destination: { kind: 'href', href: getCockpitPaperScoringHref(input) },
@@ -217,6 +234,24 @@ function administrativeAttention(
   }));
 }
 
+/**
+ * The show-level "N classes need judge's initials" chip counts the same classes that each carry a
+ * "Collect judge's initials" item, so the strip would count one problem twice (MYK9-1727). It is
+ * dropped when every class it counts has its own item; kept when any does not.
+ */
+function withoutCoveredSignatureSignal(
+  signals: readonly ShowDeskPendingSignal[],
+  builtClasses: readonly SecretaryCockpitClass[]
+): readonly ShowDeskPendingSignal[] {
+  const needing = builtClasses.filter(
+    cls => cls.wrapUpStatus === SHOW_MAP_WRAP_UP_STATUS.NEEDS_JUDGE_SIGNATURE
+  );
+  const covered = needing.every(cls =>
+    cls.attention.some(item => item.id.startsWith('collect-judge-signature:'))
+  );
+  return covered ? signals.filter(signal => signal.id !== 'classes-needing-signature') : signals;
+}
+
 export function buildSecretaryCockpitSnapshot({
   showId,
   trials,
@@ -246,6 +281,76 @@ export function buildSecretaryCockpitSnapshot({
   // registry speaks for all of them — same convention as getTrialTimezone above.
   const registryId = resolveConfiguredRegistryId(trials[0]?.registryId) ?? 'AKC';
 
+  const builtClasses = classes.map((classItem, index) => {
+    const node = tree.nodesById[`class:${classItem.id}`];
+    const actions = node
+      ? getRecommendedActionsForNode(node, { tree, now }, 1).map(action =>
+          actionFor(action, 'primary')
+        )
+      : [];
+    const attention = node
+      ? getAttentionActions(node, { tree, now })
+          // Pending Entry review has one canonical owner page and is already
+          // represented by the Show-level signal below. Keeping the legacy
+          // executor here would duplicate that workflow inside the cockpit.
+          .filter(action => action.id !== 'review-entry')
+          .map(action => ({
+            id: `${action.id}:${action.nodeId}`,
+            dedupeKey: `${action.id}:${action.nodeId}`,
+            classId: classItem.id,
+            kind: attentionKind(action),
+            label: action.label,
+            reason: action.why,
+            destination: destinationFor(action),
+          }))
+      : [];
+    return {
+      id: classItem.id,
+      trialId: classItem.trialId,
+      name: classItem.name,
+      element: classItem.element ?? null,
+      level: classItem.level ?? null,
+      section: classItem.section ?? null,
+      classOrder: classItem.displayOrder ?? index,
+      scheduledStart: classItem.time ?? null,
+      revisedExpectedStart: classItem.revisedExpectedStart ?? null,
+      lifecycle: lifecycleFor(classItem.status),
+      status: classItem.status ?? null,
+      actualStart: classItem.actualStartTime ?? null,
+      actualFinish: classItem.actualFinishTime ?? null,
+      // NOT `?? 0`. `progressFor` in secretaryCockpitModel returns
+      // { evidence: 'unknown', value: null } when either count is null, and
+      // the whole EvidenceValue design exists so the cockpit can say "I don't
+      // know" instead of "zero". Defaulting here filled that state in one
+      // step before it could ever be entered, so the unknown branch was dead
+      // code and a paused entries read rendered as "0 of 0 scored".
+      entryCount: classItem.entryCount ?? null,
+      scoredCount: classItem.scoredCount ?? null,
+      runListCount: classItem.runListCount ?? null,
+      closeout: closeoutFor(node?.wrapUpStatus?.value),
+      wrapUpStatus: node?.wrapUpStatus?.value ?? null,
+      registryId: node?.registryId ?? null,
+      judgeName: classItem.judgeName ?? null,
+      judgeId: classItem.judgeId ?? null,
+      operationalArea:
+        node?.ringLabel && node.ringLabel !== '—'
+          ? { kind: 'ring' as const, labels: [node.ringLabel] }
+          : null,
+      attention,
+      actions: [
+        ...actions,
+        ...classWorkActions({
+          showId,
+          trialId: classItem.trialId,
+          classId: classItem.id,
+          returnTo,
+        }),
+      ],
+      paperwork: [...(paperworkByClassId?.get(classItem.id) ?? [])],
+      entryRows: entryRowsForClass(classItem.id, tree),
+    };
+  });
+
   return {
     showId,
     timeZone,
@@ -260,75 +365,10 @@ export function buildSecretaryCockpitSnapshot({
       ...(trial.name ? { name: trial.name } : {}),
       order: Number.parseInt(trial.order || '', 10) || index + 1,
     })),
-    classes: classes.map((classItem, index) => {
-      const node = tree.nodesById[`class:${classItem.id}`];
-      const actions = node
-        ? getRecommendedActionsForNode(node, { tree, now }, 1).map(action =>
-            actionFor(action, 'primary')
-          )
-        : [];
-      const attention = node
-        ? getAttentionActions(node, { tree, now })
-            // Pending Entry review has one canonical owner page and is already
-            // represented by the Show-level signal below. Keeping the legacy
-            // executor here would duplicate that workflow inside the cockpit.
-            .filter(action => action.id !== 'review-entry')
-            .map(action => ({
-              id: `${action.id}:${action.nodeId}`,
-              dedupeKey: `${action.id}:${action.nodeId}`,
-              classId: classItem.id,
-              kind: attentionKind(action),
-              label: action.label,
-              reason: action.why,
-              destination: destinationFor(action),
-            }))
-        : [];
-      return {
-        id: classItem.id,
-        trialId: classItem.trialId,
-        name: classItem.name,
-        element: classItem.element ?? null,
-        level: classItem.level ?? null,
-        section: classItem.section ?? null,
-        classOrder: classItem.displayOrder ?? index,
-        scheduledStart: classItem.time ?? null,
-        revisedExpectedStart: classItem.revisedExpectedStart ?? null,
-        lifecycle: lifecycleFor(classItem.status),
-        status: classItem.status ?? null,
-        actualStart: classItem.actualStartTime ?? null,
-        actualFinish: classItem.actualFinishTime ?? null,
-        // NOT `?? 0`. `progressFor` in secretaryCockpitModel returns
-        // { evidence: 'unknown', value: null } when either count is null, and
-        // the whole EvidenceValue design exists so the cockpit can say "I don't
-        // know" instead of "zero". Defaulting here filled that state in one
-        // step before it could ever be entered, so the unknown branch was dead
-        // code and a paused entries read rendered as "0 of 0 scored".
-        entryCount: classItem.entryCount ?? null,
-        scoredCount: classItem.scoredCount ?? null,
-        runListCount: classItem.runListCount ?? null,
-        closeout: closeoutFor(node?.wrapUpStatus?.value),
-        wrapUpStatus: node?.wrapUpStatus?.value ?? null,
-        registryId: node?.registryId ?? null,
-        judgeName: classItem.judgeName ?? null,
-        judgeId: classItem.judgeId ?? null,
-        operationalArea:
-          node?.ringLabel && node.ringLabel !== '—'
-            ? { kind: 'ring' as const, labels: [node.ringLabel] }
-            : null,
-        attention,
-        actions: [
-          ...actions,
-          ...classWorkActions({
-            showId,
-            trialId: classItem.trialId,
-            classId: classItem.id,
-            returnTo,
-          }),
-        ],
-        paperwork: [...(paperworkByClassId?.get(classItem.id) ?? [])],
-        entryRows: entryRowsForClass(classItem.id, tree),
-      };
-    }),
-    administrativeAttention: administrativeAttention(pendingSignals, returnTo),
+    classes: builtClasses,
+    administrativeAttention: administrativeAttention(
+      withoutCoveredSignatureSignal(pendingSignals, builtClasses),
+      returnTo
+    ),
   };
 }

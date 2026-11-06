@@ -98,7 +98,7 @@ function PrimaryWork({
     // is complete, so this card says where the earlier steps happen and does not link back.
     action = (
       <p className="text-xs text-muted-foreground">
-        This class is run and marked complete on Overview.
+        This class is run and marked complete on Show Desk.
       </p>
     );
   } else if (phase === 'needs-coin-flip') {
@@ -155,7 +155,7 @@ function PrimaryWork({
       <div className="space-y-1">
         <p className="text-xs text-muted-foreground">
           The class is not marked complete, so the check cannot be saved yet. Mark it complete on
-          Overview, then its scores can be checked here.
+          Show Desk, then its scores can be checked here.
         </p>
       </div>
     );

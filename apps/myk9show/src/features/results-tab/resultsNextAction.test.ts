@@ -36,7 +36,7 @@ describe('deriveResultsNextAction', () => {
 
   it('not started: links to Overview', () => {
     expect(deriveResultsPhase(base)).toBe('not-started');
-    expect(deriveResultsNextAction(base)).toEqual({ kind: 'overview', label: 'Overview' });
+    expect(deriveResultsNextAction(base)).toEqual({ kind: 'overview', label: 'Show Desk' });
   });
 
   it('in the ring: links to Overview, by status or by a partial score count', () => {

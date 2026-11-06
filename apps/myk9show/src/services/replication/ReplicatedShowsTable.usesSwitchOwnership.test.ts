@@ -66,7 +66,11 @@ describe('ReplicatedShowsTable switch ownership (MYK9-1721)', () => {
     const base = (
       table as unknown as { getRowRefetchAdapter(): Parameters<typeof refetchDirtyRowsById>[1] }
     ).getRowRefetchAdapter();
-    await refetchDirtyRowsById(table, { ...base, fetchRowsById: async () => [copy] }, [ID]);
+    await refetchDirtyRowsById(
+      table as unknown as Parameters<typeof refetchDirtyRowsById>[0],
+      { ...base, fetchRowsById: async () => [copy] },
+      [ID]
+    );
   };
 
   beforeEach(async () => {

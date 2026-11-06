@@ -35,12 +35,13 @@ Open a show and you get **one row of five tabs**. Everything in this guide lives
 
 The **Actions** button in the top bar changes with the page you are on. On **Show Desk** it holds the show-day and show-logistics tools below. On **Entry Forms** it holds the entry lists instead (card 4).
 
-| Show day                                                                               | Show logistics                                             |
-| -------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| **Check-in desk**: look up exhibitors, armbands and check-in status, and check dogs in | **Volunteers**: helper assignments and gaps                |
-| **Self check-in**: turn exhibitor self check-in on by show, trial or class             | **Lunch orders**: plan lunch for everyone working each day |
-| **Access codes**: judge and ringside codes                                             | **Tasks and notes**: show-specific reminders               |
-| **Emergency trial packet**: the printed paper fallback                                 | **Incident log**: record incidents while fresh             |
+| Show day                                                                               | Show logistics                                               |
+| -------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| **Check-in desk**: look up exhibitors, armbands and check-in status, and check dogs in | **Volunteers**: helper assignments and gaps                  |
+| **Self check-in**: turn exhibitor self check-in on by show, trial or class             | **Lunch orders**: plan lunch for everyone working each day   |
+| **Access codes**: judge and ringside codes                                             | **Judge supplies**: what each judge is handed, once per show |
+| **Emergency trial packet**: the printed paper fallback                                 | **Tasks and notes**: show-specific reminders                 |
+|                                                                                        | **Incident log**: record incidents while fresh               |
 
 > **A tool you do not use can be switched off.** In **Edit show → Venue & policies**, the **This show uses…** switches hide **Self check-in**, **Access codes**, **Emergency trial packet** and **Volunteers** from this menu. Nothing is deleted, and switching one back on brings the row back with its data. A new show starts with **Self check-in** and **Access codes** showing, and **Emergency trial packet** and **Volunteers** hidden until you switch them on. See card 3.
 
@@ -85,7 +86,7 @@ On the show page, open the **status pill** under the show's name and choose **Pu
 
 ## 3 · Edit a show, or reassign a judge
 
-- **Show details:** **Actions → Edit show** (the Actions button sits in the top bar, left of the bell; on a phone it is the lightning icon), or **Edit show** on the **About** tab. The edit panel opens over the page you are on, with tabs **Basic Info**, **Officials**, **Judges**, **Fees**, **Venue & policies** and **Premium**.
+- **Show details:** **Actions → Edit show** (the **Actions** button sits in the top bar, left of the bell), or **Edit show** on the **About** tab. The edit panel opens over the page you are on, with tabs **Basic Info**, **Officials**, **Judges**, **Fees**, **Venue & policies** and **Premium**.
 - **Venue & policies:** each card or switch on this tab saves on its own, so the panel's **Save Changes** is not needed for it. The switches save the moment you flip them. The pin, WiFi and policy cards each have their own button (**Save pin**, **Save**, **Save policy**). It holds, in order:
   - **This show uses…** switches for the optional tools: **Exhibitor self check-in**, **Judges score on devices**, **Paper fallback packet**, **Volunteer tracking**, **Public landing page**, and **We publish our own premium list**. A club that never uses a tool can turn it off. A new show has self check-in and judges scoring on devices on, and the paper packet, volunteer tracking, public landing page and own premium list off, so switch on the packet or volunteers if you want those rows. The first four hide their row in the Show Desk **Actions** menu. **Public landing page** shows or hides the Landing page card and its reminder. **We publish our own premium list** stops the premium list reminder. Nothing is deleted when you turn a tool off. **Exhibitor self check-in** needs a connection to change. In the week before the show, **Ready for show day** (see Getting ready for show day) may offer one quiet suggestion for a tool that is off, such as "Want judges to score on their phones?", with a **Turn it on** link to this tab. The X beside it hides that suggestion on that device.
   - **Venue Map Pin**, **Venue WiFi** (network name and password, printed on the armband labels) and the **Withdrawal Refund Policy** for this show (**Save policy**). **About** shows the address, Wi-Fi and withdrawal policy read only.
@@ -93,8 +94,8 @@ On the show page, open the **status pill** under the show's name and choose **Pu
   ![Edit show on the Venue & policies tab, with the This show uses switches](../screenshots/S-25.png)
 
 - **Add a judge to the show:** open **Edit show**, then the **Judges** tab.
-- **Add classes to a show that already exists:** on **Show Desk**, choose **Add Classes** on the trial's heading. The wizard opens on the **Classes** step with Show Details and Trials locked, because you are only adding classes. To add a trial instead, open the header **Actions** menu and choose **Add Trial**.
-- **Edit or delete a trial or class:** on **Show Desk**, open the **⋮** menu on a trial's heading and choose **Edit Trial**. The same menu also has **Entry forms** (that trial's entries), **Judge supplies**, and **Trial financials** (that trial's money, on Reports). **Delete trial** is the button at the bottom left of the edit panel. For a class, click it and use **Edit class** or **Delete class** in its panel. Deleting a trial or class also deletes its entries, so read the confirmation before you accept it.
+- **Add classes to a show that already exists:** on **Show Desk**, open the **⋮** menu on the trial's heading and choose **Add classes**. The wizard opens on the **Classes** step with Show Details and Trials locked, because you are only adding classes. To add a trial instead, open the header **Actions** menu and choose **Add Trial**.
+- **Edit or delete a trial or class:** on **Show Desk**, open the **⋮** menu on a trial's heading and choose **Edit Trial**. The same menu also has **Add classes**, **Trial report** (the registry's end-of-trial report, already set to that trial) and, on AKC shows, **High in Trial**. That trial's entries and money are on the **Entry Forms** and **Reports** tabs. **Delete trial** is the button at the bottom left of the edit panel. For a class, click it and use **Edit class** or **Delete class** in its panel. Deleting a trial or class also deletes its entries, so read the confirmation before you accept it.
 - **Change a class's judge, or several classes at once:** **Actions → Select classes**, then the judge dropdown on that class's row. To set many classes in one trial to the same status, export them or delete them, tick their checkboxes and use the bar that appears. **Done** returns you to the schedule.
 
 > A class's judge dropdown only offers judges already attached to the show. If the one you want isn't listed, add them on the **Judges** tab first, then come back.
@@ -324,6 +325,7 @@ All under **Show Desk → Actions**:
 
 - **Volunteers**: add volunteers and assign them to per-class slots grouped by trial.
 - **Lunch orders**: one list for each show day, for anyone working it. That day's judges, officials and volunteers are on the list already. **Add person** opens a name and role, and **Add to list** adds them. Give each person a lunch order and a dietary note, then press **Save** on that row. Closing the panel with unsaved rows asks first.
+- **Judge supplies**: every judge at the show, once, with the trials they judge. Open a judge to set what they are handed. The list applies to every trial that judge is on, so a judge on two trials is set up once. **Reports → Judge Supply Checklists** prints them.
 - **Tasks and notes**: reminders for this show.
 - **Emergency trial packet**: prepare or confirm the printed paper fallback, in case devices or signal fail on the day.
 

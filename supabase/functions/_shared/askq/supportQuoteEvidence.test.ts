@@ -16,7 +16,7 @@ const ID = 'judge-steward-quickstart';
 const TITLE = 'Ringside Quickstart';
 const STEP_QUOTE = 'Tap Ringside in the sidebar. If one show is running today, it opens.';
 const SECRETARY_QUOTE =
-  'Show details: Actions → Edit show (the Actions button sits in the top bar, left of the bell; on a phone it is the lightning icon)';
+  'Show details: Actions → Edit show (the Actions button sits in the top bar, left of the bell)';
 
 describe('verifySupportAnswerQuotes', () => {
   it('shows only the verified passage, grouped under the guide title', () => {

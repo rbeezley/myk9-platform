@@ -31,6 +31,21 @@ describe('PrimaryTabs fit', () => {
 
     const tabs = screen.getAllByRole('tab');
     expect(tabs.map(tab => tab.textContent)).toEqual(['Classes5', 'Entries12', 'Settings']);
+    // `fit` is what turns the scroller off and makes each tab an equal column; without the prop
+    // the strip scrolls sideways (the rendered geometry is measured in the MYK9-1729 PR walk).
+    expect(screen.getByRole('tablist')).not.toHaveClass('overflow-x-auto');
+    for (const tab of tabs) expect(tab).toHaveClass('flex-1');
+  });
+
+  it('keeps the sideways-scrolling strip when fit is off', () => {
+    render(
+      <PrimaryTabs tabs={tabsWithIcons} value="classes" onValueChange={vi.fn()}>
+        <TabsContent value="classes">content</TabsContent>
+      </PrimaryTabs>
+    );
+
+    expect(screen.getByRole('tablist')).toHaveClass('overflow-x-auto');
+    for (const tab of screen.getAllByRole('tab')) expect(tab).not.toHaveClass('flex-1');
   });
 });
 

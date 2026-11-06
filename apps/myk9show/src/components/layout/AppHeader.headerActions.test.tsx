@@ -471,23 +471,6 @@ function visibleText(element: HTMLElement): string {
   return out.trim();
 }
 
-function mockLabelBreakpoint(matches: boolean) {
-  Object.defineProperty(window, 'matchMedia', {
-    writable: true,
-    configurable: true,
-    value: vi.fn().mockImplementation((query: string) => ({
-      matches: query === '(min-width: 640px)' ? matches : false,
-      media: query,
-      onchange: null,
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      dispatchEvent: vi.fn(),
-    })),
-  });
-}
-
 describe('AppHeader Actions trigger — the wordmark has to fit beside it', () => {
   it('measures visible text correctly on a known fixture (harness control)', () => {
     const fixture = document.createElement('div');
@@ -499,11 +482,9 @@ describe('AppHeader Actions trigger — the wordmark has to fit beside it', () =
     expect(visibleText(bothVisible)).toBe('ActionsVisible');
   });
 
-  it.each([
-    ['below sm', false],
-    ['from sm up', true],
-  ])('shows the written label "Actions" %s (MYK9-1729)', (_name, wide) => {
-    mockLabelBreakpoint(wide);
+  // The trigger no longer branches on a media query (MYK9-1729): one DOM at every width, the
+  // compact-versus-wide difference is CSS only and header-wordmark-fits.spec.ts measures it.
+  it('shows the written label "Actions" at every width (MYK9-1729)', () => {
     render(<AppHeader />, { initialRoute: SHOW_ROUTE });
 
     const trigger = screen.getByTestId('header-actions-trigger');
@@ -524,11 +505,7 @@ function solidFillClasses(): string[] {
 }
 
 describe('AppHeader Actions menu trigger style (MYK9-1268)', () => {
-  it.each([
-    ['sm and up', true],
-    ['below sm', false],
-  ])('uses the solid primary variant, not the outline, %s', (_name, labelled) => {
-    mockLabelBreakpoint(labelled);
+  it('uses the solid primary variant, not the outline', () => {
     render(<AppHeader />, { initialRoute: SHOW_ROUTE });
 
     const trigger = screen.getByTestId('header-actions-trigger');

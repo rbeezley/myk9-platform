@@ -121,6 +121,23 @@ describe('markReplicatedRowSynced — an acknowledged write supersedes older que
     expect((await queue(db))['m-later']?.data).toEqual({ id: 'show-1', uses_volunteers: true });
   });
 
+  it('supersedes an older field-delta RPC of the same function, not a direct UPDATE', async () => {
+    const rpc = (id: string, seq: number, fields: Record<string, unknown>) => ({
+      ...mutation(id, seq, {}),
+      rpc: { name: 'ringside_update_entry', fields },
+    });
+    const staleQ = rpc('m-q', 1, { result_status: 'q', search_time_seconds: 41 });
+    const direct = mutation('m-direct', 2, { uses_volunteers: false });
+    const nq = rpc('m-nq', 4, { result_status: 'nq' });
+    const db = await seed([staleQ, direct, nq]);
+
+    await markReplicatedRowSynced(db, nq, 7);
+
+    const after = await queue(db);
+    expect(after['m-q']?.rpc?.fields).toEqual({ search_time_seconds: 41 });
+    expect(after['m-direct']?.data).toEqual({ id: 'show-1', uses_volunteers: false });
+  });
+
   it("leaves another owner's queued write alone", async () => {
     const theirs = mutation('m-theirs', 1, { uses_volunteers: false }, 'user-2');
     const on = mutation('m-on', 4, { uses_volunteers: true });

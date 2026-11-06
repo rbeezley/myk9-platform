@@ -16,10 +16,6 @@ vi.mock('../TrialDetail/TrialClassesTable', () => ({
   TrialClassesTable: () => <div data-testid="trial-classes-table" />,
 }));
 
-vi.mock('@/features/judge-supplies/JudgeSuppliesSection', () => ({
-  JudgeSuppliesSection: () => <div data-testid="judge-supplies-section" />,
-}));
-
 const statistics: TrialStatisticsData = {
   judges: { total: 2, active: 1, onBreak: 0, percentChange: 0 },
   classes: { total: 4, upcoming: 3, completed: 1, percentChange: 0 },

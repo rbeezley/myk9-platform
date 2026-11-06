@@ -342,7 +342,13 @@ function ShowWorkbenchShowDeskBody() {
         group: 'show-logistics',
         title: 'Judge supplies',
         summary: 'Set what each judge is handed, once for the whole show',
-        content: <ShowJudgeSuppliesTool showId={currentShow.id} trials={associatedTrials} />,
+        content: (
+          <ShowJudgeSuppliesTool
+            showId={currentShow.id}
+            organization={currentShow.organization}
+            trials={associatedTrials}
+          />
+        ),
       },
       {
         id: 'tasks-notes',

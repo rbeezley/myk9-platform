@@ -4,24 +4,24 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook } from '@testing-library/react';
 
-vi.mock('@/features/judge-supplies/trialJudgeSuppliesService', () => ({
-  trialJudgeSuppliesService: {
+vi.mock('@/features/judge-supplies/showJudgeSuppliesService', () => ({
+  showJudgeSuppliesService: {
     listForShow: vi.fn(),
   },
 }));
 
 import { JudgeSupplyChecklistReport } from '../JudgeSupplyChecklistReport';
 import { useHostedReportData } from '@/pages/secretary/ReportsPage/useHostedReportData';
-import { trialJudgeSuppliesService } from '@/features/judge-supplies/trialJudgeSuppliesService';
-import type { TrialJudgeSupplyRow } from '@/features/judge-supplies/types';
+import { showJudgeSuppliesService } from '@/features/judge-supplies/showJudgeSuppliesService';
+import type { ShowJudgeSupplyRow } from '@/features/judge-supplies/types';
 import type { ReportProps } from '@/lib/reports/types';
 
-const mockListForShow = vi.mocked(trialJudgeSuppliesService.listForShow);
+const mockListForShow = vi.mocked(showJudgeSuppliesService.listForShow);
 
-function row(overrides: Partial<TrialJudgeSupplyRow>): TrialJudgeSupplyRow {
+function row(overrides: Partial<ShowJudgeSupplyRow>): ShowJudgeSupplyRow {
   return {
     id: overrides.id ?? `r-${Math.random()}`,
-    trial_id: 't1',
+    show_id: 'show-1',
     person_id: 'p1',
     judge_name: 'Alice',
     item_label: 'Clipboard',
@@ -63,7 +63,7 @@ function baseProps(over: Partial<ReportProps> = {}): ReportProps {
  * straight to the component, with no provider and no service mock in the way.
  */
 function renderReport(
-  rows: TrialJudgeSupplyRow[],
+  rows: ShowJudgeSupplyRow[],
   state: { isLoading?: boolean; isError?: boolean } = {},
   over: Partial<ReportProps> = {}
 ) {
@@ -99,22 +99,39 @@ describe('JudgeSupplyChecklistReport', () => {
     expect(screen.getByText(/no judge supplies have been configured/i)).toBeInTheDocument();
   });
 
-  it('renders one page per (trial, judge) pair sorted by date then trial number then judge name', () => {
+  it('renders one page per judge for the show, sorted by judge name', () => {
     renderReport([
-      row({ id: 'a', trial_id: 't2', judge_name: 'Carol', sort_order: 10 }),
-      row({ id: 'b', trial_id: 't1', judge_name: 'Bob', person_id: null, sort_order: 10 }),
-      row({ id: 'c', trial_id: 't1', judge_name: 'Alice', person_id: 'p1', sort_order: 10 }),
+      row({ id: 'a', judge_name: 'Carol', person_id: 'p3' }),
+      row({ id: 'b', judge_name: 'Bob', person_id: null }),
+      row({ id: 'c', judge_name: 'Alice', person_id: 'p1' }),
     ]);
 
-    // Three judges → three pages.
     expect(screen.getAllByText(/judge supply checklist/i).length).toBe(3);
-    // Sorted: t1 (2026-06-12) Alice, t1 Bob, t2 (2026-06-13) Carol.
     const headings = screen.getAllByRole('heading', { level: 2 }).map(h => h.textContent);
-    expect(headings[0]).toContain('Trial 1');
-    expect(headings[1]).toContain('Trial 1');
-    expect(headings[2]).toContain('Trial 2');
-    const judgeNames = screen.getAllByText(/^Judge: /).map(p => p.textContent);
-    expect(judgeNames).toEqual(['Judge: Alice', 'Judge: Bob', 'Judge: Carol']);
+    expect(headings).toEqual(['Judge: Alice', 'Judge: Bob', 'Judge: Carol']);
+  });
+
+  it('gives a judge on two trials one page with one list, not one per trial', () => {
+    // The show list holds a judge once; the report must not need the trials to place them.
+    renderReport(
+      [
+        row({ id: 'a', item_label: 'Clipboard', sort_order: 10 }),
+        row({ id: 'b', item_label: 'Pens (2)', sort_order: 20 }),
+      ],
+      {},
+      {
+        allTrials: [
+          { id: 't1', date: '2026-06-12', name: 'Trial 1', trialNumber: 'Trial 1' },
+          { id: 't2', date: '2026-06-13', name: 'Trial 2', trialNumber: 'Trial 2' },
+        ],
+      }
+    );
+
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(screen.getByTestId('supply-page-p1')).toBeInTheDocument();
+    // Header row + the judge's two items.
+    expect(screen.getAllByRole('row')).toHaveLength(3);
+    expect(screen.queryByText(/Trial 2/)).not.toBeInTheDocument();
   });
 
   it('lists only included items, sorted by sort_order, with note column populated', () => {
@@ -149,9 +166,9 @@ describe('JudgeSupplyChecklistReport', () => {
 describe('useHostedReportData — judge supplies', () => {
   it('fetches supplies exactly once, for the requested show', async () => {
     mockListForShow.mockResolvedValue([
-      row({ id: 'a', trial_id: 't1', judge_name: 'Alice' }),
-      row({ id: 'b', trial_id: 't1', judge_name: 'Bob' }),
-      row({ id: 'c', trial_id: 't2', judge_name: 'Carol' }),
+      row({ id: 'a', judge_name: 'Alice' }),
+      row({ id: 'b', judge_name: 'Bob', person_id: 'p2' }),
+      row({ id: 'c', judge_name: 'Carol', person_id: 'p3' }),
     ]);
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 

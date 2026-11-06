@@ -36,7 +36,7 @@ import {
   type ReadinessQuery,
   type ReportDataState,
 } from '@/hooks/queries/reportReadiness';
-import { trialJudgeSuppliesService } from '@/features/judge-supplies/trialJudgeSuppliesService';
+import { showJudgeSuppliesService } from '@/features/judge-supplies/showJudgeSuppliesService';
 import type {
   ReportAsyncData,
   ReportEntryFormData,
@@ -118,7 +118,7 @@ export function useHostedReportData({
 
   const supplies = useQuery({
     queryKey: ['judge-supply-checklist-report', showId ?? ''] as const,
-    queryFn: () => trialJudgeSuppliesService.listForShow(showId as string),
+    queryFn: () => showJudgeSuppliesService.listForShow(showId as string),
     enabled: needsSupplies,
   });
 

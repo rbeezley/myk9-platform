@@ -23,8 +23,8 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { notifications } from '@/lib/notifications';
-import { useTrialJudgeSupplies, type SupplyMirror } from './useTrialJudgeSupplies';
-import { judgeKey, type JudgeKey, type RegistryId, type TrialJudgeSupplyRow } from './types';
+import { useShowJudgeSupplies } from './useShowJudgeSupplies';
+import { judgeKey, type JudgeKey, type RegistryId, type ShowJudgeSupplyRow } from './types';
 
 const MAX_LABEL = 200;
 const MAX_NOTE = 500;
@@ -32,25 +32,19 @@ const MAX_NOTE = 500;
 export interface ManageJudgeSuppliesDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  trialId: string;
+  showId: string;
   judge: JudgeKey;
   registryId: RegistryId | null;
-  /** Other trials the judge is on: every write is copied onto them (MYK9-1728). */
-  mirrorTrialIds?: readonly string[];
 }
 
 export function ManageJudgeSuppliesDialog({
   open,
   onOpenChange,
-  trialId,
+  showId,
   judge,
   registryId,
-  mirrorTrialIds,
 }: ManageJudgeSuppliesDialogProps) {
-  const mirror: SupplyMirror | undefined = mirrorTrialIds?.length
-    ? { targetTrialIds: mirrorTrialIds, judge, registryId }
-    : undefined;
-  const supplies = useTrialJudgeSupplies(trialId, mirror);
+  const supplies = useShowJudgeSupplies(showId);
   const thisJudgeKey = useMemo(
     () => judgeKey(judge),
     [judge.person_id, judge.judge_name] // eslint-disable-line react-hooks/exhaustive-deps
@@ -84,7 +78,7 @@ export function ManageJudgeSuppliesDialog({
   }, [open, thisJudgeKey, registryId]);
 
   // The row stays set while the confirm animates out, so its title never loses the item name.
-  const [pendingDelete, setPendingDelete] = useState<TrialJudgeSupplyRow | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<ShowJudgeSupplyRow | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const isSeeding = supplies.ensureSeeded.isPending && judgeRows.length === 0;
@@ -193,7 +187,7 @@ function SupplySkeleton() {
 }
 
 interface SupplyListProps {
-  rows: TrialJudgeSupplyRow[];
+  rows: ShowJudgeSupplyRow[];
   onToggle: (id: string, included: boolean) => void;
   onEditNote: (id: string, note: string) => void;
   onDelete: (id: string) => void;
@@ -238,7 +232,7 @@ function SupplyList({ rows, onToggle, onEditNote, onDelete, onReorder }: SupplyL
 }
 
 interface SupplyRowProps {
-  row: TrialJudgeSupplyRow;
+  row: ShowJudgeSupplyRow;
   onToggle: (id: string, included: boolean) => void;
   onEditNote: (id: string, note: string) => void;
   onDelete: (id: string) => void;

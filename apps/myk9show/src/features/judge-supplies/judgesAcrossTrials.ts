@@ -8,8 +8,8 @@ export interface JudgeAcrossTrials extends JudgeKey {
 
 /**
  * MYK9-1728: one entry per judge for the whole show. `byTrial` is each trial's judges (the
- * Show Desk's existing judges-on-days read); `trialIds` is the show's trial order. The first
- * of a judge's trials is the one their list is edited on, and the rest mirror it.
+ * Show Desk's existing judges-on-days read); `trialIds` is the show's trial order. A judge on
+ * several trials still has one entry and one supply list; the trials are for display only.
  */
 export function judgesAcrossTrials(
   trialIds: readonly string[],

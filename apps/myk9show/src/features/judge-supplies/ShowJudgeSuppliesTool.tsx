@@ -1,14 +1,12 @@
 import { formatTrialLabel } from '@myk9/core';
 import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { useJudgesOnDays } from '@/features/lunch-orders/judgesOnDays';
+import { deriveRegistryId } from '@/features/registries';
 import { Button } from '@/components/ui/button';
 import { judgesAcrossTrials, type JudgeAcrossTrials } from './judgesAcrossTrials';
 import { ManageJudgeSuppliesDialog } from './ManageJudgeSuppliesDialog';
-import { SUPPLIES_QUERY_ROOT } from './useTrialJudgeSupplies';
-import { useTrialRegistry } from './useTrialRegistry';
-import { trialJudgeSuppliesService } from './trialJudgeSuppliesService';
-import { judgeKey, type TrialJudgeSupplyRow } from './types';
+import { useShowJudgeSupplyRows } from './useShowJudgeSupplies';
+import { judgeKey, type ShowJudgeSupplyRow } from './types';
 
 export interface SuppliesTrial {
   id: string;
@@ -18,10 +16,12 @@ export interface SuppliesTrial {
 
 interface ShowJudgeSuppliesToolProps {
   showId: string;
+  /** `shows.organization`: the show's registry decides which default supply list is seeded. */
+  organization?: string | null | undefined;
   trials: readonly SuppliesTrial[];
 }
 
-function summarize(rows: readonly TrialJudgeSupplyRow[]): string {
+function summarize(rows: readonly ShowJudgeSupplyRow[]): string {
   if (rows.length === 0) return 'Not configured yet';
   const custom = rows.filter(r => r.is_custom).length;
   const excluded = rows.filter(r => !r.included).length;
@@ -33,19 +33,19 @@ function summarize(rows: readonly TrialJudgeSupplyRow[]): string {
 }
 
 /**
- * Show Desk "Judge supplies" (MYK9-1728): every judge at the show once. The list is edited on
- * the judge's first trial and copied onto the rest, so a judge on two trials is set up once.
- * Storage stays per trial (`trial_judge_supplies`), which the report reads.
+ * Show Desk "Judge supplies" (MYK9-1728): every judge at the show once. A judge's list is stored
+ * once per show (`show_judge_supplies`), so a judge on two trials has exactly one list; the
+ * trials are shown only so the secretary can see where the judge works.
  */
-export function ShowJudgeSuppliesTool({ showId, trials }: ShowJudgeSuppliesToolProps) {
+export function ShowJudgeSuppliesTool({
+  showId,
+  organization,
+  trials,
+}: ShowJudgeSuppliesToolProps) {
   const trialIds = useMemo(() => trials.map(trial => trial.id), [trials]);
   const judgesQuery = useJudgesOnDays(showId, trialIds);
-  const suppliesQuery = useQuery({
-    queryKey: [SUPPLIES_QUERY_ROOT, 'show', showId] as const,
-    queryFn: () => trialJudgeSuppliesService.listForShow(showId),
-  });
+  const suppliesQuery = useShowJudgeSupplyRows(showId);
   const [openJudge, setOpenJudge] = useState<JudgeAcrossTrials | null>(null);
-  const registryQuery = useTrialRegistry(openJudge?.trialIds[0]);
 
   const judges = useMemo(
     () => judgesAcrossTrials(trialIds, judgesQuery.byTrial),
@@ -79,9 +79,7 @@ export function ShowJudgeSuppliesTool({ showId, trials }: ShowJudgeSuppliesToolP
       {judges.length > 0 && (
         <ul className="divide-y divide-border/40" role="list">
           {judges.map(judge => {
-            const judgeRows = (rows ?? []).filter(
-              row => row.trial_id === judge.trialIds[0] && judgeKey(row) === judge.key
-            );
+            const judgeRows = (rows ?? []).filter(row => judgeKey(row) === judge.key);
             return (
               <li
                 key={judge.key}
@@ -112,7 +110,7 @@ export function ShowJudgeSuppliesTool({ showId, trials }: ShowJudgeSuppliesToolP
       )}
       {/* A sibling of the list, never inside a `translate`d popup: the slide-over's
           `position: fixed` would size to that popup. `contents` keeps `space-y-*` margin off
-          its backdrop (same rule as JudgeSuppliesSection). */}
+          its backdrop (the same rule every slide-over here follows). */}
       <div className="contents">
         {openJudge && (
           <ManageJudgeSuppliesDialog
@@ -121,10 +119,9 @@ export function ShowJudgeSuppliesTool({ showId, trials }: ShowJudgeSuppliesToolP
             onOpenChange={open => {
               if (!open) setOpenJudge(null);
             }}
-            trialId={openJudge.trialIds[0]!}
+            showId={showId}
             judge={openJudge}
-            registryId={registryQuery.data ?? null}
-            mirrorTrialIds={openJudge.trialIds.slice(1)}
+            registryId={deriveRegistryId(organization)}
           />
         )}
       </div>

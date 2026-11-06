@@ -7332,6 +7332,63 @@ export type Database = {
           },
         ]
       }
+      show_judge_supplies: {
+        Row: {
+          created_at: string
+          id: string
+          included: boolean
+          is_custom: boolean
+          item_label: string
+          judge_name: string
+          note: string | null
+          person_id: string | null
+          show_id: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          included?: boolean
+          is_custom?: boolean
+          item_label: string
+          judge_name: string
+          note?: string | null
+          person_id?: string | null
+          show_id: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          included?: boolean
+          is_custom?: boolean
+          item_label?: string
+          judge_name?: string
+          note?: string | null
+          person_id?: string | null
+          show_id?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "show_judge_supplies_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "show_judge_supplies_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "shows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       show_lifecycle_email_attempts: {
         Row: {
           attempted_at: string
@@ -9920,105 +9977,6 @@ export type Database = {
           },
           {
             foreignKeyName: "trial_checklist_state_trial_id_fkey"
-            columns: ["trial_id"]
-            isOneToOne: false
-            referencedRelation: "view_stats_summary"
-            referencedColumns: ["trial_id"]
-          },
-        ]
-      }
-      trial_judge_supplies: {
-        Row: {
-          created_at: string
-          id: string
-          included: boolean
-          is_custom: boolean
-          item_label: string
-          judge_name: string
-          note: string | null
-          person_id: string | null
-          sort_order: number
-          trial_id: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          included?: boolean
-          is_custom?: boolean
-          item_label: string
-          judge_name: string
-          note?: string | null
-          person_id?: string | null
-          sort_order?: number
-          trial_id: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          included?: boolean
-          is_custom?: boolean
-          item_label?: string
-          judge_name?: string
-          note?: string | null
-          person_id?: string | null
-          sort_order?: number
-          trial_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "trial_judge_supplies_person_id_fkey"
-            columns: ["person_id"]
-            isOneToOne: false
-            referencedRelation: "people"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "trial_judge_supplies_trial_id_fkey"
-            columns: ["trial_id"]
-            isOneToOne: false
-            referencedRelation: "trials"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "trial_judge_supplies_trial_id_fkey"
-            columns: ["trial_id"]
-            isOneToOne: false
-            referencedRelation: "view_breed_stats"
-            referencedColumns: ["trial_id"]
-          },
-          {
-            foreignKeyName: "trial_judge_supplies_trial_id_fkey"
-            columns: ["trial_id"]
-            isOneToOne: false
-            referencedRelation: "view_clean_sweep_dogs"
-            referencedColumns: ["trial_id"]
-          },
-          {
-            foreignKeyName: "trial_judge_supplies_trial_id_fkey"
-            columns: ["trial_id"]
-            isOneToOne: false
-            referencedRelation: "view_fastest_times"
-            referencedColumns: ["trial_id"]
-          },
-          {
-            foreignKeyName: "trial_judge_supplies_trial_id_fkey"
-            columns: ["trial_id"]
-            isOneToOne: false
-            referencedRelation: "view_judge_stats"
-            referencedColumns: ["trial_id"]
-          },
-          {
-            foreignKeyName: "trial_judge_supplies_trial_id_fkey"
-            columns: ["trial_id"]
-            isOneToOne: false
-            referencedRelation: "view_myk9q_entries"
-            referencedColumns: ["trial_id"]
-          },
-          {
-            foreignKeyName: "trial_judge_supplies_trial_id_fkey"
             columns: ["trial_id"]
             isOneToOne: false
             referencedRelation: "view_stats_summary"

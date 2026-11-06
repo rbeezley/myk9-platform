@@ -4,8 +4,8 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-vi.mock('../useTrialJudgeSupplies', () => ({
-  useTrialJudgeSupplies: vi.fn(),
+vi.mock('../useShowJudgeSupplies', () => ({
+  useShowJudgeSupplies: vi.fn(),
 }));
 
 vi.mock('@/lib/notifications', () => ({
@@ -18,10 +18,10 @@ vi.mock('@/lib/notifications', () => ({
 }));
 
 import { ManageJudgeSuppliesDialog } from '../ManageJudgeSuppliesDialog';
-import * as useTrialJudgeSuppliesMod from '../useTrialJudgeSupplies';
-import type { TrialJudgeSupplyRow } from '../types';
+import * as useShowJudgeSuppliesMod from '../useShowJudgeSupplies';
+import type { ShowJudgeSupplyRow } from '../types';
 
-const mockHook = vi.mocked(useTrialJudgeSuppliesMod.useTrialJudgeSupplies);
+const mockHook = vi.mocked(useShowJudgeSuppliesMod.useShowJudgeSupplies);
 
 interface MutationStub {
   mutate: ReturnType<typeof vi.fn>;
@@ -37,10 +37,10 @@ function mutation(): MutationStub {
   };
 }
 
-function row(overrides: Partial<TrialJudgeSupplyRow>): TrialJudgeSupplyRow {
+function row(overrides: Partial<ShowJudgeSupplyRow>): ShowJudgeSupplyRow {
   return {
     id: overrides.id ?? `r-${Math.random()}`,
-    trial_id: 'trial-1',
+    show_id: 'show-1',
     person_id: 'p1',
     judge_name: 'Alice',
     item_label: 'Clipboard',
@@ -54,7 +54,7 @@ function row(overrides: Partial<TrialJudgeSupplyRow>): TrialJudgeSupplyRow {
   };
 }
 
-function setupHook(rows: TrialJudgeSupplyRow[] = []) {
+function setupHook(rows: ShowJudgeSupplyRow[] = []) {
   const ensureSeeded = mutation();
   const updateRow = mutation();
   const addCustomRow = mutation();
@@ -69,7 +69,7 @@ function setupHook(rows: TrialJudgeSupplyRow[] = []) {
     addCustomRow,
     deleteCustomRow,
     reorder,
-  } as unknown as ReturnType<typeof useTrialJudgeSuppliesMod.useTrialJudgeSupplies>);
+  } as unknown as ReturnType<typeof useShowJudgeSuppliesMod.useShowJudgeSupplies>);
   return { ensureSeeded, updateRow, addCustomRow, deleteCustomRow, reorder };
 }
 
@@ -92,7 +92,7 @@ describe('ManageJudgeSuppliesDialog', () => {
       <ManageJudgeSuppliesDialog
         open
         onOpenChange={() => {}}
-        trialId="trial-1"
+        showId="show-1"
         judge={judge}
         registryId="AKC"
       />,
@@ -110,7 +110,7 @@ describe('ManageJudgeSuppliesDialog', () => {
       <ManageJudgeSuppliesDialog
         open
         onOpenChange={() => {}}
-        trialId="trial-1"
+        showId="show-1"
         judge={judge}
         registryId="AKC"
       />,
@@ -129,7 +129,7 @@ describe('ManageJudgeSuppliesDialog', () => {
       <ManageJudgeSuppliesDialog
         open
         onOpenChange={() => {}}
-        trialId="trial-1"
+        showId="show-1"
         judge={judge}
         registryId="AKC"
       />,
@@ -149,7 +149,7 @@ describe('ManageJudgeSuppliesDialog', () => {
       <ManageJudgeSuppliesDialog
         open
         onOpenChange={() => {}}
-        trialId="trial-1"
+        showId="show-1"
         judge={judge}
         registryId="AKC"
       />,
@@ -169,7 +169,7 @@ describe('ManageJudgeSuppliesDialog', () => {
       <ManageJudgeSuppliesDialog
         open
         onOpenChange={() => {}}
-        trialId="trial-1"
+        showId="show-1"
         judge={judge}
         registryId="AKC"
       />,
@@ -193,7 +193,7 @@ describe('ManageJudgeSuppliesDialog', () => {
       <ManageJudgeSuppliesDialog
         open
         onOpenChange={() => {}}
-        trialId="trial-1"
+        showId="show-1"
         judge={judge}
         registryId="AKC"
       />,
@@ -210,7 +210,7 @@ describe('ManageJudgeSuppliesDialog', () => {
       <ManageJudgeSuppliesDialog
         open
         onOpenChange={() => {}}
-        trialId="trial-1"
+        showId="show-1"
         judge={judge}
         registryId="AKC"
       />,
@@ -237,7 +237,7 @@ describe('ManageJudgeSuppliesDialog', () => {
       <ManageJudgeSuppliesDialog
         open
         onOpenChange={onOpenChange}
-        trialId="trial-1"
+        showId="show-1"
         judge={judge}
         registryId="AKC"
       />,
@@ -262,7 +262,7 @@ describe('ManageJudgeSuppliesDialog', () => {
             <ManageJudgeSuppliesDialog
               open
               onOpenChange={o => setOpen(o)}
-              trialId="trial-1"
+              showId="show-1"
               judge={judge}
               registryId="AKC"
             />
@@ -289,7 +289,7 @@ describe('ManageJudgeSuppliesDialog', () => {
         <ManageJudgeSuppliesDialog
           open
           onOpenChange={() => {}}
-          trialId="trial-1"
+          showId="show-1"
           judge={judge}
           registryId="AKC"
         />,
@@ -308,7 +308,7 @@ describe('ManageJudgeSuppliesDialog', () => {
         <ManageJudgeSuppliesDialog
           open
           onOpenChange={() => {}}
-          trialId="trial-1"
+          showId="show-1"
           judge={judge}
           registryId="AKC"
         />,
@@ -331,7 +331,7 @@ describe('ManageJudgeSuppliesDialog', () => {
         <ManageJudgeSuppliesDialog
           open
           onOpenChange={() => {}}
-          trialId="trial-1"
+          showId="show-1"
           judge={judge}
           registryId="AKC"
         />,
@@ -359,7 +359,7 @@ describe('ManageJudgeSuppliesDialog', () => {
         <ManageJudgeSuppliesDialog
           open
           onOpenChange={() => {}}
-          trialId="trial-1"
+          showId="show-1"
           judge={judge}
           registryId="AKC"
         />,

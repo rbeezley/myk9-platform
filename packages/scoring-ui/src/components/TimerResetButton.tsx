@@ -27,7 +27,7 @@ export const TimerResetButton: React.FC<{ visible: boolean; onReset: () => void 
       data-testid="timer-reset"
     >
       <RotateCcw className="h-5 w-5" aria-hidden="true" />
-      Reset timer
+      Reset
     </Button>
   );
 };

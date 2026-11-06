@@ -65,7 +65,7 @@ export function AssignVolunteerPopover({
         />
         <div className="max-h-48 overflow-y-auto">
           {filtered.length === 0 && (
-            <p className="px-1 py-2 text-center text-xs text-muted-foreground">
+            <p className="px-1 py-2 text-center text-sm text-muted-foreground">
               {emptyMessage(volunteers, excludeIds, search)}
             </p>
           )}

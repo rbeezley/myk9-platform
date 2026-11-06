@@ -210,7 +210,7 @@ export default function VolunteerSchedulingPage() {
         <h1 className="text-xl font-bold">Volunteer Scheduling</h1>
         <ErrorState
           message="Couldn't load this show's volunteer schedule"
-          description="Nothing was lost. Try again in a moment."
+          description="Nothing was lost. Tap Try Again to reload it."
           headingLevel={2}
           onRetry={() => failedLoads.forEach(query => void query.refetch())}
         />

@@ -95,11 +95,11 @@ jobs:
 
       # MYK9-1699: `vercel pull` writes the literal [SENSITIVE] for any env var
       # marked Sensitive, and the build bakes it into the bundle. Fail before
-      # building. VITE_SENTRY_DSN and VITE_PUBLIC_SURFACE are owner-owed under
-      # MYK9-1699: remove them from this list once re-added as Config variables.
+      # building. No VITE_* variable is exempt: browser values must be Config
+      # (non-sensitive) variables in Vercel. The guard still honours a
+      # SENSITIVE_PLACEHOLDER_ALLOWLIST env (comma-separated keys, warn-only)
+      # for a deliberate, dated exception.
       - name: Refuse a pulled env with [SENSITIVE] placeholders
-        env:
-          SENSITIVE_PLACEHOLDER_ALLOWLIST: VITE_SENTRY_DSN,VITE_PUBLIC_SURFACE
         # Load the guard from THIS workflow's revision, not the checked-out
         # deploy commit: a rollback to a commit that predates the guard must
         # still be checked (and must not fail for lack of the script).

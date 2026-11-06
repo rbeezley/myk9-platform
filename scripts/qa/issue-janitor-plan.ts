@@ -276,6 +276,28 @@ function planInReview(
   });
 }
 
+/** Outcomes for a parent whose children are all closed: same shape as a merged-PR fresh read. */
+function parentOutcomes(id: string, inProgress: boolean): Record<string, McpWrite[]> {
+  const tag = (suffix: string) => `\n\n${janitorKey(`children-closed-${suffix}`)}`;
+  if (!inProgress) return { done: [stateWrite(id, 'Done')], leave: [] };
+  return {
+    done: [stateWrite(id, 'Done')],
+    inReview: [
+      stateWrite(id, 'In Review'),
+      commentWrite(
+        id,
+        `All child issues are closed. Moving to In Review.\nOwed: {{owed}}${tag('in-review')}`
+      ),
+    ],
+    stayInProgress: [
+      commentWrite(
+        id,
+        `All child issues are closed; implementation still owed: {{owed}}${tag('stay')}`
+      ),
+    ],
+  };
+}
+
 function snapshotOf(issue: BoardIssue): Snapshot {
   const times = issue.comments.map(c => Date.parse(c.createdAt)).filter(Number.isFinite);
   return {
@@ -307,20 +329,12 @@ export function planJanitor(
       return skip(id, 'In Review pass needs --deployed-commit');
     if (nowMs - lastCommentAt(issue) < LIVE_SESSION_MS)
       return skip(id, 'last comment under 6 h old (live session)');
+    if (inReview && issue.children.length > 0 && verifyLabels(issue).length)
+      return skip(id, 'verify:* evidence owed; needs a check beyond the deploy');
     const parent = planParent(issue, {
       skip,
       freshRead: (issueId, reason) =>
-        freshRead(
-          issueId,
-          reason,
-          inProgress
-            ? {
-                done: [stateWrite(issueId, 'Done')],
-                inReview: [stateWrite(issueId, 'In Review')],
-                stayInProgress: [],
-              }
-            : { done: [stateWrite(issueId, 'Done')], leave: [] }
-        ),
+        freshRead(issueId, reason, parentOutcomes(issueId, inProgress)),
     });
     if (parent) return parent;
     const n = issueNumber(id);

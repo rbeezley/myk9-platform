@@ -17,6 +17,14 @@ export function assertChildren(issues: BoardIssue[]): void {
         `board issue ${issue.id} has no "children" array; the board export must list each issue's children (use [] for none)`
       );
     }
+    for (const child of issue.children as unknown[]) {
+      const c = child as { id?: unknown; state?: unknown } | null;
+      if (typeof c?.id !== 'string' || typeof c.state !== 'string') {
+        throw new Error(
+          `board issue ${issue.id} has a child without a string "id" and "state": ${JSON.stringify(child)}`
+        );
+      }
+    }
   }
 }
 

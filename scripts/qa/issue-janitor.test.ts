@@ -280,6 +280,25 @@ describe('parent issues waiting on children', () => {
     expect(p.reason).toBe('all children closed');
     expect(p.writes).toEqual([]);
     expect(Object.keys(p.outcomes!)).toEqual(['done', 'inReview', 'stayInProgress']);
+    expect(p.fill).toEqual(['owed']);
+    expect(p.outcomes!.inReview?.[1]?.args.body).toMatch(
+      /^All child issues are closed[\s\S]*\nOwed: \{\{owed\}\}/
+    );
+  });
+
+  it('keeps the In Review verify:* skip ahead of the child check', () => {
+    const issue = {
+      ...parentIssue([{ id: 'MYK9-1651', state: 'Done' }], 'MYK9-1650', 'In Review'),
+      labels: ['verify:browser'],
+    };
+    const [p] = planJanitor({ issues: [issue] }, github, [], NOW, { deployedCommit: DEPLOYED });
+    expect(p?.action).toBe('skip');
+    expect(p?.reason).toContain('verify:*');
+  });
+
+  it('fails loudly, naming the issue, on a child without a string state', () => {
+    const bad = parentIssue([{ id: 'MYK9-1651' } as never]);
+    expect(() => planJanitor({ issues: [bad] }, github, [], NOW)).toThrow(/MYK9-1650.*child/);
   });
 
   it('applies to the In Review pass too, with done and leave outcomes', () => {

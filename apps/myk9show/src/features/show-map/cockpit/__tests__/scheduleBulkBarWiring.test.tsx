@@ -1,5 +1,5 @@
 import { screen, waitFor, within } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { render } from '@/test/utils/testUtils';
 import { SecretaryCockpit } from '../SecretaryCockpit';
@@ -102,7 +102,13 @@ const renderCockpit = () =>
 const tick = (name: string) => screen.getByRole('checkbox', { name: `Select ${name}` });
 
 describe('ScheduleBulkBar wiring (MYK9-1352)', () => {
+  // cmdk (the Filter menu) scrolls rows into view; jsdom has no scrollIntoView.
+  const originalScrollIntoView = Element.prototype.scrollIntoView;
+  afterEach(() => {
+    Element.prototype.scrollIntoView = originalScrollIntoView;
+  });
   beforeEach(() => {
+    Element.prototype.scrollIntoView = vi.fn();
     showQuery.mockReturnValue({ data: { id: 'show-1', organization: 'AKC' } });
     judgesQuery.mockReturnValue({ data: [] });
     applyManualClassStatus.mockReset().mockResolvedValue(undefined);
@@ -160,7 +166,7 @@ describe('ScheduleBulkBar wiring (MYK9-1352)', () => {
     const [, status] = applyManualClassStatus.mock.calls[0]!;
 
     // The In progress filter hides Container Novice (not started) and drops its tick.
-    await user.click(screen.getByRole('combobox', { name: 'View: Schedule filters' }));
+    await user.click(screen.getByRole('button', { name: 'Filter' }));
     await user.click(await screen.findByRole('option', { name: /^In progress/ }));
     expect(screen.queryByRole('checkbox', { name: 'Select Container Novice' })).toBeNull();
 

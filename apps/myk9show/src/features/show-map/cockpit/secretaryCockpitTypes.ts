@@ -7,7 +7,8 @@ export interface EvidenceValue<T> {
   value: T | null;
 }
 
-export type CockpitFilter = 'all' | 'in-progress' | 'needs-attention' | 'needs-closeout';
+/** One status the schedule can be narrowed to; ticking several shows a class matching any (MYK9-1727). */
+export type CockpitStatus = 'in-progress' | 'needs-attention' | 'needs-closeout';
 export type CockpitLifecycle = 'not-started' | 'in-progress' | 'complete' | 'cancelled';
 export type CockpitCloseoutState = 'none' | 'needs-closeout' | 'closed';
 export type CockpitAttentionKind =
@@ -182,7 +183,8 @@ export interface SecretaryCockpitState {
   focusedClassId?: string | undefined;
   /** The URL's anchor; when it names a trial, that trial opens whatever the day (MYK9-1320). */
   anchor?: string | undefined;
-  filter: CockpitFilter;
+  /** The ticked statuses; empty means every class (MYK9-1727). */
+  statuses?: readonly CockpitStatus[] | undefined;
 }
 
 export interface ScheduledClassModel {
@@ -255,7 +257,7 @@ export interface SecretaryCockpitModel {
     all: readonly SecretaryCockpitAttention[];
     overflowCount: number;
   };
-  /** Every Class scheduled today, unfiltered by `state.filter` (MYK9-812). */
+  /** Every Class scheduled today, unfiltered by `state.statuses` (MYK9-812). */
   daySchedule: readonly ScheduledClassModel[];
   trialGroups: readonly TrialScheduleGroupModel[];
   focusedClass: FocusedClassModel | null;

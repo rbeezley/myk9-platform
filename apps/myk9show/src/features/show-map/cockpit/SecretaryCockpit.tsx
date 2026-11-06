@@ -16,7 +16,7 @@ import type { ClassEntryBreakdown } from '@/features/entry-operations/classEntry
 import { buildSecretaryCockpitModel } from './secretaryCockpitModel';
 import { useSecretaryCockpitUrlState } from './useSecretaryCockpitUrlState';
 import { cockpitDaysKey } from './cockpitDayFilter';
-import { CockpitDayFilterMenu } from './CockpitDayFilterMenu';
+import { CockpitFilterMenu } from './CockpitFilterMenu';
 import { CockpitAttentionStrip } from './CockpitAttentionStrip';
 import { SecretaryCockpitFocusedClass } from './SecretaryCockpitFocusedClass';
 import { useFocusedClassSetupActions } from './FocusedClassSetupActions';
@@ -208,11 +208,21 @@ export function SecretaryCockpit({
 
   return (
     <div className="space-y-5" data-testid="secretary-cockpit">
-      <CockpitDayFilterMenu
+      <CockpitFilterMenu
         snapshot={snapshot}
-        days={model.day}
-        onChange={selectedDays =>
+        model={model}
+        statuses={state.statuses ?? []}
+        onDaysChange={selectedDays =>
           updateState({ selectedDays, focusedClassId: undefined, anchor: undefined })
+        }
+        onStatusesChange={statuses => updateState({ statuses })}
+        onClearAll={() =>
+          updateState({
+            selectedDays: [],
+            statuses: [],
+            focusedClassId: undefined,
+            anchor: undefined,
+          })
         }
       />
 
@@ -248,8 +258,7 @@ export function SecretaryCockpit({
           model={model}
           sourceClasses={snapshot.classes}
           sourceTrials={snapshot.trials}
-          filter={state.filter}
-          onFilterChange={filter => updateState({ filter })}
+          filtered={(state.statuses?.length ?? 0) > 0}
           onFocusClass={focusedClassId => updateState({ focusedClassId, anchor: focusedClassId })}
           // Selecting, a row click ticks rather than focuses, so the focused class's panel would
           // sit open in the middle of the list with no way to move or close it.

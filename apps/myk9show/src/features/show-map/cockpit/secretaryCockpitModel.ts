@@ -1,13 +1,13 @@
 import { formatTrialLabel, parseStoredClockTime } from '@myk9/core';
 import type { RegistryId } from '@/features/registries';
-import { buildAttentionCountByClass, matchesCockpitFilter } from './secretaryCockpitAttention';
+import { buildAttentionCountByClass, matchesAnyCockpitStatus } from './secretaryCockpitAttention';
 import {
   buildCockpitClassLabelResolver,
   compareCockpitClasses,
 } from './secretaryCockpitClassLabel';
 import type {
   CockpitAttentionKind,
-  CockpitFilter,
+  CockpitStatus,
   CockpitLifecycle,
   EvidenceKind,
   EvidenceValue,
@@ -341,7 +341,7 @@ function buildTrialGroups(
   openDay: string | null,
   focusedClassId: string | undefined,
   anchorId: string | undefined,
-  filter: CockpitFilter,
+  statuses: readonly CockpitStatus[],
   scopeTrials: readonly SecretaryCockpitTrial[],
   attentionCountByClass: ReadonlyMap<string, number>,
   labelOf: (cls: SecretaryCockpitClass) => string
@@ -353,7 +353,7 @@ function buildTrialGroups(
         snapshot.registryId
       );
       const visibleClasses = allClasses.filter(cls =>
-        matchesCockpitFilter(cls, filter, attentionCountByClass.get(cls.id) ?? 0)
+        matchesAnyCockpitStatus(cls, statuses, attentionCountByClass.get(cls.id) ?? 0)
       );
       return {
         trialId: trial.id,
@@ -387,7 +387,7 @@ function buildTrialGroups(
         },
       };
     })
-    .filter(group => group.classes.length > 0 || filter === 'all');
+    .filter(group => group.classes.length > 0 || statuses.length === 0);
 }
 
 export function buildSecretaryCockpitModel(
@@ -446,10 +446,10 @@ export function buildSecretaryCockpitModel(
       all: allAttention,
       overflowCount: Math.max(0, allAttention.length - ATTENTION_LIMIT),
     },
-    // Every Class scheduled today, unfiltered by `state.filter` -- `trialGroups`
-    // below is a `state.filter`-scoped slice of these same annotated rows. The
-    // view-tab counts in `secretaryCockpitViews.ts` filter this array directly
-    // with `matchesCockpitFilter`, so a tab's count can't diverge from what
+    // Every Class scheduled today, unfiltered by `state.statuses` -- `trialGroups`
+    // below is a `state.statuses`-scoped slice of these same annotated rows. The
+    // Filter menu's counts in `cockpitStatusFilter.ts` filter this array directly
+    // with `matchesCockpitFilter`, so a count can't diverge from what
     // the schedule renders (MYK9-812).
     daySchedule: dayClasses.map(cls =>
       toScheduledClass(
@@ -465,7 +465,7 @@ export function buildSecretaryCockpitModel(
       multiDayScope ? selectedDay : null,
       focused?.id,
       state.anchor,
-      state.filter,
+      state.statuses ?? [],
       scopeTrials,
       attentionCountByClass,
       labelOf

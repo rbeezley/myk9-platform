@@ -2,16 +2,13 @@ import type { ReactNode } from 'react';
 
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { ListViewTabs } from '@/components/list-toolkit';
 import type { ClassEntryBreakdown } from '@/features/entry-operations/classEntryBreakdown';
 
 import { CockpitTrialGroup } from './CockpitTrialGroup';
 import { ScheduleSelectHeader } from './ScheduleSelectHeader';
 import type { ScheduleClassSelection } from './useScheduleClassSelection';
 import { cockpitDaysKey } from './cockpitDayFilter';
-import { buildCockpitScheduleViews } from './secretaryCockpitViews';
 import type {
-  CockpitFilter,
   SecretaryCockpitClass,
   SecretaryCockpitModel,
   SecretaryCockpitTrial,
@@ -22,8 +19,7 @@ export function SecretaryCockpitSchedule({
   model,
   sourceClasses,
   sourceTrials,
-  filter,
-  onFilterChange,
+  filtered,
   onFocusClass,
   inlineFocusedContent,
   split = false,
@@ -35,8 +31,8 @@ export function SecretaryCockpitSchedule({
   model: SecretaryCockpitModel;
   sourceClasses: readonly SecretaryCockpitClass[];
   sourceTrials: readonly SecretaryCockpitTrial[];
-  filter: CockpitFilter;
-  onFilterChange: (filter: CockpitFilter) => void;
+  /** A status is ticked, so an empty schedule means "nothing matches" (MYK9-1727). */
+  filtered: boolean;
   onFocusClass: (classId: string) => void;
   inlineFocusedContent?: ReactNode;
   /** The cockpit is split: the schedule holds the first column, the focused class the second. */
@@ -99,12 +95,6 @@ export function SecretaryCockpitSchedule({
             )}
           </div>
         )}
-        <ListViewTabs
-          views={buildCockpitScheduleViews(model)}
-          activeId={filter}
-          onSelect={id => onFilterChange(id as CockpitFilter)}
-          label="Schedule filters"
-        />
       </section>
 
       <section
@@ -113,7 +103,7 @@ export function SecretaryCockpitSchedule({
       >
         {model.trialGroups.length === 0 && (
           <div className="rounded-xl border bg-card px-4 py-8 text-center text-sm text-muted-foreground">
-            {hasAnyClassForSelectedDay && filter !== 'all'
+            {hasAnyClassForSelectedDay && filtered
               ? 'No Classes match this filter.'
               : `No Classes are scheduled for ${scopeDays.size > 1 ? 'these days' : 'this day'} yet.`}
           </div>

@@ -80,7 +80,7 @@ export function SecretaryRunSheet({
             to={getShowHomeHref({
               showId: parentShowId,
               state: {
-                filter: 'all',
+                statuses: [],
                 // focus and day travel TOGETHER or not at all. Focus without a day is
                 // the hazard: on a multi-day show, Show Desk filters to its default
                 // day, cannot find the class, and falls back to another one -- which

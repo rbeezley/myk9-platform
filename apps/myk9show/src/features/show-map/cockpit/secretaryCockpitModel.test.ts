@@ -147,27 +147,27 @@ describe('buildSecretaryCockpitModel schedule projection', () => {
           }),
         ],
       }),
-      { filter: 'all' }
+      { statuses: [] }
     );
 
     expect(model.trialGroups[0]?.classes[0]?.timeLabel).toBe('10:12 AM');
   });
 
   it('selects the relevant day before, during, and after the Show', () => {
-    expect(buildSecretaryCockpitModel(makeSnapshot(), { filter: 'all' }).day.selected).toBe(
+    expect(buildSecretaryCockpitModel(makeSnapshot(), { statuses: [] }).day.selected).toBe(
       '2026-07-20'
     );
 
     const before = makeSnapshot({ now: new Date('2026-07-19T14:00:00.000Z') });
-    expect(buildSecretaryCockpitModel(before, { filter: 'all' }).day.selected).toBe('2026-07-20');
+    expect(buildSecretaryCockpitModel(before, { statuses: [] }).day.selected).toBe('2026-07-20');
 
     const after = makeSnapshot({ now: new Date('2026-07-23T14:00:00.000Z') });
-    expect(buildSecretaryCockpitModel(after, { filter: 'all' }).day.selected).toBe('2026-07-21');
+    expect(buildSecretaryCockpitModel(after, { statuses: [] }).day.selected).toBe('2026-07-21');
   });
 
   it('groups Trials in configured order and keeps timed, tied, then untimed Classes stable', () => {
     const model = buildSecretaryCockpitModel(makeSnapshot(), {
-      filter: 'all',
+      statuses: [],
       selectedDays: ['2026-07-20'],
     });
 
@@ -183,14 +183,14 @@ describe('buildSecretaryCockpitModel schedule projection', () => {
       makeSnapshot({
         trials: [{ id: 'trial-1', date: '2026-07-20', number: 'Saturday Trial', order: 0 }],
       }),
-      { filter: 'all' }
+      { statuses: [] }
     );
 
     expect(model.trialGroups[0]?.label).toBe('Saturday Trial · July 20');
   });
 
   it('sorts by Scheduled Start and leaves a slipped Class in its original position', () => {
-    const model = buildSecretaryCockpitModel(makeSnapshot(), { filter: 'all' });
+    const model = buildSecretaryCockpitModel(makeSnapshot(), { statuses: [] });
     const row = model.trialGroups[0]?.classes.find(item => item.id === 'active');
 
     expect(row).toMatchObject({
@@ -216,7 +216,7 @@ describe('buildSecretaryCockpitModel schedule projection', () => {
       ],
     });
 
-    const model = buildSecretaryCockpitModel(snapshot, { filter: 'all' });
+    const model = buildSecretaryCockpitModel(snapshot, { statuses: [] });
     expect(model.trialGroups[0]?.classes.map(item => item.id)).toEqual([
       'complete',
       'active',
@@ -225,7 +225,7 @@ describe('buildSecretaryCockpitModel schedule projection', () => {
   });
 
   it('places a current-time marker in each applicable Trial without manufacturing one for untimed rows', () => {
-    const model = buildSecretaryCockpitModel(makeSnapshot(), { filter: 'all' });
+    const model = buildSecretaryCockpitModel(makeSnapshot(), { statuses: [] });
 
     expect(model.trialGroups[0]?.nowMarkerIndex).toBe(1);
     expect(model.trialGroups[1]?.nowMarkerIndex).toBe(0);
@@ -234,12 +234,12 @@ describe('buildSecretaryCockpitModel schedule projection', () => {
 
 describe('buildSecretaryCockpitModel focus and filtering', () => {
   it('initially focuses the earliest active Class and never steals an explicit valid focus', () => {
-    expect(buildSecretaryCockpitModel(makeSnapshot(), { filter: 'all' }).focusedClass?.id).toBe(
+    expect(buildSecretaryCockpitModel(makeSnapshot(), { statuses: [] }).focusedClass?.id).toBe(
       'active'
     );
 
     const focused = buildSecretaryCockpitModel(makeSnapshot(), {
-      filter: 'all',
+      statuses: [],
       focusedClassId: 'upcoming',
     });
     expect(focused.focusedClass?.id).toBe('upcoming');
@@ -264,7 +264,7 @@ describe('buildSecretaryCockpitModel focus and filtering', () => {
     });
     expect(
       buildSecretaryCockpitModel(changed, {
-        filter: 'all',
+        statuses: [],
         focusedClassId: focused.focusedClass?.id,
       }).focusedClass?.id
     ).toBe('upcoming');
@@ -272,7 +272,7 @@ describe('buildSecretaryCockpitModel focus and filtering', () => {
 
   it('filters only schedule rows while preserving the focused Class model', () => {
     const model = buildSecretaryCockpitModel(makeSnapshot(), {
-      filter: 'in-progress',
+      statuses: ['in-progress'],
       focusedClassId: 'upcoming',
     });
 
@@ -282,13 +282,32 @@ describe('buildSecretaryCockpitModel focus and filtering', () => {
     expect(model.focusedClass?.id).toBe('upcoming');
   });
 
+  it('shows a Class matching ANY ticked status, and the union is wider than each tick (MYK9-1727)', () => {
+    const snapshot = makeSnapshot();
+    const ids = (statuses: readonly ('in-progress' | 'needs-attention' | 'needs-closeout')[]) =>
+      buildSecretaryCockpitModel(snapshot, { statuses })
+        .trialGroups.flatMap(group => group.classes.map(row => row.id))
+        .sort();
+    const inProgress = ids(['in-progress']);
+    const closeout = ids(['needs-closeout']);
+
+    expect(inProgress.length).toBeGreaterThan(0);
+    expect(closeout.length).toBeGreaterThan(0);
+    expect(ids(['in-progress', 'needs-closeout'])).toEqual(
+      [...new Set([...inProgress, ...closeout])].sort()
+    );
+    expect(ids(['in-progress', 'needs-closeout']).length).toBeGreaterThan(
+      Math.max(inProgress.length, closeout.length)
+    );
+  });
+
   it('includes a Class with only a generated preparation reminder in Needs attention', () => {
     const snapshot = makeSnapshot({
       classes: makeSnapshot().classes.map(cls =>
         cls.id === 'upcoming' ? { ...cls, attention: [] } : cls
       ),
     });
-    const model = buildSecretaryCockpitModel(snapshot, { filter: 'needs-attention' });
+    const model = buildSecretaryCockpitModel(snapshot, { statuses: ['needs-attention'] });
 
     expect(model.trialGroups.flatMap(group => group.classes.map(row => row.id))).toContain(
       'upcoming'
@@ -321,7 +340,7 @@ describe('buildSecretaryCockpitModel attention projection', () => {
         },
       ],
     });
-    const model = buildSecretaryCockpitModel(snapshot, { filter: 'all' });
+    const model = buildSecretaryCockpitModel(snapshot, { statuses: [] });
 
     expect(model.attention.items.map(item => item.id)).toEqual([
       'move-up',
@@ -343,7 +362,7 @@ describe('buildSecretaryCockpitModel attention projection', () => {
         },
       ],
     });
-    const model = buildSecretaryCockpitModel(snapshot, { filter: 'all' });
+    const model = buildSecretaryCockpitModel(snapshot, { statuses: [] });
 
     expect(model.attention.all).toContainEqual(
       expect.objectContaining({ id: 'no-destination', destination: null })
@@ -351,7 +370,7 @@ describe('buildSecretaryCockpitModel attention projection', () => {
   });
 
   it('adds a calm preparation reminder inside 30 minutes and uses next-in-order for missing time', () => {
-    const model = buildSecretaryCockpitModel(makeSnapshot(), { filter: 'all' });
+    const model = buildSecretaryCockpitModel(makeSnapshot(), { statuses: [] });
     const timed = model.attention.all.find(item => item.id === 'prepare:upcoming:check-in-sheet');
 
     const missingTimeSnapshot = makeSnapshot({
@@ -365,7 +384,7 @@ describe('buildSecretaryCockpitModel attention projection', () => {
           : cls
       ),
     });
-    const missingTimeModel = buildSecretaryCockpitModel(missingTimeSnapshot, { filter: 'all' });
+    const missingTimeModel = buildSecretaryCockpitModel(missingTimeSnapshot, { statuses: [] });
     const untimed = missingTimeModel.attention.all.find(
       item => item.id === 'prepare:untimed:scoresheet'
     );
@@ -383,7 +402,7 @@ describe('buildSecretaryCockpitModel attention projection', () => {
     });
 
     expect(
-      buildSecretaryCockpitModel(snapshot, { filter: 'all' }).attention.all.find(
+      buildSecretaryCockpitModel(snapshot, { statuses: [] }).attention.all.find(
         item => item.id === 'prepare:upcoming:check-in-sheet'
       )
     ).toBeUndefined();
@@ -393,7 +412,7 @@ describe('buildSecretaryCockpitModel attention projection', () => {
 describe('buildSecretaryCockpitModel truth projection', () => {
   it('keeps unknown evidence unknown and does not infer Operational Area from Judge', () => {
     const model = buildSecretaryCockpitModel(makeSnapshot(), {
-      filter: 'all',
+      statuses: [],
       focusedClassId: 'untimed',
     });
 
@@ -407,7 +426,7 @@ describe('buildSecretaryCockpitModel truth projection', () => {
 
   it('preserves sport-aware Operational Area kind and supplied wording', () => {
     const scent = buildSecretaryCockpitModel(makeSnapshot(), {
-      filter: 'all',
+      statuses: [],
       focusedClassId: 'active',
     });
     expect(scent.focusedClass?.operationalArea).toEqual({
@@ -423,7 +442,7 @@ describe('buildSecretaryCockpitModel truth projection', () => {
       ),
     });
     const ring = buildSecretaryCockpitModel(ringSnapshot, {
-      filter: 'all',
+      statuses: [],
       focusedClassId: 'active',
     });
     expect(ring.focusedClass?.operationalArea.value).toEqual({ kind: 'ring', label: 'Ring 2' });
@@ -431,7 +450,7 @@ describe('buildSecretaryCockpitModel truth projection', () => {
 
   it('classifies lifecycle as recorded, progress as computed, and action groups outside lifecycle', () => {
     const model = buildSecretaryCockpitModel(makeSnapshot(), {
-      filter: 'all',
+      statuses: [],
       focusedClassId: 'active',
     });
 
@@ -458,11 +477,11 @@ describe('buildSecretaryCockpitModel show home', () => {
       ),
     });
 
-    expect(buildSecretaryCockpitModel(after, { filter: 'all' }).day.selected).toBe('2026-07-21');
+    expect(buildSecretaryCockpitModel(after, { statuses: [] }).day.selected).toBe('2026-07-21');
   });
 
   it('shows every trial in All days, opening only the default day', () => {
-    const model = buildSecretaryCockpitModel(makeSnapshot(), { filter: 'all', selectedDays: [] });
+    const model = buildSecretaryCockpitModel(makeSnapshot(), { statuses: [], selectedDays: [] });
 
     expect(model.day).toMatchObject({ allDays: true, selected: '2026-07-20' });
     expect(model.trialGroups.map(group => [group.trialId, group.defaultOpen])).toEqual([
@@ -478,7 +497,7 @@ describe('buildSecretaryCockpitModel show home', () => {
 
   it('opens the trial the URL anchors on in All days, even on another day (MYK9-1320)', () => {
     const model = buildSecretaryCockpitModel(makeSnapshot(), {
-      filter: 'all',
+      statuses: [],
       selectedDays: [],
       anchor: 'trial-3',
     });
@@ -492,7 +511,7 @@ describe('buildSecretaryCockpitModel show home', () => {
 
   it('opens every trial when one day is chosen', () => {
     const model = buildSecretaryCockpitModel(makeSnapshot(), {
-      filter: 'all',
+      statuses: [],
       selectedDays: ['2026-07-21'],
     });
 
@@ -513,7 +532,7 @@ describe('buildSecretaryCockpitModel show home', () => {
 
     it('shows only the ticked days, opening the default day when it is in scope', () => {
       const model = buildSecretaryCockpitModel(threeDays(), {
-        filter: 'all',
+        statuses: [],
         selectedDays: ['2026-07-22', '2026-07-20'],
       });
 
@@ -533,7 +552,7 @@ describe('buildSecretaryCockpitModel show home', () => {
 
     it('falls back to the earliest ticked day when the default day is out of scope', () => {
       const model = buildSecretaryCockpitModel(threeDays(), {
-        filter: 'all',
+        statuses: [],
         selectedDays: ['2026-07-22', '2026-07-21'],
       });
 
@@ -545,9 +564,9 @@ describe('buildSecretaryCockpitModel show home', () => {
     });
 
     it('none ticked, or every day ticked, means all days', () => {
-      const none = buildSecretaryCockpitModel(threeDays(), { filter: 'all', selectedDays: [] });
+      const none = buildSecretaryCockpitModel(threeDays(), { statuses: [], selectedDays: [] });
       const every = buildSecretaryCockpitModel(threeDays(), {
-        filter: 'all',
+        statuses: [],
         selectedDays: ['2026-07-20', '2026-07-21', '2026-07-22'],
       });
 
@@ -561,7 +580,7 @@ describe('buildSecretaryCockpitModel show home', () => {
 
     it('ignores ticks that name no day of the show', () => {
       const model = buildSecretaryCockpitModel(threeDays(), {
-        filter: 'all',
+        statuses: [],
         selectedDays: ['2026-01-01'],
       });
 
@@ -571,15 +590,14 @@ describe('buildSecretaryCockpitModel show home', () => {
     it('is "today" only when exactly today is ticked', () => {
       const today = '2026-07-20';
       expect(
-        buildSecretaryCockpitModel(threeDays(), { filter: 'all', selectedDays: [today] }).day
-          .isToday
+        buildSecretaryCockpitModel(threeDays(), { statuses: [], selectedDays: [today] }).day.isToday
       ).toBe(true);
       expect(
-        buildSecretaryCockpitModel(threeDays(), { filter: 'all', selectedDays: [] }).day.isToday
+        buildSecretaryCockpitModel(threeDays(), { statuses: [], selectedDays: [] }).day.isToday
       ).toBe(false);
       expect(
         buildSecretaryCockpitModel(threeDays(), {
-          filter: 'all',
+          statuses: [],
           selectedDays: [today, '2026-07-21'],
         }).day.isToday
       ).toBe(false);
@@ -587,7 +605,7 @@ describe('buildSecretaryCockpitModel show home', () => {
   });
 
   it('keeps the default focus on the default day in All days', () => {
-    const model = buildSecretaryCockpitModel(makeSnapshot(), { filter: 'all', selectedDays: [] });
+    const model = buildSecretaryCockpitModel(makeSnapshot(), { statuses: [], selectedDays: [] });
 
     expect(model.focusedClass?.id).toBe('active');
   });
@@ -595,14 +613,14 @@ describe('buildSecretaryCockpitModel show home', () => {
   it('stays quiet before the show: no "starts in" reminder for a class tomorrow', () => {
     // 09:35 in Chicago on July 19; `upcoming` starts 10:00 on July 20.
     const before = makeSnapshot({ now: new Date('2026-07-19T14:35:00.000Z') });
-    const model = buildSecretaryCockpitModel(before, { filter: 'all', selectedDays: [] });
+    const model = buildSecretaryCockpitModel(before, { statuses: [], selectedDays: [] });
 
     expect(model.attention.all.filter(item => item.kind === 'preparation')).toEqual([]);
     expect(model.trialGroups.every(group => group.nowMarkerIndex === null)).toBe(true);
   });
 
   it('carries the checklist count on each row', () => {
-    const model = buildSecretaryCockpitModel(makeSnapshot(), { filter: 'all' });
+    const model = buildSecretaryCockpitModel(makeSnapshot(), { statuses: [] });
     const complete = model.trialGroups[0]?.classes.find(row => row.id === 'complete');
 
     expect(complete?.checklist).toMatchObject({ total: 7 });
@@ -614,7 +632,7 @@ describe('the schedule shows the real start once a class has started (owner, 202
   function rowFor(cls: SecretaryCockpitClass) {
     const model = buildSecretaryCockpitModel(
       makeSnapshot({ classes: [cls], trials: [makeSnapshot().trials[0]!] }),
-      { filter: 'all' }
+      { statuses: [] }
     );
     return model.daySchedule.find(row => row.id === cls.id);
   }
@@ -666,7 +684,7 @@ describe('buildSecretaryCockpitModel unused print tracking and checklist (MYK9-1
     model.trialGroups.flatMap(group => group.classes);
 
   it('shows no checklist strip and no Prepare chips on a show that never used them', () => {
-    const model = buildSecretaryCockpitModel(unused(), { filter: 'all' });
+    const model = buildSecretaryCockpitModel(unused(), { statuses: [] });
 
     expect(rows(model).map(row => row.checklist)).toEqual(rows(model).map(() => null));
     expect(model.attention.all.map(item => item.id)).not.toContain(
@@ -681,7 +699,7 @@ describe('buildSecretaryCockpitModel unused print tracking and checklist (MYK9-1
   });
 
   it('shows the strip and Prepare chips on every class once the show uses them', () => {
-    const model = buildSecretaryCockpitModel(makeSnapshot(), { filter: 'all' });
+    const model = buildSecretaryCockpitModel(makeSnapshot(), { statuses: [] });
 
     expect(rows(model).filter(row => row.id !== 'complete')).toSatisfy(
       (list: ReturnType<typeof rows>) => list.every(row => row.checklist !== null)
@@ -693,7 +711,7 @@ describe('buildSecretaryCockpitModel unused print tracking and checklist (MYK9-1
   it('keeps the strip but drops Prepare chips when only a sign-off was recorded', () => {
     const model = buildSecretaryCockpitModel(
       makeSnapshot({ printTrackingInUse: false, checklistInUse: true }),
-      { filter: 'all' }
+      { statuses: [] }
     );
 
     expect(rows(model).every(row => row.checklist !== null)).toBe(true);

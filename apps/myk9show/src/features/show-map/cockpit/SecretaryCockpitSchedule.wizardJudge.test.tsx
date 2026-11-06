@@ -103,7 +103,7 @@ function renderScheduleFromWizard() {
     now: new Date('2026-06-01T15:00:00.000Z'),
   });
   const model = buildSecretaryCockpitModel(snapshot, {
-    filter: 'all',
+    statuses: [],
     selectedDays: undefined,
     focusedClassId: undefined,
   });
@@ -113,8 +113,7 @@ function renderScheduleFromWizard() {
       model={model}
       sourceClasses={snapshot.classes}
       sourceTrials={snapshot.trials}
-      filter="all"
-      onFilterChange={vi.fn()}
+      filtered={false}
       onFocusClass={vi.fn()}
     />
   );

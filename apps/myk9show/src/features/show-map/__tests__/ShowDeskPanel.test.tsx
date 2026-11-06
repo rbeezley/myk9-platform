@@ -1,6 +1,6 @@
 import { createDatabaseError } from '@/services/database/databaseError';
 import { screen, waitFor, within } from '@testing-library/react';
-import { describe, expect, it, onTestFinished, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import { fromAny } from '@total-typescript/shoehorn';
 
 import { render } from '@/test/utils/testUtils';
@@ -71,6 +71,15 @@ const trial = fromAny<SyncableTrial, unknown>({
 const now = new Date('2026-06-12T15:00:00.000Z');
 
 describe('ShowDeskPanel cockpit', () => {
+  // cmdk (the Filter menu) scrolls rows into view; jsdom has no scrollIntoView.
+  const originalScrollIntoView = Element.prototype.scrollIntoView;
+  beforeEach(() => {
+    Element.prototype.scrollIntoView = vi.fn();
+  });
+  afterEach(() => {
+    Element.prototype.scrollIntoView = originalScrollIntoView;
+  });
+
   it('places filters over a Trial-grouped schedule and focuses a selected Class', async () => {
     const { user } = render(
       <ShowDeskPanel
@@ -99,7 +108,8 @@ describe('ShowDeskPanel cockpit', () => {
       { initialRoute: '/shows/show-1/show-day' }
     );
 
-    expect(screen.getByRole('combobox', { name: 'View: Schedule filters' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Filter' })).toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: /Schedule filters/ })).not.toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: /^(Collapse|Expand) Friday AM · June 12/i })
     ).toBeInTheDocument();
@@ -168,7 +178,7 @@ describe('ShowDeskPanel cockpit', () => {
     expect(screen.queryByRole('button', { name: 'Container Novice' })).not.toBeInTheDocument();
 
     await user.click(trialTrigger);
-    await user.click(screen.getByRole('combobox', { name: 'View: Schedule filters' }));
+    await user.click(screen.getByRole('button', { name: 'Filter' }));
     await user.click(await screen.findByRole('option', { name: /^In progress/ }));
     expect(screen.queryByRole('button', { name: 'Container Novice' })).not.toBeInTheDocument();
     expect(screen.getAllByRole('heading', { name: 'Container Novice' })).not.toHaveLength(0);
@@ -286,9 +296,11 @@ describe('ShowDeskPanel cockpit', () => {
 
     expect(screen.getByText(/Pick a class to see its checklist/)).toBeInTheDocument();
     expect(screen.queryByText(/Select a Class to focus it/)).not.toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent(
-      'Show-day work has not started. Entries are on the Entry Forms tab, and show setup is here on Overview.'
-    );
+    expect(
+      screen.getByText(
+        'Show-day work has not started. Entries are on the Entry Forms tab, and show setup is here on Overview.'
+      )
+    ).toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/their normal pages/);
   });
 

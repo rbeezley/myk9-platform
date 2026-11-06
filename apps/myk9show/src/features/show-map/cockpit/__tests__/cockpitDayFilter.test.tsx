@@ -90,10 +90,17 @@ describe('Show Desk day filter (MYK9-1719)', () => {
     expect(screen.queryByLabelText('Show day')).not.toBeInTheDocument();
   });
 
-  it('shows no day control on a single-day show', () => {
-    renderDesk({ ...multiDay, trials: multiDay.trials.slice(0, 1), classes: multiDay.classes });
+  it('keeps the Filter button on a single-day show, with Status but no Day (MYK9-1727)', async () => {
+    const { user } = renderDesk({
+      ...multiDay,
+      trials: multiDay.trials.slice(0, 1),
+      classes: multiDay.classes,
+    });
 
-    expect(screen.queryByRole('button', { name: 'Filter' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Filter' }));
+    expect(await screen.findByRole('option', { name: /Needs attention/ })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: /Jul 20/ })).not.toBeInTheDocument();
+    expect(screen.queryByText('Day')).not.toBeInTheDocument();
   });
 
   it('lists each day as an option with its class count', async () => {

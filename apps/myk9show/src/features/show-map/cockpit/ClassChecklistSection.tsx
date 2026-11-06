@@ -127,7 +127,7 @@ export function ClassChecklistSection({
     classId: sourceClass.id,
     returnTo: getShowHomeHref({
       showId,
-      state: { filter: 'all', focusedClassId: sourceClass.id },
+      state: { statuses: [], focusedClassId: sourceClass.id },
     }),
   });
   const items = buildClassChecklist({ ...sourceClass, paperwork });

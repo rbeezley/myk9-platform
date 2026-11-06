@@ -5,19 +5,14 @@ import { getReportScopeSearchParams } from '@/lib/reports/reportScope';
 import type { ReportScope } from '@/lib/reports/types';
 
 import { parseCockpitDays, serializeCockpitDays } from './cockpitDayFilter';
-import type { CockpitFilter } from './secretaryCockpitTypes';
-
-const COCKPIT_FILTERS: ReadonlySet<string> = new Set([
-  'all',
-  'in-progress',
-  'needs-attention',
-  'needs-closeout',
-]);
+import { parseCockpitStatuses, serializeCockpitStatuses } from './cockpitStatusFilter';
+import type { CockpitStatus } from './secretaryCockpitTypes';
 
 export interface CockpitUrlState {
   /** The ticked show days; empty or absent means every day (MYK9-1719). */
   selectedDays?: readonly string[] | undefined;
-  filter: CockpitFilter;
+  /** The ticked statuses, `filter` in the URL; empty or absent means every class (MYK9-1727). */
+  statuses?: readonly CockpitStatus[] | undefined;
   focusedClassId?: string | undefined;
   anchor?: string | undefined;
 }
@@ -27,8 +22,8 @@ export function getCockpitAnchorElementId(anchor: string): string {
 }
 
 export function normalizeCockpitUrlState(params: URLSearchParams): CockpitUrlState {
-  const rawFilter = params.get('filter');
-  const filter = COCKPIT_FILTERS.has(rawFilter ?? '') ? (rawFilter as CockpitFilter) : 'all';
+  // A lone status is every older link; a comma list is the ticked set; `all` or junk is none.
+  const statuses = parseCockpitStatuses(params.get('filter'));
   // No `day` means All days, the show home's default (MYK9-955). A lone date is the older
   // single-day link; a comma list is the ticked set.
   const selectedDays = parseCockpitDays(params.get('day'));
@@ -36,7 +31,7 @@ export function normalizeCockpitUrlState(params: URLSearchParams): CockpitUrlSta
   const anchor = params.get('anchor')?.trim() || undefined;
   return {
     selectedDays,
-    filter,
+    statuses,
     ...(focusedClassId ? { focusedClassId } : {}),
     ...(anchor ? { anchor } : {}),
   };
@@ -49,7 +44,8 @@ export function writeCockpitUrlState(
   const params = new URLSearchParams();
   const day = serializeCockpitDays(state.selectedDays);
   if (day) params.set('day', day);
-  if (state.filter !== 'all') params.set('filter', state.filter);
+  const filter = serializeCockpitStatuses(state.statuses);
+  if (filter) params.set('filter', filter);
   if (state.focusedClassId) params.set('focus', state.focusedClassId);
   if (state.anchor) params.set('anchor', state.anchor);
 
@@ -207,7 +203,7 @@ export function getShowHomeTrialHref(
   return getShowHomeHref({
     showId,
     state: {
-      filter: 'all',
+      statuses: [],
       selectedDays: parseCockpitDays(trial.date),
       anchor: trial.id,
     },

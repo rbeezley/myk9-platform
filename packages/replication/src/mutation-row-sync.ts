@@ -1,10 +1,23 @@
-import type { IDBPDatabase } from 'idb';
+import { unwrap, type IDBPDatabase } from 'idb';
 import type { Logger } from './dependencies';
 import { REPLICATION_STORES } from './core/DatabaseManager';
 import { withAcknowledgedSyncFlag } from './core/ReplicatedTableRowState';
 import { writtenColumnsOf, type WrittenFieldOverlay } from './mutation-written-overlay';
 import type { PendingMutation, ReplicatedRow } from './types';
 
+/**
+ * Applies an upload's acknowledgement to the stored row and returns the OCC token the row
+ * holds afterwards.
+ *
+ * MYK9-1721: the row and its queued mutations are read, and the row written, in ONE readwrite
+ * transaction. Split across transactions, a local write landing between the read and the
+ * write (the next switch toggled while this upload's ack was applied) was overwritten with
+ * the pre-toggle copy and marked clean: the server ended right, this device wrong, at the
+ * same version, so no download ever corrected it. Raw IndexedDB, with the put issued from the
+ * second read's own success callback, as putStampingCurrentServerVersion does: that is the one
+ * place the transaction is guaranteed active (resuming after an awaited promise is not, and
+ * under fake timers the transaction had already committed).
+ */
 export async function markReplicatedRowSynced(
   db: IDBPDatabase,
   mutation: PendingMutation,
@@ -13,17 +26,57 @@ export async function markReplicatedRowSynced(
 ): Promise<number | undefined> {
   if (mutation.operation === 'DELETE') return newServerVersion;
 
-  const key = [mutation.tableName, String(mutation.rowId)];
-  const [existingRow, pendingMutations] = (await Promise.all([
-    db.get(REPLICATION_STORES.REPLICATED_TABLES, key),
-    db.getAllFromIndex(REPLICATION_STORES.PENDING_MUTATIONS, 'tableName_rowId', [
-      mutation.tableName,
-      String(mutation.rowId),
-    ]),
-  ])) as [ReplicatedRow<unknown> | undefined, PendingMutation[]];
+  const tx = (unwrap(db) as IDBDatabase).transaction(
+    [REPLICATION_STORES.REPLICATED_TABLES, REPLICATION_STORES.PENDING_MUTATIONS],
+    'readwrite'
+  );
+  let token = newServerVersion;
+  // A throw inside the success callback aborts the transaction with a null error; keep the
+  // original so the log names the real cause.
+  let thrown: unknown;
+  await new Promise<void>((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () =>
+      reject(thrown ?? tx.error ?? new Error('Acknowledgement transaction aborted'));
+    const rows = tx.objectStore(REPLICATION_STORES.REPLICATED_TABLES);
+    const rowRead = rows.get([mutation.tableName, String(mutation.rowId)]);
+    const queueRead = tx
+      .objectStore(REPLICATION_STORES.PENDING_MUTATIONS)
+      .index('tableName_rowId')
+      .getAll([mutation.tableName, String(mutation.rowId)]);
+    // Requests in one transaction complete in the order they were issued, so the row read has
+    // succeeded by the time the queue read does.
+    queueRead.onsuccess = () => {
+      const existingRow = rowRead.result as ReplicatedRow<unknown> | undefined;
+      if (!existingRow) return;
+      try {
+        const acknowledged = acknowledgedRow(
+          existingRow,
+          queueRead.result as PendingMutation[],
+          mutation,
+          newServerVersion,
+          overlayWritten
+        );
+        token = acknowledged.token;
+        rows.put(acknowledged.row);
+      } catch (error) {
+        thrown = error;
+        tx.abort();
+      }
+    };
+  });
+  return token;
+}
 
-  if (!existingRow) return newServerVersion;
-
+/** The row an acknowledgement leaves, and the OCC token it holds. Pure. */
+function acknowledgedRow(
+  existingRow: ReplicatedRow<unknown>,
+  pendingMutations: PendingMutation[],
+  mutation: PendingMutation,
+  newServerVersion: number | undefined,
+  overlayWritten: WrittenFieldOverlay | undefined
+): { row: ReplicatedRow<unknown>; token: number | undefined } {
   const hasAnotherPendingMutation = pendingMutations.some(
     pending => pending.id !== mutation.id && pending.authUserId === mutation.authUserId
   );
@@ -71,7 +124,7 @@ export async function markReplicatedRowSynced(
     const written = writtenColumnsOf(mutation);
     if (written) rebasedBase = overlayWritten?.(existingRow.baseData, written);
   }
-  await db.put(REPLICATION_STORES.REPLICATED_TABLES, {
+  const row: ReplicatedRow<unknown> = {
     ...existingRow,
     data: stillDirty ? nextData : withAcknowledgedSyncFlag(nextData),
     isDirty: stillDirty,
@@ -90,10 +143,11 @@ export async function markReplicatedRowSynced(
       mutation.serverVersion !== undefined && {
         lastOwnUpload: { from: mutation.serverVersion, to: newServerVersion },
       }),
-  });
+  };
+
   // The OCC token the row holds now: the acknowledged version, or the newer one
   // a sync already reconciled when this acknowledgement is late (MYK9-1221).
-  return tokenWouldRollBack ? existingRow.serverVersion : newServerVersion;
+  return { row, token: tokenWouldRollBack ? existingRow.serverVersion : newServerVersion };
 }
 
 /**

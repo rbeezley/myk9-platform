@@ -37,9 +37,9 @@ interface PrimaryTabsProps {
   ariaLabel?: string;
   /**
    * Fit every tab on screen with nothing to swipe (MYK9-1729, the MYK9-1717 principle). Below
-   * `md` each tab is an equal column with its icon and count on top and its label under them,
-   * wrapping to two lines; from `md` the tabs sit inline at their content width. Off by default,
-   * so other pages keep the scrolling strip.
+   * `lg` each tab is an equal column with its icon and count on top and its label under them,
+   * wrapping; from `lg` the strip is exactly the default scrolling one. Off by default, so other
+   * pages keep the scrolling strip at every width.
    */
   fit?: boolean;
 }
@@ -85,7 +85,10 @@ export function PrimaryTabs({
           {...(ariaLabel !== undefined ? { 'aria-label': ariaLabel } : {})}
           className={cn(
             'flex w-full max-w-full border-b border-border bg-transparent p-0 gap-0',
-            !fit && 'overflow-x-auto hide-scrollbar scroll-shadow-x'
+            // Fit mode only changes the strip below `lg`; from `lg` it is the scrolling strip.
+            fit
+              ? 'lg:overflow-x-auto lg:hide-scrollbar lg:scroll-shadow-x'
+              : 'overflow-x-auto hide-scrollbar scroll-shadow-x'
           )}
         >
           {tabs.map(tab => {
@@ -97,25 +100,25 @@ export function PrimaryTabs({
                 className={cn(
                   'inline-flex min-h-[48px] items-center justify-center gap-1.5 text-xs font-medium',
                   fit
-                    ? 'min-w-0 flex-1 flex-wrap content-center gap-x-0 gap-y-0 px-0.5 py-1.5 md:min-w-max md:flex-none md:flex-nowrap md:gap-1.5 md:px-2 md:py-2 md:text-sm lg:px-4'
+                    ? 'min-w-0 flex-1 flex-wrap content-center gap-x-0 gap-y-0 px-0.5 py-1.5 lg:min-w-max lg:flex-none lg:flex-nowrap lg:gap-1.5 lg:px-4 lg:py-2 lg:text-sm'
                     : 'min-w-[92px] flex-none px-2 py-2 sm:min-w-max sm:px-4 sm:text-sm',
                   'text-muted-foreground border-b-2 border-transparent rounded-none bg-transparent',
                   'aria-selected:text-primary aria-selected:border-primary',
                   'hover:text-foreground transition-colors',
-                  fit ? 'md:whitespace-nowrap' : 'whitespace-nowrap'
+                  fit ? 'lg:whitespace-nowrap' : 'whitespace-nowrap'
                 )}
               >
                 {icon &&
                   (React.isValidElement(icon)
                     ? icon
                     : React.createElement(icon as LucideIcon, { className: 'h-4 w-4' }))}
-                {/* In fit mode below `md` the label wraps onto its own line under the icon and
+                {/* In fit mode below `lg` the label wraps onto its own line under the icon and
                     counts (`order-last w-full`); the DOM order, and so the accessible name, stays
                     label first. */}
                 <span
                   className={
                     fit
-                      ? 'order-last w-full whitespace-normal [overflow-wrap:anywhere] text-center leading-tight md:order-none md:w-auto md:whitespace-nowrap md:truncate'
+                      ? 'order-last w-full whitespace-normal [overflow-wrap:anywhere] text-center leading-tight lg:order-none lg:w-auto lg:truncate lg:whitespace-nowrap lg:leading-[inherit] lg:[overflow-wrap:normal]'
                       : 'truncate'
                   }
                 >

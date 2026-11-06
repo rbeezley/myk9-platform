@@ -7,6 +7,9 @@
  * score (result in words, every time, faults, any reason) for the judge to
  * check against the sheet, then Confirm & Submit.
  *
+ * The steward shows it to the judge at arm's length, so each row is large
+ * (MYK9-1724); the reason stays prose-sized.
+ *
  * One component so every sport reads back the same words, the same reasons and
  * the same layout, and the longest case (a DQ with a reason, or a multi-area
  * class) still fits a 375 x 667 phone.
@@ -87,7 +90,13 @@ export const ScoreConfirmationDialog: React.FC<ScoreConfirmationDialogProps> = (
     { label: 'Result', value: resultLabel(result) + (resultSuffix ? ` / ${resultSuffix}` : '') },
     ...rows,
     ...(showReason
-      ? [{ label: `${resultLabel(result)} Reason`, value: reason?.trim(), className: 'text-right' }]
+      ? [
+          {
+            label: `${resultLabel(result)} Reason`,
+            value: reason?.trim(),
+            className: 'text-right text-base',
+          },
+        ]
       : []),
   ];
 
@@ -123,12 +132,12 @@ export const ScoreConfirmationDialog: React.FC<ScoreConfirmationDialogProps> = (
           {allRows.map((row, i) => (
             <div
               key={`${row.label}-${i}`}
-              className="flex justify-between gap-4 border-b border-border py-1.5"
+              className="flex items-baseline justify-between gap-4 border-b border-border py-2"
             >
-              <span className="flex-shrink-0 text-muted-foreground">{row.label}</span>
+              <span className="flex-shrink-0 text-lg text-muted-foreground">{row.label}</span>
               <span
                 className={cn(
-                  'font-semibold',
+                  'text-2xl font-semibold',
                   row.mono && 'font-mono',
                   row.label === 'Result' && result && RESULT_CLASS[result],
                   row.className

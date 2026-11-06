@@ -206,28 +206,12 @@ export function SecretaryCockpit({
     target.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
   }, [model.trialGroups, gridWidth]);
 
+  const clearFilters = () =>
+    updateState({ selectedDays: [], statuses: [], focusedClassId: undefined, anchor: undefined });
+
   return (
     <div className="space-y-5" data-testid="secretary-cockpit">
-      <CockpitFilterMenu
-        snapshot={snapshot}
-        model={model}
-        statuses={state.statuses ?? []}
-        onDaysChange={selectedDays =>
-          updateState({ selectedDays, focusedClassId: undefined, anchor: undefined })
-        }
-        onStatusesChange={statuses => updateState({ statuses })}
-        onClearAll={() =>
-          updateState({
-            selectedDays: [],
-            statuses: [],
-            focusedClassId: undefined,
-            anchor: undefined,
-          })
-        }
-      />
-
-      {isEveryClassComplete(snapshot.classes) && <CockpitResultsHandoff showId={snapshot.showId} />}
-
+      {/* Needs attention first (MYK9-1727); the Filter sits under the schedule heading it narrows. */}
       {model.attention.items.length > 0 && (
         <CockpitAttentionStrip
           items={model.attention.items}
@@ -237,6 +221,8 @@ export function SecretaryCockpit({
           onCommand={onCommand}
         />
       )}
+
+      {isEveryClassComplete(snapshot.classes) && <CockpitResultsHandoff showId={snapshot.showId} />}
 
       <div
         ref={gridRef}
@@ -259,6 +245,19 @@ export function SecretaryCockpit({
           sourceClasses={snapshot.classes}
           sourceTrials={snapshot.trials}
           filtered={(state.statuses?.length ?? 0) > 0}
+          filterBar={
+            <CockpitFilterMenu
+              snapshot={snapshot}
+              model={model}
+              statuses={state.statuses ?? []}
+              onDaysChange={selectedDays =>
+                updateState({ selectedDays, focusedClassId: undefined, anchor: undefined })
+              }
+              onStatusesChange={statuses => updateState({ statuses })}
+              onClearAll={clearFilters}
+            />
+          }
+          onShowAll={clearFilters}
           onFocusClass={focusedClassId => updateState({ focusedClassId, anchor: focusedClassId })}
           // Selecting, a row click ticks rather than focuses, so the focused class's panel would
           // sit open in the middle of the list with no way to move or close it.

@@ -254,6 +254,36 @@ describe('ShowDeskPanel cockpit', () => {
     }
   });
 
+  // MYK9-1727: the Filter row sits under the schedule heading, and while a filter is on the
+  // heading's how-to line becomes "Showing N of M classes." with a way back to all of them.
+  it('puts the Filter under the schedule heading and says how many classes are showing', async () => {
+    const { user } = render(
+      <ShowDeskPanel
+        show={show}
+        trials={[trial]}
+        classes={[
+          { id: 'class-1', trialId: 'trial-1', name: 'Container Novice', status: 'Scheduled' },
+          { id: 'class-2', trialId: 'trial-1', name: 'Interior Advanced', status: 'In Progress' },
+        ]}
+        entries={[]}
+        canManageShow
+        scopeNow={now}
+      />,
+      { initialRoute: '/shows/show-1/show-day?filter=in-progress' }
+    );
+
+    const heading = screen.getByRole('region', { name: /^(Show|Today's) schedule$/ });
+    expect(within(heading).getByRole('button', { name: /^Filter/ })).toBeInTheDocument();
+    expect(within(heading).getByText('Showing 1 of 2 classes.')).toBeInTheDocument();
+    expect(
+      screen.queryByText(/Pick a class to see its checklist\. Filters/)
+    ).not.toBeInTheDocument();
+
+    await user.click(within(heading).getByRole('button', { name: 'Show all classes' }));
+    expect(screen.queryByText(/^Showing /)).not.toBeInTheDocument();
+    expect(screen.getByText(/Pick a class to see its checklist\. Filters/)).toBeInTheDocument();
+  });
+
   // MYK9-1727: on a wide cockpit, a class the filter hides leaves a prompt, not its panel.
   it('shows a pick-a-class prompt in the split column when the filter hides the open class', () => {
     cockpitWidth.value = 1000;

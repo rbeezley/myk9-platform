@@ -11,8 +11,9 @@ const CHIP_TONE: Record<CockpitAttentionKind, string> = {
   blocker: 'bg-destructive/10 text-destructive',
   'active-work': 'bg-warning/10 text-warning',
   preparation: 'bg-warning/10 text-warning',
-  closeout: 'bg-muted text-foreground',
-  administrative: 'bg-muted text-foreground',
+  // The outline keeps a grey pill visible on a dark card, where bg-muted nearly matches it.
+  closeout: 'border border-border bg-muted text-foreground',
+  administrative: 'border border-border bg-muted text-foreground',
 };
 
 const CHIP_CLASS =

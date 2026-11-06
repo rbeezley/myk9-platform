@@ -51,7 +51,7 @@ function Where() {
  * | ------------------------------------ | --------------------------------------------- |
  * | Trials: Add Trial                    | Actions menu "Add Trial"                      |
  * | Trials: row Edit / Delete            | Trial heading menu (Edit); edit panel footer (Delete) |
- * | Trials: row opens the trial page     | The home itself; menu "Trial financials" (MYK9-1320) |
+ * | Trials: row opens the trial page     | The home itself; Entry Forms and Reports tabs (MYK9-1727) |
  * | Classes: Add Classes                 | Trial heading menu "Add classes" (MYK9-1727) |
  * | Classes: row Edit / Delete           | Class panel "Edit class"; edit panel footer (Delete) |
  * | Classes: status change               | Class panel / row status control (unchanged)  |
@@ -78,9 +78,8 @@ describe('show home carries every Setup action (MYK9-956)', () => {
       'Edit Trial',
       'Add classes',
       'High in Trial',
-      'Entry forms',
+      'Trial report',
       'Judge supplies',
-      'Trial financials',
     ]);
   });
 
@@ -96,10 +95,12 @@ describe('show home carries every Setup action (MYK9-956)', () => {
     await user.click(screen.getByRole('button', { name: /trial actions for trial 1/i }));
     await screen.findByRole('menuitem', { name: 'Edit Trial' });
     expect(screen.queryByRole('menuitem', { name: 'High in Trial' })).toBeNull();
+    // UKC files its own end-of-trial report.
+    expect(screen.getByRole('menuitem', { name: 'Trial report' })).toBeInTheDocument();
   });
 
-  // MYK9-1320: the trial's own page is gone for managers, so the heading menu is their door to
-  // what it held: Entry Forms for the trial, its money on Reports, and Judge supplies.
+  // MYK9-1320: the trial's own page is gone for managers, so the heading menu holds its trial-level
+  // work. Entry Forms and Reports are the tabs above (MYK9-1727), not menu items.
   describe('trial heading menu doors (MYK9-1320)', () => {
     function renderWithPath() {
       return render(
@@ -121,14 +122,6 @@ describe('show home carries every Setup action (MYK9-956)', () => {
       await user.click(await screen.findByRole('menuitem', { name }));
     }
 
-    it('Trial financials opens Reports scoped to the trial', async () => {
-      const { user } = renderWithPath();
-      await pick(user, 'Trial financials');
-      expect(screen.getByTestId('where')).toHaveTextContent(
-        '/shows/show-1/reports?financialsTrial=trial-1'
-      );
-    });
-
     it('Add classes opens the add-classes page for the trial', async () => {
       const { user } = renderWithPath();
       await pick(user, 'Add classes');
@@ -143,11 +136,11 @@ describe('show home carries every Setup action (MYK9-956)', () => {
       );
     });
 
-    it('Entry forms opens Entry Forms filtered to the trial', async () => {
+    it("Trial report opens the registry's end-of-trial report scoped to the trial", async () => {
       const { user } = renderWithPath();
-      await pick(user, 'Entry forms');
+      await pick(user, 'Trial report');
       expect(screen.getByTestId('where')).toHaveTextContent(
-        /^\/shows\/show-1\/entries\?.*trial=trial-1/
+        '/shows/show-1/reports?report=trial-secretary-report&trialId=trial-1'
       );
     });
 

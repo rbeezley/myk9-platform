@@ -70,7 +70,7 @@ export function SecretaryCockpit({
   // Add classes and High in Trial live in the trial's menu (MYK9-1727), so the heading holds
   // only the menu and it stays in the card's top-right corner on a phone.
   const renderTrialActions = (trialId: string, label: string) =>
-    trialRowMenu(trialId, label, true, snapshot.registryId === 'AKC');
+    trialRowMenu(trialId, label, true, snapshot.registryId);
   const location = useLocation();
   const navigationType = useNavigationType();
   // A remount on a history entry that already scrolled to this anchor starts spent (MYK9-1218).

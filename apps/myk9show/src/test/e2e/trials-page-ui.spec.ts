@@ -60,9 +60,11 @@ test.describe('Trial URL - manager', () => {
       .click();
     const items = page.getByRole('menuitem');
     await expect(items.first()).toHaveText('Edit Trial');
-    await expect(items.filter({ hasText: 'Entry forms' })).toHaveCount(1);
+    await expect(items.filter({ hasText: 'Add classes' })).toHaveCount(1);
     await expect(items.filter({ hasText: 'Judge supplies' })).toHaveCount(1);
-    await expect(items.filter({ hasText: 'Trial financials' })).toHaveCount(1);
+    // The tabs above already open Entry Forms and Reports (MYK9-1727).
+    await expect(items.filter({ hasText: 'Entry forms' })).toHaveCount(0);
+    await expect(items.filter({ hasText: 'Trial financials' })).toHaveCount(0);
     await expect(items.filter({ hasText: /delete/i })).toHaveCount(0);
 
     await items.first().click();

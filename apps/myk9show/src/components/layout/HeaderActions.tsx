@@ -64,7 +64,12 @@ export function HeaderActions() {
           type="button"
           variant="default"
           size="touch"
-          className={cn('relative gap-1', showsLabel ? 'px-3' : 'min-w-11 justify-center px-2')}
+          // 44px at every width, level with the search box and icons beside it (owner, MYK9-1727);
+          // the touch size alone grows to 48px from `sm`.
+          className={cn(
+            'relative gap-1 sm:min-h-11',
+            showsLabel ? 'px-3' : 'min-w-11 justify-center px-2'
+          )}
           data-testid="header-actions-trigger"
         >
           {showsLabel ? (

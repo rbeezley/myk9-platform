@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import { Package, Plus, Trophy } from 'lucide-react';
+import { FileText, Package, Plus, Trophy } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { hydrateThenResolve } from '@/utils/hydrateThenResolve';
@@ -19,6 +19,17 @@ import { SetupRowActionsMenu } from './SetupRowActionsMenu';
  *
  * `enabled` is the caller's manage gate: with it false, no dialog mounts.
  */
+/** Each registry's end-of-trial report, the paperwork filed once per trial (MYK9-1727). */
+const TRIAL_REPORT_ID: Record<string, string> = {
+  AKC: 'trial-secretary-report',
+  UKC: 'ukc-nosework-trial-report',
+  ASCA: 'asca-scent-detection-trial-report',
+};
+
+function trialReportHref(showId: string, trialId: string, reportId: string): string {
+  return `/shows/${encodeURIComponent(showId)}/reports?${new URLSearchParams({ report: reportId, trialId }).toString()}`;
+}
+
 export function useTrialRowActions(showId: string, enabled: boolean) {
   const navigate = useNavigate();
   // The trial is a SNAPSHOT taken when the action starts: a successful delete removes it from
@@ -77,16 +88,15 @@ export function useTrialRowActions(showId: string, enabled: boolean) {
   /**
    * `withDetails` is the show home's collapsible trial heading: it adds "Trial
    * details" (the heading does not open the trial page) and leaves Delete to
-   * the edit panel's footer. It also carries Add classes, and High in Trial where
-   * `highInTrial` says the show's registry awards it (AKC), so the heading keeps only
-   * the menu (MYK9-1727).
+   * the edit panel's footer. It also carries Add classes, High in Trial (AKC awards it) and the
+   * registry's Trial report, from `registryId`, so the heading keeps only the menu (MYK9-1727).
    */
   // Memoized on what it renders: TrialsTab's table builds its actions column from this, and a
   // new function each render replaced the column and closed an open menu on any parent render
   // (Codex review of #2691).
   const actionLocked = hydratingTrialId !== null || pendingTrialAction !== null;
   const trialRowMenu = useCallback(
-    (trialId: string, label: string, withDetails = false, highInTrial = false) => (
+    (trialId: string, label: string, withDetails = false, registryId?: string) => (
       <SetupRowActionsMenu
         subject="Trial"
         rowLabel={label}
@@ -103,11 +113,17 @@ export function useTrialRowActions(showId: string, enabled: boolean) {
               id: 'trial-high-in-trial',
               label: 'High in Trial',
               icon: <Trophy />,
-              hidden: !highInTrial,
+              hidden: registryId !== 'AKC',
+              onSelect: () => navigate(trialReportHref(showId, trialId, 'high-in-trial')),
+            },
+            {
+              // The registry's end-of-trial report, already set to this trial (MYK9-1727).
+              id: 'trial-report',
+              label: 'Trial report',
+              icon: <FileText />,
+              hidden: !registryId || !TRIAL_REPORT_ID[registryId],
               onSelect: () =>
-                navigate(
-                  `/shows/${encodeURIComponent(showId)}/reports?${new URLSearchParams({ report: 'high-in-trial', trialId }).toString()}`
-                ),
+                navigate(trialReportHref(showId, trialId, TRIAL_REPORT_ID[registryId ?? ''] ?? '')),
             },
             {
               id: 'trial-judge-supplies',

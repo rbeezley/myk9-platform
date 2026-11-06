@@ -548,6 +548,8 @@ describe('AppHeader Actions menu trigger style (MYK9-1268)', () => {
     expect(trigger).not.toHaveClass('bg-secondary');
     expect(trigger).not.toHaveClass('border');
     expect(trigger).toHaveClass('min-h-11');
+    // Level with the 44px search box and icons at every width, never the touch size's 48px.
+    expect(trigger).not.toHaveClass('sm:min-h-12');
     // The shared focus ring is still on the filled button.
     expect(trigger).toHaveClass('focus-visible:ring-2', 'focus-visible:ring-ring');
   });

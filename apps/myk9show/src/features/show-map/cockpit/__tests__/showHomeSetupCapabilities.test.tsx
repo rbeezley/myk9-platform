@@ -78,6 +78,7 @@ describe('show home carries every Setup action (MYK9-956)', () => {
       'Edit Trial',
       'Add classes',
       'High in Trial',
+      'Trial report',
       'Judge supplies',
     ]);
   });
@@ -94,6 +95,8 @@ describe('show home carries every Setup action (MYK9-956)', () => {
     await user.click(screen.getByRole('button', { name: /trial actions for trial 1/i }));
     await screen.findByRole('menuitem', { name: 'Edit Trial' });
     expect(screen.queryByRole('menuitem', { name: 'High in Trial' })).toBeNull();
+    // UKC files its own end-of-trial report.
+    expect(screen.getByRole('menuitem', { name: 'Trial report' })).toBeInTheDocument();
   });
 
   // MYK9-1320: the trial's own page is gone for managers, so the heading menu holds its trial-level
@@ -130,6 +133,14 @@ describe('show home carries every Setup action (MYK9-956)', () => {
       await pick(user, 'High in Trial');
       expect(screen.getByTestId('where')).toHaveTextContent(
         '/shows/show-1/reports?report=high-in-trial&trialId=trial-1'
+      );
+    });
+
+    it("Trial report opens the registry's end-of-trial report scoped to the trial", async () => {
+      const { user } = renderWithPath();
+      await pick(user, 'Trial report');
+      expect(screen.getByTestId('where')).toHaveTextContent(
+        '/shows/show-1/reports?report=trial-secretary-report&trialId=trial-1'
       );
     });
 

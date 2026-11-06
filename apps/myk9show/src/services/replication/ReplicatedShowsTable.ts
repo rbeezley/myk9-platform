@@ -34,6 +34,7 @@ import type { Database } from '@/types/supabase';
 import { withStoredDays, withTypedDays } from './showCalendarDays';
 import { rowToShow } from './showRowMapping';
 import { SHOW_USES_FIELD_COLUMNS, showUsesColumns, withShowUsesDefaults } from './showUsesColumns';
+import { holdOwnedSwitches } from './showUsesOwnership';
 import { mapShowStatusToDb } from './showStatusMapping';
 import { formatDateLocal } from '@/utils/dateLocal';
 
@@ -121,6 +122,15 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
   override setMutationManager(manager: MutationManager): void {
     super.setMutationManager(manager);
     this.showMutationManager = manager;
+  }
+
+  /** MYK9-1721: a switch with a queued write keeps its value against a pulled server copy. */
+  override async reconcileDirtyRow(
+    id: string,
+    params: Parameters<ReplicatedTable<ReplicatedShow>['reconcileDirtyRow']>[1]
+  ): Promise<boolean> {
+    const owned = await holdOwnedSwitches(this, this.showMutationManager, id, params);
+    return super.reconcileDirtyRow(id, owned);
   }
 
   /** Get the mutation ID from the last create/update operation */

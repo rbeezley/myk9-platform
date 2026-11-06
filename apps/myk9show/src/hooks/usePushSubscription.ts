@@ -20,6 +20,9 @@ function pushSubscriptionRpc(): PushSubscriptionRpc {
   return supabase as unknown as PushSubscriptionRpc;
 }
 
+/** `unavailable`: the browser could not say yet (service worker not ready). */
+export type ReconcileOutcome = 'settled' | 'unavailable';
+
 /**
  * Manages the push subscription lifecycle:
  * subscribe (browser + Supabase), unsubscribe, and sync status.
@@ -148,12 +151,13 @@ export function usePushSubscription() {
    * - the browser holds a subscription → re-saved for the current user; On only
    *   if that save succeeds (the claim RPC failing reads Off) and the account has not opted out server-side;
    * - no subscription, denied permission or an unsupported device → Off;
-   * - `unavailable` (could not ask) → left untouched.
+   * - `unavailable` (could not ask) → left untouched and reported as
+   *   `'unavailable'` so the caller can retry once the worker is ready.
    * It never writes the server opt-out flag itself: a device-local state must
    * not switch the whole account's alerts on or off.
    */
-  async function reconcile(): Promise<void> {
-    if (!user?.id) return;
+  async function reconcile(): Promise<ReconcileOutcome> {
+    if (!user?.id) return 'settled';
 
     // A device that cannot do push (or a build without a VAPID key) can never
     // receive one, so a stale local "On" must not survive here either.
@@ -162,21 +166,21 @@ export function usePushSubscription() {
       (typeof Notification !== 'undefined' && Notification.permission === 'denied')
     ) {
       updatePreferences({ pushEnabled: false });
-      return;
+      return 'settled';
     }
 
     try {
       const lookup = await lookupExistingSubscription();
-      if (lookup.status === 'unavailable') return;
+      if (lookup.status === 'unavailable') return 'unavailable';
       if (lookup.status === 'none') {
         updatePreferences({ pushEnabled: false });
-        return;
+        return 'settled';
       }
       const { error } = await saveSubscription(lookup.subscription);
       if (error) {
         console.error('Failed to re-save push subscription:', error.message);
         updatePreferences({ pushEnabled: false });
-        return;
+        return 'settled';
       }
       // The senders skip an account whose server flag is false, so reading On
       // here would be the same lie this reconcile exists to remove.
@@ -186,6 +190,7 @@ export function usePushSubscription() {
       console.error('Push reconcile failed:', err);
       updatePreferences({ pushEnabled: false });
     }
+    return 'settled';
   }
 
   return { subscribe, unsubscribe, reconcile, isSupported };

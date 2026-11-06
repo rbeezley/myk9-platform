@@ -244,6 +244,18 @@ describe('usePushSubscription', () => {
       expect(mockRpc).not.toHaveBeenCalled();
     });
 
+    it('reports unavailable and leaves the flag untouched when the browser cannot say yet', async () => {
+      const { lookupExistingSubscription } = await import('@myk9/notifications');
+      vi.mocked(lookupExistingSubscription).mockResolvedValueOnce({ status: 'unavailable' });
+      const { result } = renderHook(() => usePushSubscription());
+      let outcome: unknown;
+      await act(async () => {
+        outcome = await result.current.reconcile();
+      });
+      expect(outcome).toBe('unavailable');
+      expect(mockUpdatePreferences).not.toHaveBeenCalled();
+    });
+
     it('re-saves a browser subscription the server lacks and keeps the flag on', async () => {
       const { lookupExistingSubscription, subscribeToPush } = await import('@myk9/notifications');
       vi.mocked(lookupExistingSubscription).mockResolvedValueOnce({

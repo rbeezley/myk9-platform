@@ -1,12 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
+import type { ReconcileOutcome } from '@/hooks/usePushSubscription';
 
 /**
  * Runs `reconcile` once per signed-in user and reports whether it is in flight,
  * so the push switch can stay disabled and a tap cannot race the lookup.
+ *
+ * When the first pass reports `unavailable` (the service worker was not ready
+ * inside the lookup's short wait), the switch is released but the hook keeps
+ * listening: `serviceWorker.ready` is event-driven, so one more reconcile runs
+ * the moment the worker is ready, without navigation and without a timer. The
+ * retry is dropped if the component unmounted or the user changed.
  */
 export function useReconcilePushOnMount(
   userId: string | undefined,
-  reconcile: () => Promise<void>
+  reconcile: () => Promise<ReconcileOutcome | void>
 ): boolean {
   const [settledFor, setSettledFor] = useState<string | undefined>(undefined);
   const reconcileRef = useRef(reconcile);
@@ -18,9 +25,22 @@ export function useReconcilePushOnMount(
   useEffect(() => {
     if (!userId) return;
     let active = true;
-    void reconcileRef.current().finally(() => {
-      if (active) setSettledFor(userId);
-    });
+    void (async () => {
+      let outcome: ReconcileOutcome | void = 'settled';
+      try {
+        outcome = await reconcileRef.current();
+      } finally {
+        if (active) setSettledFor(userId);
+      }
+      if (outcome !== 'unavailable' || !active) return;
+      if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
+      try {
+        await navigator.serviceWorker.ready;
+      } catch {
+        return;
+      }
+      if (active) await reconcileRef.current();
+    })().catch(() => undefined);
     return () => {
       active = false;
     };

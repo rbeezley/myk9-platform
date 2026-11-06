@@ -215,6 +215,36 @@ describe('NotificationSettings push reconcile on mount', () => {
     expect(mockReconcile).toHaveBeenCalledTimes(1);
   });
 
+  it('re-reconciles when the service worker becomes ready after mount (delayed readiness)', async () => {
+    let markReady!: (registration: unknown) => void;
+    const ready = new Promise(resolve => {
+      markReady = resolve;
+    });
+    Object.defineProperty(navigator, 'serviceWorker', { value: { ready }, configurable: true });
+    try {
+      useNotificationStore.setState({
+        preferences: { ...DEFAULT_PREFERENCES, pushEnabled: true },
+      });
+      // First pass: lookup timed out. Second pass (after ready): no subscription.
+      mockReconcile.mockResolvedValueOnce('unavailable').mockImplementationOnce(() => {
+        useNotificationStore.getState().updatePreferences({ pushEnabled: false });
+        return Promise.resolve('settled');
+      });
+      render(<NotificationSettings />);
+      const pushSwitch = await screen.findByRole('switch', { name: /push notifications/i });
+      await waitFor(() => expect(pushSwitch).not.toHaveAttribute('aria-disabled', 'true'));
+      expect(mockReconcile).toHaveBeenCalledTimes(1);
+      expect(pushSwitch).toBeChecked();
+
+      markReady({ pushManager: { getSubscription: () => Promise.resolve(null) } });
+
+      await waitFor(() => expect(pushSwitch).not.toBeChecked());
+      expect(mockReconcile).toHaveBeenCalledTimes(2);
+    } finally {
+      Reflect.deleteProperty(navigator, 'serviceWorker');
+    }
+  });
+
   it('keeps the push switch disabled while reconcile is in flight', async () => {
     let finish!: () => void;
     mockReconcile.mockImplementation(

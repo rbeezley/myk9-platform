@@ -37,6 +37,8 @@ describe('PrimaryTabs fit', () => {
     const list = screen.getByRole('tablist');
     expect(list).not.toHaveClass('overflow-x-auto');
     expect(list).toHaveClass('lg:overflow-x-auto', 'lg:scroll-shadow-x', 'lg:hide-scrollbar');
+    // Below lg every tab stretches to the strip's height, so the active underline lines up.
+    expect(list).toHaveClass('items-stretch', 'lg:items-center');
     for (const tab of tabs) expect(tab).toHaveClass('flex-1', 'lg:flex-none', 'lg:min-w-max');
   });
 

@@ -285,10 +285,11 @@ test.describe('header wordmark fits', () => {
       expect(bounds!.x, `Actions left edge @ ${width}`).toBeGreaterThanOrEqual(0);
       expect(bounds!.x + bounds!.width, `Actions right edge @ ${width}`).toBeLessThanOrEqual(width);
       // MYK9-1729: the trigger says "Actions" in words at every phone width, so a first-time
-      // secretary can tell what the button holds. innerText excludes nothing visible, and the
-      // label is no longer an `sr-only` span, so it reads as the whole text.
+      // secretary can tell what the button holds. Read the label span (the trigger's first
+      // child), not the whole button: the attention badge is also a child, and its count would
+      // join the text whenever the staging show has tools needing attention.
       expect(
-        await trigger.innerText(),
+        await trigger.locator(':scope > span').first().innerText(),
         `@ ${width}px the trigger must carry the visible word "Actions"`
       ).toBe('Actions');
       expect(

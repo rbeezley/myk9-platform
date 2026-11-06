@@ -12,6 +12,8 @@ export interface BoardIssue {
   labels: string[];
   updatedAt: string;
   comments: BoardComment[];
+  /** Child issues (Linear `parentId`). Required: a parent's merge evidence lives on them. */
+  children: { id: string; state: string }[];
 }
 
 export interface Board {

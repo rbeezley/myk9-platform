@@ -75,3 +75,8 @@ export const plan1 = (
   gh: Partial<GitHubReader> = {}
 ) => planJanitor({ issues: [issue] }, { ...github, prsForIssue: () => prs, ...gh }, tree, NOW)[0]!;
 export const comments = (hoursAgo: number) => [{ createdAt: ago(hoursAgo), body: 'note' }];
+export const parentIssue = (
+  children: { id: string; state: string }[],
+  id = 'MYK9-1650',
+  state = 'In Progress'
+) => ({ ...inProgress(id, comments(80)), state, children });

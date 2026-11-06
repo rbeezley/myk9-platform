@@ -71,11 +71,11 @@ const LARGEST_TEXT_UTILITY = 'text-xl';
 /**
  * Hard ceilings for the display range, in px.
  *
- * These are layout constraints, not taste. The live scoresheets render the
- * running clock at `text-5xl` (six of them) and at `text-5xl md:text-6xl`
- * (`DualTimerDisplay`, reached from `JudgeClassInterface`), inside a card whose
- * content box measures **293px at a 375px viewport** — 287px for
- * `DualTimerDisplay`, which sits in an extra bordered wrapper. Those cards are
+ * These are layout constraints, not taste. The scoresheets render the running
+ * clock at `text-5xl` (six of them, as measured; the pre-ringside
+ * `DualTimerDisplay` this once also covered was deleted as unreachable,
+ * MYK9-1720), inside a card whose content box measures **293px at a 375px
+ * viewport**. Those cards are
  * `overflow-hidden`, so a time that does not fit is CLIPPED, not scrolled, and
  * a judge silently loses a digit off a scored run. There is no page-level
  * horizontal scrollbar to reveal it.

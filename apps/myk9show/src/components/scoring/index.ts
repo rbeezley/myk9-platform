@@ -4,9 +4,6 @@
  * Centralized exports for all result entry and scoring components
  */
 
-export { ScentWorkScoresheet } from './ScentWorkScoresheet';
-export type { ScentWorkScoresheetProps } from './ScentWorkScoresheet';
-
 export { ResultEntryNavigation } from './ResultEntryNavigation';
 export type {
   ResultEntryNavigationProps,

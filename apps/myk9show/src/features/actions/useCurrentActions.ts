@@ -18,14 +18,7 @@ import { ENTRY_LISTS_GROUP, SHOW_DESK_TOOL_GROUP_HEADINGS } from './showToolActi
 import { UserRole } from '@/types/auth-types';
 import { useEntryEligibleShows } from './useEntryEligibleShows';
 import { useAddEntryPickerStore } from './addEntryPickerStore';
-
-/** Today as `YYYY-MM-DD` on the viewer's own calendar. */
-function localCalendarDay(): string {
-  const now = new Date();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  return `${now.getFullYear()}-${month}-${day}`;
-}
+import { useShowLifeFacts } from './useShowLifeFacts';
 
 export interface CurrentActions {
   route: ActionRouteContext;
@@ -79,18 +72,8 @@ export function useCurrentActions(): CurrentActions {
     showId && canSeeShowSection && !storedShowName ? showId : ''
   );
   const showName = storedShowName ?? queriedShow?.name;
-  // Same sources, for the one item that depends on where the show is in its life (close-out).
-  const storedShowStatus = useShowStore(state =>
-    showId ? state.shows.find(show => show.id === showId)?.status : undefined
-  );
-  const showStatus = storedShowStatus ?? queriedShow?.status;
-  // Has the show's first day arrived? Read from the same two sources, against the viewer's own
-  // calendar day (the device is at the show). Unknown stays unknown: the row is kept (MYK9-1727).
-  const storedShowStartDate = useShowStore(state =>
-    showId ? state.shows.find(show => show.id === showId)?.startDate : undefined
-  );
-  const showStartDate = storedShowStartDate ?? queriedShow?.startDate;
-  const showStarted = showStartDate ? showStartDate.slice(0, 10) <= localCalendarDay() : undefined;
+  // Where the show is in its life, for close-out (MYK9-1727).
+  const { showStatus, showStarted } = useShowLifeFacts(showId, queriedShow);
 
   // The detail page on screen, when it registered an Edit it lets this viewer use.
   const pageTarget = usePageEditTargetStore(state => state.target);

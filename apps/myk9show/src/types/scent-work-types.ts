@@ -253,40 +253,6 @@ export function getAreaTimeLimits(
   return [];
 }
 
-// Validation helpers
-export function validateScentWorkResult(result: Partial<ScentWorkResult>): boolean {
-  return !!(
-    result.entryId &&
-    result.classId &&
-    typeof result.searchTime === 'number' &&
-    result.qualification &&
-    typeof result.faults === 'number' &&
-    result.recordedBy
-  );
-}
-
-export function validateMultiAreaScentWorkResult(
-  result: Partial<MultiAreaScentWorkResult>
-): boolean {
-  if (!result.entryId || !result.classId || !result.recordedBy) return false;
-  if (typeof result.totalSearchTime !== 'number') return false;
-  if (!result.qualification) return false;
-  if (!result.areaResults || result.areaResults.length === 0) return false;
-
-  // All areas must have valid data
-  return result.areaResults.every(
-    (area: AreaResult) =>
-      typeof area.areaNumber === 'number' &&
-      typeof area.searchTime === 'number' &&
-      area.qualification &&
-      typeof area.faults === 'number'
-  );
-}
-
-export function isTimeExpired(searchTime: number, maxTime: number): boolean {
-  return searchTime > maxTime;
-}
-
 export function shouldShowWarning(
   remainingTime: number,
   level: ScentWorkClassConfig['level']

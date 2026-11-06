@@ -1,10 +1,14 @@
 import { screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { render } from '@/test/utils/testUtils';
 import type { ShowMapTree } from '../showMapTypes';
 import { buildSecretaryCockpitSnapshot } from './buildSecretaryCockpitSnapshot';
 import { CockpitAttentionStrip } from './CockpitAttentionStrip';
+
+// The strip starts folded on a phone (MYK9-1727); each test picks the width.
+const phone = vi.hoisted(() => ({ value: false }));
+vi.mock('@/hooks/useMediaQuery', () => ({ useMediaQuery: () => phone.value }));
 import type { SecretaryCockpitAttention } from './secretaryCockpitTypes';
 
 const items: SecretaryCockpitAttention[] = [
@@ -48,6 +52,10 @@ function renderStrip(onCommand = vi.fn()) {
 }
 
 describe('CockpitAttentionStrip', () => {
+  beforeEach(() => {
+    phone.value = false;
+  });
+
   it('names the class on its pill and links to where the fix happens', () => {
     renderStrip();
 
@@ -124,9 +132,10 @@ describe('CockpitAttentionStrip', () => {
     );
     const section = screen.getByRole('region', { name: /needs attention/i });
     const controls = [
-      ...section.querySelectorAll('a, button'),
+      ...section.querySelectorAll('a, button:not([aria-expanded])'),
       screen.getByText('Closeout unreadable'),
     ];
+    expect(screen.getByRole('button', { name: /needs attention/i })).toHaveClass('min-h-11');
 
     expect(controls).toHaveLength(4);
     for (const control of controls) {
@@ -149,6 +158,32 @@ describe('CockpitAttentionStrip', () => {
 
     expect(screen.queryByText('Closeout unreadable')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'View 2 more issues' }));
+    expect(screen.getByText('Closeout unreadable')).toBeInTheDocument();
+  });
+
+  // MYK9-1727: on a phone every pill takes its own row, so the heading folds them away.
+  it('folds and unfolds the pills from its heading, keeping the count', async () => {
+    const { user } = renderStrip();
+    const toggle = screen.getByRole('button', { name: /needs attention · 3/i });
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText('Closeout unreadable')).not.toBeInTheDocument();
+    expect(toggle).toHaveTextContent('Needs attention · 3');
+
+    await user.click(toggle);
+    expect(screen.getByText('Closeout unreadable')).toBeInTheDocument();
+  });
+
+  it('starts folded on a phone and opens on request', async () => {
+    phone.value = true;
+    const { user } = renderStrip();
+    const toggle = screen.getByRole('button', { name: /needs attention · 3/i });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText('Closeout unreadable')).not.toBeInTheDocument();
+
+    await user.click(toggle);
     expect(screen.getByText('Closeout unreadable')).toBeInTheDocument();
   });
 });

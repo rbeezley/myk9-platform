@@ -1,10 +1,7 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
-import { Plus } from 'lucide-react';
-import { Link, useLocation, useNavigationType, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigationType, useSearchParams } from 'react-router-dom';
 import { useTrialRowActions } from '@/components/shows/tabs/useTrialRowActions';
-import { getAddClassesHref } from '@/pages/secretary/ShowCreationWizard/addClassesHref';
 
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
   FOCUSED_CLASS_PANEL_CLASS,
@@ -69,20 +66,10 @@ export function SecretaryCockpit({
   const { trialRowMenu, trialDialogs } = useTrialRowActions(snapshot.showId, canManageShow);
   // Held here, not in the panel, so a split/stack switch cannot close an open editor.
   const { renderClassActions, classDialogs } = useFocusedClassSetupActions(snapshot.showId);
-  const renderTrialActions = (trialId: string, label: string) => (
-    <>
-      <Button asChild variant="ghost" size="sm" className="min-h-11 gap-1">
-        <Link
-          to={getAddClassesHref(snapshot.showId, trialId)}
-          aria-label={`Add classes to ${label}`}
-        >
-          <Plus className="h-4 w-4" aria-hidden="true" />
-          Add Classes
-        </Link>
-      </Button>
-      {trialRowMenu(trialId, label, true)}
-    </>
-  );
+  // Add classes and High in Trial live in the trial's menu (MYK9-1727), so the heading holds
+  // only the menu and it stays in the card's top-right corner on a phone.
+  const renderTrialActions = (trialId: string, label: string) =>
+    trialRowMenu(trialId, label, true, snapshot.registryId === 'AKC');
   const location = useLocation();
   const navigationType = useNavigationType();
   // A remount on a history entry that already scrolled to this anchor starts spent (MYK9-1218).

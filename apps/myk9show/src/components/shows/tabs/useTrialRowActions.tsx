@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import { ClipboardList, DollarSign, Package } from 'lucide-react';
+import { ClipboardList, DollarSign, Package, Plus, Trophy } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { hydrateThenResolve } from '@/utils/hydrateThenResolve';
@@ -10,6 +10,7 @@ import type { SyncableTrial } from '@/store/trial-store-types';
 import { TrialManagementDialogs } from '@/components/trials/TrialDetail/TrialManagementDialogs';
 import { getEntryManagementHref } from '@/features/entry-operations/entryAttentionRoutes';
 import { JudgeSuppliesLauncher } from '@/features/judge-supplies/JudgeSuppliesLauncher';
+import { getAddClassesHref } from '@/pages/secretary/ShowCreationWizard/addClassesHref';
 import { SetupRowActionsMenu } from './SetupRowActionsMenu';
 
 /**
@@ -77,19 +78,38 @@ export function useTrialRowActions(showId: string, enabled: boolean) {
   /**
    * `withDetails` is the show home's collapsible trial heading: it adds "Trial
    * details" (the heading does not open the trial page) and leaves Delete to
-   * the edit panel's footer.
+   * the edit panel's footer. It also carries Add classes, and High in Trial where
+   * `highInTrial` says the show's registry awards it (AKC), so the heading keeps only
+   * the menu (MYK9-1727).
    */
   // Memoized on what it renders: TrialsTab's table builds its actions column from this, and a
   // new function each render replaced the column and closed an open menu on any parent render
   // (Codex review of #2691).
   const actionLocked = hydratingTrialId !== null || pendingTrialAction !== null;
   const trialRowMenu = useCallback(
-    (trialId: string, label: string, withDetails = false) => (
+    (trialId: string, label: string, withDetails = false, highInTrial = false) => (
       <SetupRowActionsMenu
         subject="Trial"
         rowLabel={label}
         {...(withDetails && {
           extraActions: [
+            {
+              id: 'trial-add-classes',
+              label: 'Add classes',
+              icon: <Plus />,
+              onSelect: () => navigate(getAddClassesHref(showId, trialId)),
+            },
+            {
+              // The AKC High in Trial report, already scoped to this trial (MYK9-1727).
+              id: 'trial-high-in-trial',
+              label: 'High in Trial',
+              icon: <Trophy />,
+              hidden: !highInTrial,
+              onSelect: () =>
+                navigate(
+                  `/shows/${encodeURIComponent(showId)}/reports?${new URLSearchParams({ report: 'high-in-trial', trialId }).toString()}`
+                ),
+            },
             {
               // The trial page's Entries tab, as a door into Entry Forms filtered to this trial.
               id: 'trial-entry-forms',

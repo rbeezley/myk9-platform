@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, ChevronDown } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { cn } from '@/lib/utils';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 
 import type { CockpitAttentionKind, SecretaryCockpitAttention } from './secretaryCockpitTypes';
 
@@ -20,6 +21,9 @@ const CHIP_CLASS =
 /**
  * One line of pills (layout A, owner, 2026-10-02): each names the class and
  * the problem, and opens the place to fix it. The reason is the pill's title.
+ *
+ * The heading folds the pills away (MYK9-1727): on a phone each pill takes its own row, so
+ * there it starts folded with the count still showing; wider screens start open.
  */
 export function CockpitAttentionStrip({
   items,
@@ -35,6 +39,9 @@ export function CockpitAttentionStrip({
   onCommand: (commandId: string) => void;
 }) {
   const [showAll, setShowAll] = useState(false);
+  const isPhone = useMediaQuery('(max-width: 639px)');
+  const [openChoice, setOpenChoice] = useState<boolean | null>(null);
+  const open = openChoice ?? !isPhone;
   const visible = showAll ? all : items;
 
   return (
@@ -42,64 +49,79 @@ export function CockpitAttentionStrip({
       aria-labelledby="cockpit-attention-title"
       className="flex flex-wrap items-center gap-2.5 rounded-xl border bg-card px-4 py-3"
     >
-      <h2
-        id="cockpit-attention-title"
-        className="mr-2 flex items-center gap-2 text-sm font-semibold"
-      >
-        <AlertTriangle className="h-4 w-4 text-destructive" aria-hidden="true" />
-        Needs attention · {all.length}
-      </h2>
-      {visible.map(item => {
-        const className = item.classId ? classNameById.get(item.classId) : undefined;
-        const text = className ? `${className} · ${item.label}` : item.label;
-        const tone = cn(CHIP_CLASS, CHIP_TONE[item.kind]);
-        // MYK9-1618: the visible text stays the count; the name also says where it goes.
-        const accessibleName = item.destinationName
-          ? `${text}, opens ${item.destinationName}`
-          : undefined;
-        if (!item.destination) {
-          return (
-            <span key={item.id} className={tone} title={item.reason}>
-              {text}
-            </span>
-          );
-        }
-        if (item.destination.kind === 'href') {
-          return (
-            <Link
-              key={item.id}
-              to={item.destination.href}
-              className={cn(tone, 'hover:underline')}
-              title={item.reason}
-              aria-label={accessibleName}
-            >
-              {text}
-            </Link>
-          );
-        }
-        const { commandId } = item.destination;
-        return (
-          <button
-            key={item.id}
-            type="button"
-            className={cn(tone, 'hover:underline')}
-            title={item.reason}
-            aria-label={accessibleName}
-            onClick={() => onCommand(commandId)}
-          >
-            {text}
-          </button>
-        );
-      })}
-      {overflowCount > 0 && !showAll && (
+      <h2 id="cockpit-attention-title" className="mr-2 text-sm font-semibold">
         <button
           type="button"
-          className="min-h-11 text-xs font-semibold text-primary hover:underline"
-          onClick={() => setShowAll(true)}
+          className="-mx-1 flex min-h-11 items-center gap-2 rounded-md px-1 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          aria-expanded={open}
+          aria-controls="cockpit-attention-items"
+          onClick={() => setOpenChoice(!open)}
         >
-          View {overflowCount} more issues
+          <AlertTriangle className="h-4 w-4 text-destructive" aria-hidden="true" />
+          Needs attention · {all.length}
+          <ChevronDown
+            className={cn(
+              'h-4 w-4 text-muted-foreground transition-transform',
+              !open && '-rotate-90'
+            )}
+            aria-hidden="true"
+          />
         </button>
-      )}
+      </h2>
+      <div id="cockpit-attention-items" className="contents">
+        {open &&
+          visible.map(item => {
+            const className = item.classId ? classNameById.get(item.classId) : undefined;
+            const text = className ? `${className} · ${item.label}` : item.label;
+            const tone = cn(CHIP_CLASS, CHIP_TONE[item.kind]);
+            // MYK9-1618: the visible text stays the count; the name also says where it goes.
+            const accessibleName = item.destinationName
+              ? `${text}, opens ${item.destinationName}`
+              : undefined;
+            if (!item.destination) {
+              return (
+                <span key={item.id} className={tone} title={item.reason}>
+                  {text}
+                </span>
+              );
+            }
+            if (item.destination.kind === 'href') {
+              return (
+                <Link
+                  key={item.id}
+                  to={item.destination.href}
+                  className={cn(tone, 'hover:underline')}
+                  title={item.reason}
+                  aria-label={accessibleName}
+                >
+                  {text}
+                </Link>
+              );
+            }
+            const { commandId } = item.destination;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                className={cn(tone, 'hover:underline')}
+                title={item.reason}
+                aria-label={accessibleName}
+                onClick={() => onCommand(commandId)}
+              >
+                {text}
+              </button>
+            );
+          })}
+        {open && overflowCount > 0 && !showAll && (
+          <button
+            type="button"
+            className="min-h-11 text-xs font-semibold text-primary hover:underline"
+            onClick={() => setShowAll(true)}
+          >
+            View {overflowCount} more issues
+          </button>
+        )}
+      </div>
     </section>
   );
 }

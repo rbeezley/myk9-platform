@@ -125,9 +125,16 @@ function ShowsPaneSplit({ showId, tab }: { showId: string; tab: ShowPaneTab }) {
   };
 
   const hideButton = canFold ? (
-    <Button variant="ghost" aria-label="Hide shows list" onClick={() => toggle('folded')}>
-      <PanelLeftClose className="mr-1.5 h-4 w-4" aria-hidden="true" />
-      Hide
+    <Button
+      variant="ghost"
+      aria-label="Hide shows list"
+      title="Hide shows list"
+      className="shrink-0 gap-1.5 px-3"
+      onClick={() => toggle('folded')}
+    >
+      <PanelLeftClose className="h-4 w-4" aria-hidden="true" />
+      {/* MYK9-1727: on a narrow list only the icon shows, leaving the search box room. */}
+      <span className="hidden [@container(min-width:19rem)]:inline">Hide</span>
     </Button>
   ) : null;
 

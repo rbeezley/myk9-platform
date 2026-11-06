@@ -52,7 +52,7 @@ function Where() {
  * | Trials: Add Trial                    | Actions menu "Add Trial"                      |
  * | Trials: row Edit / Delete            | Trial heading menu (Edit); edit panel footer (Delete) |
  * | Trials: row opens the trial page     | The home itself; menu "Trial financials" (MYK9-1320) |
- * | Classes: Add Classes                 | Trial heading "Add Classes"                   |
+ * | Classes: Add Classes                 | Trial heading menu "Add classes" (MYK9-1727) |
  * | Classes: row Edit / Delete           | Class panel "Edit class"; edit panel footer (Delete) |
  * | Classes: status change               | Class panel / row status control (unchanged)  |
  * | Classes: judge, waitlist, bulk bar   | Actions menu "Select classes" (in place)      |
@@ -67,21 +67,35 @@ describe('show home carries every Setup action (MYK9-956)', () => {
   }
 
   // Delete lives only in the edit panels' footers on the show home (owner, 2026-10-03).
-  it('gives each trial heading Add Classes and an Edit / Trial financials menu, no Delete', async () => {
+  // MYK9-1727: the heading holds only the menu; Add classes and (AKC) High in Trial are in it.
+  it('gives each trial heading one menu with Add classes and High in Trial, no Delete', async () => {
     const { user } = renderCockpit(true);
 
-    expect(screen.getByRole('link', { name: /add classes to trial 1/i })).toHaveAttribute(
-      'href',
-      getAddClassesHref('show-1', 'trial-1')
-    );
+    expect(screen.queryByRole('link', { name: /add classes to trial 1/i })).toBeNull();
     await user.click(screen.getByRole('button', { name: /trial actions for trial 1/i }));
     await screen.findByRole('menuitem', { name: 'Edit Trial' });
     expect(screen.getAllByRole('menuitem').map(item => item.textContent)).toEqual([
       'Edit Trial',
+      'Add classes',
+      'High in Trial',
       'Entry forms',
       'Judge supplies',
       'Trial financials',
     ]);
+  });
+
+  it('leaves High in Trial off a UKC show, whose award rules differ', async () => {
+    const { user } = render(
+      <SecretaryCockpit
+        snapshot={{ ...snapshot, registryId: 'UKC' }}
+        canManageShow
+        onCommand={vi.fn()}
+      />,
+      { initialRoute: '/shows/show-1' }
+    );
+    await user.click(screen.getByRole('button', { name: /trial actions for trial 1/i }));
+    await screen.findByRole('menuitem', { name: 'Edit Trial' });
+    expect(screen.queryByRole('menuitem', { name: 'High in Trial' })).toBeNull();
   });
 
   // MYK9-1320: the trial's own page is gone for managers, so the heading menu is their door to
@@ -112,6 +126,20 @@ describe('show home carries every Setup action (MYK9-956)', () => {
       await pick(user, 'Trial financials');
       expect(screen.getByTestId('where')).toHaveTextContent(
         '/shows/show-1/reports?financialsTrial=trial-1'
+      );
+    });
+
+    it('Add classes opens the add-classes page for the trial', async () => {
+      const { user } = renderWithPath();
+      await pick(user, 'Add classes');
+      expect(screen.getByTestId('where')).toHaveTextContent(getAddClassesHref('show-1', 'trial-1'));
+    });
+
+    it('High in Trial opens the HIT report scoped to the trial', async () => {
+      const { user } = renderWithPath();
+      await pick(user, 'High in Trial');
+      expect(screen.getByTestId('where')).toHaveTextContent(
+        '/shows/show-1/reports?report=high-in-trial&trialId=trial-1'
       );
     });
 

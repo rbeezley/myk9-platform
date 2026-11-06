@@ -67,7 +67,7 @@ export function CockpitTrialGroup({
   onFocusClass: (classId: string) => void;
   inlineFocusedContent?: ReactNode;
   entryBreakdownByClassId?: ReadonlyMap<string, ClassEntryBreakdown> | undefined;
-  /** Add Classes and the trial's Edit / Trial details menu (MYK9-956), for managers. */
+  /** The trial's menu (MYK9-956, MYK9-1727), for managers. */
   trialActions?: ReactNode;
   /** Select classes (MYK9-1324): rows tick instead of focusing. */
   select?: TrialGroupSelect | undefined;
@@ -102,7 +102,8 @@ export function CockpitTrialGroup({
       {/* overflow-clip, not -hidden: hidden makes this a scroll container and the focused
           class's pinned header (inline when stacked) would pin to it instead of the page. */}
       <div className="overflow-clip rounded-xl border bg-card text-card-foreground shadow-sm">
-        <div className="flex flex-wrap items-center border-b sm:flex-nowrap">
+        {/* One row at every width: the trial menu stays in the top-right corner (MYK9-1727). */}
+        <div className="flex items-start border-b">
           {/* Only while open: a tick on the heading must never reach rows the collapse hides. */}
           {select && open && group.classes.length > 0 && (
             <ScheduleTrialCheckbox
@@ -114,7 +115,7 @@ export function CockpitTrialGroup({
           <CollapsibleTrigger
             id={getCockpitAnchorElementId(group.trialId)}
             aria-label={`${open ? 'Collapse' : 'Expand'} ${group.label}`}
-            className="min-w-0 flex-[1_1_14rem] flex-wrap gap-x-3 gap-y-1.5 px-4 py-3 text-left hover:no-underline sm:flex-1 sm:flex-nowrap"
+            className="min-w-0 flex-1 flex-nowrap gap-x-3 px-4 py-3 text-left hover:no-underline"
           >
             {/* Wrapped: the shared trigger rotates a direct-child svg 180deg when open. */}
             <span aria-hidden="true" className="shrink-0">
@@ -125,13 +126,13 @@ export function CockpitTrialGroup({
                 )}
               />
             </span>
-            <div className="min-w-0 flex-1 basis-[calc(100%-1.75rem)] sm:basis-0">
+            <div className="min-w-0 flex-1">
               <div className="font-semibold">{group.label}</div>
               <div className="text-xs font-normal text-muted-foreground">{summary}</div>
             </div>
           </CollapsibleTrigger>
           {trialActions && (
-            <div className="flex items-center gap-1 px-2 pb-2 sm:pb-0">{trialActions}</div>
+            <div className="flex shrink-0 items-center px-1 pt-1.5">{trialActions}</div>
           )}
         </div>
         {/* Clip, not hidden, for the same reason as the card above. */}

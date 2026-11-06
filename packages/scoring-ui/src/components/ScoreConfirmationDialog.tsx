@@ -7,8 +7,8 @@
  * score (result in words, every time, faults, any reason) for the judge to
  * check against the sheet, then Confirm & Submit.
  *
- * The steward shows it to the judge at arm's length, so each row is large
- * (MYK9-1724); the reason stays prose-sized.
+ * The steward shows it to the judge at arm's length, so the armband, dog name
+ * and each row are large (MYK9-1724); the reason stays prose-sized.
  *
  * One component so every sport reads back the same words, the same reasons and
  * the same layout, and the longest case (a DQ with a reason, or a multi-area
@@ -118,12 +118,23 @@ export const ScoreConfirmationDialog: React.FC<ScoreConfirmationDialogProps> = (
           <p className="text-sm text-muted-foreground">{subtitle}</p>
         </div>
 
-        <div className="flex items-center gap-3 rounded-xl bg-muted/50 p-2">
-          <div className="flex h-10 min-w-10 flex-shrink-0 items-center justify-center rounded-lg bg-primary px-2 shadow-sm">
-            <span className="text-sm font-bold text-primary-foreground">{armband}</span>
+        {/* A long name drops below the armband at full width instead of being cut. */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl bg-muted/50 p-2">
+          <div className="flex h-14 min-w-14 flex-shrink-0 items-center justify-center rounded-lg bg-primary px-2 shadow-sm">
+            <span
+              className="text-3xl font-bold tabular-nums text-primary-foreground"
+              data-testid="confirmation-armband"
+            >
+              {armband}
+            </span>
           </div>
-          <div className="min-w-0">
-            <div className="truncate font-medium">{dogName}</div>
+          <div className="min-w-0 max-w-full">
+            <div
+              className="break-words text-2xl font-semibold leading-tight"
+              data-testid="confirmation-dog-name"
+            >
+              {dogName}
+            </div>
             <div className="truncate text-xs text-muted-foreground">Handler: {handlerName}</div>
           </div>
         </div>

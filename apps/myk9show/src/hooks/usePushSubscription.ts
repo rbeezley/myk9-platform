@@ -23,6 +23,15 @@ function pushSubscriptionRpc(): PushSubscriptionRpc {
 /** `unavailable`: the browser could not say yet (service worker not ready). */
 export type ReconcileOutcome = 'settled' | 'unavailable';
 
+export interface ReconcileOptions {
+  /**
+   * Set on the pass that runs after `serviceWorker.ready` resolved. A ready
+   * worker that still cannot report a subscription cannot receive a push
+   * either, so the switch reads Off instead of keeping a stale On.
+   */
+  workerReady?: boolean;
+}
+
 /**
  * Manages the push subscription lifecycle:
  * subscribe (browser + Supabase), unsubscribe, and sync status.
@@ -152,11 +161,12 @@ export function usePushSubscription() {
    *   if that save succeeds (the claim RPC failing reads Off) and the account has not opted out server-side;
    * - no subscription, denied permission or an unsupported device → Off;
    * - `unavailable` (could not ask) → left untouched and reported as
-   *   `'unavailable'` so the caller can retry once the worker is ready.
+   *   `'unavailable'` so the caller can retry once the worker is ready; on that
+   *   retry (`workerReady`) it reads Off.
    * It never writes the server opt-out flag itself: a device-local state must
    * not switch the whole account's alerts on or off.
    */
-  async function reconcile(): Promise<ReconcileOutcome> {
+  async function reconcile(options: ReconcileOptions = {}): Promise<ReconcileOutcome> {
     if (!user?.id) return 'settled';
 
     // A device that cannot do push (or a build without a VAPID key) can never
@@ -171,7 +181,11 @@ export function usePushSubscription() {
 
     try {
       const lookup = await lookupExistingSubscription();
-      if (lookup.status === 'unavailable') return 'unavailable';
+      if (lookup.status === 'unavailable') {
+        if (!options.workerReady) return 'unavailable';
+        updatePreferences({ pushEnabled: false });
+        return 'settled';
+      }
       if (lookup.status === 'none') {
         updatePreferences({ pushEnabled: false });
         return 'settled';

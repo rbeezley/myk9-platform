@@ -241,6 +241,7 @@ describe('NotificationSettings push reconcile on mount', () => {
 
       await waitFor(() => expect(pushSwitch).not.toBeChecked());
       expect(mockReconcile).toHaveBeenCalledTimes(2);
+      expect(mockReconcile).toHaveBeenLastCalledWith({ workerReady: true });
     } finally {
       Reflect.deleteProperty(navigator, 'serviceWorker');
     }

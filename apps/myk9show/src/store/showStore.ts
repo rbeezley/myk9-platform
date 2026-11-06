@@ -496,19 +496,25 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
       // value back over the replica's new one, and the switch snapped back off.
       Object.assign(definedUpdates, pickShowUsesUpdates(updates));
 
-      const updatedShow: Show = {
-        ...currentShow,
-        ...definedUpdates,
-        // Update sync metadata
-        _version: currentShow._version ? currentShow._version + 1 : 1,
-        _lastModified: new Date(),
-        _lastModifiedBy: getLastModifiedBy(),
-        _syncStatus: 'pending',
-      };
-
-      // Optimistic update
+      // Optimistic update, applied to the show as it is NOW, not to `currentShow`: that copy was
+      // read before the save's await, so another save (a second switch flipped quickly) or the
+      // replica subscription may have changed the show since. Spreading the stale copy put their
+      // values back and snapped the other switch off (MYK9-1721).
+      let updatedShow: Show = { ...currentShow, ...definedUpdates };
       set(state => ({
-        shows: state.shows.map(s => (s.id === id ? updatedShow : s)),
+        shows: state.shows.map(s => {
+          if (s.id !== id) return s;
+          updatedShow = {
+            ...s,
+            ...definedUpdates,
+            // Update sync metadata
+            _version: s._version ? s._version + 1 : 1,
+            _lastModified: new Date(),
+            _lastModifiedBy: getLastModifiedBy(),
+            _syncStatus: 'pending',
+          };
+          return updatedShow;
+        }),
         isLoading: false,
       }));
 

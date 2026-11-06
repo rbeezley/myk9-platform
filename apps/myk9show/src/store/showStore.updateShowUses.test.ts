@@ -52,4 +52,36 @@ describe('showStore.updateShow: "This show uses…" switches (MYK9-1622)', () =>
 
     expect(useShowStore.getState().shows[0]).toMatchObject({ usesPaperPacket: true });
   });
+
+  // MYK9-1721: two switches flipped quickly. The first save is still in flight when the second
+  // switch's new value reaches the store; when the first save finishes, it must not write its
+  // pre-save copy of the show back over the second switch.
+  it('a slower earlier save does not undo a switch flipped after it started', async () => {
+    let finishFirst: (id: string) => void = () => {};
+    mocks.replicaUpdate
+      .mockImplementationOnce(
+        () =>
+          new Promise<string>(resolve => {
+            finishFirst = resolve;
+          })
+      )
+      .mockImplementationOnce(async () => {
+        // The second switch's value lands through the replica subscription.
+        useShowStore.setState(state => ({
+          shows: state.shows.map(s => (s.id === 'show-1' ? { ...s, usesPaperPacket: true } : s)),
+        }));
+        return 'mutation-2';
+      });
+
+    const first = useShowStore.getState().updateShow('show-1', { usesDeviceScoring: true });
+    await useShowStore.getState().updateShow('show-1', { usesPaperPacket: true });
+    finishFirst('mutation-1');
+    await first;
+
+    expect(useShowStore.getState().shows[0]).toMatchObject({
+      usesDeviceScoring: true,
+      usesPaperPacket: true,
+      usesVolunteers: true,
+    });
+  });
 });

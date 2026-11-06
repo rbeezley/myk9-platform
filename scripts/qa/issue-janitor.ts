@@ -12,8 +12,9 @@
  * Task 4). It only reads: the board file, GitHub REST, and git.
  *
  * Board file: { "issues": [{ id, state, labels, updatedAt,
- *   comments: [{ createdAt, body }] }] } built from Linear `list_issues` (one call
- * per state) plus `list_comments` per issue, which is the tool that returns comments.
+ *   comments: [{ createdAt, body }], children: [{ id, state }] }] } built from Linear `list_issues` (one call
+ * per state) plus `list_comments` per issue, which is the tool that returns comments, and `list_issues` with `parentId` for
+ * `children` (required; a board entry without it fails the run).
  *
  * Plan entries carry `writes` (run in order; Todo moves and comments only). A
  * `fresh-read` entry has empty `writes` and an `outcomes` map: the session reads the

@@ -8,9 +8,10 @@
       "comments": [
         {
           "createdAt": "2026-10-20T16:00:00Z",
-          "body": "Claimed 2026-10-20 09:00 PDT by session-101 (https://claude.ai/s/101) \u00b7 branch claude/myk9-101-x \u00b7 worktree /wt/checkout"
+          "body": "Claimed 2026-10-20 09:00 PDT by session-101 (https://claude.ai/s/101) · branch claude/myk9-101-x · worktree /wt/checkout"
         }
-      ]
+      ],
+      "children": []
     },
     {
       "id": "MYK9-102",
@@ -20,9 +21,10 @@
       "comments": [
         {
           "createdAt": "2026-10-20T16:00:00Z",
-          "body": "Claimed 2026-10-20 09:00 PDT by session-102 (https://claude.ai/s/102) \u00b7 branch claude/myk9-102-x \u00b7 worktree /wt/checkout"
+          "body": "Claimed 2026-10-20 09:00 PDT by session-102 (https://claude.ai/s/102) · branch claude/myk9-102-x · worktree /wt/checkout"
         }
-      ]
+      ],
+      "children": []
     },
     {
       "id": "MYK9-103",
@@ -32,9 +34,10 @@
       "comments": [
         {
           "createdAt": "2026-10-20T16:00:00Z",
-          "body": "Claimed 2026-10-20 09:00 PDT by session-103 (https://claude.ai/s/103) \u00b7 branch claude/myk9-103-x \u00b7 worktree /wt/checkout"
+          "body": "Claimed 2026-10-20 09:00 PDT by session-103 (https://claude.ai/s/103) · branch claude/myk9-103-x · worktree /wt/checkout"
         }
-      ]
+      ],
+      "children": []
     },
     {
       "id": "MYK9-104",
@@ -44,9 +47,10 @@
       "comments": [
         {
           "createdAt": "2026-10-20T16:00:00Z",
-          "body": "Claimed 2026-10-20 09:00 PDT by session-104 (https://claude.ai/s/104) \u00b7 branch claude/myk9-104-x \u00b7 worktree /wt/checkout"
+          "body": "Claimed 2026-10-20 09:00 PDT by session-104 (https://claude.ai/s/104) · branch claude/myk9-104-x · worktree /wt/checkout"
         }
-      ]
+      ],
+      "children": []
     },
     {
       "id": "MYK9-105",
@@ -56,9 +60,10 @@
       "comments": [
         {
           "createdAt": "2026-10-20T16:00:00Z",
-          "body": "Claimed 2026-10-20 09:00 PDT by session-105 (https://claude.ai/s/105) \u00b7 branch claude/myk9-105-x \u00b7 worktree /wt/checkout"
+          "body": "Claimed 2026-10-20 09:00 PDT by session-105 (https://claude.ai/s/105) · branch claude/myk9-105-x · worktree /wt/checkout"
         }
-      ]
+      ],
+      "children": []
     },
     {
       "id": "MYK9-106",
@@ -68,9 +73,10 @@
       "comments": [
         {
           "createdAt": "2026-10-20T16:00:00Z",
-          "body": "Claimed 2026-10-20 09:00 PDT by session-106 (https://claude.ai/s/106) \u00b7 branch claude/myk9-106-x \u00b7 worktree /wt/checkout"
+          "body": "Claimed 2026-10-20 09:00 PDT by session-106 (https://claude.ai/s/106) · branch claude/myk9-106-x · worktree /wt/checkout"
         }
-      ]
+      ],
+      "children": []
     },
     {
       "id": "MYK9-107",
@@ -80,9 +86,10 @@
       "comments": [
         {
           "createdAt": "2026-10-20T16:00:00Z",
-          "body": "Claimed 2026-10-20 09:00 PDT by session-107 (https://claude.ai/s/107) \u00b7 branch claude/myk9-107-x \u00b7 worktree /wt/checkout"
+          "body": "Claimed 2026-10-20 09:00 PDT by session-107 (https://claude.ai/s/107) · branch claude/myk9-107-x · worktree /wt/checkout"
         }
-      ]
+      ],
+      "children": []
     },
     {
       "id": "MYK9-108",
@@ -92,9 +99,10 @@
       "comments": [
         {
           "createdAt": "2026-10-20T16:00:00Z",
-          "body": "Claimed 2026-10-20 09:00 PDT by session-108 (https://claude.ai/s/108) \u00b7 branch claude/myk9-108-x \u00b7 worktree /wt/checkout"
+          "body": "Claimed 2026-10-20 09:00 PDT by session-108 (https://claude.ai/s/108) · branch claude/myk9-108-x · worktree /wt/checkout"
         }
-      ]
+      ],
+      "children": []
     },
     {
       "id": "MYK9-109",
@@ -104,13 +112,14 @@
       "comments": [
         {
           "createdAt": "2026-10-20T16:00:00Z",
-          "body": "Claimed 2026-10-20 09:00 PDT by s (https://claude.ai/s/109) \u00b7 branch claude/myk9-109-x \u00b7 worktree /wt/checkout"
+          "body": "Claimed 2026-10-20 09:00 PDT by s (https://claude.ai/s/109) · branch claude/myk9-109-x · worktree /wt/checkout"
         },
         {
           "createdAt": "2026-10-26T07:00:00Z",
           "body": "working on it"
         }
-      ]
+      ],
+      "children": []
     },
     {
       "id": "MYK9-110",
@@ -120,13 +129,14 @@
       "comments": [
         {
           "createdAt": "2026-10-20T16:00:00Z",
-          "body": "Claimed 2026-10-20 09:00 PDT by s (https://claude.ai/s/110) \u00b7 branch claude/myk9-110-x \u00b7 worktree /wt/checkout"
+          "body": "Claimed 2026-10-20 09:00 PDT by s (https://claude.ai/s/110) · branch claude/myk9-110-x · worktree /wt/checkout"
         },
         {
           "createdAt": "2026-10-25T10:00:00Z",
           "body": "PR x idle.\n\njanitor: stale-pr#9110"
         }
-      ]
+      ],
+      "children": []
     },
     {
       "id": "MYK9-201",
@@ -138,7 +148,8 @@
           "createdAt": "2026-10-20T16:00:00Z",
           "body": "Merged.\nOwed: production evidence that the cron ran after deploy"
         }
-      ]
+      ],
+      "children": []
     },
     {
       "id": "MYK9-202",
@@ -148,9 +159,10 @@
       "comments": [
         {
           "createdAt": "2026-10-20T16:00:00Z",
-          "body": "Claimed 2026-10-20 09:00 PDT by session-202 (https://claude.ai/s/202) \u00b7 branch claude/myk9-202-x \u00b7 worktree /wt/checkout"
+          "body": "Claimed 2026-10-20 09:00 PDT by session-202 (https://claude.ai/s/202) · branch claude/myk9-202-x · worktree /wt/checkout"
         }
-      ]
+      ],
+      "children": []
     },
     {
       "id": "MYK9-203",
@@ -160,9 +172,10 @@
       "comments": [
         {
           "createdAt": "2026-10-20T16:00:00Z",
-          "body": "Claimed 2026-10-20 09:00 PDT by session-203 (https://claude.ai/s/203) \u00b7 branch claude/myk9-203-x \u00b7 worktree /wt/checkout"
+          "body": "Claimed 2026-10-20 09:00 PDT by session-203 (https://claude.ai/s/203) · branch claude/myk9-203-x · worktree /wt/checkout"
         }
-      ]
+      ],
+      "children": []
     },
     {
       "id": "MYK9-204",
@@ -174,7 +187,8 @@
           "createdAt": "2026-10-20T16:00:00Z",
           "body": "Merged.\nOwed: production evidence of the nightly cron run"
         }
-      ]
+      ],
+      "children": []
     },
     {
       "id": "MYK9-205",
@@ -186,7 +200,8 @@
           "createdAt": "2026-10-20T16:00:00Z",
           "body": "Owed: browser walk on the deployed build"
         }
-      ]
+      ],
+      "children": []
     },
     {
       "id": "MYK9-206",
@@ -198,7 +213,8 @@
           "createdAt": "2026-10-20T16:00:00Z",
           "body": "Owed: production evidence of the cron"
         }
-      ]
+      ],
+      "children": []
     },
     {
       "id": "MYK9-207",
@@ -210,7 +226,8 @@
           "createdAt": "2026-10-20T16:00:00Z",
           "body": "Owed: production evidence of the cron"
         }
-      ]
+      ],
+      "children": []
     }
   ]
 }

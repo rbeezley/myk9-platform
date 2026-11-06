@@ -7,6 +7,7 @@
  * anything that could mean Done, In Review or still In Progress is a `fresh-read`
  * entry whose `outcomes` the session picks from after reading the issue.
  */
+import { assertChildren, planParent } from './issue-janitor-children.ts';
 import { describeOwner, latestClaim } from './issue-janitor-claim.ts';
 import {
   BRANCH_ACTIVE_MS,
@@ -292,6 +293,7 @@ export function planJanitor(
   options: PlanOptions = {}
 ): PlanEntry[] {
   const nowMs = now.getTime();
+  assertChildren(board.issues);
   return board.issues.map(issue => ({ ...planIssue(issue), snapshot: snapshotOf(issue) }));
 
   function planIssue(issue: BoardIssue): PlanEntry {
@@ -305,6 +307,22 @@ export function planJanitor(
       return skip(id, 'In Review pass needs --deployed-commit');
     if (nowMs - lastCommentAt(issue) < LIVE_SESSION_MS)
       return skip(id, 'last comment under 6 h old (live session)');
+    const parent = planParent(issue, {
+      skip,
+      freshRead: (issueId, reason) =>
+        freshRead(
+          issueId,
+          reason,
+          inProgress
+            ? {
+                done: [stateWrite(issueId, 'Done')],
+                inReview: [stateWrite(issueId, 'In Review')],
+                stayInProgress: [],
+              }
+            : { done: [stateWrite(issueId, 'Done')], leave: [] }
+        ),
+    });
+    if (parent) return parent;
     const n = issueNumber(id);
     const claimBranch = latestClaim(issue.comments)?.branch ?? null;
     const matching = [

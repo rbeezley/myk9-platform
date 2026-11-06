@@ -13,6 +13,8 @@ import {
   branches,
   byIssue,
   comments,
+  parentIssue,
+  plan1,
 } from './issue-janitor-fixtures';
 describe('planJanitor In Progress', () => {
   const plan = byIssue(planJanitor(board, github, branches, NOW));
@@ -234,5 +236,77 @@ describe('matching helpers', () => {
     expect(linksIssue(pull('see MYK9-5', 'feat/x'), 5)).toBeNull();
     expect(linksIssue(pull('', 'richardbeezley1/myk9-5-thing'), 5)).toBe('full');
     expect(linksIssue(pull('Fixes MYK9-50', 'feat/x'), 5)).toBeNull();
+  });
+});
+
+describe('parent issues waiting on children', () => {
+  it('skips with the open children named, in the reason', () => {
+    const p = plan1(
+      parentIssue([
+        { id: 'MYK9-1651', state: 'In Progress' },
+        { id: 'MYK9-1652', state: 'Todo' },
+        { id: 'MYK9-1653', state: 'Done' },
+      ]),
+      []
+    );
+    expect(p.action).toBe('skip');
+    expect(p.reason).toBe('waiting on children: MYK9-1651 (In Progress), MYK9-1652 (Todo)');
+    expect(p.writes).toEqual([]);
+  });
+
+  it('does not return a parent with no PR or branch and merged-but-open children to Todo (MYK9-1650)', () => {
+    const p = plan1(
+      parentIssue([
+        { id: 'MYK9-1651', state: 'In Review' },
+        { id: 'MYK9-1652', state: 'Done' },
+      ]),
+      []
+    );
+    expect(p.action).not.toBe('to-todo');
+    expect(p.action).toBe('skip');
+    expect(p.writes).toEqual([]);
+  });
+
+  it('plans a fresh read, never to-todo, once every child is closed (case-insensitive)', () => {
+    const p = plan1(
+      parentIssue([
+        { id: 'MYK9-1651', state: 'Done' },
+        { id: 'MYK9-1652', state: 'canceled' },
+        { id: 'MYK9-1653', state: 'DUPLICATE' },
+      ]),
+      []
+    );
+    expect(p.action).toBe('fresh-read');
+    expect(p.reason).toBe('all children closed');
+    expect(p.writes).toEqual([]);
+    expect(Object.keys(p.outcomes!)).toEqual(['done', 'inReview', 'stayInProgress']);
+  });
+
+  it('applies to the In Review pass too, with done and leave outcomes', () => {
+    const issue = parentIssue([{ id: 'MYK9-1651', state: 'Done' }], 'MYK9-1650', 'In Review');
+    const [p] = planJanitor({ issues: [issue] }, github, [], NOW, { deployedCommit: DEPLOYED });
+    expect(p?.action).toBe('fresh-read');
+    expect(Object.keys(p!.outcomes!)).toEqual(['done', 'leave']);
+    const open = { ...issue, children: [{ id: 'MYK9-1651', state: 'Todo' }] };
+    const [q] = planJanitor({ issues: [open] }, github, [], NOW, { deployedCommit: DEPLOYED });
+    expect(q?.action).toBe('skip');
+  });
+
+  it('keeps needs:* and live-session skips ahead of the child check', () => {
+    const held = {
+      ...parentIssue([{ id: 'MYK9-1651', state: 'Done' }]),
+      labels: ['needs:decision'],
+    };
+    expect(plan1(held, []).reason).toContain('needs:');
+    const live = { ...parentIssue([{ id: 'MYK9-1651', state: 'Done' }]), comments: comments(1) };
+    expect(plan1(live, []).reason).toContain('live session');
+  });
+
+  it('fails the run loudly, naming the issue, when a board entry lacks children', () => {
+    const bare: Record<string, unknown> = { ...parentIssue([]) };
+    delete bare.children;
+    expect(() => planJanitor({ issues: [bare as never] }, github, [], NOW)).toThrow(
+      /MYK9-1650.*children/
+    );
   });
 });

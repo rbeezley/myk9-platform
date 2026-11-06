@@ -50,9 +50,13 @@ export async function holdOwnedSwitches<T extends ShowLike>(
   params: ReconcileParams<T>
 ): Promise<ReconcileParams<T>> {
   if (!manager) return params;
-  const owned = pendingUsesFields(
-    await manager.getPendingMutationsForRow(table.getTableName(), id)
-  );
+  // The read needs a signed-in identity and throws in a token-refresh gap or an account switch.
+  // Treat that as "owns nothing", as the core's own pending-mutation read does, so the pull
+  // reconciles as it did before rather than failing the whole shows sync on this row.
+  const pending = await manager
+    .getPendingMutationsForRow(table.getTableName(), id)
+    .catch(() => [] as PendingMutation[]);
+  const owned = pendingUsesFields(pending);
   if (owned.length === 0) return params;
   const local = (await table.getReplicatedRow(id))?.data;
   return { ...params, remote: withOwnedSwitches(params.remote, local, owned) };

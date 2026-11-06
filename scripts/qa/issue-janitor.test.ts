@@ -328,4 +328,18 @@ describe('parent issues waiting on children', () => {
       /MYK9-1650.*children/
     );
   });
+
+  it('does not repeat the stay comment once its marker is on the parent', () => {
+    const closed = [{ id: 'MYK9-1651', state: 'Done' }];
+    const fresh = plan1(parentIssue(closed), []);
+    expect(fresh.outcomes!.stayInProgress).toHaveLength(1);
+    const marked = {
+      ...parentIssue(closed),
+      comments: [{ createdAt: ago(80), body: 'x\n\njanitor: children-closed-stay' }],
+    };
+    const again = plan1(marked, []);
+    expect(again.action).toBe('fresh-read');
+    expect(again.outcomes!.stayInProgress).toEqual([]);
+    expect(again.outcomes!.inReview).toHaveLength(2);
+  });
 });

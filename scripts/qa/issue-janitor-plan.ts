@@ -277,7 +277,8 @@ function planInReview(
 }
 
 /** Outcomes for a parent whose children are all closed: same shape as a merged-PR fresh read. */
-function parentOutcomes(id: string, inProgress: boolean): Record<string, McpWrite[]> {
+function parentOutcomes(issue: BoardIssue, inProgress: boolean): Record<string, McpWrite[]> {
+  const id = issue.id;
   const tag = (suffix: string) => `\n\n${janitorKey(`children-closed-${suffix}`)}`;
   if (!inProgress) return { done: [stateWrite(id, 'Done')], leave: [] };
   return {
@@ -289,12 +290,15 @@ function parentOutcomes(id: string, inProgress: boolean): Record<string, McpWrit
         `All child issues are closed. Moving to In Review.\nOwed: {{owed}}${tag('in-review')}`
       ),
     ],
-    stayInProgress: [
-      commentWrite(
-        id,
-        `All child issues are closed; implementation still owed: {{owed}}${tag('stay')}`
-      ),
-    ],
+    // Every run re-plans a parent, so a prior stay comment suppresses only its own duplicate.
+    stayInProgress: hasKey(issue.comments, 'children-closed-stay')
+      ? []
+      : [
+          commentWrite(
+            id,
+            `All child issues are closed; implementation still owed: {{owed}}${tag('stay')}`
+          ),
+        ],
   };
 }
 
@@ -333,8 +337,7 @@ export function planJanitor(
       return skip(id, 'verify:* evidence owed; needs a check beyond the deploy');
     const parent = planParent(issue, {
       skip,
-      freshRead: (issueId, reason) =>
-        freshRead(issueId, reason, parentOutcomes(issueId, inProgress)),
+      freshRead: (issueId, reason) => freshRead(issueId, reason, parentOutcomes(issue, inProgress)),
     });
     if (parent) return parent;
     const n = issueNumber(id);

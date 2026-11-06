@@ -6,6 +6,7 @@ import { replicatedPaperworkPrintsTable } from '@/services/replication';
 import { showUndoToast } from '@/lib/undoToast';
 
 import { SecretaryCockpitFocusedClass } from './SecretaryCockpitFocusedClass';
+import type { ClassEntryBreakdown } from '@/features/entry-operations/classEntryBreakdown';
 import type { FocusedClassModel, SecretaryCockpitClass } from './secretaryCockpitTypes';
 
 vi.mock('@/hooks/useAuthContext', () => ({
@@ -330,7 +331,11 @@ describe('SecretaryCockpitFocusedClass delay announcement', () => {
 });
 
 describe('SecretaryCockpitFocusedClass layout (owner, 2026-10-03)', () => {
-  function renderPanel(source: SecretaryCockpitClass, model: FocusedClassModel = focused) {
+  function renderPanel(
+    source: SecretaryCockpitClass,
+    model: FocusedClassModel = focused,
+    entryBreakdownByClassId?: ReadonlyMap<string, ClassEntryBreakdown>
+  ) {
     return render(
       <SecretaryCockpitFocusedClass
         showId="show-1"
@@ -341,6 +346,7 @@ describe('SecretaryCockpitFocusedClass layout (owner, 2026-10-03)', () => {
         timeZone="America/Chicago"
         canManageShow
         onCommand={vi.fn()}
+        entryBreakdownByClassId={entryBreakdownByClassId}
       />
     );
   }
@@ -403,5 +409,16 @@ describe('SecretaryCockpitFocusedClass layout (owner, 2026-10-03)', () => {
 
     expect(screen.getByRole('heading', { name: 'Can change class' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Entries' })).toBeNull();
+  });
+
+  it('counts entries the way the schedule row does: entered and pending (MYK9-1727)', () => {
+    renderPanel(
+      { ...sourceClass, entryCount: 0 },
+      { ...focused, progress: { evidence: 'computed', value: { completed: 0, total: 0 } } },
+      new Map([['class-1', { entered: 0, pending: 1 }]])
+    );
+
+    expect(screen.getByText('0 entered · 1 pending')).toBeInTheDocument();
+    expect(screen.queryByText('0 entries')).toBeNull();
   });
 });

@@ -149,7 +149,6 @@ describe('resolveActions — secretary on a show', () => {
       'show-add-new-trial',
       'show-add-classes',
       'show-select-classes',
-      'show-open-entry-management',
       'show-close-out',
     ]);
   });
@@ -161,7 +160,6 @@ describe('resolveActions — secretary on a show', () => {
       `/secretary/create-show/wizard?showId=${SHOW_ID}&mode=add-trials`,
       `/secretary/create-show/wizard?showId=${SHOW_ID}&mode=add-classes`,
       `/shows/${SHOW_ID}?select=classes`, // absolute: lands on Overview in selection mode (MYK9-1317)
-      `/shows/${SHOW_ID}/entries`,
       `/shows/${SHOW_ID}/results?step=close`, // the Results section's close-out step
     ]);
   });
@@ -189,9 +187,7 @@ describe('resolveActions — secretary on a show', () => {
   // MYK9-1242: the secretary gets ONE add-entry item. No "for someone else" /
   // "for my dog" pair, and no own-dog twin; the secretary flow searches every dog.
   it('offers a single Add entry, with no whose-dog choice or own-dog duplicate', () => {
-    const addEntries = actions.filter(
-      a => /entry/i.test(a.label) && a.id !== 'show-open-entry-management'
-    );
+    const addEntries = actions.filter(a => /entry/i.test(a.label));
     expect(addEntries.map(a => [a.id, a.label])).toEqual([['show-add-mail-in-entry', 'Add entry']]);
     expect(actions.some(a => a.id === 'show-enter-own-dogs')).toBe(false);
   });
@@ -216,7 +212,7 @@ describe('resolveActions — club admin on a show', () => {
 
   // "Open Show Day" went with the tab (MYK9-957): the show home is the page this menu opens over.
   it('keeps the same items plus Select classes (MYK9-1317)', () => {
-    expect(actions).toHaveLength(8);
+    expect(actions).toHaveLength(7);
   });
 
   // MYK9-1242: only the secretary's choice went away. A club admin cannot reach the
@@ -519,6 +515,15 @@ describe("resolveActions — Close out show follows the show's life", () => {
       resolveActions(SHOW_CONTEXT, { ...secretary, showStatus: status }).map(a => a.id)
     ).toContain('show-close-out');
   });
+
+  it('withholds it until the show has started, and keeps it when that is not known (MYK9-1727)', () => {
+    const idsFor = (showStarted: boolean | undefined) =>
+      resolveActions(SHOW_CONTEXT, { ...secretary, showStarted }).map(a => a.id);
+    expect(idsFor(false)).not.toContain('show-close-out');
+    expect(idsFor(false)).toContain('show-settings');
+    expect(idsFor(true)).toContain('show-close-out');
+    expect(idsFor(undefined)).toContain('show-close-out');
+  });
 });
 
 describe('Select classes keeps the show home cockpit params (MYK9-1338)', () => {
@@ -566,24 +571,18 @@ describe('Select classes keeps the show home cockpit params (MYK9-1338)', () => 
   });
 });
 
-describe('Open Entry Forms on Entry Forms (MYK9-1594)', () => {
-  const openEntryForms = (path: string) =>
-    resolveActions(parseActionRouteContext(path), secretary).filter(
-      action => action.id === 'show-open-entry-management'
-    );
-
-  it('is withheld on the Entry Forms page, where it would link to itself', () => {
-    expect(openEntryForms(`/shows/${SHOW_ID}/entries`)).toEqual([]);
-    expect(openEntryForms(`/shows/${SHOW_ID}/entries/`)).toEqual([]);
-  });
-
-  it('is still offered on every other page of the show', () => {
-    for (const path of [
-      `/shows/${SHOW_ID}`,
-      `/shows/${SHOW_ID}/results`,
-      `/shows/${SHOW_ID}/reports`,
-    ]) {
-      expect(openEntryForms(path), path).toHaveLength(1);
-    }
+describe('Open Entry Forms is not an Actions row (MYK9-1727)', () => {
+  // The Entry Forms tab is always on the show page, so a menu row was a second door to it.
+  it.each([
+    `/shows/${SHOW_ID}`,
+    `/shows/${SHOW_ID}/entries`,
+    `/shows/${SHOW_ID}/results`,
+    `/shows/${SHOW_ID}/reports`,
+  ])('is never offered at %s', path => {
+    const actions = resolveActions(parseActionRouteContext(path), secretary);
+    expect(actions.some(action => action.id === 'show-open-entry-management')).toBe(false);
+    expect(actions.some(action => action.label === 'Open Entry Forms')).toBe(false);
+    // Positive control: the show section is there.
+    expect(actions.some(action => action.id === 'show-settings')).toBe(true);
   });
 });

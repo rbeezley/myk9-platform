@@ -1,13 +1,13 @@
 import { formatTrialLabel, parseStoredClockTime } from '@myk9/core';
 import type { RegistryId } from '@/features/registries';
-import { buildAttentionCountByClass, matchesCockpitFilter } from './secretaryCockpitAttention';
+import { buildAttentionCountByClass, matchesAnyCockpitStatus } from './secretaryCockpitAttention';
 import {
   buildCockpitClassLabelResolver,
   compareCockpitClasses,
 } from './secretaryCockpitClassLabel';
 import type {
   CockpitAttentionKind,
-  CockpitFilter,
+  CockpitStatus,
   CockpitLifecycle,
   EvidenceKind,
   EvidenceValue,
@@ -32,6 +32,7 @@ import {
   operationalMinutes,
 } from './cockpitClock';
 import { buildClassChecklist, summarizeClassChecklist } from './classChecklist';
+import { SHOW_MAP_WRAP_UP_STATUS } from '../showMapTypes';
 
 const ATTENTION_LIMIT = 3;
 const PREPARATION_WINDOW_MINUTES = 30;
@@ -240,6 +241,27 @@ function preparationAttention(
     }));
 }
 
+/**
+ * The show-level "N classes need judge's initials" item counts the same classes that each carry a
+ * "Collect judge's initials" item, so the strip would count one problem twice (MYK9-1727). It is
+ * dropped only when every class it counts (on any day) has its own item among THESE candidates,
+ * so a day filter that hides some of those classes keeps the show-level item.
+ */
+function withoutCoveredSignatureItem(
+  candidates: readonly SecretaryCockpitAttention[],
+  allClasses: readonly SecretaryCockpitClass[]
+): readonly SecretaryCockpitAttention[] {
+  const listed = new Set(
+    candidates
+      .filter(item => item.id.startsWith('collect-judge-signature:'))
+      .map(item => item.classId)
+  );
+  const covered = allClasses
+    .filter(cls => cls.wrapUpStatus === SHOW_MAP_WRAP_UP_STATUS.NEEDS_JUDGE_SIGNATURE)
+    .every(cls => listed.has(cls.id));
+  return covered ? candidates.filter(item => item.id !== 'classes-needing-signature') : candidates;
+}
+
 function buildAttention(
   snapshot: SecretaryCockpitSnapshot,
   scopeTrials: readonly SecretaryCockpitTrial[]
@@ -275,7 +297,7 @@ function buildAttention(
   ].filter(validAttention);
 
   const deduped = new Map<string, SecretaryCockpitAttention>();
-  for (const item of candidates) {
+  for (const item of withoutCoveredSignatureItem(candidates, snapshot.classes)) {
     const key = item.dedupeKey ?? item.id;
     if (!deduped.has(key)) deduped.set(key, item);
   }
@@ -341,7 +363,7 @@ function buildTrialGroups(
   openDay: string | null,
   focusedClassId: string | undefined,
   anchorId: string | undefined,
-  filter: CockpitFilter,
+  statuses: readonly CockpitStatus[],
   scopeTrials: readonly SecretaryCockpitTrial[],
   attentionCountByClass: ReadonlyMap<string, number>,
   labelOf: (cls: SecretaryCockpitClass) => string
@@ -353,7 +375,7 @@ function buildTrialGroups(
         snapshot.registryId
       );
       const visibleClasses = allClasses.filter(cls =>
-        matchesCockpitFilter(cls, filter, attentionCountByClass.get(cls.id) ?? 0)
+        matchesAnyCockpitStatus(cls, statuses, attentionCountByClass.get(cls.id) ?? 0)
       );
       return {
         trialId: trial.id,
@@ -387,7 +409,7 @@ function buildTrialGroups(
         },
       };
     })
-    .filter(group => group.classes.length > 0 || filter === 'all');
+    .filter(group => group.classes.length > 0 || statuses.length === 0);
 }
 
 export function buildSecretaryCockpitModel(
@@ -446,10 +468,10 @@ export function buildSecretaryCockpitModel(
       all: allAttention,
       overflowCount: Math.max(0, allAttention.length - ATTENTION_LIMIT),
     },
-    // Every Class scheduled today, unfiltered by `state.filter` -- `trialGroups`
-    // below is a `state.filter`-scoped slice of these same annotated rows. The
-    // view-tab counts in `secretaryCockpitViews.ts` filter this array directly
-    // with `matchesCockpitFilter`, so a tab's count can't diverge from what
+    // Every Class scheduled today, unfiltered by `state.statuses` -- `trialGroups`
+    // below is a `state.statuses`-scoped slice of these same annotated rows. The
+    // Filter menu's counts in `cockpitStatusFilter.ts` filter this array directly
+    // with `matchesCockpitFilter`, so a count can't diverge from what
     // the schedule renders (MYK9-812).
     daySchedule: dayClasses.map(cls =>
       toScheduledClass(
@@ -465,7 +487,7 @@ export function buildSecretaryCockpitModel(
       multiDayScope ? selectedDay : null,
       focused?.id,
       state.anchor,
-      state.filter,
+      state.statuses ?? [],
       scopeTrials,
       attentionCountByClass,
       labelOf

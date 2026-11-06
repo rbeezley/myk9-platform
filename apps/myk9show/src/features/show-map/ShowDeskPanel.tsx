@@ -183,7 +183,7 @@ export default function ShowDeskPanel({
           role="status"
         >
           Show-day work has not started. Entries are on the Entry Forms tab, and show setup is here
-          on Overview.
+          on Show Desk.
         </div>
       )}
       {canManageShow && (

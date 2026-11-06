@@ -219,7 +219,7 @@ export function buildReadyForShowDay(input: ReadyForShowDayInput): ReadyForShowD
             href: getShowHomeHref({
               showId,
               state: {
-                filter: 'all',
+                statuses: [],
                 selectedDays: parseCockpitDays(earliestTrialDate(input.setup.trials)),
               },
             }),

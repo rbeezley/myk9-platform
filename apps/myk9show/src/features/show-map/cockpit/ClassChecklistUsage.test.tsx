@@ -61,7 +61,7 @@ function makeSnapshot(usage: {
 function renderCockpit(usage: { printTrackingInUse: boolean; checklistInUse: boolean }) {
   const snapshot = makeSnapshot(usage);
   const model = buildSecretaryCockpitModel(snapshot, {
-    filter: 'all',
+    statuses: [],
     focusedClassId: 'class-1',
   });
   return render(
@@ -71,8 +71,7 @@ function renderCockpit(usage: { printTrackingInUse: boolean; checklistInUse: boo
         model={model}
         sourceClasses={snapshot.classes}
         sourceTrials={snapshot.trials}
-        filter="all"
-        onFilterChange={vi.fn()}
+        filtered={false}
         onFocusClass={vi.fn()}
       />
       <SecretaryCockpitFocusedClass
@@ -95,7 +94,7 @@ describe('Continue on Results with the checklist collapsed (MYK9-1620)', () => {
     const complete = { ...snapshot.classes[0]!, lifecycle: 'complete' as const };
     const model = buildSecretaryCockpitModel(
       { ...snapshot, classes: [complete] },
-      { filter: 'all', focusedClassId: 'class-1' }
+      { statuses: [], focusedClassId: 'class-1' }
     );
     render(
       <SecretaryCockpitFocusedClass

@@ -101,6 +101,33 @@ beforeEach(() => {
   scope.canOperate = true;
 });
 
+describe('show tool icons (MYK9-1727)', () => {
+  it('gives every tool row its own icon, not the shared wrench', () => {
+    const tools: ShowToolItem[] = [
+      ...TOOLS,
+      { id: 'check-in-desk', group: 'show-day', title: 'Check-in desk' },
+      { id: 'emergency-trial-packet', group: 'show-day', title: 'Emergency trial packet' },
+      { id: 'message-exhibitors', group: 'show-day', title: 'Message exhibitors' },
+      { id: 'lunch-orders', group: 'show-logistics', title: 'Lunch orders' },
+      { id: 'tasks-notes', group: 'show-logistics', title: 'Tasks and notes' },
+    ];
+    const rows = resolveActions(route, { ...viewer, showTools: tools }).filter(action =>
+      action.id.startsWith('show-tool-')
+    );
+    expect(rows).toHaveLength(tools.length);
+    expect(rows.map(row => row.icon)).not.toContain('tool');
+    expect(new Set(rows.map(row => row.icon)).size).toBe(rows.length);
+  });
+
+  it('keeps the generic icon for a tool it has no icon for', () => {
+    const rows = resolveActions(route, {
+      ...viewer,
+      showTools: [{ id: 'some-new-tool', group: 'show-day', title: 'New tool' }],
+    });
+    expect(rows.find(row => row.id === 'show-tool-some-new-tool')?.icon).toBe('tool');
+  });
+});
+
 describe('show tool groups', () => {
   it('places Entry lists, Show day and Show logistics between the show and list sections', () => {
     expect(ACTION_GROUP_ORDER).toEqual([

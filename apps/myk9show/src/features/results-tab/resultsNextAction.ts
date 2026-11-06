@@ -109,8 +109,8 @@ export function deriveResultsPhase(state: ResultsClassState): ResultsClassPhase 
 }
 
 const NEXT_ACTION_BY_PHASE: Record<ResultsClassPhase, ResultsNextAction> = {
-  'not-started': { kind: 'overview', label: 'Overview' },
-  'in-ring': { kind: 'overview', label: 'Overview' },
+  'not-started': { kind: 'overview', label: 'Show Desk' },
+  'in-ring': { kind: 'overview', label: 'Show Desk' },
   'needs-coin-flip': { kind: 'coin-flip', label: 'Record coin flip' },
   'needs-checking': { kind: 'verify', label: 'Check scores' },
   'ready-to-release': { kind: 'release', label: 'Release' },

@@ -1,6 +1,6 @@
 import { createDatabaseError } from '@/services/database/databaseError';
 import { screen, waitFor, within } from '@testing-library/react';
-import { describe, expect, it, onTestFinished, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import { fromAny } from '@total-typescript/shoehorn';
 
 import { render } from '@/test/utils/testUtils';
@@ -71,6 +71,15 @@ const trial = fromAny<SyncableTrial, unknown>({
 const now = new Date('2026-06-12T15:00:00.000Z');
 
 describe('ShowDeskPanel cockpit', () => {
+  // cmdk (the Filter menu) scrolls rows into view; jsdom has no scrollIntoView.
+  const originalScrollIntoView = Element.prototype.scrollIntoView;
+  beforeEach(() => {
+    Element.prototype.scrollIntoView = vi.fn();
+  });
+  afterEach(() => {
+    Element.prototype.scrollIntoView = originalScrollIntoView;
+  });
+
   it('places filters over a Trial-grouped schedule and focuses a selected Class', async () => {
     const { user } = render(
       <ShowDeskPanel
@@ -99,11 +108,12 @@ describe('ShowDeskPanel cockpit', () => {
       { initialRoute: '/shows/show-1/show-day' }
     );
 
-    expect(screen.getByRole('combobox', { name: 'View: Schedule filters' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Filter' })).toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: /Schedule filters/ })).not.toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: /^(Collapse|Expand) Friday AM · June 12/i })
     ).toBeInTheDocument();
-    expect(screen.getAllByText('Focused Class · Friday AM')).not.toHaveLength(0);
+    expect(screen.getAllByText('Selected class · Friday AM')).not.toHaveLength(0);
     expect(screen.getAllByRole('heading', { name: 'Interior Advanced' })).not.toHaveLength(0);
 
     await user.click(screen.getByText('Container Novice'));
@@ -168,14 +178,16 @@ describe('ShowDeskPanel cockpit', () => {
     expect(screen.queryByRole('button', { name: 'Container Novice' })).not.toBeInTheDocument();
 
     await user.click(trialTrigger);
-    await user.click(screen.getByRole('combobox', { name: 'View: Schedule filters' }));
+    await user.click(screen.getByRole('button', { name: 'Filter' }));
     await user.click(await screen.findByRole('option', { name: /^In progress/ }));
     expect(screen.queryByRole('button', { name: 'Container Novice' })).not.toBeInTheDocument();
-    expect(screen.getAllByRole('heading', { name: 'Container Novice' })).not.toHaveLength(0);
-    expect(
-      screen.getByText('Focused Class is outside the current schedule filter.')
-    ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Interior Advanced' })).toBeInTheDocument();
+    // MYK9-1727: a filter change that hides the picked class lets it go, so it is not left open
+    // beside a list that hides it; the in-progress class becomes the default.
+    expect(screen.queryByRole('heading', { name: 'Container Novice' })).not.toBeInTheDocument();
+    expect(screen.getAllByRole('heading', { name: 'Interior Advanced' })).not.toHaveLength(0);
+
+    await user.click(screen.getByRole('button', { name: 'Remove filter Status: In progress' }));
+    expect(screen.getByRole('button', { name: 'Container Novice' })).toBeInTheDocument();
   });
 
   it('mounts the focused Class panel once, inline, on a narrow viewport', async () => {
@@ -242,6 +254,116 @@ describe('ShowDeskPanel cockpit', () => {
     }
   });
 
+  // MYK9-1727: the Filter row sits under the schedule heading, and while a filter is on the
+  // heading's how-to line becomes "Showing N of M classes." with a way back to all of them.
+  it('puts the Filter under the schedule heading and says how many classes are showing', async () => {
+    const { user } = render(
+      <ShowDeskPanel
+        show={show}
+        trials={[trial]}
+        classes={[
+          { id: 'class-1', trialId: 'trial-1', name: 'Container Novice', status: 'Scheduled' },
+          { id: 'class-2', trialId: 'trial-1', name: 'Interior Advanced', status: 'In Progress' },
+        ]}
+        entries={[]}
+        canManageShow
+        scopeNow={now}
+      />,
+      { initialRoute: '/shows/show-1/show-day?filter=in-progress' }
+    );
+
+    const heading = screen.getByRole('region', { name: /^(Show|Today's) schedule$/ });
+    expect(within(heading).getByRole('button', { name: /^Filter/ })).toBeInTheDocument();
+    expect(within(heading).getByText('Showing 1 of 2 classes.')).toBeInTheDocument();
+    expect(
+      screen.queryByText(/Pick a class to see its checklist\. Filters/)
+    ).not.toBeInTheDocument();
+
+    await user.click(within(heading).getByRole('button', { name: 'Show all classes' }));
+    expect(screen.queryByText(/^Showing /)).not.toBeInTheDocument();
+    expect(screen.getByText(/Pick a class to see its checklist\. Filters/)).toBeInTheDocument();
+  });
+
+  // MYK9-1727: a class that is only in the URL (not clicked this visit) and that the filter hides
+  // leaves a prompt, not its panel. A clicked class staying open is cockpitFocusRules.test.ts.
+  // MYK9-1727 review: the secretary's own work (here, completing the class) moves her clicked
+  // class out of "In progress"; it stays open, saying why it left the list.
+  it('keeps a clicked class open when its own change takes it out of the filter', async () => {
+    const classesWith = (status: string) => [
+      { id: 'class-1', trialId: 'trial-1', name: 'Container Novice', status: 'In Progress' },
+      { id: 'class-2', trialId: 'trial-1', name: 'Interior Advanced', status },
+    ];
+    const panel = (status: string) => (
+      <ShowDeskPanel
+        show={show}
+        trials={[trial]}
+        classes={classesWith(status)}
+        entries={[]}
+        canManageShow
+        scopeNow={now}
+      />
+    );
+    const { user, rerender } = render(panel('In Progress'), {
+      initialRoute: '/shows/show-1/show-day?filter=in-progress',
+    });
+    await user.click(screen.getByRole('button', { name: 'Interior Advanced' }));
+
+    rerender(panel('Completed'));
+    expect(screen.queryByRole('button', { name: 'Interior Advanced' })).not.toBeInTheDocument();
+    expect(screen.getAllByRole('heading', { name: 'Interior Advanced' })).not.toHaveLength(0);
+    expect(screen.getByText(/no longer matches your filter/)).toBeInTheDocument();
+  });
+
+  it('shows a pick-a-class prompt when the filter hides a class the URL names', () => {
+    cockpitWidth.value = 1000;
+    onTestFinished(() => {
+      cockpitWidth.value = null;
+    });
+    render(
+      <ShowDeskPanel
+        show={show}
+        trials={[trial]}
+        classes={[
+          { id: 'class-1', trialId: 'trial-1', name: 'Container Novice', status: 'Scheduled' },
+          { id: 'class-2', trialId: 'trial-1', name: 'Interior Advanced', status: 'In Progress' },
+        ]}
+        entries={[]}
+        canManageShow
+        scopeNow={now}
+      />,
+      { initialRoute: '/shows/show-1/show-day?focus=class-1&filter=in-progress' }
+    );
+
+    expect(screen.queryByTestId('cockpit-split-focus')).not.toBeInTheDocument();
+    expect(screen.getByTestId('cockpit-split-empty')).toHaveTextContent(
+      'Pick a class from the schedule to see its checklist.'
+    );
+  });
+
+  it('shows no pick-a-class prompt beside a schedule the filter has emptied', () => {
+    cockpitWidth.value = 1000;
+    onTestFinished(() => {
+      cockpitWidth.value = null;
+    });
+    render(
+      <ShowDeskPanel
+        show={show}
+        trials={[trial]}
+        classes={[
+          { id: 'class-1', trialId: 'trial-1', name: 'Container Novice', status: 'Scheduled' },
+        ]}
+        entries={[]}
+        canManageShow
+        scopeNow={now}
+      />,
+      { initialRoute: '/shows/show-1/show-day?filter=in-progress' }
+    );
+
+    expect(screen.getByText('No classes match this filter.')).toBeInTheDocument();
+    expect(screen.queryByTestId('cockpit-split-empty')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('cockpit-split-focus')).not.toBeInTheDocument();
+  });
+
   it('restores the URL-backed schedule anchor without changing Class focus', async () => {
     cockpitWidth.value = 700;
     onTestFinished(() => {
@@ -286,9 +408,11 @@ describe('ShowDeskPanel cockpit', () => {
 
     expect(screen.getByText(/Pick a class to see its checklist/)).toBeInTheDocument();
     expect(screen.queryByText(/Select a Class to focus it/)).not.toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent(
-      'Show-day work has not started. Entries are on the Entry Forms tab, and show setup is here on Overview.'
-    );
+    expect(
+      screen.getByText(
+        'Show-day work has not started. Entries are on the Entry Forms tab, and show setup is here on Show Desk.'
+      )
+    ).toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/their normal pages/);
   });
 
@@ -376,7 +500,7 @@ describe('ShowDeskPanel cockpit', () => {
     );
   });
 
-  it('renders unresolved closeout attention as information instead of a false link', () => {
+  it('opens Results from the close-out attention pill (MYK9-1727)', () => {
     render(
       <ShowDeskPanel
         show={show}
@@ -397,8 +521,9 @@ describe('ShowDeskPanel cockpit', () => {
       { initialRoute: '/shows/show-1/show-day' }
     );
 
-    expect(screen.getAllByText('Close out 1 result')).not.toHaveLength(0);
-    expect(screen.queryByRole('link', { name: /close out 1 result/i })).not.toBeInTheDocument();
+    const link = screen.getAllByRole('link', { name: /close out 1 result/i })[0];
+    expect(link).toHaveAccessibleName('Close out 1 result, opens Results');
+    expect(link?.getAttribute('href')).toMatch(/^\/shows\/show-1\/results\?returnTo=/);
   });
 
   it('hides staff entry attention when the viewer cannot manage the Show', () => {

@@ -18,6 +18,7 @@ import { ENTRY_LISTS_GROUP, SHOW_DESK_TOOL_GROUP_HEADINGS } from './showToolActi
 import { UserRole } from '@/types/auth-types';
 import { useEntryEligibleShows } from './useEntryEligibleShows';
 import { useAddEntryPickerStore } from './addEntryPickerStore';
+import { useShowLifeFacts } from './useShowLifeFacts';
 
 export interface CurrentActions {
   route: ActionRouteContext;
@@ -71,11 +72,8 @@ export function useCurrentActions(): CurrentActions {
     showId && canSeeShowSection && !storedShowName ? showId : ''
   );
   const showName = storedShowName ?? queriedShow?.name;
-  // Same sources, for the one item that depends on where the show is in its life (close-out).
-  const storedShowStatus = useShowStore(state =>
-    showId ? state.shows.find(show => show.id === showId)?.status : undefined
-  );
-  const showStatus = storedShowStatus ?? queriedShow?.status;
+  // Where the show is in its life, for close-out (MYK9-1727).
+  const { showStatus, showStarted } = useShowLifeFacts(showId, queriedShow);
 
   // The detail page on screen, when it registered an Edit it lets this viewer use.
   const pageTarget = usePageEditTargetStore(state => state.target);
@@ -127,6 +125,7 @@ export function useCurrentActions(): CurrentActions {
         canAddEntries,
         entryShows,
         showStatus,
+        showStarted,
       }),
     [
       route,
@@ -140,6 +139,7 @@ export function useCurrentActions(): CurrentActions {
       canAddEntries,
       entryShows,
       showStatus,
+      showStarted,
       pageKind,
       pageCanEdit,
       pageAddClassesHref,

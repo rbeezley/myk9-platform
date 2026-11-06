@@ -81,7 +81,16 @@ export type ActionIconName =
   | 'reports'
   | 'members'
   | 'payments'
-  | 'tool';
+  | 'tool'
+  | 'check-in'
+  | 'self-check-in'
+  | 'access-codes'
+  | 'emergency-packet'
+  | 'message'
+  | 'volunteers'
+  | 'lunch'
+  | 'notes'
+  | 'incident';
 
 /**
  * One more thing a detail page lets this viewer do to its object, beyond Edit: Change Photo,
@@ -163,8 +172,6 @@ export type ActionRouteContext =
       shellMounted: boolean;
       /** At `/shows/:id` itself, where Select classes lives; absent = no (MYK9-1338). */
       showHome?: boolean;
-      /** At `/shows/:id/entries`, where "Open Entry Forms" would be a link to itself (MYK9-1594). */
-      entryForms?: boolean;
     }
   | { kind: 'global' };
 
@@ -181,6 +188,12 @@ export interface ActionViewer extends CreateViewer {
    * "Close out show" is withheld rather than offered as a dead end.
    */
   showStatus?: string | undefined;
+  /**
+   * Whether the show's first day has arrived. `false` withholds "Close out show" (nothing to close
+   * out before the show begins; its home is Results step 3). Unknown (`undefined`) keeps it, since
+   * a row hidden by a missing date would be the worse mistake (MYK9-1727).
+   */
+  showStarted?: boolean | undefined;
   /**
    * The detail page on screen, when its viewer may edit it. Registered by the page
    * itself so the gate is the one its Edit button used (MYK9-928).
@@ -229,7 +242,6 @@ export const SHELL_MOUNTED_CHILD_SEGMENTS = new Set<string>(SHOW_SHELL_CHILD_SEG
 
 /** `/shows/:id` itself, the home whose Overview hosts Select classes. */
 const SHOW_HOME_PATH = /^\/shows\/[^/]+\/?$/;
-const ENTRY_FORMS_PATH = /^\/shows\/[^/]+\/entries\/?$/;
 const SHOW_CHILD_PATH = /^\/shows\/[^/]+(?:\/([^/]+))?/;
 
 /**
@@ -261,7 +273,6 @@ export function parseActionRouteContext(pathname: string): ActionRouteContext {
       showId,
       shellMounted: isShowShellMountedPath(pathname),
       showHome: SHOW_HOME_PATH.test(pathname),
-      entryForms: ENTRY_FORMS_PATH.test(pathname),
     };
   }
   return { kind: 'global' };
@@ -284,12 +295,7 @@ export function mergeSearchOnlyHref(href: string, currentSearch: string): string
 const CLOSED_SHOW_STATUSES = new Set(['completed', 'cancelled']);
 
 function buildShowActions(
-  {
-    showId,
-    shellMounted,
-    showHome = false,
-    entryForms = false,
-  }: Extract<ActionRouteContext, { kind: 'show' }>,
+  { showId, shellMounted, showHome = false }: Extract<ActionRouteContext, { kind: 'show' }>,
   viewer: ActionViewer
 ): AppAction[] {
   if (!viewer.canManageShow) return [];
@@ -369,19 +375,7 @@ function buildShowActions(
       icon: 'add-classes',
     },
     buildSelectClassesAction(showId, showHome),
-    // A link to the page the viewer is on is not an action (MYK9-1594).
-    ...(entryForms
-      ? []
-      : [
-          {
-            id: 'show-open-entry-management',
-            label: 'Open Entry Forms',
-            href: `/shows/${encoded}/entries`,
-            group: 'show' as const,
-            icon: 'entry-forms' as const,
-          },
-        ]),
-    ...(CLOSED_SHOW_STATUSES.has(viewer.showStatus ?? '')
+    ...(CLOSED_SHOW_STATUSES.has(viewer.showStatus ?? '') || viewer.showStarted === false
       ? []
       : [
           {

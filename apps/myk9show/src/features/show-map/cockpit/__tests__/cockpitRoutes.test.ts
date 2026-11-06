@@ -18,6 +18,6 @@ describe('getShowHomeTrialHref (MYK9-1320)', () => {
   it('round-trips through the cockpit URL reader', () => {
     const href = getShowHomeTrialHref('show-1', { id: 'trial-1', date: '2026-05-01' });
     const state = normalizeCockpitUrlState(new URL(href, 'https://x.test').searchParams);
-    expect(state).toMatchObject({ selectedDays: ['2026-05-01'], anchor: 'trial-1', filter: 'all' });
+    expect(state).toMatchObject({ selectedDays: ['2026-05-01'], anchor: 'trial-1', statuses: [] });
   });
 });

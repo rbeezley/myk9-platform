@@ -79,6 +79,10 @@ describe('ListAppliedFilters', () => {
     expect(screen.getByRole('status')).toBe(status);
     expect(status).toHaveTextContent('2 filters applied');
 
+    // Each ticked value counts, matching the Filter button's badge (MYK9-1727).
+    rerender(<ListAppliedFilters fields={fields({ classes: ['c1', 'c2'] })} />);
+    expect(status).toHaveTextContent('2 filters applied');
+
     rerender(<ListAppliedFilters fields={fields({})} />);
     expect(screen.getByRole('status')).toBe(status);
     expect(status).toHaveTextContent('No filters applied');

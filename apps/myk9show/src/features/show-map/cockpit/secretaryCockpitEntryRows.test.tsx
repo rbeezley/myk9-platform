@@ -133,7 +133,7 @@ describe('cockpit entry rows carry the stranded actions', () => {
     const { snapshot } = buildSnapshot();
     const model = buildSecretaryCockpitModel(snapshot, {
       selectedDays: undefined,
-      filter: 'all',
+      statuses: [],
       focusedClassId: 'class-1',
       anchor: undefined,
     } as unknown as Parameters<typeof buildSecretaryCockpitModel>[1]);

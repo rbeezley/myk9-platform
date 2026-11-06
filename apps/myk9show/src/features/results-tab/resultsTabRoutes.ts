@@ -61,7 +61,7 @@ export function getResultsClassHref(showId: string, classId: string, search = ''
 export function getOverviewFocusHref(showId: string, classId: string): string {
   return getShowHomeHref({
     showId,
-    state: { selectedDays: [], filter: 'all', focusedClassId: classId },
+    state: { selectedDays: [], statuses: [], focusedClassId: classId },
   });
 }
 

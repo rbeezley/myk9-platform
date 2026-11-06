@@ -1,17 +1,17 @@
 import type { ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { ListViewTabs } from '@/components/list-toolkit';
+import { ListResultLine } from '@/components/list-toolkit';
+import { getAddClassesHref } from '@/pages/secretary/ShowCreationWizard/addClassesHref';
 import type { ClassEntryBreakdown } from '@/features/entry-operations/classEntryBreakdown';
 
 import { CockpitTrialGroup } from './CockpitTrialGroup';
 import { ScheduleSelectHeader } from './ScheduleSelectHeader';
 import type { ScheduleClassSelection } from './useScheduleClassSelection';
 import { cockpitDaysKey } from './cockpitDayFilter';
-import { buildCockpitScheduleViews } from './secretaryCockpitViews';
 import type {
-  CockpitFilter,
   SecretaryCockpitClass,
   SecretaryCockpitModel,
   SecretaryCockpitTrial,
@@ -22,8 +22,9 @@ export function SecretaryCockpitSchedule({
   model,
   sourceClasses,
   sourceTrials,
-  filter,
-  onFilterChange,
+  filtered,
+  filterBar,
+  onShowAll,
   onFocusClass,
   inlineFocusedContent,
   split = false,
@@ -35,8 +36,12 @@ export function SecretaryCockpitSchedule({
   model: SecretaryCockpitModel;
   sourceClasses: readonly SecretaryCockpitClass[];
   sourceTrials: readonly SecretaryCockpitTrial[];
-  filter: CockpitFilter;
-  onFilterChange: (filter: CockpitFilter) => void;
+  /** A status is ticked, so an empty schedule means "nothing matches" (MYK9-1727). */
+  filtered: boolean;
+  /** The Filter button and its chips (MYK9-1727): under the heading of the list it narrows. */
+  filterBar?: ReactNode;
+  /** Clears every filter; offered beside "Showing N of M classes." */
+  onShowAll?: (() => void) | undefined;
   onFocusClass: (classId: string) => void;
   inlineFocusedContent?: ReactNode;
   /** The cockpit is split: the schedule holds the first column, the focused class the second. */
@@ -54,6 +59,8 @@ export function SecretaryCockpitSchedule({
   const trialIdsForSelectedDay = new Set(
     sourceTrials.filter(trial => scopeDays.has(trial.date)).map(trial => trial.id)
   );
+  const narrowed = filtered || !model.day.allDays;
+  const shownCount = model.trialGroups.reduce((total, group) => total + group.classes.length, 0);
   const hasAnyClassForSelectedDay = sourceClasses.some(classItem =>
     trialIdsForSelectedDay.has(classItem.trialId)
   );
@@ -61,7 +68,8 @@ export function SecretaryCockpitSchedule({
   return (
     <>
       <section
-        className={cn('space-y-3', split && 'col-start-1 row-start-1')}
+        // Split, the heading and its Filter row span both columns, so the chips fit beside the button.
+        className={cn('space-y-3', split && 'col-span-2 col-start-1 row-start-1')}
         aria-labelledby="cockpit-schedule-title"
       >
         {selecting ? (
@@ -78,9 +86,19 @@ export function SecretaryCockpitSchedule({
               <h2 id="cockpit-schedule-title" className="text-2xl font-semibold tracking-tight">
                 {model.day.isToday ? "Today's schedule" : 'Show schedule'}
               </h2>
-              <p className="text-sm text-muted-foreground">
-                Pick a class to see its checklist. Filters apply to this schedule only.
-              </p>
+              {narrowed && onShowAll ? (
+                <ListResultLine
+                  shown={shownCount}
+                  total={sourceClasses.length}
+                  noun={['class', 'classes']}
+                  filtered
+                  onShowAll={onShowAll}
+                />
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Pick a class to see its checklist. Filters apply to this schedule only.
+                </p>
+              )}
             </div>
             {model.trialGroups.some(group => group.nowMarkerIndex !== null) && (
               <Button
@@ -99,12 +117,7 @@ export function SecretaryCockpitSchedule({
             )}
           </div>
         )}
-        <ListViewTabs
-          views={buildCockpitScheduleViews(model)}
-          activeId={filter}
-          onSelect={id => onFilterChange(id as CockpitFilter)}
-          label="Schedule filters"
-        />
+        {filterBar}
       </section>
 
       <section
@@ -113,9 +126,17 @@ export function SecretaryCockpitSchedule({
       >
         {model.trialGroups.length === 0 && (
           <div className="rounded-xl border bg-card px-4 py-8 text-center text-sm text-muted-foreground">
-            {hasAnyClassForSelectedDay && filter !== 'all'
-              ? 'No Classes match this filter.'
-              : `No Classes are scheduled for ${scopeDays.size > 1 ? 'these days' : 'this day'} yet.`}
+            {hasAnyClassForSelectedDay && filtered
+              ? 'No classes match this filter.'
+              : `No classes are scheduled for ${scopeDays.size > 1 ? 'these days' : 'this day'} yet.`}
+            {/* Managers only: the same gate as the trial menu, and the same Add classes flow. */}
+            {renderTrialActions && !(hasAnyClassForSelectedDay && filtered) && (
+              <div className="mt-3">
+                <Button asChild variant="outline" className="min-h-11">
+                  <Link to={getAddClassesHref(showId)}>Add classes</Link>
+                </Button>
+              </div>
+            )}
           </div>
         )}
         {model.trialGroups.map(group => (

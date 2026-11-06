@@ -1,13 +1,9 @@
-import { useEffect, useLayoutEffect, useRef } from 'react';
-import { Plus } from 'lucide-react';
-import { Link, useLocation, useNavigationType, useSearchParams } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigationType, useSearchParams } from 'react-router-dom';
 import { useTrialRowActions } from '@/components/shows/tabs/useTrialRowActions';
-import { getAddClassesHref } from '@/pages/secretary/ShowCreationWizard/addClassesHref';
 
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
-  FOCUSED_CLASS_PANEL_CLASS,
   FOCUSED_CLASS_PIN_QUERY,
   type FocusedClassPinMode,
 } from '@/components/shows/ShowDetails/showStickyLayout';
@@ -19,7 +15,9 @@ import type { ClassEntryBreakdown } from '@/features/entry-operations/classEntry
 import { buildSecretaryCockpitModel } from './secretaryCockpitModel';
 import { useSecretaryCockpitUrlState } from './useSecretaryCockpitUrlState';
 import { cockpitDaysKey } from './cockpitDayFilter';
-import { CockpitDayFilterMenu } from './CockpitDayFilterMenu';
+import { CockpitFilterMenu } from './CockpitFilterMenu';
+import { CockpitFocusOutlet } from './CockpitSplitFocusColumn';
+import { focusedPanelShows, statusesUpdate } from './cockpitFocusRules';
 import { CockpitAttentionStrip } from './CockpitAttentionStrip';
 import { SecretaryCockpitFocusedClass } from './SecretaryCockpitFocusedClass';
 import { useFocusedClassSetupActions } from './FocusedClassSetupActions';
@@ -69,20 +67,10 @@ export function SecretaryCockpit({
   const { trialRowMenu, trialDialogs } = useTrialRowActions(snapshot.showId, canManageShow);
   // Held here, not in the panel, so a split/stack switch cannot close an open editor.
   const { renderClassActions, classDialogs } = useFocusedClassSetupActions(snapshot.showId);
-  const renderTrialActions = (trialId: string, label: string) => (
-    <>
-      <Button asChild variant="ghost" size="sm" className="min-h-11 gap-1">
-        <Link
-          to={getAddClassesHref(snapshot.showId, trialId)}
-          aria-label={`Add classes to ${label}`}
-        >
-          <Plus className="h-4 w-4" aria-hidden="true" />
-          Add Classes
-        </Link>
-      </Button>
-      {trialRowMenu(trialId, label, true)}
-    </>
-  );
+  // Add classes and High in Trial live in the trial's menu (MYK9-1727), so the heading holds
+  // only the menu and it stays in the card's top-right corner on a phone.
+  const renderTrialActions = (trialId: string, label: string) =>
+    trialRowMenu(trialId, label, true, snapshot.registryId === 'AKC');
   const location = useLocation();
   const navigationType = useNavigationType();
   // A remount on a history entry that already scrolled to this anchor starts spent (MYK9-1218).
@@ -116,15 +104,13 @@ export function SecretaryCockpit({
     ? (snapshot.trials.find(item => item.id === sourceClass.trialId) ?? null)
     : null;
   const focusedAttention = model.attention.all.filter(item => item.classId === focusedId);
-  const focusedClassIsVisible = model.trialGroups.some(group =>
-    group.classes.some(classItem => classItem.id === focusedId)
+  // MYK9-1727: a class the secretary clicked stays open when her own work moves it out of the
+  // filter. Tracked here, not from the URL: the URL also records the automatic default.
+  const [clickedClassId, setClickedClassId] = useState<string>();
+  const { shows: panelShows, listed: focusedClassIsVisible } = focusedPanelShows(
+    model,
+    clickedClassId
   );
-  // The split's panel scrolls itself and is not remounted per class, so a newly focused class
-  // would open at the previous class's scroll position, its controls under the pinned header.
-  const splitPanelRef = useRef<HTMLDivElement>(null);
-  useLayoutEffect(() => {
-    if (splitPanelRef.current) splitPanelRef.current.scrollTop = 0;
-  }, [focusedId]);
   const focusedPanel = model.focusedClass ? (
     <SecretaryCockpitFocusedClass
       showId={snapshot.showId}
@@ -136,6 +122,7 @@ export function SecretaryCockpit({
       pinMode={pinMode}
       canManageShow={canManageShow}
       onCommand={onCommand}
+      entryBreakdownByClassId={entryBreakdownByClassId}
       {...(runOrder !== undefined && { runOrder })}
       {...(canManageShow &&
         sourceClass && {
@@ -219,18 +206,16 @@ export function SecretaryCockpit({
     target.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
   }, [model.trialGroups, gridWidth]);
 
+  // Keeps the picked class (everything is listed again), and puts focus on the Filter button
+  // before the line or chip that was clicked disappears.
+  const clearFilters = () => {
+    document.querySelector<HTMLElement>('[data-testid="cockpit-filter"] button')?.focus();
+    updateState({ selectedDays: [], statuses: [] });
+  };
+
   return (
     <div className="space-y-5" data-testid="secretary-cockpit">
-      <CockpitDayFilterMenu
-        snapshot={snapshot}
-        days={model.day}
-        onChange={selectedDays =>
-          updateState({ selectedDays, focusedClassId: undefined, anchor: undefined })
-        }
-      />
-
-      {isEveryClassComplete(snapshot.classes) && <CockpitResultsHandoff showId={snapshot.showId} />}
-
+      {/* Needs attention first (MYK9-1727); the Filter sits under the schedule heading it narrows. */}
       {model.attention.items.length > 0 && (
         <CockpitAttentionStrip
           items={model.attention.items}
@@ -240,6 +225,8 @@ export function SecretaryCockpit({
           onCommand={onCommand}
         />
       )}
+
+      {isEveryClassComplete(snapshot.classes) && <CockpitResultsHandoff showId={snapshot.showId} />}
 
       <div
         ref={gridRef}
@@ -261,9 +248,26 @@ export function SecretaryCockpit({
           model={model}
           sourceClasses={snapshot.classes}
           sourceTrials={snapshot.trials}
-          filter={state.filter}
-          onFilterChange={filter => updateState({ filter })}
-          onFocusClass={focusedClassId => updateState({ focusedClassId, anchor: focusedClassId })}
+          filtered={(state.statuses?.length ?? 0) > 0}
+          filterBar={
+            <CockpitFilterMenu
+              snapshot={snapshot}
+              model={model}
+              statuses={state.statuses ?? []}
+              onDaysChange={selectedDays =>
+                updateState({ selectedDays, focusedClassId: undefined, anchor: undefined })
+              }
+              onStatusesChange={statuses =>
+                updateState(statusesUpdate(model, state.focusedClassId, statuses))
+              }
+              onClearAll={clearFilters}
+            />
+          }
+          onShowAll={clearFilters}
+          onFocusClass={focusedClassId => {
+            setClickedClassId(focusedClassId);
+            updateState({ focusedClassId, anchor: focusedClassId });
+          }}
           // Selecting, a row click ticks rather than focuses, so the focused class's panel would
           // sit open in the middle of the list with no way to move or close it.
           inlineFocusedContent={
@@ -271,32 +275,15 @@ export function SecretaryCockpit({
           }
           select={canManageShow ? selection : undefined}
         />
-        {!isSplit && !focusedClassIsVisible && !selecting && model.focusedClass && (
-          <div
-            className="space-y-2"
-            data-testid="cockpit-inline-focus"
-            aria-label="Focused Class outside current schedule filter"
-          >
-            <p className="text-sm text-muted-foreground">
-              Focused Class is outside the current schedule filter.
-            </p>
-            {focusedPanel}
-          </div>
-        )}
-        {/* Kept while selecting: split, the panel has its own column beside the schedule rather
-            than sitting inside the tick list. */}
-        {isSplit && model.focusedClass && (
-          <div
-            ref={splitPanelRef}
-            className={cn(
-              'col-start-2 row-start-2',
-              pinMode === 'panel' && FOCUSED_CLASS_PANEL_CLASS
-            )}
-            data-testid="cockpit-split-focus"
-          >
-            {focusedPanel}
-          </div>
-        )}
+        <CockpitFocusOutlet
+          split={isSplit}
+          focus={{ shows: panelShows, listed: focusedClassIsVisible, id: focusedId }}
+          pinned={pinMode === 'panel'}
+          scheduleEmpty={model.trialGroups.length === 0}
+          selecting={selecting}
+        >
+          {focusedPanel}
+        </CockpitFocusOutlet>
       </div>
       {/* Mounted for managers even with nothing ticked, so a toast's "Retry failed" still reads
           fresh classes after Done; the bar itself renders nothing without a selection. */}

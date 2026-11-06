@@ -495,23 +495,34 @@ describe('computeShowDeskPendingSignals', () => {
       expect(signals.find(s => s.id === 'entries-payment-due')).toBeUndefined();
     });
 
-    it('classes-needing-signature and results-pending-closeout are non-actionable (href null) since no verified matching-unit destination exists', () => {
-      const t = tree(
-        [
-          {
-            id: 'e1',
-            class_id: 'class-complete',
-            dog: { call_name: 'Bella' },
-            entry_status: 'accepted',
-            is_scored: true,
-          },
-        ],
-        [signedClass]
-      );
-      const signals = computeShowDeskPendingSignals({ showId: 'show-1', tree: t, entries: [] });
-      const closeout = signals.find(s => s.id === 'results-pending-closeout');
-      expect(closeout).toBeDefined();
-      expect(closeout?.href).toBeNull();
+    it('classes-needing-signature and results-pending-closeout open the Results class list (MYK9-1727)', () => {
+      const entries = [
+        {
+          id: 'e1',
+          class_id: 'class-complete',
+          dog: { call_name: 'Bella' },
+          entry_status: 'accepted',
+          is_scored: true,
+        },
+      ];
+      const needing = computeShowDeskPendingSignals({
+        showId: 'show-1',
+        tree: tree(entries, [completedClass]),
+        entries: [],
+      });
+      expect(needing.find(s => s.id === 'classes-needing-signature')).toMatchObject({
+        href: '/shows/show-1/results',
+        destinationName: 'Results',
+      });
+      const closeout = computeShowDeskPendingSignals({
+        showId: 'show-1',
+        tree: tree(entries, [signedClass]),
+        entries: [],
+      });
+      expect(closeout.find(s => s.id === 'results-pending-closeout')).toMatchObject({
+        href: '/shows/show-1/results',
+        destinationName: 'Results',
+      });
     });
 
     it('yields no fabricated signals or counts for an empty/partial entries array (pure-function loading behavior)', () => {

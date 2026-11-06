@@ -31,8 +31,8 @@ const TRIAL_URL = `/shows/${TEST_SHOW_ID}?anchor=${TEST_TRIAL_ID}`;
 
 async function gotoTrial(page: Page) {
   await page.goto(TRIAL_URL, { waitUntil: 'networkidle' });
-  // The trial heading's Add Classes link mounts once the schedule hydrates from replication.
-  await expect(page.getByRole('link', { name: /^Add classes to / }).first()).toBeVisible({
+  // The trial heading's menu mounts once the schedule hydrates from replication.
+  await expect(page.getByRole('button', { name: /^Trial actions for / }).first()).toBeVisible({
     timeout: 15000,
   });
 }
@@ -79,11 +79,12 @@ test.describe('Classes UI — Add Classes (show wizard, add-classes mode)', () =
   }) => {
     await gotoTrial(page);
 
-    // The trial heading's Add Classes link on the show home (MYK9-1320).
+    // Add classes is in the trial heading's menu on the show home (MYK9-1320, MYK9-1727).
     await page
-      .getByRole('link', { name: /^Add classes to / })
+      .getByRole('button', { name: /^Trial actions for / })
       .first()
       .click();
+    await page.getByRole('menuitem', { name: 'Add classes' }).click();
 
     // MYK9-899: the one class-create flow is the wizard's add-classes mode, focused on the
     // trial the secretary launched from.

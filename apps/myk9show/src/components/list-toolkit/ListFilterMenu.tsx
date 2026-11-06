@@ -23,7 +23,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useKeyboardShortcuts, type ShortcutDefinition } from '@/hooks/useKeyboardShortcuts';
 import { cn } from '@/lib/utils';
-import { isFieldActive, isFieldLoading, toggleListValue } from './filterFieldState';
+import { appliedPickCount, isFieldLoading, toggleListValue } from './filterFieldState';
 import type { ListFilterMenuField, ListFilterOption } from './types';
 
 /** Joins field and option into one unique row id; a character no key or id contains. */
@@ -124,11 +124,12 @@ export function ListFilterMenu({
     []
   );
   useKeyboardShortcuts(shortcuts);
-  const applied = fields.filter(isFieldActive).length;
+  const applied = fields.reduce((total, field) => total + appliedPickCount(field), 0);
   // "No matches." only makes sense when there are values to match; a menu that is all
   // "Loading…" or "Nothing to choose yet." says that instead.
   const hasValues = fields.some(field => !isLoading(field) && field.options.length > 0);
   const isPhone = useMediaQuery(PHONE_QUERY);
+  const hasTickBoxes = fields.some(field => field.kind === 'multiOptions');
 
   const trigger = (
     <button
@@ -167,6 +168,12 @@ export function ListFilterMenu({
   const menu = (
     <Command>
       <CommandInput placeholder="Filter by…" />
+      {/* MYK9-1727: an empty field means "all", which a tick box alone does not say. */}
+      {hasTickBoxes && (
+        <p className="border-b px-3 py-2 text-xs text-muted-foreground">
+          Tick to show only those. Nothing ticked shows everything.
+        </p>
+      )}
       <CommandList className="max-h-[min(24rem,60vh)]">
         {hasValues && <CommandEmpty>No matches.</CommandEmpty>}
         {fields.map(field => (

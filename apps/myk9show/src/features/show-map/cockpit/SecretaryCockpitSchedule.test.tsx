@@ -45,9 +45,13 @@ const snapshotWithUnmatchedFilter: SecretaryCockpitSnapshot = {
   ],
 };
 
-function renderSchedule(snapshot: SecretaryCockpitSnapshot, filter: 'all' | 'needs-attention') {
+function renderSchedule(
+  snapshot: SecretaryCockpitSnapshot,
+  filter: 'all' | 'needs-attention',
+  manager = false
+) {
   const model = buildSecretaryCockpitModel(snapshot, {
-    filter,
+    statuses: filter === 'all' ? [] : ['needs-attention'],
     selectedDays: undefined,
     focusedClassId: undefined,
   });
@@ -57,9 +61,9 @@ function renderSchedule(snapshot: SecretaryCockpitSnapshot, filter: 'all' | 'nee
       model={model}
       sourceClasses={snapshot.classes}
       sourceTrials={snapshot.trials}
-      filter={filter}
-      onFilterChange={vi.fn()}
+      filtered={filter !== 'all'}
       onFocusClass={vi.fn()}
+      renderTrialActions={manager ? () => null : undefined}
     />
   );
 }
@@ -68,22 +72,44 @@ describe('SecretaryCockpitSchedule empty states', () => {
   it('reports no scheduled Classes when the show has no Trials at all, filter set to all', () => {
     renderSchedule(snapshotWithNoTrials, 'all');
 
-    expect(screen.getByText('No Classes are scheduled for this day yet.')).toBeInTheDocument();
+    expect(screen.getByText('No classes are scheduled for this day yet.')).toBeInTheDocument();
   });
 
   it('still reports no scheduled Classes — not a filter mismatch — when a non-all filter is active and the show has no Trials at all', () => {
     renderSchedule(snapshotWithNoTrials, 'needs-attention');
 
-    expect(screen.getByText('No Classes are scheduled for this day yet.')).toBeInTheDocument();
-    expect(screen.queryByText('No Classes match this filter.')).not.toBeInTheDocument();
+    expect(screen.getByText('No classes are scheduled for this day yet.')).toBeInTheDocument();
+    expect(screen.queryByText('No classes match this filter.')).not.toBeInTheDocument();
+  });
+
+  it('offers Add classes to a manager on an empty schedule, into the show-level Add classes flow', () => {
+    renderSchedule(snapshotWithNoTrials, 'all', true);
+
+    expect(screen.getByRole('link', { name: 'Add classes' })).toHaveAttribute(
+      'href',
+      '/secretary/create-show/wizard?showId=show-1&mode=add-classes'
+    );
+  });
+
+  it('offers no Add classes link to someone who cannot manage the show', () => {
+    renderSchedule(snapshotWithNoTrials, 'all');
+
+    expect(screen.queryByRole('link', { name: 'Add classes' })).not.toBeInTheDocument();
+  });
+
+  it('offers no Add classes link when the filter hides classes that exist', () => {
+    renderSchedule(snapshotWithUnmatchedFilter, 'needs-attention', true);
+
+    expect(screen.getByText('No classes match this filter.')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Add classes' })).not.toBeInTheDocument();
   });
 
   it('reports a filter mismatch when Classes exist today but none match the active filter', () => {
     renderSchedule(snapshotWithUnmatchedFilter, 'needs-attention');
 
-    expect(screen.getByText('No Classes match this filter.')).toBeInTheDocument();
+    expect(screen.getByText('No classes match this filter.')).toBeInTheDocument();
     expect(
-      screen.queryByText('No Classes are scheduled for this day yet.')
+      screen.queryByText('No classes are scheduled for this day yet.')
     ).not.toBeInTheDocument();
   });
 });
@@ -154,41 +180,18 @@ const snapshotWithMixedStates: SecretaryCockpitSnapshot = {
   ],
 };
 
-describe('SecretaryCockpitSchedule view tabs', () => {
-  it('shows a live count on every view, computed from the Classes already on the page', async () => {
-    const { user } = renderSchedule(snapshotWithMixedStates, 'all');
+describe('SecretaryCockpitSchedule filtering', () => {
+  it('has no View dropdown; the Filter button above the schedule holds the statuses (MYK9-1727)', () => {
+    renderSchedule(snapshotWithMixedStates, 'all');
 
-    const select = screen.getByRole('combobox', { name: 'View: Schedule filters' });
-    expect(select).toHaveTextContent('All (3)');
-    await user.click(select);
-    expect(await screen.findByRole('option', { name: 'In progress (1)' })).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: 'Needs attention (1)' })).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: 'Needs closeout (1)' })).toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: /Schedule filters/ })).not.toBeInTheDocument();
+    expect(screen.getByText('Container Novice')).toBeInTheDocument();
   });
 
-  it('narrows the schedule by calling onFilterChange, matching the prop contract from before the ListViewTabs swap', async () => {
-    const onFilterChange = vi.fn();
-    const model = buildSecretaryCockpitModel(snapshotWithMixedStates, {
-      filter: 'all',
-      selectedDays: undefined,
-      focusedClassId: undefined,
-    });
-    const { user } = render(
-      <SecretaryCockpitSchedule
-        showId="show-1"
-        model={model}
-        sourceClasses={snapshotWithMixedStates.classes}
-        sourceTrials={snapshotWithMixedStates.trials}
-        filter="all"
-        onFilterChange={onFilterChange}
-        onFocusClass={vi.fn()}
-      />
-    );
+  it('says no Classes match when a status is ticked and none does', () => {
+    renderSchedule(snapshotWithUnmatchedFilter, 'needs-attention');
 
-    await user.click(screen.getByRole('combobox', { name: 'View: Schedule filters' }));
-    await user.click(await screen.findByRole('option', { name: /^Needs attention/ }));
-
-    expect(onFilterChange).toHaveBeenCalledWith('needs-attention');
+    expect(screen.getByText('No classes match this filter.')).toBeInTheDocument();
   });
 });
 
@@ -207,22 +210,21 @@ describe('SecretaryCockpitSchedule offline', () => {
     vi.clearAllMocks();
   });
 
-  it('renders the schedule and its view-tab counts from the already-loaded replicated data', async () => {
+  it('renders the schedule from the already-loaded replicated data', () => {
     expect(window.navigator.onLine).toBe(false);
 
     const model = buildSecretaryCockpitModel(snapshotWithMixedStates, {
-      filter: 'all',
+      statuses: [],
       selectedDays: undefined,
       focusedClassId: undefined,
     });
-    const { user } = render(
+    render(
       <SecretaryCockpitSchedule
         showId="show-1"
         model={model}
         sourceClasses={snapshotWithMixedStates.classes}
         sourceTrials={snapshotWithMixedStates.trials}
-        filter="all"
-        onFilterChange={vi.fn()}
+        filtered={false}
         onFocusClass={vi.fn()}
       />
     );
@@ -231,9 +233,6 @@ describe('SecretaryCockpitSchedule offline', () => {
     // nothing here ever fetches, so going offline changes nothing about them.
     expect(screen.getByText('Container Novice')).toBeInTheDocument();
     expect(screen.getByText('Interior Advanced')).toBeInTheDocument();
-    await user.click(screen.getByRole('combobox', { name: 'View: Schedule filters' }));
-    expect(await screen.findByRole('option', { name: 'In progress (1)' })).toBeInTheDocument();
-    await user.keyboard('{Escape}');
 
     // Rows are read-only summaries; the expected-start editor (and its queued
     // offline write, ClassOperationalControls.test.tsx) is in the class panel.

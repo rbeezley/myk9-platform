@@ -62,7 +62,7 @@ function snapshotWithCounts(
 
 const STATE: SecretaryCockpitState = {
   selectedDays: ['2026-08-28'],
-  filter: 'all',
+  statuses: [],
 };
 
 /** The single class in the fixture, after the model has been built. */

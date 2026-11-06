@@ -155,14 +155,16 @@ export const ShowsPaneList: React.FC<ShowsPaneListProps> = ({ selectedId, header
         tablistClassName="mb-3 shrink-0 sm:w-full"
         panelClassName="flex min-h-0 flex-1 flex-col"
       >
-        <div className="flex shrink-0 items-center gap-2 pb-3">
+        {/* MYK9-1727: a size container, so a narrow list's Hide drops to its icon and the box keeps
+            room for "Search shows"; the 2px inset keeps its focus ring inside the list's clip. */}
+        <div className="flex shrink-0 items-center gap-2 px-0.5 pb-3 pt-0.5 [container-type:inline-size]">
           <SearchBar
             size="sm"
             value={search}
             onChange={setSearch}
             placeholder="Search shows"
             aria-label="Search the shows list"
-            className="flex-1"
+            className="min-w-0 flex-1"
           />
           {headerAction}
         </div>

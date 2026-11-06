@@ -1,5 +1,13 @@
 import { useState, type ReactNode } from 'react';
-import { ArrowRight, CheckCircle2, CircleHelp, Clock3, Printer, RefreshCw } from 'lucide-react';
+import {
+  ArrowRight,
+  CheckCircle2,
+  ChevronDown,
+  CircleHelp,
+  Clock3,
+  Printer,
+  RefreshCw,
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
@@ -78,6 +86,11 @@ function ChecklistFrame({
       <details className="group" data-testid="class-checklist-disclosure">
         <summary className={cn(HEADING_CLASS, 'flex min-h-11 cursor-pointer items-center')}>
           Class checklist
+          {/* Turns with the disclosure, as the Needs attention strip's chevron does. */}
+          <ChevronDown
+            className="ml-2 h-4 w-4 -rotate-90 transition-transform group-open:rotate-0"
+            aria-hidden="true"
+          />
         </summary>
         {children}
       </details>
@@ -127,7 +140,7 @@ export function ClassChecklistSection({
     classId: sourceClass.id,
     returnTo: getShowHomeHref({
       showId,
-      state: { filter: 'all', focusedClassId: sourceClass.id },
+      state: { statuses: [], focusedClassId: sourceClass.id },
     }),
   });
   const items = buildClassChecklist({ ...sourceClass, paperwork });

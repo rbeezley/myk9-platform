@@ -309,6 +309,15 @@ function ShowWorkbenchShowDeskBody() {
         content: <EmergencyTrialPacketTool show={currentShow} />,
       },
       {
+        id: 'message-exhibitors',
+        group: 'show-day',
+        title: 'Message exhibitors',
+        summary: "Send a message or email to this show's exhibitors",
+        // A door only: the Message Center already owns composing, and honours `showId`.
+        href: `/secretary/messages?showId=${encodeURIComponent(currentShow.id)}`,
+        content: null,
+      },
+      {
         id: 'volunteers',
         group: 'show-logistics',
         title: 'Volunteers',
@@ -436,7 +445,7 @@ function ShowWorkbenchShowDeskBody() {
   if (entriesFailed) {
     return (
       <ShowDeskEntriesFailed
-        pausedWhat="Entry counts, Check-in desk, and Show Map are"
+        pausedWhat="Entry counts and the Check-in desk are"
         onRetry={() => void refetchShowEntries()}
       />
     );

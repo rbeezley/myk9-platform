@@ -135,7 +135,7 @@ function ReportCard({
       </div>
       {showId && REPORTS_ALSO_ON_OVERVIEW.has(report.id) && (
         <Link
-          to={getShowHomeHref({ showId, state: { selectedDays: [], filter: 'all' } })}
+          to={getShowHomeHref({ showId, state: { selectedDays: [], statuses: [] } })}
           className="inline-flex min-h-[44px] items-center text-xs font-medium text-muted-foreground underline underline-offset-4 hover:text-foreground"
         >
           Also on Overview, per class

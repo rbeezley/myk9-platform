@@ -20,12 +20,30 @@ import {
 
 const context = {
   selectedDays: ['2026-07-20'],
-  filter: 'needs-attention' as const,
+  statuses: ['needs-attention'] as const,
   focusedClassId: 'class/1',
   anchor: 'trial-1',
 };
 
 describe('Show Desk context routes', () => {
+  it('reads the old single filter, a comma list and junk; writes a sorted list (MYK9-1727)', () => {
+    const read = (query: string) => normalizeCockpitUrlState(new URLSearchParams(query)).statuses;
+    expect(read('filter=needs-attention')).toEqual(['needs-attention']);
+    expect(read('filter=needs-closeout,in-progress,in-progress')).toEqual([
+      'in-progress',
+      'needs-closeout',
+    ]);
+    expect(read('filter=all')).toEqual([]);
+    expect(read('filter=bad,in-progress')).toEqual(['in-progress']);
+    expect(read('filter=')).toEqual([]);
+    expect(read('')).toEqual([]);
+
+    const write = (statuses: readonly ('in-progress' | 'needs-attention' | 'needs-closeout')[]) =>
+      writeCockpitUrlState(new URLSearchParams(), { statuses }).toString();
+    expect(write(['needs-closeout', 'in-progress'])).toBe('filter=in-progress%2Cneeds-closeout');
+    expect(write([])).toBe('');
+  });
+
   it('builds and normalizes URL-backed day, filter, focus, and anchor state', () => {
     const href = getShowHomeHref({ showId: 'show 1', state: context });
     expect(href).toBe(
@@ -38,7 +56,7 @@ describe('Show Desk context routes', () => {
       )
     ).toEqual({
       selectedDays: ['2026-07-20'],
-      filter: 'all',
+      statuses: [],
       focusedClassId: 'class-1',
       anchor: 'trial-1',
     });
@@ -160,14 +178,14 @@ describe('Show Desk context routes', () => {
   it('treats a missing day as All days and never writes it back', () => {
     expect(normalizeCockpitUrlState(new URLSearchParams()).selectedDays).toEqual([]);
     expect(
-      writeCockpitUrlState(new URLSearchParams(), { selectedDays: [], filter: 'all' }).toString()
+      writeCockpitUrlState(new URLSearchParams(), { selectedDays: [], statuses: [] }).toString()
     ).toBe('');
   });
 
   it('MYK9-1719: writes ticked days comma-joined and sorted, and reads them back', () => {
     const written = writeCockpitUrlState(new URLSearchParams(), {
       selectedDays: ['2026-11-07', '2026-11-06'],
-      filter: 'all',
+      statuses: [],
     });
     expect(written.get('day')).toBe('2026-11-06,2026-11-07');
     expect(normalizeCockpitUrlState(written).selectedDays).toEqual(['2026-11-06', '2026-11-07']);
@@ -257,7 +275,7 @@ describe('Select classes on the schedule (MYK9-1324)', () => {
   it("the cockpit's own URL writes keep the mode and its returnTo", () => {
     const written = writeCockpitUrlState(
       new URLSearchParams('select=classes&returnTo=%2Fshows%2Fshow-1'),
-      { selectedDays: ['2026-10-10'], filter: 'all', focusedClassId: undefined, anchor: undefined }
+      { selectedDays: ['2026-10-10'], statuses: [], focusedClassId: undefined, anchor: undefined }
     );
     expect(written.get('select')).toBe('classes');
     expect(written.get('returnTo')).toBe('/shows/show-1');
@@ -266,7 +284,7 @@ describe('Select classes on the schedule (MYK9-1324)', () => {
     expect(
       writeCockpitUrlState(new URLSearchParams('returnTo=%2Fshows%2Fshow-1'), {
         selectedDays: undefined,
-        filter: 'all',
+        statuses: [],
         focusedClassId: undefined,
         anchor: undefined,
       }).get('returnTo')

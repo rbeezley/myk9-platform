@@ -1,18 +1,18 @@
 /**
- * The Cockpit schedule's shared "does this Class belong in this view" state
- * (MYK9-812). `secretaryCockpitModel.ts`'s `buildTrialGroups` (the schedule's
- * row filter, over raw Classes) and `secretaryCockpitViews.ts`'s
- * `buildCockpitScheduleViews` (the view-tab counts, over `model.daySchedule`
+ * The Cockpit schedule's shared "does this Class match this status" state
+ * (MYK9-812, MYK9-1727). `secretaryCockpitModel.ts`'s `buildTrialGroups` (the
+ * schedule's row filter, over raw Classes) and `cockpitStatusFilter.ts`'s
+ * `buildCockpitStatusField` (the Filter menu's counts, over `model.daySchedule`
  * rows) both call `matchesCockpitFilter` with a `derivedAttentionCount` from
- * the same `attentionCountByClass` map, so a tab's count can never diverge
+ * the same `attentionCountByClass` map, so an option's count can never diverge
  * from the rows it labels by drifting out of sync with a second, independent
- * reconstruction (Codex P2, secretaryCockpitViews.ts:52-54).
+ * reconstruction (Codex P2, MYK9-812).
  */
 
 import type {
   CockpitCloseoutState,
-  CockpitFilter,
   CockpitLifecycle,
+  CockpitStatus,
   SecretaryCockpitAttention,
 } from './secretaryCockpitTypes';
 
@@ -21,26 +21,36 @@ export function matchesCockpitFilter(
     lifecycle?: CockpitLifecycle | null;
     closeout?: CockpitCloseoutState | null;
   },
-  filter: CockpitFilter,
+  status: CockpitStatus,
   derivedAttentionCount: number
 ): boolean {
-  switch (filter) {
+  switch (status) {
     case 'in-progress':
       return row.lifecycle === 'in-progress';
     case 'needs-attention':
       return derivedAttentionCount > 0;
     case 'needs-closeout':
       return row.closeout === 'needs-closeout';
-    case 'all':
-      return true;
   }
+}
+
+/** A Class shows when no status is ticked, or when it matches ANY ticked one (MYK9-1727). */
+export function matchesAnyCockpitStatus(
+  row: Parameters<typeof matchesCockpitFilter>[0],
+  statuses: readonly CockpitStatus[],
+  derivedAttentionCount: number
+): boolean {
+  return (
+    statuses.length === 0 ||
+    statuses.some(status => matchesCockpitFilter(row, status, derivedAttentionCount))
+  );
 }
 
 /**
  * Per-class attention counts, derived once from the deduped attention list
  * (`allAttention` / `model.attention.all`) and threaded into both
  * `buildTrialGroups` (the schedule's rows) and `daySchedule` (every Class the
- * view-tab counts filter) in `secretaryCockpitModel.ts`.
+ * status counts read) in `secretaryCockpitModel.ts`.
  */
 export function buildAttentionCountByClass(
   attention: readonly SecretaryCockpitAttention[]

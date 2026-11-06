@@ -157,11 +157,11 @@ describe('Select classes on the schedule (MYK9-1324)', () => {
     const { user } = renderCockpit();
     await user.click(tick('Container Novice'));
 
-    const filters = () => screen.getByRole('combobox', { name: 'View: Schedule filters' });
+    const filters = () => screen.getByRole('button', { name: /^Filter/ });
     await user.click(filters());
     await user.click(await screen.findByRole('option', { name: /^In progress/ }));
-    await user.click(filters());
-    await user.click(await screen.findByRole('option', { name: /^All/ }));
+    // Unticking the status is the way back to every class.
+    await user.click(screen.getByRole('option', { name: /^In progress/ }));
 
     expect(tick('Container Novice')).not.toBeChecked();
     expect(screen.queryByRole('button', { name: 'Change status' })).not.toBeInTheDocument();

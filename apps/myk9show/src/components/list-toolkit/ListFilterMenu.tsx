@@ -129,6 +129,7 @@ export function ListFilterMenu({
   // "Loading…" or "Nothing to choose yet." says that instead.
   const hasValues = fields.some(field => !isLoading(field) && field.options.length > 0);
   const isPhone = useMediaQuery(PHONE_QUERY);
+  const hasTickBoxes = fields.some(field => field.kind === 'multiOptions');
 
   const trigger = (
     <button
@@ -167,6 +168,12 @@ export function ListFilterMenu({
   const menu = (
     <Command>
       <CommandInput placeholder="Filter by…" />
+      {/* MYK9-1727: an empty field means "all", which a tick box alone does not say. */}
+      {hasTickBoxes && (
+        <p className="border-b px-3 py-2 text-xs text-muted-foreground">
+          Tick to show only those. Nothing ticked shows everything.
+        </p>
+      )}
       <CommandList className="max-h-[min(24rem,60vh)]">
         {hasValues && <CommandEmpty>No matches.</CommandEmpty>}
         {fields.map(field => (

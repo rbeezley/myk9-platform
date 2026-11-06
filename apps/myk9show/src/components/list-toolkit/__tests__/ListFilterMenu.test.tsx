@@ -92,6 +92,15 @@ describe('ListFilterMenu', () => {
     expect(onClassChange).toHaveBeenLastCalledWith(['c2']);
   });
 
+  // MYK9-1727: nothing ticked means everything, and the menu says so.
+  it('explains that nothing ticked shows everything', async () => {
+    render(<Harness />);
+    await openMenu();
+    expect(
+      screen.getByText('Tick to show only those. Nothing ticked shows everything.')
+    ).toBeInTheDocument();
+  });
+
   // MYK9-1727: the badge counts ticked values, so three ticks read 3, not "fields touched".
   it('counts every ticked value on the badge', () => {
     render(<Harness initial={['c1', 'c2']} />);

@@ -289,7 +289,12 @@ describe('a pull that returns the device’s own acknowledged write (MYK9-1220)'
 
     // A's v4 acknowledgement is only applied now.
     const db = await databaseManager.getDatabase('test');
-    const mutationA = mutation('mut-A', { result_status: 'q', reason_text: null }, 3);
+    // The queued A itself, not a rebuilt copy: a copy built now would be newer than B and,
+    // acknowledged, would supersede B's columns (MYK9-1721).
+    const mutationA = (await db.get(
+      REPLICATION_STORES.PENDING_MUTATIONS,
+      'mut-A'
+    )) as PendingMutation;
     await markReplicatedRowSynced(db, mutationA, 4, manager!.writtenOverlays.get(tableName));
     await db.delete(REPLICATION_STORES.PENDING_MUTATIONS, 'mut-A');
     const afterAck = await table.getReplicatedRow('1');

@@ -1,5 +1,5 @@
 import { createRef } from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { ResultLabelsReport } from '../ResultLabelsReport';
 import type { DbClass, DbEntry, DbTrial } from '@/types/database-mappings';
 import type { Show } from '@/types/show-types';
@@ -93,6 +93,17 @@ describe('ResultLabelsReport', () => {
     for (const radio of radios) {
       expect(radio.tagName).not.toBe('INPUT');
     }
+  });
+
+  // MYK9-1723: result labels open on 1-1/3" × 4", like armband labels.
+  it('opens on the 1-1/3" × 4" label size, with the others still selectable', () => {
+    render(<ResultLabelsReport {...baseProps} />);
+    const oneThird = screen.getByRole('radio', { name: /1-1\/3" × 4"/ });
+    expect(oneThird).toHaveAttribute('aria-checked', 'true');
+    const twoInch = screen.getByRole('radio', { name: /2" × 4"/ });
+    expect(twoInch).toHaveAttribute('aria-checked', 'false');
+    fireEvent.click(twoInch);
+    expect(twoInch).toHaveAttribute('aria-checked', 'true');
   });
 
   it('renders the shared calibration panel collapsed by default', () => {

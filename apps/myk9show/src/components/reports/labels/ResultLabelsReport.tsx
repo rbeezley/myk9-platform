@@ -1,6 +1,11 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import ReactDOMServer from 'react-dom/server';
-import { LABEL_TEMPLATES, getAllTemplates, getLabelTemplate } from '@/lib/labels/labelTemplates';
+import {
+  LABEL_TEMPLATES,
+  DEFAULT_TEMPLATE_ID,
+  getAllTemplates,
+  getLabelTemplate,
+} from '@/lib/labels/labelTemplates';
 import { buildLabelPages } from '@/lib/labels/labelLayout';
 import { buildLabelStylesheet } from '@/lib/labels/labelStyles';
 import { prepareResultLabelItems } from '@/lib/labels/resultLabelData';
@@ -19,10 +24,6 @@ import { useLabelPreferences } from '@/hooks/useLabelPreferences';
 // A full-width, 44px-tall tappable row keeps native-sized controls but gives
 // each option a mobile-friendly hit area (WCAG 2.5.5 / 44px touch floor).
 const TAP_ROW = 'flex items-center gap-2 min-h-[44px] text-sm cursor-pointer';
-
-// 4" × 2" (Avery #18163, 10/sheet) is the natural fit for result content
-// (armband+name, handler, club, show/class, place/time/faults).
-const DEFAULT_RESULT_TEMPLATE_ID = '18163';
 
 interface ResultLabelsReportProps {
   show: Show | null | undefined;
@@ -49,14 +50,13 @@ export const ResultLabelsReport: React.FC<ResultLabelsReportProps> = ({
   isError = false,
   iframeRef,
 }) => {
-  const [templateId, setTemplateId] = useState(DEFAULT_RESULT_TEMPLATE_ID);
+  // MYK9-1723: every label report opens on 1-1/3" × 4" (owner, 2026-11-05).
+  const [templateId, setTemplateId] = useState(DEFAULT_TEMPLATE_ID);
   const [skip, setSkip] = useState(0);
   const [prefs, setPrefs] = useLabelPreferences();
 
   const template =
-    LABEL_TEMPLATES[templateId] ??
-    getLabelTemplate(DEFAULT_RESULT_TEMPLATE_ID) ??
-    getAllTemplates()[0];
+    LABEL_TEMPLATES[templateId] ?? getLabelTemplate(DEFAULT_TEMPLATE_ID) ?? getAllTemplates()[0];
 
   const items = useMemo(() => {
     // Scope + enrich each entry with its OWN trial/class (handles the

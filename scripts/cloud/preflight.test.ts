@@ -17,7 +17,7 @@ const WRAPPER = fileURLToPath(new URL('../qa/claude-review.sh', import.meta.url)
 const MAC_ROOT = '/Users/me/AI Projects/myk9-platform';
 
 const VERSION_OUTPUT: Record<string, string> = {
-  node: 'v22.22.0',
+  node: 'v22.23.4',
   pnpm: '9.15.9',
   git: 'git version 2.43.0',
   gh: 'gh version 2.89.0 (2026-03-26)',

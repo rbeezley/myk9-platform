@@ -35,7 +35,7 @@ Point the provider's setup step at the one script. Tools land in `MYK9_TOOLS_DIR
 The script:
 
 1. Refuses on Darwin, on a machine with no cloud marker (unless `--force`) and on anything but Linux x86_64.
-2. Requires the image's Node ≥ 22.12.0 and pnpm ≥ 9.15.9; it never installs or replaces them.
+2. Requires the image's Node ≥ 22.23.4 and pnpm ≥ 9.15.9; it never installs or replaces them.
 3. Installs gh, Deno and ShellCheck when missing or below the minimum, from the GitHub release URLs in [`scripts/cloud/tool-versions.json`](../../scripts/cloud/tool-versions.json), and stops with nothing installed on a sha256 mismatch. (`dl.deno.land` is blocked by the Claude cloud network policy; the GitHub release asset is not.)
 4. Runs `pnpm install --frozen-lockfile`, builds the shared packages, runs `pnpm qa:dist-fresh`, then the preflight.
 
@@ -69,7 +69,7 @@ Choose **Work in > Cloud > Select environment > Create environment**, or **Setti
 - **Network secret** (for the Linear read): `LINEAR_API_KEY` for `api.linear.app`, so the task sees only a placeholder.
 - **Publish**, then start a new task; existing tasks keep their old state.
 
-Codex's documentation does not state the VM's architecture, its Node and pnpm versions, or the install script's working directory. Setup refuses anything but Linux x86_64 and requires Node ≥ 22.12.0 and pnpm ≥ 9.15.9 already in the image, so the proof is what answers those. A refusal is a recorded blocker, not a reason to edit the pins.
+Codex's documentation does not state the VM's architecture, its Node and pnpm versions, or the install script's working directory. Setup refuses anything but Linux x86_64 and requires Node ≥ 22.23.4 and pnpm ≥ 9.15.9 already in the image, so the proof is what answers those. A refusal is a recorded blocker, not a reason to edit the pins.
 
 ### Session prompt
 

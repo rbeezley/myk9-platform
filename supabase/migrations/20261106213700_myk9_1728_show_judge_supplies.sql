@@ -67,6 +67,21 @@ CREATE TRIGGER set_show_judge_supplies_updated_at
   BEFORE UPDATE ON public.show_judge_supplies
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
+-- Carry the existing rows over: one per (show, judge, item), newest edit wins (ties broken
+-- deterministically). Done before RLS is enabled so it never depends on the migration role
+-- bypassing RLS.
+INSERT INTO public.show_judge_supplies (
+  show_id, person_id, judge_name, item_label, included, note, sort_order,
+  is_custom, created_at, updated_at
+)
+SELECT DISTINCT ON (t.show_id, coalesce(s.person_id::text, s.judge_name), lower(s.item_label))
+  t.show_id, s.person_id, s.judge_name, s.item_label, s.included, s.note,
+  s.sort_order, s.is_custom, s.created_at, s.updated_at
+FROM public.trial_judge_supplies AS s
+JOIN public.trials AS t ON t.id = s.trial_id
+ORDER BY t.show_id, coalesce(s.person_id::text, s.judge_name), lower(s.item_label),
+         s.updated_at DESC, s.created_at DESC, s.id;
+
 ALTER TABLE public.show_judge_supplies ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.show_judge_supplies FORCE ROW LEVEL SECURITY;
 
@@ -106,19 +121,6 @@ CREATE POLICY "show_judge_supplies_delete" ON public.show_judge_supplies
     (SELECT public.is_site_admin())
     OR (SELECT public.can_manage_show(show_judge_supplies.show_id))
   );
-
--- Carry the existing rows over: one per (show, judge, item), newest edit wins.
-INSERT INTO public.show_judge_supplies (
-  show_id, person_id, judge_name, item_label, included, note, sort_order,
-  is_custom, created_at, updated_at
-)
-SELECT DISTINCT ON (t.show_id, coalesce(s.person_id::text, s.judge_name), lower(s.item_label))
-  t.show_id, s.person_id, s.judge_name, s.item_label, s.included, s.note,
-  s.sort_order, s.is_custom, s.created_at, s.updated_at
-FROM public.trial_judge_supplies AS s
-JOIN public.trials AS t ON t.id = s.trial_id
-ORDER BY t.show_id, coalesce(s.person_id::text, s.judge_name), lower(s.item_label),
-         s.updated_at DESC;
 
 DROP TABLE public.trial_judge_supplies;
 

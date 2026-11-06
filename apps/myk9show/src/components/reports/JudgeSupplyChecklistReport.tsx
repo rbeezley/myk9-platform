@@ -1,54 +1,21 @@
 import React from 'react';
-import { formatTrialLabel } from '@myk9/core';
 import type { ReportProps } from '@/lib/reports/types';
-import { judgeKey, type TrialJudgeSupplyRow } from '@/features/judge-supplies/types';
-import { formatReportDate } from '@/lib/reports/reportUtils';
+import { judgeKey, type ShowJudgeSupplyRow } from '@/features/judge-supplies/types';
 
 interface JudgePage {
-  trialId: string;
-  trialNumber: string | null;
-  trialLabel: string;
-  trialDate: string | null;
   judgeName: string;
   judgeKey: string;
-  rows: TrialJudgeSupplyRow[];
+  rows: ShowJudgeSupplyRow[];
 }
 
-function buildPages(
-  supplies: TrialJudgeSupplyRow[],
-  allTrials: NonNullable<ReportProps['allTrials']>
-): JudgePage[] {
-  const trialMeta = new Map<
-    string,
-    { trialNumber: string | null; trialLabel: string; trialDate: string | null }
-  >();
-  for (const trial of allTrials) {
-    trialMeta.set(trial.id, {
-      trialNumber: trial.trialNumber ?? null,
-      trialLabel: formatTrialLabel({ name: trial.name, trialNumber: trial.trialNumber }),
-      trialDate: trial.date ?? null,
-    });
-  }
-
+/** One page per judge: supplies are stored once per show, whatever number of trials they judge. */
+function buildPages(supplies: ShowJudgeSupplyRow[]): JudgePage[] {
   const pages = new Map<string, JudgePage>();
   for (const row of supplies) {
-    const key = `${row.trial_id}::${judgeKey(row)}`;
+    const key = judgeKey(row);
     let page = pages.get(key);
     if (!page) {
-      const meta = trialMeta.get(row.trial_id) ?? {
-        trialNumber: null,
-        trialLabel: formatTrialLabel({}),
-        trialDate: null,
-      };
-      page = {
-        trialId: row.trial_id,
-        trialNumber: meta.trialNumber,
-        trialLabel: meta.trialLabel,
-        trialDate: meta.trialDate,
-        judgeName: row.judge_name,
-        judgeKey: judgeKey(row),
-        rows: [],
-      };
+      page = { judgeName: row.judge_name, judgeKey: key, rows: [] };
       pages.set(key, page);
     }
     page.rows.push(row);
@@ -58,28 +25,19 @@ function buildPages(
     page.rows.sort((a, b) => a.sort_order - b.sort_order);
   }
 
-  return Array.from(pages.values()).sort((a, b) => {
-    const dateA = a.trialDate ?? '';
-    const dateB = b.trialDate ?? '';
-    if (dateA !== dateB) return dateA.localeCompare(dateB);
-    const numA = a.trialNumber ?? '';
-    const numB = b.trialNumber ?? '';
-    if (numA !== numB) return numA.localeCompare(numB);
-    return a.judgeName.localeCompare(b.judgeName);
-  });
+  return Array.from(pages.values()).sort((a, b) => a.judgeName.localeCompare(b.judgeName));
 }
 
 export const JudgeSupplyChecklistReport: React.FC<ReportProps> = ({
   showId,
   showName,
-  allTrials = [],
   judgeSupplies,
 }) => {
   // MYK9-280: fetched via useQuery here until the host took it over. Under
   // ReactDOMServer.renderToStaticMarkup there is no QueryClientProvider, so the
   // hook threw and this report was unreachable from the Reports tab.
   const query = {
-    data: (judgeSupplies?.data ?? []) as TrialJudgeSupplyRow[],
+    data: (judgeSupplies?.data ?? []) as ShowJudgeSupplyRow[],
     isLoading: judgeSupplies?.isLoading ?? false,
     error: judgeSupplies?.isError ? new Error('Could not load judge supplies') : null,
   };
@@ -108,7 +66,7 @@ export const JudgeSupplyChecklistReport: React.FC<ReportProps> = ({
     );
   }
 
-  const pages = buildPages(query.data ?? [], allTrials);
+  const pages = buildPages(query.data ?? []);
 
   if (pages.length === 0) {
     return (
@@ -119,8 +77,8 @@ export const JudgeSupplyChecklistReport: React.FC<ReportProps> = ({
           {showName && <p className="report-subtitle">{showName}</p>}
         </div>
         <p>
-          No judge supplies have been configured for this show yet. Open a trial detail page and use
-          the "Judge Supplies" section to set them up.
+          No judge supplies have been configured for this show yet. Open Actions, then Show
+          logistics, then Judge supplies to set them up.
         </p>
       </div>
     );
@@ -130,10 +88,10 @@ export const JudgeSupplyChecklistReport: React.FC<ReportProps> = ({
     <>
       {pages.map((page, idx) => (
         <div
-          key={`${page.trialId}::${page.judgeKey}`}
+          key={page.judgeKey}
           className="report-page"
           style={idx < pages.length - 1 ? { pageBreakAfter: 'always' } : undefined}
-          data-testid={`supply-page-${page.trialId}-${page.judgeKey}`}
+          data-testid={`supply-page-${page.judgeKey}`}
         >
           <div className="report-header">
             <div className="report-logo">myK9Show</div>
@@ -142,11 +100,7 @@ export const JudgeSupplyChecklistReport: React.FC<ReportProps> = ({
           </div>
 
           <div className="catalog-trial-section">
-            <h2 className="catalog-trial-header">
-              {page.trialLabel}
-              {page.trialDate ? ` — ${formatReportDate(page.trialDate)}` : ''}
-            </h2>
-            <p className="text-base font-semibold mb-3">Judge: {page.judgeName}</p>
+            <h2 className="catalog-trial-header">Judge: {page.judgeName}</h2>
 
             <JudgePageBody rows={page.rows} />
           </div>
@@ -161,14 +115,14 @@ export const JudgeSupplyChecklistReport: React.FC<ReportProps> = ({
   );
 };
 
-function JudgePageBody({ rows }: { rows: TrialJudgeSupplyRow[] }) {
+function JudgePageBody({ rows }: { rows: ShowJudgeSupplyRow[] }) {
   const included = rows.filter(r => r.included);
 
   if (included.length === 0) {
     return (
       <p>
-        All template items have been excluded for this judge. Open the trial Judge Supplies dialog
-        to add custom items or restore template items.
+        All template items have been excluded for this judge. Open Judge supplies under Show
+        logistics to add custom items or restore template items.
       </p>
     );
   }

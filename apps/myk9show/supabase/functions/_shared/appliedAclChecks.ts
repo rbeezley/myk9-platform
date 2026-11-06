@@ -115,6 +115,7 @@ export const AUTHENTICATED_TABLE_GRANTS: Readonly<Record<string, string>> = {
   // MYK9-203: service_role only; the ledger is never touched by a client role.
   show_eve_nudge_log: '',
   show_incidents: 'SELECT,INSERT',
+  show_judge_supplies: 'SELECT,INSERT,UPDATE,DELETE',
   show_lifecycle_email_attempts: 'SELECT',
   show_lifecycle_email_job_requests: '',
   // MYK9-1254: UPDATE is column-level only (subject, body, secretary_note, status, skipped_at).
@@ -153,7 +154,6 @@ export const AUTHENTICATED_TABLE_GRANTS: Readonly<Record<string, string>> = {
   training_journal_entries: 'SELECT,INSERT,UPDATE,DELETE',
   training_milestones: 'SELECT,INSERT,UPDATE,DELETE',
   trial_checklist_state: 'SELECT,INSERT,UPDATE,DELETE',
-  trial_judge_supplies: 'SELECT,INSERT,UPDATE,DELETE',
   trial_lunch_orders: 'SELECT,INSERT,UPDATE,DELETE',
   trial_packet_generation_claims: '',
   trial_packet_print_reminders: '',

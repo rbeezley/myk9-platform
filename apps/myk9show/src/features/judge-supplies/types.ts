@@ -5,9 +5,9 @@ export interface SupplyTemplateItem {
   sort: number;
 }
 
-export interface TrialJudgeSupplyRow {
+export interface ShowJudgeSupplyRow {
   id: string;
-  trial_id: string;
+  show_id: string;
   person_id: string | null;
   judge_name: string;
   item_label: string;

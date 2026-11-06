@@ -3,7 +3,7 @@ import { cleanLunchText, LUNCH_NAME_MAX, type LunchOrderRow, type LunchRole } fr
 
 // Lunch orders are pre-show PLANNING data (a hospitality person plans headcount ahead of the
 // day), not show-day scoring, so this is online-only PostgREST + React Query rather than a
-// replicated table. Same pattern as trialJudgeSuppliesService.
+// replicated table. Same pattern as showJudgeSuppliesService.
 
 const SELECT_COLUMNS = 'id, trial_id, person_id, name, role, lunch_order, dietary_note';
 

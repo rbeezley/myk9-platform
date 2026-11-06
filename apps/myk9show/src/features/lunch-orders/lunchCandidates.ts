@@ -1,11 +1,11 @@
+import type { JudgeKey } from '@/features/judge-supplies/types';
 import type { ShowOfficials } from '@/hooks/queries/useShowOfficials';
-import type { TrialJudge } from '@/features/judge-supplies/useTrialJudges';
 import type { LunchCandidate } from './lunchOrders';
 import type { VolunteerOnDay } from './useLunchOrders';
 
 interface DayAssignments {
   trialId: string;
-  judges: readonly TrialJudge[];
+  judges: readonly JudgeKey[];
   officials: ShowOfficials | undefined;
   volunteers: readonly VolunteerOnDay[];
 }

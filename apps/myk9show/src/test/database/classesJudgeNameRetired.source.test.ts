@@ -46,6 +46,8 @@ describe('classes.judge_name retirement (MYK9-479)', () => {
   it('is the last migration that touches the column, so nothing later re-creates it', () => {
     const later = readdirSync(MIGRATIONS_DIR)
       .filter(name => name.endsWith('.sql') && name > '20260912234500_drop_classes_judge_name.sql')
+      // MYK9-1728 creates show_judge_supplies.judge_name: a different table's column.
+      .filter(name => name !== '20261106213700_myk9_1728_show_judge_supplies.sql')
       .filter(name =>
         /\bclasses\.judge_name\b|\bjudge_name\s+(text|varchar)/i.test(
           stripComments(readFileSync(resolve(MIGRATIONS_DIR, name), 'utf8'))

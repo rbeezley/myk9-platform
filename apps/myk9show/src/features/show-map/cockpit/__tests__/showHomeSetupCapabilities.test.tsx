@@ -7,12 +7,6 @@ import { getAddClassesHref } from '@/pages/secretary/ShowCreationWizard/addClass
 import { SecretaryCockpit } from '../SecretaryCockpit';
 import type { SecretaryCockpitSnapshot } from '../secretaryCockpitTypes';
 
-vi.mock('@/features/judge-supplies/JudgeSuppliesLauncher', () => ({
-  JudgeSuppliesLauncher: ({ trialId }: { trialId: string }) => (
-    <div data-testid="judge-supplies" data-trial-id={trialId} />
-  ),
-}));
-
 const snapshot: SecretaryCockpitSnapshot = {
   showId: 'show-1',
   timeZone: 'America/Chicago',
@@ -68,7 +62,8 @@ describe('show home carries every Setup action (MYK9-956)', () => {
 
   // Delete lives only in the edit panels' footers on the show home (owner, 2026-10-03).
   // MYK9-1727: the heading holds only the menu; Add classes and (AKC) High in Trial are in it.
-  it('gives each trial heading one menu with Add classes and High in Trial, no Delete', async () => {
+  // Judge supplies left this menu for the Show Desk tool (owner, 2026-11-06, MYK9-1728).
+  it('gives each trial heading one menu with Add classes and High in Trial, no Delete or Judge supplies', async () => {
     const { user } = renderCockpit(true);
 
     expect(screen.queryByRole('link', { name: /add classes to trial 1/i })).toBeNull();
@@ -79,7 +74,6 @@ describe('show home carries every Setup action (MYK9-956)', () => {
       'Add classes',
       'High in Trial',
       'Trial report',
-      'Judge supplies',
     ]);
   });
 
@@ -142,13 +136,6 @@ describe('show home carries every Setup action (MYK9-956)', () => {
       expect(screen.getByTestId('where')).toHaveTextContent(
         '/shows/show-1/reports?report=trial-secretary-report&trialId=trial-1'
       );
-    });
-
-    it('Judge supplies opens the supplies UI for that trial, for a manager only', async () => {
-      const { user } = renderWithPath();
-      expect(screen.queryByTestId('judge-supplies')).toBeNull();
-      await pick(user, 'Judge supplies');
-      expect(screen.getByTestId('judge-supplies')).toHaveAttribute('data-trial-id', 'trial-1');
     });
   });
 

@@ -87,7 +87,7 @@ export function PrimaryTabs({
             'flex w-full max-w-full border-b border-border bg-transparent p-0 gap-0',
             // Fit mode only changes the strip below `lg`; from `lg` it is the scrolling strip.
             fit
-              ? 'lg:overflow-x-auto lg:hide-scrollbar lg:scroll-shadow-x'
+              ? 'items-stretch lg:items-center lg:overflow-x-auto lg:hide-scrollbar lg:scroll-shadow-x'
               : 'overflow-x-auto hide-scrollbar scroll-shadow-x'
           )}
         >

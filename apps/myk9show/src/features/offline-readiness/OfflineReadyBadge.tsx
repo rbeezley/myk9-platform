@@ -105,7 +105,7 @@ export function OfflineReadyBadge({
           disabled={priming}
           title={actionDetail}
           data-offline-missing={readiness.missing.join(',')}
-          className="inline-flex min-h-11 items-center gap-2 rounded-md px-3 text-sm text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-70"
+          className="inline-flex min-h-11 items-center gap-2 rounded-md px-2 text-sm text-muted-foreground sm:px-3 hover:bg-muted hover:text-foreground disabled:opacity-70"
         >
           {priming ? (
             <>
@@ -140,7 +140,7 @@ export function OfflineReadyBadge({
         // Which signals are missing, for diagnosis (MYK9-766): the visible copy
         // deliberately names the action, not the scopes.
         data-offline-missing={readiness.missing.join(',')}
-        className="inline-flex min-h-11 items-center gap-2 rounded-md border border-warning/30 bg-warning/10 px-3 text-sm text-warning hover:bg-warning/20 disabled:opacity-70"
+        className="inline-flex min-h-11 items-center gap-2 rounded-md border border-warning/30 bg-warning/10 px-2 sm:px-3 text-sm text-warning hover:bg-warning/20 disabled:opacity-70"
       >
         {priming ? (
           <>

@@ -124,10 +124,10 @@ const AppHeader: React.FC = () => {
 
   return (
     <nav className="fixed top-[var(--pwa-banner-height,0px)] left-0 right-0 z-50 border-b bg-background text-foreground border-border h-[var(--app-header-height,3rem)] shadow-[var(--shadow-header)]">
-      <div className="px-2 min-[400px]:px-4 sm:px-6 h-full">
+      <div className="px-1 min-[400px]:px-4 sm:px-6 h-full">
         <div className="flex items-center justify-between h-full">
           {/* Left: Mobile navigation + logo */}
-          <div className="flex min-w-0 items-center gap-2">
+          <div className="flex min-w-0 items-center gap-0 sm:gap-2">
             {user &&
               !isOnboardingRoute &&
               openMobileNav &&
@@ -137,7 +137,7 @@ const AppHeader: React.FC = () => {
                   variant="ghost"
                   size="sm"
                   onClick={openMobileNav}
-                  className="md:hidden -ml-2 min-h-11 min-w-11 rounded-lg p-2"
+                  className="md:hidden -ml-1 min-[400px]:-ml-2 min-h-11 min-w-11 rounded-lg p-2"
                   aria-label="Open navigation"
                 >
                   <Menu className="h-5 w-5" />

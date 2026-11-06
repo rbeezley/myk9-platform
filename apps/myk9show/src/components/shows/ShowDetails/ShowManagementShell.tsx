@@ -299,8 +299,9 @@ function AuthorizedShowManagementShell({
             tabs={sectionTabs}
             value={activeTabId}
             onValueChange={goToTab}
-            className="mt-4"
+            className="mt-2 sm:mt-4"
             stripClassName={SHOW_TAB_STRIP_CLASS}
+            fit
           >
             <TabsContent value={activeTabId}>
               {activeManagementSection ? (

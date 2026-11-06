@@ -1,10 +1,9 @@
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { useLocation, useNavigationType, useSearchParams } from 'react-router-dom';
 import { useTrialRowActions } from '@/components/shows/tabs/useTrialRowActions';
 
 import { cn } from '@/lib/utils';
 import {
-  FOCUSED_CLASS_PANEL_CLASS,
   FOCUSED_CLASS_PIN_QUERY,
   type FocusedClassPinMode,
 } from '@/components/shows/ShowDetails/showStickyLayout';
@@ -17,6 +16,7 @@ import { buildSecretaryCockpitModel } from './secretaryCockpitModel';
 import { useSecretaryCockpitUrlState } from './useSecretaryCockpitUrlState';
 import { cockpitDaysKey } from './cockpitDayFilter';
 import { CockpitFilterMenu } from './CockpitFilterMenu';
+import { CockpitSplitFocusColumn } from './CockpitSplitFocusColumn';
 import { CockpitAttentionStrip } from './CockpitAttentionStrip';
 import { SecretaryCockpitFocusedClass } from './SecretaryCockpitFocusedClass';
 import { useFocusedClassSetupActions } from './FocusedClassSetupActions';
@@ -106,12 +106,6 @@ export function SecretaryCockpit({
   const focusedClassIsVisible = model.trialGroups.some(group =>
     group.classes.some(classItem => classItem.id === focusedId)
   );
-  // The split's panel scrolls itself and is not remounted per class, so a newly focused class
-  // would open at the previous class's scroll position, its controls under the pinned header.
-  const splitPanelRef = useRef<HTMLDivElement>(null);
-  useLayoutEffect(() => {
-    if (splitPanelRef.current) splitPanelRef.current.scrollTop = 0;
-  }, [focusedId]);
   const focusedPanel = model.focusedClass ? (
     <SecretaryCockpitFocusedClass
       showId={snapshot.showId}
@@ -266,28 +260,12 @@ export function SecretaryCockpit({
           }
           select={canManageShow ? selection : undefined}
         />
-        {/* Kept while selecting: split, the panel has its own column beside the schedule rather
-            than sitting inside the tick list. It only ever shows a class the schedule shows
-            (MYK9-1727): a class the filter hides waits, still in the URL, until the filter clears. */}
-        {isSplit && model.focusedClass && focusedClassIsVisible && (
-          <div
-            ref={splitPanelRef}
-            className={cn(
-              'col-start-2 row-start-2',
-              pinMode === 'panel' && FOCUSED_CLASS_PANEL_CLASS
-            )}
-            data-testid="cockpit-split-focus"
-          >
-            {focusedPanel}
-          </div>
-        )}
-        {isSplit && !(model.focusedClass && focusedClassIsVisible) && (
-          <p
-            className="col-start-2 row-start-2 rounded-xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground"
-            data-testid="cockpit-split-empty"
-          >
-            Pick a class from the schedule to see its checklist.
-          </p>
+        {isSplit && (
+          <CockpitSplitFocusColumn
+            panel={model.focusedClass && focusedClassIsVisible ? focusedPanel : null}
+            pinned={pinMode === 'panel'}
+            focusedId={focusedId}
+          />
         )}
       </div>
       {/* Mounted for managers even with nothing ticked, so a toast's "Retry failed" still reads

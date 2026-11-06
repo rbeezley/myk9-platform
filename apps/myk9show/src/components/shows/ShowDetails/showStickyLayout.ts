@@ -49,6 +49,8 @@ export const FOCUSED_CLASS_SCROLL_MARGIN_CLASS =
  * window scrolls inside the panel instead of leaving its lower half unreachable. It starts under
  * the show header and tab strip (+1rem gap) and ends 1rem above the window bottom (3rem tab strip + 1rem top gap + 1rem bottom gap = 5rem;
  * the subtraction needs spaces, written as underscores, which CSS calc requires).
+ * No `overscroll-contain` (tried in MYK9-1727): with the page at its top the panel runs past the
+ * window, and only a scroll that carries on into the page brings the panel's last rows on screen.
  */
 export const FOCUSED_CLASS_PANEL_CLASS =
   'sticky top-[calc(var(--app-top-inset,3rem)+var(--show-header-h,4.25rem)+3rem+1rem)] max-h-[calc(var(--pane-scroll-h,calc(100dvh_-_var(--app-top-inset,3rem)))_-_var(--show-header-h,4.25rem)_-_5rem)] overflow-y-auto overflow-x-clip';

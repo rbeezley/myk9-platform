@@ -370,21 +370,35 @@ const TOOL_SWITCHES = [
   'Volunteer tracking',
 ];
 
-/** Which gated Actions rows the Show Desk menu shows, with an ungated row as a control. */
-async function gatedRowsShown(page: Page, showId: string) {
+/**
+ * Wait until the Show Desk Actions menu lists exactly the expected gated rows. The rows are
+ * registered by the Show Desk page and re-registered when the replica seeds a switch or the
+ * role scope resolves (Volunteers also greys on the scope), so the menu can change a frame
+ * after the ungated Check-in desk row appears. Each poll reads every row in ONE snapshot (not
+ * a count per row, which can straddle a re-registration), and the poll ends on the settled
+ * set; a row that never reaches it still fails the test with the last set seen.
+ */
+async function expectGatedRows(page: Page, showId: string, expected: string[]) {
   await page.goto(`/shows/${showId}`);
   const menu = await openActionsMenu(page);
   await expect(menu.getByRole('menuitem', { name: /^Check-in desk/ })).toBeVisible({
     timeout: 30_000,
   });
-  const shown: string[] = [];
-  for (const row of GATED_ROWS) {
-    if ((await menu.getByRole('menuitem', { name: new RegExp(`^${row}`) }).count()) > 0) {
-      shown.push(row);
-    }
-  }
+  // The ungated Check-in desk row rides in the same snapshot as a positive control, so an empty
+  // read (the menu closed or unmounted mid-poll) can never pass as "no gated rows".
+  await expect
+    .poll(
+      async () => {
+        const names = (await menu.getByRole('menuitem').allInnerTexts()).map(name => name.trim());
+        return {
+          control: names.some(name => name.startsWith('Check-in desk')),
+          rows: GATED_ROWS.filter(row => names.some(name => name.startsWith(row))),
+        };
+      },
+      { timeout: 15_000 }
+    )
+    .toEqual({ control: true, rows: expected });
   await page.keyboard.press('Escape');
-  return shown;
 }
 
 test('tool switches save per show, hide and restore Actions rows, and lose no data (MYK9-1622)', async ({
@@ -404,7 +418,7 @@ test('tool switches save per show, hide and restore Actions rows, and lose no da
 
   const secretary = await rolePage(browser, 'SECRETARY', `/shows/${showId}`);
   const page = secretary.page;
-  expect(await gatedRowsShown(page, showId)).toEqual(GATED_ROWS);
+  await expectGatedRows(page, showId, GATED_ROWS);
 
   await openUsesSwitches(page, showId);
   for (const name of TOOL_SWITCHES) await setSwitch(page, name, false);
@@ -417,7 +431,7 @@ test('tool switches save per show, hide and restore Actions rows, and lose no da
       uses_volunteers: false,
       self_checkin_enabled: false,
     });
-  expect(await gatedRowsShown(page, showId)).toEqual([]);
+  await expectGatedRows(page, showId, []);
   const kept = await client.from('volunteers').select('name').eq('show_id', showId);
   if (kept.error) throw kept.error;
   expect(kept.data).toEqual([{ name: volunteer }]);
@@ -435,7 +449,7 @@ test('tool switches save per show, hide and restore Actions rows, and lose no da
 
   // A fresh browser proves the server copy, not this tab's replica.
   const fresh = await rolePage(browser, 'SECRETARY', `/shows/${showId}`);
-  expect(await gatedRowsShown(fresh.page, showId)).toEqual(GATED_ROWS);
+  await expectGatedRows(fresh.page, showId, GATED_ROWS);
   await fresh.page.goto(`/secretary/volunteers?showId=${showId}`);
   // The page shows a first name and last initial ("Proof Volunteer e."), not the stored name.
   await expect(fresh.page.getByText('1 volunteer', { exact: true })).toBeVisible({

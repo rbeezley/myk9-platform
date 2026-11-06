@@ -107,4 +107,19 @@ describe('CockpitFilterMenu', () => {
     await user.click(screen.getByRole('button', { name: /Clear all/i }));
     expect(onClearAll).toHaveBeenCalledTimes(1);
   });
+
+  // MYK9-1727: the badge counts picks; this line says how much of the schedule is showing.
+  it('says how many classes are showing once a status is ticked, and Show all clears it', async () => {
+    const { user, onClearAll } = renderMenu(oneDay, ['in-progress']);
+
+    expect(screen.getByText('Showing 1 of 2 classes.')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Show all classes' }));
+    expect(onClearAll).toHaveBeenCalledTimes(1);
+  });
+
+  it('stays quiet while nothing is ticked', () => {
+    renderMenu(oneDay);
+    expect(screen.queryByText(/^Showing/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Show all classes' })).not.toBeInTheDocument();
+  });
 });

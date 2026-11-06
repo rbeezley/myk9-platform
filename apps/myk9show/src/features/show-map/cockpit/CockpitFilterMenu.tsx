@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 
-import { ListAppliedFilters, ListFilterMenu } from '@/components/list-toolkit';
+import { ListAppliedFilters, ListFilterMenu, ListResultLine } from '@/components/list-toolkit';
 import type { ListMultiOptionsFilterField } from '@/components/list-toolkit/types';
 import { buildCockpitDayField } from './cockpitDayFilter';
 import { buildCockpitStatusField } from './cockpitStatusFilter';
@@ -13,7 +13,8 @@ import type {
 /**
  * The one Filter button for the schedule (MYK9-1719, MYK9-1727): Day (multi-day shows only) and
  * Status. Ticking none in a field means all; the applied chips cover both and "clear all" clears
- * both in one URL write.
+ * both in one URL write. Once anything is ticked, "Showing 3 of 11 classes." says how much the
+ * schedule now hides, the way Entry Forms does (MYK9-1727).
  */
 export function CockpitFilterMenu({
   snapshot,
@@ -51,6 +52,8 @@ export function CockpitFilterMenu({
     );
   }
   fields.push(buildCockpitStatusField({ model, selected: statuses, onChange: onStatusesChange }));
+  const filtered = statuses.length > 0 || (!days.allDays && days.days.length > 0);
+  const shown = model.trialGroups.reduce((total, group) => total + group.classes.length, 0);
 
   return (
     <div className="space-y-2" data-testid="cockpit-filter">
@@ -61,6 +64,14 @@ export function CockpitFilterMenu({
         fields={fields}
         onClearAll={onClearAll}
         focusTargetRef={filterButtonRef}
+      />
+      <ListResultLine
+        shown={shown}
+        total={snapshot.classes.length}
+        noun={['class', 'classes']}
+        filtered={filtered}
+        onShowAll={onClearAll}
+        quietWhenUnfiltered
       />
     </div>
   );

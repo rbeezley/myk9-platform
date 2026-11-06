@@ -115,7 +115,7 @@ export function PrimaryTabs({
                 <span
                   className={
                     fit
-                      ? 'order-last w-full whitespace-normal text-center leading-tight md:order-none md:w-auto md:whitespace-nowrap md:truncate'
+                      ? 'order-last w-full whitespace-normal [overflow-wrap:anywhere] text-center leading-tight md:order-none md:w-auto md:whitespace-nowrap md:truncate'
                       : 'truncate'
                   }
                 >

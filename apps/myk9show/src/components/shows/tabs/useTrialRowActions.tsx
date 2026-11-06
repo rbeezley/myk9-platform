@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import { ClipboardList, DollarSign, Package, Plus, Trophy } from 'lucide-react';
+import { Package, Plus, Trophy } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { hydrateThenResolve } from '@/utils/hydrateThenResolve';
@@ -8,7 +8,6 @@ import { useShowStore } from '@/store/showStore';
 import { useTrialStore } from '@/store/trialStore';
 import type { SyncableTrial } from '@/store/trial-store-types';
 import { TrialManagementDialogs } from '@/components/trials/TrialDetail/TrialManagementDialogs';
-import { getEntryManagementHref } from '@/features/entry-operations/entryAttentionRoutes';
 import { JudgeSuppliesLauncher } from '@/features/judge-supplies/JudgeSuppliesLauncher';
 import { getAddClassesHref } from '@/pages/secretary/ShowCreationWizard/addClassesHref';
 import { SetupRowActionsMenu } from './SetupRowActionsMenu';
@@ -111,29 +110,13 @@ export function useTrialRowActions(showId: string, enabled: boolean) {
                 ),
             },
             {
-              // The trial page's Entries tab, as a door into Entry Forms filtered to this trial.
-              id: 'trial-entry-forms',
-              label: 'Entry forms',
-              icon: <ClipboardList />,
-              onSelect: () => navigate(getEntryManagementHref({ showId, trialId })),
-            },
-            {
               id: 'trial-judge-supplies',
               label: 'Judge supplies',
               icon: <Package />,
               onSelect: () => setSuppliesTrialId(trialId),
             },
-            {
-              // MYK9-1320: the trial's own page is gone for managers (the home is its page), so
-              // the menu's second stop is the trial's money, on Reports.
-              id: 'trial-financials',
-              label: 'Trial financials',
-              icon: <DollarSign />,
-              onSelect: () =>
-                navigate(
-                  `/shows/${encodeURIComponent(showId)}/reports?${new URLSearchParams({ financialsTrial: trialId }).toString()}`
-                ),
-            },
+            // No "Entry forms" or "Trial financials" here (owner, 2026-11-06, MYK9-1727): the
+            // Entry Forms and Reports tabs sit just above, so the menu holds trial-level work only.
           ],
         })}
         busy={hydratingTrialId === trialId}

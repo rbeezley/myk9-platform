@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigationType, useSearchParams } from 'react-router-dom';
 import { useTrialRowActions } from '@/components/shows/tabs/useTrialRowActions';
 
@@ -16,7 +16,8 @@ import { buildSecretaryCockpitModel } from './secretaryCockpitModel';
 import { useSecretaryCockpitUrlState } from './useSecretaryCockpitUrlState';
 import { cockpitDaysKey } from './cockpitDayFilter';
 import { CockpitFilterMenu } from './CockpitFilterMenu';
-import { CockpitSplitFocusColumn } from './CockpitSplitFocusColumn';
+import { CockpitFocusOutlet } from './CockpitSplitFocusColumn';
+import { focusedPanelShows, statusesUpdate } from './cockpitFocusRules';
 import { CockpitAttentionStrip } from './CockpitAttentionStrip';
 import { SecretaryCockpitFocusedClass } from './SecretaryCockpitFocusedClass';
 import { useFocusedClassSetupActions } from './FocusedClassSetupActions';
@@ -103,8 +104,12 @@ export function SecretaryCockpit({
     ? (snapshot.trials.find(item => item.id === sourceClass.trialId) ?? null)
     : null;
   const focusedAttention = model.attention.all.filter(item => item.classId === focusedId);
-  const focusedClassIsVisible = model.trialGroups.some(group =>
-    group.classes.some(classItem => classItem.id === focusedId)
+  // MYK9-1727: a class the secretary clicked stays open when her own work moves it out of the
+  // filter. Tracked here, not from the URL: the URL also records the automatic default.
+  const [clickedClassId, setClickedClassId] = useState<string>();
+  const { shows: panelShows, listed: focusedClassIsVisible } = focusedPanelShows(
+    model,
+    clickedClassId
   );
   const focusedPanel = model.focusedClass ? (
     <SecretaryCockpitFocusedClass
@@ -201,8 +206,12 @@ export function SecretaryCockpit({
     target.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
   }, [model.trialGroups, gridWidth]);
 
-  const clearFilters = () =>
-    updateState({ selectedDays: [], statuses: [], focusedClassId: undefined, anchor: undefined });
+  // Keeps the picked class (everything is listed again), and puts focus on the Filter button
+  // before the line or chip that was clicked disappears.
+  const clearFilters = () => {
+    document.querySelector<HTMLElement>('[data-testid="cockpit-filter"] button')?.focus();
+    updateState({ selectedDays: [], statuses: [] });
+  };
 
   return (
     <div className="space-y-5" data-testid="secretary-cockpit">
@@ -248,12 +257,17 @@ export function SecretaryCockpit({
               onDaysChange={selectedDays =>
                 updateState({ selectedDays, focusedClassId: undefined, anchor: undefined })
               }
-              onStatusesChange={statuses => updateState({ statuses })}
+              onStatusesChange={statuses =>
+                updateState(statusesUpdate(model, state.focusedClassId, statuses))
+              }
               onClearAll={clearFilters}
             />
           }
           onShowAll={clearFilters}
-          onFocusClass={focusedClassId => updateState({ focusedClassId, anchor: focusedClassId })}
+          onFocusClass={focusedClassId => {
+            setClickedClassId(focusedClassId);
+            updateState({ focusedClassId, anchor: focusedClassId });
+          }}
           // Selecting, a row click ticks rather than focuses, so the focused class's panel would
           // sit open in the middle of the list with no way to move or close it.
           inlineFocusedContent={
@@ -261,13 +275,15 @@ export function SecretaryCockpit({
           }
           select={canManageShow ? selection : undefined}
         />
-        {isSplit && (
-          <CockpitSplitFocusColumn
-            panel={model.focusedClass && focusedClassIsVisible ? focusedPanel : null}
-            pinned={pinMode === 'panel'}
-            focusedId={focusedId}
-          />
-        )}
+        <CockpitFocusOutlet
+          split={isSplit}
+          focus={{ shows: panelShows, listed: focusedClassIsVisible, id: focusedId }}
+          pinned={pinMode === 'panel'}
+          scheduleEmpty={model.trialGroups.length === 0}
+          selecting={selecting}
+        >
+          {focusedPanel}
+        </CockpitFocusOutlet>
       </div>
       {/* Mounted for managers even with nothing ticked, so a toast's "Retry failed" still reads
           fresh classes after Done; the bar itself renders nothing without a selection. */}

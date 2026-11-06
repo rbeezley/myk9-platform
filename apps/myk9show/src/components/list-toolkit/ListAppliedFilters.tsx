@@ -12,6 +12,7 @@ import { useRef, type RefObject } from 'react';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
+  appliedPickCount,
   clearField,
   describeAppliedFilter,
   isFieldActive,
@@ -51,7 +52,8 @@ export function ListAppliedFilters({
   const applied = fields
     .filter(isFieldActive)
     .map(field => ({ field, sentence: sentenceFor(field) }));
-  const count = applied.length;
+  // Ticked values, the same count the Filter button's badge shows (MYK9-1727).
+  const count = fields.reduce((total, field) => total + appliedPickCount(field), 0);
   const showClearAll = onClearAll !== undefined && (count > 0 || alsoNarrowed);
   const showRow = count > 0 || showClearAll;
 

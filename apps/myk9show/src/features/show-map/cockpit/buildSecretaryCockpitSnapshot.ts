@@ -24,7 +24,6 @@ import type {
   CockpitLifecycle,
   SecretaryCockpitAction,
   SecretaryCockpitAttention,
-  SecretaryCockpitClass,
   SecretaryCockpitPaperwork,
   SecretaryCockpitSnapshot,
 } from './secretaryCockpitTypes';
@@ -234,24 +233,6 @@ function administrativeAttention(
   }));
 }
 
-/**
- * The show-level "N classes need judge's initials" chip counts the same classes that each carry a
- * "Collect judge's initials" item, so the strip would count one problem twice (MYK9-1727). It is
- * dropped when every class it counts has its own item; kept when any does not.
- */
-function withoutCoveredSignatureSignal(
-  signals: readonly ShowDeskPendingSignal[],
-  builtClasses: readonly SecretaryCockpitClass[]
-): readonly ShowDeskPendingSignal[] {
-  const needing = builtClasses.filter(
-    cls => cls.wrapUpStatus === SHOW_MAP_WRAP_UP_STATUS.NEEDS_JUDGE_SIGNATURE
-  );
-  const covered = needing.every(cls =>
-    cls.attention.some(item => item.id.startsWith('collect-judge-signature:'))
-  );
-  return covered ? signals.filter(signal => signal.id !== 'classes-needing-signature') : signals;
-}
-
 export function buildSecretaryCockpitSnapshot({
   showId,
   trials,
@@ -366,9 +347,6 @@ export function buildSecretaryCockpitSnapshot({
       order: Number.parseInt(trial.order || '', 10) || index + 1,
     })),
     classes: builtClasses,
-    administrativeAttention: administrativeAttention(
-      withoutCoveredSignatureSignal(pendingSignals, builtClasses),
-      returnTo
-    ),
+    administrativeAttention: administrativeAttention(pendingSignals, returnTo),
   };
 }

@@ -32,6 +32,7 @@ import {
   operationalMinutes,
 } from './cockpitClock';
 import { buildClassChecklist, summarizeClassChecklist } from './classChecklist';
+import { SHOW_MAP_WRAP_UP_STATUS } from '../showMapTypes';
 
 const ATTENTION_LIMIT = 3;
 const PREPARATION_WINDOW_MINUTES = 30;
@@ -240,6 +241,27 @@ function preparationAttention(
     }));
 }
 
+/**
+ * The show-level "N classes need judge's initials" item counts the same classes that each carry a
+ * "Collect judge's initials" item, so the strip would count one problem twice (MYK9-1727). It is
+ * dropped only when every class it counts (on any day) has its own item among THESE candidates,
+ * so a day filter that hides some of those classes keeps the show-level item.
+ */
+function withoutCoveredSignatureItem(
+  candidates: readonly SecretaryCockpitAttention[],
+  allClasses: readonly SecretaryCockpitClass[]
+): readonly SecretaryCockpitAttention[] {
+  const listed = new Set(
+    candidates
+      .filter(item => item.id.startsWith('collect-judge-signature:'))
+      .map(item => item.classId)
+  );
+  const covered = allClasses
+    .filter(cls => cls.wrapUpStatus === SHOW_MAP_WRAP_UP_STATUS.NEEDS_JUDGE_SIGNATURE)
+    .every(cls => listed.has(cls.id));
+  return covered ? candidates.filter(item => item.id !== 'classes-needing-signature') : candidates;
+}
+
 function buildAttention(
   snapshot: SecretaryCockpitSnapshot,
   scopeTrials: readonly SecretaryCockpitTrial[]
@@ -275,7 +297,7 @@ function buildAttention(
   ].filter(validAttention);
 
   const deduped = new Map<string, SecretaryCockpitAttention>();
-  for (const item of candidates) {
+  for (const item of withoutCoveredSignatureItem(candidates, snapshot.classes)) {
     const key = item.dedupeKey ?? item.id;
     if (!deduped.has(key)) deduped.set(key, item);
   }

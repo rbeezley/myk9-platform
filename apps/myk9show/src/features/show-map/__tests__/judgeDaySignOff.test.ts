@@ -12,6 +12,7 @@ import { buildShowMapTree } from '../showMapTree';
 import { getAttentionActions, getDirectActionsForNode } from '../showMapActions';
 import { computeShowDeskPendingSignals } from '../showDeskPendingSignals';
 import { buildClassChecklist } from '../cockpit/classChecklist';
+import { buildSecretaryCockpitModel } from '../cockpit/secretaryCockpitModel';
 import { buildSecretaryCockpitSnapshot } from '../cockpit/buildSecretaryCockpitSnapshot';
 import { SHOW_MAP_WRAP_UP_STATUS } from '../showMapTypes';
 import type { ShowMapClassInput, ShowMapTree } from '../showMapTypes';
@@ -136,10 +137,11 @@ describe("judge's end-of-day sign-off (MYK9-1030)", () => {
       now: new Date('2026-10-10T22:00:00Z'),
     });
 
-    // The per-class items stay; the show-level duplicate of them goes.
-    expect(snapshot.administrativeAttention?.map(item => item.id) ?? []).not.toContain(
-      'classes-needing-signature'
-    );
+    // The per-class items stay; the show-level duplicate of them goes from the strip (the model
+    // decides, against the classes in the day scope).
+    expect(
+      buildSecretaryCockpitModel(snapshot, {}).attention.all.map(item => item.id)
+    ).not.toContain('classes-needing-signature');
     expect(snapshot.classes.flatMap(item => item.attention.map(attention => attention.id))).toEqual(
       ['collect-judge-signature:class:c1', 'collect-judge-signature:class:c2']
     );

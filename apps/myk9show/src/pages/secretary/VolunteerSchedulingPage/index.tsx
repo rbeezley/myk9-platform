@@ -26,6 +26,7 @@ import { ListFilterBar, ListResultLine, ListViewTabs } from '@/components/list-t
 import { GENERAL_DUTY_ROLES } from '@/types/volunteer';
 import type { ListFilterField, ListView } from '@/components/list-toolkit';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ErrorState } from '@/components/common/ErrorState';
 import { useVolunteerFilters } from './useVolunteerFilters';
 import type { Volunteer, ClassInfo } from '@/types/volunteer';
 
@@ -51,13 +52,26 @@ export default function VolunteerSchedulingPage() {
   }, [routeShowId, selectedShowId, selectShow]);
   const showTrials = trials.filter(t => t.showId === activeShowId);
 
-  const { data: volunteers = [], isLoading: loadingVols } = useVolunteers(showId);
-  const { data: classAssignments = [], isLoading: loadingCA } =
-    useVolunteerClassAssignments(showId);
-  const { data: generalAssignments = [], isLoading: loadingGA } =
-    useVolunteerGeneralAssignments(showId);
-  const { data: classInfos = [], isLoading: loadingClasses } = useShowClassesForVolunteers(showId);
+  const volunteersQuery = useVolunteers(showId);
+  const classAssignmentsQuery = useVolunteerClassAssignments(showId);
+  const generalAssignmentsQuery = useVolunteerGeneralAssignments(showId);
+  const classesQuery = useShowClassesForVolunteers(showId);
+  const { data: volunteers = [], isLoading: loadingVols } = volunteersQuery;
+  const { data: classAssignments = [], isLoading: loadingCA } = classAssignmentsQuery;
+  const { data: generalAssignments = [], isLoading: loadingGA } = generalAssignmentsQuery;
+  const { data: classInfos = [], isLoading: loadingClasses } = classesQuery;
   const { data: conflictMap = EMPTY_CONFLICT_MAP } = useVolunteerConflicts(showId, volunteers);
+
+  // MYK9-1726: a load that failed with nothing cached would otherwise fall back to [] and read
+  // as fact: "no volunteers yet", "no classes yet", every job unfilled (inviting duplicate adds
+  // and assignments). A failed background refresh keeps the cached data and leaves the page be.
+  // Conflicts stay advisory and are not gated.
+  const failedLoads = [
+    volunteersQuery,
+    classAssignmentsQuery,
+    generalAssignmentsQuery,
+    classesQuery,
+  ].filter(query => query.isError && query.data === undefined);
 
   const isLoading = loadingVols || loadingCA || loadingGA || loadingClasses;
 
@@ -186,6 +200,20 @@ export default function VolunteerSchedulingPage() {
         >
           Go to your shows
         </Link>
+      </div>
+    );
+  }
+
+  if (failedLoads.length > 0) {
+    return (
+      <div className="space-y-6 p-4 md:p-6">
+        <h1 className="text-xl font-bold">Volunteer Scheduling</h1>
+        <ErrorState
+          message="Couldn't load this show's volunteer schedule"
+          description="Nothing was lost. Tap Try Again to reload it."
+          headingLevel={2}
+          onRetry={() => failedLoads.forEach(query => void query.refetch())}
+        />
       </div>
     );
   }

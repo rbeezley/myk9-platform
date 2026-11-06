@@ -99,6 +99,31 @@ describe('AssignVolunteerPopover', () => {
     expect(screen.getByText('Mike Roberts')).toBeInTheDocument();
   });
 
+  describe('empty states say why the list is empty (MYK9-1726)', () => {
+    it('points to Add Volunteer when the show has no volunteers yet', async () => {
+      const { user } = render(<AssignVolunteerPopover {...defaultProps} volunteers={[]} />);
+      await user.click(screen.getByRole('button', { name: /assign/i }));
+      expect(screen.getByText(/^No volunteers yet\./)).toHaveTextContent(
+        'No volunteers yet. Add people with Add Volunteer at the top of this page.'
+      );
+    });
+
+    it('says everyone is already assigned when the whole list is excluded', async () => {
+      const { user } = render(
+        <AssignVolunteerPopover {...defaultProps} excludeIds={['v-1', 'v-2', 'v-3']} />
+      );
+      await user.click(screen.getByRole('button', { name: /assign/i }));
+      expect(screen.getByText('All your volunteers already have this job.')).toBeInTheDocument();
+    });
+
+    it('names the search when it matches nobody', async () => {
+      const { user } = render(<AssignVolunteerPopover {...defaultProps} />);
+      await user.click(screen.getByRole('button', { name: /assign/i }));
+      await user.type(screen.getByPlaceholderText(/search/i), 'Zz');
+      expect(screen.getByText('No volunteers match "Zz".')).toBeInTheDocument();
+    });
+  });
+
   it('shows conflict indicator for conflicting volunteers', async () => {
     const { user } = render(
       <AssignVolunteerPopover {...defaultProps} conflictIds={new Set(['v-1'])} />

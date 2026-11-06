@@ -12,6 +12,20 @@ interface AssignVolunteerPopoverProps {
   onAssign: (volunteerId: string) => void;
 }
 
+/**
+ * Why the picker is empty (MYK9-1726). Volunteers come only from the show's list, filled by
+ * Add Volunteer at the top of the Volunteers page, so an empty list points there.
+ */
+function emptyMessage(volunteers: Volunteer[], excludeIds: string[], search: string): string {
+  if (volunteers.length === 0)
+    return 'No volunteers yet. Add people with Add Volunteer at the top of this page.';
+  const excluded = new Set(excludeIds);
+  if (volunteers.every(v => excluded.has(v.id))) {
+    return 'All your volunteers already have this job.';
+  }
+  return `No volunteers match "${search}".`;
+}
+
 export function AssignVolunteerPopover({
   volunteers,
   excludeIds,
@@ -51,7 +65,9 @@ export function AssignVolunteerPopover({
         />
         <div className="max-h-48 overflow-y-auto">
           {filtered.length === 0 && (
-            <p className="py-2 text-center text-xs text-muted-foreground">No volunteers found</p>
+            <p className="px-1 py-2 text-center text-sm text-muted-foreground">
+              {emptyMessage(volunteers, excludeIds, search)}
+            </p>
           )}
           {filtered.map(vol => (
             <button

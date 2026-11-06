@@ -65,6 +65,15 @@ vi.mock('@myk9/core', () => ({
 describe('ArmbandLabelsReport', () => {
   const showScope = { kind: 'show' as const, showId: 'test-show-id' };
 
+  it('renders the preview on paper colours regardless of theme (MYK9-1722)', () => {
+    render(<ArmbandLabelsReport showId="test-show-id" scope={showScope} />);
+    const cells = screen.getAllByTestId('label-preview-cell');
+    expect(cells.length).toBeGreaterThan(0);
+    for (const el of [...cells, screen.getByTestId('label-preview-page')]) {
+      expect(el).toHaveStyle({ backgroundColor: '#fff', color: '#000' });
+    }
+  });
+
   it('renders the inline config panel', () => {
     render(<ArmbandLabelsReport showId="test-show-id" scope={showScope} />);
     expect(screen.getByText(/Label Size/i)).toBeInTheDocument();

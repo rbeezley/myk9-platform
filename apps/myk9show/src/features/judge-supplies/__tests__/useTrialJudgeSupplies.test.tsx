@@ -12,6 +12,7 @@ vi.mock('../trialJudgeSuppliesService', () => ({
     updateRow: vi.fn(),
     addCustomRow: vi.fn(),
     deleteCustomRow: vi.fn(),
+    syncJudgeAcrossTrials: vi.fn(),
   },
 }));
 
@@ -113,6 +114,34 @@ describe('useTrialJudgeSupplies', () => {
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: ['trial-judge-supplies', 'trial-1'],
     });
+  });
+
+  it("copies the edited list onto the judge's other trials after a write (MYK9-1728)", async () => {
+    mockService.listForTrial.mockResolvedValue([]);
+    mockService.updateRow.mockResolvedValue(row({ id: 'r1', included: false }));
+    mockService.syncJudgeAcrossTrials.mockResolvedValue(undefined);
+    const judge = { person_id: 'p1', judge_name: 'Alice' };
+
+    const { result } = renderHook(
+      () =>
+        useTrialJudgeSupplies('trial-1', {
+          targetTrialIds: ['trial-2'],
+          judge,
+          registryId: 'AKC',
+        }),
+      { wrapper: wrapper(makeClient()) }
+    );
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    await result.current.updateRow.mutateAsync({ id: 'r1', patch: { included: false } });
+
+    await waitFor(() =>
+      expect(mockService.syncJudgeAcrossTrials).toHaveBeenCalledWith({
+        sourceTrialId: 'trial-1',
+        targetTrialIds: ['trial-2'],
+        judge,
+        registryId: 'AKC',
+      })
+    );
   });
 
   it('updateRow mutation calls the service with the id + patch', async () => {

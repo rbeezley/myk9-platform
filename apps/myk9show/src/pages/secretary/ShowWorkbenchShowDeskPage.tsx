@@ -11,6 +11,7 @@ import { trialSecretaryOnlyReason } from '@/features/actions/trialSecretaryAcces
 import { useShowDeskToolsRegistration } from '@/features/actions/pageEditTarget';
 import { TrialSecretaryAccessProvider } from '@/features/actions/TrialSecretaryAccessContext';
 import { ShowAccessCodesCard } from '@/components/secretary/ShowAccessCodesCard';
+import { ShowJudgeSuppliesTool } from '@/features/judge-supplies/ShowJudgeSuppliesTool';
 import { LunchOrdersTool } from '@/features/lunch-orders/LunchOrdersTool';
 import { IncidentLogCard } from '@/features/show-workbench/IncidentLogCard';
 import { EmergencyTrialPacketTool } from '@/features/emergency-trial-packet/EmergencyTrialPacketTool';
@@ -335,6 +336,13 @@ function ShowWorkbenchShowDeskBody() {
         summary: 'Plan lunch for everyone working each day',
         // Planning only: no attentionLabel, and nothing here feeds the Actions badge (MYK9-1694).
         content: <LunchOrdersTool showId={currentShow.id} trials={associatedTrials} />,
+      },
+      {
+        id: 'judge-supplies',
+        group: 'show-logistics',
+        title: 'Judge supplies',
+        summary: 'Set what each judge is handed, once for the whole show',
+        content: <ShowJudgeSuppliesTool showId={currentShow.id} trials={associatedTrials} />,
       },
       {
         id: 'tasks-notes',

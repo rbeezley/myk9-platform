@@ -149,4 +149,80 @@ export const trialJudgeSuppliesService = {
 
     if (error) throw error;
   },
+
+  /**
+   * MYK9-1728: supplies are set once per judge per show but stored per trial. Make every target
+   * trial's list match the source trial's, matching rows by lower-cased item_label: update
+   * `included` / `note` / `sort_order` where they differ, insert custom rows the target lacks and
+   * delete custom rows the source no longer has. Template rows are never deleted.
+   */
+  async syncJudgeAcrossTrials(args: {
+    sourceTrialId: string;
+    targetTrialIds: readonly string[];
+    judge: JudgeKey;
+    registryId: RegistryId | null;
+  }): Promise<void> {
+    const { sourceTrialId, targetTrialIds, judge, registryId } = args;
+    const targets = targetTrialIds.filter(id => id !== sourceTrialId);
+    if (targets.length === 0) return;
+
+    const source = await this.listForJudge(sourceTrialId, judge);
+    const sourceByLabel = new Map(source.map(r => [r.item_label.toLowerCase(), r]));
+
+    for (const trialId of targets) {
+      const existing = await this.ensureSeededForJudge({
+        trial_id: trialId,
+        person_id: judge.person_id,
+        judge_name: judge.judge_name,
+        registry_id: registryId,
+      });
+      const existingLabels = new Set(existing.map(r => r.item_label.toLowerCase()));
+
+      const toDelete: string[] = [];
+      for (const row of existing) {
+        const match = sourceByLabel.get(row.item_label.toLowerCase());
+        if (!match) {
+          if (row.is_custom) toDelete.push(row.id);
+          continue;
+        }
+        if (
+          row.included !== match.included ||
+          row.note !== match.note ||
+          row.sort_order !== match.sort_order
+        ) {
+          await this.updateRow(row.id, {
+            included: match.included,
+            note: match.note,
+            sort_order: match.sort_order,
+          });
+        }
+      }
+
+      const toInsert = source
+        .filter(r => r.is_custom && !existingLabels.has(r.item_label.toLowerCase()))
+        .map(r => ({
+          trial_id: trialId,
+          person_id: judge.person_id,
+          judge_name: judge.judge_name,
+          item_label: r.item_label,
+          included: r.included,
+          note: r.note,
+          sort_order: r.sort_order,
+          is_custom: true,
+        }));
+      if (toInsert.length > 0) {
+        const { error } = await supabase.from('trial_judge_supplies').insert(toInsert);
+        if (error) throw error;
+      }
+
+      if (toDelete.length > 0) {
+        const { error } = await supabase
+          .from('trial_judge_supplies')
+          .delete()
+          .in('id', toDelete)
+          .eq('is_custom', true);
+        if (error) throw error;
+      }
+    }
+  },
 };

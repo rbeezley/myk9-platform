@@ -1,10 +1,28 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { notifications } from '@/lib/notifications';
 import { trialJudgeSuppliesService } from './trialJudgeSuppliesService';
-import type { RegistryId, TrialJudgeSupplyRow } from './types';
+import type { JudgeKey, RegistryId, TrialJudgeSupplyRow } from './types';
 
-const queryKey = (trialId: string) => ['trial-judge-supplies', trialId] as const;
+/** Prefix of every trial's list and of the show-wide list, so one invalidation covers them all. */
+export const SUPPLIES_QUERY_ROOT = 'trial-judge-supplies';
+/** The Judge Supply Checklist report's show-wide read (useHostedReportData). */
+const REPORT_QUERY_ROOT = 'judge-supply-checklist-report';
+const queryKey = (trialId: string) => [SUPPLIES_QUERY_ROOT, trialId] as const;
 
-export function useTrialJudgeSupplies(trialId: string | null | undefined) {
+/**
+ * MYK9-1728: set when the edited list is one judge's show-wide list. After every successful
+ * write the hook copies the edited (source) trial's list onto `targetTrialIds`.
+ */
+export interface SupplyMirror {
+  targetTrialIds: readonly string[];
+  judge: JudgeKey;
+  registryId: RegistryId | null;
+}
+
+// Syncs run one at a time: two overlapping runs would each insert the same missing custom row.
+let syncChain: Promise<unknown> = Promise.resolve();
+
+export function useTrialJudgeSupplies(trialId: string | null | undefined, mirror?: SupplyMirror) {
   const queryClient = useQueryClient();
 
   const query = useQuery({
@@ -14,6 +32,34 @@ export function useTrialJudgeSupplies(trialId: string | null | undefined) {
   });
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: queryKey(trialId ?? '') });
+
+  const afterWrite = async () => {
+    await invalidate();
+    if (!trialId || !mirror || mirror.targetTrialIds.length === 0) return;
+    const run = syncChain.then(() =>
+      trialJudgeSuppliesService.syncJudgeAcrossTrials({
+        sourceTrialId: trialId,
+        targetTrialIds: mirror.targetTrialIds,
+        judge: mirror.judge,
+        registryId: mirror.registryId,
+      })
+    );
+    syncChain = run.catch(() => undefined);
+    try {
+      await run;
+    } catch (err) {
+      notifications.error(
+        err instanceof Error && err.message
+          ? `Could not copy supplies to this judge's other trials: ${err.message}`
+          : "Could not copy supplies to this judge's other trials"
+      );
+    } finally {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: [SUPPLIES_QUERY_ROOT] }),
+        queryClient.invalidateQueries({ queryKey: [REPORT_QUERY_ROOT] }),
+      ]);
+    }
+  };
 
   const ensureSeeded = useMutation({
     mutationFn: async (args: {
@@ -27,7 +73,7 @@ export function useTrialJudgeSupplies(trialId: string | null | undefined) {
         ...args,
       });
     },
-    onSuccess: invalidate,
+    onSuccess: afterWrite,
   });
 
   const updateRow = useMutation({
@@ -35,7 +81,7 @@ export function useTrialJudgeSupplies(trialId: string | null | undefined) {
       id: string;
       patch: Partial<Pick<TrialJudgeSupplyRow, 'included' | 'note' | 'sort_order' | 'item_label'>>;
     }) => trialJudgeSuppliesService.updateRow(args.id, args.patch),
-    onSuccess: invalidate,
+    onSuccess: afterWrite,
   });
 
   const addCustomRow = useMutation({
@@ -52,12 +98,12 @@ export function useTrialJudgeSupplies(trialId: string | null | undefined) {
         ...args,
       });
     },
-    onSuccess: invalidate,
+    onSuccess: afterWrite,
   });
 
   const deleteCustomRow = useMutation({
     mutationFn: (id: string) => trialJudgeSuppliesService.deleteCustomRow(id),
-    onSuccess: invalidate,
+    onSuccess: afterWrite,
   });
 
   /** Renumber sort_order on the given rows according to position in the array.
@@ -70,7 +116,7 @@ export function useTrialJudgeSupplies(trialId: string | null | undefined) {
         )
       );
     },
-    onSuccess: invalidate,
+    onSuccess: afterWrite,
   });
 
   return {

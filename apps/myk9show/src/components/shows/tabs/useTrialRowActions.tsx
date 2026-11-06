@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import { FileText, Package, Plus, Trophy } from 'lucide-react';
+import { FileText, Plus, Trophy } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { hydrateThenResolve } from '@/utils/hydrateThenResolve';
@@ -8,7 +8,6 @@ import { useShowStore } from '@/store/showStore';
 import { useTrialStore } from '@/store/trialStore';
 import type { SyncableTrial } from '@/store/trial-store-types';
 import { TrialManagementDialogs } from '@/components/trials/TrialDetail/TrialManagementDialogs';
-import { JudgeSuppliesLauncher } from '@/features/judge-supplies/JudgeSuppliesLauncher';
 import { getAddClassesHref } from '@/pages/secretary/ShowCreationWizard/addClassesHref';
 import { SetupRowActionsMenu } from './SetupRowActionsMenu';
 
@@ -41,8 +40,6 @@ export function useTrialRowActions(showId: string, enabled: boolean) {
     /** The request that started this action; a stale completion must not clear a newer one. */
     requestId: number;
   } | null>(null);
-  // The trial whose Judge supplies dialog is open (the old trial page's section, MYK9-1320).
-  const [suppliesTrialId, setSuppliesTrialId] = useState<string | null>(null);
   const parentShow = useShowStore(state => state.shows.find(show => show.id === showId));
   // The edit/delete actions write through the trial STORE, which is not always the source of
   // these rows (a cold store is fed by the server read instead). Hydrate the store first, and
@@ -125,12 +122,6 @@ export function useTrialRowActions(showId: string, enabled: boolean) {
               onSelect: () =>
                 navigate(trialReportHref(showId, trialId, TRIAL_REPORT_ID[registryId ?? ''] ?? '')),
             },
-            {
-              id: 'trial-judge-supplies',
-              label: 'Judge supplies',
-              icon: <Package />,
-              onSelect: () => setSuppliesTrialId(trialId),
-            },
             // No "Entry forms" or "Trial financials" here (owner, 2026-11-06, MYK9-1727): the
             // Entry Forms and Reports tabs sit just above, so the menu holds trial-level work only.
           ],
@@ -160,22 +151,8 @@ export function useTrialRowActions(showId: string, enabled: boolean) {
       />
     ) : null;
 
-  const suppliesDialog =
-    enabled && suppliesTrialId ? (
-      <JudgeSuppliesLauncher
-        key={suppliesTrialId}
-        trialId={suppliesTrialId}
-        onClose={() => setSuppliesTrialId(null)}
-      />
-    ) : null;
-
   return {
     trialRowMenu,
-    trialDialogs: (
-      <>
-        {trialDialogs}
-        {suppliesDialog}
-      </>
-    ),
+    trialDialogs,
   };
 }

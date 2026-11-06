@@ -23,7 +23,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { notifications } from '@/lib/notifications';
-import { useTrialJudgeSupplies } from './useTrialJudgeSupplies';
+import { useTrialJudgeSupplies, type SupplyMirror } from './useTrialJudgeSupplies';
 import { judgeKey, type JudgeKey, type RegistryId, type TrialJudgeSupplyRow } from './types';
 
 const MAX_LABEL = 200;
@@ -35,6 +35,8 @@ export interface ManageJudgeSuppliesDialogProps {
   trialId: string;
   judge: JudgeKey;
   registryId: RegistryId | null;
+  /** Other trials the judge is on: every write is copied onto them (MYK9-1728). */
+  mirrorTrialIds?: readonly string[];
 }
 
 export function ManageJudgeSuppliesDialog({
@@ -43,8 +45,12 @@ export function ManageJudgeSuppliesDialog({
   trialId,
   judge,
   registryId,
+  mirrorTrialIds,
 }: ManageJudgeSuppliesDialogProps) {
-  const supplies = useTrialJudgeSupplies(trialId);
+  const mirror: SupplyMirror | undefined = mirrorTrialIds?.length
+    ? { targetTrialIds: mirrorTrialIds, judge, registryId }
+    : undefined;
+  const supplies = useTrialJudgeSupplies(trialId, mirror);
   const thisJudgeKey = useMemo(
     () => judgeKey(judge),
     [judge.person_id, judge.judge_name] // eslint-disable-line react-hooks/exhaustive-deps

@@ -23,6 +23,7 @@ export {
   shouldCombineAllSections,
   findPairedSectionedClass,
   groupSectionedClasses,
+  buildCombinedClassName,
   isCombinedEntry,
   getClassIds,
 } from './utils/noviceClassGrouping';

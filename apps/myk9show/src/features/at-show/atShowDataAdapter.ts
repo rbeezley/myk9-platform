@@ -16,7 +16,13 @@
  * docs/plans/phase-1-execution-package.md (Tables 1 & 2), citing both schemas.
  */
 
-import type { Entry, ClassInfo, EntryListData, EntryListDataDependencies } from '@myk9/ringside';
+import {
+  buildCombinedClassName,
+  type Entry,
+  type ClassInfo,
+  type EntryListData,
+  type EntryListDataDependencies,
+} from '@myk9/ringside';
 import type { EntryStatus } from '@myk9/core';
 import {
   replicatedArmbandsTable,
@@ -451,6 +457,10 @@ export function createAtShowDataDependencies(): Pick<
       const classInfo = a.cls
         ? {
             ...buildClassInfo(a.cls, a.trial, entries, rawEntries, a.perAreaMaxTimes),
+            // Both sections are listed, so the header names the pair like the class card does.
+            ...(a.cls.element && a.cls.level
+              ? { className: buildCombinedClassName(a.cls.element, a.cls.level) }
+              : {}),
             actualClassIdA: classIdA,
             actualClassIdB: classIdB,
             judgeNameB: b.cls?.judgeName ?? 'No Judge Assigned',

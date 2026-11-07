@@ -65,6 +65,7 @@ export {
   shouldCombineAllSections,
   findPairedSectionedClass,
   groupSectionedClasses,
+  buildCombinedClassName,
   isCombinedEntry,
   getClassIds,
   parseClassTime,

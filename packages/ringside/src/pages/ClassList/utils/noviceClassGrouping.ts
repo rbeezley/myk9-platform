@@ -23,6 +23,11 @@ export function shouldCombineAllSections(organization: string | undefined): bool
   return orgLower.includes('ukc') && orgLower.includes('nosework');
 }
 
+/** The combined A/B card's name, also the combined entry-list header title. */
+export function buildCombinedClassName(element: string, level: string): string {
+  return `${element} ${level} A & B`;
+}
+
 const judgeKey = (c: ClassEntry) => c.judge_name.trim().toLowerCase();
 const sameJudge = (a: ClassEntry, b: ClassEntry) => judgeKey(a) === judgeKey(b);
 
@@ -158,7 +163,7 @@ export function groupSectionedClasses(
           ...withMergedSectionState(first, second), // Section A base, status/release/times of BOTH
           id: first.id, // Primary ID for navigation
           section: 'A & B', // Combined section label
-          class_name: `${first.element} ${first.level} A & B`, // Combined name
+          class_name: buildCombinedClassName(first.element, first.level), // Combined name
           entry_count: first.entry_count + second.entry_count, // Sum entries
           completed_count: first.completed_count + second.completed_count, // Sum completed
           dogs: [...first.dogs, ...second.dogs], // Merge dogs array

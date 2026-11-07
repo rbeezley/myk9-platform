@@ -166,6 +166,24 @@ describe('useAtShowClassList entry refresh', () => {
     expect(stops.classes).toHaveBeenCalledTimes(1);
   });
 
+  it('re-reads the replica on refresh so entries added elsewhere show without a remount (MYK9-1743)', async () => {
+    const client = makeClient();
+    const { result } = renderHook(() => useAtShowClassList('show-1'), {
+      wrapper: wrapper(client),
+    });
+    await waitFor(() => expect(result.current.groups[0]?.classes[0]?.entry_count).toBe(1));
+
+    // The forced sync lands two more rows in the replica; no subscription fires.
+    vi.mocked(replicatedEntriesTable.getEntriesByShow).mockResolvedValue([
+      { id: 'entry-1', showId: 'show-1', classId: 'class-1', isScored: false },
+      { id: 'entry-2', showId: 'show-1', classId: 'class-1', isScored: false },
+      { id: 'entry-3', showId: 'show-1', classId: 'class-1', isScored: false },
+    ] as never);
+    await act(async () => result.current.refresh());
+
+    await waitFor(() => expect(result.current.groups[0]?.classes[0]?.entry_count).toBe(3));
+  });
+
   it('falls back to query invalidation when a snapshot arrives before groups are cached', async () => {
     const client = makeClient();
     const invalidate = vi.spyOn(client, 'invalidateQueries');

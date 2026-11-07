@@ -22,7 +22,7 @@ export const CLASS_REFRESH_MESSAGES: Record<Exclude<ClassRefreshPhase, 'idle'>, 
 export function useAtShowClassRefresh(
   showId: string | undefined,
   isOnline: boolean,
-  reload: () => void
+  reload: () => void | Promise<void>
 ) {
   const [phase, setPhase] = useState<ClassRefreshPhase>('idle');
   const clearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -50,7 +50,7 @@ export function useAtShowClassRefresh(
     setPhase('refreshing');
     try {
       const outcome = await syncAtShowData(showId, { forceFullSync: true });
-      reload();
+      await reload();
       settle(outcome.success ? 'done' : 'failed');
     } catch (error) {
       // Going offline mid-refresh aborts the sync (MYK9-1629): that is the

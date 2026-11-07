@@ -380,6 +380,7 @@ describe('useAtShowEntryListHandlers — max time gate (MYK9-1099)', () => {
         buildScoreSheetRoute: () => '/route',
         gateEntryClick,
         refresh: vi.fn(() => Promise.resolve()),
+        manualRefresh: vi.fn(() => Promise.resolve()),
         setActiveStatusPopup: vi.fn(),
         setActiveResetMenu: vi.fn(),
         setResetMenuPosition: vi.fn(),

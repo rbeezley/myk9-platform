@@ -38,7 +38,7 @@ const AT_SHOW_OFFLINE_TABLES = ['shows', 'trials', 'classes', 'entries'] as cons
  * Phones get the icon-only popover button (44px, no wrap in the pinned bar); `sm` and up get the
  * one-line amber note.
  */
-const OfflineSyncNote: React.FC<{ className?: string }> = ({ className }) => {
+const OfflineSyncNote: React.FC<{ className?: string | undefined }> = ({ className }) => {
   const { label } = useSyncNote();
   return (
     <>

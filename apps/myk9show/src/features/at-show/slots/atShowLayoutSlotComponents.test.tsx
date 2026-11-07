@@ -169,7 +169,7 @@ describe('CompactOfflineIndicator offline state (MYK9-1744)', () => {
     const note = screen.getByText('Offline · scores saved on this device');
     const line = note.closest('[role="status"]') as HTMLElement;
     expect(line.className).toContain('text-warning');
-    expect(line.className).not.toContain('max-sm:hidden');
+    expect(line.className).toContain('max-sm:hidden'); // phones get the icon button instead
     expect(line.title).toBe('You are offline. Everything you enter is saved on this device.');
     expect(note.className).toContain('truncate');
     expect(screen.queryByText('Offline ready')).toBeNull();

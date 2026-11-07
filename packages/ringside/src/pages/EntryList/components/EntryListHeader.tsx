@@ -357,7 +357,7 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
               'absolute inset-x-0 top-full m-0 rounded-b-xl px-3 py-1.5 text-center text-sm shadow-sm',
               refreshAnswer.tone === 'ok'
                 ? 'bg-muted text-foreground'
-                : 'bg-warning/10 text-warning'
+                : 'bg-card bg-gradient-to-b from-warning/10 to-warning/10 text-warning'
             )}
           >
             {refreshAnswer.message}

@@ -1,4 +1,4 @@
-import { EntryStatus } from '@/types/show-registration-types';
+import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { CheckInStatus } from '@/types/check-in-types';
 import { STAFF_CHECK_IN_STATUSES } from '@myk9/core';
 import type { EntryClass, EntryManagementEntry } from '@/types/entry-management-types';
@@ -50,6 +50,8 @@ export interface PeopleRosterClassRow {
   ineligibleReason: string | null;
   /** The desk may set this class to one of `DESK_CHECK_IN_STATUSES` (MYK9-1736). */
   deskStatusEditable: boolean;
+  /** A real Pull the desk may put back today (MYK9-1749): no refund issued or decided. */
+  deskCanUnpull: boolean;
   sourceEntry: EntryManagementEntry;
   sourceClass: EntryClass;
 }
@@ -277,6 +279,40 @@ function checkInEligibility(
   return { eligible: true, reason: null };
 }
 
+/**
+ * A Pull whose money has moved: refunded in part or full, or the refund decided (MYK9-1749).
+ * Such a Pull is never undone from the desk, so no refund ends up on a dog that runs.
+ */
+export function pullRefundSettled(entry: EntryManagementEntry): boolean {
+  return (
+    (entry.refundAmount ?? 0) > 0 ||
+    Boolean(entry.refundedAt) ||
+    Boolean(entry.refundDecision) ||
+    entry.paymentStatus === PaymentStatus.REFUNDED ||
+    entry.paymentStatus === PaymentStatus.PARTIAL_REFUND
+  );
+}
+
+/**
+ * A real Pull the desk may undo today (owner, MYK9-1749): pulled and scratched, the trial is
+ * today, the run unscored, and no refund issued or decided.
+ */
+function deskUnpullState(
+  entry: EntryManagementEntry,
+  cls: EntryClass,
+  info: PeopleRosterClassInfo | undefined,
+  currentDate: Date | null | undefined
+): { canUnpull: boolean; settled: boolean } {
+  const realPull =
+    (cls.checkInStatus ?? 'no-status') === 'pulled' && entry.entryStatus === EntryStatus.SCRATCHED;
+  if (!realPull || entry.isScored) return { canUnpull: false, settled: false };
+  const today =
+    !currentDate ||
+    (Boolean(info?.trialDate) && isTrialDateToday(info!.trialDate!, info!.timezone, currentDate));
+  const settled = pullRefundSettled(entry);
+  return { canUnpull: today && !settled, settled };
+}
+
 function statusPresentation(
   entry: EntryManagementEntry,
   cls: EntryClass,
@@ -342,6 +378,7 @@ function buildClassRows(
         (eligibility.eligible ||
           checkInEligibility(entry, { ...cls, checkInStatus: 'no-status' }, info, currentDate)
             .eligible);
+      const unpull = deskUnpullState(entry, cls, info, currentDate);
       return {
         id: `${entry.id}:${classId}`,
         entryId: entry.id,
@@ -351,12 +388,13 @@ function buildClassRows(
         classNumber: cls.number,
         time: info?.time || null,
         ring: info?.ring || null,
-        statusLabel: status.label,
+        statusLabel: unpull.settled ? 'Pulled · refund decided' : status.label,
         statusValue: status.value,
         checkInStatus: cls.checkInStatus ?? 'no-status',
         eligibleForCheckIn: eligibility.eligible,
         ineligibleReason: eligibility.reason,
         deskStatusEditable,
+        deskCanUnpull: unpull.canUnpull,
         sourceEntry: entry,
         sourceClass: cls,
       };

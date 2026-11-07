@@ -21,6 +21,8 @@ interface CheckInDeskDogCardProps {
   error: string | null;
   onCheckIn: (dog: CheckInDeskDog) => void;
   onSetStatus: (row: PeopleRosterClassRow, status: CheckInStatus) => void;
+  /** Put back a pulled class (MYK9-1749); asks first. */
+  onUnpull: (row: PeopleRosterClassRow) => void;
 }
 
 /** A dog checked in, at the gate or called to it has arrived; Conflict and Pulled have not. */
@@ -48,6 +50,7 @@ export function CheckInDeskDogCard({
   error,
   onCheckIn,
   onSetStatus,
+  onUnpull,
 }: CheckInDeskDogCardProps) {
   const [pickerId, setPickerId] = useState<string | null>(null);
   // The class as it is now, not as it was when the picker opened: if ringside has moved it on,
@@ -103,12 +106,12 @@ export function CheckInDeskDogCard({
               <span className="min-w-0 flex-1 basis-48 text-muted-foreground">
                 {classLine(row)}
               </span>
-              {row.deskStatusEditable ? (
+              {row.deskStatusEditable || row.deskCanUnpull ? (
                 <button
                   type="button"
                   disabled={busyIds.has(row.entryId)}
                   aria-label={`Change status for ${dog.dogName}, ${row.className}: ${row.statusLabel}`}
-                  onClick={() => setPickerId(row.entryId)}
+                  onClick={() => (row.deskCanUnpull ? onUnpull(row) : setPickerId(row.entryId))}
                   className="flex min-h-11 shrink-0 items-center gap-0.5 rounded-md px-1 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
                 >
                   {badge}

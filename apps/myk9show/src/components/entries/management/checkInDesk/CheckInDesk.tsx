@@ -21,6 +21,7 @@ import { useCheckInDeskActions } from './useCheckInDeskActions';
 import { useMinuteClock } from './useMinuteClock';
 import { useDeskPull } from './useDeskPull';
 import { PullAtShowDialog } from './PullAtShowDialog';
+import { ConfirmDialog } from '@/components/ui/alert-dialog';
 
 interface CheckInDeskProps {
   showId: string;
@@ -220,6 +221,7 @@ export function CheckInDesk({
                         ? pull.requestPull(row)
                         : void setStatus(`${row.dogName}, ${row.className}`, [row.entryId], status)
                     }
+                    onUnpull={pull.requestUnpull}
                   />
                 ))}
               </section>
@@ -233,11 +235,23 @@ export function CheckInDesk({
           dogName={pull.pullRow.dogName}
           armband={pull.pullRow.armband}
           className={pull.pullRow.className}
-          isSubmitting={pull.isPulling}
+          isSubmitting={pull.isWorking}
           onOpenChange={open => {
-            if (!open) pull.cancelPull();
+            if (!open) pull.cancel();
           }}
           onConfirm={reason => void pull.confirmPull(reason)}
+        />
+      )}
+      {pull.unpullRow && (
+        <ConfirmDialog
+          open
+          onOpenChange={open => {
+            if (!open) pull.cancel();
+          }}
+          title={`Put ${pull.unpullRow.dogName} back?`}
+          description={`${pull.unpullRow.className}. The pull is undone, ${pull.unpullRow.dogName} is entered again, and the check-in goes back to what it was before the pull.`}
+          confirmLabel="Put back"
+          onConfirm={() => void pull.confirmUnpull()}
         />
       )}
     </div>

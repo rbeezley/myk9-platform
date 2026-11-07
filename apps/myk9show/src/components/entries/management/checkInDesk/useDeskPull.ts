@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { showUndoToast } from '@/lib/undoToast';
 import { getUserFriendlyError } from '@/utils/errorMessages';
+import { useAuthContext } from '@/hooks/useAuthContext';
+import { EntryStatus } from '@/types/show-registration-types';
+import { changeSecretaryEntryStatus } from '@/services/database/entries/lifecycle';
 import {
   scratchShowMapEntry,
   undoShowMapScratch,
@@ -12,20 +15,24 @@ import type { PeopleRosterClassRow } from './peopleRoster';
  * Pulled on the Check-in desk is the real Pull (owner, MYK9-1749): the entry is stored as pulled
  * (scratched) and goes to refund review, the same write as Entries' Pull. It asks first
  * (`PullAtShowDialog`) and offers Undo afterwards, which puts the entry and its check-in back.
+ * A pulled class can also be put back later from its status, as Entries' Accept does, unless a
+ * refund has been issued or decided (`deskCanUnpull`).
  *
- * The confirmation holds only the entry id and reads the class live (`findRow`): if ringside
+ * Each confirmation holds only the entry id and reads the class live (`findRow`): if ringside
  * takes the dog or the run is scored while it is open, it closes and writes nothing.
  */
 export function useDeskPull(
   findRow: (entryId: string) => PeopleRosterClassRow | undefined,
   onRefreshEntries?: () => void | Promise<void>
 ) {
-  const [pullId, setPullId] = useState<string | null>(null);
-  const [isPulling, setIsPulling] = useState(false);
-  const live = pullId ? findRow(pullId) : undefined;
-  const pullRow = live?.deskStatusEditable ? live : undefined;
+  const { user } = useAuthContext();
+  const [pending, setPending] = useState<{ id: string; act: 'pull' | 'unpull' } | null>(null);
+  const [isWorking, setIsWorking] = useState(false);
+  const live = pending ? findRow(pending.id) : undefined;
+  const pullRow = pending?.act === 'pull' && live?.deskStatusEditable ? live : undefined;
+  const unpullRow = pending?.act === 'unpull' && live?.deskCanUnpull ? live : undefined;
   // Forget a confirmation whose class moved on, so it never reopens on its own.
-  if (pullId && !pullRow && !isPulling) setPullId(null);
+  if (pending && !pullRow && !unpullRow && !isWorking) setPending(null);
 
   const refresh = async () => {
     try {
@@ -36,16 +43,16 @@ export function useDeskPull(
   };
 
   const confirmPull = async (reason: string | undefined) => {
-    if (!pullRow || isPulling) return;
+    if (!pullRow || isWorking) return;
     const row = pullRow;
-    setIsPulling(true);
+    setIsWorking(true);
     try {
       const undoInput = await scratchShowMapEntry(
         row.entryId,
         reason,
         'Pulled at the check-in desk'
       );
-      setPullId(null);
+      setPending(null);
       await refresh();
       showUndoToast({
         message: `${row.dogName} pulled from ${row.className}`,
@@ -58,15 +65,39 @@ export function useDeskPull(
     } catch (error) {
       toast.error(getUserFriendlyError(error));
     } finally {
-      setIsPulling(false);
+      setIsWorking(false);
+    }
+  };
+
+  // Entries' Accept: back to entered, and the database restores the check-in the Pull overwrote.
+  const confirmUnpull = async () => {
+    if (!unpullRow || isWorking) return;
+    const row = unpullRow;
+    setIsWorking(true);
+    try {
+      await changeSecretaryEntryStatus({
+        entry: row.sourceEntry,
+        newStatus: EntryStatus.ACCEPTED,
+        ...(user?.id ? { secretaryId: user.id } : {}),
+      });
+      setPending(null);
+      await refresh();
+      toast.success(`${row.dogName} is back in ${row.className}`);
+    } catch (error) {
+      toast.error(getUserFriendlyError(error));
+    } finally {
+      setIsWorking(false);
     }
   };
 
   return {
     pullRow,
-    isPulling,
-    requestPull: (row: PeopleRosterClassRow) => setPullId(row.entryId),
-    cancelPull: () => setPullId(null),
+    unpullRow,
+    isWorking,
+    requestPull: (row: PeopleRosterClassRow) => setPending({ id: row.entryId, act: 'pull' }),
+    requestUnpull: (row: PeopleRosterClassRow) => setPending({ id: row.entryId, act: 'unpull' }),
+    cancel: () => setPending(null),
     confirmPull,
+    confirmUnpull,
   };
 }

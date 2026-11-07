@@ -10,6 +10,11 @@ const h = vi.hoisted(() => ({
   scratchShowMapEntry: vi.fn(),
   undoShowMapScratch: vi.fn(),
   showUndoToast: vi.fn(),
+  changeSecretaryEntryStatus: vi.fn(),
+}));
+
+vi.mock('@/services/database/entries/lifecycle', () => ({
+  changeSecretaryEntryStatus: h.changeSecretaryEntryStatus,
 }));
 
 vi.mock('@/services/show-day/checkInStatus', () => ({
@@ -181,5 +186,49 @@ describe('Pulled on the Check-in desk is the real Pull (MYK9-1749)', () => {
     rerender(<CheckInDesk {...props} entries={[poppy]} />);
     expect(screen.queryByRole('dialog', { name: 'Pull Poppy?' })).not.toBeInTheDocument();
     expect(h.scratchShowMapEntry).not.toHaveBeenCalled();
+  });
+});
+
+describe('Putting a pulled class back from the desk (MYK9-1749)', () => {
+  const pulledPoppy: EntryManagementEntry = {
+    ...poppy,
+    entryStatus: EntryStatus.SCRATCHED,
+    classes: [{ ...poppy.classes[0]!, status: 'scratched', checkInStatus: 'pulled' }],
+  };
+  const props = { showId: 'show-1', loading: false, unknown: false, onRetry: vi.fn() };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    h.changeSecretaryEntryStatus.mockResolvedValue({});
+  });
+
+  it('asks first, then puts the entry back with Entries’ own Accept', async () => {
+    const { user } = render(<CheckInDesk {...props} currentDate={NOW} entries={[pulledPoppy]} />);
+    await user.click(screen.getByRole('button', { name: /^Change status for Poppy/ }));
+
+    const confirm = await screen.findByRole('alertdialog', { name: 'Put Poppy back?' });
+    expect(h.changeSecretaryEntryStatus).not.toHaveBeenCalled();
+    await user.click(within(confirm).getByRole('button', { name: 'Put back' }));
+
+    await waitFor(() => expect(h.changeSecretaryEntryStatus).toHaveBeenCalledTimes(1));
+    expect(h.changeSecretaryEntryStatus.mock.calls[0]![0]).toMatchObject({
+      entry: { id: 'entry-1' },
+      newStatus: EntryStatus.ACCEPTED,
+    });
+    expect(h.updateReplicatedCheckInStatus).not.toHaveBeenCalled();
+  });
+
+  it('offers no way back once a refund is decided', () => {
+    render(
+      <CheckInDesk
+        {...props}
+        currentDate={NOW}
+        entries={[{ ...pulledPoppy, refundDecision: 'denied' }]}
+      />
+    );
+    expect(screen.getByRole('article', { name: 'Poppy' })).toHaveTextContent(
+      'Pulled · refund decided'
+    );
+    expect(screen.queryByRole('button', { name: /^Change status/ })).not.toBeInTheDocument();
   });
 });

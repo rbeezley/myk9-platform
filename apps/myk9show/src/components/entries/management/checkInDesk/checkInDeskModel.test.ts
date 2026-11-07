@@ -99,6 +99,46 @@ describe('deskStatusEditable', () => {
     expect(row!.deskStatusEditable).toBe(false);
     expect(row!.statusLabel).toBe('Pulled');
   });
+});
+
+describe('deskCanUnpull (MYK9-1749)', () => {
+  const pulled = (overrides: Partial<EntryManagementEntry> = {}) => {
+    const scratched = entry('e1', 'class-1', 'pulled', {
+      entryStatus: EntryStatus.SCRATCHED,
+      ...overrides,
+    });
+    scratched.classes[0]!.status = 'scratched';
+    return scratched;
+  };
+
+  it('lets the desk put back a real Pull made today with no refund decided', () => {
+    const [row] = rowsOf([pulled()]);
+    expect(row!.deskCanUnpull).toBe(true);
+    expect(row!.deskStatusEditable).toBe(false);
+  });
+
+  it.each([
+    ['a refund amount', { refundAmount: 25 }],
+    ['a refund date', { refundedAt: '2026-07-08T15:00:00Z' }],
+    ['a denied refund decision', { refundDecision: 'denied' as const }],
+    ['a refunded payment', { paymentStatus: PaymentStatus.REFUNDED }],
+    ['a partial refund', { paymentStatus: PaymentStatus.PARTIAL_REFUND }],
+  ])('keeps the Pull locked once %s is recorded, saying so', (_, overrides) => {
+    const [row] = rowsOf([pulled(overrides)]);
+    expect(row!.deskCanUnpull).toBe(false);
+    expect(row!.statusLabel).toBe('Pulled · refund decided');
+  });
+
+  it('never offers it for a flag-only pull, a scored run or another day', () => {
+    expect(rowsOf([entry('e1', 'class-1', 'pulled')])[0]!.deskCanUnpull).toBe(false);
+    expect(rowsOf([pulled({ isScored: true })])[0]!.deskCanUnpull).toBe(false);
+    const tomorrow = buildCheckInDeskPeople(
+      [pulled()],
+      CLASSES,
+      new Date('2026-07-09T16:00:00.000Z')
+    )[0]!.classRows[0]!;
+    expect(tomorrow.deskCanUnpull).toBe(false);
+  });
 
   it('is not editable for a waitlisted entry or on another day', () => {
     expect(

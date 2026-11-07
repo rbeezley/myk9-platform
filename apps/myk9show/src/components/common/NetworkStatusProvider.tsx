@@ -1,7 +1,6 @@
-import React, { useCallback, useMemo, useState } from 'react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
-import { WifiOff, Wifi, AlertCircle, RefreshCw } from 'lucide-react';
+import React, { useEffect, useMemo } from 'react';
+import { toast } from 'sonner';
+import { WifiOff, Wifi } from 'lucide-react';
 import { useOnlineStatus, useNetworkQuality } from '@/lib/networkUtils';
 import {
   NetworkConnectivityContext,
@@ -13,106 +12,40 @@ interface NetworkStatusProviderProps {
   children: React.ReactNode;
 }
 
+const OFFLINE_TOAST_ID = 'network-offline';
+const OFFLINE_TOAST_MS = 6000;
+
+// INTENT: offline is expected ringside, not an alarm. One short toast on going
+// offline, never a pinned card over the scoresheet's Save/Cancel footer. The
+// persistent offline signal is the ringside header badge (MYK9-1744).
 export const NetworkStatusProvider: React.FC<NetworkStatusProviderProps> = ({ children }) => {
   const isOnline = useOnlineStatus();
   const quality = useNetworkQuality();
-  const [showOfflineMessage, setShowOfflineMessage] = useState(!isOnline);
-  const [hasBeenOffline, setHasBeenOffline] = useState(!isOnline);
-  const [lastOnlineState, setLastOnlineState] = useState(isOnline);
 
-  // Track when user goes offline/online - using state comparison during render
-  if (isOnline !== lastOnlineState) {
-    setLastOnlineState(isOnline);
-    if (!isOnline) {
-      setHasBeenOffline(true);
-      setShowOfflineMessage(true);
-    } else if (hasBeenOffline) {
-      // User just came back online
-      setShowOfflineMessage(false);
-      // Could show a brief "Back online" message here
-    }
-  }
-
-  const retryConnection = useCallback(() => {
-    // Force a connection test
-    if (navigator.onLine) {
-      setShowOfflineMessage(false);
-    } else {
-      // Still offline, keep showing message
-      setShowOfflineMessage(true);
-    }
-  }, []);
+  // Fires on mount when the app starts offline and on each online -> offline
+  // transition; re-renders while offline do not change `isOnline`, so no repeat.
+  // The fixed id also collapses a StrictMode double-run into one toast.
+  useEffect(() => {
+    if (isOnline) return;
+    toast(
+      "You're offline. Changes are saved on this device and will sync when you're back online.",
+      {
+        id: OFFLINE_TOAST_ID,
+        duration: OFFLINE_TOAST_MS,
+        dismissible: true,
+      }
+    );
+  }, [isOnline]);
 
   // `quality` changes on every connection `change` event; keeping it in its own
   // context means the many isOnline-only consumers do not re-render with it.
-  const connectivity = useMemo(
-    () => ({ isOnline, showOfflineMessage, retryConnection }),
-    [isOnline, showOfflineMessage, retryConnection]
-  );
+  const connectivity = useMemo(() => ({ isOnline }), [isOnline]);
 
   return (
     <NetworkConnectivityContext.Provider value={connectivity}>
-      <NetworkQualityContext.Provider value={quality}>
-        {children}
-        <NetworkStatusIndicator />
-      </NetworkQualityContext.Provider>
+      <NetworkQualityContext.Provider value={quality}>{children}</NetworkQualityContext.Provider>
     </NetworkConnectivityContext.Provider>
   );
-};
-
-const NetworkStatusIndicator: React.FC = () => {
-  const { isOnline, quality, showOfflineMessage, retryConnection } = useNetworkStatus();
-
-  if (!showOfflineMessage && isOnline) {
-    return null;
-  }
-
-  // Show offline alert
-  if (!isOnline || showOfflineMessage) {
-    return (
-      // The status notice is informational and must not interrupt ringside
-      // actions underneath it. Keep only the explicit Retry button interactive.
-      <div className="pointer-events-none fixed bottom-4 left-4 right-4 z-50 md:left-auto md:right-4 md:max-w-sm">
-        <Alert className="pointer-events-none border-orange-200 bg-orange-50">
-          <WifiOff className="h-4 w-4 text-orange-600" />
-          <AlertDescription className="flex items-center justify-between">
-            <div>
-              <div className="font-medium text-orange-800">No internet connection</div>
-              <div className="text-sm text-orange-800">
-                Changes will be saved locally and synced when connection is restored.
-              </div>
-            </div>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={retryConnection}
-              className="pointer-events-auto ml-2 shrink-0"
-            >
-              <RefreshCw className="h-3 w-3 mr-1" />
-              Retry
-            </Button>
-          </AlertDescription>
-        </Alert>
-      </div>
-    );
-  }
-
-  // Show slow connection warning
-  if (quality && (quality.effectiveType === '2g' || quality.effectiveType === 'slow-2g')) {
-    return (
-      <div className="fixed bottom-4 left-4 right-4 z-50 md:left-auto md:right-4 md:max-w-sm">
-        <Alert className="border-yellow-200 bg-yellow-50">
-          <AlertCircle className="h-4 w-4 text-yellow-600" />
-          <AlertDescription>
-            <div className="font-medium text-yellow-800">Slow connection detected</div>
-            <div className="text-sm text-yellow-600">Some features may load slowly.</div>
-          </AlertDescription>
-        </Alert>
-      </div>
-    );
-  }
-
-  return null;
 };
 
 // Component for displaying network status in header/nav

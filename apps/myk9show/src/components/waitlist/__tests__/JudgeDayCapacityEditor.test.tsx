@@ -93,8 +93,6 @@ describe('judge-day capacity editor', () => {
         value={{
           isOnline: false,
           quality: null,
-          showOfflineMessage: true,
-          retryConnection: vi.fn(),
         }}
       >
         <JudgeCapacityOverview judgeDays={[day]} onViewWaitList={vi.fn()} capacityShowId="show-1" />

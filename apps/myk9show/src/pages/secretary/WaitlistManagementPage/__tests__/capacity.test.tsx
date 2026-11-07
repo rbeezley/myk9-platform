@@ -122,8 +122,6 @@ describe('WaitlistManagementPage judge-day capacity', () => {
         value={{
           isOnline,
           quality: null,
-          showOfflineMessage: !isOnline,
-          retryConnection: vi.fn(),
         }}
       >
         <WaitlistManagementPage showId="show-1" />

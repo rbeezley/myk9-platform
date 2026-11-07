@@ -6,7 +6,7 @@ import {
 } from '@/hooks/useNetworkStatus';
 
 /**
- * Publishes a combined `{ isOnline, quality, showOfflineMessage, retryConnection }`
+ * Publishes a combined `{ isOnline, quality }`
  * value the way `NetworkStatusProvider` does (two contexts).
  */
 export function NetworkStatusTestProvider({
@@ -16,11 +16,8 @@ export function NetworkStatusTestProvider({
   value: NetworkStatusContextType;
   children?: ReactNode;
 }) {
-  const { isOnline, showOfflineMessage, retryConnection, quality } = value;
-  const connectivity = useMemo(
-    () => ({ isOnline, showOfflineMessage, retryConnection }),
-    [isOnline, showOfflineMessage, retryConnection]
-  );
+  const { isOnline, quality } = value;
+  const connectivity = useMemo(() => ({ isOnline }), [isOnline]);
   return (
     <NetworkConnectivityContext.Provider value={connectivity}>
       <NetworkQualityContext.Provider value={quality}>{children}</NetworkQualityContext.Provider>

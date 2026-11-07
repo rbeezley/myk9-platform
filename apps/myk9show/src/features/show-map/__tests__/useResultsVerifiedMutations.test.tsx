@@ -38,8 +38,6 @@ function wrapper({ children }: { children: ReactNode }) {
         value={{
           isOnline: network.online,
           quality: null,
-          showOfflineMessage: false,
-          retryConnection: vi.fn(),
         }}
       >
         <ReplicationSyncTestProvider

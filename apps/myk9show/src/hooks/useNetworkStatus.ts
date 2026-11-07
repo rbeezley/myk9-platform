@@ -1,11 +1,9 @@
 import { createContext, useContext, useMemo } from 'react';
 import { NetworkQuality } from '@/lib/networkUtils';
 
-/** Cold: changes only when connectivity flips or the offline notice is shown/dismissed. */
+/** Cold: changes only when connectivity flips. */
 export interface NetworkConnectivity {
   isOnline: boolean;
-  showOfflineMessage: boolean;
-  retryConnection: () => void;
 }
 
 /** What `useNetworkStatus()` returns: connectivity plus the (hot) connection quality. */

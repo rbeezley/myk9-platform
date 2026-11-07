@@ -7,7 +7,7 @@ import { TERA_IDLE_COPY, TERA_OFFLINE_COPY } from '@/components/askq/askq-config
 import { NetworkStatusTestProvider } from '@/test/utils/NetworkStatusTestProvider';
 
 function network(isOnline: boolean) {
-  return { isOnline, quality: null, showOfflineMessage: !isOnline, retryConnection: vi.fn() };
+  return { isOnline, quality: null };
 }
 
 function dock(isOnline: boolean) {

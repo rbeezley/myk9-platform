@@ -214,8 +214,6 @@ describe('ReplicationSyncProvider: context split (MYK9-1367)', () => {
           value={{
             isOnline: true,
             quality: null,
-            showOfflineMessage: false,
-            retryConnection: vi.fn(),
           }}
         >
           <ReplicationSyncProvider autoSync={false} syncOnReconnect={false}>

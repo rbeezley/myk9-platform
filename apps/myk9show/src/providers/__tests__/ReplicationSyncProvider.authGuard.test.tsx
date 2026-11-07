@@ -155,8 +155,6 @@ function renderProvider(autoSync = true) {
         value={{
           isOnline: true,
           quality: null,
-          showOfflineMessage: false,
-          retryConnection: vi.fn(),
         }}
       >
         <ReplicationSyncProvider autoSync={autoSync} syncOnReconnect={false}>

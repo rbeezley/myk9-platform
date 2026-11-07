@@ -138,9 +138,7 @@ import { ReplicationSyncProvider } from './../ReplicationSyncProvider';
 
 function tree(isOnline: boolean) {
   return (
-    <NetworkStatusTestProvider
-      value={{ isOnline, quality: null, showOfflineMessage: false, retryConnection: vi.fn() }}
-    >
+    <NetworkStatusTestProvider value={{ isOnline, quality: null }}>
       <ReplicationSyncProvider autoSync={false} syncOnReconnect>
         <div />
       </ReplicationSyncProvider>

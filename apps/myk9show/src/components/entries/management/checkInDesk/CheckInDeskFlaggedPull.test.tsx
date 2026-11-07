@@ -4,6 +4,7 @@ import { render } from '@/test/utils/testUtils';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { CheckInStatus } from '@myk9/core';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
+import { createAppQueryClient } from '@/lib/queryClient';
 import { CheckInDesk } from './CheckInDesk';
 
 const h = vi.hoisted(() => ({
@@ -18,7 +19,9 @@ const h = vi.hoisted(() => ({
 }));
 
 vi.mock('sonner', () => ({ toast: { success: h.toastSuccess, error: h.toastError } }));
-vi.mock('@/services/database/entries/flaggedPull', () => ({
+vi.mock('@/services/database/entries/flaggedPull', async importOriginal => ({
+  // The real matching rule: only the network calls are stubbed.
+  ...(await importOriginal<typeof import('@/services/database/entries/flaggedPull')>()),
   getFlaggedPullSources: h.getFlaggedPullSources,
   clearFlaggedPull: h.clearFlaggedPull,
 }));
@@ -54,6 +57,11 @@ vi.mock('@/pages/secretary/useShowDeskScheduleRead', () => ({
 }));
 
 const NOW = new Date('2026-07-08T16:00:00.000Z');
+
+/** A source read for the write the desk shows (written at NOW unless said otherwise). */
+function read(source: 'exhibitor' | 'staff', writtenAt = NOW.getTime()) {
+  return new Map([['entry-1', { source, writtenAt }]]);
+}
 
 function poppy(
   checkInStatus: CheckInStatus,
@@ -104,7 +112,7 @@ const props = {
 describe('a flagged pull on the Check-in desk (MYK9-1753)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    h.getFlaggedPullSources.mockResolvedValue(new Map([['entry-1', 'exhibitor']]));
+    h.getFlaggedPullSources.mockResolvedValue(read('exhibitor'));
     h.clearFlaggedPull.mockResolvedValue('checked-in');
     h.scratchShowMapEntry.mockResolvedValue({
       entryId: 'entry-1',
@@ -116,7 +124,7 @@ describe('a flagged pull on the Check-in desk (MYK9-1753)', () => {
     ['exhibitor', 'The exhibitor flagged this pull.'],
     ['staff', 'Ringside staff flagged this pull.'],
   ] as const)('says who flagged it (%s)', async (source, text) => {
-    h.getFlaggedPullSources.mockResolvedValue(new Map([['entry-1', source]]));
+    h.getFlaggedPullSources.mockResolvedValue(read(source));
     render(<CheckInDesk {...props} entries={[poppy('pulled')]} />);
 
     const card = screen.getByRole('article', { name: 'Poppy' });
@@ -124,25 +132,54 @@ describe('a flagged pull on the Check-in desk (MYK9-1753)', () => {
     expect(h.getFlaggedPullSources).toHaveBeenCalledWith('show-1');
   });
 
-  it('credits a new flag to whoever set it, after the last one was cleared (Codex, #3698)', async () => {
-    const { rerender } = render(<CheckInDesk {...props} entries={[poppy('pulled')]} />);
-    const card = () => screen.getByRole('article', { name: 'Poppy' });
-    expect(await within(card()).findByText(/The exhibitor flagged this pull\./)).toBeVisible();
+  it.each([
+    ['the test client', undefined],
+    ['the production client', createAppQueryClient],
+  ])(
+    'credits a re-flag to whoever set it, never the earlier flagger (Codex, #3698): %s',
+    async (_, makeClient) => {
+      const queryClient = makeClient?.();
+      const { rerender } = render(<CheckInDesk {...props} entries={[poppy('pulled')]} />, {
+        ...(queryClient ? { queryClient } : {}),
+      });
+      const card = () => screen.getByRole('article', { name: 'Poppy' });
+      expect(await within(card()).findByText(/The exhibitor flagged this pull\./)).toBeVisible();
 
-    // Cleared, then ringside flags the same class again, a later write.
-    const later = { lastUpdated: new Date(NOW.getTime() + 60_000) };
-    rerender(<CheckInDesk {...props} entries={[poppy('checked-in', later)]} />);
-    h.getFlaggedPullSources.mockResolvedValue(new Map([['entry-1', 'staff']]));
-    rerender(
-      <CheckInDesk
-        {...props}
-        entries={[poppy('pulled', { lastUpdated: new Date(NOW.getTime() + 120_000) })]}
-      />
-    );
+      // Cleared, then ringside flags the same class again: a later write.
+      const reflaggedAt = NOW.getTime() + 120_000;
+      let answer: (value: ReturnType<typeof read>) => void = () => undefined;
+      h.getFlaggedPullSources.mockReturnValue(new Promise(resolve => (answer = resolve)));
+      rerender(
+        <CheckInDesk
+          {...props}
+          entries={[poppy('checked-in', { lastUpdated: new Date(NOW.getTime() + 60_000) })]}
+        />
+      );
+      rerender(
+        <CheckInDesk
+          {...props}
+          entries={[poppy('pulled', { lastUpdated: new Date(reflaggedAt) })]}
+        />
+      );
 
-    expect(within(card()).queryByText(/The exhibitor flagged this pull\./)).not.toBeInTheDocument();
-    expect(await within(card()).findByText(/Ringside staff flagged this pull\./)).toBeVisible();
-    expect(h.getFlaggedPullSources).toHaveBeenCalledTimes(2);
+      // While the new read is out, nobody is named: the old read was for another write.
+      expect(within(card()).getByText(/Flagged as pulled\./)).toBeVisible();
+      expect(within(card()).queryByText(/The exhibitor flagged/)).not.toBeInTheDocument();
+
+      answer(read('staff', reflaggedAt));
+      expect(await within(card()).findByText(/Ringside staff flagged this pull\./)).toBeVisible();
+      queryClient?.clear();
+    }
+  );
+
+  it('names nobody when the read is of another write than the one the desk shows', async () => {
+    h.getFlaggedPullSources.mockResolvedValue(read('exhibitor', NOW.getTime() - 1));
+    render(<CheckInDesk {...props} entries={[poppy('pulled')]} />);
+
+    await waitFor(() => expect(h.getFlaggedPullSources).toHaveBeenCalled());
+    const card = screen.getByRole('article', { name: 'Poppy' });
+    expect(within(card).getByText(/Flagged as pulled\./)).toBeVisible();
+    expect(within(card).queryByText(/The exhibitor flagged/)).not.toBeInTheDocument();
   });
 
   it('still offers Confirm Pull and Clear when who flagged it is unknown (offline)', async () => {

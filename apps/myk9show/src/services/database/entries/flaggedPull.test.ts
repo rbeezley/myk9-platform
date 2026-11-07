@@ -36,7 +36,7 @@ vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
   replicatedEntriesTable: { refreshServerChangedEntries: h.refreshServerChangedEntries },
 }));
 
-import { clearFlaggedPull, getFlaggedPullSources } from './flaggedPull';
+import { clearFlaggedPull, getFlaggedPullSources, sourceForFlag } from './flaggedPull';
 
 describe('getFlaggedPullSources', () => {
   beforeEach(() => {
@@ -47,9 +47,14 @@ describe('getFlaggedPullSources', () => {
   it('reads only flagged (not scratched) pulls of the show, keeping known sources', async () => {
     h.result = {
       data: [
-        { id: 'e1', check_in_pulled_by: 'exhibitor' },
-        { id: 'e2', check_in_pulled_by: 'staff' },
-        { id: 'e3', check_in_pulled_by: null },
+        {
+          id: 'e1',
+          check_in_pulled_by: 'exhibitor',
+          updated_at: '2026-07-08T16:00:00.123456+00:00',
+        },
+        { id: 'e2', check_in_pulled_by: 'staff', updated_at: '2026-07-08T16:01:00+00:00' },
+        { id: 'e3', check_in_pulled_by: null, updated_at: '2026-07-08T16:02:00+00:00' },
+        { id: 'e4', check_in_pulled_by: 'staff', updated_at: null },
       ],
       error: null,
     };
@@ -57,12 +62,12 @@ describe('getFlaggedPullSources', () => {
     const sources = await getFlaggedPullSources('show-1');
 
     expect([...sources]).toEqual([
-      ['e1', 'exhibitor'],
-      ['e2', 'staff'],
+      ['e1', { source: 'exhibitor', writtenAt: Date.parse('2026-07-08T16:00:00.123Z') }],
+      ['e2', { source: 'staff', writtenAt: Date.parse('2026-07-08T16:01:00Z') }],
     ]);
     expect(h.calls).toEqual([
       ['from', 'entries'],
-      ['select', 'id, check_in_pulled_by'],
+      ['select', 'id, check_in_pulled_by, updated_at'],
       ['eq', 'show_id', 'show-1'],
       ['eq', 'check_in_status', 'pulled'],
       ['neq', 'entry_status', 'scratched'],
@@ -74,6 +79,17 @@ describe('getFlaggedPullSources', () => {
     await expect(getFlaggedPullSources('show-1')).rejects.toMatchObject({
       message: expect.stringContaining('permission denied'),
     });
+  });
+});
+
+describe('sourceForFlag', () => {
+  const reads = new Map([['e1', { source: 'staff' as const, writtenAt: 1000 }]]);
+
+  it('names the flagger only for the very write it was read from', () => {
+    expect(sourceForFlag(reads, 'e1', 1000)).toBe('staff');
+    expect(sourceForFlag(reads, 'e1', 999)).toBeUndefined();
+    expect(sourceForFlag(reads, 'e1', 1001)).toBeUndefined();
+    expect(sourceForFlag(reads, 'e2', 1000)).toBeUndefined();
   });
 });
 

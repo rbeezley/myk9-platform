@@ -1,33 +1,45 @@
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   getFlaggedPullSources,
+  sourceForFlag,
   type FlaggedPullSource,
 } from '@/services/database/entries/flaggedPull';
 
-const NONE: ReadonlyMap<string, FlaggedPullSource> = new Map();
+/** A flagged class the desk shows: its entry id and the write time the desk has for it (ms). */
+export interface ShownFlag {
+  entryId: string;
+  writtenAt: number;
+}
 
 /**
- * Who flagged each pulled class on the desk (MYK9-1753). Keyed on the flags the desk already shows
- * (entry id plus its last write time), so each new flag, even a second one on the same class, gets
- * its own read as soon as it syncs. Only asks when something is flagged; a failed or offline read
- * leaves the source unknown, never wrong.
+ * Who flagged each pulled class on the desk (MYK9-1753), by entry id. The read is re-asked whenever
+ * the shown flags change, but correctness never rests on the cache: a source is returned only when
+ * it was read for the same write the desk is showing (`sourceForFlag`). So a flag cleared and set
+ * again by someone else is never credited to the earlier flagger, whatever React Query keeps or
+ * shows meanwhile. Unknown, offline or not yet read: no source, and the card says so.
  */
 export function useFlaggedPullSources(
   showId: string,
-  /** One `<entryId>@<last write time>` per flagged class. */
-  flagKeys: readonly string[]
+  flags: readonly ShownFlag[]
 ): ReadonlyMap<string, FlaggedPullSource> {
-  // The keys only decide when to re-read; the read itself returns the whole show's flags.
-  const key = [...flagKeys].sort().join(',');
+  const key = flags
+    .map(flag => `${flag.entryId}@${flag.writtenAt}`)
+    .sort()
+    .join(',');
   const { data } = useQuery({
     queryKey: ['check-in-desk', 'flagged-pull-sources', showId, key],
     queryFn: () => getFlaggedPullSources(showId),
     enabled: key.length > 0,
-    // A flag can be cleared and set again by someone else, so a source is only shown from a read
-    // made for the current flags, never a cached one that would credit the new flag to the old
-    // flagger (Codex, PR #3698). Until the read lands the card says "Flagged as pulled."
     staleTime: 0,
-    gcTime: 0,
   });
-  return data ?? NONE;
+  return useMemo(() => {
+    const shown = new Map<string, FlaggedPullSource>();
+    if (!data) return shown;
+    for (const flag of flags) {
+      const source = sourceForFlag(data, flag.entryId, flag.writtenAt);
+      if (source) shown.set(flag.entryId, source);
+    }
+    return shown;
+  }, [data, flags]);
 }

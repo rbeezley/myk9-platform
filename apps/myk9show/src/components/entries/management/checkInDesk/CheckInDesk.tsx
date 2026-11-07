@@ -86,14 +86,15 @@ export function CheckInDesk({
   );
   const pull = useDeskPull(entryId => rowsByEntryId.get(entryId), onRefreshEntries);
   // The write time tells one flag from the next on the same class (cleared, then set again).
-  const flagKeys = useMemo(
+  const shownFlags = useMemo(
     () =>
-      [...rowsByEntryId.values()]
-        .filter(isFlaggedPull)
-        .map(row => `${row.entryId}@${row.sourceEntry.lastUpdated.getTime()}`),
+      [...rowsByEntryId.values()].filter(isFlaggedPull).map(row => ({
+        entryId: row.entryId,
+        writtenAt: row.sourceEntry.lastUpdated.getTime(),
+      })),
     [rowsByEntryId]
   );
-  const flagSources = useFlaggedPullSources(showId, flagKeys);
+  const flagSources = useFlaggedPullSources(showId, shownFlags);
   const visible = useMemo(
     () => filterCheckInDesk(people, search, filter),
     [filter, people, search]

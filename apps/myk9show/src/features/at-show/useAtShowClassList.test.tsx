@@ -249,4 +249,39 @@ describe('useAtShowClassList entry refresh', () => {
 
     await waitFor(() => expect(result.current.entryCountsAvailable).toBe(true));
   });
+
+  // MYK9-1731: a secretary adds classes on Show Desk (the wizard writes the local replica while this
+  // list is unmounted, so no subscription sees it) and returns to Ringside inside the app's
+  // 5-minute default staleTime. The list must re-read the replica on mount, not serve the cache.
+  it('re-reads the local replica when the list mounts again within the default staleTime', async () => {
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false, gcTime: Number.POSITIVE_INFINITY, staleTime: 5 * 60 * 1000 },
+      },
+    });
+    const first = renderHook(() => useAtShowClassList('show-1'), { wrapper: wrapper(client) });
+    await waitFor(() => expect(first.result.current.groups[0]?.classes).toHaveLength(1));
+    first.unmount();
+
+    vi.mocked(replicatedClassesTable.getClassesByTrial).mockResolvedValue([
+      {
+        id: 'class-1',
+        element: 'Container',
+        level: 'Novice',
+        section: '-',
+        classStatus: 'in_progress',
+      },
+      {
+        id: 'class-new',
+        element: 'Interior',
+        level: 'Novice',
+        section: 'A',
+        classStatus: 'upcoming',
+      },
+    ] as never);
+
+    const second = renderHook(() => useAtShowClassList('show-1'), { wrapper: wrapper(client) });
+    await waitFor(() => expect(second.result.current.groups[0]?.classes).toHaveLength(2));
+    second.unmount();
+  });
 });

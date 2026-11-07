@@ -10,9 +10,8 @@
  * Real vs stub (per the Phase 1a service-layer audit + DB checks):
  *  - status change / toggle in-ring / mark in-ring / mark completed / batch →
  *    REAL (write check-in status).
- *  - reset score → STUB: the unified DB has no `unlock_entry_for_edit` RPC /
- *    `protect_scored_entries` trigger, so a faithful score-reset is deferred.
- *    The UI clears optimistically (handler side); this just logs.
+ *  - reset score → REAL: clears the score fields (and a `completed` check-in
+ *    status) in one replicated write, routed through `ringside_update_entry`.
  */
 
 import { useCallback, useRef, useState } from 'react';
@@ -26,7 +25,10 @@ import {
   type CheckInWriter,
 } from '@/services/show-day/checkInStatus';
 import { replicatedEntriesTable } from '@/services/replication';
-import { SCORE_DETAIL_CLEAR_FIELDS } from '@/services/replication/scoreResetFields';
+import {
+  SCORE_DETAIL_CLEAR_FIELDS,
+  scoreResetCheckInFields,
+} from '@/services/replication/scoreResetFields';
 
 export interface UseAtShowEntryListActionsDeps {
   /** Refresh callback from the data hook; awaited after a successful mutation. */
@@ -157,6 +159,7 @@ export function useAtShowEntryListActions(deps: UseAtShowEntryListActionsDeps): 
       // letting an assigned judge reset as well as a manager. The scoring-state
       // trigger clears any stale placement automatically.
       await runMutation(async () => {
+        const current = await replicatedEntriesTable.getEntryById(entryId);
         await replicatedEntriesTable.updateEntry(entryId, {
           // Use the nullable (camel finalPlacement / snake scoring_completed_at /
           // disqualification_reason) field variants so clears persist as NULL.
@@ -173,6 +176,7 @@ export function useAtShowEntryListActions(deps: UseAtShowEntryListActionsDeps): 
           scoring_completed_at: null,
           disqualification_reason: null,
           ...SCORE_DETAIL_CLEAR_FIELDS,
+          ...scoreResetCheckInFields(current),
         });
         await refresh();
       });

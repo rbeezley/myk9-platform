@@ -16,9 +16,14 @@ const updateSelfCheckInStatus = vi.fn<(id: string, status: string) => Promise<vo
   Promise.resolve()
 );
 
+const getEntryById = vi.fn<(id: string) => Promise<Record<string, unknown> | null>>(() =>
+  Promise.resolve(null)
+);
+
 vi.mock('@/services/replication', () => ({
   replicatedEntriesTable: {
     updateEntry: (id: string, updates: Record<string, unknown>) => updateEntry(id, updates),
+    getEntryById: (id: string) => getEntryById(id),
   },
 }));
 vi.mock('@/services/show-day/checkInStatus', () => ({
@@ -38,6 +43,7 @@ describe('useAtShowEntryListActions', () => {
 
   beforeEach(() => {
     updateEntry.mockClear();
+    getEntryById.mockClear();
     updateSelfCheckInStatus.mockClear();
     refresh.mockClear();
   });
@@ -138,6 +144,24 @@ describe('useAtShowEntryListActions', () => {
       points_earned: null,
     });
     expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it('handleResetScore puts a completed dog back to checked-in in the same write (MYK9-1737)', async () => {
+    getEntryById.mockResolvedValueOnce({ id: 'entry-uuid-7', checkInStatus: 'completed' });
+    const { result } = render();
+    await act(async () => {
+      await result.current.handleResetScore('entry-uuid-7');
+    });
+    expect(updateEntry).toHaveBeenCalledTimes(1);
+    expect(updateEntry).toHaveBeenCalledWith(
+      'entry-uuid-7',
+      expect.objectContaining({
+        is_scored: false,
+        result_status: 'pending',
+        checkInStatus: 'checked-in',
+        check_in_status: 'checked-in',
+      })
+    );
   });
 
   it('surfaces hasError when a mutation throws', async () => {

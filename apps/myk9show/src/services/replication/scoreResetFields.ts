@@ -17,3 +17,22 @@ export const SCORE_DETAIL_CLEAR_FIELDS: Partial<ReplicatedEntry> = {
   no_finish_count: null,
   points_earned: null,
 };
+
+/**
+ * The check-in columns a score reset must also write (MYK9-1737). Scoring sets
+ * `check_in_status = 'completed'` (`transitionToCompleted`), and both the
+ * entry-list badge and the run queue (`runQueueStateOf` treats `completed` as
+ * done) read that column, not `is_scored`. A completed dog ran, so it was
+ * here: it goes back to `checked-in`. Every other status (pulled, conflict, in-ring, ...) is a fact
+ * about the dog that a score reset does not change, so it is left alone.
+ *
+ * Spread into the SAME `updateEntry` payload as the score clear, so the two
+ * never land apart. Both columns are ringside-RPC-whitelisted.
+ */
+export function scoreResetCheckInFields(
+  current: Pick<ReplicatedEntry, 'checkInStatus' | 'check_in_status'> | null
+): Partial<ReplicatedEntry> {
+  const status = current?.checkInStatus ?? current?.check_in_status;
+  if (status !== 'completed') return {};
+  return { checkInStatus: 'checked-in', check_in_status: 'checked-in' };
+}

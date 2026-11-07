@@ -1,6 +1,9 @@
 import { useState, useCallback, useMemo } from 'react';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
-import { SCORE_DETAIL_CLEAR_FIELDS } from '@/services/replication/scoreResetFields';
+import {
+  SCORE_DETAIL_CLEAR_FIELDS,
+  scoreResetCheckInFields,
+} from '@/services/replication/scoreResetFields';
 import type { ScoringEntry } from '../types';
 import {
   digitsToSeconds,
@@ -133,6 +136,7 @@ export function usePaperScoring(entries: ScoringEntry[], userId: string) {
   const clearEntry = useCallback(async (entryId: string) => {
     setIsSaving(true);
     try {
+      const current = await replicatedEntriesTable.getEntryById(entryId);
       await replicatedEntriesTable.updateEntry(entryId, {
         result_status: 'pending',
         resultStatus: 'pending',
@@ -147,6 +151,7 @@ export function usePaperScoring(entries: ScoringEntry[], userId: string) {
         scoring_completed_at: null,
         disqualification_reason: null,
         ...SCORE_DETAIL_CLEAR_FIELDS,
+        ...scoreResetCheckInFields(current),
       });
       // The cleared dog stays on screen.
       setRequestedEntryId(entryId);

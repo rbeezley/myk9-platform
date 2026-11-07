@@ -2,8 +2,10 @@
  * The picker's card lists: the "Your ring" section and the
  * per-trial collapsible lists (MYK9-1506 split this out of AtShowClassListPage).
  */
+import { useMemo } from 'react';
 import { ChevronRight } from 'lucide-react';
 import type { ClassEntry } from '@myk9/ringside';
+import { TrialGroupCard } from '@/components/schedule/TrialGroupCard';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 import { getTrialTimezone } from '@/features/registries';
@@ -13,6 +15,8 @@ import { CLASS_LIST_PANEL_ID } from './AtShowClassListToolbar';
 import { CLASS_LIST_TABS, type ClassListTab } from './atShowClassListFilter';
 import { formatAtShowTrialHeading } from './atShowTrialHeading';
 import type { DatedRingClass } from './orderRingClassesByDay';
+import { groupYourRingByTrial } from './groupYourRingByTrial';
+import { useYourRingGroupOpen } from './useYourRingGroupOpen';
 
 interface AtShowClassListSectionsProps {
   tab: ClassListTab;
@@ -39,6 +43,8 @@ export function AtShowClassListSections({
   const hasCards =
     yourRing.length > 0 ||
     (!scopeToAssignedClasses && byTrial.some(({ classes }) => classes.length > 0));
+  const yourRingGroups = useMemo(() => groupYourRingByTrial(yourRing), [yourRing]);
+  const { isGroupOpen, toggleGroup } = useYourRingGroupOpen(yourRingGroups);
   const tabLabel = CLASS_LIST_TABS.find(({ id }) => id === tab)?.label ?? '';
 
   return (
@@ -59,19 +65,30 @@ export function AtShowClassListSections({
             </h2>
             <span className={COUNT_CHIP}>{yourRing.length}</span>
           </div>
-          <ul className="space-y-2">
-            {yourRing.map(({ entry, trialTimeZone, trialHeading, dayBucket, isToday }) => (
-              <AtShowClassRow
-                key={entry.id}
-                entry={entry}
-                trialTimeZone={trialTimeZone}
-                trialHeading={trialHeading}
-                dayBucket={dayBucket}
-                isToday={isToday}
-                {...cardProps(entry)}
-              />
+          <div className="space-y-3">
+            {yourRingGroups.map(group => (
+              <TrialGroupCard
+                key={group.key}
+                open={isGroupOpen(group.key)}
+                onOpenChange={open => toggleGroup(group.key, open)}
+                label={group.label}
+                summary={`${group.classes.length === 1 ? '1 class' : `${group.classes.length} classes`}${group.isToday ? ' · Today' : ''}`}
+                data-testid={`your-ring-trial-${group.key}`}
+              >
+                <ul className="space-y-2">
+                  {group.classes.map(({ entry, trialTimeZone, dayBucket }) => (
+                    <AtShowClassRow
+                      key={entry.id}
+                      entry={entry}
+                      trialTimeZone={trialTimeZone}
+                      dayBucket={dayBucket}
+                      {...cardProps(entry)}
+                    />
+                  ))}
+                </ul>
+              </TrialGroupCard>
             ))}
-          </ul>
+          </div>
         </section>
       )}
 

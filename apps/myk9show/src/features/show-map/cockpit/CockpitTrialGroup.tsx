@@ -1,7 +1,6 @@
 import { Fragment, useState, type MouseEvent, type ReactNode } from 'react';
-import { ChevronDown } from 'lucide-react';
 
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { TrialGroupCard } from '@/components/schedule/TrialGroupCard';
 import { ClassEntryBreakdownLine } from '@/components/schedule/ClassEntryBreakdownLine';
 import type { ClassEntryBreakdown } from '@/features/entry-operations/classEntryBreakdown';
 import { cn } from '@/lib/utils';
@@ -100,183 +99,40 @@ export function CockpitTrialGroup({
     .join(' · ');
 
   return (
-    <Collapsible open={open} onOpenChange={setOpen}>
-      {/* overflow-clip, not -hidden: hidden makes this a scroll container and the focused
-          class's pinned header (inline when stacked) would pin to it instead of the page. */}
-      <div className="overflow-clip rounded-xl border bg-card text-card-foreground shadow-sm">
-        {/* One row at every width: the trial menu stays in the top-right corner (MYK9-1727). */}
-        <div className="flex items-start border-b">
-          {/* Only while open: a tick on the heading must never reach rows the collapse hides. */}
-          {select && open && group.classes.length > 0 && (
-            <ScheduleTrialCheckbox
-              label={group.label}
-              state={select.headingState}
-              onToggle={select.onToggleTrial}
-            />
-          )}
-          <CollapsibleTrigger
-            id={getCockpitAnchorElementId(group.trialId)}
-            aria-label={`${open ? 'Collapse' : 'Expand'} ${group.label}`}
-            className="min-w-0 flex-1 flex-nowrap gap-x-3 px-4 py-3 text-left hover:no-underline"
-          >
-            {/* Wrapped: the shared trigger rotates a direct-child svg 180deg when open. */}
-            <span aria-hidden="true" className="shrink-0">
-              <ChevronDown
-                className={cn(
-                  'h-4 w-4 text-muted-foreground transition-transform',
-                  !open && '-rotate-90'
-                )}
-              />
-            </span>
-            <div className="min-w-0 flex-1">
-              <div className="font-semibold">{group.label}</div>
-              <div className="text-xs font-normal text-muted-foreground">{summary}</div>
-            </div>
-          </CollapsibleTrigger>
-          {trialActions && (
-            <div className="flex shrink-0 items-center px-1 pt-1.5">{trialActions}</div>
-          )}
-        </div>
-        {/* Clip, not hidden, for the same reason as the card above. */}
-        <CollapsibleContent className="overflow-clip [&>div]:p-0">
-          <div className="flex flex-col gap-2 p-3">
-            {group.classes.map((classItem, classIndex) => {
-              const focused = model.focusedClass?.id === classItem.id;
-              const ticked = select?.isSelected(classItem.id) ?? false;
-              const breakdown = breakdownFor(classItem.id);
-              const progress = classItem.progress.value;
-              // Before scoring can begin the count would only ever read "0 of N".
-              const scored =
-                progress &&
-                (progress.completed > 0 ||
-                  classItem.lifecycle.value === 'in-progress' ||
-                  classItem.lifecycle.value === 'complete')
-                  ? progress
-                  : null;
-              return (
-                <Fragment key={classItem.id}>
-                  {group.nowMarkerIndex === classIndex && (
-                    <div
-                      data-cockpit-now-marker
-                      className="flex items-center gap-2 bg-primary/5 px-4 py-1.5 text-xs font-semibold text-primary"
-                    >
-                      <span className="h-px flex-1 bg-primary/30" />
-                      Now
-                      <span className="h-px flex-1 bg-primary/30" />
-                    </div>
-                  )}
-                  <div
-                    id={getCockpitAnchorElementId(classItem.id)}
-                    onClick={event => {
-                      if (!selectsRow(event)) return;
-                      if (select) select.onToggleClass(classItem.id);
-                      else onFocusClass(classItem.id);
-                    }}
-                    className={cn(
-                      'flex cursor-pointer flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border bg-card px-3.5 py-3 transition-colors hover:border-primary/40',
-                      (select ? ticked : focused) &&
-                        'border-primary bg-primary/5 hover:border-primary'
-                    )}
-                  >
-                    {select && (
-                      <ScheduleRowCheckbox
-                        label={classItem.name}
-                        checked={ticked}
-                        onToggle={() => select.onToggleClass(classItem.id)}
-                      />
-                    )}
-                    <div className="w-[4.5rem] shrink-0 whitespace-nowrap text-sm font-semibold">
-                      {classItem.startedLabel ? (
-                        <>
-                          {classItem.startedLabel}
-                          <span className="block text-xs font-normal text-muted-foreground">
-                            started
-                          </span>
-                        </>
-                      ) : classItem.expectedStart ? (
-                        classItem.timeLabel
-                      ) : (
-                        <span className="font-normal text-muted-foreground">No time</span>
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-[1_1_220px]">
-                      <div className="flex flex-wrap items-center gap-2">
-                        {/* No onClick: the click (keyboard too) bubbles to the card's. */}
-                        <button
-                          type="button"
-                          data-selects-row
-                          aria-pressed={select ? ticked : focused}
-                          className="text-left font-semibold hover:underline hover:underline-offset-4"
-                        >
-                          {classItem.name}
-                        </button>
-                        {/* Read-only here; the status menu is in the selected-class panel. */}
-                        <ClassStatusControl
-                          classId={classItem.id}
-                          lifecycle={classItem.lifecycle.value}
-                          canManageShow={false}
-                        />
-                      </div>
-                      <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-sm text-muted-foreground [&>div]:mt-0">
-                        <span>
-                          {[
-                            classItem.operationalArea.value?.label,
-                            classItem.judgeName || 'Judge not set',
-                          ]
-                            .filter(Boolean)
-                            .join(' · ')}
-                        </span>
-                        {/* Once scoring can have begun, "2 of 2 scored" replaces the
-                            entered count, which it already states (owner, 2026-10-03). */}
-                        {scored && (
-                          <>
-                            <span aria-hidden="true">·</span>
-                            <span>
-                              {scored.completed} of {scored.total} scored
-                            </span>
-                          </>
-                        )}
-                        {breakdown && (!scored || breakdown.pending > 0) && (
-                          <>
-                            <span aria-hidden="true">·</span>
-                            <ClassEntryBreakdownLine
-                              breakdown={breakdown}
-                              showId={showId}
-                              trialId={classItem.trialId}
-                              classId={classItem.id}
-                              className={classItem.name}
-                              hideEntered={Boolean(scored)}
-                            />
-                          </>
-                        )}
-                        {classItem.attentionCount > 0 && (
-                          <>
-                            <span aria-hidden="true">·</span>
-                            <span className="font-medium text-destructive">
-                              {classItem.attentionCount} needs attention
-                            </span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                    {classItem.checklist && (
-                      <div className="ml-auto shrink-0">
-                        <ClassChecklistStrip summary={classItem.checklist} />
-                      </div>
-                    )}
-                  </div>
-                  {focused && inlineFocusedContent && (
-                    <div
-                      className="rounded-xl border bg-muted/20 p-3"
-                      data-testid="cockpit-inline-focus"
-                    >
-                      {inlineFocusedContent}
-                    </div>
-                  )}
-                </Fragment>
-              );
-            })}
-            {group.nowMarkerIndex === group.classes.length && group.classes.length > 0 && (
+    <TrialGroupCard
+      open={open}
+      onOpenChange={setOpen}
+      label={group.label}
+      summary={summary}
+      triggerId={getCockpitAnchorElementId(group.trialId)}
+      // Only while open: a tick on the heading must never reach rows the collapse hides.
+      leading={
+        select && open && group.classes.length > 0 ? (
+          <ScheduleTrialCheckbox
+            label={group.label}
+            state={select.headingState}
+            onToggle={select.onToggleTrial}
+          />
+        ) : undefined
+      }
+      actions={trialActions}
+    >
+      {group.classes.map((classItem, classIndex) => {
+        const focused = model.focusedClass?.id === classItem.id;
+        const ticked = select?.isSelected(classItem.id) ?? false;
+        const breakdown = breakdownFor(classItem.id);
+        const progress = classItem.progress.value;
+        // Before scoring can begin the count would only ever read "0 of N".
+        const scored =
+          progress &&
+          (progress.completed > 0 ||
+            classItem.lifecycle.value === 'in-progress' ||
+            classItem.lifecycle.value === 'complete')
+            ? progress
+            : null;
+        return (
+          <Fragment key={classItem.id}>
+            {group.nowMarkerIndex === classIndex && (
               <div
                 data-cockpit-now-marker
                 className="flex items-center gap-2 bg-primary/5 px-4 py-1.5 text-xs font-semibold text-primary"
@@ -286,14 +142,126 @@ export function CockpitTrialGroup({
                 <span className="h-px flex-1 bg-primary/30" />
               </div>
             )}
-            {group.classes.length === 0 && (
-              <div className="px-4 py-8 text-center text-sm text-muted-foreground">
-                No classes match this filter.
+            <div
+              id={getCockpitAnchorElementId(classItem.id)}
+              onClick={event => {
+                if (!selectsRow(event)) return;
+                if (select) select.onToggleClass(classItem.id);
+                else onFocusClass(classItem.id);
+              }}
+              className={cn(
+                'flex cursor-pointer flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border bg-card px-3.5 py-3 transition-colors hover:border-primary/40',
+                (select ? ticked : focused) && 'border-primary bg-primary/5 hover:border-primary'
+              )}
+            >
+              {select && (
+                <ScheduleRowCheckbox
+                  label={classItem.name}
+                  checked={ticked}
+                  onToggle={() => select.onToggleClass(classItem.id)}
+                />
+              )}
+              <div className="w-[4.5rem] shrink-0 whitespace-nowrap text-sm font-semibold">
+                {classItem.startedLabel ? (
+                  <>
+                    {classItem.startedLabel}
+                    <span className="block text-xs font-normal text-muted-foreground">started</span>
+                  </>
+                ) : classItem.expectedStart ? (
+                  classItem.timeLabel
+                ) : (
+                  <span className="font-normal text-muted-foreground">No time</span>
+                )}
+              </div>
+              <div className="min-w-0 flex-[1_1_220px]">
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* No onClick: the click (keyboard too) bubbles to the card's. */}
+                  <button
+                    type="button"
+                    data-selects-row
+                    aria-pressed={select ? ticked : focused}
+                    className="text-left font-semibold hover:underline hover:underline-offset-4"
+                  >
+                    {classItem.name}
+                  </button>
+                  {/* Read-only here; the status menu is in the selected-class panel. */}
+                  <ClassStatusControl
+                    classId={classItem.id}
+                    lifecycle={classItem.lifecycle.value}
+                    canManageShow={false}
+                  />
+                </div>
+                <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-sm text-muted-foreground [&>div]:mt-0">
+                  <span>
+                    {[
+                      classItem.operationalArea.value?.label,
+                      classItem.judgeName || 'Judge not set',
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </span>
+                  {/* Once scoring can have begun, "2 of 2 scored" replaces the
+                            entered count, which it already states (owner, 2026-10-03). */}
+                  {scored && (
+                    <>
+                      <span aria-hidden="true">·</span>
+                      <span>
+                        {scored.completed} of {scored.total} scored
+                      </span>
+                    </>
+                  )}
+                  {breakdown && (!scored || breakdown.pending > 0) && (
+                    <>
+                      <span aria-hidden="true">·</span>
+                      <ClassEntryBreakdownLine
+                        breakdown={breakdown}
+                        showId={showId}
+                        trialId={classItem.trialId}
+                        classId={classItem.id}
+                        className={classItem.name}
+                        hideEntered={Boolean(scored)}
+                      />
+                    </>
+                  )}
+                  {classItem.attentionCount > 0 && (
+                    <>
+                      <span aria-hidden="true">·</span>
+                      <span className="font-medium text-destructive">
+                        {classItem.attentionCount} needs attention
+                      </span>
+                    </>
+                  )}
+                </div>
+              </div>
+              {classItem.checklist && (
+                <div className="ml-auto shrink-0">
+                  <ClassChecklistStrip summary={classItem.checklist} />
+                </div>
+              )}
+            </div>
+            {focused && inlineFocusedContent && (
+              <div className="rounded-xl border bg-muted/20 p-3" data-testid="cockpit-inline-focus">
+                {inlineFocusedContent}
               </div>
             )}
-          </div>
-        </CollapsibleContent>
-      </div>
-    </Collapsible>
+          </Fragment>
+        );
+      })}
+      {group.nowMarkerIndex === group.classes.length && group.classes.length > 0 && (
+        <div
+          data-cockpit-now-marker
+          className="flex items-center gap-2 bg-primary/5 px-4 py-1.5 text-xs font-semibold text-primary"
+        >
+          <span className="h-px flex-1 bg-primary/30" />
+          Now
+          <span className="h-px flex-1 bg-primary/30" />
+        </div>
+      )}
+      {group.classes.length === 0 && (
+        <div className="px-4 py-8 text-center text-sm text-muted-foreground">
+          No classes match this filter.
+        </div>
+      )}
+    </TrialGroupCard>
   );
 }

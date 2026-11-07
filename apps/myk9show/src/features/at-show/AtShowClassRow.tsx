@@ -22,18 +22,11 @@ export interface AtShowClassRowProps {
   onClick: (entry: ClassEntry) => void;
   trialTimeZone: string;
   /**
-   * "<trial label> · <date>" (`formatAtShowTrialHeading`). Passed only where
-   * cards from several trials share one flat list (Your ring, MYK9-1165), so a
-   * multi-day show's identical class names stay tellable apart.
-   */
-  trialHeading?: string | undefined;
-  /**
    * Day relative to the trial's local today (MYK9-1224), only for Your ring.
-   * 'today' gets a label; 'past' is rendered quieter but stays tappable.
+   * 'past' is rendered quieter but stays tappable; the trial's group header
+   * (`groupYourRingByTrial`) carries the trial and Today label.
    */
   dayBucket?: RingDayBucket | undefined;
-  /** The trial's date is today; only this shows the Today label (a live class may sort as today without it). */
-  isToday?: boolean | undefined;
   /** In-ring / next-up preview for this card; omitted when unknown. */
   nextUp?: AtShowNextUpPreview | undefined;
   /**
@@ -62,7 +55,7 @@ export interface AtShowClassRowProps {
 /** The props every card shares; the lists add the entry and, for Your ring, its day facts. */
 export type AtShowClassCardProps = Omit<
   AtShowClassRowProps,
-  'entry' | 'trialTimeZone' | 'trialHeading' | 'dayBucket' | 'isToday'
+  'entry' | 'trialTimeZone' | 'dayBucket'
 >;
 
 /**
@@ -113,9 +106,7 @@ export function AtShowClassRow({
   isExhibitorOnly,
   onClick,
   trialTimeZone,
-  trialHeading,
   dayBucket,
-  isToday,
   nextUp,
   entryCountsAvailable,
   queuedScoreCount = 0,
@@ -155,16 +146,6 @@ export function AtShowClassRow({
             <div className="flex items-center gap-2">
               <span className="min-w-0 break-words font-medium">{entry.class_name}</span>
             </div>
-            {trialHeading && (
-              <div className="mt-0.5 flex items-center gap-2 text-sm font-medium text-foreground/80">
-                <span className="min-w-0">{trialHeading}</span>
-                {isToday && (
-                  <span className="shrink-0 rounded-full bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground">
-                    Today
-                  </span>
-                )}
-              </div>
-            )}
             {entry.judge_name && entry.judge_name !== 'No Judge Assigned' && (
               <div className="mt-0.5 flex min-w-0 items-start gap-1 break-words text-sm text-muted-foreground">
                 <User size={13} className="shrink-0" />

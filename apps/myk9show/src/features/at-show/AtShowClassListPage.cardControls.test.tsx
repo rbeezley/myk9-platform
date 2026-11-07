@@ -403,7 +403,7 @@ describe('refresh', () => {
     renderPage();
     fireEvent.click(await screen.findByRole('button', { name: 'Refresh classes' }));
     await waitFor(() => expect(sync.run).toHaveBeenCalledWith('show-1', { forceFullSync: true }));
-    expect(await screen.findAllByText('Classes up to date')).not.toHaveLength(0);
+    expect(await screen.findAllByText('Up to date')).not.toHaveLength(0);
   });
 
   it('says so when the sync fails', async () => {

@@ -56,6 +56,8 @@ export interface UseAtShowEntryListHandlersDeps {
   gateEntryClick?: () => boolean;
   /** Force-refresh from the data hook. */
   refresh: (forceSync?: boolean) => Promise<void>;
+  /** Manual refresh control: syncs and records the done/failed/offline answer (MYK9-1746). */
+  manualRefresh: () => Promise<void>;
 
   // Shim-owned UI-state setters (subset the handlers drive).
   setActiveStatusPopup: Dispatch<SetStateAction<string | null>>;
@@ -88,6 +90,7 @@ export function useAtShowEntryListHandlers(
     buildScoreSheetRoute,
     gateEntryClick,
     refresh,
+    manualRefresh,
     setActiveStatusPopup,
     setActiveResetMenu,
     setResetMenuPosition,
@@ -358,11 +361,11 @@ export function useAtShowEntryListHandlers(
   const handleManualRefresh = useCallback<EntryListHandlers['handleManualRefresh']>(async () => {
     setIsManualRefreshing(true);
     try {
-      await Promise.all([refresh(true), new Promise(resolve => setTimeout(resolve, 500))]);
+      await Promise.all([manualRefresh(), new Promise(resolve => setTimeout(resolve, 500))]);
     } finally {
       setIsManualRefreshing(false);
     }
-  }, [refresh, setIsManualRefreshing]);
+  }, [manualRefresh, setIsManualRefreshing]);
 
   const handleHardRefresh = useCallback<EntryListHandlers['handleHardRefresh']>(() => {
     window.location.reload();

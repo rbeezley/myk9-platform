@@ -47,7 +47,7 @@ import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { areReplicationTablesPendingFirstSync } from '@/utils/replicationSyncEmptyState';
 import { buildRingsideContextValue, buildRingsideReplication } from './ringsideCapabilities';
 import { notifyRunOrderPersistError } from './runOrderErrorToast';
-import { persistEntryRunOrder } from './persistEntryRunOrder';
+import { createRunOrderUpdater } from './runOrderUpdater';
 import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
 import { useAtShowShowHydration } from './useAtShowShowHydration';
 import { PartialReplicaNotice } from './StaleReadNotice';
@@ -204,9 +204,11 @@ export const AtShowEntryListPage: React.FC = () => {
   // Persist run order through the shared helper — see persistEntryRunOrder for
   // the offline-first / ringside-RLS details. The drag hook owns the optimistic
   // local reorder + grace period; we only queue the writes here.
-  const updateExhibitorOrder = useCallback(
-    (reordered: Entry[], previous: Entry[]) => persistEntryRunOrder(reordered, previous),
-    []
+  // MYK9-1734: save, then re-read the list before the drag guard ends, so the page never copies
+  // the pre-drop order back over the drop (the card flipped back for ~1.5s on Android).
+  const updateExhibitorOrder = useMemo(
+    () => createRunOrderUpdater(() => refresh(false)),
+    [refresh]
   );
 
   // A drag whose write never QUEUED used to be silent: the reordered list stayed

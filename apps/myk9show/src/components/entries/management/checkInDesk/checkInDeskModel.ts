@@ -7,8 +7,10 @@ import {
   buildPeopleRoster,
   filterPeopleRoster,
   type PeopleRosterClassInfo,
+  type PeopleRosterClassRow,
   type PeopleRosterPerson,
 } from '@/components/entries/management/checkInDesk/peopleRoster';
+import type { CheckInStatus } from '@myk9/core';
 import { buildTrialRingResolver } from '@/components/entries/management/checkInDesk/trialRingLabel';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import type { Trial, TrialClass } from '@/components/trials/types/trial.types';
@@ -90,28 +92,73 @@ export function filterCheckInDesk(
   return filterPeopleRoster(people, search, filter === 'not-checked-in' ? 'needs-check-in' : 'all');
 }
 
+/** A desk write made but not yet read back: the status it changed from, and to. */
+export interface DeskStatusChange {
+  from: CheckInStatus;
+  to: CheckInStatus;
+}
+
 /**
- * Optimistic until the entries re-read lands. Only a class with no ringside status yet flips:
- * at-gate, in-ring, pulled or completed from a later read are never masked. Shared by the
- * Check-in desk and the entry form so both show a check-in the same way.
+ * Optimistic until the entries re-read lands. A class shows `to` only while the shared entries
+ * still say `from`: once anything else moves it (ringside, a pull, the exhibitor's own Conflict,
+ * or the read-back itself) the shared value wins, even if the re-read failed and the change is
+ * still held. Shared by the Check-in desk and the entry form so both show a change the same way.
  */
-export function applyOptimisticCheckIn(
+export function applyOptimisticDeskStatuses(
   entries: readonly EntryManagementEntry[],
-  checkedInIds: ReadonlySet<string>
+  changes: ReadonlyMap<string, DeskStatusChange>
 ): EntryManagementEntry[] {
-  if (checkedInIds.size === 0) return [...entries];
-  return entries.map(entry =>
-    checkedInIds.has(entry.id)
-      ? {
-          ...entry,
-          classes: entry.classes.map(cls =>
-            !cls.checkInStatus || cls.checkInStatus === 'no-status'
-              ? { ...cls, checkInStatus: 'checked-in' as const, checkInTime: new Date() }
-              : cls
-          ),
-        }
-      : entry
-  );
+  if (changes.size === 0) return [...entries];
+  return entries.map(entry => {
+    const change = changes.get(entry.id);
+    if (!change) return entry;
+    return {
+      ...entry,
+      classes: entry.classes.map(cls =>
+        (cls.checkInStatus ?? 'no-status') === change.from
+          ? {
+              ...cls,
+              checkInStatus: change.to,
+              ...(change.to === 'checked-in' ? { checkInTime: new Date() } : {}),
+            }
+          : cls
+      ),
+    };
+  });
+}
+
+/** One dog's card on the desk: its armband, its class lines, and what one tap checks in. */
+export interface CheckInDeskDog {
+  key: string;
+  dogName: string;
+  armband: string | null;
+  rows: PeopleRosterClassRow[];
+  /** Waiting today with no status yet. A class marked Conflict is left for the secretary. */
+  pendingEntryIds: string[];
+}
+
+/**
+ * A person's class rows as one card per dog, in the roster's own order. A dog carrying two
+ * armbands (one per trial) gets a card per armband, so the badge is never wrong for a line.
+ */
+export function groupCheckInDeskDogs(person: PeopleRosterPerson): CheckInDeskDog[] {
+  const dogs = new Map<string, CheckInDeskDog>();
+  for (const row of person.classRows) {
+    const key = `${row.sourceEntry.dogId}:${row.armband ?? ''}`;
+    const dog = dogs.get(key) ?? {
+      key,
+      dogName: row.dogName,
+      armband: row.armband,
+      rows: [],
+      pendingEntryIds: [],
+    };
+    dog.rows.push(row);
+    if (row.eligibleForCheckIn && row.deskStatusEditable && row.checkInStatus === 'no-status') {
+      dog.pendingEntryIds.push(row.entryId);
+    }
+    dogs.set(key, dog);
+  }
+  return [...dogs.values()];
 }
 
 /** The entries with at least one class the Check-in desk would offer "Check in" for today. */
@@ -122,7 +169,10 @@ export function eligibleCheckInEntryIds(
 ): Set<string> {
   const ids = new Set<string>();
   for (const person of buildCheckInDeskPeople(entries, classes, currentDate)) {
-    for (const row of person.classRows) if (row.eligibleForCheckIn) ids.add(row.entryId);
+    for (const row of person.classRows) {
+      // Same gate as the desk: a scored run is finished whatever its check-in status says.
+      if (row.eligibleForCheckIn && row.deskStatusEditable) ids.add(row.entryId);
+    }
   }
   return ids;
 }

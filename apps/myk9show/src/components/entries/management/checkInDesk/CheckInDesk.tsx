@@ -2,21 +2,21 @@ import { useMemo, useState } from 'react';
 import { ClipboardCheck } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { StatusBadge } from '@/components/status';
 import { SearchBar } from '@/components/common/SearchBar';
 import { ListResultLine, ListViewTabs, type ListView } from '@/components/list-toolkit';
-import { formatStartTime } from '@/components/schedule/schedule-timeline.utils';
 import { useShowDeskScheduleRead } from '@/pages/secretary/useShowDeskScheduleRead';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import {
-  applyOptimisticCheckIn,
+  applyOptimisticDeskStatuses,
   buildCheckInDeskClasses,
   buildCheckInDeskPeople,
   filterCheckInDesk,
+  groupCheckInDeskDogs,
   readCheckInFilter,
   writeCheckInFilter,
   type CheckInDeskFilter,
 } from './checkInDeskModel';
+import { CheckInDeskDogCard } from './CheckInDeskDogCard';
 import { useCheckInDeskActions } from './useCheckInDeskActions';
 import { useMinuteClock } from './useMinuteClock';
 
@@ -27,7 +27,7 @@ interface CheckInDeskProps {
   loading: boolean;
   unknown: boolean;
   onRetry: () => void;
-  /** Re-reads the page's entries; the optimistic check-in flip lasts only until it lands. */
+  /** Re-reads the page's entries; the optimistic status flip lasts only until it lands. */
   onRefreshEntries?: () => void | Promise<void>;
   /** Fixed clock for tests; the desk otherwise ticks once a minute. */
   currentDate?: Date | null;
@@ -36,8 +36,9 @@ interface CheckInDeskProps {
 const EXHIBITOR_NOUN = ['exhibitor', 'exhibitors'] as const;
 
 /**
- * Entry Forms' "Check-in desk" (MYK9-1689): everyone entered on the show with armband, ring,
- * time and check-in state per entry, and the one-tap check-ins the secretary needs at the desk.
+ * Entry Forms' "Check-in desk" (MYK9-1689): everyone entered on the show, one card per dog
+ * (MYK9-1736) with its armband, its classes and a status per class. One tap checks a dog in to
+ * everything waiting today; a class's status opens the picker for the exceptions (Conflict, undo).
  * INTENT: search is the first thing the secretary does at the desk, so it takes focus on open.
  */
 export function CheckInDesk({
@@ -54,7 +55,10 @@ export function CheckInDesk({
   const [search, setSearch] = useState('');
   const now = useMinuteClock(currentDate);
   const { trials, trialClasses, readPending, readFailed, retry } = useShowDeskScheduleRead();
-  const { checkedInIds, busyIds, error, notice, checkIn } = useCheckInDeskActions(onRefreshEntries);
+  const { changes, busyIds, error, errorIds, notice, setStatus } = useCheckInDeskActions(
+    entries,
+    onRefreshEntries
+  );
 
   const classes = useMemo(
     () =>
@@ -65,8 +69,8 @@ export function CheckInDesk({
     [showId, trialClasses, trials]
   );
   const shownEntries = useMemo(
-    () => applyOptimisticCheckIn(entries, checkedInIds),
-    [checkedInIds, entries]
+    () => applyOptimisticDeskStatuses(entries, changes),
+    [changes, entries]
   );
   const people = useMemo(
     () => buildCheckInDeskPeople(shownEntries, classes, now),
@@ -145,15 +149,6 @@ export function CheckInDesk({
         }}
       />
 
-      {error && (
-        <div
-          role="status"
-          aria-live="polite"
-          className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
-        >
-          {error}
-        </div>
-      )}
       <span role="status" aria-live="polite" className="sr-only">
         {notice ?? ''}
       </span>
@@ -167,84 +162,57 @@ export function CheckInDesk({
           No exhibitors match this view.
         </div>
       ) : (
-        <div className="overflow-hidden rounded-md border">
+        <div className="max-w-2xl space-y-4">
           {visible.map(person => {
-            const eligibleIds = person.classRows
-              .filter(row => row.eligibleForCheckIn)
-              .map(row => row.entryId);
+            const dogs = groupCheckInDeskDogs(person);
+            const waitingDogs = dogs.filter(dog => dog.pendingEntryIds.length > 0);
             const anyBusy = person.classRows.some(row => busyIds.has(row.entryId));
             return (
-              <section
-                key={person.id}
-                aria-label={person.name}
-                className="space-y-2 border-b p-3 last:border-b-0"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2">
+              <section key={person.id} aria-label={person.name} className="space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-x-2">
                   <div className="min-w-0">
-                    <h3 className="truncate font-medium">{person.name}</h3>
+                    <h3 className="truncate text-sm font-semibold">{person.name}</h3>
                     {person.alternateNames.length > 0 && (
                       <p className="truncate text-xs text-muted-foreground">
                         Also entered as {person.alternateNames.join(', ')}
                       </p>
                     )}
                   </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="min-h-11 gap-2"
-                    onClick={() => void checkIn(person.name, eligibleIds)}
-                    disabled={eligibleIds.length === 0 || anyBusy}
-                  >
-                    <ClipboardCheck className="h-4 w-4" aria-hidden="true" />
-                    Check in all eligible
-                  </Button>
-                </div>
-                {person.classRows.map(row => {
-                  const busy = busyIds.has(row.entryId);
-                  const timeLabel = formatStartTime(row.time);
-                  return (
-                    <div
-                      key={row.id}
-                      className="grid gap-3 rounded-md border p-3 sm:grid-cols-[5rem_1fr_auto] sm:items-center"
+                  {waitingDogs.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="min-h-11 gap-2"
+                      disabled={anyBusy}
+                      onClick={() =>
+                        void setStatus(
+                          person.name,
+                          waitingDogs.flatMap(dog => dog.pendingEntryIds),
+                          'checked-in'
+                        )
+                      }
                     >
-                      <div className="rounded-md border bg-muted/30 px-3 py-2 text-center">
-                        <span className="block text-base font-semibold">
-                          {row.armband ?? 'Missing'}
-                        </span>
-                        <span className="block text-[11px] uppercase text-muted-foreground">
-                          armband
-                        </span>
-                      </div>
-                      <div className="min-w-0">
-                        <p className="truncate font-medium">{row.dogName}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {row.className}
-                          {row.ring ? ` · ${row.ring}` : ''}
-                          {timeLabel ? ` - ${timeLabel}` : ''}
-                        </p>
-                        <StatusBadge
-                          family="entry"
-                          status={row.statusValue}
-                          label={row.statusLabel}
-                          className="mt-1 text-xs"
-                        />
-                      </div>
-                      {row.eligibleForCheckIn ? (
-                        <Button
-                          type="button"
-                          size="sm"
-                          className="min-h-11"
-                          disabled={busy}
-                          aria-label={`Check in ${row.dogName}, ${row.className}`}
-                          onClick={() => void checkIn(person.name, [row.entryId])}
-                        >
-                          {busy ? 'Checking in...' : 'Check in'}
-                        </Button>
-                      ) : null}
-                    </div>
-                  );
-                })}
+                      <ClipboardCheck className="h-4 w-4" aria-hidden="true" />
+                      Check in all {waitingDogs.length} dogs
+                    </Button>
+                  )}
+                </div>
+                {dogs.map(dog => (
+                  <CheckInDeskDogCard
+                    key={dog.key}
+                    dog={dog}
+                    personName={person.name}
+                    busyIds={busyIds}
+                    error={dog.rows.some(row => errorIds.has(row.entryId)) ? error : null}
+                    onCheckIn={target =>
+                      void setStatus(target.dogName, target.pendingEntryIds, 'checked-in')
+                    }
+                    onSetStatus={(row, status) =>
+                      void setStatus(`${row.dogName}, ${row.className}`, [row.entryId], status)
+                    }
+                  />
+                ))}
               </section>
             );
           })}

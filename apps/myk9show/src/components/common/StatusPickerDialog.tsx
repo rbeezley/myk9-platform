@@ -26,6 +26,10 @@ interface StatusPickerDialogProps {
   onStatusChange: (entryId: string, newStatus: CheckInStatus) => void;
   isStaff: boolean;
   disabled?: boolean;
+  /** Narrows the choices further, e.g. the Check-in desk's three (MYK9-1736). */
+  allowedStatuses?: readonly CheckInStatus[];
+  /** Caller wording for a status, where the shared label would mislead in context. */
+  labels?: Partial<Record<CheckInStatus, string>>;
 }
 
 export function StatusPickerDialog({
@@ -36,8 +40,11 @@ export function StatusPickerDialog({
   onStatusChange,
   isStaff,
   disabled,
+  allowedStatuses,
+  labels,
 }: StatusPickerDialogProps) {
-  const visibleStatuses = isStaff ? CHECKIN_STATUSES : EXHIBITOR_ALLOWED_STATUSES;
+  const visibleStatuses =
+    allowedStatuses ?? (isStaff ? CHECKIN_STATUSES : EXHIBITOR_ALLOWED_STATUSES);
 
   const statuses = useMemo(
     () => CHECKIN_STATUSES.filter(status => visibleStatuses.includes(status)),
@@ -69,7 +76,9 @@ export function StatusPickerDialog({
             Self check-in is disabled for this class. Please check in at the secretary table.
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-2 pt-2">
+          <div
+            className={cn('grid gap-2 pt-2', statuses.length > 3 ? 'grid-cols-2' : 'grid-cols-1')}
+          >
             {statuses.map(status => {
               const descriptor = getStatusDescriptor('entry', status);
               const metadata = getCheckInStatusMetadata(status);
@@ -90,7 +99,9 @@ export function StatusPickerDialog({
                     <StatusIcon family="entry" status={status} decorative size="lg" />
                   </div>
                   <div className="min-w-0">
-                    <div className="font-semibold text-sm">{descriptor.label}</div>
+                    <div className="font-semibold text-sm">
+                      {labels?.[status] ?? descriptor.label}
+                    </div>
                     <div className="text-xs text-muted-foreground leading-tight">
                       {metadata.description}
                     </div>

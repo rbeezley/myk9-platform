@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import { useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
@@ -107,6 +107,21 @@ function bea(overrides: Partial<EntryManagementEntry> = {}): EntryManagementEntr
   });
 }
 
+/** Poppy's second class today, on its own entry row (one row per class). */
+function poppyInterior(): EntryManagementEntry {
+  return entry({
+    id: 'entry-3',
+    classes: [
+      {
+        ...entry().classes[0]!,
+        id: 'entry-3',
+        classId: 'class-2',
+        name: 'Interior Novice A',
+      },
+    ],
+  });
+}
+
 function Probe() {
   const location = useLocation();
   return <div data-testid="location">{location.search}</div>;
@@ -175,18 +190,83 @@ describe('CheckInDesk', () => {
     expect(screen.getByRole('region', { name: 'Alice Martin' })).toBeInTheDocument();
   });
 
-  it('checks in one entry through the replicated path', async () => {
+  it('checks a dog in with one tap through the replicated path', async () => {
     const { user } = renderDesk([entry()]);
 
-    await user.click(screen.getByRole('button', { name: 'Check in Poppy, Container Novice A' }));
+    await user.click(screen.getByRole('button', { name: 'Check in Poppy' }));
 
     await waitFor(() =>
       expect(h.updateReplicatedCheckInStatus).toHaveBeenCalledWith('entry-1', 'checked-in')
     );
     expect(h.updateReplicatedCheckInStatus).toHaveBeenCalledTimes(1);
     await waitFor(() =>
-      expect(screen.queryByRole('button', { name: /^Check in Poppy/ })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Check in Poppy' })).not.toBeInTheDocument()
     );
+    expect(screen.getByRole('article', { name: 'Poppy' })).toHaveTextContent('Checked in');
+  });
+
+  it('checks a dog in to every class waiting today with one tap, on one card', async () => {
+    const { user } = renderDesk([entry(), poppyInterior()]);
+
+    expect(screen.getAllByRole('article', { name: 'Poppy' })).toHaveLength(1);
+    await user.click(screen.getByRole('button', { name: 'Check in Poppy' }));
+
+    await waitFor(() => expect(h.updateReplicatedCheckInStatus).toHaveBeenCalledTimes(2));
+    expect(h.updateReplicatedCheckInStatus).toHaveBeenCalledWith('entry-1', 'checked-in');
+    expect(h.updateReplicatedCheckInStatus).toHaveBeenCalledWith('entry-3', 'checked-in');
+  });
+
+  it('offers Check in all only when two or more of the person’s dogs are waiting', () => {
+    renderDesk([entry(), poppyInterior()]);
+    expect(screen.queryByRole('button', { name: /Check in all/ })).not.toBeInTheDocument();
+  });
+
+  it('marks one class Conflict from its status, and one tap then skips that class', async () => {
+    const { user } = renderDesk([entry(), poppyInterior()]);
+
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Change status for Poppy, Interior Novice A: Not checked in',
+      })
+    );
+    const dialog = await screen.findByRole('dialog');
+    // The desk offers its three statuses only: no pull, no ringside statuses.
+    expect(dialog).toHaveTextContent('Not checked in');
+    expect(dialog).toHaveTextContent('Checked-in');
+    expect(dialog).not.toHaveTextContent(/Pulled|In Ring|At Gate|Completed/);
+    await user.click(within(dialog).getByRole('button', { name: /Conflict/ }));
+
+    await waitFor(() =>
+      expect(h.updateReplicatedCheckInStatus).toHaveBeenCalledWith('entry-3', 'conflict')
+    );
+    expect(
+      await screen.findByRole('button', {
+        name: 'Change status for Poppy, Interior Novice A: Conflict',
+      })
+    ).toBeInTheDocument();
+
+    h.updateReplicatedCheckInStatus.mockClear();
+    await user.click(screen.getByRole('button', { name: 'Check in Poppy' }));
+    await waitFor(() => expect(h.updateReplicatedCheckInStatus).toHaveBeenCalledTimes(1));
+    expect(h.updateReplicatedCheckInStatus).toHaveBeenCalledWith('entry-1', 'checked-in');
+  });
+
+  it('undoes a check-in on one class back to Not checked in', async () => {
+    const checkedIn = entry({ classes: [{ ...entry().classes[0]!, checkInStatus: 'checked-in' }] });
+    const { user } = renderDesk([checkedIn]);
+
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Change status for Poppy, Container Novice A: Checked-in',
+      })
+    );
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('button', { name: /Not checked in/ }));
+
+    await waitFor(() =>
+      expect(h.updateReplicatedCheckInStatus).toHaveBeenCalledWith('entry-1', 'no-status')
+    );
+    expect(await screen.findByRole('button', { name: 'Check in Poppy' })).toBeEnabled();
   });
 
   it('checks in all eligible entries for one person and skips the ineligible', async () => {
@@ -207,7 +287,7 @@ describe('CheckInDesk', () => {
     });
     const { user } = renderDesk([entry(), second, waitlisted]);
 
-    await user.click(screen.getByRole('button', { name: 'Check in all eligible' }));
+    await user.click(screen.getByRole('button', { name: 'Check in all 2 dogs' }));
 
     await waitFor(() => expect(h.updateReplicatedCheckInStatus).toHaveBeenCalledTimes(2));
     expect(h.updateReplicatedCheckInStatus).toHaveBeenCalledWith('entry-1', 'checked-in');
@@ -219,10 +299,10 @@ describe('CheckInDesk', () => {
     h.updateReplicatedCheckInStatus.mockRejectedValue(new Error('boom'));
     const { user } = renderDesk([entry()]);
 
-    await user.click(screen.getByRole('button', { name: 'Check in Poppy, Container Novice A' }));
+    await user.click(screen.getByRole('button', { name: 'Check in Poppy' }));
 
-    expect(await screen.findByText("Couldn't check in Alice Martin. Try again.")).toBeVisible();
-    expect(screen.getByRole('button', { name: /^Check in Poppy/ })).toBeEnabled();
+    expect(await screen.findByText("Couldn't check in Poppy. Try again.")).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Check in Poppy' })).toBeEnabled();
   });
 
   it('opens on the not-checked-in filter from the URL and writes it back', async () => {
@@ -245,7 +325,7 @@ describe('CheckInDesk', () => {
 
   it('lets refreshed data win over the local check-in once the entry is pulled', async () => {
     const { user, rerender } = renderDesk([entry()]);
-    await user.click(screen.getByRole('button', { name: 'Check in Poppy, Container Novice A' }));
+    await user.click(screen.getByRole('button', { name: 'Check in Poppy' }));
     await waitFor(() => expect(h.updateReplicatedCheckInStatus).toHaveBeenCalled());
     const pulled = entry({ classes: [{ ...entry().classes[0]!, checkInStatus: 'pulled' }] });
     rerender(
@@ -278,7 +358,7 @@ describe('CheckInDesk', () => {
       currentDate: NOW,
     };
     const { user, rerender } = render(<CheckInDesk {...props} entries={[entry()]} />);
-    await user.click(screen.getByRole('button', { name: 'Check in Poppy, Container Novice A' }));
+    await user.click(screen.getByRole('button', { name: 'Check in Poppy' }));
 
     await waitFor(() => expect(onRefreshEntries).toHaveBeenCalledTimes(1));
     // Optimistic flip holds while the read is in flight.
@@ -339,10 +419,11 @@ describe('CheckInDesk — runs already underway (MYK9-1690)', () => {
     expect(region).toHaveTextContent(label);
     expect(region).not.toHaveTextContent('Not checked in');
     expect(screen.queryByRole('button', { name: /^Check in Poppy/ })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Check in all eligible/ })).toBeDisabled();
+    // An underway run is shown, never rewritten from the desk.
+    expect(screen.queryByRole('button', { name: /^Change status/ })).not.toBeInTheDocument();
   });
 
-  it('leaves an underway run out of a bulk check-in', async () => {
+  it('leaves an underway run out of the one-tap check-in', async () => {
     const { user } = render(
       <CheckInDesk
         {...props}
@@ -350,7 +431,7 @@ describe('CheckInDesk — runs already underway (MYK9-1690)', () => {
       />
     );
 
-    await user.click(screen.getByRole('button', { name: /Check in all eligible/ }));
+    await user.click(screen.getByRole('button', { name: 'Check in Poppy' }));
 
     await waitFor(() => expect(h.updateReplicatedCheckInStatus).toHaveBeenCalledTimes(1));
     expect(h.updateReplicatedCheckInStatus).toHaveBeenCalledWith('entry-3', 'checked-in');

@@ -236,9 +236,12 @@ describe('AtShowClassListPage Your ring', () => {
     renderPage();
 
     const yourRing = await screen.findByRole('region', { name: 'Your ring' });
-    expect(within(yourRing).getAllByText(/Container Novice/)).toHaveLength(2);
-    expect(within(yourRing).getByText(/Oct 6, 2026/)).toBeInTheDocument();
-    expect(within(yourRing).getByText(/Oct 7, 2026/)).toBeInTheDocument();
+    // Both days are past: the most recent opens, the other starts collapsed.
+    expect(
+      within(yourRing).getByRole('button', { name: /Collapse .*Oct 7, 2026/ })
+    ).toBeInTheDocument();
+    fireEvent.click(within(yourRing).getByRole('button', { name: /Expand .*Oct 6, 2026/ }));
+    await waitFor(() => expect(within(yourRing).getAllByText(/Container Novice/)).toHaveLength(2));
   });
 
   it("leads Your ring with today's card, labels it Today, and sinks past days (MYK9-1224)", async () => {
@@ -272,19 +275,29 @@ describe('AtShowClassListPage Your ring', () => {
       renderPage();
 
       const yourRing = await screen.findByRole('region', { name: 'Your ring' });
+      // One group per trial, in day order; only today's starts open.
+      const headers = await waitFor(() => {
+        const found = within(yourRing).getAllByRole('button', { name: /^(Collapse|Expand) / });
+        expect(found).toHaveLength(3);
+        return found;
+      });
+      expect(headers.map(h => h.getAttribute('aria-label'))).toEqual([
+        expect.stringMatching(/^Collapse .*Oct 16/),
+        expect.stringMatching(/^Expand .*Oct 17/),
+        expect.stringMatching(/^Expand .*Oct 14/),
+      ]);
+      expect(headers[0]).toHaveTextContent('Today');
+      expect(within(yourRing).getAllByText(/Today/)).toHaveLength(1);
+      expect(yourRing.querySelectorAll('li')).toHaveLength(1);
+      expect(yourRing.querySelector('li')).toHaveAttribute('data-day-bucket', 'today');
+
+      fireEvent.click(headers[1]!);
+      fireEvent.click(headers[2]!);
       const items = await waitFor(() => {
         const found = yourRing.querySelectorAll('li');
         expect(found).toHaveLength(3);
         return found;
       });
-      expect(Array.from(items).map(li => li.textContent)).toEqual([
-        expect.stringContaining('Oct 16'),
-        expect.stringContaining('Oct 17'),
-        expect.stringContaining('Oct 14'),
-      ]);
-      expect(within(yourRing).getAllByText('Today')).toHaveLength(1);
-      expect(items[0]).toHaveAttribute('data-day-bucket', 'today');
-      expect(items[0]).toHaveTextContent('Today');
       expect(items[2]).toHaveAttribute('data-day-bucket', 'past');
     } finally {
       vi.useRealTimers();

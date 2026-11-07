@@ -66,6 +66,8 @@ export interface YourRingClass {
   entry: ClassEntry;
   scanPriority: number;
   trialTimeZone: string;
+  /** Owning trial's id, the key Your ring groups by (MYK9-1739). */
+  trialId?: string | undefined;
   /** `formatAtShowTrialHeading` of the owning trial (MYK9-1165). */
   trialHeading?: string | undefined;
   /** Owning trial's date (yyyy-mm-dd), for day ordering (MYK9-1224). */

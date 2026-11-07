@@ -80,6 +80,7 @@ export function useAtShowPickerClasses({
                 )
               ),
               trialTimeZone: getTrialTimezone(group.trial),
+              trialId: group.trial.id,
               trialHeading: formatAtShowTrialHeading(group.trial),
               trialDate: group.trial.date ?? group.trial.trial_date ?? undefined,
             }));

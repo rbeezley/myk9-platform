@@ -209,11 +209,7 @@ export function CheckInDesk({
                       void setStatus(target.dogName, target.pendingEntryIds, 'checked-in')
                     }
                     onSetStatus={(row, status) =>
-                      void setStatus(
-                        `${row.dogName}, ${row.className}`,
-                        [row.entryId],
-                        status
-                      )
+                      void setStatus(`${row.dogName}, ${row.className}`, [row.entryId], status)
                     }
                   />
                 ))}

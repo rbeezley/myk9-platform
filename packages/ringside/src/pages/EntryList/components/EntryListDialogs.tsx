@@ -275,6 +275,9 @@ export const EntryListDialogs: React.FC<EntryListDialogsProps> = ({
           callName: localEntries.find(e => e.id === activeStatusPopup)?.callName || '',
           handler: localEntries.find(e => e.id === activeStatusPopup)?.handler || '',
         }}
+        className={
+          localEntries.find(e => e.id === activeStatusPopup)?.className || classInfo?.className
+        }
         showDescriptions={true}
         showRingManagement={hasPermission('canScore')}
       />

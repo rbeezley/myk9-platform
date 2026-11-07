@@ -8,6 +8,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/alert-dialog/confirm-dialog';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { FormField } from '@/components/common/FormField';
@@ -81,6 +82,7 @@ export const CheckInStatusDialog: React.FC<CheckInStatusDialogProps> = ({
   const [notes, setNotes] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmingPull, setConfirmingPull] = useState(false);
 
   // Get status configurations for display
 
@@ -104,9 +106,14 @@ export const CheckInStatusDialog: React.FC<CheckInStatusDialogProps> = ({
     }
   };
 
-  const handleUpdateStatus = async () => {
+  const handleUpdateStatus = async (confirmedPull = false) => {
     if (selectedStatus === currentStatus && !notes) {
       return; // No changes to save
+    }
+    // A Pull is asked about once before anything is written.
+    if (selectedStatus === 'pulled' && currentStatus !== 'pulled' && !confirmedPull) {
+      setConfirmingPull(true);
+      return;
     }
 
     setIsUpdating(true);
@@ -254,7 +261,7 @@ export const CheckInStatusDialog: React.FC<CheckInStatusDialogProps> = ({
           </Button>
           {!readOnly && (
             <Button
-              onClick={handleUpdateStatus}
+              onClick={() => void handleUpdateStatus()}
               disabled={isUpdating || (selectedStatus === currentStatus && !notes)}
               className="bg-primary text-primary-foreground"
             >
@@ -273,6 +280,18 @@ export const CheckInStatusDialog: React.FC<CheckInStatusDialogProps> = ({
           )}
         </DialogFooter>
       </DialogContent>
+      <ConfirmDialog
+        open={confirmingPull}
+        onOpenChange={setConfirmingPull}
+        title={`Pull ${entryInfo.dogName} from ${entryInfo.className}?`}
+        description="The judge will skip this dog. You can undo right after."
+        confirmLabel="Pull"
+        destructive
+        onConfirm={() => {
+          setConfirmingPull(false);
+          void handleUpdateStatus(true);
+        }}
+      />
     </Dialog>
   );
 };

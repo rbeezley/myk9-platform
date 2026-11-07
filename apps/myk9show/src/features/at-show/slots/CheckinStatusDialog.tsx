@@ -3,7 +3,7 @@
  * the Phase 1a spike smoke test ("change an entry status"). Conforms to
  * ringside's `CheckinStatusDialogProps`.
  */
-import type React from 'react';
+import React, { useState } from 'react';
 import type { CheckinStatusDialogProps } from '@myk9/ringside';
 import { STAFF_CHECK_IN_STATUSES, type CheckInStatus } from '@myk9/core';
 import {
@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/alert-dialog/confirm-dialog';
 import { StatusIcon, getStatusDescriptor } from '@/components/status';
 import { handleOpenChange } from './dialogHelpers';
 
@@ -25,8 +26,10 @@ export const CheckinStatusDialog: React.FC<CheckinStatusDialogProps> = ({
   onClose,
   onStatusChange,
   dogInfo,
+  className,
   showRingManagement,
 }) => {
+  const [confirmingPull, setConfirmingPull] = useState(false);
   if (!isOpen) return null;
 
   const statuses = showRingManagement
@@ -54,7 +57,9 @@ export const CheckinStatusDialog: React.FC<CheckinStatusDialogProps> = ({
                 key={status}
                 variant="outline"
                 className="min-h-11 justify-start"
-                onClick={() => onStatusChange(status)}
+                onClick={() =>
+                  status === 'pulled' ? setConfirmingPull(true) : onStatusChange(status)
+                }
               >
                 <StatusIcon family="entry" status={status} size="sm" decorative />
                 {descriptor.label}
@@ -68,6 +73,18 @@ export const CheckinStatusDialog: React.FC<CheckinStatusDialogProps> = ({
           </Button>
         </DialogFooter>
       </DialogContent>
+      <ConfirmDialog
+        open={confirmingPull}
+        onOpenChange={setConfirmingPull}
+        title={`Pull ${dogInfo.callName}${className ? ` from ${className}` : ''}?`}
+        description="The judge will skip this dog. You can undo right after."
+        confirmLabel="Pull"
+        destructive
+        onConfirm={() => {
+          setConfirmingPull(false);
+          onStatusChange('pulled');
+        }}
+      />
     </Dialog>
   );
 };

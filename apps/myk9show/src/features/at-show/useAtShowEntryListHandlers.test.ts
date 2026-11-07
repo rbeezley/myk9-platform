@@ -17,12 +17,13 @@ const supabaseMocks = vi.hoisted(() => ({
   rpc: vi.fn(() => Promise.resolve({ error: null })),
 }));
 
-const { toastInfo, toastError } = vi.hoisted(() => ({
+const { toastInfo, toastError, toastSuccess } = vi.hoisted(() => ({
   toastInfo: vi.fn(),
   toastError: vi.fn(),
+  toastSuccess: vi.fn(),
 }));
 vi.mock('sonner', () => ({
-  toast: { info: toastInfo, error: toastError, success: vi.fn(), warning: vi.fn() },
+  toast: { info: toastInfo, error: toastError, success: toastSuccess, warning: vi.fn() },
 }));
 vi.mock('@/utils/logger', () => ({
   logger: { warn: vi.fn(), error: vi.fn(), log: vi.fn() },
@@ -32,7 +33,12 @@ vi.mock('@/services/database/supabaseClient', () => ({
   supabase: supabaseMocks,
 }));
 
-import { useAtShowEntryListHandlers } from './useAtShowEntryListHandlers';
+import {
+  useAtShowEntryListHandlers,
+  type UseAtShowEntryListHandlersDeps,
+} from './useAtShowEntryListHandlers';
+
+type EntryListActionsDep = UseAtShowEntryListHandlersDeps['actions'];
 
 function makeEntry(overrides: Partial<Entry> & { id: string }): Entry {
   return {
@@ -63,9 +69,10 @@ function makeActions(): EntryListActions {
 
 function renderHandlers(
   localEntries: Entry[],
-  actions: EntryListActions,
+  actions: EntryListActionsDep,
   setLocalEntries: (updater: (prev: Entry[]) => Entry[]) => void = vi.fn(),
-  refresh: (forceSync?: boolean) => Promise<void> = vi.fn(() => Promise.resolve())
+  refresh: (forceSync?: boolean) => Promise<void> = vi.fn(() => Promise.resolve()),
+  hasPermission: () => boolean = () => true
 ) {
   const navigate = vi.fn();
   return renderHook(() =>
@@ -74,7 +81,7 @@ function renderHandlers(
       replication: { updateClassStatus: vi.fn(() => Promise.resolve()) } as never,
       classId: 'class-1',
       localEntries,
-      hasPermission: () => true,
+      hasPermission,
       navigate,
       buildScoreSheetRoute: () => '/route',
       refresh,
@@ -362,6 +369,66 @@ describe('useAtShowEntryListHandlers - optimistic check-in', () => {
     });
 
     expect(mirror[0]?.status).toBe('no-status');
+  });
+
+  it('offers Undo after a Pulled, and Undo writes the prior status back through the same path', async () => {
+    mirror = [makeEntry({ id: 'e1', status: 'checked-in' as EntryStatus, callName: 'Abby' })];
+    const { result } = renderHandlers(mirror, actions, applyToMirror);
+
+    await act(async () => {
+      await result.current.handleStatusChange('e1', 'pulled');
+    });
+
+    expect(actions.handleStatusChange).toHaveBeenCalledWith('e1', 'pulled');
+    expect(toastSuccess).toHaveBeenCalledTimes(1);
+    const options = toastSuccess.mock.calls[0]?.[1] as { action: { onClick: () => void } };
+
+    await act(async () => {
+      options.action.onClick();
+    });
+
+    expect(actions.handleStatusChange).toHaveBeenLastCalledWith('e1', 'checked-in');
+    expect(toastSuccess).toHaveBeenCalledTimes(1);
+  });
+
+  it('offers no Undo to a exhibitor writer when the prior status is staff-set', async () => {
+    mirror = [makeEntry({ id: 'e1', status: 'come-to-gate' as EntryStatus })];
+    const exhibitorActions = { ...actions, writer: 'self-checkin-rpc' as const };
+    const { result } = renderHandlers(mirror, exhibitorActions, applyToMirror);
+
+    await act(async () => {
+      await result.current.handleStatusChange('e1', 'pulled');
+    });
+
+    expect(exhibitorActions.handleStatusChange).toHaveBeenCalledWith('e1', 'pulled');
+    expect(toastSuccess).not.toHaveBeenCalled();
+  });
+
+  it('keeps Undo for a staff writer even when the prior status is staff-set and canScore is false', async () => {
+    mirror = [makeEntry({ id: 'e1', status: 'come-to-gate' as EntryStatus })];
+    const { result } = renderHandlers(
+      mirror,
+      { ...actions, writer: 'replicated' },
+      applyToMirror,
+      undefined,
+      () => false
+    );
+
+    await act(async () => {
+      await result.current.handleStatusChange('e1', 'pulled');
+    });
+
+    expect(toastSuccess).toHaveBeenCalledTimes(1);
+  });
+
+  it('offers no Undo for a non-Pulled status', async () => {
+    const { result } = renderHandlers(mirror, actions, applyToMirror);
+
+    await act(async () => {
+      await result.current.handleStatusChange('e1', 'checked-in');
+    });
+
+    expect(toastSuccess).not.toHaveBeenCalled();
   });
 });
 

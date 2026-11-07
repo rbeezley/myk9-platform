@@ -25,6 +25,8 @@ import type {
   Entry,
 } from '@myk9/ringside';
 import { toast } from 'sonner';
+import type { CheckInWriter } from '@/services/show-day/checkInStatus';
+import { offerPullUndo } from './offerPullUndo';
 import { logger } from '@/utils/logger';
 import { supabase } from '@/services/database/supabaseClient';
 import { calculateRunOrder, storedRunOrder, toMyK9ShowRunOrderPreset } from '@/lib/runOrderUtils';
@@ -36,7 +38,7 @@ type ResetConfirmState = { show: boolean; entry: Entry | null };
 
 export interface UseAtShowEntryListHandlersDeps {
   /** Mutation bag from `useAtShowEntryListActions`. */
-  actions: EntryListActions;
+  actions: EntryListActions & { writer?: CheckInWriter | undefined };
   /** Replication capability (for the class-status dialog). */
   replication: RingsideReplication;
   /** Route param. */
@@ -210,6 +212,7 @@ export function useAtShowEntryListHandlers(
   // NOTE: this does NOT make the exhibitor's status survive a reload -- only a
   // real write into the replicated store would, and that path is blocked for
   // exhibitors by design. Tracked separately.
+  const handleStatusChangeRef = useRef<EntryListHandlers['handleStatusChange'] | null>(null);
   const handleStatusChange = useCallback<EntryListHandlers['handleStatusChange']>(
     async (entryId, status: EntryStatusChange) => {
       setActiveStatusPopup(null);
@@ -243,6 +246,13 @@ export function useAtShowEntryListHandlers(
           return;
         }
         await actions.handleStatusChange(entryId, status);
+        if (status === 'pulled') {
+          offerPullUndo(
+            previous,
+            actions.writer,
+            prior => void handleStatusChangeRef.current?.(entryId, prior)
+          );
+        }
       } catch (error) {
         // Showing a status the server rejected is worse than showing none: the
         // gate would be worked from a check-in that does not exist.
@@ -252,6 +262,10 @@ export function useAtShowEntryListHandlers(
     },
     [actions, setActiveStatusPopup, setLocalEntries]
   );
+
+  useEffect(() => {
+    handleStatusChangeRef.current = handleStatusChange;
+  }, [handleStatusChange]);
 
   const handleStatusClick = useCallback<EntryListHandlers['handleStatusClick']>(
     (e: ReactMouseEvent, entryId) => {

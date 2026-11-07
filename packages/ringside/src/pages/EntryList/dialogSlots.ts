@@ -297,6 +297,8 @@ export interface CheckinStatusDialogProps {
     callName: string;
     handler: string;
   };
+  /** The class being worked, so the Pulled confirmation can name it. */
+  className?: string | undefined;
   /** Render verbose explanations for each status option. */
   showDescriptions?: boolean;
   /** Show "In Ring" and "Completed" options (stewards/judges only). */

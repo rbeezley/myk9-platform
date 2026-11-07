@@ -9,8 +9,10 @@
  * @module MyEntriesPage/modules/useMyEntriesDialogs
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
+
+import { showUndoToast } from '@/lib/undoToast';
 
 import type { CheckInStatus } from '@/types/check-in-types';
 
@@ -24,6 +26,7 @@ import type {
   MyEntry,
   ReceiptDialogState,
 } from './my-entries-types';
+import { SELF_RESTORABLE } from '@/features/at-show/offerPullUndo';
 import type { ShowMoneyKind } from './showMoneyState';
 
 const CLOSED_CHECK_IN: CheckInDialogState = { open: false, entry: null, classEntry: null };
@@ -116,6 +119,12 @@ export function useMyEntriesDialogs({
     useState<LeaveClassDialogState>(CLOSED_LEAVE_CLASS);
   const [addDogOpen, setAddDogOpen] = useState(false);
 
+  // Undo runs after the dialog and its snapshot are gone, so it reads the current updater.
+  const updateEntryCheckInRef = useRef(updateEntryCheckIn);
+  useEffect(() => {
+    updateEntryCheckInRef.current = updateEntryCheckIn;
+  }, [updateEntryCheckIn]);
+
   const openCheckIn = useCallback((entry: MyEntry, classEntry: EntryClass) => {
     setCheckInDialog({ open: true, entry, classEntry });
   }, []);
@@ -150,12 +159,28 @@ export function useMyEntriesDialogs({
   // the failure surface where the exhibitor took the action.
   const submitCheckInStatus = useCallback(
     async (status: CheckInStatus, notes?: string) => {
-      if (!checkInDialog.entry || !checkInDialog.classEntry) return;
+      const { entry, classEntry } = checkInDialog;
+      if (!entry || !classEntry) return;
 
-      await updateEntryCheckIn(checkInDialog.entry.id, checkInDialog.classEntry.id, status, notes);
+      // Captured before the write, so Undo can put back exactly what the dog had.
+      const priorStatus: CheckInStatus = classEntry.checkInStatus || 'no-status';
+      await updateEntryCheckIn(entry.id, classEntry.id, status, notes);
       setCheckInDialog(CLOSED_CHECK_IN);
+      // `self_checkin_entry` refuses staff-set statuses (come-to-gate, in-ring, completed),
+      // so Undo is offered only when the exhibitor's write path can restore the prior one.
+      if (status === 'pulled' && SELF_RESTORABLE.has(priorStatus)) {
+        showUndoToast({
+          message: `${entry.dogName} pulled from ${classEntry.name}`,
+          onUndo: () => {
+            // Same write path as the Pulled itself.
+            void updateEntryCheckInRef
+              .current(entry.id, classEntry.id, priorStatus)
+              .catch(() => toast.error(`We could not undo that. Please try again.`));
+          },
+        });
+      }
     },
-    [checkInDialog.entry, checkInDialog.classEntry, updateEntryCheckIn]
+    [checkInDialog, updateEntryCheckIn]
   );
 
   // INTENT: single write path. This is a LOOP over the same

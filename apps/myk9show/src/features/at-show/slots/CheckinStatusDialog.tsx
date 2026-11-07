@@ -17,9 +17,6 @@ import { Button } from '@/components/ui/button';
 import { StatusIcon, getStatusDescriptor } from '@/components/status';
 import { handleOpenChange } from './dialogHelpers';
 
-/** Statuses every staff member can set (the same six as the Check-in desk). */
-const BASE_CHECK_IN_STATUSES = STAFF_CHECK_IN_STATUSES;
-
 /** Additional statuses only stewards/judges may set (ring management). */
 const RING_MANAGEMENT_CHECK_IN_STATUSES: readonly CheckInStatus[] = ['in-ring', 'completed'];
 
@@ -33,8 +30,8 @@ export const CheckinStatusDialog: React.FC<CheckinStatusDialogProps> = ({
   if (!isOpen) return null;
 
   const statuses = showRingManagement
-    ? [...BASE_CHECK_IN_STATUSES, ...RING_MANAGEMENT_CHECK_IN_STATUSES]
-    : BASE_CHECK_IN_STATUSES;
+    ? [...STAFF_CHECK_IN_STATUSES, ...RING_MANAGEMENT_CHECK_IN_STATUSES]
+    : STAFF_CHECK_IN_STATUSES;
 
   return (
     <Dialog open onOpenChange={open => handleOpenChange(open, onClose)}>

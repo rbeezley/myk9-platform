@@ -170,4 +170,12 @@ describe('ListSearchField', () => {
     expect(field()).not.toBeInTheDocument();
     expect(icon()).toBeInTheDocument();
   });
+
+  it('shows the full field on a narrow screen when alwaysOpen is set (MYK9-1733)', () => {
+    narrow(true);
+    render(<ListSearchField value="" onChange={vi.fn()} placeholder="Search entries" alwaysOpen />);
+
+    expect(field()).toBeInTheDocument();
+    expect(icon()).not.toBeInTheDocument();
+  });
 });

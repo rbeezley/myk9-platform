@@ -19,10 +19,21 @@ interface ListSearchFieldProps {
   onChange: (value: string) => void;
   placeholder: string;
   className?: string;
+  /**
+   * Show the field at every width instead of the narrow-screen icon. For a list where search is
+   * the main way in, such as Entry Forms (owner, MYK9-1733).
+   */
+  alwaysOpen?: boolean;
 }
 
-export function ListSearchField({ value, onChange, placeholder, className }: ListSearchFieldProps) {
-  const narrow = useMediaQuery(COLLAPSE_QUERY);
+export function ListSearchField({
+  value,
+  onChange,
+  placeholder,
+  className,
+  alwaysOpen = false,
+}: ListSearchFieldProps) {
+  const narrow = useMediaQuery(COLLAPSE_QUERY) && !alwaysOpen;
   // The icon was tapped and the field is on its way open; cleared once focus lands in it.
   const [requested, setRequested] = useState(false);
   // Focus is inside the field (including its clear button).

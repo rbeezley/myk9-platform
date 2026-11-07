@@ -239,6 +239,7 @@ function getEntrySearchDocument(group: ShowRegistrationGroup, entry: EntryManage
       group.confirmationNumber,
       entry.confirmationNumber,
       entry.dogName,
+      entry.dogRegisteredName,
       entry.handlerName,
       entry.armbandNumber,
       entry.entryNumber,

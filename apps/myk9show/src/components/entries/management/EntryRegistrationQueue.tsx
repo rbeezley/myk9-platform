@@ -1,4 +1,5 @@
 import { ArrowRight } from 'lucide-react';
+import { entryFormDogLabels } from './entryFormDogLabels';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
@@ -235,7 +236,7 @@ export function EntryRegistrationQueue({
           {groups.map(group => {
             const focused = focusedKey === group.groupKey;
             const selected = selectedKeys.has(group.groupKey);
-            const dogNames = [...new Set(group.entries.map(entry => entry.dogName))];
+            const dogNames = entryFormDogLabels(group.entries);
 
             return (
               <div
@@ -323,7 +324,9 @@ export function EntryRegistrationQueue({
                     </div>
 
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{dogNames.join(', ')}</p>
+                      <p className="truncate text-sm font-medium" title={dogNames.join(', ')}>
+                        {dogNames.join(', ')}
+                      </p>
                       <p className="text-xs text-muted-foreground">
                         {group.entryCount} {group.entryCount === 1 ? 'Entry' : 'Entries'} ·{' '}
                         {group.classCount} {group.classCount === 1 ? 'Class' : 'Classes'}

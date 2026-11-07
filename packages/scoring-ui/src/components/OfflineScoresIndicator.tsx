@@ -14,8 +14,19 @@ function readOnline(): boolean {
   return typeof navigator === 'undefined' ? true : navigator.onLine;
 }
 
-export function OfflineScoresIndicator() {
-  const [online, setOnline] = useState(readOnline);
+interface OfflineScoresIndicatorProps {
+  /** The popover sentence. Defaults to the scoresheet wording. */
+  message?: string;
+  /** The host's own online state, when it has one; otherwise `navigator.onLine` is tracked. */
+  isOnline?: boolean;
+}
+
+export function OfflineScoresIndicator({
+  message = OFFLINE_SCORES_MESSAGE,
+  isOnline,
+}: OfflineScoresIndicatorProps = {}) {
+  const [trackedOnline, setOnline] = useState(readOnline);
+  const online = isOnline ?? trackedOnline;
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -50,7 +61,7 @@ export function OfflineScoresIndicator() {
           role="status"
           className="absolute left-0 top-full z-20 mt-1 w-64 rounded-md border border-warning/30 bg-card p-3 text-sm text-foreground shadow-md"
         >
-          {OFFLINE_SCORES_MESSAGE}
+          {message}
         </span>
       )}
     </span>

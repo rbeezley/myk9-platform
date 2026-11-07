@@ -17,6 +17,12 @@
  * ```
  */
 
+// Offline signal (MYK9-1744)
+export {
+  OfflineScoresIndicator,
+  OFFLINE_SCORES_MESSAGE,
+} from './components/OfflineScoresIndicator';
+
 // Hooks
 export { useStopwatch } from './hooks/useStopwatch';
 export { useElementTimer } from './hooks/useElementTimer';

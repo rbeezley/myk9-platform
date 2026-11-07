@@ -1,6 +1,6 @@
 import { act } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@/test/utils/testUtils';
+import { fireEvent, render, screen } from '@/test/utils/testUtils';
 import { __resetContainmentMemoForTests } from '@/hooks/useReplicationContainment';
 import { ReplicationSyncTestProvider } from '@/test/utils/ReplicationSyncTestProvider';
 import {
@@ -15,6 +15,13 @@ const { network, syncState } = vi.hoisted(() => ({
 }));
 vi.mock('@/lib/networkUtils', () => ({ useOnlineStatus: () => network.isOnline }));
 vi.mock('@/hooks/useGlobalSyncStatus', () => ({ useGlobalSyncStatus: () => syncState }));
+
+// File-level so no describe block can leak an offline state into another under shuffle.
+beforeEach(() => {
+  network.isOnline = true;
+  syncState.status = 'synced';
+  syncState.queueSize = 0;
+});
 
 // MYK9-115 Task 5. The client pauses score uploads when the server raises
 // RS429; without this banner it pauses SILENTLY, and a queue that stops
@@ -148,12 +155,6 @@ describe('CompactOfflineIndicator offline state (MYK9-1744)', () => {
       </ReplicationSyncTestProvider>
     );
 
-  beforeEach(() => {
-    network.isOnline = true;
-    syncState.status = 'synced';
-    syncState.queueSize = 0;
-  });
-
   it('ready and online keeps the chip hidden on phones (unchanged)', () => {
     renderReady();
     expect(screen.getByText('Offline ready').parentElement?.className).toContain('max-sm:hidden');
@@ -172,6 +173,21 @@ describe('CompactOfflineIndicator offline state (MYK9-1744)', () => {
     expect(line.title).toBe('You are offline. Everything you enter is saved on this device.');
     expect(note.className).toContain('truncate');
     expect(screen.queryByText('Offline ready')).toBeNull();
+  });
+
+  it('gives phones an icon-only 44px button that opens the note, with no label in the bar', () => {
+    network.isOnline = false;
+    syncState.status = 'offline';
+    syncState.queueSize = 2;
+    renderReady();
+
+    const button = screen.getByRole('button', { name: 'Offline' });
+    expect(button.className).toContain('min-h-11');
+    expect(button.className).toContain('min-w-11');
+    expect(button).toHaveTextContent('');
+    expect(button.closest('span.sm\\:hidden')).not.toBeNull();
+    fireEvent.click(button);
+    expect(screen.getAllByText('Offline · 2 changes saved on this device')).toHaveLength(2);
   });
 
   it('passes the pending change count through', () => {

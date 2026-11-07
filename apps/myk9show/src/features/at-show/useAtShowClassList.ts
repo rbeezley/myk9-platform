@@ -131,12 +131,18 @@ export function useAtShowClassList(showId: string | undefined): UseAtShowClassLi
     // show rather than about the connection. Matches RingsideShowBoundary and
     // the ringside EntryList, which already set this for the same reason.
     networkMode: 'always',
+    // MYK9-1731: the replica subscriptions above only run while this list is mounted, so a class
+    // added on Show Desk (the wizard writes the local replica) is missed. With the app's 5-minute
+    // default staleTime, returning here served the cached list until a pull-to-refresh. The read
+    // is local IndexedDB and cheap, so re-read it on every mount.
+    staleTime: 0,
   });
   const showQuery = useQuery({
     queryKey: ['at-show', 'show', showId],
     queryFn: () => replicatedShowsTable.getShowById(showId as string),
     enabled: !!showId,
     networkMode: 'always',
+    staleTime: 0,
   });
 
   // Keyed off the query data (not a `?? []` fallback) so the merged map keeps a

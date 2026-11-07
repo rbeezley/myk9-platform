@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import type { CheckInStatus } from '@myk9/core';
 import { dispatchBulk } from '@/hooks/bulkDispatch';
@@ -19,8 +19,6 @@ export function useCheckInDeskActions(
   entries: readonly EntryManagementEntry[],
   onRefreshEntries?: () => void | Promise<void>
 ) {
-  const latest = useRef(entries);
-  latest.current = entries;
   const [changes, setChanges] = useState<ReadonlyMap<string, DeskStatusChange>>(new Map());
   const [busyIds, setBusyIds] = useState<ReadonlySet<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
@@ -33,7 +31,7 @@ export function useCheckInDeskActions(
     async (subject: string, entryIds: readonly string[], status: CheckInStatus) => {
       if (entryIds.length === 0) return;
       // What each class shows in the shared entries now (one entry row is one class).
-      const shared = new Map(latest.current.map(entry => [entry.id, entry]));
+      const shared = new Map(entries.map(entry => [entry.id, entry]));
       const targets = entryIds.map(entryId => ({
         entryId,
         from: shared.get(entryId)?.classes[0]?.checkInStatus ?? ('no-status' as CheckInStatus),
@@ -91,7 +89,7 @@ export function useCheckInDeskActions(
         return next;
       });
     },
-    [onRefreshEntries]
+    [entries, onRefreshEntries]
   );
 
   return { changes, busyIds, error, errorIds, notice, setStatus };

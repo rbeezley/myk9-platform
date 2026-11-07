@@ -162,19 +162,19 @@ Confidence column: **Wired** = the integration exists in this repo and will bill
 
 ### Infrastructure
 
-| Item                         | Monthly | Confidence | Note                                                                                                      |
-| ---------------------------- | ------: | ---------- | --------------------------------------------------------------------------------------------------------- |
-| Supabase Pro                 |     $25 | Certain    | Includes $10 compute credit                                                                               |
-| Supabase compute above Micro |   $5–50 | Estimate   | Staging has already exceeded 80% CPU on ringside OCC conflict storms                                      |
-| Supabase PITR (7-day)        |    $100 | Certain    | Not currently purchased. See MYK9-110 — backup/DR posture is one sentence in a rollback table             |
-| Vercel Pro                   |     $20 | Certain    | Per seat                                                                                                  |
-| Resend Pro                   |     $20 | Certain    | Free tier is 3,000/mo **and 100/day** — a show opening breaches the daily cap, not the monthly one        |
-| Twilio fixed                 |   $3.15 | Certain    | Number $1.15 + 10DLC campaign ~$2; one-time brand registration extra                                      |
-| Twilio usage                 |  $19–42 | Estimate   | ~$0.0109 all-in per SMS; range is 40%–100% opt-in at 2 shows/mo                                           |
-| Sentry                       |   $0–26 | Certain    | Free ≤5k errors, Team $26. `SENTRY_DSN` is live                                                           |
-| **Anthropic API**            |  $10–40 | **Wired**  | `ANTHROPIC_API_KEY` — `ask-myk9show` (Haiku 4.5), `ask-operator-support`, `generate-premium` (Sonnet 4.6) |
-| **Google Maps Static**       |   $0–20 | **Wired**  | `GOOGLE_MAPS_STATIC_API_KEY` — 10k loads/mo free, then ~$2/1,000                                          |
-| Domain + Workspace email     |      $9 | Certain    |                                                                                                           |
+| Item                         | Monthly | Confidence  | Note                                                                                                      |
+| ---------------------------- | ------: | ----------- | --------------------------------------------------------------------------------------------------------- |
+| Supabase Pro                 |     $25 | Certain     | Includes $10 compute credit                                                                               |
+| Supabase compute above Micro |   $5–50 | Estimate    | Staging has already exceeded 80% CPU on ringside OCC conflict storms                                      |
+| Supabase PITR (7-day)        |    $100 | Certain     | Not currently purchased. See MYK9-110 — backup/DR posture is one sentence in a rollback table             |
+| Vercel Pro                   |     $20 | Certain     | Per seat                                                                                                  |
+| Resend Pro                   |     $20 | Certain     | Free tier is 3,000/mo **and 100/day** — a show opening breaches the daily cap, not the monthly one        |
+| Twilio fixed                 |   $3.15 | Certain     | Number $1.15 + 10DLC campaign ~$2; one-time brand registration extra                                      |
+| Twilio usage                 |  $19–42 | Estimate    | ~$0.0109 all-in per SMS; range is 40%–100% opt-in at 2 shows/mo                                           |
+| Sentry                       |   $0–26 | Certain     | Free ≤5k errors, Team $26. `SENTRY_DSN` is live                                                           |
+| **Anthropic API**            |  $10–40 | **Wired**   | `ANTHROPIC_API_KEY` — `ask-myk9show` (Haiku 4.5), `ask-operator-support`, `generate-premium` (Sonnet 4.6) |
+| **Google Maps Static**       |      $0 | **Removed** | MYK9-1747: emails use a keyless directions link, no Static API                                            |
+| Domain + Workspace email     |      $9 | Certain     |                                                                                                           |
 
 ### Stripe, beyond the per-charge percentage
 

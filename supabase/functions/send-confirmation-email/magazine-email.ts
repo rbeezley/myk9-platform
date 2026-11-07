@@ -21,7 +21,7 @@ import {
   type ConfirmationEmailBaseData,
   type ConfirmationEmailRunRow,
 } from './confirmation-email-shared.ts';
-import { renderVenueMapBlock } from './static-map.ts';
+import { renderVenueMapBlock } from './venue-directions.ts';
 
 const MZ_PAPER = '#f6f1e8';
 const MZ_PAPER_DEEP = '#ece4d3';

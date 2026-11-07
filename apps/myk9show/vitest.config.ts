@@ -62,7 +62,7 @@ export default defineConfig({
       '../../supabase/functions/send-auth-email/delivery.test.ts',
       '../../supabase/functions/resend-webhook/handler.test.ts',
       '../../supabase/functions/_shared/webhookAuth.source.test.ts',
-      // Whole directory: template builders, parity, auth, static-map. Before
+      // Whole directory: template builders, parity, auth, venue-directions. Before
       // 2026-08-16 only auth.test.ts was registered, so the template tests
       // never ran in CI (the allowlist trap) — all 13 files pass under this
       // config, so the glob closes that gap.

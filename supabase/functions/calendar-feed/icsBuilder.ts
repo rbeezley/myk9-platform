@@ -1,7 +1,7 @@
 /**
  * icsBuilder — RFC 5545 output for exhibitor run schedules.
  *
- * Pure (no Deno APIs) so vitest covers it directly, same as L3's static-map.ts.
+ * Pure (no Deno APIs) so vitest covers it directly, same as L3's venue-directions.ts.
  *
  * DESIGN (docs/plan-google-apple-integrations.md L5): events are PER CLASS, not
  * per dog. A per-dog estimate would mean projecting from run order x average

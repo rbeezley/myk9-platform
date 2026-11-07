@@ -1,4 +1,4 @@
-import { renderVenueMapBlock } from './static-map.ts';
+import { renderVenueMapBlock } from './venue-directions.ts';
 
 // supabase/functions/send-confirmation-email/monogram-email.ts
 //

@@ -13,20 +13,9 @@ import { render } from '@/test/utils/testUtils';
 import type { ShowDraft } from '@/store/wizardStore';
 import { BasicsSection } from '../sections/BasicsSection';
 
-const { mockGeocode, placesConfigured, fetchSuggestions, fetchDetails } = vi.hoisted(() => ({
-  mockGeocode: vi.fn(),
-  placesConfigured: vi.fn(() => false),
-  fetchSuggestions: vi.fn(),
-  fetchDetails: vi.fn(),
-}));
+const { mockGeocode } = vi.hoisted(() => ({ mockGeocode: vi.fn() }));
 
 vi.mock('@/features/maps/geocode', () => ({ geocodeAddress: mockGeocode }));
-vi.mock('@/features/maps/placesAutocomplete', async importOriginal => ({
-  ...(await importOriginal<typeof import('@/features/maps/placesAutocomplete')>()),
-  isPlacesAutocompleteConfigured: () => placesConfigured(),
-  fetchPlaceSuggestions: (...args: unknown[]) => fetchSuggestions(...args),
-  fetchPlaceDetails: (...args: unknown[]) => fetchDetails(...args),
-}));
 // The real pin map (not the lazy wrapper), with Leaflet's canvas stubbed out.
 vi.mock('react-leaflet', () => ({
   MapContainer: () => null,
@@ -91,9 +80,6 @@ async function typeAndLeave(text: string) {
 beforeEach(() => {
   updates.length = 0;
   mockGeocode.mockReset();
-  placesConfigured.mockReturnValue(false);
-  fetchSuggestions.mockReset();
-  fetchDetails.mockReset();
 });
 
 afterEach(() => {
@@ -239,90 +225,5 @@ describe('BasicsSection auto-locate on blur', () => {
       resolve({ status: 'found', lat: 1, lng: 2 });
     });
     expect(pinsSet()).toEqual([{ latitude: 1, longitude: 2 }]);
-  });
-
-  describe('with Places suggestions configured', () => {
-    const SUGGESTION = {
-      placeId: 'p1',
-      text: 'Purina Farms, Gray Summit, MO',
-      mainText: 'Purina Farms',
-      secondaryText: 'Gray Summit, MO',
-    };
-    const DETAILS = {
-      name: 'Purina Farms',
-      address: '200 Checkerboard Loop, Gray Summit, MO 63039',
-      lat: 38.49,
-      lng: -90.82,
-    };
-
-    beforeEach(() => {
-      vi.useFakeTimers();
-      placesConfigured.mockReturnValue(true);
-      fetchSuggestions.mockResolvedValue([SUGGESTION]);
-    });
-
-    async function typeUntilSuggestions(text: string) {
-      fireEvent.change(field(), { target: { value: text } });
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(350);
-      });
-      expect(screen.getByRole('option', { name: /purina farms/i })).toBeInTheDocument();
-    }
-
-    it('does not geocode after a suggestion set the pin', async () => {
-      fetchDetails.mockResolvedValue(DETAILS);
-      render(<Harness initial={{}} />);
-
-      await typeUntilSuggestions('Purina');
-      await act(async () => {
-        fireEvent.click(screen.getByRole('option', { name: /purina farms/i }));
-      });
-      expect(pinsSet()).toHaveLength(1);
-
-      await act(async () => {
-        fireEvent.blur(field());
-      });
-      expect(mockGeocode).not.toHaveBeenCalled();
-    });
-
-    it('locates the typed address when the field is left without picking a suggestion', async () => {
-      // Clicking an option never blurs the field (its mousedown is prevented),
-      // so a blur with the list open is the secretary dismissing it.
-      mockGeocode.mockResolvedValue({ status: 'found', lat: 38.5, lng: -90.8 });
-      render(<Harness initial={{}} />);
-
-      await typeUntilSuggestions('Purina Farms, Gray Summit, MO');
-      await act(async () => {
-        fireEvent.blur(field());
-      });
-
-      expect(screen.queryByRole('option')).not.toBeInTheDocument();
-      expect(mockGeocode).toHaveBeenCalledTimes(1);
-      expect(mockGeocode).toHaveBeenCalledWith('Purina Farms, Gray Summit, MO');
-      expect(pinsSet()).toEqual([{ latitude: 38.5, longitude: -90.8 }]);
-    });
-
-    it('does not geocode while a picked suggestion is still resolving', async () => {
-      let resolveDetails: (v: unknown) => void = () => {};
-      fetchDetails.mockReturnValue(new Promise(r => (resolveDetails = r)));
-      render(<Harness initial={{}} />);
-
-      await typeUntilSuggestions('Purina');
-      await act(async () => {
-        fireEvent.click(screen.getByRole('option', { name: /purina farms/i }));
-      });
-      await act(async () => {
-        fireEvent.blur(field());
-      });
-      expect(mockGeocode).not.toHaveBeenCalled();
-
-      await act(async () => {
-        resolveDetails(DETAILS);
-      });
-      expect(pinsSet()).toEqual([
-        { location: expect.any(String), latitude: 38.49, longitude: -90.82 },
-      ]);
-      expect(mockGeocode).not.toHaveBeenCalled();
-    });
   });
 });

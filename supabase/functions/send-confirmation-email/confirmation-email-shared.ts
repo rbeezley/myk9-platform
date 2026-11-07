@@ -13,7 +13,6 @@ export interface ConfirmationEmailRunRow {
 }
 
 export interface VenueMapAssetsRef {
-  imageUrl: string;
   linkUrl: string;
 }
 

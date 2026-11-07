@@ -92,12 +92,12 @@ describe('deskStatusEditable', () => {
     expect(rowsOf([entry('e1', 'class-1', status)])[0]!.deskStatusEditable).toBe(editable);
   });
 
-  it('keeps a real Pull from the Entries page (scratched) locked, showing Pulled at the show', () => {
+  it('keeps a real Pull from the Entries page (scratched) locked, showing Pulled', () => {
     const scratched = entry('e1', 'class-1', 'pulled');
     scratched.classes[0]!.status = 'scratched';
     const [row] = rowsOf([scratched]);
     expect(row!.deskStatusEditable).toBe(false);
-    expect(row!.statusLabel).toBe('Pulled at the show');
+    expect(row!.statusLabel).toBe('Pulled');
   });
 
   it('is not editable for a waitlisted entry or on another day', () => {

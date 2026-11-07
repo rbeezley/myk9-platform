@@ -238,7 +238,12 @@ function checkInEligibility(
     // on an entry still entered is only an exhibitor's or steward's flag to the ring (MYK9-1749).
     if (status === 'pulled') {
       const scratched = entry.entryStatus === EntryStatus.SCRATCHED || cls.status === 'scratched';
-      return { eligible: false, reason: scratched ? 'Pulled at the show' : 'Flagged pulled' };
+      const otherwiseClosed =
+        TERMINAL_ENTRY_STATUSES.has(entry.entryStatus) || TERMINAL_CLASS_STATUSES.has(cls.status);
+      return {
+        eligible: false,
+        reason: scratched ? 'Pulled' : otherwiseClosed ? 'Not active' : 'Flagged pulled',
+      };
     }
     return { eligible: false, reason: status === 'completed' ? 'Not active' : null };
   }

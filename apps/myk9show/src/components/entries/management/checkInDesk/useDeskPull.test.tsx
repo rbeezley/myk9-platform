@@ -155,4 +155,31 @@ describe('Pulled on the Check-in desk is the real Pull (MYK9-1749)', () => {
     expect(h.scratchShowMapEntry).not.toHaveBeenCalled();
     expect(h.updateReplicatedCheckInStatus).not.toHaveBeenCalled();
   });
+
+  it('closes, writing nothing, when ringside takes the dog while the Pull is being confirmed', async () => {
+    const props = {
+      showId: 'show-1',
+      loading: false,
+      unknown: false,
+      onRetry: vi.fn(),
+      currentDate: NOW,
+    };
+    const { user, rerender } = render(<CheckInDesk {...props} entries={[poppy]} />);
+    await choosePulled(user);
+    expect(await screen.findByRole('dialog', { name: 'Pull Poppy?' })).toBeInTheDocument();
+
+    const inRing: EntryManagementEntry = {
+      ...poppy,
+      classes: [{ ...poppy.classes[0]!, checkInStatus: 'in-ring' }],
+    };
+    rerender(<CheckInDesk {...props} entries={[inRing]} />);
+
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Pull Poppy?' })).not.toBeInTheDocument()
+    );
+    // Put back: the confirmation does not reopen on its own.
+    rerender(<CheckInDesk {...props} entries={[poppy]} />);
+    expect(screen.queryByRole('dialog', { name: 'Pull Poppy?' })).not.toBeInTheDocument();
+    expect(h.scratchShowMapEntry).not.toHaveBeenCalled();
+  });
 });

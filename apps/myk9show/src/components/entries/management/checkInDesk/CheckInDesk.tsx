@@ -61,8 +61,6 @@ export function CheckInDesk({
     entries,
     onRefreshEntries
   );
-  const pull = useDeskPull(onRefreshEntries);
-
   const classes = useMemo(
     () =>
       buildCheckInDeskClasses(
@@ -79,6 +77,11 @@ export function CheckInDesk({
     () => buildCheckInDeskPeople(shownEntries, classes, now),
     [classes, now, shownEntries]
   );
+  const rowsByEntryId = useMemo(
+    () => new Map(people.flatMap(person => person.classRows.map(row => [row.entryId, row]))),
+    [people]
+  );
+  const pull = useDeskPull(entryId => rowsByEntryId.get(entryId), onRefreshEntries);
   const visible = useMemo(
     () => filterCheckInDesk(people, search, filter),
     [filter, people, search]

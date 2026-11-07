@@ -58,7 +58,8 @@ export function PullAtShowDialog({
         </DialogHeader>
 
         <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-foreground">
-          Refunds are not automatic. The entry goes to your refund review for a decision.
+          Refunds are not automatic. If this entry was paid online, it goes to your refund review
+          for a decision.
         </div>
 
         <div className="space-y-2">

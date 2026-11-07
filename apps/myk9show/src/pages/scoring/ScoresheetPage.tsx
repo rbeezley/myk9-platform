@@ -25,6 +25,7 @@ import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTa
 import { logger } from '@/services/LoggingService';
 import { transitionToCompleted, transitionToInRing } from '@/utils/checkInTransitions';
 import { getScoresheetComponent } from '@myk9/scoring-ui';
+import { RegisteredScoresheetActionBar } from '@/components/scoring/RegisteredScoresheetActionBar';
 import { classScoringRules } from './classScoringRules';
 import { MissingTrialTypeNotice } from './MissingTrialTypeNotice';
 import type { ResolvedClassRules, ScoreData } from '@myk9/scoring-ui';
@@ -329,14 +330,16 @@ export function ScoresheetPage() {
         dirtyRef={dirtyRef}
         selfNavigationRef={selfNavigationRef}
       />
-      <LiveScoresheet
-        entry={toScoresheetEntry(entry, classInfo)}
-        classInfo={toScoresheetClassInfo(classInfo, trialDate, trialNumber, trialName)}
-        rules={rules}
-        onSubmit={handleSubmit}
-        onBack={handleBack}
-        onDirtyChange={setSheetDirty}
-      />
+      <RegisteredScoresheetActionBar>
+        <LiveScoresheet
+          entry={toScoresheetEntry(entry, classInfo)}
+          classInfo={toScoresheetClassInfo(classInfo, trialDate, trialNumber, trialName)}
+          rules={rules}
+          onSubmit={handleSubmit}
+          onBack={handleBack}
+          onDirtyChange={setSheetDirty}
+        />
+      </RegisteredScoresheetActionBar>
     </>
   );
 }

@@ -349,7 +349,9 @@ describe('CheckInDesk', () => {
         currentDate={NOW}
       />
     );
-    expect(screen.getByRole('region', { name: 'Alice Martin' })).toHaveTextContent('Flagged pulled');
+    expect(screen.getByRole('region', { name: 'Alice Martin' })).toHaveTextContent(
+      'Flagged pulled'
+    );
   });
 
   it('re-reads the entries after a check-in and drops its local flip once the read lands', async () => {
@@ -385,7 +387,9 @@ describe('CheckInDesk', () => {
     );
     const pulled = entry({ classes: [{ ...entry().classes[0]!, checkInStatus: 'pulled' }] });
     rerender(<CheckInDesk {...props} entries={[pulled]} />);
-    expect(screen.getByRole('region', { name: 'Alice Martin' })).toHaveTextContent('Flagged pulled');
+    expect(screen.getByRole('region', { name: 'Alice Martin' })).toHaveTextContent(
+      'Flagged pulled'
+    );
 
     // Once the read lands the flip is gone and the shared entries speak alone.
     finishRefresh();

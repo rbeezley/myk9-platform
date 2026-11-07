@@ -109,6 +109,16 @@ test.describe('Secretary Entry Walk', () => {
 
     await page.route('**/rest/v1/enrollments**', async route => {
       const request = route.request();
+      // An owner who already has a form for this show gets its payment
+      // details PATCHed; keep that off the live row too.
+      if (request.method() === 'PATCH') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify([{ id: 'secretary-walk-registration', show_id: TEST_SHOW_ID }]),
+        });
+        return;
+      }
       if (request.method() !== 'POST') return route.fallback();
 
       await route.fulfill({
@@ -224,14 +234,14 @@ test.describe('Secretary Entry Walk', () => {
     await page.waitForSelector('text=Payment Information', { timeout: 8000 });
 
     await page.getByRole('button', { name: /Secretary Payment \(Already Received\)/i }).click();
-    // Scroll down to find the entry agreement checkbox (below the fold)
-    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    // MYK9-1742: a check from the envelope is recorded by its number.
+    await page.getByRole('button', { name: 'Check', exact: true }).click();
+    await page.getByLabel('Check number').fill('4417');
 
-    // #entry-agreement is aria-hidden (hidden native input for Base UI Checkbox).
-    // Click the label instead — it toggles the checkbox via htmlFor association.
-    const agreementLabel = page.locator('label[for="entry-agreement"]');
-    await expect(agreementLabel).toBeVisible({ timeout: 5000 });
-    await agreementLabel.click();
+    // MYK9-1742: the exhibitor signed the paper form, so the agreement arrives
+    // ticked for the secretary. Base UI's checkbox is a role="checkbox" span.
+    const agreement = page.getByRole('checkbox', { name: /entry agreement/i });
+    await expect(agreement).toHaveAttribute('aria-checked', 'true', { timeout: 5000 });
 
     // ── Step 5: Confirmation ───────────────────────────────────────────────
     const submitEntry = page.getByRole('button', { name: /^Submit entry$/ });
@@ -242,9 +252,14 @@ test.describe('Secretary Entry Walk', () => {
       timeout: 10000,
     });
 
-    await page.getByRole('button', { name: 'Return to Entry Forms' }).click();
-    await expect(page).toHaveURL(new RegExp(`/shows/${TEST_SHOW_ID}/entries`));
-    await expect(page.getByRole('heading', { name: 'Entry Forms' })).toBeVisible();
+    // MYK9-1742: the next paper form starts here, with nothing carried over.
+    await expect(page.getByRole('button', { name: 'Return to Entry Forms' })).toBeVisible();
+    await page.getByRole('button', { name: 'Add another entry' }).click();
+    await expect(page.getByRole('heading', { name: 'Select Dogs to Enter' })).toBeVisible({
+      timeout: 15000,
+    });
+    await expect(page).toHaveURL(new RegExp(`/secretary/register/${TEST_SHOW_ID}$`));
+    await expect(searchInput).toHaveValue('');
     expect(errors).toHaveLength(0);
   });
 });

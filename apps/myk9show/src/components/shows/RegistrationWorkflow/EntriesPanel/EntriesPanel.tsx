@@ -26,8 +26,14 @@ export interface EntriesPanelProps {
   groups: PanelDogGroup[];
   /** `payment` adds subtotal / service fee / total due and the remove controls. */
   variant?: 'default' | 'payment';
-  /** Back/Next for the phone bar. The in-card footer hides below `lg`. */
+  /** Back/Next for the phone bar (below `lg`). */
   navigation?: React.ReactNode;
+  /**
+   * Back/Next for the sticky aside from `lg` up (MYK9-1742): the aside stays in
+   * view while a long dog list scrolls, so Next is never a scroll away. The
+   * page passes exactly one of this and `navigation`, so one copy renders.
+   */
+  asideNavigation?: React.ReactNode;
   paymentMethod?: PaymentMethod | '' | undefined;
   feeCalculation?: FeeCalculationResult | undefined;
   capacityReady?: boolean | undefined;
@@ -66,6 +72,7 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
   groups,
   variant = 'default',
   navigation,
+  asideNavigation,
   paymentMethod = '',
   feeCalculation,
   capacityReady: capacityReadyProp = true,
@@ -172,8 +179,15 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
             <ClipboardList className="h-4 w-4 text-muted-foreground" />
             <h2 className="text-sm font-semibold text-foreground">Your entry</h2>
           </div>
-          <div className="max-h-[50vh] overflow-y-auto">{lines}</div>
+          {/* With Back/Next in the card the list gives up height, so the
+              buttons stay inside a laptop viewport under the pinned header. */}
+          <div className={cn('overflow-y-auto', asideNavigation ? 'max-h-[30vh]' : 'max-h-[50vh]')}>
+            {lines}
+          </div>
           {totalsBlock}
+          {asideNavigation && (
+            <div data-testid="entries-panel-aside-navigation">{asideNavigation}</div>
+          )}
         </div>
       </aside>
 

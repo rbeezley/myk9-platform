@@ -4,7 +4,7 @@
  * nothing when clicked, and it covered the page header. Search-as-you-type
  * filtering is the whole search surface now.
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, onTestFinished } from 'vitest';
 import { render, screen, userEvent, waitFor } from '@/test/utils/testUtils';
 import { DogSearchInterface } from '../DogSearchInterface';
 import type { Dog } from '@/types/dog-types';
@@ -52,6 +52,41 @@ describe('DogSearchInterface', () => {
     await user.clear(input);
     await waitFor(() => {
       expect(onDogsFiltered.mock.calls.at(-1)?.[0]).toHaveLength(DOGS.length);
+    });
+  });
+
+  // MYK9-1742: one Filter button replaces the quick-filter row and the
+  // "Advanced Filters" panel; a ticked value shows as a removable chip.
+  it('filters through the one Filter menu and removes a filter from its chip', async () => {
+    // cmdk scrolls the highlighted row into view; jsdom has no layout.
+    const originalScrollIntoView = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = vi.fn();
+    onTestFinished(() => {
+      Element.prototype.scrollIntoView = originalScrollIntoView;
+    });
+    const user = userEvent.setup();
+    const onDogsFiltered = vi.fn();
+    const dogs: Dog[] = [
+      { ...makeDog('d1', 'Juniper'), gender: 'Female' },
+      { ...makeDog('d2', 'Rex'), gender: 'Male' },
+    ];
+    render(<DogSearchInterface dogs={dogs} onDogsFiltered={onDogsFiltered} />);
+
+    expect(screen.queryByRole('button', { name: /advanced filters/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Recent' })).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Filter' }));
+    await user.click(await screen.findByRole('option', { name: /^Male/ }));
+    await waitFor(() => {
+      const lastCall = onDogsFiltered.mock.calls.at(-1)?.[0] as Dog[] | undefined;
+      expect(lastCall?.map(dog => dog.callName)).toEqual(['Rex']);
+    });
+    await user.keyboard('{Escape}');
+
+    expect(screen.getByRole('button', { name: 'Filter, 1 applied' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /^Remove filter Sex: Male/ }));
+    await waitFor(() => {
+      expect(onDogsFiltered.mock.calls.at(-1)?.[0]).toHaveLength(2);
     });
   });
 });

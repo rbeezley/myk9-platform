@@ -54,4 +54,25 @@ describe('ReceiptExits (4.A honest exits)', () => {
     await user.click(screen.getByRole('button', { name: /return to entry forms/i }));
     expect(onDone).toHaveBeenCalledTimes(1);
   });
+
+  it('offers staff "Add another entry" beside Done (MYK9-1742)', async () => {
+    const user = userEvent.setup();
+    const onDone = vi.fn();
+    const onAddAnother = vi.fn();
+    render(
+      <ReceiptExits
+        isExhibitor={false}
+        showId="show-1"
+        onDone={onDone}
+        doneLabel="Return to Entry Forms"
+        onAddAnother={onAddAnother}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Add another entry' }));
+    expect(onAddAnother).toHaveBeenCalledTimes(1);
+    expect(onDone).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Return to Entry Forms' }));
+    expect(onDone).toHaveBeenCalledTimes(1);
+  });
 });

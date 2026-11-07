@@ -188,3 +188,58 @@ describe('EntryAgreementSection', () => {
     expect(screen.queryByText(/could not load/i)).not.toBeInTheDocument();
   });
 });
+
+// MYK9-1742: a secretary keying a mail-in form already holds the exhibitor's
+// signed agreement, so the box arrives ticked; an exhibitor ticks it themselves.
+describe('EntryAgreementSection on-behalf pre-tick (MYK9-1742)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockHook.mockReturnValue({
+      data: { organization: 'AKC', agreement_text: 'I certify...' },
+      isLoading: false,
+      isFetching: false,
+      isError: false,
+      isSuccess: true,
+      isPlaceholderData: false,
+      refetch: vi.fn(),
+    });
+  });
+
+  it('ticks the agreement once for an on-behalf entry when it loads', () => {
+    const onAgree = vi.fn();
+    render(<EntryAgreementSection {...baseProps} onAgree={onAgree} isOnBehalf />);
+    expect(onAgree).toHaveBeenCalledTimes(1);
+    expect(onAgree).toHaveBeenCalledWith(true);
+  });
+
+  it('does not tick it for an exhibitor entering their own dog', () => {
+    const onAgree = vi.fn();
+    render(<EntryAgreementSection {...baseProps} onAgree={onAgree} />);
+    expect(onAgree).not.toHaveBeenCalled();
+  });
+
+  it('does not re-tick after the secretary unticks it', () => {
+    const onAgree = vi.fn();
+    const { rerender } = render(
+      <EntryAgreementSection {...baseProps} agreed onAgree={onAgree} isOnBehalf />
+    );
+    onAgree.mockClear();
+    rerender(<EntryAgreementSection {...baseProps} agreed={false} onAgree={onAgree} isOnBehalf />);
+    expect(onAgree).not.toHaveBeenCalled();
+  });
+
+  it('does not tick while the agreement is still loading', () => {
+    mockHook.mockReturnValue({
+      data: undefined,
+      isLoading: true,
+      isFetching: true,
+      isError: false,
+      isSuccess: false,
+      isPlaceholderData: false,
+      refetch: vi.fn(),
+    });
+    const onAgree = vi.fn();
+    render(<EntryAgreementSection {...baseProps} onAgree={onAgree} isOnBehalf />);
+    expect(onAgree).not.toHaveBeenCalled();
+  });
+});

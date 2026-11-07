@@ -316,12 +316,21 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
                     />
                   </div>
                   <div>
-                    <Label htmlFor="payment-reference">Reference/Receipt #</Label>
+                    {/* MYK9-1742: a check that came in the envelope is recorded by
+                        its number. Same stored field (the payment reference), named
+                        for what the secretary is holding. */}
+                    <Label htmlFor="payment-reference">
+                      {receivedMethod === 'check'
+                        ? 'Check number'
+                        : receivedMethod === 'cash'
+                          ? 'Receipt #'
+                          : 'Reference/Receipt #'}
+                    </Label>
                     <Input
                       id="payment-reference"
                       value={paymentReference}
                       onChange={e => handlePaymentReferenceChange(e.target.value)}
-                      placeholder="Receipt #123"
+                      placeholder={receivedMethod === 'check' ? '1234' : 'Receipt #123'}
                     />
                   </div>
                 </div>

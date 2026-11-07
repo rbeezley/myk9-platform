@@ -169,7 +169,7 @@ describe('DogSelectionStepEnhanced search freshness', () => {
     expect(screen.queryByRole('checkbox', { name: 'Select Old Dog' })).not.toBeInTheDocument();
   });
 
-  it('keeps the controlled query in the input and chip when selected dogs change', async () => {
+  it('keeps the controlled query in the input and Clear all when selected dogs change', async () => {
     mockSearchAllDogs.mockResolvedValue({
       data: [dog('old-dog', 'Old Dog')],
       error: null,
@@ -187,14 +187,14 @@ describe('DogSelectionStepEnhanced search freshness', () => {
     );
     expect(await screen.findByRole('checkbox', { name: 'Select Old Dog' })).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/Search all dogs/i)).toHaveValue('old');
-    expect(screen.getByText('Search: "old"')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Clear all filters' })).toBeInTheDocument();
 
     view.rerender(
       <DogSelectionStepEnhanced selectedDogs={['old-dog']} onSelectionChange={onSelectionChange} />
     );
 
     expect(screen.getByPlaceholderText(/Search all dogs/i)).toHaveValue('old');
-    expect(screen.getByText('Search: "old"')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Clear all filters' })).toBeInTheDocument();
     expect(screen.getByRole('checkbox', { name: 'Select Old Dog' })).toBeChecked();
   });
 
@@ -218,7 +218,7 @@ describe('DogSelectionStepEnhanced search freshness', () => {
     typeSearch('');
 
     expect(screen.queryByRole('checkbox', { name: 'Select Old Dog' })).not.toBeInTheDocument();
-    expect(screen.queryByText('Search: "old"')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Clear all filters' })).not.toBeInTheDocument();
   });
 
   it('does not surface a superseded request cancellation as a search error', async () => {

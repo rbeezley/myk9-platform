@@ -10,7 +10,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { Link, useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { helpUrl } from '@/lib/help';
@@ -34,16 +34,21 @@ import {
 } from '@/components/shows/RegistrationWorkflow/EntriesPanel/useEntriesPanelData';
 import { CreatedInSessionProvider } from '@/components/shows/RegistrationWorkflow/CreatedInSessionContext';
 import { WizardLeaveGuard } from './RegistrationWizardPage/WizardLeaveGuard';
+import { EntriesClosedNotice } from './RegistrationWizardPage/EntriesClosedNotice';
 import { useRegistrationWizard } from './RegistrationWizardPage/useRegistrationWizard';
 import { useEntryDogHandoff } from './RegistrationWizardPage/useEntryDogHandoff';
 import { getPaymentSubmitLabel } from './RegistrationWizardPage/commitLabels';
 import { EMPTY_ENTRY_NOTICE } from './RegistrationWizardPage/proceedGating';
-import { STAFF_RECEIPT_DONE_LABEL } from './RegistrationWizardPage.routes';
+import {
+  buildAddAnotherEntrySearch,
+  STAFF_RECEIPT_ADD_ANOTHER_LABEL,
+  STAFF_RECEIPT_DONE_LABEL,
+} from './RegistrationWizardPage.routes';
 
 /** Stable id so the Next button can point at the blocked-reason text. */
 const PROCEED_BLOCKED_ID = 'registration-wizard-blocked-reason';
 
-function RegistrationWizardContent() {
+function RegistrationWizardContent({ onStartAnother }: { onStartAnother: () => void }) {
   const wiz = useRegistrationWizard();
   const {
     scrollTopRef,
@@ -143,21 +148,17 @@ function RegistrationWizardContent() {
     classSelections,
     handleClassSelectionChange
   );
-  // ONE payment-method derivation for the whole step: the panel below and the
-  // controls inside WorkflowStepContent both read this, so they cannot quote
-  // different methods (and different service fees) at the same moment.
-  // (Owned by the wizard state hook, which prices the junior declarations from it.)
-
   // ONE WizardNavigation, repositioned — not a desktop copy and a phone copy.
   // Below `lg` it belongs to the entries bar (design.md decision 4); from `lg`
-  // up it stays in the card footer. Two rendered copies would double the tab
-  // stops and the blocked-reason `aria-describedby` target.
+  // up it sits in the sticky "Your entry" aside, which stays in view while a
+  // long step scrolls, so Next is never a scroll away (MYK9-1742). Two rendered
+  // copies would double the tab stops and the blocked-reason `aria-describedby`
+  // target.
   const isDesktopLayout = useMediaQuery('(min-width: 1024px)', true);
+  const isStaff = currentWorkflowMode !== 'exhibitor';
 
-  // The reason travels WITH the navigation. Below `lg` the buttons move into the
-  // fixed bottom bar, and a blocked Next whose explanation stayed behind in the
-  // card footer is an explanation off-screen. Rendered once, wherever the
-  // navigation is, so `aria-describedby` always resolves to a visible node.
+  // The reason travels WITH the navigation, rendered once wherever the buttons
+  // are, so `aria-describedby` always resolves to a visible node.
   const wizardNavigation = (className?: string) => (
     <>
       <p
@@ -187,15 +188,15 @@ function RegistrationWizardContent() {
     </>
   );
 
-  // Below `lg` the panel is a fixed bottom bar that OWNS Back/Next, so the
-  // in-card footer hides there — two Next buttons on one screen is both a
-  // usability and a locator hazard.
+  // `navigation` is the phone bar, `asideNavigation` the desktop aside: one copy.
   const entriesPanel =
     entryCloseAvailability.canEnter && !isLastStep ? (
       <EntriesPanel
         groups={panelGroups}
         variant={isPaymentStep ? 'payment' : 'default'}
-        {...(isDesktopLayout ? {} : { navigation: wizardNavigation('mt-0 border-t-0 pt-0') })}
+        {...(isDesktopLayout
+          ? { asideNavigation: wizardNavigation('mt-0 pt-4') }
+          : { navigation: wizardNavigation('mt-0 border-t-0 pt-0') })}
         capacityReady={capacityReady}
         capacityUnavailable={capacityUnavailable}
         feeTier={entryWindowTimezoneState}
@@ -301,22 +302,20 @@ function RegistrationWizardContent() {
           </div>
         }
         footer={
-          entryCloseAvailability.canEnter ? (
-            <>
-              {isLastStep ? (
-                <ReceiptExits
-                  isExhibitor={currentWorkflowMode === 'exhibitor'}
-                  showId={showId}
-                  onDone={handleNext}
-                  doneLabel={
-                    currentWorkflowMode === 'exhibitor' ? undefined : STAFF_RECEIPT_DONE_LABEL
+          entryCloseAvailability.canEnter && isLastStep ? (
+            <ReceiptExits
+              isExhibitor={!isStaff}
+              showId={showId}
+              onDone={handleNext}
+              {...(isStaff
+                ? {
+                    doneLabel: STAFF_RECEIPT_DONE_LABEL,
+                    onAddAnother: onStartAnother,
+                    addAnotherLabel: STAFF_RECEIPT_ADD_ANOTHER_LABEL,
                   }
-                  isLoading={isSubmitting}
-                />
-              ) : (
-                isDesktopLayout && wizardNavigation()
-              )}
-            </>
+                : {})}
+              isLoading={isSubmitting}
+            />
           ) : null
         }
       >
@@ -358,30 +357,13 @@ function RegistrationWizardContent() {
         )}
 
         {!entryCloseAvailability.canEnter ? (
-          <div className="mx-auto max-w-2xl rounded-xl border border-border bg-muted/30 p-6 text-center">
-            <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              {entryCloseAvailability.unavailableReason === 'not_yet_open'
-                ? 'Entries not open yet'
-                : 'Entries closed'}
-            </p>
-            <h3 className="mt-2 text-2xl font-semibold text-foreground">
-              {entryCloseAvailability.unavailableReason === 'not_yet_open'
-                ? 'This show is not accepting online entries yet.'
-                : 'This show is no longer accepting normal online entries.'}
-            </h3>
-            <p className="mt-3 text-sm leading-6 text-muted-foreground">
-              {entryCloseAvailability.reason ??
-                'Contact the show team if you need help with a late entry or a change.'}
-            </p>
-            <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
-              <Button asChild className="min-h-[44px]">
-                <Link to={entryCloseAvailability.recoveryHref}>Message the show team</Link>
-              </Button>
-              <Button variant="outline" className="min-h-[44px]" onClick={handleExit}>
-                {exitTarget.label}
-              </Button>
-            </div>
-          </div>
+          <EntriesClosedNotice
+            notYetOpen={entryCloseAvailability.unavailableReason === 'not_yet_open'}
+            reason={entryCloseAvailability.reason}
+            recoveryHref={entryCloseAvailability.recoveryHref}
+            exitLabel={exitTarget.label}
+            onExit={handleExit}
+          />
         ) : (
           <>
             {emptyEntryNoticeShown && (
@@ -477,28 +459,25 @@ export default function RegistrationWizardPage() {
   const { showId } = useParams<{ showId: string }>();
   const navigate = useNavigate();
   const { shows } = useShowStore();
-
-  if (!showId) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <p className="text-muted-foreground">No show selected.</p>
-          <Button variant="outline" onClick={() => navigate('/shows')}>
-            Browse Shows
-          </Button>
-        </div>
-      </div>
-    );
-  }
+  const [runKey, setRunKey] = useState(0);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const startAnother = () => {
+    setSearchParams(buildAddAnotherEntrySearch(searchParams), { replace: true });
+    setRunKey(key => key + 1);
+  };
 
   // shows.length === 0 means still loading from replication — let the inner
   // component handle that state. Once shows are populated, verify this one exists.
-  const showExists = shows.length === 0 || shows.some(s => s.id === showId);
-  if (!showExists) {
+  const missing = !showId
+    ? 'No show selected.'
+    : shows.length > 0 && !shows.some(s => s.id === showId)
+      ? 'Show not found.'
+      : null;
+  if (missing) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center space-y-4">
-          <p className="text-muted-foreground">Show not found.</p>
+          <p className="text-muted-foreground">{missing}</p>
           <Button variant="outline" onClick={() => navigate('/shows')}>
             Browse Shows
           </Button>
@@ -507,10 +486,12 @@ export default function RegistrationWizardPage() {
     );
   }
 
+  // A new key is a fresh wizard: every step's state, the registration and the
+  // created-in-session list start over for the next paper form (MYK9-1742).
   return (
     <RegistrationProvider>
-      <CreatedInSessionProvider>
-        <RegistrationWizardContent />
+      <CreatedInSessionProvider key={runKey}>
+        <RegistrationWizardContent onStartAnother={startAnother} />
       </CreatedInSessionProvider>
     </RegistrationProvider>
   );

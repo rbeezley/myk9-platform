@@ -100,33 +100,18 @@ interface DogSelectionStepProps {
 
 function getEmptyStateMessage(
   searchQuery: string,
-  activeQuickFilter: string,
+  filtersApplied: boolean,
   advancedSearch: boolean,
   registrationNumberLabel: string
 ): string {
   if (searchQuery.trim()) return 'No dogs match your search. Try a different name or breed.';
+  // Filters exist only with advanced search (the Filter menu lives in DogSearchInterface).
   if (advancedSearch) {
-    switch (activeQuickFilter) {
-      case 'registered':
-        return 'No registered dogs match this filter. Clear the filter or search by name, breed, or registration number.';
-      case 'unregistered':
-        return 'No unregistered dogs match this filter. Clear the filter or search by name, breed, or registration number.';
-      case 'recent':
-        return 'No recently active dogs match this filter. Clear the filter or search by name, breed, or registration number.';
-      default:
-        return `Search by name, breed, or ${registrationNumberLabel} to find a dog to enter.`;
-    }
+    return filtersApplied
+      ? `No dogs match these filters. Clear them or search by name, breed, or ${registrationNumberLabel}.`
+      : `Search by name, breed, or ${registrationNumberLabel} to find a dog to enter.`;
   }
-  switch (activeQuickFilter) {
-    case 'registered':
-      return 'None of your dogs are entered in this show yet. Clear the filter to see all your dogs.';
-    case 'unregistered':
-      return 'All your dogs are already entered in this show.';
-    case 'recent':
-      return 'No recently active dogs found. Clear the filter to see all your dogs.';
-    default:
-      return "You don't have any dogs yet. Add a dog from your profile to get started.";
-  }
+  return "You don't have any dogs yet. Add a dog from your profile to get started.";
 }
 
 export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
@@ -151,7 +136,7 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
   const [showQuickCreateFlow, setShowQuickCreateFlow] = useState(false);
   const [showDogDialog, setShowDogDialog] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeQuickFilter, setActiveQuickFilter] = useState('');
+  const [filtersApplied, setFiltersApplied] = useState(false);
   const [sortColumn, setSortColumn] = useState<SortColumn | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const normalizedSearchQuery = searchQuery.trim().toLowerCase();
@@ -446,7 +431,7 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
                   searchQuery={searchQuery}
                   onDogsFiltered={handleDogsFiltered}
                   onSearchQueryChange={setSearchQuery}
-                  onActiveFilterChange={setActiveQuickFilter}
+                  onFiltersAppliedChange={setFiltersApplied}
                   showQuickFilters={true}
                   showAdvancedFilters={true}
                   placeholder={`Search all dogs by name, breed, or ${registrationNumberLabel}...`}
@@ -625,7 +610,7 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
                   <p className="text-muted-foreground">
                     {getEmptyStateMessage(
                       searchQuery,
-                      activeQuickFilter,
+                      filtersApplied,
                       workflowConfig.features.advancedSearch,
                       registrationNumberLabel
                     )}

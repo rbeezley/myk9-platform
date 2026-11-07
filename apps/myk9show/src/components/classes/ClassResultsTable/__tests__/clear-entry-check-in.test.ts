@@ -5,13 +5,19 @@ import type { RawEntryRow } from '@/hooks/queries/useClassEntriesRaw';
 import type { ScentWorkEntry, ScentWorkClassConfig } from '@/types/scent-work-types';
 import type { UserPermissions } from '@/types/user-permissions';
 
-const { updateEntry, getEntryById } = vi.hoisted(() => ({
+// `currentRow` is the row `updateEntryWith` hands its builder (the hydrated row
+// the real table writes against); the builder's payload lands in `updateEntry`.
+const { updateEntry, currentRow } = vi.hoisted(() => ({
   updateEntry: vi.fn().mockResolvedValue(undefined),
-  getEntryById: vi.fn().mockResolvedValue(null),
+  currentRow: vi.fn().mockReturnValue({}),
 }));
 
 vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
-  replicatedEntriesTable: { updateEntry, getEntryById },
+  replicatedEntriesTable: {
+    updateEntry,
+    updateEntryWith: (id: string, build: (row: unknown) => Record<string, unknown>) =>
+      updateEntry(id, build(currentRow(id))),
+  },
 }));
 vi.mock('@/lib/notifications', () => ({
   notifications: { success: vi.fn(), error: vi.fn() },
@@ -54,12 +60,12 @@ function setup() {
 
 beforeEach(() => {
   updateEntry.mockClear();
-  getEntryById.mockClear();
+  currentRow.mockClear();
 });
 
 describe('class results: clearing a score (MYK9-1737)', () => {
   it('puts a completed dog back to checked-in in the same write', async () => {
-    getEntryById.mockResolvedValueOnce({ id: 'e1', checkInStatus: 'completed' });
+    currentRow.mockReturnValueOnce({ id: 'e1', checkInStatus: 'completed' });
     const { result } = setup();
     await act(async () => {
       await result.current.clearEntry('e1');
@@ -77,7 +83,7 @@ describe('class results: clearing a score (MYK9-1737)', () => {
   });
 
   it('leaves a pulled dog pulled', async () => {
-    getEntryById.mockResolvedValueOnce({ id: 'e1', checkInStatus: 'pulled' });
+    currentRow.mockReturnValueOnce({ id: 'e1', checkInStatus: 'pulled' });
     const { result } = setup();
     await act(async () => {
       await result.current.clearEntry('e1');

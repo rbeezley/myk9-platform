@@ -147,8 +147,7 @@ export function useClassResults({
       if (!userPermissions.canEditEntries) return;
 
       try {
-        const current = await replicatedEntriesTable.getEntryById(entryId);
-        await replicatedEntriesTable.updateEntry(entryId, {
+        await replicatedEntriesTable.updateEntryWith(entryId, current => ({
           resultStatus: 'pending',
           result_status: 'pending',
           isScored: false,
@@ -166,7 +165,7 @@ export function useClassResults({
           disqualification_reason: null,
           ...SCORE_DETAIL_CLEAR_FIELDS,
           ...scoreResetCheckInFields(current),
-        });
+        }));
 
         setEdits(prev => {
           const next = new Map(prev);

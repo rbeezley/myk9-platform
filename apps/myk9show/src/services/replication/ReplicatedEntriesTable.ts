@@ -822,7 +822,29 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
    */
   async updateEntry(entryId: string, updates: Partial<ReplicatedEntry>): Promise<string | null> {
     const entry = await this.getOrHydrateEntryForWrite(entryId);
+    return this.applyEntryUpdate(entryId, entry, updates);
+  }
 
+  /**
+   * `updateEntry` whose payload depends on the row's current values (e.g. a
+   * score reset that also moves a `completed` check-in back, MYK9-1737). The
+   * builder sees the same row the write is based on, hydrated from the server
+   * on a cold replica, so a decision is never made against a missing or
+   * different row than the one written.
+   */
+  async updateEntryWith(
+    entryId: string,
+    build: (current: ReplicatedEntry) => Partial<ReplicatedEntry>
+  ): Promise<string | null> {
+    const entry = await this.getOrHydrateEntryForWrite(entryId);
+    return this.applyEntryUpdate(entryId, entry, build(entry));
+  }
+
+  private async applyEntryUpdate(
+    entryId: string,
+    entry: ReplicatedEntry,
+    updates: Partial<ReplicatedEntry>
+  ): Promise<string | null> {
     const updated: ReplicatedEntry = {
       ...entry,
       ...updates,

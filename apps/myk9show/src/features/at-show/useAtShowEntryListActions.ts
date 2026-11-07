@@ -159,8 +159,7 @@ export function useAtShowEntryListActions(deps: UseAtShowEntryListActionsDeps): 
       // letting an assigned judge reset as well as a manager. The scoring-state
       // trigger clears any stale placement automatically.
       await runMutation(async () => {
-        const current = await replicatedEntriesTable.getEntryById(entryId);
-        await replicatedEntriesTable.updateEntry(entryId, {
+        await replicatedEntriesTable.updateEntryWith(entryId, current => ({
           // Use the nullable (camel finalPlacement / snake scoring_completed_at /
           // disqualification_reason) field variants so clears persist as NULL.
           isScored: false,
@@ -177,7 +176,7 @@ export function useAtShowEntryListActions(deps: UseAtShowEntryListActionsDeps): 
           disqualification_reason: null,
           ...SCORE_DETAIL_CLEAR_FIELDS,
           ...scoreResetCheckInFields(current),
-        });
+        }));
         await refresh();
       });
     },

@@ -16,14 +16,15 @@ const updateSelfCheckInStatus = vi.fn<(id: string, status: string) => Promise<vo
   Promise.resolve()
 );
 
-const getEntryById = vi.fn<(id: string) => Promise<Record<string, unknown> | null>>(() =>
-  Promise.resolve(null)
-);
+// The row `updateEntryWith` hands its builder (the hydrated row the real table
+// writes against); the builder's payload lands in `updateEntry`.
+const currentRow = vi.fn<(id: string) => Record<string, unknown>>(() => ({}));
 
 vi.mock('@/services/replication', () => ({
   replicatedEntriesTable: {
     updateEntry: (id: string, updates: Record<string, unknown>) => updateEntry(id, updates),
-    getEntryById: (id: string) => getEntryById(id),
+    updateEntryWith: (id: string, build: (row: unknown) => Record<string, unknown>) =>
+      updateEntry(id, build(currentRow(id))),
   },
 }));
 vi.mock('@/services/show-day/checkInStatus', () => ({
@@ -43,7 +44,7 @@ describe('useAtShowEntryListActions', () => {
 
   beforeEach(() => {
     updateEntry.mockClear();
-    getEntryById.mockClear();
+    currentRow.mockClear();
     updateSelfCheckInStatus.mockClear();
     refresh.mockClear();
   });
@@ -147,7 +148,7 @@ describe('useAtShowEntryListActions', () => {
   });
 
   it('handleResetScore puts a completed dog back to checked-in in the same write (MYK9-1737)', async () => {
-    getEntryById.mockResolvedValueOnce({ id: 'entry-uuid-7', checkInStatus: 'completed' });
+    currentRow.mockReturnValueOnce({ id: 'entry-uuid-7', checkInStatus: 'completed' });
     const { result } = render();
     await act(async () => {
       await result.current.handleResetScore('entry-uuid-7');

@@ -23,8 +23,4 @@ describe('scoreResetCheckInFields (MYK9-1737)', () => {
       expect(scoreResetCheckInFields({ checkInStatus: status })).toEqual({});
     }
   );
-
-  it('writes nothing when the entry is not in the local replica', () => {
-    expect(scoreResetCheckInFields(null)).toEqual({});
-  });
 });

@@ -5,12 +5,20 @@ import { firstScorableEntryId, resolveOnScreenEntryId, usePaperScoring } from '.
 import type { ScoringEntry } from '../types';
 
 // Mock the replicated table
-vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
-  replicatedEntriesTable: {
+// `currentRow` is the row `updateEntryWith` hands its builder (the hydrated row
+// the real table writes against); the builder's payload lands in `updateEntry`.
+vi.mock('@/services/replication/ReplicatedEntriesTable', () => {
+  const table = {
     updateEntry: vi.fn().mockResolvedValue(undefined),
-    getEntryById: vi.fn().mockResolvedValue(null),
-  },
-}));
+    currentRow: vi.fn().mockReturnValue({}),
+    updateEntryWith: vi.fn(),
+  };
+  table.updateEntryWith.mockImplementation(
+    (id: string, build: (row: Record<string, unknown>) => Record<string, unknown>) =>
+      table.updateEntry(id, build(table.currentRow(id)))
+  );
+  return { replicatedEntriesTable: table };
+});
 
 function makeEntry(overrides: Partial<ScoringEntry> = {}): ScoringEntry {
   return {
@@ -241,9 +249,10 @@ describe('usePaperScoring', () => {
   it('clearEntry puts a completed dog back to checked-in (MYK9-1737)', async () => {
     const { replicatedEntriesTable } =
       await import('@/services/replication/ReplicatedEntriesTable');
-    vi.mocked(replicatedEntriesTable.getEntryById).mockResolvedValueOnce({
-      checkInStatus: 'completed',
-    } as Awaited<ReturnType<typeof replicatedEntriesTable.getEntryById>>);
+    const table = replicatedEntriesTable as unknown as {
+      currentRow: ReturnType<typeof vi.fn>;
+    };
+    table.currentRow.mockReturnValueOnce({ checkInStatus: 'completed' });
     const { result } = renderHook(() => usePaperScoring(entries, 'user-1'));
 
     await act(() => result.current.clearEntry('e1'));

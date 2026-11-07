@@ -136,8 +136,7 @@ export function usePaperScoring(entries: ScoringEntry[], userId: string) {
   const clearEntry = useCallback(async (entryId: string) => {
     setIsSaving(true);
     try {
-      const current = await replicatedEntriesTable.getEntryById(entryId);
-      await replicatedEntriesTable.updateEntry(entryId, {
+      await replicatedEntriesTable.updateEntryWith(entryId, current => ({
         result_status: 'pending',
         resultStatus: 'pending',
         is_scored: false,
@@ -152,7 +151,7 @@ export function usePaperScoring(entries: ScoringEntry[], userId: string) {
         disqualification_reason: null,
         ...SCORE_DETAIL_CLEAR_FIELDS,
         ...scoreResetCheckInFields(current),
-      });
+      }));
       // The cleared dog stays on screen.
       setRequestedEntryId(entryId);
     } finally {

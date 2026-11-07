@@ -9,6 +9,7 @@
  */
 
 import type { ClassEntry } from '../types';
+import { buildCombinedClassName } from './combinedClassName';
 import { withMergedSectionState } from './combinedSectionState';
 
 /**
@@ -158,7 +159,7 @@ export function groupSectionedClasses(
           ...withMergedSectionState(first, second), // Section A base, status/release/times of BOTH
           id: first.id, // Primary ID for navigation
           section: 'A & B', // Combined section label
-          class_name: `${first.element} ${first.level} A & B`, // Combined name
+          class_name: buildCombinedClassName(first.element, first.level), // Combined name
           entry_count: first.entry_count + second.entry_count, // Sum entries
           completed_count: first.completed_count + second.completed_count, // Sum completed
           dogs: [...first.dogs, ...second.dogs], // Merge dogs array

@@ -239,3 +239,5 @@ export {
   type MergedSectionPhase,
   type PhaseSource,
 } from '../ClassList/utils/combinedSectionState';
+
+export { buildCombinedClassName } from '../ClassList/utils/combinedClassName';

@@ -17,7 +17,7 @@ import {
   type CheckInDeskFilter,
 } from './checkInDeskModel';
 import { CheckInDeskDogCard } from './CheckInDeskDogCard';
-import { useCheckInDeskActions } from './useCheckInDeskActions';
+import { useCheckInDeskActions, type DeskStatusTarget } from './useCheckInDeskActions';
 import { useMinuteClock } from './useMinuteClock';
 
 interface CheckInDeskProps {
@@ -34,6 +34,10 @@ interface CheckInDeskProps {
 }
 
 const EXHIBITOR_NOUN = ['exhibitor', 'exhibitors'] as const;
+
+/** One tap's targets: a dog's waiting classes, which by definition show no status yet. */
+const waiting = (entryIds: readonly string[]): DeskStatusTarget[] =>
+  entryIds.map(entryId => ({ entryId, from: 'no-status' }));
 
 /**
  * Entry Forms' "Check-in desk" (MYK9-1689): everyone entered on the show, one card per dog
@@ -55,7 +59,8 @@ export function CheckInDesk({
   const [search, setSearch] = useState('');
   const now = useMinuteClock(currentDate);
   const { trials, trialClasses, readPending, readFailed, retry } = useShowDeskScheduleRead();
-  const { statuses, busyIds, error, notice, setStatus } = useCheckInDeskActions(onRefreshEntries);
+  const { changes, busyIds, error, errorIds, notice, setStatus } =
+    useCheckInDeskActions(onRefreshEntries);
 
   const classes = useMemo(
     () =>
@@ -66,8 +71,8 @@ export function CheckInDesk({
     [showId, trialClasses, trials]
   );
   const shownEntries = useMemo(
-    () => applyOptimisticDeskStatuses(entries, statuses),
-    [entries, statuses]
+    () => applyOptimisticDeskStatuses(entries, changes),
+    [changes, entries]
   );
   const people = useMemo(
     () => buildCheckInDeskPeople(shownEntries, classes, now),
@@ -146,15 +151,6 @@ export function CheckInDesk({
         }}
       />
 
-      {error && (
-        <div
-          role="status"
-          aria-live="polite"
-          className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
-        >
-          {error}
-        </div>
-      )}
       <span role="status" aria-live="polite" className="sr-only">
         {notice ?? ''}
       </span>
@@ -194,7 +190,7 @@ export function CheckInDesk({
                       onClick={() =>
                         void setStatus(
                           person.name,
-                          waitingDogs.flatMap(dog => dog.pendingEntryIds),
+                          waitingDogs.flatMap(dog => waiting(dog.pendingEntryIds)),
                           'checked-in'
                         )
                       }
@@ -210,11 +206,16 @@ export function CheckInDesk({
                     dog={dog}
                     personName={person.name}
                     busyIds={busyIds}
+                    error={dog.rows.some(row => errorIds.has(row.entryId)) ? error : null}
                     onCheckIn={target =>
-                      void setStatus(target.dogName, target.pendingEntryIds, 'checked-in')
+                      void setStatus(target.dogName, waiting(target.pendingEntryIds), 'checked-in')
                     }
                     onSetStatus={(row, status) =>
-                      void setStatus(`${row.dogName}, ${row.className}`, [row.entryId], status)
+                      void setStatus(
+                        `${row.dogName}, ${row.className}`,
+                        [{ entryId: row.entryId, from: row.checkInStatus }],
+                        status
+                      )
                     }
                   />
                 ))}

@@ -17,6 +17,8 @@ interface CheckInDeskDogCardProps {
   dog: CheckInDeskDog;
   personName: string;
   busyIds: ReadonlySet<string>;
+  /** A failed write for one of this dog's classes, shown on the card where the secretary is. */
+  error: string | null;
   onCheckIn: (dog: CheckInDeskDog) => void;
   onSetStatus: (row: PeopleRosterClassRow, status: CheckInStatus) => void;
 }
@@ -36,12 +38,20 @@ export function CheckInDeskDogCard({
   dog,
   personName,
   busyIds,
+  error,
   onCheckIn,
   onSetStatus,
 }: CheckInDeskDogCardProps) {
-  const [pickerRow, setPickerRow] = useState<PeopleRosterClassRow | null>(null);
+  const [pickerId, setPickerId] = useState<string | null>(null);
+  // The class as it is now, not as it was when the picker opened: if ringside has moved it on,
+  // the picker closes rather than offer to write over the run.
+  const pickerRow = dog.rows.find(row => row.entryId === pickerId && row.deskStatusEditable);
   const busy = dog.rows.some(row => busyIds.has(row.entryId));
-  const allCheckedIn = dog.rows.every(row => row.checkInStatus === 'checked-in');
+  // Judged over the classes the desk handles today: another day's or a pulled class never
+  // keeps the confirmation away.
+  const deskRows = dog.rows.filter(row => row.deskStatusEditable);
+  const allCheckedIn =
+    deskRows.length > 0 && deskRows.every(row => row.checkInStatus === 'checked-in');
 
   return (
     <article aria-label={dog.dogName} className="rounded-lg border bg-card p-2.5">
@@ -89,7 +99,7 @@ export function CheckInDeskDogCard({
                   type="button"
                   disabled={busyIds.has(row.entryId)}
                   aria-label={`Change status for ${dog.dogName}, ${row.className}: ${row.statusLabel}`}
-                  onClick={() => setPickerRow(row)}
+                  onClick={() => setPickerId(row.entryId)}
                   className="flex min-h-11 shrink-0 items-center gap-0.5 rounded-md px-1 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
                 >
                   {badge}
@@ -102,11 +112,19 @@ export function CheckInDeskDogCard({
           );
         })}
       </ul>
+      {error && (
+        <p
+          role="alert"
+          className="mt-2 rounded-md border border-destructive/30 bg-destructive/5 px-2 py-1.5 text-sm text-destructive"
+        >
+          {error}
+        </p>
+      )}
       {pickerRow && (
         <StatusPickerDialog
           open
           onOpenChange={open => {
-            if (!open) setPickerRow(null);
+            if (!open) setPickerId(null);
           }}
           entry={{
             entryId: pickerRow.entryId,

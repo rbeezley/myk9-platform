@@ -5,7 +5,6 @@
  */
 import {
   buildPeopleRoster,
-  DESK_STATUS_SET,
   filterPeopleRoster,
   type PeopleRosterClassInfo,
   type PeopleRosterClassRow,
@@ -93,28 +92,34 @@ export function filterCheckInDesk(
   return filterPeopleRoster(people, search, filter === 'not-checked-in' ? 'needs-check-in' : 'all');
 }
 
+/** A desk write made but not yet read back: the status it changed from, and to. */
+export interface DeskStatusChange {
+  from: CheckInStatus;
+  to: CheckInStatus;
+}
+
 /**
- * Optimistic until the entries re-read lands. A class flips only while it still holds a status
- * the desk itself sets (not checked in, checked in, conflict), so at-gate, in-ring, pulled or
- * completed from a later read are never masked. Shared by the Check-in desk and the entry form
- * so both show a change the same way.
+ * Optimistic until the entries re-read lands. A class shows `to` only while the shared entries
+ * still say `from`: once anything else moves it (ringside, a pull, the exhibitor's own Conflict,
+ * or the read-back itself) the shared value wins, even if the re-read failed and the change is
+ * still held. Shared by the Check-in desk and the entry form so both show a change the same way.
  */
 export function applyOptimisticDeskStatuses(
   entries: readonly EntryManagementEntry[],
-  statuses: ReadonlyMap<string, CheckInStatus>
+  changes: ReadonlyMap<string, DeskStatusChange>
 ): EntryManagementEntry[] {
-  if (statuses.size === 0) return [...entries];
+  if (changes.size === 0) return [...entries];
   return entries.map(entry => {
-    const next = statuses.get(entry.id);
-    if (!next) return entry;
+    const change = changes.get(entry.id);
+    if (!change) return entry;
     return {
       ...entry,
       classes: entry.classes.map(cls =>
-        DESK_STATUS_SET.has(cls.checkInStatus ?? 'no-status') && cls.checkInStatus !== next
+        (cls.checkInStatus ?? 'no-status') === change.from
           ? {
               ...cls,
-              checkInStatus: next,
-              ...(next === 'checked-in' ? { checkInTime: new Date() } : {}),
+              checkInStatus: change.to,
+              ...(change.to === 'checked-in' ? { checkInTime: new Date() } : {}),
             }
           : cls
       ),
@@ -148,7 +153,7 @@ export function groupCheckInDeskDogs(person: PeopleRosterPerson): CheckInDeskDog
       pendingEntryIds: [],
     };
     dog.rows.push(row);
-    if (row.eligibleForCheckIn && row.checkInStatus === 'no-status') {
+    if (row.eligibleForCheckIn && row.deskStatusEditable && row.checkInStatus === 'no-status') {
       dog.pendingEntryIds.push(row.entryId);
     }
     dogs.set(key, dog);

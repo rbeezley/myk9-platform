@@ -107,9 +107,32 @@ describe('deskStatusEditable', () => {
   it('shows a Conflict class as Conflict, not as waiting', () => {
     expect(rowsOf([entry('e1', 'class-1', 'conflict')])[0]!.statusLabel).toBe('Conflict');
   });
+
+  it('is not editable, nor in one tap, once the run is scored', () => {
+    const [person] = buildCheckInDeskPeople(
+      [
+        entry('e1', 'class-1', 'checked-in', { isScored: true, resultStatus: 'qualified' }),
+        entry('e2', 'class-2', 'no-status', { isScored: true, resultStatus: 'absent' }),
+      ],
+      CLASSES,
+      NOW
+    );
+    expect(person!.classRows.map(row => row.deskStatusEditable)).toEqual([false, false]);
+    expect(groupCheckInDeskDogs(person!)[0]!.pendingEntryIds).toEqual([]);
+  });
+
+  it("stays editable on an unscored entry whose result_status is the default 'pending'", () => {
+    expect(
+      rowsOf([
+        entry('e1', 'class-1', 'checked-in', { isScored: false, resultStatus: 'pending' }),
+      ])[0]!.deskStatusEditable
+    ).toBe(true);
+  });
 });
 
 describe('applyOptimisticDeskStatuses', () => {
+  const change = (from: CheckInStatus, to: CheckInStatus) => new Map([['e1', { from, to }]]);
+
   it('returns a copy when nothing is pending', () => {
     const entries = [entry('e1', 'class-1', 'no-status')];
     const shown = applyOptimisticDeskStatuses(entries, new Map());
@@ -117,25 +140,28 @@ describe('applyOptimisticDeskStatuses', () => {
     expect(shown).not.toBe(entries);
   });
 
-  it('never masks a ringside or pulled status from the re-read', () => {
-    const [shown] = applyOptimisticDeskStatuses(
-      [entry('e1', 'class-1', 'in-ring')],
-      new Map([['e1', 'checked-in']])
-    );
-    expect(shown!.classes[0]!.checkInStatus).toBe('in-ring');
-  });
+  it.each(['in-ring', 'pulled', 'conflict'] as const)(
+    'gives way once the shared status has moved on from the one written over (%s)',
+    moved => {
+      const [shown] = applyOptimisticDeskStatuses(
+        [entry('e1', 'class-1', moved)],
+        change('no-status', 'checked-in')
+      );
+      expect(shown!.classes[0]!.checkInStatus).toBe(moved);
+    }
+  );
 
   it('stamps a check-in time only when checking in', () => {
     const [checkedIn] = applyOptimisticDeskStatuses(
       [entry('e1', 'class-1', 'no-status')],
-      new Map([['e1', 'checked-in']])
+      change('no-status', 'checked-in')
     );
     expect(checkedIn!.classes[0]).toMatchObject({ checkInStatus: 'checked-in' });
     expect(checkedIn!.classes[0]!.checkInTime).toBeInstanceOf(Date);
 
     const [conflict] = applyOptimisticDeskStatuses(
       [entry('e1', 'class-1', 'no-status')],
-      new Map([['e1', 'conflict']])
+      change('no-status', 'conflict')
     );
     expect(conflict!.classes[0]!.checkInStatus).toBe('conflict');
     expect(conflict!.classes[0]!.checkInTime).toBeUndefined();

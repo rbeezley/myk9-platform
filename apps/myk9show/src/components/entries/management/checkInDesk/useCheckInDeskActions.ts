@@ -2,63 +2,77 @@ import { useCallback, useState } from 'react';
 import type { CheckInStatus } from '@myk9/core';
 import { dispatchBulk } from '@/hooks/bulkDispatch';
 import { updateReplicatedCheckInStatus } from '@/services/show-day/checkInStatus';
+import type { DeskStatusChange } from './checkInDeskModel';
 import { deskStatusLabel } from './peopleRoster';
 
+/** One class to write, with the status it shows now (the optimistic flip holds only while it does). */
+export interface DeskStatusTarget {
+  entryId: string;
+  from: CheckInStatus;
+}
+
 /**
- * Status writes for the Check-in desk (check in, Conflict, undo): the replicated path (offline-safe), bounded by
- * `dispatchBulk` so an exhibitor with a dozen entries does not fire a dozen simultaneous writes.
- * Succeeded ids show their new status at once and are held only until the page's entries re-read
- * lands (`onRefreshEntries`); from then on the shared entries speak for themselves, so a later
- * ringside status is never masked. If the re-read fails the flip stays: the write did succeed.
+ * Status writes for the Check-in desk (check in, Conflict, undo): the replicated path
+ * (offline-safe), bounded by `dispatchBulk` so an exhibitor with a dozen entries does not fire a
+ * dozen simultaneous writes. Succeeded ids show their new status at once and are held until the
+ * page's entries re-read lands (`onRefreshEntries`); from then on the shared entries speak for
+ * themselves. If the re-read fails the flip stays, but only while the shared status still reads
+ * as it did before the write (`applyOptimisticDeskStatuses`), so a later change is never masked.
  */
 export function useCheckInDeskActions(onRefreshEntries?: () => void | Promise<void>) {
-  const [statuses, setStatuses] = useState<ReadonlyMap<string, CheckInStatus>>(new Map());
+  const [changes, setChanges] = useState<ReadonlyMap<string, DeskStatusChange>>(new Map());
   const [busyIds, setBusyIds] = useState<ReadonlySet<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
+  /** The entries the last failed write was about, so the error shows on their dog's card. */
+  const [errorIds, setErrorIds] = useState<ReadonlySet<string>>(new Set());
   const [notice, setNotice] = useState<string | null>(null);
 
-  /** Sets `status` on each entry; `subject` names who or what in the messages ("Alice Martin"). */
+  /** Sets `status` on each target; `subject` names who or what in the messages ("Alice Martin"). */
   const setStatus = useCallback(
-    async (subject: string, entryIds: readonly string[], status: CheckInStatus) => {
-      if (entryIds.length === 0) return;
+    async (subject: string, targets: readonly DeskStatusTarget[], status: CheckInStatus) => {
+      if (targets.length === 0) return;
+      const entryIds = targets.map(target => target.entryId);
       setError(null);
+      setErrorIds(new Set());
       setNotice(null);
       setBusyIds(current => new Set([...current, ...entryIds]));
-      const outcome = await dispatchBulk([...entryIds], async entryId => {
+      const outcome = await dispatchBulk(entryIds, async entryId => {
         await updateReplicatedCheckInStatus(entryId, status);
       });
-      const { succeeded } = outcome;
-      if (succeeded.length > 0) {
-        setStatuses(current => {
+      const done = new Set(outcome.succeeded);
+      const applied = targets.filter(target => done.has(target.entryId));
+      if (applied.length > 0) {
+        setChanges(current => {
           const next = new Map(current);
-          succeeded.forEach(id => next.set(id, status));
+          applied.forEach(({ entryId, from }) => next.set(entryId, { from, to: status }));
           return next;
         });
         // Without a re-read there is nothing to hand over to, so the flip stays.
         if (onRefreshEntries) {
           try {
             await onRefreshEntries();
-            setStatuses(current => {
+            setChanges(current => {
               const next = new Map(current);
-              succeeded.forEach(id => {
-                if (next.get(id) === status) next.delete(id);
+              applied.forEach(({ entryId }) => {
+                if (next.get(entryId)?.to === status) next.delete(entryId);
               });
               return next;
             });
           } catch {
-            // The re-read failed: keep the optimistic flip rather than show the change as undone.
+            // The re-read failed: keep the flip rather than show the change as undone.
           }
         }
       }
       const checkingIn = status === 'checked-in';
-      if (succeeded.length !== entryIds.length) {
+      if (applied.length !== targets.length) {
+        setErrorIds(new Set(entryIds.filter(id => !done.has(id))));
         setError(
-          succeeded.length > 0
-            ? `${checkingIn ? 'Checked in' : 'Updated'} ${succeeded.length} of ${entryIds.length} for ${subject}.`
+          applied.length > 0
+            ? `${checkingIn ? 'Checked in' : 'Updated'} ${applied.length} of ${targets.length} for ${subject}.`
             : `Couldn't ${checkingIn ? 'check in' : 'update'} ${subject}. Try again.`
         );
       } else {
-        const count = `${succeeded.length} ${succeeded.length === 1 ? 'class' : 'classes'}`;
+        const count = `${applied.length} ${applied.length === 1 ? 'class' : 'classes'}`;
         setNotice(
           checkingIn
             ? `Checked in ${count} for ${subject}.`
@@ -74,5 +88,5 @@ export function useCheckInDeskActions(onRefreshEntries?: () => void | Promise<vo
     [onRefreshEntries]
   );
 
-  return { statuses, busyIds, error, notice, setStatus };
+  return { changes, busyIds, error, errorIds, notice, setStatus };
 }

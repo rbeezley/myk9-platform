@@ -323,8 +323,12 @@ function buildClassRows(
       const current = cls.checkInStatus ?? 'no-status';
       // Editable exactly when the class could be checked in were it still waiting: same
       // accepted, active and today rules, so the desk never rewrites an underway or closed run.
+      // A scored run keeps its check-in status (ringside scoring never writes it), so the score
+      // is what says it is finished. `is_scored`, not `result_status`: that is 'pending' on
+      // every unscored entry.
       const deskStatusEditable =
         DESK_STATUS_SET.has(current) &&
+        !entry.isScored &&
         (eligibility.eligible ||
           checkInEligibility(entry, { ...cls, checkInStatus: 'no-status' }, info, currentDate)
             .eligible);

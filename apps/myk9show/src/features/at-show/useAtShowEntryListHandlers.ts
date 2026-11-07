@@ -25,6 +25,7 @@ import type {
   Entry,
 } from '@myk9/ringside';
 import { toast } from 'sonner';
+import { showUndoToast } from '@/lib/undoToast';
 import { logger } from '@/utils/logger';
 import { supabase } from '@/services/database/supabaseClient';
 import { calculateRunOrder, storedRunOrder, toMyK9ShowRunOrderPreset } from '@/lib/runOrderUtils';
@@ -207,6 +208,7 @@ export function useAtShowEntryListHandlers(
   // NOTE: this does NOT make the exhibitor's status survive a reload -- only a
   // real write into the replicated store would, and that path is blocked for
   // exhibitors by design. Tracked separately.
+  const handleStatusChangeRef = useRef<EntryListHandlers['handleStatusChange'] | null>(null);
   const handleStatusChange = useCallback<EntryListHandlers['handleStatusChange']>(
     async (entryId, status: EntryStatusChange) => {
       setActiveStatusPopup(null);
@@ -240,6 +242,14 @@ export function useAtShowEntryListHandlers(
           return;
         }
         await actions.handleStatusChange(entryId, status);
+        if (status === 'pulled' && previous && previous.status !== 'pulled') {
+          // Undo goes back through this same handler, so it takes the same write path.
+          const priorStatus = previous.status as EntryStatusChange;
+          showUndoToast({
+            message: `${previous.callName} pulled`,
+            onUndo: () => void handleStatusChangeRef.current?.(entryId, priorStatus),
+          });
+        }
       } catch (error) {
         // Showing a status the server rejected is worse than showing none: the
         // gate would be worked from a check-in that does not exist.
@@ -249,6 +259,8 @@ export function useAtShowEntryListHandlers(
     },
     [actions, setActiveStatusPopup, setLocalEntries]
   );
+
+  handleStatusChangeRef.current = handleStatusChange;
 
   const handleStatusClick = useCallback<EntryListHandlers['handleStatusClick']>(
     (e: ReactMouseEvent, entryId) => {

@@ -17,12 +17,13 @@ const supabaseMocks = vi.hoisted(() => ({
   rpc: vi.fn(() => Promise.resolve({ error: null })),
 }));
 
-const { toastInfo, toastError } = vi.hoisted(() => ({
+const { toastInfo, toastError, toastSuccess } = vi.hoisted(() => ({
   toastInfo: vi.fn(),
   toastError: vi.fn(),
+  toastSuccess: vi.fn(),
 }));
 vi.mock('sonner', () => ({
-  toast: { info: toastInfo, error: toastError, success: vi.fn(), warning: vi.fn() },
+  toast: { info: toastInfo, error: toastError, success: toastSuccess, warning: vi.fn() },
 }));
 vi.mock('@/utils/logger', () => ({
   logger: { warn: vi.fn(), error: vi.fn(), log: vi.fn() },
@@ -361,6 +362,36 @@ describe('useAtShowEntryListHandlers - optimistic check-in', () => {
     });
 
     expect(mirror[0]?.status).toBe('no-status');
+  });
+
+  it('offers Undo after a Pulled, and Undo writes the prior status back through the same path', async () => {
+    mirror = [makeEntry({ id: 'e1', status: 'checked-in' as EntryStatus, callName: 'Abby' })];
+    const { result } = renderHandlers(mirror, actions, applyToMirror);
+
+    await act(async () => {
+      await result.current.handleStatusChange('e1', 'pulled');
+    });
+
+    expect(actions.handleStatusChange).toHaveBeenCalledWith('e1', 'pulled');
+    expect(toastSuccess).toHaveBeenCalledTimes(1);
+    const options = toastSuccess.mock.calls[0]?.[1] as { action: { onClick: () => void } };
+
+    await act(async () => {
+      options.action.onClick();
+    });
+
+    expect(actions.handleStatusChange).toHaveBeenLastCalledWith('e1', 'checked-in');
+    expect(toastSuccess).toHaveBeenCalledTimes(1);
+  });
+
+  it('offers no Undo for a non-Pulled status', async () => {
+    const { result } = renderHandlers(mirror, actions, applyToMirror);
+
+    await act(async () => {
+      await result.current.handleStatusChange('e1', 'checked-in');
+    });
+
+    expect(toastSuccess).not.toHaveBeenCalled();
   });
 });
 

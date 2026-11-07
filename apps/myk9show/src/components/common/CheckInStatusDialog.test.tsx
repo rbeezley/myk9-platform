@@ -1,4 +1,4 @@
-import { render, screen } from '@/test/utils/testUtils';
+import { render, screen, within } from '@/test/utils/testUtils';
 import { CheckInStatusDialog } from './CheckInStatusDialog';
 
 const entryInfo = {
@@ -150,5 +150,57 @@ describe('CheckInStatusDialog — exhibitor voice', () => {
     // larger node, so it is not matched as a standalone "•" element.)
     expect(screen.getByText('Pat Handler')).toBeInTheDocument();
     expect(screen.queryByText('•')).not.toBeInTheDocument();
+  });
+});
+
+describe('CheckInStatusDialog — Pulled confirmation', () => {
+  const renderPulled = () => {
+    const onUpdateStatus = vi.fn(() => Promise.resolve());
+    const view = render(
+      <CheckInStatusDialog
+        open={true}
+        onOpenChange={vi.fn()}
+        currentStatus="checked-in"
+        entryInfo={entryInfo}
+        onUpdateStatus={onUpdateStatus}
+        userRole="exhibitor"
+      />
+    );
+    return { ...view, onUpdateStatus };
+  };
+
+  it('asks first, naming the dog and class, and writes pulled only after Pull', async () => {
+    const { user, onUpdateStatus } = renderPulled();
+
+    await user.click(screen.getByRole('radio', { name: /I won't be running this class/ }));
+    await user.click(screen.getByRole('button', { name: 'Update Status' }));
+
+    expect(await screen.findByText('Pull Ace from Container Novice A?')).toBeInTheDocument();
+    expect(onUpdateStatus).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Pull' }));
+
+    expect(onUpdateStatus).toHaveBeenCalledWith('pulled', undefined);
+  });
+
+  it('writes nothing when the confirmation is cancelled', async () => {
+    const { user, onUpdateStatus } = renderPulled();
+
+    await user.click(screen.getByRole('radio', { name: /I won't be running this class/ }));
+    await user.click(screen.getByRole('button', { name: 'Update Status' }));
+    await screen.findByText('Pull Ace from Container Novice A?');
+    const confirm = screen.getByRole('alertdialog');
+    await user.click(within(confirm).getByRole('button', { name: 'Cancel' }));
+
+    expect(onUpdateStatus).not.toHaveBeenCalled();
+  });
+
+  it('does not ask for a status that is not Pulled', async () => {
+    const { user, onUpdateStatus } = renderPulled();
+
+    await user.click(screen.getByRole('radio', { name: /At Gate/ }));
+    await user.click(screen.getByRole('button', { name: 'Update Status' }));
+
+    expect(onUpdateStatus).toHaveBeenCalledWith('at-gate', undefined);
   });
 });

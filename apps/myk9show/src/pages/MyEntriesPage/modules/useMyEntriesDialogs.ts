@@ -12,6 +12,8 @@
 import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
 
+import { showUndoToast } from '@/lib/undoToast';
+
 import type { CheckInStatus } from '@/types/check-in-types';
 
 import type { MyShowClass, MyShowDog } from './groupEntriesByShow';
@@ -150,12 +152,26 @@ export function useMyEntriesDialogs({
   // the failure surface where the exhibitor took the action.
   const submitCheckInStatus = useCallback(
     async (status: CheckInStatus, notes?: string) => {
-      if (!checkInDialog.entry || !checkInDialog.classEntry) return;
+      const { entry, classEntry } = checkInDialog;
+      if (!entry || !classEntry) return;
 
-      await updateEntryCheckIn(checkInDialog.entry.id, checkInDialog.classEntry.id, status, notes);
+      // Captured before the write, so Undo can put back exactly what the dog had.
+      const priorStatus: CheckInStatus = classEntry.checkInStatus || 'no-status';
+      await updateEntryCheckIn(entry.id, classEntry.id, status, notes);
       setCheckInDialog(CLOSED_CHECK_IN);
+      if (status === 'pulled' && priorStatus !== 'pulled') {
+        showUndoToast({
+          message: `${entry.dogName} pulled from ${classEntry.name}`,
+          onUndo: () => {
+            // Same write path as the Pulled itself.
+            void updateEntryCheckIn(entry.id, classEntry.id, priorStatus).catch(() =>
+              toast.error(`We could not undo that. Please try again.`)
+            );
+          },
+        });
+      }
     },
-    [checkInDialog.entry, checkInDialog.classEntry, updateEntryCheckIn]
+    [checkInDialog, updateEntryCheckIn]
   );
 
   // INTENT: single write path. This is a LOOP over the same

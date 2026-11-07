@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@/test/utils/testUtils';
+import { render, screen, within } from '@/test/utils/testUtils';
 import { CheckinStatusDialog } from './CheckinStatusDialog';
 
 describe('CheckinStatusDialog', () => {
@@ -20,5 +20,46 @@ describe('CheckinStatusDialog', () => {
 
     await user.click(screen.getByRole('button', { name: 'Come to Gate' }));
     expect(onStatusChange).toHaveBeenCalledWith('come-to-gate');
+  });
+
+  it('asks before Pulled, naming the dog and class, and writes only after Pull', async () => {
+    const onStatusChange = vi.fn();
+    const { user } = render(
+      <CheckinStatusDialog
+        isOpen
+        onClose={vi.fn()}
+        onStatusChange={onStatusChange}
+        dogInfo={{ armband: 101, callName: 'Abby', handler: 'Jane Handler' }}
+        className="Interior Novice A"
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Pulled' }));
+    expect(await screen.findByText('Pull Abby from Interior Novice A?')).toBeInTheDocument();
+    expect(onStatusChange).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Pull' }));
+    expect(onStatusChange).toHaveBeenCalledWith('pulled');
+  });
+
+  it('writes nothing when the Pulled confirmation is cancelled', async () => {
+    const onStatusChange = vi.fn();
+    const { user } = render(
+      <CheckinStatusDialog
+        isOpen
+        onClose={vi.fn()}
+        onStatusChange={onStatusChange}
+        dogInfo={{ armband: 101, callName: 'Abby', handler: 'Jane Handler' }}
+        className="Interior Novice A"
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Pulled' }));
+    await screen.findByText('Pull Abby from Interior Novice A?');
+    await user.click(
+      within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Cancel' })
+    );
+
+    expect(onStatusChange).not.toHaveBeenCalled();
   });
 });

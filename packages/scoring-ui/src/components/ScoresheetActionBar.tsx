@@ -10,16 +10,9 @@
  * MYK9-1500); Save opens the sheet's Score Confirmation.
  */
 
-import React, { createContext, useContext } from 'react';
+import React, { useContext } from 'react';
 import { Button } from '@myk9/ui';
-
-/**
- * Seam for the host app: provide a callback ref and the bar hands it its root
- * node on attach and null on detach. The app uses it to tell its toaster how
- * tall the bar is (this package cannot import app hooks).
- */
-export type ScoresheetActionBarRef = (node: HTMLDivElement | null) => void;
-export const ScoresheetActionBarRefContext = createContext<ScoresheetActionBarRef | null>(null);
+import { ScoresheetActionBarRefContext } from './ScoresheetActionBarRefContext';
 
 export interface ScoresheetActionBarProps {
   onCancel: () => void;

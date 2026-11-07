@@ -95,10 +95,12 @@ export { ScoresheetShell, type ScoresheetShellProps } from './components/Scoresh
 export { ScoresheetHeader, type ScoresheetHeaderProps } from './components/ScoresheetHeader';
 export {
   ScoresheetActionBar,
-  ScoresheetActionBarRefContext,
-  type ScoresheetActionBarRef,
   type ScoresheetActionBarProps,
 } from './components/ScoresheetActionBar';
+export {
+  ScoresheetActionBarRefContext,
+  type ScoresheetActionBarRef,
+} from './components/ScoresheetActionBarRefContext';
 export {
   ScoresheetTimerCard,
   type ScoresheetTimerCardProps,

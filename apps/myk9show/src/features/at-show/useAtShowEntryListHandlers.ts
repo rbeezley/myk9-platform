@@ -275,7 +275,9 @@ export function useAtShowEntryListHandlers(
     [actions, hasPermission, setActiveStatusPopup, setLocalEntries]
   );
 
-  handleStatusChangeRef.current = handleStatusChange;
+  useEffect(() => {
+    handleStatusChangeRef.current = handleStatusChange;
+  }, [handleStatusChange]);
 
   const handleStatusClick = useCallback<EntryListHandlers['handleStatusClick']>(
     (e: ReactMouseEvent, entryId) => {

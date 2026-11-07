@@ -9,7 +9,7 @@
  * @module MyEntriesPage/modules/useMyEntriesDialogs
  */
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { showUndoToast } from '@/lib/undoToast';
@@ -127,7 +127,9 @@ export function useMyEntriesDialogs({
 
   // Undo runs after the dialog and its snapshot are gone, so it reads the current updater.
   const updateEntryCheckInRef = useRef(updateEntryCheckIn);
-  updateEntryCheckInRef.current = updateEntryCheckIn;
+  useEffect(() => {
+    updateEntryCheckInRef.current = updateEntryCheckIn;
+  }, [updateEntryCheckIn]);
 
   const openCheckIn = useCallback((entry: MyEntry, classEntry: EntryClass) => {
     setCheckInDialog({ open: true, entry, classEntry });

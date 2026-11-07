@@ -27,6 +27,17 @@ describe('DogCard', () => {
     expect(armband.className).not.toContain('text-[0.9375rem]');
   });
 
+  it('the run-order grip takes the touch, and the rest of the card still scrolls (MYK9-1734)', () => {
+    render(
+      <DogCard armband={103} callName="Tauri" dragHandle={<span data-testid="grip">⋮⋮</span>} />
+    );
+    // touch-action: none on the grip wrapper stops the browser claiming the press for scrolling,
+    // so dnd-kit's TouchSensor can start the drag on a phone.
+    expect(screen.getByTestId('grip').parentElement!.className).toMatch(/\btouch-none\b/);
+    // Only the grip: the card itself must leave touch-action alone so the page scrolls.
+    expect(screen.getByTestId('dog-card').className).not.toMatch(/\btouch-none\b/);
+  });
+
   it('does not duplicate entry status with a color-only card border', () => {
     render(<DogCard armband={1} callName="A" breed="B" handler="C" statusBorder="checked-in" />);
     expect(screen.getByTestId('dog-card').className).not.toContain('border-l-status-checked-in');

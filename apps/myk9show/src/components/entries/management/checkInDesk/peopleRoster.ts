@@ -1,7 +1,7 @@
 import { EntryStatus } from '@/types/show-registration-types';
 import type { CheckInStatus } from '@/types/check-in-types';
-import { STAFF_CHECK_IN_STATUSES } from '@myk9/core';
 import type { EntryClass, EntryManagementEntry } from '@/types/entry-management-types';
+import { DESK_STATUS_SET, deskUnpullState, PULLED_REFUND_DECIDED_LABEL } from './deskStatus';
 import type { ShowPresence } from '@/features/show-presence/types';
 import type { ListView } from '@/components/list-toolkit';
 import { getStatusDescriptor } from '@/components/status';
@@ -50,6 +50,8 @@ export interface PeopleRosterClassRow {
   ineligibleReason: string | null;
   /** The desk may set this class to one of `DESK_CHECK_IN_STATUSES` (MYK9-1736). */
   deskStatusEditable: boolean;
+  /** A real Pull the desk may put back today (MYK9-1749): no refund issued or decided. */
+  deskCanUnpull: boolean;
   sourceEntry: EntryManagementEntry;
   sourceClass: EntryClass;
 }
@@ -98,23 +100,13 @@ const TERMINAL_ENTRY_STATUSES = new Set<EntryStatus>([
 // pull for roster purposes — neither dog is going in the ring.
 const TERMINAL_CLASS_STATUSES = new Set<EntryClass['status']>(['scratched', 'withdrawn', 'absent']);
 
-/**
- * The statuses the Check-in desk sets on one class: every staff check-in status, the same six
- * Ringside offers (owner, MYK9-1749). Pulled on the desk is the real Pull (scratched, refund
- * review) behind a confirmation (`useDeskPull`); once pulled the class is locked here and
- * reinstated from Entries. In ring and Completed belong to the judge and scoring.
- */
-export const DESK_CHECK_IN_STATUSES: readonly CheckInStatus[] = STAFF_CHECK_IN_STATUSES;
-export const DESK_STATUS_SET: ReadonlySet<CheckInStatus> = new Set(DESK_CHECK_IN_STATUSES);
-
-/** The desk's words for its statuses: "No Status" reads as a fault to a secretary. */
-export const DESK_STATUS_LABELS: Partial<Record<CheckInStatus, string>> = {
-  'no-status': 'Not checked in',
-};
-
-export function deskStatusLabel(status: CheckInStatus): string {
-  return DESK_STATUS_LABELS[status] ?? getStatusDescriptor('entry', status).label;
-}
+export {
+  DESK_CHECK_IN_STATUSES,
+  DESK_STATUS_LABELS,
+  DESK_STATUS_SET,
+  deskStatusLabel,
+  pullRefundSettled,
+} from './deskStatus';
 
 function normalize(value: string | null | undefined): string {
   return (value ?? '').trim().toLowerCase();
@@ -342,6 +334,7 @@ function buildClassRows(
         (eligibility.eligible ||
           checkInEligibility(entry, { ...cls, checkInStatus: 'no-status' }, info, currentDate)
             .eligible);
+      const unpull = deskUnpullState(entry, cls, info, currentDate);
       return {
         id: `${entry.id}:${classId}`,
         entryId: entry.id,
@@ -351,12 +344,13 @@ function buildClassRows(
         classNumber: cls.number,
         time: info?.time || null,
         ring: info?.ring || null,
-        statusLabel: status.label,
+        statusLabel: unpull.settled ? PULLED_REFUND_DECIDED_LABEL : status.label,
         statusValue: status.value,
         checkInStatus: cls.checkInStatus ?? 'no-status',
         eligibleForCheckIn: eligibility.eligible,
         ineligibleReason: eligibility.reason,
         deskStatusEditable,
+        deskCanUnpull: unpull.canUnpull,
         sourceEntry: entry,
         sourceClass: cls,
       };

@@ -10,6 +10,15 @@ const h = vi.hoisted(() => ({
   scratchShowMapEntry: vi.fn(),
   undoShowMapScratch: vi.fn(),
   showUndoToast: vi.fn(),
+  changeSecretaryEntryStatus: vi.fn(),
+  getEntryStatusHistory: vi.fn(),
+}));
+
+vi.mock('@/services/database/entries/lifecycle', () => ({
+  changeSecretaryEntryStatus: h.changeSecretaryEntryStatus,
+}));
+vi.mock('@/services/database/entries/statusHistory', () => ({
+  getEntryStatusHistory: h.getEntryStatusHistory,
 }));
 
 vi.mock('@/services/show-day/checkInStatus', () => ({
@@ -181,5 +190,72 @@ describe('Pulled on the Check-in desk is the real Pull (MYK9-1749)', () => {
     rerender(<CheckInDesk {...props} entries={[poppy]} />);
     expect(screen.queryByRole('dialog', { name: 'Pull Poppy?' })).not.toBeInTheDocument();
     expect(h.scratchShowMapEntry).not.toHaveBeenCalled();
+  });
+});
+
+describe('Putting a pulled class back from the desk (MYK9-1749)', () => {
+  const pulledPoppy: EntryManagementEntry = {
+    ...poppy,
+    entryStatus: EntryStatus.SCRATCHED,
+    classes: [{ ...poppy.classes[0]!, status: 'scratched', checkInStatus: 'pulled' }],
+  };
+  const props = { showId: 'show-1', loading: false, unknown: false, onRetry: vi.fn() };
+
+  const history = (before: string) => [
+    { previousStatus: 'submitted', newStatus: before },
+    { previousStatus: before, newStatus: 'scratched' },
+  ];
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    h.changeSecretaryEntryStatus.mockResolvedValue({});
+    h.getEntryStatusHistory.mockResolvedValue(history('confirmed'));
+  });
+
+  const openPutBack = async (user: ReturnType<typeof render>['user']) => {
+    await user.click(screen.getByRole('button', { name: 'Put Poppy back in Container Novice A' }));
+    return screen.findByRole('alertdialog', { name: 'Put Poppy back in Container Novice A?' });
+  };
+
+  it('asks first, then puts an accepted entry back with Entries’ own Accept', async () => {
+    const { user } = render(<CheckInDesk {...props} currentDate={NOW} entries={[pulledPoppy]} />);
+    const confirm = await openPutBack(user);
+    expect(h.changeSecretaryEntryStatus).not.toHaveBeenCalled();
+    await user.click(within(confirm).getByRole('button', { name: 'Put back' }));
+
+    await waitFor(() => expect(h.changeSecretaryEntryStatus).toHaveBeenCalledTimes(1));
+    expect(h.getEntryStatusHistory).toHaveBeenCalledWith('entry-1');
+    expect(h.changeSecretaryEntryStatus.mock.calls[0]![0]).toMatchObject({
+      entry: { id: 'entry-1' },
+      newStatus: EntryStatus.ACCEPTED,
+    });
+    expect(h.updateReplicatedCheckInStatus).not.toHaveBeenCalled();
+  });
+
+  it.each(['submitted', 'waitlisted', 'withdrawn'])(
+    'refuses to accept an entry that was %s before the pull',
+    async before => {
+      h.getEntryStatusHistory.mockResolvedValue(history(before));
+      const { user } = render(<CheckInDesk {...props} currentDate={NOW} entries={[pulledPoppy]} />);
+      const confirm = await openPutBack(user);
+      await user.click(within(confirm).getByRole('button', { name: 'Put back' }));
+
+      await waitFor(() => expect(h.getEntryStatusHistory).toHaveBeenCalledTimes(1));
+      expect(h.changeSecretaryEntryStatus).not.toHaveBeenCalled();
+    }
+  );
+
+  it('offers no way back once a refund is decided', () => {
+    render(
+      <CheckInDesk
+        {...props}
+        currentDate={NOW}
+        entries={[{ ...pulledPoppy, refundDecision: 'denied' }]}
+      />
+    );
+    expect(screen.getByRole('article', { name: 'Poppy' })).toHaveTextContent(
+      'Pulled · refund decided, see Entries'
+    );
+    expect(screen.queryByRole('button', { name: /^Change status|^Put Poppy back/ })).toBeNull();
   });
 });

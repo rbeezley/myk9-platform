@@ -33,7 +33,12 @@ vi.mock('@/services/database/supabaseClient', () => ({
   supabase: supabaseMocks,
 }));
 
-import { useAtShowEntryListHandlers } from './useAtShowEntryListHandlers';
+import {
+  useAtShowEntryListHandlers,
+  type UseAtShowEntryListHandlersDeps,
+} from './useAtShowEntryListHandlers';
+
+type EntryListActionsDep = UseAtShowEntryListHandlersDeps['actions'];
 
 function makeEntry(overrides: Partial<Entry> & { id: string }): Entry {
   return {
@@ -64,7 +69,7 @@ function makeActions(): EntryListActions {
 
 function renderHandlers(
   localEntries: Entry[],
-  actions: EntryListActions,
+  actions: EntryListActionsDep,
   setLocalEntries: (updater: (prev: Entry[]) => Entry[]) => void = vi.fn(),
   refresh: (forceSync?: boolean) => Promise<void> = vi.fn(() => Promise.resolve()),
   hasPermission: () => boolean = () => true

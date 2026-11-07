@@ -1,9 +1,9 @@
 import React from 'react';
-import { Clock, Target, AlertTriangle, MapPin, Eye, Layers, Timer } from 'lucide-react';
+import { Clock, Target, AlertTriangle, MapPin, Eye, Layers, Timer, Ruler } from 'lucide-react';
 import { SlideOverPanel } from '@/components/panels/SlideOverPanel';
 import { Badge } from '@/components/ui/badge';
 import { useClassRequirements, type ClassRequirements } from '@/hooks/queries/useClassRequirements';
-import { getRegistrySportName } from '@/features/registries';
+import { getRegistrySportName, getSearchAreaSize } from '@/features/registries';
 import { cn } from '@/lib/utils';
 
 interface ClassRequirementsPanelProps {
@@ -66,6 +66,11 @@ function buildTimeSubtitle(req: ClassRequirements): string | undefined {
   return parts.length ? parts.join(' \u00b7 ') : undefined;
 }
 
+/** The judge setup sheet's search area size for the class, or null (MYK9-1738). */
+function searchAreaSize(req: ClassRequirements): string | null {
+  return getSearchAreaSize(req.organization, req.element, req.level);
+}
+
 /** Returns true if the requirements object has at least one card worth rendering. */
 function hasAnyDisplayableData(req: ClassRequirements | null): boolean {
   if (!req) return false;
@@ -76,6 +81,7 @@ function hasAnyDisplayableData(req: ClassRequirements | null): boolean {
     req.area_count > 1 ||
     req.has_blank ||
     req.timer_mode === 'dual' ||
+    !!searchAreaSize(req) ||
     (req.odors != null && req.odors.length > 0)
   );
 }
@@ -94,6 +100,7 @@ export function ClassRequirementsCards({
   leading?: React.ReactNode;
   className?: string;
 }) {
+  const areaSize = searchAreaSize(requirements);
   return (
     <div className={className}>
       {leading}
@@ -140,6 +147,16 @@ export function ClassRequirementsCards({
           colorClass={iconColors.purple}
           label="Search Areas"
           value={requirements.area_count}
+        />
+      )}
+
+      {/* Search Area Size: the judge setup sheet's printed cell, so the two never disagree */}
+      {areaSize && (
+        <RequirementCard
+          icon={<Ruler className="h-4 w-4" />}
+          colorClass={iconColors.purple}
+          label="Search Area Size"
+          value={areaSize}
         />
       )}
 

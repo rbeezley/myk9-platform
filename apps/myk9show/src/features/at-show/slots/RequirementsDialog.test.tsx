@@ -168,6 +168,35 @@ describe('ringside ClassRequirementsDialog (MYK9-1100)', () => {
     expect(onSetMaxTime).toHaveBeenCalled();
   });
 
+  it('shows the search area size from the judge setup sheet (MYK9-1738)', async () => {
+    render(<ClassRequirementsDialog isOpen onClose={vi.fn()} classData={classData} />);
+    expect(await screen.findByText('Search Area Size')).toBeInTheDocument();
+    expect(screen.getByText('3 areas, 600 to 1,000 sq ft total')).toBeInTheDocument();
+  });
+
+  it('shows a UKC class its UKC size', async () => {
+    seed({
+      level: 'Superior',
+      timeLimitRule: { ...rule, forLevel: 'Superior' },
+    });
+    render(
+      <ClassRequirementsDialog
+        isOpen
+        onClose={vi.fn()}
+        classData={{ ...classData, level: 'Superior', registry: 'UKC' }}
+      />
+    );
+    expect(await screen.findByText('2 areas: 100 to 200 and 300 to 400 sq ft')).toBeInTheDocument();
+  });
+
+  it('shows no size card for ASCA, which has no setup sheet', async () => {
+    render(
+      <ClassRequirementsDialog isOpen onClose={vi.fn()} classData={{ ...classData, registry: 'ASCA' }} />
+    );
+    await screen.findByText(/Area 1 1:30/);
+    expect(screen.queryByText('Search Area Size')).not.toBeInTheDocument();
+  });
+
   it('says 1 entry, not 1 entries', async () => {
     render(
       <ClassRequirementsDialog

@@ -9,6 +9,7 @@
  */
 
 import type { ClassEntry } from '../types';
+import { buildCombinedClassName } from './combinedClassName';
 import { withMergedSectionState } from './combinedSectionState';
 
 /**
@@ -21,11 +22,6 @@ export function shouldCombineAllSections(organization: string | undefined): bool
   const orgLower = organization.trim().toLowerCase();
   if (orgLower === 'ukc') return true;
   return orgLower.includes('ukc') && orgLower.includes('nosework');
-}
-
-/** The combined A/B card's name, also the combined entry-list header title. */
-export function buildCombinedClassName(element: string, level: string): string {
-  return `${element} ${level} A & B`;
 }
 
 const judgeKey = (c: ClassEntry) => c.judge_name.trim().toLowerCase();

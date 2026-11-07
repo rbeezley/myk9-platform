@@ -16,13 +16,8 @@
  * docs/plans/phase-1-execution-package.md (Tables 1 & 2), citing both schemas.
  */
 
-import {
-  buildCombinedClassName,
-  type Entry,
-  type ClassInfo,
-  type EntryListData,
-  type EntryListDataDependencies,
-} from '@myk9/ringside';
+import type { Entry, ClassInfo, EntryListData, EntryListDataDependencies } from '@myk9/ringside';
+import { buildCombinedClassName } from '@myk9/ringside/run-queue';
 import type { EntryStatus } from '@myk9/core';
 import {
   replicatedArmbandsTable,

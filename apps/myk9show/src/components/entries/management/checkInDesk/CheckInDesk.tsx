@@ -20,6 +20,8 @@ import { CheckInDeskDogCard } from './CheckInDeskDogCard';
 import { useCheckInDeskActions } from './useCheckInDeskActions';
 import { useMinuteClock } from './useMinuteClock';
 import { useDeskPull } from './useDeskPull';
+import { useFlaggedPullSources } from './useFlaggedPullSources';
+import { isFlaggedPull } from './deskStatus';
 import { PullAtShowDialog } from './PullAtShowDialog';
 import { ConfirmDialog } from '@/components/ui/alert-dialog';
 
@@ -83,6 +85,11 @@ export function CheckInDesk({
     [people]
   );
   const pull = useDeskPull(entryId => rowsByEntryId.get(entryId), onRefreshEntries);
+  const flaggedEntryIds = useMemo(
+    () => [...rowsByEntryId.values()].filter(isFlaggedPull).map(row => row.entryId),
+    [rowsByEntryId]
+  );
+  const flagSources = useFlaggedPullSources(showId, flaggedEntryIds);
   const visible = useMemo(
     () => filterCheckInDesk(people, search, filter),
     [filter, people, search]
@@ -222,6 +229,9 @@ export function CheckInDesk({
                         : void setStatus(`${row.dogName}, ${row.className}`, [row.entryId], status)
                     }
                     onUnpull={pull.requestUnpull}
+                    flagSources={flagSources}
+                    clearingId={pull.clearingId}
+                    onClearFlag={row => void pull.clearFlag(row)}
                   />
                 ))}
               </section>

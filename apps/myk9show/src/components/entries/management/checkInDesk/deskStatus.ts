@@ -87,3 +87,14 @@ export function deskUnpullState(
   const settled = pullRefundSettled(entry);
   return { canUnpull: today && !settled, settled };
 }
+
+/**
+ * A Pulled check-in on a class that is still entered is a flag an exhibitor or ringside set, not a
+ * Pull (MYK9-1749/1753): the secretary confirms it or clears it. A real Pull is not desk-editable.
+ */
+export function isFlaggedPull(row: {
+  deskStatusEditable: boolean;
+  checkInStatus: CheckInStatus;
+}): boolean {
+  return row.deskStatusEditable && row.checkInStatus === 'pulled';
+}

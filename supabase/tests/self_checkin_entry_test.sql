@@ -93,6 +93,10 @@ begin
     expected_rows := jsonb_set(expected_rows,
       array[target_id::text, 'check_in_status_before_pull'],
       case when new_status = 'pulled' then to_jsonb('no-status'::text) else 'null'::jsonb end);
+    -- MYK9-1753: and records it as the exhibitor's.
+    expected_rows := jsonb_set(expected_rows,
+      array[target_id::text, 'check_in_pulled_by'],
+      case when new_status = 'pulled' then to_jsonb('exhibitor'::text) else 'null'::jsonb end);
     expected_rows := jsonb_set(expected_rows,
       array[target_id::text, 'updated_at'], after_rows #> array[target_id::text, 'updated_at']);
     expected_rows := jsonb_set(expected_rows,

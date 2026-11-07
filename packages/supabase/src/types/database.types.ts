@@ -2408,6 +2408,7 @@ export type Database = {
           bonus_points: number | null
           capacity_override: boolean
           card_paid: boolean
+          check_in_pulled_by: string | null
           check_in_status: string | null
           check_in_status_before_pull: string | null
           class_id: string | null
@@ -2511,6 +2512,7 @@ export type Database = {
           bonus_points?: number | null
           capacity_override?: boolean
           card_paid?: boolean
+          check_in_pulled_by?: string | null
           check_in_status?: string | null
           check_in_status_before_pull?: string | null
           class_id?: string | null
@@ -2614,6 +2616,7 @@ export type Database = {
           bonus_points?: number | null
           capacity_override?: boolean
           card_paid?: boolean
+          check_in_pulled_by?: string | null
           check_in_status?: string | null
           check_in_status_before_pull?: string | null
           class_id?: string | null
@@ -13341,6 +13344,7 @@ export type Database = {
         Args: { p_class_id: string }
         Returns: number
       }
+      clear_flagged_pull: { Args: { p_entry_id: string }; Returns: string }
       clear_my_sms_consent: {
         Args: {
           p_expected_opt_in_at: string

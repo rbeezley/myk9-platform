@@ -100,9 +100,9 @@ const TERMINAL_CLASS_STATUSES = new Set<EntryClass['status']>(['scratched', 'wit
 
 /**
  * The statuses the Check-in desk sets on one class: every staff check-in status, the same six
- * Ringside offers (owner, MYK9-1749). Pulled here is the check-in flag that alerts the judge; a
- * real Pull (scratched, with a reason) is the Entries page's, and stays locked on the desk. In ring
- * and Completed belong to the judge and scoring.
+ * Ringside offers (owner, MYK9-1749). Pulled on the desk is the real Pull (scratched, refund
+ * review) behind a confirmation (`useDeskPull`); once pulled the class is locked here and
+ * reinstated from Entries. In ring and Completed belong to the judge and scoring.
  */
 export const DESK_CHECK_IN_STATUSES: readonly CheckInStatus[] = STAFF_CHECK_IN_STATUSES;
 export const DESK_STATUS_SET: ReadonlySet<CheckInStatus> = new Set(DESK_CHECK_IN_STATUSES);
@@ -234,8 +234,12 @@ function checkInEligibility(
 ): { eligible: boolean; reason: string | null } {
   const status = cls.checkInStatus ?? 'no-status';
   if (TERMINAL_CHECK_IN_STATUSES.has(status)) {
-    // Checked-in and Pulled show their own status (a secretary sets and undoes Pulled on the
-    // desk, MYK9-1749); only a finished run reads as "Not active".
+    // Say which act happened (INTENT): a real Pull is stored as scratched; a 'pulled' check-in
+    // on an entry still entered is only an exhibitor's or steward's flag to the ring (MYK9-1749).
+    if (status === 'pulled') {
+      const scratched = entry.entryStatus === EntryStatus.SCRATCHED || cls.status === 'scratched';
+      return { eligible: false, reason: scratched ? 'Pulled at the show' : 'Flagged pulled' };
+    }
     return { eligible: false, reason: status === 'completed' ? 'Not active' : null };
   }
 

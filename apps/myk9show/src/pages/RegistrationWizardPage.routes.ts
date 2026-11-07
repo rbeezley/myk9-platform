@@ -93,6 +93,20 @@ export function resolveRegistrationExit(
 /** The staff receipt's done button: late entry and mail-in both finish on Entries. */
 export const STAFF_RECEIPT_DONE_LABEL = 'Return to Entry Forms';
 
+/** The staff receipt's primary button: key the next paper form without leaving (MYK9-1742). */
+export const STAFF_RECEIPT_ADD_ANOTHER_LABEL = 'Add another entry';
+
+/**
+ * The query string for "Add another entry": the next form is usually someone else's, so the
+ * handoffs that point at the last person or dog (`exhibitor`, `returnForm`, `dogId`) go, and the
+ * mode the wizard was opened in (show-desk late entry) stays.
+ */
+export function buildAddAnotherEntrySearch(search: URLSearchParams | string): string {
+  const params = new URLSearchParams(search);
+  for (const key of [ENTRY_EXHIBITOR_PARAM, ENTRY_RETURN_FORM_PARAM, 'dogId']) params.delete(key);
+  return params.toString();
+}
+
 export function resolveRegistrationCompletionPath(
   showId: string,
   isLateEntryMode: boolean,

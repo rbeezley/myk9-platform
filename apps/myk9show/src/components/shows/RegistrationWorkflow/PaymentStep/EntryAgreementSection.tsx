@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -12,6 +13,7 @@ export const EntryAgreementSection = ({
   agreed,
   onAgree,
   isOnBehalf = false,
+  preTick = false,
 }: EntryAgreementSectionProps) => {
   const { data, isLoading, isFetching, isError, isSuccess, isPlaceholderData, refetch } =
     useOrganizationAgreement(organization);
@@ -24,6 +26,22 @@ export const EntryAgreementSection = ({
   // false and isFetching true. That is an ordinary in-flight request, not a
   // failure — showing the retry error there tells the user something broke.
   const stillArriving = !answered && (isLoading || isFetching);
+
+  // INTENT: a secretary keying a mail-in form already holds the exhibitor's
+  // signed paper agreement, so the box arrives ticked (MYK9-1742). Once per
+  // visit to this step, and only when there is an agreement to agree to: an
+  // untick by the secretary stands. The wizard resets the agreement on leaving
+  // Payment, and this component remounts on return, so it re-ticks then.
+  // Both the staff workflow AND an on-behalf role: the role alone is also true
+  // for a secretary entering their own dog, who signed nothing.
+  const shouldPreTick = preTick && isOnBehalf;
+  const preTicked = useRef(false);
+  const hasAgreement = answered && !!data;
+  useEffect(() => {
+    if (!shouldPreTick || !hasAgreement || preTicked.current) return;
+    preTicked.current = true;
+    if (!agreed) onAgree(true);
+  }, [shouldPreTick, hasAgreement, agreed, onAgree]);
 
   if (stillArriving) {
     return (

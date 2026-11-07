@@ -40,8 +40,12 @@ describe('secretary surfaces — a11y + responsive guards', () => {
     expect(enhancedDog).toContain('text-warning');
   });
 
-  it('the search "Clear All" control dark-adapts', () => {
-    expect(`${dogSearch}\n${dogSearchFilters}`).toContain('text-destructive');
+  // MYK9-1742: "Clear all" is no longer painted destructive (clearing filters
+  // loses nothing); the guard is that the filter row uses theme tokens only.
+  it('the search filter controls dark-adapt (no raw palette colours)', () => {
+    expect(`${dogSearch}\n${dogSearchFilters}`).not.toMatch(
+      /\b(?:text|bg|border)-(?:red|gray|slate|blue|green)-\d{2,3}\b/
+    );
   });
 
   it('dog search does not show technical latency metadata in the mail-in flow', () => {

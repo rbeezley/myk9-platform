@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  buildAddAnotherEntrySearch,
   buildAddEntryForExhibitorPath,
   resolveRegistrationExit,
   resolveRegistrationExitPath,
@@ -114,5 +115,17 @@ describe('add entry for an exhibitor from their entry form', () => {
   it('is unchanged without a form to return to', () => {
     expect(resolveRegistrationCompletionPath('s1', false, true, null)).toBe('/shows/s1/entries');
     expect(resolveRegistrationCompletionPath('s1', false, false, FORM)).toBe('/shows/s1');
+  });
+});
+
+describe('add another entry from the staff receipt (MYK9-1742)', () => {
+  it('drops the last person and dog handoffs', () => {
+    expect(buildAddAnotherEntrySearch('?exhibitor=p1&returnForm=r1&dogId=d1')).toBe('');
+  });
+
+  it('keeps the show-desk late-entry mode', () => {
+    expect(
+      buildAddAnotherEntrySearch('source=show-desk&entryMode=late&exhibitor=p1&returnForm=r1')
+    ).toBe('source=show-desk&entryMode=late');
   });
 });

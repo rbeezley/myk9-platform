@@ -31,6 +31,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
   onEntryStatusChange,
   onAgreementChange,
   agreedToEntryAgreement = false,
+  preTickAgreement = false,
   showId,
   capacityReady = true,
   capacityError,
@@ -250,6 +251,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
           agreed={agreed}
           onAgree={handleAgree}
           isOnBehalf={isOnBehalf}
+          preTick={preTickAgreement}
         />
       )}
     </div>

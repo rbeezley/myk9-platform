@@ -1,10 +1,16 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Search, X, Calendar, Award, AlertCircle } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Dog, getDogBreedLabel } from '@/types/dog-types';
 
-import { DogSearchFilters, type QuickFilter, type SearchFilters } from './DogSearchFilters';
+import { DogSearchFilters } from './DogSearchFilters';
+import {
+  EMPTY_DOG_FILTERS,
+  applyDogFilters,
+  countAppliedDogFilters,
+  type DogFilterSelection,
+} from './dogSearchFilterState';
 
 interface DogSearchInterfaceProps {
   dogs: Dog[];
@@ -12,11 +18,27 @@ interface DogSearchInterfaceProps {
   searchQuery?: string;
   onDogsFiltered: (filteredDogs: Dog[]) => void;
   onSearchQueryChange?: (query: string) => void;
-  onActiveFilterChange?: (activeFilter: string) => void;
+  /** Whether any Filter-menu value is ticked, so an empty list can say why. */
+  onFiltersAppliedChange?: (applied: boolean) => void;
   placeholder?: string;
   showQuickFilters?: boolean;
   showAdvancedFilters?: boolean;
   className?: string;
+}
+
+function matchesSearch(dog: Dog, query: string): boolean {
+  return (
+    !!dog.callName?.toLowerCase().includes(query) ||
+    !!dog.name?.toLowerCase().includes(query) ||
+    !!dog.ownerName?.toLowerCase().includes(query) ||
+    !!dog.registrations?.some(
+      reg =>
+        reg.registeredName?.toLowerCase().includes(query) ||
+        reg.registrationNumber?.toLowerCase().includes(query)
+    ) ||
+    getDogBreedLabel(dog).toLowerCase().includes(query) ||
+    !!dog.microchip?.toLowerCase().includes(query)
+  );
 }
 
 export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
@@ -24,227 +46,42 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
   searchQuery: controlledSearchQuery,
   onDogsFiltered,
   onSearchQueryChange,
-  onActiveFilterChange,
+  onFiltersAppliedChange,
   placeholder = 'Search by call name, breed, owner, or reg #...',
   showQuickFilters = true,
   showAdvancedFilters = true,
   className = '',
 }) => {
-  // Search and filter state
-  const [filters, setFilters] = useState<SearchFilters>({
-    searchQuery: '',
-    breedFilter: '',
-    genderFilter: '',
-    registrationFilter: '',
-    ageFilter: '',
-    quickFilter: '',
-  });
-
-  // Advanced filters visibility
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [selection, setSelection] = useState<DogFilterSelection>(EMPTY_DOG_FILTERS);
+  const [localSearchQuery, setLocalSearchQuery] = useState('');
 
   // The parent owns this value when the picker is backed by a server search.
   // Every search-facing surface reads this one value so the input, chip,
   // and visible rows cannot drift across query generations.
   const isSearchControlled = controlledSearchQuery !== undefined;
-  const searchQuery = isSearchControlled ? controlledSearchQuery : filters.searchQuery;
+  const searchQuery = isSearchControlled ? controlledSearchQuery : localSearchQuery;
   const normalizedSearchQuery = searchQuery.trim().toLowerCase();
 
   const updateSearchQuery = (query: string) => {
-    if (!isSearchControlled) {
-      setFilters(prev => ({ ...prev, searchQuery: query }));
-    }
+    if (!isSearchControlled) setLocalSearchQuery(query);
     onSearchQueryChange?.(query);
   };
 
-  // Quick filters for common use cases
-  const quickFilters: QuickFilter[] = useMemo(
-    () => [
-      {
-        id: 'recent',
-        label: 'Recent',
-        icon: <Calendar className="h-4 w-4" />,
-        description: 'Dogs with recent registrations',
-        filter: dogs => {
-          const thirtyDaysAgo = new Date();
-          thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-          return dogs.filter(dog =>
-            dog.registrations?.some(
-              reg => reg.registrationDate && new Date(reg.registrationDate) > thirtyDaysAgo
-            )
-          );
-        },
-      },
-      {
-        id: 'registered',
-        label: 'Registered',
-        icon: <Award className="h-4 w-4" />,
-        description: 'Dogs with at least one registration',
-        filter: dogs => dogs.filter(dog => dog.registrations && dog.registrations.length > 0),
-      },
-      {
-        id: 'unregistered',
-        label: 'Unregistered',
-        icon: <AlertCircle className="h-4 w-4" />,
-        description: 'Dogs without any registrations',
-        filter: dogs => dogs.filter(dog => !dog.registrations || dog.registrations.length === 0),
-      },
-    ],
-    []
-  );
-
-  // Normalize org names like "AKC (American Kennel Club)" → "AKC"
-  const normalizeOrg = (org: string): string => {
-    const match = org.match(/^(\w+)\s*\(/);
-    return match ? match[1] : org;
-  };
-
-  // Get unique filter options from the dog data
-  const filterOptions = useMemo(() => {
-    return {
-      breeds: [
-        ...new Set(
-          dogs
-            .map(dog => getDogBreedLabel(dog))
-            .filter((breed): breed is string => Boolean(breed) && breed !== 'Breed not set')
-        ),
-      ].sort(),
-      genders: [
-        ...new Set(
-          dogs
-            .map(dog => dog.gender)
-            .filter((gender): gender is 'Male' | 'Female' => Boolean(gender) && gender !== '')
-        ),
-      ].sort(),
-      organizations: [
-        ...new Set(
-          dogs
-            .flatMap(dog => dog.registrations?.map(reg => normalizeOrg(reg.organization)) || [])
-            .filter((org): org is string => Boolean(org))
-        ),
-      ].sort(),
-      ageGroups: [
-        { value: 'puppy', label: 'Puppy (0-18 months)' },
-        { value: 'young', label: 'Young Adult (18 months - 5 years)' },
-        { value: 'adult', label: 'Adult (5-7 years)' },
-        { value: 'senior', label: 'Senior (7+ years)' },
-      ],
-    };
-  }, [dogs]);
-
-  // Apply all filters to the dog data
   const filteredDogs = useMemo(() => {
-    let filtered = [...dogs];
+    const narrowed = applyDogFilters(dogs, selection);
+    return normalizedSearchQuery
+      ? narrowed.filter(dog => matchesSearch(dog, normalizedSearchQuery))
+      : narrowed;
+  }, [dogs, normalizedSearchQuery, selection]);
 
-    // Apply quick filter first
-    if (filters.quickFilter) {
-      const quickFilter = quickFilters.find(qf => qf.id === filters.quickFilter);
-      if (quickFilter) {
-        filtered = quickFilter.filter(filtered);
-      }
-    }
-
-    // Apply search query
-    if (normalizedSearchQuery) {
-      const query = normalizedSearchQuery;
-      filtered = filtered.filter(dog => {
-        return (
-          dog.callName?.toLowerCase().includes(query) ||
-          dog.name?.toLowerCase().includes(query) ||
-          dog.ownerName?.toLowerCase().includes(query) ||
-          dog.registrations?.some(
-            reg =>
-              reg.registeredName?.toLowerCase().includes(query) ||
-              reg.registrationNumber?.toLowerCase().includes(query)
-          ) ||
-          getDogBreedLabel(dog).toLowerCase().includes(query) ||
-          (dog.microchip && dog.microchip.toLowerCase().includes(query))
-        );
-      });
-    }
-
-    // Apply breed filter
-    if (filters.breedFilter) {
-      filtered = filtered.filter(dog => getDogBreedLabel(dog) === filters.breedFilter);
-    }
-
-    // Apply gender filter
-    if (filters.genderFilter) {
-      filtered = filtered.filter(dog => dog.gender === filters.genderFilter);
-    }
-
-    // Apply registration filter (normalize to match both "AKC" and "AKC (American Kennel Club)")
-    if (filters.registrationFilter) {
-      filtered = filtered.filter(dog =>
-        dog.registrations?.some(
-          reg => normalizeOrg(reg.organization) === filters.registrationFilter
-        )
-      );
-    }
-
-    // Apply age filter
-    if (filters.ageFilter) {
-      filtered = filtered.filter(dog => {
-        if (!dog.dateOfBirth) return false;
-        const ageInMonths =
-          (new Date().getTime() - new Date(dog.dateOfBirth).getTime()) / (1000 * 60 * 60 * 24 * 30);
-        switch (filters.ageFilter) {
-          case 'puppy':
-            return ageInMonths < 18;
-          case 'young':
-            return ageInMonths >= 18 && ageInMonths < 60;
-          case 'adult':
-            return ageInMonths >= 60 && ageInMonths < 84;
-          case 'senior':
-            return ageInMonths >= 84;
-          default:
-            return true;
-        }
-      });
-    }
-
-    return filtered;
-  }, [dogs, normalizedSearchQuery, filters, quickFilters]);
-
-  // Notify parent component when filtered dogs change
-  React.useEffect(() => {
+  useEffect(() => {
     onDogsFiltered(filteredDogs);
   }, [filteredDogs, onDogsFiltered]);
 
-  // Notify parent component when active filter changes
+  const filtersApplied = countAppliedDogFilters(selection) > 0;
   useEffect(() => {
-    onActiveFilterChange?.(filters.quickFilter);
-  }, [filters.quickFilter, onActiveFilterChange]);
-
-  const defaultFilters: SearchFilters = {
-    searchQuery: '',
-    breedFilter: '',
-    genderFilter: '',
-    registrationFilter: '',
-    ageFilter: '',
-    quickFilter: '',
-  };
-
-  const clearAllFilters = () => {
-    setFilters(defaultFilters);
-    updateSearchQuery('');
-  };
-
-  const hasActiveFilters =
-    searchQuery !== '' ||
-    filters.breedFilter !== '' ||
-    filters.genderFilter !== '' ||
-    filters.registrationFilter !== '' ||
-    filters.ageFilter !== '' ||
-    filters.quickFilter !== '';
-  const activeFilterCount = [
-    searchQuery,
-    filters.breedFilter,
-    filters.genderFilter,
-    filters.registrationFilter,
-    filters.ageFilter,
-    filters.quickFilter,
-  ].filter(v => v !== '').length;
+    onFiltersAppliedChange?.(filtersApplied);
+  }, [filtersApplied, onFiltersAppliedChange]);
 
   return (
     <div className={`space-y-3 ${className}`}>
@@ -271,18 +108,16 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
       </div>
 
       <DogSearchFilters
-        filters={isSearchControlled ? { ...filters, searchQuery } : filters}
-        setFilters={setFilters}
-        quickFilters={quickFilters}
-        filterOptions={filterOptions}
-        showQuickFilters={showQuickFilters}
-        showAdvancedFilters={showAdvancedFilters}
-        showAdvanced={showAdvanced}
-        setShowAdvanced={setShowAdvanced}
-        activeFilterCount={activeFilterCount}
-        hasActiveFilters={hasActiveFilters}
-        clearAllFilters={clearAllFilters}
-        onSearchQueryChange={updateSearchQuery}
+        dogs={dogs}
+        selection={selection}
+        onSelectionChange={setSelection}
+        showRegistrationFilter={showQuickFilters}
+        showDetailFilters={showAdvancedFilters}
+        searchQuery={searchQuery}
+        onClearAll={() => {
+          setSelection(EMPTY_DOG_FILTERS);
+          updateSearchQuery('');
+        }}
       />
     </div>
   );

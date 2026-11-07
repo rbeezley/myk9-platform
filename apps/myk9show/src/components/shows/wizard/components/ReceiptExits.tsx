@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 /**
@@ -18,6 +18,12 @@ export interface ReceiptExitsProps {
   /** Completion navigation for staff/on-behalf flows (resolveRegistrationCompletionPath). */
   onDone: () => void;
   doneLabel?: string | undefined;
+  /**
+   * Staff only: start the wizard over for the next paper form (MYK9-1742). When given it is the
+   * primary exit and Done becomes the secondary one.
+   */
+  onAddAnother?: (() => void) | undefined;
+  addAnotherLabel?: string | undefined;
   isLoading?: boolean;
 }
 
@@ -26,6 +32,8 @@ export function ReceiptExits({
   showId,
   onDone,
   doneLabel = 'Done',
+  onAddAnother,
+  addAnotherLabel = 'Add another entry',
   isLoading = false,
 }: ReceiptExitsProps) {
   const navigate = useNavigate();
@@ -33,10 +41,33 @@ export function ReceiptExits({
   if (!isExhibitor) {
     return (
       <div className="flex flex-wrap items-center justify-end gap-3 border-t border-border pt-8 mt-8">
-        <Button size="touch" onClick={onDone} disabled={isLoading} className="gap-2 px-6 py-3">
-          {doneLabel}
-          <ArrowRight className="h-4 w-4" />
-        </Button>
+        {onAddAnother ? (
+          <>
+            <Button
+              size="touch"
+              variant="outline"
+              onClick={onDone}
+              disabled={isLoading}
+              className="px-6 py-3"
+            >
+              {doneLabel}
+            </Button>
+            <Button
+              size="touch"
+              onClick={onAddAnother}
+              disabled={isLoading}
+              className="gap-2 px-6 py-3"
+            >
+              <Plus className="h-4 w-4" />
+              {addAnotherLabel}
+            </Button>
+          </>
+        ) : (
+          <Button size="touch" onClick={onDone} disabled={isLoading} className="gap-2 px-6 py-3">
+            {doneLabel}
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+        )}
       </div>
     );
   }

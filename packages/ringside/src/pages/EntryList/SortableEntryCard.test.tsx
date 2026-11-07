@@ -245,6 +245,25 @@ describe('SortableEntryCard', () => {
     expect(screen.getByTestId('drag-handle-slot')).not.toBeNull();
   });
 
+  // MYK9-1734: without touch-action none on the grip, a phone takes the press for page scrolling
+  // and cancels the pointer, so dnd-kit never starts the drag and the card will not move.
+  it('stops the browser claiming a touch on the grip for scrolling', () => {
+    renderInDndContext(
+      <SortableEntryCard
+        entry={baseEntry}
+        isDragMode={true}
+        hasPermission={allowAll}
+        handleEntryClick={vi.fn()}
+        handleStatusClick={vi.fn()}
+        handleResetMenuClick={vi.fn()}
+        setSelfCheckinDisabledDialog={vi.fn()}
+        DogCard={StubDogCard}
+      />
+    );
+    const grip = screen.getByRole('button', { name: /^Reorder / });
+    expect(grip.className.split(' ')).toContain('touch-none');
+  });
+
   it('hides the drag handle for in-ring entries even when drag mode is on', () => {
     const inRing: Entry = { ...baseEntry, inRing: true };
     renderInDndContext(

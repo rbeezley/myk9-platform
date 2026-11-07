@@ -333,11 +333,14 @@ const SortableEntryCardBodyImpl: React.FC<SortableEntryCardBodyProps> = ({
           // `.drag-handle` also has no CSS since the Tailwind migration, and
           // there was no focus ring, so a keyboard user reordering with arrow
           // keys could not see which handle was focused.
+          // MYK9-1734: `touch-none` (touch-action: none) is what lets a phone drag at all. Without
+          // it the browser takes the press for page scrolling and cancels the pointer, so dnd-kit
+          // never starts the drag. Only the grip opts out; the rest of the card still scrolls.
           <div
             {...attributes}
             {...listeners}
             aria-label={`Reorder ${entry.callName}, armband ${formatArmband(entry.armband)}`}
-            className="inline-flex min-h-11 min-w-11 cursor-grab items-center justify-center rounded-md text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:cursor-grabbing"
+            className="inline-flex min-h-11 min-w-11 cursor-grab touch-none items-center justify-center rounded-md text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:cursor-grabbing"
           >
             <GripVertical size={20} aria-hidden="true" />
           </div>

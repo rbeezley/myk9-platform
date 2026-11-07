@@ -56,6 +56,8 @@ export function ShowJudgeSuppliesTool({
     [trials]
   );
   const rows = suppliesQuery.data;
+  // Only a failure with nothing cached is shown: a failed background refresh keeps the last rows.
+  const suppliesFailed = suppliesQuery.isError && !rows;
 
   return (
     <section className="space-y-4" aria-labelledby="judge-supplies-title">
@@ -76,6 +78,16 @@ export function ShowJudgeSuppliesTool({
           No judges assigned yet. Supplies appear once judges are added to classes in this show.
         </p>
       )}
+      {judges.length > 0 && suppliesFailed && (
+        <div role="alert" className="flex flex-wrap items-center gap-3">
+          <p className="text-sm text-destructive">Could not load the judges&apos; supply lists.</p>
+          {/* No in-flight label: a refetch with no data resets the query to pending, so this
+              alert unmounts and the rows say Loading… until the retry settles. */}
+          <Button size="sm" variant="outline" onClick={() => void suppliesQuery.refetch()}>
+            Try again
+          </Button>
+        </div>
+      )}
       {judges.length > 0 && (
         <ul className="divide-y divide-border/40" role="list">
           {judges.map(judge => {
@@ -92,7 +104,11 @@ export function ShowJudgeSuppliesTool({
                     {judge.trialIds.map(id => trialLabel.get(id)).join(', ')}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {rows ? summarize(judgeRows) : 'Loading…'}
+                    {rows
+                      ? summarize(judgeRows)
+                      : suppliesFailed
+                        ? 'Supplies not loaded'
+                        : 'Loading…'}
                   </p>
                 </div>
                 <Button

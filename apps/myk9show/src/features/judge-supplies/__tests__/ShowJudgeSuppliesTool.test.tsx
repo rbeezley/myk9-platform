@@ -1,6 +1,6 @@
 import { screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render } from '@/test/utils/testUtils';
+import { createTestQueryClient, render } from '@/test/utils/testUtils';
 
 const byTrial = new Map([
   ['t1', [{ person_id: 'j1', judge_name: 'Jane Judge' }]],
@@ -108,5 +108,38 @@ describe('ShowJudgeSuppliesTool (MYK9-1728)', () => {
     );
     expect(props).not.toHaveProperty('trialId');
     expect(props).not.toHaveProperty('mirrorTrialIds');
+  });
+
+  it('a failed first supplies read stops Loading and offers Try again (MYK9-1735)', async () => {
+    listForShow.mockRejectedValueOnce(new Error('network down'));
+    const { user } = render(<ShowJudgeSuppliesTool showId="show-1" trials={trials} />);
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent("Could not load the judges' supply lists.");
+    expect(screen.getByTestId('judge-row-j1')).not.toHaveTextContent('Loading');
+    expect(screen.getByTestId('judge-row-j1')).toHaveTextContent('Supplies not loaded');
+    // The judges loaded, so the judge-list error never shows: the two failures stay distinct.
+    expect(screen.queryByText(/could not load the show's judges/i)).not.toBeInTheDocument();
+
+    listForShow.mockResolvedValueOnce([supply({ id: 'a' })]);
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
+    await waitFor(() => expect(screen.getByTestId('judge-row-j1')).toHaveTextContent('1 item'));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByTestId('judge-row-j2')).toHaveTextContent('Not configured yet');
+    expect(listForShow).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps cached summaries when a background refresh fails (MYK9-1735)', async () => {
+    const queryClient = createTestQueryClient();
+    listForShow.mockResolvedValueOnce([supply({ id: 'a' })]);
+    render(<ShowJudgeSuppliesTool showId="show-1" trials={trials} />, { queryClient });
+    await waitFor(() => expect(screen.getByTestId('judge-row-j1')).toHaveTextContent('1 item'));
+
+    listForShow.mockRejectedValueOnce(new Error('network down'));
+    await queryClient.refetchQueries({ queryKey: ['show-judge-supplies', 'show-1'] });
+    await waitFor(() =>
+      expect(queryClient.getQueryState(['show-judge-supplies', 'show-1'])?.status).toBe('error')
+    );
+    expect(screen.getByTestId('judge-row-j1')).toHaveTextContent('1 item');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });

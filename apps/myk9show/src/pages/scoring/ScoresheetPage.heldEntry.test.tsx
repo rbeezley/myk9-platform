@@ -32,6 +32,9 @@ vi.mock('@/utils/checkInTransitions', () => ({
   transitionToCompleted: vi.fn(),
 }));
 vi.mock('@myk9/scoring-ui', () => ({
+  ScoresheetActionBarRefContext: {
+    Provider: ({ children }: { children: React.ReactNode }) => children,
+  },
   getScoresheetComponent: () => () => <div data-testid="live-scoresheet" />,
 }));
 vi.mock('./classScoringRules', () => ({ classScoringRules: () => ({ maxTimeSeconds: 120 }) }));

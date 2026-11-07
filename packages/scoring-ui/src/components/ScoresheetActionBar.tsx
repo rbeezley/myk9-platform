@@ -10,8 +10,9 @@
  * MYK9-1500); Save opens the sheet's Score Confirmation.
  */
 
-import React from 'react';
+import React, { useContext } from 'react';
 import { Button } from '@myk9/ui';
+import { ScoresheetActionBarRefContext } from './ScoresheetActionBarRefContext';
 
 export interface ScoresheetActionBarProps {
   onCancel: () => void;
@@ -25,21 +26,25 @@ export const ScoresheetActionBar: React.FC<ScoresheetActionBarProps> = ({
   onSave,
   saveDisabled,
   isSubmitting,
-}) => (
-  <div
-    className="sticky bottom-0 z-10 flex gap-3 border-t border-border bg-card/95 px-3 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-sm"
-    data-testid="scoresheet-action-bar"
-  >
-    <Button variant="secondary" className="h-12 flex-1 rounded-xl text-base" onClick={onCancel}>
-      Cancel
-    </Button>
-    <Button
-      className="h-12 flex-1 rounded-xl text-base hover:brightness-110"
-      onClick={onSave}
-      disabled={saveDisabled}
-      data-testid="submit-btn"
+}) => {
+  const hostRef = useContext(ScoresheetActionBarRefContext);
+  return (
+    <div
+      ref={hostRef}
+      className="sticky bottom-0 z-10 flex gap-3 border-t border-border bg-card/95 px-3 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-sm"
+      data-testid="scoresheet-action-bar"
     >
-      {isSubmitting ? 'Saving...' : 'Save'}
-    </Button>
-  </div>
-);
+      <Button variant="secondary" className="h-12 flex-1 rounded-xl text-base" onClick={onCancel}>
+        Cancel
+      </Button>
+      <Button
+        className="h-12 flex-1 rounded-xl text-base hover:brightness-110"
+        onClick={onSave}
+        disabled={saveDisabled}
+        data-testid="submit-btn"
+      >
+        {isSubmitting ? 'Saving...' : 'Save'}
+      </Button>
+    </div>
+  );
+};

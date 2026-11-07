@@ -98,6 +98,10 @@ export {
   type ScoresheetActionBarProps,
 } from './components/ScoresheetActionBar';
 export {
+  ScoresheetActionBarRefContext,
+  type ScoresheetActionBarRef,
+} from './components/ScoresheetActionBarRefContext';
+export {
   ScoresheetTimerCard,
   type ScoresheetTimerCardProps,
 } from './components/ScoresheetTimerCard';

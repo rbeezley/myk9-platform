@@ -19,8 +19,6 @@ function makeWrapper(isOnline: boolean) {
   const network = {
     isOnline,
     quality: null,
-    showOfflineMessage: !isOnline,
-    retryConnection: vi.fn(),
   };
   return function Wrapper({ children }: { children: ReactNode }) {
     return (
@@ -125,8 +123,6 @@ describe('useShowEntryCounts refresh (MYK9-1311 review)', () => {
     const network = {
       isOnline: true,
       quality: null,
-      showOfflineMessage: false,
-      retryConnection: vi.fn(),
     };
     const wrapper = ({ children }: { children: ReactNode }) => (
       <NetworkStatusTestProvider value={network}>

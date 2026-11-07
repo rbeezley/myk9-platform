@@ -117,8 +117,6 @@ describe('ReplicationSyncProvider pass cancellation (MYK9-1624)', () => {
         <NetworkStatusTestProvider
           value={{
             isOnline: online,
-            showOfflineMessage: false,
-            retryConnection: vi.fn(),
             quality: null,
           }}
         >

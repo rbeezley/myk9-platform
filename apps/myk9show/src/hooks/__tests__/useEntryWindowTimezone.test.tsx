@@ -270,8 +270,6 @@ async function mountWithSignals(initial: { syncStatus: SyncStatus; online?: bool
         value: {
           isOnline: signals.online,
           quality: null,
-          showOfflineMessage: !signals.online,
-          retryConnection: () => {},
         },
       },
       synced

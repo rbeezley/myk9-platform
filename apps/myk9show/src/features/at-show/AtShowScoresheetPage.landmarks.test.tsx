@@ -134,6 +134,9 @@ const StubLiveScoresheet = ({ entry }: { entry: { armband: number } }) => (
   </div>
 );
 vi.mock('@myk9/scoring-ui', () => ({
+  ScoresheetActionBarRefContext: {
+    Provider: ({ children }: { children: React.ReactNode }) => children,
+  },
   getScoresheetComponent: () => StubLiveScoresheet,
   // Like the real builder: no saved limit means no limit (0).
   buildResolvedClassRules: (cls: { timeLimitSeconds?: number }) => ({

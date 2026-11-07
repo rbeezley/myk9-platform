@@ -386,8 +386,6 @@ describe('WaitlistManagementPage offers', () => {
         value={{
           isOnline: false,
           quality: null,
-          showOfflineMessage: true,
-          retryConnection: vi.fn(),
         }}
       >
         <WaitlistManagementPage showId="show-1" />

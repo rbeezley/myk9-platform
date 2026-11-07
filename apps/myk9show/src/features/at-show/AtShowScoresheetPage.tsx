@@ -32,6 +32,7 @@ import { ScoresheetLeaveGuard } from '@/components/navigation/ScoresheetLeaveGua
 import { useScoresheetDirty } from '@/components/navigation/useScoresheetDirty';
 import { Button } from '@/components/ui/button';
 import { getScoresheetComponent } from '@myk9/scoring-ui';
+import { RegisteredScoresheetActionBar } from '@/components/scoring/RegisteredScoresheetActionBar';
 import { replicatedClassesTable } from '@/services/replication';
 // Import triggers self-registration of all LiveScoresheet variants.
 import '@myk9/scoring-ui';
@@ -436,32 +437,34 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
           a fixed sport key), not a component created during render — same
           dispatch pattern as the secretary ScoresheetPage. */}
       <MaxTimeNotSetNotice maxTimeSeconds={rules.maxTimeSeconds} registryKey={registryKey} />
-      {/* eslint-disable-next-line react-hooks/static-components */}
-      <LiveScoresheet
-        entry={toScoresheetEntry(entry, classInfo, registryKey)}
-        classInfo={toScoresheetClassInfo(classInfo, trialDate, trialNumber, trialName)}
-        rules={rules}
-        onSubmit={submit}
-        onBack={onBack}
-        backLabel="Entries"
-        onDirtyChange={setSheetDirty}
-        onWarningChime={audio.playWarning}
-        onVoiceAnnouncement={handleVoiceAnnouncement}
-        enableVoiceAnnouncements={!audioMuted}
-        headerActions={
-          <>
-            <button
-              type="button"
-              onClick={toggleAudioMuted}
-              aria-label={audioMuted ? 'Unmute timer sounds' : 'Mute timer sounds'}
-              aria-pressed={audioMuted}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border bg-card text-muted-foreground shadow-sm"
-            >
-              {audioMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-            </button>
-          </>
-        }
-      />
+      <RegisteredScoresheetActionBar>
+        {/* eslint-disable-next-line react-hooks/static-components */}
+        <LiveScoresheet
+          entry={toScoresheetEntry(entry, classInfo, registryKey)}
+          classInfo={toScoresheetClassInfo(classInfo, trialDate, trialNumber, trialName)}
+          rules={rules}
+          onSubmit={submit}
+          onBack={onBack}
+          backLabel="Entries"
+          onDirtyChange={setSheetDirty}
+          onWarningChime={audio.playWarning}
+          onVoiceAnnouncement={handleVoiceAnnouncement}
+          enableVoiceAnnouncements={!audioMuted}
+          headerActions={
+            <>
+              <button
+                type="button"
+                onClick={toggleAudioMuted}
+                aria-label={audioMuted ? 'Unmute timer sounds' : 'Mute timer sounds'}
+                aria-pressed={audioMuted}
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border bg-card text-muted-foreground shadow-sm"
+              >
+                {audioMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+              </button>
+            </>
+          }
+        />
+      </RegisteredScoresheetActionBar>
     </main>
   );
 };

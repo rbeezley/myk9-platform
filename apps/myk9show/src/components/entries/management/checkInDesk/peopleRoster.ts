@@ -1,7 +1,7 @@
-import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
+import { EntryStatus } from '@/types/show-registration-types';
 import type { CheckInStatus } from '@/types/check-in-types';
-import { STAFF_CHECK_IN_STATUSES } from '@myk9/core';
 import type { EntryClass, EntryManagementEntry } from '@/types/entry-management-types';
+import { DESK_STATUS_SET, deskUnpullState } from './deskStatus';
 import type { ShowPresence } from '@/features/show-presence/types';
 import type { ListView } from '@/components/list-toolkit';
 import { getStatusDescriptor } from '@/components/status';
@@ -100,23 +100,13 @@ const TERMINAL_ENTRY_STATUSES = new Set<EntryStatus>([
 // pull for roster purposes — neither dog is going in the ring.
 const TERMINAL_CLASS_STATUSES = new Set<EntryClass['status']>(['scratched', 'withdrawn', 'absent']);
 
-/**
- * The statuses the Check-in desk sets on one class: every staff check-in status, the same six
- * Ringside offers (owner, MYK9-1749). Pulled on the desk is the real Pull (scratched, refund
- * review) behind a confirmation (`useDeskPull`); once pulled the class is locked here and
- * reinstated from Entries. In ring and Completed belong to the judge and scoring.
- */
-export const DESK_CHECK_IN_STATUSES: readonly CheckInStatus[] = STAFF_CHECK_IN_STATUSES;
-export const DESK_STATUS_SET: ReadonlySet<CheckInStatus> = new Set(DESK_CHECK_IN_STATUSES);
-
-/** The desk's words for its statuses: "No Status" reads as a fault to a secretary. */
-export const DESK_STATUS_LABELS: Partial<Record<CheckInStatus, string>> = {
-  'no-status': 'Not checked in',
-};
-
-export function deskStatusLabel(status: CheckInStatus): string {
-  return DESK_STATUS_LABELS[status] ?? getStatusDescriptor('entry', status).label;
-}
+export {
+  DESK_CHECK_IN_STATUSES,
+  DESK_STATUS_LABELS,
+  DESK_STATUS_SET,
+  deskStatusLabel,
+  pullRefundSettled,
+} from './deskStatus';
 
 function normalize(value: string | null | undefined): string {
   return (value ?? '').trim().toLowerCase();
@@ -277,40 +267,6 @@ function checkInEligibility(
   }
 
   return { eligible: true, reason: null };
-}
-
-/**
- * A Pull whose money has moved: refunded in part or full, or the refund decided (MYK9-1749).
- * Such a Pull is never undone from the desk, so no refund ends up on a dog that runs.
- */
-export function pullRefundSettled(entry: EntryManagementEntry): boolean {
-  return (
-    (entry.refundAmount ?? 0) > 0 ||
-    Boolean(entry.refundedAt) ||
-    Boolean(entry.refundDecision) ||
-    entry.paymentStatus === PaymentStatus.REFUNDED ||
-    entry.paymentStatus === PaymentStatus.PARTIAL_REFUND
-  );
-}
-
-/**
- * A real Pull the desk may undo today (owner, MYK9-1749): pulled and scratched, the trial is
- * today, the run unscored, and no refund issued or decided.
- */
-function deskUnpullState(
-  entry: EntryManagementEntry,
-  cls: EntryClass,
-  info: PeopleRosterClassInfo | undefined,
-  currentDate: Date | null | undefined
-): { canUnpull: boolean; settled: boolean } {
-  const realPull =
-    (cls.checkInStatus ?? 'no-status') === 'pulled' && entry.entryStatus === EntryStatus.SCRATCHED;
-  if (!realPull || entry.isScored) return { canUnpull: false, settled: false };
-  const today =
-    !currentDate ||
-    (Boolean(info?.trialDate) && isTrialDateToday(info!.trialDate!, info!.timezone, currentDate));
-  const settled = pullRefundSettled(entry);
-  return { canUnpull: today && !settled, settled };
 }
 
 function statusPresentation(

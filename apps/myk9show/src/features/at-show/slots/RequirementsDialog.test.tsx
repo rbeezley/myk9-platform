@@ -191,7 +191,11 @@ describe('ringside ClassRequirementsDialog (MYK9-1100)', () => {
 
   it('shows no size card for ASCA, which has no setup sheet', async () => {
     render(
-      <ClassRequirementsDialog isOpen onClose={vi.fn()} classData={{ ...classData, registry: 'ASCA' }} />
+      <ClassRequirementsDialog
+        isOpen
+        onClose={vi.fn()}
+        classData={{ ...classData, registry: 'ASCA' }}
+      />
     );
     await screen.findByText(/Area 1 1:30/);
     expect(screen.queryByText('Search Area Size')).not.toBeInTheDocument();

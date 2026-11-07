@@ -17,7 +17,7 @@ import {
   type CheckInDeskFilter,
 } from './checkInDeskModel';
 import { CheckInDeskDogCard } from './CheckInDeskDogCard';
-import { useCheckInDeskActions, type DeskStatusTarget } from './useCheckInDeskActions';
+import { useCheckInDeskActions } from './useCheckInDeskActions';
 import { useMinuteClock } from './useMinuteClock';
 
 interface CheckInDeskProps {
@@ -34,10 +34,6 @@ interface CheckInDeskProps {
 }
 
 const EXHIBITOR_NOUN = ['exhibitor', 'exhibitors'] as const;
-
-/** One tap's targets: a dog's waiting classes, which by definition show no status yet. */
-const waiting = (entryIds: readonly string[]): DeskStatusTarget[] =>
-  entryIds.map(entryId => ({ entryId, from: 'no-status' }));
 
 /**
  * Entry Forms' "Check-in desk" (MYK9-1689): everyone entered on the show, one card per dog
@@ -59,8 +55,10 @@ export function CheckInDesk({
   const [search, setSearch] = useState('');
   const now = useMinuteClock(currentDate);
   const { trials, trialClasses, readPending, readFailed, retry } = useShowDeskScheduleRead();
-  const { changes, busyIds, error, errorIds, notice, setStatus } =
-    useCheckInDeskActions(onRefreshEntries);
+  const { changes, busyIds, error, errorIds, notice, setStatus } = useCheckInDeskActions(
+    entries,
+    onRefreshEntries
+  );
 
   const classes = useMemo(
     () =>
@@ -190,7 +188,7 @@ export function CheckInDesk({
                       onClick={() =>
                         void setStatus(
                           person.name,
-                          waitingDogs.flatMap(dog => waiting(dog.pendingEntryIds)),
+                          waitingDogs.flatMap(dog => dog.pendingEntryIds),
                           'checked-in'
                         )
                       }
@@ -208,12 +206,12 @@ export function CheckInDesk({
                     busyIds={busyIds}
                     error={dog.rows.some(row => errorIds.has(row.entryId)) ? error : null}
                     onCheckIn={target =>
-                      void setStatus(target.dogName, waiting(target.pendingEntryIds), 'checked-in')
+                      void setStatus(target.dogName, target.pendingEntryIds, 'checked-in')
                     }
                     onSetStatus={(row, status) =>
                       void setStatus(
                         `${row.dogName}, ${row.className}`,
-                        [{ entryId: row.entryId, from: row.checkInStatus }],
+                        [row.entryId],
                         status
                       )
                     }

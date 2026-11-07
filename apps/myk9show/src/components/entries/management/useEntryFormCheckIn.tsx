@@ -37,7 +37,7 @@ export function useEntryFormCheckIn(
 ): EntryFormCheckIn {
   const now = useMinuteClock();
   const { trials, trialClasses, readFailed, retry } = useShowDeskScheduleRead();
-  const { changes, busyIds, error, setStatus } = useCheckInDeskActions(onRefreshEntries);
+  const { changes, busyIds, error, setStatus } = useCheckInDeskActions(entries, onRefreshEntries);
 
   const classes = useMemo(
     () =>
@@ -62,17 +62,7 @@ export function useEntryFormCheckIn(
     error,
     scheduleFailed: readFailed,
     retrySchedule: () => void retry(),
-    checkIn: (personName, entryIds) =>
-      setStatus(
-        personName,
-        // The status each class shows in the shared entries now (one entry row is one class).
-        entryIds.map(entryId => ({
-          entryId,
-          from:
-            entries.find(entry => entry.id === entryId)?.classes[0]?.checkInStatus ?? 'no-status',
-        })),
-        'checked-in'
-      ),
+    checkIn: (personName, entryIds) => setStatus(personName, entryIds, 'checked-in'),
   };
 }
 

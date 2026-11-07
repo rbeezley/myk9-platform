@@ -91,6 +91,11 @@ describe('CheckInDeskDogCard (MYK9-1736 review)', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(screen.getByRole('article', { name: 'Poppy' })).toHaveTextContent('In Ring');
     expect(h.updateReplicatedCheckInStatus).not.toHaveBeenCalled();
+
+    // A steward puts the run back: the picker stays closed until someone taps again.
+    rerender(<CheckInDesk {...props} currentDate={NOW} entries={[poppy('checked-in')]} />);
+    expect(screen.getByRole('button', { name: /^Change status for Poppy/ })).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('shows a failed change on the dog’s own card', async () => {

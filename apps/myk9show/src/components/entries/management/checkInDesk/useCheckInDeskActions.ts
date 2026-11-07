@@ -1,15 +1,10 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
+import type { EntryManagementEntry } from '@/types/entry-management-types';
 import type { CheckInStatus } from '@myk9/core';
 import { dispatchBulk } from '@/hooks/bulkDispatch';
 import { updateReplicatedCheckInStatus } from '@/services/show-day/checkInStatus';
 import type { DeskStatusChange } from './checkInDeskModel';
 import { deskStatusLabel } from './peopleRoster';
-
-/** One class to write, with the status it shows now (the optimistic flip holds only while it does). */
-export interface DeskStatusTarget {
-  entryId: string;
-  from: CheckInStatus;
-}
 
 /**
  * Status writes for the Check-in desk (check in, Conflict, undo): the replicated path
@@ -19,7 +14,13 @@ export interface DeskStatusTarget {
  * themselves. If the re-read fails the flip stays, but only while the shared status still reads
  * as it did before the write (`applyOptimisticDeskStatuses`), so a later change is never masked.
  */
-export function useCheckInDeskActions(onRefreshEntries?: () => void | Promise<void>) {
+export function useCheckInDeskActions(
+  /** The shared entries, never the optimistic view: `from` must be what the shared data says. */
+  entries: readonly EntryManagementEntry[],
+  onRefreshEntries?: () => void | Promise<void>
+) {
+  const latest = useRef(entries);
+  latest.current = entries;
   const [changes, setChanges] = useState<ReadonlyMap<string, DeskStatusChange>>(new Map());
   const [busyIds, setBusyIds] = useState<ReadonlySet<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
@@ -27,16 +28,21 @@ export function useCheckInDeskActions(onRefreshEntries?: () => void | Promise<vo
   const [errorIds, setErrorIds] = useState<ReadonlySet<string>>(new Set());
   const [notice, setNotice] = useState<string | null>(null);
 
-  /** Sets `status` on each target; `subject` names who or what in the messages ("Alice Martin"). */
+  /** Sets `status` on each entry; `subject` names who or what in the messages ("Alice Martin"). */
   const setStatus = useCallback(
-    async (subject: string, targets: readonly DeskStatusTarget[], status: CheckInStatus) => {
-      if (targets.length === 0) return;
-      const entryIds = targets.map(target => target.entryId);
+    async (subject: string, entryIds: readonly string[], status: CheckInStatus) => {
+      if (entryIds.length === 0) return;
+      // What each class shows in the shared entries now (one entry row is one class).
+      const shared = new Map(latest.current.map(entry => [entry.id, entry]));
+      const targets = entryIds.map(entryId => ({
+        entryId,
+        from: shared.get(entryId)?.classes[0]?.checkInStatus ?? ('no-status' as CheckInStatus),
+      }));
       setError(null);
       setErrorIds(new Set());
       setNotice(null);
       setBusyIds(current => new Set([...current, ...entryIds]));
-      const outcome = await dispatchBulk(entryIds, async entryId => {
+      const outcome = await dispatchBulk([...entryIds], async entryId => {
         await updateReplicatedCheckInStatus(entryId, status);
       });
       const done = new Set(outcome.succeeded);

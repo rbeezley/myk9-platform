@@ -46,6 +46,8 @@ export function CheckInDeskDogCard({
   // The class as it is now, not as it was when the picker opened: if ringside has moved it on,
   // the picker closes rather than offer to write over the run.
   const pickerRow = dog.rows.find(row => row.entryId === pickerId && row.deskStatusEditable);
+  // Forget the closed picker too, so it never reopens on its own if the class comes back.
+  if (pickerId && !pickerRow) setPickerId(null);
   const busy = dog.rows.some(row => busyIds.has(row.entryId));
   // Judged over the classes the desk handles today: another day's or a pulled class never
   // keeps the confirmation away.

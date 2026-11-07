@@ -169,7 +169,10 @@ export function eligibleCheckInEntryIds(
 ): Set<string> {
   const ids = new Set<string>();
   for (const person of buildCheckInDeskPeople(entries, classes, currentDate)) {
-    for (const row of person.classRows) if (row.eligibleForCheckIn) ids.add(row.entryId);
+    for (const row of person.classRows) {
+      // Same gate as the desk: a scored run is finished whatever its check-in status says.
+      if (row.eligibleForCheckIn && row.deskStatusEditable) ids.add(row.entryId);
+    }
   }
   return ids;
 }

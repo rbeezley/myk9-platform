@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   akcSetupSheet,
   getSetupSheet,
+  getSearchAreaSize,
   getSetupValue,
   ukcSetupSheet,
   type SetupSheet,
@@ -294,5 +295,38 @@ describe('UKC Handler Discrimination data', () => {
   it('carries cited stewarding, article and Master station notes', () => {
     const headings = ukcSetupSheet.pages[2]?.notes.map(n => n.heading);
     expect(headings).toEqual(['Stewards', 'Articles', 'Master station']);
+  });
+});
+
+describe('getSearchAreaSize (MYK9-1738)', () => {
+  it('reads the cheat sheet search area row by registry and class labels', () => {
+    expect(getSearchAreaSize('AKC', 'Container', 'Novice')).toBe('250 to 400 sq ft');
+    expect(getSearchAreaSize('AKC', 'Interior', 'Master')).toBe(
+      getSetupValue(akcSetupSheet, 'interior', 'area', 'master')
+    );
+    expect(getSearchAreaSize('UKC', 'Interior', 'Superior')).toBe(
+      '2 areas: 100 to 200 and 300 to 400 sq ft'
+    );
+  });
+
+  it('maps Handler Discrimination to its sheet for both registries', () => {
+    expect(getSearchAreaSize('AKC', 'Handler Discrimination', 'Master')).toBe(
+      '2 areas, 300 to 800 sq ft total'
+    );
+    expect(getSearchAreaSize('UKC', 'Handler Discrimination', 'Excellent')).toBe(
+      getSetupValue(ukcSetupSheet, 'hd', 'area', 'excellent')
+    );
+  });
+
+  it('ignores case, spacing and a Novice A/B section', () => {
+    expect(getSearchAreaSize('akc', ' container ', 'Novice A')).toBe('250 to 400 sq ft');
+  });
+
+  it('has no size when the sheet has none', () => {
+    expect(getSearchAreaSize('ASCA', 'Interior', 'Novice')).toBeNull();
+    expect(getSearchAreaSize('UKC', 'Vehicle', 'Novice')).toBeNull();
+    expect(getSearchAreaSize('AKC', 'Detective', '')).toBeNull();
+    expect(getSearchAreaSize('AKC', 'Interior', 'Elite')).toBeNull();
+    expect(getSearchAreaSize(null, 'Interior', 'Novice')).toBeNull();
   });
 });

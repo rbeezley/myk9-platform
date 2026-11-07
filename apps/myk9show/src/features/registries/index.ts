@@ -49,7 +49,13 @@ export type {
 } from './withdrawalPolicy';
 
 // MYK9-1078: judge setup cheat sheet data (UKC Nosework, AKC Scent Work).
-export { getSetupSheet, getSetupValue, akcSetupSheet, ukcSetupSheet } from './setupRules';
+export {
+  getSearchAreaSize,
+  getSetupSheet,
+  getSetupValue,
+  akcSetupSheet,
+  ukcSetupSheet,
+} from './setupRules';
 export type {
   SetupElementGroup,
   SetupExcerpt,

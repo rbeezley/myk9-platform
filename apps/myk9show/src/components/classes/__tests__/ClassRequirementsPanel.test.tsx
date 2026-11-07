@@ -176,7 +176,9 @@ describe('ClassRequirementsPanel', () => {
     // A DB row exists but none of the conditional fields have displayable data —
     // this was the original bug: the panel rendered completely blank with no feedback.
     mockUseClassRequirements.mockReturnValue({
+      // ASCA: no judge setup sheet, so no search area size card either (MYK9-1738).
       requirements: makeRequirements({
+        organization: 'ASCA',
         hides: '',
         time_limit_text: '',
         distractions: '0',
@@ -192,6 +194,17 @@ describe('ClassRequirementsPanel', () => {
     expect(
       screen.getByText('No requirements found for this class configuration')
     ).toBeInTheDocument();
+  });
+
+  it('shows the search area size from the judge setup sheet (MYK9-1738)', () => {
+    mockUseClassRequirements.mockReturnValue({
+      requirements: makeRequirements(),
+      isLoading: false,
+      error: null,
+    });
+    render(<ClassRequirementsPanel {...defaultProps} />);
+    expect(screen.getByText('Search Area Size')).toBeInTheDocument();
+    expect(screen.getByText('250 to 400 sq ft')).toBeInTheDocument();
   });
 
   it('shows source attribution footer', () => {

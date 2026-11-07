@@ -327,6 +327,21 @@ describe('groupEntriesByShowRegistration', () => {
     expect(results[0]?.matchingEntryIds).toEqual([entryId]);
   });
 
+  it('finds a dog by its registered name when the card shows its call name (MYK9-1733)', () => {
+    const groups = groupEntriesByShowRegistration([
+      entry({
+        id: 'entry-reg',
+        dogId: 'dog-reg',
+        dogName: 'Poppy',
+        dogRegisteredName: 'Meadowbrook Poppy Seed',
+      }),
+    ]);
+
+    expect(searchShowRegistrationGroups(groups, 'meadowbrook')[0]?.matchingEntryIds).toEqual([
+      'entry-reg',
+    ]);
+  });
+
   it('applies queue and scope before pagination while search uses the whole show', () => {
     const groups = groupEntriesByShowRegistration([
       entry({

@@ -47,6 +47,8 @@ export interface EntryManagementEntry {
   showId: string;
   dogId: string;
   dogName: string;
+  /** The dog's registered name when `dogName` is its call name, so search finds either (MYK9-1733). */
+  dogRegisteredName?: string;
   ownerName: string;
   ownerEmail: string;
   handlerName: string;

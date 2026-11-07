@@ -140,6 +140,7 @@ export function mapSecretaryEntryToEntryManagementEntry(
     showId: entry.show_id || '',
     dogId: entry.dog_id || '',
     dogName: entry.dog?.call_name || entry.dog?.name || 'Unknown Dog',
+    ...(entry.dog?.call_name && entry.dog?.name ? { dogRegisteredName: entry.dog.name } : {}),
     // Online (webhook-created) entries set handler_id/dog.owner FKs but
     // never the legacy `handler` text; mail-in entries set the text only.
     ownerName: personName(entry.dog?.owner) || entry.handler || 'Unknown',

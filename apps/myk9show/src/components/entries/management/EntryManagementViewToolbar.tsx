@@ -98,6 +98,8 @@ export function EntryManagementViewToolbar({
               value={state.search}
               onChange={cockpit.setSearch}
               placeholder="Search exhibitor, dog, handler, armband, confirmation, class…"
+              // Finding an entry is this tab's main job: a full field on a phone, never the icon.
+              alwaysOpen
             />
             <ListFilterMenu fields={filterFields} triggerRef={filterButtonRef} />
           </div>

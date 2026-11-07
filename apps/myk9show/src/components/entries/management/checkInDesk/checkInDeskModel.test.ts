@@ -8,6 +8,7 @@ import {
   groupCheckInDeskDogs,
 } from './checkInDeskModel';
 import type { PeopleRosterClassInfo } from './peopleRoster';
+import { statusBeforeLatestPull } from './deskStatus';
 
 const NOW = new Date('2026-07-08T16:00:00.000Z');
 
@@ -123,10 +124,13 @@ describe('deskCanUnpull (MYK9-1749)', () => {
     ['a denied refund decision', { refundDecision: 'denied' as const }],
     ['a refunded payment', { paymentStatus: PaymentStatus.REFUNDED }],
     ['a partial refund', { paymentStatus: PaymentStatus.PARTIAL_REFUND }],
+    ['a form-level refund amount', { enrollmentRefundAmount: 30 }],
+    ['a form-level refund date', { enrollmentRefundedAt: '2026-07-08T15:00:00Z' }],
+    ['a refunded form', { enrollmentPaymentStatus: PaymentStatus.REFUNDED }],
   ])('keeps the Pull locked once %s is recorded, saying so', (_, overrides) => {
     const [row] = rowsOf([pulled(overrides)]);
     expect(row!.deskCanUnpull).toBe(false);
-    expect(row!.statusLabel).toBe('Pulled · refund decided');
+    expect(row!.statusLabel).toBe('Pulled · refund decided, see Entries');
   });
 
   it('never offers it for a flag-only pull, a scored run or another day', () => {
@@ -214,5 +218,20 @@ describe('applyOptimisticDeskStatuses', () => {
     );
     expect(conflict!.classes[0]!.checkInStatus).toBe('conflict');
     expect(conflict!.classes[0]!.checkInTime).toBeUndefined();
+  });
+});
+
+describe('statusBeforeLatestPull', () => {
+  it('reads the status just before the latest Pull, or null when there is none', () => {
+    expect(
+      statusBeforeLatestPull([
+        { previousStatus: 'waitlisted', newStatus: 'scratched' },
+        { previousStatus: 'scratched', newStatus: 'confirmed' },
+        { previousStatus: 'confirmed', newStatus: 'scratched' },
+      ])
+    ).toBe('confirmed');
+    expect(statusBeforeLatestPull([{ previousStatus: 'submitted', newStatus: 'confirmed' }])).toBe(
+      null
+    );
   });
 });

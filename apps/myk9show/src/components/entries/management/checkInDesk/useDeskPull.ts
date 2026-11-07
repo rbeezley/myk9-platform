@@ -9,7 +9,9 @@ import {
   scratchShowMapEntry,
   undoShowMapScratch,
 } from '@/features/show-map/showMapActionMutations';
+import { getEntryStatusHistory } from '@/services/database/entries/statusHistory';
 import type { PeopleRosterClassRow } from './peopleRoster';
+import { ACCEPTED_DB_STATUS, statusBeforeLatestPull } from './deskStatus';
 
 /**
  * Pulled on the Check-in desk is the real Pull (owner, MYK9-1749): the entry is stored as pulled
@@ -70,11 +72,21 @@ export function useDeskPull(
   };
 
   // Entries' Accept: back to entered, and the database restores the check-in the Pull overwrote.
+  // Only for a Pull of an accepted entry; anything else (pending, waitlist, withdrawn) is put back
+  // on Entries, where its own status is chosen. Reading the history needs a connection.
   const confirmUnpull = async () => {
     if (!unpullRow || isWorking) return;
     const row = unpullRow;
     setIsWorking(true);
     try {
+      const before = statusBeforeLatestPull(await getEntryStatusHistory(row.entryId));
+      if (before !== ACCEPTED_DB_STATUS) {
+        setPending(null);
+        toast.error(
+          `${row.dogName} was not accepted before the pull. Put this entry back on the Entries page.`
+        );
+        return;
+      }
       await changeSecretaryEntryStatus({
         entry: row.sourceEntry,
         newStatus: EntryStatus.ACCEPTED,

@@ -110,7 +110,11 @@ export function CheckInDeskDogCard({
                 <button
                   type="button"
                   disabled={busyIds.has(row.entryId)}
-                  aria-label={`Change status for ${dog.dogName}, ${row.className}: ${row.statusLabel}`}
+                  aria-label={
+                    row.deskCanUnpull
+                      ? `Put ${dog.dogName} back in ${row.className}`
+                      : `Change status for ${dog.dogName}, ${row.className}: ${row.statusLabel}`
+                  }
                   onClick={() => (row.deskCanUnpull ? onUnpull(row) : setPickerId(row.entryId))}
                   className="flex min-h-11 shrink-0 items-center gap-0.5 rounded-md px-1 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
                 >

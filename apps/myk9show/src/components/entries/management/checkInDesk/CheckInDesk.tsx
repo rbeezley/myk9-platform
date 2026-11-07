@@ -248,8 +248,8 @@ export function CheckInDesk({
           onOpenChange={open => {
             if (!open) pull.cancel();
           }}
-          title={`Put ${pull.unpullRow.dogName} back?`}
-          description={`${pull.unpullRow.className}. The pull is undone, ${pull.unpullRow.dogName} is entered again, and the check-in goes back to what it was before the pull.`}
+          title={`Put ${pull.unpullRow.dogName} back in ${pull.unpullRow.className}?`}
+          description={`The pull is undone, ${pull.unpullRow.dogName} is entered again, and the check-in goes back to what it was before the pull.`}
           confirmLabel="Put back"
           onConfirm={() => void pull.confirmUnpull()}
         />

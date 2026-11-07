@@ -32,13 +32,40 @@ export function deskStatusLabel(status: CheckInStatus): string {
  * Such a Pull is never undone from the desk, so no refund ends up on a dog that runs.
  */
 export function pullRefundSettled(entry: EntryManagementEntry): boolean {
+  const refunded = (status: PaymentStatus | string | null | undefined) =>
+    status === PaymentStatus.REFUNDED || status === PaymentStatus.PARTIAL_REFUND;
+  // Entry-level (Stripe) and form-level (a mail-in refund recorded by hand) alike. A form-level
+  // refund cannot always be tied to this one entry, so it counts as settled to be safe.
   return (
     (entry.refundAmount ?? 0) > 0 ||
     Boolean(entry.refundedAt) ||
     Boolean(entry.refundDecision) ||
-    entry.paymentStatus === PaymentStatus.REFUNDED ||
-    entry.paymentStatus === PaymentStatus.PARTIAL_REFUND
+    refunded(entry.paymentStatus) ||
+    (entry.enrollmentRefundAmount ?? 0) > 0 ||
+    Boolean(entry.enrollmentRefundedAt) ||
+    refunded(entry.enrollmentPaymentStatus)
   );
+}
+
+/** A Pull the desk will not put back: why, and where to go instead. */
+export const PULLED_REFUND_DECIDED_LABEL = 'Pulled · refund decided, see Entries';
+
+/** The DB entry status an accepted entry stores; the only one the desk puts a Pull back to. */
+export const ACCEPTED_DB_STATUS = 'confirmed';
+
+/**
+ * What the entry was just before its latest Pull, from `entry_status_history` (written by a
+ * trigger on every status change). A Pull is offered on pending, waitlisted and withdrawn
+ * entries too, so the desk puts back only a Pull of an accepted entry (MYK9-1749 review).
+ */
+export function statusBeforeLatestPull(
+  history: readonly { previousStatus: string | null; newStatus: string }[]
+): string | null {
+  for (let index = history.length - 1; index >= 0; index -= 1) {
+    const item = history[index]!;
+    if (item.newStatus === 'scratched') return item.previousStatus;
+  }
+  return null;
 }
 
 /**

@@ -1,7 +1,7 @@
 import { EntryStatus } from '@/types/show-registration-types';
 import type { CheckInStatus } from '@/types/check-in-types';
 import type { EntryClass, EntryManagementEntry } from '@/types/entry-management-types';
-import { DESK_STATUS_SET, deskUnpullState } from './deskStatus';
+import { DESK_STATUS_SET, deskUnpullState, PULLED_REFUND_DECIDED_LABEL } from './deskStatus';
 import type { ShowPresence } from '@/features/show-presence/types';
 import type { ListView } from '@/components/list-toolkit';
 import { getStatusDescriptor } from '@/components/status';
@@ -344,7 +344,7 @@ function buildClassRows(
         classNumber: cls.number,
         time: info?.time || null,
         ring: info?.ring || null,
-        statusLabel: unpull.settled ? 'Pulled · refund decided' : status.label,
+        statusLabel: unpull.settled ? PULLED_REFUND_DECIDED_LABEL : status.label,
         statusValue: status.value,
         checkInStatus: cls.checkInStatus ?? 'no-status',
         eligibleForCheckIn: eligibility.eligible,

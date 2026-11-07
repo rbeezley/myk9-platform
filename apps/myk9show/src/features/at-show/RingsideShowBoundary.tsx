@@ -24,6 +24,7 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { useOnlineStatus } from '@/lib/networkUtils';
 import { deriveRingsideRoleFromClaim } from '@/store/ringsideGrantStore';
 import { OfflineReadyBadge } from '@/features/offline-readiness/OfflineReadyBadge';
+import { useSyncNote } from '@/components/shows/ShowDetails/ShowSyncStatus';
 import { hasRingsideStaffRole } from './ringsideAccountAccess';
 import {
   ShowUnreachableError,
@@ -75,6 +76,7 @@ function MissingShowState({
   const { user, hasRole } = useAuthContext();
   const navigate = useNavigate();
   const canPrime = Boolean(user && !user.is_anonymous && hasRingsideStaffRole(hasRole));
+  const note = useSyncNote();
   const offerPriming = shouldOfferPriming({
     reason,
     isStaff: canPrime,
@@ -106,7 +108,11 @@ function MissingShowState({
       />
       {offerPriming && showId && (
         <div className="-mt-6 mb-16">
-          <OfflineReadyBadge showId={showId} />
+          <OfflineReadyBadge
+            showId={showId}
+            note={note.label}
+            noteNeedsAttention={note.needsAttention}
+          />
         </div>
       )}
     </div>

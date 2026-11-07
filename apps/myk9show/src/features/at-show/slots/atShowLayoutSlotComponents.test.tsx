@@ -1,6 +1,6 @@
 import { act } from 'react';
-import { beforeEach, describe, expect, it } from 'vitest';
-import { render, screen } from '@/test/utils/testUtils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen } from '@/test/utils/testUtils';
 import { __resetContainmentMemoForTests } from '@/hooks/useReplicationContainment';
 import { ReplicationSyncTestProvider } from '@/test/utils/ReplicationSyncTestProvider';
 import {
@@ -8,6 +8,20 @@ import {
   FilterTriggerButton,
   PullToRefresh,
 } from './atShowLayoutSlotComponents';
+
+const { network, syncState } = vi.hoisted(() => ({
+  network: { isOnline: true },
+  syncState: { status: 'synced', queueSize: 0 },
+}));
+vi.mock('@/lib/networkUtils', () => ({ useOnlineStatus: () => network.isOnline }));
+vi.mock('@/hooks/useGlobalSyncStatus', () => ({ useGlobalSyncStatus: () => syncState }));
+
+// File-level so no describe block can leak an offline state into another under shuffle.
+beforeEach(() => {
+  network.isOnline = true;
+  syncState.status = 'synced';
+  syncState.queueSize = 0;
+});
 
 // MYK9-115 Task 5. The client pauses score uploads when the server raises
 // RS429; without this banner it pauses SILENTLY, and a queue that stops
@@ -123,6 +137,66 @@ describe('CompactOfflineIndicator', () => {
 
     expect(screen.getByText('Offline ready')).toBeInTheDocument();
     expect(screen.queryByText(/^Offline$/)).toBeNull();
+  });
+});
+
+describe('CompactOfflineIndicator offline state (MYK9-1744)', () => {
+  const readyStatus = {
+    status: {
+      lastSyncAt: new Date(),
+      isSyncing: false,
+      tablesStatus: { shows: 'success', trials: 'success', classes: 'success', entries: 'success' },
+    },
+  } as never;
+  const renderReady = () =>
+    render(
+      <ReplicationSyncTestProvider value={readyStatus}>
+        <CompactOfflineIndicator />
+      </ReplicationSyncTestProvider>
+    );
+
+  it('ready and online keeps the chip hidden on phones (unchanged)', () => {
+    renderReady();
+    expect(screen.getByText('Offline ready').parentElement?.className).toContain('max-sm:hidden');
+    expect(screen.queryByText(/saved on this device/)).toBeNull();
+  });
+
+  it('ready and offline shows the amber note on one truncated line', () => {
+    network.isOnline = false;
+    syncState.status = 'offline';
+    renderReady();
+
+    const note = screen.getByText('Offline · scores saved on this device');
+    const line = note.closest('[role="status"]') as HTMLElement;
+    expect(line.className).toContain('text-warning');
+    expect(line.className).toContain('max-sm:hidden'); // phones get the icon button instead
+    expect(line.title).toBe('You are offline. Everything you enter is saved on this device.');
+    expect(note.className).toContain('truncate');
+    expect(screen.queryByText('Offline ready')).toBeNull();
+  });
+
+  it('gives phones an icon-only 44px button that opens the note, with no label in the bar', () => {
+    network.isOnline = false;
+    syncState.status = 'offline';
+    syncState.queueSize = 2;
+    renderReady();
+
+    const button = screen.getByRole('button', { name: 'Offline' });
+    expect(button.className).toContain('min-h-11');
+    expect(button.className).toContain('min-w-11');
+    expect(button).toHaveTextContent('');
+    expect(button.closest('span.sm\\:hidden')).not.toBeNull();
+    fireEvent.click(button);
+    expect(screen.getAllByText('Offline · 2 changes saved on this device')).toHaveLength(2);
+  });
+
+  it('passes the pending change count through', () => {
+    network.isOnline = false;
+    syncState.status = 'offline';
+    syncState.queueSize = 3;
+    renderReady();
+
+    expect(screen.getByText('Offline · 3 changes saved on this device')).toBeInTheDocument();
   });
 });
 

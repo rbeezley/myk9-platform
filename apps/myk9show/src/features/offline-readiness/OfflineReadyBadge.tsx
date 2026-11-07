@@ -1,4 +1,6 @@
 import { CloudDownload, RefreshCw, ShieldCheck } from 'lucide-react';
+import { useOnlineStatus } from '@/lib/networkUtils';
+import { OfflineStatusLine } from './OfflineStatusLine';
 import { useOfflineReadiness } from './useOfflineReadiness';
 
 interface OfflineReadyBadgeProps {
@@ -43,6 +45,7 @@ export function OfflineReadyBadge({
   inPromptWindow = true,
 }: OfflineReadyBadgeProps) {
   const { readiness, priming, primeFailed, prime } = useOfflineReadiness(showId);
+  const isOnline = useOnlineStatus();
 
   const noteText = note ? (
     <span className={noteNeedsAttention ? 'text-warning' : 'text-muted-foreground'}>{note}</span>
@@ -54,6 +57,17 @@ export function OfflineReadyBadge({
         {noteText}
       </span>
     ) : null;
+  }
+
+  // MYK9-1744: offline, a saved device turns amber and says so in the same one line. The note
+  // (`useSyncNote`) already carries the offline wording and the pending-change count.
+  if (readiness.ready && !isOnline) {
+    return (
+      <OfflineStatusLine
+        note={note ?? 'Offline · scores saved on this device'}
+        className="min-h-11 flex-wrap gap-x-2 gap-y-1 text-sm"
+      />
+    );
   }
 
   if (readiness.ready) {

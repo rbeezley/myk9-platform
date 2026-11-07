@@ -48,9 +48,15 @@ vi.mock('@/lib/networkUtils', () => ({
   useOnlineStatus: () => networkState.isOnline,
 }));
 
+vi.mock('@/components/shows/ShowDetails/ShowSyncStatus', () => ({
+  useSyncNote: () => ({ label: 'Offline · scores saved on this device', needsAttention: false }),
+}));
+
 vi.mock('@/features/offline-readiness/OfflineReadyBadge', () => ({
-  OfflineReadyBadge: ({ showId }: { showId: string }) => (
-    <button type="button">Load this show onto this device ({showId})</button>
+  OfflineReadyBadge: ({ showId, note }: { showId: string; note?: string }) => (
+    <button type="button" data-note={note}>
+      Load this show onto this device ({showId})
+    </button>
   ),
 }));
 
@@ -206,6 +212,10 @@ describe('RingsideShowBoundary', () => {
     expect(
       screen.getByRole('button', { name: /load this show onto this device/i })
     ).toBeInTheDocument();
+    // MYK9-1744: the boundary feeds the badge the device sync note.
+    expect(
+      screen.getByRole('button', { name: /load this show onto this device/i })
+    ).toHaveAttribute('data-note', 'Offline · scores saved on this device');
     expect(screen.queryByText('Show not found')).not.toBeInTheDocument();
     expect(replicatedShowsTable.pullShowById).not.toHaveBeenCalled();
     expect(replicatedShowsTable.sync).not.toHaveBeenCalled();

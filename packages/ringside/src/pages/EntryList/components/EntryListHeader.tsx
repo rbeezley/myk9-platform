@@ -161,34 +161,6 @@ function TrialLine({
   );
 }
 
-/**
- * The refresh answer, standing in for the trial line in the same row (same
- * padding, line-height and reserved line count) so the page never shifts.
- */
-function RefreshAnswerLine({
-  answer,
-  lines,
-}: {
-  answer: { message: string; tone: 'ok' | 'warn' };
-  lines: number;
-}) {
-  const reserved = Math.max(lines, 1);
-  return (
-    <div className="px-3 pt-2 text-center">
-      <p
-        data-testid="entry-list-refresh-answer"
-        style={{ minHeight: `calc(${reserved} * 1.375 * 0.875rem + ${reserved - 1} * 0.125rem)` }}
-        className={cn(
-          'm-0 truncate text-sm font-semibold leading-tight',
-          answer.tone === 'ok' ? 'text-foreground' : 'text-warning'
-        )}
-      >
-        {answer.message}
-      </p>
-    </div>
-  );
-}
-
 /** Same 48px round target as the class list's refresh (gloved taps, INTENT s.6). */
 const REFRESH_BUTTON_CLASS =
   'inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60';
@@ -203,8 +175,6 @@ export interface EntryListHeaderProps {
   hasActiveFilters: boolean;
   onFilterClick: () => void;
   onRefresh: () => void;
-  /** Answer to the last refresh, shown in place of the trial line so the page does not shift. */
-  refreshAnswer?: { message: string; tone: 'ok' | 'warn' } | null;
   /** The Up control's label and fixed parent route (MYK9-1500). */
   up: { label: string; to: string };
   /**
@@ -246,7 +216,6 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
   hasActiveFilters,
   onFilterClick,
   onRefresh,
-  refreshAnswer = null,
   actionsMenu,
   up,
   menu,
@@ -379,14 +348,7 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
           {menuControl}
         </div>
       </header>
-      {refreshAnswer ? (
-        <RefreshAnswerLine
-          answer={refreshAnswer}
-          lines={(trialInfoText ? 1 : 0) + (classInfo?.statusLabel ? 1 : 0)}
-        />
-      ) : (
-        <TrialLine trialInfoText={trialInfoText} statusLabel={classInfo?.statusLabel} />
-      )}
+      <TrialLine trialInfoText={trialInfoText} statusLabel={classInfo?.statusLabel} />
     </>
   );
 };

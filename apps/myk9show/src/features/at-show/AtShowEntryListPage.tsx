@@ -68,7 +68,6 @@ import { useMyAtShowEntries } from './useMyAtShowEntries';
 import { useMyRingConflicts } from './useMyRingConflicts';
 import { useAtShowRealtimeRefresh } from './useAtShowRealtimeRefresh';
 import { useAtShowEntryListRefresh } from './useAtShowEntryListRefresh';
-import { AtShowRefreshLiveRegion, getRefreshAnswer } from './atShowRefreshAnswer';
 import { resolveClassListRoute } from './atShowScoresheetRoutes';
 
 export const AtShowEntryListPage: React.FC = () => {
@@ -143,10 +142,7 @@ export const AtShowEntryListPage: React.FC = () => {
     dependencies,
   });
 
-  const { phase: refreshPhase, refresh: manualRefresh } = useAtShowEntryListRefresh(
-    showId,
-    refresh
-  );
+  const { refresh: manualRefresh } = useAtShowEntryListRefresh(showId, refresh);
 
   const showHydration = useAtShowShowHydration(showId, syncStatus, refresh);
   const isFirstShowHydrationPending = showHydration === 'pending';
@@ -372,17 +368,10 @@ export const AtShowEntryListPage: React.FC = () => {
           />
         )}
         {showHydration === 'not-arrived' && entries.length > 0 && <PartialReplicaNotice />}
-        <AtShowRefreshLiveRegion phase={refreshPhase} />
         <EntryListPage
           classId={classId}
           data={{ entries, classInfo }}
-          dataStatus={{
-            isRefreshing,
-            fetchError,
-            refresh,
-            notOnDevice,
-            refreshAnswer: getRefreshAnswer(refreshPhase),
-          }}
+          dataStatus={{ isRefreshing, fetchError, refresh, notOnDevice }}
           handlers={handlers}
           actions={pageActions}
           uiState={uiState}

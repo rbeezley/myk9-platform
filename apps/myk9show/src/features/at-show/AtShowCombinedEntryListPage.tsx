@@ -70,7 +70,6 @@ import { useMyAtShowEntries } from './useMyAtShowEntries';
 import { useMyRingConflicts } from './useMyRingConflicts';
 import { useAtShowRealtimeRefresh } from './useAtShowRealtimeRefresh';
 import { useAtShowEntryListRefresh } from './useAtShowEntryListRefresh';
-import { AtShowRefreshLiveRegion, getRefreshAnswer } from './atShowRefreshAnswer';
 import {
   buildAtShowScoreSheetRoute,
   combinedPairParam,
@@ -140,10 +139,7 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
     dependencies,
   });
 
-  const { phase: refreshPhase, refresh: manualRefresh } = useAtShowEntryListRefresh(
-    showId,
-    refresh
-  );
+  const { refresh: manualRefresh } = useAtShowEntryListRefresh(showId, refresh);
 
   // An exhibitor-role account (including an admin who entered an exhibitor
   // passcode) lacks the staff RLS authority the replicated writer needs, so its
@@ -407,7 +403,6 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
           />
         )}
         {showHydration === 'not-arrived' && entries.length > 0 && <PartialReplicaNotice />}
-        <AtShowRefreshLiveRegion phase={refreshPhase} />
         <EntryListPage
           classId={classIdA}
           combined={{
@@ -416,13 +411,7 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
             setSectionFilter,
           }}
           data={{ entries, classInfo }}
-          dataStatus={{
-            isRefreshing,
-            fetchError,
-            refresh,
-            notOnDevice,
-            refreshAnswer: getRefreshAnswer(refreshPhase),
-          }}
+          dataStatus={{ isRefreshing, fetchError, refresh, notOnDevice }}
           handlers={handlers}
           actions={actions}
           uiState={uiState}

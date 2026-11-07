@@ -7,12 +7,12 @@
 --     still refused (MK010);
 --   * a non-admin passing the override is refused (42501), reason or not;
 --   * the admin override with a reason deletes, and writes ONE activity_log row
---     (who, when, why, the money: paid count and amount, the unrefunded Stripe
---     count and amount, refund_issued false) in the same transaction;
+--     (who, when, why; COUNTS only, never money or payment ids: paid entries, Stripe
+--     entries still holding money, refund_issued false) in the same transaction;
 --   * the override issues no refund and leaves the money columns alone;
 --   * restore_show / restore_trial / restore_class bring the paid entries back;
---   * delete_preview reports paid_amount, stripe_unrefunded and
---     stripe_unrefunded_amount;
+--   * delete_preview reports paid_amount, stripe_retained and
+--     stripe_retained_amount;
 --   * the old (uuid, boolean) signatures are gone, the new ones are executable
 --     by authenticated and service_role only, and the helpers by nobody.
 --
@@ -49,7 +49,9 @@ INSERT INTO public.user_roles (user_id, auth_user_id, role_id, is_active)
 SELECT '00000000-0000-0000-0000-000001596013', '00000000-0000-0000-0000-000001596103', r.id, true
 FROM public.roles r WHERE r.name = 'site_admin';
 
--- S1/T1/K1: the show-scope arena. E1 paid through Stripe ($30), E2 paid in cash ($20).
+-- S1/T1/K1: the show-scope arena. E1 paid through Stripe ($30), E2 paid in cash ($20),
+--   E5 Stripe $30 refunded $5 (status 'refunded', $25 still held), E6 Stripe $20 refunded
+--   in full (nothing held). E5 and E6 are not blocking.
 -- S2/T2/K2: the trial-scope arena. E3 paid through Stripe ($40).
 -- S3/T3/K3: the class-scope arena. E4 scored, never paid.
 INSERT INTO public.shows (id, name, organization, start_date, end_date, status, club_id)
@@ -73,11 +75,11 @@ VALUES
 INSERT INTO public.dogs (id, call_name, breed, owner_id)
 SELECT ('00000000-0000-0000-0000-00000159606' || n)::uuid, 'MYK9-1596 Dog ' || n, 'Border Collie',
        '00000000-0000-0000-0000-000001596014'
-FROM generate_series(1, 4) AS n;
+FROM generate_series(1, 6) AS n;
 
 INSERT INTO public.dog_registrations (dog_id, organization, registration_number, registered_name)
 SELECT ('00000000-0000-0000-0000-00000159606' || n)::uuid, 'AKC', 'SW1596' || lpad(n::text, 2, '0'), 'MYK9-1596 Dog ' || n
-FROM generate_series(1, 4) AS n;
+FROM generate_series(1, 6) AS n;
 
 INSERT INTO public.entries (
   id, class_id, trial_id, show_id, dog_id, payment_status, is_scored, result_status,
@@ -87,7 +89,14 @@ VALUES
   ('00000000-0000-0000-0000-000001596081', '00000000-0000-0000-0000-000001596051', '00000000-0000-0000-0000-000001596041', '00000000-0000-0000-0000-000001596031', '00000000-0000-0000-0000-000001596061', 'paid', false, 'pending', 30, 'pi_myk9_1596_a'),
   ('00000000-0000-0000-0000-000001596082', '00000000-0000-0000-0000-000001596051', '00000000-0000-0000-0000-000001596041', '00000000-0000-0000-0000-000001596031', '00000000-0000-0000-0000-000001596062', 'paid', false, 'pending', 20, NULL),
   ('00000000-0000-0000-0000-000001596083', '00000000-0000-0000-0000-000001596052', '00000000-0000-0000-0000-000001596042', '00000000-0000-0000-0000-000001596032', '00000000-0000-0000-0000-000001596063', 'paid', false, 'pending', 40, 'pi_myk9_1596_b'),
+  ('00000000-0000-0000-0000-000001596085', '00000000-0000-0000-0000-000001596051', '00000000-0000-0000-0000-000001596041', '00000000-0000-0000-0000-000001596031', '00000000-0000-0000-0000-000001596065', 'refunded', false, 'pending', 30, 'pi_myk9_1596_c'),
+  ('00000000-0000-0000-0000-000001596086', '00000000-0000-0000-0000-000001596051', '00000000-0000-0000-0000-000001596041', '00000000-0000-0000-0000-000001596031', '00000000-0000-0000-0000-000001596066', 'refunded', false, 'pending', 20, 'pi_myk9_1596_d'),
   ('00000000-0000-0000-0000-000001596084', '00000000-0000-0000-0000-000001596053', '00000000-0000-0000-0000-000001596043', '00000000-0000-0000-0000-000001596033', '00000000-0000-0000-0000-000001596064', 'pending', true, 'qualified', 25, NULL);
+
+UPDATE public.entries SET refund_amount = 5, refunded_at = now()
+WHERE id = '00000000-0000-0000-0000-000001596085';
+UPDATE public.entries SET refund_amount = 20, refunded_at = now()
+WHERE id = '00000000-0000-0000-0000-000001596086';
 
 DO $$
 BEGIN
@@ -154,18 +163,18 @@ DECLARE
   v_preview jsonb;
 BEGIN
   v_preview := public.delete_preview('show', '00000000-0000-0000-0000-000001596031');
-  IF NOT (v_preview @> '{"paid":2,"blocking":2,"paid_amount":50,"stripe_unrefunded":1,"stripe_unrefunded_amount":30}'::jsonb) THEN
+  IF NOT (v_preview @> '{"paid":2,"blocking":2,"paid_amount":50,"stripe_retained":2,"stripe_retained_amount":55}'::jsonb) THEN
     RAISE EXCEPTION 'FAIL show preview money wrong: %', v_preview;
   END IF;
   v_preview := public.delete_preview('trial', '00000000-0000-0000-0000-000001596042');
-  IF NOT (v_preview @> '{"paid":1,"paid_amount":40,"stripe_unrefunded":1,"stripe_unrefunded_amount":40}'::jsonb) THEN
+  IF NOT (v_preview @> '{"paid":1,"paid_amount":40,"stripe_retained":1,"stripe_retained_amount":40}'::jsonb) THEN
     RAISE EXCEPTION 'FAIL trial preview money wrong: %', v_preview;
   END IF;
   v_preview := public.delete_preview('class', '00000000-0000-0000-0000-000001596053');
-  IF NOT (v_preview @> '{"paid":0,"scored":1,"blocking":1,"paid_amount":0,"stripe_unrefunded":0,"stripe_unrefunded_amount":0}'::jsonb) THEN
+  IF NOT (v_preview @> '{"paid":0,"scored":1,"blocking":1,"paid_amount":0,"stripe_retained":0,"stripe_retained_amount":0}'::jsonb) THEN
     RAISE EXCEPTION 'FAIL class preview money wrong: %', v_preview;
   END IF;
-  RAISE NOTICE 'PASS delete_preview reports paid_amount and the unrefunded Stripe count and amount';
+  RAISE NOTICE 'PASS delete_preview: a partial refund keeps its remaining balance ($25), a full refund holds nothing';
 
   BEGIN
     PERFORM public.soft_delete_show('00000000-0000-0000-0000-000001596031');
@@ -250,13 +259,19 @@ BEGIN
      OR v_row.actor_id IS DISTINCT FROM '00000000-0000-0000-0000-000001596103'::uuid
      OR v_row.created_at IS NULL
      OR v_row.metadata ->> 'reason' IS DISTINCT FROM 'Duplicate of another show'
+     OR v_row.metadata -> 'override' IS DISTINCT FROM 'true'::jsonb
      OR v_row.metadata -> 'refund_issued' IS DISTINCT FROM 'false'::jsonb
      OR (v_row.metadata ->> 'paid_entries')::int IS DISTINCT FROM 2
-     OR (v_row.metadata ->> 'paid_amount')::numeric IS DISTINCT FROM 50
-     OR (v_row.metadata ->> 'stripe_unrefunded_entries')::int IS DISTINCT FROM 1
-     OR (v_row.metadata ->> 'stripe_unrefunded_amount')::numeric IS DISTINCT FROM 30
+     OR (v_row.metadata ->> 'stripe_retained_entries')::int IS DISTINCT FROM 2
      OR (v_row.metadata ->> 'deleted_at')::timestamptz IS DISTINCT FROM (SELECT deleted_at FROM public.shows WHERE id = '00000000-0000-0000-0000-000001596031') THEN
     RAISE EXCEPTION 'FAIL the show audit row is wrong: %', to_jsonb(v_row);
+  END IF;
+  -- activity_log is readable by every real account: counts only, no money, no ids.
+  IF (SELECT array_agg(k ORDER BY k) FROM jsonb_object_keys(v_row.metadata) AS k)
+       IS DISTINCT FROM ARRAY['deleted_at', 'override', 'paid_entries', 'reason', 'refund_issued', 'stripe_retained_entries']
+     OR v_row.description ~ '\$' OR v_row.description ~ 'pi_myk9_1596'
+     OR v_row.metadata::text ~ 'pi_myk9_1596' THEN
+    RAISE EXCEPTION 'FAIL the show audit row leaks money or payment ids: %', to_jsonb(v_row);
   END IF;
   IF (SELECT count(*) FROM public.activity_log WHERE record_id = '00000000-0000-0000-0000-000001596031') <> 1 THEN
     RAISE EXCEPTION 'FAIL the show override wrote more or fewer than one audit row';
@@ -267,13 +282,13 @@ BEGIN
        SELECT 1 FROM public.activity_log
        WHERE record_id = '00000000-0000-0000-0000-000001596042' AND record_type = 'trial'
          AND metadata ->> 'reason' = 'Wrong club entered it'
-         AND (metadata ->> 'stripe_unrefunded_amount')::numeric = 40
+         AND (metadata ->> 'stripe_retained_entries')::int = 1
          AND actor_id = '00000000-0000-0000-0000-000001596103'::uuid)
      OR NOT EXISTS (
        SELECT 1 FROM public.activity_log
        WHERE record_id = '00000000-0000-0000-0000-000001596053' AND record_type = 'class'
          AND metadata ->> 'reason' = 'Class was never run'
-         AND (metadata ->> 'blocking_entries')::int = 1
+         AND (metadata ->> 'paid_entries')::int = 0
          AND actor_id = '00000000-0000-0000-0000-000001596103'::uuid) THEN
     RAISE EXCEPTION 'FAIL the trial or class audit row is missing or wrong';
   END IF;
@@ -284,6 +299,9 @@ BEGIN
        WHERE id IN ('00000000-0000-0000-0000-000001596081', '00000000-0000-0000-0000-000001596083')
          AND (payment_status <> 'paid' OR refund_amount IS NOT NULL OR refunded_at IS NOT NULL)) THEN
     RAISE EXCEPTION 'FAIL the override touched the money columns (it must issue no refund)';
+  END IF;
+  IF (SELECT refund_amount FROM public.entries WHERE id = '00000000-0000-0000-0000-000001596085') IS DISTINCT FROM 5 THEN
+    RAISE EXCEPTION 'FAIL the override changed a recorded refund';
   END IF;
   RAISE NOTICE 'PASS the override issues no refund and leaves the money columns alone';
 END;
@@ -352,7 +370,7 @@ BEGIN
   END LOOP;
   FOREACH v_fn IN ARRAY ARRAY[
     'private.require_override_reason(boolean, text)',
-    'private.record_delete_override(text, uuid, text, timestamptz, jsonb)'
+    'private.record_delete_override(text, uuid, text, timestamptz, integer, integer)'
   ] LOOP
     IF has_function_privilege('anon', v_fn, 'EXECUTE') OR has_function_privilege('authenticated', v_fn, 'EXECUTE') THEN
       RAISE EXCEPTION 'FAIL a client role can execute internal helper %', v_fn;

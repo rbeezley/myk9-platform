@@ -43,7 +43,7 @@ describe('typed confirmations', () => {
 
 describe('overrideArmedBy', () => {
   const cash = { ...EMPTY_PREVIEW, paid: 2, blocking: 2, paid_amount: 60 };
-  const online = { ...cash, stripe_unrefunded: 1, stripe_unrefunded_amount: 30 };
+  const online = { ...cash, stripe_retained: 1, stripe_retained_amount: 30 };
   const typed = { name: 'Show', amount: '', reason: 'Why' };
 
   it('needs only name and reason when nothing was paid online', () => {

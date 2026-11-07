@@ -54,8 +54,8 @@ const PAID_ONLINE = counts({
   paid: 14,
   blocking: 14,
   paid_amount: 420,
-  stripe_unrefunded: 3,
-  stripe_unrefunded_amount: 90,
+  stripe_retained: 3,
+  stripe_retained_amount: 90,
 });
 /** All paid by cash or check: the standard warning only. */
 const PAID_CASH = counts({ entries: 5, paid: 5, blocking: 5, paid_amount: 150 });
@@ -182,7 +182,7 @@ describe('arming the override', () => {
       '14 paid entries, $420.00 recorded'
     );
     expect(screen.getByTestId('delete-override-stripe')).toHaveTextContent(
-      '3 of these entries were paid online, $90.00 in all. That money stays captured in Stripe and myK9 does not refund it.'
+      '3 of these entries still hold money paid online, $90.00 in all after any refunds. That money stays captured in Stripe and myK9 does not refund it.'
     );
 
     await user.type(screen.getByLabelText(/^Type the show name/), 'heartland classic');

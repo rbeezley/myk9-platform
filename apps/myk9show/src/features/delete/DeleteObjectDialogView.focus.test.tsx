@@ -42,8 +42,8 @@ function Harness({ onCancel = vi.fn() }: { onCancel?: () => void }) {
             scored: 0,
             blocking: 0,
             paid_amount: 0,
-            stripe_unrefunded: 0,
-            stripe_unrefunded_amount: 0,
+            stripe_retained: 0,
+            stripe_retained_amount: 0,
           },
         }}
       />

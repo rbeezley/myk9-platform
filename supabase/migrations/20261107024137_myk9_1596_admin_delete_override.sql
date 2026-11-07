@@ -14,13 +14,21 @@
 --   2. The audit row is an activity_log row (record_type show/trial/class,
 --      action 'deleted'), the same table force_delete_dog writes
 --      (20260924104100). Who (actor_id/actor_name), when (created_at and
---      metadata.deleted_at), why (metadata.reason) and what money was recorded on
---      the paid/scored entries (metadata.payments, with the unrefunded Stripe
---      count and amount). The override issues NO refund: refund_issued is false.
+--      metadata.deleted_at), why (metadata.reason). The override issues NO
+--      refund: refund_issued is false.
+--      PRIVACY: activity_log is readable by every real account
+--      (is_real_account()), so the row carries COUNTS only (paid entries, Stripe
+--      entries still holding money). No per-entry array, no payment-intent ids,
+--      no dollar amounts, in metadata or in the description.
 --   3. delete_preview (show/trial/class branches) also reports paid_amount (sum
---      of entry_fee on paid entries), stripe_unrefunded (paid entries with a
---      stripe_payment_intent_id and no refund_amount) and stripe_unrefunded_amount,
+--      of entry_fee on paid entries), stripe_retained and stripe_retained_amount,
 --      so the dialog can state the consequence in numbers. Other scopes report 0.
+--      "Stripe money retained" = stripe_payment_intent_id IS NOT NULL AND
+--      payment_status IN ('paid','refunded') AND entry_fee - refund_amount > 0
+--      (both NUMERIC dollars). A partial refund also reads payment_status
+--      'refunded' (buildEntryRefundStamp), so its remaining balance counts; a full
+--      refund leaves nothing. The amount is the sum of that remaining balance.
+--      The paid/scored guard (raise_if_blocked) is unchanged.
 --
 -- THE SIGNATURE CHANGES, so the old (uuid, boolean) functions are DROPPED first.
 -- Leaving both would make a call that names only p_show_id ambiguous and PostgREST
@@ -63,7 +71,8 @@ CREATE OR REPLACE FUNCTION private.record_delete_override(
   p_id uuid,
   p_reason text,
   p_deleted_at timestamptz,
-  p_entries jsonb
+  p_paid_entries integer,
+  p_stripe_retained_entries integer
 )
 RETURNS void
 LANGUAGE plpgsql
@@ -72,10 +81,6 @@ AS $$
 DECLARE
   v_name text;
   v_actor_name text;
-  v_paid integer;
-  v_paid_amount numeric;
-  v_stripe integer;
-  v_stripe_amount numeric;
 BEGIN
   v_name := CASE p_scope
     WHEN 'show' THEN (SELECT s.name FROM public.shows s WHERE s.id = p_id)
@@ -89,17 +94,7 @@ BEGIN
   WHERE pe.auth_user_id = (SELECT auth.uid())
   LIMIT 1;
 
-  SELECT count(*) FILTER (WHERE x ->> 'payment_status' = 'paid')::integer,
-         COALESCE(sum((x ->> 'entry_fee')::numeric) FILTER (WHERE x ->> 'payment_status' = 'paid'), 0),
-         count(*) FILTER (WHERE x ->> 'payment_status' = 'paid'
-                            AND x ->> 'stripe_payment_intent_id' IS NOT NULL
-                            AND COALESCE((x ->> 'refund_amount')::numeric, 0) = 0)::integer,
-         COALESCE(sum((x ->> 'entry_fee')::numeric) FILTER (WHERE x ->> 'payment_status' = 'paid'
-                            AND x ->> 'stripe_payment_intent_id' IS NOT NULL
-                            AND COALESCE((x ->> 'refund_amount')::numeric, 0) = 0), 0)
-  INTO v_paid, v_paid_amount, v_stripe, v_stripe_amount
-  FROM jsonb_array_elements(p_entries) AS x;
-
+  -- Counts only: this table is readable by every real account.
   INSERT INTO public.activity_log (
     trial_id, record_type, record_id, action_type, description,
     actor_id, actor_name, metadata, created_at
@@ -110,31 +105,22 @@ BEGIN
     p_id,
     'deleted',
     format(
-      'Site admin deleted %s "%s" over the paid/scored guard (%s paid entr%s, $%s recorded; %s paid online, $%s not refunded). Reason: %s. No refund was issued.',
+      'Site admin deleted %s "%s" over the paid/scored guard (%s paid entr%s, %s with online money still held). Reason: %s. No refund was issued.',
       p_scope,
       COALESCE(v_name, p_id::text),
-      v_paid,
-      CASE WHEN v_paid = 1 THEN 'y' ELSE 'ies' END,
-      to_char(v_paid_amount, 'FM999999990.00'),
-      v_stripe,
-      to_char(v_stripe_amount, 'FM999999990.00'),
+      p_paid_entries,
+      CASE WHEN p_paid_entries = 1 THEN 'y' ELSE 'ies' END,
+      p_stripe_retained_entries,
       p_reason
     ),
     (SELECT auth.uid()),
     NULLIF(v_actor_name, ''),
     jsonb_build_object(
-      'override', 'soft_delete_' || p_scope,
-      'scope', p_scope,
-      'record_id', p_id,
-      'record_name', v_name,
+      'override', true,
       'reason', p_reason,
       'deleted_at', to_jsonb(p_deleted_at),
-      'blocking_entries', jsonb_array_length(p_entries),
-      'paid_entries', v_paid,
-      'paid_amount', v_paid_amount,
-      'stripe_unrefunded_entries', v_stripe,
-      'stripe_unrefunded_amount', v_stripe_amount,
-      'payments', p_entries,
+      'paid_entries', p_paid_entries,
+      'stripe_retained_entries', p_stripe_retained_entries,
       'refund_issued', false
     ),
     clock_timestamp()
@@ -144,7 +130,7 @@ $$;
 
 REVOKE ALL ON FUNCTION private.require_override_reason(boolean, text)
   FROM PUBLIC, anon, authenticated, service_role;
-REVOKE ALL ON FUNCTION private.record_delete_override(text, uuid, text, timestamptz, jsonb)
+REVOKE ALL ON FUNCTION private.record_delete_override(text, uuid, text, timestamptz, integer, integer)
   FROM PUBLIC, anon, authenticated, service_role;
 
 -- ---------------------------------------------------------------------------
@@ -168,7 +154,8 @@ DECLARE
   v_now TIMESTAMPTZ := NOW();
   v_user_id UUID := auth.uid();
   v_reason text;
-  v_money jsonb := '[]'::jsonb;
+  v_paid_count integer := 0;
+  v_retained_count integer := 0;
 BEGIN
   -- MYK9-923: the exclusive parent gate, before the existence check and the
   -- cascade take their snapshots. Entry inserts under this show hold it shared.
@@ -217,20 +204,11 @@ BEGIN
       e.id AS entry_id, e.payment_status, e.entry_fee, e.refund_amount, e.stripe_payment_intent_id
   )
   SELECT count(*) FILTER (WHERE blocking)::integer,
-         COALESCE(
-           jsonb_agg(
-             jsonb_build_object(
-               'entry_id', entry_id,
-               'payment_status', payment_status,
-               'entry_fee', entry_fee,
-               'refund_amount', refund_amount,
-               'stripe_payment_intent_id', stripe_payment_intent_id
-             )
-             ORDER BY entry_id
-           ) FILTER (WHERE blocking),
-           '[]'::jsonb
-         )
-  INTO v_blocked, v_money
+         count(*) FILTER (WHERE payment_status = 'paid')::integer,
+         count(*) FILTER (WHERE stripe_payment_intent_id IS NOT NULL
+                            AND payment_status IN ('paid', 'refunded')
+                            AND COALESCE(entry_fee, 0) - COALESCE(refund_amount, 0) > 0)::integer
+  INTO v_blocked, v_paid_count, v_retained_count
   FROM tombstoned;
   PERFORM private.raise_if_blocked('show', v_blocked, p_override);
 
@@ -260,7 +238,7 @@ BEGIN
 
   -- MYK9-1596: the override is on the record, in this transaction.
   IF p_override IS TRUE THEN
-    PERFORM private.record_delete_override('show', p_show_id, v_reason, v_now, v_money);
+    PERFORM private.record_delete_override('show', p_show_id, v_reason, v_now, v_paid_count, v_retained_count);
   END IF;
 END;
 $function$;
@@ -277,7 +255,8 @@ DECLARE
   v_now TIMESTAMPTZ := NOW();
   v_user_id UUID := auth.uid();
   v_reason text;
-  v_money jsonb := '[]'::jsonb;
+  v_paid_count integer := 0;
+  v_retained_count integer := 0;
 BEGIN
   -- MYK9-923: the exclusive parent gate, before the existence check and the
   -- cascade take their snapshots. Entry inserts under this class hold it shared.
@@ -319,20 +298,11 @@ BEGIN
       e.id AS entry_id, e.payment_status, e.entry_fee, e.refund_amount, e.stripe_payment_intent_id
   )
   SELECT count(*) FILTER (WHERE blocking)::integer,
-         COALESCE(
-           jsonb_agg(
-             jsonb_build_object(
-               'entry_id', entry_id,
-               'payment_status', payment_status,
-               'entry_fee', entry_fee,
-               'refund_amount', refund_amount,
-               'stripe_payment_intent_id', stripe_payment_intent_id
-             )
-             ORDER BY entry_id
-           ) FILTER (WHERE blocking),
-           '[]'::jsonb
-         )
-  INTO v_blocked, v_money
+         count(*) FILTER (WHERE payment_status = 'paid')::integer,
+         count(*) FILTER (WHERE stripe_payment_intent_id IS NOT NULL
+                            AND payment_status IN ('paid', 'refunded')
+                            AND COALESCE(entry_fee, 0) - COALESCE(refund_amount, 0) > 0)::integer
+  INTO v_blocked, v_paid_count, v_retained_count
   FROM tombstoned;
   PERFORM private.raise_if_blocked('class', v_blocked, p_override);
 
@@ -343,7 +313,7 @@ BEGIN
 
   -- MYK9-1596: the override is on the record, in this transaction.
   IF p_override IS TRUE THEN
-    PERFORM private.record_delete_override('class', p_class_id, v_reason, v_now, v_money);
+    PERFORM private.record_delete_override('class', p_class_id, v_reason, v_now, v_paid_count, v_retained_count);
   END IF;
 END;
 $function$;
@@ -362,7 +332,8 @@ DECLARE
   v_now timestamptz := now();
   v_user_id uuid := auth.uid();
   v_reason text;
-  v_money jsonb := '[]'::jsonb;
+  v_paid_count integer := 0;
+  v_retained_count integer := 0;
 BEGIN
   -- MYK9-923: the exclusive parent gate, before the existence check and the
   -- cascade take their snapshots. Entry inserts under this trial hold it shared.
@@ -399,20 +370,11 @@ BEGIN
       e.id AS entry_id, e.payment_status, e.entry_fee, e.refund_amount, e.stripe_payment_intent_id
   )
   SELECT count(*) FILTER (WHERE blocking)::integer,
-         COALESCE(
-           jsonb_agg(
-             jsonb_build_object(
-               'entry_id', entry_id,
-               'payment_status', payment_status,
-               'entry_fee', entry_fee,
-               'refund_amount', refund_amount,
-               'stripe_payment_intent_id', stripe_payment_intent_id
-             )
-             ORDER BY entry_id
-           ) FILTER (WHERE blocking),
-           '[]'::jsonb
-         )
-  INTO v_blocked, v_money
+         count(*) FILTER (WHERE payment_status = 'paid')::integer,
+         count(*) FILTER (WHERE stripe_payment_intent_id IS NOT NULL
+                            AND payment_status IN ('paid', 'refunded')
+                            AND COALESCE(entry_fee, 0) - COALESCE(refund_amount, 0) > 0)::integer
+  INTO v_blocked, v_paid_count, v_retained_count
   FROM tombstoned;
   PERFORM private.raise_if_blocked('trial', v_blocked, p_override);
 
@@ -426,7 +388,7 @@ BEGIN
 
   -- MYK9-1596: the override is on the record, in this transaction.
   IF p_override IS TRUE THEN
-    PERFORM private.record_delete_override('trial', p_trial_id, v_reason, v_now, v_money);
+    PERFORM private.record_delete_override('trial', p_trial_id, v_reason, v_now, v_paid_count, v_retained_count);
   END IF;
 
   RETURN QUERY SELECT p_trial_id, v_name;
@@ -466,8 +428,8 @@ DECLARE
   v_scored integer := 0;
   v_blocking integer := 0;
   v_paid_amount numeric := 0;
-  v_stripe_unrefunded integer := 0;
-  v_stripe_unrefunded_amount numeric := 0;
+  v_stripe_retained integer := 0;
+  v_stripe_retained_amount numeric := 0;
 BEGIN
   IF p_scope = 'show' THEN
     -- soft_delete_show: found (P0002) first, then the club/site gate (42501).
@@ -503,11 +465,13 @@ BEGIN
                               OR (e.result_status IS NOT NULL AND e.result_status <> 'pending'))::integer,
            count(*) FILTER (WHERE private.is_blocking_entry(e.payment_status, e.is_scored, e.scoring_completed_at, e.result_status))::integer,
            COALESCE(sum(e.entry_fee) FILTER (WHERE e.payment_status = 'paid'), 0),
-           count(*) FILTER (WHERE e.payment_status = 'paid' AND e.stripe_payment_intent_id IS NOT NULL
-                              AND COALESCE(e.refund_amount, 0) = 0)::integer,
-           COALESCE(sum(e.entry_fee) FILTER (WHERE e.payment_status = 'paid' AND e.stripe_payment_intent_id IS NOT NULL
-                              AND COALESCE(e.refund_amount, 0) = 0), 0)
-    INTO v_entries, v_paid, v_scored, v_blocking, v_paid_amount, v_stripe_unrefunded, v_stripe_unrefunded_amount
+           count(*) FILTER (WHERE e.stripe_payment_intent_id IS NOT NULL
+                              AND e.payment_status IN ('paid', 'refunded')
+                              AND COALESCE(e.entry_fee, 0) - COALESCE(e.refund_amount, 0) > 0)::integer,
+           COALESCE(sum(GREATEST(COALESCE(e.entry_fee, 0) - COALESCE(e.refund_amount, 0), 0))
+                      FILTER (WHERE e.stripe_payment_intent_id IS NOT NULL
+                                AND e.payment_status IN ('paid', 'refunded')), 0)
+    INTO v_entries, v_paid, v_scored, v_blocking, v_paid_amount, v_stripe_retained, v_stripe_retained_amount
     FROM public.entries e
     WHERE e.deleted_at IS NULL
       AND (
@@ -542,11 +506,13 @@ BEGIN
                               OR (e.result_status IS NOT NULL AND e.result_status <> 'pending'))::integer,
            count(*) FILTER (WHERE private.is_blocking_entry(e.payment_status, e.is_scored, e.scoring_completed_at, e.result_status))::integer,
            COALESCE(sum(e.entry_fee) FILTER (WHERE e.payment_status = 'paid'), 0),
-           count(*) FILTER (WHERE e.payment_status = 'paid' AND e.stripe_payment_intent_id IS NOT NULL
-                              AND COALESCE(e.refund_amount, 0) = 0)::integer,
-           COALESCE(sum(e.entry_fee) FILTER (WHERE e.payment_status = 'paid' AND e.stripe_payment_intent_id IS NOT NULL
-                              AND COALESCE(e.refund_amount, 0) = 0), 0)
-    INTO v_entries, v_paid, v_scored, v_blocking, v_paid_amount, v_stripe_unrefunded, v_stripe_unrefunded_amount
+           count(*) FILTER (WHERE e.stripe_payment_intent_id IS NOT NULL
+                              AND e.payment_status IN ('paid', 'refunded')
+                              AND COALESCE(e.entry_fee, 0) - COALESCE(e.refund_amount, 0) > 0)::integer,
+           COALESCE(sum(GREATEST(COALESCE(e.entry_fee, 0) - COALESCE(e.refund_amount, 0), 0))
+                      FILTER (WHERE e.stripe_payment_intent_id IS NOT NULL
+                                AND e.payment_status IN ('paid', 'refunded')), 0)
+    INTO v_entries, v_paid, v_scored, v_blocking, v_paid_amount, v_stripe_retained, v_stripe_retained_amount
     FROM public.entries e
     WHERE e.deleted_at IS NULL
       AND (
@@ -576,11 +542,13 @@ BEGIN
                               OR (e.result_status IS NOT NULL AND e.result_status <> 'pending'))::integer,
            count(*) FILTER (WHERE private.is_blocking_entry(e.payment_status, e.is_scored, e.scoring_completed_at, e.result_status))::integer,
            COALESCE(sum(e.entry_fee) FILTER (WHERE e.payment_status = 'paid'), 0),
-           count(*) FILTER (WHERE e.payment_status = 'paid' AND e.stripe_payment_intent_id IS NOT NULL
-                              AND COALESCE(e.refund_amount, 0) = 0)::integer,
-           COALESCE(sum(e.entry_fee) FILTER (WHERE e.payment_status = 'paid' AND e.stripe_payment_intent_id IS NOT NULL
-                              AND COALESCE(e.refund_amount, 0) = 0), 0)
-    INTO v_entries, v_paid, v_scored, v_blocking, v_paid_amount, v_stripe_unrefunded, v_stripe_unrefunded_amount
+           count(*) FILTER (WHERE e.stripe_payment_intent_id IS NOT NULL
+                              AND e.payment_status IN ('paid', 'refunded')
+                              AND COALESCE(e.entry_fee, 0) - COALESCE(e.refund_amount, 0) > 0)::integer,
+           COALESCE(sum(GREATEST(COALESCE(e.entry_fee, 0) - COALESCE(e.refund_amount, 0), 0))
+                      FILTER (WHERE e.stripe_payment_intent_id IS NOT NULL
+                                AND e.payment_status IN ('paid', 'refunded')), 0)
+    INTO v_entries, v_paid, v_scored, v_blocking, v_paid_amount, v_stripe_retained, v_stripe_retained_amount
     FROM public.entries e
     WHERE e.class_id = p_id AND e.deleted_at IS NULL;
 
@@ -698,8 +666,8 @@ BEGIN
     'scored', v_scored,
     'blocking', v_blocking,
     'paid_amount', v_paid_amount,
-    'stripe_unrefunded', v_stripe_unrefunded,
-    'stripe_unrefunded_amount', v_stripe_unrefunded_amount
+    'stripe_retained', v_stripe_retained,
+    'stripe_retained_amount', v_stripe_retained_amount
   );
 END;
 $function$;

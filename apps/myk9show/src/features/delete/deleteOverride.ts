@@ -44,12 +44,12 @@ export function amountMatches(typed: string, dollars: number): boolean {
 
 /** Online payments that stay captured: the dialog then also asks for their dollar amount. */
 export function needsAmountConfirmation(preview: DeletePreview): boolean {
-  return preview.stripe_unrefunded > 0;
+  return preview.stripe_retained > 0;
 }
 
 /**
  * Armed only when the name is typed, the reason is not blank and, if paid
- * online with no refund recorded, the dollar amount of those payments is typed.
+ * online and still holding money after refunds, the dollar amount held is typed.
  */
 export function overrideArmedBy(
   inputs: OverrideInputs,
@@ -60,7 +60,7 @@ export function overrideArmedBy(
   if (trimmedReason(inputs.reason).length === 0) return false;
   if (
     needsAmountConfirmation(preview) &&
-    !amountMatches(inputs.amount, preview.stripe_unrefunded_amount)
+    !amountMatches(inputs.amount, preview.stripe_retained_amount)
   ) {
     return false;
   }

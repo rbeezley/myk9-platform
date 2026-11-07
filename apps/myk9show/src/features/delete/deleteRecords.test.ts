@@ -355,8 +355,8 @@ describe('delete_preview reply and failures', () => {
         scored: 0,
         blocking: 3,
         paid_amount: 420.5,
-        stripe_unrefunded: 1,
-        stripe_unrefunded_amount: 30,
+        stripe_retained: 1,
+        stripe_retained_amount: 30,
       })
     ).toEqual({
       trials: 2,
@@ -368,8 +368,8 @@ describe('delete_preview reply and failures', () => {
       scored: 0,
       blocking: 3,
       paid_amount: 420.5,
-      stripe_unrefunded: 1,
-      stripe_unrefunded_amount: 30,
+      stripe_retained: 1,
+      stripe_retained_amount: 30,
     });
   });
 });

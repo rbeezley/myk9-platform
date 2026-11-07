@@ -24,10 +24,10 @@ export function overrideConsequence(preview: DeletePreview): string {
 
 /** The online payments that stay captured. Only when some were paid by card with no refund. */
 export function stripeWarning(preview: DeletePreview): string {
-  const n = preview.stripe_unrefunded;
-  return `${n} of these ${entries(n)} ${n === 1 ? 'was' : 'were'} paid online, ${formatCurrency(
-    preview.stripe_unrefunded_amount
-  )} in all. That money stays captured in Stripe and myK9 does not refund it. Refund these entries in myK9 first if the money should go back, never in the Stripe dashboard.`;
+  const n = preview.stripe_retained;
+  return `${n} of these ${entries(n)} still ${n === 1 ? 'holds' : 'hold'} money paid online, ${formatCurrency(
+    preview.stripe_retained_amount
+  )} in all after any refunds. That money stays captured in Stripe and myK9 does not refund it. Refund these entries in myK9 first if the money should go back, never in the Stripe dashboard.`;
 }
 
 export const OVERRIDE_HEADING = 'Delete anyway (site admin)';

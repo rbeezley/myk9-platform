@@ -29,7 +29,13 @@ describe('DogCard', () => {
 
   it('the run-order grip takes the touch, and the rest of the card still scrolls (MYK9-1734)', () => {
     render(
-      <DogCard armband={103} callName="Tauri" dragHandle={<span data-testid="grip">⋮⋮</span>} />
+      <DogCard
+        armband={103}
+        callName="Tauri"
+        breed="Australian Shepherd"
+        handler="Jane Handler"
+        dragHandle={<span data-testid="grip">⋮⋮</span>}
+      />
     );
     // touch-action: none on the grip wrapper stops the browser claiming the press for scrolling,
     // so dnd-kit's TouchSensor can start the drag on a phone.

@@ -32,6 +32,14 @@ import {
 } from './deleteRecords';
 import { offerUndoToast } from './deleteUndoToast';
 import { DeleteObjectDialogView } from './DeleteObjectDialogView';
+import { DeleteOverrideControl } from './DeleteOverrideControl';
+import {
+  EMPTY_OVERRIDE_INPUTS,
+  overrideArmedBy,
+  supportsAdminOverride,
+  trimmedReason,
+  type OverrideInputs,
+} from './deleteOverride';
 import { blockedActionFor } from './deleteBlockedAction';
 import { useDeletePreview } from './useDeletePreview';
 import { useUnsavedWork, type UnsavedWorkState } from './useUnsavedWork';
@@ -98,9 +106,24 @@ export function DeleteObjectDialog({
   // starts unticked (same rule as DeleteDogDialog, MYK9-600).
   const [overrideArmed, setOverrideArmed] = useState(false);
 
-  // Only the dog keeps an in-dialog admin override today (force_delete_dog,
-  // MYK9-596). The other guarded objects point at Cancel / Withdraw / Pull.
-  const allowOverride = kind === 'dog' && hasRole(UserRole.SITE_ADMIN);
+  const isSiteAdmin = hasRole(UserRole.SITE_ADMIN);
+  // The dog keeps its checkbox override (force_delete_dog, MYK9-596). A show,
+  // trial or class offers a typed-confirmation override (MYK9-1596), only to a
+  // site admin, for ONE object, and only once the server says it is blocked.
+  // Entries and everything else point at Withdraw / Pull instead.
+  const allowDogOverride = kind === 'dog' && isSiteAdmin;
+  const [overrideInputs, setOverrideInputs] = useState<OverrideInputs>(EMPTY_OVERRIDE_INPUTS);
+  const overrideTarget = liveTargets.length === 1 ? liveTargets[0] : undefined;
+  const blockedPreview =
+    state.status === 'ready' && state.preview.blocking > 0 ? state.preview : undefined;
+  const adminOverride =
+    isSiteAdmin && supportsAdminOverride(kind) && overrideTarget && blockedPreview
+      ? { target: overrideTarget, preview: blockedPreview }
+      : undefined;
+  const adminOverrideArmed =
+    adminOverride !== undefined &&
+    overrideArmedBy(overrideInputs, adminOverride.target.name, adminOverride.preview);
+  const armed = allowDogOverride ? overrideArmed : adminOverrideArmed;
 
   const close = () => {
     setErrorMessage(null);
@@ -138,9 +161,13 @@ export function DeleteObjectDialog({
     onDeleteStart?.();
     let result: DeleteRecordsResult;
     try {
-      result = await deleteRecords(kind, liveTargets, {
-        override: allowOverride && overrideArmed,
-      });
+      result = await deleteRecords(
+        kind,
+        liveTargets,
+        adminOverride && adminOverrideArmed
+          ? { override: true, reason: trimmedReason(overrideInputs.reason) }
+          : { override: allowDogOverride && overrideArmed }
+      );
       // The preview's already-gone items leave this device now, unless they are
       // still saving (then they are refused like any other delete, not purged).
       const reconciled = await reconcileGoneTargets(kind, goneTargets);
@@ -212,8 +239,8 @@ export function DeleteObjectDialog({
       errorMessage={errorMessage}
       blockedAction={blockedActionFor(kind, liveTargets)}
       onBlockedAction={onBlockedAction}
-      overrideArmed={overrideArmed}
-      {...(allowOverride
+      overrideArmed={armed}
+      {...(allowDogOverride
         ? {
             overrideControl: (
               <ForceDeleteOverride
@@ -223,7 +250,20 @@ export function DeleteObjectDialog({
               />
             ),
           }
-        : {})}
+        : adminOverride
+          ? {
+              overrideControl: (
+                <DeleteOverrideControl
+                  kind={kind}
+                  targetName={adminOverride.target.name}
+                  preview={adminOverride.preview}
+                  inputs={overrideInputs}
+                  onChange={setOverrideInputs}
+                  disabled={isDeleting}
+                />
+              ),
+            }
+          : {})}
     />
   );
 }

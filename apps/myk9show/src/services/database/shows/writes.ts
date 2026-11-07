@@ -2,6 +2,7 @@ import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import type { DbShowInsert, DbShowUpdate } from '../../../types/database-mappings';
 import type { TablesUpdate } from '@/types/supabase';
 import { classifyShowDeleteError } from './deleteOutcome';
+import { overrideRpcArgs, type OverrideOptions } from '../overrideRpcArgs';
 
 // Create new show
 export const createShow = async (showData: DbShowInsert) => {
@@ -87,10 +88,7 @@ export const updateShow = async (id: string, updates: DbShowUpdate) => {
 
 // Soft delete show
 /** Options for the soft-delete RPCs that carry the paid/scored guard. */
-export interface SoftDeleteOptions {
-  /** Site-admin override of the MK010 guard; the server refuses it for anyone else. */
-  override?: boolean;
-}
+export type SoftDeleteOptions = OverrideOptions;
 
 export const deleteShow = async (
   id: string,
@@ -114,7 +112,7 @@ export const deleteShow = async (
     // checks inside the database function.
     const { error } = await supabase.rpc('soft_delete_show', {
       p_show_id: id,
-      ...(options.override ? { p_override: true } : {}),
+      ...overrideRpcArgs(options),
     });
 
     const duration = Date.now() - startTime;

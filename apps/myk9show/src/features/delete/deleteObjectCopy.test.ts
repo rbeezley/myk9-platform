@@ -101,10 +101,10 @@ describe('delete dialog copy', () => {
     expect(paidScoredPhrase(0, 1)).toBe('1 entry is scored');
     expect(paidScoredPhrase(3, 2)).toBe('3 entries are paid and 2 are scored');
     expect(blockedReason('show', preview({ paid: 3, blocking: 3 }))).toBe(
-      '3 entries are paid. Cancel the show instead of deleting it. Refunds are not automatic: after cancelling, open Show details to refund online-paid entries.'
+      '3 entries are paid, so this show cannot be deleted. If it is not going ahead, cancel it. Refunds are not automatic: after cancelling, open Show details to refund online-paid entries.'
     );
     expect(blockedReason('show', preview({ scored: 2, blocking: 2 }))).toBe(
-      '2 entries are scored. Cancel the show instead of deleting it.'
+      '2 entries are scored, so this show cannot be deleted. If it is not going ahead, cancel it.'
     );
     expect(blockedReason('show', preview({ paid: 3, blocking: 3 }), true)).toBe(
       '3 entries are paid, so this show cannot be deleted. Refunds are not automatic: open Show details to refund online-paid entries.'
@@ -135,7 +135,7 @@ describe('delete dialog copy', () => {
     expect(bulkNameList(many.slice(0, 5))).toBe('A, B, C, D and E');
     expect(bulkNameList(many)).toBe('A, B, C, D, E and 2 more');
     expect(bulkBlockedReason('show', [target('Spring Show')])).toBe(
-      'Spring Show has paid or scored entries. Cancel that show instead. Leave it out of the selection to delete the rest.'
+      'Spring Show has paid or scored entries, so it cannot be deleted. If it is not going ahead, cancel it. Leave it out of the selection to delete the rest.'
     );
   });
 

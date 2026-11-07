@@ -424,7 +424,7 @@ SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000922103
 SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000922103","role":"authenticated"}', true);
 INSERT INTO expect_preview VALUES
   ('show SH1 before delete', public.delete_preview('show', '00000000-0000-0000-0000-000000922031'), NULL);
-SELECT public.soft_delete_show('00000000-0000-0000-0000-000000922031', true);
+SELECT public.soft_delete_show('00000000-0000-0000-0000-000000922031', true, 'MYK9-922 test reason');
 RESET ROLE;
 
 DO $$

@@ -457,9 +457,9 @@ SELECT pg_temp.expect('replaced functions keep SECURITY DEFINER, empty search_pa
             ',' ORDER BY p.proname)
      FROM pg_proc p
     WHERE p.oid IN (
-      'public.soft_delete_show(uuid, boolean)'::regprocedure,
-      'public.soft_delete_class(uuid, boolean)'::regprocedure,
-      'public.soft_delete_trial(uuid, boolean)'::regprocedure,
+      'public.soft_delete_show(uuid, boolean, text)'::regprocedure,
+      'public.soft_delete_class(uuid, boolean, text)'::regprocedure,
+      'public.soft_delete_trial(uuid, boolean, text)'::regprocedure,
       'public.restore_entry(uuid)'::regprocedure,
       'public.restore_dog(uuid)'::regprocedure,
       'public.move_up_entry(uuid, uuid, uuid, text)'::regprocedure)),

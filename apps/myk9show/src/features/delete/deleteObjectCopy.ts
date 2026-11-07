@@ -136,7 +136,9 @@ export function blockedReason(
       if (showCancelled) {
         return `${phrase}, so this show cannot be deleted.${preview.paid > 0 ? SHOW_REFUND_NOTE_CANCELLED : ''}`;
       }
-      return `${phrase}. Cancel the show instead of deleting it.${preview.paid > 0 ? SHOW_REFUND_NOTE : ''}`;
+      // Cancelling does not make a show deletable, so this never says "cancel,
+      // then delete": it offers Cancel as the other thing to do (MYK9-1596).
+      return `${phrase}, so this show cannot be deleted. If it is not going ahead, cancel it.${preview.paid > 0 ? SHOW_REFUND_NOTE : ''}`;
     }
     case 'trial':
     case 'class':
@@ -167,7 +169,7 @@ export function bulkBlockedReason(
     case 'person':
       return `${names} still ${plural ? 'own' : 'owns'} dogs. ${leaveOut}`;
     case 'show':
-      return `${names} ${has} paid or scored entries. Cancel ${plural ? 'those shows' : 'that show'} instead. ${leaveOut}`;
+      return `${names} ${has} paid or scored entries, so ${plural ? 'they cannot' : 'it cannot'} be deleted. If ${plural ? 'they are' : 'it is'} not going ahead, cancel ${plural ? 'them' : 'it'}. ${leaveOut}`;
     case 'entry':
       return `${names} ${plural ? 'are' : 'is'} paid or scored. Use Withdraw or Pull instead. ${leaveOut}`;
     default:

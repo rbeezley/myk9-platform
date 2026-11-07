@@ -53,6 +53,9 @@ const counts = (over: Partial<DeletePreview> = {}): DeletePreview => ({
   paid: 0,
   scored: 0,
   blocking: 0,
+  paid_amount: 0,
+  stripe_unrefunded: 0,
+  stripe_unrefunded_amount: 0,
   ...over,
 });
 
@@ -284,7 +287,7 @@ describe('DeleteObjectDialog three states', () => {
     const dialog = await screen.findByRole('alertdialog');
     expect(
       await within(dialog).findByText(
-        '3 entries are paid. Cancel the show instead of deleting it. Refunds are not automatic: after cancelling, open Show details to refund online-paid entries.'
+        '3 entries are paid, so this show cannot be deleted. If it is not going ahead, cancel it. Refunds are not automatic: after cancelling, open Show details to refund online-paid entries.'
       )
     ).toBeVisible();
     expect(within(dialog).getByRole('link', { name: 'Cancel show' })).toHaveAttribute(

@@ -324,7 +324,9 @@ export function EntryRegistrationQueue({
                     </div>
 
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{dogNames.join(', ')}</p>
+                      <p className="truncate text-sm font-medium" title={dogNames.join(', ')}>
+                        {dogNames.join(', ')}
+                      </p>
                       <p className="text-xs text-muted-foreground">
                         {group.entryCount} {group.entryCount === 1 ? 'Entry' : 'Entries'} ·{' '}
                         {group.classCount} {group.classCount === 1 ? 'Class' : 'Classes'}

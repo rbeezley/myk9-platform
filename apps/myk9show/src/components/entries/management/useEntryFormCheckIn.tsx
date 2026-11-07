@@ -5,7 +5,7 @@ import { CheckInStatusIndicator } from '@/components/common/CheckInStatusIndicat
 import { useShowDeskScheduleRead } from '@/pages/secretary/useShowDeskScheduleRead';
 import type { EntryClass, EntryManagementEntry } from '@/types/entry-management-types';
 import {
-  applyOptimisticCheckIn,
+  applyOptimisticDeskStatuses,
   buildCheckInDeskClasses,
   eligibleCheckInEntryIds,
 } from './checkInDesk/checkInDeskModel';
@@ -37,7 +37,7 @@ export function useEntryFormCheckIn(
 ): EntryFormCheckIn {
   const now = useMinuteClock();
   const { trials, trialClasses, readFailed, retry } = useShowDeskScheduleRead();
-  const { checkedInIds, busyIds, error, checkIn } = useCheckInDeskActions(onRefreshEntries);
+  const { statuses, busyIds, error, setStatus } = useCheckInDeskActions(onRefreshEntries);
 
   const classes = useMemo(
     () =>
@@ -48,8 +48,8 @@ export function useEntryFormCheckIn(
     [showId, trialClasses, trials]
   );
   const shownEntries = useMemo(
-    () => applyOptimisticCheckIn(entries, checkedInIds),
-    [checkedInIds, entries]
+    () => applyOptimisticDeskStatuses(entries, statuses),
+    [entries, statuses]
   );
   const eligibleIds = useMemo(
     () => eligibleCheckInEntryIds(shownEntries, classes, now),
@@ -62,7 +62,7 @@ export function useEntryFormCheckIn(
     error,
     scheduleFailed: readFailed,
     retrySchedule: () => void retry(),
-    checkIn,
+    checkIn: (personName, entryIds) => setStatus(personName, entryIds, 'checked-in'),
   };
 }
 

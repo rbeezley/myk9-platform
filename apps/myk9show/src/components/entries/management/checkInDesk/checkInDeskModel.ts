@@ -5,10 +5,13 @@
  */
 import {
   buildPeopleRoster,
+  DESK_STATUS_SET,
   filterPeopleRoster,
   type PeopleRosterClassInfo,
+  type PeopleRosterClassRow,
   type PeopleRosterPerson,
 } from '@/components/entries/management/checkInDesk/peopleRoster';
+import type { CheckInStatus } from '@myk9/core';
 import { buildTrialRingResolver } from '@/components/entries/management/checkInDesk/trialRingLabel';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import type { Trial, TrialClass } from '@/components/trials/types/trial.types';
@@ -91,27 +94,66 @@ export function filterCheckInDesk(
 }
 
 /**
- * Optimistic until the entries re-read lands. Only a class with no ringside status yet flips:
- * at-gate, in-ring, pulled or completed from a later read are never masked. Shared by the
- * Check-in desk and the entry form so both show a check-in the same way.
+ * Optimistic until the entries re-read lands. A class flips only while it still holds a status
+ * the desk itself sets (not checked in, checked in, conflict), so at-gate, in-ring, pulled or
+ * completed from a later read are never masked. Shared by the Check-in desk and the entry form
+ * so both show a change the same way.
  */
-export function applyOptimisticCheckIn(
+export function applyOptimisticDeskStatuses(
   entries: readonly EntryManagementEntry[],
-  checkedInIds: ReadonlySet<string>
+  statuses: ReadonlyMap<string, CheckInStatus>
 ): EntryManagementEntry[] {
-  if (checkedInIds.size === 0) return [...entries];
-  return entries.map(entry =>
-    checkedInIds.has(entry.id)
-      ? {
-          ...entry,
-          classes: entry.classes.map(cls =>
-            !cls.checkInStatus || cls.checkInStatus === 'no-status'
-              ? { ...cls, checkInStatus: 'checked-in' as const, checkInTime: new Date() }
-              : cls
-          ),
-        }
-      : entry
-  );
+  if (statuses.size === 0) return [...entries];
+  return entries.map(entry => {
+    const next = statuses.get(entry.id);
+    if (!next) return entry;
+    return {
+      ...entry,
+      classes: entry.classes.map(cls =>
+        DESK_STATUS_SET.has(cls.checkInStatus ?? 'no-status') && cls.checkInStatus !== next
+          ? {
+              ...cls,
+              checkInStatus: next,
+              ...(next === 'checked-in' ? { checkInTime: new Date() } : {}),
+            }
+          : cls
+      ),
+    };
+  });
+}
+
+/** One dog's card on the desk: its armband, its class lines, and what one tap checks in. */
+export interface CheckInDeskDog {
+  key: string;
+  dogName: string;
+  armband: string | null;
+  rows: PeopleRosterClassRow[];
+  /** Waiting today with no status yet. A class marked Conflict is left for the secretary. */
+  pendingEntryIds: string[];
+}
+
+/**
+ * A person's class rows as one card per dog, in the roster's own order. A dog carrying two
+ * armbands (one per trial) gets a card per armband, so the badge is never wrong for a line.
+ */
+export function groupCheckInDeskDogs(person: PeopleRosterPerson): CheckInDeskDog[] {
+  const dogs = new Map<string, CheckInDeskDog>();
+  for (const row of person.classRows) {
+    const key = `${row.sourceEntry.dogId}:${row.armband ?? ''}`;
+    const dog = dogs.get(key) ?? {
+      key,
+      dogName: row.dogName,
+      armband: row.armband,
+      rows: [],
+      pendingEntryIds: [],
+    };
+    dog.rows.push(row);
+    if (row.eligibleForCheckIn && row.checkInStatus === 'no-status') {
+      dog.pendingEntryIds.push(row.entryId);
+    }
+    dogs.set(key, dog);
+  }
+  return [...dogs.values()];
 }
 
 /** The entries with at least one class the Check-in desk would offer "Check in" for today. */

@@ -47,6 +47,8 @@ export interface PeopleRosterClassRow {
   checkInStatus: CheckInStatus;
   eligibleForCheckIn: boolean;
   ineligibleReason: string | null;
+  /** The desk may set this class to one of `DESK_CHECK_IN_STATUSES` (MYK9-1736). */
+  deskStatusEditable: boolean;
   sourceEntry: EntryManagementEntry;
   sourceClass: EntryClass;
 }
@@ -94,6 +96,26 @@ const TERMINAL_ENTRY_STATUSES = new Set<EntryStatus>([
 // MYK9-632: 'withdrawn' is its own class status now. It is as terminal as a
 // pull for roster purposes — neither dog is going in the ring.
 const TERMINAL_CLASS_STATUSES = new Set<EntryClass['status']>(['scratched', 'withdrawn', 'absent']);
+
+/**
+ * The statuses the Check-in desk sets on one class (MYK9-1736): undo, check in, or mark a ring
+ * conflict. Pull has its own reasoned flow on the Entries page; gate and ring are ringside's.
+ */
+export const DESK_CHECK_IN_STATUSES: readonly CheckInStatus[] = [
+  'no-status',
+  'checked-in',
+  'conflict',
+];
+export const DESK_STATUS_SET: ReadonlySet<CheckInStatus> = new Set(DESK_CHECK_IN_STATUSES);
+
+/** The desk's words for its statuses: "No Status" reads as a fault to a secretary. */
+export const DESK_STATUS_LABELS: Partial<Record<CheckInStatus, string>> = {
+  'no-status': 'Not checked in',
+};
+
+export function deskStatusLabel(status: CheckInStatus): string {
+  return DESK_STATUS_LABELS[status] ?? getStatusDescriptor('entry', status).label;
+}
 
 function normalize(value: string | null | undefined): string {
   return (value ?? '').trim().toLowerCase();
@@ -255,7 +277,9 @@ function statusPresentation(
     entry.entryStatus === EntryStatus.WAITLIST
       ? entry.entryStatus
       : eligible
-        ? 'not_checked_in'
+        ? cls.checkInStatus === 'conflict'
+          ? 'conflict'
+          : 'not_checked_in'
         : (cls.checkInStatus ?? 'no-status');
   return {
     label: reason ?? getStatusDescriptor('entry', value).label,
@@ -296,6 +320,14 @@ function buildClassRows(
       const info = classesById.get(classId);
       const eligibility = checkInEligibility(entry, cls, info, currentDate);
       const status = statusPresentation(entry, cls, eligibility.eligible, eligibility.reason);
+      const current = cls.checkInStatus ?? 'no-status';
+      // Editable exactly when the class could be checked in were it still waiting: same
+      // accepted, active and today rules, so the desk never rewrites an underway or closed run.
+      const deskStatusEditable =
+        DESK_STATUS_SET.has(current) &&
+        (eligibility.eligible ||
+          checkInEligibility(entry, { ...cls, checkInStatus: 'no-status' }, info, currentDate)
+            .eligible);
       return {
         id: `${entry.id}:${classId}`,
         entryId: entry.id,
@@ -310,6 +342,7 @@ function buildClassRows(
         checkInStatus: cls.checkInStatus ?? 'no-status',
         eligibleForCheckIn: eligibility.eligible,
         ineligibleReason: eligibility.reason,
+        deskStatusEditable,
         sourceEntry: entry,
         sourceClass: cls,
       };

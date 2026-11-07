@@ -71,7 +71,9 @@ async function writeCheckInStatus(
   await updateReplicatedCheckInStatus(entryId, status);
 }
 
-export function useAtShowEntryListActions(deps: UseAtShowEntryListActionsDeps): EntryListActions {
+export function useAtShowEntryListActions(
+  deps: UseAtShowEntryListActionsDeps
+): EntryListActions & { writer: CheckInWriter } {
   const { refresh } = deps;
   const writer: CheckInWriter = deps.writer ?? 'replicated';
   const [isSyncing, setIsSyncing] = useState(false);
@@ -193,5 +195,7 @@ export function useAtShowEntryListActions(deps: UseAtShowEntryListActionsDeps): 
     isSyncing,
     hasError,
     pendingCount,
+    // Lets a caller tell which authority wrote, e.g. whether Undo can restore a staff-set status.
+    writer,
   };
 }

@@ -25,6 +25,7 @@ import type {
   Entry,
 } from '@myk9/ringside';
 import { toast } from 'sonner';
+import type { CheckInWriter } from '@/services/show-day/checkInStatus';
 import { showUndoToast } from '@/lib/undoToast';
 import { logger } from '@/utils/logger';
 import { supabase } from '@/services/database/supabaseClient';
@@ -45,7 +46,7 @@ type ResetConfirmState = { show: boolean; entry: Entry | null };
 
 export interface UseAtShowEntryListHandlersDeps {
   /** Mutation bag from `useAtShowEntryListActions`. */
-  actions: EntryListActions;
+  actions: EntryListActions & { writer?: CheckInWriter | undefined };
   /** Replication capability (for the class-status dialog). */
   replication: RingsideReplication;
   /** Route param. */
@@ -255,8 +256,8 @@ export function useAtShowEntryListHandlers(
           previous &&
           previous.status !== 'pulled' &&
           // `self_checkin_entry` (exhibitor writer) refuses staff-set statuses, so Undo
-          // would leave the dog pulled; only staff, who write through the replica, get it.
-          (hasPermission('canScore') || SELF_RESTORABLE.has(previous.status as string))
+          // would leave the dog pulled; the replicated (staff) writer can restore any.
+          (actions.writer !== 'self-checkin-rpc' || SELF_RESTORABLE.has(previous.status as string))
         ) {
           // Undo goes back through this same handler, so it takes the same write path.
           const priorStatus = previous.status as EntryStatusChange;
@@ -272,7 +273,7 @@ export function useAtShowEntryListHandlers(
         logger.error('[at-show] status change failed', 'at-show', { error: String(error) });
       }
     },
-    [actions, hasPermission, setActiveStatusPopup, setLocalEntries]
+    [actions, setActiveStatusPopup, setLocalEntries]
   );
 
   useEffect(() => {

@@ -385,16 +385,34 @@ describe('useAtShowEntryListHandlers - optimistic check-in', () => {
     expect(toastSuccess).toHaveBeenCalledTimes(1);
   });
 
-  it('offers no Undo to a non-staff writer when the prior status is staff-set', async () => {
+  it('offers no Undo to a exhibitor writer when the prior status is staff-set', async () => {
     mirror = [makeEntry({ id: 'e1', status: 'come-to-gate' as EntryStatus })];
-    const { result } = renderHandlers(mirror, actions, applyToMirror, undefined, () => false);
+    const exhibitorActions = { ...actions, writer: 'self-checkin-rpc' as const };
+    const { result } = renderHandlers(mirror, exhibitorActions, applyToMirror);
 
     await act(async () => {
       await result.current.handleStatusChange('e1', 'pulled');
     });
 
-    expect(actions.handleStatusChange).toHaveBeenCalledWith('e1', 'pulled');
+    expect(exhibitorActions.handleStatusChange).toHaveBeenCalledWith('e1', 'pulled');
     expect(toastSuccess).not.toHaveBeenCalled();
+  });
+
+  it('keeps Undo for a staff writer even when the prior status is staff-set and canScore is false', async () => {
+    mirror = [makeEntry({ id: 'e1', status: 'come-to-gate' as EntryStatus })];
+    const { result } = renderHandlers(
+      mirror,
+      { ...actions, writer: 'replicated' },
+      applyToMirror,
+      undefined,
+      () => false
+    );
+
+    await act(async () => {
+      await result.current.handleStatusChange('e1', 'pulled');
+    });
+
+    expect(toastSuccess).toHaveBeenCalledTimes(1);
   });
 
   it('offers no Undo for a non-Pulled status', async () => {

@@ -179,15 +179,14 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
             <ClipboardList className="h-4 w-4 text-muted-foreground" />
             <h2 className="text-sm font-semibold text-foreground">Your entry</h2>
           </div>
-          {/* With Back/Next in the card the list gives up height, so the
-              buttons stay inside a laptop viewport under the pinned header. */}
-          <div className={cn('overflow-y-auto', asideNavigation ? 'max-h-[30vh]' : 'max-h-[50vh]')}>
-            {lines}
-          </div>
-          {totalsBlock}
+          {/* Back/Next sit at the TOP of the card (MYK9-1742): a long entry list
+              or the payment summary grows below them, so nothing can push the
+              buttons off a laptop screen. */}
           {asideNavigation && (
             <div data-testid="entries-panel-aside-navigation">{asideNavigation}</div>
           )}
+          <div className="max-h-[50vh] overflow-y-auto">{lines}</div>
+          {totalsBlock}
         </div>
       </aside>
 

@@ -195,7 +195,7 @@ function RegistrationWizardContent({ onStartAnother }: { onStartAnother: () => v
         groups={panelGroups}
         variant={isPaymentStep ? 'payment' : 'default'}
         {...(isDesktopLayout
-          ? { asideNavigation: wizardNavigation('mt-0 pt-4') }
+          ? { asideNavigation: wizardNavigation('mt-0 border-t-0 border-b pt-0 pb-4') }
           : { navigation: wizardNavigation('mt-0 border-t-0 pt-0') })}
         capacityReady={capacityReady}
         capacityUnavailable={capacityUnavailable}

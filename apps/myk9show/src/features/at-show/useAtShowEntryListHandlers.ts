@@ -26,21 +26,13 @@ import type {
 } from '@myk9/ringside';
 import { toast } from 'sonner';
 import type { CheckInWriter } from '@/services/show-day/checkInStatus';
-import { showUndoToast } from '@/lib/undoToast';
+import { offerPullUndo } from './offerPullUndo';
 import { logger } from '@/utils/logger';
 import { supabase } from '@/services/database/supabaseClient';
 import { calculateRunOrder, storedRunOrder, toMyK9ShowRunOrderPreset } from '@/lib/runOrderUtils';
 import { notifyRunOrderPersistError } from './runOrderErrorToast';
 import { persistRunOrderResults } from './persistRunOrderResults';
 import { toStatusUpdateFields } from './ringsideClassStatusMap';
-
-/** Statuses `self_checkin_entry` accepts, so an exhibitor's Undo can write them back. */
-const SELF_RESTORABLE: ReadonlySet<string> = new Set([
-  'no-status',
-  'checked-in',
-  'conflict',
-  'at-gate',
-]);
 
 type ResetConfirmState = { show: boolean; entry: Entry | null };
 
@@ -251,20 +243,12 @@ export function useAtShowEntryListHandlers(
           return;
         }
         await actions.handleStatusChange(entryId, status);
-        if (
-          status === 'pulled' &&
-          previous &&
-          previous.status !== 'pulled' &&
-          // `self_checkin_entry` (exhibitor writer) refuses staff-set statuses, so Undo
-          // would leave the dog pulled; the replicated (staff) writer can restore any.
-          (actions.writer !== 'self-checkin-rpc' || SELF_RESTORABLE.has(previous.status as string))
-        ) {
-          // Undo goes back through this same handler, so it takes the same write path.
-          const priorStatus = previous.status as EntryStatusChange;
-          showUndoToast({
-            message: `${previous.callName} pulled`,
-            onUndo: () => void handleStatusChangeRef.current?.(entryId, priorStatus),
-          });
+        if (status === 'pulled') {
+          offerPullUndo(
+            previous,
+            actions.writer,
+            prior => void handleStatusChangeRef.current?.(entryId, prior)
+          );
         }
       } catch (error) {
         // Showing a status the server rejected is worse than showing none: the

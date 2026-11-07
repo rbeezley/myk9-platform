@@ -19,6 +19,8 @@ import {
 import { CheckInDeskDogCard } from './CheckInDeskDogCard';
 import { useCheckInDeskActions } from './useCheckInDeskActions';
 import { useMinuteClock } from './useMinuteClock';
+import { useDeskPull } from './useDeskPull';
+import { PullAtShowDialog } from './PullAtShowDialog';
 
 interface CheckInDeskProps {
   showId: string;
@@ -59,7 +61,6 @@ export function CheckInDesk({
     entries,
     onRefreshEntries
   );
-
   const classes = useMemo(
     () =>
       buildCheckInDeskClasses(
@@ -76,6 +77,11 @@ export function CheckInDesk({
     () => buildCheckInDeskPeople(shownEntries, classes, now),
     [classes, now, shownEntries]
   );
+  const rowsByEntryId = useMemo(
+    () => new Map(people.flatMap(person => person.classRows.map(row => [row.entryId, row]))),
+    [people]
+  );
+  const pull = useDeskPull(entryId => rowsByEntryId.get(entryId), onRefreshEntries);
   const visible = useMemo(
     () => filterCheckInDesk(people, search, filter),
     [filter, people, search]
@@ -209,7 +215,10 @@ export function CheckInDesk({
                       void setStatus(target.dogName, target.pendingEntryIds, 'checked-in')
                     }
                     onSetStatus={(row, status) =>
-                      void setStatus(`${row.dogName}, ${row.className}`, [row.entryId], status)
+                      // Pulled is the real Pull, so it asks first (MYK9-1749).
+                      status === 'pulled'
+                        ? pull.requestPull(row)
+                        : void setStatus(`${row.dogName}, ${row.className}`, [row.entryId], status)
                     }
                   />
                 ))}
@@ -217,6 +226,19 @@ export function CheckInDesk({
             );
           })}
         </div>
+      )}
+      {pull.pullRow && (
+        <PullAtShowDialog
+          open
+          dogName={pull.pullRow.dogName}
+          armband={pull.pullRow.armband}
+          className={pull.pullRow.className}
+          isSubmitting={pull.isPulling}
+          onOpenChange={open => {
+            if (!open) pull.cancelPull();
+          }}
+          onConfirm={reason => void pull.confirmPull(reason)}
+        />
       )}
     </div>
   );

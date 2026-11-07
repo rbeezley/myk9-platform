@@ -86,9 +86,14 @@ export interface ShowMapScratchUndoInput {
   previousWithdrawalReasonCode: string | null;
 }
 
+/**
+ * The day-of Pull (scratched, the same write as Entries' Pull, MYK9-918) with everything Undo
+ * needs to put the entry back. Show Map and the Check-in desk (MYK9-1749) share it.
+ */
 export async function scratchShowMapEntry(
   entryId: string,
-  reason: string | undefined
+  reason: string | undefined,
+  fallbackReason = 'Marked no-show from Show Map'
 ): Promise<ShowMapScratchUndoInput> {
   const currentEntry = await replicatedEntriesTable.getEntryById(entryId);
   const previousEntryStatus =
@@ -104,7 +109,7 @@ export async function scratchShowMapEntry(
     currentEntry?.withdrawalReasonCode ?? currentEntry?.withdrawal_reason_code ?? null;
 
   const trimmed = reason?.trim();
-  await updateReplicatedDayOfScratch(entryId, trimmed || 'Marked no-show from Show Map');
+  await updateReplicatedDayOfScratch(entryId, trimmed || fallbackReason);
 
   return {
     entryId,

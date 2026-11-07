@@ -23,6 +23,13 @@ interface CheckInDeskDogCardProps {
   onSetStatus: (row: PeopleRosterClassRow, status: CheckInStatus) => void;
 }
 
+/** A dog checked in, at the gate or called to it has arrived; Conflict and Pulled have not. */
+const ARRIVED_STATUSES: ReadonlySet<CheckInStatus> = new Set([
+  'checked-in',
+  'at-gate',
+  'come-to-gate',
+]);
+
 function classLine(row: PeopleRosterClassRow): string {
   const time = formatStartTime(row.time);
   return [row.className, row.ring, time].filter(Boolean).join(' · ');
@@ -49,11 +56,11 @@ export function CheckInDeskDogCard({
   // Forget the closed picker too, so it never reopens on its own if the class comes back.
   if (pickerId && !pickerRow) setPickerId(null);
   const busy = dog.rows.some(row => busyIds.has(row.entryId));
-  // Judged over the classes the desk handles today: another day's or a pulled class never
-  // keeps the confirmation away.
+  // Judged over the classes the desk handles today: another day's class or a real Pull never
+  // keeps the confirmation away. A flagged pull or a Conflict does, since it needs the secretary.
   const deskRows = dog.rows.filter(row => row.deskStatusEditable);
   const allCheckedIn =
-    deskRows.length > 0 && deskRows.every(row => row.checkInStatus === 'checked-in');
+    deskRows.length > 0 && deskRows.every(row => ARRIVED_STATUSES.has(row.checkInStatus));
 
   return (
     <article aria-label={dog.dogName} className="rounded-lg border bg-card p-2.5">

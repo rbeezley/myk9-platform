@@ -1,5 +1,6 @@
 import { EntryStatus } from '@/types/show-registration-types';
 import type { CheckInStatus } from '@/types/check-in-types';
+import { STAFF_CHECK_IN_STATUSES } from '@myk9/core';
 import type { EntryClass, EntryManagementEntry } from '@/types/entry-management-types';
 import type { ShowPresence } from '@/features/show-presence/types';
 import type { ListView } from '@/components/list-toolkit';
@@ -98,14 +99,12 @@ const TERMINAL_ENTRY_STATUSES = new Set<EntryStatus>([
 const TERMINAL_CLASS_STATUSES = new Set<EntryClass['status']>(['scratched', 'withdrawn', 'absent']);
 
 /**
- * The statuses the Check-in desk sets on one class (MYK9-1736): undo, check in, or mark a ring
- * conflict. Pull has its own reasoned flow on the Entries page; gate and ring are ringside's.
+ * The statuses the Check-in desk sets on one class: every staff check-in status, the same six
+ * Ringside offers (owner, MYK9-1749). Pulled on the desk is the real Pull (scratched, refund
+ * review) behind a confirmation (`useDeskPull`); once pulled the class is locked here and
+ * reinstated from Entries. In ring and Completed belong to the judge and scoring.
  */
-export const DESK_CHECK_IN_STATUSES: readonly CheckInStatus[] = [
-  'no-status',
-  'checked-in',
-  'conflict',
-];
+export const DESK_CHECK_IN_STATUSES: readonly CheckInStatus[] = STAFF_CHECK_IN_STATUSES;
 export const DESK_STATUS_SET: ReadonlySet<CheckInStatus> = new Set(DESK_CHECK_IN_STATUSES);
 
 /** The desk's words for its statuses: "No Status" reads as a fault to a secretary. */
@@ -235,7 +234,18 @@ function checkInEligibility(
 ): { eligible: boolean; reason: string | null } {
   const status = cls.checkInStatus ?? 'no-status';
   if (TERMINAL_CHECK_IN_STATUSES.has(status)) {
-    return { eligible: false, reason: status === 'checked-in' ? null : 'Not active' };
+    // Say which act happened (INTENT): a real Pull is stored as scratched; a 'pulled' check-in
+    // on an entry still entered is only an exhibitor's or steward's flag to the ring (MYK9-1749).
+    if (status === 'pulled') {
+      const scratched = entry.entryStatus === EntryStatus.SCRATCHED || cls.status === 'scratched';
+      const otherwiseClosed =
+        TERMINAL_ENTRY_STATUSES.has(entry.entryStatus) || TERMINAL_CLASS_STATUSES.has(cls.status);
+      return {
+        eligible: false,
+        reason: scratched ? 'Pulled' : otherwiseClosed ? 'Not active' : 'Flagged pulled',
+      };
+    }
+    return { eligible: false, reason: status === 'completed' ? 'Not active' : null };
   }
 
   if (UNDERWAY_CHECK_IN_STATUSES.has(status)) {

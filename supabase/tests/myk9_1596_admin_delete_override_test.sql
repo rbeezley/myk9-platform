@@ -81,6 +81,11 @@ INSERT INTO public.dog_registrations (dog_id, organization, registration_number,
 SELECT ('00000000-0000-0000-0000-00000159606' || n)::uuid, 'AKC', 'SW1596' || lpad(n::text, 2, '0'), 'MYK9-1596 Dog ' || n
 FROM generate_series(1, 6) AS n;
 
+-- Stripe-paid rows and recorded refunds can only be written by the payment service
+-- (trg_entries_protect_payment_fields[_insert]); seed them as service_role, as
+-- force_delete_dog_test.sql does, and drop the role straight after.
+SET LOCAL ROLE service_role;
+
 INSERT INTO public.entries (
   id, class_id, trial_id, show_id, dog_id, payment_status, is_scored, result_status,
   entry_fee, stripe_payment_intent_id
@@ -97,6 +102,8 @@ UPDATE public.entries SET refund_amount = 5, refunded_at = now()
 WHERE id = '00000000-0000-0000-0000-000001596085';
 UPDATE public.entries SET refund_amount = 20, refunded_at = now()
 WHERE id = '00000000-0000-0000-0000-000001596086';
+
+RESET ROLE;
 
 DO $$
 BEGIN

@@ -106,18 +106,18 @@ export function DeleteObjectDialog({
   // starts unticked (same rule as DeleteDogDialog, MYK9-600).
   const [overrideArmed, setOverrideArmed] = useState(false);
 
-  const isSiteAdmin = hasRole(UserRole.SITE_ADMIN);
   // The dog keeps its checkbox override (force_delete_dog, MYK9-596). A show,
   // trial or class offers a typed-confirmation override (MYK9-1596), only to a
   // site admin, for ONE object, and only once the server says it is blocked.
   // Entries and everything else point at Withdraw / Pull instead.
-  const allowDogOverride = kind === 'dog' && isSiteAdmin;
   const [overrideInputs, setOverrideInputs] = useState<OverrideInputs>(EMPTY_OVERRIDE_INPUTS);
   const overrideTarget = liveTargets.length === 1 ? liveTargets[0] : undefined;
   const blockedPreview =
     state.status === 'ready' && state.preview.blocking > 0 ? state.preview : undefined;
+  // The role is read only where an override could appear, as before MYK9-1596.
+  const allowDogOverride = kind === 'dog' && hasRole(UserRole.SITE_ADMIN);
   const adminOverride =
-    isSiteAdmin && supportsAdminOverride(kind) && overrideTarget && blockedPreview
+    supportsAdminOverride(kind) && overrideTarget && blockedPreview && hasRole(UserRole.SITE_ADMIN)
       ? { target: overrideTarget, preview: blockedPreview }
       : undefined;
   const adminOverrideArmed =

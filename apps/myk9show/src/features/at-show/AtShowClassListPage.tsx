@@ -33,6 +33,8 @@ import { useCollapsedTrials } from './useCollapsedTrials';
 import { useAtShowPickerClasses } from './useAtShowPickerClasses';
 import { useAtShowClassCards } from './useAtShowClassCards';
 import { useAtShowClassRefresh } from './useAtShowClassRefresh';
+import { useAtShowRealtimeRefresh } from './useAtShowRealtimeRefresh';
+import { syncAtShowData } from './atShowDataAdapter';
 import {
   AtShowClassListToolbar,
   AtShowClassRefreshButton,
@@ -178,6 +180,14 @@ export const AtShowClassListPage: React.FC = () => {
     isOnline,
     refresh
   );
+
+  // Entries added at the desk reach the cards without a tap: a show-change signal
+  // pulls the replica (the hook's refresh re-reads it), and so does coming back
+  // to the foreground. Offline it stays idle; the replica read is all there is.
+  useAtShowRealtimeRefresh(showId, [], async forceSync => {
+    if (forceSync && showId && isOnline) await syncAtShowData(showId, { forceFullSync: true });
+    await refresh();
+  });
 
   // Exhibitor show day starts from owned entries, not ringside class
   // administration (design decision, section 3 of the elderly-UX remediation).

@@ -46,7 +46,8 @@ export interface UseAtShowClassListResult {
   entryCountsAvailable: boolean;
   /** Persisted proof for truthful offline zero-class copy. */
   classDataHydration: 'not-needed' | 'checking' | 'hydrated' | 'incomplete';
-  refresh: () => void;
+  /** Re-reads the local replica (counts included); resolves once the reads settle. */
+  refresh: () => Promise<void>;
 }
 
 export function useAtShowClassList(showId: string | undefined): UseAtShowClassListResult {
@@ -211,11 +212,13 @@ export function useAtShowClassList(showId: string | undefined): UseAtShowClassLi
     // Retry every active source that can produce the current empty/error UI.
     // Hydration metadata has its own key and does not refetch merely because
     // the unchanged group structure was fetched again.
-    refresh: () => {
-      void groupsQuery.refetch();
-      void showQuery.refetch();
-      void entryCountsQuery.refetch();
-      if (shouldCheckClassHydration) void classHydrationQuery.refetch();
+    refresh: async () => {
+      await Promise.all([
+        groupsQuery.refetch(),
+        showQuery.refetch(),
+        entryCountsQuery.refetch(),
+        shouldCheckClassHydration ? classHydrationQuery.refetch() : undefined,
+      ]);
     },
   };
 }

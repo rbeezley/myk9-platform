@@ -28,6 +28,9 @@ export function RingsideShowInfo({
     ...(officials?.secretaries ?? []).map(person => ({ person, role: 'Secretary' })),
     ...(officials?.chairmen ?? []).map(person => ({ person, role: 'Chairman' })),
   ].filter(({ person }) => person.email);
+  // `officials` is undefined while loading (or when the query cannot run); only a
+  // resolved result with no email counts as "no contact listed".
+  const noContactListed = officials !== undefined && contacts.length === 0;
 
   return (
     <div className="space-y-1 border-t border-border/50 pt-2" data-testid="ringside-show-info">
@@ -46,7 +49,12 @@ export function RingsideShowInfo({
           </span>
         </a>
       ))}
-      {!isOnline && contacts.length === 0 && (
+      {noContactListed && (
+        <p className="px-3 py-2 text-xs text-muted-foreground" data-testid="ringside-no-contact">
+          No show contact listed
+        </p>
+      )}
+      {!isOnline && contacts.length === 0 && !officials && (
         <p className="px-3 py-2 text-xs text-muted-foreground" role="status">
           Secretary and chairman contacts need a connection.
         </p>

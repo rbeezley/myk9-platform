@@ -26,15 +26,9 @@ import type {
   MyEntry,
   ReceiptDialogState,
 } from './my-entries-types';
+import { SELF_RESTORABLE } from '@/features/at-show/offerPullUndo';
 import type { ShowMoneyKind } from './showMoneyState';
 
-/** Statuses `self_checkin_entry` accepts, so Undo can write them back. */
-const SELF_RESTORABLE: ReadonlySet<CheckInStatus> = new Set([
-  'no-status',
-  'checked-in',
-  'conflict',
-  'at-gate',
-]);
 const CLOSED_CHECK_IN: CheckInDialogState = { open: false, entry: null, classEntry: null };
 const CLOSED_EDIT: EditDialogState = { open: false, entry: null };
 const CLOSED_RECEIPT: ReceiptDialogState = { open: false, entry: null };

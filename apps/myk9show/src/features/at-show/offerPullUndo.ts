@@ -3,12 +3,17 @@ import type { CheckInWriter } from '@/services/show-day/checkInStatus';
 import { showUndoToast } from '@/lib/undoToast';
 
 /** Statuses `self_checkin_entry` accepts, so an exhibitor's Undo can write them back. */
-const SELF_RESTORABLE: ReadonlySet<string> = new Set([
+export const SELF_RESTORABLE: ReadonlySet<string> = new Set([
   'no-status',
   'checked-in',
   'conflict',
   'at-gate',
 ]);
+
+/** Undo is offered unless an exhibitor's write would be refused restoring a staff-set status. */
+export function canUndoPull(writer: CheckInWriter | undefined, previousStatus: string): boolean {
+  return writer !== 'self-checkin-rpc' || SELF_RESTORABLE.has(previousStatus);
+}
 
 /**
  * After a Pulled is written, offer Undo that writes the prior status back through
@@ -22,7 +27,7 @@ export function offerPullUndo(
   restore: (status: EntryStatusChange) => void
 ): void {
   if (!previous || previous.status === 'pulled') return;
-  if (writer === 'self-checkin-rpc' && !SELF_RESTORABLE.has(previous.status as string)) return;
+  if (!canUndoPull(writer, previous.status as string)) return;
   const priorStatus = previous.status as EntryStatusChange;
   showUndoToast({
     message: `${previous.callName} pulled`,

@@ -1,4 +1,4 @@
-import { renderVenueMapBlock } from './static-map.ts';
+import { renderVenueMapBlock } from './venue-directions.ts';
 
 const HN_PAPER = '#fafafa';
 const HN_PAGE = '#e7e1d7';

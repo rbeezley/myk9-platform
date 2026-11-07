@@ -1,4 +1,4 @@
-import { renderVenueMapBlock } from './static-map.ts';
+import { renderVenueMapBlock } from './venue-directions.ts';
 import {
   BANNER_BAND_MUTED_OPACITY,
   BANNER_PAPER,

@@ -19,7 +19,7 @@ import {
   type ConfirmationEmailBaseData,
   type ConfirmationEmailRunRow,
 } from './confirmation-email-shared.ts';
-import { renderVenueMapBlock } from './static-map.ts';
+import { renderVenueMapBlock } from './venue-directions.ts';
 
 const GZ_PAPER = '#f7f1e3';
 const GZ_PAPER_WARM = '#ede5d2';

@@ -38,8 +38,7 @@ The CLI itself is available (`npx supabase@2.114.0`) and `apps/myk9show/supabase
 | ------------------------------ | ----------------- | ------------------------------------------------------------------------- |
 | **L1** Sign in with Apple      | `cc4e11e` (#1635) | Apple Developer portal + Supabase Auth provider — **no deploy**           |
 | **L2** Apple Pay / Google Pay  | `8324012` (#1634) | Stripe dashboard toggle — **no code, no deploy**                          |
-| **L3** Places Autocomplete     | `870808f` (#1636) | `VITE_GOOGLE_MAPS_API_KEY` in Vercel                                      |
-| **L3** Email static map        | `48f0e4c` (#1637) | `GOOGLE_MAPS_STATIC_API_KEY` secret + `send-confirmation-email` redeploy  |
+| **L3** Email directions link   | MYK9-1747         | `send-confirmation-email` redeploy only — **no key**                      |
 | **L4** Run-proximity push      | `456f1a4` (#1638) | **Migration** `20260816120000` + `push-trigger-run-proximity` deploy      |
 | **L4** Install instrumentation | `959f787` (#1639) | Nothing — ships with the frontend, uses existing `analytics_events`       |
 | **L5** Calendar feed           | `660f580` (#1641) | **Migration** `20260816130000` + `calendar-feed` deploy + feed URL config |
@@ -88,24 +87,13 @@ No code and no deploy: on Stripe-hosted Checkout the `card` payment method type 
 
 ---
 
-## Phase 3 — L3 map keys
+## Phase 3 — L3 maps (no Google keys)
 
-Two **separate** Google Cloud API keys. Do not reuse one for both.
+No Google Maps key is set for L3 (owner decision 2026-11-07). Confirmation emails carry a keyless "Get directions" link, and the show wizard places the venue pin through Nominatim.
 
-| Key                          | Enabled API              | Restriction                                | Consumed by            |
-| ---------------------------- | ------------------------ | ------------------------------------------ | ---------------------- |
-| `VITE_GOOGLE_MAPS_API_KEY`   | Places API (New)         | HTTP referrer → staging + production hosts | Browser (show wizard)  |
-| `GOOGLE_MAPS_STATIC_API_KEY` | Maps Static API **only** | **None possible** — see below              | Edge function (emails) |
-
-> **The static-map key is readable by every email recipient.** It is embedded in the `<img>` URL, and HTTP-referrer restrictions do not apply in mail clients. That is why it must be a distinct key scoped to the Maps Static API alone, and why a budget alert is the real backstop rather than a restriction.
-
-Set a **$10/month budget alert** on the Cloud project regardless.
-
-1. Vercel → project env vars → set `VITE_GOOGLE_MAPS_API_KEY`, then redeploy the frontend.
-2. Set the edge secret and redeploy the email function:
+Redeploy the email function:
 
 ```bash
-npx supabase@2.114.0 secrets set GOOGLE_MAPS_STATIC_API_KEY=<key> --project-ref sojmvhhwsjxmfistvzbe
 npx supabase@2.114.0 functions deploy send-confirmation-email --project-ref sojmvhhwsjxmfistvzbe --no-verify-jwt
 ```
 

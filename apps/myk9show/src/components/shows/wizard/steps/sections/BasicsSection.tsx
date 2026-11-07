@@ -165,15 +165,6 @@ export const BasicsSection: React.FC<BasicsSectionProps> = ({
             onChange={location =>
               onUpdate(invalidateVenuePinIfLocationChanged(show.location, { location }))
             }
-            onPlaceSelected={({ location, lat, lng }) =>
-              onUpdate(
-                invalidateVenuePinIfLocationChanged(show.location, {
-                  location,
-                  latitude: lat,
-                  longitude: lng,
-                })
-              )
-            }
             onSettledBlur={autoLocate}
             placeholder="Enter venue name and address"
             rows={3}

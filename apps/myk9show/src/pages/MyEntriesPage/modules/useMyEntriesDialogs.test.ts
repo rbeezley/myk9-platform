@@ -65,6 +65,10 @@ function deferred() {
 }
 
 describe('useMyEntriesDialogs', () => {
+  beforeEach(() => {
+    toastSuccess.mockClear();
+  });
+
   it('opens each dialog with the entry that was acted on', () => {
     const { result } = setup();
 
@@ -273,5 +277,33 @@ describe('useMyEntriesDialogs', () => {
     await act(() => result.current.submitCheckInStatus(CHECKED_IN));
 
     expect(toastSuccess).not.toHaveBeenCalled();
+  });
+
+  it('offers no Undo when the prior status is one an exhibitor cannot write back', async () => {
+    const { result } = setup();
+    const staffSet: EntryClass = { ...CLASS_ROW, checkInStatus: 'come-to-gate' };
+
+    act(() => result.current.openCheckIn(ENTRY, staffSet));
+    await act(() => result.current.submitCheckInStatus('pulled'));
+
+    expect(toastSuccess).not.toHaveBeenCalled();
+  });
+
+  it('Undo calls the current updater, not the one from before the pull', async () => {
+    const { result, rerender, updateEntryCheckIn, options } = setup();
+    const checkedInClass: EntryClass = { ...CLASS_ROW, checkInStatus: CHECKED_IN };
+
+    act(() => result.current.openCheckIn(ENTRY, checkedInClass));
+    await act(() => result.current.submitCheckInStatus('pulled'));
+    const options2 = toastSuccess.mock.calls[0]?.[1] as { action: { onClick: () => void } };
+
+    const newer = vi.fn(() => Promise.resolve());
+    rerender({ opts: { ...options, updateEntryCheckIn: newer } });
+    await act(async () => {
+      options2.action.onClick();
+    });
+
+    expect(newer).toHaveBeenCalledWith('order-1', 'class-row-1', CHECKED_IN);
+    expect(updateEntryCheckIn).toHaveBeenCalledTimes(1);
   });
 });

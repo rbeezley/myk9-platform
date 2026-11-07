@@ -9,7 +9,7 @@
  * @module MyEntriesPage/modules/useMyEntriesDialogs
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { showUndoToast } from '@/lib/undoToast';
@@ -28,6 +28,13 @@ import type {
 } from './my-entries-types';
 import type { ShowMoneyKind } from './showMoneyState';
 
+/** Statuses `self_checkin_entry` accepts, so Undo can write them back. */
+const SELF_RESTORABLE: ReadonlySet<CheckInStatus> = new Set([
+  'no-status',
+  'checked-in',
+  'conflict',
+  'at-gate',
+]);
 const CLOSED_CHECK_IN: CheckInDialogState = { open: false, entry: null, classEntry: null };
 const CLOSED_EDIT: EditDialogState = { open: false, entry: null };
 const CLOSED_RECEIPT: ReceiptDialogState = { open: false, entry: null };
@@ -118,6 +125,10 @@ export function useMyEntriesDialogs({
     useState<LeaveClassDialogState>(CLOSED_LEAVE_CLASS);
   const [addDogOpen, setAddDogOpen] = useState(false);
 
+  // Undo runs after the dialog and its snapshot are gone, so it reads the current updater.
+  const updateEntryCheckInRef = useRef(updateEntryCheckIn);
+  updateEntryCheckInRef.current = updateEntryCheckIn;
+
   const openCheckIn = useCallback((entry: MyEntry, classEntry: EntryClass) => {
     setCheckInDialog({ open: true, entry, classEntry });
   }, []);
@@ -159,14 +170,16 @@ export function useMyEntriesDialogs({
       const priorStatus: CheckInStatus = classEntry.checkInStatus || 'no-status';
       await updateEntryCheckIn(entry.id, classEntry.id, status, notes);
       setCheckInDialog(CLOSED_CHECK_IN);
-      if (status === 'pulled' && priorStatus !== 'pulled') {
+      // `self_checkin_entry` refuses staff-set statuses (come-to-gate, in-ring, completed),
+      // so Undo is offered only when the exhibitor's write path can restore the prior one.
+      if (status === 'pulled' && SELF_RESTORABLE.has(priorStatus)) {
         showUndoToast({
           message: `${entry.dogName} pulled from ${classEntry.name}`,
           onUndo: () => {
             // Same write path as the Pulled itself.
-            void updateEntryCheckIn(entry.id, classEntry.id, priorStatus).catch(() =>
-              toast.error(`We could not undo that. Please try again.`)
-            );
+            void updateEntryCheckInRef
+              .current(entry.id, classEntry.id, priorStatus)
+              .catch(() => toast.error(`We could not undo that. Please try again.`));
           },
         });
       }

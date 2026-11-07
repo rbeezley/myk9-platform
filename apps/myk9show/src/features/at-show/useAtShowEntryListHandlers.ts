@@ -33,6 +33,14 @@ import { notifyRunOrderPersistError } from './runOrderErrorToast';
 import { persistRunOrderResults } from './persistRunOrderResults';
 import { toStatusUpdateFields } from './ringsideClassStatusMap';
 
+/** Statuses `self_checkin_entry` accepts, so an exhibitor's Undo can write them back. */
+const SELF_RESTORABLE: ReadonlySet<string> = new Set([
+  'no-status',
+  'checked-in',
+  'conflict',
+  'at-gate',
+]);
+
 type ResetConfirmState = { show: boolean; entry: Entry | null };
 
 export interface UseAtShowEntryListHandlersDeps {
@@ -242,7 +250,14 @@ export function useAtShowEntryListHandlers(
           return;
         }
         await actions.handleStatusChange(entryId, status);
-        if (status === 'pulled' && previous && previous.status !== 'pulled') {
+        if (
+          status === 'pulled' &&
+          previous &&
+          previous.status !== 'pulled' &&
+          // `self_checkin_entry` (exhibitor writer) refuses staff-set statuses, so Undo
+          // would leave the dog pulled; only staff, who write through the replica, get it.
+          (hasPermission('canScore') || SELF_RESTORABLE.has(previous.status as string))
+        ) {
           // Undo goes back through this same handler, so it takes the same write path.
           const priorStatus = previous.status as EntryStatusChange;
           showUndoToast({
@@ -257,7 +272,7 @@ export function useAtShowEntryListHandlers(
         logger.error('[at-show] status change failed', 'at-show', { error: String(error) });
       }
     },
-    [actions, setActiveStatusPopup, setLocalEntries]
+    [actions, hasPermission, setActiveStatusPopup, setLocalEntries]
   );
 
   handleStatusChangeRef.current = handleStatusChange;

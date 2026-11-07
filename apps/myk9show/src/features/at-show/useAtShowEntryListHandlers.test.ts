@@ -66,7 +66,8 @@ function renderHandlers(
   localEntries: Entry[],
   actions: EntryListActions,
   setLocalEntries: (updater: (prev: Entry[]) => Entry[]) => void = vi.fn(),
-  refresh: (forceSync?: boolean) => Promise<void> = vi.fn(() => Promise.resolve())
+  refresh: (forceSync?: boolean) => Promise<void> = vi.fn(() => Promise.resolve()),
+  hasPermission: () => boolean = () => true
 ) {
   const navigate = vi.fn();
   return renderHook(() =>
@@ -75,7 +76,7 @@ function renderHandlers(
       replication: { updateClassStatus: vi.fn(() => Promise.resolve()) } as never,
       classId: 'class-1',
       localEntries,
-      hasPermission: () => true,
+      hasPermission,
       navigate,
       buildScoreSheetRoute: () => '/route',
       refresh,
@@ -382,6 +383,18 @@ describe('useAtShowEntryListHandlers - optimistic check-in', () => {
 
     expect(actions.handleStatusChange).toHaveBeenLastCalledWith('e1', 'checked-in');
     expect(toastSuccess).toHaveBeenCalledTimes(1);
+  });
+
+  it('offers no Undo to a non-staff writer when the prior status is staff-set', async () => {
+    mirror = [makeEntry({ id: 'e1', status: 'come-to-gate' as EntryStatus })];
+    const { result } = renderHandlers(mirror, actions, applyToMirror, undefined, () => false);
+
+    await act(async () => {
+      await result.current.handleStatusChange('e1', 'pulled');
+    });
+
+    expect(actions.handleStatusChange).toHaveBeenCalledWith('e1', 'pulled');
+    expect(toastSuccess).not.toHaveBeenCalled();
   });
 
   it('offers no Undo for a non-Pulled status', async () => {

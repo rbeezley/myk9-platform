@@ -67,6 +67,8 @@ import { AtShowAddToHomeNudge } from './AtShowAddToHomeNudge';
 import { useMyAtShowEntries } from './useMyAtShowEntries';
 import { useMyRingConflicts } from './useMyRingConflicts';
 import { useAtShowRealtimeRefresh } from './useAtShowRealtimeRefresh';
+import { useAtShowEntryListRefresh } from './useAtShowEntryListRefresh';
+import { AtShowClassRefreshResult } from './AtShowClassListToolbar';
 import { resolveClassListRoute } from './atShowScoresheetRoutes';
 
 export const AtShowEntryListPage: React.FC = () => {
@@ -140,6 +142,11 @@ export const AtShowEntryListPage: React.FC = () => {
     isDraggingRef,
     dependencies,
   });
+
+  const { phase: refreshPhase, refresh: manualRefresh } = useAtShowEntryListRefresh(
+    showId,
+    refresh
+  );
 
   const showHydration = useAtShowShowHydration(showId, syncStatus, refresh);
   const isFirstShowHydrationPending = showHydration === 'pending';
@@ -289,6 +296,7 @@ export const AtShowEntryListPage: React.FC = () => {
     buildScoreSheetRoute,
     gateEntryClick,
     refresh,
+    manualRefresh,
     setActiveStatusPopup: uiActions.setActiveStatusPopup,
     setActiveResetMenu: uiActions.setActiveResetMenu,
     setResetMenuPosition: uiActions.setResetMenuPosition,
@@ -364,6 +372,7 @@ export const AtShowEntryListPage: React.FC = () => {
           />
         )}
         {showHydration === 'not-arrived' && entries.length > 0 && <PartialReplicaNotice />}
+        <AtShowClassRefreshResult phase={refreshPhase} />
         <EntryListPage
           classId={classId}
           data={{ entries, classInfo }}

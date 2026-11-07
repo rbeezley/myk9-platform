@@ -78,6 +78,7 @@ function renderHandlers(
       navigate,
       buildScoreSheetRoute: () => '/route',
       refresh,
+      manualRefresh: vi.fn(() => Promise.resolve()),
       setActiveStatusPopup: vi.fn(),
       setActiveResetMenu: vi.fn(),
       setResetMenuPosition: vi.fn(),

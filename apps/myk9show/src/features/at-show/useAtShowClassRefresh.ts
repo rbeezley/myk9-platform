@@ -1,5 +1,6 @@
 /**
- * The class picker's refresh control (MYK9-1506). Re-syncs the show through the
+ * The refresh control's answer, shared by the class picker (MYK9-1506) and the
+ * entry lists (MYK9-1746). Re-syncs the show through the
  * same `syncAtShowData` the entry list uses and keeps the outcome for a few
  * seconds, so a tap always answers: it worked, it failed, or this device is
  * offline and the list is what was already here.
@@ -13,8 +14,8 @@ export type ClassRefreshPhase = 'idle' | 'refreshing' | 'done' | 'failed' | 'off
 const RESULT_VISIBLE_MS = 4000;
 
 export const CLASS_REFRESH_MESSAGES: Record<Exclude<ClassRefreshPhase, 'idle'>, string> = {
-  refreshing: 'Refreshing classes',
-  done: 'Classes up to date',
+  refreshing: 'Refreshing',
+  done: 'Up to date',
   failed: "Couldn't refresh. Showing what is on this device.",
   offline: "You're offline. Showing what is on this device.",
 };

@@ -69,6 +69,8 @@ import { AtShowAddToHomeNudge } from './AtShowAddToHomeNudge';
 import { useMyAtShowEntries } from './useMyAtShowEntries';
 import { useMyRingConflicts } from './useMyRingConflicts';
 import { useAtShowRealtimeRefresh } from './useAtShowRealtimeRefresh';
+import { useAtShowEntryListRefresh } from './useAtShowEntryListRefresh';
+import { AtShowClassRefreshResult } from './AtShowClassListToolbar';
 import {
   buildAtShowScoreSheetRoute,
   combinedPairParam,
@@ -137,6 +139,11 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
     isDraggingRef,
     dependencies,
   });
+
+  const { phase: refreshPhase, refresh: manualRefresh } = useAtShowEntryListRefresh(
+    showId,
+    refresh
+  );
 
   // An exhibitor-role account (including an admin who entered an exhibitor
   // passcode) lacks the staff RLS authority the replicated writer needs, so its
@@ -262,6 +269,7 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
     buildScoreSheetRoute,
     gateEntryClick,
     refresh,
+    manualRefresh,
     setActiveStatusPopup: uiActions.setActiveStatusPopup,
     setActiveResetMenu: uiActions.setActiveResetMenu,
     setResetMenuPosition: uiActions.setResetMenuPosition,
@@ -399,6 +407,7 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
           />
         )}
         {showHydration === 'not-arrived' && entries.length > 0 && <PartialReplicaNotice />}
+        <AtShowClassRefreshResult phase={refreshPhase} />
         <EntryListPage
           classId={classIdA}
           combined={{

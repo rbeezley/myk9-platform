@@ -33,7 +33,11 @@ import {
   deriveShowCode,
 } from './dispatch-helpers.ts';
 import { getPublishedExperienceHospitalityNotes } from './published-experience.ts';
-import { buildVenueMapAssets, renderVenueMapBlock, type VenueMapAssets } from './static-map.ts';
+import {
+  buildVenueMapAssets,
+  renderVenueMapBlock,
+  type VenueMapAssets,
+} from './venue-directions.ts';
 import { formatEntryFee } from './entryFee.ts';
 import { buildTrialLabelMap } from './trialLabel.ts';
 
@@ -484,14 +488,8 @@ handle<ConfirmationEmailPayload>(
             .filter(Boolean)
             .join('\n') || null;
 
-        // Static map rides on the secretary-placed venue pin. Key must be a
-        // separate one restricted to the Maps Static API only — it is visible
-        // to every email recipient inside the <img> URL.
-        const venueMap = buildVenueMapAssets(
-          show.latitude,
-          show.longitude,
-          Deno.env.get('GOOGLE_MAPS_STATIC_API_KEY')
-        );
+        // Keyless directions link: the venue pin when placed, else the address text.
+        const venueMap = buildVenueMapAssets(show.latitude, show.longitude, venueStr);
 
         const emailData: Parameters<typeof buildHtml>[0] = {
           venueMap,

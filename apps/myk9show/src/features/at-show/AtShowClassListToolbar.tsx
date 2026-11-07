@@ -13,6 +13,7 @@ import {
   type ClassListTab,
 } from './atShowClassListFilter';
 import { CLASS_REFRESH_MESSAGES, type ClassRefreshPhase } from './useAtShowClassRefresh';
+import { AtShowRefreshLiveRegion } from './atShowRefreshAnswer';
 
 export const CLASS_LIST_PANEL_ID = 'at-show-class-list-panel';
 
@@ -117,9 +118,7 @@ export function AtShowClassRefreshButton({ phase, onRefresh }: AtShowClassRefres
       >
         <RefreshCw size={20} aria-hidden className={cn(refreshing && 'animate-spin')} />
       </button>
-      <div role="status" aria-live="polite" className="sr-only">
-        {phase === 'idle' ? '' : CLASS_REFRESH_MESSAGES[phase]}
-      </div>
+      <AtShowRefreshLiveRegion phase={phase} />
     </>
   );
 }

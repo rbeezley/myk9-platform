@@ -175,6 +175,8 @@ export interface EntryListHeaderProps {
   hasActiveFilters: boolean;
   onFilterClick: () => void;
   onRefresh: () => void;
+  /** Answer to the last refresh, overlaid under the pinned bar so the page does not shift. */
+  refreshAnswer?: { message: string; tone: 'ok' | 'warn' } | null;
   /** The Up control's label and fixed parent route (MYK9-1500). */
   up: { label: string; to: string };
   /**
@@ -216,6 +218,7 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
   hasActiveFilters,
   onFilterClick,
   onRefresh,
+  refreshAnswer = null,
   actionsMenu,
   up,
   menu,
@@ -347,6 +350,19 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
           </button>
           {menuControl}
         </div>
+        {refreshAnswer && (
+          <p
+            data-testid="entry-list-refresh-answer"
+            className={cn(
+              'absolute inset-x-0 top-full m-0 rounded-b-xl px-3 py-1.5 text-center text-sm shadow-sm',
+              refreshAnswer.tone === 'ok'
+                ? 'bg-muted text-foreground'
+                : 'bg-warning/10 text-warning'
+            )}
+          >
+            {refreshAnswer.message}
+          </p>
+        )}
       </header>
       <TrialLine trialInfoText={trialInfoText} statusLabel={classInfo?.statusLabel} />
     </>

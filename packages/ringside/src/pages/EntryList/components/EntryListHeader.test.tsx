@@ -232,6 +232,27 @@ describe('EntryListHeader', () => {
     expect(onRefresh).toHaveBeenCalledTimes(1);
   });
 
+  // MYK9-1746: the answer lives in the pinned bar, where the tap happened.
+  it('shows the refresh answer inside the pinned header, and nothing when there is none', () => {
+    const { rerender } = renderHeader();
+    expect(screen.queryByTestId('entry-list-refresh-answer')).toBeNull();
+
+    rerender(
+      <MemoryRouter>
+        <EntryListHeader
+          {...defaultProps}
+          refreshAnswer={{
+            message: "You're offline. Showing what is on this device.",
+            tone: 'warn',
+          }}
+        />
+      </MemoryRouter>
+    );
+    const answer = screen.getByTestId('entry-list-refresh-answer');
+    expect(answer.textContent).toBe("You're offline. Showing what is on this device.");
+    expect(answer.closest('header')).not.toBeNull();
+  });
+
   it('pins the class name with the bar and lets it wrap on its own row on phones (D7)', () => {
     renderHeader();
 

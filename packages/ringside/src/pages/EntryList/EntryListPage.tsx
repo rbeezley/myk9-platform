@@ -65,7 +65,7 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
   const navigate = useNavigate();
   const isCombined = Boolean(combined);
   const { entries, classInfo } = data;
-  const { isRefreshing, fetchError, refresh, notOnDevice } = dataStatus;
+  const { isRefreshing, fetchError, refresh, notOnDevice, refreshAnswer } = dataStatus;
   const { showContext, hasPermission, role } = context;
   const {
     localEntries,
@@ -235,6 +235,7 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
         hasActiveFilters={hasActiveFilters}
         onFilterClick={() => setIsFilterPanelOpen(true)}
         onRefresh={handlers.handleManualRefresh}
+        refreshAnswer={refreshAnswer ?? null}
         refreshLongPressHandlers={handlers.refreshLongPressHandlers}
         showSectionsBadge={isCombined}
         actionsMenu={{

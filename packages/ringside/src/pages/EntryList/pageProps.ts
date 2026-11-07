@@ -620,6 +620,11 @@ export interface EntryListPageProps {
      * under a not-on-this-device message instead of "No Entries Yet".
      */
     notOnDevice?: ReactNode;
+    /**
+     * The settled answer to the last manual refresh (done, failed or offline),
+     * shown inside the pinned header so it appears where the tap happened.
+     */
+    refreshAnswer?: { message: string; tone: 'ok' | 'warn' } | null;
   };
 
   /** Action handler bag from host's `useEntryListHandlers`. */

@@ -124,6 +124,27 @@ describe('a flagged pull on the Check-in desk (MYK9-1753)', () => {
     expect(h.getFlaggedPullSources).toHaveBeenCalledWith('show-1');
   });
 
+  it('credits a new flag to whoever set it, after the last one was cleared (Codex, #3698)', async () => {
+    const { rerender } = render(<CheckInDesk {...props} entries={[poppy('pulled')]} />);
+    const card = () => screen.getByRole('article', { name: 'Poppy' });
+    expect(await within(card()).findByText(/The exhibitor flagged this pull\./)).toBeVisible();
+
+    // Cleared, then ringside flags the same class again, a later write.
+    const later = { lastUpdated: new Date(NOW.getTime() + 60_000) };
+    rerender(<CheckInDesk {...props} entries={[poppy('checked-in', later)]} />);
+    h.getFlaggedPullSources.mockResolvedValue(new Map([['entry-1', 'staff']]));
+    rerender(
+      <CheckInDesk
+        {...props}
+        entries={[poppy('pulled', { lastUpdated: new Date(NOW.getTime() + 120_000) })]}
+      />
+    );
+
+    expect(within(card()).queryByText(/The exhibitor flagged this pull\./)).not.toBeInTheDocument();
+    expect(await within(card()).findByText(/Ringside staff flagged this pull\./)).toBeVisible();
+    expect(h.getFlaggedPullSources).toHaveBeenCalledTimes(2);
+  });
+
   it('still offers Confirm Pull and Clear when who flagged it is unknown (offline)', async () => {
     h.getFlaggedPullSources.mockRejectedValue(new TypeError('Failed to fetch'));
     render(<CheckInDesk {...props} entries={[poppy('pulled')]} />);

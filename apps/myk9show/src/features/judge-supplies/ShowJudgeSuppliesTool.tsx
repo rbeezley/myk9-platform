@@ -81,13 +81,10 @@ export function ShowJudgeSuppliesTool({
       {judges.length > 0 && suppliesFailed && (
         <div role="alert" className="flex flex-wrap items-center gap-3">
           <p className="text-sm text-destructive">Could not load the judges&apos; supply lists.</p>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => void suppliesQuery.refetch()}
-            disabled={suppliesQuery.isFetching}
-          >
-            {suppliesQuery.isFetching ? 'Trying again…' : 'Try again'}
+          {/* No in-flight label: a refetch with no data resets the query to pending, so this
+              alert unmounts and the rows say Loading… until the retry settles. */}
+          <Button size="sm" variant="outline" onClick={() => void suppliesQuery.refetch()}>
+            Try again
           </Button>
         </div>
       )}

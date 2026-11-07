@@ -13,7 +13,10 @@ import type { UserPermissions } from '@/types/user-permissions';
 import type { RawEntryRow } from '@/hooks/queries/useClassEntriesRaw';
 import { isDurationFailure, parseDuration, type CheckInStatus } from '@myk9/core';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
-import { SCORE_DETAIL_CLEAR_FIELDS } from '@/services/replication/scoreResetFields';
+import {
+  SCORE_DETAIL_CLEAR_FIELDS,
+  scoreResetCheckInFields,
+} from '@/services/replication/scoreResetFields';
 import {
   mapResultStatusToQualification,
   mapQualificationToResultStatus,
@@ -144,7 +147,7 @@ export function useClassResults({
       if (!userPermissions.canEditEntries) return;
 
       try {
-        await replicatedEntriesTable.updateEntry(entryId, {
+        await replicatedEntriesTable.updateEntryWith(entryId, current => ({
           resultStatus: 'pending',
           result_status: 'pending',
           isScored: false,
@@ -161,7 +164,8 @@ export function useClassResults({
           scoring_completed_at: null,
           disqualification_reason: null,
           ...SCORE_DETAIL_CLEAR_FIELDS,
-        });
+          ...scoreResetCheckInFields(current),
+        }));
 
         setEdits(prev => {
           const next = new Map(prev);

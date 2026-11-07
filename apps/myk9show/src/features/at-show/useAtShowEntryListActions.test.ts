@@ -16,9 +16,15 @@ const updateSelfCheckInStatus = vi.fn<(id: string, status: string) => Promise<vo
   Promise.resolve()
 );
 
+// The row `updateEntryWith` hands its builder (the hydrated row the real table
+// writes against); the builder's payload lands in `updateEntry`.
+const currentRow = vi.fn<(id: string) => Record<string, unknown>>(() => ({}));
+
 vi.mock('@/services/replication', () => ({
   replicatedEntriesTable: {
     updateEntry: (id: string, updates: Record<string, unknown>) => updateEntry(id, updates),
+    updateEntryWith: (id: string, build: (row: unknown) => Record<string, unknown>) =>
+      updateEntry(id, build(currentRow(id))),
   },
 }));
 vi.mock('@/services/show-day/checkInStatus', () => ({
@@ -38,6 +44,7 @@ describe('useAtShowEntryListActions', () => {
 
   beforeEach(() => {
     updateEntry.mockClear();
+    currentRow.mockClear();
     updateSelfCheckInStatus.mockClear();
     refresh.mockClear();
   });
@@ -138,6 +145,24 @@ describe('useAtShowEntryListActions', () => {
       points_earned: null,
     });
     expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it('handleResetScore puts a completed dog back to checked-in in the same write (MYK9-1737)', async () => {
+    currentRow.mockReturnValueOnce({ id: 'entry-uuid-7', checkInStatus: 'completed' });
+    const { result } = render();
+    await act(async () => {
+      await result.current.handleResetScore('entry-uuid-7');
+    });
+    expect(updateEntry).toHaveBeenCalledTimes(1);
+    expect(updateEntry).toHaveBeenCalledWith(
+      'entry-uuid-7',
+      expect.objectContaining({
+        is_scored: false,
+        result_status: 'pending',
+        checkInStatus: 'checked-in',
+        check_in_status: 'checked-in',
+      })
+    );
   });
 
   it('surfaces hasError when a mutation throws', async () => {

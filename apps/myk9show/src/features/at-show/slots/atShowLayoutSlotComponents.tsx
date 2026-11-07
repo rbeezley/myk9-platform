@@ -24,10 +24,18 @@ import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useReplicationContainment } from '@/hooks/useReplicationContainment';
 import { cn } from '@/lib/utils';
+import { useSyncNote } from '@/components/shows/ShowDetails/ShowSyncStatus';
+import { useOnlineStatus } from '@/lib/networkUtils';
+import { OfflineStatusLine } from '@/features/offline-readiness/OfflineStatusLine';
 import { badgeClass, getSyncLabel, getSyncTier } from './atShowChrome.helpers';
 
 /** The tables the at-show surface must hold locally before it can promise offline use. */
 const AT_SHOW_OFFLINE_TABLES = ['shows', 'trials', 'classes', 'entries'] as const;
+
+/** Reads the sync note only once offline, so an online header never depends on the sync provider. */
+const OfflineSyncNoteLine: React.FC<{ className?: string; truncate?: boolean }> = props => (
+  <OfflineStatusLine note={useSyncNote().label} {...props} />
+);
 
 /**
  * The persistent "this app works offline" affordance in the at-show header.
@@ -69,6 +77,22 @@ export const CompactOfflineIndicator: React.FC<CompactOfflineIndicatorProps> = (
   const ready =
     !!status?.lastSyncAt &&
     AT_SHOW_OFFLINE_TABLES.every(table => status.tablesStatus[table] !== 'error');
+
+  const isOnline = useOnlineStatus();
+
+  // MYK9-1744: offline is the one persistent signal, and it is amber. One line in the bar the
+  // indicator already occupies: the label truncates (full sentence in `title`), no new row.
+  if (!isOnline) {
+    return (
+      <OfflineSyncNoteLine
+        truncate
+        className={cn(
+          'at-show-offline-indicator min-w-0 max-w-[11rem] gap-1.5 text-xs font-medium sm:max-w-xs',
+          className
+        )}
+      />
+    );
+  }
 
   return (
     <span

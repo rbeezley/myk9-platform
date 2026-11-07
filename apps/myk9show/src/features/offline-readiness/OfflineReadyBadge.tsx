@@ -1,5 +1,6 @@
-import { CloudDownload, RefreshCw, ShieldCheck, WifiOff } from 'lucide-react';
+import { CloudDownload, RefreshCw, ShieldCheck } from 'lucide-react';
 import { useOnlineStatus } from '@/lib/networkUtils';
+import { OfflineStatusLine } from './OfflineStatusLine';
 import { useOfflineReadiness } from './useOfflineReadiness';
 
 interface OfflineReadyBadgeProps {
@@ -62,14 +63,10 @@ export function OfflineReadyBadge({
   // (`useSyncNote`) already carries the offline wording and the pending-change count.
   if (readiness.ready && !isOnline) {
     return (
-      <span
-        role="status"
-        title="You are offline. Everything you enter is saved on this device."
-        className="inline-flex min-h-11 flex-wrap items-center gap-x-2 gap-y-1 text-sm text-warning"
-      >
-        <WifiOff className="h-4 w-4" aria-hidden />
-        {note ?? 'Offline · scores saved on this device'}
-      </span>
+      <OfflineStatusLine
+        note={note ?? 'Offline · scores saved on this device'}
+        className="min-h-11 flex-wrap gap-x-2 gap-y-1 text-sm"
+      />
     );
   }
 

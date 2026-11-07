@@ -230,10 +230,21 @@ describe('CheckInDesk', () => {
       })
     );
     const dialog = await screen.findByRole('dialog');
-    // The desk offers its three statuses only: no pull, no ringside statuses.
-    expect(dialog).toHaveTextContent('Not checked in');
-    expect(dialog).toHaveTextContent('Checked-in');
-    expect(dialog).not.toHaveTextContent(/Pulled|In Ring|At Gate|Completed/);
+    // Every staff check-in status (MYK9-1749); In Ring and Completed stay with the judge.
+    const choices = within(dialog)
+      .getAllByRole('button')
+      .map(button => button.textContent ?? '');
+    for (const label of [
+      'Not checked in',
+      'Checked-in',
+      'Conflict',
+      'Pulled',
+      'At Gate',
+      'Come to Gate',
+    ]) {
+      expect(choices.some(text => text.startsWith(label))).toBe(true);
+    }
+    expect(dialog).not.toHaveTextContent(/In Ring|Completed/);
     await user.click(within(dialog).getByRole('button', { name: /Conflict/ }));
 
     await waitFor(() =>
@@ -338,7 +349,7 @@ describe('CheckInDesk', () => {
         currentDate={NOW}
       />
     );
-    expect(screen.getByRole('region', { name: 'Alice Martin' })).toHaveTextContent('Not active');
+    expect(screen.getByRole('region', { name: 'Alice Martin' })).toHaveTextContent('Pulled');
   });
 
   it('re-reads the entries after a check-in and drops its local flip once the read lands', async () => {
@@ -374,7 +385,7 @@ describe('CheckInDesk', () => {
     );
     const pulled = entry({ classes: [{ ...entry().classes[0]!, checkInStatus: 'pulled' }] });
     rerender(<CheckInDesk {...props} entries={[pulled]} />);
-    expect(screen.getByRole('region', { name: 'Alice Martin' })).toHaveTextContent('Not active');
+    expect(screen.getByRole('region', { name: 'Alice Martin' })).toHaveTextContent('Pulled');
 
     // Once the read lands the flip is gone and the shared entries speak alone.
     finishRefresh();
@@ -411,17 +422,22 @@ describe('CheckInDesk — runs already underway (MYK9-1690)', () => {
   });
 
   it.each([
-    ['at-gate', 'At Gate'],
-    ['in-ring', 'In Ring'],
-  ] as const)('shows a %s run as %s with no Check in button', (status, label) => {
-    render(<CheckInDesk {...props} entries={[at('entry-1', 'class-1', status)]} />);
-    const region = screen.getByRole('region', { name: 'Alice Martin' });
-    expect(region).toHaveTextContent(label);
-    expect(region).not.toHaveTextContent('Not checked in');
-    expect(screen.queryByRole('button', { name: /^Check in Poppy/ })).not.toBeInTheDocument();
-    // An underway run is shown, never rewritten from the desk.
-    expect(screen.queryByRole('button', { name: /^Change status/ })).not.toBeInTheDocument();
-  });
+    ['at-gate', 'At Gate', true],
+    ['in-ring', 'In Ring', false],
+  ] as const)(
+    'shows a %s run as %s with no Check in button (changeable: %s)',
+    (status, label, changeable) => {
+      render(<CheckInDesk {...props} entries={[at('entry-1', 'class-1', status)]} />);
+      const region = screen.getByRole('region', { name: 'Alice Martin' });
+      expect(region).toHaveTextContent(label);
+      expect(region).not.toHaveTextContent('Not checked in');
+      expect(screen.queryByRole('button', { name: /^Check in Poppy/ })).not.toBeInTheDocument();
+      // Staff may move a dog at the gate (MYK9-1749); a run in the ring is the judge's.
+      expect(screen.queryAllByRole('button', { name: /^Change status/ })).toHaveLength(
+        changeable ? 1 : 0
+      );
+    }
+  );
 
   it('leaves an underway run out of the one-tap check-in', async () => {
     const { user } = render(

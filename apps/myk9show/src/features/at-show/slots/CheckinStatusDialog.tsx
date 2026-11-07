@@ -5,7 +5,7 @@
  */
 import type React from 'react';
 import type { CheckinStatusDialogProps } from '@myk9/ringside';
-import type { CheckInStatus } from '@myk9/core';
+import { STAFF_CHECK_IN_STATUSES, type CheckInStatus } from '@myk9/core';
 import {
   Dialog,
   DialogContent,
@@ -17,15 +17,8 @@ import { Button } from '@/components/ui/button';
 import { StatusIcon, getStatusDescriptor } from '@/components/status';
 import { handleOpenChange } from './dialogHelpers';
 
-/** Statuses every user can set. */
-const BASE_CHECK_IN_STATUSES: readonly CheckInStatus[] = [
-  'no-status',
-  'checked-in',
-  'conflict',
-  'pulled',
-  'at-gate',
-  'come-to-gate',
-];
+/** Statuses every staff member can set (the same six as the Check-in desk). */
+const BASE_CHECK_IN_STATUSES = STAFF_CHECK_IN_STATUSES;
 
 /** Additional statuses only stewards/judges may set (ring management). */
 const RING_MANAGEMENT_CHECK_IN_STATUSES: readonly CheckInStatus[] = ['in-ring', 'completed'];

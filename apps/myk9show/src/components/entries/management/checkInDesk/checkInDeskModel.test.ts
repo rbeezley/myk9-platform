@@ -83,12 +83,21 @@ describe('deskStatusEditable', () => {
     ['no-status', true],
     ['checked-in', true],
     ['conflict', true],
-    ['at-gate', false],
+    ['at-gate', true],
+    ['come-to-gate', true],
+    ['pulled', true],
     ['in-ring', false],
-    ['pulled', false],
     ['completed', false],
   ] as const)('a %s class on show day is editable: %s', (status, editable) => {
     expect(rowsOf([entry('e1', 'class-1', status)])[0]!.deskStatusEditable).toBe(editable);
+  });
+
+  it('keeps a real Pull from the Entries page (scratched) locked, showing Pulled', () => {
+    const scratched = entry('e1', 'class-1', 'pulled');
+    scratched.classes[0]!.status = 'scratched';
+    const [row] = rowsOf([scratched]);
+    expect(row!.deskStatusEditable).toBe(false);
+    expect(row!.statusLabel).toBe('Pulled');
   });
 
   it('is not editable for a waitlisted entry or on another day', () => {

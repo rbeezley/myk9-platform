@@ -151,6 +151,7 @@ export {
   CHECKIN_STATUSES,
   ENTRY_STATUSES,
   EXHIBITOR_ALLOWED_STATUSES,
+  STAFF_CHECK_IN_STATUSES,
   isCheckInStatus,
   isEntryStatus,
   isExhibitorAllowedStatus,

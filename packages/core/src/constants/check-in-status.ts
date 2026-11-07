@@ -61,6 +61,21 @@ export const EXHIBITOR_ALLOWED_STATUSES: readonly CheckInStatus[] = [
   'no-status',
 ] as const;
 
+/**
+ * The check-in statuses any staff member (secretary, judge, steward) sets by hand, on Ringside
+ * and on the Check-in desk alike (owner, 2026-11-07, MYK9-1749): the exhibitor's five plus
+ * Come to gate, which only staff call. In ring and Completed are not here: the judge and scoring
+ * start and end a scored run.
+ */
+export const STAFF_CHECK_IN_STATUSES: readonly CheckInStatus[] = [
+  'no-status',
+  'checked-in',
+  'conflict',
+  'pulled',
+  'at-gate',
+  'come-to-gate',
+] as const;
+
 // ============================================================================
 // Helper Functions
 // ============================================================================

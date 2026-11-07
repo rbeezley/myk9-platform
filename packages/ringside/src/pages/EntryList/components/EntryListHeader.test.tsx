@@ -233,9 +233,10 @@ describe('EntryListHeader', () => {
   });
 
   // MYK9-1746: the answer lives in the pinned bar, where the tap happened.
-  it('shows the refresh answer inside the pinned header, and nothing when there is none', () => {
+  it('shows the refresh answer in place of the trial line, and the trial line when there is none', () => {
     const { rerender } = renderHeader();
     expect(screen.queryByTestId('entry-list-refresh-answer')).toBeNull();
+    expect(screen.getByText(/May 28/)).toBeInTheDocument();
 
     rerender(
       <MemoryRouter>
@@ -250,7 +251,16 @@ describe('EntryListHeader', () => {
     );
     const answer = screen.getByTestId('entry-list-refresh-answer');
     expect(answer.textContent).toBe("You're offline. Showing what is on this device.");
-    expect(answer.closest('header')).not.toBeNull();
+    expect(answer.closest('header')).toBeNull();
+    expect(screen.queryByText(/May 28/)).toBeNull();
+
+    rerender(
+      <MemoryRouter>
+        <EntryListHeader {...defaultProps} refreshAnswer={null} />
+      </MemoryRouter>
+    );
+    expect(screen.queryByTestId('entry-list-refresh-answer')).toBeNull();
+    expect(screen.getByText(/May 28/)).toBeInTheDocument();
   });
 
   it('pins the class name with the bar and lets it wrap on its own row on phones (D7)', () => {

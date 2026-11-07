@@ -161,6 +161,34 @@ function TrialLine({
   );
 }
 
+/**
+ * The refresh answer, standing in for the trial line in the same row (same
+ * padding, line-height and reserved line count) so the page never shifts.
+ */
+function RefreshAnswerLine({
+  answer,
+  lines,
+}: {
+  answer: { message: string; tone: 'ok' | 'warn' };
+  lines: number;
+}) {
+  const reserved = Math.max(lines, 1);
+  return (
+    <div className="px-3 pt-2 text-center">
+      <p
+        data-testid="entry-list-refresh-answer"
+        style={{ minHeight: `calc(${reserved} * 1.375 * 0.875rem + ${reserved - 1} * 0.125rem)` }}
+        className={cn(
+          'm-0 truncate text-sm font-semibold leading-tight',
+          answer.tone === 'ok' ? 'text-foreground' : 'text-warning'
+        )}
+      >
+        {answer.message}
+      </p>
+    </div>
+  );
+}
+
 /** Same 48px round target as the class list's refresh (gloved taps, INTENT s.6). */
 const REFRESH_BUTTON_CLASS =
   'inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60';
@@ -175,7 +203,7 @@ export interface EntryListHeaderProps {
   hasActiveFilters: boolean;
   onFilterClick: () => void;
   onRefresh: () => void;
-  /** Answer to the last refresh, overlaid under the pinned bar so the page does not shift. */
+  /** Answer to the last refresh, shown in place of the trial line so the page does not shift. */
   refreshAnswer?: { message: string; tone: 'ok' | 'warn' } | null;
   /** The Up control's label and fixed parent route (MYK9-1500). */
   up: { label: string; to: string };
@@ -350,21 +378,15 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
           </button>
           {menuControl}
         </div>
-        {refreshAnswer && (
-          <p
-            data-testid="entry-list-refresh-answer"
-            className={cn(
-              'absolute inset-x-0 top-full m-0 rounded-b-xl px-3 py-1.5 text-center text-sm shadow-sm',
-              refreshAnswer.tone === 'ok'
-                ? 'bg-muted text-foreground'
-                : 'bg-warning/10 text-warning'
-            )}
-          >
-            {refreshAnswer.message}
-          </p>
-        )}
       </header>
-      <TrialLine trialInfoText={trialInfoText} statusLabel={classInfo?.statusLabel} />
+      {refreshAnswer ? (
+        <RefreshAnswerLine
+          answer={refreshAnswer}
+          lines={(trialInfoText ? 1 : 0) + (classInfo?.statusLabel ? 1 : 0)}
+        />
+      ) : (
+        <TrialLine trialInfoText={trialInfoText} statusLabel={classInfo?.statusLabel} />
+      )}
     </>
   );
 };

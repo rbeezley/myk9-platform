@@ -6,7 +6,17 @@
  * page's Results tab, the Message Center, AskQ). Nothing here re-implements one.
  */
 import type { LucideIcon } from 'lucide-react';
-import { Bell, Dog, FileText, Info, LifeBuoy, LogOut, Medal, Settings } from 'lucide-react';
+import {
+  BarChart3,
+  Bell,
+  Dog,
+  FileText,
+  Info,
+  LifeBuoy,
+  LogOut,
+  Medal,
+  Settings,
+} from 'lucide-react';
 import { atShowSetupSheetPath } from '../setupSheetRegistries';
 import { ringsideMenuExtensions } from './ringsideMenuExtensions';
 
@@ -58,11 +68,18 @@ export const OFFLINE_ITEM_NOTICE = 'Needs a connection';
 
 /**
  * Where Results lives: the manager's page, or the show page's own tab. Show
- * Stats is a view inside that tab, one tap away once something is scored, so
- * it has no menu item of its own.
+ * Stats is a view inside that tab, so its menu item (owner decision 2026-11-07,
+ * MYK9-1740) is the same URL plus the `resultsView=show-stats` param both tab
+ * implementations already read. Until something is scored the tab has no Stats
+ * view and shows the podium, so the link degrades to Results rather than failing.
  */
 function resultsHref(context: RingsideMenuContext, showId: string): string {
   return context.canManageShow ? `/shows/${showId}/results` : `/shows/${showId}?tab=results`;
+}
+
+function statsHref(context: RingsideMenuContext, showId: string): string {
+  const base = resultsHref(context, showId);
+  return `${base}${base.includes('?') ? '&' : '?'}resultsView=show-stats`;
 }
 
 export function buildRingsideMenuItems(
@@ -96,7 +113,7 @@ export function buildRingsideMenuItems(
       : null,
     {
       id: 'announcements',
-      label: 'Announcements',
+      label: 'Messages & announcements',
       icon: Bell,
       action: 'announcements',
       requiresConnection: false,
@@ -121,6 +138,16 @@ export function buildRingsideMenuItems(
           label: 'Results',
           icon: Medal,
           href: resultsHref(context, showId),
+          returnScope: showScope,
+          requiresConnection: true,
+        }
+      : null,
+    showId && showScope
+      ? {
+          id: 'stats',
+          label: 'Stats',
+          icon: BarChart3,
+          href: statsHref(context, showId),
           returnScope: showScope,
           requiresConnection: true,
         }

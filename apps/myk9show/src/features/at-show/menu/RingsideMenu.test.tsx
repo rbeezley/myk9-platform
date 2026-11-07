@@ -117,9 +117,10 @@ describe('RingsideMenu', () => {
       .getAllByRole('button')
       .map(button => button.textContent);
     expect(labels).toEqual([
-      'Announcements',
+      'Messages & announcements',
       'Settings',
       'Results',
+      'Stats',
       'Show info',
       'Ask for help (AskQ)',
       'Sign out',
@@ -139,10 +140,31 @@ describe('RingsideMenu', () => {
     });
   });
 
-  it('has no Stats item, and shows Results to a viewer who is not a manager', async () => {
+  it('opens Stats on the Show Stats view of Results', async () => {
     const { user } = renderMenu();
     const nav = await openMenu(user);
-    expect(within(nav).queryByRole('button', { name: /^Stats/ })).not.toBeInTheDocument();
+    await user.click(within(nav).getByRole('button', { name: 'Stats' }));
+    await waitFor(() =>
+      expect(screen.getByTestId('location')).toHaveTextContent(
+        '/shows/show-1?tab=results&resultsView=show-stats'
+      )
+    );
+  });
+
+  it('says Stats needs a connection when offline, and does not navigate', async () => {
+    mocks.online = false;
+    const { user } = renderMenu();
+    const nav = await openMenu(user);
+    const stats = within(nav).getByRole('button', { name: /^Stats/ });
+    expect(stats).toHaveAttribute('aria-disabled', 'true');
+    expect(stats).toHaveTextContent('Needs a connection');
+    await user.click(stats);
+    expect(screen.getByTestId('location')).toHaveTextContent('/at-show/show-1/class/class-1');
+  });
+
+  it('shows Results to a viewer who is not a manager', async () => {
+    const { user } = renderMenu();
+    const nav = await openMenu(user);
     await user.click(within(nav).getByRole('button', { name: 'Results' }));
     await waitFor(() =>
       expect(screen.getByTestId('location')).toHaveTextContent('/shows/show-1?tab=results')
@@ -184,11 +206,11 @@ describe('RingsideMenu', () => {
     );
   });
 
-  it('keeps Announcements and Sign out usable offline', async () => {
+  it('keeps Messages & announcements and Sign out usable offline', async () => {
     mocks.online = false;
     const { user } = renderMenu();
     const nav = await openMenu(user);
-    for (const name of ['Announcements', 'Sign out']) {
+    for (const name of ['Messages & announcements', 'Sign out']) {
       expect(within(nav).getByRole('button', { name })).not.toHaveAttribute('aria-disabled');
     }
   });
@@ -241,7 +263,7 @@ describe('RingsideMenu', () => {
   it('opens the Message Center over the screen without navigating', async () => {
     const { user } = renderMenu();
     const nav = await openMenu(user);
-    await user.click(within(nav).getByRole('button', { name: /^Announcements/ }));
+    await user.click(within(nav).getByRole('button', { name: /^Messages & announcements/ }));
     await waitFor(() => expect(useNotificationStore.getState().isCenterOpen).toBe(true), {
       timeout: 2000,
     });
@@ -318,7 +340,11 @@ describe('RingsideMenu', () => {
     const labels = within(nav)
       .getAllByRole('button')
       .map(button => button.textContent);
-    expect(labels.slice(0, 3)).toEqual(['Find a dog', 'Judge setup cheat sheet', 'Announcements']);
+    expect(labels.slice(0, 3)).toEqual([
+      'Find a dog',
+      'Judge setup cheat sheet',
+      'Messages & announcements',
+    ]);
 
     await user.click(within(nav).getByRole('button', { name: 'Find a dog' }));
     await waitFor(() =>

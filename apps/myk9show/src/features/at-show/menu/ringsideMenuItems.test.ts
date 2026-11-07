@@ -25,6 +25,7 @@ describe('buildRingsideMenuItems', () => {
       'announcements',
       'settings',
       'results',
+      'stats',
       'show-info',
       'askq',
       'sign-out',
@@ -40,9 +41,21 @@ describe('buildRingsideMenuItems', () => {
     expect(find(manager, 'results')?.href).toBe('/shows/show-1/results');
   });
 
-  it('has no separate Stats item: Show Stats is a view inside Results', () => {
-    expect(ids(base)).not.toContain('stats');
-    expect(ids({ ...base, canManageShow: true })).not.toContain('stats');
+  it('deep-links Stats to the Show Stats view of the same Results tab', () => {
+    expect(find(base, 'stats')?.href).toBe('/shows/show-1?tab=results&resultsView=show-stats');
+    expect(find({ ...base, canManageShow: true }, 'stats')?.href).toBe(
+      '/shows/show-1/results?resultsView=show-stats'
+    );
+    expect(find(base, 'stats')?.label).toBe('Stats');
+  });
+
+  it('labels the Message Center item Messages & announcements', () => {
+    expect(find(base, 'announcements')?.label).toBe('Messages & announcements');
+  });
+
+  it('gates Stats online-only like Results, and drops it when the show is unknown', () => {
+    expect(find(base, 'stats')?.requiresConnection).toBe(true);
+    expect(ids({ ...base, showId: undefined })).not.toContain('stats');
   });
 
   it('gives Results to every viewer who has a show, manager or not', () => {
@@ -63,9 +76,9 @@ describe('buildRingsideMenuItems', () => {
     expect(unknown).not.toContain('results');
   });
 
-  it('marks Results and AskQ online-only, and Settings, Announcements and Sign out usable offline', () => {
+  it('marks Results, Stats and AskQ online-only, and Settings, Announcements and Sign out usable offline', () => {
     const online = (id: string) => find(base, id)?.requiresConnection;
-    expect([online('results'), online('askq')]).toEqual([true, true]);
+    expect([online('results'), online('stats'), online('askq')]).toEqual([true, true, true]);
     expect([online('settings'), online('announcements'), online('sign-out')]).toEqual([
       false,
       false,

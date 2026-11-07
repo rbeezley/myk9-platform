@@ -17,8 +17,12 @@ vi.mock('./useOfflineReadiness', () => ({
   useOfflineReadiness: () => ({ ...hookState, prime: primeSpy }),
 }));
 
+const { network } = vi.hoisted(() => ({ network: { isOnline: true } }));
+vi.mock('@/lib/networkUtils', () => ({ useOnlineStatus: () => network.isOnline }));
+
 describe('OfflineReadyBadge', () => {
   beforeEach(() => {
+    network.isOnline = true;
     vi.clearAllMocks();
     hookState.readiness = null;
     hookState.checking = false;
@@ -213,6 +217,37 @@ describe('OfflineReadyBadge', () => {
       render(<OfflineReadyBadge showId="show-1" inPromptWindow />);
 
       expect(screen.getByText('Offline copy: not saved on this device')).toBeInTheDocument();
+    });
+  });
+
+  describe('MYK9-1744 offline variant', () => {
+    beforeEach(() => {
+      hookState.readiness = { ready: true, missing: [], asOf: Date.parse('2026-08-18T18:00:00Z') };
+    });
+
+    it('stays green with the readiness wording online, passing the note through', () => {
+      render(<OfflineReadyBadge showId="show-1" note="All changes saved" />);
+      const status = screen.getByRole('status');
+      expect(status).toHaveTextContent('Offline copy: saved on this device');
+      expect(status).toHaveTextContent('All changes saved');
+      expect(status.className).toContain('text-success');
+      expect(status.className).not.toContain('text-warning');
+    });
+
+    it('turns amber with the offline note and pending count while offline', () => {
+      network.isOnline = false;
+      render(<OfflineReadyBadge showId="show-1" note="Offline · 2 changes saved on this device" />);
+      const status = screen.getByRole('status');
+      expect(status).toHaveTextContent('Offline · 2 changes saved on this device');
+      expect(status).not.toHaveTextContent('Offline copy');
+      expect(status.className).toContain('text-warning');
+      expect(status.className).not.toContain('text-success');
+    });
+
+    it('falls back to the offline wording when no note is passed', () => {
+      network.isOnline = false;
+      render(<OfflineReadyBadge showId="show-1" />);
+      expect(screen.getByRole('status')).toHaveTextContent('Offline · scores saved on this device');
     });
   });
 });

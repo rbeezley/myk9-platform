@@ -21,10 +21,16 @@ describe('useSyncNote', () => {
   it('uses calm, truthful offline and pending-save wording', () => {
     mocks.sync.status = 'offline';
     mocks.sync.isOnline = false;
+    mocks.sync.queueSize = 0;
     expect(renderHook(() => useSyncNote()).result.current).toEqual({
-      label: 'Changes saved on this device, will sync when online',
+      label: 'Offline · scores saved on this device',
       needsAttention: false,
     });
+
+    mocks.sync.queueSize = 3;
+    expect(renderHook(() => useSyncNote()).result.current.label).toBe(
+      'Offline · 3 changes saved on this device'
+    );
 
     mocks.sync.status = 'pending';
     mocks.sync.isOnline = true;

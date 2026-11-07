@@ -12,6 +12,7 @@
  */
 
 import React, { type ReactNode } from 'react';
+import { OfflineScoresIndicator } from './OfflineScoresIndicator';
 
 export interface ScoresheetHeaderProps {
   /** The Up control from `useScoresheetLeave`. */
@@ -44,6 +45,7 @@ export const ScoresheetHeader: React.FC<ScoresheetHeaderProps> = ({
         375px "Handler: …" had 101px and was cut. */}
     <header className="sticky top-0 z-10 flex flex-wrap items-center gap-x-2 gap-y-0.5 border-b border-border bg-card/90 px-3 py-2 backdrop-blur-sm">
       {upButton}
+      <OfflineScoresIndicator />
       <div
         className="flex h-12 min-w-[3.5rem] flex-shrink-0 items-center justify-center rounded-xl bg-primary px-2.5 shadow-sm"
         data-testid="scoresheet-armband"

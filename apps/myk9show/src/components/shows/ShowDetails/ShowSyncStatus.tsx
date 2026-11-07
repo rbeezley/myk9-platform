@@ -10,7 +10,9 @@ export function useSyncNote(): { label: string; needsAttention: boolean } {
   const needsAttention = sync.status === 'error' || sync.status === 'conflict';
   const label =
     sync.status === 'offline'
-      ? 'Changes saved on this device, will sync when online'
+      ? sync.queueSize > 0
+        ? `Offline · ${sync.queueSize} ${sync.queueSize === 1 ? 'change' : 'changes'} saved on this device`
+        : 'Offline · scores saved on this device'
       : needsAttention
         ? 'Sync needs attention'
         : sync.status === 'pending'

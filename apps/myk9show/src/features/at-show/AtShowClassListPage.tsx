@@ -61,6 +61,7 @@ import { useRingsideListSnapshot } from './menu/useRingsideListSnapshot';
 import { selectNextUpForCard } from './atShowNextUpPreview';
 import { useMyAtShowJudgeAssignments } from './useMyAtShowJudgeAssignments';
 import { OfflineReadyBadge } from '@/features/offline-readiness/OfflineReadyBadge';
+import { useSyncNote } from '@/components/shows/ShowDetails/ShowSyncStatus';
 import { isJudgeOnlyAtShow } from './isJudgeOnlyAtShow';
 
 /**
@@ -76,10 +77,15 @@ function AtShowOfflineReadySlot({
   showId: string | undefined;
   isExhibitorOnly: boolean;
 }) {
+  const note = useSyncNote();
   if (isExhibitorOnly) return null;
   return (
     <div className="mb-2 flex justify-center">
-      <OfflineReadyBadge showId={showId} />
+      <OfflineReadyBadge
+        showId={showId}
+        note={note.label}
+        noteNeedsAttention={note.needsAttention}
+      />
     </div>
   );
 }

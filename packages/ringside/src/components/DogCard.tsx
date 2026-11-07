@@ -90,7 +90,23 @@ export const DogCard = React.memo<DogCardProps>(
               )}
               data-testid="dog-card-armband"
             >
-              {armbandText}
+              {sectionBadge ? (
+                // Owner, 2026-11-06: on a combined A/B list the section sits under the number
+                // inside the armband, where judge and steward already look, not on a corner tab.
+                // The hidden "Section" makes a screen reader say "101, Section A", not "101A".
+                <span className="flex flex-col items-center leading-none">
+                  <span>{armbandText}</span>
+                  <span className="sr-only">, Section </span>
+                  <span
+                    className="mt-0.5 text-[0.6875rem] font-semibold uppercase tracking-wide opacity-80"
+                    data-testid="section-badge"
+                  >
+                    {sectionBadge}
+                  </span>
+                </span>
+              ) : (
+                armbandText
+              )}
             </div>
           </div>
 
@@ -138,18 +154,6 @@ export const DogCard = React.memo<DogCardProps>(
         {actionButton && <div className="absolute right-0 top-0 z-10">{actionButton}</div>}
         {favoriteButton && !trailing && (
           <div className="absolute bottom-2 right-2 z-10">{favoriteButton}</div>
-        )}
-
-        {sectionBadge && (
-          <div
-            className={cn(
-              'absolute bottom-0 left-0 z-10 flex items-center justify-center rounded-bl-2xl rounded-tr-xl px-3 py-1 text-xs font-semibold text-white',
-              sectionBadge.toLowerCase() === 'a' ? 'bg-[#9ca3af]' : 'bg-[#4b5563]'
-            )}
-            data-testid="section-badge"
-          >
-            {sectionBadge}
-          </div>
         )}
       </div>
     );

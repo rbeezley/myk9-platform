@@ -42,9 +42,13 @@ describe('DogCard', () => {
     expect(screen.getByTestId('dog-card-armband').className).toContain('text-[0.9375rem]');
   });
 
-  it('renders the section corner badge', () => {
+  // Owner, 2026-11-06: the section lives on the armband, not a corner tab.
+  it('shows the section inside the armband, with no corner badge', () => {
     render(<DogCard armband={1} callName="A" breed="B" handler="C" sectionBadge="B" />);
+    const armband = screen.getByTestId('dog-card-armband');
     expect(screen.getByTestId('section-badge').textContent).toBe('B');
+    expect(armband.contains(screen.getByTestId('section-badge'))).toBe(true);
+    expect(armband.textContent).toBe('1, Section B');
   });
 
   it('renders injected action + result-badge slots', () => {

@@ -43,6 +43,11 @@ export interface ServerDeleteOptions {
    * else, so the dialog offers it only to a site admin.
    */
   override?: boolean;
+  /**
+   * Why the admin is overriding (show, trial, class). The server refuses an
+   * override without it and records it, with who and when, in the audit log.
+   */
+  reason?: string;
 }
 
 /** 'already-deleted': the row was gone before this call (another device, a retry). */
@@ -54,17 +59,18 @@ export async function softDeleteOnServer(
   options: ServerDeleteOptions = {}
 ): Promise<ServerDeleteOutcome | void> {
   const override = options.override === true;
+  const reason = override ? options.reason : undefined;
   switch (kind) {
     case 'show': {
       // deleteShow reports "Show not found" as a success flagged alreadyDeleted.
-      const result = await deleteShowRecord(id, undefined, { override });
+      const result = await deleteShowRecord(id, undefined, { override, reason });
       unwrap(result);
       return 'alreadyDeleted' in result && result.alreadyDeleted ? 'already-deleted' : 'deleted';
     }
     case 'trial':
-      return unwrap(await deleteTrial(id, undefined, { override }));
+      return unwrap(await deleteTrial(id, undefined, { override, reason }));
     case 'class':
-      return unwrap(await deleteClass(id, undefined, { override }));
+      return unwrap(await deleteClass(id, undefined, { override, reason }));
     case 'entry':
       // Also discards queued edits and evicts the row from the entries replica
       // with the version guard (acknowledgeServerDeletion).

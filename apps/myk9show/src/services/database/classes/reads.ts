@@ -24,6 +24,7 @@ import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTa
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
 import { buildMapFromArray } from '../_shared/maps';
 import { joinRowsOrEmpty } from '../_shared/readRows';
+import { overrideRpcArgs, type OverrideOptions } from '../overrideRpcArgs';
 
 // ---------------------------------------------------------------------------
 // Helpers — batch-load related data into Maps to avoid N+1 reads
@@ -612,14 +613,14 @@ export const updateClass = async (id: string, updates: DbClassUpdate) => {
 export const deleteClass = async (
   id: string,
   _deletedBy?: string,
-  options: { override?: boolean } = {}
+  options: OverrideOptions = {}
 ) => {
   try {
     log('deleteClass', 'Soft deleting class via RPC', { id });
 
     const { error } = await supabase.rpc('soft_delete_class', {
       p_class_id: id,
-      ...(options.override ? { p_override: true } : {}),
+      ...overrideRpcArgs(options),
     });
 
     if (error) {

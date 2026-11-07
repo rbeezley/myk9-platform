@@ -406,7 +406,7 @@ BEGIN
   END;
 
   BEGIN
-    PERFORM public.soft_delete_show('00000000-0000-0000-0000-000000915032', true);
+    PERFORM public.soft_delete_show('00000000-0000-0000-0000-000000915032', true, 'MYK9-915 test reason');
     RAISE EXCEPTION 'FAIL a secretary overrode the show guard';
   EXCEPTION WHEN sqlstate '42501' THEN
     RAISE NOTICE 'PASS a secretary cannot override the show guard (42501)';
@@ -442,7 +442,7 @@ BEGIN
 END;
 $$;
 
-SELECT public.soft_delete_show('00000000-0000-0000-0000-000000915032', true);
+SELECT public.soft_delete_show('00000000-0000-0000-0000-000000915032', true, 'MYK9-915 test reason');
 RESET ROLE;
 
 DO $$
@@ -514,9 +514,9 @@ SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000915103
 SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000915103","role":"authenticated"}', true);
 SELECT public.soft_delete_entry('00000000-0000-0000-0000-000000915084', true);
 SELECT public.restore_entry('00000000-0000-0000-0000-000000915084');
-SELECT public.soft_delete_class('00000000-0000-0000-0000-000000915053', true);
+SELECT public.soft_delete_class('00000000-0000-0000-0000-000000915053', true, 'MYK9-915 test reason');
 SELECT count(*) FROM public.restore_class('00000000-0000-0000-0000-000000915053');
-SELECT count(*) FROM public.soft_delete_trial('00000000-0000-0000-0000-000000915042', true);
+SELECT count(*) FROM public.soft_delete_trial('00000000-0000-0000-0000-000000915042', true, 'MYK9-915 test reason');
 SELECT count(*) FROM public.restore_trial('00000000-0000-0000-0000-000000915042');
 RESET ROLE;
 
@@ -1017,8 +1017,8 @@ DECLARE
   v_fn text;
 BEGIN
   FOREACH v_fn IN ARRAY ARRAY[
-    'public.soft_delete_show(uuid, boolean)', 'public.soft_delete_class(uuid, boolean)',
-    'public.soft_delete_trial(uuid, boolean)', 'public.soft_delete_entry(uuid, boolean)',
+    'public.soft_delete_show(uuid, boolean, text)', 'public.soft_delete_class(uuid, boolean, text)',
+    'public.soft_delete_trial(uuid, boolean, text)', 'public.soft_delete_entry(uuid, boolean)',
     'public.soft_delete_club(uuid)', 'public.restore_trial(uuid)', 'public.restore_entry(uuid)',
     'public.restore_club(uuid)', 'public.restore_show(uuid)', 'public.restore_class(uuid)',
     'public.restore_dog(uuid)', 'public.restore_person(uuid)'
@@ -1153,7 +1153,7 @@ SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000915103', true);
 SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000915103","role":"authenticated"}', true);
 
-SELECT public.soft_delete_class('00000000-0000-0000-0000-000000915060', true);
+SELECT public.soft_delete_class('00000000-0000-0000-0000-000000915060', true, 'MYK9-915 test reason');
 SELECT count(*) FROM public.restore_class('00000000-0000-0000-0000-000000915060');
 RESET ROLE;
 
@@ -1517,9 +1517,9 @@ BEGIN
   FOR r IN
     SELECT p.oid::regprocedure AS fn, p.prosecdef, p.proconfig, p.proowner, v.path
     FROM (VALUES
-      ('public.soft_delete_show(uuid, boolean)', 'search_path=""'),
-      ('public.soft_delete_trial(uuid, boolean)', 'search_path=""'),
-      ('public.soft_delete_class(uuid, boolean)', 'search_path=""'),
+      ('public.soft_delete_show(uuid, boolean, text)', 'search_path=""'),
+      ('public.soft_delete_trial(uuid, boolean, text)', 'search_path=""'),
+      ('public.soft_delete_class(uuid, boolean, text)', 'search_path=""'),
       ('public.soft_delete_entry(uuid, boolean)', 'search_path=""'),
       ('public.soft_delete_club(uuid)', 'search_path=""'),
       ('public.soft_delete_person(uuid)', 'search_path=""'),

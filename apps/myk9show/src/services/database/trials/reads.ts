@@ -12,6 +12,7 @@ import {
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
 import type { ReplicatedShow } from '@/services/replication/ReplicatedShowsTable';
 import { joinRowsOrEmpty } from '../_shared/readRows';
+import { overrideRpcArgs, type OverrideOptions } from '../overrideRpcArgs';
 
 type DbTrialInsert = Database['public']['Tables']['trials']['Insert'];
 type DbTrialUpdate = Database['public']['Tables']['trials']['Update'];
@@ -209,13 +210,13 @@ export const updateTrial = async (id: string, updates: DbTrialUpdate) => {
 export const deleteTrial = async (
   id: string,
   deletedBy?: string,
-  options: { override?: boolean } = {}
+  options: OverrideOptions = {}
 ) => {
   void deletedBy;
   return await supabase
     .rpc('soft_delete_trial', {
       p_trial_id: id,
-      ...(options.override ? { p_override: true } : {}),
+      ...overrideRpcArgs(options),
     })
     .single();
 };

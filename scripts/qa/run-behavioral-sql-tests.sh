@@ -169,6 +169,7 @@ TEST_FILES=(
   "$TEST_DIR/myk9_997_platform_income_club_funded_refunds_test.sql"
   "$TEST_DIR/myk9_941_dog_registrations_co_owner_writes_test.sql"
   "$TEST_DIR/myk9_923_entries_refuse_deleted_parent_test.sql"
+  "$TEST_DIR/myk9_1596_admin_delete_override_test.sql"
   "$TEST_DIR/myk9_980_move_up_pending_and_reentry_test.sql"
   "$TEST_DIR/myk9_1265_change_class_check_in_test.sql"
   "$TEST_DIR/myk9_964_replayable_cart_fulfillment_test.sql"

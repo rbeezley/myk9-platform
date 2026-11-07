@@ -105,7 +105,8 @@ describe('deleteRecords: the one client delete service', () => {
     expect(result.failed).toEqual([
       {
         target: show,
-        message: 'This show has paid or scored entries. Cancel the show instead of deleting it.',
+        message:
+          'This show has paid or scored entries, so it cannot be deleted. If it is not going ahead, cancel it.',
       },
     ]);
   });
@@ -233,7 +234,7 @@ describe('server refusals in plain language (no raw error text)', () => {
     [
       'show',
       'MK010',
-      'This show has paid or scored entries. Cancel the show instead of deleting it.',
+      'This show has paid or scored entries, so it cannot be deleted. If it is not going ahead, cancel it.',
     ],
     [
       'trial',
@@ -353,6 +354,9 @@ describe('delete_preview reply and failures', () => {
         paid: 3,
         scored: 0,
         blocking: 3,
+        paid_amount: 420.5,
+        stripe_retained: 1,
+        stripe_retained_amount: 30,
       })
     ).toEqual({
       trials: 2,
@@ -363,6 +367,9 @@ describe('delete_preview reply and failures', () => {
       paid: 3,
       scored: 0,
       blocking: 3,
+      paid_amount: 420.5,
+      stripe_retained: 1,
+      stripe_retained_amount: 30,
     });
   });
 });

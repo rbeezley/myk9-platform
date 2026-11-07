@@ -161,6 +161,9 @@ describe('blocked scored-entry recovery', () => {
                   paid: 0,
                   scored: 1,
                   blocking: 1,
+                  paid_amount: 0,
+                  stripe_retained: 0,
+                  stripe_retained_amount: 0,
                 },
               }}
             />

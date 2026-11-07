@@ -73,7 +73,7 @@ export function deleteErrorMessage(kind: DeleteObjectKind, error: unknown): stri
         return 'This person still owns dogs. Delete those dogs or give them a new owner first.';
       }
       if (kind === 'show') {
-        return 'This show has paid or scored entries. Cancel the show instead of deleting it.';
+        return 'This show has paid or scored entries, so it cannot be deleted. If it is not going ahead, cancel it.';
       }
       if (kind === 'entry') {
         return 'This entry has been paid for or scored. Use Withdraw or Pull instead of deleting it.';

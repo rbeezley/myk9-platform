@@ -44,6 +44,12 @@ export interface DeletePreview {
   paid: number;
   scored: number;
   blocking: number;
+  /** Dollars recorded on the paid entries (entry_fee). Show, trial and class only. */
+  paid_amount: number;
+  /** Entries paid through Stripe (a payment intent) that still hold money after any refund. */
+  stripe_retained: number;
+  /** Dollars still held on those entries (entry_fee minus refund_amount). */
+  stripe_retained_amount: number;
 }
 
 /** Why the counts are not known. Each one keeps Delete disabled and says so. */

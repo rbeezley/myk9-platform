@@ -13,6 +13,7 @@ export const EntryAgreementSection = ({
   agreed,
   onAgree,
   isOnBehalf = false,
+  preTick = false,
 }: EntryAgreementSectionProps) => {
   const { data, isLoading, isFetching, isError, isSuccess, isPlaceholderData, refetch } =
     useOrganizationAgreement(organization);
@@ -31,13 +32,16 @@ export const EntryAgreementSection = ({
   // visit to this step, and only when there is an agreement to agree to: an
   // untick by the secretary stands. The wizard resets the agreement on leaving
   // Payment, and this component remounts on return, so it re-ticks then.
+  // Both the staff workflow AND an on-behalf role: the role alone is also true
+  // for a secretary entering their own dog, who signed nothing.
+  const shouldPreTick = preTick && isOnBehalf;
   const preTicked = useRef(false);
   const hasAgreement = answered && !!data;
   useEffect(() => {
-    if (!isOnBehalf || !hasAgreement || preTicked.current) return;
+    if (!shouldPreTick || !hasAgreement || preTicked.current) return;
     preTicked.current = true;
     if (!agreed) onAgree(true);
-  }, [isOnBehalf, hasAgreement, agreed, onAgree]);
+  }, [shouldPreTick, hasAgreement, agreed, onAgree]);
 
   if (stillArriving) {
     return (

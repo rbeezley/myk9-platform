@@ -59,7 +59,10 @@ export function DogSearchFilters({
         ...option,
         count: dogs.filter(dog => dogMatchesGroup(dog, group, [option.value], now)).length,
       }));
-    const plain = (list: string[]) => list.map(value => ({ value, label: value }));
+    // A ticked value stays offered after a new search drops it from the dogs on
+    // hand, so it can still be seen and unticked in the menu.
+    const plain = (group: DogFilterGroup, list: string[]) =>
+      [...new Set([...list, ...selection[group]])].sort().map(value => ({ value, label: value }));
     const field = (
       group: DogFilterGroup,
       options: ReadonlyArray<{ value: string; label: string }>
@@ -75,9 +78,9 @@ export function DogSearchFilters({
       ...(showRegistrationFilter ? [field('registration', REGISTRATION_OPTIONS)] : []),
       ...(showDetailFilters
         ? [
-            field('breed', plain(values.breeds)),
-            field('sex', plain(values.sexes)),
-            field('registry', plain(values.registries)),
+            field('breed', plain('breed', values.breeds)),
+            field('sex', plain('sex', values.sexes)),
+            field('registry', plain('registry', values.registries)),
             field('age', AGE_OPTIONS),
           ]
         : []),

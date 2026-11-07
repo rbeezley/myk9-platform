@@ -207,7 +207,7 @@ describe('EntryAgreementSection on-behalf pre-tick (MYK9-1742)', () => {
 
   it('ticks the agreement once for an on-behalf entry when it loads', () => {
     const onAgree = vi.fn();
-    render(<EntryAgreementSection {...baseProps} onAgree={onAgree} isOnBehalf />);
+    render(<EntryAgreementSection {...baseProps} onAgree={onAgree} isOnBehalf preTick />);
     expect(onAgree).toHaveBeenCalledTimes(1);
     expect(onAgree).toHaveBeenCalledWith(true);
   });
@@ -218,13 +218,23 @@ describe('EntryAgreementSection on-behalf pre-tick (MYK9-1742)', () => {
     expect(onAgree).not.toHaveBeenCalled();
   });
 
+  // A secretary entering their OWN dog on the exhibitor route holds no signed
+  // paper form: the role alone must not tick a legal agreement for them.
+  it('does not tick it for a staff role outside the staff (mail-in) workflow', () => {
+    const onAgree = vi.fn();
+    render(<EntryAgreementSection {...baseProps} onAgree={onAgree} isOnBehalf />);
+    expect(onAgree).not.toHaveBeenCalled();
+  });
+
   it('does not re-tick after the secretary unticks it', () => {
     const onAgree = vi.fn();
     const { rerender } = render(
-      <EntryAgreementSection {...baseProps} agreed onAgree={onAgree} isOnBehalf />
+      <EntryAgreementSection {...baseProps} agreed onAgree={onAgree} isOnBehalf preTick />
     );
     onAgree.mockClear();
-    rerender(<EntryAgreementSection {...baseProps} agreed={false} onAgree={onAgree} isOnBehalf />);
+    rerender(
+      <EntryAgreementSection {...baseProps} agreed={false} onAgree={onAgree} isOnBehalf preTick />
+    );
     expect(onAgree).not.toHaveBeenCalled();
   });
 
@@ -239,7 +249,7 @@ describe('EntryAgreementSection on-behalf pre-tick (MYK9-1742)', () => {
       refetch: vi.fn(),
     });
     const onAgree = vi.fn();
-    render(<EntryAgreementSection {...baseProps} onAgree={onAgree} isOnBehalf />);
+    render(<EntryAgreementSection {...baseProps} onAgree={onAgree} isOnBehalf preTick />);
     expect(onAgree).not.toHaveBeenCalled();
   });
 });

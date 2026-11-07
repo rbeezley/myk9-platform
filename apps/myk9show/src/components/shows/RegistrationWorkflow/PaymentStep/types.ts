@@ -30,6 +30,8 @@ export interface PaymentStepProps {
   onAgreementChange?: ((agreed: boolean) => void) | undefined;
   /** Current state of the entry agreement checkbox. */
   agreedToEntryAgreement?: boolean | undefined;
+  /** Staff workflow: the agreement arrives ticked (see EntryAgreementSectionProps.preTick). */
+  preTickAgreement?: boolean | undefined;
   /**
    * Secretary fee waiver and manual override. Owned by the wizard page, not by
    * this step: the entries panel renders the amount due outside this subtree
@@ -157,6 +159,11 @@ export interface EntryAgreementSectionProps {
   onAgree: (agreed: boolean) => void;
   /** True when a secretary/admin is entering on behalf of an exhibitor. */
   isOnBehalf?: boolean;
+  /**
+   * The staff (mail-in / late-entry) workflow, where the exhibitor signed the paper form, so the
+   * box arrives ticked (MYK9-1742). Not the role: a secretary entering their own dog signs nothing.
+   */
+  preTick?: boolean;
 }
 
 /**

@@ -456,6 +456,7 @@ export function WorkflowStepContent({
             registrationId={registrationId}
             agreedToEntryAgreement={agreedToEntryAgreement}
             onAgreementChange={onAgreementChange}
+            preTickAgreement={currentWorkflowMode !== 'exhibitor'}
             waiveFees={waiveFees}
             feeOverride={feeOverride}
             onWaiveFeesChange={onWaiveFeesChange}

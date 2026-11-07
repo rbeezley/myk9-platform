@@ -208,15 +208,18 @@ export const HandlerAssignmentStep: React.FC<HandlerAssignmentStepProps> = ({
               {/* Per-entry rows */}
               <div className="space-y-2 pl-2 border-l-2 border-border/50">
                 {entries.map(entry => (
+                  // MYK9-1732: on a phone the handler and Change took the whole line and truncated the
+                  // class name to nothing, so every row looked the same. Below `sm` the class name
+                  // gets its own wrapping line; from `sm` up the row is one line as before.
                   <div
                     key={entry.key}
-                    className="flex items-center justify-between py-2 px-3 rounded-md bg-muted/30"
+                    className="flex flex-col gap-1 py-2 px-3 rounded-md bg-muted/30 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
                   >
-                    <span className="text-sm font-medium truncate flex-1 min-w-0">
+                    <span className="text-sm font-medium break-words sm:min-w-0 sm:flex-1 sm:truncate">
                       {entry.className}
                     </span>
 
-                    <div className="flex items-center gap-2 shrink-0 ml-3">
+                    <div className="flex items-center justify-between gap-2 sm:shrink-0 sm:justify-end">
                       {entry.hasHandler && entry.handler ? (
                         <div className="flex items-center gap-1.5">
                           <UserCheck className="h-3.5 w-3.5 text-green-600" />
@@ -235,6 +238,7 @@ export const HandlerAssignmentStep: React.FC<HandlerAssignmentStepProps> = ({
                         onClick={() =>
                           setEditingTarget({ kind: 'single', entryKey: entry.key, dogId: dog.id })
                         }
+                        aria-label={`Change handler for ${entry.className}`}
                         className="h-7 px-2"
                       >
                         <Edit2 className="h-3 w-3 mr-1" />

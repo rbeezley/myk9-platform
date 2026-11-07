@@ -407,7 +407,7 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
           />
         )}
         {showHydration === 'not-arrived' && entries.length > 0 && <PartialReplicaNotice />}
-        <AtShowClassRefreshResult phase={refreshPhase} />
+        <AtShowClassRefreshResult phase={refreshPhase} floating />
         <EntryListPage
           classId={classIdA}
           combined={{

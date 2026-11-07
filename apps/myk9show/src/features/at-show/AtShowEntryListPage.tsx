@@ -372,7 +372,7 @@ export const AtShowEntryListPage: React.FC = () => {
           />
         )}
         {showHydration === 'not-arrived' && entries.length > 0 && <PartialReplicaNotice />}
-        <AtShowClassRefreshResult phase={refreshPhase} />
+        <AtShowClassRefreshResult phase={refreshPhase} floating />
         <EntryListPage
           classId={classId}
           data={{ entries, classInfo }}

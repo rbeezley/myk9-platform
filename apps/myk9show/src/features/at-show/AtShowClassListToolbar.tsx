@@ -124,17 +124,45 @@ export function AtShowClassRefreshButton({ phase, onRefresh }: AtShowClassRefres
   );
 }
 
-/** The visible result of the last refresh, shown under the toolbar for a few seconds. */
-export function AtShowClassRefreshResult({ phase }: { phase: ClassRefreshPhase }) {
-  if (phase === 'idle' || phase === 'refreshing') return null;
-  return (
+/**
+ * The visible result of the last refresh, shown for a few seconds. `floating`
+ * (entry lists) pins it to the viewport bottom so a tap on the sticky refresh
+ * button answers wherever the list is scrolled, and keeps one persistent live
+ * region so screen readers hear it; the class picker announces through its button.
+ */
+export function AtShowClassRefreshResult({
+  phase,
+  floating = false,
+}: {
+  phase: ClassRefreshPhase;
+  floating?: boolean;
+}) {
+  const visible = phase !== 'idle' && phase !== 'refreshing';
+  const message = visible ? (
     <p
       className={cn(
-        'mb-3 rounded-lg px-3 py-2 text-center text-sm',
-        phase === 'done' ? 'bg-muted text-foreground' : 'bg-warning/10 text-warning'
+        'rounded-lg px-3 py-2 text-center text-sm',
+        floating ? 'border border-border bg-card shadow-lg' : 'mb-3',
+        phase === 'done'
+          ? floating
+            ? 'text-foreground'
+            : 'bg-muted text-foreground'
+          : floating
+            ? 'text-warning'
+            : 'bg-warning/10 text-warning'
       )}
     >
       {CLASS_REFRESH_MESSAGES[phase]}
     </p>
+  ) : null;
+  if (!floating) return message;
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="pointer-events-none fixed inset-x-3 bottom-4 z-20"
+    >
+      {message}
+    </div>
   );
 }

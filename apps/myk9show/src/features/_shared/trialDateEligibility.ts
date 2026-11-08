@@ -45,3 +45,21 @@ export function isTrialDateToday(
   if (!trialDate) return false;
   return trialDate === formatDateInTimezone(timezone, currentDate);
 }
+
+/**
+ * A trial's calendar day for a row on another day, e.g. "Sun Dec 7" (MYK9-1765). `trialDate` is a
+ * plain `YYYY-MM-DD` day with no time, so it is formatted in UTC: no timezone shifts it.
+ */
+export function formatTrialDayLabel(trialDate: string | null | undefined): string | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(trialDate ?? '');
+  if (!match) return null;
+  const parts = new Intl.DateTimeFormat('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    timeZone: 'UTC',
+  }).formatToParts(new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]))));
+  const pick = (type: string) => parts.find(part => part.type === type)?.value;
+  const label = [pick('weekday'), pick('month'), pick('day')].filter(Boolean).join(' ');
+  return label || null;
+}

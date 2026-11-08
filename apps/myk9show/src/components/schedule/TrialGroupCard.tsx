@@ -49,7 +49,7 @@ export function TrialGroupCard({
             aria-label={`${open ? 'Collapse' : 'Expand'} ${label}`}
             className={cn(
               'min-w-0 flex-1 flex-nowrap gap-x-3 px-4 py-3 text-left hover:no-underline',
-              compact && 'py-2'
+              compact && 'min-h-11 py-2'
             )}
           >
             {/* Wrapped: the shared trigger rotates a direct-child svg 180deg when open. */}

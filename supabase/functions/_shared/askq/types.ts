@@ -97,6 +97,8 @@ export interface UserContext {
   dogs: Array<{ id: string; callName: string; breed: string }>;
   showId: string | null;
   showName: string | null;
+  /** Registry + sport labels of the verified show's trials, e.g. "AKC Scent Work". */
+  showRegistries?: string[];
 }
 
 export type AskQQuestionMode = 'app-help' | 'rules' | 'show-data';

@@ -16,7 +16,6 @@ const ROLE_VALIDITY_PATHS = [
   '../send-access-request-emails/records.ts',
   '../send-results/authz.ts',
   '../push-trigger-announcement/index.ts',
-  '../ask-myk9show/index.ts',
 ];
 
 describe('privileged Edge role-validity coverage', () => {

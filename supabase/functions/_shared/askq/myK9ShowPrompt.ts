@@ -21,6 +21,12 @@ export function buildMyK9ShowPrompt(ctx: UserContext, documentContext: string): 
   }
   if (ctx.showId && ctx.showName) {
     userPreamble += `The user is currently viewing show: "${sanitizeForPrompt(ctx.showName)}". Use this show context for queries unless they specify otherwise. `;
+    const registries = ctx.showRegistries ?? [];
+    if (registries.length === 1) {
+      userPreamble += `This show is sanctioned under exactly one registry and sport: ${sanitizeForPrompt(registries[0])}. Answer for that registry and sport, and do not ask which registry or sport the user means. `;
+    } else if (registries.length > 1) {
+      userPreamble += `This show's trials run under: ${registries.map(sanitizeForPrompt).join(', ')}. Answer for the registry the question names; ask only if it could apply to more than one of these. `;
+    }
   }
 
   return `You are AskQ, an AI assistant for the myK9Show dog show management platform.

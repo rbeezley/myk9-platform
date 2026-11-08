@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ReplicatedTable } from './core/ReplicatedTable';
 import { databaseManager, REPLICATION_STORES } from './core/DatabaseManager';
 import { ReplicatedTableBatchManager } from './core/ReplicatedTableBatch';
@@ -82,7 +82,21 @@ describe('owned rows recover from a server version regression (MYK9-1633)', () =
     await databaseManager.reset();
   });
 
-  const seedOwned = (version: number) =>
+  // Stale cleanup removes only rows synced strictly BEFORE the fetch began
+  // (syncStaleCleanup.ts `syncedBefore: fetchStartedAt`, compared with `<` in
+  // ReplicatedTableRowState.ts). A seed and a sync inside one millisecond tie and
+  // keep `gone`, so the seeded rows are stamped in the past, deterministically.
+  const seedOwned = async (version: number) => {
+    const realNow = Date.now();
+    const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(realNow - 10_000);
+    try {
+      await seedRows(version);
+    } finally {
+      nowSpy.mockRestore();
+    }
+  };
+
+  const seedRows = (version: number) =>
     table.batchSet(
       [
         { id: 'e1', showId: 'show-1', name: 'before-restore-1' },

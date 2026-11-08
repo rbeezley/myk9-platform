@@ -36,7 +36,7 @@ export function AtShowClassListToolbar({
   onSortChange,
 }: AtShowClassListToolbarProps) {
   return (
-    <div className="mb-3 space-y-2">
+    <div className="mb-2 space-y-2">
       {/* Each tab is as wide as its word (MYK9-1697, D4): equal quarters cut
           "Favorites" while "Done" had room to spare. */}
       <div role="tablist" aria-label="Class status" className="flex gap-1">
@@ -50,7 +50,7 @@ export function AtShowClassListToolbar({
             aria-controls={CLASS_LIST_PANEL_ID}
             onClick={() => onTabChange(id)}
             className={cn(
-              'flex min-h-12 min-w-0 flex-auto flex-col items-center justify-center rounded-lg border px-1 text-sm font-medium transition-colors',
+              'flex min-h-11 sm:min-h-12 min-w-0 flex-auto flex-col items-center justify-center rounded-lg border px-1 text-sm font-medium transition-colors',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
               tab === id
                 ? 'border-primary bg-primary text-primary-foreground'
@@ -76,7 +76,7 @@ export function AtShowClassListToolbar({
             onChange={event => onSearchChange(event.target.value)}
             aria-label="Search classes"
             placeholder="Search"
-            className="min-h-12 w-full rounded-lg border border-input bg-background pl-9 pr-3 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="min-h-11 sm:min-h-12 w-full rounded-lg border border-input bg-background pl-9 pr-3 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
         </div>
         <select
@@ -85,7 +85,7 @@ export function AtShowClassListToolbar({
             if (isClassListSort(event.target.value)) onSortChange(event.target.value);
           }}
           aria-label="Sort classes"
-          className="min-h-12 w-40 shrink-0 rounded-lg border border-input bg-background px-2 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-auto sm:px-3"
+          className="min-h-11 sm:min-h-12 w-40 shrink-0 rounded-lg border border-input bg-background px-2 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-auto sm:px-3"
         >
           {CLASS_LIST_SORTS.map(({ id, label }) => (
             <option key={id} value={id}>

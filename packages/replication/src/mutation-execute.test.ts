@@ -351,6 +351,67 @@ describe('executeMutation', () => {
       );
     });
 
+    it('sends the device save time as p_client_saved_at to ringside_update_entry only', async () => {
+      const rpc = vi.fn(() => Promise.resolve({ data: 7, error: null }));
+      const supabase = { from: vi.fn(), rpc } as unknown as SupabaseClient;
+      const savedAt = Date.UTC(2026, 10, 7, 10, 42, 5);
+
+      await executeMutation(
+        supabase,
+        makeLogger(),
+        makeMutation({
+          operation: 'UPDATE',
+          serverVersion: 6,
+          timestamp: savedAt,
+          rpc: { name: 'ringside_update_entry', fields: { qualification: 'Qualified' } },
+        })
+      );
+      expect(rpc).toHaveBeenCalledWith('ringside_update_entry', {
+        p_entry_id: 'entry-1',
+        p_fields: { qualification: 'Qualified' },
+        p_expected_version: 6,
+        p_client_saved_at: '2026-11-07T10:42:05.000Z',
+      });
+
+      rpc.mockClear();
+      await executeMutation(
+        supabase,
+        makeLogger(),
+        makeMutation({
+          operation: 'UPDATE',
+          serverVersion: 6,
+          timestamp: savedAt,
+          rpc: { name: 'ringside_update_class', fields: {}, idParam: 'p_class_id' },
+        })
+      );
+      expect(rpc).toHaveBeenCalledWith('ringside_update_class', {
+        p_class_id: 'entry-1',
+        p_fields: {},
+        p_expected_version: 6,
+      });
+    });
+
+    it('omits p_client_saved_at when the queued timestamp is unusable', async () => {
+      const rpc = vi.fn(() => Promise.resolve({ data: 7, error: null }));
+      const supabase = { from: vi.fn(), rpc } as unknown as SupabaseClient;
+
+      await executeMutation(
+        supabase,
+        makeLogger(),
+        makeMutation({
+          operation: 'UPDATE',
+          serverVersion: 6,
+          timestamp: Number.NaN,
+          rpc: { name: 'ringside_update_entry', fields: {} },
+        })
+      );
+      expect(rpc).toHaveBeenCalledWith('ringside_update_entry', {
+        p_entry_id: 'entry-1',
+        p_fields: {},
+        p_expected_version: 6,
+      });
+    });
+
     it("passes the row id under the RPC's own id parameter when one is named", async () => {
       const supabase = {
         from: vi.fn(),

@@ -57,9 +57,9 @@ export function AtShowClassListSections({
       {yourRing.length > 0 && (
         <section
           aria-labelledby="your-ring-heading"
-          className="mb-6 rounded-xl border border-primary/30 bg-primary/5 p-3"
+          className="mb-6 rounded-xl border border-primary/30 bg-primary/5 p-2"
         >
-          <div className="mb-2 flex min-h-11 items-center gap-2 px-1">
+          <div className="mb-1 flex h-6 items-center gap-2 px-1">
             <h2 id="your-ring-heading" className="min-w-0 flex-1 text-sm font-semibold">
               Your ring
             </h2>
@@ -72,6 +72,7 @@ export function AtShowClassListSections({
                 open={isGroupOpen(group.key)}
                 onOpenChange={open => toggleGroup(group.key, open)}
                 label={group.label}
+                compact
                 summary={`${group.classes.length === 1 ? '1 class' : `${group.classes.length} classes`}${group.isToday ? ' · Today' : ''}`}
                 data-testid={`your-ring-trial-${group.key}`}
               >

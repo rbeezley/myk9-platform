@@ -21,19 +21,22 @@ export function AtShowClassListErrorScreen({
   onRetry,
 }: ScreenProps & { onRetry: () => void }) {
   return (
-    <main className="ringside-root flex min-h-96 flex-col items-center justify-center gap-3 px-4 text-center">
-      <AlertCircle className="h-12 w-12 text-destructive" aria-hidden />
-      <h1 className="text-lg font-medium text-destructive">Failed to load classes</h1>
-      <p className="max-w-md text-sm text-muted-foreground">
-        The class list could not be read on this device. Try again, and if it keeps failing ask the
-        secretary to check this show.
-      </p>
-      {readySlot}
-      <div className="flex w-full max-w-xs flex-col gap-2 sm:max-w-none sm:flex-row sm:justify-center">
-        <Button variant="outline" className="min-h-11 px-6" onClick={onRetry}>
-          Try again
-        </Button>
-        <ClassListUpAndMenu showId={showId} clubId={clubId} />
+    <main className="ringside-root flex min-h-96 flex-col px-4 pt-1">
+      {/* MYK9-1770: menu and Up stay top-left, above the centered recovery content. */}
+      <ClassListUpAndMenu showId={showId} clubId={clubId} />
+      <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
+        <AlertCircle className="h-12 w-12 text-destructive" aria-hidden />
+        <h1 className="text-lg font-medium text-destructive">Failed to load classes</h1>
+        <p className="max-w-md text-sm text-muted-foreground">
+          The class list could not be read on this device. Try again, and if it keeps failing ask
+          the secretary to check this show.
+        </p>
+        {readySlot}
+        <div className="flex w-full max-w-xs flex-col gap-2 sm:max-w-none sm:flex-row sm:justify-center">
+          <Button variant="outline" className="min-h-11 px-6" onClick={onRetry}>
+            Try again
+          </Button>
+        </div>
       </div>
     </main>
   );
@@ -84,27 +87,30 @@ export function AtShowClassListEmptyScreen({
   onRetry,
 }: ScreenProps & { neverReachedDevice: boolean; syncFailed: boolean; onRetry: () => void }) {
   return (
-    <main className="ringside-root flex min-h-96 flex-col items-center justify-center gap-3 px-4 text-center">
-      <h1 className="text-lg font-medium">
-        {neverReachedDevice ? 'Classes not on this device yet' : 'No classes'}
-      </h1>
-      <p className="max-w-md text-sm text-muted-foreground">
-        {!neverReachedDevice
-          ? 'This show has no classes yet.'
-          : syncFailed
-            ? "This show's classes could not be loaded onto this device. Try again, and if it keeps failing move somewhere with a better signal."
-            : "This device hasn't downloaded this show's classes, and there's no connection to fetch them now. Reconnect once and they'll be here for the rest of the day."}
-      </p>
-      {/* The branch a cold replica lands in is exactly the branch where
+    <main className="ringside-root flex min-h-96 flex-col px-4 pt-1">
+      {/* MYK9-1770: menu and Up stay top-left, above the centered recovery content. */}
+      <ClassListUpAndMenu showId={showId} clubId={clubId} />
+      <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
+        <h1 className="text-lg font-medium">
+          {neverReachedDevice ? 'Classes not on this device yet' : 'No classes'}
+        </h1>
+        <p className="max-w-md text-sm text-muted-foreground">
+          {!neverReachedDevice
+            ? 'This show has no classes yet.'
+            : syncFailed
+              ? "This show's classes could not be loaded onto this device. Try again, and if it keeps failing move somewhere with a better signal."
+              : "This device hasn't downloaded this show's classes, and there's no connection to fetch them now. Reconnect once and they'll be here for the rest of the day."}
+        </p>
+        {/* The branch a cold replica lands in is exactly the branch where
           priming helps most, so the readiness action belongs here too. */}
-      {readySlot}
-      <div className="flex w-full max-w-xs flex-col gap-2 sm:max-w-none sm:flex-row sm:justify-center">
-        {neverReachedDevice && (
-          <Button variant="outline" className="min-h-11 px-6" onClick={onRetry}>
-            Try again
-          </Button>
-        )}
-        <ClassListUpAndMenu showId={showId} clubId={clubId} />
+        {readySlot}
+        <div className="flex w-full max-w-xs flex-col gap-2 sm:max-w-none sm:flex-row sm:justify-center">
+          {neverReachedDevice && (
+            <Button variant="outline" className="min-h-11 px-6" onClick={onRetry}>
+              Try again
+            </Button>
+          )}
+        </div>
       </div>
     </main>
   );

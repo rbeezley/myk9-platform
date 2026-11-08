@@ -1,4 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { expectMenuBeforeUp } from '@/test/utils/ringsideHeaderAssertions';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { AtShowMyEntriesToday } from './AtShowMyEntriesToday';
@@ -9,7 +10,9 @@ const mockSync = vi.hoisted(() => vi.fn());
 const mockNavigate = vi.hoisted(() => vi.fn());
 
 // The ringside menu has its own tests; these render the screen on its own.
-vi.mock('./menu/RingsideMenu', () => ({ RingsideMenu: () => null }));
+vi.mock('./menu/RingsideMenu', () => ({
+  RingsideMenu: () => <button type="button">Ringside menu</button>,
+}));
 
 vi.mock('react-router-dom', async importOriginal => ({
   ...(await importOriginal<typeof import('react-router-dom')>()),
@@ -476,6 +479,26 @@ describe('AtShowMyEntriesToday — back navigation (MYK9-800 finding #3)', () =>
 
     fireEvent.click(await screen.findByRole('button', { name: 'Dashboard' }));
     expect(mockNavigate).toHaveBeenCalledWith('/');
+  });
+
+  it('puts the ringside menu before the Up control, top-left (MYK9-1770)', async () => {
+    render(
+      <AtShowMyEntriesToday
+        showId="show-1"
+        showName="Spring Scent Trial"
+        entries={[entry({})]}
+        isLoading={false}
+        dataUpdatedAt={1}
+        loadFailed={false}
+        onRetry={vi.fn()}
+        onSeeAllClasses={vi.fn()}
+      />
+    );
+
+    expectMenuBeforeUp(
+      await screen.findByRole('button', { name: 'Ringside menu' }),
+      screen.getByRole('button', { name: 'Dashboard' })
+    );
   });
 });
 

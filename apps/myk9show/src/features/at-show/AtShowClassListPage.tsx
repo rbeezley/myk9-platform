@@ -57,8 +57,7 @@ import {
 
 /** The scopes the picker's own rows come from. */
 const CLASS_DATA_TABLES = ['shows', 'trials', 'classes'] as const;
-import { ClassListUpButton } from './ClassListUpButton';
-import { RingsideMenu } from './menu/RingsideMenu';
+import { ClassListUpAndMenu } from './ClassListUpAndMenu';
 import { useRingsideListSnapshot } from './menu/useRingsideListSnapshot';
 import { selectNextUpForCard } from './atShowNextUpPreview';
 import { useMyAtShowJudgeAssignments } from './useMyAtShowJudgeAssignments';
@@ -409,18 +408,20 @@ export const AtShowClassListPage: React.FC = () => {
 
   return (
     // Ringside is used on a tablet in landscape (INTENT s.6). A fixed 672px
-    // column left ~half the viewport empty there and forced avoidable
-    // scrolling through the class list mid-show, so the column widens with
-    // the display instead of being capped at phone width forever.
+    // column left ~half the viewport empty and forced avoidable scrolling
+    // mid-show, so the column widens with the display.
     <main className={`ringside-root ${WIDE_COLUMN} px-4 pb-4 pt-1`}>
       <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-        <ClassListUpButton showId={showId} clubId={clubId} />
+        <ClassListUpAndMenu
+          showId={showId}
+          clubId={clubId}
+          snapshot={{ kind: 'classes', tab, search, sort }}
+        />
         <div className="flex items-center gap-2">
-          {/* Gating this on `ownEntryIds.size > 0` alone hid the only route back
-              to an exhibitor's own dogs whenever ownership was merely UNKNOWN --
-              a cold device at the venue -- stranding them in the staff class
-              list. Offer the door whenever we have entries OR cannot rule them
-              out; the destination handles its own empty state. */}
+          {/* Gating on `ownEntryIds.size > 0` alone hid the only route back to an
+              exhibitor's own dogs whenever ownership was merely UNKNOWN (a cold
+              device at the venue). Offer the door whenever we have entries OR
+              cannot rule them out; the destination handles its own empty state. */}
           {isExhibitorOnly && (ownEntryIds.size > 0 || ownershipUnknown) && (
             <Button
               type="button"
@@ -432,7 +433,6 @@ export const AtShowClassListPage: React.FC = () => {
             </Button>
           )}
           <AtShowClassRefreshButton phase={refreshPhase} onRefresh={() => void refreshClasses()} />
-          <RingsideMenu showId={showId} snapshot={{ kind: 'classes', tab, search, sort }} />
         </div>
       </div>
 

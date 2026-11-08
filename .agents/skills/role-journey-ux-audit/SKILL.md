@@ -21,6 +21,11 @@ ASCA; a show never mixes them) and open a scoresheet in each, including a trial 
 type and a show cloned from one. The AKC class-name fallback hides a missing trial type, so an
 AKC-only walk cannot catch it (MYK9-1574).
 
+Fixtures must not be too clean (MYK9-1768). For a steward, judge, or secretary walk, also use: a
+dog entered in both sections of a combined A/B class, a multi-day show with a trial that is not
+today, and, for AskQ, a club-appointed (club-scoped) secretary, never a show-scoped fixture. Single-section
+classes and a trial dated today hide the 2026-11-08 owner-test escapes.
+
 Example invocation: “Use `role-journey-ux-audit` for the secretary role on desktop and tablet,
 including safe show and entry CRUD.”
 
@@ -77,6 +82,37 @@ For every major route and requested viewport:
    "This show isn't saved on this device"; the lists never mount, so do not look for list
    copy there. Assert the expected text is visible before trusting any absence. Steps 1-6 run
    online with the show already saved, so they cannot surface this class.
+9. Steward/judge on `/at-show` and secretary on the Check-in desk, as a person who does not know
+   which part of the card to tap (MYK9-1768). Drive by what a novice would touch (the dog's name, the
+   card body), not by accessible name or test id.
+   a. Status looks tappable at rest (MYK9-1763). At 375px, before tapping anything, screenshot an
+   entry list and record whether the check-in control reads as a control (border, fill, chevron)
+   distinct from the card body. Persona check: "where would a first-time steward tap to change
+   check-in?"
+   b. Mis-tap recovery (MYK9-1762). Tap a dog's name, then Cancel on the scoresheet without scoring.
+   Assert the dog is back in the running order with its previous check-in, not "In ring" with
+   Resume, and that the Show Map does not show it in the ring (MYK9-1761).
+   c. Pull visibility on a combined A/B list (MYK9-1764). With a dog entered in both sections, pull
+   one section's entry. Assert the screen makes obvious which entry was pulled and where it went,
+   and that the "Not running" group looks expandable.
+   d. Desk on a multi-day show (MYK9-1765). On a show with a trial that is not today, open the
+   Check-in desk and set Conflict and Pulled on that trial's entry. Expected (owner decision):
+   allowed, and the row names its day.
+10. AskQ golden questions (MYK9-1774/1775/1776). For each role's guide (exhibitor, judge/steward, club
+    admin, secretary) ask one money question and one how-to question, from a show page, signed in as
+    the real role (a club-appointed secretary, not a show-scoped fixture). Check that the answer:
+    names only the show's registry and never asks which; follows the guide's path (exhibitor: My
+    Shows → Leave class… → Pull; refund is club-discretion, entry fee only, service fee never
+    refunded); never offers another role's action (e.g. "Remove entry" to an exhibitor); states no
+    deadline or amount absent from the guide or the show's data; shows no Markdown syntax (`#`,
+    `**`, `---`); and shows a verified guide excerpt. Record the required and forbidden phrases per
+    question in the walk notes.
+11. Print geometry (MYK9-1771/1772). For each printable report (armband and result labels on each
+    template, judge setup cheat sheet, other report pages), print-preview under Chrome Margins:
+    Default AND None, and compare the first row/header's top and left inset with the real sheet
+    geometry (Avery 18262 has a 0.83 in unlabeled top strip). Never assume Chrome honors `@page`
+    margins; Chrome remembers the last Margins choice across reports. Hermetic specs for this land
+    with the MYK9-1771/1772 PRs: point at them, do not duplicate them.
 
 Exercise required CRUD without approval only against an isolated local Supabase fixture or through
 an established non-persisting interception. Every write to hosted/shared Supabase—including seeded

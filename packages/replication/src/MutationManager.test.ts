@@ -649,6 +649,7 @@ describe('MutationManager', () => {
           operation: 'UPDATE',
           data: { id: 'entry-1', run_order: 3 },
           serverVersion: 5,
+          timestamp: Date.UTC(2026, 10, 7, 10, 42, 5),
           rpc: { name: 'ringside_update_entry', fields: { run_order: 3 } },
         })
       );
@@ -660,6 +661,7 @@ describe('MutationManager', () => {
         p_entry_id: 'entry-1',
         p_fields: { run_order: 3 },
         p_expected_version: 5,
+        p_client_saved_at: '2026-11-07T10:42:05.000Z',
       });
       // The direct table-update path must NOT be used for an RPC-tagged mutation.
       expect(vi.mocked(mockSupabase.from)).not.toHaveBeenCalled();
@@ -690,6 +692,7 @@ describe('MutationManager', () => {
           operation: 'UPDATE',
           rowId: 'entry-2',
           data: { id: 'entry-2', check_in_status: 'in-ring' },
+          timestamp: Date.UTC(2026, 10, 7, 10, 43, 0),
           rpc: { name: 'ringside_update_entry', fields: { check_in_status: 'in-ring' } },
         })
       );
@@ -700,6 +703,7 @@ describe('MutationManager', () => {
         p_entry_id: 'entry-2',
         p_fields: { check_in_status: 'in-ring' },
         p_expected_version: null,
+        p_client_saved_at: '2026-11-07T10:43:00.000Z',
       });
     });
 

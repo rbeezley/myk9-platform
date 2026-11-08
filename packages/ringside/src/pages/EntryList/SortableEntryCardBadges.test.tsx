@@ -46,3 +46,22 @@ describe('StatusBadge pulse', () => {
     expect(screen.getByTestId('check-in-button').className).not.toContain('status-just-changed');
   });
 });
+
+// MYK9-1763: the badge must read as a control at rest, not only on hover.
+describe('StatusBadge as a button', () => {
+  it('shows the status word and a menu chevron inside one tappable button', () => {
+    render(badge('no-status'));
+    const button = screen.getByRole('button', { name: /Check-in: Not checked in/ });
+    expect(button.textContent).toBe('Not checked in');
+    expect(button.querySelectorAll('svg')).toHaveLength(2);
+  });
+
+  it('still opens the explanation when self check-in is disabled', () => {
+    const onClick = vi.fn();
+    render(<StatusBadge entry={entry('no-status')} isDisabled onClick={onClick} />);
+    const button = screen.getByRole('button', { name: /Self check-in disabled/ });
+    expect(button.getAttribute('aria-disabled')).toBe('true');
+    button.click();
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+});

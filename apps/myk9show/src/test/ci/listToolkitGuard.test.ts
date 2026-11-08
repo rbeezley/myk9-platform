@@ -55,10 +55,6 @@ const ARIA_PRESSED_DECLARED: Record<string, { count: number; reason: string }> =
     count: 1,
     reason: 'focus toggle on a schedule row, not a filter',
   },
-  'components/status/StatusTileGrid.tsx': {
-    count: 1,
-    reason: 'marks the current status among the status tiles (MYK9-1773), a choice, not a filter',
-  },
   'features/at-show/AtShowScoresheetPage.tsx': { count: 1, reason: 'ringside scoring toggle' },
   'features/at-show/AtShowClassCardFooter.tsx': {
     count: 1,

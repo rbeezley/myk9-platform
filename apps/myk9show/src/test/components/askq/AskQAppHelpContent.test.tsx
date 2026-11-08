@@ -75,25 +75,4 @@ describe('AskQAppHelpContent', () => {
       expect(screen.queryByTestId('tera-found-it')).toBeNull();
     });
   });
-
-  it('renders Markdown answers without syntax characters (MYK9-1774)', () => {
-    const md = '## Withdraw\n\nYou can **Withdraw** now.\n\n---\n\n- Email us';
-    const content = (state: SupportHelpState) => (
-      <AskQAppHelpContent currentUserId={null} onEscalate={() => {}} state={state} />
-    );
-    const view = render(content({ ...STREAMING_STATE, answer: md }));
-    expect(view.container.textContent).not.toMatch(/#|\*|---/);
-    expect(screen.getByRole('heading', { name: 'Withdraw' })).toBeInTheDocument();
-
-    view.rerender(
-      content({
-        ...STREAMING_STATE,
-        status: 'answered',
-        answer: md,
-        route: { kind: 'answer', answer: md, deepLink: null, sources: {} },
-      })
-    );
-    expect(view.container.textContent).not.toMatch(/#|\*|---/);
-    expect(screen.getByText('Email us')).toBeInTheDocument();
-  });
 });

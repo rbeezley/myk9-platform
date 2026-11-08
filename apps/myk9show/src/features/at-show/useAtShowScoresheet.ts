@@ -22,7 +22,8 @@ import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTa
 import { logger } from '@/services/LoggingService';
 import { syncAtShowData } from './atShowDataAdapter';
 import { checkForStaleClass } from './staleClass/checkStaleClass';
-import { transitionToCompleted, transitionToInRing } from '@/utils/checkInTransitions';
+import { transitionToCompleted } from '@/utils/checkInTransitions';
+import { useScoresheetRingMove } from '@/hooks/useScoresheetRingMove';
 import { isHeldEntry } from '@/features/dogs/identity';
 import { classScoringRules } from '@/pages/scoring/classScoringRules';
 import type { ResolvedClassRules, ScoreData } from '@myk9/scoring-ui';
@@ -114,6 +115,8 @@ export function useAtShowScoresheet({
   // without it, so it reads the cache first (replication may have filled it).
   const manualRetryRequested = useRef(false);
   const notLoadedStreak = useRef(0);
+  // Leaving without a saved score puts the dog back (MYK9-1762).
+  const ringMove = useScoresheetRingMove(entryId);
 
   useEffect(() => {
     let cancelled = false;
@@ -229,9 +232,7 @@ export function useAtShowScoresheet({
         const held = isHeldEntry(rawEntry);
         setAwaitingRegistrationNumber(held);
         // Auto-set check-in status to in-ring when the scoresheet opens.
-        if (!held) {
-          transitionToInRing(rawEntry.id, rawEntry.checkInStatus, rawEntry.ring_entry_time);
-        }
+        if (!held) ringMove.opened(rawEntry);
 
         const dog = rawEntry.dogId ? await replicatedDogsTable.get(rawEntry.dogId) : null;
         if (cancelled) return;
@@ -276,7 +277,7 @@ export function useAtShowScoresheet({
       cancelled = true;
       clearTimeout(retryTimer);
     };
-  }, [showId, classId, entryId, loadAttempt, reloadCount]);
+  }, [showId, classId, entryId, loadAttempt, reloadCount, ringMove]);
 
   const submit = async (scoreData: ScoreData): Promise<void> => {
     if (!entry || !classInfo) return;
@@ -326,6 +327,7 @@ export function useAtShowScoresheet({
     } catch (err) {
       logger.warn('Could not verify class completion after scoring', 'at-show', {}, err as Error);
     }
+    ringMove.scored();
     transitionToCompleted(entry.entryId);
     // MYK9-1514: ask about a class left behind at another level; never blocks the judge.
     if (showId) void checkForStaleClass(showId, completionClassId);

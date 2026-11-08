@@ -2,6 +2,8 @@ import { createDatabaseError } from '@/services/database/databaseError';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const tableMock = vi.hoisted(() => ({
+  // No local row with a ring time, so check-in writes keep the narrow path (MYK9-1761).
+  get: vi.fn(() => Promise.resolve(null)),
   updateEntry: vi.fn<(id: string, updates: Record<string, unknown>) => Promise<string | null>>(() =>
     Promise.resolve('mutation-1')
   ),

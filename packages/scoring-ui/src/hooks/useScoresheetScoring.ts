@@ -175,15 +175,18 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
         nonQualifyingReason: qualifying === 'Q' ? undefined : nonQualifyingReason || undefined,
         areas: areaResults,
         areaTimes: areas.map(a => a.time),
-        correctCount: !recordFinds
-          ? 0
-          : keepSavedFinds
-            ? existingScore.correctCount
+        // A saved score keeps its totals (MYK9-1025: a time-only correction
+        // changes nothing else); a new score on a sheet with no find controls
+        // saves 0 (MYK9-1767).
+        correctCount: keepSavedFinds
+          ? existingScore.correctCount
+          : !recordFinds
+            ? 0
             : areas.filter(a => a.correct).length,
-        incorrectCount: !recordFinds
-          ? 0
-          : keepSavedFinds
-            ? existingScore.incorrectCount
+        incorrectCount: keepSavedFinds
+          ? existingScore.incorrectCount
+          : !recordFinds
+            ? 0
             : areas.filter(a => !a.correct && a.time !== '').length,
         faultCount,
         finishCallErrors: existingScore?.finishCallErrors ?? 0,
@@ -191,7 +194,15 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
         ...extra,
       };
     },
-    [areas, qualifying, nonQualifyingReason, faultCount, calculateTotalTime, existingScore]
+    [
+      areas,
+      qualifying,
+      nonQualifyingReason,
+      faultCount,
+      calculateTotalTime,
+      existingScore,
+      recordFinds,
+    ]
   );
 
   const validate = useCallback((): ValidationResult => {

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createDatabaseError } from '../databaseError';
 
 const order = vi.fn();
 const eq = vi.fn();
@@ -9,8 +10,7 @@ const from = vi.fn();
 vi.mock('../supabaseClient', () => ({
   supabase: { from: (table: string) => from(table) },
   logQuery: vi.fn(),
-  createDatabaseError: (error: unknown) =>
-    error instanceof Error ? error : new Error(String((error as { message?: string })?.message)),
+  createDatabaseError,
 }));
 
 import { getEntryScoreAudit, parseScoreAuditChanges } from './scoreAudit';

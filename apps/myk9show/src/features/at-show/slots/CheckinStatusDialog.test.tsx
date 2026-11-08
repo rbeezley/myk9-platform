@@ -33,12 +33,9 @@ describe('CheckinStatusDialog', () => {
       />
     );
 
-    expect(screen.getByRole('button', { name: /At Gate/ })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: /At Gate/, pressed: true })).toBeInTheDocument();
     expect(screen.getByText('Current')).toBeInTheDocument();
-    const selected = screen
-      .getAllByRole('button')
-      .filter(b => b.getAttribute('aria-pressed') === 'true');
-    expect(selected).toHaveLength(1);
+    expect(screen.getAllByRole('button', { pressed: true })).toHaveLength(1);
   });
 
   it('asks before Pulled, naming the dog and class, and writes only after Pull', async () => {

@@ -164,4 +164,30 @@ describe('UKCRallyLiveScoresheet', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Entries' }));
     expect(onBack).toHaveBeenCalled();
   });
+
+  // MYK9-1767: this sheet has no found/correct control, so a timed run must not
+  // be saved as an "incorrect find".
+  it('saves no find counts and time-only area text for a timed score', async () => {
+    const onSubmit = vi.fn();
+    render(<UKCRallyLiveScoresheet {...defaultProps} onSubmit={onSubmit} />);
+
+    fireEvent.change(screen.getByLabelText('Course time'), { target: { value: '1:12.48' } });
+    fireEvent.click(screen.getByTestId('result-Q'));
+    fireEvent.click(screen.getByTestId('submit-btn'));
+    await waitFor(() => {
+      expect(screen.getByTestId('confirmation-dialog')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('confirm-submit-btn'));
+
+    await waitFor(() => {
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          resultText: 'Q',
+          correctCount: 0,
+          incorrectCount: 0,
+          areas: { 'area 1': '1:12.48' },
+        })
+      );
+    });
+  });
 });

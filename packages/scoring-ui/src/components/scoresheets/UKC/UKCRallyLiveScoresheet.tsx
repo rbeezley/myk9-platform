@@ -42,6 +42,8 @@ export const UKCRallyLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   const scoring = useScoresheetScoring({
     rules,
     existingScore: entry.existingScore,
+    // MYK9-1767: no found/correct control on this sheet, so record no finds.
+    recordFinds: false,
   });
 
   const stopwatch = useStopwatch({

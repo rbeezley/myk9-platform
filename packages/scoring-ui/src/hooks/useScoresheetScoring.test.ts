@@ -304,4 +304,38 @@ describe('useScoresheetScoring', () => {
     act(() => result.current.handleAreaUpdate(0, 'time', '1:39.00'));
     expect(result.current.hasUnresolvedTime).toBe(false);
   });
+
+  describe('recordFinds false (MYK9-1767)', () => {
+    const saved = {
+      resultText: 'Q',
+      searchTime: '0:45.20',
+      areas: { 'area 1': '0:45.20 FOUND CORRECT' },
+      areaTimes: ['0:45.20'],
+      correctCount: 2,
+      incorrectCount: 1,
+      faultCount: 0,
+      finishCallErrors: 0,
+      points: 0,
+    };
+
+    it('a time-only correction keeps the saved find totals', () => {
+      const { result } = renderHook(() =>
+        useScoresheetScoring({ rules: defaultRules, existingScore: saved, recordFinds: false })
+      );
+      act(() => result.current.handleAreaUpdate(0, 'time', '0:50.00'));
+      expect(result.current.buildScoreData()).toEqual(
+        expect.objectContaining({ correctCount: 2, incorrectCount: 1 })
+      );
+    });
+
+    it('a new score saves 0 and 0 for a timed area', () => {
+      const { result } = renderHook(() =>
+        useScoresheetScoring({ rules: defaultRules, recordFinds: false })
+      );
+      act(() => result.current.handleAreaUpdate(0, 'time', '0:45.20'));
+      expect(result.current.buildScoreData()).toEqual(
+        expect.objectContaining({ correctCount: 0, incorrectCount: 0 })
+      );
+    });
+  });
 });

@@ -22,6 +22,25 @@ describe('CheckinStatusDialog', () => {
     expect(onStatusChange).toHaveBeenCalledWith('come-to-gate');
   });
 
+  it("marks only the dog's current status as selected", () => {
+    render(
+      <CheckinStatusDialog
+        isOpen
+        onClose={vi.fn()}
+        onStatusChange={vi.fn()}
+        dogInfo={{ armband: 101, callName: 'Piper', handler: 'Jane Handler' }}
+        currentStatus="at-gate"
+      />
+    );
+
+    expect(screen.getByRole('button', { name: /At Gate/ })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('Current')).toBeInTheDocument();
+    const selected = screen
+      .getAllByRole('button')
+      .filter(b => b.getAttribute('aria-pressed') === 'true');
+    expect(selected).toHaveLength(1);
+  });
+
   it('asks before Pulled, naming the dog and class, and writes only after Pull', async () => {
     const onStatusChange = vi.fn();
     const { user } = render(

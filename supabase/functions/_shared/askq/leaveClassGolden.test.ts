@@ -110,6 +110,7 @@ describe('MYK9-1775 This show mode', () => {
     expect(guides).toEqual([]);
     expect(systemPrompt).toContain('GROUNDING RULES (this show)');
     expect(systemPrompt).toContain('switch to App help');
+    expect(systemPrompt).toContain('which entries are withdrawn or pulled');
     expect(systemPrompt).not.toContain('Leave a Class');
   });
 });
@@ -131,5 +132,24 @@ describe('role scoping', () => {
     expect(await callerIsShowManager(reply(true, { message: 'boom' }))).toBe(false);
     expect(await callerIsShowManager(reply(null, null))).toBe(false);
     expect(await callerIsShowManager(reply('true', null))).toBe(false);
+  });
+
+  it('recognizes a secretary appointed to one show, who is not a club-scoped manager', async () => {
+    const SHOW = '11111111-1111-4111-8111-111111111111';
+    const asked: string[] = [];
+    const showScopedSecretary = {
+      rpc: async (
+        name: 'is_show_manager' | 'is_show_secretary',
+        args?: { check_show_id: string }
+      ) => {
+        asked.push(name);
+        if (name === 'is_show_manager') return { data: false, error: null };
+        return { data: args?.check_show_id === SHOW, error: null };
+      },
+    };
+    expect(await callerIsShowManager(showScopedSecretary, SHOW)).toBe(true);
+    expect(asked).toEqual(['is_show_manager', 'is_show_secretary']);
+    expect(await callerIsShowManager(showScopedSecretary, null)).toBe(false);
+    expect(await callerIsShowManager(showScopedSecretary, 'other-show')).toBe(false);
   });
 });

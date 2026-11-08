@@ -9,7 +9,6 @@
  * - Check-in status: local takes precedence (offline check-ins are authoritative)
  */
 
-import { withPullSourceInvalidated } from './ReplicatedEntriesTable.pullSource';
 import {
   ReplicatedTable,
   syncReplicatedTable,
@@ -791,13 +790,13 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
   async updateCheckInStatus(entryId: string, status: CheckInStatus): Promise<string | null> {
     const entry = await this.getOrHydrateEntryForWrite(entryId);
 
-    const updated = withPullSourceInvalidated(entry, {
+    const updated: ReplicatedEntry = {
       ...entry,
       checkInStatus: status,
       check_in_status: status,
       _lastModified: new Date(),
       _syncStatus: 'pending',
-    });
+    };
 
     // Durable-first (MYK9-1206, MYK9-1471): see updateEntryStatus.
     const { mutationId, result } = await this.writeAndQueue(entryId, updated, {
@@ -846,12 +845,12 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     entry: ReplicatedEntry,
     updates: Partial<ReplicatedEntry>
   ): Promise<string | null> {
-    const updated = withPullSourceInvalidated(entry, {
+    const updated: ReplicatedEntry = {
       ...entry,
       ...updates,
       _lastModified: new Date(),
       _syncStatus: 'pending',
-    });
+    };
 
     // Only the columns the caller changed (MYK9-1442), never the whole row.
     const supabaseRow = entryChangedColumnsRow(entry, updates, updated);
@@ -938,12 +937,12 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
 
     let mutationId: string | null;
     if (entry) {
-      const updated = withPullSourceInvalidated(entry, {
+      const updated: ReplicatedEntry = {
         ...entry,
         ...updates,
         _lastModified: new Date(),
         _syncStatus: 'pending',
-      });
+      };
       const written = await this.writeAndQueue(
         entryId,
         updated,

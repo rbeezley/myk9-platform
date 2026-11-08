@@ -107,6 +107,13 @@ export interface DirtyRowComparePolicy {
    * to equal the base cannot be taken from the server and leave a half-replaced value.
    */
   fieldGroups?: readonly (readonly string[])[];
+  /**
+   * Fields the SERVER alone derives (a trigger's stamp). The device never writes them, so a
+   * difference between its copy and the server's is staleness, not a collision: they are left
+   * out of conflict detection and always taken from the server when a dirty row reconciles.
+   * List every spelling the local row carries (`snake_case` and `camelCase`).
+   */
+  serverOwnedFields?: readonly string[];
 }
 
 export interface DirtyRowConflictInput<T extends object> {
@@ -143,6 +150,8 @@ export function detectDirtyRowConflict<T extends object>({
   const normalize = comparePolicy?.normalizeValue;
   const serverWins = new Set(comparePolicy?.serverWinsFields ?? []);
   const respelled: string[] = [];
+  const serverOwned = new Set(comparePolicy?.serverOwnedFields ?? []);
+  const adoptServerOwned: string[] = [];
   let agreedFields = 0;
   const fields = new Set([...Object.keys(base), ...Object.keys(local), ...Object.keys(remote)]);
   const conflicts: string[] = [];
@@ -152,6 +161,10 @@ export function detectDirtyRowConflict<T extends object>({
 
   for (const field of fields) {
     if (ignored.has(field)) continue;
+    if (serverOwned.has(field)) {
+      if (!deepEqual(localRecord[field], remoteRecord[field], false)) adoptServerOwned.push(field);
+      continue;
+    }
 
     const asInstant = instantFields.has(field);
     const baseValue = normalize ? normalize(field, baseRecord[field]) : baseRecord[field];
@@ -181,11 +194,11 @@ export function detectDirtyRowConflict<T extends object>({
     return {
       hasConflict: false,
       fields: [],
-      adoptRemoteFields: [...respelled, ...conflicts].sort(),
+      adoptRemoteFields: [...respelled, ...conflicts, ...adoptServerOwned].sort(),
     };
   }
 
-  const adopt = conflicts.length > 0 ? [] : respelled.sort();
+  const adopt = conflicts.length > 0 ? [] : [...respelled, ...adoptServerOwned].sort();
   return {
     hasConflict: conflicts.length > 0,
     fields: conflicts.sort(),

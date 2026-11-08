@@ -6,13 +6,20 @@
  */
 import { screen, within } from '@testing-library/react';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { databaseManager, MutationManager, REPLICATION_STORES } from '@myk9/replication';
+import {
+  databaseManager,
+  detectDirtyRowConflict,
+  MutationManager,
+  REPLICATION_STORES,
+} from '@myk9/replication';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
 import {
   ReplicatedEntriesTable,
   type ReplicatedEntry,
 } from '@/services/replication/ReplicatedEntriesTable';
+import { rowToEntry, type EntryRow } from '@/services/replication/ReplicatedEntriesTable.mapper';
+import { ENTRY_DIRTY_ROW_COMPARE_POLICY } from '@/services/replication/entriesDirtyRowComparePolicy';
 import { CheckInDesk } from './CheckInDesk';
 import { projectReplicatedToDeskEntry } from './pullSourceTestUtils';
 
@@ -166,9 +173,96 @@ describe('offline clear then re-flag never credits the earlier flagger', () => {
     await expectNoSourceInQueuedMutations();
   });
 
-  it('a write that leaves the status alone keeps the stamp', async () => {
-    await table.updateEntry(ID, { specialRequests: 'Crate near the door' });
+  it('local writes never touch the server-owned stamp; the dirty row just stops showing it', async () => {
+    await table.updateCheckInStatus(ID, 'checked-in');
+    await table.updateCheckInStatus(ID, 'pulled');
     const row = await table.get(ID);
     expect(row?.checkInPulledBy).toBe('exhibitor');
+    expect(row?._syncStatus).toBe('pending');
+  });
+});
+
+/** A server row of the replication view, mapped the way the sync maps it. */
+function serverRow(status: string, source?: string | null): ReplicatedEntry {
+  return rowToEntry({
+    id: ID,
+    show_id: 'show-1',
+    class_id: 'class-1',
+    dog_id: 'dog-1',
+    handler_id: 'person-1',
+    entry_status: 'confirmed',
+    check_in_status: status,
+    ...(source === undefined ? {} : { check_in_pulled_by: source }),
+  } as unknown as EntryRow);
+}
+
+describe('reconnect: the pull source is server-owned in dirty-row reconciliation', () => {
+  // The device changed Pulled -> Checked-in; so did another device, which also re-stamped the source.
+  const base = serverRow('pulled', 'exhibitor');
+  const remote = serverRow('checked-in', null);
+
+  it.each([
+    ['null', null],
+    ['undefined', undefined],
+    ['a stale staff stamp', 'staff'],
+  ])('a local copy holding %s against the server is no conflict', (_label, localSource) => {
+    const local = {
+      ...base,
+      checkInStatus: 'checked-in',
+      check_in_status: 'checked-in',
+      checkInPulledBy: localSource,
+      check_in_pulled_by: localSource,
+      _syncStatus: 'pending',
+    } as ReplicatedEntry;
+
+    const detection = detectDirtyRowConflict({
+      base,
+      local,
+      remote,
+      comparePolicy: ENTRY_DIRTY_ROW_COMPARE_POLICY,
+    });
+
+    expect(detection.hasConflict).toBe(false);
+    expect(detection.fields).toEqual([]);
+  });
+
+  it('ends with the server source, and the desk then shows the server wording', () => {
+    const serverFlag = serverRow('pulled', 'staff');
+    // Offline: cleared then re-flagged here, so the copy is stale and the row is dirty.
+    const local = {
+      ...base,
+      checkInPulledBy: 'exhibitor',
+      check_in_pulled_by: 'exhibitor',
+      _syncStatus: 'pending',
+    } as ReplicatedEntry;
+    const detection = detectDirtyRowConflict({
+      base,
+      local,
+      remote: serverFlag,
+      comparePolicy: ENTRY_DIRTY_ROW_COMPARE_POLICY,
+    });
+    expect(detection.hasConflict).toBe(false);
+    expect(detection.adoptRemoteFields).toEqual(
+      expect.arrayContaining(['checkInPulledBy', 'check_in_pulled_by'])
+    );
+
+    // What reconcileDirtyRow does with adoptRemoteFields, then the upload acknowledged (clean).
+    const reconciled = { ...local, _syncStatus: 'synced' } as Record<string, unknown>;
+    for (const field of detection.adoptRemoteFields ?? []) {
+      reconciled[field] = (serverFlag as unknown as Record<string, unknown>)[field];
+    }
+    expect(reconciled.check_in_pulled_by).toBe('staff');
+
+    render(
+      <CheckInDesk
+        showId="show-1"
+        loading={false}
+        unknown={false}
+        onRetry={vi.fn()}
+        currentDate={NOW}
+        entries={[projectReplicatedToDeskEntry(reconciled as unknown as ReplicatedEntry)]}
+      />
+    );
+    expect(screen.getByText(/^Ringside staff flagged this pull\./)).toBeVisible();
   });
 });

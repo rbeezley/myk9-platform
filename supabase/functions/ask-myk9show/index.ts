@@ -1,5 +1,4 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { applyActiveRoleValidity } from '../_shared/roleValidity.ts';
 import type {
   AskQQuestionMode,
   AskQShowRequest,
@@ -16,6 +15,7 @@ import { ASKQ_GUIDES, ASKQ_RULEBOOKS } from '../_shared/askq/documentAssets.ts';
 import {
   type AskQRulebookAsset,
   buildDocumentContext,
+  getRulebookScopeOptions,
   selectRulebook,
 } from '../_shared/askq/documentContext.ts';
 import {
@@ -32,6 +32,7 @@ import {
 } from '../_shared/askq/supportMode.ts';
 import { reserveAskQQuery } from '../_shared/askq/askqRateLimit.ts';
 import { classifyAskQFailure } from '../_shared/askq/askqFailure.ts';
+import { callerHasShowAccess } from '../_shared/askq/showAccess.ts';
 import { buildMyK9ShowPrompt } from '../_shared/askq/myK9ShowPrompt.ts';
 
 const CORS_HEADERS = {
@@ -227,32 +228,12 @@ Deno.serve(async (req: Request) => {
       }));
     }
 
-    // Verify user has a relationship to the requested show before using it as context
+    // Verify the caller may see this show (same predicate the app uses) before using it as context
     let verifiedShowId: string | null = null;
     let showName: string | null = null;
     let showRulebooks: AskQRulebookAsset[] = [];
     if (showId && showData?.name) {
-      const dogIds = dogs.map(d => d.id);
-      const [{ count: roleCount }, { count: entryCount }] = await Promise.all([
-        applyActiveRoleValidity(
-          serviceClient
-            .from('user_roles')
-            .select('*', { count: 'exact', head: true })
-            .eq('auth_user_id', user.id)
-            .eq('show_id', showId)
-        ),
-        dogIds.length > 0
-          ? serviceClient
-              .from('entries')
-              .select('id', { count: 'exact', head: true })
-              .eq('show_id', showId)
-              .in('dog_id', dogIds)
-              .is('deleted_at', null)
-              .not('entry_status', 'in', '(withdrawn,scratched)')
-          : Promise.resolve({ count: 0 }),
-      ]);
-
-      const hasAccess = (roleCount ?? 0) > 0 || (entryCount ?? 0) > 0;
+      const hasAccess = await callerHasShowAccess(supabaseClient, showId);
       if (hasAccess) {
         verifiedShowId = showId;
         showName = showData.name;
@@ -271,6 +252,7 @@ Deno.serve(async (req: Request) => {
       dogs,
       showId: verifiedShowId,
       showName,
+      showRegistries: getRulebookScopeOptions(showRulebooks).map(option => option.label),
     };
 
     const rulebookResolution = resolveRulebookContext({

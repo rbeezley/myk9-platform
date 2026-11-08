@@ -12,18 +12,9 @@ import { executeTool } from '../_shared/askq/toolExecutor.ts';
 import { collectSource } from '../_shared/askq/responseFormatter.ts';
 import { callClaude } from '../_shared/askq/promptBuilder.ts';
 import { ASKQ_GUIDES, ASKQ_RULEBOOKS } from '../_shared/askq/documentAssets.ts';
+import { type AskQRulebookAsset, selectRulebook } from '../_shared/askq/documentContext.ts';
+import { parseAskQRouting, resolveRulebookContext } from '../_shared/askq/requestRouting.ts';
 import {
-  type AskQRulebookAsset,
-  buildDocumentContext,
-  selectRulebook,
-} from '../_shared/askq/documentContext.ts';
-import {
-  buildModePrompt,
-  parseAskQRouting,
-  resolveRulebookContext,
-} from '../_shared/askq/requestRouting.ts';
-import {
-  buildSupportModePrompt,
   getSupportEscalationForQuestion,
   isSupportModeEnabled,
   parseSupportAnswer,
@@ -33,7 +24,8 @@ import { reserveAskQQuery } from '../_shared/askq/askqRateLimit.ts';
 import { classifyAskQFailure } from '../_shared/askq/askqFailure.ts';
 import { describeShowRegistries } from '../_shared/askq/showRegistries.ts';
 import { callerHasShowAccess } from '../_shared/askq/showAccess.ts';
-import { buildMyK9ShowPrompt } from '../_shared/askq/myK9ShowPrompt.ts';
+import { callerIsShowManager } from '../_shared/askq/guideScope.ts';
+import { buildAskQSystemPrompt } from '../_shared/askq/systemPrompt.ts';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': Deno.env.get('ALLOWED_ORIGIN') ?? 'http://localhost:5173',
@@ -286,14 +278,15 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const documentContext = buildDocumentContext({
-      guides: getDocumentGuides(questionMode),
+    const isShowManager = await callerIsShowManager(supabaseClient);
+    const { systemPrompt, guides: documentGuides } = buildAskQSystemPrompt({
+      userContext,
+      questionMode,
+      effectiveSupportMode,
+      isShowManager,
+      allGuides: ASKQ_GUIDES,
       rulebooks: getDocumentRulebooks(questionMode, rulebookResolution.rulebooks),
     });
-    const baseSystemPrompt = `${buildMyK9ShowPrompt(userContext, documentContext)}${buildModePrompt(questionMode)}`;
-    const systemPrompt = effectiveSupportMode
-      ? buildSupportModePrompt(baseSystemPrompt, getDocumentGuides(questionMode))
-      : baseSystemPrompt;
     const activeTools = getActiveTools(questionMode, effectiveSupportMode);
 
     const messages = [{ role: 'user' as const, content: message }];
@@ -343,7 +336,7 @@ Deno.serve(async (req: Request) => {
     const textBlock = result.content.find(b => b.type === 'text');
     const fullText = textBlock?.text ?? '';
     const parsedSupportAnswer = effectiveSupportMode
-      ? parseSupportAnswer(fullText, getDocumentGuides(questionMode))
+      ? parseSupportAnswer(fullText, documentGuides)
       : null;
     if (parsedSupportAnswer && parsedSupportAnswer.guideSources.length > 0) {
       sources.guide = parsedSupportAnswer.guideSources;
@@ -442,11 +435,6 @@ function getActiveTools(
 ): ToolDefinition[] {
   if (effectiveSupportMode || questionMode === 'rules') return [];
   return TOOLS;
-}
-
-function getDocumentGuides(questionMode: AskQQuestionMode | null) {
-  if (questionMode === 'rules' || questionMode === 'show-data') return [];
-  return ASKQ_GUIDES;
 }
 
 function getDocumentRulebooks(

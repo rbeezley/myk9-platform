@@ -273,6 +273,8 @@ export function toSecretaryEntry(
     // MYK9-1757: from the SAME replicated row as check_in_status, never a side-read. The server
     // alone stamps it, so a row with unsynced local work (its check-in may have been cleared and
     // re-flagged on this device since the stamp arrived) says only "flagged" until the next sync.
+    // After the upload is acknowledged the row is `synced`; MYK9-1766 covers that case by nulling the
+    // stale stamp on the local row when a check-in status change is written.
     check_in_pulled_by: hasUnsyncedLocalWrite(entry)
       ? null
       : stringFrom(replicatedField(entry, 'checkInPulledBy', 'check_in_pulled_by')),

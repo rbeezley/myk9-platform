@@ -173,11 +173,12 @@ describe('offline clear then re-flag never credits the earlier flagger', () => {
     await expectNoSourceInQueuedMutations();
   });
 
-  it('local writes never touch the server-owned stamp; the dirty row just stops showing it', async () => {
+  it('a status-changing local write nulls the stale stamp on the local row only', async () => {
     await table.updateCheckInStatus(ID, 'checked-in');
     await table.updateCheckInStatus(ID, 'pulled');
     const row = await table.get(ID);
-    expect(row?.checkInPulledBy).toBe('exhibitor');
+    expect(row?.checkInPulledBy).toBeNull();
+    expect(row?.check_in_pulled_by).toBeNull();
     expect(row?._syncStatus).toBe('pending');
   });
 });

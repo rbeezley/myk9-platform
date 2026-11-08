@@ -195,47 +195,49 @@ function CompactTrialGroup({
           </span>
         </button>
       </CollapsibleTrigger>
-      <CollapsibleContent className="border-t border-border px-3 py-3 sm:px-4">
-        {rows.length === 0 ? (
-          <p className="px-1 py-2 text-sm text-muted-foreground">No classes scheduled.</p>
-        ) : (
-          <div className="space-y-2">
-            {visibleRows.map(row => (
-              <CompactClassRowView
-                key={row.classId}
-                row={row}
-                showId={showId}
-                trialId={trial.trialId}
-                trialLevels={trialLevels}
-                canEditSchedule={canEditSchedule}
-                breakdown={breakdownFor(row.classId)}
-              />
-            ))}
-            {hiddenCount > 0 && (
+      <CollapsibleContent>
+        <div className="border-t border-border px-3 py-3 sm:px-4">
+          {rows.length === 0 ? (
+            <p className="px-1 py-2 text-sm text-muted-foreground">No classes scheduled.</p>
+          ) : (
+            <div className="space-y-2">
+              {visibleRows.map(row => (
+                <CompactClassRowView
+                  key={row.classId}
+                  row={row}
+                  showId={showId}
+                  trialId={trial.trialId}
+                  trialLevels={trialLevels}
+                  canEditSchedule={canEditSchedule}
+                  breakdown={breakdownFor(row.classId)}
+                />
+              ))}
+              {hiddenCount > 0 && (
+                <Link
+                  to={`/shows/${showId}?tab=classes`}
+                  className="flex min-h-11 items-center justify-center gap-2 rounded-lg border border-dashed border-border px-3 text-sm font-medium text-primary hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  View {hiddenCount} more {hiddenCount === 1 ? 'class' : 'classes'}
+                  <ExternalLink className="h-4 w-4" aria-hidden="true" />
+                </Link>
+              )}
+            </div>
+          )}
+          {(rows.length > 0 || canEditSchedule) && (
+            <div className="mt-2 flex flex-wrap items-center gap-x-4">
+              {canEditSchedule && (
+                <TrialManagerLinks showId={showId} trialId={trial.trialId} trialLabel={label} />
+              )}
               <Link
-                to={`/shows/${showId}?tab=classes`}
-                className="flex min-h-11 items-center justify-center gap-2 rounded-lg border border-dashed border-border px-3 text-sm font-medium text-primary hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                to={trialHref}
+                className="inline-flex min-h-11 items-center gap-1 px-1 text-sm font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                View {hiddenCount} more {hiddenCount === 1 ? 'class' : 'classes'}
-                <ExternalLink className="h-4 w-4" aria-hidden="true" />
+                View trial details
+                <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
               </Link>
-            )}
-          </div>
-        )}
-        {(rows.length > 0 || canEditSchedule) && (
-          <div className="mt-2 flex flex-wrap items-center gap-x-4">
-            {canEditSchedule && (
-              <TrialManagerLinks showId={showId} trialId={trial.trialId} trialLabel={label} />
-            )}
-            <Link
-              to={trialHref}
-              className="inline-flex min-h-11 items-center gap-1 px-1 text-sm font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              View trial details
-              <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
-            </Link>
-          </div>
-        )}
+            </div>
+          )}
+        </div>
       </CollapsibleContent>
     </Collapsible>
   );

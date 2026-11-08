@@ -20,8 +20,6 @@ import { CheckInDeskDogCard } from './CheckInDeskDogCard';
 import { useCheckInDeskActions } from './useCheckInDeskActions';
 import { useMinuteClock } from './useMinuteClock';
 import { useDeskPull } from './useDeskPull';
-import { useFlaggedPullSources } from './useFlaggedPullSources';
-import { isFlaggedPull } from './deskStatus';
 import { PullAtShowDialog } from './PullAtShowDialog';
 import { ConfirmDialog } from '@/components/ui/alert-dialog';
 
@@ -85,16 +83,6 @@ export function CheckInDesk({
     [people]
   );
   const pull = useDeskPull(entryId => rowsByEntryId.get(entryId), onRefreshEntries);
-  // The write time tells one flag from the next on the same class (cleared, then set again).
-  const shownFlags = useMemo(
-    () =>
-      [...rowsByEntryId.values()].filter(isFlaggedPull).map(row => ({
-        entryId: row.entryId,
-        writtenAt: row.sourceEntry.lastUpdated.getTime(),
-      })),
-    [rowsByEntryId]
-  );
-  const flagSources = useFlaggedPullSources(showId, shownFlags);
   const visible = useMemo(
     () => filterCheckInDesk(people, search, filter),
     [filter, people, search]
@@ -234,7 +222,6 @@ export function CheckInDesk({
                         : void setStatus(`${row.dogName}, ${row.className}`, [row.entryId], status)
                     }
                     onUnpull={pull.requestUnpull}
-                    flagSources={flagSources}
                     clearingId={pull.clearingId}
                     onClearFlag={row => void pull.clearFlag(row)}
                   />

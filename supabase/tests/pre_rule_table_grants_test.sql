@@ -363,10 +363,7 @@ BEGIN
       -- authenticated (20261101213300, MYK9-1637): the money surfaces let a
       -- card-paid entry stand over a reopened form. anon stays 0 (REVOKEd), and a
       -- direct write cannot set it (trg_entries_derive_card_paid re-derives it).
-      -- 57 became 58 with entries.check_in_pulled_by (20261107224700, MYK9-1753):
-      -- the Check-in desk shows who flagged a pull. anon stays 0 (REVOKEd), and
-      -- trg_entries_check_in_before_pull recomputes it on every write.
-      ('entries','authenticated',58),
+      ('entries','authenticated',57),
       ('judge_assignments','anon',10),
       ('judge_assignments','authenticated',12),
       ('dogs','anon',5),
@@ -424,7 +421,6 @@ BEGIN
     -- that adds anon back to the table cannot slip this one in with it.
     ('entries','moved_from_entry_id'),
     ('entries','check_in_status_before_pull'),
-    ('entries','check_in_pulled_by'),
     ('platform_settings','updated_by'), ('platform_settings','updated_at'),
     ('platform_settings','id'), ('platform_settings','stripe_livemode')
   ) AS t(tbl, col)

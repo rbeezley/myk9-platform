@@ -1,5 +1,5 @@
--- MYK9-1753: who flagged a pull (entries.check_in_pulled_by, stamped by the
--- MYK9-1396 trigger) and the secretary's Clear (public.clear_flagged_pull).
+-- MYK9-1753: the secretary's Clear of a flagged pull (public.clear_flagged_pull)
+-- puts back the check-in the MYK9-1396 trigger remembered.
 -- Executes the installed functions as the real roles. Run with
 -- psql -X -v ON_ERROR_STOP=1 after migrations. All fixtures roll back.
 begin;
@@ -69,8 +69,7 @@ $$;
 
 create function pg_temp.row_of(p_id uuid) returns text
 language sql as $$
-  select concat_ws('/', check_in_status, coalesce(check_in_status_before_pull, '-'),
-    coalesce(check_in_pulled_by, '-'))
+  select concat_ws('/', check_in_status, coalesce(check_in_status_before_pull, '-'))
   from public.entries where id = p_id;
 $$;
 
@@ -84,43 +83,14 @@ begin
 end;
 $$;
 
--- Who flagged it.
+-- An exhibitor flags one class from My Shows; ringside flags the other.
 do $$
-declare
-  v_mine constant uuid := '00000000-0000-0000-0000-000000175331';
-  v_other constant uuid := '00000000-0000-0000-0000-000000175332';
 begin
   perform pg_temp.act_as('00000000-0000-0000-0000-000000175391');
-  perform public.self_checkin_entry(v_mine, 'pulled');
+  perform public.self_checkin_entry('00000000-0000-0000-0000-000000175331', 'pulled');
   reset role;
-  perform pg_temp.fail_if(pg_temp.row_of(v_mine) is distinct from 'pulled/checked-in/exhibitor',
-    'an exhibitor Pulled stored ' || pg_temp.row_of(v_mine));
-
-  -- The marker does not outlive the RPC: a later write in the same transaction is staff.
-  update public.entries set check_in_status = 'pulled' where id = v_other;
-  perform pg_temp.fail_if(pg_temp.row_of(v_other) is distinct from 'pulled/checked-in/staff',
-    'a staff Pulled after the RPC stored ' || pg_temp.row_of(v_other));
-
-  -- A planted source is discarded, alone or alongside check_in_status.
-  update public.entries set check_in_pulled_by = 'exhibitor' where id = v_other;
-  update public.entries set check_in_status = 'pulled', check_in_pulled_by = 'exhibitor'
-   where id = v_other;
-  perform pg_temp.fail_if(pg_temp.row_of(v_other) is distinct from 'pulled/checked-in/staff',
-    'a planted source survived: ' || pg_temp.row_of(v_other));
-
-  -- Moving off pulled clears the source with the prior.
-  update public.entries set check_in_status = 'conflict' where id = v_other;
-  perform pg_temp.fail_if(pg_temp.row_of(v_other) is distinct from 'conflict/-/-',
-    'a move off pulled left ' || pg_temp.row_of(v_other));
-
-  -- An exhibitor's other statuses never carry a source.
-  perform pg_temp.act_as('00000000-0000-0000-0000-000000175391');
-  perform public.self_checkin_entry(v_other, 'at-gate');
-  reset role;
-  perform pg_temp.fail_if(pg_temp.row_of(v_other) is distinct from 'at-gate/-/-',
-    'an exhibitor at-gate stored ' || pg_temp.row_of(v_other));
-
-  raise notice 'PASS check_in_pulled_by records exhibitor vs staff and discards plants';
+  update public.entries set check_in_status = 'at-gate'
+   where id = '00000000-0000-0000-0000-000000175332';
 end;
 $$;
 
@@ -141,7 +111,7 @@ begin
   reset role;
   perform pg_temp.fail_if(v_state is distinct from '42501',
     'a non-manager Clear raised ' || coalesce(v_state, 'nothing'));
-  perform pg_temp.fail_if(pg_temp.row_of(v_mine) is distinct from 'pulled/checked-in/exhibitor',
+  perform pg_temp.fail_if(pg_temp.row_of(v_mine) is distinct from 'pulled/checked-in',
     'a refused Clear changed the row: ' || pg_temp.row_of(v_mine));
 
   -- The secretary clears it back to checked-in.
@@ -150,7 +120,7 @@ begin
   reset role;
   perform pg_temp.fail_if(v_result is distinct from 'checked-in',
     'Clear returned ' || coalesce(v_result, 'NULL'));
-  perform pg_temp.fail_if(pg_temp.row_of(v_mine) is distinct from 'checked-in/-/-',
+  perform pg_temp.fail_if(pg_temp.row_of(v_mine) is distinct from 'checked-in/-',
     'Clear left ' || pg_temp.row_of(v_mine));
 
   -- A ring state comes back as checked-in.
@@ -181,7 +151,7 @@ begin
   reset role;
   perform pg_temp.fail_if(v_state is distinct from 'P0001',
     'Clear of a real Pull raised ' || coalesce(v_state, 'nothing'));
-  perform pg_temp.fail_if(pg_temp.row_of(v_other) is distinct from 'pulled/no-status/staff',
+  perform pg_temp.fail_if(pg_temp.row_of(v_other) is distinct from 'pulled/no-status',
     'a refused Clear of a real Pull changed it: ' || pg_temp.row_of(v_other));
 
   v_state := null;

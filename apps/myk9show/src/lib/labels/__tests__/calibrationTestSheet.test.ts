@@ -87,10 +87,10 @@ describe('buildCalibrationTestSheetHtml', () => {
     expect(html).toContain('Calibration: top -5, left -1, pitch -3 (thousandths of an inch)');
   });
 
-  it('stylesheet portion reflects passed calibration (offsetTop applied to margin)', () => {
+  it('stylesheet portion reflects passed calibration (offsetTop applied to sheet padding)', () => {
     const html = buildCalibrationTestSheetHtml(template18262, 0, 20, 0);
     // pageMarginTop 0.875 + 0.02 = 0.895; pageMarginBottom 0.875 - 0.02 = 0.855
-    expect(html).toContain('margin: 0.895in 0.15625in 0.855in 0.15625in;');
+    expect(html).toContain('padding: 0.895in 0 0 0.15625in;');
   });
 
   it('stylesheet portion reflects passed pitch adjustment (row-gap)', () => {

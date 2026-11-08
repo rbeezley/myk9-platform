@@ -98,49 +98,39 @@ describe('buildLabelStylesheet', () => {
     expect(cssDefault).toBe(cssExplicit);
   });
 
-  it('applies positive offsetTop to top margin and compensates bottom margin', () => {
-    const css = buildLabelStylesheet(template18262, 0, 20, 0);
-    // pageMarginTop 0.875 + 0.02 = 0.895; pageMarginBottom 0.875 - 0.02 = 0.855
-    expect(css).toContain('margin: 0.895in 0.15625in 0.855in 0.15625in;');
+  it('keeps @page margin at zero so Chrome Margins None and Default print the same', () => {
+    for (const args of [
+      [0, 0, 0],
+      [0, 20, 50],
+      [5, -20, -50],
+    ] as const) {
+      expect(buildLabelStylesheet(template18262, ...args)).toMatch(/@page\s*{[^}]*margin: 0;/);
+    }
   });
 
-  it('applies negative offsetTop to top margin and compensates bottom margin', () => {
-    const css = buildLabelStylesheet(template18262, 0, -20, 0);
-    // pageMarginTop 0.875 - 0.02 = 0.855; pageMarginBottom 0.875 + 0.02 = 0.895
-    expect(css).toContain('margin: 0.855in 0.15625in 0.895in 0.15625in;');
+  it('carries the template margins as sheet padding', () => {
+    const css = buildLabelStylesheet(template18262);
+    expect(css).toContain('padding: 0.875in 0 0 0.15625in;');
   });
 
-  it('applies positive offsetLeft to left margin and compensates right margin', () => {
-    const css = buildLabelStylesheet(template18262, 0, 0, 50);
-    // pageMarginLeft 0.15625 + 0.05 = 0.20625; pageMarginRight 0.15625 - 0.05 = 0.10625
-    expect(css).toContain('margin: 0.875in 0.10625in 0.875in 0.20625in;');
+  it('adds positive offsetTop and offsetLeft to the sheet padding', () => {
+    const css = buildLabelStylesheet(template18262, 0, 20, 50);
+    expect(css).toContain('padding: 0.895in 0 0 0.20625in;');
   });
 
-  it('applies negative offsetLeft to left margin and compensates right margin', () => {
-    const css = buildLabelStylesheet(template18262, 0, 0, -50);
-    // pageMarginLeft 0.15625 - 0.05 = 0.10625; pageMarginRight 0.15625 + 0.05 = 0.20625
-    expect(css).toContain('margin: 0.875in 0.20625in 0.875in 0.10625in;');
+  it('subtracts negative offsets from the sheet padding', () => {
+    const css = buildLabelStylesheet(template18262, 0, -20, -50);
+    expect(css).toContain('padding: 0.855in 0 0 0.10625in;');
   });
 
-  it('clamps effective top margin at 0 for zero-margin template, no compensation possible', () => {
-    const css = buildLabelStylesheet(template8387, 0, -20, 0);
-    expect(css).toContain('margin: 0in 0in 0in 0in;');
+  it('clamps sheet padding at 0 for a zero-margin template', () => {
+    const css = buildLabelStylesheet(template8387, 0, -20, -20);
+    expect(css).toContain('padding: 0in 0 0 0in;');
   });
 
-  it('shifts zero-margin template with positive offsetTop and no compensation', () => {
-    const css = buildLabelStylesheet(template8387, 0, 20, 0);
-    // effectiveTop 0.02, bottom compensation 0 - 0.02 clamped to 0
-    expect(css).toContain('margin: 0.02in 0in 0in 0in;');
-  });
-
-  it('clamps effective left margin at 0 for zero-margin template, no compensation possible', () => {
-    const css = buildLabelStylesheet(template8387, 0, 0, -20);
-    expect(css).toContain('margin: 0in 0in 0in 0in;');
-  });
-
-  it('shifts zero-margin template with positive offsetLeft and no compensation', () => {
-    const css = buildLabelStylesheet(template8387, 0, 0, 20);
-    expect(css).toContain('margin: 0in 0in 0in 0.02in;');
+  it('shifts a zero-margin template with positive offsets', () => {
+    const css = buildLabelStylesheet(template8387, 0, 20, 30);
+    expect(css).toContain('padding: 0.02in 0 0 0.03in;');
   });
 
   it('pitch unaffected by offsets', () => {

@@ -43,4 +43,19 @@ describe('labelTemplates', () => {
       expect(t.labelsPerSheet).toBe(t.columns * t.rows);
     }
   });
+
+  it('every template fits on a Letter sheet (11 in tall, 8.5 in wide)', () => {
+    for (const t of Object.values(LABEL_TEMPLATES)) {
+      const height = t.pageMarginTop + t.rows * t.labelHeight + t.pageMarginBottom;
+      const width =
+        t.pageMarginLeft + t.columns * t.labelWidth + (t.columns - 1) * t.gapX + t.pageMarginRight;
+      expect(height, `${t.id} height`).toBeLessThanOrEqual(11 + 1e-9);
+      expect(width, `${t.id} width`).toBeLessThanOrEqual(8.5 + 1e-9);
+    }
+  });
+
+  it('18262 uses Avery top/bottom margin of 0.83 in', () => {
+    expect(LABEL_TEMPLATES['18262'].pageMarginTop).toBe(0.83);
+    expect(LABEL_TEMPLATES['18262'].pageMarginBottom).toBe(0.83);
+  });
 });

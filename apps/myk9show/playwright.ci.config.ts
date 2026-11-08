@@ -273,6 +273,8 @@ const PR_SMOKE_SPECS = [
   '**/uat/secretary/critical-path.spec.ts',
   '**/my-entries-page-ui.spec.ts',
   '**/sign-in-fits-one-screen.spec.ts',
+  // Hermetic print geometry for Avery label sheets, Margins Default/None (MYK9-1771).
+  '**/labels-print-geometry.spec.ts',
   '**/header-wordmark-fits.spec.ts',
   '**/dialogContainsLongContent.spec.ts',
   // MYK9-1188: a lazy route chunk that fails to load under the real service worker recovers with

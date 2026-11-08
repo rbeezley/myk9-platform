@@ -132,4 +132,27 @@ describe('EntryScoreHistory', () => {
     expect(screen.queryByText(/saved on device/i)).not.toBeInTheDocument();
     expect(screen.getByText('Result status: qualified → nq')).toBeInTheDocument();
   });
+
+  it('labels a system change Automatic, even when it carries the user who set it off', async () => {
+    mockUseEntryScoreAudit.mockReturnValue({
+      ...baseAudit,
+      data: [
+        {
+          ...signedInRow,
+          id: 'audit-3',
+          actorName: 'Sam Secretary',
+          actorTier: 'system',
+          clientSavedAt: null,
+          changes: [{ field: 'final_placement', oldValue: null, newValue: 2 }],
+        },
+        { ...signedInRow, id: 'audit-4', actorName: 'Sam Secretary', actorTier: 'manager' },
+      ],
+    } as never);
+
+    await openHistory();
+
+    expect(screen.getByText('Automatic')).toBeInTheDocument();
+    expect(screen.getByText('Final placement: empty → 2')).toBeInTheDocument();
+    expect(screen.getAllByText('Sam Secretary')).toHaveLength(1);
+  });
 });

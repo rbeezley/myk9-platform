@@ -84,6 +84,33 @@
   padding-right: 64px;
 }
 
+/*
+ * MYK9-1745: when AppToaster lifts the dock above a registered action bar
+ * (ScoresheetActionBar's Save/Cancel), sonner's bottom entrance and exit
+ * (translateY(100%) before mount, +100% on removal) would slide the toast
+ * through that bar. In the lifted state only, enter and leave with a fade and
+ * no downward travel. Swipe-to-dismiss is untouched: it composes
+ * --swipe-amount-* on top of --y and runs its own keyframes.
+ */
+[data-sonner-toaster].myk9-sonner-lifted [data-sonner-toast][data-mounted='false'] {
+  --y: translateY(0);
+}
+
+[data-sonner-toaster].myk9-sonner-lifted
+  [data-sonner-toast][data-removed='true'][data-front='true'][data-swipe-out='false'] {
+  --y: translateY(0);
+}
+
+[data-sonner-toaster].myk9-sonner-lifted
+  [data-sonner-toast][data-removed='true'][data-front='false'][data-swipe-out='false'][data-expanded='true'] {
+  --y: translateY(calc(var(--lift) * var(--offset)));
+}
+
+[data-sonner-toaster].myk9-sonner-lifted
+  [data-sonner-toast][data-removed='true'][data-front='false'][data-swipe-out='false'][data-expanded='false'] {
+  --y: translateY(0);
+}
+
 /* Setup tab: schedule+venue left 2/3, officials+judges right 1/3 */
 .setup-detail-grid {
   display: grid;
@@ -123,33 +150,6 @@
       14px 100%,
       14px 100%;
     background-attachment: local, local, scroll, scroll;
-  }
-
-  /* Collapsible animations */
-  @keyframes collapsible-down {
-    from {
-      height: 0;
-    }
-    to {
-      height: var(--radix-collapsible-content-height);
-    }
-  }
-
-  @keyframes collapsible-up {
-    from {
-      height: var(--radix-collapsible-content-height);
-    }
-    to {
-      height: 0;
-    }
-  }
-
-  .animate-collapsible-down {
-    animation: collapsible-down 0.2s ease-out;
-  }
-
-  .animate-collapsible-up {
-    animation: collapsible-up 0.2s ease-out;
   }
 
   /* Delightful shimmer animation for loading states */

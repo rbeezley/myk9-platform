@@ -170,39 +170,41 @@ export function PresetSelector({ showId, settings }: PresetSelectorProps) {
             Advanced
           </Button>
         </CollapsibleTrigger>
-        <CollapsibleContent className="mt-3">
-          <Card>
-            <CardContent className="pt-4 space-y-4">
-              {(
-                [
-                  { field: 'placement', label: 'Placement', timings: PLACEMENT_TIMINGS },
-                  { field: 'qualification', label: 'Qualification', timings: ALL_TIMINGS },
-                  { field: 'time', label: 'Time', timings: ALL_TIMINGS },
-                  { field: 'faults', label: 'Faults', timings: ALL_TIMINGS },
-                ] as const
-              ).map(({ field, label, timings }) => (
-                <div key={field} className="flex items-center justify-between">
-                  <span className="text-sm font-medium">{label}</span>
-                  <TimingSelect
-                    value={customTimings[field]}
-                    timings={timings}
-                    ariaLabel={`${label} visibility timing`}
-                    onChange={v => setCustomTimings(prev => ({ ...prev, [field]: v }))}
-                  />
-                </div>
-              ))}
-              <Button
-                size="sm"
-                className="min-h-[44px]"
-                onClick={applyCustomTimings}
-                disabled={updateVisibility.isPending || Boolean(connectionHint)}
-                title={connectionHint}
-                aria-describedby={connectionHint ? 'show-defaults-connection-hint' : undefined}
-              >
-                Save Custom Timings
-              </Button>
-            </CardContent>
-          </Card>
+        <CollapsibleContent>
+          <div className="pt-3">
+            <Card>
+              <CardContent className="pt-4 space-y-4">
+                {(
+                  [
+                    { field: 'placement', label: 'Placement', timings: PLACEMENT_TIMINGS },
+                    { field: 'qualification', label: 'Qualification', timings: ALL_TIMINGS },
+                    { field: 'time', label: 'Time', timings: ALL_TIMINGS },
+                    { field: 'faults', label: 'Faults', timings: ALL_TIMINGS },
+                  ] as const
+                ).map(({ field, label, timings }) => (
+                  <div key={field} className="flex items-center justify-between">
+                    <span className="text-sm font-medium">{label}</span>
+                    <TimingSelect
+                      value={customTimings[field]}
+                      timings={timings}
+                      ariaLabel={`${label} visibility timing`}
+                      onChange={v => setCustomTimings(prev => ({ ...prev, [field]: v }))}
+                    />
+                  </div>
+                ))}
+                <Button
+                  size="sm"
+                  className="min-h-[44px]"
+                  onClick={applyCustomTimings}
+                  disabled={updateVisibility.isPending || Boolean(connectionHint)}
+                  title={connectionHint}
+                  aria-describedby={connectionHint ? 'show-defaults-connection-hint' : undefined}
+                >
+                  Save Custom Timings
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
         </CollapsibleContent>
       </Collapsible>
     </div>

@@ -48,6 +48,14 @@ export interface ReplicatedEntry {
   // Check-in status (show-day flow, separate from entry_status lifecycle)
   checkInStatus?: CheckInStatus | undefined;
   check_in_status?: CheckInStatus | undefined; // snake_case alias for Supabase compatibility
+  /**
+   * MYK9-1757: who flagged the current pull ('exhibitor' | 'staff'), stamped by the server and
+   * carried on the replication view's row, so the desk reads the flag and its source from ONE
+   * row. View-only: never projected back in `entryToSupabaseRow`. Absent on rows cached before
+   * migration 20261108033700, which reads as unknown.
+   */
+  checkInPulledBy?: string | null | undefined;
+  check_in_pulled_by?: string | null | undefined;
 
   jumpHeight?: string | undefined;
   entryFee?: number | undefined;
@@ -413,6 +421,10 @@ export function rowToEntry(row: EntryRow): ReplicatedEntry {
     entryStatus: row.entry_status ?? undefined,
     checkInStatus: (dbRow.check_in_status as CheckInStatus) ?? 'no-status',
     check_in_status: (dbRow.check_in_status as CheckInStatus) ?? 'no-status',
+    // MYK9-1757. `optionalColumn` on purpose: until the migration is pushed the view does not
+    // return it, and the generated row type cannot know it. Absent reads as unknown.
+    checkInPulledBy: optionalColumn(row, 'check_in_pulled_by'),
+    check_in_pulled_by: optionalColumn(row, 'check_in_pulled_by'),
     jumpHeight: row.jump_height ?? undefined,
     entryFee: row.entry_fee ?? undefined,
     totalFees: (dbRow.total_fees as number | undefined) ?? undefined,

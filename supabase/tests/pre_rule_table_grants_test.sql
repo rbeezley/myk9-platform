@@ -422,6 +422,7 @@ BEGIN
     -- that adds anon back to the table cannot slip this one in with it.
     ('entries','moved_from_entry_id'),
     ('entries','check_in_status_before_pull'),
+    ('entries','check_in_pulled_by'),
     ('platform_settings','updated_by'), ('platform_settings','updated_at'),
     ('platform_settings','id'), ('platform_settings','stripe_livemode')
   ) AS t(tbl, col)

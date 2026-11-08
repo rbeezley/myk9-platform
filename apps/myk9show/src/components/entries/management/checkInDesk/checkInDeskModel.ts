@@ -15,6 +15,7 @@ import { buildTrialRingResolver } from '@/components/entries/management/checkInD
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import type { Trial, TrialClass } from '@/components/trials/types/trial.types';
 import { getTrialTimezone } from '@/features/registries';
+import { optimisticPulledBy } from '@/utils/optimisticPulledBy';
 
 export type CheckInDeskFilter = 'all' | 'not-checked-in';
 
@@ -119,6 +120,7 @@ export function applyOptimisticDeskStatuses(
           ? {
               ...cls,
               checkInStatus: change.to,
+              checkInPulledBy: optimisticPulledBy(change.from, change.to, cls.checkInPulledBy),
               ...(change.to === 'checked-in' ? { checkInTime: new Date() } : {}),
             }
           : cls

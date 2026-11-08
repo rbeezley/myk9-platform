@@ -173,6 +173,7 @@ export function mapSecretaryEntryToEntryManagementEntry(
             // its own to say what the card behind it already says.
             withdrawalReasonCode: entry.withdrawal_reason_code ?? null,
             checkInStatus: (entry.check_in_status as CheckInStatus) ?? 'no-status',
+            checkInPulledBy: entry.check_in_pulled_by ?? null,
           },
         ]
       : [],

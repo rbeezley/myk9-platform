@@ -98,3 +98,14 @@ export function isFlaggedPull(row: {
 }): boolean {
   return row.deskStatusEditable && row.checkInStatus === 'pulled';
 }
+
+/**
+ * Who flagged the pull, in words (MYK9-1757). The source is server-stamped and rides the same
+ * replicated row as the flag; anything else (offline, an older row, an unknown value) says only
+ * that it is flagged.
+ */
+export function flaggedPullLabel(source: string | null | undefined): string {
+  if (source === 'exhibitor') return 'The exhibitor flagged this pull.';
+  if (source === 'staff') return 'Ringside staff flagged this pull.';
+  return 'Flagged as pulled.';
+}

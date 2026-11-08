@@ -16,6 +16,7 @@ import {
   COMP_REFUSED_PAID_MESSAGE,
 } from '@/services/database/entries';
 import { updateReplicatedCheckInStatus } from '@/services/show-day/checkInStatus';
+import { optimisticPulledBy } from '@/utils/optimisticPulledBy';
 import { getEligibleForBulkStatusChange } from '@/components/entries/management/bulkActionEligibility';
 import { useBulkDispatch } from '@/hooks/useBulkDispatch';
 import { useEntryStatusUndo } from '@/hooks/useEntryStatusUndo';
@@ -315,7 +316,14 @@ export function useEntryManagementActions({
             ? {
                 ...e,
                 classes: e.classes.map(c =>
-                  c.id === cls.id ? { ...c, checkInStatus: status, checkInTime: new Date() } : c
+                  c.id === cls.id
+                    ? {
+                        ...c,
+                        checkInStatus: status,
+                        checkInPulledBy: optimisticPulledBy(prevStatus, status, c.checkInPulledBy),
+                        checkInTime: new Date(),
+                      }
+                    : c
                 ),
               }
             : e
@@ -347,7 +355,13 @@ export function useEntryManagementActions({
               ? {
                   ...e,
                   classes: e.classes.map(c =>
-                    c.id === cls.id ? { ...c, checkInStatus: prevStatus } : c
+                    c.id === cls.id
+                      ? {
+                          ...c,
+                          checkInStatus: prevStatus,
+                          checkInPulledBy: cls.checkInPulledBy ?? null,
+                        }
+                      : c
                   ),
                 }
               : e

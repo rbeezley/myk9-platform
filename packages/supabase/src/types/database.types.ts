@@ -2410,6 +2410,7 @@ export type Database = {
           card_paid: boolean
           check_in_status: string | null
           check_in_status_before_pull: string | null
+          check_in_pulled_by: string | null
           class_id: string | null
           comped: boolean | null
           comped_reason: string | null
@@ -2513,6 +2514,7 @@ export type Database = {
           card_paid?: boolean
           check_in_status?: string | null
           check_in_status_before_pull?: string | null
+          check_in_pulled_by?: string | null
           class_id?: string | null
           comped?: boolean | null
           comped_reason?: string | null
@@ -2616,6 +2618,7 @@ export type Database = {
           card_paid?: boolean
           check_in_status?: string | null
           check_in_status_before_pull?: string | null
+          check_in_pulled_by?: string | null
           class_id?: string | null
           comped?: boolean | null
           comped_reason?: string | null
@@ -11673,6 +11676,7 @@ export type Database = {
           bonus_points: number | null
           card_paid: boolean | null
           check_in_status: string | null
+          check_in_pulled_by: string | null
           class_element: string | null
           class_id: string | null
           class_level: string | null
@@ -11994,6 +11998,7 @@ export type Database = {
           bonus_points: number | null
           card_paid: boolean | null
           check_in_status: string | null
+          check_in_pulled_by: string | null
           class_element: string | null
           class_id: string | null
           class_level: string | null

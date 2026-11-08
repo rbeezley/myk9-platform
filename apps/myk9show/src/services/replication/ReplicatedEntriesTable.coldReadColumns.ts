@@ -135,6 +135,16 @@ export const ENTRY_MAPPER_COLUMNS_ON_NEITHER_VIEW = [
 ] as const;
 
 /**
+ * MYK9-1757: read by the mapper but deliberately NOT selected by the cold reads. The bulk sync
+ * reads `*` from the replication view, so it picks the column up the moment migration
+ * 20261108033700 is pushed; an explicit select naming it would 42703 the whole request on a
+ * database that lacks it. A cold-hydrated row therefore holds it undefined (the desk reads
+ * "Flagged as pulled.") until the next sync overwrites it. Add it to the mapper columns above
+ * once the migration is applied everywhere.
+ */
+export const ENTRY_MAPPER_COLUMNS_NOT_COLD_READ = ['check_in_pulled_by'] as const;
+
+/**
  * Whole-entry cold reads (write hydration, withdraw read, post-withdrawal
  * read-back), from `view_authenticated_entry_results_replication`: the mapper's
  * columns plus the replication-only `shows` columns plus `version`, which they

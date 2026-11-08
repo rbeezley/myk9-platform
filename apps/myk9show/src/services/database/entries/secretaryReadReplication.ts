@@ -102,6 +102,11 @@ function booleanFrom(value: unknown): boolean | null {
   return typeof value === 'boolean' ? value : null;
 }
 
+/** The row carries a local write the server has not acknowledged (the reads.ts pending signal). */
+function hasUnsyncedLocalWrite(entry: ReplicatedEntry): boolean {
+  return entry._syncStatus !== undefined && entry._syncStatus !== 'synced';
+}
+
 function replicatedField(entry: ReplicatedEntry, camel: string, snake: string): unknown {
   const record = entry as unknown as Record<string, unknown>;
   return record[camel] ?? record[snake] ?? null;
@@ -265,6 +270,12 @@ export function toSecretaryEntry(
       replicatedField(entry, 'scoringCompletedAt', 'scoring_completed_at')
     ),
     check_in_status: entry.checkInStatus ?? entry.check_in_status ?? null,
+    // MYK9-1757: from the SAME replicated row as check_in_status, never a side-read. The server
+    // alone stamps it, so a row with unsynced local work (its check-in may have been cleared and
+    // re-flagged on this device since the stamp arrived) says only "flagged" until the next sync.
+    check_in_pulled_by: hasUnsyncedLocalWrite(entry)
+      ? null
+      : stringFrom(replicatedField(entry, 'checkInPulledBy', 'check_in_pulled_by')),
     withdrawal_reason: entry.withdrawalReason ?? entry.withdrawal_reason ?? null,
     // MYK9-632: from the side-read, not the replica — the column lives on
     // `entries` and the view the replica mirrors does not carry it.

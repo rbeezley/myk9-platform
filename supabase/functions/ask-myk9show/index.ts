@@ -278,7 +278,7 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const isShowManager = await callerIsShowManager(supabaseClient, verifiedShowId);
+    const isShowManager = await callerIsShowManager(supabaseClient);
     const { systemPrompt, guides: documentGuides } = buildAskQSystemPrompt({
       userContext,
       questionMode,

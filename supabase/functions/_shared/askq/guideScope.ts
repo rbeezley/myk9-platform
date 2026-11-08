@@ -10,29 +10,20 @@ export const MANAGEMENT_GUIDE_IDS: ReadonlySet<string> = new Set([
 ]);
 
 export interface RoleScopedGuideClient {
-  rpc(
-    name: 'is_show_manager' | 'is_show_secretary',
-    args?: { check_show_id: string }
-  ): PromiseLike<{ data: unknown; error: { message: string } | null }>;
+  rpc(name: 'is_show_manager'): PromiseLike<{ data: unknown; error: { message: string } | null }>;
 }
 
 /**
  * Runs as the caller (user-JWT client). `is_show_manager()` is true for site
- * admins and for club-scoped secretaries and club admins (the helper the
- * dogs/people RLS uses). A secretary appointed to a single show has a
- * show-scoped role row that `is_show_manager()` does not see, so when a
- * verified show is open `is_show_secretary(show)` is asked too. Fails closed:
- * an error or any non-true answer is "not a manager".
+ * admins and for club-scoped secretaries and club admins, the helper the
+ * dogs/people RLS uses. Secretary appointments are club-scoped only: being
+ * named on one show grants nothing (20260830240000), so there is no show-scoped
+ * secretary shape to recognize. Fails closed: an error or any non-true answer
+ * is "not a manager".
  */
-export async function callerIsShowManager(
-  client: RoleScopedGuideClient,
-  verifiedShowId?: string | null
-): Promise<boolean> {
-  const manager = await client.rpc('is_show_manager');
-  if (!manager.error && manager.data === true) return true;
-  if (!verifiedShowId) return false;
-  const secretary = await client.rpc('is_show_secretary', { check_show_id: verifiedShowId });
-  return !secretary.error && secretary.data === true;
+export async function callerIsShowManager(client: RoleScopedGuideClient): Promise<boolean> {
+  const { data, error } = await client.rpc('is_show_manager');
+  return !error && data === true;
 }
 
 export function scopeGuidesToRole(

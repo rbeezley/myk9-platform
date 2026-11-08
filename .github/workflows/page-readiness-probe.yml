@@ -47,6 +47,19 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # MYK9-1243: this probe signs in on shared staging, so fail at the start if a hand-changed
+      # account no longer holds the roles the spec expects.
+      - name: Verify E2E auth credentials
+        working-directory: apps/myk9show
+        run: pnpm exec tsx scripts/verify-e2e-auth-preflight.ts --check-roles secretary exhibitor
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          E2E_SECRETARY_EMAIL: ${{ secrets.E2E_SECRETARY_EMAIL }}
+          E2E_SECRETARY_PASSWORD: ${{ secrets.E2E_SECRETARY_PASSWORD }}
+          E2E_DEMO_EXHIBITOR_EMAIL: ${{ secrets.E2E_DEMO_EXHIBITOR_EMAIL }}
+          E2E_DEMO_EXHIBITOR_PASSWORD: ${{ secrets.E2E_DEMO_EXHIBITOR_PASSWORD }}
+
       - name: Build shared packages
         run: pnpm -r --filter='./packages/*' build
 

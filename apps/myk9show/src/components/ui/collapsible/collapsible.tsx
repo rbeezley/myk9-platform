@@ -50,7 +50,7 @@ const CollapsibleContent = React.forwardRef<
   <CollapsiblePrimitive.Panel
     ref={ref}
     className={cn(
-      'overflow-hidden text-sm transition-all data-[closed]:animate-collapsible-up data-[open]:animate-collapsible-down',
+      'h-[var(--collapsible-panel-height)] overflow-hidden text-sm transition-[height] duration-200 ease-out data-[ending-style]:h-0 data-[starting-style]:h-0',
       className
     )}
     {...props}

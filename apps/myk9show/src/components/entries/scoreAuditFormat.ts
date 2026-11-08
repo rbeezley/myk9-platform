@@ -8,6 +8,7 @@ const TIER_LABELS: Record<string, string> = {
   passcode_judge: 'Ringside code (judge)',
   passcode_admin: 'Ringside code (admin)',
   passcode_steward: 'Ringside code (steward)',
+  system: 'Automatic',
 };
 
 export function scoreAuditTierLabel(tier: ScoreAuditTier): string {
@@ -15,6 +16,9 @@ export function scoreAuditTierLabel(tier: ScoreAuditTier): string {
 }
 
 export function scoreAuditActorLabel(item: Pick<EntryScoreAuditItem, 'actorName' | 'actorTier'>) {
+  // A system row (placement recalculation, cron) can carry the signed-in user that
+  // set it off; the change itself was automatic, so say so rather than name them.
+  if (item.actorTier === 'system') return scoreAuditTierLabel(item.actorTier);
   return item.actorName ?? scoreAuditTierLabel(item.actorTier);
 }
 

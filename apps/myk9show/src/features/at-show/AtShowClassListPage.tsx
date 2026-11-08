@@ -82,7 +82,7 @@ function AtShowOfflineReadySlot({
   const note = useSyncNote();
   if (isExhibitorOnly) return null;
   return (
-    <div className="mb-2 flex justify-center">
+    <div className="mb-1 flex justify-center">
       <OfflineReadyBadge
         showId={showId}
         note={note.label}
@@ -412,8 +412,8 @@ export const AtShowClassListPage: React.FC = () => {
     // column left ~half the viewport empty there and forced avoidable
     // scrolling through the class list mid-show, so the column widens with
     // the display instead of being capped at phone width forever.
-    <main className={`ringside-root ${WIDE_COLUMN} px-4 py-4`}>
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+    <main className={`ringside-root ${WIDE_COLUMN} px-4 pb-4 pt-1`}>
+      <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
         <ClassListUpButton showId={showId} clubId={clubId} />
         <div className="flex items-center gap-2">
           {/* Gating this on `ownEntryIds.size > 0` alone hid the only route back

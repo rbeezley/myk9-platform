@@ -265,6 +265,9 @@ export function toSecretaryEntry(
       replicatedField(entry, 'scoringCompletedAt', 'scoring_completed_at')
     ),
     check_in_status: entry.checkInStatus ?? entry.check_in_status ?? null,
+    // MYK9-1757: from the SAME replicated row as check_in_status, never a side-read, so a
+    // re-flag after a Clear can only ever be credited to the row's own latest flagger.
+    check_in_pulled_by: stringFrom(replicatedField(entry, 'checkInPulledBy', 'check_in_pulled_by')),
     withdrawal_reason: entry.withdrawalReason ?? entry.withdrawal_reason ?? null,
     // MYK9-632: from the side-read, not the replica — the column lives on
     // `entries` and the view the replica mirrors does not carry it.

@@ -7,7 +7,7 @@ import { StatusPickerDialog } from '@/components/common/StatusPickerDialog';
 import { StatusBadge } from '@/components/status';
 import { formatStartTime } from '@/components/schedule/schedule-timeline.utils';
 import type { CheckInDeskDog } from './checkInDeskModel';
-import { isFlaggedPull } from './deskStatus';
+import { flaggedPullLabel, isFlaggedPull } from './deskStatus';
 import {
   DESK_CHECK_IN_STATUSES,
   DESK_STATUS_LABELS,
@@ -134,7 +134,8 @@ export function CheckInDeskDogCard({
               {isFlaggedPull(row) && (
                 <div className="flex basis-full flex-wrap items-center gap-2 pb-1">
                   <span className="min-w-0 flex-1 basis-48 text-xs text-muted-foreground">
-                    Flagged as pulled. Confirm it to pull the entry, or clear it.
+                    {flaggedPullLabel(row.sourceClass.checkInPulledBy)} Confirm it to pull the
+                    entry, or clear it.
                   </span>
                   <Button
                     type="button"

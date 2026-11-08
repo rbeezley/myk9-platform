@@ -93,6 +93,10 @@ begin
     expected_rows := jsonb_set(expected_rows,
       array[target_id::text, 'check_in_status_before_pull'],
       case when new_status = 'pulled' then to_jsonb('no-status'::text) else 'null'::jsonb end);
+    -- MYK9-1757: self check-in is the exhibitor's own write, so a Pull is credited to them.
+    expected_rows := jsonb_set(expected_rows,
+      array[target_id::text, 'check_in_pulled_by'],
+      case when new_status = 'pulled' then to_jsonb('exhibitor'::text) else 'null'::jsonb end);
     expected_rows := jsonb_set(expected_rows,
       array[target_id::text, 'updated_at'], after_rows #> array[target_id::text, 'updated_at']);
     expected_rows := jsonb_set(expected_rows,

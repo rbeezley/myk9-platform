@@ -37,6 +37,11 @@ export interface EntryClass {
    */
   withdrawalReasonCode?: string | null | undefined;
   checkInStatus?: CheckInStatus;
+  /**
+   * MYK9-1757: who flagged a 'pulled' check-in: 'exhibitor' or 'staff'. Rides the same replicated
+   * row as `checkInStatus`. null/undefined = unknown (offline, an older row, the online fallback).
+   */
+  checkInPulledBy?: string | null;
   checkInTime?: Date;
 }
 

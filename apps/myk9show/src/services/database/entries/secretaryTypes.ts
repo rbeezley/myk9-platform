@@ -43,6 +43,12 @@ export interface SecretaryEntry {
   disqualification_reason: string | null;
   scoring_completed_at: string | null;
   check_in_status: string | null;
+  /**
+   * MYK9-1757: who flagged the current pull ('exhibitor' | 'staff'), server-stamped on the same
+   * replicated row as check_in_status. Absent on the online fallback read and on a row cached
+   * before the migration: unknown, not "nobody".
+   */
+  check_in_pulled_by?: string | null;
   withdrawal_reason: string | null;
   /** MYK9-632: the recognised withdrawal reason code, or null for a pull. */
   withdrawal_reason_code?: string | null;

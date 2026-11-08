@@ -10,6 +10,7 @@ import { rowToEntry, type EntryRow } from './ReplicatedEntriesTable.mapper';
 import {
   COLD_ELIGIBILITY_ROW_SELECT,
   COLD_ENTRY_ROW_SELECT,
+  ENTRY_MAPPER_COLUMNS_NOT_COLD_READ,
   ENTRY_MAPPER_COLUMNS_ON_NEITHER_VIEW,
   ENTRY_REPLICATION_VIEW_COLUMNS,
   ENTRY_VIEW_MAPPER_COLUMNS,
@@ -41,9 +42,10 @@ function columnsReadByMapper(): Set<string> {
  */
 function fullViewRow(): Record<string, unknown> {
   const notOnView = new Set<string>(ENTRY_MAPPER_COLUMNS_ON_NEITHER_VIEW);
+  const notColdRead = new Set<string>(ENTRY_MAPPER_COLUMNS_NOT_COLD_READ);
   const row: Record<string, unknown> = {};
   [...columnsReadByMapper()]
-    .filter(column => !notOnView.has(column))
+    .filter(column => !notOnView.has(column) && !notColdRead.has(column))
     .forEach((column, i) => {
       row[column] = `value-${i}`;
     });
@@ -74,6 +76,7 @@ describe('cold-read column list vs the entry mapper', () => {
       ...ENTRY_VIEW_MAPPER_COLUMNS,
       ...ENTRY_REPLICATION_VIEW_COLUMNS,
       ...ENTRY_MAPPER_COLUMNS_ON_NEITHER_VIEW,
+      ...ENTRY_MAPPER_COLUMNS_NOT_COLD_READ,
     ]);
     expect([...read].filter(column => !covered.has(column))).toEqual([]);
     expect([...covered].filter(column => !read.has(column))).toEqual([]);
@@ -87,6 +90,11 @@ describe('cold-read column list vs the entry mapper', () => {
     expect(rowToEntry(projected as unknown as EntryRow)).toEqual(
       rowToEntry(full as unknown as EntryRow)
     );
+  });
+
+  it('never selects a column the live view may still lack (MYK9-1757 deploy order)', () => {
+    const columns = COLD_ENTRY_ROW_SELECT.split(',');
+    for (const column of ENTRY_MAPPER_COLUMNS_NOT_COLD_READ) expect(columns).not.toContain(column);
   });
 
   it('selects version beside the mapper columns, once each', () => {

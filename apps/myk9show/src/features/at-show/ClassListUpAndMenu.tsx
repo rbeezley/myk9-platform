@@ -1,5 +1,5 @@
 /**
- * The class list's Up control with the ringside menu beside it (MYK9-1508), for
+ * The ringside menu with the class list's Up control beside it (MYK9-1508, menu on the left: MYK9-1770), for
  * the states that replace the list (load error, classes not on this device), so
  * the pair is placed once rather than copied into each branch.
  */
@@ -14,9 +14,9 @@ export function ClassListUpAndMenu({
   clubId: string | undefined;
 }) {
   return (
-    <>
-      <ClassListUpButton showId={showId} clubId={clubId} />
+    <div className="flex items-center justify-center gap-2">
       <RingsideMenu showId={showId} />
-    </>
+      <ClassListUpButton showId={showId} clubId={clubId} />
+    </div>
   );
 }

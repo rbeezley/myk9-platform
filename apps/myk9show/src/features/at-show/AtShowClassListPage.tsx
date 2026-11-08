@@ -414,7 +414,11 @@ export const AtShowClassListPage: React.FC = () => {
     // the display instead of being capped at phone width forever.
     <main className={`ringside-root ${WIDE_COLUMN} px-4 pb-4 pt-1`}>
       <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-        <ClassListUpButton showId={showId} clubId={clubId} />
+        {/* MYK9-1770: menu first, Up beside it, top-left like every ringside screen. */}
+        <div className="flex items-center gap-2">
+          <RingsideMenu showId={showId} snapshot={{ kind: 'classes', tab, search, sort }} />
+          <ClassListUpButton showId={showId} clubId={clubId} />
+        </div>
         <div className="flex items-center gap-2">
           {/* Gating this on `ownEntryIds.size > 0` alone hid the only route back
               to an exhibitor's own dogs whenever ownership was merely UNKNOWN --
@@ -432,7 +436,6 @@ export const AtShowClassListPage: React.FC = () => {
             </Button>
           )}
           <AtShowClassRefreshButton phase={refreshPhase} onRefresh={() => void refreshClasses()} />
-          <RingsideMenu showId={showId} snapshot={{ kind: 'classes', tab, search, sort }} />
         </div>
       </div>
 

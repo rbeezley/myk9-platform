@@ -197,6 +197,14 @@ describe('EntryListHeader', () => {
     expect(onRunOrderClick).toHaveBeenCalledTimes(1);
   });
 
+  it('places the host menu before Up in the same left group (MYK9-1770)', () => {
+    renderHeader({ menu: <button type="button">Ringside menu</button> });
+    const menu = screen.getByRole('button', { name: 'Ringside menu' });
+    const up = document.querySelector('[data-ringside-up]') as HTMLElement;
+    expect(menu.parentElement).toBe(up.parentElement);
+    expect(menu.compareDocumentPosition(up) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it('still renders a plain menu node as given', () => {
     renderHeader({ menu: <button type="button">Ringside menu</button> });
     expect(screen.getByRole('button', { name: 'Ringside menu' })).toBeInTheDocument();

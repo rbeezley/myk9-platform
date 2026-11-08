@@ -208,9 +208,9 @@ export const AtShowMyEntriesToday: React.FC<AtShowMyEntriesTodayProps> = ({
           it needs its own way out. `/` resolves per-role via `HomeRedirect`,
           landing an exhibitor-only account on `/exhibitor/entries` (My
           Shows), never back into this same show (MYK9-800 walk finding #3). */}
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <RingsideUpButton label="Dashboard" onClick={() => navigate('/')} />
+      <div className="mb-2 flex items-center gap-2">
         <RingsideMenu showId={showId} />
+        <RingsideUpButton label="Dashboard" onClick={() => navigate('/')} />
       </div>
       {(showName || showDateLabel || venue) && (
         <div className="mb-3 text-center" data-testid="at-show-identity">

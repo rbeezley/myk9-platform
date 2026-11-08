@@ -144,17 +144,11 @@ describe('deskCanUnpull (MYK9-1749)', () => {
     expect(tomorrow.deskCanUnpull).toBe(false);
   });
 
-  it('is not editable for a waitlisted entry or on another day', () => {
+  it('is not editable for a waitlisted entry', () => {
     expect(
       rowsOf([entry('e1', 'class-1', 'checked-in', { entryStatus: EntryStatus.WAITLIST })])[0]!
         .deskStatusEditable
     ).toBe(false);
-    const tomorrow = buildCheckInDeskPeople(
-      [entry('e1', 'class-1', 'conflict')],
-      CLASSES,
-      new Date('2026-07-09T16:00:00.000Z')
-    )[0]!.classRows[0]!;
-    expect(tomorrow.deskStatusEditable).toBe(false);
   });
 
   it('shows a Conflict class as Conflict, not as waiting', () => {
@@ -233,5 +227,63 @@ describe('statusBeforeLatestPull', () => {
     expect(statusBeforeLatestPull([{ previousStatus: 'submitted', newStatus: 'confirmed' }])).toBe(
       null
     );
+  });
+});
+
+describe('another day of the show (MYK9-1765)', () => {
+  const TOMORROW = new Date('2026-07-09T16:00:00.000Z');
+  const onTomorrow = (entries: EntryManagementEntry[]) =>
+    buildCheckInDeskPeople(entries, CLASSES, TOMORROW).flatMap(person => person.classRows);
+
+  it.each(['no-status', 'checked-in', 'conflict', 'pulled'] as const)(
+    'lets the desk set a %s class on any day, labelled with its day',
+    status => {
+      const [row] = onTomorrow([entry('e1', 'class-1', status)]);
+      expect(row!.deskStatusEditable).toBe(true);
+      expect(row!.dayLabel).toBe('Wed Jul 8');
+    }
+  );
+
+  it('shows no day label on today, and shows the real status on another day', () => {
+    expect(rowsOf([entry('e1', 'class-1', 'checked-in')])[0]!.dayLabel).toBeNull();
+    const [row] = onTomorrow([entry('e1', 'class-1', 'checked-in')]);
+    expect(row!.statusLabel).toBe('Checked-in');
+  });
+
+  it('still locks an underway, scored, waitlisted or not-accepted class, saying why', () => {
+    const rows = onTomorrow([
+      entry('e1', 'class-1', 'in-ring'),
+      entry('e2', 'class-2', 'checked-in', { isScored: true, resultStatus: 'qualified' }),
+      entry('e3', 'class-3', 'no-status', { entryStatus: EntryStatus.WAITLIST }),
+      entry('e4', 'class-1', 'no-status', { entryStatus: EntryStatus.PENDING }),
+    ]);
+    const byEntry = (id: string) => rows.find(row => row.entryId === id)!;
+    const [inRing, scored, waitlist, pending] = ['e1', 'e2', 'e3', 'e4'].map(byEntry);
+    expect(inRing!.deskStatusEditable).toBe(false);
+    expect(inRing!.lockedReason).toMatch(/ring/i);
+    expect(scored!.deskStatusEditable).toBe(false);
+    expect(scored!.lockedReason).toMatch(/scored/i);
+    expect(waitlist!.deskStatusEditable).toBe(false);
+    expect(waitlist!.statusLabel).toBe('Waitlist');
+    expect(pending!.deskStatusEditable).toBe(false);
+    expect(pending!.statusLabel).toBe('Not accepted');
+  });
+
+  it('keeps the dog-level Check in to today: another day is settable but never pending', () => {
+    const [person] = buildCheckInDeskPeople(
+      [entry('e1', 'class-1', 'no-status')],
+      CLASSES,
+      TOMORROW
+    );
+    const [dog] = groupCheckInDeskDogs(person!);
+    expect(dog!.rows[0]!.deskStatusEditable).toBe(true);
+    expect(dog!.pendingEntryIds).toEqual([]);
+    expect(person!.eligibleCount).toBe(0);
+  });
+
+  it('formats the day from the trial date alone, in any timezone', () => {
+    const classes = [{ ...CLASSES[0]!, trialDate: '2026-12-07', timezone: 'Pacific/Auckland' }];
+    const [person] = buildCheckInDeskPeople([entry('e1', 'class-1', 'checked-in')], classes, NOW);
+    expect(person!.classRows[0]!.dayLabel).toBe('Mon Dec 7');
   });
 });

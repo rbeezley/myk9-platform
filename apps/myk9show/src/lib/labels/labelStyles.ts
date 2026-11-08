@@ -1,5 +1,12 @@
 import type { LabelTemplate } from './labelTemplates';
 
+const PAGE_WIDTH_IN = 8.5;
+const PAGE_HEIGHT_IN = 11;
+/** Keeps a full-height sheet a hair under the page so rounding never adds a blank page. */
+const PAGE_SLACK_IN = 0.01;
+/** Space between a label's die-cut edge and its text (armband number clear of the left edge). */
+const CELL_SIDE_PADDING_IN = 0.17;
+
 /**
  * @param template - Avery label template
  * @param pitchAdjustment - thousandths of an inch added to vertical row gap
@@ -12,30 +19,25 @@ export function buildLabelStylesheet(
   offsetTop = 0,
   offsetLeft = 0
 ): string {
-  const {
-    labelWidth,
-    labelHeight,
-    columns,
-    pageMarginTop,
-    pageMarginBottom,
-    pageMarginLeft,
-    pageMarginRight,
-    gapX,
-    gapY,
-  } = template;
+  const { labelWidth, labelHeight, columns, pageMarginTop, pageMarginLeft, gapX, gapY } = template;
   const adjustedGapY = gapY + pitchAdjustment / 1000;
 
   const round = (value: number): number => Math.round(value * 1e6) / 1e6;
 
   const effectiveTop = Math.max(0, round(pageMarginTop + offsetTop / 1000));
   const effectiveLeft = Math.max(0, round(pageMarginLeft + offsetLeft / 1000));
-  const effectiveBottom = Math.max(0, round(pageMarginBottom - (effectiveTop - pageMarginTop)));
-  const effectiveRight = Math.max(0, round(pageMarginRight - (effectiveLeft - pageMarginLeft)));
+  const inset = template.cellInset ?? 0;
+  const padTop = Math.max(0.08, inset);
+  const padSide = Math.max(CELL_SIDE_PADDING_IN, inset);
 
+  // MYK9-1771: the sheet geometry is carried by the content, not by @page.
+  // Chrome's "Margins: None" discards @page margins, so the page box is
+  // margin-free and each .label-sheet is a page-sized box whose padding is the
+  // template's top/left margin. Default and None margins then print the same.
   return `
 @page {
   size: letter;
-  margin: ${effectiveTop}in ${effectiveRight}in ${effectiveBottom}in ${effectiveLeft}in;
+  margin: 0;
 }
 
 /* The sheet renders in an iframe. Pin a light canvas: in dark mode the iframe
@@ -51,10 +53,17 @@ body {
 
 .label-sheet {
   display: grid;
+  box-sizing: border-box;
+  width: ${PAGE_WIDTH_IN}in;
+  height: ${PAGE_HEIGHT_IN - PAGE_SLACK_IN}in;
+  overflow: hidden;
+  align-content: start;
+  justify-content: start;
+  padding: ${effectiveTop}in 0 0 ${effectiveLeft}in;
   grid-template-columns: repeat(${columns}, ${labelWidth}in);
+  grid-auto-rows: ${labelHeight}in;
   column-gap: ${gapX}in;
   row-gap: ${adjustedGapY}in;
-  padding: 0;
   margin: 0;
 }
 
@@ -68,7 +77,7 @@ body {
   box-sizing: border-box;
   overflow: hidden;
   position: relative;
-  padding: 0.08in 0.12in;
+  padding: ${padTop}in ${padSide}in;
 }
 
 .armband-label {
@@ -102,7 +111,6 @@ body {
 
 @media print {
   body { margin: 0; padding: 0; }
-  .label-sheet { padding: 0; }
 }
 `.trim();
 }

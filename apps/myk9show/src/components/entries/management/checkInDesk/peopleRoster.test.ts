@@ -360,7 +360,7 @@ describe('peopleRoster', () => {
     }
   });
 
-  it('keeps future-day classes ineligible when a current show day is supplied', () => {
+  it('keeps future-day classes out of check-in, but settable, when a current show day is supplied', () => {
     const roster = buildPeopleRoster({
       entries: [entry()],
       presence: [],
@@ -379,7 +379,9 @@ describe('peopleRoster', () => {
     expect(roster[0]?.classRows[0]).toEqual(
       expect.objectContaining({
         eligibleForCheckIn: false,
-        statusLabel: 'Not today',
+        statusLabel: 'Not checked in',
+        deskStatusEditable: true,
+        dayLabel: 'Thu Jul 9',
       })
     );
   });
@@ -408,7 +410,7 @@ describe('peopleRoster', () => {
     expect(filterPeopleRoster(roster, '', 'needs-check-in')).toHaveLength(0);
   });
 
-  it('keeps rows ineligible when today is known but class date metadata is missing', () => {
+  it('keeps rows out of check-in when today is known but class date metadata is missing', () => {
     const roster = buildPeopleRoster({
       entries: [entry()],
       presence: [],
@@ -419,7 +421,9 @@ describe('peopleRoster', () => {
     expect(roster[0]?.classRows[0]).toEqual(
       expect.objectContaining({
         eligibleForCheckIn: false,
-        statusLabel: 'Date unavailable',
+        statusLabel: 'Not checked in',
+        deskStatusEditable: true,
+        dayLabel: null,
       })
     );
   });
@@ -463,7 +467,7 @@ describe('peopleRoster', () => {
     expect(roster[0]?.eligibleCount).toBe(1);
     expect(roster[0]?.classRows.map(row => [row.className, row.statusLabel])).toEqual([
       ['Container Novice A', 'Not checked in'],
-      ['Exterior Novice A', 'Not today'],
+      ['Exterior Novice A', 'Not checked in'],
     ]);
   });
 

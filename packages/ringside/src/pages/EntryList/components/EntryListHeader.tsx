@@ -7,8 +7,8 @@
  * peer dependency.
  *
  * Layout (MYK9-1697, owner decisions D3, D6, D7):
- *  - ONE pinned bar: Up on the left; sync state, filter, refresh and the host
- *    menu on the right. The header has no menu of its own: the class actions
+ *  - ONE pinned bar: the host menu then Up on the left (MYK9-1770); sync state,
+ *    filter and refresh on the right. The header has no menu of its own: the class actions
  *    (run order, max time, class options, placements) are handed to the host's
  *    menu, so there is one menu button, not ⋮ beside ☰.
  *  - The class name is pinned with the bar (its own line on phones, in the bar's
@@ -178,7 +178,7 @@ export interface EntryListHeaderProps {
   /** The Up control's label and fixed parent route (MYK9-1500). */
   up: { label: string; to: string };
   /**
-   * Host-rendered menu control, shown at the end of the bar (MYK9-1508). A
+   * Host-rendered menu control, shown first in the bar, before Up (MYK9-1508, MYK9-1770). A
    * function receives this class's actions to list (MYK9-1697).
    */
   menu?: EntryListMenuSlot;
@@ -268,7 +268,11 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
   return (
     <>
       <header className="sticky top-0 z-10 flex min-h-[60px] items-center gap-2 max-sm:flex-wrap max-sm:gap-y-0 rounded-b-xl border-b border-border bg-card p-3 max-sm:py-1.5 sm:gap-4">
-        <RingsideUpButton label={up.label} onClick={() => navigate(up.to)} />
+        {/* MYK9-1770: the host menu sits first, Up beside it, top-left on every ringside screen. */}
+        <div className="flex shrink-0 items-center gap-2" data-testid="entry-list-header-left">
+          {menuControl}
+          <RingsideUpButton label={up.label} onClick={() => navigate(up.to)} />
+        </div>
         <CompactOfflineIndicator />
         {/* Class name: pinned with the bar (D7). Phones give it its own line under
             the bar; it wraps there instead of clamping, and since that line is
@@ -345,7 +349,6 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
               className={cn(isRefreshing && 'animate-spin motion-reduce:animate-none')}
             />
           </button>
-          {menuControl}
         </div>
       </header>
       <TrialLine trialInfoText={trialInfoText} statusLabel={classInfo?.statusLabel} />

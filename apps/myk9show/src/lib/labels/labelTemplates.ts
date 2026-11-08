@@ -12,6 +12,8 @@ export interface LabelTemplate {
   pageMarginRight: number;
   gapX: number;
   gapY: number;
+  /** Minimum inset (inches) between a cell's edge and its content, for stock cut to the sheet edge. */
+  cellInset?: number;
 }
 
 export const LABEL_TEMPLATES: Record<string, LabelTemplate> = {
@@ -23,8 +25,8 @@ export const LABEL_TEMPLATES: Record<string, LabelTemplate> = {
     columns: 2,
     rows: 7,
     labelsPerSheet: 14,
-    pageMarginTop: 0.875,
-    pageMarginBottom: 0.875,
+    pageMarginTop: 0.83,
+    pageMarginBottom: 0.83,
     pageMarginLeft: 0.15625,
     pageMarginRight: 0.15625,
     gapX: 0.1875,
@@ -59,6 +61,7 @@ export const LABEL_TEMPLATES: Record<string, LabelTemplate> = {
     pageMarginRight: 0,
     gapX: 0,
     gapY: 0,
+    cellInset: 0.25,
   },
 };
 

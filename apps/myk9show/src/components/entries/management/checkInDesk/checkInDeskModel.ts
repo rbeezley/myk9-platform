@@ -135,7 +135,7 @@ export interface CheckInDeskDog {
   dogName: string;
   armband: string | null;
   rows: PeopleRosterClassRow[];
-  /** Waiting today with no status yet. A class marked Conflict is left for the secretary. */
+  /** Waiting today with no status yet (another day's class is never checked in by this tap). A class marked Conflict is left for the secretary. */
   pendingEntryIds: string[];
 }
 

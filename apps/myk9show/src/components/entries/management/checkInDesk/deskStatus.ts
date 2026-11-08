@@ -7,7 +7,7 @@ import type { CheckInStatus } from '@/types/check-in-types';
 import type { EntryClass, EntryManagementEntry } from '@/types/entry-management-types';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { getStatusDescriptor } from '@/components/status';
-import { isTrialDateToday } from '@/features/_shared/trialDateEligibility';
+import { formatTrialDayLabel, isTrialDateToday } from '@/features/_shared/trialDateEligibility';
 
 /**
  * The statuses the Check-in desk sets on one class: every staff check-in status, the same six
@@ -108,4 +108,27 @@ export function flaggedPullLabel(source: string | null | undefined): string {
   if (source === 'exhibitor') return 'The exhibitor flagged this pull.';
   if (source === 'staff') return 'Ringside staff flagged this pull.';
   return 'Flagged as pulled.';
+}
+
+/** Why a row stays locked when its badge alone does not say (a scored run, a run in the ring). */
+export function deskLockedReason(
+  entry: EntryManagementEntry,
+  current: CheckInStatus,
+  editable: boolean
+): string | null {
+  if (editable) return null;
+  if (entry.isScored) return 'Scored, so the status is locked';
+  if (current === 'in-ring') return 'In the ring, so ringside controls the status';
+  return null;
+}
+
+/** The trial's day ("Sun Dec 7") when it is not today; null on today or without a clock or date. */
+export function deskDayLabel(
+  info: { trialDate?: string; timezone?: string | null } | undefined,
+  currentDate: Date | null | undefined
+): string | null {
+  if (!currentDate || !info?.trialDate) return null;
+  return isTrialDateToday(info.trialDate, info.timezone, currentDate)
+    ? null
+    : formatTrialDayLabel(info.trialDate);
 }

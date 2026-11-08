@@ -7,6 +7,7 @@
  * each entry's class row (A's class.section = 'A', B's = 'B').
  */
 
+import { expectMenuBeforeUp } from '@/test/utils/ringsideHeaderAssertions';
 import { Routes, Route } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@/test/utils/testUtils';
@@ -311,6 +312,15 @@ describe('AtShowCombinedEntryListPage (Phase 1h combined Section A/B)', () => {
   });
 
   // MYK9-1500: a combined list's Up is the same fixed route as a single list's.
+  it('puts the menu before the Up control in the header-left group (MYK9-1770)', async () => {
+    renderPage();
+    await screen.findByText('Rex');
+    expectMenuBeforeUp(
+      screen.getByRole('button', { name: 'Ringside menu' }),
+      document.querySelector<HTMLElement>('[data-ringside-up]') as HTMLElement
+    );
+  });
+
   it('Up goes to the show class list, and there is no "Back to main app" exit', async () => {
     renderPage();
     await screen.findByText('Rex');

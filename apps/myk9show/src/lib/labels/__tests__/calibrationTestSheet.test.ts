@@ -113,11 +113,11 @@ describe('buildCalibrationTestSheetHtml', () => {
     expect(bodyContent.trimStart().startsWith('<div class="label-sheet">')).toBe(true);
   });
 
-  it('takes the reference ruler out of normal document flow (position: fixed)', () => {
+  it('takes the reference ruler out of normal document flow (position: absolute)', () => {
     const html = buildCalibrationTestSheetHtml(template18262, 0, 0, 0);
     const rulerWrapRule = html.match(/\.calibration-ruler-wrap\s*\{[^}]*\}/);
     expect(rulerWrapRule).not.toBeNull();
-    expect(rulerWrapRule![0]).toContain('position: fixed');
+    expect(rulerWrapRule![0]).toContain('position: absolute');
   });
 
   it('omits the row/col marker in the first cell so it does not overlap the diagnosis guide', () => {
@@ -129,5 +129,33 @@ describe('buildCalibrationTestSheetHtml', () => {
     const firstCellContent = firstCellMatch![1];
     expect(firstCellContent).toContain('calibration-guide');
     expect(firstCellContent).not.toContain('Row 1, Col 1');
+  });
+
+  it('places every corner mark and the ruler at least 0.25 in inside the page, even with extreme offsets', () => {
+    for (const offsets of [
+      [0, 0],
+      [-900, -900],
+      [900, 900],
+    ] as const) {
+      const html = buildCalibrationTestSheetHtml(template18262, 0, offsets[0], offsets[1]);
+      const marks = [
+        ...html.matchAll(
+          /calibration-corner-mark--[a-z-]+" style="left:([\d.]+)in;top:([\d.]+)in"/g
+        ),
+      ];
+      expect(marks).toHaveLength(4);
+      for (const [, left, top] of marks) {
+        expect(Number(left)).toBeGreaterThanOrEqual(0.25);
+        expect(Number(top)).toBeGreaterThanOrEqual(0.25);
+        expect(Number(left) + 0.25).toBeLessThanOrEqual(8.25 + 1e-9);
+        expect(Number(top) + 0.25).toBeLessThanOrEqual(10.75 + 1e-9);
+      }
+      const rule = html.match(
+        /\.calibration-ruler-wrap\s*\{[^}]*top: ([\d.]+)in;\s*left: ([\d.]+)in;/
+      );
+      expect(rule).not.toBeNull();
+      expect(Number(rule![1])).toBeGreaterThanOrEqual(0.25);
+      expect(Number(rule![2])).toBeGreaterThanOrEqual(0.25);
+    }
   });
 });

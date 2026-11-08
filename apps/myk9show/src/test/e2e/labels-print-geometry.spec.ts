@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { buildLabelStylesheet } from '../../lib/labels/labelStyles';
+import { buildCalibrationTestSheetHtml } from '../../lib/labels/calibrationTestSheet';
 import { getAllTemplates, type LabelTemplate } from '../../lib/labels/labelTemplates';
 
 /**
@@ -90,3 +91,30 @@ test('two sheets print on two pages (positive control for the page count)', asyn
   const pdf = await page.pdf({ preferCSSPageSize: true });
   expect(pdf.toString('latin1').match(/\/Type\s*\/Page[^s]/g) ?? []).toHaveLength(2);
 });
+
+for (const template of getAllTemplates()) {
+  test(`${template.id}: calibration ruler and corner marks stay 0.25 in inside the page`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 8.5 * DPI, height: 11 * DPI });
+    await page.emulateMedia({ media: 'print' });
+    await page.setContent(buildCalibrationTestSheetHtml(template, 0, 0, 0));
+    const rects = await page.evaluate(() =>
+      [...document.querySelectorAll('.calibration-corner-mark, .calibration-ruler-wrap')].map(
+        el => {
+          const r = el.getBoundingClientRect();
+          return { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+        }
+      )
+    );
+    // 4 marks + the ruler: guards against the selector drifting to nothing.
+    expect(rects).toHaveLength(5);
+    const minEdge = 0.25 * DPI - 0.5;
+    for (const r of rects) {
+      expect(r.left).toBeGreaterThanOrEqual(minEdge);
+      expect(r.top).toBeGreaterThanOrEqual(minEdge);
+      expect(8.5 * DPI - r.right).toBeGreaterThanOrEqual(minEdge);
+      expect(11 * DPI - r.bottom).toBeGreaterThanOrEqual(minEdge);
+    }
+  });
+}

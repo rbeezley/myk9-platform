@@ -400,59 +400,69 @@ export function OverrideTree({
             </div>
 
             {trialClasses.length > 0 && (
-              <CollapsibleContent className="space-y-1 border-t px-3 pb-2 pt-1">
-                <div className="flex items-center gap-2 px-3 py-1">
-                  <Checkbox
-                    // 16px intrinsic. The pseudo-element extends the hit area to
-                    // the 44px floor without changing the visual size, matching
-                    // the treatment the Switch beside it already had.
-                    className="relative before:absolute before:-inset-[15px] before:content-['']"
-                    checked={allSelected}
-                    onCheckedChange={() => onToggleAllInTrial(trial.id, trialClassIds)}
-                    aria-label={`Select all classes in ${trial.name}`}
-                  />
-                  <span className="text-xs text-muted-foreground">Select all</span>
-                </div>
-                {trialClasses.map(cls => {
-                  const className = labelFor(cls);
-                  const classOverride = classOverrideById.get(cls.id);
-                  const classVis = resolveClassVisibility(settings, classOverride, trialOverride);
-                  const classCheckin = resolveClassCheckin(settings, classOverride, trialOverride);
+              <CollapsibleContent>
+                <div className="border-t px-3 pb-2 pt-1">
+                  <div className="flex items-center gap-2 px-3 py-1">
+                    <Checkbox
+                      // 16px intrinsic. The pseudo-element extends the hit area to
+                      // the 44px floor without changing the visual size, matching
+                      // the treatment the Switch beside it already had.
+                      className="relative before:absolute before:-inset-[15px] before:content-['']"
+                      checked={allSelected}
+                      onCheckedChange={() => onToggleAllInTrial(trial.id, trialClassIds)}
+                      aria-label={`Select all classes in ${trial.name}`}
+                    />
+                    <span className="text-xs text-muted-foreground">Select all</span>
+                  </div>
+                  {trialClasses.map(cls => {
+                    const className = labelFor(cls);
+                    const classOverride = classOverrideById.get(cls.id);
+                    const classVis = resolveClassVisibility(settings, classOverride, trialOverride);
+                    const classCheckin = resolveClassCheckin(
+                      settings,
+                      classOverride,
+                      trialOverride
+                    );
 
-                  return (
-                    <div
-                      key={cls.id}
-                      className="flex flex-col gap-2 rounded-md border px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
-                    >
-                      <div className="flex min-w-0 flex-1 items-center gap-2">
-                        <Checkbox
-                          className="relative before:absolute before:-inset-[15px] before:content-['']"
-                          checked={selectedClasses.has(cls.id)}
-                          onCheckedChange={() => onToggleClass(cls.id)}
-                          aria-label={`Select ${className}`}
-                        />
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium" title={className}>
-                            {className}
-                          </p>
-                          <FacetStatus facet={facet} visibility={classVis} checkin={classCheckin} />
+                    return (
+                      <div
+                        key={cls.id}
+                        className="flex flex-col gap-2 rounded-md border px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
+                      >
+                        <div className="flex min-w-0 flex-1 items-center gap-2">
+                          <Checkbox
+                            className="relative before:absolute before:-inset-[15px] before:content-['']"
+                            checked={selectedClasses.has(cls.id)}
+                            onCheckedChange={() => onToggleClass(cls.id)}
+                            aria-label={`Select ${className}`}
+                          />
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium" title={className}>
+                              {className}
+                            </p>
+                            <FacetStatus
+                              facet={facet}
+                              visibility={classVis}
+                              checkin={classCheckin}
+                            />
+                          </div>
                         </div>
+                        <OverrideControls
+                          facet={facet}
+                          name={className}
+                          visibility={classVis}
+                          checkin={classCheckin}
+                          onVisibilityPreset={p => setClassPreset(cls.id, trial.id, p)}
+                          onCheckinToggle={v => setClassCheckin(cls.id, trial.id, v)}
+                          onResetVisibility={() => resetClass(cls.id, 'visibility')}
+                          onResetCheckin={() => resetClass(cls.id, 'checkin')}
+                          mutating={mutating}
+                          connectionHint={connectionHint}
+                        />
                       </div>
-                      <OverrideControls
-                        facet={facet}
-                        name={className}
-                        visibility={classVis}
-                        checkin={classCheckin}
-                        onVisibilityPreset={p => setClassPreset(cls.id, trial.id, p)}
-                        onCheckinToggle={v => setClassCheckin(cls.id, trial.id, v)}
-                        onResetVisibility={() => resetClass(cls.id, 'visibility')}
-                        onResetCheckin={() => resetClass(cls.id, 'checkin')}
-                        mutating={mutating}
-                        connectionHint={connectionHint}
-                      />
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </CollapsibleContent>
             )}
           </Collapsible>

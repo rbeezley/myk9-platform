@@ -152,33 +152,6 @@
     background-attachment: local, local, scroll, scroll;
   }
 
-  /* Collapsible animations */
-  @keyframes collapsible-down {
-    from {
-      height: 0;
-    }
-    to {
-      height: var(--radix-collapsible-content-height);
-    }
-  }
-
-  @keyframes collapsible-up {
-    from {
-      height: var(--radix-collapsible-content-height);
-    }
-    to {
-      height: 0;
-    }
-  }
-
-  .animate-collapsible-down {
-    animation: collapsible-down 0.2s ease-out;
-  }
-
-  .animate-collapsible-up {
-    animation: collapsible-up 0.2s ease-out;
-  }
-
   /* Delightful shimmer animation for loading states */
   @keyframes shimmer {
     from {

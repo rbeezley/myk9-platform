@@ -15,7 +15,6 @@ import { ASKQ_GUIDES, ASKQ_RULEBOOKS } from '../_shared/askq/documentAssets.ts';
 import {
   type AskQRulebookAsset,
   buildDocumentContext,
-  getRulebookScopeOptions,
   selectRulebook,
 } from '../_shared/askq/documentContext.ts';
 import {
@@ -32,6 +31,7 @@ import {
 } from '../_shared/askq/supportMode.ts';
 import { reserveAskQQuery } from '../_shared/askq/askqRateLimit.ts';
 import { classifyAskQFailure } from '../_shared/askq/askqFailure.ts';
+import { describeShowRegistries } from '../_shared/askq/showRegistries.ts';
 import { callerHasShowAccess } from '../_shared/askq/showAccess.ts';
 import { buildMyK9ShowPrompt } from '../_shared/askq/myK9ShowPrompt.ts';
 
@@ -232,6 +232,7 @@ Deno.serve(async (req: Request) => {
     let verifiedShowId: string | null = null;
     let showName: string | null = null;
     let showRulebooks: AskQRulebookAsset[] = [];
+    let showRegistries: string[] = [];
     if (showId && showData?.name) {
       const hasAccess = await callerHasShowAccess(supabaseClient, showId);
       if (hasAccess) {
@@ -243,6 +244,7 @@ Deno.serve(async (req: Request) => {
           .eq('show_id', showId)
           .order('trial_number', { ascending: true });
         showRulebooks = selectUniqueRulebooksForTrials(trialContexts ?? []);
+        showRegistries = describeShowRegistries(trialContexts ?? [], ASKQ_RULEBOOKS);
       }
     }
 
@@ -252,7 +254,7 @@ Deno.serve(async (req: Request) => {
       dogs,
       showId: verifiedShowId,
       showName,
-      showRegistries: getRulebookScopeOptions(showRulebooks).map(option => option.label),
+      showRegistries,
     };
 
     const rulebookResolution = resolveRulebookContext({

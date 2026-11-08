@@ -34,6 +34,7 @@ for (const sheet of SHEETS) {
   for (const mode of MODES) {
     test(`${sheet.name} setup cheat sheet keeps a quarter inch inset on one landscape page per sheet (${mode.name})`, async ({
       page,
+      browserName,
     }) => {
       await page.setContent(
         mode.css ? html.replace('</head>', `<style>${mode.css}</style></head>`) : html
@@ -62,6 +63,8 @@ for (const sheet of SHEETS) {
       expect(sheets[0].left).toBeGreaterThanOrEqual(0);
       expect(sheets[0].top).toBeGreaterThanOrEqual(0);
 
+      // page.pdf() exists only in Chromium; the geometry above runs in every project.
+      if (browserName !== 'chromium') return;
       const pdf = await page.pdf({
         preferCSSPageSize: true,
         margin: { top: 0, left: 0, right: 0, bottom: 0 },

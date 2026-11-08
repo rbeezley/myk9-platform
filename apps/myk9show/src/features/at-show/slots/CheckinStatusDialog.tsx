@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/alert-dialog/confirm-dialog';
-import { StatusIcon, getStatusDescriptor } from '@/components/status';
+import { StatusTileGrid } from '@/components/status/StatusTileGrid';
 import { handleOpenChange } from './dialogHelpers';
 
 /** Additional statuses only stewards/judges may set (ring management). */
@@ -28,6 +28,7 @@ export const CheckinStatusDialog: React.FC<CheckinStatusDialogProps> = ({
   dogInfo,
   className,
   showRingManagement,
+  currentStatus,
 }) => {
   const [confirmingPull, setConfirmingPull] = useState(false);
   if (!isOpen) return null;
@@ -38,7 +39,7 @@ export const CheckinStatusDialog: React.FC<CheckinStatusDialogProps> = ({
 
   return (
     <Dialog open onOpenChange={open => handleOpenChange(open, onClose)}>
-      <DialogContent>
+      <DialogContent className="max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Change Status</DialogTitle>
         </DialogHeader>
@@ -49,24 +50,13 @@ export const CheckinStatusDialog: React.FC<CheckinStatusDialogProps> = ({
           </p>
           <p>{dogInfo.handler}</p>
         </div>
-        <div className="flex flex-col gap-2">
-          {statuses.map(status => {
-            const descriptor = getStatusDescriptor('entry', status);
-            return (
-              <Button
-                key={status}
-                variant="outline"
-                className="min-h-11 justify-start"
-                onClick={() =>
-                  status === 'pulled' ? setConfirmingPull(true) : onStatusChange(status)
-                }
-              >
-                <StatusIcon family="entry" status={status} size="sm" decorative />
-                {descriptor.label}
-              </Button>
-            );
-          })}
-        </div>
+        <StatusTileGrid
+          statuses={statuses}
+          currentStatus={currentStatus}
+          onSelect={status =>
+            status === 'pulled' ? setConfirmingPull(true) : onStatusChange(status)
+          }
+        />
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>
             Close

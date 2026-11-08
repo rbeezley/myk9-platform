@@ -79,6 +79,8 @@ describe('AppToaster', () => {
     expect(style).toContain('--offset-bottom: max(1rem, env(safe-area-inset-bottom))');
     // No bar mounted means no extra pixels reserved.
     expect(style).not.toMatch(/--offset-bottom:[^;]*\+\s*\d+px/);
+    // Sonner's default slide is untouched without a bar.
+    expect(container.querySelector('[data-sonner-toaster]')).not.toHaveClass('myk9-sonner-lifted');
   });
 
   it('lifts above a mounted action bar, on desktop and mobile alike', async () => {
@@ -91,6 +93,8 @@ describe('AppToaster', () => {
     expect(style).toContain(
       '--mobile-offset-bottom: calc(max(1rem, env(safe-area-inset-bottom)) + 84px)'
     );
+    // Lifted state hook: index.css swaps the slide for a fade (no pass through the bar).
+    expect(container.querySelector('[data-sonner-toaster]')).toHaveClass('myk9-sonner-lifted');
   });
 
   it('drops back down when the action bar unmounts', async () => {

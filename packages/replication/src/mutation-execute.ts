@@ -41,6 +41,30 @@ export function isPrimaryKeyDuplicateError(
   );
 }
 
+const RINGSIDE_UPDATE_ENTRY_RPC = 'ringside_update_entry';
+
+/**
+ * Default argument shape for an RPC-routed UPDATE. Only `ringside_update_entry`
+ * takes `p_client_saved_at` (the device save time, for the score audit trail);
+ * any other RPC would reject an unknown named argument. `mutation.timestamp`
+ * is stamped once at queue time and never rewritten, so it is the first save.
+ */
+function defaultRpcArgs(
+  mutation: PendingMutation,
+  rpc: NonNullable<PendingMutation['rpc']>
+): Record<string, unknown> {
+  const args: Record<string, unknown> = {
+    [rpc.idParam ?? 'p_entry_id']: mutation.rowId,
+    p_fields: rpc.fields ?? {},
+    p_expected_version: mutation.serverVersion ?? null,
+  };
+  const savedAt = new Date(mutation.timestamp);
+  if (rpc.name === RINGSIDE_UPDATE_ENTRY_RPC && !Number.isNaN(savedAt.getTime())) {
+    args.p_client_saved_at = savedAt.toISOString();
+  }
+  return args;
+}
+
 /**
  * Execute a single mutation on the server with timeout protection.
  *
@@ -133,11 +157,7 @@ export async function executeMutation(
         } = await withTimeout(
           supabase.rpc(
             mutation.rpc.name,
-            mutation.rpc.args ?? {
-              [mutation.rpc.idParam ?? 'p_entry_id']: mutation.rowId,
-              p_fields: mutation.rpc.fields ?? {},
-              p_expected_version: mutation.serverVersion ?? null,
-            }
+            mutation.rpc.args ?? defaultRpcArgs(mutation, mutation.rpc)
           ),
           TIMEOUT_PRESETS.standard,
           `${tableName} rpc ${mutation.rpc.name}`,

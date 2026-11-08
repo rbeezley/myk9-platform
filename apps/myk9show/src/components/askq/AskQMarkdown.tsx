@@ -1,83 +1,34 @@
 import type { ReactNode } from 'react';
 
+import { parseBlocks } from './AskQMarkdownParse';
+
 /**
  * A deliberately tiny, safe Markdown subset for AskQ answers (MYK9-1774).
  *
  * The model replies in Markdown; exhibitors must never see `##`, `**` or `---`.
  * Everything is built as React elements, so raw HTML is escaped as plain text
- * (no dangerouslySetInnerHTML), and links are reduced to their label (no anchors).
- * Supported: headings (shown as bold lines), **bold**, *italic*, `-`/`*`/`1.`
- * lists, and `---` rules. Anything else renders as ordinary text.
+ * (no dangerouslySetInnerHTML), and links are reduced to plain text (no anchors).
+ * Supported: headings (shown as bold lines), bold, italic, bullet and numbered
+ * lists, `---` rules, and fences/tables flattened to plain text. Anything else
+ * renders as ordinary text.
  */
 
-type Block =
-  | { kind: 'heading'; text: string }
-  | { kind: 'rule' }
-  | { kind: 'list'; ordered: boolean; items: string[] }
-  | { kind: 'paragraph'; lines: string[] };
-
-const HEADING = /^\s{0,3}#{1,6}\s+(.*?)\s*#*\s*$/;
-const RULE = /^\s{0,3}([-*_])(\s*\1){2,}\s*$/;
-const BULLET = /^\s*[-*+•]\s+(.*)$/;
-const NUMBERED = /^\s*\d+[.)]\s+(.*)$/;
-
-function parseBlocks(text: string): Block[] {
-  const blocks: Block[] = [];
-  let paragraph: string[] = [];
-  let list: { ordered: boolean; items: string[] } | null = null;
-
-  const flushParagraph = () => {
-    if (paragraph.length > 0) blocks.push({ kind: 'paragraph', lines: paragraph });
-    paragraph = [];
-  };
-  const flushList = () => {
-    if (list) blocks.push({ kind: 'list', ...list });
-    list = null;
-  };
-
-  for (const line of text.replace(/\r\n?/g, '\n').split('\n')) {
-    if (line.trim() === '') {
-      flushParagraph();
-      flushList();
-      continue;
-    }
-    const heading = HEADING.exec(line);
-    if (heading) {
-      flushParagraph();
-      flushList();
-      blocks.push({ kind: 'heading', text: heading[1] });
-      continue;
-    }
-    if (RULE.test(line)) {
-      flushParagraph();
-      flushList();
-      blocks.push({ kind: 'rule' });
-      continue;
-    }
-    const bullet = BULLET.exec(line);
-    const numbered = bullet ? null : NUMBERED.exec(line);
-    const item = bullet ?? numbered;
-    if (item) {
-      flushParagraph();
-      const ordered = !bullet;
-      if (list && list.ordered !== ordered) flushList();
-      list ??= { ordered, items: [] };
-      list.items.push(item[1]);
-      continue;
-    }
-    flushList();
-    paragraph.push(line.trim());
-  }
-  flushParagraph();
-  flushList();
-  return blocks;
-}
-
-const INLINE = /\*\*(.+?)\*\*|\*([^*\s][^*]*?)\*|\[([^\]]+)\]\((?:[^()\s]|\([^()\s]*\))*\)/g;
+const INLINE = new RegExp(
+  [
+    String.raw`!\[([^\]]*)\]\((?:[^()\s]|\([^()\s]*\))*\)`, // 1 image alt
+    String.raw`\[([^\]]+)\]\(((?:[^()\s]|\([^()\s]*\))*)\)`, // 2 label, 3 url
+    String.raw`\*\*\*(.+?)\*\*\*`, // 4 bold italic
+    String.raw`\*\*(.+?)\*\*`, // 5 bold
+    String.raw`__(.+?)__`, // 6 bold
+    String.raw`\*([^*\s][^*]*?)\*`, // 7 italic
+    String.raw`(?<![A-Za-z0-9_])_([^_\s][^_]*?)_(?![A-Za-z0-9_])`, // 8 italic
+  ].join('|'),
+  'g'
+);
 
 /** Drops any marker characters left unmatched, e.g. a `**` still streaming in. */
 function stripStrayMarkers(text: string): string {
-  return text.replace(/\*\*|`/g, '');
+  return text.replace(/\*|`|__/g, '');
 }
 
 function renderInline(text: string, keyPrefix: string): ReactNode[] {
@@ -88,11 +39,20 @@ function renderInline(text: string, keyPrefix: string): ReactNode[] {
     if (match.index > last) nodes.push(stripStrayMarkers(text.slice(last, match.index)));
     const key = `${keyPrefix}-${index++}`;
     if (match[1] !== undefined) {
-      nodes.push(<strong key={key}>{stripStrayMarkers(match[1])}</strong>);
+      nodes.push(stripStrayMarkers(match[1]));
     } else if (match[2] !== undefined) {
-      nodes.push(<em key={key}>{stripStrayMarkers(match[2])}</em>);
+      nodes.push(...renderInline(match[2], key));
+      if (/^(https:|mailto:)/i.test(match[3])) nodes.push(` (${match[3]})`);
+    } else if (match[4] !== undefined) {
+      nodes.push(
+        <strong key={key}>
+          <em>{renderInline(match[4], key)}</em>
+        </strong>
+      );
+    } else if (match[5] !== undefined || match[6] !== undefined) {
+      nodes.push(<strong key={key}>{renderInline(match[5] ?? match[6], key)}</strong>);
     } else {
-      nodes.push(stripStrayMarkers(match[3]));
+      nodes.push(<em key={key}>{renderInline(match[7] ?? match[8], key)}</em>);
     }
     last = match.index + match[0].length;
   }
@@ -100,8 +60,12 @@ function renderInline(text: string, keyPrefix: string): ReactNode[] {
   return nodes;
 }
 
-export function AskQMarkdown({ text }: { text: string }) {
+/** `trailing` (the streaming cursor) is placed inline at the end of the last block. */
+export function AskQMarkdown({ text, trailing }: { text: string; trailing?: ReactNode }) {
   const blocks = parseBlocks(text);
+  const lastIndex = blocks.length - 1;
+  const tail = (i: number) => (i === lastIndex ? trailing : null);
+  const lastIsRule = blocks[lastIndex]?.kind === 'rule';
   return (
     <div className="space-y-2 text-sm leading-relaxed">
       {blocks.map((block, i) => {
@@ -109,8 +73,9 @@ export function AskQMarkdown({ text }: { text: string }) {
         switch (block.kind) {
           case 'heading':
             return (
-              <p key={key} className="font-semibold">
+              <p key={key} role="heading" aria-level={3} className="font-semibold">
                 {renderInline(block.text, key)}
+                {tail(i)}
               </p>
             );
           case 'rule':
@@ -120,10 +85,21 @@ export function AskQMarkdown({ text }: { text: string }) {
             return (
               <Tag
                 key={key}
+                start={block.ordered && block.start !== 1 ? block.start : undefined}
                 className={`${block.ordered ? 'list-decimal' : 'list-disc'} space-y-1 pl-5`}
               >
                 {block.items.map((item, j) => (
-                  <li key={`${key}-${j}`}>{renderInline(item, `${key}-${j}`)}</li>
+                  <li key={`${key}-${j}`}>
+                    {renderInline(item.text, `${key}-${j}`)}
+                    {item.sub.length > 0 && (
+                      <ul className="list-disc space-y-1 pl-5">
+                        {item.sub.map((sub, k) => (
+                          <li key={`${key}-${j}-${k}`}>{renderInline(sub, `${key}-${j}-${k}`)}</li>
+                        ))}
+                      </ul>
+                    )}
+                    {j === block.items.length - 1 && tail(i)}
+                  </li>
                 ))}
               </Tag>
             );
@@ -135,10 +111,12 @@ export function AskQMarkdown({ text }: { text: string }) {
                   ...(j > 0 ? [<br key={`${key}-br${j}`} />] : []),
                   ...renderInline(line, `${key}-${j}`),
                 ])}
+                {tail(i)}
               </p>
             );
         }
       })}
+      {(blocks.length === 0 || lastIsRule) && trailing ? <p>{trailing}</p> : null}
     </div>
   );
 }

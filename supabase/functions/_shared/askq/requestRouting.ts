@@ -46,6 +46,17 @@ export function parseAskQRouting(
   };
 }
 
+/**
+ * A request with no questionMode and a verified show is "This show", the mode the
+ * panel displays by default. Old clients never send the mode, so the server decides.
+ */
+export function resolveQuestionModeForShow(
+  requested: AskQQuestionMode | null,
+  hasVerifiedShowContext: boolean
+): AskQQuestionMode | null {
+  return requested === null && hasVerifiedShowContext ? 'show-data' : requested;
+}
+
 export function resolveRulebookContext(input: {
   allRulebooks: AskQRulebookAsset[];
   showRulebooks: AskQRulebookAsset[];

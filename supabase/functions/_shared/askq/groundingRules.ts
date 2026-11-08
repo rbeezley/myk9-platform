@@ -26,6 +26,10 @@ export function buildGroundingPrompt(
   effectiveSupportMode: boolean
 ): string {
   if (questionMode === 'show-data') return SHOW_DATA_HOWTO_RULES;
-  if (questionMode === 'app-help' || effectiveSupportMode) return APP_HELP_GROUNDING_RULES;
+  // The panel sends no questionMode while it displays "This show" by default, and that
+  // request keeps the guides in its prompt, so it gets the app-help grounding too.
+  if (questionMode === null || questionMode === 'app-help' || effectiveSupportMode) {
+    return APP_HELP_GROUNDING_RULES;
+  }
   return '';
 }

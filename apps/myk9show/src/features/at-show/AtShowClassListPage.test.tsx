@@ -244,6 +244,12 @@ describe('AtShowClassListPage (Phase 1h class picker)', () => {
     renderPage();
 
     expect(await screen.findByText('This show has no classes yet.')).toBeInTheDocument();
+    // MYK9-1770: menu and Up sit above the centered recovery content, top-left.
+    const menu = screen.getByRole('button', { name: 'Ringside menu' });
+    expect(
+      menu.compareDocumentPosition(screen.getByText('This show has no classes yet.')) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
     expect(
       screen.queryByRole('status', { name: 'Loading at-show classes' })
     ).not.toBeInTheDocument();
@@ -258,6 +264,12 @@ describe('AtShowClassListPage (Phase 1h class picker)', () => {
     renderPage();
 
     expect(await screen.findByText('Failed to load classes')).toBeInTheDocument();
+    // MYK9-1770: menu and Up sit above the centered recovery content, top-left.
+    const menu = screen.getByRole('button', { name: 'Ringside menu' });
+    expect(
+      menu.compareDocumentPosition(screen.getByText('Failed to load classes')) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
     expect(
       screen.queryByRole('status', { name: 'Loading at-show classes' })
     ).not.toBeInTheDocument();

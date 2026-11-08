@@ -17,7 +17,7 @@ export function ClassListUpAndMenu({
   snapshot?: RingsideListSnapshot;
 }) {
   return (
-    <div className={'flex items-center justify-center gap-2'}>
+    <div className={'flex items-center justify-start gap-2'}>
       <RingsideMenu showId={showId} {...(snapshot && { snapshot })} />
       <ClassListUpButton showId={showId} clubId={clubId} />
     </div>

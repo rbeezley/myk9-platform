@@ -100,7 +100,7 @@ export const DogCard = React.memo<DogCardProps>(
                   <span>{armbandText}</span>
                   <span className="sr-only">, Section </span>
                   <span
-                    className="mt-0.5 text-[0.6875rem] font-semibold uppercase tracking-wide opacity-80"
+                    className="mt-0.5 text-[0.8125rem] font-bold uppercase tracking-wide"
                     data-testid="section-badge"
                   >
                     {sectionBadge}

@@ -42,6 +42,7 @@ describe('every check-in write drops a stale ring time (MYK9-1761)', () => {
   let server: Record<string, unknown>;
   let directPayloads: Record<string, unknown>[];
   let rpcFields: Record<string, unknown>[];
+  let rpcVersions: unknown[];
 
   /** The MYK9-1396 trigger plus the version bump, applied to every accepted write. */
   function applyWrite(fields: Record<string, unknown>) {
@@ -61,6 +62,7 @@ describe('every check-in write drops a stale ring time (MYK9-1761)', () => {
     server = { id: ID, version: 1, check_in_status: 'in-ring', ring_entry_time: STAMP };
     directPayloads = [];
     rpcFields = [];
+    rpcVersions = [];
     const offline = () => new TypeError('Failed to fetch');
     const client = {
       rpc: vi.fn(async (_name: string, args: Record<string, unknown>) => {
@@ -73,6 +75,7 @@ describe('every check-in write drops a stale ring time (MYK9-1761)', () => {
           };
         }
         rpcFields.push(args.p_fields as Record<string, unknown>);
+        rpcVersions.push(args.p_expected_version);
         applyWrite(args.p_fields as Record<string, unknown>);
         return { data: server.version, error: null };
       }),
@@ -138,6 +141,8 @@ describe('every check-in write drops a stale ring time (MYK9-1761)', () => {
     expect((await table.get(ID))?.ring_entry_time).toBeUndefined();
     await replay();
     expect(rpcFields[0]).toEqual({ check_in_status: 'checked-in', ring_entry_time: null });
+    // Pins the harness's null-version leniency: the narrow write really is unversioned.
+    expect(rpcVersions).toEqual([null]);
     expect(server.ring_entry_time).toBeNull();
     expect(classifyEntryRunStatus({ entry_status: 'confirmed', ...server })?.value).not.toBe(
       'in-ring'

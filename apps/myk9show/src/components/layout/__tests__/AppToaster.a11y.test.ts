@@ -9,7 +9,7 @@ const indexCss = readFileSync(resolve(testDirectory, '../../../index.css'), 'utf
 
 describe('AppToaster accessibility contract', () => {
   it('keeps the scoped rich-color and close-control overrides mounted on the app toaster', () => {
-    expect(appToaster).toContain('className="myk9-sonner-a11y"');
+    expect(appToaster).toContain("'myk9-sonner-a11y");
     expect(indexCss).toContain('[data-sonner-toaster].myk9-sonner-a11y');
     expect(indexCss).toContain('width: 44px;');
     expect(indexCss).toContain('height: 44px;');

@@ -34,18 +34,10 @@ const template8387: LabelTemplate = {
 };
 
 describe('buildCalibrationTestSheetHtml', () => {
-  it('includes corner registration marks at all four corners', () => {
+  it('renders no reference ruler or corner marks', () => {
     const html = buildCalibrationTestSheetHtml(template18262, 0, 0, 0);
-    expect(html).toContain('calibration-corner-mark--top-left');
-    expect(html).toContain('calibration-corner-mark--top-right');
-    expect(html).toContain('calibration-corner-mark--bottom-left');
-    expect(html).toContain('calibration-corner-mark--bottom-right');
-  });
-
-  it('includes a 1-inch reference ruler with caption', () => {
-    const html = buildCalibrationTestSheetHtml(template18262, 0, 0, 0);
-    expect(html).toContain('width: 1in');
-    expect(html).toContain('This bar must measure exactly 1 inch');
+    expect(html).not.toContain('calibration-ruler');
+    expect(html).not.toContain('calibration-corner-mark');
   });
 
   it('renders one grid cell per template cell with row numbers, for template 18262', () => {
@@ -69,7 +61,7 @@ describe('buildCalibrationTestSheetHtml', () => {
   it('includes all three diagnosis lines', () => {
     const html = buildCalibrationTestSheetHtml(template18262, 0, 0, 0);
     expect(html).toContain(
-      'Ruler not exactly 1 inch? In the print dialog, set Scale to 100% (not "Fit to page").'
+      'Labels look the wrong size? In the print dialog, set Scale to 100% (not "Fit to page").'
     );
     expect(html).toContain(
       'Whole grid shifted the same amount everywhere? Adjust Top/Left offset.'
@@ -113,13 +105,6 @@ describe('buildCalibrationTestSheetHtml', () => {
     expect(bodyContent.trimStart().startsWith('<div class="label-sheet">')).toBe(true);
   });
 
-  it('takes the reference ruler out of normal document flow (position: absolute)', () => {
-    const html = buildCalibrationTestSheetHtml(template18262, 0, 0, 0);
-    const rulerWrapRule = html.match(/\.calibration-ruler-wrap\s*\{[^}]*\}/);
-    expect(rulerWrapRule).not.toBeNull();
-    expect(rulerWrapRule![0]).toContain('position: absolute');
-  });
-
   it('omits the row/col marker in the first cell so it does not overlap the diagnosis guide', () => {
     const html = buildCalibrationTestSheetHtml(template18262, 0, 0, 0);
     const firstCellMatch = html.match(
@@ -129,33 +114,5 @@ describe('buildCalibrationTestSheetHtml', () => {
     const firstCellContent = firstCellMatch![1];
     expect(firstCellContent).toContain('calibration-guide');
     expect(firstCellContent).not.toContain('Row 1, Col 1');
-  });
-
-  it('places every corner mark and the ruler at least 0.25 in inside the page, even with extreme offsets', () => {
-    for (const offsets of [
-      [0, 0],
-      [-900, -900],
-      [900, 900],
-    ] as const) {
-      const html = buildCalibrationTestSheetHtml(template18262, 0, offsets[0], offsets[1]);
-      const marks = [
-        ...html.matchAll(
-          /calibration-corner-mark--[a-z-]+" style="left:([\d.]+)in;top:([\d.]+)in"/g
-        ),
-      ];
-      expect(marks).toHaveLength(4);
-      for (const [, left, top] of marks) {
-        expect(Number(left)).toBeGreaterThanOrEqual(0.25);
-        expect(Number(top)).toBeGreaterThanOrEqual(0.25);
-        expect(Number(left) + 0.25).toBeLessThanOrEqual(8.25 + 1e-9);
-        expect(Number(top) + 0.25).toBeLessThanOrEqual(10.75 + 1e-9);
-      }
-      const rule = html.match(
-        /\.calibration-ruler-wrap\s*\{[^}]*top: ([\d.]+)in;\s*left: ([\d.]+)in;/
-      );
-      expect(rule).not.toBeNull();
-      expect(Number(rule![1])).toBeGreaterThanOrEqual(0.25);
-      expect(Number(rule![2])).toBeGreaterThanOrEqual(0.25);
-    }
   });
 });

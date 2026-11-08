@@ -93,28 +93,24 @@ test('two sheets print on two pages (positive control for the page count)', asyn
 });
 
 for (const template of getAllTemplates()) {
-  test(`${template.id}: calibration ruler and corner marks stay 0.25 in inside the page`, async ({
-    page,
-  }) => {
+  test(`${template.id}: first calibration cell's text sits inside its cell`, async ({ page }) => {
     await page.setViewportSize({ width: 8.5 * DPI, height: 11 * DPI });
     await page.emulateMedia({ media: 'print' });
     await page.setContent(buildCalibrationTestSheetHtml(template, 0, 0, 0));
-    const rects = await page.evaluate(() =>
-      [...document.querySelectorAll('.calibration-corner-mark, .calibration-ruler-wrap')].map(
-        el => {
-          const r = el.getBoundingClientRect();
-          return { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
-        }
-      )
-    );
-    // 4 marks + the ruler: guards against the selector drifting to nothing.
-    expect(rects).toHaveLength(5);
-    const minEdge = 0.25 * DPI - 0.5;
-    for (const r of rects) {
-      expect(r.left).toBeGreaterThanOrEqual(minEdge);
-      expect(r.top).toBeGreaterThanOrEqual(minEdge);
-      expect(8.5 * DPI - r.right).toBeGreaterThanOrEqual(minEdge);
-      expect(11 * DPI - r.bottom).toBeGreaterThanOrEqual(minEdge);
-    }
+    const geometry = await page.evaluate(() => {
+      const cell = document.querySelector('.label-cell')!.getBoundingClientRect();
+      const guide = document.querySelector('.calibration-guide')!.getBoundingClientRect();
+      return {
+        cell: { left: cell.left, top: cell.top, right: cell.right, bottom: cell.bottom },
+        guide: { left: guide.left, top: guide.top, right: guide.right, bottom: guide.bottom },
+        extras: document.querySelectorAll('.calibration-ruler-wrap, .calibration-corner-mark')
+          .length,
+      };
+    });
+    expect(geometry.extras).toBe(0);
+    expect(geometry.guide.left).toBeGreaterThanOrEqual(geometry.cell.left - 0.5);
+    expect(geometry.guide.top).toBeGreaterThanOrEqual(geometry.cell.top - 0.5);
+    expect(geometry.guide.right).toBeLessThanOrEqual(geometry.cell.right + 0.5);
+    expect(geometry.guide.bottom).toBeLessThanOrEqual(geometry.cell.bottom + 0.5);
   });
 }

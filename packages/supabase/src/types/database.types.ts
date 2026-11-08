@@ -3349,6 +3349,57 @@ export type Database = {
           },
         ]
       }
+      entry_score_audit: {
+        Row: {
+          actor_display_name: string | null
+          actor_person_id: string | null
+          actor_tier: string
+          actor_user_id: string | null
+          changed_at: string
+          changes: Json
+          class_id: string
+          client_saved_at: string | null
+          entry_id: string
+          entry_version: number | null
+          id: string
+          passcode_generation: string | null
+          passcode_role: string | null
+          show_id: string
+        }
+        Insert: {
+          actor_display_name?: string | null
+          actor_person_id?: string | null
+          actor_tier: string
+          actor_user_id?: string | null
+          changed_at?: string
+          changes?: Json
+          class_id: string
+          client_saved_at?: string | null
+          entry_id: string
+          entry_version?: number | null
+          id?: string
+          passcode_generation?: string | null
+          passcode_role?: string | null
+          show_id: string
+        }
+        Update: {
+          actor_display_name?: string | null
+          actor_person_id?: string | null
+          actor_tier?: string
+          actor_user_id?: string | null
+          changed_at?: string
+          changes?: Json
+          class_id?: string
+          client_saved_at?: string | null
+          entry_id?: string
+          entry_version?: number | null
+          id?: string
+          passcode_generation?: string | null
+          passcode_role?: string | null
+          show_id?: string
+        }
+        Relationships: []
+      }
       entry_status_history: {
         Row: {
           changed_at: string | null
@@ -15302,7 +15353,12 @@ export type Database = {
         Returns: number
       }
       ringside_update_entry: {
-        Args: { p_entry_id: string; p_expected_version: number; p_fields: Json }
+        Args: {
+          p_client_saved_at?: string
+          p_entry_id: string
+          p_expected_version: number
+          p_fields: Json
+        }
         Returns: number
       }
       run_system_health_check_now: { Args: never; Returns: Json }

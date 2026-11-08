@@ -121,7 +121,7 @@ describe('manual distributed load workflow', () => {
     expect(restore).toContain('[[ "$multi" == "0|0|0" ]]');
     expect(restore).not.toContain('1260|0|3');
     expect(workflow).toContain(
-      "has_function_privilege('authenticated', 'public.ringside_update_entry(uuid,jsonb,integer)', 'EXECUTE')"
+      "has_function_privilege('authenticated', 'public.ringside_update_entry(uuid,jsonb,integer,timestamptz)', 'EXECUTE')"
     );
     expect(workflow).toContain('Abort and drain in-flight scoring work');
     expect(workflow).toContain('scripts/load-cleanup.ts');

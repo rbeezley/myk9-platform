@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { SupportTicketThread } from '@/features/support/SupportTicketThread';
 import { useSupportHelp } from '@/features/support/useSupportHelp';
 import { AskQAnswer, TeraWorkingIndicator } from './AskQAnswer';
+import { cleanAskQAnswer } from './cleanAskQAnswer';
 import { TeraAnswerMark, useFoundIt } from './TeraAnswerMark';
 
 const SUPPORT_TICKET_NEXT_STEP =
@@ -35,7 +36,9 @@ export function AskQAppHelpContent({
       {state.status === 'streaming' &&
         (state.answer ? (
           <div className="rounded-xl rounded-tl-sm bg-muted/50 px-3.5 py-3">
-            <p className="whitespace-pre-wrap text-sm leading-relaxed">{state.answer}</p>
+            <p className="whitespace-pre-wrap break-words text-sm">
+              {cleanAskQAnswer(state.answer)}
+            </p>
           </div>
         ) : (
           <TeraWorkingIndicator />
@@ -45,7 +48,9 @@ export function AskQAppHelpContent({
         <div className="flex items-start gap-2">
           <TeraAnswerMark foundIt={foundIt} onDone={clearFoundIt} />
           <div className="min-w-0 flex-1 space-y-3 rounded-xl rounded-tl-sm bg-muted/50 px-3.5 py-3">
-            <p className="whitespace-pre-wrap text-sm leading-relaxed">{state.route.answer}</p>
+            <p className="whitespace-pre-wrap break-words text-sm">
+              {cleanAskQAnswer(state.route.answer)}
+            </p>
             {state.route.deepLink && (
               <Button asChild variant="outline" size="sm" className="gap-2">
                 <Link to={state.route.deepLink.href}>

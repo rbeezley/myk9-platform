@@ -1,4 +1,5 @@
 import { TERA_WORKING_COPY, TOOL_LABELS } from './askq-config';
+import { cleanAskQAnswer } from './cleanAskQAnswer';
 import { TeraAnswerMark, useFoundIt } from './TeraAnswerMark';
 import { TeraAvatar } from './TeraAvatar';
 
@@ -34,14 +35,14 @@ export function AskQAnswer({
         <div className="flex items-start gap-2">
           <TeraAnswerMark foundIt={foundIt} onDone={clearFoundIt} />
           <div className="min-w-0 flex-1 bg-muted/50 px-3.5 py-3 rounded-xl rounded-tl-sm">
-            <p className="text-sm whitespace-pre-wrap leading-relaxed">
-              {answer}
-              {isStreaming && (
+            <p className="whitespace-pre-wrap break-words text-sm">
+              {cleanAskQAnswer(answer)}
+              {isStreaming ? (
                 <span
                   data-testid="streaming-cursor"
-                  className="inline-block w-1.5 h-4 bg-foreground/70 ml-0.5 animate-pulse align-text-bottom"
+                  className="ml-0.5 inline-block w-1.5 h-4 bg-foreground/70 animate-pulse align-text-bottom"
                 />
-              )}
+              ) : null}
             </p>
 
             {toolsUsed.length > 0 && (

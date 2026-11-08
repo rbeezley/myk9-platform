@@ -1,3 +1,4 @@
+import { PLAIN_TEXT_ANSWER_RULE } from './plainTextAnswerRule.ts';
 import type { UserContext } from './types.ts';
 
 // Sanitize user-controlled strings before embedding in the AI prompt
@@ -57,6 +58,7 @@ TOOL USAGE:
 - When the user asks about "my dog" or "my results", use their dog information from user_context above.
 
 RESPONSE STYLE:
+- ${PLAIN_TEXT_ANSWER_RULE}
 - Be concise and direct. Lead with the answer.
 - Format data clearly with bullet points or short lists.
 - If no data is found, say so clearly and suggest what the user could try instead.

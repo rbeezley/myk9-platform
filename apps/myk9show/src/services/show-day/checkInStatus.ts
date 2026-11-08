@@ -30,7 +30,9 @@ export async function updateReplicatedCheckInStatus(
   // move-up supersession all read that stamp as "in the ring / run started".
   if (!RUN_STATUSES.has(status) && !('ring_entry_time' in updates)) {
     const current = await replicatedEntriesTable.get(entryId);
-    if (current && hasUnscoredRingTime(current)) {
+    // A row not yet on this device (a cold desk or Show Map) goes through updateEntryWith,
+    // which hydrates it, so the stamp is judged on the real row, not skipped.
+    if (!current || hasUnscoredRingTime(current)) {
       return replicatedEntriesTable.updateEntryWith(entryId, row => ({
         ...updates,
         ...(hasUnscoredRingTime(row) ? { ring_entry_time: undefined } : {}),

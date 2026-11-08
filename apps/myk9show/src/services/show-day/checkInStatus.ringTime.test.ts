@@ -91,6 +91,23 @@ describe('updateReplicatedCheckInStatus and ring_entry_time (MYK9-1761)', () => 
     });
   });
 
+  it('judges a row not yet on this device on the hydrated row, not by skipping it', async () => {
+    vi.mocked(replicatedEntriesTable.get).mockResolvedValue(null);
+
+    await updateReplicatedCheckInStatus('e1', 'checked-in');
+
+    expect(replicatedEntriesTable.updateEntryWith).toHaveBeenCalledWith('e1', expect.any(Function));
+    expect(builtUpdates(inRingUnscored)).toEqual({
+      ring_entry_time: undefined,
+      checkInStatus: 'checked-in',
+      check_in_status: 'checked-in',
+    });
+    expect(builtUpdates({ id: 'e1', checkInStatus: 'no-status' })).toEqual({
+      checkInStatus: 'checked-in',
+      check_in_status: 'checked-in',
+    });
+  });
+
   it('Show Map stops showing the dog in the ring after the undo', async () => {
     const showMapRow = {
       entry_status: 'confirmed',
@@ -103,6 +120,7 @@ describe('updateReplicatedCheckInStatus and ring_entry_time (MYK9-1761)', () => 
     await updateReplicatedCheckInStatus('e1', 'no-status');
     const after = { ...showMapRow, ...builtUpdates(inRingUnscored) };
 
-    expect(classifyEntryRunStatus(after)?.label).not.toBe('In ring');
+    expect(classifyEntryRunStatus(after)?.value).not.toBe('in-ring');
+    expect(after.ring_entry_time).toBeUndefined();
   });
 });

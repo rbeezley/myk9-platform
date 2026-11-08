@@ -51,6 +51,30 @@ describe('useScoresheetRingMove', () => {
     expect(restoreFromInRing).not.toHaveBeenCalled();
   });
 
+  it('does not move a dog whose sheet was already left (a slow load finishing late)', () => {
+    vi.mocked(transitionToInRing).mockReturnValue(move as never);
+    const { result, unmount } = renderHook(() => useScoresheetRingMove('e1'));
+    const { opened } = result.current;
+
+    unmount();
+    opened(entry);
+
+    expect(transitionToInRing).not.toHaveBeenCalled();
+    expect(restoreFromInRing).not.toHaveBeenCalled();
+  });
+
+  it("does not move the previous dog after the sheet moved on to the next one", () => {
+    vi.mocked(transitionToInRing).mockReturnValue(move as never);
+    const { result, rerender } = renderHook(({ id }) => useScoresheetRingMove(id), {
+      initialProps: { id: 'e1' },
+    });
+
+    rerender({ id: 'e2' });
+    result.current.opened(entry);
+
+    expect(transitionToInRing).not.toHaveBeenCalled();
+  });
+
   it('does nothing when opening moved nothing (Resume)', () => {
     vi.mocked(transitionToInRing).mockReturnValue(null);
     const { result, unmount } = renderHook(() => useScoresheetRingMove('e1'));

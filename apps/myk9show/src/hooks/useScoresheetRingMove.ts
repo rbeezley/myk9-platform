@@ -23,19 +23,25 @@ export interface ScoresheetRingMove {
  */
 export function useScoresheetRingMove(entryId: string | undefined): ScoresheetRingMove {
   const moveRef = useRef<RingMove | null>(null);
+  // The entry whose sheet is open now. A load that finishes after its sheet was left (a
+  // fast Cancel or back gesture during the reads) must not move the dog in-ring with
+  // nothing left to undo it.
+  const liveEntryIdRef = useRef<string | undefined>(undefined);
 
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    liveEntryIdRef.current = entryId;
+    return () => {
+      liveEntryIdRef.current = undefined;
       const move = moveRef.current;
       moveRef.current = null;
       if (move) void restoreFromInRing(move);
-    },
-    [entryId]
-  );
+    };
+  }, [entryId]);
 
   return useMemo(
     () => ({
       opened: entry => {
+        if (liveEntryIdRef.current !== entry.id) return;
         const move = transitionToInRing(entry.id, entry.checkInStatus, entry.ring_entry_time);
         if (move) moveRef.current = move;
       },

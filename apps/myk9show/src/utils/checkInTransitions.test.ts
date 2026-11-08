@@ -25,6 +25,11 @@ describe('checkInTransitions', () => {
       entryId: 'entry-1',
       previousStatus: 'checked-in',
       previousRingEntryTime: undefined,
+      writtenRingEntryTime: expect.any(String),
+      written: expect.any(Promise),
+    });
+    expect(vi.mocked(updateReplicatedCheckInStatus).mock.calls[0]?.[2]).toEqual({
+      ring_entry_time: move?.writtenRingEntryTime,
     });
 
     expect(updateReplicatedCheckInStatus).toHaveBeenCalledOnce();
@@ -66,10 +71,13 @@ describe('checkInTransitions', () => {
 
   // MYK9-1762: leaving the sheet without a score puts the dog back.
   describe('restoreFromInRing', () => {
+    const STAMP = '2026-11-08T18:00:00.000Z';
     const move = {
       entryId: 'entry-1',
       previousStatus: 'checked-in' as const,
       previousRingEntryTime: undefined,
+      writtenRingEntryTime: STAMP,
+      written: Promise.resolve(),
     };
 
     function applyBuilder(row: object) {
@@ -78,7 +86,7 @@ describe('checkInTransitions', () => {
     }
 
     it('writes back the previous status and ring time for an unscored dog still in the ring', async () => {
-      const row = { id: 'entry-1', checkInStatus: 'in-ring', ring_entry_time: 'x', isScored: false };
+      const row = { id: 'entry-1', checkInStatus: 'in-ring', ring_entry_time: STAMP, isScored: false };
       vi.mocked(replicatedEntriesTable.get).mockResolvedValue(row as never);
 
       await restoreFromInRing(move);
@@ -92,7 +100,7 @@ describe('checkInTransitions', () => {
     });
 
     it('keeps a hand-marked in-ring dog in the ring, without the stamp the sheet added', async () => {
-      const row = { id: 'entry-1', checkInStatus: 'in-ring', ring_entry_time: 'x', isScored: false };
+      const row = { id: 'entry-1', checkInStatus: 'in-ring', ring_entry_time: STAMP, isScored: false };
       vi.mocked(replicatedEntriesTable.get).mockResolvedValue(row as never);
 
       await restoreFromInRing({ ...move, previousStatus: 'in-ring' });
@@ -126,6 +134,53 @@ describe('checkInTransitions', () => {
       await restoreFromInRing(move);
 
       expect(replicatedEntriesTable.updateEntryWith).not.toHaveBeenCalled();
+    });
+
+    it("leaves another device's run alone: the stamp is not the one this sheet wrote", async () => {
+      vi.mocked(replicatedEntriesTable.get).mockResolvedValue({
+        id: 'entry-1',
+        checkInStatus: 'in-ring',
+        ring_entry_time: '2026-11-08T18:05:00.000Z',
+        isScored: false,
+      } as never);
+
+      await restoreFromInRing(move);
+
+      expect(replicatedEntriesTable.updateEntryWith).not.toHaveBeenCalled();
+    });
+
+    it('matches its own stamp when the server echoes it in another format', async () => {
+      vi.mocked(replicatedEntriesTable.get).mockResolvedValue({
+        id: 'entry-1',
+        checkInStatus: 'in-ring',
+        ring_entry_time: '2026-11-08 18:00:00+00',
+        isScored: false,
+      } as never);
+
+      await restoreFromInRing(move);
+
+      expect(replicatedEntriesTable.updateEntryWith).toHaveBeenCalledOnce();
+    });
+
+    it('waits for the in-ring write before reading the row (an instant Cancel)', async () => {
+      let land: () => void = () => undefined;
+      const written = new Promise<void>(resolve => {
+        land = resolve;
+      });
+      vi.mocked(replicatedEntriesTable.get).mockResolvedValue({
+        id: 'entry-1',
+        checkInStatus: 'in-ring',
+        ring_entry_time: STAMP,
+        isScored: false,
+      } as never);
+
+      const restoring = restoreFromInRing({ ...move, written });
+      await Promise.resolve();
+      expect(replicatedEntriesTable.get).not.toHaveBeenCalled();
+      land();
+      await restoring;
+
+      expect(replicatedEntriesTable.updateEntryWith).toHaveBeenCalledOnce();
     });
   });
 });

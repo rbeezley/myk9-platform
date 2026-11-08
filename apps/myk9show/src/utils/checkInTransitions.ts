@@ -1,6 +1,6 @@
 import type { CheckInStatus } from '@myk9/core';
 import { updateReplicatedCheckInStatus } from '@/services/show-day/checkInStatus';
-import { replicatedEntriesTable } from '@/services/replication';
+import { replicatedEntriesTable, type ReplicatedEntry } from '@/services/replication';
 import { logger } from '@/services/LoggingService';
 
 /** What a scoresheet opening replaced, so leaving without a score can put it back. */
@@ -8,6 +8,10 @@ export interface RingMove {
   entryId: string;
   previousStatus: CheckInStatus;
   previousRingEntryTime: string | undefined;
+  /** The stamp this opening wrote; a restore only undoes its own stamp. */
+  writtenRingEntryTime: string;
+  /** Settles once the in-ring write has been applied (or failed), so a restore follows it. */
+  written: Promise<unknown>;
 }
 
 /**
@@ -27,8 +31,9 @@ export function transitionToInRing(
   if (currentStatus === 'completed') return null;
   if (currentStatus === 'in-ring' && ringEntryTime) return null;
 
-  updateReplicatedCheckInStatus(entryId, 'in-ring', {
-    ring_entry_time: new Date().toISOString(),
+  const writtenRingEntryTime = new Date().toISOString();
+  const written = updateReplicatedCheckInStatus(entryId, 'in-ring', {
+    ring_entry_time: writtenRingEntryTime,
   }).catch(err =>
     logger.error('Failed to transition entry to in-ring', 'scoring', {}, err as Error)
   );
@@ -36,22 +41,31 @@ export function transitionToInRing(
     entryId,
     previousStatus: currentStatus ?? 'no-status',
     previousRingEntryTime: ringEntryTime ?? undefined,
+    writtenRingEntryTime,
+    written,
   };
 }
 
 /**
  * MYK9-1762: the scoresheet was left without a score (Cancel, Up, back gesture), so undo
  * what opening it did: put back the check-in status and ring time the dog had. Only when the
- * dog is still in the ring and unscored, so a saved score, or a status someone else has set
- * since, is never overwritten. Goes through the replicated path, so it works offline.
+ * dog is still in the ring, unscored and holding the ring time this opening wrote, so a saved
+ * score, a status someone else has set since, or another device's run is never overwritten.
+ * Goes through the replicated path, so it works offline.
  */
 export async function restoreFromInRing(move: RingMove): Promise<void> {
-  const isStillOurs = (row: {
-    checkInStatus?: CheckInStatus | undefined;
-    isScored?: boolean | undefined;
-    is_scored?: boolean | undefined;
-  }) => row.checkInStatus === 'in-ring' && !(row.isScored ?? row.is_scored);
+  // Still in the ring, unscored, and carrying the stamp THIS opening wrote. Another device
+  // that opened the same dog after us wrote nothing (Resume), so it relies on our stamp;
+  // compared as instants because a server echo may format the timestamp differently.
+  const isStillOurs = (
+    row: Pick<ReplicatedEntry, 'checkInStatus' | 'isScored' | 'is_scored' | 'ring_entry_time'>
+  ) =>
+    row.checkInStatus === 'in-ring' &&
+    !(row.isScored ?? row.is_scored) &&
+    Date.parse(row.ring_entry_time ?? '') === Date.parse(move.writtenRingEntryTime);
   try {
+    // An instant Cancel must not read the row before the in-ring write has landed.
+    await move.written;
     const current = await replicatedEntriesTable.get(move.entryId);
     if (!current || !isStillOurs(current)) return;
     await replicatedEntriesTable.updateEntryWith(move.entryId, row =>

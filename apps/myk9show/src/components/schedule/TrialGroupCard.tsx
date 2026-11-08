@@ -18,6 +18,7 @@ export function TrialGroupCard({
   triggerId,
   leading,
   actions,
+  compact = false,
   children,
   'data-testid': testId,
 }: {
@@ -30,6 +31,8 @@ export function TrialGroupCard({
   leading?: ReactNode;
   /** After the trigger, the trial's menu. */
   actions?: ReactNode;
+  /** Tighter header and padding with the summary beside the label (ringside "Your ring"). */
+  compact?: boolean;
   children: ReactNode;
   'data-testid'?: string | undefined;
 }) {
@@ -44,7 +47,10 @@ export function TrialGroupCard({
           <CollapsibleTrigger
             id={triggerId}
             aria-label={`${open ? 'Collapse' : 'Expand'} ${label}`}
-            className="min-w-0 flex-1 flex-nowrap gap-x-3 px-4 py-3 text-left hover:no-underline"
+            className={cn(
+              'min-w-0 flex-1 flex-nowrap gap-x-3 px-4 py-3 text-left hover:no-underline',
+              compact && 'py-2'
+            )}
           >
             {/* Wrapped: the shared trigger rotates a direct-child svg 180deg when open. */}
             <span aria-hidden="true" className="shrink-0">
@@ -56,15 +62,17 @@ export function TrialGroupCard({
               />
             </span>
             <div className="min-w-0 flex-1">
-              <div className="font-semibold">{label}</div>
-              <div className="text-xs font-normal text-muted-foreground">{summary}</div>
+              <div className={cn(compact && 'flex flex-wrap items-baseline gap-x-2')}>
+                <div className="font-semibold">{label}</div>
+                <div className="text-xs font-normal text-muted-foreground">{summary}</div>
+              </div>
             </div>
           </CollapsibleTrigger>
           {actions && <div className="flex shrink-0 items-center px-1 pt-1.5">{actions}</div>}
         </div>
         {/* Clip, not hidden, for the same reason as the card above. */}
         <CollapsibleContent className="overflow-clip [&>div]:p-0">
-          <div className="flex flex-col gap-2 p-3">{children}</div>
+          <div className={cn('flex flex-col gap-2 p-3', compact && 'p-2')}>{children}</div>
         </CollapsibleContent>
       </div>
     </Collapsible>

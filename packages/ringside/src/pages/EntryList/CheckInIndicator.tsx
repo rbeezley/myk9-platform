@@ -83,9 +83,9 @@ export const CheckInIndicator: React.FC<{
       data-testid="check-in-indicator"
     >
       <Icon size={16} strokeWidth={2.4} aria-hidden="true" className="shrink-0" />
-      {/* Wraps to two balanced lines rather than overflow: the card's trailing column is
-          capped at 45% of the row, about 143px on a 375px phone (MYK9-1763). */}
-      <span className="text-balance text-left text-sm font-semibold leading-tight">{label}</span>
+      {/* One line: when the button does not fit beside the name, DogCard wraps it onto its
+          own line rather than break the word (MYK9-1763). */}
+      <span className="whitespace-nowrap text-sm font-semibold">{label}</span>
     </span>
   );
 };

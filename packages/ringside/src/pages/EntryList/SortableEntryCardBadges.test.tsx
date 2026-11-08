@@ -54,6 +54,12 @@ describe('StatusBadge as a button', () => {
     const button = screen.getByRole('button', { name: /Check-in: Not checked in/ });
     expect(button.textContent).toBe('Not checked in');
     expect(button.querySelectorAll('svg')).toHaveLength(2);
+    // jsdom counts screen-reader-only text in textContent, so check the word and
+    // every wrapper up to the button are not visually hidden.
+    for (let el: Element | null = screen.getByText('Not checked in'); el && el !== button;) {
+      expect(el.className).not.toMatch(/\b(sr-only|hidden)\b/);
+      el = el.parentElement;
+    }
   });
 
   it('still opens the explanation when self check-in is disabled', () => {

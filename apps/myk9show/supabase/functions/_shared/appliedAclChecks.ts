@@ -52,6 +52,8 @@ export const AUTHENTICATED_TABLE_GRANTS: Readonly<Record<string, string>> = {
   entry_cart_items: 'SELECT,INSERT,UPDATE,DELETE',
   entry_carts: 'SELECT,INSERT,UPDATE,DELETE',
   entry_payment_links: 'SELECT',
+  // MYK9-1754: show managers read through RLS; only the ringside RPC writes.
+  entry_score_audit: 'SELECT',
   entry_status_history: 'SELECT',
   entry_submissions: 'SELECT',
   exhibitor_profiles: 'SELECT,INSERT,UPDATE,DELETE',

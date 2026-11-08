@@ -34,6 +34,7 @@ import type { RemoveFromClassKind, WithdrawalReasonCode } from '@/features/regis
 import { saveEntryEdits } from './saveEntryEdits';
 import { logger } from '@/services/LoggingService';
 import { useEditingPresence } from '@/features/show-presence/useEditingPresence';
+import { EntryScoreHistory } from './EntryScoreHistory';
 import { EntryStatusHistory } from './EntryStatusHistory';
 
 interface EntryData {
@@ -408,6 +409,7 @@ export function EntryEditDialog({
                   currentStatus={entry.currentStatus}
                   createdAt={entry.createdAt}
                 />
+                <EntryScoreHistory entryId={entry.id} />
               </div>
             )}
           </SheetBody>

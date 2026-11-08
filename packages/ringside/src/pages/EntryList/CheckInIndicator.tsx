@@ -1,9 +1,10 @@
 /**
- * CheckInIndicator — the entry list's check-in status as an icon (MYK9-1086).
+ * CheckInIndicator — the entry list's check-in status, icon and word (MYK9-1086).
  *
- * The two common states (checked in, not checked in) show the icon alone; the
- * rarer ones pair it with a word, because no icon says "at the gate" by itself.
- * The icon always carries the full label for screen readers.
+ * INTENT: every status shows its word, including the two common ones. The icon
+ * alone read as a label, not a control, so stewards tapped the dog's name
+ * instead and opened the scoresheet (MYK9-1763). The control itself is the
+ * StatusBadge button around this indicator.
  *
  * Interim: this map is local to the entry list. The plan moves these glyphs
  * into the shared `@myk9/ui` StatusIcon set so the check-in dialog and every
@@ -28,7 +29,6 @@ interface CheckInPresentation {
   Icon: LucideIcon;
   label: string;
   colorClass: string;
-  showWord: boolean;
 }
 
 const PRESENTATION: Record<string, CheckInPresentation> = {
@@ -36,30 +36,26 @@ const PRESENTATION: Record<string, CheckInPresentation> = {
     Icon: CircleDashed,
     label: 'Not checked in',
     colorClass: 'text-muted-foreground',
-    showWord: false,
   },
   'checked-in': {
     Icon: CircleCheck,
     label: 'Checked in',
     colorClass: 'text-success',
-    showWord: false,
   },
-  'at-gate': { Icon: Fence, label: 'At gate', colorClass: 'text-warning', showWord: true },
+  'at-gate': { Icon: Fence, label: 'At gate', colorClass: 'text-warning' },
   'come-to-gate': {
     Icon: BellRing,
     label: 'Come to gate',
     colorClass: 'text-warning',
-    showWord: true,
   },
   conflict: {
     Icon: TriangleAlert,
     label: 'Conflict',
     colorClass: 'text-destructive',
-    showWord: true,
   },
-  pulled: { Icon: Ban, label: 'Pulled', colorClass: 'text-muted-foreground', showWord: true },
-  'in-ring': { Icon: Target, label: 'In ring', colorClass: 'text-info', showWord: true },
-  completed: { Icon: Flag, label: 'Completed', colorClass: 'text-success', showWord: true },
+  pulled: { Icon: Ban, label: 'Pulled', colorClass: 'text-muted-foreground' },
+  'in-ring': { Icon: Target, label: 'In ring', colorClass: 'text-info' },
+  completed: { Icon: Flag, label: 'Completed', colorClass: 'text-success' },
 };
 
 export function getCheckInPresentation(status: string | null | undefined): CheckInPresentation {
@@ -70,7 +66,6 @@ export function getCheckInPresentation(status: string | null | undefined): Check
     Icon: CircleDashed,
     label: getStatusDescriptor('entry', status).label,
     colorClass: 'text-muted-foreground',
-    showWord: true,
   };
 }
 
@@ -80,19 +75,17 @@ export const CheckInIndicator: React.FC<{
   inverse?: boolean | undefined;
 }> = ({ status, inverse = false }) => {
   const presentation = getCheckInPresentation(status);
-  const { Icon, label, showWord } = presentation;
+  const { Icon, label } = presentation;
   const colorClass = inverse ? 'text-primary-foreground' : presentation.colorClass;
   return (
     <span
-      className={cn('inline-flex items-center gap-1.5', colorClass)}
+      className={cn('inline-flex min-w-0 items-center gap-1', colorClass)}
       data-testid="check-in-indicator"
     >
-      <Icon size={26} strokeWidth={2.2} aria-hidden="true" />
-      {showWord ? (
-        <span className="whitespace-nowrap text-sm font-semibold">{label}</span>
-      ) : (
-        <span className="sr-only">{label}</span>
-      )}
+      <Icon size={16} strokeWidth={2.4} aria-hidden="true" className="shrink-0" />
+      {/* One line: when the button does not fit beside the name, DogCard wraps it onto its
+          own line rather than break the word (MYK9-1763). */}
+      <span className="whitespace-nowrap text-sm font-semibold">{label}</span>
     </span>
   );
 };

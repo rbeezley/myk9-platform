@@ -11,7 +11,7 @@ import type { Entry } from '../../stores/entryStore';
 import type { DogCardProps } from './pageProps';
 import { getRibbonColor, NEUTRAL_RIBBON } from './ribbonColors';
 import { CompletedResult } from './CompletedResult';
-import { getCheckInPresentation } from './CheckInIndicator';
+import { CheckInIndicator, getCheckInPresentation } from './CheckInIndicator';
 import { EntryListContent } from './components/EntryListContent';
 
 const entry = (overrides: Partial<Entry> = {}): Entry =>
@@ -174,11 +174,15 @@ describe('getCheckInPresentation', () => {
     }
   });
 
-  it('shows no word for the two common states and a word for the rest', () => {
-    expect(getCheckInPresentation('checked-in').showWord).toBe(false);
-    expect(getCheckInPresentation('no-status').showWord).toBe(false);
-    expect(getCheckInPresentation('at-gate').showWord).toBe(true);
-    expect(getCheckInPresentation('conflict').showWord).toBe(true);
+  // MYK9-1763: the icon alone read as a label, so the word is visible for
+  // every status, the common two included (not just a screen-reader label).
+  it('shows the status word on screen for every status', () => {
+    for (const status of [...CHECKIN_STATUSES, 'something-new']) {
+      const { unmount } = render(<CheckInIndicator status={status} />);
+      const word = screen.getByText(getCheckInPresentation(status).label);
+      expect(word.className).not.toContain('sr-only');
+      unmount();
+    }
   });
 
   it('never crashes on an unknown status', () => {

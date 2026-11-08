@@ -6,6 +6,7 @@
  */
 
 import React from 'react';
+import { ChevronDown } from 'lucide-react';
 import { cn } from '@myk9/ui';
 import type { Entry } from '../../stores/entryStore';
 import { formatDogsAheadInList, type DogsAheadResult } from './dogsAheadInList';
@@ -67,11 +68,15 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
       className={cn(
         // min-h-11 = 44px INTENT touch-target floor — stewards tap this
         // outdoors, often gloved; do not shrink it back for visual density.
-        'relative inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg px-1.5 transition',
+        // INTENT: drawn as a button at rest (border, fill, chevron), not only on
+        // hover, which a phone never shows. Tapping the rest of the card opens
+        // the scoresheet, so this must read as its own control (MYK9-1763).
+        'relative inline-flex min-h-11 min-w-11 max-w-full items-center justify-center gap-0.5 rounded-lg border border-solid px-1 py-1 shadow-sm transition',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        inverse ? 'border-white/60 bg-white/15' : 'border-border bg-background',
         isDisabled
           ? 'cursor-not-allowed opacity-60'
-          : 'cursor-pointer hover:bg-muted active:scale-95',
+          : cn('cursor-pointer active:scale-95', inverse ? 'hover:bg-white/25' : 'hover:bg-muted'),
         pulseClass
       )}
       data-testid="check-in-button"
@@ -81,6 +86,11 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
       title={isDisabled ? 'Self check-in disabled' : 'Change check-in'}
     >
       <CheckInIndicator status={displayStatus} inverse={inverse} />
+      <ChevronDown
+        size={14}
+        aria-hidden="true"
+        className={cn('shrink-0', inverse ? 'text-primary-foreground' : 'text-muted-foreground')}
+      />
     </button>
   );
 };

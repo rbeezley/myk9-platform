@@ -74,7 +74,9 @@ export const DogCard = React.memo<DogCardProps>(
         onTouchStart={onPrefetch}
         data-testid="dog-card"
       >
-        <div className="relative flex items-center gap-3">
+        {/* flex-wrap: when the trailing column (the check-in button, MYK9-1763) does not fit
+            beside a min-w-28 name, it drops to its own line instead of squeezing the name. */}
+        <div className="relative flex flex-wrap items-center gap-3">
           {dragHandle && (
             <div className="-ml-1 flex shrink-0 cursor-grab touch-none items-center justify-center self-center rounded-sm p-0.5 text-muted-foreground active:cursor-grabbing active:text-primary">
               {dragHandle}
@@ -110,10 +112,10 @@ export const DogCard = React.memo<DogCardProps>(
             </div>
           </div>
 
-          <div className={cn('min-w-0 flex-1', favoriteButton && !trailing ? 'pr-12' : 'pr-2')}>
+          <div className={cn('min-w-28 flex-1', favoriteButton && !trailing ? 'pr-12' : 'pr-2')}>
             <h3
               className={cn(
-                'mb-1 flex flex-wrap items-center gap-2 font-[590] leading-snug tracking-tight',
+                'mb-1 flex flex-wrap items-center gap-2 font-[590] leading-snug tracking-tight [overflow-wrap:anywhere]',
                 isHero ? 'text-lg text-primary-foreground' : 'text-base text-foreground'
               )}
             >
@@ -143,7 +145,7 @@ export const DogCard = React.memo<DogCardProps>(
           </div>
 
           {trailing && (
-            <div className="flex min-w-0 max-w-[45%] shrink-0 flex-col items-end gap-1 self-center">
+            <div className="ml-auto flex min-w-0 max-w-full shrink-0 flex-col items-end gap-1 self-center">
               {trailing}
               {/* With a trailing column the heart joins it, so it never sits on top of the check-in icon. */}
               {favoriteButton}

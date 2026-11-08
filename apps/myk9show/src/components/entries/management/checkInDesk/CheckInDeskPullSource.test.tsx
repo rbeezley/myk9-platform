@@ -12,10 +12,7 @@ import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { CheckInStatus } from '@myk9/core';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { rowToEntry, type EntryRow } from '@/services/replication/ReplicatedEntriesTable.mapper';
-import { toSecretaryEntry } from '@/services/database/entries/secretaryReadReplication';
-import { mapSecretaryEntryToEntryManagementEntry } from '@/hooks/useEntryManagementData';
-import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
-import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
+import { projectReplicatedToDeskEntry } from './pullSourceTestUtils';
 import { CheckInDesk } from './CheckInDesk';
 
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
@@ -134,31 +131,8 @@ function viewRow(checkInStatus: CheckInStatus, source: string | null): EntryRow 
   } as unknown as EntryRow;
 }
 
-/** The real hops from a replicated row to the desk's entry: mapper, desk read model, hook map. */
 function projectToDeskEntry(row: EntryRow): EntryManagementEntry {
-  const secretary = toSecretaryEntry(rowToEntry(row), {
-    dogsMap: new Map([
-      ['dog-1', { id: 'dog-1', name: 'Poppy', ownerId: 'person-1' } as unknown as ReplicatedDog],
-    ]),
-    classesMap: new Map([
-      [
-        'class-1',
-        {
-          id: 'class-1',
-          name: 'Container Novice A',
-          element: 'Container',
-          level: 'Novice',
-        } as unknown as ReplicatedClass,
-      ],
-    ]),
-    armbandsByEntryId: new Map(),
-    armbandsByDogId: new Map(),
-    peopleMap: new Map(),
-    enrollmentsMap: new Map(),
-    trialsMap: new Map(),
-    pullMetadataMap: new Map(),
-  });
-  return mapSecretaryEntryToEntryManagementEntry(secretary);
+  return projectReplicatedToDeskEntry(rowToEntry(row));
 }
 
 describe('the source rides the replicated row to the desk', () => {

@@ -54,8 +54,8 @@ export interface ReplicatedEntry {
    * row. View-only: never projected back in `entryToSupabaseRow`. Absent on rows cached before
    * migration 20261108033700, which reads as unknown.
    */
-  checkInPulledBy?: string | undefined;
-  check_in_pulled_by?: string | undefined;
+  checkInPulledBy?: string | null | undefined;
+  check_in_pulled_by?: string | null | undefined;
 
   jumpHeight?: string | undefined;
   entryFee?: number | undefined;

@@ -85,10 +85,12 @@ grant select, insert, update on myk9_1754 to authenticated;
 insert into myk9_1754 (step, value)
 select 'base_version', version::text
   from public.entries where id = '00000000-0000-0000-0000-000001754033';
+-- The whole pre-write row, so `old` is compared with what the row really held
+-- (column defaults such as search_time_seconds = 0 and result_status = 'pending'
+-- are not nulls), never with hard-coded values.
 insert into myk9_1754 (step, value)
-select 'base_result_status', result_status
-  from public.entries where id = '00000000-0000-0000-0000-000001754033'
-   and result_status is not null;
+select 'base_row', to_jsonb(e)::text
+  from public.entries e where e.id = '00000000-0000-0000-0000-000001754033';
 
 create or replace function pg_temp.as_account(p_uid uuid) returns void language sql as $$
   select set_config('request.jwt.claim.sub', p_uid::text, true),
@@ -126,7 +128,8 @@ begin
     public.ringside_update_entry(
       '00000000-0000-0000-0000-000001754033',
       jsonb_build_object('is_scored', true, 'result_status', 'nq',
-                         'search_time_seconds', 42, 'disqualification_reason', 'Incorrect Call'),
+                         'search_time_seconds', 42, 'disqualification_reason', 'Incorrect Call',
+                         'scoring_completed_at', '2026-11-07T15:42:00Z'),
       v_base,
       '2026-11-07T15:42:00Z')::text);
 end;
@@ -137,6 +140,7 @@ do $$
 declare
   r public.entry_score_audit%rowtype;
   v_version integer;
+  v_key text;
 begin
   select value::integer into strict v_version from myk9_1754 where step = 'a_version';
 
@@ -187,20 +191,21 @@ begin
   end if;
   raise notice 'PASS a manager write leaves one row naming tier, person, diff, device time, version';
 
-  -- A versioned write's `old` values are the row's values before the write
-  -- (the fixture entry starts unscored with no result and no search time).
-  if r.changes -> 'is_scored' ->> 'old' is distinct from 'false'
-     and r.changes -> 'is_scored' ->> 'old' is not null then
-    raise exception 'FAIL is_scored old %', r.changes -> 'is_scored' ->> 'old';
-  end if;
-  if r.changes -> 'search_time_seconds' ->> 'old' is not null
-     or r.changes -> 'result_status' ->> 'old' is not distinct from 'nq' then
-    raise exception 'FAIL old values are not the pre-write values: %', r.changes;
-  end if;
-  if r.changes -> 'result_status' ->> 'old'
-     is distinct from (select value from myk9_1754 where step = 'base_result_status') then
-    raise exception 'FAIL result_status old % differs from the pre-write row value',
-      r.changes -> 'result_status' ->> 'old';
+  -- A versioned write's `old` values are the row's values before the write.
+  -- Every key in the diff is compared with the captured pre-write row.
+  for v_key in select jsonb_object_keys(r.changes) loop
+    if (r.changes -> v_key -> 'old')
+       is distinct from ((select value::jsonb from myk9_1754 where step = 'base_row') -> v_key) then
+      raise exception 'FAIL % old % differs from the pre-write row value %',
+        v_key, r.changes -> v_key -> 'old',
+        (select value::jsonb from myk9_1754 where step = 'base_row') -> v_key;
+    end if;
+  end loop;
+  -- Positive control: the diff really holds the four keys that differ from the
+  -- column defaults, so the loop above compared something.
+  if not (r.changes ?& array['is_scored', 'result_status', 'search_time_seconds',
+                             'disqualification_reason']) then
+    raise exception 'FAIL expected diff keys missing: %', r.changes;
   end if;
 
   -- Unchanged keys are not in the diff: re-sending the same value is not a change.
@@ -228,7 +233,8 @@ begin
     public.ringside_update_entry(
       '00000000-0000-0000-0000-000001754033',
       jsonb_build_object('is_scored', true, 'result_status', 'nq',
-                         'search_time_seconds', 42, 'disqualification_reason', 'Incorrect Call'),
+                         'search_time_seconds', 42, 'disqualification_reason', 'Incorrect Call',
+                         'scoring_completed_at', '2026-11-07T15:42:00Z'),
       v_base,
       '2026-11-07T15:43:00Z')::text);
 

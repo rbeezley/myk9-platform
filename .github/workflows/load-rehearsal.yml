@@ -127,7 +127,7 @@ jobs:
           can_score="$(psql \
             "postgresql://postgres.${LOAD_TEST_PROJECT_REF}@${LOAD_TEST_DB_HOST}:${LOAD_TEST_ADMIN_DB_PORT}/postgres" \
             -X -v ON_ERROR_STOP=1 -At \
-            -c "SELECT has_function_privilege('authenticated', 'public.ringside_update_entry(uuid,jsonb,integer)', 'EXECUTE');")"
+            -c "SELECT has_function_privilege('authenticated', 'public.ringside_update_entry(uuid,jsonb,integer,timestamptz)', 'EXECUTE');")"
           [[ "$can_score" == "t" ]] || {
             echo "Ringside scoring is disabled; restore the authenticated RPC grant through a separately approved operator action before rehearsal." >&2
             exit 1

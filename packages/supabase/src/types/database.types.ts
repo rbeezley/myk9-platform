@@ -13392,6 +13392,7 @@ export type Database = {
         Args: { p_class_id: string }
         Returns: number
       }
+      clear_flagged_pull: { Args: { p_entry_id: string }; Returns: string }
       clear_my_sms_consent: {
         Args: {
           p_expected_opt_in_at: string

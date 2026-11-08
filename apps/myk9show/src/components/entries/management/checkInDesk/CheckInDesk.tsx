@@ -222,6 +222,8 @@ export function CheckInDesk({
                         : void setStatus(`${row.dogName}, ${row.className}`, [row.entryId], status)
                     }
                     onUnpull={pull.requestUnpull}
+                    clearingId={pull.clearingId}
+                    onClearFlag={row => void pull.clearFlag(row)}
                   />
                 ))}
               </section>

@@ -10,8 +10,9 @@ import {
   undoShowMapScratch,
 } from '@/features/show-map/showMapActionMutations';
 import { getEntryStatusHistory } from '@/services/database/entries/statusHistory';
+import { clearFlaggedPull } from '@/services/database/entries/flaggedPull';
 import type { PeopleRosterClassRow } from './peopleRoster';
-import { ACCEPTED_DB_STATUS, statusBeforeLatestPull } from './deskStatus';
+import { ACCEPTED_DB_STATUS, deskStatusLabel, statusBeforeLatestPull } from './deskStatus';
 
 /**
  * Pulled on the Check-in desk is the real Pull (owner, MYK9-1749): the entry is stored as pulled
@@ -30,6 +31,7 @@ export function useDeskPull(
   const { user } = useAuthContext();
   const [pending, setPending] = useState<{ id: string; act: 'pull' | 'unpull' } | null>(null);
   const [isWorking, setIsWorking] = useState(false);
+  const [clearingId, setClearingId] = useState<string | null>(null);
   const live = pending ? findRow(pending.id) : undefined;
   const pullRow = pending?.act === 'pull' && live?.deskStatusEditable ? live : undefined;
   const unpullRow = pending?.act === 'unpull' && live?.deskCanUnpull ? live : undefined;
@@ -102,10 +104,28 @@ export function useDeskPull(
     }
   };
 
+  // MYK9-1753: Clear a flagged pull. The database restores the check-in the flag overwrote (only it
+  // remembers it); a flag set by mistake costs nothing to clear, so it does not ask first.
+  const clearFlag = async (row: PeopleRosterClassRow) => {
+    if (clearingId) return;
+    setClearingId(row.entryId);
+    try {
+      const restored = await clearFlaggedPull(row.entryId);
+      await refresh();
+      toast.success(`${row.dogName}, ${row.className}: ${deskStatusLabel(restored)}`);
+    } catch (error) {
+      toast.error(getUserFriendlyError(error));
+    } finally {
+      setClearingId(null);
+    }
+  };
+
   return {
     pullRow,
     unpullRow,
     isWorking,
+    clearingId,
+    clearFlag,
     requestPull: (row: PeopleRosterClassRow) => setPending({ id: row.entryId, act: 'pull' }),
     requestUnpull: (row: PeopleRosterClassRow) => setPending({ id: row.entryId, act: 'unpull' }),
     cancel: () => setPending(null),

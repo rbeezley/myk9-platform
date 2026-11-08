@@ -7,6 +7,7 @@ import { StatusPickerDialog } from '@/components/common/StatusPickerDialog';
 import { StatusBadge } from '@/components/status';
 import { formatStartTime } from '@/components/schedule/schedule-timeline.utils';
 import type { CheckInDeskDog } from './checkInDeskModel';
+import { isFlaggedPull } from './deskStatus';
 import {
   DESK_CHECK_IN_STATUSES,
   DESK_STATUS_LABELS,
@@ -23,6 +24,10 @@ interface CheckInDeskDogCardProps {
   onSetStatus: (row: PeopleRosterClassRow, status: CheckInStatus) => void;
   /** Put back a pulled class (MYK9-1749); asks first. */
   onUnpull: (row: PeopleRosterClassRow) => void;
+  /** The flagged pull being cleared, if any. */
+  clearingId: string | null;
+  /** Clear a flagged pull back to the check-in it overwrote (MYK9-1753). */
+  onClearFlag: (row: PeopleRosterClassRow) => void;
 }
 
 /** A dog checked in, at the gate or called to it has arrived; Conflict and Pulled have not. */
@@ -51,6 +56,8 @@ export function CheckInDeskDogCard({
   onCheckIn,
   onSetStatus,
   onUnpull,
+  clearingId,
+  onClearFlag,
 }: CheckInDeskDogCardProps) {
   const [pickerId, setPickerId] = useState<string | null>(null);
   // The class as it is now, not as it was when the picker opened: if ringside has moved it on,
@@ -123,6 +130,34 @@ export function CheckInDeskDogCard({
                 </button>
               ) : (
                 badge
+              )}
+              {isFlaggedPull(row) && (
+                <div className="flex basis-full flex-wrap items-center gap-2 pb-1">
+                  <span className="min-w-0 flex-1 basis-48 text-xs text-muted-foreground">
+                    Flagged as pulled. Confirm it to pull the entry, or clear it.
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="min-h-11"
+                    disabled={busyIds.has(row.entryId) || clearingId !== null}
+                    aria-label={`Clear the pull flag for ${dog.dogName}, ${row.className}`}
+                    onClick={() => onClearFlag(row)}
+                  >
+                    {clearingId === row.entryId ? 'Clearing...' : 'Clear'}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="min-h-11"
+                    disabled={busyIds.has(row.entryId) || clearingId !== null}
+                    aria-label={`Confirm the pull for ${dog.dogName}, ${row.className}`}
+                    onClick={() => onSetStatus(row, 'pulled')}
+                  >
+                    Confirm Pull
+                  </Button>
+                </div>
               )}
             </li>
           );

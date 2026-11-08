@@ -1,45 +1,67 @@
 import type { AskQGuideAsset } from './documentContext.ts';
+import { applyActiveRoleValidity, isCurrentRole } from '../roleValidity.ts';
 import type { AskQQuestionMode } from './types.ts';
 
 // MYK9-1775: the secretary and club-admin guides document management actions
 // (Remove entry, refunds, approvals) that an exhibitor must never be offered as
-// their own. Callers without a show-management role get the other guides only.
+// their own. Callers without a staff role get the exhibitor and judge/steward guides only.
 export const MANAGEMENT_GUIDE_IDS: ReadonlySet<string> = new Set([
   'secretary-guide',
   'club-admin-guide',
 ]);
 
-export interface RoleScopedGuideClient {
-  rpc(
-    name: 'is_show_manager' | 'is_show_secretary',
-    args?: { check_show_id: string }
-  ): PromiseLike<{ data: unknown; error: { message: string } | null }>;
+// Owner decision (2026-11-08): any active staff role at any scope (global,
+// club-scoped or show-scoped) sees every guide. Per-show RPCs missed show-scoped
+// secretaries, so this reads the caller's own role rows instead.
+export const STAFF_GUIDE_ROLES: ReadonlySet<string> = new Set([
+  'secretary',
+  'club_admin',
+  'steward',
+  'judge',
+  'site_admin',
+]);
+
+export interface StaffRoleRow {
+  is_active?: boolean | null;
+  expires_at?: string | null;
+  role?: { name?: unknown } | null;
+}
+
+/** Pure check over role rows; expired or inactive rows never count. */
+export function rolesGrantAllGuides(rows: unknown, now = new Date()): boolean {
+  if (!Array.isArray(rows)) return false;
+  return (rows as StaffRoleRow[]).some(
+    row =>
+      !!row &&
+      isCurrentRole({ is_active: row.is_active, expires_at: row.expires_at }, now) &&
+      typeof row.role?.name === 'string' &&
+      STAFF_GUIDE_ROLES.has(row.role.name)
+  );
 }
 
 /**
- * Runs as the caller (user-JWT client). `is_show_manager()` is true for site
- * admins and for club-scoped secretaries and club admins (the helper the
- * dogs/people RLS uses). A secretary appointed to a single show has a
- * show-scoped role row that `is_show_manager()` does not see, so when a
- * verified show is open `is_show_secretary(show)` is asked too. Fails closed:
- * an error or any non-true answer is "not a manager".
+ * Reads the caller's own active, unexpired `user_roles` rows. Fails closed: an
+ * error or an unexpected shape is "not staff", so the management guides stay out.
  */
-export async function callerIsShowManager(
-  client: RoleScopedGuideClient,
-  verifiedShowId?: string | null
+export async function callerHoldsStaffRole(
+  client: { from(table: 'user_roles'): { select(columns: string): unknown } },
+  authUserId: string
 ): Promise<boolean> {
-  const manager = await client.rpc('is_show_manager');
-  if (!manager.error && manager.data === true) return true;
-  if (!verifiedShowId) return false;
-  const secretary = await client.rpc('is_show_secretary', { check_show_id: verifiedShowId });
-  return !secretary.error && secretary.data === true;
+  const query = client.from('user_roles').select('is_active, expires_at, role:roles(name)') as {
+    eq(c: string, v: unknown): unknown;
+  };
+  const { data, error } = (await applyActiveRoleValidity(
+    query.eq('auth_user_id', authUserId) as never
+  )) as { data: unknown; error: { message: string } | null };
+  if (error) return false;
+  return rolesGrantAllGuides(data);
 }
 
 export function scopeGuidesToRole(
   guides: AskQGuideAsset[],
-  isShowManager: boolean
+  hasStaffRole: boolean
 ): AskQGuideAsset[] {
-  if (isShowManager) return guides;
+  if (hasStaffRole) return guides;
   return guides.filter(guide => !MANAGEMENT_GUIDE_IDS.has(guide.id));
 }
 
@@ -47,8 +69,8 @@ export function scopeGuidesToRole(
 export function getDocumentGuides(
   allGuides: AskQGuideAsset[],
   questionMode: AskQQuestionMode | null,
-  isShowManager: boolean
+  hasStaffRole: boolean
 ): AskQGuideAsset[] {
   if (questionMode === 'rules' || questionMode === 'show-data') return [];
-  return scopeGuidesToRole(allGuides, isShowManager);
+  return scopeGuidesToRole(allGuides, hasStaffRole);
 }

@@ -13,7 +13,11 @@ import { collectSource } from '../_shared/askq/responseFormatter.ts';
 import { callClaude } from '../_shared/askq/promptBuilder.ts';
 import { ASKQ_GUIDES, ASKQ_RULEBOOKS } from '../_shared/askq/documentAssets.ts';
 import { type AskQRulebookAsset, selectRulebook } from '../_shared/askq/documentContext.ts';
-import { parseAskQRouting, resolveRulebookContext } from '../_shared/askq/requestRouting.ts';
+import {
+  parseAskQRouting,
+  resolveQuestionModeForShow,
+  resolveRulebookContext,
+} from '../_shared/askq/requestRouting.ts';
 import {
   getSupportEscalationForQuestion,
   isSupportModeEnabled,
@@ -24,7 +28,7 @@ import { reserveAskQQuery } from '../_shared/askq/askqRateLimit.ts';
 import { classifyAskQFailure } from '../_shared/askq/askqFailure.ts';
 import { describeShowRegistries } from '../_shared/askq/showRegistries.ts';
 import { callerHasShowAccess } from '../_shared/askq/showAccess.ts';
-import { callerIsShowManager } from '../_shared/askq/guideScope.ts';
+import { callerHoldsStaffRole } from '../_shared/askq/guideScope.ts';
 import { buildAskQSystemPrompt } from '../_shared/askq/systemPrompt.ts';
 
 const CORS_HEADERS = {
@@ -124,8 +128,8 @@ Deno.serve(async (req: Request) => {
     if (!routing.ok) {
       return jsonResponse({ error: routing.error }, 400);
     }
-    const questionMode = routing.questionMode;
-    const effectiveSupportMode = supportMode || questionMode === 'app-help';
+    const requestedMode = routing.questionMode;
+    const effectiveSupportMode = supportMode || requestedMode === 'app-help';
     if (!message?.trim()) {
       return jsonResponse({ error: 'Message is required' }, 400);
     }
@@ -240,6 +244,9 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    // The panel shows "This show" by default and sends no mode until the tab changes.
+    const questionMode = resolveQuestionModeForShow(requestedMode, verifiedShowId !== null);
+
     const userContext: UserContext = {
       userId: user.id,
       displayName,
@@ -278,12 +285,12 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const isShowManager = await callerIsShowManager(supabaseClient, verifiedShowId);
+    const hasStaffRole = await callerHoldsStaffRole(serviceClient, user.id);
     const { systemPrompt, guides: documentGuides } = buildAskQSystemPrompt({
       userContext,
       questionMode,
       effectiveSupportMode,
-      isShowManager,
+      hasStaffRole,
       allGuides: ASKQ_GUIDES,
       rulebooks: getDocumentRulebooks(questionMode, rulebookResolution.rulebooks),
     });

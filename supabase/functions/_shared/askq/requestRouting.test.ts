@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { buildModePrompt, parseAskQRouting, resolveRulebookContext } from './requestRouting.ts';
+import {
+  buildModePrompt,
+  parseAskQRouting,
+  resolveQuestionModeForShow,
+  resolveRulebookContext,
+} from './requestRouting.ts';
+import { buildGroundingPrompt } from './groundingRules.ts';
 import type { AskQRulebookAsset } from './documentContext.ts';
 
 const rulebooks: AskQRulebookAsset[] = [
@@ -134,5 +140,20 @@ describe('AskQ request routing', () => {
     expect(buildModePrompt('rules')).toContain('Answer only from selected_rulebook');
     expect(buildModePrompt('show-data')).toContain('Use live show-data tools');
     expect(buildModePrompt('app-help')).toContain('Answer only from verified_user_guides');
+  });
+});
+
+describe('default mode with a verified show', () => {
+  it('treats an absent questionMode plus a verified show as This show and applies its grounding rules', () => {
+    const routing = parseAskQRouting(undefined, undefined, false);
+    if (!routing.ok) throw new Error('routing failed');
+    const mode = resolveQuestionModeForShow(routing.questionMode, true);
+    expect(mode).toBe('show-data');
+    expect(buildGroundingPrompt(mode, false)).toContain('GROUNDING RULES (this show)');
+  });
+  it('leaves absent mode alone without a verified show, and never overrides an explicit mode', () => {
+    expect(resolveQuestionModeForShow(null, false)).toBeNull();
+    expect(resolveQuestionModeForShow('rules', true)).toBe('rules');
+    expect(resolveQuestionModeForShow('app-help', true)).toBe('app-help');
   });
 });

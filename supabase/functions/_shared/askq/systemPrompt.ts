@@ -14,7 +14,7 @@ export interface AskQSystemPromptInput {
   userContext: UserContext;
   questionMode: AskQQuestionMode | null;
   effectiveSupportMode: boolean;
-  isShowManager: boolean;
+  hasStaffRole: boolean;
   allGuides: AskQGuideAsset[];
   rulebooks: AskQRulebookAsset[];
 }
@@ -24,7 +24,7 @@ export function buildAskQSystemPrompt(input: AskQSystemPromptInput): {
   systemPrompt: string;
   guides: AskQGuideAsset[];
 } {
-  const guides = getDocumentGuides(input.allGuides, input.questionMode, input.isShowManager);
+  const guides = getDocumentGuides(input.allGuides, input.questionMode, input.hasStaffRole);
   const documentContext = buildDocumentContext({ guides, rulebooks: input.rulebooks });
   const base = `${buildMyK9ShowPrompt(input.userContext, documentContext)}${buildModePrompt(input.questionMode)}${buildGroundingPrompt(input.questionMode, input.effectiveSupportMode)}`;
   const systemPrompt = input.effectiveSupportMode ? buildSupportModePrompt(base, guides) : base;

@@ -3,7 +3,7 @@
 // context the model would see, and on the quote verifier for a stubbed answer.
 import { describe, expect, it } from 'vitest';
 import { ASKQ_GUIDES } from './documentAssets.ts';
-import { callerIsShowManager, getDocumentGuides } from './guideScope.ts';
+import { callerHoldsStaffRole, getDocumentGuides } from './guideScope.ts';
 import { buildAskQSystemPrompt } from './systemPrompt.ts';
 import { parseSupportAnswer } from './supportMode.ts';
 import { getSupportEscalationForQuestion } from './supportMode.ts';
@@ -22,12 +22,12 @@ const userContext: UserContext = {
   showRegistries: [],
 };
 
-const assemble = (questionMode: AskQQuestionMode, isShowManager: boolean) =>
+const assemble = (questionMode: AskQQuestionMode, hasStaffRole: boolean) =>
   buildAskQSystemPrompt({
     userContext,
     questionMode,
     effectiveSupportMode: questionMode === 'app-help',
-    isShowManager,
+    hasStaffRole,
     allGuides: ASKQ_GUIDES,
     rulebooks: [],
   });
@@ -123,33 +123,50 @@ describe('role scoping', () => {
       'judge-steward-quickstart',
     ]);
   });
+});
 
-  it('fails closed when the role check errors or answers anything but true', async () => {
-    const reply = (data: unknown, error: { message: string } | null) => ({
-      rpc: async () => ({ data, error }),
-    });
-    expect(await callerIsShowManager(reply(true, null))).toBe(true);
-    expect(await callerIsShowManager(reply(true, { message: 'boom' }))).toBe(false);
-    expect(await callerIsShowManager(reply(null, null))).toBe(false);
-    expect(await callerIsShowManager(reply('true', null))).toBe(false);
+// Real role-shaped rows, as `select('is_active, expires_at, role:roles(name)')` returns them.
+const roleRow = (name: string, over: Record<string, unknown> = {}) => ({
+  is_active: true,
+  expires_at: null,
+  role: { name },
+  ...over,
+});
+const clientReturning = (data: unknown, error: { message: string } | null = null) => {
+  const query: Record<string, unknown> = {};
+  for (const method of ['select', 'eq', 'or']) query[method] = () => query;
+  query.then = (resolve: (value: unknown) => unknown) => resolve({ data, error });
+  return { from: () => query } as never;
+};
+const guideIdsFor = async (rows: unknown, error: { message: string } | null = null) =>
+  getDocumentGuides(
+    ASKQ_GUIDES,
+    'app-help',
+    await callerHoldsStaffRole(clientReturning(rows, error), 'user-1')
+  ).map(guide => guide.id);
+const ALL_IDS = ASKQ_GUIDES.map(guide => guide.id);
+const PUBLIC_IDS = ['exhibitor-guide', 'judge-steward-quickstart'];
+
+describe('guide scope from the caller roles (any staff role anywhere)', () => {
+  it('gives a show-scoped secretary every guide', async () => {
+    expect(await guideIdsFor([roleRow('secretary', { show_id: 'show-1' })])).toEqual(ALL_IDS);
   });
-
-  it('recognizes a secretary appointed to one show, who is not a club-scoped manager', async () => {
-    const SHOW = '11111111-1111-4111-8111-111111111111';
-    const asked: string[] = [];
-    const showScopedSecretary = {
-      rpc: async (
-        name: 'is_show_manager' | 'is_show_secretary',
-        args?: { check_show_id: string }
-      ) => {
-        asked.push(name);
-        if (name === 'is_show_manager') return { data: false, error: null };
-        return { data: args?.check_show_id === SHOW, error: null };
-      },
-    };
-    expect(await callerIsShowManager(showScopedSecretary, SHOW)).toBe(true);
-    expect(asked).toEqual(['is_show_manager', 'is_show_secretary']);
-    expect(await callerIsShowManager(showScopedSecretary, null)).toBe(false);
-    expect(await callerIsShowManager(showScopedSecretary, 'other-show')).toBe(false);
+  it('gives a club-scoped secretary every guide', async () => {
+    expect(await guideIdsFor([roleRow('secretary', { club_id: 'club-1' })])).toEqual(ALL_IDS);
+  });
+  it('gives a judge every guide', async () => {
+    expect(await guideIdsFor([roleRow('judge')])).toEqual(ALL_IDS);
+  });
+  it('gives exhibitor and judge guides only to an expired secretary', async () => {
+    const past = new Date(Date.now() - 86_400_000).toISOString();
+    expect(await guideIdsFor([roleRow('secretary', { expires_at: past })])).toEqual(PUBLIC_IDS);
+    expect(await guideIdsFor([roleRow('secretary', { is_active: false })])).toEqual(PUBLIC_IDS);
+  });
+  it('gives exhibitor and judge guides only to an exhibitor-only user', async () => {
+    expect(await guideIdsFor([roleRow('exhibitor')])).toEqual(PUBLIC_IDS);
+    expect(await guideIdsFor([])).toEqual(PUBLIC_IDS);
+  });
+  it('fails closed when the roles read errors', async () => {
+    expect(await guideIdsFor(null, { message: 'boom' })).toEqual(PUBLIC_IDS);
   });
 });

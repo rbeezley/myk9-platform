@@ -1,21 +1,26 @@
 /**
- * Print stylesheet for the judge setup cheat sheet (MYK9-1078).
+ * Print stylesheet for the judge setup cheat sheet (MYK9-1078, MYK9-1772).
  *
  * The page is sized in physical units, never by viewport: the 2026-10-09 prototype printed
- * on a 16:9 page and cut off columns. US Letter landscape is 11in x 8.5in; with the 0.25in
- * @page margin the printable box is 10.5in x 8in, so each sheet page is 7.9in tall to leave a
- * small cushion and never spill a blank sheet. Table text is 11pt and notes 10pt; nothing is
- * below 10pt. This <style> is embedded after the shared report styles, so its @page wins.
+ * on a 16:9 page and cut off columns. US Letter landscape is 11in x 8.5in. The 0.25in margin
+ * lives in the content, not in @page: Chrome's "Margins: None" (remembered from printing
+ * labels) discards an @page margin and the header printed inside the printer's unprintable
+ * area. So @page margin is 0 and each sheet is a fixed 11in x 8.45in box with 0.25in padding
+ * (0.15in at the bottom, where the AKC page needs the room), identical under Default and
+ * None. The box is 0.05in short of the paper as a cushion so rounding never spills a blank
+ * sheet. Table text is 11pt and notes 10pt; nothing is below
+ * 10pt. This <style> is embedded after the shared report styles, so its @page wins.
  */
 export const SETUP_SHEET_STYLES = `
-@page { size: 11in 8.5in; margin: 0.25in; }
+@page { size: 11in 8.5in; margin: 0; }
 
 .setup-sheet { font-family: Arial, Helvetica, sans-serif; color: #000; background: #fff; }
 .setup-sheet *, .setup-sheet *::before, .setup-sheet *::after { box-sizing: border-box; }
 
 .setup-page {
-  width: 10.5in;
-  height: 7.9in;
+  width: 11in;
+  height: 8.45in;
+  padding: 0.25in 0.25in 0.15in;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -90,11 +95,10 @@ export const SETUP_SHEET_STYLES = `
   .setup-page {
     margin-bottom: 0.3in;
     border: 1px solid #999;
-    padding: 0.1in;
     background: #fff;
   }
 }
 @media print {
-  .setup-page { border: 0; padding: 0; margin: 0 auto; }
+  .setup-page { border: 0; margin: 0 auto; }
 }
 `;

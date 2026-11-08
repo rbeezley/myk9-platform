@@ -108,7 +108,7 @@ describe('setup cheat sheet print stylesheet', () => {
     // The shared report stylesheet declares its own portrait @page first; the sheet's later
     // rule is the one that wins in the cascade.
     expect(rules.length).toBeGreaterThan(1);
-    expect(rules[rules.length - 1]).toBe('@page { size: 11in 8.5in; margin: 0.25in; }');
+    expect(rules[rules.length - 1]).toBe('@page { size: 11in 8.5in; margin: 0; }');
     expect(html).not.toMatch(/\b\d+(\.\d+)?v[hw]\b/);
   });
 });

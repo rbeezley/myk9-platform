@@ -278,6 +278,8 @@ const PR_SMOKE_SPECS = [
   // MYK9-1188: a lazy route chunk that fails to load under the real service worker recovers with
   // one guarded reload. Public route, no sign-in, no database; serves dist/ from its own server.
   '**/chunkLoadRecoveryServiceWorker.spec.ts',
+  // MYK9-1772: judge setup cheat sheet keeps its quarter inch inset under Margins: Default and None. Hermetic.
+  '**/setupCheatSheet-print-inset.spec.ts',
 ];
 
 /**

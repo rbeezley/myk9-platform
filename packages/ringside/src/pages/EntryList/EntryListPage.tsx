@@ -22,6 +22,7 @@
 
 import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ChevronRight } from 'lucide-react';
 import { TabBar } from '@myk9/ui';
 import type { EntryListPageProps } from './pageProps';
 import { useEntryListPageActions } from './hooks/useEntryListPageActions';
@@ -362,9 +363,13 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
               <section className="mt-6">
                 {/* A native <details>: this component owns no useState by
                     contract, and the disclosure needs none. */}
-                <details>
-                  <summary className="flex min-h-11 cursor-pointer items-center border-t border-border pt-3 text-sm font-medium text-muted-foreground">
-                    Not running ({notRunningEntries.length})
+                <details className="group">
+                  <summary className="flex min-h-11 cursor-pointer items-center gap-2 border-t border-border pt-3 text-sm font-medium text-muted-foreground [&::-webkit-details-marker]:hidden">
+                    <ChevronRight
+                      aria-hidden="true"
+                      className="h-4 w-4 shrink-0 transition-transform group-open:rotate-90"
+                    />
+                    Pulled / not running ({notRunningEntries.length})
                   </summary>
                   <div className="pt-3">
                     <EntryListContent

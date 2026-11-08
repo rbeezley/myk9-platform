@@ -6,7 +6,7 @@ ways that look like product bugs: the account skips onboarding and gets the staf
 2026-10-16 that failed E2E PR Smoke, a required check, on `main` and on every open PR (before PR Smoke moved
 to an isolated target).
 
-## Accounts CI signs in with (do not change by hand)
+## Accounts CI signs in with (restore before a shared-staging dispatch)
 
 Resolved through `apps/myk9show/src/test/e2e/helpers/testUsers.ts` and
 `src/test/e2e-helpers/e2eAuthPreflight.ts`. Passwords come from the `E2E_*` GitHub secrets.

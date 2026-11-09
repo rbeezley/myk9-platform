@@ -132,15 +132,13 @@ describe('Show creation wizard — dark-mode theming guards', () => {
     expect(validationBanner).not.toContain('backdrop-blur');
   });
 
-  it('"Leave Wizard" confirm action uses the semantic warning token, not raw amber palette', () => {
-    // A caution action (discarding unsaved work) — the --warning token is
-    // AA-verified in both modes; raw bg-amber-500 had no dark counterpart and a
-    // weaker tint-contrast (DESIGN.md index.css line 230).
-    expect(wizardPage).toContain('bg-warning text-warning-foreground hover:bg-warning/90');
+  it('the wizard page carries no raw amber palette', () => {
+    // The page's own "Leave Wizard" confirm is gone (MYK9-1793: create mode keeps its
+    // draft; edit modes use the shared discard dialog), so only the ban remains.
     expect(wizardPage).not.toContain('bg-amber-500');
   });
 
-  it('"Leave Wizard" warning button foreground clears AA contrast in dark mode', () => {
+  it('warning foreground clears AA contrast on the warning token in dark mode', () => {
     const darkBlock = indexCss.match(/\.dark\s*\{[\s\S]*?\n {2}\}/)?.[0];
 
     if (!darkBlock) {

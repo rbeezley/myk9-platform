@@ -27,11 +27,11 @@ vi.mock('@/hooks/useExhibitorProfile', () => ({
 }));
 
 vi.mock('../steps/StepDogs', () => ({
-  StepDogs: ({ onSkip }: { onSkip: () => void }) => (
+  StepDogs: ({ onNext }: { onNext: () => void }) => (
     <div>
       <div>Add your dogs</div>
-      <button type="button" onClick={onSkip}>
-        Skip for now
+      <button type="button" onClick={onNext}>
+        Leave dogs step
       </button>
     </div>
   ),
@@ -295,7 +295,7 @@ describe('ExhibitorOnboardingPage', () => {
 
     render(<ExhibitorOnboardingPage />);
 
-    fireEvent.click(screen.getByRole('button', { name: /skip for now/i }));
+    fireEvent.click(screen.getByRole('button', { name: /leave dogs step/i }));
     fireEvent.click(screen.getByRole('button', { name: /browse shows/i }));
 
     await waitFor(() => {
@@ -336,7 +336,7 @@ describe('ExhibitorOnboardingPage', () => {
 
     render(<ExhibitorOnboardingPage />);
 
-    fireEvent.click(screen.getByRole('button', { name: /skip for now/i }));
+    fireEvent.click(screen.getByRole('button', { name: /leave dogs step/i }));
     fireEvent.click(screen.getByRole('link', { name: /account profile/i }));
 
     await waitFor(() => {
@@ -372,7 +372,7 @@ describe('ExhibitorOnboardingPage', () => {
 
     render(<ExhibitorOnboardingPage />);
 
-    fireEvent.click(screen.getByRole('button', { name: /skip for now/i }));
+    fireEvent.click(screen.getByRole('button', { name: /leave dogs step/i }));
     fireEvent.click(screen.getByRole('link', { name: /account notifications/i }));
 
     await waitFor(() => {

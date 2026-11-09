@@ -23,9 +23,9 @@ vi.mock('@/hooks/useAuthContext', () => ({ useAuthContext: vi.fn() }));
 vi.mock('@/hooks/useExhibitorProfile', () => ({ useExhibitorProfile: vi.fn() }));
 
 vi.mock('../steps/StepDogs', () => ({
-  StepDogs: ({ onSkip }: { onSkip: () => void }) => (
-    <button type="button" onClick={onSkip}>
-      Skip for now
+  StepDogs: ({ onNext }: { onNext: () => void }) => (
+    <button type="button" onClick={onNext}>
+      Leave dogs step
     </button>
   ),
 }));
@@ -103,7 +103,7 @@ describe('role-aware onboarding', () => {
     render(<ExhibitorOnboardingPage />);
 
     expect(screen.getByText('1 of 4')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /skip for now/i }));
+    fireEvent.click(screen.getByRole('button', { name: /leave dogs step/i }));
     expect(screen.getByRole('heading', { name: 'Your secretary access' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     expect(screen.getByRole('heading', { name: 'Your judge numbers' })).toBeInTheDocument();
@@ -127,7 +127,7 @@ describe('role-aware onboarding', () => {
 
     expect(screen.getByRole('heading', { name: 'One quick step' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Your secretary access' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /skip for now/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /leave dogs step/i })).not.toBeInTheDocument();
     expect(screen.queryByText('Your judge numbers')).not.toBeInTheDocument();
     expect(screen.queryByText(/of 1/)).not.toBeInTheDocument();
 
@@ -151,7 +151,7 @@ describe('role-aware onboarding', () => {
 
     render(<ExhibitorOnboardingPage />);
 
-    fireEvent.click(screen.getByRole('button', { name: /skip for now/i }));
+    fireEvent.click(screen.getByRole('button', { name: /leave dogs step/i }));
     fireEvent.click(screen.getByRole('link', { name: 'Request additional access' }));
 
     await waitFor(() => {

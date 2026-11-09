@@ -25,6 +25,11 @@ export interface PasswordSubFormProps {
   loadingLabel?: string;
   /** Additional submit gate, such as a pending CAPTCHA challenge. */
   submitDisabled?: boolean;
+  /**
+   * The email already typed above, carried to the reset page so it is not typed twice
+   * (MYK9-1793). Passed in router state, never the URL; omit for anything that is not an email.
+   */
+  forgotPasswordEmail?: string | undefined;
 }
 
 export const PasswordSubForm: React.FC<PasswordSubFormProps> = ({
@@ -37,6 +42,7 @@ export const PasswordSubForm: React.FC<PasswordSubFormProps> = ({
   submitLabel = 'Sign in',
   loadingLabel = 'Signing in...',
   submitDisabled = false,
+  forgotPasswordEmail,
 }) => {
   return (
     <>
@@ -104,7 +110,11 @@ export const PasswordSubForm: React.FC<PasswordSubFormProps> = ({
         )}
       </button>
       <div className="text-center mt-2">
-        <Link to="/forgot-password" className="text-primary hover:underline text-sm font-medium">
+        <Link
+          to="/forgot-password"
+          state={forgotPasswordEmail ? { email: forgotPasswordEmail } : undefined}
+          className="text-primary hover:underline text-sm font-medium"
+        >
           Forgot your password?
         </Link>
       </div>

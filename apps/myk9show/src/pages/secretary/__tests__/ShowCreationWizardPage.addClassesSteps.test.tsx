@@ -198,18 +198,20 @@ describe('wizard step set per edit mode (MYK9-899)', () => {
       const backButtons = screen.getAllByRole('button', { name: /^back$/i });
       await user.click(backButtons[0]!); // header Back (Close)
       expect(navigate).toHaveBeenCalledWith('/shows/show-1?anchor=trial-1');
-      expect(screen.queryByText('Unsaved Changes')).not.toBeInTheDocument();
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
       navigate.mockClear();
       await user.click(backButtons[backButtons.length - 1]!); // step Back
       expect(navigate).toHaveBeenCalledWith('/shows/show-1?anchor=trial-1');
-      expect(screen.queryByText('Unsaved Changes')).not.toBeInTheDocument();
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     });
 
     it('asks first when a new class is selected', async () => {
       const { user } = await openWithClasses([cls('Container'), cls('Interior')]);
       const backButtons = screen.getAllByRole('button', { name: /^back$/i });
       await user.click(backButtons[backButtons.length - 1]!);
-      expect(await screen.findByText('Unsaved Changes')).toBeInTheDocument();
+      expect(
+        await screen.findByRole('alertdialog', { name: 'Discard changes?' })
+      ).toBeInTheDocument();
       expect(navigate).not.toHaveBeenCalled();
     });
   });

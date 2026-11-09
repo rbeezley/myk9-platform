@@ -7,138 +7,113 @@
  *  2. backing out of Add classes left that existing show where Add Show would offer to
  *     "pick up where you left off", one press away from a duplicate show.
  *
- * Each sequence runs on the real store and across a real reload: a fresh module instance
- * reading the same device storage.
+ * "What a reload would find" is asserted as what is saved on the device: the store's own
+ * storage is flushed and read back. An earlier version rebuilt the store with
+ * `vi.resetModules()` instead; every rebuilt instance stayed registered with the global
+ * store reset, which re-armed its debounced write before each test, so the outcome depended
+ * on how fast the runner was.
  */
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
+import type { StorageValue } from 'zustand/middleware';
+import { useWizardStore, type WizardState } from './wizardStore';
 import type { DebouncedPersistStorage } from './wizardStorage';
 
-type WizardStore = (typeof import('./wizardStore'))['useWizardStore'];
-
-/**
- * The first import of the store's module graph costs seconds under coverage on a slow
- * runner. It is paid once here, on its own generous clock, so no test's hook pays it.
- */
-const COLD_IMPORT_TIMEOUT_MS = 60_000;
-
-/** Every instance a test built, so none leaves a debounced write to land in a later test. */
-const openedStores: WizardStore[] = [];
-
-/** A fresh store instance, as a page load would build, once it has read the saved draft. */
-async function loadStore(): Promise<WizardStore> {
-  vi.resetModules();
-  const { useWizardStore } = await import('./wizardStore');
-  const { isWizardDraftRead } = await import('./wizardDraftRead');
-  await vi.waitFor(() => expect(isWizardDraftRead()).toBe(true));
-  openedStores.push(useWizardStore);
-  return useWizardStore;
+/** The draft a page load would read: everything pending written, then read back. */
+async function savedDraftOnDevice(): Promise<Partial<WizardState>> {
+  const { name, storage } = useWizardStore.persist.getOptions();
+  const deviceStorage = storage as DebouncedPersistStorage<Partial<WizardState>>;
+  await deviceStorage.flush();
+  const saved = (await deviceStorage.getItem(name ?? '')) as StorageValue<
+    Partial<WizardState>
+  > | null;
+  if (!saved) throw new Error('no wizard draft saved on this device');
+  return saved.state;
 }
 
-function flushWrites(store: WizardStore): Promise<void> {
-  return (store.persist.getOptions().storage as DebouncedPersistStorage<unknown>).flush();
-}
-
-async function reload(store: WizardStore): Promise<WizardStore> {
-  await flushWrites(store);
-  return loadStore();
-}
-
-function openEditVisit(store: WizardStore, existingShowName: string) {
-  store.getState().loadEditDraft({
-    show: { ...store.getState().show, name: existingShowName },
+function openEditVisit(existingShowName: string) {
+  useWizardStore.getState().loadEditDraft({
+    show: { ...useWizardStore.getState().show, name: existingShowName },
     trials: [],
   });
 }
 
 describe('wizard store — an edit visit leaves the new-show draft alone', () => {
-  let store: WizardStore;
+  it('keeps a half-built new show saved on the device through an Add classes visit', async () => {
+    useWizardStore.getState().updateShowData({ name: 'Spring Trial (new)' });
+    openEditVisit('Fall Classic (existing)');
+    expect(useWizardStore.getState().show.name).toBe('Fall Classic (existing)');
 
-  beforeAll(async () => {
-    await import('./wizardStore');
-  }, COLD_IMPORT_TIMEOUT_MS);
+    // Typing in the edit visit keeps writing; none of it may reach the saved draft.
+    useWizardStore.getState().updateShowData({ location: 'Edited in the edit visit' });
 
-  // The global setup empties device storage before each test, so a fresh instance starts
-  // from nothing saved.
-  beforeEach(async () => {
-    store = await loadStore();
+    const saved = await savedDraftOnDevice();
+    expect(saved.show?.name).toBe('Spring Trial (new)');
+    expect(saved.show?.location).toBe('');
   });
 
-  afterEach(async () => {
-    await Promise.all(openedStores.splice(0).map(flushWrites));
-  });
+  it('gives Add Show the new-show draft back in the same visit, clean and unparked', async () => {
+    useWizardStore.getState().updateShowData({ name: 'Spring Trial (new)' });
+    useWizardStore.getState().addTrial({ trialDate: '2027-04-10', eventNumber: '', classes: [] });
+    openEditVisit('Fall Classic (existing)');
 
-  it('keeps a half-built new show through an Add classes visit and a reload', async () => {
-    store.getState().updateShowData({ name: 'Spring Trial (new)' });
-    openEditVisit(store, 'Fall Classic (existing)');
-    expect(store.getState().show.name).toBe('Fall Classic (existing)');
+    useWizardStore.getState().endEditVisit();
 
-    const afterReload = await reload(store);
-
-    expect(afterReload.getState().show.name).toBe('Spring Trial (new)');
-    expect(afterReload.getState().parkedCreateDraft).toBeNull();
-  });
-
-  it('gives Add Show the new-show draft back in the same visit, clean and unparked', () => {
-    store.getState().updateShowData({ name: 'Spring Trial (new)' });
-    store.getState().addTrial({ trialDate: '2027-04-10', eventNumber: '', classes: [] });
-    openEditVisit(store, 'Fall Classic (existing)');
-
-    store.getState().endEditVisit();
-
-    const state = store.getState();
+    const state = useWizardStore.getState();
     expect(state.show.name).toBe('Spring Trial (new)');
     expect(state.trials).toHaveLength(1);
     expect(state.parkedCreateDraft).toBeNull();
     expect(state.isDirty).toBe(false);
+    expect((await savedDraftOnDevice()).show?.name).toBe('Spring Trial (new)');
   });
 
-  it('never leaves the existing show where Add Show would resume it', async () => {
-    openEditVisit(store, 'Fall Classic (existing)');
+  it('never saves the existing show where Add Show would resume it', async () => {
+    openEditVisit('Fall Classic (existing)');
+    expect((await savedDraftOnDevice()).show?.name).toBe('');
 
-    const afterReload = await reload(store);
-    expect(afterReload.getState().show.name).toBe('');
+    useWizardStore.getState().endEditVisit();
 
-    openEditVisit(afterReload, 'Fall Classic (existing)');
-    afterReload.getState().endEditVisit();
-    expect(afterReload.getState().show.name).toBe('');
-    expect(afterReload.getState().trials).toEqual([]);
+    expect(useWizardStore.getState().show.name).toBe('');
+    expect(useWizardStore.getState().trials).toEqual([]);
+    expect((await savedDraftOnDevice()).show?.name).toBe('');
   });
 
-  it('keeps the original new-show draft through two edit visits in a row', () => {
-    store.getState().updateShowData({ name: 'Spring Trial (new)' });
-    openEditVisit(store, 'Fall Classic (existing)');
-    openEditVisit(store, 'Winter Cup (existing)');
+  it('keeps the original new-show draft through two edit visits in a row', async () => {
+    useWizardStore.getState().updateShowData({ name: 'Spring Trial (new)' });
+    openEditVisit('Fall Classic (existing)');
+    openEditVisit('Winter Cup (existing)');
+    expect((await savedDraftOnDevice()).show?.name).toBe('Spring Trial (new)');
 
-    store.getState().endEditVisit();
+    useWizardStore.getState().endEditVisit();
 
-    expect(store.getState().show.name).toBe('Spring Trial (new)');
+    expect(useWizardStore.getState().show.name).toBe('Spring Trial (new)');
   });
 
-  it('a discard inside the edit visit clears that visit, not the draft set aside for it', () => {
-    store.getState().updateShowData({ name: 'Spring Trial (new)' });
-    openEditVisit(store, 'Fall Classic (existing)');
+  it('a discard inside the edit visit clears that visit, not the draft set aside for it', async () => {
+    useWizardStore.getState().updateShowData({ name: 'Spring Trial (new)' });
+    openEditVisit('Fall Classic (existing)');
 
-    store.getState().resetWizard();
-    expect(store.getState().show.name).toBe('');
-    store.getState().endEditVisit();
+    useWizardStore.getState().resetWizard();
+    expect(useWizardStore.getState().show.name).toBe('');
+    expect((await savedDraftOnDevice()).show?.name).toBe('Spring Trial (new)');
+    useWizardStore.getState().endEditVisit();
 
-    expect(store.getState().show.name).toBe('Spring Trial (new)');
+    expect(useWizardStore.getState().show.name).toBe('Spring Trial (new)');
   });
 
   it('a repeated read of the saved draft does not lay it over the edit draft on screen', async () => {
-    store.getState().updateShowData({ name: 'Spring Trial (new)' });
-    openEditVisit(store, 'Fall Classic (existing)');
+    useWizardStore.getState().updateShowData({ name: 'Spring Trial (new)' });
+    openEditVisit('Fall Classic (existing)');
 
-    await store.persist.rehydrate();
+    await useWizardStore.persist.rehydrate();
 
-    expect(store.getState().show.name).toBe('Fall Classic (existing)');
+    expect(useWizardStore.getState().show.name).toBe('Fall Classic (existing)');
   });
 
   it('endEditVisit is a no-op outside an edit visit', () => {
-    store.getState().updateShowData({ name: 'Spring Trial (new)' });
-    store.getState().endEditVisit();
+    useWizardStore.getState().updateShowData({ name: 'Spring Trial (new)' });
+    useWizardStore.getState().endEditVisit();
 
-    expect(store.getState().show.name).toBe('Spring Trial (new)');
-    expect(store.getState().isDirty).toBe(true);
+    expect(useWizardStore.getState().show.name).toBe('Spring Trial (new)');
+    expect(useWizardStore.getState().isDirty).toBe(true);
   });
 });

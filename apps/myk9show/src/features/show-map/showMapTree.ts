@@ -128,6 +128,7 @@ function entryDisplay(entry: ShowMapEntryInput, organization?: string): ShowMapE
     handlerId,
     dogHref: dogId ? `/dogs/${dogId}` : undefined,
     handlerHref: handlerId ? `/people/${handlerId}` : undefined,
+    resultStatus: readString(entry, 'result_status'),
   };
 }
 

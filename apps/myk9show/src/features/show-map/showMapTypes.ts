@@ -89,6 +89,8 @@ export interface ShowMapEntryDisplay {
   handlerId?: string | undefined;
   dogHref?: string | undefined;
   handlerHref?: string | undefined;
+  /** Raw `entries.result_status` (qualified, nq, ...), for the Show Desk entries table. */
+  resultStatus?: string | undefined;
 }
 
 export interface ShowMapDogEntryDisplay {

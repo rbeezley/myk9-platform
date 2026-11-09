@@ -7,6 +7,10 @@
  * class `FOCUS_FR`, with `SPLIT_GAP_PX` between them. The focused class needs `FOCUS_MIN_PX` to show
  * its facts and actions without wrapping, so the cockpit splits only once its fractional share
  * alone reaches that (`COCKPIT_SPLIT_MIN_WIDTH`) and stacks below it.
+ *
+ * With a class focused the schedule narrows to a rail of `RAIL_PX` and the focused class takes the
+ * rest, so its entries table has the width of a PC screen (MYK9-1782). The split / stacked switch
+ * is unchanged; only the column template differs.
  */
 const SCHEDULE_FR = 1.15;
 const FOCUS_FR = 0.85;
@@ -15,6 +19,15 @@ export const FOCUS_MIN_PX = 360;
 
 /** The two-column template, written once so the grid and the arithmetic below agree. */
 export const COCKPIT_SPLIT_COLUMNS = `minmax(0, ${SCHEDULE_FR}fr) minmax(${FOCUS_MIN_PX}px, ${FOCUS_FR}fr)`;
+
+/** The rail the schedule narrows to once a class is focused. */
+export const RAIL_PX = 300;
+const COCKPIT_RAIL_COLUMNS = `${RAIL_PX}px minmax(0, 1fr)`;
+
+/** The split's grid template: the full schedule with nothing focused, the rail beside a class. */
+export function cockpitSplitTemplate(hasFocusedClass: boolean): string {
+  return hasFocusedClass ? COCKPIT_RAIL_COLUMNS : COCKPIT_SPLIT_COLUMNS;
+}
 
 /** Column widths the split grid lays out at `containerWidth` (CSS grid's fr rules for this template). */
 export function cockpitSplitColumns(containerWidth: number): { schedule: number; focus: number } {

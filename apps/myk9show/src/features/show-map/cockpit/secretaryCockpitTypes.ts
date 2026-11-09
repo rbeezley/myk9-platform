@@ -1,4 +1,6 @@
 import type { ClassChecklistSummary } from './classChecklist';
+import type { SecretaryCockpitClassEntry } from './cockpitClassEntries';
+import type { StatusLine } from './scheduleStatusLine';
 
 export type EvidenceKind = 'recorded' | 'computed' | 'staff-confirmed' | 'unknown';
 
@@ -127,6 +129,8 @@ export interface SecretaryCockpitClass {
   registryId?: string | null;
   /** Entries of this class carrying stranded operational actions (F29b). */
   entryRows: readonly SecretaryCockpitEntryRow[];
+  /** Every entry in run order with its run status; absent in a snapshot built without the tree. */
+  entries?: readonly SecretaryCockpitClassEntry[] | undefined;
   trialId: string;
   name: string;
   /** Registry element/level/section (MYK9-825) — the label is composed from these, not `name` alone. */
@@ -205,6 +209,8 @@ export interface ScheduledClassModel {
   primaryAction: SecretaryCockpitAction | null;
   /** The class checklist's count (MYK9-948), or null for a cancelled class. */
   checklist: ClassChecklistSummary | null;
+  /** Line 2 of the schedule row: one status-and-next-step phrase. */
+  statusLine: StatusLine;
 }
 
 export interface TrialScheduleGroupModel {
@@ -229,6 +235,8 @@ export interface FocusedClassModel extends ScheduledClassModel {
   /** From the snapshot (MYK9-1620): false collapses the checklist under a quiet disclosure. */
   checklistInUse: boolean;
   entryRows: readonly SecretaryCockpitEntryRow[];
+  /** Every entry in run order with its run status (the entries table). */
+  entries: readonly SecretaryCockpitClassEntry[];
   actualStart: EvidenceValue<string>;
   actualFinish: EvidenceValue<string>;
   paperwork: readonly (SecretaryCockpitPaperwork & { evidence: EvidenceKind })[];

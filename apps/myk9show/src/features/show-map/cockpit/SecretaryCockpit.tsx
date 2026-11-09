@@ -9,7 +9,7 @@ import {
 } from '@/components/shows/ShowDetails/showStickyLayout';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useElementWidth } from '@/hooks/useElementWidth';
-import { COCKPIT_SPLIT_COLUMNS, isCockpitSplit } from './cockpitSplit';
+import { cockpitSplitTemplate, isCockpitSplit } from './cockpitSplit';
 
 import type { ClassEntryBreakdown } from '@/features/entry-operations/classEntryBreakdown';
 import { buildSecretaryCockpitModel } from './secretaryCockpitModel';
@@ -237,8 +237,19 @@ export function SecretaryCockpit({
           'grid items-start',
           isSplit ? 'grid-rows-[auto_auto] gap-5' : 'grid-cols-[minmax(0,1fr)] gap-4'
         )}
-        style={isSplit ? { gridTemplateColumns: COCKPIT_SPLIT_COLUMNS } : undefined}
+        style={
+          isSplit
+            ? {
+                gridTemplateColumns: cockpitSplitTemplate(
+                  panelShows && model.focusedClass !== null
+                ),
+              }
+            : undefined
+        }
         data-cockpit-layout={isSplit ? 'split' : 'stacked'}
+        data-cockpit-rail={
+          isSplit && panelShows && model.focusedClass !== null ? 'true' : undefined
+        }
       >
         <SecretaryCockpitSchedule
           showId={snapshot.showId}

@@ -25,6 +25,7 @@ import type {
 } from './secretaryCockpitTypes';
 import { ClassActualStartEditor } from './ClassActualStartEditor';
 import { FocusedClassHeader } from './FocusedClassHeader';
+import { ClassCountTiles, ClassEntriesTable } from './FocusedClassEntries';
 import {
   FOCUSED_CLASS_SCROLL_MARGIN_CLASS,
   FOCUSED_CLASS_SCROLL_MARGIN_CLASS_IN_PANEL,
@@ -125,6 +126,17 @@ export function SecretaryCockpitFocusedClass({
               : ''
         )}
       >
+        <ClassCountTiles entries={focused.entries} />
+        <section aria-labelledby="focused-class-entries">
+          <h3
+            id="focused-class-entries"
+            className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground"
+          >
+            Entries in run order
+          </h3>
+          <ClassEntriesTable entries={focused.entries} />
+        </section>
+
         {/* What the secretary SETS for this class, laid out as a form, apart from
             the work below it (owner, 2026-10-03). */}
         <section

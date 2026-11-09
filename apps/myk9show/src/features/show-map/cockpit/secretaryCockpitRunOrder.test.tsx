@@ -63,6 +63,7 @@ const FOCUSED: FocusedClassModel = {
   closeout: 'none',
   primaryAction: null,
   checklist: null,
+  statusLine: { text: 'Not started' },
   printTrackingInUse: true,
   checklistInUse: true,
   actualStart: { evidence: 'unknown', value: null },
@@ -73,6 +74,7 @@ const FOCUSED: FocusedClassModel = {
   finishActions: [],
   classWorkActions: [],
   entryRows: ENTRY_ROWS,
+  entries: [],
 };
 
 const SOURCE_CLASS = {

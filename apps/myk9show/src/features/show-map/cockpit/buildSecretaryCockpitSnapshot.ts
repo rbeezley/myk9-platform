@@ -11,6 +11,7 @@ import type { ShowDeskPendingSignal } from '../showDeskPendingSignals';
 import type { SecretaryCockpitEntryRow } from './secretaryCockpitTypes';
 import type { ShowMapAction } from '../showMapActions';
 import type { ShowMapClassInput, ShowMapTree, ShowMapTrialInput } from '../showMapTypes';
+import { classEntriesForClass } from './cockpitClassEntries';
 import { isChecklistInUse, isPrintTrackingInUse } from './checklistUsage';
 import {
   getCockpitClassDetailsHref,
@@ -329,6 +330,7 @@ export function buildSecretaryCockpitSnapshot({
       ],
       paperwork: [...(paperworkByClassId?.get(classItem.id) ?? [])],
       entryRows: entryRowsForClass(classItem.id, tree),
+      entries: classEntriesForClass(classItem.id, tree),
     };
   });
 

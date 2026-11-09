@@ -115,6 +115,7 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   backLabel,
   onDirtyChange,
   headerActions,
+  onRunStart,
   onWarningChime,
   onVoiceAnnouncement,
   enableVoiceAnnouncements,
@@ -171,11 +172,12 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
 
   // Start both timers (dual mode) or just search timer (single mode)
   const handleStart = useCallback(() => {
+    onRunStart?.();
     stopwatch.start();
     if (isDual) {
       elementTimer.start();
     }
-  }, [stopwatch, elementTimer, isDual]);
+  }, [stopwatch, elementTimer, isDual, onRunStart]);
 
   // Pause search timer only (element timer keeps running in dual mode)
   const handlePauseSearch = useCallback(() => {

@@ -44,7 +44,7 @@ async function expectFitsPhone(page: Page, stop: string) {
   expect(size.content, `${stop}: the page scrolls sideways`).toBeLessThanOrEqual(PHONE.width);
 }
 
-test('Ringside at 375 px: open, leave unscored, score, reset (MYK9-1762, MYK9-1778)', async ({
+test('Ringside at 375 px: open, leave unscored, score, reset (MYK9-1762, MYK9-1778, MYK9-1779)', async ({
   browser,
 }, info) => {
   const client = isolatedClient();
@@ -59,11 +59,26 @@ test('Ringside at 375 px: open, leave unscored, score, reset (MYK9-1762, MYK9-17
   await expectFitsPhone(page, 'entry list');
   await screenshot(page, info, 'phone-entry-list');
 
-  // Opening the scoresheet moves the dog into the ring and starts its ring time.
-  await card.getByRole('heading', { name: 'Willow', exact: true }).click();
-  await expect(page).toHaveURL(new RegExp(`/score/${f.willowId}`));
+  // Opening and using browser Back leaves the dog checked in (MYK9-1779).
+  const openSheet = () => card.getByRole('heading', { name: 'Willow', exact: true }).click();
   const actionBar = page.getByTestId('scoresheet-action-bar');
+  await openSheet();
+  await expect(page).toHaveURL(new RegExp(`/score/${f.willowId}`));
   await expect(actionBar).toBeVisible({ timeout: 60_000 });
+  await page.goBack();
+  await expect(page).toHaveURL(new RegExp(`${path}$`));
+  await expect(card.getByTestId('check-in-indicator')).toHaveText(/Checked in/);
+  await expect(card.getByText('Resume', { exact: true })).toHaveCount(0);
+  const openedWithoutStarting = await ringState(client, f.willowId);
+  expect(openedWithoutStarting).toMatchObject({
+    check_in_status: 'checked-in',
+    ring_entry_time: null,
+  });
+
+  // Starting the timer moves the dog into the ring.
+  await openSheet();
+  await expect(actionBar).toBeVisible({ timeout: 60_000 });
+  await page.getByTestId('timer-start').click();
   await expect
     .poll(() => ringState(client, f.willowId), { timeout: 30_000 })
     .toMatchObject({ check_in_status: 'in-ring', ring_entry_time: expect.any(String) });
@@ -72,6 +87,7 @@ test('Ringside at 375 px: open, leave unscored, score, reset (MYK9-1762, MYK9-17
 
   // Leaving without a score puts the dog back where it was, with no ring time (MYK9-1762).
   await actionBar.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await page.getByRole('button', { name: 'Discard', exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`${path}$`));
   await expect
     .poll(() => ringState(client, f.willowId), { timeout: 30_000 })
@@ -111,6 +127,7 @@ test('Ringside at 375 px: open, leave unscored, score, reset (MYK9-1762, MYK9-17
   await evidence(info, 'phone-ringside-walk', {
     viewport: PHONE,
     entryId: f.willowId,
+    openedWithoutStarting,
     leftUnscored,
     scored,
     afterReset,

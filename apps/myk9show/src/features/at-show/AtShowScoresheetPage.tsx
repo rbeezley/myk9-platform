@@ -11,9 +11,8 @@
  *
  * Authorization: the outer component is a thin `canScore` gate. The scoring
  * engine (`useAtShowScoresheet`) lives in `ScoresheetContent`, which only mounts
- * when scoring is allowed — so a denied role runs NONE of the scoring-flow side
- * effects (notably `transitionToInRing`, which auto-advances an entry to in-ring
- * on load). The block is structural, not a hidden submit button.
+ * when scoring is allowed. Starting a run or submitting a score requires that
+ * same structural permission gate.
  */
 
 import { useCallback, useMemo, useState } from 'react';
@@ -272,6 +271,7 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
     retry,
     reload,
     submit,
+    startRun,
     isSyncing,
     hasSyncError,
     submitError,
@@ -444,6 +444,7 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
           classInfo={toScoresheetClassInfo(classInfo, trialDate, trialNumber, trialName)}
           rules={rules}
           onSubmit={submit}
+          onRunStart={startRun}
           onBack={onBack}
           backLabel="Entries"
           onDirtyChange={setSheetDirty}

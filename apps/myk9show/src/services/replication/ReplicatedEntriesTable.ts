@@ -856,14 +856,15 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
    * score reset that also moves a `completed` check-in back, MYK9-1737). The
    * builder sees the same row the write is based on, hydrated from the server
    * on a cold replica, so a decision is never made against a missing or
-   * different row than the one written.
+   * different row than the one written. Return null to skip the write.
    */
   async updateEntryWith(
     entryId: string,
-    build: (current: ReplicatedEntry) => Partial<ReplicatedEntry>
+    build: (current: ReplicatedEntry) => Partial<ReplicatedEntry> | null
   ): Promise<string | null> {
     const entry = await this.getOrHydrateEntryForWrite(entryId);
-    return this.applyEntryUpdate(entryId, entry, build(entry));
+    const updates = build(entry);
+    return updates && this.applyEntryUpdate(entryId, entry, updates);
   }
 
   private async applyEntryUpdate(

@@ -134,9 +134,7 @@ export function ScoresheetPage() {
 
         const held = isHeldEntry(rawEntry);
         setAwaitingRegistrationNumber(held);
-        // Auto-set check-in status to in-ring when the scoresheet opens; never
-        // for a held dog.
-        if (!held) ringMove.opened(rawEntry);
+        if (!held) ringMove.opened(rawEntry.id);
 
         // Load only the needed dog
         const dog = rawEntry.dogId ? await replicatedDogsTable.get(rawEntry.dogId) : null;
@@ -338,6 +336,7 @@ export function ScoresheetPage() {
           classInfo={toScoresheetClassInfo(classInfo, trialDate, trialNumber, trialName)}
           rules={rules}
           onSubmit={handleSubmit}
+          onRunStart={ringMove.start}
           onBack={handleBack}
           onDirtyChange={setSheetDirty}
         />

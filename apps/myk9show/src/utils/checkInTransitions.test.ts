@@ -20,50 +20,48 @@ describe('checkInTransitions', () => {
   beforeEach(() => {
     vi.mocked(updateReplicatedCheckInStatus).mockClear();
     vi.mocked(replicatedEntriesTable.get).mockReset();
-    vi.mocked(replicatedEntriesTable.updateEntryWith).mockClear();
+    vi.mocked(replicatedEntriesTable.updateEntryWith).mockReset().mockResolvedValue('m1');
   });
 
-  it('moves scoring-opened entries to in-ring through the replicated helper', () => {
-    const move = transitionToInRing('entry-1', 'checked-in', undefined);
+  function buildStartFor(row: object) {
+    return vi
+      .mocked(replicatedEntriesTable.updateEntryWith)
+      .mockImplementationOnce(async (_, build) => {
+        const updates = build(row as never);
+        return updates ? 'm1' : null;
+      });
+  }
 
-    expect(move).toEqual({
-      entryId: 'entry-1',
-      previousStatus: 'checked-in',
-      writtenRingEntryTime: expect.any(String),
-      written: expect.any(Promise),
-    });
-    expect(vi.mocked(updateReplicatedCheckInStatus).mock.calls[0]?.[2]).toEqual({
-      ring_entry_time: move?.writtenRingEntryTime,
-    });
+  it.each([
+    { checkInStatus: 'pulled' },
+    { checkInStatus: 'completed' },
+    { checkInStatus: 'checked-in', isScored: true },
+    { checkInStatus: 'checked-in', awaitingRegistrationNumber: true },
+    { checkInStatus: 'in-ring', ring_entry_time: '2026-10-14T18:00:00.000Z' },
+  ])('leaves the current status and stamp alone for %j when timing starts', async row => {
+    const update = buildStartFor(row);
+    const move = transitionToInRing('entry-1');
 
-    expect(updateReplicatedCheckInStatus).toHaveBeenCalledOnce();
-    expect(updateReplicatedCheckInStatus).toHaveBeenCalledWith('entry-1', 'in-ring', {
-      ring_entry_time: expect.any(String),
-    });
+    await expect(move.written).resolves.toBeNull();
+    expect(update).toHaveBeenCalledExactlyOnceWith('entry-1', expect.any(Function));
+    expect(update.mock.calls[0]?.[1](row as never)).toBeNull();
   });
 
-  it('does not re-stamp ring_entry_time for an entry already in-ring (Resume)', () => {
-    expect(transitionToInRing('entry-1', 'in-ring', '2026-10-14T18:00:00.000Z')).toBeNull();
+  it.each(['checked-in', 'in-ring'] as const)(
+    'stamps the current %s entry when timing starts and retains its prior status',
+    async checkInStatus => {
+      const row = { checkInStatus };
+      const update = buildStartFor(row);
+      const move = transitionToInRing('entry-1');
 
-    expect(updateReplicatedCheckInStatus).not.toHaveBeenCalled();
-  });
-
-  it('stamps ring_entry_time for an entry marked in-ring by hand with no time yet', () => {
-    // The steward's "Mark in ring" writes only check_in_status; the scoresheet
-    // opening is what records when the dog entered the ring.
-    transitionToInRing('entry-1', 'in-ring', undefined);
-
-    expect(updateReplicatedCheckInStatus).toHaveBeenCalledOnce();
-    expect(updateReplicatedCheckInStatus).toHaveBeenCalledWith('entry-1', 'in-ring', {
-      ring_entry_time: expect.any(String),
-    });
-  });
-
-  it('does not reopen a completed entry', () => {
-    transitionToInRing('entry-1', 'completed', undefined);
-
-    expect(updateReplicatedCheckInStatus).not.toHaveBeenCalled();
-  });
+      await expect(move.written).resolves.toBe(checkInStatus);
+      expect(update.mock.calls[0]?.[1](row as never)).toEqual({
+        checkInStatus: 'in-ring',
+        check_in_status: 'in-ring',
+        ring_entry_time: move.writtenRingEntryTime,
+      });
+    }
+  );
 
   it('moves scored entries to completed through the replicated helper', () => {
     transitionToCompleted('entry-1');
@@ -78,27 +76,27 @@ describe('checkInTransitions', () => {
     const STAMP = '2026-11-08T18:00:00.000Z';
     const move = {
       entryId: 'entry-1',
-      previousStatus: 'checked-in' as const,
       writtenRingEntryTime: STAMP,
-      written: Promise.resolve(),
+      written: Promise.resolve('checked-in' as const),
     };
 
     function applyBuilder(row: object) {
-      const build = vi.mocked(replicatedEntriesTable.updateEntryWith).mock.calls[0]?.[1];
+      const build = vi.mocked(replicatedEntriesTable.updateEntryWith).mock.calls.at(-1)?.[1];
       return build?.(row as never);
     }
 
     it('puts back no ring time over a stale one the dog carried before the sheet opened (MYK9-1778)', async () => {
-      const opened = transitionToInRing('entry-1', 'checked-in', '2026-11-07T15:00:00.000Z');
+      buildStartFor({ checkInStatus: 'checked-in', ring_entry_time: '2026-11-07T15:00:00.000Z' });
+      const opened = transitionToInRing('entry-1');
       const row = {
         id: 'entry-1',
         checkInStatus: 'in-ring',
-        ring_entry_time: opened?.writtenRingEntryTime,
+        ring_entry_time: opened.writtenRingEntryTime,
         isScored: false,
       };
       vi.mocked(replicatedEntriesTable.get).mockResolvedValue(row as never);
 
-      await restoreFromInRing(opened!);
+      await restoreFromInRing(opened);
 
       expect(applyBuilder(row)).toEqual({
         checkInStatus: 'checked-in',
@@ -138,7 +136,7 @@ describe('checkInTransitions', () => {
       };
       vi.mocked(replicatedEntriesTable.get).mockResolvedValue(row as never);
 
-      await restoreFromInRing({ ...move, previousStatus: 'in-ring' });
+      await restoreFromInRing({ ...move, written: Promise.resolve('in-ring') });
 
       expect(applyBuilder(row)).toEqual({
         checkInStatus: 'in-ring',
@@ -198,8 +196,8 @@ describe('checkInTransitions', () => {
     });
 
     it('waits for the in-ring write before reading the row (an instant Cancel)', async () => {
-      let land: () => void = () => undefined;
-      const written = new Promise<void>(resolve => {
+      let land: (status: 'checked-in') => void = () => undefined;
+      const written = new Promise<'checked-in'>(resolve => {
         land = resolve;
       });
       vi.mocked(replicatedEntriesTable.get).mockResolvedValue({
@@ -212,7 +210,7 @@ describe('checkInTransitions', () => {
       const restoring = restoreFromInRing({ ...move, written });
       await Promise.resolve();
       expect(replicatedEntriesTable.get).not.toHaveBeenCalled();
-      land();
+      land('checked-in');
       await restoring;
 
       expect(replicatedEntriesTable.updateEntryWith).toHaveBeenCalledOnce();
@@ -226,14 +224,13 @@ describe('checkInTransitions', () => {
     });
 
     it('waits for a restore in flight, then resolves', async () => {
-      let land: () => void = () => undefined;
-      const written = new Promise<void>(resolve => {
+      let land: (status: 'checked-in') => void = () => undefined;
+      const written = new Promise<'checked-in'>(resolve => {
         land = resolve;
       });
       vi.mocked(replicatedEntriesTable.get).mockResolvedValue(undefined as never);
       const restoring = restoreFromInRing({
         entryId: 'entry-1',
-        previousStatus: 'checked-in',
         writtenRingEntryTime: '2026-11-08T16:03:13.750Z',
         written,
       });
@@ -245,7 +242,7 @@ describe('checkInTransitions', () => {
       await Promise.resolve();
       expect(settled).toBe(false);
 
-      land();
+      land('checked-in');
       await restoring;
       await waiting;
       expect(settled).toBe(true);
@@ -256,7 +253,6 @@ describe('checkInTransitions', () => {
       try {
         void restoreFromInRing({
           entryId: 'entry-1',
-          previousStatus: 'checked-in',
           writtenRingEntryTime: '2026-11-08T16:03:13.750Z',
           written: new Promise(() => undefined),
         });

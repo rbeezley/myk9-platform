@@ -228,8 +228,7 @@ test('expired token after 61 real minutes offline still queues and uploads the s
   });
   try {
     await expect(judge.page.getByRole('button', { name: 'Save', exact: true })).toBeVisible();
-    // Opening a sheet really marks the dog in-ring; finish that online write first.
-    await expect.poll(async () => (await row(client, f.willowId)).check_in_status).toBe('in-ring');
+    // The sheet is open for a manual score. Leave ring status untouched until an explicit start.
     await expect.poll(async () => (await replica(judge.page, f.willowId)).pending.length).toBe(0);
     await expect.poll(() => judge.socketUrls.length).toBeGreaterThan(0);
     await expect.poll(() => judge.receivedSocketFrames()).toBeGreaterThan(0);

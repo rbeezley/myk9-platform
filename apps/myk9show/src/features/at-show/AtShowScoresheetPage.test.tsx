@@ -155,6 +155,7 @@ const StubLiveScoresheet = ({
   onBack,
   backLabel,
   onDirtyChange,
+  onRunStart,
   onWarningChime,
   onVoiceAnnouncement,
   enableVoiceAnnouncements,
@@ -165,6 +166,7 @@ const StubLiveScoresheet = ({
   onBack: () => void;
   backLabel?: string;
   onDirtyChange?: (dirty: boolean) => void;
+  onRunStart?: () => void;
   onWarningChime?: () => void;
   onVoiceAnnouncement?: (secondsRemaining: number) => void;
   enableVoiceAnnouncements?: boolean;
@@ -175,6 +177,7 @@ const StubLiveScoresheet = ({
     <div data-testid="live-scoresheet">Live scoresheet for #{entry.armband}</div>
     <div data-testid="back-label">{backLabel}</div>
     <button onClick={() => onDirtyChange?.(true)}>Mark dirty</button>
+    <button onClick={onRunStart}>Start timer</button>
     <div data-testid="voice-announcements-enabled">{String(enableVoiceAnnouncements)}</div>
     {/* Like the real sheet, a refused save is caught (and shown) by the sheet. */}
     <button
@@ -1009,7 +1012,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     await screen.findByText('No Scoring Access');
 
     // The scoring engine (useAtShowScoresheet) never mounts for a denied role,
-    // so neither the submit nor the on-load `transitionToInRing` auto-advance
+    // so neither the submit nor the Start timer ring move
     // fires — the block is structural, not just a hidden submit button.
     expect(screen.queryByText('Submit Score')).not.toBeInTheDocument();
     expect(submitScoreOptimistically).not.toHaveBeenCalled();
@@ -1384,7 +1387,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     });
   });
 
-  it('Check again re-reads the sheet: once the number is added, the dog opens and goes in-ring', async () => {
+  it('Check again re-reads the sheet: once the number is added, the judge can explicitly start', async () => {
     vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([heldRow] as never);
     renderPage();
     const checkAgain = await screen.findByRole('button', { name: 'Check again' });
@@ -1396,14 +1399,18 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     fireEvent.click(checkAgain);
 
     expect(await screen.findByTestId('live-scoresheet')).toBeInTheDocument();
-    expect(transitionToInRing).toHaveBeenCalledWith('entry-1', 'no-status', undefined);
+    expect(transitionToInRing).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Start timer' }));
+    expect(transitionToInRing).toHaveBeenCalledWith('entry-1');
   });
 
-  it('moves an unheld dog in-ring when its sheet opens', async () => {
+  it('moves an unheld dog in-ring only after Start timer', async () => {
     renderPage();
 
     await screen.findByTestId('live-scoresheet');
-    await waitFor(() => expect(transitionToInRing).toHaveBeenCalledTimes(1));
+    expect(transitionToInRing).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Start timer' }));
+    expect(transitionToInRing).toHaveBeenCalledTimes(1);
     expect(vi.mocked(transitionToInRing).mock.calls[0]?.[0]).toBe('entry-1');
   });
 

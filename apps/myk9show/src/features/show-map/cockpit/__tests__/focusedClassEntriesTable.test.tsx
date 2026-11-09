@@ -117,14 +117,11 @@ describe('the focused class entries table (MYK9-1782)', () => {
     expect(within(rows[0]!).getByText('Q')).toBeInTheDocument();
     expect(within(rows[1]!).getByText('Willow')).toBeInTheDocument();
     expect(within(rows[1]!).getAllByText('In ring')).toHaveLength(2);
-    // A dog that has not turned up shows a dashed outline in Run status and, for a manager, a
-    // dashed chip in the Check-in cell that opens the picker.
+    // A dog that has not turned up says so once, as a dashed outline in Run status.
     const notCheckedIn = within(rows[2]!).getAllByText('Not checked in');
-    expect(notCheckedIn).toHaveLength(2);
-    notCheckedIn.forEach(chip => {
-      expect(chip).toHaveAttribute('data-outlined', 'true');
-      expect(chip.className).toContain('border-dashed');
-    });
+    expect(notCheckedIn).toHaveLength(1);
+    expect(notCheckedIn[0]).toHaveAttribute('data-outlined', 'true');
+    expect(notCheckedIn[0]!.className).toContain('border-dashed');
     expect(within(rows[2]!).queryByText('Waiting')).not.toBeInTheDocument();
     expect(within(rows[0]!).getByText('Scored')).not.toHaveAttribute('data-outlined');
     expect(within(rows[3]!).getAllByText('Pulled')).toHaveLength(2);

@@ -25,7 +25,8 @@ import type { SecretaryCockpitClassEntry } from './cockpitClassEntries';
 export function useClassCheckIn(
   entries: readonly SecretaryCockpitClassEntry[],
   className: string,
-  canChange: boolean
+  canChange: boolean,
+  onRefreshEntries?: () => void | Promise<void>
 ) {
   const sources = useMemo(
     () =>
@@ -35,7 +36,10 @@ export function useClassCheckIn(
       })),
     [entries]
   );
-  const { changes, busyIds, error, notice, setStatus } = useCheckInDeskActions(sources);
+  const { changes, busyIds, error, notice, setStatus } = useCheckInDeskActions(
+    sources,
+    onRefreshEntries
+  );
   const rowOf = (entryId: string): DeskPullRow | undefined => {
     const entry = entries.find(candidate => candidate.entryId === entryId);
     if (!entry) return undefined;
@@ -48,7 +52,7 @@ export function useClassCheckIn(
       deskCanUnpull: false,
     };
   };
-  const pull = useDeskPull(rowOf);
+  const pull = useDeskPull(rowOf, onRefreshEntries);
   const [pickerId, setPickerId] = useState<string | null>(null);
   // The row as it is now: if ringside moves it on, the picker closes rather than write over it.
   const pickerEntry = entries.find(

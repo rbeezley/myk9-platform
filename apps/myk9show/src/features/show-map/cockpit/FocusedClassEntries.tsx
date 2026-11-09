@@ -58,6 +58,7 @@ export function ClassEntriesTable({
   entries,
   className,
   canChangeCheckIn = false,
+  onRefreshEntries,
   hidden = 0,
   unread = false,
 }: {
@@ -66,12 +67,14 @@ export function ClassEntriesTable({
   className: string;
   /** Managers only: the Check-in cell opens the Check-in desk's status picker (MYK9-1797). */
   canChangeCheckIn?: boolean;
+  /** Re-reads the page's entries after a write, so the table speaks for the stored status. */
+  onRefreshEntries?: () => void | Promise<void>;
   /** Entries the data left out; said aloud so a capped list never reads as the whole class. */
   hidden?: number;
   /** The entries have not been read; an empty list then is not "no entries". */
   unread?: boolean;
 }) {
-  const checkIn = useClassCheckIn(entries, className, canChangeCheckIn);
+  const checkIn = useClassCheckIn(entries, className, canChangeCheckIn, onRefreshEntries);
   const hiddenNote = hidden > 0 && (
     <p className="mt-2 text-xs text-muted-foreground" data-testid="class-entries-hidden">
       {hidden} more {hidden === 1 ? 'entry is' : 'entries are'} not shown here.

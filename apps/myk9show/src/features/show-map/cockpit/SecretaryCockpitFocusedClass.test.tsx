@@ -428,3 +428,55 @@ describe('SecretaryCockpitFocusedClass layout (owner, 2026-10-03)', () => {
     expect(screen.queryByText('0 entries')).toBeNull();
   });
 });
+
+// MYK9-1797: the Check-in cell changes a dog's status for a manager only.
+describe('SecretaryCockpitFocusedClass Check-in cell', () => {
+  const notCheckedIn = {
+    nodeId: 'entry:e-1',
+    entryId: 'e-1',
+    armband: '101',
+    dogName: 'Moss',
+    checkIn: { value: 'no-status', label: 'Not checked in', kind: 'neutral' },
+    checkInValue: 'no-status',
+    deskEditable: true,
+    lockedReason: 'Scored, so the status is locked',
+    state: 'waiting',
+    counted: true,
+    notCheckedIn: true,
+    place: 1,
+    result: null,
+  } as const;
+  const withEntries: FocusedClassModel = { ...focused, entries: [notCheckedIn] };
+
+  function renderEntries(canManageShow: boolean) {
+    return render(
+      <SecretaryCockpitFocusedClass
+        showId="show-1"
+        focused={withEntries}
+        sourceClass={sourceClass}
+        trial={{ id: 'trial-1', date: '2026-07-20', number: '1', order: 0 }}
+        attention={[]}
+        timeZone="America/Chicago"
+        canManageShow={canManageShow}
+        onCommand={vi.fn()}
+      />
+    );
+  }
+
+  it('gives a manager a button on a dog that is not checked in, saying "Not checked in" once', () => {
+    renderEntries(true);
+    const row = screen.getByTestId('class-entry-row');
+    expect(
+      within(row).getByRole('button', { name: 'Change check-in for Moss: Not checked in' })
+    ).toBeInTheDocument();
+    expect(within(row).getAllByText('Not checked in')).toHaveLength(1);
+  });
+
+  it('gives a non-manager no Check-in button and no locked reason, even for a dog not checked in', () => {
+    renderEntries(false);
+    const row = screen.getByTestId('class-entry-row');
+    expect(within(row).queryByRole('button', { name: /Change check-in/ })).toBeNull();
+    expect(within(row).getAllByText('Not checked in')).toHaveLength(1);
+    expect(within(row).queryByText('Scored, so the status is locked')).toBeNull();
+  });
+});

@@ -31,6 +31,22 @@ export function useCheckInDeskActions(
   const [errorIds, setErrorIds] = useState<ReadonlySet<string>>(new Set());
   const [notice, setNotice] = useState<string | null>(null);
 
+  // A held flip is only about the status it was made from. Once the shared entries read as
+  // something else, it is spent, so it cannot re-apply if the status later returns to `from`.
+  const spent = [...changes].filter(([entryId, change]) => {
+    const source = entries.find(entry => entry.id === entryId);
+    return (
+      source !== undefined && (source.classes[0]?.checkInStatus ?? 'no-status') !== change.from
+    );
+  });
+  if (spent.length > 0) {
+    setChanges(current => {
+      const next = new Map(current);
+      spent.forEach(([entryId]) => next.delete(entryId));
+      return next;
+    });
+  }
+
   /** Sets `status` on each entry; `subject` names who or what in the messages ("Alice Martin"). */
   const setStatus = useCallback(
     async (subject: string, entryIds: readonly string[], status: CheckInStatus) => {

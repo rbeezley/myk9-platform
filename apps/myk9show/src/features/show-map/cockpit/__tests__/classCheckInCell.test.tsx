@@ -55,12 +55,13 @@ const scored = entry('e-2', 'Piper', {
   place: null,
 });
 
-function renderTable(canChangeCheckIn: boolean) {
+function renderTable(canChangeCheckIn: boolean, onRefreshEntries?: () => Promise<void>) {
   return render(
     <ClassEntriesTable
       entries={[waiting, scored]}
       className="Container Novice A"
       canChangeCheckIn={canChangeCheckIn}
+      {...(onRefreshEntries && { onRefreshEntries })}
     />
   );
 }
@@ -106,6 +107,31 @@ describe('the class table Check-in cell opens the desk status picker (MYK9-1797)
     ).toBeInTheDocument();
   });
 
+  it('re-reads the entries after a status change, so the table does not keep the old value', async () => {
+    const onRefreshEntries = vi.fn().mockResolvedValue(undefined);
+    const { user } = renderTable(true, onRefreshEntries);
+    await user.click(
+      screen.getByRole('button', { name: 'Change check-in for Moss: Not checked in' })
+    );
+    const picker = await screen.findByRole('dialog');
+    await user.click(within(picker).getByRole('button', { name: /^Checked-in/ }));
+    await waitFor(() => expect(onRefreshEntries).toHaveBeenCalledTimes(1));
+  });
+
+  it('re-reads the entries after a confirmed Pull', async () => {
+    const onRefreshEntries = vi.fn().mockResolvedValue(undefined);
+    const { user } = renderTable(true, onRefreshEntries);
+    await user.click(
+      screen.getByRole('button', { name: 'Change check-in for Moss: Not checked in' })
+    );
+    const picker = await screen.findByRole('dialog');
+    await user.click(within(picker).getByRole('button', { name: /^Pulled/ }));
+    const confirm = await screen.findByRole('dialog', { name: 'Pull Moss?' });
+    expect(onRefreshEntries).not.toHaveBeenCalled();
+    await user.click(within(confirm).getByRole('button', { name: 'Pull' }));
+    await waitFor(() => expect(onRefreshEntries).toHaveBeenCalledTimes(1));
+  });
+
   it('asks first on Pulled, then pulls through the shared Pull with Undo', async () => {
     const { user } = renderTable(true);
     await user.click(
@@ -136,9 +162,15 @@ describe('the class table Check-in cell opens the desk status picker (MYK9-1797)
     expect(screen.getByText('Scored, so the status is locked')).toBeInTheDocument();
   });
 
-  it('gives a read-only user the status as text, with no button', () => {
+  it('gives a read-only user the status as text, with no button and no locked reason', () => {
     renderTable(false);
     expect(screen.queryByRole('button')).toBeNull();
     expect(screen.getByText('Checked in')).toBeInTheDocument();
+    expect(screen.queryByText('Scored, so the status is locked')).toBeNull();
+  });
+
+  it('does not say "Not checked in" twice on a dog that has not turned up', () => {
+    renderTable(true);
+    expect(screen.getAllByText('Not checked in')).toHaveLength(1);
   });
 });

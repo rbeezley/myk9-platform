@@ -36,11 +36,11 @@ export function ClassCheckInCell({
   const pill = <StatusPill label={display.label} kind={display.kind} outlined={notCheckedIn} />;
 
   if (!checkIn.canChange || !entry.deskEditable) {
-    // A dog not checked in says so once, in Run status; a locked row says why.
+    // A dog not checked in says so once, in Run status. A locked row says why, to a manager only.
     return (
       <>
         {entry.checkIn && !entry.notCheckedIn && pill}
-        {entry.lockedReason && (
+        {checkIn.canChange && entry.lockedReason && (
           <span className="mt-1 block text-xs text-muted-foreground">{entry.lockedReason}</span>
         )}
       </>
@@ -55,7 +55,8 @@ export function ClassCheckInCell({
         onClick={() => checkIn.open(entry.entryId)}
         className="flex min-h-11 items-center gap-0.5 rounded-md px-1 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
       >
-        {pill}
+        {/* A dog not checked in says so in Run status; here the control only offers the change. */}
+        {notCheckedIn ? <span className="text-xs text-muted-foreground">Set status</span> : pill}
         <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
       </button>
       {isFlaggedPull({ deskStatusEditable: true, checkInStatus: shown }) && (

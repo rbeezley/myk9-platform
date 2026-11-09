@@ -48,6 +48,7 @@ export function SecretaryCockpitFocusedClass({
   setupActions,
   judgeControl,
   entryBreakdownByClassId,
+  onRefreshEntries,
 }: {
   showId: string;
   focused: FocusedClassModel | null;
@@ -67,6 +68,8 @@ export function SecretaryCockpitFocusedClass({
   judgeControl?: ReactNode;
   /** Entered/pending per class, the schedule row's own count (MYK9-943); absent until entries are read. */
   entryBreakdownByClassId?: ReadonlyMap<string, ClassEntryBreakdown> | undefined;
+  /** Re-reads the page's entries after a Check-in cell write (MYK9-1797). */
+  onRefreshEntries?: (() => void | Promise<void>) | undefined;
 }) {
   // Which class's hand-placement list is open; scoped by id so focusing another
   // class closes it rather than carrying it over.
@@ -149,6 +152,7 @@ export function SecretaryCockpitFocusedClass({
             entries={focused.entries}
             className={focused.name}
             canChangeCheckIn={canManageShow}
+            {...(onRefreshEntries && { onRefreshEntries })}
             hidden={focused.entriesHidden}
             unread={unread}
           />

@@ -102,7 +102,7 @@ describe('checkInTransitions', () => {
       });
     });
 
-    it('writes back the previous status and ring time for an unscored dog still in the ring', async () => {
+    it('writes back the previous status, with no ring time, for an unscored dog still in the ring', async () => {
       const row = {
         id: 'entry-1',
         checkInStatus: 'in-ring',

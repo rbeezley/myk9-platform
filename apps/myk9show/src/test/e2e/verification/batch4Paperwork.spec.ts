@@ -60,9 +60,9 @@ for (const width of [375, 1280]) {
     await page.reload();
     // The sheets' print records sit behind a disclosure under the step bar (MYK9-1783).
     const openRecords = async () => {
-      const records = page.locator('details', { hasText: /Other paperwork|Print records/ });
-      if (!(await records.evaluate(el => (el as HTMLDetailsElement).open)))
-        await records.locator('summary').click();
+      const summary = page.locator('summary', { hasText: /^(Other paperwork|Print records)/ });
+      const records = summary.locator('xpath=..');
+      if (!(await records.evaluate(el => (el as HTMLDetailsElement).open))) await summary.click();
     };
     const sheet = (name: string) =>
       page.getByRole('checkbox', { name: `Select ${name} to print`, exact: true });

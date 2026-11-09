@@ -7,7 +7,8 @@ import { callerHoldsStaffRole, getDocumentGuides } from './guideScope.ts';
 import { buildAskQSystemPrompt } from './systemPrompt.ts';
 import { parseSupportAnswer } from './supportMode.ts';
 import { getSupportEscalationForQuestion } from './supportMode.ts';
-import { planAnswerMode } from './showModeRouting.ts';
+import { getActiveTools, getDocumentRulebooks, parseShowDataAnswer } from './showModeRouting.ts';
+import { TOOLS } from './toolDefinitions.ts';
 import { ASKQ_RULEBOOKS } from './documentAssets.ts';
 import type { AskQQuestionMode, UserContext } from './types.ts';
 
@@ -35,7 +36,6 @@ const assemble = (questionMode: AskQQuestionMode, hasStaffRole: boolean) =>
   });
 
 const AKC_RULEBOOK = ASKQ_RULEBOOKS.find(rulebook => rulebook.id === 'akc-scent-work')!;
-const SWITCH_MODES = /switch modes|switch to App help/i;
 const PUBLIC_GUIDE_IDS = ['exhibitor-guide', 'judge-steward-quickstart'];
 const ALL_GUIDE_IDS = ASKQ_GUIDES.map(guide => guide.id);
 const ENTRY_FEE_ONLY = 'Any refund returns the entry fee only.';
@@ -112,96 +112,90 @@ describe('MYK9-1775 secretary late entry (App help, manager)', () => {
 // The owner's live re-ask (2026-11-09, ask-myk9show v85): This show mode refused it.
 const SHOW_MODE_QUESTION =
   'I need to take my dog out of a class I entered. How do I do that, and do I get my money back?';
+const SWITCH_MODES = /switch modes|switch to App help|switch to Rules/i;
 
-// Mirrors the entrypoint: plan the mode, then build the prompt for the planned mode.
-const assembleThisShow = (message: string, hasStaffRole: boolean) => {
-  const { answerMode, answerSupportMode } = planAnswerMode('show-data', false, message);
-  const rulebooks = answerMode === 'rules' ? [AKC_RULEBOOK] : [];
-  return {
-    answerMode,
-    answerSupportMode,
-    ...buildAskQSystemPrompt({
-      userContext: {
-        ...userContext,
-        showId: 'show-1',
-        showName: 'Heartland',
-        showRegistries: ['AKC Scent Work'],
-      },
-      questionMode: answerMode,
-      effectiveSupportMode: answerSupportMode,
-      hasStaffRole,
-      allGuides: ASKQ_GUIDES,
-      rulebooks,
-    }),
-  };
+// Mirrors the entrypoint for This show: the guides and the show's rulebook ride along with the tools.
+const assembleThisShow = (hasStaffRole: boolean) => {
+  const built = buildAskQSystemPrompt({
+    userContext: {
+      ...userContext,
+      showId: 'show-1',
+      showName: 'Heartland',
+      showRegistries: ['AKC Scent Work'],
+    },
+    questionMode: 'show-data',
+    effectiveSupportMode: false,
+    hasStaffRole,
+    allGuides: ASKQ_GUIDES,
+    rulebooks: getDocumentRulebooks('show-data', [AKC_RULEBOOK]),
+  });
+  return { ...built, tools: getActiveTools('show-data', false) };
 };
 
-describe('MYK9-1775 This show mode answers app-help questions from the guides', () => {
-  const plan = assembleThisShow(SHOW_MODE_QUESTION, false);
+describe('MYK9-1775 This show mode answers app-help and rules questions from the documents', () => {
+  const plan = assembleThisShow(false);
 
-  it('does not escalate the question before the model sees it', () => {
+  it('does not escalate the owner question before the model sees it', () => {
     expect(getSupportEscalationForQuestion(SHOW_MODE_QUESTION)).toBeNull();
   });
 
-  it('loads the exhibitor guide section 9 and never tells the user to switch modes', () => {
-    expect(plan.answerMode).toBe('app-help');
-    expect(plan.answerSupportMode).toBe(true);
+  it('loads exhibitor guide section 9 and never tells the user to switch modes', () => {
     expect(plan.guides.map(guide => guide.id)).toContain('exhibitor-guide');
     expect(plan.systemPrompt).toContain('## Section 9 — Leave a Class: Withdraw or Pull');
     expect(plan.systemPrompt).toContain(ENTRY_FEE_ONLY);
-    expect(plan.systemPrompt).toContain('GROUNDING RULES (app help)');
+    expect(plan.systemPrompt).toContain('GROUNDING RULES (this show)');
+    expect(plan.systemPrompt).toContain('SUPPORT_QUOTE [<guide id>]');
     expect(plan.systemPrompt).not.toMatch(SWITCH_MODES);
   });
 
   it('keeps the role guide scope: an exhibitor gets no secretary guide, staff do', () => {
     expect(plan.systemPrompt).not.toContain('<guide id="secretary-guide"');
     expect(plan.guides.map(guide => guide.id)).toEqual(PUBLIC_GUIDE_IDS);
-    expect(assembleThisShow(SHOW_MODE_QUESTION, true).guides.map(guide => guide.id)).toEqual(
-      ALL_GUIDE_IDS
-    );
+    expect(assembleThisShow(true).guides.map(guide => guide.id)).toEqual(ALL_GUIDE_IDS);
   });
 
-  it('verifies a stubbed answer against the guide quotes like App help', () => {
+  it('verifies a guide answer by its quotes and passes a tool answer through', () => {
     const stub = [
       'SUPPORT_ANSWER',
       `SUPPORT_QUOTE [exhibitor-guide]: "${ENTRY_FEE_ONLY} ${SERVICE_FEE}"`,
     ].join('\n');
-    expect(parseSupportAnswer(stub, plan.guides).guideSources.map(source => source.id)).toEqual([
+    expect(parseShowDataAnswer(stub, plan.guides).guideSources.map(s => s.id)).toEqual([
       'exhibitor-guide',
     ]);
+    const forged =
+      'SUPPORT_ANSWER\nSUPPORT_QUOTE [exhibitor-guide]: "A refund is always automatic within ten days."';
+    expect(parseShowDataAnswer(forged, plan.guides).escalation).not.toBeNull();
+    const toolAnswer = 'Novice Interior is running now in Ring 2.';
+    expect(parseShowDataAnswer(toolAnswer, plan.guides)).toEqual({
+      answerText: toolAnswer,
+      escalation: null,
+      escalationCause: null,
+      guideSources: [],
+    });
   });
-});
 
-describe('MYK9-1775 This show mode answers rules questions from the show registry rulebook', () => {
-  const plan = assembleThisShow(
-    'What is the maximum time for an AKC Novice interior search?',
-    false
-  );
-
-  it('uses the rules path with only the show registry rulebook and no guides', () => {
-    expect(plan.answerMode).toBe('rules');
-    expect(plan.answerSupportMode).toBe(false);
-    expect(plan.guides).toEqual([]);
+  it('carries only the show registry rulebook, with a source label rule', () => {
     expect(plan.systemPrompt).toContain('<selected_rulebook id="akc-scent-work"');
     expect(plan.systemPrompt).not.toContain('ukc-nosework');
     expect(plan.systemPrompt).not.toContain('asca-scent-detection');
-    expect(plan.systemPrompt).not.toMatch(SWITCH_MODES);
+    expect(plan.systemPrompt).toContain('Using AKC Scent Work rules:');
   });
-});
 
-describe('MYK9-1775 This show mode keeps live-data questions on the show-data tools', () => {
+  // Codex review of PR 3731: a keyword router took the tools away from these.
   it.each([
-    'How did my dog do today?',
-    'Who won Novice Interior?',
-    'Which entries are withdrawn or pulled?',
-    'What time does the first class start?',
-  ])('%s', question => {
-    const plan = assembleThisShow(question, false);
-    expect(plan.answerMode).toBe('show-data');
-    expect(plan.answerSupportMode).toBe(false);
-    expect(plan.guides).toEqual([]);
+    'Is Novice Interior running yet?',
+    'Is my dog entered in Novice Interior?',
+    'Has my entry been cancelled?',
+    SHOW_MODE_QUESTION,
+  ])('keeps the live-data tools for: %s', () => {
+    expect(plan.tools.map(tool => tool.name)).toEqual(TOOLS.map(tool => tool.name));
+    expect(plan.tools.length).toBeGreaterThan(0);
     expect(plan.systemPrompt).toContain('Use live show-data tools');
-    expect(plan.systemPrompt).not.toMatch(SWITCH_MODES);
+  });
+
+  it('still turns the tools off for App help and Rules', () => {
+    expect(getActiveTools('app-help', true)).toEqual([]);
+    expect(getActiveTools('rules', false)).toEqual([]);
   });
 });
 

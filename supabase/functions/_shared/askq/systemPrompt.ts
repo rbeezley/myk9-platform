@@ -7,6 +7,7 @@ import { buildGroundingPrompt } from './groundingRules.ts';
 import { getDocumentGuides } from './guideScope.ts';
 import { buildMyK9ShowPrompt } from './myK9ShowPrompt.ts';
 import { buildModePrompt } from './requestRouting.ts';
+import { buildShowDataDocumentPrompt } from './showModeRouting.ts';
 import { buildSupportModePrompt } from './supportMode.ts';
 import type { AskQQuestionMode, UserContext } from './types.ts';
 
@@ -27,6 +28,10 @@ export function buildAskQSystemPrompt(input: AskQSystemPromptInput): {
   const guides = getDocumentGuides(input.allGuides, input.questionMode, input.hasStaffRole);
   const documentContext = buildDocumentContext({ guides, rulebooks: input.rulebooks });
   const base = `${buildMyK9ShowPrompt(input.userContext, documentContext)}${buildModePrompt(input.questionMode)}${buildGroundingPrompt(input.questionMode, input.effectiveSupportMode)}`;
-  const systemPrompt = input.effectiveSupportMode ? buildSupportModePrompt(base, guides) : base;
+  const systemPrompt = input.effectiveSupportMode
+    ? buildSupportModePrompt(base, guides)
+    : input.questionMode === 'show-data'
+      ? `${base}${buildShowDataDocumentPrompt(guides)}`
+      : base;
   return { systemPrompt, guides };
 }

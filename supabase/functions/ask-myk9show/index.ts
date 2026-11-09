@@ -1,13 +1,10 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import type {
-  AskQQuestionMode,
   AskQShowRequest,
   ChatResponse,
   ClaudeContentBlock,
-  ToolDefinition,
   UserContext,
 } from '../_shared/askq/types.ts';
-import { TOOLS } from '../_shared/askq/toolDefinitions.ts';
 import { executeTool } from '../_shared/askq/toolExecutor.ts';
 import { collectSource } from '../_shared/askq/responseFormatter.ts';
 import { callClaude } from '../_shared/askq/promptBuilder.ts';
@@ -28,7 +25,11 @@ import { reserveAskQQuery } from '../_shared/askq/askqRateLimit.ts';
 import { classifyAskQFailure } from '../_shared/askq/askqFailure.ts';
 import { describeShowRegistries } from '../_shared/askq/showRegistries.ts';
 import { callerHasShowAccess } from '../_shared/askq/showAccess.ts';
-import { planAnswerMode } from '../_shared/askq/showModeRouting.ts';
+import {
+  getActiveTools,
+  getDocumentRulebooks,
+  parseShowDataAnswer,
+} from '../_shared/askq/showModeRouting.ts';
 import { callerHoldsStaffRole } from '../_shared/askq/guideScope.ts';
 import { buildAskQSystemPrompt } from '../_shared/askq/systemPrompt.ts';
 
@@ -248,10 +249,11 @@ Deno.serve(async (req: Request) => {
     // The panel shows "This show" by default and sends no mode until the tab changes.
     const questionMode = resolveQuestionModeForShow(requestedMode, verifiedShowId !== null);
 
-    // A "This show" question that is not about live data gets the grounded guide or rulebook path.
-    const { answerMode, answerSupportMode } = planAnswerMode(questionMode, supportMode, message);
+    // This show keeps the tools and also carries the guides, so it checks payment questions like App help.
     const routedSupportEscalation =
-      answerSupportMode && !effectiveSupportMode ? getSupportEscalationForQuestion(message) : null;
+      questionMode === 'show-data' && !effectiveSupportMode
+        ? getSupportEscalationForQuestion(message)
+        : null;
     if (routedSupportEscalation) {
       const responseTimeMs = Date.now() - startTime;
       await serviceClient
@@ -279,7 +281,7 @@ Deno.serve(async (req: Request) => {
       allRulebooks: ASKQ_RULEBOOKS,
       showRulebooks,
       hasVerifiedShowContext: verifiedShowId !== null,
-      questionMode: answerMode,
+      questionMode,
       message,
       rulebookScope: routing.rulebookScope,
     });
@@ -307,13 +309,13 @@ Deno.serve(async (req: Request) => {
     const hasStaffRole = await callerHoldsStaffRole(serviceClient, user.id);
     const { systemPrompt, guides: documentGuides } = buildAskQSystemPrompt({
       userContext,
-      questionMode: answerMode,
-      effectiveSupportMode: answerSupportMode,
+      questionMode,
+      effectiveSupportMode,
       hasStaffRole,
       allGuides: ASKQ_GUIDES,
-      rulebooks: getDocumentRulebooks(answerMode, rulebookResolution.rulebooks),
+      rulebooks: getDocumentRulebooks(questionMode, rulebookResolution.rulebooks),
     });
-    const activeTools = getActiveTools(answerMode, answerSupportMode);
+    const activeTools = getActiveTools(questionMode, effectiveSupportMode);
 
     const messages = [{ role: 'user' as const, content: message }];
     const toolsUsed: string[] = [];
@@ -361,9 +363,11 @@ Deno.serve(async (req: Request) => {
 
     const textBlock = result.content.find(b => b.type === 'text');
     const fullText = textBlock?.text ?? '';
-    const parsedSupportAnswer = answerSupportMode
+    const parsedSupportAnswer = effectiveSupportMode
       ? parseSupportAnswer(fullText, documentGuides)
-      : null;
+      : questionMode === 'show-data'
+        ? parseShowDataAnswer(fullText, documentGuides)
+        : null;
     if (parsedSupportAnswer && parsedSupportAnswer.guideSources.length > 0) {
       sources.guide = parsedSupportAnswer.guideSources;
     }
@@ -453,22 +457,6 @@ function buildTextStream(
     send('meta', meta);
     send('done', {});
   });
-}
-
-function getActiveTools(
-  questionMode: AskQQuestionMode | null,
-  effectiveSupportMode: boolean
-): ToolDefinition[] {
-  if (effectiveSupportMode || questionMode === 'rules') return [];
-  return TOOLS;
-}
-
-function getDocumentRulebooks(
-  questionMode: AskQQuestionMode | null,
-  rulebooks: AskQRulebookAsset[]
-): AskQRulebookAsset[] {
-  if (questionMode === 'app-help' || questionMode === 'show-data') return [];
-  return rulebooks;
 }
 
 function selectUniqueRulebooksForTrials(

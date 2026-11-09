@@ -15,9 +15,11 @@ GROUNDING RULES (app help):
 
 export const SHOW_DATA_HOWTO_RULES = `
 GROUNDING RULES (this show):
-- Describe only what the show-data tools return. Do not describe app steps, deadlines, refund terms or fees, and do not promise a refund. How-to and policy questions are answered from the verified guides before they reach you; do not send the user to another mode.
+- Show facts come only from what the show-data tools return. Describe app steps, deadlines, refund terms and fees only as the verified guides word them; never promise a refund, and never fill a gap with "usually" or "typically".
+- Each guide has an audience. Answer from the guide for the asker's own role, and never offer another role's action as something the asker can do themselves.
+- When an exhibitor wants to leave a class, give the Leave class... path and the difference between Pull and Withdraw from the exhibitor guide, with the refund terms exactly as that guide words them.
 - Questions about live show data, such as which entries are withdrawn or pulled, are answered with the show-data tools as usual.
-- Answer data questions for this show's registry only, as stated in user_context.
+- Answer for this show's registry only, as stated in user_context.
 `;
 
 export function buildGroundingPrompt(

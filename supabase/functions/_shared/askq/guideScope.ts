@@ -65,12 +65,12 @@ export function scopeGuidesToRole(
   return guides.filter(guide => !MANAGEMENT_GUIDE_IDS.has(guide.id));
 }
 
-/** The guides in play for a mode: none for rules and show-data, role-scoped for app help. */
+/** The guides in play for a mode: none for rules, role-scoped for app help and This show. */
 export function getDocumentGuides(
   allGuides: AskQGuideAsset[],
   questionMode: AskQQuestionMode | null,
   hasStaffRole: boolean
 ): AskQGuideAsset[] {
-  if (questionMode === 'rules' || questionMode === 'show-data') return [];
+  if (questionMode === 'rules') return [];
   return scopeGuidesToRole(allGuides, hasStaffRole);
 }

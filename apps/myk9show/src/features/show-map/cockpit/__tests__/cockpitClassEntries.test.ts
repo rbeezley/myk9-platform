@@ -179,6 +179,8 @@ describe('classEntriesForClass', () => {
       entryRow('C', {}),
       entryRow('D', { check_in_status: 'pulled' }),
       entryRow('E', { entry_status: 'withdrawn' }),
+      entryRow('F', { result_status: 'absent' }),
+      entryRow('G', { check_in_status: ' In-Ring ' }),
     ]);
     expect(rows.map(row => runStatusDisplay(row).label)).toEqual([
       'Scored',
@@ -186,6 +188,8 @@ describe('classEntriesForClass', () => {
       'Waiting',
       'Pulled',
       'Withdrawn',
+      'Absent',
+      'In ring',
     ]);
   });
 

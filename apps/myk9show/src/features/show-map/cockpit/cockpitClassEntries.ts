@@ -20,7 +20,9 @@ export type ClassEntryState = 'waiting' | 'in-ring' | 'scored' | 'pulled' | 'wit
 /**
  * One dog in a class, as the Show Desk entries table and the schedule row's phrase read it. Which
  * dogs are listed and counted is `entryAccounting` (the same set as the class's `entryCount`), the
- * order and place in line are the `runQueue` rules; this module holds no rule of its own.
+ * order and place in line are the `runQueue` rules. The only rules held here are display ones: which
+ * non-running dogs are still listed (`isListed`) and the label each dog gets (`stateOf`). The labels
+ * are this table's own (Scored, Waiting); `classifyEntryRunStatus` words them differently.
  */
 export interface SecretaryCockpitClassEntry {
   nodeId: string;
@@ -58,12 +60,16 @@ function isListed(fields: EntryAccountingFields, entryStatus: string | undefined
   return isExpectedEntry(fields) || isNonRunningEntry(fields) || isPulledEntry(fields);
 }
 
+function checkInOf(fields: EntryAccountingFields): string {
+  return fields.check_in_status?.trim().toLowerCase() || 'no-status';
+}
+
 function stateOf(fields: EntryAccountingFields, entryStatus: string): ClassEntryState {
   if (entryStatus === 'withdrawn') return 'withdrawn';
   if (isPulledEntry(fields)) return 'pulled';
   if (!isExpectedEntry(fields)) return 'absent';
   if (isAccountedFor(fields)) return 'scored';
-  return fields.check_in_status?.trim().toLowerCase() === 'in-ring' ? 'in-ring' : 'waiting';
+  return checkInOf(fields) === 'in-ring' ? 'in-ring' : 'waiting';
 }
 
 /** A result shows only for a dog that ran: `pending` is the unscored default, and a pulled or
@@ -83,14 +89,14 @@ function queueRowOf(
 ): RunQueueEntry {
   const parsed = Number.parseInt(display.armband ?? '', 10);
   const runnable = isRunnableEntry(fields);
-  const checkIn = fields.check_in_status ?? 'no-status';
+  const checkIn = checkInOf(fields);
   return {
     id: nodeId,
     armband: Number.isNaN(parsed) ? 0 : parsed,
     exhibitorOrder: display.runOrder ?? null,
     isScored: display.isScored ?? false,
     status: runnable ? checkIn : 'pulled',
-    inRing: runnable && fields.check_in_status === 'in-ring',
+    inRing: runnable && checkIn === 'in-ring',
   };
 }
 
@@ -125,10 +131,7 @@ export function classEntriesForClass(
         checkIn: node.checkInStatus,
         state,
         counted,
-        notCheckedIn:
-          state === 'waiting' &&
-          counted &&
-          (!fields.check_in_status || fields.check_in_status === 'no-status'),
+        notCheckedIn: state === 'waiting' && counted && checkInOf(fields) === 'no-status',
         result: recordedResult(state, display.resultStatus),
       },
     });
@@ -158,7 +161,10 @@ export function runStatusDisplay(entry: SecretaryCockpitClassEntry): {
 } {
   switch (entry.state) {
     case 'scored':
-      return { label: 'Scored', kind: 'complete' };
+      // A dog marked absent is done for the class (counted with the scored), but it never ran.
+      return entry.result === 'ABS'
+        ? { label: 'Absent', kind: 'muted' }
+        : { label: 'Scored', kind: 'complete' };
     case 'in-ring':
       return { label: 'In ring', kind: 'active' };
     case 'pulled':

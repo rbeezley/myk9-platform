@@ -1,11 +1,11 @@
 ---
 name: ship-it
-description: Use when given a docs/plan-*.md path to autonomously implement, test, simplify and harden a feature, then ship it through ship-pr (PR, independent review gate, merge, cleanup) with no human input until final merge confirmation. For OpenSpec changes use opsx:ship or orchestrate instead; for a list of Linear issues use orchestrate.
+description: Use when given a docs/plan-*.md path to autonomously implement, test, simplify and (below the Codex review tier) harden a feature, then ship it through ship-pr (PR, independent review gate, merge, cleanup) with no human input until final merge confirmation. For OpenSpec changes use opsx:ship or orchestrate instead; for a list of Linear issues use orchestrate.
 ---
 
 # Ship It — Autonomous PR Pipeline
 
-Takes a plan path and ships it end-to-end: implement → test loop → migration audit → simplify → harden → `ship-pr` (commit, PR, review gate, merge, close-out, cleanup).
+Takes a plan path and ships it end-to-end: implement → test loop → migration audit → simplify → harden (unless Codex reviews, Step 3c) → `ship-pr` (commit, PR, review gate, merge, close-out, cleanup).
 
 This skill owns everything up to a green working tree, hardened unless Step 3c hands that job to the Codex gate. From there `ship-pr` owns the rest, so the review gate, merge and cleanup rules live in ONE place. Do not restate or shortcut them here.
 

@@ -256,6 +256,7 @@ jobs:
           pnpm qa:review-gate:test
           pnpm qa:review-tier:test
           pnpm qa:launcher-pin:test
+          pnpm qa:phone-walk:test
           pnpm qa:typecheck-scripts:test
           pnpm qa:deferred-reviews:test
 

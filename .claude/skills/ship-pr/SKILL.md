@@ -155,6 +155,25 @@ comments for every tier — never type an evidence line by hand.
   `docs/PLAYBOOK.md` § 4. No review log required, but a withdrawal at any
   tier always needs a log carrying `[P*]` bullets.
 
+### Step 3b: Phone-width walk — BEFORE the gate is posted, on ringside and check-in desk PRs
+
+```bash
+pnpm qa:phone-walk --pr $PR_NUMBER
+```
+
+`scripts/qa/phone-walk.ts` holds the declared path list. When the diff touches one,
+the walk (`ringsidePhoneWalk.spec.ts`, in the `proof` job of "Isolated scoring and
+paperwork verification") must be green on the PR head before any tier's
+`post-review-gate.sh` runs. That workflow is not a required check, so nothing else
+stops a red walk from merging.
+
+- **0** — not required, or required and green: continue.
+- **1** — the walk failed. Download the `isolated-batch3-proof` artifact, read the
+  screenshots and trace, fix, push, and start Step 3 again. Never post the gate over it.
+- **2** — a declared path is gone, or the checks could not be read. Fix the list in the
+  same PR that moved the code; this is not a pass.
+- **3** — the run has not finished. Wait and re-run the command; not a verdict.
+
 ### Step 4: Independent Review Gate — BEFORE merge
 
 The gate is a review by the **other** harness. A subagent of your own harness is never a substitute (see `docs/PLAYBOOK.md` § 4 — that substitution is a recorded lapse). The review must finish, and its findings must be acted on, before Step 5. A review that finishes after the merge is an audit, not a gate: on 2026-09-05 PR #2040 merged while its review was still running and both findings shipped to `main`.

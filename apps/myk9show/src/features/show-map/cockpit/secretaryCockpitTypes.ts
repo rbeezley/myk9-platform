@@ -251,7 +251,8 @@ export interface TrialScheduleGroupModel {
   };
 }
 
-export interface FocusedClassModel extends ScheduledClassModel {
+// The focused class is never filtered, so it carries no filter facts.
+export interface FocusedClassModel extends Omit<ScheduledClassModel, 'filterFacts'> {
   /** From the snapshot (MYK9-1620): false hides "Not confirmed printed" on paperwork rows. */
   printTrackingInUse: boolean;
   /** From the snapshot (MYK9-1620): false collapses the checklist under a quiet disclosure. */

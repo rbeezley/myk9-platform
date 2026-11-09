@@ -23,7 +23,8 @@ import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable'
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 
 import { logger } from '@/services/LoggingService';
-import { transitionToCompleted, transitionToInRing } from '@/utils/checkInTransitions';
+import { transitionToCompleted } from '@/utils/checkInTransitions';
+import { useScoresheetRingMove } from '@/hooks/useScoresheetRingMove';
 import { getScoresheetComponent } from '@myk9/scoring-ui';
 import { RegisteredScoresheetActionBar } from '@/components/scoring/RegisteredScoresheetActionBar';
 import { classScoringRules } from './classScoringRules';
@@ -84,6 +85,8 @@ export function ScoresheetPage() {
   const [awaitingRegistrationNumber, setAwaitingRegistrationNumber] = useState(false);
   const [reloadCount, setReloadCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  // Leaving without a saved score puts the dog back (MYK9-1762).
+  const ringMove = useScoresheetRingMove(entryId);
 
   useEffect(() => {
     async function loadData() {
@@ -133,9 +136,7 @@ export function ScoresheetPage() {
         setAwaitingRegistrationNumber(held);
         // Auto-set check-in status to in-ring when the scoresheet opens; never
         // for a held dog.
-        if (!held) {
-          transitionToInRing(rawEntry.id, rawEntry.checkInStatus, rawEntry.ring_entry_time);
-        }
+        if (!held) ringMove.opened(rawEntry);
 
         // Load only the needed dog
         const dog = rawEntry.dogId ? await replicatedDogsTable.get(rawEntry.dogId) : null;
@@ -161,7 +162,7 @@ export function ScoresheetPage() {
     }
 
     loadData();
-  }, [classId, entryId, reloadCount]);
+  }, [classId, entryId, reloadCount, ringMove]);
 
   // Submit handler — passes full ScoreData through to optimistic scoring
   const handleSubmit = async (scoreData: ScoreData) => {
@@ -175,6 +176,7 @@ export function ScoresheetPage() {
       scoreData: toOptimisticScorePayload(scoreData),
       onSuccess: () => {
         // Auto-set check-in status to completed after scoring
+        ringMove.scored();
         transitionToCompleted(entry.entryId);
 
         // Navigate back to entry list. The score is saved, so leaving loses

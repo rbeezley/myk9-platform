@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   getTrialById: vi.fn(),
   transitionToInRing: vi.fn(),
   transitionToCompleted: vi.fn(),
+  restoreFromInRing: vi.fn(),
   isCurrentFinalPendingEntry: vi.fn(),
   recordCompletionIntentIfConfirmed: vi.fn(),
 }));
@@ -69,6 +70,7 @@ vi.mock('@/services/replication/ReplicatedTrialsTable', () => ({
 vi.mock('@/utils/checkInTransitions', () => ({
   transitionToInRing: mocks.transitionToInRing,
   transitionToCompleted: mocks.transitionToCompleted,
+  restoreFromInRing: mocks.restoreFromInRing,
 }));
 
 vi.mock('@/services/LoggingService', () => ({
@@ -282,5 +284,50 @@ describe('useAtShowScoresheet completion wiring', () => {
     expect(mocks.recordCompletionIntentIfConfirmed).not.toHaveBeenCalled();
     expect(mocks.transitionToCompleted).not.toHaveBeenCalled();
     expect(onScored).not.toHaveBeenCalled();
+  });
+
+  // MYK9-1762: leaving the sheet without a saved score undoes what opening it did.
+  describe('leaving the sheet', () => {
+    const move = {
+      entryId: 'entry-1',
+      previousStatus: 'checked-in',
+      previousRingEntryTime: undefined,
+    };
+
+    it('puts the dog back when the sheet is left without a score', async () => {
+      mocks.transitionToInRing.mockReturnValue(move);
+      const { result, unmount } = renderScoresheet(vi.fn());
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      unmount();
+
+      expect(mocks.restoreFromInRing).toHaveBeenCalledExactlyOnceWith(move);
+    });
+
+    it('does not put a scored dog back', async () => {
+      mocks.transitionToInRing.mockReturnValue(move);
+      mocks.submitScoreOptimistically.mockImplementation(async (options: SubmitOptions) => {
+        options.onSuccess?.();
+      });
+      const { result, unmount } = renderScoresheet(vi.fn());
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+      await act(async () => {
+        await result.current.submit({ resultText: 'Qualified' } as never);
+      });
+
+      unmount();
+
+      expect(mocks.restoreFromInRing).not.toHaveBeenCalled();
+    });
+
+    it('does nothing when opening the sheet moved nothing (Resume)', async () => {
+      mocks.transitionToInRing.mockReturnValue(null);
+      const { result, unmount } = renderScoresheet(vi.fn());
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      unmount();
+
+      expect(mocks.restoreFromInRing).not.toHaveBeenCalled();
+    });
   });
 });

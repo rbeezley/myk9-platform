@@ -47,6 +47,7 @@ import {
 } from './ReplicatedEntriesTable.coldReadColumns';
 import { ENTRY_DIRTY_ROW_COMPARE_POLICY } from './entriesDirtyRowComparePolicy';
 import { buildRingsideRpcFields, RINGSIDE_RPC_FUNCTION } from './ringsideEntryRpc';
+import { ringTimeClearPayload, staleRingTimeClear } from './entryRingTime';
 import {
   classifyMoveUpRpcError,
   MOVE_UP_ENTRY_RPC,
@@ -807,11 +808,13 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
    */
   async updateCheckInStatus(entryId: string, status: CheckInStatus): Promise<string | null> {
     const entry = await this.getOrHydrateEntryForWrite(entryId);
+    const ringTimeClear = staleRingTimeClear(entry, status);
 
     const updated: ReplicatedEntry = {
       ...entry,
       checkInStatus: status,
       check_in_status: status,
+      ...ringTimeClear,
       ...clearStalePullSource(entry, { checkInStatus: status }),
       _lastModified: new Date(),
       _syncStatus: 'pending',
@@ -823,11 +826,15 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       payload: {
         id: entryId,
         check_in_status: status,
+        ...ringTimeClearPayload(ringTimeClear),
         updated_at: new Date().toISOString(),
       },
-      // check_in_status is ringside-whitelisted; route through the RPC so judges/
-      // stewards can persist check-ins (updated_at is auto-managed, not intent).
-      rpc: { name: RINGSIDE_RPC_FUNCTION, fields: { check_in_status: status } },
+      // check_in_status and ring_entry_time are ringside-whitelisted; route through the RPC
+      // so judges/stewards can persist check-ins (updated_at is auto-managed, not intent).
+      rpc: {
+        name: RINGSIDE_RPC_FUNCTION,
+        fields: { check_in_status: status, ...ringTimeClearPayload(ringTimeClear) },
+      },
     });
     this.reportSetResult(entryId, result);
     this._lastMutationId = mutationId;
@@ -862,8 +869,16 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
   private async applyEntryUpdate(
     entryId: string,
     entry: ReplicatedEntry,
-    updates: Partial<ReplicatedEntry>
+    callerUpdates: Partial<ReplicatedEntry>
   ): Promise<string | null> {
+    const updates: Partial<ReplicatedEntry> = {
+      ...callerUpdates,
+      ...staleRingTimeClear(
+        entry,
+        callerUpdates.checkInStatus ?? callerUpdates.check_in_status,
+        callerUpdates
+      ),
+    };
     const updated: ReplicatedEntry = {
       ...entry,
       ...updates,
@@ -936,6 +951,12 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     if (updates.check_in_status !== undefined || updates.checkInStatus !== undefined) {
       payload.check_in_status = updates.check_in_status ?? updates.checkInStatus;
     }
+    const ringTimeClear = staleRingTimeClear(
+      entry,
+      updates.check_in_status ?? updates.checkInStatus,
+      updates
+    );
+    Object.assign(payload, ringTimeClearPayload(ringTimeClear));
 
     if (updates.withdrawal_reason !== undefined || updates.withdrawalReason !== undefined) {
       payload.withdrawal_reason = updates.withdrawal_reason ?? updates.withdrawalReason;
@@ -960,6 +981,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       const updated: ReplicatedEntry = {
         ...entry,
         ...updates,
+        ...ringTimeClear,
         ...clearStalePullSource(entry, updates),
         _lastModified: new Date(),
         _syncStatus: 'pending',

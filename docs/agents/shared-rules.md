@@ -86,7 +86,7 @@ Linear (workspace `myk9-platform`, team **MyK9-platform**, prefix `MYK9-*`) is t
 2. **Before pushing**: the `/commit` validation ladder, and `pnpm qa:code-quality-ratchet` when the change adds lines to an existing file.
 3. **Before merging**: `pnpm qa:review-tier --base origin/main` reports the review floor (`none`, `adversarial`, `independent`, or optional review); rules in `scripts/qa/review-tier.ts` and `docs/PLAYBOOK.md` § 4. `scripts/qa/post-review-gate.sh` is the only writer of a `Review gate:` line. **`independent`** requires the OTHER harness (`pnpm qa:codex-review` for Claude-authored work; same-harness never suffices), and the verdict is pinned to the head SHA, so a later push needs a fresh review. **Convergence:** stop and restructure at the SECOND finding on the same path across rounds, when findings describe code the PREVIOUS fix introduced, or at a second bug fix on the same file or flow within seven days; ask whether to delete the feature first, and post the restructure proposal instead of another patch. **Filing:** a finding becomes a Linear issue only if a real user could plausibly hit it before launch and it causes real harm (wrong or lost data, money, blocked show-day work, a privacy or security exposure); anything else is one line on the PR. Overrides, lenses and the docs-only two-round budget: `ship-pr`.
 4. **Before calling checks green**: `bash scripts/qa/watch-pr-checks.sh <pr>` (0 green · 1 a REQUIRED check failed · 2 head moved · 3 timeout, NOT a verdict · 5 required green but a non-required check failed · 6 PR conflicts with its base, merge the base in). Never eyeball `statusCheckRollup`; the watcher names only the FIRST required failure, so read the whole rollup before diagnosing.
-5. **After merge**: a merge is not a deploy. Migrations need `supabase db push`, edge functions `supabase functions deploy` (the `deploy` skill), the frontend the next Deploy myK9Show run. Merged work awaiting acceptance evidence is In Review; unmerged work stays In Progress. Done requires a fresh full-issue read and every criterion met (`docs/agents/issue-tracker.md`).
+5. **After merge**: a merge is not a deploy. Migrations need `supabase db push`, edge functions `supabase functions deploy` (the `deploy` skill), the frontend the next Deploy myK9Show run. Merged work awaiting acceptance evidence is In Review; unmerged work stays In Progress. Done requires a fresh full-issue read and every criterion met.
 
 ### Reading the board
 
@@ -123,7 +123,7 @@ Load the `db-push` skill before writing or pushing a migration; it carries these
 
 ## Auto Mode — shared-system writes
 
-"Execute immediately" does NOT extend to shared-system mutations. Confirm before each, even when the request implied consent ("not destructive" is not the test):
+"Execute immediately" does NOT extend to shared-system mutations. Confirm before each, even when the request implied consent ("not destructive" is not the test). `.githooks/pre-push` enforces `PUSH HOLD` directives; verify `core.hooksPath` in every checkout.
 
 - `supabase db push` on a linked project, and `supabase functions deploy`
 - `git push --force` to any branch, or any push to `main` from a feature branch
@@ -138,7 +138,7 @@ One confirmation covers related pushes in a session; re-confirm for a new system
 
 ## Debugging seed-data / config bugs
 
-Survey every related table in one query pass before writing a migration or code fix — the role table(s), the permission/config table(s), and the join/link table(s) together. The full recipe, when to collapse the systematic-debugging ceremony, and when `incident-triage` applies instead, is `docs/PLAYBOOK.md` § 3.
+Survey every related table in one query pass before writing a migration or code fix (role, permission/config and join/link tables). The full recipe, when to collapse the systematic-debugging ceremony, and when `incident-triage` applies instead, is `docs/PLAYBOOK.md` § 3.
 
 ## Planning
 

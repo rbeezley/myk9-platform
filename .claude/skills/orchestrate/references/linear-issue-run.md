@@ -13,7 +13,7 @@ what an issue queue needs: selection, holds, Linear state and the run summary.
    the review gate, so a cheaper model there is the one false economy; a Fable session at high
    effort is the other extreme, and spent most of a usage window on one two-hour run
    (2026-10-26). It never edits
-   files there. Every issue gets its own worktree. Don't start the run from an `EnterWorktree`
+   files there. Every issue, or surface batch, gets its own worktree. Don't start the run from an `EnterWorktree`
    session: that isolation refuses git in the main checkout, which the merge step and the
    per-issue `git worktree add` need. `ExitWorktree` (keep) first.
 2. **Selection.**
@@ -21,7 +21,10 @@ what an issue queue needs: selection, holds, Linear state and the run summary.
    - No list: use **Ready for an agent** and its exact connector fallback from
      `docs/agents/issue-tracker.md`. That contract is the only selection predicate. Rank by
      priority, then by fit with `docs/goals/fall-2026-launch-readiness.md` (secretary and
-     show-day reliability first), then closest to done. Propose the top 3 with one line each and
+     show-day reliability first), then closest to done. Group by surface before proposing:
+     candidates that name the same page, sheet or flow form one batch (one branch, one PR, one
+     deploy; never with money or migration work; see **Size it** in `../SKILL.md`), and a batch
+     ranks by its highest-priority issue and counts as one proposal. Propose the top 3 with one line each and
      wait for one yes. This is the only question the run asks. If no Ready/fallback candidate is eligible (all
      held, or human-only), say so and ask for ids. Never fall back to Backlog yourself.
    - **Continuous mode** applies when the owner says "overnight", "unattended", "keep going" or
@@ -143,7 +146,9 @@ Keep the `cd` inside the subshell: a bare `cd` moves the orchestrator's own work
 into the issue worktree. `git -C "$WT" status --short` must be empty afterwards.
 
 Then `save_issue` → **In Progress** and, in the same step, post the claim comment from the shared
-rules (Gates step 1) with the ledger row's session, branch and `$WT`. Write the ledger row.
+rules (Gates step 1) with the ledger row's session, branch and `$WT`. Write the ledger row. A surface
+batch does this once per issue: every issue In Progress with its own claim comment and ledger row,
+all naming the same branch and `$WT`.
 
 **Cloud lane:** no worktree yet (`$WT` is created only once the PR exists, below).
 Write the prompt to `<scratchpad>/cloud-myk9-$N.md` with the Write tool and dispatch it from

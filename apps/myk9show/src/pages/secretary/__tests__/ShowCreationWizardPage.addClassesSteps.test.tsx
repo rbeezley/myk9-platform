@@ -84,8 +84,10 @@ describe('wizard step set per edit mode (MYK9-899)', () => {
     render(<ShowCreationWizardPage />);
     await waitFor(() => expect(useWizardStore.getState().allowedSteps).toEqual([2, 3]));
     await waitFor(() => expect(screen.getByTestId('step-content')).toBeInTheDocument());
+    // The edit draft loads once the store has read its saved draft (MYK9-1794), which on a
+    // first page load is a moment after the step lock is set.
+    await waitFor(() => expect([2, 3]).toContain(useWizardStore.getState().currentStep));
     const stepNow = useWizardStore.getState().currentStep;
-    expect([2, 3]).toContain(stepNow);
 
     useWizardStore.getState().setCurrentStep(1);
     useWizardStore.getState().goToStep(0);

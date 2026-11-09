@@ -233,6 +233,8 @@ The reviewer is `codex` or `claude` (whichever ran, i.e. the OTHER harness). The
 
 **If the reviewer is genuinely unavailable** (usage limit, outage, auth failure — not merely slow), this PR's floor is `independent` (see Step 3a) — use the `owner` override documented there and in `docs/PLAYBOOK.md` § 4: claim `override, floor was independent`, set `OVERRIDE_REASON="<harness> unavailable — <detail>"` (or `"convergence stop — <detail>"` when the reviewer is reachable but the convergence rule says to stop the round — never write "unavailable" for that) and `DEFERRED_REVIEW=<ISSUE-ID>`, then run `post-review-gate.sh $PR_NUMBER owner <base-sha> <head-sha> "override, floor was independent" /dev/null`. Keep the PR a draft when nothing is time-pressured; when a maintainer authorizes the override, mark it ready so the status can be evaluated, and re-run the real gate once the reviewer is available.
 
+An override with nothing worth filing cites MYK9-1591 as its deferred review. Orchestrated changes ship one PR per batch and review after the structural batch ([`docs/lessons/README.md#orchestrated-change-rounds`](../../../docs/lessons/README.md#orchestrated-change-rounds)).
+
 **Findings:** fix every critical/high (P1/P2) finding and any medium (P3) that is straightforward (the docs-only budget below is the one case where a P2 may be deferred). Invoke `/commit`, then re-run the wrapper against the new head. **Max 5 review rounds** — escalate to the user if not clean after 5.
 
 **Pre-existing defects** (`- [pre-existing P<n>]` bullets, which the wrapper lists after the verdict) are in code the branch did not touch, so they do not block the gate and the evidence comment carries them verbatim. Before merge, file each one as a MYK9 issue (`list_issues` with `includeArchived: true` first; a match gets a comment, not a duplicate). Do not fix them in this PR. Check the label yourself: a defect in lines the diff changed is a normal finding, whatever it is labelled (docs/lessons/README.md#review-scope-boundary).
@@ -360,3 +362,11 @@ git worktree remove "<worktree path from Step 0>" --force 2>/dev/null || true
 - Verify merge via `gh pr view --json state`, not `git log` (squash-merges rewrite SHAs)
 - Use `pnpm`, not `npm` or `npx`
 - Max 5 verify iterations, max 5 review rounds — escalate if limits hit
+
+## Lessons
+
+Traps that belong to this work, moved from `CLAUDE.md` § LESSONS (MYK9-1790). Each points at its incident in `docs/lessons/README.md`; `lessonGuards.test.ts` checks every anchor here has a `**Guard:**` line.
+
+- **A review that finishes after the merge is an audit, not a gate.** The `Review gate` status is pinned to the head SHA; finish the review and act on its findings before announcing a PR as ready, and say "review running" out loud as a blocking state. (docs/lessons/README.md#review-after-merge)
+- **A run whose conclusion is `cancelled` may be one job hitting its own `timeout-minutes`, not concurrency.** Both read identically at run level; `gh run view <id> --json jobs` tells them apart, and a timed-out job's `startedAt`/`completedAt` span is exactly its cap. (docs/lessons/README.md#cancelled-may-be-timeout)
+- **Once a review reports no P0/P1 and a core that holds, route every finding against the base commit**: fix the regressions, FILE what the change only exposed. Shared-component work splits out. (docs/lessons/README.md#review-scope-boundary)

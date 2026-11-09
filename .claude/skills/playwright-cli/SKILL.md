@@ -294,3 +294,21 @@ playwright-cli close
 - **Test generation** [references/test-generation.md](references/test-generation.md)
 - **Tracing** [references/tracing.md](references/tracing.md)
 - **Video recording** [references/video-recording.md](references/video-recording.md)
+
+## Session ownership in this repo
+
+_Moved here from the shared rulebook (MYK9-1790), which keeps a summary. Equally binding._
+
+- Each task/run must own a unique Playwright CLI session. Never reuse a generic name such as `myk9-todo`, the default session, or another task's session.
+- For scripted browser work, run `pnpm qa:browser-session sh path/to/browser-work.sh`. The wrapper supplies a unique `PLAYWRIGHT_CLI_SESSION`; commands inside the script must inherit it and must not override it with `-s` or another environment value. Keep the script in the foreground and wait for all browser work before returning.
+- The wrapper closes only its own session, including on SIGINT/SIGTERM, and fails the run naming the session when cleanup fails or times out. After SIGKILL, a runtime crash or power loss, nothing has closed it.
+- For interactive agent work spanning separate tool calls, choose a unique task/run name, pass `-s=<name>` on every command, and close that exact session before finishing, handing off, or abandoning the task.
+- Check `playwright-cli list` before starting and after cleanup. Do not use `close-all`, `kill-all`, or blanket Chrome process termination as routine cleanup: concurrent agents may own other sessions. Do not delete browser profiles to resolve a hung session.
+- If an owner is interrupted before cleanup, verify that its task has ended before closing the recorded session. Process age or low CPU alone is not evidence that a session is abandoned.
+
+## Lessons
+
+Traps that belong to this work, moved from `CLAUDE.md` § LESSONS (MYK9-1790). Each points at its incident in `docs/lessons/README.md`; `lessonGuards.test.ts` checks every anchor here has a `**Guard:**` line.
+
+- **The confirm click is a destructive click too, and `.last()`/`.first()` on a destructive control picks another row.** Anchor every destructive click to the row that owns it, scope the confirm to `[role="dialog"]`, assert the dialog appeared before looking inside it (Revoke has no confirm, MYK9-284), and assert the count you expect afterwards; on shared staging the coin is someone else's fixture. (docs/lessons/README.md#confirm-click-destructive)
+- **A measurement harness is a program; an unverified one reports its own bugs as findings about the app**, and so does the assertion you write afterwards. Give any contrast or geometry harness known-answer checks that print with the findings, composite over white and black rather than parsing colour strings, walk to a larger clickable ancestor or `label[for]` before reporting a small control, assert the worst case over ALL matches after real content loads, and measure tokens against the rendered composited surface, not the flat pair. (docs/lessons/README.md#measurement-harness)

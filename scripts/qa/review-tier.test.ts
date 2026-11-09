@@ -22,6 +22,7 @@ describe('requiredTier', () => {
       'CLAUDE.md',
       'AGENTS.md',
       'docs/agents/shared-rules.md',
+      'docs/agents/rules-reference.md',
     ]) {
       expect(requiredTier([file]).tier, file).toBe('independent');
     }

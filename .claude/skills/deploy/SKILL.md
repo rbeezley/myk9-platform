@@ -81,3 +81,26 @@ A deploy is what In Review issues wait for, so work them right after it (MYK9-14
 | Client 404 on a brand-new table                         | Missing `GRANT`s (Supabase no longer auto-exposes public tables)   |
 | Function 401 from cron                                  | Vault secret ≠ edge-function secret                                |
 | "db push" password errors                               | Use `db-push` skill; password lives in `supabase/.env`             |
+
+## What ships, and when
+
+_Moved here from the shared rulebook (MYK9-1790), which keeps a summary. Equally binding._
+
+- **What ships today:** nothing deploys on merge. `apps/myk9show/vercel.json` sets `git.deploymentEnabled: false`, so Vercel builds neither `main` nor PR branches for myK9Show. Production (myk9show.com and myk9-platform-myk9show.vercel.app) moves only when someone runs the **Deploy myK9Show** workflow (`gh workflow run deploy-myk9show.yml`), which builds the newest `main` commit with green CI and uploads it prebuilt. Running it is a shared-system write: only when the user asks, or under [standing approvals](docs/agents/standing-approvals.md). `main` routinely runs ahead of production; the run summary names the deployed commit. **Cadence:** run it at set points in the day and on demand when the owner is about to test, not after each merge (an unattended run deploys once, when its last PR has merged); standing approvals and the tripwire are unchanged.
+- **Dormant until MYK9-44:** the CI-gated path in `deploy-staging.yml` / `deploy-production.yml`. `STAGING_RELEASE_ENABLED` is unset, so every run is skipped and the `staging-release` / `guides-release` refs are frozen far behind `main`. Do not reason from it, fix it, or gate on it until that issue is In Progress; it is sequenced with the Stripe live cutover (MYK9-11). Runbook: `docs/operations/ci-vercel-deploys.md`.
+- **Legacy production myK9Qv3:** myk9q.com (separate repo, untouched)
+
+### Vercel Hobby quota / preview deploy discipline
+
+Vercel projects here share a Hobby account's 100-a-day deployment limit. Neither myK9Show nor the guides project (`apps/docs`) builds from Git any more: the guides publish only when someone runs `gh workflow run deploy-guides.yml`. A production deploy that fails with `api-deployments-free-per-day` is the quota, not the code. Follow [`docs/operations/vercel-preview-quota.md`](docs/operations/vercel-preview-quota.md) for the full runbook.
+
+- Before pushing a PR branch, batch local fixes and run local checks first; avoid micro-pushes.
+- PRs no longer get Vercel preview contexts; one that appears is not in the `main-required-checks` ruleset, so it never blocks, and say which check you ignored.
+- Confirm with the user before changing Vercel project settings.
+
+## Lessons
+
+Traps that belong to this work, moved from `CLAUDE.md` § LESSONS (MYK9-1790). Each points at its incident in `docs/lessons/README.md`; `lessonGuards.test.ts` checks every anchor here has a `**Guard:**` line.
+
+- **A red `/admin/health` check is a verdict from when it last RAN**: keys outside `CONTINUOUS_HEALTH_CHECK_KEYS` re-measure only on the 07:00 UTC full run and are copied forward verbatim for up to 24h. Prove deployment by grepping the live bundle (`get_edge_function`), never by a timestamp, and ask the user to click "Run now" rather than redeploying. (docs/lessons/README.md#stale-health-check)
+- **A "is my fix deployed?" probe must match a string that exists ONLY in that change** — confirm it is absent from `origin/main~1` first, and crawl the chunk graph from `index.html`, since a lazily-loaded page chunk is not in the entry chunk. A deploy timestamp is not a substitute. (docs/lessons/README.md#deploy-probe-unique-string)

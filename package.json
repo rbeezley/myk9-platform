@@ -141,7 +141,7 @@
     "@playwright/test": "1.64.1",
     "@stryker-mutator/core": "9.6.1",
     "@stryker-mutator/vitest-runner": "9.6.1",
-    "@supabase/supabase-js": "^2.118.0",
+    "@supabase/supabase-js": "^2.119.0",
     "@types/node": "^22",
     "globals": "^17.14.0",
     "prettier": "^3.9.10",
@@ -157,7 +157,7 @@
   "pnpm": {
     "overrides": {
       "eslint-plugin-react-hooks": "7.0.1",
-      "@supabase/supabase-js": "2.118.0",
+      "@supabase/supabase-js": "2.119.0",
       "esbuild": "^0.28.1",
       "qs": "^6.16.0",
       "undici": "^7.30.1",

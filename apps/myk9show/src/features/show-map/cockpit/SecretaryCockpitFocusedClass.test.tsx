@@ -72,6 +72,12 @@ const focused: FocusedClassModel = {
   entriesHidden: 0,
 };
 
+/** A report outside the seven steps: its rows (record, undo, history) live under Other paperwork. */
+const armbandFocused: FocusedClassModel = {
+  ...focused,
+  paperwork: [{ ...focused.paperwork[0]!, reportId: 'armband-labels', label: 'Armband labels' }],
+};
+
 const sourceClass: SecretaryCockpitClass = {
   id: 'class-1',
   trialId: 'trial-1',
@@ -97,7 +103,7 @@ describe('SecretaryCockpitFocusedClass paperwork', () => {
     const { user } = render(
       <SecretaryCockpitFocusedClass
         showId="show-1"
-        focused={focused}
+        focused={armbandFocused}
         sourceClass={sourceClass}
         trial={{ id: 'trial-1', date: '2026-07-20', number: '1', order: 0 }}
         attention={[]}
@@ -107,31 +113,32 @@ describe('SecretaryCockpitFocusedClass paperwork', () => {
       />
     );
 
+    await user.click(screen.getByText('Other paperwork (1)'));
     await user.click(screen.getByRole('button', { name: 'Record as printed' }));
     expect(
-      screen.getByRole('heading', { name: 'Did the Check-in sheet print correctly?' })
+      screen.getByRole('heading', { name: 'Did the Armband labels print correctly?' })
     ).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Mark printed' }));
 
     expect(replicatedPaperworkPrintsTable.confirmPrinted).toHaveBeenCalledWith(
       expect.objectContaining({
-        reportId: 'check-in-sheet',
+        reportId: 'armband-labels',
         printedBy: 'user-1',
         printedByName: 'Jannie',
       })
     );
     expect(showUndoToast).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'Check-in sheet recorded as printed.' })
+      expect.objectContaining({ message: 'Armband labels recorded as printed.' })
     );
     expect(screen.getByText('Not confirmed printed')).toBeInTheDocument();
   });
 
   it('shows stale broader-scope print evidence and append-only history', async () => {
     const staleFocused: FocusedClassModel = {
-      ...focused,
+      ...armbandFocused,
       paperwork: [
         {
-          ...focused.paperwork[0]!,
+          ...armbandFocused.paperwork[0]!,
           state: 'stale',
           printedAt: '2026-07-20T14:42:00.000Z',
           printedBy: 'Jannie',
@@ -166,6 +173,7 @@ describe('SecretaryCockpitFocusedClass paperwork', () => {
       />
     );
 
+    await user.click(screen.getByText('Other paperwork (1)'));
     expect(
       screen.getByText(/Printed 9:42 AM by Jannie · Printed with the whole trial/)
     ).toBeInTheDocument();
@@ -193,7 +201,7 @@ describe('SecretaryCockpitFocusedClass checklist (MYK9-948)', () => {
     );
   }
 
-  it('lists all seven items with a done count, keeping print controls on print items', () => {
+  it('lists all seven items with a done count, opening print from print items', () => {
     renderChecklist(sourceClass);
 
     const checklist = screen.getByRole('region', { name: 'Class checklist' });
@@ -208,8 +216,10 @@ describe('SecretaryCockpitFocusedClass checklist (MYK9-948)', () => {
       expect.stringContaining("Judge's initials collected"),
     ]);
     expect(within(checklist).getByText('0 of 7 done')).toBeInTheDocument();
+    // This fixture's check-in sheet has no print link, so it reads as status, not a dead button.
+    expect(within(items[0]!).queryByRole('button')).toBeNull();
     expect(
-      within(items[0]!).getByRole('button', { name: 'Record as printed' })
+      within(items[0]!).getByRole('group', { name: 'Check-in sheet, not done' })
     ).toBeInTheDocument();
     expect(within(items[4]!).getByText('Nothing to print yet')).toBeInTheDocument();
   });
@@ -245,15 +255,9 @@ describe('SecretaryCockpitFocusedClass checklist (MYK9-948)', () => {
 
     const checklist = screen.getByRole('region', { name: 'Class checklist' });
     expect(within(checklist).queryByText('Armband labels')).not.toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Other paperwork' })).toBeInTheDocument();
+    // Other paperwork sits under the step bar, behind a disclosure.
+    expect(screen.getByText('Other paperwork and print records (2)')).toBeInTheDocument();
     expect(screen.getByText('Armband labels')).toBeInTheDocument();
-    // Armbands come first, above the checklist's check-in sheet (MYK9-1233).
-    expect(
-      screen
-        .getByText('Armband labels')
-        .compareDocumentPosition(within(checklist).getByText('Check-in sheet')) &
-        Node.DOCUMENT_POSITION_FOLLOWING
-    ).toBeTruthy();
   });
 });
 

@@ -23,7 +23,6 @@ import type {
   SecretaryCockpitClass,
   SecretaryCockpitTrial,
 } from './secretaryCockpitTypes';
-import { ClassActualStartEditor } from './ClassActualStartEditor';
 import { FocusedClassHeader } from './FocusedClassHeader';
 import { entriesUnread } from './cockpitClassEntries';
 import { ClassCountTiles, ClassEntriesTable } from './FocusedClassEntries';
@@ -129,6 +128,16 @@ export function SecretaryCockpitFocusedClass({
         )}
       >
         <ClassCountTiles entries={focused.entries} unread={unread} />
+        <ClassChecklistSection
+          showId={showId}
+          sourceClass={sourceClass}
+          paperwork={focused.paperwork}
+          timeZone={timeZone}
+          onCommand={onCommand}
+          printTrackingInUse={focused.printTrackingInUse}
+          canManageShow={canManageShow}
+          trialDate={trial.date}
+        />
         <section aria-labelledby="focused-class-entries">
           <h3
             id="focused-class-entries"
@@ -218,15 +227,6 @@ export function SecretaryCockpitFocusedClass({
               {focused.actualFinish.value
                 ? ` · Finished ${formatTime(focused.actualFinish.value, timeZone)}`
                 : ''}
-              {canManageShow && (
-                <ClassActualStartEditor
-                  classId={sourceClass.id}
-                  className={focused.name}
-                  trialDate={trial.date}
-                  timeZone={timeZone}
-                  hasStart={Boolean(focused.actualStart.value)}
-                />
-              )}
             </dd>
             {/* F29b phase 2a: the run-order control's only home (the run sheet,
                 Show Desk link and class setup were a three-hop dead end). Not
@@ -361,16 +361,6 @@ export function SecretaryCockpitFocusedClass({
             </ul>
           </section>
         )}
-
-        <ClassChecklistSection
-          showId={showId}
-          sourceClass={sourceClass}
-          paperwork={focused.paperwork}
-          timeZone={timeZone}
-          onCommand={onCommand}
-          printTrackingInUse={focused.printTrackingInUse}
-          checklistInUse={focused.checklistInUse}
-        />
       </div>
     </aside>
   );

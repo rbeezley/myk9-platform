@@ -155,7 +155,7 @@ comments for every tier — never type an evidence line by hand.
   `docs/PLAYBOOK.md` § 4. No review log required, but a withdrawal at any
   tier always needs a log carrying `[P*]` bullets.
 
-### Step 3b: Phone-width walk — BEFORE the gate is posted, on ringside and check-in desk PRs
+### Step 3b: Phone-width walk — enforced by the poster, on ringside and check-in desk PRs
 
 ```bash
 pnpm qa:phone-walk --pr $PR_NUMBER
@@ -163,17 +163,27 @@ pnpm qa:phone-walk --pr $PR_NUMBER
 
 `scripts/qa/phone-walk.ts` holds the declared path list. When the diff touches one,
 the walk (`ringsidePhoneWalk.spec.ts`, in the `proof` job of "Isolated scoring and
-paperwork verification") must be green on the PR head before any tier's
-`post-review-gate.sh` runs. That workflow is not a required check, so nothing else
-stops a red walk from merging.
+paperwork verification") must be green on the PR head before a clean `Review gate:`
+line exists for it. That workflow is not a required check, so nothing else stops a red
+walk from merging.
 
-- **0** — not required, or required and green: continue.
+You do not have to remember this step: `scripts/qa/post-review-gate.sh` runs the
+command itself before every clean post, for every tier (`none`, `adversarial`,
+`independent`, `owner`) and on every new head, including a re-post after a fix push or
+a merge of `origin/main`. It waits up to 20 minutes while the walk is unfinished
+(`PHONE_WALK_WAIT_SECONDS`), then refuses with exit 2 and posts nothing unless the
+walk exits 0. A withdrawal is never blocked. Run the command by hand to see where the
+walk stands, and before a long review when you would rather know early.
+
+- **0** — not required, or required and green: the poster posts.
 - **1** — the walk failed. Download the `isolated-batch3-proof` artifact, read the
-  screenshots and trace, fix, push, and start Step 3 again. Never post the gate over it.
+  screenshots and trace, fix, push, and start Step 3 again. The poster refuses.
 - **2** — could not decide: a declared path is gone (fix the list in the same PR that
   moved the code), the PR head is not local HEAD (push first), or git/`gh` failed. Not a
-  pass.
-- **3** — the run has not finished. Wait and re-run the command; not a verdict.
+  pass; the poster refuses.
+- **3** — the run has not finished. The poster waits, then refuses; a wrapper that
+  exits 2 for this reason did not lose the review, so re-run the poster command it
+  prints once the walk is green. Not a verdict.
 
 ### Step 4: Independent Review Gate — BEFORE merge
 

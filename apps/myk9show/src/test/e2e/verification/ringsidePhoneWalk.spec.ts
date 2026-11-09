@@ -117,7 +117,7 @@ test('Ringside at 375 px: open, leave unscored, score, reset (MYK9-1762, MYK9-17
   });
 });
 
-test('Check-in desk at 375 px: one tap checks the dog in (MYK9-1787)', async ({
+test('Check-in desk at 375 px: check in, clear a flagged pull, undo (MYK9-1787)', async ({
   browser,
 }, info) => {
   const client = isolatedClient();
@@ -147,11 +147,51 @@ test('Check-in desk at 375 px: one tap checks the dog in (MYK9-1787)', async ({
     .toBe('checked-in');
   await expect(checkIn).toHaveCount(0);
   await expectFitsPhone(page, 'check-in desk, checked in');
-  expect(secretary.nonLocalSocketUrls).toEqual([]);
+  const checkedIn = await row(client, f.willowId);
   await screenshot(page, info, 'phone-check-in-desk-done');
+
+  // Staff flag the dog as pulled while it is still entered. The desk shows the flag, and
+  // clearing it puts the dog back to the status the flag replaced (MYK9-1757).
+  await setState(client, f.willowId, { check_in_status: 'pulled' });
+  await page.goto(`/shows/${f.showId}/entries?tab=exceptions&exception=check-in`);
+  await expect(search).toBeVisible({ timeout: 60_000 });
+  await search.fill('Willow');
+  const clearFlag = dog.getByRole('button', { name: /^Clear the pull flag for Willow, / });
+  await expect(clearFlag).toBeVisible({ timeout: 60_000 });
+  await expectFitsPhone(page, 'check-in desk, flagged pull');
+  await screenshot(page, info, 'phone-check-in-desk-flagged');
+  // The dog has other classes of the same name; the flag marks which row is the walk's own.
+  const rows = dog.getByRole('listitem');
+  const ownIndex = await rows.evaluateAll(items =>
+    items.findIndex(item => item.querySelector('button[aria-label^="Clear the pull flag"]'))
+  );
+  expect(ownIndex).toBeGreaterThanOrEqual(0);
+  const ownRow = rows.nth(ownIndex);
+  await clearFlag.click();
+  await expect
+    .poll(async () => (await row(client, f.willowId)).check_in_status, { timeout: 30_000 })
+    .toBe('checked-in');
+  await expect(clearFlag).toHaveCount(0);
+  const flagCleared = await row(client, f.willowId);
+
+  // Undo the check-in from the dog's class row: the dog is waiting again.
+  await ownRow.getByRole('button', { name: /^Change status for Willow, .*: Checked-in$/ }).click();
+  const picker = page.getByRole('dialog');
+  await expect(picker).toBeVisible();
+  await expectFitsPhone(page, 'check-in desk, status picker');
+  await picker.getByRole('button', { name: /^Not checked in/ }).click();
+  await expect
+    .poll(async () => (await row(client, f.willowId)).check_in_status, { timeout: 30_000 })
+    .toBe('no-status');
+  await expect(checkIn).toBeVisible({ timeout: 30_000 });
+  await expectFitsPhone(page, 'check-in desk, check-in undone');
+  expect(secretary.nonLocalSocketUrls).toEqual([]);
+  await screenshot(page, info, 'phone-check-in-desk-undone');
   await evidence(info, 'phone-check-in-desk', {
     viewport: PHONE,
     entryId: f.willowId,
-    after: await row(client, f.willowId),
+    checkedIn,
+    flagCleared,
+    afterUndo: await row(client, f.willowId),
   });
 });

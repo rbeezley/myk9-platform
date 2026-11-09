@@ -291,7 +291,6 @@ describe('useAtShowScoresheet completion wiring', () => {
     const move = {
       entryId: 'entry-1',
       previousStatus: 'checked-in',
-      previousRingEntryTime: undefined,
     };
 
     it('puts the dog back when the sheet is left without a score', async () => {

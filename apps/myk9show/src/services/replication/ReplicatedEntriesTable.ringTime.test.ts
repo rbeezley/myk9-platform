@@ -9,6 +9,7 @@ import { databaseManager, MutationManager, REPLICATION_STORES } from '@myk9/repl
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ReplicatedEntriesTable, type ReplicatedEntry } from './ReplicatedEntriesTable';
 import { staleRingTimeClear } from './entryRingTime';
+import { SCORE_DETAIL_CLEAR_FIELDS, scoreResetCheckInFields } from './scoreResetFields';
 import { classifyEntryRunStatus } from '@/features/show-map/showMapStatus';
 
 vi.mock('@myk9/core', () => ({
@@ -176,6 +177,73 @@ describe('every check-in write drops a stale ring time (MYK9-1761)', () => {
 
     await replay();
     expect(rpcFields[0]).toEqual({ check_in_status: 'checked-in' });
+    expect(server.ring_entry_time).toBe(STAMP);
+  });
+
+  // MYK9-1778: the shape every score reset sends (Class Results clear, ringside reset,
+  // paper-scoring clear), built from the row the write is based on.
+  const resetScore = (current: ReplicatedEntry): Partial<ReplicatedEntry> => ({
+    isScored: false,
+    is_scored: false,
+    resultStatus: 'pending',
+    result_status: 'pending',
+    scoringCompletedAt: null,
+    scoring_completed_at: null,
+    ...SCORE_DETAIL_CLEAR_FIELDS,
+    ...scoreResetCheckInFields(current),
+  });
+
+  it('a score reset on a completed dog clears its ring time', async () => {
+    await table.batchSet(
+      [
+        {
+          ...seed,
+          checkInStatus: 'completed',
+          check_in_status: 'completed',
+          isScored: true,
+          is_scored: true,
+        } as ReplicatedEntry,
+      ],
+      new Map([[ID, 1]])
+    );
+
+    await table.updateEntryWith(ID, resetScore);
+
+    expect((await table.get(ID))?.ring_entry_time).toBeUndefined();
+    await replay();
+    expect(server.check_in_status).toBe('checked-in');
+    expect(server.ring_entry_time).toBeNull();
+    expect(classifyEntryRunStatus({ entry_status: 'confirmed', ...server })?.value).not.toBe(
+      'in-ring'
+    );
+  });
+
+  it('a score reset on a scored dog that was never marked completed clears its ring time', async () => {
+    await table.batchSet(
+      [
+        {
+          ...seed,
+          checkInStatus: 'checked-in',
+          check_in_status: 'checked-in',
+          isScored: true,
+          is_scored: true,
+        } as ReplicatedEntry,
+      ],
+      new Map([[ID, 1]])
+    );
+
+    await table.updateEntryWith(ID, resetScore);
+
+    await replay();
+    expect(server.ring_entry_time).toBeNull();
+  });
+
+  it('a score reset on a dog still in the ring keeps its ring time', async () => {
+    await table.batchSet([{ ...seed, isScored: true } as ReplicatedEntry], new Map([[ID, 1]]));
+
+    await table.updateEntryWith(ID, resetScore);
+
+    await replay();
     expect(server.ring_entry_time).toBe(STAMP);
   });
 

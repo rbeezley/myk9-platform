@@ -24,7 +24,6 @@ describe('checkInTransitions', () => {
     expect(move).toEqual({
       entryId: 'entry-1',
       previousStatus: 'checked-in',
-      previousRingEntryTime: undefined,
       writtenRingEntryTime: expect.any(String),
       written: expect.any(Promise),
     });
@@ -75,7 +74,6 @@ describe('checkInTransitions', () => {
     const move = {
       entryId: 'entry-1',
       previousStatus: 'checked-in' as const,
-      previousRingEntryTime: undefined,
       writtenRingEntryTime: STAMP,
       written: Promise.resolve(),
     };
@@ -84,6 +82,25 @@ describe('checkInTransitions', () => {
       const build = vi.mocked(replicatedEntriesTable.updateEntryWith).mock.calls[0]?.[1];
       return build?.(row as never);
     }
+
+    it('puts back no ring time over a stale one the dog carried before the sheet opened (MYK9-1778)', async () => {
+      const opened = transitionToInRing('entry-1', 'checked-in', '2026-11-07T15:00:00.000Z');
+      const row = {
+        id: 'entry-1',
+        checkInStatus: 'in-ring',
+        ring_entry_time: opened?.writtenRingEntryTime,
+        isScored: false,
+      };
+      vi.mocked(replicatedEntriesTable.get).mockResolvedValue(row as never);
+
+      await restoreFromInRing(opened!);
+
+      expect(applyBuilder(row)).toEqual({
+        checkInStatus: 'checked-in',
+        check_in_status: 'checked-in',
+        ring_entry_time: undefined,
+      });
+    });
 
     it('writes back the previous status and ring time for an unscored dog still in the ring', async () => {
       const row = {

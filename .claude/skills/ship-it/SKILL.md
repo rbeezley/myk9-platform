@@ -1,13 +1,13 @@
 ---
 name: ship-it
-description: Use when given a docs/plan-*.md path to autonomously implement, test, simplify and harden a feature, then ship it through ship-pr (PR, independent review gate, merge, cleanup) with no human input until final merge confirmation. For OpenSpec changes use opsx:ship or orchestrate instead; for a list of Linear issues use orchestrate.
+description: Use when given a docs/plan-*.md path to autonomously implement, test, simplify and (below the Codex review tier) harden a feature, then ship it through ship-pr (PR, independent review gate, merge, cleanup) with no human input until final merge confirmation. For OpenSpec changes use opsx:ship or orchestrate instead; for a list of Linear issues use orchestrate.
 ---
 
 # Ship It — Autonomous PR Pipeline
 
-Takes a plan path and ships it end-to-end: implement → test loop → migration audit → simplify → harden → `ship-pr` (commit, PR, review gate, merge, close-out, cleanup).
+Takes a plan path and ships it end-to-end: implement → test loop → migration audit → simplify → harden (unless Codex reviews, Step 3c) → `ship-pr` (commit, PR, review gate, merge, close-out, cleanup).
 
-This skill owns everything up to a hardened, green working tree. From there `ship-pr` owns the rest, so the review gate, merge and cleanup rules live in ONE place. Do not restate or shortcut them here.
+This skill owns everything up to a green working tree, hardened unless Step 3c hands that job to the Codex gate. From there `ship-pr` owns the rest, so the review gate, merge and cleanup rules live in ONE place. Do not restate or shortcut them here.
 
 **Usage:** `/ship-it <path-to-plan.md>`
 
@@ -131,7 +131,7 @@ If any edits land, re-run the test loop (Step 3) to confirm nothing regressed.
 
 ## Step 3c: Harden (conditional)
 
-`/ship-it` is autonomous — no human is watching to decide "is this change trivial enough to skip hardening?" So harden runs by default unless **every file in the diff** belongs to a category where harden cannot find anything (pure data, prose, or generated content).
+`/ship-it` is autonomous — no human is watching to decide "is this change trivial enough to skip hardening?" So harden runs by default, with two exceptions: **every file in the diff** belongs to a category where harden cannot find anything (pure data, prose, or generated content), or the review floor is `independent`, where Codex hunts the same class of defect at the gate and harden's three agents are latency ahead of a stronger reviewer (MYK9-1789).
 
 ```bash
 # Skip patterns — files where harden has no surface to attack.
@@ -139,7 +139,15 @@ If any edits land, re-run the test loop (Step 3) to confirm nothing regressed.
 SKIP='\.(md|mdx|txt|css|scss|snap)$|^docs/|/(i18n|locales|fixtures|__fixtures__|__snapshots__)/|^(pnpm-lock\.yaml|package-lock\.json)$'
 
 NON_SKIP_FILES=$(changed_files | grep -vE "$SKIP" | wc -l | tr -d ' ')
+
+# The review floor for the WORKING diff. `pnpm qa:review-tier --base origin/main`
+# reads the committed range, which is empty here, so feed it the same file list
+# on stdin. It prints only the tier: none, adversarial or independent.
+FLOOR=$(changed_files | pnpm --silent qa:review-tier --files-stdin)
+echo "review floor: $FLOOR"
 ```
+
+The same table decides the gate in `ship-pr` Step 3a, so the floor read here is the floor the PR will be held to, unless later edits add a path. An empty file list prints `independent`, but an empty list also has `NON_SKIP_FILES == 0`, so the first rule below already covers it.
 
 **Skip pattern rationale (keep these in sync if the codebase shape changes):**
 
@@ -158,8 +166,14 @@ NON_SKIP_FILES=$(changed_files | grep -vE "$SKIP" | wc -l | tr -d ' ')
 
 **Decision:**
 
-- If `NON_SKIP_FILES == 0` → skip Step 3c with a logged note: "low-stakes diff (only [list extensions/dirs]), harden skipped"
-- Otherwise → invoke `/harden`
+Apply the first rule that matches:
+
+1. `NON_SKIP_FILES == 0` → skip Step 3c with a logged note: "low-stakes diff (only [list extensions/dirs]), harden skipped"
+2. `FLOOR` is `independent` → skip Step 3c with a logged note: "review floor is independent, Codex reviews this diff at the gate, harden skipped". Carry the note into the PR body.
+3. `FLOOR` is `adversarial` or `none` (which includes every diff that will end at optional review) → invoke `/harden`. No stronger reviewer follows, so harden is the adversarial pass.
+4. `FLOOR` is empty or anything else (the command failed) → invoke `/harden`. An unread floor is not a reason to skip.
+
+Rule 2 trades harden for the Codex round, so it holds only while that round happens. If `ship-pr` ends the gate on an `owner` override because Codex is unavailable, run `/harden` on the branch before posting the override.
 
 Harden launches three parallel agents (edge cases, state corruption, security) and auto-fixes critical/high findings. After it completes:
 
@@ -231,5 +245,6 @@ After a confirmed merge, if the diff touched `supabase/migrations/` or a `supaba
 - Never add scope beyond the plan.
 - Max 10 test-fix iterations — escalate if hit.
 - If harden returns FAIL, stop before `ship-pr`.
+- Skip harden only by a Step 3c rule, and log which one.
 - Never run `supabase db push`, `supabase functions deploy` or the Deploy myK9Show workflow automatically; point to the `deploy` skill.
 - Pre-existing typecheck failures in files this branch did not touch: stop and report, do not fix silently.

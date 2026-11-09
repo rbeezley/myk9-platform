@@ -88,7 +88,7 @@ function renderCockpit(usage: { printTrackingInUse: boolean; checklistInUse: boo
   );
 }
 
-describe('Continue on Results with the checklist collapsed (MYK9-1620)', () => {
+describe('Continue on Results with the show not using the checklist yet (MYK9-1620)', () => {
   it('stays reachable on a complete class that never printed', () => {
     const snapshot = makeSnapshot({ printTrackingInUse: false, checklistInUse: false });
     const complete = { ...snapshot.classes[0]!, lifecycle: 'complete' as const };
@@ -108,26 +108,21 @@ describe('Continue on Results with the checklist collapsed (MYK9-1620)', () => {
         onCommand={vi.fn()}
       />
     );
-    const disclosure = screen.getByTestId('class-checklist-disclosure');
-    const link = screen.getByRole('link', { name: /Continue on Results/ });
-    expect(link).toBeInTheDocument();
-    expect(disclosure.contains(link)).toBe(false);
+    expect(screen.getByRole('link', { name: /Continue on Results/ })).toBeInTheDocument();
   });
 });
 
 describe('unused print tracking and checklist on the real cockpit shape (MYK9-1620)', () => {
-  it('shows no "Not confirmed printed", no "Not done" and keeps Print and the checklist reachable', () => {
+  it('shows no "Not confirmed printed" but keeps the checklist expanded with its count (MYK9-1783)', () => {
     renderCockpit({ printTrackingInUse: false, checklistInUse: false });
 
-    expect(screen.queryByText(/steps done/)).toBeNull();
     expect(screen.queryByText('Not confirmed printed')).toBeNull();
-    expect(screen.queryByText('Not done')).toBeNull();
-
-    const disclosure = screen.getByTestId('class-checklist-disclosure') as HTMLDetailsElement;
-    expect(disclosure.open).toBe(false);
-    expect(within(disclosure).getByText('Class checklist')).toBeInTheDocument();
-    // The Print button for the sheet is still in the checklist.
-    expect(within(disclosure).getByRole('button', { name: 'Print' })).toBeInTheDocument();
+    expect(screen.queryByTestId('class-checklist-disclosure')).toBeNull();
+    const region = screen.getByRole('region', { name: 'Class checklist' });
+    expect(within(region).getByText(/0 of 7 done/)).toBeInTheDocument();
+    expect(
+      within(region).getByRole('button', { name: 'Check-in sheet, not done. Open print preview' })
+    ).toBeInTheDocument();
   });
 
   it('shows the status text and an open checklist once in use', () => {
@@ -135,9 +130,10 @@ describe('unused print tracking and checklist on the real cockpit shape (MYK9-16
 
     // The row no longer draws the step strip (MYK9-1782); the class page holds the checklist.
     expect(screen.queryByTestId('class-checklist-strip')).toBeNull();
-    expect(screen.getByText('Not confirmed printed')).toBeInTheDocument();
     expect(screen.queryByTestId('class-checklist-disclosure')).toBeNull();
     expect(screen.getByRole('region', { name: 'Class checklist' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Print' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Check-in sheet, not done. Open print preview' })
+    ).toBeInTheDocument();
   });
 });

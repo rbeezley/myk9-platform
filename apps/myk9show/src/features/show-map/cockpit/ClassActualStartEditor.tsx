@@ -20,6 +20,13 @@ interface ClassActualStartEditorProps {
   trialDate: string;
   timeZone: string;
   hasStart: boolean;
+  /**
+   * Controlled mode (MYK9-1783): the step bar opens the editor from outside. While `open` is
+   * defined the editor shows only its form, never the Set / Clear buttons, and closes through
+   * `onOpenChange(false)`.
+   */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 /**
@@ -37,8 +44,16 @@ function ClassActualStartEditorForm({
   trialDate,
   timeZone,
   hasStart,
+  open,
+  onOpenChange,
 }: ClassActualStartEditorProps) {
-  const [editing, setEditing] = useState(false);
+  const [localEditing, setLocalEditing] = useState(false);
+  const controlled = open !== undefined;
+  const editing = controlled ? open : localEditing;
+  const setEditing = (next: boolean) => {
+    if (controlled) onOpenChange?.(next);
+    else setLocalEditing(next);
+  };
   const [draft, setDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -58,6 +73,7 @@ function ClassActualStartEditorForm({
   };
 
   if (!editing) {
+    if (controlled) return null;
     return (
       <span className="ml-2 inline-flex flex-wrap items-center gap-1">
         <Button

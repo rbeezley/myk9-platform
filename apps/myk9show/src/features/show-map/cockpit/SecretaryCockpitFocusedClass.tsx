@@ -129,6 +129,16 @@ export function SecretaryCockpitFocusedClass({
         )}
       >
         <ClassCountTiles entries={focused.entries} unread={unread} />
+        <ClassChecklistSection
+          showId={showId}
+          sourceClass={sourceClass}
+          paperwork={focused.paperwork}
+          timeZone={timeZone}
+          onCommand={onCommand}
+          printTrackingInUse={focused.printTrackingInUse}
+          canManageShow={canManageShow}
+          trialDate={trial.date}
+        />
         <section aria-labelledby="focused-class-entries">
           <h3
             id="focused-class-entries"
@@ -361,16 +371,6 @@ export function SecretaryCockpitFocusedClass({
             </ul>
           </section>
         )}
-
-        <ClassChecklistSection
-          showId={showId}
-          sourceClass={sourceClass}
-          paperwork={focused.paperwork}
-          timeZone={timeZone}
-          onCommand={onCommand}
-          printTrackingInUse={focused.printTrackingInUse}
-          checklistInUse={focused.checklistInUse}
-        />
       </div>
     </aside>
   );

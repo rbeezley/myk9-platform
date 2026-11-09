@@ -78,10 +78,12 @@ test('canonical queue positions and state-only controls agree across roles (MYK9
           const secRow = secretaryRow(secretary.page, 'Willow');
           const ringRow = judgeRow(judge.page, 'Willow');
           const ownRow = exhibitor.page.getByTestId(`at-show-my-entry-${f.willowId}`);
+          // Pulled dogs sit in the entry list's one collapsed group. Anchored on the count, not
+          // the group's name: #3718 renamed it and left this walk red (MYK9-1792).
           if (scenario.name === 'pulled')
             await judge.page
-              .locator('summary')
-              .filter({ hasText: /^Not running \(1\)$/ })
+              .locator('details > summary')
+              .filter({ hasText: /\(1\)$/ })
               .click();
           if (scenario.name === 'completed')
             await judge.page.getByRole('button', { name: /^Completed/ }).click();

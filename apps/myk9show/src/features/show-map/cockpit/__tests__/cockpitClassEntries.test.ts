@@ -5,6 +5,7 @@ import {
   classEntriesForClass,
   countClassEntries,
   hiddenEntryCount,
+  entriesUnread,
   runStatusDisplay,
 } from '../cockpitClassEntries';
 
@@ -181,16 +182,31 @@ describe('classEntriesForClass', () => {
       entryRow('E', { entry_status: 'withdrawn' }),
       entryRow('F', { result_status: 'absent' }),
       entryRow('G', { check_in_status: ' In-Ring ' }),
+      entryRow('H', { check_in_status: 'checked-in' }),
     ]);
     expect(rows.map(row => runStatusDisplay(row).label)).toEqual([
       'Scored',
       'In ring',
-      'Waiting',
+      'Not checked in',
       'Pulled',
       'Withdrawn',
       'Absent',
       'In ring',
+      'Waiting',
     ]);
+    // Only the dog that has not turned up is drawn as an outline.
+    expect(rows.filter(row => runStatusDisplay(row).outlined).map(row => row.dogName)).toEqual([
+      'C',
+    ]);
+  });
+
+  it('reads an empty list as unread unless the class says it has no entries', () => {
+    const { rows } = rowsFor([entryRow('A', {})]);
+    expect(entriesUnread([], 4)).toBe(true);
+    expect(entriesUnread([], null)).toBe(true);
+    expect(entriesUnread([], undefined)).toBe(true);
+    expect(entriesUnread([], 0)).toBe(false);
+    expect(entriesUnread(rows, 4)).toBe(false);
   });
 
   it('says how many entries a capped tree left out instead of looking complete', () => {

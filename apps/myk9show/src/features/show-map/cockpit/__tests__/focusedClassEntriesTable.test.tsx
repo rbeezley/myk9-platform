@@ -101,15 +101,20 @@ describe('the focused class entries table (MYK9-1782)', () => {
     expect(within(rows[0]!).getByText('Q')).toBeInTheDocument();
     expect(within(rows[1]!).getByText('Willow')).toBeInTheDocument();
     expect(within(rows[1]!).getAllByText('In ring')).toHaveLength(2);
-    expect(within(rows[2]!).getByText('Not checked in')).toBeInTheDocument();
-    expect(within(rows[2]!).getByText('Waiting')).toBeInTheDocument();
+    // A dog that has not turned up says so once, as a dashed outline in Run status.
+    const notCheckedIn = within(rows[2]!).getAllByText('Not checked in');
+    expect(notCheckedIn).toHaveLength(1);
+    expect(notCheckedIn[0]).toHaveAttribute('data-outlined', 'true');
+    expect(notCheckedIn[0]!.className).toContain('border-dashed');
+    expect(within(rows[2]!).queryByText('Waiting')).not.toBeInTheDocument();
+    expect(within(rows[0]!).getByText('Scored')).not.toHaveAttribute('data-outlined');
     expect(within(rows[3]!).getAllByText('Pulled')).toHaveLength(2);
-    // Place in line (a dash once a dog is scored, in the ring or pulled), then the reserved empty last column.
+    // Place in line (blank once a dog is scored, in the ring or pulled), then the reserved empty last column.
     expect(rows.map(row => within(row).getAllByRole('cell')[0]!.textContent)).toEqual([
-      '—',
-      '—',
+      '',
+      '',
       '1',
-      '—',
+      '',
     ]);
     expect(within(rows[0]!).getAllByRole('cell').at(-1)).toBeEmptyDOMElement();
   });
@@ -127,6 +132,41 @@ describe('the focused class entries table (MYK9-1782)', () => {
     expect(value('Scored')).toBe('1');
     expect(value('In ring')).toBe('1');
     expect(value('Still to run')).toBe('1');
+  });
+
+  const withClass = (
+    overrides: Partial<SecretaryCockpitSnapshot['classes'][number]>
+  ): SecretaryCockpitSnapshot => ({
+    ...snapshot,
+    classes: [{ ...snapshot.classes[0]!, ...overrides }],
+  });
+
+  it('does not count or call a class empty while its entries are unread', () => {
+    render(
+      <SecretaryCockpit snapshot={withClass({ entries: [] })} canManageShow onCommand={vi.fn()} />,
+      { initialRoute: '/shows/show-1' }
+    );
+    expect(screen.queryByTestId('class-count-tiles')).not.toBeInTheDocument();
+    expect(screen.getByTestId('class-entries-empty')).toHaveTextContent(
+      'The entries for this class have not loaded yet.'
+    );
+  });
+
+  it('says a class with no entries has none, and still names the ones left out', () => {
+    render(
+      <SecretaryCockpit
+        snapshot={withClass({ entries: [], entryCount: 0, scoredCount: 0, entriesHidden: 2 })}
+        canManageShow
+        onCommand={vi.fn()}
+      />,
+      { initialRoute: '/shows/show-1' }
+    );
+    expect(screen.getByTestId('class-entries-empty')).toHaveTextContent(
+      'No entries in this class yet.'
+    );
+    expect(screen.getByTestId('class-entries-hidden')).toHaveTextContent(
+      '2 more entries are not shown here.'
+    );
   });
 
   it('shows the schedule row phrase with the dog in the ring', () => {

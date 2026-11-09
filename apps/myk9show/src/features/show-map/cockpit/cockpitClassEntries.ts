@@ -158,6 +158,8 @@ export function hiddenEntryCount(classId: string, tree: ShowMapTree): number {
 export function runStatusDisplay(entry: SecretaryCockpitClassEntry): {
   label: string;
   kind: ShowMapDisplayStatus['kind'];
+  /** Drawn as a dashed outline: the dog is expected but has not turned up yet. */
+  outlined?: true;
 } {
   switch (entry.state) {
     case 'scored':
@@ -174,8 +176,21 @@ export function runStatusDisplay(entry: SecretaryCockpitClassEntry): {
     case 'absent':
       return { label: 'Absent', kind: 'muted' };
     case 'waiting':
-      return { label: 'Waiting', kind: 'neutral' };
+      return entry.notCheckedIn
+        ? { label: 'Not checked in', kind: 'neutral', outlined: true }
+        : { label: 'Waiting', kind: 'neutral' };
   }
+}
+
+/**
+ * True while the class's entries have not been read: no rows, and the class does not say it has
+ * none. The tiles and table then say so, never "0 entered" or "No entries" for a class that has dogs.
+ */
+export function entriesUnread(
+  entries: readonly SecretaryCockpitClassEntry[],
+  entryCount: number | null | undefined
+): boolean {
+  return entries.length === 0 && entryCount !== 0;
 }
 
 export interface ClassEntryCounts {

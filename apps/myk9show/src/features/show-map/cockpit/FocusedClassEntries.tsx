@@ -28,12 +28,23 @@ const KIND_CLASS: Record<ShowMapStatusKind, string> = {
 // scroll wrapper stays as the fallback for narrower ones.
 const CELL = 'px-2 py-2';
 
-function StatusPill({ label, kind }: { label: string; kind: ShowMapStatusKind }) {
+function StatusPill({
+  label,
+  kind,
+  outlined = false,
+}: {
+  label: string;
+  kind: ShowMapStatusKind;
+  outlined?: boolean;
+}) {
   return (
     <span
+      data-outlined={outlined || undefined}
       className={cn(
         'inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium',
-        KIND_CLASS[kind]
+        outlined
+          ? 'border border-dashed border-muted-foreground/60 text-muted-foreground'
+          : KIND_CLASS[kind]
       )}
     >
       {label}
@@ -42,7 +53,15 @@ function StatusPill({ label, kind }: { label: string; kind: ShowMapStatusKind })
 }
 
 /** Entered, scored, in ring, still to run: derived from the same rows as the table below. */
-export function ClassCountTiles({ entries }: { entries: readonly SecretaryCockpitClassEntry[] }) {
+export function ClassCountTiles({
+  entries,
+  unread = false,
+}: {
+  entries: readonly SecretaryCockpitClassEntry[];
+  /** The entries have not been read, so there is nothing true to count yet. */
+  unread?: boolean;
+}) {
+  if (unread) return null;
   const counts = countClassEntries(entries);
   const tiles = [
     { label: 'Entered', value: counts.entered },
@@ -69,16 +88,32 @@ export function ClassCountTiles({ entries }: { entries: readonly SecretaryCockpi
 export function ClassEntriesTable({
   entries,
   hidden = 0,
+  unread = false,
 }: {
   entries: readonly SecretaryCockpitClassEntry[];
   /** Entries the data left out; said aloud so a capped list never reads as the whole class. */
   hidden?: number;
+  /** The entries have not been read; an empty list then is not "no entries". */
+  unread?: boolean;
 }) {
+  const hiddenNote = hidden > 0 && (
+    <p className="mt-2 text-xs text-muted-foreground" data-testid="class-entries-hidden">
+      {hidden} more {hidden === 1 ? 'entry is' : 'entries are'} not shown here.
+    </p>
+  );
   if (entries.length === 0) {
     return (
-      <p className="rounded-lg border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
-        No entries in this class yet.
-      </p>
+      <>
+        <p
+          className="rounded-lg border border-dashed px-4 py-6 text-center text-sm text-muted-foreground"
+          data-testid="class-entries-empty"
+        >
+          {unread
+            ? 'The entries for this class have not loaded yet.'
+            : 'No entries in this class yet.'}
+        </p>
+        {hiddenNote}
+      </>
     );
   }
   return (
@@ -104,7 +139,7 @@ export function ClassEntriesTable({
             return (
               <TableRow key={entry.nodeId} data-testid="class-entry-row">
                 <TableCell className={cn(CELL, 'tabular-nums text-muted-foreground')}>
-                  {entry.place ?? '—'}
+                  {entry.place ?? ''}
                 </TableCell>
                 <TableCell className={cn(CELL, 'font-medium tabular-nums')}>
                   {entry.armband ?? ''}
@@ -117,12 +152,13 @@ export function ClassEntriesTable({
                 </TableCell>
                 <TableCell className={CELL}>{entry.handler ?? ''}</TableCell>
                 <TableCell className={CELL}>
-                  {entry.checkIn && (
+                  {/* A dog not checked in says so once, in Run status. */}
+                  {entry.checkIn && !entry.notCheckedIn && (
                     <StatusPill label={entry.checkIn.label} kind={entry.checkIn.kind} />
                   )}
                 </TableCell>
                 <TableCell className={CELL}>
-                  <StatusPill label={run.label} kind={run.kind} />
+                  <StatusPill label={run.label} kind={run.kind} outlined={run.outlined ?? false} />
                 </TableCell>
                 <TableCell className={CELL}>{entry.result ?? ''}</TableCell>
                 <TableCell className="px-0" />
@@ -131,11 +167,7 @@ export function ClassEntriesTable({
           })}
         </TableBody>
       </Table>
-      {hidden > 0 && (
-        <p className="mt-2 text-xs text-muted-foreground" data-testid="class-entries-hidden">
-          {hidden} more {hidden === 1 ? 'entry is' : 'entries are'} not shown here.
-        </p>
-      )}
+      {hiddenNote}
     </>
   );
 }

@@ -413,9 +413,9 @@ const ShowCreationWizardPageContent: React.FC = () => {
   const fieldErrors = hasAttemptedNext ? fieldErrorsFromIssues(validationIssues) : undefined;
 
   // Wizard state is reset explicitly on an edit-mode discard (handleConfirmClose), by
-  // "Start a new show" on the resume banner, or on successful creation (saveShow). No
-  // unmount cleanup needed — the Zustand persist middleware preserves form data across
-  // navigations so users don't lose work if they briefly leave the page.
+  // "Start a new show" on the resume banner, or on successful creation (saveShow). Leaving
+  // never clears the form: the Zustand persist middleware preserves it across navigations so
+  // users don't lose work if they briefly leave the page (only the dirty flag is cleared).
 
   return (
     <>

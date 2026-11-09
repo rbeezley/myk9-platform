@@ -139,14 +139,17 @@ describe('ShowBulkActionsBar', () => {
     const user = userEvent.setup();
     renderBar();
 
-    await user.click(within(bulkBar()).getByRole('button', { name: /^export$/i }));
+    try {
+      await user.click(within(bulkBar()).getByRole('button', { name: /^export$/i }));
 
-    const csv = download.csv();
-    download.restore();
-    expect(csv).toContain('Name,Organization,Start Date,End Date,Location,Status');
-    expect(csv.split('\n')).toHaveLength(3);
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    expect(onBulkComplete).toHaveBeenCalledTimes(1);
+      const csv = download.csv();
+      expect(csv).toContain('Name,Organization,Start Date,End Date,Location,Status');
+      expect(csv.split('\n')).toHaveLength(3);
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(onBulkComplete).toHaveBeenCalledTimes(1);
+    } finally {
+      download.restore();
+    }
   });
 
   it('bulk status change persists a DB-valid status for every selected show', async () => {

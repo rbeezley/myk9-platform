@@ -28,6 +28,7 @@ import { reserveAskQQuery } from '../_shared/askq/askqRateLimit.ts';
 import { classifyAskQFailure } from '../_shared/askq/askqFailure.ts';
 import { describeShowRegistries } from '../_shared/askq/showRegistries.ts';
 import { callerHasShowAccess } from '../_shared/askq/showAccess.ts';
+import { planAnswerMode } from '../_shared/askq/showModeRouting.ts';
 import { callerHoldsStaffRole } from '../_shared/askq/guideScope.ts';
 import { buildAskQSystemPrompt } from '../_shared/askq/systemPrompt.ts';
 
@@ -247,6 +248,24 @@ Deno.serve(async (req: Request) => {
     // The panel shows "This show" by default and sends no mode until the tab changes.
     const questionMode = resolveQuestionModeForShow(requestedMode, verifiedShowId !== null);
 
+    // A "This show" question that is not about live data gets the grounded guide or rulebook path.
+    const { answerMode, answerSupportMode } = planAnswerMode(questionMode, supportMode, message);
+    const routedSupportEscalation =
+      answerSupportMode && !effectiveSupportMode ? getSupportEscalationForQuestion(message) : null;
+    if (routedSupportEscalation) {
+      const responseTimeMs = Date.now() - startTime;
+      await serviceClient
+        .from('chatbot_query_log')
+        .update({ tools_used: ['support_escalation'], response_time_ms: responseTimeMs })
+        .eq('id', reservation.logId);
+      return buildSupportEscalationStream(routedSupportEscalation, {
+        remaining,
+        limit,
+        responseTimeMs,
+        queryLogId: reservation.logId,
+      });
+    }
+
     const userContext: UserContext = {
       userId: user.id,
       displayName,
@@ -260,7 +279,7 @@ Deno.serve(async (req: Request) => {
       allRulebooks: ASKQ_RULEBOOKS,
       showRulebooks,
       hasVerifiedShowContext: verifiedShowId !== null,
-      questionMode,
+      questionMode: answerMode,
       message,
       rulebookScope: routing.rulebookScope,
     });
@@ -288,13 +307,13 @@ Deno.serve(async (req: Request) => {
     const hasStaffRole = await callerHoldsStaffRole(serviceClient, user.id);
     const { systemPrompt, guides: documentGuides } = buildAskQSystemPrompt({
       userContext,
-      questionMode,
-      effectiveSupportMode,
+      questionMode: answerMode,
+      effectiveSupportMode: answerSupportMode,
       hasStaffRole,
       allGuides: ASKQ_GUIDES,
-      rulebooks: getDocumentRulebooks(questionMode, rulebookResolution.rulebooks),
+      rulebooks: getDocumentRulebooks(answerMode, rulebookResolution.rulebooks),
     });
-    const activeTools = getActiveTools(questionMode, effectiveSupportMode);
+    const activeTools = getActiveTools(answerMode, answerSupportMode);
 
     const messages = [{ role: 'user' as const, content: message }];
     const toolsUsed: string[] = [];
@@ -342,7 +361,7 @@ Deno.serve(async (req: Request) => {
 
     const textBlock = result.content.find(b => b.type === 'text');
     const fullText = textBlock?.text ?? '';
-    const parsedSupportAnswer = effectiveSupportMode
+    const parsedSupportAnswer = answerSupportMode
       ? parseSupportAnswer(fullText, documentGuides)
       : null;
     if (parsedSupportAnswer && parsedSupportAnswer.guideSources.length > 0) {

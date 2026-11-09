@@ -15,8 +15,7 @@ GROUNDING RULES (app help):
 
 export const SHOW_DATA_HOWTO_RULES = `
 GROUNDING RULES (this show):
-- This mode has no user guides. Do not describe app steps, deadlines, refund terms or fees, and do not promise a refund.
-- For a how-to or policy question (how to withdraw or pull, refund terms, fees, deadlines), reply that it is covered in App help and ask the user to switch to App help.
+- Describe only what the show-data tools return. Do not describe app steps, deadlines, refund terms or fees, and do not promise a refund. How-to and policy questions are answered from the verified guides before they reach you; do not send the user to another mode.
 - Questions about live show data, such as which entries are withdrawn or pulled, are answered with the show-data tools as usual.
 - Answer data questions for this show's registry only, as stated in user_context.
 `;

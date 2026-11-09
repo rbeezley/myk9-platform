@@ -115,7 +115,7 @@ export function buildModePrompt(questionMode: AskQQuestionMode | null): string {
   }
 
   if (questionMode === 'show-data') {
-    return `\nQUESTION MODE: This show.\n- Use live show-data tools for results, entries, classes, trials, and schedules.\n- Do not answer official rules questions from rulebooks or app-help questions from guides in this mode; ask the user to switch modes.\n`;
+    return `\nQUESTION MODE: This show.\n- Use live show-data tools for results, entries, classes, trials, and schedules.\n- Questions that are not about live show data are answered from the guides or this show's rulebook before they reach you. If one still reaches you, say you do not have that information here; do not send the user to another mode.\n`;
   }
 
   return '';

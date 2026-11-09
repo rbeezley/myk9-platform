@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { SHOW_MAP_WRAP_UP_STATUS } from '../showMapTypes';
-import { focusedPanelShows, statusesUpdate } from './cockpitFocusRules';
+import { filtersUpdate, focusedPanelShows } from './cockpitFocusRules';
 import { buildSecretaryCockpitModel } from './secretaryCockpitModel';
 import type { SecretaryCockpitClass, SecretaryCockpitSnapshot } from './secretaryCockpitTypes';
 
@@ -66,13 +66,15 @@ describe('cockpit focus rules (MYK9-1727)', () => {
     const model = buildSecretaryCockpitModel(snapshot([novice, running]), {
       focusedClassId: 'c1',
     });
-    expect(statusesUpdate(model, 'c1', ['in-progress'])).toEqual({
+    expect(filtersUpdate(model, 'c1', {}, { statuses: ['in-progress'] })).toEqual({
       statuses: ['in-progress'],
       focusedClassId: undefined,
       anchor: undefined,
     });
-    expect(statusesUpdate(model, 'c2', ['in-progress'])).toEqual({ statuses: ['in-progress'] });
-    expect(statusesUpdate(model, undefined, ['in-progress'])).toEqual({
+    expect(filtersUpdate(model, 'c2', {}, { statuses: ['in-progress'] })).toEqual({
+      statuses: ['in-progress'],
+    });
+    expect(filtersUpdate(model, undefined, {}, { statuses: ['in-progress'] })).toEqual({
       statuses: ['in-progress'],
     });
   });

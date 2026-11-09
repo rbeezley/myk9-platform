@@ -25,8 +25,11 @@ export function matchesCockpitFilter(
   derivedAttentionCount: number
 ): boolean {
   switch (status) {
+    case 'not-started':
     case 'in-progress':
-      return row.lifecycle === 'in-progress';
+    case 'complete':
+    case 'cancelled':
+      return row.lifecycle === status;
     case 'needs-attention':
       return derivedAttentionCount > 0;
     case 'needs-closeout':

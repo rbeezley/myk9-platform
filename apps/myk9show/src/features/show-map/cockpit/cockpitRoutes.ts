@@ -6,13 +6,12 @@ import type { ReportScope } from '@/lib/reports/types';
 
 import { parseCockpitDays, serializeCockpitDays } from './cockpitDayFilter';
 import { parseCockpitStatuses, serializeCockpitStatuses } from './cockpitStatusFilter';
-import type { CockpitStatus } from './secretaryCockpitTypes';
+import { parseCockpitList, serializeCockpitList } from './cockpitClassFilters';
+import type { CockpitClassFilters } from './secretaryCockpitTypes';
 
-export interface CockpitUrlState {
+export interface CockpitUrlState extends CockpitClassFilters {
   /** The ticked show days; empty or absent means every day (MYK9-1719). */
   selectedDays?: readonly string[] | undefined;
-  /** The ticked statuses, `filter` in the URL; empty or absent means every class (MYK9-1727). */
-  statuses?: readonly CockpitStatus[] | undefined;
   focusedClassId?: string | undefined;
   anchor?: string | undefined;
 }
@@ -32,6 +31,10 @@ export function normalizeCockpitUrlState(params: URLSearchParams): CockpitUrlSta
   return {
     selectedDays,
     statuses,
+    judges: parseCockpitList(params.get('judge')),
+    areas: parseCockpitList(params.get('area')),
+    elements: parseCockpitList(params.get('element')),
+    levels: parseCockpitList(params.get('level')),
     ...(focusedClassId ? { focusedClassId } : {}),
     ...(anchor ? { anchor } : {}),
   };
@@ -46,6 +49,16 @@ export function writeCockpitUrlState(
   if (day) params.set('day', day);
   const filter = serializeCockpitStatuses(state.statuses);
   if (filter) params.set('filter', filter);
+  // MYK9-1785: Judge, Ring/area, Element and Level ride beside `filter`, each a comma list.
+  for (const [param, values] of [
+    ['judge', state.judges],
+    ['area', state.areas],
+    ['element', state.elements],
+    ['level', state.levels],
+  ] as const) {
+    const serialized = serializeCockpitList(values);
+    if (serialized) params.set(param, serialized);
+  }
   if (state.focusedClassId) params.set('focus', state.focusedClassId);
   if (state.anchor) params.set('anchor', state.anchor);
 

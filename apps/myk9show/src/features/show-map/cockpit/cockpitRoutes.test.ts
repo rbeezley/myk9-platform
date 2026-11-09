@@ -44,6 +44,36 @@ describe('Show Desk context routes', () => {
     expect(write([])).toBe('');
   });
 
+  it('reads and writes the lifecycle statuses and the Judge, area, element and level params (MYK9-1785)', () => {
+    const state = normalizeCockpitUrlState(
+      new URLSearchParams(
+        'filter=complete,not-started,cancelled&judge=j2,j1&area=Ring+2&element=Interior&level=Novice,Advanced'
+      )
+    );
+    expect(state).toMatchObject({
+      statuses: ['cancelled', 'complete', 'not-started'],
+      judges: ['j1', 'j2'],
+      areas: ['Ring 2'],
+      elements: ['Interior'],
+      levels: ['Advanced', 'Novice'],
+    });
+    expect(writeCockpitUrlState(new URLSearchParams('tool=x'), state).toString()).toBe(
+      'filter=cancelled%2Ccomplete%2Cnot-started&judge=j1%2Cj2&area=Ring+2&element=Interior&level=Advanced%2CNovice&tool=x'
+    );
+    // Clear all: every group empty writes none of the params.
+    expect(
+      writeCockpitUrlState(new URLSearchParams(), {
+        ...state,
+        selectedDays: [],
+        statuses: [],
+        judges: [],
+        areas: [],
+        elements: [],
+        levels: [],
+      }).toString()
+    ).toBe('');
+  });
+
   it('builds and normalizes URL-backed day, filter, focus, and anchor state', () => {
     const href = getShowHomeHref({ showId: 'show 1', state: context });
     expect(href).toBe(
@@ -57,6 +87,10 @@ describe('Show Desk context routes', () => {
     ).toEqual({
       selectedDays: ['2026-07-20'],
       statuses: [],
+      judges: [],
+      areas: [],
+      elements: [],
+      levels: [],
       focusedClassId: 'class-1',
       anchor: 'trial-1',
     });

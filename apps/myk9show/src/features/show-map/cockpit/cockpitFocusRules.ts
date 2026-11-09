@@ -1,6 +1,6 @@
-import { matchesAnyCockpitStatus } from './secretaryCockpitAttention';
+import { matchesCockpitClassFilters } from './cockpitClassFilters';
 import type { CockpitUrlState } from './cockpitRoutes';
-import type { CockpitStatus, SecretaryCockpitModel } from './secretaryCockpitTypes';
+import type { CockpitClassFilters, SecretaryCockpitModel } from './secretaryCockpitTypes';
 
 /**
  * When the selected class's panel shows (MYK9-1727).
@@ -8,7 +8,7 @@ import type { CockpitStatus, SecretaryCockpitModel } from './secretaryCockpitTyp
  * A class the secretary picked stays open even after her own work in it takes it out of the
  * filter (assigning the judge under "Needs attention", completing it under "In progress"):
  * losing the class mid-task is worse than a panel the list no longer shows. Changing the FILTER
- * so the picked class no longer matches clears the pick instead (`statusesUpdate`). The automatic
+ * so the picked class no longer matches clears the pick instead (`filtersUpdate`). The automatic
  * default (no pick) only ever shows a class the schedule shows.
  */
 export function focusedPanelShows(
@@ -25,23 +25,21 @@ export function focusedPanelShows(
 }
 
 /**
- * The state change for a new set of ticked statuses: the picked class is let go when the new
- * filter would hide it, so a filter change never leaves a class open that the list hides.
+ * The state change for a changed filter group: the picked class is let go when the new filters
+ * (the current ones with this update applied, any group) would hide it, so a filter change never
+ * leaves a class open that the list hides.
  */
-export function statusesUpdate(
+export function filtersUpdate(
   model: SecretaryCockpitModel,
   pickedClassId: string | undefined,
-  statuses: CockpitStatus[]
+  current: CockpitClassFilters,
+  update: CockpitClassFilters
 ): Partial<CockpitUrlState> {
   const row = pickedClassId
     ? model.daySchedule.find(classItem => classItem.id === pickedClassId)
     : undefined;
   const stillMatches =
     !row ||
-    matchesAnyCockpitStatus(
-      { lifecycle: row.lifecycle.value, closeout: row.closeout },
-      statuses,
-      row.attentionCount
-    );
-  return stillMatches ? { statuses } : { statuses, focusedClassId: undefined, anchor: undefined };
+    matchesCockpitClassFilters(row.filterFacts, { ...current, ...update }, row.attentionCount);
+  return stillMatches ? update : { ...update, focusedClassId: undefined, anchor: undefined };
 }

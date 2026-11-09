@@ -17,9 +17,11 @@ const TOLERANCE_IN = 0.02;
 const MIN_TEXT_CLEARANCE_IN = 0.15;
 
 /**
- * Builds one sheet the way ArmbandLabelsReport does: buildLabelPages decides
- * which slots are skipped, skipped/empty slots render as empty cells, and only
- * real labels carry the `#n` armband number.
+ * Builds one sheet with ArmbandLabelsReport's slot logic and stylesheet:
+ * buildLabelPages decides which slots are skipped and skipped/empty slots use
+ * the report's empty-cell markup. Real labels are a stand-in `#n` span, not
+ * ArmbandLabelCell, so clearance checks pin the cell padding, not the cell's
+ * own content layout.
  */
 function sheetHtml(template: LabelTemplate, extraCss = '', skip = 0): string {
   const items = Array.from({ length: template.labelsPerSheet - skip }, () => '101');
@@ -81,8 +83,9 @@ for (const template of getAllTemplates()) {
 
   // MYK9-1771 follow-up: skipping labels must move the first real label to that
   // slot's die-cut position, and its text must keep clear of the left edge.
-  // skip 0 is the positive control that the expected-position math is right.
-  for (const skip of [0, 3]) {
+  // skip 0 is the positive control that the expected-position math is right;
+  // skip 1 (row 0, column 1) and skip 3 (row 1, column 1) tell the axes apart.
+  for (const skip of [0, 1, 3]) {
     for (const mode of MODES) {
       test(`${template.id}: skip ${skip} puts the first label in slot ${skip + 1} (${mode.name})`, async ({
         page,

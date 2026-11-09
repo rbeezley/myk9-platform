@@ -86,12 +86,20 @@ describe('checkInTransitions', () => {
     }
 
     it('writes back the previous status and ring time for an unscored dog still in the ring', async () => {
-      const row = { id: 'entry-1', checkInStatus: 'in-ring', ring_entry_time: STAMP, isScored: false };
+      const row = {
+        id: 'entry-1',
+        checkInStatus: 'in-ring',
+        ring_entry_time: STAMP,
+        isScored: false,
+      };
       vi.mocked(replicatedEntriesTable.get).mockResolvedValue(row as never);
 
       await restoreFromInRing(move);
 
-      expect(replicatedEntriesTable.updateEntryWith).toHaveBeenCalledWith('entry-1', expect.any(Function));
+      expect(replicatedEntriesTable.updateEntryWith).toHaveBeenCalledWith(
+        'entry-1',
+        expect.any(Function)
+      );
       expect(applyBuilder(row)).toEqual({
         checkInStatus: 'checked-in',
         check_in_status: 'checked-in',
@@ -100,7 +108,12 @@ describe('checkInTransitions', () => {
     });
 
     it('keeps a hand-marked in-ring dog in the ring, without the stamp the sheet added', async () => {
-      const row = { id: 'entry-1', checkInStatus: 'in-ring', ring_entry_time: STAMP, isScored: false };
+      const row = {
+        id: 'entry-1',
+        checkInStatus: 'in-ring',
+        ring_entry_time: STAMP,
+        isScored: false,
+      };
       vi.mocked(replicatedEntriesTable.get).mockResolvedValue(row as never);
 
       await restoreFromInRing({ ...move, previousStatus: 'in-ring' });

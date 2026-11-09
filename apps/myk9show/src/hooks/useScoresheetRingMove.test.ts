@@ -63,7 +63,7 @@ describe('useScoresheetRingMove', () => {
     expect(restoreFromInRing).not.toHaveBeenCalled();
   });
 
-  it("does not move the previous dog after the sheet moved on to the next one", () => {
+  it('does not move the previous dog after the sheet moved on to the next one', () => {
     vi.mocked(transitionToInRing).mockReturnValue(move as never);
     const { result, rerender } = renderHook(({ id }) => useScoresheetRingMove(id), {
       initialProps: { id: 'e1' },

@@ -288,7 +288,11 @@ describe('useAtShowScoresheet completion wiring', () => {
 
   // MYK9-1762: leaving the sheet without a saved score undoes what opening it did.
   describe('leaving the sheet', () => {
-    const move = { entryId: 'entry-1', previousStatus: 'checked-in', previousRingEntryTime: undefined };
+    const move = {
+      entryId: 'entry-1',
+      previousStatus: 'checked-in',
+      previousRingEntryTime: undefined,
+    };
 
     it('puts the dog back when the sheet is left without a score', async () => {
       mocks.transitionToInRing.mockReturnValue(move);

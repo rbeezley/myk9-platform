@@ -37,6 +37,7 @@ import type { ShowChangeSignal } from '@/features/show-live-sync/showChangeSigna
 import { getTrialRegistry, getTrialTimezone } from '@/features/registries';
 import { buildRingsideStatusInfo, withCombinedStatusLabel } from './ringsideStatusInfo';
 import { scoresheetKeyForClass } from '@/pages/scoring/types';
+import { settleRingRestores } from '@/utils/checkInTransitions';
 import type { AtShowSyncInFlight } from './atShowSyncOutcome';
 import { startAtShowSyncRun } from './atShowSyncRun';
 import {
@@ -381,6 +382,8 @@ async function fetchClassData(
   rawEntries: ReplicatedEntry[];
   perAreaMaxTimes: boolean;
 }> {
+  // MYK9-1779: a list mounted by leaving a scoresheet reads after the dog is put back.
+  await settleRingRestores();
   const cls = await replicatedClassesTable.getClassById(classId);
   const rawEntries = await replicatedEntriesTable.getEntriesByClass(classId);
   const armbandMaps = buildShowArmbandMaps(await replicatedArmbandsTable.getByShow(showId));

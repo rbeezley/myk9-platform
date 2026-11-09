@@ -147,6 +147,8 @@ export function SecretaryCockpitFocusedClass({
           </h3>
           <ClassEntriesTable
             entries={focused.entries}
+            className={focused.name}
+            canChangeCheckIn={canManageShow}
             hidden={focused.entriesHidden}
             unread={unread}
           />

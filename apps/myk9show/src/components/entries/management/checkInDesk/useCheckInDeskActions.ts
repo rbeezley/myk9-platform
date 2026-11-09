@@ -1,10 +1,15 @@
 import { useCallback, useState } from 'react';
-import type { EntryManagementEntry } from '@/types/entry-management-types';
 import type { CheckInStatus } from '@myk9/core';
 import { dispatchBulk } from '@/hooks/bulkDispatch';
 import { updateReplicatedCheckInStatus } from '@/services/show-day/checkInStatus';
 import type { DeskStatusChange } from './checkInDeskModel';
 import { deskStatusLabel } from './peopleRoster';
+
+/** What the writes need from an entry to know the status it is changing from. */
+export interface DeskStatusSource {
+  id: string;
+  classes: readonly { checkInStatus?: CheckInStatus | undefined }[];
+}
 
 /**
  * Status writes for the Check-in desk (check in, Conflict, undo): the replicated path
@@ -16,7 +21,7 @@ import { deskStatusLabel } from './peopleRoster';
  */
 export function useCheckInDeskActions(
   /** The shared entries, never the optimistic view: `from` must be what the shared data says. */
-  entries: readonly EntryManagementEntry[],
+  entries: readonly DeskStatusSource[],
   onRefreshEntries?: () => void | Promise<void>
 ) {
   const [changes, setChanges] = useState<ReadonlyMap<string, DeskStatusChange>>(new Map());

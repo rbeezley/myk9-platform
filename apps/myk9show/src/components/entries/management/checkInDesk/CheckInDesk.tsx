@@ -20,8 +20,8 @@ import { CheckInDeskDogCard } from './CheckInDeskDogCard';
 import { useCheckInDeskActions } from './useCheckInDeskActions';
 import { useMinuteClock } from './useMinuteClock';
 import { useDeskPull } from './useDeskPull';
-import { PullAtShowDialog } from './PullAtShowDialog';
-import { ConfirmDialog } from '@/components/ui/alert-dialog';
+import { DeskPullDialogs } from './DeskPullDialogs';
+import { changeDeskRowStatus } from './deskRowStatus';
 
 interface CheckInDeskProps {
   showId: string;
@@ -216,10 +216,7 @@ export function CheckInDesk({
                       void setStatus(target.dogName, target.pendingEntryIds, 'checked-in')
                     }
                     onSetStatus={(row, status) =>
-                      // Pulled is the real Pull, so it asks first (MYK9-1749).
-                      status === 'pulled'
-                        ? pull.requestPull(row)
-                        : void setStatus(`${row.dogName}, ${row.className}`, [row.entryId], status)
+                      changeDeskRowStatus(row, status, { setStatus }, pull)
                     }
                     onUnpull={pull.requestUnpull}
                     clearingId={pull.clearingId}
@@ -231,31 +228,7 @@ export function CheckInDesk({
           })}
         </div>
       )}
-      {pull.pullRow && (
-        <PullAtShowDialog
-          open
-          dogName={pull.pullRow.dogName}
-          armband={pull.pullRow.armband}
-          className={pull.pullRow.className}
-          isSubmitting={pull.isWorking}
-          onOpenChange={open => {
-            if (!open) pull.cancel();
-          }}
-          onConfirm={reason => void pull.confirmPull(reason)}
-        />
-      )}
-      {pull.unpullRow && (
-        <ConfirmDialog
-          open
-          onOpenChange={open => {
-            if (!open) pull.cancel();
-          }}
-          title={`Put ${pull.unpullRow.dogName} back in ${pull.unpullRow.className}?`}
-          description={`The pull is undone, ${pull.unpullRow.dogName} is entered again, and the check-in goes back to what it was before the pull.`}
-          confirmLabel="Put back"
-          onConfirm={() => void pull.confirmUnpull()}
-        />
-      )}
+      <DeskPullDialogs pull={pull} />
     </div>
   );
 }

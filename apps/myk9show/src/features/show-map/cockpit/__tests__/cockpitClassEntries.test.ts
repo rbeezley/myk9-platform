@@ -125,6 +125,45 @@ const CASES: Case[] = [
   },
 ];
 
+describe('the Check-in desk fields (MYK9-1797)', () => {
+  const desk = (fields: Record<string, unknown>) => {
+    const row = rowsFor([entryRow('Dog', fields)]).rows[0]!;
+    return [row.entryId, row.checkInValue, row.deskEditable, row.lockedReason] as const;
+  };
+
+  it('carries the entry id the desk writes by, and a settable row for an accepted unscored dog', () => {
+    expect(desk({ id: 'e-1' })).toEqual(['e-1', 'no-status', true, null]);
+    expect(desk({ id: 'e-2', check_in_status: 'conflict' })).toEqual([
+      'e-2',
+      'conflict',
+      true,
+      null,
+    ]);
+  });
+
+  it('locks a scored run and a run in the ring, with the desk reason', () => {
+    expect(desk({ id: 'e-3', is_scored: true, check_in_status: 'checked-in' })).toEqual([
+      'e-3',
+      'checked-in',
+      false,
+      'Scored, so the status is locked',
+    ]);
+    expect(desk({ id: 'e-4', check_in_status: 'in-ring' })).toEqual([
+      'e-4',
+      'in-ring',
+      false,
+      'In the ring, so ringside controls the status',
+    ]);
+  });
+
+  it('does not offer a change on a real Pull or a withdrawn dog', () => {
+    expect(desk({ id: 'e-5', entry_status: 'scratched', check_in_status: 'pulled' })[2]).toBe(
+      false
+    );
+    expect(desk({ id: 'e-6', entry_status: 'withdrawn' })[2]).toBe(false);
+  });
+});
+
 describe('classEntriesForClass', () => {
   it.each(CASES)('$name', ({ fields, listed, counted, state, result }) => {
     const { rows } = rowsFor([entryRow('Dog', fields)]);

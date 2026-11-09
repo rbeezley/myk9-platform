@@ -8,49 +8,18 @@ import {
   TableRow,
 } from '@/components/ui/table';
 
-import type { ShowMapStatusKind } from '../showMapTypes';
+import { StatusPill } from './StatusPill';
+import { ClassCheckInCell } from './ClassCheckInCell';
+import { useClassCheckIn } from './useClassCheckIn';
 import {
   countClassEntries,
   runStatusDisplay,
   type SecretaryCockpitClassEntry,
 } from './cockpitClassEntries';
 
-// Same tokens the rest of the app uses for done / live / waiting / out, so a status reads alike.
-const KIND_CLASS: Record<ShowMapStatusKind, string> = {
-  complete: 'bg-success/15 text-success',
-  active: 'bg-primary/15 text-primary',
-  attention: 'bg-warning/15 text-warning',
-  neutral: 'bg-muted text-muted-foreground',
-  muted: 'bg-muted text-muted-foreground line-through decoration-1',
-};
-
 // Tight cells and wrapping Dog and Handler keep the table inside the ~600px focus column; the
 // scroll wrapper stays as the fallback for narrower ones.
 const CELL = 'px-2 py-2';
-
-function StatusPill({
-  label,
-  kind,
-  outlined = false,
-}: {
-  label: string;
-  kind: ShowMapStatusKind;
-  outlined?: boolean;
-}) {
-  return (
-    <span
-      data-outlined={outlined || undefined}
-      className={cn(
-        'inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium',
-        outlined
-          ? 'border border-dashed border-muted-foreground/60 text-muted-foreground'
-          : KIND_CLASS[kind]
-      )}
-    >
-      {label}
-    </span>
-  );
-}
 
 /** Entered, scored, in ring, still to run: derived from the same rows as the table below. */
 export function ClassCountTiles({
@@ -87,15 +56,22 @@ export function ClassCountTiles({
  */
 export function ClassEntriesTable({
   entries,
+  className,
+  canChangeCheckIn = false,
   hidden = 0,
   unread = false,
 }: {
   entries: readonly SecretaryCockpitClassEntry[];
+  /** The class's name, for the Check-in picker and the Pull it can lead to. */
+  className: string;
+  /** Managers only: the Check-in cell opens the Check-in desk's status picker (MYK9-1797). */
+  canChangeCheckIn?: boolean;
   /** Entries the data left out; said aloud so a capped list never reads as the whole class. */
   hidden?: number;
   /** The entries have not been read; an empty list then is not "no entries". */
   unread?: boolean;
 }) {
+  const checkIn = useClassCheckIn(entries, className, canChangeCheckIn);
   const hiddenNote = hidden > 0 && (
     <p className="mt-2 text-xs text-muted-foreground" data-testid="class-entries-hidden">
       {hidden} more {hidden === 1 ? 'entry is' : 'entries are'} not shown here.
@@ -152,10 +128,7 @@ export function ClassEntriesTable({
                 </TableCell>
                 <TableCell className={CELL}>{entry.handler ?? ''}</TableCell>
                 <TableCell className={CELL}>
-                  {/* A dog not checked in says so once, in Run status. */}
-                  {entry.checkIn && !entry.notCheckedIn && (
-                    <StatusPill label={entry.checkIn.label} kind={entry.checkIn.kind} />
-                  )}
+                  <ClassCheckInCell entry={entry} checkIn={checkIn} />
                 </TableCell>
                 <TableCell className={CELL}>
                   <StatusPill label={run.label} kind={run.kind} outlined={run.outlined ?? false} />
@@ -168,6 +141,7 @@ export function ClassEntriesTable({
         </TableBody>
       </Table>
       {hiddenNote}
+      {checkIn.dialogs}
     </>
   );
 }

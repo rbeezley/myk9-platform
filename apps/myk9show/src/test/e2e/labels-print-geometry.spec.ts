@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { buildLabelStylesheet } from '../../lib/labels/labelStyles';
 import { buildCalibrationTestSheetHtml } from '../../lib/labels/calibrationTestSheet';
+import { buildLabelPages } from '../../lib/labels/labelLayout';
 import { getAllTemplates, type LabelTemplate } from '../../lib/labels/labelTemplates';
 
 /**
@@ -15,11 +16,23 @@ const DPI = 96;
 const TOLERANCE_IN = 0.02;
 const MIN_TEXT_CLEARANCE_IN = 0.15;
 
-function sheetHtml(template: LabelTemplate, extraCss = ''): string {
-  const cells = Array.from(
-    { length: template.labelsPerSheet },
-    () => '<div class="label-cell"><div class="armband-label"><span id="n">101</span></div></div>'
-  ).join('');
+/**
+ * Builds one sheet with ArmbandLabelsReport's slot logic and stylesheet:
+ * buildLabelPages decides which slots are skipped and skipped/empty slots use
+ * the report's empty-cell markup. Real labels are a stand-in `#n` span, not
+ * ArmbandLabelCell, so clearance checks pin the cell padding, not the cell's
+ * own content layout.
+ */
+function sheetHtml(template: LabelTemplate, extraCss = '', skip = 0): string {
+  const items = Array.from({ length: template.labelsPerSheet - skip }, () => '101');
+  const [page] = buildLabelPages(template, items, skip);
+  const cells = page.cells
+    .map(cell =>
+      cell.type === 'item'
+        ? '<div class="label-cell"><div class="armband-label"><span id="n">101</span></div></div>'
+        : `<div class="label-cell label-cell--${cell.type}"></div>`
+    )
+    .join('');
   return `<!DOCTYPE html><html><head><style>${buildLabelStylesheet(template)}${extraCss}</style></head><body><div class="label-sheet">${cells}</div></body></html>`;
 }
 
@@ -66,6 +79,50 @@ for (const template of getAllTemplates()) {
       expect(geometry.lastBottom / DPI).toBeLessThanOrEqual(11 + 1e-6);
       expect(geometry.lastRight / DPI).toBeLessThanOrEqual(8.5 + 1e-6);
     });
+  }
+
+  // MYK9-1771 follow-up: skipping labels must move the first real label to that
+  // slot's die-cut position, and its text must keep clear of the left edge.
+  // skip 0 is the positive control that the expected-position math is right;
+  // skip 1 (row 0, column 1) and skip 3 (row 1, column 1) tell the axes apart.
+  for (const skip of [0, 1, 3]) {
+    for (const mode of MODES) {
+      test(`${template.id}: skip ${skip} puts the first label in slot ${skip + 1} (${mode.name})`, async ({
+        page,
+      }) => {
+        await page.setViewportSize({ width: 8.5 * DPI, height: 11 * DPI });
+        await page.emulateMedia({ media: 'print' });
+        await page.setContent(sheetHtml(template, mode.css, skip));
+
+        const geometry = await page.evaluate(() => {
+          const text = document.querySelector('#n')!.getBoundingClientRect();
+          const cell = document
+            .querySelector('#n')!
+            .closest('.label-cell')!
+            .getBoundingClientRect();
+          return {
+            cellTop: cell.top,
+            cellLeft: cell.left,
+            textLeft: text.left,
+            realLabels: document.querySelectorAll('#n').length,
+          };
+        });
+
+        const column = skip % template.columns;
+        const row = Math.floor(skip / template.columns);
+        const expectedLeft =
+          template.pageMarginLeft + column * (template.labelWidth + template.gapX);
+        const expectedTop = template.pageMarginTop + row * (template.labelHeight + template.gapY);
+
+        expect(geometry.realLabels).toBe(template.labelsPerSheet - skip);
+        expect(Math.abs(geometry.cellLeft / DPI - expectedLeft)).toBeLessThan(TOLERANCE_IN);
+        expect(Math.abs(geometry.cellTop / DPI - expectedTop)).toBeLessThan(TOLERANCE_IN);
+        expect(
+          (geometry.textLeft - geometry.cellLeft) / DPI,
+          'text clearance from the left die-cut'
+        ).toBeGreaterThanOrEqual(MIN_TEXT_CLEARANCE_IN - 1e-6);
+      });
+    }
   }
 
   test(`${template.id}: a full sheet prints on one page`, async ({ page, browserName }) => {

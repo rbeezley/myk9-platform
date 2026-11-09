@@ -103,6 +103,7 @@ describe('buildShowMapTree', () => {
     expect(tree.nodesById['entry:entry-1']?.label).toBe('#12 Bella');
     expect(tree.nodesById['entry:entry-1']?.entryDisplay).toEqual({
       entryStatus: 'accepted',
+      checkInStatus: 'checked-in',
       armband: '12',
       dogName: 'Bella',
       dogId: 'dog-1',

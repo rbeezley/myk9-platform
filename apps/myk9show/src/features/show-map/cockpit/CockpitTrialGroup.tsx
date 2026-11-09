@@ -1,18 +1,11 @@
-import { Fragment, useState, type MouseEvent, type ReactNode } from 'react';
+import { Fragment, useState, type ReactNode } from 'react';
 
 import { TrialGroupCard } from '@/components/schedule/TrialGroupCard';
-import { ClassEntryBreakdownLine } from '@/components/schedule/ClassEntryBreakdownLine';
 import type { ClassEntryBreakdown } from '@/features/entry-operations/classEntryBreakdown';
-import { cn } from '@/lib/utils';
 
-import { ClassChecklistStrip } from './ClassChecklistStrip';
-import { ClassStatusControl } from './ClassOperationalControls';
+import { CockpitScheduleRow } from './CockpitScheduleRow';
 import { getCockpitAnchorElementId } from './cockpitRoutes';
-import {
-  ScheduleRowCheckbox,
-  ScheduleTrialCheckbox,
-  type TrialGroupSelect,
-} from './ScheduleSelectControls';
+import { ScheduleTrialCheckbox, type TrialGroupSelect } from './ScheduleSelectControls';
 import type {
   SecretaryCockpitClass,
   SecretaryCockpitModel,
@@ -20,23 +13,6 @@ import type {
 } from './secretaryCockpitTypes';
 
 const NO_ENTRIES: ClassEntryBreakdown = { entered: 0, pending: 0 };
-
-const CONTROL_SELECTOR =
-  'a, button, input, select, textarea, label, [role="button"], [role="menuitem"], [role="combobox"], [role="option"], [role="checkbox"], [role="switch"]';
-
-/**
- * The whole class card selects the class, except a control on it (the
- * "N pending" link). A click from a dialog or menu opened from the card
- * arrives through React's tree but lands outside the card, so it is ignored.
- */
-function selectsRow(event: MouseEvent<HTMLElement>): boolean {
-  const target = event.target;
-  if (!(target instanceof Element) || !event.currentTarget.contains(target)) return false;
-  const control = target.closest(CONTROL_SELECTOR);
-  return (
-    !control || !event.currentTarget.contains(control) || control.hasAttribute('data-selects-row')
-  );
-}
 
 function plural(count: number, one: string, many: string): string {
   return `${count} ${count === 1 ? one : many}`;
@@ -49,8 +25,8 @@ function plural(count: number, one: string, many: string): string {
  * total being the rows' entered + pending so the header and rows agree.
  */
 export function CockpitTrialGroup({
-  group,
   showId,
+  group,
   model,
   classById,
   onFocusClass,
@@ -59,8 +35,8 @@ export function CockpitTrialGroup({
   trialActions,
   select,
 }: {
-  group: TrialScheduleGroupModel;
   showId: string;
+  group: TrialScheduleGroupModel;
   model: SecretaryCockpitModel;
   classById: ReadonlyMap<string, SecretaryCockpitClass>;
   onFocusClass: (classId: string) => void;
@@ -119,17 +95,6 @@ export function CockpitTrialGroup({
     >
       {group.classes.map((classItem, classIndex) => {
         const focused = model.focusedClass?.id === classItem.id;
-        const ticked = select?.isSelected(classItem.id) ?? false;
-        const breakdown = breakdownFor(classItem.id);
-        const progress = classItem.progress.value;
-        // Before scoring can begin the count would only ever read "0 of N".
-        const scored =
-          progress &&
-          (progress.completed > 0 ||
-            classItem.lifecycle.value === 'in-progress' ||
-            classItem.lifecycle.value === 'complete')
-            ? progress
-            : null;
         return (
           <Fragment key={classItem.id}>
             {group.nowMarkerIndex === classIndex && (
@@ -142,103 +107,14 @@ export function CockpitTrialGroup({
                 <span className="h-px flex-1 bg-primary/30" />
               </div>
             )}
-            <div
-              id={getCockpitAnchorElementId(classItem.id)}
-              onClick={event => {
-                if (!selectsRow(event)) return;
-                if (select) select.onToggleClass(classItem.id);
-                else onFocusClass(classItem.id);
-              }}
-              className={cn(
-                'flex cursor-pointer flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border bg-card px-3.5 py-3 transition-colors hover:border-primary/40',
-                (select ? ticked : focused) && 'border-primary bg-primary/5 hover:border-primary'
-              )}
-            >
-              {select && (
-                <ScheduleRowCheckbox
-                  label={classItem.name}
-                  checked={ticked}
-                  onToggle={() => select.onToggleClass(classItem.id)}
-                />
-              )}
-              <div className="w-[4.5rem] shrink-0 whitespace-nowrap text-sm font-semibold">
-                {classItem.startedLabel ? (
-                  <>
-                    {classItem.startedLabel}
-                    <span className="block text-xs font-normal text-muted-foreground">started</span>
-                  </>
-                ) : classItem.expectedStart ? (
-                  classItem.timeLabel
-                ) : (
-                  <span className="font-normal text-muted-foreground">No time</span>
-                )}
-              </div>
-              <div className="min-w-0 flex-[1_1_220px]">
-                <div className="flex flex-wrap items-center gap-2">
-                  {/* No onClick: the click (keyboard too) bubbles to the card's. */}
-                  <button
-                    type="button"
-                    data-selects-row
-                    aria-pressed={select ? ticked : focused}
-                    className="text-left font-semibold hover:underline hover:underline-offset-4"
-                  >
-                    {classItem.name}
-                  </button>
-                  {/* Read-only here; the status menu is in the selected-class panel. */}
-                  <ClassStatusControl
-                    classId={classItem.id}
-                    lifecycle={classItem.lifecycle.value}
-                    canManageShow={false}
-                  />
-                </div>
-                <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-sm text-muted-foreground [&>div]:mt-0">
-                  <span>
-                    {[
-                      classItem.operationalArea.value?.label,
-                      classItem.judgeName || 'Judge not set',
-                    ]
-                      .filter(Boolean)
-                      .join(' · ')}
-                  </span>
-                  {/* Once scoring can have begun, "2 of 2 scored" replaces the
-                            entered count, which it already states (owner, 2026-10-03). */}
-                  {scored && (
-                    <>
-                      <span aria-hidden="true">·</span>
-                      <span>
-                        {scored.completed} of {scored.total} scored
-                      </span>
-                    </>
-                  )}
-                  {breakdown && (!scored || breakdown.pending > 0) && (
-                    <>
-                      <span aria-hidden="true">·</span>
-                      <ClassEntryBreakdownLine
-                        breakdown={breakdown}
-                        showId={showId}
-                        trialId={classItem.trialId}
-                        classId={classItem.id}
-                        className={classItem.name}
-                        hideEntered={Boolean(scored)}
-                      />
-                    </>
-                  )}
-                  {classItem.attentionCount > 0 && (
-                    <>
-                      <span aria-hidden="true">·</span>
-                      <span className="font-medium text-destructive">
-                        {classItem.attentionCount} needs attention
-                      </span>
-                    </>
-                  )}
-                </div>
-              </div>
-              {classItem.checklist && (
-                <div className="ml-auto shrink-0">
-                  <ClassChecklistStrip summary={classItem.checklist} />
-                </div>
-              )}
-            </div>
+            <CockpitScheduleRow
+              classItem={classItem}
+              showId={showId}
+              pendingCount={breakdownFor(classItem.id)?.pending ?? 0}
+              focused={focused}
+              select={select}
+              onFocusClass={onFocusClass}
+            />
             {focused && inlineFocusedContent && (
               <div className="rounded-xl border bg-muted/20 p-3" data-testid="cockpit-inline-focus">
                 {inlineFocusedContent}

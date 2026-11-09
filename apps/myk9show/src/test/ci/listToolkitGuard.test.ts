@@ -51,7 +51,7 @@ const EXEMPT_IMPORTERS: Record<string, string> = {};
  * A new file, or a changed count, fails until someone decides which it is.
  */
 const ARIA_PRESSED_DECLARED: Record<string, { count: number; reason: string }> = {
-  'features/show-map/cockpit/CockpitTrialGroup.tsx': {
+  'features/show-map/cockpit/CockpitScheduleRow.tsx': {
     count: 1,
     reason: 'focus toggle on a schedule row, not a filter',
   },

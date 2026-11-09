@@ -31,7 +31,7 @@ import {
   minuteOfDayInTimeZone,
   operationalMinutes,
 } from './cockpitClock';
-import { buildClassChecklist, summarizeClassChecklist } from './classChecklist';
+import { buildStatusLine } from './scheduleStatusLine';
 import { SHOW_MAP_WRAP_UP_STATUS } from '../showMapTypes';
 
 const ATTENTION_LIMIT = 3;
@@ -137,21 +137,8 @@ function toScheduledClass(
     attentionCount: derivedAttentionCount,
     closeout: cls.closeout ?? 'none',
     primaryAction: primaryActionFor(cls),
-    // A feature never used is invisible, not unfinished (MYK9-1620): no "0 of 7" strip.
-    checklist: checklistInUse ? checklistFor(cls) : null,
+    statusLine: buildStatusLine(cls, checklistInUse),
   };
-}
-
-function checklistFor(cls: SecretaryCockpitClass): ScheduledClassModel['checklist'] {
-  const items = buildClassChecklist({
-    lifecycle: cls.lifecycle ?? null,
-    entryCount: cls.entryCount ?? null,
-    scoredCount: cls.scoredCount ?? null,
-    wrapUpStatus: cls.wrapUpStatus ?? null,
-    registryId: cls.registryId ?? null,
-    paperwork: cls.paperwork,
-  });
-  return items.length > 0 ? summarizeClassChecklist(items) : null;
 }
 
 function sortClasses(
@@ -355,6 +342,8 @@ function toFocusedClass(
     finishActions: actionsFor('finish'),
     classWorkActions: actionsFor('class-work'),
     entryRows: cls.entryRows,
+    entries: cls.entries ?? [],
+    entriesHidden: cls.entriesHidden ?? 0,
   };
 }
 

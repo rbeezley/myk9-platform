@@ -116,10 +116,9 @@ describe('Continue on Results with the checklist collapsed (MYK9-1620)', () => {
 });
 
 describe('unused print tracking and checklist on the real cockpit shape (MYK9-1620)', () => {
-  it('shows no strip, no "Not confirmed printed", no "Not done" and keeps Print and the checklist reachable', () => {
+  it('shows no "Not confirmed printed", no "Not done" and keeps Print and the checklist reachable', () => {
     renderCockpit({ printTrackingInUse: false, checklistInUse: false });
 
-    expect(screen.queryByTestId('class-checklist-strip')).toBeNull();
     expect(screen.queryByText(/steps done/)).toBeNull();
     expect(screen.queryByText('Not confirmed printed')).toBeNull();
     expect(screen.queryByText('Not done')).toBeNull();
@@ -131,11 +130,11 @@ describe('unused print tracking and checklist on the real cockpit shape (MYK9-16
     expect(within(disclosure).getByRole('button', { name: 'Print' })).toBeInTheDocument();
   });
 
-  it('shows the strip on every class, the status text and an open checklist once in use', () => {
+  it('shows the status text and an open checklist once in use', () => {
     renderCockpit({ printTrackingInUse: true, checklistInUse: true });
 
-    expect(screen.getAllByTestId('class-checklist-strip')).toHaveLength(2);
-    expect(screen.getAllByText(/of 7 steps done/)).toHaveLength(2);
+    // The row no longer draws the step strip (MYK9-1782); the class page holds the checklist.
+    expect(screen.queryByTestId('class-checklist-strip')).toBeNull();
     expect(screen.getByText('Not confirmed printed')).toBeInTheDocument();
     expect(screen.queryByTestId('class-checklist-disclosure')).toBeNull();
     expect(screen.getByRole('region', { name: 'Class checklist' })).toBeInTheDocument();

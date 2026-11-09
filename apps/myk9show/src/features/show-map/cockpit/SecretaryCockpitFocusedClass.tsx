@@ -25,6 +25,8 @@ import type {
 } from './secretaryCockpitTypes';
 import { ClassActualStartEditor } from './ClassActualStartEditor';
 import { FocusedClassHeader } from './FocusedClassHeader';
+import { entriesUnread } from './cockpitClassEntries';
+import { ClassCountTiles, ClassEntriesTable } from './FocusedClassEntries';
 import {
   FOCUSED_CLASS_SCROLL_MARGIN_CLASS,
   FOCUSED_CLASS_SCROLL_MARGIN_CLASS_IN_PANEL,
@@ -91,6 +93,7 @@ export function SecretaryCockpitFocusedClass({
     (Boolean(sourceClass.revisedExpectedStart) &&
       !scheduledClockValue(sourceClass.scheduledStart ?? null));
 
+  const unread = entriesUnread(focused.entries, sourceClass.entryCount);
   // The Run order menu hides itself below 2 entries, so its label does too.
   const runOrderEntryCount =
     sourceClass.runListCount ?? sourceClass.entryCount ?? focused.entryRows.length;
@@ -125,6 +128,21 @@ export function SecretaryCockpitFocusedClass({
               : ''
         )}
       >
+        <ClassCountTiles entries={focused.entries} unread={unread} />
+        <section aria-labelledby="focused-class-entries">
+          <h3
+            id="focused-class-entries"
+            className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground"
+          >
+            Entries in run order
+          </h3>
+          <ClassEntriesTable
+            entries={focused.entries}
+            hidden={focused.entriesHidden}
+            unread={unread}
+          />
+        </section>
+
         {/* What the secretary SETS for this class, laid out as a form, apart from
             the work below it (owner, 2026-10-03). */}
         <section

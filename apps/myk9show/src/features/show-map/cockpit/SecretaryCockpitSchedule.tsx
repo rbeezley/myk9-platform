@@ -143,8 +143,8 @@ export function SecretaryCockpitSchedule({
           <CockpitTrialGroup
             // Re-key on the day choice so each choice starts from its own default.
             key={`${group.trialId}:${dayKey}`}
-            group={group}
             showId={showId}
+            group={group}
             model={model}
             classById={classById}
             onFocusClass={onFocusClass}

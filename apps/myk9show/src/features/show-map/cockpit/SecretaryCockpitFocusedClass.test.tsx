@@ -285,7 +285,8 @@ describe('SecretaryCockpitFocusedClass delay announcement', () => {
       revisedExpectedStart: '2026-07-20T14:45:00.000Z',
     });
 
-    await user.click(screen.getByRole('button', { name: 'Announce the delay' }));
+    await user.click(screen.getByRole('button', { name: /^Actions for/ }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Announce a delay' }));
 
     const dialog = screen.getByRole('dialog', { name: 'Announce the delay' });
     // A slide-out, not a centered dialog (docs/INTENT.md, Decision vs Work).
@@ -299,13 +300,23 @@ describe('SecretaryCockpitFocusedClass delay announcement', () => {
     );
   });
 
-  it('is not offered when the class is on time, or to a viewer who cannot manage the show', () => {
-    const { unmount } = renderPanel(sourceClass);
-    expect(screen.queryByRole('button', { name: 'Announce the delay' })).toBeNull();
-    unmount();
+  async function expectDelayItem(source: SecretaryCockpitClass, offered: boolean) {
+    const { user } = renderPanel(source);
+    await user.click(screen.getByRole('button', { name: /^Actions for/ }));
+    // Positive control: the menu opened and holds its other items.
+    expect(await screen.findByRole('menuitem', { name: 'Set expected start' })).toBeInTheDocument();
+    const item = screen.queryByRole('menuitem', { name: 'Announce a delay' });
+    if (offered) expect(item).not.toBeNull();
+    else expect(item).toBeNull();
+  }
 
+  it('is not offered when the class is on time', async () => {
+    await expectDelayItem(sourceClass, false);
+  });
+
+  it('is not offered to a viewer who cannot manage the show', () => {
     renderPanel({ ...sourceClass, revisedExpectedStart: '2026-07-20T14:45:00.000Z' }, false);
-    expect(screen.queryByRole('button', { name: 'Announce the delay' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Actions for/ })).toBeNull();
   });
 
   it('is offered with editable minutes when the class has no scheduled start', async () => {
@@ -315,24 +326,29 @@ describe('SecretaryCockpitFocusedClass delay announcement', () => {
       revisedExpectedStart: '2026-07-20T14:45:00.000Z',
     });
 
-    await user.click(screen.getByRole('button', { name: 'Announce the delay' }));
+    await user.click(screen.getByRole('button', { name: /^Actions for/ }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Announce a delay' }));
     const dialog = screen.getByRole('dialog', { name: 'Announce the delay' });
     expect(within(dialog).getByText(/is running behind\. Set the minutes/)).toBeInTheDocument();
     expect(within(dialog).getByLabelText('Delay minutes')).toHaveValue('30');
   });
 
-  it('is not offered when a revised start runs early', () => {
-    renderPanel({ ...sourceClass, revisedExpectedStart: '2026-07-20T13:45:00.000Z' });
-    expect(screen.queryByRole('button', { name: 'Announce the delay' })).toBeNull();
+  it('is not offered when a revised start runs early', async () => {
+    await expectDelayItem(
+      { ...sourceClass, revisedExpectedStart: '2026-07-20T13:45:00.000Z' },
+      false
+    );
   });
 
-  it('is not offered once the class has started, even with a revised start on record', () => {
-    renderPanel({
-      ...sourceClass,
-      lifecycle: 'in-progress',
-      revisedExpectedStart: '2026-07-20T14:45:00.000Z',
-    });
-    expect(screen.queryByRole('button', { name: 'Announce the delay' })).toBeNull();
+  it('is not offered once the class has started, even with a revised start on record', async () => {
+    await expectDelayItem(
+      {
+        ...sourceClass,
+        lifecycle: 'in-progress',
+        revisedExpectedStart: '2026-07-20T14:45:00.000Z',
+      },
+      false
+    );
   });
 });
 

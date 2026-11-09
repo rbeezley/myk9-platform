@@ -13,12 +13,7 @@ import type { ShowMapAction } from '../showMapActions';
 import type { ShowMapClassInput, ShowMapTree, ShowMapTrialInput } from '../showMapTypes';
 import { classEntriesForClass, hiddenEntryCount } from './cockpitClassEntries';
 import { isChecklistInUse, isPrintTrackingInUse } from './checklistUsage';
-import {
-  getCockpitClassDetailsHref,
-  getCockpitEntryManagementHref,
-  getCockpitPaperScoringHref,
-  getCockpitReportHref,
-} from './cockpitRoutes';
+import { getCockpitClassDetailsHref } from './cockpitRoutes';
 import type {
   CockpitAttentionKind,
   CockpitCloseoutState,
@@ -159,55 +154,11 @@ function classWorkActions(input: {
   classId: string;
   returnTo: string;
 }): SecretaryCockpitAction[] {
-  const scope = {
-    kind: 'class' as const,
-    showId: input.showId,
-    trialId: input.trialId,
-    classId: input.classId,
-  };
   return [
     {
       id: `class-details:${input.classId}`,
       label: 'View entries and results',
       destination: { kind: 'href', href: getCockpitClassDetailsHref(input) },
-      group: 'class-work',
-    },
-    {
-      // The door to this class's pulls, no-shows and waitlist: Entry Forms, filtered to the class.
-      id: `class-entries:${input.classId}`,
-      label: 'Entries for this class',
-      destination: {
-        kind: 'href',
-        href: getCockpitEntryManagementHref({
-          showId: input.showId,
-          trialId: input.trialId,
-          classId: input.classId,
-          returnTo: input.returnTo,
-        }),
-      },
-      group: 'class-work',
-    },
-    {
-      id: `paper-scoring:${input.classId}`,
-      label: 'Enter results from scoresheet',
-      destination: { kind: 'href', href: getCockpitPaperScoringHref(input) },
-      group: 'class-work',
-      // `/scoring/classes/:id/entries` is ProtectedRoute(SECRETARY | JUDGE |
-      // SITE_ADMIN). A club admin manages this show but is none of those, so
-      // this is the one class-work action that is not theirs (REV-2341 R-1).
-      operatorOnly: true,
-    },
-    {
-      id: `reports:${input.classId}`,
-      label: 'Class reports',
-      destination: {
-        kind: 'href',
-        href: getCockpitReportHref({
-          reportId: 'check-in-sheet',
-          scope,
-          returnTo: input.returnTo,
-        }),
-      },
       group: 'class-work',
     },
   ];

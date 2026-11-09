@@ -87,6 +87,22 @@ all three of these are done and recorded in the ledger row (`premise:`, `approac
    on different files means split. Record `size: one concern` or `size: split into MYK9-a, MYK9-b`
    (or `size: kept whole: <reason>` when the concerns cannot land apart).
 
+   **Batch by surface** is the other direction (shared rules, Gates § 1). Splitting is for one
+   broad issue; batching is for several small ones. When two or more selected issues name the
+   same surface (a page, sheet or flow), dispatch them as one unit: one worktree, one branch,
+   one PR, one deploy, with every issue's criteria in the one dispatch and the PR body, and one
+   ledger row per issue sharing the PR. Each issue still gets its own claim, state and closeout.
+   The batch must still fit one review read, so more than about 3 issues, or criteria on
+   unrelated files, means two batches. Money and migration work never joins a batch. Record
+   `size: batched with MYK9-a, MYK9-b (surface: <name>)`.
+
+   **Second fix in seven days.** For a bug fix, run
+   `git log origin/main --since='7 days ago' --oneline -- <paths the fix will touch>` and search
+   Linear (`includeArchived: true`) for a `Bug` on the same flow closed in that window. A hit
+   means this would be the second fix: do not dispatch a patch. Hold the issue per the shared
+   table as `needs:decision`, with a comment naming the earlier fix and asking whether the
+   design is wrong (the convergence rule in shared rules, Gates § 3).
+
    For an escaped bug (found after merge by a walk, staging, Sentry or a user), also record
    `verifier gap:` in the ledger row and the `approach:` line, per **Escaped bugs** in
    `docs/agents/issue-tracker.md`; the dispatch carries the check to update.

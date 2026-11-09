@@ -141,3 +141,29 @@ describe('ExpectedStartControl revert to scheduled time', () => {
     expect(toast.error).toHaveBeenCalledWith('Could not revert to the scheduled time.');
   });
 });
+
+describe('ExpectedStartControl read-only', () => {
+  const base = {
+    classId: 'class-1',
+    scheduledStart: null,
+    revisedExpectedStart: null,
+    trialDate: '2026-08-01',
+    timeZone: 'America/Chicago',
+    canManageShow: false,
+  };
+
+  it('reads as the fact "Not set" with no button when no time is set', () => {
+    render(<ExpectedStartControl {...base} />);
+
+    expect(screen.getByText('Not set')).toBeInTheDocument();
+    expect(screen.queryByRole('button')).toBeNull();
+    expect(screen.queryByText('Set expected start')).toBeNull();
+  });
+
+  it('still shows a set time', () => {
+    render(<ExpectedStartControl {...base} scheduledStart="10:00 AM" />);
+
+    expect(screen.getByText(/^10:00/)).toBeInTheDocument();
+    expect(screen.queryByText('Not set')).toBeNull();
+  });
+});

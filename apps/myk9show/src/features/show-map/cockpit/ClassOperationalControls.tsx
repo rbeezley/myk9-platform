@@ -240,6 +240,14 @@ export function ExpectedStartControl({
   useEffect(() => setValue(effective), [effective]);
 
   if (controlled && !isEditing) return null;
+  if (!canManageShow && !effective) {
+    return (
+      <span className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-muted-foreground">
+        <Clock3 className="h-4 w-4" />
+        Not set
+      </span>
+    );
+  }
   if (!canManageShow || !isEditing) {
     return (
       <button

@@ -146,7 +146,9 @@ Keep the `cd` inside the subshell: a bare `cd` moves the orchestrator's own work
 into the issue worktree. `git -C "$WT" status --short` must be empty afterwards.
 
 Then `save_issue` → **In Progress** and, in the same step, post the claim comment from the shared
-rules (Gates step 1) with the ledger row's session, branch and `$WT`. Write the ledger row.
+rules (Gates step 1) with the ledger row's session, branch and `$WT`. Write the ledger row. A surface
+batch does this once per issue: every issue In Progress with its own claim comment and ledger row,
+all naming the same branch and `$WT`.
 
 **Cloud lane:** no worktree yet (`$WT` is created only once the PR exists, below).
 Write the prompt to `<scratchpad>/cloud-myk9-$N.md` with the Write tool and dispatch it from

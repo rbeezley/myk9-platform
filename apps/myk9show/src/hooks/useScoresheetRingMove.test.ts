@@ -8,7 +8,7 @@ vi.mock('@/utils/checkInTransitions', () => ({
   restoreFromInRing: vi.fn().mockResolvedValue(undefined),
 }));
 
-const move = { entryId: 'e1', previousStatus: 'checked-in', previousRingEntryTime: undefined };
+const move = { entryId: 'e1', previousStatus: 'checked-in' };
 const entry = { id: 'e1', checkInStatus: 'checked-in' as const };
 
 // MYK9-1762: shared by the ringside and secretary scoresheets.

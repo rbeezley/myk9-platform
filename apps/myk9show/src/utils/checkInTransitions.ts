@@ -7,7 +7,6 @@ import { logger } from '@/services/LoggingService';
 export interface RingMove {
   entryId: string;
   previousStatus: CheckInStatus;
-  previousRingEntryTime: string | undefined;
   /** The stamp this opening wrote; a restore only undoes its own stamp. */
   writtenRingEntryTime: string;
   /** Settles once the in-ring write has been applied (or failed), so a restore follows it. */
@@ -40,7 +39,6 @@ export function transitionToInRing(
   return {
     entryId,
     previousStatus: currentStatus ?? 'no-status',
-    previousRingEntryTime: ringEntryTime ?? undefined,
     writtenRingEntryTime,
     written,
   };
@@ -48,7 +46,9 @@ export function transitionToInRing(
 
 /**
  * MYK9-1762: the scoresheet was left without a score (Cancel, Up, back gesture), so undo
- * what opening it did: put back the check-in status and ring time the dog had. Only when the
+ * what opening it did: put back the check-in status the dog had, with no ring time. Opening
+ * only writes when the dog was not already in the ring with a time, so any time it had
+ * before is stale (left by a score reset, for one) and is not put back (MYK9-1778). Only when the
  * dog is still in the ring, unscored and holding the ring time this opening wrote, so a saved
  * score, a status someone else has set since, or another device's run is never overwritten.
  * Goes through the replicated path, so it works offline.
@@ -73,7 +73,7 @@ export async function restoreFromInRing(move: RingMove): Promise<void> {
         ? {
             checkInStatus: move.previousStatus,
             check_in_status: move.previousStatus,
-            ring_entry_time: move.previousRingEntryTime,
+            ring_entry_time: undefined,
           }
         : {}
     );

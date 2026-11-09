@@ -10,17 +10,28 @@ const RUN_STATUSES: ReadonlySet<string> = new Set(['in-ring', 'completed']);
  * that stamp as "in the ring / run started".
  *
  * The one rule for every entries-table write that sets a check-in status, so no screen
- * can bypass it. Returns `{}` when nothing should change: a run status, a write that sets
- * ring_entry_time itself, a scored dog, or no stamp to clear.
+ * can bypass it. A score reset counts too (MYK9-1778): it unscores the dog, so it is judged
+ * on the row AFTER the write, and on the status the dog keeps when the reset leaves it alone.
+ * Returns `{}` when nothing should change: a run status, a write that sets ring_entry_time
+ * itself, a dog still scored after the write, or no stamp to clear.
  */
 export function staleRingTimeClear(
-  row: Pick<ReplicatedEntry, 'ring_entry_time' | 'isScored' | 'is_scored'> | null | undefined,
+  row:
+    | Pick<
+        ReplicatedEntry,
+        'ring_entry_time' | 'isScored' | 'is_scored' | 'checkInStatus' | 'check_in_status'
+      >
+    | null
+    | undefined,
   nextStatus: string | null | undefined,
   updates: Partial<ReplicatedEntry> = {}
 ): Pick<ReplicatedEntry, 'ring_entry_time'> {
-  if (!nextStatus || RUN_STATUSES.has(nextStatus)) return {};
+  const unscores = (updates.isScored ?? updates.is_scored) === false;
+  const status = nextStatus ?? (unscores ? (row?.checkInStatus ?? row?.check_in_status) : null);
+  if (!status || RUN_STATUSES.has(status)) return {};
   if ('ring_entry_time' in updates) return {};
-  if (!row?.ring_entry_time || (row.isScored ?? row.is_scored)) return {};
+  const scoredAfter = unscores ? false : (row?.isScored ?? row?.is_scored);
+  if (!row?.ring_entry_time || scoredAfter) return {};
   return { ring_entry_time: undefined };
 }
 

@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { restoreFromInRing, transitionToCompleted, transitionToInRing } from './checkInTransitions';
+import {
+  restoreFromInRing,
+  settleRingRestores,
+  transitionToCompleted,
+  transitionToInRing,
+} from './checkInTransitions';
 import { updateReplicatedCheckInStatus } from '@/services/show-day/checkInStatus';
 import { replicatedEntriesTable } from '@/services/replication';
 
@@ -211,6 +216,56 @@ describe('checkInTransitions', () => {
       await restoring;
 
       expect(replicatedEntriesTable.updateEntryWith).toHaveBeenCalledOnce();
+    });
+  });
+
+  // MYK9-1779: the list a sheet returns to reads after the dog is put back.
+  describe('settleRingRestores', () => {
+    it('resolves at once when nothing is restoring', async () => {
+      await expect(settleRingRestores()).resolves.toBeUndefined();
+    });
+
+    it('waits for a restore in flight, then resolves', async () => {
+      let land: () => void = () => undefined;
+      const written = new Promise<void>(resolve => {
+        land = resolve;
+      });
+      vi.mocked(replicatedEntriesTable.get).mockResolvedValue(undefined as never);
+      const restoring = restoreFromInRing({
+        entryId: 'entry-1',
+        previousStatus: 'checked-in',
+        writtenRingEntryTime: '2026-11-08T16:03:13.750Z',
+        written,
+      });
+
+      let settled = false;
+      const waiting = settleRingRestores().then(() => {
+        settled = true;
+      });
+      await Promise.resolve();
+      expect(settled).toBe(false);
+
+      land();
+      await restoring;
+      await waiting;
+      expect(settled).toBe(true);
+    });
+
+    it('stops waiting after the ceiling when a restore never lands', async () => {
+      vi.useFakeTimers();
+      try {
+        void restoreFromInRing({
+          entryId: 'entry-1',
+          previousStatus: 'checked-in',
+          writtenRingEntryTime: '2026-11-08T16:03:13.750Z',
+          written: new Promise(() => undefined),
+        });
+        const waiting = settleRingRestores();
+        await vi.advanceTimersByTimeAsync(1500);
+        await expect(waiting).resolves.toBeUndefined();
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 });

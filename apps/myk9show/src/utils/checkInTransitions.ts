@@ -44,6 +44,36 @@ export function transitionToInRing(
   };
 }
 
+/** Restores still running: the screen a sheet returns to waits for these before it reads. */
+const pendingRestores = new Set<Promise<void>>();
+
+export function restoreFromInRing(move: RingMove): Promise<void> {
+  const restore = runRestore(move).finally(() => pendingRestores.delete(restore));
+  pendingRestores.add(restore);
+  return restore;
+}
+
+/** The longest a list read waits for a restore; the restore is a local write, so this is a ceiling. */
+const RESTORE_WAIT_CEILING_MS = 1500;
+
+/**
+ * MYK9-1779: the entry list mounts in the same commit that unmounts the sheet, so its first
+ * read raced the restore and showed the dog "In ring" until the next debounced refresh. A
+ * read of entries calls this first, so it sees the dog already put back. Resolves at once
+ * when nothing is restoring; never rejects, and never holds a read past the ceiling.
+ */
+export async function settleRingRestores(): Promise<void> {
+  if (pendingRestores.size === 0) return;
+  let ceiling: ReturnType<typeof setTimeout> | undefined;
+  await Promise.race([
+    Promise.allSettled([...pendingRestores]),
+    new Promise<void>(resolve => {
+      ceiling = setTimeout(resolve, RESTORE_WAIT_CEILING_MS);
+    }),
+  ]);
+  clearTimeout(ceiling);
+}
+
 /**
  * MYK9-1762: the scoresheet was left without a score (Cancel, Up, back gesture), so undo
  * what opening it did: put back the check-in status the dog had, with no ring time. Opening
@@ -53,7 +83,7 @@ export function transitionToInRing(
  * score, a status someone else has set since, or another device's run is never overwritten.
  * Goes through the replicated path, so it works offline.
  */
-export async function restoreFromInRing(move: RingMove): Promise<void> {
+async function runRestore(move: RingMove): Promise<void> {
   // Still in the ring, unscored, and carrying the stamp THIS opening wrote. Another device
   // that opened the same dog after us wrote nothing (Resume), so it relies on our stamp;
   // compared as instants because a server echo may format the timestamp differently.

@@ -107,11 +107,19 @@ function loopback(url: string) {
   const parsed = new URL(url);
   return ['localhost', '127.0.0.1', '[::1]'].includes(parsed.hostname);
 }
-export async function guardedContext(browser: Browser): Promise<BrowserContext> {
+export interface ViewportSize {
+  width: number;
+  height: number;
+}
+export async function guardedContext(
+  browser: Browser,
+  viewport?: ViewportSize
+): Promise<BrowserContext> {
   resolveIsolatedE2eTarget(process.env);
   const context = await browser.newContext({
     baseURL: 'http://127.0.0.1:4173',
     serviceWorkers: 'block',
+    ...(viewport ? { viewport } : {}),
   });
   await context.route('**/*', route =>
     loopback(route.request().url()) ? route.continue() : route.abort('blockedbyclient')
@@ -121,9 +129,10 @@ export async function guardedContext(browser: Browser): Promise<BrowserContext> 
 export async function rolePage(
   browser: Browser,
   role: 'SECRETARY' | 'JUDGE' | 'DEMO_EXHIBITOR',
-  path: string
+  path: string,
+  viewport?: ViewportSize
 ) {
-  const context = await guardedContext(browser);
+  const context = await guardedContext(browser, viewport);
   const page = await context.newPage();
   let receivedFrames = 0;
   const socketUrls: string[] = [];

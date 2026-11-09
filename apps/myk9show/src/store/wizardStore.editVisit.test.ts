@@ -10,10 +10,19 @@
  * Each sequence runs on the real store and across a real reload: a fresh module instance
  * reading the same device storage.
  */
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DebouncedPersistStorage } from './wizardStorage';
 
 type WizardStore = (typeof import('./wizardStore'))['useWizardStore'];
+
+/**
+ * The first import of the store's module graph costs seconds under coverage on a slow
+ * runner. It is paid once here, on its own generous clock, so no test's hook pays it.
+ */
+const COLD_IMPORT_TIMEOUT_MS = 60_000;
+
+/** Every instance a test built, so none leaves a debounced write to land in a later test. */
+const openedStores: WizardStore[] = [];
 
 /** A fresh store instance, as a page load would build, once it has read the saved draft. */
 async function loadStore(): Promise<WizardStore> {
@@ -21,12 +30,16 @@ async function loadStore(): Promise<WizardStore> {
   const { useWizardStore } = await import('./wizardStore');
   const { isWizardDraftRead } = await import('./wizardDraftRead');
   await vi.waitFor(() => expect(isWizardDraftRead()).toBe(true));
+  openedStores.push(useWizardStore);
   return useWizardStore;
 }
 
+function flushWrites(store: WizardStore): Promise<void> {
+  return (store.persist.getOptions().storage as DebouncedPersistStorage<unknown>).flush();
+}
+
 async function reload(store: WizardStore): Promise<WizardStore> {
-  const storage = store.persist.getOptions().storage as DebouncedPersistStorage<unknown>;
-  await storage.flush();
+  await flushWrites(store);
   return loadStore();
 }
 
@@ -40,11 +53,18 @@ function openEditVisit(store: WizardStore, existingShowName: string) {
 describe('wizard store — an edit visit leaves the new-show draft alone', () => {
   let store: WizardStore;
 
+  beforeAll(async () => {
+    await import('./wizardStore');
+  }, COLD_IMPORT_TIMEOUT_MS);
+
+  // The global setup empties device storage before each test, so a fresh instance starts
+  // from nothing saved.
   beforeEach(async () => {
     store = await loadStore();
-    store.getState().endEditVisit();
-    store.getState().resetWizard();
-    store = await reload(store);
+  });
+
+  afterEach(async () => {
+    await Promise.all(openedStores.splice(0).map(flushWrites));
   });
 
   it('keeps a half-built new show through an Add classes visit and a reload', async () => {

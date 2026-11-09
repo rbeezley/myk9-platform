@@ -13,15 +13,25 @@ import { useWizardStore } from './wizardStore';
  * would leave the edit wizard waiting on a draft that will never come. The store records
  * that failure itself (`draftReadFailed`).
  */
+type PersistApi = typeof useWizardStore.persist;
+
+/** Absent when no device storage could be opened: zustand then returns the bare store. */
+function persistApi(): PersistApi | undefined {
+  return (useWizardStore as { persist?: PersistApi }).persist;
+}
+
 export function isWizardDraftRead(): boolean {
-  return useWizardStore.persist.hasHydrated() || useWizardStore.getState().draftReadFailed;
+  const persist = persistApi();
+  // With no storage there is nothing to read, so nothing to wait for.
+  if (!persist) return true;
+  return persist.hasHydrated() || useWizardStore.getState().draftReadFailed;
 }
 
 function subscribe(onChange: () => void): () => void {
-  const stopHydration = useWizardStore.persist.onFinishHydration(onChange);
+  const stopHydration = persistApi()?.onFinishHydration(onChange);
   const stopStore = useWizardStore.subscribe(onChange);
   return () => {
-    stopHydration();
+    stopHydration?.();
     stopStore();
   };
 }

@@ -535,9 +535,12 @@ const ShowCreationWizardPageContent: React.FC = () => {
                 aria-label={`Step ${currentStep + 1}: ${WIZARD_STEPS[currentStep]?.label}`}
               >
                 {editModeResolution.state === 'loading' ||
-                editModeResolution.state === 'unavailable' ? (
+                editModeResolution.state === 'unavailable' ||
+                (editMode && !draftReady) ? (
+                  // Also held while the saved draft is unread: the edit draft has not loaded
+                  // yet, so the steps would show (and Save would write) the pre-load store.
                   <WizardEditModeGate
-                    state={editModeResolution.state}
+                    state={editModeResolution.state === 'unavailable' ? 'unavailable' : 'loading'}
                     onRetry={handleRetryWritableShow}
                     onLeave={() => navigate('/shows')}
                   />

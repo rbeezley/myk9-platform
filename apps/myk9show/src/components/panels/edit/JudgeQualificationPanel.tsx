@@ -12,17 +12,8 @@ import {
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Plus, X, Award, Save, AlertTriangle } from 'lucide-react';
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogFooter,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogAction,
-  AlertDialogCancel,
-} from '@/components/ui/alert-dialog/alert-dialog';
+import { Plus, X, Award, Save } from 'lucide-react';
+import { DiscardChangesDialog } from './DiscardChangesDialog';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useRBAC } from '@/hooks/useRBAC';
 import { useJudgeQualifications, judgeQueryKeys } from '@/hooks/queries/useJudgeDatabase';
@@ -382,26 +373,11 @@ export const JudgeQualificationPanel: React.FC<JudgeQualificationPanelProps> = (
         </div>
       </div>
 
-      <AlertDialog open={showDiscardDialog} onOpenChange={setShowDiscardDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-amber-500" />
-              Unsaved Changes
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              You have unsaved changes to judge qualifications. Are you sure you want to close? Your
-              changes will be lost.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setShowDiscardDialog(false)}>
-              Keep Editing
-            </AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmDiscard}>Discard Changes</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DiscardChangesDialog
+        open={showDiscardDialog}
+        onOpenChange={setShowDiscardDialog}
+        onDiscard={handleConfirmDiscard}
+      />
     </SlideOverPanel>
   );
 };

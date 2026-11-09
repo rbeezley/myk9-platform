@@ -130,6 +130,7 @@ export const SignInCredentialForm: React.FC<SignInCredentialFormProps> = ({
             isLoading={isLoading}
             error={errorBelongsToPassword ? error : undefined}
             submitDisabled={(captchaRequired && !captchaToken) || kind !== 'email'}
+            forgotPasswordEmail={kind === 'email' ? credential.trim() : undefined}
           />
         </>
       )}

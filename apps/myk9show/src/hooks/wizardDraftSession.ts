@@ -25,7 +25,7 @@
  * better than a wizard that will not render.
  */
 
-import type { DraftMetadata } from './draftMetadata';
+import { isResumableDraft, type DraftMetadata } from './draftMetadata';
 
 /** Beyond this, a same-tab draft is offered through Resume rather than restored. */
 export const WIZARD_SESSION_MAX_DRAFT_AGE_MS = 24 * 60 * 60 * 1000;
@@ -71,8 +71,7 @@ export function pickRehydratableDraft(
 ): DraftMetadata | null {
   let best: DraftMetadata | null = null;
   for (const draft of drafts) {
-    if ((draft.selectedDogsCount ?? 0) === 0) continue;
-    if (draft.completed) continue;
+    if (!isResumableDraft(draft)) continue;
     if (now - draft.timestamp > WIZARD_SESSION_MAX_DRAFT_AGE_MS) continue;
     if (!best || draft.timestamp > best.timestamp) best = draft;
   }

@@ -326,7 +326,6 @@ function OnboardingWizard({ user, roles }: { user: User; roles: readonly UserRol
               personId={profile?.person_id ?? user.id}
               onNext={goNext}
               onBack={goBack}
-              onSkip={goNext}
               canGoBack={canGoBack}
             />
           )}

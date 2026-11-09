@@ -22,6 +22,12 @@
  *  - A show whose entry window is shut renders the closed panel instead of the
  *    dog step, so there is nothing to preselect into and no list the fallback
  *    toast could send the exhibitor to. Nothing runs at all there.
+ *
+ * With no `?dogId=` at all, an exhibitor whose roster holds exactly one dog she
+ * could tick gets it ticked for her (MYK9-1793): the step has one possible
+ * answer, so it is not a question. The same guards apply, plus one — a saved
+ * entry the step is about to offer to resume wins, since ticking a dog would
+ * hide that offer.
  */
 
 import { useEffect, useRef } from 'react';
@@ -30,8 +36,10 @@ import { notifications } from '@/lib/notifications';
 import {
   entryDogHandoffMessage,
   resolveEntryDogHandoff,
+  resolveOnlyDogPreselect,
   useEntryDogId,
 } from '@/features/registration/entryDogContext';
+import { isResumableDraft, type DraftMetadata } from '@/hooks/draftMetadata';
 import {
   getDogEligibilityStatus,
   isDogSelectable,
@@ -61,6 +69,8 @@ export interface EntryDogHandoffOptions {
   entryCloseAvailability: { canEnter: boolean };
   /** The dog step's public selection handler. */
   handleDogSelectionChange: (dogIds: string[]) => void;
+  /** Saved entries for this show; one the step offers to resume beats the only-dog tick. */
+  availableDrafts?: readonly DraftMetadata[] | undefined;
 }
 
 export function useEntryDogHandoff(options: EntryDogHandoffOptions): void {
@@ -73,6 +83,7 @@ export function useEntryDogHandoff(options: EntryDogHandoffOptions): void {
     currentWorkflowConfig,
     entryCloseAvailability,
     handleDogSelectionChange,
+    availableDrafts,
   } = options;
   const isExhibitorFlow = currentWorkflowMode === 'exhibitor';
   const hasDogSelectionStep = currentWorkflowConfig.steps.includes('dog-selection');
@@ -84,7 +95,7 @@ export function useEntryDogHandoff(options: EntryDogHandoffOptions): void {
   // cart edits) must never re-add a dog the exhibitor has since removed.
   useEffect(() => {
     if (appliedRef.current) return;
-    if (!dogId || !isExhibitorFlow || !hasDogSelectionStep) return;
+    if (!isExhibitorFlow || !hasDogSelectionStep) return;
     // Not consumed: the window can open while the page is up, and until it
     // does there is no dog step behind this panel to select into.
     if (!entryCloseAvailability.canEnter) return;
@@ -95,14 +106,27 @@ export function useEntryDogHandoff(options: EntryDogHandoffOptions): void {
 
     appliedRef.current = true;
 
+    // Exactly the list `DogSelectionStep` renders: the same roster
+    // (`useDogStoreCompat`, own dogs only unless the viewer holds a
+    // full-roster staff role — `rosterIsOwnDogsOnly`) narrowed by the same
+    // deleted/inactive rule. Neither path below can therefore select a dog
+    // the picker would not have offered on this same page.
+    const accessibleDogs = dogs.filter(isDogSelectable);
+
+    if (!dogId) {
+      const onlyDogId = resolveOnlyDogPreselect({
+        accessibleDogs,
+        selectedDogs: registrationData.selectedDogs,
+        hasResumableDraft: (availableDrafts ?? []).some(isResumableDraft),
+        eligibility: getDogEligibilityStatus,
+      });
+      if (onlyDogId) handleDogSelectionChange([onlyDogId]);
+      return;
+    }
+
     const handoff = resolveEntryDogHandoff({
       dogId,
-      // Exactly the list `DogSelectionStep` renders: the same roster
-      // (`useDogStoreCompat`, own dogs only unless the viewer holds a
-      // full-roster staff role — `rosterIsOwnDogsOnly`) narrowed by the same
-      // deleted/inactive rule. The handoff can therefore never select a dog
-      // the picker would not have offered on this same page.
-      accessibleDogs: dogs.filter(isDogSelectable),
+      accessibleDogs,
       selectedDogs: registrationData.selectedDogs,
       eligibility: getDogEligibilityStatus,
     });
@@ -124,5 +148,6 @@ export function useEntryDogHandoff(options: EntryDogHandoffOptions): void {
     dogs,
     registrationData,
     handleDogSelectionChange,
+    availableDrafts,
   ]);
 }

@@ -8,7 +8,7 @@
  * the failure is a race: a popover handles Escape, closes itself, and the SAME keypress
  * continues to the window listener, which then correctly sees no open overlay. So the
  * binding is gone rather than guarded harder — nothing maps Escape to "abandon this
- * form", and the deliberate exit still confirms.
+ * form", and the deliberate exit keeps the draft (MYK9-1793).
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { screen } from '@testing-library/react';
@@ -35,7 +35,7 @@ vi.mock('react-router-dom', async () => ({
   useSearchParams: () => [new URLSearchParams()],
 }));
 
-const LEAVE_PROMPT = /unsaved changes that will be lost/i;
+const LEAVE_PROMPT = /unsaved changes/i;
 
 // MYK9-287. These tests used to type a 22-character show name, and that string
 // -- not the dialog -- was the flake. `#show-name` is a CONTROLLED input bound
@@ -92,24 +92,22 @@ describe('ShowCreationWizardPage — Escape', () => {
     expect(screen.queryByText(LEAVE_PROMPT)).toBeNull();
   });
 
-  it('still confirms on the deliberate exit', async () => {
-    // Removing the Escape binding must not remove the guard that matters: Cancel is
-    // an explicit "I am leaving", and that is what warrants the prompt.
-    // Establish the dirty-form precondition directly so this test measures the
-    // Cancel flow rather than controlled-input and persist-write latency.
-    useWizardStore.getState().setDirty(true);
+  it('keeps the draft and leaves without asking on the deliberate exit (MYK9-1793)', async () => {
+    // Until MYK9-1793 Cancel raised "unsaved changes that will be lost" and then reset the
+    // wizard. Create mode persists its draft and the resume banner offers "Start a new show"
+    // on the next visit, so leaving loses nothing and there is nothing to confirm.
+    // The dirty-form precondition is set directly so this test measures the Cancel flow
+    // rather than controlled-input and persist-write latency (MYK9-287, note above).
+    useWizardStore.getState().updateShowData({ name: DIRTYING_KEYSTROKE });
     render(<ShowCreationWizardPage />);
 
     const cancel = screen.queryByRole('button', { name: /^cancel$/i });
     expect(cancel).not.toBeNull();
     await userEvent.click(cancel!);
 
-    // Bounded below vitest's `testTimeout: 10000` so a failure surfaces as
-    // Testing Library's "unable to find" -- which names the missing text --
-    // rather than as an opaque whole-test timeout that says nothing about which
-    // phase ran long. Reading one of those as if it were this assertion is what
-    // sent MYK9-287 after the wrong cause; see the note above.
-    expect(await screen.findByText(LEAVE_PROMPT, {}, { timeout: 4000 })).toBeInTheDocument();
-    expect(mockNavigate).not.toHaveBeenCalledWith('/shows');
+    expect(mockNavigate).toHaveBeenCalledWith('/shows');
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    expect(screen.queryByText(LEAVE_PROMPT)).toBeNull();
+    expect(useWizardStore.getState().show.name).toBe(DIRTYING_KEYSTROKE);
   });
 });

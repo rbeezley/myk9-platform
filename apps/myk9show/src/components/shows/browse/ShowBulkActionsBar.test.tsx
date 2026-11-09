@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
+import { captureCsvDownload } from '@/test/utils/csvDownload';
 import { ShowBulkActionsBar } from './ShowBulkActionsBar';
 import { updateShow } from '@/services/database/shows';
 import { deleteShowRecord as deleteShow } from '@/services/showDeletion';
@@ -132,6 +133,21 @@ describe('ShowBulkActionsBar', () => {
     await waitFor(() => expect(confirm).toBeEnabled());
     await user.click(confirm);
   }
+
+  it('Export downloads the CSV on the press, with no confirm step (MYK9-1793)', async () => {
+    const download = captureCsvDownload();
+    const user = userEvent.setup();
+    renderBar();
+
+    await user.click(within(bulkBar()).getByRole('button', { name: /^export$/i }));
+
+    const csv = download.csv();
+    download.restore();
+    expect(csv).toContain('Name,Organization,Start Date,End Date,Location,Status');
+    expect(csv.split('\n')).toHaveLength(3);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(onBulkComplete).toHaveBeenCalledTimes(1);
+  });
 
   it('bulk status change persists a DB-valid status for every selected show', async () => {
     const user = userEvent.setup();

@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Mail, CheckCircle } from 'lucide-react';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import {
@@ -8,8 +8,15 @@ import {
 } from '@/components/security/TurnstileChallenge';
 import { getTurnstileSiteKey, isCaptchaFailure } from '@/config/turnstile';
 
+/** The email the sign-in page carried over in router state, if it sent one. */
+function carriedEmail(state: unknown): string {
+  if (typeof state !== 'object' || state === null || !('email' in state)) return '';
+  return typeof state.email === 'string' ? state.email : '';
+}
+
 const ForgotPasswordPage: React.FC = () => {
-  const [email, setEmail] = useState('');
+  const location = useLocation();
+  const [email, setEmail] = useState(() => carriedEmail(location.state));
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');

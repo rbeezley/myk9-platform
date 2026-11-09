@@ -108,9 +108,9 @@ export class ShowCreationWizardPage {
     // Check for alert dialog (like "unsaved changes" warning)
     const alertDialog = this.page.locator('[role="alertdialog"]');
     if (await alertDialog.isVisible().catch(() => false)) {
-      // Click "Keep Editing" to stay in the wizard and continue
+      // Click "Keep editing" to stay in the wizard and continue
       const keepEditingButton = this.page.locator(
-        '[role="alertdialog"] button:has-text("Keep Editing")'
+        '[role="alertdialog"] button:has-text("Keep editing")'
       );
       if (await keepEditingButton.isVisible().catch(() => false)) {
         await keepEditingButton.click();

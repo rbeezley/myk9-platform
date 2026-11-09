@@ -9,6 +9,7 @@
 import React, { useState } from 'react';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
+import { exportRowsCsv } from '@/utils/downloadCsv';
 import { updateShow } from '@/services/database/shows';
 import { DeleteObjectDialog, showDeleteDetail } from '@/features/delete';
 import { Trash2, AlertCircle, Download, XCircle, CalendarCheck } from 'lucide-react';
@@ -31,7 +32,7 @@ import type { EnhancedShow } from '@/hooks/useBrowseShowsData';
 // go through the Stripe-payouts gate (onlineEntryGate), which is per-club —
 // a bulk write can't evaluate it. Publish from the show's own status pill.
 type ShowStatus = 'completed' | 'cancelled';
-type DialogType = 'status' | 'export' | 'delete' | null;
+type DialogType = 'status' | 'delete' | null;
 
 interface ShowBulkActionsBarProps {
   selectedShows: EnhancedShow[];
@@ -102,46 +103,31 @@ export const ShowBulkActionsBar: React.FC<ShowBulkActionsBarProps> = ({
     }
   };
 
-  const handleBulkExport = async () => {
-    setIsProcessing(true);
-    setError(null);
-
+  // A download changes nothing, so it runs on the press with no confirm step (MYK9-1793).
+  const handleBulkExport = () => {
     try {
       logger.debug('Bulk show export', 'shows', {
         showIds: selectedShows.map(s => s.id),
       });
 
-      // Build CSV content
-      const headers = ['Name', 'Organization', 'Start Date', 'End Date', 'Location', 'Status'];
-      const rows = selectedShows.map(show => [
-        show.name,
-        show.organization,
-        show.startDate,
-        show.endDate,
-        show.location,
-        show.status,
-      ]);
-
-      const csvContent = [headers, ...rows]
-        .map(row => row.map(cell => `"${cell}"`).join(','))
-        .join('\n');
-
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `shows-export-${new Date().toISOString().slice(0, 10)}.csv`;
-      link.click();
-      URL.revokeObjectURL(url);
+      exportRowsCsv(
+        'shows',
+        ['Name', 'Organization', 'Start Date', 'End Date', 'Location', 'Status'],
+        selectedShows.map(show => [
+          show.name,
+          show.organization,
+          show.startDate,
+          show.endDate,
+          show.location,
+          show.status,
+        ])
+      );
 
       logger.info('Bulk export complete', 'shows', { count: selectedShows.length });
 
-      closeDialog();
       onBulkComplete();
     } catch {
-      setError('Failed to export shows. Please try again.');
-    } finally {
-      setIsProcessing(false);
+      notifications.error('We could not export those shows. Please try again.');
     }
   };
 
@@ -178,7 +164,7 @@ export const ShowBulkActionsBar: React.FC<ShowBulkActionsBarProps> = ({
           Mark cancelled
         </BulkBarButton>
         <BulkBarButton
-          onClick={() => setCurrentDialog('export')}
+          onClick={handleBulkExport}
           icon={<Download className="h-4 w-4" aria-hidden="true" />}
         >
           Export
@@ -226,43 +212,6 @@ export const ShowBulkActionsBar: React.FC<ShowBulkActionsBarProps> = ({
             </Button>
             <Button onClick={handleBulkStatusChange} disabled={isProcessing}>
               {isProcessing ? 'Processing...' : (statusOption?.label ?? 'Apply')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Export Dialog */}
-      <Dialog open={currentDialog === 'export'} onOpenChange={() => closeDialog()}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Export Shows</DialogTitle>
-            <DialogDescription>
-              Export {selectedShows.length} selected show
-              {selectedShows.length !== 1 ? 's' : ''} as CSV.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            {error && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-
-            <p className="text-sm text-muted-foreground">
-              The export will include name, organization, dates, location, and status for each
-              selected show.
-            </p>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={closeDialog}>
-              Cancel
-            </Button>
-            <Button onClick={handleBulkExport} disabled={isProcessing}>
-              <Download className="h-4 w-4 mr-2" />
-              {isProcessing ? 'Exporting...' : 'Download CSV'}
             </Button>
           </DialogFooter>
         </DialogContent>

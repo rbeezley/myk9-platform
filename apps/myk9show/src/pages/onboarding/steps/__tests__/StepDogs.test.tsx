@@ -19,7 +19,6 @@ function makeProps(overrides = {}) {
     personId: 'person-123',
     onNext: vi.fn(),
     onBack: vi.fn(),
-    onSkip: vi.fn(),
     ...overrides,
   };
 }
@@ -33,11 +32,12 @@ describe('StepDogs', () => {
     expect(await screen.findByText(/no dogs added yet/i)).toBeInTheDocument();
   });
 
-  it('calls onSkip when skip button is clicked', async () => {
-    const onSkip = vi.fn();
-    render(<StepDogs {...makeProps({ onSkip })} />);
-    fireEvent.click(await screen.findByRole('button', { name: /skip for now/i }));
-    expect(onSkip).toHaveBeenCalledOnce();
+  it('moves on with one Next button and offers no separate skip (MYK9-1793)', async () => {
+    const onNext = vi.fn();
+    render(<StepDogs {...makeProps({ onNext })} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Next' }));
+    expect(onNext).toHaveBeenCalledOnce();
+    expect(screen.queryByRole('button', { name: /skip/i })).not.toBeInTheDocument();
   });
 
   it('calls onBack when back button is clicked', async () => {

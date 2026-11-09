@@ -74,7 +74,7 @@ export function SecretaryCockpit({
   // Edit Trial and Trial details on each trial heading (MYK9-956); Delete is in the edit panel.
   const { trialRowMenu, trialDialogs } = useTrialRowActions(snapshot.showId, canManageShow);
   // Held here, not in the panel, so a split/stack switch cannot close an open editor.
-  const { renderClassActions, classDialogs } = useFocusedClassSetupActions(snapshot.showId);
+  const { editClassAction, classDialogs } = useFocusedClassSetupActions(snapshot.showId);
   // Add classes and High in Trial live in the trial's menu (MYK9-1727), so the heading holds
   // only the menu and it stays in the card's top-right corner on a phone.
   const renderTrialActions = (trialId: string, label: string) =>
@@ -152,11 +152,7 @@ export function SecretaryCockpit({
         })}
       {...(canManageShow &&
         trial && {
-          setupActions: renderClassActions(
-            model.focusedClass.id,
-            trial.id,
-            model.focusedClass.name
-          ),
+          editClass: editClassAction(model.focusedClass.id, trial.id),
         })}
     />
   ) : null;

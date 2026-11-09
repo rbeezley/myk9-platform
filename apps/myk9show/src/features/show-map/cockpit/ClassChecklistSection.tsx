@@ -33,6 +33,8 @@ export function ClassChecklistSection({
   printTrackingInUse,
   canManageShow,
   trialDate,
+  editingStart: controlledStart,
+  onEditingStartChange,
 }: {
   showId: string;
   sourceClass: SecretaryCockpitClass;
@@ -45,6 +47,13 @@ export function ClassChecklistSection({
   canManageShow: boolean;
   /** The trial's date, which the actual-start editor reads a typed clock time against. */
   trialDate: string;
+  /**
+   * The class whose actual-start editor is open. Held by the focused-class panel so the header's
+   * Actions menu ("Set actual start") opens the same editor the Class started step does.
+   * Omit both and the section keeps the state itself.
+   */
+  editingStart?: string | null;
+  onEditingStartChange?: (classId: string | null) => void;
 }) {
   const returnTo = getShowHomeHref({
     showId,
@@ -84,10 +93,12 @@ export function ClassChecklistSection({
   const setPrintIds = (ids: readonly string[] | null) =>
     setPrintFor(ids === null ? null : { classId, ids });
   const printable = paperwork.filter(item => Boolean(item.printHref));
-  const [editingStart, setEditingStart] = useState<string | null>(null);
-  const startStepRef = useRef<HTMLButtonElement>(null);
+  const [localStart, setLocalStart] = useState<string | null>(null);
+  const editingStart = onEditingStartChange ? (controlledStart ?? null) : localStart;
+  const setEditingStart = onEditingStartChange ?? setLocalStart;
   // Same reset as the ticks above: the editor must not reopen on returning to a class.
-  if (editingStart !== null && editingStart !== classId) setEditingStart(null);
+  if (!onEditingStartChange && localStart !== null && localStart !== classId) setLocalStart(null);
+  const startStepRef = useRef<HTMLButtonElement>(null);
   const labelFor = new Map<string, string>(items.map(item => [item.id, item.label]));
   const panelItems = printable
     .filter(item => printIds?.includes(item.reportId))

@@ -74,7 +74,8 @@ describe('the class editor survives the split/stack switch', () => {
       { initialRoute: '/shows/show-1' }
     );
 
-    await user.click(screen.getByRole('button', { name: 'Edit class Container Novice' }));
+    await user.click(screen.getByRole('button', { name: 'Actions for Container Novice' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Edit class' }));
     expect(await screen.findByTestId('class-editor')).toHaveTextContent('class-1');
 
     expect(

@@ -39,6 +39,28 @@ const PRESETS: PresetDef[] = [
   { kind: 'random', label: 'Random', icon: Shuffle },
 ];
 
+/** The three auto-sort presets, shared with the Show Desk class header's Actions menu. */
+export function RunOrderPresetItems({
+  classId,
+  classLabel,
+  onAutoSort,
+  disabled,
+}: Pick<ShowMapRunOrderMenuProps, 'classId' | 'classLabel' | 'onAutoSort'> & {
+  disabled: boolean;
+}) {
+  return PRESETS.map(preset => (
+    <DropdownMenuItem
+      key={preset.kind}
+      disabled={disabled}
+      onClick={() => onAutoSort({ classId, kind: preset.kind, classLabel })}
+      className="items-center gap-3"
+    >
+      <preset.icon className="h-4 w-4" />
+      <span className="text-sm font-medium">{preset.label}</span>
+    </DropdownMenuItem>
+  ));
+}
+
 // INTENT: Sorting a 0- or 1-entry class is meaningless, so the trigger is
 // hidden entirely rather than rendered as a disabled affordance. Matches the
 // 0/1-entry edge case in the plan's deferred-polish list.
@@ -69,17 +91,12 @@ export function ShowMapRunOrderMenu({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
-        {PRESETS.map(preset => (
-          <DropdownMenuItem
-            key={preset.kind}
-            disabled={disabled}
-            onClick={() => onAutoSort({ classId, kind: preset.kind, classLabel })}
-            className="items-center gap-3"
-          >
-            <preset.icon className="h-4 w-4" />
-            <span className="text-sm font-medium">{preset.label}</span>
-          </DropdownMenuItem>
-        ))}
+        <RunOrderPresetItems
+          classId={classId}
+          classLabel={classLabel}
+          onAutoSort={onAutoSort}
+          disabled={disabled}
+        />
         {onEnterReorderMode && (
           <>
             <DropdownMenuSeparator />

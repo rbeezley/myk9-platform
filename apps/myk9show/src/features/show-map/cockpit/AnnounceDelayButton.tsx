@@ -14,29 +14,42 @@ export function AnnounceDelayButton({
   showId,
   className,
   delayMinutes,
+  open: controlledOpen,
+  onOpenChange,
 }: {
   showId: string;
   className: string;
   /** Unknown when the class has no scheduled start to compare against. */
   delayMinutes?: number | undefined;
+  /**
+   * Controlled by the class header's Actions menu. With `onOpenChange` the trigger button is
+   * not rendered: the menu item is the way in.
+   */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [localOpen, setLocalOpen] = useState(false);
+  const controlled = onOpenChange !== undefined;
+  const open = controlled ? Boolean(controlledOpen) : localOpen;
+  const setOpen = controlled ? onOpenChange : setLocalOpen;
   const subtitle =
     delayMinutes === undefined
       ? `${className} is running behind. Set the minutes, then read the script over the PA or post it to the show feed.`
       : `${className} is running about ${delayMinutes} minutes behind. Read the script over the PA or post it to the show feed.`;
   return (
     <>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        className="mt-2 min-h-11 gap-2"
-        onClick={() => setOpen(true)}
-      >
-        <Megaphone className="h-4 w-4" aria-hidden="true" />
-        Announce the delay
-      </Button>
+      {!controlled && (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="mt-2 min-h-11 gap-2"
+          onClick={() => setOpen(true)}
+        >
+          <Megaphone className="h-4 w-4" aria-hidden="true" />
+          Announce the delay
+        </Button>
+      )}
       {/* SlideOverPanel is not portaled and the focused-class card is sticky (its own stacking
           context), so the panel goes to <body> to sit above the app header and sidebar. */}
       {typeof document !== 'undefined' &&

@@ -121,7 +121,7 @@ describe('ShowDeskPanel cockpit', () => {
   });
 
   it('writes focus and anchor into owner-page return links (All days leaves day unset)', async () => {
-    render(
+    const { user } = render(
       <ShowDeskPanel
         show={show}
         trials={[trial]}
@@ -136,7 +136,10 @@ describe('ShowDeskPanel cockpit', () => {
       { initialRoute: '/shows/show-1/show-day' }
     );
 
-    const entriesLink = await screen.findAllByRole('link', { name: /view entries and results/i });
+    await user.click((await screen.findAllByRole('button', { name: /^Actions for/ }))[0]!);
+    const entriesLink = await screen.findAllByRole('menuitem', {
+      name: /view entries and results/i,
+    });
     expect(decodeURIComponent(entriesLink[0]?.getAttribute('href') ?? '')).toContain(
       'returnTo=/shows/show-1/show-day?focus=class-2&anchor=class-2'
     );
@@ -416,8 +419,8 @@ describe('ShowDeskPanel cockpit', () => {
     expect(document.body.textContent).not.toMatch(/their normal pages/);
   });
 
-  it('keeps Class work available even when it is not an attention item', () => {
-    render(
+  it('keeps the class Actions menu available even when it is not an attention item', async () => {
+    const { user } = render(
       <ShowDeskPanel
         show={show}
         trials={[trial]}
@@ -431,21 +434,21 @@ describe('ShowDeskPanel cockpit', () => {
       { initialRoute: '/shows/show-1/show-day?focus=class-1' }
     );
 
-    expect(screen.getAllByRole('link', { name: /view entries and results/i })[0]).toHaveAttribute(
-      'href',
-      expect.stringContaining('/trials/trial-1/classes/class-1')
-    );
+    await user.click((await screen.findAllByRole('button', { name: /^Actions for/ }))[0]!);
     expect(
-      screen.getAllByRole('link', { name: /enter results from scoresheet/i })[0]
-    ).toHaveAttribute('href', expect.stringContaining('/scoring/classes/class-1/entries'));
-    // MYK9-1324: the panel's "Class setup" link went with the Select classes table; the
-    // panel itself has Edit class and the judge picker, and Select classes is the schedule's.
+      (await screen.findAllByRole('menuitem', { name: /view entries and results/i }))[0]
+    ).toHaveAttribute('href', expect.stringContaining('/trials/trial-1/classes/class-1'));
+    // MYK9-1796: scoresheet entry, class reports and class entries are the step bar's and the
+    // entries table's now, not Class work links.
+    expect(screen.queryByRole('link', { name: /enter results from scoresheet/i })).toBeNull();
+    expect(screen.queryByRole('link', { name: /class reports/i })).toBeNull();
+    expect(screen.queryByRole('link', { name: /entries for this class/i })).toBeNull();
+    // MYK9-1324: the panel's "Class setup" link went with the Select classes table.
     expect(screen.queryByRole('link', { name: /class setup/i })).toBeNull();
     expect(screen.queryByRole('link', { name: /run order and class setup/i })).toBeNull();
-    expect(screen.getAllByRole('link', { name: /class reports/i })).not.toHaveLength(0);
   });
 
-  it('renders no Your show button row: setup verbs live in Actions, scoring in Class work (MYK9-1317)', () => {
+  it('renders no Your show button row: setup verbs live in Actions (MYK9-1317)', () => {
     render(
       <ShowDeskPanel
         show={show}
@@ -466,11 +469,9 @@ describe('ShowDeskPanel cockpit', () => {
       expect(screen.queryByRole('link', { name })).toBeNull();
       expect(screen.queryByRole('button', { name })).toBeNull();
     }
-    // Paper scoring is per class: the one door is the focused class's Class work, never a
+    // Paper scoring is per class: its one door is the focused class's step bar, never a
     // show-level button that would have needed a class picker.
-    const paperDoors = screen.getAllByRole('link', { name: /^enter results from scoresheet$/i });
-    expect(paperDoors).toHaveLength(1);
-    expect(paperDoors[0]).toHaveAttribute('href', expect.stringContaining('/scoring/classes/'));
+    expect(screen.queryByRole('link', { name: /^enter results from scoresheet$/i })).toBeNull();
   });
 
   it('deep-links actionable entry attention to its canonical owner page', () => {

@@ -13,7 +13,7 @@ import { expectNoHorizontalOverflow } from './helpers/horizontalOverflow';
 
 const SHOW_ID = 'dededede-0000-0000-0000-000000000010';
 const PHONE = { width: 390, height: 844 } as const;
-/** A seeded class of the Classic show; focusing it opens its Class work list. */
+/** A seeded class of the Classic show; focusing it opens its class panel. */
 const FOCUSED_CLASS_ID = 'dec1a55e-0000-0000-0000-000000000033';
 
 test('exhibitor show page has no horizontal scroll at 390px (MYK9-1192)', async ({ page }) => {
@@ -37,7 +37,7 @@ test('exhibitor show page has no horizontal scroll at 390px (MYK9-1192)', async 
 /**
  * The secretary's Overview must not pan sideways on a phone either (MYK9-1322). At 375px with a
  * class focused it measured scrollWidth 423: the stacked cockpit grid had no explicit column, so
- * its one track took the min-content of the focused class's one-line "Class work" links.
+ * its one track took the min-content of the focused class's one-line "Class work" links (since replaced by the Actions menu, MYK9-1796).
  */
 test('secretary Overview with a class focused has no horizontal scroll at 375px (MYK9-1322)', async ({
   page,
@@ -50,8 +50,11 @@ test('secretary Overview with a class focused has no horizontal scroll at 375px 
   await signInAsSecretary(page, `/shows/${SHOW_ID}?focus=${FOCUSED_CLASS_ID}`);
   await page.goto(`/shows/${SHOW_ID}?focus=${FOCUSED_CLASS_ID}`);
   await page.waitForLoadState('networkidle').catch(() => undefined);
-  // Positive control: the widening content is the focused class's Class work list.
-  await expect(page.getByRole('heading', { name: 'Class work' })).toBeVisible({ timeout: 30_000 });
+  // Positive control: the focused class panel (its Actions menu and Class settings card) rendered.
+  await expect(page.getByRole('button', { name: /^Actions for / })).toBeVisible({
+    timeout: 30_000,
+  });
+  await expect(page.getByRole('region', { name: 'Class settings' })).toBeVisible();
   await page.waitForTimeout(1500);
 
   expect(

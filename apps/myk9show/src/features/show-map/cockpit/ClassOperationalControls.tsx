@@ -32,12 +32,109 @@ const STATUS_OPTIONS: readonly { value: ClassStatusValue; label: string }[] = [
 export const STATUS_TIMING_HELP =
   'Ringside scoring fills in the start and finish times until you change the status here. After that, In progress records the start time if there isn’t one yet, and Complete records the finish time.';
 
-const STATUS_LABEL: Record<CockpitLifecycle, string> = {
+export const STATUS_LABEL: Record<CockpitLifecycle, string> = {
   'not-started': 'Not started',
   'in-progress': 'In progress',
   complete: 'Complete',
   cancelled: 'Cancelled',
 };
+
+/**
+ * The one status-change path: the "Complete over unentered scores" confirmation and the write.
+ * The class header's Actions menu uses it too, rendering `confirmDialog` outside the menu so the
+ * confirmation outlives the menu closing.
+ */
+export function useClassStatusChange({
+  classId,
+  unenteredScoreCount = 0,
+}: {
+  classId: string;
+  /** `null` is UNKNOWN (the entries read failed) and must not collapse to 0; see ClassStatusControl. */
+  unenteredScoreCount?: number | null;
+}) {
+  const [isSaving, setIsSaving] = useState(false);
+  const [completeWarning, setCompleteWarning] = useState<string | null>(null);
+
+  const applyStatus = async (status: ClassStatusValue) => {
+    setIsSaving(true);
+    try {
+      await applyManualClassStatus(classId, status);
+      toast.success(
+        `Class status changed to ${STATUS_OPTIONS.find(option => option.value === status)?.label}.`
+      );
+    } catch {
+      toast.error('Class status could not be changed.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const update = (status: ClassStatusValue) => {
+    const scoresUnknown = unenteredScoreCount === null;
+    const outstanding = unenteredScoreCount ?? 0;
+    if (status === CLASS_STATUS.COMPLETED && (scoresUnknown || outstanding > 0)) {
+      setCompleteWarning(
+        scoresUnknown
+          ? 'Entry data is unavailable, so we cannot tell whether paper scores still need entry. Mark this Class complete anyway?'
+          : `${outstanding} paper ${outstanding === 1 ? 'score still needs' : 'scores still need'} entry. Mark this Class complete anyway?`
+      );
+      return;
+    }
+    void applyStatus(status);
+  };
+
+  const confirmDialog = (
+    <ConfirmDialog
+      open={completeWarning !== null}
+      onOpenChange={open => !open && setCompleteWarning(null)}
+      title="Mark this Class complete?"
+      description={completeWarning}
+      confirmLabel="Mark complete"
+      onConfirm={() => void applyStatus(CLASS_STATUS.COMPLETED)}
+    />
+  );
+
+  return { update, isSaving, confirmDialog };
+}
+
+/** The status choices (help text, routine statuses, then Cancelled), shared by the badge menu and the Actions submenu. */
+export function ClassStatusChoices({
+  label,
+  onSelect,
+}: {
+  /** The current status label; that choice is shown ticked and disabled. */
+  label: string;
+  onSelect: (status: ClassStatusValue) => void;
+}) {
+  return (
+    <>
+      <DropdownMenuGroup>
+        <DropdownMenuLabel className="max-w-72 text-xs font-normal text-muted-foreground">
+          {STATUS_TIMING_HELP}
+        </DropdownMenuLabel>
+        {STATUS_OPTIONS.filter(option => option.value !== CLASS_STATUS.CANCELLED).map(option => (
+          <DropdownMenuItem
+            key={option.value}
+            disabled={option.label === label}
+            onClick={() => onSelect(option.value)}
+          >
+            {option.label}
+            {option.label === label && <Check className="ml-auto h-4 w-4" />}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuGroup>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem
+        disabled={label === 'Cancelled'}
+        className="text-destructive focus:text-destructive"
+        onClick={() => onSelect(CLASS_STATUS.CANCELLED)}
+      >
+        Cancelled
+        {label === 'Cancelled' && <Check className="ml-auto h-4 w-4" />}
+      </DropdownMenuItem>
+    </>
+  );
+}
 
 export function ClassStatusControl({
   classId,
@@ -60,8 +157,10 @@ export function ClassStatusControl({
   unenteredScoreCount?: number | null;
   canManageShow: boolean;
 }) {
-  const [isSaving, setIsSaving] = useState(false);
-  const [completeWarning, setCompleteWarning] = useState<string | null>(null);
+  const { update, isSaving, confirmDialog } = useClassStatusChange({
+    classId,
+    unenteredScoreCount,
+  });
   const label = lifecycle ? STATUS_LABEL[lifecycle] : 'Status unknown';
   const tone =
     lifecycle === 'complete'
@@ -79,34 +178,6 @@ export function ClassStatusControl({
       </span>
     );
   }
-
-  const update = (status: ClassStatusValue) => {
-    const scoresUnknown = unenteredScoreCount === null;
-    const outstanding = unenteredScoreCount ?? 0;
-    if (status === CLASS_STATUS.COMPLETED && (scoresUnknown || outstanding > 0)) {
-      setCompleteWarning(
-        scoresUnknown
-          ? 'Entry data is unavailable, so we cannot tell whether paper scores still need entry. Mark this Class complete anyway?'
-          : `${outstanding} paper ${outstanding === 1 ? 'score still needs' : 'scores still need'} entry. Mark this Class complete anyway?`
-      );
-      return;
-    }
-    void applyStatus(status);
-  };
-
-  const applyStatus = async (status: ClassStatusValue) => {
-    setIsSaving(true);
-    try {
-      await applyManualClassStatus(classId, status);
-      toast.success(
-        `Class status changed to ${STATUS_OPTIONS.find(option => option.value === status)?.label}.`
-      );
-    } catch {
-      toast.error('Class status could not be changed.');
-    } finally {
-      setIsSaving(false);
-    }
-  };
 
   return (
     <>
@@ -126,42 +197,10 @@ export function ClassStatusControl({
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">
-          <DropdownMenuGroup>
-            <DropdownMenuLabel className="max-w-72 text-xs font-normal text-muted-foreground">
-              {STATUS_TIMING_HELP}
-            </DropdownMenuLabel>
-            {STATUS_OPTIONS.filter(option => option.value !== CLASS_STATUS.CANCELLED).map(
-              option => (
-                <DropdownMenuItem
-                  key={option.value}
-                  disabled={option.label === label}
-                  onClick={() => update(option.value)}
-                >
-                  {option.label}
-                  {option.label === label && <Check className="ml-auto h-4 w-4" />}
-                </DropdownMenuItem>
-              )
-            )}
-          </DropdownMenuGroup>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            disabled={label === 'Cancelled'}
-            className="text-destructive focus:text-destructive"
-            onClick={() => update(CLASS_STATUS.CANCELLED)}
-          >
-            Cancelled
-            {label === 'Cancelled' && <Check className="ml-auto h-4 w-4" />}
-          </DropdownMenuItem>
+          <ClassStatusChoices label={label} onSelect={update} />
         </DropdownMenuContent>
       </DropdownMenu>
-      <ConfirmDialog
-        open={completeWarning !== null}
-        onOpenChange={open => !open && setCompleteWarning(null)}
-        title="Mark this Class complete?"
-        description={completeWarning}
-        confirmLabel="Mark complete"
-        onConfirm={() => void applyStatus(CLASS_STATUS.COMPLETED)}
-      />
+      {confirmDialog}
     </>
   );
 }
@@ -173,6 +212,8 @@ export function ExpectedStartControl({
   trialDate,
   timeZone,
   canManageShow,
+  editing: controlledEditing,
+  onEditingChange,
 }: {
   classId: string;
   scheduledStart: string | null;
@@ -180,15 +221,33 @@ export function ExpectedStartControl({
   trialDate: string;
   timeZone: string;
   canManageShow: boolean;
+  /**
+   * Controlled by the class header's Actions menu, which opens this editor in a dialog. With
+   * `onEditingChange` the idle button is not rendered: the menu item is the way in.
+   */
+  editing?: boolean;
+  onEditingChange?: (editing: boolean) => void;
 }) {
   const effective =
     instantToClockTime(revisedExpectedStart, timeZone) || scheduledClockValue(scheduledStart);
-  const [isEditing, setIsEditing] = useState(false);
+  const [localEditing, setLocalEditing] = useState(false);
+  const controlled = onEditingChange !== undefined;
+  const isEditing = controlled ? Boolean(controlledEditing) : localEditing;
+  const setIsEditing = controlled ? onEditingChange : setLocalEditing;
   const [value, setValue] = useState(effective);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => setValue(effective), [effective]);
 
+  if (controlled && !isEditing) return null;
+  if (!canManageShow && !effective) {
+    return (
+      <span className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-muted-foreground">
+        <Clock3 className="h-4 w-4" />
+        Not set
+      </span>
+    );
+  }
   if (!canManageShow || !isEditing) {
     return (
       <button

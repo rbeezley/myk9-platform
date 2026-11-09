@@ -36,7 +36,7 @@ const SECRETARY_ONLY_DESTINATIONS: ReadonlyArray<{
   {
     path: '/scoring/classes/class-1/entries',
     requiredRole: [UserRole.SECRETARY, UserRole.JUDGE, UserRole.SITE_ADMIN],
-    linkedFrom: 'Show Day cockpit "Enter results from scoresheet"',
+    linkedFrom: 'Show Desk class step bar "Open paper scoring"',
   },
   {
     path: '/secretary/dashboard',

@@ -1,13 +1,17 @@
 import { formatTrialLabel, parseStoredClockTime } from '@myk9/core';
 import type { RegistryId } from '@/features/registries';
-import { buildAttentionCountByClass, matchesAnyCockpitStatus } from './secretaryCockpitAttention';
+import { buildAttentionCountByClass } from './secretaryCockpitAttention';
+import {
+  filterFactsOf,
+  hasActiveCockpitFilters,
+  matchesCockpitClassFilters,
+} from './cockpitClassFilters';
 import {
   buildCockpitClassLabelResolver,
   compareCockpitClasses,
 } from './secretaryCockpitClassLabel';
 import type {
   CockpitAttentionKind,
-  CockpitStatus,
   CockpitLifecycle,
   EvidenceKind,
   EvidenceValue,
@@ -134,6 +138,7 @@ function toScheduledClass(
     progress: progressFor(cls),
     operationalArea: operationalAreaFor(cls),
     judgeName: cls.judgeName ?? null,
+    filterFacts: filterFactsOf(cls),
     attentionCount: derivedAttentionCount,
     closeout: cls.closeout ?? 'none',
     primaryAction: primaryActionFor(cls),
@@ -352,11 +357,12 @@ function buildTrialGroups(
   openDay: string | null,
   focusedClassId: string | undefined,
   anchorId: string | undefined,
-  statuses: readonly CockpitStatus[],
+  filters: SecretaryCockpitState,
   scopeTrials: readonly SecretaryCockpitTrial[],
   attentionCountByClass: ReadonlyMap<string, number>,
   labelOf: (cls: SecretaryCockpitClass) => string
 ): TrialScheduleGroupModel[] {
+  const attentionOf = (cls: SecretaryCockpitClass) => attentionCountByClass.get(cls.id) ?? 0;
   return scopeTrials
     .map(trial => {
       const allClasses = sortClasses(
@@ -364,7 +370,7 @@ function buildTrialGroups(
         snapshot.registryId
       );
       const visibleClasses = allClasses.filter(cls =>
-        matchesAnyCockpitStatus(cls, statuses, attentionCountByClass.get(cls.id) ?? 0)
+        matchesCockpitClassFilters(filterFactsOf(cls), filters, attentionOf(cls))
       );
       return {
         trialId: trial.id,
@@ -376,7 +382,7 @@ function buildTrialGroups(
             cls,
             labelOf(cls),
             snapshot.timeZone,
-            attentionCountByClass.get(cls.id) ?? 0,
+            attentionOf(cls),
             snapshot.checklistInUse
           )
         ),
@@ -391,14 +397,11 @@ function buildTrialGroups(
         summary: {
           classCount: allClasses.length,
           inProgressCount: allClasses.filter(cls => cls.lifecycle === 'in-progress').length,
-          attentionCount: allClasses.reduce(
-            (sum, cls) => sum + (attentionCountByClass.get(cls.id) ?? 0),
-            0
-          ),
+          attentionCount: allClasses.reduce((sum, cls) => sum + attentionOf(cls), 0),
         },
       };
     })
-    .filter(group => group.classes.length > 0 || statuses.length === 0);
+    .filter(group => group.classes.length > 0 || !hasActiveCockpitFilters(filters));
 }
 
 export function buildSecretaryCockpitModel(
@@ -457,11 +460,8 @@ export function buildSecretaryCockpitModel(
       all: allAttention,
       overflowCount: Math.max(0, allAttention.length - ATTENTION_LIMIT),
     },
-    // Every Class scheduled today, unfiltered by `state.statuses` -- `trialGroups`
-    // below is a `state.statuses`-scoped slice of these same annotated rows. The
-    // Filter menu's counts in `cockpitStatusFilter.ts` filter this array directly
-    // with `matchesCockpitFilter`, so a count can't diverge from what
-    // the schedule renders (MYK9-812).
+    // Every Class scheduled today, unfiltered; `trialGroups` is a filtered slice of these rows and
+    // the Filter menu's counts run them through the same predicate (MYK9-812, MYK9-1785).
     daySchedule: dayClasses.map(cls =>
       toScheduledClass(
         cls,
@@ -476,7 +476,7 @@ export function buildSecretaryCockpitModel(
       multiDayScope ? selectedDay : null,
       focused?.id,
       state.anchor,
-      state.statuses ?? [],
+      state,
       scopeTrials,
       attentionCountByClass,
       labelOf

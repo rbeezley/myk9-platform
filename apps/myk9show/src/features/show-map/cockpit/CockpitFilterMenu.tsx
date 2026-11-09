@@ -3,32 +3,35 @@ import { useRef } from 'react';
 import { ListAppliedFilters, ListFilterMenu } from '@/components/list-toolkit';
 import type { ListMultiOptionsFilterField } from '@/components/list-toolkit/types';
 import { buildCockpitDayField } from './cockpitDayFilter';
+import { buildCockpitClassFilterFields } from './cockpitClassFilters';
 import { buildCockpitStatusField } from './cockpitStatusFilter';
 import type {
+  CockpitClassFilters,
   CockpitStatus,
   SecretaryCockpitModel,
   SecretaryCockpitSnapshot,
 } from './secretaryCockpitTypes';
 
 /**
- * The one Filter button for the schedule (MYK9-1719, MYK9-1727): Day (multi-day shows only) and
- * Status. Ticking none in a field means all; the applied chips cover both and "clear all" clears
- * both in one URL write. The chips sit beside the button on one row (MYK9-1727); the
+ * The one Filter button for the schedule (MYK9-1719, MYK9-1727, MYK9-1785): Day (multi-day shows
+ * only), Status, then Judge, Ring/area, Element and Level (each only when the show offers two or
+ * more). Ticking none in a field means all; the applied chips cover every field and "clear all"
+ * clears them in one URL write. The chips sit beside the button on one row (MYK9-1727); the
  * schedule heading says how many classes are showing.
  */
 export function CockpitFilterMenu({
   snapshot,
   model,
-  statuses,
+  filters,
   onDaysChange,
-  onStatusesChange,
+  onFiltersChange,
   onClearAll,
 }: {
   snapshot: SecretaryCockpitSnapshot;
   model: SecretaryCockpitModel;
-  statuses: readonly CockpitStatus[];
+  filters: CockpitClassFilters;
   onDaysChange: (days: string[]) => void;
-  onStatusesChange: (statuses: CockpitStatus[]) => void;
+  onFiltersChange: (update: CockpitClassFilters) => void;
   onClearAll: () => void;
 }) {
   const filterButtonRef = useRef<HTMLButtonElement>(null);
@@ -51,7 +54,14 @@ export function CockpitFilterMenu({
       })
     );
   }
-  fields.push(buildCockpitStatusField({ model, selected: statuses, onChange: onStatusesChange }));
+  fields.push(
+    buildCockpitStatusField({
+      model,
+      selected: filters.statuses ?? [],
+      onChange: (statuses: CockpitStatus[]) => onFiltersChange({ statuses }),
+    }),
+    ...buildCockpitClassFilterFields({ snapshot, model, filters, onChange: onFiltersChange })
+  );
 
   return (
     <div className="flex flex-wrap items-center gap-2" data-testid="cockpit-filter">

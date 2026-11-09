@@ -9,8 +9,8 @@ export interface EvidenceValue<T> {
 }
 
 /** One status the schedule can be narrowed to; ticking several shows a class matching any (MYK9-1727). */
-export type CockpitStatus = 'in-progress' | 'needs-attention' | 'needs-closeout';
 export type CockpitLifecycle = 'not-started' | 'in-progress' | 'complete' | 'cancelled';
+export type CockpitStatus = CockpitLifecycle | 'needs-attention' | 'needs-closeout';
 export type CockpitCloseoutState = 'none' | 'needs-closeout' | 'closed';
 export type CockpitAttentionKind =
   'blocker' | 'active-work' | 'preparation' | 'closeout' | 'administrative';
@@ -182,14 +182,35 @@ export interface SecretaryCockpitSnapshot {
   administrativeAttention?: readonly SecretaryCockpitAttention[];
 }
 
-export interface SecretaryCockpitState {
+/**
+ * The schedule's ticked filters (MYK9-1785). Empty or absent means every class; several ticks in
+ * one group show a class matching ANY of them, and groups combine with AND.
+ */
+export interface CockpitClassFilters {
+  statuses?: readonly CockpitStatus[] | undefined;
+  /** Judge ids (the name when a judge has no id), or the "Unassigned" sentinel. */
+  judges?: readonly string[] | undefined;
+  /** Operational area labels. */
+  areas?: readonly string[] | undefined;
+  elements?: readonly string[] | undefined;
+  levels?: readonly string[] | undefined;
+}
+
+export interface SecretaryCockpitState extends CockpitClassFilters {
   /** The ticked show days; empty or absent means every day (MYK9-1719). */
   selectedDays?: readonly string[] | undefined;
   focusedClassId?: string | undefined;
   /** The URL's anchor; when it names a trial, that trial opens whatever the day (MYK9-1320). */
   anchor?: string | undefined;
-  /** The ticked statuses; empty means every class (MYK9-1727). */
-  statuses?: readonly CockpitStatus[] | undefined;
+}
+
+export interface CockpitFilterFacts {
+  lifecycle: CockpitLifecycle | null;
+  closeout: CockpitCloseoutState;
+  judge: { value: string; label: string };
+  areaLabels: readonly string[];
+  element: string | null;
+  level: string | null;
 }
 
 export interface ScheduledClassModel {
@@ -205,6 +226,8 @@ export interface ScheduledClassModel {
   progress: EvidenceValue<{ completed: number; total: number }>;
   operationalArea: EvidenceValue<{ kind: OperationalAreaKind; label: string }>;
   judgeName: string | null;
+  /** What the Filter menu matches on (MYK9-1785), so its counts read the rows, not the names. */
+  filterFacts: CockpitFilterFacts;
   attentionCount: number;
   closeout: CockpitCloseoutState;
   primaryAction: SecretaryCockpitAction | null;
@@ -228,7 +251,8 @@ export interface TrialScheduleGroupModel {
   };
 }
 
-export interface FocusedClassModel extends ScheduledClassModel {
+// The focused class is never filtered, so it carries no filter facts.
+export interface FocusedClassModel extends Omit<ScheduledClassModel, 'filterFacts'> {
   /** From the snapshot (MYK9-1620): false hides "Not confirmed printed" on paperwork rows. */
   printTrackingInUse: boolean;
   /** From the snapshot (MYK9-1620): false collapses the checklist under a quiet disclosure. */

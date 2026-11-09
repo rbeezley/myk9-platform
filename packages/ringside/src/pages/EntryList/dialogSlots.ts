@@ -303,6 +303,8 @@ export interface CheckinStatusDialogProps {
   showDescriptions?: boolean;
   /** Show "In Ring" and "Completed" options (stewards/judges only). */
   showRingManagement?: boolean;
+  /** The dog's current status, marked selected in the options. */
+  currentStatus?: CheckInStatus | undefined;
 }
 
 /**

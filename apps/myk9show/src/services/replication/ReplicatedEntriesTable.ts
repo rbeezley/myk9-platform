@@ -151,6 +151,24 @@ function withdrawEligibilityOf(
   });
 }
 
+/**
+ * MYK9-1766: `check_in_pulled_by` is stamped by the server when a pull is flagged. A local write
+ * that CHANGES the check-in status makes the replica's copy of that stamp stale, and the upload
+ * acknowledgement marks the row `synced` without refreshing it. Null it on the LOCAL row only
+ * (never in an upload payload: the column is server-owned); the next download restores the
+ * server's value (ENTRY_SERVER_OWNED_FIELDS makes that overwrite conflict-free).
+ */
+function clearStalePullSource(
+  current: ReplicatedEntry,
+  next: Partial<ReplicatedEntry>
+): Partial<ReplicatedEntry> {
+  const nextStatus = next.checkInStatus ?? next.check_in_status;
+  if (nextStatus === undefined) return {};
+  const currentStatus = current.checkInStatus ?? current.check_in_status;
+  if (nextStatus === currentStatus) return {};
+  return { checkInPulledBy: null, check_in_pulled_by: null } as Partial<ReplicatedEntry>;
+}
+
 export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
   /** Rows are kept per signed-in account: another account's cache is invisible (MYK9-1133). */
   override usesAccountOwnedRows(): boolean {
@@ -797,6 +815,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       checkInStatus: status,
       check_in_status: status,
       ...ringTimeClear,
+      ...clearStalePullSource(entry, { checkInStatus: status }),
       _lastModified: new Date(),
       _syncStatus: 'pending',
     };
@@ -863,6 +882,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     const updated: ReplicatedEntry = {
       ...entry,
       ...updates,
+      ...clearStalePullSource(entry, updates),
       _lastModified: new Date(),
       _syncStatus: 'pending',
     };
@@ -962,6 +982,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
         ...entry,
         ...updates,
         ...ringTimeClear,
+        ...clearStalePullSource(entry, updates),
         _lastModified: new Date(),
         _syncStatus: 'pending',
       };

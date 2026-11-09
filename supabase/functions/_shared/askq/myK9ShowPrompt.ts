@@ -1,3 +1,4 @@
+import { PLAIN_TEXT_ANSWER_RULE } from './plainTextAnswerRule.ts';
 import type { UserContext } from './types.ts';
 
 // Sanitize user-controlled strings before embedding in the AI prompt
@@ -21,6 +22,12 @@ export function buildMyK9ShowPrompt(ctx: UserContext, documentContext: string): 
   }
   if (ctx.showId && ctx.showName) {
     userPreamble += `The user is currently viewing show: "${sanitizeForPrompt(ctx.showName)}". Use this show context for queries unless they specify otherwise. `;
+    const registries = ctx.showRegistries ?? [];
+    if (registries.length === 1) {
+      userPreamble += `This show is sanctioned under exactly one registry and sport: ${sanitizeForPrompt(registries[0])}. Answer for that registry and sport, and do not ask which registry or sport the user means. `;
+    } else if (registries.length > 1) {
+      userPreamble += `This show's trials run under: ${registries.map(sanitizeForPrompt).join(', ')}. Answer for the registry the question names; ask only if it could apply to more than one of these. `;
+    }
   }
 
   return `You are AskQ, an AI assistant for the myK9Show dog show management platform.
@@ -51,6 +58,7 @@ TOOL USAGE:
 - When the user asks about "my dog" or "my results", use their dog information from user_context above.
 
 RESPONSE STYLE:
+- ${PLAIN_TEXT_ANSWER_RULE}
 - Be concise and direct. Lead with the answer.
 - Format data clearly with bullet points or short lists.
 - If no data is found, say so clearly and suggest what the user could try instead.

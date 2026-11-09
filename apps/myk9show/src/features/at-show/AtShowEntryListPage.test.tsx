@@ -12,6 +12,7 @@
  * retry / missing-show) and `AtShowAccessGate` (access) wrap the pages now.
  */
 
+import { expectMenuBeforeUp } from '@/test/utils/ringsideHeaderAssertions';
 import { Routes, Route } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@/test/utils/testUtils';
@@ -211,6 +212,15 @@ describe('AtShowEntryListPage (Phase 1a shim)', () => {
     );
     expect(screen.getByText('Border Collie')).toBeInTheDocument();
     expect(screen.getByText('Jane Handler')).toBeInTheDocument();
+  });
+
+  it('puts the menu before the Up control in the header-left group (MYK9-1770)', async () => {
+    renderPage();
+    await screen.findByText('Rex');
+    expectMenuBeforeUp(
+      screen.getByRole('button', { name: 'Ringside menu' }),
+      document.querySelector<HTMLElement>('[data-ringside-up]') as HTMLElement
+    );
   });
 
   describe('Class Options Settings tile (MYK9-1627)', () => {

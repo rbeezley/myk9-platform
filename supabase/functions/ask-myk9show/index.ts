@@ -1,5 +1,4 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { applyActiveRoleValidity } from '../_shared/roleValidity.ts';
 import type {
   AskQQuestionMode,
   AskQShowRequest,
@@ -13,18 +12,13 @@ import { executeTool } from '../_shared/askq/toolExecutor.ts';
 import { collectSource } from '../_shared/askq/responseFormatter.ts';
 import { callClaude } from '../_shared/askq/promptBuilder.ts';
 import { ASKQ_GUIDES, ASKQ_RULEBOOKS } from '../_shared/askq/documentAssets.ts';
+import { type AskQRulebookAsset, selectRulebook } from '../_shared/askq/documentContext.ts';
 import {
-  type AskQRulebookAsset,
-  buildDocumentContext,
-  selectRulebook,
-} from '../_shared/askq/documentContext.ts';
-import {
-  buildModePrompt,
   parseAskQRouting,
+  resolveQuestionModeForShow,
   resolveRulebookContext,
 } from '../_shared/askq/requestRouting.ts';
 import {
-  buildSupportModePrompt,
   getSupportEscalationForQuestion,
   isSupportModeEnabled,
   parseSupportAnswer,
@@ -32,7 +26,10 @@ import {
 } from '../_shared/askq/supportMode.ts';
 import { reserveAskQQuery } from '../_shared/askq/askqRateLimit.ts';
 import { classifyAskQFailure } from '../_shared/askq/askqFailure.ts';
-import { buildMyK9ShowPrompt } from '../_shared/askq/myK9ShowPrompt.ts';
+import { describeShowRegistries } from '../_shared/askq/showRegistries.ts';
+import { callerHasShowAccess } from '../_shared/askq/showAccess.ts';
+import { callerHoldsStaffRole } from '../_shared/askq/guideScope.ts';
+import { buildAskQSystemPrompt } from '../_shared/askq/systemPrompt.ts';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': Deno.env.get('ALLOWED_ORIGIN') ?? 'http://localhost:5173',
@@ -131,8 +128,8 @@ Deno.serve(async (req: Request) => {
     if (!routing.ok) {
       return jsonResponse({ error: routing.error }, 400);
     }
-    const questionMode = routing.questionMode;
-    const effectiveSupportMode = supportMode || questionMode === 'app-help';
+    const requestedMode = routing.questionMode;
+    const effectiveSupportMode = supportMode || requestedMode === 'app-help';
     if (!message?.trim()) {
       return jsonResponse({ error: 'Message is required' }, 400);
     }
@@ -227,32 +224,13 @@ Deno.serve(async (req: Request) => {
       }));
     }
 
-    // Verify user has a relationship to the requested show before using it as context
+    // Verify the caller may see this show (same predicate the app uses) before using it as context
     let verifiedShowId: string | null = null;
     let showName: string | null = null;
     let showRulebooks: AskQRulebookAsset[] = [];
+    let showRegistries: string[] = [];
     if (showId && showData?.name) {
-      const dogIds = dogs.map(d => d.id);
-      const [{ count: roleCount }, { count: entryCount }] = await Promise.all([
-        applyActiveRoleValidity(
-          serviceClient
-            .from('user_roles')
-            .select('*', { count: 'exact', head: true })
-            .eq('auth_user_id', user.id)
-            .eq('show_id', showId)
-        ),
-        dogIds.length > 0
-          ? serviceClient
-              .from('entries')
-              .select('id', { count: 'exact', head: true })
-              .eq('show_id', showId)
-              .in('dog_id', dogIds)
-              .is('deleted_at', null)
-              .not('entry_status', 'in', '(withdrawn,scratched)')
-          : Promise.resolve({ count: 0 }),
-      ]);
-
-      const hasAccess = (roleCount ?? 0) > 0 || (entryCount ?? 0) > 0;
+      const hasAccess = await callerHasShowAccess(supabaseClient, showId);
       if (hasAccess) {
         verifiedShowId = showId;
         showName = showData.name;
@@ -262,8 +240,12 @@ Deno.serve(async (req: Request) => {
           .eq('show_id', showId)
           .order('trial_number', { ascending: true });
         showRulebooks = selectUniqueRulebooksForTrials(trialContexts ?? []);
+        showRegistries = describeShowRegistries(trialContexts ?? [], ASKQ_RULEBOOKS);
       }
     }
+
+    // The panel shows "This show" by default and sends no mode until the tab changes.
+    const questionMode = resolveQuestionModeForShow(requestedMode, verifiedShowId !== null);
 
     const userContext: UserContext = {
       userId: user.id,
@@ -271,6 +253,7 @@ Deno.serve(async (req: Request) => {
       dogs,
       showId: verifiedShowId,
       showName,
+      showRegistries,
     };
 
     const rulebookResolution = resolveRulebookContext({
@@ -302,14 +285,15 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const documentContext = buildDocumentContext({
-      guides: getDocumentGuides(questionMode),
+    const hasStaffRole = await callerHoldsStaffRole(serviceClient, user.id);
+    const { systemPrompt, guides: documentGuides } = buildAskQSystemPrompt({
+      userContext,
+      questionMode,
+      effectiveSupportMode,
+      hasStaffRole,
+      allGuides: ASKQ_GUIDES,
       rulebooks: getDocumentRulebooks(questionMode, rulebookResolution.rulebooks),
     });
-    const baseSystemPrompt = `${buildMyK9ShowPrompt(userContext, documentContext)}${buildModePrompt(questionMode)}`;
-    const systemPrompt = effectiveSupportMode
-      ? buildSupportModePrompt(baseSystemPrompt, getDocumentGuides(questionMode))
-      : baseSystemPrompt;
     const activeTools = getActiveTools(questionMode, effectiveSupportMode);
 
     const messages = [{ role: 'user' as const, content: message }];
@@ -359,7 +343,7 @@ Deno.serve(async (req: Request) => {
     const textBlock = result.content.find(b => b.type === 'text');
     const fullText = textBlock?.text ?? '';
     const parsedSupportAnswer = effectiveSupportMode
-      ? parseSupportAnswer(fullText, getDocumentGuides(questionMode))
+      ? parseSupportAnswer(fullText, documentGuides)
       : null;
     if (parsedSupportAnswer && parsedSupportAnswer.guideSources.length > 0) {
       sources.guide = parsedSupportAnswer.guideSources;
@@ -458,11 +442,6 @@ function getActiveTools(
 ): ToolDefinition[] {
   if (effectiveSupportMode || questionMode === 'rules') return [];
   return TOOLS;
-}
-
-function getDocumentGuides(questionMode: AskQQuestionMode | null) {
-  if (questionMode === 'rules' || questionMode === 'show-data') return [];
-  return ASKQ_GUIDES;
 }
 
 function getDocumentRulebooks(

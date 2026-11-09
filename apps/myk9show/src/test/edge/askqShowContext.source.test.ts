@@ -22,17 +22,13 @@ describe('ask-myk9show show context contract', () => {
     expect(source).toContain('showData?.name');
   });
 
-  it('verifies show-scoped officials through denormalized auth_user_id and show_id', () => {
-    const roleCheck = sliceBetween('applyActiveRoleValidity(', 'dogIds.length > 0');
+  it('verifies show access through the shared caller predicate, not a show-scoped user_roles lookup', () => {
+    // MYK9-1776: club-appointed secretaries have club-scoped user_roles rows
+    // (show_id null), so a show_id-equality lookup denied them.
+    const accessCheck = sliceBetween('if (showId && showData?.name) {', 'if (hasAccess) {');
 
-    expect(roleCheck).toContain(".eq('auth_user_id', user.id)");
-    expect(roleCheck).toContain(".eq('show_id', showId)");
-    // is_active + expiry filtering is applied via the shared role-validity
-    // helper rather than inlined, so assert the helper is wired in.
-    expect(source).toContain("from '../_shared/roleValidity.ts'");
-    expect(roleCheck).toContain("from('user_roles')");
-    expect(roleCheck).not.toContain(".eq('user_id', user.id)");
-    expect(roleCheck).not.toContain(".eq('scope_type'");
-    expect(roleCheck).not.toContain(".eq('scope_id'");
+    expect(accessCheck).toContain('callerHasShowAccess(supabaseClient, showId)');
+    expect(accessCheck).not.toContain("from('user_roles')");
+    expect(source).toContain("from '../_shared/askq/showAccess.ts'");
   });
 });

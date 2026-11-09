@@ -55,11 +55,11 @@ describe('AskQ quota and anonymous-identity contract', () => {
     expect(reservationSource).toContain("status: 'unavailable'");
   });
 
-  it('keeps show context behind the active role or owned-entry checks', () => {
-    expect(endpointSource).toContain('applyActiveRoleValidity(');
-    expect(endpointSource).toContain(".eq('auth_user_id', user.id)");
-    expect(endpointSource).toContain(".eq('show_id', showId)");
-    expect(endpointSource).toContain(".in('dog_id', dogIds)");
+  it('keeps show context behind the caller show-access predicate', () => {
+    // MYK9-1776: the access decision is the shared RPC, run as the caller, so
+    // club-appointed secretaries pass and unrelated users do not.
+    expect(endpointSource).toContain('callerHasShowAccess(supabaseClient, showId)');
+    expect(endpointSource).not.toContain("from('user_roles')");
   });
 
   it('uses a transaction-scoped account lock and denies anonymous RPC callers', () => {

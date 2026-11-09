@@ -47,7 +47,8 @@ SUPPORT MODE:
 - Pick the passages that answer the question: whole steps or whole sentences, in the order a user would follow them, between ${MIN_QUOTE_WORDS} and ${MAX_QUOTE_TOKENS} words each. If a passage is longer than ${MAX_QUOTE_TOKENS} words, split it into separate quote lines at sentence or step boundaries. A passage not found word for word in the named guide rejects the whole answer.
 - Valid guide ids: ${guideIds}
 - If the guide context does not answer the question, begin the response with ${SUPPORT_HANDOFF_MARKER} on its own line, then say only: "${SUPPORT_HANDOFF_MESSAGE}" Do not guess or invent steps.
-- Never answer questions about payments, charges, Stripe, billing, payouts, or refunds. Those must escalate to a human ticket.`;
+- Never answer questions about payments, charges, Stripe, billing, payouts, or refunds from account data; those must escalate to a human ticket.
+- A policy the guides state in words, such as leaving a class (Pull or Withdraw), who decides a pull refund, or that the service fee is not refunded, is quoted from the guide like any other passage.`;
 }
 
 export function getSupportEscalationForQuestion(message: string): SupportEscalationPayload | null {

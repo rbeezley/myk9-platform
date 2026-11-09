@@ -39,7 +39,7 @@ const ARRIVED_STATUSES: ReadonlySet<CheckInStatus> = new Set([
 
 function classLine(row: PeopleRosterClassRow): string {
   const time = formatStartTime(row.time);
-  return [row.className, row.ring, time].filter(Boolean).join(' · ');
+  return [row.dayLabel, row.className, row.ring, time].filter(Boolean).join(' · ');
 }
 
 /**
@@ -68,7 +68,7 @@ export function CheckInDeskDogCard({
   const busy = dog.rows.some(row => busyIds.has(row.entryId));
   // Judged over the classes the desk handles today: another day's class or a real Pull never
   // keeps the confirmation away. A flagged pull or a Conflict does, since it needs the secretary.
-  const deskRows = dog.rows.filter(row => row.deskStatusEditable);
+  const deskRows = dog.rows.filter(row => row.deskStatusEditable && !row.dayLabel);
   const allCheckedIn =
     deskRows.length > 0 && deskRows.every(row => ARRIVED_STATUSES.has(row.checkInStatus));
 
@@ -130,6 +130,9 @@ export function CheckInDeskDogCard({
                 </button>
               ) : (
                 badge
+              )}
+              {row.lockedReason && (
+                <span className="basis-full text-xs text-muted-foreground">{row.lockedReason}</span>
               )}
               {isFlaggedPull(row) && (
                 <div className="flex basis-full flex-wrap items-center gap-2 pb-1">

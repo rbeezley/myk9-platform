@@ -167,6 +167,19 @@ jobs:
           HEADROOM_GITHUB_TOKEN: ${{ secrets.HEADROOM_GITHUB_TOKEN }}
         run: pnpm --filter @myk9/show exec tsx scripts/load-runner-headroom.ts
 
+      # MYK9-1243: the shards sign in on shared staging, so fail the dispatch here, before any
+      # reseed, if a hand-changed account no longer holds the roles the specs expect.
+      - name: Verify E2E auth credentials
+        working-directory: apps/myk9show
+        run: pnpm exec tsx scripts/verify-e2e-auth-preflight.ts --check-roles secretary exhibitor
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          E2E_SECRETARY_EMAIL: ${{ secrets.E2E_SECRETARY_EMAIL }}
+          E2E_SECRETARY_PASSWORD: ${{ secrets.E2E_SECRETARY_PASSWORD }}
+          E2E_DEMO_EXHIBITOR_EMAIL: ${{ secrets.E2E_DEMO_EXHIBITOR_EMAIL }}
+          E2E_DEMO_EXHIBITOR_PASSWORD: ${{ secrets.E2E_DEMO_EXHIBITOR_PASSWORD }}
+
       # Also BEFORE the reseed, and for the same reason as the headroom gate.
       # The runner asserts these credentials too, but it does so in the shard
       # job — after the reseed — so a missing secret would cost the whole

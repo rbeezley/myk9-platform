@@ -10,6 +10,7 @@
  * per-show to localStorage (so a judge's focus on one ring survives reloads).
  */
 
+import { expectMenuBeforeUp } from '@/test/utils/ringsideHeaderAssertions';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@/test/utils/testUtils';
@@ -174,9 +175,10 @@ describe('AtShowClassListPage (Phase 1h class picker)', () => {
     expect(document.querySelectorAll('[data-family="class"]').length).toBeGreaterThan(0);
   });
 
-  it('offers the ringside menu beside the Up control (MYK9-1508)', async () => {
+  it('offers the ringside menu first, then the Up control, top-left (MYK9-1508, MYK9-1770)', async () => {
     renderPage();
-    expect(await screen.findByRole('button', { name: 'Ringside menu' })).toBeInTheDocument();
+    const menu = await screen.findByRole('button', { name: 'Ringside menu' });
+    expectMenuBeforeUp(menu, screen.getByRole('button', { name: /^(Show|Ringside)$/ }));
   });
 
   it('shows actual Class timing to staff', async () => {
@@ -242,6 +244,12 @@ describe('AtShowClassListPage (Phase 1h class picker)', () => {
     renderPage();
 
     expect(await screen.findByText('This show has no classes yet.')).toBeInTheDocument();
+    // MYK9-1770: menu and Up sit above the centered recovery content, top-left.
+    const menu = screen.getByRole('button', { name: 'Ringside menu' });
+    expect(
+      menu.compareDocumentPosition(screen.getByText('This show has no classes yet.')) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
     expect(
       screen.queryByRole('status', { name: 'Loading at-show classes' })
     ).not.toBeInTheDocument();
@@ -256,6 +264,12 @@ describe('AtShowClassListPage (Phase 1h class picker)', () => {
     renderPage();
 
     expect(await screen.findByText('Failed to load classes')).toBeInTheDocument();
+    // MYK9-1770: menu and Up sit above the centered recovery content, top-left.
+    const menu = screen.getByRole('button', { name: 'Ringside menu' });
+    expect(
+      menu.compareDocumentPosition(screen.getByText('Failed to load classes')) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
     expect(
       screen.queryByRole('status', { name: 'Loading at-show classes' })
     ).not.toBeInTheDocument();

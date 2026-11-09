@@ -43,6 +43,7 @@ export function SecretaryCockpit({
   onCommand,
   runOrder,
   entryBreakdownByClassId,
+  onRefreshEntries,
 }: {
   snapshot: SecretaryCockpitSnapshot;
   canManageShow: boolean;
@@ -54,6 +55,8 @@ export function SecretaryCockpit({
   runOrder?: SecretaryCockpitRunOrderControls | undefined;
   /** Entered/pending per class for the schedule rows (MYK9-943); absent until read. */
   entryBreakdownByClassId?: ReadonlyMap<string, ClassEntryBreakdown> | undefined;
+  /** Re-reads the page's entries after a Check-in cell write (MYK9-1797). */
+  onRefreshEntries?: (() => void | Promise<void>) | undefined;
 }) {
   const { state: urlState, updateState } = useSecretaryCockpitUrlState();
   // A Select classes link's trial or class (MYK9-1324) opens and scrolls like the cockpit's own.
@@ -128,6 +131,7 @@ export function SecretaryCockpit({
       canManageShow={canManageShow}
       onCommand={onCommand}
       entryBreakdownByClassId={entryBreakdownByClassId}
+      onRefreshEntries={onRefreshEntries}
       {...(runOrder !== undefined && { runOrder })}
       {...(canManageShow &&
         sourceClass && {

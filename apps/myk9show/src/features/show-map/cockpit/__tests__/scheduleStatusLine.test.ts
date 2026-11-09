@@ -17,6 +17,10 @@ function entry(
 ): SecretaryCockpitClassEntry {
   return {
     nodeId: `entry:${position}`,
+    entryId: `${position}`,
+    checkInValue: 'checked-in',
+    deskEditable: true,
+    lockedReason: null,
     dogName: `Dog ${position}`,
     checkIn: CHECKED_IN,
     state: 'waiting',

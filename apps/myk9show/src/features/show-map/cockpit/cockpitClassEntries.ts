@@ -10,6 +10,11 @@ import {
   type EntryAccountingFields,
 } from '@/features/_shared/entryAccounting';
 import { isPendingEntryStatus } from '@/features/entry-operations/classEntryBreakdown';
+import { deskStatusEditableFor } from '@/components/entries/management/checkInDesk/deskEditable';
+import { deskLockedReason } from '@/components/entries/management/checkInDesk/deskStatus';
+import { mapEntryStatus } from '@/services/entryDisplay/entryStatusUiAdapter';
+import { mapClassEntryStatus } from '@/utils/entryManagementUtils';
+import type { CheckInStatus } from '@/types/check-in-types';
 
 import { getShowMapNodeId } from '../showMapTree';
 import type { ShowMapDisplayStatus, ShowMapEntryDisplay, ShowMapTree } from '../showMapTypes';
@@ -26,6 +31,14 @@ export type ClassEntryState = 'waiting' | 'in-ring' | 'scored' | 'pulled' | 'wit
  */
 export interface SecretaryCockpitClassEntry {
   nodeId: string;
+  /** The entry row's id: what the Check-in desk's status write is keyed on. */
+  entryId: string;
+  /** The stored check-in status, `no-status` when none is recorded. */
+  checkInValue: CheckInStatus;
+  /** The Check-in desk may set this class's status (`deskStatusEditableFor`). */
+  deskEditable: boolean;
+  /** Why a row that cannot be changed stays locked (scored, in the ring), as on the desk. */
+  lockedReason: string | null;
   armband?: string | undefined;
   dogName: string;
   breed?: string | undefined;
@@ -119,11 +132,26 @@ export function classEntriesForClass(
     if (!isListed(fields, entryStatus)) continue;
     const state = stateOf(fields, entryStatus ?? '');
     const counted = isExpectedEntry(fields);
+    const checkInValue = (display.checkInStatus ?? 'no-status') as CheckInStatus;
+    const deskEditable = deskStatusEditableFor({
+      entryStatus: mapEntryStatus(display.entryStatus),
+      classStatus: mapClassEntryStatus(display.entryStatus),
+      checkInStatus: checkInValue,
+      isScored: display.isScored,
+    });
     listed.push({
       queue: queueRowOf(node.id, display, fields),
       fields,
       entry: {
         nodeId: node.id,
+        entryId: node.id.slice(getShowMapNodeId('entry', '').length),
+        checkInValue,
+        deskEditable,
+        lockedReason: deskLockedReason(
+          { isScored: display.isScored ?? null },
+          checkInValue,
+          deskEditable
+        ),
         armband: display.armband,
         dogName: display.dogName,
         breed: display.breed,

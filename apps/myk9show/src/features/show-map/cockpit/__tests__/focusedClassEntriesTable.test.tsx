@@ -14,6 +14,10 @@ vi.mock('@/hooks/useElementWidth', () => ({
 const entries: SecretaryCockpitClassEntry[] = [
   {
     nodeId: 'entry:a',
+    entryId: 'a',
+    checkInValue: 'completed',
+    deskEditable: false,
+    lockedReason: 'Scored, so the status is locked',
     armband: '101',
     dogName: 'Piper',
     breed: 'Border Collie',
@@ -27,6 +31,10 @@ const entries: SecretaryCockpitClassEntry[] = [
   },
   {
     nodeId: 'entry:b',
+    entryId: 'b',
+    checkInValue: 'in-ring',
+    deskEditable: false,
+    lockedReason: 'In the ring, so ringside controls the status',
     armband: '102',
     dogName: 'Willow',
     handler: 'Sam Ortiz',
@@ -39,6 +47,10 @@ const entries: SecretaryCockpitClassEntry[] = [
   },
   {
     nodeId: 'entry:c',
+    entryId: 'c',
+    checkInValue: 'no-status',
+    deskEditable: true,
+    lockedReason: null,
     armband: '103',
     dogName: 'Moss',
     handler: 'Kim Wu',
@@ -51,6 +63,10 @@ const entries: SecretaryCockpitClassEntry[] = [
   },
   {
     nodeId: 'entry:d',
+    entryId: 'd',
+    checkInValue: 'pulled',
+    deskEditable: false,
+    lockedReason: null,
     armband: '104',
     dogName: 'Juno',
     handler: 'Pat Roe',

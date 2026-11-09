@@ -24,6 +24,8 @@ interface ShowDeskPanelProps extends BuildShowMapTreeInput {
   tools?: readonly ShowDeskToolSection[];
   /** Entered/pending per class for the schedule rows (MYK9-943); absent until read. */
   entryBreakdownByClassId?: ReadonlyMap<string, ClassEntryBreakdown> | undefined;
+  /** Re-reads the page's entries after a class-table Check-in write (MYK9-1797). */
+  onRefreshEntries?: (() => void | Promise<void>) | undefined;
 }
 
 // INTENT: This is the secretary's live operations cockpit. It projects the
@@ -39,6 +41,7 @@ export default function ShowDeskPanel({
   scopeNow,
   tools,
   entryBreakdownByClassId,
+  onRefreshEntries,
 }: ShowDeskPanelProps) {
   const location = useLocation();
   const state = useShowMapWorkbenchState({
@@ -199,6 +202,7 @@ export default function ShowDeskPanel({
       )}
       <SecretaryCockpit
         entryBreakdownByClassId={entryBreakdownByClassId}
+        onRefreshEntries={onRefreshEntries}
         snapshot={snapshot}
         canManageShow={canManageShow}
         onCommand={runCommand}

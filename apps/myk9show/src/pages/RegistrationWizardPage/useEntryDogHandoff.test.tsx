@@ -11,7 +11,6 @@ import { renderHook } from '@testing-library/react';
 import React from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import type { Dog } from '@/types/dog-types';
-import type { DraftMetadata } from '@/hooks/useDraftPersistence';
 import { useEntryDogHandoff } from './useEntryDogHandoff';
 
 const warning = vi.fn();
@@ -43,7 +42,6 @@ interface Options {
   steps?: string[];
   canEnter?: boolean;
   rehydrationSettled?: boolean;
-  availableDrafts?: DraftMetadata[];
 }
 
 function render(options: Options = {}) {
@@ -57,7 +55,6 @@ function render(options: Options = {}) {
     currentWorkflowConfig: { steps: options.steps ?? ['dog-selection', 'class-selection'] },
     entryCloseAvailability: { canEnter: options.canEnter ?? true },
     handleDogSelectionChange,
-    availableDrafts: options.availableDrafts,
   };
   const result = renderHook((next: typeof props) => useEntryDogHandoff(next), {
     initialProps: props,
@@ -81,59 +78,10 @@ describe('useEntryDogHandoff', () => {
     expect(warning).not.toHaveBeenCalled();
   });
 
-  it('leaves the no-context entry path untouched when there is a real choice of dogs', () => {
-    const { handleDogSelectionChange } = render({
-      route: '/shows/s1/register',
-      dogs: [makeDog(), makeDog({ id: 'dog-2', callName: 'Fern' })],
-    });
+  it('leaves the ordinary no-context entry path untouched', () => {
+    const { handleDogSelectionChange } = render({ route: '/shows/s1/register' });
     expect(handleDogSelectionChange).not.toHaveBeenCalled();
     expect(warning).not.toHaveBeenCalled();
-  });
-
-  describe('with no dog carried in (MYK9-1793)', () => {
-    const route = '/shows/s1/register';
-
-    it('ticks the only dog the exhibitor could tick', () => {
-      const { handleDogSelectionChange } = render({ route });
-      expect(handleDogSelectionChange).toHaveBeenCalledWith(['dog-1']);
-      expect(warning).not.toHaveBeenCalled();
-    });
-
-    it('counts only dogs the step offers, so a retired second dog does not make it a choice', () => {
-      const { handleDogSelectionChange } = render({
-        route,
-        dogs: [makeDog(), makeDog({ id: 'dog-2', status: 'retired' })],
-      });
-      expect(handleDogSelectionChange).toHaveBeenCalledWith(['dog-1']);
-    });
-
-    it('never ticks a dog too young to enter', () => {
-      const { handleDogSelectionChange } = render({
-        route,
-        dogs: [makeDog({ dateOfBirth: new Date().toISOString().slice(0, 10) })],
-      });
-      expect(handleDogSelectionChange).not.toHaveBeenCalled();
-    });
-
-    it('leaves the step empty when a saved entry is waiting to be resumed', () => {
-      const { handleDogSelectionChange } = render({
-        route,
-        availableDrafts: [{ selectedDogsCount: 1, completed: false } as DraftMetadata],
-      });
-      expect(handleDogSelectionChange).not.toHaveBeenCalled();
-    });
-
-    it('does not re-tick a dog the exhibitor unticked', () => {
-      const { rerender, handleDogSelectionChange, props } = render({ route });
-      expect(handleDogSelectionChange).toHaveBeenCalledTimes(1);
-      rerender({ ...props, registrationData: { selectedDogs: [] } });
-      expect(handleDogSelectionChange).toHaveBeenCalledTimes(1);
-    });
-
-    it('leaves the secretary flow alone', () => {
-      const { handleDogSelectionChange } = render({ route, mode: 'secretary' });
-      expect(handleDogSelectionChange).not.toHaveBeenCalled();
-    });
   });
 
   it('waits for the roster before deciding a dog is missing', () => {

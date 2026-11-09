@@ -10,7 +10,6 @@ import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { logger } from '@/services/LoggingService';
 import { DiscardChangesDialog } from '@/components/panels/edit/DiscardChangesDialog';
-import { notifications } from '@/lib/notifications';
 import { useWizardStore } from '@/store/wizardStore';
 import { useTrialStore } from '@/store/trialStore';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
@@ -261,15 +260,22 @@ const ShowCreationWizardPageContent: React.FC = () => {
   // Handle wizard close. Create mode keeps its draft (the store persists it and the resume
   // banner offers "Start a new show" next visit), so leaving loses nothing and asks nothing
   // (MYK9-1793). Edit modes rebuild from what is stored, so their unsaved work is confirmed.
+  const isEditMode = Boolean(editMode);
   const handleClose = useCallback(() => {
-    if (hasUnsavedWork && editMode) {
+    if (hasUnsavedWork && isEditMode) {
       setShowConfirmDialog(true);
       return;
     }
-    // Said once, so "Back" with a half-built show never leaves her wondering where it went.
-    if (hasUnsavedWork) notifications.info('We kept this show so you can finish it later.');
     navigate(closeTarget);
-  }, [hasUnsavedWork, editMode, navigate, closeTarget]);
+  }, [hasUnsavedWork, isEditMode, navigate, closeTarget]);
+
+  // Create mode persists as she types, so once she leaves nothing is "unsaved". Clearing the
+  // flag on the way out is what lets the resume banner (hidden while dirty) appear when she
+  // comes back without a page reload; without it she silently inherits the old show's fields.
+  useEffect(() => {
+    if (isEditMode) return undefined;
+    return () => useWizardStore.getState().setDirty(false);
+  }, [isEditMode]);
 
   // Handle confirmation dialog result
   const handleConfirmClose = useCallback(() => {

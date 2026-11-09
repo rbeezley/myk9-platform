@@ -80,25 +80,6 @@ export function resolveEntryDogHandoff(input: {
   return { status: 'applied', dogIds: [dog.id] };
 }
 
-/**
- * The one dog to tick for an exhibitor who arrived with no `?dogId=` (MYK9-1793):
- * her roster offers exactly one dog and the step's own rule lets her tick it.
- * Null whenever she has a real choice to make — several dogs, a selection
- * already made, or a saved entry the step is about to offer to resume.
- */
-export function resolveOnlyDogPreselect(input: {
-  accessibleDogs: Dog[];
-  selectedDogs: string[];
-  hasResumableDraft: boolean;
-  eligibility: (dog: Dog) => { eligible: boolean };
-}): string | null {
-  const { accessibleDogs, selectedDogs, hasResumableDraft, eligibility } = input;
-  if (selectedDogs.length > 0 || hasResumableDraft) return null;
-  const [only, ...others] = accessibleDogs;
-  if (!only || others.length > 0) return null;
-  return eligibility(only).eligible ? only.id : null;
-}
-
 /** Exhibitor-facing explanation for a handoff that could not be honored. */
 export function entryDogHandoffMessage(handoff: EntryDogHandoff): string | null {
   switch (handoff.status) {

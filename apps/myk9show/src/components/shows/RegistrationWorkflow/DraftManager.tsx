@@ -1,7 +1,6 @@
 import { Button } from '../../ui/button';
 import { CheckCircle } from 'lucide-react';
 import { SavedDraft, DraftMetadata } from '../../../hooks/useDraftPersistence';
-import { isResumableDraft } from '../../../hooks/draftMetadata';
 import { notifications } from '@/lib/notifications';
 
 interface DraftManagerProps {
@@ -33,7 +32,9 @@ export function DraftManager({
   identityPending = false,
   onRetryDogs,
 }: DraftManagerProps) {
-  const resumableDrafts = showResume ? availableDrafts.filter(isResumableDraft) : [];
+  const resumableDrafts = showResume
+    ? availableDrafts.filter(draft => (draft.selectedDogsCount ?? 0) > 0 && !draft.completed)
+    : [];
   const latestEntryDraft = resumableDrafts[0];
   // Retrying is only meaningful once we know WHO to load dogs for. Without a
   // resolved person there is no roster request to retry, so the panel waits

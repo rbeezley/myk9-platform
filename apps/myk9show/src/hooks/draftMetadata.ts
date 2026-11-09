@@ -13,11 +13,6 @@ export interface DraftMetadata {
   completed?: boolean;
 }
 
-/** A saved entry the dog step offers to resume: it chose dogs and was never submitted. */
-export function isResumableDraft(draft: DraftMetadata): boolean {
-  return (draft.selectedDogsCount ?? 0) > 0 && !draft.completed;
-}
-
 export interface SavedDraft {
   metadata: DraftMetadata;
   data: Partial<RegistrationFormData>;

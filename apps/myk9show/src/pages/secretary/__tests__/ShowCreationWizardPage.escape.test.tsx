@@ -110,4 +110,19 @@ describe('ShowCreationWizardPage — Escape', () => {
     expect(screen.queryByText(LEAVE_PROMPT)).toBeNull();
     expect(useWizardStore.getState().show.name).toBe(DIRTYING_KEYSTROKE);
   });
+
+  it('offers "Start a new show" when she comes back without a page reload (MYK9-1793)', () => {
+    // The resume banner hides while the store is dirty, and `isDirty` lives in a module
+    // singleton that survives an in-app navigation. Unless leaving create mode clears it, the
+    // return visit shows the old show's fields with no banner and no way to start fresh.
+    useWizardStore.getState().updateShowData({ name: DIRTYING_KEYSTROKE });
+    const firstVisit = render(<ShowCreationWizardPage />);
+    expect(screen.queryByRole('button', { name: 'Start a new show' })).toBeNull();
+
+    firstVisit.unmount();
+    render(<ShowCreationWizardPage />);
+
+    expect(screen.getByText('Picking up where you left off')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Start a new show' })).toBeInTheDocument();
+  });
 });

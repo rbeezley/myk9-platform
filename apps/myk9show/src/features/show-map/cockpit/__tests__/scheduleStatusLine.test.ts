@@ -65,6 +65,17 @@ describe('buildStatusLine', () => {
     expect(buildStatusLine(cls({ entries }), true).text).toBe('Not started · 3 not checked in');
   });
 
+  it('returns the phrase as parts so the row can set a pending link after the lead', () => {
+    const entries = [entry(1, { checkIn: NOT_CHECKED_IN }), entry(2)];
+    expect(buildStatusLine(cls({ entries }), true).parts).toEqual([
+      'Not started',
+      '1 not checked in',
+    ]);
+    const running = buildStatusLine(cls({ lifecycle: 'in-progress', scoredCount: 2 }), true);
+    expect(running.parts).toEqual(['Running', '2 of 6']);
+    expect(running.parts.join(' · ')).toBe(running.text);
+  });
+
   it('says only "Not started" when everyone is checked in or nothing is read', () => {
     expect(buildStatusLine(cls({ entries: [entry(1)] }), true).text).toBe('Not started');
     expect(buildStatusLine(cls(), true).text).toBe('Not started');

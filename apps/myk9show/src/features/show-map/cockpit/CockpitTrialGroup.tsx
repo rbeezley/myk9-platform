@@ -25,6 +25,7 @@ function plural(count: number, one: string, many: string): string {
  * total being the rows' entered + pending so the header and rows agree.
  */
 export function CockpitTrialGroup({
+  showId,
   group,
   model,
   classById,
@@ -34,6 +35,7 @@ export function CockpitTrialGroup({
   trialActions,
   select,
 }: {
+  showId: string;
   group: TrialScheduleGroupModel;
   model: SecretaryCockpitModel;
   classById: ReadonlyMap<string, SecretaryCockpitClass>;
@@ -107,6 +109,8 @@ export function CockpitTrialGroup({
             )}
             <CockpitScheduleRow
               classItem={classItem}
+              showId={showId}
+              pendingCount={breakdownFor(classItem.id)?.pending ?? 0}
               focused={focused}
               select={select}
               onFocusClass={onFocusClass}

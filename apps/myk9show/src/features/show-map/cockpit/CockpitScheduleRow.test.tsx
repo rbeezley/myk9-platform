@@ -1,0 +1,78 @@
+import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it, vi } from 'vitest';
+
+import { getClassReviewHref } from '@/features/entry-operations/entryAttentionRoutes';
+import { render } from '@/test/utils/testUtils';
+
+import { CockpitScheduleRow } from './CockpitScheduleRow';
+import type { ScheduledClassModel } from './secretaryCockpitTypes';
+
+const classItem: ScheduledClassModel = {
+  id: 'class-1',
+  trialId: 'trial-1',
+  name: 'Container Novice',
+  timeLabel: '9:00 AM',
+  scheduledStart: '9:00 AM',
+  expectedStart: '9:00 AM',
+  startedLabel: null,
+  lifecycle: { evidence: 'recorded', value: 'not-started' },
+  progress: { evidence: 'computed', value: { completed: 0, total: 8 } },
+  operationalArea: { evidence: 'unknown', value: null },
+  judgeName: null,
+  attentionCount: 0,
+  closeout: 'none',
+  primaryAction: null,
+  checklist: null,
+  statusLine: {
+    text: 'Not started · 3 not checked in',
+    parts: ['Not started', '3 not checked in'],
+  },
+};
+
+function renderRow(pendingCount: number, onFocusClass = vi.fn()) {
+  render(
+    <CockpitScheduleRow
+      classItem={classItem}
+      showId="show-1"
+      pendingCount={pendingCount}
+      focused={false}
+      select={undefined}
+      onFocusClass={onFocusClass}
+    />
+  );
+  return onFocusClass;
+}
+
+describe('CockpitScheduleRow pending link', () => {
+  it('sets "N pending" in the status phrase, linked to the class review list', () => {
+    renderRow(2);
+    expect(screen.getByTestId('class-status-line')).toHaveTextContent(
+      'Not started · 2 pending · 3 not checked in'
+    );
+    const link = screen.getByRole('link', { name: '2 pending in Container Novice' });
+    expect(link).toHaveAttribute(
+      'href',
+      getClassReviewHref({ showId: 'show-1', trialId: 'trial-1', classId: 'class-1' })
+    );
+  });
+
+  it('does not select the class when the link is clicked, but does for the card', async () => {
+    const user = userEvent.setup();
+    const onFocusClass = renderRow(2);
+    const link = screen.getByRole('link', { name: '2 pending in Container Novice' });
+    link.addEventListener('click', event => event.preventDefault());
+    await user.click(link);
+    expect(onFocusClass).not.toHaveBeenCalled();
+    await user.click(screen.getByTestId('class-status-line'));
+    expect(onFocusClass).toHaveBeenCalledWith('class-1');
+  });
+
+  it('shows no link when nothing is pending', () => {
+    renderRow(0);
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    expect(screen.getByTestId('class-status-line')).toHaveTextContent(
+      'Not started · 3 not checked in'
+    );
+  });
+});

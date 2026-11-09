@@ -1,5 +1,7 @@
-import type { MouseEvent } from 'react';
+import { Fragment, type MouseEvent } from 'react';
+import { Link } from 'react-router-dom';
 
+import { getClassReviewHref } from '@/features/entry-operations/entryAttentionRoutes';
 import { cn } from '@/lib/utils';
 
 import { getCockpitAnchorElementId } from './cockpitRoutes';
@@ -30,11 +32,16 @@ function selectsRow(event: MouseEvent<HTMLElement>): boolean {
  */
 export function CockpitScheduleRow({
   classItem,
+  showId,
+  pendingCount = 0,
   focused,
   select,
   onFocusClass,
 }: {
   classItem: ScheduledClassModel;
+  showId: string;
+  /** Entries still to approve; shown as a link to the class's review list on Entries. */
+  pendingCount?: number;
   focused: boolean;
   select: TrialGroupSelect | undefined;
   onFocusClass: (classId: string) => void;
@@ -89,7 +96,28 @@ export function CockpitScheduleRow({
             />
           )}
           <span data-testid="class-status-line" className="min-w-0">
-            {classItem.statusLine.text}
+            {classItem.statusLine.parts.map((part, index) => (
+              <Fragment key={`${index}:${part}`}>
+                {index > 0 && ' · '}
+                {part}
+                {index === 0 && pendingCount > 0 && (
+                  <>
+                    {' · '}
+                    <Link
+                      to={getClassReviewHref({
+                        showId,
+                        trialId: classItem.trialId,
+                        classId: classItem.id,
+                      })}
+                      aria-label={`${pendingCount} pending in ${classItem.name}`}
+                      className="font-medium text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      {pendingCount} pending
+                    </Link>
+                  </>
+                )}
+              </Fragment>
+            ))}
           </span>
         </div>
       </div>

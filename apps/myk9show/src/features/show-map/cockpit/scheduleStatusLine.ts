@@ -10,6 +10,13 @@ import type { SecretaryCockpitClass } from './secretaryCockpitTypes';
 /** Line 2 of a schedule row: one phrase saying where the class is and what is next. */
 export interface StatusLine {
   text: string;
+  /** The phrase's `·`-separated parts, so the row can set the pending-entries link among them. */
+  parts: readonly string[];
+}
+
+function line(parts: readonly (string | null)[]): StatusLine {
+  const kept = parts.filter((part): part is string => Boolean(part));
+  return { text: kept.join(' · '), parts: kept };
 }
 
 export function classChecklistItems(cls: SecretaryCockpitClass): ClassChecklistItem[] {
@@ -48,10 +55,6 @@ function nextStepAfterScoring(items: readonly ClassChecklistItem[]): string | nu
   return null;
 }
 
-function joinPhrase(parts: readonly (string | null)[]): string {
-  return parts.filter((part): part is string => Boolean(part)).join(' · ');
-}
-
 /**
  * The schedule row's second line, from the class's lifecycle, its entries' run statuses and its
  * checklist. Pure so each case is a unit test: `Not started · 3 not checked in`,
@@ -63,31 +66,27 @@ export function buildStatusLine(cls: SecretaryCockpitClass, checklistInUse: bool
   const counts = countClassEntries(entries);
   switch (cls.lifecycle) {
     case 'cancelled':
-      return { text: 'Cancelled' };
+      return line(['Cancelled']);
     case 'complete': {
       const next = checklistInUse ? nextStepAfterScoring(classChecklistItems(cls)) : null;
-      return { text: next ?? 'Complete' };
+      return line([next ?? 'Complete']);
     }
     case 'in-progress': {
       const total = cls.entryCount ?? counts.entered;
       const scored = cls.scoredCount ?? counts.scored;
       const inRing = entries.find(entry => entry.runStatus?.value === 'in-ring');
-      return {
-        text: joinPhrase([
-          'Running',
-          total > 0 ? `${scored} of ${total}` : null,
-          inRing ? `${inRing.dogName} in ring` : null,
-        ]),
-      };
+      return line([
+        'Running',
+        total > 0 ? `${scored} of ${total}` : null,
+        inRing ? `${inRing.dogName} in ring` : null,
+      ]);
     }
     case 'not-started':
-      return {
-        text: joinPhrase([
-          'Not started',
-          counts.notCheckedIn > 0 ? `${counts.notCheckedIn} not checked in` : null,
-        ]),
-      };
+      return line([
+        'Not started',
+        counts.notCheckedIn > 0 ? `${counts.notCheckedIn} not checked in` : null,
+      ]);
     default:
-      return { text: 'Status not set' };
+      return line(['Status not set']);
   }
 }

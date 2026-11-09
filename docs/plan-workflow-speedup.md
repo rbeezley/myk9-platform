@@ -98,6 +98,11 @@ new size.
 **Tests:** `lessonGuards.test.ts` and `instructionFileBudget.test.ts` pass at the lowered
 ceiling; the PR lists every moved lesson against the skill that now carries it.
 
+**Done 2026-11-09 (MYK9-1790).** `CLAUDE.md` 50,900 to about 24,200 bytes (52%), `AGENTS.md`
+34,043 to about 20,400 (40%). LESSONS 52 bullets to 14: 23 moved to five skills, 15 retired on
+existing guards. Full rule text moved to `docs/agents/rules-reference.md`. The mapping is in
+`docs/lessons/README.md` § Budget.
+
 ### Phase 5: testing and re-measurement
 
 Two weeks after Phases 1 and 2 land, re-run the baseline queries over a seven-day window and

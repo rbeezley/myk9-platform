@@ -360,3 +360,11 @@ git worktree remove "<worktree path from Step 0>" --force 2>/dev/null || true
 - Verify merge via `gh pr view --json state`, not `git log` (squash-merges rewrite SHAs)
 - Use `pnpm`, not `npm` or `npx`
 - Max 5 verify iterations, max 5 review rounds — escalate if limits hit
+
+## Lessons
+
+Traps that belong to this work, moved from `CLAUDE.md` § LESSONS (MYK9-1790). Each points at its incident in `docs/lessons/README.md`; `lessonGuards.test.ts` checks every anchor here has a `**Guard:**` line.
+
+- **A review that finishes after the merge is an audit, not a gate.** The `Review gate` status is pinned to the head SHA; finish the review and act on its findings before announcing a PR as ready, and say "review running" out loud as a blocking state. (docs/lessons/README.md#review-after-merge)
+- **A run whose conclusion is `cancelled` may be one job hitting its own `timeout-minutes`, not concurrency.** Both read identically at run level; `gh run view <id> --json jobs` tells them apart, and a timed-out job's `startedAt`/`completedAt` span is exactly its cap. (docs/lessons/README.md#cancelled-may-be-timeout)
+- **Once a review reports no P0/P1 and a core that holds, route every finding against the base commit**: fix the regressions, FILE what the change only exposed. Shared-component work splits out. (docs/lessons/README.md#review-scope-boundary)

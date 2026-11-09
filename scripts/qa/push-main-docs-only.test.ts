@@ -81,6 +81,7 @@ describe('push-main-docs-only scope', () => {
       'CLAUDE.md',
       'AGENTS.md',
       'docs/agents/shared-rules.md',
+      'docs/agents/rules-reference.md',
       '.claude/settings.json',
       '.codex/x.md',
       '.agents/x.md',

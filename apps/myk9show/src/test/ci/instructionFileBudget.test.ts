@@ -7,13 +7,16 @@ import { describe, expect, it } from 'vitest';
  * was 12,546 words, 10,097 of them LESSONS narratives; that is ~16k tokens per
  * turn spent on stories about traps that mostly have checks now. Narratives
  * live in docs/lessons/README.md; CLAUDE.md keeps one to three lines per
- * lesson and a pointer. Raise these numbers only in a PR that says why.
+ * lesson and a pointer. MYK9-1790 (2026-11-09) cut the shared rulebook to a
+ * summary (full text in docs/agents/rules-reference.md) and moved domain lessons
+ * into skills, then lowered the ceilings to match. Raise these numbers only in a
+ * PR that says why.
  */
 const root = resolve(__dirname, '../../../../..');
 const words = (file: string) =>
   readFileSync(resolve(root, file), 'utf8').split(/\s+/).filter(Boolean).length;
 
-// The shared-rules block (docs/agents/shared-rules.md, ~4,200 words) is carried
+// The shared-rules block (docs/agents/shared-rules.md, ~2,500 words) is carried
 // verbatim by BOTH files, so each file's budget is that block plus its
 // harness-specific remainder. Charging it to both is deliberate, NOT double
 // counting: Claude Code loads CLAUDE.md whole into every session and every
@@ -31,22 +34,22 @@ const lessonsSection = (): string => {
 };
 
 describe('instruction file budgets', () => {
-  it('CLAUDE.md stays under 7,500 words', () => {
-    expect(words('CLAUDE.md')).toBeLessThan(7500);
+  it('CLAUDE.md stays under 4,000 words', () => {
+    expect(words('CLAUDE.md')).toBeLessThan(4000);
   });
 
-  it('AGENTS.md stays under 5,000 words', () => {
-    expect(words('AGENTS.md')).toBeLessThan(5000);
+  it('AGENTS.md stays under 3,300 words', () => {
+    expect(words('AGENTS.md')).toBeLessThan(3300);
   });
 
-  it('the LESSONS section stays under 3,000 words', () => {
-    expect(lessonsSection().split(/\s+/).filter(Boolean).length).toBeLessThan(3000);
+  it('the LESSONS section stays under 1,000 words', () => {
+    expect(lessonsSection().split(/\s+/).filter(Boolean).length).toBeLessThan(1000);
   });
 
   it('every LESSONS bullet is at most three lines of prose and points at its narrative', () => {
     const lessons = lessonsSection();
     const bullets = lessons.split(/\n(?=- )/).slice(1);
-    expect(bullets.length).toBeGreaterThan(20); // vacuity guard
+    expect(bullets.length).toBeGreaterThan(5); // vacuity guard
     const long = bullets.filter(b => b.split('\n').filter(l => l.trim()).length > 3);
     expect(long.map(b => b.slice(0, 60))).toEqual([]);
     const narratives = readFileSync(resolve(root, 'docs/lessons/README.md'), 'utf8');

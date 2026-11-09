@@ -9,6 +9,7 @@ import {
   WALK_WORKFLOW,
   configRunsWalk,
   missingPaths,
+  readFlag,
   walkMatches,
   walkVerdict,
 } from './phone-walk';
@@ -73,6 +74,23 @@ describe('configRunsWalk', () => {
   it('is false when the walk is only mentioned in a comment', () => {
     const source = `// '**/ringsidePhoneWalk.spec.ts' used to run here\ntestMatch: ['**/batch3Scoring.spec.ts'],`;
     expect(configRunsWalk(source)).toBe(false);
+  });
+
+  it('is false when the walk is commented out inside the list', () => {
+    const source = `testMatch: [\n  '**/batch3Scoring.spec.ts',\n  // '**/ringsidePhoneWalk.spec.ts',\n],`;
+    expect(configRunsWalk(source)).toBe(false);
+  });
+});
+
+describe('readFlag', () => {
+  it('reads a value and reports an absent flag as undefined', () => {
+    expect(readFlag(['--pr', '12'], '--pr')).toBe('12');
+    expect(readFlag(['--pr', '12'], '--base')).toBeUndefined();
+  });
+
+  it('throws when a flag has no value, so a typo is never read as "no PR"', () => {
+    expect(() => readFlag(['--pr'], '--pr')).toThrow('--pr needs a value');
+    expect(() => readFlag(['--base', '--pr', '5'], '--base')).toThrow('--base needs a value');
   });
 });
 

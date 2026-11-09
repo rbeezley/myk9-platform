@@ -13,8 +13,9 @@
  *   pnpm qa:phone-walk [--base origin/main]   is the walk required for this diff?
  *   pnpm qa:phone-walk --pr <n>               ...and if so, is it green on the PR head?
  *
- * Exit: 0 not required, or required and green · 1 required and failed · 2 a declared path
- * is gone, or the answer could not be read · 3 required and not finished (not a verdict).
+ * Exit: 0 not required, or required and green · 1 required and failed · 2 could not decide
+ * (a declared path is gone, the PR head is not local HEAD, a bad flag, or git/gh failed) ·
+ * 3 required and not finished (not a verdict).
  */
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
@@ -65,7 +66,9 @@ export function walkMatches(
 
 /** True when the suite that CI runs still includes the walk. */
 export function configRunsWalk(configSource: string): boolean {
-  const list = /testMatch:\s*\[([^\]]*)\]/.exec(configSource)?.[1] ?? '';
+  // Line comments go first, so a commented-out entry inside the array does not count.
+  const code = configSource.replace(/\/\/.*$/gm, '');
+  const list = /testMatch:\s*\[([^\]]*)\]/.exec(code)?.[1] ?? '';
   const entries = [...list.matchAll(/['"]([^'"]+)['"]/g)].map(match => match[1]);
   return entries.includes('**/ringsidePhoneWalk.spec.ts');
 }
@@ -85,7 +88,10 @@ export interface Verdict {
 export function walkVerdict(checks: readonly PrCheck[]): Verdict {
   const runs = checks.filter(check => check.workflow === WALK_WORKFLOW && check.name === WALK_JOB);
   if (runs.length === 0) {
-    return { code: 3, message: `no "${WALK_WORKFLOW}" run on this head yet` };
+    return {
+      code: 3,
+      message: `no "${WALK_WORKFLOW}" run on this head yet (a PR that conflicts with its base never gets one)`,
+    };
   }
   if (runs.some(run => run.bucket === 'fail' || run.bucket === 'cancel')) {
     return { code: 1, message: 'the walk failed or was cancelled on this head' };
@@ -96,13 +102,22 @@ export function walkVerdict(checks: readonly PrCheck[]): Verdict {
   return { code: 3, message: 'the walk has not finished on this head' };
 }
 
-function flag(name: string): string | undefined {
-  const index = process.argv.indexOf(name);
-  return index === -1 ? undefined : process.argv[index + 1];
+/** A flag's value, undefined when the flag is absent. A flag with no value is an error. */
+export function readFlag(argv: readonly string[], name: string): string | undefined {
+  const index = argv.indexOf(name);
+  if (index === -1) return undefined;
+  const value = argv[index + 1];
+  if (!value || value.startsWith('--')) throw new Error(`${name} needs a value`);
+  return value;
 }
 
+const run = (command: string, args: string[]): string =>
+  execFileSync(command, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+
 function main(): number {
-  const root = execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim();
+  const base = readFlag(process.argv, '--base') ?? 'origin/main';
+  const pr = readFlag(process.argv, '--pr');
+  const root = run('git', ['rev-parse', '--show-toplevel']);
   const gone = missingPaths(path => existsSync(resolve(root, path)));
   if (gone.length > 0) {
     console.error(`phone walk: declared path no longer exists: ${gone.join(', ')}`);
@@ -114,10 +129,7 @@ function main(): number {
     return 2;
   }
 
-  const base = flag('--base') ?? 'origin/main';
-  const changed = execFileSync('git', ['diff', '--name-only', `${base}...HEAD`], {
-    encoding: 'utf8',
-  })
+  const changed = run('git', ['diff', '--name-only', `${base}...HEAD`])
     .split('\n')
     .filter(Boolean);
   const matches = walkMatches(changed);
@@ -127,8 +139,14 @@ function main(): number {
   }
   console.log(`phone walk: required (${matches.length} file(s), first: ${matches[0]})`);
 
-  const pr = flag('--pr');
   if (!pr) return 0;
+  // The diff above is local; the checks below are the PR's. They must be the same commit.
+  const local = run('git', ['rev-parse', 'HEAD']);
+  const remote = run('gh', ['pr', 'view', pr, '--json', 'headRefOid', '-q', '.headRefOid']);
+  if (local !== remote) {
+    console.error(`phone walk: PR ${pr} head ${remote} is not local HEAD ${local}; push or pull`);
+    return 2;
+  }
   let checks: PrCheck[];
   try {
     // `gh pr checks` exits non-zero while checks are pending or failed and still prints them.
@@ -152,5 +170,13 @@ function main(): number {
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
-  process.exit(main());
+  let code: number;
+  try {
+    code = main();
+  } catch (error) {
+    // A bad flag, a missing base ref or a failed git/gh call is "could not decide", never 1.
+    console.error(`phone walk: could not decide: ${(error as Error).message.split('\n')[0]}`);
+    code = 2;
+  }
+  process.exit(code);
 }

@@ -170,8 +170,9 @@ stops a red walk from merging.
 - **0** — not required, or required and green: continue.
 - **1** — the walk failed. Download the `isolated-batch3-proof` artifact, read the
   screenshots and trace, fix, push, and start Step 3 again. Never post the gate over it.
-- **2** — a declared path is gone, or the checks could not be read. Fix the list in the
-  same PR that moved the code; this is not a pass.
+- **2** — could not decide: a declared path is gone (fix the list in the same PR that
+  moved the code), the PR head is not local HEAD (push first), or git/`gh` failed. Not a
+  pass.
 - **3** — the run has not finished. Wait and re-run the command; not a verdict.
 
 ### Step 4: Independent Review Gate — BEFORE merge

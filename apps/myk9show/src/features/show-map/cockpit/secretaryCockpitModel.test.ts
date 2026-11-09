@@ -618,14 +618,6 @@ describe('buildSecretaryCockpitModel show home', () => {
     expect(model.attention.all.filter(item => item.kind === 'preparation')).toEqual([]);
     expect(model.trialGroups.every(group => group.nowMarkerIndex === null)).toBe(true);
   });
-
-  it('carries the checklist count on each row', () => {
-    const model = buildSecretaryCockpitModel(makeSnapshot(), { statuses: [] });
-    const complete = model.trialGroups[0]?.classes.find(row => row.id === 'complete');
-
-    expect(complete?.checklist).toMatchObject({ total: 7 });
-    expect(complete?.checklist?.done).toBeGreaterThan(0);
-  });
 });
 
 describe('the schedule shows the real start once a class has started (owner, 2026-10-03)', () => {
@@ -680,13 +672,10 @@ describe('the schedule shows the real start once a class has started (owner, 202
 
 describe('buildSecretaryCockpitModel unused print tracking and checklist (MYK9-1620)', () => {
   const unused = () => makeSnapshot({ printTrackingInUse: false, checklistInUse: false });
-  const rows = (model: ReturnType<typeof buildSecretaryCockpitModel>) =>
-    model.trialGroups.flatMap(group => group.classes);
 
-  it('shows no checklist strip and no Prepare chips on a show that never used them', () => {
+  it('shows no Prepare chips on a show that never used them', () => {
     const model = buildSecretaryCockpitModel(unused(), { statuses: [] });
 
-    expect(rows(model).map(row => row.checklist)).toEqual(rows(model).map(() => null));
     expect(model.attention.all.map(item => item.id)).not.toContain(
       'prepare:upcoming:check-in-sheet'
     );
@@ -698,23 +687,20 @@ describe('buildSecretaryCockpitModel unused print tracking and checklist (MYK9-1
     expect(model.focusedClass).toMatchObject({ printTrackingInUse: false, checklistInUse: false });
   });
 
-  it('shows the strip and Prepare chips on every class once the show uses them', () => {
+  it('shows the Prepare chips once the show uses them', () => {
     const model = buildSecretaryCockpitModel(makeSnapshot(), { statuses: [] });
 
-    expect(rows(model).filter(row => row.id !== 'complete')).toSatisfy(
-      (list: ReturnType<typeof rows>) => list.every(row => row.checklist !== null)
-    );
     expect(model.attention.all.map(item => item.id)).toContain('prepare:upcoming:check-in-sheet');
     expect(model.focusedClass).toMatchObject({ printTrackingInUse: true, checklistInUse: true });
   });
 
-  it('keeps the strip but drops Prepare chips when only a sign-off was recorded', () => {
+  it('keeps the checklist but drops Prepare chips when only a sign-off was recorded', () => {
     const model = buildSecretaryCockpitModel(
       makeSnapshot({ printTrackingInUse: false, checklistInUse: true }),
       { statuses: [] }
     );
 
-    expect(rows(model).every(row => row.checklist !== null)).toBe(true);
+    expect(model.focusedClass).toMatchObject({ checklistInUse: true });
     expect(model.attention.all.some(item => item.kind === 'preparation')).toBe(false);
   });
 });

@@ -47,7 +47,10 @@ export function CockpitScheduleRow({
   onFocusClass: (classId: string) => void;
 }) {
   const ticked = select?.isSelected(classItem.id) ?? false;
-  const time = classItem.startedLabel ?? (classItem.expectedStart ? classItem.timeLabel : null);
+  const time = classItem.expectedStart ? classItem.timeLabel : null;
+  const ring = classItem.operationalArea.value?.label ?? null;
+  const attention = classItem.attentionCount;
+  const attentionWords = `${attention} ${attention === 1 ? 'needs' : 'need'} attention`;
   return (
     <div
       id={getCockpitAnchorElementId(classItem.id)}
@@ -71,28 +74,45 @@ export function CockpitScheduleRow({
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-2">
           <span className="shrink-0 whitespace-nowrap text-sm font-semibold">
-            {time ?? <span className="font-normal text-muted-foreground">No time</span>}
+            {classItem.startedLabel ? (
+              // The recorded start, never mistaken for the planned time.
+              <>
+                <span className="mr-1 text-xs font-normal text-muted-foreground">Started</span>
+                {classItem.startedLabel}
+              </>
+            ) : (
+              (time ?? <span className="font-normal text-muted-foreground">No time</span>)
+            )}
           </span>
           {/* No onClick: the click (keyboard too) bubbles to the card's. */}
           <button
             type="button"
             data-selects-row
             aria-pressed={select ? ticked : focused}
-            className="min-w-0 truncate text-left font-semibold hover:underline hover:underline-offset-4"
+            className="min-w-0 break-words rounded-sm text-left font-semibold hover:underline hover:underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {classItem.name}
           </button>
         </div>
         <div className="mt-0.5 flex items-baseline gap-1.5 text-sm text-muted-foreground">
-          {classItem.attentionCount > 0 && (
-            <span
-              role="img"
-              aria-label="Needs attention"
-              data-testid="class-attention-dot"
-              className="h-2 w-2 shrink-0 rounded-full bg-destructive"
-            />
+          {attention > 0 && (
+            <span className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-destructive">
+              <span
+                role="img"
+                aria-label={attentionWords}
+                data-testid="class-attention-dot"
+                className="h-2.5 w-2.5 shrink-0 rounded-full bg-destructive"
+              />
+              {attention} {attention === 1 ? 'issue' : 'issues'}
+            </span>
           )}
           <span className="min-w-0">
+            {ring && (
+              <>
+                <span data-testid="class-ring">{ring}</span>
+                {' · '}
+              </>
+            )}
             <span data-testid="class-judge">{classItem.judgeName || 'Judge not set'}</span>
             {' · '}
             <span data-testid="class-status-line">

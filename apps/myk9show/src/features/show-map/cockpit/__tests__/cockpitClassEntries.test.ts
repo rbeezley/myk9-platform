@@ -4,8 +4,8 @@ import { buildShowMapTree } from '../../showMapTree';
 import {
   classEntriesForClass,
   countClassEntries,
+  hiddenEntryCount,
   runStatusDisplay,
-  type SecretaryCockpitClassEntry,
 } from '../cockpitClassEntries';
 
 const show = { id: 'show-1', name: 'Show', organization: 'AKC' } as never;
@@ -16,84 +16,190 @@ function entryRow(id: string, fields: Record<string, unknown>) {
   return { id, class_id: 'class-1', entry_status: 'confirmed', dog: { call_name: id }, ...fields };
 }
 
-describe('classEntriesForClass', () => {
+function rowsFor(entries: ReturnType<typeof entryRow>[], entryPreviewLimit?: number) {
   const tree = buildShowMapTree({
     show,
     trials: [trial],
     classes: [cls],
-    entries: [
-      entryRow('Third', { run_order: 3, check_in_status: 'no-status' }),
-      entryRow('First', {
-        run_order: 1,
-        armband: '101',
-        is_scored: true,
-        result_status: 'qualified',
-        check_in_status: 'completed',
-      }),
-      entryRow('Second', { run_order: 2, check_in_status: 'in-ring', armband: '102' }),
-      entryRow('Fourth', { run_order: 4, check_in_status: 'pulled', entry_status: 'withdrawn' }),
-      entryRow('Fifth', { run_order: 5, entry_status: 'moved' }),
-    ],
-    entryPreviewLimit: Number.POSITIVE_INFINITY,
+    entries,
+    entryPreviewLimit: entryPreviewLimit ?? Number.POSITIVE_INFINITY,
   });
-  const entries = classEntriesForClass('class-1', tree);
+  return { tree, rows: classEntriesForClass('class-1', tree) };
+}
 
-  it('lists every entry in run order, 1-based', () => {
-    expect(entries.map(row => [row.position, row.dogName])).toEqual([
-      [1, 'First'],
-      [2, 'Second'],
-      [3, 'Third'],
-      [4, 'Fourth'],
-      [5, 'Fifth'],
+interface Case {
+  name: string;
+  fields: Record<string, unknown>;
+  listed: boolean;
+  /** Counted as entered (the class's entryCount set). */
+  counted: boolean;
+  state?: string;
+  result?: string | null;
+}
+
+// Every entry_status the code can write, crossed with the check-in and result axes that matter.
+const CASES: Case[] = [
+  { name: 'confirmed, no check-in', fields: {}, listed: true, counted: true, state: 'waiting' },
+  {
+    name: 'accepted, checked in',
+    fields: { entry_status: 'accepted', check_in_status: 'checked-in' },
+    listed: true,
+    counted: true,
+    state: 'waiting',
+  },
+  {
+    name: 'in the ring',
+    fields: { check_in_status: 'in-ring' },
+    listed: true,
+    counted: true,
+    state: 'in-ring',
+  },
+  {
+    name: 'scored qualified',
+    fields: { is_scored: true, result_status: 'qualified' },
+    listed: true,
+    counted: true,
+    state: 'scored',
+    result: 'Q',
+  },
+  {
+    name: 'scored non_qualifying reads NQ',
+    fields: { is_scored: true, result_status: 'non_qualifying' },
+    listed: true,
+    counted: true,
+    state: 'scored',
+    result: 'NQ',
+  },
+  {
+    name: 'absent result without a score',
+    fields: { result_status: 'absent' },
+    listed: true,
+    counted: true,
+    state: 'scored',
+    result: 'ABS',
+  },
+  {
+    name: 'unscored pending result shows nothing',
+    fields: { result_status: 'pending' },
+    listed: true,
+    counted: true,
+    state: 'waiting',
+    result: null,
+  },
+  {
+    name: 'pulled shows no stale result',
+    fields: { check_in_status: 'pulled', is_scored: true, result_status: 'qualified' },
+    listed: true,
+    counted: false,
+    state: 'pulled',
+    result: null,
+  },
+  {
+    name: 'scratched',
+    fields: { entry_status: 'scratched' },
+    listed: true,
+    counted: false,
+    state: 'pulled',
+  },
+  {
+    name: 'withdrawn',
+    fields: { entry_status: 'withdrawn', result_status: 'qualified' },
+    listed: true,
+    counted: false,
+    state: 'withdrawn',
+    result: null,
+  },
+  { name: 'absent status', fields: { entry_status: 'absent' }, listed: true, counted: false },
+  { name: 'moved', fields: { entry_status: 'moved' }, listed: false, counted: false },
+  { name: 'rejected', fields: { entry_status: 'not_accepted' }, listed: false, counted: false },
+  { name: 'pending', fields: { entry_status: 'pending' }, listed: false, counted: false },
+  { name: 'submitted', fields: { entry_status: 'submitted' }, listed: false, counted: false },
+  { name: 'draft', fields: { entry_status: 'draft' }, listed: false, counted: false },
+  { name: 'paid (stays pending)', fields: { entry_status: 'paid' }, listed: false, counted: false },
+  {
+    name: 'deleted',
+    fields: { deleted_at: '2026-07-01T00:00:00Z' },
+    listed: false,
+    counted: false,
+  },
+];
+
+describe('classEntriesForClass', () => {
+  it.each(CASES)('$name', ({ fields, listed, counted, state, result }) => {
+    const { rows } = rowsFor([entryRow('Dog', fields)]);
+    expect(rows).toHaveLength(listed ? 1 : 0);
+    expect(countClassEntries(rows).entered).toBe(counted ? 1 : 0);
+    if (!listed) return;
+    expect(rows[0]!.counted).toBe(counted);
+    if (state) expect(rows[0]!.state).toBe(state);
+    if (result !== undefined) expect(rows[0]!.result).toBe(result);
+  });
+
+  it('counts scored, in the ring, still to run and not checked in over the expected set only', () => {
+    const { rows } = rowsFor([
+      entryRow('Scored', { is_scored: true, result_status: 'qualified' }),
+      entryRow('Ring', { check_in_status: 'in-ring' }),
+      entryRow('Here', { check_in_status: 'checked-in' }),
+      entryRow('Gone', { check_in_status: 'no-status' }),
+      entryRow('Pulled', { check_in_status: 'pulled' }),
+      entryRow('Out', { entry_status: 'withdrawn', check_in_status: 'no-status' }),
+      entryRow('Waiting', { entry_status: 'pending', check_in_status: 'no-status' }),
+      entryRow('Rejected', { entry_status: 'not_accepted', check_in_status: 'no-status' }),
     ]);
-    expect(entries[0]).toMatchObject({ armband: '101', result: 'Q' });
-  });
-
-  it.each([
-    ['First', 'Scored', 'complete'],
-    ['Second', 'In ring', 'active'],
-    ['Third', 'Waiting', 'neutral'],
-    ['Fourth', 'Pulled', 'muted'],
-    ['Fifth', 'Moved', 'muted'],
-  ])('maps %s to run status %s', (dog, label, kind) => {
-    const row = entries.find(item => item.dogName === dog)!;
-    expect(runStatusDisplay(row)).toEqual({ label, kind });
-  });
-
-  it('carries the check-in label alongside the run status', () => {
-    expect(entries.find(item => item.dogName === 'Third')?.checkIn?.label).toBe('Not checked in');
-  });
-
-  it('derives the four tiles from the same rows, leaving out the moved source row', () => {
-    expect(countClassEntries(entries)).toEqual({
+    expect(countClassEntries(rows)).toEqual({
       entered: 4,
       scored: 1,
       inRing: 1,
-      stillToRun: 1,
+      stillToRun: 2,
       notCheckedIn: 1,
     });
   });
 
-  it('leaves the result empty for an unscored dog, whose result_status is pending', () => {
-    const pendingTree = buildShowMapTree({
-      show,
-      trials: [trial],
-      classes: [cls],
-      entries: [
-        entryRow('Waiting', { run_order: 1, result_status: 'pending' }),
-        entryRow('Blank', { run_order: 2 }),
-        entryRow('Out', { run_order: 3, is_scored: true, result_status: 'excused' }),
-      ],
-      entryPreviewLimit: Number.POSITIVE_INFINITY,
-    });
-    expect(classEntriesForClass('class-1', pendingTree).map(row => row.result)).toEqual([
-      null,
-      null,
-      'EX',
+  it('orders by run order and numbers only the dogs still in line, skipping a withdrawn dog ahead', () => {
+    const { rows } = rowsFor([
+      entryRow('Third', { run_order: 4 }),
+      entryRow('Withdrawn', { run_order: 1, entry_status: 'withdrawn' }),
+      entryRow('Scored', { run_order: 2, is_scored: true, result_status: 'qualified' }),
+      entryRow('Second', { run_order: 3 }),
+      entryRow('Ring', { run_order: 5, check_in_status: 'in-ring' }),
+    ]);
+    expect(rows.map(row => [row.dogName, row.place])).toEqual([
+      ['Withdrawn', null],
+      ['Scored', null],
+      ['Second', 1],
+      ['Third', 2],
+      ['Ring', null],
     ]);
   });
 
+  it('labels each state for the table', () => {
+    const { rows } = rowsFor([
+      entryRow('A', { is_scored: true }),
+      entryRow('B', { check_in_status: 'in-ring' }),
+      entryRow('C', {}),
+      entryRow('D', { check_in_status: 'pulled' }),
+      entryRow('E', { entry_status: 'withdrawn' }),
+    ]);
+    expect(rows.map(row => runStatusDisplay(row).label)).toEqual([
+      'Scored',
+      'In ring',
+      'Waiting',
+      'Pulled',
+      'Withdrawn',
+    ]);
+  });
+
+  it('says how many entries a capped tree left out instead of looking complete', () => {
+    const entries = Array.from({ length: 5 }, (_, i) => entryRow(`Dog${i}`, { run_order: i + 1 }));
+    const capped = rowsFor(entries, 3);
+    expect(capped.rows).toHaveLength(3);
+    expect(hiddenEntryCount('class-1', capped.tree)).toBe(2);
+    expect(hiddenEntryCount('class-1', rowsFor(entries).tree)).toBe(0);
+  });
+
   it('returns nothing for a class the tree does not hold', () => {
-    expect(classEntriesForClass('nope', tree)).toEqual([] as SecretaryCockpitClassEntry[]);
+    const { tree } = rowsFor([]);
+    expect(classEntriesForClass('nope', tree)).toEqual([]);
+    expect(hiddenEntryCount('nope', tree)).toBe(0);
   });
 });

@@ -134,7 +134,7 @@ export function SecretaryCockpitFocusedClass({
           >
             Entries in run order
           </h3>
-          <ClassEntriesTable entries={focused.entries} />
+          <ClassEntriesTable entries={focused.entries} hidden={focused.entriesHidden} />
         </section>
 
         {/* What the secretary SETS for this class, laid out as a form, apart from

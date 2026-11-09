@@ -317,7 +317,7 @@ async function expectTrial3Judge(page: Page, text: string) {
   await page.reload();
   await page.getByRole('button', { name: /^Expand Trial 3/ }).click({ timeout: 30_000 });
   for (const cls of TRIAL_3_CLASS_NAMES) {
-    // The class's text column: the name button, with the judge beside it on the same line.
+    // The class's text column: the name button on line 1 and the judge at the start of line 2.
     const row = page
       .getByRole('button', { name: cls, exact: true })
       .locator('xpath=ancestor::div[contains(@class, "min-w-0")][1]');

@@ -5,11 +5,6 @@ import type { SecretaryCockpitClassEntry } from '../cockpitClassEntries';
 import { buildStatusLine } from '../scheduleStatusLine';
 import type { SecretaryCockpitClass, SecretaryCockpitPaperwork } from '../secretaryCockpitTypes';
 
-const NOT_CHECKED_IN: ShowMapDisplayStatus = {
-  value: 'no-status',
-  label: 'Not checked in',
-  kind: 'neutral',
-};
 const CHECKED_IN: ShowMapDisplayStatus = {
   value: 'checked-in',
   label: 'Checked in',
@@ -22,9 +17,12 @@ function entry(
 ): SecretaryCockpitClassEntry {
   return {
     nodeId: `entry:${position}`,
-    position,
     dogName: `Dog ${position}`,
     checkIn: CHECKED_IN,
+    state: 'waiting',
+    counted: true,
+    notCheckedIn: false,
+    place: position,
     result: null,
     ...overrides,
   };
@@ -57,22 +55,22 @@ const PRINTED_BEFORE = [paperwork('check-in-sheet', 'current'), paperwork('score
 describe('buildStatusLine', () => {
   it('counts dogs not checked in before the class starts', () => {
     const entries = [
-      entry(1, { checkIn: NOT_CHECKED_IN }),
-      entry(2, { checkIn: NOT_CHECKED_IN }),
-      entry(3, { checkIn: NOT_CHECKED_IN }),
+      entry(1, { notCheckedIn: true }),
+      entry(2, { notCheckedIn: true }),
+      entry(3, { notCheckedIn: true }),
       entry(4),
     ];
     expect(buildStatusLine(cls({ entries }), true).text).toBe('Not started · 3 not checked in');
   });
 
   it('returns the phrase as parts so the row can set a pending link after the lead', () => {
-    const entries = [entry(1, { checkIn: NOT_CHECKED_IN }), entry(2)];
+    const entries = [entry(1, { notCheckedIn: true }), entry(2)];
     expect(buildStatusLine(cls({ entries }), true).parts).toEqual([
       'Not started',
       '1 not checked in',
     ]);
     const running = buildStatusLine(cls({ lifecycle: 'in-progress', scoredCount: 2 }), true);
-    expect(running.parts).toEqual(['Running', '2 of 6']);
+    expect(running.parts).toEqual(['Running', '2 of 6 scored']);
     expect(running.parts.join(' · ')).toBe(running.text);
   });
 
@@ -82,29 +80,25 @@ describe('buildStatusLine', () => {
   });
 
   it('does not count a pulled dog as not checked in', () => {
-    const pulled = entry(1, {
-      checkIn: NOT_CHECKED_IN,
-      runStatus: { value: 'pulled', label: 'Pulled', kind: 'muted' },
-    });
+    const pulled = entry(1, { state: 'pulled', counted: false, place: null });
     expect(buildStatusLine(cls({ entries: [pulled] }), true).text).toBe('Not started');
   });
 
   it('names the dog in the ring while running', () => {
     const entries = [
-      entry(1, { runStatus: { value: 'qualified', label: 'Complete', kind: 'complete' } }),
-      entry(2, {
-        dogName: 'Willow',
-        runStatus: { value: 'in-ring', label: 'In ring', kind: 'active' },
-      }),
+      entry(1, { state: 'scored', place: null }),
+      entry(2, { dogName: 'Willow', state: 'in-ring', place: null }),
+      entry(3),
     ];
-    expect(
-      buildStatusLine(cls({ lifecycle: 'in-progress', scoredCount: 2, entries }), true).text
-    ).toBe('Running · 2 of 6 · Willow in ring');
+    // The tiles' counts (3 entered, 1 scored), not the class's own entryCount of 6.
+    expect(buildStatusLine(cls({ lifecycle: 'in-progress', entries }), true).text).toBe(
+      'Running · 1 of 3 scored · Willow in ring'
+    );
   });
 
   it('omits the dog when none is in the ring', () => {
     expect(buildStatusLine(cls({ lifecycle: 'in-progress', scoredCount: 2 }), true).text).toBe(
-      'Running · 2 of 6'
+      'Running · 2 of 6 scored'
     );
   });
 

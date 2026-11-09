@@ -1,9 +1,4 @@
-import {
-  buildClassChecklist,
-  summarizeClassChecklist,
-  type ClassChecklistItem,
-  type ClassChecklistSummary,
-} from './classChecklist';
+import { buildClassChecklist, type ClassChecklistItem } from './classChecklist';
 import { countClassEntries } from './cockpitClassEntries';
 import type { SecretaryCockpitClass } from './secretaryCockpitTypes';
 
@@ -30,11 +25,6 @@ export function classChecklistItems(cls: SecretaryCockpitClass): ClassChecklistI
   });
 }
 
-export function classChecklistSummary(cls: SecretaryCockpitClass): ClassChecklistSummary | null {
-  const items = classChecklistItems(cls);
-  return items.length > 0 ? summarizeClassChecklist(items) : null;
-}
-
 /** What the secretary does next for a step that is not done, in the verb the checklist uses. */
 const NEXT_STEP: Record<string, string> = {
   'results-sheet': 'preliminary results',
@@ -58,7 +48,7 @@ function nextStepAfterScoring(items: readonly ClassChecklistItem[]): string | nu
 /**
  * The schedule row's second line, from the class's lifecycle, its entries' run statuses and its
  * checklist. Pure so each case is a unit test: `Not started · 3 not checked in`,
- * `Running · 2 of 6 · Willow in ring`, `Print preliminary results`, `Waiting on judge signature`,
+ * `Running · 2 of 6 scored · Willow in ring`, `Print preliminary results`, `Waiting on judge signature`,
  * `Complete`. Without the checklist in use a complete class just reads `Complete`.
  */
 export function buildStatusLine(cls: SecretaryCockpitClass, checklistInUse: boolean): StatusLine {
@@ -72,12 +62,14 @@ export function buildStatusLine(cls: SecretaryCockpitClass, checklistInUse: bool
       return line([next ?? 'Complete']);
     }
     case 'in-progress': {
-      const total = cls.entryCount ?? counts.entered;
-      const scored = cls.scoredCount ?? counts.scored;
-      const inRing = entries.find(entry => entry.runStatus?.value === 'in-ring');
+      // The same counts as the tiles; the class's own counts only while its entries are unread.
+      const read = entries.length > 0;
+      const total = read ? counts.entered : (cls.entryCount ?? 0);
+      const scored = read ? counts.scored : (cls.scoredCount ?? 0);
+      const inRing = entries.find(entry => entry.state === 'in-ring');
       return line([
         'Running',
-        total > 0 ? `${scored} of ${total}` : null,
+        total > 0 ? `${scored} of ${total} scored` : null,
         inRing ? `${inRing.dogName} in ring` : null,
       ]);
     }

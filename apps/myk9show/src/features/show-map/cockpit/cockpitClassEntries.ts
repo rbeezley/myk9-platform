@@ -1,32 +1,97 @@
+import { placeInLine, compareByRunOrder, type RunQueueEntry } from '@myk9/ringside/run-queue';
+
 import { resultStatusLabel } from '@/components/common/resultStatusLabel';
+import {
+  isAccountedFor,
+  isExpectedEntry,
+  isNonRunningEntry,
+  isPulledEntry,
+  isRunnableEntry,
+  type EntryAccountingFields,
+} from '@/features/_shared/entryAccounting';
+import { isPendingEntryStatus } from '@/features/entry-operations/classEntryBreakdown';
 
 import { getShowMapNodeId } from '../showMapTree';
-import type { ShowMapDisplayStatus, ShowMapTree } from '../showMapTypes';
+import type { ShowMapDisplayStatus, ShowMapEntryDisplay, ShowMapTree } from '../showMapTypes';
+
+/** Where a dog stands in its class, from the shared entry-accounting and run-queue rules. */
+export type ClassEntryState = 'waiting' | 'in-ring' | 'scored' | 'pulled' | 'withdrawn' | 'absent';
 
 /**
- * One dog in a class, as the Show Desk entries table and the schedule row's phrase read it. Built
- * from the show map tree's entry nodes (the replicated entries the cockpit already reads), so the
- * run status is `classifyEntryRunStatus` and the check-in is `classifyEntryCheckInStatus`, never a
- * second rule. Children of a class node are already in run order (`sortEntries`).
+ * One dog in a class, as the Show Desk entries table and the schedule row's phrase read it. Which
+ * dogs are listed and counted is `entryAccounting` (the same set as the class's `entryCount`), the
+ * order and place in line are the `runQueue` rules; this module holds no rule of its own.
  */
 export interface SecretaryCockpitClassEntry {
   nodeId: string;
-  /** 1-based place in the class's run order. */
-  position: number;
   armband?: string | undefined;
   dogName: string;
   breed?: string | undefined;
   handler?: string | undefined;
   checkIn?: ShowMapDisplayStatus | undefined;
-  runStatus?: ShowMapDisplayStatus | undefined;
-  /** The scored result as the other screens abbreviate it (Q, NQ, ABS, ...), or null. */
+  state: ClassEntryState;
+  /** In the expected set: counted as entered, and as scored or still to run. */
+  counted: boolean;
+  /** Runnable, not yet in the ring, and not checked in. */
+  notCheckedIn: boolean;
+  /** 1-based place in line; null once the dog is scored, in the ring, pulled or withdrawn. */
+  place: number | null;
+  /** The recorded result as the other screens abbreviate it (Q, NQ, ABS, ...), or null. */
   result: string | null;
 }
 
-/** `pending` is the unscored default (the other screens read it the same way), not a result. */
-function recordedResult(resultStatus: string | undefined): string | null {
+function accountingFields(display: ShowMapEntryDisplay): EntryAccountingFields {
+  return {
+    entry_status: display.entryStatus,
+    check_in_status: display.checkInStatus,
+    is_scored: display.isScored,
+    result_status: display.resultStatus,
+    deleted_at: display.deletedAt ?? null,
+  };
+}
+
+/** Listed in the table: the expected set, plus dogs that will not run (shown with their status). */
+function isListed(fields: EntryAccountingFields, entryStatus: string | undefined): boolean {
+  if (fields.deleted_at != null) return false;
+  // Awaiting approval is reached only through the "N pending" link; rejected and moved never list.
+  if (entryStatus && isPendingEntryStatus(entryStatus)) return false;
+  return isExpectedEntry(fields) || isNonRunningEntry(fields) || isPulledEntry(fields);
+}
+
+function stateOf(fields: EntryAccountingFields, entryStatus: string): ClassEntryState {
+  if (entryStatus === 'withdrawn') return 'withdrawn';
+  if (isPulledEntry(fields)) return 'pulled';
+  if (!isExpectedEntry(fields)) return 'absent';
+  if (isAccountedFor(fields)) return 'scored';
+  return fields.check_in_status?.trim().toLowerCase() === 'in-ring' ? 'in-ring' : 'waiting';
+}
+
+/** A result shows only for a dog that ran: `pending` is the unscored default, and a pulled or
+ * withdrawn dog's result was recorded before the pull (MYK9-1258). */
+function recordedResult(state: ClassEntryState, resultStatus: string | undefined): string | null {
   const status = resultStatus?.trim().toLowerCase();
-  return status && status !== 'pending' ? resultStatusLabel(status) : null;
+  if (state !== 'scored' || !status || status === 'pending') return null;
+  return resultStatusLabel(status);
+}
+
+/** The run queue's view of a row; anything not runnable is folded to `pulled`, as the at-show
+ * adapter does, so membership stays `isRunnableEntry` and nothing else. */
+function queueRowOf(
+  nodeId: string,
+  display: ShowMapEntryDisplay,
+  fields: EntryAccountingFields
+): RunQueueEntry {
+  const parsed = Number.parseInt(display.armband ?? '', 10);
+  const runnable = isRunnableEntry(fields);
+  const checkIn = fields.check_in_status ?? 'no-status';
+  return {
+    id: nodeId,
+    armband: Number.isNaN(parsed) ? 0 : parsed,
+    exhibitorOrder: display.runOrder ?? null,
+    isScored: display.isScored ?? false,
+    status: runnable ? checkIn : 'pulled',
+    inRing: runnable && fields.check_in_status === 'in-ring',
+  };
 }
 
 export function classEntriesForClass(
@@ -34,37 +99,77 @@ export function classEntriesForClass(
   tree: ShowMapTree
 ): SecretaryCockpitClassEntry[] {
   const childIds = tree.childIdsByParentId[getShowMapNodeId('class', classId)] ?? [];
-  const entries: SecretaryCockpitClassEntry[] = [];
+  const listed: {
+    queue: RunQueueEntry;
+    fields: EntryAccountingFields;
+    entry: Omit<SecretaryCockpitClassEntry, 'place'>;
+  }[] = [];
   for (const childId of childIds) {
     const node = tree.nodesById[childId];
     if (!node || node.type !== 'entry' || !node.entryDisplay) continue;
     const display = node.entryDisplay;
-    entries.push({
-      nodeId: node.id,
-      position: entries.length + 1,
-      armband: display.armband,
-      dogName: display.dogName,
-      breed: display.breed,
-      handler: display.handler,
-      checkIn: node.checkInStatus,
-      runStatus: node.status,
-      result: recordedResult(display.resultStatus),
+    const fields = accountingFields(display);
+    const entryStatus = display.entryStatus?.trim().toLowerCase();
+    if (!isListed(fields, entryStatus)) continue;
+    const state = stateOf(fields, entryStatus ?? '');
+    const counted = isExpectedEntry(fields);
+    listed.push({
+      queue: queueRowOf(node.id, display, fields),
+      fields,
+      entry: {
+        nodeId: node.id,
+        armband: display.armband,
+        dogName: display.dogName,
+        breed: display.breed,
+        handler: display.handler,
+        checkIn: node.checkInStatus,
+        state,
+        counted,
+        notCheckedIn:
+          state === 'waiting' &&
+          counted &&
+          (!fields.check_in_status || fields.check_in_status === 'no-status'),
+        result: recordedResult(state, display.resultStatus),
+      },
     });
   }
-  return entries;
+  listed.sort((a, b) => compareByRunOrder(a.queue, b.queue));
+  const queue = listed.map(row => row.queue);
+  return listed.map(row => ({ ...row.entry, place: placeInLine(queue, row.queue.id) }));
 }
 
-/** The run status as the table shows it: Scored, In ring, Waiting, Pulled, Moved. */
+/**
+ * How many of the class's entries the tree left out (its preview cap). Show Desk builds an
+ * uncapped tree, so this is 0 there; it is kept so a capped tree can never look complete.
+ */
+export function hiddenEntryCount(classId: string, tree: ShowMapTree): number {
+  const classNode = tree.nodesById[getShowMapNodeId('class', classId)];
+  if (!classNode) return 0;
+  const shown = (tree.childIdsByParentId[classNode.id] ?? []).filter(
+    id => tree.nodesById[id]?.type === 'entry'
+  ).length;
+  return Math.max(0, classNode.childrenCount - shown);
+}
+
+/** The run status as the table shows it. */
 export function runStatusDisplay(entry: SecretaryCockpitClassEntry): {
   label: string;
   kind: ShowMapDisplayStatus['kind'];
 } {
-  const status = entry.runStatus;
-  if (!status) return { label: 'Waiting', kind: 'neutral' };
-  if (status.kind === 'complete') return { label: 'Scored', kind: 'complete' };
-  if (status.value === 'in-ring') return { label: 'In ring', kind: 'active' };
-  if (status.kind === 'muted') return { label: status.label, kind: 'muted' };
-  return { label: 'Waiting', kind: 'neutral' };
+  switch (entry.state) {
+    case 'scored':
+      return { label: 'Scored', kind: 'complete' };
+    case 'in-ring':
+      return { label: 'In ring', kind: 'active' };
+    case 'pulled':
+      return { label: 'Pulled', kind: 'muted' };
+    case 'withdrawn':
+      return { label: 'Withdrawn', kind: 'muted' };
+    case 'absent':
+      return { label: 'Absent', kind: 'muted' };
+    case 'waiting':
+      return { label: 'Waiting', kind: 'neutral' };
+  }
 }
 
 export interface ClassEntryCounts {
@@ -75,7 +180,11 @@ export interface ClassEntryCounts {
   notCheckedIn: number;
 }
 
-/** The four count tiles, and the "not checked in" the schedule phrase uses, from the same rows. */
+/**
+ * The four count tiles, and the "not checked in" the schedule phrase uses, from the same rows.
+ * Entered is the expected set (the class's `entryCount`); scored, in the ring and still to run
+ * partition it.
+ */
 export function countClassEntries(
   entries: readonly SecretaryCockpitClassEntry[]
 ): ClassEntryCounts {
@@ -87,17 +196,12 @@ export function countClassEntries(
     notCheckedIn: 0,
   };
   for (const entry of entries) {
-    // A moved row is the retired source of a promotion; the dog is counted in its new class.
-    if (entry.runStatus?.value === 'moved') continue;
+    if (!entry.counted) continue;
     counts.entered += 1;
-    const status = runStatusDisplay(entry);
-    if (status.label === 'Scored') counts.scored += 1;
-    else if (status.label === 'In ring') counts.inRing += 1;
-    // A pulled dog is entered but will not run.
-    else if (status.kind !== 'muted') {
-      counts.stillToRun += 1;
-      if (entry.checkIn?.value === 'no-status') counts.notCheckedIn += 1;
-    }
+    if (entry.state === 'scored') counts.scored += 1;
+    else if (entry.state === 'in-ring') counts.inRing += 1;
+    else if (entry.state === 'waiting') counts.stillToRun += 1;
+    if (entry.notCheckedIn) counts.notCheckedIn += 1;
   }
   return counts;
 }

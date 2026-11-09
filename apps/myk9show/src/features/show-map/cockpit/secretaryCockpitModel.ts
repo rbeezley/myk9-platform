@@ -31,7 +31,7 @@ import {
   minuteOfDayInTimeZone,
   operationalMinutes,
 } from './cockpitClock';
-import { buildStatusLine, classChecklistSummary } from './scheduleStatusLine';
+import { buildStatusLine } from './scheduleStatusLine';
 import { SHOW_MAP_WRAP_UP_STATUS } from '../showMapTypes';
 
 const ATTENTION_LIMIT = 3;
@@ -137,8 +137,6 @@ function toScheduledClass(
     attentionCount: derivedAttentionCount,
     closeout: cls.closeout ?? 'none',
     primaryAction: primaryActionFor(cls),
-    // A feature never used is invisible, not unfinished (MYK9-1620): no "0 of 7" strip.
-    checklist: checklistInUse ? classChecklistSummary(cls) : null,
     statusLine: buildStatusLine(cls, checklistInUse),
   };
 }
@@ -345,6 +343,7 @@ function toFocusedClass(
     classWorkActions: actionsFor('class-work'),
     entryRows: cls.entryRows,
     entries: cls.entries ?? [],
+    entriesHidden: cls.entriesHidden ?? 0,
   };
 }
 

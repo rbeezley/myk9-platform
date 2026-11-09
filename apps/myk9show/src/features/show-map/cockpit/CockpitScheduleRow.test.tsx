@@ -23,17 +23,20 @@ const classItem: ScheduledClassModel = {
   attentionCount: 0,
   closeout: 'none',
   primaryAction: null,
-  checklist: null,
   statusLine: {
     text: 'Not started · 3 not checked in',
     parts: ['Not started', '3 not checked in'],
   },
 };
 
-function renderRow(pendingCount: number, onFocusClass = vi.fn()) {
+function renderRow(
+  pendingCount: number,
+  onFocusClass = vi.fn(),
+  item: ScheduledClassModel = classItem
+) {
   render(
     <CockpitScheduleRow
-      classItem={classItem}
+      classItem={item}
       showId="show-1"
       pendingCount={pendingCount}
       focused={false}
@@ -85,5 +88,35 @@ describe('CockpitScheduleRow pending link', () => {
     expect(judge.parentElement).not.toBe(className.parentElement);
     expect(judge.closest('.truncate')).toBeNull();
     expect(judge.parentElement).toContainElement(screen.getByTestId('class-status-line'));
+  });
+
+  it('marks a recorded start as started, so it is not read as the planned time', () => {
+    renderRow(0, vi.fn(), { ...classItem, startedLabel: '9:42 AM' });
+    expect(screen.getByText('Started')).toBeInTheDocument();
+    expect(screen.getByText(/9:42 AM/)).toBeInTheDocument();
+  });
+
+  it('lets the class name wrap and gives its button a visible focus ring', () => {
+    renderRow(0);
+    const name = screen.getByRole('button', { name: 'Container Novice' });
+    expect(name.closest('.truncate')).toBeNull();
+    expect(name).not.toHaveClass('truncate');
+    expect(name.className).toContain('focus-visible:ring-2');
+  });
+
+  it('starts line 2 with the ring, then the judge', () => {
+    renderRow(0, vi.fn(), {
+      ...classItem,
+      judgeName: 'Pat Donovan',
+      operationalArea: { evidence: 'recorded', value: { kind: 'ring', label: 'Ring 1' } },
+    });
+    const line = screen.getByTestId('class-ring').parentElement!;
+    expect(line.textContent).toMatch(/^Ring 1 · Pat Donovan · Not started/);
+  });
+
+  it('states the attention count in words and as visible text', () => {
+    renderRow(0, vi.fn(), { ...classItem, attentionCount: 3 });
+    expect(screen.getByRole('img', { name: '3 need attention' })).toBeInTheDocument();
+    expect(screen.getByText('3 issues')).toBeInTheDocument();
   });
 });

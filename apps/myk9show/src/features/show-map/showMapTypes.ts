@@ -91,6 +91,12 @@ export interface ShowMapEntryDisplay {
   handlerHref?: string | undefined;
   /** Raw `entries.result_status` (qualified, nq, ...), for the Show Desk entries table. */
   resultStatus?: string | undefined;
+  /** Raw `check_in_status`, `is_scored`, `run_order` and `deleted_at`: the fields the shared
+   * entry-accounting and run-queue rules read, for the Show Desk entries table. */
+  checkInStatus?: string | undefined;
+  isScored?: boolean | undefined;
+  runOrder?: number | undefined;
+  deletedAt?: string | undefined;
 }
 
 export interface ShowMapDogEntryDisplay {

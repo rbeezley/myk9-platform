@@ -14,42 +14,51 @@ vi.mock('@/hooks/useElementWidth', () => ({
 const entries: SecretaryCockpitClassEntry[] = [
   {
     nodeId: 'entry:a',
-    position: 1,
     armband: '101',
     dogName: 'Piper',
     breed: 'Border Collie',
     handler: 'Dana Lee',
     checkIn: { value: 'completed', label: 'Complete', kind: 'complete' },
-    runStatus: { value: 'qualified', label: 'Complete', kind: 'complete' },
+    state: 'scored',
+    counted: true,
+    notCheckedIn: false,
+    place: null,
     result: 'Q',
   },
   {
     nodeId: 'entry:b',
-    position: 2,
     armband: '102',
     dogName: 'Willow',
     handler: 'Sam Ortiz',
     checkIn: { value: 'in-ring', label: 'In ring', kind: 'active' },
-    runStatus: { value: 'in-ring', label: 'In ring', kind: 'active' },
+    state: 'in-ring',
+    counted: true,
+    notCheckedIn: false,
+    place: null,
     result: null,
   },
   {
     nodeId: 'entry:c',
-    position: 3,
     armband: '103',
     dogName: 'Moss',
     handler: 'Kim Wu',
     checkIn: { value: 'no-status', label: 'Not checked in', kind: 'neutral' },
+    state: 'waiting',
+    counted: true,
+    notCheckedIn: true,
+    place: 1,
     result: null,
   },
   {
     nodeId: 'entry:d',
-    position: 4,
     armband: '104',
     dogName: 'Juno',
     handler: 'Pat Roe',
     checkIn: { value: 'pulled', label: 'Pulled', kind: 'muted' },
-    runStatus: { value: 'withdrawn', label: 'Pulled', kind: 'muted' },
+    state: 'pulled',
+    counted: false,
+    notCheckedIn: false,
+    place: null,
     result: null,
   },
 ];
@@ -95,12 +104,12 @@ describe('the focused class entries table (MYK9-1782)', () => {
     expect(within(rows[2]!).getByText('Not checked in')).toBeInTheDocument();
     expect(within(rows[2]!).getByText('Waiting')).toBeInTheDocument();
     expect(within(rows[3]!).getAllByText('Pulled')).toHaveLength(2);
-    // Run order, then the reserved empty last column.
+    // Place in line (a dash once a dog is scored, in the ring or pulled), then the reserved empty last column.
     expect(rows.map(row => within(row).getAllByRole('cell')[0]!.textContent)).toEqual([
+      '—',
+      '—',
       '1',
-      '2',
-      '3',
-      '4',
+      '—',
     ]);
     expect(within(rows[0]!).getAllByRole('cell').at(-1)).toBeEmptyDOMElement();
   });
@@ -113,7 +122,8 @@ describe('the focused class entries table (MYK9-1782)', () => {
     const value = (label: string) =>
       [...tiles.querySelectorAll('dt')].find(term => term.textContent === label)?.nextElementSibling
         ?.textContent;
-    expect(value('Entered')).toBe('4');
+    // The pulled dog is listed but is not in the expected set.
+    expect(value('Entered')).toBe('3');
     expect(value('Scored')).toBe('1');
     expect(value('In ring')).toBe('1');
     expect(value('Still to run')).toBe('1');
@@ -124,7 +134,7 @@ describe('the focused class entries table (MYK9-1782)', () => {
       initialRoute: '/shows/show-1',
     });
     expect(screen.getByTestId('class-status-line')).toHaveTextContent(
-      'Running · 1 of 4 · Willow in ring'
+      'Running · 1 of 3 scored · Willow in ring'
     );
   });
 });

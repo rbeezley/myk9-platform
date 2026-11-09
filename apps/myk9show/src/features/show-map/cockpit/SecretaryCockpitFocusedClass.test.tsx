@@ -45,7 +45,6 @@ const focused: FocusedClassModel = {
   attentionCount: 0,
   closeout: 'none',
   primaryAction: null,
-  checklist: null,
   statusLine: { text: 'Not started', parts: ['Not started'] },
   printTrackingInUse: true,
   checklistInUse: true,
@@ -70,6 +69,7 @@ const focused: FocusedClassModel = {
   classWorkActions: [],
   entryRows: [],
   entries: [],
+  entriesHidden: 0,
 };
 
 const sourceClass: SecretaryCockpitClass = {

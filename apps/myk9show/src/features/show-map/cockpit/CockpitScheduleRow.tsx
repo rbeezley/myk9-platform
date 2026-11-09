@@ -26,8 +26,8 @@ function selectsRow(event: MouseEvent<HTMLElement>): boolean {
 
 /**
  * One class on the schedule, the same two lines in the narrow rail and the full-width list
- * (MYK9-1782). Line 1: time, class, judge (the judge is per class, so it is never on the trial
- * band). Line 2: one status-and-next-step phrase. A red dot marks a class on Needs attention; the
+ * (MYK9-1782). Line 1: time and class. Line 2: the judge (per class, so never on the trial band), then one
+ * status-and-next-step phrase; the judge sits on line 2 so neither is squeezed in the 300px rail. A red dot marks a class on Needs attention; the
  * full seven-step bar lives on the class page.
  */
 export function CockpitScheduleRow({
@@ -82,11 +82,8 @@ export function CockpitScheduleRow({
           >
             {classItem.name}
           </button>
-          <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
-            {classItem.judgeName || 'Judge not set'}
-          </span>
         </div>
-        <div className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
+        <div className="mt-0.5 flex items-baseline gap-1.5 text-sm text-muted-foreground">
           {classItem.attentionCount > 0 && (
             <span
               role="img"
@@ -95,29 +92,33 @@ export function CockpitScheduleRow({
               className="h-2 w-2 shrink-0 rounded-full bg-destructive"
             />
           )}
-          <span data-testid="class-status-line" className="min-w-0">
-            {classItem.statusLine.parts.map((part, index) => (
-              <Fragment key={`${index}:${part}`}>
-                {index > 0 && ' · '}
-                {part}
-                {index === 0 && pendingCount > 0 && (
-                  <>
-                    {' · '}
-                    <Link
-                      to={getClassReviewHref({
-                        showId,
-                        trialId: classItem.trialId,
-                        classId: classItem.id,
-                      })}
-                      aria-label={`${pendingCount} pending in ${classItem.name}`}
-                      className="font-medium text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                      {pendingCount} pending
-                    </Link>
-                  </>
-                )}
-              </Fragment>
-            ))}
+          <span className="min-w-0">
+            <span data-testid="class-judge">{classItem.judgeName || 'Judge not set'}</span>
+            {' · '}
+            <span data-testid="class-status-line">
+              {classItem.statusLine.parts.map((part, index) => (
+                <Fragment key={`${index}:${part}`}>
+                  {index > 0 && ' · '}
+                  {part}
+                  {index === 0 && pendingCount > 0 && (
+                    <>
+                      {' · '}
+                      <Link
+                        to={getClassReviewHref({
+                          showId,
+                          trialId: classItem.trialId,
+                          classId: classItem.id,
+                        })}
+                        aria-label={`${pendingCount} pending in ${classItem.name}`}
+                        className="font-medium text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        {pendingCount} pending
+                      </Link>
+                    </>
+                  )}
+                </Fragment>
+              ))}
+            </span>
           </span>
         </div>
       </div>

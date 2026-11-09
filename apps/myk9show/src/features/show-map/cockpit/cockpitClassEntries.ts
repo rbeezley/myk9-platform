@@ -23,6 +23,12 @@ export interface SecretaryCockpitClassEntry {
   result: string | null;
 }
 
+/** `pending` is the unscored default (the other screens read it the same way), not a result. */
+function recordedResult(resultStatus: string | undefined): string | null {
+  const status = resultStatus?.trim().toLowerCase();
+  return status && status !== 'pending' ? resultStatusLabel(status) : null;
+}
+
 export function classEntriesForClass(
   classId: string,
   tree: ShowMapTree
@@ -42,7 +48,7 @@ export function classEntriesForClass(
       handler: display.handler,
       checkIn: node.checkInStatus,
       runStatus: node.status,
-      result: display.resultStatus ? resultStatusLabel(display.resultStatus) : null,
+      result: recordedResult(display.resultStatus),
     });
   }
   return entries;

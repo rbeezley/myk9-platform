@@ -75,4 +75,15 @@ describe('CockpitScheduleRow pending link', () => {
       'Not started · 3 not checked in'
     );
   });
+
+  it('keeps the judge off the class-name line, so neither is squeezed in the narrow rail', () => {
+    renderRow(0);
+    const judge = screen.getByTestId('class-judge');
+    const className = screen.getByRole('button', { name: 'Container Novice' });
+    expect(judge).toHaveTextContent('Judge not set');
+    // A flex-1 truncating judge beside the class name collapsed to a few pixels at 300px.
+    expect(judge.parentElement).not.toBe(className.parentElement);
+    expect(judge.closest('.truncate')).toBeNull();
+    expect(judge.parentElement).toContainElement(screen.getByTestId('class-status-line'));
+  });
 });

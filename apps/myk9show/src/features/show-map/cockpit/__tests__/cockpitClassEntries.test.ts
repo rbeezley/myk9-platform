@@ -74,6 +74,25 @@ describe('classEntriesForClass', () => {
     });
   });
 
+  it('leaves the result empty for an unscored dog, whose result_status is pending', () => {
+    const pendingTree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [cls],
+      entries: [
+        entryRow('Waiting', { run_order: 1, result_status: 'pending' }),
+        entryRow('Blank', { run_order: 2 }),
+        entryRow('Out', { run_order: 3, is_scored: true, result_status: 'excused' }),
+      ],
+      entryPreviewLimit: Number.POSITIVE_INFINITY,
+    });
+    expect(classEntriesForClass('class-1', pendingTree).map(row => row.result)).toEqual([
+      null,
+      null,
+      'EX',
+    ]);
+  });
+
   it('returns nothing for a class the tree does not hold', () => {
     expect(classEntriesForClass('nope', tree)).toEqual([] as SecretaryCockpitClassEntry[]);
   });

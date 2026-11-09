@@ -24,6 +24,10 @@ const KIND_CLASS: Record<ShowMapStatusKind, string> = {
   muted: 'bg-muted text-muted-foreground line-through decoration-1',
 };
 
+// Tight cells and wrapping Dog and Handler keep the table inside the ~600px focus column; the
+// scroll wrapper stays as the fallback for narrower ones.
+const CELL = 'px-2 py-2';
+
 function StatusPill({ label, kind }: { label: string; kind: ShowMapStatusKind }) {
   return (
     <span
@@ -74,14 +78,14 @@ export function ClassEntriesTable({ entries }: { entries: readonly SecretaryCock
     <Table scrollAreaLabel="Entries in run order" data-testid="class-entries-table">
       <TableHeader>
         <TableRow>
-          <TableHead className="w-10">#</TableHead>
-          <TableHead>Armband</TableHead>
-          <TableHead>Dog</TableHead>
-          <TableHead>Handler</TableHead>
-          <TableHead>Check-in</TableHead>
-          <TableHead>Run status</TableHead>
-          <TableHead>Result</TableHead>
-          <TableHead className="w-10">
+          <TableHead className={cn(CELL, 'w-8')}>#</TableHead>
+          <TableHead className={CELL}>Armband</TableHead>
+          <TableHead className={CELL}>Dog</TableHead>
+          <TableHead className={CELL}>Handler</TableHead>
+          <TableHead className={CELL}>Check-in</TableHead>
+          <TableHead className={CELL}>Run status</TableHead>
+          <TableHead className={CELL}>Result</TableHead>
+          <TableHead className="w-4 px-0">
             <span className="sr-only">Actions</span>
           </TableHead>
         </TableRow>
@@ -91,23 +95,27 @@ export function ClassEntriesTable({ entries }: { entries: readonly SecretaryCock
           const run = runStatusDisplay(entry);
           return (
             <TableRow key={entry.nodeId} data-testid="class-entry-row">
-              <TableCell className="tabular-nums text-muted-foreground">{entry.position}</TableCell>
-              <TableCell className="font-medium tabular-nums">{entry.armband ?? ''}</TableCell>
-              <TableCell>
+              <TableCell className={cn(CELL, 'tabular-nums text-muted-foreground')}>
+                {entry.position}
+              </TableCell>
+              <TableCell className={cn(CELL, 'font-medium tabular-nums')}>
+                {entry.armband ?? ''}
+              </TableCell>
+              <TableCell className={CELL}>
                 <div className="font-medium">{entry.dogName}</div>
                 {entry.breed && <div className="text-xs text-muted-foreground">{entry.breed}</div>}
               </TableCell>
-              <TableCell>{entry.handler ?? ''}</TableCell>
-              <TableCell>
+              <TableCell className={CELL}>{entry.handler ?? ''}</TableCell>
+              <TableCell className={CELL}>
                 {entry.checkIn && (
                   <StatusPill label={entry.checkIn.label} kind={entry.checkIn.kind} />
                 )}
               </TableCell>
-              <TableCell>
+              <TableCell className={CELL}>
                 <StatusPill label={run.label} kind={run.kind} />
               </TableCell>
-              <TableCell>{entry.result ?? ''}</TableCell>
-              <TableCell />
+              <TableCell className={CELL}>{entry.result ?? ''}</TableCell>
+              <TableCell className="px-0" />
             </TableRow>
           );
         })}

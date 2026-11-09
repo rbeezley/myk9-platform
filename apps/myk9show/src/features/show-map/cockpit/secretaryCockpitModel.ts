@@ -31,8 +31,7 @@ import {
   minuteOfDayInTimeZone,
   operationalMinutes,
 } from './cockpitClock';
-import { summarizeClassChecklist } from './classChecklist';
-import { buildStatusLine, classChecklistItems } from './scheduleStatusLine';
+import { buildStatusLine, classChecklistSummary } from './scheduleStatusLine';
 import { SHOW_MAP_WRAP_UP_STATUS } from '../showMapTypes';
 
 const ATTENTION_LIMIT = 3;
@@ -139,14 +138,9 @@ function toScheduledClass(
     closeout: cls.closeout ?? 'none',
     primaryAction: primaryActionFor(cls),
     // A feature never used is invisible, not unfinished (MYK9-1620): no "0 of 7" strip.
-    checklist: checklistInUse ? checklistFor(cls) : null,
+    checklist: checklistInUse ? classChecklistSummary(cls) : null,
     statusLine: buildStatusLine(cls, checklistInUse),
   };
-}
-
-function checklistFor(cls: SecretaryCockpitClass): ScheduledClassModel['checklist'] {
-  const items = classChecklistItems(cls);
-  return items.length > 0 ? summarizeClassChecklist(items) : null;
 }
 
 function sortClasses(

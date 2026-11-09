@@ -1,4 +1,9 @@
-import { buildClassChecklist, type ClassChecklistItem } from './classChecklist';
+import {
+  buildClassChecklist,
+  summarizeClassChecklist,
+  type ClassChecklistItem,
+  type ClassChecklistSummary,
+} from './classChecklist';
 import { countClassEntries } from './cockpitClassEntries';
 import type { SecretaryCockpitClass } from './secretaryCockpitTypes';
 
@@ -16,6 +21,11 @@ export function classChecklistItems(cls: SecretaryCockpitClass): ClassChecklistI
     registryId: cls.registryId ?? null,
     paperwork: cls.paperwork,
   });
+}
+
+export function classChecklistSummary(cls: SecretaryCockpitClass): ClassChecklistSummary | null {
+  const items = classChecklistItems(cls);
+  return items.length > 0 ? summarizeClassChecklist(items) : null;
 }
 
 /** What the secretary does next for a step that is not done, in the verb the checklist uses. */

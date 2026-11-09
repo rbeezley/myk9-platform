@@ -1,3 +1,4 @@
+import type { Ref } from 'react';
 import { CheckCircle2, CircleHelp, Clock3, RefreshCw } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -18,12 +19,21 @@ const STEP_CLASS =
 const TARGET_CLASS =
   'hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
-function StepFace({ item }: { item: ClassChecklistItem }) {
+function StepFace({ item, isNext }: { item: ClassChecklistItem; isNext: boolean }) {
   return (
     <>
       <span className="flex items-center gap-1.5 font-medium">
         <StateIcon state={item.state} />
         {item.label}
+        {isNext && (
+          // Spoken as aria-current on the step, so the word stays out of the accessible name.
+          <span
+            aria-hidden="true"
+            className="rounded-full bg-primary px-1.5 text-[0.65rem] font-semibold uppercase leading-5 tracking-wide text-primary-foreground"
+          >
+            Next
+          </span>
+        )}
       </span>
       <span className="text-xs text-muted-foreground">
         {item.detail ?? STEP_STATE_TEXT[item.state]}
@@ -38,11 +48,14 @@ export function ClassStepBar({
   actionFor,
   onPrint,
   onEditStart,
+  editorTriggerRef,
 }: {
   items: readonly ClassChecklistItem[];
   actionFor: (item: ClassChecklistItem) => ClassStepAction | null;
   onPrint: (reportId: string) => void;
   onEditStart: () => void;
+  /** Lands on the editor step's button so closing the editor returns focus to it. */
+  editorTriggerRef?: Ref<HTMLButtonElement>;
 }) {
   // The first step not yet done is the one to do next; the rest stay quiet.
   const nextId = items.find(item => item.state !== 'done')?.id;
@@ -63,21 +76,22 @@ export function ClassStepBar({
           <li key={item.id} className="min-w-0">
             {action?.kind === 'link' ? (
               <Link to={action.href} className={className} aria-label={name} {...current}>
-                <StepFace item={item} />
+                <StepFace item={item} isNext={item.id === nextId} />
               </Link>
             ) : action ? (
               <button
                 type="button"
+                ref={action.kind === 'editor' ? editorTriggerRef : undefined}
                 className={className}
                 aria-label={name}
                 onClick={() => (action.kind === 'print' ? onPrint(action.reportId) : onEditStart())}
                 {...current}
               >
-                <StepFace item={item} />
+                <StepFace item={item} isNext={item.id === nextId} />
               </button>
             ) : (
               <div className={className} role="group" aria-label={name} {...current}>
-                <StepFace item={item} />
+                <StepFace item={item} isNext={item.id === nextId} />
               </div>
             )}
           </li>

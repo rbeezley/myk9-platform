@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { ArrowRight, ChevronDown, Printer } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -85,6 +85,9 @@ export function ClassChecklistSection({
     setPrintFor(ids === null ? null : { classId, ids });
   const printable = paperwork.filter(item => Boolean(item.printHref));
   const [editingStart, setEditingStart] = useState<string | null>(null);
+  const startStepRef = useRef<HTMLButtonElement>(null);
+  // Same reset as the ticks above: the editor must not reopen on returning to a class.
+  if (editingStart !== null && editingStart !== classId) setEditingStart(null);
   const labelFor = new Map<string, string>(items.map(item => [item.id, item.label]));
   const panelItems = printable
     .filter(item => printIds?.includes(item.reportId))
@@ -126,6 +129,7 @@ export function ClassChecklistSection({
             actionFor={actionFor}
             onPrint={reportId => setPrintIds([reportId])}
             onEditStart={() => setEditingStart(classId)}
+            editorTriggerRef={startStepRef}
           />
           {canManageShow && (
             <ClassActualStartEditor
@@ -135,7 +139,11 @@ export function ClassChecklistSection({
               timeZone={timeZone}
               hasStart={Boolean(sourceClass.actualStart)}
               open={editingStart === classId}
-              onOpenChange={next => setEditingStart(next ? classId : null)}
+              onOpenChange={next => {
+                setEditingStart(next ? classId : null);
+                // Closing (save, clear or cancel) hands the keyboard back to the step that opened it.
+                if (!next) startStepRef.current?.focus();
+              }}
             />
           )}
         </section>
@@ -156,9 +164,11 @@ export function ClassChecklistSection({
       {(otherPaperwork.length > 0 || stepSheets.length > 0) && (
         <details className="group">
           <summary className={`${HEADING_CLASS} flex min-h-11 cursor-pointer items-center`}>
-            {otherPaperwork.length > 0
-              ? `Other paperwork (${otherPaperwork.length})`
-              : 'Print records'}
+            {otherPaperwork.length === 0
+              ? 'Print records'
+              : stepSheets.length === 0
+                ? `Other paperwork (${otherPaperwork.length})`
+                : `Other paperwork and print records (${otherPaperwork.length + stepSheets.length})`}
             <ChevronDown
               className="ml-2 h-4 w-4 -rotate-90 transition-transform group-open:rotate-0"
               aria-hidden="true"

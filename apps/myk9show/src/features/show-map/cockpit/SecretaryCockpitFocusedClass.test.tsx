@@ -256,7 +256,7 @@ describe('SecretaryCockpitFocusedClass checklist (MYK9-948)', () => {
     const checklist = screen.getByRole('region', { name: 'Class checklist' });
     expect(within(checklist).queryByText('Armband labels')).not.toBeInTheDocument();
     // Other paperwork sits under the step bar, behind a disclosure.
-    expect(screen.getByText('Other paperwork (1)')).toBeInTheDocument();
+    expect(screen.getByText('Other paperwork and print records (2)')).toBeInTheDocument();
     expect(screen.getByText('Armband labels')).toBeInTheDocument();
   });
 });

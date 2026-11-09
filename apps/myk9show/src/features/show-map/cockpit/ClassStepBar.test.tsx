@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fromPartial } from '@total-typescript/shoehorn';
 
-import { render, screen, within } from '@/test/utils/testUtils';
+import { render, screen, waitFor, within } from '@/test/utils/testUtils';
 
 import { ClassChecklistSection } from './ClassChecklistSection';
 import type { SecretaryCockpitClass, SecretaryCockpitPaperwork } from './secretaryCockpitTypes';
@@ -33,17 +33,14 @@ const printable = [
   sheet('result-labels', 'Result labels', '/print/result-labels'),
 ];
 
-function renderBar(
-  options: {
-    paperwork?: SecretaryCockpitPaperwork[];
-    canManageShow?: boolean;
-    source?: SecretaryCockpitClass;
-  } = {}
+function sectionFor(
+  source: SecretaryCockpitClass,
+  options: { paperwork?: SecretaryCockpitPaperwork[]; canManageShow?: boolean } = {}
 ) {
-  return render(
+  return (
     <ClassChecklistSection
       showId="show-1"
-      sourceClass={options.source ?? sourceClass}
+      sourceClass={source}
       paperwork={options.paperwork ?? printable}
       timeZone="America/New_York"
       onCommand={vi.fn()}
@@ -52,6 +49,16 @@ function renderBar(
       trialDate="2026-07-20"
     />
   );
+}
+
+function renderBar(
+  options: {
+    paperwork?: SecretaryCockpitPaperwork[];
+    canManageShow?: boolean;
+    source?: SecretaryCockpitClass;
+  } = {}
+) {
+  return render(sectionFor(options.source ?? sourceClass, options));
 }
 
 describe('class step bar (MYK9-1783)', () => {
@@ -94,6 +101,55 @@ describe('class step bar (MYK9-1783)', () => {
     expect(screen.queryByLabelText('Start time for Novice Container')).toBeNull();
   });
 
+  it('moves focus into the time field on open and back to the step on close', async () => {
+    const { user } = renderBar();
+    const step = screen.getByRole('button', { name: /^Class started, done\. Set start time/ });
+    await user.click(step);
+    expect(screen.getByLabelText('Start time for Novice Container')).toHaveFocus();
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(step).toHaveFocus();
+  });
+
+  it('returns focus to the step after a save', async () => {
+    const { user } = renderBar();
+    const step = screen.getByRole('button', { name: /^Class started, done\. Set start time/ });
+    await user.click(step);
+    await user.type(screen.getByLabelText('Start time for Novice Container'), '9:42 AM');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() =>
+      expect(screen.queryByLabelText('Start time for Novice Container')).toBeNull()
+    );
+    expect(step).toHaveFocus();
+  });
+
+  it('reaches Clear start from the open form whether or not the step is done', async () => {
+    const { user } = renderBar({
+      source: { ...sourceClass, actualStart: '2026-07-20T14:00:00.000Z' },
+    });
+    await user.click(screen.getByRole('button', { name: /^Class started, done\. Set start time/ }));
+    expect(
+      screen.getByRole('button', { name: 'Clear start time for Novice Container' })
+    ).toBeInTheDocument();
+  });
+
+  it('does not reopen the editor when returning to a class', async () => {
+    const { user, rerender } = renderBar();
+    await user.click(screen.getByRole('button', { name: /^Class started, done\. Set start time/ }));
+    rerender(sectionFor({ ...sourceClass, id: 'c2', name: 'Other Class' }));
+    expect(screen.queryByLabelText(/^Start time for/)).toBeNull();
+    rerender(sectionFor(sourceClass));
+    expect(screen.queryByLabelText('Start time for Novice Container')).toBeNull();
+  });
+
+  it('marks only the next step with a visible Next cue, outside the accessible name', () => {
+    renderBar();
+    const region = screen.getByRole('region', { name: 'Class checklist' });
+    expect(within(region).getAllByText('Next')).toHaveLength(1);
+    const next = region.querySelector('[aria-current="step"]')!;
+    expect(within(next as HTMLElement).getByText('Next')).toBeVisible();
+    expect(next.getAttribute('aria-label')).not.toMatch(/Next/);
+  });
+
   it('shows Class started as plain status to someone who cannot manage the show', () => {
     renderBar({ canManageShow: false });
     expect(screen.queryByRole('button', { name: /^Class started/ })).toBeNull();
@@ -133,7 +189,7 @@ describe('class step bar (MYK9-1783)', () => {
     const { user } = renderBar({
       paperwork: [...printable, sheet('armband-labels', 'Armband labels', '/print/armband-labels')],
     });
-    await user.click(screen.getByText('Other paperwork (1)'));
+    await user.click(screen.getByText('Other paperwork and print records (3)'));
     await user.click(screen.getByRole('checkbox', { name: 'Select Armband labels to print' }));
     await user.click(screen.getByRole('button', { name: 'Print selected (1)' }));
     expect(await screen.findByText('Print Armband labels')).toBeInTheDocument();

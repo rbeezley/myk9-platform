@@ -115,3 +115,11 @@ describe('CockpitScheduleRow pending link', () => {
     expect(screen.getByText('3 issues')).toBeInTheDocument();
   });
 });
+
+describe('CockpitScheduleRow unset judge (MYK9-1846)', () => {
+  it('reads Judge to be announced for a stored TBD, and keeps Judge not set for none', () => {
+    renderRow(0, vi.fn(), { ...classItem, judgeName: 'TBD' });
+    expect(screen.getByTestId('class-judge')).toHaveTextContent(/^Judge to be announced$/);
+    expect(screen.queryByText('TBD')).not.toBeInTheDocument();
+  });
+});

@@ -207,11 +207,11 @@ describe('buildTrialReportProps', () => {
       sortOrder: '',
     });
 
-    expect(props.trial?.judgeName).toBe('Judge to be announced');
-    expect(props.entries[0]?.judgeName).toBe('Judge to be announced');
+    expect(props.trial?.judgeName).toBe('TBD');
+    expect(props.entries[0]?.judgeName).toBe('TBD');
   });
 
-  it('renders the unset label only when the class is genuinely unassigned', () => {
+  it('renders TBD only when the class is genuinely unassigned', () => {
     const unassignedClass = {
       ...classData,
       judge_assignments: [],
@@ -226,8 +226,8 @@ describe('buildTrialReportProps', () => {
       sortOrder: '',
     });
 
-    expect(props.trial?.judgeName).toBe('Judge to be announced');
-    expect(props.entries[0]?.judgeName).toBe('Judge to be announced');
+    expect(props.trial?.judgeName).toBe('TBD');
+    expect(props.entries[0]?.judgeName).toBe('TBD');
   });
 
   it('does not silently use the first class judge for mixed-judge trial headers', () => {

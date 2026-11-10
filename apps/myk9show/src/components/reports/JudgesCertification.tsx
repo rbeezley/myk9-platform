@@ -1,4 +1,3 @@
-import { registryFormJudgeName } from '@/utils/classJudgeDisplay';
 import React from 'react';
 import { formatTrialLabel } from '@myk9/core';
 import type { ReportProps } from '@/lib/reports/types';
@@ -11,7 +10,7 @@ export const JudgesCertification: React.FC<ReportProps> = ({
   allClasses = [],
   entries,
 }) => {
-  const judgeName = registryFormJudgeName(trial?.judgeName) ?? 'Unknown Judge';
+  const judgeName = trial?.judgeName ?? 'Unknown Judge';
 
   const qualifyingByElement = new Map<string, number>();
   for (const entry of entries) {

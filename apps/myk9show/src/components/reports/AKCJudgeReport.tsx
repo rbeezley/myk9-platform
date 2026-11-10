@@ -1,4 +1,3 @@
-import { registryFormJudgeName } from '@/utils/classJudgeDisplay';
 import React from 'react';
 import { formatTrialLabel } from '@myk9/core';
 import type { ReportProps } from '@/lib/reports/types';
@@ -11,7 +10,7 @@ export const AKCJudgeReport: React.FC<ReportProps> = ({
   allClasses = [],
 }) => {
   const trialDate = trial?.date ? formatReportDate(trial.date) : '___________';
-  const judgeName = registryFormJudgeName(trial?.judgeName) ?? '___________';
+  const judgeName = trial?.judgeName ?? '___________';
   const trialLabel = trial
     ? formatTrialLabel({ name: trial.name, trialNumber: trial.trialNumber })
     : '___';

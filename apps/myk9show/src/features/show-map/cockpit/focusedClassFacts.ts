@@ -1,3 +1,4 @@
+import { judgeLine } from '@/utils/classJudgeDisplay';
 import {
   formatClassEntryBreakdown,
   type ClassEntryBreakdown,
@@ -40,6 +41,6 @@ export function buildFocusedClassFacts({
   return [
     countFact,
     text?.pending ?? null,
-    showJudge && focused.judgeName ? `Judge ${focused.judgeName}` : null,
+    showJudge && focused.judgeName ? judgeLine(focused.judgeName) : null,
   ].filter((fact): fact is string => Boolean(fact));
 }

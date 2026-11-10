@@ -1,3 +1,4 @@
+import { judgeNameOrUnsetLabel } from '@/utils/classJudgeDisplay';
 import { ClassJudgeSelect } from '@/components/classes/ClassJudgeSelect';
 import type { JudgeListStatus } from '@/components/classes/useClassJudgeAssignment';
 import { NoJudgesNotice } from '@/components/shows/NoJudgesNotice';
@@ -35,7 +36,8 @@ export function FocusedClassJudge({
   // A judge can be assigned before their name resolves; that is not "not set".
   const name = (
     <span className="font-medium">
-      {judgeName || (assignedJudgeId ? 'Judge assigned' : 'Judge not set')}
+      {(judgeName ? judgeNameOrUnsetLabel(judgeName) : '') ||
+        (assignedJudgeId ? 'Judge assigned' : 'Judge not set')}
     </span>
   );
 

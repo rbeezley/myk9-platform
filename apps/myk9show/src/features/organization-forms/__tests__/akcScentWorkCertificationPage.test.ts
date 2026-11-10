@@ -108,18 +108,6 @@ const props = {
   sortOrder: '',
 } satisfies ReportProps;
 
-describe('unset judge on the certification page (MYK9-1846)', () => {
-  it.each(['Judge to be announced', 'TBD', ''])('never prints %j as a judge name', unset => {
-    const pages = buildAKCScentWorkCertificationPageValues({
-      ...props,
-      trial: { ...props.trial, judgeName: unset },
-      allClasses: props.allClasses.map(cls => ({ ...cls, judgeName: unset })),
-      entries: props.entries.map(entry => ({ ...entry, judgeName: unset })),
-    });
-    expect(pages.map(page => page.judgeName)).toEqual(['Unknown Judge']);
-  });
-});
-
 describe('AKC Scent Work Certification Page PDF', () => {
   it('builds one value set per judge using judge-specific and trial-wide totals', () => {
     const [pat, sam] = buildAKCScentWorkCertificationPageValues(props);

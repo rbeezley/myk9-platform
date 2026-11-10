@@ -1,4 +1,3 @@
-import { judgeNameOrUnsetLabel } from '@/utils/classJudgeDisplay';
 import type { TrialClass } from '@/components/trials/types/trial.types';
 import type { SyncableClassData } from '@/store/class-store-types';
 
@@ -22,7 +21,7 @@ export function toTrialDetailClass(classData: SyncableClassData, entries: number
         ? 'Upcoming'
         : (classData.status as 'Upcoming' | 'In Progress' | 'Completed' | 'Cancelled'),
     judgeId: ((classData as unknown as Record<string, unknown>).judgeId as string) || 'TBD',
-    judgeName: judgeNameOrUnsetLabel(classData.judge),
+    judgeName: classData.judge || 'TBD',
     startTime,
     entries,
     maxEntries: classData.maxEntries ?? null,

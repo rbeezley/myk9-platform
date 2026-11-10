@@ -250,3 +250,10 @@ describe('filtersUpdate with any group', () => {
     });
   });
 });
+
+describe('filterFactsOf unset judge (MYK9-1846)', () => {
+  it('relabels a stored TBD judge chip but keeps its value', () => {
+    const facts = filterFactsOf(cls('z', { judgeName: 'TBD' }));
+    expect(facts.judge).toEqual({ value: 'TBD', label: 'No judge yet' });
+  });
+});

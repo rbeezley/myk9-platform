@@ -81,10 +81,10 @@ export function buildClassesTabColumns({
       header: 'Judge',
       meta: {
         responsiveHide: 'md' as const,
-        // An unassigned class reads "No judge yet" (short form: this cell is narrow).
-        searchValue: (row: unknown) =>
-          judgeNameOrUnsetLabel((row as ClassTableRow).judgeName, { compact: true }),
+        // An unassigned class shows "TBD".
+        searchValue: (row: unknown) => (row as ClassTableRow).judgeName || 'TBD',
       },
+      // Display only: the cell says "No judge yet" (short form, this column is narrow).
       cell: ({ row }) => (
         <span className="text-muted-foreground">
           {judgeNameOrUnsetLabel(row.original.judgeName, { compact: true })}

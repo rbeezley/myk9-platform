@@ -4,7 +4,6 @@
  * Adapted from myK9Q's CheckInSheet, ResultsSheet, and ScoresheetReport.
  */
 
-import { judgeNameOrUnsetLabel } from '@/utils/classJudgeDisplay';
 import React from 'react';
 import { formatTrialLabel } from '@myk9/core';
 import { formatArmband } from '@myk9/ringside';
@@ -53,7 +52,7 @@ const InfoBox: React.FC<{ classInfo: PrintClassInfo }> = ({ classInfo }) => (
     )}
     <div className="info-row">
       <span className="info-label">Judge:</span>
-      <span className="info-value">{judgeNameOrUnsetLabel(classInfo.judgeName)}</span>
+      <span className="info-value">{classInfo.judgeName ?? 'TBD'}</span>
     </div>
     {classInfo.section && (
       <div className="info-row">
@@ -298,7 +297,7 @@ export const BlankScoreSheet: React.FC<TemplateProps> = ({ classInfo, entries })
                       <strong>Trial:</strong> {printTrialLabel(classInfo)}
                     </div>
                     <div>
-                      <strong>Judge:</strong> {judgeNameOrUnsetLabel(classInfo.judgeName)}
+                      <strong>Judge:</strong> {classInfo.judgeName ?? 'TBD'}
                     </div>
                   </div>
                   <div className="header-col">

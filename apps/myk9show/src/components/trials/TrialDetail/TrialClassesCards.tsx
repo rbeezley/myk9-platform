@@ -93,7 +93,7 @@ export function TrialClassesCards({ classes, showId, trialId }: TrialClassesCard
             <div>
               <ClassCard
                 className={className}
-                judgeName={judgeNameOrUnsetLabel(classItem.judgeName)}
+                judgeName={judgeNameOrUnsetLabel(classItem.judgeName, { bare: true })}
                 {...(startTime !== undefined && { plannedStartTime: startTime })}
                 status={classItem.status}
                 entryCount={classItem.entries}

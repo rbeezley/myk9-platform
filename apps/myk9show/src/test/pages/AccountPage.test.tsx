@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { useLocation } from 'react-router-dom';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { render as renderWithProviders } from '@/test/utils/testUtils';
 import AccountPage from '@/pages/AccountPage';
@@ -49,7 +50,8 @@ vi.mock('@/hooks/useUsers', () => ({
 
 const mockSignOut = vi.fn().mockResolvedValue(undefined);
 let mockAuthUserId = 'u-1';
-const mockGetUserRoles = vi.fn(() => [UserRole.SECRETARY, UserRole.STEWARD, UserRole.EXHIBITOR]);
+const STAFF_ROLES = [UserRole.SECRETARY, UserRole.STEWARD, UserRole.EXHIBITOR];
+const mockGetUserRoles = vi.fn<() => UserRole[]>(() => STAFF_ROLES);
 let mockRbacUserRoles: Array<{
   role: { name: string };
   scope_type?: string;
@@ -132,6 +134,11 @@ vi.mock('@/hooks/useExhibitorProfile', () => ({
   useExhibitorProfile: () => ({ profile: null }),
 }));
 
+function LocationProbe() {
+  const location = useLocation();
+  return <output data-testid="location">{location.pathname + location.search}</output>;
+}
+
 describe('AccountPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -142,6 +149,7 @@ describe('AccountPage', () => {
     mockForm.saving = false;
     mockRbacUserRoles = [];
     mockClubs = [];
+    mockGetUserRoles.mockImplementation(() => STAFF_ROLES);
     mockResetToDefaults.mockResolvedValue(undefined);
   });
 
@@ -322,6 +330,53 @@ describe('AccountPage', () => {
   it('switches to Storage section', () => {
     render();
     fireEvent.click(screen.getByRole('button', { name: 'Storage' }));
+    expect(screen.getByTestId('data-settings')).toBeInTheDocument();
+  });
+
+  // MYK9-1818: Storage is a staff tool; an exhibitor-only account never sees it.
+  it('hides Storage from an exhibitor-only account and still lists the other sections', () => {
+    mockGetUserRoles.mockImplementation(() => [UserRole.EXHIBITOR]);
+    render();
+    expect(screen.queryByRole('button', { name: 'Storage' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Install app' })).toBeInTheDocument();
+  });
+
+  it('falls back to Profile when an exhibitor-only account deep links to Storage', () => {
+    mockGetUserRoles.mockImplementation(() => [UserRole.EXHIBITOR]);
+    render('/account?section=data');
+    expect(screen.queryByTestId('data-settings')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Profile' })).toHaveAttribute('aria-current', 'page');
+  });
+
+  // Roles can arrive after the first render: Storage may show for a moment, and then the page
+  // must fall back AND drop the section from the address.
+  it('drops section=data from the URL once roles show an exhibitor-only account', async () => {
+    mockGetUserRoles.mockImplementation(() => []);
+    const view = renderWithProviders(
+      <>
+        <AccountPage />
+        <LocationProbe />
+      </>,
+      { initialRoute: '/account?section=data' }
+    );
+    expect(screen.getByTestId('data-settings')).toBeInTheDocument();
+
+    mockGetUserRoles.mockImplementation(() => [UserRole.EXHIBITOR]);
+    view.rerender(
+      <>
+        <AccountPage />
+        <LocationProbe />
+      </>
+    );
+
+    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/account'));
+    expect(screen.getByTestId('location').textContent).not.toContain('section=data');
+    expect(screen.queryByTestId('data-settings')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Profile' })).toHaveAttribute('aria-current', 'page');
+  });
+
+  it('keeps Storage for a staff account that deep links to it', () => {
+    render('/account?section=data');
     expect(screen.getByTestId('data-settings')).toBeInTheDocument();
   });
 

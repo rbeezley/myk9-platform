@@ -46,7 +46,7 @@ describe('useSyncNote', () => {
 
     mocks.sync.status = 'conflict';
     expect(renderHook(() => useSyncNote()).result.current).toEqual({
-      label: 'Sync needs attention',
+      label: 'Some changes need attention',
       needsAttention: true,
     });
 

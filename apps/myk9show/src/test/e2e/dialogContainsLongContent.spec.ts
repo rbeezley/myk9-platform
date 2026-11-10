@@ -136,22 +136,26 @@ const CASES: DialogCase[] = [
     source: 'src/components/ui/alert-dialog/alert-dialog.tsx',
     selector: '[role="alertdialog"]',
     dataDependency:
-      'an onboarded exhibitor -- /account?section=data renders "Clear Cache" for every user, ' +
-      'but only once the exhibitor_profiles row stops the /onboarding redirect. The confirm ' +
-      'dialog opens only when the device has no unsynced mutations, which is always true in a ' +
-      'fresh browser context.',
+      'an onboarded exhibitor who goes offline and chooses "Sign out" in the account menu: ' +
+      'the offline sign-out warning is an AlertDialog for every role. (The Storage section ' +
+      'used to supply one, but it is hidden from exhibitor-only accounts since MYK9-1818.)',
     async open(page) {
       await installExhibitorFixture(page);
-      await signInAsExhibitor(page, '/account?section=data');
-      const trigger = page.getByRole('button', { name: 'Clear Cache', exact: true });
+      await signInAsExhibitor(page, '/exhibitor/entries');
+      await page.context().setOffline(true);
+      await page.evaluate(() => window.dispatchEvent(new Event('offline')));
+      await page
+        .getByRole('button', { name: /^Account menu/ })
+        .first()
+        .click();
+      const trigger = page.getByRole('menuitem', { name: /sign out/i });
       await expect(
         trigger,
-        'no "Clear Cache" button on /account?section=data. This spec needs it to obtain an ' +
-          'open AlertDialog; the Storage section or its section param has moved.'
+        'no "Sign out" item in the account menu. This spec needs it to obtain an open ' +
+          'AlertDialog (the offline sign-out warning).'
       ).toBeVisible();
       await trigger.click();
-      // Never confirmed: the action clears local storage and reloads. The
-      // dialog is opened only to measure the primitive's grid track.
+      // Never confirmed: the dialog is opened only to measure the primitive's grid track.
     },
   },
 ];

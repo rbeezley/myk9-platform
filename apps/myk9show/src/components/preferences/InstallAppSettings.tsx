@@ -22,7 +22,8 @@ export function InstallAppSettings() {
         <Alert className="border-success/30 bg-success/10 text-success ">
           <CheckCircle2 className="h-4 w-4 text-success " />
           <AlertDescription>
-            <span className="font-medium">App Installed</span> — Running as standalone app
+            <span className="font-medium">App installed.</span> It opens like any other app on your
+            device.
           </AlertDescription>
         </Alert>
       ) : null}

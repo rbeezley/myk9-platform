@@ -92,7 +92,8 @@ describe('premium publish coordinator chunk loading', () => {
 
     await expect(coordinator.runPremiumPublishOperation(op)).rejects.toMatchObject({
       code: 'app-updated',
-      message: 'The app was updated — reload the page and publish again',
+      message:
+        'A newer version of myK9Show is available. Choose "Restart the app" in the account menu, then publish again.',
     });
 
     expect(beginMock).not.toHaveBeenCalled();

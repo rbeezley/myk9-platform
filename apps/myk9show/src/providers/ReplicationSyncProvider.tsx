@@ -69,6 +69,12 @@ import {
 } from './replicationSyncFormatters';
 import { markOnline } from './syncCadence';
 import { useSyncPassScheduler } from './useSyncPassScheduler';
+import {
+  CONFLICT_KEEP_LOCAL_LABEL,
+  CONFLICT_TAKE_REMOTE_LABEL,
+  CONFLICT_TOAST_DESCRIPTION,
+  CONFLICT_TOAST_TITLE,
+} from '@/lib/offlineCopy';
 import { useDiscardRevertCacheSync } from './useDiscardRevertCacheSync';
 import { useRegistrationsReplicaCacheSync } from './useRegistrationsReplicaCacheSync';
 import {
@@ -645,8 +651,8 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
       // standing data-loss risk the user must act on, not a transient blip.
       toast.error(
         count
-          ? `Sync backlog is full (${count} changes waiting). Connect to the internet to sync now — new changes may not save until it clears.`
-          : 'Sync backlog is full. Connect to the internet to sync now — new changes may not save until it clears.',
+          ? `This device is holding ${count} changes that have not been sent. Connect to the internet so they can be sent. New changes may not be saved until then.`
+          : 'This device is holding too many changes that have not been sent. Connect to the internet so they can be sent. New changes may not be saved until then.',
         { id: 'replication-queue-overflow', duration: Infinity }
       );
       triggerSyncRef.current?.();
@@ -660,7 +666,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
     const handleRecovery = (event: Event) => {
       const { reason } = (event as CustomEvent<{ reason: string }>).detail;
       logger.warn('IndexedDB recovery triggered', 'replication', { reason });
-      notifications.info('Resyncing local data...');
+      notifications.info("Getting this device's show data back. This can take a moment.");
       // The circuit breaker deleted and recreated the DB. Restore pending +
       // failed mutations from the localStorage backup BEFORE the download sync,
       // so unsynced scores survive the wipe instead of being silently lost.
@@ -824,14 +830,14 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
       const tableConfig = REPLICATED_TABLES.find(t => t.name === detail.tableName);
       const anyTable = tableConfig?.table as ReplicatedTable<{ id: string }> | undefined;
 
-      toast.warning('This record was changed elsewhere', {
+      toast.warning(CONFLICT_TOAST_TITLE, {
         id: conflictId,
         // INTENT: Conflict toasts persist until the user makes an explicit choice.
         // See docs/plan-show-presence.md §7 conflict-state lifecycle.
         duration: Infinity,
-        description: `${detail.fields.length === 1 ? 'Field' : 'Fields'} changed: ${detail.fields.join(', ')}`,
+        description: CONFLICT_TOAST_DESCRIPTION,
         action: {
-          label: 'Take theirs',
+          label: CONFLICT_TAKE_REMOTE_LABEL,
           onClick: () => {
             // Replace local row with remote data (reads snapshot from IDB) AND
             // discard the pending mutation that would re-upload the old local value.
@@ -843,7 +849,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
           },
         },
         cancel: {
-          label: 'Keep mine',
+          label: CONFLICT_KEEP_LOCAL_LABEL,
           onClick: () => {
             // Clear the conflict snapshot and let the table refresh queued
             // mutation OCC state from the resolved row.

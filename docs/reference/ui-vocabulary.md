@@ -95,3 +95,30 @@ The in-progress set an exhibitor is building and paying for is **"your entry"** 
 ### "New" as an adjective
 
 `new` survives where it separates a new person from picking an existing one in the same control, not as a synonym for `Add`: **Add new judge (person not in system)** and **Add new Show Chairman** in the show wizard's officials pickers. The action still starts with `Add`.
+
+## Offline and updates
+
+Audience: older, retired, low-computer-skill volunteers and exhibitors, usually at a venue on poor Wi-Fi (MYK9-1818). Say where the change is and what happens next, in the words a person would use out loud. The shared sentences live in `apps/myk9show/src/lib/offlineCopy.ts`.
+
+| Say                                              | Instead of                                  |
+| ------------------------------------------------ | ------------------------------------------- |
+| saved on this device                             | queued, cached, local storage, stored local |
+| will be sent when you are back online            | will sync, syncing, synced, backlog         |
+| not been sent yet                                | unsynced, pending sync                      |
+| update the app (a new version is applied)        | reload, refresh the page, new build         |
+| restart the app (just starts it again)           | refresh app, reload                         |
+| add to your home screen                          | install as a standalone app                 |
+| we could not reach myK9Show                      | the server is down, server error            |
+| this was changed somewhere else at the same time | conflict, record changed elsewhere          |
+| keep the other change / keep my change           | use their change, take theirs, keep mine    |
+| getting this device's show data back             | checking local data, resyncing              |
+| saved data (the "Storage" section, staff)        | cache, cached data, clear cache             |
+
+No em dashes in these strings.
+
+Rules:
+
+- **"Update the app"** only where a newer version is really being applied (the update prompt in `main.tsx`, `StaleSchemaBanner`). **"Restart the app"** where the control just starts the app again: the account menu item (it applies a waiting update when there is one, otherwise it reloads the page). Never say "update" for a plain reload.
+- The conflict notice says "This was changed somewhere else at the same time", then "Choose which change to keep. The other one is thrown away." with the buttons "Keep the other change" and "Keep my change". The words live in `offlineCopy.ts`; the Verify blocked reason uses the same constants.
+- Today the Account "Storage" section is for staff only. The sync-failure "Reason:" line is still shown to everyone, including exhibitors; hiding it from exhibitors is planned and not built yet.
+- Point at the account menu with the words it really shows: "All changes saved", "Saving changes...", "Offline. Changes saved on this device".

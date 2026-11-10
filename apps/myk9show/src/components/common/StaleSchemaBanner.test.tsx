@@ -72,7 +72,7 @@ describe('StaleSchemaBanner', () => {
     signal('version-change');
 
     expect(screen.getByRole('alert')).toHaveTextContent(
-      'myK9Show was updated. Reload to keep working offline.'
+      'myK9Show was updated. Update the app to keep working offline.'
     );
     await user.click(screen.getByText('go'));
     expect(screen.getByText('next')).toBeInTheDocument();
@@ -93,7 +93,7 @@ describe('StaleSchemaBanner', () => {
     expect(mocks.applyPwaUpdate).not.toHaveBeenCalled();
     expect(reload).not.toHaveBeenCalled();
 
-    await user.click(screen.getByRole('button', { name: 'Reload' }));
+    await user.click(screen.getByRole('button', { name: 'Update the app' }));
 
     expect(mocks.applyPwaUpdate).toHaveBeenCalledTimes(1);
     expect(reload).not.toHaveBeenCalled();
@@ -109,8 +109,8 @@ describe('StaleSchemaBanner', () => {
     const { user } = render(<Shell />);
     signal('version-change');
 
-    expect(screen.getByText('Reconnect to the internet, then reload.')).toBeInTheDocument();
-    const button = screen.getByRole('button', { name: 'Reload' });
+    expect(screen.getByText('Connect to the internet, then update the app.')).toBeInTheDocument();
+    const button = screen.getByRole('button', { name: 'Update the app' });
     expect(button).toBeDisabled();
     await user.click(button);
     expect(mocks.applyPwaUpdate).not.toHaveBeenCalled();
@@ -120,7 +120,7 @@ describe('StaleSchemaBanner', () => {
     act(() => {
       window.dispatchEvent(new Event('online'));
     });
-    expect(screen.getByRole('button', { name: 'Reload' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Update the app' })).toBeEnabled();
     onLine.mockRestore();
   });
 

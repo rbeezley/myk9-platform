@@ -48,9 +48,9 @@ describe('DataSettings cache clear', () => {
     mockGetState.mockReturnValue({ syncQueue: [] });
   });
 
-  it('renders clear cache button', () => {
+  it('renders clear saved data button', () => {
     renderSettings();
-    expect(screen.getByRole('button', { name: /clear cache/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /clear saved data/i })).toBeInTheDocument();
   });
 
   it('shows the offline-first note', () => {
@@ -63,9 +63,11 @@ describe('DataSettings cache clear', () => {
     mockGetState.mockReturnValue({ syncQueue: [{ id: 'score-1' }] });
     const { user, clearSpy } = renderSettings();
 
-    await user.click(screen.getByRole('button', { name: /clear cache/i }));
+    await user.click(screen.getByRole('button', { name: /clear saved data/i }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('3 unsynced changes');
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      '3 changes that have not been sent yet'
+    );
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     expect(clearSpy).not.toHaveBeenCalled();
     expect(mockReload).not.toHaveBeenCalled();
@@ -73,10 +75,10 @@ describe('DataSettings cache clear', () => {
 
   it('opens a descriptive confirmation when queues are empty', async () => {
     const { user } = renderSettings();
-    await user.click(screen.getByRole('button', { name: /^clear cache$/i }));
+    await user.click(screen.getByRole('button', { name: /^clear saved data$/i }));
 
-    expect(await screen.findByRole('alertdialog')).toHaveTextContent(/cached show data/i);
-    expect(screen.getByRole('button', { name: /keep cached data/i })).toBeInTheDocument();
+    expect(await screen.findByRole('alertdialog')).toHaveTextContent(/saved show data/i);
+    expect(screen.getByRole('button', { name: /keep saved data/i })).toBeInTheDocument();
   });
 
   it('clears only known disposable storage and preserves replication data', async () => {
@@ -88,8 +90,8 @@ describe('DataSettings cache clear', () => {
     const queryClient = createTestQueryClient();
     const clearSpy = vi.spyOn(queryClient, 'clear');
     const { user } = render(<DataSettings />, { queryClient });
-    await user.click(screen.getByRole('button', { name: /clear cache/i }));
-    await user.click(await screen.findByRole('button', { name: /clear cache and reload/i }));
+    await user.click(screen.getByRole('button', { name: /clear saved data/i }));
+    await user.click(await screen.findByRole('button', { name: /^clear saved data$/i }));
 
     expect(localStorage.getItem('myK9Q_settings')).toBe('{"theme":"dark"}');
     expect(localStorage.getItem('sb-abc123-auth-token')).toBe('{"access_token":"abc"}');
@@ -105,10 +107,12 @@ describe('DataSettings cache clear', () => {
     mockCount.mockResolvedValueOnce(0).mockResolvedValueOnce(1);
     const { user, clearSpy } = renderSettings();
 
-    await user.click(screen.getByRole('button', { name: /^clear cache$/i }));
-    await user.click(await screen.findByRole('button', { name: /clear cache and reload/i }));
+    await user.click(screen.getByRole('button', { name: /^clear saved data$/i }));
+    await user.click(await screen.findByRole('button', { name: /^clear saved data$/i }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('1 unsynced change');
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      '1 change that has not been sent yet'
+    );
     expect(clearSpy).not.toHaveBeenCalled();
     expect(mockReload).not.toHaveBeenCalled();
   });

@@ -81,6 +81,7 @@ describe('CloseOutShowAction', () => {
   });
 
   it('queues replicated closeout updates for only open hierarchy rows', async () => {
+    const { toast } = await import('sonner');
     const { user } = render(<CloseOutShowAction {...baseProps} />);
 
     await user.click(screen.getByRole('button', { name: 'Close Out Show' }));
@@ -89,6 +90,7 @@ describe('CloseOutShowAction', () => {
     await waitFor(() =>
       expect(updateShowMock).toHaveBeenCalledWith('show-1', { status: 'completed' })
     );
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Show closeout saved.'));
     expect(updateTrialMock).toHaveBeenCalledTimes(1);
     expect(updateTrialMock).toHaveBeenCalledWith('trial-open', { status: 'completed' });
     expect(updateClassMock).toHaveBeenCalledTimes(1);
@@ -110,9 +112,7 @@ describe('CloseOutShowAction', () => {
     await user.click(await screen.findByRole('button', { name: 'Close out show' }));
 
     expect(
-      await screen.findByText(
-        'Closeout did not finish. Try again after checking your connection and sync status.'
-      )
+      await screen.findByText('Closeout did not finish. Try again after checking your connection.')
     ).toBeInTheDocument();
     expect(updateShowMock).not.toHaveBeenCalled();
     expect(toast.error).toHaveBeenCalledWith('Closeout did not finish. Please try again.');
@@ -128,9 +128,7 @@ describe('CloseOutShowAction', () => {
     await user.click(await screen.findByRole('button', { name: 'Close out show' }));
 
     expect(
-      await screen.findByText(
-        'Closeout did not finish. Try again after checking your connection and sync status.'
-      )
+      await screen.findByText('Closeout did not finish. Try again after checking your connection.')
     ).toBeInTheDocument();
     expect(updateTrialMock).toHaveBeenCalledWith('trial-open', { status: 'completed' });
     expect(updateClassMock).toHaveBeenCalledWith('class-open', { classStatus: 'completed' });

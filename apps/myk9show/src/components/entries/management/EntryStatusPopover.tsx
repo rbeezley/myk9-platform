@@ -8,6 +8,7 @@ import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { resolveEntryStatusActions, type EntryStatusActionDefinition } from './entryActions';
 import { getEntryStatusStateLabel } from './reviewStateLabels';
 import { getStatusActionHelp } from './entryVerbHelp';
+import { SENT_WHEN_ONLINE } from '@/lib/offlineCopy';
 import { REVERT_CANCELLED, useScoredRevertGuard } from './useScoredRevertGuard';
 
 interface EntryStatusPopoverProps {
@@ -153,7 +154,7 @@ export function EntryStatusPopover({
 
       {queuedOffline && (
         <span role="status" className="text-xs text-muted-foreground">
-          Status change queued. It will sync when you are back online.
+          Status change saved on this device. It {SENT_WHEN_ONLINE}.
         </span>
       )}
       {failedAction && (

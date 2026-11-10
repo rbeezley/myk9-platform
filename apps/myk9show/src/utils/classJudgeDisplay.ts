@@ -105,7 +105,7 @@ export function formatJudgeAvailabilityWindow(judge: {
 
 /** The text stored for an unset judge (what older habits and exports still say). */
 export const UNSET_JUDGE_STORED_TEXT = UNASSIGNED_LABEL;
-/** Screen label for a class with no judge yet. Screens only: stored and printed values stay 'TBD'. */
+/** Screen label for a class with no judge yet. Writers store no name (MYK9-1853); printed forms are MYK9-1854. */
 export const UNSET_JUDGE_LABEL = 'Judge to be announced';
 /** For a narrow table cell where the full label would wrap. */
 export const UNSET_JUDGE_SHORT_LABEL = 'No judge yet';

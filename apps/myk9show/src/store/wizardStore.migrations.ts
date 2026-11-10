@@ -33,17 +33,29 @@ function recoverSchedule(trial: Record<string, unknown>): Record<string, unknown
   };
 }
 
+const filled = (value: unknown) => typeof value === 'string' && value.trim() !== '';
+
 /**
- * v3 (MYK9-1799): a new show accepts check and cash by default. A saved draft that is still
- * blank (no name, no trial) was written from the old all-off defaults, not chosen by anyone,
- * so it takes the new ones. A draft she has started keeps exactly what it holds.
+ * v3 (MYK9-1799): a new show accepts check and cash by default. A saved draft nobody has
+ * worked on was written from the old all-off defaults, not chosen by anyone, so it takes the
+ * new ones. "Nobody has worked on" is read narrowly: no name, dates, location or trial, and
+ * all three payment methods still off. A draft with online entries on, or with check or
+ * cash already on, carries a choice and keeps exactly what it holds.
  */
 function withNewShowPaymentDefaults(state: Record<string, unknown>): Record<string, unknown> {
   if (!state.show || typeof state.show !== 'object') return state;
   const show = state.show as Record<string, unknown>;
-  const named = typeof show.name === 'string' && show.name.trim() !== '';
-  const hasTrials = Array.isArray(state.trials) && state.trials.length > 0;
-  if (named || hasTrials) return state;
+  const started =
+    filled(show.name) ||
+    filled(show.startDate) ||
+    filled(show.endDate) ||
+    filled(show.location) ||
+    (Array.isArray(state.trials) && state.trials.length > 0);
+  const paymentChosen =
+    show.onlineEntriesEnabled === true ||
+    show.acceptCheckPayments === true ||
+    show.acceptCashPayments === true;
+  if (started || paymentChosen) return state;
   return { ...state, show: { ...show, acceptCheckPayments: true, acceptCashPayments: true } };
 }
 

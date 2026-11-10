@@ -16,6 +16,7 @@ import { createWizardHandlers } from './wizardHandlers';
 import { useWizardDraftRehydration } from './useWizardDraftRehydration';
 import { useWizardRegistrationOwner } from './useWizardRegistrationOwner';
 import { useEmptyEntryReturn } from './useEmptyEntryReturn';
+import { useEntryAgreementScope } from './useEntryAgreementScope';
 
 export function useRegistrationWizard() {
   const state = useRegistrationWizardState();
@@ -69,18 +70,21 @@ export function useRegistrationWizard() {
   }, [dogsLoading, dogs, currentWorkflowConfig.steps, registrationData.selectedDogs.length]);
 
   const { setAgreedToEntryAgreement } = state;
-  // An entry emptied on Payment is a new entry, so its agreement is asked again. Back and
-  // the step indicator keep the tick (MYK9-1799).
-  const resetEntryAgreement = useCallback(
+  const untickEntryAgreement = useCallback(
     () => setAgreedToEntryAgreement(false),
     [setAgreedToEntryAgreement]
   );
+  const entryCount = state.classSelections.reduce((n, s) => n + s.selectedClasses.length, 0);
+  useEntryAgreementScope({
+    dogCount: registrationData.selectedDogs.length,
+    entryCount,
+    untick: untickEntryAgreement,
+  });
   const emptyEntryNoticeShown = useEmptyEntryReturn({
     currentStepId: state.currentStepId,
-    entryCount: state.classSelections.reduce((n, s) => n + s.selectedClasses.length, 0),
+    entryCount,
     stepIds: currentWorkflowConfig.steps,
     setCurrentStep: state.setCurrentStep,
-    onEntryEmptied: resetEntryAgreement,
   });
 
   return { ...state, ...handlers, rehydrationSettled, emptyEntryNoticeShown };

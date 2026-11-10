@@ -225,8 +225,8 @@ export function createWizardHandlers(state: RegistrationWizardState) {
 
   // Stepping back from Payment keeps the entry agreement tick (owner decision, MYK9-1799):
   // she agreed to the organization's terms, not to a particular list of classes, so making
-  // her tick it again after every look at Classes was a repeat step. A cleared dog selection
-  // or an emptied entry still unticks it; those start a new entry.
+  // her tick it again after every look at Classes was a repeat step. An emptied entry still
+  // unticks it (`useEntryAgreementScope`): what she builds next is a new entry.
   const handleBack = () => {
     if (currentStep > 0) {
       setCurrentStep(prev => prev - 1);

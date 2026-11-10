@@ -7,9 +7,6 @@ interface EmptyEntryReturnArgs {
   /** Step ids in wizard order. */
   stepIds: readonly string[];
   setCurrentStep: (step: number) => void;
-  /** Called when the entry is emptied on Payment; the wizard unticks the entry agreement,
-   * since what she builds next is a new entry. */
-  onEntryEmptied?: () => void;
 }
 
 /**
@@ -31,7 +28,6 @@ export function useEmptyEntryReturn({
   entryCount,
   stepIds,
   setCurrentStep,
-  onEntryEmptied,
 }: EmptyEntryReturnArgs): boolean {
   // The notice is derived during render from how the count and step changed
   // (React's "adjust state when a prop changes" pattern), so no effect sets it.
@@ -59,10 +55,9 @@ export function useEmptyEntryReturn({
     previousCount.current = entryCount;
     const classesIndex = stepIds.indexOf('class-selection');
     if (emptied && currentStepId === 'payment' && classesIndex >= 0) {
-      onEntryEmptied?.();
       setCurrentStep(classesIndex);
     }
-  }, [entryCount, currentStepId, stepIds, setCurrentStep, onEntryEmptied]);
+  }, [entryCount, currentStepId, stepIds, setCurrentStep]);
 
   return tracked.notice && currentStepId === 'class-selection' && entryCount === 0;
 }

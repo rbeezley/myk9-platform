@@ -75,6 +75,20 @@ describe('wizard store migration', () => {
       expect(migrateWizardState(persisted, 2)).toBe(persisted);
     });
 
+    it('leaves an unnamed draft set to online entries only exactly as she left it', () => {
+      const persisted = { show: { ...offShow, onlineEntriesEnabled: true }, trials: [] };
+
+      expect(migrateWizardState(persisted, 2)).toBe(persisted);
+    });
+
+    it('leaves an unnamed draft that already has dates or a location as she left it', () => {
+      const dated = { show: { ...offShow, startDate: '2026-10-10T05:00:00.000Z' }, trials: [] };
+      const placed = { show: { ...offShow, location: 'Fairgrounds' }, trials: [] };
+
+      expect(migrateWizardState(dated, 2)).toBe(dated);
+      expect(migrateWizardState(placed, 2)).toBe(placed);
+    });
+
     it('leaves a draft that already has a trial exactly as she left it', () => {
       const persisted = { show: offShow, trials: [{ id: 'one', trialDate: '2026-10-10' }] };
 

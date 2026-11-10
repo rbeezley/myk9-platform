@@ -65,12 +65,16 @@ const PANE_TOP_INSET = { '--app-top-inset': '0px' } as CSSProperties;
  *   (Find Shows is the full-width page; a row tap is a page hop).
  * - From `lg`, with a show open, wherever the show beside the list still gets the cockpit's split
  *   (`showsPaneFolds`, measured on this page's own width): the list beside the open show.
- * - Narrower than that, with a show open, the list folds away behind a "Shows" button, so the show keeps its full width, and the viewer's open/folded choice is
- *   remembered. The rule is the same on every show tab, so switching tabs never moves the list.
- *   Where the list fits there is no Hide: a list dragged wider than its default narrows the show,
- *   and the cockpit stacks rather than squeeze until it is dragged back. A remembered "hide even
- *   where it fits" was tried and removed in review: it overrode this rule on every other screen
- *   (docs/plan-sidebar-browse-pane.md, phase 2).
+ * - Narrower than that, with a show open, the list starts folded behind a "Shows" button, so the show
+ *   keeps its full width. The rule is the same on every show tab, so switching tabs never moves the list.
+ * - Hide is offered beside an open show at every width, and the viewer's open/folded choice is
+ *   remembered separately for each regime (`shows-pane` where the list does not fit, default
+ *   folded; `shows-pane-wide` where it fits, default open), so someone who never clicks Hide sees
+ *   exactly what they saw before. History: a Hide where the list fits was tried and removed in
+ *   review (docs/plan-sidebar-browse-pane.md, phase 2) because one shared choice overrode the
+ *   automatic fold on every other screen; the owner's 2026-11-10 request (MYK9-1868) reinstated
+ *   it for Show Desk, with the second preference so that cannot happen. Reopening a hidden list
+ *   at a width where it fits narrows the show, and the cockpit stacks until it is hidden again.
  *
  * The route always renders in the same tree position, so folding, unfolding and crossing the fold
  * width never remount the open show (its forms, scroll and reads survive).
@@ -96,7 +100,6 @@ const ShowsMasterDetailPage: React.FC = () => {
 function ShowsPaneSplit({ showId, tab }: { showId: string; tab: ShowPaneTab }) {
   // Measured inside the page padding, on a box whose width folding never changes.
   const { ref: splitRef, width: splitWidth } = useElementWidth<HTMLDivElement>();
-  const [paneMode, setPaneMode] = useViewPreference<PaneMode>('shows-pane', 'folded', PANE_MODES);
   const focusAfterToggle = useRef<'list' | 'shows-button' | null>(null);
 
   // Read each render (a resize, a tab or show change), not on drag: dragging the list wider where
@@ -104,7 +107,15 @@ function ShowsPaneSplit({ showId, tab }: { showId: string; tab: ShowPaneTab }) {
   const listWidth =
     splitWidth === null ? undefined : showsListWidth(splitWidth, readSavedListPercent('shows'));
   const canFold = showsPaneFolds(splitWidth, tab, listWidth);
-  const folded = canFold && paneMode === 'folded';
+  // Two remembered choices, one per regime, so neither changes what the other shows: where the
+  // list does not fit it starts folded (`shows-pane`); where it fits it starts open and stays so
+  // until the viewer hides it (`shows-pane-wide`, MYK9-1868).
+  const [paneMode, setPaneMode] = useViewPreference<PaneMode>(
+    canFold ? 'shows-pane' : 'shows-pane-wide',
+    canFold ? 'folded' : 'open',
+    PANE_MODES
+  );
+  const folded = paneMode === 'folded';
 
   // The control that was clicked unmounts on toggle; put focus where the reader now is.
   useEffect(() => {
@@ -124,7 +135,7 @@ function ShowsPaneSplit({ showId, tab }: { showId: string; tab: ShowPaneTab }) {
     setPaneMode(next);
   };
 
-  const hideButton = canFold ? (
+  const hideButton = (
     <Button
       variant="ghost"
       aria-label="Hide shows list"
@@ -136,7 +147,7 @@ function ShowsPaneSplit({ showId, tab }: { showId: string; tab: ShowPaneTab }) {
       {/* MYK9-1727: on a narrow list only the icon shows, leaving the search box room. */}
       <span className="hidden [@container(min-width:19rem)]:inline">Hide</span>
     </Button>
-  ) : null;
+  );
 
   return (
     <div className="px-[var(--app-shell-page-padding,1rem)] py-4 sm:px-6">

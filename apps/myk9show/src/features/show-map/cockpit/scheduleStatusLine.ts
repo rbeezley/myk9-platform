@@ -47,7 +47,7 @@ function nextStepAfterScoring(items: readonly ClassChecklistItem[]): string | nu
 
 /**
  * The schedule row's second line, from the class's lifecycle, its entries' run statuses and its
- * checklist. Pure so each case is a unit test: `Not started · 3 not checked in`,
+ * checklist. Pure so each case is a unit test: `Not started · 3 of 5 not checked in`,
  * `Running · 2 of 6 scored · Willow in ring`, `Print preliminary results`, `Waiting on judge signature`,
  * `Complete`. Without the checklist in use a complete class just reads `Complete`.
  */
@@ -76,7 +76,10 @@ export function buildStatusLine(cls: SecretaryCockpitClass, checklistInUse: bool
     case 'not-started':
       return line([
         'Not started',
-        counts.notCheckedIn > 0 ? `${counts.notCheckedIn} not checked in` : null,
+        // Of the same entered total the running case counts; notCheckedIn is 0 while entries are unread.
+        counts.notCheckedIn > 0
+          ? `${counts.notCheckedIn} of ${counts.entered} not checked in`
+          : null,
       ]);
     default:
       return line(['Status not set']);

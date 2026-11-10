@@ -135,7 +135,7 @@ export function DataSettings() {
             <div className="space-y-0.5">
               <Label className="font-medium">Clear saved data</Label>
               <div className="text-sm text-muted-foreground">
-                Removes disposable data saved on this device and updates the app. Your account
+                Removes disposable data saved on this device. The app will start again. Your account
                 settings and login are preserved.
               </div>
             </div>
@@ -168,7 +168,7 @@ export function DataSettings() {
           <AlertDialogHeader>
             <AlertDialogTitle>Clear saved data?</AlertDialogTitle>
             <AlertDialogDescription>
-              This removes saved show data, entry-in-progress contents, drafts, armband data, and
+              This removes saved show data, your unfinished entries, drafts, armband data, and
               notification preferences from this device. Your account settings, login, and changes
               not yet sent are not removed.
             </AlertDialogDescription>
@@ -176,7 +176,7 @@ export function DataSettings() {
           <AlertDialogFooter>
             <AlertDialogCancel>Keep saved data</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmClearCache} disabled={isChecking}>
-              {isChecking ? 'Checking…' : 'Clear saved data and update the app'}
+              {isChecking ? 'Checking…' : 'Clear saved data'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

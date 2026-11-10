@@ -95,7 +95,7 @@ export function CloseOutShowAction({
 
     setIsClosing(false);
     setIsConfirmOpen(false);
-    toast.success('Show closeout recorded.');
+    toast.success('Show closeout saved.');
   }
 
   if (showClosed) {

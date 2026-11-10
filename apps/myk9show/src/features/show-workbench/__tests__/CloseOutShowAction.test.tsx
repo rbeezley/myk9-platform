@@ -81,6 +81,7 @@ describe('CloseOutShowAction', () => {
   });
 
   it('queues replicated closeout updates for only open hierarchy rows', async () => {
+    const { toast } = await import('sonner');
     const { user } = render(<CloseOutShowAction {...baseProps} />);
 
     await user.click(screen.getByRole('button', { name: 'Close Out Show' }));
@@ -89,6 +90,7 @@ describe('CloseOutShowAction', () => {
     await waitFor(() =>
       expect(updateShowMock).toHaveBeenCalledWith('show-1', { status: 'completed' })
     );
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Show closeout saved.'));
     expect(updateTrialMock).toHaveBeenCalledTimes(1);
     expect(updateTrialMock).toHaveBeenCalledWith('trial-open', { status: 'completed' });
     expect(updateClassMock).toHaveBeenCalledTimes(1);

@@ -91,9 +91,7 @@ describe('DataSettings cache clear', () => {
     const clearSpy = vi.spyOn(queryClient, 'clear');
     const { user } = render(<DataSettings />, { queryClient });
     await user.click(screen.getByRole('button', { name: /clear saved data/i }));
-    await user.click(
-      await screen.findByRole('button', { name: /clear saved data and update the app/i })
-    );
+    await user.click(await screen.findByRole('button', { name: /^clear saved data$/i }));
 
     expect(localStorage.getItem('myK9Q_settings')).toBe('{"theme":"dark"}');
     expect(localStorage.getItem('sb-abc123-auth-token')).toBe('{"access_token":"abc"}');
@@ -110,9 +108,7 @@ describe('DataSettings cache clear', () => {
     const { user, clearSpy } = renderSettings();
 
     await user.click(screen.getByRole('button', { name: /^clear saved data$/i }));
-    await user.click(
-      await screen.findByRole('button', { name: /clear saved data and update the app/i })
-    );
+    await user.click(await screen.findByRole('button', { name: /^clear saved data$/i }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       '1 change that has not been sent yet'

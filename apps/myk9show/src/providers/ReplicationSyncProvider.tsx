@@ -69,6 +69,12 @@ import {
 } from './replicationSyncFormatters';
 import { markOnline } from './syncCadence';
 import { useSyncPassScheduler } from './useSyncPassScheduler';
+import {
+  CONFLICT_KEEP_LOCAL_LABEL,
+  CONFLICT_TAKE_REMOTE_LABEL,
+  CONFLICT_TOAST_DESCRIPTION,
+  CONFLICT_TOAST_TITLE,
+} from '@/lib/offlineCopy';
 import { useDiscardRevertCacheSync } from './useDiscardRevertCacheSync';
 import { useRegistrationsReplicaCacheSync } from './useRegistrationsReplicaCacheSync';
 import {
@@ -660,7 +666,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
     const handleRecovery = (event: Event) => {
       const { reason } = (event as CustomEvent<{ reason: string }>).detail;
       logger.warn('IndexedDB recovery triggered', 'replication', { reason });
-      notifications.info('Checking the show data saved on this device...');
+      notifications.info("Getting this device's show data back. This can take a moment.");
       // The circuit breaker deleted and recreated the DB. Restore pending +
       // failed mutations from the localStorage backup BEFORE the download sync,
       // so unsynced scores survive the wipe instead of being silently lost.
@@ -824,14 +830,14 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
       const tableConfig = REPLICATED_TABLES.find(t => t.name === detail.tableName);
       const anyTable = tableConfig?.table as ReplicatedTable<{ id: string }> | undefined;
 
-      toast.warning('Someone else changed this at the same time', {
+      toast.warning(CONFLICT_TOAST_TITLE, {
         id: conflictId,
         // INTENT: Conflict toasts persist until the user makes an explicit choice.
         // See docs/plan-show-presence.md §7 conflict-state lifecycle.
         duration: Infinity,
-        description: 'Choose which change to use.',
+        description: CONFLICT_TOAST_DESCRIPTION,
         action: {
-          label: 'Use their change',
+          label: CONFLICT_TAKE_REMOTE_LABEL,
           onClick: () => {
             // Replace local row with remote data (reads snapshot from IDB) AND
             // discard the pending mutation that would re-upload the old local value.
@@ -843,7 +849,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
           },
         },
         cancel: {
-          label: 'Keep my change',
+          label: CONFLICT_KEEP_LOCAL_LABEL,
           onClick: () => {
             // Clear the conflict snapshot and let the table refresh queued
             // mutation OCC state from the resolved row.

@@ -210,21 +210,21 @@ describe('AccountMenuContent AskQ item (phone consolidation)', () => {
   });
 });
 
-describe('AccountMenuContent Update the app item (MYK9-1549)', () => {
+describe('AccountMenuContent Restart the app item (MYK9-1549)', () => {
   it('is offered to a non-admin outside development builds and runs the refresh', async () => {
     process.env.NODE_ENV = 'production';
     const { user } = renderOpenAccountMenu();
-    await user.click(screen.getByRole('menuitem', { name: 'Update the app' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Restart the app' }));
     expect(refreshApp).toHaveBeenCalledOnce();
     process.env.NODE_ENV = originalNodeEnv;
   });
 });
 
-describe('AccountMenuContent Update the app offline (MYK9-1549)', () => {
+describe('AccountMenuContent Restart the app offline (MYK9-1549)', () => {
   it('is disabled and says it needs a connection', async () => {
     networkState.isOnline = false;
     const { user } = renderOpenAccountMenu();
-    const item = screen.getByRole('menuitem', { name: 'Update the app (needs a connection)' });
+    const item = screen.getByRole('menuitem', { name: 'Restart the app (needs a connection)' });
     expect(item).toHaveAttribute('aria-disabled', 'true');
     await user.click(item);
     expect(refreshApp).not.toHaveBeenCalled();
@@ -299,7 +299,7 @@ describe('AccountMenuContent organization', () => {
       'Dark mode',
       'Help & Guides',
       'About',
-      'Update the app',
+      'Restart the app',
       'Sign out',
     ]);
   });

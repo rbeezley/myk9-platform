@@ -23,7 +23,7 @@ describe('classRowSyncBlockedReason', () => {
   it('is clear only when the class is known to be settled', () => {
     expect(classRowSyncBlockedReason('settled')).toBeNull();
     expect(classRowSyncBlockedReason('waiting')).toMatch(/Waiting for this class/);
-    expect(classRowSyncBlockedReason('conflict')).toMatch(/changed elsewhere/);
+    expect(classRowSyncBlockedReason('conflict')).toMatch(/changed somewhere else/);
   });
 });
 

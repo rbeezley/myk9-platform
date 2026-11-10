@@ -32,7 +32,6 @@ import { clearDevelopmentCache } from '@/utils/clearDevelopmentCache';
 import { UserRole } from '@/types/auth-types';
 import { refreshApp } from '@/services/pwa/refreshApp';
 import { formatRoleLabel } from '@/lib/roleLabel';
-import { UPDATE_THE_APP_LABEL } from '@/lib/offlineCopy';
 import { AskQIcon } from '@/components/layout/AskQIcon';
 
 export interface DevActionRequest {
@@ -209,7 +208,7 @@ export function AccountMenuContent({
         className="cursor-pointer"
       >
         <RefreshCw className="h-4 w-4 mr-2" />
-        {isOffline ? `${UPDATE_THE_APP_LABEL} (needs a connection)` : UPDATE_THE_APP_LABEL}
+        {isOffline ? 'Restart the app (needs a connection)' : 'Restart the app'}
       </DropdownMenuItem>
 
       {/* Development Tools */}

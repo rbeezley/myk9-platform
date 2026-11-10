@@ -147,7 +147,7 @@ describe('premium publish error contract', () => {
 
     expect(error.code).toBe('app-updated');
     expect(premiumPublishFailureMessage(error)).toBe(APP_UPDATED_MESSAGE);
-    expect(premiumPublishFailureMessage(error)).toMatch(/Update the app/);
+    expect(premiumPublishFailureMessage(error)).toMatch(/Restart the app/);
   });
 
   it('uses the generic retry message when the production body is not recognized', async () => {

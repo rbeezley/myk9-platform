@@ -236,7 +236,10 @@ describe('Phase 3.5: Payment Component Tests', () => {
     it('should show the secretary desk card without tabs (MYK9-1822)', () => {
       render(
         <PaymentStep
-          paymentResolution={makePaymentResolution({ paymentMethod: 'credit_card' })}
+          paymentResolution={makePaymentResolution({
+            paymentMethod: 'credit_card',
+            canUseDeskPaymentActions: true,
+          })}
           {...defaultProps}
         />
       );

@@ -99,7 +99,7 @@ export function FocusedClassActionsMenu({
 }) {
   const [expectedOpen, setExpectedOpen] = useState(false);
   const [delayOpen, setDelayOpen] = useState(false);
-  const status = useClassStatusChange({ classId, unenteredScoreCount });
+  const status = useClassStatusChange({ classId, className, unenteredScoreCount });
 
   const entriesLink = entriesHref && (
     <Link to={entriesHref} className="flex w-full items-center gap-2">

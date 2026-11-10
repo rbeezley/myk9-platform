@@ -2,6 +2,7 @@
  * MYK9-1799 (owner decision 2026-11-09): a new show's name is suggested from the club and
  * the month it starts, and the suggestion never replaces a name that is the secretary's.
  */
+import { StrictMode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { suggestShowName, useSuggestedShowName } from './useSuggestedShowName';
@@ -37,7 +38,7 @@ interface Props {
   name?: string;
 }
 
-function setup(initial: Props = {}) {
+function setup(initial: Props = {}, options: { strict?: boolean } = {}) {
   const setName = vi.fn<(name: string) => void>();
   const withDefaults = (props: Props) => ({
     enabled: props.enabled ?? true,
@@ -49,6 +50,7 @@ function setup(initial: Props = {}) {
   });
   const hook = renderHook((props: Props) => useSuggestedShowName(withDefaults(props)), {
     initialProps: initial,
+    ...(options.strict ? { wrapper: StrictMode } : {}),
   });
   return { setName, rerender: hook.rerender };
 }
@@ -67,6 +69,30 @@ describe('useSuggestedShowName', () => {
     const { setName, rerender } = setup();
     rerender({ name: 'Heartland October 2026' });
 
+    rerender({ name: 'Heartland October 2026', startDate: day(2026, 11, 14) });
+
+    expect(setName).toHaveBeenLastCalledWith('Heartland November 2026');
+  });
+
+  it('goes on following the dates after she leaves the step and comes back', () => {
+    const first = setup();
+    first.rerender({ name: 'Heartland October 2026' });
+
+    // A new mount, as Next then Back gives: the name is still the suggestion for these dates.
+    const { setName, rerender } = setup({ name: 'Heartland October 2026' });
+    expect(setName).not.toHaveBeenCalled();
+    rerender({ name: 'Heartland October 2026', startDate: day(2026, 11, 14) });
+
+    expect(setName).toHaveBeenCalledWith('Heartland November 2026');
+  });
+
+  it('does not take its own write for her edit when the effect re-runs before it lands', () => {
+    // StrictMode runs the mount effect twice with the same props: the second run still
+    // sees the blank name the first one replaced.
+    const { setName, rerender } = setup({}, { strict: true });
+    expect(setName).toHaveBeenCalledWith('Heartland October 2026');
+
+    rerender({ name: 'Heartland October 2026' });
     rerender({ name: 'Heartland October 2026', startDate: day(2026, 11, 14) });
 
     expect(setName).toHaveBeenLastCalledWith('Heartland November 2026');

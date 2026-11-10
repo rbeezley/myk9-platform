@@ -42,6 +42,8 @@ export function useSuggestedShowName({
   setName,
 }: SuggestedShowNameArgs): void {
   const lastWritten = useRef<string | null>(null);
+  /** The name our last write replaced, until a render shows the write has landed. */
+  const replaced = useRef<string | null>(null);
   const hers = useRef(false);
   const generation = useRef(draftGeneration);
 
@@ -49,14 +51,27 @@ export function useSuggestedShowName({
     if (generation.current !== draftGeneration) {
       generation.current = draftGeneration;
       lastWritten.current = null;
+      replaced.current = null;
       hers.current = false;
+    }
+    // An effect re-run that still sees the name we just replaced has not caught up with the
+    // write (React re-runs effects with the same props in development). It is not her edit.
+    if (replaced.current !== null) {
+      if (name === replaced.current) return;
+      replaced.current = null;
+    }
+
+    const suggestion = suggestShowName(clubName, startDate);
+    // Back on this step after a look at Trials: the refs are new, but a name that still
+    // matches the suggestion is ours, so it goes on following the dates.
+    if (lastWritten.current === null && name !== '' && name === suggestion) {
+      lastWritten.current = name;
     }
     const untouchedBlank = lastWritten.current === null && name === '';
     if (name !== lastWritten.current && !untouchedBlank) hers.current = true;
-    if (hers.current || !enabled) return;
+    if (hers.current || !enabled || !suggestion || suggestion === name) return;
 
-    const suggestion = suggestShowName(clubName, startDate);
-    if (!suggestion || suggestion === name) return;
+    replaced.current = name;
     lastWritten.current = suggestion;
     setName(suggestion);
   }, [enabled, draftGeneration, clubName, startDate, name, setName]);

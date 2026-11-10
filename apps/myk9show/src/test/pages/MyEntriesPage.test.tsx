@@ -1647,4 +1647,112 @@ describe('Wait list positions with no waitlisted entry row (MYK9-417)', () => {
       expect(screen.queryByText('My Wait List Positions')).not.toBeInTheDocument()
     );
   });
+
+  describe('declining an offered spot (MYK9-1839)', () => {
+    const seedOffer = () => {
+      const decline = {
+        mutate: vi.fn(),
+        isPending: false,
+        isError: false,
+        error: null,
+        variables: undefined,
+      };
+      mockUseMyWaitlistEntries.mockReturnValue({
+        ...WAITLIST_NONE,
+        entries: [
+          {
+            ...junisPosition,
+            status: 'offered',
+            joinedVia: 'online',
+            offeredAt: '2026-09-02T12:00:00.000Z',
+            offerExpiresAt: '2999-01-01T12:00:00.000Z',
+            promotedEntryId: 'entry-1',
+          },
+        ],
+        activePositionCount: 1,
+        decline,
+      });
+      return decline;
+    };
+
+    it('asks first, and sends nothing until the exhibitor confirms', async () => {
+      const decline = seedOffer();
+      const user = userEvent.setup();
+      renderWithProviders(<MyEntriesPage />);
+
+      await user.click(await screen.findByRole('button', { name: 'Decline' }));
+
+      const dialog = await screen.findByRole('alertdialog');
+      expect(within(dialog).getByText('Give up this spot?')).toBeInTheDocument();
+      expect(dialog).toHaveTextContent('Interior Advanced');
+      expect(dialog).toHaveTextContent('You cannot get it back.');
+      expect(decline.mutate).not.toHaveBeenCalled();
+
+      await user.click(within(dialog).getByRole('button', { name: 'Give up spot' }));
+      expect(decline.mutate).toHaveBeenCalledTimes(1);
+      expect(decline.mutate).toHaveBeenCalledWith('waitlist-1');
+    });
+
+    it('leaves the offer as it was when the exhibitor keeps the spot', async () => {
+      const decline = seedOffer();
+      const user = userEvent.setup();
+      renderWithProviders(<MyEntriesPage />);
+
+      await user.click(await screen.findByRole('button', { name: 'Decline' }));
+      const dialog = await screen.findByRole('alertdialog');
+      await user.click(within(dialog).getByRole('button', { name: 'Keep my spot' }));
+
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+      expect(decline.mutate).not.toHaveBeenCalled();
+      expect(screen.getByRole('button', { name: 'Decline' })).toBeEnabled();
+      expect(screen.getByRole('button', { name: 'Complete payment' })).toBeEnabled();
+    });
+  });
+
+  describe('leaving the wait list (MYK9-1842)', () => {
+    const seedWaiting = () => {
+      const withdraw = { mutate: vi.fn(), isPending: false };
+      mockUseMyWaitlistEntries.mockReturnValue({ ...WAITLIST_NONE, withdraw });
+      seedPosition([junisPosition]);
+      mockUseMyWaitlistEntries.mockReturnValue({
+        ...mockUseMyWaitlistEntries(),
+        withdraw,
+      });
+      return withdraw;
+    };
+
+    it('asks first, and sends nothing until the exhibitor confirms', async () => {
+      const withdraw = seedWaiting();
+      const user = userEvent.setup();
+      renderWithProviders(<MyEntriesPage />);
+
+      await user.click(await screen.findByRole('button', { name: 'Withdraw' }));
+
+      const dialog = await screen.findByRole('alertdialog');
+      expect(within(dialog).getByText('Leave the wait list?')).toBeInTheDocument();
+      expect(dialog).toHaveTextContent(
+        'Juni will lose its place in line for Interior Advanced. You cannot get that place back.'
+      );
+      expect(withdraw.mutate).not.toHaveBeenCalled();
+
+      await user.click(within(dialog).getByRole('button', { name: 'Leave wait list' }));
+      expect(withdraw.mutate).toHaveBeenCalledTimes(1);
+      expect(withdraw.mutate).toHaveBeenCalledWith('waitlist-1');
+    });
+
+    it('leaves the position as it was when the exhibitor stays on the list', async () => {
+      const withdraw = seedWaiting();
+      const user = userEvent.setup();
+      renderWithProviders(<MyEntriesPage />);
+
+      await user.click(await screen.findByRole('button', { name: 'Withdraw' }));
+      const dialog = await screen.findByRole('alertdialog');
+      await user.click(within(dialog).getByRole('button', { name: 'Stay on the list' }));
+
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+      expect(withdraw.mutate).not.toHaveBeenCalled();
+      expect(screen.getByRole('button', { name: 'Withdraw' })).toBeEnabled();
+      expect(screen.getByText('Juni')).toBeInTheDocument();
+    });
+  });
 });

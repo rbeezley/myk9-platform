@@ -34,6 +34,10 @@ import { notifyRunOrderPersistError } from './runOrderErrorToast';
 import { persistRunOrderResults } from './persistRunOrderResults';
 import { toStatusUpdateFields } from './ringsideClassStatusMap';
 
+/** Shown instead of the scoring, check-in and in-ring controls while a class is cancelled. */
+export const CANCELLED_CLASS_MESSAGE =
+  'This class is cancelled. Scoring and check-in are off until the secretary changes its status.';
+
 type ResetConfirmState = { show: boolean; entry: Entry | null };
 
 export interface UseAtShowEntryListHandlersDeps {
@@ -56,6 +60,12 @@ export interface UseAtShowEntryListHandlersDeps {
    * (a judge-set class with no max time yet). See useMaxTimeGate.
    */
   gateEntryClick?: () => boolean;
+  /**
+   * MYK9-1847: the class is cancelled. Scoring, check-in and in-ring changes are not offered;
+   * a tap says so instead. Derived from the class status on each render, so changing the
+   * status back restores them.
+   */
+  classCancelled?: boolean;
   /** Force-refresh from the data hook. */
   refresh: (forceSync?: boolean) => Promise<void>;
   /** Manual refresh control: syncs and records the done/failed/offline answer (MYK9-1746). */
@@ -91,6 +101,7 @@ export function useAtShowEntryListHandlers(
     navigate,
     buildScoreSheetRoute,
     gateEntryClick,
+    classCancelled = false,
     refresh,
     manualRefresh,
     setActiveStatusPopup,
@@ -130,6 +141,10 @@ export function useAtShowEntryListHandlers(
   // ── In-ring set (ring management) ────────────────────────────────────
   const setDogInRingStatus = useCallback<EntryListHandlers['setDogInRingStatus']>(
     async (dogId, inRing) => {
+      if (classCancelled) {
+        toast.info(CANCELLED_CLASS_MESSAGE);
+        return false;
+      }
       // Chain onto the prior call so the read→clear→mark sequence runs
       // atomically relative to other in-ring changes (see inRingMutex above).
       const run = inRingMutex.current.then(async () => {
@@ -157,12 +172,16 @@ export function useAtShowEntryListHandlers(
         return false;
       }
     },
-    [actions]
+    [actions, classCancelled]
   );
 
   // ── Entry tap ────────────────────────────────────────────────────────
   const handleEntryClick = useCallback<EntryListHandlers['handleEntryClick']>(
     entry => {
+      if (classCancelled) {
+        toast.info(CANCELLED_CLASS_MESSAGE);
+        return;
+      }
       if (entry.isScored) {
         // Was a SILENT return. A judge who spots a typo two dogs later taps the
         // card -- the obvious action -- and nothing happens at all: no
@@ -186,7 +205,7 @@ export function useAtShowEntryListHandlers(
       // ringside status mutation; explicit in-ring controls own that write.
       navigate(buildScoreSheetRoute(entry));
     },
-    [hasPermission, navigate, buildScoreSheetRoute, gateEntryClick]
+    [classCancelled, hasPermission, navigate, buildScoreSheetRoute, gateEntryClick]
   );
 
   // INTENT (spike): no prefetch cache in myK9Show yet — pure no-op.
@@ -216,6 +235,10 @@ export function useAtShowEntryListHandlers(
   const handleStatusChange = useCallback<EntryListHandlers['handleStatusChange']>(
     async (entryId, status: EntryStatusChange) => {
       setActiveStatusPopup(null);
+      if (classCancelled) {
+        toast.info(CANCELLED_CLASS_MESSAGE);
+        return;
+      }
 
       const previous = entriesRef.current.find(entry => entry.id === entryId);
       setLocalEntries(prev =>
@@ -260,7 +283,7 @@ export function useAtShowEntryListHandlers(
         logger.error('[at-show] status change failed', 'at-show', { error: String(error) });
       }
     },
-    [actions, setActiveStatusPopup, setLocalEntries]
+    [actions, classCancelled, setActiveStatusPopup, setLocalEntries]
   );
 
   useEffect(() => {
@@ -271,9 +294,13 @@ export function useAtShowEntryListHandlers(
     (e: ReactMouseEvent, entryId) => {
       e.preventDefault();
       e.stopPropagation();
+      if (classCancelled) {
+        toast.info(CANCELLED_CLASS_MESSAGE);
+        return;
+      }
       setActiveStatusPopup(entryId);
     },
-    [setActiveStatusPopup]
+    [classCancelled, setActiveStatusPopup]
   );
 
   // ── Reset menu / dialog ──────────────────────────────────────────────

@@ -68,6 +68,7 @@ import { useMyAtShowEntries } from './useMyAtShowEntries';
 import { useMyRingConflicts } from './useMyRingConflicts';
 import { useAtShowRealtimeRefresh } from './useAtShowRealtimeRefresh';
 import { useAtShowEntryListRefresh } from './useAtShowEntryListRefresh';
+import { isCancelledClassStatus } from './ringsideClassStatusMap';
 import { resolveClassListRoute } from './atShowScoresheetRoutes';
 
 export const AtShowEntryListPage: React.FC = () => {
@@ -291,6 +292,7 @@ export const AtShowEntryListPage: React.FC = () => {
     navigate,
     buildScoreSheetRoute,
     gateEntryClick,
+    classCancelled: isCancelledClassStatus(classInfo?.classStatus),
     refresh,
     manualRefresh,
     setActiveStatusPopup: uiActions.setActiveStatusPopup,

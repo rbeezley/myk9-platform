@@ -114,8 +114,11 @@ export function AtShowClassRow({
   onShowDetails,
   onOpenOptions,
 }: AtShowClassRowProps) {
+  // MYK9-1847: a cancelled class reads Cancelled whatever its counts or times say. Derived on
+  // every render from the class status, so changing the status back restores the card.
+  const isCancelled = entry.is_cancelled === true;
   const status = getEffectiveClassStatus(entry);
-  const showNextUp = isLiveNextUpStatus(status) && !isEmptyNextUpPreview(nextUp);
+  const showNextUp = !isCancelled && isLiveNextUpStatus(status) && !isEmptyNextUpPreview(nextUp);
 
   return (
     <li data-class-id={entry.id} data-day-bucket={dayBucket}>
@@ -152,15 +155,17 @@ export function AtShowClassRow({
                 {entry.judge_name}
               </div>
             )}
-            <AtShowClassStatusInfo entry={entry} status={status} trialTimeZone={trialTimeZone} />
-            {entry.start_time && !statusCarriesTime(entry, status) && (
+            {!isCancelled && (
+              <AtShowClassStatusInfo entry={entry} status={status} trialTimeZone={trialTimeZone} />
+            )}
+            {!isCancelled && entry.start_time && !statusCarriesTime(entry, status) && (
               <div className="mt-0.5 flex items-center gap-1 text-xs font-medium text-muted-foreground">
                 <Clock3 size={13} className="shrink-0" aria-hidden />
                 {entry.revised_expected_start ? 'Expected' : 'Scheduled'}{' '}
                 {formatAtShowClassTime(entry.start_time, trialTimeZone)}
               </div>
             )}
-            {!isExhibitorOnly && entry.actual_start_time && (
+            {!isCancelled && !isExhibitorOnly && entry.actual_start_time && (
               <div className="mt-0.5 text-xs text-muted-foreground">
                 Started {formatAtShowClassTime(entry.actual_start_time, trialTimeZone)}
                 {entry.actual_end_time
@@ -178,7 +183,13 @@ export function AtShowClassRow({
           status={
             // Phones stack the count under the badge so the row keeps its three 48px buttons.
             <span className="flex shrink-0 flex-col items-start gap-0.5 sm:flex-row sm:items-center sm:gap-2">
-              {status === 'offline-scoring' || queuedScoreCount > 0 ? (
+              {isCancelled ? (
+                <StatusBadge
+                  family="class"
+                  status="cancelled"
+                  className="px-2 py-0.5 text-xs font-medium"
+                />
+              ) : status === 'offline-scoring' || queuedScoreCount > 0 ? (
                 <OfflineScoringBadge />
               ) : (
                 <StatusBadge

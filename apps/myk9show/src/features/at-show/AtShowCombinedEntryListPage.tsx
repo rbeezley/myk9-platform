@@ -25,6 +25,7 @@
  * dialog via `applyCombinedRunOrder`.
  */
 
+import { isCancelledClassStatus } from './ringsideClassStatusMap';
 import { RingsideMenu } from './menu/RingsideMenu';
 import { useRingsideListSnapshot } from './menu/useRingsideListSnapshot';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -264,6 +265,7 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
     navigate,
     buildScoreSheetRoute,
     gateEntryClick,
+    classCancelled: isCancelledClassStatus(classInfo?.classStatus),
     refresh,
     manualRefresh,
     setActiveStatusPopup: uiActions.setActiveStatusPopup,

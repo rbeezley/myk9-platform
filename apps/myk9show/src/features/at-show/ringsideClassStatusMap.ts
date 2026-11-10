@@ -100,8 +100,14 @@ export interface RingsideStatusSource {
  * resets an unscored class to `upcoming` on routine entry changes, which must not drop
  * it) and is ignored once the class is setup, completed or cancelled. An unstarted class
  * (`upcoming`, or any other not-started spelling) with an Expected start reads as
- * `start_time`; `cancelled` has no ringside equivalent and reads as `no-status`.
+ * `start_time`; `cancelled` has no ringside status value and reads as `no-status`; the class list carries
+ * it as its own `is_cancelled` fact instead (MYK9-1847).
  */
+/** True when a class's stored status is `cancelled` (same spelling folding as the map below). */
+export function isCancelledClassStatus(classStatus: string | null | undefined): boolean {
+  return classStatus?.toLowerCase().replace(/[\s-]+/g, '_') === 'cancelled';
+}
+
 export function toRingsideClassStatus(
   source: RingsideStatusSource | string | undefined
 ): ClassStatusValue {

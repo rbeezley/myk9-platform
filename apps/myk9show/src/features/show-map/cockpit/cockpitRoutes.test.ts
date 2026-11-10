@@ -13,9 +13,12 @@ import {
   selectClassesAnchor,
   normalizeCockpitUrlState,
   resolveShowDeskReturn,
-  resolveShowDeskReturnHref,
   writeCockpitUrlState,
 } from './cockpitRoutes';
+
+function resolveShowDeskReturnHref(candidate: string, showId: string): string | null {
+  return resolveShowDeskReturn(candidate, showId)?.href ?? null;
+}
 
 const context = {
   selectedDays: ['2026-07-20'],

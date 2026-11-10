@@ -264,10 +264,3 @@ export function selectClassesAnchor(params: URLSearchParams): string | undefined
   if (params.get('select') !== SELECT_CLASSES) return undefined;
   return params.get('focus') || params.get('trialId') || undefined;
 }
-
-export function resolveShowDeskReturnHref(
-  candidate: string | null | undefined,
-  expectedShowId?: string
-): string | null {
-  return resolveShowDeskReturn(candidate, expectedShowId)?.href ?? null;
-}

@@ -55,7 +55,7 @@ test.describe('Phase 1 UAT - Secretary evidence pass', () => {
     // Waitlist is an entry list in the header Actions menu (MYK9-1594).
     await page.getByTestId('header-actions-trigger').click();
     await page.getByTestId('header-action-show-tool-entry-list-waitlist').click();
-    await expect(page.getByText(/Wait list settings:/)).toBeVisible();
+    await expect(page.getByText(/Waitlist settings:/)).toBeVisible();
     await attachScreenshot(page, testInfo, 'secretary-waitlist');
 
     await captureSecretaryPage(

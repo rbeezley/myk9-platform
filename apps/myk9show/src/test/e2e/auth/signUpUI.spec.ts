@@ -20,7 +20,7 @@ test.describe.configure({ mode: 'serial' });
 
 async function gotoSignUp(page: Page) {
   await page.goto('/sign-up', { waitUntil: 'networkidle' });
-  await expect(page.getByRole('heading', { name: 'Create an account' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Create account' })).toBeVisible();
 }
 
 test.describe('Sign-up page — initial state', () => {
@@ -38,7 +38,7 @@ test.describe('Sign-up page — initial state', () => {
     await expect(
       page.getByRole('checkbox', { name: 'I agree to the Terms of Service and Privacy Policy' })
     ).not.toBeChecked();
-    await expect(page.getByRole('button', { name: 'Sign up' })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Create account' })).toBeDisabled();
     await expect(page.getByRole('button', { name: 'Continue with Google' })).toBeDisabled();
 
     // Terms and Privacy links present
@@ -54,7 +54,7 @@ test.describe('Sign-up page — initial state', () => {
     await page
       .getByRole('checkbox', { name: 'I agree to the Terms of Service and Privacy Policy' })
       .check();
-    await expect(page.getByRole('button', { name: 'Sign up' })).toBeEnabled();
+    await expect(page.getByRole('button', { name: 'Create account' })).toBeEnabled();
     await expect(page.getByRole('button', { name: 'Continue with Google' })).toBeEnabled();
   });
 });
@@ -116,7 +116,7 @@ test.describe('Sign-up form — happy path', () => {
       .getByRole('checkbox', { name: 'I agree to the Terms of Service and Privacy Policy' })
       .check();
 
-    await page.getByRole('button', { name: 'Sign up' }).click();
+    await page.getByRole('button', { name: 'Create account' }).click();
 
     // Confirmation screen
     await expect(page.getByRole('heading', { name: 'Check your email' })).toBeVisible({

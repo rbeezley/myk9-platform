@@ -99,4 +99,38 @@ describe('useOptimisticScoring: Disqualified', () => {
       })
     );
   });
+
+  // MYK9-1806: a non-empty result that maps to no stored status must be refused,
+  // never written as an unscored row behind a "saved" message.
+  it.each(['1st', '2nd', '3rd', '4th', 'Maybe'])(
+    'refuses the unmapped result %s: reports an error and writes nothing',
+    async resultText => {
+      const opts = options(resultText);
+      const { result } = renderHook(() => useOptimisticScoring());
+      await act(async () => {
+        await result.current.submitScoreOptimistically(opts);
+      });
+
+      expect(updateEntry).not.toHaveBeenCalled();
+      expect(opts.onSuccess).not.toHaveBeenCalled();
+      expect(opts.onError).toHaveBeenCalledTimes(1);
+      expect(result.current.submitError).toBeInstanceOf(Error);
+      expect(result.current.submitError?.message).toContain(resultText);
+    }
+  );
+
+  it('writes qualified, scored, for Q', async () => {
+    const opts = options('Q');
+    const { result } = renderHook(() => useOptimisticScoring());
+    await act(async () => {
+      await result.current.submitScoreOptimistically(opts);
+    });
+
+    expect(updateEntry).toHaveBeenCalledWith(
+      'entry-1',
+      expect.objectContaining({ result_status: 'qualified', is_scored: true })
+    );
+    expect(opts.onError).not.toHaveBeenCalled();
+    expect(opts.onSuccess).toHaveBeenCalledTimes(1);
+  });
 });

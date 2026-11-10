@@ -23,7 +23,7 @@ import {
 
 const ROUTE = '/fees';
 const ROUTE_HEADING = 'How our fees work';
-const BOUNDARY_HEADING = 'Failed to load component';
+const BOUNDARY_HEADING = "We couldn't open this page";
 
 let server: ChunkFaultServer;
 let chunk: string;

@@ -233,7 +233,8 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
             </CardHeader>
             <CardContent className="space-y-3">
               <p className="text-sm text-gray-600">
-                The {context.toLowerCase()} section encountered an error and couldn't load.
+                We couldn't load the {context.toLowerCase()} part of this page. Try again, or
+                refresh the page.
               </p>
 
               <div className="flex gap-2">

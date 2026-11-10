@@ -27,6 +27,7 @@ import { useWithdrawEligibility } from '@/components/entries/useWithdrawEligibil
 import { withdrawEntry } from '@/services/database/entries';
 import { withdrawErrorMessage } from '@/services/database/entries/withdrawEligibility';
 import { logger } from '@/services/LoggingService';
+import { GENERIC_FAILURE_MESSAGE } from '@/utils/errorMessages';
 import type { RemoveFromClassKind, WithdrawalReasonCode } from '@/features/registries';
 import type { LeaveClassDialogState } from './my-entries-types';
 import { dogCardAnchorId, settleFocusAfterLeave } from './dogCardAnchor';
@@ -144,7 +145,7 @@ export const LeaveClassDialog: React.FC<LeaveClassDialogProps> = ({
     } catch (err) {
       // Same reasoning as the refusal branch: an unexpected throw is the case
       // where a retry is most likely to help, so the chooser stays open.
-      toast.error('An unexpected error occurred.');
+      toast.error(GENERIC_FAILURE_MESSAGE);
       logger.error('Error leaving class from the card:', 'entries', {}, err as Error);
       savingRef.current = false;
       setIsSaving(false);

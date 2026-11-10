@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { getUserFriendlyError } from './errorMessages';
+import { GENERIC_FAILURE_MESSAGE, getUserFriendlyError } from './errorMessages';
 import {
   SIGN_IN_EMAIL_LOCKED_CODE,
   SIGN_IN_EMAIL_LOCKED_MESSAGE,
@@ -66,5 +66,27 @@ describe('entry under a deleted parent in production builds', () => {
     ).toBe(
       'This class, trial or show has been deleted, so it can no longer take entries. Refresh to see the current schedule.'
     );
+  });
+});
+
+// MYK9-1843: the generic sentences follow the house pattern, and the default no
+// longer reads like a developer log.
+describe('generic failure sentences in production builds', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('uses the plain default when no fallback is given', () => {
+    vi.stubEnv('DEV', false);
+
+    expect(getUserFriendlyError({})).toBe(GENERIC_FAILURE_MESSAGE);
+    expect(GENERIC_FAILURE_MESSAGE).toBe("We couldn't do that. Try again.");
+  });
+
+  it('maps PostgREST and missing-relation codes to the same plain sentence', () => {
+    vi.stubEnv('DEV', false);
+
+    expect(getUserFriendlyError({ code: 'PGRST301' })).toBe(GENERIC_FAILURE_MESSAGE);
+    expect(getUserFriendlyError({ code: '42P01' })).toBe(GENERIC_FAILURE_MESSAGE);
   });
 });

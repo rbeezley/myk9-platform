@@ -15,7 +15,7 @@ import { useCartItems, useCartStore } from '@/store/cartStore';
 import { toast } from 'sonner';
 import type { ClassSelectionData } from '@/types/show-registration-types';
 import type { FeeCalculationResult } from '../PaymentStep/types';
-import { removeClassFromSelections } from '../ClassSelectionStep.helpers';
+import { REMOVE_FROM_ENTRY_FAILED, removeClassFromSelections } from '../ClassSelectionStep.helpers';
 import {
   cartItemsFromFeeBreakdown,
   groupCartByDogAndDay,
@@ -110,7 +110,7 @@ export function useRemoveEntryLine(
         if (cartItem) {
           const success = await removeItem(cartItem.id);
           if (!success) {
-            toast.error('Failed to remove from your entry');
+            toast.error(REMOVE_FROM_ENTRY_FAILED);
             return;
           }
         }

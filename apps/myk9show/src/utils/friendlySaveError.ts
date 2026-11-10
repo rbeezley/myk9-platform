@@ -10,6 +10,9 @@ const AUTHORED_OFFLINE_REFUSALS: ReadonlySet<string> = new Set([PERSON_EDIT_NEED
 /** Title of every failed-save toast, so a failed save reads the same on every surface. */
 export const SAVE_FAILED_TITLE = "Couldn't save your changes";
 
+/** The fixed sentence for a save that failed for a reason nothing here can word. */
+export const SAVE_FAILED_MESSAGE = "We couldn't save that. Try again.";
+
 const KEEP_EDITING = 'Your changes are still here.';
 const TRY_AGAIN = 'Try again.';
 
@@ -154,5 +157,5 @@ export function friendlySaveError(error: unknown): FriendlySaveFeedback {
 
 /** Just the sentence, for an inline error beside the form (no toast boilerplate). */
 export function friendlySaveMessage(error: unknown): string {
-  return classify(error).detail ?? "We couldn't save that. Try again.";
+  return classify(error).detail ?? SAVE_FAILED_MESSAGE;
 }

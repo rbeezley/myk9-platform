@@ -3,6 +3,9 @@ import type { Dog } from '@/types/dog-types';
 import type { CartItemWithDetails, NewCartItem } from '@/store/cartStore';
 import { getShowEntryFee, type ShowFeeInfo } from './PaymentStep/utils';
 
+export const REMOVE_FROM_ENTRY_FAILED = "We couldn't take that class off your entry. Try again.";
+export const ADD_TO_ENTRY_FAILED = "We couldn't add that class to your entry. Try again.";
+
 /**
  * Find a dog by ID from the dogs array.
  */
@@ -222,7 +225,7 @@ export async function toggleClassSelection({
         setAddingItem(null);
       }
       if (!removed) {
-        notifyError('Failed to remove from your entry');
+        notifyError(REMOVE_FROM_ENTRY_FAILED);
         return;
       }
     }
@@ -241,7 +244,7 @@ export async function toggleClassSelection({
     setAddingItem(null);
   }
   if (!added) {
-    notifyError('Failed to add to your entry');
+    notifyError(ADD_TO_ENTRY_FAILED);
     return;
   }
   notifyAdded();

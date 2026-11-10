@@ -14,6 +14,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { makePaymentResolution } from '@/test/utils/paymentResolution';
 import type { PaymentMethod } from '@/types/show-registration-types';
 import { PaymentStep } from '../index';
+import {
+  assertReceivedMethodChosen,
+  RECEIVED_METHOD_REQUIRED_MESSAGE,
+} from '@/features/registration/secretaryReceivedPayment';
 
 vi.mock('@/hooks/useDogStoreCompat', () => ({
   useDogStoreCompat: () => ({ dogs: [{ id: 'dog-1', callName: 'Buddy' }] }),
@@ -38,6 +42,7 @@ vi.mock('@/components/auth/PermissionGuard', () => ({
 }));
 
 const onPaymentMethodChange = vi.fn();
+const onPaymentDetailsChange = vi.fn();
 
 function renderStep(paymentMethod: PaymentMethod | '' = 'check') {
   return render(
@@ -46,6 +51,7 @@ function renderStep(paymentMethod: PaymentMethod | '' = 'check') {
       selectedDogs={['dog-1']}
       paymentMethod={paymentMethod}
       onPaymentMethodChange={onPaymentMethodChange}
+      onPaymentDetailsChange={onPaymentDetailsChange}
     />
   );
 }
@@ -55,6 +61,7 @@ const deskCard = () => screen.getByRole('region', { name: 'Payment at the desk' 
 describe('SecretaryPaymentManagement (MYK9-1822)', () => {
   beforeEach(() => {
     onPaymentMethodChange.mockClear();
+    onPaymentDetailsChange.mockClear();
   });
 
   it('shows only the two kept actions on one card with no tabs and no total', () => {
@@ -116,5 +123,34 @@ describe('SecretaryPaymentManagement (MYK9-1822)', () => {
   it('the free option no longer promises an admin approval nobody gives', () => {
     renderStep('waived');
     expect(screen.queryByText(/admin approval/i)).toBeNull();
+  });
+
+  /**
+   * "Paid by cash or check" only selects the "Already received" method; it names
+   * no channel. Both submit paths refuse money with no channel named, through
+   * `assertReceivedMethodChosen` (submitOfflineLateEntry.ts and
+   * submitShowRegistration.ts), so the secretary still has to pick Cash or Check
+   * under Payment Method before the entry saves (MYK9-677 ledger and closeout).
+   */
+  it('"Paid by cash or check" still needs cash or check chosen before the entry saves', async () => {
+    const user = userEvent.setup();
+    renderStep('secretary_paid');
+
+    expect(
+      within(deskCard()).getByRole('button', { name: 'Paid by cash or check' })
+    ).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('Now choose cash or check under Payment Method.')).toBeVisible();
+    // Nothing chosen yet: the step has reported no channel, and submit refuses.
+    expect(screen.getByRole('button', { name: 'Cash' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('button', { name: 'Check' })).toHaveAttribute('aria-pressed', 'false');
+    expect(onPaymentDetailsChange).not.toHaveBeenCalled();
+    expect(() => assertReceivedMethodChosen('secretary_paid', undefined, 35)).toThrow(
+      RECEIVED_METHOD_REQUIRED_MESSAGE
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Cash' }));
+    const reported = onPaymentDetailsChange.mock.lastCall?.[0];
+    expect(reported).toMatchObject({ receivedMethod: 'cash' });
+    expect(() => assertReceivedMethodChosen('secretary_paid', reported, 35)).not.toThrow();
   });
 });

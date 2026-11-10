@@ -264,7 +264,6 @@ export interface PaymentTotalsInput {
   paymentMethod: PaymentMethod | '';
   feeCalculation: FeeCalculationResult;
   capacityReady: boolean;
-  waiveFees: boolean;
   rates: PlatformFeeRates;
 }
 
@@ -300,10 +299,9 @@ export function computePaymentTotals({
   paymentMethod,
   feeCalculation,
   capacityReady,
-  waiveFees,
   rates,
 }: PaymentTotalsInput): PaymentTotals {
-  const isWaived = paymentMethod === 'waived' || waiveFees;
+  const isWaived = paymentMethod === 'waived';
   const isSecretaryReceived = paymentMethod === 'secretary_paid';
   const entryFeeCents = Math.round(feeCalculation.total * 100);
   const isPayableCard =

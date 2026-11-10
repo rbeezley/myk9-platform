@@ -110,7 +110,6 @@ function paymentPanel(props: Partial<React.ComponentProps<typeof EntriesPanel>> 
       variant="payment"
       paymentMethod="credit_card"
       feeCalculation={fees()}
-      waiveFees={false}
       {...props}
     />
   );
@@ -160,14 +159,11 @@ describe('EntriesPanel payment total agrees with the retired PaymentSummaryCard'
     }
   );
 
-  it.each([{ paymentMethod: 'waived' as const }, { waiveFees: true }])(
-    'keeps waived fees at zero: %j',
-    props => {
-      render(paymentPanel(props));
-      expect(aside().getByText('$0.00 (Waived)')).toBeInTheDocument();
-      expect(aside().queryByText(/Service fee/)).not.toBeInTheDocument();
-    }
-  );
+  it('keeps a free entry (the waived method) at zero', () => {
+    render(paymentPanel({ paymentMethod: 'waived' }));
+    expect(aside().getByText('$0.00 (Waived)')).toBeInTheDocument();
+    expect(aside().queryByText(/Service fee/)).not.toBeInTheDocument();
+  });
 
   it('does not charge wait-list-only entries even with a fee floor', () => {
     state.rates = { percent: 7, flatCents: 30, minCents: 250 };
@@ -359,15 +355,10 @@ describe('EntriesPanel bar headline agrees with the totals block', () => {
     return within(screen.getByTestId('entries-panel-bar'));
   }
 
-  it('quotes the waived entry as waived, not as the full fee', () => {
-    render(paymentPanel({ waiveFees: true }));
-    expect(bar().getByTestId('entries-panel-total')).toHaveTextContent('$0.00 (Waived)');
-    expect(bar().getByTestId('entries-panel-total')).not.toHaveTextContent('$30.00');
-  });
-
-  it('quotes the waived payment method as waived', () => {
+  it('quotes the waived payment method as waived, not as the full fee', () => {
     render(paymentPanel({ paymentMethod: 'waived' as PaymentMethod }));
     expect(bar().getByTestId('entries-panel-total')).toHaveTextContent('$0.00 (Waived)');
+    expect(bar().getByTestId('entries-panel-total')).not.toHaveTextContent('$30.00');
   });
 
   it('shows the availability placeholder rather than a figure while capacity is unread', () => {
@@ -410,19 +401,42 @@ describe('EntriesPanel bar headline agrees with the totals block', () => {
 });
 
 /**
- * MYK9-1822: the staff fee override is gone, so the amount due is always the
- * computed total and "Entry fees" / "Subtotal" are the lines shown. Nothing
- * reconciles a typed number against them any more.
+ * The lines carry the server's per-line price (`entry_fee_cents`); Total due is
+ * the client's computed total. Any gap between them (junior minimum fee, a
+ * wait-list line, rounding, a stale line price) is named on its own row, so
+ * Subtotal and Total due never disagree silently. MYK9-1822 removed the staff
+ * override, so the row is a neutral "Adjustment", not a secretary's.
  */
-describe('EntriesPanel quotes the computed total only', () => {
-  it('keeps Entry fees, Subtotal and Total due on the computed figure, with no adjustment row', () => {
+describe('EntriesPanel reconciles the computed total with the lines', () => {
+  const dollars = (text: string | null | undefined) =>
+    Number((text ?? '').replace(/[^0-9.-]/g, ''));
+
+  it('names a gap between the lines and the computed total as an Adjustment', () => {
+    // Two $30 lines, but the computed total prices one class: $30.
+    render(paymentPanel({ groups: groupsFor(2), feeCalculation: fees(1), paymentMethod: 'check' }));
+    const panel = aside();
+
+    const subtotal = panel.getByText('Subtotal').parentElement;
+    const adjustment = panel.getByText('Adjustment').parentElement;
+    const totalDue = panel.getByText('Total due').parentElement;
+    expect(subtotal).toHaveTextContent('$60.00');
+    expect(adjustment).toHaveTextContent('-$30.00');
+    expect(totalDue).toHaveTextContent('$30.00');
+    expect(
+      dollars(subtotal?.lastElementChild?.textContent) +
+        dollars(adjustment?.lastElementChild?.textContent)
+    ).toBe(dollars(totalDue?.lastElementChild?.textContent));
+    expect(panel.queryByText('Secretary adjustment')).not.toBeInTheDocument();
+  });
+
+  it('adds no Adjustment row when the lines equal the computed total', () => {
     render(paymentPanel({ groups: groupsFor(2), feeCalculation: fees(2), paymentMethod: 'check' }));
     const panel = aside();
 
     expect(panel.getByText('Entry fees').parentElement).toHaveTextContent('$60.00');
     expect(panel.getByText('Subtotal').parentElement).toHaveTextContent('$60.00');
     expect(panel.getByText('Total due').parentElement).toHaveTextContent('$60.00');
-    expect(panel.queryByText('Secretary adjustment')).not.toBeInTheDocument();
+    expect(panel.queryByText('Adjustment')).not.toBeInTheDocument();
   });
 });
 

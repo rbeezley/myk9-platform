@@ -48,7 +48,6 @@ export interface EntriesPanelProps {
    * failed-read copy over the still-reading one.
    */
   feeTier?: { isReady: boolean; isUnavailable: boolean } | undefined;
-  waiveFees?: boolean | undefined;
   waitlistClassIds?: ReadonlySet<string> | undefined;
   onRemoveLine?: ((dogId: string, classId: string) => void | Promise<void>) | undefined;
   removingLineKey?: string | null | undefined;
@@ -77,7 +76,6 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
   capacityReady: capacityReadyProp = true,
   capacityUnavailable: capacityUnavailableProp,
   feeTier,
-  waiveFees = false,
   waitlistClassIds,
   onRemoveLine,
   removingLineKey,
@@ -109,16 +107,17 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
         paymentMethod,
         feeCalculation,
         capacityReady,
-        waiveFees,
         rates: resolvedRates,
       })
     : undefined;
 
   const classCount = countPanelLines(groups);
   // ALWAYS the sum of the lines rendered above it (Codex #2210 round 6 P2). The
-  // staff fee override that could make the amount owed differ from the lines is
-  // gone (MYK9-1822), so there is no adjustment row to reconcile them.
+  // lines carry the server's per-line price and Total due the computed total;
+  // any gap between them (junior minimum fee, a wait-list line, rounding, a
+  // stale line price) is reconciled as its own "Adjustment" row (MYK9-1822).
   const entryFeeCents = sumPanelFeeCents(groups);
+  const adjustmentCents = totals ? totals.entryFeeCents - entryFeeCents : 0;
   // The SAME string the totals block shows — one derivation, two widths.
   const headline = formatAmountDue({
     capacityReady,
@@ -156,6 +155,7 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
       capacityUnavailable={capacityUnavailable}
       placeholder={moneyPlaceholder}
       {...(isPayment ? { discounts: feeCalculation.discounts } : {})}
+      {...(adjustmentCents !== 0 ? { adjustmentCents } : {})}
       {...(totals ? { payment: { totals, paymentMethod, rates: resolvedRates } } : {})}
     />
   );

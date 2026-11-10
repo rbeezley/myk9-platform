@@ -10,6 +10,7 @@
 export interface MutationReportMutant {
   status: string;
   testsCompleted?: number;
+  static?: boolean;
   location?: { start?: { line?: number } };
 }
 
@@ -21,6 +22,18 @@ export interface MutationReport {
 const NOT_RUN = new Set(['NoCoverage', 'Ignored', 'CompileError', 'RuntimeError', 'Pending']);
 
 const MIN_COVERED_MUTANTS = 5;
+
+/**
+ * Mutants whose fate is known, so a harness regression cannot hide inside a
+ * plausible score (MYK9-1829). `const fail = ...` at parseDuration.ts L93 is a
+ * module-level (static) mutant that parseDuration.test.ts depends on throughout.
+ * While stryker.config.mjs passed `testFiles`, Stryker planned every static mutant
+ * with a test filter, so the Vitest runner activated it in `beforeAll`, after the
+ * module had been evaluated, and it "survived" with 78 tests green. It must be Killed.
+ */
+export const KNOWN_ANSWERS: ReadonlyArray<{ file: string; line: number; status: string }> = [
+  { file: 'packages/core/src/utils/parseDuration.ts', line: 93, status: 'Killed' },
+];
 
 export function assertTestsSawMutants(target: string, report: MutationReport): void {
   const covered = Object.values(report.files)
@@ -57,5 +70,20 @@ export function assertTestsSawMutants(target: string, report: MutationReport): v
         'The score is meaningless; the harness is not feeding the mutated file to the tests ' +
         '(check vitest.mutation.config.ts root, include and test-name filter).'
     );
+  }
+
+  for (const known of KNOWN_ANSWERS) {
+    const entry = Object.entries(report.files).find(([file]) => file.endsWith(known.file));
+    if (!entry) continue;
+    const found = entry[1].mutants.filter(m => m.location?.start?.line === known.line);
+    const wrong = found.filter(m => m.status !== known.status);
+    if (found.length === 0 || wrong.length > 0) {
+      throw new Error(
+        `Mutation target "${target}": the known-answer mutant at ${known.file}:${known.line} ` +
+          `should be ${known.status} but is ${wrong[0]?.status ?? 'missing'}. A module-level (static) ` +
+          'mutant is not being activated before the module loads: check that stryker.config.mjs ' +
+          'passes no `testFiles` (a test filter makes Stryker use runtime activation).'
+      );
+    }
   }
 }

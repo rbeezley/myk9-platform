@@ -1,10 +1,7 @@
-export const MUTATION_TARGETS = [
-  'cart',
-  'scoresheet',
-  'duration',
-  'placement',
-  'replication-conflict',
-] as const;
+import { MUTATION_TARGET_NAMES } from './targets.mjs';
+
+/** Every target, in run order; the lists live in targets.mjs. */
+export const MUTATION_TARGETS: readonly string[] = MUTATION_TARGET_NAMES;
 
 // Mirrors `thresholds.break` in stryker.config.mjs. Stryker itself exits
 // non-zero below it; the table repeats the number so a reader sees both.

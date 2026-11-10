@@ -41,6 +41,28 @@ describe('assertTestsSawMutants', () => {
   });
 });
 
+describe('assertTestsSawMutants known answers', () => {
+  const healthy = Array.from({ length: 10 }, () => ({ status: 'Killed', testsCompleted: 2 }));
+  const duration = (status: string) => ({
+    files: {
+      'packages/core/src/utils/parseDuration.ts': {
+        mutants: [...healthy, { status, testsCompleted: 78, location: { start: { line: 93 } } }],
+      },
+    },
+  });
+
+  it('fails when the static L93 parseDuration mutant survives (static mutants not activated)', () => {
+    expect(() => assertTestsSawMutants('duration', duration('Survived'))).toThrow(
+      /parseDuration\.ts:93 should be Killed but is Survived/
+    );
+  });
+
+  it('passes when the L93 mutant is Killed, and ignores targets without that file', () => {
+    expect(() => assertTestsSawMutants('duration', duration('Killed'))).not.toThrow();
+    expect(() => assertTestsSawMutants('cart', report(healthy))).not.toThrow();
+  });
+});
+
 describe('widenTestNamePattern', () => {
   const stryker = new RegExp(['suite does a thing', 'suite other'].join('|'));
 

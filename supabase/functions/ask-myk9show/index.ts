@@ -6,7 +6,11 @@ import { callClaude } from '../_shared/askq/promptBuilder.ts';
 import { ASKQ_GUIDES, ASKQ_RULEBOOKS } from '../_shared/askq/documentAssets.ts';
 import { type AskQRulebookAsset, selectRulebook } from '../_shared/askq/documentContext.ts';
 import { parseAskQRouting } from '../_shared/askq/requestRouting.ts';
-import { answerQuestion, routeMarkers } from '../_shared/askq/answerQuestion.ts';
+import {
+  answerQuestion,
+  guideSourcesForEvent,
+  routeMarkers,
+} from '../_shared/askq/answerQuestion.ts';
 import {
   getSupportEscalationForQuestion,
   isSupportModeEnabled,
@@ -269,8 +273,9 @@ Deno.serve(async (req: Request) => {
       },
     });
     const toolsUsed = answered.toolsUsed;
-    if (answered.guideSources.length > 0) {
-      sources.guide = answered.guideSources;
+    const guideSources = guideSourcesForEvent(answered, supportMode);
+    if (guideSources.length > 0) {
+      sources.guide = guideSources;
     }
     const responseText = answered.text;
     const responseTimeMs = Date.now() - startTime;

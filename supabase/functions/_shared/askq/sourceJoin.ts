@@ -12,6 +12,8 @@ export interface SourceSection {
   source: AskQSource;
   /** What the source produced; null when it produced nothing. */
   text: string | null;
+  /** A plain sentence in the source's place, not the source's own output: never labelled. */
+  plain?: boolean;
 }
 
 const ORDER: AskQSource[] = ['show_data', 'guides', 'rulebook'];
@@ -35,7 +37,9 @@ export function joinSourceSections(sections: SourceSection[]): string {
     .map(section => {
       const text = section.text?.trim();
       if (!text) return fallbackSentence(section.source);
-      return multiple && section.source === 'show_data' ? `${SHOW_DATA_LABEL}\n${text}` : text;
+      return multiple && section.source === 'show_data' && !section.plain
+        ? `${SHOW_DATA_LABEL}\n${text}`
+        : text;
     })
     .join('\n\n');
 }

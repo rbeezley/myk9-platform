@@ -41,6 +41,18 @@ export function routeMarkers(sources: AskQSource[]): string[] {
   return sources.map(source => `route_${source}`);
 }
 
+/**
+ * Guide sources go in the `sources` event only on supportMode requests. The show-page
+ * client cannot render them yet (it would print raw JSON); the verified quotes are
+ * already in the answer text. MYK9-1826 lifts this once the panel renders guide sources.
+ */
+export function guideSourcesForEvent(
+  answered: Pick<AnsweredQuestion, 'guideSources'>,
+  supportMode: boolean
+): VerifiedGuideQuote[] {
+  return supportMode ? answered.guideSources : [];
+}
+
 /** One classifier call, then each chosen source answered under its own guard, in parallel. */
 export async function answerQuestion(input: AnswerQuestionInput): Promise<AnsweredQuestion> {
   const hasVerifiedShow = input.userContext.showId !== null;
@@ -77,7 +89,7 @@ export async function answerQuestion(input: AnswerQuestionInput): Promise<Answer
   ]);
 
   const sections: SourceSection[] = [];
-  if (needsShow) sections.push({ source: 'show_data', text: NEEDS_SHOW_SENTENCE });
+  if (needsShow) sections.push({ source: 'show_data', text: NEEDS_SHOW_SENTENCE, plain: true });
   if (showData) sections.push({ source: 'show_data', text: showData.text });
   if (guides) sections.push({ source: 'guides', text: guides.text });
   if (rulebookResolution) sections.push({ source: 'rulebook', text: rulebookText });

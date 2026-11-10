@@ -2,7 +2,13 @@
 // MYK9-1825: no live model call. A stub dispatches on the system prompt, so a stubbed
 // classifier verdict plus stubbed answerer replies run the real orchestration end to end.
 import { describe, expect, it, vi } from 'vitest';
-import { answerQuestion, routeMarkers, type AnswerQuestionInput } from './answerQuestion.ts';
+import {
+  answerQuestion,
+  guideSourcesForEvent,
+  routeMarkers,
+  type AnswerQuestionInput,
+  type AnsweredQuestion,
+} from './answerQuestion.ts';
 import { ASKQ_GUIDES, ASKQ_RULEBOOKS } from './documentAssets.ts';
 import { CLASSIFIER_SYSTEM_PROMPT, type AskQSource } from './sourceClassifier.ts';
 import { NEEDS_SHOW_SENTENCE, NO_GUIDE_ANSWER_SENTENCE, SHOW_DATA_LABEL } from './sourceJoin.ts';
@@ -338,9 +344,8 @@ describe('classifier failure and bookkeeping', () => {
     const answered = await run(model, { userContext: noShowContext, showRulebooks: [] }).promise;
     expect(answered.sources).toEqual(['guides']);
     expect(model.recorded.showData).toEqual([]);
-    expect(answered.text.startsWith(`${SHOW_DATA_LABEL}\n${NEEDS_SHOW_SENTENCE}\n\nFrom the`)).toBe(
-      true
-    );
+    expect(answered.text.startsWith(`${NEEDS_SHOW_SENTENCE}\n\nFrom the`)).toBe(true);
+    expect(answered.text).not.toContain(SHOW_DATA_LABEL);
   });
 
   it('show data only with no show: one model call, one plain sentence', async () => {
@@ -394,5 +399,16 @@ describe('classifier failure and bookkeeping', () => {
     expect(model.recorded.classifier).toHaveLength(1);
     expect(routeMarkers(answered.sources)).toEqual(['route_guides', 'route_rulebook']);
     expect(answered.toolsUsed).toEqual([]);
+  });
+});
+
+describe('guideSourcesForEvent', () => {
+  const quote = {
+    id: 'exhibitor-guide',
+    quote: 'q',
+  } as unknown as AnsweredQuestion['guideSources'][number];
+  it('sends guide sources only on supportMode requests', () => {
+    expect(guideSourcesForEvent({ guideSources: [quote] }, true)).toEqual([quote]);
+    expect(guideSourcesForEvent({ guideSources: [quote] }, false)).toEqual([]);
   });
 });

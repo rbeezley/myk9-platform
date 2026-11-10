@@ -149,7 +149,7 @@ format, so the prompt carries only what is specific to this task, in order:
 
 Do not restate the role's rules in the prompt. If a rule is missing, or an implementer keeps
 breaking one, fix the role file. The implementer ends with a
-`FILES / APPROACH / TESTS / TYPECHECK / CONCERNS` report; a report you cannot verify means
+`FILES / APPROACH / TESTS / TYPECHECK / LINT / CONCERNS` report; a report you cannot verify means
 re-dispatch, not salvage.
 
 ## Review gate (per batch or per issue)

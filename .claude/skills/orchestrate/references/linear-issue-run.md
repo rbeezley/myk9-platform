@@ -49,7 +49,8 @@ what an issue queue needs: selection, holds, Linear state and the run summary.
    Review Blocked work under the shared restoration/ownership rules before selecting new work;
    a past capability hold is not proof that the capability is still unavailable now.
 4. **Ledger.** Keep `<scratchpad>/orchestrate-run.md` with one row per issue: id, premise,
-   approach, tier, lane, worktree or cloud session URL, branch, PR, outcome and reason, plus
+   approach, tier, lane, worktree or cloud session URL, branch, PR and its head SHA (cloud
+   lane: the `headRefOid` last reviewed or pushed), outcome and reason, plus
    the Mac heavy-job count at each spawn. Update it at every state change, so a compacted
    context or a crash can resume from it.
 5. **Continuous mode only: keep the Mac awake.** Call `request_keep_awake` (the `ccd_host` tool)
@@ -213,12 +214,15 @@ the differences below come from running in the cloud and win where they conflict
    nothing is lost if the session ends after a push.
 3. In this session `gh api` works but `gh pr`, `gh issue` and `gh api --paginate` do not
    (the proxy rejects GraphQL). Push with `git push -u origin HEAD`. Open the PR ONLY when
-   the work is done and the affected tests and typecheck pass, as a READY (non-draft) PR via
+   the work is done and everything `implementer.md` lists under Tests and Finishing passes
+   (the three affected-test sets, typecheck, lint), plus `pnpm typecheck` and `pnpm lint`
+   from the repo root, since CI runs both and nobody can hand you a failure afterwards.
+   Open it as a READY (non-draft) PR via
    `gh api repos/rbeezley/myk9-platform/pulls -f title=... -f head=<branch> -f base=main
    -F draft=false -F body=@<file>` (`-F` reads the file; `-f` would send the filename as the
    body). The PR's existence is how the Mac learns you finished.
    Follow `.github/pull_request_template.md`; put the implementer report
-   (FILES / APPROACH / TESTS / TYPECHECK / CONCERNS) under Test plan, verbatim, because you
+   (FILES / APPROACH / TESTS / TYPECHECK / LINT / CONCERNS) under Test plan, verbatim, because you
    cannot message the orchestrator. Reference the issue as `Fixes MYK9-<n>`.
 4. Never: post a `Review gate:` comment, run a review, merge, touch Linear, run
    `supabase db push` or `supabase functions deploy`, spawn sub-agents, or message anyone.
@@ -228,6 +232,14 @@ the differences below come from running in the cloud and win where they conflict
 7. Never schedule a trigger, check-in, wakeup or cron, and never create a scheduled task.
    When the PR is open and your report is in its body, end your turn: nothing watches the
    PR from your side, and the Mac reads only the PR.
+8. Once the PR is open the Mac may be writing to this branch too. If you are woken again
+   (a red check, a findings comment), run `git fetch origin` and compare `origin/<branch>`
+   with your local HEAD before touching anything:
+   `git rev-list --count HEAD..origin/<branch>`. Anything but `0` means the remote has
+   commits you do not have, so the Mac has taken the branch over: change nothing, push nothing, end your turn. If
+   it has not, fix only what the red check or the comment names, push once, and add a PR
+   comment starting `Cloud fix for <new sha>:` that says what changed, because a push alone
+   is easy to miss.
 ```
 
 Dispatch the next cloud issue only after this one's URL is recorded, and only while the
@@ -294,13 +306,31 @@ add "$WT" "$BRANCH"`) and dispatch a local implementer on it with the session's 
   `../SKILL.md`, run inside `$WT`: read the diff, the checklist, the `verifier` for any repro,
   `pnpm typecheck` yourself on the final round. The PR body's report is the implementer's
   report; treat it the same way (verify, don't trust).
+- **The remote head is the truth, and it can move.** A session that has opened its PR is
+  often still alive: it wakes on its own red CI as well as on a findings comment, and pushes
+  (MYK9-1795, 2026-11-09: two commits landed while two local fix rounds were under way, and
+  the Mac's push was rejected). Write the PR's `headRefOid` in the ledger row when the review
+  worktree is created, and compare it with
+  `git -C "$MAIN" ls-remote origin "refs/heads/$BRANCH"` at three points: before dispatching
+  or starting any local fix round, when that round reports, and immediately before every
+  push. If it moved, stop writing: fetch, read `git log` and `git diff` for the new commits
+  (they are unreviewed code, whatever their size), bring them into `$WT` with
+  `git merge --ff-only` while the tree has no local commits or a normal merge once it has
+  (the fast-forward-or-hold rule under **Findings** covers only the posted-findings wait,
+  during which the Mac must not have written at all), re-run the affected tests, and update
+  the ledger's head. Keep a session fix that is right;
+  when a local round already made the same fix or the session's change is one the review
+  rejected, say which in the merge commit message and on the PR. Wait for the PR's first CI
+  verdict before the first local round when the PR body shows lint or the full typecheck
+  was not run: a red check there is the likeliest reason for the session to push again.
 - **Findings:** you cannot send them to the session that wrote the code, and a fresh cloud
   fix session is **no longer offered**: setup, install, build and a push do not fit in the
   10-minute deadline. Start the watcher in fix mode in the same turn the findings are posted
   (`run_in_background`):
   `bash scripts/cloud/watch-cloud-session.sh "$N" fix "$(date -u +%Y-%m-%dT%H:%M:%SZ)"`.
   Findings that were never posted on the PR (your own review gate) get no watcher: the session
-  cannot see them, so fix them yourself in `$WT` at once, as for exit 12.
+  cannot see them, so fix them yourself in `$WT` at once, as for exit 12, after the remote-head
+  check above: unposted findings do not stop the session pushing for its own reasons.
   It reads the findings comment (`Codex findings for <sha>`, `Claude findings for <sha>`, or a
   `Review gate:` withdrawal, from a trusted author) and gives the still-running session 10
   minutes from that comment to push a head that no longer starts with the reviewed SHA. Exit 0
@@ -315,7 +345,9 @@ add "$WT" "$BRANCH"`) and dispatch a local implementer on it with the session's 
   shows the new head). The fetch moves only the remote-tracking ref, so before re-reviewing
   bring the review worktree to that head: `git -C "$WT" merge --ff-only "origin/$BRANCH"` on a
   clean tree (`git -C "$WT" status --short` empty; a refused fast-forward means the Mac and the
-  session both wrote outside the deadline rule, so stop and hold). Then re-run the gate on the
+  session both wrote outside the deadline rule, so stop and hold; a session that pushed for
+  its own reasons while a local round was under way is the other case, handled under **The
+  remote head is the truth** above). Then re-run the gate on the
   head the worktree is now at. **Max 3 rounds**, as on the local lane.
 
 - **The branch's owner is the cloud session until its PR exists.** Before the PR, the Mac
@@ -472,3 +504,5 @@ run, and mark each `refill` issue in the table (e.g. `MYK9-321 (refill)`).
 | Dispatching a cloud session without starting its watcher    | Start `watch-cloud-session.sh` in the same turn; a stall exit is a local takeover, no owner question |
 | Holding or re-dispatching on a missed cloud deadline        | Take over locally on the existing branch; push on top, never force-push                              |
 | Letting a cloud session schedule its own check-in           | The preamble forbids triggers; `--permission-mode dontAsk` denies whatever would prompt              |
+| Starting a local fix round on the head you fetched earlier  | Compare the ledger's head with `ls-remote` before the round, after it and before the push            |
+| Accepting an implementer's scoped test run as coverage      | Its report must name the `vitest related` run, `src/test/ci`, lint and the test typecheck            |

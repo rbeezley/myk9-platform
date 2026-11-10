@@ -90,8 +90,14 @@ export default function SupportTicketPage() {
   );
 }
 
+const SUPPORT_STATUS_LABELS: Record<string, string> = {
+  open: 'Open',
+  waiting: 'Waiting on you',
+  resolved: 'Resolved',
+};
+
 function StatusBadge({ status }: { status: string }) {
-  const label = status === 'waiting' ? 'Waiting on you' : status;
+  const label = SUPPORT_STATUS_LABELS[status] ?? status;
   return (
     <span className="inline-flex rounded-full border border-border bg-muted px-2.5 py-1 text-xs font-medium capitalize text-muted-foreground">
       {label}

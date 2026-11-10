@@ -1,3 +1,5 @@
+import { NOT_RECORDED_LABEL } from '@/lib/format/fallbackLabels';
+import { formatRecordDateTime } from '@/lib/format/dates';
 import type { derivePaperworkPrintState } from '@/features/show-map/cockpit/paperworkPrintState';
 
 /** Whether the selected report has been printed, from the replicated print record. */
@@ -39,7 +41,7 @@ export function ReportPrintStatus({
       {state?.record && (
         <div className="mt-1 text-muted-foreground">
           Printed by {state.record.printedByName} on{' '}
-          {new Date(state.record.printedAt).toLocaleString()}
+          {formatRecordDateTime(state.record.printedAt) || NOT_RECORDED_LABEL}
         </div>
       )}
       {state?.state === 'stale' && (

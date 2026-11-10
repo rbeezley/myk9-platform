@@ -150,12 +150,12 @@ describe('Monogram entry CTAs', () => {
     it('HeroBlock shows the close date when entryCloseDate is still in the future', () => {
       render(<HeroBlock {...heroBaseProps} entryCloseDate="2099-01-01" />);
       expect(screen.queryByText('Closed')).not.toBeInTheDocument();
-      expect(screen.queryByText('TBA')).not.toBeInTheDocument();
+      expect(screen.queryByText('To be announced')).not.toBeInTheDocument();
     });
 
-    it('HeroBlock shows "TBA" when no entryCloseDate is set at all', () => {
+    it('HeroBlock shows "To be announced" when no entryCloseDate is set at all', () => {
       render(<HeroBlock {...heroBaseProps} entryCloseDate={null} />);
-      expect(screen.getByText('TBA')).toBeInTheDocument();
+      expect(screen.getByText('To be announced')).toBeInTheDocument();
     });
   });
 

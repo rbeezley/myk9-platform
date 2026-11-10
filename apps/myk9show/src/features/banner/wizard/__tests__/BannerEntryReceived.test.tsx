@@ -37,7 +37,7 @@ describe('BannerEntryReceived', () => {
 
   it('renders the confirmation number in the kicker when provided', () => {
     render(<BannerEntryReceived {...BASE_PROPS} />);
-    const confirmationKicker = screen.getByText(/Submitted · Confirmation # MK9-000137/);
+    const confirmationKicker = screen.getByText(/Submitted · Confirmation number MK9-000137/);
     expect(confirmationKicker).toBeInTheDocument();
     expect(confirmationKicker).not.toHaveStyle('text-transform: uppercase');
     expect(screen.queryByText(/Entry #/)).not.toBeInTheDocument();
@@ -46,7 +46,7 @@ describe('BannerEntryReceived', () => {
 
   it('omits the confirmation suffix when confirmation number is null', () => {
     render(<BannerEntryReceived {...BASE_PROPS} registrationNumber={null} />);
-    expect(screen.queryByText(/Confirmation #/)).toBeNull();
+    expect(screen.queryByText(/Confirmation number/)).toBeNull();
     expect(screen.getByRole('heading', { name: /Entry submitted/ })).toBeInTheDocument();
   });
 

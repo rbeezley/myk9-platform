@@ -208,7 +208,7 @@ describe('EntryReceipt', () => {
     await userEvent.click(screen.getByRole('button', { name: /print/i }));
 
     const printedHtml = String(write.mock.calls[0]?.[0] ?? '');
-    expect(printedHtml).toContain('Confirmation #');
+    expect(printedHtml).toContain('Confirmation number');
     expect(printedHtml).not.toMatch(
       /\\.confirmation-label\\s*\\{[^}]*text-transform:\\s*uppercase/s
     );

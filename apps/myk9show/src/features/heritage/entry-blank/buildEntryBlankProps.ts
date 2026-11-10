@@ -326,13 +326,13 @@ export function buildEntryBlankProps(opts: BuildEntryBlankOptions): EntryBlankPr
   const paymentMethod = entry?.payment_method;
   const MAIL_PAYMENT_METHODS = new Set(['check', 'money_order', 'online']);
   // MYK9-662: the show's own configured junior handler fee. It only prints here for
-  // now; no path prices an entry with it yet (slice B). 'N/A' rather than $0.00 when unset — this
+  // now; no path prices an entry with it yet (slice B). 'Not applicable' rather than $0.00 when unset — this
   // club has no junior discount, not a free junior entry. Same "> 0 means
   // configured" convention as the day-of-show fee elsewhere in this codebase.
   const juniorHandlerFee =
     show.junior_handler_fee != null && show.junior_handler_fee > 0
       ? formatFee(show.junior_handler_fee)
-      : 'N/A';
+      : 'Not applicable';
   const feesProps: EntryBlankFees = {
     firstEntryFee: formatFee(preEntry),
     additionalEntryFee: formatFee(additional),

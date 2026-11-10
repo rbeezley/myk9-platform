@@ -26,7 +26,7 @@ export function OwnerHandlerSection({ owner }: { owner: EntryBlankOwner }) {
         <Field
           label="Junior age"
           value={owner.juniorHandlerAge}
-          hint="leave blank if N/A"
+          hint="leave blank if not applicable"
           width="34%"
         />
       </View>

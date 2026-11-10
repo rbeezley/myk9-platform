@@ -199,4 +199,19 @@ describe('ClockTimeInput', () => {
     expect(onValue).toHaveBeenLastCalledWith('07:00 AM');
     expect(screen.queryByRole('alert')).toBeNull();
   });
+
+  it('keeps a readable width floor on the input even when a host passes className (MYK9-1866)', () => {
+    render(
+      <ClockTimeInput value="09:00 AM" ariaLabel="Start time" className="h-9" onChange={vi.fn()} />
+    );
+    const wrapper = screen.getByTestId('clock-time-input-field');
+    expect(wrapper.className).toContain('min-w-[5.5rem]');
+    // The outer box may not shrink below field floor + AM/PM, so siblings wrap instead of overlapping.
+    const root = screen.getByTestId('clock-time-input-root');
+    expect(root.className).toContain('min-w-fit');
+    expect(root.className).not.toContain('min-w-0');
+    expect(wrapper).toContainElement(field());
+    // The AM/PM group sits beside it, not inside the shrinkable box.
+    expect(wrapper).not.toContainElement(screen.getByRole('button', { name: 'AM' }));
+  });
 });

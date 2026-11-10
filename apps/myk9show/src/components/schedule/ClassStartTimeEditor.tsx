@@ -131,7 +131,7 @@ export function ClassStartTimeEditor({
     return (
       <div className={cn('flex flex-wrap items-center gap-1.5 py-0.5', className)}>
         {label && <span className="text-xs text-muted-foreground">{label}</span>}
-        <div className="w-32">
+        <div className="flex min-w-0 max-w-full flex-wrap items-start gap-1.5">
           <ClockTimeInput
             id={inputId}
             value={draft}
@@ -149,29 +149,31 @@ export function ClassStartTimeEditor({
             describedBy={error ? `${inputId}-error` : undefined}
             reserveHint={false}
           />
+          <div className="flex shrink-0 items-start gap-2" data-testid="clock-time-actions">
+            <Button
+              type="button"
+              size="icon-lg"
+              variant="ghost"
+              className="shrink-0"
+              onClick={() => void save()}
+              disabled={isSaving}
+              aria-label="Save start time"
+            >
+              <Check className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              size="icon-lg"
+              variant="ghost"
+              className="shrink-0"
+              onClick={cancelEditing}
+              disabled={isSaving}
+              aria-label="Cancel editing start time"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
-        <Button
-          type="button"
-          size="icon-lg"
-          variant="ghost"
-          className="shrink-0"
-          onClick={() => void save()}
-          disabled={isSaving}
-          aria-label="Save start time"
-        >
-          <Check className="h-4 w-4" />
-        </Button>
-        <Button
-          type="button"
-          size="icon-lg"
-          variant="ghost"
-          className="shrink-0"
-          onClick={cancelEditing}
-          disabled={isSaving}
-          aria-label="Cancel editing start time"
-        >
-          <X className="h-4 w-4" />
-        </Button>
         {error && (
           <span id={`${inputId}-error`} role="alert" className="w-full text-xs text-destructive">
             {error}

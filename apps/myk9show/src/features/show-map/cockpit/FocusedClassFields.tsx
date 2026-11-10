@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ChevronDown, Clock3 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -58,7 +58,7 @@ function StatusField({
             type="button"
             variant="ghost"
             disabled={status.isSaving}
-            aria-label={`Change status of ${focused.name}`}
+            aria-label={`Status: ${lifecycle ? STATUS_LABEL[lifecycle] : 'Status unknown'}. Change status of ${focused.name}`}
             className="h-11 gap-1.5 px-1.5"
           >
             <ClassStatusControl lifecycle={lifecycle} />
@@ -91,6 +91,13 @@ function ExpectedStartField({
   canManageShow: boolean;
 }) {
   const [editing, setEditing] = useState(false);
+  const openerRef = useRef<HTMLButtonElement>(null);
+  const wasEditing = useRef(false);
+  // Closing the editor (save, cancel, Escape) unmounts what had focus; hand it back to the opener.
+  useEffect(() => {
+    if (wasEditing.current && !editing) openerRef.current?.focus();
+    wasEditing.current = editing;
+  }, [editing]);
   const scheduledStart = sourceClass.scheduledStart ?? null;
   const revisedExpectedStart = sourceClass.revisedExpectedStart ?? null;
   const effective =
@@ -99,8 +106,10 @@ function ExpectedStartField({
     <div className="space-y-0.5">
       {canManageShow && !editing ? (
         <button
+          ref={openerRef}
           type="button"
           onClick={() => setEditing(true)}
+          aria-label={`Expected start: ${effective || 'not set'}. Change expected start`}
           className="inline-flex min-h-11 items-center gap-1.5 text-left text-sm font-semibold underline-offset-4 hover:underline"
         >
           <Clock3 className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
@@ -148,19 +157,17 @@ export function FocusedClassFields({
   judgeControl?: ReactNode;
   onEditActualStart: () => void;
 }) {
-  const timing = (
-    <>
-      {focused.actualStart.value
-        ? `Started ${formatTime(focused.actualStart.value, timeZone)}`
-        : // A class that ran without a recorded start must not claim it never started.
-          sourceClass.lifecycle === 'not-started'
-          ? 'Not started'
-          : 'Start not recorded'}
-      {focused.actualFinish.value
-        ? ` · Finished ${formatTime(focused.actualFinish.value, timeZone)}`
-        : ''}
-    </>
-  );
+  const timing = `${
+    focused.actualStart.value
+      ? `Started ${formatTime(focused.actualStart.value, timeZone)}`
+      : // A class that ran without a recorded start must not claim it never started.
+        sourceClass.lifecycle === 'not-started'
+        ? 'Not started'
+        : 'Start not recorded'
+  }${focused.actualFinish.value ? ` · Finished ${formatTime(focused.actualFinish.value, timeZone)}` : ''}`;
+  // The editor is mounted by the class checklist, which a cancelled class does not have
+  // (buildClassChecklist returns no items; ClassChecklistSection renders the editor only with items).
+  const editable = canManageShow && sourceClass.lifecycle !== 'cancelled';
   return (
     <dl className="mt-3 flex flex-wrap items-start gap-x-6 gap-y-2">
       <Field label="Status">
@@ -177,12 +184,11 @@ export function FocusedClassFields({
         />
       </Field>
       <Field label="Actual timing">
-        {/* The editor lives in the class checklist, which a cancelled class does not have. */}
-        {canManageShow && focused.lifecycle.value !== 'cancelled' ? (
+        {editable ? (
           <button
             type="button"
             onClick={onEditActualStart}
-            aria-label="Edit actual start"
+            aria-label={`Actual timing: ${timing}. Edit actual start`}
             className="min-h-11 text-left font-medium underline-offset-4 hover:underline"
           >
             {timing}

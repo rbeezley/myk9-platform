@@ -376,6 +376,28 @@ describe('SecretaryCockpitFocusedClass layout (owner, 2026-10-03)', () => {
     expect(within(settings).getByText('Actual timing')).toBeInTheDocument();
   });
 
+  it('closes an open expected-start editor when the secretary moves to another class', async () => {
+    const { user, rerender } = renderPanel(sourceClass);
+    await user.click(
+      within(screen.getByTestId('focused-class-header')).getByRole('button', { name: /9:00/ })
+    );
+    expect(screen.getByRole('button', { name: 'Save expected start' })).toBeInTheDocument();
+
+    rerender(
+      <SecretaryCockpitFocusedClass
+        showId="show-1"
+        focused={{ ...focused, id: 'class-2', name: 'Container Advanced' }}
+        sourceClass={{ ...sourceClass, id: 'class-2', name: 'Container Advanced' }}
+        trial={{ id: 'trial-1', date: '2026-07-20', number: '1', order: 0 }}
+        attention={[]}
+        timeZone="America/Chicago"
+        canManageShow
+        onCommand={vi.fn()}
+      />
+    );
+    expect(screen.queryByRole('button', { name: 'Save expected start' })).not.toBeInTheDocument();
+  });
+
   it('heads a started class with its scored count, not a redundant entry count', () => {
     renderPanel(
       { ...sourceClass, lifecycle: 'in-progress' },

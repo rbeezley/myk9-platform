@@ -122,7 +122,9 @@ describe('SecretaryCockpitFocusedClass guards', () => {
     );
     // A submenu parks pointer-events: none on its parent while open, which user-event would refuse.
     const user = userEvent.setup({ pointerEventsCheck: 0 });
-    await user.click(screen.getByRole('button', { name: 'Change status of Container Novice' }));
+    await user.click(
+      screen.getByRole('button', { name: /^Status: .*Change status of Container Novice$/ })
+    );
     await user.click(await screen.findByRole('menuitem', { name: 'Complete' }));
 
     const dialog = await screen.findByRole('alertdialog');

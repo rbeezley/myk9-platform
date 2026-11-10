@@ -66,7 +66,7 @@ function renderFields(
 // A submenu parks pointer-events: none on its parent while open, which user-event would refuse.
 const statusUser = () => userEvent.setup({ pointerEventsCheck: 0 });
 const openStatus = (user: ReturnType<typeof statusUser>) =>
-  user.click(screen.getByRole('button', { name: 'Change status of Container Novice' }));
+  user.click(screen.getByRole('button', { name: /^Status: .*Change status of Container Novice$/ }));
 
 describe('FocusedClassFields (MYK9-1867)', () => {
   beforeEach(() => {
@@ -80,9 +80,9 @@ describe('FocusedClassFields (MYK9-1867)', () => {
       expect(screen.getByText(label)).toBeInTheDocument();
     }
     expect(screen.getByText('Judge Judy')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Edit actual start' })).toHaveTextContent(
-      'Not started'
-    );
+    expect(
+      screen.getByRole('button', { name: /^Actual timing: .*Edit actual start$/ })
+    ).toHaveTextContent('Not started');
   });
 
   it('is read-only for someone who cannot manage the show', () => {
@@ -90,7 +90,9 @@ describe('FocusedClassFields (MYK9-1867)', () => {
 
     expect(screen.getByText('Not started', { selector: 'span.rounded-full' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Change status/ })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Edit actual start' })).toBeNull();
+    expect(
+      screen.queryByRole('button', { name: /^Actual timing: .*Edit actual start$/ })
+    ).toBeNull();
     expect(screen.getByRole('button', { name: /9:00/ })).toBeDisabled();
   });
 
@@ -192,7 +194,7 @@ describe('FocusedClassFields (MYK9-1867)', () => {
   it('edits the expected start in place and writes through the existing editor', async () => {
     renderFields({ source: { revisedExpectedStart: '2026-07-20T15:15:00.000Z' } });
     const user = userEvent.setup();
-    await user.click(screen.getByRole('button', { name: /10:15/ }));
+    await user.click(screen.getByRole('button', { name: /^Expected start: .*10:15/ }));
     await user.click(screen.getByRole('button', { name: 'Use scheduled time' }));
 
     expect(setRevisedExpectedStart).toHaveBeenCalledWith('class-1', null);
@@ -201,18 +203,45 @@ describe('FocusedClassFields (MYK9-1867)', () => {
     );
   });
 
+  it('names the visible status and time first, so screen readers and voice control hear them', () => {
+    renderFields();
+
+    expect(
+      screen.getByRole('button', { name: 'Status: Not started. Change status of Container Novice' })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Actual timing: Not started. Edit actual start' })
+    ).toBeInTheDocument();
+  });
+
+  it('returns focus to the expected start opener when the editor closes', async () => {
+    renderFields();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: /^Expected start: / }));
+    await user.click(screen.getByRole('button', { name: 'Cancel expected start edit' }));
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /^Expected start: / })).toHaveFocus()
+    );
+  });
+
   it('opens the one actual-start editor from the Actual timing field', async () => {
     const { onEditActualStart } = renderFields();
     const user = userEvent.setup();
-    await user.click(screen.getByRole('button', { name: 'Edit actual start' }));
+    await user.click(screen.getByRole('button', { name: /^Actual timing: .*Edit actual start$/ }));
 
     expect(onEditActualStart).toHaveBeenCalledTimes(1);
   });
 
   it('does not offer the actual-start editor on a cancelled class, which has none', () => {
-    renderFields({ focused: { lifecycle: { evidence: 'recorded', value: 'cancelled' } } });
+    renderFields({
+      focused: { lifecycle: { evidence: 'recorded', value: 'cancelled' } },
+      source: { lifecycle: 'cancelled' },
+    });
 
-    expect(screen.queryByRole('button', { name: 'Edit actual start' })).toBeNull();
+    expect(
+      screen.queryByRole('button', { name: /^Actual timing: .*Edit actual start$/ })
+    ).toBeNull();
   });
 
   it('says a class that ran has no recorded start, and shows started and finished times', () => {

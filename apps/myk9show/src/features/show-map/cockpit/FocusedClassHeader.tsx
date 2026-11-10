@@ -10,8 +10,8 @@ import {
 } from '@/components/shows/ShowDetails/showStickyLayout';
 
 /**
- * The focused class's name, one-line facts and inline settings (`children`). Pinned under the show header while the class's
- * checklist and exhibitors scroll (MYK9-1266); its height is published so focused controls scroll
+ * The focused class's name, one-line facts and inline settings (`children`). Pinned under the
+ * show header while the class's checklist and exhibitors scroll (MYK9-1266); its height is published so focused controls scroll
  * to just below it. Stacked, it pins to the page under the show header; split, the card lives in a
  * sticky panel with its own scroll (FOCUSED_CLASS_PANEL_CLASS) and the header pins to the panel's top.
  */

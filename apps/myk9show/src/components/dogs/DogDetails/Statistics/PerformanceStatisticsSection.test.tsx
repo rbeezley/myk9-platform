@@ -79,7 +79,7 @@ describe('PerformanceStatisticsSection', () => {
     expect(alert).toHaveTextContent(/couldn.?t load performance statistics/i);
     expect(alert.textContent?.toLowerCase()).not.toMatch(/you (did|caused|made)/);
 
-    fireEvent.click(screen.getByRole('button', { name: /retry/i }));
+    fireEvent.click(screen.getByRole('button', { name: /try again/i }));
     expect(refetch).toHaveBeenCalledTimes(1);
   });
 

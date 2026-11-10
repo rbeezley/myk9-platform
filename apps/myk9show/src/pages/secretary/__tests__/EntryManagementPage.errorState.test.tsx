@@ -113,7 +113,7 @@ describe('EntryManagementPage — error state (PR #418, audit finding P1)', () =
 
     expect(screen.getByText(/couldn't load entries/i)).toBeInTheDocument();
     expect(screen.getByText('Failed to load entries')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
   });
 
   it('does NOT render the misleading zero-entry main content when loadError is set', () => {
@@ -138,7 +138,7 @@ describe('EntryManagementPage — error state (PR #418, audit finding P1)', () =
     });
 
     mockLoadEntries.mockClear();
-    await user.click(screen.getByRole('button', { name: /retry/i }));
+    await user.click(screen.getByRole('button', { name: /try again/i }));
 
     expect(mockLoadEntries).toHaveBeenCalledWith('show-1');
   });

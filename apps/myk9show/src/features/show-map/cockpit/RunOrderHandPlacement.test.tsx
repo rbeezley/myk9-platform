@@ -177,7 +177,7 @@ describe('RunOrderHandPlacement read states', () => {
     expect(await screen.findByText(/Couldn.t load the run order/)).toBeInTheDocument();
     expect(screen.queryByText('No dogs on the run order yet.')).toBeNull();
     const before = source.calls;
-    await userEvent.setup().click(screen.getByRole('button', { name: 'Retry' }));
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Try again' }));
     await vi.waitFor(() => expect(source.calls).toBeGreaterThan(before));
   });
 

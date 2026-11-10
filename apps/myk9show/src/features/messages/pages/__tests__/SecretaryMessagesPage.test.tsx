@@ -329,6 +329,6 @@ describe('SecretaryMessagesPage — error state', () => {
     renderAtUrl('/secretary/messages');
     expect(screen.getByText(/couldn't load messages/i)).toBeInTheDocument();
     expect(screen.getByText(/network error fetching threads/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
   });
 });

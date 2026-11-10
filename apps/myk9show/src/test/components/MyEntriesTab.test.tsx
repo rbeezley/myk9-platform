@@ -64,7 +64,7 @@ describe('MyEntriesTab', () => {
   it('shows error state with retry button', () => {
     vi.mocked(useShowEntriesForUser).mockReturnValue(makeHookResult({ isError: true }));
     render(<MyEntriesTab showId="s1" />);
-    expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
   });
 
   it('shows empty state when no entries', () => {

@@ -363,7 +363,7 @@ describe('ResultsControlPage', () => {
 
     // Page-level error banner with a Retry affordance is shown.
     expect(screen.getByText("We couldn't load the results settings")).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
 
     // The cards surface an inline error, not the loading skeleton.
     expect(screen.getAllByText(/Couldn't load these settings/i).length).toBeGreaterThan(0);
@@ -378,7 +378,7 @@ describe('ResultsControlPage', () => {
     const user = userEvent.setup();
     renderPage();
 
-    await user.click(screen.getByRole('button', { name: 'Retry' }));
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
     expect(mockRefetch).toHaveBeenCalled();
   });
 
@@ -428,7 +428,7 @@ describe('ResultsControlPage', () => {
     expect(screen.getByText(/may be out of date/i)).toBeInTheDocument();
     expect(screen.queryByText("We couldn't load the results settings")).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Retry' }));
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
     expect(mockRefetch).toHaveBeenCalled();
   });
 

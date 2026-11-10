@@ -648,7 +648,7 @@ describe('MyEntriesPage UI Improvements', () => {
       expect(screen.queryByText(/add your first dog/i)).not.toBeInTheDocument();
       expect(screen.queryByText(/let's get you set up/i)).not.toBeInTheDocument();
       // The exhibitor still gets the action.
-      expect(screen.getByRole('button', { name: /retry/i })).toBeEnabled();
+      expect(screen.getByRole('button', { name: /try again/i })).toBeEnabled();
     });
 
     it('DOES make the first-run claim once the same empty read is confirmed', async () => {

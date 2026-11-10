@@ -248,7 +248,7 @@ describe('EntryManagementPage registration number needed (MYK9-1162)', () => {
     render(page(), { initialRoute: PANE });
 
     expect(await screen.findByText("Couldn't load this show's entries")).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
     expect(screen.queryByRole('status', { name: /Loading entries awaiting/ })).toBeNull();
   });
 });

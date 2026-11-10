@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
 import { supabase } from '@/services/database/supabaseClient';
 import { notifications } from '@/lib/notifications';
+import { VOLUNTEER_COPY } from './volunteerErrorCopy';
 import type { Volunteer, ClassInfo, ClassAssignment, GeneralAssignment } from '@/types/volunteer';
 
 // ── Mappers ──────────────────────────────────────────────────────────────────
@@ -255,7 +256,7 @@ export function useAddVolunteer() {
       queryClient.invalidateQueries({ queryKey: queryKeys.volunteers(data.showId) });
     },
     onError: () => {
-      notifications.error('Failed to add volunteer');
+      notifications.error(VOLUNTEER_COPY.addFailed);
     },
   });
 }
@@ -289,7 +290,7 @@ export function useUpdateVolunteer() {
       queryClient.invalidateQueries({ queryKey: queryKeys.volunteers(data.showId) });
     },
     onError: () => {
-      notifications.error('Failed to update volunteer');
+      notifications.error(VOLUNTEER_COPY.updateFailed);
     },
   });
 }
@@ -308,7 +309,7 @@ export function useDeleteVolunteer() {
       queryClient.invalidateQueries({ queryKey: queryKeys.volunteerGeneralAssignments(showId) });
     },
     onError: () => {
-      notifications.error('Failed to delete volunteer');
+      notifications.error(VOLUNTEER_COPY.deleteFailed);
     },
   });
 }
@@ -356,7 +357,7 @@ export function useAssignToClass(showId: string) {
     },
     onError: (_err, _input, context) => {
       if (context?.previous) queryClient.setQueryData(qk, context.previous);
-      notifications.error('Failed to assign volunteer');
+      notifications.error(VOLUNTEER_COPY.assignClassFailed);
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: qk });
@@ -385,7 +386,7 @@ export function useUnassignFromClass(showId: string) {
     },
     onError: (_err, _input, context) => {
       if (context?.previous) queryClient.setQueryData(qk, context.previous);
-      notifications.error('Failed to unassign volunteer');
+      notifications.error(VOLUNTEER_COPY.unassignClassFailed);
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: qk });
@@ -438,7 +439,7 @@ export function useAssignToGeneralDuty(showId: string) {
     },
     onError: (_err, _input, context) => {
       if (context?.previous) queryClient.setQueryData(qk, context.previous);
-      notifications.error('Failed to assign volunteer to duty');
+      notifications.error(VOLUNTEER_COPY.assignDutyFailed);
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: qk });
@@ -467,7 +468,7 @@ export function useUnassignFromGeneralDuty(showId: string) {
     },
     onError: (_err, _input, context) => {
       if (context?.previous) queryClient.setQueryData(qk, context.previous);
-      notifications.error('Failed to unassign volunteer from duty');
+      notifications.error(VOLUNTEER_COPY.unassignDutyFailed);
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: qk });

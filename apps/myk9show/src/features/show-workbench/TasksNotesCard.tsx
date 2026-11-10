@@ -12,6 +12,7 @@ import {
 } from '@/hooks/queries/useSecretaryTasks';
 import { TaskRow } from '@/pages/secretary/SecretaryDashboardPage/TaskRow';
 import { TaskAddForm } from '@/pages/secretary/SecretaryDashboardPage/TaskAddForm';
+import { TASK_COPY } from './taskErrorCopy';
 import type {
   SecretaryTask,
   UpdateTaskInput,
@@ -53,11 +54,11 @@ export function TasksNotesCard({ showId, clubId }: TasksNotesCardProps) {
   }
 
   function handleUpdate(id: string, update: UpdateTaskInput) {
-    updateTask.mutate({ id, update }, { onError: () => toast.error('Failed to update task.') });
+    updateTask.mutate({ id, update }, { onError: () => toast.error(TASK_COPY.updateFailed) });
   }
 
   function handleDelete(id: string) {
-    deleteTask.mutate(id, { onError: () => toast.error('Failed to delete task.') });
+    deleteTask.mutate(id, { onError: () => toast.error(TASK_COPY.deleteFailed) });
   }
 
   return (
@@ -106,7 +107,7 @@ export function TasksNotesCard({ showId, clubId }: TasksNotesCardProps) {
             onAdd={input => {
               createTask.mutate(input, {
                 onSuccess: () => setShowAddForm(false),
-                onError: () => toast.error('Failed to add task. Please try again.'),
+                onError: () => toast.error(TASK_COPY.addFailed),
               });
             }}
             onCancel={() => setShowAddForm(false)}
@@ -116,7 +117,7 @@ export function TasksNotesCard({ showId, clubId }: TasksNotesCardProps) {
 
       {isError ? (
         <div className="mt-3 flex items-center justify-between rounded border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs">
-          <span className="text-destructive">Couldn't load tasks for this show.</span>
+          <span className="text-destructive">{TASK_COPY.loadShowFailed}</span>
           <button
             type="button"
             onClick={() => refetch()}

@@ -10,6 +10,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
 import { useAuth } from '@/hooks/useAuth';
 import { notifications } from '@/lib/notifications';
+import { SHOW_SETTINGS_COPY } from './showSettingsErrorCopy';
 import { markUnreachableIfTransportFailure, timeoutSignal } from '@/lib/serverReachability';
 import type { VisibilityPreset, VisibilityTiming } from '@myk9/secretary';
 import { settingsQueryKeys, type ShowSettings } from '../queries/useShowSettingsDatabase';
@@ -408,7 +409,7 @@ export function useBulkUpdateClassOverrides() {
       queryClient.invalidateQueries({ queryKey: settingsQueryKeys.trials(variables.showId) });
     },
     onError: () => {
-      notifications.error('Failed to update class overrides');
+      notifications.error(SHOW_SETTINGS_COPY.selectedClassesFailed);
     },
   });
 }

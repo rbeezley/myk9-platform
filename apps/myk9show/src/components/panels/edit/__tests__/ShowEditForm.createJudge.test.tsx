@@ -323,7 +323,11 @@ describe('ShowEditForm Judges tab: modal inline judge create (MYK9-908)', () => 
     await fillForm(user);
     await user.click(screen.getByRole('button', { name: 'Add Judge' }));
 
-    expect(await screen.findByText(/failed to save/i)).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        "We couldn't add this judge. Search the judge list for them before you try again."
+      )
+    ).toBeInTheDocument();
     expect(screen.getByLabelText(/first name/i)).toHaveValue('Jane');
     expect(screen.getByLabelText(/email/i)).toHaveValue('jane@example.com');
     expect(screen.getByRole('button', { name: 'Add Judge' })).toBeEnabled();

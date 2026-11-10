@@ -20,6 +20,7 @@
  */
 
 import { POSTGREST_MAX_ROWS } from './postgrestMaxRows';
+import { ArmbandInUseError } from './armbandInUse';
 import {
   ReplicatedTable,
   syncReplicatedTable,
@@ -336,9 +337,7 @@ export class ReplicatedArmbandsTable extends ReplicatedTable<ReplicatedArmband> 
       a => a.armbandNumber === input.armbandNumber && a.dogId !== input.dogId
     );
     if (duplicateNumber) {
-      throw new Error(
-        `Armband ${input.armbandNumber} is already assigned to another dog in this show.`
-      );
+      throw new ArmbandInUseError(input.armbandNumber);
     }
 
     let existing = showArmbands.find(a => a.dogId === input.dogId);
@@ -348,9 +347,7 @@ export class ReplicatedArmbandsTable extends ReplicatedTable<ReplicatedArmband> 
         a => a.armbandNumber === input.armbandNumber && a.dogId !== input.dogId
       );
       if (refreshedDuplicateNumber) {
-        throw new Error(
-          `Armband ${input.armbandNumber} is already assigned to another dog in this show.`
-        );
+        throw new ArmbandInUseError(input.armbandNumber);
       }
       existing = showArmbands.find(a => a.dogId === input.dogId);
     }

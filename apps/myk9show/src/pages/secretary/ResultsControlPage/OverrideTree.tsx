@@ -48,6 +48,7 @@ import {
   type VisibilityFacet,
   type CheckinFacet,
 } from './overrideTreeUtils';
+import { resultsSettingResetFailed, resultsSettingSaveFailed } from './resultsControlErrorCopy';
 
 interface OverrideTreeProps {
   facet: OverrideFacet;
@@ -262,7 +263,7 @@ export function OverrideTree({
       },
       {
         onSuccess: () => toast.success('Trial visibility saved'),
-        onError: () => toast.error('Failed to save trial visibility'),
+        onError: () => toast.error(resultsSettingSaveFailed('trial', 'visibility')),
       }
     );
   }
@@ -272,7 +273,7 @@ export function OverrideTree({
       { trialId, showId, selfCheckinEnabled: enabled },
       {
         onSuccess: () => toast.success('Trial check-in override saved'),
-        onError: () => toast.error('Failed to save trial check-in'),
+        onError: () => toast.error(resultsSettingSaveFailed('trial', 'checkin')),
       }
     );
   }
@@ -287,7 +288,7 @@ export function OverrideTree({
               ? 'Trial visibility reset to show default'
               : 'Trial check-in reset to show default'
           ),
-        onError: () => toast.error('Failed to reset trial override'),
+        onError: () => toast.error(resultsSettingResetFailed('trial', facet)),
       }
     );
   }
@@ -308,7 +309,7 @@ export function OverrideTree({
       },
       {
         onSuccess: () => toast.success('Class visibility saved'),
-        onError: () => toast.error('Failed to save class visibility'),
+        onError: () => toast.error(resultsSettingSaveFailed('class', 'visibility')),
       }
     );
   }
@@ -318,7 +319,7 @@ export function OverrideTree({
       { classId, trialId, showId, selfCheckinEnabled: enabled },
       {
         onSuccess: () => toast.success('Class check-in override saved'),
-        onError: () => toast.error('Failed to save class check-in'),
+        onError: () => toast.error(resultsSettingSaveFailed('class', 'checkin')),
       }
     );
   }
@@ -333,7 +334,7 @@ export function OverrideTree({
               ? 'Class visibility reset to inherited'
               : 'Class check-in reset to inherited'
           ),
-        onError: () => toast.error('Failed to reset class override'),
+        onError: () => toast.error(resultsSettingResetFailed('class', facet)),
       }
     );
   }

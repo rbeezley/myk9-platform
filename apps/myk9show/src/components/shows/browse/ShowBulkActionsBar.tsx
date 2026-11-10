@@ -25,6 +25,8 @@ import {
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { FloatingBulkBar, BulkBarButton } from '@/components/list-toolkit';
 import type { EnhancedShow } from '@/hooks/useBrowseShowsData';
+import { SHOW_STATUS_VALUES, getStatusDescriptor } from '@/components/status';
+import { SHOW_ADMIN_COPY, bulkStatusPartialFailed } from '@/components/shows/showAdminErrorCopy';
 
 // Must stay in sync with the shows_status_check CHECK constraint
 // (migration 072): draft | published | upcoming | in_progress | completed | cancelled.
@@ -38,6 +40,13 @@ interface ShowBulkActionsBarProps {
   selectedShows: EnhancedShow[];
   onClearSelection: () => void;
   onBulkComplete: () => void;
+}
+
+/** The show's status as the status pill and the shows table word it. */
+function showStatusLabel(status: string): string {
+  return (SHOW_STATUS_VALUES as readonly string[]).includes(status)
+    ? getStatusDescriptor('show', status).label
+    : status;
 }
 
 const STATUS_OPTIONS: { value: ShowStatus; label: string; icon: React.ElementType }[] = [
@@ -75,14 +84,15 @@ export const ShowBulkActionsBar: React.FC<ShowBulkActionsBarProps> = ({
       );
       const failedCount = results.filter(result => result.error).length;
       if (failedCount === selectedShows.length) {
-        setError('Failed to update the selected shows. Please try again.');
+        setError(SHOW_ADMIN_COPY.bulkStatusAllFailed);
         return;
       }
       if (failedCount > 0) {
         // Partial failure: refresh + clear selection so the succeeded subset
         // reflects immediately and a retry can't re-hit already-updated shows.
-        notifications.error(`Failed to update ${failedCount} of ${selectedShows.length} shows.`, {
-          description: 'The other shows were updated. Re-select the failed shows to retry.',
+        notifications.error(bulkStatusPartialFailed(failedCount, selectedShows.length), {
+          description:
+            'The other shows were updated. Select the ones that did not change and try again.',
         });
         closeDialog();
         onBulkComplete();
@@ -97,7 +107,7 @@ export const ShowBulkActionsBar: React.FC<ShowBulkActionsBarProps> = ({
       closeDialog();
       onBulkComplete();
     } catch {
-      setError('Failed to update show status. Please try again.');
+      setError(SHOW_ADMIN_COPY.bulkStatusUnfinished);
     } finally {
       setIsProcessing(false);
     }
@@ -127,7 +137,7 @@ export const ShowBulkActionsBar: React.FC<ShowBulkActionsBarProps> = ({
 
       onBulkComplete();
     } catch {
-      notifications.error('We could not export those shows. Please try again.');
+      notifications.error(SHOW_ADMIN_COPY.exportFailed);
     }
   };
 
@@ -200,7 +210,8 @@ export const ShowBulkActionsBar: React.FC<ShowBulkActionsBarProps> = ({
             <div className="max-h-40 overflow-y-auto space-y-1">
               {selectedShows.map(show => (
                 <div key={show.id} className="text-sm p-2 bg-muted rounded">
-                  {show.name} — currently <span className="font-medium">{show.status}</span>
+                  {show.name}, currently{' '}
+                  <span className="font-medium">{showStatusLabel(show.status)}</span>
                 </div>
               ))}
             </div>

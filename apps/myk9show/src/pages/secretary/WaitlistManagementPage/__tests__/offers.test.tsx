@@ -216,7 +216,7 @@ describe('WaitlistManagementPage offers', () => {
         "Offer withdrawn, but the exhibitor's notification didn't send. Let them know directly."
       )
     );
-    expect(screen.queryByText(/Failed to withdraw/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/We couldn't withdraw this offer/)).not.toBeInTheDocument();
   });
 
   it("shows the server's reason when a withdrawal is refused", async () => {

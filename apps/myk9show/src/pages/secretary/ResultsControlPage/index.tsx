@@ -29,6 +29,7 @@ import { ResultsBulkBar } from './ResultsBulkBar';
 import { buildResultsReadinessSummary } from './readinessSummary';
 import { judgeSignOffWording } from '@/features/show-map/judgeSignOff';
 import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLink';
+import { RESULTS_CONTROL_COPY } from './resultsControlErrorCopy';
 
 const getClassId = (c: { id: string }) => c.id;
 
@@ -218,8 +219,8 @@ export default function ResultsControlPage({ embedded = false }: { embedded?: bo
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>
             {hasUnloadedData
-              ? 'Failed to load results settings'
-              : "Couldn't refresh results settings"}
+              ? RESULTS_CONTROL_COPY.loadFailedTitle
+              : RESULTS_CONTROL_COPY.refreshFailedTitle}
           </AlertTitle>
           <AlertDescription className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
             <span>

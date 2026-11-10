@@ -12,6 +12,18 @@ import { getUserFriendlyError } from '@/utils/errorMessages';
 export const MOVE_UP_ENTRY_RPC = 'move_up_entry';
 export const REVERSE_MOVE_UP_ENTRY_RPC = 'reverse_move_up_entry';
 
+/**
+ * MYK9-1844: the fallbacks the two table methods give `classifyMoveUpRpcError`, so
+ * every screen that changes a dog's class (the Show Map, Entries' Change class, the
+ * move-up requests tab, Move back) shows the same sentence for an unmapped failure.
+ * The RPC is one transaction, but the answer can be lost after it committed, so the
+ * secretary is sent to check before trying again.
+ */
+export const MOVE_UP_FAILED =
+  "We couldn't change this entry's class. Check which class the dog is in before you try again.";
+export const MOVE_BACK_FAILED =
+  "We couldn't move this dog back. Check which class the dog is in before you try again.";
+
 /** SQLSTATE the two functions raise, and what each one means to a secretary. */
 export type MoveUpRpcFailureKind =
   'not-deployed' | 'not-authorized' | 'refused' | 'not-found' | 'unavailable';

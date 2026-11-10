@@ -135,7 +135,9 @@ describe('useWaitlistManagementData — offer notification', () => {
   it('keeps the generic message for any other offer failure', async () => {
     vi.mocked(promoteWaitlistEntry).mockRejectedValue(new Error('db down'));
     const { result } = await offer();
-    expect(result.current.error).toBe('Failed to offer spot. Please try again.');
+    expect(result.current.error).toBe(
+      "We couldn't finish offering this spot. Press Try again to reload the list, and check the Offered list before you offer it again."
+    );
   });
 
   it('does not message when the offer mutation fails', async () => {
@@ -169,7 +171,7 @@ describe('useWaitlistManagementData — offer notification', () => {
     vi.mocked(sendWaitlistOfferMessage).mockResolvedValue('no_account');
     await offer();
     expect(vi.mocked(toast.warning)).toHaveBeenCalledWith(
-      'Spot offered. This exhibitor has no app account yet — notify them directly.'
+      'Spot offered. This exhibitor has no app account yet, so contact them another way.'
     );
   });
 
@@ -274,7 +276,9 @@ describe('useWaitlistManagementData — remove that deleted nothing', () => {
 
     const { result } = await remove();
 
-    expect(result.current.error).toBe('Failed to remove from waitlist. Please try again.');
+    expect(result.current.error).toBe(
+      "We couldn't remove this dog from the waitlist. Press Try again to reload the list, and remove the dog again if it is still there."
+    );
   });
 });
 

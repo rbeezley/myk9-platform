@@ -7,6 +7,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
 import { notifications } from '@/lib/notifications';
+import { SHOW_SETTINGS_COPY } from './showSettingsErrorCopy';
 import { showQueryKeys } from '../queries/useShowsDatabase';
 
 interface VenueWifiUpdate {
@@ -36,7 +37,7 @@ export function useVenueWifiMutation() {
       notifications.success('WiFi info saved');
     },
     onError: () => {
-      notifications.error('Failed to save WiFi info');
+      notifications.error(SHOW_SETTINGS_COPY.wifiFailed);
     },
   });
 }

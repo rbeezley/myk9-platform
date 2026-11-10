@@ -124,7 +124,7 @@ The header **Actions** button holds the rest. On **Entry Forms** it lists:
 Click a form to open it. At the top is the exhibitor's name and a **⋯** menu beside it. Add entry for, Email exhibitor… and Add private note… appear only on mail-in (paper) forms. A form from an online checkout lacks them; use the header **Actions → Add entry** instead, and the **$ due** card below has no Cash… or Check… buttons either (online payments follow Stripe).
 
 - **Add entry for** the exhibitor opens the entry flow already on them (card 5).
-- **Email exhibitor…** writes to them about this form.
+- **Email exhibitor…** opens the message composer addressed to that one exhibitor, so you can write to them about this form.
 - **Add private note…** keeps a note on the form. Only show officials can see it. The exhibitor never does.
 - Under **All entries on this form**: **Accept all** and **Reject all**. They apply to every entry on the form. An item reads "2 of 3" when only some entries can change (already scored, say), and is greyed out when none can.
 
@@ -326,6 +326,7 @@ All under **Show Desk → Actions**:
 - **Volunteers**: add volunteers and assign them to per-class slots grouped by trial.
 - **Lunch orders**: one list for each show day, for anyone working it. That day's judges, officials and volunteers are on the list already. **Add person** opens a name and role, and **Add to list** adds them. Give each person a lunch order and a dietary note, then press **Save** on that row. Closing the panel with unsaved rows asks first.
 - **Judge supplies**: every judge at the show, once, with the trials they judge. Open a judge to set what they are handed. The list applies to every trial that judge is on, so a judge on two trials is set up once. **Reports → Judge Supply Checklists** prints them.
+- **Hospitality plan**: **Reports → Hospitality plan** prints the headcount by role for each show day, with the lunch orders and dietary notes. Print it before the show, once volunteers and lunch orders are in, and hand it to whoever runs hospitality.
 - **Tasks and notes**: reminders for this show.
 - **Emergency trial packet**: prepare or confirm the printed paper fallback, in case devices or signal fail on the day.
 

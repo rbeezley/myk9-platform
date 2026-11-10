@@ -115,7 +115,7 @@ describe('saveShowDraftStyle', () => {
     mocks.getReplicatedRow.mockResolvedValueOnce({ isDirty: true });
     await expect(
       saveShowDraftStyle({ show, style: 'heritage', ownerId: 'owner-1' })
-    ).rejects.toThrow('Sync this show’s pending changes');
+    ).rejects.toThrow('Wait for this show’s saved changes to be sent');
     expect(mocks.rpc).not.toHaveBeenCalled();
     expect(mocks.setReplicaRow).not.toHaveBeenCalled();
 
@@ -123,7 +123,7 @@ describe('saveShowDraftStyle', () => {
     mocks.getPendingForRow.mockResolvedValueOnce([{ id: 'pending-show-update' }]);
     await expect(
       saveShowDraftStyle({ show, style: 'heritage', ownerId: 'owner-1' })
-    ).rejects.toThrow('Sync this show’s pending changes');
+    ).rejects.toThrow('Wait for this show’s saved changes to be sent');
     expect(mocks.rpc).not.toHaveBeenCalled();
   });
 

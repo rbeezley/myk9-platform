@@ -210,21 +210,21 @@ describe('AccountMenuContent AskQ item (phone consolidation)', () => {
   });
 });
 
-describe('AccountMenuContent Refresh app item (MYK9-1549)', () => {
+describe('AccountMenuContent Update the app item (MYK9-1549)', () => {
   it('is offered to a non-admin outside development builds and runs the refresh', async () => {
     process.env.NODE_ENV = 'production';
     const { user } = renderOpenAccountMenu();
-    await user.click(screen.getByRole('menuitem', { name: 'Refresh app' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Update the app' }));
     expect(refreshApp).toHaveBeenCalledOnce();
     process.env.NODE_ENV = originalNodeEnv;
   });
 });
 
-describe('AccountMenuContent Refresh app offline (MYK9-1549)', () => {
+describe('AccountMenuContent Update the app offline (MYK9-1549)', () => {
   it('is disabled and says it needs a connection', async () => {
     networkState.isOnline = false;
     const { user } = renderOpenAccountMenu();
-    const item = screen.getByRole('menuitem', { name: 'Refresh app (needs a connection)' });
+    const item = screen.getByRole('menuitem', { name: 'Update the app (needs a connection)' });
     expect(item).toHaveAttribute('aria-disabled', 'true');
     await user.click(item);
     expect(refreshApp).not.toHaveBeenCalled();
@@ -299,7 +299,7 @@ describe('AccountMenuContent organization', () => {
       'Dark mode',
       'Help & Guides',
       'About',
-      'Refresh app',
+      'Update the app',
       'Sign out',
     ]);
   });
@@ -374,7 +374,7 @@ describe('AccountMenuContent sign-out guard (MYK9-202)', () => {
     await user.click(screen.getByRole('menuitem', { name: 'Sign out' }));
 
     const dialog = await screen.findByRole('alertdialog');
-    expect(dialog).toHaveTextContent(/haven't synced/i);
+    expect(dialog).toHaveTextContent(/not been sent yet/i);
   });
 
   it('mentions unsynced changes when offline status hides a non-empty queue', async () => {
@@ -388,7 +388,7 @@ describe('AccountMenuContent sign-out guard (MYK9-202)', () => {
     await user.click(screen.getByRole('menuitem', { name: 'Sign out' }));
 
     const dialog = await screen.findByRole('alertdialog');
-    expect(dialog).toHaveTextContent(/haven't synced/i);
+    expect(dialog).toHaveTextContent(/not been sent yet/i);
   });
 });
 
@@ -397,7 +397,11 @@ describe('AccountMenuContent save status', () => {
     { isOnline: true, status: 'synced' as const, expected: 'All changes saved' },
     { isOnline: true, status: 'pending' as const, expected: 'Saving changes...' },
     { isOnline: true, status: 'error' as const, expected: 'Some changes need attention' },
-    { isOnline: false, status: 'offline' as const, expected: 'Offline — changes saved here' },
+    {
+      isOnline: false,
+      status: 'offline' as const,
+      expected: 'Offline. Changes saved on this device',
+    },
   ])('shows "$expected" for $status state', ({ isOnline, status, expected }) => {
     networkState.isOnline = isOnline;
     syncState.status = status;

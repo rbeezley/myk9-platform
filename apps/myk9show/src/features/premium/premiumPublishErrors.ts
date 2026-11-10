@@ -55,7 +55,7 @@ function errorText(error: unknown): string {
   return '';
 }
 
-export const APP_UPDATED_MESSAGE = 'The app was updated — reload the page and publish again';
+export const APP_UPDATED_MESSAGE = 'The app was updated. Update the app and publish again';
 
 /** A lazily loaded chunk that no longer exists, typically after a deploy. */
 function isChunkLoadFailure(error: unknown, message: string): boolean {
@@ -173,7 +173,7 @@ export function premiumPublishFailureMessage(error: PremiumPublishError): string
     case 'intent-conflict':
       return 'A different premium list is already publishing for this show. Wait for it to finish, then try again.';
     case 'judges-syncing':
-      return "Your judge changes haven't reached the server yet, so the premium list wasn't published. Wait for them to sync (the account menu shows unsynced changes), then publish again.";
+      return "Your judge changes haven't been sent yet, so the premium list wasn't published. Wait until they are sent (the account menu shows when changes are still waiting), then publish again.";
     case 'app-updated':
       return APP_UPDATED_MESSAGE;
     case 'unknown':

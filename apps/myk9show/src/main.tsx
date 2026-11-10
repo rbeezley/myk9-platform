@@ -17,6 +17,7 @@ import { initializeSettings } from './store/settingsStore';
 import { setupPwa, applyPwaUpdate } from '@/services/pwa/pwaUpdate';
 import { monitoring } from './services/MonitoringService';
 import { setupRouterPageViewTracking } from './services/RouterPageViewTracking';
+import { UPDATE_THE_APP_LABEL } from './lib/offlineCopy';
 import { installSupportErrorCapture } from './features/support/supportDiagnostics';
 import {
   scrubAnalyticsEvent,
@@ -49,10 +50,10 @@ if (import.meta.env.DEV && 'serviceWorker' in navigator) {
   setupPwa({
     onPrompt: () => {
       toast('A new version of myK9Show is available', {
-        description: 'Reload to get the latest features and fixes.',
+        description: 'Update the app to get the latest features and fixes.',
         duration: Infinity,
         action: {
-          label: 'Update',
+          label: UPDATE_THE_APP_LABEL,
           onClick: () => {
             void applyPwaUpdate();
           },

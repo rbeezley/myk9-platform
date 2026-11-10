@@ -95,3 +95,21 @@ The in-progress set an exhibitor is building and paying for is **"your entry"** 
 ### "New" as an adjective
 
 `new` survives where it separates a new person from picking an existing one in the same control, not as a synonym for `Add`: **Add new judge (person not in system)** and **Add new Show Chairman** in the show wizard's officials pickers. The action still starts with `Add`.
+
+## Offline and updates
+
+Audience: older, retired, low-computer-skill volunteers and exhibitors, usually at a venue on poor Wi-Fi (MYK9-1818). Say where the change is and what happens next, in the words a person would use out loud. The shared sentences live in `apps/myk9show/src/lib/offlineCopy.ts`.
+
+| Say                                        | Instead of                                  |
+| ------------------------------------------ | ------------------------------------------- |
+| saved on this device                       | queued, cached, local storage, stored local |
+| will be sent when you are back online      | will sync, syncing, synced, backlog         |
+| not been sent yet                          | unsynced, pending sync                      |
+| update the app                             | reload, refresh the page, new build         |
+| add to your home screen                    | install as a standalone app                 |
+| we could not reach myK9Show                | the server is down, server error            |
+| someone else changed this at the same time | conflict, record changed elsewhere          |
+| use their change / keep my change          | take theirs / keep mine                     |
+| saved data (the "Storage" section, staff)  | cache, cached data, clear cache             |
+
+No em dashes in these strings. Raw field names, table names and server error text never reach an exhibitor. The sync-failure "Reason:" line and the Account "Storage" section are for staff only.

@@ -31,6 +31,8 @@ import { resetAllMockData } from '@/utils/debugUtils';
 import { clearDevelopmentCache } from '@/utils/clearDevelopmentCache';
 import { UserRole } from '@/types/auth-types';
 import { refreshApp } from '@/services/pwa/refreshApp';
+import { formatRoleLabel } from '@/lib/roleLabel';
+import { UPDATE_THE_APP_LABEL } from '@/lib/offlineCopy';
 import { AskQIcon } from '@/components/layout/AskQIcon';
 
 export interface DevActionRequest {
@@ -92,7 +94,7 @@ export function AccountMenuContent({
         ? RefreshCw
         : CircleCheck;
   const statusLabel = isOffline
-    ? 'Offline — changes saved here'
+    ? 'Offline. Changes saved on this device'
     : needsAttention
       ? 'Some changes need attention'
       : isSaving
@@ -141,9 +143,7 @@ export function AccountMenuContent({
           <div className="flex items-center gap-2 mt-1">
             <UserIcon className="h-3 w-3 text-muted-foreground" />
             <span className="text-xs text-muted-foreground">
-              {getUserRoles()
-                .map(role => role.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()))
-                .join(', ')}
+              {getUserRoles().map(formatRoleLabel).join(', ')}
             </span>
           </div>
         )}
@@ -209,7 +209,7 @@ export function AccountMenuContent({
         className="cursor-pointer"
       >
         <RefreshCw className="h-4 w-4 mr-2" />
-        {isOffline ? 'Refresh app (needs a connection)' : 'Refresh app'}
+        {isOffline ? `${UPDATE_THE_APP_LABEL} (needs a connection)` : UPDATE_THE_APP_LABEL}
       </DropdownMenuItem>
 
       {/* Development Tools */}

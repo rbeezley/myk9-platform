@@ -110,9 +110,7 @@ describe('CloseOutShowAction', () => {
     await user.click(await screen.findByRole('button', { name: 'Close out show' }));
 
     expect(
-      await screen.findByText(
-        'Closeout did not finish. Try again after checking your connection and sync status.'
-      )
+      await screen.findByText('Closeout did not finish. Try again after checking your connection.')
     ).toBeInTheDocument();
     expect(updateShowMock).not.toHaveBeenCalled();
     expect(toast.error).toHaveBeenCalledWith('Closeout did not finish. Please try again.');
@@ -128,9 +126,7 @@ describe('CloseOutShowAction', () => {
     await user.click(await screen.findByRole('button', { name: 'Close out show' }));
 
     expect(
-      await screen.findByText(
-        'Closeout did not finish. Try again after checking your connection and sync status.'
-      )
+      await screen.findByText('Closeout did not finish. Try again after checking your connection.')
     ).toBeInTheDocument();
     expect(updateTrialMock).toHaveBeenCalledWith('trial-open', { status: 'completed' });
     expect(updateClassMock).toHaveBeenCalledWith('class-open', { classStatus: 'completed' });

@@ -157,7 +157,7 @@ describe('ReplicationSyncProvider — replication:sync-failed listener', () => {
     });
 
     expect(toast.error).toHaveBeenCalledWith(
-      "Score not saved — you're not authorized to score this class. Get a judge passcode or ask the secretary to fix access, then retry.",
+      "Score not saved. You're not authorized to score this class. Get a judge passcode or ask the secretary to fix access, then retry.",
       expect.objectContaining({
         duration: Infinity,
         action: expect.objectContaining({ label: 'Retry after access is fixed' }),

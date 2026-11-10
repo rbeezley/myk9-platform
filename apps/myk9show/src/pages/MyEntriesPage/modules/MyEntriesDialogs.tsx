@@ -332,7 +332,7 @@ export const ReceiptEntryDialog: React.FC<ReceiptEntryDialogProps> = ({
         user={user}
         onClose={closeReceipt}
         onBack={onBack}
-        notice="Some class details for this payment are still syncing, so this shows your entry fees rather than the exact amount charged."
+        notice="Some class details for this payment have not all arrived yet, so this shows your entry fees rather than the exact amount charged."
         onRetry={() => void receiptOrders.refetch()}
       />
     );

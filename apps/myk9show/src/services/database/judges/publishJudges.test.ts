@@ -155,7 +155,7 @@ describe('fetchShowJudgesForPublish', () => {
     const error = await publishError();
 
     expect(error.code).toBe('judges-syncing');
-    expect(premiumPublishFailureMessage(error)).toMatch(/haven't reached the server/);
+    expect(premiumPublishFailureMessage(error)).toMatch(/haven't been sent yet/);
     expect(queue.requestUpload).toHaveBeenCalled();
   });
 

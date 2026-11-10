@@ -139,7 +139,7 @@ describe('premium publish error contract', () => {
     );
   });
 
-  it('shows the reload instruction, not the generic retry, for app-updated', () => {
+  it('shows the update instruction, not the generic retry, for app-updated', () => {
     const error = classifyPremiumPublishError(
       new TypeError('Failed to fetch dynamically imported module: https://x.test/a.js'),
       'generation'
@@ -147,7 +147,7 @@ describe('premium publish error contract', () => {
 
     expect(error.code).toBe('app-updated');
     expect(premiumPublishFailureMessage(error)).toBe(APP_UPDATED_MESSAGE);
-    expect(premiumPublishFailureMessage(error)).toMatch(/reload the page/);
+    expect(premiumPublishFailureMessage(error)).toMatch(/Update the app/);
   });
 
   it('uses the generic retry message when the production body is not recognized', async () => {

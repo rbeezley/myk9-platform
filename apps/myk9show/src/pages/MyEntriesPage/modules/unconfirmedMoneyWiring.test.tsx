@@ -232,7 +232,7 @@ describe('My Shows money under an UNCONFIRMED account read (MYK9-629 AC1)', () =
     expect(screen.queryByText('Pay at show')).not.toBeInTheDocument();
 
     // The notice says why, in the exhibitor's terms.
-    expect(screen.getByText(/couldn't reach the server to confirm them/i)).toBeInTheDocument();
+    expect(screen.getByText(/couldn't reach myK9Show to confirm them/i)).toBeInTheDocument();
 
     // Decision (a): the receipt for a payment already taken stays REACHABLE —
     // now one click further in, under the card's Actions menu.
@@ -254,7 +254,7 @@ describe('My Shows money under an UNCONFIRMED account read (MYK9-629 AC1)', () =
     render(<ListOf hook={hook} />);
 
     expect(screen.queryByText(/\$\d/)).not.toBeInTheDocument();
-    expect(screen.getByText(/couldn't reach the server to confirm them/i)).toBeInTheDocument();
+    expect(screen.getByText(/couldn't reach myK9Show to confirm them/i)).toBeInTheDocument();
     expect(
       await receiptsItem(userEvent.setup(), 'Heartland UKC Nosework Trial')
     ).not.toHaveAttribute('data-disabled');
@@ -274,9 +274,7 @@ describe('My Shows money under an UNCONFIRMED account read (MYK9-629 AC1)', () =
     expect(screen.getByRole('link', { name: /Pay \$30\.00/ })).toBeInTheDocument();
     // The refund figure the unconfirmed cases withhold IS stated here.
     expect(screen.getByText(/Partial refund of \$15\.00/i)).toBeInTheDocument();
-    expect(
-      screen.queryByText(/couldn't reach the server to confirm them/i)
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/couldn't reach myK9Show to confirm them/i)).not.toBeInTheDocument();
     expect(
       await receiptsItem(userEvent.setup(), 'Heartland UKC Nosework Trial')
     ).not.toHaveAttribute('data-disabled');
@@ -295,7 +293,7 @@ describe('the unconfirmed notice on the EMPTY path', () => {
     expect(screen.getByText(UNCONFIRMED_READ_HEADLINE)).toBeInTheDocument();
     // Identical to the copy the group renders — the wiring tests above match
     // this same phrase, so the two cannot drift apart silently.
-    expect(UNCONFIRMED_READ_HEADLINE).toMatch(/couldn't reach the server to confirm them/i);
+    expect(UNCONFIRMED_READ_HEADLINE).toMatch(/couldn't reach myK9Show to confirm them/i);
   });
 
   it('renders its detail, and nothing extra when there is none', () => {

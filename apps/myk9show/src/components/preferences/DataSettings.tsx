@@ -1,8 +1,8 @@
 /**
  * Data Settings Component
  *
- * Local storage / cache management. myK9Show is offline-first automatically —
- * there are no user-facing sync/bandwidth knobs to configure.
+ * Saved-data management for staff (hidden from exhibitor-only accounts by AccountPage).
+ * myK9Show saves show data on the device automatically; there are no knobs to configure.
  */
 
 import { useState, type MouseEvent } from 'react';
@@ -64,7 +64,9 @@ export function DataSettings() {
       setIsConfirmOpen(true);
     } catch {
       setPendingCount(0);
-      setCheckError('We could not verify unsynced changes. Connect and sync before clearing.');
+      setCheckError(
+        'We could not check for changes that have not been sent. Connect to the internet and try again.'
+      );
     } finally {
       setIsChecking(false);
     }
@@ -105,12 +107,14 @@ export function DataSettings() {
         return true;
       });
       if (result === null) {
-        setCheckError('Another cache clear is already in progress. Try again in a moment.');
+        setCheckError('Another clear is already in progress. Try again in a moment.');
       }
     } catch {
       setIsConfirmOpen(false);
       setPendingCount(0);
-      setCheckError('We could not verify unsynced changes. Connect and sync before clearing.');
+      setCheckError(
+        'We could not check for changes that have not been sent. Connect to the internet and try again.'
+      );
     } finally {
       setIsChecking(false);
     }
@@ -122,27 +126,29 @@ export function DataSettings() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <HardDrive className="h-5 w-5" />
-            Local Storage
+            Storage on this device
           </CardTitle>
-          <CardDescription>Manage data cached on this device</CardDescription>
+          <CardDescription>Manage the show data saved on this device</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between gap-4">
             <div className="space-y-0.5">
-              <Label className="font-medium">Clear Cached Data</Label>
+              <Label className="font-medium">Clear saved data</Label>
               <div className="text-sm text-muted-foreground">
-                Removes disposable local cache data and reloads the app. Your account settings and
-                login are preserved.
+                Removes disposable data saved on this device and updates the app. Your account
+                settings and login are preserved.
               </div>
             </div>
             <Button variant="outline" size="lg" onClick={handleClearCache} disabled={isChecking}>
-              {isChecking ? 'Checking…' : 'Clear Cache'}
+              {isChecking ? 'Checking…' : 'Clear saved data'}
             </Button>
           </div>
           {pendingCount > 0 && (
             <p role="alert" className="text-sm font-medium text-destructive">
-              You have {pendingCount} unsynced {pendingCount === 1 ? 'change' : 'changes'}. Connect
-              and sync before clearing cached data.
+              {pendingCount === 1
+                ? 'You have 1 change that has not been sent yet.'
+                : `You have ${pendingCount} changes that have not been sent yet.`}{' '}
+              Connect to the internet and wait before clearing saved data.
             </p>
           )}
           {checkError && (
@@ -151,8 +157,8 @@ export function DataSettings() {
             </p>
           )}
           <p className="text-xs text-muted-foreground">
-            myK9Show works offline automatically — show data is stored on your device and syncs when
-            you're back online.
+            myK9Show works offline automatically. Show data is saved on your device and sent when
+            you are back online.
           </p>
         </CardContent>
       </Card>
@@ -160,17 +166,17 @@ export function DataSettings() {
       <AlertDialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Clear disposable cache data?</AlertDialogTitle>
+            <AlertDialogTitle>Clear saved data?</AlertDialogTitle>
             <AlertDialogDescription>
-              This removes cached show data, cart contents, drafts, armband data, and notification
-              preferences from this device. Your account settings, login, and unsynced changes are
-              not removed.
+              This removes saved show data, entry-in-progress contents, drafts, armband data, and
+              notification preferences from this device. Your account settings, login, and changes
+              not yet sent are not removed.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Keep cached data</AlertDialogCancel>
+            <AlertDialogCancel>Keep saved data</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmClearCache} disabled={isChecking}>
-              {isChecking ? 'Checking…' : 'Clear cache and reload'}
+              {isChecking ? 'Checking…' : 'Clear saved data and update the app'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -49,7 +49,8 @@ vi.mock('@/hooks/useUsers', () => ({
 
 const mockSignOut = vi.fn().mockResolvedValue(undefined);
 let mockAuthUserId = 'u-1';
-const mockGetUserRoles = vi.fn(() => [UserRole.SECRETARY, UserRole.STEWARD, UserRole.EXHIBITOR]);
+const STAFF_ROLES = [UserRole.SECRETARY, UserRole.STEWARD, UserRole.EXHIBITOR];
+const mockGetUserRoles = vi.fn<() => UserRole[]>(() => STAFF_ROLES);
 let mockRbacUserRoles: Array<{
   role: { name: string };
   scope_type?: string;
@@ -142,6 +143,7 @@ describe('AccountPage', () => {
     mockForm.saving = false;
     mockRbacUserRoles = [];
     mockClubs = [];
+    mockGetUserRoles.mockImplementation(() => STAFF_ROLES);
     mockResetToDefaults.mockResolvedValue(undefined);
   });
 
@@ -322,6 +324,26 @@ describe('AccountPage', () => {
   it('switches to Storage section', () => {
     render();
     fireEvent.click(screen.getByRole('button', { name: 'Storage' }));
+    expect(screen.getByTestId('data-settings')).toBeInTheDocument();
+  });
+
+  // MYK9-1818: Storage is a staff tool; an exhibitor-only account never sees it.
+  it('hides Storage from an exhibitor-only account and still lists the other sections', () => {
+    mockGetUserRoles.mockImplementation(() => [UserRole.EXHIBITOR]);
+    render();
+    expect(screen.queryByRole('button', { name: 'Storage' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Install app' })).toBeInTheDocument();
+  });
+
+  it('falls back to Profile when an exhibitor-only account deep links to Storage', () => {
+    mockGetUserRoles.mockImplementation(() => [UserRole.EXHIBITOR]);
+    render('/account?section=data');
+    expect(screen.queryByTestId('data-settings')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Profile' })).toHaveAttribute('aria-current', 'page');
+  });
+
+  it('keeps Storage for a staff account that deep links to it', () => {
+    render('/account?section=data');
     expect(screen.getByTestId('data-settings')).toBeInTheDocument();
   });
 

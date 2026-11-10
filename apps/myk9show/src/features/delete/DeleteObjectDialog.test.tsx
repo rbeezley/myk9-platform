@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
+import { logger } from '@/services/LoggingService';
 import type { DeleteObjectKind, DeletePreview, DeleteTarget } from './deleteTypes';
 import type { DeleteRecordsResult } from './deleteRecords';
 
@@ -542,6 +543,51 @@ describe('DeleteObjectDialog with items already deleted elsewhere (MYK9-922)', (
     expect(within(dialog).getByRole('button', { name: 'Delete show' })).toBeDisabled();
     expect(mocks.purge).not.toHaveBeenCalled();
     expect(onDeleted).not.toHaveBeenCalled();
+  });
+});
+
+describe('DeleteObjectDialog: the guard for a failure deleteRecords did not map', () => {
+  it('one item: says what failed, logs the raw error, and shows none of its text', async () => {
+    const logError = vi.spyOn(logger, 'error').mockImplementation(() => undefined);
+    mocks.preview.mockResolvedValue(counts());
+    const boom = Object.assign(new Error('raw internal failure'), { code: 'XX000' });
+    mocks.purge.mockRejectedValue(boom);
+    const { user } = renderDialog('show', [{ id: 's1', name: 'Heartland Classic' }]);
+
+    const dialog = await screen.findByRole('alertdialog');
+    const confirm = within(dialog).getByRole('button', { name: 'Delete show' });
+    await waitFor(() => expect(confirm).toBeEnabled());
+    await user.click(confirm);
+
+    expect(
+      await within(dialog).findByText("We couldn't delete this show. Please try again.")
+    ).toBeVisible();
+    expect(within(dialog).queryByText(/raw internal failure/)).not.toBeInTheDocument();
+    expect(logError).toHaveBeenCalledWith(
+      'Delete guard caught an unmapped failure',
+      'delete',
+      { kind: 'show', count: 1, code: 'XX000' },
+      boom
+    );
+  });
+
+  it('several items: the sentence is plural, not "this dog"', async () => {
+    vi.spyOn(logger, 'error').mockImplementation(() => undefined);
+    mocks.preview.mockResolvedValue(counts());
+    mocks.purge.mockRejectedValue(new Error('raw internal failure'));
+    const { user } = renderDialog('dog', [
+      { id: 'd1', name: 'Rex' },
+      { id: 'd2', name: 'Pepper' },
+    ]);
+
+    const dialog = await screen.findByRole('alertdialog', { name: 'Delete 2 dogs?' });
+    const confirm = within(dialog).getByRole('button', { name: 'Delete 2 dogs' });
+    await waitFor(() => expect(confirm).toBeEnabled());
+    await user.click(confirm);
+
+    expect(
+      await within(dialog).findByText("We couldn't delete those dogs. Try again.")
+    ).toBeVisible();
   });
 });
 

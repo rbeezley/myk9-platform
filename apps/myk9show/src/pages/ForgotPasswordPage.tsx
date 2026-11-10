@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Mail, CheckCircle } from 'lucide-react';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { commonAuthFailure } from '@/lib/authErrorCopy';
 import {
   TurnstileChallenge,
   type TurnstileChallengeHandle,
@@ -50,7 +51,7 @@ const ForgotPasswordPage: React.FC = () => {
         err instanceof Error &&
         (err.name === 'FetchError' || err.message === 'Failed to fetch')
       ) {
-        setError('Something went wrong. Please try again.');
+        setError(commonAuthFailure(err) ?? "We couldn't send the reset link. Try again.");
       } else {
         setSubmitted(true);
       }

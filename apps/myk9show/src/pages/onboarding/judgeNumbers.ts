@@ -67,5 +67,6 @@ export async function saveMyJudgeNumbers(entries: readonly JudgeNumberEntry[]): 
       judge_number: entry.judge_number.trim(),
     })),
   });
-  if (error) throw new Error("We couldn't save your judge numbers. Please try again.");
+  // The caller says what failed in plain words and logs this error (message and code).
+  if (error) throw error;
 }

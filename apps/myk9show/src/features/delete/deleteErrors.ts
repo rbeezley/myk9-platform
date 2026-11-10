@@ -92,6 +92,13 @@ export function deleteErrorMessage(kind: DeleteObjectKind, error: unknown): stri
   }
 }
 
+/** The guard sentence when a delete throws something `deleteRecords` did not map. */
+export function deleteGuardMessage(kind: DeleteObjectKind, count: number, error: unknown): string {
+  return count > 1
+    ? `We couldn't delete those ${objectNoun(kind, count)}. Try again.`
+    : deleteErrorMessage(kind, error);
+}
+
 /** The sentence shown when Undo (restore_<object>) fails. */
 export function restoreErrorMessage(kind: DeleteObjectKind, error: unknown): string {
   const { code } = fieldsOf(error);

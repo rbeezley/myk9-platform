@@ -49,6 +49,7 @@ import { useAtShowScoresheet } from './useAtShowScoresheet';
 import { useAtShowStoragePersistence } from './useAtShowStoragePersistence';
 import { AtShowAddToHomeNudge } from './AtShowAddToHomeNudge';
 import { MaxTimeNotSetNotice } from './MaxTimeNotSetNotice';
+import { CANCELLED_CLASS_MESSAGE } from './cancelledClassGuard';
 import { HeldEntryNotice } from './HeldEntryNotice';
 import { ScoreSubmitErrorBanner } from './ScoreSubmitErrorBanner';
 import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
@@ -266,6 +267,7 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
     trialName,
     isLoading,
     awaitingRegistrationNumber,
+    classCancelled,
     error,
     loadedClassId,
     loadedEntryId,
@@ -342,6 +344,21 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
         </p>
         <div className="flex flex-col gap-2 sm:flex-row">
           <Button onClick={retry}>Retry</Button>
+          <RingsideUpButton label="Entries" onClick={onBack} />
+        </div>
+      </main>
+    );
+  }
+
+  // MYK9-1847: a cancelled class takes no score. Read live from the class row, so a class
+  // cancelled while the sheet is open lands here too, and un-cancelling restores the sheet.
+  if (classCancelled) {
+    return (
+      <main className="ringside-root container max-w-2xl mx-auto px-4 py-6">
+        <div role="status" className="rounded-xl border bg-card p-6 text-center">
+          <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <p className="text-lg font-medium mb-2">Class cancelled</p>
+          <p className="text-muted-foreground">{CANCELLED_CLASS_MESSAGE}</p>
           <RingsideUpButton label="Entries" onClick={onBack} />
         </div>
       </main>

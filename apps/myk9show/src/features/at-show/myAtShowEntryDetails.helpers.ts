@@ -17,6 +17,7 @@ import { isTrialDayToday } from '@/pages/MyEntriesPage/modules/dayCheckIn';
 import { parseShowDate } from '@/pages/MyEntriesPage/modules/myEntriesStats.helpers';
 import type { SelfCheckinState } from '@/hooks/queries/useSelfCheckinEnabled';
 import type { RunQueueState } from '@myk9/ringside/run-queue';
+import { isCancelledClassStatus } from './ringsideClassStatusMap';
 import { withServerPlace } from '@/utils/showEntryRunQueue';
 import { deriveResultReleaseDisplay } from '@/features/result-card/resultReleaseDisplay';
 
@@ -237,6 +238,8 @@ export function buildMyAtShowEntryDetails(
  */
 export function deriveAtShowNextAction(detail: AtShowEntryDetail): AtShowEntryNextAction {
   if (detail.isScored) return { kind: 'scored' };
+  // MYK9-1847: a cancelled class takes no check-in; the row says Cancelled and links the class.
+  if (isCancelledClassStatus(detail.classStatus)) return { kind: 'view-class' };
   if (detail.checkInStatus !== 'no-status') return { kind: 'view-class' };
   if (!detail.classId || !detail.className || !detail.hasRunOrder) {
     return { kind: 'wait-running-order' };
@@ -279,6 +282,8 @@ export function deriveAtShowQueueLine(
   place: number | undefined
 ): RunQueueState | { kind: 'pending' } | null {
   if (detail.isScored || NO_PLACE_STATUSES.has(detail.checkInStatus)) return null;
+  // MYK9-1847: a cancelled class never runs, so there is no place in line to wait for.
+  if (isCancelledClassStatus(detail.classStatus)) return null;
   if (!detail.hasRunOrder) return { kind: 'pending' };
   return withServerPlace({ kind: 'waiting-unknown' }, place);
 }

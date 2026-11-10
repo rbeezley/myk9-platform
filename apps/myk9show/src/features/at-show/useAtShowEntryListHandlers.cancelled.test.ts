@@ -19,7 +19,8 @@ vi.mock('@/services/database/supabaseClient', () => ({
   supabase: { rpc: vi.fn(() => Promise.resolve({ error: null })) },
 }));
 
-import { CANCELLED_CLASS_MESSAGE, useAtShowEntryListHandlers } from './useAtShowEntryListHandlers';
+import { useAtShowEntryListHandlers } from './useAtShowEntryListHandlers';
+import { CANCELLED_CLASS_MESSAGE } from './cancelledClassGuard';
 
 const entry: Entry = {
   id: 'entry-1',
@@ -33,7 +34,9 @@ const entry: Entry = {
   className: 'Container Novice',
 };
 
-function setup(classCancelled: boolean) {
+const entryB: Entry = { ...entry, id: 'entry-2', armband: 2, classId: 'class-2' };
+
+function setup(classCancelled: boolean, cancelledIds?: string[]) {
   const actions: EntryListActions = {
     handleStatusChange: vi.fn(() => Promise.resolve()),
     handleResetScore: vi.fn(() => Promise.resolve()),
@@ -46,23 +49,24 @@ function setup(classCancelled: boolean) {
   };
   const navigate = vi.fn();
   const setActiveStatusPopup = vi.fn();
+  const setResetConfirmDialog = vi.fn();
   const { result, rerender } = renderHook(
     ({ cancelled }) =>
       useAtShowEntryListHandlers({
         actions,
         replication: { updateClassStatus: vi.fn(() => Promise.resolve()) } as never,
         classId: 'class-1',
-        localEntries: [entry],
+        localEntries: [entry, entryB],
         hasPermission: () => true,
         navigate,
         buildScoreSheetRoute: () => '/route',
-        classCancelled: cancelled,
+        isClassCancelled: (id: string) => (cancelledIds ? cancelledIds.includes(id) : cancelled),
         refresh: vi.fn(() => Promise.resolve()),
         manualRefresh: vi.fn(() => Promise.resolve()),
         setActiveStatusPopup,
         setActiveResetMenu: vi.fn(),
         setResetMenuPosition: vi.fn(),
-        setResetConfirmDialog: vi.fn(),
+        setResetConfirmDialog,
         setIsDragMode: vi.fn(),
         setIsManualRefreshing: vi.fn(),
         setActiveTab: vi.fn(),
@@ -70,7 +74,7 @@ function setup(classCancelled: boolean) {
       }),
     { initialProps: { cancelled: classCancelled } }
   );
-  return { result, rerender, actions, navigate, setActiveStatusPopup };
+  return { result, rerender, actions, navigate, setActiveStatusPopup, setResetConfirmDialog };
 }
 
 const clickEvent = { preventDefault: vi.fn(), stopPropagation: vi.fn() } as never;
@@ -113,6 +117,44 @@ describe('useAtShowEntryListHandlers while the class is cancelled', () => {
     rerender({ cancelled: false });
     act(() => result.current.handleEntryClick(entry));
     expect(navigate).toHaveBeenCalledWith('/route');
+    await act(async () => {
+      await result.current.handleStatusChange('entry-1', 'checked-in' as never);
+    });
+    expect(actions.handleStatusChange).toHaveBeenCalledWith('entry-1', 'checked-in');
+  });
+
+  it('does not open the reset confirmation for a cancelled class', async () => {
+    const { result, actions, setResetConfirmDialog } = setup(true);
+    act(() => result.current.handleResetScore(entry));
+    await act(async () => {
+      await result.current.confirmResetScore();
+    });
+    expect(setResetConfirmDialog).not.toHaveBeenCalledWith({ show: true, entry });
+    expect(actions.handleResetScore).not.toHaveBeenCalled();
+    expect(toastInfo).toHaveBeenCalledWith(CANCELLED_CLASS_MESSAGE);
+  });
+
+  it('still resets a score once the class is no longer cancelled', async () => {
+    const { result, actions } = setup(false);
+    act(() => result.current.handleResetScore(entry));
+    await act(async () => {
+      await result.current.confirmResetScore();
+    });
+    expect(actions.handleResetScore).toHaveBeenCalledWith('entry-1');
+  });
+
+  it('decides per entry: only the cancelled section is blocked', async () => {
+    const { result, actions, navigate } = setup(false, ['class-2']);
+    act(() => result.current.handleEntryClick(entry));
+    expect(navigate).toHaveBeenCalledWith('/route');
+    navigate.mockClear();
+    act(() => result.current.handleEntryClick(entryB));
+    expect(navigate).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await result.current.handleStatusChange('entry-2', 'checked-in' as never);
+    });
+    expect(actions.handleStatusChange).not.toHaveBeenCalled();
     await act(async () => {
       await result.current.handleStatusChange('entry-1', 'checked-in' as never);
     });

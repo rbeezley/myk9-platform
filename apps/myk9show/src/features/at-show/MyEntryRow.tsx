@@ -12,6 +12,7 @@ import {
   deriveAtShowQueueLine,
   type AtShowEntryDetail,
 } from './myAtShowEntryDetails.helpers';
+import { isCancelledClassStatus } from './ringsideClassStatusMap';
 import { formatPlaceUpdatedAt, formatRingConflictNotice } from './myEntriesTodayCopy';
 
 // Plain-language override where one exists (no-status/checked-in/conflict/
@@ -74,12 +75,18 @@ export function MyEntryRow({
             {detail.isRevisedStart ? 'Expected' : 'Scheduled'} {detail.expectedStartLabel}
           </div>
         )}
-        <StatusBadge
-          family="entry"
-          status={detail.checkInStatus}
-          label={getExhibitorStatusLabel(detail)}
-          className="mt-1 text-xs"
-        />
+        {isCancelledClassStatus(detail.classStatus) && !detail.isScored ? (
+          // MYK9-1847: the class badge the class list uses, in place of a check-in state that can
+          // no longer change.
+          <StatusBadge family="class" status="cancelled" className="mt-1 text-xs" />
+        ) : (
+          <StatusBadge
+            family="entry"
+            status={detail.checkInStatus}
+            label={getExhibitorStatusLabel(detail)}
+            className="mt-1 text-xs"
+          />
+        )}
         {queueLine && (
           <div className="mt-1 text-sm font-medium" data-testid="at-show-my-entry-place">
             {queueLine.kind === 'pending'

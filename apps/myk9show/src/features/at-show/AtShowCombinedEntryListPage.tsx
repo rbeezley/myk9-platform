@@ -25,7 +25,7 @@
  * dialog via `applyCombinedRunOrder`.
  */
 
-import { isCancelledClassStatus } from './ringsideClassStatusMap';
+import { useIsClassCancelledFor } from './cancelledClassGuard';
 import { RingsideMenu } from './menu/RingsideMenu';
 import { useRingsideListSnapshot } from './menu/useRingsideListSnapshot';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -254,6 +254,8 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
     [showId, classIdA, classIdB]
   );
 
+  // MYK9-1847: each entry is judged by its own class, so one cancelled section blocks only itself.
+  const isClassCancelled = useIsClassCancelledFor([classIdA, classIdB]);
   const baseHandlers = useAtShowEntryListHandlers({
     actions,
     replication,
@@ -265,7 +267,7 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
     navigate,
     buildScoreSheetRoute,
     gateEntryClick,
-    classCancelled: isCancelledClassStatus(classInfo?.classStatus),
+    isClassCancelled,
     refresh,
     manualRefresh,
     setActiveStatusPopup: uiActions.setActiveStatusPopup,

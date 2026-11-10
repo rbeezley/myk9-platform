@@ -33,12 +33,8 @@ import { calculateRunOrder, storedRunOrder, toMyK9ShowRunOrderPreset } from '@/l
 import { notifyRunOrderPersistError } from './runOrderErrorToast';
 import { persistRunOrderResults } from './persistRunOrderResults';
 import { toStatusUpdateFields } from './ringsideClassStatusMap';
-
-/** Shown instead of the scoring, check-in and in-ring controls while a class is cancelled. */
-export const CANCELLED_CLASS_MESSAGE =
-  'This class is cancelled. Scoring and check-in are off until the secretary changes its status.';
-
-type ResetConfirmState = { show: boolean; entry: Entry | null };
+import { CANCELLED_CLASS_MESSAGE } from './cancelledClassGuard';
+import { useAtShowResetHandlers, type ResetConfirmState } from './useAtShowResetHandlers';
 
 export interface UseAtShowEntryListHandlersDeps {
   /** Mutation bag from `useAtShowEntryListActions`. */
@@ -61,11 +57,12 @@ export interface UseAtShowEntryListHandlersDeps {
    */
   gateEntryClick?: () => boolean;
   /**
-   * MYK9-1847: the class is cancelled. Scoring, check-in and in-ring changes are not offered;
-   * a tap says so instead. Derived from the class status on each render, so changing the
+   * MYK9-1847: whether a class is cancelled, decided per entry from `entry.classId` (a combined
+   * A/B list spans two classes). Scoring, check-in and in-ring changes are not offered for a
+   * cancelled class; a tap says so instead. Re-evaluated on each render, so changing the
    * status back restores them.
    */
-  classCancelled?: boolean;
+  isClassCancelled?: (classId: string) => boolean;
   /** Force-refresh from the data hook. */
   refresh: (forceSync?: boolean) => Promise<void>;
   /** Manual refresh control: syncs and records the done/failed/offline answer (MYK9-1746). */
@@ -81,6 +78,8 @@ export interface UseAtShowEntryListHandlersDeps {
   setActiveTab: (tab: 'pending' | 'completed') => void;
   setLocalEntries: Dispatch<SetStateAction<Entry[]>>;
 }
+
+const NEVER_CANCELLED = () => false;
 
 const NOOP_LONG_PRESS: LongPressHandlers = {
   onMouseDown: () => {},
@@ -101,7 +100,7 @@ export function useAtShowEntryListHandlers(
     navigate,
     buildScoreSheetRoute,
     gateEntryClick,
-    classCancelled = false,
+    isClassCancelled = NEVER_CANCELLED,
     refresh,
     manualRefresh,
     setActiveStatusPopup,
@@ -122,15 +121,20 @@ export function useAtShowEntryListHandlers(
     entriesRef.current = localEntries;
   }, [localEntries]);
 
+  // MYK9-1847: handlers that take only an entry id find its class from the latest entries.
+  const isEntryCancelled = useCallback(
+    (entryId: string) => {
+      const row = entriesRef.current.find(e => e.id === entryId);
+      return row ? isClassCancelled(row.classId) : false;
+    },
+    [isClassCancelled]
+  );
+
   // Serializes setDogInRingStatus calls: in-ring is single-occupancy, so
   // overlapping calls must not interleave their read→clear→mark and both end
   // up in-ring. Within-tab only; true cross-device exclusivity needs a
   // server-side constraint (deferred with the /at-show service layer).
   const inRingMutex = useRef<Promise<void>>(Promise.resolve());
-
-  // The entry whose reset is awaiting confirmation. Captured when the reset menu
-  // opens the dialog so confirmResetScore (which takes no args) knows the target.
-  const resetEntryRef = useRef<Entry | null>(null);
 
   // ── Routing ──────────────────────────────────────────────────────────
   const getScoreSheetRoute = useCallback<EntryListHandlers['getScoreSheetRoute']>(
@@ -141,7 +145,7 @@ export function useAtShowEntryListHandlers(
   // ── In-ring set (ring management) ────────────────────────────────────
   const setDogInRingStatus = useCallback<EntryListHandlers['setDogInRingStatus']>(
     async (dogId, inRing) => {
-      if (classCancelled) {
+      if (isEntryCancelled(dogId)) {
         toast.info(CANCELLED_CLASS_MESSAGE);
         return false;
       }
@@ -172,13 +176,13 @@ export function useAtShowEntryListHandlers(
         return false;
       }
     },
-    [actions, classCancelled]
+    [actions, isEntryCancelled]
   );
 
   // ── Entry tap ────────────────────────────────────────────────────────
   const handleEntryClick = useCallback<EntryListHandlers['handleEntryClick']>(
     entry => {
-      if (classCancelled) {
+      if (isClassCancelled(entry.classId)) {
         toast.info(CANCELLED_CLASS_MESSAGE);
         return;
       }
@@ -205,7 +209,7 @@ export function useAtShowEntryListHandlers(
       // ringside status mutation; explicit in-ring controls own that write.
       navigate(buildScoreSheetRoute(entry));
     },
-    [classCancelled, hasPermission, navigate, buildScoreSheetRoute, gateEntryClick]
+    [isClassCancelled, hasPermission, navigate, buildScoreSheetRoute, gateEntryClick]
   );
 
   // INTENT (spike): no prefetch cache in myK9Show yet — pure no-op.
@@ -235,7 +239,7 @@ export function useAtShowEntryListHandlers(
   const handleStatusChange = useCallback<EntryListHandlers['handleStatusChange']>(
     async (entryId, status: EntryStatusChange) => {
       setActiveStatusPopup(null);
-      if (classCancelled) {
+      if (isEntryCancelled(entryId)) {
         toast.info(CANCELLED_CLASS_MESSAGE);
         return;
       }
@@ -283,7 +287,7 @@ export function useAtShowEntryListHandlers(
         logger.error('[at-show] status change failed', 'at-show', { error: String(error) });
       }
     },
-    [actions, classCancelled, setActiveStatusPopup, setLocalEntries]
+    [actions, isEntryCancelled, setActiveStatusPopup, setLocalEntries]
   );
 
   useEffect(() => {
@@ -294,62 +298,24 @@ export function useAtShowEntryListHandlers(
     (e: ReactMouseEvent, entryId) => {
       e.preventDefault();
       e.stopPropagation();
-      if (classCancelled) {
+      if (isEntryCancelled(entryId)) {
         toast.info(CANCELLED_CLASS_MESSAGE);
         return;
       }
       setActiveStatusPopup(entryId);
     },
-    [classCancelled, setActiveStatusPopup]
+    [isEntryCancelled, setActiveStatusPopup]
   );
 
-  // ── Reset menu / dialog ──────────────────────────────────────────────
-  const handleResetMenuClick = useCallback<EntryListHandlers['handleResetMenuClick']>(
-    (e: ReactMouseEvent, entryId) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-      setResetMenuPosition({ top: rect.bottom + 4, left: rect.right });
-      setActiveResetMenu(entryId);
-    },
-    [setResetMenuPosition, setActiveResetMenu]
-  );
-
-  const handleResetScore = useCallback<EntryListHandlers['handleResetScore']>(
-    entry => {
-      resetEntryRef.current = entry;
-      setActiveResetMenu(null);
-      setResetMenuPosition(null);
-      setResetConfirmDialog({ show: true, entry });
-    },
-    [setActiveResetMenu, setResetMenuPosition, setResetConfirmDialog]
-  );
-
-  const confirmResetScore = useCallback<EntryListHandlers['confirmResetScore']>(async () => {
-    const entry = resetEntryRef.current;
-    // Close the dialog and move the row to the pending tab immediately for a
-    // responsive feel; the persisted clear + refresh runs underneath.
-    setResetConfirmDialog({ show: false, entry: null });
-    setActiveTab('pending');
-    if (!entry) return;
-    try {
-      await actions.handleResetScore(entry.id);
-      await refresh();
-    } catch (error) {
-      logger.error('[at-show] reset score failed', 'at-show', { error: String(error) });
-    } finally {
-      resetEntryRef.current = null;
-    }
-  }, [actions, refresh, setActiveTab, setResetConfirmDialog]);
-
-  const cancelResetScore = useCallback<EntryListHandlers['cancelResetScore']>(() => {
-    setResetConfirmDialog({ show: false, entry: null });
-  }, [setResetConfirmDialog]);
-
-  const closeResetMenu = useCallback<EntryListHandlers['closeResetMenu']>(() => {
-    setActiveResetMenu(null);
-    setResetMenuPosition(null);
-  }, [setActiveResetMenu, setResetMenuPosition]);
+  const resetHandlers = useAtShowResetHandlers({
+    actions,
+    isClassCancelled,
+    refresh,
+    setActiveResetMenu,
+    setResetMenuPosition,
+    setResetConfirmDialog,
+    setActiveTab,
+  });
 
   // ── Run order ────────────────────────────────────────────────────────
   const handleOpenDragMode = useCallback<EntryListHandlers['handleOpenDragMode']>(() => {
@@ -495,11 +461,7 @@ export function useAtShowEntryListHandlers(
     handleEntryPrefetch,
     handleStatusChange,
     handleStatusClick,
-    handleResetMenuClick,
-    handleResetScore,
-    confirmResetScore,
-    cancelResetScore,
-    closeResetMenu,
+    ...resetHandlers,
     handleApplyRunOrder,
     handleOpenDragMode,
     handleManualRefresh,

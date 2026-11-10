@@ -662,7 +662,7 @@ describe('buildSecretaryCockpitModel unused print tracking and checklist (MYK9-1
     expect(model.focusedClass).toMatchObject({ printTrackingInUse: true });
   });
 
-  it('keeps the checklist but drops Prepare chips when only a sign-off was recorded', () => {
+  it('drops Prepare chips when only a sign-off was recorded', () => {
     const model = buildSecretaryCockpitModel(
       makeSnapshot({ printTrackingInUse: false, checklistInUse: true }),
       { statuses: [] }

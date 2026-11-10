@@ -7,6 +7,7 @@ import { render } from '@/test/utils/testUtils';
 import { applyManualClassStatus } from '@/services/show-day/classStatusMutations';
 import { setRevisedExpectedStart } from '@/services/show-day/classTimingMutations';
 
+import { STATUS_TIMING_HELP } from './ClassOperationalControls';
 import { FocusedClassActionsMenu } from './FocusedClassActionsMenu';
 import type { CockpitLifecycle } from './secretaryCockpitTypes';
 
@@ -184,7 +185,9 @@ describe('FocusedClassActionsMenu (MYK9-1796)', () => {
     expect(applyManualClassStatus).toHaveBeenCalledWith('class-1', CLASS_STATUS.COMPLETED);
   });
 
-  it('confirms Complete when the unentered-score count is unknown (MYK9-1801)', async () => {
+  // Pins the menu's wiring of an unknown count; the panel passing null is pinned in
+  // SecretaryCockpitFocusedClass.guards.test.tsx, which is the test that fails without the fix.
+  it('hands an unknown unentered-score count to the Complete confirmation (MYK9-1801)', async () => {
     renderMenu({ lifecycle: 'in-progress', unenteredScoreCount: null });
     const user = submenuUser();
     await openMenu(user);
@@ -202,6 +205,42 @@ describe('FocusedClassActionsMenu (MYK9-1796)', () => {
 
     expect(screen.queryByRole('menuitem', { name: 'Set actual start' })).not.toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: 'Set expected start' })).toBeInTheDocument();
+  });
+
+  it('explains the timing, and keeps Cancelled apart from the routine statuses, in the status submenu', async () => {
+    renderMenu({ lifecycle: 'in-progress' });
+    const user = submenuUser();
+    await openMenu(user);
+    await user.click(screen.getByRole('menuitem', { name: 'Change class status' }));
+
+    const cancelled = await screen.findByRole('menuitem', { name: 'Cancelled' });
+    expect(screen.getByText(STATUS_TIMING_HELP)).toBeInTheDocument();
+    expect(cancelled).toHaveClass('text-destructive');
+    const submenu = cancelled.closest('[role="menu"]')!;
+    const separator = within(submenu as HTMLElement).getByRole('separator');
+    // The separator sits after every routine status and before Cancelled.
+    expect(
+      separator.compareDocumentPosition(cancelled) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    expect(
+      within(submenu as HTMLElement)
+        .getByRole('menuitem', { name: 'Complete' })
+        .compareDocumentPosition(separator) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+  });
+
+  it('writes nothing when the Complete confirmation is cancelled', async () => {
+    renderMenu({ lifecycle: 'in-progress', unenteredScoreCount: 2 });
+    const user = submenuUser();
+    await openMenu(user);
+    await user.click(screen.getByRole('menuitem', { name: 'Change class status' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Complete' }));
+
+    const dialog = await screen.findByRole('alertdialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+    expect(applyManualClassStatus).not.toHaveBeenCalled();
   });
 
   it('applies a routine status change straight away', async () => {

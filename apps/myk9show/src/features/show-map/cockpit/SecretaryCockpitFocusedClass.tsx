@@ -178,8 +178,6 @@ export function SecretaryCockpitFocusedClass({
             Entries in run order
           </h3>
           <ClassEntriesTable
-            // Per class: the panel is reused across classes, and a check-in alert is one class's.
-            key={focused.id}
             entries={focused.entries}
             className={focused.name}
             canChangeCheckIn={canManageShow}

@@ -76,8 +76,8 @@ export interface SecretaryCockpitTrial {
  *
  * F29b: `ShowMapRowActionsMenu` is the only renderer of the entry action set, and it
  * mounts only inside `ShowMapTab` -- the public show page, read-only by intent (#291).
- * The cockpit's own action surface filters to `recommended` actions, and no entry
- * action sets that flag, so `ShowDeskPanel`'s move-up dialog could never open. These
+ * The cockpit's own action surface filtered to `recommended` actions, and no entry
+ * action set that flag, so `ShowDeskPanel`'s move-up dialog could never open. These
  * rows are what emit the commandId `runCommand` already knows how to resolve.
  *
  * Deliberately narrow: check-in, edit-score, scratch and message-handler already have

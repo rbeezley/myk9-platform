@@ -46,7 +46,12 @@ export function useClassStatusChange({
   unenteredScoreCount = 0,
 }: {
   classId: string;
-  /** `null` is UNKNOWN (the entries read failed) and must not collapse to 0; see ClassStatusControl. */
+  /**
+   * How many scores are still unentered, or `null` when that is UNKNOWN because the entries read
+   * did not succeed. Null must not collapse to 0: this guard exists to stop a class being marked
+   * complete over unentered paper scores, and skipping the confirmation when the count is
+   * unknowable turns "I don't know whether scores are outstanding" into "there are none".
+   */
   unenteredScoreCount?: number | null;
 }) {
   const [isSaving, setIsSaving] = useState(false);
@@ -94,7 +99,7 @@ export function useClassStatusChange({
   return { update, isSaving, confirmDialog };
 }
 
-/** The status choices (help text, routine statuses, then Cancelled), shared by the badge menu and the Actions submenu. */
+/** The status choices (help text, routine statuses, then Cancelled), for the Actions menu's status submenu. */
 export function ClassStatusChoices({
   label,
   onSelect,

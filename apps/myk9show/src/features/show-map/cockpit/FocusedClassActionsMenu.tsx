@@ -120,6 +120,8 @@ export function FocusedClassActionsMenu({
   }
 
   const showDelay = offerDelay;
+  // INTENT: Sorting a 0- or 1-entry class is meaningless, so Run order is hidden entirely
+  // rather than rendered as a disabled affordance.
   const showRunOrder = runOrder !== undefined && runOrderEntryCount >= 2;
   const statusLabel = lifecycle ? STATUS_LABEL[lifecycle] : 'Status unknown';
   const sortLocked = runOrder?.isAutoSorting ?? false;

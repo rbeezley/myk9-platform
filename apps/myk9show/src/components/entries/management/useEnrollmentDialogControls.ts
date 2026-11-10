@@ -10,9 +10,11 @@ import {
   type FullPaymentDialog,
   type PartialDialog,
 } from './enrollmentPayment';
+import { EMPTY_LEDGER_CONFIRM, type LedgerConfirmState } from './EnrollmentLedgerConfirmDialog';
 
 /**
- * The form-level dialogs (full payment, partial payment, email) and the money
+ * The form-level dialogs (full payment, partial payment, the paid-online and
+ * payment-due confirm, email) and the money
  * figures they read, held in ONE place so the entry form's checklist, its header
  * menu and the Payment section open the very same dialog instances and call the
  * same ledger handlers (MYK9-1600). The dialogs themselves render in
@@ -24,6 +26,7 @@ export function useEnrollmentDialogControls(
 ) {
   const [fullDialog, setFullDialog] = useState<FullPaymentDialog>(EMPTY_FULL_PAYMENT_DIALOG);
   const [partialDialog, setPartialDialog] = useState<PartialDialog>(EMPTY_PARTIAL_DIALOG);
+  const [ledgerConfirm, setLedgerConfirm] = useState<LedgerConfirmState>(EMPTY_LEDGER_CONFIRM);
   const [emailOpen, setEmailOpen] = useState(false);
   const [emailMessage, setEmailMessage] = useState('');
   const [isSendingEmail, setIsSendingEmail] = useState(false);
@@ -38,10 +41,24 @@ export function useEnrollmentDialogControls(
   const remainingDollars = totalDollars - paidDollars;
   const today = paymentLedger.todayInShowZone;
 
-  // Online money is not the desk's (no ledger row), but the server runs the
-  // same entries cascade as a desk payment (MYK9-773).
-  const markPaidOnline = () => {
-    if (enrollmentId) void paymentLedger.markPaidOnline(enrollmentId);
+  // MYK9-1841: "Paid in Full: Online" and "Payment Due" change what the whole
+  // form owes, so both ask once first, like every other item in the menu. Both
+  // menus (the Payment section's and the checklist's) call these openers.
+  const markPaidOnline = () => setLedgerConfirm({ open: true, kind: 'paid-online' });
+  const markPaymentDue = () => setLedgerConfirm({ open: true, kind: 'payment-due' });
+  const closeLedgerConfirm = () => setLedgerConfirm(current => ({ ...current, open: false }));
+
+  const confirmLedgerChange = () => {
+    if (enrollmentId) {
+      if (ledgerConfirm.kind === 'paid-online') {
+        // Online money is not the desk's (no ledger row), but the server runs the
+        // same entries cascade as a desk payment (MYK9-773).
+        void paymentLedger.markPaidOnline(enrollmentId);
+      } else {
+        void paymentLedger.record(enrollmentId, { kind: 'reversal' });
+      }
+    }
+    closeLedgerConfirm();
   };
 
   // MYK9-677: cash and check money goes through the payments ledger, one row
@@ -94,6 +111,10 @@ export function useEnrollmentDialogControls(
     partialDialog,
     setPartialDialog,
     markPaidOnline,
+    markPaymentDue,
+    ledgerConfirm,
+    closeLedgerConfirm,
+    confirmLedgerChange,
     openFullPayment,
     openPartialPayment,
     confirmFullPayment,

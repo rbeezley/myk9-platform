@@ -31,6 +31,7 @@ import { EnrollmentFullPaymentDialog } from './EnrollmentFullPaymentDialog';
 import { EnrollmentPartialPaymentDialog } from './EnrollmentPartialPaymentDialog';
 import { EnrollmentRefundDialog } from './EnrollmentRefundDialog';
 import { EnrollmentEmailDialog } from './EnrollmentEmailDialog';
+import { EnrollmentLedgerConfirmDialog } from './EnrollmentLedgerConfirmDialog';
 import { formatConfirmationNumberLabel } from '@/features/registration/confirmationNumberDisplay';
 import { EnrollmentCommunicationSection } from './EnrollmentCommunicationSection';
 
@@ -77,6 +78,10 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
     partialDialog,
     setPartialDialog,
     markPaidOnline,
+    markPaymentDue,
+    ledgerConfirm,
+    closeLedgerConfirm,
+    confirmLedgerChange,
     openFullPayment,
     openPartialPayment,
     confirmFullPayment,
@@ -287,14 +292,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
                       <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
                         Reset
                       </DropdownMenuLabel>
-                      <DropdownMenuItem
-                        onClick={() => {
-                          if (enrollmentId)
-                            void paymentLedger.record(enrollmentId, { kind: 'reversal' });
-                        }}
-                      >
-                        Payment Due
-                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={markPaymentDue}>Payment Due</DropdownMenuItem>
                     </DropdownMenuGroup>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -361,6 +359,12 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
         refundableDollars={refundableDollars}
         onClose={() => setRefundDialog(EMPTY_REFUND_DIALOG)}
         onConfirm={confirmRefund}
+      />
+
+      <EnrollmentLedgerConfirmDialog
+        state={ledgerConfirm}
+        onClose={closeLedgerConfirm}
+        onConfirm={confirmLedgerChange}
       />
 
       <EnrollmentEmailDialog

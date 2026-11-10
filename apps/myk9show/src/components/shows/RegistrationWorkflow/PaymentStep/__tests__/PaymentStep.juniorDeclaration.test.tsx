@@ -113,9 +113,9 @@ describe('PaymentStep junior-handler declaration', () => {
     vi.setSystemTime(new Date('2026-10-01T12:00:00Z'));
   });
 
-  async function totalAfterOpeningReconciliation(): Promise<void> {
-    await userEvent.click(screen.getByRole('tab', { name: /Reconciliation/i }));
-  }
+  // The step's total, as the secretary's desk card names it (MYK9-1822).
+  const usualTotal = (amount: string) =>
+    screen.queryByText(`Leave blank to charge the usual ${amount}.`);
 
   it('offers one checkbox per dog, worded about the handler, not the registrant', () => {
     render(<Harness {...propsFor()} />);
@@ -152,7 +152,7 @@ describe('PaymentStep junior-handler declaration', () => {
     expect(screen.queryByText(/Handler is under 18/i)).toBeNull();
   });
 
-  it('totals a declared dog at the junior fee and an undeclared dog at the normal fee', async () => {
+  it('totals a declared dog at the junior fee and an undeclared dog at the normal fee', () => {
     render(
       <Harness
         {...propsFor({
@@ -160,15 +160,13 @@ describe('PaymentStep junior-handler declaration', () => {
         })}
       />
     );
-    await totalAfterOpeningReconciliation();
     // 15.00 (Rocket, declared) + 30.00 (Juno) = 45.00
-    expect(screen.getByText('$45')).toBeVisible();
-    expect(screen.queryByText('$60')).toBeNull();
+    expect(usualTotal('$45.00')).toBeVisible();
+    expect(usualTotal('$60.00')).toBeNull();
   });
 
-  it('totals both dogs at the normal fee with no declaration', async () => {
+  it('totals both dogs at the normal fee with no declaration', () => {
     render(<Harness {...propsFor()} />);
-    await totalAfterOpeningReconciliation();
-    expect(screen.getByText('$60')).toBeVisible();
+    expect(usualTotal('$60.00')).toBeVisible();
   });
 });

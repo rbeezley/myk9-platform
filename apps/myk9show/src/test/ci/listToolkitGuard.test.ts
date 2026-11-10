@@ -95,6 +95,10 @@ const ARIA_PRESSED_DECLARED: Record<string, { count: number; reason: string }> =
     count: 2,
     reason: 'payment method choice',
   },
+  'components/shows/RegistrationWorkflow/PaymentStep/SecretaryPaymentManagement.tsx': {
+    count: 2,
+    reason: 'paid and free shortcuts to the payment method choice',
+  },
   'pages/PricingPage.tsx': { count: 2, reason: 'billing period toggle' },
   'pages/secretary/ReportsPage/ReportPhaseSections.tsx': {
     count: 1,

@@ -42,8 +42,10 @@ vi.mock('@/components/auth/PermissionGuard', () => ({
 const onPaymentMethodChange = vi.fn();
 const onFeeOverrideChange = vi.fn();
 
-function renderStep(paymentMethod: PaymentMethod | '' = 'check') {
-  return render(
+/** The wizard page owns the changed total; this holds it the way the page does. */
+function Harness({ paymentMethod }: { paymentMethod: PaymentMethod | '' }) {
+  const [feeOverride, setFeeOverride] = React.useState<number | null>(null);
+  return (
     <PaymentStep
       paymentResolution={makePaymentResolution({ paymentMethod })}
       selectedDogs={['dog-1']}
@@ -52,10 +54,17 @@ function renderStep(paymentMethod: PaymentMethod | '' = 'check') {
       ]}
       paymentMethod={paymentMethod}
       onPaymentMethodChange={onPaymentMethodChange}
-      feeOverride={null}
-      onFeeOverrideChange={onFeeOverrideChange}
+      feeOverride={feeOverride}
+      onFeeOverrideChange={value => {
+        onFeeOverrideChange(value);
+        setFeeOverride(value);
+      }}
     />
   );
+}
+
+function renderStep(paymentMethod: PaymentMethod | '' = 'check') {
+  return render(<Harness paymentMethod={paymentMethod} />);
 }
 
 const deskCard = () => screen.getByRole('region', { name: 'Payment at the desk' });

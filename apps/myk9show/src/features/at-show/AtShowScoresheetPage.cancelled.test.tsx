@@ -4,26 +4,9 @@
  * while the sheet is open), and un-cancelling restores the sheet.
  */
 
-import {
-  Routes,
-  Route,
-  RouterProvider,
-  createMemoryRouter,
-  useLocation,
-  useNavigate,
-  useNavigationType,
-} from 'react-router-dom';
-import { render as rawRender } from '@testing-library/react';
+import { Routes, Route } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { QueryClientProvider } from '@tanstack/react-query';
-import {
-  render,
-  screen,
-  fireEvent,
-  waitFor,
-  act,
-  createTestQueryClient,
-} from '@/test/utils/testUtils';
+import { render, screen, act } from '@/test/utils/testUtils';
 import { UserRole } from '@/types/auth-types';
 import { ReplicationSyncTestProvider } from '@/test/utils/ReplicationSyncTestProvider';
 import type { ReplicationSyncContextValue } from '@/context/ReplicationSyncContext';
@@ -210,8 +193,6 @@ vi.mock('./atShowVoiceAnnouncement', () => ({
 }));
 
 import { AtShowScoresheetPage } from './AtShowScoresheetPage';
-import { useAudioWarnings } from '@/hooks/useAudioWarnings';
-import { useNotificationStore } from '@/store/notificationStore';
 import { useRingsideGrantStore } from '@/store/ringsideGrantStore';
 import { transitionToInRing } from '@/utils/checkInTransitions';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';

@@ -10,7 +10,6 @@ import type { ReplicationSyncContextValue } from '@/context/ReplicationSyncConte
 import { AtShowEntryListPage } from './AtShowEntryListPage';
 import { CANCELLED_CLASS_MESSAGE } from './cancelledClassGuard';
 import {
-  replicatedArmbandsTable,
   replicatedShowsTable,
   replicatedClassesTable,
   replicatedEntriesTable,

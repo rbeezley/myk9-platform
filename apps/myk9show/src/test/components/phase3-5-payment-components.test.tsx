@@ -241,10 +241,10 @@ describe('Phase 3.5: Payment Component Tests', () => {
         />
       );
 
-      // One card, three plain actions; SecretaryPaymentManagement.test.tsx
+      // One card, two plain actions and no total; SecretaryPaymentManagement.test.tsx
       // pins each one's handler.
       expect(screen.getByText('Payment at the desk')).toBeInTheDocument();
-      expect(screen.getByLabelText('Change the total')).toBeInTheDocument();
+      expect(screen.queryByLabelText('Change the total')).toBeNull();
       expect(screen.getByRole('button', { name: 'Paid by cash or check' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Make free' })).toBeInTheDocument();
       expect(screen.queryAllByRole('tab')).toHaveLength(0);

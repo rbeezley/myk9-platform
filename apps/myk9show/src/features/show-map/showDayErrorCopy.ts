@@ -6,7 +6,7 @@
  * this device, then sent) or an RPC, so a failure can come after the change landed:
  * the sentences say to check before trying again rather than claiming nothing changed.
  */
-import { getUserFriendlyError } from '@/utils/errorMessages';
+import { GENERIC_FAILURE_MESSAGE, getUserFriendlyError } from '@/utils/errorMessages';
 import { MOVE_BACK_FAILED, MOVE_UP_FAILED } from '@/services/replication/moveUpEntryRpc';
 import type { ShowMapActionMutationKey } from './showMapActionExecution';
 
@@ -48,10 +48,12 @@ export class ShowDayRefusal extends Error {
   }
 }
 
-/** The sentence for a failed show-day action: a worded refusal, a mapped code, or the fallback. */
+/** The sentence for a failed show-day action: a worded refusal, a mapped code, or the fallback (also used when the code maps only to the generic sentence). */
 export function showDayErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof ShowDayRefusal) return error.message;
-  return getUserFriendlyError(error, fallback);
+  const message = getUserFriendlyError(error, fallback);
+  // The generic "Try again" is less useful than the fallback, which says what to check.
+  return message === GENERIC_FAILURE_MESSAGE ? fallback : message;
 }
 
 /** Check-in desk sentences, naming the dog and the class. */

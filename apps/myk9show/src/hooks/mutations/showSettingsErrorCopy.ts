@@ -15,5 +15,4 @@ export const SHOW_SETTINGS_COPY = {
   selectedClassesCheckinFailed:
     "We couldn't change self check-in for the selected classes. Try again.",
   /** Shared by the results-visibility and self check-in bulk bars. */
-  selectedClassesFailed: "We couldn't save the settings for the selected classes. Try again.",
 } as const;

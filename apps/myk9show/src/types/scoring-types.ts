@@ -265,20 +265,8 @@ export interface ScoringSession {
 }
 
 // ============================================================================
-// Validation Rules
+// Validation Results
 // ============================================================================
-
-export interface ValidationRule {
-  field: string;
-  rule: 'required' | 'range' | 'format' | 'dependency';
-  parameters?: Record<string, unknown>;
-  errorMessage: string;
-}
-
-export interface ScoringValidation {
-  format: ScoringFormat;
-  rules: ValidationRule[];
-}
 
 export interface ValidationResult {
   isValid: boolean;

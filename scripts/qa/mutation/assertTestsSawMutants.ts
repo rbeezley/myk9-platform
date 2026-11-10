@@ -79,11 +79,21 @@ export function assertTestsSawMutants(target: string, report: MutationReport): v
     const entry = Object.entries(report.files).find(([file]) => file.endsWith(known.file));
     if (!entry) continue;
     const found = entry[1].mutants.filter(m => m.location?.start?.line === known.line);
+    // No mutant on that line means the file was edited and the line moved; that
+    // is a stale pin, not a harness fault, and the message must not send the
+    // reader to the Stryker config.
+    if (found.length === 0) {
+      throw new Error(
+        `Mutation target "${target}": no mutant at ${known.file}:${known.line}. The file changed ` +
+          'and the known-answer line moved: update KNOWN_ANSWERS in assertTestsSawMutants.ts to the ' +
+          'new line of that declaration.'
+      );
+    }
     const wrong = found.filter(m => m.status !== known.status);
-    if (found.length === 0 || wrong.length > 0) {
+    if (wrong.length > 0) {
       throw new Error(
         `Mutation target "${target}": the known-answer mutant at ${known.file}:${known.line} ` +
-          `should be ${known.status} but is ${wrong[0]?.status ?? 'missing'}. A module-level (static) ` +
+          `should be ${known.status} but is ${wrong[0]?.status}. A module-level (static) ` +
           'mutant is not being activated before the module loads: check that stryker.config.mjs ' +
           'passes no `testFiles` (a test filter makes Stryker use runtime activation).'
       );

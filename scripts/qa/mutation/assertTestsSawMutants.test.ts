@@ -65,6 +65,13 @@ describe('assertTestsSawMutants known answers', () => {
     expect(() => assertTestsSawMutants('cart', report(crashed))).not.toThrow();
   });
 
+  it('says the pin is stale, not the harness, when no mutant sits on the known line', () => {
+    const moved = { files: { 'packages/core/src/utils/parseDuration.ts': { mutants: healthy } } };
+    expect(() => assertTestsSawMutants('duration', moved)).toThrow(
+      /no mutant at packages\/core\/src\/utils\/parseDuration\.ts:93\. The file changed/
+    );
+  });
+
   it('passes when the L93 mutant is Killed, and ignores targets without that file', () => {
     expect(() => assertTestsSawMutants('duration', duration('Killed'))).not.toThrow();
     expect(() => assertTestsSawMutants('cart', report(healthy))).not.toThrow();

@@ -109,7 +109,7 @@ const PedigreeCard: React.FC<PedigreeCardProps> = ({
       </div>
       {ancestor.date_of_birth && (
         <div className="text-xs text-muted-foreground text-center">
-          DOB: {formatDateMMDDYYYY(ancestor.date_of_birth)}
+          Date of birth: {formatDateMMDDYYYY(ancestor.date_of_birth)}
         </div>
       )}
     </div>

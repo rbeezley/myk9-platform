@@ -567,7 +567,7 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
                     <span>Org</span>
                     <SortableHeader
                       column="regNumber"
-                      label="Reg #"
+                      label="Registration number"
                       sortColumn={sortColumn}
                       sortDirection={sortDirection}
                       onSort={handleSort}

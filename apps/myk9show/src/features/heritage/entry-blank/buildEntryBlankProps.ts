@@ -332,7 +332,7 @@ export function buildEntryBlankProps(opts: BuildEntryBlankOptions): EntryBlankPr
   const juniorHandlerFee =
     show.junior_handler_fee != null && show.junior_handler_fee > 0
       ? formatFee(show.junior_handler_fee)
-      : 'N/A';
+      : 'Not applicable';
   const feesProps: EntryBlankFees = {
     firstEntryFee: formatFee(preEntry),
     additionalEntryFee: formatFee(additional),

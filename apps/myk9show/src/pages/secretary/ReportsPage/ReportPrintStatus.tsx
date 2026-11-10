@@ -1,3 +1,4 @@
+import { formatRecordDateTime } from '@/lib/format/dates';
 import type { derivePaperworkPrintState } from '@/features/show-map/cockpit/paperworkPrintState';
 
 /** Whether the selected report has been printed, from the replicated print record. */
@@ -38,8 +39,7 @@ export function ReportPrintStatus({
       )}
       {state?.record && (
         <div className="mt-1 text-muted-foreground">
-          Printed by {state.record.printedByName} on{' '}
-          {new Date(state.record.printedAt).toLocaleString()}
+          Printed by {state.record.printedByName} on {formatRecordDateTime(state.record.printedAt)}
         </div>
       )}
       {state?.state === 'stale' && (

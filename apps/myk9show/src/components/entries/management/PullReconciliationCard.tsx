@@ -1,4 +1,5 @@
 import { Badge } from '@/components/ui/badge';
+import { NOT_RECORDED_LABEL } from '@/lib/format/fallbackLabels';
 import { Card, CardContent } from '@/components/ui/card';
 import { StatusIcon } from '@/components/status';
 import { formatEntryDateTime } from '@/lib/format/dates';
@@ -99,7 +100,7 @@ export function PullReconciliationCard({
             {!isWithdrawal && <PullTimingBadge pullTiming={entry.pullTiming} />}
             <div className="text-sm text-muted-foreground">
               {isWithdrawal ? 'Withdrawn' : 'Pulled'}:{' '}
-              {formatEntryDateTime(entry.pulledAt) || 'N/A'}
+              {formatEntryDateTime(entry.pulledAt) || NOT_RECORDED_LABEL}
             </div>
             <PullReconciliationActions
               entry={entry}

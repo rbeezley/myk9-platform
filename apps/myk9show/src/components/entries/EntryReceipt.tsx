@@ -6,6 +6,7 @@
  */
 
 import { useRef } from 'react';
+import { TO_BE_ANNOUNCED_LABEL } from '@/lib/format/fallbackLabels';
 import {
   Dialog,
   DialogContent,
@@ -340,7 +341,7 @@ export function EntryReceipt({
 
   const formatLocation = () => {
     const parts = [entry.location.venue, entry.location.city, entry.location.state].filter(Boolean);
-    return parts.join(', ') || 'Location TBD';
+    return parts.join(', ') || TO_BE_ANNOUNCED_LABEL;
   };
 
   // MYK9-632: a WITHDRAWAL leaves the receipt's running classes exactly as a

@@ -1,4 +1,5 @@
 import { formatEntryLimit } from '@/features/_shared/landing/entryLimit';
+import { TO_BE_ANNOUNCED_LABEL } from '@/lib/format/fallbackLabels';
 import { SeeClassesLink } from '@/features/_shared/SeeClassesLink';
 import { BannerFlagBar } from '../../components/BannerFlagBar';
 import { BANNER_BODY_FAMILY, BANNER_DISPLAY_FAMILY } from '../../fonts';
@@ -153,9 +154,9 @@ export function FlagMasthead({
       >
         {[
           { label: 'Dates', value: dateRangeLabel || '—' },
-          { label: 'Closes', value: closesLabel || 'TBA' },
+          { label: 'Closes', value: closesLabel || TO_BE_ANNOUNCED_LABEL },
           { label: 'Capacity', value: formatEntryLimit(entryLimit) },
-          { label: 'Venue', value: venueLabel || 'TBA' },
+          { label: 'Venue', value: venueLabel || TO_BE_ANNOUNCED_LABEL },
         ].map((cell, i, arr) => (
           <div
             key={cell.label}

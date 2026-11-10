@@ -136,7 +136,7 @@ export const ResultCatalog: React.FC<ReportProps> = ({
                           <th>Armband</th>
                           <th>Call Name</th>
                           <th>Breed</th>
-                          <th>Reg #</th>
+                          <th>Reg. number</th>
                           <th>Handler</th>
                           <th>Q</th>
                           <th>Time</th>

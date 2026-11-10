@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent } from '@testing-library/react';
 import { render, screen, waitFor } from '@/test/utils/testUtils';
 import type { User } from '@supabase/supabase-js';
+import { logger } from '@/services/LoggingService';
 import { UserRole } from '@/types/auth-types';
 import ExhibitorOnboardingPage from '../ExhibitorOnboardingPage';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -339,6 +340,39 @@ describe('ExhibitorOnboardingPage', () => {
         "We couldn't save your details. What you typed is still here. Try again."
       );
       expect(alert).not.toHaveTextContent('duplicate key');
+    });
+
+    it('logs a PostgREST-shaped failure as an Error carrying its message and code', async () => {
+      const logSpy = vi.spyOn(logger, 'error').mockImplementation(() => undefined);
+      setupAuth([UserRole.EXHIBITOR]);
+      mockUseExhibitorProfile.mockReturnValue({
+        profile: {
+          id: 'profile-id',
+          person_id: 'person-id',
+          auth_user_id: 'auth-user-id',
+          onboarding_completed_at: null,
+        },
+        isLoading: false,
+        error: null,
+        createProfileAsync: vi.fn(),
+        isCreatingProfile: false,
+        completeOnboarding: vi.fn().mockRejectedValue({ message: rawText, code: '23505' }),
+        isCompletingOnboarding: false,
+      } as unknown as ReturnType<typeof useExhibitorProfile>);
+
+      render(<ExhibitorOnboardingPage />);
+      fireEvent.click(screen.getByRole('button', { name: /leave dogs step/i }));
+      fireEvent.click(screen.getByRole('button', { name: /browse shows/i }));
+      await screen.findByRole('alert');
+
+      expect(logSpy).toHaveBeenCalledWith(
+        expect.any(String),
+        'onboarding',
+        { code: '23505' },
+        expect.objectContaining({ message: rawText })
+      );
+      expect(logSpy.mock.calls[0]?.[3]).toBeInstanceOf(Error);
+      logSpy.mockRestore();
     });
 
     it('shows a fixed sentence when finishing fails', async () => {

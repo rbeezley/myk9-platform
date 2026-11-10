@@ -15,6 +15,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { ensureError } from '@myk9/core';
+import { extractErrorCode } from '@/utils/errorMessages';
 import { logger } from '@/services/LoggingService';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
@@ -251,8 +253,13 @@ function OnboardingWizard({ user, roles }: { user: User; roles: readonly UserRol
       navigate(target, { replace: true });
     } catch (err) {
       // The hooks only throw database and library errors, written for developers: the
-      // person gets a fixed sentence and the raw error goes to the log.
-      logger.error('Error completing onboarding', 'onboarding', {}, err as Error);
+      // person gets a fixed sentence and the raw error (message and code) goes to the log.
+      logger.error(
+        'Error completing onboarding',
+        'onboarding',
+        { code: extractErrorCode(err) },
+        ensureError(err)
+      );
       setStepError(FINISH_FAILED);
     }
   };
@@ -289,7 +296,12 @@ function OnboardingWizard({ user, roles }: { user: User; roles: readonly UserRol
       await (profile ? savePersonDetailsAsync(payload) : createProfileAsync(payload));
       setStep('dogs');
     } catch (err) {
-      logger.error('Error saving onboarding profile', 'onboarding', {}, err as Error);
+      logger.error(
+        'Error saving onboarding profile',
+        'onboarding',
+        { code: extractErrorCode(err) },
+        ensureError(err)
+      );
       setStepError(PROFILE_SAVE_FAILED);
     }
   };

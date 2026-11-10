@@ -120,7 +120,7 @@ export function mappedErrorMessage(error: unknown): string | undefined {
 }
 
 /** Attempt to pull an error `code` from various error shapes. */
-function extractErrorCode(error: unknown): string | undefined {
+export function extractErrorCode(error: unknown): string | undefined {
   if (!error || typeof error !== 'object') return undefined;
 
   const obj = error as Record<string, unknown>;

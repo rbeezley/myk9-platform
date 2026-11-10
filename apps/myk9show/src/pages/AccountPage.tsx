@@ -36,6 +36,8 @@ import { useTheme } from '@/hooks/useTheme';
 import { useApplyServerTheme } from '@/hooks/useApplyServerTheme';
 import { useOnlineStatus } from '@/lib/networkUtils';
 import { NEEDS_CONNECTION_MESSAGE, useUserPreferences } from '@/hooks/useUserPreferences';
+import { ensureError } from '@myk9/core';
+import { extractErrorCode } from '@/utils/errorMessages';
 import { logger } from '@/services/LoggingService';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { ProfileSection, BillingSection, DeleteSection } from './AccountPage.sections';
@@ -211,7 +213,12 @@ export default function AccountPage() {
         await updatePreferences(updates);
         showFlash('Saved');
       } catch (e) {
-        logger.error('Error saving preferences', 'account', {}, e as Error);
+        logger.error(
+          'Error saving preferences',
+          'account',
+          { code: extractErrorCode(e) },
+          ensureError(e)
+        );
         showFlash(preferenceFailureMessage(e, SETTING_SAVE_FAILED), 'error');
       }
     },
@@ -225,7 +232,12 @@ export default function AccountPage() {
         await resetToDefaults(category);
         showFlash(`${category ?? 'All preferences'} reset to defaults`);
       } catch (e) {
-        logger.error('Error resetting preferences', 'account', {}, e as Error);
+        logger.error(
+          'Error resetting preferences',
+          'account',
+          { code: extractErrorCode(e) },
+          ensureError(e)
+        );
         showFlash(preferenceFailureMessage(e, SETTING_RESET_FAILED), 'error');
       } finally {
         setResetLoading(false);

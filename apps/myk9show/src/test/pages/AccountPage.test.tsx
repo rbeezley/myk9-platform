@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { render as renderWithProviders } from '@/test/utils/testUtils';
 import AccountPage from '@/pages/AccountPage';
+import { logger } from '@/services/LoggingService';
 import { UserRole } from '@/types/auth-types';
 import { NEEDS_CONNECTION_MESSAGE } from '@/hooks/useUserPreferences';
 
@@ -540,6 +541,25 @@ describe('AccountPage', () => {
     const flash = await screen.findByTestId('account-flash-overlay');
     expect(flash).toHaveTextContent("We couldn't reset your settings. Try again.");
     expect(flash).not.toHaveTextContent('user_preferences');
+  });
+
+  it('logs a PostgREST-shaped reset failure as an Error carrying its message and code', async () => {
+    const logSpy = vi.spyOn(logger, 'error').mockImplementation(() => undefined);
+    mockResetToDefaults.mockRejectedValueOnce({
+      message: 'permission denied for table prefs',
+      code: '42501',
+    });
+    render();
+    fireEvent.click(screen.getByRole('button', { name: /reset all settings/i }));
+    await screen.findByTestId('account-flash-overlay');
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.any(String),
+      'account',
+      { code: '42501' },
+      expect.objectContaining({ message: 'permission denied for table prefs' })
+    );
+    expect(logSpy.mock.calls[0]?.[3]).toBeInstanceOf(Error);
+    logSpy.mockRestore();
   });
 
   it('says a setting needs a connection when the hook refuses it for being offline', async () => {

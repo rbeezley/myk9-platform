@@ -1,5 +1,6 @@
 import React from 'react';
 import type { ReportProps } from '@/lib/reports/types';
+import { judgeNameLabel } from '@/utils/classJudgeDisplay';
 
 function formatEstTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -33,7 +34,7 @@ export const JudgeEntryCounts: React.FC<ReportProps> = ({
 
   const judgeMap = new Map<string, typeof allClasses>();
   for (const cls of allClasses ?? []) {
-    const judge = cls.judgeName ?? 'TBD';
+    const judge = judgeNameLabel(cls.judgeName);
     if (!judgeMap.has(judge)) judgeMap.set(judge, []);
     judgeMap.get(judge)!.push(cls);
   }

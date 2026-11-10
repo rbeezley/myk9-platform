@@ -16,6 +16,7 @@ import type { Trial } from '@/store/trialStore';
 import type { SyncableClassData } from '@/store/classStore';
 import type { EditMode } from './show-creation-wizard-types';
 import { getTrialTimezone } from '@/features/registries';
+import { isUnsetJudgeName } from '@/utils/classJudgeDisplay';
 
 interface BuildEditModeDraftArgs {
   editMode: EditMode;
@@ -45,7 +46,7 @@ export function buildEditModeDraft({
 
           const wizardClasses = trialClasses.map(classData => {
             let judgeId = '';
-            if (classData.judge && classData.judge !== 'TBD') {
+            if (classData.judge && !isUnsetJudgeName(classData.judge)) {
               const matchingJudge = existingShow.assignedJudges?.find(
                 j => j.judgeName === classData.judge
               );

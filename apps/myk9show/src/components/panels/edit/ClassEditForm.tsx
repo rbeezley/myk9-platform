@@ -339,10 +339,7 @@ export const ClassEditForm: React.FC<{
                       onValueChange={value => {
                         const finalValue = value === 'none' ? '' : value;
                         form?.setValue('judgeId', finalValue);
-                        form?.setValue(
-                          'judge',
-                          getJudgeNameById(assignedJudges, finalValue) ?? 'TBD'
-                        );
+                        form?.setValue('judge', getJudgeNameById(assignedJudges, finalValue) ?? '');
                         form?.touchField('judgeId');
                       }}
                     >

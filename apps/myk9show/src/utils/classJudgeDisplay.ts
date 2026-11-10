@@ -9,7 +9,38 @@ type ClassJudgeSource = {
   judge_id?: string | null | undefined;
 };
 
-const UNASSIGNED_LABEL = 'TBD';
+/** What every screen and printout says for a class with no judge yet. */
+export const UNASSIGNED_JUDGE_LABEL = 'Judge to be announced';
+/** Same meaning, for a narrow table cell where the full label will not fit. */
+export const UNASSIGNED_JUDGE_SHORT_LABEL = 'No judge yet';
+
+const UNASSIGNED_LABEL = UNASSIGNED_JUDGE_LABEL;
+
+/**
+ * Devices may still hold class rows written before MYK9-1846, when an unset judge was stored as
+ * the literal 'TBD'. Read those as unset too. This is the only place that knows the literal.
+ */
+const LEGACY_UNSET_JUDGE_NAME = 'TBD';
+
+/** True when a stored judge name means "no judge yet": empty, missing, or the legacy 'TBD'. */
+export function isUnsetJudgeName(name: string | null | undefined): boolean {
+  const trimmed = typeof name === 'string' ? name.trim() : '';
+  return trimmed === '' || trimmed === LEGACY_UNSET_JUDGE_NAME;
+}
+
+/** The judge name to show, or the unset label when there is none. */
+export function judgeNameLabel(
+  name: string | null | undefined,
+  options: { short?: boolean } = {}
+): string {
+  if (!isUnsetJudgeName(name)) return (name as string).trim();
+  return options.short ? UNASSIGNED_JUDGE_SHORT_LABEL : UNASSIGNED_JUDGE_LABEL;
+}
+
+function cleanJudgeName(value: unknown): string | undefined {
+  const name = cleanDisplayName(value);
+  return isUnsetJudgeName(name) ? undefined : name;
+}
 
 function cleanDisplayName(value: unknown): string | undefined {
   if (typeof value !== 'string') return undefined;
@@ -46,7 +77,7 @@ function readAssignedJudgeForClass(
     return classJudgeId != null && judge.judgeId === classJudgeId;
   });
 
-  return cleanDisplayName(assignedJudge?.judgeName);
+  return cleanJudgeName(assignedJudge?.judgeName);
 }
 
 export function resolveClassJudgeName(
@@ -59,8 +90,8 @@ export function resolveClassJudgeName(
   return (
     readAssignmentJudgeName(classData) ??
     readAssignedJudgeForClass(classData, assignedJudges) ??
-    cleanDisplayName(classData.judge) ??
-    cleanDisplayName(classData.judgeName) ??
+    cleanJudgeName(classData.judge) ??
+    cleanJudgeName(classData.judgeName) ??
     fallback
   );
 }

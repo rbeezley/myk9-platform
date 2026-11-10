@@ -5,6 +5,7 @@ import { replicatedClassesTable } from '@/services/replication';
 import { logger } from '@/services/LoggingService';
 import { useTrialStore } from '@/store/trialStore';
 import { useConnectionHint } from '@/hooks/useConnectionHint';
+import { isUnsetJudgeName } from '@/utils/classJudgeDisplay';
 import type { ClassData } from '@/components/classes/types/classTypes';
 
 interface UseClassEditActionsOptions {
@@ -56,7 +57,7 @@ export function useClassEditActions({ showId, updateClass }: UseClassEditActions
           showId,
           classId,
           judgeId,
-          judgeName && judgeName !== 'TBD' ? { name: judgeName } : undefined
+          judgeName && !isUnsetJudgeName(judgeName) ? { name: judgeName } : undefined
         );
         try {
           // Refresh replication cache so updateClass's onSuccess invalidation refetches fresh judge data

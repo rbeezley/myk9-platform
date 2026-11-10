@@ -144,7 +144,7 @@ describe('mapReplicatedClassToDbRow — judge data round-trip', () => {
       judge_assignments: [],
     } as never);
 
-    expect(classData.judge).toBe('TBD');
+    expect(classData.judge).toBe('');
     expect(classData.judgeId).toBe('');
   });
 });

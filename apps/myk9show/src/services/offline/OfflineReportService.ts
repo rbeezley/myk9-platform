@@ -4,6 +4,7 @@ import { Show, ShowClass } from '../../types/show-types';
 import { Dog } from '../../types/dog-types';
 import { User } from '../../types/show-types';
 import { formatRingLabel } from '@/utils/ringLabel';
+import { judgeNameLabel } from '@/utils/classJudgeDisplay';
 
 interface jsPDFWithAutoTable extends jsPDF {
   autoTable: (options: Record<string, unknown>) => void;
@@ -195,7 +196,7 @@ class OfflineReportService {
 
       doc.setFontSize(10);
       doc.text(
-        `Judge: ${classItem.judgeName || 'TBD'} | Ring: ${getReportRingLabel(classItem)}`,
+        `Judge: ${judgeNameLabel(classItem.judgeName)} | Ring: ${getReportRingLabel(classItem)}`,
         20,
         yPosition
       );
@@ -257,7 +258,7 @@ class OfflineReportService {
       cls.classNumber || '',
       cls.className || '',
       getReportRingLabel(cls),
-      cls.judgeName || 'TBD',
+      judgeNameLabel(cls.judgeName),
       cls.scheduledTime || 'TBD',
       (cls.entries || []).length.toString(),
     ]);

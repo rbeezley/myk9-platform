@@ -5,6 +5,7 @@ import { buildFullClassLabel } from '@/features/_shared/classLabel';
 import { compareLevels } from '@/utils/schedule-summary';
 import type { ColumnDef } from '@/components/ui/data-table';
 import type { ClassInfo } from './classInfo';
+import { judgeNameLabel } from '@/utils/classJudgeDisplay';
 
 /** "Novice A": the level and, when the class has one, its section. */
 function levelLabel(cls: ClassTableRow): string {
@@ -80,11 +81,14 @@ export function buildClassesTabColumns({
       header: 'Judge',
       meta: {
         responsiveHide: 'md' as const,
-        // An unassigned class shows "TBD".
-        searchValue: (row: unknown) => (row as ClassTableRow).judgeName || 'TBD',
+        // An unassigned class shows "No judge yet" (short form: narrow cell).
+        searchValue: (row: unknown) =>
+          judgeNameLabel((row as ClassTableRow).judgeName, { short: true }),
       },
       cell: ({ row }) => (
-        <span className="text-muted-foreground">{row.original.judgeName || 'TBD'}</span>
+        <span className="text-muted-foreground">
+          {judgeNameLabel(row.original.judgeName, { short: true })}
+        </span>
       ),
     },
     {

@@ -109,3 +109,16 @@ describe('ClassesTab table view', () => {
     expect(screen.queryByRole('button', { name: /toggle columns/i })).not.toBeInTheDocument();
   });
 });
+
+describe('ClassesTab unset judge (MYK9-1846)', () => {
+  it('shows the short unset label, never TBD, for a class with no judge', () => {
+    const rows = [
+      { ...mockClasses[0]!, judgeName: '' },
+      { ...mockClasses[1]!, judgeName: 'TBD' },
+    ];
+    localStorage.setItem('view-pref-classes', 'table');
+    render(<ClassesTab classes={rows} showId="s1" userHasEntries={false} />);
+    expect(screen.queryByText('TBD')).not.toBeInTheDocument();
+    expect(screen.getAllByText('No judge yet').length).toBeGreaterThan(0);
+  });
+});

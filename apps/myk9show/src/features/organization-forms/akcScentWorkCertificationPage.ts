@@ -5,6 +5,7 @@ import { countQualified, formatReportDate, isQualified } from '@/lib/reports/rep
 import { fillPdfForm, type PdfFormFillValues } from './pdfForm';
 import { trialEventNumber } from './reportValueHelpers';
 import { AKC_SCENT_WORK_CERTIFICATION_PAGE_FIELDS } from './akcScentWorkCertificationPageFields';
+import { isUnsetJudgeName } from '@/utils/classJudgeDisplay';
 
 type CertificationElement =
   'Container' | 'Interior' | 'Exterior' | 'Buried' | 'Handler Discrimination' | 'Detective';
@@ -151,7 +152,7 @@ function normalize(value: string | null | undefined): string {
 
 function cleanJudgeName(value: string | null | undefined): string | null {
   const clean = value?.trim();
-  if (!clean || clean === 'TBD' || clean === 'Multiple judges') return null;
+  if (!clean || isUnsetJudgeName(clean) || clean === 'Multiple judges') return null;
   return clean;
 }
 

@@ -17,6 +17,8 @@ import {
 import { logger } from '@/services/LoggingService';
 import { resetFailedLazyRoutes } from '@/utils/lazyWithRetry';
 
+const PAGE_LOAD_FAILED_BODY = 'Try again. If it still will not open, reload the page.';
+
 interface SuspenseWrapperProps {
   children: React.ReactNode;
   fallback?: React.ReactNode;
@@ -97,11 +99,11 @@ class LoadingErrorBoundary extends React.Component<
                 <AlertCircle className="h-8 w-8 text-destructive" />
               </div>
             </div>
-            <h3 className="text-lg font-semibold mb-2">Failed to load component</h3>
+            <h3 className="text-lg font-semibold mb-2">We couldn't open this page</h3>
             <p className="text-sm text-muted-foreground mb-4">
               {import.meta.env.DEV
-                ? this.state.error.message || 'An error occurred while loading this page.'
-                : 'An error occurred while loading this page.'}
+                ? this.state.error.message || PAGE_LOAD_FAILED_BODY
+                : PAGE_LOAD_FAILED_BODY}
             </p>
             <div className="flex gap-2 justify-center">
               <Button onClick={this.retry} variant="outline" size="sm">
@@ -114,7 +116,8 @@ class LoadingErrorBoundary extends React.Component<
             </div>
             {this.state.retryCount > 0 && (
               <p className="text-xs text-muted-foreground mt-2">
-                Retry attempts: {this.state.retryCount}
+                You have tried again {this.state.retryCount}{' '}
+                {this.state.retryCount === 1 ? 'time' : 'times'}.
               </p>
             )}
           </div>

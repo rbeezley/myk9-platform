@@ -116,7 +116,8 @@ test('select, re-click to deselect, select again — no error, count correct thr
   // is the regression's own signature and not a generic tidiness assertion.
   const duplicates = consoleErrors.filter(
     e =>
-      /23505|duplicate key|entry_cart_items_unique/.test(e) || /Failed to add to your entry/.test(e)
+      /23505|duplicate key|entry_cart_items_unique/.test(e) ||
+      /add that class to your entry/.test(e)
   );
   expect(duplicates, 'no duplicate-insert error may appear').toEqual([]);
 });

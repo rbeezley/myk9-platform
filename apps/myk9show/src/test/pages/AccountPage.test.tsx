@@ -2,7 +2,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { render as renderWithProviders } from '@/test/utils/testUtils';
 import AccountPage from '@/pages/AccountPage';
+import { logger } from '@/services/LoggingService';
 import { UserRole } from '@/types/auth-types';
+import { NEEDS_CONNECTION_MESSAGE } from '@/hooks/useUserPreferences';
 
 const mockForm = {
   personId: 'p-1',
@@ -82,12 +84,14 @@ vi.mock('@/hooks/useAuthUser', () => ({
   useAuthUser: () => ({ id: 'u-1', email: 'jane@example.com' }),
 }));
 
-vi.mock('@/hooks/useUserPreferences', () => ({
+const mockResetToDefaults = vi.fn();
+vi.mock('@/hooks/useUserPreferences', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/hooks/useUserPreferences')>()),
   useUserPreferences: () => ({
     preferences: null,
     loading: false,
     updatePreferences: vi.fn().mockResolvedValue(undefined),
-    resetToDefaults: vi.fn().mockResolvedValue(undefined),
+    resetToDefaults: (...args: unknown[]) => mockResetToDefaults(...args),
   }),
 }));
 
@@ -138,6 +142,7 @@ describe('AccountPage', () => {
     mockForm.saving = false;
     mockRbacUserRoles = [];
     mockClubs = [];
+    mockResetToDefaults.mockResolvedValue(undefined);
   });
 
   const render = (initialRoute = '/account') =>
@@ -524,6 +529,46 @@ describe('AccountPage', () => {
     await waitFor(() => {
       expect(screen.getByText(/reset to defaults/i)).toBeInTheDocument();
     });
+  });
+
+  // MYK9-1843: an unknown error never reaches the screen as its own text.
+  it('shows a fixed sentence, not the thrown text, when a reset fails', async () => {
+    mockResetToDefaults.mockRejectedValueOnce(
+      new Error('relation "user_preferences" does not exist')
+    );
+    render();
+    fireEvent.click(screen.getByRole('button', { name: /reset all settings/i }));
+    const flash = await screen.findByTestId('account-flash-overlay');
+    expect(flash).toHaveTextContent("We couldn't reset your settings. Try again.");
+    expect(flash).not.toHaveTextContent('user_preferences');
+  });
+
+  it('logs a PostgREST-shaped reset failure as an Error carrying its message and code', async () => {
+    const logSpy = vi.spyOn(logger, 'error').mockImplementation(() => undefined);
+    mockResetToDefaults.mockRejectedValueOnce({
+      message: 'permission denied for table prefs',
+      code: '42501',
+    });
+    render();
+    fireEvent.click(screen.getByRole('button', { name: /reset all settings/i }));
+    await screen.findByTestId('account-flash-overlay');
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.any(String),
+      'account',
+      { code: '42501' },
+      expect.objectContaining({ message: 'permission denied for table prefs' })
+    );
+    expect(logSpy.mock.calls[0]?.[3]).toBeInstanceOf(Error);
+    logSpy.mockRestore();
+  });
+
+  it('says a setting needs a connection when the hook refuses it for being offline', async () => {
+    mockResetToDefaults.mockRejectedValueOnce(new Error(NEEDS_CONNECTION_MESSAGE));
+    render();
+    fireEvent.click(screen.getByRole('button', { name: /reset all settings/i }));
+    expect(await screen.findByTestId('account-flash-overlay')).toHaveTextContent(
+      'That needs a connection. Connect to the internet and try again.'
+    );
   });
 
   it('renders the flash as a fixed overlay so it never reflows the nav', async () => {

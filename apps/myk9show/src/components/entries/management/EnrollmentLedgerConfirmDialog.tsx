@@ -1,15 +1,5 @@
 import { ConfirmDialog } from '@/components/ui/alert-dialog/confirm-dialog';
-
-/** The two one-click payment menu items that now ask first (MYK9-1841). */
-export type LedgerConfirmKind = 'paid-online' | 'payment-due';
-
-export interface LedgerConfirmState {
-  open: boolean;
-  /** Kept while the dialog closes so its wording does not flip during the fade. */
-  kind: LedgerConfirmKind;
-}
-
-export const EMPTY_LEDGER_CONFIRM: LedgerConfirmState = { open: false, kind: 'paid-online' };
+import type { LedgerConfirmKind, LedgerConfirmState } from './enrollmentPayment';
 
 const COPY: Record<
   LedgerConfirmKind,

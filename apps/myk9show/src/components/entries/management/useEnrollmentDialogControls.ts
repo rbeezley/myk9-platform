@@ -3,14 +3,15 @@ import type { EnrollmentLedgerControls } from '@/hooks/useEnrollmentLedgerAction
 import type { EnrollmentGroup } from '@/utils/enrollmentGrouping';
 import {
   EMPTY_FULL_PAYMENT_DIALOG,
+  EMPTY_LEDGER_CONFIRM,
   EMPTY_PARTIAL_DIALOG,
   netReceivedDollars,
   receivedDollars,
   resolvePartialPayment,
   type FullPaymentDialog,
+  type LedgerConfirmState,
   type PartialDialog,
 } from './enrollmentPayment';
-import { EMPTY_LEDGER_CONFIRM, type LedgerConfirmState } from './EnrollmentLedgerConfirmDialog';
 
 /**
  * The form-level dialogs (full payment, partial payment, the paid-online and

@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { answerQuestion, routeMarkers, type AnswerQuestionInput } from './answerQuestion.ts';
 import { ASKQ_GUIDES, ASKQ_RULEBOOKS } from './documentAssets.ts';
 import { CLASSIFIER_SYSTEM_PROMPT, type AskQSource } from './sourceClassifier.ts';
-import { NO_GUIDE_ANSWER_SENTENCE, SHOW_DATA_LABEL } from './sourceJoin.ts';
+import { NEEDS_SHOW_SENTENCE, NO_GUIDE_ANSWER_SENTENCE, SHOW_DATA_LABEL } from './sourceJoin.ts';
 import { TOOLS } from './toolDefinitions.ts';
 import type { ClaudeMessage, ModelCall, ModelReply, ToolDefinition, UserContext } from './types.ts';
 
@@ -333,11 +333,55 @@ describe('classifier failure and bookkeeping', () => {
     expect(answered.sources).toEqual(['show_data', 'guides', 'rulebook']);
   });
 
-  it('never asks for show data without a verified show', async () => {
+  it('never asks for show data without a verified show, and adds the needs-a-show sentence', async () => {
     const model = stubModel({ verdict: ['show_data', 'guides'], guides: GUIDE_REPLY });
     const answered = await run(model, { userContext: noShowContext, showRulebooks: [] }).promise;
     expect(answered.sources).toEqual(['guides']);
     expect(model.recorded.showData).toEqual([]);
+    expect(answered.text.startsWith(`${SHOW_DATA_LABEL}\n${NEEDS_SHOW_SENTENCE}\n\nFrom the`)).toBe(
+      true
+    );
+  });
+
+  it('show data only with no show: one model call, one plain sentence', async () => {
+    const call = vi.fn<ModelCall>(async () => text('{"sources":["show_data"]}'));
+    const runTool = vi.fn(async () => ({ result: {} }));
+    const answered = await answerQuestion({
+      message: 'Is my dog entered in Novice Interior?',
+      userContext: noShowContext,
+      hasStaffRole: false,
+      supportMode: true,
+      allGuides: ASKQ_GUIDES,
+      allRulebooks: ASKQ_RULEBOOKS,
+      showRulebooks: [],
+      call,
+      runTool,
+    });
+    expect(call).toHaveBeenCalledTimes(1);
+    expect(call.mock.calls[0][2]).toBe(CLASSIFIER_SYSTEM_PROMPT);
+    expect(runTool).not.toHaveBeenCalled();
+    expect(answered.text).toBe(NEEDS_SHOW_SENTENCE);
+    expect(answered.text).not.toContain('Which rulebook');
+    expect(answered.text).not.toContain(NO_GUIDE_ANSWER_SENTENCE);
+    expect(answered.sources).toEqual([]);
+    expect(answered.escalation).toBeNull();
+  });
+
+  it('a verdict naming no source is guides only: classifier plus one guides call', async () => {
+    const model = stubModel({ verdict: [], guides: 'SUPPORT_HANDOFF' });
+    const answered = await run(model, { message: 'hello' }).promise;
+    expect(model.recorded.classifier).toHaveLength(1);
+    expect(model.recorded.guides).toHaveLength(1);
+    expect(model.recorded.rulebook).toEqual([]);
+    expect(model.recorded.showData).toEqual([]);
+    expect(answered.sources).toEqual(['guides']);
+    expect(answered.text).toBe(NO_GUIDE_ANSWER_SENTENCE);
+  });
+
+  it('a verdict naming no source still escalates on a supportMode request when guides hands off', async () => {
+    const model = stubModel({ verdict: [], guides: 'SUPPORT_HANDOFF' });
+    const answered = await run(model, { message: 'thanks', supportMode: true }).promise;
+    expect(answered.escalation?.escalate).toBe(true);
   });
 
   it('makes one classifier call and marks the chosen sources for tools_used', async () => {

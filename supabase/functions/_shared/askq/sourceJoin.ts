@@ -4,6 +4,8 @@ export const SHOW_DATA_LABEL = "This show's live data:";
 export const NO_GUIDE_ANSWER_SENTENCE =
   'I could not find a verified guide answer for that question.';
 const NO_RULEBOOK_SENTENCE = 'I could not find that in the official rulebook.';
+export const NEEDS_SHOW_SENTENCE =
+  "That is about a specific show. Ask me again from the show's own page and I can look it up.";
 const NO_SHOW_DATA_SENTENCE = "I could not find an answer to that in this show's data.";
 
 export interface SourceSection {

@@ -7,7 +7,7 @@ import {
   answerFromShowData,
   type ToolRunner,
 } from './sourceAnswerers.ts';
-import { joinSourceSections, type SourceSection } from './sourceJoin.ts';
+import { joinSourceSections, NEEDS_SHOW_SENTENCE, type SourceSection } from './sourceJoin.ts';
 import type { SupportEscalationPayload } from './supportMode.ts';
 import type { SupportQuoteRefusal, VerifiedGuideQuote } from './supportQuoteEvidence.ts';
 import type { AskQRulebookScope, ModelCall, UserContext } from './types.ts';
@@ -44,7 +44,7 @@ export function routeMarkers(sources: AskQSource[]): string[] {
 /** One classifier call, then each chosen source answered under its own guard, in parallel. */
 export async function answerQuestion(input: AnswerQuestionInput): Promise<AnsweredQuestion> {
   const hasVerifiedShow = input.userContext.showId !== null;
-  const chosen = await classifyQuestionSources({
+  const { sources: chosen, needsShow } = await classifyQuestionSources({
     message: input.message,
     hasVerifiedShow,
     showRegistries: input.userContext.showRegistries ?? [],
@@ -77,13 +77,15 @@ export async function answerQuestion(input: AnswerQuestionInput): Promise<Answer
   ]);
 
   const sections: SourceSection[] = [];
+  if (needsShow) sections.push({ source: 'show_data', text: NEEDS_SHOW_SENTENCE });
   if (showData) sections.push({ source: 'show_data', text: showData.text });
   if (guides) sections.push({ source: 'guides', text: guides.text });
   if (rulebookResolution) sections.push({ source: 'rulebook', text: rulebookText });
 
-  const guidesOnlyRefused = chosen.length === 1 && guides?.escalation && input.supportMode;
+  const guidesOnlyRefused =
+    chosen.length === 1 && !needsShow && guides?.escalation && input.supportMode;
   return {
-    sources: sections.map(section => section.source),
+    sources: chosen,
     text: joinSourceSections(sections),
     toolsUsed: showData?.toolsUsed ?? [],
     guideSources: guides?.guideSources ?? [],

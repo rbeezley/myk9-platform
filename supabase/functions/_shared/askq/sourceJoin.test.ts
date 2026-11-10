@@ -1,6 +1,11 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { joinSourceSections, NO_GUIDE_ANSWER_SENTENCE, SHOW_DATA_LABEL } from './sourceJoin.ts';
+import {
+  joinSourceSections,
+  NEEDS_SHOW_SENTENCE,
+  NO_GUIDE_ANSWER_SENTENCE,
+  SHOW_DATA_LABEL,
+} from './sourceJoin.ts';
 
 describe('joinSourceSections', () => {
   it('reads one source as its own answer, unlabelled', () => {
@@ -27,5 +32,12 @@ describe('joinSourceSections', () => {
     ]);
     expect(text).toBe(`${NO_GUIDE_ANSWER_SENTENCE}\n\nUsing AKC rules:\nYes.`);
     expect(joinSourceSections([{ source: 'guides', text: '  ' }])).toBe(NO_GUIDE_ANSWER_SENTENCE);
+  });
+
+  it('words the needs-a-show sentence plainly', () => {
+    expect(NEEDS_SHOW_SENTENCE).not.toMatch(/[\u2014\u2013]|mode|tab/i);
+    expect(joinSourceSections([{ source: 'show_data', text: NEEDS_SHOW_SENTENCE }])).toBe(
+      NEEDS_SHOW_SENTENCE
+    );
   });
 });

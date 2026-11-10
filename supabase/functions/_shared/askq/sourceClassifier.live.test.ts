@@ -53,7 +53,7 @@ const CASES: LiveCase[] = [
 
 describe.skipIf(!live)('AskQ source classifier (live model)', () => {
   it.each(CASES)('$question', async ({ question, hasVerifiedShow, expected }) => {
-    const chosen = await classifyQuestionSources({
+    const { sources: chosen } = await classifyQuestionSources({
       message: question,
       hasVerifiedShow,
       showRegistries: ['AKC Scent Work'],

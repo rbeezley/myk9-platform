@@ -37,8 +37,12 @@ function stripFences(text: string): string {
     .trim();
 }
 
-/** Defensive parse: accepts {"sources":[...]} or a bare array, keeps only the three known strings. */
-export function parseClassifierReply(reply: string): AskQSource[] {
+/**
+ * Defensive parse: accepts {"sources":[...]} or a bare array, keeps only the three known
+ * strings. Returns null for a reply that is not a verdict at all, so a parsed-empty reply
+ * ("sources":[]) can be told apart from garbage.
+ */
+export function parseClassifierReply(reply: string): AskQSource[] | null {
   const text = stripFences(reply);
   const candidates = [text, /\{[\s\S]*\}/.exec(text)?.[0], /\[[\s\S]*\]/.exec(text)?.[0]];
   for (const candidate of candidates) {
@@ -52,15 +56,24 @@ export function parseClassifierReply(reply: string): AskQSource[] {
       // Try the next candidate.
     }
   }
-  return [];
+  return null;
+}
+
+export interface ClassifiedSources {
+  /** Sources to answer, in join order. Empty only when the sole choice was show data with no show. */
+  sources: AskQSource[];
+  /** The classifier chose show_data but there is no verified show to read it from. */
+  needsShow: boolean;
 }
 
 /**
- * Chooses the sources for a question. A reply that does not parse, an empty set
- * or a failed call falls back to every applicable source: a classifier failure
- * must never fail the request. show_data is dropped without a verified show.
+ * Chooses the sources for a question. A reply that does not parse, or a failed call,
+ * falls back to every applicable source: a classifier failure must never fail the
+ * request. A reply that parsed but named nothing (a greeting, thanks, off-topic) is
+ * guides only, whose answerer answers or hands off. show_data without a verified show
+ * is not answered; it is reported as needsShow.
  */
-export async function classifyQuestionSources(input: ClassifyInput): Promise<AskQSource[]> {
+export async function classifyQuestionSources(input: ClassifyInput): Promise<ClassifiedSources> {
   const applicable = applicableSources(input.hasVerifiedShow);
   try {
     const registries =
@@ -73,10 +86,15 @@ export async function classifyQuestionSources(input: ClassifyInput): Promise<Ask
       CLASSIFIER_MAX_TOKENS
     );
     const text = reply.content.find(block => block.type === 'text')?.text ?? '';
-    const chosen = parseClassifierReply(text).filter(source => applicable.includes(source));
-    return chosen.length > 0 ? chosen : applicable;
+    const parsed = parseClassifierReply(text);
+    if (parsed === null) return { sources: applicable, needsShow: false };
+    if (parsed.length === 0) return { sources: ['guides'], needsShow: false };
+    return {
+      sources: parsed.filter(source => applicable.includes(source)),
+      needsShow: !input.hasVerifiedShow && parsed.includes('show_data'),
+    };
   } catch (error) {
     console.error('AskQ classifier failed, using every source:', (error as Error).message);
-    return applicable;
+    return { sources: applicable, needsShow: false };
   }
 }

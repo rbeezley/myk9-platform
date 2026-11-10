@@ -34,12 +34,12 @@ describe('RemoveFromClassDialog — copy and button hierarchy (MYK9-988)', () =>
     expect(dialog.queryByText(/withdrawing and pulling are different/i)).not.toBeInTheDocument();
     expect(
       dialog.getByText(
-        "For a reason your registry recognises (dog in season or judge change). Refund per the premium's rules; the show secretary confirms it."
+        "For a reason this show’s registry recognises (dog in season or judge change). Refund per the premium's rules; the show secretary confirms it."
       )
     ).toBeVisible();
     expect(
       dialog.getByText(
-        "You have decided not to run. Refunds for a pull are at the club's discretion."
+        "The dog will not run, for any other reason. Refunds for a pull are at the club's discretion."
       )
     ).toBeVisible();
 
@@ -56,7 +56,7 @@ describe('RemoveFromClassDialog — copy and button hierarchy (MYK9-988)', () =>
     const dialog = within(await renderDialog({ status: 'resolved', registry: 'ASCA' }));
     expect(
       dialog.getByText(
-        "For a reason your registry recognises (judge change). Refund per the premium's rules; the show secretary confirms it."
+        "For a reason this show’s registry recognises (judge change). Refund per the premium's rules; the show secretary confirms it."
       )
     ).toBeVisible();
   });
@@ -65,7 +65,7 @@ describe('RemoveFromClassDialog — copy and button hierarchy (MYK9-988)', () =>
     const dialog = within(await renderDialog({ status: 'resolving' }));
     expect(
       dialog.getByText(
-        'For a reason your registry recognises. Refund per the premium’s rules; the show secretary confirms it.'
+        'For a reason this show’s registry recognises. Refund per the premium’s rules; the show secretary confirms it.'
       )
     ).toBeVisible();
     expect(dialog.getByRole('button', { name: 'Withdraw' })).toBeDisabled();

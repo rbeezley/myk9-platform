@@ -239,8 +239,8 @@ function RemoveFromClassBody({
             </Button>
             <p className="mt-2 text-sm text-muted-foreground">
               {policy
-                ? `For a reason your registry recognises (${policy.reasons.map(entry => entry.label.toLowerCase()).join(' or ')}). ${policy.withdrawRefundNote}`
-                : 'For a reason your registry recognises. Refund per the premium\u2019s rules; the show secretary confirms it.'}
+                ? `For a reason this show\u2019s registry recognises (${policy.reasons.map(entry => entry.label.toLowerCase()).join(' or ')}). ${policy.withdrawRefundNote}`
+                : 'For a reason this show\u2019s registry recognises. Refund per the premium\u2019s rules; the show secretary confirms it.'}
             </p>
             {withdrawBlockedBecause && (
               <p className="mt-2 text-sm text-muted-foreground">{withdrawBlockedBecause}</p>
@@ -258,7 +258,7 @@ function RemoveFromClassBody({
               Pull
             </Button>
             <p className="mt-2 text-sm text-muted-foreground">
-              You have decided not to run. {PULL_REFUND_FALLBACK}
+              The dog will not run, for any other reason. {PULL_REFUND_FALLBACK}
             </p>
             {pullDisabledReason && (
               <p className="mt-2 text-sm text-muted-foreground">{pullDisabledReason}</p>

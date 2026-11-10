@@ -3,7 +3,7 @@
  *
  * Nationals scoring uses 5 search areas with points-based scoring.
  * +10 points per correct alert, -5 points per incorrect alert.
- * Extended results: Q/NQ/EX/ABS plus 1st/2nd/3rd/4th placements.
+ * Results: Q/NQ/ABS/EX/DQ. Placement is the server's ranking, never set here.
  */
 
 import React, { useState, useCallback } from 'react';
@@ -50,49 +50,14 @@ const QUALIFYING_OPTIONS: { value: ExtendedResult; label: string; activeClass: s
   { value: 'DQ', label: resultLabel('DQ'), activeClass: DQ_ACTIVE_CLASS },
 ];
 
-const PLACEMENT_OPTIONS: { value: ExtendedResult; label: string; activeClass: string }[] = [
-  {
-    value: '1st',
-    label: '1st Place',
-    activeClass: 'bg-yellow-500 hover:bg-yellow-600 border-yellow-500',
-  },
-  {
-    value: '2nd',
-    label: '2nd Place',
-    activeClass: 'bg-slate-400 hover:bg-slate-500 border-slate-400',
-  },
-  {
-    value: '3rd',
-    label: '3rd Place',
-    activeClass: 'bg-orange-500 hover:bg-orange-600 border-orange-500',
-  },
-  {
-    value: '4th',
-    label: '4th Place',
-    activeClass: 'bg-violet-500 hover:bg-violet-600 border-violet-500',
-  },
-];
-
-const PLACEMENT_BONUS: Record<string, number> = {
-  '1st': 10,
-  '2nd': 7,
-  '3rd': 5,
-  '4th': 3,
-};
-
 const NATIONALS_AREA_COUNT = 5;
 
-function calculatePoints(
-  correctAlerts: number[],
-  incorrectAlerts: number[],
-  placement: string
-): number {
+function calculatePoints(correctAlerts: number[], incorrectAlerts: number[]): number {
   let pts = 0;
   for (let i = 0; i < correctAlerts.length; i++) {
     pts += (correctAlerts[i] ?? 0) * 10;
     pts -= (incorrectAlerts[i] ?? 0) * 5;
   }
-  pts += PLACEMENT_BONUS[placement] ?? 0;
   return Math.max(0, pts);
 }
 
@@ -114,7 +79,6 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   const [correctAlerts, setCorrectAlerts] = useState<number[]>(() => Array(areaCount).fill(0));
   const [incorrectAlerts, setIncorrectAlerts] = useState<number[]>(() => Array(areaCount).fill(0));
   const [finishCallErrors, setFinishCallErrors] = useState(0);
-  const [placement, setPlacement] = useState<string>('');
   const [showConfirmation, setShowConfirmation] = useState(false);
 
   const areaMaxSeconds =
@@ -165,11 +129,6 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   };
 
   const handleResultSelect = (value: ExtendedResult) => {
-    const isPlacement = ['1st', '2nd', '3rd', '4th'].includes(value);
-    if (isPlacement) {
-      setPlacement(prev => (prev === value ? '' : value));
-      return;
-    }
     // Re-tapping DQ keeps the reason already typed (MYK9-1011).
     if (value === 'DQ' && scoring.qualifying === 'DQ') return;
     scoring.setQualifying(value);
@@ -177,13 +136,12 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
       setCorrectAlerts(Array(areaCount).fill(0));
       setIncorrectAlerts(Array(areaCount).fill(0));
       setFinishCallErrors(0);
-      setPlacement('');
     }
     // A DQ must state its own reason; never inherit one from an earlier result.
     if (value === 'DQ') scoring.setNonQualifyingReason('');
   };
 
-  const totalPoints = calculatePoints(correctAlerts, incorrectAlerts, placement);
+  const totalPoints = calculatePoints(correctAlerts, incorrectAlerts);
 
   const handleSubmitClick = () => {
     if (!scoring.qualifying) return;
@@ -196,9 +154,8 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
       finishCallErrors,
       correctCount: correctAlerts.reduce((s, v) => s + v, 0),
       incorrectCount: incorrectAlerts.reduce((s, v) => s + v, 0),
-      // The result is the qualification, never the placement chip: a placement
-      // is not a result status, and the save path refuses one (MYK9-1806). The
-      // chip's bonus is already in totalPoints.
+      // The result is the qualification. A placement is not a result status and
+      // the save path refuses one (MYK9-1806).
       resultText: scoring.qualifying || 'NQ',
     });
     setShowConfirmation(false);
@@ -211,10 +168,7 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
     scoring,
     stopwatch,
     extraDirty: () =>
-      placement !== '' ||
-      correctAlerts.some(n => n > 0) ||
-      incorrectAlerts.some(n => n > 0) ||
-      finishCallErrors > 0,
+      correctAlerts.some(n => n > 0) || incorrectAlerts.some(n => n > 0) || finishCallErrors > 0,
     onBack,
     backLabel,
     onDirtyChange,
@@ -473,23 +427,6 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
               onReasonChange={scoring.setNonQualifyingReason}
             />
           )}
-
-          <div className="space-y-1">
-            <div className="text-sm font-medium text-muted-foreground">Placement (optional)</div>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {PLACEMENT_OPTIONS.map(opt => (
-                <Button
-                  key={opt.value}
-                  variant={placement === opt.value ? 'default' : 'outline'}
-                  className={cn('h-12', placement === opt.value && opt.activeClass)}
-                  onClick={() => handleResultSelect(opt.value)}
-                  data-testid={`result-${opt.value}`}
-                >
-                  {opt.label}
-                </Button>
-              ))}
-            </div>
-          </div>
         </Card>
       </ScoresheetShell>
 
@@ -502,7 +439,6 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
           dogName={entry.dogName}
           handlerName={entry.handlerName}
           result={scoring.qualifying}
-          resultSuffix={placement || undefined}
           rows={[
             { label: 'Total Points', value: totalPoints, className: 'font-bold text-rose-600' },
             ...(finishCallErrors > 0

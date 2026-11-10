@@ -57,8 +57,6 @@ export interface ScoreConfirmationDialogProps {
   handlerName: string;
   /** Result code (Q, NQ, ABS, EX, DQ) or a placement; shown in words. */
   result: string | null | undefined;
-  /** Shown beside the result, e.g. a placement ("Qualified / 1st"). */
-  resultSuffix?: string | undefined;
   /** Times, faults and points, in the order the judge writes them down. */
   rows: ConfirmationRow[];
   /** The NQ, Excused or DQ reason; shown whenever one was recorded for those results. */
@@ -76,7 +74,6 @@ export const ScoreConfirmationDialog: React.FC<ScoreConfirmationDialogProps> = (
   dogName,
   handlerName,
   result,
-  resultSuffix,
   rows,
   reason,
   children,
@@ -87,7 +84,7 @@ export const ScoreConfirmationDialog: React.FC<ScoreConfirmationDialogProps> = (
   const showReason =
     (result === 'NQ' || result === 'EX' || result === 'DQ') && Boolean(reason?.trim());
   const allRows: ConfirmationRow[] = [
-    { label: 'Result', value: resultLabel(result) + (resultSuffix ? ` / ${resultSuffix}` : '') },
+    { label: 'Result', value: resultLabel(result) },
     ...rows,
     ...(showReason
       ? [

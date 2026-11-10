@@ -43,6 +43,12 @@ export interface ClassEntry {
   class_status: ClassStatusValue;
   is_scoring_finalized?: boolean;
   is_favorite: boolean;
+  /**
+   * The class's stored status is `cancelled`. Its own fact, not a ninth `class_status`
+   * value: `ClassStatusValue` is the eight-value status/phase model (MYK9-1513) that
+   * the Change Status dialog tiles read back.
+   */
+  is_cancelled?: boolean;
   time_limit_seconds?: number;
   time_limit_area2_seconds?: number;
   time_limit_area3_seconds?: number;

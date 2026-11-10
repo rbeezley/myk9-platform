@@ -40,6 +40,7 @@ vi.mock('@/services/replication/ReplicatedClassesTable', () => ({
   replicatedClassesTable: {
     getClassById: mocks.getClassById,
     sync: mocks.syncClasses,
+    subscribe: vi.fn(() => () => {}),
   },
 }));
 
@@ -66,7 +67,11 @@ vi.mock('@/services/replication/ReplicatedTrialsTable', () => ({
 // per-table modules; hand both the SAME mocks so the real adapter runs here.
 vi.mock('@/services/replication', () => ({
   replicatedArmbandsTable: { sync: mocks.syncArmbands, subscribe: vi.fn(() => () => {}) },
-  replicatedClassesTable: { getClassById: mocks.getClassById, sync: mocks.syncClasses },
+  replicatedClassesTable: {
+    getClassById: mocks.getClassById,
+    sync: mocks.syncClasses,
+    subscribe: vi.fn(() => () => {}),
+  },
   replicatedEntriesTable: { getEntriesByClass: mocks.getEntriesByClass, sync: mocks.syncEntries },
   replicatedTrialsTable: {
     sync: mocks.syncTrials,

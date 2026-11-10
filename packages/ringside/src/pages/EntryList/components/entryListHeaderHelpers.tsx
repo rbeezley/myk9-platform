@@ -210,7 +210,10 @@ interface StatusBadgeInfo {
 }
 
 export function getStatusBadge(classStatus?: string): StatusBadgeInfo | null {
-  if (!classStatus || !['in_progress', 'briefing', 'start_time', 'setup'].includes(classStatus)) {
+  if (
+    !classStatus ||
+    !['in_progress', 'briefing', 'start_time', 'setup', 'cancelled'].includes(classStatus)
+  ) {
     return null;
   }
   const descriptor = getStatusDescriptor('class', classStatus);

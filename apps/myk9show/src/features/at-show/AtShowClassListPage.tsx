@@ -18,10 +18,10 @@ import { useMyAtShowEntryDetails } from './useMyAtShowEntryDetails';
 import { AtShowMyEntriesToday } from './AtShowMyEntriesToday';
 import {
   isExhibitorOnlyForAtShow,
+  toAtShowClassSummary,
   type AtShowClassSummary,
   type AtShowTrialSummary,
 } from './myAtShowEntryDetails.helpers';
-import { formatAtShowClassTime } from './atShowClassTiming';
 import { getTrialTimezone } from '@/features/registries';
 import { useSelfCheckinStateMap } from '@/hooks/queries/useSelfCheckinEnabled';
 import { AtShowClassListSections } from './AtShowClassListSections';
@@ -238,18 +238,10 @@ export const AtShowClassListPage: React.FC = () => {
     for (const group of groups) {
       const timeZone = getTrialTimezone(group.trial);
       for (const cls of group.classes) {
-        map.set(cls.id, {
-          className: cls.class_name,
-          classStatus: cls.class_status,
-          ...(cls.start_time
-            ? { expectedStartLabel: formatAtShowClassTime(cls.start_time, timeZone) }
-            : {}),
-          ...(cls.start_time ? { startTime: cls.start_time } : {}),
-          classOrder: cls.class_order,
-          isRevisedStart: Boolean(cls.revised_expected_start),
-          resultsReleasedAt: cls.results_released_at ?? null,
-          selfCheckinState: selfCheckinByClassId[cls.id] ?? 'unknown',
-        });
+        map.set(
+          cls.id,
+          toAtShowClassSummary(cls, timeZone, selfCheckinByClassId[cls.id] ?? 'unknown')
+        );
       }
     }
     return map;

@@ -45,6 +45,7 @@ vi.mock('@/services/replication/ReplicatedClassesTable', () => ({
   replicatedClassesTable: {
     getClassById: mocks.getClassById,
     sync: mocks.syncClasses,
+    subscribe: vi.fn(() => () => {}),
   },
 }));
 

@@ -43,16 +43,16 @@ const entry = {
 
 async function sendDecisionEmail() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  let announce: ReturnType<typeof useEntryDecisionLifecycleEmails>['announceDecision'] | null =
+  let announce: ReturnType<typeof useEntryDecisionLifecycleEmails>['openDecisionPrompt'] | null =
     null;
-  type Announce = ReturnType<typeof useEntryDecisionLifecycleEmails>['announceDecision'];
+  type Announce = ReturnType<typeof useEntryDecisionLifecycleEmails>['openDecisionPrompt'];
   function Harness({ onReady }: { onReady: (open: Announce) => void }) {
     const hook = useEntryDecisionLifecycleEmails({
       showId: 'show-1',
       showName: 'Show',
       entries: [entry],
     });
-    useEffect(() => onReady(hook.announceDecision));
+    useEffect(() => onReady(hook.openDecisionPrompt));
     return <>{hook.dialog}</>;
   }
   render(

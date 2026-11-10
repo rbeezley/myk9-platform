@@ -198,13 +198,33 @@ describe('lifecycle email api helpers', () => {
           sent_at: '2026-07-08T12:10:00Z',
           correction_for_job_id: 'job-sent',
         },
+        {
+          id: 'job-failed',
+          show_id: 'show-1',
+          entry_id: 'entry-3',
+          step_type: 'waitlisted',
+          status: 'failed',
+          subject: 'Waitlisted',
+          body: 'Failed body',
+          secretary_note: null,
+          due_at: '2026-07-08T12:00:00Z',
+          prepared_at: '2026-07-08T12:00:00Z',
+          sent_at: null,
+          correction_for_job_id: null,
+        },
       ],
     });
 
     const statuses = await fetchEntryDecisionEmailStatuses({
       supabase: client,
       showId: 'show-1',
-      entryIds: ['entry-1', 'entry-2'],
+      entryIds: ['entry-1', 'entry-2', 'entry-3'],
+    });
+
+    expect(statuses['entry-3']).toMatchObject({
+      readyJob: null,
+      failedJob: { id: 'job-failed', stepType: 'waitlisted' },
+      sentDecisionJob: null,
     });
 
     expect(statuses['entry-1']?.readyJob).toMatchObject({

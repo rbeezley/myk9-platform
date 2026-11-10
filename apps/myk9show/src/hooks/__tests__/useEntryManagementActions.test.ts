@@ -221,6 +221,82 @@ describe('useEntryManagementActions', () => {
     }
   });
 
+  describe('onStood: the decision was not undone (MYK9-1800)', () => {
+    async function acceptWithOnStood() {
+      const onStood = vi.fn();
+      const view = renderHook(
+        ({ entries }: { entries: EntryManagementEntry[] }) =>
+          useEntryManagementActions({
+            entries,
+            setEntries: vi.fn(),
+            selectedShowId: 'show-1',
+            selectedShow: null,
+            setError: vi.fn(),
+            user: { id: 'secretary-1' },
+          }),
+        { initialProps: { entries: [makeEntry()] } }
+      );
+      await act(async () => {
+        await view.result.current.handleStatusChange('entry-1', EntryStatus.ACCEPTED, undefined, {
+          onStood,
+        });
+      });
+      const toastStood = mocks.showUndoToast.mock.calls[0]?.[0].onStood as () => void;
+      return { onStood, toastStood, showEntries: view.rerender };
+    }
+
+    it('passes on the entry as it is when the Undo toast closes, armband and all', async () => {
+      const { onStood, toastStood, showEntries } = await acceptWithOnStood();
+      const acceptedNow = {
+        ...makeEntry(),
+        entryStatus: EntryStatus.ACCEPTED,
+        armbandNumber: '742',
+      };
+      showEntries({ entries: [acceptedNow] });
+
+      toastStood();
+
+      expect(onStood).toHaveBeenCalledTimes(1);
+      expect(onStood).toHaveBeenCalledWith(acceptedNow);
+    });
+
+    it('stays quiet when the entry was changed again before the toast closed', async () => {
+      const { onStood, toastStood, showEntries } = await acceptWithOnStood();
+      showEntries({ entries: [{ ...makeEntry(), entryStatus: EntryStatus.WAITLIST }] });
+
+      toastStood();
+
+      expect(onStood).not.toHaveBeenCalled();
+    });
+
+    it('stays quiet when the entry is no longer on the list', async () => {
+      const { onStood, toastStood, showEntries } = await acceptWithOnStood();
+      showEntries({ entries: [] });
+
+      toastStood();
+
+      expect(onStood).not.toHaveBeenCalled();
+    });
+
+    it('asks the toast for nothing when no caller is waiting', async () => {
+      const { result } = renderHook(() =>
+        useEntryManagementActions({
+          entries: [makeEntry()],
+          setEntries: vi.fn(),
+          selectedShowId: 'show-1',
+          selectedShow: null,
+          setError: vi.fn(),
+          user: { id: 'secretary-1' },
+        })
+      );
+      await act(async () => {
+        await result.current.handleStatusChange('entry-1', EntryStatus.ACCEPTED);
+      });
+
+      expect(mocks.showUndoToast.mock.calls[0]?.[0].onStood).toBeUndefined();
+    });
+  });
+
   it('Undo of a Pull restores the check-in the dog had before the Pull (MYK9-1384)', async () => {
     const checkedIn: EntryManagementEntry = {
       ...makeEntry(),

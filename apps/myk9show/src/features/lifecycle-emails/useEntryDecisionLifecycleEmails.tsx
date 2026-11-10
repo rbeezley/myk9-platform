@@ -13,7 +13,7 @@ import {
   type DecisionStepType,
 } from './decisionEmail';
 import { saveDecisionEmailJob } from './saveDecisionEmailJob';
-import { useAutoSendDecisionEmail } from './useAutoSendDecisionEmail';
+import { useSendDecisionEmail } from './useSendDecisionEmail';
 import {
   entryDecisionLifecycleEmailQueryKey,
   fetchEntryDecisionEmailStatuses,
@@ -24,6 +24,8 @@ import {
   type EntryDecisionEmailStatus,
   type LifecycleEmailSupabaseClient,
 } from './api';
+
+const EMPTY_STATUS_MAP: Record<string, EntryDecisionEmailStatus> = {};
 
 interface DecisionEmailPrompt {
   entry: EntryManagementEntry;
@@ -41,12 +43,23 @@ interface UseEntryDecisionLifecycleEmailsArgs {
   showId?: string | undefined;
   showName?: string | undefined;
   entries: EntryManagementEntry[];
+  /** `showSendsDecisionEmailsUnasked` for this show; false keeps the preview. */
+  sendUnasked?: boolean | undefined;
 }
+
+/** What follows an Accept or Waitlist on one entry. */
+export type DecisionEmailPlan = 'send' | 'preview' | 'none';
 
 interface UseEntryDecisionLifecycleEmailsResult {
   statusMap: Record<string, EntryDecisionEmailStatus>;
-  /** Called after an Accept or Waitlist is saved: emails the exhibitor per the show's switch. */
-  announceDecision: (entry: EntryManagementEntry, stepType: DecisionStepType) => void;
+  /**
+   * Decided when she presses Accept or Waitlist. `send`: the email goes by itself once the
+   * decision has stood. `preview`: she is shown it first. `none`: this show does not email it.
+   */
+  decisionEmailPlan: (stepType: DecisionStepType) => DecisionEmailPlan;
+  openDecisionPrompt: (entry: EntryManagementEntry, stepType: DecisionStepType) => void;
+  /** For a decision that has stood; stable, and safe to call after the cockpit unmounts. */
+  sendDecisionEmail: (entry: EntryManagementEntry, stepType: DecisionStepType) => void;
   reviewReadyEmail: (job: EntryDecisionEmailJob, entry: EntryManagementEntry) => void;
   prepareCorrectionEmail: (job: EntryDecisionEmailJob, entry: EntryManagementEntry) => void;
   dialog: ReactNode;
@@ -56,6 +69,7 @@ export function useEntryDecisionLifecycleEmails({
   showId,
   showName,
   entries,
+  sendUnasked = false,
 }: UseEntryDecisionLifecycleEmailsArgs): UseEntryDecisionLifecycleEmailsResult {
   const queryClient = useQueryClient();
   const lifecycleClient = supabase as unknown as LifecycleEmailSupabaseClient;
@@ -101,21 +115,24 @@ export function useEntryDecisionLifecycleEmails({
       currentPrompt.correctionForJobId
     );
 
-  const sendAfterUndoWindow = useAutoSendDecisionEmail({
-    entries,
+  const sendDecisionEmail = useSendDecisionEmail({
+    statusMap: statusQuery.data ?? EMPTY_STATUS_MAP,
     showName,
-    onCouldNotPrepare: (entry, stepType) => setPrompt({ entry, stepType }),
     onSettled: invalidateLifecycleEmailQueries,
   });
 
-  // The show's switch in Scheduled emails is the decision to email (MYK9-1800): on, the
-  // email goes by itself once the Undo window has passed; off, nothing is sent or asked.
-  // Only when the switch is not known yet does she get the preview.
-  const announceDecision = (entry: EntryManagementEntry, stepType: DecisionStepType) => {
+  // The show's switch in Scheduled emails is the decision to email (MYK9-1800). On, and the
+  // show is published and not yet over: the email goes by itself. On, but the show is a
+  // draft or finished, or the switch is not known yet: she gets the preview. Off: nothing.
+  const decisionEmailPlan = (stepType: DecisionStepType): DecisionEmailPlan => {
     const step = summaryQuery.data?.steps.find(candidate => candidate.stepType === stepType);
-    if (!step) setPrompt({ entry, stepType });
-    else if (step.isEnabled) sendAfterUndoWindow(entry, stepType);
+    if (!step) return 'preview';
+    if (!step.isEnabled) return 'none';
+    return sendUnasked ? 'send' : 'preview';
   };
+
+  const openDecisionPrompt = (entry: EntryManagementEntry, stepType: DecisionStepType) =>
+    setPrompt({ entry, stepType });
 
   const reviewReadyEmail = (job: EntryDecisionEmailJob, entry: EntryManagementEntry) => {
     setPrompt({
@@ -244,8 +261,10 @@ export function useEntryDecisionLifecycleEmails({
   ) : null;
 
   return {
-    statusMap: statusQuery.data ?? {},
-    announceDecision,
+    statusMap: statusQuery.data ?? EMPTY_STATUS_MAP,
+    decisionEmailPlan,
+    openDecisionPrompt,
+    sendDecisionEmail,
     reviewReadyEmail,
     prepareCorrectionEmail,
     dialog,

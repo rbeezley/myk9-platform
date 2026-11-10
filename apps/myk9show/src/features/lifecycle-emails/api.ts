@@ -105,6 +105,8 @@ export interface EntryDecisionEmailJob {
 export interface EntryDecisionEmailStatus {
   entryId: string;
   readyJob: EntryDecisionEmailJob | null;
+  /** The latest job whose delivery failed; it can be sent again. */
+  failedJob: EntryDecisionEmailJob | null;
   sentDecisionJob: EntryDecisionEmailJob | null;
   sentCorrectionJob: EntryDecisionEmailJob | null;
 }
@@ -283,12 +285,16 @@ export async function fetchEntryDecisionEmailStatuses(args: {
     const status = (statuses[row.entry_id] ??= {
       entryId: row.entry_id,
       readyJob: null,
+      failedJob: null,
       sentDecisionJob: null,
       sentCorrectionJob: null,
     });
 
     if (job.status === 'ready') {
       status.readyJob = pickLatestJob(status.readyJob, job, 'preparedAt');
+    }
+    if (job.status === 'failed') {
+      status.failedJob = pickLatestJob(status.failedJob, job, 'preparedAt');
     }
     if (job.status === 'sent' && job.correctionForJobId) {
       status.sentCorrectionJob = pickLatestJob(status.sentCorrectionJob, job, 'sentAt');

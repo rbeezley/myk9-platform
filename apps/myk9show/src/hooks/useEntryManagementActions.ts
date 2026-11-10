@@ -32,6 +32,7 @@ import type {
   EntryManagementEntry,
   EntryClass,
   ArmbandDialogState,
+  StatusChangeOptions,
 } from '@/types/entry-management-types';
 
 /**
@@ -62,7 +63,8 @@ interface UseEntryManagementActionsReturn {
   handleStatusChange: (
     entryId: string,
     newStatus: EntryStatus,
-    withdrawalReason?: string
+    withdrawalReason?: string,
+    options?: StatusChangeOptions
   ) => Promise<boolean>;
   handleAssignArmband: () => Promise<void>;
   handleNextArmband: () => Promise<void>;
@@ -145,7 +147,12 @@ export function useEntryManagementActions({
   });
 
   const handleStatusChange = useCallback(
-    async (entryId: string, newStatus: EntryStatus, withdrawalReason?: string) => {
+    async (
+      entryId: string,
+      newStatus: EntryStatus,
+      withdrawalReason?: string,
+      options?: StatusChangeOptions
+    ) => {
       const entry = entries.find(e => e.id === entryId);
       if (!entry) return false;
       const priorStatus = entry.entryStatus;
@@ -172,13 +179,21 @@ export function useEntryManagementActions({
             void runSingleUndo(entryId, priorStatus, newStatus, priorCheckInStatus);
           },
           duration: STATUS_UNDO_WINDOW_MS,
+          // The decision stood: Undo is off the screen and the entry still has this status
+          // (a later change to the same entry, inside the window, supersedes this one).
+          onStood: options?.onStood
+            ? () => {
+                const current = entriesRef.current.find(e => e.id === entryId);
+                if (current?.entryStatus === newStatus) options.onStood?.(current);
+              }
+            : undefined,
           ...(offline ? { description: 'Queued — will sync when online' } : {}),
         });
       }
 
       return true;
     },
-    [entries, setEntries, user, runSingleUndo]
+    [entries, entriesRef, setEntries, user, runSingleUndo]
   );
 
   // Handle armband assignment

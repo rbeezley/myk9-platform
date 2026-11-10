@@ -153,7 +153,7 @@
     "superpowers@claude-plugins-official": true,
     "playground@claude-plugins-official": false,
     "stripe@claude-plugins-official": false,
-    "skill-creator@claude-plugins-official": true,
+    "skill-creator@claude-plugins-official": false,
     "context-mode@context-mode": false,
     "claude-mem@thedotmack": false,
     "codex@openai-codex": true

@@ -13,7 +13,7 @@
  * for good, so an untick followed by a re-tick is an ordinary selection.
  */
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { RegistrationFormData } from '@/types/show-registration-types';
 
 interface Marker {
@@ -43,14 +43,13 @@ export function useAutoTickMarker(input: AutoTickMarkerInput) {
       ? selected.length === 1 && selected[0] === marker.dogId
       : registrationData === marker.baseline);
 
-  useEffect(() => {
-    if (!marker) return;
-    if (!isUntouched) {
-      setMarker(null);
-    } else if (marker.baseline === null) {
+  // Adjusting state during render (not in an effect) so the latch is in place
+  // before anything can observe a stale marker.
+  if (marker) {
+    if (!isUntouched) setMarker(null);
+    else if (marker.baseline === null)
       setMarker({ dogId: marker.dogId, baseline: registrationData });
-    }
-  }, [marker, isUntouched, registrationData]);
+  }
 
   return {
     /** The selection is the untouched automatic tick: not a started entry. */

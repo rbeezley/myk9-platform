@@ -7,19 +7,25 @@
  *    AND the show has a junior tier, and its wording is about the HANDLER (the
  *    person showing the dog), not the registrant;
  *  - ticking reports the dog to the page;
- *  - the step's own total is the exact amount checkout will charge: 15.00 for a
+ *  - the wizard's total is the exact amount checkout will charge: 15.00 for a
  *    declared dog, 30.00 for an undeclared one (a different dog in the same
- *    registration).
+ *    registration). Since MYK9-1822 the step shows no total of its own; the one
+ *    on screen is the entries panel's "Total due", fed by the page's
+ *    `liveFeeCalculation`, so the harness renders that panel beside the step
+ *    with the calculation built the way `useRegistrationWizardState` builds it.
  *
  * The step needs the hosting show's real shape: pre-entry 30, junior fee 15.
  */
 import React from 'react';
-import { render, screen } from '@/test/utils/testUtils';
+import { render, screen, within } from '@/test/utils/testUtils';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { PaymentStep } from '../index';
 import { usePaymentMethodResolution } from '../usePaymentMethodResolution';
 import type { PaymentStepProps } from '../types';
+import { calculateTotalFees } from '../utils';
+import { EntriesPanel } from '../../EntriesPanel/EntriesPanel';
+import { panelGroupsFromFees } from '@/test/utils/entriesPanelFromFees';
 
 const SHOW = {
   id: 'show-1',
@@ -34,16 +40,22 @@ const SHOW = {
   entryCloseDate: '2026-12-01T00:00:00+00:00',
 };
 
+const DOGS = [
+  { id: 'dog-1', name: 'Rocket', callName: 'Rocket' },
+  { id: 'dog-2', name: 'Juno', callName: 'Juno' },
+];
+const CLASSES = [{ id: 'class-1', className: 'Interior Novice A' }];
+const CLASS_SELECTIONS = [
+  { dogId: 'dog-1', trialId: 'trial-1', selectedClasses: [{ classId: 'class-1' }] },
+  { dogId: 'dog-2', trialId: 'trial-1', selectedClasses: [{ classId: 'class-1' }] },
+];
+
 vi.mock('@/hooks/useDogStoreCompat', () => ({
-  useDogStoreCompat: () => ({
-    dogs: [
-      { id: 'dog-1', name: 'Rocket', callName: 'Rocket' },
-      { id: 'dog-2', name: 'Juno', callName: 'Juno' },
-    ],
-  }),
+  useDogStoreCompat: () => ({ dogs: DOGS }),
 }));
-vi.mock('@/hooks/useClassStoreCompat', () => ({
-  useClassStoreCompat: () => ({ classes: [{ id: 'class-1', className: 'Interior Novice A' }] }),
+// No service fee, so "Total due" is the entry fees alone.
+vi.mock('@/hooks/queries/usePlatformFeeRates', () => ({
+  usePlatformFeeRates: () => ({ percent: 0, flatCents: 0, minCents: 0 }),
 }));
 vi.mock('@/store/showStore', () => ({
   useShowStore: vi.fn(() => ({ shows: [SHOW] })),
@@ -83,9 +95,37 @@ vi.mock('@/hooks/queries/useOrganizationAgreement', () => ({
   }),
 }));
 
+/** The payment step and the entries panel, side by side as the page renders them. */
 function Harness(props: Omit<PaymentStepProps, 'paymentResolution'>) {
   const paymentResolution = usePaymentMethodResolution(props.showId, props.paymentMethod);
-  return <PaymentStep {...props} paymentResolution={paymentResolution} />;
+  // The page's `liveFeeCalculation`, field for field (zone resolved: Chicago).
+  const feeCalculation = calculateTotalFees(
+    props.selectedDogs,
+    CLASS_SELECTIONS,
+    DOGS,
+    CLASSES,
+    {
+      preEntryFee: SHOW.preEntryFee || '0',
+      dayOfShowFee: SHOW.dayOfShowFee,
+      juniorHandlerFee: SHOW.juniorHandlerFee,
+      startDate: SHOW.startDate,
+      entryCloseDate: SHOW.entryCloseDate,
+      entryWindowTimezone: 'America/Chicago',
+    },
+    new Set(),
+    props.juniorDeclaration?.dogIds
+  );
+  return (
+    <>
+      <PaymentStep {...props} paymentResolution={paymentResolution} />
+      <EntriesPanel
+        groups={panelGroupsFromFees(feeCalculation)}
+        variant="payment"
+        paymentMethod={paymentResolution.effectivePaymentMethod}
+        feeCalculation={feeCalculation}
+      />
+    </>
+  );
 }
 
 const onChange = vi.fn();
@@ -93,10 +133,6 @@ const onChange = vi.fn();
 function propsFor(overrides: Partial<PaymentStepProps> = {}) {
   return {
     selectedDogs: ['dog-1', 'dog-2'],
-    classSelections: [
-      { dogId: 'dog-1', trialId: 'trial-1', selectedClasses: [{ classId: 'class-1' }] },
-      { dogId: 'dog-2', trialId: 'trial-1', selectedClasses: [{ classId: 'class-1' }] },
-    ],
     paymentMethod: 'credit_card' as const,
     onPaymentMethodChange: vi.fn(),
     showId: 'show-1',
@@ -113,9 +149,9 @@ describe('PaymentStep junior-handler declaration', () => {
     vi.setSystemTime(new Date('2026-10-01T12:00:00Z'));
   });
 
-  // The step's total, as the secretary's desk card names it (MYK9-1822).
-  const usualTotal = (amount: string) =>
-    screen.queryByText(`Leave blank to charge the usual ${amount}.`);
+  /** The wizard's one total on screen: the entries panel's "Total due" row. */
+  const totalDue = () =>
+    within(screen.getByTestId('entries-panel')).getByText('Total due').parentElement;
 
   it('offers one checkbox per dog, worded about the handler, not the registrant', () => {
     render(<Harness {...propsFor()} />);
@@ -161,12 +197,12 @@ describe('PaymentStep junior-handler declaration', () => {
       />
     );
     // 15.00 (Rocket, declared) + 30.00 (Juno) = 45.00
-    expect(usualTotal('$45.00')).toBeVisible();
-    expect(usualTotal('$60.00')).toBeNull();
+    expect(totalDue()).toHaveTextContent('$45.00');
+    expect(totalDue()).not.toHaveTextContent('$60.00');
   });
 
   it('totals both dogs at the normal fee with no declaration', () => {
     render(<Harness {...propsFor()} />);
-    expect(usualTotal('$60.00')).toBeVisible();
+    expect(totalDue()).toHaveTextContent('$60.00');
   });
 });

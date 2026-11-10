@@ -86,8 +86,6 @@ function RegistrationWizardContent({ onStartAnother }: { onStartAnother: () => v
     canDeclareJuniorHandler,
     juniorHandlerDogIds,
     setJuniorHandlerDog,
-    feeOverride,
-    setFeeOverride,
     classSelections,
     capacityReady,
     capacityError,
@@ -204,7 +202,6 @@ function RegistrationWizardContent({ onStartAnother }: { onStartAnother: () => v
           ? {
               paymentMethod: paymentResolution.effectivePaymentMethod,
               feeCalculation: liveFeeCalculation,
-              feeOverride,
               onRemoveLine: removeLine,
               removingLineKey,
             }
@@ -431,8 +428,6 @@ function RegistrationWizardContent({ onStartAnother }: { onStartAnother: () => v
               offlineFirstCreate={isLateEntryMode && currentWorkflowMode !== 'exhibitor'}
               agreedToEntryAgreement={agreedToEntryAgreement}
               onAgreementChange={setAgreedToEntryAgreement}
-              feeOverride={feeOverride}
-              onFeeOverrideChange={setFeeOverride}
               juniorDeclaration={{
                 canDeclare: canDeclareJuniorHandler,
                 dogIds: juniorHandlerDogIds,

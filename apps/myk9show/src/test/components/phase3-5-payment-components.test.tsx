@@ -114,13 +114,6 @@ describe('Phase 3.5: Payment Component Tests', () => {
   describe('PaymentStep Component', () => {
     const defaultProps = {
       selectedDogs: ['1'],
-      classSelections: [
-        {
-          dogId: '1',
-          trialId: 'trial1',
-          selectedClasses: [{ classId: 'class1' }],
-        },
-      ],
       paymentMethod: 'credit_card' as const,
       onPaymentMethodChange: vi.fn(),
     };
@@ -141,7 +134,8 @@ describe('Phase 3.5: Payment Component Tests', () => {
       );
 
       expect(screen.getByText(/Loading show details before totalling this entry/i)).toBeVisible();
-      expect(screen.queryByText('Payment at the desk')).toBeNull();
+      // The step totals nothing itself (MYK9-1822); no dollar figure anywhere.
+      expect(screen.queryByText(/\$\d/)).toBeNull();
     });
 
     it('should render payment step with fee calculation', () => {
@@ -163,18 +157,6 @@ describe('Phase 3.5: Payment Component Tests', () => {
       const propsWithMultipleDogs = {
         ...defaultProps,
         selectedDogs: ['1', '2'],
-        classSelections: [
-          {
-            dogId: '1',
-            trialId: 'trial1',
-            selectedClasses: [{ classId: 'class1' }],
-          },
-          {
-            dogId: '2',
-            trialId: 'trial1',
-            selectedClasses: [{ classId: 'class2' }],
-          },
-        ],
       };
 
       render(
@@ -295,13 +277,6 @@ describe('Phase 3.5: Payment Component Tests', () => {
         <PaymentStep
           paymentResolution={makePaymentResolution({ paymentMethod: 'credit_card' })}
           selectedDogs={['1']}
-          classSelections={[
-            {
-              dogId: '1',
-              trialId: 'trial1',
-              selectedClasses: [{ classId: 'class1' }],
-            },
-          ]}
           paymentMethod="credit_card"
           onPaymentMethodChange={onPaymentMethodChange}
         />
@@ -319,18 +294,6 @@ describe('Phase 3.5: Payment Component Tests', () => {
         <PaymentStep
           paymentResolution={makePaymentResolution({ paymentMethod: 'credit_card' })}
           selectedDogs={['1', '2']}
-          classSelections={[
-            {
-              dogId: '1',
-              trialId: 'trial1',
-              selectedClasses: [{ classId: 'class1' }],
-            },
-            {
-              dogId: '2',
-              trialId: 'trial1',
-              selectedClasses: [{ classId: 'class2' }],
-            },
-          ]}
           paymentMethod="credit_card"
           onPaymentMethodChange={vi.fn()}
         />
@@ -348,9 +311,6 @@ describe('Phase 3.5: Payment Component Tests', () => {
         <PaymentStep
           paymentResolution={makePaymentResolution({ paymentMethod: 'check' })}
           selectedDogs={['1']}
-          classSelections={[
-            { dogId: '1', trialId: 'trial1', selectedClasses: [{ classId: 'class1' }] },
-          ]}
           paymentMethod="check"
           onPaymentMethodChange={vi.fn()}
           onPaymentDetailsChange={onPaymentDetailsChange}
@@ -375,9 +335,6 @@ describe('Phase 3.5: Payment Component Tests', () => {
         <PaymentStep
           paymentResolution={makePaymentResolution({ paymentMethod: 'secretary_paid' })}
           selectedDogs={['1']}
-          classSelections={[
-            { dogId: '1', trialId: 'trial1', selectedClasses: [{ classId: 'class1' }] },
-          ]}
           paymentMethod="secretary_paid"
           onPaymentMethodChange={vi.fn()}
           onPaymentDetailsChange={onPaymentDetailsChange}
@@ -401,9 +358,6 @@ describe('Phase 3.5: Payment Component Tests', () => {
         <PaymentStep
           paymentResolution={makePaymentResolution({ paymentMethod: 'group_payment' })}
           selectedDogs={['1']}
-          classSelections={[
-            { dogId: '1', trialId: 'trial1', selectedClasses: [{ classId: 'class1' }] },
-          ]}
           paymentMethod="group_payment"
           onPaymentMethodChange={vi.fn()}
           onPaymentDetailsChange={onPaymentDetailsChange}

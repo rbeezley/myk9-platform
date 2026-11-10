@@ -1,7 +1,8 @@
 /**
  * MYK9-1822: the secretary's payment card on the late-entry payment step keeps
- * three things, in plain words, on one card with no tabs: change the total,
- * paid by cash or check, make it free. Paid and free are shortcuts to the SAME
+ * two things, in plain words, on one card with no tabs: paid by cash or check,
+ * and make it free. "Change the total" is gone: it never reached the saved
+ * entry, and the owner keeps no number that is not recorded. Paid and free are shortcuts to the SAME
  * payment-method handler the Payment Method list calls, so a late entry has one
  * way to record cash or check and one way to be free (no second, unrecorded
  * status flag).
@@ -16,9 +17,6 @@ import { PaymentStep } from '../index';
 
 vi.mock('@/hooks/useDogStoreCompat', () => ({
   useDogStoreCompat: () => ({ dogs: [{ id: 'dog-1', callName: 'Buddy' }] }),
-}));
-vi.mock('@/hooks/useClassStoreCompat', () => ({
-  useClassStoreCompat: () => ({ classes: [{ id: 'class-1', className: 'Novice', entryFee: 35 }] }),
 }));
 vi.mock('@/hooks/useEntryWindowTimezone', () => ({
   useEntryWindowTimezone: () => ({
@@ -40,31 +38,16 @@ vi.mock('@/components/auth/PermissionGuard', () => ({
 }));
 
 const onPaymentMethodChange = vi.fn();
-const onFeeOverrideChange = vi.fn();
 
-/** The wizard page owns the changed total; this holds it the way the page does. */
-function Harness({ paymentMethod }: { paymentMethod: PaymentMethod | '' }) {
-  const [feeOverride, setFeeOverride] = React.useState<number | null>(null);
-  return (
+function renderStep(paymentMethod: PaymentMethod | '' = 'check') {
+  return render(
     <PaymentStep
       paymentResolution={makePaymentResolution({ paymentMethod })}
       selectedDogs={['dog-1']}
-      classSelections={[
-        { dogId: 'dog-1', trialId: 'trial-1', selectedClasses: [{ classId: 'class-1' }] },
-      ]}
       paymentMethod={paymentMethod}
       onPaymentMethodChange={onPaymentMethodChange}
-      feeOverride={feeOverride}
-      onFeeOverrideChange={value => {
-        onFeeOverrideChange(value);
-        setFeeOverride(value);
-      }}
     />
   );
-}
-
-function renderStep(paymentMethod: PaymentMethod | '' = 'check') {
-  return render(<Harness paymentMethod={paymentMethod} />);
 }
 
 const deskCard = () => screen.getByRole('region', { name: 'Payment at the desk' });
@@ -72,14 +55,16 @@ const deskCard = () => screen.getByRole('region', { name: 'Payment at the desk' 
 describe('SecretaryPaymentManagement (MYK9-1822)', () => {
   beforeEach(() => {
     onPaymentMethodChange.mockClear();
-    onFeeOverrideChange.mockClear();
   });
 
-  it('shows the three kept actions on one card with no tabs', () => {
+  it('shows only the two kept actions on one card with no tabs and no total', () => {
     renderStep();
     const card = within(deskCard());
 
-    expect(card.getByLabelText('Change the total')).toBeVisible();
+    expect(card.queryByLabelText('Change the total')).toBeNull();
+    expect(card.queryByRole('spinbutton')).toBeNull();
+    expect(deskCard().textContent).not.toMatch(/\$\d/);
+    expect(card.getAllByRole('button')).toHaveLength(2);
     expect(card.getByRole('button', { name: 'Paid by cash or check' })).toBeVisible();
     expect(card.getByRole('button', { name: 'Make free' })).toBeVisible();
     expect(card.queryAllByRole('tab')).toHaveLength(0);
@@ -120,21 +105,12 @@ describe('SecretaryPaymentManagement (MYK9-1822)', () => {
     expect(onPaymentMethodChange).toHaveBeenCalledWith('waived');
   });
 
-  it('shows the usual total and reports a changed one', async () => {
-    const user = userEvent.setup();
-    renderStep();
-
-    expect(within(deskCard()).getByText(/Leave blank to charge the usual \$35\.00/)).toBeVisible();
-    await user.type(within(deskCard()).getByLabelText('Change the total'), '25');
-    expect(onFeeOverrideChange).toHaveBeenLastCalledWith(25);
-  });
-
-  it('a free entry marks "Make free" pressed and hides the total', () => {
+  it('a free entry marks "Make free" pressed', () => {
     renderStep('waived');
     const card = within(deskCard());
 
     expect(card.getByRole('button', { name: 'Make free' })).toHaveAttribute('aria-pressed', 'true');
-    expect(card.queryByLabelText('Change the total')).toBeNull();
+    expect(card.getByText('This is a free entry.')).toBeVisible();
   });
 
   it('the free option no longer promises an admin approval nobody gives', () => {

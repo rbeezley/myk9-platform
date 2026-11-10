@@ -111,7 +111,6 @@ function paymentPanel(props: Partial<React.ComponentProps<typeof EntriesPanel>> 
       paymentMethod="credit_card"
       feeCalculation={fees()}
       waiveFees={false}
-      feeOverride={null}
       {...props}
     />
   );
@@ -169,12 +168,6 @@ describe('EntriesPanel payment total agrees with the retired PaymentSummaryCard'
       expect(aside().queryByText(/Service fee/)).not.toBeInTheDocument();
     }
   );
-
-  it('preserves a manual non-card fee override', () => {
-    render(paymentPanel({ paymentMethod: 'check', feeOverride: 15 }));
-    expect(aside().getAllByText('$15.00').length).toBeGreaterThan(0);
-    expect(aside().queryByText(/Service fee/)).not.toBeInTheDocument();
-  });
 
   it('does not charge wait-list-only entries even with a fee floor', () => {
     state.rates = { percent: 7, flatCents: 30, minCents: 250 };
@@ -417,59 +410,19 @@ describe('EntriesPanel bar headline agrees with the totals block', () => {
 });
 
 /**
- * A staff fee override replaced `totals.entryFeeCents` wholesale, so "Entry
- * fees" and "Subtotal" quoted the override while the lines above them still
- * itemised the real classes — $30.00 claimed over two visible $25.00 rows
- * (Codex #2210 round 6 P2). The itemised sum is now what those rows say, and
- * the difference is named.
+ * MYK9-1822: the staff fee override is gone, so the amount due is always the
+ * computed total and "Entry fees" / "Subtotal" are the lines shown. Nothing
+ * reconciles a typed number against them any more.
  */
-describe('EntriesPanel reconciles a staff fee override with the lines', () => {
-  function overridePanel(feeOverride: number | null, paymentMethod: PaymentMethod = 'check') {
-    return paymentPanel({
-      groups: groupsFor(2),
-      feeCalculation: fees(2),
-      paymentMethod,
-      feeOverride,
-    });
-  }
-
-  it('keeps Entry fees and Subtotal as the sum of the lines actually shown', () => {
-    render(overridePanel(30));
+describe('EntriesPanel quotes the computed total only', () => {
+  it('keeps Entry fees, Subtotal and Total due on the computed figure, with no adjustment row', () => {
+    render(paymentPanel({ groups: groupsFor(2), feeCalculation: fees(2), paymentMethod: 'check' }));
     const panel = aside();
 
-    // Two lines at $30 each — this fixture's class fee — against a $30
-    // override. The rows must read the LINES, not the override.
     expect(panel.getByText('Entry fees').parentElement).toHaveTextContent('$60.00');
     expect(panel.getByText('Subtotal').parentElement).toHaveTextContent('$60.00');
-  });
-
-  it('names the difference as a Secretary adjustment', () => {
-    render(overridePanel(30));
-    const panel = aside();
-
-    const row = panel.getByText('Secretary adjustment').parentElement;
-    expect(row).toHaveTextContent('-$30.00');
-  });
-
-  it('still quotes the override as the amount due', () => {
-    render(overridePanel(30));
-    expect(aside().getByText('Total due').parentElement).toHaveTextContent('$30.00');
-  });
-
-  it('shows a positive adjustment when the override is higher', () => {
-    render(overridePanel(80));
-    expect(aside().getByText('Secretary adjustment').parentElement).toHaveTextContent('+$20.00');
-  });
-
-  it('adds no adjustment row when there is no override', () => {
-    render(overridePanel(null));
-    expect(aside().queryByText('Secretary adjustment')).not.toBeInTheDocument();
-    expect(aside().getByText('Entry fees').parentElement).toHaveTextContent('$60.00');
-  });
-
-  it('adds no adjustment row when the override equals the itemised sum', () => {
-    render(overridePanel(60));
-    expect(aside().queryByText('Secretary adjustment')).not.toBeInTheDocument();
+    expect(panel.getByText('Total due').parentElement).toHaveTextContent('$60.00');
+    expect(panel.queryByText('Secretary adjustment')).not.toBeInTheDocument();
   });
 });
 

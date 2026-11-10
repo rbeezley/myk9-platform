@@ -49,7 +49,6 @@ export interface EntriesPanelProps {
    */
   feeTier?: { isReady: boolean; isUnavailable: boolean } | undefined;
   waiveFees?: boolean | undefined;
-  feeOverride?: number | null | undefined;
   waitlistClassIds?: ReadonlySet<string> | undefined;
   onRemoveLine?: ((dogId: string, classId: string) => void | Promise<void>) | undefined;
   removingLineKey?: string | null | undefined;
@@ -79,7 +78,6 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
   capacityUnavailable: capacityUnavailableProp,
   feeTier,
   waiveFees = false,
-  feeOverride = null,
   waitlistClassIds,
   onRemoveLine,
   removingLineKey,
@@ -112,18 +110,15 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
         feeCalculation,
         capacityReady,
         waiveFees,
-        feeOverride,
         rates: resolvedRates,
       })
     : undefined;
 
   const classCount = countPanelLines(groups);
-  // ALWAYS the sum of the lines rendered above it. `totals.entryFeeCents` is the
-  // staff override when one is set, which made "Entry fees" and "Subtotal"
-  // contradict the itemisation directly beneath them (Codex #2210 round 6 P2).
-  // The override still decides what is OWED; it is reconciled as its own row.
+  // ALWAYS the sum of the lines rendered above it (Codex #2210 round 6 P2). The
+  // staff fee override that could make the amount owed differ from the lines is
+  // gone (MYK9-1822), so there is no adjustment row to reconcile them.
   const entryFeeCents = sumPanelFeeCents(groups);
-  const adjustmentCents = totals ? totals.entryFeeCents - entryFeeCents : 0;
   // The SAME string the totals block shows — one derivation, two widths.
   const headline = formatAmountDue({
     capacityReady,
@@ -161,7 +156,6 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
       capacityUnavailable={capacityUnavailable}
       placeholder={moneyPlaceholder}
       {...(isPayment ? { discounts: feeCalculation.discounts } : {})}
-      {...(adjustmentCents !== 0 ? { adjustmentCents } : {})}
       {...(totals ? { payment: { totals, paymentMethod, rates: resolvedRates } } : {})}
     />
   );

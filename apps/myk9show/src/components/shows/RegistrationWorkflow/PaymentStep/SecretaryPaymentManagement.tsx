@@ -1,8 +1,6 @@
 import React from 'react';
 import { Check, Gift, Receipt } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { PermissionGuard } from '@/components/auth/PermissionGuard';
 import type { SecretaryPaymentManagementProps } from './types';
@@ -10,7 +8,7 @@ import type { SecretaryPaymentManagementProps } from './types';
 const TITLE_ID = 'secretary-desk-payment-title';
 
 /**
- * MYK9-1822: the secretary's three desk actions for this entry, on one card in
+ * MYK9-1822: the secretary's two desk actions for this entry, on one card in
  * plain words. "Paid by cash or check" and "Make free" are shortcuts to the
  * Payment Method list above: they call the same method handler, so the entry is
  * recorded the one way the list records it (cash or check through "Already
@@ -20,9 +18,6 @@ const TITLE_ID = 'secretary-desk-payment-title';
  */
 export const SecretaryPaymentManagement: React.FC<SecretaryPaymentManagementProps> = ({
   paymentMethod,
-  feeCalculation,
-  feeOverride,
-  onFeeOverrideChange,
   onPaymentMethodChange,
 }) => {
   const isFree = paymentMethod === 'waived';
@@ -38,27 +33,6 @@ export const SecretaryPaymentManagement: React.FC<SecretaryPaymentManagementProp
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {!isFree && (
-            <div className="space-y-1">
-              <Label htmlFor="fee-override">Change the total</Label>
-              <Input
-                id="fee-override"
-                type="number"
-                step="0.01"
-                min="0"
-                inputMode="decimal"
-                value={feeOverride ?? ''}
-                onChange={e =>
-                  onFeeOverrideChange(e.target.value ? parseFloat(e.target.value) : null)
-                }
-                placeholder={`$${feeCalculation.total.toFixed(2)}`}
-              />
-              <p className="text-xs text-muted-foreground">
-                Leave blank to charge the usual ${feeCalculation.total.toFixed(2)}.
-              </p>
-            </div>
-          )}
-
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Button
               type="button"

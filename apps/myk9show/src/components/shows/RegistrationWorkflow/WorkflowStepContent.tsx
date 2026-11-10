@@ -98,10 +98,7 @@ interface WorkflowStepContentProps {
   agreedToEntryAgreement?: boolean | undefined;
   /** Callback when the entry agreement checkbox is toggled on the payment step. */
   onAgreementChange?: ((agreed: boolean) => void) | undefined;
-  /** Secretary's changed total, owned by the wizard page. */
-  feeOverride?: number | null | undefined;
   juniorDeclaration?: JuniorHandlerDeclaration | undefined;
-  onFeeOverrideChange?: ((override: number | null) => void) | undefined;
 }
 
 export function WorkflowStepContent({
@@ -137,9 +134,7 @@ export function WorkflowStepContent({
   offlineFirstCreate = false,
   agreedToEntryAgreement,
   onAgreementChange,
-  feeOverride,
   juniorDeclaration,
-  onFeeOverrideChange,
 }: WorkflowStepContentProps) {
   const hasDogSelectionStep = currentWorkflowConfig.steps.includes('dog-selection');
   const hasHandlerStep = currentWorkflowConfig.steps.includes('handler-assignment');
@@ -416,7 +411,6 @@ export function WorkflowStepContent({
           <PaymentStep
             paymentResolution={paymentResolution}
             selectedDogs={optimisticState.formData.selectedDogs}
-            classSelections={optimisticState.classSelections}
             paymentMethod={optimisticState.formData.paymentMethod || ''}
             onPaymentMethodChange={onPaymentMethodChange}
             onPaymentMethodClear={onPaymentMethodClear}
@@ -427,9 +421,7 @@ export function WorkflowStepContent({
             agreedToEntryAgreement={agreedToEntryAgreement}
             onAgreementChange={onAgreementChange}
             preTickAgreement={currentWorkflowMode !== 'exhibitor'}
-            feeOverride={feeOverride}
             juniorDeclaration={juniorDeclaration}
-            onFeeOverrideChange={onFeeOverrideChange}
             capacityReady={capacityReady}
             capacityError={capacityError}
             capacityUnavailable={capacityUnavailable}

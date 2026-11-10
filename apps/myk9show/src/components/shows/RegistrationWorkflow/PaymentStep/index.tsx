@@ -4,8 +4,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import type { PaymentMethod } from '@/types/show-registration-types';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
-import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
-import { calculateTotalFees, parseJuniorHandlerFee } from './utils';
+import { parseJuniorHandlerFee } from './utils';
 import { useEntryWindowTimezone } from '@/hooks/useEntryWindowTimezone';
 import { PaymentMethodSelector } from './PaymentMethodSelector';
 import { JuniorHandlerDeclarationControl } from './JuniorHandlerDeclaration';
@@ -19,7 +18,6 @@ import type { PaymentStepProps } from './types';
  */
 export const PaymentStep: React.FC<PaymentStepProps> = ({
   selectedDogs,
-  classSelections,
   paymentMethod,
   onPaymentMethodChange,
   onPaymentMethodClear,
@@ -35,21 +33,15 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
   onRetryAvailability,
   waitlistClassIds = new Set(),
   blockedClassIds = new Set(),
-  feeOverride = null,
-  onFeeOverrideChange,
   paymentResolution,
   juniorDeclaration,
 }) => {
   const { dogs } = useDogStoreCompat();
-  const { classes = [] } = useClassStoreCompat();
   // Resolved here, from the same hook the wizard's Next gate and the class step
   // use, rather than threaded down as a prop: one rule, one reader, no chance of
   // this step and the gate disagreeing about whether the zone is known.
-  const {
-    timeZone: entryWindowTimezone,
-    isReady: entryWindowTimezoneReady,
-    isUnavailable: entryWindowTimezoneUnavailable,
-  } = useEntryWindowTimezone(showId);
+  const { isReady: entryWindowTimezoneReady, isUnavailable: entryWindowTimezoneUnavailable } =
+    useEntryWindowTimezone(showId);
 
   // Resolved by the PAGE and handed down, so the entries panel and these
   // controls can never disagree about how the entry is being paid for. The
@@ -105,21 +97,9 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
   const agreed = onAgreementChange ? agreedToEntryAgreement : localAgreed;
   const handleAgree = onAgreementChange ?? setLocalAgreed;
 
-  // The fee tier is decided in the SHOW's timezone, not the viewer's. `show`
-  // comes from the show store and carries no zone, so handing it straight to
-  // `calculateTotalFees` priced this step in whatever zone the browser is in
-  // while the payment path and the server used the show's own (MYK9-642 L-F2).
-  // And until the trial read resolves that zone there is no honest total to
-  // render at all, so nothing fee-bearing is shown (L-F1).
-  const feeCalculation = calculateTotalFees(
-    selectedDogs,
-    classSelections,
-    dogs,
-    classes,
-    show && entryWindowTimezoneReady ? { ...show, entryWindowTimezone } : undefined,
-    waitlistClassIds,
-    juniorDeclaration?.dogIds
-  );
+  // This step totals nothing itself (MYK9-1822): the one total on screen is the
+  // entries panel's, from the page's `liveFeeCalculation`, which prices in the
+  // show's own timezone and withholds money until that zone is known (MYK9-642).
   const juniorFeeOffered = juniorDeclaration?.canDeclare ? parseJuniorHandlerFee(show) : null;
 
   return (
@@ -221,17 +201,12 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
         />
       )}
 
-      {/* Secretary desk actions. Fee-bearing, so it waits for the resolved zone.
-          Its paid and free shortcuts call the list's own handler (MYK9-1822). */}
-      {entryWindowTimezoneReady && (
-        <SecretaryPaymentManagement
-          paymentMethod={effectivePaymentMethod}
-          feeCalculation={feeCalculation}
-          feeOverride={feeOverride}
-          onFeeOverrideChange={onFeeOverrideChange ?? (() => {})}
-          onPaymentMethodChange={handlePaymentMethodSelect}
-        />
-      )}
+      {/* Secretary desk actions. No money on it, so it needs no resolved zone;
+          its paid and free shortcuts call the list's own handler (MYK9-1822). */}
+      <SecretaryPaymentManagement
+        paymentMethod={effectivePaymentMethod}
+        onPaymentMethodChange={handlePaymentMethodSelect}
+      />
 
       {/* Entry Agreement */}
       {show?.organization && (

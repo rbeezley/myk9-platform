@@ -63,7 +63,6 @@ function PaymentStepHarness(props: Omit<PaymentStepProps, 'paymentResolution'>) 
 
 const baseProps = {
   selectedDogs: [],
-  classSelections: [],
   paymentMethod: '' as const,
   onPaymentMethodChange: vi.fn(),
   showId: 'show-1',

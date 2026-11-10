@@ -221,7 +221,7 @@ describe('TasksTab — personal-only', () => {
     } as unknown as ReturnType<typeof useSecretaryTasks>);
 
     render(<TasksTab clubId="club-1" />, { wrapper });
-    expect(screen.getByText(/Couldn't load your tasks/i)).toBeInTheDocument();
+    expect(screen.getByText("We couldn't load your tasks. Try again.")).toBeInTheDocument();
     fireEvent.click(screen.getByText('Retry'));
     expect(refetch).toHaveBeenCalled();
   });

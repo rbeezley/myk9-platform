@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { showUndoToast } from '@/lib/undoToast';
-import { getUserFriendlyError } from '@/utils/errorMessages';
+import { deskPullCopy, showDayErrorMessage } from '@/features/show-map/showDayErrorCopy';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { EntryStatus } from '@/types/show-registration-types';
 import { changeSecretaryEntryStatus } from '@/services/database/entries/lifecycle';
@@ -79,11 +79,15 @@ export function useDeskPull(
         onUndo: () => {
           void undoShowMapScratch(undoInput)
             .then(refresh)
-            .catch(error => toast.error(getUserFriendlyError(error)));
+            .catch(error =>
+              toast.error(
+                showDayErrorMessage(error, deskPullCopy.undoFailed(row.dogName, row.className))
+              )
+            );
         },
       });
     } catch (error) {
-      toast.error(getUserFriendlyError(error));
+      toast.error(showDayErrorMessage(error, deskPullCopy.pullFailed(row.dogName, row.className)));
     } finally {
       setIsWorking(false);
     }
@@ -116,7 +120,9 @@ export function useDeskPull(
       await refresh();
       toast.success(`${row.dogName} is back in ${row.className}`);
     } catch (error) {
-      toast.error(getUserFriendlyError(error));
+      toast.error(
+        showDayErrorMessage(error, deskPullCopy.putBackFailed(row.dogName, row.className))
+      );
     } finally {
       setIsWorking(false);
     }
@@ -132,7 +138,9 @@ export function useDeskPull(
       await refresh();
       toast.success(`${row.dogName}, ${row.className}: ${deskStatusLabel(restored)}`);
     } catch (error) {
-      toast.error(getUserFriendlyError(error));
+      toast.error(
+        showDayErrorMessage(error, deskPullCopy.clearFlagFailed(row.dogName, row.className))
+      );
     } finally {
       setClearingId(null);
     }

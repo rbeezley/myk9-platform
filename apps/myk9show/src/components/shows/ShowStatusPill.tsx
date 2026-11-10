@@ -27,6 +27,7 @@ import {
   entryWindowPublishError,
 } from '@/features/payments/onlineEntryGate';
 import { getShowEditHref } from '@/components/shows/showEditRoutes';
+import { SHOW_ADMIN_COPY } from '@/components/shows/showAdminErrorCopy';
 import {
   SHOW_STATUS_VALUES,
   getStatusDescriptor,
@@ -129,7 +130,7 @@ export function ShowStatusPill({
       const needsStripe = publishNeedsStripe(onlineEntriesEnabled);
       if (clubAuthQuery.isLoading || (needsStripe && clubAccountQuery.isLoading)) {
         // Don't misreport an onboarded club as unconnected on a cold cache.
-        toast.info('Checking the club’s status — try again in a moment.');
+        toast.info('Still checking the club’s status. Try again in a moment.');
         return;
       }
       if (clubAuthQuery.isError || (needsStripe && clubAccountQuery.isError)) {
@@ -139,7 +140,7 @@ export function ShowStatusPill({
         // inside staleTime would otherwise serve the same error forever).
         void clubAccountQuery.refetch();
         void clubAuthQuery.refetch();
-        toast.error('Could not check the club’s status. Please try again.');
+        toast.error(SHOW_ADMIN_COPY.clubCheckFailed);
         return;
       }
       // MYK9-572: authorization is checked before Stripe readiness, same
@@ -199,7 +200,7 @@ export function ShowStatusPill({
         }
         return;
       }
-      toast.error('Failed to update show status. Please try again.');
+      toast.error(SHOW_ADMIN_COPY.statusChangeFailed);
     }
   }
 

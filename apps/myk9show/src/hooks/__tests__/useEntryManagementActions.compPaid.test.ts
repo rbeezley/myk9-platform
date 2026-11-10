@@ -107,7 +107,7 @@ describe('useEntryManagementActions comp on a paid entry (MYK9-1407)', () => {
       await result.current.actions.handleCompEntry('entry-1', 'Judge error');
     });
 
-    expect(setError).toHaveBeenCalledWith('Failed to comp entry');
+    expect(setError).toHaveBeenCalledWith("We couldn't comp this entry. Try again.");
   });
 
   it('shows the status the server restored on undo, not an assumed pending', async () => {

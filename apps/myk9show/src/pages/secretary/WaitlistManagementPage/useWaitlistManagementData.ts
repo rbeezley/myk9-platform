@@ -24,6 +24,7 @@ import { WAITLIST_READ_TABLES } from './replicaDependencies';
 import { useWaitlistOffers } from './useWaitlistOffers';
 import { withdrawOutcomeNotice } from './withdrawOutcomeNotice';
 import type { ActionDialogState, WaitlistClassGroup, WaitlistEntry } from './types';
+import { WAITLIST_COPY } from './waitlistErrorCopy';
 
 /** The judge-day a secretary asked to see the wait list of (the card's own identity, in a show). */
 interface JudgeDayKey {
@@ -153,9 +154,9 @@ export function useWaitlistManagementData(showId: string) {
       (targetClassIds.length > 0 && queueQuery.isPending) ||
       offersRead.isPending);
   const loadError = classesQuery.error
-    ? 'Failed to load classes'
+    ? WAITLIST_COPY.loadClassesFailed
     : queueQuery.error || offersRead.error
-      ? 'Failed to load waitlist'
+      ? WAITLIST_COPY.loadWaitlistFailed
       : null;
   const error = actionError ?? loadError;
 
@@ -204,7 +205,7 @@ export function useWaitlistManagementData(showId: string) {
         });
         toast.warning(
           outcome === 'no_account'
-            ? 'Spot offered. This exhibitor has no app account yet — notify them directly.'
+            ? 'Spot offered. This exhibitor has no app account yet, so contact them another way.'
             : "Spot offered, but the in-app notification didn't send."
         );
       } catch (err) {
@@ -278,9 +279,7 @@ export function useWaitlistManagementData(showId: string) {
       // taken place); its message says why, so show it instead of "try again".
       const refusal = err as { code?: string; message?: string };
       setActionError(
-        refusal.code === '22023' && refusal.message
-          ? refusal.message
-          : 'Failed to offer spot. Please try again.'
+        refusal.code === '22023' && refusal.message ? refusal.message : WAITLIST_COPY.offerFailed
       );
       logger.error('Error offering spot:', 'secretary', {}, err as Error);
     } finally {
@@ -311,13 +310,13 @@ export function useWaitlistManagementData(showId: string) {
         await reload();
         setActionError(error.message);
       } else if (error) {
-        setActionError('Failed to remove from waitlist. Please try again.');
+        setActionError(WAITLIST_COPY.removeFailed);
         logger.error('Error removing from waitlist:', 'secretary', {}, error as Error);
       } else {
         await reload();
       }
     } catch (err) {
-      setActionError('An unexpected error occurred');
+      setActionError(WAITLIST_COPY.removeFailed);
       logger.error('Error removing from waitlist:', 'secretary', {}, err as Error);
     } finally {
       setIsProcessing(false);
@@ -343,9 +342,7 @@ export function useWaitlistManagementData(showId: string) {
     } catch (err) {
       await reload();
       setActionError(
-        err instanceof WaitlistOfferNotWithdrawnError
-          ? err.message
-          : 'Failed to withdraw the offer. Please try again.'
+        err instanceof WaitlistOfferNotWithdrawnError ? err.message : WAITLIST_COPY.withdrawFailed
       );
       logger.error('Error withdrawing waitlist offer:', 'secretary', {}, err as Error);
     } finally {

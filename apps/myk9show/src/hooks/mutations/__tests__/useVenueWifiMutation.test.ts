@@ -108,6 +108,8 @@ describe('useVenueWifiMutation', () => {
     });
 
     await waitFor(() => expect(result.current.isError).toBe(true));
-    expect(mockNotificationsError).toHaveBeenCalledWith('Failed to save WiFi info');
+    expect(mockNotificationsError).toHaveBeenCalledWith(
+      "We couldn't save the WiFi details. Try again."
+    );
   });
 });

@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { queryKeys } from '@/lib/queryClient';
 import { classKeys } from '@/hooks/queries/useClassesDatabase';
 import { entryInvalidationKeys } from '@/services/database/entries/invalidation';
-import { getUserFriendlyError } from '@/utils/errorMessages';
+import { SHOW_MAP_COPY, SHOW_MAP_MUTATION_FAILED, showDayErrorMessage } from './showDayErrorCopy';
 import { getMoveUpErrorMessage } from '@/services/replication/moveUpEntryRpc';
 import { showUndoToast } from '@/lib/undoToast';
 import { useMessageStore } from '@/store/messageStore';
@@ -220,7 +220,7 @@ export function useShowMapActionExecutor({
     onSuccess: (_data, { execution }) => {
       toast.success(execution.successMessage);
     },
-    onError: (error, _variables, context) => {
+    onError: (error, variables, context) => {
       if (context?.previousShowEntries) {
         for (const [key, data] of context.previousShowEntries) {
           queryClient.setQueryData(key, data);
@@ -249,7 +249,9 @@ export function useShowMapActionExecutor({
           queryClient.setQueryData(key, data);
         }
       }
-      toast.error(getUserFriendlyError(error));
+      toast.error(
+        showDayErrorMessage(error, SHOW_MAP_MUTATION_FAILED[variables.execution.mutation])
+      );
     },
     onSettled: (_data, _error, variables) => {
       invalidateShowMapActionQueries(variables?.action.classId, variables?.action.trialId);
@@ -265,7 +267,7 @@ export function useShowMapActionExecutor({
       toast.success('Pull undone');
     },
     onError: error => {
-      toast.error(getUserFriendlyError(error));
+      toast.error(showDayErrorMessage(error, SHOW_MAP_COPY.pullUndoFailed));
     },
     onSettled: (_data, _error, variables) => {
       invalidateShowMapActionQueries(variables?.classId);
@@ -297,7 +299,7 @@ export function useShowMapActionExecutor({
       setScratchAction(null);
     },
     onError: error => {
-      toast.error(getUserFriendlyError(error));
+      toast.error(showDayErrorMessage(error, SHOW_MAP_COPY.pullFailed));
     },
     onSettled: (_data, _error, variables) => {
       invalidateShowMapActionQueries(variables?.action.classId);
@@ -318,7 +320,7 @@ export function useShowMapActionExecutor({
       onEntriesChanged?.();
     },
     onError: error => {
-      toast.error(getMoveUpErrorMessage(error, 'That class change could not be undone.'));
+      toast.error(getMoveUpErrorMessage(error, SHOW_MAP_COPY.moveUpUndoFailed));
     },
     onSettled: (_data, _error, variables) => {
       invalidateShowMapActionQueries(variables?.classId);
@@ -364,7 +366,7 @@ export function useShowMapActionExecutor({
       // Not getUserFriendlyError: in production that hunts for a PostgREST
       // `code`, finds none on a refusal, and replaces every sentence the RPC
       // wrote with "Something went wrong."
-      toast.error(getMoveUpErrorMessage(error, 'That entry\u2019s class could not be changed.'));
+      toast.error(getMoveUpErrorMessage(error, SHOW_MAP_COPY.moveUpFailed));
     },
     onSettled: (_data, _error, variables) => {
       invalidateShowMapActionQueries(variables?.action.classId);
@@ -404,7 +406,7 @@ export function useShowMapActionExecutor({
       setMessageAction(null);
     },
     onError: error => {
-      toast.error(getUserFriendlyError(error));
+      toast.error(showDayErrorMessage(error, SHOW_MAP_COPY.messageFailed));
     },
   });
 

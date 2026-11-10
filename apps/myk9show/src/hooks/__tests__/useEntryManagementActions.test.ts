@@ -211,7 +211,7 @@ describe('useEntryManagementActions', () => {
       expect(mocks.changeSecretaryEntryStatus).toHaveBeenCalled();
       expect(mocks.showUndoToast).toHaveBeenCalledWith(
         expect.objectContaining({
-          description: 'Queued — will sync when online',
+          description: 'Saved on this device. It will be sent when you are back online.',
           // The decision email waits for exactly this window (MYK9-1800).
           duration: STATUS_UNDO_WINDOW_MS,
         })

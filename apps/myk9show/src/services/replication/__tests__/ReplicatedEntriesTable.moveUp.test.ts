@@ -184,3 +184,43 @@ describe('reverseMoveUpEntryViaRpc (MYK9-640)', () => {
     expect(await table.get('dest-1')).not.toBeNull();
   });
 });
+
+// MYK9-1844: an unmapped failure carries the sentence every class-change screen shows.
+describe('move-up RPC fallbacks (MYK9-1844)', () => {
+  let table: ReplicatedEntriesTable;
+
+  beforeEach(async () => {
+    const { databaseManager } = await import('@myk9/replication');
+    await databaseManager.reset();
+    vi.mocked(supabase.from).mockReset();
+    vi.mocked(supabase.rpc).mockReset();
+    table = new ReplicatedEntriesTable();
+    vi.mocked(supabase.rpc).mockResolvedValue({
+      data: null,
+      error: { code: '40001', message: 'could not serialize access due to concurrent update' },
+    } as never);
+  });
+
+  afterEach(async () => {
+    const { databaseManager } = await import('@myk9/replication');
+    await databaseManager.reset();
+  });
+
+  it('a class change that fails on an unmapped code names the action and the next step', async () => {
+    await expect(
+      table.moveUpEntryViaRpc({
+        sourceEntryId: 'source-1',
+        targetClassId: 'class-advanced',
+        newEntryId: 'dest-1',
+      })
+    ).rejects.toThrow(
+      "We couldn't change this entry's class. Check which class the dog is in before you try again."
+    );
+  });
+
+  it('a move back that fails on an unmapped code names the action and the next step', async () => {
+    await expect(table.reverseMoveUpEntryViaRpc('dest-1')).rejects.toThrow(
+      "We couldn't move this dog back. Check which class the dog is in before you try again."
+    );
+  });
+});

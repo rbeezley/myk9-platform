@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { useEntryFormData } from '@/hooks/queries/useEntryFormData';
 import type { ReportProps } from '@/lib/reports/types';
 import type { OfficialPdfAction } from './ReportControlsBar';
+import { reportOfficialPdfDownloadFailed } from './officialPdfDownloadError';
 import { downloadPdfBytes } from '@/features/organization-forms/downloadPdf';
 import {
   buildAKCScentWorkCertificationPageFilename,
@@ -297,8 +298,7 @@ export function useAKCOfficialPdfAction({
       downloadPdfBytes(bytes, buildOfficialPdfFilename(officialPdfConfig, officialPdfProps));
       toast.success('Official PDF downloaded');
     } catch (error) {
-      console.error('[reports] official PDF download failed', error);
-      toast.error('Could not download the official PDF');
+      reportOfficialPdfDownloadFailed(error);
     } finally {
       setIsDownloadingOfficialPdf(false);
     }
@@ -343,8 +343,7 @@ export function useAKCOfficialPdfAction({
       downloadPdfBytes(bytes, filename);
       toast.success('Official PDF downloaded');
     } catch (error) {
-      console.error('[reports] official AKC entry PDF download failed', error);
-      toast.error('Could not download the official PDF');
+      reportOfficialPdfDownloadFailed(error, 'AKC entry');
     } finally {
       setIsDownloadingOfficialPdf(false);
     }
@@ -382,8 +381,7 @@ export function useAKCOfficialPdfAction({
       downloadPdfBytes(bytes, buildAKCScentWorkScoreSheetFilename(officialClassPdfProps));
       toast.success('Official PDF downloaded');
     } catch (error) {
-      console.error('[reports] official AKC score sheet PDF download failed', error);
-      toast.error('Could not download the official PDF');
+      reportOfficialPdfDownloadFailed(error, 'AKC score sheet');
     } finally {
       setIsDownloadingOfficialPdf(false);
     }
@@ -416,8 +414,7 @@ export function useAKCOfficialPdfAction({
       );
       toast.success('Official PDF downloaded');
     } catch (error) {
-      console.error('[reports] official AKC transfer PDF download failed', error);
-      toast.error('Could not download the official PDF');
+      reportOfficialPdfDownloadFailed(error, 'AKC transfer');
     } finally {
       setIsDownloadingOfficialPdf(false);
     }
@@ -452,8 +449,7 @@ export function useAKCOfficialPdfAction({
       downloadPdfBytes(bytes, buildAKCScentWorkCertificationPageFilename(officialPdfProps));
       toast.success('Official PDF downloaded');
     } catch (error) {
-      console.error('[reports] official AKC certification PDF download failed', error);
-      toast.error('Could not download the official PDF');
+      reportOfficialPdfDownloadFailed(error, 'AKC certification');
     } finally {
       setIsDownloadingOfficialPdf(false);
     }
@@ -502,8 +498,7 @@ export function useAKCOfficialPdfAction({
       downloadPdfBytes(bytes, filename);
       toast.success('Official PDF downloaded');
     } catch (error) {
-      console.error('[reports] official UKC entry PDF download failed', error);
-      toast.error('Could not download the official PDF');
+      reportOfficialPdfDownloadFailed(error, 'UKC entry');
     } finally {
       setIsDownloadingOfficialPdf(false);
     }
@@ -548,8 +543,7 @@ export function useAKCOfficialPdfAction({
       );
       toast.success('Official PDF downloaded');
     } catch (error) {
-      console.error('[reports] official UKC change entry PDF download failed', error);
-      toast.error('Could not download the official PDF');
+      reportOfficialPdfDownloadFailed(error, 'UKC change entry');
     } finally {
       setIsDownloadingOfficialPdf(false);
     }

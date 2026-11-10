@@ -25,7 +25,7 @@ import {
   EntryStatus,
 } from '@/types/show-registration-types';
 import type { PaymentMethod, PaymentDetails } from '@/types/show-registration-types';
-import { getErrorMessage } from '@myk9/core';
+import { notifyStatusSaveFailed } from './statusSaveError';
 import { notifications } from '@/lib/notifications';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Info } from 'lucide-react';
@@ -438,7 +438,7 @@ export function WorkflowStepContent({
                 try {
                   await onPaymentStatusChange(registrationId, status);
                 } catch (error: unknown) {
-                  notifications.error(getErrorMessage(error));
+                  notifyStatusSaveFailed('payment', error);
                 }
               }
             }}
@@ -448,7 +448,7 @@ export function WorkflowStepContent({
                 try {
                   await onEntryStatusChange(registrationId, status, reason);
                 } catch (error: unknown) {
-                  notifications.error(getErrorMessage(error));
+                  notifyStatusSaveFailed('entry', error);
                 }
               }
             }}
@@ -503,7 +503,7 @@ export function WorkflowStepContent({
                 try {
                   await onEntryStatusChange(registrationId, status);
                 } catch (error: unknown) {
-                  notifications.error(getErrorMessage(error));
+                  notifyStatusSaveFailed('entry', error);
                 }
               }
             }}

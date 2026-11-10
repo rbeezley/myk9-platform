@@ -134,7 +134,9 @@ describe('TasksNotesCard', () => {
       refetch,
     });
     render(<TasksNotesCard showId="show-1" clubId="club-1" />);
-    expect(screen.getByText(/Couldn't load tasks for this show/i)).toBeInTheDocument();
+    expect(
+      screen.getByText("We couldn't load the tasks for this show. Try again.")
+    ).toBeInTheDocument();
     fireEvent.click(screen.getByText('Retry'));
     expect(refetch).toHaveBeenCalled();
   });

@@ -56,6 +56,7 @@ import { getAvailableMoveUpTargets, hasConfiguredCapacity } from './moveUpTarget
 import { getTrialRegistry } from '@/features/registries';
 import type { RegistryId } from '@/features/registries';
 import { formatTrialLabel } from './management/entryFormTrialSummary';
+import { MOVE_UP_COPY } from '@/hooks/entryManagementErrorCopy';
 
 function trialLabelsById(trials: ReadonlyArray<Record<string, unknown>>): Record<string, string> {
   const text = (value: unknown) => (typeof value === 'string' ? value : null);
@@ -131,7 +132,7 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
         ]);
 
         if (requestsResult.error) {
-          setError('Failed to load move-up requests');
+          setError(MOVE_UP_COPY.loadFailed);
         } else {
           setRequests(requestsResult.data as MoveUpRequest[]);
         }
@@ -152,7 +153,7 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
           setTrialLabels(trialLabelsById(trialsResult.data));
         }
       } catch (_err) {
-        setError('An unexpected error occurred');
+        setError(MOVE_UP_COPY.loadFailed);
       } finally {
         setIsLoading(false);
       }
@@ -175,7 +176,7 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
       ]);
 
       if (requestsResult.error) {
-        setError('Failed to load move-up requests');
+        setError(MOVE_UP_COPY.loadFailed);
       } else {
         setRequests(requestsResult.data as MoveUpRequest[]);
       }
@@ -192,7 +193,7 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
         setTrialLabels(trialLabelsById(trialsResult.data));
       }
     } catch (_err) {
-      setError('An unexpected error occurred');
+      setError(MOVE_UP_COPY.loadFailed);
     } finally {
       setIsLoading(false);
     }
@@ -207,18 +208,15 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
       const { error } = await approveMoveUpRequestReplicated(selectedRequest.id, targetClassId);
 
       if (error) {
-        if (error.message?.includes('full')) {
-          toast.error('Target class is full. Consider adding to waitlist.');
-        } else {
-          toast.error('Failed to approve move-up request');
-        }
+        const full = error.message?.includes('full');
+        toast.error(full ? MOVE_UP_COPY.targetFull : MOVE_UP_COPY.approveFailed);
       } else {
         toast.success('Move-up request approved');
         await loadData();
         onRefresh?.();
       }
     } catch (_err) {
-      toast.error('An unexpected error occurred');
+      toast.error(MOVE_UP_COPY.unfinished);
     } finally {
       setIsProcessing(false);
       closeDialog();
@@ -234,14 +232,14 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
       const { error } = await denyMoveUpRequestReplicated(selectedRequest.id, denyReason);
 
       if (error) {
-        toast.error('Failed to deny move-up request');
+        toast.error(MOVE_UP_COPY.denyFailed);
       } else {
         toast.success('Move-up request denied');
         await loadData();
         onRefresh?.();
       }
     } catch (_err) {
-      toast.error('An unexpected error occurred');
+      toast.error(MOVE_UP_COPY.unfinished);
     } finally {
       setIsProcessing(false);
       closeDialog();
@@ -427,7 +425,9 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
                     {/* Request Time */}
                     <div className="text-sm text-muted-foreground flex items-center gap-1">
                       <Clock className="h-4 w-4" />
-                      {request.created_at ? formatEntryDateTime(request.created_at) : 'N/A'}
+                      {request.created_at
+                        ? formatEntryDateTime(request.created_at)
+                        : 'Not recorded'}
                     </div>
 
                     {/* Actions */}

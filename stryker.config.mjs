@@ -5,9 +5,19 @@ const targets = {
     mutate: ['apps/myk9show/src/store/cartStore.helpers.ts'],
     testFiles: ['apps/myk9show/src/store/cartStore.helpers.test.ts'],
   },
-  'score-validator': {
-    mutate: ['apps/myk9show/src/services/scoring/ScoreValidatorService.ts'],
-    testFiles: ['apps/myk9show/src/services/scoring/ScoreValidatorService.test.ts'],
+  // The rules a judge's score passes through on its way to being saved
+  // (MYK9-1805): the scoresheet form's validation and saved payload, and the
+  // parser that turns a typed time into the saved time.
+  scoresheet: {
+    mutate: ['packages/scoring-ui/src/hooks/useScoresheetScoring.ts'],
+    testFiles: [
+      'packages/scoring-ui/src/hooks/useScoresheetScoring.test.ts',
+      'packages/scoring-ui/src/hooks/useScoresheetScoring.savedScore.test.ts',
+    ],
+  },
+  duration: {
+    mutate: ['packages/core/src/utils/parseDuration.ts'],
+    testFiles: ['packages/core/src/utils/parseDuration.test.ts'],
   },
   placement: {
     mutate: ['apps/myk9show/src/services/scoring/PlacementCalculatorService.helpers.ts'],

@@ -111,7 +111,7 @@ describe('EntryStatusPopover', () => {
     await user.click(screen.getByRole('menuitem', { name: 'Accept' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't update status.");
-    await user.click(screen.getByRole('button', { name: 'Retry status update' }));
+    await user.click(screen.getByRole('button', { name: 'Try status update again' }));
     expect(onStatusChange).toHaveBeenCalledTimes(2);
   });
 

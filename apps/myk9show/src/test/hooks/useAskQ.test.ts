@@ -139,7 +139,7 @@ describe('useAskQ', () => {
     [
       'a missing account',
       () => new askqService.AskQRequestError('account-required'),
-      'AskQ needs an account. Create account or sign in to use it.',
+      'AskQ needs an account. Sign in or create an account to use it.',
     ],
   ])('says what to do after %s', async (_name, makeError, expected) => {
     vi.spyOn(logger, 'error').mockImplementation(() => undefined);

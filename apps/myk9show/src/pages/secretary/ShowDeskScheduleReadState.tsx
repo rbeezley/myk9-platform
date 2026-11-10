@@ -28,7 +28,7 @@ export function ShowDeskScheduleUnavailable({
           wasn't read.
         </p>
         <Button type="button" variant="outline" size="sm" className="mt-3" onClick={onRetry}>
-          Retry schedule
+          Try schedule again
         </Button>
       </div>
     );
@@ -51,7 +51,7 @@ export function ShowDeskScheduleRefreshWarning({
         The last loaded schedule is still shown. Retry when you're ready.
       </p>
       <Button type="button" variant="outline" size="sm" className="mt-3" onClick={onRetry}>
-        Retry schedule
+        Try schedule again
       </Button>
     </div>
   );

@@ -106,7 +106,7 @@ describe('useBulkDispatch retry against the real Toaster', () => {
     // A second batch takes the in-flight latch and stays there.
     fireEvent.click(screen.getByRole('button', { name: 'slow batch' }));
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Retry failed' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Try failed again' }));
 
     // Past sonner's removal window, so this cannot pass on a toast that is
     // merely mid-dismissal.
@@ -118,7 +118,7 @@ describe('useBulkDispatch retry against the real Toaster', () => {
     // there, and the toast now explains why nothing ran.
     expect(screen.getByText(/Still working on the previous batch/)).toBeInTheDocument();
     expect(screen.getByText(/bravo: network down/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Retry failed' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try failed again' })).toBeInTheDocument();
 
     release();
     await waitFor(() => expect(screen.queryByText(/echo/)).not.toBeInTheDocument());
@@ -133,7 +133,7 @@ describe('useBulkDispatch retry against the real Toaster', () => {
     fireEvent.click(screen.getByRole('button', { name: 'batch one' }));
     await screen.findByText(/bravo: network down/);
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Retry failed' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Try failed again' }));
 
     await waitFor(() => expect(screen.queryByText(/bravo: network down/)).not.toBeInTheDocument());
     expect(screen.queryByText(/Still working on the previous batch/)).not.toBeInTheDocument();

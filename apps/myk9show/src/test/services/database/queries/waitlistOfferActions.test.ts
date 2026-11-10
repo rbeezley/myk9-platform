@@ -82,7 +82,7 @@ describe('withdrawWaitlistOffer (client)', () => {
     // The entry the offer created is refreshed too, so the tab's seat count frees the seat.
     expect(m.refreshEntries).toHaveBeenCalledWith(['entry-1'], {
       insert: 'if-show-loaded',
-      reason: 'waitlist offer entry changed by the server',
+      reason: 'wait list offer entry changed by the server',
     });
   });
 

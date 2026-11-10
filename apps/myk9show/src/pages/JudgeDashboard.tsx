@@ -384,7 +384,7 @@ const JudgeDashboard: React.FC = () => {
                     Check your connection and try again.
                   </p>
                   <Button variant="outline" onClick={() => refetch()} disabled={isFetching}>
-                    {isFetching ? 'Retrying…' : 'Retry'}
+                    {isFetching ? 'Trying again…' : 'Try again'}
                   </Button>
                 </div>
               ) : isLoading ? (

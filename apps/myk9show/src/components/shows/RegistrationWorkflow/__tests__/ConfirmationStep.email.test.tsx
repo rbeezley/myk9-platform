@@ -238,7 +238,7 @@ describe('ConfirmationStep — capacity outcomes', () => {
             waitlistEntryId: null,
             feeCents: 0,
             capacityOverride: false,
-            denialReason: 'dog already on this class waitlist for a different exhibitor',
+            denialReason: 'dog already on this class wait list for a different exhibitor',
           },
         ]}
       />

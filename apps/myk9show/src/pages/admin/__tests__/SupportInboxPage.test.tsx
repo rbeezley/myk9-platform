@@ -291,7 +291,7 @@ describe('SupportInboxPage', () => {
     expect(viewPicker()).toHaveTextContent('All (—)');
     expect(viewPicker()).not.toHaveTextContent('(0)');
     expect(screen.queryByText(/^Showing/)).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Retry' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeEnabled();
     expect(screen.queryByText('Ring gate is blocked')).not.toBeInTheDocument();
     expect(screen.queryByText(/No all tickets/i)).not.toBeInTheDocument();
     expect(screen.queryByText('No ticket selected')).not.toBeInTheDocument();
@@ -308,7 +308,7 @@ describe('SupportInboxPage', () => {
       expect(screen.getByRole('alert')).toHaveTextContent(
         "We couldn't load support tickets. Ticket availability is unknown."
       );
-      expect(screen.getByRole('button', { name: 'Retry' })).toBeEnabled();
+      expect(screen.getByRole('button', { name: 'Try again' })).toBeEnabled();
       expect(screen.queryByText(/No open tickets/i)).not.toBeInTheDocument();
     }
   );
@@ -336,7 +336,7 @@ describe('SupportInboxPage', () => {
       initialRoute: '/admin/support?status=all',
     });
 
-    screen.getByRole('button', { name: 'Retry' }).focus();
+    screen.getByRole('button', { name: 'Try again' }).focus();
     await user.keyboard('{Enter}');
 
     expect(mockRefetch).toHaveBeenCalledTimes(1);
@@ -358,7 +358,7 @@ describe('SupportInboxPage', () => {
       initialRoute: '/admin/support',
     });
 
-    await user.click(screen.getByRole('button', { name: 'Retry' }));
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
     hookState.error = null;
     rerender(<SupportInboxPage />);
 
@@ -375,6 +375,6 @@ describe('SupportInboxPage', () => {
 
     render(<SupportInboxPage />, { initialRoute: '/admin/support' });
 
-    expect(screen.getByRole('button', { name: 'Retrying…' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Trying again…' })).toBeDisabled();
   });
 });

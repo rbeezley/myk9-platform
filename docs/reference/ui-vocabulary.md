@@ -63,7 +63,7 @@ Late-entry mode does **not** relax the entry-close deadline. That exemption is R
 
 ## Nouns
 
-One word per thing, in visible text only (MYK9-1857, from the MYK9-1819 audit). Code identifiers, database columns, routes and analytics keys keep their names. Guard: `apps/myk9show/src/test/ci/visibleWording.test.ts` fails on a visible "wait list" / "wait-list" and on a "Retry" button label; the other rows are applied by the sibling issues and by review.
+One word per thing, in visible text only (MYK9-1857, from the MYK9-1819 audit). Code identifiers, database columns, routes and analytics keys keep their names. Guard: `apps/myk9show/src/test/ci/visibleWording.test.ts` fails on a visible "wait list" / "wait-list" and on a visible "Retry" label (any string that is "Retry" or starts with "Retry "); strings that mirror the server (such as an entry denial reason) keep its exact text and are listed in the guard; the other rows are applied by the sibling issues and by review.
 
 | Thing                        | Say                                                                         | Not                                                                                 |
 | ---------------------------- | --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
@@ -83,9 +83,13 @@ One word per thing, in visible text only (MYK9-1857, from the MYK9-1819 audit). 
 | A free entry                 | **Free entry** (button: **Make free**)                                      |                                                                                     |
 | Ending the show              | **Close the show**; "finish" is kept for a class                            | Finish the show                                                                     |
 
-Owner calls: a free entry is "Free entry" with the button "Make free"; closing a show is "Close the show", while "finish" stays for a class.
+### Owner calls
 
-`entry` / `entries` stays the noun for the record, everywhere it already appears: **My Entries**, **5 Entries**, **Entry Fees**, **Entries close Dec 1**, **Entries Management**. The rule governs verb phrases only.
+A free entry is "Free entry" with the button "Make free"; closing a show is "Close the show", while "finish" stays for a class.
+
+### Entry and "your entry"
+
+`entry` / `entries` stays the noun for the record, everywhere it already appears: **My Entries**, **5 Entries**, **Entry Fees**, **Entries close Dec 1**, **Entries Management**.
 
 The in-progress set an exhibitor is building and paying for is **"your entry"** in copy ("Your entry" side panel, "Added to your entry", "Nothing in your entry yet"); the header badge reads **"Entry in progress"**. The `/cart` URL and the code (cart store, `Cart*` components) keep "cart". Where an entry sits _inside_ that set, copy avoids the container noun ("2 entries saved, not yet paid", not "2 entries in your entry").
 

@@ -9,7 +9,7 @@ describe('visible wording guard (MYK9-1857)', () => {
     expect(scanVisibleWording('x.tsx', src).map(h => h.line)).toEqual([1, 2, 3]);
   });
 
-  it('flags a Retry button label but not Retry in comments, identifiers or longer text', () => {
+  it('flags a Retry label in JSX, props and expressions, but not in comments, identifiers or logs', () => {
     const src = [
       '// wait list, Retry',
       'const onRetry = () => {};',
@@ -18,8 +18,32 @@ describe('visible wording guard (MYK9-1857)', () => {
       "const c = { label: 'Retry' };",
       "const d = 'Retry failed';",
       "const e = 'wait_list';",
+      "const f = isFetching ? 'Retrying…' : 'Retry';",
+      'const g = `Retry ${x}`;',
+      "logger.error('Retry failed', 'shows');",
+      "const h = 'Retry-After';",
     ].join('\n');
-    expect(scanVisibleWording('x.tsx', src).map(h => h.line)).toEqual([3, 4, 5]);
+    expect(scanVisibleWording('x.tsx', src).map(h => h.line)).toEqual([3, 4, 5, 6, 8, 9]);
+  });
+
+  it('ignores className, data-* and test-id strings but not visible props', () => {
+    const src = [
+      'const a = <div className="wait-list-card" />;',
+      "const b = <div className={cn('wait-list-card', x && 'wait-list-open')} />;",
+      'const c = <div data-testid="wait-list-row" />;',
+      "const d = { className: 'wait-list-card', testId: 'wait-list-row' };",
+      'const e = <div title="Wait list" />;',
+      'const f = <p>Join the wait list</p>;',
+    ].join('\n');
+    expect(scanVisibleWording('x.tsx', src).map(h => h.line)).toEqual([5, 6]);
+  });
+
+  it('lets the server match keys keep their exact text', () => {
+    const src = [
+      "const a = 'dog already on this class wait list for a different exhibitor';",
+      "const b = 'dog already on this class wait list for someone else';",
+    ].join('\n');
+    expect(scanVisibleWording('x.ts', src).map(h => h.line)).toEqual([2]);
   });
 
   it('finds none in app source', () => {

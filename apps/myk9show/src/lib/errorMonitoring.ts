@@ -350,7 +350,7 @@ export class ErrorClassifier {
           steps: [
             'Verify internet connectivity',
             'Check if the service is available',
-            'Retry the operation',
+            'Try the operation again',
             'Try again later if the issue persists',
           ],
         };

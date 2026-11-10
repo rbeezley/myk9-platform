@@ -186,7 +186,7 @@ describe('SelfCheckinTool', () => {
 
     expect(screen.getByText("Couldn't load self check-in settings.")).toBeInTheDocument();
     expect(screen.getByText('Show Desk remains available')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Retry self check-in settings' }));
+    await user.click(screen.getByRole('button', { name: 'Try self check-in settings again' }));
     expect(queryState.settings.refetch).toHaveBeenCalled();
     expect(queryState.trials.refetch).toHaveBeenCalled();
     expect(queryState.classes.refetch).toHaveBeenCalled();
@@ -210,7 +210,7 @@ describe('SelfCheckinTool', () => {
 
     expect(screen.getByRole('switch', { name: 'Allow self check-in for show' })).toBeChecked();
     expect(screen.getByText(/saved settings shown below may be out of date/i)).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Retry self check-in settings' }));
+    await user.click(screen.getByRole('button', { name: 'Try self check-in settings again' }));
     expect(queryState.settings.refetch).toHaveBeenCalled();
   });
 

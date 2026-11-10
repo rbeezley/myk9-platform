@@ -501,7 +501,7 @@ describe('AccountPage', () => {
     expect(mockDeleteUser).toHaveBeenCalledOnce();
     expect(mockSignOut).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole('button', { name: /retry disabling sign-in/i }));
+    fireEvent.click(screen.getByRole('button', { name: /try disabling sign-in again/i }));
 
     await waitFor(() => expect(mockRevokeSelfAuthIdentity).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(mockSignOut).toHaveBeenCalledOnce());
@@ -516,7 +516,7 @@ describe('AccountPage', () => {
     fireEvent.change(screen.getByLabelText(/type.*delete.*to confirm/i), {
       target: { value: 'DELETE' },
     });
-    fireEvent.click(screen.getByRole('button', { name: /retry disabling sign-in/i }));
+    fireEvent.click(screen.getByRole('button', { name: /try disabling sign-in again/i }));
 
     await waitFor(() => expect(mockRevokeSelfAuthIdentity).toHaveBeenCalledOnce());
     await waitFor(() => expect(mockSignOut).toHaveBeenCalledOnce());

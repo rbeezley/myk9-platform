@@ -524,7 +524,7 @@ describe('ShowWorkbenchShowDeskPage', () => {
     expect(usePageEditTargetStore.getState().showTools).toBeNull();
     expect(screen.queryByText(/Show-day work has not started/i)).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Retry schedule' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Try schedule again' }));
 
     expect(trialStoreState.loadTrials).toHaveBeenCalledTimes(1);
     expect(trialStoreState.loadTrialClasses).toHaveBeenCalledTimes(1);

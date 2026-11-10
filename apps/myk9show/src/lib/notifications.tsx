@@ -173,7 +173,7 @@ export const actionNotifications = {
     const opts: NotificationOptions = {
       description: 'Some changes may not be saved. Please try again.',
     };
-    if (onRetry) opts.action = { label: 'Retry Sync', onClick: onRetry };
+    if (onRetry) opts.action = { label: 'Try sync again', onClick: onRetry };
     return notifications.error('Failed to sync data', opts);
   },
 

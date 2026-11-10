@@ -11,12 +11,31 @@ import ts from 'typescript';
 export type WordingHit = { file: string; line: number; rule: string; text: string };
 
 const WAITLIST_PATTERN = /wait[ -]list/i;
-const RETRY_LABEL_KEYS = new Set(['label', 'ariaLabel', 'aria-label', 'title']);
+/** "Retry" alone, or "Retry ..." as the start of a sentence-like label ("Retry failed"). */
+const RETRY_PATTERN = /^Retry(\s|$)/;
+/** Non-visible styling and test hooks: a CSS or test-id string is never read by a person. */
+const HIDDEN_KEYS = new Set(['className', 'testId', 'testid', 'data-testid']);
+const isHiddenKey = (key: string) => HIDDEN_KEYS.has(key) || key.startsWith('data-');
+/** Developer-facing sinks: their first strings go to the console or log store, not the screen. */
+const LOG_CALLEE = /^(logger|console)\./;
+
 /**
- * Held back while another open PR owns these folders; delete this list when that
- * PR lands and the two waitlist strings in them are reworded.
+ * Strings that contain the old words on purpose because something compares, matches or
+ * sends them; they are NOT copy. Each must mirror its source of truth exactly and must
+ * never be reworded to the waitlist vocabulary.
  */
-const SKIPPED_DIRS = new Set(['node_modules', 'dist', 'coverage', '__tests__', 'test']);
+const NON_VISIBLE_MATCH_KEYS = new Set([
+  // `denial_reason` written by public.evaluate_entry_capacity (migration
+  // 20261005031700_myk9_1012_hold_spots_at_pay.sql). entrySubmissionOutcomes.ts compares
+  // outcome.denialReason against it.
+  'dog already on this class wait list for a different exhibitor',
+  // `reason` handed to refreshServerChangedEntries (a developer-facing refresh label that a
+  // test asserts); never shown.
+  'wait list offer entry changed by the server',
+]);
+/** Walk-up skip folders: tests and dependencies never ship as visible text. */
+const SKIPPED_DIRS = new Set(['node_modules', 'dist', 'coverage', '__tests__']);
+const SKIPPED_TOP_LEVEL_DIRS = new Set(['test']);
 
 const isTextNode = (node: ts.Node): node is ts.StringLiteralLike | ts.JsxText =>
   ts.isStringLiteral(node) ||
@@ -26,11 +45,15 @@ const isTextNode = (node: ts.Node): node is ts.StringLiteralLike | ts.JsxText =>
   ts.isTemplateTail(node) ||
   ts.isJsxText(node);
 
-function propertyKey(node: ts.Node): string | undefined {
-  const parent = node.parent;
-  if (ts.isPropertyAssignment(parent) && parent.initializer === node) return parent.name.getText();
-  if (ts.isJsxAttribute(parent)) return parent.name.getText();
-  return undefined;
+/** True when the literal sits inside a className / data-* / test-id value or a log call. */
+function isHiddenText(node: ts.Node): boolean {
+  for (let cur: ts.Node | undefined = node.parent; cur; cur = cur.parent) {
+    if (ts.isJsxAttribute(cur)) return isHiddenKey(cur.name.getText());
+    if (ts.isPropertyAssignment(cur) && isHiddenKey(cur.name.getText())) return true;
+    if (ts.isCallExpression(cur) && LOG_CALLEE.test(cur.expression.getText())) return true;
+    if (ts.isJsxElement(cur) || ts.isJsxSelfClosingElement(cur) || ts.isBlock(cur)) return false;
+  }
+  return false;
 }
 
 export function scanVisibleWording(fileName: string, source: string): WordingHit[] {
@@ -46,10 +69,10 @@ export function scanVisibleWording(fileName: string, source: string): WordingHit
   const visit = (node: ts.Node) => {
     if (isTextNode(node)) {
       const text = node.text;
-      if (WAITLIST_PATTERN.test(text)) report(node, 'waitlist is one word', text);
-      const isLabelProp = RETRY_LABEL_KEYS.has(propertyKey(node) ?? '');
-      if (text.trim() === 'Retry' && (ts.isJsxText(node) || isLabelProp)) {
-        report(node, 'use "Try again", not "Retry"', text);
+      const trimmed = text.trim();
+      if (!NON_VISIBLE_MATCH_KEYS.has(trimmed) && !isHiddenText(node)) {
+        if (WAITLIST_PATTERN.test(text)) report(node, 'waitlist is one word', text);
+        if (RETRY_PATTERN.test(trimmed)) report(node, 'use "Try again", not "Retry"', text);
       }
     }
     ts.forEachChild(node, visit);
@@ -58,10 +81,12 @@ export function scanVisibleWording(fileName: string, source: string): WordingHit
   return hits;
 }
 
-function* walk(dir: string): Generator<string> {
+function* walk(dir: string, top = true): Generator<string> {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     if (entry.isDirectory()) {
-      if (!SKIPPED_DIRS.has(entry.name)) yield* walk(join(dir, entry.name));
+      if (!SKIPPED_DIRS.has(entry.name) && !(top && SKIPPED_TOP_LEVEL_DIRS.has(entry.name))) {
+        yield* walk(join(dir, entry.name), false);
+      }
     } else if (/\.tsx?$/.test(entry.name) && !/\.(test|spec)\.tsx?$|\.d\.ts$/.test(entry.name)) {
       yield join(dir, entry.name);
     }

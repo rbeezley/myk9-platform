@@ -29,6 +29,7 @@ import { makeHandlerKey } from '@/types/show-registration-types';
 import { generateUUID } from '@/utils/idUtils';
 import type { EntrySubmissionOutcome } from '@/services/database/entries';
 import { loadOfflineCapacityOverrides } from './offlineCapacityOverride';
+import { SHOW_ENTRIES_UNREADABLE } from './offlineLateEntryCopy';
 import { loadProvisionalHolds } from './provisionalHold';
 import { assertReceivedMethodChosen, secretaryReceivedMethod } from './secretaryReceivedPayment';
 
@@ -214,7 +215,7 @@ export async function submitOfflineLateEntry({
   // the rows that hold the last run order and hand out an occupied position.
   const showEntries = await rowsOrThrow(
     replicatedEntriesTable.getByShowWithStatus(showId),
-    "We couldn't read this show's entries on this device. Reload the page and try again."
+    SHOW_ENTRIES_UNREADABLE
   );
   const nextRunOrder = nextRunOrderByClass(showEntries);
   const startingArmbandNumber = cachedShow?.startingArmbandNumber ?? 100;

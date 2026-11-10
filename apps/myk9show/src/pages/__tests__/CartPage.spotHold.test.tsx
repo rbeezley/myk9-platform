@@ -137,7 +137,9 @@ beforeEach(() => {
 
 describe('CartPage when Pay finds a class filled (MYK9-1012)', () => {
   it('reloads the cart and re-reads availability, then says which class filled', async () => {
-    createEntryCheckoutSessionMock.mockRejectedValueOnce(new CheckoutSessionError(FILLED, 409));
+    createEntryCheckoutSessionMock.mockRejectedValueOnce(
+      new CheckoutSessionError(FILLED, 409, null, true)
+    );
 
     const { user } = render(<CartPage />, { initialRoute: '/cart' });
     const capacityReadsBeforePay = refetchCapacityMock.mock.calls.length;

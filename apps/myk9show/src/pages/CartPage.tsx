@@ -28,6 +28,8 @@ import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
 import { CartItemCard } from '@/components/cart/CartItemCard';
 import { CartSummary } from '@/components/cart/CartSummary';
 import { CheckoutSessionError, createEntryCheckoutSession } from '@/lib/stripe';
+import { CART_ERROR, reportCheckoutFailure } from './cartErrorCopy';
+import { useCartPageError } from './useCartPageError';
 import { CHECKOUT_RETURN_PARAM, readCheckoutReturnStatus } from './cartCheckoutNotice';
 import { CHECKOUT_HOLD_ENDED_MESSAGE, checkoutHoldEnded } from '@/features/payments/checkoutHold';
 import { useCartCapacity } from '@/hooks/queries/useCartCapacity';
@@ -65,10 +67,9 @@ export default function CartPage() {
   const items = useCartItems();
   const isCartLoading = useCartStore(state => state.isLoading);
   const loadInitiated = useCartStore(state => state.loadInitiated);
-  const error = useCartStore(state => state.error);
+  const { error, setError } = useCartPageError();
   const removeItem = useCartStore(state => state.removeItem);
   const clearCart = useCartStore(state => state.clearCart);
-  const setError = useCartStore(state => state.setError);
   const loadActiveCart = useCartStore(state => state.loadActiveCart);
   const checkoutWithWaitlist = useCartStore(state => state.checkoutWithWaitlist);
   const {
@@ -202,6 +203,7 @@ export default function CartPage() {
     setError(null);
 
     const success = await removeItem(itemId);
+    if (!success) setError(CART_ERROR.removeFailed);
 
     if (success) {
       const wasLastItem = items.length <= 1;
@@ -238,7 +240,8 @@ export default function CartPage() {
 
   const handleClearCart = async () => {
     setIsClearing(true);
-    await clearCart();
+    setError(null);
+    if (!(await clearCart())) setError(CART_ERROR.clearFailed);
     setIsClearing(false);
     setShowClearDialog(false);
   };
@@ -327,6 +330,7 @@ export default function CartPage() {
       const splitResult = await checkoutWithWaitlist(profile.id, splitDecision.waitlistItemIds);
 
       if (!splitResult) {
+        setError(CART_ERROR.waitlistFailed);
         stopCheckingOut();
         return;
       }
@@ -373,17 +377,13 @@ export default function CartPage() {
       });
       // If we get here, the redirect didn't happen (shouldn't normally occur)
     } catch (err) {
-      // Say what the server actually said. It distinguishes failures the
-      // exhibitor can act on (fees were re-priced, review and retry) from ones
-      // they cannot (the club has no payout account), and a flat "try again"
-      // erased both. Worse, the 409 re-pricing case looped forever: the server
-      // heals the stored cart, but the client kept re-sending the stale
-      // in-memory copy, so every retry failed identically until a hard reload.
+      // Say what the server said when it wrote it for the exhibitor: it tells
+      // failures they can act on (fees were re-priced, review and retry) from
+      // ones they cannot (the club has no payout account). The 409 re-pricing
+      // case looped forever before the reload below: the server heals the stored
+      // cart, but the client kept re-sending the stale in-memory copy.
       const status = err instanceof CheckoutSessionError ? err.status : null;
-      const message =
-        err instanceof CheckoutSessionError && err.message
-          ? err.message
-          : 'Something went wrong starting checkout. Please try again.';
+      const message = reportCheckoutFailure(err, cart.id);
 
       if (status === 409 && profile?.id) {
         // Re-hydrate so "review your cart" is actually possible - with the same

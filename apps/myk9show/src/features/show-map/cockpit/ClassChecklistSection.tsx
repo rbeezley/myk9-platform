@@ -3,6 +3,7 @@ import { ArrowRight, ChevronDown, Printer } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
+import { useTrialSecretaryOnlyReason } from '@/features/actions/TrialSecretaryAccessContext';
 import {
   getCockpitPaperScoringHref,
   getCockpitResultsControlHref,
@@ -67,6 +68,7 @@ export function ClassChecklistSection({
     returnTo,
   });
   const scoringHref = getCockpitPaperScoringHref({ classId: sourceClass.id, returnTo });
+  const secretaryOnlyReason = useTrialSecretaryOnlyReason();
   const items = buildClassChecklist({ ...sourceClass, paperwork });
   const checklistIds = new Set<string>(items.map(item => item.id));
   const otherPaperwork = paperwork.filter(item => !checklistIds.has(item.reportId));
@@ -120,7 +122,13 @@ export function ClassChecklistSection({
       : {};
 
   const actionFor = (item: ClassChecklistItem) =>
-    resolveClassStepAction(item, { paperwork, canManageShow, scoringHref, resultsHref });
+    resolveClassStepAction(item, {
+      paperwork,
+      canManageShow,
+      scoringHref,
+      resultsHref,
+      secretaryOnlyReason,
+    });
 
   return (
     <>

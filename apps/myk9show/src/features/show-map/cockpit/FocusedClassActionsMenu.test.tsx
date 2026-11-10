@@ -184,6 +184,26 @@ describe('FocusedClassActionsMenu (MYK9-1796)', () => {
     expect(applyManualClassStatus).toHaveBeenCalledWith('class-1', CLASS_STATUS.COMPLETED);
   });
 
+  it('confirms Complete when the unentered-score count is unknown (MYK9-1801)', async () => {
+    renderMenu({ lifecycle: 'in-progress', unenteredScoreCount: null });
+    const user = submenuUser();
+    await openMenu(user);
+    await user.click(screen.getByRole('menuitem', { name: 'Change class status' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Complete' }));
+
+    const dialog = await screen.findByRole('alertdialog');
+    expect(within(dialog).getByText(/^Entry data is unavailable/)).toBeInTheDocument();
+    expect(applyManualClassStatus).not.toHaveBeenCalled();
+  });
+
+  it('does not offer Set actual start on a cancelled class, which has no editor to open (MYK9-1803)', async () => {
+    const { user } = renderMenu({ lifecycle: 'cancelled' });
+    await openMenu(user);
+
+    expect(screen.queryByRole('menuitem', { name: 'Set actual start' })).not.toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Set expected start' })).toBeInTheDocument();
+  });
+
   it('applies a routine status change straight away', async () => {
     renderMenu();
     const user = submenuUser();

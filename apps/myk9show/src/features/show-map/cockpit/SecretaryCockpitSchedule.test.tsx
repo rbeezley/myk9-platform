@@ -82,6 +82,13 @@ describe('SecretaryCockpitSchedule empty states', () => {
     expect(screen.queryByText('No classes match this filter.')).not.toBeInTheDocument();
   });
 
+  it('says a trial has no classes yet, not a filter mismatch, when no filter is on (MYK9-1803)', () => {
+    renderSchedule({ ...snapshotWithUnmatchedFilter, classes: [] }, 'all');
+
+    expect(screen.getByText('No classes in this trial yet.')).toBeInTheDocument();
+    expect(screen.queryByText('No classes match this filter.')).not.toBeInTheDocument();
+  });
+
   it('offers Add classes to a manager on an empty schedule, into the show-level Add classes flow', () => {
     renderSchedule(snapshotWithNoTrials, 'all', true);
 

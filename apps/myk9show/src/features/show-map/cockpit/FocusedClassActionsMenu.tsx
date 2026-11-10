@@ -79,7 +79,8 @@ export function FocusedClassActionsMenu({
   classId: string;
   className: string;
   lifecycle: CockpitLifecycle | null;
-  unenteredScoreCount: number;
+  /** Null when the entry counts are unknown, which Complete must confirm rather than read as 0. */
+  unenteredScoreCount: number | null;
   canManageShow: boolean;
   scheduledStart: string | null;
   revisedExpectedStart: string | null;
@@ -158,10 +159,13 @@ export function FocusedClassActionsMenu({
             <Clock3 className="h-4 w-4" aria-hidden="true" />
             Set expected start
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={onEditActualStart}>
-            <PlayCircle className="h-4 w-4" aria-hidden="true" />
-            Set actual start
-          </DropdownMenuItem>
+          {/* The editor lives in the class checklist, which a cancelled class does not have. */}
+          {lifecycle !== 'cancelled' && (
+            <DropdownMenuItem onClick={onEditActualStart}>
+              <PlayCircle className="h-4 w-4" aria-hidden="true" />
+              Set actual start
+            </DropdownMenuItem>
+          )}
           {showDelay && (
             <DropdownMenuItem onClick={() => setDelayOpen(true)}>
               <Megaphone className="h-4 w-4" aria-hidden="true" />

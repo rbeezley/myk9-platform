@@ -3,6 +3,7 @@ import { fromPartial } from '@total-typescript/shoehorn';
 import { render, screen } from '@/test/utils/testUtils';
 
 import { readResultsTabUrlState } from '@/features/results-tab/resultsTabRoutes';
+import { TrialSecretaryAccessProvider } from '@/features/actions/TrialSecretaryAccessContext';
 import { ClassChecklistSection } from './ClassChecklistSection';
 import { SHOW_MAP_WRAP_UP_STATUS } from '../showMapTypes';
 import type { SecretaryCockpitClass } from './secretaryCockpitTypes';
@@ -85,6 +86,36 @@ describe('ClassChecklistSection after-scoring items (MYK9-1032)', () => {
     const hrefs = screen.queryAllByRole('link').map(link => link.getAttribute('href'));
     expect(hrefs).not.toContain('/print/check-in-sheet');
     expect(screen.queryByText(/Other paperwork/)).toBeNull();
+  });
+
+  it('opens paper scoring from the Scoring complete step for someone who can operate the show', () => {
+    renderSection({ ...completeClass, lifecycle: 'in-progress', wrapUpStatus: null });
+    expect(screen.getByRole('link', { name: /Open paper scoring$/ })).toHaveAttribute(
+      'href',
+      expect.stringMatching(/^\/scoring\//)
+    );
+  });
+
+  it('keeps a manager who is not the trial secretary off paper scoring: no link, and the step says why (MYK9-1802)', () => {
+    const { container } = render(
+      <TrialSecretaryAccessProvider reason="Trial secretary access only">
+        <ClassChecklistSection
+          showId="show-1"
+          sourceClass={{ ...completeClass, lifecycle: 'in-progress', wrapUpStatus: null }}
+          paperwork={paperwork}
+          timeZone="America/New_York"
+          onCommand={vi.fn()}
+          printTrackingInUse
+          canManageShow
+          trialDate="2026-07-20"
+        />
+      </TrialSecretaryAccessProvider>
+    );
+    expect(container.querySelector('a[href^="/scoring/"]')).toBeNull();
+    const step = screen.getByRole('group', {
+      name: /^Scoring complete.*Trial secretary access only$/,
+    });
+    expect(step).toHaveTextContent('Trial secretary access only');
   });
 });
 

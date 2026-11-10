@@ -51,7 +51,7 @@ test('secretary Overview with a class focused has no horizontal scroll at 375px 
   await page.goto(`/shows/${SHOW_ID}?focus=${FOCUSED_CLASS_ID}`);
   await page.waitForLoadState('networkidle').catch(() => undefined);
   // Positive control: the focused class panel (its Actions menu and Class settings card) rendered.
-  await expect(page.getByRole('button', { name: /^Actions for / })).toBeVisible({
+  await expect(page.getByRole('button', { name: /^Actions for (?!#)/ })).toBeVisible({
     timeout: 30_000,
   });
   await expect(page.getByRole('region', { name: 'Class settings' })).toBeVisible();

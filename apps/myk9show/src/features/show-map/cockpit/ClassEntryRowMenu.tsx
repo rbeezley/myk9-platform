@@ -51,6 +51,7 @@ export function ClassEntryRowMenu({
         {actions.map(action => (
           <DropdownMenuItem
             key={action.commandId}
+            className="min-h-11"
             title={action.why || undefined}
             onClick={() => onCommand(action.commandId)}
           >

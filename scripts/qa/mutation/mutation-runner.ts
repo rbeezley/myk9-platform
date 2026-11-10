@@ -1,6 +1,7 @@
 export const MUTATION_TARGETS = [
   'cart',
-  'score-validator',
+  'scoresheet',
+  'duration',
   'placement',
   'replication-conflict',
 ] as const;

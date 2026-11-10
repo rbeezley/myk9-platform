@@ -88,7 +88,7 @@ describe('EntryAgreementSection', () => {
     expect(screen.getByTestId('agreement-skeleton')).toBeInTheDocument();
   });
 
-  it('shows error message with retry when query fails', async () => {
+  it('shows error message with Try again when query fails', async () => {
     const refetch = vi.fn();
     mockHook.mockReturnValue({
       data: undefined,
@@ -104,7 +104,7 @@ describe('EntryAgreementSection', () => {
 
     expect(screen.getByText(/could not load the .* entry agreement/i)).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /retry/i }));
+    await user.click(screen.getByRole('button', { name: /try again/i }));
     expect(refetch).toHaveBeenCalled();
   });
 

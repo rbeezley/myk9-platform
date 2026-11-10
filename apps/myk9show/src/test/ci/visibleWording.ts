@@ -16,10 +16,6 @@ const RETRY_LABEL_KEYS = new Set(['label', 'ariaLabel', 'aria-label', 'title']);
  * Held back while another open PR owns these folders; delete this list when that
  * PR lands and the two waitlist strings in them are reworded.
  */
-const PENDING_OTHER_PR = [
-  'components/shows/RegistrationWorkflow/PaymentStep/',
-  'components/shows/RegistrationWorkflow/EntriesPanel/',
-];
 const SKIPPED_DIRS = new Set(['node_modules', 'dist', 'coverage', '__tests__', 'test']);
 
 const isTextNode = (node: ts.Node): node is ts.StringLiteralLike | ts.JsxText =>
@@ -76,7 +72,6 @@ export function scanSourceTree(srcDir: string): WordingHit[] {
   const hits: WordingHit[] = [];
   for (const file of walk(srcDir)) {
     const rel = relative(srcDir, file).replaceAll('\\', '/');
-    if (PENDING_OTHER_PR.some(prefix => rel.startsWith(prefix))) continue;
     hits.push(...scanVisibleWording(rel, readFileSync(file, 'utf8')));
   }
   return hits;

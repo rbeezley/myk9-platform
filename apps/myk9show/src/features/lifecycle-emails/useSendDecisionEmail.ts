@@ -80,7 +80,7 @@ export function useSendDecisionEmail({
       } catch (error) {
         if (error instanceof LifecycleEmailAlreadySavedError) return;
         toast.error(
-          `The ${emailName} email to ${who} did not send. Use "Email Exhibitor" on the entry to send it.`
+          `The ${emailName} email to ${who} did not send. Use "Email Exhibitor" on the entry to let them know.`
         );
       } finally {
         settled();

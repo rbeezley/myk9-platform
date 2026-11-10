@@ -155,7 +155,7 @@ describe('useSendDecisionEmail', () => {
 
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith(
-        'The acceptance email to Pat Lee did not send. Use "Email Exhibitor" on the entry to send it.'
+        'The acceptance email to Pat Lee did not send. Use "Email Exhibitor" on the entry to let them know.'
       )
     );
     expect(toast.success).not.toHaveBeenCalled();

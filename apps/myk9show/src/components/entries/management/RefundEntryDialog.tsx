@@ -15,6 +15,8 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/lib/supabase';
+import { ensureError } from '@myk9/core';
+import { logger } from '@/services/LoggingService';
 import { useWithdrawalRefundSuggestion } from '@/features/payments/useWithdrawalRefundSuggestion';
 import type { WithdrawalPolicy } from '@/features/payments/withdrawalPolicy';
 import { formatCutoff } from '@/features/payments/formatWithdrawalPolicy';
@@ -43,6 +45,13 @@ const ERROR_MESSAGES: Record<string, string> = {
   money_lock_failed: 'We could not safely reserve this refund. Try again in a moment.',
   refund_failed: 'The refund could not be completed. Check the entry and try again.',
 };
+
+// MYK9-1824: any other failure, including a lost connection. stripe-refund-entry can
+// fail AFTER Stripe accepted the refund (the entry stamp fails, or the answer never
+// arrives), so this must not say nothing happened. A retry reuses a live Stripe refund
+// for the entry instead of making a second one (findReusableRefund).
+const REFUND_UNCONFIRMED =
+  'We could not confirm the refund. It may already have gone through. Try again: it will not refund the exhibitor twice.';
 
 /**
  * Minimal shape required by RefundEntryDialog — a subset of EntryManagementEntry.
@@ -260,7 +269,11 @@ export function RefundEntryDialog({
             // fall through to generic message
           }
         }
-        setError(ERROR_MESSAGES[code ?? ''] ?? invokeError.message ?? 'Refund failed');
+        const known = ERROR_MESSAGES[code ?? ''];
+        if (!known) {
+          logger.error('Entry refund failed', 'secretary', { code }, invokeError);
+        }
+        setError(known ?? REFUND_UNCONFIRMED);
         return;
       }
 
@@ -269,7 +282,8 @@ export function RefundEntryDialog({
       handleOpenChange(false);
       onRefunded();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Refund failed');
+      logger.error('Entry refund failed', 'secretary', {}, ensureError(err));
+      setError(REFUND_UNCONFIRMED);
     } finally {
       inFlightRef.current = false;
       setSubmitting(false);

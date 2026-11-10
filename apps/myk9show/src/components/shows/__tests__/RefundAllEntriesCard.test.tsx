@@ -1,10 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import { RefundAllEntriesCard } from '../RefundAllEntriesCard';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
+import { logger } from '@/services/LoggingService';
 
 vi.mock('sonner', () => ({
   toast: { success: vi.fn(), warning: vi.fn(), error: vi.fn(), info: vi.fn() },
@@ -61,6 +62,10 @@ beforeEach(() => {
   fromMock.mockImplementation((table: string) =>
     table === 'shows' ? showsChain(currentStatus) : entriesChain(currentCount)
   );
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 describe('RefundAllEntriesCard — cancellation gate', () => {
@@ -212,5 +217,62 @@ describe('RefundAllEntriesCard — refund (cancelled show)', () => {
     await waitFor(() => expect(toast.warning).toHaveBeenCalled());
     expect(toast.success).not.toHaveBeenCalled();
     expect(vi.mocked(toast.warning).mock.calls[0][0]).toMatch(/no refunds issued/i);
+  });
+
+  // MYK9-1824: a failed Refund all can follow refunds that went through. The secretary
+  // sees a fixed sentence (never the server's text) and a known code keeps its message.
+  async function runRefundAll() {
+    const user = userEvent.setup();
+    render(<RefundAllEntriesCard showId="show-1" />);
+    await user.click(await screen.findByRole('button', { name: /refund all entries/i }));
+    await user.click(screen.getByRole('button', { name: /yes, refund/i }));
+  }
+
+  it('an unknown failure shows the fixed sentence, not the raw text, and logs it', async () => {
+    const logSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
+    const invokeError = Object.assign(new Error('Edge Function returned a non-2xx status code'), {
+      context: new Response(
+        JSON.stringify({ error: 'Could not load the show’s entries — try again.' }),
+        { status: 500 }
+      ),
+    });
+    mockedInvoke.mockResolvedValue({ data: null, error: invokeError });
+
+    await runRefundAll();
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        'We could not finish refunding all entries. Some refunds may already have gone through. Run Refund all again: it will not refund anyone twice.'
+      )
+    );
+    expect(logSpy).toHaveBeenCalledWith(
+      'Refund all failed',
+      'secretary',
+      { code: 'Could not load the show’s entries — try again.' },
+      invokeError
+    );
+  });
+
+  it.each([
+    ['show_not_cancelled', 422, 'Mark the show cancelled before refunding all entries.'],
+    // Refused before any refund is made: must not say some may have gone through.
+    [
+      'money_operation_in_progress',
+      409,
+      'Another payout or refund is already running for this show. Try again in a moment.',
+    ],
+    ['money_lock_failed', 500, 'We could not safely start the refunds. Try again in a moment.'],
+  ])('the known code %s keeps its own plain message', async (code, status, copy) => {
+    mockedInvoke.mockResolvedValue({
+      data: null,
+      error: Object.assign(new Error('Edge Function returned a non-2xx status code'), {
+        context: new Response(JSON.stringify({ error: code }), { status }),
+      }),
+    });
+
+    await runRefundAll();
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith(copy));
+    expect(toast.error).not.toHaveBeenCalledWith(expect.stringContaining('may already have'));
   });
 });

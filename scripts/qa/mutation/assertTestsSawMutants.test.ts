@@ -57,6 +57,14 @@ describe('assertTestsSawMutants known answers', () => {
     );
   });
 
+  it('does not call a static mutant that crashed module load blind', () => {
+    const crashed = [
+      ...Array.from({ length: 10 }, () => ({ status: 'Killed', testsCompleted: 2 })),
+      { status: 'Survived', testsCompleted: 0, static: true },
+    ];
+    expect(() => assertTestsSawMutants('cart', report(crashed))).not.toThrow();
+  });
+
   it('passes when the L93 mutant is Killed, and ignores targets without that file', () => {
     expect(() => assertTestsSawMutants('duration', duration('Killed'))).not.toThrow();
     expect(() => assertTestsSawMutants('cart', report(healthy))).not.toThrow();

@@ -95,7 +95,7 @@ export function importingTests(mutate: string[], packageRoot: string): string[] 
 /** The package directory (apps/x or packages/x) that holds a repo-relative path. */
 function packageOf(file: string): string {
   const [group, name] = file.split('/');
-  return join(ROOT, group, name);
+  return join(ROOT, group ?? '', name ?? '');
 }
 
 export function missingTests(

@@ -49,10 +49,13 @@ export function assertTestsSawMutants(target: string, report: MutationReport): v
 
   // Partly blind: a name filter that misses only some tests leaves survivors
   // that ran nothing. A survivor always ran at least one test when the harness
-  // works. Timeouts are exempt (Stryker omits testsCompleted on them).
+  // works. Timeouts are exempt (Stryker omits testsCompleted on them). So are static
+  // mutants (MYK9-1829): one that breaks a module while it loads (cartStore.helpers.ts
+  // L83, called at module level) crashes the test file before any test starts, and the
+  // Vitest runner reports that as Survived with zero tests although it is a kill.
   const blind = Object.entries(report.files).flatMap(([file, { mutants }]) =>
     mutants
-      .filter(mutant => mutant.status === 'Survived' && !mutant.testsCompleted)
+      .filter(mutant => mutant.status === 'Survived' && !mutant.testsCompleted && !mutant.static)
       .map(mutant => `${file}:${mutant.location?.start?.line ?? '?'}`)
   );
   if (blind.length > 0) {

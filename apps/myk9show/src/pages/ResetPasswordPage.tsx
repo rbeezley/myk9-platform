@@ -126,7 +126,7 @@ const ResetPasswordPage = () => {
                 onChange={e => setPassword(e.target.value)}
                 className="w-full p-2 pl-10 pr-10 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
                 required
-                minLength={8}
+                minLength={MIN_PASSWORD_LENGTH}
                 {...fieldErrorControlProps('new-password', shown['new-password'])}
               />
               <button

@@ -34,7 +34,7 @@ const BY_CODE: Record<string, string> = {
   invalid_credentials:
     'That email or password is not right. Check both and try again, or use "Forgot your password?" below.',
   email_not_confirmed:
-    'Your email address is not confirmed yet. Open the email we sent you and use the link in it, then sign in.',
+    'Your email address is not confirmed yet. Open the email we sent you and use the link in it, then sign in. If you cannot find it, sign up again with the same email address to get a new one.',
   user_already_exists: ALREADY_HAS_ACCOUNT,
   email_exists: ALREADY_HAS_ACCOUNT,
   // The provider also calls a long but leaked or simple password weak, so do not blame length alone.

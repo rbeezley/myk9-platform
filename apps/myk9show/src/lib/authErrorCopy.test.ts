@@ -22,7 +22,7 @@ describe('friendlyAuthError', () => {
 
   it('an unconfirmed email points at the confirmation email', () => {
     expect(friendlyAuthError(authError('email_not_confirmed'), 'signIn')).toBe(
-      'Your email address is not confirmed yet. Open the email we sent you and use the link in it, then sign in.'
+      'Your email address is not confirmed yet. Open the email we sent you and use the link in it, then sign in. If you cannot find it, sign up again with the same email address to get a new one.'
     );
   });
 

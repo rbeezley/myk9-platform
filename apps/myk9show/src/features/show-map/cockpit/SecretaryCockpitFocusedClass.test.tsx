@@ -430,6 +430,8 @@ describe('SecretaryCockpitFocusedClass layout (owner, 2026-10-03)', () => {
     });
 
     expect(screen.queryByRole('heading', { name: 'Can change class' })).toBeNull();
+    // Menus closed: no standalone per-dog "Change class" button remains.
+    expect(screen.queryByRole('button', { name: /^Change class/ })).toBeNull();
   });
 
   it('counts entries the way the schedule row does: entered and pending (MYK9-1727)', () => {
@@ -556,14 +558,14 @@ describe('SecretaryCockpitFocusedClass per-dog menu', () => {
 
   it('shows both items for an eligible row and only the allowed one for another', async () => {
     const { user } = renderMenu(true);
-    await user.click(screen.getByRole('button', { name: 'Actions for Moss' }));
+    await user.click(screen.getByRole('button', { name: 'Actions for #101 Moss' }));
     expect((await screen.findAllByRole('menuitem')).map(item => item.textContent)).toEqual([
       'Change class',
       'Move up a level',
     ]);
     await user.keyboard('{Escape}');
 
-    await user.click(screen.getByRole('button', { name: 'Actions for Scout' }));
+    await user.click(screen.getByRole('button', { name: 'Actions for #101 Scout' }));
     expect((await screen.findAllByRole('menuitem')).map(item => item.textContent)).toEqual([
       'Change class',
     ]);
@@ -571,7 +573,7 @@ describe('SecretaryCockpitFocusedClass per-dog menu', () => {
 
   it('shows no trigger on a row with no allowed action', () => {
     renderMenu(true);
-    expect(screen.queryByRole('button', { name: 'Actions for Juno' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Actions for #101 Juno' })).toBeNull();
   });
 
   it('shows no trigger to a non-manager', () => {
@@ -579,19 +581,10 @@ describe('SecretaryCockpitFocusedClass per-dog menu', () => {
     expect(screen.queryByRole('button', { name: /^Actions for (Moss|Scout|Juno)$/ })).toBeNull();
   });
 
-  it('shows no trigger once the class has started, when the engine offers no actions', () => {
-    renderMenu(true, vi.fn(), {
-      ...model,
-      lifecycle: { evidence: 'recorded', value: 'in-progress' },
-      entryRows: [],
-    });
-    expect(screen.queryByRole('button', { name: /^Actions for (Moss|Scout|Juno)$/ })).toBeNull();
-  });
-
   it("calls onCommand with the chosen item's commandId", async () => {
     const onCommand = vi.fn();
     const { user } = renderMenu(true, onCommand);
-    await user.click(screen.getByRole('button', { name: 'Actions for Moss' }));
+    await user.click(screen.getByRole('button', { name: 'Actions for #101 Moss' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Move up a level' }));
     expect(onCommand).toHaveBeenCalledWith('other-entry-action:entry:e-1');
   });

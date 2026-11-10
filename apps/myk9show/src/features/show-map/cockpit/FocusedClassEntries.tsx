@@ -23,7 +23,6 @@ import {
 // scroll wrapper stays as the fallback for narrower ones.
 const CELL = 'px-2 py-2';
 const NO_ACTIONS: readonly SecretaryCockpitEntryAction[] = [];
-const noop = () => {};
 
 /** Entered, scored, in ring, still to run: derived from the same rows as the table below. */
 export function ClassCountTiles({
@@ -65,13 +64,18 @@ export function ClassEntriesTable({
   onRefreshEntries,
   hidden = 0,
   unread = false,
-  rowActions,
-  onCommand,
+  rowMenu,
 }: {
-  /** Per entry (by nodeId), the actions the engine allows today; managers only (MYK9-1798). */
-  rowActions?: ReadonlyMap<string, readonly SecretaryCockpitEntryAction[]> | undefined;
-  /** Runs a row action's commandId (ShowDeskPanel.runCommand). */
-  onCommand?: ((commandId: string) => void) | undefined;
+  /**
+   * Managers only (MYK9-1798): per entry (by nodeId) the actions the engine allows today, and the
+   * runner for a chosen commandId (ShowDeskPanel.runCommand). One prop so a menu is never dead.
+   */
+  rowMenu?:
+    | {
+        actions: ReadonlyMap<string, readonly SecretaryCockpitEntryAction[]>;
+        onCommand: (commandId: string) => void;
+      }
+    | undefined;
   entries: readonly SecretaryCockpitClassEntry[];
   /** The class's name, for the Check-in picker and the Pull it can lead to. */
   className: string;
@@ -148,11 +152,14 @@ export function ClassEntriesTable({
                 </TableCell>
                 <TableCell className={CELL}>{entry.result ?? ''}</TableCell>
                 <TableCell className="px-0">
-                  <ClassEntryRowMenu
-                    dogName={entry.dogName}
-                    actions={rowActions?.get(entry.nodeId) ?? NO_ACTIONS}
-                    onCommand={onCommand ?? noop}
-                  />
+                  {rowMenu && (
+                    <ClassEntryRowMenu
+                      dogName={entry.dogName}
+                      armband={entry.armband}
+                      actions={rowMenu.actions.get(entry.nodeId) ?? NO_ACTIONS}
+                      onCommand={rowMenu.onCommand}
+                    />
+                  )}
                 </TableCell>
               </TableRow>
             );

@@ -252,7 +252,7 @@ describe('Change class: two doors, one action (MYK9-1614)', () => {
     );
     const [firstMatch] = await screen.findAllByText(/Buried Novice/);
     await user.click(firstMatch!);
-    await user.click(await screen.findByRole('button', { name: 'Actions for Rex' }));
+    await user.click(await screen.findByRole('button', { name: 'Actions for #101 Rex' }));
     await user.click(await screen.findByRole('menuitem', { name: /Change class/ }));
     await chooseAdvancedAndConfirm(user);
 

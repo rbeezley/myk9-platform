@@ -165,7 +165,7 @@ async function openChangeClass(panelEntries: PanelEntries = entries) {
   );
   const [firstMatch] = await screen.findAllByText(/Buried Novice/);
   await user.click(firstMatch!);
-  await user.click(await screen.findByRole('button', { name: 'Actions for Rex' }));
+  await user.click(await screen.findByRole('button', { name: 'Actions for #101 Rex' }));
   await user.click(await screen.findByRole('menuitem', { name: /Change class/ }));
   const dialog = await screen.findByRole('dialog');
   await waitFor(() => expect(within(dialog).queryByText(/Checking class capacity/)).toBeNull());
@@ -224,7 +224,7 @@ describe('Overview Change class (MYK9-1265)', () => {
     );
     const [firstMatch] = await screen.findAllByText(/Buried Novice/);
     await user.click(firstMatch!);
-    await user.click(await screen.findByRole('button', { name: 'Actions for Rex' }));
+    await user.click(await screen.findByRole('button', { name: 'Actions for #101 Rex' }));
     await user.click(await screen.findByRole('menuitem', { name: /Change class/ }));
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByText('No other classes are available.')).toBeInTheDocument();

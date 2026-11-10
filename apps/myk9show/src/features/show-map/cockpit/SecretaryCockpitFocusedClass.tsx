@@ -96,8 +96,8 @@ export function SecretaryCockpitFocusedClass({
   const entriesHref =
     detailsAction?.destination.kind === 'href' ? detailsAction.destination.href : null;
 
-  const rowActions = canManageShow
-    ? new Map(focused.entryRows.map(row => [row.nodeId, row.actions]))
+  const rowMenu = canManageShow
+    ? { actions: new Map(focused.entryRows.map(row => [row.nodeId, row.actions])), onCommand }
     : undefined;
   const unread = entriesUnread(focused.entries, sourceClass.entryCount);
   // The Run order menu hides itself below 2 entries, so its label does too.
@@ -185,8 +185,7 @@ export function SecretaryCockpitFocusedClass({
             hidden={focused.entriesHidden}
             unread={unread}
             // Managers only; the engine's per-entry answer, joined to the table by nodeId (MYK9-1798).
-            rowActions={rowActions}
-            onCommand={onCommand}
+            rowMenu={rowMenu}
           />
         </section>
 

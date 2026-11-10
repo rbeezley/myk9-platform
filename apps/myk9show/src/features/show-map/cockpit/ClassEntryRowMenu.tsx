@@ -22,10 +22,13 @@ import type { SecretaryCockpitEntryAction } from './secretaryCockpitTypes';
  */
 export function ClassEntryRowMenu({
   dogName,
+  armband,
   actions,
   onCommand,
 }: {
   dogName: string;
+  /** Two rows can share a call name; the armband tells the triggers apart. */
+  armband?: string | number | null | undefined;
   actions: readonly SecretaryCockpitEntryAction[];
   onCommand: (commandId: string) => void;
 }) {
@@ -39,7 +42,7 @@ export function ClassEntryRowMenu({
           // Irreversible show-day actions: never below the 44px floor.
           size="touch"
           className="w-11 px-0"
-          aria-label={`Actions for ${dogName}`}
+          aria-label={armband ? `Actions for #${armband} ${dogName}` : `Actions for ${dogName}`}
         >
           <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
         </Button>

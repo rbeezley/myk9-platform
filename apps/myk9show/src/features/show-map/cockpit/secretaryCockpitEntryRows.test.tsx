@@ -41,18 +41,20 @@ const TRIALS = [
   { id: 'trial-1', showId: 'show-1', trialDate: '2026-07-20', trialNumber: '1', name: 'Trial 1' },
 ] as unknown as Parameters<typeof buildShowMapTree>[0]['trials'];
 
-const CLASSES = [
-  {
-    id: 'class-1',
-    trialId: 'trial-1',
-    name: 'Container Novice A',
-    element: 'Container',
-    level: 'Novice',
-    section: 'A',
-    status: 'scheduled',
-    classOrder: 1,
-  },
-] as unknown as Parameters<typeof buildShowMapTree>[0]['classes'];
+const classesWithStatus = (status: string) =>
+  [
+    {
+      id: 'class-1',
+      trialId: 'trial-1',
+      name: 'Container Novice A',
+      element: 'Container',
+      level: 'Novice',
+      section: 'A',
+      status,
+      classOrder: 1,
+    },
+  ] as unknown as Parameters<typeof buildShowMapTree>[0]['classes'];
+const CLASSES = classesWithStatus('scheduled');
 
 // THIRTY entries on purpose. buildShowMapTree caps a class at
 // DEFAULT_ENTRY_PREVIEW_LIMIT = 25 and emits a synthetic "N more entries" node, so an
@@ -70,25 +72,25 @@ const ENTRIES = Array.from({ length: ENTRY_COUNT }, (_, i) => ({
   dog: { id: `dog-${i + 1}`, call_name: `Dog ${i + 1}`, name: `Dog ${i + 1}` },
 })) as unknown as Parameters<typeof buildShowMapTree>[0]['entries'];
 
-function buildTree() {
+function buildTree(classes = CLASSES) {
   return buildShowMapTree({
     show: SHOW,
     trials: TRIALS,
-    classes: CLASSES,
+    classes,
     entries: ENTRIES,
     // Matches ShowDeskPanel: the cockpit reads the tree for actions, not to render it.
     entryPreviewLimit: Number.POSITIVE_INFINITY,
   });
 }
 
-function buildSnapshot() {
-  const tree = buildTree();
+function buildSnapshot(classes = CLASSES) {
+  const tree = buildTree(classes);
   return {
     tree,
     snapshot: buildSecretaryCockpitSnapshot({
       showId: 'show-1',
       trials: TRIALS,
-      classes: CLASSES,
+      classes,
       tree,
       pendingSignals: [],
       returnTo: '/shows/show-1/show-day',
@@ -158,7 +160,7 @@ describe('cockpit entry rows carry the stranded actions', () => {
     );
 
     // One row menu per entry; the first row is the one expectedCommandId came from.
-    const triggers = screen.getAllByRole('button', { name: /^Actions for Dog/ });
+    const triggers = screen.getAllByRole('button', { name: /^Actions for #\d+ Dog/ });
     expect(triggers).toHaveLength(ENTRY_COUNT);
     await userEvent.click(triggers[0] as HTMLElement);
     await userEvent.click(await screen.findByRole('menuitem', { name: /^Change class/i }));
@@ -179,7 +181,34 @@ describe('cockpit entry rows carry the stranded actions', () => {
         onCommand={vi.fn()}
       />
     );
-    expect(screen.queryAllByRole('button', { name: /^Actions for Dog/ })).toHaveLength(0);
+    expect(screen.queryAllByRole('button', { name: /^Actions for #\d+ Dog/ })).toHaveLength(0);
+  });
+
+  it('renders no row menu once the class is in progress, built through the real builder', () => {
+    const { snapshot } = buildSnapshot(classesWithStatus('in_progress'));
+    const model = buildSecretaryCockpitModel(snapshot, {
+      selectedDays: undefined,
+      statuses: [],
+      focusedClassId: 'class-1',
+      anchor: undefined,
+    } as unknown as Parameters<typeof buildSecretaryCockpitModel>[1]);
+    const focused = model.focusedClass;
+    expect(focused?.lifecycle.value).toBe('in-progress');
+
+    render(
+      <SecretaryCockpitFocusedClass
+        showId="show-1"
+        focused={focused}
+        sourceClass={snapshot.classes[0] ?? null}
+        trial={{ id: 'trial-1', date: '2026-07-20', number: '1', order: 0 }}
+        attention={[]}
+        timeZone="America/Chicago"
+        canManageShow
+        onCommand={vi.fn()}
+      />
+    );
+    expect(screen.getAllByTestId('class-entry-row')).toHaveLength(ENTRY_COUNT);
+    expect(screen.queryAllByRole('button', { name: /^Actions for #\d+ Dog/ })).toHaveLength(0);
   });
 
   it('offers move-up on EVERY entry, not just the first 25', () => {

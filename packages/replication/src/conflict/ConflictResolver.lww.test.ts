@@ -197,9 +197,12 @@ describe('ConflictResolver.resolve strategy dispatch', () => {
   });
 
   it('client-authoritative takes the local even when the remote row is newer', () => {
-    const result = resolver.resolve(remote, local, 'client-authoritative');
+    const olderLocal: Row = { id: '1', name: 'local', updated_at: '2025-06-01T10:00:00Z' };
+    const newerRemote: Row = { id: '1', name: 'remote', updated_at: '2025-06-02T10:00:00Z' };
 
-    expect(result.resolvedEntity).toBe(remote); // the first argument is the local row
+    const result = resolver.resolve(olderLocal, newerRemote, 'client-authoritative');
+
+    expect(result.resolvedEntity).toBe(olderLocal);
     expect(result.strategy).toBe('client-authoritative');
   });
 

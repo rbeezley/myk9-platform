@@ -78,11 +78,10 @@ export function ClassCard({ classInfo, hideRing, liveData, onClick }: ClassCardP
       </div>
 
       {/* Judge */}
-      {classInfo.judgeName && (
-        <p className="text-xs text-muted-foreground">
-          Judge: {judgeNameOrUnsetLabel(classInfo.judgeName, { bare: true })}
-        </p>
-      )}
+      {/* MYK9-1853: always shown; a class with no judge yet reads "To be announced". */}
+      <p className="text-xs text-muted-foreground">
+        Judge: {judgeNameOrUnsetLabel(classInfo.judgeName, { bare: true })}
+      </p>
 
       {/* Time + Ring */}
       <div className="flex items-center gap-3 text-xs text-muted-foreground">

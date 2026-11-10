@@ -16,6 +16,8 @@ import { UserRole } from '@/types/auth-types';
 import { isTrialDayToday } from '@/pages/MyEntriesPage/modules/dayCheckIn';
 import { parseShowDate } from '@/pages/MyEntriesPage/modules/myEntriesStats.helpers';
 import type { SelfCheckinState } from '@/hooks/queries/useSelfCheckinEnabled';
+import type { ClassEntry } from '@myk9/ringside';
+import { formatAtShowClassTime } from './atShowClassTiming';
 import type { RunQueueState } from '@myk9/ringside/run-queue';
 import { withServerPlace } from '@/utils/showEntryRunQueue';
 import { deriveResultReleaseDisplay } from '@/features/result-card/resultReleaseDisplay';
@@ -64,6 +66,28 @@ export interface AtShowClassSummary {
    * were known-allowed (MYK9-800 follow-up).
    */
   selfCheckinState?: SelfCheckinState | undefined;
+}
+
+/** One class-list row as the "Your dogs today" rows read it. */
+export function toAtShowClassSummary(
+  cls: ClassEntry,
+  timeZone: string,
+  selfCheckinState: SelfCheckinState
+): AtShowClassSummary {
+  return {
+    className: cls.class_name,
+    classStatus: cls.class_status,
+    // MYK9-1847: the raw cancelled fact; class_status is ringside-mapped (cancelled reads no-status).
+    ...(cls.is_cancelled === true ? { isCancelled: true } : {}),
+    ...(cls.start_time
+      ? { expectedStartLabel: formatAtShowClassTime(cls.start_time, timeZone) }
+      : {}),
+    ...(cls.start_time ? { startTime: cls.start_time } : {}),
+    classOrder: cls.class_order,
+    isRevisedStart: Boolean(cls.revised_expected_start),
+    resultsReleasedAt: cls.results_released_at ?? null,
+    selfCheckinState,
+  };
 }
 
 /** One own entry's result as the exhibitor's masked read returned it (MYK9-1026). */

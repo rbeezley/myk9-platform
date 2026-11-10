@@ -1,3 +1,4 @@
+import { registryFormJudgeName } from '@/utils/classJudgeDisplay';
 import type { ReportProps } from '@/lib/reports/types';
 import type { PdfFormFillValues } from './pdfForm';
 import { AKC_JUDGE_REPORT_FIELDS } from './akcJudgeReportFields';
@@ -15,7 +16,7 @@ export function buildAKCJudgeReportValues(props: ReportProps): PdfFormFillValues
   const clubName = textOrUndefined(props.clubName);
   if (clubName) text[AKC_JUDGE_REPORT_FIELDS.clubName] = clubName;
 
-  const judgeName = textOrUndefined(props.trial?.judgeName);
+  const judgeName = textOrUndefined(registryFormJudgeName(props.trial?.judgeName));
   if (judgeName) text[AKC_JUDGE_REPORT_FIELDS.judgeName] = judgeName;
 
   return {

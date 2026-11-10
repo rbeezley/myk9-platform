@@ -48,12 +48,13 @@ describe('trial class table Not set (MYK9-930)', () => {
     localStorage.setItem('view-pref-trial-classes', 'table');
   });
 
-  it('reads Not set, muted, for a class with no judge and no start time', () => {
+  it('reads the unset judge label and Not set for the start time, both muted', () => {
     render(<TrialClassesTable showId="s1" classes={[blank]} />);
 
     const notSet = screen.getAllByText('Not set');
-    expect(notSet).toHaveLength(2);
+    expect(notSet).toHaveLength(1);
     for (const el of notSet) expect(el).toHaveClass('text-muted-foreground');
+    expect(screen.getByText('Judge to be announced')).toHaveClass('text-muted-foreground');
     expect(screen.queryByText('TBD')).not.toBeInTheDocument();
   });
 
@@ -62,14 +63,15 @@ describe('trial class table Not set (MYK9-930)', () => {
 
     expect(screen.getByText('Jane Smith')).toBeInTheDocument();
     expect(screen.queryByText('Not set')).not.toBeInTheDocument();
+    expect(screen.queryByText('Judge to be announced')).not.toBeInTheDocument();
   });
 });
 
 describe('trial class cards Not set (MYK9-930)', () => {
-  it('says Not set, not TBD, for a class with no judge', () => {
+  it('says Judge to be announced, not TBD, for a class with no judge', () => {
     render(<TrialClassesCards classes={[blank]} showId="s1" trialId="t1" />);
 
-    expect(screen.getByTestId('class-card')).toHaveTextContent('Judge: Not set');
+    expect(screen.getByTestId('class-card')).toHaveTextContent('Judge: Judge to be announced');
     expect(screen.queryByText(/TBD/)).not.toBeInTheDocument();
   });
 });

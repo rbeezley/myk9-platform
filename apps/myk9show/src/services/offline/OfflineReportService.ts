@@ -1,3 +1,4 @@
+import { judgeNameOrUnsetLabel } from '@/utils/classJudgeDisplay';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { Show, ShowClass } from '../../types/show-types';
@@ -195,7 +196,7 @@ class OfflineReportService {
 
       doc.setFontSize(10);
       doc.text(
-        `Judge: ${classItem.judgeName || 'TBD'} | Ring: ${getReportRingLabel(classItem)}`,
+        `Judge: ${judgeNameOrUnsetLabel(classItem.judgeName)} | Ring: ${getReportRingLabel(classItem)}`,
         20,
         yPosition
       );
@@ -257,7 +258,7 @@ class OfflineReportService {
       cls.classNumber || '',
       cls.className || '',
       getReportRingLabel(cls),
-      cls.judgeName || 'TBD',
+      judgeNameOrUnsetLabel(cls.judgeName),
       cls.scheduledTime || 'TBD',
       (cls.entries || []).length.toString(),
     ]);

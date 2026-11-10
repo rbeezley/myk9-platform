@@ -49,6 +49,17 @@ describe('buildAKCJudgeReportValues', () => {
     expect(values.text).not.toHaveProperty(AKC_JUDGE_REPORT_FIELDS.judgeName);
   });
 
+  it.each(['Judge to be announced', 'No judge yet', 'TBD'])(
+    'prints the registry placeholder TBD, never the label, for %j',
+    unset => {
+      const values = buildAKCJudgeReportValues({
+        ...reportProps,
+        trial: { ...reportProps.trial!, judgeName: unset },
+      });
+      expect(values.text?.[AKC_JUDGE_REPORT_FIELDS.judgeName]).toBe('TBD');
+    }
+  );
+
   it('fills the official AKC judge PDF with mapped values', async () => {
     const templateBytes = new Uint8Array(
       await readFile(resolve(repoRoot, 'docs/AKC-forms/SW-JudgeReport.pdf'))

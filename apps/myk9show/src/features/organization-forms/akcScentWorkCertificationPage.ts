@@ -1,3 +1,4 @@
+import { realJudgeNameOrUndefined } from '@/utils/classJudgeDisplay';
 import { PDFDocument } from 'pdf-lib';
 import { isNonRunningEntry } from '@/features/_shared/entryAccounting';
 import type { ReportEntry, ReportProps } from '@/lib/reports/types';
@@ -150,8 +151,8 @@ function normalize(value: string | null | undefined): string {
 }
 
 function cleanJudgeName(value: string | null | undefined): string | null {
-  const clean = value?.trim();
-  if (!clean || clean === 'TBD' || clean === 'Multiple judges') return null;
+  const clean = realJudgeNameOrUndefined(value);
+  if (!clean || clean === 'Multiple judges') return null;
   return clean;
 }
 

@@ -163,7 +163,7 @@ export function createClassDataFromWizard(
             wizardTrial.eventNumber || trialView.effectiveNamesByTrialId.get(wizardTrial.id) || '',
           classOrder: String(index + 1),
           status: 'Scheduled' as const,
-          judge: judgeDetails[cls.judgeId || '']?.name || 'TBD',
+          judge: judgeDetails[cls.judgeId || '']?.name ?? '',
           // Preserve the per-class judge UUID (not just the display name) so the
           // RPC payload can write a class-level judge_assignment. Dropping it
           // here is what left judges off the class-centric judge dashboard.

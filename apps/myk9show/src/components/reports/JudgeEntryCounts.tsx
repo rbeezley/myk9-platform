@@ -1,3 +1,4 @@
+import { judgeNameOrUnsetLabel } from '@/utils/classJudgeDisplay';
 import React from 'react';
 import type { ReportProps } from '@/lib/reports/types';
 
@@ -33,7 +34,7 @@ export const JudgeEntryCounts: React.FC<ReportProps> = ({
 
   const judgeMap = new Map<string, typeof allClasses>();
   for (const cls of allClasses ?? []) {
-    const judge = cls.judgeName ?? 'TBD';
+    const judge = judgeNameOrUnsetLabel(cls.judgeName);
     if (!judgeMap.has(judge)) judgeMap.set(judge, []);
     judgeMap.get(judge)!.push(cls);
   }

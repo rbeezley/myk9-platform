@@ -22,7 +22,7 @@ interface EntryFormChecklistProps {
   payment: {
     openFullPayment: (method: 'cash' | 'check') => void;
     openPartialPayment: () => void;
-    markPaidOnline: () => void;
+    askMarkPaidOnline: () => void;
   };
 }
 
@@ -148,7 +148,7 @@ export function EntryFormChecklist({
                         </Button>
                         <EntryFormPaymentMoreOptions
                           openPartialPayment={payment.openPartialPayment}
-                          markPaidOnline={payment.markPaidOnline}
+                          askMarkPaidOnline={payment.askMarkPaidOnline}
                         />
                       </>
                     ) : null

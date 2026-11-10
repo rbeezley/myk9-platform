@@ -53,6 +53,17 @@ export const EMPTY_REFUND_DIALOG: RefundDialog = {
   isPartial: false,
 };
 
+/** The two one-click payment menu items that ask first (MYK9-1841). */
+export type LedgerConfirmKind = 'paid-online' | 'payment-due';
+
+export type LedgerConfirmState = {
+  open: boolean;
+  /** Kept while the dialog closes so its wording does not flip during the fade. */
+  kind: LedgerConfirmKind;
+};
+
+export const EMPTY_LEDGER_CONFIRM: LedgerConfirmState = { open: false, kind: 'paid-online' };
+
 export const REFUND_METHODS: { value: RefundDialog['method']; label: string }[] = [
   { value: 'check_mailed', label: 'Check Mailed' },
   { value: 'cash_returned', label: 'Cash Returned' },

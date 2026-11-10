@@ -386,7 +386,7 @@ export function EntryReceipt({
             <p className="receipt-subtitle text-sm text-muted-foreground">myK9Show</p>
           </div>
 
-          {/* Confirmation # — the receipt is the one place it is defensible,
+          {/* Confirmation number — the receipt is the one place it is defensible,
               and the only identifier this document now carries. */}
           {entry.confirmationNumber && (
             <div className="confirmation-box bg-muted/50 rounded-lg p-4 mb-6 text-center">

@@ -25,7 +25,7 @@ interface HeroBlockProps {
   venueName: string | null;
   venueCity: string | null;
   /** Full street address fallback — shown when no structured venue name/city
-   * is set, instead of "TBA" while the address is known and already shown
+   * is set, instead of "To be announced" while the address is known and already shown
    * elsewhere on this same page (MonogramFooter). */
   venueAddress?: string | null;
   timezone: string;

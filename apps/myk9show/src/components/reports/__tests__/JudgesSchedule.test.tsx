@@ -98,7 +98,7 @@ describe('JudgesSchedule', () => {
         allClasses={[
           { id: 'c3', trialId: 't1', element: 'Exterior', level: 'Novice', judgeName: 'TBD' },
           { id: 'c4', trialId: 't1', element: 'Vehicle', level: 'Novice', judgeName: '' },
-          ...baseProps.allClasses,
+          ...(baseProps.allClasses ?? []),
         ]}
       />
     );

@@ -39,7 +39,7 @@ export function useOnlyDogPreselect(options: OnlyDogPreselectOptions): void {
     rehydrationSettled,
     currentWorkflowConfig,
     entryCloseAvailability,
-    availableDrafts,
+    availableDrafts = [],
     handleDogSelectionChange,
     markAutoTick,
   } = options;

@@ -57,7 +57,8 @@ thing the prompt's `approach:` line decided, not the issue's suggested fix.
   later):
   1. every test file you added or edited;
   2. every test that imports a source file you changed, wherever it lives:
-     `pnpm vitest related <changed source files> --run` (seconds, not minutes; a page test
+     `pnpm vitest related <changed source files> --run`, from `apps/myk9show` with paths
+     relative to it, like every test command here (seconds, not minutes; a page test
      under `src/pages/__tests__` breaks when a hook under `src/pages/<Page>/` changes);
   3. `pnpm vitest run src/test/ci` whenever you added or edited any test file (repo-wide
      guards on test shape, about four seconds).

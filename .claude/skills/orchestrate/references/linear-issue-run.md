@@ -49,7 +49,8 @@ what an issue queue needs: selection, holds, Linear state and the run summary.
    Review Blocked work under the shared restoration/ownership rules before selecting new work;
    a past capability hold is not proof that the capability is still unavailable now.
 4. **Ledger.** Keep `<scratchpad>/orchestrate-run.md` with one row per issue: id, premise,
-   approach, tier, lane, worktree or cloud session URL, branch, PR, outcome and reason, plus
+   approach, tier, lane, worktree or cloud session URL, branch, PR and its head SHA (cloud
+   lane: the `headRefOid` last reviewed or pushed), outcome and reason, plus
    the Mac heavy-job count at each spawn. Update it at every state change, so a compacted
    context or a crash can resume from it.
 5. **Continuous mode only: keep the Mac awake.** Call `request_keep_awake` (the `ccd_host` tool)
@@ -233,8 +234,9 @@ the differences below come from running in the cloud and win where they conflict
    PR from your side, and the Mac reads only the PR.
 8. Once the PR is open the Mac may be writing to this branch too. If you are woken again
    (a red check, a findings comment), run `git fetch origin` and compare `origin/<branch>`
-   with your local HEAD before touching anything. If the remote has commits you did not
-   make, the Mac has taken the branch over: change nothing, push nothing, end your turn. If
+   with your local HEAD before touching anything:
+   `git rev-list --count HEAD..origin/<branch>`. Anything but `0` means the remote has
+   commits you do not have, so the Mac has taken the branch over: change nothing, push nothing, end your turn. If
    it has not, fix only what the red check or the comment names, push once, and add a PR
    comment starting `Cloud fix for <new sha>:` that says what changed, because a push alone
    is easy to miss.
@@ -343,7 +345,9 @@ add "$WT" "$BRANCH"`) and dispatch a local implementer on it with the session's 
   shows the new head). The fetch moves only the remote-tracking ref, so before re-reviewing
   bring the review worktree to that head: `git -C "$WT" merge --ff-only "origin/$BRANCH"` on a
   clean tree (`git -C "$WT" status --short` empty; a refused fast-forward means the Mac and the
-  session both wrote outside the deadline rule, so stop and hold). Then re-run the gate on the
+  session both wrote outside the deadline rule, so stop and hold; a session that pushed for
+  its own reasons while a local round was under way is the other case, handled under **The
+  remote head is the truth** above). Then re-run the gate on the
   head the worktree is now at. **Max 3 rounds**, as on the local lane.
 
 - **The branch's owner is the cloud session until its PR exists.** Before the PR, the Mac

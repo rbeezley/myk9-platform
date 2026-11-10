@@ -53,6 +53,7 @@ FILES: <paths touched>
 APPROACH: <2-4 sentences>
 TESTS: <commands and pass/fail counts>
 TYPECHECK: <pass/fail/not run>
+LINT: <pass/fail/not run>
 CONCERNS: <specific concerns or none>
 ```
 

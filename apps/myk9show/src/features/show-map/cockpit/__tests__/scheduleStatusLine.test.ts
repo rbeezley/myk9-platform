@@ -64,14 +64,16 @@ describe('buildStatusLine', () => {
       entry(3, { notCheckedIn: true }),
       entry(4),
     ];
-    expect(buildStatusLine(cls({ entries }), true).text).toBe('Not started · 3 not checked in');
+    expect(buildStatusLine(cls({ entries }), true).text).toBe(
+      'Not started · 3 of 4 not checked in'
+    );
   });
 
   it('returns the phrase as parts so the row can set a pending link after the lead', () => {
     const entries = [entry(1, { notCheckedIn: true }), entry(2)];
     expect(buildStatusLine(cls({ entries }), true).parts).toEqual([
       'Not started',
-      '1 not checked in',
+      '1 of 2 not checked in',
     ]);
     const running = buildStatusLine(cls({ lifecycle: 'in-progress', scoredCount: 2 }), true);
     expect(running.parts).toEqual(['Running', '2 of 6 scored']);

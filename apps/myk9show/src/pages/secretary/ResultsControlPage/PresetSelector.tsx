@@ -20,6 +20,7 @@ import { useUpdateShowVisibility } from '@/hooks/mutations/useShowSettingsMutati
 import { useConnectionHint } from '@/hooks/useConnectionHint';
 import type { ShowSettings } from '@/hooks/queries/useShowSettingsDatabase';
 import { PRESET_ICONS, ALL_TIMINGS, PLACEMENT_TIMINGS, TimingSelect } from './resultsControlUtils';
+import { RESULTS_CONTROL_COPY } from './resultsControlErrorCopy';
 
 interface PresetSelectorProps {
   showId: string;
@@ -70,7 +71,7 @@ export function PresetSelector({ showId, settings }: PresetSelectorProps) {
       },
       {
         onSuccess: () => toast.success(`Applied "${PRESET_INFO[preset].title}" preset`),
-        onError: () => toast.error('Failed to update visibility settings'),
+        onError: () => toast.error(RESULTS_CONTROL_COPY.visibilityFailed),
       }
     );
     setCustomTimings(cfg);
@@ -93,7 +94,7 @@ export function PresetSelector({ showId, settings }: PresetSelectorProps) {
       },
       {
         onSuccess: () => toast.success('Visibility settings saved'),
-        onError: () => toast.error('Failed to update visibility settings'),
+        onError: () => toast.error(RESULTS_CONTROL_COPY.visibilityFailed),
       }
     );
   }

@@ -50,7 +50,9 @@ import { buildRingsideRpcFields, RINGSIDE_RPC_FUNCTION } from './ringsideEntryRp
 import { ringTimeClearPayload, staleRingTimeClear } from './entryRingTime';
 import {
   classifyMoveUpRpcError,
+  MOVE_BACK_FAILED,
   MOVE_UP_ENTRY_RPC,
+  MOVE_UP_FAILED,
   REVERSE_MOVE_UP_ENTRY_RPC,
 } from './moveUpEntryRpc';
 import {
@@ -1384,9 +1386,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       p_new_entry_id: input.newEntryId,
       p_reason: input.reason ?? null,
     });
-    if (error) {
-      throw classifyMoveUpRpcError(error, 'That entry\u2019s class could not be changed.');
-    }
+    if (error) throw classifyMoveUpRpcError(error, MOVE_UP_FAILED);
 
     const destinationId = data ? data : input.newEntryId;
     await this.hydrateMovedPair([input.sourceEntryId, destinationId], sourceWasCached);
@@ -1408,9 +1408,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     const { data, error } = await this.callMoveUpRpc(REVERSE_MOVE_UP_ENTRY_RPC, {
       p_destination_entry_id: destinationEntryId,
     });
-    if (error) {
-      throw classifyMoveUpRpcError(error, 'That class change could not be reversed.');
-    }
+    if (error) throw classifyMoveUpRpcError(error, MOVE_BACK_FAILED);
 
     const sourceId = data ? data : null;
 

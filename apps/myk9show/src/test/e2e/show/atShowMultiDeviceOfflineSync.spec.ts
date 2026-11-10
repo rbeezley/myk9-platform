@@ -24,8 +24,8 @@ import {
  *   2. Device B reconnects second. Its queued write carries a stale OCC token,
  *      so the server genuinely rejects it (40001) and the app parks the row as
  *      a conflict instead of overwriting A's score. B's user sees the
- *      "This record was changed elsewhere" notice (ReplicationSyncProvider).
- *   3. B's user resolves it with "Take theirs". B's queue drains to 0 and both
+ *      "This was changed somewhere else at the same time" notice (ReplicationSyncProvider).
+ *   3. B's user resolves it with "Keep the other change". B's queue drains to 0 and both
  *      devices hold the same final result (A's).
  *
  * The write guard (`installSharedStagingWriteGuard`) still protects shared
@@ -49,7 +49,7 @@ const CLASS_PATH = `/at-show/${SHOW_ID}/class/${CLASS_ID}`;
 const REPLICATION_DB_NAME = 'myK9_Replication';
 const PENDING_MUTATIONS_STORE = 'pending_mutations';
 
-const CONFLICT_TITLE = 'This record was changed elsewhere';
+const CONFLICT_TITLE = 'This was changed somewhere else at the same time';
 
 test.describe('At-show multi-device offline conflict', () => {
   let seed: DisposableEntry | null = null;
@@ -71,7 +71,7 @@ test.describe('At-show multi-device offline conflict', () => {
     if (current) await cleanupDisposableEntry(current);
   });
 
-  test('second device to reconnect gets a conflict notice, and Take theirs settles both devices on the first score', async ({
+  test('second device to reconnect gets a conflict notice, and Keep the other change settles both devices on the first score', async ({
     browser,
   }) => {
     test.skip(
@@ -136,7 +136,7 @@ test.describe('At-show multi-device offline conflict', () => {
       // Parked, not dropped: B's queue still holds its writes until the user chooses.
       expect(await readPendingMutationCount(deviceB)).toBeGreaterThan(0);
 
-      await deviceB.getByRole('button', { name: 'Take theirs' }).click();
+      await deviceB.getByRole('button', { name: 'Keep the other change' }).click();
       await expect(deviceB.getByText(CONFLICT_TITLE)).toHaveCount(0);
       await expect.poll(() => readPendingMutationCount(deviceB), { timeout: 30_000 }).toBe(0);
       await expect.poll(() => readPendingMutationCount(deviceA), { timeout: 10_000 }).toBe(0);

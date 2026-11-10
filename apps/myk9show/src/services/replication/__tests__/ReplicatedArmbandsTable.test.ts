@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ReplicatedArmbandsTable, type ReplicatedArmband } from '../ReplicatedArmbandsTable';
 import { spyOnWriteAndQueue } from '@/test/utils/spyOnWriteAndQueue';
+import { ARMBAND_IN_USE_CODE, ArmbandInUseError } from '../armbandInUse';
 
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
@@ -122,13 +123,19 @@ describe('ReplicatedArmbandsTable', () => {
       isAvailable: false,
     });
 
-    await expect(
-      table.upsertAssignedArmband({
-        showId: 'show-1',
-        dogId: 'dog-2',
-        armbandNumber: '205',
-      })
-    ).rejects.toThrow('Armband 205 is already assigned to another dog in this show.');
+    const refusal = table.upsertAssignedArmband({
+      showId: 'show-1',
+      dogId: 'dog-2',
+      armbandNumber: '205',
+    });
+    await expect(refusal).rejects.toThrow(
+      'Armband 205 is already assigned to another dog in this show.'
+    );
+    // MYK9-1844: the armband dialog knows this refusal by its marker, never its text, and
+    // the marker is not a Postgres code the mutation manager would read as "applied".
+    await expect(refusal).rejects.toBeInstanceOf(ArmbandInUseError);
+    await expect(refusal).rejects.toMatchObject({ code: ARMBAND_IN_USE_CODE });
+    expect(ARMBAND_IN_USE_CODE).not.toBe('23505');
     expect(queueMutation).not.toHaveBeenCalled();
   });
 

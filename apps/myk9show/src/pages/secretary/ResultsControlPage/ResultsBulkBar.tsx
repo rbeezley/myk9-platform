@@ -27,6 +27,7 @@ import { PRESET_INFO, PRESET_CONFIGS, type VisibilityPreset } from '@myk9/secret
 import { useBulkUpdateClassOverrides } from '@/hooks/mutations/useShowSettingsMutations';
 import { useConnectionHint } from '@/hooks/useConnectionHint';
 import { FloatingBulkBar, BulkBarButton } from '@/components/list-toolkit';
+import { presetApplyFailed } from './resultsControlErrorCopy';
 
 const CLASS_NOUN = ['class', 'classes'] as const;
 
@@ -83,7 +84,7 @@ export function ResultsBulkBar({
           );
           onClearSelection();
         },
-        onError: () => toast.error('Failed to apply preset'),
+        onError: () => toast.error(presetApplyFailed(PRESET_INFO[preset].title)),
       }
     );
   }

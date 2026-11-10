@@ -168,7 +168,7 @@ describe('ShowPublicLanding style preview', () => {
 
   it('preserves specific save guidance from the persistence boundary', async () => {
     entitlement.canAuthorizePremium = true;
-    const message = 'Sync this show’s pending changes before saving its style.';
+    const message = 'Wait for this show’s saved changes to be sent before saving its style.';
     const user = renderPreview({
       onSaveDraftStyle: vi.fn().mockRejectedValue(new ShowStyleSaveError(message)),
     }).user;

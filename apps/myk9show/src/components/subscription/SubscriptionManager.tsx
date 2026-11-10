@@ -11,6 +11,7 @@ import { logger } from '@/services/LoggingService';
 import { products, annualPriceId } from '@/stripe-config';
 import { useEntitlement } from '@/features/entitlement/useEntitlement';
 import type { EffectiveEntitlement, EntitlementSource } from '@/features/entitlement/types';
+import { BILLING_COPY } from './billingErrorCopy';
 
 /** Display amount/interval per known price id; unknown ids show no price line. */
 function priceDisplay(priceId: string | null): { amount: number; interval: 'month' | 'year' } {
@@ -135,7 +136,7 @@ export function SubscriptionManager({
       }
     } catch (err) {
       logger.error('Error fetching billing details:', 'components', {}, err as Error);
-      setPortalError('Failed to load billing information');
+      setPortalError(BILLING_COPY.loadFailed);
     } finally {
       setBillingLoading(false);
     }
@@ -165,7 +166,7 @@ export function SubscriptionManager({
       }
     } catch (err) {
       logger.error('Error opening customer portal:', 'components', {}, err as Error);
-      setPortalError('Failed to open customer portal');
+      setPortalError(BILLING_COPY.portalFailed);
     }
   };
 

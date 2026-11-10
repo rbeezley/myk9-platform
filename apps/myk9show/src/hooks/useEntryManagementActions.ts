@@ -12,8 +12,6 @@ import {
   compEntry,
   uncompEntry,
   executeStatusChange,
-  COMP_REFUSED_PAID_CODE,
-  COMP_REFUSED_PAID_MESSAGE,
 } from '@/services/database/entries';
 import { updateReplicatedCheckInStatus } from '@/services/show-day/checkInStatus';
 import { optimisticPulledBy } from '@/utils/optimisticPulledBy';
@@ -23,6 +21,11 @@ import { useEntryStatusUndo } from '@/hooks/useEntryStatusUndo';
 import { showUndoToast, STATUS_UNDO_WINDOW_MS } from '@/lib/undoToast';
 import { CLOSED_STATUSES } from '@/components/entries/management/bulkActionEligibility';
 import { getNextArmbandForShow, setEntryArmband } from '@/services/database/armbands';
+import {
+  ENTRY_ACTION_COPY as COPY,
+  armbandSaveErrorMessage,
+  compErrorMessage,
+} from './entryManagementErrorCopy';
 
 import { supabase } from '@/services/database/supabaseClient';
 import { resolveSecretaryCc } from '@/services/notifications/ccSecretary';
@@ -165,7 +168,7 @@ export function useEntryManagementActions({
       );
 
       if (!ok) {
-        toast.error("Couldn't update entry status");
+        toast.error(COPY.statusChangeFailed);
         return false;
       }
 
@@ -187,7 +190,7 @@ export function useEntryManagementActions({
                 if (current?.entryStatus === newStatus) options.onStood?.(current);
               }
             : undefined,
-          ...(offline ? { description: 'Queued — will sync when online' } : {}),
+          ...(offline ? { description: COPY.savedOffline } : {}),
         });
       }
 
@@ -210,7 +213,7 @@ export function useEntryManagementActions({
       if (dbError) {
         setArmbandDialog(prev => ({
           ...prev,
-          error: (dbError as { message?: string })?.message || 'Failed to assign armband',
+          error: armbandSaveErrorMessage(dbError, armbandDialog.value.trim()),
         }));
         return;
       }
@@ -228,7 +231,7 @@ export function useEntryManagementActions({
 
       setArmbandDialog({ open: false, entry: null, value: '' });
     } catch (err) {
-      setError('Failed to assign armband');
+      setError(COPY.armbandFailed);
       logger.error('Error assigning armband:', 'secretary', {}, err as Error);
     } finally {
       setIsProcessing(false);
@@ -284,7 +287,7 @@ export function useEntryManagementActions({
               { entryId: entry.id, newStatus: status, entry, userId: user?.id },
               { changeSecretaryStatus: changeSecretaryEntryStatus, patchEntries: setEntries }
             );
-            if (!ok) throw new Error('Failed to update entry status');
+            if (!ok) throw new Error(COPY.statusChangeFailed);
           },
           {
             buildUndo: result =>
@@ -310,7 +313,7 @@ export function useEntryManagementActions({
         if (outcome === null) return false;
         return outcome.failed.length === 0;
       } catch (err) {
-        setError('Failed to update entry statuses');
+        setError(COPY.bulkStatusChangeFailed);
         logger.error('Error bulk updating statuses:', 'secretary', {}, err as Error);
         return false;
       } finally {
@@ -397,7 +400,7 @@ export function useEntryManagementActions({
       const { data, error: dbError } = await getEntriesForExport(selectedShowId);
 
       if (dbError) {
-        setError(friendlyDbError(dbError, 'Failed to export entries'));
+        setError(friendlyDbError(dbError, COPY.exportLoadFailed));
         return;
       }
 
@@ -460,7 +463,7 @@ export function useEntryManagementActions({
         },
       });
     } catch (err) {
-      setError('Failed to export entries');
+      setError(COPY.exportFailed);
       logger.error('Error exporting entries:', 'secretary', {}, err as Error);
     } finally {
       setIsProcessing(false);
@@ -482,11 +485,7 @@ export function useEntryManagementActions({
 
         if (dbError) {
           // MYK9-1407: the server refuses a comp on a paid or refunded entry.
-          setError(
-            dbError.code === COMP_REFUSED_PAID_CODE
-              ? COMP_REFUSED_PAID_MESSAGE
-              : 'Failed to comp entry'
-          );
+          setError(compErrorMessage(dbError));
           return;
         }
 
@@ -511,7 +510,7 @@ export function useEntryManagementActions({
           metadata: { action: 'comp_entry', reason, secretaryId: user?.id },
         });
       } catch (err) {
-        setError('Failed to comp entry');
+        setError(COPY.compUnfinished);
         logger.error('Error comping entry:', 'secretary', {}, err as Error);
       } finally {
         setIsProcessing(false);
@@ -530,7 +529,7 @@ export function useEntryManagementActions({
         const { data, error: dbError } = await uncompEntry(entryId);
 
         if (dbError) {
-          setError('Failed to remove comp');
+          setError(COPY.uncompFailed);
           return;
         }
 
@@ -555,7 +554,7 @@ export function useEntryManagementActions({
           metadata: { action: 'uncomp_entry', secretaryId: user?.id },
         });
       } catch (err) {
-        setError('Failed to remove comp');
+        setError(COPY.uncompUnfinished);
         logger.error('Error uncomping entry:', 'secretary', {}, err as Error);
       } finally {
         setIsProcessing(false);

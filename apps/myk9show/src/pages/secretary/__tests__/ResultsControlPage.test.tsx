@@ -362,7 +362,7 @@ describe('ResultsControlPage', () => {
     const { container } = renderPage();
 
     // Page-level error banner with a Retry affordance is shown.
-    expect(screen.getByText('Failed to load results settings')).toBeInTheDocument();
+    expect(screen.getByText("We couldn't load the results settings")).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
 
     // The cards surface an inline error, not the loading skeleton.
@@ -424,9 +424,9 @@ describe('ResultsControlPage', () => {
 
     expect(screen.getByText('Immediately')).toBeInTheDocument();
     expect(screen.queryByText(/Couldn't load these settings/i)).not.toBeInTheDocument();
-    expect(screen.getByText("Couldn't refresh results settings")).toBeInTheDocument();
+    expect(screen.getByText("We couldn't refresh the results settings")).toBeInTheDocument();
     expect(screen.getByText(/may be out of date/i)).toBeInTheDocument();
-    expect(screen.queryByText('Failed to load results settings')).not.toBeInTheDocument();
+    expect(screen.queryByText("We couldn't load the results settings")).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Retry' }));
     expect(mockRefetch).toHaveBeenCalled();
@@ -441,8 +441,8 @@ describe('ResultsControlPage', () => {
 
     renderPage();
 
-    expect(screen.getByText('Failed to load results settings')).toBeInTheDocument();
+    expect(screen.getByText("We couldn't load the results settings")).toBeInTheDocument();
     expect(screen.getAllByText(/Couldn't load these settings/i).length).toBeGreaterThan(0);
-    expect(screen.queryByText("Couldn't refresh results settings")).not.toBeInTheDocument();
+    expect(screen.queryByText("We couldn't refresh the results settings")).not.toBeInTheDocument();
   });
 });

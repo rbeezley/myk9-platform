@@ -32,6 +32,7 @@ import type {
 import type { CheckInStatus } from '@myk9/core';
 import { EntryStatus } from '@/types/show-registration-types';
 import { sendRegistrationConfirmationEmail } from '@/components/shows/RegistrationWorkflow/sendRegistrationConfirmationEmail';
+import { ENTRY_ACTION_COPY } from '@/hooks/entryManagementErrorCopy';
 
 // INTENT: `cockpit.state.queues` (the Filter menu's Status values) is
 // the single source of registration-status filtering on Entry Management. Do
@@ -168,7 +169,7 @@ export function EntryManagementCockpit({
         delete next[registrationId];
         return next;
       });
-      toast.error('Failed to resend email');
+      toast.error(ENTRY_ACTION_COPY.resendEmailFailed);
     }
   };
 
@@ -276,8 +277,9 @@ export function EntryManagementCockpit({
           className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm"
         >
           <span className="text-foreground">
-            Couldn&rsquo;t load the classes for the picked trials, so the list below is not limited
-            to those trials.
+            We couldn&rsquo;t load the classes for the trials you picked, so the list below shows
+            the whole show.{' '}
+            {onRetryTrialClasses ? 'Press Retry to try again.' : 'Refresh the page to try again.'}
           </span>
           {onRetryTrialClasses && (
             <Button

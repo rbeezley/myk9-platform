@@ -16,6 +16,7 @@ import { useShowStore } from '@/store/showStore';
 import { useIsOnline } from '@/hooks/useNetworkStatus';
 import { useShowSettings } from '@/hooks/queries/useShowSettingsDatabase';
 import { useUpdateShowCheckin } from '@/hooks/mutations/useShowSettingsMutations';
+import { SHOW_SETTINGS_COPY } from '@/hooks/mutations/showSettingsErrorCopy';
 import type { Show } from '@/types/show-types';
 
 type UsesField =
@@ -127,7 +128,7 @@ export function ShowUsesSwitches({ showId }: { showId: string }) {
     try {
       await updateShow(showId, { [field]: next } as Partial<Show>);
     } catch {
-      toast.error("Couldn't save that change. Please try again.");
+      toast.error(SHOW_SETTINGS_COPY.showSwitchFailed);
     }
   }
 
@@ -136,7 +137,7 @@ export function ShowUsesSwitches({ showId }: { showId: string }) {
       { showId, enabled: next },
       {
         onSuccess: () => toast.success(`Self check-in ${next ? 'enabled' : 'disabled'} for show`),
-        onError: () => toast.error('Failed to update check-in setting'),
+        onError: () => toast.error(SHOW_SETTINGS_COPY.showCheckinFailed),
       }
     );
   }

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle,
@@ -32,6 +32,8 @@ import { SecuritySettings } from '@/components/preferences/SecuritySettings';
 import { DataSettings } from '@/components/preferences/DataSettings';
 import { InstallAppSettings } from '@/components/preferences/InstallAppSettings';
 import { useAuthUser } from '@/hooks/useAuthUser';
+import { useAuthContext } from '@/hooks/useAuthContext';
+import { isExhibitorOnlyRoles } from '@/components/layout/sidebar/browseTabs';
 import { useTheme } from '@/hooks/useTheme';
 import { useApplyServerTheme } from '@/hooks/useApplyServerTheme';
 import { useOnlineStatus } from '@/lib/networkUtils';
@@ -106,23 +108,40 @@ function preferenceFailureMessage(error: unknown, fixed: string): string {
     : fixed;
 }
 
-function readSectionParam(searchParams: URLSearchParams): Section | null {
+/**
+ * Storage (clearing this device's saved copy) is a staff tool. An exhibitor-only account never
+ * sees it, so a deep link to it falls back to the default section (MYK9-1818).
+ */
+function navGroupsFor(hideStorage: boolean): NavGroup[] {
+  if (!hideStorage) return NAV_GROUPS;
+  return NAV_GROUPS.map(group => ({
+    ...group,
+    items: group.items.filter(item => item.key !== 'data'),
+  }));
+}
+
+function readSectionParam(searchParams: URLSearchParams, groups: NavGroup[]): Section | null {
   const section = searchParams.get('section');
   if (!section) return null;
-  return NAV_GROUPS.some(group => group.items.some(item => item.key === section))
+  return groups.some(group => group.items.some(item => item.key === section))
     ? (section as Section)
     : null;
 }
 
 export default function AccountPage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const { getUserRoles } = useAuthContext();
+  const hideStorage = isExhibitorOnlyRoles(getUserRoles());
+  const navGroups = useMemo(() => navGroupsFor(hideStorage), [hideStorage]);
   const location = useLocation();
   const navigate = useNavigate();
-  const [active, setActive] = useState<Section>(() => readSectionParam(searchParams) ?? 'profile');
+  const [active, setActive] = useState<Section>(
+    () => readSectionParam(searchParams, navGroups) ?? 'profile'
+  );
   const isPhone = useMediaQuery(ACCOUNT_PHONE_QUERY);
   // On a phone, the bare /account URL is the section list; a section param
   // (deep link or a tapped row) opens that section with a Back control.
-  const showPhoneList = isPhone && readSectionParam(searchParams) === null;
+  const showPhoneList = isPhone && readSectionParam(searchParams, navGroups) === null;
   const phoneSectionOpen = isPhone && !showPhoneList;
   const headingRef = useRef<HTMLHeadingElement>(null);
   const phoneViewKey = isPhone ? (showPhoneList ? 'list' : `section:${active}`) : null;
@@ -166,9 +185,16 @@ export default function AccountPage() {
     // to 'profile' so external navigation that drops the param (e.g. the
     // account-menu "Account" link opened while this page is already mounted)
     // doesn't leave a stale section like billing selected.
-    const section = readSectionParam(searchParams) ?? 'profile';
+    const section = readSectionParam(searchParams, navGroups) ?? 'profile';
     if (section !== active) setActive(section);
-  }, [active, searchParams]);
+    // Roles can arrive after the first render, so an exhibitor may have opened Storage briefly:
+    // drop the dead deep link from the URL too, in place, so Back never returns to it.
+    if (hideStorage && searchParams.get('section') === 'data') {
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.delete('section');
+      setSearchParams(nextParams, { replace: true });
+    }
+  }, [active, searchParams, navGroups, hideStorage, setSearchParams]);
 
   // Keep the applied/cached font scale derived from the loaded preference.
   // Without this, "Reset" only replaces the server-backed preference — the
@@ -293,18 +319,22 @@ export default function AccountPage() {
     </Button>
   );
 
+  // Storage is never drawn for an exhibitor-only account, whatever `active` still says while the
+  // fallback effect catches up.
+  const visible: Section = active === 'data' && hideStorage ? 'profile' : active;
+
   const activeLabel =
-    NAV_GROUPS.flatMap(group => group.items).find(item => item.key === active)?.label ?? 'Account';
+    navGroups.flatMap(group => group.items).find(item => item.key === visible)?.label ?? 'Account';
 
   const renderSection = () => {
-    if (!NON_PREF_SECTIONS.has(active) && prefsLoading) {
+    if (!NON_PREF_SECTIONS.has(visible) && prefsLoading) {
       return (
         <div role="status" aria-label="Loading account preferences" className="py-4">
           <FormSkeleton />
         </div>
       );
     }
-    if (!isOnline && ONLINE_ONLY_SECTIONS.has(active)) {
+    if (!isOnline && ONLINE_ONLY_SECTIONS.has(visible)) {
       return (
         <Alert role="status" data-testid="account-needs-connection">
           <WifiOff className="h-4 w-4" />
@@ -314,7 +344,7 @@ export default function AccountPage() {
         </Alert>
       );
     }
-    switch (active) {
+    switch (visible) {
       case 'profile':
         return <ProfileSection />;
       case 'appearance':
@@ -338,7 +368,7 @@ export default function AccountPage() {
       case 'delete':
         return <DeleteSection />;
       default: {
-        const _exhaustive: never = active;
+        const _exhaustive: never = visible;
         return _exhaustive;
       }
     }
@@ -380,7 +410,7 @@ export default function AccountPage() {
         {isPhone ? (
           showPhoneList ? (
             <>
-              <AccountSectionList groups={NAV_GROUPS} onSelect={handleSectionChange} />
+              <AccountSectionList groups={navGroups} onSelect={handleSectionChange} />
               <div className="mt-4">{resetButton}</div>
             </>
           ) : (
@@ -390,7 +420,7 @@ export default function AccountPage() {
           // Tablet and desktop (768px and up): the sidebar of sections.
           <div className="flex flex-row gap-8">
             <nav className="w-52 shrink-0" aria-label="Account sections">
-              {NAV_GROUPS.map(group => (
+              {navGroups.map(group => (
                 <div key={group.label} className="mb-4">
                   <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                     {group.label}

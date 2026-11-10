@@ -18,7 +18,7 @@
  * `ExhibitorOnboardingChecker` redirects EVERY signed-in exhibitor route to
  * `/onboarding`, so My Shows never mounts and no other fixture below it
  * matters. That single row is what was actually breaking the header,
- * appearance-control and "Clear Cache" specs, none of which read an entry.
+ * appearance-control and dialog specs, none of which read an entry.
  *
  * NOT A SUBSTITUTE FOR THE REAL READ PATH. These specs no longer prove that
  * the app can talk to Supabase. `exhibitorReadPathCanary.spec.ts` owns that

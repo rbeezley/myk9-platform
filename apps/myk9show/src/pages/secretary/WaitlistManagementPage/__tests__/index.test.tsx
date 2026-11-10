@@ -278,7 +278,9 @@ describe('WaitlistManagementPage', () => {
   it('shows a failed read with a Try again that recovers', async () => {
     state.failNextRead = true;
     render(<WaitlistManagementPage showId="show-1" />);
-    expect(await screen.findByText(/Failed to load waitlist/)).toBeInTheDocument();
+    expect(
+      await screen.findByText("We couldn't load the waitlist. Try again.")
+    ).toBeInTheDocument();
     expect(screen.queryByText('Bella')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
@@ -314,7 +316,9 @@ describe('WaitlistManagementPage', () => {
       error: new Error('down'),
     } as never);
     rerender(<WaitlistManagementPage showId="show-3" />);
-    expect(await screen.findByText(/Failed to load classes/)).toBeInTheDocument();
+    expect(
+      await screen.findByText("We couldn't load this show's classes. Try again.")
+    ).toBeInTheDocument();
     expect(screen.queryByText('Bella')).not.toBeInTheDocument();
   });
 
@@ -344,7 +348,9 @@ describe('WaitlistManagementPage', () => {
     fireEvent.click(screen.getAllByRole('button', { name: /^remove$/i })[0]!);
     const dialog = await screen.findByRole('alertdialog');
     fireEvent.click(within(dialog).getByRole('button', { name: /^remove$/i }));
-    expect(await screen.findByText(/Failed to remove from waitlist/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/We couldn't remove this dog from the waitlist/)
+    ).toBeInTheDocument();
     return view;
   }
 
@@ -352,14 +358,18 @@ describe('WaitlistManagementPage', () => {
     await failARemoval();
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     await waitFor(() =>
-      expect(screen.queryByText(/Failed to remove from waitlist/)).not.toBeInTheDocument()
+      expect(
+        screen.queryByText(/We couldn't remove this dog from the waitlist/)
+      ).not.toBeInTheDocument()
     );
   });
 
   it('a failed removal message does not follow the tab to another show', async () => {
     const { rerender } = await failARemoval();
     rerender(<WaitlistManagementPage showId="show-2" />);
-    expect(screen.queryByText(/Failed to remove from waitlist/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/We couldn't remove this dog from the waitlist/)
+    ).not.toBeInTheDocument();
   });
 
   it('tells apart same-named classes in different trials by trial name and date', async () => {

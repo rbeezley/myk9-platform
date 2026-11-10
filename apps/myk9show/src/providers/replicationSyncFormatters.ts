@@ -99,7 +99,7 @@ function actionLabel(operation: string | undefined): string {
 
 export function formatSyncFailureToast(detail: SyncFailedEventDetail): string {
   if (hasPermanentScoreAuthorizationFailure(detail)) {
-    return "Score not saved — you're not authorized to score this class. Get a judge passcode or ask the secretary to fix access, then retry.";
+    return "Score not saved. You're not authorized to score this class. Get a judge passcode or ask the secretary to fix access, then retry.";
   }
 
   const first = detail.mutations[0];
@@ -119,7 +119,7 @@ export function formatSyncFailureToast(detail: SyncFailedEventDetail): string {
 }
 
 const REASON_MAX_LENGTH = 160;
-const NO_DETAIL_REASON = 'the server gave no details.';
+const NO_DETAIL_REASON = 'no details were given.';
 const PERMISSION_ERROR_PATTERN =
   /row-level security|rls policy blocked|permission denied|\b42501\b/i;
 /** What the queue prepends when it stores a failure (mutation-retry.ts); not the reason. */

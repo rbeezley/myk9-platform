@@ -435,23 +435,25 @@ describe('Results tab on the real replicated class rows', () => {
       }
     });
 
-    it('names an unresolved conflict and points at the Keep mine / Take theirs choice, then unlocks once resolved', async () => {
+    it('names an unresolved conflict and points at the Keep the other change / Keep my change choice, then unlocks once resolved', async () => {
       await renderUnchecked();
 
       await conflictClass('class-open');
 
-      expect(await screen.findByText(/changed elsewhere/)).toBeInTheDocument();
+      expect(await screen.findByText(/changed somewhere else/)).toBeInTheDocument();
       expect(screen.getByRole('button', SAVE_CHECK)).toBeDisabled();
-      expect(screen.getByText(/Keep mine or Take theirs/)).toBeInTheDocument();
+      expect(screen.getByText(/Keep the other change" or "Keep my change/)).toBeInTheDocument();
       // A dismissed notice is not a dead end: the copy says how to bring it back.
-      expect(screen.getByText(/reload the page to bring it back/)).toBeInTheDocument();
+      expect(
+        screen.getByText(/leave this page and open it again to bring it back/)
+      ).toBeInTheDocument();
 
-      // Take theirs: the server's row, check included, replaces the local one.
+      // Keep the other change: the server's row, check included, replaces the local one.
       await replicatedClassesTable.resolveReplicationConflict('class-open', 'take-remote');
 
       await waitFor(() => expect(screen.getByText(/Scores checked by you/)).toBeInTheDocument());
       expect(screen.getByRole('button', { name: 'Release results' })).toBeEnabled();
-      expect(screen.queryByText(/changed elsewhere/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/changed somewhere else/)).not.toBeInTheDocument();
     });
   });
 });

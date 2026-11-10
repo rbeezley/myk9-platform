@@ -79,9 +79,7 @@ export function CloseOutShowAction({
 
     if (failedChildCount > 0) {
       setIsClosing(false);
-      setError(
-        'Closeout did not finish. Try again after checking your connection and sync status.'
-      );
+      setError('Closeout did not finish. Try again after checking your connection.');
       toast.error('Closeout did not finish. Please try again.');
       return;
     }
@@ -90,16 +88,14 @@ export function CloseOutShowAction({
       await replicatedShowsTable.updateShow(targets.showId, { status: 'completed' });
     } catch {
       setIsClosing(false);
-      setError(
-        'Closeout did not finish. Try again after checking your connection and sync status.'
-      );
+      setError('Closeout did not finish. Try again after checking your connection.');
       toast.error('Closeout did not finish. Please try again.');
       return;
     }
 
     setIsClosing(false);
     setIsConfirmOpen(false);
-    toast.success('Show closeout recorded. Changes will sync with the show data.');
+    toast.success('Show closeout saved.');
   }
 
   if (showClosed) {

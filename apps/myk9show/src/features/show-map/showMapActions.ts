@@ -352,8 +352,8 @@ function liveOpsActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAct
           // (matches Pull Management, exhibitor "Pull from class", and the
           // "Pulled / no-show" reconciliation heading). Internal id/dialog key
           // stay 'scratch-entry'; only the user-facing label changes.
-          label: 'Pull / no-show',
-          why: withEntryContext(node, 'Mark this entry absent for ring flow'),
+          label: 'Pull',
+          why: withEntryContext(node, 'Pull this entry'),
           priority: 30,
           icon: Ban,
           ...(classId ? { classId } : {}),

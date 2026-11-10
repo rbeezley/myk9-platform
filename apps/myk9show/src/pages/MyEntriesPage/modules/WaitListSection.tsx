@@ -279,7 +279,7 @@ export const WaitListSection: React.FC<WaitListSectionProps> = ({
                           disabled={isWithdrawing}
                           className="inline-flex min-h-[44px] items-center rounded px-2 text-xs text-muted-foreground transition-colors duration-150 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-50"
                         >
-                          Withdraw
+                          Leave waitlist
                         </button>
                       ) : null}
                     </div>

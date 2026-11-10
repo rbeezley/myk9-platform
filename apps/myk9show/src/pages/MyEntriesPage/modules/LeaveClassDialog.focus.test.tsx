@@ -1,7 +1,7 @@
 /**
  * MYK9-658 — where focus goes after leaving a class from the My Shows card.
  *
- * On success the row's "Leave class…" button unmounts with the row state it
+ * On success the row's "Pull or withdraw…" button unmounts with the row state it
  * belonged to, so the AlertDialog's own restore targets a removed node and
  * focus fell to `<body>`. The first fix anchored on `my-show-dog-${dogId}`,
  * which is DUPLICATED when one dog is entered in two shows (dogs merge by
@@ -155,7 +155,7 @@ describe('Leaving a class keeps focus in THAT show (MYK9-658)', () => {
     render(<Harness />);
 
     const fall = screen.getByRole('region', { name: 'Fall Classic' });
-    await user.click(within(fall).getByRole('button', { name: /^Leave class/ }));
+    await user.click(within(fall).getByRole('button', { name: /^Pull or withdraw/ }));
     const dialog = within(await screen.findByRole('alertdialog'));
     await user.click(dialog.getByRole('button', { name: /^pull$/i }));
     await user.click(dialog.getByRole('button', { name: /pull entry/i }));
@@ -163,7 +163,7 @@ describe('Leaving a class keeps focus in THAT show (MYK9-658)', () => {
     await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
     // The refresh has landed: the row reads pulled and its control is gone.
     await waitFor(() =>
-      expect(within(fall).queryByRole('button', { name: /^Leave class/ })).toBeNull()
+      expect(within(fall).queryByRole('button', { name: /^Pull or withdraw/ })).toBeNull()
     );
 
     const active = document.activeElement as HTMLElement;
@@ -180,7 +180,7 @@ describe('Leaving a class keeps focus in THAT show (MYK9-658)', () => {
     render(<Harness />);
 
     const fall = screen.getByRole('region', { name: 'Fall Classic' });
-    const control = within(fall).getByRole('button', { name: /^Leave class/ });
+    const control = within(fall).getByRole('button', { name: /^Pull or withdraw/ });
     await user.click(control);
     const dialog = within(await screen.findByRole('alertdialog'));
     await user.click(dialog.getByRole('button', { name: /keep my entry/i }));
@@ -194,7 +194,7 @@ describe('Leaving a class keeps focus in THAT show (MYK9-658)', () => {
     render(<Harness initialRows={[FALL]} status="accepted" />);
 
     const fall = screen.getByRole('region', { name: 'Fall Classic' });
-    await user.click(within(fall).getByRole('button', { name: /^Leave class/ }));
+    await user.click(within(fall).getByRole('button', { name: /^Pull or withdraw/ }));
     const dialog = within(await screen.findByRole('alertdialog'));
     await user.click(dialog.getByRole('button', { name: /^pull$/i }));
     await user.click(dialog.getByRole('button', { name: /pull entry/i }));

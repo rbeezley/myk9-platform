@@ -1747,7 +1747,7 @@ describe('Wait list positions with no waitlisted entry row (MYK9-417)', () => {
       const user = userEvent.setup();
       renderWithProviders(<MyEntriesPage />);
 
-      await user.click(await screen.findByRole('button', { name: 'Withdraw' }));
+      await user.click(await screen.findByRole('button', { name: 'Leave waitlist' }));
 
       const dialog = await screen.findByRole('alertdialog');
       expect(within(dialog).getByText('Leave the wait list?')).toBeInTheDocument();
@@ -1766,13 +1766,13 @@ describe('Wait list positions with no waitlisted entry row (MYK9-417)', () => {
       const user = userEvent.setup();
       renderWithProviders(<MyEntriesPage />);
 
-      await user.click(await screen.findByRole('button', { name: 'Withdraw' }));
+      await user.click(await screen.findByRole('button', { name: 'Leave waitlist' }));
       const dialog = await screen.findByRole('alertdialog');
       await user.click(within(dialog).getByRole('button', { name: 'Stay on the list' }));
 
       await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
       expect(withdraw.mutate).not.toHaveBeenCalled();
-      expect(screen.getByRole('button', { name: 'Withdraw' })).toBeEnabled();
+      expect(screen.getByRole('button', { name: 'Leave waitlist' })).toBeEnabled();
       expect(screen.getByText('Juni')).toBeInTheDocument();
     });
   });

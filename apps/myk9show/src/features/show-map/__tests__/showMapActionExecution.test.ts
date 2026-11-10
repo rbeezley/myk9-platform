@@ -108,7 +108,7 @@ describe('showMapActionExecution', () => {
   it('enables scratch / no-show through the shared dialog lane', () => {
     const scratch = makeAction({
       id: 'scratch-entry',
-      label: 'Pull / no-show',
+      label: 'Pull',
       href: null,
     });
 

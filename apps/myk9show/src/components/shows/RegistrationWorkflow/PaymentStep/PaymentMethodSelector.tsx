@@ -385,8 +385,8 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
                 value="waived"
                 selected={paymentMethod === 'waived'}
                 icon={Tag}
-                title="Fees Waived"
-                description="Administrative waiver of registration fees"
+                title="Free entry"
+                description="No entry fees are charged"
                 onSelect={handleSelect}
               />
             </PermissionGuard>
@@ -396,17 +396,16 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
                 <Alert>
                   <AlertTriangle className="h-4 w-4" />
                   <AlertDescription>
-                    This will waive all registration fees for this entry. This action requires admin
-                    approval.
+                    This entry will be free. No entry fees are charged.
                   </AlertDescription>
                 </Alert>
                 <div>
-                  <Label htmlFor="waiver-reason">Reason for Fee Waiver</Label>
+                  <Label htmlFor="waiver-reason">Why is this entry free?</Label>
                   <Textarea
                     id="waiver-reason"
                     value={paymentNotes}
                     onChange={e => handlePaymentNotesChange(e.target.value)}
-                    placeholder="Explain the reason for waiving fees..."
+                    placeholder="For example, a judge or worker entry"
                     required
                   />
                 </div>

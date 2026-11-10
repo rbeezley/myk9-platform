@@ -541,12 +541,6 @@ export function useRegistrationWizardState() {
   );
   const liveTotalFees = liveFeeCalculation.total;
 
-  // Secretary fee waiver / manual override. Page state rather than PaymentStep
-  // state because the entries panel renders the amount due outside the step's
-  // own subtree and must apply the same two flags the step does.
-  const [waiveFees, setWaiveFees] = useState(false);
-  const [feeOverride, setFeeOverride] = useState<number | null>(null);
-
   const entryCloseAvailability = useEntryCloseAvailability({
     showId,
     show: currentShow,
@@ -718,10 +712,6 @@ export function useRegistrationWizardState() {
     setJuniorHandlerDog,
     setJuniorHandlerDogs,
     addJuniorHandlerDogs,
-    waiveFees,
-    setWaiveFees,
-    feeOverride,
-    setFeeOverride,
     capacityReady,
     capacityError: exposedCapacityError,
     capacityUnavailable,

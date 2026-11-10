@@ -532,8 +532,6 @@ describe('computePaymentTotals / formatAmountDue secretary_paid', () => {
       paymentMethod: 'secretary_paid',
       feeCalculation,
       capacityReady: true,
-      waiveFees: false,
-      feeOverride: null,
       rates,
     });
 
@@ -546,8 +544,6 @@ describe('computePaymentTotals / formatAmountDue secretary_paid', () => {
       paymentMethod: 'secretary_paid',
       feeCalculation,
       capacityReady: true,
-      waiveFees: false,
-      feeOverride: null,
       rates,
     });
 
@@ -561,8 +557,6 @@ describe('computePaymentTotals / formatAmountDue secretary_paid', () => {
       paymentMethod: 'check',
       feeCalculation,
       capacityReady: true,
-      waiveFees: false,
-      feeOverride: null,
       rates,
     });
 

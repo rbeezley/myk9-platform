@@ -80,7 +80,7 @@ describe('useFieldGuideLandingData', () => {
     expect(cells.find(c => c.label === 'OPENS')?.emphasis).toBeFalsy();
   });
 
-  it('falls back to "TBA" / "NO ENTRY LIMIT" when source dates are missing', () => {
+  it('falls back to "To be announced" / "NO ENTRY LIMIT" when source dates are missing', () => {
     const show = makeShow({
       entryOpenDate: undefined as unknown as string,
       entryCloseDate: undefined as unknown as string,
@@ -89,8 +89,8 @@ describe('useFieldGuideLandingData', () => {
     });
     const { result } = renderHook(() => useFieldGuideLandingData(show, null, []), { wrapper });
     const cells = result.current.quickRefCells;
-    expect(cells.find(c => c.label === 'OPENS')?.value).toBe('TBA');
-    expect(cells.find(c => c.label === 'CLOSES')?.value).toBe('TBA');
+    expect(cells.find(c => c.label === 'OPENS')?.value).toBe('To be announced');
+    expect(cells.find(c => c.label === 'CLOSES')?.value).toBe('To be announced');
     expect(cells.find(c => c.label === 'CAP')?.value).toBe('NO ENTRY LIMIT');
   });
 

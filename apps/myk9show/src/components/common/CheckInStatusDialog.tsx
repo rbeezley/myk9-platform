@@ -153,7 +153,9 @@ export const CheckInStatusDialog: React.FC<CheckInStatusDialogProps> = ({
               {entryInfo.armband ? (
                 <span className="font-medium">Armband #{entryInfo.armband}</span>
               ) : entryInfo.confirmationNumber ? (
-                <span className="font-medium">Confirmation #{entryInfo.confirmationNumber}</span>
+                <span className="font-medium">
+                  Confirmation number {entryInfo.confirmationNumber}
+                </span>
               ) : null}
               {/* Only show the separator when an identifier precedes it —
                   otherwise an entry with no armband/confirmation rendered a

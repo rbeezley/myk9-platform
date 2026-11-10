@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { TO_BE_ANNOUNCED_LABEL } from '@/lib/format/fallbackLabels';
 import { Link } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -83,7 +84,7 @@ export function MoreFromClub({ clubId, clubName, currentShowId }: MoreFromClubPr
               <div className="space-y-1 text-xs text-muted-foreground">
                 <div className="flex items-center gap-1.5">
                   <CalendarDays className="h-3.5 w-3.5" />
-                  {show.startDate ? formatShortCalendarDate(show.startDate) : 'Date TBD'}
+                  {show.startDate ? formatShortCalendarDate(show.startDate) : TO_BE_ANNOUNCED_LABEL}
                 </div>
                 {show.location && (
                   <div className="flex items-center gap-1.5">

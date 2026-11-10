@@ -76,7 +76,7 @@ describe('STYLED_RECEIPT_BY_STYLE', () => {
       const { container } = render(element);
       const text = container.textContent ?? '';
 
-      expect(text).toContain('Confirmation #');
+      expect(text).toContain('Confirmation number');
       expect(text).toContain('MK9-000137');
       expect(text).not.toContain('Entry #');
       expect(text).not.toContain('Entry №');

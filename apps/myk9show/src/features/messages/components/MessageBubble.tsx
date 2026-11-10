@@ -1,5 +1,6 @@
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { getRoleLabel } from '@/components/admin/users/UserTable/types';
 import { formatTime } from '@/utils/dateFormat';
 import type { Message } from '@/features/messages/types';
 
@@ -24,7 +25,7 @@ export function MessageBubble({ message, isOwnMessage }: MessageBubbleProps) {
           <span className="font-medium text-foreground">{message.sender_name ?? 'Unknown'}</span>
           {message.sender_role && (
             <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">
-              {message.sender_role}
+              {getRoleLabel(message.sender_role)}
             </Badge>
           )}
         </div>

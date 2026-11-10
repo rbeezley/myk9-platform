@@ -1,4 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
+import { TO_BE_ANNOUNCED_LABEL } from '@/lib/format/fallbackLabels';
 import { SHOW_NOT_PUBLISHED_LABEL } from '@/lib/showNotPublished';
 import { getDogBreedLabel } from '@/types/dog-types';
 import {
@@ -103,7 +104,7 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
         ? `${formatDateMMDDYYYY(show.startDate)} - ${formatDateMMDDYYYY(show.endDate)}`
         : show?.startDate
           ? formatDateMMDDYYYY(show.startDate)
-          : 'TBD';
+          : TO_BE_ANNOUNCED_LABEL;
 
     const receiptDogs = receiptSelectedDogs
       .map(dogId => {
@@ -138,7 +139,7 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
       showName: show?.name || SHOW_NOT_PUBLISHED_LABEL,
       showClub: show?.clubName || '',
       showDate,
-      showLocation: show?.location || 'TBD',
+      showLocation: show?.location || TO_BE_ANNOUNCED_LABEL,
       dogs: receiptDogs,
       totalFees: receiptTotalFees,
       paymentMethod,

@@ -47,7 +47,7 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
   onDogsFiltered,
   onSearchQueryChange,
   onFiltersAppliedChange,
-  placeholder = 'Search by call name, breed, owner, or reg #...',
+  placeholder = 'Search by call name, breed, owner, or registration number...',
   showQuickFilters = true,
   showAdvancedFilters = true,
   className = '',

@@ -1,6 +1,7 @@
 /** Assembles Field Guide presentation metadata around the canonical landing facts. */
 
 import { formatEntryLimit } from '@/features/_shared/landing/entryLimit';
+import { TO_BE_ANNOUNCED_LABEL } from '@/lib/format/fallbackLabels';
 import { useMemo } from 'react';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { useLandingShowData } from '@/features/_shared/landing/useLandingShowData';
@@ -40,26 +41,27 @@ export function useFieldGuideLandingData(
       {
         label: 'DATES',
         value:
-          formatDateRange(shared.trialStartDate, shared.trialEndDate, shared.timezone) || 'TBA',
+          formatDateRange(shared.trialStartDate, shared.trialEndDate, shared.timezone) ||
+          TO_BE_ANNOUNCED_LABEL,
       },
       {
         label: 'OPENS',
         value: shared.entryOpenDate
           ? formatDateInTimezone(shared.entryOpenDate, shared.timezone, 'monthDay')
-          : 'TBA',
+          : TO_BE_ANNOUNCED_LABEL,
       },
       {
         label: 'CLOSES',
         value: shared.entryCloseDate
           ? formatDateInTimezone(shared.entryCloseDate, shared.timezone, 'monthDay')
-          : 'TBA',
+          : TO_BE_ANNOUNCED_LABEL,
         emphasis: true,
       },
       {
         label: 'CONFIRM',
         value: shared.confirmationDate
           ? formatDateInTimezone(shared.confirmationDate, shared.timezone, 'monthDay')
-          : 'TBA',
+          : TO_BE_ANNOUNCED_LABEL,
       },
       { label: 'CAP', value: formatEntryLimit(shared.entryLimit).toUpperCase() },
     ];

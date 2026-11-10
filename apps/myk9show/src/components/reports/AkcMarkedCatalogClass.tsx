@@ -35,7 +35,7 @@ const EXPLAINED_RESULTS: ReadonlySet<string> = new Set([
 
 const COLUMNS: ReadonlyArray<{ label: string; width: string }> = [
   { label: 'Armband', width: '6%' },
-  { label: 'AKC Reg #', width: '10%' },
+  { label: 'AKC Reg. number', width: '10%' },
   { label: 'Date of Birth', width: '9%' },
   { label: 'Registered / Call Name', width: '19%' },
   { label: 'Breed', width: '11%' },

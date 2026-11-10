@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { ArchiveRestore, CheckCircle2, Loader2, Printer, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { formatWeekdayMonthDay } from '@/lib/format/dates';
+import { NOT_RECORDED_LABEL } from '@/lib/format/fallbackLabels';
+import { formatRecordDateTime, formatWeekdayMonthDay } from '@/lib/format/dates';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   buildEmergencyPacketModel,
@@ -194,9 +195,10 @@ export function EmergencyTrialPacketPanel({
                       {packet.delivery.recipientCount} show officials.
                     </p>
                     <p className="mt-1 text-sm">
-                      Generated {new Date(packet.delivery.generatedAt).toLocaleString()} ·{' '}
+                      Generated{' '}
+                      {formatRecordDateTime(packet.delivery.generatedAt) || NOT_RECORDED_LABEL} ·{' '}
                       {packet.delivery.pageCount} pages{' · '}Link expires{' '}
-                      {new Date(packet.delivery.linkExpiresAt).toLocaleString()}
+                      {formatRecordDateTime(packet.delivery.linkExpiresAt) || NOT_RECORDED_LABEL}
                     </p>
                   </div>
                 </div>
@@ -248,7 +250,8 @@ export function EmergencyTrialPacketPanel({
                   <span className="font-medium">{formatWeekdayMonthDay(row.trialDate)}</span>
                   <span className="text-muted-foreground">
                     {' · '}
-                    {row.pageCount} pages · generated {new Date(row.generatedAt).toLocaleString()}
+                    {row.pageCount} pages · generated{' '}
+                    {formatRecordDateTime(row.generatedAt) || NOT_RECORDED_LABEL}
                   </span>
                   {row.printState === 'superseded' && (
                     <p className="text-warning">

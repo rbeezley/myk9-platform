@@ -17,7 +17,6 @@ import { isTrialDayToday } from '@/pages/MyEntriesPage/modules/dayCheckIn';
 import { parseShowDate } from '@/pages/MyEntriesPage/modules/myEntriesStats.helpers';
 import type { SelfCheckinState } from '@/hooks/queries/useSelfCheckinEnabled';
 import type { RunQueueState } from '@myk9/ringside/run-queue';
-import { isCancelledClassStatus } from './ringsideClassStatusMap';
 import { withServerPlace } from '@/utils/showEntryRunQueue';
 import { deriveResultReleaseDisplay } from '@/features/result-card/resultReleaseDisplay';
 
@@ -44,6 +43,12 @@ export function isExhibitorOnlyForAtShow(hasRole: (role: UserRole) => boolean): 
 export interface AtShowClassSummary {
   className: string;
   classStatus: string;
+  /**
+   * MYK9-1847: the class's stored status is `cancelled`. Its own fact, carried from the class
+   * list's `is_cancelled`: `classStatus` here is the ringside-mapped value, where cancelled
+   * reads as `no-status`, so it can never answer this question.
+   */
+  isCancelled?: boolean | undefined;
   resultsReleasedAt?: string | null | undefined;
   expectedStartLabel?: string | undefined;
   /** The class's raw `start_time` (ISO instant or clock string), for ordering only. */
@@ -107,6 +112,8 @@ export interface AtShowEntryDetail {
   trialLabel: string | null;
   /** The class's status, so a notice can tell a running class from a waiting one. */
   classStatus?: string | undefined;
+  /** MYK9-1847: the class is cancelled (see `AtShowClassSummary.isCancelled`). */
+  isCancelled?: boolean | undefined;
   /** The class's `class_order`; breaks ties between classes with equal or unknown starts. */
   classOrder?: number | undefined;
   /** The dog's id, so two dogs sharing a call name stay two dogs. Falls back to the name. */
@@ -219,6 +226,7 @@ export function buildMyAtShowEntryDetails(
       runOrder: entry.runOrder ?? null,
       startTime: classSummary?.startTime ?? null,
       classStatus: classSummary?.classStatus,
+      isCancelled: classSummary?.isCancelled === true,
       classOrder: classSummary?.classOrder,
       trialTimezone: trial?.timezone ?? null,
     });
@@ -239,7 +247,7 @@ export function buildMyAtShowEntryDetails(
 export function deriveAtShowNextAction(detail: AtShowEntryDetail): AtShowEntryNextAction {
   if (detail.isScored) return { kind: 'scored' };
   // MYK9-1847: a cancelled class takes no check-in; the row says Cancelled and links the class.
-  if (isCancelledClassStatus(detail.classStatus)) return { kind: 'view-class' };
+  if (detail.isCancelled === true) return { kind: 'view-class' };
   if (detail.checkInStatus !== 'no-status') return { kind: 'view-class' };
   if (!detail.classId || !detail.className || !detail.hasRunOrder) {
     return { kind: 'wait-running-order' };
@@ -283,7 +291,7 @@ export function deriveAtShowQueueLine(
 ): RunQueueState | { kind: 'pending' } | null {
   if (detail.isScored || NO_PLACE_STATUSES.has(detail.checkInStatus)) return null;
   // MYK9-1847: a cancelled class never runs, so there is no place in line to wait for.
-  if (isCancelledClassStatus(detail.classStatus)) return null;
+  if (detail.isCancelled === true) return null;
   if (!detail.hasRunOrder) return { kind: 'pending' };
   return withServerPlace({ kind: 'waiting-unknown' }, place);
 }

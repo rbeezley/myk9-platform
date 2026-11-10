@@ -241,6 +241,8 @@ export const AtShowClassListPage: React.FC = () => {
         map.set(cls.id, {
           className: cls.class_name,
           classStatus: cls.class_status,
+          // MYK9-1847: the raw cancelled fact; class_status is ringside-mapped (cancelled reads no-status).
+          ...(cls.is_cancelled === true ? { isCancelled: true } : {}),
           ...(cls.start_time
             ? { expectedStartLabel: formatAtShowClassTime(cls.start_time, timeZone) }
             : {}),

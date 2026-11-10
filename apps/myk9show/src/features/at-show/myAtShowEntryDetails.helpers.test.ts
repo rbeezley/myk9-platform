@@ -421,10 +421,10 @@ describe('deriveAtShowNextAction', () => {
   });
 
   it('does not offer check-in for a cancelled class (MYK9-1847)', () => {
-    expect(deriveAtShowNextAction({ ...base, classStatus: 'cancelled' })).toEqual({
+    expect(deriveAtShowNextAction({ ...base, isCancelled: true })).toEqual({
       kind: 'view-class',
     });
-    expect(deriveAtShowNextAction({ ...base, classStatus: 'in_progress' })).toEqual({
+    expect(deriveAtShowNextAction({ ...base, isCancelled: false })).toEqual({
       kind: 'check-in',
     });
   });

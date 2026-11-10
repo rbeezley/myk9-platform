@@ -8,9 +8,19 @@ import type { ReplicatedEntry } from '@/services/replication';
 import { MyEntryRow } from './MyEntryRow';
 import { buildMyAtShowEntryDetails, type AtShowClassSummary } from './myAtShowEntryDetails.helpers';
 
-function renderRow(classStatus: string) {
+function renderRow(isCancelled: boolean) {
+  // The class list passes the ringside-mapped status (cancelled reads 'no-status') plus the
+  // separate isCancelled fact, exactly as here.
   const classes: ReadonlyMap<string, AtShowClassSummary> = new Map([
-    ['class-1', { className: 'Container Novice A', classStatus, selfCheckinState: 'allowed' }],
+    [
+      'class-1',
+      {
+        className: 'Container Novice A',
+        classStatus: 'no-status',
+        isCancelled,
+        selfCheckinState: 'allowed',
+      },
+    ],
   ]);
   const entry: ReplicatedEntry = {
     id: 'e1',
@@ -40,14 +50,14 @@ function renderRow(classStatus: string) {
 
 describe('MyEntryRow in a cancelled class', () => {
   it('shows Cancelled and no check-in button', () => {
-    renderRow('cancelled');
+    renderRow(true);
     expect(screen.getByText('Cancelled')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /check in/i })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /view class/i })).toBeInTheDocument();
   });
 
   it('offers check-in again when the class is no longer cancelled', () => {
-    renderRow('in_progress');
+    renderRow(false);
     expect(screen.queryByText('Cancelled')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /check in/i })).toBeInTheDocument();
   });

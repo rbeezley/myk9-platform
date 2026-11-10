@@ -133,7 +133,7 @@ describe('RefundAllEntriesCard — refund (cancelled show)', () => {
     // only when needed).
     await user.click(screen.getByRole('button', { name: /view details/i }));
     expect(await screen.findByText(/entry c/i)).toBeInTheDocument();
-    expect(screen.getByText(/offline_paid/i)).toBeInTheDocument();
+    expect(screen.getByText(/paid by cash or check/i)).toBeInTheDocument();
   });
 
   it('identifies every skipped and failed entry in a mixed outcome (spec: refund-result-transparency)', async () => {
@@ -161,14 +161,30 @@ describe('RefundAllEntriesCard — refund (cancelled show)', () => {
     await screen.findByText(/Refunded 1 entry across 1 payment/i);
     await user.click(screen.getByRole('button', { name: /view details/i }));
 
-    // Skipped entry: identity + reason, not just a count.
-    expect(await screen.findByText(/skip-entry/i)).toBeInTheDocument();
-    expect(screen.getByText(/offline_paid/i)).toBeInTheDocument();
+    // Skipped entry: identity + plain reason, not just a count.
+    expect(await screen.findByText(/entry skip-entry/i)).toBeInTheDocument();
+    expect(screen.getByText(/paid by cash or check/i)).toBeInTheDocument();
 
-    // Failed payment intent: entry ids + error message, not just a count.
-    expect(screen.getByText(/pi_bad/i)).toBeInTheDocument();
-    expect(screen.getByText(/failed-entry/i)).toBeInTheDocument();
-    expect(screen.getByText(/card_declined: insufficient funds/i)).toBeInTheDocument();
+    // Failed payment: a plain line plus its entry ids. A "failed" row can be a
+    // refund that went through (entry stamp failed), so nothing says it was not
+    // refunded, and the raw id/error stay out of the main line.
+    expect(
+      screen.getByText(
+        'This payment may not have been refunded. Run Refund all again: it will not refund anyone twice.'
+      )
+    ).toBeVisible();
+    expect(screen.getByText(/entry failed-entry/i)).toBeInTheDocument();
+    expect(screen.queryByText(/payment (was |is |has )?not (been )?refunded/i)).toBeNull();
+    expect(screen.queryByText(/pi_bad/)).toBeNull();
+    expect(screen.queryByText(/card_declined/)).toBeNull();
+    expect(screen.queryByText(/offline_paid/)).toBeNull();
+
+    // The exact failure stays available for support.
+    await user.click(screen.getByRole('button', { name: /details for support/i }));
+    expect(
+      await screen.findByText('pi_bad: card_declined: insufficient funds')
+    ).toBeInTheDocument();
+    expect(screen.getByText('Skipped offline_paid: skip-entry')).toBeInTheDocument();
   });
 
   it('shows the summary with no empty detail sections on a clean run (spec: refund-result-transparency)', async () => {

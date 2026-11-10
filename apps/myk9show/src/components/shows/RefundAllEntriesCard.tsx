@@ -117,7 +117,7 @@ export function RefundAllEntriesCard({ showId }: RefundAllEntriesCardProps) {
           else toast.info('Nothing to refund.');
         } else if (failed > 0) {
           toast.warning(
-            `Refunded ${entriesRefunded} ${noun(entriesRefunded)}, ${failed} failed — see details.`
+            `Refunded ${entriesRefunded} ${noun(entriesRefunded)}. ${failed} ${failed === 1 ? 'payment' : 'payments'} may not have been refunded: see the details.`
           );
         } else {
           toast.success(`Refunded the entry fees of ${entriesRefunded} ${noun(entriesRefunded)}.`);
@@ -195,7 +195,9 @@ export function RefundAllEntriesCard({ showId }: RefundAllEntriesCardProps) {
                 )}
                 {result.summary.failed > 0 && (
                   <p className="text-destructive">
-                    {result.summary.failed} failed — retry is safe (refunds are not duplicated).
+                    {result.summary.failed} {result.summary.failed === 1 ? 'payment' : 'payments'}{' '}
+                    may not have been refunded. Run Refund all again: it will not refund anyone
+                    twice.
                   </p>
                 )}
                 <RefundResultDetail result={result} />

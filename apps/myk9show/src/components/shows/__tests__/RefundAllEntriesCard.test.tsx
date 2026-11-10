@@ -174,7 +174,11 @@ describe('RefundAllEntriesCard — refund (cancelled show)', () => {
       )
     ).toBeVisible();
     expect(screen.getByText(/entry failed-entry/i)).toBeInTheDocument();
-    expect(screen.queryByText(/payment (was |is |has )?not (been )?refunded/i)).toBeNull();
+    expect(
+      screen.queryByText(
+        /payments? (was|were|is|are|has|have) not (been )?refunded|no refunds issued|\d+ failed\b/i
+      )
+    ).toBeNull();
     expect(screen.queryByText(/pi_bad/)).toBeNull();
     expect(screen.queryByText(/card_declined/)).toBeNull();
     expect(screen.queryByText(/offline_paid/)).toBeNull();

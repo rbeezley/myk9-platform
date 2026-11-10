@@ -235,6 +235,32 @@ describe('RefundAllEntriesCard — refund (cancelled show)', () => {
     expect(vi.mocked(toast.warning).mock.calls[0][0]).toMatch(/no refunds issued/i);
   });
 
+  it('never claims nothing was refunded when a payment failed (MYK9-1837)', async () => {
+    // A "failed" row can be a refund that went through whose entry stamp did not save.
+    mockedInvoke.mockResolvedValue({
+      data: {
+        refunded: [],
+        skipped: [],
+        failed: [{ paymentIntentId: 'pi_bad', entryIds: ['e1'], error: 'stamp failed' }],
+        summary: { intentsRefunded: 0, entriesRefunded: 0, skipped: 0, failed: 1 },
+      },
+      error: null,
+    });
+    const user = userEvent.setup();
+    render(<RefundAllEntriesCard showId="show-1" />);
+
+    await user.click(await screen.findByRole('button', { name: /refund all entries/i }));
+    await user.click(screen.getByRole('button', { name: /yes, refund/i }));
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        '1 payment may not have been refunded. See the details, then run Refund all again: it will not refund anyone twice.'
+      )
+    );
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(toast.error).not.toHaveBeenCalledWith(expect.stringMatching(/no refunds issued/i));
+  });
+
   // MYK9-1824: a failed Refund all can follow refunds that went through. The secretary
   // sees a fixed sentence (never the server's text) and a known code keeps its message.
   async function runRefundAll() {

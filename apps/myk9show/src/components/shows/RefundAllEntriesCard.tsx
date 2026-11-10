@@ -105,8 +105,13 @@ export function RefundAllEntriesCard({ showId }: RefundAllEntriesCardProps) {
         const { entriesRefunded, skipped, failed } = data.summary;
         const noun = (n: number) => `entr${n === 1 ? 'y' : 'ies'}`;
         if (entriesRefunded === 0) {
-          // Nothing was actually refunded — never a success toast.
-          if (failed > 0) toast.error(`No refunds issued — ${failed} failed.`);
+          // Nothing was recorded as refunded, so never a success toast. A failed row
+          // can still be a refund that went through (entry stamp did not save), so the
+          // failed copy makes no claim either way and points to the safe re-run.
+          if (failed > 0)
+            toast.error(
+              `${failed} ${failed === 1 ? 'payment' : 'payments'} may not have been refunded. See the details, then run Refund all again: it will not refund anyone twice.`
+            );
           else if (skipped > 0)
             toast.warning(`No refunds issued — ${skipped} skipped, handle manually.`);
           else toast.info('Nothing to refund.');

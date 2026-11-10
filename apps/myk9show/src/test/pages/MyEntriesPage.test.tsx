@@ -1649,6 +1649,27 @@ describe('Wait list positions with no waitlisted entry row (MYK9-417)', () => {
   });
 
   describe('declining an offered spot (MYK9-1839)', () => {
+    // Confirming runs the page's real `onDecline`, which sets `?waitlistOffer=` and
+    // fires the focus-scroll effect; jsdom has no `scrollIntoView`.
+    let priorScrollIntoView: PropertyDescriptor | undefined;
+    beforeEach(() => {
+      priorScrollIntoView = Object.getOwnPropertyDescriptor(
+        HTMLElement.prototype,
+        'scrollIntoView'
+      );
+      Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+        configurable: true,
+        value: vi.fn(),
+      });
+    });
+    afterEach(() => {
+      if (priorScrollIntoView) {
+        Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', priorScrollIntoView);
+      } else {
+        Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView');
+      }
+    });
+
     const seedOffer = () => {
       const decline = {
         mutate: vi.fn(),

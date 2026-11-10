@@ -311,6 +311,7 @@ jobs:
         run: |
           pnpm qa:scripts-test-wiring:test
           pnpm qa:code-quality-ratchet:test
+          pnpm qa:em-dash-ratchet:test
           pnpm qa:db-drift:test
           pnpm qa:isolated-e2e:test
           pnpm qa:rls-smoke:test
@@ -321,7 +322,9 @@ jobs:
           pnpm qa:go-live:phase4:test
 
       - name: Code-quality ratchets
-        run: pnpm qa:code-quality-ratchet
+        run: |
+          pnpm qa:code-quality-ratchet
+          pnpm qa:em-dash-ratchet
 
       # MYK9-1709: SC2318 only (`local s="$1" n=${#s}` reads the caller's s).
       - name: Shellcheck SC2318 (local self-reference)

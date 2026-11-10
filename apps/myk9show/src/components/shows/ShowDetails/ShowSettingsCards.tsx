@@ -18,14 +18,15 @@ const ShowVenueWifi: React.FC<{ showId: string }> = ({ showId }) => {
   if (isError && !data) {
     return (
       <div role="alert" className="space-y-2 rounded-lg border bg-card p-4 text-sm">
-        <p>We couldn't load the venue WiFi. Please try again.</p>
+        <p>We couldn't load the venue Wi-Fi. Please try again.</p>
         <Button type="button" variant="outline" size="sm" onClick={() => void refetch()}>
           Try again
         </Button>
       </div>
     );
   }
-  if (!data) return <Skeleton className="h-32 w-full rounded-lg" aria-label="Loading venue WiFi" />;
+  if (!data)
+    return <Skeleton className="h-32 w-full rounded-lg" aria-label="Loading venue Wi-Fi" />;
   return (
     <VenueWifiCard
       key={`${data.venueWifiNetwork ?? ''}|${data.venueWifiPassword ?? ''}`}

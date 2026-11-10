@@ -17,7 +17,7 @@ export function DeepLinkLookupAlerts({
             Opening that user needs a connection. It will open as soon as you are back online.
           </span>
           <Button variant="outline" className="min-h-11 shrink-0" onClick={retryLookup}>
-            Retry
+            Try again
           </Button>
         </AlertDescription>
       </Alert>
@@ -29,7 +29,7 @@ export function DeepLinkLookupAlerts({
         <AlertDescription className="flex items-center justify-between gap-3">
           <span>Could not look up that user. Check your connection and try again.</span>
           <Button variant="outline" className="min-h-11 shrink-0" onClick={retryLookup}>
-            Retry
+            Try again
           </Button>
         </AlertDescription>
       </Alert>

@@ -116,7 +116,7 @@ export const RegistrationNeededTab: React.FC<RegistrationNeededTabProps> = ({
             </p>
             {onRetry && (
               <Button className="mt-4 min-h-11" onClick={onRetry}>
-                Retry
+                Try again
               </Button>
             )}
           </CardContent>

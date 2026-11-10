@@ -458,7 +458,7 @@ const EntryManagementPage: React.FC = () => {
                   <AlertDescription>{loadError}</AlertDescription>
                 </Alert>
                 <Button onClick={() => loadEntries(selectedShowId)} disabled={isLoading}>
-                  Retry
+                  Try again
                 </Button>
               </CardContent>
             </Card>

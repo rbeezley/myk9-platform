@@ -92,7 +92,7 @@ export function ShowStatsSubTab({ showId }: ShowStatsSubTabProps) {
         <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
           Judge filter unavailable, try again.
           <Button variant="outline" size="sm" onClick={() => void refetch()}>
-            Retry
+            Try again
           </Button>
         </p>
       )}

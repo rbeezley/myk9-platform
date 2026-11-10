@@ -166,7 +166,7 @@ export function EntryStatusPopover({
             onClick={() => void runAction(failedAction)}
             aria-label="Retry status update"
           >
-            Retry
+            Try again
           </button>
         </div>
       )}

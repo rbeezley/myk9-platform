@@ -147,7 +147,7 @@ export const ClubNumbersDialog: React.FC<ClubNumbersDialogProps> = ({
                 : 'Club numbers need a connection. Connect, then try again.'}
             </p>
             <Button type="button" variant="outline" onClick={() => void refetch()}>
-              Retry
+              Try again
             </Button>
           </div>
         )}

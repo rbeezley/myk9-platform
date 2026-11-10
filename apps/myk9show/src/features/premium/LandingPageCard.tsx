@@ -48,13 +48,13 @@ export function LandingPageCard({ showId, showStyle }: LandingPageCardProps) {
         copyViaFallback();
       }
       setCopied(true);
-      notifications.success('URL copied', { description: 'Share it with exhibitors.' });
+      notifications.success('Link copied', { description: 'Share it with exhibitors.' });
       setTimeout(() => setCopied(false), 2000);
     } catch {
       try {
         copyViaFallback();
         setCopied(true);
-        notifications.success('URL copied', { description: 'Share it with exhibitors.' });
+        notifications.success('Link copied', { description: 'Share it with exhibitors.' });
         setTimeout(() => setCopied(false), 2000);
       } catch {
         notifications.error('Could not copy — please copy the URL manually.');

@@ -254,7 +254,7 @@ export const ComplimentaryPremiumSection: React.FC<ComplimentaryPremiumSectionPr
                 size="sm"
                 onClick={() => historyQuery.refetch()}
               >
-                Retry
+                Try again
               </Button>
             </div>
           ) : (

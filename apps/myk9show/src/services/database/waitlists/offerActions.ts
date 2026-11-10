@@ -52,7 +52,7 @@ export async function refreshOfferRowsInReplica(waitlistEntryId: string): Promis
     if (data.promoted_entry_id) {
       await replicatedEntriesTable.refreshServerChangedEntries([data.promoted_entry_id], {
         insert: 'if-show-loaded',
-        reason: 'wait list offer entry changed by the server',
+        reason: 'waitlist offer entry changed by the server',
       });
     }
   } catch (err) {

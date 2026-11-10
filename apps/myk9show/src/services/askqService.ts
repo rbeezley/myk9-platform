@@ -218,7 +218,7 @@ const ASKQ_FALLBACK_MESSAGE = "We couldn't get an answer. Try again.";
 
 const ASKQ_REFUSAL_MESSAGES: Record<AskQRequestFailure, string> = {
   'signed-out': 'Your session has expired. Sign in again, then ask your question.',
-  'account-required': 'AskQ needs an account. Create an account or sign in to use it.',
+  'account-required': 'AskQ needs an account. Create account or sign in to use it.',
   'too-long': `That question is too long. Shorten it to ${ASKQ_MAX_MESSAGE_LENGTH} characters or fewer.`,
 };
 

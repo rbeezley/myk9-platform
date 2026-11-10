@@ -289,7 +289,7 @@ export function EntryManagementCockpit({
               className="min-h-11"
               onClick={onRetryTrialClasses}
             >
-              Retry
+              Try again
             </Button>
           )}
         </div>

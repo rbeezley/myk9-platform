@@ -3,7 +3,7 @@
  *
  * MYK9-515. A full chip rendered a red "Full" badge and a disabled checkbox and
  * nothing else. The exhibitor was not told whether "full" meant the class, the
- * judge's day or the trial; whether a wait list existed; or what to do next. A
+ * judge's day or the trial; whether a waitlist existed; or what to do next. A
  * disabled control with no explanation is the affordance INTENT.md's exhibitor
  * section exists to prevent.
  *
@@ -152,7 +152,7 @@ export function buildFullChipReason(input: FullReasonInput): string | null {
   if (!target || !target.isFull) return null;
 
   const opening = whatIsFull(target, availability);
-  const waitlist = target.allowsWaitlist ? ' — you can join the wait list.' : '.';
+  const waitlist = target.allowsWaitlist ? ' — you can join the waitlist.' : '.';
 
   const alternative = openAlternative(target, availability);
   if (alternative) return `${opening}${waitlist} ${describeAlternative(alternative)}`;

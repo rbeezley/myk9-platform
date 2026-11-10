@@ -224,7 +224,7 @@ class ErrorClassificationService {
     network: [
       {
         type: 'retry',
-        label: 'Retry',
+        label: 'Try again',
         description: 'Check your internet connection and try again.',
         automated: true,
         priority: 1,

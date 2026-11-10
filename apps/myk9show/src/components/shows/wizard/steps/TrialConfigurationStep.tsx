@@ -217,7 +217,7 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
                 onClick={() => void onRetryExistingTrials?.()}
                 disabled={isExistingTrialsLoading}
               >
-                Retry
+                Try again
               </Button>
             </div>
           ) : !canAddTrial ? (

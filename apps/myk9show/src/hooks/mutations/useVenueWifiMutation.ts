@@ -34,7 +34,7 @@ export function useVenueWifiMutation() {
     },
     onSuccess: (_, { showId }) => {
       queryClient.invalidateQueries({ queryKey: showQueryKeys.detail(showId) });
-      notifications.success('WiFi info saved');
+      notifications.success('Wi-Fi info saved');
     },
     onError: () => {
       notifications.error(SHOW_SETTINGS_COPY.wifiFailed);

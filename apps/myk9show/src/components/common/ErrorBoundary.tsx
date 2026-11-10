@@ -241,7 +241,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                 {canRetry && (
                   <Button size="sm" variant="outline" onClick={this.handleRetry}>
                     <RefreshCw className="h-3 w-3 mr-1" />
-                    Retry
+                    Try again
                   </Button>
                 )}
                 <Button size="sm" variant="outline" onClick={this.handleReload}>
@@ -270,7 +270,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                 onClick={this.handleRetry}
                 className="text-xs px-2 py-1 bg-card border rounded hover:bg-gray-50"
               >
-                Retry
+                Try again
               </button>
             )}
           </div>

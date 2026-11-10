@@ -327,7 +327,7 @@ export default function ResultsTab({ showStatsLink }: { showStatsLink?: ReactNod
             try again.
           </span>
           <Button type="button" variant="outline" className="min-h-11" onClick={retry}>
-            Retry
+            Try again
           </Button>
         </AlertDescription>
       </Alert>

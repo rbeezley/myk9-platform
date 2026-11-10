@@ -194,7 +194,7 @@ export function SubscriptionManager({
             — try again.
           </p>
           <Button variant="outline" size="sm" className="mt-3" onClick={() => refetch()}>
-            Retry
+            Try again
           </Button>
         </div>
       </div>

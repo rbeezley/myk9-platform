@@ -61,7 +61,29 @@ The exhibitor route (picks from your own dogs) survives for a manager who is not
 
 Late-entry mode does **not** relax the entry-close deadline. That exemption is RBAC — `getEntryCloseSubmitBlocker` exits early for any non-exhibitor workflow and deliberately ignores the URL flag, since any exhibitor can append it.
 
-## Nouns are unaffected
+## Nouns
+
+One word per thing, in visible text only (MYK9-1857, from the MYK9-1819 audit). Code identifiers, database columns, routes and analytics keys keep their names. Guard: `apps/myk9show/src/test/ci/visibleWording.test.ts` fails on a visible "wait list" / "wait-list" and on a "Retry" button label; the other rows are applied by the sibling issues and by review.
+
+| Thing                        | Say                                                                         | Not                                                                                 |
+| ---------------------------- | --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| The queue for a full class   | **waitlist** ("Leave waitlist")                                             | wait list, wait-list                                                                |
+| Run an action again          | **Try again**                                                               | Retry                                                                               |
+| The platform's cut           | **service fee**                                                             | platform fee, card processing fee                                                   |
+| The club's money account     | **bank account**                                                            | payment account, Stripe                                                             |
+| Who to contact               | **the show secretary** (show problems); **myK9Show support** (app problems) | trial secretary, show organizer, show team, the club, the administrator, club admin |
+| Making an account            | **Create account**                                                          | Sign up, Sign Up, Create an account                                                 |
+| Pay by card                  | **Credit/Debit Card**                                                       | Credit Card, Credit/Debit Card (Online), Credit/Debit Card (Online Payment)         |
+| Pay by check                 | **Check (pay at show)**                                                     | Check (Pay at Show), Check at Show                                                  |
+| Leaving a class              | **Pull or withdraw...** (leaving a waitlist: **Leave waitlist**)            | Leave class...                                                                      |
+| Taking a dog out on show day | **Pull**                                                                    | Pull / no-show, absent, scratched                                                   |
+| A copied link                | **Link copied**                                                             | URL copied, Link copied!                                                            |
+| Wireless network             | **Wi-Fi**                                                                   | WiFi                                                                                |
+| An entry                     | **entry**                                                                   | registration (kept only for a dog's registry number)                                |
+| A free entry                 | **Free entry** (button: **Make free**)                                      |                                                                                     |
+| Ending the show              | **Close the show**; "finish" is kept for a class                            | Finish the show                                                                     |
+
+Owner calls: a free entry is "Free entry" with the button "Make free"; closing a show is "Close the show", while "finish" stays for a class.
 
 `entry` / `entries` stays the noun for the record, everywhere it already appears: **My Entries**, **5 Entries**, **Entry Fees**, **Entries close Dec 1**, **Entries Management**. The rule governs verb phrases only.
 

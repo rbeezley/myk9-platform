@@ -9,7 +9,7 @@ export function ResultsRefreshFailedAlert({ onRetry }: { onRetry: () => void }) 
       <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
         <span>What is shown may be out of date. Check your connection and try again.</span>
         <Button type="button" variant="outline" className="min-h-11" onClick={onRetry}>
-          Retry
+          Try again
         </Button>
       </AlertDescription>
     </Alert>

@@ -155,7 +155,7 @@ export const actionNotifications = {
     const opts: NotificationOptions = {
       description: `Failed to${actionText}. Please check your connection and try again.`,
     };
-    if (onRetry) opts.action = { label: 'Retry', onClick: onRetry };
+    if (onRetry) opts.action = { label: 'Try again', onClick: onRetry };
     return notifications.error('Network Error', opts);
   },
 

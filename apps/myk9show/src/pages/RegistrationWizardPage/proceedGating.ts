@@ -103,7 +103,7 @@ export function proceedBlockedReason(ctx: ProceedGatingContext): string | null {
         return 'Checking class availability. Please wait, then try again.';
       }
       if (ctx.blockedClassCount > 0) {
-        return 'Remove the full class that does not accept a wait list to continue.';
+        return 'Remove the full class that does not accept a waitlist to continue.';
       }
       if (ctx.totalFees > 0 && !ctx.hasPaymentMethod) {
         return 'Choose a payment method to continue.';

@@ -9,7 +9,7 @@ export function PrintStatusUnavailable({ onRetry }: { onRetry: () => void }) {
     >
       <span>Print status unknown. You can still print; Retry checks again.</span>
       <Button type="button" variant="outline" size="sm" className="min-h-11" onClick={onRetry}>
-        Retry
+        Try again
       </Button>
     </div>
   );

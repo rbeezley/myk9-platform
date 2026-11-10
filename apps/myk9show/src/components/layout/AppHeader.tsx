@@ -318,7 +318,7 @@ const AppHeader: React.FC = () => {
                   <Link to="/sign-in">Sign In</Link>
                 </Button>
                 <Button asChild size="touch">
-                  <Link to="/sign-up">Sign Up</Link>
+                  <Link to="/sign-up">Create account</Link>
                 </Button>
               </>
             )}

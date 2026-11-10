@@ -78,7 +78,7 @@ export function SelfCheckinTool({ showId, trials, classes }: SelfCheckinToolProp
           aria-label="Retry self check-in settings"
           onClick={retryAll}
         >
-          Retry
+          Try again
         </Button>
       </div>
     );
@@ -98,7 +98,7 @@ export function SelfCheckinTool({ showId, trials, classes }: SelfCheckinToolProp
             aria-label="Retry self check-in settings"
             onClick={retryAll}
           >
-            Retry
+            Try again
           </Button>
         </div>
       )}

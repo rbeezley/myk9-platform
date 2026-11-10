@@ -13,7 +13,7 @@ export function ShareButton({ shareData, className = '' }: ShareButtonProps) {
     try {
       const result = await shareOrCopy(shareData);
       if (result === 'copied') {
-        toast.success('Link copied!');
+        toast.success('Link copied');
       }
     } catch {
       toast.error('Unable to share');

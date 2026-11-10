@@ -6,12 +6,9 @@ import {
 } from './documentContext.ts';
 
 const QUESTION_MODES: AskQQuestionMode[] = ['app-help', 'rules', 'show-data'];
-const RULES_QUESTION_PATTERN =
-  /\b(rule|rules|regulation|regulations|requirement|requirements|allowed|fault|faults|max(?:imum)? time|time limit|time limits|judge(?:s)? briefing|hide|hides|odor|container|containers|interior|exterior|buried|handler discrimination|excellent|novice|advanced|master|detective)\b/i;
 
 export interface ParsedAskQRouting {
   ok: true;
-  questionMode: AskQQuestionMode | null;
   rulebookScope?: AskQRulebookScope;
 }
 
@@ -27,10 +24,13 @@ export interface RulebookResolution {
   clarification: string | null;
 }
 
+/**
+ * questionMode is still validated (an unknown value is a 400) so the deployed client
+ * keeps working, but it no longer restricts sources: the server classifies each question.
+ */
 export function parseAskQRouting(
   questionMode: unknown,
-  rulebookScope: unknown,
-  supportMode: boolean
+  rulebookScope: unknown
 ): AskQRoutingParseResult {
   if (questionMode !== undefined && questionMode !== null && !isAskQQuestionMode(questionMode)) {
     return { ok: false, error: 'Invalid questionMode' };
@@ -41,27 +41,15 @@ export function parseAskQRouting(
 
   return {
     ok: true,
-    questionMode: isAskQQuestionMode(questionMode) ? questionMode : supportMode ? 'app-help' : null,
     ...(parsedScope.rulebookScope ? { rulebookScope: parsedScope.rulebookScope } : {}),
   };
 }
 
-/**
- * A request with no questionMode and a verified show is "This show", the mode the
- * panel displays by default. Old clients never send the mode, so the server decides.
- */
-export function resolveQuestionModeForShow(
-  requested: AskQQuestionMode | null,
-  hasVerifiedShowContext: boolean
-): AskQQuestionMode | null {
-  return requested === null && hasVerifiedShowContext ? 'show-data' : requested;
-}
-
+/** Picks the rulebook for a question already classified as a rules question. */
 export function resolveRulebookContext(input: {
   allRulebooks: AskQRulebookAsset[];
   showRulebooks: AskQRulebookAsset[];
   hasVerifiedShowContext: boolean;
-  questionMode: AskQQuestionMode | null;
   message?: string;
   rulebookScope?: AskQRulebookScope;
 }): RulebookResolution {
@@ -78,15 +66,7 @@ export function resolveRulebookContext(input: {
     input.hasVerifiedShowContext,
     { explicitScope }
   );
-  const shouldResolveAsRules =
-    input.questionMode === 'rules' ||
-    (input.questionMode === null && isLikelyRulesQuestion(input.message));
-
-  if (!shouldResolveAsRules) {
-    return { rulebooks, clarification: null };
-  }
-
-  if (rulebooks.length === 1) {
+  if (rulebooks.length === 1 || availableRulebooks.length === 0) {
     return { rulebooks, clarification: null };
   }
 
@@ -103,26 +83,6 @@ export function resolveRulebookContext(input: {
     rulebooks: [],
     clarification: `Which rulebook should I use: ${formatRulebookOptions(availableRulebooks)}?`,
   };
-}
-
-export function buildModePrompt(questionMode: AskQQuestionMode | null): string {
-  if (questionMode === 'app-help') {
-    return `\nQUESTION MODE: App help.\n- Answer only from verified_user_guides.\n- Do not use live show-data tools.\n- Do not answer official rules questions from rulebooks in this mode; ask the user to switch to Rules.\n`;
-  }
-
-  if (questionMode === 'rules') {
-    return `\nQUESTION MODE: Rules.\n- Answer only from selected_rulebook.\n- Start rules answers with a concise source label, for example: "Using AKC Scent Work rules:".\n- Do not use live show-data tools or verified_user_guides.\n- If selected_rulebook is empty or ambiguous, ask which organization and sport rulebook to use.\n`;
-  }
-
-  if (questionMode === 'show-data') {
-    return `\nQUESTION MODE: This show.\n- Use live show-data tools for results, entries, classes, trials, and schedules.\n- Do not answer official rules questions from rulebooks or app-help questions from guides in this mode; ask the user to switch modes.\n`;
-  }
-
-  return '';
-}
-
-export function isLikelyRulesQuestion(message: string | undefined): boolean {
-  return Boolean(message?.trim() && RULES_QUESTION_PATTERN.test(message));
 }
 
 function isAskQQuestionMode(value: unknown): value is AskQQuestionMode {

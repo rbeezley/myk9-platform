@@ -135,6 +135,28 @@ describe('computeSetupReadinessSignals', () => {
     });
   });
 
+  it('raises the judges reminder for a new show whose classes have no judge (MYK9-1853)', () => {
+    for (const judgeName of [undefined, '', 'TBD']) {
+      const signals = computeSetupReadinessSignals({
+        show: show(),
+        trials: [trial()],
+        classes: [cls({ judgeName: judgeName as string }), cls({ id: 'c2', judgeName: 'Jane' })],
+        judges: [],
+      });
+      expect(signals.map(s => s.id)).toContain('judges-missing');
+    }
+  });
+
+  it('does not raise the judges reminder when every class names a judge (MYK9-1853)', () => {
+    const signals = computeSetupReadinessSignals({
+      show: show(),
+      trials: [trial()],
+      classes: [cls(), cls({ id: 'c2', judgeName: 'Pat Lee' })],
+      judges: [],
+    });
+    expect(signals.map(s => s.id)).not.toContain('judges-missing');
+  });
+
   it('treats classes-each-have-judge as satisfying judges-missing', () => {
     const signals = computeSetupReadinessSignals({
       show: show(),

@@ -15,15 +15,16 @@ function factsFor(judgeName: string | null) {
   } as Parameters<typeof buildFocusedClassFacts>[0]);
 }
 
-describe('focused class facts unset judge (MYK9-1846)', () => {
-  it('prints Judge to be announced for a stored TBD, never a doubled Judge', () => {
-    const facts = factsFor('TBD');
-    expect(facts).toContain('Judge to be announced');
+describe('focused class facts unset judge (MYK9-1853)', () => {
+  it('prints the real name with the Judge prefix, never a doubled Judge', () => {
+    const facts = factsFor('Pat Lee');
+    expect(facts).toContain('Judge Pat Lee');
     expect(facts.join(' ')).not.toMatch(/Judge Judge|Judge TBD/);
   });
 
-  it('prints the real name with the Judge prefix, and nothing for none', () => {
-    expect(factsFor('Pat Lee')).toContain('Judge Pat Lee');
-    expect(factsFor(null).some(fact => fact.startsWith('Judge'))).toBe(false);
+  it('leaves the judge out for null, blank and the legacy TBD alike', () => {
+    for (const unset of [null, '', '  ', 'TBD']) {
+      expect(factsFor(unset).some(fact => fact.includes('Judge'))).toBe(false);
+    }
   });
 });

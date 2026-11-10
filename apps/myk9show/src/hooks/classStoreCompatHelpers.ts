@@ -42,7 +42,7 @@ export function buildClassFromTemplate(
     trialNumber,
     classOrder: (index + 1).toString(),
     status: 'Scheduled' as const,
-    judge: 'TBD',
+    judge: '',
     className: genClass.className,
     classNumber: genClass.classNumber,
     element: genClass.element,

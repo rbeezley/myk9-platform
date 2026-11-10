@@ -1,4 +1,4 @@
-import { judgeNameOrUnsetLabel } from '@/utils/classJudgeDisplay';
+import { isUnsetJudgeName, judgeNameOrUnsetLabel } from '@/utils/classJudgeDisplay';
 /**
  * The Show Desk schedule filter as one unit (MYK9-1785): Status (cockpitStatusFilter.ts), Judge,
  * Element and Level. Within a group a class shows when it matches ANY ticked value;
@@ -53,15 +53,16 @@ export function serializeCockpitList(values: readonly string[] | undefined): str
 }
 
 export function filterFactsOf(cls: SecretaryCockpitClass): CockpitFilterFacts {
-  const judgeValue = cls.judgeId || cls.judgeName || null;
+  const namedJudge = isUnsetJudgeName(cls.judgeName) ? null : cls.judgeName;
+  const judgeValue = cls.judgeId || namedJudge || null;
   return {
     lifecycle: cls.lifecycle ?? null,
     closeout: cls.closeout ?? 'none',
     judge: judgeValue
       ? {
           value: judgeValue,
-          label: cls.judgeName
-            ? judgeNameOrUnsetLabel(cls.judgeName, { compact: true })
+          label: namedJudge
+            ? judgeNameOrUnsetLabel(namedJudge, { compact: true })
             : 'Assigned judge',
         }
       : { value: UNASSIGNED_JUDGE, label: 'Unassigned' },

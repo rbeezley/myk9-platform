@@ -118,6 +118,11 @@ export function isUnsetJudgeName(name: string | null | undefined): boolean {
   return trimmed === '' || trimmed === UNASSIGNED_LABEL;
 }
 
+/** The value a table sorts a judge column by: the trimmed name, or undefined so unset judges sort last (use with `sortUndefined: 'last'`). */
+export function judgeSortValue(name: string | null | undefined): string | undefined {
+  return isUnsetJudgeName(name) ? undefined : (name as string).trim();
+}
+
 /** The judge name to show on a screen, or the label (short when `compact`, bare when `bare`) when unset. */
 export function judgeNameOrUnsetLabel(
   name: string | null | undefined,

@@ -90,6 +90,25 @@ describe('JudgesSchedule', () => {
     expect(rows[2]).toHaveTextContent('Dr. Jane Smith');
   });
 
+  it('sorts classes with no judge (blank, legacy TBD) after named judges (MYK9-1853)', () => {
+    render(
+      <JudgesSchedule
+        {...baseProps}
+        sortOrder="judge-name"
+        allClasses={[
+          { id: 'c3', trialId: 't1', element: 'Exterior', level: 'Novice', judgeName: 'TBD' },
+          { id: 'c4', trialId: 't1', element: 'Vehicle', level: 'Novice', judgeName: '' },
+          ...baseProps.allClasses,
+        ]}
+      />
+    );
+    const rows = screen.getAllByRole('row');
+    expect(rows[1]).toHaveTextContent('Alice Brown');
+    expect(rows[2]).toHaveTextContent('Dr. Jane Smith');
+    expect(rows[3]).toHaveTextContent('Exterior');
+    expect(rows[4]).toHaveTextContent('Vehicle');
+  });
+
   it("titles a UKC show with UKC's own sport name", () => {
     render(<JudgesSchedule {...baseProps} organization="UKC" />);
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(

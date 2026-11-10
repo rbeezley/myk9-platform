@@ -1,4 +1,4 @@
-import { judgeLine } from '@/utils/classJudgeDisplay';
+import { isUnsetJudgeName, judgeLine } from '@/utils/classJudgeDisplay';
 import { Link } from 'react-router-dom';
 import {
   Package,
@@ -109,7 +109,11 @@ function EntryRow({ entry, showId }: EntryRowProps) {
   const { icon: Icon, bg, fg } = getElementIcon(entry.element);
   const href = `/shows/${showId}/trials/${entry.trialId}/classes/${entry.classId}`;
 
-  const meta = [entry.dayLabel, entry.startTime, entry.judgeName ? judgeLine(entry.judgeName) : '']
+  const meta = [
+    entry.dayLabel,
+    entry.startTime,
+    !isUnsetJudgeName(entry.judgeName) ? judgeLine(entry.judgeName) : '',
+  ]
     .filter(Boolean)
     .join(' · ');
 

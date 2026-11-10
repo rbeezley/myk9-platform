@@ -6,29 +6,24 @@ import { supabase } from '@/lib/supabase';
 import { EntryStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { buildLifecycleDecisionCorrectionDraft } from './render';
-import { buildLifecycleEmailIdempotencyKey, type LifecycleEmailStepType } from './types';
 import { LifecycleEmailPreviewDialog } from './LifecycleEmailPreviewDialog';
+import {
+  decisionEmailContext,
+  isDecisionEmailSuperseded,
+  type DecisionStepType,
+} from './decisionEmail';
+import { saveDecisionEmailJob } from './saveDecisionEmailJob';
+import { useAutoSendDecisionEmail } from './useAutoSendDecisionEmail';
 import {
   entryDecisionLifecycleEmailQueryKey,
   fetchEntryDecisionEmailStatuses,
   fetchShowLifecycleEmailSummary,
-  saveLifecycleEmailJobForLater,
   sendLifecycleEmailJobs,
   updateReadyLifecycleEmailJob,
   type EntryDecisionEmailJob,
   type EntryDecisionEmailStatus,
   type LifecycleEmailSupabaseClient,
 } from './api';
-
-type DecisionStepType = Extract<LifecycleEmailStepType, 'accepted' | 'waitlisted'>;
-
-interface EntryDecisionLifecycleEmailIdempotencyKeyArgs {
-  showId: string;
-  stepType: DecisionStepType;
-  entryId: string;
-  enrollmentId?: string | null | undefined;
-  correctionForJobId?: string | null | undefined;
-}
 
 interface DecisionEmailPrompt {
   entry: EntryManagementEntry;
@@ -50,51 +45,11 @@ interface UseEntryDecisionLifecycleEmailsArgs {
 
 interface UseEntryDecisionLifecycleEmailsResult {
   statusMap: Record<string, EntryDecisionEmailStatus>;
-  openDecisionPrompt: (entry: EntryManagementEntry, stepType: DecisionStepType) => void;
+  /** Called after an Accept or Waitlist is saved: emails the exhibitor per the show's switch. */
+  announceDecision: (entry: EntryManagementEntry, stepType: DecisionStepType) => void;
   reviewReadyEmail: (job: EntryDecisionEmailJob, entry: EntryManagementEntry) => void;
   prepareCorrectionEmail: (job: EntryDecisionEmailJob, entry: EntryManagementEntry) => void;
   dialog: ReactNode;
-}
-
-export function buildEntryDecisionLifecycleEmailIdempotencyKey({
-  showId,
-  stepType,
-  entryId,
-  enrollmentId,
-  correctionForJobId,
-}: EntryDecisionLifecycleEmailIdempotencyKeyArgs): string {
-  return buildLifecycleEmailIdempotencyKey({
-    showId,
-    stepType,
-    recipientScope: 'enrollment',
-    entryId,
-    enrollmentId: enrollmentId ?? null,
-    correctionForJobId: correctionForJobId ?? null,
-  });
-}
-
-/**
- * A fresh decision prompt (opened right after an Accept/Waitlist) is stale if the
- * secretary then Undoes that status change — sending its email would announce a
- * decision that no longer holds. Returns true when the entry's CURRENT status no
- * longer matches what the prompt represents (the same supersession principle the
- * bulk/undo path uses). Ready-job reviews and corrections intentionally reference
- * a prior decision, so they are exempt.
- */
-export function isDecisionEmailSuperseded(
-  prompt: Pick<DecisionEmailPrompt, 'entry' | 'stepType' | 'jobId' | 'correctionForJobId'>,
-  entries: EntryManagementEntry[]
-): boolean {
-  if (prompt.jobId || prompt.correctionForJobId) return false;
-  const expected =
-    prompt.stepType === 'accepted'
-      ? EntryStatus.ACCEPTED
-      : prompt.stepType === 'waitlisted'
-        ? EntryStatus.WAITLIST
-        : undefined;
-  if (!expected) return false;
-  const current = entries.find(entry => entry.id === prompt.entry.id)?.entryStatus;
-  return current !== undefined && current !== expected;
 }
 
 export function useEntryDecisionLifecycleEmails({
@@ -135,37 +90,31 @@ export function useEntryDecisionLifecycleEmails({
     if (showId) void queryClient.invalidateQueries({ queryKey: ['show-lifecycle-emails', showId] });
   };
 
-  const saveReadyJob = async (
+  const saveReadyJob = (
     currentPrompt: DecisionEmailPrompt,
     values: { subject: string; body: string; secretaryNote: string }
-  ) => {
-    return saveLifecycleEmailJobForLater({
-      supabase,
-      showId: currentPrompt.entry.showId,
-      stepType: currentPrompt.stepType,
-      recipientScope: 'enrollment',
-      entryId: currentPrompt.entry.id,
-      enrollmentId: currentPrompt.entry.registrationId,
-      recipientEmail: currentPrompt.entry.ownerEmail,
-      recipientName: currentPrompt.entry.ownerName,
-      subject: values.subject,
-      body: values.body,
-      secretaryNote: values.secretaryNote,
-      correctionForJobId: currentPrompt.correctionForJobId ?? null,
-      idempotencyKey: buildEntryDecisionLifecycleEmailIdempotencyKey({
-        showId: currentPrompt.entry.showId,
-        stepType: currentPrompt.stepType,
-        entryId: currentPrompt.entry.id,
-        enrollmentId: currentPrompt.entry.registrationId,
-        correctionForJobId: currentPrompt.correctionForJobId ?? null,
-      }),
-    });
-  };
+  ) =>
+    saveDecisionEmailJob(
+      currentPrompt.entry,
+      currentPrompt.stepType,
+      values,
+      currentPrompt.correctionForJobId
+    );
 
-  const openDecisionPrompt = (entry: EntryManagementEntry, stepType: DecisionStepType) => {
+  const sendAfterUndoWindow = useAutoSendDecisionEmail({
+    entries,
+    showName,
+    onCouldNotPrepare: (entry, stepType) => setPrompt({ entry, stepType }),
+    onSettled: invalidateLifecycleEmailQueries,
+  });
+
+  // The show's switch in Scheduled emails is the decision to email (MYK9-1800): on, the
+  // email goes by itself once the Undo window has passed; off, nothing is sent or asked.
+  // Only when the switch is not known yet does she get the preview.
+  const announceDecision = (entry: EntryManagementEntry, stepType: DecisionStepType) => {
     const step = summaryQuery.data?.steps.find(candidate => candidate.stepType === stepType);
-    if (step?.isEnabled === false) return;
-    setPrompt({ entry, stepType });
+    if (!step) setPrompt({ entry, stepType });
+    else if (step.isEnabled) sendAfterUndoWindow(entry, stepType);
   };
 
   const reviewReadyEmail = (job: EntryDecisionEmailJob, entry: EntryManagementEntry) => {
@@ -216,17 +165,7 @@ export function useEntryDecisionLifecycleEmails({
       initialBody={prompt.initialBody}
       initialSecretaryNote={prompt.initialSecretaryNote}
       isSending={isSending}
-      show={{ name: showName ?? 'this show' }}
-      recipient={{
-        name: prompt.entry.ownerName,
-        email: prompt.entry.ownerEmail,
-      }}
-      entry={{
-        dogName: prompt.entry.dogName,
-        className: prompt.entry.classes[0]?.name ?? null,
-        armbandNumber: prompt.entry.armbandNumber ?? null,
-        amountDue: Math.max(0, prompt.entry.totalFee - prompt.entry.paidAmount),
-      }}
+      {...decisionEmailContext(prompt.entry, showName)}
       onNotNow={values => {
         // Saving a superseded fresh decision for later would persist a sendable
         // job for a decision that was undone — same hazard as sending it now.
@@ -306,7 +245,7 @@ export function useEntryDecisionLifecycleEmails({
 
   return {
     statusMap: statusQuery.data ?? {},
-    openDecisionPrompt,
+    announceDecision,
     reviewReadyEmail,
     prepareCorrectionEmail,
     dialog,

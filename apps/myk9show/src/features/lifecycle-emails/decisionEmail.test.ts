@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildEntryDecisionLifecycleEmailIdempotencyKey,
   isDecisionEmailSuperseded,
-} from './useEntryDecisionLifecycleEmails';
+} from './decisionEmail';
 import { EntryStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 

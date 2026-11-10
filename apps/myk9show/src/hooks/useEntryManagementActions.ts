@@ -20,7 +20,7 @@ import { optimisticPulledBy } from '@/utils/optimisticPulledBy';
 import { getEligibleForBulkStatusChange } from '@/components/entries/management/bulkActionEligibility';
 import { useBulkDispatch } from '@/hooks/useBulkDispatch';
 import { useEntryStatusUndo } from '@/hooks/useEntryStatusUndo';
-import { showUndoToast } from '@/lib/undoToast';
+import { showUndoToast, STATUS_UNDO_WINDOW_MS } from '@/lib/undoToast';
 import { CLOSED_STATUSES } from '@/components/entries/management/bulkActionEligibility';
 import { getNextArmbandForShow, setEntryArmband } from '@/services/database/armbands';
 
@@ -171,6 +171,7 @@ export function useEntryManagementActions({
           onUndo: () => {
             void runSingleUndo(entryId, priorStatus, newStatus, priorCheckInStatus);
           },
+          duration: STATUS_UNDO_WINDOW_MS,
           ...(offline ? { description: 'Queued — will sync when online' } : {}),
         });
       }

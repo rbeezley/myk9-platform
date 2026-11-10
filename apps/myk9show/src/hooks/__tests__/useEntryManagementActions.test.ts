@@ -1,4 +1,5 @@
 import { act, renderHook } from '@/test/utils/testUtils';
+import { STATUS_UNDO_WINDOW_MS } from '@/lib/undoToast';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useEntryManagementActions } from '../useEntryManagementActions';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
@@ -40,7 +41,8 @@ vi.mock('@/services/secretary/entry-workflow', () => ({
   changeSecretaryEntryStatus: mocks.changeSecretaryEntryStatus,
 }));
 
-vi.mock('@/lib/undoToast', () => ({
+vi.mock('@/lib/undoToast', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/lib/undoToast')>()),
   showUndoToast: mocks.showUndoToast,
 }));
 
@@ -208,7 +210,11 @@ describe('useEntryManagementActions', () => {
 
       expect(mocks.changeSecretaryEntryStatus).toHaveBeenCalled();
       expect(mocks.showUndoToast).toHaveBeenCalledWith(
-        expect.objectContaining({ description: 'Queued — will sync when online' })
+        expect.objectContaining({
+          description: 'Queued — will sync when online',
+          // The decision email waits for exactly this window (MYK9-1800).
+          duration: STATUS_UNDO_WINDOW_MS,
+        })
       );
     } finally {
       Object.defineProperty(navigator, 'onLine', { configurable: true, value: originalOnline });

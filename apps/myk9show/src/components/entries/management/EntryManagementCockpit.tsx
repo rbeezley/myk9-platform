@@ -179,7 +179,7 @@ export function EntryManagementCockpit({
     downloadCsv(selectedEntriesExportFilename(), buildSelectedEntriesExportCsv(selectedEntries));
   };
 
-  const handleStatusChangeWithDecisionPrompt = async (
+  const handleStatusChangeWithDecisionEmail = async (
     entryId: string,
     status: EntryStatus,
     withdrawalReason?: string
@@ -192,7 +192,7 @@ export function EntryManagementCockpit({
       entry.registrationId &&
       (status === EntryStatus.ACCEPTED || status === EntryStatus.WAITLIST)
     ) {
-      lifecycleEmails.openDecisionPrompt(
+      lifecycleEmails.announceDecision(
         { ...entry, entryStatus: status },
         status === EntryStatus.ACCEPTED ? 'accepted' : 'waitlisted'
       );
@@ -344,7 +344,7 @@ export function EntryManagementCockpit({
                     },
                   }
                 : {})}
-              onStatusChange={handleStatusChangeWithDecisionPrompt}
+              onStatusChange={handleStatusChangeWithDecisionEmail}
               onEntryRefunded={onRefresh}
               onEntryRestored={onRefresh}
               onRefreshEntries={onRefresh}

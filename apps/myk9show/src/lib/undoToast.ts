@@ -1,6 +1,12 @@
 import { toast } from 'sonner';
 
 /**
+ * How long a secretary's entry-status change offers Undo. Named because the decision email
+ * waits for exactly this window before it sends (MYK9-1800); the two must not drift apart.
+ */
+export const STATUS_UNDO_WINDOW_MS = 6000;
+
+/**
  * Shared time-boxed undo toast (design.md decision D6).
  *
  * Extracted from the inlined show-map sonner pattern: a success toast carrying a

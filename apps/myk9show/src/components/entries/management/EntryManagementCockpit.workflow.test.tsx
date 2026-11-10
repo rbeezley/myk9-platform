@@ -25,7 +25,7 @@ vi.mock('@/features/lifecycle-emails', () => ({
   useEntryDecisionLifecycleEmails: () => ({
     statusMap: {},
     dialog: null,
-    openDecisionPrompt: vi.fn(),
+    announceDecision: vi.fn(),
     reviewReadyEmail: vi.fn(),
     prepareCorrectionEmail: vi.fn(),
   }),

@@ -178,4 +178,32 @@ describe('AtShowCombinedEntryListPage with one section cancelled (MYK9-1847)', (
     fireEvent.click(screen.getByText('Bella'));
     expect(await screen.findByTestId('scoresheet-route')).toBeInTheDocument();
   });
+
+  // The header's status shows in the class details popover the class name opens.
+  async function openClassDetails() {
+    await screen.findByText('Rex');
+    fireEvent.click(document.querySelector('[data-class-info-trigger]') as HTMLElement);
+    await screen.findByText('Class Details');
+  }
+
+  it('shows no pair Cancelled status when only section A is cancelled, and B is still scoreable', async () => {
+    renderPage('cancelled', 'in_progress');
+    await openClassDetails();
+    expect(screen.queryByText('Cancelled')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Bella'));
+    expect(await screen.findByTestId('scoresheet-route')).toBeInTheDocument();
+  });
+
+  it('shows no pair Cancelled status when only section B is cancelled', async () => {
+    renderPage('in_progress', 'cancelled');
+    await openClassDetails();
+    expect(screen.queryByText('Cancelled')).not.toBeInTheDocument();
+  });
+
+  it('shows the pair Cancelled status when every section is cancelled', async () => {
+    renderPage('cancelled', 'cancelled');
+    await openClassDetails();
+    expect(screen.getByText('Cancelled')).toBeInTheDocument();
+  });
 });

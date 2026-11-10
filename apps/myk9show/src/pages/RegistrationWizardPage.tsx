@@ -37,6 +37,7 @@ import { WizardLeaveGuard } from './RegistrationWizardPage/WizardLeaveGuard';
 import { EntriesClosedNotice } from './RegistrationWizardPage/EntriesClosedNotice';
 import { useRegistrationWizard } from './RegistrationWizardPage/useRegistrationWizard';
 import { useEntryDogHandoff } from './RegistrationWizardPage/useEntryDogHandoff';
+import { useOnlyDogPreselect } from './RegistrationWizardPage/useOnlyDogPreselect';
 import { getPaymentSubmitLabel } from './RegistrationWizardPage/commitLabels';
 import { EMPTY_ENTRY_NOTICE } from './RegistrationWizardPage/proceedGating';
 import {
@@ -129,6 +130,8 @@ function RegistrationWizardContent({ onStartAnother }: { onStartAnother: () => v
 
   // Dog Details' "Enter a show" carries `?dogId=` here (MYK9-519).
   useEntryDogHandoff(wiz);
+  // An exhibitor's only dog arrives ticked, without counting as a started entry (MYK9-1795).
+  useOnlyDogPreselect(wiz);
 
   const showBlockedReason = !!proceedBlocked && !isSubmitting;
   // True only while the exhibitor's OWN clearing of the dog step is the reason

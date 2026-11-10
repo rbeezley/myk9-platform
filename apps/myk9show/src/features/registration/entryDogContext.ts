@@ -80,6 +80,26 @@ export function resolveEntryDogHandoff(input: {
   return { status: 'applied', dogIds: [dog.id] };
 }
 
+/**
+ * The dog to tick for an exhibitor whose roster offers exactly one (MYK9-1795).
+ * Pure: returns the dog id, or null whenever the step should stay as it is
+ * (several tickable dogs, an ineligible only dog, a `?dogId=` link, a cart or
+ * a saved entry already waiting to be resumed).
+ */
+export function resolveOnlyDogPreselect(input: {
+  entryDogId: string | null;
+  accessibleDogs: Dog[];
+  selectedDogs: string[];
+  hasResumableDraft: boolean;
+  eligibility: (dog: Dog) => { eligible: boolean; issues: string[] };
+}): string | null {
+  const { entryDogId, accessibleDogs, selectedDogs, hasResumableDraft, eligibility } = input;
+  if (entryDogId || hasResumableDraft || selectedDogs.length > 0) return null;
+  if (accessibleDogs.length !== 1) return null;
+  const [dog] = accessibleDogs;
+  return eligibility(dog).eligible ? dog.id : null;
+}
+
 /** Exhibitor-facing explanation for a handoff that could not be honored. */
 export function entryDogHandoffMessage(handoff: EntryDogHandoff): string | null {
   switch (handoff.status) {

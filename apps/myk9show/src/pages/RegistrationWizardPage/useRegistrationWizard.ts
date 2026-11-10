@@ -32,7 +32,7 @@ export function useRegistrationWizard() {
 
   useWizardRegistrationOwner({
     ...state,
-    hasSelection: state.registrationData.selectedDogs.length > 0,
+    hasSelection: state.registrationData.selectedDogs.length > 0 && !state.isPassiveAutoTick,
   });
 
   const {

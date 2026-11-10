@@ -14,6 +14,8 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { ensureError } from '@myk9/core';
+import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { UserRole } from '@/types/auth-types';
@@ -44,7 +46,7 @@ import { blockedActionFor } from './deleteBlockedAction';
 import { useDeletePreview } from './useDeletePreview';
 import { useUnsavedWork, type UnsavedWorkState } from './useUnsavedWork';
 import type { DeleteObjectKind, DeleteTarget } from './deleteTypes';
-import { deleteErrorMessage } from './deleteErrors';
+import { deleteGuardMessage } from './deleteErrors';
 
 export interface DeleteObjectDialogProps {
   open: boolean;
@@ -181,7 +183,13 @@ export function DeleteObjectDialog({
       // deleteRecords maps every failure itself; this is only a guard.
       inFlightRef.current = false;
       setIsDeleting(false);
-      setErrorMessage(deleteErrorMessage(kind, error));
+      logger.error(
+        'Delete guard caught an unmapped failure',
+        'delete',
+        { kind, count: targets.length, code: (error as { code?: unknown } | null)?.code },
+        ensureError(error)
+      );
+      setErrorMessage(deleteGuardMessage(kind, targets.length, error));
       onDeleteFailed?.();
       return;
     }

@@ -147,6 +147,21 @@ describe('ForgotPasswordPage', () => {
     expect(screen.queryByText('Check your email')).not.toBeInTheDocument();
   });
 
+  it('says it could not send the link for a fetch failure that is not a plain network drop', async () => {
+    const odd = new Error('Upstream returned garbage');
+    odd.name = 'FetchError';
+    mockResetPassword.mockRejectedValue(odd);
+    renderPage();
+
+    await userEvent.type(screen.getByLabelText('Email address'), 'user@example.com');
+    await userEvent.click(screen.getByRole('button', { name: 'Send Reset Link' }));
+
+    expect(
+      await screen.findByText("We couldn't send the reset link. Try again.")
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Check your email')).not.toBeInTheDocument();
+  });
+
   it('shows loading state while submitting', async () => {
     let resolveReset: () => void;
     mockResetPassword.mockImplementation(

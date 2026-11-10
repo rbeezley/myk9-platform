@@ -54,7 +54,7 @@ async function sendAuthenticatedQuery(
     data: { session },
   } = await supabase.auth.getSession();
   if (!session?.access_token) {
-    throw new Error('Not authenticated');
+    throw new AskQRequestError('signed-out');
   }
 
   let response: Response;
@@ -85,6 +85,9 @@ async function sendAuthenticatedQuery(
   if (response.status >= 500) {
     throw new AskQUnavailableError();
   }
+
+  if (response.status === 401) throw new AskQRequestError('signed-out');
+  if (response.status === 403) throw new AskQRequestError('account-required');
 
   if (!response.ok) {
     const data = await response.json().catch(() => ({ error: 'Request failed' }));
@@ -181,8 +184,7 @@ export class RateLimitError extends Error {
   }
 }
 
-export const ASKQ_UNAVAILABLE_MESSAGE =
-  "AskQ can't answer right now. Please try again in a few minutes.";
+export const ASKQ_UNAVAILABLE_MESSAGE = "AskQ can't answer right now. Try again in a few minutes.";
 
 /** The AskQ service failed or could not be reached; the question may be retried. */
 export class AskQUnavailableError extends Error {
@@ -190,4 +192,35 @@ export class AskQUnavailableError extends Error {
     super(ASKQ_UNAVAILABLE_MESSAGE);
     this.name = 'AskQUnavailableError';
   }
+}
+
+/** The longest question the server accepts (ask-myk9show rejects more with a 400). */
+export const ASKQ_MAX_MESSAGE_LENGTH = 2000;
+
+export type AskQRequestFailure = 'signed-out' | 'account-required' | 'too-long';
+
+/** A refusal the person can fix; told apart by `reason`, never by the server's text. */
+export class AskQRequestError extends Error {
+  reason: AskQRequestFailure;
+
+  constructor(reason: AskQRequestFailure) {
+    super(`AskQ request refused: ${reason}`);
+    this.name = 'AskQRequestError';
+    this.reason = reason;
+  }
+}
+
+const ASKQ_FALLBACK_MESSAGE = "We couldn't get an answer. Try again.";
+
+const ASKQ_REFUSAL_MESSAGES: Record<AskQRequestFailure, string> = {
+  'signed-out': 'Your session has expired. Sign in again, then ask your question.',
+  'account-required': 'AskQ needs an account. Create an account or sign in to use it.',
+  'too-long': `That question is too long. Shorten it to ${ASKQ_MAX_MESSAGE_LENGTH} characters or fewer.`,
+};
+
+/** The sentence a failed AskQ question shows. Never the error's own text. */
+export function askqErrorMessage(err: unknown): string {
+  if (err instanceof AskQUnavailableError) return ASKQ_UNAVAILABLE_MESSAGE;
+  if (err instanceof AskQRequestError) return ASKQ_REFUSAL_MESSAGES[err.reason];
+  return ASKQ_FALLBACK_MESSAGE;
 }

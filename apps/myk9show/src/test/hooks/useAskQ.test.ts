@@ -1,6 +1,7 @@
 import { renderHook, act } from '@testing-library/react';
 import { useAskQ } from '@/hooks/useAskQ';
 import * as askqService from '@/services/askqService';
+import { logger } from '@/services/LoggingService';
 
 vi.mock('@/services/askqService', async importOriginal => {
   const actual = await importOriginal<typeof askqService>();
@@ -108,8 +109,10 @@ describe('useAskQ', () => {
     expect(result.current.remaining).toBe(0);
   });
 
-  it('handles generic errors', async () => {
-    vi.mocked(askqService.sendAskQQuery).mockRejectedValue(new Error('Network error'));
+  it('handles generic errors: a plain sentence on screen, the raw error in the log', async () => {
+    const logError = vi.spyOn(logger, 'error').mockImplementation(() => undefined);
+    const raw = new Error('Network error');
+    vi.mocked(askqService.sendAskQQuery).mockRejectedValue(raw);
 
     const { result } = renderHook(() => useAskQ());
     await act(async () => {
@@ -118,6 +121,50 @@ describe('useAskQ', () => {
 
     expect(result.current.status).toBe('error');
     expect(result.current.error).toBe("We couldn't get an answer. Try again.");
+    expect(result.current.error).not.toContain('Network error');
+    expect(logError).toHaveBeenCalledWith('AskQ query failed', 'askq', {}, raw);
+  });
+
+  it.each([
+    [
+      'an outage',
+      () => new askqService.AskQUnavailableError(),
+      "AskQ can't answer right now. Try again in a few minutes.",
+    ],
+    [
+      'a signed-out session',
+      () => new askqService.AskQRequestError('signed-out'),
+      'Your session has expired. Sign in again, then ask your question.',
+    ],
+    [
+      'a missing account',
+      () => new askqService.AskQRequestError('account-required'),
+      'AskQ needs an account. Create an account or sign in to use it.',
+    ],
+  ])('says what to do after %s', async (_name, makeError, expected) => {
+    vi.spyOn(logger, 'error').mockImplementation(() => undefined);
+    vi.mocked(askqService.sendAskQQuery).mockRejectedValue(makeError());
+
+    const { result } = renderHook(() => useAskQ());
+    await act(async () => {
+      await result.current.submitQuery('test');
+    });
+
+    expect(result.current.status).toBe('error');
+    expect(result.current.error).toBe(expected);
+  });
+
+  it('blocks a question over the server limit before sending it, and says how long it may be', async () => {
+    vi.spyOn(logger, 'error').mockImplementation(() => undefined);
+    const { result } = renderHook(() => useAskQ());
+    await act(async () => {
+      await result.current.submitQuery('x'.repeat(askqService.ASKQ_MAX_MESSAGE_LENGTH + 1));
+    });
+
+    expect(askqService.sendAskQQuery).not.toHaveBeenCalled();
+    expect(result.current.error).toBe(
+      'That question is too long. Shorten it to 2000 characters or fewer.'
+    );
   });
 
   it('resets state on new query', async () => {

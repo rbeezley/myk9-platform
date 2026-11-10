@@ -17,11 +17,15 @@ import { reusableFreshToken } from './stepUpToken';
 
 export class StepUpError extends Error {}
 
+/** The step-up sentence for a failure nothing more specific explains. */
+export const STEP_UP_FAILED_MESSAGE = "We couldn't confirm it's you. Try again.";
+
 const MESSAGES = {
   wrongPassword: 'That password is not right. Try again, or email yourself a code instead.',
   wrongCode: 'That code is not right or has expired. Check the email, or send a new code.',
   otherAccount: 'That signed in a different account. Sign out, then sign in as yourself.',
-  generic: "We couldn't confirm it's you. Try again.",
+  generic: STEP_UP_FAILED_MESSAGE,
+  signedOut: 'Your session has expired. Sign in again.',
 } as const;
 
 export function accountFromSession(session: Session | null): StepUpAccount | null {
@@ -53,7 +57,7 @@ function friendly(error: AuthFailure, wrong: string) {
 }
 
 function tokenFor(account: StepUpAccount, session: Session | null): string {
-  if (!session?.access_token) throw new StepUpError(MESSAGES.generic);
+  if (!session?.access_token) throw new StepUpError(MESSAGES.signedOut);
   if (session.user.id !== account.userId) throw new StepUpError(MESSAGES.otherAccount);
   return session.access_token;
 }

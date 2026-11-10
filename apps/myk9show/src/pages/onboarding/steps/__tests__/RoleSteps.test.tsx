@@ -5,6 +5,7 @@ import { fromPartial } from '@total-typescript/shoehorn';
 import { render } from '@/test/utils/testUtils';
 import { mockSupabase, createChainableQuery } from '@/test/mocks/supabase';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { logger } from '@/services/LoggingService';
 import { useClubStore } from '@/store/clubStore';
 import { ScopeType, UserRole, type RoleScope } from '@/types/auth-types';
 import type { Club } from '@/types/club-types';
@@ -146,8 +147,9 @@ describe('StepJudge', () => {
       createChainableQuery({ data: [{ organization: 'AKC', judge_number: null }], error: null })
     );
     mockSupabase.rpc.mockReturnValueOnce(
-      createChainableQuery({ data: null, error: { message: 'P0002' } })
+      createChainableQuery({ data: null, error: { message: 'P0002 raw text', code: 'P0002' } })
     );
+    const logError = vi.spyOn(logger, 'error').mockImplementation(() => undefined);
     const props = makeRoleStepProps();
 
     render(<StepJudge personId="person-1" {...props} />);
@@ -157,6 +159,13 @@ describe('StepJudge', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       "We couldn't save your judge numbers. Try again."
+    );
+    expect(screen.getByRole('alert')).not.toHaveTextContent('P0002 raw text');
+    expect(logError).toHaveBeenCalledWith(
+      'Saving judge numbers failed',
+      'onboarding',
+      { code: 'P0002' },
+      expect.objectContaining({ message: 'P0002 raw text' })
     );
     expect(props.onNext).not.toHaveBeenCalled();
   });

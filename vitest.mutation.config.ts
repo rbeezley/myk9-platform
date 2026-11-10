@@ -44,6 +44,17 @@ const targetSetup = {
     ],
   },
 } as const;
+// The two key sets must agree, or one target fails at load with an error that
+// names neither file.
+const setupNames = Object.keys(targetSetup).sort().join(', ');
+const defNames = Object.keys(MUTATION_TARGET_DEFS).sort().join(', ');
+if (setupNames !== defNames) {
+  throw new Error(
+    `Mutation targets disagree: scripts/qa/mutation/targets.mjs has [${defNames}] but ` +
+      `vitest.mutation.config.ts targetSetup has [${setupNames}].`
+  );
+}
+
 const targets = Object.fromEntries(
   Object.entries(targetSetup).map(([name, setup]) => [
     name,

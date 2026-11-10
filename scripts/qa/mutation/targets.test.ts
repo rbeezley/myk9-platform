@@ -24,7 +24,13 @@ function walk(dir: string): string[] {
  * evaluate the module and cannot cover a mutant.
  */
 export function localSpecifiers(source: string): string[] {
-  const runtime = source.replace(/\b(?:import|export)\s+type\s[^;]*?from\s*['"][^'"]+['"]/gs, '');
+  // Only the statement forms that carry a `from`: `import type X|{…}|* as X from`
+  // and `export type {…}|* from`. A looser `export type <anything> … from` also
+  // swallowed `export type Foo = {…}` and the runtime import on the next line.
+  const runtime = source.replace(
+    /\b(?:import\s+type\s+(?:\{[^}]*\}|\*\s+as\s+\w+|\w+)|export\s+type\s+(?:\{[^}]*\}|\*(?:\s+as\s+\w+)?))\s*from\s*['"][^'"]+['"]/g,
+    ''
+  );
   const pattern =
     /(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+|\bvi\.(?:mock|doMock|importActual|importMock)\s*\(\s*|\brequire\s*\(\s*)['"](\.{1,2}(?:\/[^'"]*)?|@\/[^'"]*)['"]/g;
   return [...runtime.matchAll(pattern)].flatMap(match => (match[1] ? [match[1]] : []));
@@ -159,5 +165,12 @@ describe('mutation targets list every test that imports their mutated files', ()
       '@/u',
     ]);
     expect(localSpecifiers(`const s = 'ConflictResolver'; import y from 'pkg'`)).toEqual([]);
+    // A type alias with no semicolon must not swallow the runtime import after it.
+    expect(localSpecifiers(`export type Foo = { a: number }\nimport { r } from './m'`)).toEqual([
+      './m',
+    ]);
+    expect(
+      localSpecifiers(`import type * as T from './t'; export type { A } from './u'; import './v'`)
+    ).toEqual(['./v']);
   });
 });

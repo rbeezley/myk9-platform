@@ -21,8 +21,6 @@ const UI_REASON =
  */
 export const EXCLUDED_TESTS = {
   cart: {
-    'apps/myk9show/supabase/functions/_shared/platformFeeAgreement.test.ts':
-      'calls the helper while Vitest collects the file (describe time), outside any test; a mutant that makes that call throw fails collection, which the Stryker Vitest runner reports as Survived with zero tests (reproduced: cartStore.helpers.ts L83, 0 tests completed) and trips the self-check',
     'apps/myk9show/src/components/cart/CartSummary.feeSplit.test.tsx': UI_REASON,
     'apps/myk9show/src/components/shows/RegistrationWorkflow/EntriesPanel/EntriesPanel.test.tsx':
       UI_REASON,
@@ -43,6 +41,7 @@ export const MUTATION_TARGET_DEFS = {
     testFiles: [
       'apps/myk9show/src/features/payments/platformFeeSplit.test.ts',
       'apps/myk9show/src/store/cartStore.helpers.test.ts',
+      'apps/myk9show/supabase/functions/_shared/platformFeeAgreement.test.ts',
     ],
   },
   // The rules a judge's score passes through on its way to being saved

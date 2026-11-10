@@ -69,6 +69,10 @@ Cite the run in the report: pass/fail per case, plus the `shared-staging-write-l
 
 Note the trap this replay guards against: a harness flag that defaults to intercepting writes can also make an absence-assertion vacuous. If a case asserts that no RPC was called, confirm it can observe a positive case on the same collector, or it is proving nothing.
 
+### Club-admin week — Show Desk scoring boundary
+
+On a test show the club admin manages but is not appointed trial secretary for, open a class on the actual Show Desk route. Verify “Scoring complete” shows “Trial secretary access only” with no scoring link. Use the same class as its appointed secretary to confirm the step opens paper scoring. Stop before entering any score. If either scoped role is missing, report that side as blocked (MYK9-1802).
+
 ## Judgment rules
 
 - The project is **pre-launch, consolidating not expanding**. A duplicated surface is itself a finding. Prefer "link these two existing surfaces" over "add a page". If you propose a new surface, answer explicitly: does this duplicate an existing page, and why is duplication justified instead of a link?

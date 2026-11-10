@@ -35,7 +35,8 @@ import { useAuthUser } from '@/hooks/useAuthUser';
 import { useTheme } from '@/hooks/useTheme';
 import { useApplyServerTheme } from '@/hooks/useApplyServerTheme';
 import { useOnlineStatus } from '@/lib/networkUtils';
-import { useUserPreferences } from '@/hooks/useUserPreferences';
+import { NEEDS_CONNECTION_MESSAGE, useUserPreferences } from '@/hooks/useUserPreferences';
+import { logger } from '@/services/LoggingService';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { ProfileSection, BillingSection, DeleteSection } from './AccountPage.sections';
 import {
@@ -88,6 +89,20 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
 ];
+
+const SETTING_SAVE_FAILED = "We couldn't save that setting. Try again.";
+const SETTING_RESET_FAILED = "We couldn't reset your settings. Try again.";
+const SETTING_NEEDS_CONNECTION = 'That needs a connection. Connect to the internet and try again.';
+
+/**
+ * The only error `useUserPreferences` words on purpose is the offline refusal, known by its
+ * constant. Anything else is a database or library error and never reaches the screen.
+ */
+function preferenceFailureMessage(error: unknown, fixed: string): string {
+  return error instanceof Error && error.message === NEEDS_CONNECTION_MESSAGE
+    ? SETTING_NEEDS_CONNECTION
+    : fixed;
+}
 
 function readSectionParam(searchParams: URLSearchParams): Section | null {
   const section = searchParams.get('section');
@@ -196,7 +211,8 @@ export default function AccountPage() {
         await updatePreferences(updates);
         showFlash('Saved');
       } catch (e) {
-        showFlash(e instanceof Error ? e.message : 'Failed to save', 'error');
+        logger.error('Error saving preferences', 'account', {}, e as Error);
+        showFlash(preferenceFailureMessage(e, SETTING_SAVE_FAILED), 'error');
       }
     },
     [updatePreferences, showFlash]
@@ -209,7 +225,8 @@ export default function AccountPage() {
         await resetToDefaults(category);
         showFlash(`${category ?? 'All preferences'} reset to defaults`);
       } catch (e) {
-        showFlash(e instanceof Error ? e.message : 'Something went wrong', 'error');
+        logger.error('Error resetting preferences', 'account', {}, e as Error);
+        showFlash(preferenceFailureMessage(e, SETTING_RESET_FAILED), 'error');
       } finally {
         setResetLoading(false);
       }

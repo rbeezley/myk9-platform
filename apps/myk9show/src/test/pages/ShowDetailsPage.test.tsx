@@ -1465,7 +1465,7 @@ describe('ShowDetailsPage', () => {
       renderPage('show-1', '', '?tab=my-entries');
 
       expect(screen.queryByTestId('my-entries-tab')).toBeNull();
-      expect(screen.queryByText('Failed to load component')).toBeNull();
+      expect(screen.queryByText("We couldn't open this page")).toBeNull();
     });
 
     // The tab strip is not built at all while roles are cold -- the audience is

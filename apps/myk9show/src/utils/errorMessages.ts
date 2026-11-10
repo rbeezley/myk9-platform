@@ -15,6 +15,13 @@ import {
   PERSON_EDIT_NEEDS_CONNECTION_MESSAGE,
 } from './signInEmailMessages';
 
+/**
+ * MYK9-1843: the sentence for a failure nothing more specific is known about:
+ * what failed, then what to do. A screen that knows what it was doing words its
+ * own ("We couldn't save your details. Try again."); this is the default.
+ */
+export const GENERIC_FAILURE_MESSAGE = "We couldn't do that. Try again.";
+
 /** Known PostgreSQL / PostgREST error code prefixes and their user-facing messages. */
 export const ERROR_CODE_MESSAGES: Record<string, string> = {
   // PostgreSQL class 23 — integrity constraint violations
@@ -25,7 +32,7 @@ export const ERROR_CODE_MESSAGES: Record<string, string> = {
 
   // PostgreSQL class 42 — access / syntax
   '42501': "You don't have permission to perform this action.",
-  '42P01': 'Operation failed. Please try again.',
+  '42P01': GENERIC_FAILURE_MESSAGE,
 
   // PostgreSQL class 08 — connection
   '08000': 'Unable to reach the server. Please check your connection.',
@@ -63,10 +70,8 @@ export const ERROR_CODE_MESSAGES: Record<string, string> = {
 
 /** Prefix-based fallbacks (e.g. all PGRST codes). */
 const ERROR_PREFIX_MAP: Record<string, string> = {
-  PGRST: 'Operation failed. Please try again.',
+  PGRST: GENERIC_FAILURE_MESSAGE,
 };
-
-const DEFAULT_MESSAGE = 'Something went wrong. Please try again.';
 
 /**
  * Extracts a user-safe error message from an unknown error value.
@@ -74,7 +79,10 @@ const DEFAULT_MESSAGE = 'Something went wrong. Please try again.';
  * In development builds the original message is preserved for debugging.
  * In production only mapped / generic messages are returned.
  */
-export function getUserFriendlyError(error: unknown, fallback: string = DEFAULT_MESSAGE): string {
+export function getUserFriendlyError(
+  error: unknown,
+  fallback: string = GENERIC_FAILURE_MESSAGE
+): string {
   if (import.meta.env.DEV) {
     // In dev, return the raw message for easier debugging
     if (error instanceof Error) return error.message;

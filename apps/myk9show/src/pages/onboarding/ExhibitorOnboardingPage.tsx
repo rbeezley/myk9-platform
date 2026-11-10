@@ -15,6 +15,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { logger } from '@/services/LoggingService';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -126,6 +127,10 @@ export default function ExhibitorOnboardingPage() {
 
   return <OnboardingWizard user={user} roles={roles} />;
 }
+
+const FINISH_FAILED = "We couldn't finish setting up your account. Try again.";
+const PROFILE_SAVE_FAILED =
+  "We couldn't save your details. What you typed is still here. Try again.";
 
 function OnboardingWizard({ user, roles }: { user: User; roles: readonly UserRole[] }) {
   const navigate = useNavigate();
@@ -245,7 +250,10 @@ function OnboardingWizard({ user, roles }: { user: User; roles: readonly UserRol
       hasNavigatedAwayRef.current = true;
       navigate(target, { replace: true });
     } catch (err) {
-      setStepError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
+      // The hooks only throw database and library errors, written for developers: the
+      // person gets a fixed sentence and the raw error goes to the log.
+      logger.error('Error completing onboarding', 'onboarding', {}, err as Error);
+      setStepError(FINISH_FAILED);
     }
   };
 
@@ -281,7 +289,8 @@ function OnboardingWizard({ user, roles }: { user: User; roles: readonly UserRol
       await (profile ? savePersonDetailsAsync(payload) : createProfileAsync(payload));
       setStep('dogs');
     } catch (err) {
-      setStepError(err instanceof Error ? err.message : 'Failed to create profile. Please retry.');
+      logger.error('Error saving onboarding profile', 'onboarding', {}, err as Error);
+      setStepError(PROFILE_SAVE_FAILED);
     }
   };
 

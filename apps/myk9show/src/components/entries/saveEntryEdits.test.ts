@@ -103,7 +103,7 @@ describe('saveEntryEdits', () => {
       classEdits: { 'entry-1': { handler: 'Sam Handler', jumpHeight: '12"' } },
     });
 
-    expect(result.error).toBe('Failed to update handler. Please try again.');
+    expect(result.error).toBe("We couldn't update the handler. Try again.");
     expect(mocks.updateEntryDetails).not.toHaveBeenCalled();
   });
 });

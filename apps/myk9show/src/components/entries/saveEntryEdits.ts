@@ -79,7 +79,7 @@ export async function saveEntryEdits(
         handlerId: null,
         clearHandlerId,
       });
-      if (error) return { error: 'Failed to update handler. Please try again.' };
+      if (error) return { error: "We couldn't update the handler. Try again." };
     }
   }
 

@@ -121,7 +121,7 @@ describe('chunkLoadRecovery', () => {
     );
     await act(() => vi.advanceTimersByTimeAsync(5000));
     expect(reload).toHaveBeenCalledTimes(1);
-    expect(screen.queryByText('Failed to load component')).not.toBeInTheDocument();
+    expect(screen.queryByText("We couldn't open this page")).not.toBeInTheDocument();
   });
 
   it('lazyWithRetry falls back to the boundary when the started reload never happens', async () => {
@@ -136,9 +136,9 @@ describe('chunkLoadRecovery', () => {
     // Retries (300 + 1000ms), then the reload starts; the mocked reload never navigates.
     await act(() => vi.advanceTimersByTimeAsync(2_000));
     expect(reload).toHaveBeenCalledTimes(1);
-    expect(screen.queryByText('Failed to load component')).not.toBeInTheDocument();
+    expect(screen.queryByText("We couldn't open this page")).not.toBeInTheDocument();
     await act(() => vi.advanceTimersByTimeAsync(RELOAD_FALLBACK_MS + 100));
-    expect(await screen.findByText('Failed to load component')).toBeInTheDocument();
+    expect(await screen.findByText("We couldn't open this page")).toBeInTheDocument();
   });
 
   it('lazyWithRetry does not reload a page the user navigated to while the old one was loading', async () => {
@@ -170,7 +170,7 @@ describe('chunkLoadRecovery', () => {
       </SuspenseWrapper>
     );
     await act(() => vi.advanceTimersByTimeAsync(5000));
-    expect(await screen.findByText('Failed to load component')).toBeInTheDocument();
+    expect(await screen.findByText("We couldn't open this page")).toBeInTheDocument();
     expect(reload).not.toHaveBeenCalled();
   });
 });

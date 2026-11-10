@@ -1,6 +1,7 @@
 import { useContext } from 'react';
 import { isExhibitorOnlyRoles } from '@/components/layout/sidebar/browseTabs';
 import { AuthContext } from '@/context/AuthContext';
+import { hasRingsideStaffRole } from '@/features/at-show/ringsideAccountAccess';
 import { SYNC_FAILURE_REASON_PREFIX } from './replicationSyncFormatters';
 
 /**
@@ -16,6 +17,14 @@ import { SYNC_FAILURE_REASON_PREFIX } from './replicationSyncFormatters';
 export function SyncFailureReason({ reason }: { reason: string }) {
   const auth = useContext(AuthContext);
   const isTechnical = reason.startsWith(SYNC_FAILURE_REASON_PREFIX);
-  if (isTechnical && auth && isExhibitorOnlyRoles(auth.getUserRoles())) return null;
+  const roles = auth?.getUserRoles() ?? [];
+  // The Account predicate does not include stewards and chairmen as staff.
+  if (
+    isTechnical &&
+    isExhibitorOnlyRoles(roles) &&
+    !hasRingsideStaffRole(role => roles.includes(role))
+  ) {
+    return null;
+  }
   return <>{reason}</>;
 }

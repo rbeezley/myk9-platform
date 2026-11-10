@@ -31,6 +31,14 @@ describe('SyncFailureReason (MYK9-1849)', () => {
     expect(screen.getAllByText(REASON)).toHaveLength(2);
   });
 
+  it.each([UserRole.STEWARD, UserRole.CHAIRMAN])(
+    'shows the Reason line to an exhibitor who also holds the %s role',
+    role => {
+      renderWithRoles([UserRole.EXHIBITOR, role], REASON);
+      expect(screen.getByText(REASON)).toBeInTheDocument();
+    }
+  );
+
   it('shows the Reason line while roles are not known yet, or outside an auth tree', () => {
     renderWithRoles([], REASON);
     expect(screen.getByText(REASON)).toBeInTheDocument();

@@ -74,8 +74,13 @@ describe('Show Desk context routes', () => {
 
   it('ignores a retired ?area= param and does not write it back', () => {
     const state = normalizeCockpitUrlState(new URLSearchParams('area=Ring%201&judge=j1'));
-    expect(state).not.toHaveProperty('areas');
-    expect(state.judges).toEqual(['j1']);
+    expect(state).toEqual({
+      selectedDays: [],
+      statuses: [],
+      judges: ['j1'],
+      elements: [],
+      levels: [],
+    });
     expect(writeCockpitUrlState(new URLSearchParams(), state).toString()).toBe('judge=j1');
   });
 

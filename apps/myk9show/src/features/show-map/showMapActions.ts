@@ -353,7 +353,7 @@ function liveOpsActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAct
           // "Pulled / no-show" reconciliation heading). Internal id/dialog key
           // stay 'scratch-entry'; only the user-facing label changes.
           label: 'Pull',
-          why: withEntryContext(node, 'Pull this entry at the show'),
+          why: withEntryContext(node, 'Pull this entry'),
           priority: 30,
           icon: Ban,
           ...(classId ? { classId } : {}),

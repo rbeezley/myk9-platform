@@ -93,7 +93,7 @@ export interface ShowMapScratchUndoInput {
 export async function scratchShowMapEntry(
   entryId: string,
   reason: string | undefined,
-  fallbackReason = 'Pulled at the show from Show Map'
+  fallbackReason = 'Pulled from Show Map'
 ): Promise<ShowMapScratchUndoInput> {
   const currentEntry = await replicatedEntriesTable.getEntryById(entryId);
   const previousEntryStatus =

@@ -180,7 +180,7 @@ describe('showMapActionMutations', () => {
 
     expect(mockUpdateReplicatedDayOfScratch).toHaveBeenCalledWith(
       'entry-1',
-      'Pulled at the show from Show Map'
+      'Pulled from Show Map'
     );
   });
 

@@ -1,11 +1,20 @@
 /**
  * Em-dash ratchet (MYK9-1855, sub-issue of MYK9-1820).
  *
- * Counts em dashes (U+2014 and the literal text `&mdash;`) in screen text under
- * apps/myk9show/src: string literals, template literal parts and JSX text.
- * Comments are never counted (they are not string nodes), and test files are
- * excluded. The count may only fall: a recorded per-file baseline fails CI when
- * any file rises or a new file carries any em dash.
+ * Counts em dashes in screen text under apps/myk9show/src: U+2014 (also via
+ * escapes, since string text is cooked), `&mdash;`, and the numeric entities
+ * `&#8212;` / `&#x2014;` (any case) in JSX text. Counted nodes are string
+ * literals, template literal parts and JSX text. Comments are never counted
+ * (they are not string nodes), and test files are excluded.
+ *
+ * The rule is on the TOTAL, not per file: CI fails when the total is above the
+ * recorded baseline total (a regression) and also when it is below it (slack: the
+ * baseline must be lowered in the same PR as each cleanup, per MYK9-1820). Equal
+ * totals pass even if per-file counts moved. Per-file counts are recorded only to
+ * NAME the files that rose or fell in the message. Gating on the total is what
+ * lets a rename or a split of a file that carries em dashes go through: the old
+ * path drops and the new path rises by the same amount. `--update-baseline`
+ * refuses only when the total would rise.
  *
  * Decision: the bare "—" empty-cell placeholder and the public landing templates
  * ARE counted. Placeholders become "None" / "Not set" and templates are cleaned
@@ -27,9 +36,15 @@ export type EmDashBaseline = {
   files: EmDashCounts;
 };
 
+type FileDelta = { file: string; actual: number; baseline: number };
+
 export type EmDashComparison = {
-  violations: { file: string; actual: number; baseline: number }[];
-  improvements: { file: string; actual: number; baseline: number }[];
+  actualTotal: number;
+  baselineTotal: number;
+  /** Files whose own count rose (named for information; the gate is the total). */
+  risen: FileDelta[];
+  /** Files whose own count fell. */
+  fallen: FileDelta[];
 };
 
 export const SOURCE_ROOT = 'apps/myk9show/src';
@@ -37,7 +52,7 @@ export const DEFAULT_BASELINE_PATH = 'scripts/qa/em-dash-ratchet.baseline.json';
 
 const SOURCE_EXTENSIONS = ['.ts', '.tsx'];
 const TEST_FILE_PATTERN = /\.(test|spec)\.[tj]sx?$/;
-const EM_DASH_PATTERN = /—|&mdash;/g;
+const EM_DASH_PATTERN = /—|&mdash;|&#0*8212;|&#x0*2014;/gi;
 const SKIPPED_DIRS = ['node_modules', 'dist', 'coverage', '.turbo', '__tests__'];
 
 export function countEmDashesInSource(fileName: string, source: string): number {
@@ -96,40 +111,55 @@ export function collectEmDashCounts(rootDir: string): EmDashCounts {
   return counts;
 }
 
-export function compareToBaseline(counts: EmDashCounts, baseline: EmDashCounts): EmDashComparison {
-  const violations: EmDashComparison['violations'] = [];
-  const improvements: EmDashComparison['improvements'] = [];
-
-  for (const file of new Set([...Object.keys(counts), ...Object.keys(baseline)])) {
-    const actual = counts[file] ?? 0;
-    const recorded = baseline[file] ?? 0;
-    if (actual > recorded) violations.push({ file, actual, baseline: recorded });
-    else if (actual < recorded) improvements.push({ file, actual, baseline: recorded });
-  }
-  return { violations, improvements };
-}
-
 export function sumCounts(counts: EmDashCounts): number {
   return Object.values(counts).reduce((total, value) => total + value, 0);
 }
 
-export function renderComparison(counts: EmDashCounts, comparison: EmDashComparison): string {
-  const lines = [`Em-dash ratchet: ${sumCounts(counts)} em dashes in screen text`, ''];
+export function compareToBaseline(counts: EmDashCounts, baseline: EmDashCounts): EmDashComparison {
+  const risen: FileDelta[] = [];
+  const fallen: FileDelta[] = [];
 
-  if (comparison.violations.length > 0) {
-    lines.push('Regressions (em dashes in screen text may only fall):');
-    for (const { file, actual, baseline } of comparison.violations) {
-      lines.push(`- ${file}: ${actual} exceeds ${baseline}`);
-    }
-    lines.push('', 'Use a comma, colon, period or "None" / "Not set" instead of an em dash.');
+  for (const file of new Set([...Object.keys(counts), ...Object.keys(baseline)])) {
+    const actual = counts[file] ?? 0;
+    const recorded = baseline[file] ?? 0;
+    if (actual > recorded) risen.push({ file, actual, baseline: recorded });
+    else if (actual < recorded) fallen.push({ file, actual, baseline: recorded });
   }
+  return { actualTotal: sumCounts(counts), baselineTotal: sumCounts(baseline), risen, fallen };
+}
 
-  if (comparison.improvements.length > 0) {
-    lines.push('Improvements below baseline:');
-    for (const { file, actual, baseline } of comparison.improvements) {
-      lines.push(`- ${file}: ${actual} below ${baseline}`);
-    }
-    lines.push('', 'Run pnpm qa:em-dash-ratchet:update to lower the recorded baseline.');
+function listFiles(heading: string, deltas: FileDelta[], verb: string) {
+  if (deltas.length === 0) return [];
+  return [heading, ...deltas.map(d => `- ${d.file}: ${d.actual} ${verb} ${d.baseline}`)];
+}
+
+export function renderComparison(comparison: EmDashComparison): string {
+  const { actualTotal, baselineTotal, risen, fallen } = comparison;
+  const lines = [
+    `Em-dash ratchet: ${actualTotal} em dashes in screen text (baseline ${baselineTotal})`,
+    '',
+  ];
+
+  if (actualTotal > baselineTotal) {
+    lines.push(
+      'Regression: em dashes in screen text may only fall.',
+      ...listFiles('Files that rose:', risen, 'above'),
+      '',
+      'Use a comma, colon, period or "None" / "Not set" instead of an em dash.'
+    );
+  } else if (actualTotal < baselineTotal) {
+    lines.push(
+      'The total is below the recorded baseline. Lower the baseline in the same PR as the cleanup:',
+      ...listFiles('Files that fell:', fallen, 'below'),
+      '',
+      'Run pnpm qa:em-dash-ratchet:update and commit the new baseline.'
+    );
+  } else if (risen.length > 0 || fallen.length > 0) {
+    lines.push(
+      'Total unchanged; counts moved between files (rename or split):',
+      ...listFiles('Rose:', risen, 'above'),
+      ...listFiles('Fell:', fallen, 'below')
+    );
   }
 
   return `${lines.join('\n')}\n`;
@@ -160,9 +190,9 @@ export function runCli(args: string[] = process.argv.slice(2), cwd = process.cwd
 
   if (args.includes('--update-baseline')) {
     if (existsSync(baselinePath)) {
-      const { violations } = compareToBaseline(counts, readBaseline(baselinePath).files);
-      if (violations.length > 0) {
-        console.log(renderComparison(counts, { violations, improvements: [] }));
+      const comparison = compareToBaseline(counts, readBaseline(baselinePath).files);
+      if (comparison.actualTotal > comparison.baselineTotal) {
+        console.log(renderComparison(comparison));
         console.log('Refusing to raise the baseline. Remove the new em dashes instead.');
         return 1;
       }
@@ -173,8 +203,8 @@ export function runCli(args: string[] = process.argv.slice(2), cwd = process.cwd
   }
 
   const comparison = compareToBaseline(counts, readBaseline(baselinePath).files);
-  console.log(renderComparison(counts, comparison));
-  return comparison.violations.length > 0 ? 1 : 0;
+  console.log(renderComparison(comparison));
+  return comparison.actualTotal === comparison.baselineTotal ? 0 : 1;
 }
 
 function walk(path: string): string[] {

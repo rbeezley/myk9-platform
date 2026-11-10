@@ -61,6 +61,19 @@ describe('countEmDashesInSource', () => {
     );
   });
 
+  it('counts numeric entities in JSX text, any case', () => {
+    const source = 'export const A = () => <p>a &#8212; b &#x2014; c &#X2014; d &#x2014;</p>;';
+    expect(countEmDashesInSource('a.tsx', source)).toBe(4);
+  });
+
+  it('counts an em dash written as an escape in a string literal', () => {
+    expect(countEmDashesInSource('a.ts', "const a = '\\u2014'; const b = '\\u{2014}';")).toBe(2);
+  });
+
+  it('counts a string expression in JSX', () => {
+    expect(countEmDashesInSource('a.tsx', `export const A = () => <p>{'${DASH}'}</p>;`)).toBe(1);
+  });
+
   it('ignores line and block comments', () => {
     const source = `// ${DASH} note\n/* ${DASH} block */\n/** ${DASH} doc */\nconst a = 'plain';`;
     expect(countEmDashesInSource('a.ts', source)).toBe(0);
@@ -91,13 +104,15 @@ describe('collectEmDashCounts', () => {
 });
 
 describe('compareToBaseline', () => {
-  it('flags a rise, a new file and reports falls as improvements', () => {
+  it('totals both sides and names files that rose or fell', () => {
     const result = compareToBaseline({ a: 3, new: 1, c: 1 }, { a: 2, c: 2, gone: 1 });
-    expect(result.violations).toEqual([
+    expect(result.actualTotal).toBe(5);
+    expect(result.baselineTotal).toBe(5);
+    expect(result.risen).toEqual([
       { file: 'a', actual: 3, baseline: 2 },
       { file: 'new', actual: 1, baseline: 0 },
     ]);
-    expect(result.improvements).toEqual([
+    expect(result.fallen).toEqual([
       { file: 'c', actual: 1, baseline: 2 },
       { file: 'gone', actual: 0, baseline: 1 },
     ]);
@@ -105,25 +120,35 @@ describe('compareToBaseline', () => {
 });
 
 describe('renderComparison', () => {
-  it('names the file that rose', () => {
-    const output = renderComparison({ a: 3 }, compareToBaseline({ a: 3 }, { a: 2 }));
-    expect(output).toContain('- a: 3 exceeds 2');
+  it('names the file that rose on a regression', () => {
+    const output = renderComparison(compareToBaseline({ a: 3 }, { a: 2 }));
+    expect(output).toContain('- a: 3 above 2');
   });
 
-  it('prompts with the command that lowers the baseline', () => {
-    const output = renderComparison({ a: 1 }, compareToBaseline({ a: 1 }, { a: 2 }));
+  it('prompts with the command that lowers the baseline when the total fell', () => {
+    const output = renderComparison(compareToBaseline({ a: 1 }, { a: 2 }));
     expect(output).toContain('pnpm qa:em-dash-ratchet:update');
+    expect(output).toContain('commit the new baseline');
+  });
+
+  it('prints moved files as information when the total is unchanged', () => {
+    const output = renderComparison(compareToBaseline({ b: 2 }, { a: 2 }));
+    expect(output).toContain('- b: 2 above 0');
+    expect(output).toContain('- a: 0 below 2');
+    expect(output).not.toContain('Regression');
   });
 });
 
 describe('runCli', () => {
+  const read = (root: string) => JSON.parse(readFileSync(join(root, BASELINE), 'utf8'));
+
   it('passes at the baseline', () => {
     const root = makeRoot({ [`${APP}/a.ts`]: `export const a = '${DASH}';` });
     writeBaselineFile(root, { [`${APP}/a.ts`]: 1 });
     expect(runCli([], root)).toBe(0);
   });
 
-  it('fails when a file gains an em dash', () => {
+  it('fails when the total rises', () => {
     const root = makeRoot({ [`${APP}/a.ts`]: `export const a = '${DASH} ${DASH}';` });
     writeBaselineFile(root, { [`${APP}/a.ts`]: 1 });
     expect(runCli([], root)).toBe(1);
@@ -135,23 +160,31 @@ describe('runCli', () => {
     expect(runCli([], root)).toBe(1);
   });
 
-  it('passes and prompts when the count falls', () => {
+  it('passes a rename and updates cleanly', () => {
+    const root = makeRoot({ [`${APP}/renamed.ts`]: `export const a = '${DASH}';` });
+    writeBaselineFile(root, { [`${APP}/old.ts`]: 1 });
+    expect(runCli([], root)).toBe(0);
+    expect(runCli(['--update-baseline'], root)).toBe(0);
+    expect(read(root).files).toEqual({ [`${APP}/renamed.ts`]: 1 });
+    expect(runCli([], root)).toBe(0);
+  });
+
+  it('fails when the total fell until the baseline is updated, then passes', () => {
     const root = makeRoot({ [`${APP}/a.ts`]: `export const a = 'none';` });
     writeBaselineFile(root, { [`${APP}/a.ts`]: 1 });
-    expect(runCli([], root)).toBe(0);
+    expect(runCli([], root)).toBe(1);
     expect(vi.mocked(console.log).mock.calls.flat().join('\n')).toContain(
       'pnpm qa:em-dash-ratchet:update'
     );
+    expect(runCli(['--update-baseline'], root)).toBe(0);
+    expect(read(root).total).toBe(0);
+    expect(runCli([], root)).toBe(0);
   });
 
-  it('--update-baseline lowers the baseline but refuses to raise it', () => {
-    const root = makeRoot({ [`${APP}/a.ts`]: `export const a = 'none';` });
-    writeBaselineFile(root, { [`${APP}/a.ts`]: 1 });
-    expect(runCli(['--update-baseline'], root)).toBe(0);
-    expect(JSON.parse(readFileSync(join(root, BASELINE), 'utf8')).files).toEqual({});
-
-    writeFileSync(join(root, `${APP}/a.ts`), `export const a = '${DASH}';`);
+  it('--update-baseline refuses to raise the baseline', () => {
+    const root = makeRoot({ [`${APP}/a.ts`]: `export const a = '${DASH}';` });
+    writeBaselineFile(root, {});
     expect(runCli(['--update-baseline'], root)).toBe(1);
-    expect(JSON.parse(readFileSync(join(root, BASELINE), 'utf8')).files).toEqual({});
+    expect(read(root).files).toEqual({});
   });
 });

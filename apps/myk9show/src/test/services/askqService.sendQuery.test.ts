@@ -18,6 +18,7 @@ import {
   AskQUnavailableError,
   RateLimitError,
   sendAskQQuery,
+  sendOperatorSupportQuery,
 } from '@/services/askqService';
 
 const fetchMock = vi.fn();
@@ -93,6 +94,15 @@ describe('sendAskQQuery', () => {
     const error = await sendAskQQuery({ message: 'hi' }).catch(e => e);
     expect(error).toBeInstanceOf(AskQRequestError);
     expect(error.reason).toBe(reason);
+  });
+
+  // Operator Support's 403 is a missing site-admin role: "create an account" would be false.
+  it('does not read an Operator Support 403 as account-required', async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse({ error: 'Operator Support requires site admin access' }, 403)
+    );
+    const error = await sendOperatorSupportQuery({ message: 'hi' }).catch(e => e);
+    expect(error).not.toBeInstanceOf(AskQRequestError);
   });
 
   it('reads no session as the signed-out refusal without calling the server', async () => {

@@ -87,7 +87,11 @@ async function sendAuthenticatedQuery(
   }
 
   if (response.status === 401) throw new AskQRequestError('signed-out');
-  if (response.status === 403) throw new AskQRequestError('account-required');
+  // A 403 means "account required" only from the app AskQ function (its anonymous-user check);
+  // Operator Support's 403 is a missing site-admin role, which signing up cannot fix.
+  if (response.status === 403 && functionUrl === FUNCTION_URL) {
+    throw new AskQRequestError('account-required');
+  }
 
   if (!response.ok) {
     const data = await response.json().catch(() => ({ error: 'Request failed' }));

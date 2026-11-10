@@ -1,27 +1,15 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import type {
-  AskQQuestionMode,
-  AskQShowRequest,
-  ChatResponse,
-  ClaudeContentBlock,
-  ToolDefinition,
-  UserContext,
-} from '../_shared/askq/types.ts';
-import { TOOLS } from '../_shared/askq/toolDefinitions.ts';
+import type { AskQShowRequest, ChatResponse, UserContext } from '../_shared/askq/types.ts';
 import { executeTool } from '../_shared/askq/toolExecutor.ts';
 import { collectSource } from '../_shared/askq/responseFormatter.ts';
 import { callClaude } from '../_shared/askq/promptBuilder.ts';
 import { ASKQ_GUIDES, ASKQ_RULEBOOKS } from '../_shared/askq/documentAssets.ts';
 import { type AskQRulebookAsset, selectRulebook } from '../_shared/askq/documentContext.ts';
-import {
-  parseAskQRouting,
-  resolveQuestionModeForShow,
-  resolveRulebookContext,
-} from '../_shared/askq/requestRouting.ts';
+import { parseAskQRouting } from '../_shared/askq/requestRouting.ts';
+import { answerQuestion, routeMarkers } from '../_shared/askq/answerQuestion.ts';
 import {
   getSupportEscalationForQuestion,
   isSupportModeEnabled,
-  parseSupportAnswer,
   type SupportEscalationPayload,
 } from '../_shared/askq/supportMode.ts';
 import { reserveAskQQuery } from '../_shared/askq/askqRateLimit.ts';
@@ -29,7 +17,6 @@ import { classifyAskQFailure } from '../_shared/askq/askqFailure.ts';
 import { describeShowRegistries } from '../_shared/askq/showRegistries.ts';
 import { callerHasShowAccess } from '../_shared/askq/showAccess.ts';
 import { callerHoldsStaffRole } from '../_shared/askq/guideScope.ts';
-import { buildAskQSystemPrompt } from '../_shared/askq/systemPrompt.ts';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': Deno.env.get('ALLOWED_ORIGIN') ?? 'http://localhost:5173',
@@ -37,7 +24,6 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-const MAX_TOOL_ITERATIONS = 5;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function jsonResponse(body: Record<string, unknown>, status: number) {
@@ -124,12 +110,11 @@ Deno.serve(async (req: Request) => {
 
     const { message, showId } = body;
     const supportMode = isSupportModeEnabled(body.supportMode);
-    const routing = parseAskQRouting(body.questionMode, body.rulebookScope, supportMode);
+    // questionMode is validated for the deployed client but no longer restricts sources.
+    const routing = parseAskQRouting(body.questionMode, body.rulebookScope);
     if (!routing.ok) {
       return jsonResponse({ error: routing.error }, 400);
     }
-    const requestedMode = routing.questionMode;
-    const effectiveSupportMode = supportMode || requestedMode === 'app-help';
     if (!message?.trim()) {
       return jsonResponse({ error: 'Message is required' }, 400);
     }
@@ -181,9 +166,7 @@ Deno.serve(async (req: Request) => {
         .update({ tools_used: [marker], response_time_ms: Date.now() - startTime })
         .eq('id', reservation.logId);
     const { remaining, limit } = reservation;
-    const supportQuestionEscalation = effectiveSupportMode
-      ? getSupportEscalationForQuestion(message)
-      : null;
+    const supportQuestionEscalation = supportMode ? getSupportEscalationForQuestion(message) : null;
 
     if (supportQuestionEscalation) {
       const responseTimeMs = Date.now() - startTime;
@@ -244,9 +227,6 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // The panel shows "This show" by default and sends no mode until the tab changes.
-    const questionMode = resolveQuestionModeForShow(requestedMode, verifiedShowId !== null);
-
     const userContext: UserContext = {
       userId: user.id,
       displayName,
@@ -256,113 +236,60 @@ Deno.serve(async (req: Request) => {
       showRegistries,
     };
 
-    const rulebookResolution = resolveRulebookContext({
-      allRulebooks: ASKQ_RULEBOOKS,
-      showRulebooks,
-      hasVerifiedShowContext: verifiedShowId !== null,
-      questionMode,
-      message,
-      rulebookScope: routing.rulebookScope,
-    });
-
-    if (rulebookResolution.clarification) {
-      const responseTimeMs = Date.now() - startTime;
-      if (logRow?.id) {
-        await serviceClient
-          .from('chatbot_query_log')
-          .update({
-            tools_used: [],
-            response_time_ms: responseTimeMs,
-          })
-          .eq('id', logRow.id);
-      }
-
-      return buildTextStream(rulebookResolution.clarification, {
-        remaining,
-        limit,
-        responseTimeMs,
-        queryLogId: logRow?.id ?? null,
-      });
-    }
-
     const hasStaffRole = await callerHoldsStaffRole(serviceClient, user.id);
-    const { systemPrompt, guides: documentGuides } = buildAskQSystemPrompt({
-      userContext,
-      questionMode,
-      effectiveSupportMode,
-      hasStaffRole,
-      allGuides: ASKQ_GUIDES,
-      rulebooks: getDocumentRulebooks(questionMode, rulebookResolution.rulebooks),
-    });
-    const activeTools = getActiveTools(questionMode, effectiveSupportMode);
-
-    const messages = [{ role: 'user' as const, content: message }];
-    const toolsUsed: string[] = [];
     const sources: ChatResponse['sources'] = {};
 
-    let result = await callClaude(messages, anthropicKey, activeTools, systemPrompt);
-    let iterations = 0;
-
-    while (result.stop_reason === 'tool_use') {
-      if (++iterations > MAX_TOOL_ITERATIONS) {
-        break;
-      }
-
-      const assistantContent = result.content;
-      messages.push({ role: 'assistant' as const, content: assistantContent });
-
-      const toolResults: ClaudeContentBlock[] = [];
-      for (const block of assistantContent) {
-        if (block.type === 'tool_use') {
-          toolsUsed.push(block.name!);
-          const toolResult = await executeTool(
-            block.name!,
-            block.input!,
-            serviceClient,
-            '', // myK9Show uses show_id scoping via userContext, not license_key
-            undefined,
-            undefined,
-            userContext,
-            // Entry results are read as the caller, so the server's release
-            // and privacy rules apply to them (MYK9-969).
-            supabaseClient
-          );
-          // Fixed argument order: (sources, toolName, result)
-          collectSource(sources, block.name!, toolResult.result);
-          toolResults.push({
-            type: 'tool_result',
-            tool_use_id: block.id!,
-            content: JSON.stringify(toolResult),
-          });
-        }
-      }
-      messages.push({ role: 'user' as const, content: toolResults });
-      result = await callClaude(messages, anthropicKey, activeTools, systemPrompt);
+    const answered = await answerQuestion({
+      message,
+      userContext,
+      hasStaffRole,
+      supportMode,
+      rulebookScope: routing.rulebookScope,
+      allGuides: ASKQ_GUIDES,
+      allRulebooks: ASKQ_RULEBOOKS,
+      showRulebooks,
+      call: (messages, tools, system, maxTokens) =>
+        callClaude(messages, anthropicKey, tools, system, maxTokens),
+      runTool: async (name, input) => {
+        const toolResult = await executeTool(
+          name,
+          input,
+          serviceClient,
+          '', // myK9Show uses show_id scoping via userContext, not license_key
+          undefined,
+          undefined,
+          userContext,
+          // Entry results are read as the caller, so the server's release
+          // and privacy rules apply to them (MYK9-969).
+          supabaseClient
+        );
+        // Fixed argument order: (sources, toolName, result)
+        collectSource(sources, name, toolResult.result);
+        return toolResult;
+      },
+    });
+    const toolsUsed = answered.toolsUsed;
+    if (answered.guideSources.length > 0) {
+      sources.guide = answered.guideSources;
     }
-
-    const textBlock = result.content.find(b => b.type === 'text');
-    const fullText = textBlock?.text ?? '';
-    const parsedSupportAnswer = effectiveSupportMode
-      ? parseSupportAnswer(fullText, documentGuides)
-      : null;
-    if (parsedSupportAnswer && parsedSupportAnswer.guideSources.length > 0) {
-      sources.guide = parsedSupportAnswer.guideSources;
-    }
-    const responseText = parsedSupportAnswer?.answerText ?? fullText;
+    const responseText = answered.text;
     const responseTimeMs = Date.now() - startTime;
     // Update the provisional log row with actual data
-    const supportAnswerEscalation = parsedSupportAnswer?.escalation ?? null;
-    const loggedTools = supportAnswerEscalation
-      ? [
-          ...new Set([
-            ...toolsUsed,
-            'support_escalation',
-            parsedSupportAnswer?.escalationCause === 'quote_rejected'
-              ? 'support_quote_rejected'
-              : 'support_handoff',
-          ]),
-        ]
-      : [...new Set(toolsUsed)];
+    const supportAnswerEscalation = answered.escalation;
+    const loggedTools = [
+      ...new Set([
+        ...routeMarkers(answered.sources),
+        ...toolsUsed,
+        ...(supportAnswerEscalation
+          ? [
+              'support_escalation',
+              answered.escalationCause === 'quote_rejected'
+                ? 'support_quote_rejected'
+                : 'support_handoff',
+            ]
+          : []),
+      ]),
+    ];
 
     if (logRow?.id) {
       await serviceClient
@@ -434,22 +361,6 @@ function buildTextStream(
     send('meta', meta);
     send('done', {});
   });
-}
-
-function getActiveTools(
-  questionMode: AskQQuestionMode | null,
-  effectiveSupportMode: boolean
-): ToolDefinition[] {
-  if (effectiveSupportMode || questionMode === 'rules') return [];
-  return TOOLS;
-}
-
-function getDocumentRulebooks(
-  questionMode: AskQQuestionMode | null,
-  rulebooks: AskQRulebookAsset[]
-): AskQRulebookAsset[] {
-  if (questionMode === 'app-help' || questionMode === 'show-data') return [];
-  return rulebooks;
 }
 
 function selectUniqueRulebooksForTrials(

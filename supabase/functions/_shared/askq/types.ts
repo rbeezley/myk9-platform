@@ -91,6 +91,25 @@ export interface ClaudeContentBlock {
   content?: string;
 }
 
+export interface ModelReply {
+  content: Array<{
+    type: string;
+    text?: string;
+    id?: string;
+    name?: string;
+    input?: Record<string, unknown>;
+  }>;
+  stop_reason: string;
+}
+
+/** One model request; index.ts binds the API key, tests pass a stub. */
+export type ModelCall = (
+  messages: ClaudeMessage[],
+  tools: ToolDefinition[],
+  systemPrompt: string,
+  maxTokens?: number
+) => Promise<ModelReply>;
+
 export interface UserContext {
   userId: string;
   displayName: string | null;

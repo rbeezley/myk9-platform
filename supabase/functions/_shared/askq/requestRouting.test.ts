@@ -1,11 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  buildModePrompt,
-  parseAskQRouting,
-  resolveQuestionModeForShow,
-  resolveRulebookContext,
-} from './requestRouting.ts';
-import { buildGroundingPrompt } from './groundingRules.ts';
+import { parseAskQRouting, resolveRulebookContext } from './requestRouting.ts';
 import type { AskQRulebookAsset } from './documentContext.ts';
 
 const rulebooks: AskQRulebookAsset[] = [
@@ -27,44 +21,38 @@ const rulebooks: AskQRulebookAsset[] = [
 
 describe('AskQ request routing', () => {
   it('keeps omitted questionMode backward compatible', () => {
-    expect(parseAskQRouting(undefined, undefined, false)).toEqual({
-      ok: true,
-      questionMode: null,
-    });
+    expect(parseAskQRouting(undefined, undefined)).toEqual({ ok: true });
   });
 
-  it('maps existing supportMode callers to app-help mode', () => {
-    expect(parseAskQRouting(undefined, undefined, true)).toEqual({
-      ok: true,
-      questionMode: 'app-help',
-    });
+  it('accepts every tab the deployed client sends without restricting sources', () => {
+    for (const mode of ['app-help', 'rules', 'show-data']) {
+      expect(parseAskQRouting(mode, undefined)).toEqual({ ok: true });
+    }
   });
 
   it('validates selected question mode and rulebook scope', () => {
-    expect(
-      parseAskQRouting('rules', { organizationCode: 'akc', sportCode: 'Scent Work' }, false)
-    ).toEqual({
-      ok: true,
-      questionMode: 'rules',
-      rulebookScope: { organizationCode: 'AKC', sportCode: 'Scent Work' },
-    });
+    expect(parseAskQRouting('rules', { organizationCode: 'akc', sportCode: 'Scent Work' })).toEqual(
+      {
+        ok: true,
+        rulebookScope: { organizationCode: 'AKC', sportCode: 'Scent Work' },
+      }
+    );
 
-    expect(parseAskQRouting('other', undefined, false)).toEqual({
+    expect(parseAskQRouting('other', undefined)).toEqual({
       ok: false,
       error: 'Invalid questionMode',
     });
-    expect(parseAskQRouting('rules', { organizationCode: 12 }, false)).toEqual({
+    expect(parseAskQRouting('rules', { organizationCode: 12 })).toEqual({
       ok: false,
       error: 'Invalid rulebookScope',
     });
   });
 
-  it('asks for clarification when rules mode has multiple possible rulebooks', () => {
+  it('asks for clarification when more than one rulebook could apply', () => {
     const resolution = resolveRulebookContext({
       allRulebooks: rulebooks,
       showRulebooks: [],
       hasVerifiedShowContext: false,
-      questionMode: 'rules',
     });
 
     expect(resolution.rulebooks).toEqual([]);
@@ -73,12 +61,11 @@ describe('AskQ request routing', () => {
     );
   });
 
-  it('asks for clarification when omitted-mode text is an ambiguous rules question', () => {
+  it('asks for clarification for an ambiguous rules question with no registry named', () => {
     const resolution = resolveRulebookContext({
       allRulebooks: rulebooks,
       showRulebooks: [],
       hasVerifiedShowContext: false,
-      questionMode: null,
       message: "What's the max time in Excellent Containers?",
     });
 
@@ -94,7 +81,6 @@ describe('AskQ request routing', () => {
         allRulebooks: rulebooks,
         showRulebooks: [],
         hasVerifiedShowContext: false,
-        questionMode: 'rules',
         rulebookScope: { organizationCode: 'AKC', sportCode: 'Scent Work' },
       })
     ).toEqual({ rulebooks: [rulebooks[0]], clarification: null });
@@ -104,7 +90,6 @@ describe('AskQ request routing', () => {
         allRulebooks: rulebooks,
         showRulebooks: [],
         hasVerifiedShowContext: false,
-        questionMode: 'rules',
         rulebookScope: { organizationCode: 'UKC', sportCode: 'Nosework' },
       })
     ).toEqual({ rulebooks: [rulebooks[1]], clarification: null });
@@ -116,7 +101,6 @@ describe('AskQ request routing', () => {
         allRulebooks: rulebooks,
         showRulebooks: [],
         hasVerifiedShowContext: false,
-        questionMode: 'rules',
         message: 'What is the max time in AKC Excellent Containers?',
       })
     ).toEqual({ rulebooks: [rulebooks[0]], clarification: null });
@@ -127,7 +111,6 @@ describe('AskQ request routing', () => {
       allRulebooks: rulebooks,
       showRulebooks: [rulebooks[0]],
       hasVerifiedShowContext: true,
-      questionMode: 'rules',
       rulebookScope: { organizationCode: 'UKC', sportCode: 'Nosework' },
     });
 
@@ -136,24 +119,14 @@ describe('AskQ request routing', () => {
     expect(resolution.clarification).toContain('AKC Scent Work');
   });
 
-  it('keeps mode prompt constraints distinct', () => {
-    expect(buildModePrompt('rules')).toContain('Answer only from selected_rulebook');
-    expect(buildModePrompt('show-data')).toContain('Use live show-data tools');
-    expect(buildModePrompt('app-help')).toContain('Answer only from verified_user_guides');
-  });
-});
-
-describe('default mode with a verified show', () => {
-  it('treats an absent questionMode plus a verified show as This show and applies its grounding rules', () => {
-    const routing = parseAskQRouting(undefined, undefined, false);
-    if (!routing.ok) throw new Error('routing failed');
-    const mode = resolveQuestionModeForShow(routing.questionMode, true);
-    expect(mode).toBe('show-data');
-    expect(buildGroundingPrompt(mode, false)).toContain('GROUNDING RULES (this show)');
-  });
-  it('leaves absent mode alone without a verified show, and never overrides an explicit mode', () => {
-    expect(resolveQuestionModeForShow(null, false)).toBeNull();
-    expect(resolveQuestionModeForShow('rules', true)).toBe('rules');
-    expect(resolveQuestionModeForShow('app-help', true)).toBe('app-help');
+  it('does not ask which rulebook when the show has none to choose from', () => {
+    expect(
+      resolveRulebookContext({
+        allRulebooks: rulebooks,
+        showRulebooks: [],
+        hasVerifiedShowContext: true,
+        message: 'What is the max time?',
+      })
+    ).toEqual({ rulebooks: [], clarification: null });
   });
 });

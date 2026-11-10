@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/table';
 
 import { StatusPill } from './StatusPill';
+import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import { ClassCheckInCell } from './ClassCheckInCell';
 import { useClassCheckIn } from './useClassCheckIn';
 import { ClassEntryRowMenu } from './ClassEntryRowMenu';
@@ -134,8 +135,8 @@ export function ClassEntriesTable({
                 <TableCell className={cn(CELL, 'tabular-nums text-muted-foreground')}>
                   {entry.place ?? ''}
                 </TableCell>
-                <TableCell className={cn(CELL, 'font-medium tabular-nums')}>
-                  {entry.armband ?? ''}
+                <TableCell className={CELL}>
+                  <ArmbandBadge armband={entry.armband} className="h-8 min-w-8" />
                 </TableCell>
                 <TableCell className={CELL}>
                   <div className="font-medium">{entry.dogName}</div>

@@ -155,18 +155,44 @@ describe('the class table Check-in cell opens the desk status picker (MYK9-1797)
     expect(h.updateReplicatedCheckInStatus).not.toHaveBeenCalled();
   });
 
-  it('offers no change on a locked row, and says why', () => {
+  it('renders a locked row as the same control, disabled, with the reason visible', () => {
     renderTable(true);
-    expect(screen.queryByRole('button', { name: /Change check-in for Piper/ })).toBeNull();
+    const locked = screen.getByRole('button', { name: 'Check-in for Piper: Checked in, locked' });
+    expect(locked).toBeDisabled();
     expect(screen.getByText('Checked in')).toBeInTheDocument();
     expect(screen.getByText('Scored, so the status is locked')).toBeInTheDocument();
   });
 
-  it('gives a read-only user the status as text, with no button and no locked reason', () => {
+  it('never leaves a locked dog with no status blank', () => {
+    const { container } = render(
+      <ClassEntriesTable
+        entries={[
+          entry('e-3', 'Rune', {
+            deskEditable: false,
+            lockedReason: 'Pulled, so the status is locked',
+          }),
+        ]}
+        className="Container Novice A"
+        canChangeCheckIn
+      />
+    );
+    expect(screen.getByRole('button', { name: /Check-in for Rune/ })).toBeDisabled();
+    expect(screen.getByText('No status')).toBeInTheDocument();
+    expect(container.querySelectorAll('td')[4]?.textContent).not.toBe('');
+  });
+
+  it('gives a read-only user the same shape as text, never blank, with no button', () => {
     renderTable(false);
     expect(screen.queryByRole('button')).toBeNull();
     expect(screen.getByText('Checked in')).toBeInTheDocument();
+    expect(screen.getByText('No status')).toBeInTheDocument();
     expect(screen.queryByText('Scored, so the status is locked')).toBeNull();
+  });
+
+  it('renders the armband in the shared tile', () => {
+    renderTable(true);
+    const [tile] = screen.getAllByText('101');
+    expect(tile).toHaveClass('rounded-lg', 'bg-primary', 'h-8', 'min-w-8');
   });
 
   it('does not say "Not checked in" twice on a dog that has not turned up', () => {

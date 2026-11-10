@@ -88,6 +88,20 @@ describe('ClassActualStartEditor', () => {
     });
   });
 
+  it('keeps the time input, Save and Cancel in a wrapping group with Save and Cancel kept together (MYK9-1866)', () => {
+    render(<Harness hasStart />);
+    const row = screen.getByTestId('class-start-row');
+    expect(row.className).toContain('flex-wrap');
+    const actions = screen.getByTestId('clock-time-actions');
+    expect(actions.className).toContain('shrink-0');
+    expect(actions).toContainElement(screen.getByRole('button', { name: 'Save' }));
+    expect(actions).toContainElement(screen.getByRole('button', { name: 'Cancel' }));
+    expect(row).toContainElement(screen.getByRole('textbox'));
+    expect(row).toContainElement(screen.getByRole('button', { name: 'Save' }));
+    expect(row).toContainElement(screen.getByRole('button', { name: 'Cancel' }));
+    expect(row).not.toContainElement(screen.getByRole('button', { name: /Clear start/ }));
+  });
+
   it('offers no Clear start when no start is recorded', () => {
     render(<Harness hasStart={false} />);
 

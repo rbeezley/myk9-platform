@@ -265,8 +265,8 @@ export function ExpectedStartControl({
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      <div className="w-36">
+    <div className="flex flex-wrap items-start gap-1.5">
+      <div className="flex min-w-0 max-w-full flex-wrap items-start gap-1.5">
         <ClockTimeInput
           value={value}
           storage="hhmm"
@@ -276,29 +276,31 @@ export function ExpectedStartControl({
           onCancel={() => setIsEditing(false)}
           disabled={isSaving}
         />
+        <div className="flex shrink-0 items-start gap-2" data-testid="clock-time-actions">
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            onClick={() => void save()}
+            disabled={!value || unresolved || isSaving}
+            aria-label="Save expected start"
+            className="h-11 w-11"
+          >
+            <Check className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            onClick={() => setIsEditing(false)}
+            disabled={isSaving}
+            aria-label="Cancel expected start edit"
+            className="h-11 w-11"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
-      <Button
-        type="button"
-        size="icon"
-        variant="ghost"
-        onClick={() => void save()}
-        disabled={!value || unresolved || isSaving}
-        aria-label="Save expected start"
-        className="h-11 w-11"
-      >
-        <Check className="h-4 w-4" />
-      </Button>
-      <Button
-        type="button"
-        size="icon"
-        variant="ghost"
-        onClick={() => setIsEditing(false)}
-        disabled={isSaving}
-        aria-label="Cancel expected start edit"
-        className="h-11 w-11"
-      >
-        <X className="h-4 w-4" />
-      </Button>
       {revisedExpectedStart && (
         <button
           type="button"

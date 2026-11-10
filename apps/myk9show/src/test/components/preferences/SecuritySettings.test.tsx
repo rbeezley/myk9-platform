@@ -35,7 +35,7 @@ describe('SecuritySettings password form', () => {
     fill('short', 'short');
     submit();
 
-    expect(screen.getByText('Password must be at least 8 characters.')).toBeInTheDocument();
+    expect(screen.getAllByText('Your password needs at least 8 characters.')).not.toHaveLength(0);
     expect(mockUpdatePassword).not.toHaveBeenCalled();
   });
 
@@ -58,6 +58,18 @@ describe('SecuritySettings password form', () => {
     await waitFor(() =>
       expect(screen.getByText(/password updated successfully/i)).toBeInTheDocument()
     );
+  });
+
+  it('shows a plain fallback for an error it was not told how to word, never its raw text (MYK9-1815)', async () => {
+    mockUpdatePassword.mockRejectedValueOnce(new TypeError('Cannot read properties of undefined'));
+    render(<SecuritySettings />);
+    fill('longenough1', 'longenough1');
+    submit();
+
+    expect(
+      await screen.findByText('We could not change your password. Please try again.')
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/cannot read properties/i)).toBeNull();
   });
 
   it('shows a code field when GoTrue asks for the emailed code, then sends it (MYK9-1208)', async () => {

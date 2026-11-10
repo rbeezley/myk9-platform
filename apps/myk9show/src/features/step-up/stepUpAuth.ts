@@ -10,7 +10,7 @@
  * leaves the session's `amr` untouched, so the server could never see it.
  */
 import type { Session } from '@supabase/supabase-js';
-import { isCaptchaFailure } from '@/config/turnstile';
+import { commonAuthFailure, type AuthFailure } from '@/lib/authErrorCopy';
 import { supabase } from '@/services/database/supabaseClient';
 import type { StepUpAccount } from './stepUpStore';
 import { reusableFreshToken } from './stepUpToken';
@@ -20,10 +20,7 @@ export class StepUpError extends Error {}
 const MESSAGES = {
   wrongPassword: 'That password is not right. Try again, or email yourself a code instead.',
   wrongCode: 'That code is not right or has expired. Check the email, or send a new code.',
-  tooMany: 'Too many tries. Wait a minute, then try again.',
-  offline: 'Could not reach myK9Show. Check your connection and try again.',
   otherAccount: 'That signed in a different account. Sign out, then sign in as yourself.',
-  captcha: 'The security check did not finish. Wait a moment, then try again.',
   generic: 'Something went wrong. Please try again.',
 } as const;
 
@@ -48,16 +45,9 @@ export async function loadFreshStepUpToken(refusedToken: string | null): Promise
   return reusableFreshToken(data.session?.access_token, refusedToken);
 }
 
-interface AuthFailure {
-  status?: number | undefined;
-  code?: string | undefined;
-  message?: string | undefined;
-}
-
 function friendly(error: AuthFailure, wrong: string) {
-  if (isCaptchaFailure(error)) return MESSAGES.captcha;
-  if (error.status === 429 || error.code?.startsWith('over_')) return MESSAGES.tooMany;
-  if (error.status === 0 || /fetch|network/i.test(error.message ?? '')) return MESSAGES.offline;
+  const common = commonAuthFailure(error);
+  if (common) return common;
   if (error.status === 400 || error.status === 401 || error.status === 403) return wrong;
   return MESSAGES.generic;
 }

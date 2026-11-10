@@ -44,10 +44,10 @@ vi.mock('@/components/auth/PermissionGuard', () => ({
 const onPaymentMethodChange = vi.fn();
 const onPaymentDetailsChange = vi.fn();
 
-function renderStep(paymentMethod: PaymentMethod | '' = 'check') {
+function renderStep(paymentMethod: PaymentMethod | '' = 'check', canUseDeskPaymentActions = true) {
   return render(
     <PaymentStep
-      paymentResolution={makePaymentResolution({ paymentMethod })}
+      paymentResolution={makePaymentResolution({ paymentMethod, canUseDeskPaymentActions })}
       selectedDogs={['dog-1']}
       paymentMethod={paymentMethod}
       onPaymentMethodChange={onPaymentMethodChange}
@@ -57,6 +57,12 @@ function renderStep(paymentMethod: PaymentMethod | '' = 'check') {
 }
 
 const deskCard = () => screen.getByRole('region', { name: 'Payment at the desk' });
+
+// MYK9-1875: the card is for THIS show's officials; anyone else never sees it.
+it('is not shown to someone who is not an official of this show', () => {
+  renderStep('check', false);
+  expect(screen.queryByRole('region', { name: 'Payment at the desk' })).not.toBeInTheDocument();
+});
 
 describe('SecretaryPaymentManagement (MYK9-1822)', () => {
   beforeEach(() => {

@@ -79,7 +79,9 @@ describe('untouched automatic tick', () => {
     useShowRegistrationStore.setState(useShowRegistrationStore.getInitialState());
     vi.useFakeTimers();
   });
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
   it('writes no draft and creates no registration on the timer, pagehide or unmount', () => {
     const { result, unmount } = renderHook(useHarness);

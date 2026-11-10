@@ -160,7 +160,9 @@ describe('the passive visit on the real wizard', () => {
     roster.dogs = [makeDog('dog-1')];
     vi.useFakeTimers();
   });
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
   it('ticks the only dog, writes nothing, and ticks again on the next visit', async () => {
     const { result, unmount } = mountPage();
@@ -222,7 +224,7 @@ describe('the passive visit on the real wizard', () => {
     }));
     act(() => saver.result.current.setDraftData({ selectedDogs: ['dog-1'] }));
     act(() => {
-      saver.result.current.persistence.saveDraft();
+      saver.result.current.persistence.saveDraft('Saved entry');
     });
     saver.unmount();
     expect(resumable()).toHaveLength(1);

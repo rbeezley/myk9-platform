@@ -1,3 +1,8 @@
+import {
+  isUnsetJudgeName,
+  judgeNameOrUnsetLabel,
+  UNSET_JUDGE_STORED_TEXT,
+} from '@/utils/classJudgeDisplay';
 import { StatusBadge, getStatusDescriptor } from '@/components/status';
 import { shouldShowSection } from '@/components/classes/ClassDetailsMain.helpers';
 import { compareClockTimes } from '@myk9/core';
@@ -80,11 +85,19 @@ export function buildClassesTabColumns({
       header: 'Judge',
       meta: {
         responsiveHide: 'md' as const,
-        // An unassigned class shows "TBD".
-        searchValue: (row: unknown) => (row as ClassTableRow).judgeName || 'TBD',
+        // An unassigned class shows "No judge yet"; search finds that label and the stored "TBD".
+        searchValue: (row: unknown) => {
+          const { judgeName } = row as ClassTableRow;
+          return isUnsetJudgeName(judgeName)
+            ? `${judgeNameOrUnsetLabel(judgeName, { compact: true })} ${UNSET_JUDGE_STORED_TEXT}`
+            : judgeName;
+        },
       },
+      // Display only: the cell says "No judge yet" (short form, this column is narrow).
       cell: ({ row }) => (
-        <span className="text-muted-foreground">{row.original.judgeName || 'TBD'}</span>
+        <span className="text-muted-foreground">
+          {judgeNameOrUnsetLabel(row.original.judgeName, { compact: true })}
+        </span>
       ),
     },
     {

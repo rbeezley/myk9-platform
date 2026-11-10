@@ -562,3 +562,11 @@ describe('WhereToBe', () => {
     });
   });
 });
+
+describe('WhereToBe unset judge (MYK9-1846)', () => {
+  it('says Judge to be announced for a stored TBD, never Judge TBD or a doubled Judge', () => {
+    render(<WhereToBe entries={[makeEntry({ judgeName: 'TBD' })]} showId={SHOW_ID} />);
+    expect(screen.getByText(/Judge to be announced/)).toBeInTheDocument();
+    expect(screen.queryByText(/Judge TBD|Judge Judge|Judge:/)).not.toBeInTheDocument();
+  });
+});

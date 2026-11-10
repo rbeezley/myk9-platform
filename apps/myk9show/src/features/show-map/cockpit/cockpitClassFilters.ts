@@ -1,3 +1,4 @@
+import { judgeNameOrUnsetLabel } from '@/utils/classJudgeDisplay';
 /**
  * The Show Desk schedule filter as one unit (MYK9-1785): Status (cockpitStatusFilter.ts), Judge,
  * Element and Level. Within a group a class shows when it matches ANY ticked value;
@@ -57,7 +58,12 @@ export function filterFactsOf(cls: SecretaryCockpitClass): CockpitFilterFacts {
     lifecycle: cls.lifecycle ?? null,
     closeout: cls.closeout ?? 'none',
     judge: judgeValue
-      ? { value: judgeValue, label: cls.judgeName || 'Assigned judge' }
+      ? {
+          value: judgeValue,
+          label: cls.judgeName
+            ? judgeNameOrUnsetLabel(cls.judgeName, { compact: true })
+            : 'Assigned judge',
+        }
       : { value: UNASSIGNED_JUDGE, label: 'Unassigned' },
     element: cls.element || null,
     level: cls.level || null,

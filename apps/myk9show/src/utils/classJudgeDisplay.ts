@@ -102,3 +102,33 @@ export function formatJudgeAvailabilityWindow(judge: {
   if (start === 'Full Day' || end === 'Full Day') return null;
   return `(${start} - ${end})`;
 }
+
+/** The text stored for an unset judge (what older habits and exports still say). */
+export const UNSET_JUDGE_STORED_TEXT = UNASSIGNED_LABEL;
+/** Screen label for a class with no judge yet. Screens only: stored and printed values stay 'TBD'. */
+export const UNSET_JUDGE_LABEL = 'Judge to be announced';
+/** For a narrow table cell where the full label would wrap. */
+export const UNSET_JUDGE_SHORT_LABEL = 'No judge yet';
+/** For places that already print a "Judge" prefix or column header. */
+export const UNSET_JUDGE_VALUE = 'To be announced';
+
+/** True when there is no real judge: missing, blank, or the stored 'TBD'. */
+export function isUnsetJudgeName(name: string | null | undefined): boolean {
+  const trimmed = typeof name === 'string' ? name.trim() : '';
+  return trimmed === '' || trimmed === UNASSIGNED_LABEL;
+}
+
+/** The judge name to show on a screen, or the label (short when `compact`, bare when `bare`) when unset. */
+export function judgeNameOrUnsetLabel(
+  name: string | null | undefined,
+  options: { compact?: boolean; bare?: boolean } = {}
+): string {
+  if (!isUnsetJudgeName(name)) return (name as string).trim();
+  if (options.compact) return UNSET_JUDGE_SHORT_LABEL;
+  return options.bare ? UNSET_JUDGE_VALUE : UNSET_JUDGE_LABEL;
+}
+
+/** "Judge Jane Smith", or "Judge to be announced" (never "Judge Judge to be announced"). */
+export function judgeLine(name: string | null | undefined): string {
+  return isUnsetJudgeName(name) ? UNSET_JUDGE_LABEL : `Judge ${(name as string).trim()}`;
+}

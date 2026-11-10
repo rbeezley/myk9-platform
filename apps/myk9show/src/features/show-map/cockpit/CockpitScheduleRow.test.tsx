@@ -88,7 +88,7 @@ describe('CockpitScheduleRow pending link', () => {
     renderRow(0);
     const judge = screen.getByTestId('class-judge');
     const className = screen.getByRole('button', { name: 'Container Novice' });
-    expect(judge).toHaveTextContent('Judge not set');
+    expect(judge).toHaveTextContent('Judge to be announced');
     // A flex-1 truncating judge beside the class name collapsed to a few pixels at 300px.
     expect(judge.parentElement).not.toBe(className.parentElement);
     expect(judge.closest('.truncate')).toBeNull();
@@ -113,5 +113,19 @@ describe('CockpitScheduleRow pending link', () => {
     renderRow(0, vi.fn(), { ...classItem, attentionCount: 3 });
     expect(screen.getByRole('img', { name: '3 need attention' })).toBeInTheDocument();
     expect(screen.getByText('3 issues')).toBeInTheDocument();
+  });
+});
+
+describe('CockpitScheduleRow unset judge (MYK9-1846)', () => {
+  it('reads Judge to be announced for a stored TBD, and and an empty name read the same', () => {
+    renderRow(0, vi.fn(), { ...classItem, judgeName: 'TBD' });
+    expect(screen.getByTestId('class-judge')).toHaveTextContent(/^Judge to be announced$/);
+    expect(screen.queryByText('TBD')).not.toBeInTheDocument();
+  });
+
+  it('reads Judge to be announced for an empty name, never Judge not set', () => {
+    renderRow(0, vi.fn(), { ...classItem, judgeName: '' });
+    expect(screen.getByTestId('class-judge')).toHaveTextContent(/^Judge to be announced$/);
+    expect(screen.queryByText('Judge not set')).not.toBeInTheDocument();
   });
 });

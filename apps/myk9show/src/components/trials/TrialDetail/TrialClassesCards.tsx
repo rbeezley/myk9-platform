@@ -1,3 +1,4 @@
+import { judgeNameOrUnsetLabel } from '@/utils/classJudgeDisplay';
 import { startTransition, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ClassCard } from '@myk9/ui';
@@ -92,7 +93,7 @@ export function TrialClassesCards({ classes, showId, trialId }: TrialClassesCard
             <div>
               <ClassCard
                 className={className}
-                judgeName={classItem.judgeName || 'Not set'}
+                judgeName={judgeNameOrUnsetLabel(classItem.judgeName, { bare: true })}
                 {...(startTime !== undefined && { plannedStartTime: startTime })}
                 status={classItem.status}
                 entryCount={classItem.entries}

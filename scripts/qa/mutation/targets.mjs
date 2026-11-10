@@ -70,9 +70,12 @@ export const MUTATION_TARGET_DEFS = {
     ],
     testFiles: [
       'packages/replication/src/conflict/ConflictManager.test.ts',
+      'packages/replication/src/conflict/ConflictResolver.lww.test.ts',
       'packages/replication/src/conflict/ConflictResolver.merge.test.ts',
       'packages/replication/src/conflict/ConflictResolver.test.ts',
       'packages/replication/src/conflict/detectDirtyRowConflict.fieldGroups.test.ts',
+      'packages/replication/src/conflict/detectDirtyRowConflict.instants.test.ts',
+      'packages/replication/src/conflict/detectDirtyRowConflict.outcomes.test.ts',
       'packages/replication/src/conflict/detectDirtyRowConflict.remoteComparison.test.ts',
       'packages/replication/src/conflict/detectDirtyRowConflict.test.ts',
       'packages/replication/src/conflict/serverOwnedFields.test.ts',

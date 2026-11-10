@@ -23,6 +23,11 @@ export interface DraftPersistenceConfig {
   maxDraftsPerShow?: number;
   /** Enable debug logging (default: false) */
   debug?: boolean;
+  /**
+   * The current selection is not a started entry (an untouched automatic tick),
+   * so nothing is written and nothing reports as unsaved (MYK9-1795).
+   */
+  suppressSave?: boolean;
 }
 
 const DEFAULT_CONFIG: Required<DraftPersistenceConfig> = {
@@ -30,6 +35,7 @@ const DEFAULT_CONFIG: Required<DraftPersistenceConfig> = {
   storageKeyPrefix: DRAFT_STORAGE_KEY_PREFIX,
   maxDraftsPerShow: 5,
   debug: false,
+  suppressSave: false,
 };
 
 /**
@@ -41,7 +47,7 @@ export function useDraftPersistence(
   currentStep: string,
   config: DraftPersistenceConfig = {}
 ) {
-  const { autoSaveInterval, storageKeyPrefix, maxDraftsPerShow, debug } = {
+  const { autoSaveInterval, storageKeyPrefix, maxDraftsPerShow, debug, suppressSave } = {
     ...DEFAULT_CONFIG,
     ...config,
   };
@@ -266,6 +272,7 @@ export function useDraftPersistence(
   );
 
   const autoSave = useCallback(() => {
+    if (suppressSave) return;
     if (!draftData || Object.keys(draftData).length === 0) {
       return;
     }
@@ -294,7 +301,7 @@ export function useDraftPersistence(
       setLastAutoSaveTime(new Date());
       log('Auto-saved draft:', draftId);
     }
-  }, [draftData, saveDraft, saveableData, log]);
+  }, [draftData, saveDraft, saveableData, suppressSave, log]);
 
   // Manual save with custom title
   const saveWithTitle = useCallback(
@@ -426,12 +433,13 @@ export function useDraftPersistence(
   // hold the pre-save answer and the "Saved" indicator would never appear. A
   // dogless payload is never written (see autoSave), so it is not "unsaved".
   const hasUnsavedChanges = useMemo(() => {
+    if (suppressSave) return false;
     if (!draftData || Object.keys(draftData).length === 0) return false;
     const pending = saveableData(draftData);
     if (!pending?.selectedDogs?.length) return false;
     return JSON.stringify(pending) !== lastSavedDataRef.current;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [draftData, saveableData, draftsVersion, lastAutoSaveTime]);
+  }, [draftData, saveableData, draftsVersion, lastAutoSaveTime, suppressSave]);
 
   return {
     // Draft operations

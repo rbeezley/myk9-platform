@@ -13,6 +13,7 @@ import {
   entryDogHandoffMessage,
   readEntryDogId,
   resolveEntryDogHandoff,
+  resolveOnlyDogPreselect,
   withEntryDogContext,
 } from './entryDogContext';
 
@@ -135,5 +136,36 @@ describe('resolveEntryDogHandoff', () => {
     expect(entryDogHandoffMessage({ status: 'none' })).toBeNull();
     expect(entryDogHandoffMessage({ status: 'draft-wins' })).toBeNull();
     expect(entryDogHandoffMessage({ status: 'applied', dogIds: ['dog-1'] })).toBeNull();
+  });
+});
+
+describe('resolveOnlyDogPreselect (MYK9-1795)', () => {
+  const eligible = () => ({ eligible: true, issues: [] });
+  const base = {
+    entryDogId: null,
+    accessibleDogs: [makeDog()],
+    selectedDogs: [],
+    hasResumableDraft: false,
+    eligibility: eligible,
+  };
+
+  it('picks the only dog', () => {
+    expect(resolveOnlyDogPreselect(base)).toBe('dog-1');
+  });
+
+  it('leaves the step alone for several dogs, an ineligible dog, a link, a cart or a saved entry', () => {
+    expect(
+      resolveOnlyDogPreselect({ ...base, accessibleDogs: [makeDog(), makeDog({ id: 'dog-2' })] })
+    ).toBeNull();
+    expect(
+      resolveOnlyDogPreselect({
+        ...base,
+        eligibility: () => ({ eligible: false, issues: ['too young'] }),
+      })
+    ).toBeNull();
+    expect(resolveOnlyDogPreselect({ ...base, entryDogId: 'dog-1' })).toBeNull();
+    expect(resolveOnlyDogPreselect({ ...base, selectedDogs: ['dog-1'] })).toBeNull();
+    expect(resolveOnlyDogPreselect({ ...base, hasResumableDraft: true })).toBeNull();
+    expect(resolveOnlyDogPreselect({ ...base, accessibleDogs: [] })).toBeNull();
   });
 });

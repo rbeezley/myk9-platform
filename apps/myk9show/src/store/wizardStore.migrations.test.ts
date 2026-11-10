@@ -56,4 +56,37 @@ describe('wizard store migration', () => {
 
     expect(migrateWizardState(persisted, WIZARD_STORE_VERSION)).toBe(persisted);
   });
+
+  describe('v3: check and cash on for a new show (MYK9-1799)', () => {
+    const offShow = { name: '', acceptCheckPayments: false, acceptCashPayments: false };
+
+    it('gives a still-blank saved draft the new defaults', () => {
+      const migrated = migrateWizardState({ show: offShow, trials: [] }, 2) as {
+        show: typeof offShow;
+      };
+
+      expect(migrated.show.acceptCheckPayments).toBe(true);
+      expect(migrated.show.acceptCashPayments).toBe(true);
+    });
+
+    it('leaves a draft she has named exactly as she left it', () => {
+      const persisted = { show: { ...offShow, name: 'Fall Classic' }, trials: [] };
+
+      expect(migrateWizardState(persisted, 2)).toBe(persisted);
+    });
+
+    it('leaves a draft that already has a trial exactly as she left it', () => {
+      const persisted = { show: offShow, trials: [{ id: 'one', trialDate: '2026-10-10' }] };
+
+      expect(migrateWizardState(persisted, 2)).toBe(persisted);
+    });
+
+    it('applies after the older trial-name migration, in one pass from v0', () => {
+      const migrated = migrateWizardState({ show: offShow, trials: [] }, 0) as {
+        show: typeof offShow;
+      };
+
+      expect(migrated.show.acceptCheckPayments).toBe(true);
+    });
+  });
 });

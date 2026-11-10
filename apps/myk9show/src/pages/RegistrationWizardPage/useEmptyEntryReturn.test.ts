@@ -6,13 +6,13 @@ const STEPS = ['dog-selection', 'class-selection', 'payment', 'confirmation'];
 
 function setup(initial: { currentStepId: string; entryCount: number }) {
   const setCurrentStep = vi.fn();
-  const onLeavePayment = vi.fn();
+  const onEntryEmptied = vi.fn();
   const hook = renderHook(
     (props: { currentStepId: string; entryCount: number }) =>
-      useEmptyEntryReturn({ ...props, stepIds: STEPS, setCurrentStep, onLeavePayment }),
+      useEmptyEntryReturn({ ...props, stepIds: STEPS, setCurrentStep, onEntryEmptied }),
     { initialProps: initial }
   );
-  return { ...hook, setCurrentStep, onLeavePayment };
+  return { ...hook, setCurrentStep, onEntryEmptied };
 }
 
 describe('useEmptyEntryReturn (MYK9-1289)', () => {
@@ -24,13 +24,13 @@ describe('useEmptyEntryReturn (MYK9-1289)', () => {
     expect(result.current).toBe(true);
   });
 
-  it('clears what leaving Payment clears (the entry agreement) when it sends the person back', () => {
-    const { rerender, setCurrentStep, onLeavePayment } = setup({
+  it('tells the wizard the entry was emptied (it unticks the agreement) when it sends the person back', () => {
+    const { rerender, setCurrentStep, onEntryEmptied } = setup({
       currentStepId: 'payment',
       entryCount: 1,
     });
     rerender({ currentStepId: 'payment', entryCount: 0 });
-    expect(onLeavePayment).toHaveBeenCalledTimes(1);
+    expect(onEntryEmptied).toHaveBeenCalledTimes(1);
     expect(setCurrentStep).toHaveBeenCalledWith(1);
   });
 

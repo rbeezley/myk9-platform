@@ -223,10 +223,11 @@ export function createWizardHandlers(state: RegistrationWizardState) {
     setCurrentStep(prev => prev + 1);
   };
 
+  // Stepping back from Payment keeps the entry agreement tick (owner decision, MYK9-1799):
+  // she agreed to the organization's terms, not to a particular list of classes, so making
+  // her tick it again after every look at Classes was a repeat step. A cleared dog selection
+  // or an emptied entry still unticks it; those start a new entry.
   const handleBack = () => {
-    if (currentStepId === 'payment') {
-      setAgreedToEntryAgreement(false);
-    }
     if (currentStep > 0) {
       setCurrentStep(prev => prev - 1);
     } else {
@@ -342,9 +343,6 @@ export function createWizardHandlers(state: RegistrationWizardState) {
   // Step indicator click: jump to a completed step or the next step in sequence.
   const handleStepClick = (step: number) => {
     if (isStepCompleted(step) || step <= Math.max(-1, ...completedSteps) + 1) {
-      if (currentStepId === 'payment') {
-        setAgreedToEntryAgreement(false);
-      }
       setCurrentStep(step);
     }
   };

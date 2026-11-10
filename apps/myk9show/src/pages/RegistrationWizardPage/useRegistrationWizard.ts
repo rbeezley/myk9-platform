@@ -69,7 +69,8 @@ export function useRegistrationWizard() {
   }, [dogsLoading, dogs, currentWorkflowConfig.steps, registrationData.selectedDogs.length]);
 
   const { setAgreedToEntryAgreement } = state;
-  // Same reset as Back and a step-indicator jump off Payment (wizardHandlers).
+  // An entry emptied on Payment is a new entry, so its agreement is asked again. Back and
+  // the step indicator keep the tick (MYK9-1799).
   const resetEntryAgreement = useCallback(
     () => setAgreedToEntryAgreement(false),
     [setAgreedToEntryAgreement]
@@ -79,7 +80,7 @@ export function useRegistrationWizard() {
     entryCount: state.classSelections.reduce((n, s) => n + s.selectedClasses.length, 0),
     stepIds: currentWorkflowConfig.steps,
     setCurrentStep: state.setCurrentStep,
-    onLeavePayment: resetEntryAgreement,
+    onEntryEmptied: resetEntryAgreement,
   });
 
   return { ...state, ...handlers, rehydrationSettled, emptyEntryNoticeShown };

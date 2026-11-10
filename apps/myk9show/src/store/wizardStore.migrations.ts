@@ -3,7 +3,7 @@ import { storeClockTime } from '@myk9/core';
 const LEGACY_GENERATED_NAME =
   /^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday) Trial [1-9]\d*$/;
 
-export const WIZARD_STORE_VERSION = 2;
+export const WIZARD_STORE_VERSION = 3;
 
 /** Legacy inputs were formatted as local wall-clock ISO, never as UTC instants. */
 function recoverSchedule(trial: Record<string, unknown>): Record<string, unknown> {
@@ -33,13 +33,35 @@ function recoverSchedule(trial: Record<string, unknown>): Record<string, unknown
   };
 }
 
-/** Convert persisted generated labels to derived defaults and retain custom names as overrides. */
+/**
+ * v3 (MYK9-1799): a new show accepts check and cash by default. A saved draft that is still
+ * blank (no name, no trial) was written from the old all-off defaults, not chosen by anyone,
+ * so it takes the new ones. A draft she has started keeps exactly what it holds.
+ */
+function withNewShowPaymentDefaults(state: Record<string, unknown>): Record<string, unknown> {
+  if (!state.show || typeof state.show !== 'object') return state;
+  const show = state.show as Record<string, unknown>;
+  const named = typeof show.name === 'string' && show.name.trim() !== '';
+  const hasTrials = Array.isArray(state.trials) && state.trials.length > 0;
+  if (named || hasTrials) return state;
+  return { ...state, show: { ...show, acceptCheckPayments: true, acceptCashPayments: true } };
+}
+
 export function migrateWizardState(persistedState: unknown, version: number): unknown {
   if (version >= WIZARD_STORE_VERSION || !persistedState || typeof persistedState !== 'object') {
     return persistedState;
   }
-
   const state = persistedState as Record<string, unknown>;
+  return withNewShowPaymentDefaults(
+    version < 2 ? migrateTrialNamesAndSchedule(state, version) : state
+  );
+}
+
+/** Convert persisted generated labels to derived defaults and retain custom names as overrides. */
+function migrateTrialNamesAndSchedule(
+  state: Record<string, unknown>,
+  version: number
+): Record<string, unknown> {
   if (!Array.isArray(state.trials)) return state;
 
   return {

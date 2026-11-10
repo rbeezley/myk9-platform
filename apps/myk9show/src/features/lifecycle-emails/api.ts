@@ -134,9 +134,15 @@ export interface LifecycleEmailFunctionsClient {
     invoke: (
       name: string,
       options: { body: Record<string, unknown> }
-    ) => Promise<{ data?: unknown; error?: { message?: string } | null }>;
+    ) => Promise<{
+      data?: unknown;
+      error?: { message?: string; context?: { status?: number } } | null;
+    }>;
   };
 }
+
+/** `save_ready` refused a second job for one entry and decision: an email is already on file. */
+export class LifecycleEmailAlreadySavedError extends Error {}
 
 export function entryDecisionLifecycleEmailQueryKey(showId: string, entryIds: readonly string[]) {
   return ['entry-decision-lifecycle-emails', showId, [...entryIds].sort().join(',')] as const;
@@ -428,6 +434,7 @@ export async function saveLifecycleEmailJobForLater(args: {
   });
 
   if (error) {
+    if (error.context?.status === 409) throw new LifecycleEmailAlreadySavedError();
     throw new Error(error.message ?? 'Failed to save lifecycle email');
   }
 

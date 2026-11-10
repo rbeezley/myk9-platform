@@ -27,6 +27,7 @@ import type {
   BulkActionResult,
   EntryClass,
   EntryManagementEntry,
+  StatusChangeOptions,
 } from '@/types/entry-management-types';
 import type { CheckInStatus } from '@myk9/core';
 import { EntryStatus } from '@/types/show-registration-types';
@@ -61,8 +62,11 @@ interface EntryManagementCockpitProps {
   onStatusChange: (
     entryId: string,
     status: EntryStatus,
-    withdrawalReason?: string
+    withdrawalReason?: string,
+    options?: StatusChangeOptions
   ) => boolean | void | Promise<boolean | void>;
+  /** This show's decisions are emailed with no preview (`showSendsDecisionEmailsUnasked`). */
+  sendDecisionEmailsUnasked?: boolean;
   onCheckInStatusChange: (
     entry: EntryManagementEntry,
     entryClass: EntryClass,
@@ -99,6 +103,7 @@ export function EntryManagementCockpit({
   busy = false,
   lastEmailedMap = {},
   onStatusChange,
+  sendDecisionEmailsUnasked = false,
   onCheckInStatusChange,
   onOpenEditEntry,
   onOpenArmbandDialog,
@@ -141,7 +146,12 @@ export function EntryManagementCockpit({
   );
   const { data: emailStatusMap } = useEmailStatus(registrationIds);
   const { data: juniorDeclaredEntryIds } = useJuniorDeclaredEntryIds(showId);
-  const lifecycleEmails = useEntryDecisionLifecycleEmails({ showId, showName, entries });
+  const lifecycleEmails = useEntryDecisionLifecycleEmails({
+    showId,
+    showName,
+    entries,
+    sendUnasked: sendDecisionEmailsUnasked,
+  });
   const [resendCooldowns, setResendCooldowns] = useState<Record<string, number>>({});
   const isResendDisabled = (registrationId: string) =>
     (resendCooldowns[registrationId] ?? 0) > Date.now();
@@ -179,23 +189,33 @@ export function EntryManagementCockpit({
     downloadCsv(selectedEntriesExportFilename(), buildSelectedEntriesExportCsv(selectedEntries));
   };
 
-  const handleStatusChangeWithDecisionPrompt = async (
+  const handleStatusChangeWithDecisionEmail = async (
     entryId: string,
     status: EntryStatus,
     withdrawalReason?: string
   ) => {
     const entry = entries.find(candidate => candidate.id === entryId);
-    const statusSaved = await onStatusChange(entryId, status, withdrawalReason);
-    if (
-      entry &&
-      statusSaved !== false &&
-      entry.registrationId &&
-      (status === EntryStatus.ACCEPTED || status === EntryStatus.WAITLIST)
-    ) {
-      lifecycleEmails.openDecisionPrompt(
-        { ...entry, entryStatus: status },
-        status === EntryStatus.ACCEPTED ? 'accepted' : 'waitlisted'
-      );
+    const stepType =
+      status === EntryStatus.ACCEPTED
+        ? 'accepted'
+        : status === EntryStatus.WAITLIST
+          ? 'waitlisted'
+          : null;
+    const plan =
+      entry?.registrationId && stepType ? lifecycleEmails.decisionEmailPlan(stepType) : 'none';
+    const { sendDecisionEmail } = lifecycleEmails;
+    const statusSaved = await onStatusChange(
+      entryId,
+      status,
+      withdrawalReason,
+      // The email waits for the decision to stand, on the Undo toast's own clock, and is
+      // written from the entry as it is then (the Accept may have just given it an armband).
+      plan === 'send' && stepType
+        ? { onStood: stoodEntry => sendDecisionEmail(stoodEntry, stepType) }
+        : undefined
+    );
+    if (entry && stepType && plan === 'preview' && statusSaved !== false) {
+      lifecycleEmails.openDecisionPrompt({ ...entry, entryStatus: status }, stepType);
     }
     return statusSaved;
   };
@@ -344,7 +364,7 @@ export function EntryManagementCockpit({
                     },
                   }
                 : {})}
-              onStatusChange={handleStatusChangeWithDecisionPrompt}
+              onStatusChange={handleStatusChangeWithDecisionEmail}
               onEntryRefunded={onRefresh}
               onEntryRestored={onRefresh}
               onRefreshEntries={onRefresh}

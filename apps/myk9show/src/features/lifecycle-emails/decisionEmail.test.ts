@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   buildEntryDecisionLifecycleEmailIdempotencyKey,
   isDecisionEmailSuperseded,
-} from './useEntryDecisionLifecycleEmails';
+  showSendsDecisionEmailsUnasked,
+} from './decisionEmail';
 import { EntryStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 
@@ -70,5 +71,46 @@ describe('isDecisionEmailSuperseded', () => {
 
   it('is not superseded when the entry is absent (nothing to contradict)', () => {
     expect(isDecisionEmailSuperseded(prompt({ id: 'gone' }), [])).toBe(false);
+  });
+});
+
+describe('showSendsDecisionEmailsUnasked (MYK9-1800)', () => {
+  const now = new Date(2026, 9, 10, 15, 0);
+
+  it.each(['published', 'upcoming', 'in_progress', 'Published'])(
+    'sends with no preview on a %s show that has not finished',
+    status => {
+      expect(showSendsDecisionEmailsUnasked({ status, endDate: '2026-10-11' }, now)).toBe(true);
+    }
+  );
+
+  it.each(['draft', 'completed', 'cancelled', '', null, undefined])(
+    'keeps the preview on a show whose status is %s',
+    status => {
+      expect(showSendsDecisionEmailsUnasked({ status, endDate: '2026-10-11' }, now)).toBe(false);
+    }
+  );
+
+  it('keeps the preview when the show is not known yet', () => {
+    expect(showSendsDecisionEmailsUnasked(undefined, now)).toBe(false);
+    expect(showSendsDecisionEmailsUnasked(null, now)).toBe(false);
+  });
+
+  it('still sends through the whole last day of the show', () => {
+    const lastEvening = new Date(2026, 9, 11, 23, 30);
+    expect(
+      showSendsDecisionEmailsUnasked({ status: 'published', endDate: '2026-10-11' }, lastEvening)
+    ).toBe(true);
+  });
+
+  it('keeps the preview once a published show is over', () => {
+    const later = new Date(2026, 9, 12, 0, 30);
+    expect(
+      showSendsDecisionEmailsUnasked({ status: 'published', endDate: '2026-10-11' }, later)
+    ).toBe(false);
+  });
+
+  it('sends on a published show with no end date on record', () => {
+    expect(showSendsDecisionEmailsUnasked({ status: 'published', endDate: null }, now)).toBe(true);
   });
 });

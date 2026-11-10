@@ -4,6 +4,7 @@ import {
   LifecycleSendPartialError,
   fetchEntryDecisionEmailStatuses,
   fetchShowLifecycleEmailSummary,
+  LifecycleEmailAlreadySavedError,
   saveLifecycleEmailJobForLater,
   sendLifecycleEmailJobs,
   skipLifecycleEmailJobsForReview,
@@ -198,33 +199,13 @@ describe('lifecycle email api helpers', () => {
           sent_at: '2026-07-08T12:10:00Z',
           correction_for_job_id: 'job-sent',
         },
-        {
-          id: 'job-failed',
-          show_id: 'show-1',
-          entry_id: 'entry-3',
-          step_type: 'waitlisted',
-          status: 'failed',
-          subject: 'Waitlisted',
-          body: 'Failed body',
-          secretary_note: null,
-          due_at: '2026-07-08T12:00:00Z',
-          prepared_at: '2026-07-08T12:00:00Z',
-          sent_at: null,
-          correction_for_job_id: null,
-        },
       ],
     });
 
     const statuses = await fetchEntryDecisionEmailStatuses({
       supabase: client,
       showId: 'show-1',
-      entryIds: ['entry-1', 'entry-2', 'entry-3'],
-    });
-
-    expect(statuses['entry-3']).toMatchObject({
-      readyJob: null,
-      failedJob: { id: 'job-failed', stepType: 'waitlisted' },
-      sentDecisionJob: null,
+      entryIds: ['entry-1', 'entry-2'],
     });
 
     expect(statuses['entry-1']?.readyJob).toMatchObject({
@@ -291,6 +272,29 @@ describe('lifecycle email api helpers', () => {
     expect(widest('show_lifecycle_email_jobs', 'id')).toBeLessThanOrEqual(100);
     expect(inFilters.filter(f => f.column === 'related_id')).toHaveLength(5);
     expect(inFilters.filter(f => f.column === 'id')).toHaveLength(5);
+  });
+
+  it('names a duplicate-key refusal, so a caller can tell "already on file" from a failure', async () => {
+    const refuse = (status: number): LifecycleEmailFunctionsClient => ({
+      functions: {
+        invoke: async () => ({ data: null, error: { message: 'non-2xx', context: { status } } }),
+      },
+    });
+    const save = (client: LifecycleEmailFunctionsClient) =>
+      saveLifecycleEmailJobForLater({
+        supabase: client,
+        showId: 'show-1',
+        stepType: 'accepted',
+        recipientScope: 'enrollment',
+        entryId: 'entry-1',
+        subject: 's',
+        body: 'b',
+        secretaryNote: '',
+        idempotencyKey: 'idem',
+      });
+
+    await expect(save(refuse(409))).rejects.toBeInstanceOf(LifecycleEmailAlreadySavedError);
+    await expect(save(refuse(500))).rejects.not.toBeInstanceOf(LifecycleEmailAlreadySavedError);
   });
 
   it('passes correction ids when saving a ready lifecycle email', async () => {

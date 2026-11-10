@@ -83,6 +83,15 @@ vi.mock('./EntryFocusedRegistration', async () => {
   };
 });
 
+// File-wide, not per describe: CI shuffles test order, and a plan left on 'send' changes what
+// every other test here sees `onStatusChange` called with.
+beforeEach(() => {
+  decisionEmails.plan = 'none';
+  decisionEmails.openDecisionPrompt.mockClear();
+  decisionEmails.sendDecisionEmail.mockClear();
+  decisionEmails.hookArgs.mockClear();
+});
+
 function makeEntry(overrides: Partial<EntryManagementEntry> = {}): EntryManagementEntry {
   return {
     id: 'entry-1',
@@ -260,12 +269,6 @@ describe('EntryManagementCockpit status seam', () => {
 });
 
 describe('EntryManagementCockpit decision email after Accept (MYK9-1800)', () => {
-  beforeEach(() => {
-    decisionEmails.plan = 'none';
-    decisionEmails.openDecisionPrompt.mockClear();
-    decisionEmails.sendDecisionEmail.mockClear();
-  });
-
   async function accept(onStatusChange: StatusChangeHandler) {
     const user = userEvent.setup();
     renderCockpit(onStatusChange);

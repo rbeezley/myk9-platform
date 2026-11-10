@@ -47,7 +47,6 @@ describe('EntryDecisionEmailStatusBadge', () => {
         status={{
           entryId: 'entry-1',
           readyJob: { ...sentAcceptedJob, id: 'job-ready', status: 'ready', sentAt: null },
-          failedJob: null,
           sentDecisionJob: null,
           sentCorrectionJob: null,
         }}
@@ -69,7 +68,6 @@ describe('EntryDecisionEmailStatusBadge', () => {
         status={{
           entryId: 'entry-1',
           readyJob: null,
-          failedJob: null,
           sentDecisionJob: sentAcceptedJob,
           sentCorrectionJob: null,
         }}
@@ -82,33 +80,5 @@ describe('EntryDecisionEmailStatusBadge', () => {
     await user.click(screen.getByRole('button', { name: /prepare correction/i }));
 
     expect(onPrepareCorrection).toHaveBeenCalledWith(sentAcceptedJob, entry);
-  });
-
-  it('keeps an email that did not deliver on the entry, to open and send again', async () => {
-    const onReviewReady = vi.fn();
-    const failedJob: EntryDecisionEmailJob = {
-      ...sentAcceptedJob,
-      id: 'job-failed',
-      status: 'failed',
-      sentAt: null,
-    };
-    const { user } = render(
-      <EntryDecisionEmailStatusBadge
-        entry={entry}
-        status={{
-          entryId: 'entry-1',
-          readyJob: null,
-          failedJob,
-          sentDecisionJob: null,
-          sentCorrectionJob: null,
-        }}
-        onReviewReady={onReviewReady}
-        onPrepareCorrection={vi.fn()}
-      />
-    );
-
-    await user.click(screen.getByRole('button', { name: 'Email not sent' }));
-
-    expect(onReviewReady).toHaveBeenCalledWith(failedJob, entry);
   });
 });

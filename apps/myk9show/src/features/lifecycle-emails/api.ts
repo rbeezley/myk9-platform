@@ -105,8 +105,6 @@ export interface EntryDecisionEmailJob {
 export interface EntryDecisionEmailStatus {
   entryId: string;
   readyJob: EntryDecisionEmailJob | null;
-  /** The latest job whose delivery failed; it can be sent again. */
-  failedJob: EntryDecisionEmailJob | null;
   sentDecisionJob: EntryDecisionEmailJob | null;
   sentCorrectionJob: EntryDecisionEmailJob | null;
 }
@@ -136,9 +134,15 @@ export interface LifecycleEmailFunctionsClient {
     invoke: (
       name: string,
       options: { body: Record<string, unknown> }
-    ) => Promise<{ data?: unknown; error?: { message?: string } | null }>;
+    ) => Promise<{
+      data?: unknown;
+      error?: { message?: string; context?: { status?: number } } | null;
+    }>;
   };
 }
+
+/** `save_ready` refused a second job for one entry and decision: an email is already on file. */
+export class LifecycleEmailAlreadySavedError extends Error {}
 
 export function entryDecisionLifecycleEmailQueryKey(showId: string, entryIds: readonly string[]) {
   return ['entry-decision-lifecycle-emails', showId, [...entryIds].sort().join(',')] as const;
@@ -285,16 +289,12 @@ export async function fetchEntryDecisionEmailStatuses(args: {
     const status = (statuses[row.entry_id] ??= {
       entryId: row.entry_id,
       readyJob: null,
-      failedJob: null,
       sentDecisionJob: null,
       sentCorrectionJob: null,
     });
 
     if (job.status === 'ready') {
       status.readyJob = pickLatestJob(status.readyJob, job, 'preparedAt');
-    }
-    if (job.status === 'failed') {
-      status.failedJob = pickLatestJob(status.failedJob, job, 'preparedAt');
     }
     if (job.status === 'sent' && job.correctionForJobId) {
       status.sentCorrectionJob = pickLatestJob(status.sentCorrectionJob, job, 'sentAt');
@@ -434,6 +434,7 @@ export async function saveLifecycleEmailJobForLater(args: {
   });
 
   if (error) {
+    if (error.context?.status === 409) throw new LifecycleEmailAlreadySavedError();
     throw new Error(error.message ?? 'Failed to save lifecycle email');
   }
 

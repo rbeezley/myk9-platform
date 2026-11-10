@@ -1,7 +1,7 @@
 /**
  * MYK9-1800 (owner decision 2026-11-09): once an Accept or Waitlist has stood, the email goes
- * with no preview. This hook is only ever called for a decision that stood, so it has no
- * timers; these tests cover what it does with the entry it is handed.
+ * with no preview. This hook is only ever called for a decision that stood. It acts once and
+ * keeps nothing to act on later: no timers, no retry buttons.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
@@ -10,10 +10,9 @@ import { EntryStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { useSendDecisionEmail } from './useSendDecisionEmail';
 import {
+  LifecycleEmailAlreadySavedError,
   saveLifecycleEmailJobForLater,
   sendLifecycleEmailJobs,
-  type EntryDecisionEmailJob,
-  type EntryDecisionEmailStatus,
 } from './api';
 
 vi.mock('sonner', () => ({
@@ -40,47 +39,13 @@ const accepted = {
   paidAmount: 0,
 } as unknown as EntryManagementEntry;
 
-function job(overrides: Partial<EntryDecisionEmailJob>): EntryDecisionEmailJob {
-  return {
-    id: 'job-0',
-    entryId: 'entry-1',
-    stepType: 'accepted',
-    status: 'sent',
-    subject: '',
-    body: '',
-    secretaryNote: '',
-    dueAt: null,
-    preparedAt: null,
-    sentAt: null,
-    correctionForJobId: null,
-    ...overrides,
-  };
-}
-
-function statusWith(overrides: Partial<EntryDecisionEmailStatus>) {
-  return {
-    'entry-1': {
-      entryId: 'entry-1',
-      readyJob: null,
-      failedJob: null,
-      sentDecisionJob: null,
-      sentCorrectionJob: null,
-      ...overrides,
-    },
-  };
-}
-
-function mount(statusMap: Record<string, EntryDecisionEmailStatus> = {}) {
+function mount() {
   const onSettled = vi.fn();
   const { result } = renderHook(() =>
-    useSendDecisionEmail({ statusMap, showName: 'Fall Classic', onSettled })
+    useSendDecisionEmail({ showName: 'Fall Classic', onSettled })
   );
   return { send: result.current, onSettled };
 }
-
-type ToastOptions = { id?: string; duration?: number; action?: { onClick: () => void } };
-const lastOptions = (tone: 'info' | 'error') =>
-  vi.mocked(toast[tone]).mock.calls.at(-1)?.[1] as ToastOptions;
 
 describe('useSendDecisionEmail', () => {
   let online: boolean;
@@ -102,9 +67,7 @@ describe('useSendDecisionEmail', () => {
     send(accepted, 'accepted');
 
     await waitFor(() =>
-      expect(toast.success).toHaveBeenCalledWith('Acceptance email sent to Pat Lee', {
-        id: 'decision-email:entry-1',
-      })
+      expect(toast.success).toHaveBeenCalledWith('Acceptance email sent to Pat Lee')
     );
     expect(saveLifecycleEmailJobForLater).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -128,10 +91,7 @@ describe('useSendDecisionEmail', () => {
     send({ ...accepted, entryStatus: EntryStatus.WAITLIST }, 'waitlisted');
 
     await waitFor(() =>
-      expect(toast.success).toHaveBeenCalledWith(
-        'Waitlist email sent to Pat Lee',
-        expect.anything()
-      )
+      expect(toast.success).toHaveBeenCalledWith('Waitlist email sent to Pat Lee')
     );
   });
 
@@ -147,83 +107,58 @@ describe('useSendDecisionEmail', () => {
     expect(sendLifecycleEmailJobs).not.toHaveBeenCalled();
   });
 
-  it.each([
-    ['is waiting to be sent', { readyJob: job({ status: 'ready' }) }],
-    ['failed to deliver', { failedJob: job({ status: 'failed' }) }],
-    ['was already sent', { sentDecisionJob: job({ status: 'sent' }) }],
-  ])('stays silent when an email for this decision %s', async (_label, overrides) => {
-    const { send } = mount(statusWith(overrides));
+  it('stays silent when the server already holds an email for this entry and decision', async () => {
+    // Accepted and emailed, moved to the waitlist, accepted again: the first acceptance
+    // job still owns the key. That is "already on file", not a failure to tell her about.
+    vi.mocked(saveLifecycleEmailJobForLater).mockRejectedValue(
+      new LifecycleEmailAlreadySavedError()
+    );
+    const { send, onSettled } = mount();
     send(accepted, 'accepted');
 
-    await Promise.resolve();
-    expect(saveLifecycleEmailJobForLater).not.toHaveBeenCalled();
+    await waitFor(() => expect(onSettled).toHaveBeenCalledTimes(1));
+    expect(sendLifecycleEmailJobs).not.toHaveBeenCalled();
     expect(toast.success).not.toHaveBeenCalled();
     expect(toast.info).not.toHaveBeenCalled();
     expect(toast.error).not.toHaveBeenCalled();
   });
 
-  it('still sends an acceptance when the only email on the entry is an earlier waitlist one', async () => {
-    const { send } = mount(statusWith({ sentDecisionJob: job({ stepType: 'waitlisted' }) }));
-    send(accepted, 'accepted');
-
-    await waitFor(() => expect(sendLifecycleEmailJobs).toHaveBeenCalledTimes(1));
-  });
-
-  it('holds the email while offline, and sends it from the notice once back online', async () => {
+  it('sends nothing while offline, and points at the button that will', async () => {
     online = false;
     const { send } = mount();
     send(accepted, 'accepted');
 
-    await waitFor(() =>
-      expect(toast.info).toHaveBeenCalledWith(
-        "You're offline, so the acceptance email to Pat Lee has not gone yet.",
-        expect.objectContaining({ id: 'decision-email:entry-1', duration: Infinity })
-      )
+    expect(toast.error).toHaveBeenCalledWith(
+      'You\'re offline, so the acceptance email to Pat Lee was not sent. When you are back online, use "Email Exhibitor" on the entry.'
     );
+    await Promise.resolve();
     expect(saveLifecycleEmailJobForLater).not.toHaveBeenCalled();
-
-    online = true;
-    lastOptions('info').action?.onClick();
-
-    await waitFor(() =>
-      expect(toast.success).toHaveBeenCalledWith(
-        'Acceptance email sent to Pat Lee',
-        expect.anything()
-      )
-    );
   });
 
-  it('keeps a notice with Try again when the email could not be saved', async () => {
-    vi.mocked(saveLifecycleEmailJobForLater).mockRejectedValueOnce(new Error('network'));
-    const { send } = mount();
-    send(accepted, 'accepted');
-
-    await waitFor(() =>
-      expect(toast.error).toHaveBeenCalledWith(
-        'The acceptance email to Pat Lee could not be sent.',
-        expect.objectContaining({ duration: Infinity })
-      )
-    );
-    expect(sendLifecycleEmailJobs).not.toHaveBeenCalled();
-
-    lastOptions('error').action?.onClick();
-
-    await waitFor(() => expect(sendLifecycleEmailJobs).toHaveBeenCalledTimes(1));
-  });
-
-  it('says the email is on the entry when it was saved but did not deliver', async () => {
-    vi.mocked(sendLifecycleEmailJobs).mockResolvedValue({ sent: 0, failed: 1, total: 1 });
+  it.each([
+    [
+      'the email could not be saved',
+      () => vi.mocked(saveLifecycleEmailJobForLater).mockRejectedValue(new Error('network')),
+    ],
+    [
+      'it was saved but did not deliver',
+      () => vi.mocked(sendLifecycleEmailJobs).mockResolvedValue({ sent: 0, failed: 1, total: 1 }),
+    ],
+    [
+      'the send call itself failed',
+      () => vi.mocked(sendLifecycleEmailJobs).mockRejectedValue(new Error('boom')),
+    ],
+  ])('says the email did not send, with no retry button, when %s', async (_label, arrange) => {
+    arrange();
     const { send, onSettled } = mount();
     send(accepted, 'accepted');
 
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith(
-        'The acceptance email to Pat Lee did not send. It is on the entry for you to send again.',
-        { id: 'decision-email:entry-1' }
+        'The acceptance email to Pat Lee did not send. Use "Email Exhibitor" on the entry to send it.'
       )
     );
     expect(toast.success).not.toHaveBeenCalled();
-    // The entry's badge has to pick the failed job up.
     expect(onSettled).toHaveBeenCalledTimes(1);
   });
 });

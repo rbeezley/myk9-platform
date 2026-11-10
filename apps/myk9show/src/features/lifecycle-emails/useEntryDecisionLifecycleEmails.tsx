@@ -116,7 +116,6 @@ export function useEntryDecisionLifecycleEmails({
     );
 
   const sendDecisionEmail = useSendDecisionEmail({
-    statusMap: statusQuery.data ?? EMPTY_STATUS_MAP,
     showName,
     onSettled: invalidateLifecycleEmailQueries,
   });

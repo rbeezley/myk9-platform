@@ -37,23 +37,6 @@ export function EntryDecisionEmailStatusBadge({
     );
   }
 
-  // A delivery that failed is still hers to send: the same review opens, and Send tries again.
-  const failedJob = status?.failedJob ?? null;
-  if (failedJob) {
-    return (
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        className="h-8 gap-1 px-2 text-xs"
-        onClick={() => onReviewReady(failedJob, entry)}
-      >
-        <Mail className="h-3.5 w-3.5" aria-hidden="true" />
-        Email not sent
-      </Button>
-    );
-  }
-
   if (!sentJob) return null;
 
   return (

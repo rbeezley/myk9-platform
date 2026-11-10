@@ -72,6 +72,8 @@ export function ClassBulkActionsBar({
     classIds: string[];
     onFullSuccess: (() => void) | undefined;
   } | null>(null);
+  // `pendingCancel` outlives `cancelOpen` so the copy holds steady while the popup fades out.
+  const [cancelOpen, setCancelOpen] = useState(false);
 
   if (selectedClasses.length === 0) return null;
 
@@ -91,6 +93,7 @@ export function ClassBulkActionsBar({
     onBulkStatusChange: (classIds, status, onFullSuccess) => {
       if (status === CLASS_STATUS.CANCELLED) {
         setPendingCancel({ classIds, onFullSuccess });
+        setCancelOpen(true);
         return Promise.resolve(false);
       }
       return onBulkStatusChange(classIds, status, onFullSuccess);
@@ -131,8 +134,8 @@ export function ClassBulkActionsBar({
       </FloatingBulkBar>
 
       <ConfirmDialog
-        open={pendingCancel !== null}
-        onOpenChange={open => !open && setPendingCancel(null)}
+        open={cancelOpen}
+        onOpenChange={setCancelOpen}
         title={
           pendingCancel?.classIds.length === 1
             ? 'Cancel this class?'
@@ -140,7 +143,7 @@ export function ClassBulkActionsBar({
         }
         description={`${pendingCancel?.classIds.length === 1 ? 'This class' : 'These classes'} will show as cancelled to exhibitors and at ringside. You can change the status back later.`}
         confirmLabel={pendingCancel?.classIds.length === 1 ? 'Cancel class' : 'Cancel classes'}
-        cancelLabel="Keep classes"
+        cancelLabel={pendingCancel?.classIds.length === 1 ? 'Keep class' : 'Keep classes'}
         destructive
         onConfirm={() => {
           if (!pendingCancel) return;

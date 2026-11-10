@@ -109,6 +109,28 @@ describe('ClassBulkActionsBar', () => {
     expect(onBulkStatusChange).toHaveBeenCalledWith(['1', '2'], 'Cancelled', expect.any(Function));
   });
 
+  it('words the question in the singular for one class (MYK9-1840)', async () => {
+    const { user } = setup([cls('1', 'Scheduled')]);
+    await user.click(screen.getByRole('button', { name: 'Change status' }));
+    await user.click(await screen.findByRole('menuitem', { name: /cancelled/i }));
+
+    const dialog = await screen.findByRole('alertdialog');
+    expect(within(dialog).getByText('Cancel this class?')).toBeInTheDocument();
+    expect(within(dialog).getByText(/^This class will show as cancelled/)).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Cancel class' })).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Keep class' })).toBeInTheDocument();
+  });
+
+  it('keeps the question text while it fades out (MYK9-1840)', async () => {
+    const { user } = setup([cls('1', 'Scheduled'), cls('2', 'Scheduled')]);
+    await user.click(screen.getByRole('button', { name: 'Change status' }));
+    await user.click(await screen.findByRole('menuitem', { name: /mark 2 of 2 cancelled/i }));
+    const dialog = await screen.findByRole('alertdialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Keep classes' }));
+
+    expect(screen.queryByText('Cancel 0 classes?')).not.toBeInTheDocument();
+  });
+
   it('cancels nothing when the bulk question is dismissed (MYK9-1840)', async () => {
     const { user, onBulkStatusChange } = setup([cls('1', 'Scheduled'), cls('2', 'Scheduled')]);
     await user.click(screen.getByRole('button', { name: 'Change status' }));

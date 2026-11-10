@@ -61,6 +61,8 @@ export function useClassStatusChange({
   const [pending, setPending] = useState<
     { kind: 'complete'; warning: string } | { kind: 'cancel' } | null
   >(null);
+  // `pending` outlives `confirmOpen` so the copy holds steady while the popup fades out.
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const applyStatus = async (status: ClassStatusValue) => {
     setIsSaving(true);
@@ -86,11 +88,13 @@ export function useClassStatusChange({
           ? 'Entry data is unavailable, so we cannot tell whether paper scores still need entry. Mark this Class complete anyway?'
           : `${outstanding} paper ${outstanding === 1 ? 'score still needs' : 'scores still need'} entry. Mark this Class complete anyway?`,
       });
+      setConfirmOpen(true);
       return;
     }
     // Cancelled tells ringside and exhibitors the class is off, so it asks first.
     if (status === CLASS_STATUS.CANCELLED) {
       setPending({ kind: 'cancel' });
+      setConfirmOpen(true);
       return;
     }
     void applyStatus(status);
@@ -98,8 +102,8 @@ export function useClassStatusChange({
 
   const confirmDialog = (
     <ConfirmDialog
-      open={pending !== null}
-      onOpenChange={open => !open && setPending(null)}
+      open={confirmOpen}
+      onOpenChange={setConfirmOpen}
       title={pending?.kind === 'cancel' ? 'Cancel this class?' : 'Mark this Class complete?'}
       description={
         pending?.kind === 'cancel'

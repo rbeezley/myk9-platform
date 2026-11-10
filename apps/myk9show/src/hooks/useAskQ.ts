@@ -1,4 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { ensureError } from '@myk9/core';
+import { logger } from '@/services/LoggingService';
 import { sendAskQQuery, parseSSEStream, RateLimitError } from '@/services/askqService';
 import {
   clearAskQHistory,
@@ -223,10 +225,11 @@ export function useAskQ(sendQuery: AskQQuerySender = sendAskQQuery, history?: As
             error: null,
           }));
         } else {
+          logger.error('AskQ query failed', 'askq', {}, ensureError(err));
           setState(prev => ({
             ...prev,
             status: 'error',
-            error: err instanceof Error ? err.message : 'An unexpected error occurred',
+            error: "We couldn't get an answer. Try again.",
           }));
         }
       }

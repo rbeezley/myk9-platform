@@ -44,6 +44,7 @@ import { blockedActionFor } from './deleteBlockedAction';
 import { useDeletePreview } from './useDeletePreview';
 import { useUnsavedWork, type UnsavedWorkState } from './useUnsavedWork';
 import type { DeleteObjectKind, DeleteTarget } from './deleteTypes';
+import { deleteErrorMessage } from './deleteErrors';
 
 export interface DeleteObjectDialogProps {
   open: boolean;
@@ -176,11 +177,11 @@ export function DeleteObjectDialog({
         alreadyGone: [...reconciled.reconciled, ...result.alreadyGone],
         failed: [...result.failed, ...reconciled.failed],
       };
-    } catch {
+    } catch (error) {
       // deleteRecords maps every failure itself; this is only a guard.
       inFlightRef.current = false;
       setIsDeleting(false);
-      setErrorMessage('Something went wrong. Please try again.');
+      setErrorMessage(deleteErrorMessage(kind, error));
       onDeleteFailed?.();
       return;
     }

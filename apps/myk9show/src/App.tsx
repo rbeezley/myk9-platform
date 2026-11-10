@@ -72,7 +72,8 @@ const ErrorFallback = ({
   resetErrorBoundary: () => void;
 }) => {
   const message = React.useMemo(
-    () => friendlyDbError(error, 'Something went wrong. Please try again.'),
+    () =>
+      friendlyDbError(error, 'Try again, or go to Home. If it keeps happening, restart the app.'),
     [error]
   );
 
@@ -83,7 +84,7 @@ const ErrorFallback = ({
           <div className="p-3 bg-destructive/10 rounded-full mb-4">
             <AlertCircle className="h-10 w-10 text-destructive" />
           </div>
-          <h2 className="text-2xl font-bold mb-2">Something went wrong</h2>
+          <h2 className="text-2xl font-bold mb-2">We couldn&apos;t show this page</h2>
           <p className="text-muted-foreground mb-4">{message}</p>
           <div className="flex gap-4">
             <button

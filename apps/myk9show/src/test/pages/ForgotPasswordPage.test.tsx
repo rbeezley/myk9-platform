@@ -140,7 +140,9 @@ describe('ForgotPasswordPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Send Reset Link' }));
 
     await waitFor(() => {
-      expect(screen.getByText(/something went wrong/i)).toBeInTheDocument();
+      expect(
+        screen.getByText('Could not reach myK9Show. Check your connection and try again.')
+      ).toBeInTheDocument();
     });
     expect(screen.queryByText('Check your email')).not.toBeInTheDocument();
   });

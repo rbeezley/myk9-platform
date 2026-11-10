@@ -7,6 +7,8 @@
  */
 
 import { useState } from 'react';
+import { ensureError } from '@myk9/core';
+import { logger } from '@/services/LoggingService';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -107,7 +109,13 @@ function JudgeNumberForm({
       );
       onNext();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
+      logger.error(
+        'Saving judge numbers failed',
+        'onboarding',
+        { code: (err as { code?: unknown } | null)?.code },
+        ensureError(err)
+      );
+      setError("We couldn't save your judge numbers. Try again.");
     } finally {
       setIsSaving(false);
     }

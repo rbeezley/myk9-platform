@@ -73,7 +73,7 @@ describe('ClubOnboarding required-field callouts', () => {
     fireEvent.change(screen.getByLabelText(/contact email/i), { target: { value: 'a@b.co' } });
     submit();
     await waitFor(() =>
-      expect(screen.getByText('Something went wrong. Please try again.')).toBeInTheDocument()
+      expect(screen.getByText("We couldn't send your request. Try again.")).toBeInTheDocument()
     );
   });
 });

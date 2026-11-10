@@ -117,7 +117,7 @@ describe('useAskQ', () => {
     });
 
     expect(result.current.status).toBe('error');
-    expect(result.current.error).toBe('Network error');
+    expect(result.current.error).toBe("We couldn't get an answer. Try again.");
   });
 
   it('resets state on new query', async () => {

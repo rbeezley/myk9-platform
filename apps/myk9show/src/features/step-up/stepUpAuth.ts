@@ -21,7 +21,7 @@ const MESSAGES = {
   wrongPassword: 'That password is not right. Try again, or email yourself a code instead.',
   wrongCode: 'That code is not right or has expired. Check the email, or send a new code.',
   otherAccount: 'That signed in a different account. Sign out, then sign in as yourself.',
-  generic: 'Something went wrong. Please try again.',
+  generic: "We couldn't confirm it's you. Try again.",
 } as const;
 
 export function accountFromSession(session: Session | null): StepUpAccount | null {

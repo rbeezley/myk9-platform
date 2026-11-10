@@ -143,7 +143,7 @@ export function ClubOnboarding() {
       } else if (isAuthError) {
         setError('Your session has expired. Please sign in again.');
       } else {
-        setError('Something went wrong. Please try again.');
+        setError("We couldn't send your request. Try again.");
       }
       logger.error('Onboarding request submission failed', 'onboarding', {}, err as Error);
     } finally {

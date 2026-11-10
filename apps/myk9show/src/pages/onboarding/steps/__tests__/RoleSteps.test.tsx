@@ -156,7 +156,7 @@ describe('StepJudge', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      "We couldn't save your judge numbers. Please try again."
+      "We couldn't save your judge numbers. Try again."
     );
     expect(props.onNext).not.toHaveBeenCalled();
   });

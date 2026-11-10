@@ -22,7 +22,7 @@ describe('judge day with no judge (MYK9-1853)', () => {
 
   it("never carries a legacy TBD as the day's judge name", () => {
     const [day] = groupClassesByJudgeDay([{ id: 'a', judgeName: 'TBD', trialDate: '2026-10-10' }]);
-    expect(day?.judgeName).toBeUndefined();
+    expect(day?.[1].judgeName).toBeUndefined();
   });
 });
 

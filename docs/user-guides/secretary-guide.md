@@ -364,10 +364,10 @@ For one class, **Show Desk → click the class → View entries and results** op
 
 There are two doors to the same action, and either one works until the dog has run:
 
-- **Show Desk → click the class → Can change class → Change class** on that dog's row.
+- **Show Desk → click the class**, then open the **⋯** menu at the end of that dog's row in the entries table and choose **Change class**.
 - On **Entry Forms**, open the exhibitor's form and use **Change class…** in the **⋯** menu on that dog's entry.
 
-Choose the target class and give a reason. Targets are restricted to the same element at a strictly higher level, so you can't move a dog somewhere ineligible. The class panel's **Can change class** list shows only entries that can move now, so a pending entry has no button there: accept it first. On **Entry Forms**, **Change class…** is always in the menu but greyed with the reason ("Accept this entry first.", already run, in the ring, or its class has started). Either door needs a connection.
+Choose the target class and give a reason. Targets are restricted to the same element at a strictly higher level, so you can't move a dog somewhere ineligible. On the class panel, a dog that cannot move now (a pending entry, for one) has no **⋯** menu: accept it first. On **Entry Forms**, **Change class…** is always in the menu but greyed with the reason ("Accept this entry first.", already run, in the ring, or its class has started). Either door needs a connection.
 
 > The original entry stays on the books as _moved_ and keeps its fee; the new entry is created at no extra charge.
 

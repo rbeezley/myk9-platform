@@ -11,6 +11,8 @@ import {
 import { StatusPill } from './StatusPill';
 import { ClassCheckInCell } from './ClassCheckInCell';
 import { useClassCheckIn } from './useClassCheckIn';
+import { ClassEntryRowMenu } from './ClassEntryRowMenu';
+import type { SecretaryCockpitEntryAction } from './secretaryCockpitTypes';
 import {
   countClassEntries,
   runStatusDisplay,
@@ -20,6 +22,7 @@ import {
 // Tight cells and wrapping Dog and Handler keep the table inside the ~600px focus column; the
 // scroll wrapper stays as the fallback for narrower ones.
 const CELL = 'px-2 py-2';
+const NO_ACTIONS: readonly SecretaryCockpitEntryAction[] = [];
 
 /** Entered, scored, in ring, still to run: derived from the same rows as the table below. */
 export function ClassCountTiles({
@@ -51,8 +54,8 @@ export function ClassCountTiles({
 }
 
 /**
- * Every entry in the class in run order with its run status, read-only (MYK9-1782). The last,
- * empty column is the per-dog menu's place (MYK9-1784).
+ * Every entry in the class in run order with its run status (MYK9-1782). The last column holds
+ * the per-dog menu (MYK9-1798), empty for a row with no allowed action.
  */
 export function ClassEntriesTable({
   entries,
@@ -61,7 +64,18 @@ export function ClassEntriesTable({
   onRefreshEntries,
   hidden = 0,
   unread = false,
+  rowMenu,
 }: {
+  /**
+   * Managers only (MYK9-1798): per entry (by nodeId) the actions the engine allows today, and the
+   * runner for a chosen commandId (ShowDeskPanel.runCommand). One prop so a menu is never dead.
+   */
+  rowMenu?:
+    | {
+        actions: ReadonlyMap<string, readonly SecretaryCockpitEntryAction[]>;
+        onCommand: (commandId: string) => void;
+      }
+    | undefined;
   entries: readonly SecretaryCockpitClassEntry[];
   /** The class's name, for the Check-in picker and the Pull it can lead to. */
   className: string;
@@ -107,7 +121,7 @@ export function ClassEntriesTable({
             <TableHead className={CELL}>Check-in</TableHead>
             <TableHead className={CELL}>Run status</TableHead>
             <TableHead className={CELL}>Result</TableHead>
-            <TableHead className="w-4 px-0">
+            <TableHead className="w-11 px-0">
               <span className="sr-only">Actions</span>
             </TableHead>
           </TableRow>
@@ -137,7 +151,16 @@ export function ClassEntriesTable({
                   <StatusPill label={run.label} kind={run.kind} outlined={run.outlined ?? false} />
                 </TableCell>
                 <TableCell className={CELL}>{entry.result ?? ''}</TableCell>
-                <TableCell className="px-0" />
+                <TableCell className="px-0">
+                  {rowMenu && (
+                    <ClassEntryRowMenu
+                      dogName={entry.dogName}
+                      armband={entry.armband}
+                      actions={rowMenu.actions.get(entry.nodeId) ?? NO_ACTIONS}
+                      onCommand={rowMenu.onCommand}
+                    />
+                  )}
+                </TableCell>
               </TableRow>
             );
           })}

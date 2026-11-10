@@ -39,9 +39,11 @@ test('Change class from the Overview lists every open class, a full one disabled
     `/shows/${SECRETARY_FIXTURE_SHOW_ID}?focus=${CHANGE_CLASS_IDS.noviceA}`
   );
 
-  const changeClass = page.getByRole('button', { name: /^Change class/ }).first();
-  await expect(changeClass).toBeVisible({ timeout: 30_000 });
-  await changeClass.click();
+  // The per-dog "⋯" menu in the class entries table (MYK9-1798); the item opens the dialog.
+  const rowMenu = page.getByRole('button', { name: /^Actions for #/ }).first();
+  await expect(rowMenu).toBeVisible({ timeout: 30_000 });
+  await rowMenu.click();
+  await page.getByRole('menuitem', { name: 'Change class' }).click();
 
   const dialog = page.getByRole('dialog');
   await expect(dialog.getByText(/^Current class: Buried Novice/)).toBeVisible();

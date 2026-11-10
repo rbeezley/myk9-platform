@@ -349,7 +349,7 @@ test.describe('Classes UI — Delete class cascade', () => {
     const seededRow = classRowById(page, seed.classId);
     await expect(seededRow).toBeVisible({ timeout: 15000 });
     await expect(page).toHaveURL(new RegExp(`focus=${seed.classId}`));
-    const editButton = page.getByRole('button', { name: /^Actions for / });
+    const editButton = page.getByRole('button', { name: /^Actions for (?!#)/ });
     await expect(editButton).toHaveCount(1);
     const editDialog = await openClassEditPanel(page, editButton);
     await editDialog.getByRole('button', { name: 'Delete class', exact: true }).click();

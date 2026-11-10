@@ -410,17 +410,17 @@ describe('SecretaryCockpitFocusedClass layout (owner, 2026-10-03)', () => {
     expect(within(settings).queryByText('Not started')).toBeNull();
   });
 
-  it('labels the entry list as the entries that can still move up', () => {
+  it('no longer lists "Can change class" apart from the entries table (MYK9-1798)', () => {
     renderPanel(sourceClass, {
       ...focused,
       entryRows: [
         {
-          nodeId: 'entry:e1',
-          label: '#101 Scout',
+          nodeId: 'entry:e-1',
+          label: '#101 Moss',
           actions: [
             {
               id: 'move-up-entry',
-              commandId: 'move-up-entry:entry:e1',
+              commandId: 'move-up-entry:entry:e-1',
               label: 'Change class',
               why: '',
             },
@@ -429,8 +429,9 @@ describe('SecretaryCockpitFocusedClass layout (owner, 2026-10-03)', () => {
       ],
     });
 
-    expect(screen.getByRole('heading', { name: 'Can change class' })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Entries' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Can change class' })).toBeNull();
+    // Menus closed: no standalone per-dog "Change class" button remains.
+    expect(screen.queryByRole('button', { name: /^Change class/ })).toBeNull();
   });
 
   it('counts entries the way the schedule row does: entered and pending (MYK9-1727)', () => {
@@ -494,5 +495,97 @@ describe('SecretaryCockpitFocusedClass Check-in cell', () => {
     expect(within(row).queryByRole('button', { name: /Change check-in/ })).toBeNull();
     expect(within(row).getAllByText('Not checked in')).toHaveLength(1);
     expect(within(row).queryByText('Scored, so the status is locked')).toBeNull();
+  });
+});
+
+// MYK9-1798: the per-dog menu in the entries table, joined to the engine's rows by nodeId.
+describe('SecretaryCockpitFocusedClass per-dog menu', () => {
+  const entry = (id: string, dogName: string) =>
+    ({
+      nodeId: `entry:${id}`,
+      entryId: id,
+      armband: '101',
+      dogName,
+      checkIn: { value: 'no-status', label: 'Not checked in', kind: 'neutral' },
+      checkInValue: 'no-status',
+      deskEditable: true,
+      lockedReason: null,
+      state: 'waiting',
+      counted: true,
+      notCheckedIn: true,
+      place: 1,
+      result: null,
+    }) as const;
+  const moveUp = (id: string) => ({
+    id: 'move-up-entry',
+    commandId: `move-up-entry:entry:${id}`,
+    label: 'Change class',
+    why: 'Move this dog to another class',
+  });
+  const both = (id: string) => [
+    moveUp(id),
+    {
+      id: 'other-entry-action',
+      commandId: `other-entry-action:entry:${id}`,
+      label: 'Move up a level',
+      why: '',
+    },
+  ];
+  const model: FocusedClassModel = {
+    ...focused,
+    entries: [entry('e-1', 'Moss'), entry('e-2', 'Scout'), entry('e-3', 'Juno')],
+    entryRows: [
+      { nodeId: 'entry:e-1', label: '#101 Moss', actions: both('e-1') },
+      { nodeId: 'entry:e-2', label: '#102 Scout', actions: [moveUp('e-2')] },
+      { nodeId: 'entry:e-3', label: '#103 Juno', actions: [] },
+    ],
+  };
+
+  function renderMenu(canManageShow: boolean, onCommand = vi.fn(), focusedModel = model) {
+    return render(
+      <SecretaryCockpitFocusedClass
+        showId="show-1"
+        focused={focusedModel}
+        sourceClass={sourceClass}
+        trial={{ id: 'trial-1', date: '2026-07-20', number: '1', order: 0 }}
+        attention={[]}
+        timeZone="America/Chicago"
+        canManageShow={canManageShow}
+        onCommand={onCommand}
+      />
+    );
+  }
+
+  it('shows both items for an eligible row and only the allowed one for another', async () => {
+    const { user } = renderMenu(true);
+    await user.click(screen.getByRole('button', { name: 'Actions for #101 Moss' }));
+    expect((await screen.findAllByRole('menuitem')).map(item => item.textContent)).toEqual([
+      'Change class',
+      'Move up a level',
+    ]);
+    await user.keyboard('{Escape}');
+
+    await user.click(screen.getByRole('button', { name: 'Actions for #101 Scout' }));
+    expect((await screen.findAllByRole('menuitem')).map(item => item.textContent)).toEqual([
+      'Change class',
+    ]);
+  });
+
+  it('shows no trigger on a row with no allowed action', () => {
+    renderMenu(true);
+    expect(screen.queryByRole('button', { name: 'Actions for #101 Juno' })).toBeNull();
+  });
+
+  it('shows no trigger to a non-manager', () => {
+    renderMenu(false);
+    expect(screen.queryByRole('button', { name: /^Actions for (Moss|Scout|Juno)$/ })).toBeNull();
+  });
+
+  it("calls onCommand with the chosen item's commandId", async () => {
+    const onCommand = vi.fn();
+    const { user } = renderMenu(true, onCommand);
+    await user.click(screen.getByRole('button', { name: 'Actions for #101 Moss' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Move up a level' }));
+    expect(onCommand).toHaveBeenCalledWith('other-entry-action:entry:e-1');
   });
 });

@@ -56,7 +56,6 @@ const focusedClass = (id: string, name: string, overrides: Partial<FocusedClassM
     startedLabel: null,
     lifecycle: { evidence: 'recorded', value: 'in-progress' },
     progress: { evidence: 'computed', value: { completed: 0, total: 1 } },
-    operationalArea: { evidence: 'unknown', value: null },
     judgeName: null,
     attentionCount: 0,
     closeout: 'none',

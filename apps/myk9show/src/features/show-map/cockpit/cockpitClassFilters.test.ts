@@ -35,7 +35,6 @@ const classes: SecretaryCockpitClass[] = [
     level: 'Novice',
     judgeId: 'j1',
     judgeName: 'Pat Lee',
-    operationalArea: { kind: 'ring', labels: ['Ring 1'] },
     lifecycle: 'in-progress',
   }),
   cls('b', {
@@ -44,7 +43,6 @@ const classes: SecretaryCockpitClass[] = [
     classOrder: 1,
     judgeId: 'j2',
     judgeName: 'Sam Roe',
-    operationalArea: { kind: 'ring', labels: ['Ring 2', 'Ring 1'] },
     lifecycle: 'complete',
   }),
   cls('c', {
@@ -124,9 +122,7 @@ describe('matchesCockpitClassFilters', () => {
     expect(matchesCockpitClassFilters(facts('a'), { statuses: ['needs-attention'] }, 2)).toBe(true);
   });
 
-  it('matches a class with several areas on any of them, and a judgeless class as Unassigned', () => {
-    expect(matchesCockpitClassFilters(facts('b'), { areas: ['Ring 2'] }, 0)).toBe(true);
-    expect(matchesCockpitClassFilters(facts('b'), { areas: ['Ring 1'] }, 0)).toBe(true);
+  it('matches a judgeless class as Unassigned', () => {
     expect(matchesCockpitClassFilters(facts('c'), { judges: [UNASSIGNED_JUDGE] }, 0)).toBe(true);
     expect(matchesCockpitClassFilters(facts('a'), { judges: [UNASSIGNED_JUDGE] }, 0)).toBe(false);
   });
@@ -146,7 +142,6 @@ describe('cockpitFilterOptions', () => {
       'Sam Roe',
       'Unassigned',
     ]);
-    expect(all.areas.map(option => option.value)).toEqual(['Ring 1', 'Ring 2']);
     expect(all.elements.map(option => option.value)).toEqual(['Container', 'Interior', 'Exterior']);
     expect(all.levels.map(option => option.value)).toEqual(['Novice', 'Advanced']);
     const day2 = cockpitFilterOptions(snapshot, ['2026-07-21']);
@@ -157,7 +152,6 @@ describe('cockpitFilterOptions', () => {
     const one = { ...snapshot, classes: [classes[0]!, { ...classes[0]!, id: 'a2' }] };
     expect(cockpitFilterOptions(one, [])).toEqual({
       judges: [],
-      areas: [],
       elements: [],
       levels: [],
     });
@@ -175,10 +169,9 @@ describe('cockpitFilterOptions', () => {
 
 describe('pruneCockpitFilters', () => {
   it('drops ticks the show does not offer and keeps the rest', () => {
-    const state = { judges: ['j1', 'gone'], areas: ['Ring 9'], levels: ['Novice'] };
+    const state = { judges: ['j1', 'gone'], levels: ['Novice'] };
     expect(pruneCockpitFilters(snapshot, state)).toEqual({
       judges: ['j1'],
-      areas: [],
       levels: ['Novice'],
     });
   });
@@ -193,7 +186,6 @@ describe('the schedule and its counts share one predicate', () => {
   it('filters rows by each group', () => {
     expect(shown({ statuses: ['complete', 'cancelled'] })).toEqual(['b', 'c']);
     expect(shown({ judges: ['j1', 'j3'] })).toEqual(['a', 'd']);
-    expect(shown({ areas: ['Ring 2'] })).toEqual(['b']);
     expect(shown({ elements: ['Interior'] })).toEqual(['b', 'c']);
     expect(shown({ levels: ['Advanced'] })).toEqual(['c', 'd']);
     expect(shown({ elements: ['Interior'], levels: ['Advanced'] })).toEqual(['c']);
@@ -205,7 +197,6 @@ describe('the schedule and its counts share one predicate', () => {
     const options = cockpitFilterOptions(snapshot, model.day.days);
     for (const [group, key] of [
       ['judges', 'judges'],
-      ['areas', 'areas'],
       ['elements', 'elements'],
       ['levels', 'levels'],
     ] as const) {
@@ -221,21 +212,20 @@ describe('the schedule and its counts share one predicate', () => {
   it('keeps an empty trial listed only while nothing is filtered', () => {
     expect(hasActiveCockpitFilters({})).toBe(false);
     expect(hasActiveCockpitFilters({ levels: [] })).toBe(false);
-    expect(hasActiveCockpitFilters({ areas: ['Ring 1'] })).toBe(true);
+    expect(hasActiveCockpitFilters({ judges: ['j1'] })).toBe(true);
     const trials = (filters: Parameters<typeof shown>[0]) =>
       buildSecretaryCockpitModel(snapshot, filters).trialGroups.map(group => group.trialId);
     expect(trials({})).toEqual(['t1', 't2']);
-    expect(trials({ areas: ['Ring 1'] })).toEqual(['t1']);
+    expect(trials({ judges: ['j1'] })).toEqual(['t1']);
   });
 });
 
 describe('filtersUpdate with any group', () => {
   const model = buildSecretaryCockpitModel(snapshot, { focusedClassId: 'a' });
 
-  it('lets the picked class go when a judge, area, element or level change hides it', () => {
+  it('lets the picked class go when a judge, element or level change hides it', () => {
     for (const update of [
       { judges: ['j2'] },
-      { areas: ['Ring 2'] },
       { elements: ['Interior'] },
       { levels: ['Advanced'] },
     ]) {

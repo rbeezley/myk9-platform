@@ -14,7 +14,6 @@ export type CockpitStatus = CockpitLifecycle | 'needs-attention' | 'needs-closeo
 export type CockpitCloseoutState = 'none' | 'needs-closeout' | 'closed';
 export type CockpitAttentionKind =
   'blocker' | 'active-work' | 'preparation' | 'closeout' | 'administrative';
-export type OperationalAreaKind = 'search-area' | 'ring' | 'course';
 export type PaperworkState = 'current' | 'stale' | 'unconfirmed' | 'unknown';
 
 export type CockpitDestination =
@@ -149,10 +148,6 @@ export interface SecretaryCockpitClass {
   judgeName?: string | null;
   /** The assigned judge's person id, for the class panel's judge picker (MYK9-1323). */
   judgeId?: string | null;
-  operationalArea?: {
-    kind: OperationalAreaKind;
-    labels: readonly string[];
-  } | null;
   attention: readonly SecretaryCockpitAttention[];
   actions: readonly SecretaryCockpitAction[];
   paperwork: readonly SecretaryCockpitPaperwork[];
@@ -184,8 +179,6 @@ export interface CockpitClassFilters {
   statuses?: readonly CockpitStatus[] | undefined;
   /** Judge ids (the name when a judge has no id), or the "Unassigned" sentinel. */
   judges?: readonly string[] | undefined;
-  /** Operational area labels. */
-  areas?: readonly string[] | undefined;
   elements?: readonly string[] | undefined;
   levels?: readonly string[] | undefined;
 }
@@ -202,7 +195,6 @@ export interface CockpitFilterFacts {
   lifecycle: CockpitLifecycle | null;
   closeout: CockpitCloseoutState;
   judge: { value: string; label: string };
-  areaLabels: readonly string[];
   element: string | null;
   level: string | null;
 }
@@ -218,7 +210,6 @@ export interface ScheduledClassModel {
   startedLabel: string | null;
   lifecycle: EvidenceValue<CockpitLifecycle>;
   progress: EvidenceValue<{ completed: number; total: number }>;
-  operationalArea: EvidenceValue<{ kind: OperationalAreaKind; label: string }>;
   judgeName: string | null;
   /** What the Filter menu matches on (MYK9-1785), so its counts read the rows, not the names. */
   filterFacts: CockpitFilterFacts;

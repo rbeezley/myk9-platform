@@ -16,7 +16,6 @@ import type {
   EvidenceKind,
   EvidenceValue,
   FocusedClassModel,
-  OperationalAreaKind,
   ScheduledClassModel,
   SecretaryCockpitAction,
   SecretaryCockpitAttention,
@@ -91,18 +90,6 @@ function progressFor(
   };
 }
 
-function operationalAreaFor(
-  cls: SecretaryCockpitClass
-): EvidenceValue<{ kind: OperationalAreaKind; label: string }> {
-  const labels = cls.operationalArea?.labels.filter(Boolean) ?? [];
-  return labels.length > 0 && cls.operationalArea
-    ? {
-        evidence: 'recorded',
-        value: { kind: cls.operationalArea.kind, label: labels.join(' + ') },
-      }
-    : { evidence: 'unknown', value: null };
-}
-
 function primaryActionFor(cls: SecretaryCockpitClass): SecretaryCockpitAction | null {
   return (
     [...cls.actions]
@@ -136,7 +123,6 @@ function toScheduledClass(
         : null,
     lifecycle: lifecycleFor(cls),
     progress: progressFor(cls),
-    operationalArea: operationalAreaFor(cls),
     judgeName: cls.judgeName ?? null,
     filterFacts: filterFactsOf(cls),
     attentionCount: derivedAttentionCount,

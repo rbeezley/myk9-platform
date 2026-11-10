@@ -40,7 +40,6 @@ const focused: FocusedClassModel = {
   startedLabel: null,
   lifecycle: { evidence: 'recorded', value: 'not-started' },
   progress: { evidence: 'computed', value: { completed: 0, total: 8 } },
-  operationalArea: { evidence: 'unknown', value: null },
   judgeName: null,
   attentionCount: 0,
   closeout: 'none',

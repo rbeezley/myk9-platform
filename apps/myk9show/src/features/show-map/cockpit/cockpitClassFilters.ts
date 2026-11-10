@@ -1,6 +1,6 @@
 /**
  * The Show Desk schedule filter as one unit (MYK9-1785): Status (cockpitStatusFilter.ts), Judge,
- * Ring/area, Element and Level. Within a group a class shows when it matches ANY ticked value;
+ * Element and Level. Within a group a class shows when it matches ANY ticked value;
  * across groups it must match every group that has a tick. `matchesCockpitClassFilters` is the ONE
  * predicate: the schedule's rows, every option's count, and the "let the picked class go" rule all
  * call it, so the three cannot drift apart. Options come from the classes already in the snapshot.
@@ -23,11 +23,10 @@ import type {
 /** The value a class with no judge carries; no real id or name starts with `~`. */
 export const UNASSIGNED_JUDGE = '~unassigned';
 
-type ValueGroup = 'judges' | 'areas' | 'elements' | 'levels';
+type ValueGroup = 'judges' | 'elements' | 'levels';
 
 const GROUPS: readonly { group: ValueGroup; key: string; label: string }[] = [
   { group: 'judges', key: 'judge', label: 'Judge' },
-  { group: 'areas', key: 'area', label: 'Ring/area' },
   { group: 'elements', key: 'element', label: 'Element' },
   { group: 'levels', key: 'level', label: 'Level' },
 ];
@@ -60,7 +59,6 @@ export function filterFactsOf(cls: SecretaryCockpitClass): CockpitFilterFacts {
     judge: judgeValue
       ? { value: judgeValue, label: cls.judgeName || 'Assigned judge' }
       : { value: UNASSIGNED_JUDGE, label: 'Unassigned' },
-    areaLabels: cls.operationalArea?.labels ?? [],
     element: cls.element || null,
     level: cls.level || null,
   };
@@ -85,7 +83,6 @@ export function matchesCockpitClassFilters(
   return (
     matchesAnyCockpitStatus(facts, filters.statuses ?? [], attentionCount) &&
     anyPicked(filters.judges, [facts.judge.value]) &&
-    anyPicked(filters.areas, facts.areaLabels) &&
     anyPicked(filters.elements, [facts.element]) &&
     anyPicked(filters.levels, [facts.level])
   );
@@ -130,14 +127,12 @@ export function cockpitFilterOptions(
   );
   const maps: Record<ValueGroup, OptionMap> = {
     judges: new Map(),
-    areas: new Map(),
     elements: new Map(),
     levels: new Map(),
   };
   for (const cls of snapshot.classes) {
     const facts = filterFactsOf(cls);
     if (inScope.has(cls.trialId)) add(maps.judges, facts.judge.value, facts.judge.label, 0);
-    for (const label of facts.areaLabels) add(maps.areas, label, label, 0);
     add(maps.elements, facts.element, facts.element ?? '', cls.classOrder);
     add(maps.levels, facts.level, facts.level ?? '', cls.classOrder);
   }
@@ -147,7 +142,6 @@ export function cockpitFilterOptions(
   if (unassigned) judges.push({ value: UNASSIGNED_JUDGE, label: unassigned.label });
   const options = {
     judges,
-    areas: sorted(maps.areas, false),
     elements: sorted(maps.elements, true),
     levels: sorted(maps.levels, true),
   };
@@ -175,7 +169,7 @@ export function pruneCockpitFilters<T extends CockpitClassFilters>(
   return next;
 }
 
-/** The Judge, Ring/area, Element and Level fields, each hidden when it offers fewer than two. */
+/** The Judge, Element and Level fields, each hidden when it offers fewer than two. */
 export function buildCockpitClassFilterFields({
   snapshot,
   model,

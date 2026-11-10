@@ -265,10 +265,6 @@ export function buildSecretaryCockpitSnapshot({
       registryId: node?.registryId ?? null,
       judgeName: classItem.judgeName ?? null,
       judgeId: classItem.judgeId ?? null,
-      operationalArea:
-        node?.ringLabel && node.ringLabel !== '—'
-          ? { kind: 'ring' as const, labels: [node.ringLabel] }
-          : null,
       attention,
       actions: [
         ...actions,

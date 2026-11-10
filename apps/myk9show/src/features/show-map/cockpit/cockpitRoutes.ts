@@ -32,7 +32,6 @@ export function normalizeCockpitUrlState(params: URLSearchParams): CockpitUrlSta
     selectedDays,
     statuses,
     judges: parseCockpitList(params.get('judge')),
-    areas: parseCockpitList(params.get('area')),
     elements: parseCockpitList(params.get('element')),
     levels: parseCockpitList(params.get('level')),
     ...(focusedClassId ? { focusedClassId } : {}),
@@ -49,10 +48,9 @@ export function writeCockpitUrlState(
   if (day) params.set('day', day);
   const filter = serializeCockpitStatuses(state.statuses);
   if (filter) params.set('filter', filter);
-  // MYK9-1785: Judge, Ring/area, Element and Level ride beside `filter`, each a comma list.
+  // MYK9-1785: Judge, Element and Level ride beside `filter`, each a comma list.
   for (const [param, values] of [
     ['judge', state.judges],
-    ['area', state.areas],
     ['element', state.elements],
     ['level', state.levels],
   ] as const) {

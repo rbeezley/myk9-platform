@@ -44,7 +44,6 @@ function makeSnapshot(overrides: Partial<SecretaryCockpitSnapshot> = {}): Secret
         lifecycle: 'complete',
         scoredCount: 10,
         closeout: 'needs-closeout',
-        operationalArea: { kind: 'search-area', labels: ['Gym · Search Area 2'] },
         attention: [
           {
             id: 'closeout',
@@ -65,7 +64,6 @@ function makeSnapshot(overrides: Partial<SecretaryCockpitSnapshot> = {}): Secret
         revisedExpectedStart: '10:12',
         lifecycle: 'in-progress',
         scoredCount: 8,
-        operationalArea: { kind: 'search-area', labels: ['Kitchen · Search Area 1'] },
         attention: [
           {
             id: 'scores',
@@ -83,7 +81,6 @@ function makeSnapshot(overrides: Partial<SecretaryCockpitSnapshot> = {}): Secret
         name: 'Container Novice A',
         scheduledStart: '10:00',
         lifecycle: 'not-started',
-        operationalArea: { kind: 'search-area', labels: ['Gym · Search Area 1'] },
         attention: [
           {
             id: 'move-up',
@@ -110,7 +107,6 @@ function makeSnapshot(overrides: Partial<SecretaryCockpitSnapshot> = {}): Secret
         classOrder: 1,
         lifecycle: 'not-started',
         judgeName: 'Judge Morgan',
-        operationalArea: null,
         paperwork: [
           {
             reportId: 'scoresheet',
@@ -410,42 +406,16 @@ describe('buildSecretaryCockpitModel attention projection', () => {
 });
 
 describe('buildSecretaryCockpitModel truth projection', () => {
-  it('keeps unknown evidence unknown and does not infer Operational Area from Judge', () => {
+  it('keeps unknown paperwork evidence unknown', () => {
     const model = buildSecretaryCockpitModel(makeSnapshot(), {
       statuses: [],
       focusedClassId: 'untimed',
     });
 
-    expect(model.focusedClass?.operationalArea).toEqual({ evidence: 'unknown', value: null });
-    expect(model.focusedClass?.operationalArea.value).not.toBe('Judge Morgan');
     expect(model.focusedClass?.paperwork[0]).toMatchObject({
       evidence: 'unknown',
       state: 'unknown',
     });
-  });
-
-  it('preserves sport-aware Operational Area kind and supplied wording', () => {
-    const scent = buildSecretaryCockpitModel(makeSnapshot(), {
-      statuses: [],
-      focusedClassId: 'active',
-    });
-    expect(scent.focusedClass?.operationalArea).toEqual({
-      evidence: 'recorded',
-      value: { kind: 'search-area', label: 'Kitchen · Search Area 1' },
-    });
-
-    const ringSnapshot = makeSnapshot({
-      classes: makeSnapshot().classes.map(cls =>
-        cls.id === 'active'
-          ? { ...cls, operationalArea: { kind: 'ring' as const, labels: ['Ring 2'] } }
-          : cls
-      ),
-    });
-    const ring = buildSecretaryCockpitModel(ringSnapshot, {
-      statuses: [],
-      focusedClassId: 'active',
-    });
-    expect(ring.focusedClass?.operationalArea.value).toEqual({ kind: 'ring', label: 'Ring 2' });
   });
 
   it('classifies lifecycle as recorded, progress as computed, and action groups outside lifecycle', () => {

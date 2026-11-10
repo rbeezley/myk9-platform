@@ -1,3 +1,5 @@
+import { PasswordChangeError } from '@/features/step-up/passwordChange';
+import { friendlyAuthError, MIN_PASSWORD_LENGTH, PASSWORD_TOO_SHORT } from '@/lib/authErrorCopy';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Lock, CheckCircle, AlertTriangle, Eye, EyeOff } from 'lucide-react';
@@ -18,7 +20,7 @@ const ResetPasswordPage = () => {
   // MYK9-1208: step-up first, but a fresh recovery-link session already proves it is you.
   const passwordChange = usePasswordChange({ acceptRecoverySession: true });
   const errors: Record<string, string> = {};
-  if (password.length < 8) errors['new-password'] = 'Enter a password of at least 8 characters.';
+  if (password.length < MIN_PASSWORD_LENGTH) errors['new-password'] = PASSWORD_TOO_SHORT;
   else if (password !== confirmPassword) errors['confirm-password'] = 'Passwords do not match.';
   const { shown, fail } = useSubmitFieldErrors(errors);
 
@@ -87,7 +89,9 @@ const ResetPasswordPage = () => {
       await passwordChange.submit(password);
       setSuccess(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update password.');
+      setError(
+        err instanceof PasswordChangeError ? err.message : friendlyAuthError(err, 'changePassword')
+      );
     } finally {
       setLoading(false);
     }

@@ -100,7 +100,7 @@ describe('ResetPasswordPage', () => {
     await user.click(screen.getByRole('button', { name: /update password/i }));
 
     const field = screen.getByLabelText(/new password/i);
-    expect(screen.getByText('Enter a password of at least 8 characters.')).toBeInTheDocument();
+    expect(screen.getByText('Your password needs at least 8 characters.')).toBeInTheDocument();
     expect(field).toHaveAttribute('aria-invalid', 'true');
     expect(field).toHaveAttribute('aria-describedby', 'new-password-error');
     expect(field).toHaveFocus();
@@ -109,7 +109,7 @@ describe('ResetPasswordPage', () => {
 
     await user.type(field, 'password123');
     expect(
-      screen.queryByText('Enter a password of at least 8 characters.')
+      screen.queryByText('Your password needs at least 8 characters.')
     ).not.toBeInTheDocument();
   });
 

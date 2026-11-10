@@ -441,7 +441,8 @@ describe('useAuth', () => {
         await act(async () => {
           await result.current.updatePassword('newpassword123');
         });
-      }).rejects.toThrow('Update failed');
+        // MYK9-1815: the password pages show this message, so it is plain, never the provider's.
+      }).rejects.toThrow('We could not change your password. Please try again.');
     });
   });
 

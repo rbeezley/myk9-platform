@@ -288,6 +288,64 @@ describe('SignUpPage', () => {
     });
   });
 
+  describe('plain errors and one password rule (MYK9-1815)', () => {
+    async function fillAndSubmit(password: string) {
+      const user = userEvent.setup();
+      render(
+        <MemoryRouter>
+          <SignUpPage />
+        </MemoryRouter>
+      );
+      await user.type(screen.getByLabelText(/first name/i), 'Pat');
+      await user.type(screen.getByLabelText(/last name/i), 'Morgan');
+      await user.type(screen.getByLabelText(/email address/i), 'pat@example.com');
+      await user.type(screen.getByLabelText(/^password$/i), password);
+      await user.click(screen.getByLabelText(/i agree to the/i));
+      fireEvent.submit(screen.getByRole('button', { name: /sign up/i }).closest('form')!);
+    }
+
+    it('asks for 8 characters, the same rule as the reset and account pages', async () => {
+      await fillAndSubmit('1234567');
+
+      expect(
+        await screen.findByText('Your password needs at least 8 characters.')
+      ).toBeInTheDocument();
+      expect(mockSignUp).not.toHaveBeenCalled();
+      expect(screen.getByLabelText(/^password$/i)).toHaveAttribute('minlength', '8');
+      expect(screen.getByLabelText(/^password$/i)).toHaveAttribute(
+        'placeholder',
+        'Password (at least 8 characters)'
+      );
+    });
+
+    it('an email that already has an account is explained in plain words', async () => {
+      mockSignUp.mockRejectedValue(
+        Object.assign(new Error('User already registered'), {
+          code: 'user_already_exists',
+          status: 422,
+        })
+      );
+      await fillAndSubmit('password123');
+
+      expect(
+        await screen.findByText(
+          'That email address already has an account. Sign in, or use "Forgot your password?" on the sign-in page.'
+        )
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/user already registered/i)).toBeNull();
+    });
+
+    it('an error it does not know shows the fallback, never the raw text', async () => {
+      mockSignUp.mockRejectedValue(new Error('Database error saving new user'));
+      await fillAndSubmit('password123');
+
+      expect(
+        await screen.findByText('We could not create your account. Please try again.')
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/database error/i)).toBeNull();
+    });
+  });
+
   it('passes the return target to email signup and resend', async () => {
     const user = userEvent.setup();
     mockSignUp.mockResolvedValue(undefined);

@@ -1,3 +1,4 @@
+import { friendlyAuthError } from '@/lib/authErrorCopy';
 import React, { useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -149,7 +150,7 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
       persistSignInRedirect(signInReturnTo);
       await signInWithGoogle(signInReturnTo);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Google sign-in failed');
+      setError(friendlyAuthError(err, 'google'));
       setGoogleLoading(false);
     }
   };
@@ -161,7 +162,7 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
       persistSignInRedirect(signInReturnTo);
       await signInWithApple(signInReturnTo);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Apple sign-in failed');
+      setError(friendlyAuthError(err, 'apple'));
       setAppleLoading(false);
     }
   };
@@ -240,7 +241,7 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
       );
       navigate(signInReturnTo);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'An unknown error occurred');
+      setError(friendlyAuthError(err, 'signIn'));
     } finally {
       if (captchaRequired) turnstileRef.current?.reset();
       submissionPendingRef.current = false;

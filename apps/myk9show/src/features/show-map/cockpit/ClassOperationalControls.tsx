@@ -107,7 +107,7 @@ export function useClassStatusChange({
       title={pending?.kind === 'cancel' ? 'Cancel this class?' : 'Mark this Class complete?'}
       description={
         pending?.kind === 'cancel'
-          ? `${className || 'This class'} will show as cancelled to exhibitors and at ringside. You can change the status back later.`
+          ? `${className || 'This class'} will show as cancelled on the show schedule and will stop taking entries. Ringside screens will not show the change. You can change the status back later.`
           : pending?.warning
       }
       confirmLabel={pending?.kind === 'cancel' ? 'Cancel class' : 'Mark complete'}

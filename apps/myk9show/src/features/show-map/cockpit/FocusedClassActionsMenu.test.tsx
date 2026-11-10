@@ -258,7 +258,7 @@ describe('FocusedClassActionsMenu (MYK9-1796)', () => {
       expect(within(dialog).getByText('Cancel this class?')).toBeInTheDocument();
       expect(
         within(dialog).getByText(
-          'Container Novice will show as cancelled to exhibitors and at ringside. You can change the status back later.'
+          'Container Novice will show as cancelled on the show schedule and will stop taking entries. Ringside screens will not show the change. You can change the status back later.'
         )
       ).toBeInTheDocument();
       expect(applyManualClassStatus).not.toHaveBeenCalled();

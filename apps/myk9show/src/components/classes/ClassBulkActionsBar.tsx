@@ -141,7 +141,7 @@ export function ClassBulkActionsBar({
             ? 'Cancel this class?'
             : `Cancel ${pendingCancel?.classIds.length ?? 0} classes?`
         }
-        description={`${pendingCancel?.classIds.length === 1 ? 'This class' : 'These classes'} will show as cancelled to exhibitors and at ringside. You can change the status back later.`}
+        description={`${pendingCancel?.classIds.length === 1 ? 'This class' : 'These classes'} will show as cancelled on the show schedule and will stop taking entries. Ringside screens will not show the change. You can change the status back later.`}
         confirmLabel={pendingCancel?.classIds.length === 1 ? 'Cancel class' : 'Cancel classes'}
         cancelLabel={pendingCancel?.classIds.length === 1 ? 'Keep class' : 'Keep classes'}
         destructive

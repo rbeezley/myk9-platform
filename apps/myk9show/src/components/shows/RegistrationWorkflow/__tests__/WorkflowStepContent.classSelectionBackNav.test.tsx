@@ -131,9 +131,7 @@ function baseProps() {
     onClassSelectionChange: vi.fn(),
     onHandlerAssignmentChange: vi.fn(),
     onPaymentMethodChange: vi.fn(),
-    onPaymentStatusChange: vi.fn(),
     onEntryStatusChange: vi.fn(),
-    setPaymentStatus: vi.fn(),
     setEntryStatus: vi.fn(),
   };
 }

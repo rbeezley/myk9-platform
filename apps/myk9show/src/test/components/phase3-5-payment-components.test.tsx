@@ -6,7 +6,6 @@ import userEvent from '@testing-library/user-event';
 import React from 'react';
 
 import { PaymentStep } from '@/components/shows/RegistrationWorkflow/PaymentStep';
-import { PaymentStatus, EntryStatus } from '@/types/show-registration-types';
 
 // Mock the hooks and stores
 vi.mock('@/hooks/useDogStoreCompat', () => ({
@@ -123,11 +122,7 @@ describe('Phase 3.5: Payment Component Tests', () => {
         },
       ],
       paymentMethod: 'credit_card' as const,
-      paymentStatus: PaymentStatus.PENDING,
-      entryStatus: EntryStatus.PENDING,
       onPaymentMethodChange: vi.fn(),
-      onPaymentStatusChange: vi.fn(),
-      onEntryStatusChange: vi.fn(),
     };
 
     beforeEach(() => {
@@ -146,7 +141,7 @@ describe('Phase 3.5: Payment Component Tests', () => {
       );
 
       expect(screen.getByText(/Loading show details before totalling this entry/i)).toBeVisible();
-      expect(screen.queryByText('Secretary Payment Management')).toBeNull();
+      expect(screen.queryByText('Payment at the desk')).toBeNull();
     });
 
     it('should render payment step with fee calculation', () => {
@@ -256,7 +251,7 @@ describe('Phase 3.5: Payment Component Tests', () => {
       ).toBeInTheDocument();
     });
 
-    it('should show secretary payment management features', () => {
+    it('should show the secretary desk card without tabs (MYK9-1822)', () => {
       render(
         <PaymentStep
           paymentResolution={makePaymentResolution({ paymentMethod: 'credit_card' })}
@@ -264,98 +259,13 @@ describe('Phase 3.5: Payment Component Tests', () => {
         />
       );
 
-      // Should show secretary management section
-      expect(screen.getByText('Secretary Payment Management')).toBeInTheDocument();
-
-      // Should show tabs
-      expect(screen.getByText('Payment')).toBeInTheDocument();
-      expect(screen.getByText('Entry Status')).toBeInTheDocument();
-      expect(screen.getByText('Fee Override')).toBeInTheDocument();
-      expect(screen.getByText('Reconciliation')).toBeInTheDocument();
-    });
-
-    it('should handle payment status updates', async () => {
-      const user = userEvent.setup();
-      const onPaymentStatusChange = vi.fn();
-
-      render(
-        <PaymentStep
-          paymentResolution={makePaymentResolution({ paymentMethod: 'credit_card' })}
-          {...defaultProps}
-          onPaymentStatusChange={onPaymentStatusChange}
-        />
-      );
-
-      // Click on Mark as Paid by Check button
-      const markPaidButton = screen.getByText('Mark as Paid by Check');
-      await user.click(markPaidButton);
-
-      expect(onPaymentStatusChange).toHaveBeenCalledWith(PaymentStatus.PAID_BY_CHECK);
-    });
-
-    it('should handle entry status updates', async () => {
-      const user = userEvent.setup();
-      const onEntryStatusChange = vi.fn();
-
-      render(
-        <PaymentStep
-          paymentResolution={makePaymentResolution({ paymentMethod: 'credit_card' })}
-          {...defaultProps}
-          onEntryStatusChange={onEntryStatusChange}
-        />
-      );
-
-      // Navigate to Entry Status tab
-      const entryStatusTab = screen.getByText('Entry Status');
-      await user.click(entryStatusTab);
-
-      // Click Accept Entry button
-      const acceptButton = screen.getByText('Accept Entry');
-      await user.click(acceptButton);
-
-      expect(onEntryStatusChange).toHaveBeenCalledWith(EntryStatus.ACCEPTED, '');
-    });
-
-    it('should show proper payment status badges', () => {
-      render(
-        <PaymentStep
-          paymentResolution={makePaymentResolution({ paymentMethod: 'credit_card' })}
-          {...defaultProps}
-          paymentStatus={PaymentStatus.PAID_ONLINE}
-        />
-      );
-
-      // Should show current payment status, in words. The raw enum used to
-      // reach the user here; the assertion tracked the bug, not an intent.
-      expect(screen.getByText('Paid online')).toBeInTheDocument();
-    });
-
-    it('should handle fee override functionality', async () => {
-      const user = userEvent.setup();
-
-      render(
-        <PaymentStep
-          paymentResolution={makePaymentResolution({ paymentMethod: 'credit_card' })}
-          {...defaultProps}
-        />
-      );
-
-      // Navigate to Fee Override tab
-      const feeTab = screen.getByText('Fee Override');
-      await user.click(feeTab);
-
-      // Should show waive fees option
-      const waiveFeesCheckbox = screen.getByRole('checkbox', { name: 'Waive all fees' });
-      expect(waiveFeesCheckbox).toBeInTheDocument();
-
-      // Should show override amount input
-      const overrideInput = screen.getByLabelText('Override Total Amount');
-      expect(overrideInput).toBeInTheDocument();
-
-      // The override is now controlled by the wizard page (the entries panel
-      // renders the amount due outside this subtree and must apply the same
-      // value), so the step reports it rather than holding it.
-      await user.type(overrideInput, '25.00');
+      // One card, three plain actions; SecretaryPaymentManagement.test.tsx
+      // pins each one's handler.
+      expect(screen.getByText('Payment at the desk')).toBeInTheDocument();
+      expect(screen.getByLabelText('Change the total')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Paid by cash or check' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Make free' })).toBeInTheDocument();
+      expect(screen.queryAllByRole('tab')).toHaveLength(0);
     });
 
     it('should show payment summary correctly', () => {
@@ -428,29 +338,6 @@ describe('Phase 3.5: Payment Component Tests', () => {
 
       // Subtotal assertions live with the entries panel now (MYK9-483).
       expect(screen.getByText('Payment Information')).toBeInTheDocument();
-    });
-
-    it('should handle payment status integration with entry status', () => {
-      render(
-        <PaymentStep
-          paymentResolution={makePaymentResolution({ paymentMethod: 'credit_card' })}
-          selectedDogs={['1']}
-          classSelections={[
-            {
-              dogId: '1',
-              trialId: 'trial1',
-              selectedClasses: [{ classId: 'class1' }],
-            },
-          ]}
-          paymentMethod="credit_card"
-          paymentStatus={PaymentStatus.PAID_ONLINE}
-          entryStatus={EntryStatus.ACCEPTED}
-          onPaymentMethodChange={vi.fn()}
-        />
-      );
-
-      // Should show both payment and entry status
-      expect(screen.getByText('Paid online')).toBeInTheDocument();
     });
 
     it('should fire onPaymentDetailsChange when check number is entered', async () => {

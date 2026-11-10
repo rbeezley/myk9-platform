@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button';
 import { helpUrl } from '@/lib/help';
 import { cn } from '@/lib/utils';
 import type { PaymentMethod, PaymentDetails } from '@/types/show-registration-types';
-import type { PaymentStatus, EntryStatus } from '@/types/show-registration-types';
+import type { EntryStatus } from '@/types/show-registration-types';
 import { useShowStore } from '@/store/showStore';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { RegistrationErrorBoundary } from '@/components/common/ErrorBoundary';
@@ -82,8 +82,6 @@ function RegistrationWizardContent({ onStartAnother }: { onStartAnother: () => v
     liveFeeCalculation,
     entryWindowTimezoneState,
     paymentDetailsRef,
-    waiveFees,
-    setWaiveFees,
     paymentResolution,
     canDeclareJuniorHandler,
     juniorHandlerDogIds,
@@ -109,7 +107,6 @@ function RegistrationWizardContent({ onStartAnother }: { onStartAnother: () => v
     retryDogLoad,
     agreedToEntryAgreement,
     setAgreedToEntryAgreement,
-    setPaymentStatus,
     setEntryStatus,
     handleDogSelectionChange,
     handleClassSelectionChange,
@@ -117,7 +114,6 @@ function RegistrationWizardContent({ onStartAnother }: { onStartAnother: () => v
     handlePaymentMethodChange,
     handlePaymentMethodClear,
     handlePaymentDetailsChange,
-    handlePaymentStatusChange,
     handleEntryStatusChange,
     proceedBlocked,
     emptyEntryNoticeShown,
@@ -208,7 +204,6 @@ function RegistrationWizardContent({ onStartAnother }: { onStartAnother: () => v
           ? {
               paymentMethod: paymentResolution.effectivePaymentMethod,
               feeCalculation: liveFeeCalculation,
-              waiveFees,
               feeOverride,
               onRemoveLine: removeLine,
               removingLineKey,
@@ -428,21 +423,15 @@ function RegistrationWizardContent({ onStartAnother }: { onStartAnother: () => v
               onPaymentDetailsChange={(details: PaymentDetails) =>
                 handlePaymentDetailsChange(details)
               }
-              onPaymentStatusChange={(regId: string, status: PaymentStatus) =>
-                handlePaymentStatusChange(regId, status)
-              }
               onEntryStatusChange={(regId: string, status: EntryStatus, reason?: string) =>
                 handleEntryStatusChange(regId, status, reason)
               }
-              setPaymentStatus={setPaymentStatus}
               setEntryStatus={setEntryStatus}
               dogsLoading={dogsLoading}
               offlineFirstCreate={isLateEntryMode && currentWorkflowMode !== 'exhibitor'}
               agreedToEntryAgreement={agreedToEntryAgreement}
               onAgreementChange={setAgreedToEntryAgreement}
-              waiveFees={waiveFees}
               feeOverride={feeOverride}
-              onWaiveFeesChange={setWaiveFees}
               onFeeOverrideChange={setFeeOverride}
               juniorDeclaration={{
                 canDeclare: canDeclareJuniorHandler,

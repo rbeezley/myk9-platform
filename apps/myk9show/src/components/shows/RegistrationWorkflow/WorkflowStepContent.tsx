@@ -84,13 +84,11 @@ interface WorkflowStepContentProps {
   onPaymentMethodClear?: (() => void) | undefined;
   onPaymentDetailsChange?: ((details: PaymentDetails) => void) | undefined;
   getPaymentDetails?: (() => PaymentDetails) | undefined;
-  onPaymentStatusChange: (registrationId: string, status: PaymentStatus) => void | Promise<unknown>;
   onEntryStatusChange: (
     registrationId: string,
     status: EntryStatus,
     reason?: string
   ) => void | Promise<unknown>;
-  setPaymentStatus: (status: PaymentStatus) => void;
   setEntryStatus: (status: EntryStatus) => void;
   /** True while dogs are loading (used for auto-select loading state) */
   dogsLoading?: boolean;
@@ -100,10 +98,8 @@ interface WorkflowStepContentProps {
   agreedToEntryAgreement?: boolean | undefined;
   /** Callback when the entry agreement checkbox is toggled on the payment step. */
   onAgreementChange?: ((agreed: boolean) => void) | undefined;
-  /** Secretary fee waiver / manual override, owned by the wizard page. */
-  waiveFees?: boolean | undefined;
+  /** Secretary's changed total, owned by the wizard page. */
   feeOverride?: number | null | undefined;
-  onWaiveFeesChange?: ((waived: boolean) => void) | undefined;
   juniorDeclaration?: JuniorHandlerDeclaration | undefined;
   onFeeOverrideChange?: ((override: number | null) => void) | undefined;
 }
@@ -135,17 +131,13 @@ export function WorkflowStepContent({
   onPaymentMethodClear,
   onPaymentDetailsChange,
   getPaymentDetails,
-  onPaymentStatusChange,
   onEntryStatusChange,
-  setPaymentStatus,
   setEntryStatus,
   dogsLoading,
   offlineFirstCreate = false,
   agreedToEntryAgreement,
   onAgreementChange,
-  waiveFees,
   feeOverride,
-  onWaiveFeesChange,
   juniorDeclaration,
   onFeeOverrideChange,
 }: WorkflowStepContentProps) {
@@ -426,40 +418,16 @@ export function WorkflowStepContent({
             selectedDogs={optimisticState.formData.selectedDogs}
             classSelections={optimisticState.classSelections}
             paymentMethod={optimisticState.formData.paymentMethod || ''}
-            paymentStatus={optimisticState.paymentStatus}
-            entryStatus={optimisticState.entryStatus}
             onPaymentMethodChange={onPaymentMethodChange}
             onPaymentMethodClear={onPaymentMethodClear}
             onPaymentDetailsChange={onPaymentDetailsChange}
             getPaymentDetails={getPaymentDetails}
-            onPaymentStatusChange={async (status: PaymentStatus) => {
-              setPaymentStatus(status);
-              if (registrationId) {
-                try {
-                  await onPaymentStatusChange(registrationId, status);
-                } catch (error: unknown) {
-                  notifyStatusSaveFailed('payment', error);
-                }
-              }
-            }}
-            onEntryStatusChange={async (status: EntryStatus, reason?: string) => {
-              setEntryStatus(status);
-              if (registrationId) {
-                try {
-                  await onEntryStatusChange(registrationId, status, reason);
-                } catch (error: unknown) {
-                  notifyStatusSaveFailed('entry', error);
-                }
-              }
-            }}
             showId={showId}
             registrationId={registrationId}
             agreedToEntryAgreement={agreedToEntryAgreement}
             onAgreementChange={onAgreementChange}
             preTickAgreement={currentWorkflowMode !== 'exhibitor'}
-            waiveFees={waiveFees}
             feeOverride={feeOverride}
-            onWaiveFeesChange={onWaiveFeesChange}
             juniorDeclaration={juniorDeclaration}
             onFeeOverrideChange={onFeeOverrideChange}
             capacityReady={capacityReady}

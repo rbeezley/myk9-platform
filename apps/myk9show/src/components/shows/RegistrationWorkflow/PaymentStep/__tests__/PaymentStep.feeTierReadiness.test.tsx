@@ -31,7 +31,6 @@
 
 import React from 'react';
 import { render, screen } from '@/test/utils/testUtils';
-import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { PaymentStep } from '../index';
 import { usePaymentMethodResolution } from '../usePaymentMethodResolution';
@@ -123,14 +122,12 @@ describe('PaymentStep — no total until the show timezone is known', () => {
   });
 
   /**
-   * The running total lives in Secretary Payment Management's Reconciliation
-   * tab, which mounts lazily — so the tab has to be opened before the number
-   * exists in the DOM. When the step is not ready the whole card is absent, and
-   * the tab cannot be opened at all, which is the assertion below.
+   * The step's own total is the usual total named on the secretary's desk card
+   * ("Leave blank to charge the usual $X", MYK9-1822). When the step is not
+   * ready the whole card is absent, which is the assertion below.
    */
-  async function openReconciliation(): Promise<void> {
-    await userEvent.click(screen.getByRole('tab', { name: /Reconciliation/i }));
-  }
+  const usualTotal = (amount: string) =>
+    screen.queryByText(`Leave blank to charge the usual ${amount}.`);
 
   it('shows the loading state and NO fee while the trial read is unfinished', () => {
     entryWindowTimezone.timeZone = 'America/Chicago';
@@ -141,34 +138,30 @@ describe('PaymentStep — no total until the show timezone is known', () => {
     // Neither tier, and no way to reach one: the fee-bearing card is not
     // rendered at all. $35 in particular would be the Eastern-fallback answer
     // that the offline desk path writes straight to the database.
-    expect(screen.queryByRole('tab', { name: /Reconciliation/i })).toBeNull();
-    expect(screen.queryByText('Secretary Payment Management')).toBeNull();
-    expect(screen.queryByText('$35')).toBeNull();
-    expect(screen.queryByText('$30')).toBeNull();
-    expect(screen.queryByText('Total Fees')).toBeNull();
+    expect(screen.queryByText('Payment at the desk')).toBeNull();
+    expect(screen.queryByText(/\$35/)).toBeNull();
+    expect(screen.queryByText(/\$30/)).toBeNull();
   });
 
-  it("totals in the show's own zone once the read finishes", async () => {
+  it("totals in the show's own zone once the read finishes", () => {
     entryWindowTimezone.timeZone = 'America/Chicago';
     entryWindowTimezone.isReady = true;
     render(<Harness {...baseProps} />);
 
     expect(screen.queryByText(/Loading show details before totalling this entry/i)).toBeNull();
-    await openReconciliation();
 
-    expect(screen.getByText('$30')).toBeVisible();
-    expect(screen.queryByText('$35')).toBeNull();
+    expect(usualTotal('$30.00')).toBeVisible();
+    expect(usualTotal('$35.00')).toBeNull();
   });
 
-  it('would total $35 on the Eastern fallback — the value the zone plumbing removes', async () => {
+  it('would total $35 on the Eastern fallback — the value the zone plumbing removes', () => {
     entryWindowTimezone.timeZone = 'America/New_York';
     entryWindowTimezone.isReady = true;
     render(<Harness {...baseProps} />);
-    await openReconciliation();
 
     // Same instant, same show, one different zone. This is the positive control
     // for the test above: without it, "$30" could be a fee that never depended
     // on the zone at all.
-    expect(screen.getByText('$35')).toBeVisible();
+    expect(usualTotal('$35.00')).toBeVisible();
   });
 });

@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Info } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { PaymentStatus, EntryStatus, type PaymentMethod } from '@/types/show-registration-types';
+import type { PaymentMethod } from '@/types/show-registration-types';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { calculateTotalFees, parseJuniorHandlerFee } from './utils';
@@ -21,14 +21,10 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
   selectedDogs,
   classSelections,
   paymentMethod,
-  paymentStatus = PaymentStatus.PENDING,
-  entryStatus = EntryStatus.PENDING,
   onPaymentMethodChange,
   onPaymentMethodClear,
   onPaymentDetailsChange,
   getPaymentDetails,
-  onPaymentStatusChange,
-  onEntryStatusChange,
   onAgreementChange,
   agreedToEntryAgreement = false,
   preTickAgreement = false,
@@ -39,9 +35,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
   onRetryAvailability,
   waitlistClassIds = new Set(),
   blockedClassIds = new Set(),
-  waiveFees = false,
   feeOverride = null,
-  onWaiveFeesChange,
   onFeeOverrideChange,
   paymentResolution,
   juniorDeclaration,
@@ -227,20 +221,15 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
         />
       )}
 
-      {/* Secretary Features. Fee-bearing, so it waits for the resolved zone. */}
+      {/* Secretary desk actions. Fee-bearing, so it waits for the resolved zone.
+          Its paid and free shortcuts call the list's own handler (MYK9-1822). */}
       {entryWindowTimezoneReady && (
         <SecretaryPaymentManagement
-          paymentStatus={paymentStatus}
-          entryStatus={entryStatus}
+          paymentMethod={effectivePaymentMethod}
           feeCalculation={feeCalculation}
-          selectedDogs={selectedDogs}
-          waiveFees={waiveFees}
           feeOverride={feeOverride}
-          onWaiveFeesChange={onWaiveFeesChange ?? (() => {})}
           onFeeOverrideChange={onFeeOverrideChange ?? (() => {})}
-          onPaymentMethodChange={onPaymentMethodChange}
-          onPaymentStatusChange={onPaymentStatusChange}
-          onEntryStatusChange={onEntryStatusChange}
+          onPaymentMethodChange={handlePaymentMethodSelect}
         />
       )}
 

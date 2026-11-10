@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
@@ -7,6 +7,7 @@ import { isStripeRefundable } from '../refundEligibility';
 import { PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { supabase } from '@/lib/supabase';
+import { logger } from '@/services/LoggingService';
 
 vi.mock('@/lib/supabase', async importOriginal => {
   const original = await importOriginal<typeof import('@/lib/supabase')>();
@@ -59,6 +60,10 @@ beforeEach(() => {
       policy: null,
     },
   });
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 describe('RefundEntryDialog', () => {
@@ -133,6 +138,51 @@ describe('RefundEntryDialog', () => {
       await screen.findByText(/already been paid out to the club.*contact the site operator/i)
     ).toBeInTheDocument();
     expect(onRefunded).not.toHaveBeenCalled();
+  });
+
+  // MYK9-1824: the server can fail after Stripe accepted the refund, so an unknown
+  // answer must not claim nothing happened, and never shows the server's text.
+  it('shows the fixed unconfirmed sentence, not the raw text, for an unknown server answer', async () => {
+    const logSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
+    const invokeError = Object.assign(new Error('Edge Function returned a non-2xx status code'), {
+      context: new Response(
+        JSON.stringify({ error: 'Refund issued but recording it failed — contact support' }),
+        { status: 500 }
+      ),
+    });
+    mockedInvoke.mockResolvedValue({ data: null, error: invokeError });
+    const onRefunded = renderDialog();
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: /issue refund/i }));
+
+    expect(
+      await screen.findByText(
+        'We could not confirm the refund. It may already have gone through. Try again: it will not refund the exhibitor twice.'
+      )
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/non-2xx|recording it failed/i)).not.toBeInTheDocument();
+    expect(logSpy).toHaveBeenCalledWith(
+      'Entry refund failed',
+      'secretary',
+      { code: 'Refund issued but recording it failed — contact support' },
+      invokeError
+    );
+    expect(onRefunded).not.toHaveBeenCalled();
+  });
+
+  it('shows the fixed unconfirmed sentence, not the raw text, when the call throws', async () => {
+    const logSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
+    const thrown = new TypeError('Failed to fetch');
+    mockedInvoke.mockRejectedValue(thrown);
+    renderDialog();
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: /issue refund/i }));
+
+    expect(await screen.findByText(/we could not confirm the refund/i)).toBeInTheDocument();
+    expect(screen.queryByText(/failed to fetch/i)).not.toBeInTheDocument();
+    expect(logSpy).toHaveBeenCalledWith('Entry refund failed', 'secretary', {}, thrown);
   });
 
   it('states the one-refund-per-entry rule up front', () => {

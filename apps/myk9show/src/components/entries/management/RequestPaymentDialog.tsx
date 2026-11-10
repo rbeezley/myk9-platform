@@ -12,6 +12,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/lib/supabase';
+import { ensureError } from '@myk9/core';
+import { logger } from '@/services/LoggingService';
+import { PAYMENT_LINK_FAILED, PAYMENT_LINK_SERVER_MESSAGES } from './paymentLinkMessages';
 import { WithdrawalPolicyDisclosure } from '@/features/payments/WithdrawalPolicyDisclosure';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 
@@ -80,7 +83,7 @@ export function RequestPaymentDialog({
       });
 
       if (invokeError) {
-        // Edge fn returns a user-facing message in the response body; surface it.
+        // The response body says why; only the answers in PAYMENT_LINK_SERVER_MESSAGES are shown.
         let message: string | undefined;
         const context = (invokeError as { context?: Response }).context;
         if (context) {
@@ -90,7 +93,11 @@ export function RequestPaymentDialog({
             // fall through to the generic message
           }
         }
-        setError(message ?? invokeError.message ?? 'Could not create the payment link');
+        const known = PAYMENT_LINK_SERVER_MESSAGES[message ?? ''];
+        if (!known) {
+          logger.error('Payment link failed', 'secretary', { serverMessage: message }, invokeError);
+        }
+        setError(known ?? PAYMENT_LINK_FAILED);
         return;
       }
 
@@ -102,7 +109,8 @@ export function RequestPaymentDialog({
       });
       onRequested?.();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not create the payment link');
+      logger.error('Payment link failed', 'secretary', {}, ensureError(err));
+      setError(PAYMENT_LINK_FAILED);
     } finally {
       inFlightRef.current = false;
       setSubmitting(false);

@@ -15,7 +15,11 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { supabase } from '@/lib/supabase';
-import { useShowRefundAll, type ShowRefundAllResult } from '@/features/payments/useShowRefundAll';
+import {
+  showRefundAllErrorMessage,
+  useShowRefundAll,
+  type ShowRefundAllResult,
+} from '@/features/payments/useShowRefundAll';
 import { friendlyDbError } from '@/utils/friendlyDbError';
 import { RefundResultDetail } from '@/components/shows/RefundResultDetail';
 
@@ -114,8 +118,8 @@ export function RefundAllEntriesCard({ showId }: RefundAllEntriesCardProps) {
           toast.success(`Refunded the entry fees of ${entriesRefunded} ${noun(entriesRefunded)}.`);
         }
       },
-      onError: err =>
-        toast.error(friendlyDbError(err, 'Could not refund entries. Please try again.')),
+      // The hook's message is already plain; never the server's own text (MYK9-1824).
+      onError: err => toast.error(showRefundAllErrorMessage(err)),
     });
   };
 

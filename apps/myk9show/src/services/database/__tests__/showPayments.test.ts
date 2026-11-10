@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  EnrollmentPaymentError,
   listShowPayments,
   markEnrollmentPaidOnline,
   recordEnrollmentPayment,
@@ -128,6 +129,38 @@ describe('mark_enrollment_paid_online (MYK9-773)', () => {
     });
 
     await expect(markEnrollmentPaidOnline('enr-1')).rejects.toThrow('not authorized');
+  });
+});
+
+// MYK9-1824: the Postgres code survives, so the desk can tell the RPCs' own
+// refusals (22023) from failures it must not show raw.
+describe('enrollment payment errors keep their code', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('record_enrollment_payment throws an EnrollmentPaymentError with the code', async () => {
+    mocks.rpc.mockResolvedValue({
+      data: null,
+      error: { message: 'received date is after today', code: '22023' },
+    });
+
+    await expect(recordEnrollmentPayment('enr-1', { kind: 'reversal' })).rejects.toMatchObject({
+      name: 'EnrollmentPaymentError',
+      message: 'received date is after today',
+      code: '22023',
+    });
+  });
+
+  it('mark_enrollment_paid_online throws an EnrollmentPaymentError with the code', async () => {
+    mocks.rpc.mockResolvedValue({
+      data: null,
+      error: { message: 'not authorized to record payments for enrollment enr-1', code: '42501' },
+    });
+
+    const failure = markEnrollmentPaidOnline('enr-1');
+    await expect(failure).rejects.toBeInstanceOf(EnrollmentPaymentError);
+    await expect(failure).rejects.toMatchObject({ code: '42501' });
   });
 });
 

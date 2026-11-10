@@ -1,9 +1,10 @@
 import { act, renderHook } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
+import { logger } from '@/services/LoggingService';
 import {
   applyRecordedEnrollmentPayment,
   useEnrollmentLedgerActions,
@@ -50,6 +51,11 @@ const PAID_IN_FULL = {
   refund_notes: null,
   refunded_at: null,
 };
+
+/** An RPC validation refusal as show-payments throws it: the message plus code 22023. */
+function refusal(message: string) {
+  return Object.assign(new Error(message), { code: '22023' });
+}
 
 function wrapper({ children }: { children: React.ReactNode }) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -102,6 +108,10 @@ describe('applyRecordedEnrollmentPayment', () => {
 describe('useEnrollmentLedgerActions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('defaults received dates to today on the show calendar', () => {
@@ -226,7 +236,7 @@ describe('useEnrollmentLedgerActions', () => {
   });
 
   it('leaves the entries alone when the server refuses Paid in Full: Online', async () => {
-    mocks.markOnline.mockRejectedValue(new Error('not authorized'));
+    mocks.markOnline.mockRejectedValue(refusal('not authorized'));
     const setEntries = vi.fn();
     const { result } = renderHook(
       () => useEnrollmentLedgerActions({ setEntries, showTimeZone: 'America/New_York' }),
@@ -244,7 +254,7 @@ describe('useEnrollmentLedgerActions', () => {
   });
 
   it('leaves the entries alone and says why when the server refuses', async () => {
-    mocks.record.mockRejectedValue(new Error('received date is after today'));
+    mocks.record.mockRejectedValue(refusal('received date is after today'));
     const setEntries = vi.fn();
     const { result } = renderHook(
       () => useEnrollmentLedgerActions({ setEntries, showTimeZone: 'America/New_York' }),
@@ -260,6 +270,63 @@ describe('useEnrollmentLedgerActions', () => {
     expect(setEntries).not.toHaveBeenCalled();
     expect(mocks.toastError).toHaveBeenCalledWith(
       'Payment not recorded: received date is after today'
+    );
+  });
+
+  // MYK9-1824: only the RPCs' own refusals (22023) are shown with their reason.
+  async function failRecord(error: unknown) {
+    mocks.record.mockRejectedValue(error);
+    const setEntries = vi.fn();
+    const { result } = renderHook(
+      () => useEnrollmentLedgerActions({ setEntries, showTimeZone: 'America/New_York' }),
+      { wrapper }
+    );
+    let ok = true;
+    await act(async () => {
+      ok = await result.current.record('enr-1', { kind: 'reversal' });
+    });
+    expect(ok).toBe(false);
+    expect(setEntries).not.toHaveBeenCalled();
+  }
+
+  const UNCONFIRMED =
+    "We could not confirm this was saved. Check the entry's payments: if it is not there, try again.";
+
+  it('an error with no code shows the check-first sentence, not the raw text, and logs it', async () => {
+    const logSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
+    const raw = new Error('TypeError: Failed to fetch');
+    await failRecord(raw);
+
+    expect(mocks.toastError).toHaveBeenCalledWith(UNCONFIRMED);
+    expect(mocks.toastError).not.toHaveBeenCalledWith(expect.stringContaining('Failed to fetch'));
+    expect(logSpy).toHaveBeenCalledWith(
+      'Error recording enrollment payment:',
+      'secretary',
+      {},
+      raw
+    );
+  });
+
+  it('a code other than the RPC refusal shows the check-first sentence, not the raw text', async () => {
+    vi.spyOn(logger, 'error').mockImplementation(() => {});
+    await failRecord(
+      Object.assign(new Error('canceling statement due to statement timeout'), { code: '57014' })
+    );
+
+    expect(mocks.toastError).toHaveBeenCalledWith(UNCONFIRMED);
+    expect(mocks.toastError).not.toHaveBeenCalledWith(expect.stringContaining('statement timeout'));
+  });
+
+  it('the authorization refusal (42501) says so plainly, not the raw text', async () => {
+    vi.spyOn(logger, 'error').mockImplementation(() => {});
+    await failRecord(
+      Object.assign(new Error('not authorized to record payments for enrollment enr-1'), {
+        code: '42501',
+      })
+    );
+
+    expect(mocks.toastError).toHaveBeenCalledWith(
+      'You do not have permission to record payments for this entry.'
     );
   });
 });

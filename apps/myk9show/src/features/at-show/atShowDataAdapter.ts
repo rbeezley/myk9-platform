@@ -462,7 +462,9 @@ export function createAtShowDataDependencies(): Pick<
               : {}),
             actualClassIdA: classIdA,
             actualClassIdB: classIdB,
-            judgeNameB: b.cls?.judgeName ?? 'No Judge Assigned',
+            judgeNameB: isUnsetJudgeName(b.cls?.judgeName)
+              ? 'No Judge Assigned'
+              : b.cls!.judgeName!.trim(),
             isScoringFinalized: bothFinalized,
             resultsReleasedAt: bothReleasedAt,
           }

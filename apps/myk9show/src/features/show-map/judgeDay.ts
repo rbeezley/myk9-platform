@@ -61,7 +61,7 @@ export function groupClassesByJudgeDay(
     days.set(key, {
       key,
       ...(!isOwnDay && cls.judgeId?.trim() ? { judgeId: cls.judgeId.trim() } : {}),
-      ...(cls.judgeName?.trim() ? { judgeName: cls.judgeName.trim() } : {}),
+      ...(isUnsetJudgeName(cls.judgeName) ? {} : { judgeName: cls.judgeName!.trim() }),
       ...(cls.trialDate?.trim() ? { date: cls.trialDate.trim() } : {}),
       classIds: [cls.id],
     });

@@ -19,6 +19,11 @@ describe('judge day with no judge (MYK9-1853)', () => {
       'name:jane|2026-10-10'
     );
   });
+
+  it("never carries a legacy TBD as the day's judge name", () => {
+    const [day] = groupClassesByJudgeDay([{ id: 'a', judgeName: 'TBD', trialDate: '2026-10-10' }]);
+    expect(day?.judgeName).toBeUndefined();
+  });
 });
 
 describe("judge's day grouping (MYK9-1030)", () => {

@@ -11,7 +11,8 @@ import type { GeneratedClass } from '@/types/class-template-types';
 export function validateClassInput(classData: ClassInput): void {
   if (!classData.trialId) throw new Error('Trial ID is required');
   if (!classData.status) throw new Error('Class status is required');
-  if (!classData.judge) throw new Error('Judge is required');
+  // No judge check (MYK9-1853): a class may have no judge yet, which is stored as no name,
+  // and the insert never sends `judge` to the server.
 }
 
 /**

@@ -16,6 +16,8 @@
  */
 import { useState, type ReactNode } from 'react';
 import { Download } from 'lucide-react';
+import { CLASS_STATUS } from '@myk9/core';
+import { ConfirmDialog } from '@/components/ui/alert-dialog';
 import { toBulkActions } from '@/components/ui/RowActionMenu';
 import { BulkBarActions, BulkBarButton, FloatingBulkBar } from '@/components/list-toolkit';
 import { exportRowsCsv } from '@/utils/downloadCsv';
@@ -66,6 +68,10 @@ export function ClassBulkActionsBar({
   extraActions,
 }: ClassBulkActionsBarProps) {
   const [confirmDeleteIds, setConfirmDeleteIds] = useState<string[] | null>(null);
+  const [pendingCancel, setPendingCancel] = useState<{
+    classIds: string[];
+    onFullSuccess: (() => void) | undefined;
+  } | null>(null);
 
   if (selectedClasses.length === 0) return null;
 
@@ -77,12 +83,18 @@ export function ClassBulkActionsBar({
       setConfirmDeleteIds(eligibleIds);
       return false;
     },
-    // No confirm dialog for status. `onFullSuccess` (from runBulkAndClear) is
+    // Routine statuses apply at once; Cancelled asks once for the whole batch (below) and
+    // returns `false` so the selection stays until the confirmed run lands. `onFullSuccess` (from runBulkAndClear) is
     // threaded into the dispatcher so BOTH an initially-full success and a
     // later "Retry failed" toast success clear the selection; runBulkAndClear's
     // `cleared` latch prevents a double clear on the initial-success path.
-    onBulkStatusChange: (classIds, status, onFullSuccess) =>
-      onBulkStatusChange(classIds, status, onFullSuccess),
+    onBulkStatusChange: (classIds, status, onFullSuccess) => {
+      if (status === CLASS_STATUS.CANCELLED) {
+        setPendingCancel({ classIds, onFullSuccess });
+        return Promise.resolve(false);
+      }
+      return onBulkStatusChange(classIds, status, onFullSuccess);
+    },
     onClear,
   };
 
@@ -117,6 +129,28 @@ export function ClassBulkActionsBar({
           Export
         </BulkBarButton>
       </FloatingBulkBar>
+
+      <ConfirmDialog
+        open={pendingCancel !== null}
+        onOpenChange={open => !open && setPendingCancel(null)}
+        title={
+          pendingCancel?.classIds.length === 1
+            ? 'Cancel this class?'
+            : `Cancel ${pendingCancel?.classIds.length ?? 0} classes?`
+        }
+        description={`${pendingCancel?.classIds.length === 1 ? 'This class' : 'These classes'} will show as cancelled to exhibitors and at ringside. You can change the status back later.`}
+        confirmLabel={pendingCancel?.classIds.length === 1 ? 'Cancel class' : 'Cancel classes'}
+        cancelLabel="Keep classes"
+        destructive
+        onConfirm={() => {
+          if (!pendingCancel) return;
+          void onBulkStatusChange(
+            pendingCancel.classIds,
+            CLASS_STATUS.CANCELLED,
+            pendingCancel.onFullSuccess
+          );
+        }}
+      />
 
       {confirmDeleteIds !== null && (
         <DeleteObjectDialog

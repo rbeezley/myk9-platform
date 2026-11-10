@@ -91,6 +91,35 @@ describe('ClassBulkActionsBar', () => {
     );
   });
 
+  it('asks once for the whole batch before cancelling classes (MYK9-1840)', async () => {
+    const { user, onBulkStatusChange, onClear } = setup([
+      cls('1', 'Scheduled'),
+      cls('2', 'Scheduled'),
+    ]);
+    await user.click(screen.getByRole('button', { name: 'Change status' }));
+    await user.click(await screen.findByRole('menuitem', { name: /mark 2 of 2 cancelled/i }));
+
+    const dialog = await screen.findByRole('alertdialog');
+    expect(within(dialog).getByText('Cancel 2 classes?')).toBeInTheDocument();
+    expect(onBulkStatusChange).not.toHaveBeenCalled();
+    expect(onClear).not.toHaveBeenCalled();
+
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel classes' }));
+    expect(onBulkStatusChange).toHaveBeenCalledTimes(1);
+    expect(onBulkStatusChange).toHaveBeenCalledWith(['1', '2'], 'Cancelled', expect.any(Function));
+  });
+
+  it('cancels nothing when the bulk question is dismissed (MYK9-1840)', async () => {
+    const { user, onBulkStatusChange } = setup([cls('1', 'Scheduled'), cls('2', 'Scheduled')]);
+    await user.click(screen.getByRole('button', { name: 'Change status' }));
+    await user.click(await screen.findByRole('menuitem', { name: /mark 2 of 2 cancelled/i }));
+    const dialog = await screen.findByRole('alertdialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Keep classes' }));
+
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+    expect(onBulkStatusChange).not.toHaveBeenCalled();
+  });
+
   it('clears the selection after a fully successful bulk status change', async () => {
     const { user, onClear } = setup([cls('1', 'Scheduled')]);
     await user.click(screen.getByRole('button', { name: 'Change status' }));

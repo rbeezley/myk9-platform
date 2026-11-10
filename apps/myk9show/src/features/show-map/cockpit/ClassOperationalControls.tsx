@@ -37,15 +37,18 @@ export const STATUS_LABEL: Record<CockpitLifecycle, string> = {
 };
 
 /**
- * The one status-change path: the "Complete over unentered scores" confirmation and the write.
+ * The one status-change path: the "Complete over unentered scores" and "Cancel this class" confirmations, and the write.
  * The class header's Actions menu uses it too, rendering `confirmDialog` outside the menu so the
  * confirmation outlives the menu closing.
  */
 export function useClassStatusChange({
   classId,
+  className,
   unenteredScoreCount = 0,
 }: {
   classId: string;
+  /** Named in the Cancelled question; "this class" when the caller has no name. */
+  className?: string | undefined;
   /**
    * How many scores are still unentered, or `null` when that is UNKNOWN because the entries read
    * did not succeed. Null must not collapse to 0: this guard exists to stop a class being marked
@@ -55,7 +58,9 @@ export function useClassStatusChange({
   unenteredScoreCount?: number | null;
 }) {
   const [isSaving, setIsSaving] = useState(false);
-  const [completeWarning, setCompleteWarning] = useState<string | null>(null);
+  const [pending, setPending] = useState<
+    { kind: 'complete'; warning: string } | { kind: 'cancel' } | null
+  >(null);
 
   const applyStatus = async (status: ClassStatusValue) => {
     setIsSaving(true);
@@ -75,11 +80,17 @@ export function useClassStatusChange({
     const scoresUnknown = unenteredScoreCount === null;
     const outstanding = unenteredScoreCount ?? 0;
     if (status === CLASS_STATUS.COMPLETED && (scoresUnknown || outstanding > 0)) {
-      setCompleteWarning(
-        scoresUnknown
+      setPending({
+        kind: 'complete',
+        warning: scoresUnknown
           ? 'Entry data is unavailable, so we cannot tell whether paper scores still need entry. Mark this Class complete anyway?'
-          : `${outstanding} paper ${outstanding === 1 ? 'score still needs' : 'scores still need'} entry. Mark this Class complete anyway?`
-      );
+          : `${outstanding} paper ${outstanding === 1 ? 'score still needs' : 'scores still need'} entry. Mark this Class complete anyway?`,
+      });
+      return;
+    }
+    // Cancelled tells ringside and exhibitors the class is off, so it asks first.
+    if (status === CLASS_STATUS.CANCELLED) {
+      setPending({ kind: 'cancel' });
       return;
     }
     void applyStatus(status);
@@ -87,12 +98,22 @@ export function useClassStatusChange({
 
   const confirmDialog = (
     <ConfirmDialog
-      open={completeWarning !== null}
-      onOpenChange={open => !open && setCompleteWarning(null)}
-      title="Mark this Class complete?"
-      description={completeWarning}
-      confirmLabel="Mark complete"
-      onConfirm={() => void applyStatus(CLASS_STATUS.COMPLETED)}
+      open={pending !== null}
+      onOpenChange={open => !open && setPending(null)}
+      title={pending?.kind === 'cancel' ? 'Cancel this class?' : 'Mark this Class complete?'}
+      description={
+        pending?.kind === 'cancel'
+          ? `${className || 'This class'} will show as cancelled to exhibitors and at ringside. You can change the status back later.`
+          : pending?.warning
+      }
+      confirmLabel={pending?.kind === 'cancel' ? 'Cancel class' : 'Mark complete'}
+      cancelLabel={pending?.kind === 'cancel' ? 'Keep class' : 'Cancel'}
+      destructive={pending?.kind === 'cancel'}
+      onConfirm={() =>
+        void applyStatus(
+          pending?.kind === 'cancel' ? CLASS_STATUS.CANCELLED : CLASS_STATUS.COMPLETED
+        )
+      }
     />
   );
 

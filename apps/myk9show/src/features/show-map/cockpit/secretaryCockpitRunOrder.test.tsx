@@ -161,7 +161,7 @@ describe('run order is reachable from the Actions menu (MYK9-1796)', () => {
     const user = userEvent.setup();
     await user.click(actionsButton());
     // Positive control: the menu opened and holds its other items.
-    expect(await screen.findByRole('menuitem', { name: 'Set expected start' })).toBeInTheDocument();
+    expect(await screen.findByRole('menuitem', { name: 'Score this class' })).toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: 'Auto-sort run order' })).toBeNull();
     expect(screen.queryByRole('menuitem', { name: 'Place by hand' })).toBeNull();
   });
@@ -176,7 +176,7 @@ describe('run order is reachable from the Actions menu (MYK9-1796)', () => {
     renderPanel({ runOrder: undefined });
     const user = userEvent.setup();
     await user.click(actionsButton());
-    expect(await screen.findByRole('menuitem', { name: 'Set expected start' })).toBeInTheDocument();
+    expect(await screen.findByRole('menuitem', { name: 'Score this class' })).toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: 'Auto-sort run order' })).toBeNull();
   });
 
@@ -221,7 +221,7 @@ describe('run order is reachable from the Actions menu (MYK9-1796)', () => {
     renderPanel({ sourceClass: { ...SOURCE_CLASS, entryCount: 1, runListCount: 1 } });
     const user = userEvent.setup();
     await user.click(actionsButton());
-    expect(await screen.findByRole('menuitem', { name: 'Set expected start' })).toBeInTheDocument();
+    expect(await screen.findByRole('menuitem', { name: 'Score this class' })).toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: 'Auto-sort run order' })).toBeNull();
   });
 });

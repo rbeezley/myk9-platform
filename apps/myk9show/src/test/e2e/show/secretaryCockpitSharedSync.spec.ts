@@ -25,9 +25,10 @@ function focusedPanel(page: Page) {
 }
 
 function statusControl(page: Page, status: string) {
-  return focusedPanel(page).getByRole('button', {
-    name: `Class status: ${status}. Select to change.`,
-  });
+  // The inline Status field in the class header (MYK9-1867): a button named for the class, showing the status.
+  return focusedPanel(page)
+    .getByRole('button', { name: /^Change status of /, includeHidden: false })
+    .filter({ hasText: status });
 }
 
 async function setStatus(page: Page, current: string, next: string) {
@@ -98,7 +99,7 @@ test.describe('Secretary cockpit shared two-device sync', () => {
       await expect(statusControl(secretaryA, 'Not started')).toBeVisible({ timeout: 30_000 });
       await expect(statusControl(secretaryB, 'Not started')).toBeVisible({ timeout: 30_000 });
       await expect(
-        focusedPanel(secretaryA).getByRole('button', { name: 'Set expected start' })
+        focusedPanel(secretaryA).getByRole('button', { name: /Set expected start|\d{1,2}:\d{2}/ })
       ).toBeVisible();
 
       await expect(staffAtShow.getByRole('button', { name: new RegExp(CLASS_NAME) })).toBeVisible({

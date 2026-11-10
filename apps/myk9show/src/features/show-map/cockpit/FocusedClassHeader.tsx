@@ -10,7 +10,7 @@ import {
 } from '@/components/shows/ShowDetails/showStickyLayout';
 
 /**
- * The focused class's name and one-line facts. Pinned under the show header while the class's
+ * The focused class's name, one-line facts and inline settings (`children`). Pinned under the show header while the class's
  * checklist and exhibitors scroll (MYK9-1266); its height is published so focused controls scroll
  * to just below it. Stacked, it pins to the page under the show header; split, the card lives in a
  * sticky panel with its own scroll (FOCUSED_CLASS_PANEL_CLASS) and the header pins to the panel's top.
@@ -20,6 +20,7 @@ export function FocusedClassHeader({
   title,
   facts,
   pinMode = 'none',
+  menu,
   children,
 }: {
   eyebrow: string;
@@ -27,6 +28,8 @@ export function FocusedClassHeader({
   facts: string;
   /** The split's own-scroll panel: pin to the panel's top, not the page offset. */
   pinMode?: FocusedClassPinMode;
+  /** The ⋯ Actions menu, pinned top-right like the trial card's. */
+  menu?: ReactNode;
   children?: ReactNode;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -44,12 +47,17 @@ export function FocusedClassHeader({
             : 'bg-card'
       )}
     >
-      <div className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">
-        {eyebrow}
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">
+            {eyebrow}
+          </div>
+          <h2 className="mt-2 text-2xl font-semibold tracking-tight">{title}</h2>
+          {facts && <p className="mt-1 text-sm text-muted-foreground">{facts}</p>}
+        </div>
+        {menu && <div className="-mr-2 -mt-2 shrink-0">{menu}</div>}
       </div>
-      <h2 className="mt-2 text-2xl font-semibold tracking-tight">{title}</h2>
-      {facts && <p className="mt-1 text-sm text-muted-foreground">{facts}</p>}
-      {children && <div className="mt-3">{children}</div>}
+      {children}
     </div>
   );
 }

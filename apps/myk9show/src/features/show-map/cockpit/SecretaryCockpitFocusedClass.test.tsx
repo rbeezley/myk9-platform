@@ -298,7 +298,7 @@ describe('SecretaryCockpitFocusedClass delay announcement', () => {
     const { user } = renderPanel(source);
     await user.click(screen.getByRole('button', { name: /^Actions for/ }));
     // Positive control: the menu opened and holds its other items.
-    expect(await screen.findByRole('menuitem', { name: 'Set expected start' })).toBeInTheDocument();
+    expect(await screen.findByRole('menuitem', { name: 'Score this class' })).toBeInTheDocument();
     const item = screen.queryByRole('menuitem', { name: 'Announce a delay' });
     if (offered) expect(item).not.toBeNull();
     else expect(item).toBeNull();
@@ -367,10 +367,10 @@ describe('SecretaryCockpitFocusedClass layout (owner, 2026-10-03)', () => {
     );
   }
 
-  it('groups what the secretary sets under Class settings, apart from the work', () => {
+  it('shows what the secretary sets as inline fields in the class header', () => {
     renderPanel(sourceClass);
 
-    const settings = screen.getByRole('region', { name: 'Class settings' });
+    const settings = screen.getByTestId('focused-class-header');
     expect(within(settings).getByText('Status')).toBeInTheDocument();
     expect(within(settings).getByText('Expected start')).toBeInTheDocument();
     expect(within(settings).getByText('Actual timing')).toBeInTheDocument();
@@ -399,7 +399,7 @@ describe('SecretaryCockpitFocusedClass layout (owner, 2026-10-03)', () => {
       { ...focused, lifecycle: { evidence: 'recorded', value: 'complete' } }
     );
 
-    const settings = screen.getByRole('region', { name: 'Class settings' });
+    const settings = screen.getByTestId('focused-class-header');
     expect(within(settings).getByText('Start not recorded')).toBeInTheDocument();
     expect(within(settings).queryByText('Not started')).toBeNull();
   });

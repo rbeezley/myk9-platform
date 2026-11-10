@@ -208,7 +208,7 @@ describe('class panel judge picker (MYK9-1323)', () => {
   it('says a judge is assigned, not "not set", when the name has not resolved', () => {
     renderCockpit(classOf({ lifecycle: 'in-progress', judgeId: 'judge-9', judgeName: null }));
 
-    const settings = screen.getByRole('region', { name: 'Class settings' });
+    const settings = screen.getByTestId('focused-class-header');
     expect(within(settings).getByText('Judge assigned')).toBeVisible();
   });
 
@@ -268,7 +268,7 @@ describe('class panel judge picker (MYK9-1323)', () => {
     renderCockpit(classOf({ judgeId: 'judge-1', judgeName: 'Jane Judge' }));
 
     expect(screen.queryByRole('combobox', { name: /^Judge for/ })).not.toBeInTheDocument();
-    const settings = screen.getByRole('region', { name: 'Class settings' });
+    const settings = screen.getByTestId('focused-class-header');
     expect(within(settings).getByText('Jane Judge')).toBeVisible();
   });
 

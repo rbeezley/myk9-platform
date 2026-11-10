@@ -5,7 +5,7 @@ import { randomUUID } from 'crypto';
  * UI tests for the sign-up flow.
  *
  * Strategy:
- *   - Use unique timestamped emails so each run is independent.
+ *   - Use unique random emails so each run is independent.
  *   - Never use waitForTimeout — all waits are waitForURL or waitForResponse.
  *   - The spec verifies up to the "Check your email" confirmation screen;
  *     it cannot click the email link in a real mailbox.
@@ -17,8 +17,6 @@ import { randomUUID } from 'crypto';
  */
 
 test.describe.configure({ mode: 'serial' });
-
-const RUN_ID = Date.now();
 
 async function gotoSignUp(page: Page) {
   await page.goto('/sign-up', { waitUntil: 'networkidle' });
@@ -61,22 +59,23 @@ test.describe('Sign-up page — initial state', () => {
   });
 });
 
-test.describe('Sign-up form — validation', () => {
-  test('shows error on password mismatch', async ({ page }) => {
+test.describe('Sign-up form — one password field', () => {
+  test('asks for the password once and lets her read back what she typed (MYK9-1799)', async ({
+    page,
+  }) => {
     await gotoSignUp(page);
 
-    await page.getByRole('textbox', { name: 'First name' }).fill('Test');
-    await page.getByRole('textbox', { name: 'Last name' }).fill('User');
-    await page.getByRole('textbox', { name: 'Email address' }).fill(`mismatch-${RUN_ID}@myk9t.com`);
-    await page.getByRole('textbox', { name: 'Password', exact: true }).fill('StrongPass99!');
-    await page.getByRole('textbox', { name: 'Confirm password' }).fill('DifferentPass99!');
-    await page
-      .getByRole('checkbox', { name: 'I agree to the Terms of Service and Privacy Policy' })
-      .check();
+    await expect(page.getByLabel('Confirm password')).toHaveCount(0);
+    const password = page.getByLabel('Password', { exact: true });
+    await password.fill('StrongPass99!');
+    await expect(password).toHaveAttribute('type', 'password');
 
-    await page.getByRole('button', { name: 'Sign up' }).click();
+    await page.getByRole('button', { name: 'Show password' }).click();
+    await expect(password).toHaveAttribute('type', 'text');
+    await expect(password).toHaveValue('StrongPass99!');
 
-    await expect(page.getByText('Passwords do not match')).toBeVisible();
+    await page.getByRole('button', { name: 'Hide password' }).click();
+    await expect(password).toHaveAttribute('type', 'password');
   });
 });
 
@@ -113,7 +112,6 @@ test.describe('Sign-up form — happy path', () => {
     await page.getByRole('textbox', { name: 'Last name' }).fill('Tester');
     await page.getByRole('textbox', { name: 'Email address' }).fill(email);
     await page.getByRole('textbox', { name: 'Password', exact: true }).fill('Wr9xK!mP2qL7');
-    await page.getByRole('textbox', { name: 'Confirm password' }).fill('Wr9xK!mP2qL7');
     await page
       .getByRole('checkbox', { name: 'I agree to the Terms of Service and Privacy Policy' })
       .check();

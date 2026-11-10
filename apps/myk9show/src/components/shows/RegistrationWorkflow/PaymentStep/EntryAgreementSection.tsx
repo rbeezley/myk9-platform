@@ -30,8 +30,9 @@ export const EntryAgreementSection = ({
   // INTENT: a secretary keying a mail-in form already holds the exhibitor's
   // signed paper agreement, so the box arrives ticked (MYK9-1742). Once per
   // visit to this step, and only when there is an agreement to agree to: an
-  // untick by the secretary stands. The wizard resets the agreement on leaving
-  // Payment, and this component remounts on return, so it re-ticks then.
+  // untick by the secretary stands. The tick is kept when she steps back from
+  // Payment (MYK9-1799); after an emptied entry or a cleared dog selection the
+  // wizard unticks it and this component, remounted, pre-ticks again.
   // Both the staff workflow AND an on-behalf role: the role alone is also true
   // for a secretary entering their own dog, who signed nothing.
   const shouldPreTick = preTick && isOnBehalf;

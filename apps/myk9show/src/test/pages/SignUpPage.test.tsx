@@ -97,6 +97,40 @@ describe('SignUpPage', () => {
     ]);
   });
 
+  describe('one password field (MYK9-1799, owner decision 2026-11-09)', () => {
+    it('has one password field and no confirm field', () => {
+      render(
+        <MemoryRouter>
+          <SignUpPage />
+        </MemoryRouter>
+      );
+
+      expect(document.querySelectorAll('input[autocomplete="new-password"]')).toHaveLength(1);
+      expect(screen.queryByLabelText(/confirm password/i)).not.toBeInTheDocument();
+    });
+
+    it('lets her read back what she typed, from the keyboard too', async () => {
+      const user = userEvent.setup();
+      render(
+        <MemoryRouter>
+          <SignUpPage />
+        </MemoryRouter>
+      );
+      const password = screen.getByLabelText(/^password$/i);
+
+      await user.type(password, 'abc');
+      expect(password).toHaveAttribute('type', 'password');
+
+      // Reachable by Tab: with no confirm field this toggle is the only check on a typo.
+      await user.tab();
+      expect(screen.getByRole('button', { name: 'Show password' })).toHaveFocus();
+      await user.keyboard('{Enter}');
+
+      expect(password).toHaveAttribute('type', 'text');
+      expect(password).toHaveValue('abc');
+    });
+  });
+
   it('renders an "or" divider between Google button and email form', () => {
     render(
       <MemoryRouter>
@@ -241,7 +275,6 @@ describe('SignUpPage', () => {
       await user.type(screen.getByLabelText(/last name/i), 'Morgan');
       await user.type(screen.getByLabelText(/email address/i), 'pat@example.com');
       await user.type(screen.getByLabelText(/^password$/i), 'password123');
-      await user.type(screen.getByLabelText(/confirm password/i), 'password123');
       await user.click(screen.getByLabelText(/club officer/i));
       await user.click(screen.getByLabelText(/show secretary/i));
       await user.click(screen.getByLabelText(/i agree to the/i));
@@ -270,7 +303,6 @@ describe('SignUpPage', () => {
     await user.type(screen.getByLabelText(/last name/i), 'Morgan');
     await user.type(screen.getByLabelText(/email address/i), 'pat@example.com');
     await user.type(screen.getByLabelText(/^password$/i), 'password123');
-    await user.type(screen.getByLabelText(/confirm password/i), 'password123');
     await user.click(screen.getByLabelText(/i agree to the/i));
     await user.click(screen.getByRole('button', { name: /sign up/i }));
 
@@ -305,7 +337,6 @@ describe('SignUpPage', () => {
     await user.type(screen.getByLabelText(/last name/i), 'Morgan');
     await user.type(screen.getByLabelText(/email address/i), 'pat@example.com');
     await user.type(screen.getByLabelText(/^password$/i), 'password123');
-    await user.type(screen.getByLabelText(/confirm password/i), 'password123');
     await user.click(screen.getByLabelText(/i agree to the/i));
     expect(screen.getByRole('button', { name: /sign up/i })).toBeDisabled();
 
@@ -339,7 +370,6 @@ describe('SignUpPage', () => {
     await user.type(screen.getByLabelText(/last name/i), 'Morgan');
     await user.type(screen.getByLabelText(/email address/i), 'pat@example.com');
     await user.type(screen.getByLabelText(/^password$/i), 'password123');
-    await user.type(screen.getByLabelText(/confirm password/i), 'password123');
     await user.click(screen.getByLabelText(/i agree to the/i));
     await user.click(screen.getByRole('button', { name: 'Complete security check' }));
     const form = screen.getByRole('button', { name: /sign up/i }).closest('form');
@@ -364,7 +394,6 @@ describe('SignUpPage', () => {
       await user.type(screen.getByLabelText(/last name/i), 'Morgan');
       await user.type(screen.getByLabelText(/email address/i), 'pat@example.com');
       await user.type(screen.getByLabelText(/^password$/i), 'password123');
-      await user.type(screen.getByLabelText(/confirm password/i), 'password123');
       await user.click(screen.getByLabelText(/i agree to the/i));
       await user.click(screen.getByRole('button', { name: /sign up/i }));
 
@@ -426,7 +455,6 @@ describe('SignUpPage', () => {
       await user.type(screen.getByLabelText(/last name/i), 'Morgan');
       await user.type(screen.getByLabelText(/email address/i), 'pat@example.com');
       await user.type(screen.getByLabelText(/^password$/i), 'password123');
-      await user.type(screen.getByLabelText(/confirm password/i), 'password123');
       await user.click(screen.getByLabelText(/i agree to the/i));
       await user.click(screen.getByRole('button', { name: 'Complete security check' }));
       await user.click(screen.getByRole('button', { name: /sign up/i }));

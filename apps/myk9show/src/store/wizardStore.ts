@@ -222,8 +222,11 @@ const initialState: WizardState = {
       steward: [],
     },
     judgeIds: [],
-    acceptCheckPayments: false,
-    acceptCashPayments: false,
+    // A new show takes check and cash unless she says otherwise (owner decision, MYK9-1799):
+    // every club so far does, and a show accepting nothing cannot be entered. Online entries
+    // stay off; they need the club's payout account.
+    acceptCheckPayments: true,
+    acceptCashPayments: true,
     onlineEntriesEnabled: false,
     timezone: resolveBrowserTrialTimezone(),
     style: DEFAULT_PREMIUM_STYLE,

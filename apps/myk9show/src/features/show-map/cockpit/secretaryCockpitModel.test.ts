@@ -418,7 +418,7 @@ describe('buildSecretaryCockpitModel truth projection', () => {
     });
   });
 
-  it('classifies lifecycle as recorded, progress as computed, and action groups outside lifecycle', () => {
+  it('classifies lifecycle as recorded, progress as computed', () => {
     const model = buildSecretaryCockpitModel(makeSnapshot(), {
       statuses: [],
       focusedClassId: 'active',
@@ -429,8 +429,6 @@ describe('buildSecretaryCockpitModel truth projection', () => {
       evidence: 'computed',
       value: { completed: 8, total: 10 },
     });
-    expect(model.focusedClass).toHaveProperty('prepareActions');
-    expect(model.focusedClass).toHaveProperty('finishActions');
     expect(['not-started', 'in-progress', 'complete', 'cancelled']).toContain(
       model.focusedClass?.lifecycle.value
     );
@@ -654,14 +652,14 @@ describe('buildSecretaryCockpitModel unused print tracking and checklist (MYK9-1
     expect(model.attention.all.map(item => item.id)).toEqual(
       expect.arrayContaining(['move-up', 'scores'])
     );
-    expect(model.focusedClass).toMatchObject({ printTrackingInUse: false, checklistInUse: false });
+    expect(model.focusedClass).toMatchObject({ printTrackingInUse: false });
   });
 
   it('shows the Prepare chips once the show uses them', () => {
     const model = buildSecretaryCockpitModel(makeSnapshot(), { statuses: [] });
 
     expect(model.attention.all.map(item => item.id)).toContain('prepare:upcoming:check-in-sheet');
-    expect(model.focusedClass).toMatchObject({ printTrackingInUse: true, checklistInUse: true });
+    expect(model.focusedClass).toMatchObject({ printTrackingInUse: true });
   });
 
   it('keeps the checklist but drops Prepare chips when only a sign-off was recorded', () => {
@@ -670,7 +668,6 @@ describe('buildSecretaryCockpitModel unused print tracking and checklist (MYK9-1
       { statuses: [] }
     );
 
-    expect(model.focusedClass).toMatchObject({ checklistInUse: true });
     expect(model.attention.all.some(item => item.kind === 'preparation')).toBe(false);
   });
 });

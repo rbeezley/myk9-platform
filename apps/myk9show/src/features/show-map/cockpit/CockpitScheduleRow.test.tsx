@@ -28,7 +28,6 @@ const classItem: ScheduledClassModel = {
   },
   attentionCount: 0,
   closeout: 'none',
-  primaryAction: null,
   statusLine: {
     text: 'Not started · 3 not checked in',
     parts: ['Not started', '3 not checked in'],

@@ -215,7 +215,6 @@ export interface ScheduledClassModel {
   filterFacts: CockpitFilterFacts;
   attentionCount: number;
   closeout: CockpitCloseoutState;
-  primaryAction: SecretaryCockpitAction | null;
   /** Line 2 of the schedule row: one status-and-next-step phrase. */
   statusLine: StatusLine;
 }
@@ -240,8 +239,6 @@ export interface TrialScheduleGroupModel {
 export interface FocusedClassModel extends Omit<ScheduledClassModel, 'filterFacts'> {
   /** From the snapshot (MYK9-1620): false hides "Not confirmed printed" on paperwork rows. */
   printTrackingInUse: boolean;
-  /** From the snapshot (MYK9-1620): false collapses the checklist under a quiet disclosure. */
-  checklistInUse: boolean;
   entryRows: readonly SecretaryCockpitEntryRow[];
   /** Every entry in run order with its run status (the entries table). */
   entries: readonly SecretaryCockpitClassEntry[];
@@ -249,9 +246,6 @@ export interface FocusedClassModel extends Omit<ScheduledClassModel, 'filterFact
   actualStart: EvidenceValue<string>;
   actualFinish: EvidenceValue<string>;
   paperwork: readonly (SecretaryCockpitPaperwork & { evidence: EvidenceKind })[];
-  primaryActions: readonly SecretaryCockpitAction[];
-  prepareActions: readonly SecretaryCockpitAction[];
-  finishActions: readonly SecretaryCockpitAction[];
   classWorkActions: readonly SecretaryCockpitAction[];
 }
 

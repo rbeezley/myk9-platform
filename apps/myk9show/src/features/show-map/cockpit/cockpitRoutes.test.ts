@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 
 import {
   getCockpitClassDetailsHref,
-  getCockpitEntryManagementHref,
   getCockpitJudgeDayCatalogHref,
   getCockpitPaperScoringHref,
   getCockpitReportHref,
@@ -131,18 +130,6 @@ describe('Show Desk context routes', () => {
 
   it('builds typed owner links with the exact scope and encoded return context', () => {
     const returnTo = getShowHomeHref({ showId: 'show-1', state: context });
-
-    expect(
-      getCockpitEntryManagementHref({
-        showId: 'show-1',
-        trialId: 'trial-1',
-        classId: 'class/1',
-        tab: 'move-ups',
-        returnTo,
-      })
-    ).toBe(
-      `/shows/show-1/entries?tab=move-ups&trial=trial-1&class=class%2F1&returnTo=${encodeURIComponent(returnTo)}`
-    );
 
     expect(getCockpitPaperScoringHref({ classId: 'class/1', returnTo })).toBe(
       `/scoring/classes/class%2F1/entries?mode=split&returnTo=${encodeURIComponent(returnTo)}`

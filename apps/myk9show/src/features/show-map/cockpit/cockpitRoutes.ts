@@ -1,5 +1,4 @@
 import { SELECT_CLASSES } from '@/pages/secretary/selectClassesRoutes';
-import { getEntryManagementHref } from '@/features/entry-operations/entryAttentionRoutes';
 import { getPaperScoringClassHref } from '@/pages/scoring/scoringRoutes';
 import { getReportScopeSearchParams } from '@/lib/reports/reportScope';
 import type { ReportScope } from '@/lib/reports/types';
@@ -89,19 +88,6 @@ function withReturnTo(href: string, returnTo?: string): string {
   if (!returnTo) return href;
   const separator = href.includes('?') ? '&' : '?';
   return `${href}${separator}returnTo=${encodeURIComponent(returnTo)}`;
-}
-
-export function getCockpitEntryManagementHref(input: {
-  showId: string;
-  trialId?: string;
-  classId?: string;
-  tab?: 'entries' | 'move-ups' | 'pulls' | 'waitlist';
-  attention?: 'pending' | 'missing_information' | 'accepted' | 'waitlist' | 'issues';
-  payment?: 'pending' | 'paid_online' | 'paid_by_check' | 'paid_by_cash' | 'waived' | 'refunded';
-  mode?: 'review' | 'day-of';
-  returnTo: string;
-}): string {
-  return withReturnTo(getEntryManagementHref(input), input.returnTo);
 }
 
 export function getCockpitPaperScoringHref(input: { classId: string; returnTo: string }): string {

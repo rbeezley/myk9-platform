@@ -1,10 +1,6 @@
 import { getTrialTimezone, resolveConfiguredRegistryId } from '@/features/registries';
 
-import {
-  getAttentionActions,
-  getDirectActionsForNode,
-  getRecommendedActionsForNode,
-} from '../showMapActions';
+import { getAttentionActions, getDirectActionsForNode } from '../showMapActions';
 import { getShowMapNodeId } from '../showMapTree';
 import { SHOW_MAP_WRAP_UP_STATUS } from '../showMapTypes';
 import type { ShowDeskPendingSignal } from '../showDeskPendingSignals';
@@ -92,19 +88,6 @@ function destinationFor(action: ShowMapAction): SecretaryCockpitAction['destinat
   return action.href
     ? { kind: 'href', href: action.href }
     : { kind: 'command', commandId: `${action.id}:${action.nodeId}` };
-}
-
-function actionFor(
-  action: ShowMapAction,
-  group: SecretaryCockpitAction['group']
-): SecretaryCockpitAction {
-  return {
-    id: `${action.id}:${action.nodeId}`,
-    label: action.label,
-    destination: destinationFor(action),
-    group,
-    priority: action.priority,
-  };
 }
 
 /**
@@ -216,11 +199,6 @@ export function buildSecretaryCockpitSnapshot({
 
   const builtClasses = classes.map((classItem, index) => {
     const node = tree.nodesById[`class:${classItem.id}`];
-    const actions = node
-      ? getRecommendedActionsForNode(node, { tree, now }, 1).map(action =>
-          actionFor(action, 'primary')
-        )
-      : [];
     const attention = node
       ? getAttentionActions(node, { tree, now })
           // Pending Entry review has one canonical owner page and is already
@@ -266,15 +244,12 @@ export function buildSecretaryCockpitSnapshot({
       judgeName: classItem.judgeName ?? null,
       judgeId: classItem.judgeId ?? null,
       attention,
-      actions: [
-        ...actions,
-        ...classWorkActions({
-          showId,
-          trialId: classItem.trialId,
-          classId: classItem.id,
-          returnTo,
-        }),
-      ],
+      actions: classWorkActions({
+        showId,
+        trialId: classItem.trialId,
+        classId: classItem.id,
+        returnTo,
+      }),
       paperwork: [...(paperworkByClassId?.get(classItem.id) ?? [])],
       entryRows: entryRowsForClass(classItem.id, tree),
       entries: classEntriesForClass(classItem.id, tree),

@@ -50,7 +50,7 @@ export const DateRangeTimeFields: React.FC<DateRangeTimeFieldsProps> = ({
   onStartTimeChange,
   onEndTimeChange,
 }) => (
-  <div className="mt-3 grid grid-cols-2 gap-4 border-t pt-3">
+  <div className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(14rem,1fr))] gap-4 border-t pt-3">
     <TimeField
       label={startLabel}
       id={startTimeId}

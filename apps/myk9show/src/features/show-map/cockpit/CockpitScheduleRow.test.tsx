@@ -29,8 +29,8 @@ const classItem: ScheduledClassModel = {
   attentionCount: 0,
   closeout: 'none',
   statusLine: {
-    text: 'Not started · 3 not checked in',
-    parts: ['Not started', '3 not checked in'],
+    text: 'Not started · 3 of 5 not checked in',
+    parts: ['Not started', '3 of 5 not checked in'],
   },
 };
 
@@ -56,7 +56,7 @@ describe('CockpitScheduleRow pending link', () => {
   it('sets "N pending" in the status phrase, linked to the class review list', () => {
     renderRow(2);
     expect(screen.getByTestId('class-status-line')).toHaveTextContent(
-      'Not started · 2 pending · 3 not checked in'
+      'Not started · 2 pending · 3 of 5 not checked in'
     );
     const link = screen.getByRole('link', { name: '2 pending in Container Novice' });
     expect(link).toHaveAttribute(
@@ -80,7 +80,7 @@ describe('CockpitScheduleRow pending link', () => {
     renderRow(0);
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
     expect(screen.getByTestId('class-status-line')).toHaveTextContent(
-      'Not started · 3 not checked in'
+      'Not started · 3 of 5 not checked in'
     );
   });
 

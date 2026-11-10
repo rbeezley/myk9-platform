@@ -18,13 +18,10 @@ const dogSearch = read('DogSearchInterface.tsx');
 const dogSearchFilters = read('DogSearchFilters.tsx');
 
 describe('secretary surfaces — dark-mode + grid-stacking guards', () => {
-  it('SecretaryPaymentManagement drops raw gray and dark-adapts status colors + grids', () => {
+  it('SecretaryPaymentManagement uses theme tokens and stacks its actions on mobile', () => {
     expect(secretaryPayment).not.toContain('text-gray-600');
     expect(secretaryPayment).not.toContain('bg-gray-50');
-    expect(secretaryPayment).toContain('text-success');
-    expect(secretaryPayment).toContain('bg-info/10');
-    // tabs and action grids stack on mobile
-    expect(secretaryPayment).toContain('grid-cols-2 sm:grid-cols-4');
+    // MYK9-1822: one card, no tabs; the action grid stacks on mobile
     expect(secretaryPayment).toContain('grid-cols-1 gap-3 sm:grid-cols-2');
   });
 });

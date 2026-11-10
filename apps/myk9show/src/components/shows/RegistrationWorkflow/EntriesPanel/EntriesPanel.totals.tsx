@@ -21,8 +21,8 @@ export interface EntriesPanelTotalsProps {
   /** Discounts applied to the entry. Always empty today; see MEMORY. */
   discounts?: readonly { amount: number; description: string }[] | undefined;
   /**
-   * Signed difference between a staff fee override and the itemised sum. Zero
-   * (omitted) when no override is set, or when it matches the lines.
+   * Signed gap between the computed total and the itemised line sum. Zero
+   * (omitted) when they match.
    */
   adjustmentCents?: number | undefined;
   /** Payment step only — when present the money block is the payable one. */
@@ -122,11 +122,11 @@ export const EntriesPanelTotals: React.FC<EntriesPanelTotalsProps> = ({
               {moneyOrPlaceholder(capacityReady, capacityUnavailable, entryFeeCents, placeholder)}
             </span>
           </div>
-          {/* The override, said out loud. Without this row the total simply
-              disagrees with every line above it and nothing explains why. */}
+          {/* The gap, said out loud. Without this row the total simply disagrees
+              with every line above it and nothing explains why. */}
           {!!adjustmentCents && (
             <div className="flex items-baseline justify-between gap-2 text-sm">
-              <span className="text-muted-foreground">Secretary adjustment</span>
+              <span className="text-muted-foreground">Adjustment</span>
               <span className="tabular-nums">
                 {capacityReady
                   ? `${adjustmentCents > 0 ? '+' : '-'}${formatCartCurrency(Math.abs(adjustmentCents))}`

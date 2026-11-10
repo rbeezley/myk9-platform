@@ -10,11 +10,16 @@ const sheet = (reportId: string, printHref?: string): SecretaryCockpitPaperwork 
   state: 'unconfirmed',
   ...(printHref ? { printHref } : {}),
 });
-const context = (paperwork: SecretaryCockpitPaperwork[], canManageShow = true) => ({
+const context = (
+  paperwork: SecretaryCockpitPaperwork[],
+  canManageShow = true,
+  secretaryOnlyReason?: string
+) => ({
   paperwork,
   canManageShow,
   scoringHref: '/scoring/c1',
   resultsHref: '/results/c1',
+  secretaryOnlyReason,
 });
 const itemsFor = (paperwork: SecretaryCockpitPaperwork[]) =>
   buildClassChecklist({
@@ -50,6 +55,12 @@ describe('resolveClassStepAction', () => {
   it('links scoring to paper scoring and the signature to Results', () => {
     expect(byId('scoring-complete')).toMatchObject({ kind: 'link', href: '/scoring/c1' });
     expect(byId('judge-signature')).toMatchObject({ kind: 'link', href: '/results/c1' });
+  });
+
+  it('blocks paper scoring, with the reason and no link, for a manager who is not the trial secretary (MYK9-1802)', () => {
+    expect(
+      byId('scoring-complete', context(paperwork, true, 'Trial secretary access only'))
+    ).toEqual({ kind: 'blocked', label: 'Trial secretary access only' });
   });
 
   it('is plain status for a sheet with no print link', () => {

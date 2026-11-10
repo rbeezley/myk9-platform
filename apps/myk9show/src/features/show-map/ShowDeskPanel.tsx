@@ -51,8 +51,6 @@ export default function ShowDeskPanel({
     entries,
     showId: show.id,
     ...(scopeNow !== undefined && { scopeNow }),
-    initialDayScope: 'all',
-    initialCompletionScope: 'active',
     // Show Desk does not render the tree -- it renders the cockpit, and reads the
     // tree only for actions and counts. The 25-entry preview cap is a TREE-RENDERING
     // concern (ShowMapTab's table), and applying it here silently truncated two

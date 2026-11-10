@@ -16,9 +16,7 @@ import type {
   EvidenceKind,
   EvidenceValue,
   FocusedClassModel,
-  OperationalAreaKind,
   ScheduledClassModel,
-  SecretaryCockpitAction,
   SecretaryCockpitAttention,
   SecretaryCockpitClass,
   SecretaryCockpitModel,
@@ -91,26 +89,6 @@ function progressFor(
   };
 }
 
-function operationalAreaFor(
-  cls: SecretaryCockpitClass
-): EvidenceValue<{ kind: OperationalAreaKind; label: string }> {
-  const labels = cls.operationalArea?.labels.filter(Boolean) ?? [];
-  return labels.length > 0 && cls.operationalArea
-    ? {
-        evidence: 'recorded',
-        value: { kind: cls.operationalArea.kind, label: labels.join(' + ') },
-      }
-    : { evidence: 'unknown', value: null };
-}
-
-function primaryActionFor(cls: SecretaryCockpitClass): SecretaryCockpitAction | null {
-  return (
-    [...cls.actions]
-      .filter(action => action.group === 'primary')
-      .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))[0] ?? null
-  );
-}
-
 function toScheduledClass(
   cls: SecretaryCockpitClass,
   label: string,
@@ -136,12 +114,10 @@ function toScheduledClass(
         : null,
     lifecycle: lifecycleFor(cls),
     progress: progressFor(cls),
-    operationalArea: operationalAreaFor(cls),
     judgeName: cls.judgeName ?? null,
     filterFacts: filterFactsOf(cls),
     attentionCount: derivedAttentionCount,
     closeout: cls.closeout ?? 'none',
-    primaryAction: primaryActionFor(cls),
     statusLine: buildStatusLine(cls, checklistInUse),
   };
 }
@@ -333,19 +309,13 @@ function toFocusedClass(
     derivedAttentionCount,
     usage.checklistInUse
   );
-  const actionsFor = (group: SecretaryCockpitAction['group']) =>
-    cls.actions.filter(action => action.group === group);
   return {
     ...scheduled,
     printTrackingInUse: usage.printTrackingInUse,
-    checklistInUse: usage.checklistInUse,
     actualStart: evidence(cls.actualStart, 'recorded'),
     actualFinish: evidence(cls.actualFinish, 'recorded'),
     paperwork: cls.paperwork.map(item => ({ ...item, evidence: paperworkEvidence(item.state) })),
-    primaryActions: actionsFor('primary'),
-    prepareActions: actionsFor('prepare'),
-    finishActions: actionsFor('finish'),
-    classWorkActions: actionsFor('class-work'),
+    classWorkActions: cls.actions.filter(action => action.group === 'class-work'),
     entryRows: cls.entryRows,
     entries: cls.entries ?? [],
     entriesHidden: cls.entriesHidden ?? 0,

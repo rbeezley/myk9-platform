@@ -8,11 +8,6 @@ import type {
 
 export type ShowMapDayBucket = 'today' | 'tomorrow' | 'other' | 'unscheduled';
 
-export const DEFAULT_SHOW_MAP_SCOPE: ShowMapScopeState = {
-  dayScope: 'all',
-  completionScope: 'active',
-};
-
 const DEFAULT_TIMEZONE = 'America/New_York';
 
 function dateKeyInTimeZone(date: Date, timezone: string): string {

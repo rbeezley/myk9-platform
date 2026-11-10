@@ -78,22 +78,6 @@ const PRIORITY_ORDER: Record<ShowDeskPendingSignalPriority, number> = {
   medium: 2,
 };
 
-/**
- * How each chip behaves when clicked, mirroring ShowDeskPanel's
- * handlePendingSignal routing: 'navigate' chips leave Show Desk for the
- * canonical owner page; 'filter' chips apply a local Show Map lens. The
- * header renders a distinct affordance per kind (arrow vs filter icon) so
- * visually similar chips stop implying identical behavior (MYK9-64 F3).
- */
-export const SHOW_DESK_SIGNAL_INTERACTION: Record<ShowDeskPendingSignalId, 'navigate' | 'filter'> =
-  {
-    'entries-waiting-review': 'navigate',
-    'entries-waiting-checkin': 'navigate',
-    'entries-payment-due': 'navigate',
-    'classes-needing-signature': 'navigate',
-    'results-pending-closeout': 'navigate',
-  };
-
 function lower(value: string | null | undefined): string {
   return (value ?? '').toLowerCase();
 }

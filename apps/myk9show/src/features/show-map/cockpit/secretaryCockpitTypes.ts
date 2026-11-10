@@ -14,7 +14,6 @@ export type CockpitStatus = CockpitLifecycle | 'needs-attention' | 'needs-closeo
 export type CockpitCloseoutState = 'none' | 'needs-closeout' | 'closed';
 export type CockpitAttentionKind =
   'blocker' | 'active-work' | 'preparation' | 'closeout' | 'administrative';
-export type OperationalAreaKind = 'search-area' | 'ring' | 'course';
 export type PaperworkState = 'current' | 'stale' | 'unconfirmed' | 'unknown';
 
 export type CockpitDestination =
@@ -77,8 +76,8 @@ export interface SecretaryCockpitTrial {
  *
  * F29b: `ShowMapRowActionsMenu` is the only renderer of the entry action set, and it
  * mounts only inside `ShowMapTab` -- the public show page, read-only by intent (#291).
- * The cockpit's own action surface filters to `recommended` actions, and no entry
- * action sets that flag, so `ShowDeskPanel`'s move-up dialog could never open. These
+ * The cockpit's own action surface filtered to `recommended` actions, and no entry
+ * action set that flag, so `ShowDeskPanel`'s move-up dialog could never open. These
  * rows are what emit the commandId `runCommand` already knows how to resolve.
  *
  * Deliberately narrow: check-in, edit-score, scratch and message-handler already have
@@ -149,10 +148,6 @@ export interface SecretaryCockpitClass {
   judgeName?: string | null;
   /** The assigned judge's person id, for the class panel's judge picker (MYK9-1323). */
   judgeId?: string | null;
-  operationalArea?: {
-    kind: OperationalAreaKind;
-    labels: readonly string[];
-  } | null;
   attention: readonly SecretaryCockpitAttention[];
   actions: readonly SecretaryCockpitAction[];
   paperwork: readonly SecretaryCockpitPaperwork[];
@@ -184,8 +179,6 @@ export interface CockpitClassFilters {
   statuses?: readonly CockpitStatus[] | undefined;
   /** Judge ids (the name when a judge has no id), or the "Unassigned" sentinel. */
   judges?: readonly string[] | undefined;
-  /** Operational area labels. */
-  areas?: readonly string[] | undefined;
   elements?: readonly string[] | undefined;
   levels?: readonly string[] | undefined;
 }
@@ -202,7 +195,6 @@ export interface CockpitFilterFacts {
   lifecycle: CockpitLifecycle | null;
   closeout: CockpitCloseoutState;
   judge: { value: string; label: string };
-  areaLabels: readonly string[];
   element: string | null;
   level: string | null;
 }
@@ -218,13 +210,11 @@ export interface ScheduledClassModel {
   startedLabel: string | null;
   lifecycle: EvidenceValue<CockpitLifecycle>;
   progress: EvidenceValue<{ completed: number; total: number }>;
-  operationalArea: EvidenceValue<{ kind: OperationalAreaKind; label: string }>;
   judgeName: string | null;
   /** What the Filter menu matches on (MYK9-1785), so its counts read the rows, not the names. */
   filterFacts: CockpitFilterFacts;
   attentionCount: number;
   closeout: CockpitCloseoutState;
-  primaryAction: SecretaryCockpitAction | null;
   /** Line 2 of the schedule row: one status-and-next-step phrase. */
   statusLine: StatusLine;
 }
@@ -249,8 +239,6 @@ export interface TrialScheduleGroupModel {
 export interface FocusedClassModel extends Omit<ScheduledClassModel, 'filterFacts'> {
   /** From the snapshot (MYK9-1620): false hides "Not confirmed printed" on paperwork rows. */
   printTrackingInUse: boolean;
-  /** From the snapshot (MYK9-1620): false collapses the checklist under a quiet disclosure. */
-  checklistInUse: boolean;
   entryRows: readonly SecretaryCockpitEntryRow[];
   /** Every entry in run order with its run status (the entries table). */
   entries: readonly SecretaryCockpitClassEntry[];
@@ -258,9 +246,6 @@ export interface FocusedClassModel extends Omit<ScheduledClassModel, 'filterFact
   actualStart: EvidenceValue<string>;
   actualFinish: EvidenceValue<string>;
   paperwork: readonly (SecretaryCockpitPaperwork & { evidence: EvidenceKind })[];
-  primaryActions: readonly SecretaryCockpitAction[];
-  prepareActions: readonly SecretaryCockpitAction[];
-  finishActions: readonly SecretaryCockpitAction[];
   classWorkActions: readonly SecretaryCockpitAction[];
 }
 

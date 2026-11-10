@@ -5,7 +5,9 @@ import type { SecretaryCockpitPaperwork } from './secretaryCockpitTypes';
 export type ClassStepAction =
   | { kind: 'print'; reportId: string; label: string }
   | { kind: 'link'; href: string; label: string }
-  | { kind: 'editor'; label: string };
+  | { kind: 'editor'; label: string }
+  /** Nothing to press: the step's task is not this viewer's, and `label` says why. */
+  | { kind: 'blocked'; label: string };
 
 export const STEP_STATE_TEXT: Record<ClassChecklistState, string> = {
   done: 'Done',
@@ -20,6 +22,12 @@ interface ClassStepContext {
   canManageShow: boolean;
   scoringHref: string;
   resultsHref: string;
+  /**
+   * Set for a manager who cannot operate the show (a club admin who is not its trial secretary).
+   * Paper scoring is `ProtectedRoute(SECRETARY | JUDGE | SITE_ADMIN)`, so a link there would lead
+   * them into a refusal (REV-2341 R-1, MYK9-1802).
+   */
+  secretaryOnlyReason?: string | undefined;
 }
 
 /**
@@ -34,7 +42,9 @@ export function resolveClassStepAction(
     case 'class-started':
       return context.canManageShow ? { kind: 'editor', label: 'Set start time' } : null;
     case 'scoring-complete':
-      return { kind: 'link', href: context.scoringHref, label: 'Open paper scoring' };
+      return context.secretaryOnlyReason !== undefined
+        ? { kind: 'blocked', label: context.secretaryOnlyReason }
+        : { kind: 'link', href: context.scoringHref, label: 'Open paper scoring' };
     case 'judge-signature':
       return { kind: 'link', href: context.resultsHref, label: 'Open on Results' };
     default: {

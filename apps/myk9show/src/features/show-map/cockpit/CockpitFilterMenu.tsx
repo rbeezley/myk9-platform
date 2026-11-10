@@ -14,7 +14,7 @@ import type {
 
 /**
  * The one Filter button for the schedule (MYK9-1719, MYK9-1727, MYK9-1785): Day (multi-day shows
- * only), Status, then Judge, Ring/area, Element and Level (each only when the show offers two or
+ * only), Status, then Judge, Element and Level (each only when the show offers two or
  * more). Ticking none in a field means all; the applied chips cover every field and "clear all"
  * clears them in one URL write. The chips sit beside the button on one row (MYK9-1727); the
  * schedule heading says how many classes are showing.

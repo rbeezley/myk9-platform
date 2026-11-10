@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Check, ChevronDown, Clock3, Pencil, X } from 'lucide-react';
+import { Check, Clock3, X } from 'lucide-react';
 import { CLASS_STATUS, isUnresolvedClockTime, type ClassStatusValue } from '@myk9/core';
 import { ClockTimeInput } from '@myk9/scoring-ui';
 import { toast } from 'sonner';
@@ -7,13 +7,10 @@ import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { applyManualClassStatus } from '@/services/show-day/classStatusMutations';
 import { setRevisedExpectedStart } from '@/services/show-day/classTimingMutations';
@@ -49,7 +46,12 @@ export function useClassStatusChange({
   unenteredScoreCount = 0,
 }: {
   classId: string;
-  /** `null` is UNKNOWN (the entries read failed) and must not collapse to 0; see ClassStatusControl. */
+  /**
+   * How many scores are still unentered, or `null` when that is UNKNOWN because the entries read
+   * did not succeed. Null must not collapse to 0: this guard exists to stop a class being marked
+   * complete over unentered paper scores, and skipping the confirmation when the count is
+   * unknowable turns "I don't know whether scores are outstanding" into "there are none".
+   */
   unenteredScoreCount?: number | null;
 }) {
   const [isSaving, setIsSaving] = useState(false);
@@ -97,7 +99,7 @@ export function useClassStatusChange({
   return { update, isSaving, confirmDialog };
 }
 
-/** The status choices (help text, routine statuses, then Cancelled), shared by the badge menu and the Actions submenu. */
+/** The status choices (help text, routine statuses, then Cancelled), for the Actions menu's status submenu. */
 export function ClassStatusChoices({
   label,
   onSelect,
@@ -136,31 +138,8 @@ export function ClassStatusChoices({
   );
 }
 
-export function ClassStatusControl({
-  classId,
-  lifecycle,
-  unenteredScoreCount = 0,
-  canManageShow,
-}: {
-  classId: string;
-  lifecycle: CockpitLifecycle | null;
-  /**
-   * How many scores are still unentered, or `null` when that is UNKNOWN
-   * because the entries read did not succeed.
-   *
-   * Null must not collapse to 0. The whole point of this guard is to stop a
-   * class being marked complete over unentered paper scores; when a paused or
-   * failed entries read makes the count unknowable, skipping the confirmation
-   * is the one behaviour that cannot be justified -- it turns "I don't know
-   * whether scores are outstanding" into "there are none".
-   */
-  unenteredScoreCount?: number | null;
-  canManageShow: boolean;
-}) {
-  const { update, isSaving, confirmDialog } = useClassStatusChange({
-    classId,
-    unenteredScoreCount,
-  });
+/** The class's status as a read-only badge; changing it goes through the header's Actions menu. */
+export function ClassStatusControl({ lifecycle }: { lifecycle: CockpitLifecycle | null }) {
   const label = lifecycle ? STATUS_LABEL[lifecycle] : 'Status unknown';
   const tone =
     lifecycle === 'complete'
@@ -171,37 +150,10 @@ export function ClassStatusControl({
           ? 'border-destructive/30 bg-destructive/10 text-destructive'
           : 'border-border bg-muted text-foreground';
 
-  if (!canManageShow) {
-    return (
-      <span className={cn('rounded-full border px-2.5 py-1 text-xs font-semibold', tone)}>
-        {label}
-      </span>
-    );
-  }
-
   return (
-    <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button
-            type="button"
-            disabled={isSaving}
-            aria-label={`Class status: ${label}. Select to change.`}
-            className={cn(
-              'inline-flex min-h-11 items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold transition hover:brightness-95 disabled:opacity-60',
-              tone
-            )}
-          >
-            {label}
-            <ChevronDown className="h-3 w-3" />
-          </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start">
-          <ClassStatusChoices label={label} onSelect={update} />
-        </DropdownMenuContent>
-      </DropdownMenu>
-      {confirmDialog}
-    </>
+    <span className={cn('rounded-full border px-2.5 py-1 text-xs font-semibold', tone)}>
+      {label}
+    </span>
   );
 }
 
@@ -212,7 +164,7 @@ export function ExpectedStartControl({
   trialDate,
   timeZone,
   canManageShow,
-  editing: controlledEditing,
+  editing,
   onEditingChange,
 }: {
   classId: string;
@@ -222,24 +174,20 @@ export function ExpectedStartControl({
   timeZone: string;
   canManageShow: boolean;
   /**
-   * Controlled by the class header's Actions menu, which opens this editor in a dialog. With
-   * `onEditingChange` the idle button is not rendered: the menu item is the way in.
+   * Controlled by the class header's Actions menu, which opens this editor in a dialog. Without
+   * `onEditingChange` (or without `canManageShow`) this renders the read-only value.
    */
   editing?: boolean;
   onEditingChange?: (editing: boolean) => void;
 }) {
   const effective =
     instantToClockTime(revisedExpectedStart, timeZone) || scheduledClockValue(scheduledStart);
-  const [localEditing, setLocalEditing] = useState(false);
-  const controlled = onEditingChange !== undefined;
-  const isEditing = controlled ? Boolean(controlledEditing) : localEditing;
-  const setIsEditing = controlled ? onEditingChange : setLocalEditing;
   const [value, setValue] = useState(effective);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => setValue(effective), [effective]);
 
-  if (controlled && !isEditing) return null;
+  if (onEditingChange !== undefined && !editing) return null;
   if (!canManageShow && !effective) {
     return (
       <span className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-muted-foreground">
@@ -248,22 +196,19 @@ export function ExpectedStartControl({
       </span>
     );
   }
-  if (!canManageShow || !isEditing) {
+  if (!canManageShow || onEditingChange === undefined) {
     return (
       <button
         type="button"
-        disabled={!canManageShow}
-        onClick={() => setIsEditing(true)}
+        disabled
         className="group inline-flex min-h-11 items-center gap-1.5 text-left text-sm font-semibold text-foreground disabled:cursor-default"
       >
         <Clock3 className="h-4 w-4 text-muted-foreground" />
         {effective || 'Set expected start'}
-        {canManageShow && (
-          <Pencil className="h-3.5 w-3.5 text-muted-foreground opacity-60 group-hover:opacity-100" />
-        )}
       </button>
     );
   }
+  const setIsEditing = onEditingChange;
 
   const unresolved = isUnresolvedClockTime(value);
 

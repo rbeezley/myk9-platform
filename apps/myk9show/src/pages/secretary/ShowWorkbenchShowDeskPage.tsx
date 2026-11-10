@@ -488,7 +488,7 @@ function ShowWorkbenchShowDeskBody() {
           tools={allShowDeskTools}
           entryBreakdownByClassId={entryBreakdownByClassId}
           onRefreshEntries={async () => {
-            await refetchShowEntries();
+            await refetchShowEntries({ throwOnError: true });
           }}
         />
       </Suspense>

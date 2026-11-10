@@ -36,10 +36,14 @@ export function useClassCheckIn(
       })),
     [entries]
   );
-  const { changes, busyIds, error, notice, setStatus } = useCheckInDeskActions(
+  const { changes, busyIds, error, errorIds, notice, setStatus } = useCheckInDeskActions(
     sources,
     onRefreshEntries
   );
+  // The panel is reused across classes, so an alert shows only beside the class whose dog it is
+  // about. The held statuses stay: a write whose re-read failed must survive a look at another
+  // class (MYK9-1803).
+  const errorHere = error !== null && entries.some(entry => errorIds.has(entry.entryId));
   const rowOf = (entryId: string): DeskPullRow | undefined => {
     const entry = entries.find(candidate => candidate.entryId === entryId);
     if (!entry) return undefined;
@@ -71,7 +75,7 @@ export function useClassCheckIn(
       <span role="status" aria-live="polite" className="sr-only">
         {notice ?? ''}
       </span>
-      {error && (
+      {errorHere && (
         <p
           role="alert"
           className="mt-2 rounded-md border border-destructive/30 bg-destructive/5 px-2 py-1.5 text-sm text-destructive"

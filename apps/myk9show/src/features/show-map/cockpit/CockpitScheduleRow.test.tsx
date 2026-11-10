@@ -18,19 +18,16 @@ const classItem: ScheduledClassModel = {
   startedLabel: null,
   lifecycle: { evidence: 'recorded', value: 'not-started' },
   progress: { evidence: 'computed', value: { completed: 0, total: 8 } },
-  operationalArea: { evidence: 'unknown', value: null },
   judgeName: null,
   filterFacts: {
     lifecycle: 'not-started',
     closeout: 'none',
     judge: { value: '~unassigned', label: 'Unassigned' },
-    areaLabels: [],
     element: null,
     level: null,
   },
   attentionCount: 0,
   closeout: 'none',
-  primaryAction: null,
   statusLine: {
     text: 'Not started · 3 not checked in',
     parts: ['Not started', '3 not checked in'],
@@ -110,16 +107,6 @@ describe('CockpitScheduleRow pending link', () => {
     expect(name.closest('.truncate')).toBeNull();
     expect(name).not.toHaveClass('truncate');
     expect(name.className).toContain('focus-visible:ring-2');
-  });
-
-  it('starts line 2 with the ring, then the judge', () => {
-    renderRow(0, vi.fn(), {
-      ...classItem,
-      judgeName: 'Pat Donovan',
-      operationalArea: { evidence: 'recorded', value: { kind: 'ring', label: 'Ring 1' } },
-    });
-    const line = screen.getByTestId('class-ring').parentElement!;
-    expect(line.textContent).toMatch(/^Ring 1 · Pat Donovan · Not started/);
   });
 
   it('states the attention count in words and as visible text', () => {

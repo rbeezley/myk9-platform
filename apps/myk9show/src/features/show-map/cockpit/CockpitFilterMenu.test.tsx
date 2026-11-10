@@ -95,7 +95,7 @@ describe('CockpitFilterMenu', () => {
     expect(screen.getByText('Status')).toBeInTheDocument();
   });
 
-  it('shows Judge, Ring/area, Element and Level with counts when the show offers two or more', async () => {
+  it('shows Judge, Element and Level with counts when the show offers two or more', async () => {
     const rich: SecretaryCockpitSnapshot = {
       ...oneDay,
       classes: [
@@ -108,7 +108,6 @@ describe('CockpitFilterMenu', () => {
           level: 'Novice',
           judgeId: 'j1',
           judgeName: 'Pat Lee',
-          operationalArea: { kind: 'ring', labels: ['Ring 1'] },
         },
         {
           ...baseClass,
@@ -119,29 +118,28 @@ describe('CockpitFilterMenu', () => {
           level: 'Novice',
           judgeId: 'j2',
           judgeName: 'Sam Roe',
-          operationalArea: { kind: 'ring', labels: ['Ring 2'] },
         },
       ],
     };
     const { user, onFiltersChange } = renderMenu(rich);
 
     await user.click(screen.getByRole('button', { name: 'Filter' }));
-    for (const heading of ['Judge', 'Ring/area', 'Element']) {
+    for (const heading of ['Judge', 'Element']) {
       expect(await screen.findByText(heading)).toBeInTheDocument();
     }
     // Level has one value (Novice), so it is hidden.
     expect(screen.queryByText('Level')).not.toBeInTheDocument();
     expect(screen.getByRole('option', { name: /Pat Lee/ })).toHaveTextContent('1');
-    await user.click(screen.getByRole('option', { name: /Ring 2/ }));
-    expect(onFiltersChange).toHaveBeenCalledWith({ areas: ['Ring 2'] });
+    await user.click(screen.getByRole('option', { name: /Sam Roe/ }));
+    expect(onFiltersChange).toHaveBeenCalledWith({ judges: ['j2'] });
   });
 
-  it('hides Judge, Ring/area, Element and Level when each offers fewer than two options', async () => {
+  it('hides Judge, Element and Level when each offers fewer than two options', async () => {
     const { user } = renderMenu(oneDay);
 
     await user.click(screen.getByRole('button', { name: 'Filter' }));
     await screen.findByText('Status');
-    for (const heading of ['Judge', 'Ring/area', 'Element', 'Level']) {
+    for (const heading of ['Judge', 'Element', 'Level']) {
       expect(screen.queryByText(heading)).not.toBeInTheDocument();
     }
   });

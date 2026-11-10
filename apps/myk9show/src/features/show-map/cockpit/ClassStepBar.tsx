@@ -63,12 +63,13 @@ export function ClassStepBar({
     <ol className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-7">
       {items.map(item => {
         const action = actionFor(item);
+        const openable = action !== null && action.kind !== 'blocked';
         const className = cn(
           STEP_CLASS,
           item.state === 'done' && 'border-success/30 bg-success/10',
           item.state === 'reprint' && 'border-warning/30 bg-warning/10',
           item.id === nextId && 'ring-2 ring-primary/40',
-          action && TARGET_CLASS
+          openable && TARGET_CLASS
         );
         const current = item.id === nextId ? ({ 'aria-current': 'step' } as const) : {};
         const name = classStepAccessibleName(item, action);
@@ -78,7 +79,7 @@ export function ClassStepBar({
               <Link to={action.href} className={className} aria-label={name} {...current}>
                 <StepFace item={item} isNext={item.id === nextId} />
               </Link>
-            ) : action ? (
+            ) : action && action.kind !== 'blocked' ? (
               <button
                 type="button"
                 ref={action.kind === 'editor' ? editorTriggerRef : undefined}
@@ -92,6 +93,9 @@ export function ClassStepBar({
             ) : (
               <div className={className} role="group" aria-label={name} {...current}>
                 <StepFace item={item} isNext={item.id === nextId} />
+                {action?.kind === 'blocked' && (
+                  <span className="text-xs text-muted-foreground">{action.label}</span>
+                )}
               </div>
             )}
           </li>

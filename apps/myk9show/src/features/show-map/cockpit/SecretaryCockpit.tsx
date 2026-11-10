@@ -219,7 +219,6 @@ export function SecretaryCockpit({
       selectedDays: [],
       statuses: [],
       judges: [],
-      areas: [],
       elements: [],
       levels: [],
     });

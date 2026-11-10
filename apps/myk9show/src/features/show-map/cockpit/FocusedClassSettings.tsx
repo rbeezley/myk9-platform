@@ -44,11 +44,7 @@ export function FocusedClassSettings({
       <dl className="grid grid-cols-1 items-center gap-x-4 gap-y-1 p-4 text-sm [@container(min-width:24rem)]:grid-cols-[minmax(0,8.5rem)_minmax(0,1fr)] [@container(min-width:24rem)]:gap-y-3">
         <dt className="text-muted-foreground">Status</dt>
         <dd className="min-w-0">
-          <ClassStatusControl
-            classId={focused.id}
-            lifecycle={focused.lifecycle.value}
-            canManageShow={false}
-          />
+          <ClassStatusControl lifecycle={focused.lifecycle.value} />
         </dd>
         {judgeControl && (
           <>

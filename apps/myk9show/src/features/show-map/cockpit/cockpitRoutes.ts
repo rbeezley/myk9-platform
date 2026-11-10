@@ -1,5 +1,4 @@
 import { SELECT_CLASSES } from '@/pages/secretary/selectClassesRoutes';
-import { getEntryManagementHref } from '@/features/entry-operations/entryAttentionRoutes';
 import { getPaperScoringClassHref } from '@/pages/scoring/scoringRoutes';
 import { getReportScopeSearchParams } from '@/lib/reports/reportScope';
 import type { ReportScope } from '@/lib/reports/types';
@@ -32,7 +31,6 @@ export function normalizeCockpitUrlState(params: URLSearchParams): CockpitUrlSta
     selectedDays,
     statuses,
     judges: parseCockpitList(params.get('judge')),
-    areas: parseCockpitList(params.get('area')),
     elements: parseCockpitList(params.get('element')),
     levels: parseCockpitList(params.get('level')),
     ...(focusedClassId ? { focusedClassId } : {}),
@@ -49,10 +47,9 @@ export function writeCockpitUrlState(
   if (day) params.set('day', day);
   const filter = serializeCockpitStatuses(state.statuses);
   if (filter) params.set('filter', filter);
-  // MYK9-1785: Judge, Ring/area, Element and Level ride beside `filter`, each a comma list.
+  // MYK9-1785: Judge, Element and Level ride beside `filter`, each a comma list.
   for (const [param, values] of [
     ['judge', state.judges],
-    ['area', state.areas],
     ['element', state.elements],
     ['level', state.levels],
   ] as const) {
@@ -91,19 +88,6 @@ function withReturnTo(href: string, returnTo?: string): string {
   if (!returnTo) return href;
   const separator = href.includes('?') ? '&' : '?';
   return `${href}${separator}returnTo=${encodeURIComponent(returnTo)}`;
-}
-
-export function getCockpitEntryManagementHref(input: {
-  showId: string;
-  trialId?: string;
-  classId?: string;
-  tab?: 'entries' | 'move-ups' | 'pulls' | 'waitlist';
-  attention?: 'pending' | 'missing_information' | 'accepted' | 'waitlist' | 'issues';
-  payment?: 'pending' | 'paid_online' | 'paid_by_check' | 'paid_by_cash' | 'waived' | 'refunded';
-  mode?: 'review' | 'day-of';
-  returnTo: string;
-}): string {
-  return withReturnTo(getEntryManagementHref(input), input.returnTo);
 }
 
 export function getCockpitPaperScoringHref(input: { classId: string; returnTo: string }): string {
@@ -279,11 +263,4 @@ export function leaveSelectClassesSearch(
 export function selectClassesAnchor(params: URLSearchParams): string | undefined {
   if (params.get('select') !== SELECT_CLASSES) return undefined;
   return params.get('focus') || params.get('trialId') || undefined;
-}
-
-export function resolveShowDeskReturnHref(
-  candidate: string | null | undefined,
-  expectedShowId?: string
-): string | null {
-  return resolveShowDeskReturn(candidate, expectedShowId)?.href ?? null;
 }

@@ -41,7 +41,7 @@ const TRIAL: SecretaryCockpitTrial = {
   order: 0,
 };
 
-/** Two entries minimum: ShowMapRunOrderMenu hides itself below 2 (sorting one is a no-op). */
+/** Two entries minimum: the Actions menu hides Run order below 2 (sorting one is a no-op). */
 const ENTRY_ROWS = [
   { nodeId: 'entry:e1', label: '#101 Ranger', actions: [] },
   { nodeId: 'entry:e2', label: '#102 Juni', actions: [] },
@@ -57,20 +57,14 @@ const FOCUSED: FocusedClassModel = {
   startedLabel: null,
   lifecycle: { evidence: 'recorded', value: 'not-started' },
   progress: { evidence: 'computed', value: { completed: 0, total: 2 } },
-  operationalArea: { evidence: 'unknown', value: null },
   judgeName: null,
   attentionCount: 0,
   closeout: 'none',
-  primaryAction: null,
   statusLine: { text: 'Not started', parts: ['Not started'] },
   printTrackingInUse: true,
-  checklistInUse: true,
   actualStart: { evidence: 'unknown', value: null },
   actualFinish: { evidence: 'unknown', value: null },
   paperwork: [],
-  primaryActions: [],
-  prepareActions: [],
-  finishActions: [],
   classWorkActions: [],
   entryRows: ENTRY_ROWS,
   entries: [],

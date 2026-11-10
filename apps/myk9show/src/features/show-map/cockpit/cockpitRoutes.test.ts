@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 
 import {
   getCockpitClassDetailsHref,
-  getCockpitEntryManagementHref,
   getCockpitJudgeDayCatalogHref,
   getCockpitPaperScoringHref,
   getCockpitReportHref,
@@ -14,9 +13,12 @@ import {
   selectClassesAnchor,
   normalizeCockpitUrlState,
   resolveShowDeskReturn,
-  resolveShowDeskReturnHref,
   writeCockpitUrlState,
 } from './cockpitRoutes';
+
+function resolveShowDeskReturnHref(candidate: string, showId: string): string | null {
+  return resolveShowDeskReturn(candidate, showId)?.href ?? null;
+}
 
 const context = {
   selectedDays: ['2026-07-20'],
@@ -44,21 +46,20 @@ describe('Show Desk context routes', () => {
     expect(write([])).toBe('');
   });
 
-  it('reads and writes the lifecycle statuses and the Judge, area, element and level params (MYK9-1785)', () => {
+  it('reads and writes the lifecycle statuses and the Judge, element and level params (MYK9-1785)', () => {
     const state = normalizeCockpitUrlState(
       new URLSearchParams(
-        'filter=complete,not-started,cancelled&judge=j2,j1&area=Ring+2&element=Interior&level=Novice,Advanced'
+        'filter=complete,not-started,cancelled&judge=j2,j1&element=Interior&level=Novice,Advanced'
       )
     );
     expect(state).toMatchObject({
       statuses: ['cancelled', 'complete', 'not-started'],
       judges: ['j1', 'j2'],
-      areas: ['Ring 2'],
       elements: ['Interior'],
       levels: ['Advanced', 'Novice'],
     });
     expect(writeCockpitUrlState(new URLSearchParams('tool=x'), state).toString()).toBe(
-      'filter=cancelled%2Ccomplete%2Cnot-started&judge=j1%2Cj2&area=Ring+2&element=Interior&level=Advanced%2CNovice&tool=x'
+      'filter=cancelled%2Ccomplete%2Cnot-started&judge=j1%2Cj2&element=Interior&level=Advanced%2CNovice&tool=x'
     );
     // Clear all: every group empty writes none of the params.
     expect(
@@ -67,11 +68,22 @@ describe('Show Desk context routes', () => {
         selectedDays: [],
         statuses: [],
         judges: [],
-        areas: [],
         elements: [],
         levels: [],
       }).toString()
     ).toBe('');
+  });
+
+  it('ignores a retired ?area= param and does not write it back', () => {
+    const state = normalizeCockpitUrlState(new URLSearchParams('area=Ring%201&judge=j1'));
+    expect(state).toEqual({
+      selectedDays: [],
+      statuses: [],
+      judges: ['j1'],
+      elements: [],
+      levels: [],
+    });
+    expect(writeCockpitUrlState(new URLSearchParams(), state).toString()).toBe('judge=j1');
   });
 
   it('builds and normalizes URL-backed day, filter, focus, and anchor state', () => {
@@ -88,7 +100,6 @@ describe('Show Desk context routes', () => {
       selectedDays: ['2026-07-20'],
       statuses: [],
       judges: [],
-      areas: [],
       elements: [],
       levels: [],
       focusedClassId: 'class-1',
@@ -122,18 +133,6 @@ describe('Show Desk context routes', () => {
 
   it('builds typed owner links with the exact scope and encoded return context', () => {
     const returnTo = getShowHomeHref({ showId: 'show-1', state: context });
-
-    expect(
-      getCockpitEntryManagementHref({
-        showId: 'show-1',
-        trialId: 'trial-1',
-        classId: 'class/1',
-        tab: 'move-ups',
-        returnTo,
-      })
-    ).toBe(
-      `/shows/show-1/entries?tab=move-ups&trial=trial-1&class=class%2F1&returnTo=${encodeURIComponent(returnTo)}`
-    );
 
     expect(getCockpitPaperScoringHref({ classId: 'class/1', returnTo })).toBe(
       `/scoring/classes/class%2F1/entries?mode=split&returnTo=${encodeURIComponent(returnTo)}`

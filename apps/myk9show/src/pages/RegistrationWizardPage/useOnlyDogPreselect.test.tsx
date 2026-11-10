@@ -27,6 +27,7 @@ function render(overrides: Partial<OnlyDogPreselectOptions> = {}, route = '/show
     dogsReady: true,
     registrationData: { selectedDogs: [] },
     currentWorkflowMode: 'exhibitor',
+    isInsideSidebar: false,
     rehydrationSettled: true,
     currentWorkflowConfig: { steps: ['dog-selection', 'class-selection'] },
     entryCloseAvailability: { canEnter: true },
@@ -57,6 +58,7 @@ describe('useOnlyDogPreselect', () => {
       { dogs: [makeDog({ dateOfBirth: new Date().toISOString() } as Partial<Dog>)] },
     ],
     ['a saved entry waiting', { availableDrafts: [{ selectedDogsCount: 1, completed: false }] }],
+    ['the staff surface before its mode has flipped', { isInsideSidebar: true }],
     ['a non-exhibitor mode', { currentWorkflowMode: 'secretary' }],
     ['a workflow without the dog step', { currentWorkflowConfig: { steps: ['class-selection'] } }],
   ] as const)('does nothing for %s unless it is the only tickable dog', (_label, overrides) => {

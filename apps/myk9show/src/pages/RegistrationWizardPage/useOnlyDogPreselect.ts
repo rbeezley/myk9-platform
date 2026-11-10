@@ -5,8 +5,8 @@
  *
  * Applies at most once per mount, so an untick is never re-applied. Waits for
  * the same gates as the `?dogId=` handoff, and stands down for a `?dogId=`
- * link, a workflow without the exhibitor dog step, a closed entry window and a
- * saved entry waiting to be resumed.
+ * link, a workflow without the exhibitor dog step, a closed entry window, the
+ * staff surface and a saved entry waiting to be resumed.
  */
 
 import { useEffect, useRef } from 'react';
@@ -22,6 +22,8 @@ export interface OnlyDogPreselectOptions {
   dogsReady: boolean;
   registrationData: { selectedDogs: string[] };
   currentWorkflowMode: string;
+  /** From the URL, so unlike `currentWorkflowMode` it never flips when RBAC resolves. */
+  isInsideSidebar: boolean;
   rehydrationSettled: boolean;
   currentWorkflowConfig: { steps: readonly string[] };
   entryCloseAvailability: { canEnter: boolean };
@@ -36,6 +38,7 @@ export function useOnlyDogPreselect(options: OnlyDogPreselectOptions): void {
     dogsReady,
     registrationData,
     currentWorkflowMode,
+    isInsideSidebar,
     rehydrationSettled,
     currentWorkflowConfig,
     entryCloseAvailability,
@@ -45,7 +48,11 @@ export function useOnlyDogPreselect(options: OnlyDogPreselectOptions): void {
   } = options;
   const entryDogId = useEntryDogId();
   const appliedRef = useRef(false);
+  // The staff surface is never the exhibitor's own form. Its mode starts as
+  // 'exhibitor' while RBAC loads and then flips, which would strand an
+  // automatic tick in an on-behalf flow, so it is excluded by the URL.
   const eligible =
+    !isInsideSidebar &&
     currentWorkflowMode === 'exhibitor' &&
     currentWorkflowConfig.steps.includes('dog-selection') &&
     entryCloseAvailability.canEnter;

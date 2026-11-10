@@ -157,10 +157,11 @@ describe('cockpit entry rows carry the stranded actions', () => {
       />
     );
 
-    // One button per entry; the first row is the one expectedCommandId came from.
-    const buttons = screen.getAllByRole('button', { name: /^Change class/i });
-    expect(buttons).toHaveLength(ENTRY_COUNT);
-    await userEvent.click(buttons[0] as HTMLElement);
+    // One row menu per entry; the first row is the one expectedCommandId came from.
+    const triggers = screen.getAllByRole('button', { name: /^Actions for Dog/ });
+    expect(triggers).toHaveLength(ENTRY_COUNT);
+    await userEvent.click(triggers[0] as HTMLElement);
+    await userEvent.click(await screen.findByRole('menuitem', { name: /^Change class/i }));
     expect(onCommand).toHaveBeenCalledWith(expectedCommandId);
 
     unmount();
@@ -178,7 +179,7 @@ describe('cockpit entry rows carry the stranded actions', () => {
         onCommand={vi.fn()}
       />
     );
-    expect(screen.queryAllByRole('button', { name: /^Change class/i })).toHaveLength(0);
+    expect(screen.queryAllByRole('button', { name: /^Actions for Dog/ })).toHaveLength(0);
   });
 
   it('offers move-up on EVERY entry, not just the first 25', () => {

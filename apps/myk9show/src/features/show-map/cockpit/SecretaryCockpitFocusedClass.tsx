@@ -1,7 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { AlertTriangle } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { SecretaryCockpitRunOrderControls } from './secretaryCockpitTypes';
 import type { ClassEntryBreakdown } from '@/features/entry-operations/classEntryBreakdown';
@@ -97,6 +96,9 @@ export function SecretaryCockpitFocusedClass({
   const entriesHref =
     detailsAction?.destination.kind === 'href' ? detailsAction.destination.href : null;
 
+  const rowActions = canManageShow
+    ? new Map(focused.entryRows.map(row => [row.nodeId, row.actions]))
+    : undefined;
   const unread = entriesUnread(focused.entries, sourceClass.entryCount);
   // The Run order menu hides itself below 2 entries, so its label does too.
   const runOrderEntryCount =
@@ -182,6 +184,9 @@ export function SecretaryCockpitFocusedClass({
             {...(onRefreshEntries && { onRefreshEntries })}
             hidden={focused.entriesHidden}
             unread={unread}
+            // Managers only; the engine's per-entry answer, joined to the table by nodeId (MYK9-1798).
+            rowActions={rowActions}
+            onCommand={onCommand}
           />
         </section>
 
@@ -231,54 +236,6 @@ export function SecretaryCockpitFocusedClass({
               </div>
             ))}
           </div>
-        )}
-
-        {canManageShow && focused.entryRows.length > 0 && (
-          <section>
-            {/* Only entries that can still move up -- not the class's full list,
-                which is on the Actions menu's "View entries and results". */}
-            <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-              Can change class
-            </h3>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Entries that have not run, before the class starts.
-            </p>
-            {/* F29b: the only reachable home for these actions. `ShowMapRowActionsMenu`
-                renders the same set, but mounts only inside the public Show Map, which
-                is read-only by intent (#291) -- so a secretary-initiated move-up had no
-                path at all. ShowDeskPanel already owns the dialog and the mutation;
-                these buttons emit the commandId its runCommand resolves.
-                See docs/plan-f29b-operational-actions-home.md. */}
-            <ul className="mt-2 divide-y rounded-md border">
-              {focused.entryRows.map(row => (
-                <li key={row.nodeId} className="flex items-center justify-between gap-3 px-3 py-2">
-                  <div className="min-w-0">
-                    <div className="truncate text-sm font-medium">{row.label}</div>
-                    {row.subtitle && (
-                      <div className="truncate text-xs text-muted-foreground">{row.subtitle}</div>
-                    )}
-                  </div>
-                  <div className="flex shrink-0 gap-2">
-                    {row.actions.map(action => (
-                      <Button
-                        key={action.commandId}
-                        type="button"
-                        variant="outline"
-                        // Move up and Pull are irreversible show-day actions and
-                        // the only route to them: never below the 44px floor.
-                        size="touch"
-                        title={action.why}
-                        aria-label={`${action.label} — ${row.label}`}
-                        onClick={() => onCommand(action.commandId)}
-                      >
-                        {action.label}
-                      </Button>
-                    ))}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </section>
         )}
       </div>
     </aside>

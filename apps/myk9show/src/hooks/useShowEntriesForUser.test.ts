@@ -342,11 +342,11 @@ describe('useShowEntriesForUser', () => {
     expect(result.current.allEntries[0].judgeName).toBe('Assigned Judge');
   });
 
-  it('keeps TBD only for genuinely unassigned classes', () => {
+  it('says the judge is to be announced only for genuinely unassigned classes', () => {
     setMocks({ classes: [makeClass({ judge: 'TBD' })] });
     const { result } = renderHook(() => useShowEntriesForUser(SHOW_ID));
 
-    expect(result.current.allEntries[0].judgeName).toBe('TBD');
+    expect(result.current.allEntries[0].judgeName).toBe('Judge to be announced');
   });
 
   it('hasResult is false when competitionData is absent', () => {

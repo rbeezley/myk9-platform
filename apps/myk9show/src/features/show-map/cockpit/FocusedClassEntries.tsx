@@ -10,6 +10,7 @@ import {
 
 import { StatusPill } from './StatusPill';
 import { ArmbandBadge } from '@/components/common/ArmbandBadge';
+import { NEXT_UP_PREVIEW_LIMIT } from '@/features/at-show/atShowNextUpPreview';
 import { ClassCheckInCell } from './ClassCheckInCell';
 import { useClassCheckIn } from './useClassCheckIn';
 import { ClassEntryRowMenu } from './ClassEntryRowMenu';
@@ -25,7 +26,54 @@ import {
 const CELL = 'px-2 py-2';
 const NO_ACTIONS: readonly SecretaryCockpitEntryAction[] = [];
 
-/** Entered, scored, in ring, still to run: derived from the same rows as the table below. */
+const TILE = 'rounded-lg border bg-muted/30 px-4 py-3';
+
+/** The one dog in the ring (armband tile and call name) and the next few waiting, in run order. */
+function InRingTile({ entries }: { entries: readonly SecretaryCockpitClassEntry[] }) {
+  const inRing = entries.find(entry => entry.state === 'in-ring' && entry.counted);
+  const nextUp = entries
+    .filter(entry => entry.state === 'waiting' && entry.counted)
+    .slice(0, NEXT_UP_PREVIEW_LIMIT);
+  return (
+    <div className={cn(TILE, 'col-span-2')} data-testid="in-ring-tile">
+      <dt className="text-xs font-medium text-muted-foreground">In ring</dt>
+      <dd className="mt-1">
+        {inRing ? (
+          <span className="flex items-center gap-2">
+            <span aria-hidden="true" className="flex items-center gap-2">
+              <ArmbandBadge armband={inRing.armband} className="h-9 min-w-9" />
+              <span className="text-lg font-semibold">{inRing.dogName}</span>
+            </span>
+            <span className="sr-only">
+              {`Armband ${inRing.armband ?? 'not assigned'}, ${inRing.dogName}`}
+            </span>
+          </span>
+        ) : (
+          <span className="text-sm text-muted-foreground">Nobody in the ring</span>
+        )}
+        {nextUp.length > 0 && (
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            <span aria-hidden="true" className="text-xs font-medium text-muted-foreground">
+              Next up
+            </span>
+            <ul aria-label="Next up" className="flex flex-wrap gap-1.5">
+              {nextUp.map(entry => (
+                <li key={entry.nodeId} title={entry.dogName}>
+                  <span aria-hidden="true">
+                    <ArmbandBadge armband={entry.armband} className="h-7 min-w-7 text-xs" />
+                  </span>
+                  <span className="sr-only">{`Armband ${entry.armband ?? 'not assigned'}, ${entry.dogName}`}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </dd>
+    </div>
+  );
+}
+
+/** Entered, scored, still to run as counts; the one in-ring dog and who is next as armbands. */
 export function ClassCountTiles({
   entries,
   unread = false,
@@ -39,17 +87,17 @@ export function ClassCountTiles({
   const tiles = [
     { label: 'Entered', value: counts.entered },
     { label: 'Scored', value: counts.scored },
-    { label: 'In ring', value: counts.inRing },
     { label: 'Still to run', value: counts.stillToRun },
   ];
   return (
-    <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4" data-testid="class-count-tiles">
+    <dl className="grid grid-cols-2 gap-3 sm:grid-cols-5" data-testid="class-count-tiles">
       {tiles.map(tile => (
-        <div key={tile.label} className="rounded-lg border bg-muted/30 px-4 py-3">
+        <div key={tile.label} className={TILE}>
           <dt className="text-xs font-medium text-muted-foreground">{tile.label}</dt>
           <dd className="text-2xl font-semibold tabular-nums">{tile.value}</dd>
         </div>
       ))}
+      <InRingTile entries={entries} />
     </dl>
   );
 }

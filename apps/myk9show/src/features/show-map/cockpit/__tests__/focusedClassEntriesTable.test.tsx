@@ -146,8 +146,8 @@ describe('the focused class entries table (MYK9-1782)', () => {
     // The pulled dog is listed but is not in the expected set.
     expect(value('Entered')).toBe('3');
     expect(value('Scored')).toBe('1');
-    expect(value('In ring')).toBe('1');
     expect(value('Still to run')).toBe('1');
+    expect(value('In ring')).toContain('Armband 102, Willow');
   });
 
   const withClass = (

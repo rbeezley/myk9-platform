@@ -107,9 +107,7 @@ export function CockpitScheduleRow({
             </span>
           )}
           <span className="min-w-0">
-            <span data-testid="class-judge">
-              {classItem.judgeName ? judgeNameOrUnsetLabel(classItem.judgeName) : 'Judge not set'}
-            </span>
+            <span data-testid="class-judge">{judgeNameOrUnsetLabel(classItem.judgeName)}</span>
             {' · '}
             <span data-testid="class-status-line">
               {classItem.statusLine.parts.map((part, index) => (

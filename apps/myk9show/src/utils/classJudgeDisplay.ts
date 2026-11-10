@@ -103,6 +103,8 @@ export function formatJudgeAvailabilityWindow(judge: {
   return `(${start} - ${end})`;
 }
 
+/** The text stored for an unset judge (what older habits and exports still say). */
+export const UNSET_JUDGE_STORED_TEXT = UNASSIGNED_LABEL;
 /** Screen label for a class with no judge yet. Screens only: stored and printed values stay 'TBD'. */
 export const UNSET_JUDGE_LABEL = 'Judge to be announced';
 /** For a narrow table cell where the full label would wrap. */

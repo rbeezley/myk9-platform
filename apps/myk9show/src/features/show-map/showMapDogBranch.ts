@@ -141,7 +141,7 @@ function dogEntryDisplayFor(
   };
 }
 
-function dogEntrySubtitle(display: ShowMapDogEntryDisplay): string | undefined {
+export function dogEntrySubtitle(display: ShowMapDogEntryDisplay): string | undefined {
   return (
     [
       display.trialLabel,

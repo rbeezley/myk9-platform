@@ -273,7 +273,7 @@ describe('SecretaryCockpit class selection (show home overview)', () => {
     expect(within(card).queryByTestId('class-checklist-strip')).toBeNull();
     expect(within(card).queryByText(/steps done/)).toBeNull();
     expect(within(card).getByTestId('class-status-line')).toHaveTextContent('Not started');
-    expect(within(card).getByText('Judge not set')).toBeInTheDocument();
+    expect(within(card).getByText('Judge to be announced')).toBeInTheDocument();
   });
 
   it('marks a class on the Needs attention list with a red dot', () => {

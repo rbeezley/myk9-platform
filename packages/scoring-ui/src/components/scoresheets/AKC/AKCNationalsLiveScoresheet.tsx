@@ -196,7 +196,10 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
       finishCallErrors,
       correctCount: correctAlerts.reduce((s, v) => s + v, 0),
       incorrectCount: incorrectAlerts.reduce((s, v) => s + v, 0),
-      resultText: placement || scoring.qualifying || 'NQ',
+      // The result is the qualification, never the placement chip: a placement
+      // is not a result status, and the save path refuses one (MYK9-1806). The
+      // chip's bonus is already in totalPoints.
+      resultText: scoring.qualifying || 'NQ',
     });
     setShowConfirmation(false);
   };

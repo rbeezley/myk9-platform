@@ -134,6 +134,34 @@ describe('AKCNationalsLiveScoresheet', () => {
     });
   });
 
+  // MYK9-1806: a placement is not a qualification. The sheet used to submit the
+  // chip ('1st') as resultText, which the save path stored as unscored.
+  it.each(['1st', '2nd', '3rd', '4th'])(
+    'Q plus the %s placement chip submits resultText Q, with the bonus in points',
+    async chip => {
+      const bonus: Record<string, number> = { '1st': 10, '2nd': 7, '3rd': 5, '4th': 3 };
+      const onSubmit = vi.fn();
+      render(<AKCNationalsLiveScoresheet {...defaultProps} onSubmit={onSubmit} />);
+
+      fireEvent.click(screen.getByTestId('correct-inc'));
+      fireEvent.click(screen.getByTestId('correct-inc'));
+      fireEvent.click(screen.getByTestId('result-Q'));
+      fireEvent.click(screen.getByTestId(`result-${chip}`));
+      fireEvent.click(screen.getByTestId('submit-btn'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('confirm-submit-btn')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByTestId('confirm-submit-btn'));
+
+      await waitFor(() => {
+        expect(onSubmit).toHaveBeenCalledWith(
+          expect.objectContaining({ resultText: 'Q', points: 20 + bonus[chip] })
+        );
+      });
+    }
+  );
+
   it('excused auto-zeros all scores', () => {
     render(<AKCNationalsLiveScoresheet {...defaultProps} />);
 

@@ -117,6 +117,14 @@ export function useOptimisticScoring() {
       // cannot re-derive a run they already released.
       try {
         const resultStatus = mapQualificationToResultStatus(optimisticResult);
+        // A result the mapping does not know would be written as unscored
+        // ('pending', is_scored false) behind a "saved" message (MYK9-1806).
+        // Refuse it through the same fail-closed path as a queue failure.
+        if (optimisticResult.trim() !== '' && resultStatus === 'pending') {
+          throw new Error(
+            `"${optimisticResult}" is not a result that can be saved. Choose the result again and save.`
+          );
+        }
         const searchTimeSeconds = scoreData.searchTime
           ? convertTimeToSeconds(scoreData.searchTime)
           : 0;

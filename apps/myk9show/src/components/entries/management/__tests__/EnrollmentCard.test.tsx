@@ -232,7 +232,7 @@ describe('EnrollmentCard', () => {
       />
     );
     fireEvent.click(screen.getByText('Paid'));
-    fireEvent.click(screen.getByText('Paid in Full: Online'));
+    fireEvent.click(screen.getByText('Paid in Full: Online…'));
     fireEvent.click(screen.getByRole('button', { name: 'Mark Paid Online' }));
 
     expect(markPaidOnline).toHaveBeenCalledTimes(1);
@@ -258,7 +258,7 @@ describe('EnrollmentCard', () => {
 
     it('Paid in Full: Online calls nothing until confirmed', () => {
       const { record, markPaidOnline } = renderMenu();
-      fireEvent.click(screen.getByText('Paid in Full: Online'));
+      fireEvent.click(screen.getByText('Paid in Full: Online…'));
 
       expect(markPaidOnline).not.toHaveBeenCalled();
       expect(record).not.toHaveBeenCalled();
@@ -276,7 +276,7 @@ describe('EnrollmentCard', () => {
 
     it('Paid in Full: Online cancelled calls nothing', async () => {
       const { record, markPaidOnline } = renderMenu();
-      fireEvent.click(screen.getByText('Paid in Full: Online'));
+      fireEvent.click(screen.getByText('Paid in Full: Online…'));
       fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
 
       await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
@@ -286,7 +286,7 @@ describe('EnrollmentCard', () => {
 
     it('Payment Due calls nothing until confirmed', () => {
       const { record, markPaidOnline } = renderMenu();
-      fireEvent.click(screen.getByText('Payment Due'));
+      fireEvent.click(screen.getByText('Payment Due…'));
 
       expect(record).not.toHaveBeenCalled();
       expect(screen.getByText('This marks the whole entry form as unpaid.')).toBeInTheDocument();
@@ -299,7 +299,7 @@ describe('EnrollmentCard', () => {
 
     it('Payment Due cancelled calls nothing', async () => {
       const { record, markPaidOnline } = renderMenu();
-      fireEvent.click(screen.getByText('Payment Due'));
+      fireEvent.click(screen.getByText('Payment Due…'));
       fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
 
       await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
@@ -400,7 +400,7 @@ describe('EnrollmentCard', () => {
 
     it('Payment Due records a reversal, not a blind zero', () => {
       const { record, markPaidOnline } = renderPending(vi.fn().mockResolvedValue(true), 35);
-      fireEvent.click(screen.getAllByText('Payment Due').at(-1)!);
+      fireEvent.click(screen.getByText('Payment Due…'));
       fireEvent.click(screen.getByRole('button', { name: 'Mark as Unpaid' }));
 
       expect(record).toHaveBeenCalledWith('enroll-1', { kind: 'reversal' });

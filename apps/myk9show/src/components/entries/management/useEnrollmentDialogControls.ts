@@ -45,8 +45,8 @@ export function useEnrollmentDialogControls(
   // MYK9-1841: "Paid in Full: Online" and "Payment Due" change what the whole
   // form owes, so both ask once first, like every other item in the menu. Both
   // menus (the Payment section's and the checklist's) call these openers.
-  const markPaidOnline = () => setLedgerConfirm({ open: true, kind: 'paid-online' });
-  const markPaymentDue = () => setLedgerConfirm({ open: true, kind: 'payment-due' });
+  const askMarkPaidOnline = () => setLedgerConfirm({ open: true, kind: 'paid-online' });
+  const askMarkPaymentDue = () => setLedgerConfirm({ open: true, kind: 'payment-due' });
   const closeLedgerConfirm = () => setLedgerConfirm(current => ({ ...current, open: false }));
 
   const confirmLedgerChange = () => {
@@ -111,8 +111,8 @@ export function useEnrollmentDialogControls(
     setFullDialog,
     partialDialog,
     setPartialDialog,
-    markPaidOnline,
-    markPaymentDue,
+    askMarkPaidOnline,
+    askMarkPaymentDue,
     ledgerConfirm,
     closeLedgerConfirm,
     confirmLedgerChange,

@@ -77,8 +77,8 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
     setFullDialog,
     partialDialog,
     setPartialDialog,
-    markPaidOnline,
-    markPaymentDue,
+    askMarkPaidOnline,
+    askMarkPaymentDue,
     ledgerConfirm,
     closeLedgerConfirm,
     confirmLedgerChange,
@@ -268,8 +268,8 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
                       <DropdownMenuItem onClick={() => openFullPayment('check')}>
                         Paid in Full: Check…
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={markPaidOnline}>
-                        Paid in Full: Online
+                      <DropdownMenuItem onClick={askMarkPaidOnline}>
+                        Paid in Full: Online…
                       </DropdownMenuItem>
                     </DropdownMenuGroup>
                     <DropdownMenuSeparator />
@@ -292,7 +292,7 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
                       <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
                         Reset
                       </DropdownMenuLabel>
-                      <DropdownMenuItem onClick={markPaymentDue}>Payment Due</DropdownMenuItem>
+                      <DropdownMenuItem onClick={askMarkPaymentDue}>Payment Due…</DropdownMenuItem>
                     </DropdownMenuGroup>
                   </DropdownMenuContent>
                 </DropdownMenu>

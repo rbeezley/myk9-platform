@@ -33,6 +33,7 @@ import {
   type UploadCompleteEventDetail,
 } from '@myk9/replication';
 import { toast } from 'sonner';
+import { SyncFailureReason } from './SyncFailureReason';
 import { showConflictSurfacingEnabled } from '@/features/show-presence/conflictSurfacingFlag';
 import { features } from '@/config/features';
 import { supabase } from '@/services/database/supabaseClient';
@@ -759,7 +760,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
         const reason = formatSyncFailureReason(failureDetail);
         toast.error(formatSyncFailureToast(failureDetail), {
           id: toastId,
-          ...(reason && { description: reason }),
+          ...(reason && { description: <SyncFailureReason reason={reason} /> }),
           // INTENT: Failure toasts persist until the user makes an explicit
           // choice. The underlying mutations survive in IDB either way, so a
           // dismissed-by-reload toast re-surfaces on the next sign-in.

@@ -1,4 +1,5 @@
 import { formatEntryLimit } from '@/features/_shared/landing/entryLimit';
+import { TO_BE_ANNOUNCED_LABEL } from '@/lib/format/fallbackLabels';
 import { MonogramEmboss } from '../../components/MonogramEmboss';
 import { MonogramHeading } from '../../components/MonogramHeading';
 import { SeeClassesLink } from '@/features/_shared/SeeClassesLink';
@@ -24,7 +25,7 @@ interface HeroBlockProps {
   venueName: string | null;
   venueCity: string | null;
   /** Full street address fallback — shown when no structured venue name/city
-   * is set, instead of "TBA" while the address is known and already shown
+   * is set, instead of "To be announced" while the address is known and already shown
    * elsewhere on this same page (MonogramFooter). */
   venueAddress?: string | null;
   timezone: string;
@@ -201,7 +202,9 @@ export function HeroBlock({
           </div>
           <div className="mg-hero__meta-cell" style={metaCellStyle}>
             <span style={SMALLCAPS_MUTE}>Closes</span>
-            <span style={META_VALUE}>{closesLabel || (entryClosed ? 'Closed' : 'TBA')}</span>
+            <span style={META_VALUE}>
+              {closesLabel || (entryClosed ? 'Closed' : TO_BE_ANNOUNCED_LABEL)}
+            </span>
           </div>
           <div className="mg-hero__meta-cell" style={metaCellStyle}>
             <span style={SMALLCAPS_MUTE}>Limit</span>
@@ -217,7 +220,7 @@ export function HeroBlock({
           </div>
           <div className="mg-hero__meta-cell" style={metaCellStyleLast}>
             <span style={SMALLCAPS_MUTE}>Venue</span>
-            <span style={META_VALUE}>{venueLabel || 'TBA'}</span>
+            <span style={META_VALUE}>{venueLabel || TO_BE_ANNOUNCED_LABEL}</span>
           </div>
         </div>
 

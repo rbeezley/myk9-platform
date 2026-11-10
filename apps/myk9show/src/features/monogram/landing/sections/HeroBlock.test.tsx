@@ -1,5 +1,5 @@
 /**
- * exhibitor-ux-remediation: the Venue meta cell showed "TBA" even when the
+ * exhibitor-ux-remediation: the Venue meta cell showed "To be announced" even when the
  * show's street address was known and already rendered elsewhere on the same
  * page (MonogramFooter) — venueName/venueCity are separate structured fields
  * that are simply never populated. Falls back to the address instead of
@@ -35,7 +35,7 @@ describe('Monogram HeroBlock — venue fallback', () => {
     );
 
     expect(screen.getByText('100 Dog Show Lane, Tulsa, OK 74101')).toBeInTheDocument();
-    expect(screen.queryByText('TBA')).not.toBeInTheDocument();
+    expect(screen.queryByText('To be announced')).not.toBeInTheDocument();
   });
 
   it('prefers the structured venue name/city over the address when both are set', () => {
@@ -51,10 +51,10 @@ describe('Monogram HeroBlock — venue fallback', () => {
     expect(screen.getByText('Expo Hall · Tulsa, OK')).toBeInTheDocument();
   });
 
-  it('falls back to TBA only when neither structured venue nor address is known', () => {
+  it('falls back to To be announced only when neither structured venue nor address is known', () => {
     render(<HeroBlock {...baseProps} venueName={null} venueCity={null} venueAddress={null} />);
 
-    expect(screen.getByText('TBA')).toBeInTheDocument();
+    expect(screen.getByText('To be announced')).toBeInTheDocument();
   });
 });
 

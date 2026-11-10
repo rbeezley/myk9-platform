@@ -22,7 +22,7 @@ const returnPathFor = (clubId: string) => `/club-admin/payments/${clubId}`;
 // collapse the connect button into a direct redirect — the treasurer must see
 // what they'll need BEFORE leaving for Stripe's hosted form.
 const CHECKLIST_ITEMS = [
-  'Your club’s EIN (it’s on the club’s tax paperwork)',
+  'Your club’s tax ID number, called an EIN (it’s on the club’s tax paperwork)',
   'The club’s legal name and mailing address',
   'One of the club’s checks, so you can use the club’s bank account, not a personal one',
   'The treasurer’s name, date of birth, home address, and the last 4 digits of their Social Security number',

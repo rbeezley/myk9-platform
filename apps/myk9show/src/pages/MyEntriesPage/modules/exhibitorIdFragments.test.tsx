@@ -156,7 +156,7 @@ describe('MYK9-631 AC4/Q7 — the receipt carries one identifier or none', () =>
 
     // No minted 8-hex fragment, and no unexplained second identifier.
     expect(readableText()).not.toMatch(ID_FRAGMENT);
-    expect(screen.queryByText('Confirmation #')).not.toBeInTheDocument();
+    expect(screen.queryByText('Confirmation number')).not.toBeInTheDocument();
     expect(screen.queryByText('Order ID')).not.toBeInTheDocument();
 
     // The document IS identifiable — by the order, not by a class row.
@@ -188,7 +188,7 @@ describe('MYK9-631 AC4/Q7 — the receipt carries one identifier or none', () =>
       />
     );
 
-    expect(screen.getByText('Confirmation #')).toBeInTheDocument();
+    expect(screen.getByText('Confirmation number')).toBeInTheDocument();
     expect(screen.getByText('MK9-000145')).toBeInTheDocument();
     // And it is not an id fragment: it is what the exhibitor was actually sent.
     expect(readableText()).not.toMatch(ID_FRAGMENT);

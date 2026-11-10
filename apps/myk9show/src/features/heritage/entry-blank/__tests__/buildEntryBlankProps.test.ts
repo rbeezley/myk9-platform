@@ -433,7 +433,7 @@ describe('buildEntryBlankProps — pre-filled mode', () => {
 // rate with no per-handler PII — is wired up.
 
 describe('buildEntryBlankProps — junior handler fee (MYK9-662)', () => {
-  it('juniorHandlerFee is N/A when the show has not configured one', () => {
+  it('juniorHandlerFee is Not applicable when the show has not configured one', () => {
     const props = buildEntryBlankProps({
       show: SHOW, // no junior_handler_fee on the fixture
       trials: TRIALS,
@@ -442,10 +442,10 @@ describe('buildEntryBlankProps — junior handler fee (MYK9-662)', () => {
       club: CLUB,
       secretary: SECRETARY,
     });
-    expect(props.fees.juniorHandlerFee).toBe('N/A');
+    expect(props.fees.juniorHandlerFee).toBe('Not applicable');
   });
 
-  it('juniorHandlerFee is N/A when the show sets it to exactly 0', () => {
+  it('juniorHandlerFee is Not applicable when the show sets it to exactly 0', () => {
     const props = buildEntryBlankProps({
       show: { ...SHOW, junior_handler_fee: 0 },
       trials: TRIALS,
@@ -454,7 +454,7 @@ describe('buildEntryBlankProps — junior handler fee (MYK9-662)', () => {
       club: CLUB,
       secretary: SECRETARY,
     });
-    expect(props.fees.juniorHandlerFee).toBe('N/A');
+    expect(props.fees.juniorHandlerFee).toBe('Not applicable');
   });
 
   it('juniorHandlerFee prints the show-configured amount', () => {

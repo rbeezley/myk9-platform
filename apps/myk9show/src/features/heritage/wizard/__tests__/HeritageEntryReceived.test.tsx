@@ -83,7 +83,7 @@ describe('HeritageEntryReceived', () => {
 
   it('displays the enrollment confirmation number with the confirmation label', () => {
     render(<HeritageEntryReceived {...BASE_PROPS} />);
-    expect(screen.getByText(/Confirmation # MK9-000427/)).toBeTruthy();
+    expect(screen.getByText(/Confirmation number MK9-000427/)).toBeTruthy();
     expect(screen.queryByText(/Entry #/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Registration #/)).not.toBeInTheDocument();
   });

@@ -37,14 +37,16 @@ describe('PosterEntryReceived', () => {
 
   it('renders the confirmation number in the kicker when provided', () => {
     render(<PosterEntryReceived {...BASE_PROPS} />);
-    expect(screen.getByText(/NO 01 \/ SUBMITTED · Confirmation # MK9-000137/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/NO 01 \/ SUBMITTED · Confirmation number MK9-000137/)
+    ).toBeInTheDocument();
     expect(screen.queryByText(/Entry #/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Registration #/)).not.toBeInTheDocument();
   });
 
   it('omits the confirmation suffix when confirmation number is null', () => {
     render(<PosterEntryReceived {...BASE_PROPS} registrationNumber={null} />);
-    expect(screen.queryByText(/Confirmation #/)).toBeNull();
+    expect(screen.queryByText(/Confirmation number/)).toBeNull();
     expect(screen.getByText(/NO 01 \/ SUBMITTED/)).toBeInTheDocument();
   });
 

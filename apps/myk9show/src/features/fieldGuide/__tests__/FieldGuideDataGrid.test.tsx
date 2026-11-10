@@ -65,9 +65,9 @@ describe('FieldGuideDataGrid', () => {
 
   it('honors a custom fallback string', () => {
     const { container } = render(
-      <FieldGuideDataGrid cells={[{ label: 'CONFIRM', value: '' }]} fallback="TBA" />
+      <FieldGuideDataGrid cells={[{ label: 'CONFIRM', value: '' }]} fallback="To be announced" />
     );
-    expect(container.textContent).toContain('TBA');
+    expect(container.textContent).toContain('To be announced');
   });
 
   it('drops the right border on the final cell so the box closes cleanly', () => {

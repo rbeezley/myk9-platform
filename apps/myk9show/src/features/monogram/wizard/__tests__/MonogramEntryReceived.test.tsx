@@ -60,7 +60,7 @@ describe('MonogramEntryReceived', () => {
 
   it('renders the confirmation label when registrationNumber is supplied', () => {
     render(<MonogramEntryReceived {...BASE_PROPS} />);
-    expect(screen.getByText(/Confirmation # MK9-000137/)).toBeInTheDocument();
+    expect(screen.getByText(/Confirmation number MK9-000137/)).toBeInTheDocument();
     expect(screen.queryByText(/Entry №/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Registration #/)).not.toBeInTheDocument();
   });

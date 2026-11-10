@@ -1,7 +1,7 @@
 /**
  * MYK9-659: the order's reference must be the SAME string online and offline.
  *
- * The receipt prints `Confirmation #` when the order has a confirmation number
+ * The receipt prints `Confirmation number` when the order has a confirmation number
  * and a labelled `Reference` otherwise. `enrollments.confirmation_number` is
  * NOT NULL and `submit_show_entries` always links one, so every order the app
  * creates owns that reference — but it reached the client only through the
@@ -9,7 +9,7 @@
  * replica path cannot make that embed: it attempts a best-effort `enrollments`
  * fetch, which on the dead show-day network that put it on the replica in the
  * first place returns nothing. The same order therefore printed
- * `Confirmation #: MK9-000146` online and a raw enrollment UUID offline.
+ * `Confirmation number: MK9-000146` online and a raw enrollment UUID offline.
  *
  * Migration 20260918193700 carries the number on the replication view; these
  * tests pin that `buildReplicatedUserEntryRows` puts it where the mapper reads

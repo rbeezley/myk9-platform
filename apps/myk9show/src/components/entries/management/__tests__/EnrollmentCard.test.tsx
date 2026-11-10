@@ -144,7 +144,7 @@ describe('EnrollmentCard', () => {
 
   it('renders confirmation number', () => {
     render(<EnrollmentCard {...defaultProps} />);
-    expect(screen.getByText('Confirmation # MK9-000123')).toBeTruthy();
+    expect(screen.getByText('Confirmation number MK9-000123')).toBeTruthy();
     expect(screen.queryByText(/Entry #/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Registration #/)).not.toBeInTheDocument();
   });

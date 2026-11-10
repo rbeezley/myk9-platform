@@ -243,6 +243,39 @@ describe('FocusedClassActionsMenu (MYK9-1796)', () => {
     expect(applyManualClassStatus).not.toHaveBeenCalled();
   });
 
+  describe('Cancelled (MYK9-1840)', () => {
+    async function chooseCancelled() {
+      renderMenu({ lifecycle: 'in-progress' });
+      const user = submenuUser();
+      await openMenu(user);
+      await user.click(screen.getByRole('menuitem', { name: 'Change class status' }));
+      await user.click(await screen.findByRole('menuitem', { name: 'Cancelled' }));
+      return { user, dialog: await screen.findByRole('alertdialog') };
+    }
+
+    it('asks first, naming the class, and applies nothing until confirmed', async () => {
+      const { user, dialog } = await chooseCancelled();
+      expect(within(dialog).getByText('Cancel this class?')).toBeInTheDocument();
+      expect(
+        within(dialog).getByText(
+          'Container Novice will show as cancelled on the show schedule and will stop taking entries. Ringside screens will not show the change. You can change the status back later.'
+        )
+      ).toBeInTheDocument();
+      expect(applyManualClassStatus).not.toHaveBeenCalled();
+
+      await user.click(within(dialog).getByRole('button', { name: 'Cancel class' }));
+      expect(applyManualClassStatus).toHaveBeenCalledWith('class-1', CLASS_STATUS.CANCELLED);
+    });
+
+    it('applies nothing when the question is dismissed with Keep class', async () => {
+      const { user, dialog } = await chooseCancelled();
+      await user.click(within(dialog).getByRole('button', { name: 'Keep class' }));
+
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+      expect(applyManualClassStatus).not.toHaveBeenCalled();
+    });
+  });
+
   it('applies a routine status change straight away', async () => {
     renderMenu();
     const user = submenuUser();

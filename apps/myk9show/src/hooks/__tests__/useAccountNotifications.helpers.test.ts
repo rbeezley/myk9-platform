@@ -46,7 +46,7 @@ describe('buildAccountNotificationPayload', () => {
     expect('actionUrl' in payload).toBe(false);
   });
 
-  it('titles an automatic wait list offer notice for the secretary (MYK9-1003)', () => {
+  it('titles an automatic waitlist offer notice for the secretary (MYK9-1003)', () => {
     const payload = buildAccountNotificationPayload(
       {
         id: 'notif-3',
@@ -59,7 +59,7 @@ describe('buildAccountNotificationPayload', () => {
     );
 
     expect(payload).toMatchObject({
-      title: 'Wait list offer sent',
+      title: 'Waitlist offer sent',
       body: 'Rex was offered the open spot in Novice A automatically.',
       actionUrl: '/shows/show-1/entries?tab=waitlist',
       data: { accountNotificationUserId: 'auth-user-1' },

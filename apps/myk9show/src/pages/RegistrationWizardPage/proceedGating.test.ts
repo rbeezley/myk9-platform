@@ -191,9 +191,9 @@ describe('proceedBlockedReason', () => {
       );
     });
 
-    it('blocks a full class that does not accept a wait list', () => {
+    it('blocks a full class that does not accept a waitlist', () => {
       expect(proceedBlockedReason(ctx({ stepId: 'payment', blockedClassCount: 1 }))).toBe(
-        'Remove the full class that does not accept a wait list to continue.'
+        'Remove the full class that does not accept a waitlist to continue.'
       );
     });
 

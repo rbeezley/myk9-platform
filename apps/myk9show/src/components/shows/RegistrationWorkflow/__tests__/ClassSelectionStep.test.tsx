@@ -1,8 +1,8 @@
 /**
- * Tests for ClassSelectionStep wait list status display.
+ * Tests for ClassSelectionStep waitlist status display.
  *
  * Covers:
- * - "Full: join wait list" badge on ElementCard when isJudgeDayFull = true
+ * - "Full: join waitlist" badge on ElementCard when isJudgeDayFull = true
  * - Badge includes waiting count when waitlistCount > 0
  * - No badge rendered for available classes
  * - ClassSelectionStep fetches availability and surfaces the badge
@@ -33,21 +33,21 @@ const defaultProps = {
   onToggle: vi.fn(),
 };
 
-describe('ElementCard — wait list badge', () => {
+describe('ElementCard — waitlist badge', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('shows "Full: join wait list" badge when judge-day is full', () => {
+  it('shows "Full: join waitlist" badge when judge-day is full', () => {
     const levels: LevelInfo[] = [{ ...baseLevel, isFull: true, waitlistCount: 0 }];
     render(<ElementCard {...defaultProps} levels={levels} />);
-    expect(screen.getByText('Full: join wait list')).toBeInTheDocument();
+    expect(screen.getByText('Full: join waitlist')).toBeInTheDocument();
   });
 
   it('shows waiting count in badge when waitlistCount > 0', () => {
     const levels: LevelInfo[] = [{ ...baseLevel, isFull: true, waitlistCount: 4 }];
     render(<ElementCard {...defaultProps} levels={levels} />);
-    expect(screen.getByText('Full: join wait list')).toBeInTheDocument();
+    expect(screen.getByText('Full: join waitlist')).toBeInTheDocument();
     expect(screen.getByText('(4 waiting)')).toBeInTheDocument();
   });
 
@@ -60,12 +60,12 @@ describe('ElementCard — wait list badge', () => {
   it('does not show the badge for available classes', () => {
     const levels: LevelInfo[] = [{ ...baseLevel, isFull: false, waitlistCount: 0 }];
     render(<ElementCard {...defaultProps} levels={levels} />);
-    expect(screen.queryByText('Full: join wait list')).not.toBeInTheDocument();
+    expect(screen.queryByText('Full: join waitlist')).not.toBeInTheDocument();
   });
 
   it('does not show the badge when isJudgeDayFull is undefined', () => {
     render(<ElementCard {...defaultProps} levels={[baseLevel]} />);
-    expect(screen.queryByText('Full: join wait list')).not.toBeInTheDocument();
+    expect(screen.queryByText('Full: join waitlist')).not.toBeInTheDocument();
   });
 
   it('does not show badge for already-entered full classes', () => {
@@ -74,7 +74,7 @@ describe('ElementCard — wait list badge', () => {
       { ...baseLevel, isFull: true, isAlreadyEntered: true, waitlistCount: 2 },
     ];
     render(<ElementCard {...defaultProps} levels={levels} />);
-    expect(screen.queryByText('Full: join wait list')).not.toBeInTheDocument();
+    expect(screen.queryByText('Full: join waitlist')).not.toBeInTheDocument();
   });
 
   it('labels a class whose availability was not read without calling it open', async () => {
@@ -157,7 +157,7 @@ describe('ElementCard — checkbox accessible names (MYK9-1290)', () => {
 
 // ─── Single-class variant ──────────────────────────────────────────────────────
 
-describe('ElementCard (single-class) — wait list badge', () => {
+describe('ElementCard (single-class) — waitlist badge', () => {
   const singleClassLevel: LevelInfo = {
     classId: 's1',
     level: '',
@@ -179,7 +179,7 @@ describe('ElementCard (single-class) — wait list badge', () => {
         onToggle={vi.fn()}
       />
     );
-    expect(screen.getByText('Full: join wait list')).toBeInTheDocument();
+    expect(screen.getByText('Full: join waitlist')).toBeInTheDocument();
     expect(screen.getByText('(3 waiting)')).toBeInTheDocument();
   });
 
@@ -195,7 +195,7 @@ describe('ElementCard (single-class) — wait list badge', () => {
         onToggle={vi.fn()}
       />
     );
-    expect(screen.queryByText('Full: join wait list')).not.toBeInTheDocument();
+    expect(screen.queryByText('Full: join waitlist')).not.toBeInTheDocument();
   });
 
   it('surfaces an already-entered single class with a visible badge', () => {
@@ -395,12 +395,12 @@ function setupDefaultMocks(overrides: { judgeDayFull?: boolean; waitlistCount?: 
   });
 }
 
-describe('ClassSelectionStep — wait list badge (integration)', () => {
+describe('ClassSelectionStep — waitlist badge (integration)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('shows "Full: join wait list" badge when judge-day is full', async () => {
+  it('shows "Full: join waitlist" badge when judge-day is full', async () => {
     setupDefaultMocks({ judgeDayFull: true, waitlistCount: 0 });
     render(
       <ClassSelectionStep
@@ -410,8 +410,8 @@ describe('ClassSelectionStep — wait list badge (integration)', () => {
         showId={SHOW_ID}
       />
     );
-    expect(await screen.findByText('Full: join wait list')).toBeInTheDocument();
-    // MYK9-1013: the free-to-join promise sits with the wait-list option.
+    expect(await screen.findByText('Full: join waitlist')).toBeInTheDocument();
+    // MYK9-1013: the free-to-join promise sits with the waitlist option.
     expect(
       screen.getByText(
         'Joining the waitlist is free. You only pay if a spot opens and you claim it.'
@@ -444,7 +444,7 @@ describe('ClassSelectionStep — wait list badge (integration)', () => {
     );
     // Wait for the class chip to appear
     expect(await screen.findByText('Novice A')).toBeInTheDocument();
-    expect(screen.queryByText('Full: join wait list')).not.toBeInTheDocument();
+    expect(screen.queryByText('Full: join waitlist')).not.toBeInTheDocument();
     expect(screen.queryByText(/Joining the waitlist is free/)).not.toBeInTheDocument();
   });
 
@@ -534,7 +534,7 @@ describe('ClassSelectionStep — wait list badge (integration)', () => {
     expect(await screen.findByText('Availability unknown')).toBeInTheDocument();
     expect(screen.getByText('Advanced A')).toBeInTheDocument();
     expect(screen.getByText('Novice A').closest('label')).toHaveTextContent('Novice A');
-    expect(screen.queryByText('Full: join wait list')).not.toBeInTheDocument();
+    expect(screen.queryByText('Full: join waitlist')).not.toBeInTheDocument();
   });
 });
 

@@ -49,8 +49,8 @@ describe('ElementCard — full chip reason (MYK9-515)', () => {
     expect(document.getElementById(describedBy!)?.textContent).toBe(REASON);
   });
 
-  it('shows the reason alongside the wait-list badge, which says nothing about why', () => {
-    const waitlistReason = "The judge's Saturday is full — you can join the wait list.";
+  it('shows the reason alongside the waitlist badge, which says nothing about why', () => {
+    const waitlistReason = "The judge's Saturday is full — you can join the waitlist.";
     renderCard([
       {
         ...baseLevel,
@@ -60,7 +60,7 @@ describe('ElementCard — full chip reason (MYK9-515)', () => {
         fullReason: waitlistReason,
       },
     ]);
-    expect(screen.getByText('Full: join wait list')).toBeInTheDocument();
+    expect(screen.getByText('Full: join waitlist')).toBeInTheDocument();
     expect(screen.getByText(waitlistReason)).toBeInTheDocument();
   });
 
@@ -75,7 +75,7 @@ describe('ElementCard — full chip reason (MYK9-515)', () => {
     expect(screen.queryByText(REASON)).not.toBeInTheDocument();
   });
 
-  it('lets a started class outrank a full one — it takes nothing, not even a wait list', () => {
+  it('lets a started class outrank a full one — it takes nothing, not even a waitlist', () => {
     renderCard([
       {
         ...baseLevel,

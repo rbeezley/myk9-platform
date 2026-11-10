@@ -91,9 +91,9 @@ describe('entry submission outcome helpers', () => {
     expect(
       getEntrySubmissionDenialMessage({
         ...denied,
-        denialReason: 'dog already on this class wait list for a different exhibitor',
+        denialReason: 'dog already on this class waitlist for a different exhibitor',
       })
-    ).toBe('already has an active wait-list spot for another exhibitor.');
+    ).toBe('already has an active waitlist spot for another exhibitor.');
     expect(getEntrySubmissionDenialMessage({ ...denied, denialReason: null })).toBe(
       'could not be entered because the class is full.'
     );

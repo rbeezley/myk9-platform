@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "updatedAt": "2026-11-10T20:47:28.997Z",
-  "total": 443,
+  "updatedAt": "2026-11-10T21:46:58.146Z",
+  "total": 439,
   "files": {
     "apps/myk9show/src/components/admin/DataLifecycleManagement/deletedEntityMappers.ts": 1,
     "apps/myk9show/src/components/admin/permissions/ManageUserRolesDialog.tsx": 2,
@@ -68,8 +68,8 @@
     "apps/myk9show/src/components/reports/labels/ResultLabelCell.tsx": 1,
     "apps/myk9show/src/components/secretary/FinancialSummary.tsx": 1,
     "apps/myk9show/src/components/secretary/VenueLocationCard.tsx": 2,
-    "apps/myk9show/src/components/shows/RefundAllEntriesCard.tsx": 6,
-    "apps/myk9show/src/components/shows/RefundResultDetail.tsx": 4,
+    "apps/myk9show/src/components/shows/RefundAllEntriesCard.tsx": 3,
+    "apps/myk9show/src/components/shows/RefundResultDetail.tsx": 3,
     "apps/myk9show/src/components/shows/RegistrationWorkflow/AlreadyEnteredNotice.tsx": 1,
     "apps/myk9show/src/components/shows/RegistrationWorkflow/ClassSelectionStep.fullReason.ts": 1,
     "apps/myk9show/src/components/shows/RegistrationWorkflow/ConfirmationStep.tsx": 5,

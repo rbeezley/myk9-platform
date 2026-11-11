@@ -186,7 +186,9 @@ export function SecretaryCockpitFocusedClass({
             // Managers only; the engine's per-entry answer, joined to the table by nodeId (MYK9-1798).
             rowMenu={rowMenu}
             // Managers only (MYK9-1872): drag a waiting dog's grip to change the run order.
-            reorder={canManageShow && runOrder ? { classId: focused.id, runOrder } : undefined}
+            reorder={
+              canManageShow && runOrder ? { showId, classId: focused.id, runOrder } : undefined
+            }
           />
         </section>
 

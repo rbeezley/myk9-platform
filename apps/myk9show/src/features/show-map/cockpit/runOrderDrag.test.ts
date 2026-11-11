@@ -37,7 +37,7 @@ describe('runOrderAnnouncements (MYK9-1872)', () => {
       '#110 Hazel moved to position 2 of 3'
     );
     expect(say.onDragEnd({ active: hazel, over: { id: 'entry:uuid-2' } })).toBe(
-      '#110 Hazel dropped at position 2. Run order saved'
+      '#110 Hazel dropped at position 2. Saving run order.'
     );
     expect(say.onDragCancel({ active: hazel })).toBe(
       'Move cancelled. #110 Hazel stays at position 3'

@@ -7,6 +7,13 @@ import type { SecretaryCockpitClassEntry } from '../cockpitClassEntries';
 import type { SecretaryCockpitRunOrderControls } from '../secretaryCockpitTypes';
 import { queueFor } from './queueFixture';
 
+const placement = vi.hoisted(() => ({
+  waitingIds: ['e1', 'e3', 'e5'] as string[] | null,
+  isError: false,
+  retry: vi.fn(),
+}));
+vi.mock('../useRunOrderPlacement', () => ({ useRunOrderPlacement: () => placement }));
+
 const dnd = vi.hoisted(() => ({
   onDragEnd: undefined as undefined | ((event: unknown) => void),
 }));
@@ -78,7 +85,7 @@ function renderTable(runOrder?: SecretaryCockpitRunOrderControls, entries = rows
     <ClassEntriesTable
       entries={entries}
       className="Container Novice A"
-      reorder={runOrder ? { classId: 'class-1', runOrder } : undefined}
+      reorder={runOrder ? { showId: 'show-1', classId: 'class-1', runOrder } : undefined}
     />
   );
 }
@@ -91,6 +98,8 @@ const drop = (active: string, over: string | null) =>
 
 describe('drag a waiting dog to change the run order (MYK9-1872)', () => {
   beforeEach(() => {
+    placement.waitingIds = ['e1', 'e3', 'e5'];
+    placement.isError = false;
     dnd.onDragEnd = undefined;
   });
 
@@ -109,18 +118,18 @@ describe('drag a waiting dog to change the run order (MYK9-1872)', () => {
   });
 
   it.each([
-    ['down', 'e1', 'e3', 2],
-    ['to the bottom', 'e1', 'e5', 3],
-    ['up', 'e5', 'e3', 2],
-    ['to the top', 'e5', 'e1', 1],
-  ])('dropping a dog %s places it at its slot among the waiting dogs', (_n, active, over, to) => {
+    ['down', 'e1', 'e3'],
+    ['to the bottom', 'e1', 'e5'],
+    ['up', 'e5', 'e3'],
+    ['to the top', 'e5', 'e1'],
+  ])('dropping a dog %s names the dog it was dropped on', (_n, active, over) => {
     const runOrder = controls();
     renderTable(runOrder);
     drop(active, over);
     expect(runOrder.onPlaceEntry).toHaveBeenCalledWith({
       classId: 'class-1',
       entryId: active,
-      toPosition: to,
+      overEntryId: over,
       entryLabel: expect.stringMatching(/^#10\d /),
     });
   });
@@ -151,5 +160,30 @@ describe('drag a waiting dog to change the run order (MYK9-1872)', () => {
     for (const grip of screen.getAllByTestId('run-order-grip')) expect(grip).toBeDisabled();
     drop('e1', 'e3');
     expect(runOrder.onPlaceEntry).not.toHaveBeenCalled();
+  });
+
+  it('offers no grips while the placement read is loading, and a retry when it failed', () => {
+    placement.waitingIds = null;
+    renderTable(controls());
+    expect(screen.queryByTestId('run-order-grip')).toBeNull();
+    expect(screen.getByTestId('class-entries-table')).toBeInTheDocument();
+  });
+
+  it('shows the read error with Try again and no grips', async () => {
+    placement.waitingIds = null;
+    placement.isError = true;
+    const { user } = renderTable(controls());
+    expect(screen.getByText(/Couldn.t load the run order/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(placement.retry).toHaveBeenCalled();
+  });
+
+  it('grips follow the placement model, not the table state', () => {
+    // The model says Moss and Rex wait; the table calls Rex in-ring and Juno waiting.
+    placement.waitingIds = ['e4', 'e1'];
+    renderTable(controls());
+    expect(screen.getAllByTestId('run-order-grip')).toHaveLength(2);
+    expect(screen.getByRole('button', { name: /Drag #104 Rex/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Drag #103 Juno/ })).toBeNull();
   });
 });

@@ -151,6 +151,10 @@ export function FocusedClassActionsMenu({
                     onAutoSort={runOrder.onAutoSort}
                     disabled={sortLocked}
                   />
+                  <p className="px-2 py-1.5 text-xs text-muted-foreground">
+                    Armband and Random sort the dogs still waiting again and replace anything placed
+                    by hand.
+                  </p>
                 </DropdownMenuSubContent>
               </DropdownMenuSub>
             </>

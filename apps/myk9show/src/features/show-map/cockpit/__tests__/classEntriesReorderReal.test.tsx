@@ -35,6 +35,13 @@ const scoredRow: SecretaryCockpitClassEntry = {
   queue: queueFor('entry:e0', '100', 'scored'),
 };
 
+const placement = vi.hoisted(() => ({
+  waitingIds: ['e1', 'e2', 'e3'] as string[] | null,
+  isError: false,
+  retry: vi.fn(),
+}));
+vi.mock('../useRunOrderPlacement', () => ({ useRunOrderPlacement: () => placement }));
+
 const rows = [
   scoredRow,
   entry('e1', '101', 'Moss'),
@@ -52,7 +59,11 @@ function setup() {
   };
   render(
     <StrictMode>
-      <ClassEntriesTable entries={rows} className="A" reorder={{ classId: 'class-1', runOrder }} />
+      <ClassEntriesTable
+        entries={rows}
+        className="A"
+        reorder={{ showId: 'show-1', classId: 'class-1', runOrder }}
+      />
     </StrictMode>
   );
   return runOrder;
@@ -100,7 +111,7 @@ describe('real dnd-kit wiring for the run-order grips (MYK9-1872)', () => {
       await user.keyboard('{ArrowUp}');
       await user.keyboard(dropKey);
       expect(runOrder.onPlaceEntry).toHaveBeenCalledWith(
-        expect.objectContaining({ classId: 'class-1', entryId: 'e3', toPosition: 2 })
+        expect.objectContaining({ classId: 'class-1', entryId: 'e3', overEntryId: 'e2' })
       );
     }
   );
@@ -115,7 +126,7 @@ describe('real dnd-kit wiring for the run-order grips (MYK9-1872)', () => {
     expect(await screen.findByText('#103 Juno moved to position 2 of 3')).toBeInTheDocument();
     await user.keyboard(' ');
     expect(
-      await screen.findByText('#103 Juno dropped at position 2. Run order saved')
+      await screen.findByText('#103 Juno dropped at position 2. Saving run order.')
     ).toBeInTheDocument();
   });
 
@@ -127,7 +138,7 @@ describe('real dnd-kit wiring for the run-order grips (MYK9-1872)', () => {
     fireEvent.pointerMove(document, { clientX: 10, clientY: 110, isPrimary: true });
     fireEvent.pointerUp(document, { clientX: 10, clientY: 110, isPrimary: true });
     expect(runOrder.onPlaceEntry).toHaveBeenCalledWith(
-      expect.objectContaining({ entryId: 'e1', toPosition: 3 })
+      expect.objectContaining({ entryId: 'e1', overEntryId: 'e3' })
     );
   });
 });

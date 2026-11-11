@@ -3,14 +3,16 @@ import { arrayMove } from '@dnd-kit/sortable';
 import type { SecretaryCockpitClassEntry } from './cockpitClassEntries';
 
 /**
- * The rows a secretary may drag: dogs still waiting to run, in run order (MYK9-1872). Dogs that
- * are in the ring, scored, pulled, withdrawn or absent never move; the placement model
- * (`runOrderPlacementModel`) renumbers the waiting dogs only.
+ * The rows a secretary may drag, in run order: the dogs the placement model lists as waiting
+ * (`model.waiting`, the same list the write renumbers), that this table also shows. The table's
+ * own `state` is never consulted, so the grips and the write cannot disagree about who can move.
  */
 export function movableEntries(
-  entries: readonly SecretaryCockpitClassEntry[]
+  entries: readonly SecretaryCockpitClassEntry[],
+  waitingIds: readonly string[]
 ): SecretaryCockpitClassEntry[] {
-  return entries.filter(entry => entry.state === 'waiting');
+  const byEntryId = new Map(entries.map(entry => [entry.entryId, entry]));
+  return waitingIds.flatMap(id => byEntryId.get(id) ?? []);
 }
 
 /**
@@ -67,7 +69,7 @@ export function runOrderAnnouncements(items: readonly DragAnnouncementItem[]) {
       const to = dropPosition(ids, String(active.id), over && String(over.id));
       return to === null
         ? `${labelOf(active.id)} dropped. Run order unchanged, still position ${positionOf(active.id)}`
-        : `${labelOf(active.id)} dropped at position ${to}. Run order saved`;
+        : `${labelOf(active.id)} dropped at position ${to}. Saving run order.`;
     },
     onDragCancel: ({ active }: Pick<DragRef, 'active'>) =>
       `Move cancelled. ${labelOf(active.id)} stays at position ${positionOf(active.id)}`,

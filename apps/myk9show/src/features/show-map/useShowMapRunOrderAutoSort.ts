@@ -29,13 +29,19 @@ export interface ShowMapAutoSortInput {
   classLabel?: string | undefined;
 }
 
-export interface ShowMapHandPlaceInput {
+interface ShowMapHandPlaceBase {
   classId: string;
   entryId: string;
-  /** 1-based slot in the class run list. */
-  toPosition: number;
   entryLabel?: string | undefined;
 }
+
+/**
+ * Where the dog goes: a 1-based slot among the waiting dogs, or (the drag) the dog it was dropped
+ * on. The drop names the dog, never a number, so the slot is resolved against the placement model
+ * as the write reads it, and a list that went stale cannot put the dog in the wrong place.
+ */
+export type ShowMapHandPlaceInput = ShowMapHandPlaceBase &
+  ({ toPosition: number } | { overEntryId: string });
 
 export interface ShowMapAutoSortSnapshot {
   classId: string;
@@ -160,7 +166,14 @@ export function useShowMapRunOrderAutoSort({ showId }: UseShowMapRunOrderAutoSor
     networkMode: 'always',
     mutationFn: async (input: ShowMapHandPlaceInput): Promise<ShowMapAutoSortResult> => {
       const { model } = await loadClassPlacement(showId, input.classId);
-      const changes = movePlacement(model, input.entryId, input.toPosition);
+      const waitingIds = model.waiting.map(row => row.id);
+      const toPosition =
+        'toPosition' in input
+          ? input.toPosition
+          : waitingIds.includes(input.entryId) && waitingIds.includes(input.overEntryId)
+            ? waitingIds.indexOf(input.overEntryId) + 1
+            : 0;
+      const changes = movePlacement(model, input.entryId, toPosition);
       if (changes.length === 0) {
         throw new ShowDayRefusal(
           'That dog cannot go in that spot. Only dogs still waiting to run can be moved.'
@@ -169,7 +182,7 @@ export function useShowMapRunOrderAutoSort({ showId }: UseShowMapRunOrderAutoSor
       const snapshot: ShowMapAutoSortSnapshot = {
         classId: input.classId,
         kind: 'hand',
-        summary: `Moved ${input.entryLabel ?? 'dog'} to position ${input.toPosition}`,
+        summary: `Moved ${input.entryLabel ?? 'dog'} to position ${toPosition}`,
         priorOrders: toPriorSnapshot(changes),
       };
       const { failedCount } = await applyAssignments(changes);

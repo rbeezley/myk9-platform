@@ -36,6 +36,8 @@ import type {
   SecretaryCockpitRunOrderControls,
 } from './secretaryCockpitTypes';
 import { SortableClassEntryRow } from './SortableClassEntryRow';
+import { useRunOrderPlacement } from './useRunOrderPlacement';
+import { Button } from '@/components/ui/button';
 import {
   RUN_ORDER_DRAG_INSTRUCTIONS,
   dropPosition,
@@ -164,7 +166,8 @@ export function ClassEntriesTable({
    * Managers only (MYK9-1872): drag a waiting dog to a new run-order slot on this list. The class
    * id and the shared run-order controls (the same write and Undo the presets use).
    */
-  reorder?: { classId: string; runOrder: SecretaryCockpitRunOrderControls } | undefined;
+  reorder?:
+    { showId: string; classId: string; runOrder: SecretaryCockpitRunOrderControls } | undefined;
   /**
    * Managers only (MYK9-1798): per entry (by nodeId) the actions the engine allows today, and the
    * runner for a chosen commandId (ShowDeskPanel.runCommand). One prop so a menu is never dead.
@@ -188,7 +191,14 @@ export function ClassEntriesTable({
   unread?: boolean;
 }) {
   const checkIn = useClassCheckIn(entries, className, canChangeCheckIn, onRefreshEntries);
-  const movable = reorder ? movableEntries(entries) : [];
+  // Who can move comes from the placement model the write uses, never from this table's states.
+  const placement = useRunOrderPlacement(
+    reorder?.showId ?? '',
+    reorder?.classId ?? '',
+    reorder !== undefined && entries.length > 0
+  );
+  const movable =
+    reorder && placement.waitingIds ? movableEntries(entries, placement.waitingIds) : [];
   const canReorder = reorder !== undefined && movable.length >= 2;
   const movableIds = movable.map(entry => entry.nodeId);
   const sensors = useSensors(
@@ -202,10 +212,13 @@ export function ClassEntriesTable({
     const toPosition = dropPosition(movableIds, activeId, event.over && String(event.over.id));
     const moved = movable.find(entry => entry.nodeId === activeId);
     if (toPosition === null || !moved) return;
+    const over = movable.find(entry => entry.nodeId === String(event.over?.id));
+    if (!over) return;
+    // The dog dropped on, not a number: the write resolves the slot against its own fresh read.
     reorder.runOrder.onPlaceEntry({
       classId: reorder.classId,
       entryId: moved.entryId,
-      toPosition,
+      overEntryId: over.entryId,
       entryLabel: dogLabel(moved),
     });
   };
@@ -308,8 +321,20 @@ export function ClassEntriesTable({
       </TableBody>
     </Table>
   );
+  const loadError = reorder !== undefined && placement.isError && (
+    <div
+      role="alert"
+      className="mb-2 flex items-center justify-between gap-3 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm"
+    >
+      <span className="text-destructive">Couldn&rsquo;t load the run order.</span>
+      <Button type="button" variant="outline" size="touch" onClick={placement.retry}>
+        Try again
+      </Button>
+    </div>
+  );
   return (
     <>
+      {loadError}
       {canReorder ? (
         <DndContext
           sensors={sensors}

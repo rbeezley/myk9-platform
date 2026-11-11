@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react';
+import { isAuthRetryableFetchError } from '@supabase/supabase-js';
 import { Link, useLocation } from 'react-router-dom';
 import { Mail, CheckCircle } from 'lucide-react';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -47,10 +48,7 @@ const ForgotPasswordPage: React.FC = () => {
       // Auth errors (user not found, etc.) — show success to prevent enumeration
       if (isCaptchaFailure(err)) {
         setError('Security verification expired. Please complete it again.');
-      } else if (
-        err instanceof Error &&
-        (err.name === 'FetchError' || err.message === 'Failed to fetch')
-      ) {
+      } else if (isAuthRetryableFetchError(err)) {
         setError(commonAuthFailure(err) ?? "We couldn't send the reset link. Try again.");
       } else {
         setSubmitted(true);
@@ -76,7 +74,8 @@ const ForgotPasswordPage: React.FC = () => {
           </div>
           <h2 className="text-2xl font-bold mb-2">Check your email</h2>
           <p className="text-muted-foreground mb-6">
-            We sent a password reset link to your email address. The link will expire in 24 hours.
+            If an account exists for this email, check your inbox. If no link arrives, wait a minute
+            and try again. Reset links expire in 24 hours.
           </p>
           <Link to="/sign-in" className="text-primary hover:underline font-medium">
             &larr; Back to sign in

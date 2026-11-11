@@ -1,4 +1,4 @@
-import { judgeSortValue } from '@/utils/classJudgeDisplay';
+import { judgeNameOrUnsetLabel, judgeSortValue } from '@/utils/classJudgeDisplay';
 import React from 'react';
 import { getRegistrySportName } from '@/features/registries';
 import { formatTrialLabel } from '@myk9/core';
@@ -78,7 +78,7 @@ export const JudgesSchedule: React.FC<ReportProps> = ({
                   return (
                     <tr key={cls.id}>
                       <td>{`${cls.element} ${cls.level}`.trim()}</td>
-                      <td>{cls.judgeName ?? ''}</td>
+                      <td>{judgeNameOrUnsetLabel(cls.judgeName)}</td>
                       <td>{count}</td>
                       <td>{formatEstimatedTime(count)}</td>
                     </tr>

@@ -22,6 +22,8 @@ import { ForeignReportNotice } from './ForeignReportNotice';
 import { buildPages, selectionHasEntries } from './reportPreviewPages';
 import type { ReportDataState } from '@/hooks/queries/useReportData';
 import { resolveClassJudgeName } from '@/utils/classJudgeDisplay';
+import { officialFormJudgeBlock } from './reportJudgeGate';
+import { JudgeBlockedNotice } from './JudgeBlockedNotice';
 
 export interface ReportPreviewProps {
   reportType: string;
@@ -159,12 +161,13 @@ export function ReportPreview({
   // The frame stays mounted (so it keeps its ref and scroll) but hidden, so the
   // previous answer is never shown as if it were current.
   const isRefreshing = dataState === 'refreshing' || hostedState === 'refreshing';
+  const judgeBlock = officialFormJudgeBlock(reportType, show, trials, classes, trialId, classId);
 
   useEffect(() => {
     const iframe = iframeRef.current;
     if (!iframe) return;
     if (isLoading || isError || !show) return;
-    if (!report) return;
+    if (!report || judgeBlock) return;
     // Rendered by the PDF pipeline above instead — never build markup for it.
     if (report.buildPdf) return;
     // Markup is written into the iframe once per change. Building it before the
@@ -283,6 +286,7 @@ export function ReportPreview({
     officials,
     hostedState,
     catalogProfilesReadComplete,
+    judgeBlock,
   ]);
 
   // Checked FIRST. With no show there is no showId, so the trials query is
@@ -381,6 +385,8 @@ export function ReportPreview({
       </div>
     );
   }
+
+  if (judgeBlock) return <JudgeBlockedNotice message={judgeBlock} />;
 
   // Registry forms with no HTML rendering. Say so, rather than leaving a blank
   // page that reads as "still loading" and a Print button that produces blank

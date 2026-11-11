@@ -7,6 +7,8 @@ const mockReportState = vi.hoisted(() => ({
   trialOneRegistryId: 'AKC',
   trialTwoRegistryId: null as string | null,
   isLoading: false,
+  /** True leaves the Buried Novice class with no judge. */
+  classOneUnjudged: false,
   /** Overrides the derived state so the paused/stale paths are reachable. */
   dataState: null as null | 'loading' | 'unavailable' | 'stale' | 'refreshing' | 'error' | 'ready',
 }));
@@ -74,7 +76,7 @@ vi.mock('@/hooks/queries/useReportData', () => ({
             level: 'Novice',
             section: '',
             trial_id: 'trial-1',
-            judge_name: 'Pat Judge',
+            judge: mockReportState.classOneUnjudged ? 'TBD' : 'Pat Judge',
             time_limit_seconds: 120,
             time_limit_area2_seconds: null,
             time_limit_area3_seconds: null,
@@ -86,7 +88,7 @@ vi.mock('@/hooks/queries/useReportData', () => ({
             level: 'Advanced',
             section: '',
             trial_id: 'trial-2',
-            judge_name: 'Sam Judge',
+            judge: 'Sam Judge',
           },
         ],
     entries: mockReportState.isLoading
@@ -226,6 +228,7 @@ describe('ReportsPage', () => {
     mockReportState.trialOneRegistryId = 'AKC';
     mockReportState.trialTwoRegistryId = null;
     mockReportState.isLoading = false;
+    mockReportState.classOneUnjudged = false;
     mockReportState.dataState = null;
     mockPrintState.records = [];
     mockPrintState.isLoading = false;
@@ -676,6 +679,43 @@ describe('ReportsPage', () => {
     expect(
       await screen.findByRole('button', { name: /Download AKC Certification Page PDF/i })
     ).toBeEnabled();
+  });
+
+  it.each([
+    ['judges-certification', /Download AKC Certification Page PDF/i],
+    ['akc-judge-report', /Download AKC Judge PDF/i],
+    ['trial-chairman-report', /Download AKC Trial Chairman PDF/i],
+    ['trial-secretary-report', /Download AKC Trial Secretary PDF/i],
+  ])(
+    'withholds the %s download and names the class that needs a judge (MYK9-1854)',
+    async (report, buttonName) => {
+      mockReportState.classOneUnjudged = true;
+      render(<ReportsPage />, {
+        initialRoute: `/shows/show-1/reports?report=${report}&trialId=trial-1`,
+      });
+
+      expect(await screen.findByRole('button', { name: buttonName })).toBeDisabled();
+      expect(
+        screen.getByText(
+          /These classes need a judge before you can print this form: Buried Novice\./
+        )
+      ).toBeInTheDocument();
+    }
+  );
+
+  it('refuses Print on an official AKC form with the same message (MYK9-1854)', async () => {
+    mockReportState.classOneUnjudged = true;
+    render(<ReportsPage />, {
+      initialRoute: '/shows/show-1/reports?report=trial-chairman-report&trialId=trial-1',
+    });
+
+    await userEvent.click(screen.getByRole('button', { name: /^Print/ }));
+
+    expect(toastSpy.called).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'These classes need a judge before you can print this form: Buried Novice.'
+      )
+    );
   });
 
   it('offers the official AKC transfer form PDF when a dog and class are selected', async () => {

@@ -111,4 +111,9 @@ describe('JudgesCertification', () => {
     expect(screen.getByText(/4\/12\/2026/)).toBeInTheDocument();
     expect(screen.queryByText(/2026-04-12/)).not.toBeInTheDocument();
   });
+
+  it('never prints "Unknown Judge" when there is no trial (MYK9-1854)', () => {
+    render(<JudgesCertification {...baseProps} trial={undefined} />);
+    expect(screen.queryByText(/Unknown Judge/)).not.toBeInTheDocument();
+  });
 });

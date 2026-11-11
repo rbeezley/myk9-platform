@@ -8,6 +8,7 @@ import React from 'react';
 import { formatTrialLabel } from '@myk9/core';
 import { formatArmband } from '@myk9/ringside';
 import type { PrintClassInfo, PrintReportEntry } from './print-types';
+import { judgeNameOrUnsetLabel } from '@/utils/classJudgeDisplay';
 
 const printTrialLabel = (classInfo: PrintClassInfo): string =>
   formatTrialLabel({ name: classInfo.trialName, trialNumber: classInfo.trialNumber });
@@ -52,7 +53,9 @@ const InfoBox: React.FC<{ classInfo: PrintClassInfo }> = ({ classInfo }) => (
     )}
     <div className="info-row">
       <span className="info-label">Judge:</span>
-      <span className="info-value">{classInfo.judgeName ?? 'TBD'}</span>
+      <span className="info-value">
+        {judgeNameOrUnsetLabel(classInfo.judgeName, { bare: true })}
+      </span>
     </div>
     {classInfo.section && (
       <div className="info-row">
@@ -297,7 +300,8 @@ export const BlankScoreSheet: React.FC<TemplateProps> = ({ classInfo, entries })
                       <strong>Trial:</strong> {printTrialLabel(classInfo)}
                     </div>
                     <div>
-                      <strong>Judge:</strong> {classInfo.judgeName ?? 'TBD'}
+                      <strong>Judge:</strong>{' '}
+                      {judgeNameOrUnsetLabel(classInfo.judgeName, { bare: true })}
                     </div>
                   </div>
                   <div className="header-col">

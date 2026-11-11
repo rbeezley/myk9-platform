@@ -46,8 +46,10 @@ describe('visible wording guard (MYK9-1857)', () => {
     expect(scanVisibleWording('x.ts', src).map(h => h.line)).toEqual([2]);
   });
 
+  // Parses every app source file; under CI's coverage instrumentation that outruns the 10 s
+  // default (shard 2/6 timed out on #3788), like postgrestCountColumn.test.ts's tree scan.
   it('finds none in app source', () => {
     const hits = scanSourceTree(fileURLToPath(new URL('../../', import.meta.url)));
     expect(hits.map(h => `${h.file}:${h.line} ${h.rule}: ${h.text}`)).toEqual([]);
-  });
+  }, 60_000);
 });

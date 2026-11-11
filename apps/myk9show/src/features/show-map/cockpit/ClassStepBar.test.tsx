@@ -193,7 +193,7 @@ describe('class step bar (MYK9-1783)', () => {
       'grid-cols-[repeat(auto-fill,minmax(10.5rem,1fr))]'
     );
     for (const card of cards) {
-      expect(card).toHaveClass('h-[7.5rem]', 'overflow-hidden');
+      expect(card).toHaveClass('h-[8.25rem]', 'overflow-hidden');
       expect(card.querySelector('.line-clamp-2')).not.toBeNull();
     }
   });

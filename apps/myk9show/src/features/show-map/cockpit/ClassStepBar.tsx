@@ -16,7 +16,7 @@ function StateIcon({ state }: { state: ClassChecklistState }) {
 }
 
 const STEP_CLASS =
-  'flex h-[7.5rem] w-full flex-col items-start gap-0.5 overflow-hidden rounded-lg border p-2.5 text-left text-sm';
+  'flex h-[8.25rem] w-full flex-col items-start gap-0.5 overflow-hidden rounded-lg border p-2.5 text-left text-sm';
 const TARGET_CLASS =
   'hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
@@ -39,7 +39,7 @@ function StepFace({ item, isNext }: { item: ClassStep; isNext: boolean }) {
         )}
       </span>
       <span
-        className="w-full truncate text-xs text-muted-foreground"
+        className="w-full line-clamp-2 text-xs text-muted-foreground"
         title={item.detail ?? STEP_STATE_TEXT[item.state]}
       >
         {item.detail ?? STEP_STATE_TEXT[item.state]}

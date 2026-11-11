@@ -1,3 +1,5 @@
+import { findInRingEntry, pendingByRunOrder, type RunQueueEntry } from '@myk9/ringside/run-queue';
+
 import { cn } from '@/lib/utils';
 import {
   Table,
@@ -30,10 +32,15 @@ const TILE = 'rounded-lg border bg-muted/30 px-4 py-3';
 
 /** The one dog in the ring (armband tile and call name) and the next few waiting, in run order. */
 function InRingTile({ entries }: { entries: readonly SecretaryCockpitClassEntry[] }) {
-  const inRing = entries.find(entry => entry.state === 'in-ring' && entry.counted);
-  const nextUp = entries
-    .filter(entry => entry.state === 'waiting' && entry.counted)
-    .slice(0, NEXT_UP_PREVIEW_LIMIT);
+  // The shared run-queue rule, as Ringside reads it. A row that is not expected to run is folded
+  // to `pulled` in its queue entry, so `counted` needs no second filter here.
+  const byId = new Map(entries.map(entry => [entry.queue.id, entry]));
+  const rowOf = (queued: RunQueueEntry | undefined) => (queued ? byId.get(queued.id) : undefined);
+  const queue = entries.map(entry => entry.queue);
+  const inRing = rowOf(findInRingEntry(queue) ?? undefined);
+  const nextUp = pendingByRunOrder(queue)
+    .slice(0, NEXT_UP_PREVIEW_LIMIT)
+    .flatMap(queued => byId.get(queued.id) ?? []);
   return (
     <div className={cn(TILE, 'col-span-2')} data-testid="in-ring-tile">
       <dt className="text-xs font-medium text-muted-foreground">In ring</dt>

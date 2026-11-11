@@ -8,6 +8,7 @@ import { showUndoToast } from '@/lib/undoToast';
 import { SecretaryCockpitFocusedClass } from './SecretaryCockpitFocusedClass';
 import type { ClassEntryBreakdown } from '@/features/entry-operations/classEntryBreakdown';
 import type { FocusedClassModel, SecretaryCockpitClass } from './secretaryCockpitTypes';
+import { queueFor } from './__tests__/queueFixture';
 
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
@@ -444,6 +445,7 @@ describe('SecretaryCockpitFocusedClass layout (owner, 2026-10-03)', () => {
 describe('SecretaryCockpitFocusedClass Check-in cell', () => {
   const notCheckedIn = {
     nodeId: 'entry:e-1',
+    queue: queueFor('entry:e-1', '101', 'waiting'),
     entryId: 'e-1',
     armband: '101',
     dogName: 'Moss',
@@ -497,6 +499,7 @@ describe('SecretaryCockpitFocusedClass per-dog menu', () => {
   const entry = (id: string, dogName: string) =>
     ({
       nodeId: `entry:${id}`,
+      queue: queueFor(`entry:${id}`, '101', 'waiting'),
       entryId: id,
       armband: '101',
       dogName,

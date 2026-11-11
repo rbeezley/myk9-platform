@@ -1,4 +1,9 @@
-import { placeInLine, compareByRunOrder, type RunQueueEntry } from '@myk9/ringside/run-queue';
+import {
+  placeInLine,
+  compareByRunOrder,
+  isInRingEntry,
+  type RunQueueEntry,
+} from '@myk9/ringside/run-queue';
 
 import { resultStatusLabel } from '@/components/common/resultStatusLabel';
 import {
@@ -31,6 +36,9 @@ export type ClassEntryState = 'waiting' | 'in-ring' | 'scored' | 'pulled' | 'wit
  */
 export interface SecretaryCockpitClassEntry {
   nodeId: string;
+  /** The run queue's view of this row: what `isInRingEntry`, `findInRingEntry` and
+   * `pendingByRunOrder` read, so the tile and the table agree with Ringside. */
+  queue: RunQueueEntry;
   /** The entry row's id: what the Check-in desk's status write is keyed on. */
   entryId: string;
   /** The stored check-in status, `no-status` when none is recorded. */
@@ -77,12 +85,16 @@ function checkInOf(fields: EntryAccountingFields): string {
   return fields.check_in_status?.trim().toLowerCase() || 'no-status';
 }
 
-function stateOf(fields: EntryAccountingFields, entryStatus: string): ClassEntryState {
+function stateOf(
+  fields: EntryAccountingFields,
+  entryStatus: string,
+  queue: RunQueueEntry
+): ClassEntryState {
   if (entryStatus === 'withdrawn') return 'withdrawn';
   if (isPulledEntry(fields)) return 'pulled';
   if (!isExpectedEntry(fields)) return 'absent';
   if (isAccountedFor(fields)) return 'scored';
-  return checkInOf(fields) === 'in-ring' ? 'in-ring' : 'waiting';
+  return isInRingEntry(queue) ? 'in-ring' : 'waiting';
 }
 
 /** A result shows only for a dog that ran: `pending` is the unscored default, and a pulled or
@@ -109,7 +121,9 @@ function queueRowOf(
     exhibitorOrder: display.runOrder ?? null,
     isScored: display.isScored ?? false,
     status: runnable ? checkIn : 'pulled',
-    inRing: runnable && checkIn === 'in-ring',
+    // Mirrors `toRunQueueEntry`: the flag or the status, and only for a runnable row (a stale
+    // flag on a row nobody expects to run is not a ring state).
+    inRing: runnable && (checkIn === 'in-ring' || display.isInRing === true),
   };
 }
 
@@ -130,7 +144,8 @@ export function classEntriesForClass(
     const fields = accountingFields(display);
     const entryStatus = display.entryStatus?.trim().toLowerCase();
     if (!isListed(fields, entryStatus)) continue;
-    const state = stateOf(fields, entryStatus ?? '');
+    const queue = queueRowOf(node.id, display, fields);
+    const state = stateOf(fields, entryStatus ?? '', queue);
     const counted = isExpectedEntry(fields);
     const checkInValue = (display.checkInStatus ?? 'no-status') as CheckInStatus;
     const deskEditable = deskStatusEditableFor({
@@ -140,10 +155,11 @@ export function classEntriesForClass(
       isScored: display.isScored,
     });
     listed.push({
-      queue: queueRowOf(node.id, display, fields),
+      queue,
       fields,
       entry: {
         nodeId: node.id,
+        queue,
         entryId: node.id.slice(getShowMapNodeId('entry', '').length),
         checkInValue,
         deskEditable,

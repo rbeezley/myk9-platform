@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
 import { SecretaryCockpit } from '../SecretaryCockpit';
 import type { SecretaryCockpitClassEntry } from '../cockpitClassEntries';
+import { queueFor } from './queueFixture';
 import type { SecretaryCockpitSnapshot } from '../secretaryCockpitTypes';
 
 vi.mock('@/hooks/useMediaQuery', () => ({ useMediaQuery: () => true }));
@@ -14,6 +15,7 @@ vi.mock('@/hooks/useElementWidth', () => ({
 const entries: SecretaryCockpitClassEntry[] = [
   {
     nodeId: 'entry:a',
+    queue: queueFor('entry:a', '101', 'scored'),
     entryId: 'a',
     checkInValue: 'completed',
     deskEditable: false,
@@ -31,6 +33,7 @@ const entries: SecretaryCockpitClassEntry[] = [
   },
   {
     nodeId: 'entry:b',
+    queue: queueFor('entry:b', '102', 'in-ring'),
     entryId: 'b',
     checkInValue: 'in-ring',
     deskEditable: false,
@@ -47,6 +50,7 @@ const entries: SecretaryCockpitClassEntry[] = [
   },
   {
     nodeId: 'entry:c',
+    queue: queueFor('entry:c', '103', 'waiting'),
     entryId: 'c',
     checkInValue: 'no-status',
     deskEditable: true,
@@ -63,6 +67,7 @@ const entries: SecretaryCockpitClassEntry[] = [
   },
   {
     nodeId: 'entry:d',
+    queue: queueFor('entry:d', '104', 'pulled'),
     entryId: 'd',
     checkInValue: 'pulled',
     deskEditable: false,

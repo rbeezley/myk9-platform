@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { render } from '@/test/utils/testUtils';
 import { ClassCountTiles } from '../FocusedClassEntries';
 import type { SecretaryCockpitClassEntry } from '../cockpitClassEntries';
+import { queueFor } from './queueFixture';
 
 const row = (
   armband: string,
@@ -11,6 +12,7 @@ const row = (
   counted = true
 ): SecretaryCockpitClassEntry => ({
   nodeId: `entry:${armband}`,
+  queue: queueFor(`entry:${armband}`, armband, state, counted),
   entryId: armband,
   checkInValue: 'no-status',
   deskEditable: true,
@@ -23,6 +25,10 @@ const row = (
   place: null,
   result: null,
 });
+
+/** Rows as the table lists them: already in run order, which the shared queue sorts on. */
+const inRunOrder = (rows: SecretaryCockpitClassEntry[]) =>
+  rows.map((r, index) => ({ ...r, queue: { ...r.queue, exhibitorOrder: index + 1 } }));
 
 const nextUp = () =>
   within(screen.getByRole('list', { name: 'Next up' }))
@@ -47,7 +53,7 @@ describe('ClassCountTiles in-ring tile', () => {
   it('lists the next three waiting dogs in the given order, skipping others', () => {
     render(
       <ClassCountTiles
-        entries={[
+        entries={inRunOrder([
           row('101', 'scored'),
           row('102', 'in-ring'),
           row('110', 'waiting', false),
@@ -56,7 +62,7 @@ describe('ClassCountTiles in-ring tile', () => {
           row('104', 'pulled'),
           row('109', 'waiting'),
           row('108', 'waiting'),
-        ]}
+        ])}
       />
     );
     expect(nextUp()).toEqual(['Armband 105, Dog105', 'Armband 103, Dog103', 'Armband 109, Dog109']);

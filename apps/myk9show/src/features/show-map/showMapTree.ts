@@ -131,6 +131,7 @@ function entryDisplay(entry: ShowMapEntryInput, organization?: string): ShowMapE
     resultStatus: readString(entry, 'result_status'),
     checkInStatus: readString(entry, 'check_in_status'),
     isScored: entry.is_scored === true ? true : undefined,
+    isInRing: (entry.isInRing ?? entry.is_in_ring) === true ? true : undefined,
     runOrder: readNumber(entry, 'run_order'),
     deletedAt: readString(entry, 'deleted_at'),
   };

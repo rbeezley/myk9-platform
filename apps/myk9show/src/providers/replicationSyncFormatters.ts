@@ -112,10 +112,10 @@ export function formatSyncFailureToast(detail: SyncFailedEventDetail): string {
     return `We couldn't save this show change. ${gateMessage}`;
   }
   if (detail.count === 1 && first) {
-    return `We couldn't ${actionLabel(first.operation)} this ${objectLabel(first.tableName)}. Retry or discard this change.`;
+    return `We couldn't ${actionLabel(first.operation)} this ${objectLabel(first.tableName)}. Try again or discard this change.`;
   }
 
-  return `We couldn't save ${detail.count} changes. Retry or discard these changes.`;
+  return `We couldn't save ${detail.count} changes. Try again or discard these changes.`;
 }
 
 /** Starts the technical detail line; the plain-English permission sentence does not. */

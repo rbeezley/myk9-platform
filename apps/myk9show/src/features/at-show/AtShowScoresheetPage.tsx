@@ -343,7 +343,7 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
           {error || 'Failed to load scoresheet'}
         </p>
         <div className="flex flex-col gap-2 sm:flex-row">
-          <Button onClick={retry}>Retry</Button>
+          <Button onClick={retry}>Try again</Button>
           <RingsideUpButton label="Entries" onClick={onBack} />
         </div>
       </main>

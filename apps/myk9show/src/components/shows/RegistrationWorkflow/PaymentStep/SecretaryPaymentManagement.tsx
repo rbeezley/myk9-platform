@@ -64,8 +64,8 @@ export const SecretaryPaymentManagement: React.FC<SecretaryPaymentManagementProp
           {isFree && <p className="text-sm text-muted-foreground">This is a free entry.</p>}
 
           <p className="text-xs text-muted-foreground">
-            To accept or wait-list an entry, set it back to unpaid, or mark several entries paid at
-            once, use Entry management after you save.
+            To accept an entry or move it to the waitlist, set it back to unpaid, or mark several
+            entries paid at once, use Entry management after you save.
           </p>
         </CardContent>
       </Card>

@@ -75,7 +75,7 @@ describe('useBulkDispatch', () => {
     });
 
     expect(toast.error).toHaveBeenCalledTimes(1);
-    expect(retryActionFromCall().label).toBe('Retry failed');
+    expect(retryActionFromCall().label).toBe('Try failed again');
   });
 
   it('retry re-runs only the previously failed items', async () => {
@@ -196,7 +196,7 @@ describe('useBulkDispatch', () => {
     });
 
     // Partial failure surfaces the retry action, never Undo.
-    expect(retryActionFromCall().label).toBe('Retry failed');
+    expect(retryActionFromCall().label).toBe('Try failed again');
     expect(toast.success).not.toHaveBeenCalled();
   });
 
@@ -533,7 +533,7 @@ describe('useBulkDispatch retry while another batch is in flight', () => {
     expect(title).toContain('1 failed');
     expect(options.description).toContain('network down');
     expect(options.description).toContain('Still working on the previous batch');
-    expect(options.action?.label).toBe('Retry failed');
+    expect(options.action?.label).toBe('Try failed again');
     expect(options.id).toBe('failure-toast');
 
     await act(async () => {

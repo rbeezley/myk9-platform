@@ -209,7 +209,7 @@ export const SyncIndicator: React.FC<SyncIndicatorProps> = ({
           className="ml-0.5 inline-flex min-h-11 items-center justify-center rounded-md bg-foreground/10 px-3 text-sm font-medium transition-colors hover:bg-foreground/20"
           onClick={onRetry}
         >
-          Retry
+          Try again
         </button>
       )}
     </span>

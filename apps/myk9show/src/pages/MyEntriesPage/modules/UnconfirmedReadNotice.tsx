@@ -65,7 +65,7 @@ export const UnconfirmedReadNotice: React.FC<
         className="min-h-[44px] shrink-0"
       >
         <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-        Retry
+        Try again
       </Button>
     )}
   </div>

@@ -617,7 +617,7 @@ describe('DeleteObjectDialog: one device-wide unsaved-work check', () => {
     const dialog = await screen.findByRole('alertdialog');
     const notice = await within(dialog).findByTestId('delete-unsaved-work');
     expect(notice).toHaveTextContent(/failed to upload/);
-    expect(notice).toHaveTextContent(/Retry or Discard/);
+    expect(notice).toHaveTextContent(/Try again or Discard/);
     expect(within(dialog).getByRole('button', { name: 'Delete class' })).toBeDisabled();
   });
 

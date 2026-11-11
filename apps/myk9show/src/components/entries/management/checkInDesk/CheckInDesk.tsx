@@ -121,7 +121,7 @@ export function CheckInDesk({
             if (readFailed) void retry();
           }}
         >
-          Retry
+          Try again
         </Button>
       </div>
     );

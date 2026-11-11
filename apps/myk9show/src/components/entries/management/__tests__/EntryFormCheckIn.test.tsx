@@ -214,7 +214,7 @@ describe('check-in on the entry form (MYK9-1691)', () => {
     const { user } = renderForm(twoEntries());
     expect(screen.getByRole('alert')).toHaveTextContent("Couldn't load the show schedule");
     expect(screen.queryByText('All set.')).not.toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Retry' }));
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
     expect(h.schedule.retry).toHaveBeenCalledTimes(1);
   });
 });

@@ -67,7 +67,7 @@ export function AtShowLeaderboardPage() {
         <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
           <span>Check your connection and try again.</span>
           <Button type="button" variant="outline" className="min-h-11" onClick={retryAll}>
-            Retry
+            Try again
           </Button>
         </AlertDescription>
       </Alert>

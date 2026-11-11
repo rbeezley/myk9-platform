@@ -123,7 +123,7 @@ export function TasksNotesCard({ showId, clubId }: TasksNotesCardProps) {
             onClick={() => refetch()}
             className="font-medium text-destructive underline hover:opacity-80"
           >
-            Retry
+            Try again
           </button>
         </div>
       ) : isLoading ? (

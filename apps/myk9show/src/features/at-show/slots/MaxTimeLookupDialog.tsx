@@ -34,7 +34,7 @@ export const MaxTimeLookupDialog: React.FC<MaxTimeLookupDialogProps> = ({
           Couldn&apos;t check how this class is timed. Try again, or cancel and come back.
         </p>
         <Button variant="outline" className="min-h-11" onClick={onRetry}>
-          Retry
+          Try again
         </Button>
       </div>
     ) : (

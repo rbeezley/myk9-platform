@@ -367,7 +367,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
 
     expect(await screen.findByText('Class not found')).toBeInTheDocument();
     expect(screen.queryByRole('status', { name: 'Loading scoresheet' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Entries' })).toBeInTheDocument();
   });
 
@@ -410,7 +410,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
       } as never);
 
     renderPage();
-    fireEvent.click(await screen.findByRole('button', { name: 'Retry' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Try again' }));
 
     expect(await screen.findByTestId('live-scoresheet')).toBeInTheDocument();
     expect(replicatedTrialsTable.sync).toHaveBeenCalledTimes(2);
@@ -483,7 +483,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     await waitFor(() => expect(judgeAssignmentsGetAll).toHaveBeenCalled());
 
     expect(await screen.findByText('Class not found')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
     expect(screen.queryByRole('status', { name: 'Loading scoresheet' })).not.toBeInTheDocument();
     expect(screen.queryByText('Live scoresheet for #105')).not.toBeInTheDocument();
   });

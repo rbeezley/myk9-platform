@@ -319,7 +319,7 @@ function ShowAccessCodesCardForShow({
             <AlertDescription>{loadError ?? 'Try again when you are connected.'}</AlertDescription>
           </Alert>
           <Button variant="outline" onClick={() => setLoadAttempt(current => current + 1)}>
-            Retry
+            Try again
           </Button>
         </CardContent>
       </Card>

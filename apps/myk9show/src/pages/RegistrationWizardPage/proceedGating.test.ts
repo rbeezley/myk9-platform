@@ -191,9 +191,9 @@ describe('proceedBlockedReason', () => {
       );
     });
 
-    it('blocks a full class that does not accept a wait list', () => {
+    it('blocks a full class that does not accept a waitlist', () => {
       expect(proceedBlockedReason(ctx({ stepId: 'payment', blockedClassCount: 1 }))).toBe(
-        'Remove the full class that does not accept a wait list to continue.'
+        'Remove the full class that does not accept a waitlist to continue.'
       );
     });
 
@@ -211,7 +211,7 @@ describe('proceedBlockedReason', () => {
         ctx({ stepId: 'payment', needsAgreement: true, agreementUnavailable: true })
       );
       expect(reason).toMatch(/could not load the entry agreement/i);
-      expect(reason).toMatch(/retry button/i);
+      expect(reason).toMatch(/use Try again/i);
       expect(reason).not.toMatch(/please review and agree/i);
     });
 

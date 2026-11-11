@@ -67,10 +67,10 @@ describe('buildFullChipReason (MYK9-515)', () => {
     ).toContain('Every class in this trial is full');
   });
 
-  it('offers the wait list when the class takes one', () => {
+  it('offers the waitlist when the class takes one', () => {
     const waitlisted = { ...SATURDAY_FULL, allowsWaitlist: true };
     expect(buildFullChipReason({ classId: 'sat-advanced', availability: [waitlisted] })).toBe(
-      "The judge's Saturday is full — you can join the wait list."
+      "The judge's Saturday is full — you can join the waitlist."
     );
   });
 

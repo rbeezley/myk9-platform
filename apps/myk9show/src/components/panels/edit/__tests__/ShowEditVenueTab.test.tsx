@@ -134,7 +134,7 @@ beforeEach(() => {
 describe('ShowEditVenueTab (Venue & policies)', () => {
   it('renders the Wi-Fi card on the route show', async () => {
     renderTab();
-    expect(await screen.findByText('Venue WiFi')).toBeInTheDocument();
+    expect(await screen.findByText('Venue Wi-Fi')).toBeInTheDocument();
     expect(db.reads).toContain(`shows:venue_wifi_network:${ROUTE_SHOW_ID}`);
     expect(db.reads.some(read => read.includes('store-show-OTHER'))).toBe(false);
   });
@@ -170,7 +170,7 @@ describe('ShowEditVenueTab (Venue & policies)', () => {
 
   it('keeps refund-all off a live show: it appears only once the show is cancelled', async () => {
     renderTab({ status: 'published' });
-    expect(await screen.findByText('Venue WiFi')).toBeInTheDocument();
+    expect(await screen.findByText('Venue Wi-Fi')).toBeInTheDocument();
     expect(screen.queryByText('Refund all entries')).not.toBeInTheDocument();
   });
 
@@ -189,7 +189,7 @@ describe('ShowEditVenueTab (Venue & policies)', () => {
 
   it('shows a loading state, not the inputs, until the saved Wi-Fi has loaded', () => {
     renderTab();
-    expect(screen.getByLabelText('Loading venue WiFi')).toBeInTheDocument();
+    expect(screen.getByLabelText('Loading venue Wi-Fi')).toBeInTheDocument();
     expect(screen.queryByLabelText('Network Name')).not.toBeInTheDocument();
   });
 
@@ -239,7 +239,7 @@ describe('ShowEditVenueTab (Venue & policies)', () => {
   it('asks for a saved show first when the show has no id yet', () => {
     renderTab({ showId: undefined });
     expect(screen.getByText(/Save the show first/)).toBeInTheDocument();
-    expect(screen.queryByText('Venue WiFi')).not.toBeInTheDocument();
+    expect(screen.queryByText('Venue Wi-Fi')).not.toBeInTheDocument();
     expect(screen.queryByText('Venue Map Pin')).not.toBeInTheDocument();
     expect(db.reads).toEqual([]);
   });
@@ -286,12 +286,12 @@ describe('ShowEditVenueTab (Venue & policies)', () => {
     );
     await screen.findByLabelText('Network Name');
     expect(await screen.findByText('101')).toBeInTheDocument();
-    expect(screen.queryByText(/WiFi: ShowNet/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Wi-Fi: ShowNet/)).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('Network Name'), { target: { value: 'ShowNet' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'dog123' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
-    expect(await screen.findByText(/WiFi: ShowNet\/dog123/)).toBeInTheDocument();
+    expect(await screen.findByText(/Wi-Fi: ShowNet\/dog123/)).toBeInTheDocument();
   });
 });

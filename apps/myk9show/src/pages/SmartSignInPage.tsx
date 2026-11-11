@@ -358,7 +358,7 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
           <div className="text-muted-foreground mb-2 text-center text-sm">
             Don't have an account?{' '}
             <Link to={signUpPath} className="text-primary hover:underline font-medium">
-              Sign up
+              Create account
             </Link>
           </div>
         )}

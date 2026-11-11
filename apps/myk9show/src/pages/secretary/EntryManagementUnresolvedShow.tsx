@@ -77,7 +77,7 @@ export function EntryManagementUnresolvedShow({
         </p>
         {showError ? (
           <Button onClick={onRetry} disabled={retryDisabled}>
-            Retry
+            Try again
           </Button>
         ) : secretaryOnlyReason === TRIAL_SECRETARY_ONLY_REASON ? (
           // `/secretary/dashboard` is ProtectedRoute(SECRETARY | SITE_ADMIN),

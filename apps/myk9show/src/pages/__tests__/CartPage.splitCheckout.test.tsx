@@ -83,7 +83,7 @@ const judgeDayCapacityState = vi.hoisted(() => ({
     },
   ],
   classSpots: [] as { classId: string; availableSpots: number }[],
-  // The classes the server's availability read reports as taking a wait list
+  // The classes the server's availability read reports as taking a waitlist
   // (the effective allow_waitlist, MYK9-1019).
   waitlistClassIds: ['class-open', 'class-full'] as string[],
   judgeNameById: new Map<string, string>(),
@@ -357,7 +357,7 @@ describe('CartPage split checkout wiring', () => {
     await waitFor(() => expect(checkoutButton).not.toBeDisabled());
   });
 
-  it('blocks checkout for full classes that do not accept the wait list', async () => {
+  it('blocks checkout for full classes that do not accept the waitlist', async () => {
     judgeDayCapacityState.waitlistClassIds = [];
     cartItems.value = [
       {
@@ -377,17 +377,17 @@ describe('CartPage split checkout wiring', () => {
 
     await waitFor(() =>
       expect(setErrorMock).toHaveBeenCalledWith(
-        "Denied Class: One judge's day on Tuesday, Sep 1 has no spots left right now. It is not accepting wait list entries. Remove it to continue."
+        "Denied Class: One judge's day on Tuesday, Sep 1 has no spots left right now. It is not accepting waitlist entries. Remove it to continue."
       )
     );
     expect(checkoutWithWaitlistMock).not.toHaveBeenCalled();
     expect(createEntryCheckoutSessionMock).not.toHaveBeenCalled();
   });
 
-  // MYK9-1019 (Codex P2 on #2778): the cart never resolves "takes a wait list" itself. The
-  // secretary turns the show's wait lists on while this cart is open; checkout's fresh read
-  // reports it, and the full line joins the wait list instead of being blocked.
-  it("a show switched to wait lists while the cart is open: checkout's fresh read wins", async () => {
+  // MYK9-1019 (Codex P2 on #2778): the cart never resolves "takes a waitlist" itself. The
+  // secretary turns the show's waitlists on while this cart is open; checkout's fresh read
+  // reports it, and the full line joins the waitlist instead of being blocked.
+  it("a show switched to waitlists while the cart is open: checkout's fresh read wins", async () => {
     judgeDayCapacityState.waitlistClassIds = [];
     cartItems.value = [cartItems.value[1]!];
     judgeDayCapacityState.refetch = vi.fn().mockImplementation(async () => ({

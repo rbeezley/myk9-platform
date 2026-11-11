@@ -1,7 +1,7 @@
 /**
  * MYK9-998 (Codex round 4 on #2735): Edit class from Trial Details. TrialDetailsPage hand-builds
  * the class it passes to the editor; a field left out of that projection hides the limit and
- * wait list controls even though the read loaded them. Real projection, real dialogs, real panel.
+ * waitlist controls even though the read loaded them. Real projection, real dialogs, real panel.
  */
 import React from 'react';
 import { act, createTestQueryClient, render, screen, waitFor } from '@/test/utils/testUtils';
@@ -57,7 +57,7 @@ const loadedClass = {
   allowsWaitlist: false,
 } as unknown as SyncableClassData;
 
-describe('Trial Details Edit class: limit and wait list', () => {
+describe('Trial Details Edit class: limit and waitlist', () => {
   it('shows the loaded controls and toggling sends allowsWaitlist', async () => {
     updateClass.mockReset();
     updateClass.mockResolvedValue(undefined);
@@ -87,7 +87,7 @@ describe('Trial Details Edit class: limit and wait list', () => {
     act(() => ref.current?.openEditClass(toTrialDetailClass(loadedClass, 3)));
 
     expect(await screen.findByLabelText(/Entry limit/)).toHaveValue(12);
-    await user.click(screen.getByRole('switch', { name: 'Allow wait list' }));
+    await user.click(screen.getByRole('switch', { name: 'Allow waitlist' }));
     await user.click(screen.getByRole('button', { name: 'Save Changes' }));
 
     await waitFor(() => expect(updateClass).toHaveBeenCalled());
@@ -97,7 +97,7 @@ describe('Trial Details Edit class: limit and wait list', () => {
   });
 
   // Codex round 5 on #2735: the replica was refreshed only BEFORE the write, so reopening Edit
-  // class straight after Save read the old limit and wait list. The shared save refreshes after.
+  // class straight after Save read the old limit and waitlist. The shared save refreshes after.
   it('refreshes the class replica after the update, not only before it', async () => {
     updateClass.mockReset();
     updateClass.mockResolvedValue(undefined);
@@ -125,7 +125,7 @@ describe('Trial Details Edit class: limit and wait list', () => {
       }
     );
     act(() => ref.current?.openEditClass(toTrialDetailClass(loadedClass, 3)));
-    await user.click(await screen.findByRole('switch', { name: 'Allow wait list' }));
+    await user.click(await screen.findByRole('switch', { name: 'Allow waitlist' }));
     await user.click(screen.getByRole('button', { name: 'Save Changes' }));
 
     await waitFor(() => expect(syncReplica).toHaveBeenCalled());

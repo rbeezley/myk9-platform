@@ -326,7 +326,7 @@ export function ShowCompletionWorkflow({
                               variant="destructive"
                               onClick={() => executeStep(step.id)}
                             >
-                              Retry
+                              Try again
                             </Button>
                           )}
 

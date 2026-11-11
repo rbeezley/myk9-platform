@@ -424,7 +424,7 @@ export function DeleteSection() {
                     ? 'Disabling sign-in…'
                     : 'Deleting…'
                   : personDeleted
-                    ? 'Retry disabling sign-in'
+                    ? 'Try disabling sign-in again'
                     : 'Yes, delete account'}
               </Button>
               <Button variant="ghost" size="touch" onClick={handleCancel} disabled={isDeleting}>

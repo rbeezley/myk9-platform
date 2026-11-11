@@ -45,7 +45,7 @@ describe('TurnstileChallenge', () => {
         "Security check couldn't load. Check your connection and try again."
       )
     );
-    expect(screen.getByRole('button', { name: 'Retry' })).toHaveClass('min-h-11');
+    expect(screen.getByRole('button', { name: 'Try again' })).toHaveClass('min-h-11');
 
     unmount();
     expect(removeWidget).toHaveBeenCalledWith('widget-1');

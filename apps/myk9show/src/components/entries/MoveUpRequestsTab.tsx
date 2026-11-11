@@ -349,7 +349,7 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
               We don&rsquo;t know whether this show has any pending requests.
             </p>
             <Button className="mt-4" onClick={loadData}>
-              Retry
+              Try again
             </Button>
           </CardContent>
         </Card>

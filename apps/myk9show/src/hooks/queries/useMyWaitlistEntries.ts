@@ -156,7 +156,7 @@ export function useMyWaitlistEntries(
       toast.error(
         error instanceof WaitlistEntryNotDeletedError
           ? error.message
-          : 'We could not withdraw this dog from the wait list. Please try again.'
+          : 'We could not withdraw this dog from the waitlist. Please try again.'
       );
     },
   });

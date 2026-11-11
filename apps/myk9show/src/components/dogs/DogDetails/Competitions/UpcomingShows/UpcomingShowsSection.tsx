@@ -155,7 +155,7 @@ const UpcomingShowsSection: React.FC<UpcomingShowsSectionProps> = ({
           title="Couldn't load upcoming shows"
           description="We couldn't reach your entries just now, so this list may be incomplete. Check your connection and try again."
           action={{
-            label: 'Retry',
+            label: 'Try again',
             onClick: () => refetch(),
           }}
           size="sm"

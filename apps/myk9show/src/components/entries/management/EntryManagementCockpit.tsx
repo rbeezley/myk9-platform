@@ -279,7 +279,9 @@ export function EntryManagementCockpit({
           <span className="text-foreground">
             We couldn&rsquo;t load the classes for the trials you picked, so the list below shows
             the whole show.{' '}
-            {onRetryTrialClasses ? 'Press Retry to try again.' : 'Refresh the page to try again.'}
+            {onRetryTrialClasses
+              ? 'Press Try again to load them.'
+              : 'Refresh the page to try again.'}
           </span>
           {onRetryTrialClasses && (
             <Button
@@ -289,7 +291,7 @@ export function EntryManagementCockpit({
               className="min-h-11"
               onClick={onRetryTrialClasses}
             >
-              Retry
+              Try again
             </Button>
           )}
         </div>

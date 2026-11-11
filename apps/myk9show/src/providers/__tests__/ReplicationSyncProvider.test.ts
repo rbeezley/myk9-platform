@@ -26,7 +26,7 @@ describe('formatSyncFailureToast', () => {
       message: 'generic fallback',
     });
 
-    expect(msg).toBe("We couldn't create this show. Retry or discard this change.");
+    expect(msg).toBe("We couldn't create this show. Try again or discard this change.");
     expect(msg).not.toMatch(/row-level security|table|shows insert/i);
   });
 
@@ -37,7 +37,7 @@ describe('formatSyncFailureToast', () => {
       message: '',
     });
 
-    expect(msg).toBe("We couldn't save 3 changes. Retry or discard these changes.");
+    expect(msg).toBe("We couldn't save 3 changes. Try again or discard these changes.");
   });
 
   it('keeps multiple failures plain even when no mutations are supplied', () => {
@@ -47,7 +47,7 @@ describe('formatSyncFailureToast', () => {
       message: 'Network unreachable',
     });
 
-    expect(msg).toBe("We couldn't save 2 changes. Retry or discard these changes.");
+    expect(msg).toBe("We couldn't save 2 changes. Try again or discard these changes.");
   });
 
   it('uses the object label when a mutation has no error string', () => {
@@ -57,7 +57,7 @@ describe('formatSyncFailureToast', () => {
       message: '',
     });
 
-    expect(msg).toBe("We couldn't delete this dog. Retry or discard this change.");
+    expect(msg).toBe("We couldn't delete this dog. Try again or discard this change.");
   });
 
   it('does not leak RPC, Supabase, or retry-internal language', () => {
@@ -74,7 +74,7 @@ describe('formatSyncFailureToast', () => {
       message: '',
     });
 
-    expect(msg).toBe("We couldn't update this entry. Retry or discard this change.");
+    expect(msg).toBe("We couldn't update this entry. Try again or discard this change.");
     expect(msg).not.toMatch(/supabase|rpc|ringside_update_entry|retry 3|timeout/i);
   });
 

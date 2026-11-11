@@ -73,9 +73,9 @@ const baseProps = {
 describe('PaymentStep — wait-list is free copy (MYK9-1013)', () => {
   it('tells the exhibitor joining a wait list is free and what happens next', () => {
     render(<PaymentStepHarness {...baseProps} waitlistClassIds={new Set(['class-1'])} />);
-    const alert = screen.getByText(/joining a wait list is free/i);
+    const alert = screen.getByText(/joining a waitlist is free/i);
     expect(alert.textContent).toBe(
-      'Good news: joining a wait list is free. You’re never charged just for joining, so the wait-list classes in your selection cost nothing today. If a spot opens, we’ll let you know, and you pay only if you decide to claim it.'
+      'Good news: joining a waitlist is free. You’re never charged just for joining, so the waitlist classes in your selection cost nothing today. If a spot opens, we’ll let you know, and you pay only if you decide to claim it.'
     );
   });
 
@@ -86,6 +86,6 @@ describe('PaymentStep — wait-list is free copy (MYK9-1013)', () => {
 
   it('shows nothing about wait lists when no selected class is a wait-list request', () => {
     render(<PaymentStepHarness {...baseProps} />);
-    expect(screen.queryByText(/joining a wait list is free/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/joining a waitlist is free/i)).not.toBeInTheDocument();
   });
 });

@@ -112,11 +112,11 @@ export const RegistrationNeededTab: React.FC<RegistrationNeededTabProps> = ({
             <p className="text-lg font-medium">Couldn&apos;t load this show&apos;s entries</p>
             <p className="mt-1 text-sm text-muted-foreground">
               We don&apos;t know which entries need a registration number.
-              {onRetry ? '' : ' Retry from the All view.'}
+              {onRetry ? '' : ' Try again from the All view.'}
             </p>
             {onRetry && (
               <Button className="mt-4 min-h-11" onClick={onRetry}>
-                Retry
+                Try again
               </Button>
             )}
           </CardContent>

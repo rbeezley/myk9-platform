@@ -75,10 +75,10 @@ export function SelfCheckinTool({ showId, trials, classes }: SelfCheckinToolProp
           type="button"
           variant="outline"
           className="mt-3 min-h-11"
-          aria-label="Retry self check-in settings"
+          aria-label="Try self check-in settings again"
           onClick={retryAll}
         >
-          Retry
+          Try again
         </Button>
       </div>
     );
@@ -95,10 +95,10 @@ export function SelfCheckinTool({ showId, trials, classes }: SelfCheckinToolProp
             type="button"
             variant="outline"
             className="mt-2 min-h-11"
-            aria-label="Retry self check-in settings"
+            aria-label="Try self check-in settings again"
             onClick={retryAll}
           >
-            Retry
+            Try again
           </Button>
         </div>
       )}

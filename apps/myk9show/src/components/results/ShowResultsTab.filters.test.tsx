@@ -277,7 +277,7 @@ describe('ShowResultsTab class-name search', () => {
       const { user } = render(<ShowResultsTab showId="show-1" />);
 
       expect(screen.getByRole('alert')).toHaveTextContent('Pending classes could not be loaded');
-      await user.click(screen.getByRole('button', { name: 'Retry' }));
+      await user.click(screen.getByRole('button', { name: 'Try again' }));
       expect(refetch).toHaveBeenCalled();
     });
 

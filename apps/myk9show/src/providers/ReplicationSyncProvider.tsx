@@ -766,7 +766,9 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
           // dismissed-by-reload toast re-surfaces on the next sign-in.
           duration: Infinity,
           action: {
-            label: isPermanentScoreAuthorizationFailure ? 'Retry after access is fixed' : 'Retry',
+            label: isPermanentScoreAuthorizationFailure
+              ? 'Try again after access is fixed'
+              : 'Try again',
             onClick: () => {
               void Promise.allSettled(ids.map(id => mutationManager.retryFailedMutation(id)));
               clearToastId();

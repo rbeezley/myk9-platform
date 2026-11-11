@@ -42,8 +42,7 @@ const getClassId = (c: { id: string }) => c.id;
 function CardLoadError() {
   return (
     <p className="text-sm text-muted-foreground">
-      Couldn&apos;t load these settings. Use <span className="font-medium">Retry</span> above to try
-      again.
+      Couldn&apos;t load these settings. Use <span className="font-medium">Try again</span> above.
     </p>
   );
 }
@@ -234,7 +233,7 @@ export default function ResultsControlPage({ embedded = false }: { embedded?: bo
               onClick={retryAll}
               className="min-h-11 shrink-0 self-start sm:self-auto"
             >
-              Retry
+              Try again
             </Button>
           </AlertDescription>
         </Alert>

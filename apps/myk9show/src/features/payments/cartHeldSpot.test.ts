@@ -68,14 +68,14 @@ function viewFor(allowWaitlist: boolean, remaining: number) {
 }
 
 describe("another exhibitor's held spot (owner 2026-10-05)", () => {
-  it('keeps the line, read full right now and not payable, when the class takes no wait list', () => {
+  it('keeps the line, read full right now and not payable, when the class takes no waitlist', () => {
     const view = viewFor(false, 0);
 
     expect(view.fulfillmentByItemId['item-bea']).toBe('blocked');
     expect(view.payableItems).toHaveLength(0);
     const copy = describeBlockedCheckout(view.blockedItems, view.fullReasonByItemId);
     expect(copy).toBe(
-      'Novice Container: This class has no spots left right now. It is not accepting wait list entries. Remove it to continue.'
+      'Novice Container: This class has no spots left right now. It is not accepting waitlist entries. Remove it to continue.'
     );
     expect(copy).not.toMatch(HOLD_WORDING);
     expect(describeCartFullReason(view.fullReasonByItemId.get('item-bea'))).not.toMatch(
@@ -83,7 +83,7 @@ describe("another exhibitor's held spot (owner 2026-10-05)", () => {
     );
   });
 
-  it('offers the usual wait list when the class has one, never charging for it', () => {
+  it('offers the usual waitlist when the class has one, never charging for it', () => {
     const view = viewFor(true, 0);
 
     expect(view.fulfillmentByItemId['item-bea']).toBe('waitlist');

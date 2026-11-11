@@ -560,7 +560,7 @@ describe('ResultsTab detail', () => {
     const printLinks = screen.getAllByRole('link', { name: /Print/ });
     expect(printLinks.length).toBeGreaterThanOrEqual(2);
     expect(printLinks[0]).toHaveAttribute('href', expect.stringContaining('/reports'));
-    await user.click(screen.getByRole('button', { name: 'Retry' }));
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
     expect(hook.value.retry).toHaveBeenCalledTimes(1);
   });
 

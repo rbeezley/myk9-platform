@@ -111,7 +111,7 @@ describe('EntryStatusPopover', () => {
     await user.click(screen.getByRole('menuitem', { name: 'Accept' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't update status.");
-    await user.click(screen.getByRole('button', { name: 'Retry status update' }));
+    await user.click(screen.getByRole('button', { name: 'Try status update again' }));
     expect(onStatusChange).toHaveBeenCalledTimes(2);
   });
 
@@ -344,9 +344,9 @@ describe('EntryStatusPopover', () => {
     );
 
     // Canonical vocabulary (reviewStateLabels) says "Waitlisted", not the
-    // status-descriptor's "Wait list".
+    // status-descriptor's "Waitlist".
     expect(screen.getByRole('menuitem', { name: 'Waitlisted (current)' })).toBeInTheDocument();
-    expect(screen.queryByText('Wait list (current)')).not.toBeInTheDocument();
+    expect(screen.queryByText('Waitlist (current)')).not.toBeInTheDocument();
   });
 });
 

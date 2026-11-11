@@ -161,8 +161,8 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
         <Alert>
           <Info className="h-4 w-4" />
           <AlertDescription>
-            Good news: joining a wait list is free. You&rsquo;re never charged just for joining, so
-            the wait-list classes in your selection cost nothing today. If a spot opens, we&rsquo;ll
+            Good news: joining a waitlist is free. You&rsquo;re never charged just for joining, so
+            the waitlist classes in your selection cost nothing today. If a spot opens, we&rsquo;ll
             let you know, and you pay only if you decide to claim it.
           </AlertDescription>
         </Alert>
@@ -172,7 +172,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
         <Alert role="alert" variant="destructive">
           <Info className="h-4 w-4" />
           <AlertDescription>
-            A selected class is full and does not accept a wait list. Remove it from your selection
+            A selected class is full and does not accept a waitlist. Remove it from your selection
             to continue.
           </AlertDescription>
         </Alert>

@@ -45,12 +45,12 @@ function describeFilteredResults(
   const parts: string[] = [];
   if (entryCount > 0) parts.push(`${entryCount} class ${entryCount === 1 ? 'entry' : 'entries'}`);
   if (positionCount > 0)
-    parts.push(`${positionCount} wait list ${positionCount === 1 ? 'position' : 'positions'}`);
+    parts.push(`${positionCount} waitlist ${positionCount === 1 ? 'position' : 'positions'}`);
   if (offerUpdateCount > 0)
     parts.push(
-      `${offerUpdateCount} wait list offer ${offerUpdateCount === 1 ? 'update' : 'updates'}`
+      `${offerUpdateCount} waitlist offer ${offerUpdateCount === 1 ? 'update' : 'updates'}`
     );
-  if (isLoadingPositions) parts.push('Checking wait list positions');
+  if (isLoadingPositions) parts.push('Checking waitlist positions');
   return parts.join(' and ') || '0 class entries';
 }
 
@@ -69,7 +69,7 @@ interface UseMyEntriesFiltersProps {
    */
   balanceSummary: EntryBalanceSummary;
   /**
-   * Wait-list positions the exhibitor HOLDS (`waitlist_entries` at `waiting` or
+   * Waitlist positions the exhibitor HOLDS (`waitlist_entries` at `waiting` or
    * `offered`). A SECOND source of waitlist truth that the `entries` table
    * knows nothing about — see `waitlistSurface` for why the chip counted only
    * half of it (MYK9-417).
@@ -108,7 +108,7 @@ interface UseMyEntriesFiltersReturn {
   /** Drop the scope params, returning the page to the exhibitor's full list. */
   clearScope: () => void;
   /**
-   * The single answer to "what does this page say about wait lists" — the chip
+   * The single answer to "what does this page say about waitlists" — the chip
    * count above, whether the positions section renders, and whether an empty
    * list may claim there is nothing waitlisted. Derived here rather than in the
    * page so those three can never be computed from different inputs.
@@ -347,7 +347,7 @@ export function useMyEntriesFilters({
         : 0;
     // Every badge counts with the exact predicate its tab filters by, so a
     // count can no longer describe a list the panel would refuse to produce.
-    // Active wait-list positions belong to All and Upcoming, never Completed
+    // Active waitlist positions belong to All and Upcoming, never Completed
     // — and, within those two, only when they are the exhibitor's ONLY
     // standing there (`deriveTabCounts`): a position has no `MyEntry` row and
     // renders in its own section below the show list, so folding it into a

@@ -298,7 +298,7 @@ test('the Waitlist filter lists every waiting position its chip counts (MYK9-498
   await expect(
     page.getByTestId('entries-filter-section').getByRole('status'),
     'the filtered result must announce the positions, not "0 entries"'
-  ).toContainText(new RegExp(`\\b${count} wait list positions?\\b`));
+  ).toContainText(new RegExp(`\\b${count} waitlist positions?\\b`));
   const chip = page.getByRole('radio', { name: /^Waitlist\s*\d+/ });
   const chipCount = Number(/\d+/.exec((await chip.textContent()) ?? '')?.[0]);
   expect(chipCount, 'the chip counts waitlisted orders plus positions').toBeGreaterThanOrEqual(

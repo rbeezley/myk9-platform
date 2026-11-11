@@ -31,9 +31,9 @@ import type { TurnstileChallengeHandle } from '@/components/security/TurnstileCh
 import { getTurnstileSiteKey } from '@/config/turnstile';
 
 const INVALID_COPY =
-  'That doesn’t look like an email or a show passcode. Passcodes are 5 characters and start with a letter — for example, aa260.';
+  'That doesn’t look like an email or a show passcode. Passcodes are 5 characters and start with a letter. For example, aa260.';
 const INVALID_PASSCODE_COPY =
-  'That doesn’t look like a show passcode. Passcodes are 5 characters and start with a letter — for example, aa260.';
+  'That doesn’t look like a show passcode. Passcodes are 5 characters and start with a letter. For example, aa260.';
 const EMPTY_PASSWORD_COPY = 'Enter your password to sign in.';
 
 type PendingPasscode = {

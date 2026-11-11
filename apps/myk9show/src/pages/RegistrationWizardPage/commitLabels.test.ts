@@ -5,8 +5,8 @@ import { getPaymentSubmitLabel } from './commitLabels';
 describe('getPaymentSubmitLabel (4.A honest commit)', () => {
   it.each([
     ['credit_card', 'Submit & pay'],
-    ['cash', 'Submit — pay cash at show'],
-    ['check', 'Submit — bring check to show'],
+    ['cash', 'Submit, pay cash at show'],
+    ['check', 'Submit, bring check to show'],
     ['waived', 'Submit entry'],
     ['secretary_paid', 'Submit entry'],
     ['group_payment', 'Submit entry'],

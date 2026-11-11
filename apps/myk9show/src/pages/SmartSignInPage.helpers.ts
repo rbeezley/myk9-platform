@@ -108,6 +108,6 @@ export function resolveSignInHeading(args: {
  * keeps its hint.
  */
 export function resolveLiveHint(kind: CredentialKind): string {
-  if (kind === 'passcode') return "Looks like a show passcode — you'll be signed in";
+  if (kind === 'passcode') return "Looks like a show passcode. You'll be signed in";
   return '';
 }

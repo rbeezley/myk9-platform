@@ -57,7 +57,7 @@ const RAW_WORDING = new Map<string, VoicedWording>([
     'paid',
     {
       secretary: { line: 'Needs review' },
-      exhibitor: { line: "Submitted — you're in" },
+      exhibitor: { line: "Submitted. You're in" },
     },
   ],
   [
@@ -92,11 +92,11 @@ const RAW_WORDING = new Map<string, VoicedWording>([
 const KIND_WORDING: Record<EntryStatusKind, VoicedWording> = {
   pending: {
     secretary: { line: 'Needs review' },
-    exhibitor: { line: 'Submitted — awaiting review' },
+    exhibitor: { line: 'Submitted, awaiting review' },
   },
   accepted: {
     secretary: { line: 'Accepted' },
-    exhibitor: { line: "Accepted — you're in" },
+    exhibitor: { line: "Accepted. You're in" },
   },
   waitlist: {
     secretary: { line: 'Waitlisted' },
@@ -151,7 +151,7 @@ const KIND_WORDING: Record<EntryStatusKind, VoicedWording> = {
  */
 const AWAITING_PAYMENT_WORDING: VoicedWording = {
   secretary: { line: 'Awaiting payment' },
-  exhibitor: { line: 'Submitted — waiting on payment' },
+  exhibitor: { line: 'Submitted, waiting on payment' },
 };
 
 function isOnlinePaymentOwed(input: EntryDisplayInput): boolean {
@@ -203,7 +203,7 @@ export function deriveEntryPresentation(
     if (inReviewLane) {
       actionHint =
         viewer === 'secretary'
-          ? 'Refunded — confirm withdrawal or keep entry'
+          ? 'Refunded. Confirm withdrawal or keep entry'
           : 'Contact the show secretary about this entry';
     }
   }

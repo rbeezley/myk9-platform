@@ -36,13 +36,13 @@ describe('EntryStatusLine', () => {
       />
     );
     expect(screen.getByText('Needs review · Refunded $30')).toBeVisible();
-    expect(screen.getByText('Refunded — confirm withdrawal or keep entry')).toBeVisible();
+    expect(screen.getByText('Refunded. Confirm withdrawal or keep entry')).toBeVisible();
   });
 
   it('composes refund without a review-lane hint for a withdrawn entry', () => {
     render(<EntryStatusLine viewer="secretary" rawEntryStatus="withdrawn" refundAmount={30} />);
     expect(screen.getByText('Withdrawn · Refunded $30')).toBeVisible();
-    expect(screen.queryByText('Refunded — confirm withdrawal or keep entry')).toBeNull();
+    expect(screen.queryByText('Refunded. Confirm withdrawal or keep entry')).toBeNull();
   });
 
   it('never renders a raw/unknown enum verbatim', () => {

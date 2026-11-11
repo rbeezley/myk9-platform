@@ -185,11 +185,11 @@ export interface ActionViewer extends CreateViewer {
   canOperateShow: boolean;
   /**
    * The show's status, when known. A completed or cancelled show is already closed out, so
-   * "Close out show" is withheld rather than offered as a dead end.
+   * "Close the show" is withheld rather than offered as a dead end.
    */
   showStatus?: string | undefined;
   /**
-   * Whether the show's first day has arrived. `false` withholds "Close out show" (nothing to close
+   * Whether the show's first day has arrived. `false` withholds "Close the show" (nothing to close
    * out before the show begins; its home is Results step 3). Unknown (`undefined`) keeps it, since
    * a row hidden by a missing date would be the worse mistake (MYK9-1727).
    */

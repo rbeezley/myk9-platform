@@ -127,7 +127,7 @@ describe('ShowCloseoutSummary', () => {
       />
     );
 
-    expect(screen.getByRole('heading', { name: 'Close the show' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Before you close the show' })).toBeInTheDocument();
     // The reconciliation half alone drives the rolled-up chip here (no incidents).
     expect(await screen.findByText('1 pulled · 1 review')).toBeInTheDocument();
     const payments = screen.getByRole('group', { name: 'Payments received during the show' });

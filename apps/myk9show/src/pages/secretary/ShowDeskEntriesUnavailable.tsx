@@ -22,7 +22,7 @@ export function ShowDeskEntriesUnavailable({ onRetry }: { onRetry: () => void })
     >
       <p className="font-medium">Entry data isn&rsquo;t available right now.</p>
       <p className="mt-1 text-muted-foreground">
-        Entry counts, scored progress, the Check-in desk and closing the show are shown as unknown
+        Entry counts, scored progress, the Check-in desk and the closing counts are shown as unknown
         rather than zero. Class times, rings and judges below are unaffected.
       </p>
       <Button type="button" variant="outline" size="sm" className="mt-3 min-h-11" onClick={onRetry}>

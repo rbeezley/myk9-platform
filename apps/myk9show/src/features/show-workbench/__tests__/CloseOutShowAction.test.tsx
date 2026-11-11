@@ -48,8 +48,8 @@ describe('CloseOutShowAction', () => {
   it('renders the closed state without offering another mutation', () => {
     render(<CloseOutShowAction {...baseProps} show={{ id: 'show-1', status: 'completed' }} />);
 
-    expect(screen.getByRole('heading', { name: 'Show closed out' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Close the Show' })).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Show closed' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Close the show' })).not.toBeInTheDocument();
   });
 
   it('shows closeout concerns before confirmation', async () => {
@@ -76,7 +76,7 @@ describe('CloseOutShowAction', () => {
     expect(
       screen.getByText('No result submission has been recorded for this show.')
     ).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Close the Show' }));
+    await user.click(screen.getByRole('button', { name: 'Close the show' }));
     expect(await screen.findByRole('button', { name: 'Close anyway' })).toBeInTheDocument();
   });
 
@@ -84,7 +84,7 @@ describe('CloseOutShowAction', () => {
     const { toast } = await import('sonner');
     const { user } = render(<CloseOutShowAction {...baseProps} />);
 
-    await user.click(screen.getByRole('button', { name: 'Close the Show' }));
+    await user.click(screen.getByRole('button', { name: 'Close the show' }));
     await user.click(await screen.findByRole('button', { name: 'Close the show' }));
 
     await waitFor(() =>
@@ -108,7 +108,7 @@ describe('CloseOutShowAction', () => {
     updateClassMock.mockRejectedValueOnce(new Error('offline queue unavailable'));
     const { user } = render(<CloseOutShowAction {...baseProps} />);
 
-    await user.click(screen.getByRole('button', { name: 'Close the Show' }));
+    await user.click(screen.getByRole('button', { name: 'Close the show' }));
     await user.click(await screen.findByRole('button', { name: 'Close the show' }));
 
     expect(
@@ -126,7 +126,7 @@ describe('CloseOutShowAction', () => {
     updateShowMock.mockRejectedValueOnce(new Error('offline queue unavailable'));
     const { user } = render(<CloseOutShowAction {...baseProps} />);
 
-    await user.click(screen.getByRole('button', { name: 'Close the Show' }));
+    await user.click(screen.getByRole('button', { name: 'Close the show' }));
     await user.click(await screen.findByRole('button', { name: 'Close the show' }));
 
     expect(

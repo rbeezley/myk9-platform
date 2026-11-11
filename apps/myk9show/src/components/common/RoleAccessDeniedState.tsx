@@ -78,7 +78,7 @@ export function RoleAccessDeniedState({
         <p className="mb-6 text-muted-foreground">
           {isManagerWithoutOperatorRole
             ? 'This page belongs to the show’s trial secretary. You manage this show — its setup, entries, show day, results and reports — but entering paperwork on an exhibitor’s behalf, scoring on paper and volunteer scheduling stay with the secretary. Ask your club’s secretary, or ask a club admin to grant you secretary access.'
-            : 'This page needs a role your account doesn’t have. If you think that’s wrong, ask the show secretary.'}
+            : 'This page needs a role your account doesn’t have. If you think that’s wrong, contact myK9Show support.'}
         </p>
         <div className="flex flex-wrap items-center justify-center gap-3">
           <Button type="button" onClick={() => navigate(-1)}>

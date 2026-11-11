@@ -105,7 +105,7 @@ export function CloseOutShowAction({
           <CheckCircle2 className="mt-0.5 h-5 w-5 text-success" aria-hidden="true" />
           <div>
             <h3 id="close-out-show-title" className="text-base font-semibold">
-              Show closed out
+              Show closed
             </h3>
             <p className="mt-1 text-sm text-muted-foreground">
               This show is marked completed. Reports and submission history remain available here.
@@ -121,7 +121,7 @@ export function CloseOutShowAction({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <h3 id="close-out-show-title" className="text-base font-semibold">
-            Close the Show
+            Close the show
           </h3>
           <p className="mt-1 text-sm text-muted-foreground">
             Mark the show, trials, and open classes completed after reports and submissions are
@@ -133,7 +133,7 @@ export function CloseOutShowAction({
           <AlertDialogTrigger asChild>
             <Button type="button" disabled={isClosing} className="w-full sm:w-auto">
               <LockKeyhole className="h-4 w-4" aria-hidden="true" />
-              {isClosing ? 'Closing...' : 'Close the Show'}
+              {isClosing ? 'Closing...' : 'Close the show'}
             </Button>
           </AlertDialogTrigger>
           <AlertDialogContent>

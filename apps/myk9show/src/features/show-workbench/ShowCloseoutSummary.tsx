@@ -86,7 +86,7 @@ export function ShowCloseoutSummary({ showId, entries, deskWindow }: ShowCloseou
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h3 id="show-closeout-summary-title" className="text-base font-semibold">
-            Close the show
+            Before you close the show
           </h3>
           <p className="mt-1 text-sm text-muted-foreground">
             Check the cash box against the payments below, settle pulls and removals, then clear

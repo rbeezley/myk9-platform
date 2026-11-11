@@ -111,4 +111,18 @@ describe('JudgeEntryCounts', () => {
     render(<JudgeEntryCounts {...baseProps} includeEstimatedTime={true} />);
     expect(screen.getAllByText('Est. Time').length).toBeGreaterThan(0);
   });
+
+  it('groups classes with no judge under "Judge to be announced", never TBD (MYK9-1854)', () => {
+    render(
+      <JudgeEntryCounts
+        {...baseProps}
+        allClasses={[
+          { id: 'c1', trialId: 't1', element: 'Container', level: 'Novice', judgeName: 'TBD' },
+          { id: 'c2', trialId: 't1', element: 'Buried', level: 'Novice', judgeName: '' },
+        ]}
+      />
+    );
+    expect(screen.getAllByText('Judge to be announced')).toHaveLength(1);
+    expect(screen.queryByText('TBD')).not.toBeInTheDocument();
+  });
 });

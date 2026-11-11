@@ -82,6 +82,20 @@ describe('JudgesSchedule', () => {
     expect(screen.getByText('Alice Brown')).toBeInTheDocument();
   });
 
+  it('prints "Judge to be announced" for a class with no judge, never TBD (MYK9-1854)', () => {
+    render(
+      <JudgesSchedule
+        {...baseProps}
+        allClasses={[
+          { id: 'c3', trialId: 't1', element: 'Exterior', level: 'Novice', judgeName: 'TBD' },
+          { id: 'c4', trialId: 't1', element: 'Vehicle', level: 'Novice', judgeName: '' },
+        ]}
+      />
+    );
+    expect(screen.getAllByText('Judge to be announced')).toHaveLength(2);
+    expect(screen.queryByText('TBD')).not.toBeInTheDocument();
+  });
+
   it('sorts classes by judge name when sortOrder=judge-name', () => {
     render(<JudgesSchedule {...baseProps} sortOrder="judge-name" />);
     const rows = screen.getAllByRole('row');

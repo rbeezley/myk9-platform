@@ -37,18 +37,18 @@ export const EntriesIdentityPendingCard: React.FC<EntriesIdentityPendingCardProp
     <div className="flex flex-col gap-3">
       <h2 className="text-lg font-semibold text-foreground">
         {identityState === 'missing'
-          ? 'We could not find your exhibitor profile'
+          ? 'We could not find your exhibitor account'
           : 'Getting your shows ready'}
       </h2>
       <p className="max-w-[65ch] text-base text-muted-foreground">
         {identityState === 'missing'
-          ? 'Your account is signed in, but it does not have an exhibitor profile yet. Check again after your profile is added, or contact your show secretary.'
+          ? 'Your account is signed in, but it is not set up as an exhibitor yet. Check again after that is done, or contact your show secretary.'
           : 'We are still confirming your account. Anything you have already entered is saved and will appear here as soon as that finishes.'}
       </p>
       <div>
         {identityState === 'missing' ? (
           <p className="text-sm text-muted-foreground">
-            Ask your show secretary to add the exhibitor profile to this account.
+            Ask your show secretary to set up this account as an exhibitor.
           </p>
         ) : (
           <Button

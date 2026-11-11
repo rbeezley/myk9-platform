@@ -96,7 +96,7 @@ describe('ComplimentaryPremiumSection', () => {
     expect(screen.queryByText(/no grant history for this user/i)).not.toBeInTheDocument();
 
     fetchGrantHistoryMock.mockResolvedValue([activeGrant]);
-    await user.click(screen.getByRole('button', { name: /retry/i }));
+    await user.click(screen.getByRole('button', { name: /try again/i }));
 
     expect(await screen.findByText(/beta tester/i)).toBeInTheDocument();
   });

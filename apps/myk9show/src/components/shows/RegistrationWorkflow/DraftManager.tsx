@@ -82,7 +82,7 @@ export function DraftManager({
               onClick={retryDogs ? onRetryDogs : () => handleLoadDraft(latestEntryDraft.id)}
               disabled={retryDogs ? !onRetryDogs : !dogsReady}
             >
-              {retryDogs ? 'Retry loading dogs' : 'Resume entry'}
+              {retryDogs ? 'Try loading dogs again' : 'Resume entry'}
             </Button>
             {/* Every resumable draft goes, or the next older one would prompt. */}
             <Button

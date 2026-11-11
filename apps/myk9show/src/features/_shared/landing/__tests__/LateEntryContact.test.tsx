@@ -52,7 +52,7 @@ describe('LateEntryContact (MYK9-1288)', () => {
       renderContact(value);
 
       expect(
-        screen.getByText('Contact the trial secretary for late-entry help.')
+        screen.getByText('Contact the show secretary for late-entry help.')
       ).toBeInTheDocument();
       expect(screen.queryByText(/has not listed/)).not.toBeInTheDocument();
     }
@@ -66,7 +66,7 @@ describe('LateEntryContact (MYK9-1288)', () => {
     );
 
     expect(screen.queryByText(/has not listed/)).not.toBeInTheDocument();
-    expect(screen.getByText(/Contact the trial secretary/)).toBeInTheDocument();
+    expect(screen.getByText(/Contact the show secretary/)).toBeInTheDocument();
   });
 
   it('keeps the whole sentence, lead included, in one wrapper element around the link', () => {

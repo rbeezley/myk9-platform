@@ -12,6 +12,18 @@ function project(classStatus: string) {
   );
 }
 
+describe('at-show class list unset judge (MYK9-1853)', () => {
+  it('reads null, blank and the legacy TBD as one No Judge Assigned, and keeps a real name', () => {
+    for (const judgeName of [undefined, '', 'TBD']) {
+      const row = toClassEntry({ id: 'c', name: 'Container', judgeName }, [], new Set());
+      expect(row.judge_name).toBe('No Judge Assigned');
+    }
+    expect(
+      toClassEntry({ id: 'c', name: 'C', judgeName: 'Pat Lee' }, [], new Set()).judge_name
+    ).toBe('Pat Lee');
+  });
+});
+
 describe('at-show class list: cancelled (MYK9-1847)', () => {
   it('carries a cancelled class as its own fact, keeping the ringside status unchanged', () => {
     const result = project('cancelled');

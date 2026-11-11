@@ -412,7 +412,7 @@ describe('post-deadline help (MYK9-502)', () => {
     expect(screen.getByText('Entries closed')).toBeInTheDocument();
     const menu = await flintMenu();
     const link = menu.getByRole('menuitem', {
-      name: 'Message the show team about Flint Hills Fall Classic',
+      name: 'Message the show secretary about Flint Hills Fall Classic',
     });
     expect(link).toHaveAttribute('href', '/messages/show-flint');
     expect(
@@ -434,14 +434,14 @@ describe('post-deadline help (MYK9-502)', () => {
     expect(screen.queryByText('Entries closed')).not.toBeInTheDocument();
   });
 
-  // MYK9-631: "Message the show team" used to appear ONLY after entries
+  // MYK9-631: "Message the show secretary" used to appear ONLY after entries
   // closed, so an exhibitor with a question before the deadline had nowhere to
   // ask it. It is now offered on every card that knows its show.
   it('offers the show team BEFORE the deadline too', async () => {
     renderRows([closedRow({ entryCloseDate: day('2026-10-24') })]);
 
     const menu = await flintMenu();
-    expect(menu.getByRole('menuitem', { name: /Message the show team/ })).toHaveAttribute(
+    expect(menu.getByRole('menuitem', { name: /Message the show secretary/ })).toHaveAttribute(
       'href',
       '/messages/show-flint'
     );
@@ -491,7 +491,9 @@ describe('post-deadline help (MYK9-502)', () => {
     renderRows([closedRow({ showId: '' })]);
 
     const menu = await flintMenu();
-    expect(menu.queryByRole('menuitem', { name: /Message the show team/ })).not.toBeInTheDocument();
+    expect(
+      menu.queryByRole('menuitem', { name: /Message the show secretary/ })
+    ).not.toBeInTheDocument();
   });
 });
 

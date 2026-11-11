@@ -1,3 +1,4 @@
+import { isUnsetJudgeName } from '@/utils/classJudgeDisplay';
 import { hasTrialTime, normalizeTimeOfDay } from '@/components/trials/trialDateTime';
 /**
  * Builds the wizard draft from an existing show when the wizard is opened in an
@@ -45,7 +46,7 @@ export function buildEditModeDraft({
 
           const wizardClasses = trialClasses.map(classData => {
             let judgeId = '';
-            if (classData.judge && classData.judge !== 'TBD') {
+            if (!isUnsetJudgeName(classData.judge)) {
               const matchingJudge = existingShow.assignedJudges?.find(
                 j => j.judgeName === classData.judge
               );

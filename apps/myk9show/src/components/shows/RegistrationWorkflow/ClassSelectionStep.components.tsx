@@ -347,7 +347,7 @@ interface WaitlistBadgeProps {
 
 const WaitlistBadge: React.FC<WaitlistBadgeProps> = ({ waitlistCount }) => (
   <Badge variant="secondary" className="text-xs h-5 px-1.5">
-    Full: join wait list
+    Full: join waitlist
     {waitlistCount !== undefined && waitlistCount > 0 && (
       <span className="ml-1 text-muted-foreground">({waitlistCount} waiting)</span>
     )}
@@ -398,7 +398,7 @@ const LevelChip: React.FC<LevelChipProps> = ({
   const isChecked = isSelected || isAlreadyEntered;
   const descriptionId = `chip-reason-${classId}`;
   // A started class outranks a full one: it takes nothing at all, so offering a
-  // wait list or another day would be wrong, not merely redundant.
+  // waitlist or another day would be wrong, not merely redundant.
   // A blocked cart outranks both: nothing here is actionable while the cart is
   // unavailable, and saying WHY beats a chip that silently refuses.
   const description = cartBlockedReason
@@ -499,7 +499,7 @@ export const NoTrialsAlert: React.FC<NoTrialsAlertProps> = ({ isOrganizer }) => 
     <AlertDescription>
       {isOrganizer
         ? 'This show has no trials yet. Add trials in the show management page before entering dogs.'
-        : 'No trials found for this show. Please contact the show organizer.'}
+        : 'No trials found for this show. Please contact the show secretary.'}
     </AlertDescription>
   </Alert>
 );
@@ -520,7 +520,7 @@ export const NoClassesAlert: React.FC<NoClassesAlertProps> = ({ trialCount, isOr
       assigned.{' '}
       {isOrganizer
         ? 'Add classes in the show management page before entering dogs.'
-        : 'Please contact the show organizer.'}
+        : 'Please contact the show secretary.'}
     </AlertDescription>
   </Alert>
 );

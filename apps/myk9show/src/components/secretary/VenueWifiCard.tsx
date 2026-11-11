@@ -32,7 +32,7 @@ export function VenueWifiCard({
           <Wifi className="h-5 w-5 text-muted-foreground" />
           <div>
             <CardTitle className="flex items-center gap-2">
-              Venue WiFi
+              Venue Wi-Fi
               {!canSave && (
                 <span className="text-xs font-normal text-muted-foreground bg-muted px-2 py-0.5 rounded">
                   Coming soon

@@ -19,7 +19,7 @@ export function ShowDeskEntriesFailed({
         {pausedWhat} paused so they do not show zero entries by mistake.
       </p>
       <Button type="button" variant="outline" size="sm" className="mt-3 min-h-11" onClick={onRetry}>
-        Retry
+        Try again
       </Button>
     </div>
   );

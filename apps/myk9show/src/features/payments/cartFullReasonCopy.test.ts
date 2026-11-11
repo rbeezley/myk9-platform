@@ -42,7 +42,7 @@ describe('describeBlockedCheckout', () => {
     ).toBe(
       "Interior Novice A: Alma Judge's judging day on Saturday, Oct 10 has no spots left right now. " +
         'Buried Novice A: This class has no spots left right now. ' +
-        'They are not accepting wait list entries. Remove them to continue.'
+        'They are not accepting waitlist entries. Remove them to continue.'
     );
   });
 });

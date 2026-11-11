@@ -109,6 +109,11 @@ export interface PaymentMethodSelectorProps {
    * or omitted hides the choice.
    */
   juniorFee?: number | null | undefined;
+  /**
+   * MYK9-1875: offer "Free entry" only to staff of THIS show (the server accepts `waived`
+   * only from them). Defaults to false, so a caller that forgets it hides the option.
+   */
+  allowFreeEntry?: boolean | undefined;
 }
 
 /** Props for the SecretaryPaymentManagement sub-component. */

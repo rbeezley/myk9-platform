@@ -191,7 +191,7 @@ export default function SecretaryMessagesPage() {
             className="mt-3"
             onClick={() => window.location.reload()}
           >
-            Retry
+            Try again
           </Button>
         </div>
       </div>

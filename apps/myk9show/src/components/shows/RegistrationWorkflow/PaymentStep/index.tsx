@@ -54,6 +54,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
     cardCheckoutUnavailableReason,
     isOnBehalf,
     canChargeJuniorFee,
+    canUseDeskPaymentActions,
     show,
   } = paymentResolution;
 
@@ -161,8 +162,8 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
         <Alert>
           <Info className="h-4 w-4" />
           <AlertDescription>
-            Good news: joining a wait list is free. You&rsquo;re never charged just for joining, so
-            the wait-list classes in your selection cost nothing today. If a spot opens, we&rsquo;ll
+            Good news: joining a waitlist is free. You&rsquo;re never charged just for joining, so
+            the waitlist classes in your selection cost nothing today. If a spot opens, we&rsquo;ll
             let you know, and you pay only if you decide to claim it.
           </AlertDescription>
         </Alert>
@@ -172,7 +173,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
         <Alert role="alert" variant="destructive">
           <Info className="h-4 w-4" />
           <AlertDescription>
-            A selected class is full and does not accept a wait list. Remove it from your selection
+            A selected class is full and does not accept a waitlist. Remove it from your selection
             to continue.
           </AlertDescription>
         </Alert>
@@ -188,6 +189,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
         allowCardCheckout={cardCheckoutAvailable}
         cardCheckoutUnavailableReason={cardCheckoutUnavailableReason}
         juniorFee={canChargeJuniorFee ? parseJuniorHandlerFee(show) : null}
+        allowFreeEntry={canUseDeskPaymentActions}
       />
 
       {/* MYK9-879: card checkout only. Fee-bearing, so it waits for the resolved
@@ -203,10 +205,12 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
 
       {/* Secretary desk actions. No money on it, so it needs no resolved zone;
           its paid and free shortcuts call the list's own handler (MYK9-1822). */}
-      <SecretaryPaymentManagement
-        paymentMethod={effectivePaymentMethod}
-        onPaymentMethodChange={handlePaymentMethodSelect}
-      />
+      {canUseDeskPaymentActions && (
+        <SecretaryPaymentManagement
+          paymentMethod={effectivePaymentMethod}
+          onPaymentMethodChange={handlePaymentMethodSelect}
+        />
+      )}
 
       {/* Entry Agreement */}
       {show?.organization && (

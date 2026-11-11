@@ -1,5 +1,5 @@
 /**
- * Wait List queue section for the My Shows page. Extracted from `index.tsx`
+ * Waitlist queue section for the My Shows page. Extracted from `index.tsx`
  * (task 4.7) to keep the page shell under the 500-line ratchet.
  *
  * @module MyEntriesPage/modules/WaitListSection
@@ -73,15 +73,15 @@ function describeConfirm(kind: ConfirmKind, entry: WaitListEntry | null) {
   if (kind === 'decline') {
     return {
       title: 'Give up this spot?',
-      description: `Your spot in ${entry?.className ?? 'this class'} will be offered to the next person on the wait list. You cannot get it back.`,
+      description: `Your spot in ${entry?.className ?? 'this class'} will be offered to the next person on the waitlist. You cannot get it back.`,
       confirmLabel: 'Give up spot',
       cancelLabel: 'Keep my spot',
     };
   }
   return {
-    title: 'Leave the wait list?',
+    title: 'Leave the waitlist?',
     description: `${entry?.dogName || 'Your dog'} will lose its place in line for ${entry?.className ?? 'this class'}. You cannot get that place back.`,
-    confirmLabel: 'Leave wait list',
+    confirmLabel: 'Leave waitlist',
     cancelLabel: 'Stay on the list',
   };
 }
@@ -149,7 +149,7 @@ export const WaitListSection: React.FC<WaitListSectionProps> = ({
   // fill reaches only 3.70:1 in dark mode against a 4.5:1 floor — the 10% tint
   // lifts the surface just enough to break a token that passes everywhere else.
   // On a plain card the same text clears AA. Design: amber means caution, and a
-  // wait-list position is not a problem — it is a normal queue state. Tinting
+  // waitlist position is not a problem — it is a normal queue state. Tinting
   // the whole container amber spent a status colour on chrome, then rendered a
   // green "Spot offered" badge inside it, which is what DESIGN.md's "The Status
   // Is Sacred" rule forbids. The time-sensitive signal now lives on the title
@@ -159,7 +159,7 @@ export const WaitListSection: React.FC<WaitListSectionProps> = ({
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base font-semibold text-warning ">
           <Users className="h-4 w-4" />
-          My Wait List Positions
+          My Waitlist Positions
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -170,7 +170,7 @@ export const WaitListSection: React.FC<WaitListSectionProps> = ({
             ))}
           </div>
         ) : entries.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No active wait list positions.</p>
+          <p className="text-sm text-muted-foreground">No active waitlist positions.</p>
         ) : (
           <div className="space-y-3">
             {entries.map(entry => {

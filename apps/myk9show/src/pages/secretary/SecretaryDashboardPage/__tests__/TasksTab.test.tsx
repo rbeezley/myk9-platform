@@ -222,7 +222,7 @@ describe('TasksTab — personal-only', () => {
 
     render(<TasksTab clubId="club-1" />, { wrapper });
     expect(screen.getByText("We couldn't load your tasks. Try again.")).toBeInTheDocument();
-    fireEvent.click(screen.getByText('Retry'));
+    fireEvent.click(screen.getByText('Try again'));
     expect(refetch).toHaveBeenCalled();
   });
 

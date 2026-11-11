@@ -519,7 +519,7 @@ describe('ShowAccessCodesCard', () => {
     renderWithProviders(<ShowAccessCodesCard showId={TEST_SHOW_ID} canLoadCodes />);
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/couldn't load show access codes/i);
-    expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
     expect(screen.queryByText(/^[ajse][a-z0-9]{4}$/)).not.toBeInTheDocument();
   });
 

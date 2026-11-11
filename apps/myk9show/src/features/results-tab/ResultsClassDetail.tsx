@@ -180,7 +180,7 @@ function PrimaryWork({
   } else if (phase === 'release-unknown') {
     title = 'Release status unknown';
     body =
-      'Could not read whether this class is released. Retry from the class list; Release is held back until it is known.';
+      'Could not read whether this class is released. Try again from the class list; Release is held back until it is known.';
   } else if (phase === 'released') {
     title = 'Print the results sheet and result labels';
     body = 'The results are released. Print the paperwork below and record it as printed.';

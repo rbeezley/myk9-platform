@@ -1,8 +1,8 @@
 /**
  * WaitListSettingsCard
  *
- * Configures whether the show takes wait lists at all (MYK9-1019), whether open
- * spots are offered automatically (MYK9-1003), and wait list capacity and the
+ * Configures whether the show takes waitlists at all (MYK9-1019), whether open
+ * spots are offered automatically (MYK9-1003), and waitlist capacity and the
  * mail-in reservation strategy.
  * The read lives in `waitListSettingsQuery.ts`, shared with the offer dialog.
  */
@@ -120,7 +120,7 @@ export function WaitListSettingsCard({ showId }: WaitListSettingsCardProps) {
     false,
     () => {
       // Every class without its own setting changed with it: the wizard's and
-      // the cart's Full / wait-list reads, and the show row Edit class reads
+      // the cart's Full / waitlist reads, and the show row Edit class reads
       // the inherited value from.
       void queryClient.invalidateQueries({ queryKey: classAvailabilityQueryKey(showId) });
       void syncTable?.('shows');
@@ -164,20 +164,20 @@ export function WaitListSettingsCard({ showId }: WaitListSettingsCardProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Wait List Settings</CardTitle>
+        <CardTitle>Waitlist Settings</CardTitle>
         <CardDescription>
-          Choose whether full classes take a wait list and how open spots are offered, and set judge
+          Choose whether full classes take a waitlist and how open spots are offered, and set judge
           daily capacity and mail-in rules.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* The show-wide wait list switch (MYK9-1019) */}
+        {/* The show-wide waitlist switch (MYK9-1019) */}
         <SettingSwitch
           id="allow-waitlists"
-          label="Allow wait lists"
+          label="Allow waitlists"
           help={
             allowWaitlists.checked
-              ? "When a class or a judge's day is full, new entries join the wait list. A class set on its own in Edit class keeps its own setting."
+              ? "When a class or a judge's day is full, new entries join the waitlist. A class set on its own in Edit class keeps its own setting."
               : "When a class or a judge's day is full, new entries are turned away. A class set on its own in Edit class keeps its own setting."
           }
           control={allowWaitlists}

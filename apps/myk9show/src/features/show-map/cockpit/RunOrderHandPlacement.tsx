@@ -187,7 +187,7 @@ export function RunOrderHandPlacement({
         >
           <span className="text-destructive">Couldn&rsquo;t load the run order.</span>
           <Button type="button" variant="outline" size="touch" onClick={() => void refetch()}>
-            Retry
+            Try again
           </Button>
         </div>
       ) : !placement ? (

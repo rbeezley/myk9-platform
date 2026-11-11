@@ -34,7 +34,7 @@ interface CartSummaryProps {
   isCheckingOut?: boolean;
   /**
    * Per-line fulfillment for this cart (MYK9-122). When supplied, only payable
-   * lines are totalled and wait-list requests are disclosed separately, so the
+   * lines are totalled and waitlist requests are disclosed separately, so the
    * amount shown here is the amount actually charged. Omit to total every line.
    */
   fulfillment?: CartFulfillmentView;
@@ -123,7 +123,7 @@ export function CartSummary({
 
   const itemCount = getItemCount();
   // MYK9-122: only payable lines may move the amount charged. A full class is a
-  // wait-list REQUEST — it is disclosed on its own line at $0.00 due now, never
+  // waitlist REQUEST — it is disclosed on its own line at $0.00 due now, never
   // folded into the total and then silently dropped at checkout.
   const payableCount = fulfillment ? fulfillment.payableItems.length : itemCount;
   const waitlistCount = fulfillment?.waitlistItems.length ?? 0;
@@ -192,7 +192,7 @@ export function CartSummary({
             <div className="flex-1">
               <p className="text-sm font-medium">
                 {blockedCount === 1 ? 'A class is' : `${blockedCount} classes are`} full and not
-                accepting wait list entries
+                accepting waitlist entries
               </p>
               <p className="text-xs mt-0.5">
                 Remove {blockedCount === 1 ? 'it' : 'them'} from your entry to continue to payment.
@@ -211,7 +211,7 @@ export function CartSummary({
           </div>
           {waitlistCount > 0 && (
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Wait list requests ({waitlistCount})</span>
+              <span className="text-muted-foreground">Waitlist requests ({waitlistCount})</span>
               <span className="text-muted-foreground">Availability checked at submission</span>
             </div>
           )}
@@ -225,8 +225,8 @@ export function CartSummary({
             showExplanation={false}
           />
           <Separator />
-          {/* State the amount whenever it is known. A wait list line contributes
-              $0 to what is payable now, so `total` is exact even with wait list
+          {/* State the amount whenever it is known. A waitlist line contributes
+              $0 to what is payable now, so `total` is exact even with waitlist
               requests present - printing "Pending" here hid a figure the page
               had already computed, and disagreed with the Pay button directly
               below it, which showed the real number. "Pending" is reserved for
@@ -270,7 +270,7 @@ export function CartSummary({
             isCheckingOut || itemCount === 0 || entriesClosed || blockedCount > 0 || capacityUnknown
           }
           // The label is the longest in the app ("Pay $1,234.50 and confirm
-          // entries", plus a wait-list suffix at its fullest) and it renders in
+          // entries", plus a waitlist suffix at its fullest) and it renders in
           // the narrow order-summary column. `lg` is `h-11 px-8` under a base
           // `whitespace-nowrap`, so the text ran past the rounded edge.
           // `touch` is the variant that already grows with its content, and it
@@ -306,14 +306,14 @@ export function CartSummary({
           ) : waitlistOnly ? (
             <>
               <CreditCard className="h-4 w-4 mr-2" />
-              Join the wait list ({waitlistCount} {waitlistCount === 1 ? 'request' : 'requests'})
+              Join the waitlist ({waitlistCount} {waitlistCount === 1 ? 'request' : 'requests'})
             </>
           ) : (
             <>
               <CreditCard className="h-4 w-4 mr-2" />
               Pay {formatCartCurrency(total)} and confirm {payableCount === 1 ? 'entry' : 'entries'}
               {waitlistCount > 0 &&
-                ` · ${waitlistCount} wait list ${waitlistCount === 1 ? 'request' : 'requests'}`}
+                ` · ${waitlistCount} waitlist ${waitlistCount === 1 ? 'request' : 'requests'}`}
             </>
           )}
         </Button>

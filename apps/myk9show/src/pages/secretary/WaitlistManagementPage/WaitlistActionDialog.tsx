@@ -1,6 +1,6 @@
 /**
  * Action Confirmation Dialog for WaitlistManagementPage: offer a spot, remove
- * a dog from the wait list, or withdraw an open offer (MYK9-1001). Each says
+ * a dog from the waitlist, or withdraw an open offer (MYK9-1001). Each says
  * what really happens, including who is and is not told (MYK9-1002).
  */
 
@@ -55,7 +55,7 @@ const CONFIRM_LABELS = {
 function OfferWindowSentence({ offerWindow }: { offerWindow: OfferWindow }) {
   const [openedAt] = useState(() => Date.now());
   if (offerWindow.hours === null) {
-    return <>They have the offer window set in Wait list settings to pay.</>;
+    return <>They have the offer window set in Waitlist settings to pay.</>;
   }
   const until = formatOfferDeadline(
     new Date(openedAt + offerWindow.hours * 3_600_000),
@@ -135,7 +135,7 @@ export const WaitlistActionDialog: React.FC<WaitlistActionDialogProps> = ({
             {action === 'withdraw' && (
               <>
                 Withdraw the offer to {dogName} in {className}? Their payment link stops working,
-                the entry waiting for payment is cancelled, and the dog leaves the wait list. The
+                the entry waiting for payment is cancelled, and the dog leaves the waitlist. The
                 exhibitor is notified that no payment is due.
               </>
             )}

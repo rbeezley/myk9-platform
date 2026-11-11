@@ -157,7 +157,7 @@ test.describe('Phase 1 UAT - Secretary critical path', () => {
     await page.getByTestId('header-action-show-tool-entry-list-waitlist').click();
 
     // The list opens as its own titled view, with the way back.
-    await expect(page.getByText(/Wait list settings:/)).toBeVisible();
+    await expect(page.getByText(/Waitlist settings:/)).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Waitlist', exact: true })).toBeVisible();
     await page.getByRole('link', { name: 'Back to entry forms' }).click();
     await expect(

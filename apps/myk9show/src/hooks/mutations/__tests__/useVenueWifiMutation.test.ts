@@ -93,7 +93,7 @@ describe('useVenueWifiMutation', () => {
       await result.current.mutateAsync({ showId: 'show-abc', network: 'Net', password: 'pw' });
     });
 
-    expect(mockNotificationsSuccess).toHaveBeenCalledWith('WiFi info saved');
+    expect(mockNotificationsSuccess).toHaveBeenCalledWith('Wi-Fi info saved');
   });
 
   it('shows error notification and sets isError on failure', async () => {
@@ -109,7 +109,7 @@ describe('useVenueWifiMutation', () => {
 
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(mockNotificationsError).toHaveBeenCalledWith(
-      "We couldn't save the WiFi details. Try again."
+      "We couldn't save the Wi-Fi details. Try again."
     );
   });
 });

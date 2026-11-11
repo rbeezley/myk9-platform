@@ -202,8 +202,7 @@ describe('SecretaryCockpitFocusedClass checklist (MYK9-948)', () => {
     const checklist = screen.getByRole('region', { name: 'Class checklist' });
     const items = within(checklist).getAllByRole('listitem');
     expect(items.map(item => item.textContent)).toEqual([
-      expect.stringContaining('Check-in sheet'),
-      expect.stringContaining('Score sheets'),
+      expect.stringContaining('Print paperwork'),
       expect.stringContaining('Class started'),
       expect.stringContaining('Scoring complete'),
       expect.stringContaining('Preliminary results'),
@@ -211,12 +210,13 @@ describe('SecretaryCockpitFocusedClass checklist (MYK9-948)', () => {
       expect.stringContaining("Judge's initials collected"),
     ]);
     expect(within(checklist).getByText('0 of 7 done')).toBeInTheDocument();
-    // This fixture's check-in sheet has no print link, so it reads as status, not a dead button.
-    expect(within(items[0]!).queryByRole('button')).toBeNull();
+    // The card opens the print records, so it is a button even when the sheet has no print link.
     expect(
-      within(items[0]!).getByRole('group', { name: 'Check-in sheet, not done' })
+      within(items[0]!).getByRole('button', {
+        name: 'Print paperwork: check-in sheet. Not done, 0 of 1 printed. Show print records',
+      })
     ).toBeInTheDocument();
-    expect(within(items[4]!).getByText('Nothing to print yet')).toBeInTheDocument();
+    expect(within(items[3]!).getByText('Nothing to print yet')).toBeInTheDocument();
   });
 
   it('checks items off from class state and print records, in any order', () => {
@@ -234,7 +234,7 @@ describe('SecretaryCockpitFocusedClass checklist (MYK9-948)', () => {
     expect(within(checklist).getByText('3 of 7 done')).toBeInTheDocument();
   });
 
-  it('keeps armband labels as other paperwork, outside the checklist', () => {
+  it('names armband labels on the Print paperwork card and lists them under Other paperwork, outside the checklist count', () => {
     renderChecklist(sourceClass, {
       ...focused,
       paperwork: [
@@ -249,7 +249,12 @@ describe('SecretaryCockpitFocusedClass checklist (MYK9-948)', () => {
     });
 
     const checklist = screen.getByRole('region', { name: 'Class checklist' });
-    expect(within(checklist).queryByText('Armband labels')).not.toBeInTheDocument();
+    expect(
+      within(checklist).getByRole('button', {
+        name: 'Print paperwork: armband labels, check-in sheet. Not done, 0 of 2 printed. Show print records',
+      })
+    ).toBeInTheDocument();
+    expect(within(checklist).getByText('0 of 7 done')).toBeInTheDocument();
     // Other paperwork sits under the step bar, behind a disclosure.
     expect(screen.getByText('Other paperwork and print records (2)')).toBeInTheDocument();
     expect(screen.getByText('Armband labels')).toBeInTheDocument();
@@ -299,7 +304,7 @@ describe('SecretaryCockpitFocusedClass delay announcement', () => {
     const { user } = renderPanel(source);
     await user.click(screen.getByRole('button', { name: /^Actions for/ }));
     // Positive control: the menu opened and holds its other items.
-    expect(await screen.findByRole('menuitem', { name: 'Set expected start' })).toBeInTheDocument();
+    expect(await screen.findByRole('menuitem', { name: 'Score this class' })).toBeInTheDocument();
     const item = screen.queryByRole('menuitem', { name: 'Announce a delay' });
     if (offered) expect(item).not.toBeNull();
     else expect(item).toBeNull();
@@ -368,13 +373,35 @@ describe('SecretaryCockpitFocusedClass layout (owner, 2026-10-03)', () => {
     );
   }
 
-  it('groups what the secretary sets under Class settings, apart from the work', () => {
+  it('shows what the secretary sets as inline fields in the class header', () => {
     renderPanel(sourceClass);
 
-    const settings = screen.getByRole('region', { name: 'Class settings' });
+    const settings = screen.getByTestId('focused-class-header');
     expect(within(settings).getByText('Status')).toBeInTheDocument();
     expect(within(settings).getByText('Expected start')).toBeInTheDocument();
     expect(within(settings).getByText('Actual timing')).toBeInTheDocument();
+  });
+
+  it('closes an open expected-start editor when the secretary moves to another class', async () => {
+    const { user, rerender } = renderPanel(sourceClass);
+    await user.click(
+      within(screen.getByTestId('focused-class-header')).getByRole('button', { name: /9:00/ })
+    );
+    expect(screen.getByRole('button', { name: 'Save expected start' })).toBeInTheDocument();
+
+    rerender(
+      <SecretaryCockpitFocusedClass
+        showId="show-1"
+        focused={{ ...focused, id: 'class-2', name: 'Container Advanced' }}
+        sourceClass={{ ...sourceClass, id: 'class-2', name: 'Container Advanced' }}
+        trial={{ id: 'trial-1', date: '2026-07-20', number: '1', order: 0 }}
+        attention={[]}
+        timeZone="America/Chicago"
+        canManageShow
+        onCommand={vi.fn()}
+      />
+    );
+    expect(screen.queryByRole('button', { name: 'Save expected start' })).not.toBeInTheDocument();
   });
 
   it('heads a started class with its scored count, not a redundant entry count', () => {
@@ -400,7 +427,7 @@ describe('SecretaryCockpitFocusedClass layout (owner, 2026-10-03)', () => {
       { ...focused, lifecycle: { evidence: 'recorded', value: 'complete' } }
     );
 
-    const settings = screen.getByRole('region', { name: 'Class settings' });
+    const settings = screen.getByTestId('focused-class-header');
     expect(within(settings).getByText('Start not recorded')).toBeInTheDocument();
     expect(within(settings).queryByText('Not started')).toBeNull();
   });

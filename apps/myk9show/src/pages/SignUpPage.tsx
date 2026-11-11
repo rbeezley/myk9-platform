@@ -236,7 +236,7 @@ const SignUp: React.FC = () => {
             myK9Show
           </Link>
         </div>
-        <h2 className="text-2xl md:text-3xl font-bold mb-2 text-center">Create an account</h2>
+        <h2 className="text-2xl md:text-3xl font-bold mb-2 text-center">Create account</h2>
         <div className="text-muted-foreground text-center mb-6">
           Already have an account?{' '}
           <Link to={signInPath} className="text-primary hover:underline font-medium">
@@ -449,7 +449,7 @@ const SignUp: React.FC = () => {
                 Creating Account...
               </>
             ) : (
-              'Sign up'
+              'Create account'
             )}
           </button>
         </form>

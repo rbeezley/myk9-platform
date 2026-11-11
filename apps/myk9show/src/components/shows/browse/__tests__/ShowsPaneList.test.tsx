@@ -138,7 +138,7 @@ describe('ShowsPaneList', () => {
 
     const alert = screen.getByRole('alert');
     expect(alert).toHaveTextContent("Couldn't load your shows.");
-    await user.click(within(alert).getByRole('button', { name: 'Retry' }));
+    await user.click(within(alert).getByRole('button', { name: 'Try again' }));
     expect(handleRetry).toHaveBeenCalledTimes(1);
   });
 

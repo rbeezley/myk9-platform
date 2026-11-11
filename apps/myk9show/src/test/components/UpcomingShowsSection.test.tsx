@@ -322,7 +322,7 @@ describe('UpcomingShowsSection', () => {
       });
 
       const { user } = render(<UpcomingShowsSection {...defaultProps} />);
-      await user.click(screen.getByText('Retry'));
+      await user.click(screen.getByText('Try again'));
 
       expect(refetch).toHaveBeenCalled();
       expect(mockNavigate).not.toHaveBeenCalled();

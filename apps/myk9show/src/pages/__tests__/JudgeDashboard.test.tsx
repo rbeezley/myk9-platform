@@ -84,7 +84,7 @@ describe('JudgeDashboard', () => {
 
     expect(screen.getByText(/we couldn(')?t load your assignments/i)).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Retry' }));
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
     expect(refetch).toHaveBeenCalledTimes(1);
   });
 
@@ -191,7 +191,7 @@ describe('JudgeDashboard', () => {
 
     render(<JudgeDashboard />);
 
-    expect(screen.getByRole('button', { name: /retrying/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /trying again/i })).toBeDisabled();
   });
 
   it('shows upcoming assignments with their date and no judging action', async () => {

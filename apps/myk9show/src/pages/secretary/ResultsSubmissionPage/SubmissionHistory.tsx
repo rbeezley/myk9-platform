@@ -64,7 +64,7 @@ export function SubmissionHistory({
               className="mt-3 min-h-11"
               onClick={onRetry}
             >
-              Retry
+              Try again
             </Button>
           )}
         </div>

@@ -3,7 +3,7 @@
  *
  * Pay holds every payable line's spot until the Stripe page expires. The one
  * line saying so appears only where the button charges for spots: never on a
- * wait-list-only cart, a blocked cart, or while availability is unknown.
+ * waitlist-only cart, a blocked cart, or while availability is unknown.
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -67,7 +67,7 @@ function item(id: string, classId: string, allowWaitlist = true): CartTestLine {
   };
 }
 
-/** The cart view, told which classes take a wait list the way the server's read reports them. */
+/** The cart view, told which classes take a waitlist the way the server's read reports them. */
 function view(
   lines: CartTestLine[],
   days: readonly CartJudgeDayCapacity[] | null,
@@ -109,11 +109,11 @@ describe('CartSummary — the hold line at Pay (MYK9-1012)', () => {
     expect(screen.getByText(PAY_LINE)).toBeInTheDocument();
   });
 
-  it('says nothing about holding on a wait-list-only cart: no spot is bought', () => {
+  it('says nothing about holding on a waitlist-only cart: no spot is bought', () => {
     const fulfillment = view([item('item-full', 'class-full')], [judgeDay(0, ['class-full'])]);
     render(<CartSummary onCheckout={() => {}} fulfillment={fulfillment} />);
 
-    expect(screen.getByRole('button', { name: /join the wait list/i })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /join the waitlist/i })).toBeEnabled();
     expect(screen.queryByText(PAY_LINE)).not.toBeInTheDocument();
   });
 

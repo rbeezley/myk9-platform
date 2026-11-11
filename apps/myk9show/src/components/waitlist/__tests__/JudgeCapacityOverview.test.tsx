@@ -43,9 +43,9 @@ describe('JudgeCapacityOverview', () => {
     expect(screen.getByText('100 / 125 entries')).toBeInTheDocument();
   });
 
-  it('shows wait list badge for John Smith who is full', () => {
+  it('shows waitlist badge for John Smith who is full', () => {
     render(<JudgeCapacityOverview judgeDays={judgeDays} onViewWaitList={vi.fn()} />);
-    expect(screen.getByText('12 on wait list')).toBeInTheDocument();
+    expect(screen.getByText('12 on waitlist')).toBeInTheDocument();
   });
 
   it('shows Full badge when availableSpots is 0', () => {
@@ -63,7 +63,7 @@ describe('JudgeCapacityOverview', () => {
     const onViewWaitList = vi.fn();
     render(<JudgeCapacityOverview judgeDays={judgeDays} onViewWaitList={onViewWaitList} />);
 
-    const buttons = screen.getAllByRole('button', { name: 'View Wait List' });
+    const buttons = screen.getAllByRole('button', { name: 'View Waitlist' });
     await user.click(buttons[0]);
 
     expect(onViewWaitList).toHaveBeenCalledWith('j1', '2026-05-01');

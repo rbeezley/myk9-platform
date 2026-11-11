@@ -83,7 +83,7 @@ describe('delete dialog copy', () => {
 
   it('is honest about Undo and never claims a permanent delete', () => {
     expect(undoSentence(1)).toBe(
-      'You can undo this for 10 minutes. After that, ask a myK9 administrator to restore it.'
+      'You can undo this for 10 minutes. After that, ask myK9Show support to restore it.'
     );
     expect(undoSentence(3)).toMatch(/restore them\.$/);
     const everything = [

@@ -94,7 +94,7 @@ export function JudgeCapacityOverview({
 
               <div className="flex flex-wrap items-center gap-2">
                 {day.waitlistCount > 0 && (
-                  <Badge variant="secondary">{day.waitlistCount} on wait list</Badge>
+                  <Badge variant="secondary">{day.waitlistCount} on waitlist</Badge>
                 )}
                 {day.mailInReserved > 0 && (
                   <span className="text-muted-foreground text-xs">
@@ -116,7 +116,7 @@ export function JudgeCapacityOverview({
                 className="w-full"
                 onClick={() => onViewWaitList(day.judgeId, day.showDate)}
               >
-                View Wait List
+                View Waitlist
               </Button>
             </CardContent>
           </Card>

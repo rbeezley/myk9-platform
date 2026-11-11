@@ -8,7 +8,7 @@ import { buildFocusedClassFacts } from './focusedClassFacts';
 
 import { CockpitActionLink } from './CockpitActionLink';
 import { ClassChecklistSection } from './ClassChecklistSection';
-import { FocusedClassSettings } from './FocusedClassSettings';
+import { FocusedClassFields } from './FocusedClassFields';
 import { FocusedClassActionsMenu, type FocusedClassEditAction } from './FocusedClassActionsMenu';
 import { RunOrderHandPlacement, RunOrderUndoNotice } from './RunOrderHandPlacement';
 import { focusedClassDelay } from './focusedClassDelay';
@@ -70,7 +70,7 @@ export function SecretaryCockpitFocusedClass({
   // Which class's hand-placement list is open; scoped by id so focusing another
   // class closes it rather than carrying it over.
   const [placingClassId, setPlacingClassId] = useState<string | null>(null);
-  // Which class's actual-start editor is open; the Actions menu and the Class started step share it.
+  // Which class's actual-start editor is open; the header's Actual timing field and the Class started step share it.
   const [editingStart, setEditingStart] = useState<string | null>(null);
   if (!focused || !sourceClass || !trial) {
     return (
@@ -107,7 +107,7 @@ export function SecretaryCockpitFocusedClass({
     focused,
     entryCount: sourceClass.entryCount ?? null,
     breakdown: entryBreakdownByClassId?.get(focused.id) ?? (entryBreakdownByClassId && NO_ENTRIES),
-    // With the Judge setting below, the header would only repeat it.
+    // With the Judge field in the header, the facts would only repeat it.
     showJudge: !judgeControl,
   });
 
@@ -120,30 +120,33 @@ export function SecretaryCockpitFocusedClass({
         title={focused.name}
         facts={facts.join(' · ')}
         pinMode={pinMode}
+        menu={
+          <FocusedClassActionsMenu
+            showId={showId}
+            classId={focused.id}
+            className={focused.name}
+            canManageShow={canManageShow}
+            offerDelay={offerDelay}
+            delayMinutes={delayMinutes ?? undefined}
+            runOrder={runOrder}
+            runOrderEntryCount={runOrderEntryCount}
+            editClass={editClass}
+            onPlaceByHand={() => setPlacingClassId(focused.id)}
+            entriesHref={entriesHref}
+          />
+        }
       >
-        <FocusedClassActionsMenu
-          showId={showId}
-          classId={focused.id}
-          className={focused.name}
-          lifecycle={focused.lifecycle.value}
-          unenteredScoreCount={
-            focused.progress.value === null
-              ? null
-              : Math.max(0, focused.progress.value.total - focused.progress.value.completed)
-          }
-          canManageShow={canManageShow}
-          scheduledStart={sourceClass.scheduledStart ?? null}
-          revisedExpectedStart={sourceClass.revisedExpectedStart ?? null}
-          trialDate={trial.date}
+        {/* Keyed by class: an open editor, its unsaved time or a pending status confirmation
+            must never carry onto the next class the secretary clicks. */}
+        <FocusedClassFields
+          key={focused.id}
+          focused={focused}
+          sourceClass={sourceClass}
+          trial={trial}
           timeZone={timeZone}
-          offerDelay={offerDelay}
-          delayMinutes={delayMinutes ?? undefined}
-          runOrder={runOrder}
-          runOrderEntryCount={runOrderEntryCount}
-          editClass={editClass}
+          canManageShow={canManageShow}
+          judgeControl={judgeControl}
           onEditActualStart={() => setEditingStart(focused.id)}
-          onPlaceByHand={() => setPlacingClassId(focused.id)}
-          entriesHref={entriesHref}
         />
       </FocusedClassHeader>
 
@@ -188,14 +191,6 @@ export function SecretaryCockpitFocusedClass({
             rowMenu={rowMenu}
           />
         </section>
-
-        <FocusedClassSettings
-          focused={focused}
-          sourceClass={sourceClass}
-          trial={trial}
-          timeZone={timeZone}
-          judgeControl={judgeControl}
-        />
 
         {canManageShow && runOrder && (
           <RunOrderUndoNotice classId={focused.id} runOrder={runOrder} />

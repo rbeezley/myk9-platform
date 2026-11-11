@@ -88,7 +88,7 @@ test.describe('Browse entries', () => {
 
     await openActionsMenu(page);
     await page.getByTestId('header-action-show-tool-entry-list-waitlist').click();
-    await expect(page.getByText(/Wait list settings:/)).toBeVisible();
+    await expect(page.getByText(/Waitlist settings:/)).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Waitlist', exact: true })).toBeVisible();
 
     await page.getByRole('link', { name: 'Back to entry forms' }).click();

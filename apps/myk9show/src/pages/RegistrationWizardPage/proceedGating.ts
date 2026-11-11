@@ -103,7 +103,7 @@ export function proceedBlockedReason(ctx: ProceedGatingContext): string | null {
         return 'Checking class availability. Please wait, then try again.';
       }
       if (ctx.blockedClassCount > 0) {
-        return 'Remove the full class that does not accept a wait list to continue.';
+        return 'Remove the full class that does not accept a waitlist to continue.';
       }
       if (ctx.totalFees > 0 && !ctx.hasPaymentMethod) {
         return 'Choose a payment method to continue.';
@@ -112,7 +112,7 @@ export function proceedBlockedReason(ctx: ProceedGatingContext): string | null {
         // Never waived — entering a show requires agreeing to the organization's
         // terms. But say what is actually wrong, and point at the retry that is
         // now rendered in place of the checkbox.
-        return 'We could not load the entry agreement, so we cannot take this entry yet. Check your connection, then use the retry button in the message above.';
+        return 'We could not load the entry agreement, so we cannot take this entry yet. Check your connection, then use Try again in the message above.';
       }
       if (ctx.agreementLoadingNow) {
         return 'Loading the entry agreement. It will appear here in a moment.';

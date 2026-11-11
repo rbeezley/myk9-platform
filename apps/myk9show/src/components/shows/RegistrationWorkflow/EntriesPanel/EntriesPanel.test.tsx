@@ -339,7 +339,7 @@ describe('EntriesPanel fee-line removal (payment step)', () => {
         waitlistClassIds: new Set(['class-0']),
       })
     );
-    expect(aside().getByText('(Wait list request)')).toBeInTheDocument();
+    expect(aside().getByText('(Waitlist request)')).toBeInTheDocument();
     expect(aside().getByText('No payment due')).toBeInTheDocument();
   });
 });

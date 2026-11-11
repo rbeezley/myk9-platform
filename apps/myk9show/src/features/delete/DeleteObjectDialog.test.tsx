@@ -187,7 +187,7 @@ describe('DeleteObjectDialog names the item, its detail, what goes with it, and 
     if (cascade) expect(within(dialog).getByText(cascade)).toBeVisible();
     expect(
       within(dialog).getByText(
-        'You can undo this for 10 minutes. After that, ask a myK9 administrator to restore it.'
+        'You can undo this for 10 minutes. After that, ask myK9Show support to restore it.'
       )
     ).toBeVisible();
     expect(within(dialog).getByRole('button', { name: 'Keep it' })).toBeEnabled();
@@ -617,7 +617,7 @@ describe('DeleteObjectDialog: one device-wide unsaved-work check', () => {
     const dialog = await screen.findByRole('alertdialog');
     const notice = await within(dialog).findByTestId('delete-unsaved-work');
     expect(notice).toHaveTextContent(/failed to upload/);
-    expect(notice).toHaveTextContent(/Retry or Discard/);
+    expect(notice).toHaveTextContent(/Try again or Discard/);
     expect(within(dialog).getByRole('button', { name: 'Delete class' })).toBeDisabled();
   });
 

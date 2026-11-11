@@ -556,7 +556,7 @@ describe('PremiumContentEditor', () => {
     render(<PremiumContentEditor showId="show-1" clubId="club-1" showOrg="AKC" active />);
 
     await screen.findByText(/Claude timed out/i);
-    fireEvent.click(screen.getByRole('button', { name: /Retry narrative generation/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Try narrative generation again/i }));
 
     await waitFor(() => expect(generateMock).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(screen.queryByText(/Claude timed out/i)).toBeNull());

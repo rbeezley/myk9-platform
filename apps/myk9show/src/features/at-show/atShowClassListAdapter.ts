@@ -1,3 +1,4 @@
+import { isUnsetJudgeName } from '@/utils/classJudgeDisplay';
 /**
  * Phase 1h — at-show ClassList data adapter (myK9Show replication → ringside).
  *
@@ -67,7 +68,7 @@ export function toClassEntry(
     section: normalizeSection(cls.section),
     class_name: buildClassName(cls),
     class_order: cls.classOrder ?? 0,
-    judge_name: cls.judgeName ?? 'No Judge Assigned',
+    judge_name: isUnsetJudgeName(cls.judgeName) ? 'No Judge Assigned' : cls.judgeName!.trim(),
     entry_count: counts.expected,
     completed_count: counts.accounted,
     // MYK9-1513: status + ring phase + Expected start read back as ringside's eight values.

@@ -35,6 +35,7 @@ export function makePaymentResolution(
     cardCheckoutUnavailableReason: undefined,
     isOnBehalf: false,
     canChargeJuniorFee: false,
+    canUseDeskPaymentActions: false,
     show: undefined,
     ...rest,
   };

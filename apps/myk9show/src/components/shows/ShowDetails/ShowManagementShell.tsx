@@ -283,7 +283,7 @@ function AuthorizedShowManagementShell({
                 className="mt-3"
                 onClick={onRetryEntryData}
               >
-                Retry
+                Try again
               </Button>
             )}
           </div>

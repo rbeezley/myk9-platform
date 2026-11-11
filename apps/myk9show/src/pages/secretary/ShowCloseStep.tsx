@@ -42,7 +42,10 @@ export default function ShowCloseStep() {
   // and readiness it never read.
   if (inputs.entriesFailed) {
     return (
-      <ShowDeskEntriesFailed pausedWhat="The closeout counts are" onRetry={inputs.retryEntries} />
+      <ShowDeskEntriesFailed
+        pausedWhat="The counts for closing the show are"
+        onRetry={inputs.retryEntries}
+      />
     );
   }
 

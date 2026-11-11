@@ -26,7 +26,7 @@ interface CartItemCardProps {
    * 'payable' so callers that have no capacity context are unchanged.
    */
   fulfillment?: CartItemFulfillment;
-  /** For a wait-list or blocked line: the class or judge day that is full (MYK9-753). */
+  /** For a waitlist or blocked line: the class or judge day that is full (MYK9-753). */
   fullReason?: CartFullReason | undefined;
   /** Judge names by person id, so a full judge day can be named. */
   judgeNameById?: ReadonlyMap<string, string>;
@@ -40,13 +40,13 @@ interface CartItemCardProps {
  * `--secondary-foreground`/`--card-foreground` are all pairwise identical in
  * `.dark` (#1e1c19 / #faf7f2), and the variant sets `border-transparent` - so
  * the pill had no fill, no border and no distinguishing text color, and
- * "Wait list request" rendered as plain body text beside the class name at
+ * "Waitlist request" rendered as plain body text beside the class name at
  * 1.00:1. That badge is the only per-line cue that a line will NOT be charged,
  * which is precisely the signal that must not disappear. The blocked badge
  * (`destructive`) kept its fill, so the hard-stop state survived while the
  * softer money-relevant one did not.
  *
- * The wait-list badge takes the warning family, matching its meaning and
+ * The waitlist badge takes the warning family, matching its meaning and
  * measuring 6.07:1 light / 8.24:1 dark.
  *
  * The level badge is neutral, so it takes the design system's neutral chip
@@ -105,7 +105,7 @@ export function CartItemCard({
               )}
               {isWaitlist && (
                 <Badge variant="outline" className={cn('text-xs', WAITLIST_BADGE)}>
-                  Wait list request
+                  Waitlist request
                 </Badge>
               )}
               {isBlocked && (
@@ -120,14 +120,14 @@ export function CartItemCard({
                 itself — not only after the exhibitor commits to checkout. */}
             {isWaitlist && (
               <p className="mb-2 text-sm text-muted-foreground">
-                {fullReasonText} We&apos;ll hold your place on the wait list. Availability is
+                {fullReasonText} We&apos;ll hold your place on the waitlist. Availability is
                 confirmed before any payment is requested.
               </p>
             )}
             {isBlocked && (
               <p className="mb-2 text-sm text-destructive">
-                {fullReasonText} This class is not accepting wait list entries. Remove it to
-                continue to payment.
+                {fullReasonText} This class is not accepting waitlist entries. Remove it to continue
+                to payment.
               </p>
             )}
 

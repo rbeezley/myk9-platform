@@ -277,12 +277,12 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
   const heroTitle = everyOutcomeDenied
     ? 'No entries were added'
     : onlyWaitlisted
-      ? 'Added to the wait list'
+      ? 'Added to the waitlist'
       : workflowMode === 'exhibitor'
         ? heroCopy.title
         : 'Mail-in entry submitted';
   const heroDescription = everyOutcomeDenied
-    ? 'The selected classes were full and did not have an available wait-list place.'
+    ? 'The selected classes were full and did not have an available waitlist place.'
     : onlyWaitlisted
       ? 'No payment is due unless a spot is offered.'
       : heroCopy.description;
@@ -321,10 +321,10 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
             )}
             <span>
               {waitlistEntries.length} {waitlistEntries.length === 1 ? 'entry' : 'entries'} added to
-              wait list
+              waitlist
             </span>
             {'. '}
-            <span>Wait list positions: </span>
+            <span>Waitlist positions: </span>
             {waitlistEntries.map((entry, idx) => {
               // MYK9-832 #12: without the trial name, two identically-named
               // waitlisted classes in different trials read as the same line

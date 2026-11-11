@@ -214,7 +214,7 @@ describe('useCurrentActions — labelled sections (CRUD standard decision 6)', (
     ]);
   });
 
-  it('withholds Close out show once the stored show is completed', () => {
+  it('withholds Close the show once the stored show is completed', () => {
     useShowStore.setState({
       shows: [{ id: SHOW_ID, name: 'Fall Scent Weekend', status: 'completed' }] as never,
     });
@@ -228,7 +228,7 @@ describe('useCurrentActions — labelled sections (CRUD standard decision 6)', (
     ['2999-01-01', false],
     ['2000-01-01', true],
   ])(
-    'with a stored start date of %s, Close out show offered: %s (MYK9-1727)',
+    'with a stored start date of %s, Close the show offered: %s (MYK9-1727)',
     (startDate, offered) => {
       useShowStore.setState({
         shows: [{ id: SHOW_ID, name: 'Fall Scent Weekend', startDate }] as never,

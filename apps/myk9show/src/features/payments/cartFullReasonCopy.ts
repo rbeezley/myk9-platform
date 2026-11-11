@@ -27,7 +27,7 @@ export function describeCartFullReason(
 }
 
 /**
- * The checkout stop when lines are full and take no wait list: each line with
+ * The checkout stop when lines are full and take no waitlist: each line with
  * what is full, then the one action that unblocks checkout.
  */
 export function describeBlockedCheckout(
@@ -44,7 +44,7 @@ export function describeBlockedCheckout(
   );
   const action =
     blockedItems.length === 1
-      ? 'It is not accepting wait list entries. Remove it to continue.'
-      : 'They are not accepting wait list entries. Remove them to continue.';
+      ? 'It is not accepting waitlist entries. Remove it to continue.'
+      : 'They are not accepting waitlist entries. Remove them to continue.';
   return `${lines.join(' ')} ${action}`;
 }

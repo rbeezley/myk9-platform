@@ -251,9 +251,18 @@ describe('filtersUpdate with any group', () => {
   });
 });
 
-describe('filterFactsOf unset judge (MYK9-1846)', () => {
-  it('relabels a stored TBD judge chip but keeps its value', () => {
-    const facts = filterFactsOf(cls('z', { judgeName: 'TBD' }));
-    expect(facts.judge).toEqual({ value: 'TBD', label: 'No judge yet' });
+describe('filterFactsOf unset judge (MYK9-1853)', () => {
+  it('puts null, blank and the legacy TBD in the same Unassigned chip', () => {
+    for (const judgeName of [null, '', 'TBD']) {
+      const facts = filterFactsOf(cls('z', { judgeName }));
+      expect(facts.judge.label).toBe('Unassigned');
+    }
+    const real = filterFactsOf(cls('r', { judgeName: 'Kim Wu' }));
+    expect(real.judge).toEqual({ value: 'Kim Wu', label: 'Kim Wu' });
+  });
+
+  it('keeps a judge id with an unresolved name as an assigned judge', () => {
+    const facts = filterFactsOf(cls('i', { judgeId: 'j1', judgeName: 'TBD' }));
+    expect(facts.judge).toEqual({ value: 'j1', label: 'Assigned judge' });
   });
 });

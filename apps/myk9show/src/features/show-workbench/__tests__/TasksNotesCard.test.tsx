@@ -137,7 +137,7 @@ describe('TasksNotesCard', () => {
     expect(
       screen.getByText("We couldn't load the tasks for this show. Try again.")
     ).toBeInTheDocument();
-    fireEvent.click(screen.getByText('Retry'));
+    fireEvent.click(screen.getByText('Try again'));
     expect(refetch).toHaveBeenCalled();
   });
 

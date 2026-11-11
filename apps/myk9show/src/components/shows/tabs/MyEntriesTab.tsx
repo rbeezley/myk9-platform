@@ -50,7 +50,7 @@ export function MyEntriesTab({
         </p>
         <Button variant="outline" onClick={() => void loadEntries()} className="gap-1.5">
           <RefreshCw className="h-4 w-4" />
-          Retry
+          Try again
         </Button>
       </div>
     );

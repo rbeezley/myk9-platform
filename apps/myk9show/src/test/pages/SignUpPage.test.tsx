@@ -169,7 +169,7 @@ describe('SignUpPage', () => {
           <SignUpPage />
         </MemoryRouter>
       );
-      expect(screen.getByRole('button', { name: /sign up/i })).toBeDisabled();
+      expect(screen.getByRole('button', { name: /create account/i })).toBeDisabled();
     });
 
     it('disables Continue with Google button when checkbox is unchecked', () => {
@@ -188,7 +188,7 @@ describe('SignUpPage', () => {
         </MemoryRouter>
       );
       fireEvent.click(screen.getByLabelText(/I agree to the/i));
-      expect(screen.getByRole('button', { name: /sign up/i })).not.toBeDisabled();
+      expect(screen.getByRole('button', { name: /create account/i })).not.toBeDisabled();
     });
 
     it('enables Continue with Google button when checkbox is checked', () => {
@@ -278,7 +278,7 @@ describe('SignUpPage', () => {
       await user.click(screen.getByLabelText(/club officer/i));
       await user.click(screen.getByLabelText(/show secretary/i));
       await user.click(screen.getByLabelText(/i agree to the/i));
-      await user.click(screen.getByRole('button', { name: /sign up/i }));
+      await user.click(screen.getByRole('button', { name: /create account/i }));
 
       expect(mockSignUp).toHaveBeenCalledWith('pat@example.com', 'password123', {
         firstName: 'Pat',
@@ -301,7 +301,7 @@ describe('SignUpPage', () => {
       await user.type(screen.getByLabelText(/email address/i), 'pat@example.com');
       await user.type(screen.getByLabelText(/^password$/i), password);
       await user.click(screen.getByLabelText(/i agree to the/i));
-      fireEvent.submit(screen.getByRole('button', { name: /sign up/i }).closest('form')!);
+      fireEvent.submit(screen.getByRole('button', { name: /create account/i }).closest('form')!);
     }
 
     it('asks for 8 characters, the same rule as the reset and account pages', async () => {
@@ -362,7 +362,7 @@ describe('SignUpPage', () => {
     await user.type(screen.getByLabelText(/email address/i), 'pat@example.com');
     await user.type(screen.getByLabelText(/^password$/i), 'password123');
     await user.click(screen.getByLabelText(/i agree to the/i));
-    await user.click(screen.getByRole('button', { name: /sign up/i }));
+    await user.click(screen.getByRole('button', { name: /create account/i }));
 
     expect(mockSignUp).toHaveBeenCalledWith(
       'pat@example.com',
@@ -396,10 +396,10 @@ describe('SignUpPage', () => {
     await user.type(screen.getByLabelText(/email address/i), 'pat@example.com');
     await user.type(screen.getByLabelText(/^password$/i), 'password123');
     await user.click(screen.getByLabelText(/i agree to the/i));
-    expect(screen.getByRole('button', { name: /sign up/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /create account/i })).toBeDisabled();
 
     await user.click(screen.getByRole('button', { name: 'Complete security check' }));
-    await user.click(screen.getByRole('button', { name: /sign up/i }));
+    await user.click(screen.getByRole('button', { name: /create account/i }));
 
     expect(mockSignUp).toHaveBeenCalledWith(
       'pat@example.com',
@@ -430,7 +430,7 @@ describe('SignUpPage', () => {
     await user.type(screen.getByLabelText(/^password$/i), 'password123');
     await user.click(screen.getByLabelText(/i agree to the/i));
     await user.click(screen.getByRole('button', { name: 'Complete security check' }));
-    const form = screen.getByRole('button', { name: /sign up/i }).closest('form');
+    const form = screen.getByRole('button', { name: /create account/i }).closest('form');
     fireEvent.submit(form!);
     fireEvent.submit(form!);
 
@@ -453,7 +453,7 @@ describe('SignUpPage', () => {
       await user.type(screen.getByLabelText(/email address/i), 'pat@example.com');
       await user.type(screen.getByLabelText(/^password$/i), 'password123');
       await user.click(screen.getByLabelText(/i agree to the/i));
-      await user.click(screen.getByRole('button', { name: /sign up/i }));
+      await user.click(screen.getByRole('button', { name: /create account/i }));
 
       expect(await screen.findByText(/check your email/i)).toBeInTheDocument();
     }
@@ -515,7 +515,7 @@ describe('SignUpPage', () => {
       await user.type(screen.getByLabelText(/^password$/i), 'password123');
       await user.click(screen.getByLabelText(/i agree to the/i));
       await user.click(screen.getByRole('button', { name: 'Complete security check' }));
-      await user.click(screen.getByRole('button', { name: /sign up/i }));
+      await user.click(screen.getByRole('button', { name: /create account/i }));
 
       expect(await screen.findByText(/check your email/i)).toBeInTheDocument();
       const resend = screen.getByRole('button', { name: /resend email/i });

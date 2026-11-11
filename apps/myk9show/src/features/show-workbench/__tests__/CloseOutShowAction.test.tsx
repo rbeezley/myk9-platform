@@ -48,8 +48,8 @@ describe('CloseOutShowAction', () => {
   it('renders the closed state without offering another mutation', () => {
     render(<CloseOutShowAction {...baseProps} show={{ id: 'show-1', status: 'completed' }} />);
 
-    expect(screen.getByRole('heading', { name: 'Show closed out' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Close Out Show' })).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Show closed' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Close the show' })).not.toBeInTheDocument();
   });
 
   it('shows closeout concerns before confirmation', async () => {
@@ -71,12 +71,12 @@ describe('CloseOutShowAction', () => {
       />
     );
 
-    expect(screen.getByText('Review before final closeout')).toBeInTheDocument();
+    expect(screen.getByText('Review before closing the show')).toBeInTheDocument();
     expect(screen.getByText('1 class still has unscored entries.')).toBeInTheDocument();
     expect(
       screen.getByText('No result submission has been recorded for this show.')
     ).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Close Out Show' }));
+    await user.click(screen.getByRole('button', { name: 'Close the show' }));
     expect(await screen.findByRole('button', { name: 'Close anyway' })).toBeInTheDocument();
   });
 
@@ -84,13 +84,13 @@ describe('CloseOutShowAction', () => {
     const { toast } = await import('sonner');
     const { user } = render(<CloseOutShowAction {...baseProps} />);
 
-    await user.click(screen.getByRole('button', { name: 'Close Out Show' }));
-    await user.click(await screen.findByRole('button', { name: 'Close out show' }));
+    await user.click(screen.getByRole('button', { name: 'Close the show' }));
+    await user.click(await screen.findByRole('button', { name: 'Close the show' }));
 
     await waitFor(() =>
       expect(updateShowMock).toHaveBeenCalledWith('show-1', { status: 'completed' })
     );
-    await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Show closeout saved.'));
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Show closed.'));
     expect(updateTrialMock).toHaveBeenCalledTimes(1);
     expect(updateTrialMock).toHaveBeenCalledWith('trial-open', { status: 'completed' });
     expect(updateClassMock).toHaveBeenCalledTimes(1);
@@ -108,14 +108,16 @@ describe('CloseOutShowAction', () => {
     updateClassMock.mockRejectedValueOnce(new Error('offline queue unavailable'));
     const { user } = render(<CloseOutShowAction {...baseProps} />);
 
-    await user.click(screen.getByRole('button', { name: 'Close Out Show' }));
-    await user.click(await screen.findByRole('button', { name: 'Close out show' }));
+    await user.click(screen.getByRole('button', { name: 'Close the show' }));
+    await user.click(await screen.findByRole('button', { name: 'Close the show' }));
 
     expect(
-      await screen.findByText('Closeout did not finish. Try again after checking your connection.')
+      await screen.findByText(
+        'Closing the show did not finish. Try again after checking your connection.'
+      )
     ).toBeInTheDocument();
     expect(updateShowMock).not.toHaveBeenCalled();
-    expect(toast.error).toHaveBeenCalledWith('Closeout did not finish. Please try again.');
+    expect(toast.error).toHaveBeenCalledWith('Closing the show did not finish. Please try again.');
     expect(toast.success).not.toHaveBeenCalled();
   });
 
@@ -124,15 +126,17 @@ describe('CloseOutShowAction', () => {
     updateShowMock.mockRejectedValueOnce(new Error('offline queue unavailable'));
     const { user } = render(<CloseOutShowAction {...baseProps} />);
 
-    await user.click(screen.getByRole('button', { name: 'Close Out Show' }));
-    await user.click(await screen.findByRole('button', { name: 'Close out show' }));
+    await user.click(screen.getByRole('button', { name: 'Close the show' }));
+    await user.click(await screen.findByRole('button', { name: 'Close the show' }));
 
     expect(
-      await screen.findByText('Closeout did not finish. Try again after checking your connection.')
+      await screen.findByText(
+        'Closing the show did not finish. Try again after checking your connection.'
+      )
     ).toBeInTheDocument();
     expect(updateTrialMock).toHaveBeenCalledWith('trial-open', { status: 'completed' });
     expect(updateClassMock).toHaveBeenCalledWith('class-open', { classStatus: 'completed' });
-    expect(toast.error).toHaveBeenCalledWith('Closeout did not finish. Please try again.');
+    expect(toast.error).toHaveBeenCalledWith('Closing the show did not finish. Please try again.');
     expect(toast.success).not.toHaveBeenCalled();
   });
 });

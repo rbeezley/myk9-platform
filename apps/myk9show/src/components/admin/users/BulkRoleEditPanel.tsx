@@ -209,7 +209,7 @@ export function BulkRoleEditPanel({
           <p className="flex items-center gap-2 text-sm font-medium">
             Could not read everyone&apos;s current roles, so nothing can be applied yet.
             <Button variant="outline" onClick={() => void refetchAssignments()}>
-              Retry
+              Try again
             </Button>
           </p>
         ) : planPending ? (
@@ -360,7 +360,7 @@ export function BulkRoleEditPanel({
                 <AlertDescription className="flex items-center justify-between gap-2">
                   <span>Could not load clubs.</span>
                   <Button variant="outline" onClick={() => void refetch()}>
-                    Retry
+                    Try again
                   </Button>
                 </AlertDescription>
               </Alert>

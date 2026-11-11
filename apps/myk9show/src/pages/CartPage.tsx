@@ -98,7 +98,7 @@ export default function CartPage() {
   const [cancelNoticeDismissed, setCancelNoticeDismissed] = useState(false);
 
   // The cart is NOT necessarily untouched on a cancelled return. A split
-  // checkout commits wait list rows and removes those lines from the cart
+  // checkout commits waitlist rows and removes those lines from the cart
   // BEFORE redirecting to Stripe (see handleCheckout), so an exhibitor who
   // abandons payment comes back to a smaller cart. The banner therefore
   // promises only what is always true - no charge - and never that the cart
@@ -118,8 +118,8 @@ export default function CartPage() {
 
   // MYK9-122: the cart, its totals, and checkout must all be driven by ONE
   // rule. This is the same split checkout runs — computed here so a full class
-  // reads as a wait-list request up front instead of looking payable, moving
-  // the total, and then disappearing once checkout routes it to the wait list.
+  // reads as a waitlist request up front instead of looking payable, moving
+  // the total, and then disappearing once checkout routes it to the waitlist.
   // `null` while capacity is loading or errored: unknown availability must not
   // be presented as a final amount.
   // A query gated by `enabled` is not "resolved" just because it is not
@@ -131,7 +131,7 @@ export default function CartPage() {
   const capacityQueried = Boolean(cart?.show_id);
   // `isCheckingOut` deliberately keeps the last resolved view on screen. The
   // submit-time refetch sets isFetching, which would otherwise flip the summary
-  // to capacityUnknown at the exact instant Pay is pressed: wait-list badges
+  // to capacityUnknown at the exact instant Pay is pressed: waitlist badges
   // vanish, their lines flip from "Pending" to a dollar figure, and the Total
   // blanks to "Pending" - the summary contradicting itself at the highest-stakes
   // moment. The button already reads "Processing...", and the refetch result
@@ -258,7 +258,7 @@ export default function CartPage() {
       return;
     }
     if (!profile?.id) {
-      setError('Could not verify your exhibitor profile. Please sign in again.');
+      setError('Could not verify your account. Please sign in again.');
       return;
     }
     // A Stripe session is cart-wide. Skip the capacity dependency only when
@@ -287,7 +287,7 @@ export default function CartPage() {
       // A class that filled in that window would be classified payable, sent
       // to Stripe, charged, and then refunded by the server's overflow path -
       // money made whole, but a charge-then-refund the exhibitor never
-      // expected. One refetch routes it to the wait list cleanly instead.
+      // expected. One refetch routes it to the waitlist cleanly instead.
       const fresh = onlyRecoveredItems ? null : await refetchCapacity();
 
       // Fail closed. refetch() resolves with the error inside the result rather
@@ -307,7 +307,7 @@ export default function CartPage() {
 
       const freshJudgeDays = fresh?.data?.judgeDays ?? [];
       const freshClassSpots = fresh?.data?.classSpots ?? [];
-      // MYK9-1019: the server's effective "takes a wait list", read fresh, so a
+      // MYK9-1019: the server's effective "takes a waitlist", read fresh, so a
       // setting the secretary changed while this cart was open is honoured.
       const freshWaitlistClassIds = fresh?.data?.waitlistClassIds ?? [];
 
@@ -341,7 +341,7 @@ export default function CartPage() {
         const removed = await removeItem(itemId);
         if (!removed) {
           setError(
-            'Your wait list request was saved, but we could not refresh your entry for payment. Please reload the page before trying again.'
+            'Your waitlist request was saved, but we could not refresh your entry for payment. Please reload the page before trying again.'
           );
           stopCheckingOut();
           return;
@@ -402,7 +402,7 @@ export default function CartPage() {
         // earned another 409 - the loop this fix exists to break.
         await loadActiveCart(profile.id, reloadOptions);
         // A class that filled at Pay (MYK9-1012) must read as full on the
-        // reloaded cart, with its wait-list option, not as payable.
+        // reloaded cart, with its waitlist option, not as payable.
         await refetchCapacity();
       }
 
@@ -571,7 +571,7 @@ export default function CartPage() {
                     Anything still in your entry is below.
                   </>
                 )}{' '}
-                Any wait list requests you made are saved under{' '}
+                Any waitlist requests you made are saved under{' '}
                 <Link to="/exhibitor/entries" className="text-primary hover:underline">
                   My Shows
                 </Link>

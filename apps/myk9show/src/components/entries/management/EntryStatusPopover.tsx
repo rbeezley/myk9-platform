@@ -164,9 +164,9 @@ export function EntryStatusPopover({
             type="button"
             className="min-h-11 rounded px-2 font-semibold underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             onClick={() => void runAction(failedAction)}
-            aria-label="Retry status update"
+            aria-label="Try status update again"
           >
-            Retry
+            Try again
           </button>
         </div>
       )}

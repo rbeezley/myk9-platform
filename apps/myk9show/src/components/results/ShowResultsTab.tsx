@@ -190,7 +190,7 @@ function PodiumContent({ showId, showEntries = [] }: PodiumContentProps) {
       <EmptyState
         icon={Trophy}
         title="Error loading results"
-        action={{ label: 'Retry', onClick: () => refetch() }}
+        action={{ label: 'Try again', onClick: () => refetch() }}
       />
     );
   }
@@ -248,7 +248,7 @@ function PodiumContent({ showId, showEntries = [] }: PodiumContentProps) {
         >
           <span>Pending classes could not be loaded.</span>
           <button type="button" className={LIST_LINK_BUTTON} onClick={() => refetchProgress()}>
-            Retry
+            Try again
           </button>
         </div>
       ) : (

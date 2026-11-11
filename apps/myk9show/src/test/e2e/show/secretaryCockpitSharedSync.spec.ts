@@ -25,8 +25,9 @@ function focusedPanel(page: Page) {
 }
 
 function statusControl(page: Page, status: string) {
+  // The inline Status field in the class header (MYK9-1867): a button named for the class, showing the status.
   return focusedPanel(page).getByRole('button', {
-    name: `Class status: ${status}. Select to change.`,
+    name: new RegExp(`^Status: ${status}\\. Change status of `),
   });
 }
 
@@ -38,7 +39,7 @@ async function setStatus(page: Page, current: string, next: string) {
 
 async function setExpectedStart(page: Page, value: string) {
   const panel = focusedPanel(page);
-  await panel.getByRole('button', { name: /Set expected start|\d{1,2}:\d{2}/ }).click();
+  await panel.getByRole('button', { name: /^Expected start: .*Change expected start$/ }).click();
   await panel.getByLabel('Revised expected start').fill(value);
   await panel.getByRole('button', { name: 'Save expected start' }).click();
   await expect(panel.getByText(value, { exact: true })).toBeVisible({ timeout: 15_000 });
@@ -98,7 +99,9 @@ test.describe('Secretary cockpit shared two-device sync', () => {
       await expect(statusControl(secretaryA, 'Not started')).toBeVisible({ timeout: 30_000 });
       await expect(statusControl(secretaryB, 'Not started')).toBeVisible({ timeout: 30_000 });
       await expect(
-        focusedPanel(secretaryA).getByRole('button', { name: 'Set expected start' })
+        focusedPanel(secretaryA).getByRole('button', {
+          name: /^Expected start: .*Change expected start$/,
+        })
       ).toBeVisible();
 
       await expect(staffAtShow.getByRole('button', { name: new RegExp(CLASS_NAME) })).toBeVisible({

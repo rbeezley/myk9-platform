@@ -25,7 +25,7 @@ export function AtShowScoresheetIdentityUnavailable({ onRetry, onBack }: Props) 
         judge account.
       </p>
       <div className="flex flex-col gap-2 sm:flex-row">
-        <Button onClick={onRetry}>Retry</Button>
+        <Button onClick={onRetry}>Try again</Button>
         <RingsideUpButton label="Entries" onClick={onBack} />
       </div>
     </main>

@@ -1,4 +1,4 @@
-import { judgeLine } from '@/utils/classJudgeDisplay';
+import { isUnsetJudgeName, judgeLine } from '@/utils/classJudgeDisplay';
 import {
   formatClassEntryBreakdown,
   type ClassEntryBreakdown,
@@ -38,9 +38,9 @@ export function buildFocusedClassFacts({
   const countFact = scoringBegun
     ? `${progress.completed} of ${progress.total} scored`
     : (text?.entered ?? (entryCount === null ? null : countLabel(entryCount, 'entry', 'entries')));
-  return [
-    countFact,
-    text?.pending ?? null,
-    showJudge && focused.judgeName ? judgeLine(focused.judgeName) : null,
-  ].filter((fact): fact is string => Boolean(fact));
+  const judgeFact =
+    showJudge && !isUnsetJudgeName(focused.judgeName) ? judgeLine(focused.judgeName) : null;
+  return [countFact, text?.pending ?? null, judgeFact].filter((fact): fact is string =>
+    Boolean(fact)
+  );
 }

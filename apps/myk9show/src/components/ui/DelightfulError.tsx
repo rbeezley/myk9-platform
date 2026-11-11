@@ -112,7 +112,13 @@ const DelightfulError: React.FC<DelightfulErrorProps> = ({
         <AlertTriangle className="w-4 h-4 text-destructive flex-shrink-0" />
         <span className="text-destructive">{message || 'Something went wrong'}</span>
         {reset && (
-          <Button size="sm" variant="ghost" onClick={reset} className="ml-auto" aria-label="Retry">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={reset}
+            className="ml-auto"
+            aria-label="Try again"
+          >
             <RefreshCw className="w-3 h-3" />
           </Button>
         )}

@@ -10,7 +10,7 @@ export const SHOW_SETTINGS_COPY = {
   /** A replicated show write; it may have been saved on this device before the failure. */
   showSwitchFailed:
     "We couldn't save that change to the show. Check the switch before you try again.",
-  wifiFailed: "We couldn't save the WiFi details. Try again.",
+  wifiFailed: "We couldn't save the Wi-Fi details. Try again.",
   showCheckinFailed: "We couldn't save the self check-in setting for this show. Try again.",
   selectedClassesCheckinFailed:
     "We couldn't change self check-in for the selected classes. Try again.",

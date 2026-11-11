@@ -84,7 +84,7 @@ export const ShowsPaneList: React.FC<ShowsPaneListProps> = ({ selectedId, header
         <p className="font-medium">Couldn&apos;t load your shows.</p>
         {selectedId && <p className="mt-1 text-muted-foreground">The open show still works.</p>}
         <Button className="mt-3" variant="outline" onClick={() => void retryShows()}>
-          Retry
+          Try again
         </Button>
       </div>
     );

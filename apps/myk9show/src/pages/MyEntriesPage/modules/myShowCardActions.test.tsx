@@ -97,7 +97,7 @@ describe('MYK9-631 AC2 — the show card carries ONE actions trigger', () => {
       'Change handler or jump height',
       'Receipts',
       'Add to calendar',
-      'Message the show team',
+      'Message the show secretary',
       'View show page',
     ]);
   });
@@ -109,7 +109,7 @@ describe('MYK9-631 AC2 — the show card carries ONE actions trigger', () => {
     expect(menu.getAllByRole('menuitem').map(item => item.textContent)).toEqual([
       'Receipts',
       'Add to calendar',
-      'Message the show team',
+      'Message the show secretary',
       'View show page',
     ]);
   });

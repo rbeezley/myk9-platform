@@ -32,6 +32,12 @@ function createDbClass(status: string | null): DbClassWithRelations {
   } as DbClassWithRelations;
 }
 
+describe('mapDatabaseToClass judge (MYK9-1853)', () => {
+  it('stores no judge as an empty name, never the literal TBD', () => {
+    expect(mapDatabaseToClass(createDbClass('upcoming')).judge).toBe('');
+  });
+});
+
 describe('mapDatabaseToClass', () => {
   it('carries a stored class start time to the exhibitor schedule', () => {
     expect(

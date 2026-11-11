@@ -54,6 +54,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
     cardCheckoutUnavailableReason,
     isOnBehalf,
     canChargeJuniorFee,
+    canUseDeskPaymentActions,
     show,
   } = paymentResolution;
 
@@ -188,6 +189,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
         allowCardCheckout={cardCheckoutAvailable}
         cardCheckoutUnavailableReason={cardCheckoutUnavailableReason}
         juniorFee={canChargeJuniorFee ? parseJuniorHandlerFee(show) : null}
+        allowFreeEntry={canUseDeskPaymentActions}
       />
 
       {/* MYK9-879: card checkout only. Fee-bearing, so it waits for the resolved
@@ -203,10 +205,12 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
 
       {/* Secretary desk actions. No money on it, so it needs no resolved zone;
           its paid and free shortcuts call the list's own handler (MYK9-1822). */}
-      <SecretaryPaymentManagement
-        paymentMethod={effectivePaymentMethod}
-        onPaymentMethodChange={handlePaymentMethodSelect}
-      />
+      {canUseDeskPaymentActions && (
+        <SecretaryPaymentManagement
+          paymentMethod={effectivePaymentMethod}
+          onPaymentMethodChange={handlePaymentMethodSelect}
+        />
+      )}
 
       {/* Entry Agreement */}
       {show?.organization && (

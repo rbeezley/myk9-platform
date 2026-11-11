@@ -212,7 +212,7 @@ describe('SecretaryCockpitFocusedClass checklist (MYK9-948)', () => {
     // The card opens the print records, so it is a button even when the sheet has no print link.
     expect(
       within(items[0]!).getByRole('button', {
-        name: 'Print paperwork: check-in sheet. 0 of 1 printed. Show print records',
+        name: 'Print paperwork: check-in sheet. Not done, 0 of 1 printed. Show print records',
       })
     ).toBeInTheDocument();
     expect(within(items[3]!).getByText('Nothing to print yet')).toBeInTheDocument();
@@ -250,7 +250,7 @@ describe('SecretaryCockpitFocusedClass checklist (MYK9-948)', () => {
     const checklist = screen.getByRole('region', { name: 'Class checklist' });
     expect(
       within(checklist).getByRole('button', {
-        name: 'Print paperwork: armband labels, check-in sheet. 0 of 2 printed. Show print records',
+        name: 'Print paperwork: armband labels, check-in sheet. Not done, 0 of 2 printed. Show print records',
       })
     ).toBeInTheDocument();
     expect(within(checklist).getByText('0 of 7 done')).toBeInTheDocument();

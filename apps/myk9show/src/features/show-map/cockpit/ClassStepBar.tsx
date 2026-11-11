@@ -16,7 +16,7 @@ function StateIcon({ state }: { state: ClassChecklistState }) {
 }
 
 const STEP_CLASS =
-  'flex h-[6.5rem] w-full flex-col items-start gap-0.5 overflow-hidden rounded-lg border p-2.5 text-left text-sm';
+  'flex h-[7.5rem] w-full flex-col items-start gap-0.5 overflow-hidden rounded-lg border p-2.5 text-left text-sm';
 const TARGET_CLASS =
   'hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
@@ -54,6 +54,8 @@ export function ClassStepBar({
   actionFor,
   onPrint,
   onOpenRecords,
+  recordsId,
+  recordsOpen,
   onEditStart,
   editorTriggerRef,
 }: {
@@ -62,6 +64,9 @@ export function ClassStepBar({
   onPrint: (reportId: string) => void;
   /** The Print paperwork card: reveal the print records for this class. */
   onOpenRecords: () => void;
+  /** The print records' element id and whether they are open, for the Print paperwork card. */
+  recordsId: string;
+  recordsOpen: boolean;
   onEditStart: () => void;
   /** Lands on the editor step's button so closing the editor returns focus to it. */
   editorTriggerRef?: Ref<HTMLButtonElement>;
@@ -89,6 +94,8 @@ export function ClassStepBar({
                 type="button"
                 className={cn(className, TARGET_CLASS)}
                 aria-label={name}
+                aria-controls={recordsId}
+                aria-expanded={recordsOpen}
                 onClick={onOpenRecords}
                 {...current}
               >
@@ -114,7 +121,7 @@ export function ClassStepBar({
                 <StepFace item={item} isNext={item.id === nextId} />
                 {action?.kind === 'blocked' && (
                   <span
-                    className="w-full truncate text-xs text-muted-foreground"
+                    className="w-full line-clamp-2 text-xs text-muted-foreground"
                     title={action.label}
                   >
                     {action.label}

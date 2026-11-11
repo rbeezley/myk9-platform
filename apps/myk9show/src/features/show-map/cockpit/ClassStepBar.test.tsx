@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, onTestFinished, vi } from 'vitest';
 import { fromPartial } from '@total-typescript/shoehorn';
 
 import { render, screen, waitFor, within } from '@/test/utils/testUtils';
@@ -193,7 +193,7 @@ describe('class step bar (MYK9-1783)', () => {
       'grid-cols-[repeat(auto-fill,minmax(10.5rem,1fr))]'
     );
     for (const card of cards) {
-      expect(card).toHaveClass('h-[6.5rem]', 'overflow-hidden');
+      expect(card).toHaveClass('h-[7.5rem]', 'overflow-hidden');
       expect(card.querySelector('.line-clamp-2')).not.toBeNull();
     }
   });
@@ -217,7 +217,7 @@ describe('class step bar (MYK9-1783)', () => {
       const first = within(region).getAllByRole('listitem')[0]!;
       expect(
         within(first).getByRole('button', {
-          name: 'Print paperwork: armband labels, check-in sheet, score sheets. 0 of 3 printed. Show print records',
+          name: 'Print paperwork: armband labels, check-in sheet, score sheets. Not done, 0 of 3 printed. Show print records',
         })
       ).toBeInTheDocument();
       expect(within(first).getAllByRole('button')).toHaveLength(1);
@@ -226,7 +226,9 @@ describe('class step bar (MYK9-1783)', () => {
 
     it('counts only the documents this class has', () => {
       renderBar();
-      expect(card(/^Print paperwork: check-in sheet, score sheets\. 0 of 2 printed/)).toBeVisible();
+      expect(
+        card(/^Print paperwork: check-in sheet, score sheets\. Not done, 0 of 2 printed/)
+      ).toBeVisible();
     });
 
     it('is done when everything is printed, partial when some is, and reprint when any is stale', () => {
@@ -242,6 +244,73 @@ describe('class step bar (MYK9-1783)', () => {
       all.unmount();
       renderBar({ paperwork: [armband('current'), ...withState('stale', 'scoresheet')] });
       expect(card(/1 of 3 printed/)).toHaveClass('bg-warning/10');
+    });
+
+    it('says its state in the name for every state, and never shows unknown as not printed', () => {
+      const unknown = (reportId: string, label: string) => ({
+        ...sheet(reportId, label, `/print/${reportId}`),
+        state: 'unknown' as const,
+      });
+      const named = (paperwork: SecretaryCockpitPaperwork[]) => {
+        const view = renderBar({ paperwork });
+        const name = screen
+          .getByRole('button', { name: /^Print paperwork/ })
+          .getAttribute('aria-label');
+        view.unmount();
+        return name;
+      };
+      const [checkIn, scores] = [printable[0]!, printable[1]!];
+      expect(named([checkIn, scores])).toBe(
+        'Print paperwork: check-in sheet, score sheets. Not done, 0 of 2 printed. Show print records'
+      );
+      expect(
+        named([
+          { ...checkIn, state: 'current' },
+          { ...scores, state: 'current' },
+        ])
+      ).toBe(
+        'Print paperwork: check-in sheet, score sheets. Done, 2 of 2 printed. Show print records'
+      );
+      expect(named([{ ...checkIn, state: 'stale' }, scores])).toBe(
+        'Print paperwork: check-in sheet, score sheets. Needs reprint, 0 of 2 printed. Show print records'
+      );
+      const allUnknown = [
+        unknown('check-in-sheet', 'Check-in sheet'),
+        unknown('scoresheet', 'Score sheets'),
+      ];
+      expect(named(allUnknown)).toBe(
+        'Print paperwork: check-in sheet, score sheets. Print status unknown. Show print records'
+      );
+      // Mixed known and unknown is still unknown.
+      expect(named([{ ...checkIn, state: 'current' }, allUnknown[1]!])).toBe(
+        'Print paperwork: check-in sheet, score sheets. Print status unknown. Show print records'
+      );
+      // A reprint outranks unknown.
+      expect(named([{ ...checkIn, state: 'stale' }, allUnknown[1]!])).toContain('Needs reprint');
+    });
+
+    it('reports expanded state and controls the records element', async () => {
+      const { user } = renderBar({ paperwork: [armband(), ...printable] });
+      const button = card(/^Print paperwork/);
+      expect(button).toHaveAttribute('aria-expanded', 'false');
+      expect(button.getAttribute('aria-controls')).toBe(records().id);
+      await user.click(button);
+      expect(button).toHaveAttribute('aria-expanded', 'true');
+    });
+
+    it('scrolls the opened records into view on every press', async () => {
+      const scroll = vi.fn();
+      const original = Element.prototype.scrollIntoView;
+      Element.prototype.scrollIntoView = scroll;
+      onTestFinished(() => {
+        Element.prototype.scrollIntoView = original;
+      });
+      const { user } = renderBar({ paperwork: [armband(), ...printable] });
+      await user.click(card(/^Print paperwork/));
+      await user.click(card(/^Print paperwork/));
+      expect(scroll).toHaveBeenCalledTimes(2);
+      expect(scroll).toHaveBeenCalledWith({ block: 'nearest' });
+      expect(scroll.mock.contexts[0]).toBe(records());
     });
 
     it('opens the print records and focuses their summary, without opening a print', async () => {

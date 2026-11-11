@@ -1,4 +1,5 @@
 import type { ClassChecklistItem, ClassChecklistState } from './classChecklist';
+import { STEP_STATE_TEXT } from './classStepActions';
 import type { SecretaryCockpitPaperwork } from './secretaryCockpitTypes';
 
 /** One card on the class step bar: a checklist item, or the merged "Print paperwork" card. */
@@ -51,6 +52,8 @@ export function buildClassSteps(
   const printed = present.filter(doc => doc.row.state === 'current').length;
   const states = present.map(doc => PAPERWORK_STATE[doc.row.state]);
   const bundledItems = items.filter(item => BUNDLED_STEP_IDS.has(item.id));
+  // A reprint outranks everything; otherwise any unknown row makes the whole card unknown, so a
+  // failed print sync never reads as "0 of 3 printed".
   const state: ClassChecklistState =
     present.length === 0
       ? bundledItems.every(item => item.state === 'unknown')
@@ -58,11 +61,17 @@ export function buildClassSteps(
         : 'todo'
       : states.includes('reprint')
         ? 'reprint'
-        : printed === present.length
-          ? 'done'
-          : 'todo';
+        : states.includes('unknown')
+          ? 'unknown'
+          : printed === present.length
+            ? 'done'
+            : 'todo';
   const detail =
-    present.length > 0 ? `${printed} of ${present.length} printed` : 'Nothing to print yet';
+    present.length === 0
+      ? 'Nothing to print yet'
+      : state === 'unknown'
+        ? 'Print status unknown'
+        : `${printed} of ${present.length} printed`;
   const label = 'Print paperwork';
   const bundle: ClassStep = {
     id: PRINT_BUNDLE_ID,
@@ -72,7 +81,7 @@ export function buildClassSteps(
     ...(present.length > 0
       ? {
           opensRecords: true,
-          accessibleName: `${label}: ${present.map(doc => doc.name.toLowerCase()).join(', ')}. ${detail}. Show print records`,
+          accessibleName: `${label}: ${present.map(doc => doc.name.toLowerCase()).join(', ')}. ${state === 'unknown' ? detail : `${STEP_STATE_TEXT[state]}, ${detail}`}. Show print records`,
         }
       : {}),
   };

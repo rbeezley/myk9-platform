@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { ArrowRight, ChevronDown, Printer } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -106,11 +106,19 @@ export function ClassChecklistSection({
   const recordsOpen = recordsFor.classId === classId && recordsFor.open;
   const recordsRef = useRef<HTMLDetailsElement>(null);
   const recordsSummaryRef = useRef<HTMLElement>(null);
+  const recordsId = useId();
+  // Each press of the card bumps the token; the effect runs after the open render, so the revealed
+  // rows are what gets scrolled into view, and a second press scrolls again.
+  const [recordsRequest, setRecordsRequest] = useState(0);
   const showRecords = () => {
     setRecordsFor({ classId, open: true });
+    setRecordsRequest(count => count + 1);
+  };
+  useEffect(() => {
+    if (recordsRequest === 0) return;
     recordsRef.current?.scrollIntoView?.({ block: 'nearest' });
     recordsSummaryRef.current?.focus();
-  };
+  }, [recordsRequest]);
   const printable = paperwork.filter(item => Boolean(item.printHref));
   const [localStart, setLocalStart] = useState<string | null>(null);
   const editingStart = onEditingStartChange ? (controlledStart ?? null) : localStart;
@@ -195,6 +203,8 @@ export function ClassChecklistSection({
             actionFor={actionFor}
             onPrint={reportId => setPrintIds([reportId])}
             onOpenRecords={showRecords}
+            recordsId={recordsId}
+            recordsOpen={recordsOpen}
             onEditStart={() => setEditingStart(classId)}
             editorTriggerRef={startStepRef}
           />
@@ -230,6 +240,7 @@ export function ClassChecklistSection({
           together), because the step bar only opens the preview. */}
       {(otherPaperwork.length > 0 || stepSheets.length > 0) && (
         <details
+          id={recordsId}
           ref={recordsRef}
           className="group"
           open={recordsOpen}

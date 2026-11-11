@@ -122,7 +122,7 @@ describe('unused print tracking and checklist on the real cockpit shape (MYK9-16
     expect(within(region).getByText(/0 of 7 done/)).toBeInTheDocument();
     expect(
       within(region).getByRole('button', {
-        name: 'Print paperwork: check-in sheet. 0 of 1 printed. Show print records',
+        name: 'Print paperwork: check-in sheet. Not done, 0 of 1 printed. Show print records',
       })
     ).toBeInTheDocument();
   });
@@ -136,7 +136,7 @@ describe('unused print tracking and checklist on the real cockpit shape (MYK9-16
     expect(screen.getByRole('region', { name: 'Class checklist' })).toBeInTheDocument();
     expect(
       screen.getByRole('button', {
-        name: 'Print paperwork: check-in sheet. 0 of 1 printed. Show print records',
+        name: 'Print paperwork: check-in sheet. Not done, 0 of 1 printed. Show print records',
       })
     ).toBeInTheDocument();
   });

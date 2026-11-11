@@ -10,7 +10,7 @@ import { CockpitActionLink } from './CockpitActionLink';
 import { ClassChecklistSection } from './ClassChecklistSection';
 import { FocusedClassFields } from './FocusedClassFields';
 import { FocusedClassActionsMenu, type FocusedClassEditAction } from './FocusedClassActionsMenu';
-import { RunOrderHandPlacement, RunOrderUndoNotice } from './RunOrderHandPlacement';
+import { RunOrderUndoNotice } from './RunOrderUndoNotice';
 import { focusedClassDelay } from './focusedClassDelay';
 import { formatTrialIdentity } from './secretaryCockpitModel';
 import type {
@@ -67,9 +67,6 @@ export function SecretaryCockpitFocusedClass({
   /** Re-reads the page's entries after a Check-in cell write (MYK9-1797). */
   onRefreshEntries?: (() => void | Promise<void>) | undefined;
 }) {
-  // Which class's hand-placement list is open; scoped by id so focusing another
-  // class closes it rather than carrying it over.
-  const [placingClassId, setPlacingClassId] = useState<string | null>(null);
   // Which class's actual-start editor is open; the header's Actual timing field and the Class started step share it.
   const [editingStart, setEditingStart] = useState<string | null>(null);
   if (!focused || !sourceClass || !trial) {
@@ -131,7 +128,6 @@ export function SecretaryCockpitFocusedClass({
             runOrder={runOrder}
             runOrderEntryCount={runOrderEntryCount}
             editClass={editClass}
-            onPlaceByHand={() => setPlacingClassId(focused.id)}
             entriesHref={entriesHref}
           />
         }
@@ -189,19 +185,13 @@ export function SecretaryCockpitFocusedClass({
             unread={unread}
             // Managers only; the engine's per-entry answer, joined to the table by nodeId (MYK9-1798).
             rowMenu={rowMenu}
+            // Managers only (MYK9-1872): drag a waiting dog's grip to change the run order.
+            reorder={canManageShow && runOrder ? { classId: focused.id, runOrder } : undefined}
           />
         </section>
 
         {canManageShow && runOrder && (
           <RunOrderUndoNotice classId={focused.id} runOrder={runOrder} />
-        )}
-        {canManageShow && runOrder && placingClassId === focused.id && (
-          <RunOrderHandPlacement
-            showId={showId}
-            classId={focused.id}
-            runOrder={runOrder}
-            onDone={() => setPlacingClassId(null)}
-          />
         )}
 
         {attention.length > 0 && (

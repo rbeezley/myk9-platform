@@ -26,7 +26,6 @@ function renderMenu(
   overrides: Partial<React.ComponentProps<typeof FocusedClassActionsMenu>> = {},
   secretaryOnlyReason?: string
 ) {
-  const onPlaceByHand = vi.fn();
   const editClass = { disabled: false, onSelect: vi.fn() };
   const view = render(
     <TrialSecretaryAccessProvider reason={secretaryOnlyReason}>
@@ -40,13 +39,12 @@ function renderMenu(
         runOrder={runOrder}
         runOrderEntryCount={8}
         editClass={editClass}
-        onPlaceByHand={onPlaceByHand}
         entriesHref={ENTRIES_HREF}
         {...overrides}
       />
     </TrialSecretaryAccessProvider>
   );
-  return { ...view, onPlaceByHand, editClass };
+  return { ...view, editClass };
 }
 
 async function openMenu(user: ReturnType<typeof renderMenu>['user']) {
@@ -70,7 +68,6 @@ describe('FocusedClassActionsMenu (MYK9-1796)', () => {
       'Score this class',
       'Announce a delay',
       'Auto-sort run order',
-      'Place by hand',
       'View entries and results',
     ]);
     expect(screen.getByRole('menuitem', { name: 'View entries and results' })).toHaveAttribute(
@@ -124,7 +121,6 @@ describe('FocusedClassActionsMenu (MYK9-1796)', () => {
     await openMenu(user);
 
     expect(itemNames()).not.toContain('Auto-sort run order');
-    expect(itemNames()).not.toContain('Place by hand');
   });
 
   it('gives a viewer who cannot manage the show only a link to the entries and results', () => {
@@ -137,16 +133,15 @@ describe('FocusedClassActionsMenu (MYK9-1796)', () => {
     );
   });
 
-  it('Edit class and Place by hand call the existing handlers', async () => {
-    const { user, editClass, onPlaceByHand } = renderMenu();
+  it('Edit class calls the existing handler, and Place by hand is gone (MYK9-1872)', async () => {
+    const { user, editClass } = renderMenu();
 
     await openMenu(user);
     await user.click(screen.getByRole('menuitem', { name: 'Edit class' }));
     expect(editClass.onSelect).toHaveBeenCalledTimes(1);
 
     await openMenu(user);
-    await user.click(screen.getByRole('menuitem', { name: 'Place by hand' }));
-    expect(onPlaceByHand).toHaveBeenCalledTimes(1);
+    expect(itemNames()).not.toContain('Place by hand');
   });
 
   it('locks Edit class while another class edit is resolving', async () => {

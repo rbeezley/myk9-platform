@@ -77,9 +77,12 @@ describe('ClassChecklistSection after-scoring items (MYK9-1032)', () => {
     ).toHaveLength(1);
   });
 
-  it('opens print from all four sheet steps, but ticks only the check-in and score sheet records', async () => {
+  it('opens print from the two results cards, reaches the documents through the Print paperwork card, and ticks only the check-in and score sheet records', async () => {
     const { user } = renderSection(completeClass);
-    expect(screen.getAllByRole('button', { name: /Open print preview$/ })).toHaveLength(4);
+    expect(screen.getAllByRole('button', { name: /Open print preview$/ })).toHaveLength(2);
+    expect(
+      screen.getByRole('button', { name: /^Print paperwork.*Show print records$/ })
+    ).toBeInTheDocument();
     await user.click(screen.getByText('Print records'));
     const ticks = screen.getAllByRole('checkbox').map(box => box.getAttribute('aria-label'));
     expect(ticks).toEqual(['Select Check-in sheet to print', 'Select Score sheets to print']);

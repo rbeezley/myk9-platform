@@ -12,13 +12,15 @@ import {
 import { ClassActualStartEditor } from './ClassActualStartEditor';
 import { ClassStepBar } from './ClassStepBar';
 import { resolveClassStepAction } from './classStepActions';
+import {
+  BUNDLED_DOCUMENTS,
+  buildClassSteps,
+  PRINT_BUNDLE_ID,
+  type ClassStep,
+} from './classStepBarModel';
 import { ClassPrintPanel } from './ClassPrintPanel';
 import { CockpitPaperworkRow } from './CockpitPaperworkRow';
-import {
-  buildClassChecklist,
-  summarizeClassChecklist,
-  type ClassChecklistItem,
-} from './classChecklist';
+import { buildClassChecklist, summarizeClassChecklist } from './classChecklist';
 import type { SecretaryCockpitClass, SecretaryCockpitPaperwork } from './secretaryCockpitTypes';
 
 const HEADING_CLASS = 'text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground';
@@ -94,6 +96,21 @@ export function ClassChecklistSection({
   const printIds = printFor?.classId === classId ? printFor.ids : null;
   const setPrintIds = (ids: readonly string[] | null) =>
     setPrintFor(ids === null ? null : { classId, ids });
+  // The print records are open when the Print paperwork card asked for them (or the user opened
+  // them); like the ticks, that belongs to one class and is spent on a class change.
+  const [recordsFor, setRecordsFor] = useState<{ classId: string; open: boolean }>({
+    classId,
+    open: false,
+  });
+  if (recordsFor.classId !== classId) setRecordsFor({ classId, open: false });
+  const recordsOpen = recordsFor.classId === classId && recordsFor.open;
+  const recordsRef = useRef<HTMLDetailsElement>(null);
+  const recordsSummaryRef = useRef<HTMLElement>(null);
+  const showRecords = () => {
+    setRecordsFor({ classId, open: true });
+    recordsRef.current?.scrollIntoView?.({ block: 'nearest' });
+    recordsSummaryRef.current?.focus();
+  };
   const printable = paperwork.filter(item => Boolean(item.printHref));
   const [localStart, setLocalStart] = useState<string | null>(null);
   const editingStart = onEditingStartChange ? (controlledStart ?? null) : localStart;
@@ -121,14 +138,44 @@ export function ClassChecklistSection({
         }
       : {};
 
-  const actionFor = (item: ClassChecklistItem) =>
-    resolveClassStepAction(item, {
-      paperwork,
-      canManageShow,
-      scoringHref,
-      resultsHref,
-      secretaryOnlyReason,
-    });
+  // The three documents usually printed together lead the section and sit side by side; the
+  // armband labels live outside the checklist and the two sheets inside it.
+  const bundledIds: readonly string[] = BUNDLED_DOCUMENTS.map(doc => doc.reportId);
+  const bundledRows = BUNDLED_DOCUMENTS.flatMap(doc => {
+    const other = otherPaperwork.find(item => item.reportId === doc.reportId);
+    if (other) return [{ key: other.reportId, item: other }];
+    const sheet = stepSheets.find(step => step.id === doc.reportId);
+    return sheet?.paperwork
+      ? [{ key: sheet.id, item: { ...sheet.paperwork, label: sheet.label } }]
+      : [];
+  });
+  const otherRest = otherPaperwork.filter(item => !bundledIds.includes(item.reportId));
+  const sheetRest = stepSheets.filter(step => !bundledIds.includes(step.id));
+  const renderRow = ({ key, item }: { key: string; item: SecretaryCockpitPaperwork }) => (
+    <CockpitPaperworkRow
+      key={key}
+      item={item}
+      timeZone={timeZone}
+      onCommand={onCommand}
+      printTrackingInUse={printTrackingInUse}
+      {...rowProps(item)}
+    />
+  );
+
+  const steps = buildClassSteps(items, paperwork);
+  const actionFor = (step: ClassStep) =>
+    step.id === PRINT_BUNDLE_ID
+      ? null
+      : resolveClassStepAction(
+          items.find(item => item.id === step.id)!,
+          {
+            paperwork,
+            canManageShow,
+            scoringHref,
+            resultsHref,
+            secretaryOnlyReason,
+          }
+        );
 
   return (
     <>
@@ -144,9 +191,10 @@ export function ClassChecklistSection({
             </span>
           </div>
           <ClassStepBar
-            items={items}
+            steps={steps}
             actionFor={actionFor}
             onPrint={reportId => setPrintIds([reportId])}
+            onOpenRecords={showRecords}
             onEditStart={() => setEditingStart(classId)}
             editorTriggerRef={startStepRef}
           />
@@ -181,8 +229,16 @@ export function ClassChecklistSection({
           sheets behind the steps keep their print record here (Undo, history, tick to print
           together), because the step bar only opens the preview. */}
       {(otherPaperwork.length > 0 || stepSheets.length > 0) && (
-        <details className="group">
-          <summary className={`${HEADING_CLASS} flex min-h-11 cursor-pointer items-center`}>
+        <details
+          ref={recordsRef}
+          className="group"
+          open={recordsOpen}
+          onToggle={event => setRecordsFor({ classId, open: event.currentTarget.open })}
+        >
+          <summary
+            ref={recordsSummaryRef}
+            className={`${HEADING_CLASS} flex min-h-11 cursor-pointer items-center`}
+          >
             {otherPaperwork.length === 0
               ? 'Print records'
               : stepSheets.length === 0
@@ -194,29 +250,17 @@ export function ClassChecklistSection({
             />
           </summary>
           <div className="mt-2 space-y-2">
-            {otherPaperwork.map(item => (
-              <CockpitPaperworkRow
-                key={item.reportId}
-                item={item}
-                timeZone={timeZone}
-                onCommand={onCommand}
-                printTrackingInUse={printTrackingInUse}
-                {...rowProps(item)}
-              />
-            ))}
-            {otherPaperwork.length > 0 && stepSheets.length > 0 && (
+            {bundledRows.map(renderRow)}
+            {otherRest.map(item => renderRow({ key: item.reportId, item }))}
+            {otherRest.length > 0 && sheetRest.length > 0 && (
               <p className="pt-1 text-xs font-medium text-muted-foreground">Print records</p>
             )}
-            {stepSheets.map(item => (
-              <CockpitPaperworkRow
-                key={item.id}
-                item={{ ...item.paperwork!, label: item.label }}
-                timeZone={timeZone}
-                onCommand={onCommand}
-                printTrackingInUse={printTrackingInUse}
-                {...rowProps(item.paperwork!)}
-              />
-            ))}
+            {sheetRest.map(item =>
+              renderRow({
+                key: item.id,
+                item: { ...item.paperwork!, label: item.label },
+              })
+            )}
           </div>
         </details>
       )}

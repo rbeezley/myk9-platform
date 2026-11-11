@@ -58,7 +58,7 @@ export function resolveClassStepAction(
 
 /** The step's whole accessible name: label, state, then the action ("Score sheets, needs reprint. Open print preview"). */
 export function classStepAccessibleName(
-  item: ClassChecklistItem,
+  item: Pick<ClassChecklistItem, 'label' | 'state'> & { detail?: string | undefined },
   action: ClassStepAction | null
 ): string {
   const state = STEP_STATE_TEXT[item.state].toLowerCase();

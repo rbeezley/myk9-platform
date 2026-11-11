@@ -9,6 +9,7 @@ import {
 } from '@/services/entryDisplay/entryDisplaySelectors';
 import { getStatusDescriptor } from '@/components/status/statusIconGrammar';
 import { getReviewStateLabel } from '@/components/entries/management/reviewStateLabels';
+import { isUnsetJudgeName } from '@/utils/classJudgeDisplay';
 
 export const UNPUBLISHED_SCHEDULE_DETAILS_MESSAGE =
   'Schedule details will appear here when the show publishes them.';
@@ -20,7 +21,10 @@ interface ScheduleDetailEntry {
 }
 
 export function hasUnpublishedScheduleDetails(entries: readonly ScheduleDetailEntry[]): boolean {
-  return entries.some(entry => !entry.startTime || !entry.armband || !entry.judgeName);
+  // MYK9-1853: judgeName arrives defaulted to 'TBD' by resolveClassJudgeName, so test it as unset.
+  return entries.some(
+    entry => !entry.startTime || !entry.armband || isUnsetJudgeName(entry.judgeName)
+  );
 }
 
 interface PendingResultEntry {

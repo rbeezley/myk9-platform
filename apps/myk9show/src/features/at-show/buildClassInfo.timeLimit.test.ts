@@ -35,6 +35,18 @@ function expectNumericOrUndefined(value: string | undefined) {
   }
 }
 
+describe('buildClassInfo unset judge (MYK9-1853)', () => {
+  it('reads null, blank and the legacy TBD as one No Judge Assigned, and keeps a real name', () => {
+    for (const judgeName of [undefined, '', 'TBD']) {
+      const info = buildClassInfo(makeClass({ judgeName }), null, [], []);
+      expect(info.judgeName).toBe('No Judge Assigned');
+    }
+    expect(buildClassInfo(makeClass({ judgeName: 'Pat Lee' }), null, [], []).judgeName).toBe(
+      'Pat Lee'
+    );
+  });
+});
+
 describe('buildClassInfo — timeLimit hygiene', () => {
   it('emits a clean numeric-seconds string for a real limit', () => {
     const info = buildClassInfo(

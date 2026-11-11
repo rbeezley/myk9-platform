@@ -29,6 +29,14 @@ describe('ClassCard', () => {
     expect(screen.getByText(/Jane Smith/)).toBeInTheDocument();
   });
 
+  it.each([[''], [null], ['TBD']])(
+    'says the judge is to be announced when there is none (%j, MYK9-1853)',
+    judgeName => {
+      render(<ClassCard classInfo={{ ...baseClass, judgeName } as never} />);
+      expect(screen.getByText('Judge: To be announced')).toBeInTheDocument();
+    }
+  );
+
   it('renders status badge', () => {
     render(<ClassCard classInfo={baseClass} />);
     expect(screen.getByText('Not started')).toBeInTheDocument();

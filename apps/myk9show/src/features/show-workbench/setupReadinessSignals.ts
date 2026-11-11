@@ -1,3 +1,4 @@
+import { isUnsetJudgeName } from '@/utils/classJudgeDisplay';
 import type { Show } from '@/types/show-types';
 import type { SyncableTrial } from '@/store/trial-store-types';
 import { classifyPremiumPublishState, type PremiumPublishStateInput } from './premiumPublishState';
@@ -83,7 +84,7 @@ function showDetailsComplete(show: Show): boolean {
 
 function judgesAssigned(input: SetupReadinessInput): boolean {
   if (input.judges.length > 0) return true;
-  return input.classes.length > 0 && input.classes.every(cls => hasText(cls.judgeName));
+  return input.classes.length > 0 && input.classes.every(cls => !isUnsetJudgeName(cls.judgeName));
 }
 
 // INTENT: Mirror the Show Desk adaptive header's pending-signals contract —

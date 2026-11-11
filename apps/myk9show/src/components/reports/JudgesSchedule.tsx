@@ -1,3 +1,4 @@
+import { judgeSortValue } from '@/utils/classJudgeDisplay';
 import React from 'react';
 import { getRegistrySportName } from '@/features/registries';
 import { formatTrialLabel } from '@myk9/core';
@@ -34,7 +35,14 @@ export const JudgesSchedule: React.FC<ReportProps> = ({
 
   function sortClasses(classes: typeof allClasses): typeof allClasses {
     if (sortOrder === 'judge-name') {
-      return [...classes].sort((a, b) => (a.judgeName ?? '').localeCompare(b.judgeName ?? ''));
+      return [...classes].sort((a, b) => {
+        const nameA = judgeSortValue(a.judgeName);
+        const nameB = judgeSortValue(b.judgeName);
+        if (nameA === undefined || nameB === undefined) {
+          return nameA === nameB ? 0 : nameA === undefined ? 1 : -1;
+        }
+        return nameA.localeCompare(nameB);
+      });
     }
     return classes;
   }

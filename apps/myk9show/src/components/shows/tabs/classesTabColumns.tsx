@@ -1,5 +1,6 @@
 import {
   isUnsetJudgeName,
+  judgeSortValue,
   judgeNameOrUnsetLabel,
   UNSET_JUDGE_STORED_TEXT,
 } from '@/utils/classJudgeDisplay';
@@ -81,7 +82,9 @@ export function buildClassesTabColumns({
       cell: ({ row }) => levelLabel(row.original),
     },
     {
-      accessorKey: 'judgeName',
+      id: 'judgeName',
+      accessorFn: row => judgeSortValue(row.judgeName),
+      sortUndefined: 'last' as const,
       header: 'Judge',
       meta: {
         responsiveHide: 'md' as const,

@@ -195,7 +195,10 @@ describe('executeBulkStatusUndo', () => {
 describe('undo toast messages', () => {
   it('maps single-undo outcomes to honest kinds/messages', () => {
     expect(buildStatusUndoToastMessage('reverted').kind).toBe('success');
-    expect(buildStatusUndoToastMessage('queued').kind).toBe('info');
+    expect(buildStatusUndoToastMessage('queued')).toEqual({
+      kind: 'info',
+      message: 'Undo saved on this device. It will be sent when you are back online.',
+    });
     expect(buildStatusUndoToastMessage('superseded')).toEqual({
       kind: 'error',
       message: 'Changed by someone else — not undone',
@@ -223,7 +226,13 @@ describe('undo toast messages', () => {
 
   it('summarizes an all-queued bulk undo as info', () => {
     expect(
-      buildBulkStatusUndoToastMessage({ reverted: 0, queued: 2, superseded: 0, failed: 0 }).kind
-    ).toBe('info');
+      buildBulkStatusUndoToastMessage({ reverted: 0, queued: 2, superseded: 0, failed: 0 })
+    ).toEqual({
+      kind: 'info',
+      message: '2 undos saved on this device. They will be sent when you are back online.',
+    });
+    expect(
+      buildBulkStatusUndoToastMessage({ reverted: 0, queued: 1, superseded: 0, failed: 0 }).message
+    ).toBe('1 undo saved on this device. It will be sent when you are back online.');
   });
 });

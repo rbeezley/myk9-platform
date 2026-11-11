@@ -512,7 +512,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     await screen.findByTestId('live-scoresheet');
     fireEvent.click(screen.getByText('Submit Score'));
 
-    expect(await screen.findByText(/Saved on this device.*waiting to sync/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Saved on this device.*not been sent yet/i)).toBeInTheDocument();
     expect(screen.queryByText('Score saved')).not.toBeInTheDocument();
   });
 
@@ -526,7 +526,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     fireEvent.click(screen.getByText('Submit Score'));
 
     await waitFor(() => expect(submitScoreOptimistically).toHaveBeenCalledTimes(1));
-    expect(await screen.findByText(/Saved on this device.*waiting to sync/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Saved on this device.*not been sent yet/i)).toBeInTheDocument();
 
     // Offline at the ring: every network sync hangs until the venue reconnects.
     const offline = () => new Promise<never>(() => undefined);
@@ -586,7 +586,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
 
     view.rerender(<QuickAdvancePanel {...actions} scoredEntryId="entry-2" />);
     expect(screen.queryByText('Score saved')).not.toBeInTheDocument();
-    expect(screen.getByText(/Saved on this device.*waiting to sync/i)).toBeInTheDocument();
+    expect(screen.getByText(/Saved on this device.*not been sent yet/i)).toBeInTheDocument();
   });
 
   it('changes a queued confirmation to server-saved after upload and readback', async () => {
@@ -596,7 +596,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     renderPage();
     await screen.findByTestId('live-scoresheet');
     fireEvent.click(screen.getByText('Submit Score'));
-    expect(await screen.findByText(/Saved on this device.*waiting to sync/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Saved on this device.*not been sent yet/i)).toBeInTheDocument();
     await waitFor(() => expect(replicatedEntriesTable.getScoreUploadState).toHaveBeenCalled());
 
     vi.mocked(replicatedEntriesTable.getScoreUploadState).mockResolvedValue('uploaded');
@@ -628,7 +628,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     await screen.findByTestId('live-scoresheet');
     fireEvent.click(screen.getByText('Submit Score'));
 
-    expect(await screen.findByText(/Saved on this device.*waiting to sync/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Saved on this device.*not been sent yet/i)).toBeInTheDocument();
     await waitFor(() => expect(replicatedEntriesTable.readScoreFromServer).toHaveBeenCalled());
     expect(screen.queryByText('Score saved')).not.toBeInTheDocument();
   });
@@ -658,7 +658,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     await screen.findByTestId('live-scoresheet');
     fireEvent.click(screen.getByText('Submit Score'));
 
-    expect(await screen.findByText(/Saved on this device.*waiting to sync/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Saved on this device.*not been sent yet/i)).toBeInTheDocument();
     await waitFor(() => expect(replicatedEntriesTable.readScoreFromServer).toHaveBeenCalled());
     expect(screen.queryByText('Score saved')).not.toBeInTheDocument();
   });
@@ -673,7 +673,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     fireEvent.click(screen.getByText('Submit Score'));
 
     expect(
-      await screen.findByText(/Saved on this device.*sync needs attention/i)
+      await screen.findByText(/Saved on this device, but it could not be sent/i)
     ).toBeInTheDocument();
     expect(replicatedEntriesTable.readScoreFromServer).toHaveBeenCalledWith('entry-1');
   });

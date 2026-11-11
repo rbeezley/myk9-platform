@@ -178,9 +178,7 @@ export function useOptimisticScoring() {
         if (mutationId === null) {
           // The row was marked dirty locally but no mutation was queued, so it
           // will never upload. Treat as a hard failure.
-          throw new Error(
-            'Score could not be queued for sync (no replication manager). Please retry.'
-          );
+          throw new Error('This score could not be saved on this device. Try again.');
         }
 
         logger.debug(

@@ -47,14 +47,14 @@ These appear as badges on entries, not as toast messages.
 
 ## App / Connectivity
 
-| String                                                               | Where              | Trigger                               | User action                            | Support checks                                                  |
-| -------------------------------------------------------------------- | ------------------ | ------------------------------------- | -------------------------------------- | --------------------------------------------------------------- |
-| "You are offline"                                                    | Toast / banner     | Network lost                          | Expected at venue; wait for connection | If at home: cache clear; if server-side: check Supabase status  |
-| "Your changes will be saved and synced when connection is restored." | Offline toast      | Network lost while writing            | Data is safe locally; will sync        | No action needed unless still offline after connection restores |
-| "Failed to save [N] change(s)."                                      | Sync failure toast | Replication write failed              | Retry using the Retry button           | Check Supabase status; then escalate to engineering             |
-| "Failed to load data from server."                                   | Sync failure toast | Replication download failed           | Reload the page when back online       | Check Supabase status                                           |
-| "This record was changed elsewhere"                                  | Conflict toast     | Two devices edited the same row       | Choose "Take theirs" or "Keep mine"    | Explain conflict resolution; no data is lost with either choice |
-| "Resyncing local data..."                                            | Loading indicator  | Manual sync or recovery after offline | Wait for completion                    | If it never resolves, cache clear may be needed                 |
+| String                                                               | Where              | Trigger                                                     | User action                                        | Support checks                                                    |
+| -------------------------------------------------------------------- | ------------------ | ----------------------------------------------------------- | -------------------------------------------------- | ----------------------------------------------------------------- |
+| "You are offline"                                                    | Toast / banner     | Network lost                                                | Expected at venue; wait for connection             | If at home: cache clear; if server-side: check Supabase status    |
+| "Your changes will be saved and synced when connection is restored." | Offline toast      | Network lost while writing                                  | Data is safe locally; will sync                    | No action needed unless still offline after connection restores   |
+| "Failed to save [N] change(s)."                                      | Sync failure toast | Replication write failed                                    | Retry using the Retry button                       | Check Supabase status; then escalate to engineering               |
+| "Failed to load data from server."                                   | Sync failure toast | Replication download failed                                 | Reload the page when back online                   | Check Supabase status                                             |
+| "This was changed somewhere else at the same time"                   | Conflict toast     | Two devices edited the same row                             | Choose "Keep the other change" or "Keep my change" | Explain conflict resolution: the change not chosen is thrown away |
+| "Getting this device's show data back. This can take a moment."      | Info toast         | The device's saved data was rebuilt after a storage failure | Wait for it to finish                              | If it never resolves, clearing saved data may be needed           |
 
 ---
 

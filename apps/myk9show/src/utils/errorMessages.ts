@@ -35,7 +35,7 @@ export const ERROR_CODE_MESSAGES: Record<string, string> = {
   '42P01': GENERIC_FAILURE_MESSAGE,
 
   // PostgreSQL class 08 — connection
-  '08000': 'Unable to reach the server. Please check your connection.',
+  '08000': 'We could not reach myK9Show. Please check your connection.',
   '08006': 'Connection to the server was lost. Please try again.',
 
   // myK9 custom SQLSTATEs (class MK)

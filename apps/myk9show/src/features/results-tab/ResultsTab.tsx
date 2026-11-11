@@ -194,7 +194,7 @@ export default function ResultsTab({ showStatsLink }: { showStatsLink?: ReactNod
   const releaseBlockedReason = !isOnline
     ? 'Connect to release from here'
     : unsyncedScores !== false
-      ? 'Waiting for score changes to sync'
+      ? 'Waiting for score changes to be sent'
       : null;
 
   const judgeGroup = useMemo(
@@ -259,7 +259,7 @@ export default function ResultsTab({ showStatsLink }: { showStatsLink?: ReactNod
       // results. Look again, directly, before anything is queued.
       try {
         if (await classHasUnsyncedScores(row.id)) {
-          refuse('Waiting for score changes to sync');
+          refuse('Waiting for score changes to be sent');
           return;
         }
       } catch {

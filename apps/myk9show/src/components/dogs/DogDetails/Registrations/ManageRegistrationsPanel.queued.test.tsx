@@ -236,7 +236,7 @@ describe('Manage registrations, offline', () => {
     });
     await waitFor(() =>
       expect(notified.success).toHaveBeenCalledWith(
-        "Registration deleted on this device — it will sync when you're back online"
+        'Registration deleted on this device. It will be sent when you are back online.'
       )
     );
     const [deletion] = await queuedOnce();

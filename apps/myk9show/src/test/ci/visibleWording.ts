@@ -6,7 +6,7 @@ import ts from 'typescript';
  * Visible-wording scan (MYK9-1857). Walks non-test source with the TypeScript
  * compiler API and reports text a person can read: string literals, template
  * parts and JSX text. Comments, identifiers and test files never count.
- * The agreed words live in docs/reference/ui-vocabulary.md (Nouns).
+ * The agreed words live in docs/reference/ui-vocabulary.md (Nouns, and "Offline and updates").
  */
 export type WordingHit = { file: string; line: number; rule: string; text: string };
 
@@ -17,7 +17,7 @@ const RETRY_PATTERN = /^Retry(\s|$)/;
 const HIDDEN_KEYS = new Set(['className', 'testId', 'testid', 'data-testid']);
 const isHiddenKey = (key: string) => HIDDEN_KEYS.has(key) || key.startsWith('data-');
 /** Developer-facing sinks: their first strings go to the console or log store, not the screen. */
-const LOG_CALLEE = /^(logger|console)\./;
+const LOG_CALLEE = /^(?:(?:logger|console|(?:this\.)?loggingService)\.|log$)/;
 
 /**
  * Strings that contain the old words on purpose because something compares, matches or
@@ -33,6 +33,54 @@ const NON_VISIBLE_MATCH_KEYS = new Set([
   // test asserts); never shown.
   'wait list offer entry changed by the server',
 ]);
+/**
+ * Offline and update words (MYK9-1848; ui-vocabulary.md, "Offline and updates"). Phrases, not
+ * bare words: "sync", "server" and "cache" also name developer logs, admin tools and code, so
+ * each rule names the shape a person was shown. "reload" is not checked: "Reload the page" is
+ * still the copy on cart and wizard errors that are not offline messages.
+ */
+const OFFLINE_RULES: ReadonlyArray<{ pattern: RegExp; rule: string }> = [
+  {
+    pattern:
+      /\bwill (?:be )?sync(?:ed)?\b|\bchanges to sync\b|\bonce it syncs\b|\b(?:haven't|hasn't|have not|has not) synced\b|\bsync (?:needs attention|paused)\b|\boldest sync\b|\bunsynced\b|\bpending sync\b|\bresync/i,
+    rule: 'say "will be sent when you are back online" or "not been sent yet", not "sync"',
+  },
+  { pattern: /\bqueued\b/i, rule: 'say "saved on this device", not "queued"' },
+  {
+    pattern: /\breach (?:the )?server\b|\bserver is (?:down|unreachable)\b/i,
+    rule: 'say "we could not reach myK9Show", not "the server"',
+  },
+  {
+    pattern: /\bclear(?:ing)? (?:(?:the|your|browser|development) )*caches?\b|\bcached data\b/i,
+    rule: 'say "saved data", not "cache"',
+  },
+];
+/** Staff diagnostics and developer-only tools keep the technical words (MYK9-1848). */
+const OFFLINE_EXEMPT_PATHS = [
+  'features/admin-system-health/',
+  'pages/admin/SystemHealth',
+  'utils/clearDevelopmentCache.ts',
+];
+/**
+ * Visible text that keeps an offline word on purpose. Each entry says why; keep this short.
+ */
+const OFFLINE_ALLOWED_TEXT = new Set([
+  // The Developer submenu in AccountMenuContent, shown only in development builds.
+  'Clear development cache and browser storage?',
+  'Clear cache',
+  'Clear Cache',
+  // A push alert queued on the server for sending, not a change held on this device.
+  'Message posted and push alert queued',
+  'Schedule announcement posted and push alert queued',
+]);
+/** One-token strings ('queued', 'replication:mutation-queued', import paths) are keys, not copy;
+ * a "[tag] ..." message is a developer error. */
+const isOfflineExempt = (file: string, trimmed: string) =>
+  !/\s/.test(trimmed) ||
+  trimmed.startsWith('[') ||
+  OFFLINE_ALLOWED_TEXT.has(trimmed) ||
+  OFFLINE_EXEMPT_PATHS.some(p => file.startsWith(p));
+
 /** Walk-up skip folders: tests and dependencies never ship as visible text. */
 const SKIPPED_DIRS = new Set(['node_modules', 'dist', 'coverage', '__tests__']);
 const SKIPPED_TOP_LEVEL_DIRS = new Set(['test']);
@@ -73,6 +121,11 @@ export function scanVisibleWording(fileName: string, source: string): WordingHit
       if (!NON_VISIBLE_MATCH_KEYS.has(trimmed) && !isHiddenText(node)) {
         if (WAITLIST_PATTERN.test(text)) report(node, 'waitlist is one word', text);
         if (RETRY_PATTERN.test(trimmed)) report(node, 'use "Try again", not "Retry"', text);
+        if (!isOfflineExempt(fileName, trimmed)) {
+          for (const { pattern, rule } of OFFLINE_RULES) {
+            if (pattern.test(text)) report(node, rule, text);
+          }
+        }
       }
     }
     ts.forEachChild(node, visit);

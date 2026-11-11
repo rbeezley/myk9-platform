@@ -31,7 +31,7 @@ export class ShowUnreachableError extends Error {
   readonly isShowUnreachable = true;
 
   constructor(public readonly reason?: unknown) {
-    super("We couldn't reach the server to download this show");
+    super('We could not reach myK9Show to download this show');
     this.name = 'ShowUnreachableError';
   }
 }
@@ -141,7 +141,7 @@ export function missingShowCopy(reason: MissingShowReason): MissingShowCopy {
       // that associates but carries no traffic is the common shape, and it is
       // the one case where the device claims to be online.
       description:
-        "This device has no saved copy of this show, and we couldn't reach the server to download it. Venue Wi-Fi often connects without working internet. Try again, or prepare the show for offline use once you have a real connection.",
+        'This device has no saved copy of this show, and we could not reach myK9Show to download it. Venue Wi-Fi often connects without working internet. Try again, or prepare the show for offline use once you have a real connection.',
     };
   }
 

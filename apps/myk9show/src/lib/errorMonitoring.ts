@@ -373,7 +373,7 @@ export class ErrorClassifier {
           automated: false,
           steps: [
             'Log out and log back in',
-            'Clear browser cache and cookies',
+            "Clear this browser's saved data and cookies",
             'Reset password if needed',
             'Contact support if problem persists',
           ],

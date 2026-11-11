@@ -16,7 +16,7 @@ describe('classRowSyncBlockedReason', () => {
 
   it('says honestly when the queue cannot be read', () => {
     expect(classRowSyncBlockedReason('unreadable')).toMatch(
-      /Still checking this class. If this message stays, reload the page./
+      /Still checking this class. If this message stays, restart the app./
     );
   });
 

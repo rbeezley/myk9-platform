@@ -267,7 +267,7 @@ describe('Results tab on the real replicated class rows', () => {
       // A local correction: the row is dirty until the upload is acknowledged.
       await replicatedEntriesTable.updateEntry('e-class-open', { resultStatus: 'nq' } as never);
       await waitFor(() =>
-        expect(screen.getByText('Waiting for score changes to sync')).toBeInTheDocument()
+        expect(screen.getByText('Waiting for score changes to be sent')).toBeInTheDocument()
       );
       expect(screen.getByRole('button', { name: 'Release results' })).toBeDisabled();
 
@@ -387,7 +387,7 @@ describe('Results tab on the real replicated class rows', () => {
       await replicatedClassesTable.updateClass('class-open', { classStatus: 'Completed' });
 
       await waitFor(() => expect(screen.getByRole('button', SAVE_CHECK)).toBeDisabled());
-      expect(screen.getByText(/Waiting for this class.s changes to sync/)).toBeInTheDocument();
+      expect(screen.getByText(/Waiting for this class.s changes to be sent/)).toBeInTheDocument();
 
       // The upload is acknowledged, then an ordinary class sync brings the server's check down.
       await replicatedClassesTable.markAsSynced('class-open');
@@ -416,7 +416,7 @@ describe('Results tab on the real replicated class rows', () => {
         const row = (await replicatedClassesTable.get('class-open'))!;
         await replicatedClassesTable.set('class-open', { ...row }, false);
         await waitFor(() => expect(screen.getByRole('button', SAVE_CHECK)).toBeDisabled());
-        expect(screen.getByText(/Waiting for this class.s changes to sync/)).toBeInTheDocument();
+        expect(screen.getByText(/Waiting for this class.s changes to be sent/)).toBeInTheDocument();
 
         // Let every notice from that write drain (leading and trailing debounce edges), so
         // nothing table-driven is left to re-read for us.
@@ -428,7 +428,7 @@ describe('Results tab on the real replicated class rows', () => {
           timeout: 4_000,
         });
         expect(
-          screen.queryByText(/Waiting for this class.s changes to sync/)
+          screen.queryByText(/Waiting for this class.s changes to be sent/)
         ).not.toBeInTheDocument();
       } finally {
         spy.mockRestore();

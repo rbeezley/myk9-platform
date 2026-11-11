@@ -67,25 +67,28 @@ export function useCheckInDeskActions(
       const done = new Set(outcome.succeeded);
       const applied = targets.filter(target => done.has(target.entryId));
       if (applied.length > 0) {
+        const flips = new Map(applied.map(({ entryId, from }) => [entryId, { from, to: status }]));
         setChanges(current => {
           const next = new Map(current);
-          applied.forEach(({ entryId, from }) => next.set(entryId, { from, to: status }));
+          flips.forEach((flip, entryId) => next.set(entryId, flip));
           return next;
         });
         // Without a re-read there is nothing to hand over to, so the flip stays.
         if (onRefreshEntries) {
-          try {
-            await onRefreshEntries();
-            setChanges(current => {
-              const next = new Map(current);
-              applied.forEach(({ entryId }) => {
-                if (next.get(entryId)?.to === status) next.delete(entryId);
+          void Promise.resolve()
+            .then(onRefreshEntries)
+            .then(() => {
+              setChanges(current => {
+                const next = new Map(current);
+                applied.forEach(({ entryId }) => {
+                  if (next.get(entryId) === flips.get(entryId)) next.delete(entryId);
+                });
+                return next;
               });
-              return next;
+            })
+            .catch(() => {
+              // The re-read failed: keep the flip rather than show the change as undone.
             });
-          } catch {
-            // The re-read failed: keep the flip rather than show the change as undone.
-          }
         }
       }
       const checkingIn = status === 'checked-in';

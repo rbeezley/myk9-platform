@@ -144,6 +144,31 @@ describe('Pulled on the Check-in desk is the real Pull (MYK9-1749)', () => {
     );
   });
 
+  it('offers Undo and permits another Pull while the refresh is still pending', async () => {
+    const onRefreshEntries = vi.fn(() => new Promise<void>(() => {}));
+    const { user } = render(
+      <CheckInDesk
+        showId="show-1"
+        entries={[poppy]}
+        loading={false}
+        unknown={false}
+        onRetry={vi.fn()}
+        onRefreshEntries={onRefreshEntries}
+        currentDate={NOW}
+      />
+    );
+    await choosePulled(user);
+    const confirm = await screen.findByRole('dialog', { name: 'Pull Poppy?' });
+    await user.click(within(confirm).getByRole('button', { name: 'Pull' }));
+    await waitFor(() => expect(h.showUndoToast).toHaveBeenCalledTimes(1));
+    h.showUndoToast.mock.calls[0]![0].onUndo();
+    await waitFor(() => expect(h.undoShowMapScratch).toHaveBeenCalledTimes(1));
+    await choosePulled(user);
+    const nextConfirm = await screen.findByRole('dialog', { name: 'Pull Poppy?' });
+    await user.click(within(nextConfirm).getByRole('button', { name: 'Pull' }));
+    await waitFor(() => expect(h.scratchShowMapEntry).toHaveBeenCalledTimes(2));
+  });
+
   describe('a Pull that fails (MYK9-1844)', () => {
     let toastError: MockInstance<typeof toast.error>;
 

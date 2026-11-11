@@ -73,7 +73,7 @@ export function useDeskPull(
         'Pulled at the check-in desk'
       );
       setPending(null);
-      await refresh();
+      void refresh();
       showUndoToast({
         message: `${row.dogName} pulled from ${row.className}`,
         onUndo: () => {
@@ -117,7 +117,7 @@ export function useDeskPull(
         ...(user?.id ? { secretaryId: user.id } : {}),
       });
       setPending(null);
-      await refresh();
+      void refresh();
       toast.success(`${row.dogName} is back in ${row.className}`);
     } catch (error) {
       toast.error(
@@ -135,7 +135,7 @@ export function useDeskPull(
     setClearingId(row.entryId);
     try {
       const restored = await clearFlaggedPull(row.entryId);
-      await refresh();
+      void refresh();
       toast.success(`${row.dogName}, ${row.className}: ${deskStatusLabel(restored)}`);
     } catch (error) {
       toast.error(

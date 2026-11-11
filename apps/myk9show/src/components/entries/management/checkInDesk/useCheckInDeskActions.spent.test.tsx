@@ -1,4 +1,4 @@
-import { act, renderHook } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { CheckInStatus } from '@myk9/core';
@@ -15,6 +15,45 @@ const source = (status: CheckInStatus): DeskStatusSource[] => [
 describe('a held status flip is spent once the shared entries move on', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it('frees the row after the write even when the refresh never settles', async () => {
+    const onRefreshEntries = vi.fn(() => new Promise<void>(() => {}));
+    const { result } = renderHook(() =>
+      useCheckInDeskActions(source('no-status'), onRefreshEntries)
+    );
+    act(() => {
+      void result.current.setStatus('Moss', ['e-1'], 'checked-in');
+    });
+    await waitFor(() => expect(onRefreshEntries).toHaveBeenCalled());
+    await waitFor(() => expect(result.current.busyIds.has('e-1')).toBe(false));
+    expect(result.current.changes.get('e-1')).toEqual({ from: 'no-status', to: 'checked-in' });
+  });
+
+  it('does not let an older refresh clear a newer status change', async () => {
+    let finishFirst: () => void = () => {};
+    const onRefreshEntries = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>(resolve => {
+            finishFirst = resolve;
+          })
+      )
+      .mockImplementation(() => new Promise<void>(() => {}));
+    const { result } = renderHook(() =>
+      useCheckInDeskActions(source('no-status'), onRefreshEntries)
+    );
+    await act(async () => {
+      await result.current.setStatus('Moss', ['e-1'], 'checked-in');
+    });
+    await act(async () => {
+      await result.current.setStatus('Moss', ['e-1'], 'checked-in');
+    });
+    await act(async () => {
+      finishFirst();
+    });
+    expect(result.current.changes.get('e-1')).toEqual({ from: 'no-status', to: 'checked-in' });
   });
 
   it('does not re-apply when the stored status later returns to where the flip began', async () => {

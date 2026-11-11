@@ -199,8 +199,8 @@ export function ExpectedStartControl({
   timeZone: string;
   canManageShow: boolean;
   /**
-   * Controlled by the class header's Actions menu, which opens this editor in a dialog. Without
-   * `onEditingChange` (or without `canManageShow`) this renders the read-only value.
+   * Controlled by the class header's inline Expected start field, which opens this editor in
+   * place. Without `onEditingChange` (or without `canManageShow`) this renders the read-only value.
    */
   editing?: boolean;
   onEditingChange?: (editing: boolean) => void;

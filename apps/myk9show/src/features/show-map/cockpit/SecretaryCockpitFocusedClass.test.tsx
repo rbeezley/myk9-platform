@@ -298,7 +298,7 @@ describe('SecretaryCockpitFocusedClass delay announcement', () => {
     const { user } = renderPanel(source);
     await user.click(screen.getByRole('button', { name: /^Actions for/ }));
     // Positive control: the menu opened and holds its other items.
-    expect(await screen.findByRole('menuitem', { name: 'Set expected start' })).toBeInTheDocument();
+    expect(await screen.findByRole('menuitem', { name: 'Score this class' })).toBeInTheDocument();
     const item = screen.queryByRole('menuitem', { name: 'Announce a delay' });
     if (offered) expect(item).not.toBeNull();
     else expect(item).toBeNull();
@@ -367,13 +367,35 @@ describe('SecretaryCockpitFocusedClass layout (owner, 2026-10-03)', () => {
     );
   }
 
-  it('groups what the secretary sets under Class settings, apart from the work', () => {
+  it('shows what the secretary sets as inline fields in the class header', () => {
     renderPanel(sourceClass);
 
-    const settings = screen.getByRole('region', { name: 'Class settings' });
+    const settings = screen.getByTestId('focused-class-header');
     expect(within(settings).getByText('Status')).toBeInTheDocument();
     expect(within(settings).getByText('Expected start')).toBeInTheDocument();
     expect(within(settings).getByText('Actual timing')).toBeInTheDocument();
+  });
+
+  it('closes an open expected-start editor when the secretary moves to another class', async () => {
+    const { user, rerender } = renderPanel(sourceClass);
+    await user.click(
+      within(screen.getByTestId('focused-class-header')).getByRole('button', { name: /9:00/ })
+    );
+    expect(screen.getByRole('button', { name: 'Save expected start' })).toBeInTheDocument();
+
+    rerender(
+      <SecretaryCockpitFocusedClass
+        showId="show-1"
+        focused={{ ...focused, id: 'class-2', name: 'Container Advanced' }}
+        sourceClass={{ ...sourceClass, id: 'class-2', name: 'Container Advanced' }}
+        trial={{ id: 'trial-1', date: '2026-07-20', number: '1', order: 0 }}
+        attention={[]}
+        timeZone="America/Chicago"
+        canManageShow
+        onCommand={vi.fn()}
+      />
+    );
+    expect(screen.queryByRole('button', { name: 'Save expected start' })).not.toBeInTheDocument();
   });
 
   it('heads a started class with its scored count, not a redundant entry count', () => {
@@ -399,7 +421,7 @@ describe('SecretaryCockpitFocusedClass layout (owner, 2026-10-03)', () => {
       { ...focused, lifecycle: { evidence: 'recorded', value: 'complete' } }
     );
 
-    const settings = screen.getByRole('region', { name: 'Class settings' });
+    const settings = screen.getByTestId('focused-class-header');
     expect(within(settings).getByText('Start not recorded')).toBeInTheDocument();
     expect(within(settings).queryByText('Not started')).toBeNull();
   });

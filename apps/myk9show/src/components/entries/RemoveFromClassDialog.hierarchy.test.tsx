@@ -29,7 +29,7 @@ describe('RemoveFromClassDialog — copy and button hierarchy (MYK9-988)', () =>
     const dialog = within(await renderDialog({ status: 'resolved', registry: 'AKC' }));
 
     expect(
-      dialog.getByText(/Pick one — the club handles the fee differently for each/)
+      dialog.getByText(/Pick one\. The club handles the fee differently for each/)
     ).toBeVisible();
     expect(dialog.queryByText(/withdrawing and pulling are different/i)).not.toBeInTheDocument();
     expect(

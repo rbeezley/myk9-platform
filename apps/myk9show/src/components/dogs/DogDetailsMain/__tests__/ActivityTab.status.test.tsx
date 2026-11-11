@@ -32,7 +32,7 @@ describe('ActivityTab upcoming-entry status line (2.B)', () => {
 
   it('speaks the exhibitor voice and never the raw enum', () => {
     render(<ActivityTab dogId="dog-1" dogName="Buddy" role="exhibitor" />);
-    expect(screen.getByText('Submitted — awaiting review')).toBeVisible();
+    expect(screen.getByText('Submitted, awaiting review')).toBeVisible();
     expect(screen.queryByText('submitted')).toBeNull();
   });
 
@@ -40,7 +40,7 @@ describe('ActivityTab upcoming-entry status line (2.B)', () => {
   // jsdom has no layout. Pins that the title can shrink and the badge stacks narrow.
   it('lets the title shrink and stacks the status badge under it on narrow widths', () => {
     render(<ActivityTab dogId="dog-1" dogName="Buddy" role="exhibitor" />);
-    const badge = screen.getByText('Submitted — awaiting review');
+    const badge = screen.getByText('Submitted, awaiting review');
     const pair = badge.parentElement as HTMLElement;
     expect(pair).toHaveClass('flex-col', 'sm:flex-row', 'min-w-0', 'flex-1');
     expect(badge).not.toHaveClass('flex-shrink-0');

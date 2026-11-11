@@ -82,8 +82,8 @@ const ENTRY_MANAGEMENT_LABELS: Record<PaymentChannel, string> = {
   online: 'Paid online',
   check: 'Paid by check',
   cash: 'Paid by cash',
-  secretary: 'Paid — recorded by secretary',
-  group: 'Paid — group payment',
+  secretary: 'Paid, recorded by secretary',
+  group: 'Paid, group payment',
   waived: 'Waived',
   unknown: 'Paid',
 };

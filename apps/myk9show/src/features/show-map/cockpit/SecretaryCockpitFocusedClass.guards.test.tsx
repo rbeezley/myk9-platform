@@ -9,6 +9,7 @@ import { updateReplicatedCheckInStatus } from '@/services/show-day/checkInStatus
 
 import { SecretaryCockpitFocusedClass } from './SecretaryCockpitFocusedClass';
 import type { SecretaryCockpitClassEntry } from './cockpitClassEntries';
+import { queueFor } from './__tests__/queueFixture';
 import type { FocusedClassModel, SecretaryCockpitClass } from './secretaryCockpitTypes';
 
 vi.mock('@/hooks/useAuthContext', () => ({
@@ -31,6 +32,7 @@ vi.mock('@/features/show-workbench/workbenchAnnouncementPost', () => ({
 
 const moss = fromPartial<SecretaryCockpitClassEntry>({
   nodeId: 'entry:e-1',
+  queue: queueFor('entry:e-1', '101', 'waiting'),
   entryId: 'e-1',
   armband: '101',
   dogName: 'Moss',
@@ -66,7 +68,14 @@ const focusedClass = (id: string, name: string, overrides: Partial<FocusedClassM
     paperwork: [],
     classWorkActions: [],
     entryRows: [],
-    entries: [{ ...moss, nodeId: `entry:${id}`, entryId: `e-${id}` }],
+    entries: [
+      {
+        ...moss,
+        nodeId: `entry:${id}`,
+        queue: queueFor(`entry:${id}`, '101', 'waiting'),
+        entryId: `e-${id}`,
+      },
+    ],
     entriesHidden: 0,
     ...overrides,
   });

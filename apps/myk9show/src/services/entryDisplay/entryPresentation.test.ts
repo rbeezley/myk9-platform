@@ -18,17 +18,17 @@ describe('deriveEntryPresentation — context-aware wording', () => {
     });
     expect(present('paid', exhibitor)).toEqual({
       kind: 'accepted',
-      statusLine: "Submitted — you're in",
+      statusLine: "Submitted. You're in",
       actionHint: null,
     });
   });
 
   it('gives "Pending" (awaiting review) different words from "not yet run"', () => {
     expect(present('submitted', secretary).statusLine).toBe('Needs review');
-    expect(present('submitted', exhibitor).statusLine).toBe('Submitted — awaiting review');
+    expect(present('submitted', exhibitor).statusLine).toBe('Submitted, awaiting review');
     // An accepted-but-unrun entry never reads as pending-anything.
     expect(present('confirmed', secretary).statusLine).toBe('Accepted');
-    expect(present('confirmed', exhibitor).statusLine).toBe("Accepted — you're in");
+    expect(present('confirmed', exhibitor).statusLine).toBe("Accepted. You're in");
   });
 
   it('keeps promotion-expired in the review lane for the secretary, honest for the exhibitor', () => {
@@ -80,10 +80,10 @@ describe('deriveEntryPresentation — context-aware wording', () => {
 
 describe('deriveEntryPresentation — kind-level lines', () => {
   const kindLines: Array<[raw: string, sec: string, exh: string]> = [
-    ['no-status', 'Needs review', 'Submitted — awaiting review'],
-    ['pending', 'Needs review', 'Submitted — awaiting review'],
-    ['accepted', 'Accepted', "Accepted — you're in"],
-    ['scheduled', 'Accepted', "Accepted — you're in"],
+    ['no-status', 'Needs review', 'Submitted, awaiting review'],
+    ['pending', 'Needs review', 'Submitted, awaiting review'],
+    ['accepted', 'Accepted', "Accepted. You're in"],
+    ['scheduled', 'Accepted', "Accepted. You're in"],
     // MYK9-754: the entries CHECK constraint forbids 'waitlisted' (a waitlisted
     // dog is a waitlist_entries row), so it is an unrecognized status.
     ['waitlisted', 'Status unavailable', 'Status unavailable'],
@@ -128,18 +128,18 @@ describe('deriveEntryPresentation — refund composition', () => {
   it('renders the Pending+Refunded special row with its secretary action hint', () => {
     const result = present('submitted', secretary, { paymentStatus: 'refunded' });
     expect(result.statusLine).toBe('Needs review · Refunded');
-    expect(result.actionHint).toBe('Refunded — confirm withdrawal or keep entry');
+    expect(result.actionHint).toBe('Refunded. Confirm withdrawal or keep entry');
   });
 
   it('treats a refunded paid entry as the same special row', () => {
     const result = present('paid', secretary, { refundAmount: 25.5 });
     expect(result.statusLine).toBe('Needs review · Refunded $25.50');
-    expect(result.actionHint).toBe('Refunded — confirm withdrawal or keep entry');
+    expect(result.actionHint).toBe('Refunded. Confirm withdrawal or keep entry');
   });
 
   it('keeps the exhibitor voice factual on a pending refund', () => {
     const result = present('submitted', exhibitor, { paymentStatus: 'refunded' });
-    expect(result.statusLine).toBe('Submitted — awaiting review · Refunded');
+    expect(result.statusLine).toBe('Submitted, awaiting review · Refunded');
     expect(result.actionHint).toBe('Contact the show secretary about this entry');
   });
 
@@ -152,7 +152,7 @@ describe('deriveEntryPresentation — refund composition', () => {
   it('never emits more than one action hint', () => {
     // Pending+Refunded: the refund hint wins; still exactly one.
     const result = present('submitted', secretary, { paymentStatus: 'refunded' });
-    expect(result.actionHint).toBe('Refunded — confirm withdrawal or keep entry');
+    expect(result.actionHint).toBe('Refunded. Confirm withdrawal or keep entry');
   });
 });
 
@@ -161,29 +161,29 @@ describe('deriveEntryPresentation — submitted entry payment state (MYK9-1553)'
 
   it('says waiting on payment for an unpaid online submitted entry', () => {
     expect(present('submitted', exhibitor, unpaid).statusLine).toBe(
-      'Submitted — waiting on payment'
+      'Submitted, waiting on payment'
     );
     expect(present('submitted', secretary, unpaid).statusLine).toBe('Awaiting payment');
   });
 
   it('says awaiting review once paid', () => {
     const paid = { ...unpaid, paymentStatus: 'paid_online' };
-    expect(present('submitted', exhibitor, paid).statusLine).toBe('Submitted — awaiting review');
+    expect(present('submitted', exhibitor, paid).statusLine).toBe('Submitted, awaiting review');
     expect(present('submitted', secretary, paid).statusLine).toBe('Needs review');
   });
 
   it('keeps pay-at-show, fee-less and unknown-payment rows on awaiting review', () => {
     expect(present('submitted', exhibitor, { ...unpaid, paymentMethod: 'cash' }).statusLine).toBe(
-      'Submitted — awaiting review'
+      'Submitted, awaiting review'
     );
     expect(present('submitted', exhibitor, { ...unpaid, entryFee: null }).statusLine).toBe(
-      'Submitted — awaiting review'
+      'Submitted, awaiting review'
     );
-    expect(present('submitted', exhibitor).statusLine).toBe('Submitted — awaiting review');
+    expect(present('submitted', exhibitor).statusLine).toBe('Submitted, awaiting review');
   });
 
   it('leaves paid and promotion-expired in the review lane even with a pending payment', () => {
-    expect(present('paid', exhibitor, unpaid).statusLine).toBe("Submitted — you're in");
+    expect(present('paid', exhibitor, unpaid).statusLine).toBe("Submitted. You're in");
     expect(present('promotion-expired', secretary, unpaid).statusLine).toBe('Needs review');
   });
 });

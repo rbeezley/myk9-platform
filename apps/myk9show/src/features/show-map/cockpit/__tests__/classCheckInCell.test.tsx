@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
 import { ClassEntriesTable } from '../FocusedClassEntries';
 import type { SecretaryCockpitClassEntry } from '../cockpitClassEntries';
+import { queueFor } from './queueFixture';
 
 const h = vi.hoisted(() => ({
   updateReplicatedCheckInStatus: vi.fn(),
@@ -28,6 +29,7 @@ function entry(
 ): SecretaryCockpitClassEntry {
   return {
     nodeId: `entry:${id}`,
+    queue: queueFor(`entry:${id}`, '101', overrides.state ?? 'waiting'),
     entryId: id,
     armband: '101',
     dogName,

@@ -42,7 +42,7 @@ describe('deriveDogActivity money root', () => {
     });
     const [upcoming] = deriveDogActivity([root, successor]).upcoming;
     expect(upcoming.id).toBe('succ');
-    expect(statusLine(upcoming)).toBe('Submitted — waiting on payment');
+    expect(statusLine(upcoming)).toBe('Submitted, waiting on payment');
   });
 
   it('reads paid when the root is paid', () => {
@@ -50,7 +50,7 @@ describe('deriveDogActivity money root', () => {
       { ...root, payment_status: 'paid_online' },
       row({ id: 'succ', moved_from_entry_id: 'root', payment_status: 'pending', entry_fee: 0 }),
     ]).upcoming;
-    expect(statusLine(upcoming)).toBe('Submitted — awaiting review');
+    expect(statusLine(upcoming)).toBe('Submitted, awaiting review');
   });
 
   it('claims no payment when the root cannot be reached', () => {
@@ -63,6 +63,6 @@ describe('deriveDogActivity money root', () => {
         payment_method: 'online',
       }),
     ]).upcoming;
-    expect(statusLine(upcoming)).toBe('Submitted — awaiting review');
+    expect(statusLine(upcoming)).toBe('Submitted, awaiting review');
   });
 });

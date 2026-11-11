@@ -192,7 +192,7 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
                   value="credit_card"
                   selected={paymentMethod === 'credit_card'}
                   icon={CreditCard}
-                  title="Credit/Debit Card (Online Payment)"
+                  title="Credit/Debit Card"
                   description="Secure online payment via credit or debit card"
                   onSelect={handleSelect}
                 />

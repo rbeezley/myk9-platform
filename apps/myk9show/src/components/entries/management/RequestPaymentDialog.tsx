@@ -136,7 +136,7 @@ export function RequestPaymentDialog({
           <DialogTitle>Request payment</DialogTitle>
           <DialogDescription>
             {entry
-              ? `Generate a secure Stripe payment link for ${entry.dogName ?? 'this entry'}. A card processing fee is added on top of the entry fee, so the exhibitor pays the total shown.`
+              ? `Generate a secure payment link for ${entry.dogName ?? 'this entry'}. A service fee is added on top of the entry fee, so the exhibitor pays the total shown.`
               : ''}
           </DialogDescription>
         </DialogHeader>
@@ -144,8 +144,8 @@ export function RequestPaymentDialog({
         {!result ? (
           <div className="space-y-3 py-2">
             <p className="text-sm text-muted-foreground">
-              Entry fee {entry ? dollars(Math.round((entry.totalFee ?? 0) * 100)) : ''} + a card
-              processing fee, shown on the next screen before you send.
+              Entry fee {entry ? dollars(Math.round((entry.totalFee ?? 0) * 100)) : ''} + a service
+              fee, shown on the next screen before you send.
             </p>
             {entry?.showId && (
               <WithdrawalPolicyDisclosure showId={entry.showId} className="rounded-md border p-2" />
@@ -161,7 +161,7 @@ export function RequestPaymentDialog({
                 <span>{dollars(result.subtotalCents)}</span>
               </div>
               <div className="flex justify-between text-muted-foreground">
-                <span>Card processing fee</span>
+                <span>Service fee</span>
                 <span>{dollars(result.platformFeeCents)}</span>
               </div>
               <div className="mt-1 flex justify-between border-t pt-1 font-medium">

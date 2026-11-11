@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "updatedAt": "2026-11-11T22:31:16.781Z",
-  "total": 409,
+  "updatedAt": "2026-11-11T23:00:59.198Z",
+  "total": 408,
   "files": {
     "apps/myk9show/src/components/admin/DataLifecycleManagement/deletedEntityMappers.ts": 1,
     "apps/myk9show/src/components/admin/permissions/ManageUserRolesDialog.tsx": 2,
@@ -155,7 +155,6 @@
     "apps/myk9show/src/features/payments/PlatformFeeSplitLines.tsx": 1,
     "apps/myk9show/src/features/payments/onlineEntryGate.ts": 4,
     "apps/myk9show/src/features/payments/useClubStripeAccount.ts": 2,
-    "apps/myk9show/src/features/payments/useOnlineEntriesSwitch.ts": 1,
     "apps/myk9show/src/features/pipeline/constants.ts": 1,
     "apps/myk9show/src/features/pipeline/mission-control-types.ts": 1,
     "apps/myk9show/src/features/pipeline/print/print-service.ts": 3,

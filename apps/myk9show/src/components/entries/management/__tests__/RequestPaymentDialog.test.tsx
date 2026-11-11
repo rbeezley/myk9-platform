@@ -111,7 +111,7 @@ describe('RequestPaymentDialog', () => {
     renderDialog();
     await userEvent.click(screen.getByRole('button', { name: /generate link/i }));
 
-    expect(await screen.findByText(/payment account is not set up/i)).toBeInTheDocument();
+    expect(await screen.findByText(/bank account is not set up/i)).toBeInTheDocument();
     expect(screen.queryByLabelText(/payment link/i)).not.toBeInTheDocument();
   });
 

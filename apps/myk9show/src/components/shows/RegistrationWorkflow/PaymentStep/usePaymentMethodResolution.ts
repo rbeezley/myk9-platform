@@ -100,7 +100,7 @@ export function usePaymentMethodResolution(
     cardCheckoutUnavailableReason: isOnBehalf
       ? undefined
       : !show?.clubId
-        ? "Online card payment isn't available because this show has no hosting club payment account. Choose check or cash instead."
+        ? "Online card payment isn't available because this show has no hosting club bank account. Choose check or cash instead."
         : clubStripeAccountQuery.isPending || clubStripeAccountQuery.isFetching
           ? 'Checking online payment availability for this club.'
           : "Online card payment isn't available for this club. Choose check or cash instead.",

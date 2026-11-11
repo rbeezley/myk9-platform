@@ -164,7 +164,7 @@ describe('ReceiptEntryDialog order resolution', () => {
     // once as the class row fee and once as the subtotal it adds up to.
     const totals = within(screen.getByText('Entry fees').closest('dl') as HTMLElement);
     expect(totals.getByText('$60.00')).toBeInTheDocument();
-    expect(totals.getByText('Platform fee')).toBeInTheDocument();
+    expect(totals.getByText('Service fee')).toBeInTheDocument();
     expect(totals.getByText('$5.00')).toBeInTheDocument();
     expect(totals.getByText('Amount charged')).toBeInTheDocument();
     expect(totals.getByText('$65.00')).toBeInTheDocument();

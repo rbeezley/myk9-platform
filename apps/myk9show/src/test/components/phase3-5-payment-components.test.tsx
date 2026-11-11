@@ -181,7 +181,7 @@ describe('Phase 3.5: Payment Component Tests', () => {
       );
 
       // Credit card option should be rendered and selected
-      expect(screen.getByText('Credit/Debit Card (Online Payment)')).toBeInTheDocument();
+      expect(screen.getByText('Credit/Debit Card')).toBeInTheDocument();
 
       // The reassurance appears once, beside the card control it describes.
       const notices = screen.getAllByText(/secure checkout to complete payment/);
@@ -265,7 +265,7 @@ describe('Phase 3.5: Payment Component Tests', () => {
       // "Payment Summary" was the retired PaymentSummaryCard; the selected
       // method and the amount due are now the entries panel's. The step keeps
       // the method selector and its single checkout notice.
-      expect(screen.getByText('Credit/Debit Card (Online Payment)')).toBeInTheDocument();
+      expect(screen.getByText('Credit/Debit Card')).toBeInTheDocument();
       const notices = screen.getAllByText(/secure checkout to complete payment/);
       expect(notices).toHaveLength(1);
     });

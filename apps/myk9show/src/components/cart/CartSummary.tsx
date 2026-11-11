@@ -175,7 +175,7 @@ export function CartSummary({
             <div className="flex-1">
               <p className="text-sm font-medium">Entries are closed for this show</p>
               <p className="text-xs mt-0.5">
-                This entry can no longer be paid for online. Contact the trial secretary for
+                This entry can no longer be paid for online. Contact the show secretary for
                 late-entry help, or remove it and keep shopping.
               </p>
             </div>

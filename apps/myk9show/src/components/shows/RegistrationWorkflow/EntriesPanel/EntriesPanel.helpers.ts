@@ -355,7 +355,7 @@ export function formatAmountDue({
   if (classCount === 0) return formatCartCurrency(0);
   // Capacity next: with lines on the entry, no figure is trustworthy until read.
   if (!capacityReady) return placeholder ?? availabilityPlaceholder(capacityUnavailable);
-  if (totals?.isWaived) return '$0.00 (Waived)';
+  if (totals?.isWaived) return '$0.00 (Free entry)';
   const amount = formatCartCurrency(totals ? totals.amountDueCents : entryFeeCents);
   // MYK9-832 #11: "Total due" otherwise kept quoting a check-in-hand amount as
   // still owed once the secretary marked it Already Received.

@@ -96,33 +96,30 @@ const settled: Array<[string, Partial<EntryManagementEntry>]> = [
 ];
 
 describe('Comp is offered only on unpaid entries (MYK9-1407)', () => {
-  it('offers the inline Comp button on a pending entry', () => {
+  it('offers the inline Make free button on a pending entry', () => {
     renderCard(makeEntry());
-    expect(screen.getByRole('button', { name: 'Comp entry for Bravo' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Make free for Bravo' })).toBeInTheDocument();
   });
 
-  it('offers Comp entry in the row menu on a pending entry', async () => {
+  it('offers Make free in the row menu on a pending entry', async () => {
     await openRowMenu(makeEntry());
-    expect(screen.getByRole('menuitem', { name: /comp entry/i })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /make free/i })).toBeInTheDocument();
   });
 
-  it.each(settled)('hides the inline Comp button on an entry %s', (_label, overrides) => {
+  it.each(settled)('hides the inline Make free button on an entry %s', (_label, overrides) => {
     renderCard(makeEntry(overrides));
     expect(screen.getByText('Bravo')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Comp entry for Bravo' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Make free for Bravo' })).not.toBeInTheDocument();
   });
 
-  it.each(settled)(
-    'leaves Comp entry out of the row menu on an entry %s',
-    async (_l, overrides) => {
-      await openRowMenu(makeEntry(overrides));
-      // Positive control: the menu rendered its other actions.
-      expect(screen.getByRole('menuitem', { name: /remove entry/i })).toBeInTheDocument();
-      expect(screen.queryByRole('menuitem', { name: /comp entry/i })).not.toBeInTheDocument();
-    }
-  );
+  it.each(settled)('leaves Make free out of the row menu on an entry %s', async (_l, overrides) => {
+    await openRowMenu(makeEntry(overrides));
+    // Positive control: the menu rendered its other actions.
+    expect(screen.getByRole('menuitem', { name: /remove entry/i })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /make free/i })).not.toBeInTheDocument();
+  });
 
-  it('hides Comp on a waived entry that is not comped', () => {
+  it('hides Make free on a waived entry that is not comped', () => {
     // An entry-level waive the order never made stands (effective waived).
     renderCard(
       makeEntry({
@@ -130,16 +127,16 @@ describe('Comp is offered only on unpaid entries (MYK9-1407)', () => {
         enrollmentPaymentStatus: PaymentStatus.PENDING,
       })
     );
-    expect(screen.queryByRole('button', { name: 'Comp entry for Bravo' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Make free for Bravo' })).not.toBeInTheDocument();
   });
 
   it('still offers Undo on a comped entry card', () => {
     renderCard(makeEntry({ comped: true, paymentStatus: PaymentStatus.WAIVED }));
-    expect(screen.getByRole('button', { name: 'Undo comp for Bravo' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Undo free entry for Bravo' })).toBeInTheDocument();
   });
 
-  it('still offers Remove comp in the row menu on a comped entry', async () => {
+  it('still offers Undo free entry in the row menu on a comped entry', async () => {
     await openRowMenu(makeEntry({ comped: true, paymentStatus: PaymentStatus.WAIVED }));
-    expect(screen.getByRole('menuitem', { name: /remove comp/i })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /undo free entry/i })).toBeInTheDocument();
   });
 });

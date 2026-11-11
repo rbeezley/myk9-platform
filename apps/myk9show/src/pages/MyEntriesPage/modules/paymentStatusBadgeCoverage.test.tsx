@@ -45,6 +45,6 @@ describe('payment status badge coverage', () => {
       React.createElement(React.Fragment, null, getMyEntriesPaymentBadge(PaymentStatus.WAIVED))
     );
 
-    expect(screen.getByText('Fee waived')).toBeInTheDocument();
+    expect(screen.getByText('Free entry')).toBeInTheDocument();
   });
 });

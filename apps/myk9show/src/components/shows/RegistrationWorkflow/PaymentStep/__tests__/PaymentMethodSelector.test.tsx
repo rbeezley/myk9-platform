@@ -43,19 +43,19 @@ describe('PaymentMethodSelector — acceptedMethods filtering', () => {
     render(
       <PaymentMethodSelector {...baseProps} acceptedMethods={{ check: false, cash: false }} />
     );
-    expect(screen.getByText('Credit/Debit Card (Online Payment)')).toBeInTheDocument();
+    expect(screen.getByText('Credit/Debit Card')).toBeInTheDocument();
   });
 
   it('shows Credit/Debit Card when allowCardCheckout is true (exhibitor self-service)', () => {
     render(<PaymentMethodSelector {...baseProps} allowCardCheckout={true} />);
-    expect(screen.getByText('Credit/Debit Card (Online Payment)')).toBeInTheDocument();
+    expect(screen.getByText('Credit/Debit Card')).toBeInTheDocument();
   });
 
   it('hides Credit/Debit Card when allowCardCheckout is false (on-behalf modes)', () => {
     // stripe-checkout 403s a cart the logged-in organizer doesn't own, so card
     // checkout must not be offered for secretary/admin on-behalf entries.
     render(<PaymentMethodSelector {...baseProps} allowCardCheckout={false} />);
-    expect(screen.queryByText('Credit/Debit Card (Online Payment)')).not.toBeInTheDocument();
+    expect(screen.queryByText('Credit/Debit Card')).not.toBeInTheDocument();
   });
 
   it('explains when online card payment is unavailable', () => {

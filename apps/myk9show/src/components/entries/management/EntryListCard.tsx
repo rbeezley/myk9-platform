@@ -221,7 +221,7 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                   <span className="inline-flex items-center gap-1">
                     <Badge className="bg-info/10 text-info ">
                       <Gift className="h-3 w-3 mr-1" />
-                      Comped
+                      Free entry
                     </Badge>
                     {onUncompEntry && (
                       <Button
@@ -229,7 +229,7 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                         variant="ghost"
                         className="min-h-11 px-2 text-xs text-muted-foreground hover:text-destructive"
                         onClick={() => onUncompEntry(entry.id)}
-                        aria-label={`Undo comp for ${entry.dogName}`}
+                        aria-label={`Undo free entry for ${entry.dogName}`}
                       >
                         Undo
                       </Button>
@@ -248,10 +248,10 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                   variant="ghost"
                   className="min-h-11 px-2 text-xs text-muted-foreground hover:text-foreground"
                   onClick={() => onCompEntry(entry.id)}
-                  aria-label={`Comp entry for ${entry.dogName}`}
+                  aria-label={`Make free for ${entry.dogName}`}
                 >
                   <Gift className="h-3 w-3 mr-1" />
-                  Comp
+                  Make free
                 </Button>
               )
             )}

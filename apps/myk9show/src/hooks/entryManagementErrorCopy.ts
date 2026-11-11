@@ -20,13 +20,13 @@ export const ENTRY_ACTION_COPY = {
   exportLoadFailed: "We couldn't load the entries to export. Try again.",
   /** A file may have downloaded before the export record failed. */
   exportFailed: "We couldn't finish the export. If no file downloaded, try again.",
-  compFailed: "We couldn't comp this entry. Try again.",
+  compFailed: "We couldn't make this entry free. Try again.",
   /** The entry may already show as comped: the record of the comp is what failed. */
   compUnfinished:
-    "We couldn't finish comping this entry. Check its payment status before you try again.",
-  uncompFailed: "We couldn't remove the comp from this entry. Try again.",
+    "We couldn't finish making this entry free. Check its payment status before you try again.",
+  uncompFailed: "We couldn't undo the free entry. Try again.",
   uncompUnfinished:
-    "We couldn't finish removing the comp. Check this entry's payment status before you try again.",
+    "We couldn't finish undoing the free entry. Check this entry's payment status before you try again.",
   /** The status change is saved on this device and sent once the connection is back. */
   savedOffline: 'Saved on this device. It will be sent when you are back online.',
   resendEmailFailed: "We couldn't resend the confirmation email. Try again.",

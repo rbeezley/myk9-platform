@@ -85,7 +85,7 @@ export function useOnlineEntriesSwitch(showId: string | undefined): OnlineEntrie
     if (!showId || value === undefined || pending || offline || next === value) return;
     if (next && isPublicShowStatus(dbStatus(show?.status))) {
       if (stripe.isLoading) {
-        toast.info('Checking the club’s payment account — try again in a moment.');
+        toast.info('Checking the club’s bank account. Try again in a moment.');
         return;
       }
       if (stripe.isError || !canEnableOnlineEntries(stripe.data)) {

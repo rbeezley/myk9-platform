@@ -161,7 +161,7 @@ export const entryActions: ReadonlyArray<EntryActionDefinition> = [
   },
   {
     id: 'comp',
-    label: entry => (entry.comped ? 'Remove comp' : 'Comp entry'),
+    label: entry => (entry.comped ? 'Undo free entry' : 'Make free'),
     sectionLabel: 'Payment',
     icon: <DollarSign className="h-4 w-4" />,
     applicableWhen: (entry, handlers) =>

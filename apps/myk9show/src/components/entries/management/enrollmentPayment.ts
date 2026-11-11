@@ -67,7 +67,7 @@ export const EMPTY_LEDGER_CONFIRM: LedgerConfirmState = { open: false, kind: 'pa
 export const REFUND_METHODS: { value: RefundDialog['method']; label: string }[] = [
   { value: 'check_mailed', label: 'Check Mailed' },
   { value: 'cash_returned', label: 'Cash Returned' },
-  { value: 'stripe', label: 'Stripe (manual)' },
+  { value: 'stripe', label: 'Card (manual)' },
   { value: 'other', label: 'Other' },
 ];
 

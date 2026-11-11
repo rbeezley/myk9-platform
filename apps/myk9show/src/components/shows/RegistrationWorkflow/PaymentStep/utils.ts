@@ -256,15 +256,15 @@ export function getPaymentMethodLabel(method: string): string {
     case 'credit_card':
       return 'Credit/Debit Card';
     case 'check':
-      return 'Check at Show';
+      return 'Check (pay at show)';
     case 'cash':
-      return 'Cash at Show';
+      return 'Cash (pay at show)';
     case 'secretary_paid':
       return 'Secretary Payment';
     case 'group_payment':
       return 'Group Payment';
     case 'waived':
-      return 'Fees Waived';
+      return 'Free entry';
     default:
       return method;
   }

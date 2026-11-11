@@ -140,7 +140,7 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" aria-hidden="true" />
               <AlertDescription className="space-y-3">
-                <p>Couldn&apos;t load your payment account status.</p>
+                <p>Couldn&apos;t load your bank account status.</p>
                 <Button variant="outline" size="touch" onClick={() => void accountQuery.refetch()}>
                   Try again
                 </Button>
@@ -242,7 +242,7 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
                       No bank account is connected yet, so your club can&apos;t receive entry fees.
                       Connecting takes about 10 minutes.
                     </p>
-                    <Button onClick={() => setShowChecklist(true)}>Connect payment account</Button>
+                    <Button onClick={() => setShowChecklist(true)}>Connect bank account</Button>
                   </div>
                 )}
 

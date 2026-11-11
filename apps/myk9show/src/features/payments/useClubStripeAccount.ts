@@ -240,7 +240,7 @@ const CONNECT_ERROR_PATTERNS: Array<{ test: RegExp; message: string }> = [
     // access is the actual fix.
     test: /not authorized for this club/i,
     message:
-      "Your account isn't set up to manage this club's payments. Ask a club administrator to give you access, then try again.",
+      "Your account isn't set up to manage this club's payments. Ask myK9Show support to give you access, then try again.",
   },
   {
     // 500: the RBAC predicate RPC itself errored ("Authorization check

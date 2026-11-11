@@ -30,7 +30,7 @@ const PAYMENT_STATUS_OPTIONS: ListOptionsFilterField['options'] = [
   { value: 'paid', label: 'Paid' },
   { value: 'pending', label: 'Pending' },
   { value: 'refunded', label: 'Refunded' },
-  { value: 'comped', label: 'Comped' },
+  { value: 'comped', label: 'Free entry' },
 ];
 
 interface FinancialSummaryProps {
@@ -165,9 +165,9 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({ trialId }) =
       Class: e.className,
       'Entry Fee': e.entryFee.toFixed(2),
       Discount: e.discountAmount.toFixed(2),
-      'Payment Status': e.comped ? 'Comped' : e.paymentStatus,
-      Comped: e.comped ? 'Yes' : 'No',
-      'Comp Reason': e.compedReason || '',
+      'Payment Status': e.comped ? 'Free entry' : e.paymentStatus,
+      'Free entry': e.comped ? 'Yes' : 'No',
+      'Free entry reason': e.compedReason || '',
     }));
     exportToCSV(exportData, `financial-summary-${trialId.slice(0, 8)}`);
   };
@@ -235,7 +235,7 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({ trialId }) =
           <CardContent className="pt-4 pb-4">
             <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
               <Gift className="h-4 w-4" />
-              Comped
+              Free entries
             </div>
             <p className="text-2xl font-bold text-blue-600">-${summary.totalComped.toFixed(2)}</p>
             <p className="text-xs text-muted-foreground">{summary.compedCount} entries</p>
@@ -288,7 +288,7 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({ trialId }) =
             </div>
             <div className="flex items-center justify-between p-3 rounded-lg bg-info/10 ">
               <div>
-                <p className="text-sm font-medium text-info ">Comped</p>
+                <p className="text-sm font-medium text-info ">Free entry</p>
                 <p className="text-lg font-bold text-info ">{summary.compedCount}</p>
               </div>
               <p className="text-sm font-semibold text-info ">${summary.totalComped.toFixed(2)}</p>
@@ -361,7 +361,7 @@ export const FinancialSummary: React.FC<FinancialSummaryProps> = ({ trialId }) =
                         {entry.comped ? (
                           <Tooltip>
                             <TooltipTrigger>
-                              <Badge className={paymentStatusColors.waived}>Comped</Badge>
+                              <Badge className={paymentStatusColors.waived}>Free entry</Badge>
                             </TooltipTrigger>
                             <TooltipContent>
                               <p>{entry.compedReason || 'No reason provided'}</p>

@@ -130,12 +130,12 @@ describe('RefundEntryDialog', () => {
 
     // The blocked-refund message must route somewhere actionable, not dead-end
     // (MYK9-195): the operator completes it via the post-payout clawback runbook.
-    // The actionable route for the SECRETARY is "contact the site operator";
+    // The actionable route for the SECRETARY is "contact myK9Show support";
     // the runbook's repo path used to be printed here too, which is an internal
     // artifact they cannot open, so the assertion pins the route rather than
     // that path (impeccable p3, C13).
     expect(
-      await screen.findByText(/already been paid out to the club.*contact the site operator/i)
+      await screen.findByText(/already been paid out to the club.*contact myK9Show support/i)
     ).toBeInTheDocument();
     expect(onRefunded).not.toHaveBeenCalled();
   });

@@ -75,7 +75,7 @@ export async function joinFullClassAsWillow(exhibitor: Page, admin: SupabaseClie
     timeout: 15_000,
   });
   const cardPayment = exhibitor.getByRole('button', {
-    name: /Credit\/Debit Card \(Online Payment\)/i,
+    name: /^Credit\/Debit Card/i,
   });
   await cardPayment.evaluate((button: HTMLElement) => button.click());
   await exhibitor.getByText(/I have read and agree to the .* entry agreement/i).click();

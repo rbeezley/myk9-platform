@@ -70,7 +70,7 @@ describe('record_enrollment_payment arguments (MYK9-677)', () => {
       method: null,
       amount: 20,
       receivedOn: '2026-09-17',
-      notes: 'Stripe (manual)',
+      notes: 'Card (manual)',
     });
 
     expect(mocks.rpc).toHaveBeenCalledWith('record_enrollment_payment', {
@@ -79,7 +79,7 @@ describe('record_enrollment_payment arguments (MYK9-677)', () => {
       p_amount: 20,
       p_method: null,
       p_received_on: '2026-09-17',
-      p_note: 'Stripe (manual)',
+      p_note: 'Card (manual)',
     });
   });
 

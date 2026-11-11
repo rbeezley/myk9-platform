@@ -57,7 +57,7 @@ describe('EntryReceipt', () => {
 
     const totals = within(screen.getByText('Entry fees').closest('dl') as HTMLElement);
     expect(totals.getByText('$60.00')).toBeInTheDocument();
-    expect(totals.getByText('Platform fee')).toBeInTheDocument();
+    expect(totals.getByText('Service fee')).toBeInTheDocument();
     expect(totals.getByText('$5.00')).toBeInTheDocument();
     expect(totals.getByText('Amount charged')).toBeInTheDocument();
     expect(totals.getByText('$65.00')).toBeInTheDocument();
@@ -107,7 +107,7 @@ describe('EntryReceipt', () => {
 
     expect(screen.getByText('Total')).toBeInTheDocument();
     expect(screen.queryByText('Amount charged')).not.toBeInTheDocument();
-    expect(screen.queryByText('Platform fee')).not.toBeInTheDocument();
+    expect(screen.queryByText('Service fee')).not.toBeInTheDocument();
   });
 
   it('shows the refund and the net when money came back', () => {

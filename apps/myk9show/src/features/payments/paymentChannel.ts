@@ -84,7 +84,7 @@ const ENTRY_MANAGEMENT_LABELS: Record<PaymentChannel, string> = {
   cash: 'Paid by cash',
   secretary: 'Paid, recorded by secretary',
   group: 'Paid, group payment',
-  waived: 'Waived',
+  waived: 'Free entry',
   unknown: 'Paid',
 };
 
@@ -95,7 +95,7 @@ const FINANCIAL_REPORT_LABELS: Record<PaymentChannel, string> = {
   cash: 'Cash',
   secretary: 'Secretary Paid',
   group: 'Group Payment',
-  waived: 'Waived/Comped',
+  waived: 'Free entry',
   unknown: 'Paid',
 };
 

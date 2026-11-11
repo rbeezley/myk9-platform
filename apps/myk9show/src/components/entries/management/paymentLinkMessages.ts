@@ -7,9 +7,9 @@
  */
 export const PAYMENT_LINK_SERVER_MESSAGES: Record<string, string> = {
   'This show is not linked to a club payment account.':
-    'This show is not connected to a club payment account yet, so no link was made. No one was charged.',
+    'This show is not connected to a club bank account yet, so no link was made. No one was charged.',
   "This club's payment account is not set up to receive online entry fees.":
-    "The club's payment account is not set up to take online entry fees yet, so no link was made. No one was charged.",
+    "The club's bank account is not set up to take online entry fees yet, so no link was made. No one was charged.",
   'One or more entries are already paid or not awaiting payment':
     'This entry is already paid or is not waiting for a payment, so no link was made. Close this and check the entry.',
   'One or more entries are withdrawn, scratched, or no longer active':

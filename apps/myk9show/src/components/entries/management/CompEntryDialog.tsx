@@ -51,17 +51,17 @@ export const CompEntryDialog: React.FC<CompEntryDialogProps> = ({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Gift className="h-5 w-5 text-info " />
-            Comp Entry
+            Free entry
           </DialogTitle>
           <DialogDescription>
-            Mark <strong>{dogName}</strong>
+            Make <strong>{dogName}</strong>
             {className ? (
               <>
                 {' '}
                 in <strong>{className}</strong>
               </>
             ) : null}{' '}
-            as comped. This waives all fees.
+            a free entry. No fees are owed for it.
           </DialogDescription>
         </DialogHeader>
 
@@ -69,7 +69,7 @@ export const CompEntryDialog: React.FC<CompEntryDialogProps> = ({
           <FormField label="Reason" fieldId="comp-reason">
             <Textarea
               id="comp-reason"
-              placeholder="e.g., Judge entry, Worker comp, Club guest..."
+              placeholder="e.g., Judge entry, Show worker, Club guest..."
               value={reason}
               onChange={e => setReason(e.target.value)}
               rows={3}
@@ -82,7 +82,7 @@ export const CompEntryDialog: React.FC<CompEntryDialogProps> = ({
             Cancel
           </Button>
           <Button onClick={handleConfirm} disabled={isProcessing}>
-            Comp Entry
+            Make free
           </Button>
         </DialogFooter>
       </DialogContent>

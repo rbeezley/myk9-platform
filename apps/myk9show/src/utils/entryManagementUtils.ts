@@ -215,7 +215,7 @@ export function getPaymentStatusBadge(status: PaymentStatus): React.ReactNode {
     case PaymentStatus.PENDING:
       return React.createElement(Badge, { className: CHIP_RED }, 'Payment Due');
     case PaymentStatus.WAIVED:
-      return React.createElement(Badge, { className: CHIP_BLUE }, 'Waived');
+      return React.createElement(Badge, { className: CHIP_BLUE }, 'Free entry');
     case PaymentStatus.REFUNDED:
       return React.createElement(
         Badge,

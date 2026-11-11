@@ -161,7 +161,7 @@ describe('EntriesPanel payment total agrees with the retired PaymentSummaryCard'
 
   it('keeps a free entry (the waived method) at zero', () => {
     render(paymentPanel({ paymentMethod: 'waived' }));
-    expect(aside().getByText('$0.00 (Waived)')).toBeInTheDocument();
+    expect(aside().getByText('$0.00 (Free entry)')).toBeInTheDocument();
     expect(aside().queryByText(/Service fee/)).not.toBeInTheDocument();
   });
 
@@ -187,7 +187,7 @@ describe('EntriesPanel payment total agrees with the retired PaymentSummaryCard'
 
   it('drops the missing-method hint once a method is chosen', () => {
     render(paymentPanel({ paymentMethod: 'check' }));
-    expect(aside().getByText('Check at Show')).toBeInTheDocument();
+    expect(aside().getByText('Check (pay at show)')).toBeInTheDocument();
     expect(aside().queryByText(/Choose a payment method to continue/i)).not.toBeInTheDocument();
   });
 });
@@ -357,7 +357,7 @@ describe('EntriesPanel bar headline agrees with the totals block', () => {
 
   it('quotes the waived payment method as waived, not as the full fee', () => {
     render(paymentPanel({ paymentMethod: 'waived' as PaymentMethod }));
-    expect(bar().getByTestId('entries-panel-total')).toHaveTextContent('$0.00 (Waived)');
+    expect(bar().getByTestId('entries-panel-total')).toHaveTextContent('$0.00 (Free entry)');
     expect(bar().getByTestId('entries-panel-total')).not.toHaveTextContent('$30.00');
   });
 

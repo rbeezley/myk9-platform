@@ -28,12 +28,11 @@ import type { EntryManagementEntry } from '@/types/entry-management-types';
 const ERROR_MESSAGES: Record<string, string> = {
   [STEP_UP_REQUIRED_CODE]: 'No refund was issued. Confirm your password to continue.',
   payout_already_sent:
-    'This show’s entry fees have already been paid out to the club, so refunds can’t be issued from here. The refund is still possible: contact the site operator, who issues it manually and recovers the club’s share.',
+    'This show’s entry fees have already been paid out to the club, so refunds can’t be issued from here. The refund is still possible: contact myK9Show support, who issues it manually and recovers the club’s share.',
   payout_in_progress: 'A payout to the club is in flight. Try again after it completes.',
   not_refundable: 'This entry has no refundable payment (it may already be refunded).',
   not_online_payment: 'This entry wasn’t paid online. Refund it the way it was paid.',
-  missing_payment_intent:
-    'This entry predates online payments and can’t be refunded through Stripe.',
+  missing_payment_intent: 'This entry predates online payments and can’t be refunded online.',
   amount_exceeds_fee: 'The refund can’t exceed the entry fee.',
   invalid_amount: 'Enter a refund amount greater than zero.',
   policy_snapshot_unavailable:
@@ -297,7 +296,7 @@ export function RefundEntryDialog({
           <DialogTitle>Refund entry payment</DialogTitle>
           <DialogDescription>
             {entry
-              ? `${entry.dogName ?? 'This entry'}: $${fee.toFixed(2)} paid online. The platform fee is not refunded. Refunds can only be issued once per entry.`
+              ? `${entry.dogName ?? 'This entry'}: $${fee.toFixed(2)} paid online. The service fee is not refunded. Refunds can only be issued once per entry.`
               : ''}
           </DialogDescription>
         </DialogHeader>

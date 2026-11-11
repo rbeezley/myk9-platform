@@ -236,19 +236,19 @@ export { downloadFile as downloadBlob } from '@/lib/export';
 export function getPaymentMethodDisplay(paymentMethod: string): string {
   switch (paymentMethod) {
     case 'credit_card':
-      return 'Credit Card';
+      return 'Credit/Debit Card';
     case 'check':
-      return 'Check (Pay at Show)';
+      return 'Check (pay at show)';
     case 'cash':
-      return 'Cash (Pay at Show)';
+      return 'Cash (pay at show)';
     case 'secretary_paid':
       return 'Secretary Payment';
     case 'group_payment':
       return 'Group Payment';
     case 'waived':
-      return 'Fees Waived';
+      return 'Free entry';
     default:
-      return 'Credit/Debit Card (Online)';
+      return 'Credit/Debit Card';
   }
 }
 
@@ -298,7 +298,7 @@ export function getPaymentStatusDisplay(status: PaymentStatus | string): string 
     case PaymentStatus.PARTIAL_REFUND:
       return 'Partially refunded';
     case PaymentStatus.WAIVED:
-      return 'Fees waived';
+      return 'Free entry';
     default:
       return String(status);
   }

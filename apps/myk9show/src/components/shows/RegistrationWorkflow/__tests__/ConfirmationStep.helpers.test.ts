@@ -59,7 +59,7 @@ describe('getPaymentStatusDisplay', () => {
     [PaymentStatus.PAID_BY_CASH, 'Paid by cash'],
     [PaymentStatus.REFUNDED, 'Refunded'],
     [PaymentStatus.PARTIAL_REFUND, 'Partially refunded'],
-    [PaymentStatus.WAIVED, 'Fees waived'],
+    [PaymentStatus.WAIVED, 'Free entry'],
   ])('labels %s in words', (status, expected) => {
     expect(getPaymentStatusDisplay(status)).toBe(expected);
   });
@@ -102,20 +102,20 @@ describe('receipt status labelling', () => {
 });
 
 describe('getPaymentMethodDisplay', () => {
-  it('maps credit_card → Credit Card', () => {
-    expect(getPaymentMethodDisplay('credit_card')).toBe('Credit Card');
+  it('maps credit_card → Credit/Debit Card', () => {
+    expect(getPaymentMethodDisplay('credit_card')).toBe('Credit/Debit Card');
   });
 
-  it('maps check → Check (Pay at Show)', () => {
-    expect(getPaymentMethodDisplay('check')).toBe('Check (Pay at Show)');
+  it('maps check → Check (pay at show)', () => {
+    expect(getPaymentMethodDisplay('check')).toBe('Check (pay at show)');
   });
 
-  it('maps cash → Cash (Pay at Show)', () => {
-    expect(getPaymentMethodDisplay('cash')).toBe('Cash (Pay at Show)');
+  it('maps cash → Cash (pay at show)', () => {
+    expect(getPaymentMethodDisplay('cash')).toBe('Cash (pay at show)');
   });
 
-  it('maps waived → Fees Waived', () => {
-    expect(getPaymentMethodDisplay('waived')).toBe('Fees Waived');
+  it('maps waived → Free entry', () => {
+    expect(getPaymentMethodDisplay('waived')).toBe('Free entry');
   });
 
   it('maps secretary_paid → Secretary Payment', () => {
@@ -125,11 +125,11 @@ describe('getPaymentMethodDisplay', () => {
   // Regression: empty string previously returned 'Unknown' when online payment
   // was the only option and the user never explicitly selected it.
   it('returns Credit/Debit Card for empty string (unset online payment)', () => {
-    expect(getPaymentMethodDisplay('')).toBe('Credit/Debit Card (Online)');
+    expect(getPaymentMethodDisplay('')).toBe('Credit/Debit Card');
   });
 
   it('returns Credit/Debit Card for unrecognised values', () => {
-    expect(getPaymentMethodDisplay('stripe')).toBe('Credit/Debit Card (Online)');
+    expect(getPaymentMethodDisplay('stripe')).toBe('Credit/Debit Card');
   });
 });
 

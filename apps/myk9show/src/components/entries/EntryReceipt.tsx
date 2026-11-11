@@ -521,7 +521,7 @@ export function EntryReceipt({
                   </div>
                   {entry.charge.platformFee !== 0 && (
                     <div className="flex justify-between gap-4">
-                      <dt className="text-muted-foreground">Platform fee</dt>
+                      <dt className="text-muted-foreground">Service fee</dt>
                       <dd className="font-mono">{formatCurrency(entry.charge.platformFee)}</dd>
                     </div>
                   )}

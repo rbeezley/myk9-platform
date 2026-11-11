@@ -261,7 +261,7 @@ test('exhibitor card entry hands off to cart checkout without enrollment writes'
     entriesTotals(page).getByText('Entry fees', { exact: true }).locator('..')
   ).toContainText(/\$\d+\.\d{2}/);
   const cardPayment = page.getByRole('button', {
-    name: /Credit\/Debit Card \(Online Payment\)/i,
+    name: /^Credit\/Debit Card/i,
   });
   await expect(cardPayment).toBeVisible();
   await cardPayment.evaluate((button: HTMLElement) => button.click());

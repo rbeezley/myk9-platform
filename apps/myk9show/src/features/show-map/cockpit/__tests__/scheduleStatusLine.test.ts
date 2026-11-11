@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { ShowMapDisplayStatus } from '../../showMapTypes';
 import type { SecretaryCockpitClassEntry } from '../cockpitClassEntries';
 import { buildStatusLine } from '../scheduleStatusLine';
+import { queueFor } from './queueFixture';
 import type { SecretaryCockpitClass, SecretaryCockpitPaperwork } from '../secretaryCockpitTypes';
 
 const CHECKED_IN: ShowMapDisplayStatus = {
@@ -17,6 +18,7 @@ function entry(
 ): SecretaryCockpitClassEntry {
   return {
     nodeId: `entry:${position}`,
+    queue: queueFor(`entry:${position}`, `${position}`, overrides.state ?? 'waiting'),
     entryId: `${position}`,
     checkInValue: 'checked-in',
     deskEditable: true,

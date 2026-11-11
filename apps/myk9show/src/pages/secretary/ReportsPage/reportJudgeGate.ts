@@ -67,8 +67,9 @@ export function officialFormJudgeBlock(
   const scoped = (allClasses ?? []).filter(
     cls =>
       scopedTrialIds.has(cls.trial_id ?? '') &&
-      (classId === 'all' || cls.id === classId) &&
-      (cls.status ?? '').toLowerCase() !== 'cancelled'
+      // Cancelled classes still count: the forms print every class, so an unset judge on a
+      // cancelled one would print 'TBD' on an official form (review, PR #3797).
+      (classId === 'all' || cls.id === classId)
   );
   const trialById = new Map(scopedTrials.map(t => [t.id, t]));
   const akcClasses = scoped.filter(cls => isAkcTrial(trialById.get(cls.trial_id ?? '')));

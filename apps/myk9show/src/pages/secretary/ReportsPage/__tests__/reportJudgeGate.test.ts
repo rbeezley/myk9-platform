@@ -57,7 +57,20 @@ describe('officialFormJudgeBlock', () => {
     }
   });
 
-  it('does not count a UKC trial, a cancelled class or a class outside the selection', () => {
+  it('still blocks on a cancelled class with no judge, since the forms print it', () => {
+    expect(
+      officialFormJudgeBlock(
+        'result-catalog',
+        null,
+        trials,
+        [{ ...unjudged, status: 'cancelled' }],
+        't1',
+        'all'
+      )
+    ).not.toBeNull();
+  });
+
+  it('does not count a UKC trial or a class outside the selection', () => {
     expect(
       officialFormJudgeBlock(
         'trial-secretary-report',
@@ -65,16 +78,6 @@ describe('officialFormJudgeBlock', () => {
         trials,
         [{ ...unjudged, trial_id: 'u1' }],
         'u1',
-        'all'
-      )
-    ).toBeNull();
-    expect(
-      officialFormJudgeBlock(
-        'akc-judge-report',
-        null,
-        trials,
-        [{ ...unjudged, status: 'cancelled' }],
-        't1',
         'all'
       )
     ).toBeNull();

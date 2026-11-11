@@ -113,7 +113,7 @@ export function RefundAllEntriesCard({ showId }: RefundAllEntriesCardProps) {
               `${failed} ${failed === 1 ? 'payment' : 'payments'} may not have been refunded. See the details, then run Refund all again: it will not refund anyone twice.`
             );
           else if (skipped > 0)
-            toast.warning(`No refunds issued — ${skipped} skipped, handle manually.`);
+            toast.warning(`No refunds issued. ${skipped} skipped, handle manually.`);
           else toast.info('Nothing to refund.');
         } else if (failed > 0) {
           toast.warning(
@@ -190,7 +190,7 @@ export function RefundAllEntriesCard({ showId }: RefundAllEntriesCardProps) {
                 {result.summary.skipped > 0 && (
                   <p className="text-muted-foreground">
                     {result.summary.skipped} skipped (cash/check, already refunded, or shared
-                    payment) — handle manually.
+                    payment), handle manually.
                   </p>
                 )}
                 {result.summary.failed > 0 && (
@@ -215,7 +215,7 @@ export function RefundAllEntriesCard({ showId }: RefundAllEntriesCardProps) {
               This refunds the entry fees of {count ?? 0} online-paid entr
               {count === 1 ? 'y' : 'ies'} for this cancelled show back to each exhibitor’s card. The
               service fee is not refunded. It cannot be undone. Cash and check payments are not
-              touched — refund those manually.
+              touched. Refund those manually.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

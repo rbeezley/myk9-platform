@@ -189,8 +189,8 @@ const SignUp: React.FC = () => {
             the link in the email to activate your account.
           </p>
           <p className="text-sm text-muted-foreground mb-4">
-            Already registered? No new confirmation email will arrive—sign in or reset your password
-            below. Otherwise, check your spam folder or resend the email.
+            Already registered? No new confirmation email will arrive. Sign in or reset your
+            password below. Otherwise, check your spam folder or resend the email.
           </p>
           {captchaRequired && (
             <TurnstileChallenge

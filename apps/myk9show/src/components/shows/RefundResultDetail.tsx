@@ -8,13 +8,13 @@ import type { ShowRefundAllResult } from '@/features/payments/useShowRefundAll';
 // ShowRefundSkipReason, plus 'intent_spans_shows' from stripe-refund-show/index.ts).
 // Unknown/future reasons fall back to the raw code so nothing is silently dropped.
 const SKIP_REASON_LABELS: Record<string, string> = {
-  offline_paid: 'Paid by cash or check — refund manually',
+  offline_paid: 'Paid by cash or check, refund manually',
   already_refunded: 'Already refunded',
   not_paid: 'Not paid',
   no_payment_intent: 'No payment on file',
   zero_fee: 'Zero-fee entry',
-  intent_partially_refunded: 'Shares a payment with an already-refunded entry — refund manually',
-  intent_spans_shows: 'Payment also covers another show — refund manually',
+  intent_partially_refunded: 'Shares a payment with an already-refunded entry, refund manually',
+  intent_spans_shows: 'Payment also covers another show, refund manually',
 };
 
 function skipReasonLabel(reason: string): string {

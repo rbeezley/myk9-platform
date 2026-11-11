@@ -38,7 +38,7 @@ import { registryResolutionKey, type ShowRegistryResolution } from './useShowReg
  * an ASCA exhibitor invites them to record a reason their registry does not have.
  */
 const RESOLVING_NOTE = "Checking the show's rules…";
-const UNAVAILABLE_NOTE = "Can't confirm the show's rules right now — Pull is still available";
+const UNAVAILABLE_NOTE = "Can't confirm the show's rules right now. Pull is still available";
 
 /**
  * Pull's refund sentence is the same on every configured registry, so it does
@@ -203,7 +203,7 @@ function RemoveFromClassBody({
         <AlertDialogTitle>{title}</AlertDialogTitle>
         <AlertDialogDescription>
           {effectiveStep === 'choose' ? (
-            <>{classLabel}. Pick one — the club handles the fee differently for each.</>
+            <>{classLabel}. Pick one. The club handles the fee differently for each.</>
           ) : effectiveStep === 'reason' ? (
             <>
               {policy?.registryId} recognises{' '}

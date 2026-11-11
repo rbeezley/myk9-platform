@@ -59,7 +59,7 @@ export const ONLINE_ENTRIES_BLOCKED_MESSAGE =
 
 /** What exhibitors read on a show that takes no online entries. */
 export const MAIL_IN_ENTRY_NOTE =
-  "This show doesn't take online entries. Mail your entry to the trial secretary or enter at the show — the premium has the details.";
+  "This show doesn't take online entries. Mail your entry to the trial secretary or enter at the show. The premium has the details.";
 
 /**
  * How a show takes entries, as far as this client knows:

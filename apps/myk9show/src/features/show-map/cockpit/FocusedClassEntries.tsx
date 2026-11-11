@@ -39,10 +39,12 @@ function InRingTile({ entries }: { entries: readonly SecretaryCockpitClassEntry[
       <dt className="text-xs font-medium text-muted-foreground">In ring</dt>
       <dd className="mt-1">
         {inRing ? (
-          <span className="flex items-center gap-2">
-            <span aria-hidden="true" className="flex items-center gap-2">
+          <span className="flex min-w-0 items-center gap-2">
+            <span aria-hidden="true" className="flex min-w-0 items-center gap-2">
               <ArmbandBadge armband={inRing.armband} className="h-9 min-w-9" />
-              <span className="text-lg font-semibold">{inRing.dogName}</span>
+              <span className="min-w-0 truncate text-lg font-semibold" title={inRing.dogName}>
+                {inRing.dogName}
+              </span>
             </span>
             <span className="sr-only">
               {`Armband ${inRing.armband ?? 'not assigned'}, ${inRing.dogName}`}
@@ -90,15 +92,22 @@ export function ClassCountTiles({
     { label: 'Still to run', value: counts.stillToRun },
   ];
   return (
-    <dl className="grid grid-cols-2 gap-3 sm:grid-cols-5" data-testid="class-count-tiles">
-      {tiles.map(tile => (
-        <div key={tile.label} className={TILE}>
-          <dt className="text-xs font-medium text-muted-foreground">{tile.label}</dt>
-          <dd className="text-2xl font-semibold tabular-nums">{tile.value}</dd>
-        </div>
-      ))}
-      <InRingTile entries={entries} />
-    </dl>
+    // The panel decides the columns, not the window: in the split its focus column can be 360px
+    // on a wide screen, where five tiles would not fit.
+    <div className="w-full [container-type:inline-size]">
+      <dl
+        className="grid grid-cols-2 gap-3 [@container(min-width:36rem)]:grid-cols-5"
+        data-testid="class-count-tiles"
+      >
+        {tiles.map(tile => (
+          <div key={tile.label} className={TILE}>
+            <dt className="text-xs font-medium text-muted-foreground">{tile.label}</dt>
+            <dd className="text-2xl font-semibold tabular-nums">{tile.value}</dd>
+          </div>
+        ))}
+        <InRingTile entries={entries} />
+      </dl>
+    </div>
   );
 }
 

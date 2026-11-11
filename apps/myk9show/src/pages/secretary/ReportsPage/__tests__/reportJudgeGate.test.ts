@@ -70,6 +70,32 @@ describe('officialFormJudgeBlock', () => {
     ).not.toBeNull();
   });
 
+  it('lets a trial-level form print past a cancelled class with no judge when the trial has a judge', () => {
+    expect(
+      officialFormJudgeBlock(
+        'akc-judge-report',
+        null,
+        trials,
+        [judged, { ...unjudged, status: 'cancelled' }],
+        't1',
+        'all'
+      )
+    ).toBeNull();
+  });
+
+  it('blocks a trial-level form when every class in the trial is cancelled and unjudged', () => {
+    expect(
+      officialFormJudgeBlock(
+        'akc-judge-report',
+        null,
+        trials,
+        [{ ...unjudged, status: 'cancelled' }],
+        't1',
+        'all'
+      )
+    ).not.toBeNull();
+  });
+
   it('does not count a UKC trial or a class outside the selection', () => {
     expect(
       officialFormJudgeBlock(

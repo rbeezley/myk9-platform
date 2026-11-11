@@ -47,6 +47,27 @@ function classLabel(cls: GateClass): string {
   return [cls.element, cls.level, resolveClassSection(cls.section)].filter(Boolean).join(' ');
 }
 
+const isCancelledClass = (cls: GateClass): boolean =>
+  (cls.status ?? '').toLowerCase() === 'cancelled';
+
+/**
+ * The trial-level forms print only the trial's judge, which skips unset classes. So a cancelled
+ * class with no judge does not reach the form, unless no class in its trial has a judge at all
+ * (then the trial's judge itself is unset).
+ */
+function trialFormClassesMissingJudge(
+  classes: ReadonlyArray<GateClass>,
+  judges: ReadonlyArray<ShowJudgeAssignment>
+): GateClass[] {
+  const unset = new Set(classesMissingJudge(classes, judges));
+  const trialHasJudge = new Set(
+    classes.filter(cls => !unset.has(cls)).map(cls => cls.trial_id ?? '')
+  );
+  return classes.filter(
+    cls => unset.has(cls) && (!isCancelledClass(cls) || !trialHasJudge.has(cls.trial_id ?? ''))
+  );
+}
+
 /**
  * One plain sentence naming the classes that still need a judge before this official form can
  * print, or null when the form may print (or is not an official AKC form).
@@ -65,11 +86,7 @@ export function officialFormJudgeBlock(
   const scopedTrials = trialId === 'all' ? trials : trials.filter(t => t.id === trialId);
   const scopedTrialIds = new Set(scopedTrials.map(t => t.id));
   const scoped = (allClasses ?? []).filter(
-    cls =>
-      scopedTrialIds.has(cls.trial_id ?? '') &&
-      // Cancelled classes still count: the forms print every class, so an unset judge on a
-      // cancelled one would print 'TBD' on an official form (review, PR #3797).
-      (classId === 'all' || cls.id === classId)
+    cls => scopedTrialIds.has(cls.trial_id ?? '') && (classId === 'all' || cls.id === classId)
   );
   const trialById = new Map(scopedTrials.map(t => [t.id, t]));
   const akcClasses = scoped.filter(cls => isAkcTrial(trialById.get(cls.trial_id ?? '')));
@@ -78,7 +95,12 @@ export function officialFormJudgeBlock(
     return null;
   }
 
-  const missing = classesMissingJudge(akcClasses, show?.assignedJudges ?? []);
+  const judges = show?.assignedJudges ?? [];
+  const missing =
+    reportType === AKC_ONLY_WHEN_WHOLE_SELECTION_IS_AKC
+      ? // The marked catalog prints every class, cancelled ones too (review, PR #3797).
+        classesMissingJudge(akcClasses, judges)
+      : trialFormClassesMissingJudge(akcClasses, judges);
   if (missing.length === 0) return null;
 
   const multipleTrials = new Set(akcClasses.map(cls => cls.trial_id)).size > 1;

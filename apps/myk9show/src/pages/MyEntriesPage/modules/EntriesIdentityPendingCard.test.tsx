@@ -15,7 +15,7 @@ describe('EntriesIdentityPendingCard', () => {
     rerender(
       <EntriesIdentityPendingCard onRetry={onRetry} refreshing={false} identityState="missing" />
     );
-    expect(screen.getByText('We could not find your exhibitor profile')).toBeInTheDocument();
+    expect(screen.getByText('We could not find your exhibitor account')).toBeInTheDocument();
     expect(screen.getByText(/ask your show secretary/i)).toBeInTheDocument();
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
     expect(screen.queryByText('Getting your shows ready')).not.toBeInTheDocument();

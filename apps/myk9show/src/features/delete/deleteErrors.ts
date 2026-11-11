@@ -103,7 +103,7 @@ export function deleteGuardMessage(kind: DeleteObjectKind, count: number, error:
 export function restoreErrorMessage(kind: DeleteObjectKind, error: unknown): string {
   const { code } = fieldsOf(error);
   if (code === PG_INSUFFICIENT_PRIVILEGE) {
-    return 'The 10 minutes to undo this are over. Ask a myK9 administrator to restore it.';
+    return 'The 10 minutes to undo this are over. Ask myK9Show support to restore it.';
   }
   if (code === 'MK013') {
     const parent =

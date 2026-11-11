@@ -46,7 +46,7 @@ function FlyerPage1({ showName, clubName, showDates, exhibitorCode, loginUrl }: 
       <hr className="flyer-divider" />
 
       <div className="flyer-footer-note">
-        Questions? Ask the trial secretary. &mdash; myK9Show &middot; myk9show.com
+        Questions? Ask the show secretary. &mdash; myK9Show &middot; myk9show.com
       </div>
     </div>
   );

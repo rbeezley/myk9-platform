@@ -60,7 +60,7 @@ export function getEntryCloseSubmitBlocker({
   if (!currentDate) return null;
 
   if (currentDate.getTime() > closeDate.getTime()) {
-    return 'Entries are closed for this show. Contact the trial secretary for late-entry help.';
+    return 'Entries are closed for this show. Contact the show secretary for late-entry help.';
   }
 
   return null;

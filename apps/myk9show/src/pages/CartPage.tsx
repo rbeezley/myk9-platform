@@ -258,7 +258,7 @@ export default function CartPage() {
       return;
     }
     if (!profile?.id) {
-      setError('Could not verify your exhibitor profile. Please sign in again.');
+      setError('Could not verify your account. Please sign in again.');
       return;
     }
     // A Stripe session is cart-wide. Skip the capacity dependency only when

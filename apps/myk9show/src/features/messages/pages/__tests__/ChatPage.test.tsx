@@ -137,7 +137,7 @@ describe('ChatPage', () => {
     render(<ChatPage />);
 
     expect(
-      await screen.findByRole('heading', { name: /Message the show team/i })
+      await screen.findByRole('heading', { name: /Message the show secretary/i })
     ).toBeInTheDocument();
     expect(screen.getByText(/Ask a question about this show/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Start message/i })).toBeEnabled();
@@ -165,7 +165,9 @@ describe('ChatPage', () => {
     await user.click(screen.getByRole('button', { name: /send/i }));
 
     expect(await screen.findByText(/We couldn't start that message/i)).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /Message the show team/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: /Message the show secretary/i })
+    ).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/message/i)).toBeInTheDocument();
   });
 });

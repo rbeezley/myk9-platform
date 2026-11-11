@@ -334,7 +334,7 @@ describe('submitPaymentStep', () => {
     expect(submitShowRegistrationMock).not.toHaveBeenCalled();
     expect(ctx.cart.clearCart).not.toHaveBeenCalled();
     expect(notificationErrorMock).toHaveBeenCalledWith(
-      'Entries are closed for this show. Contact the trial secretary for late-entry help.'
+      'Entries are closed for this show. Contact the show secretary for late-entry help.'
     );
   });
 

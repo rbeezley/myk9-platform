@@ -103,13 +103,13 @@ export default function ChatPage() {
     <div className="flex flex-col h-full">
       <div className="border-b px-4 py-3">
         <h1 className="text-lg font-semibold">Messages</h1>
-        <p className="text-sm text-muted-foreground">Chat with the trial secretary</p>
+        <p className="text-sm text-muted-foreground">Chat with the show secretary</p>
       </div>
 
       {!thread ? (
         <section className="mx-auto flex max-w-2xl flex-1 flex-col items-center justify-center px-4 py-16 text-center">
           <MessageSquare className="mb-4 h-10 w-10 text-muted-foreground" aria-hidden="true" />
-          <h1 className="text-xl font-semibold">Message the show team</h1>
+          <h1 className="text-xl font-semibold">Message the show secretary</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Ask a question about this show and the secretary will see it in the existing Message
             Center.

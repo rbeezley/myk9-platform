@@ -499,7 +499,7 @@ export const NoTrialsAlert: React.FC<NoTrialsAlertProps> = ({ isOrganizer }) => 
     <AlertDescription>
       {isOrganizer
         ? 'This show has no trials yet. Add trials in the show management page before entering dogs.'
-        : 'No trials found for this show. Please contact the show organizer.'}
+        : 'No trials found for this show. Please contact the show secretary.'}
     </AlertDescription>
   </Alert>
 );
@@ -520,7 +520,7 @@ export const NoClassesAlert: React.FC<NoClassesAlertProps> = ({ trialCount, isOr
       assigned.{' '}
       {isOrganizer
         ? 'Add classes in the show management page before entering dogs.'
-        : 'Please contact the show organizer.'}
+        : 'Please contact the show secretary.'}
     </AlertDescription>
   </Alert>
 );

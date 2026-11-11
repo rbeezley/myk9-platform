@@ -210,7 +210,7 @@ describe('restoreRecords: Undo', () => {
     mocks.restore.mockRejectedValueOnce({ code: '42501', message: 'Permission denied' });
     const late = await restoreRecords('entry', [{ id: 'e1', name: 'Biscuit' }]);
     expect(late.failed[0]?.message).toBe(
-      'The 10 minutes to undo this are over. Ask a myK9 administrator to restore it.'
+      'The 10 minutes to undo this are over. Ask myK9Show support to restore it.'
     );
     expect(mocks.refresh).not.toHaveBeenCalled();
 

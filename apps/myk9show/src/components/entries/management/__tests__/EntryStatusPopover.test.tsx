@@ -344,9 +344,9 @@ describe('EntryStatusPopover', () => {
     );
 
     // Canonical vocabulary (reviewStateLabels) says "Waitlisted", not the
-    // status-descriptor's "Wait list".
+    // status-descriptor's "Waitlist".
     expect(screen.getByRole('menuitem', { name: 'Waitlisted (current)' })).toBeInTheDocument();
-    expect(screen.queryByText('Wait list (current)')).not.toBeInTheDocument();
+    expect(screen.queryByText('Waitlist (current)')).not.toBeInTheDocument();
   });
 });
 

@@ -181,8 +181,8 @@ export const ENTRY_STATUS_DESCRIPTORS = {
   // services/entryDisplay/entryDisplaySelectors.ts on the per-surface voice.
   pending: descriptor('pending', 'Pending', 'pending', 'text-warning'),
   accepted: descriptor('accepted', 'Accepted', 'in-progress', 'text-info'),
-  waitlist: descriptor('waitlist', 'Wait list', 'pending', 'text-warning'),
-  waitlisted: descriptor('waitlisted', 'Wait list', 'pending', 'text-warning'),
+  waitlist: descriptor('waitlist', 'Waitlist', 'pending', 'text-warning'),
+  waitlisted: descriptor('waitlisted', 'Waitlist', 'pending', 'text-warning'),
   rejected: descriptor('rejected', 'Rejected', 'complete', 'text-destructive'),
   missing_info: descriptor(
     'missing_info',

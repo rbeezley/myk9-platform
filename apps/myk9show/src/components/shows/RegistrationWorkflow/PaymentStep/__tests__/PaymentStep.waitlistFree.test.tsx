@@ -86,6 +86,6 @@ describe('PaymentStep — wait-list is free copy (MYK9-1013)', () => {
 
   it('shows nothing about wait lists when no selected class is a wait-list request', () => {
     render(<PaymentStepHarness {...baseProps} />);
-    expect(screen.queryByText(/joining a wait list is free/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/joining a waitlist is free/i)).not.toBeInTheDocument();
   });
 });

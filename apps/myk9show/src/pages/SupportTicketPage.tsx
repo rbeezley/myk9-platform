@@ -42,7 +42,7 @@ export default function SupportTicketPage() {
               <h2 className="text-2xl font-semibold">Support</h2>
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
-              Replies from the myK9Show team appear here.
+              Replies from myK9Show support appear here.
             </p>
           </div>
           {ticket && <StatusBadge status={ticket.status} />}

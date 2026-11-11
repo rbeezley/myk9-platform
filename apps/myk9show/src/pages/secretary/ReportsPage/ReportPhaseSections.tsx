@@ -33,7 +33,7 @@ export const PHASE_COPY: Record<ReportPhase, { label: string; hint: string }> = 
     hint: 'From when entries close to the morning of the show.',
   },
   during: { label: 'During the show', hint: 'While classes are in the ring.' },
-  after: { label: 'After the show', hint: 'Once a class is scored, and at wrap-up.' },
+  after: { label: 'After the show', hint: 'Once a class is scored, and when you close the show.' },
   anytime: { label: 'Anytime', hint: 'Useful at any point.' },
 };
 

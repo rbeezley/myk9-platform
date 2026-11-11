@@ -97,7 +97,7 @@ export const CLUB_ACCESS_SENTENCE =
   "Everyone's access to this club (administrators, secretaries, officials) is switched off. Restoring the club does not bring it back; grant the roles again.";
 
 export function undoSentence(count: number): string {
-  return `You can undo this for 10 minutes. After that, ask a myK9 administrator to restore ${
+  return `You can undo this for 10 minutes. After that, ask myK9Show support to restore ${
     count === 1 ? 'it' : 'them'
   }.`;
 }
@@ -262,7 +262,7 @@ export function restoredToast(kind: DeleteObjectKind, count: number): string {
 export const UNDO_LABEL = 'Undo';
 
 export function undoExpiredMessage(count: number): string {
-  return `The 10 minutes to undo this are over. Ask a myK9 administrator to restore ${
+  return `The 10 minutes to undo this are over. Ask myK9Show support to restore ${
     count === 1 ? 'it' : 'them'
   }.`;
 }

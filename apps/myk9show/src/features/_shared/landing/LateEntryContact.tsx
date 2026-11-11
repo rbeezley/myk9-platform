@@ -12,7 +12,7 @@ export function LateEntryContact({ lead = '' }: { lead?: string }) {
   // One <span> so the sentence stays a single run of inline text even when the parent is a
   // flex container (an inline-flex paragraph would split text and link into separate items).
   if (contact === undefined)
-    return <span>{lead}Contact the trial secretary for late-entry help.</span>;
+    return <span>{lead}Contact the show secretary for late-entry help.</span>;
   if (contact === null) return <span>{lead}The club has not listed a secretary yet.</span>;
   const label = contact.name ?? contact.email;
   return (

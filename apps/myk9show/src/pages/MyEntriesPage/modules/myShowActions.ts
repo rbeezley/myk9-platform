@@ -106,9 +106,9 @@ export function buildMyShowActions(facts: MyShowActionsFacts): MyShowAction[] {
     // exhibitor with a question before the deadline had nowhere to ask it.
     actions.push({
       id: 'message-show-team',
-      label: 'Message the show team',
+      label: 'Message the show secretary',
       href: `/messages/${facts.showId}`,
-      ariaLabel: `Message the show team about ${facts.showName}`,
+      ariaLabel: `Message the show secretary about ${facts.showName}`,
     });
     if (isReadable) {
       actions.push({

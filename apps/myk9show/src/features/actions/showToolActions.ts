@@ -3,7 +3,7 @@ import type { ActionIconName, AppAction } from './actionRegistry';
 /**
  * The two Tools groups (owner, 2026-10-02 -- MYK9-954), which are also the show page's
  * `show-day` and `show-logistics` sections of the Actions menu (MYK9-1262). Every other job the
- * panel used to hold now lives where the work happens: Add entries on Entries, Show closeout as
+ * panel used to hold now lives where the work happens: Add entries on Entries, Close the show as
  * Results step 3, the delay script on the class's expected start. A tool must name its group, so
  * a new one cannot land ungrouped.
  */

@@ -77,7 +77,7 @@ describe('Gazette entry CTA gating', () => {
         screen.queryByRole('link', { name: /open the entry wizard/i })
       ).not.toBeInTheDocument();
       expect(
-        screen.getByText(/Contact the trial secretary for late-entry help/i)
+        screen.getByText(/Contact the show secretary for late-entry help/i)
       ).toBeInTheDocument();
       expect(screen.queryByText(/classes are assigned/i)).not.toBeInTheDocument();
     });

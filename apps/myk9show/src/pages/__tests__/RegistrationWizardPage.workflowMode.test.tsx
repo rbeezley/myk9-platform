@@ -196,7 +196,7 @@ describe('RegistrationWizardPage — workflowMode derivation', () => {
         name: /this show is no longer accepting normal online entries/i,
       })
     ).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /message the show team/i })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /message the show secretary/i })).toHaveAttribute(
       'href',
       '/messages/show-1'
     );

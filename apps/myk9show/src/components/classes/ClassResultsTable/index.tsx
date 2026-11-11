@@ -233,7 +233,7 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
           <Alert>
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              You have read-only access. Contact a secretary or administrator to edit results.
+              You have read-only access. Contact the show secretary to edit results.
             </AlertDescription>
           </Alert>
         )}

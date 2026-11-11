@@ -6,7 +6,7 @@
  * `display:flex` with no `flex-wrap`, and gained `flex-wrap: wrap` only inside
  * `@media (max-width: 768px)`. Every button carries `whitespace-nowrap` from
  * `buttonVariants`, and the expanded card renders up to five of them ("View
- * Show", "Edit Entry", "View run order", "Message the show team", "Receipt"),
+ * Show", "Edit Entry", "View run order", "Message the show secretary", "Receipt"),
  * so the row needs ~770px. `.myk9-entries-card` is `overflow:hidden`, so once
  * the row did not fit it was CLIPPED rather than scrolled — no scrollbar, no
  * ellipsis, no hint that an action existed.

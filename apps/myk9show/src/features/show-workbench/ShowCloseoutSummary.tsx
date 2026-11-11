@@ -86,7 +86,7 @@ export function ShowCloseoutSummary({ showId, entries, deskWindow }: ShowCloseou
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h3 id="show-closeout-summary-title" className="text-base font-semibold">
-            Show closeout
+            Close the show
           </h3>
           <p className="mt-1 text-sm text-muted-foreground">
             Check the cash box against the payments below, settle pulls and removals, then clear
@@ -125,7 +125,7 @@ export function ShowCloseoutSummary({ showId, entries, deskWindow }: ShowCloseou
             <p className={STAT_VALUE_CLASS}>{paymentsText}</p>
             {paymentsQuery.isError ? (
               <p className="text-xs text-destructive">
-                {paymentCountText}: could not load payments. Reconnect and reopen closeout.
+                {paymentCountText}: could not load payments. Reconnect and reopen this page.
               </p>
             ) : (
               <p className="text-xs text-muted-foreground">{paymentCountText}</p>
@@ -190,7 +190,7 @@ export function ShowCloseoutSummary({ showId, entries, deskWindow }: ShowCloseou
           <p className="mt-3 text-sm text-muted-foreground">Checking the incident log...</p>
         ) : incidentsQuery.isError ? (
           <p className="mt-3 text-sm text-destructive">
-            Could not load the incident closeout. Open the incident log in Tools before filing
+            Could not load the incidents for this show. Open the incident log in Tools before filing
             reports.
           </p>
         ) : (

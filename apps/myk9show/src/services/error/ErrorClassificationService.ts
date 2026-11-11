@@ -200,7 +200,7 @@ class ErrorClassificationService {
       {
         type: 'contact_support',
         label: 'Contact Support',
-        description: 'You need additional permissions. Contact your administrator.',
+        description: 'You need additional permissions. Contact the show secretary.',
         automated: false,
         priority: 1,
       },

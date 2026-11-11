@@ -7,7 +7,7 @@ import { AlreadyEnteredNotice } from '../AlreadyEnteredNotice';
  * `ClassSelectionStep` is shared between the exhibitor wizard and the
  * secretary/admin registration flow, so this notice's recovery path must
  * follow the workflow mode. Codex review of PR #1456 caught the unconditional
- * version telling staff to "message the show team" — a link that opens a
+ * version telling staff to "message the show secretary" — a link that opens a
  * thread whose participant is the staff user themselves.
  */
 describe('AlreadyEnteredNotice', () => {
@@ -15,7 +15,7 @@ describe('AlreadyEnteredNotice', () => {
     render(<AlreadyEnteredNotice showId="show-1" dogName="Willow" />);
 
     expect(screen.getByText(/Willow is already entered/i)).toBeInTheDocument();
-    const link = screen.getByRole('link', { name: /message the show team/i });
+    const link = screen.getByRole('link', { name: /message the show secretary/i });
     expect(link).toHaveAttribute('href', '/messages/show-1');
   });
 
@@ -24,7 +24,7 @@ describe('AlreadyEnteredNotice', () => {
     mode => {
       render(<AlreadyEnteredNotice showId="show-1" dogName="Willow" workflowMode={mode} />);
 
-      expect(screen.queryByRole('link', { name: /message the show team/i })).toBeNull();
+      expect(screen.queryByRole('link', { name: /message the show secretary/i })).toBeNull();
       const link = screen.getByRole('link', { name: /entry forms/i });
       expect(link).toHaveAttribute('href', '/shows/show-1/entries');
     }
@@ -33,7 +33,7 @@ describe('AlreadyEnteredNotice', () => {
   it('defaults to the exhibitor path when no mode is supplied', () => {
     render(<AlreadyEnteredNotice showId="show-9" dogName="Rex" workflowMode="exhibitor" />);
 
-    expect(screen.getByRole('link', { name: /message the show team/i })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /message the show secretary/i })).toHaveAttribute(
       'href',
       '/messages/show-9'
     );

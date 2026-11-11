@@ -30,7 +30,7 @@ describe('entrySubmitErrorMessage (MYK9-1823)', () => {
 
   it('shows a sentence the flow worded on purpose as it is', () => {
     const message =
-      'Entries are closed for this show. Contact the trial secretary for late-entry help.';
+      'Entries are closed for this show. Contact the show secretary for late-entry help.';
     expect(entrySubmitErrorMessage(new PlainEntryError(message), 'exhibitorSubmit')).toBe(message);
   });
 

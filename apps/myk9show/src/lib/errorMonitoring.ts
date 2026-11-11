@@ -384,7 +384,7 @@ export class ErrorClassifier {
           suggested: 'You do not have permission to perform this action',
           automated: false,
           steps: [
-            'Contact your administrator for access',
+            'Contact the show secretary for access',
             'Verify your user role',
             'Check if your account is active',
             'Try a different approach if available',

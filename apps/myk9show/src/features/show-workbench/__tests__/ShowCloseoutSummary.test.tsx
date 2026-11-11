@@ -127,7 +127,7 @@ describe('ShowCloseoutSummary', () => {
       />
     );
 
-    expect(screen.getByRole('heading', { name: 'Show closeout' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Close the show' })).toBeInTheDocument();
     // The reconciliation half alone drives the rolled-up chip here (no incidents).
     expect(await screen.findByText('1 pulled · 1 review')).toBeInTheDocument();
     const payments = screen.getByRole('group', { name: 'Payments received during the show' });
@@ -271,7 +271,7 @@ describe('ShowCloseoutSummary', () => {
     expect(await screen.findByText('Check incidents')).toBeInTheDocument();
     expect(
       screen.getByText(
-        'Could not load the incident closeout. Open the incident log in Tools before filing reports.'
+        'Could not load the incidents for this show. Open the incident log in Tools before filing reports.'
       )
     ).toBeInTheDocument();
     expect(

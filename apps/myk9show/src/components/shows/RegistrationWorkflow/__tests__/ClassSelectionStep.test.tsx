@@ -753,7 +753,7 @@ describe('ClassSelectionStep — empty class inventory', () => {
     // Default auth context is a non-organizer (isSecretary/isAdmin false).
     renderStep();
 
-    expect(await screen.findByText(/Please contact the show organizer/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Please contact the show secretary/i)).toBeInTheDocument();
   });
 
   it('tells an organizer where to add classes when no classes exist', async () => {
@@ -918,7 +918,7 @@ describe('ClassSelectionStep — add-only entry actions (6.4)', () => {
     renderAddOnlyStep();
 
     expect(await screen.findByText(/already entered in the classes marked/i)).toBeInTheDocument();
-    const link = screen.getByRole('link', { name: /message the show team/i });
+    const link = screen.getByRole('link', { name: /message the show secretary/i });
     expect(link).toHaveAttribute('href', `/messages/${SHOW_ID}`);
   });
 

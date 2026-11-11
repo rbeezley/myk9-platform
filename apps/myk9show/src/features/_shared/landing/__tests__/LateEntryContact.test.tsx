@@ -52,7 +52,7 @@ describe('LateEntryContact (MYK9-1288)', () => {
       renderContact(value);
 
       expect(
-        screen.getByText('Contact the trial secretary for late-entry help.')
+        screen.getByText('Contact the show secretary for late-entry help.')
       ).toBeInTheDocument();
       expect(screen.queryByText(/has not listed/)).not.toBeInTheDocument();
     }

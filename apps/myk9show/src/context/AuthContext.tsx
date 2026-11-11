@@ -99,7 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (userProfile?.status === 'suspended') {
       logger.warn('Account suspended, signing out user', 'auth');
       notifications.error(
-        'Your account has been suspended. Contact the administrator for assistance.'
+        'Your account has been suspended. Contact myK9Show support for assistance.'
       );
       supabase.auth
         .signOut()

@@ -502,7 +502,7 @@ describe("resolveActions — a page's other actions (CRUD standard decision 6)",
   });
 });
 
-describe("resolveActions — Close out show follows the show's life", () => {
+describe("resolveActions — Close the show follows the show's life", () => {
   it.each(['completed', 'cancelled'])('withholds it from a %s show', status => {
     const ids = resolveActions(SHOW_CONTEXT, { ...secretary, showStatus: status }).map(a => a.id);
     expect(ids).not.toContain('show-close-out');

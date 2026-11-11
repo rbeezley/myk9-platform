@@ -382,7 +382,7 @@ function buildShowActions(
             // The Results section's own close-out step, opened on it (CRUD standard
             // decision 6); the step's confirm dialog does the work. Same gate as the route.
             id: 'show-close-out',
-            label: 'Close out show',
+            label: 'Close the show',
             href: `/shows/${encoded}/results?step=close`,
             group: 'show' as const,
             icon: 'close-out' as const,

@@ -59,7 +59,7 @@ export const AlreadyEnteredNotice: React.FC<AlreadyEnteredNoticeProps> = ({
           <>
             To change or withdraw an existing entry,{' '}
             <Link to={`/messages/${showId}`} className="font-medium underline underline-offset-2">
-              message the show team
+              message the show secretary
             </Link>
             .
           </>

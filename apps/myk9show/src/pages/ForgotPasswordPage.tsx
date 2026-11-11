@@ -74,8 +74,8 @@ const ForgotPasswordPage: React.FC = () => {
           </div>
           <h2 className="text-2xl font-bold mb-2">Check your email</h2>
           <p className="text-muted-foreground mb-6">
-            If an account exists for this email, we&apos;ll send a password reset link. The link
-            will expire in 24 hours.
+            If an account exists for this email, check your inbox. If no link arrives, wait a minute
+            and try again. Reset links expire in 24 hours.
           </p>
           <Link to="/sign-in" className="text-primary hover:underline font-medium">
             &larr; Back to sign in

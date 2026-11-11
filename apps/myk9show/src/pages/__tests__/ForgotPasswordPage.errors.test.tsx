@@ -37,17 +37,24 @@ describe('password reset outcomes', () => {
     expect(screen.queryByRole('heading', { name: 'Check your email' })).not.toBeInTheDocument();
   });
 
-  it.each(['accepted', 'unknown account'])(
+  it.each(['accepted', 'unknown account', 'rate limited'])(
     'does not disclose account existence: %s',
     async outcome => {
       if (outcome === 'unknown account') {
         resetPassword.mockRejectedValue(new AuthApiError('User not found', 400, 'user_not_found'));
+      } else if (outcome === 'rate limited') {
+        resetPassword.mockRejectedValue(
+          new AuthApiError('Rate limit exceeded', 429, 'over_email_send_rate_limit')
+        );
       } else {
         resetPassword.mockResolvedValue(undefined);
       }
       await submitReset();
       expect(await screen.findByText(/if an account exists for this email/i)).toBeInTheDocument();
-      expect(screen.queryByText(/user not found/i)).not.toBeInTheDocument();
+      expect(
+        screen.getByText(/if no link arrives, wait a minute and try again/i)
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/user not found|rate limit exceeded/i)).not.toBeInTheDocument();
     }
   );
 });

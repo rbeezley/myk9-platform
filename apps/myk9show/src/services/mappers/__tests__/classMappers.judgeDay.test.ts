@@ -62,7 +62,7 @@ describe('mapDatabaseToClass judge (MYK9-1036)', () => {
       dbClass([{ id: 'a1', person_id: 'p1', status: 'invited', people: person('Ina') }])
     );
     expect(mapped.judgeId).toBe('');
-    expect(mapped.judge).toBe('TBD');
+    expect(mapped.judge).toBe('');
   });
 
   it('keeps the first assignment for a read that did not select status', () => {

@@ -1,3 +1,4 @@
+import { judgeNameOrUnsetLabel } from '@/utils/classJudgeDisplay';
 import { cn } from '@/lib/utils';
 import { Users, Clock, Hash } from 'lucide-react';
 import { type ClassStatusValue } from '@myk9/core';
@@ -77,9 +78,10 @@ export function ClassCard({ classInfo, hideRing, liveData, onClick }: ClassCardP
       </div>
 
       {/* Judge */}
-      {classInfo.judgeName && (
-        <p className="text-xs text-muted-foreground">Judge: {classInfo.judgeName}</p>
-      )}
+      {/* MYK9-1853: always shown; a class with no judge yet reads "To be announced". */}
+      <p className="text-xs text-muted-foreground">
+        Judge: {judgeNameOrUnsetLabel(classInfo.judgeName, { bare: true })}
+      </p>
 
       {/* Time + Ring */}
       <div className="flex items-center gap-3 text-xs text-muted-foreground">

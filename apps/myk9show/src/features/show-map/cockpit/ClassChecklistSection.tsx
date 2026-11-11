@@ -50,7 +50,7 @@ export function ClassChecklistSection({
   trialDate: string;
   /**
    * The class whose actual-start editor is open. Held by the focused-class panel so the header's
-   * Actions menu ("Set actual start") opens the same editor the Class started step does.
+   * Actual timing field opens the same editor the Class started step does.
    * Omit both and the section keeps the state itself.
    */
   editingStart?: string | null;

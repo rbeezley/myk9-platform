@@ -48,7 +48,7 @@ function Where() {
  * | Trials: row opens the trial page     | The home itself; Entry Forms and Reports tabs (MYK9-1727) |
  * | Classes: Add Classes                 | Trial heading menu "Add classes" (MYK9-1727) |
  * | Classes: row Edit / Delete           | Class Actions menu "Edit class"; edit panel footer (Delete) |
- * | Classes: status change               | Class Actions menu "Change class status"      |
+ * | Classes: status change               | Class header Status field (MYK9-1867)        |
  * | Classes: judge, waitlist, bulk bar   | Actions menu "Select classes" (in place)      |
  * | Classes: row opens class details     | Class Actions menu "View entries and results" |
  */

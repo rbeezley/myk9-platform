@@ -50,11 +50,11 @@ test('secretary Overview with a class focused has no horizontal scroll at 375px 
   await signInAsSecretary(page, `/shows/${SHOW_ID}?focus=${FOCUSED_CLASS_ID}`);
   await page.goto(`/shows/${SHOW_ID}?focus=${FOCUSED_CLASS_ID}`);
   await page.waitForLoadState('networkidle').catch(() => undefined);
-  // Positive control: the focused class panel (its Actions menu and Class settings card) rendered.
+  // Positive control: the focused class panel (its Actions menu and inline settings fields) rendered.
   await expect(page.getByRole('button', { name: /^Actions for (?!#)/ })).toBeVisible({
     timeout: 30_000,
   });
-  await expect(page.getByRole('region', { name: 'Class settings' })).toBeVisible();
+  await expect(page.getByTestId('focused-class-header')).toBeVisible();
   await page.waitForTimeout(1500);
 
   expect(
@@ -63,11 +63,11 @@ test('secretary Overview with a class focused has no horizontal scroll at 375px 
   ).toBeLessThanOrEqual(SMALL_PHONE.width);
   await expectNoHorizontalOverflow(page, 'secretary Overview');
 
-  // Inside the page, every Class settings control stays within its card (the walk's second
+  // Inside the page, every inline settings field stays within the header card (the walk's second
   // finding: values ran past the card's right edge once the column narrowed).
-  const settings = page.getByRole('region', { name: 'Class settings' });
+  const settings = page.getByTestId('focused-class-header');
   const card = await settings.boundingBox();
-  expect(card, 'Class settings card must render').not.toBeNull();
+  expect(card, 'class header card must render').not.toBeNull();
   const overruns = await settings.evaluate(el => {
     const edge = el.getBoundingClientRect().right;
     return [...el.querySelectorAll('dd *')]
@@ -76,5 +76,5 @@ test('secretary Overview with a class focused has no horizontal scroll at 375px 
       )
       .map(c => `${c.tagName} "${(c.textContent ?? '').trim().slice(0, 30)}"`);
   });
-  expect(overruns, 'no Class settings control may pass the card edge').toEqual([]);
+  expect(overruns, 'no settings field may pass the card edge').toEqual([]);
 });

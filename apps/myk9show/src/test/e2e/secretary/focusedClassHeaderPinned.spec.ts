@@ -48,14 +48,14 @@ async function open(
   return heading;
 }
 
-/** Everything measured in the page; the h2's parent is the header block, found by structure. */
+/** Everything measured in the page; the header block is the focused-class-header around the h2. */
 async function probe(page: Page) {
   const result = await page.evaluate(
     ({ title }) => {
       const h2 = [...document.querySelectorAll<HTMLElement>('aside h2')].find(
         el => el.textContent === title
       );
-      const block = h2?.parentElement;
+      const block = h2?.closest<HTMLElement>('[data-testid="focused-class-header"]');
       const card = block?.parentElement;
       const grid = document.querySelector<HTMLElement>('[data-cockpit-layout]');
       if (!h2 || !block || !card || !grid) return null;
@@ -166,7 +166,7 @@ test('split: a short class follows the schedule, and its own scroll keeps the he
     const h2 = [...document.querySelectorAll('aside h2')].find(
       el => el.textContent === 'Container Novice A'
     );
-    for (let el = h2?.parentElement?.parentElement?.parentElement ?? null; el;) {
+    for (let el = h2?.closest('[data-testid="focused-class-header"]')?.parentElement ?? null; el;) {
       if (el.scrollHeight > el.clientHeight && getComputedStyle(el).overflowY === 'auto') {
         el.scrollTop = el.scrollHeight;
         break;
@@ -195,7 +195,7 @@ test('stacked: the header pins to the page under the show header and tabs', asyn
     const h2 = [...document.querySelectorAll('aside h2')].find(
       el => el.textContent === 'Container Novice A'
     );
-    const card = h2?.parentElement?.parentElement;
+    const card = h2?.closest('[data-testid="focused-class-header"]')?.parentElement;
     for (let el = card?.parentElement ?? null; el; el = el.parentElement) {
       if (el.scrollHeight > el.clientHeight) {
         el.scrollTop +=
@@ -262,7 +262,7 @@ for (const layout of ['split', 'stacked'] as const) {
     await open(page, layout === 'stacked' ? 700 : null, layout);
     const header = page.getByTestId('focused-class-header');
     await expect(header).toHaveCSS('position', 'sticky');
-    // The first control in the card body (Class settings): near enough the top of the card that it
+    // The first control in the card body (the class checklist): near enough the top of the card that it
     // can be scrolled right up under the pinned header, which is the case scroll-margin exists for.
     const control = page
       .getByRole('complementary')
@@ -271,7 +271,7 @@ for (const layout of ['split', 'stacked'] as const) {
       .nth(0);
     const measure = () =>
       control.evaluate(el => {
-        const block = el.closest('aside')?.querySelector('h2')?.parentElement;
+        const block = el.closest('aside')?.querySelector('[data-testid="focused-class-header"]');
         const c = el.getBoundingClientRect();
         const h = block?.getBoundingClientRect();
         const hit = document.elementFromPoint(c.left + c.width / 2, c.top + c.height / 2);
@@ -288,7 +288,7 @@ for (const layout of ['split', 'stacked'] as const) {
     // panel in split and the page in stacked; the header re-pins as it moves, so iterate.
     for (let i = 0; i < 4; i += 1) {
       await control.evaluate(el => {
-        const block = el.closest('aside')?.querySelector('h2')?.parentElement;
+        const block = el.closest('aside')?.querySelector('[data-testid="focused-class-header"]');
         const delta =
           el.getBoundingClientRect().top - ((block?.getBoundingClientRect().top ?? 0) + 10);
         for (let n = el.parentElement; n; n = n.parentElement) {

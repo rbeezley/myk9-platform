@@ -67,7 +67,7 @@ describe('ShowsMapPanel', () => {
     mapState.shouldThrow = true;
     renderPanel();
 
-    expect(await screen.findByRole('button', { name: /reload the page/i })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /restart the app/i })).toBeInTheDocument();
     // A "Try again" would re-render straight back into React's cached rejection
     // and look broken; the panel deliberately does not offer one.
     expect(screen.queryByRole('button', { name: /try again/i })).not.toBeInTheDocument();

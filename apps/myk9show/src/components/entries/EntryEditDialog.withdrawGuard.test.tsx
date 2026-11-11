@@ -250,7 +250,7 @@ describe('EntryEditDialog — MYK9-535 withdraw guard', () => {
       data: null,
       error: {
         code: 'unavailable',
-        message: "We couldn't reach the server — try withdrawing again when you're connected.",
+        message: "We could not reach myK9Show. Try withdrawing again when you're connected.",
       },
     });
 

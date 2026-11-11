@@ -83,9 +83,9 @@ describe('EntryEditDialog — jump-height refusals reach the exhibitor', () => {
       'an offline transport failure',
       {
         code: 'unavailable',
-        message: "We couldn't reach the server — try saving again when you're connected.",
+        message: "We could not reach myK9Show. Try saving again when you're connected.",
       },
-      "We couldn't reach the server — try saving again when you're connected.",
+      "We could not reach myK9Show. Try saving again when you're connected.",
     ],
     [
       'an unclassified failure',

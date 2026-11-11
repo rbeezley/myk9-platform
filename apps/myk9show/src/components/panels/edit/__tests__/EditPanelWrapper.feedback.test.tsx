@@ -155,7 +155,7 @@ describe('EditPanelWrapper feedback', () => {
     expect(logger.error).toHaveBeenCalledTimes(1);
   });
 
-  it('says a save made offline was kept on this device and will sync', async () => {
+  it('says a save made offline was kept on this device and will be sent', async () => {
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
     const user = userEvent.setup();
     renderPanel(vi.fn().mockResolvedValue(undefined), {
@@ -164,7 +164,7 @@ describe('EditPanelWrapper feedback', () => {
     await editAndSave(user);
     await waitFor(() =>
       expect(mocks.success).toHaveBeenCalledWith(
-        "Rexy saved on this device — it will sync when you're back online"
+        'Rexy saved on this device. It will be sent when you are back online.'
       )
     );
     vi.restoreAllMocks();

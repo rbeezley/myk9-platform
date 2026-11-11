@@ -69,10 +69,10 @@ describe('ContainmentBanner', () => {
 
     const banner = screen.getByTestId('at-show-containment-banner');
     expect(banner).toBeInTheDocument();
-    expect(banner).toHaveTextContent(/Score sync paused/);
-    expect(banner).toHaveTextContent(/scores are saved here/i);
+    expect(banner).toHaveTextContent(/Sending scores is paused/);
+    expect(banner).toHaveTextContent(/scores are saved on this device/i);
     // Named as the server's decision, not the device's or the network's.
-    expect(banner).toHaveTextContent(/the server asked this device to wait/i);
+    expect(banner).toHaveTextContent(/myK9Show asked this device to wait/i);
   });
 
   it('offers no retry control — retrying is what the breaker is stopping', () => {

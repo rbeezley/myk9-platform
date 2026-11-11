@@ -144,14 +144,14 @@ export function classRowSyncBlockedReason(state: ClassRowSyncState | null): stri
   // Unknown is pending, not settled: the first read has not landed (or the queue was unreadable).
   if (state === null) return 'Checking this class…';
   if (state === 'unreadable') {
-    return 'Still checking this class. If this message stays, reload the page.';
+    return 'Still checking this class. If this message stays, restart the app.';
   }
   if (state === 'conflict') {
     // The notice can be closed, and a reload raises it again, so say so: never a dead end.
     return `This class was changed somewhere else. Choose "${CONFLICT_TAKE_REMOTE_LABEL}" or "${CONFLICT_KEEP_LOCAL_LABEL}" on the notice to settle it, then the check can show. If you closed the notice, leave this page and open it again to bring it back.`;
   }
   if (state === 'waiting') {
-    return "Waiting for this class's changes to sync before the check can show";
+    return "Waiting for this class's changes to be sent before the check can show";
   }
   return null;
 }

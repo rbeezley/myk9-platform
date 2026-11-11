@@ -46,7 +46,7 @@ export function ShowsMapPanel({ shows, onSwitchToCards }: ShowsMapPanelProps) {
           description="This device could not load the map. Every show is still listed in the other views."
           action={{ label: 'View as cards', onClick: onSwitchToCards }}
           secondaryAction={{
-            label: 'Reload the page',
+            label: 'Restart the app',
             onClick: () => window.location.reload(),
             icon: RefreshCw,
           }}

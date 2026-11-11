@@ -1,3 +1,5 @@
+import { SENT_WHEN_ONLINE } from '@/lib/offlineCopy';
+
 /**
  * Thrown from an `EditPanelWrapper` `onSave` when the panel has already put the
  * reason on screen itself (for example the duplicate-dog card). The wrapper keeps
@@ -33,12 +35,9 @@ export function deviceIsOffline(): boolean {
 
 /**
  * A save made while offline is written to this device and queued, so "saved"
- * alone would overstate it. Says where it landed and that it will sync.
+ * alone would overstate it. Says where it landed and that it will be sent.
  */
 export function offlineAwareMessage(message: string): string {
   if (!deviceIsOffline()) return message;
-  return message.replace(
-    / (saved|added|deleted)$/,
-    " $1 on this device — it will sync when you're back online"
-  );
+  return message.replace(/ (saved|added|deleted)$/, ` $1 on this device. It ${SENT_WHEN_ONLINE}.`);
 }

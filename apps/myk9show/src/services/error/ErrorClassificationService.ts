@@ -272,8 +272,8 @@ class ErrorClassificationService {
       },
       {
         type: 'clear_cache',
-        label: 'Clear Cache',
-        description: 'Clear your browser cache and try again.',
+        label: 'Clear saved data',
+        description: "Clear this browser's saved data for myK9Show and try again.",
         automated: false,
         priority: 2,
       },

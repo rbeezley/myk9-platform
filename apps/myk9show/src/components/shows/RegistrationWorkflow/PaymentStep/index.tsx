@@ -121,7 +121,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
           <Info className="h-4 w-4" />
           <AlertDescription>
             {entryWindowTimezoneUnavailable
-              ? 'We could not load this show\u2019s details, so we cannot work out the entry fee. Check your connection and reload the page.'
+              ? 'We could not load this show\u2019s details, so we cannot work out the entry fee. Check your connection, then restart the app.'
               : "Loading show details before totalling this entry. The entry fee depends on the show's own timezone, so nothing is totalled until it is known."}
           </AlertDescription>
         </Alert>

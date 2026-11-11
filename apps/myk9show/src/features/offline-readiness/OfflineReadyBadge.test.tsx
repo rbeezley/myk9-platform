@@ -42,7 +42,7 @@ describe('OfflineReadyBadge', () => {
 
     const status = screen.getByRole('status');
     expect(status).toHaveTextContent('Offline copy: saved on this device');
-    expect(status.getAttribute('title')).toMatch(/oldest sync/i);
+    expect(status.getAttribute('title')).toMatch(/oldest part was saved/i);
   });
 
   it('renders a not-ready BUTTON that primes the show on click', async () => {
@@ -127,13 +127,15 @@ describe('OfflineReadyBadge', () => {
 
   it('keeps the note inside the status region in both branches so it is announced', () => {
     hookState.readiness = { ready: false, missing: ['classes'], asOf: null };
-    const { rerender } = render(<OfflineReadyBadge showId="show-1" note="Sync needs attention" />);
-    expect(screen.getByRole('status')).toHaveTextContent('Sync needs attention');
-    expect(screen.getByRole('button')).not.toHaveTextContent('Sync needs attention');
+    const { rerender } = render(
+      <OfflineReadyBadge showId="show-1" note="Some changes need attention" />
+    );
+    expect(screen.getByRole('status')).toHaveTextContent('Some changes need attention');
+    expect(screen.getByRole('button')).not.toHaveTextContent('Some changes need attention');
 
     hookState.readiness = { ready: true, missing: [], asOf: null };
-    rerender(<OfflineReadyBadge showId="show-1" note="Sync needs attention" />);
-    expect(screen.getByRole('status')).toHaveTextContent('Sync needs attention');
+    rerender(<OfflineReadyBadge showId="show-1" note="Some changes need attention" />);
+    expect(screen.getByRole('status')).toHaveTextContent('Some changes need attention');
   });
 
   it('after a failed save says so and offers Try again (primeFailed)', () => {
@@ -149,15 +151,10 @@ describe('OfflineReadyBadge', () => {
   it('reads cleanly when a ready device is offline (no doubled "Offline")', () => {
     hookState.readiness = { ready: true, missing: [], asOf: null };
 
-    render(
-      <OfflineReadyBadge
-        showId="show-1"
-        note="Changes saved on this device, will sync when online"
-      />
-    );
+    render(<OfflineReadyBadge showId="show-1" note="Offline · 2 changes saved on this device" />);
 
     expect(screen.getByRole('status').textContent).toBe(
-      'Offline copy: saved on this device·Changes saved on this device, will sync when online'
+      'Offline copy: saved on this device·Offline · 2 changes saved on this device'
     );
   });
 
@@ -182,12 +179,12 @@ describe('OfflineReadyBadge', () => {
         <OfflineReadyBadge
           showId="show-1"
           inPromptWindow={false}
-          note="Sync needs attention"
+          note="Some changes need attention"
           noteNeedsAttention
         />
       );
 
-      expect(screen.getByRole('status')).toHaveTextContent('Sync needs attention');
+      expect(screen.getByRole('status')).toHaveTextContent('Some changes need attention');
       expect(screen.getByRole('button', { name: 'Save for show day' })).toBeInTheDocument();
     });
 

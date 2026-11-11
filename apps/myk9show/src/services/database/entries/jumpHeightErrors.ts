@@ -45,7 +45,7 @@ export class JumpHeightUnavailableError extends Error {
   readonly code = 'unavailable';
 
   constructor() {
-    super("We couldn't reach the server — try saving again when you're connected.");
+    super("We could not reach myK9Show. Try saving again when you're connected.");
     this.name = 'JumpHeightUnavailableError';
   }
 }

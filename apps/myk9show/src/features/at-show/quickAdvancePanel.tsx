@@ -284,9 +284,9 @@ export const QuickAdvancePanel: React.FC<QuickAdvancePanelProps> = ({
           {saveState === 'acknowledged'
             ? 'Score saved'
             : saveState === 'failed'
-              ? 'Saved on this device. Sync needs attention.'
+              ? 'Saved on this device, but it could not be sent. It needs attention.'
               : online
-                ? 'Saved on this device · waiting to sync'
+                ? 'Saved on this device. It has not been sent yet.'
                 : "Saved on this device. It will send when you're back online."}
         </div>
 

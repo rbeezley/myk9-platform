@@ -2,7 +2,7 @@ import { logQuery, createDatabaseError } from '../supabaseClient';
 
 /** Shown when the replica is unreadable and a local write may not have uploaded. */
 export const UNSYNCED_UNREADABLE_MESSAGE =
-  "This device couldn't read its saved data and has changes that haven't synced yet. Try again once it syncs.";
+  "This device couldn't read its saved data, and some changes have not been sent yet. Try again in a moment.";
 
 /** The device could not read its replica (ReplicatedTable.getAllOrThrow, rowsOrThrow). */
 export function isReplicaReadError(error: unknown): boolean {

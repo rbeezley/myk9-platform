@@ -124,7 +124,6 @@ export function useEntryDecisionLifecycleEmails({
     );
 
   const sendDecisionEmail = useSendDecisionEmail({
-    showName,
     // The send may belong to a show she has since left: refresh that show's caches too.
     onSettled: settledShowId => {
       invalidateLifecycleEmailQueries();

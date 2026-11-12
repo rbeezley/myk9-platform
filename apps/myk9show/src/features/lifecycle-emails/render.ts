@@ -17,6 +17,8 @@ export interface LifecycleEmailRecipientContext {
 export interface LifecycleEmailEntryContext {
   dogName?: string | null;
   className?: string | null;
+  /** The class's trial day (YYYY-MM-DD): tells apart the same class entered on two days. */
+  trialDate?: string | null;
   armbandNumber?: string | null;
   /** The trial registry whose number is missing (registration_number_needed). */
   registryName?: string | null;

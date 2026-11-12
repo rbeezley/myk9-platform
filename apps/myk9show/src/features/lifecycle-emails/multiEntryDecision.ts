@@ -12,19 +12,35 @@ interface DogDecision {
   armbandNumber: string | null;
 }
 
+/** "Sat, Dec 7" for a YYYY-MM-DD trial day; null when there is none to show. */
+function trialDayLabel(trialDate: string | null | undefined): string | null {
+  if (!trialDate) return null;
+  const day = new Date(`${trialDate.slice(0, 10)}T12:00:00`);
+  if (Number.isNaN(day.getTime())) return null;
+  return day.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
 function groupByDog(entries: LifecycleEmailEntryContext[]): DogDecision[] {
-  const dogs: DogDecision[] = [];
+  const dogs: Array<DogDecision & { classes: LifecycleEmailEntryContext[] }> = [];
   for (const entry of entries) {
     const dogName = entry.dogName?.trim() || null;
     let dog = dogs.find(candidate => candidate.dogName === dogName);
     if (!dog) {
-      dog = { dogName, classNames: [], armbandNumber: null };
+      dog = { dogName, classNames: [], armbandNumber: null, classes: [] };
       dogs.push(dog);
     }
-    if (entry.className && !dog.classNames.includes(entry.className)) {
-      dog.classNames.push(entry.className);
-    }
+    if (entry.className) dog.classes.push(entry);
     dog.armbandNumber ??= entry.armbandNumber ?? null;
+  }
+  // Every entry stays listed, because every entry is charged. The same class entered on two
+  // days carries its day, so "Novice Container (Sat, Dec 7), Novice Container (Sun, Dec 8)".
+  for (const dog of dogs) {
+    const counts = new Map<string, number>();
+    for (const c of dog.classes) counts.set(c.className!, (counts.get(c.className!) ?? 0) + 1);
+    dog.classNames = dog.classes.map(c => {
+      const day = (counts.get(c.className!) ?? 0) > 1 ? trialDayLabel(c.trialDate) : null;
+      return day ? `${c.className} (${day})` : c.className!;
+    });
   }
   return dogs;
 }

@@ -64,7 +64,7 @@ function whichEntry(
   const about = `${dog ? ` for ${dog}` : ''}${elsewhere ? ` at ${decidedOnShowName}` : ''}`;
   const onEntry =
     dogs.length > 1
-      ? 'on each entry form'
+      ? 'on the entry form'
       : dog
         ? `on ${dog}'s ${entries.length > 1 ? 'entry form' : 'entry'}`
         : entries.length > 1

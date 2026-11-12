@@ -34,7 +34,7 @@ No. It replaces the presentation of an existing section and deletes the old one 
 
 ## Page order
 
-1. Hero, with one looping scene as its visual
+1. Hero, keeping its photograph (owner, 2026-11-12)
 2. Trust bar
 3. Timeline (the centrepiece)
 4. Pricing
@@ -153,7 +153,7 @@ Each phase ends with its own checks passing. One pull request per phase.
 
 ### Phase 0: decisions and inventory
 
-- Owner answers the open decisions below.
+- The owner's four decisions are recorded under "Decisions". Find the WooCommerce sales export for the trust bar's club count.
 - Re-verify the Show day and Results flows in code the way Entries open was verified, and write each scene's numbered lines.
 - Add or update KEEP rows in the evidence doc for every line.
 - **Tests:** `lifecycleStories.test.ts` updated for the new data shape and still enforcing `BANNED_COPY`.
@@ -172,10 +172,10 @@ Each phase ends with its own checks passing. One pull request per phase.
 
 ### Phase 3: hero, trust bar, pricing, FAQ
 
-- Hero uses one looping scene. Check mobile LCP against [`plan-landing-hero-lcp-prerender.md`](plan-landing-hero-lcp-prerender.md) before and after.
-- Trust bar: AKC, UKC and ASCA scent work, and the mySWT / myNWT track record. Fold in or replace `TrustSection`; do not keep both.
-- Pricing section per the owner's decision.
-- FAQ: five or six questions, each answer verified in code and given a KEEP row.
+- Hero keeps the photograph; no scene and no motion there. Check mobile LCP against [`plan-landing-hero-lcp-prerender.md`](plan-landing-hero-lcp-prerender.md) before and after, since the page below it gets heavier.
+- Trust bar: the four claims in "Decisions", plus the club count when its source is found. Fold in or replace `TrustSection`; do not keep both.
+- Pricing section with the wording in "Decisions". First confirm in code whether a check or cash entry carries any fee, and read the real card rate from Stripe.
+- FAQ: the six questions in "Decisions", each answer verified in code and given a KEEP row. One whose honest answer is "not yet" is dropped or answered plainly.
 - **Tests:** `Home.test.tsx` for section order and banned copy on the rendered page; landing E2E specs; `E2E PR Smoke` clean.
 
 ### Phase 4: close out
@@ -225,12 +225,23 @@ Limits to know:
 - The ticket queue is exhibitor-facing. Questions from secretaries and judges arrive by email or in person and are not in it; those are counted by hand until there is a place for them.
 - Until the component and capture script exist, a scene takes about an hour to stage and measure. Answer in words or one marked-up screenshot meanwhile.
 
-## Open decisions (owner)
+## Decisions (owner, 2026-11-12)
 
-1. **Pricing.** Is club pricing decided? If yes, what is it and what do exhibitors pay? If no, the section ships as one line.
-2. **Trust bar wording.** What may be said about mySWT and myNWT (years, number of trials, clubs)?
-3. **FAQ questions.** Proposed: Does it work with no signal? Which registries? What do exhibitors pay? How do results get to the registry? What does switching involve? Can we try it before a real show?
-4. **Hero visual.** Looping scene, or keep the photo and start the scenes at the timeline.
+All four were open when this plan was written. They are settled.
+
+1. **Pricing: state it plainly, numbers included.** Pricing was already decided and built: the cart charges the exhibitor "Service fee (7% + $0.30, $2.50 minimum)" on top of the entry fee when paying online, and the club pays nothing ([`goals/business-model-assessment.md`](goals/business-model-assessment.md) § 5). The platform pays card processing out of that fee (about 2.9% + 30¢ of the whole charge, up to 3.5% on some cards), which leaves roughly half ([`operations/unit-economics.md`](operations/unit-economics.md)). The owner does not want the page to read as if myK9Show keeps 7%. Wording to start from:
+
+   > Free for clubs, and the club keeps the full entry fee. Exhibitors pay a service fee when they enter online: 7% + $0.30 ($2.50 minimum). About half of it covers card processing; the rest keeps myK9Show running.
+
+   Say "about half", never a fixed "3%": the card rate varies and applies to the total, not the entry fee alone.
+
+2. **Trust bar: four claims, plus one number.** The claims: scent-sport software since 2013; AKC, UKC and ASCA scent work; scores at the ring with no signal; from the team behind mySWT, myNWT and myK9Q. The number: how many clubs use mySWT and myNWT, counted from the owner's export of Access application sales and renewals from the myk9t.com WooCommerce store. **That export was not found** on 2026-11-12 in this repo, its database, or the `MS-Access` and `myK9Qv3` folders on the Windows machine. Until it is located the bar ships with the four claims and no number. No testimonials, club names or logos.
+
+3. **FAQ: all six questions.**
+   - Ready to answer: Does it work with no signal? (Scoring at the ring does and sends itself later; entries, payments and sign-in need a connection, and the answer says so.) Which registries and sports? What does it cost?
+   - To verify in code before writing: How do results get to the registry? What does switching involve? Can we try it before a real show?
+
+4. **Hero: keep the photograph.** "The software disappears so the dogs can shine": the first thing a dog person sees is a dog working. No scene and no motion in the hero; the scenes begin at the timeline. This reverses the looping-scene idea in the first draft of this plan.
 
 ## Found while verifying the flow
 

@@ -275,6 +275,10 @@ const PR_SMOKE_SPECS = [
   '**/sign-in-fits-one-screen.spec.ts',
   // Hermetic print geometry for Avery label sheets, Margins Default/None (MYK9-1771).
   '**/labels-print-geometry.spec.ts',
+  // Hermetic (no sign-in, no DB): the real ringside entry-list header at 768/834 portrait and 1024
+  // landscape keeps the class name whole and the header short beside the offline note and the
+  // "Waiting to sync" pill (MYK9-1899).
+  '**/ringsideEntryListHeaderTablet.spec.ts',
   '**/header-wordmark-fits.spec.ts',
   '**/dialogContainsLongContent.spec.ts',
   // MYK9-1188: a lazy route chunk that fails to load under the real service worker recovers with

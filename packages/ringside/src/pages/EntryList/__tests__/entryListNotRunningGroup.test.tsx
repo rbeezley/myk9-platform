@@ -118,6 +118,7 @@ function Harness({
       completedEntries,
       notRunningEntries,
       currentEntries: activeTab === 'pending' ? pendingEntries : completedEntries,
+      dragEntries: pendingEntries,
       entryCounts,
     },
   } as unknown as EntryListPageProps;

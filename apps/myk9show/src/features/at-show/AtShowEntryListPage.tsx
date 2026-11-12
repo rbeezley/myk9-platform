@@ -189,6 +189,7 @@ export const AtShowEntryListPage: React.FC = () => {
     pendingEntries,
     completedEntries,
     notRunningEntries,
+    dragEntries,
     entryCounts,
   } = useEntryListFilters({
     entries: localEntries,
@@ -231,7 +232,8 @@ export const AtShowEntryListPage: React.FC = () => {
   const { sensors, handleDragStart, handleDragEnd, isDragging } = useDragAndDropEntries({
     localEntries,
     setLocalEntries,
-    currentEntries,
+    // Drag mode shows every pending dog, so the snapshot is never a filtered subset (MYK9-1808).
+    currentEntries: dragEntries,
     updateExhibitorOrder,
     isDraggingRef,
     setManualOrder,
@@ -389,6 +391,7 @@ export const AtShowEntryListPage: React.FC = () => {
             completedEntries,
             notRunningEntries,
             currentEntries,
+            dragEntries,
             entryCounts,
           }}
           favorites={{ favoriteArmbands, onToggleFavoriteArmband: toggleFavoriteArmband }}

@@ -11,9 +11,10 @@
  *    filter and refresh on the right. The header has no menu of its own: the class actions
  *    (run order, max time, class options, placements) are handed to the host's
  *    menu, so there is one menu button, not ⋮ beside ☰.
- *  - The class name is pinned with the bar (its own line on phones, in the bar's
- *    middle from sm, in flow so a status chip beside Up can never overlap it) and
- *    wraps rather than truncates.
+ *  - The class name is pinned with the bar (its own line on phones, tablets and
+ *    narrow landscape screens, in the bar's middle from xl, in flow so a status chip beside Up can never
+ *    overlap it) and wraps rather than truncates (MYK9-1899: on a portrait tablet
+ *    the offline note and sync pill left it a sliver, one letter per line).
  *  - The trial date and ring phase sit under the pinned part and scroll away.
  */
 
@@ -173,6 +174,8 @@ export interface EntryListHeaderProps {
   /** Count of writes queued locally but not yet synced (see EntryListActions). */
   pendingCount?: number;
   hasActiveFilters: boolean;
+  /** Disables the search and sort button (drag mode). */
+  filterDisabled?: boolean;
   onFilterClick: () => void;
   onRefresh: () => void;
   /** The Up control's label and fixed parent route (MYK9-1500). */
@@ -214,6 +217,7 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
   hasError,
   pendingCount,
   hasActiveFilters,
+  filterDisabled = false,
   onFilterClick,
   onRefresh,
   actionsMenu,
@@ -267,7 +271,7 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
 
   return (
     <>
-      <header className="sticky top-0 z-10 flex min-h-[60px] items-center gap-2 max-sm:flex-wrap max-sm:gap-y-0 rounded-b-xl border-b border-border bg-card p-3 max-sm:py-1.5 sm:gap-4">
+      <header className="sticky top-0 z-10 flex min-h-[60px] items-center gap-2 max-sm:flex-wrap max-sm:gap-y-0 sm:max-xl:flex-wrap sm:max-xl:gap-y-0 rounded-b-xl border-b border-border bg-card p-3 max-sm:py-1.5 sm:gap-4">
         {/* MYK9-1770: the host menu sits first, Up beside it, top-left on every ringside screen. */}
         <div className="flex shrink-0 items-center gap-2" data-testid="entry-list-header-left">
           {menuControl}
@@ -283,7 +287,7 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
           ref={classInfoRef}
           data-class-info-trigger={hasExtraInfo ? '' : undefined}
           className={cn(
-            'flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1 rounded-md px-1.5 py-1 text-center max-sm:order-last max-sm:basis-full',
+            'flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1 rounded-md px-1.5 py-1 text-center max-sm:order-last max-sm:basis-full sm:max-xl:order-last sm:max-xl:basis-full xl:min-w-[16rem]',
             hasExtraInfo &&
               'group cursor-pointer transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
           )}
@@ -330,7 +334,11 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
             SyncIndicator={SyncIndicator}
           />
 
-          <FilterTriggerButton onClick={onFilterClick} hasActiveFilters={hasActiveFilters} />
+          <FilterTriggerButton
+            onClick={onFilterClick}
+            hasActiveFilters={hasActiveFilters}
+            disabled={filterDisabled}
+          />
 
           {/* Refresh, in the same place as on the class list (D3). Long press
               reloads the whole page. */}

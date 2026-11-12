@@ -19,7 +19,7 @@ export interface UseEntryListPageActionsDeps {
   handlers: EntryListHandlers;
   uiActions: EntryListUiActions;
   printDialogType: EntryListUiState['printDialogType'];
-  /** The order currently on screen — seeded as the starting manual order. */
+  /** The order drag mode opens on (every pending dog) — seeded as the starting manual order. */
   currentEntries: Entry[];
 }
 

@@ -1,34 +1,24 @@
 import React, { useContext } from 'react';
-import {
-  AlertCircle,
-  CheckCircle,
-  CloudOff,
-  CloudUpload,
-  RefreshCw,
-  SlidersHorizontal,
-  type LucideIcon,
-} from 'lucide-react';
+import { CloudOff, CloudUpload } from 'lucide-react';
 import { ReplicationSyncStatusContext } from '@/context/ReplicationSyncContext';
 import type {
   CompactOfflineIndicatorProps,
   ErrorStateProps,
   FilterPanelProps,
-  FilterTriggerButtonProps,
   PullToRefreshProps,
   RefreshIndicatorProps,
-  SyncIndicatorProps,
 } from '@myk9/ringside';
-import { Button } from '@/components/ui/button';
 import DelightfulError from '@/components/ui/DelightfulError';
 import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useReplicationContainment } from '@/hooks/useReplicationContainment';
 import { cn } from '@/lib/utils';
-import { OfflineScoresIndicator } from '@myk9/scoring-ui';
 import { useSyncNote } from '@/components/shows/ShowDetails/ShowSyncStatus';
 import { useOnlineStatus } from '@/lib/networkUtils';
-import { OfflineStatusLine } from '@/features/offline-readiness/OfflineStatusLine';
-import { badgeClass, getSyncLabel, getSyncTier } from './atShowChrome.helpers';
+import { badgeClass } from './atShowChrome.helpers';
+import { OfflineSyncNoteView } from './atShowSyncChrome';
+
+export { FilterTriggerButton, SyncIndicator } from './atShowSyncChrome';
 
 /** The tables the at-show surface must hold locally before it can promise offline use. */
 const AT_SHOW_OFFLINE_TABLES = ['shows', 'trials', 'classes', 'entries'] as const;
@@ -36,26 +26,11 @@ const AT_SHOW_OFFLINE_TABLES = ['shows', 'trials', 'classes', 'entries'] as cons
 /**
  * Reads the sync note only once offline, so an online header never depends on the sync provider.
  * Phones get the icon-only popover button (44px, no wrap in the pinned bar); `sm` and up get the
- * one-line amber note.
+ * amber note, which wraps rather than truncates (MYK9-1899).
  */
-const OfflineSyncNote: React.FC<{ className?: string | undefined }> = ({ className }) => {
-  const { label } = useSyncNote();
-  return (
-    <>
-      <span className="inline-flex sm:hidden">
-        <OfflineScoresIndicator isOnline={false} message={label} />
-      </span>
-      <OfflineStatusLine
-        note={label}
-        truncate
-        className={cn(
-          'at-show-offline-indicator min-w-0 gap-1.5 text-xs font-medium max-sm:hidden sm:max-w-xs',
-          className
-        )}
-      />
-    </>
-  );
-};
+const OfflineSyncNote: React.FC<{ className?: string | undefined }> = ({ className }) => (
+  <OfflineSyncNoteView label={useSyncNote().label} className={className} />
+);
 
 /**
  * The persistent "this app works offline" affordance in the at-show header.
@@ -100,8 +75,8 @@ export const CompactOfflineIndicator: React.FC<CompactOfflineIndicatorProps> = (
 
   const isOnline = useOnlineStatus();
 
-  // MYK9-1744: offline is the one persistent signal, and it is amber. One line in the bar the
-  // indicator already occupies: the label truncates (full sentence in `title`), no new row.
+  // MYK9-1744: offline is the one persistent signal, and it is amber, in the bar the indicator
+  // already occupies (full sentence in `title`), no new row.
   if (!isOnline) {
     return <OfflineSyncNote className={className} />;
   }
@@ -162,60 +137,6 @@ export const ContainmentBanner: React.FC<{ className?: string }> = ({ className 
   );
 };
 
-export const SyncIndicator: React.FC<SyncIndicatorProps> = ({
-  status,
-  pendingCount,
-  errorMessage,
-  onRetry,
-  compact,
-}) => {
-  const Icon: LucideIcon =
-    status === 'synced'
-      ? CheckCircle
-      : status === 'syncing'
-        ? RefreshCw
-        : status === 'pending'
-          ? CloudUpload
-          : status === 'offline'
-            ? CloudOff
-            : AlertCircle;
-  const label = getSyncLabel(status);
-  const hasPending = typeof pendingCount === 'number' && pendingCount > 0;
-
-  return (
-    <span
-      className={cn(
-        'at-show-sync-indicator inline-flex items-center gap-2 rounded-lg font-medium',
-        compact ? 'px-2 py-1 text-xs' : 'px-3 py-1.5 text-sm',
-        badgeClass(getSyncTier(status))
-      )}
-      data-status={status}
-      {...(status === 'error' && errorMessage ? { title: errorMessage } : {})}
-    >
-      <Icon size={16} className={cn('shrink-0', status === 'syncing' && 'animate-spin')} />
-      {/* Compact (the ringside header row): phones keep the icon and count only, like
-          CompactOfflineIndicator, so the pill cannot squeeze the class title away. */}
-      <span className={cn(compact && 'max-sm:sr-only')}>{label}</span>
-      {hasPending && (
-        <span className="at-show-sync-pending rounded-full bg-foreground/10 px-1.5 py-0.5 text-xs font-semibold">
-          {pendingCount}
-        </span>
-      )}
-      {status === 'error' && onRetry && (
-        <button
-          type="button"
-          // Ringside recovery tap: meet the 44px touch floor (INTENT.md) even
-          // though it lives inside an inline status pill — the pill grows to fit.
-          className="ml-0.5 inline-flex min-h-11 items-center justify-center rounded-md bg-foreground/10 px-3 text-sm font-medium transition-colors hover:bg-foreground/20"
-          onClick={onRetry}
-        >
-          Try again
-        </button>
-      )}
-    </span>
-  );
-};
-
 export const RefreshIndicator: React.FC<RefreshIndicatorProps> = ({
   isRefreshing,
   position,
@@ -235,27 +156,6 @@ export const RefreshIndicator: React.FC<RefreshIndicatorProps> = ({
     </div>
   );
 };
-
-export const FilterTriggerButton: React.FC<FilterTriggerButtonProps> = ({
-  onClick,
-  hasActiveFilters,
-  className,
-}) => (
-  <Button
-    type="button"
-    variant="ghost"
-    size="icon-lg"
-    aria-label="Search & sort"
-    title="Search & sort"
-    className={cn('at-show-filter-trigger relative', className)}
-    onClick={onClick}
-  >
-    <SlidersHorizontal size={20} />
-    {hasActiveFilters && (
-      <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-primary" />
-    )}
-  </Button>
-);
 
 export const FilterPanel: React.FC<FilterPanelProps> = ({
   isOpen,

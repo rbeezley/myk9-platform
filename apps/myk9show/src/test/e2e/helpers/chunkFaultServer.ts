@@ -41,7 +41,7 @@ export interface ChunkFaultServer {
   /** Answer the next `times` requests for `chunk` with a 503 (Infinity: until `clearFault`). */
   failChunk: (chunk: string, times: number) => void;
   clearFault: () => void;
-  /** How many requests were answered with the injected 503. */
+  /** How many requests were answered with the injected 503 since the last `clearFault`. */
   faultsServed: () => number;
   close: () => Promise<void>;
 }
@@ -87,9 +87,12 @@ export async function startChunkFaultServer(): Promise<ChunkFaultServer> {
       faultChunk = chunk;
       faultsLeft = times;
     },
+    // Also zeroes the count: under one worker (CI) the specs of a file share this server, so a
+    // count carried over from the previous test made "served 3" read 4 (MYK9-1899 CI run).
     clearFault: () => {
       faultChunk = null;
       faultsLeft = 0;
+      served = 0;
     },
     faultsServed: () => served,
     close: () => new Promise<void>(done => server.close(() => done())),

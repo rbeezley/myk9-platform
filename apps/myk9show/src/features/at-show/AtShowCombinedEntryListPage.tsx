@@ -209,6 +209,7 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
     pendingEntries,
     completedEntries,
     notRunningEntries,
+    dragEntries,
     entryCounts,
     sectionCounts,
   } = useEntryListFilters({
@@ -318,7 +319,8 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
   const { sensors, handleDragStart, handleDragEnd, isDragging } = useDragAndDropEntries({
     localEntries,
     setLocalEntries,
-    currentEntries,
+    // Drag mode shows every pending dog, so the snapshot is never a filtered subset (MYK9-1808).
+    currentEntries: dragEntries,
     updateExhibitorOrder,
     isDraggingRef,
     setManualOrder,
@@ -442,6 +444,7 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
             completedEntries,
             notRunningEntries,
             currentEntries,
+            dragEntries,
             entryCounts,
             sectionCounts,
           }}

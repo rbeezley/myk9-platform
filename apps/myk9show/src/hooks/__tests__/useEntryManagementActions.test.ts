@@ -269,13 +269,105 @@ describe('useEntryManagementActions', () => {
       expect(onStood).not.toHaveBeenCalled();
     });
 
-    it('stays quiet when the entry is no longer on the list', async () => {
+    it('passes on the decision as made when the list no longer holds the entry', async () => {
       const { onStood, toastStood, showEntries } = await acceptWithOnStood();
       showEntries({ entries: [] });
 
       toastStood();
 
-      expect(onStood).not.toHaveBeenCalled();
+      expect(onStood).toHaveBeenCalledTimes(1);
+      expect(onStood).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'entry-1', entryStatus: EntryStatus.ACCEPTED })
+      );
+    });
+
+    it('still passes on the entry when she switched to another show before the toast closed', async () => {
+      const onStood = vi.fn();
+      const view = renderHook(
+        ({ entries, showId }: { entries: EntryManagementEntry[]; showId: string }) =>
+          useEntryManagementActions({
+            entries,
+            setEntries: vi.fn(),
+            selectedShowId: showId,
+            selectedShow: null,
+            setError: vi.fn(),
+            user: { id: 'secretary-1' },
+          }),
+        { initialProps: { entries: [makeEntry()], showId: 'show-1' } }
+      );
+      await act(async () => {
+        await view.result.current.handleStatusChange('entry-1', EntryStatus.ACCEPTED, undefined, {
+          onStood,
+        });
+      });
+      const toastStood = mocks.showUndoToast.mock.calls[0]?.[0].onStood as () => void;
+
+      view.rerender({
+        entries: [{ ...makeEntry(), id: 'other-entry', showId: 'show-2' }],
+        showId: 'show-2',
+      });
+      toastStood();
+
+      expect(onStood).toHaveBeenCalledTimes(1);
+      expect(onStood).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'entry-1',
+          showId: 'show-1',
+          entryStatus: EntryStatus.ACCEPTED,
+        })
+      );
+    });
+
+    async function acceptThen(armbandPatch?: { armband: string; dogId: string; showId: string }) {
+      mocks.changeSecretaryEntryStatus.mockResolvedValue(armbandPatch ? { armbandPatch } : {});
+      const onStood = vi.fn();
+      const view = renderHook(
+        ({ entries, showId }: { entries: EntryManagementEntry[]; showId: string }) =>
+          useEntryManagementActions({
+            entries,
+            setEntries: vi.fn(),
+            selectedShowId: showId,
+            selectedShow: null,
+            setError: vi.fn(),
+            user: { id: 'secretary-1' },
+          }),
+        { initialProps: { entries: [makeEntry()], showId: 'show-1' } }
+      );
+      await act(async () => {
+        await view.result.current.handleStatusChange('entry-1', EntryStatus.ACCEPTED, undefined, {
+          onStood,
+        });
+      });
+      const toastStood = mocks.showUndoToast.mock.calls[0]?.[0].onStood as () => void;
+      return { onStood, toastStood, view };
+    }
+
+    it('fires once when she went to another show and back and the list is still empty', async () => {
+      const { onStood, toastStood, view } = await acceptThen();
+      view.rerender({ entries: [], showId: 'show-2' });
+      view.rerender({ entries: [], showId: 'show-1' });
+
+      toastStood();
+
+      expect(onStood).toHaveBeenCalledTimes(1);
+      expect(onStood).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'entry-1', showId: 'show-1' })
+      );
+    });
+
+    it('carries the armband the Accept assigned in the entry it passes on', async () => {
+      const { onStood, toastStood, view } = await acceptThen({
+        armband: '742',
+        dogId: 'dog-1',
+        showId: 'show-1',
+      });
+      view.rerender({ entries: [], showId: 'show-2' });
+
+      toastStood();
+
+      expect(onStood).toHaveBeenCalledWith(
+        expect.objectContaining({ armbandNumber: '742', entryStatus: EntryStatus.ACCEPTED })
+      );
     });
 
     it('asks the toast for nothing when no caller is waiting', async () => {

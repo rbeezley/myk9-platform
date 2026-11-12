@@ -59,7 +59,11 @@ interface UseEntryDecisionLifecycleEmailsResult {
   decisionEmailPlan: (stepType: DecisionStepType) => DecisionEmailPlan;
   openDecisionPrompt: (entry: EntryManagementEntry, stepType: DecisionStepType) => void;
   /** For a decision that has stood; stable, and safe to call after the cockpit unmounts. */
-  sendDecisionEmail: (entry: EntryManagementEntry, stepType: DecisionStepType) => void;
+  sendDecisionEmail: (
+    entry: EntryManagementEntry,
+    stepType: DecisionStepType,
+    showName: string
+  ) => void;
   reviewReadyEmail: (job: EntryDecisionEmailJob, entry: EntryManagementEntry) => void;
   prepareCorrectionEmail: (job: EntryDecisionEmailJob, entry: EntryManagementEntry) => void;
   dialog: ReactNode;
@@ -117,7 +121,16 @@ export function useEntryDecisionLifecycleEmails({
 
   const sendDecisionEmail = useSendDecisionEmail({
     showName,
-    onSettled: invalidateLifecycleEmailQueries,
+    // The send may belong to a show she has since left: refresh that show's caches too.
+    onSettled: settledShowId => {
+      invalidateLifecycleEmailQueries();
+      if (settledShowId !== showId) {
+        void queryClient.invalidateQueries({
+          queryKey: ['entry-decision-lifecycle-emails', settledShowId],
+        });
+        void queryClient.invalidateQueries({ queryKey: ['show-lifecycle-emails', settledShowId] });
+      }
+    },
   });
 
   // The show's switch in Scheduled emails is the decision to email (MYK9-1800). On, and the
@@ -127,7 +140,9 @@ export function useEntryDecisionLifecycleEmails({
     const step = summaryQuery.data?.steps.find(candidate => candidate.stepType === stepType);
     if (!step) return 'preview';
     if (!step.isEnabled) return 'none';
-    return sendUnasked ? 'send' : 'preview';
+    // Offline, an unasked send could only end in a notice; the preview is the specified fallback.
+    const offline = typeof navigator !== 'undefined' && !navigator.onLine;
+    return sendUnasked && !offline ? 'send' : 'preview';
   };
 
   const openDecisionPrompt = (entry: EntryManagementEntry, stepType: DecisionStepType) =>

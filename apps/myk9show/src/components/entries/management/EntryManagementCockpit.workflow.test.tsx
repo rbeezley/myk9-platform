@@ -290,7 +290,7 @@ describe('EntryManagementCockpit decision email after Accept (MYK9-1800)', () =>
     const stood = makeEntry({ entryStatus: EntryStatus.ACCEPTED, armbandNumber: '742' });
     onStatusChange.mock.calls[0]?.[3]?.onStood?.(stood);
 
-    expect(decisionEmails.sendDecisionEmail).toHaveBeenCalledWith(stood, 'accepted');
+    expect(decisionEmails.sendDecisionEmail).toHaveBeenCalledWith(stood, 'accepted', 'this show');
     expect(decisionEmails.openDecisionPrompt).not.toHaveBeenCalled();
   });
 

@@ -14,8 +14,8 @@ const EMAIL_NAME: Record<DecisionStepType, { lower: string; title: string }> = {
 
 interface SendDecisionEmailArgs {
   showName: string | undefined;
-  /** A send was attempted: the entry's email status may have changed. */
-  onSettled: () => void;
+  /** A send was attempted for this show's entry: its email status may have changed. */
+  onSettled: (showId: string) => void;
 }
 
 /**
@@ -33,59 +33,103 @@ interface SendDecisionEmailArgs {
  *    button that is always there. No retry button: it would act later on an entry that may
  *    have changed since.
  *
+ * The caller passes the name of the show the decision was made on: she may have switched
+ * shows inside the Undo window, and the live name would then be the wrong show's.
+ *
  * The returned function is stable and safe to call after the cockpit has unmounted (she
  * switched view inside the window): it touches only refs, the API and the toaster.
  */
+const UNNAMED_SHOW = 'this show';
+
+/**
+ * Which entry a notice is about, and where to act on it. After a show switch the entry is not
+ * on screen, so the notice names the show and says to go back to it; on the same show (or with
+ * no name to compare) it stays as short as before.
+ */
+function whichEntry(
+  entry: EntryManagementEntry,
+  decidedOnShowName: string,
+  currentShowName: string | undefined
+): { about: string; emailLater: string } {
+  const elsewhere =
+    decidedOnShowName !== UNNAMED_SHOW && decidedOnShowName !== (currentShowName ?? UNNAMED_SHOW);
+  const dog = entry.dogName?.trim();
+  const about = `${dog ? ` for ${dog}` : ''}${elsewhere ? ` at ${decidedOnShowName}` : ''}`;
+  const onEntry = dog ? `on ${dog}'s entry` : 'on the entry';
+  const emailLater = elsewhere
+    ? `go back to ${decidedOnShowName} and use "Email Exhibitor" ${onEntry}`
+    : `use "Email Exhibitor" ${onEntry}`;
+  return { about, emailLater };
+}
+
+function capitalize(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
 export function useSendDecisionEmail({
   showName,
   onSettled,
-}: SendDecisionEmailArgs): (entry: EntryManagementEntry, stepType: DecisionStepType) => void {
+}: SendDecisionEmailArgs): (
+  entry: EntryManagementEntry,
+  stepType: DecisionStepType,
+  decidedOnShowName: string
+) => void {
   const latest = useRef({ showName, onSettled });
   useEffect(() => {
     latest.current = { showName, onSettled };
   });
 
-  return useCallback((entry: EntryManagementEntry, stepType: DecisionStepType) => {
-    const { lower: emailName, title: emailTitle } = EMAIL_NAME[stepType];
-    const ownerName = entry.ownerName?.trim();
-    const who = ownerName || 'the exhibitor';
+  return useCallback(
+    (entry: EntryManagementEntry, stepType: DecisionStepType, decidedOnShowName: string) => {
+      const { lower: emailName, title: emailTitle } = EMAIL_NAME[stepType];
+      const ownerName = entry.ownerName?.trim();
+      const who = ownerName || 'the exhibitor';
+      // She may have switched shows inside the Undo window: every notice names the dog, and the
+      // show and the way back to it when that show is no longer the one on screen.
+      const { about, emailLater } = whichEntry(entry, decidedOnShowName, latest.current.showName);
 
-    if (!entry.ownerEmail?.trim()) {
-      toast.info(
-        `${ownerName || 'The exhibitor'} has no email on file, so no ${emailName} email was sent.`
-      );
-      return;
-    }
-    if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      toast.error(
-        `You're offline, so the ${emailName} email to ${who} was not sent. When you are back online, use "Email Exhibitor" on the entry.`
-      );
-      return;
-    }
-
-    const send = async () => {
-      const { showName: name, onSettled: settled } = latest.current;
-      const draft = buildLifecycleEmailDraft({ stepType, ...decisionEmailContext(entry, name) });
-      try {
-        const jobId = await saveDecisionEmailJob(entry, stepType, { ...draft, secretaryNote: '' });
-        if (!jobId) throw new Error('Lifecycle email job was not created');
-        const result = await sendLifecycleEmailJobs({
-          supabase,
-          showId: entry.showId,
-          jobIds: [jobId],
-        });
-        // The send handler answers 200 even when delivery fails.
-        if (result.failed > 0) throw new Error('Lifecycle email delivery failed');
-        toast.success(`${emailTitle} email sent to ${who}`);
-      } catch (error) {
-        if (error instanceof LifecycleEmailAlreadySavedError) return;
-        toast.error(
-          `The ${emailName} email to ${who} did not send. Use "Email Exhibitor" on the entry to let them know.`
+      if (!entry.ownerEmail?.trim()) {
+        toast.info(
+          `${ownerName || 'The exhibitor'} has no email on file, so no ${emailName} email was sent${about}.`
         );
-      } finally {
-        settled();
+        return;
       }
-    };
-    void send();
-  }, []);
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        toast.error(
+          `You're offline, so the ${emailName} email to ${who}${about} was not sent. When you are back online, ${emailLater}.`
+        );
+        return;
+      }
+
+      const send = async () => {
+        const { onSettled: settled } = latest.current;
+        const name = decidedOnShowName;
+        const draft = buildLifecycleEmailDraft({ stepType, ...decisionEmailContext(entry, name) });
+        try {
+          const jobId = await saveDecisionEmailJob(entry, stepType, {
+            ...draft,
+            secretaryNote: '',
+          });
+          if (!jobId) throw new Error('Lifecycle email job was not created');
+          const result = await sendLifecycleEmailJobs({
+            supabase,
+            showId: entry.showId,
+            jobIds: [jobId],
+          });
+          // The send handler answers 200 even when delivery fails.
+          if (result.failed > 0) throw new Error('Lifecycle email delivery failed');
+          toast.success(`${emailTitle} email sent to ${who}${about}`);
+        } catch (error) {
+          if (error instanceof LifecycleEmailAlreadySavedError) return;
+          toast.error(
+            `The ${emailName} email to ${who}${about} did not send. ${capitalize(emailLater)} to let them know.`
+          );
+        } finally {
+          settled(entry.showId);
+        }
+      };
+      void send();
+    },
+    []
+  );
 }

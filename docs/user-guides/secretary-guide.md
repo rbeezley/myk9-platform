@@ -279,7 +279,7 @@ In the week before the show (from seven days out to the day before), **Show Desk
 
 **Show Desk → click the class → ⋯ (Actions) → Auto-sort run order.**
 
-![Show Desk with a class selected: its settings, the Run order control and the class work buttons](../screenshots/S-15.png)
+![Show Desk with a class selected: Status, Judge and Expected start under the class name, the ⋯ menu, and the entries in run order with a drag handle on each waiting dog](../screenshots/S-15.png)
 
 Choose **Armband ↑**, **Armband ↓**, or **Random**. The order applies immediately and appears on check-in sheets and at ringside. The menu item appears once a class has two or more entries.
 

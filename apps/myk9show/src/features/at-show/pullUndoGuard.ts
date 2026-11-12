@@ -44,7 +44,7 @@ export interface PullUndoRequest {
   callName: string;
   /** True for the exhibitor writer, whose Pull may not be in the replica yet. */
   replicaMayLag: boolean;
-  restore: () => void | Promise<void>;
+  restore: () => unknown;
 }
 
 /** Restore the prior status only if the Pull is still current; otherwise write nothing and say so. */

@@ -21,7 +21,7 @@ import { EntryFormHeaderMenu } from './EntryFormHeaderMenu';
 import { buildFormChecklist, entryDogKey } from './formChecklist';
 import { EntryFormCheckInProvider, useEntryFormCheckIn } from './useEntryFormCheckIn';
 import { useEnrollmentDialogControls } from './useEnrollmentDialogControls';
-import type { EntriesRefresh } from '@/components/entries/management/checkInDesk/storedEntryPatch';
+import type { EntriesRefresh } from '@/components/entries/management/checkInDesk/entriesRefresh';
 
 interface EntryFocusedRegistrationProps extends Omit<EnrollmentCardProps, 'group'> {
   registration: ShowRegistrationGroup;
@@ -33,7 +33,7 @@ interface EntryFocusedRegistrationProps extends Omit<EnrollmentCardProps, 'group
    * list, so the row that was tapped is gone and focus would otherwise fall to the page.
    */
   focusHeadingOnMount?: boolean;
-  /** Re-reads the page's entries after a check-in; the form shows only what that read returns. */
+  /** Re-reads the page's entries after a check-in, handed the ids whose writes were stored. */
   onRefreshEntries?: EntriesRefresh | undefined;
 }
 

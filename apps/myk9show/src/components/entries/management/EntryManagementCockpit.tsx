@@ -33,7 +33,7 @@ import type { CheckInStatus } from '@myk9/core';
 import { EntryStatus } from '@/types/show-registration-types';
 import { sendRegistrationConfirmationEmail } from '@/components/shows/RegistrationWorkflow/sendRegistrationConfirmationEmail';
 import { ENTRY_ACTION_COPY } from '@/hooks/entryManagementErrorCopy';
-import type { EntriesRefresh } from '@/components/entries/management/checkInDesk/storedEntryPatch';
+import type { EntriesRefresh } from '@/components/entries/management/checkInDesk/entriesRefresh';
 
 // INTENT: `cockpit.state.queues` (the Filter menu's Status values) is
 // the single source of registration-status filtering on Entry Management. Do

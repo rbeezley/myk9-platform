@@ -4,7 +4,7 @@ import { dispatchBulk } from '@/hooks/bulkDispatch';
 import { updateReplicatedCheckInStatus } from '@/services/show-day/checkInStatus';
 import { refreshWithoutWaiting } from './refreshWithoutWaiting';
 import { deskStatusLabel } from './peopleRoster';
-import type { EntriesRefresh } from '@/components/entries/management/checkInDesk/storedEntryPatch';
+import type { EntriesRefresh } from '@/components/entries/management/checkInDesk/entriesRefresh';
 
 /**
  * Status writes for the Check-in desk (check in, Conflict, undo): the replicated path
@@ -33,12 +33,7 @@ export function useCheckInDeskActions(onRefreshEntries?: EntriesRefresh) {
       });
       const done = new Set(outcome.succeeded);
       const applied = entryIds.filter(entryId => done.has(entryId));
-      if (applied.length > 0) {
-        refreshWithoutWaiting(
-          onRefreshEntries,
-          applied.map(entryId => ({ entryId, checkInStatus: status }))
-        );
-      }
+      if (applied.length > 0) refreshWithoutWaiting(onRefreshEntries, applied);
       const checkingIn = status === 'checked-in';
       if (applied.length !== entryIds.length) {
         setErrorIds(new Set(entryIds.filter(id => !done.has(id))));

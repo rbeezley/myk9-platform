@@ -27,7 +27,7 @@ import {
   FOCUSED_CLASS_SCROLL_MARGIN_CLASS_IN_PANEL,
   type FocusedClassPinMode,
 } from '@/components/shows/ShowDetails/showStickyLayout';
-import type { EntriesRefresh } from '@/components/entries/management/checkInDesk/storedEntryPatch';
+import type { EntriesRefresh } from '@/components/entries/management/checkInDesk/entriesRefresh';
 
 const NO_ENTRIES: ClassEntryBreakdown = { entered: 0, pending: 0 };
 

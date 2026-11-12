@@ -1,4 +1,4 @@
-import type { EntriesRefresh, StoredEntryPatch } from './storedEntryPatch';
+import type { EntriesRefresh } from './entriesRefresh';
 
 /**
  * Asks the page to re-read its entries and walks away. The desk's controls free as soon as their
@@ -9,11 +9,11 @@ import type { EntriesRefresh, StoredEntryPatch } from './storedEntryPatch';
  */
 export function refreshWithoutWaiting(
   refresh: EntriesRefresh | undefined,
-  stored?: readonly StoredEntryPatch[]
+  storedIds?: readonly string[]
 ): void {
   if (!refresh) return;
   try {
-    void Promise.resolve(refresh(stored)).catch(() => {
+    void Promise.resolve(refresh(storedIds)).catch(() => {
       // The write is stored; the next read shows it.
     });
   } catch {

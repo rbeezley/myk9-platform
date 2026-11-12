@@ -6,7 +6,9 @@ import { render } from '@/test/utils/testUtils';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { CheckInDesk } from './CheckInDesk';
-import { patchManagementEntries } from './storedEntryPatch';
+import { resetReplica, writeReplicaRow } from './storedRowsReplica';
+import { StoredRowsDesk } from './storedRowsTestUtils';
+import { patchManagementEntries } from './entriesRefresh';
 
 const h = vi.hoisted(() => ({
   updateReplicatedCheckInStatus: vi.fn(),
@@ -17,6 +19,12 @@ const h = vi.hoisted(() => ({
   getEntryStatusHistory: vi.fn(),
 }));
 
+vi.mock('@/services/replication/ReplicatedEntriesTable', async () => ({
+  replicatedEntriesTable: (await import('./storedRowsReplica')).replicaEntriesTable,
+}));
+vi.mock('@/services/replication/ReplicatedClassesTable', async () => ({
+  replicatedClassesTable: (await import('./storedRowsReplica')).replicaClassesTable,
+}));
 vi.mock('@/services/database/entries/lifecycle', () => ({
   changeSecretaryEntryStatus: h.changeSecretaryEntryStatus,
 }));
@@ -234,24 +242,14 @@ describe('Pulled on the Check-in desk is the real Pull (MYK9-1749)', () => {
     });
 
     it('shows the stored Pull when the entries re-read fails', async () => {
-      const Page = () => {
-        const [entries, setEntries] = useState([poppy]);
-        return (
-          <CheckInDesk
-            showId="show-1"
-            entries={entries}
-            loading={false}
-            unknown={false}
-            onRetry={vi.fn()}
-            onRefreshEntries={stored => {
-              if (stored) setEntries(current => patchManagementEntries(current, stored));
-              return Promise.reject(new Error('Show entries not synced'));
-            }}
-            currentDate={NOW}
-          />
-        );
-      };
-      const { user } = render(<Page />);
+      resetReplica();
+      h.scratchShowMapEntry.mockImplementation(async (entryId: string) => {
+        writeReplicaRow(entryId, { entryStatus: 'scratched', checkInStatus: 'pulled' });
+        return { entryId, previousEntryStatus: 'confirmed' };
+      });
+      const { user } = render(
+        <StoredRowsDesk initial={[poppy]} reRead={() => Promise.reject(new Error('not synced'))} />
+      );
       await pullDog(user, 'Poppy');
 
       await waitFor(() =>
@@ -390,6 +388,30 @@ describe('Putting a pulled class back from the desk (MYK9-1749)', () => {
       newStatus: EntryStatus.ACCEPTED,
     });
     expect(h.updateReplicatedCheckInStatus).not.toHaveBeenCalled();
+  });
+
+  it('shows both the status and the check-in the stored Put back wrote when the re-read fails (MYK9-1812)', async () => {
+    resetReplica();
+    // What the real write stores: back to entered, and the check-in cleared from Pulled.
+    h.changeSecretaryEntryStatus.mockImplementation(
+      async ({ entry }: { entry: { id: string } }) => {
+        writeReplicaRow(entry.id, { entryStatus: 'confirmed', checkInStatus: 'no-status' });
+        return {};
+      }
+    );
+    const { user } = render(
+      <StoredRowsDesk
+        initial={[pulledPoppy]}
+        reRead={() => Promise.reject(new Error('not synced'))}
+      />
+    );
+    const confirm = await openPutBack(user);
+    await user.click(within(confirm).getByRole('button', { name: 'Put back' }));
+
+    const row = () => screen.getByRole('region', { name: 'Alice Martin' });
+    await waitFor(() => expect(row()).toHaveTextContent('Not checked in'));
+    expect(row()).not.toHaveTextContent('Pulled');
+    expect(screen.getByRole('button', { name: /^Change status for Poppy/ })).toBeInTheDocument();
   });
 
   it.each(['submitted', 'waitlisted', 'withdrawn'])(

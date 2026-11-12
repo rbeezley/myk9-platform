@@ -52,7 +52,7 @@ import {
   runStatusDisplay,
   type SecretaryCockpitClassEntry,
 } from './cockpitClassEntries';
-import type { EntriesRefresh } from '@/components/entries/management/checkInDesk/storedEntryPatch';
+import type { EntriesRefresh } from '@/components/entries/management/checkInDesk/entriesRefresh';
 
 // Tight cells and wrapping Dog and Handler keep the table inside the ~600px focus column; the
 // scroll wrapper stays as the fallback for narrower ones.

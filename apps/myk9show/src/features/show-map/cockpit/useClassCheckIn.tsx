@@ -14,7 +14,7 @@ import {
 } from '@/components/entries/management/checkInDesk/useDeskPull';
 
 import type { SecretaryCockpitClassEntry } from './cockpitClassEntries';
-import type { EntriesRefresh } from '@/components/entries/management/checkInDesk/storedEntryPatch';
+import type { EntriesRefresh } from '@/components/entries/management/checkInDesk/entriesRefresh';
 
 /**
  * The class table's Check-in cell opens the Check-in desk's own picker (MYK9-1797): the same

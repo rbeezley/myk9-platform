@@ -36,7 +36,7 @@ import type {
   SecretaryCockpitRunOrderControls,
   SecretaryCockpitSnapshot,
 } from './secretaryCockpitTypes';
-import type { EntriesRefresh } from '@/components/entries/management/checkInDesk/storedEntryPatch';
+import type { EntriesRefresh } from '@/components/entries/management/checkInDesk/entriesRefresh';
 
 export function SecretaryCockpit({
   snapshot,

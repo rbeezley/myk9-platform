@@ -166,7 +166,7 @@ describe('SecretaryCockpitFocusedClass guards', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
-  it('hands the page the status a check-in stored, so a failed re-read cannot undo it on screen (MYK9-1803, MYK9-1812)', async () => {
+  it('hands the page the entry a check-in stored, so a failed re-read cannot undo it on screen (MYK9-1803, MYK9-1812)', async () => {
     vi.mocked(updateReplicatedCheckInStatus).mockResolvedValue(null);
     const failedReRead = vi.fn().mockRejectedValue(new Error('Show entries not synced'));
     const { user } = render(
@@ -182,12 +182,8 @@ describe('SecretaryCockpitFocusedClass guards', () => {
     const picker = await screen.findByRole('dialog');
     await user.click(within(picker).getByRole('button', { name: /^Checked-in/ }));
 
-    // The page's list takes this before its re-read runs; the re-read failing changes nothing.
-    await waitFor(() =>
-      expect(failedReRead).toHaveBeenCalledWith([
-        { entryId: 'e-class-1', checkInStatus: 'checked-in' },
-      ])
-    );
+    // The page reads that row back before its re-read runs; the re-read failing changes nothing.
+    await waitFor(() => expect(failedReRead).toHaveBeenCalledWith(['e-class-1']));
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });

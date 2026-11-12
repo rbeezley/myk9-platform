@@ -7,13 +7,22 @@ import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { CheckInStatus } from '@myk9/core';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { CheckInDesk } from './CheckInDesk';
+import { resetReplica, writeReplicaRow } from './storedRowsReplica';
+import { StoredRowsDesk } from './storedRowsTestUtils';
 import { buildCheckInDeskClasses } from './checkInDeskModel';
-import { patchManagementEntries } from './storedEntryPatch';
+import { patchManagementEntries } from './entriesRefresh';
 import type { Trial } from '@/components/trials/types/trial.types';
 
 const h = vi.hoisted(() => ({
   schedule: { readPending: false, readFailed: false, retry: vi.fn() },
   updateReplicatedCheckInStatus: vi.fn(),
+}));
+
+vi.mock('@/services/replication/ReplicatedEntriesTable', async () => ({
+  replicatedEntriesTable: (await import('./storedRowsReplica')).replicaEntriesTable,
+}));
+vi.mock('@/services/replication/ReplicatedClassesTable', async () => ({
+  replicatedClassesTable: (await import('./storedRowsReplica')).replicaClassesTable,
 }));
 
 vi.mock('@/services/show-day/checkInStatus', () => ({
@@ -159,32 +168,13 @@ function StoredEntriesDesk({ initial }: { initial: EntryManagementEntry[] }) {
   );
 }
 
-/**
- * The Entry Management page's side of a desk write: its list takes what the write stored
- * (`patchManagementEntries`), then its re-read runs, whatever that re-read does.
- */
-function PatchedDesk({
-  initial,
-  reRead,
-}: {
-  initial: EntryManagementEntry[];
-  reRead: () => Promise<void>;
-}) {
-  const [entries, setEntries] = useState(initial);
-  return (
-    <CheckInDesk
-      showId="show-1"
-      entries={entries}
-      loading={false}
-      unknown={false}
-      onRetry={vi.fn()}
-      onRefreshEntries={stored => {
-        if (stored) setEntries(current => patchManagementEntries(current, stored));
-        return reRead();
-      }}
-      currentDate={NOW}
-    />
-  );
+/** Check-in writes land in the replica as the real write does, for the page to read back. */
+function storeWrites() {
+  resetReplica();
+  h.updateReplicatedCheckInStatus.mockImplementation(async (entryId: string, status: string) => {
+    writeReplicaRow(entryId, { entryStatus: 'confirmed', checkInStatus: status });
+    return null;
+  });
 }
 
 function renderDesk(entries: EntryManagementEntry[], route = '/shows/show-1/entries') {
@@ -432,8 +422,9 @@ describe('CheckInDesk', () => {
     ['rejects', () => Promise.reject(new Error('Show entries not synced'))],
     ['never settles', () => new Promise<void>(() => {})],
   ])('shows the stored status when the entries re-read %s (MYK9-1812)', async (_name, reRead) => {
+    storeWrites();
     const refresh = vi.fn(reRead);
-    const { user } = render(<PatchedDesk initial={[entry()]} reRead={refresh} />);
+    const { user } = render(<StoredRowsDesk initial={[entry()]} reRead={refresh} />);
 
     await user.click(screen.getByRole('button', { name: 'Check in Poppy' }));
 
@@ -445,8 +436,9 @@ describe('CheckInDesk', () => {
   });
 
   it('keeps the newer stored status across two writes while the first re-read is unsettled', async () => {
+    storeWrites();
     const { user } = render(
-      <PatchedDesk initial={[entry()]} reRead={() => new Promise<void>(() => {})} />
+      <StoredRowsDesk initial={[entry()]} reRead={() => new Promise<void>(() => {})} />
     );
     await user.click(screen.getByRole('button', { name: 'Check in Poppy' }));
     await user.click(await screen.findByRole('button', { name: /^Change status for Poppy/ }));

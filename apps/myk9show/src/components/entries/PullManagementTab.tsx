@@ -71,7 +71,7 @@ export const PullManagementTab: React.FC<PullManagementTabProps> = ({
           </p>
         </div>
         {onRefresh && (
-          <Button variant="outline" size="sm" onClick={onRefresh}>
+          <Button variant="outline" size="sm" onClick={() => onRefresh()}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>

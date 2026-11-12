@@ -7,7 +7,7 @@ import type { EntryClass, EntryManagementEntry } from '@/types/entry-management-
 import { buildCheckInDeskClasses, eligibleCheckInEntryIds } from './checkInDesk/checkInDeskModel';
 import { useCheckInDeskActions } from './checkInDesk/useCheckInDeskActions';
 import { useMinuteClock } from './checkInDesk/useMinuteClock';
-import type { EntriesRefresh } from '@/components/entries/management/checkInDesk/storedEntryPatch';
+import type { EntriesRefresh } from '@/components/entries/management/checkInDesk/entriesRefresh';
 
 export interface EntryFormCheckIn {
   /** Entries the Check-in desk would offer "Check in" for right now (show day, accepted, not yet in). */

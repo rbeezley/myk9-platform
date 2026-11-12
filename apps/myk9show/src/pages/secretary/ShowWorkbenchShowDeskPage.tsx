@@ -24,10 +24,8 @@ import {
 import { SelfCheckinTool } from '@/features/show-workbench/SelfCheckinTool';
 import { getTrialTimezone } from '@/features/registries';
 import { useResultSubmissions } from '@/hooks/mutations/useResultSubmission';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { patchSecretaryEntries } from '@/components/entries/management/checkInDesk/storedEntryPatch';
-import type { SecretaryEntry } from '@/services/database/entries';
-import { queryKeys } from '@/lib/queryClient';
+import { useQuery } from '@tanstack/react-query';
+import { useShowEntriesRefreshAfterWrite } from './useShowEntriesRefreshAfterWrite';
 import {
   listShowIncidentCloseout,
   showIncidentCloseoutQueryKey,
@@ -83,7 +81,6 @@ export function ShowWorkbenchShowDeskPage() {
 function ShowWorkbenchShowDeskBody() {
   const params = useParams<{ showId?: string; id?: string }>();
   const showId = params.showId ?? params.id;
-  const queryClient = useQueryClient();
   const { show: currentShow, isLoading } = useFastShowDetails(showId);
   const {
     trials,
@@ -99,6 +96,7 @@ function ShowWorkbenchShowDeskBody() {
     isError: showEntriesIsError,
     refetch: refetchShowEntries,
   } = useSecretaryShowEntriesQuery(showId ?? '', Boolean(showId));
+  const refreshAfterWrite = useShowEntriesRefreshAfterWrite(showId ?? '', refetchShowEntries);
   const showEntries = useMemo(() => showEntriesData ?? EMPTY_ENTRIES, [showEntriesData]);
   const { entriesKnown, entriesUnavailable } = getShowDeskEntriesAvailability({
     data: showEntriesData,
@@ -491,17 +489,7 @@ function ShowWorkbenchShowDeskBody() {
           canManageShow
           tools={allShowDeskTools}
           entryBreakdownByClassId={entryBreakdownByClassId}
-          onRefreshEntries={async stored => {
-            // The query cache is the list: take what the write stored first, so a re-read that
-            // fails (a cold replica) or pauses offline never leaves the old status on screen.
-            if (stored && stored.length > 0) {
-              queryClient.setQueryData<SecretaryEntry[]>(
-                queryKeys.showEntries(showId ?? ''),
-                old => (old ? patchSecretaryEntries(old, stored) : old)
-              );
-            }
-            await refetchShowEntries({ throwOnError: true });
-          }}
+          onRefreshEntries={refreshAfterWrite}
         />
       </Suspense>
     </TrialSecretaryAccessProvider>

@@ -14,7 +14,7 @@ import { clearFlaggedPull } from '@/services/database/entries/flaggedPull';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { refreshWithoutWaiting } from './refreshWithoutWaiting';
 import { ACCEPTED_DB_STATUS, deskStatusLabel, statusBeforeLatestPull } from './deskStatus';
-import type { EntriesRefresh, StoredEntryPatch } from './storedEntryPatch';
+import type { EntriesRefresh } from './entriesRefresh';
 
 /**
  * What a Pull needs from a class row: the desk's `PeopleRosterClassRow` and the Show Desk class
@@ -58,8 +58,7 @@ export function useDeskPull(
 
   // Never awaited: the write is stored, and an entries re-read that pauses offline would
   // otherwise hold `isWorking` and every later Pull confirmation with it.
-  const refresh = (...stored: StoredEntryPatch[]) =>
-    refreshWithoutWaiting(onRefreshEntries, stored);
+  const refresh = (...storedIds: string[]) => refreshWithoutWaiting(onRefreshEntries, storedIds);
 
   const confirmPull = async (reason: string | undefined) => {
     if (!pullRow || isWorking) return;
@@ -72,20 +71,12 @@ export function useDeskPull(
         'Pulled at the check-in desk'
       );
       setPending(null);
-      refresh({ entryId: row.entryId, checkInStatus: 'pulled', entryStatus: 'scratched' });
+      refresh(row.entryId);
       showUndoToast({
         message: `${row.dogName} pulled from ${row.className}`,
         onUndo: () => {
           void undoShowMapScratch(undoInput)
-            .then(() =>
-              refresh({
-                entryId: undoInput.entryId,
-                checkInStatus: undoInput.previousCheckInStatus ?? 'no-status',
-                ...(undoInput.previousEntryStatus
-                  ? { entryStatus: undoInput.previousEntryStatus }
-                  : {}),
-              })
-            )
+            .then(() => refresh(undoInput.entryId))
             .catch(error =>
               toast.error(
                 showDayErrorMessage(error, deskPullCopy.undoFailed(row.dogName, row.className))
@@ -132,7 +123,7 @@ export function useDeskPull(
         ...(user?.id ? { secretaryId: user.id } : {}),
       });
       setPending(null);
-      refresh({ entryId: row.entryId, entryStatus: ACCEPTED_DB_STATUS });
+      refresh(row.entryId);
       toast.success(`${row.dogName} is back in ${row.className}`);
     } catch (error) {
       toast.error(
@@ -150,7 +141,7 @@ export function useDeskPull(
     setClearingId(row.entryId);
     try {
       const restored = await clearFlaggedPull(row.entryId);
-      refresh({ entryId: row.entryId, checkInStatus: restored });
+      refresh(row.entryId);
       toast.success(`${row.dogName}, ${row.className}: ${deskStatusLabel(restored)}`);
     } catch (error) {
       toast.error(

@@ -11,6 +11,12 @@ import { HeaderActions } from '@/components/layout/HeaderActions';
 import { getCheckInDeskHref } from '@/components/entries/management/checkInDesk/checkInDeskRoutes';
 
 const getEntriesForShowMock = vi.hoisted(() => vi.fn());
+const readStoredSecretaryRowsMock = vi.hoisted(() => vi.fn());
+
+vi.mock('@/services/database/entries/secretaryStoredRows', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/services/database/entries/secretaryStoredRows')>()),
+  readStoredSecretaryRows: readStoredSecretaryRowsMock,
+}));
 /** How each `onRefreshEntries` call the panel made settled. */
 const refreshOutcomes = vi.hoisted<Array<'resolved' | 'rejected'>>(() => []);
 /**
@@ -152,9 +158,7 @@ vi.mock('@/features/show-map/ShowDeskPanel', () => ({
     tools,
     onRefreshEntries,
   }: {
-    onRefreshEntries?: (
-      stored?: Array<{ entryId: string; checkInStatus?: string; entryStatus?: string }>
-    ) => Promise<void>;
+    onRefreshEntries?: (storedIds?: string[]) => Promise<void>;
     entries: unknown[];
     classes: Array<{ entryCount: number; scoredCount: number }>;
     tools: Array<{
@@ -180,7 +184,7 @@ vi.mock('@/features/show-map/ShowDeskPanel', () => ({
         type="button"
         data-testid="panel-refresh-after-write"
         onClick={() => {
-          void onRefreshEntries?.([{ entryId: 'entry-1', checkInStatus: 'checked-in' }]).then(
+          void onRefreshEntries?.(['entry-1']).then(
             () => refreshOutcomes.push('resolved'),
             () => refreshOutcomes.push('rejected')
           );
@@ -536,6 +540,18 @@ describe('ShowWorkbenchShowDeskPage', () => {
       'trial-1': [{ id: 'class-1', element: 'Container', level: 'Novice', status: 'Scheduled' }],
     };
     getEntriesForShowMock.mockResolvedValue({ data: null, error: new Error('not synced') });
+    // The replica holds what the write stored.
+    readStoredSecretaryRowsMock.mockResolvedValue([
+      {
+        id: 'entry-1',
+        entry_status: 'confirmed',
+        check_in_status: 'checked-in',
+        check_in_pulled_by: null,
+        withdrawal_reason: null,
+        special_requests: null,
+        updated_at: null,
+      },
+    ]);
 
     renderPage([
       {

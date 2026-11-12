@@ -11,9 +11,8 @@
  *
  * Authorization: the outer component is a thin `canScore` gate. The scoring
  * engine (`useAtShowScoresheet`) lives in `ScoresheetContent`, which only mounts
- * when scoring is allowed — so a denied role runs NONE of the scoring-flow side
- * effects (notably `transitionToInRing`, which auto-advances an entry to in-ring
- * on load). The block is structural, not a hidden submit button.
+ * when scoring is allowed. Starting a run or submitting a score requires that
+ * same structural permission gate.
  */
 
 import { useCallback, useMemo, useState } from 'react';
@@ -140,8 +139,8 @@ export const AtShowScoresheetPage: React.FC = () => {
   const assignmentCheck = useJudgeAssignedToClass({ showRole, isAnonymous, classId });
 
   // Gate BEFORE mounting the scoring engine: an unauthorized role must never run
-  // `useAtShowScoresheet` (whose load effect calls `transitionToInRing`), so the
-  // denial blocks every side effect, not just the final submit.
+  // `useAtShowScoresheet` (whose Start marks the dog in-ring via `transitionToInRing`),
+  // so the denial blocks every side effect, not just the final submit.
   if (!hasPermission('canScore')) {
     return (
       <main className="ringside-root container max-w-2xl mx-auto px-4 py-6">
@@ -217,7 +216,7 @@ interface ScoresheetContentProps {
 
 /**
  * The authorized scoresheet body. Mounted only when `canScore` is true, so its
- * `useAtShowScoresheet` engine (data load + `transitionToInRing` + submit) runs
+ * `useAtShowScoresheet` engine (data load, Start's `transitionToInRing`, submit) runs
  * exclusively for roles allowed to score.
  */
 const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
@@ -274,6 +273,7 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
     retry,
     reload,
     submit,
+    startRun,
     isSyncing,
     hasSyncError,
     submitError,
@@ -461,6 +461,7 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
           classInfo={toScoresheetClassInfo(classInfo, trialDate, trialNumber, trialName)}
           rules={rules}
           onSubmit={submit}
+          onRunStart={startRun}
           onBack={onBack}
           backLabel="Entries"
           onDirtyChange={setSheetDirty}

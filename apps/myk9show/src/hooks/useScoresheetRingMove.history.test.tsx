@@ -74,12 +74,13 @@ const Sheet = () => {
   const ringMove = useScoresheetRingMove(ID);
   useEffect(() => {
     void replicatedEntriesTable.get(ID).then(row => {
-      if (row) ringMove.opened({ id: ID, checkInStatus: row.checkInStatus });
+      if (row) ringMove.opened(row.id);
     });
   }, [ringMove]);
   return (
     <div>
       <ScoresheetLeaveGuard isDirty={false} />
+      <button onClick={ringMove.start}>start timer</button>
       <button onClick={() => window.history.back()}>history back</button>
       <button onClick={() => navigate('/list')}>cancel</button>
     </div>
@@ -157,6 +158,7 @@ describe('leaving an unscored scoresheet restores the dog on the list (MYK9-1779
     renderApp();
     await screen.findByText('list status: no-status');
     await user.click(screen.getByText('open sheet'));
+    await user.click(screen.getByText('start timer'));
     await waitFor(async () =>
       expect((await replicatedEntriesTable.get(ID))?.checkInStatus).toBe('in-ring')
     );
@@ -178,6 +180,20 @@ describe('leaving an unscored scoresheet restores the dog on the list (MYK9-1779
   // must already see the dog put back; it used to show "In ring" until the debounced refresh.
   it('Cancel: the list never shows the dog in the ring on return', async () => {
     expect(await openThenLeave('cancel')).not.toContain('in-ring');
+  });
+
+  it('history back restores the warm list after opening without starting', async () => {
+    const user = userEvent.setup();
+    renderApp();
+    await screen.findByText('list status: no-status');
+    await user.click(screen.getByText('open sheet'));
+    await screen.findByText('start timer');
+    expect((await replicatedEntriesTable.get(ID))?.checkInStatus).toBe('no-status');
+    seen.length = 0;
+    await user.click(screen.getByText('history back'));
+    await screen.findByText('list status: no-status');
+    expect(seen).not.toContain('in-ring');
+    expect((await replicatedEntriesTable.get(ID))?.ring_entry_time).toBeUndefined();
   });
 
   it('history back: the list never shows the dog in the ring on return', async () => {

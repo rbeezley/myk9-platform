@@ -85,6 +85,7 @@ export interface UseAtShowScoresheetResult {
   retry: () => void;
   /** Re-read from the local replica; never waits on the network (MYK9-1106). */
   reload: () => void;
+  startRun: () => void;
   submit: (scoreData: ScoreData) => Promise<void>;
   isSyncing: boolean;
   hasSyncError: boolean;
@@ -240,8 +241,7 @@ export function useAtShowScoresheet({
         // cancelled class's (the page shows the cancelled message instead of a sheet).
         const held = isHeldEntry(rawEntry);
         setAwaitingRegistrationNumber(held);
-        // Auto-set check-in status to in-ring when the scoresheet opens.
-        if (!held && !isCancelledClassStatus(cls.classStatus)) ringMove.opened(rawEntry);
+        if (!held && !isCancelledClassStatus(cls.classStatus)) ringMove.opened(rawEntry.id);
 
         const dog = rawEntry.dogId ? await replicatedDogsTable.get(rawEntry.dogId) : null;
         if (cancelled) return;
@@ -368,6 +368,7 @@ export function useAtShowScoresheet({
       setLoadAttempt(attempt => attempt + 1);
     },
     reload: () => setReloadCount(count => count + 1),
+    startRun: ringMove.start,
     submit,
     isSyncing,
     hasSyncError,

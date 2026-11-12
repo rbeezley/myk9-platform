@@ -1,37 +1,32 @@
 import { useEffect, useMemo, useRef } from 'react';
-import type { CheckInStatus } from '@myk9/core';
 import { restoreFromInRing, transitionToInRing, type RingMove } from '@/utils/checkInTransitions';
 
-interface OpenedEntry {
-  id: string;
-  checkInStatus?: CheckInStatus | undefined;
-  ring_entry_time?: string | undefined;
-}
-
 export interface ScoresheetRingMove {
-  /** The sheet opened for this entry: move it in-ring and remember what that replaced. */
-  opened: (entry: OpenedEntry) => void;
+  /** Remember the loaded entry without changing its status. */
+  opened: (id: string) => void;
+  /** Start the live run and remember the state to restore if it is abandoned. */
+  start: () => void;
   /** A score was saved: leaving must not put the dog back. */
   scored: () => void;
 }
 
 /**
- * MYK9-1762: opening a scoresheet moves the dog in-ring; leaving it without a saved
+ * Starting the timer moves the dog in-ring; leaving it without a saved
  * score (Cancel, Up, back gesture, or the next dog) puts the dog back where it was.
  * Shared by the ringside and secretary scoresheets. A page reload runs no cleanup,
  * so a dog genuinely mid-run stays in the ring and its Resume still works.
  */
 export function useScoresheetRingMove(entryId: string | undefined): ScoresheetRingMove {
   const moveRef = useRef<RingMove | null>(null);
-  // The entry whose sheet is open now. A load that finishes after its sheet was left (a
-  // fast Cancel or back gesture during the reads) must not move the dog in-ring with
-  // nothing left to undo it.
+  const loadedEntryIdRef = useRef<string | undefined>(undefined);
+  // Ignore a late load if navigation has already left that entry.
   const liveEntryIdRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     liveEntryIdRef.current = entryId;
     return () => {
       liveEntryIdRef.current = undefined;
+      loadedEntryIdRef.current = undefined;
       const move = moveRef.current;
       moveRef.current = null;
       if (move) void restoreFromInRing(move);
@@ -40,12 +35,16 @@ export function useScoresheetRingMove(entryId: string | undefined): ScoresheetRi
 
   return useMemo(
     () => ({
-      opened: entry => {
-        if (liveEntryIdRef.current !== entry.id) return;
-        const move = transitionToInRing(entry.id, entry.checkInStatus, entry.ring_entry_time);
-        if (move) moveRef.current = move;
+      opened: id => {
+        if (liveEntryIdRef.current === id) loadedEntryIdRef.current = id;
+      },
+      start: () => {
+        const id = loadedEntryIdRef.current;
+        if (!id || id !== liveEntryIdRef.current || moveRef.current) return;
+        moveRef.current = transitionToInRing(id);
       },
       scored: () => {
+        loadedEntryIdRef.current = undefined;
         moveRef.current = null;
       },
     }),

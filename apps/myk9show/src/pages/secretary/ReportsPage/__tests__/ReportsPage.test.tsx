@@ -223,18 +223,25 @@ vi.mock('../ReportPreview', () => ({
   ),
 }));
 
+// Every describe in this file resets ALL the mock state. The page-level one used to reset it
+// alone, so under --sequence.shuffle a `classOneUnjudged = true` test leaked into the
+// resolveInitialReportScope tests below and replaced their "Pick a trial" reason (MYK9-1893).
+function resetMockState() {
+  mockReportState.trialOneRegistryId = 'AKC';
+  mockReportState.trialTwoRegistryId = null;
+  mockReportState.isLoading = false;
+  mockReportState.classOneUnjudged = false;
+  mockReportState.dataState = null;
+  mockPrintState.records = [];
+  mockPrintState.isLoading = false;
+  mockPrintState.isError = false;
+  mockPrintState.syncFailed = false;
+  toastSpy.called.mockClear();
+}
+
 describe('ReportsPage', () => {
   beforeEach(() => {
-    mockReportState.trialOneRegistryId = 'AKC';
-    mockReportState.trialTwoRegistryId = null;
-    mockReportState.isLoading = false;
-    mockReportState.classOneUnjudged = false;
-    mockReportState.dataState = null;
-    mockPrintState.records = [];
-    mockPrintState.isLoading = false;
-    mockPrintState.isError = false;
-    mockPrintState.syncFailed = false;
-    toastSpy.called.mockClear();
+    resetMockState();
   });
 
   describe('Trial financials (MYK9-1320)', () => {
@@ -776,9 +783,7 @@ describe('resolveInitialReportId', () => {
 
 describe('resolveInitialReportScope', () => {
   beforeEach(() => {
-    mockReportState.trialOneRegistryId = 'AKC';
-    mockReportState.trialTwoRegistryId = null;
-    mockReportState.dataState = null;
+    resetMockState();
   });
 
   it('uses all scopes when no query params are provided', () => {

@@ -387,7 +387,10 @@ describe('useAtShowEntryListHandlers - optimistic check-in', () => {
       options.action.onClick();
     });
 
-    expect(actions.handleStatusChange).toHaveBeenLastCalledWith('e1', 'checked-in');
+    // Undo now checks the dog's current status first, so the write lands a read later.
+    await waitFor(() =>
+      expect(actions.handleStatusChange).toHaveBeenLastCalledWith('e1', 'checked-in')
+    );
     expect(toastSuccess).toHaveBeenCalledTimes(1);
   });
 

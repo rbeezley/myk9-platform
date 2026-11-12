@@ -27,6 +27,7 @@ import type {
   ReceiptDialogState,
 } from './my-entries-types';
 import { SELF_RESTORABLE } from '@/features/at-show/offerPullUndo';
+import { registerPull, undoPullIfCurrent } from '@/features/at-show/pullUndoGuard';
 import type { ShowMoneyKind } from './showMoneyState';
 
 const CLOSED_CHECK_IN: CheckInDialogState = { open: false, entry: null, classEntry: null };
@@ -169,13 +170,21 @@ export function useMyEntriesDialogs({
       // `self_checkin_entry` refuses staff-set statuses (come-to-gate, in-ring, completed),
       // so Undo is offered only when the exhibitor's write path can restore the prior one.
       if (status === 'pulled' && SELF_RESTORABLE.has(priorStatus)) {
+        const token = registerPull(classEntry.id);
         showUndoToast({
           message: `${entry.dogName} pulled from ${classEntry.name}`,
           onUndo: () => {
-            // Same write path as the Pulled itself.
-            void updateEntryCheckInRef
-              .current(entry.id, classEntry.id, priorStatus)
-              .catch(() => toast.error(`We could not undo that. Please try again.`));
+            // Same write path as the Pulled itself, and only while this Pull is still current.
+            void undoPullIfCurrent({
+              entryId: classEntry.id,
+              token,
+              callName: entry.dogName,
+              replicaMayLag: true,
+              restore: () =>
+                updateEntryCheckInRef
+                  .current(entry.id, classEntry.id, priorStatus)
+                  .catch(() => toast.error(`We could not undo that. Please try again.`)),
+            });
           },
         });
       }

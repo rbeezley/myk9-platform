@@ -1,38 +1,55 @@
 import { MoreHorizontal } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import type { SecretaryCockpitEntryAction } from './secretaryCockpitTypes';
+import { useTrialSecretaryOnlyReason } from '@/features/actions/TrialSecretaryAccessContext';
+import { useAuthContext } from '@/hooks/useAuthContext';
+import { PEOPLE_ROUTE_ROLES } from '@/routes/peopleRouteRoles';
+import { canMarkAbsent } from './entryRowLinks';
+import type { SecretaryCockpitClassEntry } from './cockpitClassEntries';
+import type { CockpitLifecycle, SecretaryCockpitEntryAction } from './secretaryCockpitTypes';
 
 /**
- * The per-dog menu in the class entries table's last column (MYK9-1798). F29b: the only
- * reachable home for a secretary-initiated move-up. `ShowMapRowActionsMenu` renders the same
- * set, but mounts only inside the public Show Map, which is read-only by intent (#291).
- * `ShowDeskPanel` owns the dialog and the mutation; an item emits the commandId its
- * runCommand resolves. See docs/plan-f29b-operational-actions-home.md.
- *
- * `actions` is the engine's answer for "allowed today for this entry" (the snapshot's
- * entryRows), so nothing here re-derives eligibility. A row with none shows no menu. Pull is
- * not here: it lives in the Check-in cell's picker.
+ * The per-dog menu in the class entries table's last column (MYK9-1798, MYK9-1873). Items, in
+ * order, each only when it applies and this viewer may do it:
+ * - Change class: the engine's answer for "allowed today for this entry" (the snapshot's
+ *   entryRows, resolved by `ShowDeskPanel.runCommand`), never re-derived here.
+ * - Edit entry: a link to the entry's form on Entry Management, where the edit sheet lives.
+ * - Mark absent: a dog that can still run, and only for someone who may operate the show (the
+ *   trial secretary gate Score this class uses). `onMarkAbsent` confirms, then writes the result.
+ * - Open dog details / Open person details (the entry's handler): links to the existing records;
+ *   the person link only for the roles `/people/:id` admits.
+ * Pull is not here: it lives in the Check-in cell's picker.
  */
 export function ClassEntryRowMenu({
-  dogName,
-  armband,
+  entry,
   actions,
   onCommand,
+  editEntryHref,
+  onMarkAbsent,
+  classLifecycle,
 }: {
-  dogName: string;
-  /** Two rows can share a call name; the armband tells the triggers apart. */
-  armband?: string | number | null | undefined;
+  entry: SecretaryCockpitClassEntry;
   actions: readonly SecretaryCockpitEntryAction[];
   onCommand: (commandId: string) => void;
+  editEntryHref: string;
+  onMarkAbsent: (entry: SecretaryCockpitClassEntry) => void;
+  /** The class's lifecycle: Mark absent is offered only while it is open for scoring. */
+  classLifecycle: CockpitLifecycle | null;
 }) {
-  if (actions.length === 0) return null;
+  const secretaryOnlyReason = useTrialSecretaryOnlyReason();
+  const { hasRole } = useAuthContext();
+  const { dogName, armband } = entry;
+  const showMarkAbsent = canMarkAbsent(entry, classLifecycle) && secretaryOnlyReason === undefined;
+  const personHref = PEOPLE_ROUTE_ROLES.some(role => hasRole(role)) ? entry.handlerHref : undefined;
+  const showOpenLinks = Boolean(entry.dogHref || personHref);
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild nativeButton>
@@ -58,6 +75,25 @@ export function ClassEntryRowMenu({
             {action.label}
           </DropdownMenuItem>
         ))}
+        <DropdownMenuItem asChild className="min-h-11">
+          <Link to={editEntryHref}>Edit entry</Link>
+        </DropdownMenuItem>
+        {showMarkAbsent && (
+          <DropdownMenuItem className="min-h-11" onClick={() => onMarkAbsent(entry)}>
+            Mark absent
+          </DropdownMenuItem>
+        )}
+        {showOpenLinks && <DropdownMenuSeparator />}
+        {entry.dogHref && (
+          <DropdownMenuItem asChild className="min-h-11">
+            <Link to={entry.dogHref}>Open dog details</Link>
+          </DropdownMenuItem>
+        )}
+        {personHref && (
+          <DropdownMenuItem asChild className="min-h-11">
+            <Link to={personHref}>Open person details</Link>
+          </DropdownMenuItem>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

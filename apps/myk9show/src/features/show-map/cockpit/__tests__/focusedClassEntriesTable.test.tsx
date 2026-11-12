@@ -130,14 +130,18 @@ describe('the focused class entries table (MYK9-1782)', () => {
     expect(within(rows[2]!).queryByText('Waiting')).not.toBeInTheDocument();
     expect(within(rows[0]!).getByText('Scored')).not.toHaveAttribute('data-outlined');
     expect(within(rows[3]!).getAllByText('Pulled')).toHaveLength(2);
-    // Place in line (blank once a dog is scored, in the ring or pulled), then the reserved empty last column.
+    // Place in line (blank once a dog is scored, in the ring or pulled), then the per-dog menu.
     expect(rows.map(row => within(row).getAllByRole('cell')[0]!.textContent)).toEqual([
       '',
       '',
       '1',
       '',
     ]);
-    expect(within(rows[0]!).getAllByRole('cell').at(-1)).toBeEmptyDOMElement();
+    expect(
+      within(within(rows[0]!).getAllByRole('cell').at(-1)!).getByRole('button', {
+        name: /^Actions for/,
+      })
+    ).toBeInTheDocument();
   });
 
   it('counts entered, scored, in ring and still to run from the same rows', () => {

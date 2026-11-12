@@ -17,6 +17,7 @@ vi.mock('@/hooks/useAuthContext', () => ({
       email: 'secretary@example.com',
       user_metadata: { full_name: 'Jannie' },
     },
+    hasRole: () => true,
   }),
 }));
 vi.mock('@/services/replication', () => ({
@@ -580,24 +581,32 @@ describe('SecretaryCockpitFocusedClass per-dog menu', () => {
     );
   }
 
-  it('shows both items for an eligible row and only the allowed one for another', async () => {
+  it('shows the engine items first, then Edit entry and Mark absent, for an eligible row', async () => {
     const { user } = renderMenu(true);
     await user.click(screen.getByRole('button', { name: 'Actions for #101 Moss' }));
     expect((await screen.findAllByRole('menuitem')).map(item => item.textContent)).toEqual([
       'Change class',
       'Move up a level',
+      'Edit entry',
+      'Mark absent',
     ]);
     await user.keyboard('{Escape}');
 
     await user.click(screen.getByRole('button', { name: 'Actions for #101 Scout' }));
     expect((await screen.findAllByRole('menuitem')).map(item => item.textContent)).toEqual([
       'Change class',
+      'Edit entry',
+      'Mark absent',
     ]);
   });
 
-  it('shows no trigger on a row with no allowed action', () => {
-    renderMenu(true);
-    expect(screen.queryByRole('button', { name: 'Actions for #101 Juno' })).toBeNull();
+  it('keeps the menu on a row with no engine action, without Change class', async () => {
+    const { user } = renderMenu(true);
+    await user.click(screen.getByRole('button', { name: 'Actions for #101 Juno' }));
+    expect((await screen.findAllByRole('menuitem')).map(item => item.textContent)).toEqual([
+      'Edit entry',
+      'Mark absent',
+    ]);
   });
 
   it('shows no trigger to a non-manager', () => {

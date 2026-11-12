@@ -51,6 +51,9 @@ export interface SecretaryCockpitClassEntry {
   dogName: string;
   breed?: string | undefined;
   handler?: string | undefined;
+  /** `/dogs/:id` and `/people/:id` for the entry's dog and handler; absent when the id is unknown. */
+  dogHref?: string | undefined;
+  handlerHref?: string | undefined;
   checkIn?: ShowMapDisplayStatus | undefined;
   state: ClassEntryState;
   /** In the expected set: counted as entered, and as scored or still to run. */
@@ -172,6 +175,8 @@ export function classEntriesForClass(
         dogName: display.dogName,
         breed: display.breed,
         handler: display.handler,
+        dogHref: display.dogHref,
+        handlerHref: display.handlerHref,
         checkIn: node.checkInStatus,
         state,
         counted,

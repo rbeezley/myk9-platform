@@ -91,6 +91,17 @@ This table is the walk's main output. One row per fact, one column per source, e
 
 Facts, at minimum: judge name, class start time, check-in state, armband, running-order position, result (qualified or not), search time, faults. A fact stated one way by one role and another way by another is a finding, and the report says which one is right and how you know. "Not shown" to a role that needs the fact is also a finding (the exhibitor needs all of them; the judge needs armband, order and check-in).
 
+**A promise is a fact too.** Add a row for every sentence that tells one role what another role will do or see: the judge's "It will send when you're back online", the exhibitor's "The show secretary is reviewing this entry", and any other the run meets. Fill the other columns with what those roles' screens then showed. A promise the next role's screen does not keep is a finding (MYK9-1909; MYK9-1896 and MYK9-1897 were this shape).
+
+## The screen each role returns to
+
+The fact table checks the data. This section checks the **screen each write leaves behind**, at the size the role holds it, because a layout breaks in states a clean page never shows. On 2026-11-12 the judge's entry list on a portrait tablet, offline with one score queued, wrapped the class name one letter per line and pushed the next dog to the bottom of the screen (MYK9-1899). No walk had looked at that list in that state.
+
+- **Viewports.** Judge context: 768×1024 portrait, the tablet a judge holds at the ring. Exhibitor context: 390×844. Secretary context: 1440×900. Say in the report if a context used another size, and why.
+- **After each write in "What to walk", go back to the list the role came from and capture it**: the secretary's check-in surface after the check-in, the judge's entry list after the online score, the exhibitor's My Entries once the result shows. A capture is a screenshot plus the measurements below.
+- **The offline state gets its own capture.** In step 3, after the offline save and BEFORE reconnecting, go back to the judge's entry list. It now carries the offline note and the waiting-to-sync count. Capture it, then carry on with step 3. This adds no write.
+- **What counts as broken**, each a finding: a heading or status label that wraps inside a word or is cut with an ellipsis; a page header taller than a third of the viewport; the next dog to run not visible without scrolling; an offline or sync note cut short. Measure it (`getBoundingClientRect`, `scrollWidth > clientWidth`) and record the numbers. Never judge it from a screenshot alone.
+
 ## Judgment rules
 
 - Read `docs/INTENT.md` first. The judge's target feeling is calm under pressure ("the tool disappears"), the exhibitor's is "I trust this with my day", and the secretary's show-day row is "I can handle this". A screen that is technically correct but leaves the judge unsure whether a score saved, offline or online, IS a finding.

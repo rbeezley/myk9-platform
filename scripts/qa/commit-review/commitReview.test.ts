@@ -188,6 +188,26 @@ describe('store and cli', () => {
     ).toBe(1);
   });
 
+  it('add-finding replaces an unfiled finding once a retry files it', () => {
+    dir = mkdtempSync(join(tmpdir(), 'commit-review-'));
+    const path = join(dir, 'runs', 'r.json');
+    writeRecordAtomic(path, record(1));
+    const git = fakeGit(inv(1));
+    const add = (extra: string[]) =>
+      runCli(['add-finding', '--record', path, '--id', 'F1', ...extra], git, () => {});
+    expect(add(['--linear-state', 'unfiled', '--error', 'Linear 503'])).toBe(0);
+    const lines: string[] = [];
+    runCli(['validate', '--record', path], git, s => lines.push(s));
+    expect(JSON.parse(lines[0] ?? '{}').filingBlockers).toEqual(['F1']);
+    expect(add(['--linear-state', 'filed', '--issue', 'MYK9-1'])).toBe(0);
+    const saved = readRecordRaw(path) as RunRecord;
+    expect(saved.findings).toEqual([
+      expect.objectContaining({ id: 'F1', linear: expect.objectContaining({ state: 'filed' }) }),
+    ]);
+    runCli(['validate', '--record', path], git, s => lines.push(s));
+    expect(JSON.parse(lines[1] ?? '{}').filingBlockers).toEqual([]);
+  });
+
   it('init freezes the boundary from the audit-boundary row and origin/main', () => {
     dir = mkdtempSync(join(tmpdir(), 'commit-review-'));
     const md = join(dir, 'audit-boundary.md');

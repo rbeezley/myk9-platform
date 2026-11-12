@@ -111,11 +111,15 @@ export function runCli(
       entry.evidence = { reviewedAt: new Date().toISOString(), notes };
     } else if (cmd === 'add-finding') {
       const state = (flag(args, 'linear-state') ?? 'unfiled') as LinearState;
-      record.findings.push({
+      const finding = {
         id: need(args, 'id'),
         actionable: flag(args, 'actionable') !== 'false',
         linear: { state, issueId: flag(args, 'issue'), error: flag(args, 'error') },
-      });
+      };
+      // Upsert by id: a filing retry that succeeds replaces the earlier `unfiled` entry.
+      const existing = record.findings.findIndex(f => f.id === finding.id);
+      if (existing >= 0) record.findings[existing] = finding;
+      else record.findings.push(finding);
     } else {
       record.publication = {
         state: need(args, 'state') as PublicationState,

@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import type { Entry } from '../../../stores/entryStore';
 import { gateRank } from '../quickAdvanceCandidates';
-import { armbandSortKey } from '../runQueue';
+import { armbandSortKey, compareByRunOrder } from '../runQueue';
 
 /**
  * Filter/sort/search hook for both entry-list modes (single class, combined A/B).
@@ -65,12 +65,9 @@ const sortComparators: Record<SortType, SortComparator> = {
     return armbandSortKey(a.armband) - armbandSortKey(b.armband);
   },
 
-  run: (a, b) => {
-    // Run order uses exhibitorOrder, fallback to armband
-    const aOrder = a.exhibitorOrder || armbandSortKey(a.armband);
-    const bOrder = b.exhibitorOrder || armbandSortKey(b.armband);
-    return aOrder - bOrder;
-  },
+  // The shared run-order rule (exhibitorOrder, armband fallback, then armband and id as
+  // tie-breaks), so this list agrees with Up next and dogs-ahead (MYK9-1808).
+  run: compareByRunOrder,
 
   placement: (a, b) => {
     // Section FIRST. A combined Novice A/B list is two competitions that ran

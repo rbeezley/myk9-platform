@@ -337,7 +337,11 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
               sensors={sensors}
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
-              onOpenDragMode={handleOpenDragMode}
+              // Long press opens drag mode, so a viewer who may not change run order gets no
+              // long press at all (MYK9-1808); the card has none without this prop.
+              {...(hasPermission('canChangeRunOrder')
+                ? { onOpenDragMode: handleOpenDragMode }
+                : {})}
               showNowAndNext={
                 activeTab === 'pending' &&
                 !isDragMode &&

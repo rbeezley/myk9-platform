@@ -182,6 +182,28 @@ describe.each(PAGES)('entry-list parity — $name', page => {
     });
   });
 
+  describe('long press into drag mode', () => {
+    it('is withheld from a viewer who may not change run order (MYK9-1808)', () => {
+      // A card with no `onOpenDragMode` has no long press, so a viewer without the permission
+      // cannot reach the drag handles through it.
+      const props = makeProps({ entries: [{ id: 'e1', classId: 'class-a' }], loaded: true });
+      props.context.hasPermission = permission => permission !== 'canChangeRunOrder';
+      render(
+        <MemoryRouter>
+          <EntryListPage {...props} />
+        </MemoryRouter>
+      );
+
+      expect(contentSpy.onOpenDragMode).toBeUndefined();
+    });
+
+    it('is offered to a viewer who may change run order', () => {
+      page.render({ entries: [{ id: 'e1', classId: 'class-a' }], loaded: true });
+
+      expect(contentSpy.onOpenDragMode).toBeTypeOf('function');
+    });
+  });
+
   describe('run-order outcome', () => {
     it('does NOT claim success when the handler reports the write did not land', async () => {
       // The regression this pins: both hosts catch their own persistence

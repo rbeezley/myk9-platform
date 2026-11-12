@@ -32,6 +32,7 @@ import {
 import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { logger } from '@myk9/core';
 import type { Entry } from '../../../stores/entryStore';
+import { assignRunOrderSlots } from '../runOrderSlots';
 
 interface UseDragAndDropEntriesOptions {
   /** All local entries (for merging after drag) */
@@ -226,11 +227,9 @@ export function useDragAndDropEntries({
       // Create new reordered array from the snapshot
       const reorderedEntries = arrayMove(snapshot, oldIndex, targetIndex);
 
-      // Update exhibitor_order values locally
-      const entriesWithNewOrder = reorderedEntries.map((entry, index) => ({
-        ...entry,
-        exhibitorOrder: index + 1,
-      }));
+      // Update exhibitor_order values locally. A subset (search term, A/B tab) keeps the run-order
+      // slots it already held, so dogs outside it are never collided with (MYK9-1808).
+      const entriesWithNewOrder = assignRunOrderSlots(snapshot, reorderedEntries);
 
       // Merge reordered entries back into localEntries (preserving entries not in current view)
       const reorderedIds = new Set(entriesWithNewOrder.map(e => e.id));

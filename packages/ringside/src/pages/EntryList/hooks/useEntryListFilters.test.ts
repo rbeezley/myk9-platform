@@ -198,3 +198,17 @@ describe('useEntryListFilters — combined A/B counts', () => {
     expect(result.current.pendingEntries).toHaveLength(3);
   });
 });
+
+describe('useEntryListFilters - run order tie-break (MYK9-1808)', () => {
+  it('orders dogs sharing a run order by armband, whatever order the replica returned them in', () => {
+    const tied: Entry[] = [
+      entry({ id: 'z', armband: 9, exhibitorOrder: 5 }),
+      entry({ id: 'y', armband: 4, exhibitorOrder: 5 }),
+      entry({ id: 'x', armband: 2, exhibitorOrder: 1 }),
+    ];
+    const { result } = renderHook(() =>
+      useEntryListFilters({ entries: tied, prioritizeInRing: true, defaultSort: 'run' })
+    );
+    expect(result.current.pendingEntries.map(e => e.id)).toEqual(['x', 'y', 'z']);
+  });
+});

@@ -259,6 +259,38 @@ describe('useDragAndDropEntries — handleDragEnd reorder', () => {
     expect(merged).toHaveLength(4);
   });
 
+  it('keeps the run-order slots a filtered subset already held, so hidden dogs are never collided with (MYK9-1808)', async () => {
+    // A search shows only dogs 3, 7 and 9 of a class whose run orders are 1..10.
+    const updateExhibitorOrder = defaultUpdater();
+    const subset = [
+      makeEntry({ id: 'c', armband: 103, exhibitorOrder: 3 }),
+      makeEntry({ id: 'g', armband: 107, exhibitorOrder: 7 }),
+      makeEntry({ id: 'i', armband: 109, exhibitorOrder: 9 }),
+    ];
+    const { result } = renderHook(() =>
+      useDragAndDropEntries({
+        localEntries: subset,
+        setLocalEntries: vi.fn(),
+        currentEntries: subset,
+        updateExhibitorOrder,
+      })
+    );
+
+    act(() => {
+      result.current.handleDragStart(dragStartEvent('c'));
+    });
+    await act(async () => {
+      await result.current.handleDragEnd(dragEvent('c', 'i'));
+    });
+
+    const reordered = updateExhibitorOrder.mock.calls[0][0] as Entry[];
+    expect(reordered.map(e => [e.id, e.exhibitorOrder])).toEqual([
+      ['g', 3],
+      ['i', 7],
+      ['c', 9],
+    ]);
+  });
+
   it('uses the drag-start snapshot, not the live currentEntries prop, for index math', async () => {
     const setLocalEntries = vi.fn();
     const updateExhibitorOrder = defaultUpdater();

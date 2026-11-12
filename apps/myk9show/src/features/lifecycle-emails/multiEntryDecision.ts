@@ -20,7 +20,7 @@ const dogOf = (entry: LifecycleEmailEntryContext) => entry.dogName?.trim() || nu
 function inScheduleOrder(entries: LifecycleEmailEntryContext[]): LifecycleEmailEntryContext[] {
   const text = (value: string | null | undefined) => value ?? '';
   const trial = (entry: LifecycleEmailEntryContext) =>
-    Number.parseInt(entry.trialNumber ?? '', 10) || 0;
+    Number.parseInt(/\d+/.exec(entry.trialNumber ?? '')?.[0] ?? '', 10) || 0;
   return [...entries].sort(
     (a, b) =>
       text(a.trialDate).localeCompare(text(b.trialDate)) ||
@@ -28,6 +28,13 @@ function inScheduleOrder(entries: LifecycleEmailEntryContext[]): LifecycleEmailE
       text(dogOf(a)).localeCompare(text(dogOf(b))) ||
       text(a.className).localeCompare(text(b.className))
   );
+}
+
+/** `trialNumber` holds the trial's display name ("Trial 4"); a bare "4" still gets the prefix. */
+function trialLabel(trialNumber: string | null | undefined): string | null {
+  const name = trialNumber?.trim();
+  if (!name) return null;
+  return /^trial\b/i.test(name) ? name : `Trial ${name}`;
 }
 
 /**
@@ -38,7 +45,7 @@ function inScheduleOrder(entries: LifecycleEmailEntryContext[]): LifecycleEmailE
 function classLine(entry: LifecycleEmailEntryContext, withDog: boolean): string {
   const parts = [
     trialDayLabel(entry.trialDate),
-    entry.trialNumber ? `Trial ${entry.trialNumber}` : null,
+    trialLabel(entry.trialNumber),
     entry.className ?? 'class to be confirmed',
   ].filter(Boolean);
   const dog = withDog ? `${dogOf(entry) ?? 'Your dog'}: ` : '';

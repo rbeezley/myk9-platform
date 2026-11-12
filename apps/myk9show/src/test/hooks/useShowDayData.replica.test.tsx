@@ -19,7 +19,7 @@ const mocks = vi.hoisted(() => ({
   check: vi.fn(),
   details: vi.fn(),
   progress: vi.fn(),
-  listeners: new Set<() => void>(),
+  listeners: new Map<string, Set<() => void>>(),
   subscribe: vi.fn(),
 }));
 
@@ -28,9 +28,19 @@ vi.mock('@/hooks/queries/showDayDataReplication', () => ({
   fetchReplicatedShowDayDetails: (...args: unknown[]) => mocks.details(...args),
   fetchReplicatedRingProgress: (...args: unknown[]) => mocks.progress(...args),
 }));
-vi.mock('@/services/replication', () => ({
-  replicatedEntriesTable: { subscribe: (...args: unknown[]) => mocks.subscribe(...args) },
-}));
+vi.mock('@/services/replication', () => {
+  const table = (name: string) => ({
+    subscribe: (...args: unknown[]) => mocks.subscribe(name, ...args),
+  });
+  return {
+    replicatedEntriesTable: table('entries'),
+    replicatedClassesTable: table('classes'),
+    replicatedTrialsTable: table('trials'),
+    replicatedShowsTable: table('shows'),
+    replicatedDogsTable: table('dogs'),
+    replicatedClubsTable: table('clubs'),
+  };
+});
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({ userWithRoles: { databaseUserId: 'user-1' } }),
 }));
@@ -75,7 +85,9 @@ const detailRow = {
   trial: { id: 'trial-1', date: '2026-10-23', show: { id: 'show-1', name: 'Trial' } },
 } as unknown as ShowDayDetailRow;
 
-const notifyReplica = () => mocks.listeners.forEach(listener => listener());
+const notifyReplica = (table = 'entries') =>
+  mocks.listeners.get(table)?.forEach(listener => listener());
+const listenerCount = () => [...mocks.listeners.values()].reduce((n, set) => n + set.size, 0);
 
 /** check -> details -> progress is a chain of dependent queries: let each step land. */
 async function flushChain() {
@@ -109,9 +121,11 @@ describe('useShowDayData replica refresh', () => {
     mocks.check.mockReset().mockResolvedValue([checkRow('2026-10-23')]);
     mocks.details.mockReset().mockResolvedValue([detailRow]);
     mocks.progress.mockReset().mockResolvedValue([]);
-    mocks.subscribe.mockReset().mockImplementation((listener: () => void) => {
-      mocks.listeners.add(listener);
-      return () => mocks.listeners.delete(listener);
+    mocks.subscribe.mockReset().mockImplementation((table: string, listener: () => void) => {
+      const set = mocks.listeners.get(table) ?? new Set<() => void>();
+      set.add(listener);
+      mocks.listeners.set(table, set);
+      return () => set.delete(listener);
     });
   });
 
@@ -119,10 +133,60 @@ describe('useShowDayData replica refresh', () => {
     vi.useRealTimers();
   });
 
-  it('subscribes to the entries replica without the initial emit', async () => {
+  it('subscribes to every replica the show-day reads derive from, without the initial emit', async () => {
     await mountAndSettle();
-    expect(mocks.subscribe).toHaveBeenCalledTimes(1);
-    expect(mocks.subscribe).toHaveBeenCalledWith(expect.any(Function), { emitCurrent: false });
+    expect(mocks.subscribe.mock.calls.map(([table]) => table).sort()).toEqual([
+      'classes',
+      'clubs',
+      'dogs',
+      'entries',
+      'shows',
+      'trials',
+    ]);
+    expect(mocks.subscribe).toHaveBeenCalledWith('shows', expect.any(Function), {
+      emitCurrent: false,
+    });
+  });
+
+  // MYK9-1861: the first check ran before the show hydrated and no entry event follows.
+  it.each(['classes', 'trials', 'shows', 'dogs', 'clubs'])(
+    'finds the active show when only the %s replica hydrates late, within the coalesce window',
+    async table => {
+      mocks.check.mockReset().mockResolvedValue([]);
+      const { result } = await mountAndSettle();
+      expect(result.current.activeShow).toBeNull();
+
+      mocks.check.mockResolvedValue([checkRow('2026-10-23')]);
+      notifyReplica(table);
+      await vi.advanceTimersByTimeAsync(SHOW_DAY_REPLICA_COALESCE_MS + 1);
+      await flushChain();
+
+      expect(result.current.activeShow?.showId).toBe('show-1');
+      expect(result.current.activeShows.map(s => s.showId)).toEqual(['show-1']);
+    }
+  );
+
+  it('keeps the same activeShows reference when a related-replica refresh finds nothing new, so the monitor sees no change', async () => {
+    const { result } = await mountAndSettle();
+    const before = result.current.activeShows;
+
+    notifyReplica('classes');
+    notifyReplica('shows');
+    await vi.advanceTimersByTimeAsync(SHOW_DAY_REPLICA_COALESCE_MS + 1);
+    await flushChain();
+
+    expect(mocks.check).toHaveBeenCalledTimes(2);
+    expect(result.current.activeShows).toBe(before);
+  });
+
+  it('shares one coalescing window across entries and related replicas', async () => {
+    await mountAndSettle();
+    notifyReplica('entries');
+    notifyReplica('trials');
+    notifyReplica('classes');
+    await vi.advanceTimersByTimeAsync(SHOW_DAY_REPLICA_COALESCE_MS + 1);
+    await flushChain();
+    expect(mocks.check).toHaveBeenCalledTimes(2);
   });
 
   it('refreshes all three reads once per coalesce window, however many notices arrive', async () => {
@@ -188,7 +252,7 @@ describe('useShowDayData replica refresh', () => {
     const { unmount } = await mountAndSettle();
     notifyReplica();
     unmount();
-    expect(mocks.listeners.size).toBe(0);
+    expect(listenerCount()).toBe(0);
     await vi.advanceTimersByTimeAsync(SHOW_DAY_REPLICA_COALESCE_MS * 2);
     expect(mocks.details).toHaveBeenCalledTimes(1);
   });

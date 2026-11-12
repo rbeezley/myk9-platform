@@ -54,7 +54,7 @@ const ENTRY_SETTLED_TERMINAL: ReadonlySet<PaymentStatus> = new Set([
  */
 type MoneyDisposition = 'unpaid' | 'paid' | 'refunded' | 'waived';
 
-function dispositionOf(status: PaymentStatus): MoneyDisposition {
+export function dispositionOf(status: PaymentStatus): MoneyDisposition {
   switch (status) {
     case PaymentStatus.PAID_ONLINE:
     case PaymentStatus.PAID_BY_CHECK:

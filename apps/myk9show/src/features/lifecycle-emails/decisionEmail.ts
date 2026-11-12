@@ -1,6 +1,7 @@
 import { EntryStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { showDateRangeStatus } from '@/utils/date-format';
+import { entryAmountOwed } from '@/utils/entryAmountOwed';
 import type { LifecycleEmailEntryContext, LifecycleEmailShowContext } from './render';
 import { buildLifecycleEmailIdempotencyKey, type LifecycleEmailStepType } from './types';
 
@@ -113,7 +114,7 @@ function entryContext(entry: EntryManagementEntry): LifecycleEmailEntryContext {
     ...(entry.classes[0]?.trialDate ? { trialDate: entry.classes[0].trialDate } : {}),
     ...(entry.classes[0]?.trialNumber ? { trialNumber: entry.classes[0].trialNumber } : {}),
     armbandNumber: entry.armbandNumber ?? null,
-    amountDue: Math.max(0, entry.totalFee - entry.paidAmount),
+    amountDue: entryAmountOwed(entry),
   };
 }
 
@@ -140,10 +141,9 @@ export function decisionEmailContext(
   if (entries.length > 1) {
     context.alsoDecided = entries.slice(1).map(entryContext);
     // Each entry is billed on its own: the email states what is owed across the ones listed.
-    context.amountDue = entries.reduce(
-      (total, entry) => total + Math.max(0, entry.totalFee - entry.paidAmount),
-      0
-    );
+    // A Free (waived or comped) entry owes nothing, so it adds nothing (MYK9-1908).
+    context.amountDue =
+      Math.round(entries.reduce((total, entry) => total + entryAmountOwed(entry) * 100, 0)) / 100;
   }
   return {
     show: { name: showName ?? 'this show' },

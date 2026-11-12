@@ -20,6 +20,7 @@ import {
   type ClassIdentity,
 } from '@/features/_shared/classLabel';
 import type { PaymentMethod } from '@/types/show-registration-types';
+import { FREE_ENTRY_AMOUNT_LABEL } from '@/utils/entryAmountOwed';
 import { availabilityPlaceholder } from '../PaymentStep/types';
 import type { FeeBreakdownItem, FeeCalculationResult } from '../PaymentStep/types';
 
@@ -355,7 +356,7 @@ export function formatAmountDue({
   if (classCount === 0) return formatCartCurrency(0);
   // Capacity next: with lines on the entry, no figure is trustworthy until read.
   if (!capacityReady) return placeholder ?? availabilityPlaceholder(capacityUnavailable);
-  if (totals?.isWaived) return '$0.00 (Free entry)';
+  if (totals?.isWaived) return FREE_ENTRY_AMOUNT_LABEL;
   const amount = formatCartCurrency(totals ? totals.amountDueCents : entryFeeCents);
   // MYK9-832 #11: "Total due" otherwise kept quoting a check-in-hand amount as
   // still owed once the secretary marked it Already Received.

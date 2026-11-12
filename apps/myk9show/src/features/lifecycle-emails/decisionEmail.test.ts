@@ -9,7 +9,7 @@ import {
   showSendsDecisionEmailsUnasked,
 } from './decisionEmail';
 import { buildLifecycleEmailDraft } from './render';
-import { EntryStatus } from '@/types/show-registration-types';
+import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 
 describe('buildEntryDecisionLifecycleEmailIdempotencyKey', () => {
@@ -205,6 +205,51 @@ describe('one decision email for several entries of a registration (MYK9-1800)',
       'Show'
     );
     expect(context.amountDue).toBe(25);
+  });
+
+  // MYK9-1908: a 2-class Free entry form was told "Amount due: $60.00".
+  it('owes nothing for Free entries across a multi-class form, and says no amount due', () => {
+    const free = (id: string) =>
+      entry(id, { totalFee: 30, paidAmount: 0, paymentStatus: PaymentStatus.WAIVED });
+    const context = decisionEmailContext([free('entry-1'), free('entry-2')], 'Show');
+    expect(context.entry.amountDue).toBe(0);
+    const draft = buildLifecycleEmailDraft({ stepType: 'accepted', ...context });
+    expect(draft.body).not.toContain('Amount due');
+  });
+
+  it('counts only the unpaid entries when a form mixes a Free entry with an unpaid one', () => {
+    const { entry: context } = decisionEmailContext(
+      [
+        entry('entry-1', { totalFee: 30, paidAmount: 0, paymentStatus: PaymentStatus.WAIVED }),
+        entry('entry-2', { totalFee: 30, paidAmount: 0, paymentStatus: PaymentStatus.PENDING }),
+      ],
+      'Show'
+    );
+    expect(context.amountDue).toBe(30);
+  });
+
+  it('owes nothing for a single Free entry and a comped one, and says no amount due', () => {
+    for (const overrides of [
+      { paymentStatus: PaymentStatus.WAIVED },
+      { paymentStatus: PaymentStatus.PENDING, comped: true },
+    ]) {
+      const context = decisionEmailContext(
+        entry('entry-1', { totalFee: 35, paidAmount: 0, ...overrides }),
+        'Show'
+      );
+      expect(context.entry.amountDue).toBe(0);
+      const draft = buildLifecycleEmailDraft({ stepType: 'accepted', ...context });
+      expect(draft.body).not.toContain('Amount due');
+    }
+  });
+
+  it('still states the fee as due on a single unpaid entry', () => {
+    const context = decisionEmailContext(
+      entry('entry-1', { totalFee: 35, paidAmount: 0, paymentStatus: PaymentStatus.PENDING }),
+      'Show'
+    );
+    const draft = buildLifecycleEmailDraft({ stepType: 'accepted', ...context });
+    expect(draft.body).toContain('Amount due: $35.00');
   });
 
   it('is superseded when any one of the decided entries has since changed status', () => {

@@ -5,16 +5,16 @@ import { toast } from 'sonner';
 import { render } from '@/test/utils/testUtils';
 import { setRevisedExpectedStart } from '@/services/show-day/classTimingMutations';
 
-import { ClassStatusControl, ExpectedStartControl } from './ClassOperationalControls';
+import { ClassStatusBadge, ExpectedStartControl } from './ClassOperationalControls';
 
 vi.mock('@/services/show-day/classTimingMutations', () => ({
   setRevisedExpectedStart: vi.fn(async () => undefined),
 }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
-describe('ClassStatusControl', () => {
+describe('ClassStatusBadge', () => {
   it('reads as a plain status badge with no menu or button', () => {
-    render(<ClassStatusControl lifecycle="in-progress" />);
+    render(<ClassStatusBadge lifecycle="in-progress" />);
 
     expect(screen.getByText('In progress')).toBeInTheDocument();
     expect(screen.queryByRole('button')).toBeNull();
@@ -22,7 +22,7 @@ describe('ClassStatusControl', () => {
   });
 
   it('says so when the status is unknown', () => {
-    render(<ClassStatusControl lifecycle={null} />);
+    render(<ClassStatusBadge lifecycle={null} />);
 
     expect(screen.getByText('Status unknown')).toBeInTheDocument();
   });
@@ -98,5 +98,6 @@ describe('ExpectedStartControl read-only', () => {
 
     expect(screen.getByText(/^10:00/)).toBeInTheDocument();
     expect(screen.queryByText('Not set')).toBeNull();
+    expect(screen.queryByRole('button')).toBeNull();
   });
 });

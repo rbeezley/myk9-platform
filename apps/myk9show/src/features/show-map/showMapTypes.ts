@@ -6,14 +6,7 @@ export type ShowMapNodeType =
 
 export type ShowMapStatusKind = 'neutral' | 'active' | 'complete' | 'muted' | 'attention';
 
-export type ShowMapFilter = 'all' | 'in-progress' | 'needs-attention';
-export type ShowMapDayScope = 'today' | 'tomorrow' | 'all';
 export type ShowMapCompletionScope = 'active' | 'completed';
-
-export interface ShowMapScopeState {
-  dayScope: ShowMapDayScope;
-  completionScope: ShowMapCompletionScope;
-}
 
 export interface ShowMapProgress {
   completed: number;

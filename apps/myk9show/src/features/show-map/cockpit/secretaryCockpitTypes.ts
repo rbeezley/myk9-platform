@@ -35,8 +35,7 @@ export interface SecretaryCockpitAction {
   id: string;
   label: string;
   destination: CockpitDestination;
-  group: 'primary' | 'prepare' | 'finish' | 'class-work' | 'paperwork';
-  priority?: number;
+  group: 'class-work' | 'paperwork';
 }
 
 export interface SecretaryCockpitPaperwork {
@@ -76,8 +75,8 @@ export interface SecretaryCockpitTrial {
  *
  * F29b: `ShowMapRowActionsMenu` is the only renderer of the entry action set, and it
  * mounts only inside `ShowMapTab` -- the public show page, read-only by intent (#291).
- * The cockpit's own action surface filtered to `recommended` actions, and no entry
- * action set that flag, so `ShowDeskPanel`'s move-up dialog could never open. These
+ * The cockpit's own action surface never read the entry action set, so `ShowDeskPanel`'s
+ * move-up dialog could never open. These
  * rows are what emit the commandId `runCommand` already knows how to resolve.
  *
  * Deliberately narrow: check-in, edit-score, scratch and message-handler already have
@@ -164,7 +163,7 @@ export interface SecretaryCockpitSnapshot {
    * print records could not be read. False hides "Not confirmed printed" and "Prepare" chips.
    */
   printTrackingInUse: boolean;
-  /** `printTrackingInUse` or a judge sign-off is recorded. False collapses the checklist under a quiet disclosure. */
+  /** `printTrackingInUse` or a judge sign-off is recorded. False leaves a complete class's status line at "Complete", with no checklist next step. */
   checklistInUse: boolean;
   trials: readonly SecretaryCockpitTrial[];
   classes: readonly SecretaryCockpitClass[];

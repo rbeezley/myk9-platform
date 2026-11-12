@@ -9,8 +9,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { formatTime } from '@/lib/format/dates';
 import {
+  ClassStatusBadge,
   ClassStatusChoices,
-  ClassStatusControl,
   ExpectedStartControl,
   STATUS_LABEL,
   useClassStatusChange,
@@ -49,7 +49,7 @@ function StatusField({
     unenteredScoreCount: unentered,
   });
   const lifecycle = focused.lifecycle.value;
-  if (!canManageShow) return <ClassStatusControl lifecycle={lifecycle} />;
+  if (!canManageShow) return <ClassStatusBadge lifecycle={lifecycle} />;
   return (
     <>
       <DropdownMenu>
@@ -61,7 +61,7 @@ function StatusField({
             aria-label={`Status: ${lifecycle ? STATUS_LABEL[lifecycle] : 'Status unknown'}. Change status of ${focused.name}`}
             className="h-11 gap-1.5 px-1.5"
           >
-            <ClassStatusControl lifecycle={lifecycle} />
+            <ClassStatusBadge lifecycle={lifecycle} />
             <ChevronDown className="h-4 w-4" aria-hidden="true" />
           </Button>
         </DropdownMenuTrigger>

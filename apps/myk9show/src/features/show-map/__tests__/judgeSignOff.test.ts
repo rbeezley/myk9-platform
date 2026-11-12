@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { buildShowMapTree } from '../showMapTree';
-import { getRecommendedActions } from '../showMapActions';
+import { getRankedActions } from '../showMapActions';
 import { classifyClassWrapUpStatus } from '../showMapStatus';
 import { computeShowDeskPendingSignals } from '../showDeskPendingSignals';
 import { buildClassChecklist } from '../cockpit/classChecklist';
@@ -72,7 +72,7 @@ describe('judge sign-off wording by registry', () => {
     ['AKC', "Collect judge's initials"],
     ['UKC', 'Collect judge signature'],
   ])('labels the wrap-up action for %s', (registry, label) => {
-    const actions = getRecommendedActions('root', { tree: needsSignOffTree(registry) });
+    const actions = getRankedActions('root', { tree: needsSignOffTree(registry) });
     expect(actions).toEqual(
       expect.arrayContaining([expect.objectContaining({ id: 'collect-judge-signature', label })])
     );

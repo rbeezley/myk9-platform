@@ -1,10 +1,14 @@
+import { useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { conflictToastId } from '@/features/show-presence/conflictToastId';
 import { CONFLICT_REOPEN_LABEL } from '@/lib/offlineCopy';
 import { logger } from '@/services/LoggingService';
 import { reopenClassConflict } from './reopenClassConflict';
 
 async function showChoiceAgain(classId: string) {
+  // An open or collapsed notice would only update in place and the tap would look dead.
+  toast.dismiss(conflictToastId('classes', classId));
   try {
     const found = await reopenClassConflict(classId);
     // Settled elsewhere in the meantime: the class row re-reads on its own, so say why nothing opened.
@@ -17,13 +21,18 @@ async function showChoiceAgain(classId: string) {
 
 /** Sits beside the "changed somewhere else" reason and raises the closed conflict notice again. */
 export function ReopenConflictButton({ classId }: { classId: string }) {
+  const [busy, setBusy] = useState(false);
   return (
     <Button
       type="button"
       variant="outline"
       size="sm"
       className="min-h-11"
-      onClick={() => void showChoiceAgain(classId)}
+      disabled={busy}
+      onClick={() => {
+        setBusy(true);
+        void showChoiceAgain(classId).finally(() => setBusy(false));
+      }}
     >
       {CONFLICT_REOPEN_LABEL}
     </Button>

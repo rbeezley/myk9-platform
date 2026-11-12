@@ -6,11 +6,14 @@ const hoisted = vi.hoisted(() => ({
   reopen: vi.fn(),
   toastError: vi.fn(),
   toastInfo: vi.fn(),
+  toastDismiss: vi.fn(),
   loggerWarn: vi.fn(),
 }));
 
 vi.mock('./reopenClassConflict', () => ({ reopenClassConflict: hoisted.reopen }));
-vi.mock('sonner', () => ({ toast: { error: hoisted.toastError, info: hoisted.toastInfo } }));
+vi.mock('sonner', () => ({
+  toast: { error: hoisted.toastError, info: hoisted.toastInfo, dismiss: hoisted.toastDismiss },
+}));
 vi.mock('@/services/LoggingService', () => ({ logger: { warn: hoisted.loggerWarn } }));
 
 describe('ReopenConflictButton', () => {
@@ -48,5 +51,31 @@ describe('ReopenConflictButton', () => {
         'This class is already settled. The check can show now.'
       )
     );
+  });
+
+  it('clears the open notice first so the reopened one re-enters visibly', async () => {
+    const order: string[] = [];
+    hoisted.toastDismiss.mockImplementation(() => order.push('dismiss'));
+    hoisted.reopen.mockImplementation(async () => {
+      order.push('reopen');
+      return true;
+    });
+    render(<ReopenConflictButton classId="class-1" />);
+    await userEvent.click(screen.getByRole('button', { name: 'Show the choice again' }));
+    await waitFor(() => expect(order).toEqual(['dismiss', 'reopen']));
+    expect(hoisted.toastDismiss).toHaveBeenCalledWith('conflict:classes:class-1');
+  });
+
+  it('is disabled while a reopen is in flight', async () => {
+    let finish: (found: boolean) => void = () => {};
+    hoisted.reopen.mockReturnValue(new Promise<boolean>(resolve => (finish = resolve)));
+    render(<ReopenConflictButton classId="class-1" />);
+    const button = screen.getByRole('button', { name: 'Show the choice again' });
+    await userEvent.click(button);
+    expect(button).toBeDisabled();
+    await userEvent.click(button);
+    expect(hoisted.reopen).toHaveBeenCalledTimes(1);
+    finish(true);
+    await waitFor(() => expect(button).toBeEnabled());
   });
 });

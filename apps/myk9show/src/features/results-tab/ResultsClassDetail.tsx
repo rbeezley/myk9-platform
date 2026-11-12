@@ -155,8 +155,13 @@ function PrimaryWork({
                 : 'Release results'}
         </Button>
         {blocked && <p className="text-xs text-muted-foreground">{blocked}</p>}
-        {blocked && blocked === verifyBlockedReason && reopenConflictClassId && (
-          <ReopenConflictButton classId={reopenConflictClassId} />
+        {reopenConflictClassId && (
+          <>
+            {verifyBlockedReason && blocked !== verifyBlockedReason && (
+              <p className="text-xs text-muted-foreground">{verifyBlockedReason}</p>
+            )}
+            <ReopenConflictButton classId={reopenConflictClassId} />
+          </>
         )}
       </div>
     ) : (

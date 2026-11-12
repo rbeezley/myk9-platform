@@ -166,6 +166,7 @@ export function ScoresheetPage() {
   const handleSubmit = async (scoreData: ScoreData) => {
     if (!entry || !classInfo) return;
 
+    let scoreSaved = false;
     await submitScoreOptimistically({
       entryId: entry.entryId,
       classId: classInfo.id,
@@ -173,6 +174,7 @@ export function ScoresheetPage() {
       className: classInfo.name,
       scoreData: toOptimisticScorePayload(scoreData),
       onSuccess: () => {
+        scoreSaved = true;
         // Auto-set check-in status to completed after scoring
         ringMove.scored();
         transitionToCompleted(entry.entryId);
@@ -185,6 +187,13 @@ export function ScoresheetPage() {
         logger.error('Score submission failed:', 'pages', {}, err as Error);
       },
     });
+
+    if (!scoreSaved) {
+      // Reject so the scoresheet's duplicate-submit guard clears and Save works
+      // again on the same dog. The "Score not saved" banner and the entered
+      // score stay on the page (MYK9-1836).
+      throw new Error('Score was not saved; please retry.');
+    }
   };
 
   const handleBack = () => {

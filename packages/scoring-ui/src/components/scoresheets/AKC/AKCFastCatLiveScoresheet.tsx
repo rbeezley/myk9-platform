@@ -139,6 +139,9 @@ export const AKCFastCatLiveScoresheet: React.FC<LiveScoresheetProps> = ({
           fastcatResult === 'DQ' ? scoring.nonQualifyingReason.trim() : undefined,
       });
       await onSubmit(scoreData);
+    } catch {
+      // The host page shows the "Score not saved" banner; keep the entered
+      // score so Save can be tapped again.
     } finally {
       setIsSubmitting(false);
       setShowConfirmation(false);

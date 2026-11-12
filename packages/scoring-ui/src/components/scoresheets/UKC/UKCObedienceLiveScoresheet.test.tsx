@@ -104,6 +104,19 @@ describe('UKCObedienceLiveScoresheet', () => {
     });
   });
 
+  it('a rejected save closes the dialog and keeps the entered points (MYK9-1836)', async () => {
+    const onSubmit = vi.fn().mockRejectedValue(new Error('not stored'));
+    render(<UKCObedienceLiveScoresheet {...defaultProps} onSubmit={onSubmit} />);
+
+    fireEvent.change(screen.getByTestId('points-input'), { target: { value: '185' } });
+    fireEvent.click(screen.getByTestId('submit-btn'));
+    fireEvent.click(await screen.findByTestId('confirm-submit-btn'));
+
+    await waitFor(() => expect(screen.queryByTestId('confirmation-dialog')).toBeNull());
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('points-input')).toHaveValue('185');
+  });
+
   it('no timer rendered', () => {
     render(<UKCObedienceLiveScoresheet {...defaultProps} />);
 

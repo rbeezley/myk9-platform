@@ -93,7 +93,8 @@ describe('FocusedClassFields (MYK9-1867)', () => {
     expect(
       screen.queryByRole('button', { name: /^Actual timing: .*Edit actual start$/ })
     ).toBeNull();
-    expect(screen.getByRole('button', { name: /9:00/ })).toBeDisabled();
+    expect(screen.getByText(/9:00/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /9:00/ })).toBeNull();
   });
 
   it.each([

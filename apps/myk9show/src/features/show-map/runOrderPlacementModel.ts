@@ -15,8 +15,8 @@ import {
 //   in the ring. The adapter folds every "has run / in the ring" signal into
 //   the queue row first, so none of them can be mistaken for waiting: is_scored,
 //   scoring completed, check-in completed (all -> scored), check-in in-ring,
-//   is_in_ring, ring_entry_time (-> in the ring), pulled and non-runnable
-//   lifecycle states (-> pulled).
+//   is_in_ring (-> in the ring), pulled and non-runnable lifecycle states
+//   (-> pulled). A leftover ring_entry_time alone is not in the ring (MYK9-1889).
 //
 // Dogs that ran or are in the ring are shown read-only and their run_order is
 // NEVER written. A write renumbers the waiting dogs only, consecutively from

@@ -37,7 +37,6 @@ export function judgeSignOffActionsForClassNode(
       icon: PenLine,
       classId,
       ...(trialId ? { trialId } : {}),
-      recommended: true,
       createsAttention: true,
       ...(showId && trialId
         ? { href: getCockpitResultsControlHref({ showId, trialId, classId }) }

@@ -116,7 +116,6 @@ describe('what waits', () => {
     ['check_in_status in-ring', { check_in_status: 'in-ring' } as never, 'inRing'],
     ['isInRing', { isInRing: true }, 'inRing'],
     ['is_in_ring', { is_in_ring: true }, 'inRing'],
-    ['ring_entry_time', { ring_entry_time: '2026-10-04T10:00:00Z' }, 'inRing'],
   ];
 
   it.each(SIGNALS)('%s is not waiting', (_n, signal, section) => {
@@ -217,6 +216,38 @@ describe('a write never touches a dog that is not waiting', () => {
   it('plans nothing when no dog is waiting', () => {
     const none = [e('s', '1', 1, { isScored: true })];
     expect(planPresetPlacement(modelOf(none), 'armband-asc')).toEqual([]);
+  });
+});
+
+describe('a stale ring_entry_time is not the ring (MYK9-1889)', () => {
+  // The run queue (toRunQueueEntry) reads is_in_ring and check-in 'in-ring' only.
+  // The placement model must use the same rule, so Next up and the grips agree.
+  const stale = {
+    ring_entry_time: '2026-07-20T10:00:00Z',
+    checkInStatus: 'checked-in',
+  } as Partial<ReplicatedEntry>;
+
+  it('a runnable dog with ring_entry_time and is_in_ring false is waiting and movable', () => {
+    const entries = [
+      e('a', '10', 1),
+      e('s', '20', 2, { ...stale, is_in_ring: false }),
+      e('c', '30', 3),
+    ];
+    const model = modelOf(entries);
+    expect(model.inRing).toEqual([]);
+    expect(model.waiting.map(r => r.id)).toEqual(['a', 's', 'c']);
+    expect(movePlacement(model, 's', 1).map(m => m.id)).toEqual(['s', 'a']);
+  });
+
+  it('is_in_ring true is in the ring, whatever ring_entry_time says', () => {
+    const entries = [
+      e('a', '10', 1),
+      e('s', '20', 2, { ...stale, is_in_ring: true }),
+      e('c', '30', 3),
+    ];
+    const model = modelOf(entries);
+    expect(model.inRing.map(r => r.id)).toEqual(['s']);
+    expect(model.waiting.map(r => r.id)).toEqual(['a', 'c']);
   });
 });
 

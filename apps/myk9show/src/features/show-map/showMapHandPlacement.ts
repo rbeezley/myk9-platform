@@ -31,9 +31,11 @@ function toPlacementInput(
   entry: ReplicatedEntry,
   maps: ReturnType<typeof buildShowArmbandMaps<ReplicatedArmband>>
 ): PlacementInput {
-  // The canonical queue row, plus the "has run / in the ring" signals the
-  // queue adapter does not read. A dog is only "in the ring" by ring_entry_time
-  // while it is still runnable and unscored.
+  // The canonical queue row, plus the "has run" signals the queue adapter does
+  // not read. In-ring comes only from the shared run-queue row (is_in_ring or
+  // check-in 'in-ring', via toRunQueueEntry), the same rule the run queue uses
+  // (MYK9-1889). A leftover ring_entry_time alone does not make a dog in the
+  // ring; MYK9-1779 stops new stale times from being written.
   const queue = toRunQueueEntry(entry);
   const checkIn = entry.checkInStatus ?? entry.check_in_status;
   const ran =
@@ -49,7 +51,7 @@ function toPlacementInput(
     isScored: Boolean(queue.isScored) || ran,
     status: queue.status,
     pulled: checkIn === 'pulled',
-    inRing: Boolean(queue.inRing) || (Boolean(entry.ring_entry_time) && queue.status !== 'pulled'),
+    inRing: Boolean(queue.inRing),
   };
 }
 

@@ -124,10 +124,12 @@ export function useEntryManagementActions({
 }: UseEntryManagementActionsProps): UseEntryManagementActionsReturn {
   const [isProcessing, setIsProcessing] = useState(false);
   const entriesRef = useRef(entries);
+  const selectedShowIdRef = useRef(selectedShowId);
 
   useEffect(() => {
     entriesRef.current = entries;
-  }, [entries]);
+    selectedShowIdRef.current = selectedShowId;
+  }, [entries, selectedShowId]);
 
   // INTENT: Entry Management supports explicit per-entry armband corrections only.
   // Bulk automatic assignment was retired in MYK9-256 because no live workflow owned it;
@@ -162,9 +164,22 @@ export function useEntryManagementActions({
       // MYK9-1384: Undo of a Pull must put the dog back exactly as it was.
       const priorCheckInStatus = entry.classes[0]?.checkInStatus;
       const offline = typeof navigator !== 'undefined' && !navigator.onLine;
+      // The decision as it was made, kept for an Undo window that outlives this show's list
+      // (she may switch shows before it closes). The patches below land on it too, so it
+      // carries the armband an Accept assigns.
+      let decided: EntryManagementEntry = { ...entry, entryStatus: newStatus };
       const ok = await executeStatusChange(
         { entryId, newStatus, withdrawalReason, entry, userId: user?.id },
-        { changeSecretaryStatus: changeSecretaryEntryStatus, patchEntries: setEntries }
+        {
+          changeSecretaryStatus: changeSecretaryEntryStatus,
+          patchEntries: update => {
+            setEntries(update);
+            if (typeof update === 'function') {
+              decided = update([decided])[0] ?? decided;
+              decided = { ...decided, entryStatus: newStatus };
+            }
+          },
+        }
       );
 
       if (!ok) {
@@ -187,7 +202,12 @@ export function useEntryManagementActions({
           onStood: options?.onStood
             ? () => {
                 const current = entriesRef.current.find(e => e.id === entryId);
-                if (current?.entryStatus === newStatus) options.onStood?.(current);
+                if (current?.entryStatus === newStatus) {
+                  options.onStood?.(current);
+                } else if (!current && selectedShowIdRef.current !== decided.showId) {
+                  // The list now belongs to another show: the decision still stood.
+                  options.onStood?.(decided);
+                }
               }
             : undefined,
           ...(offline ? { description: COPY.savedOffline } : {}),

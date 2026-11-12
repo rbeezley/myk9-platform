@@ -77,4 +77,18 @@ describe('decisionEmailPlan', () => {
     // Each email has its own switch.
     expect(result.current.decisionEmailPlan('waitlisted')).toBe('send');
   });
+
+  it('previews offline even when the switch is on and the show is live', async () => {
+    summaryLoads([{ stepType: 'accepted', isEnabled: true }]);
+    const { result, rerender, summaryLoaded } = mount(true);
+    await summaryLoaded();
+    rerender();
+    const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    try {
+      expect(result.current.decisionEmailPlan('accepted')).toBe('preview');
+    } finally {
+      online.mockRestore();
+    }
+    expect(result.current.decisionEmailPlan('accepted')).toBe('send');
+  });
 });

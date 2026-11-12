@@ -19,3 +19,5 @@ export const CONFLICT_TOAST_DESCRIPTION =
   'Choose which change to keep. The other one is thrown away.';
 export const CONFLICT_TAKE_REMOTE_LABEL = 'Keep the other change';
 export const CONFLICT_KEEP_LOCAL_LABEL = 'Keep my change';
+/** The button beside the Verify blocked reason that raises the closed conflict notice again. */
+export const CONFLICT_REOPEN_LABEL = 'Show the choice again';

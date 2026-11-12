@@ -19,7 +19,11 @@ import { useEffect, useRef, useState } from 'react';
 /** How often a class waiting to sync is re-read; see the effect below. */
 const WAITING_RECHECK_MS = 1_500;
 
-import { CONFLICT_KEEP_LOCAL_LABEL, CONFLICT_TAKE_REMOTE_LABEL } from '@/lib/offlineCopy';
+import {
+  CONFLICT_KEEP_LOCAL_LABEL,
+  CONFLICT_REOPEN_LABEL,
+  CONFLICT_TAKE_REMOTE_LABEL,
+} from '@/lib/offlineCopy';
 import { replicatedClassesTable } from '@/services/replication';
 
 /** `'unreadable'`: no read has succeeded for a while (failed or hung); it is still re-checked on a timer. */
@@ -147,8 +151,8 @@ export function classRowSyncBlockedReason(state: ClassRowSyncState | null): stri
     return 'Still checking this class. If this message stays, restart the app.';
   }
   if (state === 'conflict') {
-    // The notice can be closed, and a reload raises it again, so say so: never a dead end.
-    return `This class was changed somewhere else. Choose "${CONFLICT_TAKE_REMOTE_LABEL}" or "${CONFLICT_KEEP_LOCAL_LABEL}" on the notice to settle it, then the check can show. If you closed the notice, leave this page and open it again to bring it back.`;
+    // The notice can be closed; the button beside this text raises it again: never a dead end.
+    return `This class was changed somewhere else. Choose "${CONFLICT_TAKE_REMOTE_LABEL}" or "${CONFLICT_KEEP_LOCAL_LABEL}" on the notice to settle it, then the check can show. If you closed the notice, choose "${CONFLICT_REOPEN_LABEL}".`;
   }
   if (state === 'waiting') {
     return "Waiting for this class's changes to be sent before the check can show";

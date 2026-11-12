@@ -30,4 +30,22 @@ describe('transformEntry in-ring versus ring_entry_time (MYK9-1892)', () => {
     );
     expect(isInRingEntry(entry)).toBe(true);
   });
+
+  it('the is_in_ring flag counts as in the ring even when check-in says checked-in', () => {
+    const entry = transformEntry(
+      makeEntry({ check_in_status: 'checked-in', is_in_ring: true }),
+      null
+    );
+    expect(entry.inRing).toBe(true);
+    expect(isInRingEntry(entry)).toBe(true);
+  });
+
+  it('a withdrawn row with a stale is_in_ring flag is not in the ring', () => {
+    const entry = transformEntry(
+      makeEntry({ entry_status: 'withdrawn', check_in_status: 'in-ring', is_in_ring: true }),
+      null
+    );
+    expect(entry.inRing).toBe(false);
+    expect(isInRingEntry(entry)).toBe(false);
+  });
 });

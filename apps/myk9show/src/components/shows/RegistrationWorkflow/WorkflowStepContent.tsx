@@ -41,6 +41,7 @@ import {
 } from './entrySubmissionOutcomes';
 import { buildRegistrationEntryBlankDownloads } from './entryBlankOptions';
 import { getDogRegisteredName } from '@/types/dog-types';
+import { FREE_ENTRY_AMOUNT_LABEL, isFreeEntry } from '@/utils/entryAmountOwed';
 
 interface OptimisticRegistrationState {
   formData: RegistrationFormData;
@@ -145,6 +146,11 @@ export function WorkflowStepContent({
   );
   const receiptSelectedDogs = receiptClassSelections.map(selection => selection.dogId);
   const receiptTotalFees = getCreatedOutcomeTotalFees(entryOutcomes, currentRegistrationTotalFees);
+  // MYK9-1908: a Free entry owes nothing, so its receipt says so rather than quoting the class
+  // fee. The server records a `waived` submission as payment_status 'waived'.
+  const receiptIsFree =
+    optimisticState.formData.paymentMethod === 'waived' ||
+    isFreeEntry({ paymentStatus: optimisticState.paymentStatus });
 
   // Styled receipt branch — hooks must be top-level (Rules of Hooks);
   // expensive .find() lookups are memoized and only compute during confirmation step.
@@ -321,7 +327,9 @@ export function WorkflowStepContent({
           dogRegisteredName: styledReceipt.dogRegisteredName,
           dogCallName: styledReceipt.dogCallName,
           classSummary: styledReceipt.classSummary,
-          totalFeesFormatted: `$${receiptTotalFees.toFixed(2)}`,
+          totalFeesFormatted: receiptIsFree
+            ? FREE_ENTRY_AMOUNT_LABEL
+            : `$${receiptTotalFees.toFixed(2)}`,
           registrationNumber: registrationNumber ?? null,
           confirmationDateLabel: styledReceipt.confirmationDateLabel,
           // INTENT: Exhibitor self-service still waits for the post-draw blank.

@@ -35,7 +35,6 @@ import {
 import { toast } from 'sonner';
 import { SyncFailureReason } from './SyncFailureReason';
 import { showConflictSurfacingEnabled } from '@/features/show-presence/conflictSurfacingFlag';
-import { conflictToastId } from '@/features/show-presence/conflictToastId';
 import { features } from '@/config/features';
 import { supabase } from '@/services/database/supabaseClient';
 
@@ -823,7 +822,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
   useEffect(() => {
     const handleConflict = (event: Event) => {
       const detail = (event as CustomEvent<ReplicationConflictEventDetail>).detail;
-      const conflictId = conflictToastId(detail.tableName, detail.rowId);
+      const conflictId = `conflict:${detail.tableName}:${detail.rowId}`;
 
       logger.warn('Replication conflict detected', 'replication', {
         tableName: detail.tableName,

@@ -36,6 +36,7 @@ const sentAcceptedJob: EntryDecisionEmailJob = {
   preparedAt: '2026-07-08T12:00:00Z',
   sentAt: '2026-07-08T12:05:00Z',
   correctionForJobId: null,
+  coveredEntryIds: ['entry-1'],
 };
 
 describe('EntryDecisionEmailStatusBadge', () => {

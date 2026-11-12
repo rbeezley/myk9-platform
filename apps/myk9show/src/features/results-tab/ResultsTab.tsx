@@ -185,7 +185,8 @@ export default function ResultsTab({ showStatsLink }: { showStatsLink?: ReactNod
   const unsyncedScores = useClassUnsyncedScores(selected?.id ?? null);
   // The saved check reaches this device through a class sync, which a dirty or conflicted class row
   // refuses; say so up front instead of letting the click look like it did nothing (MYK9-1113).
-  const verifyBlockedReason = classRowSyncBlockedReason(useClassRowSyncState(selected?.id ?? null));
+  const classRowSync = useClassRowSyncState(selected?.id ?? null);
+  const verifyBlockedReason = classRowSyncBlockedReason(classRowSync);
   const [releaseChecking, setReleaseChecking] = useState(false);
   // Bumped whenever the check is taken back, so a Release already reading the server can tell.
   const checkGeneration = useRef(0);
@@ -401,6 +402,7 @@ export default function ResultsTab({ showStatsLink }: { showStatsLink?: ReactNod
       }}
       releaseBlockedReason={releaseBlockedReason}
       verifyBlockedReason={verifyBlockedReason}
+      reopenConflictClassId={classRowSync === 'conflict' ? selected.id : null}
       verifying={verification.isPending}
       online={isOnline}
       onRecordCoinFlip={() => setCoinFlipOpen(true)}

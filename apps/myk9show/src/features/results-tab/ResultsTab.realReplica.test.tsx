@@ -10,7 +10,7 @@ import { QueryClient } from '@tanstack/react-query';
 import { configure, getConfig } from '@testing-library/react';
 import { Route, Routes } from 'react-router-dom';
 
-import { render, screen, waitFor } from '@/test/utils/testUtils';
+import { render, screen, userEvent, waitFor } from '@/test/utils/testUtils';
 import { mockSupabase } from '@/test/mocks/supabase';
 import { replicatedClassesTable, replicatedEntriesTable } from '@/services/replication';
 import type { SyncableTrial, SyncableTrialClass } from '@/store/trial-store-types';
@@ -443,10 +443,21 @@ describe('Results tab on the real replicated class rows', () => {
       expect(await screen.findByText(/changed somewhere else/)).toBeInTheDocument();
       expect(screen.getByRole('button', SAVE_CHECK)).toBeDisabled();
       expect(screen.getByText(/Keep the other change" or "Keep my change/)).toBeInTheDocument();
-      // A dismissed notice is not a dead end: the copy says how to bring it back.
+      // A dismissed notice is not a dead end: the copy names a button that brings it back.
       expect(
-        screen.getByText(/leave this page and open it again to bring it back/)
+        screen.getByText(/If you closed the notice, choose "Show the choice again"/)
       ).toBeInTheDocument();
+      const raised: unknown[] = [];
+      const listen = (event: Event) => raised.push((event as CustomEvent).detail);
+      window.addEventListener('replication:conflict', listen);
+      try {
+        await userEvent.click(screen.getByRole('button', { name: 'Show the choice again' }));
+        await waitFor(() => expect(raised).toHaveLength(1));
+      } finally {
+        window.removeEventListener('replication:conflict', listen);
+      }
+      // The same conflict from this device's kept copy, so the provider shows the existing notice.
+      expect(raised[0]).toMatchObject({ tableName: 'classes', rowId: 'class-open' });
 
       // Keep the other change: the server's row, check included, replaces the local one.
       await replicatedClassesTable.resolveReplicationConflict('class-open', 'take-remote');

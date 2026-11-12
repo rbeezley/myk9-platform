@@ -177,7 +177,7 @@ describe('one decision email for several entries of a registration (MYK9-1800)',
 
     expect(draft.subject).toBe('Entries accepted - Show');
     expect(draft.body).toContain('Your entries for Rex have been accepted for Show.');
-    expect(draft.body).toContain('Classes: Class entry-1, Class entry-2, Class entry-3');
+    expect(draft.body).toContain('Classes:\n- Class entry-1\n- Class entry-2\n- Class entry-3');
     expect(draft.body.match(/Armband: 12/g)).toHaveLength(1);
   });
 
@@ -190,7 +190,7 @@ describe('one decision email for several entries of a registration (MYK9-1800)',
       ),
     });
 
-    expect(draft.body).toContain('Your entries for Rex and Bess are on the waitlist for Show.');
+    expect(draft.body).toContain('Your entries for Bess and Rex are on the waitlist for Show.');
     expect(draft.body).toContain('- Rex: Class entry-1');
     expect(draft.body).toContain('- Bess: Class entry-2');
   });

@@ -6,13 +6,7 @@ export function joinNames(names: string[]): string {
   return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
 }
 
-interface DogDecision {
-  dogName: string | null;
-  classNames: string[];
-  armbandNumber: string | null;
-}
-
-/** "Sat, Dec 7" for a YYYY-MM-DD trial day; null when there is none to show. */
+/** "Mon, Dec 7" for a YYYY-MM-DD trial day; null when there is none to show. */
 function trialDayLabel(trialDate: string | null | undefined): string | null {
   if (!trialDate) return null;
   const day = new Date(`${trialDate.slice(0, 10)}T12:00:00`);
@@ -20,57 +14,68 @@ function trialDayLabel(trialDate: string | null | undefined): string | null {
   return day.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
-function groupByDog(entries: LifecycleEmailEntryContext[]): DogDecision[] {
-  const dogs: Array<DogDecision & { classes: LifecycleEmailEntryContext[] }> = [];
-  for (const entry of entries) {
-    const dogName = entry.dogName?.trim() || null;
-    let dog = dogs.find(candidate => candidate.dogName === dogName);
-    if (!dog) {
-      dog = { dogName, classNames: [], armbandNumber: null, classes: [] };
-      dogs.push(dog);
-    }
-    if (entry.className) dog.classes.push(entry);
-    dog.armbandNumber ??= entry.armbandNumber ?? null;
-  }
-  // Every entry stays listed, because every entry is charged. The same class entered on two
-  // days carries its day, so "Novice Container (Sat, Dec 7), Novice Container (Sun, Dec 8)".
-  for (const dog of dogs) {
-    const counts = new Map<string, number>();
-    for (const c of dog.classes) counts.set(c.className!, (counts.get(c.className!) ?? 0) + 1);
-    dog.classNames = dog.classes.map(c => {
-      const day = (counts.get(c.className!) ?? 0) > 1 ? trialDayLabel(c.trialDate) : null;
-      return day ? `${c.className} (${day})` : c.className!;
-    });
-  }
-  return dogs;
+const dogOf = (entry: LifecycleEmailEntryContext) => entry.dogName?.trim() || null;
+
+/** Schedule order: day, then trial, then dog, then class. Ids decide only the email's key. */
+function inScheduleOrder(entries: LifecycleEmailEntryContext[]): LifecycleEmailEntryContext[] {
+  const text = (value: string | null | undefined) => value ?? '';
+  const trial = (entry: LifecycleEmailEntryContext) =>
+    Number.parseInt(entry.trialNumber ?? '', 10) || 0;
+  return [...entries].sort(
+    (a, b) =>
+      text(a.trialDate).localeCompare(text(b.trialDate)) ||
+      trial(a) - trial(b) ||
+      text(dogOf(a)).localeCompare(text(dogOf(b))) ||
+      text(a.className).localeCompare(text(b.className))
+  );
+}
+
+/**
+ * One line per decided class, written the way the app shows a class
+ * ("Mon, Dec 7 · Trial 1 · Novice Container"). Every entry is listed because every entry is
+ * charged, and the day and trial tell apart the same class entered twice.
+ */
+function classLine(entry: LifecycleEmailEntryContext, withDog: boolean): string {
+  const parts = [
+    trialDayLabel(entry.trialDate),
+    entry.trialNumber ? `Trial ${entry.trialNumber}` : null,
+    entry.className ?? 'class to be confirmed',
+  ].filter(Boolean);
+  const dog = withDog ? `${dogOf(entry) ?? 'Your dog'}: ` : '';
+  return `- ${dog}${parts.join(' · ')}`;
 }
 
 /**
  * The lines an acceptance or waitlist email adds when one action decided several classes of
- * the same registration: the sentence naming the dog(s) and every class, in one email.
- * `decision` completes "Your entries for Rex ___ for the show", e.g. "have been accepted".
+ * the same registration: the sentence naming the dog(s), then every class on its own line.
+ * `decision` completes "Your entries for Rex ___ the show", e.g. "have been accepted for".
  */
 export function buildMultiEntryDecisionLines(
   entry: LifecycleEmailEntryContext,
   showName: string,
   decision: { verb: string; withArmbands: boolean }
 ): Array<string | null> {
-  const dogs = groupByDog([entry, ...(entry.alsoDecided ?? [])]);
-  const names = dogs.map(dog => dog.dogName).filter((name): name is string => Boolean(name));
+  const entries = inScheduleOrder([entry, ...(entry.alsoDecided ?? [])]);
+  const names = [...new Set(entries.map(dogOf).filter((name): name is string => Boolean(name)))];
   const forDogs = names.length > 0 ? ` for ${joinNames(names)}` : '';
-  const lines: Array<string | null> = [`Your entries${forDogs} ${decision.verb} ${showName}.`];
+  const severalDogs = names.length > 1;
+  const lines: Array<string | null> = [
+    `Your entries${forDogs} ${decision.verb} ${showName}.`,
+    'Classes:',
+    ...entries.map(e => classLine(e, severalDogs)),
+  ];
 
-  if (dogs.length === 1) {
-    const [dog] = dogs;
-    if (dog?.classNames.length) lines.push(`Classes: ${dog.classNames.join(', ')}`);
-    if (decision.withArmbands && dog?.armbandNumber) lines.push(`Armband: ${dog.armbandNumber}`);
-    return lines;
-  }
-  for (const dog of dogs) {
-    const armband =
-      decision.withArmbands && dog.armbandNumber ? ` (armband ${dog.armbandNumber})` : '';
-    const classes = dog.classNames.length ? dog.classNames.join(', ') : 'class to be confirmed';
-    lines.push(`- ${dog.dogName ?? 'Your dog'}: ${classes}${armband}`);
+  if (decision.withArmbands) {
+    const armbands = new Map<string, string>();
+    for (const e of entries) {
+      const dog = dogOf(e) ?? 'Your dog';
+      if (e.armbandNumber && !armbands.has(dog)) armbands.set(dog, e.armbandNumber);
+    }
+    if (armbands.size === 1 && !severalDogs) {
+      lines.push(`Armband: ${[...armbands.values()][0]}`);
+    } else if (armbands.size > 0) {
+      lines.push(`Armbands: ${[...armbands].map(([dog, n]) => `${dog} ${n}`).join(', ')}`);
+    }
   }
   return lines;
 }

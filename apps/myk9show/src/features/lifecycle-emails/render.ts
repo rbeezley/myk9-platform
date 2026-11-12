@@ -19,6 +19,8 @@ export interface LifecycleEmailEntryContext {
   className?: string | null;
   /** The class's trial day (YYYY-MM-DD): tells apart the same class entered on two days. */
   trialDate?: string | null;
+  /** The class's trial number, listed with the day when one email covers several classes. */
+  trialNumber?: string | null;
   armbandNumber?: string | null;
   /** The trial registry whose number is missing (registration_number_needed). */
   registryName?: string | null;

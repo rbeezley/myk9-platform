@@ -111,6 +111,7 @@ function entryContext(entry: EntryManagementEntry): LifecycleEmailEntryContext {
     className: entry.classes[0]?.name ?? null,
     // Only the multi-class lines read the day; a lone entry's context stays as it was.
     ...(entry.classes[0]?.trialDate ? { trialDate: entry.classes[0].trialDate } : {}),
+    ...(entry.classes[0]?.trialNumber ? { trialNumber: entry.classes[0].trialNumber } : {}),
     armbandNumber: entry.armbandNumber ?? null,
     amountDue: Math.max(0, entry.totalFee - entry.paidAmount),
   };

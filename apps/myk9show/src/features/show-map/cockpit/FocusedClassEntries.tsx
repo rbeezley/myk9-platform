@@ -1,6 +1,5 @@
 import {
   DndContext,
-  KeyboardSensor,
   PointerSensor,
   TouchSensor,
   closestCenter,
@@ -16,6 +15,7 @@ import {
 import { findInRingEntry, pendingByRunOrder, type RunQueueEntry } from '@myk9/ringside/run-queue';
 
 import { cn } from '@/lib/utils';
+import { ListKeyboardSensor } from './listKeyboardSensor';
 import {
   Table,
   TableBody,
@@ -219,7 +219,8 @@ export function ClassEntriesTable({
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+    // Not the stock KeyboardSensor: it lost ArrowDown presses inside the sticky panel (MYK9-1902).
+    useSensor(ListKeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
   const onDragEnd = (event: DragEndEvent) => {
     if (!reorder || reorder.runOrder.isAutoSorting) return;

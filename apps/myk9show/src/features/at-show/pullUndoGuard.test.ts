@@ -79,18 +79,31 @@ describe('Pull Undo only restores the Pull it owns (MYK9-1880)', () => {
     expect(restore).toHaveBeenCalledWith('checked-in');
   });
 
-  it('an exhibitor Undo restores while the replica has not heard of the Pull yet', async () => {
-    const { restore, undo } = pull('self-checkin-rpc');
-    replicaNow('checked-in');
+  it('an exhibitor Undo restores even though the replica still says no-status', async () => {
+    // The RPC never touches the replica: it holds a stale row, the UI prior status is fresher.
+    const { restore, undo } = pull('self-checkin-rpc', 'checked-in');
+    replicaNow('no-status');
     undo();
     await flush();
     expect(restore).toHaveBeenCalledWith('checked-in');
+    expect(toastInfo).not.toHaveBeenCalled();
   });
 
-  it('an exhibitor Undo is refused once the replica shows a newer status', async () => {
-    const { restore, undo } = pull('self-checkin-rpc');
+  it('an exhibitor Undo never consults the replica', async () => {
+    const { undo } = pull('self-checkin-rpc');
     replicaNow('in-ring');
     undo();
+    await flush();
+    expect(getEntryById).not.toHaveBeenCalled();
+  });
+
+  it('an exhibitor re-Pull on this device kills the older Undo', async () => {
+    const restore = vi.fn();
+    const row = { id: 'exhibitor-dog', callName: 'Hazel', status: 'checked-in' } as never;
+    offerPullUndo(row, 'self-checkin-rpc', restore);
+    const oldUndo = vi.mocked(showUndoToast).mock.calls.at(-1)?.[0].onUndo;
+    offerPullUndo(row, 'self-checkin-rpc', restore);
+    oldUndo?.();
     await flush();
     expect(restore).not.toHaveBeenCalled();
     expect(toastInfo).toHaveBeenCalledWith(NOTICE);

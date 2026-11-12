@@ -178,7 +178,6 @@ export function useMyEntriesDialogs({
             void undoPullIfCurrent({
               entryId: classEntry.id,
               token,
-              priorStatus,
               callName: entry.dogName,
               replicaMayLag: true,
               restore: () =>

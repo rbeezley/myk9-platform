@@ -48,7 +48,6 @@ export function offerPullUndo(
       void undoPullIfCurrent({
         entryId,
         token,
-        priorStatus,
         callName: previous.callName,
         replicaMayLag: writer === 'self-checkin-rpc',
         restore: () => restore(priorStatus),

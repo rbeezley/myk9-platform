@@ -317,28 +317,6 @@ describe('useMyEntriesDialogs', () => {
     expect(updateEntryCheckIn).toHaveBeenCalledTimes(1);
   });
 
-  it.each(['checked-in', 'in-ring', 'completed'])(
-    'Undo writes nothing and says so when another writer set %s after the Pull',
-    async newer => {
-      const { result, updateEntryCheckIn } = setup();
-      const staffSetPrior: EntryClass = { ...CLASS_ROW, checkInStatus: 'at-gate' };
-
-      act(() => result.current.openCheckIn(ENTRY, staffSetPrior));
-      await act(() => result.current.submitCheckInStatus('pulled'));
-      const toastOptions = toastSuccess.mock.calls[0]?.[1] as { action: { onClick: () => void } };
-
-      getEntryById.mockResolvedValue({ checkInStatus: newer });
-      await act(async () => {
-        toastOptions.action.onClick();
-      });
-
-      expect(updateEntryCheckIn).toHaveBeenCalledTimes(1);
-      expect(toastInfo).toHaveBeenCalledWith(
-        "Cooper's status changed after the Pull, so Undo did nothing."
-      );
-    }
-  );
-
   it('Undo writes nothing when the dog was pulled again after this Pull', async () => {
     const { result, updateEntryCheckIn } = setup();
     const checkedInClass: EntryClass = { ...CLASS_ROW, checkInStatus: CHECKED_IN };
@@ -358,7 +336,7 @@ describe('useMyEntriesDialogs', () => {
     expect(toastInfo).toHaveBeenCalledTimes(1);
   });
 
-  it('Undo still restores when the replica has not yet heard of the Pull', async () => {
+  it('Undo restores even when the replica holds a different, stale status', async () => {
     const { result, updateEntryCheckIn } = setup();
     const checkedInClass: EntryClass = { ...CLASS_ROW, checkInStatus: CHECKED_IN };
 
@@ -366,7 +344,7 @@ describe('useMyEntriesDialogs', () => {
     await act(() => result.current.submitCheckInStatus('pulled'));
     const toastOptions = toastSuccess.mock.calls[0]?.[1] as { action: { onClick: () => void } };
 
-    getEntryById.mockResolvedValue({ checkInStatus: CHECKED_IN });
+    getEntryById.mockResolvedValue({ checkInStatus: 'no-status' });
     await act(async () => {
       toastOptions.action.onClick();
     });

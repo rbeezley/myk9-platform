@@ -9,6 +9,22 @@ describe('visible wording guard (MYK9-1857, MYK9-1848)', () => {
     expect(scanVisibleWording('x.tsx', src).map(h => h.line)).toEqual([1, 2, 3]);
   });
 
+  it('flags a phrase the formatter wrapped across lines in JSX text', () => {
+    const src = [
+      'const a = (',
+      '  <p>',
+      '    The cards are unavailable offline. The wait',
+      '    lists below are read from this device. Changes will',
+      '    sync later.',
+      '  </p>',
+      ');',
+    ].join('\n');
+    expect(scanVisibleWording('x.tsx', src).map(h => h.rule)).toEqual([
+      'waitlist is one word',
+      'say "will be sent when you are back online" or "not been sent yet", not "sync"',
+    ]);
+  });
+
   it('flags a Retry label in JSX, props and expressions, but not in comments, identifiers or logs', () => {
     const src = [
       '// wait list, Retry',

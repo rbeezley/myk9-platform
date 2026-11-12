@@ -31,7 +31,10 @@ import { NEXT_UP_PREVIEW_LIMIT } from '@/features/at-show/atShowNextUpPreview';
 import { ClassCheckInCell } from './ClassCheckInCell';
 import { useClassCheckIn } from './useClassCheckIn';
 import { ClassEntryRowMenu } from './ClassEntryRowMenu';
+import { entryEditHref } from './entryRowLinks';
+import { useMarkEntryAbsent } from './useMarkEntryAbsent';
 import type {
+  CockpitLifecycle,
   SecretaryCockpitEntryAction,
   SecretaryCockpitRunOrderControls,
 } from './secretaryCockpitTypes';
@@ -175,6 +178,10 @@ export function ClassEntriesTable({
   rowMenu?:
     | {
         actions: ReadonlyMap<string, readonly SecretaryCockpitEntryAction[]>;
+        /** The show and class ids: Edit entry's link and Mark absent's write are keyed on them. */
+        showId: string;
+        classId: string;
+        classLifecycle: CockpitLifecycle | null;
         onCommand: (commandId: string) => void;
       }
     | undefined;
@@ -191,6 +198,13 @@ export function ClassEntriesTable({
   unread?: boolean;
 }) {
   const checkIn = useClassCheckIn(entries, className, canChangeCheckIn, onRefreshEntries);
+  const markAbsent = useMarkEntryAbsent({
+    classId: rowMenu?.classId ?? '',
+    className,
+    entries,
+    classLifecycle: rowMenu?.classLifecycle ?? null,
+    onRefreshEntries,
+  });
   // Who can move comes from the placement model the write uses, never from this table's states.
   const placement = useRunOrderPlacement(
     reorder?.showId ?? '',
@@ -290,8 +304,10 @@ export function ClassEntriesTable({
               <TableCell className="px-0">
                 {rowMenu && (
                   <ClassEntryRowMenu
-                    dogName={entry.dogName}
-                    armband={entry.armband}
+                    entry={entry}
+                    editEntryHref={entryEditHref(rowMenu.showId, entry.entryId)}
+                    onMarkAbsent={markAbsent.request}
+                    classLifecycle={rowMenu.classLifecycle}
                     actions={rowMenu.actions.get(entry.nodeId) ?? NO_ACTIONS}
                     onCommand={rowMenu.onCommand}
                   />
@@ -356,6 +372,7 @@ export function ClassEntriesTable({
       )}
       {hiddenNote}
       {checkIn.dialogs}
+      {rowMenu && markAbsent.dialog}
     </>
   );
 }

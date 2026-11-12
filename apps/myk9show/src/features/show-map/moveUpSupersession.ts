@@ -53,7 +53,16 @@ const RUN_STARTED_NUMERIC_COLUMNS = [
   'points_possible',
 ] as const;
 
-/** Timestamps whose presence means a run has begun. Same source, same rule. */
+/**
+ * Timestamps whose presence means a run has begun. Same source, same rule.
+ *
+ * `ring_entry_time` stays here on purpose (MYK9-1892). This is NOT the "is the dog in the ring
+ * now" rule (that is `isInRingEntry`, which a leftover stamp does not satisfy). It is the
+ * conservative "has anything ever been recorded against this row" signal that mirrors the SQL
+ * guard in `reverse_move_up_entry` (`v_dest.ring_entry_time IS NOT NULL`): a stamp, even a
+ * leftover one, is evidence the destination row was touched, and refusing Move back is the safe
+ * direction. Dropping it here would offer a button the server then rejects.
+ */
 const RUN_STARTED_TIMESTAMP_COLUMNS = ['scoring_started_at', 'ring_entry_time'] as const;
 
 function readNumeric(entry: Partial<ReplicatedEntry>, column: string): number {

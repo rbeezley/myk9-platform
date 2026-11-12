@@ -187,9 +187,9 @@ describe('showMapStatus', () => {
     });
 
     it('a stale in-ring flag on a withdrawn row is not In ring', () => {
-      expect(
-        classifyEntryRunStatus({ entry_status: 'withdrawn', is_in_ring: true })?.label
-      ).toBe('Pulled');
+      expect(classifyEntryRunStatus({ entry_status: 'withdrawn', is_in_ring: true })?.label).toBe(
+        'Pulled'
+      );
     });
   });
 

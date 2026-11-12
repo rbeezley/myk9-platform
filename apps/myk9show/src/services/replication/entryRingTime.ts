@@ -6,8 +6,11 @@ const RUN_STATUSES: ReadonlySet<string> = new Set(['in-ring', 'completed']);
 /**
  * MYK9-1761: the extra field a check-in write must carry so an unscored dog moved off the
  * ring (back to a pre-run status, a conflict or a pull) loses the ring_entry_time stamped
- * when the judge started its run (Start on the scoresheet, MYK9-1779). Show Map, hand placement and move-up supersession all read
- * that stamp as "in the ring / run started".
+ * when the judge started its run (Start on the scoresheet, MYK9-1779).
+ * This module only CLEARS stale stamps; it decides nothing about who is in the ring (that is
+ * `isInRingEntry`, MYK9-1889). The stamp is still read as "a run began" by move-up supersession
+ * (mirroring its SQL guard) and as the class's actual start time, so a stamp left on a dog that
+ * is no longer running would mislead those two readers (MYK9-1892).
  *
  * The one rule for every entries-table write that sets a check-in status, so no screen
  * can bypass it. A score reset counts too (MYK9-1778): it unscores the dog, so it is judged

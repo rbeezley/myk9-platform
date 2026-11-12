@@ -272,6 +272,9 @@ export function transformEntry(re: ReplicatedEntry, cls: ReplicatedClass | null)
     ...(finalPlacement != null && { placement: Number(finalPlacement) }),
     ...(totalPoints != null && { totalPoints }),
     ...(scoredAt != null && { scoredAt }),
+    // ring_entry_time is passed through as a TIMESTAMP only (ringside derives the class's actual
+    // start time from it). In-ring is decided above from `status` and never from this stamp,
+    // so a leftover stamp cannot make a dog look in the ring (MYK9-1892).
     ...(re.ring_entry_time != null && { ringEntryTime: re.ring_entry_time }),
     ...(re.ring_exit_time != null && { ringExitTime: re.ring_exit_time }),
     ...(re.disqualification_reason != null && { nqReason: re.disqualification_reason }),

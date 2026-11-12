@@ -35,6 +35,8 @@ const MAX_HEADER_HEIGHT = 160;
 // Only the files this header is made of, so the stylesheet compiles in seconds, not the app's tens.
 const CSS_SOURCES = [
   '../../../../../packages/ringside/src/pages/EntryList/components/EntryListHeader.tsx',
+  '../../../../../packages/ringside/src/pages/EntryList/components/entryListHeaderHelpers.tsx',
+  '../../../../../packages/scoring-ui/src/components/OfflineScoresIndicator.tsx',
   '../../../../../packages/ui/src/**/*.{ts,tsx}',
   '../../features/at-show/slots/atShowSyncChrome.tsx',
   '../../features/offline-readiness/OfflineStatusLine.tsx',

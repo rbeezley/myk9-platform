@@ -20,7 +20,7 @@
  * The shim renders `<EntryListPage {...all-the-bags} />` and that's it.
  */
 
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
 import { TabBar } from '@myk9/ui';
@@ -125,8 +125,15 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
   const { sensors, handleDragStart, handleDragEnd } = drag;
   const { isSyncing, hasError } = actions;
 
+  const { setSearchTerm } = uiActions;
+  const setSectionFilter = combined?.setSectionFilter;
+  const clearListFilters = useCallback(() => {
+    setSearchTerm('');
+    setSectionFilter?.('all');
+  }, [setSearchTerm, setSectionFilter]);
+
   const { handlePrintSortOrder, handleOpenDragMode, handleApplyRunOrder } = useEntryListPageActions(
-    { handlers, uiActions, printDialogType, currentEntries }
+    { handlers, uiActions, printDialogType, currentEntries, clearListFilters }
   );
 
   const statusTabs = useMemo(

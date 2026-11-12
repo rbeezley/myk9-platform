@@ -21,6 +21,11 @@ export interface UseEntryListPageActionsDeps {
   printDialogType: EntryListUiState['printDialogType'];
   /** The order currently on screen — seeded as the starting manual order. */
   currentEntries: Entry[];
+  /**
+   * Empties the search term and the combined list's Section tab. Drag mode renumbers the list it
+   * shows 1..N, so it must show the whole list or the numbers collide with hidden dogs (MYK9-1808).
+   */
+  clearListFilters: () => void;
 }
 
 export interface EntryListPageActions {
@@ -38,6 +43,7 @@ export function useEntryListPageActions({
   uiActions,
   printDialogType,
   currentEntries,
+  clearListFilters,
 }: UseEntryListPageActionsDeps): EntryListPageActions {
   const { setPrintDialogType, setRunOrderDialogOpen, setManualOrder, setSortOrder } = uiActions;
 
@@ -68,10 +74,18 @@ export function useEntryListPageActions({
   // steward's finger the moment they let go.
   const handleOpenDragMode = useCallback(() => {
     setRunOrderDialogOpen(false);
+    clearListFilters();
     setManualOrder([...currentEntries]);
     handlers.handleOpenDragMode();
     setSortOrder('run');
-  }, [setRunOrderDialogOpen, setManualOrder, currentEntries, handlers, setSortOrder]);
+  }, [
+    setRunOrderDialogOpen,
+    clearListFilters,
+    setManualOrder,
+    currentEntries,
+    handlers,
+    setSortOrder,
+  ]);
 
   // Applying a run-order preset: close the dialog, confirm, and drop back to
   // run-order sort so the steward SEES the order they just applied.

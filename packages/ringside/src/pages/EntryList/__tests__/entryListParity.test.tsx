@@ -182,6 +182,24 @@ describe.each(PAGES)('entry-list parity — $name', page => {
     });
   });
 
+  describe('drag mode shows the whole list (MYK9-1808)', () => {
+    it('clears the search term, and the Section tab when there is one, as drag mode opens', () => {
+      // A drop numbers the list on screen 1..N. On a filtered subset that collides with the run
+      // orders of the dogs the filter hides, so the filters are emptied first.
+      const props = makeProps({ entries: [{ id: 'e1', classId: 'class-a' }], loaded: true });
+      render(
+        <MemoryRouter>
+          <EntryListPage {...props} />
+        </MemoryRouter>
+      );
+
+      contentSpy.onOpenDragMode?.();
+
+      expect(uiActionSpy.setSearchTerm).toHaveBeenCalledWith('');
+      if (props.combined) expect(props.combined.setSectionFilter).toHaveBeenCalledWith('all');
+    });
+  });
+
   describe('long press into drag mode', () => {
     it('is withheld from a viewer who may not change run order (MYK9-1808)', () => {
       // A card with no `onOpenDragMode` has no long press, so a viewer without the permission

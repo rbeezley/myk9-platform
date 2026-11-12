@@ -259,35 +259,34 @@ describe('useDragAndDropEntries — handleDragEnd reorder', () => {
     expect(merged).toHaveLength(4);
   });
 
-  it('keeps the run-order slots a filtered subset already held, so hidden dogs are never collided with (MYK9-1808)', async () => {
-    // A search shows only dogs 3, 7 and 9 of a class whose run orders are 1..10.
+  it('renumbers 1..N so two dogs that shared a run order can be reordered (MYK9-1808)', async () => {
     const updateExhibitorOrder = defaultUpdater();
-    const subset = [
-      makeEntry({ id: 'c', armband: 103, exhibitorOrder: 3 }),
-      makeEntry({ id: 'g', armband: 107, exhibitorOrder: 7 }),
-      makeEntry({ id: 'i', armband: 109, exhibitorOrder: 9 }),
+    const tied = [
+      makeEntry({ id: 'a', armband: 1, exhibitorOrder: 5 }),
+      makeEntry({ id: 'b', armband: 2, exhibitorOrder: 5 }),
+      makeEntry({ id: 'c', armband: 3, exhibitorOrder: 6 }),
     ];
     const { result } = renderHook(() =>
       useDragAndDropEntries({
-        localEntries: subset,
+        localEntries: tied,
         setLocalEntries: vi.fn(),
-        currentEntries: subset,
+        currentEntries: tied,
         updateExhibitorOrder,
       })
     );
 
     act(() => {
-      result.current.handleDragStart(dragStartEvent('c'));
+      result.current.handleDragStart(dragStartEvent('b'));
     });
     await act(async () => {
-      await result.current.handleDragEnd(dragEvent('c', 'i'));
+      await result.current.handleDragEnd(dragEvent('b', 'a'));
     });
 
     const reordered = updateExhibitorOrder.mock.calls[0][0] as Entry[];
     expect(reordered.map(e => [e.id, e.exhibitorOrder])).toEqual([
-      ['g', 3],
-      ['i', 7],
-      ['c', 9],
+      ['b', 1],
+      ['a', 2],
+      ['c', 3],
     ]);
   });
 

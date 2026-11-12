@@ -1,4 +1,13 @@
-import { createContext, useCallback, useContext, useEffect, useId, useMemo, useState } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   useBlocker,
   UNSAFE_DataRouterContext,
@@ -260,6 +269,14 @@ function BlockedNavigationDialog({
   subject: string;
   dialog?: UnsavedChangesDialogCopy | undefined;
 }) {
+  // Set by the leave button. Leaving also closes the dialog, and that close must not reset
+  // the blocker: React Router replays a proceeded Back (a POP) one task later, and a reset
+  // inside that window blocked the replay again, so Back then Discard looped (MYK9-1779).
+  const leavingRef = useRef(false);
+  useEffect(() => {
+    if (blocker.state === 'blocked') leavingRef.current = false;
+  }, [blocker.state, blocker.location]);
+
   if (blocker.state !== 'blocked') return null;
   const copy: UnsavedChangesDialogCopy = dialog ?? {
     title: `Leave ${subject}?`,
@@ -269,7 +286,12 @@ function BlockedNavigationDialog({
   };
 
   return (
-    <AlertDialog open onOpenChange={open => !open && blocker.reset()}>
+    <AlertDialog
+      open
+      onOpenChange={open => {
+        if (!open && !leavingRef.current) blocker.reset();
+      }}
+    >
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{copy.title}</AlertDialogTitle>
@@ -279,7 +301,10 @@ function BlockedNavigationDialog({
           <AlertDialogCancel onClick={() => blocker.reset()}>{copy.stayLabel}</AlertDialogCancel>
           <AlertDialogAction
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            onClick={() => blocker.proceed()}
+            onClick={() => {
+              leavingRef.current = true;
+              blocker.proceed();
+            }}
           >
             {copy.leaveLabel}
           </AlertDialogAction>

@@ -37,6 +37,14 @@ export interface BulkDispatchRunOptions<T> {
    */
   buildUndo?: (outcome: BulkDispatchOutcome<T>) => (() => void) | undefined;
   /**
+   * Called once with the outcome when what succeeded can no longer be taken back from the
+   * toast: it closed without Undo (full success), or there was never an Undo to press
+   * (partial failure, nothing succeeded is offered one). Not called when Undo is pressed, or
+   * when nothing succeeded. Runs on the toast's own clock, so work that must not outrun Undo
+   * (a decision email) hangs off this.
+   */
+  onStood?: (outcome: BulkDispatchOutcome<T>) => void;
+  /**
    * Per-run eligibility re-check used when the user retries the failed subset.
    * Overrides the hook-level `applicableWhen` for this dispatch and its retries.
    * Use it when eligibility is specific to THIS invocation — e.g. a bulk "accept"
@@ -108,7 +116,8 @@ export function useBulkDispatch<T>({
       onFullSuccess?: () => void,
       runApplicableWhen?: (item: T) => boolean,
       claimFailure?: (item: T, error: unknown) => boolean,
-      onClaimedFailures?: (items: T[]) => void
+      onClaimedFailures?: (items: T[]) => void,
+      onStood?: (outcome: BulkDispatchOutcome<T>) => void
     ) => {
       // A claimed failure is one the caller reports itself (e.g. in a dialog).
       // Claiming removes it from the DETAIL LINES and the retry set so the two
@@ -134,12 +143,40 @@ export function useBulkDispatch<T>({
       if (summary.fullSuccess) {
         onFullSuccess?.();
         const onUndo = buildUndo?.(outcome);
-        toast.success(
-          summary.title,
-          onUndo ? { action: { label: 'Undo', onClick: onUndo } } : undefined
-        );
+        if (!onStood || outcome.succeeded.length === 0) {
+          toast.success(
+            summary.title,
+            onUndo ? { action: { label: 'Undo', onClick: onUndo } } : undefined
+          );
+          return;
+        }
+        if (!onUndo) {
+          toast.success(summary.title);
+          onStood(outcome);
+          return;
+        }
+        // Sonner calls neither close callback for an action click; the flag says it outright.
+        let settled = false;
+        const stood = () => {
+          if (settled) return;
+          settled = true;
+          onStood(outcome);
+        };
+        toast.success(summary.title, {
+          action: {
+            label: 'Undo',
+            onClick: () => {
+              settled = true;
+              onUndo();
+            },
+          },
+          onAutoClose: stood,
+          onDismiss: stood,
+        });
         return;
       }
+      // Partial failure: the toast offers "Try failed again", not Undo, so what succeeded stands.
+      if (onStood && outcome.succeeded.length > 0) onStood(outcome);
 
       const details = unclaimed.map(
         ({ item, error }) => `${getLabel(item)}: ${errorReason(error)}`
@@ -188,7 +225,8 @@ export function useBulkDispatch<T>({
                       buildUndo,
                       onFullSuccess,
                       claimFailure,
-                      onClaimedFailures
+                      onClaimedFailures,
+                      onStood
                     );
                   },
                 },
@@ -210,7 +248,8 @@ export function useBulkDispatch<T>({
       buildUndo?: (outcome: BulkDispatchOutcome<T>) => (() => void) | undefined,
       onFullSuccess?: () => void,
       claimFailure?: (item: T, error: unknown) => boolean,
-      onClaimedFailures?: (items: T[]) => void
+      onClaimedFailures?: (items: T[]) => void,
+      onStood?: (outcome: BulkDispatchOutcome<T>) => void
     ): Promise<void> => {
       if (inFlightRef.current) return;
       inFlightRef.current = true;
@@ -248,7 +287,8 @@ export function useBulkDispatch<T>({
             onFullSuccess,
             runApplicableWhen,
             claimFailure,
-            onClaimedFailures
+            onClaimedFailures,
+            onStood
           );
         }
       } catch (error) {
@@ -285,7 +325,8 @@ export function useBulkDispatch<T>({
           options?.onFullSuccess,
           options?.applicableWhen,
           options?.claimFailure,
-          options?.onClaimedFailures
+          options?.onClaimedFailures,
+          options?.onStood
         );
         return outcome;
       } finally {

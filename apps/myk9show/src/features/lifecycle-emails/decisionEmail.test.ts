@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildDecisionEmailIdempotencyKey,
+  buildDecisionEmailKeyForEntries,
   buildEntryDecisionLifecycleEmailIdempotencyKey,
+  decisionEmailContext,
   isDecisionEmailSuperseded,
   showSendsDecisionEmailsUnasked,
 } from './decisionEmail';
+import { buildLifecycleEmailDraft } from './render';
 import { EntryStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 
@@ -112,5 +116,103 @@ describe('showSendsDecisionEmailsUnasked (MYK9-1800)', () => {
 
   it('sends on a published show with no end date on record', () => {
     expect(showSendsDecisionEmailsUnasked({ status: 'published', endDate: null }, now)).toBe(true);
+  });
+});
+
+describe('one decision email for several entries of a registration (MYK9-1800)', () => {
+  const entry = (id: string, overrides: Partial<EntryManagementEntry> = {}) =>
+    ({
+      id,
+      showId: 'show-1',
+      registrationId: 'registration-1',
+      ownerName: 'Pat Owner',
+      ownerEmail: 'pat@example.com',
+      dogName: 'Rex',
+      armbandNumber: '12',
+      entryStatus: EntryStatus.ACCEPTED,
+      classes: [{ name: `Class ${id}` }],
+      totalFee: 20,
+      paidAmount: 20,
+      ...overrides,
+    }) as unknown as EntryManagementEntry;
+
+  it('keys one entry exactly as before, so it matches an email already saved for it', () => {
+    const only = entry('entry-1');
+    expect(buildDecisionEmailKeyForEntries([only], 'accepted')).toBe(
+      buildDecisionEmailIdempotencyKey(only, 'accepted')
+    );
+  });
+
+  it('keys several entries by registration, step and the sorted ids, whatever order they arrive in', () => {
+    const a = entry('entry-a');
+    const b = entry('entry-b');
+    const c = entry('entry-c');
+    const key = buildDecisionEmailKeyForEntries([c, a, b], 'accepted');
+
+    expect(key).toBe(buildDecisionEmailKeyForEntries([a, b, c], 'accepted'));
+    expect(key).toContain('registration-1');
+    expect(key).toContain('accepted');
+    expect(key).toContain('registration-1:decided:entry-a,entry-b,entry-c');
+    expect(key).not.toBe(buildDecisionEmailKeyForEntries([a, b], 'accepted'));
+    expect(key).not.toBe(buildDecisionEmailKeyForEntries([a, b, c], 'waitlisted'));
+  });
+
+  it('leaves the context of one entry as it was', () => {
+    const only = entry('entry-1');
+    expect(decisionEmailContext(only, 'Show').entry).toEqual({
+      dogName: 'Rex',
+      className: 'Class entry-1',
+      armbandNumber: '12',
+      amountDue: 0,
+    });
+    expect(decisionEmailContext([only], 'Show')).toEqual(decisionEmailContext(only, 'Show'));
+  });
+
+  it('writes one acceptance that lists every class of one dog, with the armband once', () => {
+    const draft = buildLifecycleEmailDraft({
+      stepType: 'accepted',
+      ...decisionEmailContext([entry('entry-2'), entry('entry-1'), entry('entry-3')], 'Show'),
+    });
+
+    expect(draft.subject).toBe('Entries accepted - Show');
+    expect(draft.body).toContain('Your entries for Rex have been accepted for Show.');
+    expect(draft.body).toContain('Classes: Class entry-1, Class entry-2, Class entry-3');
+    expect(draft.body.match(/Armband: 12/g)).toHaveLength(1);
+  });
+
+  it('lists each dog with its own classes when the registration holds several dogs', () => {
+    const draft = buildLifecycleEmailDraft({
+      stepType: 'waitlisted',
+      ...decisionEmailContext(
+        [entry('entry-1'), entry('entry-2', { dogName: 'Bess', armbandNumber: '14' })],
+        'Show'
+      ),
+    });
+
+    expect(draft.body).toContain('Your entries for Rex and Bess are on the waitlist for Show.');
+    expect(draft.body).toContain('- Rex: Class entry-1');
+    expect(draft.body).toContain('- Bess: Class entry-2');
+  });
+
+  it('adds up what is owed across the entries listed, each clamped at zero', () => {
+    const { entry: context } = decisionEmailContext(
+      [
+        entry('entry-1', { totalFee: 20, paidAmount: 5 }),
+        entry('entry-2', { totalFee: 20, paidAmount: 30 }),
+        entry('entry-3', { totalFee: 10, paidAmount: 0 }),
+      ],
+      'Show'
+    );
+    expect(context.amountDue).toBe(25);
+  });
+
+  it('is superseded when any one of the decided entries has since changed status', () => {
+    const a = entry('entry-1');
+    const b = entry('entry-2');
+    const prompt = { entry: a, decidedEntries: [a, b], stepType: 'accepted' as const };
+    expect(isDecisionEmailSuperseded(prompt, [a, b])).toBe(false);
+    expect(isDecisionEmailSuperseded(prompt, [a, { ...b, entryStatus: EntryStatus.PENDING }])).toBe(
+      true
+    );
   });
 });

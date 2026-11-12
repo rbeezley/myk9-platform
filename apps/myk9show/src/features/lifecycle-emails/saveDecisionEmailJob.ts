@@ -1,19 +1,27 @@
 import { supabase } from '@/lib/supabase';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { saveLifecycleEmailJobForLater } from './api';
-import { buildDecisionEmailIdempotencyKey, type DecisionStepType } from './decisionEmail';
+import {
+  buildDecisionEmailKeyForEntries,
+  sortDecidedEntries,
+  type DecisionStepType,
+} from './decisionEmail';
 
 /**
- * Saves an entry's decision email as a ready job and returns its id. The preview and the
- * automatic send both go through here, so both address the same recipient under the same
- * idempotency key: a second save for the same entry and decision cannot make a second email.
+ * Saves a registration's decision email as ONE ready job and returns its id. The preview and
+ * the automatic send both go through here, so both address the same recipient under the same
+ * idempotency key: a second save for the same decided entries cannot make a second email.
+ * `entries` are the entries of one registration decided together (usually one); the job is
+ * anchored on the first by id.
  */
 export function saveDecisionEmailJob(
-  entry: EntryManagementEntry,
+  entries: EntryManagementEntry[],
   stepType: DecisionStepType,
   values: { subject: string; body: string; secretaryNote: string },
   correctionForJobId?: string | null
 ): Promise<string | null> {
+  const [entry] = sortDecidedEntries(entries);
+  if (!entry) throw new Error('A decision email needs at least one entry');
   return saveLifecycleEmailJobForLater({
     supabase,
     showId: entry.showId,
@@ -27,6 +35,6 @@ export function saveDecisionEmailJob(
     body: values.body,
     secretaryNote: values.secretaryNote,
     correctionForJobId: correctionForJobId ?? null,
-    idempotencyKey: buildDecisionEmailIdempotencyKey(entry, stepType, correctionForJobId),
+    idempotencyKey: buildDecisionEmailKeyForEntries(entries, stepType, correctionForJobId),
   });
 }

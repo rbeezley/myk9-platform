@@ -64,7 +64,7 @@ async function sendDecisionEmail() {
       />
     </QueryClientProvider>
   );
-  act(() => announce?.(entry, 'accepted'));
+  act(() => announce?.([entry], 'accepted'));
   await act(async () => {
     await dialogProps.current?.onSend({ subject: 's', body: 'b', secretaryNote: '' });
   });

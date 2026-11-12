@@ -18,6 +18,7 @@ import { optimisticPulledBy } from '@/utils/optimisticPulledBy';
 import { getEligibleForBulkStatusChange } from '@/components/entries/management/bulkActionEligibility';
 import { useBulkDispatch } from '@/hooks/useBulkDispatch';
 import { useEntryStatusUndo } from '@/hooks/useEntryStatusUndo';
+import { createBulkDecisionSnapshot } from './bulkDecisionSnapshot';
 import { showUndoToast, STATUS_UNDO_WINDOW_MS } from '@/lib/undoToast';
 import { CLOSED_STATUSES } from '@/components/entries/management/bulkActionEligibility';
 import { getNextArmbandForShow, setEntryArmband } from '@/services/database/armbands';
@@ -36,6 +37,7 @@ import type {
   EntryClass,
   ArmbandDialogState,
   StatusChangeOptions,
+  BulkStatusChangeHandler,
 } from '@/types/entry-management-types';
 
 /**
@@ -76,7 +78,7 @@ interface UseEntryManagementActionsReturn {
     cls: EntryClass,
     status: CheckInStatus
   ) => Promise<void>;
-  handleEnrollmentBulkStatusChange: (entryIds: string[], status: EntryStatus) => Promise<boolean>;
+  handleEnrollmentBulkStatusChange: BulkStatusChangeHandler;
   handleExportCSV: () => Promise<void>;
   handleCompEntry: (entryId: string, reason: string) => Promise<void>;
   handleUncompEntry: (entryId: string) => Promise<void>;
@@ -277,8 +279,8 @@ export function useEntryManagementActions({
   // executeStatusChange (the same optimistic-update-with-rollback path the single-entry
   // handler uses) via useBulkDispatch's Promise.allSettled fold, so one entry's failure
   // can't roll back or block the others — see design.md decision D3.
-  const handleEnrollmentBulkStatusChange = useCallback(
-    async (entryIds: string[], status: EntryStatus, onFullSuccess?: () => void) => {
+  const handleEnrollmentBulkStatusChange = useCallback<BulkStatusChangeHandler>(
+    async (entryIds, status, onFullSuccess, options) => {
       const requested = entriesRef.current.filter(e => entryIds.includes(e.id));
       // Narrow to the entries this status change may validly touch, HERE rather
       // than in each caller. `bulkActionEligibility` says a bulk status change
@@ -294,6 +296,7 @@ export function useEntryManagementActions({
       // Capture each entry's prior status BEFORE the change so undo can revert
       // each item to exactly where it started (design.md D6).
       const priorById = new Map(targets.map(e => [e.id, e.entryStatus]));
+      const snapshot = createBulkDecisionSnapshot(status);
       setIsProcessing(true);
       try {
         const outcome = await bulkStatusDispatch.run(
@@ -301,7 +304,10 @@ export function useEntryManagementActions({
           async entry => {
             const ok = await executeStatusChange(
               { entryId: entry.id, newStatus: status, entry, userId: user?.id },
-              { changeSecretaryStatus: changeSecretaryEntryStatus, patchEntries: setEntries }
+              {
+                changeSecretaryStatus: changeSecretaryEntryStatus,
+                patchEntries: snapshot.patchFor(entry, setEntries),
+              }
             );
             if (!ok) throw new Error(COPY.statusChangeFailed);
           },
@@ -313,6 +319,7 @@ export function useEntryManagementActions({
                   }
                 : undefined,
             onFullSuccess,
+            ...snapshot.stoodRunOption(options, () => entriesRef.current),
             applicableWhen: entry => {
               const fresh = entriesRef.current.find(e => e.id === entry.id) ?? entry;
               // Retry ONLY if no other actor has touched this entry since our first

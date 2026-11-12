@@ -25,8 +25,8 @@ export function mergeStoredManagementEntries(
     return {
       ...entry,
       entryStatus: mapped.entryStatus,
-      rawEntryStatus: mapped.rawEntryStatus,
-      pullReason: mapped.pullReason,
+      rawEntryStatus: mapped.rawEntryStatus ?? null,
+      ...(mapped.pullReason !== undefined && { pullReason: mapped.pullReason }),
       lastUpdated: mapped.lastUpdated,
       classes: storedClass
         ? entry.classes.map(cls => ({

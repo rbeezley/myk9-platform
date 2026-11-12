@@ -1,5 +1,4 @@
 import { screen, waitFor, within } from '@testing-library/react';
-import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
 import { toast } from 'sonner';
 import { render } from '@/test/utils/testUtils';
@@ -8,7 +7,6 @@ import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { CheckInDesk } from './CheckInDesk';
 import { resetReplica, writeReplicaRow } from './storedRowsReplica';
 import { StoredRowsDesk } from './storedRowsTestUtils';
-import { patchManagementEntries } from './entriesRefresh';
 
 const h = vi.hoisted(() => ({
   updateReplicatedCheckInStatus: vi.fn(),

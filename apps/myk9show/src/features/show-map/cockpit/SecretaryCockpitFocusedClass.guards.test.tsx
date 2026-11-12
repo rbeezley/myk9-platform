@@ -103,9 +103,7 @@ const sourceOf = (id: string, name: string, overrides: Partial<SecretaryCockpitC
 const panel = (
   focused: FocusedClassModel,
   sourceClass: SecretaryCockpitClass,
-  onRefreshEntries?: (
-    stored?: readonly { entryId: string; checkInStatus?: string }[]
-  ) => Promise<void>
+  onRefreshEntries?: (storedIds?: readonly string[]) => Promise<void>
 ) => (
   <SecretaryCockpitFocusedClass
     {...(onRefreshEntries && { onRefreshEntries })}

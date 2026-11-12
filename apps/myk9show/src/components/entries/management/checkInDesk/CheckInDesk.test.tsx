@@ -10,7 +10,6 @@ import { CheckInDesk } from './CheckInDesk';
 import { resetReplica, writeReplicaRow } from './storedRowsReplica';
 import { StoredRowsDesk } from './storedRowsTestUtils';
 import { buildCheckInDeskClasses } from './checkInDeskModel';
-import { patchManagementEntries } from './entriesRefresh';
 import type { Trial } from '@/components/trials/types/trial.types';
 
 const h = vi.hoisted(() => ({

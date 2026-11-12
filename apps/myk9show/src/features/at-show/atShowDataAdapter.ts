@@ -38,6 +38,7 @@ import type { ShowChangeSignal } from '@/features/show-live-sync/showChangeSigna
 import { getTrialRegistry, getTrialTimezone } from '@/features/registries';
 import { buildRingsideStatusInfo, withCombinedStatusLabel } from './ringsideStatusInfo';
 import { scoresheetKeyForClass } from '@/pages/scoring/types';
+import { toRunQueueEntry } from './replicatedRunQueue';
 import { settleRingRestores } from '@/utils/checkInTransitions';
 import type { AtShowSyncInFlight } from './atShowSyncOutcome';
 import { startAtShowSyncRun } from './atShowSyncRun';
@@ -205,12 +206,12 @@ function timeLimitString(seconds?: number): string | undefined {
 export function transformEntry(re: ReplicatedEntry, cls: ReplicatedClass | null): Entry {
   const checkinStatus = re.checkInStatus ?? re.check_in_status;
   const lifecycleStatus = re.entryStatus ?? re.entry_status ?? re.status;
+  // A row nobody expects to run is 'pulled' even if it carries a stale 'in-ring' check-in, the
+  // same ordering the run queue uses (toRunQueueEntry, MYK9-645).
   const status: EntryStatus = (
-    checkinStatus === 'pulled' || checkinStatus === 'in-ring'
-      ? checkinStatus
-      : isNonRunningEntry({ entryStatus: lifecycleStatus })
-        ? 'pulled'
-        : (checkinStatus ?? 'no-status')
+    checkinStatus === 'pulled' || isNonRunningEntry({ entryStatus: lifecycleStatus })
+      ? 'pulled'
+      : (checkinStatus ?? 'no-status')
   ) as EntryStatus;
   const finalPlacement = re.finalPlacement ?? re.final_placement;
   const searchTimeSeconds = re.searchTimeSeconds ?? re.search_time_seconds;
@@ -243,7 +244,9 @@ export function transformEntry(re: ReplicatedEntry, cls: ReplicatedClass | null)
     isScored: re.isScored ?? re.is_scored ?? false,
     status,
     // Deprecated compat fields.
-    inRing: status === 'in-ring',
+    // The shared in-ring rule (MYK9-1892): runnable and (is_in_ring or check-in 'in-ring'), the
+    // same projection the run queue uses, never ring_entry_time.
+    inRing: toRunQueueEntry(re).inRing === true,
     checkedIn: checkinStatus === 'checked-in',
 
     // Class-derived header fields.

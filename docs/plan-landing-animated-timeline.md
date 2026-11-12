@@ -60,6 +60,8 @@ One reusable component, `TimelineScene`, driven by data in `lifecycleStories.ts`
 - **Regions are measured, not typed by eye.** The capture script writes each highlighted element's bounding box to JSON beside the images.
 - **Controls:** Pause / Play, and each numbered line is a button that jumps to its first frame.
 - **Progress:** each line's number sits in a circle. The current line's circle draws itself as its part plays, and a finished line fills in with a tick (owner's choice, 2026-11-12, over a progress bar above the line).
+- **Two modes, built together.** _Autoplay_ is the landing page's: the scene plays itself and loops. _Step-through_ is for the guides and the demo deck (see "After this plan"): nothing moves until the reader presses Next or Back, and the current step stays on screen while they do it. Same frames, same camera, same data shape.
+- **No app dependencies.** The component takes data and images and nothing else: no auth, no replication, no router. The guides site (`apps/docs`) is a separate project and must be able to use it.
 - **Plays only while in view**, and stops when the tab is hidden.
 - **Reduced motion:** the finished frame is shown and nothing moves. Pressing a line shows that line's last frame.
 - **No scroll-jacking.** The page scrolls normally at all times.
@@ -158,10 +160,10 @@ Each phase ends with its own checks passing. One pull request per phase.
 
 ### Phase 1: the scene component and the Entries open scene
 
-- Build `TimelineScene` and the frame data type. Move the capture script into the repo.
+- Build `TimelineScene` and the frame data type, with both modes (autoplay and step-through) and no app dependencies. Move the capture script into the repo.
 - Capture the Entries open images and regions. Replace that step in both audience stories.
 - Delete `ScreenshotExplainer` and its test once nothing imports it.
-- **Tests:** unit tests for frame-to-style math (region and ring to percentages), line-to-frame mapping, pause, jump, reduced motion and "plays only in view". Render the component on the real story data, not a hand-made prop. Run the landing E2E specs.
+- **Tests:** unit tests for frame-to-style math (region and ring to percentages), line-to-frame mapping, pause, jump, Next and Back in step-through mode (nothing advances by itself), reduced motion and "plays only in view". Render the component on the real story data, not a hand-made prop. Run the landing E2E specs.
 
 ### Phase 2: Show day and Results scenes, and the three stills
 
@@ -180,6 +182,48 @@ Each phase ends with its own checks passing. One pull request per phase.
 
 - Browser walk of the finished page at desktop and phone width, both audiences, reduced motion on and off, with evidence recorded on the issue.
 - Flip this plan to `Complete`, move it to `docs/archive/`, drop its row from `docs/README.md`.
+
+## After this plan: the same scenes in the training guides and the demo deck
+
+The owner asked on 2026-11-12 whether these scenes would make good training material. They would, and the club demo deck (MYK9-836) asks for the same thing: real screenshots, zoom on the control in use, key flows step by step. That is one component with three uses. It is not a phase of this plan, so this plan can close when the landing page ships; it needs its own issue and plan once the component exists.
+
+Does it duplicate an existing surface? No. The written guides stay. A scene sits at the top of a guide page and the numbered steps stay beneath it.
+
+What must differ from the landing page:
+
+| Landing scene             | Guide scene                                                                       |
+| ------------------------- | --------------------------------------------------------------------------------- |
+| Plays itself and loops    | Step-through: the reader presses Next and Back                                    |
+| Five lines chosen to sell | Every step of the task, including the awkward ones                                |
+| Watched once              | Followed while doing the task, often on a second device                           |
+| Animation only            | The plain numbered steps with still images stay underneath, for print and reading |
+
+Rules for that work:
+
+- **Never reuse a landing scene as a guide.** Landing scenes leave steps out on purpose. Share the component and the capture pipeline, not the frame data.
+- **Not every guide page.** Each scene costs captures and measured regions and goes stale when its screen changes. Start with the core tasks per role: enter a show, accept entries, score a dog at the ring, enter paper scores, release results.
+- **Same hold.** Capture only after the screens settle.
+- **Guides are followed by first-timers.** Nothing autoplays, every frame has alt text, and a reader who never touches the scene loses nothing (`INTENT.md`: never makes you feel stupid).
+- **The deck's own needs stay open.** MYK9-836 also asks for presenter notes and a PDF leave-behind, which the component does not provide.
+
+### Which guide scenes get built: the ones people ask about (owner, 2026-11-12)
+
+Scenes are built over time from real questions and support tickets, not from a list drawn up in advance. The support triage agent ([`plan-ai-support-triage.md`](plan-ai-support-triage.md), `scripts/support-triage/`) already supplies the trigger, so no new counting is needed:
+
+- Every ticket's draft email carries a **Topic** line. When a topic has recurred three or more times and the operator's edits to its draft have settled, the operator promotes it to an entry in `CANNED_ANSWERS` (`scripts/support-triage/answers.ts`).
+- **That promotion is the moment a scene earns its place.** Before writing the entry, ask in this order:
+  1. **Should the screen change?** A question asked three times is evidence the UI was unclear. If a label, a control or a message would remove the question, file that and stop.
+  2. **Is it in a guide?** If not, write the plain numbered steps into the guide or FAQ first.
+  3. **Would a scene help?** If the answer is a sequence across screens, build the scene on that guide page.
+- **Build it in the guide, link it from the reply.** The canned answer's `reply` text carries the guide link. A scene is never built inside a reply and moved later: that leaves two copies and the move does not happen.
+- **The steps under the scene do double duty.** The exhibitor Q&A (`ask-myk9show`) answers from the guide corpus (`ASKQ_GUIDES`), which is text. The plain steps kept beneath each scene are what it reads, so a new guide entry can stop the next ticket before it is filed.
+- **Seeded data only.** A scene shows the demo show, never the asker's show, dogs or names.
+
+Limits to know:
+
+- The Topic tally is the operator noticing repeats in draft emails. Nothing stores a count.
+- The ticket queue is exhibitor-facing. Questions from secretaries and judges arrive by email or in person and are not in it; those are counted by hand until there is a place for them.
+- Until the component and capture script exist, a scene takes about an hour to stage and measure. Answer in words or one marked-up screenshot meanwhile.
 
 ## Open decisions (owner)
 

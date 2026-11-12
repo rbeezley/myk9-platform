@@ -58,8 +58,9 @@ function dog(id: string, armband: string, runOrder: number, fields: Record<strin
   };
 }
 
-// e2 has a ring_entry_time but is_in_ring false; e4 is check-in completed but not is_scored.
-// The table reads both as waiting; the placement model (what the write renumbers) does not.
+// e2 has a stale ring_entry_time but is_in_ring false, so it is waiting (MYK9-1889);
+// e4 is check-in completed but not is_scored, so it is not. The table and the placement
+// model (what the write renumbers) agree on both.
 const FIXTURE = [
   dog('e1', '101', 1),
   dog('e2', '102', 2, { ring_entry_time: '2026-07-20T10:00:00Z' }),
@@ -105,15 +106,15 @@ describe('grips and the write use the same waiting list (MYK9-1872)', () => {
     const model = buildClassPlacement(FIXTURE as unknown as ReplicatedEntry[], []).model;
     const waiting = model.waiting.map(row => row.id);
     // Guard the fixture: the model really does disagree with the table's own states.
-    expect(waiting).toEqual(['e1', 'e3', 'e5']);
+    expect(waiting).toEqual(['e1', 'e2', 'e3', 'e5']);
 
     const runOrder = controls();
     renderFixture(runOrder);
-    await waitFor(() => expect(screen.getAllByTestId('run-order-grip')).toHaveLength(3));
-    for (const armband of ['101', '103', '105']) {
+    await waitFor(() => expect(screen.getAllByTestId('run-order-grip')).toHaveLength(4));
+    for (const armband of ['101', '102', '103', '105']) {
       expect(screen.getByRole('button', { name: new RegExp(`Drag #${armband} `) })).toBeEnabled();
     }
-    for (const armband of ['102', '104']) {
+    for (const armband of ['104']) {
       expect(screen.queryByRole('button', { name: new RegExp(`Drag #${armband} `) })).toBeNull();
     }
 

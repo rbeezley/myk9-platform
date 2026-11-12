@@ -1,6 +1,7 @@
 import type { Entry, EntryStatusChange } from '@myk9/ringside';
 import type { CheckInWriter } from '@/services/show-day/checkInStatus';
 import { showUndoToast } from '@/lib/undoToast';
+import { registerPull, undoPullIfCurrent } from './pullUndoGuard';
 
 /** Statuses `self_checkin_entry` accepts, so an exhibitor's Undo can write them back. */
 export const SELF_RESTORABLE: ReadonlySet<string> = new Set([
@@ -38,9 +39,20 @@ export function offerPullUndo(
   if (!canUndoPull(writer, previous.status as string)) return;
   const from = pulledFromLabel(previous);
   const priorStatus = previous.status as EntryStatusChange;
+  const entryId = String(previous.id);
+  const token = registerPull(entryId);
   showUndoToast({
     message: from ? `${previous.callName} pulled from ${from}` : `${previous.callName} pulled`,
     description: 'Moved to Pulled / not running, at the bottom of the list.',
-    onUndo: () => restore(priorStatus),
+    onUndo: () => {
+      void undoPullIfCurrent({
+        entryId,
+        token,
+        priorStatus,
+        callName: previous.callName,
+        replicaMayLag: writer === 'self-checkin-rpc',
+        restore: () => restore(priorStatus),
+      });
+    },
   });
 }

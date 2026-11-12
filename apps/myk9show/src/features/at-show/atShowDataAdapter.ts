@@ -18,9 +18,7 @@ import { isUnsetJudgeName } from '@/utils/classJudgeDisplay';
  */
 
 import type { Entry, ClassInfo, EntryListData, EntryListDataDependencies } from '@myk9/ringside';
-import { buildCombinedClassName, isInRingEntry } from '@myk9/ringside/run-queue';
-import { isRunnableEntry } from '@/features/_shared/entryAccounting';
-import type { EntryStatus } from '@myk9/core';
+import { buildCombinedClassName } from '@myk9/ringside/run-queue';
 import {
   replicatedArmbandsTable,
   replicatedEntriesTable,
@@ -42,10 +40,10 @@ import { scoresheetKeyForClass } from '@/pages/scoring/types';
 import { settleRingRestores } from '@/utils/checkInTransitions';
 import type { AtShowSyncInFlight } from './atShowSyncOutcome';
 import { startAtShowSyncRun } from './atShowSyncRun';
+import { ringsideEntryRingState } from './atShowEntryRingState';
 import {
   classifyEntries,
   countEntryAccounting,
-  isNonRunningEntry,
   type EntryAccountingFields,
 } from '@/features/_shared/entryAccounting';
 
@@ -205,14 +203,7 @@ function timeLimitString(seconds?: number): string | undefined {
  */
 export function transformEntry(re: ReplicatedEntry, cls: ReplicatedClass | null): Entry {
   const checkinStatus = re.checkInStatus ?? re.check_in_status;
-  const lifecycleStatus = re.entryStatus ?? re.entry_status ?? re.status;
-  // A row nobody expects to run is 'pulled' even if it carries a stale 'in-ring' check-in, the
-  // same ordering the run queue uses (toRunQueueEntry, MYK9-645).
-  const status: EntryStatus = (
-    checkinStatus === 'pulled' || isNonRunningEntry({ entryStatus: lifecycleStatus })
-      ? 'pulled'
-      : (checkinStatus ?? 'no-status')
-  ) as EntryStatus;
+  const { status, inRing } = ringsideEntryRingState(re);
   const finalPlacement = re.finalPlacement ?? re.final_placement;
   const searchTimeSeconds = re.searchTimeSeconds ?? re.search_time_seconds;
   const resultText = re.resultStatus ?? re.result_status;
@@ -244,17 +235,8 @@ export function transformEntry(re: ReplicatedEntry, cls: ReplicatedClass | null)
     isScored: re.isScored ?? re.is_scored ?? false,
     status,
     // Deprecated compat fields.
-    // The shared in-ring rule (MYK9-1892): runnable and (is_in_ring or check-in 'in-ring'),
-    // never ring_entry_time. Uses the run-queue subpath, not replicatedRunQueue, which would
-    // pull the ringside UI barrel into the entry chunk.
-    inRing:
-      isRunnableEntry(re) &&
-      isInRingEntry({
-        id: re.id,
-        armband: null,
-        status,
-        inRing: (re.isInRing ?? re.is_in_ring ?? false) === true,
-      }),
+    // The shared in-ring rule (MYK9-1892), never ring_entry_time: atShowEntryRingState.ts.
+    inRing,
     checkedIn: checkinStatus === 'checked-in',
 
     // Class-derived header fields.

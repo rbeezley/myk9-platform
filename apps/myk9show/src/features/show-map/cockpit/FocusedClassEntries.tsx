@@ -1,3 +1,18 @@
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  TouchSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
 import { findInRingEntry, pendingByRunOrder, type RunQueueEntry } from '@myk9/ringside/run-queue';
 
 import { cn } from '@/lib/utils';
@@ -16,7 +31,19 @@ import { NEXT_UP_PREVIEW_LIMIT } from '@/features/at-show/atShowNextUpPreview';
 import { ClassCheckInCell } from './ClassCheckInCell';
 import { useClassCheckIn } from './useClassCheckIn';
 import { ClassEntryRowMenu } from './ClassEntryRowMenu';
-import type { SecretaryCockpitEntryAction } from './secretaryCockpitTypes';
+import type {
+  SecretaryCockpitEntryAction,
+  SecretaryCockpitRunOrderControls,
+} from './secretaryCockpitTypes';
+import { SortableClassEntryRow } from './SortableClassEntryRow';
+import { useRunOrderPlacement } from './useRunOrderPlacement';
+import { Button } from '@/components/ui/button';
+import {
+  RUN_ORDER_DRAG_INSTRUCTIONS,
+  dropPosition,
+  movableEntries,
+  runOrderAnnouncements,
+} from './runOrderDrag';
 import {
   countClassEntries,
   runStatusDisplay,
@@ -26,6 +53,9 @@ import {
 // Tight cells and wrapping Dog and Handler keep the table inside the ~600px focus column; the
 // scroll wrapper stays as the fallback for narrower ones.
 const CELL = 'px-2 py-2';
+/** "#110 Hazel": how a dog is named in the grip, the announcements and the Undo summary. */
+const dogLabel = (entry: SecretaryCockpitClassEntry) =>
+  entry.armband ? `#${entry.armband} ${entry.dogName}` : entry.dogName;
 const NO_ACTIONS: readonly SecretaryCockpitEntryAction[] = [];
 
 const TILE = 'rounded-lg border bg-muted/30 px-4 py-3';
@@ -130,7 +160,14 @@ export function ClassEntriesTable({
   hidden = 0,
   unread = false,
   rowMenu,
+  reorder,
 }: {
+  /**
+   * Managers only (MYK9-1872): drag a waiting dog to a new run-order slot on this list. The class
+   * id and the shared run-order controls (the same write and Undo the presets use).
+   */
+  reorder?:
+    { showId: string; classId: string; runOrder: SecretaryCockpitRunOrderControls } | undefined;
   /**
    * Managers only (MYK9-1798): per entry (by nodeId) the actions the engine allows today, and the
    * runner for a chosen commandId (ShowDeskPanel.runCommand). One prop so a menu is never dead.
@@ -154,6 +191,37 @@ export function ClassEntriesTable({
   unread?: boolean;
 }) {
   const checkIn = useClassCheckIn(entries, className, canChangeCheckIn, onRefreshEntries);
+  // Who can move comes from the placement model the write uses, never from this table's states.
+  const placement = useRunOrderPlacement(
+    reorder?.showId ?? '',
+    reorder?.classId ?? '',
+    reorder !== undefined && entries.length > 0
+  );
+  const movable =
+    reorder && placement.waitingIds ? movableEntries(entries, placement.waitingIds) : [];
+  const canReorder = reorder !== undefined && movable.length >= 2;
+  const movableIds = movable.map(entry => entry.nodeId);
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+  const onDragEnd = (event: DragEndEvent) => {
+    if (!reorder || reorder.runOrder.isAutoSorting) return;
+    const activeId = String(event.active.id);
+    const toPosition = dropPosition(movableIds, activeId, event.over && String(event.over.id));
+    const moved = movable.find(entry => entry.nodeId === activeId);
+    if (toPosition === null || !moved) return;
+    const over = movable.find(entry => entry.nodeId === String(event.over?.id));
+    if (!over) return;
+    // The dog dropped on, not a number: the write resolves the slot against its own fresh read.
+    reorder.runOrder.onPlaceEntry({
+      classId: reorder.classId,
+      entryId: moved.entryId,
+      overEntryId: over.entryId,
+      entryLabel: dogLabel(moved),
+    });
+  };
   const hiddenNote = hidden > 0 && (
     <p className="mt-2 text-xs text-muted-foreground" data-testid="class-entries-hidden">
       {hidden} more {hidden === 1 ? 'entry is' : 'entries are'} not shown here.
@@ -174,63 +242,118 @@ export function ClassEntriesTable({
       </>
     );
   }
+  const movableSet = new Set(movableIds);
+  const table = (
+    <Table scrollAreaLabel="Entries in run order" data-testid="class-entries-table">
+      <TableHeader>
+        <TableRow>
+          {canReorder && (
+            <TableHead className="w-11 px-0">
+              <span className="sr-only">Move</span>
+            </TableHead>
+          )}
+          <TableHead className={cn(CELL, 'w-8')}>#</TableHead>
+          <TableHead className={CELL}>Armband</TableHead>
+          <TableHead className={CELL}>Dog</TableHead>
+          <TableHead className={CELL}>Handler</TableHead>
+          <TableHead className={CELL}>Check-in</TableHead>
+          <TableHead className={CELL}>Run status</TableHead>
+          <TableHead className={CELL}>Result</TableHead>
+          <TableHead className="w-11 px-0">
+            <span className="sr-only">Actions</span>
+          </TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {entries.map(entry => {
+          const run = runStatusDisplay(entry);
+          const cells = (
+            <>
+              <TableCell className={cn(CELL, 'tabular-nums text-muted-foreground')}>
+                {entry.place ?? ''}
+              </TableCell>
+              <TableCell className={CELL}>
+                <ArmbandBadge armband={entry.armband} className="h-8 min-w-8" />
+              </TableCell>
+              <TableCell className={CELL}>
+                <div className="font-medium">{entry.dogName}</div>
+                {entry.breed && <div className="text-xs text-muted-foreground">{entry.breed}</div>}
+              </TableCell>
+              <TableCell className={CELL}>{entry.handler ?? ''}</TableCell>
+              <TableCell className={CELL}>
+                <ClassCheckInCell entry={entry} checkIn={checkIn} />
+              </TableCell>
+              <TableCell className={CELL}>
+                <StatusPill label={run.label} kind={run.kind} outlined={run.outlined ?? false} />
+              </TableCell>
+              <TableCell className={CELL}>{entry.result ?? ''}</TableCell>
+              <TableCell className="px-0">
+                {rowMenu && (
+                  <ClassEntryRowMenu
+                    dogName={entry.dogName}
+                    armband={entry.armband}
+                    actions={rowMenu.actions.get(entry.nodeId) ?? NO_ACTIONS}
+                    onCommand={rowMenu.onCommand}
+                  />
+                )}
+              </TableCell>
+            </>
+          );
+          if (canReorder && movableSet.has(entry.nodeId)) {
+            return (
+              <SortableClassEntryRow
+                key={entry.nodeId}
+                id={entry.nodeId}
+                label={`Drag ${dogLabel(entry)} to change run order`}
+                disabled={reorder?.runOrder.isAutoSorting ?? false}
+              >
+                {cells}
+              </SortableClassEntryRow>
+            );
+          }
+          return (
+            <TableRow key={entry.nodeId} data-testid="class-entry-row">
+              {canReorder && <TableCell className="w-11 px-0" />}
+              {cells}
+            </TableRow>
+          );
+        })}
+      </TableBody>
+    </Table>
+  );
+  const loadError = reorder !== undefined && placement.isError && (
+    <div
+      role="alert"
+      className="mb-2 flex items-center justify-between gap-3 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm"
+    >
+      <span className="text-destructive">Couldn&rsquo;t load the run order.</span>
+      <Button type="button" variant="outline" size="touch" onClick={placement.retry}>
+        Try again
+      </Button>
+    </div>
+  );
   return (
     <>
-      <Table scrollAreaLabel="Entries in run order" data-testid="class-entries-table">
-        <TableHeader>
-          <TableRow>
-            <TableHead className={cn(CELL, 'w-8')}>#</TableHead>
-            <TableHead className={CELL}>Armband</TableHead>
-            <TableHead className={CELL}>Dog</TableHead>
-            <TableHead className={CELL}>Handler</TableHead>
-            <TableHead className={CELL}>Check-in</TableHead>
-            <TableHead className={CELL}>Run status</TableHead>
-            <TableHead className={CELL}>Result</TableHead>
-            <TableHead className="w-11 px-0">
-              <span className="sr-only">Actions</span>
-            </TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {entries.map(entry => {
-            const run = runStatusDisplay(entry);
-            return (
-              <TableRow key={entry.nodeId} data-testid="class-entry-row">
-                <TableCell className={cn(CELL, 'tabular-nums text-muted-foreground')}>
-                  {entry.place ?? ''}
-                </TableCell>
-                <TableCell className={CELL}>
-                  <ArmbandBadge armband={entry.armband} className="h-8 min-w-8" />
-                </TableCell>
-                <TableCell className={CELL}>
-                  <div className="font-medium">{entry.dogName}</div>
-                  {entry.breed && (
-                    <div className="text-xs text-muted-foreground">{entry.breed}</div>
-                  )}
-                </TableCell>
-                <TableCell className={CELL}>{entry.handler ?? ''}</TableCell>
-                <TableCell className={CELL}>
-                  <ClassCheckInCell entry={entry} checkIn={checkIn} />
-                </TableCell>
-                <TableCell className={CELL}>
-                  <StatusPill label={run.label} kind={run.kind} outlined={run.outlined ?? false} />
-                </TableCell>
-                <TableCell className={CELL}>{entry.result ?? ''}</TableCell>
-                <TableCell className="px-0">
-                  {rowMenu && (
-                    <ClassEntryRowMenu
-                      dogName={entry.dogName}
-                      armband={entry.armband}
-                      actions={rowMenu.actions.get(entry.nodeId) ?? NO_ACTIONS}
-                      onCommand={rowMenu.onCommand}
-                    />
-                  )}
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
+      {loadError}
+      {canReorder ? (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={onDragEnd}
+          accessibility={{
+            announcements: runOrderAnnouncements(
+              movable.map(item => ({ id: item.nodeId, label: dogLabel(item) }))
+            ),
+            screenReaderInstructions: { draggable: RUN_ORDER_DRAG_INSTRUCTIONS },
+          }}
+        >
+          <SortableContext items={movableIds} strategy={verticalListSortingStrategy}>
+            {table}
+          </SortableContext>
+        </DndContext>
+      ) : (
+        table
+      )}
       {hiddenNote}
       {checkIn.dialogs}
     </>

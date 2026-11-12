@@ -2,7 +2,6 @@ import { useState } from 'react';
 import {
   ClipboardCheck,
   ExternalLink,
-  GripVertical,
   ListOrdered,
   Megaphone,
   MoreHorizontal,
@@ -50,7 +49,6 @@ export function FocusedClassActionsMenu({
   runOrder,
   runOrderEntryCount,
   editClass,
-  onPlaceByHand,
   entriesHref,
 }: {
   showId: string;
@@ -63,7 +61,6 @@ export function FocusedClassActionsMenu({
   runOrder: SecretaryCockpitRunOrderControls | undefined;
   runOrderEntryCount: number;
   editClass: FocusedClassEditAction | undefined;
-  onPlaceByHand: () => void;
   /** The class's `class-details:` destination; absent when the snapshot offers none. */
   entriesHref: string | null;
 }) {
@@ -154,12 +151,12 @@ export function FocusedClassActionsMenu({
                     onAutoSort={runOrder.onAutoSort}
                     disabled={sortLocked}
                   />
+                  <p className="px-2 py-1.5 text-xs text-muted-foreground">
+                    Armband and Random sort the dogs still waiting again and replace anything placed
+                    by hand.
+                  </p>
                 </DropdownMenuSubContent>
               </DropdownMenuSub>
-              <DropdownMenuItem disabled={sortLocked} onClick={onPlaceByHand}>
-                <GripVertical className="h-4 w-4" aria-hidden="true" />
-                Place by hand
-              </DropdownMenuItem>
             </>
           )}
           {entriesLink && (

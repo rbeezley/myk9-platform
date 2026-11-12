@@ -120,14 +120,14 @@ async function openRunOrderPresets(user: ReturnType<typeof userEvent.setup>) {
 }
 
 describe('run order is reachable from the Actions menu (MYK9-1796)', () => {
-  it('offers auto-sort and place by hand beside the other class actions', async () => {
+  it('offers auto-sort (and no Place by hand item) beside the other class actions', async () => {
     renderPanel();
     const user = userEvent.setup();
     await user.click(actionsButton());
     expect(
       await screen.findByRole('menuitem', { name: 'Auto-sort run order' })
     ).toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: 'Place by hand' })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Place by hand' })).toBeNull();
   });
 
   it('fires the auto-sort mutation with the focused class', async () => {
@@ -144,15 +144,6 @@ describe('run order is reachable from the Actions menu (MYK9-1796)', () => {
     );
   });
 
-  it('Place by hand opens the hand-placement list for the focused class', async () => {
-    renderPanel();
-    const user = userEvent.setup();
-    await user.click(actionsButton());
-    await user.click(await screen.findByRole('menuitem', { name: 'Place by hand' }));
-    // The hand-placement list is the only thing on the panel with a Done button.
-    expect(await screen.findByRole('button', { name: 'Done' })).toBeInTheDocument();
-  });
-
   it.each([0, 1])('omits the run-order items for a class with %i entries', async count => {
     renderPanel({
       sourceClass: { ...SOURCE_CLASS, entryCount: count },
@@ -163,7 +154,6 @@ describe('run order is reachable from the Actions menu (MYK9-1796)', () => {
     // Positive control: the menu opened and holds its other items.
     expect(await screen.findByRole('menuitem', { name: 'Score this class' })).toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: 'Auto-sort run order' })).toBeNull();
-    expect(screen.queryByRole('menuitem', { name: 'Place by hand' })).toBeNull();
   });
 
   it('is absent for a non-manager, like the entry actions beside it', () => {

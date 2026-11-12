@@ -146,30 +146,28 @@ test('canonical queue positions and state-only controls agree across roles (MYK9
           }
           if (scenario.name !== 'null') {
             await secretary.page.getByRole('link', { name: 'Set run order', exact: true }).click();
-            await secretary.page.getByRole('button', { name: /^Run order for / }).click();
-            await secretary.page.getByRole('menuitem', { name: 'Reorder manually...' }).click();
-            const placement = secretary.page.getByRole('region', { name: 'Place a dog by hand' });
-            const waitingList = placement.getByRole('list', { name: 'Run order', exact: true });
-            const cooper = waitingList.getByRole('listitem').filter({ hasText: 'Cooper' });
-            await expect(cooper.locator(':scope > span')).toHaveText('1');
+            // Run order is changed by dragging a waiting dog's grip on the entries table (MYK9-1872).
+            const entriesTable = secretary.page.getByTestId('class-entries-table');
+            const rowOf = (dog: string) =>
+              entriesTable.getByTestId('class-entry-row').filter({ hasText: dog });
+            const gripOf = (dog: string) => rowOf(dog).getByTestId('run-order-grip');
+            await expect(
+              rowOf('Cooper').getByRole('cell', { name: '1', exact: true })
+            ).toBeVisible();
             if (!terminal) {
-              const willow = waitingList.getByRole('listitem').filter({ hasText: 'Willow' });
-              await expect(willow.locator(':scope > span')).toHaveText('2');
-              await expect(waitingList.getByRole('listitem')).toHaveCount(2);
+              await expect(
+                rowOf('Willow').getByRole('cell', { name: '2', exact: true })
+              ).toBeVisible();
+              await expect(gripOf('Cooper')).toBeEnabled();
+              await expect(gripOf('Willow')).toBeEnabled();
+              await expect(entriesTable.getByTestId('run-order-grip')).toHaveCount(2);
             } else {
-              await expect(waitingList.getByRole('listitem')).toHaveCount(1);
-              const readonlyList = placement.getByRole('list', {
-                name: scenario.name === 'in-ring' ? 'In the ring' : 'Completed',
-                exact: true,
-              });
-              const willow = readonlyList.getByRole('listitem').filter({ hasText: 'Willow' });
-              await expect(willow).toBeVisible();
-              await expect(willow.getByRole('combobox')).toHaveCount(0);
-              await expect(willow.getByRole('button')).toHaveCount(0);
-              await expect(willow.locator(':scope > span')).toHaveCount(0);
-              if (scenario.name === 'pulled') await expect(willow).toContainText('Pulled');
+              // Only Cooper is still waiting, so nothing can be reordered and Willow never moves.
+              await expect(entriesTable.getByTestId('run-order-grip')).toHaveCount(0);
+              await expect(rowOf('Willow')).toBeVisible();
+              if (scenario.name === 'pulled') await expect(rowOf('Willow')).toContainText('Pulled');
             }
-            await expect(placement).not.toContainText(/\b101\b/);
+            await expect(entriesTable).not.toContainText(/\b101\b/);
             await screenshot(secretary.page, info, scenario.name + '-hand-placement');
           }
           for (const role of [secretary, judge, exhibitor])

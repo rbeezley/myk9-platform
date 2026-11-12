@@ -34,6 +34,7 @@ import { EnrollmentEmailDialog } from './EnrollmentEmailDialog';
 import { EnrollmentLedgerConfirmDialog } from './EnrollmentLedgerConfirmDialog';
 import { formatConfirmationNumberLabel } from '@/features/registration/confirmationNumberDisplay';
 import { EnrollmentCommunicationSection } from './EnrollmentCommunicationSection';
+import { latestDecisionEmailedAt } from '@/features/lifecycle-emails';
 
 export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
   group,
@@ -329,7 +330,11 @@ export const EnrollmentCard: React.FC<EnrollmentCardProps> = ({
       </CardHeader>
 
       <EnrollmentCommunicationSection
-        lastDecisionEmailedAt={lastDecisionEmailedAt}
+        lastDecisionEmailedAt={latestDecisionEmailedAt(
+          lastDecisionEmailedAt,
+          group.entries.map(entry => entry.id),
+          lifecycleDecisionEmailStatusMap
+        )}
         canSendDecisionEmail={Boolean(onSendDecisionEmail && enrollmentId)}
         onEmail={email.openDialog}
       />

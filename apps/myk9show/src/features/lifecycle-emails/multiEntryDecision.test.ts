@@ -13,20 +13,20 @@ describe('buildMultiEntryDecisionLines (MYK9-1800)', () => {
         dogName: 'Rex',
         className: 'Novice Container',
         trialDate: '2026-12-08',
-        trialNumber: '4',
+        trialNumber: 'Trial 4',
         armbandNumber: '12',
         alsoDecided: [
           {
             dogName: 'Rex',
             className: 'Novice Container',
             trialDate: '2026-12-07',
-            trialNumber: '2',
+            trialNumber: 'Trial 2',
           },
           {
             dogName: 'Rex',
             className: 'Novice Container',
             trialDate: '2026-12-07',
-            trialNumber: '1',
+            trialNumber: 'Trial 1',
           },
         ],
       })
@@ -46,14 +46,14 @@ describe('buildMultiEntryDecisionLines (MYK9-1800)', () => {
         dogName: 'Rex',
         className: 'Novice Interior',
         trialDate: '2026-12-07',
-        trialNumber: '1',
+        trialNumber: 'Trial 1',
         armbandNumber: '12',
         alsoDecided: [
           {
             dogName: 'Bess',
             className: 'Novice Container',
             trialDate: '2026-12-07',
-            trialNumber: '1',
+            trialNumber: 'Trial 1',
             armbandNumber: '14',
           },
         ],
@@ -75,5 +75,45 @@ describe('buildMultiEntryDecisionLines (MYK9-1800)', () => {
         alsoDecided: [{ dogName: 'Rex', className: 'Novice B' }],
       })
     ).toContain('- Novice A');
+  });
+
+  it('prints a trial name as is and prefixes a bare number', () => {
+    expect(
+      lines({
+        dogName: 'Rex',
+        className: 'Buried Novice A',
+        trialDate: '2026-12-08',
+        trialNumber: 'Trial 4',
+        alsoDecided: [
+          {
+            dogName: 'Rex',
+            className: 'Buried Novice A',
+            trialDate: '2026-12-08',
+            trialNumber: '2',
+          },
+        ],
+      })
+    ).toEqual([
+      'Your entries for Rex have been accepted for Heartland.',
+      'Classes:',
+      '- Tue, Dec 8 · Trial 2 · Buried Novice A',
+      '- Tue, Dec 8 · Trial 4 · Buried Novice A',
+    ]);
+  });
+
+  it('sorts trials on the same day by the number inside the trial name', () => {
+    const result = lines({
+      dogName: 'Rex',
+      className: 'Z class',
+      trialDate: '2026-12-08',
+      trialNumber: 'Trial 1',
+      alsoDecided: [
+        { dogName: 'Rex', className: 'A class', trialDate: '2026-12-08', trialNumber: 'Trial 2' },
+      ],
+    });
+    expect(result.slice(2)).toEqual([
+      '- Tue, Dec 8 · Trial 1 · Z class',
+      '- Tue, Dec 8 · Trial 2 · A class',
+    ]);
   });
 });

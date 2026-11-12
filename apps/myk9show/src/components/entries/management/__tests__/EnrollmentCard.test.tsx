@@ -569,3 +569,24 @@ describe('EnrollmentCard', () => {
     expect(screen.getAllByText('Bravo').length).toBeGreaterThan(0);
   });
 });
+
+describe('EnrollmentCard decision email history (MYK9-1800)', () => {
+  it('says the decision was emailed when only a sent lifecycle job exists', () => {
+    const sentAt = new Date(Date.now() - 60_000).toISOString();
+    render(
+      <EnrollmentCard
+        {...defaultProps}
+        lifecycleDecisionEmailStatusMap={{
+          'entry-1': {
+            entryId: 'entry-1',
+            readyJob: null,
+            sentDecisionJob: { sentAt } as never,
+            sentCorrectionJob: null,
+          },
+        }}
+      />
+    );
+    expect(screen.getByText(/Decision emailed/)).toBeInTheDocument();
+    expect(screen.queryByText('No decision email sent yet')).not.toBeInTheDocument();
+  });
+});

@@ -201,6 +201,8 @@ export function ClassEntriesTable({
   const markAbsent = useMarkEntryAbsent({
     classId: rowMenu?.classId ?? '',
     className,
+    entries,
+    classLifecycle: rowMenu?.classLifecycle ?? null,
     onRefreshEntries,
   });
   // Who can move comes from the placement model the write uses, never from this table's states.

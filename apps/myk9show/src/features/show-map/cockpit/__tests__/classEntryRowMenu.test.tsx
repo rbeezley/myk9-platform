@@ -14,9 +14,11 @@ import { queueFor } from './queueFixture';
 
 const hasRole = vi.fn<(role: string) => boolean>();
 const submitScoreOptimistically = vi.fn();
-const { toastSuccess, toastError } = vi.hoisted(() => ({
+const { toastSuccess, toastError, getStored, transitionToCompleted } = vi.hoisted(() => ({
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
+  getStored: vi.fn(),
+  transitionToCompleted: vi.fn(),
 }));
 
 vi.mock('@/hooks/useAuthContext', () => ({
@@ -25,6 +27,10 @@ vi.mock('@/hooks/useAuthContext', () => ({
 vi.mock('@/hooks/useOptimisticScoring', () => ({
   useOptimisticScoring: () => ({ submitScoreOptimistically }),
 }));
+vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
+  replicatedEntriesTable: { get: getStored },
+}));
+vi.mock('@/utils/checkInTransitions', () => ({ transitionToCompleted }));
 vi.mock('sonner', () => ({ toast: { success: toastSuccess, error: toastError } }));
 
 function row(state: ClassEntryState, overrides: Partial<SecretaryCockpitClassEntry> = {}) {
@@ -93,6 +99,8 @@ beforeEach(() => {
   submitScoreOptimistically.mockReset().mockImplementation(async options => options.onSuccess());
   toastSuccess.mockReset();
   toastError.mockReset();
+  getStored.mockReset().mockResolvedValue({ entry_status: 'accepted', is_scored: false });
+  transitionToCompleted.mockReset();
 });
 
 describe('the per-dog menu (MYK9-1873)', () => {
@@ -226,5 +234,61 @@ describe('Mark absent (MYK9-1873)', () => {
     await user.click(await screen.findByRole('button', { name: 'Mark absent' }));
     await waitFor(() => expect(toastError).toHaveBeenCalledWith('Not saved: queue full'));
     expect(onRefreshEntries).not.toHaveBeenCalled();
+  });
+});
+
+describe('Mark absent re-checks the entry (MYK9-1873)', () => {
+  it('refuses, writes nothing and says so when the entry was scored while the dialog was open', async () => {
+    getStored.mockResolvedValue({
+      entry_status: 'accepted',
+      is_scored: true,
+      result_status: 'qualified',
+    });
+    const onRefreshEntries = vi.fn();
+    const { user } = await openMenu(table(row('waiting'), { onRefreshEntries }));
+    await user.click(screen.getByRole('menuitem', { name: 'Mark absent' }));
+    await user.click(await screen.findByRole('button', { name: 'Mark absent' }));
+    await waitFor(() =>
+      expect(toastError).toHaveBeenCalledWith(
+        '#110 Hazel was scored while this was open; nothing was changed.'
+      )
+    );
+    expect(getStored).toHaveBeenCalledWith('e-110');
+    expect(submitScoreOptimistically).not.toHaveBeenCalled();
+    expect(onRefreshEntries).not.toHaveBeenCalled();
+  });
+
+  it('refuses when the entry was pulled while the dialog was open', async () => {
+    getStored.mockResolvedValue({ entry_status: 'accepted', check_in_status: 'pulled' });
+    const { user } = await openMenu(table(row('waiting')));
+    await user.click(screen.getByRole('menuitem', { name: 'Mark absent' }));
+    await user.click(await screen.findByRole('button', { name: 'Mark absent' }));
+    await waitFor(() => expect(toastError).toHaveBeenCalled());
+    expect(submitScoreOptimistically).not.toHaveBeenCalled();
+  });
+
+  it('closes the dialog when the row stops being one that can be marked absent', async () => {
+    const waiting = row('waiting');
+    const view = await openMenu(table(waiting));
+    await view.user.click(screen.getByRole('menuitem', { name: 'Mark absent' }));
+    expect(await screen.findByText('Mark #110 Hazel absent?')).toBeInTheDocument();
+    view.rerender(table(row('scored')));
+    await waitFor(() => expect(screen.queryByText('Mark #110 Hazel absent?')).toBeNull());
+  });
+
+  it('takes a dog that was in the ring out of it once the absent is saved', async () => {
+    getStored.mockResolvedValue({ entry_status: 'accepted', check_in_status: 'in-ring' });
+    const { user } = await openMenu(table(row('in-ring')));
+    await user.click(screen.getByRole('menuitem', { name: 'Mark absent' }));
+    await user.click(await screen.findByRole('button', { name: 'Mark absent' }));
+    await waitFor(() => expect(transitionToCompleted).toHaveBeenCalledWith('e-110'));
+  });
+
+  it('leaves the check-in of a dog that was only waiting alone', async () => {
+    const { user } = await openMenu(table(row('waiting')));
+    await user.click(screen.getByRole('menuitem', { name: 'Mark absent' }));
+    await user.click(await screen.findByRole('button', { name: 'Mark absent' }));
+    await waitFor(() => expect(toastSuccess).toHaveBeenCalled());
+    expect(transitionToCompleted).not.toHaveBeenCalled();
   });
 });

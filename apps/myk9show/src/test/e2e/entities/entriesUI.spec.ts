@@ -88,7 +88,7 @@ test.describe('Browse entries', () => {
 
     await openActionsMenu(page);
     await page.getByTestId('header-action-show-tool-entry-list-waitlist').click();
-    await expect(page.getByText(/Wait list settings:/)).toBeVisible();
+    await expect(page.getByText(/Waitlist settings:/)).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Waitlist', exact: true })).toBeVisible();
 
     await page.getByRole('link', { name: 'Back to entry forms' }).click();
@@ -180,21 +180,21 @@ test.describe('Armband assignment', () => {
 
 // ─── Comp entry ────────────────────────────────────────────────────────────────
 
-test.describe('Comp entry', () => {
-  test('Comp Entry dialog opens with reason field', async ({ page }, testInfo) => {
+test.describe('Free entry', () => {
+  test('Free entry dialog opens with reason field', async ({ page }, testInfo) => {
     skipMobileTableCoverage(testInfo);
     await signInAsSecretary(page);
     await gotoEntries(page);
 
     const rowActions = page.getByRole('button', { name: /^Actions for / }).first();
     await rowActions.click();
-    const compItem = page.getByRole('menuitem', { name: 'Comp entry', exact: true });
+    const compItem = page.getByRole('menuitem', { name: 'Make free', exact: true });
     await expect(compItem).toBeVisible();
     await compItem.dispatchEvent('click');
 
-    const dialog = page.getByRole('dialog', { name: 'Comp Entry' });
+    const dialog = page.getByRole('dialog', { name: 'Free entry' });
     await expect(dialog).toBeVisible();
-    await expect(page.getByText(/This waives all fees/)).toBeVisible();
+    await expect(page.getByText(/No fees are owed for it/)).toBeVisible();
     await expect(page.getByRole('textbox', { name: 'Reason' })).toBeVisible();
 
     // Cancel out (test does not mutate state)

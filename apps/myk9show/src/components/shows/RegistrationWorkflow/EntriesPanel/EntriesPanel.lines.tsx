@@ -56,7 +56,7 @@ export const EntriesPanelLines: React.FC<EntriesPanelLinesProps> = ({
                   )}
                   {line.label}
                   {capacityReady && isWaitlist && (
-                    <span className="ml-2 font-medium text-warning">(Wait list request)</span>
+                    <span className="ml-2 font-medium text-warning">(Waitlist request)</span>
                   )}
                 </span>
                 <span className="flex shrink-0 items-center gap-1">

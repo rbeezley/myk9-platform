@@ -135,7 +135,7 @@ export function CockpitTrialGroup({
       )}
       {group.classes.length === 0 && (
         <div className="px-4 py-8 text-center text-sm text-muted-foreground">
-          No classes match this filter.
+          No classes in this trial yet.
         </div>
       )}
     </TrialGroupCard>

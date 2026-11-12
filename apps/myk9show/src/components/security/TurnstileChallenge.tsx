@@ -165,7 +165,7 @@ export const TurnstileChallenge = forwardRef<TurnstileChallengeHandle, Turnstile
               onClick={retry}
               className="ml-1 inline-flex min-h-11 items-center rounded px-3 text-primary underline focus:outline-none focus:ring-2 focus:ring-ring"
             >
-              Retry
+              Try again
             </button>
           </div>
         )}

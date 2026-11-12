@@ -61,9 +61,35 @@ The exhibitor route (picks from your own dogs) survives for a manager who is not
 
 Late-entry mode does **not** relax the entry-close deadline. That exemption is RBAC — `getEntryCloseSubmitBlocker` exits early for any non-exhibitor workflow and deliberately ignores the URL flag, since any exhibitor can append it.
 
-## Nouns are unaffected
+## Nouns
 
-`entry` / `entries` stays the noun for the record, everywhere it already appears: **My Entries**, **5 Entries**, **Entry Fees**, **Entries close Dec 1**, **Entries Management**. The rule governs verb phrases only.
+One word per thing, in visible text only (MYK9-1857, from the MYK9-1819 audit). Code identifiers, database columns, routes and analytics keys keep their names. Guard: `apps/myk9show/src/test/ci/visibleWording.test.ts` fails on a visible "wait list" / "wait-list" and on a visible "Retry" label (any string that is "Retry" or starts with "Retry "); strings that mirror the server (such as an entry denial reason) keep its exact text and are listed in the guard; the other rows are applied by the sibling issues and by review.
+
+| Thing                        | Say                                                                         | Not                                                                                 |
+| ---------------------------- | --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| The queue for a full class   | **waitlist** ("Leave waitlist")                                             | wait list, wait-list                                                                |
+| Run an action again          | **Try again**                                                               | Retry                                                                               |
+| The platform's cut           | **service fee**                                                             | platform fee, card processing fee                                                   |
+| The club's money account     | **bank account**                                                            | payment account, Stripe                                                             |
+| Who to contact               | **the show secretary** (show problems); **myK9Show support** (app problems) | trial secretary, show organizer, show team, the club, the administrator, club admin |
+| Making an account            | **Create account**                                                          | Sign up, Sign Up, Create an account                                                 |
+| Pay by card                  | **Credit/Debit Card**                                                       | Credit Card, Credit/Debit Card (Online), Credit/Debit Card (Online Payment)         |
+| Pay by check                 | **Check (pay at show)**                                                     | Check (Pay at Show), Check at Show                                                  |
+| Leaving a class              | **Pull or withdraw...** (leaving a waitlist: **Leave waitlist**)            | Leave class...                                                                      |
+| Taking a dog out on show day | **Pull**                                                                    | Pull / no-show, absent, scratched                                                   |
+| A copied link                | **Link copied**                                                             | URL copied, Link copied!                                                            |
+| Wireless network             | **Wi-Fi**                                                                   | WiFi                                                                                |
+| An entry                     | **entry**                                                                   | registration (kept only for a dog's registry number)                                |
+| A free entry                 | **Free entry** (button: **Make free**)                                      |                                                                                     |
+| Ending the show              | **Close the show**; "finish" is kept for a class                            | Finish the show                                                                     |
+
+### Owner calls
+
+A free entry is "Free entry" with the button "Make free"; closing a show is "Close the show", while "finish" stays for a class.
+
+### Entry and "your entry"
+
+`entry` / `entries` stays the noun for the record, everywhere it already appears: **My Entries**, **5 Entries**, **Entry Fees**, **Entries close Dec 1**, **Entries Management**.
 
 The in-progress set an exhibitor is building and paying for is **"your entry"** in copy ("Your entry" side panel, "Added to your entry", "Nothing in your entry yet"); the header badge reads **"Entry in progress"**. The `/cart` URL and the code (cart store, `Cart*` components) keep "cart". Where an entry sits _inside_ that set, copy avoids the container noun ("2 entries saved, not yet paid", not "2 entries in your entry").
 
@@ -95,3 +121,32 @@ The in-progress set an exhibitor is building and paying for is **"your entry"** 
 ### "New" as an adjective
 
 `new` survives where it separates a new person from picking an existing one in the same control, not as a synonym for `Add`: **Add new judge (person not in system)** and **Add new Show Chairman** in the show wizard's officials pickers. The action still starts with `Add`.
+
+## Offline and updates
+
+Audience: older, retired, low-computer-skill volunteers and exhibitors, usually at a venue on poor Wi-Fi (MYK9-1818). Say where the change is and what happens next, in the words a person would use out loud. The shared sentences live in `apps/myk9show/src/lib/offlineCopy.ts`.
+
+| Say                                              | Instead of                                  |
+| ------------------------------------------------ | ------------------------------------------- |
+| saved on this device                             | queued, cached, local storage, stored local |
+| will be sent when you are back online            | will sync, syncing, synced, backlog         |
+| not been sent yet                                | unsynced, pending sync                      |
+| update the app (a new version is applied)        | reload, refresh the page, new build         |
+| restart the app (just starts it again)           | refresh app, reload                         |
+| add to your home screen                          | install as a standalone app                 |
+| we could not reach myK9Show                      | the server is down, server error            |
+| this was changed somewhere else at the same time | conflict, record changed elsewhere          |
+| keep the other change / keep my change           | use their change, take theirs, keep mine    |
+| getting this device's show data back             | checking local data, resyncing              |
+| saved data (the "Storage" section, staff)        | cache, cached data, clear cache             |
+
+No em dashes in these strings.
+
+Guard: `apps/myk9show/src/test/ci/visibleWording.test.ts` fails on visible "will sync" and its relatives ("changes to sync", "not synced", "Sync needs attention"), "queued", "reach the server" / "server is down", and "clear cache" / "cached data", in app source and in `packages/scoring-ui`. It checks phrases, not bare words, and does not check "reload" (cart and wizard errors still say "Reload the page"). The System Health page and developer tools are exempt; the few strings that keep a word on purpose are listed in the guard with the reason.
+
+Rules:
+
+- **"Update the app"** only where a newer version is really being applied (the update prompt in `main.tsx`, `StaleSchemaBanner`). **"Restart the app"** where the control just starts the app again: the account menu item (it applies a waiting update when there is one, otherwise it reloads the page). Never say "update" for a plain reload.
+- The conflict notice says "This was changed somewhere else at the same time", then "Choose which change to keep. The other one is thrown away." with the buttons "Keep the other change" and "Keep my change". The words live in `offlineCopy.ts`; the Verify blocked reason uses the same constants.
+- Today the Account "Storage" section is for staff only. The sync-failure toast's "Reason: ..." line is for staff only: an exhibitor-only account sees the headline and the buttons, not the line (`SyncFailureReason`). Staff (including stewards and chairmen who also exhibit) and anyone whose roles are not known yet still see it. The plain permission sentence ("You don't have permission to change this ...") is not a Reason line and shows to everyone.
+- Point at the account menu with the words it really shows: "All changes saved", "Saving changes...", "Offline. Changes saved on this device".

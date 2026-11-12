@@ -395,7 +395,7 @@ function PlatformFeeCard() {
               the typed values, because "is this valid?" and "has this changed?"
               are both meaningless without a fee to compare against. */}
           {rateState === 'unavailable' ? (
-            'The current fee could not be loaded, so it cannot be changed here. Reload to try again.'
+            'The current fee could not be loaded, so it cannot be changed here. Restart the app to try again.'
           ) : rateState === 'absent' ? (
             'No platform fee is set. Contact support before charging entries.'
           ) : rateState === 'loading' ? (

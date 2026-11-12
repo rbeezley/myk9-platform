@@ -1,3 +1,4 @@
+import { judgeNameOrUnsetLabel } from '@/utils/classJudgeDisplay';
 import { Fragment, type MouseEvent } from 'react';
 import { Link } from 'react-router-dom';
 
@@ -48,7 +49,6 @@ export function CockpitScheduleRow({
 }) {
   const ticked = select?.isSelected(classItem.id) ?? false;
   const time = classItem.expectedStart ? classItem.timeLabel : null;
-  const ring = classItem.operationalArea.value?.label ?? null;
   const attention = classItem.attentionCount;
   const attentionWords = `${attention} ${attention === 1 ? 'needs' : 'need'} attention`;
   return (
@@ -107,13 +107,7 @@ export function CockpitScheduleRow({
             </span>
           )}
           <span className="min-w-0">
-            {ring && (
-              <>
-                <span data-testid="class-ring">{ring}</span>
-                {' · '}
-              </>
-            )}
-            <span data-testid="class-judge">{classItem.judgeName || 'Judge not set'}</span>
+            <span data-testid="class-judge">{judgeNameOrUnsetLabel(classItem.judgeName)}</span>
             {' · '}
             <span data-testid="class-status-line">
               {classItem.statusLine.parts.map((part, index) => (

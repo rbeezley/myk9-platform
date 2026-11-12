@@ -72,7 +72,11 @@ vi.mock('@/services/database/supabaseClient', () => ({
 }));
 
 vi.mock('@/services/replication/ReplicatedClassesTable', () => ({
-  replicatedClassesTable: { getClassById: vi.fn(), sync: vi.fn() },
+  replicatedClassesTable: {
+    getClassById: vi.fn(),
+    sync: vi.fn(),
+    subscribe: vi.fn(() => () => undefined),
+  },
 }));
 vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
   replicatedEntriesTable: {
@@ -366,7 +370,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
 
     expect(await screen.findByText('Class not found')).toBeInTheDocument();
     expect(screen.queryByRole('status', { name: 'Loading scoresheet' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Entries' })).toBeInTheDocument();
   });
 
@@ -409,7 +413,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
       } as never);
 
     renderPage();
-    fireEvent.click(await screen.findByRole('button', { name: 'Retry' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Try again' }));
 
     expect(await screen.findByTestId('live-scoresheet')).toBeInTheDocument();
     expect(replicatedTrialsTable.sync).toHaveBeenCalledTimes(2);
@@ -482,7 +486,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     await waitFor(() => expect(judgeAssignmentsGetAll).toHaveBeenCalled());
 
     expect(await screen.findByText('Class not found')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
     expect(screen.queryByRole('status', { name: 'Loading scoresheet' })).not.toBeInTheDocument();
     expect(screen.queryByText('Live scoresheet for #105')).not.toBeInTheDocument();
   });
@@ -511,7 +515,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     await screen.findByTestId('live-scoresheet');
     fireEvent.click(screen.getByText('Submit Score'));
 
-    expect(await screen.findByText(/Saved on this device.*waiting to sync/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Saved on this device.*not been sent yet/i)).toBeInTheDocument();
     expect(screen.queryByText('Score saved')).not.toBeInTheDocument();
   });
 
@@ -525,7 +529,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     fireEvent.click(screen.getByText('Submit Score'));
 
     await waitFor(() => expect(submitScoreOptimistically).toHaveBeenCalledTimes(1));
-    expect(await screen.findByText(/Saved on this device.*waiting to sync/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Saved on this device.*not been sent yet/i)).toBeInTheDocument();
 
     // Offline at the ring: every network sync hangs until the venue reconnects.
     const offline = () => new Promise<never>(() => undefined);
@@ -585,7 +589,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
 
     view.rerender(<QuickAdvancePanel {...actions} scoredEntryId="entry-2" />);
     expect(screen.queryByText('Score saved')).not.toBeInTheDocument();
-    expect(screen.getByText(/Saved on this device.*waiting to sync/i)).toBeInTheDocument();
+    expect(screen.getByText(/Saved on this device.*not been sent yet/i)).toBeInTheDocument();
   });
 
   it('changes a queued confirmation to server-saved after upload and readback', async () => {
@@ -595,7 +599,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     renderPage();
     await screen.findByTestId('live-scoresheet');
     fireEvent.click(screen.getByText('Submit Score'));
-    expect(await screen.findByText(/Saved on this device.*waiting to sync/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Saved on this device.*not been sent yet/i)).toBeInTheDocument();
     await waitFor(() => expect(replicatedEntriesTable.getScoreUploadState).toHaveBeenCalled());
 
     vi.mocked(replicatedEntriesTable.getScoreUploadState).mockResolvedValue('uploaded');
@@ -627,7 +631,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     await screen.findByTestId('live-scoresheet');
     fireEvent.click(screen.getByText('Submit Score'));
 
-    expect(await screen.findByText(/Saved on this device.*waiting to sync/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Saved on this device.*not been sent yet/i)).toBeInTheDocument();
     await waitFor(() => expect(replicatedEntriesTable.readScoreFromServer).toHaveBeenCalled());
     expect(screen.queryByText('Score saved')).not.toBeInTheDocument();
   });
@@ -657,7 +661,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     await screen.findByTestId('live-scoresheet');
     fireEvent.click(screen.getByText('Submit Score'));
 
-    expect(await screen.findByText(/Saved on this device.*waiting to sync/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Saved on this device.*not been sent yet/i)).toBeInTheDocument();
     await waitFor(() => expect(replicatedEntriesTable.readScoreFromServer).toHaveBeenCalled());
     expect(screen.queryByText('Score saved')).not.toBeInTheDocument();
   });
@@ -672,7 +676,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     fireEvent.click(screen.getByText('Submit Score'));
 
     expect(
-      await screen.findByText(/Saved on this device.*sync needs attention/i)
+      await screen.findByText(/Saved on this device, but it could not be sent/i)
     ).toBeInTheDocument();
     expect(replicatedEntriesTable.readScoreFromServer).toHaveBeenCalledWith('entry-1');
   });

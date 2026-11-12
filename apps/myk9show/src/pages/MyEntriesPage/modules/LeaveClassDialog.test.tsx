@@ -67,7 +67,7 @@ describe('LeaveClassDialog', () => {
     renderDialog();
 
     const dialog = within(await chooser());
-    expect(dialog.getByText('Leave this class?')).toBeInTheDocument();
+    expect(dialog.getByText('Pull or withdraw?')).toBeInTheDocument();
     expect(dialog.getByText('Exterior Excellent')).toBeInTheDocument();
     // Round 1 (lens L): two trials of one show can run a class with the same
     // display name, so every step carries the row's own discriminator.

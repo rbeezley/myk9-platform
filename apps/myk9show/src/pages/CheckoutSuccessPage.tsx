@@ -217,7 +217,7 @@ export default function CheckoutSuccessPage() {
           success: false,
           verificationStatus: 'unavailable',
           error: isWaitlistOnly
-            ? 'We could not show your wait list confirmation. No payment was submitted.'
+            ? 'We could not show your waitlist confirmation. No payment was submitted.'
             : 'No checkout session was found, so we could not confirm this payment.',
         });
         setIsLoading(false);
@@ -368,12 +368,12 @@ export default function CheckoutSuccessPage() {
   const isWaitlistOnlySuccess = confirmedEntryCount === 0 && waitlistEntries.length > 0;
   const isFullOverflowRefund = orderDetails?.checkoutOutcome === 'full_overflow_refund';
   const pageTitle = isWaitlistOnlySuccess
-    ? 'Added to Wait List'
+    ? 'Added to Waitlist'
     : isFullOverflowRefund
       ? 'Payment Refunded'
       : 'Entry Submitted Successfully!';
   const pageDescription = isWaitlistOnlySuccess
-    ? 'Your wait list request has been recorded for the full classes in this entry.'
+    ? 'Your waitlist request has been recorded for the full classes in this entry.'
     : isFullOverflowRefund
       ? 'The remaining spots filled before your paid entries could be created.'
       : 'Your payment has been processed and your entries are confirmed.';
@@ -399,7 +399,7 @@ export default function CheckoutSuccessPage() {
       <CheckoutVerificationIssueCard
         issue={verificationIssue}
         {...(isWaitlistOnly &&
-          !sessionId && { titleOverride: 'Wait List Confirmation Unavailable' })}
+          !sessionId && { titleOverride: 'Waitlist Confirmation Unavailable' })}
         canCheckStatus={shouldBackgroundRecheck}
         isCheckingStatus={isCheckingStatus}
         warnAgainstNewPayment={shouldBackgroundRecheck}
@@ -586,7 +586,7 @@ export default function CheckoutSuccessPage() {
                     Your armband number will be confirmed by the show secretary before show day
                   </li>
                 ) : !isFullOverflowRefund ? (
-                  <li>We&apos;ll notify you if a spot opens up from the wait list.</li>
+                  <li>We&apos;ll notify you if a spot opens up from the waitlist.</li>
                 ) : null}
               </ul>
             </div>

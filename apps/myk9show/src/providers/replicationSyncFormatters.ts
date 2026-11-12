@@ -99,7 +99,7 @@ function actionLabel(operation: string | undefined): string {
 
 export function formatSyncFailureToast(detail: SyncFailedEventDetail): string {
   if (hasPermanentScoreAuthorizationFailure(detail)) {
-    return "Score not saved — you're not authorized to score this class. Get a judge passcode or ask the secretary to fix access, then retry.";
+    return "Score not saved. You're not authorized to score this class. Get a judge passcode or ask the secretary to fix access, then retry.";
   }
 
   const first = detail.mutations[0];
@@ -112,14 +112,16 @@ export function formatSyncFailureToast(detail: SyncFailedEventDetail): string {
     return `We couldn't save this show change. ${gateMessage}`;
   }
   if (detail.count === 1 && first) {
-    return `We couldn't ${actionLabel(first.operation)} this ${objectLabel(first.tableName)}. Retry or discard this change.`;
+    return `We couldn't ${actionLabel(first.operation)} this ${objectLabel(first.tableName)}. Try again or discard this change.`;
   }
 
-  return `We couldn't save ${detail.count} changes. Retry or discard these changes.`;
+  return `We couldn't save ${detail.count} changes. Try again or discard these changes.`;
 }
 
+/** Starts the technical detail line; the plain-English permission sentence does not. */
+export const SYNC_FAILURE_REASON_PREFIX = 'Reason: ';
 const REASON_MAX_LENGTH = 160;
-const NO_DETAIL_REASON = 'the server gave no details.';
+const NO_DETAIL_REASON = 'no details were given.';
 const PERMISSION_ERROR_PATTERN =
   /row-level security|rls policy blocked|permission denied|\b42501\b/i;
 /** What the queue prepends when it stores a failure (mutation-retry.ts); not the reason. */
@@ -131,19 +133,21 @@ const QUEUE_PREFIX_PATTERN = /^(?:non-retryable error|max retries exceeded):\s*/
  * headline from `formatSyncFailureToast` stays plain English; this is the
  * detail line. Permission refusals are translated, anything else is the
  * refusal's own message (the server's, or a client timeout), trimmed.
+ * The "Reason:" line is deliberate and staff only: `SyncFailureReason` hides it
+ * from exhibitor-only accounts (MYK9-1849).
  */
 export function formatSyncFailureReason(detail: SyncFailedEventDetail): string | undefined {
   const first = detail.mutations.find(mutation => mutation.error?.trim());
   const error = first?.error?.trim().replace(QUEUE_PREFIX_PATTERN, '');
   if (!first || !error) return undefined;
   // Rows stored before MYK9-1146 may hold "[object Object]"; never show it.
-  if (error.includes('[object Object]')) return `Reason: ${NO_DETAIL_REASON}`;
+  if (error.includes('[object Object]')) return `${SYNC_FAILURE_REASON_PREFIX}${NO_DETAIL_REASON}`;
   if (PERMISSION_ERROR_PATTERN.test(error)) {
     return `You don't have permission to change this ${objectLabel(first.tableName)}.`;
   }
   const clipped =
     error.length > REASON_MAX_LENGTH ? `${error.slice(0, REASON_MAX_LENGTH - 1)}…` : error;
-  return `Reason: ${clipped}`;
+  return `${SYNC_FAILURE_REASON_PREFIX}${clipped}`;
 }
 
 export function formatDownloadFailureToast(

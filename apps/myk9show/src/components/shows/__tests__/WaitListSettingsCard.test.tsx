@@ -263,9 +263,9 @@ describe('WaitListSettingsCard', () => {
     });
   });
 
-  // MYK9-1019: one show-wide "Allow wait lists"; classes follow it unless set on their own.
-  describe('allow wait lists switch', () => {
-    const switchName = 'Allow wait lists';
+  // MYK9-1019: one show-wide "Allow waitlists"; classes follow it unless set on their own.
+  describe('allow waitlists switch', () => {
+    const switchName = 'Allow waitlists';
 
     it('shows the stored setting: off by default, with what that means', async () => {
       render(<WaitListSettingsCard showId="show-1" />);
@@ -275,12 +275,12 @@ describe('WaitListSettingsCard', () => {
       expect(toggle).toHaveAccessibleDescription(/new entries are turned away/);
     });
 
-    it('shows a show that takes wait lists as on', async () => {
+    it('shows a show that takes waitlists as on', async () => {
       mockSingle.mockResolvedValue({ data: makeRow({ allow_waitlist: true }), error: null });
       render(<WaitListSettingsCard showId="show-1" />);
       const toggle = await screen.findByRole('switch', { name: switchName });
       await waitFor(() => expect(toggle).toBeChecked());
-      expect(toggle).toHaveAccessibleDescription(/new entries join the wait list/);
+      expect(toggle).toHaveAccessibleDescription(/new entries join the waitlist/);
     });
 
     it('turning it on saves only shows.allow_waitlist and refreshes class availability', async () => {
@@ -334,7 +334,7 @@ describe('WaitListSettingsCard', () => {
   // target. jsdom has no layout, so this proves the label really operates the switch (a click on
   // it saves) and carries the floor token; the geometry itself is the measurement sweep's job.
   it.each([
-    ['allow-waitlists', 'Allow wait lists', { allow_waitlist: true }],
+    ['allow-waitlists', 'Allow waitlists', { allow_waitlist: true }],
     ['auto-offer', 'Offer open spots automatically', { waitlist_auto_offer: false }],
   ])(
     '"%s": clicking its label flips the switch, and the label keeps the 44px floor',

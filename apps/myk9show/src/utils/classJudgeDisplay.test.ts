@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { resolveClassJudgeName, resolveTrialJudgeName } from './classJudgeDisplay';
+import {
+  isUnsetJudgeName,
+  judgeLine,
+  judgeNameOrUnsetLabel,
+  resolveClassJudgeName,
+  resolveTrialJudgeName,
+} from './classJudgeDisplay';
 
 describe('classJudgeDisplay', () => {
   it('prefers assignment-shaped class data over legacy judge fields', () => {
@@ -52,5 +58,33 @@ describe('classJudgeDisplay', () => {
         { id: 'class-2', judge: 'Two' },
       ])
     ).toBe('Multiple judges');
+  });
+});
+
+describe('screen labels for an unset judge', () => {
+  it('treats missing, blank and stored TBD as unset, and real names as set', () => {
+    expect(isUnsetJudgeName(undefined)).toBe(true);
+    expect(isUnsetJudgeName('  ')).toBe(true);
+    expect(isUnsetJudgeName('TBD')).toBe(true);
+    expect(isUnsetJudgeName('Jane Smith')).toBe(false);
+  });
+
+  it('judgeNameOrUnsetLabel picks the full, compact or bare wording', () => {
+    expect(judgeNameOrUnsetLabel('TBD')).toBe('Judge to be announced');
+    expect(judgeNameOrUnsetLabel('')).toBe('Judge to be announced');
+    expect(judgeNameOrUnsetLabel(null, { compact: true })).toBe('No judge yet');
+    expect(judgeNameOrUnsetLabel('TBD', { bare: true })).toBe('To be announced');
+    expect(judgeNameOrUnsetLabel(' Jane Smith ')).toBe('Jane Smith');
+  });
+
+  it('judgeLine never doubles the word Judge', () => {
+    expect(judgeLine('TBD')).toBe('Judge to be announced');
+    expect(judgeLine('')).toBe('Judge to be announced');
+    expect(judgeLine('Jane Smith')).toBe('Judge Jane Smith');
+  });
+
+  it('the resolvers still return TBD, so printed data is untouched', () => {
+    expect(resolveClassJudgeName({ judge: '' })).toBe('TBD');
+    expect(resolveTrialJudgeName([{ judge: '' }])).toBe('TBD');
   });
 });

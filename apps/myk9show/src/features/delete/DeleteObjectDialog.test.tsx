@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
+import { logger } from '@/services/LoggingService';
 import type { DeleteObjectKind, DeletePreview, DeleteTarget } from './deleteTypes';
 import type { DeleteRecordsResult } from './deleteRecords';
 
@@ -186,7 +187,7 @@ describe('DeleteObjectDialog names the item, its detail, what goes with it, and 
     if (cascade) expect(within(dialog).getByText(cascade)).toBeVisible();
     expect(
       within(dialog).getByText(
-        'You can undo this for 10 minutes. After that, ask a myK9 administrator to restore it.'
+        'You can undo this for 10 minutes. After that, ask myK9Show support to restore it.'
       )
     ).toBeVisible();
     expect(within(dialog).getByRole('button', { name: 'Keep it' })).toBeEnabled();
@@ -545,6 +546,51 @@ describe('DeleteObjectDialog with items already deleted elsewhere (MYK9-922)', (
   });
 });
 
+describe('DeleteObjectDialog: the guard for a failure deleteRecords did not map', () => {
+  it('one item: says what failed, logs the raw error, and shows none of its text', async () => {
+    const logError = vi.spyOn(logger, 'error').mockImplementation(() => undefined);
+    mocks.preview.mockResolvedValue(counts());
+    const boom = Object.assign(new Error('raw internal failure'), { code: 'XX000' });
+    mocks.purge.mockRejectedValue(boom);
+    const { user } = renderDialog('show', [{ id: 's1', name: 'Heartland Classic' }]);
+
+    const dialog = await screen.findByRole('alertdialog');
+    const confirm = within(dialog).getByRole('button', { name: 'Delete show' });
+    await waitFor(() => expect(confirm).toBeEnabled());
+    await user.click(confirm);
+
+    expect(
+      await within(dialog).findByText("We couldn't delete this show. Please try again.")
+    ).toBeVisible();
+    expect(within(dialog).queryByText(/raw internal failure/)).not.toBeInTheDocument();
+    expect(logError).toHaveBeenCalledWith(
+      'Delete guard caught an unmapped failure',
+      'delete',
+      { kind: 'show', count: 1, code: 'XX000' },
+      boom
+    );
+  });
+
+  it('several items: the sentence is plural, not "this dog"', async () => {
+    vi.spyOn(logger, 'error').mockImplementation(() => undefined);
+    mocks.preview.mockResolvedValue(counts());
+    mocks.purge.mockRejectedValue(new Error('raw internal failure'));
+    const { user } = renderDialog('dog', [
+      { id: 'd1', name: 'Rex' },
+      { id: 'd2', name: 'Pepper' },
+    ]);
+
+    const dialog = await screen.findByRole('alertdialog', { name: 'Delete 2 dogs?' });
+    const confirm = within(dialog).getByRole('button', { name: 'Delete 2 dogs' });
+    await waitFor(() => expect(confirm).toBeEnabled());
+    await user.click(confirm);
+
+    expect(
+      await within(dialog).findByText("We couldn't delete those dogs. Try again.")
+    ).toBeVisible();
+  });
+});
+
 describe('DeleteObjectDialog: one device-wide unsaved-work check', () => {
   const syncedClass = { id: 'c1', name: 'Novice Container', context: ctx };
 
@@ -571,7 +617,7 @@ describe('DeleteObjectDialog: one device-wide unsaved-work check', () => {
     const dialog = await screen.findByRole('alertdialog');
     const notice = await within(dialog).findByTestId('delete-unsaved-work');
     expect(notice).toHaveTextContent(/failed to upload/);
-    expect(notice).toHaveTextContent(/Retry or Discard/);
+    expect(notice).toHaveTextContent(/Try again or Discard/);
     expect(within(dialog).getByRole('button', { name: 'Delete class' })).toBeDisabled();
   });
 

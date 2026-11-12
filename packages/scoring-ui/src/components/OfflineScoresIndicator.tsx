@@ -8,7 +8,7 @@ import { useEffect, useState } from 'react';
 import { WifiOff } from 'lucide-react';
 
 export const OFFLINE_SCORES_MESSAGE =
-  "Scores are saved on this device and will sync when you're back online.";
+  'Scores are saved on this device and will be sent when you are back online.';
 
 function readOnline(): boolean {
   return typeof navigator === 'undefined' ? true : navigator.onLine;

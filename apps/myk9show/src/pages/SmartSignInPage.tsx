@@ -1,3 +1,4 @@
+import { friendlyAuthError } from '@/lib/authErrorCopy';
 import React, { useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -30,9 +31,9 @@ import type { TurnstileChallengeHandle } from '@/components/security/TurnstileCh
 import { getTurnstileSiteKey } from '@/config/turnstile';
 
 const INVALID_COPY =
-  'That doesn’t look like an email or a show passcode. Passcodes are 5 characters and start with a letter — for example, aa260.';
+  'That doesn’t look like an email or a show passcode. Passcodes are 5 characters and start with a letter. For example, aa260.';
 const INVALID_PASSCODE_COPY =
-  'That doesn’t look like a show passcode. Passcodes are 5 characters and start with a letter — for example, aa260.';
+  'That doesn’t look like a show passcode. Passcodes are 5 characters and start with a letter. For example, aa260.';
 const EMPTY_PASSWORD_COPY = 'Enter your password to sign in.';
 
 type PendingPasscode = {
@@ -149,7 +150,7 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
       persistSignInRedirect(signInReturnTo);
       await signInWithGoogle(signInReturnTo);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Google sign-in failed');
+      setError(friendlyAuthError(err, 'google'));
       setGoogleLoading(false);
     }
   };
@@ -161,7 +162,7 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
       persistSignInRedirect(signInReturnTo);
       await signInWithApple(signInReturnTo);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Apple sign-in failed');
+      setError(friendlyAuthError(err, 'apple'));
       setAppleLoading(false);
     }
   };
@@ -240,7 +241,7 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
       );
       navigate(signInReturnTo);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'An unknown error occurred');
+      setError(friendlyAuthError(err, 'signIn'));
     } finally {
       if (captchaRequired) turnstileRef.current?.reset();
       submissionPendingRef.current = false;
@@ -357,7 +358,7 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
           <div className="text-muted-foreground mb-2 text-center text-sm">
             Don't have an account?{' '}
             <Link to={signUpPath} className="text-primary hover:underline font-medium">
-              Sign up
+              Create account
             </Link>
           </div>
         )}

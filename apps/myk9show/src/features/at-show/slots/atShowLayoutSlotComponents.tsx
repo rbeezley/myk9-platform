@@ -155,8 +155,8 @@ export const ContainmentBanner: React.FC<{ className?: string }> = ({ className 
     >
       <CloudUpload size={16} className="mt-0.5 shrink-0" aria-hidden />
       <span>
-        <strong className="font-semibold">Score sync paused</strong> — the server asked this device
-        to wait. Your scores are saved here and will sync automatically in about a minute.
+        <strong className="font-semibold">Sending scores is paused.</strong> myK9Show asked this
+        device to wait. Your scores are saved on this device and will be sent in about a minute.
       </span>
     </div>
   );
@@ -209,7 +209,7 @@ export const SyncIndicator: React.FC<SyncIndicatorProps> = ({
           className="ml-0.5 inline-flex min-h-11 items-center justify-center rounded-md bg-foreground/10 px-3 text-sm font-medium transition-colors hover:bg-foreground/20"
           onClick={onRetry}
         >
-          Retry
+          Try again
         </button>
       )}
     </span>

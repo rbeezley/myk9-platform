@@ -1,99 +1,30 @@
-import type { ButtonHTMLAttributes, ReactNode } from 'react';
-import { screen, within } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { CLASS_STATUS } from '@myk9/core';
 import { toast } from 'sonner';
 
 import { render } from '@/test/utils/testUtils';
-import { applyManualClassStatus } from '@/services/show-day/classStatusMutations';
 import { setRevisedExpectedStart } from '@/services/show-day/classTimingMutations';
 
-import {
-  ClassStatusControl,
-  ExpectedStartControl,
-  STATUS_TIMING_HELP,
-} from './ClassOperationalControls';
+import { ClassStatusBadge, ExpectedStartControl } from './ClassOperationalControls';
 
-vi.mock('@/services/show-day/classStatusMutations', () => ({
-  applyManualClassStatus: vi.fn(async () => undefined),
-}));
 vi.mock('@/services/show-day/classTimingMutations', () => ({
   setRevisedExpectedStart: vi.fn(async () => undefined),
 }));
-vi.mock('@/components/ui/dropdown-menu', () => ({
-  DropdownMenu: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  DropdownMenuTrigger: ({ children }: { children: ReactNode }) => <>{children}</>,
-  DropdownMenuContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  DropdownMenuItem: (props: ButtonHTMLAttributes<HTMLButtonElement>) => (
-    <button type="button" role="menuitem" {...props} />
-  ),
-  DropdownMenuSeparator: () => <hr role="separator" />,
-  DropdownMenuGroup: ({ children }: { children: ReactNode }) => <div role="group">{children}</div>,
-  DropdownMenuLabel: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-}));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
-describe('ClassStatusControl', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
+describe('ClassStatusBadge', () => {
+  it('reads as a plain status badge with no menu or button', () => {
+    render(<ClassStatusBadge lifecycle="in-progress" />);
+
+    expect(screen.getByText('In progress')).toBeInTheDocument();
+    expect(screen.queryByRole('button')).toBeNull();
+    expect(screen.queryByRole('menuitem')).toBeNull();
   });
 
-  it('explains when the start and finish times are recorded', () => {
-    render(<ClassStatusControl classId="class-1" lifecycle="in-progress" canManageShow />);
+  it('says so when the status is unknown', () => {
+    render(<ClassStatusBadge lifecycle={null} />);
 
-    expect(screen.getByText(STATUS_TIMING_HELP)).toBeInTheDocument();
-  });
-
-  it('requires confirmation before completing a Class with unentered scores', async () => {
-    const { user } = render(
-      <ClassStatusControl
-        classId="class-1"
-        lifecycle="in-progress"
-        unenteredScoreCount={2}
-        canManageShow
-      />
-    );
-
-    await user.click(screen.getByRole('menuitem', { name: 'Complete' }));
-
-    const dialog = await screen.findByRole('alertdialog');
-    expect(
-      within(dialog).getByText('2 paper scores still need entry. Mark this Class complete anyway?')
-    ).toBeInTheDocument();
-    expect(applyManualClassStatus).not.toHaveBeenCalled();
-
-    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
-    expect(applyManualClassStatus).not.toHaveBeenCalled();
-  });
-
-  it('completes the Class once the warning is confirmed', async () => {
-    const { user } = render(
-      <ClassStatusControl
-        classId="class-1"
-        lifecycle="in-progress"
-        unenteredScoreCount={2}
-        canManageShow
-      />
-    );
-
-    await user.click(screen.getByRole('menuitem', { name: 'Complete' }));
-    const dialog = await screen.findByRole('alertdialog');
-    await user.click(within(dialog).getByRole('button', { name: 'Mark complete' }));
-
-    expect(applyManualClassStatus).toHaveBeenCalledWith('class-1', CLASS_STATUS.COMPLETED);
-  });
-
-  it('keeps cancellation separate from routine lifecycle choices', () => {
-    render(<ClassStatusControl classId="class-1" lifecycle="in-progress" canManageShow />);
-
-    expect(screen.getByRole('separator')).toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: 'Cancelled' })).toHaveClass('text-destructive');
-  });
-
-  it('keeps the current lifecycle visible but not actionable', () => {
-    render(<ClassStatusControl classId="class-1" lifecycle="in-progress" canManageShow />);
-
-    expect(screen.getByRole('menuitem', { name: 'In progress' })).toBeDisabled();
+    expect(screen.getByText('Status unknown')).toBeInTheDocument();
   });
 });
 
@@ -111,10 +42,11 @@ describe('ExpectedStartControl revert to scheduled time', () => {
         trialDate="2026-08-01"
         timeZone="America/Chicago"
         canManageShow
+        editing
+        onEditingChange={vi.fn()}
       />
     );
 
-    await user.click(screen.getByRole('button', { name: /Set expected start|^\d/ }));
     await user.click(screen.getByRole('button', { name: 'Use scheduled time' }));
 
     expect(setRevisedExpectedStart).toHaveBeenCalledWith('class-1', null);
@@ -132,12 +64,40 @@ describe('ExpectedStartControl revert to scheduled time', () => {
         trialDate="2026-08-01"
         timeZone="America/Chicago"
         canManageShow
+        editing
+        onEditingChange={vi.fn()}
       />
     );
 
-    await user.click(screen.getByRole('button', { name: /Set expected start|^\d/ }));
     await user.click(screen.getByRole('button', { name: 'Use scheduled time' }));
 
     expect(toast.error).toHaveBeenCalledWith('Could not revert to the scheduled time.');
+  });
+});
+
+describe('ExpectedStartControl read-only', () => {
+  const base = {
+    classId: 'class-1',
+    scheduledStart: null,
+    revisedExpectedStart: null,
+    trialDate: '2026-08-01',
+    timeZone: 'America/Chicago',
+    canManageShow: false,
+  };
+
+  it('reads as the fact "Not set" with no button when no time is set', () => {
+    render(<ExpectedStartControl {...base} />);
+
+    expect(screen.getByText('Not set')).toBeInTheDocument();
+    expect(screen.queryByRole('button')).toBeNull();
+    expect(screen.queryByText('Set expected start')).toBeNull();
+  });
+
+  it('still shows a set time', () => {
+    render(<ExpectedStartControl {...base} scheduledStart="10:00 AM" />);
+
+    expect(screen.getByText(/^10:00/)).toBeInTheDocument();
+    expect(screen.queryByText('Not set')).toBeNull();
+    expect(screen.queryByRole('button')).toBeNull();
   });
 });

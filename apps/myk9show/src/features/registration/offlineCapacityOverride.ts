@@ -10,6 +10,7 @@ import { requireShowEntriesSynced } from '@/services/database/entries/requireSho
 import { rowsOrThrow } from '@/services/database/_shared/readRows';
 import { showStructureCoverage } from '@/features/offline-readiness/showStructureScopes';
 import { refreshShowStructureForRead } from './refreshShowStructureForRead';
+import { CAPACITY_UNREADABLE, STRUCTURE_NOT_LOADED } from './offlineLateEntryCopy';
 
 const CAPACITY_STATUSES = new Set([
   'submitted',
@@ -142,14 +143,6 @@ export function calculateOfflineCapacityOverrides({
 
   return overrides;
 }
-
-/** Plain language for the desk: a raw storage error means nothing there. */
-const CAPACITY_UNREADABLE =
-  "We couldn't check class capacity on this device. Reload the page and try again.";
-
-/** Plain language for the desk when the show's classes or trials are not on this device. */
-const STRUCTURE_NOT_LOADED =
-  "This show's classes haven't finished loading on this device. Connect to the internet and try again.";
 
 async function readCapacityInputs(showId: string) {
   // Every count below comes from a device read, and getAll() hands back [] for

@@ -72,7 +72,7 @@ describe('GazetteEntryReceived', () => {
 
   it('renders the confirmation number label when supplied', () => {
     render(<GazetteEntryReceived {...BASE_PROPS} />);
-    expect(screen.getAllByText(/Confirmation # MK9-000137/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Confirmation number MK9-000137/).length).toBeGreaterThan(0);
     expect(screen.queryByText(/Entry №/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Registration #/)).not.toBeInTheDocument();
   });

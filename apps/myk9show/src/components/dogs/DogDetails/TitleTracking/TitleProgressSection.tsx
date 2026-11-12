@@ -63,7 +63,7 @@ const TitleProgressSection: React.FC<TitleProgressSectionProps> = ({ dogId, owne
               We couldn&rsquo;t load title progress. Please try again.
             </p>
             <Button size="sm" variant="outline" onClick={() => refetch()}>
-              Retry
+              Try again
             </Button>
           </div>
         </div>

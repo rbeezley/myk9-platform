@@ -1,4 +1,5 @@
 import { useRevealOnScroll } from '@/features/_shared/hooks/useRevealOnScroll';
+import { TO_BE_ANNOUNCED_LABEL } from '@/lib/format/fallbackLabels';
 import { FieldGuideSectionHead } from '../../components/FieldGuideSectionHead';
 import { FIELD_GUIDE_DISPLAY_FAMILY, FIELD_GUIDE_MONO_FAMILY } from '../../fonts';
 import { fieldGuideColors, fieldGuideSpacing } from '../../tokens';
@@ -32,10 +33,12 @@ export function RosterSection({
   const { ref, revealed } = useRevealOnScroll<HTMLDivElement>();
   if (entryLimit == null) return null;
   const pct = entryCapacityPercent(entryCount, entryLimit);
-  const openedLabel = entryOpenDate ? formatDateInTimezone(entryOpenDate, timezone, 'iso') : 'TBA';
+  const openedLabel = entryOpenDate
+    ? formatDateInTimezone(entryOpenDate, timezone, 'iso')
+    : TO_BE_ANNOUNCED_LABEL;
   const closesLabel = entryCloseDate
     ? formatDateInTimezone(entryCloseDate, timezone, 'iso')
-    : 'TBA';
+    : TO_BE_ANNOUNCED_LABEL;
 
   return (
     <section

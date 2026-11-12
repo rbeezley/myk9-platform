@@ -526,7 +526,10 @@ describe('EntryFocusedRegistration', () => {
         />
       );
       await user.click(screen.getByRole('button', { name: 'More payment options' }));
-      await user.click(await screen.findByRole('menuitem', { name: 'Paid in Full: Online' }));
+      await user.click(await screen.findByRole('menuitem', { name: 'Paid in Full: Online…' }));
+      expect(props.paymentLedger.markPaidOnline).not.toHaveBeenCalled();
+      await user.click(await screen.findByRole('button', { name: 'Mark Paid Online' }));
+      expect(props.paymentLedger.markPaidOnline).toHaveBeenCalledTimes(1);
       expect(props.paymentLedger.markPaidOnline).toHaveBeenCalledWith('enrollment-1');
       expect(props.paymentLedger.record).not.toHaveBeenCalled();
     });

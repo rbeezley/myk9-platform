@@ -1,10 +1,15 @@
 import { useCallback, useState } from 'react';
-import type { EntryManagementEntry } from '@/types/entry-management-types';
 import type { CheckInStatus } from '@myk9/core';
 import { dispatchBulk } from '@/hooks/bulkDispatch';
 import { updateReplicatedCheckInStatus } from '@/services/show-day/checkInStatus';
 import type { DeskStatusChange } from './checkInDeskModel';
 import { deskStatusLabel } from './peopleRoster';
+
+/** What the writes need from an entry to know the status it is changing from. */
+export interface DeskStatusSource {
+  id: string;
+  classes: readonly { checkInStatus?: CheckInStatus | undefined }[];
+}
 
 /**
  * Status writes for the Check-in desk (check in, Conflict, undo): the replicated path
@@ -16,7 +21,7 @@ import { deskStatusLabel } from './peopleRoster';
  */
 export function useCheckInDeskActions(
   /** The shared entries, never the optimistic view: `from` must be what the shared data says. */
-  entries: readonly EntryManagementEntry[],
+  entries: readonly DeskStatusSource[],
   onRefreshEntries?: () => void | Promise<void>
 ) {
   const [changes, setChanges] = useState<ReadonlyMap<string, DeskStatusChange>>(new Map());
@@ -25,6 +30,22 @@ export function useCheckInDeskActions(
   /** The entries the last failed write was about, so the error shows on their dog's card. */
   const [errorIds, setErrorIds] = useState<ReadonlySet<string>>(new Set());
   const [notice, setNotice] = useState<string | null>(null);
+
+  // A held flip is only about the status it was made from. Once the shared entries read as
+  // something else, it is spent, so it cannot re-apply if the status later returns to `from`.
+  const spent = [...changes].filter(([entryId, change]) => {
+    const source = entries.find(entry => entry.id === entryId);
+    return (
+      source !== undefined && (source.classes[0]?.checkInStatus ?? 'no-status') !== change.from
+    );
+  });
+  if (spent.length > 0) {
+    setChanges(current => {
+      const next = new Map(current);
+      spent.forEach(([entryId]) => next.delete(entryId));
+      return next;
+    });
+  }
 
   /** Sets `status` on each entry; `subject` names who or what in the messages ("Alice Martin"). */
   const setStatus = useCallback(

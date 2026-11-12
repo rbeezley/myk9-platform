@@ -116,7 +116,7 @@ describe('resolveLiveHint', () => {
   });
 
   it('names the branch a passcode would take', () => {
-    expect(resolveLiveHint('passcode')).toBe("Looks like a show passcode — you'll be signed in");
+    expect(resolveLiveHint('passcode')).toBe("Looks like a show passcode. You'll be signed in");
   });
 
   it('stays silent for an email — the password field is already visible', () => {

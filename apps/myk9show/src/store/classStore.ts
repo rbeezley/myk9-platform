@@ -365,7 +365,7 @@ export const useClassStore = create<ClassStoreState>()((set, get): ClassStoreSta
         trialNumber: `TRL-${Date.now()}`,
         classOrder: (index + 1).toString(),
         status: 'Scheduled' as const,
-        judge: 'TBD',
+        judge: '',
         className: genClass.className,
         classNumber: genClass.classNumber,
         element: genClass.element,

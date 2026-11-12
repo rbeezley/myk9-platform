@@ -1,5 +1,3 @@
-import type { AskQQuestionMode } from './types.ts';
-
 // MYK9-1775: the model invented deadlines, refund terms, secretary-only actions
 // and app behavior the guides never describe. These rules are appended to the
 // system prompt (kept apart from myK9ShowPrompt.ts on purpose).
@@ -13,23 +11,10 @@ GROUNDING RULES (app help):
 - Do not claim the app adjusts, reassigns or changes anything (a judge assignment, a class, a price) unless the guides say so.
 `;
 
-export const SHOW_DATA_HOWTO_RULES = `
+export const SHOW_DATA_GROUNDING_RULES = `
 GROUNDING RULES (this show):
-- This mode has no user guides. Do not describe app steps, deadlines, refund terms or fees, and do not promise a refund.
-- For a how-to or policy question (how to withdraw or pull, refund terms, fees, deadlines), reply that it is covered in App help and ask the user to switch to App help.
-- Questions about live show data, such as which entries are withdrawn or pulled, are answered with the show-data tools as usual.
+- Answer only from what the show-data tools return. Do not describe app steps, deadlines, refund terms or fees, and do not promise a refund.
+- Questions about this show's state, such as whether a class is running, which entries are withdrawn or pulled, or whether a dog is entered, are answered with the tools.
+- If the question asks for something the tools cannot return, answer the part they can and say nothing about the rest.
 - Answer data questions for this show's registry only, as stated in user_context.
 `;
-
-export function buildGroundingPrompt(
-  questionMode: AskQQuestionMode | null,
-  effectiveSupportMode: boolean
-): string {
-  if (questionMode === 'show-data') return SHOW_DATA_HOWTO_RULES;
-  // The panel sends no questionMode while it displays "This show" by default, and that
-  // request keeps the guides in its prompt, so it gets the app-help grounding too.
-  if (questionMode === null || questionMode === 'app-help' || effectiveSupportMode) {
-    return APP_HELP_GROUNDING_RULES;
-  }
-  return '';
-}

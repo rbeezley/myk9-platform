@@ -28,6 +28,13 @@ describe('MessageBubble', () => {
     expect(screen.getByText('Secretary')).toBeInTheDocument();
   });
 
+  it('prints a stored role value as its plain-words label', () => {
+    const msg = { ...baseMessage, sender_role: 'club_admin' };
+    render(<MessageBubble message={msg} isOwnMessage={false} />);
+    expect(screen.queryByText('club_admin')).not.toBeInTheDocument();
+    expect(screen.getByText('Club Admin')).toBeInTheDocument();
+  });
+
   it('applies own-message styling', () => {
     const { container } = render(<MessageBubble message={baseMessage} isOwnMessage={true} />);
     expect(container.querySelector('[data-own-message="true"]')).toBeInTheDocument();

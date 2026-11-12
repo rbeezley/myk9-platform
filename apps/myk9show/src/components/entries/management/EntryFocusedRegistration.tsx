@@ -197,7 +197,7 @@ export function EntryFocusedRegistration({
               className="min-h-11"
               onClick={checkIn.retrySchedule}
             >
-              Retry
+              Try again
             </Button>
           </div>
         )}

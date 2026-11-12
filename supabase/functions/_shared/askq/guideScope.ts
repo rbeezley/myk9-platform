@@ -1,6 +1,5 @@
 import type { AskQGuideAsset } from './documentContext.ts';
 import { applyActiveRoleValidity, isCurrentRole } from '../roleValidity.ts';
-import type { AskQQuestionMode } from './types.ts';
 
 // MYK9-1775: the secretary and club-admin guides document management actions
 // (Remove entry, refunds, approvals) that an exhibitor must never be offered as
@@ -63,14 +62,4 @@ export function scopeGuidesToRole(
 ): AskQGuideAsset[] {
   if (hasStaffRole) return guides;
   return guides.filter(guide => !MANAGEMENT_GUIDE_IDS.has(guide.id));
-}
-
-/** The guides in play for a mode: none for rules and show-data, role-scoped for app help. */
-export function getDocumentGuides(
-  allGuides: AskQGuideAsset[],
-  questionMode: AskQQuestionMode | null,
-  hasStaffRole: boolean
-): AskQGuideAsset[] {
-  if (questionMode === 'rules' || questionMode === 'show-data') return [];
-  return scopeGuidesToRole(allGuides, hasStaffRole);
 }

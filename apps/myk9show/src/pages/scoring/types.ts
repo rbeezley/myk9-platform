@@ -18,6 +18,7 @@ import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTabl
 import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
 import type { SecretaryEntry } from '@/services/database/entries';
+import { applyShowNationals } from './scoresheetNationals';
 import { canonicalizeTrialType } from '@/types/template.types';
 import { canPrefillSheet, toExistingScore } from './toExistingScore';
 
@@ -455,7 +456,7 @@ export async function resolveSportTypeForClass(
   if (!trial?.showId) return null;
   const show = await replicatedShowsTable.get(trial.showId);
   if (!show?.organization) return null;
-  const derived = deriveSportType(show.organization, trial.trialType);
+  const derived = applyShowNationals(deriveSportType(show.organization, trial.trialType), show);
   if (derived) return derived;
   if (!STRICT_REGISTRIES.has(show.organization.toUpperCase())) return null;
   return trial.trialType?.trim() ? UNRESOLVED_SPORT_TYPE : MISSING_TRIAL_TYPE_SPORT_TYPE;

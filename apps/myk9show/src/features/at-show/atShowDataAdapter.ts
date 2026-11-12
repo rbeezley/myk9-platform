@@ -1,3 +1,4 @@
+import { isUnsetJudgeName } from '@/utils/classJudgeDisplay';
 /**
  * Phase 1a data-dependency adapter — myK9Show replication → ringside.
  *
@@ -327,7 +328,7 @@ export function buildClassInfo(
     level: cls.level ?? '',
     section: resolveClassSection(cls.section),
     trialDate: trial?.date ?? trial?.trial_date ?? entries[0]?.trialDate ?? '',
-    judgeName: cls.judgeName ?? 'No Judge Assigned',
+    judgeName: isUnsetJudgeName(cls.judgeName) ? 'No Judge Assigned' : cls.judgeName!.trim(),
     actualClassId: cls.id,
     // Resolved visibility-cascade values, denormalized onto ReplicatedClass at
     // sync time so they survive offline (Phase 1h). Fall back to enabled/
@@ -461,7 +462,9 @@ export function createAtShowDataDependencies(): Pick<
               : {}),
             actualClassIdA: classIdA,
             actualClassIdB: classIdB,
-            judgeNameB: b.cls?.judgeName ?? 'No Judge Assigned',
+            judgeNameB: isUnsetJudgeName(b.cls?.judgeName)
+              ? 'No Judge Assigned'
+              : b.cls!.judgeName!.trim(),
             isScoringFinalized: bothFinalized,
             resultsReleasedAt: bothReleasedAt,
           }

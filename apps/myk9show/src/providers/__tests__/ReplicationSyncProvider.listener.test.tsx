@@ -119,11 +119,13 @@ describe('ReplicationSyncProvider — replication:sync-failed listener', () => {
 
     expect(toast.error).toHaveBeenCalledTimes(1);
     expect(toast.error).toHaveBeenCalledWith(
-      "We couldn't create this show. Retry or discard this change.",
+      "We couldn't create this show. Try again or discard this change.",
       expect.objectContaining({
-        description: "You don't have permission to change this show.",
+        description: expect.objectContaining({
+          props: { reason: "You don't have permission to change this show." },
+        }),
         duration: Infinity,
-        action: expect.objectContaining({ label: 'Retry' }),
+        action: expect.objectContaining({ label: 'Try again' }),
         cancel: expect.objectContaining({ label: 'Discard' }),
       })
     );
@@ -157,10 +159,10 @@ describe('ReplicationSyncProvider — replication:sync-failed listener', () => {
     });
 
     expect(toast.error).toHaveBeenCalledWith(
-      "Score not saved — you're not authorized to score this class. Get a judge passcode or ask the secretary to fix access, then retry.",
+      "Score not saved. You're not authorized to score this class. Get a judge passcode or ask the secretary to fix access, then retry.",
       expect.objectContaining({
         duration: Infinity,
-        action: expect.objectContaining({ label: 'Retry after access is fixed' }),
+        action: expect.objectContaining({ label: 'Try again after access is fixed' }),
         cancel: expect.objectContaining({ label: 'Discard' }),
       })
     );
@@ -214,9 +216,9 @@ describe('ReplicationSyncProvider — replication:sync-failed listener', () => {
       String(message).startsWith("We couldn't update this show")
     );
     expect((authorizationCall?.[1] as ToastOptions).action?.label).toBe(
-      'Retry after access is fixed'
+      'Try again after access is fixed'
     );
-    expect((retryableCall?.[1] as ToastOptions).action?.label).toBe('Retry');
+    expect((retryableCall?.[1] as ToastOptions).action?.label).toBe('Try again');
 
     act(() => {
       (retryableCall?.[1] as ToastOptions).action?.onClick();

@@ -18,6 +18,7 @@
 import { CheckCircle2, ListChecks, XCircle } from 'lucide-react';
 import { FloatingBulkBar, BulkBarButton } from '@/components/list-toolkit';
 import { useBulkUpdateClassOverrides } from '@/hooks/mutations/useShowSettingsMutations';
+import { SHOW_SETTINGS_COPY } from '@/hooks/mutations/showSettingsErrorCopy';
 import { useConnectionHint } from '@/hooks/useConnectionHint';
 import { toast } from 'sonner';
 
@@ -61,7 +62,7 @@ export function SelfCheckinBulkBar({
           );
           onClearSelection();
         },
-        onError: () => toast.error('Failed to update self check-in'),
+        onError: () => toast.error(SHOW_SETTINGS_COPY.selectedClassesCheckinFailed),
       }
     );
   }

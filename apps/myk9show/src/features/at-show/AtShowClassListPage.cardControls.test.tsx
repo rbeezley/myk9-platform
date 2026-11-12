@@ -331,7 +331,7 @@ describe('Set Max Time scoring-mode lookup', () => {
 
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent("Couldn't check how this class is timed");
-    fireEvent.click(within(alert).getByRole('button', { name: 'Retry' }));
+    fireEvent.click(within(alert).getByRole('button', { name: 'Try again' }));
     await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
     expect(lookup.scoresheetKey).toHaveBeenCalledTimes(2);
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
@@ -346,7 +346,7 @@ describe('Set Max Time scoring-mode lookup', () => {
     );
     fireEvent.click(await screen.findByRole('button', { name: 'Set Max Time' }));
     const alert = await screen.findByRole('alert');
-    fireEvent.click(within(alert).getByRole('button', { name: 'Retry' }));
+    fireEvent.click(within(alert).getByRole('button', { name: 'Try again' }));
     await waitFor(() =>
       expect(vi.mocked(replicatedClassesTable.getClassById).mock.calls.length).toBeGreaterThan(2)
     );

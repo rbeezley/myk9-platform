@@ -36,6 +36,7 @@ import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { calculateTotalFees } from '@/components/shows/RegistrationWorkflow/PaymentStep/utils';
 import { useWizardJuniorDeclaration } from './useWizardJuniorDeclaration';
 import { useDraftPersistence } from '@/hooks/useDraftPersistence';
+import { useAutoTickMarker } from './useAutoTickMarker';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
 import type {
@@ -342,6 +343,13 @@ export function useRegistrationWizardState() {
     void refetchClassAvailability();
   }, [capacityCheckEnabled, currentStepId, refetchClassAvailability]);
 
+  const { isPassiveAutoTick, markAutoTick } = useAutoTickMarker({
+    registrationData,
+    currentStepId,
+    classSelectionCount: classSelections.length,
+    handlerAssignmentCount: Object.keys(handlerAssignments).length,
+  });
+
   const {
     loadDraft: draftLoad,
     activateDraft,
@@ -353,6 +361,7 @@ export function useRegistrationWizardState() {
   } = useDraftPersistence(showId || '', userId, currentStepId, {
     autoSaveInterval: 30000,
     debug: import.meta.env.DEV,
+    suppressSave: isPassiveAutoTick,
   });
 
   // Step helpers
@@ -532,12 +541,6 @@ export function useRegistrationWizardState() {
   );
   const liveTotalFees = liveFeeCalculation.total;
 
-  // Secretary fee waiver / manual override. Page state rather than PaymentStep
-  // state because the entries panel renders the amount due outside the step's
-  // own subtree and must apply the same two flags the step does.
-  const [waiveFees, setWaiveFees] = useState(false);
-  const [feeOverride, setFeeOverride] = useState<number | null>(null);
-
   const entryCloseAvailability = useEntryCloseAvailability({
     showId,
     show: currentShow,
@@ -659,6 +662,8 @@ export function useRegistrationWizardState() {
     setStepCompletionState,
     registrationData,
     setRegistrationData,
+    isPassiveAutoTick,
+    markAutoTick,
     classSelections,
     setClassSelections,
     handlerAssignments,
@@ -707,10 +712,6 @@ export function useRegistrationWizardState() {
     setJuniorHandlerDog,
     setJuniorHandlerDogs,
     addJuniorHandlerDogs,
-    waiveFees,
-    setWaiveFees,
-    feeOverride,
-    setFeeOverride,
     capacityReady,
     capacityError: exposedCapacityError,
     capacityUnavailable,

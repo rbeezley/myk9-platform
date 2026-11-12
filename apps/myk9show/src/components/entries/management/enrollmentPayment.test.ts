@@ -192,7 +192,7 @@ describe('resolveRefund', () => {
         method: null,
         amount: 50,
         receivedOn: DAY,
-        notes: 'Stripe (manual)',
+        notes: 'Card (manual)',
       },
     },
     {

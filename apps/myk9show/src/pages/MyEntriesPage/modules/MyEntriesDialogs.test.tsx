@@ -164,7 +164,7 @@ describe('ReceiptEntryDialog order resolution', () => {
     // once as the class row fee and once as the subtotal it adds up to.
     const totals = within(screen.getByText('Entry fees').closest('dl') as HTMLElement);
     expect(totals.getByText('$60.00')).toBeInTheDocument();
-    expect(totals.getByText('Platform fee')).toBeInTheDocument();
+    expect(totals.getByText('Service fee')).toBeInTheDocument();
     expect(totals.getByText('$5.00')).toBeInTheDocument();
     expect(totals.getByText('Amount charged')).toBeInTheDocument();
     expect(totals.getByText('$65.00')).toBeInTheDocument();
@@ -198,7 +198,7 @@ describe('ReceiptEntryDialog order resolution', () => {
     expect(screen.getByText('Entry Receipt')).toBeInTheDocument();
     expect(screen.getByText('$65.00')).toBeInTheDocument();
     expect(screen.queryByText('Choose a receipt')).not.toBeInTheDocument();
-    expect(screen.queryByText(/could not reach|still syncing/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/could not reach|have not all arrived yet/i)).not.toBeInTheDocument();
   });
 
   it('does not show the charged amount while an order entry is not replicated', () => {
@@ -224,7 +224,7 @@ describe('ReceiptEntryDialog order resolution', () => {
     // Falls back to the card receipt rather than dead-ending: the entry fees
     // are known and printable, and only the exact charge is not.
     expect(screen.getByText('Entry Receipt')).toBeInTheDocument();
-    expect(screen.getByText(/still syncing/i)).toBeInTheDocument();
+    expect(screen.getByText(/have not all arrived yet/i)).toBeInTheDocument();
     expect(screen.queryByText('$140.00')).not.toBeInTheDocument();
     expect(screen.queryByText('Amount charged')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
@@ -364,9 +364,9 @@ describe('ReceiptEntryDialog order resolution', () => {
     expect(screen.queryByText('order-other')).not.toBeInTheDocument();
     // Without the intersection filter this ALSO lands on the card receipt —
     // buildOrderScopedReceipt refuses the mismatched order anyway — but it does
-    // so via the "still syncing" path, blaming replication for what is really a
+    // so via the "have not all arrived yet" path, blaming replication for what is really a
     // stale URL. Asserting the notice is absent is what distinguishes the two.
-    expect(screen.queryByText(/still syncing/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/have not all arrived yet/i)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /try again/i })).not.toBeInTheDocument();
   });
 

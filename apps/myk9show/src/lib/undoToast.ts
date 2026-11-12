@@ -1,5 +1,8 @@
 import { toast } from 'sonner';
 
+/** How long a secretary's entry-status change offers Undo before the toast closes itself. */
+export const STATUS_UNDO_WINDOW_MS = 6000;
+
 /**
  * Shared time-boxed undo toast (design.md decision D6).
  *
@@ -24,6 +27,13 @@ export interface ShowUndoToastOptions {
   duration?: number;
   /** Optional secondary line under the message. */
   description?: string;
+  /**
+   * Called once when the toast goes away WITHOUT Undo having been pressed: it timed out, was
+   * closed, or was dismissed by a page change. This is the moment the action can no longer
+   * be taken back, on the toast's own clock (which pauses while she hovers over it or the
+   * tab is hidden), so work that must not outrun Undo hangs off this, never a separate timer.
+   */
+  onStood?: (() => void) | undefined;
 }
 
 export function showUndoToast({
@@ -32,10 +42,26 @@ export function showUndoToast({
   undoLabel = 'Undo',
   duration,
   description,
+  onStood,
 }: ShowUndoToastOptions): void {
+  // Sonner calls neither close callback for an action click, but the flag makes "Undo was
+  // pressed" explicit rather than a property of the library's internals.
+  let settled = false;
+  const stood = () => {
+    if (settled) return;
+    settled = true;
+    onStood?.();
+  };
   toast.success(message, {
-    action: { label: undoLabel, onClick: onUndo },
+    action: {
+      label: undoLabel,
+      onClick: () => {
+        settled = true;
+        onUndo();
+      },
+    },
     ...(duration !== undefined ? { duration } : {}),
     ...(description ? { description } : {}),
+    ...(onStood ? { onAutoClose: stood, onDismiss: stood } : {}),
   });
 }

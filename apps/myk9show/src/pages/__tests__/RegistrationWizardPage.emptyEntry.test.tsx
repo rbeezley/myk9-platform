@@ -246,10 +246,20 @@ vi.mock('@/components/shows/wizard/components/HorizontalProgressIndicator', () =
 }));
 
 vi.mock('@/components/shows/wizard/components/WizardNavigation', () => ({
-  default: (props: { canGoNext: boolean; onNext: () => void; isLoading?: boolean }) => (
-    <button type="button" disabled={!props.canGoNext || props.isLoading} onClick={props.onNext}>
-      Next
-    </button>
+  default: (props: {
+    canGoNext: boolean;
+    onNext: () => void;
+    onBack: () => void;
+    isLoading?: boolean;
+  }) => (
+    <>
+      <button type="button" onClick={props.onBack}>
+        Back
+      </button>
+      <button type="button" disabled={!props.canGoNext || props.isLoading} onClick={props.onNext}>
+        Next
+      </button>
+    </>
   ),
 }));
 
@@ -312,7 +322,22 @@ describe('RegistrationWizardPage: removing the last class on Payment (MYK9-1289)
     expect(submitShowRegistrationMock).not.toHaveBeenCalled();
   });
 
-  it('sending the person back to Classes clears the entry agreement, as Back does', async () => {
+  it('Back from Payment and forward again keeps the entry agreement tick (MYK9-1799)', async () => {
+    const { user } = await reachPayment();
+    act(() => stepProps.current?.onAgreementChange?.(true));
+    await waitFor(() => expect(stepProps.current?.agreedToEntryAgreement).toBe(true));
+
+    await user.click(screen.getByRole('button', { name: 'Back' }));
+    await waitFor(() =>
+      expect(screen.getByTestId('step-content')).toHaveTextContent('class-selection')
+    );
+    await user.click(screen.getByRole('button', { name: 'Next' }));
+    await waitFor(() => expect(screen.getByTestId('step-content')).toHaveTextContent('payment'));
+
+    expect(stepProps.current?.agreedToEntryAgreement).toBe(true);
+  });
+
+  it('an entry emptied on Payment unticks the agreement: it is a new entry', async () => {
     const { user } = await reachPayment();
 
     // Agree on Payment through the wizard's own handler.

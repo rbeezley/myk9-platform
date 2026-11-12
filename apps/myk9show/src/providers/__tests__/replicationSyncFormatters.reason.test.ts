@@ -19,7 +19,7 @@ describe('formatSyncFailureReason with unreadable stored errors (MYK9-1146)', ()
     for (const error of ['Non-retryable error: [object Object]', '[object Object]']) {
       const reason = formatSyncFailureReason(stored(error));
       expect(reason).not.toContain('[object Object]');
-      expect(reason).toBe('Reason: the server gave no details.');
+      expect(reason).toBe('Reason: no details were given.');
     }
   });
 });

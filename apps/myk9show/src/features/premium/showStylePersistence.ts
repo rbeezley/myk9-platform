@@ -50,7 +50,9 @@ async function getSessionForOwner(ownerId: string) {
   const { data, error } = await supabase.auth.getSession();
   if (error) throw error;
   if (!data.session || data.session.user.id !== ownerId) {
-    throw new ShowStyleSaveError('Your account changed. Reload this show before saving a style.');
+    throw new ShowStyleSaveError(
+      'Your account changed. Open this show again before saving a style.'
+    );
   }
   return data.session;
 }
@@ -61,7 +63,9 @@ async function assertShowHasNoPendingChanges(showId: string): Promise<void> {
     mutationManager.getPendingMutationsForRow('shows', showId),
   ]);
   if (replicatedRow?.isDirty || pendingMutations.length > 0) {
-    throw new ShowStyleSaveError('Sync this show’s pending changes before saving its style.');
+    throw new ShowStyleSaveError(
+      'Wait for this show’s saved changes to be sent before saving its style.'
+    );
   }
 }
 
@@ -86,9 +90,7 @@ export async function saveShowDraftStyle({
   });
   if (error) throw toDefiniteRefusal(error) ?? error;
   if (typeof data !== 'number') {
-    throw new ShowStyleSaveError(
-      'The server did not confirm the saved style version. Refresh and try again.'
-    );
+    throw new ShowStyleSaveError('We could not confirm the saved style version. Try again.');
   }
 
   // No persistent replica or query-cache write is safe here: those stores are
@@ -98,7 +100,7 @@ export async function saveShowDraftStyle({
     await getSessionForOwner(ownerId);
   } catch {
     throw new ShowStyleSaveError(
-      'The style may have been saved, but your account changed or could not be confirmed. Reload this show before continuing.'
+      'The style may have been saved, but your account changed or could not be confirmed. Open this show again before continuing.'
     );
   }
   if (typeof window !== 'undefined') {

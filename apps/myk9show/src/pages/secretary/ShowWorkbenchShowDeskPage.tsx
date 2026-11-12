@@ -487,6 +487,9 @@ function ShowWorkbenchShowDeskBody() {
           canManageShow
           tools={allShowDeskTools}
           entryBreakdownByClassId={entryBreakdownByClassId}
+          onRefreshEntries={async () => {
+            await refetchShowEntries({ throwOnError: true });
+          }}
         />
       </Suspense>
     </TrialSecretaryAccessProvider>

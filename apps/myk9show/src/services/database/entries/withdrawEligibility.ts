@@ -168,7 +168,7 @@ export class WithdrawUnavailableError extends Error {
 
   constructor(kind?: RemoveFromClassKind) {
     super(
-      `We couldn't reach the server — try ${removalVerb(kind) === 'pull' ? 'pulling' : 'withdrawing'} again when you're connected.`
+      `We could not reach myK9Show. Try ${removalVerb(kind) === 'pull' ? 'pulling' : 'withdrawing'} again when you're connected.`
     );
     this.name = 'WithdrawUnavailableError';
   }

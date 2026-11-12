@@ -1,4 +1,4 @@
-import type { ClaudeMessage, ToolDefinition } from './types.ts';
+import type { ClaudeMessage, ModelReply, ToolDefinition } from './types.ts';
 
 // claude-3-5-haiku-20241022 retired 2026-02-19; claude-haiku-4-5 is the
 // drop-in replacement (same request surface — no temperature/top_p/thinking
@@ -39,17 +39,9 @@ export async function callClaude(
   messages: ClaudeMessage[],
   apiKey: string,
   tools: ToolDefinition[],
-  systemPrompt: string
-): Promise<{
-  content: Array<{
-    type: string;
-    text?: string;
-    id?: string;
-    name?: string;
-    input?: Record<string, unknown>;
-  }>;
-  stop_reason: string;
-}> {
+  systemPrompt: string,
+  maxTokens: number = MAX_TOKENS
+): Promise<ModelReply> {
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -59,7 +51,7 @@ export async function callClaude(
     },
     body: JSON.stringify({
       model: MODEL,
-      max_tokens: MAX_TOKENS,
+      max_tokens: maxTokens,
       tools,
       messages,
       system: systemPrompt,

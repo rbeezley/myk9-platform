@@ -14,8 +14,12 @@
  * functions are imported (not injected) so existing module mocks still apply.
  */
 
-import { getErrorMessage } from '@myk9/core';
 import { notifications } from '@/lib/notifications';
+import {
+  entrySubmitErrorMessage,
+  PlainEntryError,
+  type EntrySubmitPath,
+} from '@/features/registration/entrySubmitErrorCopy';
 import { submitShowRegistration } from '@/features/registration/submitShowRegistration';
 import { submitRegistrationCartCheckout } from '@/features/registration/registrationCartCheckout';
 import { submitOfflineLateEntry } from '@/features/registration/submitOfflineLateEntry';
@@ -132,6 +136,12 @@ function handledClasses(
   );
 }
 
+/** Which fixed sentence a failure falls back to (MYK9-1823). */
+function submitPath(ctx: SubmitPaymentStepContext): EntrySubmitPath {
+  if (ctx.paymentMethod === 'credit_card') return 'cardCheckout';
+  return ctx.currentWorkflowMode === 'exhibitor' ? 'exhibitorSubmit' : 'organizerSubmit';
+}
+
 export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<void> {
   ctx.setIsSubmitting(true);
   try {
@@ -144,7 +154,7 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
       workflowMode: ctx.currentWorkflowMode,
     });
     if (entryWindowBlocker) {
-      throw new Error(entryWindowBlocker);
+      throw new PlainEntryError(entryWindowBlocker);
     }
 
     if (ctx.paymentMethod === 'credit_card') {
@@ -156,7 +166,7 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
       // the card option for these modes; this guards loaded drafts and any
       // other path that bypasses it. Caught below → toast + flag reset.
       if (ctx.currentWorkflowMode !== 'exhibitor') {
-        throw new Error(
+        throw new PlainEntryError(
           'Online card checkout is only available when an exhibitor pays for their own entries. For on-behalf entries, record the payment as check, cash, or mark it as paid.'
         );
       }
@@ -259,7 +269,7 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
     ctx.updateShowRegistration(ctx.registrationId, { status: ctx.previousStatus });
     console.error('Registration payment submission failed:', error);
     if (ctx.isMounted()) {
-      notifications.error(getErrorMessage(error));
+      notifications.error(entrySubmitErrorMessage(error, submitPath(ctx)));
     }
   } finally {
     if (ctx.isMounted()) {

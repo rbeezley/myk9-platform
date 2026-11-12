@@ -112,7 +112,7 @@ describe('ElementCard — a started class (MYK9-516)', () => {
       />
     );
 
-    expect(screen.queryByText('Full: join wait list')).not.toBeInTheDocument();
+    expect(screen.queryByText('Full: join waitlist')).not.toBeInTheDocument();
     expect(screen.getByText('This class has started')).toBeInTheDocument();
   });
 

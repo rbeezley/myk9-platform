@@ -46,7 +46,7 @@ export const ClubNumbersSection: React.FC<ClubNumbersSectionProps> = ({ clubId, 
               className="ml-1 min-h-11 min-w-11"
               onClick={() => void refetch()}
             >
-              Retry
+              Try again
             </Button>
           </span>
         ) : notLoaded ? (

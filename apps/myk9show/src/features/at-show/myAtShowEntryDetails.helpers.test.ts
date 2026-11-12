@@ -420,6 +420,15 @@ describe('deriveAtShowNextAction', () => {
     expect(deriveAtShowNextAction(base)).toEqual({ kind: 'check-in' });
   });
 
+  it('does not offer check-in for a cancelled class (MYK9-1847)', () => {
+    expect(deriveAtShowNextAction({ ...base, isCancelled: true })).toEqual({
+      kind: 'view-class',
+    });
+    expect(deriveAtShowNextAction({ ...base, isCancelled: false })).toEqual({
+      kind: 'check-in',
+    });
+  });
+
   it('recommends waiting when the running order is not posted yet', () => {
     expect(deriveAtShowNextAction({ ...base, hasRunOrder: false, className: null })).toEqual({
       kind: 'wait-running-order',

@@ -39,7 +39,7 @@ export const EntriesLoadErrorCard: React.FC<EntriesLoadErrorCardProps> = ({
         className="text-primary transition-all duration-state min-h-[44px]"
       >
         <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-        Retry
+        Try again
       </Button>
     </div>
   );

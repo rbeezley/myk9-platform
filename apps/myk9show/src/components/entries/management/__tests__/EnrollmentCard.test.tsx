@@ -144,7 +144,7 @@ describe('EnrollmentCard', () => {
 
   it('renders confirmation number', () => {
     render(<EnrollmentCard {...defaultProps} />);
-    expect(screen.getByText('Confirmation # MK9-000123')).toBeTruthy();
+    expect(screen.getByText('Confirmation number MK9-000123')).toBeTruthy();
     expect(screen.queryByText(/Entry #/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Registration #/)).not.toBeInTheDocument();
   });
@@ -232,11 +232,80 @@ describe('EnrollmentCard', () => {
       />
     );
     fireEvent.click(screen.getByText('Paid'));
-    fireEvent.click(screen.getByText('Paid in Full: Online'));
+    fireEvent.click(screen.getByText('Paid in Full: Online…'));
+    fireEvent.click(screen.getByRole('button', { name: 'Mark Paid Online' }));
 
     expect(markPaidOnline).toHaveBeenCalledTimes(1);
     expect(markPaidOnline).toHaveBeenCalledWith('enroll-1');
     expect(record).not.toHaveBeenCalled();
+  });
+
+  // MYK9-1841: the two one-click items in this menu ask first, like the rest of it.
+  describe('Paid in Full: Online and Payment Due ask before they change the form', () => {
+    function renderMenu() {
+      const record = vi.fn().mockResolvedValue(true);
+      const markPaidOnline = vi.fn().mockResolvedValue(true);
+      render(
+        <EnrollmentCard
+          {...defaultProps}
+          group={makeGroup({ enrollmentId: 'enroll-1' })}
+          paymentLedger={{ record, markPaidOnline, todayInShowZone: '2026-09-17' }}
+        />
+      );
+      fireEvent.click(screen.getByText('Paid'));
+      return { record, markPaidOnline };
+    }
+
+    it('Paid in Full: Online calls nothing until confirmed', () => {
+      const { record, markPaidOnline } = renderMenu();
+      fireEvent.click(screen.getByText('Paid in Full: Online…'));
+
+      expect(markPaidOnline).not.toHaveBeenCalled();
+      expect(record).not.toHaveBeenCalled();
+      expect(
+        screen.getByText(
+          'This marks the entry form as paid online. Use it only when the card payment went through.'
+        )
+      ).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Mark Paid Online' }));
+      expect(markPaidOnline).toHaveBeenCalledTimes(1);
+      expect(markPaidOnline).toHaveBeenCalledWith('enroll-1');
+      expect(record).not.toHaveBeenCalled();
+    });
+
+    it('Paid in Full: Online cancelled calls nothing', async () => {
+      const { record, markPaidOnline } = renderMenu();
+      fireEvent.click(screen.getByText('Paid in Full: Online…'));
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+      expect(markPaidOnline).not.toHaveBeenCalled();
+      expect(record).not.toHaveBeenCalled();
+    });
+
+    it('Payment Due calls nothing until confirmed', () => {
+      const { record, markPaidOnline } = renderMenu();
+      fireEvent.click(screen.getByText('Payment Due…'));
+
+      expect(record).not.toHaveBeenCalled();
+      expect(screen.getByText('This marks the whole entry form as unpaid.')).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Mark as Unpaid' }));
+      expect(record).toHaveBeenCalledTimes(1);
+      expect(record).toHaveBeenCalledWith('enroll-1', { kind: 'reversal' });
+      expect(markPaidOnline).not.toHaveBeenCalled();
+    });
+
+    it('Payment Due cancelled calls nothing', async () => {
+      const { record, markPaidOnline } = renderMenu();
+      fireEvent.click(screen.getByText('Payment Due…'));
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+      expect(record).not.toHaveBeenCalled();
+      expect(markPaidOnline).not.toHaveBeenCalled();
+    });
   });
 
   describe('cash and check money goes through the payments ledger (MYK9-677)', () => {
@@ -331,7 +400,8 @@ describe('EnrollmentCard', () => {
 
     it('Payment Due records a reversal, not a blind zero', () => {
       const { record, markPaidOnline } = renderPending(vi.fn().mockResolvedValue(true), 35);
-      fireEvent.click(screen.getAllByText('Payment Due').at(-1)!);
+      fireEvent.click(screen.getByText('Payment Due…'));
+      fireEvent.click(screen.getByRole('button', { name: 'Mark as Unpaid' }));
 
       expect(record).toHaveBeenCalledWith('enroll-1', { kind: 'reversal' });
       expect(markPaidOnline).not.toHaveBeenCalled();

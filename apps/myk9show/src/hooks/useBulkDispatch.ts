@@ -167,7 +167,7 @@ export function useBulkDispatch<T>({
           ...(retryable.length > 0
             ? {
                 action: {
-                  label: 'Retry failed',
+                  label: 'Try failed again',
                   onClick: (event: MouseEvent<HTMLButtonElement>) => {
                     if (inFlightRef.current) {
                       // sonner 2.0.8 runs the action as
@@ -255,7 +255,7 @@ export function useBulkDispatch<T>({
         // `retry` runs from a toast click as `void retry(...)`, so a throw here
         // (e.g. a throwing `applicableWhen`) would be an unhandled rejection with
         // no feedback. Nothing ran; say so, and the `finally` frees the latch.
-        toast.error(`Retry could not run: ${errorReason(error)}`);
+        toast.error(`Could not try again: ${errorReason(error)}`);
       } finally {
         inFlightRef.current = false;
         setIsBusy(false);

@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { notifications } from '@/lib/notifications';
+import { SHOW_SETTINGS_COPY } from './showSettingsErrorCopy';
 import {
   type ClassVisibilityInput,
   type ShowVisibilityInput,
@@ -32,7 +33,7 @@ export function useUpdateShowVisibility() {
       notifications.success('Show visibility updated');
     },
     onError: () => {
-      notifications.error('Failed to update show visibility');
+      notifications.error(SHOW_SETTINGS_COPY.showVisibilityFailed);
     },
   });
 }
@@ -50,7 +51,7 @@ export function useUpdateTrialVisibility() {
       notifications.success('Trial visibility updated');
     },
     onError: () => {
-      notifications.error('Failed to update trial visibility');
+      notifications.error(SHOW_SETTINGS_COPY.trialVisibilityFailed);
     },
   });
 }
@@ -68,7 +69,7 @@ export function useUpdateClassVisibility() {
       notifications.success('Class visibility updated');
     },
     onError: () => {
-      notifications.error('Failed to update class visibility');
+      notifications.error(SHOW_SETTINGS_COPY.classVisibilityFailed);
     },
   });
 }

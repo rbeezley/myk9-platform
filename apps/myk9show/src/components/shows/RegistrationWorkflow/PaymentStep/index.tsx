@@ -2,10 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Info } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { PaymentStatus, EntryStatus, type PaymentMethod } from '@/types/show-registration-types';
+import type { PaymentMethod } from '@/types/show-registration-types';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
-import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
-import { calculateTotalFees, parseJuniorHandlerFee } from './utils';
+import { parseJuniorHandlerFee } from './utils';
 import { useEntryWindowTimezone } from '@/hooks/useEntryWindowTimezone';
 import { PaymentMethodSelector } from './PaymentMethodSelector';
 import { JuniorHandlerDeclarationControl } from './JuniorHandlerDeclaration';
@@ -19,16 +18,11 @@ import type { PaymentStepProps } from './types';
  */
 export const PaymentStep: React.FC<PaymentStepProps> = ({
   selectedDogs,
-  classSelections,
   paymentMethod,
-  paymentStatus = PaymentStatus.PENDING,
-  entryStatus = EntryStatus.PENDING,
   onPaymentMethodChange,
   onPaymentMethodClear,
   onPaymentDetailsChange,
   getPaymentDetails,
-  onPaymentStatusChange,
-  onEntryStatusChange,
   onAgreementChange,
   agreedToEntryAgreement = false,
   preTickAgreement = false,
@@ -39,23 +33,15 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
   onRetryAvailability,
   waitlistClassIds = new Set(),
   blockedClassIds = new Set(),
-  waiveFees = false,
-  feeOverride = null,
-  onWaiveFeesChange,
-  onFeeOverrideChange,
   paymentResolution,
   juniorDeclaration,
 }) => {
   const { dogs } = useDogStoreCompat();
-  const { classes = [] } = useClassStoreCompat();
   // Resolved here, from the same hook the wizard's Next gate and the class step
   // use, rather than threaded down as a prop: one rule, one reader, no chance of
   // this step and the gate disagreeing about whether the zone is known.
-  const {
-    timeZone: entryWindowTimezone,
-    isReady: entryWindowTimezoneReady,
-    isUnavailable: entryWindowTimezoneUnavailable,
-  } = useEntryWindowTimezone(showId);
+  const { isReady: entryWindowTimezoneReady, isUnavailable: entryWindowTimezoneUnavailable } =
+    useEntryWindowTimezone(showId);
 
   // Resolved by the PAGE and handed down, so the entries panel and these
   // controls can never disagree about how the entry is being paid for. The
@@ -68,6 +54,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
     cardCheckoutUnavailableReason,
     isOnBehalf,
     canChargeJuniorFee,
+    canUseDeskPaymentActions,
     show,
   } = paymentResolution;
 
@@ -111,21 +98,9 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
   const agreed = onAgreementChange ? agreedToEntryAgreement : localAgreed;
   const handleAgree = onAgreementChange ?? setLocalAgreed;
 
-  // The fee tier is decided in the SHOW's timezone, not the viewer's. `show`
-  // comes from the show store and carries no zone, so handing it straight to
-  // `calculateTotalFees` priced this step in whatever zone the browser is in
-  // while the payment path and the server used the show's own (MYK9-642 L-F2).
-  // And until the trial read resolves that zone there is no honest total to
-  // render at all, so nothing fee-bearing is shown (L-F1).
-  const feeCalculation = calculateTotalFees(
-    selectedDogs,
-    classSelections,
-    dogs,
-    classes,
-    show && entryWindowTimezoneReady ? { ...show, entryWindowTimezone } : undefined,
-    waitlistClassIds,
-    juniorDeclaration?.dogIds
-  );
+  // This step totals nothing itself (MYK9-1822): the one total on screen is the
+  // entries panel's, from the page's `liveFeeCalculation`, which prices in the
+  // show's own timezone and withholds money until that zone is known (MYK9-642).
   const juniorFeeOffered = juniorDeclaration?.canDeclare ? parseJuniorHandlerFee(show) : null;
 
   return (
@@ -146,7 +121,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
           <Info className="h-4 w-4" />
           <AlertDescription>
             {entryWindowTimezoneUnavailable
-              ? 'We could not load this show\u2019s details, so we cannot work out the entry fee. Check your connection and reload the page.'
+              ? 'We could not load this show\u2019s details, so we cannot work out the entry fee. Check your connection, then restart the app.'
               : "Loading show details before totalling this entry. The entry fee depends on the show's own timezone, so nothing is totalled until it is known."}
           </AlertDescription>
         </Alert>
@@ -187,8 +162,8 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
         <Alert>
           <Info className="h-4 w-4" />
           <AlertDescription>
-            Good news: joining a wait list is free. You&rsquo;re never charged just for joining, so
-            the wait-list classes in your selection cost nothing today. If a spot opens, we&rsquo;ll
+            Good news: joining a waitlist is free. You&rsquo;re never charged just for joining, so
+            the waitlist classes in your selection cost nothing today. If a spot opens, we&rsquo;ll
             let you know, and you pay only if you decide to claim it.
           </AlertDescription>
         </Alert>
@@ -198,7 +173,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
         <Alert role="alert" variant="destructive">
           <Info className="h-4 w-4" />
           <AlertDescription>
-            A selected class is full and does not accept a wait list. Remove it from your selection
+            A selected class is full and does not accept a waitlist. Remove it from your selection
             to continue.
           </AlertDescription>
         </Alert>
@@ -214,6 +189,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
         allowCardCheckout={cardCheckoutAvailable}
         cardCheckoutUnavailableReason={cardCheckoutUnavailableReason}
         juniorFee={canChargeJuniorFee ? parseJuniorHandlerFee(show) : null}
+        allowFreeEntry={canUseDeskPaymentActions}
       />
 
       {/* MYK9-879: card checkout only. Fee-bearing, so it waits for the resolved
@@ -227,20 +203,12 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
         />
       )}
 
-      {/* Secretary Features. Fee-bearing, so it waits for the resolved zone. */}
-      {entryWindowTimezoneReady && (
+      {/* Secretary desk actions. No money on it, so it needs no resolved zone;
+          its paid and free shortcuts call the list's own handler (MYK9-1822). */}
+      {canUseDeskPaymentActions && (
         <SecretaryPaymentManagement
-          paymentStatus={paymentStatus}
-          entryStatus={entryStatus}
-          feeCalculation={feeCalculation}
-          selectedDogs={selectedDogs}
-          waiveFees={waiveFees}
-          feeOverride={feeOverride}
-          onWaiveFeesChange={onWaiveFeesChange ?? (() => {})}
-          onFeeOverrideChange={onFeeOverrideChange ?? (() => {})}
-          onPaymentMethodChange={onPaymentMethodChange}
-          onPaymentStatusChange={onPaymentStatusChange}
-          onEntryStatusChange={onEntryStatusChange}
+          paymentMethod={effectivePaymentMethod}
+          onPaymentMethodChange={handlePaymentMethodSelect}
         />
       )}
 

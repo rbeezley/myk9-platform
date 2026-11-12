@@ -147,7 +147,7 @@ function FinancialSummaryTable({ summary }: { summary: FinancialReportBucket }) 
           <th>Entries</th>
           <th>Gross Fees</th>
           <th>Discounts</th>
-          <th>Waived/Comped</th>
+          <th>Free entries</th>
           <th>Collected</th>
           <th>Refunded</th>
           <th>Outstanding</th>
@@ -191,7 +191,7 @@ function BreakdownTable({
             <th>Entries</th>
             <th>Gross</th>
             <th>Discount</th>
-            <th>Waived</th>
+            <th>Free entries</th>
             <th>Collected</th>
             <th>Refunded</th>
             {showOutstanding && <th>Outstanding</th>}

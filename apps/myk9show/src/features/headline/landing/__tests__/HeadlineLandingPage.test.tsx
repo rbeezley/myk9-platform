@@ -237,7 +237,7 @@ describe('HeadlineLandingPage', () => {
     expect(screen.getByText('Entries closed')).toBeTruthy();
     expect(screen.queryByText('Classes pending')).toBeNull();
     expect(
-      screen.getAllByText(/Contact the trial secretary for late-entry help/i).length
+      screen.getAllByText(/Contact the show secretary for late-entry help/i).length
     ).toBeGreaterThan(0);
     expect(screen.queryByText(/no classes are assigned yet/i)).toBeNull();
   });
@@ -304,7 +304,7 @@ describe('HeadlineLandingPage - final section says why entry is unavailable once
       <HeadlineLandingPage show={null} trial={null} allTrials={[]} hasEntryClassInventory={true} />
     );
     expect(
-      within(finalSection()).getAllByText(/Contact the trial secretary for late-entry help/i)
+      within(finalSection()).getAllByText(/Contact the show secretary for late-entry help/i)
     ).toHaveLength(1);
   });
 

@@ -118,7 +118,7 @@ describe('the Undo toast', () => {
 
     expect(mocks.restore).not.toHaveBeenCalled();
     expect(mocks.toastError).toHaveBeenCalledWith(
-      'The 10 minutes to undo this are over. Ask a myK9 administrator to restore it.'
+      'The 10 minutes to undo this are over. Ask myK9Show support to restore it.'
     );
   });
 
@@ -132,7 +132,7 @@ describe('the Undo toast', () => {
     });
 
     expect(mocks.toastError).toHaveBeenCalledWith(
-      'The 10 minutes to undo this are over. Ask a myK9 administrator to restore it.'
+      'The 10 minutes to undo this are over. Ask myK9Show support to restore it.'
     );
     expect(loadClubs).not.toHaveBeenCalled();
     expect(mocks.toastError.mock.calls[0]).toHaveLength(1);

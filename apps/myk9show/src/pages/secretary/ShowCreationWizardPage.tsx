@@ -6,11 +6,13 @@ import { resolveFocusTrialId } from './ShowCreationWizard/editModeResolution';
 import { getEditModeReturnPath } from './ShowCreationWizard/showSaveCompletion';
 import { hasUnsavedEditWork } from './ShowCreationWizard/hasUnsavedEditWork';
 import { WizardEditModeGuard } from './ShowCreationWizard/WizardEditModeGuard';
-import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { logger } from '@/services/LoggingService';
 import { DiscardChangesDialog } from '@/components/panels/edit/DiscardChangesDialog';
+import { notifications } from '@/lib/notifications';
 import { useWizardStore } from '@/store/wizardStore';
+import { useWizardDraftRead } from '@/store/wizardDraftRead';
 import { useTrialStore } from '@/store/trialStore';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { useUserStore } from '@/store/userStore';
@@ -31,6 +33,7 @@ import {
   WizardStepContent,
   WizardEditModeGate,
   WizardDraftResumeBanner,
+  hasDraftContent,
   shouldOfferDraftResume,
   useEditModeInitialization,
   useWritableEditModeResolution,
@@ -94,7 +97,7 @@ const ShowCreationWizardPageContent: React.FC = () => {
     markStepCompleted,
     goToStep,
     resetWizard,
-    loadDraft,
+    loadEditDraft,
     cloneHydration,
     show,
     trials,
@@ -232,6 +235,7 @@ const ShowCreationWizardPageContent: React.FC = () => {
   const requireEntryWindow =
     editModeResolution.state === 'resolved' && isShowListingLive(editModeResolution.show.status);
 
+  const draftReady = useWizardDraftRead();
   const { officialsUnavailable, resetInitialization } = useEditModeInitialization({
     editMode,
     editModeResolution,
@@ -240,9 +244,10 @@ const ShowCreationWizardPageContent: React.FC = () => {
     people,
     isDirty: hasUnsavedWork,
     // add-classes builds its draft FROM the trial list, so it waits for the list. add-trials
-    // builds an empty trial set and must not be delayed (a stale persisted draft would show).
+    // builds an empty trial set and must not wait for the trial list (a stale draft would show).
     trialsReady: editMode?.mode !== 'add-classes' || existingTrialsReady,
-    loadDraft,
+    draftReady,
+    loadDraft: loadEditDraft,
   });
 
   const handleRetryWritableShow = useCallback(() => {
@@ -266,8 +271,13 @@ const ShowCreationWizardPageContent: React.FC = () => {
       setShowConfirmDialog(true);
       return;
     }
+    // Said once, and only for a draft the resume banner would offer back: auto-fill alone
+    // marks the form dirty, and "kept" would then describe a show that does not exist.
+    if (!isEditMode && hasDraftContent({ showName: show.name, trialCount: trials.length })) {
+      notifications.info('We kept this show so you can finish it later.');
+    }
     navigate(closeTarget);
-  }, [hasUnsavedWork, isEditMode, navigate, closeTarget]);
+  }, [hasUnsavedWork, isEditMode, show.name, trials.length, navigate, closeTarget]);
 
   // Create mode persists as she types, so once she leaves nothing is "unsaved". Clearing the
   // flag on the way out is what lets the resume banner (hidden while dirty) appear when she
@@ -525,9 +535,12 @@ const ShowCreationWizardPageContent: React.FC = () => {
                 aria-label={`Step ${currentStep + 1}: ${WIZARD_STEPS[currentStep]?.label}`}
               >
                 {editModeResolution.state === 'loading' ||
-                editModeResolution.state === 'unavailable' ? (
+                editModeResolution.state === 'unavailable' ||
+                (editMode && !draftReady) ? (
+                  // Also held while the saved draft is unread: the edit draft has not loaded
+                  // yet, so the steps would show (and Save would write) the pre-load store.
                   <WizardEditModeGate
-                    state={editModeResolution.state}
+                    state={editModeResolution.state === 'unavailable' ? 'unavailable' : 'loading'}
                     onRetry={handleRetryWritableShow}
                     onLeave={() => navigate('/shows')}
                   />
@@ -608,6 +621,16 @@ const ShowCreationWizardPageContent: React.FC = () => {
 const ShowCreationWizardPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const target = parseEditMode(searchParams.get('showId'), searchParams.get('mode'));
+  // An Add trials / Add classes visit sets the new-show draft aside and leaves its own draft
+  // in memory when it ends. Add Show puts the new-show draft back BEFORE anything renders, so
+  // no step ever mounts (or auto-fills) over an existing show's fields (MYK9-1794).
+  const mustRestoreNewShowDraft = useWizardStore(
+    state => target === undefined && state.parkedCreateDraft !== null
+  );
+  useLayoutEffect(() => {
+    if (mustRestoreNewShowDraft) useWizardStore.getState().endEditVisit();
+  }, [mustRestoreNewShowDraft]);
+  if (mustRestoreNewShowDraft) return null;
   return (
     <ShowCreationWizardPageContent key={target ? `${target.mode}:${target.showId}` : 'create'} />
   );

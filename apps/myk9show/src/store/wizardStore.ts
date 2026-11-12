@@ -1,10 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import {
-  DEFAULT_PREMIUM_STYLE,
-  resolvePremiumStyle,
-  type PremiumStyle,
-} from '@/types/premium-types';
+import { DEFAULT_PREMIUM_STYLE, type PremiumStyle } from '@/types/premium-types';
 import {
   getRegistrySportName,
   listRegistries,
@@ -13,6 +9,12 @@ import {
 import { stepTransitionPatch } from './wizardStore.stepTransition';
 import { migrateWizardState, WIZARD_STORE_VERSION } from './wizardStore.migrations';
 import { createWizardPersistStorage } from './wizardStorage';
+import {
+  draftToPersist,
+  ensureShowDefaults,
+  pickPersistedDraft,
+  type PersistedWizardDraft,
+} from './wizardStore.draft';
 
 /** Maps show organization to a default trial type (discipline); undefined for an unknown org. */
 function defaultTrialType(organization: string): string | undefined {
@@ -62,6 +64,10 @@ export interface WizardState {
    * edits a trial (MYK9-884).
    */
   trialsMovedCount: number;
+  /** The new-show draft set aside while Add trials / Add classes is open (wizardStore.draft). */
+  parkedCreateDraft: PersistedWizardDraft | null;
+  /** The saved draft could not be read from this device (see wizardDraftRead). */
+  draftReadFailed: boolean;
 
   // Show data
   show: {
@@ -165,6 +171,23 @@ interface WizardActions {
   saveProgress: () => void;
   resetWizard: () => void;
   loadDraft: (draft: Partial<WizardState>) => void;
+  /** `loadDraft` for Add trials / Add classes: sets the new-show draft aside first. */
+  loadEditDraft: (draft: Partial<WizardState>) => void;
+  /** Puts the set-aside new-show draft back. A no-op outside an edit visit. */
+  endEditVisit: () => void;
+}
+
+const wizardPersistStorage = createWizardPersistStorage<unknown>();
+
+function loadDraftPatch(state: WizardState, draft: Partial<WizardState>) {
+  return ensureShowDefaults({
+    ...state,
+    ...draft,
+    cloneGeneration: state.cloneGeneration + 1,
+    cloneHydration: initialState.cloneHydration,
+    trialsMovedCount: 0,
+    isDirty: false,
+  });
 }
 
 const initialState: WizardState = {
@@ -177,6 +200,8 @@ const initialState: WizardState = {
   cloneGeneration: 0,
   editBaselineJudgeIds: null,
   trialsMovedCount: 0,
+  parkedCreateDraft: null,
+  draftReadFailed: false,
   show: {
     name: '',
     organization: 'AKC',
@@ -197,8 +222,11 @@ const initialState: WizardState = {
       steward: [],
     },
     judgeIds: [],
-    acceptCheckPayments: false,
-    acceptCashPayments: false,
+    // A new show takes check and cash unless she says otherwise (owner decision, MYK9-1799):
+    // every club so far does, and a show accepting nothing cannot be entered. Online entries
+    // stay off; they need the club's payout account.
+    acceptCheckPayments: true,
+    acceptCashPayments: true,
     onlineEntriesEnabled: false,
     timezone: resolveBrowserTrialTimezone(),
     style: DEFAULT_PREMIUM_STYLE,
@@ -404,42 +432,49 @@ export const useWizardStore = create<WizardState & WizardActions>()(
           isDirty: false,
         }),
 
+      // A reset inside an edit visit clears that visit's work, never the draft set aside for it.
       resetWizard: () =>
-        set(state => ({ ...initialState, cloneGeneration: state.cloneGeneration + 1 })),
+        set(state => ({
+          ...initialState,
+          draftReadFailed: state.draftReadFailed,
+          parkedCreateDraft: state.parkedCreateDraft,
+          cloneGeneration: state.cloneGeneration + 1,
+        })),
 
-      loadDraft: draft =>
-        set(state => {
-          const merged = {
-            ...state,
-            ...draft,
-            cloneGeneration: state.cloneGeneration + 1,
-            cloneHydration: initialState.cloneHydration,
-            trialsMovedCount: 0,
-            isDirty: false,
-          };
-          return ensureShowDefaults(merged);
-        }),
+      loadDraft: draft => set(state => loadDraftPatch(state, draft)),
+
+      // A second edit visit in a row keeps the draft the first one set aside.
+      loadEditDraft: draft =>
+        set(state => ({
+          ...loadDraftPatch(state, draft),
+          parkedCreateDraft: state.parkedCreateDraft ?? pickPersistedDraft(state),
+        })),
+
+      endEditVisit: () =>
+        set(state =>
+          state.parkedCreateDraft === null
+            ? state
+            : ensureShowDefaults({
+                ...state,
+                ...initialState,
+                ...state.parkedCreateDraft,
+                draftReadFailed: state.draftReadFailed,
+                cloneGeneration: state.cloneGeneration + 1,
+              })
+        ),
     }),
     {
       name: 'myk9show-wizard-storage',
       version: WIZARD_STORE_VERSION,
       migrate: migrateWizardState,
       // Debounced: every keystroke `set`s, but only the last draft per window is written.
-      storage: createWizardPersistStorage(),
-      partialize: state => ({
-        currentStep: state.currentStep,
-        completedSteps: state.completedSteps,
-        lastSaved: state.lastSaved,
-        show: state.show,
-        trials: state.trials,
-        judgeAssignments: state.judgeAssignments,
-        judgeDetails: state.judgeDetails,
-        // Kept with the draft it describes. Edit mode rebuilds the draft (and
-        // this baseline) on mount today, so this is belt-and-braces: a draft
-        // restored without it could only add judges, never remove them.
-        editBaselineJudgeIds: state.editBaselineJudgeIds,
-      }),
+      storage: wizardPersistStorage,
+      partialize: state => draftToPersist(state),
+      onRehydrateStorage: () => (_state, error) => noteDraftReadResult(error),
       merge: (persisted, current) => {
+        // The disk holds the set-aside new-show draft during an edit visit; a late or repeated
+        // read must not lay it over the edit draft on screen.
+        if (current.parkedCreateDraft !== null) return current;
         const state = ensureShowDefaults({
           ...current,
           ...(persisted as Partial<WizardState>),
@@ -457,33 +492,7 @@ export const useWizardStore = create<WizardState & WizardActions>()(
   )
 );
 
-/**
- * Backfill canonical defaults onto persisted/loaded show state. Handles
- * `officials` (each role array missing or non-array → `[]`) and `style`
- * (missing → DEFAULT_PREMIUM_STYLE) so older drafts and manually-edited
- * storage still produce a well-formed wizard state.
- */
-function ensureShowDefaults<T extends { show: WizardState['show'] }>(state: T): T {
-  const o = state.show.officials as Partial<WizardState['show']['officials']> | undefined;
-  const secretary = Array.isArray(o?.secretary) ? o!.secretary : [];
-  const chairman = Array.isArray(o?.chairman) ? o!.chairman : [];
-  const steward = Array.isArray(o?.steward) ? o!.steward : [];
-  const style = resolvePremiumStyle(state.show.style);
-  if (
-    o &&
-    o.secretary === secretary &&
-    o.chairman === chairman &&
-    o.steward === steward &&
-    state.show.style === style
-  ) {
-    return state;
-  }
-  return {
-    ...state,
-    show: {
-      ...state.show,
-      officials: { secretary, chairman, steward },
-      style,
-    },
-  };
+/** Deferred a microtask: a synchronous storage would call this before the store exists. */
+function noteDraftReadResult(error: unknown): void {
+  if (error !== undefined) queueMicrotask(() => useWizardStore.setState({ draftReadFailed: true }));
 }

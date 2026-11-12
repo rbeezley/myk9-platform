@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
+import { OFFLINE_SAVED_MESSAGE } from '@/lib/offlineCopy';
 import { WifiOff, Wifi } from 'lucide-react';
 import { useOnlineStatus, useNetworkQuality } from '@/lib/networkUtils';
 import {
@@ -27,14 +28,11 @@ export const NetworkStatusProvider: React.FC<NetworkStatusProviderProps> = ({ ch
   // The fixed id also collapses a StrictMode double-run into one toast.
   useEffect(() => {
     if (isOnline) return;
-    toast(
-      "You're offline. Changes are saved on this device and will sync when you're back online.",
-      {
-        id: OFFLINE_TOAST_ID,
-        duration: OFFLINE_TOAST_MS,
-        dismissible: true,
-      }
-    );
+    toast(OFFLINE_SAVED_MESSAGE, {
+      id: OFFLINE_TOAST_ID,
+      duration: OFFLINE_TOAST_MS,
+      dismissible: true,
+    });
   }, [isOnline]);
 
   // `quality` changes on every connection `change` event; keeping it in its own

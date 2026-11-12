@@ -68,6 +68,7 @@ import { useMyAtShowEntries } from './useMyAtShowEntries';
 import { useMyRingConflicts } from './useMyRingConflicts';
 import { useAtShowRealtimeRefresh } from './useAtShowRealtimeRefresh';
 import { useAtShowEntryListRefresh } from './useAtShowEntryListRefresh';
+import { useIsClassCancelledFor } from './cancelledClassGuard';
 import { resolveClassListRoute } from './atShowScoresheetRoutes';
 
 export const AtShowEntryListPage: React.FC = () => {
@@ -282,6 +283,8 @@ export const AtShowEntryListPage: React.FC = () => {
   );
 
   // ── Handlers ────────────────────────────────────────────────────────────
+  // MYK9-1847: each entry is judged by its own class, so one cancelled section blocks only itself.
+  const isClassCancelled = useIsClassCancelledFor([classId]);
   const handlers = useAtShowEntryListHandlers({
     actions,
     replication,
@@ -291,6 +294,7 @@ export const AtShowEntryListPage: React.FC = () => {
     navigate,
     buildScoreSheetRoute,
     gateEntryClick,
+    isClassCancelled,
     refresh,
     manualRefresh,
     setActiveStatusPopup: uiActions.setActiveStatusPopup,

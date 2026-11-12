@@ -16,10 +16,10 @@ import { pathToFileURL } from 'node:url';
 export const OVERRIDE_ENV = 'MYK9_ALLOW_NON_DOCS_MAIN_PUSH';
 const ZERO_SHA = /^0+$/;
 
-/** Always a PR, even when the path also matches an in-scope pattern (docs/agents/shared-rules.md). */
+/** Always a PR, even when the path also matches an in-scope pattern (docs/agents/shared-rules.md and rules-reference.md). */
 const OUT_OF_SCOPE: readonly RegExp[] = [
   /^(CLAUDE|AGENTS)\.md$/,
-  /^docs\/agents\/shared-rules\.md$/,
+  /^docs\/agents\/(shared-rules|rules-reference)\.md$/,
   /^\.(claude|codex|agents)\//,
   /^\.github\//,
 ];

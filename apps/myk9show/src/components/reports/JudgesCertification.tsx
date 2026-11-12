@@ -10,7 +10,7 @@ export const JudgesCertification: React.FC<ReportProps> = ({
   allClasses = [],
   entries,
 }) => {
-  const judgeName = trial?.judgeName ?? 'Unknown Judge';
+  const judgeName = trial?.judgeName ?? '___________';
 
   const qualifyingByElement = new Map<string, number>();
   for (const entry of entries) {

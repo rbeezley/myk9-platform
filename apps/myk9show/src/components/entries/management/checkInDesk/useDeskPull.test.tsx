@@ -1,5 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
+import { toast } from 'sonner';
 import { render } from '@/test/utils/testUtils';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
@@ -141,6 +142,46 @@ describe('Pulled on the Check-in desk is the real Pull (MYK9-1749)', () => {
         previousEntryStatus: 'accepted',
       })
     );
+  });
+
+  describe('a Pull that fails (MYK9-1844)', () => {
+    let toastError: MockInstance<typeof toast.error>;
+
+    beforeEach(() => {
+      toastError = vi.spyOn(toast, 'error');
+    });
+
+    afterEach(() => {
+      toastError.mockRestore();
+      vi.unstubAllEnvs();
+    });
+
+    it('names the dog and class that did not pull, never the raw error', async () => {
+      // Production wording: development builds echo raw messages on purpose.
+      vi.stubEnv('DEV', false);
+      h.scratchShowMapEntry.mockRejectedValue(new Error('IndexedDB transaction aborted'));
+      const { user } = render(
+        <CheckInDesk
+          showId="show-1"
+          entries={[poppy]}
+          loading={false}
+          unknown={false}
+          onRetry={vi.fn()}
+          currentDate={NOW}
+        />
+      );
+      await choosePulled(user);
+      const confirm = await screen.findByRole('dialog', { name: 'Pull Poppy?' });
+      await user.click(within(confirm).getByRole('button', { name: 'Pull' }));
+
+      await waitFor(() =>
+        expect(toastError).toHaveBeenCalledWith(
+          "We couldn't pull Poppy from Container Novice A. Check Poppy's status before you try again."
+        )
+      );
+      expect(JSON.stringify(toastError.mock.calls)).not.toContain('IndexedDB');
+      expect(h.showUndoToast).not.toHaveBeenCalled();
+    });
   });
 
   it('writes nothing when the secretary cancels', async () => {

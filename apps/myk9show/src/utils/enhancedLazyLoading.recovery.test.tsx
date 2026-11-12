@@ -38,7 +38,7 @@ describe('createEnhancedLazy recovery (at-show style route)', () => {
     );
     // backoff 2s + 4s, then the terminal failure
     await act(() => vi.advanceTimersByTimeAsync(10000));
-    await screen.findByText('Failed to load component');
+    await screen.findByText("We couldn't open this page");
     expect(importFn).toHaveBeenCalledTimes(3);
 
     importFn.mockResolvedValue({ default: Page });

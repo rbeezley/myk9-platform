@@ -7,7 +7,7 @@
  *
  * Same signal as `useClassUnsyncedScores` (`hasUnsyncedLocalWork`, re-read on the table's own
  * change notice), on the classes table, plus a short re-check while waiting (see below). A persisted conflict snapshot is told apart
- * so the message can point at the "changed elsewhere" choice.
+ * so the message can point at the conflict notice choice.
  *
  * `null` until the first read for THIS class and when the queue cannot be read: unknown is not
  * "settled". `classRowSyncBlockedReason(null)` keeps Verify disabled with quiet "Checking this
@@ -19,6 +19,11 @@ import { useEffect, useRef, useState } from 'react';
 /** How often a class waiting to sync is re-read; see the effect below. */
 const WAITING_RECHECK_MS = 1_500;
 
+import {
+  CONFLICT_KEEP_LOCAL_LABEL,
+  CONFLICT_REOPEN_LABEL,
+  CONFLICT_TAKE_REMOTE_LABEL,
+} from '@/lib/offlineCopy';
 import { replicatedClassesTable } from '@/services/replication';
 
 /** `'unreadable'`: no read has succeeded for a while (failed or hung); it is still re-checked on a timer. */
@@ -143,14 +148,14 @@ export function classRowSyncBlockedReason(state: ClassRowSyncState | null): stri
   // Unknown is pending, not settled: the first read has not landed (or the queue was unreadable).
   if (state === null) return 'Checking this class…';
   if (state === 'unreadable') {
-    return 'Still checking this class. If this message stays, reload the page.';
+    return 'Still checking this class. If this message stays, restart the app.';
   }
   if (state === 'conflict') {
-    // The notice can be closed, and a reload raises it again, so say so: never a dead end.
-    return 'This class was changed elsewhere. Choose Keep mine or Take theirs on the notice to settle it, then the check can show. If you closed the notice, reload the page to bring it back.';
+    // The notice can be closed; the button beside this text raises it again: never a dead end.
+    return `This class was changed somewhere else. Choose "${CONFLICT_TAKE_REMOTE_LABEL}" or "${CONFLICT_KEEP_LOCAL_LABEL}" on the notice to settle it, then the check can show. If you closed the notice, choose "${CONFLICT_REOPEN_LABEL}".`;
   }
   if (state === 'waiting') {
-    return "Waiting for this class's changes to sync before the check can show";
+    return "Waiting for this class's changes to be sent before the check can show";
   }
   return null;
 }

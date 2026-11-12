@@ -10,21 +10,22 @@
  * leaves the session's `amr` untouched, so the server could never see it.
  */
 import type { Session } from '@supabase/supabase-js';
-import { isCaptchaFailure } from '@/config/turnstile';
+import { commonAuthFailure, type AuthFailure } from '@/lib/authErrorCopy';
 import { supabase } from '@/services/database/supabaseClient';
 import type { StepUpAccount } from './stepUpStore';
 import { reusableFreshToken } from './stepUpToken';
 
 export class StepUpError extends Error {}
 
+/** The step-up sentence for a failure nothing more specific explains. */
+export const STEP_UP_FAILED_MESSAGE = "We couldn't confirm it's you. Try again.";
+
 const MESSAGES = {
   wrongPassword: 'That password is not right. Try again, or email yourself a code instead.',
   wrongCode: 'That code is not right or has expired. Check the email, or send a new code.',
-  tooMany: 'Too many tries. Wait a minute, then try again.',
-  offline: 'Could not reach myK9Show. Check your connection and try again.',
   otherAccount: 'That signed in a different account. Sign out, then sign in as yourself.',
-  captcha: 'The security check did not finish. Wait a moment, then try again.',
-  generic: 'Something went wrong. Please try again.',
+  generic: STEP_UP_FAILED_MESSAGE,
+  signedOut: 'Your session has expired. Sign in again.',
 } as const;
 
 export function accountFromSession(session: Session | null): StepUpAccount | null {
@@ -48,22 +49,15 @@ export async function loadFreshStepUpToken(refusedToken: string | null): Promise
   return reusableFreshToken(data.session?.access_token, refusedToken);
 }
 
-interface AuthFailure {
-  status?: number | undefined;
-  code?: string | undefined;
-  message?: string | undefined;
-}
-
 function friendly(error: AuthFailure, wrong: string) {
-  if (isCaptchaFailure(error)) return MESSAGES.captcha;
-  if (error.status === 429 || error.code?.startsWith('over_')) return MESSAGES.tooMany;
-  if (error.status === 0 || /fetch|network/i.test(error.message ?? '')) return MESSAGES.offline;
+  const common = commonAuthFailure(error);
+  if (common) return common;
   if (error.status === 400 || error.status === 401 || error.status === 403) return wrong;
   return MESSAGES.generic;
 }
 
 function tokenFor(account: StepUpAccount, session: Session | null): string {
-  if (!session?.access_token) throw new StepUpError(MESSAGES.generic);
+  if (!session?.access_token) throw new StepUpError(MESSAGES.signedOut);
   if (session.user.id !== account.userId) throw new StepUpError(MESSAGES.otherAccount);
   return session.access_token;
 }

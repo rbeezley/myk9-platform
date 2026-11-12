@@ -1,5 +1,5 @@
 /**
- * Wait List queue section for the My Shows page. Extracted from `index.tsx`
+ * Waitlist queue section for the My Shows page. Extracted from `index.tsx`
  * (task 4.7) to keep the page shell under the 500-line ratchet.
  *
  * @module MyEntriesPage/modules/WaitListSection
@@ -8,6 +8,7 @@
 import React from 'react';
 import { Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { ConfirmDialog } from '@/components/ui/alert-dialog/confirm-dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatOfferDeadline } from '@/lib/format/offerDeadline';
 import type { WaitListEntry } from '@/types/waitlist-types';
@@ -62,6 +63,29 @@ function describeOfferTiming(entry: WaitListEntry): string {
   return when ? `Claim by ${when}` : 'Claim it before the offer ends.';
 }
 
+type ConfirmKind = 'decline' | 'withdraw';
+interface ConfirmTarget {
+  kind: ConfirmKind;
+  id: string;
+}
+
+function describeConfirm(kind: ConfirmKind, entry: WaitListEntry | null) {
+  if (kind === 'decline') {
+    return {
+      title: 'Give up this spot?',
+      description: `Your spot in ${entry?.className ?? 'this class'} will be offered to the next person on the waitlist. You cannot get it back.`,
+      confirmLabel: 'Give up spot',
+      cancelLabel: 'Keep my spot',
+    };
+  }
+  return {
+    title: 'Leave the waitlist?',
+    description: `${entry?.dogName || 'Your dog'} will lose its place in line for ${entry?.className ?? 'this class'}. You cannot get that place back.`,
+    confirmLabel: 'Leave waitlist',
+    cancelLabel: 'Stay on the list',
+  };
+}
+
 export const WaitListSection: React.FC<WaitListSectionProps> = ({
   entries,
   isLoading,
@@ -80,6 +104,17 @@ export const WaitListSection: React.FC<WaitListSectionProps> = ({
   onOfferDeadlineElapsed,
 }) => {
   const [now, setNow] = React.useState(() => new Date());
+  // Declining or leaving gives the place away at once and cannot be undone, so
+  // the tap only opens a question. `confirmTarget` outlives `confirmOpen` so the
+  // copy stays put while the dialog fades out.
+  const [confirmTarget, setConfirmTarget] = React.useState<ConfirmTarget | null>(null);
+  const [confirmOpen, setConfirmOpen] = React.useState(false);
+  const askToConfirm = (kind: ConfirmKind, id: string) => {
+    setConfirmTarget({ kind, id });
+    setConfirmOpen(true);
+  };
+  const confirmEntry = entries.find(entry => entry.id === confirmTarget?.id) ?? null;
+  const confirmCopy = confirmTarget ? describeConfirm(confirmTarget.kind, confirmEntry) : null;
   const focusedOfferIdScrolledRef = React.useRef<string | null>(null);
 
   React.useEffect(() => {
@@ -114,7 +149,7 @@ export const WaitListSection: React.FC<WaitListSectionProps> = ({
   // fill reaches only 3.70:1 in dark mode against a 4.5:1 floor — the 10% tint
   // lifts the surface just enough to break a token that passes everywhere else.
   // On a plain card the same text clears AA. Design: amber means caution, and a
-  // wait-list position is not a problem — it is a normal queue state. Tinting
+  // waitlist position is not a problem — it is a normal queue state. Tinting
   // the whole container amber spent a status colour on chrome, then rendered a
   // green "Spot offered" badge inside it, which is what DESIGN.md's "The Status
   // Is Sacred" rule forbids. The time-sensitive signal now lives on the title
@@ -124,7 +159,7 @@ export const WaitListSection: React.FC<WaitListSectionProps> = ({
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base font-semibold text-warning ">
           <Users className="h-4 w-4" />
-          My Wait List Positions
+          My Waitlist Positions
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -135,7 +170,7 @@ export const WaitListSection: React.FC<WaitListSectionProps> = ({
             ))}
           </div>
         ) : entries.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No active wait list positions.</p>
+          <p className="text-sm text-muted-foreground">No active waitlist positions.</p>
         ) : (
           <div className="space-y-3">
             {entries.map(entry => {
@@ -231,7 +266,7 @@ export const WaitListSection: React.FC<WaitListSectionProps> = ({
                                 : 'Complete payment'}
                           </button>
                           <button
-                            onClick={() => onDecline(entry.id)}
+                            onClick={() => askToConfirm('decline', entry.id)}
                             disabled={isPayingOffer || isDecliningOffer}
                             className="inline-flex min-h-[44px] items-center justify-center rounded px-3 text-sm text-muted-foreground transition-colors hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-50"
                           >
@@ -240,11 +275,11 @@ export const WaitListSection: React.FC<WaitListSectionProps> = ({
                         </>
                       ) : displayState === 'waiting' ? (
                         <button
-                          onClick={() => onWithdraw(entry.id)}
+                          onClick={() => askToConfirm('withdraw', entry.id)}
                           disabled={isWithdrawing}
                           className="inline-flex min-h-[44px] items-center rounded px-2 text-xs text-muted-foreground transition-colors duration-150 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-50"
                         >
-                          Withdraw
+                          Leave waitlist
                         </button>
                       ) : null}
                     </div>
@@ -265,6 +300,22 @@ export const WaitListSection: React.FC<WaitListSectionProps> = ({
           </div>
         )}
       </CardContent>
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title={confirmCopy?.title ?? ''}
+        description={confirmCopy?.description}
+        confirmLabel={confirmCopy?.confirmLabel ?? ''}
+        cancelLabel={confirmCopy?.cancelLabel ?? 'Cancel'}
+        destructive
+        onConfirm={() => {
+          if (confirmTarget && confirmEntry) {
+            if (confirmTarget.kind === 'decline') onDecline(confirmEntry.id);
+            else onWithdraw(confirmEntry.id);
+          }
+          setConfirmOpen(false);
+        }}
+      />
     </Card>
   );
 };

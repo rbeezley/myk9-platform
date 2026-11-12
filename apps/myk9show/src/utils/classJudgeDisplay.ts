@@ -102,3 +102,48 @@ export function formatJudgeAvailabilityWindow(judge: {
   if (start === 'Full Day' || end === 'Full Day') return null;
   return `(${start} - ${end})`;
 }
+
+/** The text stored for an unset judge (what older habits and exports still say). */
+export const UNSET_JUDGE_STORED_TEXT = UNASSIGNED_LABEL;
+/** Label for a class with no judge yet, on screens and on club reports. Writers store no name (MYK9-1853). Official AKC forms refuse to print instead (reportJudgeGate). */
+export const UNSET_JUDGE_LABEL = 'Judge to be announced';
+/** For a narrow table cell where the full label would wrap. */
+export const UNSET_JUDGE_SHORT_LABEL = 'No judge yet';
+/** For places that already print a "Judge" prefix or column header. */
+export const UNSET_JUDGE_VALUE = 'To be announced';
+
+/** True when there is no real judge: missing, blank, or the stored 'TBD'. */
+export function isUnsetJudgeName(name: string | null | undefined): boolean {
+  const trimmed = typeof name === 'string' ? name.trim() : '';
+  return trimmed === '' || trimmed === UNASSIGNED_LABEL;
+}
+
+/** The value a table sorts a judge column by: the trimmed name, or undefined so unset judges sort last (use with `sortUndefined: 'last'`). */
+export function judgeSortValue(name: string | null | undefined): string | undefined {
+  return isUnsetJudgeName(name) ? undefined : (name as string).trim();
+}
+
+/** The judge name to show on a screen, or the label (short when `compact`, bare when `bare`) when unset. */
+export function judgeNameOrUnsetLabel(
+  name: string | null | undefined,
+  options: { compact?: boolean; bare?: boolean } = {}
+): string {
+  if (!isUnsetJudgeName(name)) return (name as string).trim();
+  if (options.compact) return UNSET_JUDGE_SHORT_LABEL;
+  return options.bare ? UNSET_JUDGE_VALUE : UNSET_JUDGE_LABEL;
+}
+
+/** "Judge Jane Smith", or "Judge to be announced" (never "Judge Judge to be announced"). */
+export function judgeLine(name: string | null | undefined): string {
+  return isUnsetJudgeName(name) ? UNSET_JUDGE_LABEL : `Judge ${(name as string).trim()}`;
+}
+
+/** The classes whose judge is unset (missing, blank or the stored 'TBD'), in the order given. */
+export function classesMissingJudge<T extends ClassJudgeSource>(
+  classes: ReadonlyArray<T>,
+  assignedJudges: ReadonlyArray<ShowJudgeAssignment> = []
+): T[] {
+  return classes.filter(classData =>
+    isUnsetJudgeName(resolveClassJudgeName(classData, assignedJudges))
+  );
+}

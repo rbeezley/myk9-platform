@@ -90,4 +90,22 @@ describe('FocusedClassHeader', () => {
       ''
     );
   });
+
+  it('puts the menu in the top-right corner beside the title, with the fields under it', () => {
+    render(
+      <FocusedClassHeader
+        eyebrow="Selected class"
+        title="Buried Novice A"
+        facts="1 entry"
+        menu={<button type="button">Menu</button>}
+      >
+        <span>Field</span>
+      </FocusedClassHeader>
+    );
+    const title = screen.getByRole('heading', { name: 'Buried Novice A' });
+    const menu = screen.getByRole('button', { name: 'Menu' });
+    expect(title.parentElement?.parentElement).toBe(menu.parentElement?.parentElement);
+    expect(menu.parentElement?.previousElementSibling).toBe(title.parentElement);
+    expect(screen.getByText('Field')).toBeInTheDocument();
+  });
 });

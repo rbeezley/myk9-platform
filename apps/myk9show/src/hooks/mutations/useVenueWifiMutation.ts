@@ -7,6 +7,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
 import { notifications } from '@/lib/notifications';
+import { SHOW_SETTINGS_COPY } from './showSettingsErrorCopy';
 import { showQueryKeys } from '../queries/useShowsDatabase';
 
 interface VenueWifiUpdate {
@@ -33,10 +34,10 @@ export function useVenueWifiMutation() {
     },
     onSuccess: (_, { showId }) => {
       queryClient.invalidateQueries({ queryKey: showQueryKeys.detail(showId) });
-      notifications.success('WiFi info saved');
+      notifications.success('Wi-Fi info saved');
     },
     onError: () => {
-      notifications.error('Failed to save WiFi info');
+      notifications.error(SHOW_SETTINGS_COPY.wifiFailed);
     },
   });
 }

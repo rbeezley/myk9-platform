@@ -22,7 +22,6 @@ import {
   Send,
 } from 'lucide-react';
 import type { ComponentType, SVGProps } from 'react';
-import { isShowMapActionEnabled } from './showMapActionExecution';
 import {
   canMarkClassComplete,
   canMarkClassStarted,
@@ -40,8 +39,6 @@ import {
 import { isNodeScheduledAfter } from './showMapTimeScope';
 import { SHOW_MAP_WRAP_UP_STATUS } from './showMapTypes';
 import type { ShowMapNode, ShowMapTree } from './showMapTypes';
-
-export const SHOW_MAP_RECOMMENDED_ACTION_LIMIT = 2;
 
 export const showMapBadgeTargets = {
   trial: ['registry', 'date', 'ring/judge', 'status', 'reports-readiness'],
@@ -80,7 +77,6 @@ export interface ShowMapAction {
   classId?: string | undefined;
   trialId?: string | undefined;
   icon: ComponentType<SVGProps<SVGSVGElement>>;
-  recommended?: boolean;
   createsAttention?: boolean;
 }
 
@@ -130,10 +126,10 @@ function withEntryContext(node: ShowMapNode, why: string): string {
 //
 // Why this band exists
 // --------------------
-// `getRecommendedActions('root', tree)` aggregates actions across the
+// `getRankedActions('root', tree)` aggregates actions across the
 // whole show tree and ranks by priority. Without a priority band, a
 // single class with `wrapUpStatus = NEEDS_JUDGE_SIGNATURE` would float
-// to #1 globally and dominate Show Desk's primary recommendation —
+// to #1 globally and dominate Show Desk's ranked actions —
 // even when 39 other classes haven't started yet. The 2026-05-26
 // secretary launch-readiness audit caught exactly that case: "0 of
 // 40 classes complete" with Show Desk recommending `Collect judge
@@ -156,11 +152,8 @@ function withEntryContext(node: ShowMapNode, why: string): string {
 // - review-results:          52  (was 60)
 // - submit-final-results:    50
 //
-// Wrap-up actions stay `recommended: true` so they still surface on
-// the specific class/trial node's Recommendations list. Show-scope
-// ranking additionally filters future-dated show-day actions so the
-// Show Desk's primary recommendation stays tied to the secretary's
-// current phase/date.
+// Show-scope ranking additionally filters future-dated show-day actions so
+// Show Desk's ranked actions stay tied to the secretary's current phase/date.
 function wrapUpActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAction[] {
   if (node.type === 'class') {
     const showId = getRootShowId(tree);
@@ -188,7 +181,6 @@ function wrapUpActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapActi
             ? { href: getCockpitResultsControlHref({ showId, trialId, classId }) }
             : {}),
           icon: FileText,
-          recommended: true,
           createsAttention: true,
         },
       ];
@@ -209,7 +201,6 @@ function wrapUpActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapActi
         priority: 50,
         ...(showId ? { href: getCockpitSubmitResultsHref({ showId }) } : {}),
         icon: Send,
-        recommended: true,
         createsAttention: true,
       },
     ];
@@ -260,7 +251,6 @@ function liveOpsActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAct
         why: withEntryContext(node, 'Entry is waiting for secretary review'),
         priority: 85,
         icon: ClipboardList,
-        recommended: true,
         createsAttention: true,
         ...(node.dogEntryDisplay?.classId ? { classId: node.dogEntryDisplay.classId } : {}),
         ...withReviewEntryHref(tree),
@@ -279,7 +269,6 @@ function liveOpsActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAct
         why: withEntryContext(node, 'Entry is waiting for secretary review'),
         priority: 85,
         icon: ClipboardList,
-        recommended: true,
         createsAttention: true,
         ...withReviewEntryHref(tree),
       });
@@ -352,8 +341,8 @@ function liveOpsActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAct
           // (matches Pull Management, exhibitor "Pull from class", and the
           // "Pulled / no-show" reconciliation heading). Internal id/dialog key
           // stay 'scratch-entry'; only the user-facing label changes.
-          label: 'Pull / no-show',
-          why: withEntryContext(node, 'Mark this entry absent for ring flow'),
+          label: 'Pull',
+          why: withEntryContext(node, 'Pull this entry'),
           priority: 30,
           icon: Ban,
           ...(classId ? { classId } : {}),
@@ -394,7 +383,6 @@ function liveOpsActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAct
         icon: PlayCircle,
         classId,
         ...(trialId ? { trialId } : {}),
-        recommended: true,
       });
     }
     if (node.status?.kind === 'neutral' && classId && node.scoreHref) {
@@ -421,7 +409,6 @@ function liveOpsActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAct
         icon: ClipboardCheck,
         ...(classId ? { classId } : {}),
         ...(trialId ? { trialId } : {}),
-        recommended: true,
       });
     }
     if (canMarkClassComplete(node) && classId) {
@@ -456,7 +443,6 @@ function liveOpsActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAct
           why: 'Prepare check-in for this class',
           priority: node.status?.kind === 'neutral' ? 45 : 20,
           icon: ClipboardList,
-          recommended: node.status?.kind === 'neutral' && (node.count ?? 0) > 0,
         },
         showId && trialId && classId
           ? getShowMapReportHref({
@@ -481,7 +467,6 @@ function liveOpsActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAct
           why: 'Review this trial timeline',
           priority: node.status?.kind === 'active' ? 50 : 15,
           icon: DoorOpen,
-          recommended: node.status?.kind === 'active',
         },
         showId ? getShowMapTrialScheduleHref(showId) : undefined
       ),
@@ -561,33 +546,6 @@ export function getDirectActionsForNode(
   state: ShowMapActionState
 ): ShowMapAction[] {
   return actionsForNode(node, state.tree).sort(compareShowMapActions);
-}
-
-export function getRecommendedActionsForNode(
-  node: ShowMapNode,
-  state: ShowMapActionState,
-  limit = SHOW_MAP_RECOMMENDED_ACTION_LIMIT
-): ShowMapAction[] {
-  return getDirectActionsForNode(node, state)
-    .filter(action => action.recommended && isShowMapActionEnabled(action))
-    .slice(0, limit);
-}
-
-export function getRecommendedActions(
-  scope: ShowMapActionScope,
-  state: ShowMapActionState,
-  limit = SHOW_MAP_RECOMMENDED_ACTION_LIMIT
-): ShowMapAction[] {
-  return getRankedActions(scope, state)
-    .filter(action => action.recommended && isShowMapActionEnabled(action))
-    .slice(0, limit);
-}
-
-export function getAllRecommendedActions(
-  scope: ShowMapActionScope,
-  state: ShowMapActionState
-): ShowMapAction[] {
-  return getRecommendedActions(scope, state, Number.POSITIVE_INFINITY);
 }
 
 export function getAttentionActions(

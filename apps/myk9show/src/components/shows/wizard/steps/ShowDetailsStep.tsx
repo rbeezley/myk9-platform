@@ -28,6 +28,7 @@ import {
   HostClubField,
 } from './sections';
 import { useShowDetailsStepActions } from './useShowDetailsStepActions';
+import { useSuggestedShowName } from './useSuggestedShowName';
 
 export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({
   className,
@@ -40,6 +41,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({
     show,
     trials,
     cloneHydration,
+    cloneGeneration,
     updateShowData,
     addJudgeToShow,
     removeJudgeFromShow,
@@ -49,6 +51,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({
       show: state.show,
       trials: state.trials,
       cloneHydration: state.cloneHydration,
+      cloneGeneration: state.cloneGeneration,
       updateShowData: state.updateShowData,
       addJudgeToShow: state.addJudgeToShow,
       removeJudgeFromShow: state.removeJudgeFromShow,
@@ -146,6 +149,20 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({
       updateShowData({ clubId: scopedClubs[0].id });
     }
   }, [cloneHydrating, show.clubId, scopedClubs, updateShowData]);
+
+  // Suggest the show name from the club and dates; never over a name that is hers.
+  const setShowName = React.useCallback(
+    (name: string) => updateShowData({ name }),
+    [updateShowData]
+  );
+  useSuggestedShowName({
+    enabled: !cloneHydrating,
+    draftGeneration: cloneGeneration,
+    clubName: scopedClubs.find(club => club.id === show.clubId)?.name,
+    startDate: show.startDate,
+    name: show.name,
+    setName: setShowName,
+  });
 
   // Derived data
   const filteredClubsList = React.useMemo(

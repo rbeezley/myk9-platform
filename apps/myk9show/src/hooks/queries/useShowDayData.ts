@@ -26,6 +26,14 @@ import type {
   RingProgressRow,
 } from '@/types/show-day-types';
 import { getTodayLocal } from '@/utils/dateLocal';
+import {
+  replicatedClassesTable,
+  replicatedClubsTable,
+  replicatedDogsTable,
+  replicatedEntriesTable,
+  replicatedShowsTable,
+  replicatedTrialsTable,
+} from '@/services/replication';
 import { useEntriesReplicaInvalidation } from './useEntriesReplicaInvalidation';
 import {
   fetchReplicatedRingProgress,
@@ -136,6 +144,21 @@ export const SHOW_DAY_REPLICA_COALESCE_MS = 15_000;
 /** The only timer: lets `getTodayLocal()` roll the date on an overnight tab. */
 export const SHOW_DAY_DATE_ROLL_MS = 5 * 60_000;
 
+/**
+ * Every replica the three reads join (MYK9-1861). A class, trial, show, dog or
+ * club that hydrates after the last entry notice must refresh the check too,
+ * or a missing show stays missing until the 5 minute timer (and the
+ * notification monitor skips it meanwhile). One coalescing window covers all.
+ */
+const SHOW_DAY_SOURCES = [
+  replicatedEntriesTable,
+  replicatedClassesTable,
+  replicatedTrialsTable,
+  replicatedShowsTable,
+  replicatedDogsTable,
+  replicatedClubsTable,
+] as const;
+
 export function useShowDayData(): ShowDayData {
   const { userWithRoles } = useAuthContext();
   const userId = userWithRoles?.databaseUserId ?? '';
@@ -200,7 +223,8 @@ export function useShowDayData(): ShowDayData {
       queryKeys.showDayDetails(userId),
       ['show-day', 'ring-progress', userId],
     ],
-    SHOW_DAY_REPLICA_COALESCE_MS
+    SHOW_DAY_REPLICA_COALESCE_MS,
+    SHOW_DAY_SOURCES
   );
 
   // With staleTime Infinity, details cached for yesterday's show day would be

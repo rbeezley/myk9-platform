@@ -173,7 +173,7 @@ describe('ScheduleBulkBar wiring (MYK9-1352)', () => {
     const options = toastMocks.error.mock.calls[0]![1] as {
       action: { label: string; onClick: (event: unknown) => void };
     };
-    expect(options.action.label).toBe('Retry failed');
+    expect(options.action.label).toBe('Try failed again');
     options.action.onClick({ defaultPrevented: false, preventDefault: vi.fn() });
 
     await waitFor(() => expect(applyManualClassStatus).toHaveBeenCalledTimes(2));

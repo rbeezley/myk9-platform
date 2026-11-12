@@ -13,7 +13,7 @@
 
 import { useShowStore } from '@/store/showStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { hasScopedClubRole } from '@/utils/roleScopes';
+import { hasClubAdminGrant, hasScopedClubRole } from '@/utils/roleScopes';
 import { UserRole } from '@/types/auth-types';
 import { useRegistrationPermissions } from '@/hooks/useRegistrationPermissions';
 import { useClubStripePaymentReadiness } from '@/features/payments/useClubStripeAccount';
@@ -39,6 +39,16 @@ export interface PaymentMethodResolution {
    * admin, or a secretary of some other club, is not offered it.
    */
   canChargeJuniorFee: boolean;
+  /**
+   * MYK9-1875: may use the desk payment actions ("Paid by cash or check", "Make free",
+   * "Free entry"). Scoped like the server's `v_is_official` in `submit_show_entries`: a
+   * secretary appointed at the show's club, a club admin of the show's club (or this show),
+   * or a site admin. A global role alone says nothing about THIS show.
+   * A secretary appointed to one show only (user_roles.show_id set) is deliberately NOT
+   * included: the server refuses `waived` / desk payments from them on both paths
+   * (`is_show_secretary` and `is_trial_secretary` require show_id IS NULL).
+   */
+  canUseDeskPaymentActions: boolean;
   /** The show record this lookup already resolved — reused for fees and the
    *  entry agreement rather than looked up a second time. */
   show: Show | undefined;
@@ -82,11 +92,15 @@ export function usePaymentMethodResolution(
     canChargeJuniorFee:
       isSiteAdmin ||
       (isSecretary && hasScopedClubRole(userWithRoles, UserRole.SECRETARY, show?.clubId)),
+    canUseDeskPaymentActions:
+      isSiteAdmin ||
+      (isSecretary && hasScopedClubRole(userWithRoles, UserRole.SECRETARY, show?.clubId)) ||
+      (isClubAdmin && hasClubAdminGrant(userWithRoles, { clubId: show?.clubId, showId })),
     show,
     cardCheckoutUnavailableReason: isOnBehalf
       ? undefined
       : !show?.clubId
-        ? "Online card payment isn't available because this show has no hosting club payment account. Choose check or cash instead."
+        ? "Online card payment isn't available because this show has no hosting club bank account. Choose check or cash instead."
         : clubStripeAccountQuery.isPending || clubStripeAccountQuery.isFetching
           ? 'Checking online payment availability for this club.'
           : "Online card payment isn't available for this club. Choose check or cash instead.",

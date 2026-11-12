@@ -27,6 +27,7 @@ import { Button } from '@/components/ui/button';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable.mapper';
 import { badgeClass } from './slots/atShowChrome.helpers';
+import { useIsClassCancelledFor } from './cancelledClassGuard';
 import {
   toQuickAdvanceChips,
   formatChipLabel,
@@ -39,6 +40,9 @@ function useQuickAdvanceChips(
   scoredEntryId: string | undefined
 ): QuickAdvanceChip[] {
   const queryClient = useQueryClient();
+  // MYK9-1847: never jump into a cancelled section's scoresheet. Filtered before the chip limit
+  // so a cancelled section's dogs do not use up the slots.
+  const isClassCancelled = useIsClassCancelledFor([classId, pairedClassId]);
 
   // React to the table itself rather than to any one mutation path: a check-in
   // change can land from the entry list, a steward's device, or a sync pull.
@@ -63,7 +67,8 @@ function useQuickAdvanceChips(
     enabled: !!classId,
   });
 
-  return toQuickAdvanceChips(data ?? [], { excludeEntryId: scoredEntryId });
+  const open = (data ?? []).filter(row => !isClassCancelled(row.classId ?? row.class_id ?? ''));
+  return toQuickAdvanceChips(open, { excludeEntryId: scoredEntryId });
 }
 
 type ScoreSaveState = 'pending' | 'acknowledged' | 'failed';
@@ -279,9 +284,9 @@ export const QuickAdvancePanel: React.FC<QuickAdvancePanelProps> = ({
           {saveState === 'acknowledged'
             ? 'Score saved'
             : saveState === 'failed'
-              ? 'Saved on this device. Sync needs attention.'
+              ? 'Saved on this device, but it could not be sent. It needs attention.'
               : online
-                ? 'Saved on this device · waiting to sync'
+                ? 'Saved on this device. It has not been sent yet.'
                 : "Saved on this device. It will send when you're back online."}
         </div>
 

@@ -108,7 +108,7 @@ describe('UserManagementPage ?userId= with an auth user id (MYK9-1533)', () => {
     expect(screen.queryByText(/user not found/i)).not.toBeInTheDocument();
 
     mockMaybeSingle.mockResolvedValueOnce({ data: { id: 'people-1' }, error: null });
-    await user.click(screen.getByRole('button', { name: 'Retry' }));
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
     expect(await screen.findByTestId('manage-roles-dialog')).toHaveTextContent('people-1');
   });
 
@@ -191,7 +191,7 @@ describe('UserManagementPage ?userId= with an auth user id (MYK9-1533)', () => {
       expect(await screen.findByText(/needs a connection/i)).toBeInTheDocument();
 
       mockMaybeSingle.mockResolvedValueOnce({ data: { id: 'people-1' }, error: null });
-      await user.click(screen.getByRole('button', { name: 'Retry' }));
+      await user.click(screen.getByRole('button', { name: 'Try again' }));
       expect(await screen.findByTestId('manage-roles-dialog')).toHaveTextContent('people-1');
       expect(mockMaybeSingle).toHaveBeenCalledTimes(2);
     } finally {

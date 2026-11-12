@@ -1,3 +1,4 @@
+import { isUnsetJudgeName } from '@/utils/classJudgeDisplay';
 /**
  * Phase 1h — at-show ClassList data adapter (myK9Show replication → ringside).
  *
@@ -22,7 +23,7 @@ import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTab
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 import { gatherShowStructureScopes } from '@/features/offline-readiness/showStructureScopes';
-import { toRingsideClassStatus } from './ringsideClassStatusMap';
+import { isCancelledClassStatus, toRingsideClassStatus } from './ringsideClassStatusMap';
 import { getFavoriteClassIdsForTrial } from '@/features/show-today/accountTodayEntries.helpers';
 import { composeClassTitle } from '@/services/entryDisplay/entryDisplaySelectors';
 import { buildNextUpPreview, type AtShowNextUpPreview } from './atShowNextUpPreview';
@@ -67,11 +68,13 @@ export function toClassEntry(
     section: normalizeSection(cls.section),
     class_name: buildClassName(cls),
     class_order: cls.classOrder ?? 0,
-    judge_name: cls.judgeName ?? 'No Judge Assigned',
+    judge_name: isUnsetJudgeName(cls.judgeName) ? 'No Judge Assigned' : cls.judgeName!.trim(),
     entry_count: counts.expected,
     completed_count: counts.accounted,
     // MYK9-1513: status + ring phase + Expected start read back as ringside's eight values.
     class_status: toRingsideClassStatus(cls),
+    // MYK9-1847: cancelled has no ringside status value, so it travels as its own fact.
+    ...(isCancelledClassStatus(cls.classStatus) ? { is_cancelled: true } : {}),
     ...(cls.ringPhase === 'briefing' && cls.ringPhaseTime
       ? { briefing_time: cls.ringPhaseTime }
       : {}),

@@ -66,7 +66,7 @@ describe('ClubPaymentsCard', () => {
     mockAccountState(null);
     render(<ClubPaymentsCard clubId="club-1" />);
 
-    expect(screen.getByRole('button', { name: /connect payment account/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /connect bank account/i })).toBeInTheDocument();
     expect(screen.queryByText(/before you start/i)).not.toBeInTheDocument();
     expect(mockedStartOnboarding).not.toHaveBeenCalled();
   });
@@ -83,7 +83,7 @@ describe('ClubPaymentsCard', () => {
     const user = userEvent.setup();
     render(<ClubPaymentsCard clubId="club-1" />);
 
-    await user.click(screen.getByRole('button', { name: /connect payment account/i }));
+    await user.click(screen.getByRole('button', { name: /connect bank account/i }));
 
     expect(screen.getByText(/before you start/i)).toBeInTheDocument();
     expect(screen.getByText(/federal banking law/i)).toBeInTheDocument();
@@ -97,13 +97,13 @@ describe('ClubPaymentsCard', () => {
     const user = userEvent.setup();
     render(<ClubPaymentsCard clubId="club-1" />);
 
-    await user.click(screen.getByRole('button', { name: /connect payment account/i }));
+    await user.click(screen.getByRole('button', { name: /connect bank account/i }));
     const notNow = screen.getByRole('button', { name: 'Not now' });
     notNow.focus();
     await user.keyboard('{Enter}');
 
     expect(screen.queryByText(/before you start/i)).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /connect payment account/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /connect bank account/i })).toBeInTheDocument();
     expect(mockedStartOnboarding).not.toHaveBeenCalled();
   });
 
@@ -113,7 +113,7 @@ describe('ClubPaymentsCard', () => {
     const user = userEvent.setup();
     render(<ClubPaymentsCard clubId="club-1" />);
 
-    await user.click(screen.getByRole('button', { name: /connect payment account/i }));
+    await user.click(screen.getByRole('button', { name: /connect bank account/i }));
     await user.click(screen.getByRole('button', { name: /continue to stripe/i }));
 
     await waitFor(() => {
@@ -128,7 +128,7 @@ describe('ClubPaymentsCard', () => {
     const user = userEvent.setup();
     render(<ClubPaymentsCard clubId="club-1" />);
 
-    await user.click(screen.getByRole('button', { name: /connect payment account/i }));
+    await user.click(screen.getByRole('button', { name: /connect bank account/i }));
     await user.click(screen.getByRole('button', { name: /continue to stripe/i }));
 
     expect(await screen.findByText(/stripe is unavailable/i)).toBeInTheDocument();
@@ -141,9 +141,7 @@ describe('ClubPaymentsCard', () => {
     render(<ClubPaymentsCard clubId="club-1" />);
 
     expect(screen.getByRole('button', { name: /finish setting up/i })).toBeInTheDocument();
-    expect(
-      screen.queryByRole('button', { name: /connect payment account/i })
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /connect bank account/i })).not.toBeInTheDocument();
   });
 
   it('onboarded but payouts pending: under-review state still offers a resume path', () => {
@@ -178,9 +176,7 @@ describe('ClubPaymentsCard', () => {
     render(<ClubPaymentsCard clubId="club-1" />);
 
     expect(screen.getByText(/payouts enabled/i)).toBeInTheDocument();
-    expect(
-      screen.queryByRole('button', { name: /connect payment account/i })
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /connect bank account/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /finish setting up/i })).not.toBeInTheDocument();
   });
 
@@ -189,7 +185,7 @@ describe('ClubPaymentsCard', () => {
     mockAccountState(null, { isError: true, refetch });
     render(<ClubPaymentsCard clubId="club-1" />);
 
-    expect(screen.getByText(/couldn't load your payment account status/i)).toBeInTheDocument();
+    expect(screen.getByText(/couldn't load your bank account status/i)).toBeInTheDocument();
   });
 
   it('does not add a second checkout/payment action alongside the Stripe onboarding flow (no-duplicate-checkout regression)', () => {

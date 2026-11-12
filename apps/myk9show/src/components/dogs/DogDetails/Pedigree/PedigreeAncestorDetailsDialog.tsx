@@ -45,7 +45,7 @@ const AncestorDetailsDialog: React.FC<AncestorDetailsDialogProps> = ({
         )}
         {regDisplay && <div className="text-xs">Registration: {regDisplay}</div>}
         {ancestor.date_of_birth && (
-          <div className="text-xs">DOB: {formatDateMMDDYYYY(ancestor.date_of_birth)}</div>
+          <div className="text-xs">Date of birth: {formatDateMMDDYYYY(ancestor.date_of_birth)}</div>
         )}
         {ancestor.health_info && <div className="text-xs">Health: {ancestor.health_info}</div>}
         {ancestor.linked_dog_id && (

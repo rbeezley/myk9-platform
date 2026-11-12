@@ -97,6 +97,7 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
   allowCardCheckout = true,
   cardCheckoutUnavailableReason,
   juniorFee = null,
+  allowFreeEntry = false,
   getInitialDetails,
 }) => {
   const [initialDetails] = useState(() => getInitialDetails?.());
@@ -191,7 +192,7 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
                   value="credit_card"
                   selected={paymentMethod === 'credit_card'}
                   icon={CreditCard}
-                  title="Credit/Debit Card (Online Payment)"
+                  title="Credit/Debit Card"
                   description="Secure online payment via credit or debit card"
                   onSelect={handleSelect}
                 />
@@ -380,33 +381,34 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
               </div>
             )}
 
-            <PermissionGuard permission="registration:override_fees">
-              <PaymentOptionCard
-                value="waived"
-                selected={paymentMethod === 'waived'}
-                icon={Tag}
-                title="Fees Waived"
-                description="Administrative waiver of registration fees"
-                onSelect={handleSelect}
-              />
-            </PermissionGuard>
+            {allowFreeEntry && (
+              <PermissionGuard permission="registration:override_fees">
+                <PaymentOptionCard
+                  value="waived"
+                  selected={paymentMethod === 'waived'}
+                  icon={Tag}
+                  title="Free entry"
+                  description="No entry fees are charged"
+                  onSelect={handleSelect}
+                />
+              </PermissionGuard>
+            )}
 
             {paymentMethod === 'waived' && (
               <div className="ml-4 space-y-3 border-l-2 border-primary/20 pl-4">
                 <Alert>
                   <AlertTriangle className="h-4 w-4" />
                   <AlertDescription>
-                    This will waive all registration fees for this entry. This action requires admin
-                    approval.
+                    This entry will be free. No entry fees are charged.
                   </AlertDescription>
                 </Alert>
                 <div>
-                  <Label htmlFor="waiver-reason">Reason for Fee Waiver</Label>
+                  <Label htmlFor="waiver-reason">Why is this entry free?</Label>
                   <Textarea
                     id="waiver-reason"
                     value={paymentNotes}
                     onChange={e => handlePaymentNotesChange(e.target.value)}
-                    placeholder="Explain the reason for waiving fees..."
+                    placeholder="For example, a judge or worker entry"
                     required
                   />
                 </div>

@@ -2,7 +2,7 @@
  * MYK9-998 (Codex round 2 on #2735): what reaches the class UPDATE layer from a real Edit class
  * save. The snapshot the editor opened with is stale by the time Save is pressed, so an unrelated
  * edit must send neither `allow_waitlist` nor `max_entries`; otherwise another secretary's change
- * to the wait list is silently reverted. Real panel, real save hook, real mapper; only the
+ * to the waitlist is silently reverted. Real panel, real save hook, real mapper; only the
  * database call at the bottom is replaced.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -11,7 +11,7 @@ import { mapDatabaseToClass, type DbClassWithRelations } from '@/services/mapper
 import { SetupClassDialogs } from '../SetupClassDialogs';
 
 const dbUpdateClass = vi.hoisted(() => vi.fn());
-// MYK9-1019: the show's "Allow wait lists", which a class with no setting of its own follows.
+// MYK9-1019: the show's "Allow waitlists", which a class with no setting of its own follows.
 const showState = vi.hoisted(() => ({
   shows: [] as Array<{ id: string; allowsWaitlist?: boolean }>,
 }));
@@ -73,11 +73,11 @@ describe('Edit class payload at the update layer', () => {
     it('shows the inherited state, and flipping it saves this class as an exception', async () => {
       showState.shows = [{ id: 's1', allowsWaitlist: true }];
       const { user } = renderDialogs({ ...snapshot, allowsWaitlist: null });
-      const toggle = await screen.findByRole('switch', { name: 'Allow wait list' });
+      const toggle = await screen.findByRole('switch', { name: 'Allow waitlist' });
       expect(toggle).toBeChecked();
       expect(toggle).toHaveAccessibleDescription(/Follows show: On/);
       expect(screen.queryByRole('button', { name: 'Use the show setting' })).toBeNull();
-      // MYK9-1583: the copy names the real path to the wait list, not a removed tab.
+      // MYK9-1583: the copy names the real path to the waitlist, not a removed tab.
       expect(toggle).toHaveAccessibleDescription(/Entry Forms: open Actions, then Waitlist/);
       expect(
         screen.getByText(/Manage the queue from Entry Forms: open Actions, then Waitlist/)
@@ -96,7 +96,7 @@ describe('Edit class payload at the update layer', () => {
     it('"Use the show setting" clears the exception: the save sends allow_waitlist null', async () => {
       showState.shows = [{ id: 's1', allowsWaitlist: true }];
       const { user } = renderDialogs({ ...snapshot, allowsWaitlist: false });
-      const toggle = await screen.findByRole('switch', { name: 'Allow wait list' });
+      const toggle = await screen.findByRole('switch', { name: 'Allow waitlist' });
       expect(toggle).not.toBeChecked();
       expect(toggle).toHaveAccessibleDescription(/Set for this class only/);
 
@@ -132,9 +132,9 @@ describe('Edit class payload at the update layer', () => {
     expect(payload).not.toHaveProperty('max_entries');
   });
 
-  it('turning the wait list on sends allow_waitlist and nothing else about capacity', async () => {
+  it('turning the waitlist on sends allow_waitlist and nothing else about capacity', async () => {
     const { user } = renderDialogs();
-    await user.click(await screen.findByRole('switch', { name: 'Allow wait list' }));
+    await user.click(await screen.findByRole('switch', { name: 'Allow waitlist' }));
     await user.click(screen.getByRole('button', { name: 'Save Changes' }));
 
     await waitFor(() => expect(dbUpdateClass).toHaveBeenCalled());

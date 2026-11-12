@@ -199,7 +199,7 @@ describe('ShowPublicLanding frame (MYK9-1288)', () => {
   });
 
   describe('late-entry contact states', () => {
-    const neutral = 'Contact the trial secretary for late-entry help.';
+    const neutral = 'Contact the show secretary for late-entry help.';
 
     it('stays neutral while the officials read is loading', () => {
       renderLanding(makeShow());

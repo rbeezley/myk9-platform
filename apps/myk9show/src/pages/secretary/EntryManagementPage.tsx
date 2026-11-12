@@ -11,6 +11,7 @@ import { AuditAction } from '@/types/audit-types';
 import { AlertCircle } from 'lucide-react';
 import { TableSkeleton } from '@/components/common/SkeletonLoaders';
 import { useEntryManagementData } from '@/hooks/useEntryManagementData';
+import { useShowStore } from '@/store/showStore';
 import { useEntryManagementActions } from '@/hooks/useEntryManagementActions';
 import {
   useEntryManagementTrialClasses,
@@ -28,6 +29,7 @@ import { EntryListViewHeader } from '@/components/entries/management/EntryListVi
 import { EntryEditDialog } from '@/components/entries/EntryEditDialog';
 import { classifyEntryRemoval, isExhibitorRemoval } from '@/features/payments/pullReconciliation';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
+import { showSendsDecisionEmailsUnasked } from '@/features/lifecycle-emails/decisionEmail';
 import {
   getCockpitNormalizationContext,
   normalizeEntryManagementCockpitParams,
@@ -158,6 +160,11 @@ const EntryManagementPage: React.FC = () => {
   }, [canValidateFocus, cockpitUrl.params, searchParams, setSearchParams]);
 
   const selectedShow = shows.find(s => s.id === selectedShowId) ?? null;
+  // The show's status and last day, from the replicated show (this page's own show rows do
+  // not carry a status). Not loaded yet reads as "unknown", which keeps the email preview.
+  const selectedShowRecord = useShowStore(state =>
+    state.shows.find(show => show.id === selectedShowId)
+  );
   const showTimeZone = useMemo(() => getEntryWindowTimezone(trials), [trials]);
   const paymentLedger = useEnrollmentLedgerActions({ setEntries, showTimeZone });
 
@@ -451,7 +458,7 @@ const EntryManagementPage: React.FC = () => {
                   <AlertDescription>{loadError}</AlertDescription>
                 </Alert>
                 <Button onClick={() => loadEntries(selectedShowId)} disabled={isLoading}>
-                  Retry
+                  Try again
                 </Button>
               </CardContent>
             </Card>
@@ -480,6 +487,7 @@ const EntryManagementPage: React.FC = () => {
                   busy={isProcessing}
                   lastEmailedMap={lastEmailedMap}
                   onStatusChange={handleStatusChange}
+                  sendDecisionEmailsUnasked={showSendsDecisionEmailsUnasked(selectedShowRecord)}
                   onCheckInStatusChange={handleCheckInStatusChange}
                   onOpenEditEntry={openEditEntry}
                   onOpenArmbandDialog={entry =>

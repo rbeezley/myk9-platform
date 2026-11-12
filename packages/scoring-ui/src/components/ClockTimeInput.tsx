@@ -15,7 +15,7 @@
  */
 
 import React from 'react';
-import { Input } from '@myk9/ui';
+import { Input, cn } from '@myk9/ui';
 import {
   formatClockTime,
   isClockTimeFailure,
@@ -171,40 +171,44 @@ export const ClockTimeInput: React.FC<ClockTimeInputProps> = ({
   }
 
   return (
-    <div className="min-w-0 flex-1">
+    <div className="min-w-fit flex-1" data-testid="clock-time-input-root">
       <div className="flex items-center gap-2">
-        <Input
-          id={id}
-          type="text"
-          inputMode="numeric"
-          autoComplete="off"
-          enterKeyHint={onSubmit ? 'done' : 'next'}
-          spellCheck={false}
-          value={text}
-          onChange={e => report(e.target.value)}
-          onFocus={e => {
-            // Typing a new time replaces the old one instead of appending to it (MYK9-832).
-            e.currentTarget.select();
-            onFocus?.();
-          }}
-          // The click that focused the field would otherwise drop the selection on mouseup.
-          onMouseUp={e => e.preventDefault()}
-          onBlur={() => {
-            settle();
-            onBlur?.();
-          }}
-          onKeyDown={handleKeyDown}
-          placeholder={placeholder}
-          autoFocus={autoFocus}
-          disabled={disabled}
-          aria-label={ariaLabel}
-          aria-invalid={(failure && hasText) || invalid ? true : undefined}
-          aria-describedby={
-            [hint ? hintId : null, describedBy].filter(Boolean).join(' ') || undefined
-          }
-          data-testid={testId}
-          className={className ?? 'h-11 text-base'}
-        />
+        {/* The floor lives on this wrapper, not the Input: a host className replaces the Input's
+            own classes, and the AM/PM group beside it is shrink-0 (MYK9-1866). */}
+        <div className="min-w-[5.5rem] flex-1" data-testid="clock-time-input-field">
+          <Input
+            id={id}
+            type="text"
+            inputMode="numeric"
+            autoComplete="off"
+            enterKeyHint={onSubmit ? 'done' : 'next'}
+            spellCheck={false}
+            value={text}
+            onChange={e => report(e.target.value)}
+            onFocus={e => {
+              // Typing a new time replaces the old one instead of appending to it (MYK9-832).
+              e.currentTarget.select();
+              onFocus?.();
+            }}
+            // The click that focused the field would otherwise drop the selection on mouseup.
+            onMouseUp={e => e.preventDefault()}
+            onBlur={() => {
+              settle();
+              onBlur?.();
+            }}
+            onKeyDown={handleKeyDown}
+            placeholder={placeholder}
+            autoFocus={autoFocus}
+            disabled={disabled}
+            aria-label={ariaLabel}
+            aria-invalid={(failure && hasText) || invalid ? true : undefined}
+            aria-describedby={
+              [hint ? hintId : null, describedBy].filter(Boolean).join(' ') || undefined
+            }
+            data-testid={testId}
+            className={cn('w-full', className ?? 'h-11 text-base')}
+          />
+        </div>
         {hourMinutes !== undefined && (
           <div
             role="group"

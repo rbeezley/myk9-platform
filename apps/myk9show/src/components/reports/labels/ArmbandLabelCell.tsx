@@ -124,7 +124,7 @@ export const ArmbandLabelCell: React.FC<ArmbandLabelCellProps> = ({
           )}
           {config.venueWifi && wifiNetwork && (
             <span className="armband-label__actions" style={WRAP}>
-              WiFi: {wifiNetwork}
+              Wi-Fi: {wifiNetwork}
               {wifiPassword ? `/${wifiPassword}` : ''}
             </span>
           )}

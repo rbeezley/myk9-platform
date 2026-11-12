@@ -18,14 +18,19 @@ const classItem: ScheduledClassModel = {
   startedLabel: null,
   lifecycle: { evidence: 'recorded', value: 'not-started' },
   progress: { evidence: 'computed', value: { completed: 0, total: 8 } },
-  operationalArea: { evidence: 'unknown', value: null },
   judgeName: null,
+  filterFacts: {
+    lifecycle: 'not-started',
+    closeout: 'none',
+    judge: { value: '~unassigned', label: 'Unassigned' },
+    element: null,
+    level: null,
+  },
   attentionCount: 0,
   closeout: 'none',
-  primaryAction: null,
   statusLine: {
-    text: 'Not started · 3 not checked in',
-    parts: ['Not started', '3 not checked in'],
+    text: 'Not started · 3 of 5 not checked in',
+    parts: ['Not started', '3 of 5 not checked in'],
   },
 };
 
@@ -51,7 +56,7 @@ describe('CockpitScheduleRow pending link', () => {
   it('sets "N pending" in the status phrase, linked to the class review list', () => {
     renderRow(2);
     expect(screen.getByTestId('class-status-line')).toHaveTextContent(
-      'Not started · 2 pending · 3 not checked in'
+      'Not started · 2 pending · 3 of 5 not checked in'
     );
     const link = screen.getByRole('link', { name: '2 pending in Container Novice' });
     expect(link).toHaveAttribute(
@@ -75,7 +80,7 @@ describe('CockpitScheduleRow pending link', () => {
     renderRow(0);
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
     expect(screen.getByTestId('class-status-line')).toHaveTextContent(
-      'Not started · 3 not checked in'
+      'Not started · 3 of 5 not checked in'
     );
   });
 
@@ -83,7 +88,7 @@ describe('CockpitScheduleRow pending link', () => {
     renderRow(0);
     const judge = screen.getByTestId('class-judge');
     const className = screen.getByRole('button', { name: 'Container Novice' });
-    expect(judge).toHaveTextContent('Judge not set');
+    expect(judge).toHaveTextContent('Judge to be announced');
     // A flex-1 truncating judge beside the class name collapsed to a few pixels at 300px.
     expect(judge.parentElement).not.toBe(className.parentElement);
     expect(judge.closest('.truncate')).toBeNull();
@@ -104,19 +109,23 @@ describe('CockpitScheduleRow pending link', () => {
     expect(name.className).toContain('focus-visible:ring-2');
   });
 
-  it('starts line 2 with the ring, then the judge', () => {
-    renderRow(0, vi.fn(), {
-      ...classItem,
-      judgeName: 'Pat Donovan',
-      operationalArea: { evidence: 'recorded', value: { kind: 'ring', label: 'Ring 1' } },
-    });
-    const line = screen.getByTestId('class-ring').parentElement!;
-    expect(line.textContent).toMatch(/^Ring 1 · Pat Donovan · Not started/);
-  });
-
   it('states the attention count in words and as visible text', () => {
     renderRow(0, vi.fn(), { ...classItem, attentionCount: 3 });
     expect(screen.getByRole('img', { name: '3 need attention' })).toBeInTheDocument();
     expect(screen.getByText('3 issues')).toBeInTheDocument();
+  });
+});
+
+describe('CockpitScheduleRow unset judge (MYK9-1846)', () => {
+  it('reads Judge to be announced for a stored TBD, and and an empty name read the same', () => {
+    renderRow(0, vi.fn(), { ...classItem, judgeName: 'TBD' });
+    expect(screen.getByTestId('class-judge')).toHaveTextContent(/^Judge to be announced$/);
+    expect(screen.queryByText('TBD')).not.toBeInTheDocument();
+  });
+
+  it('reads Judge to be announced for an empty name, never Judge not set', () => {
+    renderRow(0, vi.fn(), { ...classItem, judgeName: '' });
+    expect(screen.getByTestId('class-judge')).toHaveTextContent(/^Judge to be announced$/);
+    expect(screen.queryByText('Judge not set')).not.toBeInTheDocument();
   });
 });

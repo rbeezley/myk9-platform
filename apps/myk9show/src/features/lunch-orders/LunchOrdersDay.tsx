@@ -110,7 +110,7 @@ export function LunchOrdersDay({
               volunteers.refetch();
             }}
           >
-            Retry
+            Try again
           </button>
         </p>
       )}

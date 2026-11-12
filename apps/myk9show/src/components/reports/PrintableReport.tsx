@@ -1,5 +1,6 @@
 import { forwardRef } from 'react';
 import { Separator } from '@/components/ui/separator';
+import { judgeNameOrUnsetLabel } from '@/utils/classJudgeDisplay';
 // Icons removed as they are not used in this print component
 
 interface ShowResult {
@@ -142,7 +143,7 @@ const PrintableReport = forwardRef<HTMLDivElement, PrintableReportProps>(
           </div>
           <div>
             <p>
-              <strong>Judge:</strong> {data.judge}
+              <strong>Judge:</strong> {judgeNameOrUnsetLabel(data.judge)}
             </p>
             <p>
               <strong>Ring:</strong> {data.ring}

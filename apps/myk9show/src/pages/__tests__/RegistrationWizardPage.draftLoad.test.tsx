@@ -89,10 +89,15 @@ vi.mock('@/hooks/useExhibitorProfile', () => ({
 }));
 
 const mockActivateDraft = vi.fn();
+// Metadata the real hook lists for this show; empty unless a test has a saved entry.
+type DraftMeta = { selectedDogsCount: number; completed: boolean };
+let mockAvailableDrafts: DraftMeta[] = [];
+const SAVED_ENTRY: DraftMeta[] = [{ selectedDogsCount: 1, completed: false }];
 vi.mock('@/hooks/useDraftPersistence', () => ({
   useDraftPersistence: () => ({
     activateDraft: mockActivateDraft,
     deactivateDraft: vi.fn(),
+    availableDrafts: mockAvailableDrafts,
   }),
 }));
 
@@ -231,6 +236,7 @@ describe('RegistrationWizardPage — handleDraftLoaded', () => {
     capturedIdentityPending = false;
     mockCreateRegistration.mockClear();
     mockActivateDraft.mockClear();
+    mockAvailableDrafts = [];
     mockCreateRegistration.mockReturnValue({ id: 'reg-1' });
     // Default: one dog available (auto-select will fire for exhibitor mode)
     mockDogStoreState.dogs = [{ id: 'dog-1', ownerId: 'user-1', ownerName: 'Owner' }];
@@ -280,6 +286,7 @@ describe('RegistrationWizardPage — handleDraftLoaded', () => {
   });
 
   it('offers resume only on the empty exhibitor dog step', async () => {
+    mockAvailableDrafts = SAVED_ENTRY; // the saved entry these scenarios resume
     mockDogStoreState.dogs = [];
     render(<RegistrationWizardPage />, { initialRoute: '/shows/show-1/register' });
     await waitFor(() => expect(capturedOnDraftLoaded).not.toBeNull());
@@ -290,6 +297,7 @@ describe('RegistrationWizardPage — handleDraftLoaded', () => {
   });
 
   it('does not re-offer resume after the exhibitor clears the dog step themselves', async () => {
+    mockAvailableDrafts = SAVED_ENTRY; // the saved entry these scenarios resume
     mockDogStoreState.dogs = [];
     render(<RegistrationWizardPage />, { initialRoute: '/shows/show-1/register' });
     await waitFor(() => expect(capturedOnDraftLoaded).not.toBeNull());
@@ -323,6 +331,7 @@ describe('RegistrationWizardPage — handleDraftLoaded', () => {
   });
 
   it('restores an offline draft and creates registration after the roster returns', async () => {
+    mockAvailableDrafts = SAVED_ENTRY; // the saved entry these scenarios resume
     mockDogStoreState.dogs = [];
     mockDogStoreState.isReady = false;
     const view = render(<RegistrationWizardPage />, { initialRoute: '/shows/show-1/register' });
@@ -342,6 +351,7 @@ describe('RegistrationWizardPage — handleDraftLoaded', () => {
   });
 
   it('returns an offline-restored draft to dog selection when the roster no longer has its dog', async () => {
+    mockAvailableDrafts = SAVED_ENTRY; // the saved entry these scenarios resume
     mockDogStoreState.dogs = [];
     mockDogStoreState.isReady = false;
     const view = render(<RegistrationWizardPage />, { initialRoute: '/shows/show-1/register' });
@@ -369,6 +379,7 @@ describe('RegistrationWizardPage — handleDraftLoaded', () => {
   });
 
   it('keeps a draft whose dog is absent from the loaded roster', async () => {
+    mockAvailableDrafts = SAVED_ENTRY; // the saved entry these scenarios resume
     mockDogStoreState.dogs = [];
     render(<RegistrationWizardPage />, { initialRoute: '/shows/show-1/register' });
     await waitFor(() => expect(capturedOnDraftLoaded).not.toBeNull());
@@ -381,6 +392,7 @@ describe('RegistrationWizardPage — handleDraftLoaded', () => {
   });
 
   it('restores saved dog, class selection, and step together', async () => {
+    mockAvailableDrafts = SAVED_ENTRY; // the saved entry these scenarios resume
     mockDogStoreState.dogs = [{ id: 'dog-1', ownerId: 'user-1', ownerName: 'Owner' }];
     render(<RegistrationWizardPage />, { initialRoute: '/shows/show-1/register' });
     await waitFor(() => expect(capturedOnDraftLoaded).not.toBeNull());
@@ -399,6 +411,7 @@ describe('RegistrationWizardPage — handleDraftLoaded', () => {
   });
 
   it('keeps Resume available when a background profile refetch fails but dogs are ready', async () => {
+    mockAvailableDrafts = SAVED_ENTRY; // the saved entry these scenarios resume
     mockDogStoreState.dogs = [];
     mockProfileState.error = new Error('Background profile refresh failed');
     render(<RegistrationWizardPage />, { initialRoute: '/shows/show-1/register' });

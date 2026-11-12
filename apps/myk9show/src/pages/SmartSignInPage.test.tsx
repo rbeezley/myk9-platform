@@ -175,6 +175,43 @@ describe('SmartSignInPage', () => {
     await waitFor(() => expect(navigateSpy).toHaveBeenCalledWith('/'));
   });
 
+  it("a wrong password is explained in plain words, never in the provider's (MYK9-1815)", async () => {
+    const user = userEvent.setup();
+    signInMock.mockRejectedValue(
+      Object.assign(new Error('Invalid login credentials'), {
+        code: 'invalid_credentials',
+        status: 400,
+      })
+    );
+    render(<SmartSignInPage />, { initialRoute: '/sign-in' });
+
+    await user.type(screen.getByTestId('credential-input'), 'jane@example.com');
+    await user.type(screen.getByTestId('password-input'), 'wrong-password');
+    await user.click(screen.getByTestId('sign-in-button'));
+
+    expect(
+      await screen.findByText(
+        'That email or password is not right. Check both and try again, or use "Forgot your password?" below.'
+      )
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/invalid login credentials/i)).toBeNull();
+    // The way out the message names is on the page.
+    expect(screen.getByText('Forgot your password?')).toBeInTheDocument();
+  });
+
+  it('a Google sign-in that cannot start says so plainly', async () => {
+    const user = userEvent.setup();
+    signInWithGoogleMock.mockRejectedValue(new Error('provider is not enabled'));
+    render(<SmartSignInPage />, { initialRoute: '/sign-in' });
+
+    await user.click(screen.getByRole('button', { name: /continue with google/i }));
+
+    expect(
+      await screen.findByText('We could not open Google sign-in. Please try again.')
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/provider is not enabled/i)).toBeNull();
+  });
+
   it('a passcode takes its own branch and shows no password field', async () => {
     const user = userEvent.setup();
     render(<SmartSignInPage />, { initialRoute: '/sign-in' });

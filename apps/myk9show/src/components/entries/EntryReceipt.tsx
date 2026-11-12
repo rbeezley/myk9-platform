@@ -6,6 +6,7 @@
  */
 
 import { useRef } from 'react';
+import { TO_BE_ANNOUNCED_LABEL } from '@/lib/format/fallbackLabels';
 import {
   Dialog,
   DialogContent,
@@ -340,7 +341,7 @@ export function EntryReceipt({
 
   const formatLocation = () => {
     const parts = [entry.location.venue, entry.location.city, entry.location.state].filter(Boolean);
-    return parts.join(', ') || 'Location TBD';
+    return parts.join(', ') || TO_BE_ANNOUNCED_LABEL;
   };
 
   // MYK9-632: a WITHDRAWAL leaves the receipt's running classes exactly as a
@@ -385,7 +386,7 @@ export function EntryReceipt({
             <p className="receipt-subtitle text-sm text-muted-foreground">myK9Show</p>
           </div>
 
-          {/* Confirmation # — the receipt is the one place it is defensible,
+          {/* Confirmation number — the receipt is the one place it is defensible,
               and the only identifier this document now carries. */}
           {entry.confirmationNumber && (
             <div className="confirmation-box bg-muted/50 rounded-lg p-4 mb-6 text-center">
@@ -520,7 +521,7 @@ export function EntryReceipt({
                   </div>
                   {entry.charge.platformFee !== 0 && (
                     <div className="flex justify-between gap-4">
-                      <dt className="text-muted-foreground">Platform fee</dt>
+                      <dt className="text-muted-foreground">Service fee</dt>
                       <dd className="font-mono">{formatCurrency(entry.charge.platformFee)}</dd>
                     </div>
                   )}

@@ -395,13 +395,13 @@ describe('CheckoutSuccessPage', () => {
     await waitFor(() => {
       expect(screen.getByText('MK9-000042')).toBeInTheDocument();
     });
-    expect(screen.getByText('Confirmation #')).toBeInTheDocument();
+    expect(screen.getByText('Confirmation number')).toBeInTheDocument();
     expect(screen.queryByText(/Payment reference:/)).not.toBeInTheDocument();
     expect(screen.queryByText('Entry #')).not.toBeInTheDocument();
     expect(screen.queryByText('Registration #')).not.toBeInTheDocument();
   });
 
-  it('shows the Stripe id as a payment reference, never as Confirmation #', async () => {
+  it('shows the Stripe id as a payment reference, never as Confirmation number', async () => {
     mockSingle.mockResolvedValue({
       data: {
         id: 'order-uuid',
@@ -424,7 +424,7 @@ describe('CheckoutSuccessPage', () => {
         screen.getByText('Payment reference: pi_3TgoK2AIej2Q9UtX3HSHZh3M')
       ).toBeInTheDocument();
     });
-    expect(screen.queryByText('Confirmation #')).not.toBeInTheDocument();
+    expect(screen.queryByText('Confirmation number')).not.toBeInTheDocument();
   });
 
   it('shows the already-assigned armband number and accurate next-step copy', async () => {
@@ -627,6 +627,6 @@ describe('CheckoutSuccessPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Entry Submitted Successfully!')).toBeInTheDocument();
     });
-    expect(screen.queryByText('Confirmation #')).not.toBeInTheDocument();
+    expect(screen.queryByText('Confirmation number')).not.toBeInTheDocument();
   });
 });

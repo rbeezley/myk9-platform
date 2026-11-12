@@ -39,7 +39,7 @@ async function gotoTrial(page: Page) {
 
 /**
  * MYK9-1320: a manager's class edit and delete live on the Overview class panel. Selecting a class
- * row focuses it (FocusedClassSetupActions.tsx: the "Edit class <name>" button), Edit class opens
+ * row focuses it (FocusedClassActionsMenu.tsx: the "Actions for <name>" menu), its Edit class item opens
  * the "Edit Class" panel (SetupClassDialogs.tsx -> ClassEditPanel), and Delete class is that
  * panel's footer button (EditPanelDelete.tsx:66), which opens the shared delete alertdialog.
  */
@@ -53,8 +53,8 @@ const classRowByName = (page: Page, nameMatcher: RegExp) =>
 
 /**
  * Click the ROW's own padding (not a control inside it) so the row selects the class
- * (CockpitTrialGroup.tsx, the row's onClick), then wait for THAT class's "Edit class <name>" button
- * (FocusedClassSetupActions.tsx, aria-label `Edit class ${classLabel}`).
+ * (CockpitTrialGroup.tsx, the row's onClick), then wait for THAT class's "Actions for <name>" button
+ * (FocusedClassActionsMenu.tsx, aria-label `Actions for ${className}`).
  */
 async function focusClassRow(row: Locator, editButton: Locator) {
   await expect(row).toBeVisible({ timeout: 15000 });
@@ -63,7 +63,9 @@ async function focusClassRow(row: Locator, editButton: Locator) {
 }
 
 async function openClassEditPanel(page: Page, editButton: Locator) {
+  // MYK9-1796: Edit class is an item of the class header's Actions menu.
   await editButton.click();
+  await page.getByRole('menuitem', { name: 'Edit class' }).click();
   const editDialog = page.getByRole('dialog', { name: 'Edit Class' });
   await expect(editDialog).toBeVisible();
   return editDialog;
@@ -123,7 +125,7 @@ test.describe('Classes UI — Edit class judge', () => {
     // Setup: Container Master in this fixture has Richard Beezley assigned
     // from earlier walkthrough runs.
     await gotoTrial(page);
-    const editButton = page.getByRole('button', { name: /^Edit class Container Master/i });
+    const editButton = page.getByRole('button', { name: /^Actions for Container Master/i });
     await focusClassRow(classRowByName(page, /Container Master/i), editButton);
     const editDialog = await openClassEditPanel(page, editButton);
 
@@ -147,7 +149,7 @@ test.describe('Classes UI — Delete class confirmation', () => {
     await gotoTrial(page);
 
     // Open Delete on Container Master: the Edit Class panel's footer button.
-    const editButton = page.getByRole('button', { name: /^Edit class Container Master/i });
+    const editButton = page.getByRole('button', { name: /^Actions for Container Master/i });
     await focusClassRow(classRowByName(page, /Container Master/i), editButton);
     const editDialog = await openClassEditPanel(page, editButton);
     await editDialog.getByRole('button', { name: 'Delete class', exact: true }).click();
@@ -347,7 +349,7 @@ test.describe('Classes UI — Delete class cascade', () => {
     const seededRow = classRowById(page, seed.classId);
     await expect(seededRow).toBeVisible({ timeout: 15000 });
     await expect(page).toHaveURL(new RegExp(`focus=${seed.classId}`));
-    const editButton = page.getByRole('button', { name: /^Edit class / });
+    const editButton = page.getByRole('button', { name: /^Actions for (?!#)/ });
     await expect(editButton).toHaveCount(1);
     const editDialog = await openClassEditPanel(page, editButton);
     await editDialog.getByRole('button', { name: 'Delete class', exact: true }).click();

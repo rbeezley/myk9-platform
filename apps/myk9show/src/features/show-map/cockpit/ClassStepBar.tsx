@@ -3,7 +3,8 @@ import { CheckCircle2, CircleHelp, Clock3, RefreshCw } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { cn } from '@/lib/utils';
-import type { ClassChecklistItem, ClassChecklistState } from './classChecklist';
+import type { ClassChecklistState } from './classChecklist';
+import type { ClassStep } from './classStepBarModel';
 import { classStepAccessibleName, STEP_STATE_TEXT, type ClassStepAction } from './classStepActions';
 
 function StateIcon({ state }: { state: ClassChecklistState }) {
@@ -15,27 +16,32 @@ function StateIcon({ state }: { state: ClassChecklistState }) {
 }
 
 const STEP_CLASS =
-  'flex min-h-11 w-full flex-col items-start gap-0.5 rounded-lg border p-2.5 text-left text-sm';
+  'flex h-[8.25rem] w-full flex-col items-start gap-0.5 overflow-hidden rounded-lg border p-2.5 text-left text-sm';
 const TARGET_CLASS =
   'hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
-function StepFace({ item, isNext }: { item: ClassChecklistItem; isNext: boolean }) {
+function StepFace({ item, isNext }: { item: ClassStep; isNext: boolean }) {
   return (
     <>
-      <span className="flex items-center gap-1.5 font-medium">
+      <span className="flex w-full min-w-0 items-center gap-1.5 font-medium">
         <StateIcon state={item.state} />
-        {item.label}
+        <span className="min-w-0 line-clamp-2" title={item.label}>
+          {item.label}
+        </span>
         {isNext && (
           // Spoken as aria-current on the step, so the word stays out of the accessible name.
           <span
             aria-hidden="true"
-            className="rounded-full bg-primary px-1.5 text-[0.65rem] font-semibold uppercase leading-5 tracking-wide text-primary-foreground"
+            className="shrink-0 rounded-full bg-primary px-1.5 text-[0.65rem] font-semibold uppercase leading-5 tracking-wide text-primary-foreground"
           >
             Next
           </span>
         )}
       </span>
-      <span className="text-xs text-muted-foreground">
+      <span
+        className="w-full line-clamp-2 text-xs text-muted-foreground"
+        title={item.detail ?? STEP_STATE_TEXT[item.state]}
+      >
         {item.detail ?? STEP_STATE_TEXT[item.state]}
       </span>
     </>
@@ -44,41 +50,62 @@ function StepFace({ item, isNext }: { item: ClassChecklistItem; isNext: boolean 
 
 /** The class's checklist as a row of steps; each openable step is a real button or link. */
 export function ClassStepBar({
-  items,
+  steps,
   actionFor,
   onPrint,
+  onOpenRecords,
+  recordsId,
+  recordsOpen,
   onEditStart,
   editorTriggerRef,
 }: {
-  items: readonly ClassChecklistItem[];
-  actionFor: (item: ClassChecklistItem) => ClassStepAction | null;
+  steps: readonly ClassStep[];
+  actionFor: (step: ClassStep) => ClassStepAction | null;
   onPrint: (reportId: string) => void;
+  /** The Print paperwork card: reveal the print records for this class. */
+  onOpenRecords: () => void;
+  /** The print records' element id and whether they are open, for the Print paperwork card. */
+  recordsId: string;
+  recordsOpen: boolean;
   onEditStart: () => void;
   /** Lands on the editor step's button so closing the editor returns focus to it. */
   editorTriggerRef?: Ref<HTMLButtonElement>;
 }) {
   // The first step not yet done is the one to do next; the rest stay quiet.
-  const nextId = items.find(item => item.state !== 'done')?.id;
+  const nextId = steps.find(item => item.state !== 'done')?.id;
   return (
-    <ol className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-7">
-      {items.map(item => {
+    <ol className="mt-2 grid grid-cols-[repeat(auto-fill,minmax(10.5rem,1fr))] gap-2">
+      {steps.map(item => {
         const action = actionFor(item);
+        const openable = action !== null && action.kind !== 'blocked';
         const className = cn(
           STEP_CLASS,
           item.state === 'done' && 'border-success/30 bg-success/10',
           item.state === 'reprint' && 'border-warning/30 bg-warning/10',
           item.id === nextId && 'ring-2 ring-primary/40',
-          action && TARGET_CLASS
+          openable && TARGET_CLASS
         );
         const current = item.id === nextId ? ({ 'aria-current': 'step' } as const) : {};
-        const name = classStepAccessibleName(item, action);
+        const name = item.accessibleName ?? classStepAccessibleName(item, action);
         return (
           <li key={item.id} className="min-w-0">
-            {action?.kind === 'link' ? (
+            {item.opensRecords ? (
+              <button
+                type="button"
+                className={cn(className, TARGET_CLASS)}
+                aria-label={name}
+                aria-controls={recordsId}
+                aria-expanded={recordsOpen}
+                onClick={onOpenRecords}
+                {...current}
+              >
+                <StepFace item={item} isNext={item.id === nextId} />
+              </button>
+            ) : action?.kind === 'link' ? (
               <Link to={action.href} className={className} aria-label={name} {...current}>
                 <StepFace item={item} isNext={item.id === nextId} />
               </Link>
-            ) : action ? (
+            ) : action && action.kind !== 'blocked' ? (
               <button
                 type="button"
                 ref={action.kind === 'editor' ? editorTriggerRef : undefined}
@@ -92,6 +119,14 @@ export function ClassStepBar({
             ) : (
               <div className={className} role="group" aria-label={name} {...current}>
                 <StepFace item={item} isNext={item.id === nextId} />
+                {action?.kind === 'blocked' && (
+                  <span
+                    className="w-full line-clamp-2 text-xs text-muted-foreground"
+                    title={action.label}
+                  >
+                    {action.label}
+                  </span>
+                )}
               </div>
             )}
           </li>

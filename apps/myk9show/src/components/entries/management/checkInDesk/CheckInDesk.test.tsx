@@ -330,7 +330,7 @@ describe('CheckInDesk', () => {
   it('offers a schedule retry instead of treating an unread schedule as settled', async () => {
     h.schedule.readFailed = true;
     const { user } = renderDesk([entry()]);
-    await user.click(screen.getByRole('button', { name: 'Retry' }));
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
     expect(h.schedule.retry).toHaveBeenCalledTimes(1);
   });
 

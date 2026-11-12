@@ -295,7 +295,7 @@ describe('CommandPalette Entry Management context', () => {
       'Reject',
       'Move to waitlist',
       'Withdraw',
-      'Comp entry',
+      'Make free',
     ]) {
       expect(screen.queryByText(forbidden)).not.toBeInTheDocument();
     }

@@ -55,7 +55,7 @@ test.describe('Registration Smoke Tests', () => {
     await gotoRegistrationSmoke(page);
 
     await expect(page.getByRole('link', { name: 'Sign In' })).toBeVisible({ timeout: 30000 });
-    await expect(page.getByRole('link', { name: 'Sign Up' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Create account' })).toBeVisible();
   });
 
   test('should respond to basic interactions', async ({ page }) => {

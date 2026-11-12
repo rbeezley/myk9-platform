@@ -131,6 +131,7 @@ function entryDisplay(entry: ShowMapEntryInput, organization?: string): ShowMapE
     resultStatus: readString(entry, 'result_status'),
     checkInStatus: readString(entry, 'check_in_status'),
     isScored: entry.is_scored === true ? true : undefined,
+    isInRing: (entry.isInRing ?? entry.is_in_ring) === true ? true : undefined,
     runOrder: readNumber(entry, 'run_order'),
     deletedAt: readString(entry, 'deleted_at'),
   };
@@ -398,25 +399,4 @@ export function buildShowMapTree({
   tree.root.attentionCount = entries.filter(entry => getEntryAttention(entry) !== null).length;
 
   return tree;
-}
-
-// INTENT: Default to root-only expansion so the secretary lands on a calm
-// list of trial rows ("a clear checklist view — green checks, not a wall of
-// data"). Trials remain visible because the root is expanded, but their
-// class children stay collapsed until the secretary opens the trial they
-// care about. The toolbar's "Expand trials" button still expands every trial
-// on demand. See OPEN-TODOS / "Show Map default expansion creates a wall of
-// empty rows".
-export function getDefaultExpandedNodeIds(tree: ShowMapTree): Set<string> {
-  return new Set([tree.root.id]);
-}
-
-// "Expand trials" toolbar action — expands the root plus every trial so
-// every class row is visible at once. This is the previous default; it now
-// only fires when the secretary explicitly asks for it.
-export function getTrialsExpandedNodeIds(tree: ShowMapTree): Set<string> {
-  const trialNodeIds = (tree.childIdsByParentId[tree.root.id] ?? []).filter(
-    nodeId => tree.nodesById[nodeId]?.type === 'trial'
-  );
-  return new Set([tree.root.id, ...trialNodeIds]);
 }

@@ -6,14 +6,7 @@ export type ShowMapNodeType =
 
 export type ShowMapStatusKind = 'neutral' | 'active' | 'complete' | 'muted' | 'attention';
 
-export type ShowMapFilter = 'all' | 'in-progress' | 'needs-attention';
-export type ShowMapDayScope = 'today' | 'tomorrow' | 'all';
 export type ShowMapCompletionScope = 'active' | 'completed';
-
-export interface ShowMapScopeState {
-  dayScope: ShowMapDayScope;
-  completionScope: ShowMapCompletionScope;
-}
 
 export interface ShowMapProgress {
   completed: number;
@@ -95,6 +88,9 @@ export interface ShowMapEntryDisplay {
    * entry-accounting and run-queue rules read, for the Show Desk entries table. */
   checkInStatus?: string | undefined;
   isScored?: boolean | undefined;
+  /** The `is_in_ring` flag (either spelling): the run queue treats it as in the ring even when
+   * check-in is not `in-ring`. */
+  isInRing?: boolean | undefined;
   runOrder?: number | undefined;
   deletedAt?: string | undefined;
 }

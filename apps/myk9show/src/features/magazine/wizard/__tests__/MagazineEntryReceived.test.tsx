@@ -36,7 +36,7 @@ describe('MagazineEntryReceived', () => {
 
   it('renders the submitted kicker when registrationNumber present', () => {
     render(<MagazineEntryReceived {...BASE_PROPS} />);
-    const confirmationKicker = screen.getByText(/Submitted · Confirmation # MK9-000137/);
+    const confirmationKicker = screen.getByText(/Submitted · Confirmation number MK9-000137/);
     expect(confirmationKicker).toBeTruthy();
     expect(confirmationKicker).not.toHaveStyle('text-transform: uppercase');
   });
@@ -79,12 +79,12 @@ describe('MagazineEntryReceived', () => {
 
   it('renders the confirmation label when registrationNumber is set', () => {
     render(<MagazineEntryReceived {...BASE_PROPS} />);
-    expect(screen.getAllByText(/Confirmation # MK9-000137/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Confirmation number MK9-000137/).length).toBeGreaterThan(0);
     expect(screen.queryByText(/Entry №/)).not.toBeTruthy();
     expect(screen.queryByText(/Registration #/)).not.toBeTruthy();
   });
 
-  it('renders "Fees due" instead of "Confirmation #" when no number', () => {
+  it('renders "Fees due" instead of "Confirmation number" when no number', () => {
     render(<MagazineEntryReceived {...BASE_PROPS} registrationNumber={null} />);
     expect(screen.getByText('Fees due')).toBeTruthy();
   });

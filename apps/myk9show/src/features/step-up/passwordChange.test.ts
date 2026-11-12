@@ -92,4 +92,37 @@ describe('changePassword (MYK9-1208)', () => {
       nonce: '654321',
     });
   });
+
+  // MYK9-1815: both password pages show this error's message as it is.
+  it.each([
+    ['same_password', 422, 'That is the password you already have. Choose a different one.'],
+    ['unexpected_failure', 500, 'We could not change your password. Please try again.'],
+  ])(
+    "a refused change (%s) is thrown in plain words, not the provider's",
+    async (code, status, copy) => {
+      sessionWith(testJwt(USER, 10, 'fresh'));
+      mockSupabase.auth.updateUser.mockResolvedValueOnce({
+        data: { user: null },
+        error: { status, code, message: 'provider text that must never show' },
+      });
+
+      await expect(changePassword('new-password-1')).rejects.toThrow(copy);
+    }
+  );
+
+  it('a code email that cannot be sent is reported in plain words', async () => {
+    sessionWith(testJwt(USER, 10, 'fresh'));
+    mockSupabase.auth.updateUser.mockResolvedValueOnce({
+      data: { user: null },
+      error: { status: 400, code: 'reauthentication_needed', message: 'requires reauthentication' },
+    });
+    mockSupabase.auth.reauthenticate.mockResolvedValueOnce({
+      data: {},
+      error: { status: 429, code: 'over_email_send_rate_limit', message: 'rate limit' },
+    });
+
+    await expect(changePassword('new-password-1')).rejects.toThrow(
+      'Too many tries. Wait a minute, then try again.'
+    );
+  });
 });

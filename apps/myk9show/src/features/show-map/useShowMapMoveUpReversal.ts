@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
-import { getMoveUpErrorMessage } from '@/services/replication/moveUpEntryRpc';
+import { getMoveUpErrorMessage, MOVE_BACK_FAILED } from '@/services/replication/moveUpEntryRpc';
 import {
   resolveMoveUpReversal,
   reverseShowMapMoveUp,
@@ -58,7 +58,7 @@ export function useShowMapMoveUpReversal({
     onError: error => {
       // The RPC's own sentence — "This run has already started…", "The original
       // entry is no longer there to restore." — not a generic apology.
-      toast.error(getMoveUpErrorMessage(error, 'That class change could not be reversed.'));
+      toast.error(getMoveUpErrorMessage(error, MOVE_BACK_FAILED));
       // MYK9-821: a refused Move back (stale/superseded, client- or
       // server-side) left the dialog open still offering Move back, because
       // the cached reversal answer from when the dialog opened was never

@@ -24,6 +24,8 @@ interface ShowDeskPanelProps extends BuildShowMapTreeInput {
   tools?: readonly ShowDeskToolSection[];
   /** Entered/pending per class for the schedule rows (MYK9-943); absent until read. */
   entryBreakdownByClassId?: ReadonlyMap<string, ClassEntryBreakdown> | undefined;
+  /** Re-reads the page's entries after a class-table Check-in write (MYK9-1797). */
+  onRefreshEntries?: (() => void | Promise<void>) | undefined;
 }
 
 // INTENT: This is the secretary's live operations cockpit. It projects the
@@ -39,6 +41,7 @@ export default function ShowDeskPanel({
   scopeNow,
   tools,
   entryBreakdownByClassId,
+  onRefreshEntries,
 }: ShowDeskPanelProps) {
   const location = useLocation();
   const state = useShowMapWorkbenchState({
@@ -48,11 +51,9 @@ export default function ShowDeskPanel({
     entries,
     showId: show.id,
     ...(scopeNow !== undefined && { scopeNow }),
-    initialDayScope: 'all',
-    initialCompletionScope: 'active',
     // Show Desk does not render the tree -- it renders the cockpit, and reads the
     // tree only for actions and counts. The 25-entry preview cap is a TREE-RENDERING
-    // concern (ShowMapTab's table), and applying it here silently truncated two
+    // concern (the retired Show Map table), and applying it here silently truncated two
     // things: move-up was offered for a class's first 25 entries only, and the
     // attention count missed `review-entry` on every pending entry past the 25th.
     entryPreviewLimit: Number.POSITIVE_INFINITY,
@@ -199,6 +200,7 @@ export default function ShowDeskPanel({
       )}
       <SecretaryCockpit
         entryBreakdownByClassId={entryBreakdownByClassId}
+        onRefreshEntries={onRefreshEntries}
         snapshot={snapshot}
         canManageShow={canManageShow}
         onCommand={runCommand}

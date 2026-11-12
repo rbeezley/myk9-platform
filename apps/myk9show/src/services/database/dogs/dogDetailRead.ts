@@ -115,7 +115,7 @@ async function readDeviceDog(
         data: null,
         error: createDatabaseError(
           new Error(
-            'This dog could not be loaded: the server is unreachable and it is not saved on this device.'
+            'This dog could not be loaded: we could not reach myK9Show, and it is not saved on this device.'
           ),
           'dog',
           'select_by_id_device'

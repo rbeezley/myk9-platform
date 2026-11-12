@@ -82,12 +82,45 @@ describe('JudgesSchedule', () => {
     expect(screen.getByText('Alice Brown')).toBeInTheDocument();
   });
 
+  it('prints "Judge to be announced" for a class with no judge, never TBD (MYK9-1854)', () => {
+    render(
+      <JudgesSchedule
+        {...baseProps}
+        allClasses={[
+          { id: 'c3', trialId: 't1', element: 'Exterior', level: 'Novice', judgeName: 'TBD' },
+          { id: 'c4', trialId: 't1', element: 'Vehicle', level: 'Novice', judgeName: '' },
+        ]}
+      />
+    );
+    expect(screen.getAllByText('Judge to be announced')).toHaveLength(2);
+    expect(screen.queryByText('TBD')).not.toBeInTheDocument();
+  });
+
   it('sorts classes by judge name when sortOrder=judge-name', () => {
     render(<JudgesSchedule {...baseProps} sortOrder="judge-name" />);
     const rows = screen.getAllByRole('row');
     // Alice Brown (A) should appear before Dr. Jane Smith (D)
     expect(rows[1]).toHaveTextContent('Alice Brown');
     expect(rows[2]).toHaveTextContent('Dr. Jane Smith');
+  });
+
+  it('sorts classes with no judge (blank, legacy TBD) after named judges (MYK9-1853)', () => {
+    render(
+      <JudgesSchedule
+        {...baseProps}
+        sortOrder="judge-name"
+        allClasses={[
+          { id: 'c3', trialId: 't1', element: 'Exterior', level: 'Novice', judgeName: 'TBD' },
+          { id: 'c4', trialId: 't1', element: 'Vehicle', level: 'Novice', judgeName: '' },
+          ...(baseProps.allClasses ?? []),
+        ]}
+      />
+    );
+    const rows = screen.getAllByRole('row');
+    expect(rows[1]).toHaveTextContent('Alice Brown');
+    expect(rows[2]).toHaveTextContent('Dr. Jane Smith');
+    expect(rows[3]).toHaveTextContent('Exterior');
+    expect(rows[4]).toHaveTextContent('Vehicle');
   });
 
   it("titles a UKC show with UKC's own sport name", () => {

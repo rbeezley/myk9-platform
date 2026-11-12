@@ -85,7 +85,7 @@ const AuthCallbackPage = () => {
 
     // Timeout: if no auth event after 10 seconds, show error
     const timeout = setTimeout(() => {
-      setError('Authentication timed out. Please try again.');
+      setError('Signing in took too long. Go back and try again.');
     }, 10000);
 
     return () => {
@@ -103,7 +103,7 @@ const AuthCallbackPage = () => {
               <AlertTriangle className="h-8 w-8 text-destructive" />
             </div>
           </div>
-          <h2 className="text-2xl font-bold mb-2">Verification Failed</h2>
+          <h2 className="text-2xl font-bold mb-2">We could not sign you in</h2>
           <p className="text-muted-foreground mb-6">{error}</p>
           <Link to={signInPath} className="text-primary hover:underline font-medium">
             &larr; Back to sign in

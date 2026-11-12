@@ -27,7 +27,7 @@ export function EntryDataUnavailablePanel({
       </p>
       {state === 'error' && onRetry && (
         <Button type="button" variant="outline" size="sm" className="mt-3" onClick={onRetry}>
-          Retry
+          Try again
         </Button>
       )}
     </div>

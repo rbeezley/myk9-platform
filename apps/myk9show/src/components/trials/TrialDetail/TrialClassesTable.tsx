@@ -1,3 +1,4 @@
+import { isUnsetJudgeName, judgeSortValue, UNSET_JUDGE_VALUE } from '@/utils/classJudgeDisplay';
 import { useState, useMemo, startTransition } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TrialClass } from '../types/trial.types';
@@ -81,8 +82,14 @@ export const TrialClassesTable = ({ classes, showId, trialId }: TrialClassesTabl
       {
         id: 'judgeName',
         header: 'Judge',
-        accessorFn: cls => cls.judgeName || '',
-        cell: ({ row }) => row.original.judgeName || <NotSet />,
+        accessorFn: cls => judgeSortValue(cls.judgeName),
+        sortUndefined: 'last',
+        cell: ({ row }) =>
+          isUnsetJudgeName(row.original.judgeName) ? (
+            <span className="text-muted-foreground">{UNSET_JUDGE_VALUE}</span>
+          ) : (
+            row.original.judgeName
+          ),
       },
       {
         accessorKey: 'startTime',

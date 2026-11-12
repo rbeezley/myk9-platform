@@ -8,13 +8,13 @@ import type { ShowRefundAllResult } from '@/features/payments/useShowRefundAll';
 // ShowRefundSkipReason, plus 'intent_spans_shows' from stripe-refund-show/index.ts).
 // Unknown/future reasons fall back to the raw code so nothing is silently dropped.
 const SKIP_REASON_LABELS: Record<string, string> = {
-  offline_paid: 'Paid by cash or check — refund manually',
+  offline_paid: 'Paid by cash or check, refund manually',
   already_refunded: 'Already refunded',
   not_paid: 'Not paid',
   no_payment_intent: 'No payment on file',
   zero_fee: 'Zero-fee entry',
-  intent_partially_refunded: 'Shares a payment with an already-refunded entry — refund manually',
-  intent_spans_shows: 'Payment also covers another show — refund manually',
+  intent_partially_refunded: 'Shares a payment with an already-refunded entry, refund manually',
+  intent_spans_shows: 'Payment also covers another show, refund manually',
 };
 
 function skipReasonLabel(reason: string): string {
@@ -25,11 +25,18 @@ interface RefundResultDetailProps {
   result: ShowRefundAllResult;
 }
 
+// A "failed" row can be a refund that went through at Stripe but whose entry
+// stamp did not save (stripe-refund-show), so the plain line never says the
+// payment was not refunded. A re-run refunds no one twice.
+const FAILED_PAYMENT_LINE =
+  'This payment may not have been refunded. Run Refund all again: it will not refund anyone twice.';
+
 /** Per-entry detail behind a disclosure, so a clean run stays compact and a
  * messy one is actionable (spec: refund-result-transparency). INTENT: secretary
  * surface — calm control, detail only when the secretary asks for it. */
 export function RefundResultDetail({ result }: RefundResultDetailProps) {
   const [open, setOpen] = useState(false);
+  const [supportOpen, setSupportOpen] = useState(false);
   const { skipped, failed } = result;
 
   if (skipped.length === 0 && failed.length === 0) {
@@ -54,7 +61,6 @@ export function RefundResultDetail({ result }: RefundResultDetailProps) {
           {[...skippedByReason.entries()].map(([reason, entryIds]) => (
             <div key={reason}>
               <p className="text-sm font-medium">{skipReasonLabel(reason)}</p>
-              <p className="text-xs text-muted-foreground">{reason}</p>
               <div className="mt-1 flex flex-wrap gap-1">
                 {entryIds.map(entryId => (
                   <Badge key={entryId} variant="secondary" className="font-mono text-xs">
@@ -67,9 +73,7 @@ export function RefundResultDetail({ result }: RefundResultDetailProps) {
 
           {failed.map(failure => (
             <div key={failure.paymentIntentId}>
-              <p className="text-sm font-medium text-destructive">
-                Payment {failure.paymentIntentId} failed — {failure.error}
-              </p>
+              <p className="text-sm font-medium text-destructive">{FAILED_PAYMENT_LINE}</p>
               <div className="mt-1 flex flex-wrap gap-1">
                 {failure.entryIds.map(entryId => (
                   <Badge key={entryId} variant="destructive" className="font-mono text-xs">
@@ -79,6 +83,29 @@ export function RefundResultDetail({ result }: RefundResultDetailProps) {
               </div>
             </div>
           ))}
+
+          {/* The exact codes and Stripe errors stay available so the secretary
+              can hand support the precise failure, without leading with them. */}
+          <Collapsible open={supportOpen} onOpenChange={setSupportOpen}>
+            <CollapsibleTrigger className="w-auto justify-start gap-2 py-1 text-xs font-normal text-muted-foreground hover:text-foreground hover:no-underline">
+              <ChevronDown className="h-3 w-3 transition-transform" aria-hidden="true" />
+              Details for support
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <ul className="space-y-1 font-mono text-xs text-muted-foreground">
+                {[...skippedByReason.entries()].map(([reason, entryIds]) => (
+                  <li key={`skip-${reason}`}>
+                    Skipped {reason}: {entryIds.join(', ')}
+                  </li>
+                ))}
+                {failed.map(failure => (
+                  <li key={`failed-${failure.paymentIntentId}`}>
+                    {failure.paymentIntentId}: {failure.error}
+                  </li>
+                ))}
+              </ul>
+            </CollapsibleContent>
+          </Collapsible>
         </div>
       </CollapsibleContent>
     </Collapsible>

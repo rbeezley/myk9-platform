@@ -62,7 +62,7 @@ describe('NetworkStatusProvider offline toast', () => {
     );
     expect(toastMock).toHaveBeenCalledTimes(1);
     expect(screen.queryByText(/No internet connection/i)).toBeNull();
-    expect(screen.queryByRole('button', { name: /retry/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /try again/i })).toBeNull();
     expect(screen.queryByRole('alert')).toBeNull();
     expect(screen.getByText('child')).toBeTruthy();
   });

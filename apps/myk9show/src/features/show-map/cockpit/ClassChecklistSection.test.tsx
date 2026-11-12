@@ -3,6 +3,7 @@ import { fromPartial } from '@total-typescript/shoehorn';
 import { render, screen } from '@/test/utils/testUtils';
 
 import { readResultsTabUrlState } from '@/features/results-tab/resultsTabRoutes';
+import { TrialSecretaryAccessProvider } from '@/features/actions/TrialSecretaryAccessContext';
 import { ClassChecklistSection } from './ClassChecklistSection';
 import { SHOW_MAP_WRAP_UP_STATUS } from '../showMapTypes';
 import type { SecretaryCockpitClass } from './secretaryCockpitTypes';
@@ -76,15 +77,48 @@ describe('ClassChecklistSection after-scoring items (MYK9-1032)', () => {
     ).toHaveLength(1);
   });
 
-  it('opens print from all four sheet steps, but ticks only the check-in and score sheet records', async () => {
+  it('opens print from the two results cards, reaches the documents through the Print paperwork card, and ticks only the check-in and score sheet records', async () => {
     const { user } = renderSection(completeClass);
-    expect(screen.getAllByRole('button', { name: /Open print preview$/ })).toHaveLength(4);
+    expect(screen.getAllByRole('button', { name: /Open print preview$/ })).toHaveLength(2);
+    expect(
+      screen.getByRole('button', { name: /^Print paperwork.*Show print records$/ })
+    ).toBeInTheDocument();
     await user.click(screen.getByText('Print records'));
     const ticks = screen.getAllByRole('checkbox').map(box => box.getAttribute('aria-label'));
     expect(ticks).toEqual(['Select Check-in sheet to print', 'Select Score sheets to print']);
     const hrefs = screen.queryAllByRole('link').map(link => link.getAttribute('href'));
     expect(hrefs).not.toContain('/print/check-in-sheet');
     expect(screen.queryByText(/Other paperwork/)).toBeNull();
+  });
+
+  it('opens paper scoring from the Scoring complete step for someone who can operate the show', () => {
+    renderSection({ ...completeClass, lifecycle: 'in-progress', wrapUpStatus: null });
+    expect(screen.getByRole('link', { name: /Open paper scoring$/ })).toHaveAttribute(
+      'href',
+      expect.stringMatching(/^\/scoring\//)
+    );
+  });
+
+  it('keeps a manager who is not the trial secretary off paper scoring: no link, and the step says why (MYK9-1802)', () => {
+    const { container } = render(
+      <TrialSecretaryAccessProvider reason="Trial secretary access only">
+        <ClassChecklistSection
+          showId="show-1"
+          sourceClass={{ ...completeClass, lifecycle: 'in-progress', wrapUpStatus: null }}
+          paperwork={paperwork}
+          timeZone="America/New_York"
+          onCommand={vi.fn()}
+          printTrackingInUse
+          canManageShow
+          trialDate="2026-07-20"
+        />
+      </TrialSecretaryAccessProvider>
+    );
+    expect(container.querySelector('a[href^="/scoring/"]')).toBeNull();
+    const step = screen.getByRole('group', {
+      name: /^Scoring complete.*Trial secretary access only$/,
+    });
+    expect(step).toHaveTextContent('Trial secretary access only');
   });
 });
 

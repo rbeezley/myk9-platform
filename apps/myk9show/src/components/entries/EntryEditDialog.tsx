@@ -9,6 +9,7 @@
 import { useState, useEffect } from 'react';
 import { notifications } from '@/lib/notifications';
 import { friendlySaveError } from '@/utils/friendlySaveError';
+import { GENERIC_FAILURE_MESSAGE } from '@/utils/errorMessages';
 import { offlineAwareMessage, savedMessage } from '@/components/panels/edit/panelSaveErrors';
 import { useDiscardPrompt } from '@/components/panels/edit/DiscardChangesDialog';
 import {
@@ -242,7 +243,7 @@ export function EntryEditDialog({
         onUpdate();
       }
     } catch (err) {
-      setError('An unexpected error occurred.');
+      setError(GENERIC_FAILURE_MESSAGE);
       logger.error('Error leaving class:', 'entries', {}, err as Error);
     } finally {
       setIsSaving(false);

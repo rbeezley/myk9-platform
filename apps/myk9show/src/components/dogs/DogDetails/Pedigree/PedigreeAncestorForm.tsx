@@ -141,7 +141,7 @@ const PedigreeAncestorForm = forwardRef<PedigreeAncestorFormRef, PedigreeAncesto
               </Select>
             </FormField>
           )}
-          <FormField label="DOB" fieldId={`${formId}-dob`}>
+          <FormField label="Date of birth" fieldId={`${formId}-dob`}>
             <DatePicker
               date={form.dob ? parseLocalDateString(form.dob) : undefined}
               setDate={date => update('dob', date ? formatDateLocal(date) : '')}

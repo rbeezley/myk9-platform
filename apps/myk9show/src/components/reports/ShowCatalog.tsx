@@ -85,7 +85,7 @@ export const ShowCatalog: React.FC<ReportProps> = ({
                     <th>Armband</th>
                     <th>Call Name</th>
                     <th>Breed</th>
-                    <th>Reg #</th>
+                    <th>Reg. number</th>
                     <th>Class</th>
                     <th>Handler</th>
                   </tr>

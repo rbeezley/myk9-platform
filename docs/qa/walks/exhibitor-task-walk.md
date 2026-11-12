@@ -108,6 +108,12 @@ If nothing is open when you run: **do not fake it and do not create a show** (an
 8. **Review results** — per class entered, once posted.
 9. **Review statistics** — per-dog past performance.
 
+### Entry and account regressions
+
+- **Only dog, passive visit (MYK9-1795).** On staging, use the beginner account immediately after this run adds its first eligible throwaway dog, before adding another dog, choosing a class, or creating a draft. Open the entry form from the show without a `dogId` link. Confirm the dog arrives ticked. Leave untouched for one autosave interval (30 seconds), then leave the form and revisit in a fresh tab. Confirm there is no “Continue your entry?” prompt and the dog arrives ticked again. Untick it and confirm it stays unticked for that visit. Record the fixture as blocked if the account has zero or multiple eligible dogs, an existing draft, or no open show. Use the usual throwaway-dog cleanup.
+- **Entry agreement (MYK9-1799).** On the run's own entry, tick the agreement on Payment, go back to Classes or Dogs, and return. Confirm it is still ticked. Clear the last selection and rebuild the entry, then check that it asks again. Reopen a saved draft in a fresh visit and check that the agreement starts clear. Stop before submitting or paying.
+- **Sign-up and auth copy (MYK9-1799, MYK9-1815).** Check for one password field, a keyboard-reachable Show/Hide password toggle, and the same eight-character minimum on Sign up, Reset password and Account → Security. Use an approved test account or simulated auth errors for the wrong-password, unconfirmed-email, duplicate-email, throttling and disconnected cases. Record the next action offered. Record the server minimum separately from the UI result using owner-provided settings evidence. Leave account creation and email delivery to the owner.
+
 ## Personas — run the job list twice
 
 Run the nine tasks above twice, as two personas with the same role and permissions. Persona changes what the tester knows and wants, never what the account may do; here the account also changes, for account history. Run the beginner pass FIRST. Each pass gets its own browser context, opened the same way the cold-replica mechanic below opens one (`storageState()` after sign-in, then a fresh context per pass); never share a tab or context between passes. Before each pass, write down its goal, starting state, what counts as done, and what would count as outside help or a workaround.

@@ -41,10 +41,10 @@ describe('CartItemCard', () => {
   });
 
   // MYK9-122: a full class must not render a client-derived amount as settled.
-  it('renders a wait-list line with a pending amount, not as its entry fee', () => {
+  it('renders a waitlist line with a pending amount, not as its entry fee', () => {
     render(<CartItemCard item={baseItem} onRemove={vi.fn()} fulfillment="waitlist" />);
 
-    expect(screen.getByText('Wait list request')).toBeInTheDocument();
+    expect(screen.getByText('Waitlist request')).toBeInTheDocument();
     expect(screen.queryByText('$0.00')).not.toBeInTheDocument();
     expect(screen.getByText('Amount confirmed at submission')).toBeInTheDocument();
     expect(screen.getByText('Pending')).toBeInTheDocument();
@@ -77,7 +77,7 @@ describe('CartItemCard', () => {
     expect(screen.getByText('Judge day full')).toBeInTheDocument();
     expect(
       screen.getByText(
-        /Alma Judge's judging day on Saturday, Oct 10 has no spots left right now\. This class is not accepting wait list entries\./
+        /Alma Judge's judging day on Saturday, Oct 10 has no spots left right now\. This class is not accepting waitlist entries\./
       )
     ).toBeInTheDocument();
   });
@@ -86,6 +86,6 @@ describe('CartItemCard', () => {
     render(<CartItemCard item={baseItem} onRemove={vi.fn()} />);
 
     expect(screen.getByText('$45.00')).toBeInTheDocument();
-    expect(screen.queryByText('Wait list request')).not.toBeInTheDocument();
+    expect(screen.queryByText('Waitlist request')).not.toBeInTheDocument();
   });
 });

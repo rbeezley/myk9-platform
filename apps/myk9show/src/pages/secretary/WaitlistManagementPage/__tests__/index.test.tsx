@@ -1,6 +1,6 @@
 /**
  * MYK9-795: the page's bespoke search box was replaced by the shared `ListFilterBar`.
- * MYK9-1004: "View Wait List" on a judge-day lists every waiting dog across the judge-day's
+ * MYK9-1004: "View Waitlist" on a judge-day lists every waiting dog across the judge-day's
  * classes (grouped by class, join order) with the judge-day card's own numbers, and the tab,
  * already scoped to one show, no longer asks for a show or a class.
  */
@@ -147,7 +147,7 @@ vi.mock('@/components/shows/WaitListSettingsCard', () => ({
 
 const viewWaitList = (judgeName: string) => {
   const card = screen.getByText(judgeName).closest('[data-slot="card"], .rounded-xl, div.border');
-  const button = within(card as HTMLElement).getByRole('button', { name: 'View Wait List' });
+  const button = within(card as HTMLElement).getByRole('button', { name: 'View Waitlist' });
   fireEvent.click(button);
 };
 
@@ -168,7 +168,7 @@ describe('WaitlistManagementPage', () => {
 
   // MYK9-1004: it used to open only the judge-day's FIRST class and show that class's (unlimited)
   // numbers under a Full 3/3 card.
-  it('View Wait List lists the dogs of every class of the judge-day, grouped, in join order', async () => {
+  it('View Waitlist lists the dogs of every class of the judge-day, grouped, in join order', async () => {
     render(<WaitlistManagementPage showId="show-1" />);
     await screen.findByText('Otherjudge');
 
@@ -238,11 +238,11 @@ describe('WaitlistManagementPage', () => {
   });
 
   // MYK9-999: the settings are reachable from the Waitlist tab, scoped to the tab's show.
-  it('offers Wait List Settings from the tab, for the show the tab was opened for', async () => {
+  it('offers Waitlist Settings from the tab, for the show the tab was opened for', async () => {
     render(<WaitlistManagementPage showId="show-1" />);
     await screen.findByText('Bella');
     expect(
-      screen.getByText(/Wait list settings: automatic offers, judge-day capacity, offer window/)
+      screen.getByText(/Waitlist settings: automatic offers, judge-day capacity, offer window/)
     ).toBeVisible();
     expect(screen.getByTestId('waitlist-settings-card')).toHaveTextContent('settings for show-1');
   });
@@ -266,7 +266,7 @@ describe('WaitlistManagementPage', () => {
     viewWaitList('Judge Two');
 
     await waitFor(() =>
-      expect(screen.getByText('Wait list for Judge Two,', { exact: false })).toBeInTheDocument()
+      expect(screen.getByText('Waitlist for Judge Two,', { exact: false })).toBeInTheDocument()
     );
     expect(screen.queryByText('Bella')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /offer spot|remove/i })).not.toBeInTheDocument();
@@ -278,7 +278,9 @@ describe('WaitlistManagementPage', () => {
   it('shows a failed read with a Try again that recovers', async () => {
     state.failNextRead = true;
     render(<WaitlistManagementPage showId="show-1" />);
-    expect(await screen.findByText(/Failed to load waitlist/)).toBeInTheDocument();
+    expect(
+      await screen.findByText("We couldn't load the waitlist. Try again.")
+    ).toBeInTheDocument();
     expect(screen.queryByText('Bella')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
@@ -314,7 +316,9 @@ describe('WaitlistManagementPage', () => {
       error: new Error('down'),
     } as never);
     rerender(<WaitlistManagementPage showId="show-3" />);
-    expect(await screen.findByText(/Failed to load classes/)).toBeInTheDocument();
+    expect(
+      await screen.findByText("We couldn't load this show's classes. Try again.")
+    ).toBeInTheDocument();
     expect(screen.queryByText('Bella')).not.toBeInTheDocument();
   });
 
@@ -344,7 +348,9 @@ describe('WaitlistManagementPage', () => {
     fireEvent.click(screen.getAllByRole('button', { name: /^remove$/i })[0]!);
     const dialog = await screen.findByRole('alertdialog');
     fireEvent.click(within(dialog).getByRole('button', { name: /^remove$/i }));
-    expect(await screen.findByText(/Failed to remove from waitlist/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/We couldn't remove this dog from the waitlist/)
+    ).toBeInTheDocument();
     return view;
   }
 
@@ -352,14 +358,18 @@ describe('WaitlistManagementPage', () => {
     await failARemoval();
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     await waitFor(() =>
-      expect(screen.queryByText(/Failed to remove from waitlist/)).not.toBeInTheDocument()
+      expect(
+        screen.queryByText(/We couldn't remove this dog from the waitlist/)
+      ).not.toBeInTheDocument()
     );
   });
 
   it('a failed removal message does not follow the tab to another show', async () => {
     const { rerender } = await failARemoval();
     rerender(<WaitlistManagementPage showId="show-2" />);
-    expect(screen.queryByText(/Failed to remove from waitlist/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/We couldn't remove this dog from the waitlist/)
+    ).not.toBeInTheDocument();
   });
 
   it('tells apart same-named classes in different trials by trial name and date', async () => {

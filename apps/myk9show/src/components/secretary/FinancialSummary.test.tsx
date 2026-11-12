@@ -145,7 +145,7 @@ describe('FinancialSummary (per trial)', () => {
 
       await user.click(screen.getByRole('combobox', { name: 'Payment status' }));
       expect(await screen.findByRole('option', { name: 'Paid (1)' })).toBeInTheDocument();
-      expect(screen.getByRole('option', { name: 'Comped (1)' })).toBeInTheDocument();
+      expect(screen.getByRole('option', { name: 'Free entry (1)' })).toBeInTheDocument();
     });
   });
 

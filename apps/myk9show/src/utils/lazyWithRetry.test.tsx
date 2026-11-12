@@ -44,7 +44,7 @@ describe('lazyWithRetry', () => {
       .mockRejectedValue(new TypeError(CHUNK_ERROR));
     renderRoute(lazyWithRetry(factory));
     await act(() => vi.advanceTimersByTimeAsync(5000));
-    expect(await screen.findByText('Failed to load component')).toBeInTheDocument();
+    expect(await screen.findByText("We couldn't open this page")).toBeInTheDocument();
     await act(() => vi.advanceTimersByTimeAsync(20000));
     expect(factory).toHaveBeenCalledTimes(3);
   });
@@ -55,7 +55,7 @@ describe('lazyWithRetry', () => {
       .mockRejectedValue(new TypeError(CHUNK_ERROR));
     renderRoute(lazyWithRetry(factory));
     await act(() => vi.advanceTimersByTimeAsync(5000));
-    await screen.findByText('Failed to load component');
+    await screen.findByText("We couldn't open this page");
 
     factory.mockResolvedValue({ default: Page });
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });

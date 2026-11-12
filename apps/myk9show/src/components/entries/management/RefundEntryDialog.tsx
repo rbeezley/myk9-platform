@@ -15,6 +15,8 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/lib/supabase';
+import { ensureError } from '@myk9/core';
+import { logger } from '@/services/LoggingService';
 import { useWithdrawalRefundSuggestion } from '@/features/payments/useWithdrawalRefundSuggestion';
 import type { WithdrawalPolicy } from '@/features/payments/withdrawalPolicy';
 import { formatCutoff } from '@/features/payments/formatWithdrawalPolicy';
@@ -26,12 +28,11 @@ import type { EntryManagementEntry } from '@/types/entry-management-types';
 const ERROR_MESSAGES: Record<string, string> = {
   [STEP_UP_REQUIRED_CODE]: 'No refund was issued. Confirm your password to continue.',
   payout_already_sent:
-    'This show’s entry fees have already been paid out to the club, so refunds can’t be issued from here. The refund is still possible: contact the site operator, who issues it manually and recovers the club’s share.',
+    'This show’s entry fees have already been paid out to the club, so refunds can’t be issued from here. The refund is still possible: contact myK9Show support, who issues it manually and recovers the club’s share.',
   payout_in_progress: 'A payout to the club is in flight. Try again after it completes.',
   not_refundable: 'This entry has no refundable payment (it may already be refunded).',
   not_online_payment: 'This entry wasn’t paid online. Refund it the way it was paid.',
-  missing_payment_intent:
-    'This entry predates online payments and can’t be refunded through Stripe.',
+  missing_payment_intent: 'This entry predates online payments and can’t be refunded online.',
   amount_exceeds_fee: 'The refund can’t exceed the entry fee.',
   invalid_amount: 'Enter a refund amount greater than zero.',
   policy_snapshot_unavailable:
@@ -43,6 +44,13 @@ const ERROR_MESSAGES: Record<string, string> = {
   money_lock_failed: 'We could not safely reserve this refund. Try again in a moment.',
   refund_failed: 'The refund could not be completed. Check the entry and try again.',
 };
+
+// MYK9-1824: any other failure, including a lost connection. stripe-refund-entry can
+// fail AFTER Stripe accepted the refund (the entry stamp fails, or the answer never
+// arrives), so this must not say nothing happened. A retry reuses a live Stripe refund
+// for the entry instead of making a second one (findReusableRefund).
+const REFUND_UNCONFIRMED =
+  'We could not confirm the refund. It may already have gone through. Try again: it will not refund the exhibitor twice.';
 
 /**
  * Minimal shape required by RefundEntryDialog — a subset of EntryManagementEntry.
@@ -260,7 +268,11 @@ export function RefundEntryDialog({
             // fall through to generic message
           }
         }
-        setError(ERROR_MESSAGES[code ?? ''] ?? invokeError.message ?? 'Refund failed');
+        const known = ERROR_MESSAGES[code ?? ''];
+        if (!known) {
+          logger.error('Entry refund failed', 'secretary', { code }, invokeError);
+        }
+        setError(known ?? REFUND_UNCONFIRMED);
         return;
       }
 
@@ -269,7 +281,8 @@ export function RefundEntryDialog({
       handleOpenChange(false);
       onRefunded();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Refund failed');
+      logger.error('Entry refund failed', 'secretary', {}, ensureError(err));
+      setError(REFUND_UNCONFIRMED);
     } finally {
       inFlightRef.current = false;
       setSubmitting(false);
@@ -283,7 +296,7 @@ export function RefundEntryDialog({
           <DialogTitle>Refund entry payment</DialogTitle>
           <DialogDescription>
             {entry
-              ? `${entry.dogName ?? 'This entry'}: $${fee.toFixed(2)} paid online. The platform fee is not refunded. Refunds can only be issued once per entry.`
+              ? `${entry.dogName ?? 'This entry'}: $${fee.toFixed(2)} paid online. The service fee is not refunded. Refunds can only be issued once per entry.`
               : ''}
           </DialogDescription>
         </DialogHeader>

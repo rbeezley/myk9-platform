@@ -22,7 +22,11 @@ export function summarizeEntrySubmissionOutcomes(
   );
 }
 
-/** `denial_reason` strings written by `public.evaluate_entry_capacity`. */
+/**
+ * `denial_reason` strings written by `public.evaluate_entry_capacity`. This is a MATCH
+ * KEY, not copy: it mirrors the SQL (supabase/migrations/20261005031700_myk9_1012_hold_spots_at_pay.sql)
+ * byte for byte, so it must not be reworded to the waitlist vocabulary.
+ */
 const CROSS_EXHIBITOR_WAITLIST_REASON =
   'dog already on this class wait list for a different exhibitor';
 /** MYK9-980: the server's copy of the class step's re-entry rule (MYK9-982). */
@@ -31,7 +35,7 @@ const WITHDRAWN_FROM_CLASS_DENIAL_REASON = 'dog was withdrawn or pulled from thi
 /** The sentence after "Dog — Class:" for a denied selection. */
 export function getEntrySubmissionDenialMessage(outcome: EntrySubmissionOutcome): string {
   if (outcome.denialReason === CROSS_EXHIBITOR_WAITLIST_REASON) {
-    return 'already has an active wait-list spot for another exhibitor.';
+    return 'already has an active waitlist spot for another exhibitor.';
   }
   if (outcome.denialReason === WITHDRAWN_FROM_CLASS_DENIAL_REASON) {
     return 'was withdrawn or pulled from this class, so it cannot be entered online again. The show secretary can add it.';

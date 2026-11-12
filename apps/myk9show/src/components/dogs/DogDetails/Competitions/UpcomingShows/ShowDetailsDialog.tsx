@@ -4,6 +4,17 @@ import type { Show } from '@/types/show-types';
 import type { Competition } from '@/types/competition-types';
 import { formatDateMMDDYYYY } from '@/utils/dateFormat';
 import { X } from 'lucide-react';
+import { SHOW_STATUS_VALUES, getStatusDescriptor } from '@/components/status';
+
+type KnownShowStatus = (typeof SHOW_STATUS_VALUES)[number];
+
+/** Plain-words status; a value the show vocabulary lacks prints as stored. */
+function showStatusLabel(status: string): string {
+  const key = status.toLowerCase().replace(/\s+/g, '_');
+  return SHOW_STATUS_VALUES.includes(key as KnownShowStatus)
+    ? getStatusDescriptor('show', key).label
+    : status;
+}
 
 export type { Show as ExternalShow } from '@/types/show-types';
 
@@ -48,7 +59,7 @@ const ShowDetailsDialog: React.FC<ShowDetailsDialogProps> = ({ open, show, onClo
         </div>
         <div>
           <label className="block text-xs font-medium mb-1">Status</label>
-          <div>{show.status}</div>
+          <div>{showStatusLabel(show.status)}</div>
         </div>
         <div>
           <label className="block text-xs font-medium mb-1">Source</label>

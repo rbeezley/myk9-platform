@@ -26,7 +26,7 @@ describe('OfflineScoresIndicator (MYK9-1744)', () => {
     expect(screen.queryByText(OFFLINE_SCORES_MESSAGE)).toBeNull();
     fireEvent.click(button);
     expect(screen.getByRole('status')).toHaveTextContent(
-      "Scores are saved on this device and will sync when you're back online."
+      'Scores are saved on this device and will be sent when you are back online.'
     );
   });
 

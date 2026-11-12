@@ -166,7 +166,7 @@ export async function readWithReplicationFallback<T>({
   // MYK9-746: the server has not seen some local write, so any online list
   // would show it undone. Wait for a completed sync instead of merging.
   if (!empty && unsavedLocalWrites) {
-    return unverifiedLocal(new Error('Unsaved local writes in a scope that has not synced'));
+    return unverifiedLocal(new Error('Some changes on this device have not been sent yet'));
   }
 
   // Empty (or never-synced) local result: the scope may simply not have synced

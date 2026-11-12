@@ -28,11 +28,11 @@ export function EntriesClosedNotice({
           : 'This show is no longer accepting normal online entries.'}
       </h3>
       <p className="mt-3 text-sm leading-6 text-muted-foreground">
-        {reason ?? 'Contact the show team if you need help with a late entry or a change.'}
+        {reason ?? 'Contact the show secretary if you need help with a late entry or a change.'}
       </p>
       <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
         <Button asChild className="min-h-[44px]">
-          <Link to={recoveryHref}>Message the show team</Link>
+          <Link to={recoveryHref}>Message the show secretary</Link>
         </Button>
         <Button variant="outline" className="min-h-[44px]" onClick={onExit}>
           {exitLabel}

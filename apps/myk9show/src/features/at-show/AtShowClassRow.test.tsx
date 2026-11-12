@@ -154,3 +154,29 @@ describe('AtShowClassRow status times and Offline Scoring (MYK9-1513)', () => {
     expect(screen.queryByText(/Offline - updates/)).not.toBeInTheDocument();
   });
 });
+
+describe('AtShowClassRow cancelled class (MYK9-1847)', () => {
+  it('marks a cancelled class Cancelled with no live or timing lines', () => {
+    renderRow(
+      classEntry({
+        class_status: 'no-status',
+        is_cancelled: true,
+        start_time: '2026-07-20T15:15:00.000Z',
+        actual_start_time: '2026-07-20T15:18:00.000Z',
+      }),
+      preview
+    );
+
+    expect(screen.getByText('Cancelled')).toBeInTheDocument();
+    expect(screen.queryByText('Not Started')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Scheduled|Expected|Started/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/remaining/)).not.toBeInTheDocument();
+  });
+
+  it('renders the normal card for a class that is not cancelled', () => {
+    renderRow(classEntry({ class_status: 'in_progress' }), preview);
+
+    expect(screen.queryByText('Cancelled')).not.toBeInTheDocument();
+    expect(screen.getByText(/3 of 4 remaining/)).toBeInTheDocument();
+  });
+});

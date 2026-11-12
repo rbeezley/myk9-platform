@@ -79,10 +79,8 @@ export function CloseOutShowAction({
 
     if (failedChildCount > 0) {
       setIsClosing(false);
-      setError(
-        'Closeout did not finish. Try again after checking your connection and sync status.'
-      );
-      toast.error('Closeout did not finish. Please try again.');
+      setError('Closing the show did not finish. Try again after checking your connection.');
+      toast.error('Closing the show did not finish. Please try again.');
       return;
     }
 
@@ -90,16 +88,14 @@ export function CloseOutShowAction({
       await replicatedShowsTable.updateShow(targets.showId, { status: 'completed' });
     } catch {
       setIsClosing(false);
-      setError(
-        'Closeout did not finish. Try again after checking your connection and sync status.'
-      );
-      toast.error('Closeout did not finish. Please try again.');
+      setError('Closing the show did not finish. Try again after checking your connection.');
+      toast.error('Closing the show did not finish. Please try again.');
       return;
     }
 
     setIsClosing(false);
     setIsConfirmOpen(false);
-    toast.success('Show closeout recorded. Changes will sync with the show data.');
+    toast.success('Show closed.');
   }
 
   if (showClosed) {
@@ -109,7 +105,7 @@ export function CloseOutShowAction({
           <CheckCircle2 className="mt-0.5 h-5 w-5 text-success" aria-hidden="true" />
           <div>
             <h3 id="close-out-show-title" className="text-base font-semibold">
-              Show closed out
+              Show closed
             </h3>
             <p className="mt-1 text-sm text-muted-foreground">
               This show is marked completed. Reports and submission history remain available here.
@@ -125,7 +121,7 @@ export function CloseOutShowAction({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <h3 id="close-out-show-title" className="text-base font-semibold">
-            Close Out Show
+            Close the show
           </h3>
           <p className="mt-1 text-sm text-muted-foreground">
             Mark the show, trials, and open classes completed after reports and submissions are
@@ -137,12 +133,12 @@ export function CloseOutShowAction({
           <AlertDialogTrigger asChild>
             <Button type="button" disabled={isClosing} className="w-full sm:w-auto">
               <LockKeyhole className="h-4 w-4" aria-hidden="true" />
-              {isClosing ? 'Closing...' : 'Close Out Show'}
+              {isClosing ? 'Closing...' : 'Close the show'}
             </Button>
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Close out this show?</AlertDialogTitle>
+              <AlertDialogTitle>Close the show?</AlertDialogTitle>
               <AlertDialogDescription>
                 This marks the show completed and queues completion updates for open trials and
                 classes. Reports and submission records will stay available.
@@ -166,7 +162,7 @@ export function CloseOutShowAction({
             <AlertDialogFooter>
               <AlertDialogCancel disabled={isClosing}>Cancel</AlertDialogCancel>
               <AlertDialogAction onClick={closeOutShow} disabled={isClosing}>
-                {readiness.hasConcerns ? 'Close anyway' : 'Close out show'}
+                {readiness.hasConcerns ? 'Close anyway' : 'Close the show'}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -177,7 +173,7 @@ export function CloseOutShowAction({
         <div className="mt-4 rounded-md border border-warning/40 bg-warning/10 p-3 text-sm">
           <div className="flex items-start gap-2 font-medium">
             <AlertTriangle className="mt-0.5 h-4 w-4 text-warning" aria-hidden="true" />
-            Review before final closeout
+            Review before closing the show
           </div>
           <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground">
             {readiness.concerns.map(concern => (
@@ -188,7 +184,7 @@ export function CloseOutShowAction({
       ) : (
         <p className="mt-4 inline-flex items-center gap-2 text-sm text-muted-foreground">
           <CheckCircle2 className="h-4 w-4 text-success" aria-hidden="true" />
-          No unresolved closeout concerns found in myK9.
+          Nothing unresolved found in myK9 before closing the show.
         </p>
       )}
 

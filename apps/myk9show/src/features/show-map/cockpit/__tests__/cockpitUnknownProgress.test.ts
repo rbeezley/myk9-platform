@@ -50,7 +50,6 @@ function snapshotWithCounts(
         scoredCount,
         closeout: null,
         judgeName: 'J. Smith',
-        operationalArea: null,
         attention: [],
         actions: [],
         paperwork: [],

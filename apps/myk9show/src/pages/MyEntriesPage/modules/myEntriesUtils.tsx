@@ -155,7 +155,7 @@ export function getPaymentStatusBadge(
         </Badge>
       );
     case PaymentStatus.WAIVED:
-      return <Badge className="bg-primary/10 text-primary border-border border">Fee waived</Badge>;
+      return <Badge className="bg-primary/10 text-primary border-border border">Free entry</Badge>;
     case PaymentStatus.REFUNDED:
       return <Badge className="bg-primary/10 text-primary border-border border">Refunded</Badge>;
     case PaymentStatus.PARTIAL_REFUND:

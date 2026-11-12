@@ -1,4 +1,5 @@
 import { forwardRef, useImperativeHandle } from 'react';
+import { AuthRetryableFetchError } from '@supabase/supabase-js';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -131,8 +132,7 @@ describe('ForgotPasswordPage', () => {
   });
 
   it('shows error message on network failure', async () => {
-    const networkError = new Error('Failed to fetch');
-    networkError.name = 'FetchError';
+    const networkError = new AuthRetryableFetchError('TypeError: Failed to fetch', 0);
     mockResetPassword.mockRejectedValue(networkError);
     renderPage();
 
@@ -140,8 +140,24 @@ describe('ForgotPasswordPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Send Reset Link' }));
 
     await waitFor(() => {
-      expect(screen.getByText(/something went wrong/i)).toBeInTheDocument();
+      expect(
+        screen.getByText('Could not reach myK9Show. Check your connection and try again.')
+      ).toBeInTheDocument();
     });
+    expect(screen.queryByText('Check your email')).not.toBeInTheDocument();
+  });
+
+  it('says it could not send the link for a fetch failure that is not a plain network drop', async () => {
+    const odd = new AuthRetryableFetchError('Upstream returned garbage', 503);
+    mockResetPassword.mockRejectedValue(odd);
+    renderPage();
+
+    await userEvent.type(screen.getByLabelText('Email address'), 'user@example.com');
+    await userEvent.click(screen.getByRole('button', { name: 'Send Reset Link' }));
+
+    expect(
+      await screen.findByText("We couldn't send the reset link. Try again.")
+    ).toBeInTheDocument();
     expect(screen.queryByText('Check your email')).not.toBeInTheDocument();
   });
 

@@ -39,7 +39,7 @@ const CHECKING: WithdrawEligibility = {
 const LOOKUP_FAILED: WithdrawEligibility = {
   allowed: false,
   code: 'unavailable',
-  reason: "We couldn't check this entry right now — try again in a moment.",
+  reason: "We couldn't check this entry right now. Try again in a moment.",
 };
 
 const both = (verdict: WithdrawEligibility): RemoveFromClassEligibility => ({

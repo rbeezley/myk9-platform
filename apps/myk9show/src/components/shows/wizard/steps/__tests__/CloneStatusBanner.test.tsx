@@ -126,7 +126,7 @@ describe('CloneStatusBanner', () => {
 
     const pending = deferredClasses();
     mockGetClassesByTrialId.mockReturnValueOnce(pending.promise);
-    const retry = screen.getByRole('button', { name: /retry clone/i });
+    const retry = screen.getByRole('button', { name: /try clone again/i });
     expectTouchTarget(retry);
     await user.click(retry);
 
@@ -161,7 +161,7 @@ describe('CloneStatusBanner', () => {
     queryState.current = { data: [], isLoading: false, isError: true };
     rerender(<CloneUi />);
 
-    expect(screen.queryByRole('button', { name: /retry clone/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /try clone again/i })).not.toBeInTheDocument();
     expectTouchTarget(screen.getByRole('button', { name: /choose another show/i }));
   });
 

@@ -135,7 +135,7 @@ test.describe('club surface integrity — read-only', () => {
 
     // Account state varies by fixture; when no account is connected, the setup dialog is
     // dismissible and nothing starts without "Continue to Stripe".
-    const connectButton = page.getByRole('button', { name: 'Connect payment account' });
+    const connectButton = page.getByRole('button', { name: 'Connect bank account' });
     if ((await connectButton.count()) > 0) {
       await connectButton.click();
       await expect(page.getByText(/before you start/i)).toBeVisible();

@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
 import { SecretaryCockpit } from '../SecretaryCockpit';
 import type { SecretaryCockpitClassEntry } from '../cockpitClassEntries';
+import { queueFor } from './queueFixture';
 import type { SecretaryCockpitSnapshot } from '../secretaryCockpitTypes';
 
 vi.mock('@/hooks/useMediaQuery', () => ({ useMediaQuery: () => true }));
@@ -14,6 +15,11 @@ vi.mock('@/hooks/useElementWidth', () => ({
 const entries: SecretaryCockpitClassEntry[] = [
   {
     nodeId: 'entry:a',
+    queue: queueFor('entry:a', '101', 'scored'),
+    entryId: 'a',
+    checkInValue: 'completed',
+    deskEditable: false,
+    lockedReason: 'Scored, so the status is locked',
     armband: '101',
     dogName: 'Piper',
     breed: 'Border Collie',
@@ -27,6 +33,11 @@ const entries: SecretaryCockpitClassEntry[] = [
   },
   {
     nodeId: 'entry:b',
+    queue: queueFor('entry:b', '102', 'in-ring'),
+    entryId: 'b',
+    checkInValue: 'in-ring',
+    deskEditable: false,
+    lockedReason: 'In the ring, so ringside controls the status',
     armband: '102',
     dogName: 'Willow',
     handler: 'Sam Ortiz',
@@ -39,6 +50,11 @@ const entries: SecretaryCockpitClassEntry[] = [
   },
   {
     nodeId: 'entry:c',
+    queue: queueFor('entry:c', '103', 'waiting'),
+    entryId: 'c',
+    checkInValue: 'no-status',
+    deskEditable: true,
+    lockedReason: null,
     armband: '103',
     dogName: 'Moss',
     handler: 'Kim Wu',
@@ -51,6 +67,11 @@ const entries: SecretaryCockpitClassEntry[] = [
   },
   {
     nodeId: 'entry:d',
+    queue: queueFor('entry:d', '104', 'pulled'),
+    entryId: 'd',
+    checkInValue: 'pulled',
+    deskEditable: false,
+    lockedReason: null,
     armband: '104',
     dogName: 'Juno',
     handler: 'Pat Roe',
@@ -109,14 +130,18 @@ describe('the focused class entries table (MYK9-1782)', () => {
     expect(within(rows[2]!).queryByText('Waiting')).not.toBeInTheDocument();
     expect(within(rows[0]!).getByText('Scored')).not.toHaveAttribute('data-outlined');
     expect(within(rows[3]!).getAllByText('Pulled')).toHaveLength(2);
-    // Place in line (blank once a dog is scored, in the ring or pulled), then the reserved empty last column.
+    // Place in line (blank once a dog is scored, in the ring or pulled), then the per-dog menu.
     expect(rows.map(row => within(row).getAllByRole('cell')[0]!.textContent)).toEqual([
       '',
       '',
       '1',
       '',
     ]);
-    expect(within(rows[0]!).getAllByRole('cell').at(-1)).toBeEmptyDOMElement();
+    expect(
+      within(within(rows[0]!).getAllByRole('cell').at(-1)!).getByRole('button', {
+        name: /^Actions for/,
+      })
+    ).toBeInTheDocument();
   });
 
   it('counts entered, scored, in ring and still to run from the same rows', () => {
@@ -130,8 +155,8 @@ describe('the focused class entries table (MYK9-1782)', () => {
     // The pulled dog is listed but is not in the expected set.
     expect(value('Entered')).toBe('3');
     expect(value('Scored')).toBe('1');
-    expect(value('In ring')).toBe('1');
     expect(value('Still to run')).toBe('1');
+    expect(value('In ring')).toContain('Armband 102, Willow');
   });
 
   const withClass = (

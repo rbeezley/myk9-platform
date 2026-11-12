@@ -291,7 +291,7 @@ describe('roster failures', () => {
     expect(await screen.findByText(/Some people could not be loaded/)).toBeInTheDocument();
     expect(screen.queryByText(/No one is assigned/)).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Retry' }));
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
     expect(mocks.judges.refetch).toHaveBeenCalled();
     expect(mocks.volunteers.refetch).toHaveBeenCalled();
     expect(mocks.officials.refetch).not.toHaveBeenCalled();

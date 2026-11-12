@@ -1,5 +1,5 @@
 /**
- * "We couldn't reach the server to confirm these entries."
+ * "We couldn't reach myK9Show to confirm these entries."
  *
  * One component, two placements, because the sentence must be identical in
  * both: inside a show group (beside its withheld money) and above an EMPTY
@@ -34,8 +34,7 @@ export interface UnconfirmedReadNoticeProps {
   refreshing?: boolean | undefined;
 }
 
-export const UNCONFIRMED_READ_HEADLINE =
-  "Showing saved entries — we couldn't reach the server to confirm them";
+export const UNCONFIRMED_READ_HEADLINE = `Showing saved entries. We couldn't reach myK9Show to confirm them`;
 
 /**
  * The empty-list headline. Deliberately NOT the one above: with no rows on
@@ -45,7 +44,7 @@ export const UNCONFIRMED_READ_HEADLINE =
 export const UNCONFIRMED_EMPTY_HEADLINE = "We couldn't confirm your entries right now";
 
 export const UNCONFIRMED_EMPTY_DETAIL =
-  "Anything you've entered will appear once we can reach the server.";
+  "Anything you've entered will appear once we can reach myK9Show.";
 
 export const UnconfirmedReadNotice: React.FC<
   UnconfirmedReadNoticeProps & { headline?: string | undefined }
@@ -66,7 +65,7 @@ export const UnconfirmedReadNotice: React.FC<
         className="min-h-[44px] shrink-0"
       >
         <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-        Retry
+        Try again
       </Button>
     )}
   </div>

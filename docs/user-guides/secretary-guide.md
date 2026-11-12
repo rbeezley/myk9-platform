@@ -124,7 +124,7 @@ The header **Actions** button holds the rest. On **Entry Forms** it lists:
 Click a form to open it. At the top is the exhibitor's name and a **⋯** menu beside it. Add entry for, Email exhibitor… and Add private note… appear only on mail-in (paper) forms. A form from an online checkout lacks them; use the header **Actions → Add entry** instead, and the **$ due** card below has no Cash… or Check… buttons either (online payments follow Stripe).
 
 - **Add entry for** the exhibitor opens the entry flow already on them (card 5).
-- **Email exhibitor…** writes to them about this form.
+- **Email exhibitor…** opens the message composer addressed to that one exhibitor, so you can write to them about this form.
 - **Add private note…** keeps a note on the form. Only show officials can see it. The exhibitor never does.
 - Under **All entries on this form**: **Accept all** and **Reject all**. They apply to every entry on the form. An item reads "2 of 3" when only some entries can change (already scored, say), and is greyed out when none can.
 
@@ -277,15 +277,15 @@ In the week before the show (from seven days out to the day before), **Show Desk
 
 ## 11 · Set the run order
 
-**Show Desk → click the class → Run order.**
+**Show Desk → click the class → ⋯ (Actions) → Auto-sort run order.**
 
 ![Show Desk with a class selected: its settings, the Run order control and the class work buttons](../screenshots/S-15.png)
 
-Choose **Armband ↑**, **Armband ↓**, or **Random**. The order applies immediately and appears on check-in sheets and at ringside. The menu appears once a class has two or more entries.
+Choose **Armband ↑**, **Armband ↓**, or **Random**. The order applies immediately and appears on check-in sheets and at ringside. The menu item appears once a class has two or more entries.
 
 > You can also reach this from a class's page — **Set run order** takes you straight to that class on **Show Desk**.
 
-To put one dog in a specific spot, open **Run order → Reorder manually...**. Each dog has **Move up**, **Move down** and **Move to…** controls. A dog that has run, or is in the ring, keeps its place and shows why; other dogs move around it. **Undo** appears for a few seconds after any run-order change.
+To put one dog in a specific spot, drag it. In the class's entries list, each dog still waiting has a grip handle at the start of its row (**Drag … to change run order**); drag the row to the new spot, or focus the handle and use the keyboard. A dog that has run, or is in the ring, has no handle and keeps its place; other dogs move around it. **Undo** appears for a few seconds after any run-order change.
 
 > Armband ↑, Armband ↓ and Random sort every dog that has not run again, so they replace anything you placed by hand. Place dogs last.
 
@@ -305,12 +305,12 @@ To put one dog in a specific spot, open **Run order → Reorder manually...**. E
 
 ## 14 · Track each class's paperwork
 
-**Show Desk → click the class → Class checklist.** Seven items: Check-in sheet, Score sheets, Class started, Scoring complete, Preliminary results, Result labels, and Judge's initials collected (Judge signature collected for UKC and ASCA). The squares on the class's schedule card mirror it.
+**Show Desk → click the class → Class checklist.** The checklist counts seven items ("x of 7 done"): Check-in sheet, Score sheets, Class started, Scoring complete, Preliminary results, Result labels, and Judge's initials collected (Judge signature collected for UKC and ASCA). The step bar shows them as six cards, because **Print paperwork** stands in for both the Check-in sheet and Score sheets steps and adds armband labels (it reads, for example, "2 of 3 printed"). Pressing it opens the print records below the bar, where each sheet has its own **Print**. The squares on the class's schedule card mirror the checklist.
 
 > **It stays out of the way until you use it.** A show that has never printed a sheet from the app, recorded a sheet as printed, or recorded a judge's sign-off shows no squares or counts on the schedule, no "Not confirmed printed", and no "Prepare" chips. The class's **Class checklist** sits collapsed in its panel: open it and it is all there. Print one sheet or record one sign-off and the whole checklist appears, for the show.
 
 - Print items have **Print** (or **Reprint**). It opens a preview in a panel beside **Show Desk**, so you never leave the page. When the print window closes, the sheet is recorded as printed and the row reads **Printed 2:14 PM · Undo**. Cancelling the print window records it too, so tap **Undo** if nothing came out.
-- To print the check-in and score sheets together, tick the box beside each one and tap **Print selected**.
+- To print the check-in and score sheets together, open the print records, tick the box beside each one and tap **Print selected**.
 - An item that changed after printing reads **Needs reprint** (an amber square), for example score sheets after a class change.
 - Preliminary results, Result labels and the judge's sign-off are status only on **Show Desk**. Once the class is complete, tap **Continue on Results** under the checklist to check and release the scores, print those two sheets and record the judge's initials (card 23).
 - Items can be done in any order; nothing blocks anything else.
@@ -326,6 +326,7 @@ All under **Show Desk → Actions**:
 - **Volunteers**: add volunteers and assign them to per-class slots grouped by trial.
 - **Lunch orders**: one list for each show day, for anyone working it. That day's judges, officials and volunteers are on the list already. **Add person** opens a name and role, and **Add to list** adds them. Give each person a lunch order and a dietary note, then press **Save** on that row. Closing the panel with unsaved rows asks first.
 - **Judge supplies**: every judge at the show, once, with the trials they judge. Open a judge to set what they are handed. The list applies to every trial that judge is on, so a judge on two trials is set up once. **Reports → Judge Supply Checklists** prints them.
+- **Hospitality plan**: **Reports → Hospitality plan** prints the headcount by role for each show day, with the lunch orders and dietary notes. Print it before the show, once volunteers and lunch orders are in, and hand it to whoever runs hospitality.
 - **Tasks and notes**: reminders for this show.
 - **Emergency trial packet**: prepare or confirm the printed paper fallback, in case devices or signal fail on the day.
 
@@ -337,11 +338,16 @@ Volunteers and the Emergency trial packet only show here while their **This show
 
 ## 17 · Run a class: status, start time, delays
 
-**Show Desk → click the class.** In its panel, under **Class settings**:
+**Show Desk → click the class.** Under the class name, the fields can be changed in place:
 
-- **Status** — Not started, In progress, Complete, or Cancelled. Marking a class complete with scores still unentered asks you to confirm.
-- **Expected start → Set expected start** — a revised start time when a class runs late or early.
-- **Announce the delay** — appears before a class starts when it is running late; it opens the delay message already filled in with the class and the minutes.
+- **Status** — Not started, In progress, Complete, or Cancelled. Press it to choose. Marking a class complete with scores still unentered asks you to confirm.
+- **Judge** — who is judging the class. You can change it here until the class starts; after that, use **Edit class**.
+- **Expected start** — press the time (or **Set expected start**) to give a revised start when a class runs late or early, then **Save expected start**.
+- **Actual timing** — when the class started and finished. Press it to correct the start.
+
+The **⋯** button at the top right of the class opens **Actions for** that class: **Edit class**, **Score this class** (opens paper scoring for the class), **Announce a delay**, **Auto-sort run order** and **View entries and results**.
+
+**Announce a delay** appears before a class starts when it is running late; it opens the delay message already filled in with the class and the minutes.
 
 ## 18 · Check dogs in
 
@@ -364,10 +370,10 @@ For one class, **Show Desk → click the class → View entries and results** op
 
 There are two doors to the same action, and either one works until the dog has run:
 
-- **Show Desk → click the class → Can change class → Change class** on that dog's row.
+- **Show Desk → click the class**, then open the **⋯** menu at the end of that dog's row in the entries table and choose **Change class**.
 - On **Entry Forms**, open the exhibitor's form and use **Change class…** in the **⋯** menu on that dog's entry.
 
-Choose the target class and give a reason. Targets are restricted to the same element at a strictly higher level, so you can't move a dog somewhere ineligible. The class panel's **Can change class** list shows only entries that can move now, so a pending entry has no button there: accept it first. On **Entry Forms**, **Change class…** is always in the menu but greyed with the reason ("Accept this entry first.", already run, in the ring, or its class has started). Either door needs a connection.
+Choose the target class and give a reason. Targets are restricted to the same element at a strictly higher level, so you can't move a dog somewhere ineligible. On the class panel, a dog that cannot move now (a pending entry, for one) has no **⋯** menu: accept it first. On **Entry Forms**, **Change class…** is always in the menu but greyed with the reason ("Accept this entry first.", already run, in the ring, or its class has started). Either door needs a connection.
 
 > The original entry stays on the books as _moved_ and keeps its fee; the new entry is created at no extra charge.
 

@@ -560,7 +560,7 @@ describe('ResultsTab detail', () => {
     const printLinks = screen.getAllByRole('link', { name: /Print/ });
     expect(printLinks.length).toBeGreaterThanOrEqual(2);
     expect(printLinks[0]).toHaveAttribute('href', expect.stringContaining('/reports'));
-    await user.click(screen.getByRole('button', { name: 'Retry' }));
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
     expect(hook.value.retry).toHaveBeenCalledTimes(1);
   });
 
@@ -835,7 +835,7 @@ describe('ResultsTab one-tap release (MYK9-1264)', () => {
 
     await waitFor(() =>
       expect(toastError).toHaveBeenCalledWith(
-        'Waiting for score changes to sync. The scores are checked, not released yet.'
+        'Waiting for score changes to be sent. The scores are checked, not released yet.'
       )
     );
     expect(releaseMutate).not.toHaveBeenCalled();
@@ -947,7 +947,7 @@ describe('ResultsTab Release asks the server', () => {
     answer('2026-10-10T15:45:00Z');
 
     await waitFor(() =>
-      expect(toastError).toHaveBeenCalledWith('Waiting for score changes to sync')
+      expect(toastError).toHaveBeenCalledWith('Waiting for score changes to be sent')
     );
     expect(unsyncedNow.check).toHaveBeenCalledWith('class-ready');
     expect(releaseMutate).not.toHaveBeenCalled();
@@ -1016,7 +1016,7 @@ describe('ResultsTab Release asks the server', () => {
     unsynced.value = true;
     const first = renderAt('?status=all&classId=class-ready');
     expect(screen.getByRole('button', { name: 'Release results' })).toBeDisabled();
-    expect(screen.getByText('Waiting for score changes to sync')).toBeInTheDocument();
+    expect(screen.getByText('Waiting for score changes to be sent')).toBeInTheDocument();
     first.unmount();
 
     unsynced.value = false;

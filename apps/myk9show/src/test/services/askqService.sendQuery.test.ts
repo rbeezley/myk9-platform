@@ -14,9 +14,11 @@ vi.mock('@/lib/supabase', () => ({
 
 import {
   ASKQ_UNAVAILABLE_MESSAGE,
+  AskQRequestError,
   AskQUnavailableError,
   RateLimitError,
   sendAskQQuery,
+  sendOperatorSupportQuery,
 } from '@/services/askqService';
 
 const fetchMock = vi.fn();
@@ -82,6 +84,33 @@ describe('sendAskQQuery', () => {
     await expect(sendAskQQuery({ message: 'x' })).rejects.toThrow(
       'Message too long (max 2000 characters)'
     );
+  });
+
+  it.each([
+    [401, 'signed-out'],
+    [403, 'account-required'],
+  ])('reads a %i as the %s refusal, not as raw server text', async (status, reason) => {
+    fetchMock.mockResolvedValue(jsonResponse({ error: 'Unauthorized' }, status));
+    const error = await sendAskQQuery({ message: 'hi' }).catch(e => e);
+    expect(error).toBeInstanceOf(AskQRequestError);
+    expect(error.reason).toBe(reason);
+  });
+
+  // Operator Support's 403 is a missing site-admin role: "create an account" would be false.
+  it('does not read an Operator Support 403 as account-required', async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse({ error: 'Operator Support requires site admin access' }, 403)
+    );
+    const error = await sendOperatorSupportQuery({ message: 'hi' }).catch(e => e);
+    expect(error).not.toBeInstanceOf(AskQRequestError);
+  });
+
+  it('reads no session as the signed-out refusal without calling the server', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: null } });
+    const error = await sendAskQQuery({ message: 'hi' }).catch(e => e);
+    expect(error).toBeInstanceOf(AskQRequestError);
+    expect(error.reason).toBe('signed-out');
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('still reports the daily limit as a rate limit', async () => {

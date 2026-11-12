@@ -1,4 +1,9 @@
-import { placeInLine, compareByRunOrder, type RunQueueEntry } from '@myk9/ringside/run-queue';
+import {
+  placeInLine,
+  compareByRunOrder,
+  isInRingEntry,
+  type RunQueueEntry,
+} from '@myk9/ringside/run-queue';
 
 import { resultStatusLabel } from '@/components/common/resultStatusLabel';
 import {
@@ -10,6 +15,11 @@ import {
   type EntryAccountingFields,
 } from '@/features/_shared/entryAccounting';
 import { isPendingEntryStatus } from '@/features/entry-operations/classEntryBreakdown';
+import { deskStatusEditableFor } from '@/components/entries/management/checkInDesk/deskEditable';
+import { deskLockedReason } from '@/components/entries/management/checkInDesk/deskStatus';
+import { mapEntryStatus } from '@/services/entryDisplay/entryStatusUiAdapter';
+import { mapClassEntryStatus } from '@/utils/entryManagementUtils';
+import type { CheckInStatus } from '@/types/check-in-types';
 
 import { getShowMapNodeId } from '../showMapTree';
 import type { ShowMapDisplayStatus, ShowMapEntryDisplay, ShowMapTree } from '../showMapTypes';
@@ -26,10 +36,24 @@ export type ClassEntryState = 'waiting' | 'in-ring' | 'scored' | 'pulled' | 'wit
  */
 export interface SecretaryCockpitClassEntry {
   nodeId: string;
+  /** The run queue's view of this row: what `isInRingEntry`, `findInRingEntry` and
+   * `pendingByRunOrder` read, so the tile and the table agree with Ringside. */
+  queue: RunQueueEntry;
+  /** The entry row's id: what the Check-in desk's status write is keyed on. */
+  entryId: string;
+  /** The stored check-in status, `no-status` when none is recorded. */
+  checkInValue: CheckInStatus;
+  /** The Check-in desk may set this class's status (`deskStatusEditableFor`). */
+  deskEditable: boolean;
+  /** Why a row that cannot be changed stays locked (scored, in the ring), as on the desk. */
+  lockedReason: string | null;
   armband?: string | undefined;
   dogName: string;
   breed?: string | undefined;
   handler?: string | undefined;
+  /** `/dogs/:id` and `/people/:id` for the entry's dog and handler; absent when the id is unknown. */
+  dogHref?: string | undefined;
+  handlerHref?: string | undefined;
   checkIn?: ShowMapDisplayStatus | undefined;
   state: ClassEntryState;
   /** In the expected set: counted as entered, and as scored or still to run. */
@@ -64,12 +88,16 @@ function checkInOf(fields: EntryAccountingFields): string {
   return fields.check_in_status?.trim().toLowerCase() || 'no-status';
 }
 
-function stateOf(fields: EntryAccountingFields, entryStatus: string): ClassEntryState {
+function stateOf(
+  fields: EntryAccountingFields,
+  entryStatus: string,
+  queue: RunQueueEntry
+): ClassEntryState {
   if (entryStatus === 'withdrawn') return 'withdrawn';
   if (isPulledEntry(fields)) return 'pulled';
   if (!isExpectedEntry(fields)) return 'absent';
   if (isAccountedFor(fields)) return 'scored';
-  return checkInOf(fields) === 'in-ring' ? 'in-ring' : 'waiting';
+  return isInRingEntry(queue) ? 'in-ring' : 'waiting';
 }
 
 /** A result shows only for a dog that ran: `pending` is the unscored default, and a pulled or
@@ -96,7 +124,9 @@ function queueRowOf(
     exhibitorOrder: display.runOrder ?? null,
     isScored: display.isScored ?? false,
     status: runnable ? checkIn : 'pulled',
-    inRing: runnable && checkIn === 'in-ring',
+    // Mirrors `toRunQueueEntry`: the flag or the status, and only for a runnable row (a stale
+    // flag on a row nobody expects to run is not a ring state).
+    inRing: runnable && (checkIn === 'in-ring' || display.isInRing === true),
   };
 }
 
@@ -117,17 +147,36 @@ export function classEntriesForClass(
     const fields = accountingFields(display);
     const entryStatus = display.entryStatus?.trim().toLowerCase();
     if (!isListed(fields, entryStatus)) continue;
-    const state = stateOf(fields, entryStatus ?? '');
+    const queue = queueRowOf(node.id, display, fields);
+    const state = stateOf(fields, entryStatus ?? '', queue);
     const counted = isExpectedEntry(fields);
+    const checkInValue = (display.checkInStatus ?? 'no-status') as CheckInStatus;
+    const deskEditable = deskStatusEditableFor({
+      entryStatus: mapEntryStatus(display.entryStatus),
+      classStatus: mapClassEntryStatus(display.entryStatus),
+      checkInStatus: checkInValue,
+      isScored: display.isScored,
+    });
     listed.push({
-      queue: queueRowOf(node.id, display, fields),
+      queue,
       fields,
       entry: {
         nodeId: node.id,
+        queue,
+        entryId: node.id.slice(getShowMapNodeId('entry', '').length),
+        checkInValue,
+        deskEditable,
+        lockedReason: deskLockedReason(
+          { isScored: display.isScored ?? null },
+          checkInValue,
+          deskEditable
+        ),
         armband: display.armband,
         dogName: display.dogName,
         breed: display.breed,
         handler: display.handler,
+        dogHref: display.dogHref,
+        handlerHref: display.handlerHref,
         checkIn: node.checkInStatus,
         state,
         counted,

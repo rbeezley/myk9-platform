@@ -200,7 +200,7 @@ describe('UpcomingShowsSection', () => {
       useEntriesByDogQueryMock.mockReturnValue(resolved([entryRow()]));
 
       const { unmount } = render(<UpcomingShowsSection {...defaultProps} />);
-      expect(screen.getByText('Submitted — awaiting review')).toBeInTheDocument();
+      expect(screen.getByText('Submitted, awaiting review')).toBeInTheDocument();
       expect(screen.queryByText('submitted')).toBeNull();
       unmount();
 
@@ -322,7 +322,7 @@ describe('UpcomingShowsSection', () => {
       });
 
       const { user } = render(<UpcomingShowsSection {...defaultProps} />);
-      await user.click(screen.getByText('Retry'));
+      await user.click(screen.getByText('Try again'));
 
       expect(refetch).toHaveBeenCalled();
       expect(mockNavigate).not.toHaveBeenCalled();
@@ -586,12 +586,12 @@ describe('payment-pending wording agrees across the dog surfaces (MYK9-1553)', (
     [
       'unpaid online',
       { payment_status: 'pending', payment_method: 'online', entry_fee: 30 },
-      'Submitted — waiting on payment',
+      'Submitted, waiting on payment',
     ],
     [
       'paid',
       { payment_status: 'paid_online', payment_method: 'online', entry_fee: 30 },
-      'Submitted — awaiting review',
+      'Submitted, awaiting review',
     ],
   ])('reads the %s submitted entry the same on Career and Overview', (_label, payment, line) => {
     useEntriesByDogQueryMock.mockReturnValue(resolved([entryRow(payment)]));
@@ -613,12 +613,12 @@ describe('payment-pending wording agrees across the dog surfaces (MYK9-1553)', (
     );
 
     const career = render(<UpcomingShowsSection {...defaultProps} />);
-    expect(screen.getByText('Submitted — awaiting review')).toBeVisible();
-    expect(screen.queryByText('Submitted — waiting on payment')).toBeNull();
+    expect(screen.getByText('Submitted, awaiting review')).toBeVisible();
+    expect(screen.queryByText('Submitted, waiting on payment')).toBeNull();
     career.unmount();
 
     render(<ActivityTab dogId={DOG_ID} dogName="Willow" role="exhibitor" />);
-    expect(screen.getByText('Submitted — awaiting review')).toBeVisible();
-    expect(screen.queryByText('Submitted — waiting on payment')).toBeNull();
+    expect(screen.getByText('Submitted, awaiting review')).toBeVisible();
+    expect(screen.queryByText('Submitted, waiting on payment')).toBeNull();
   });
 });

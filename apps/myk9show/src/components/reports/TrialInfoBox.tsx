@@ -1,6 +1,7 @@
 import React from 'react';
 import { formatTrialLabel } from '@myk9/core';
 import { formatReportDate, isValidSection } from '@/lib/reports/reportUtils';
+import { judgeNameOrUnsetLabel } from '@/utils/classJudgeDisplay';
 
 interface TrialInfoBoxProps {
   trial?:
@@ -54,7 +55,7 @@ export const TrialInfoBox: React.FC<TrialInfoBoxProps> = ({ trial, classData }) 
       {trial?.judgeName && (
         <div className="info-row">
           <span className="info-label">Judge:</span>
-          <span className="info-value">{trial.judgeName}</span>
+          <span className="info-value">{judgeNameOrUnsetLabel(trial.judgeName)}</span>
         </div>
       )}
       {isValidSection(classData?.section) && (

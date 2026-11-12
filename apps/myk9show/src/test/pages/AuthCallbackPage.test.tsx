@@ -172,7 +172,10 @@ describe('AuthCallbackPage', () => {
         vi.advanceTimersByTime(10000);
       });
 
-      expect(screen.getByText(/timed out/i)).toBeInTheDocument();
+      expect(
+        screen.getByText('Signing in took too long. Go back and try again.')
+      ).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'We could not sign you in' })).toBeInTheDocument();
       vi.useRealTimers();
     });
   });

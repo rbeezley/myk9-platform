@@ -90,7 +90,7 @@ describe('TrialConfigurationStep existing snapshot state', () => {
     });
 
     expect(screen.getByRole('alert')).toHaveTextContent('Replicated trial read failed');
-    expect(screen.getByRole('button', { name: 'Retry' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeEnabled();
     expect(screen.queryByText(/checking the current trials/i)).not.toBeInTheDocument();
     // Unknown current trials claim neither "first" nor "another" (MYK9-758).
     expect(screen.getAllByRole('button', { name: 'Add Trial' })[0]).toBeDisabled();
@@ -134,7 +134,7 @@ describe('TrialConfigurationStep existing snapshot state', () => {
       onRetryExistingTrials: retry,
     });
 
-    await user.click(screen.getByRole('button', { name: 'Retry' }));
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
 
     expect(retry).toHaveBeenCalledTimes(1);
   });

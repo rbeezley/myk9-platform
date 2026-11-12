@@ -1,10 +1,6 @@
 import { getTrialTimezone, resolveConfiguredRegistryId } from '@/features/registries';
 
-import {
-  getAttentionActions,
-  getDirectActionsForNode,
-  getRecommendedActionsForNode,
-} from '../showMapActions';
+import { getAttentionActions, getDirectActionsForNode } from '../showMapActions';
 import { getShowMapNodeId } from '../showMapTree';
 import { SHOW_MAP_WRAP_UP_STATUS } from '../showMapTypes';
 import type { ShowDeskPendingSignal } from '../showDeskPendingSignals';
@@ -13,12 +9,7 @@ import type { ShowMapAction } from '../showMapActions';
 import type { ShowMapClassInput, ShowMapTree, ShowMapTrialInput } from '../showMapTypes';
 import { classEntriesForClass, hiddenEntryCount } from './cockpitClassEntries';
 import { isChecklistInUse, isPrintTrackingInUse } from './checklistUsage';
-import {
-  getCockpitClassDetailsHref,
-  getCockpitEntryManagementHref,
-  getCockpitPaperScoringHref,
-  getCockpitReportHref,
-} from './cockpitRoutes';
+import { getCockpitClassDetailsHref } from './cockpitRoutes';
 import type {
   CockpitAttentionKind,
   CockpitCloseoutState,
@@ -99,19 +90,6 @@ function destinationFor(action: ShowMapAction): SecretaryCockpitAction['destinat
     : { kind: 'command', commandId: `${action.id}:${action.nodeId}` };
 }
 
-function actionFor(
-  action: ShowMapAction,
-  group: SecretaryCockpitAction['group']
-): SecretaryCockpitAction {
-  return {
-    id: `${action.id}:${action.nodeId}`,
-    label: action.label,
-    destination: destinationFor(action),
-    group,
-    priority: action.priority,
-  };
-}
-
 /**
  * Operational actions that exist in the catalog but have no reachable home (F29b).
  *
@@ -159,55 +137,11 @@ function classWorkActions(input: {
   classId: string;
   returnTo: string;
 }): SecretaryCockpitAction[] {
-  const scope = {
-    kind: 'class' as const,
-    showId: input.showId,
-    trialId: input.trialId,
-    classId: input.classId,
-  };
   return [
     {
       id: `class-details:${input.classId}`,
       label: 'View entries and results',
       destination: { kind: 'href', href: getCockpitClassDetailsHref(input) },
-      group: 'class-work',
-    },
-    {
-      // The door to this class's pulls, no-shows and waitlist: Entry Forms, filtered to the class.
-      id: `class-entries:${input.classId}`,
-      label: 'Entries for this class',
-      destination: {
-        kind: 'href',
-        href: getCockpitEntryManagementHref({
-          showId: input.showId,
-          trialId: input.trialId,
-          classId: input.classId,
-          returnTo: input.returnTo,
-        }),
-      },
-      group: 'class-work',
-    },
-    {
-      id: `paper-scoring:${input.classId}`,
-      label: 'Enter results from scoresheet',
-      destination: { kind: 'href', href: getCockpitPaperScoringHref(input) },
-      group: 'class-work',
-      // `/scoring/classes/:id/entries` is ProtectedRoute(SECRETARY | JUDGE |
-      // SITE_ADMIN). A club admin manages this show but is none of those, so
-      // this is the one class-work action that is not theirs (REV-2341 R-1).
-      operatorOnly: true,
-    },
-    {
-      id: `reports:${input.classId}`,
-      label: 'Class reports',
-      destination: {
-        kind: 'href',
-        href: getCockpitReportHref({
-          reportId: 'check-in-sheet',
-          scope,
-          returnTo: input.returnTo,
-        }),
-      },
       group: 'class-work',
     },
   ];
@@ -265,11 +199,6 @@ export function buildSecretaryCockpitSnapshot({
 
   const builtClasses = classes.map((classItem, index) => {
     const node = tree.nodesById[`class:${classItem.id}`];
-    const actions = node
-      ? getRecommendedActionsForNode(node, { tree, now }, 1).map(action =>
-          actionFor(action, 'primary')
-        )
-      : [];
     const attention = node
       ? getAttentionActions(node, { tree, now })
           // Pending Entry review has one canonical owner page and is already
@@ -314,20 +243,13 @@ export function buildSecretaryCockpitSnapshot({
       registryId: node?.registryId ?? null,
       judgeName: classItem.judgeName ?? null,
       judgeId: classItem.judgeId ?? null,
-      operationalArea:
-        node?.ringLabel && node.ringLabel !== '—'
-          ? { kind: 'ring' as const, labels: [node.ringLabel] }
-          : null,
       attention,
-      actions: [
-        ...actions,
-        ...classWorkActions({
-          showId,
-          trialId: classItem.trialId,
-          classId: classItem.id,
-          returnTo,
-        }),
-      ],
+      actions: classWorkActions({
+        showId,
+        trialId: classItem.trialId,
+        classId: classItem.id,
+        returnTo,
+      }),
       paperwork: [...(paperworkByClassId?.get(classItem.id) ?? [])],
       entryRows: entryRowsForClass(classItem.id, tree),
       entries: classEntriesForClass(classItem.id, tree),

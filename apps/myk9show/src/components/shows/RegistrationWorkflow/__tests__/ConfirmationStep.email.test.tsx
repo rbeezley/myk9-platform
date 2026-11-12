@@ -245,11 +245,11 @@ describe('ConfirmationStep — capacity outcomes', () => {
     );
 
     expect(screen.getByText(/1 entry submitted/i)).toBeInTheDocument();
-    expect(screen.getByText(/1 selection joined the wait list/i)).toBeInTheDocument();
+    expect(screen.getByText(/1 selection joined the waitlist/i)).toBeInTheDocument();
     expect(screen.getByText(/payment is not due unless a spot is offered/i)).toBeInTheDocument();
     expect(screen.getByText(/1 selection could not be entered\./i)).toBeInTheDocument();
     expect(
-      screen.getByText(/Luna.*already has an active wait-list spot for another exhibitor/i)
+      screen.getByText(/Luna.*already has an active waitlist spot for another exhibitor/i)
     ).toBeInTheDocument();
   });
 
@@ -309,7 +309,7 @@ describe('ConfirmationStep — capacity outcomes', () => {
 
     expect(screen.getByText('$25.00')).toBeInTheDocument();
     expect(screen.getByText(/Novice Containers/)).toBeInTheDocument();
-    expect(screen.getByText(/Advanced Interiors.*wait list/i)).toBeInTheDocument();
+    expect(screen.getByText(/Advanced Interiors.*waitlist/i)).toBeInTheDocument();
     expect(screen.getByText(/Excellent Exteriors.*could not be entered/i)).toBeInTheDocument();
     expect(screen.queryByText(/Advanced Interiors \(#2\)/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Excellent Exteriors \(#3\)/)).not.toBeInTheDocument();
@@ -363,7 +363,7 @@ describe('ConfirmationStep — capacity outcomes', () => {
       />
     );
 
-    expect(screen.getByRole('heading', { name: 'Added to the wait list' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Added to the waitlist' })).toBeInTheDocument();
     expect(screen.queryByText(/payment is due at the show/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/remember to bring your check/i)).not.toBeInTheDocument();
   });

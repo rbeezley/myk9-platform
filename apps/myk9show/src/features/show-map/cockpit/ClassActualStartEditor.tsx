@@ -81,8 +81,11 @@ function ClassActualStartEditorForm({
   };
 
   return (
-    <div ref={formRef} className="mt-2 flex flex-wrap items-center gap-2">
-      <div className="w-36">
+    <div ref={formRef} className="mt-2 flex flex-wrap items-start gap-2">
+      <div
+        className="flex min-w-0 max-w-full flex-wrap items-start gap-2"
+        data-testid="class-start-row"
+      >
         <ClockTimeInput
           autoFocus
           id={`class-start-${classId}`}
@@ -98,21 +101,23 @@ function ClassActualStartEditorForm({
             setError(null);
           }}
         />
+        <div className="flex shrink-0 items-start gap-2" data-testid="clock-time-actions">
+          <Button type="button" size="touch" disabled={saving} onClick={save}>
+            Save
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="touch"
+            onClick={() => {
+              setEditing(false);
+              setError(null);
+            }}
+          >
+            Cancel
+          </Button>
+        </div>
       </div>
-      <Button type="button" size="touch" disabled={saving} onClick={save}>
-        Save
-      </Button>
-      <Button
-        type="button"
-        variant="ghost"
-        size="touch"
-        onClick={() => {
-          setEditing(false);
-          setError(null);
-        }}
-      >
-        Cancel
-      </Button>
       {hasStart && (
         <Button
           type="button"

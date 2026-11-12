@@ -25,6 +25,8 @@
  * dialog via `applyCombinedRunOrder`.
  */
 
+import { useIsClassCancelledFor } from './cancelledClassGuard';
+import { isCancelledClassStatus } from './ringsideClassStatusMap';
 import { RingsideMenu } from './menu/RingsideMenu';
 import { useRingsideListSnapshot } from './menu/useRingsideListSnapshot';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -138,6 +140,20 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
     isDraggingRef,
     dependencies,
   });
+
+  // MYK9-1847: each entry is judged by its own class, so one cancelled section blocks only itself.
+  const isClassCancelled = useIsClassCancelledFor([classIdA, classIdB]);
+  // The header carries section A's status. Cancelled reads for the pair only when every section is
+  // cancelled; with just A cancelled the header drops it rather than call B's dogs cancelled too.
+  const allSectionsCancelled = [classIdA, classIdB].every(id => !!id && isClassCancelled(id));
+  const headerClassInfo = useMemo(() => {
+    if (!classInfo) return classInfo;
+    if (allSectionsCancelled) return { ...classInfo, classStatus: 'cancelled' };
+    if (!isCancelledClassStatus(classInfo.classStatus)) return classInfo;
+    const withoutStatus = { ...classInfo };
+    delete withoutStatus.classStatus;
+    return withoutStatus;
+  }, [classInfo, allSectionsCancelled]);
 
   const { refresh: manualRefresh } = useAtShowEntryListRefresh(showId, refresh);
 
@@ -264,6 +280,7 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
     navigate,
     buildScoreSheetRoute,
     gateEntryClick,
+    isClassCancelled,
     refresh,
     manualRefresh,
     setActiveStatusPopup: uiActions.setActiveStatusPopup,
@@ -410,7 +427,7 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
             sectionFilter,
             setSectionFilter,
           }}
-          data={{ entries, classInfo }}
+          data={{ entries, classInfo: headerClassInfo }}
           dataStatus={{ isRefreshing, fetchError, refresh, notOnDevice }}
           handlers={handlers}
           actions={actions}

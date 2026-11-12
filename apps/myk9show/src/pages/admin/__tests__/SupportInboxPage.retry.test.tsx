@@ -80,7 +80,7 @@ describe('SupportInboxPage Retry recovery', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Temporary support failure');
     expect(listSupportTicketsMock).toHaveBeenCalledTimes(4);
 
-    await user.click(screen.getByRole('button', { name: 'Retry' }));
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
 
     await waitFor(() => expect(listSupportTicketsMock).toHaveBeenCalledTimes(5));
     expect(await screen.findByRole('heading', { name: 'Recovered show-day ticket' })).toBeVisible();

@@ -1,20 +1,11 @@
 import type { PaymentMethodResolution } from './usePaymentMethodResolution';
 import type { JuniorHandlerDeclaration } from './JuniorHandlerDeclaration';
-import type {
-  ClassSelectionData,
-  PaymentMethod,
-  PaymentDetails,
-  PaymentStatus,
-  EntryStatus,
-} from '@/types/show-registration-types';
+import type { PaymentMethod, PaymentDetails } from '@/types/show-registration-types';
 
 /** Props for the top-level PaymentStep component. */
 export interface PaymentStepProps {
   selectedDogs: string[];
-  classSelections: ClassSelectionData[];
   paymentMethod: PaymentMethod | '';
-  paymentStatus?: PaymentStatus | undefined;
-  entryStatus?: EntryStatus | undefined;
   onPaymentMethodChange: (method: PaymentMethod) => void;
   /** Clears an invalid preselected method when no payment method remains available. */
   onPaymentMethodClear?: (() => void) | undefined;
@@ -22,8 +13,6 @@ export interface PaymentStepProps {
   onPaymentDetailsChange?: ((details: PaymentDetails) => void) | undefined;
   /** Reads the wizard's retained payment details (MYK9-878): what a remounted step shows. */
   getPaymentDetails?: (() => PaymentDetails) | undefined;
-  onPaymentStatusChange?: ((status: PaymentStatus) => void) | undefined;
-  onEntryStatusChange?: ((status: EntryStatus, reason?: string) => void) | undefined;
   showId?: string | undefined;
   registrationId?: string | undefined;
   /** Callback when the entry agreement checkbox is toggled. */
@@ -32,15 +21,6 @@ export interface PaymentStepProps {
   agreedToEntryAgreement?: boolean | undefined;
   /** Staff workflow: the agreement arrives ticked (see EntryAgreementSectionProps.preTick). */
   preTickAgreement?: boolean | undefined;
-  /**
-   * Secretary fee waiver and manual override. Owned by the wizard page, not by
-   * this step: the entries panel renders the amount due outside this subtree
-   * and has to apply the same two flags.
-   */
-  waiveFees?: boolean | undefined;
-  feeOverride?: number | null | undefined;
-  onWaiveFeesChange?: ((waived: boolean) => void) | undefined;
-  onFeeOverrideChange?: ((override: number | null) => void) | undefined;
   /**
    * Payment-method resolution, owned by the PAGE so the entries panel and these
    * controls read the same effective method in the same render
@@ -129,21 +109,19 @@ export interface PaymentMethodSelectorProps {
    * or omitted hides the choice.
    */
   juniorFee?: number | null | undefined;
+  /**
+   * MYK9-1875: offer "Free entry" only to staff of THIS show (the server accepts `waived`
+   * only from them). Defaults to false, so a caller that forgets it hides the option.
+   */
+  allowFreeEntry?: boolean | undefined;
 }
 
 /** Props for the SecretaryPaymentManagement sub-component. */
 export interface SecretaryPaymentManagementProps {
-  paymentStatus: PaymentStatus;
-  entryStatus: EntryStatus;
-  feeCalculation: FeeCalculationResult;
-  selectedDogs: string[];
-  waiveFees: boolean;
-  feeOverride: number | null;
-  onWaiveFeesChange: (waived: boolean) => void;
-  onFeeOverrideChange: (override: number | null) => void;
+  /** The effective payment method, so the card can show which shortcut is on. */
+  paymentMethod: PaymentMethod | '';
+  /** The Payment Method list's own handler: one way to record a payment. */
   onPaymentMethodChange: (method: PaymentMethod) => void;
-  onPaymentStatusChange?: ((status: PaymentStatus) => void) | undefined;
-  onEntryStatusChange?: ((status: EntryStatus, reason?: string) => void) | undefined;
 }
 
 /** Shared payment messaging for the wizard's Stripe handoff. */

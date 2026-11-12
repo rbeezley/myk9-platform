@@ -97,6 +97,40 @@ describe('SignUpPage', () => {
     ]);
   });
 
+  describe('one password field (MYK9-1799, owner decision 2026-11-09)', () => {
+    it('has one password field and no confirm field', () => {
+      render(
+        <MemoryRouter>
+          <SignUpPage />
+        </MemoryRouter>
+      );
+
+      expect(document.querySelectorAll('input[autocomplete="new-password"]')).toHaveLength(1);
+      expect(screen.queryByLabelText(/confirm password/i)).not.toBeInTheDocument();
+    });
+
+    it('lets her read back what she typed, from the keyboard too', async () => {
+      const user = userEvent.setup();
+      render(
+        <MemoryRouter>
+          <SignUpPage />
+        </MemoryRouter>
+      );
+      const password = screen.getByLabelText(/^password$/i);
+
+      await user.type(password, 'abc');
+      expect(password).toHaveAttribute('type', 'password');
+
+      // Reachable by Tab: with no confirm field this toggle is the only check on a typo.
+      await user.tab();
+      expect(screen.getByRole('button', { name: 'Show password' })).toHaveFocus();
+      await user.keyboard('{Enter}');
+
+      expect(password).toHaveAttribute('type', 'text');
+      expect(password).toHaveValue('abc');
+    });
+  });
+
   it('renders an "or" divider between Google button and email form', () => {
     render(
       <MemoryRouter>
@@ -135,7 +169,7 @@ describe('SignUpPage', () => {
           <SignUpPage />
         </MemoryRouter>
       );
-      expect(screen.getByRole('button', { name: /sign up/i })).toBeDisabled();
+      expect(screen.getByRole('button', { name: /create account/i })).toBeDisabled();
     });
 
     it('disables Continue with Google button when checkbox is unchecked', () => {
@@ -154,7 +188,7 @@ describe('SignUpPage', () => {
         </MemoryRouter>
       );
       fireEvent.click(screen.getByLabelText(/I agree to the/i));
-      expect(screen.getByRole('button', { name: /sign up/i })).not.toBeDisabled();
+      expect(screen.getByRole('button', { name: /create account/i })).not.toBeDisabled();
     });
 
     it('enables Continue with Google button when checkbox is checked', () => {
@@ -241,17 +275,74 @@ describe('SignUpPage', () => {
       await user.type(screen.getByLabelText(/last name/i), 'Morgan');
       await user.type(screen.getByLabelText(/email address/i), 'pat@example.com');
       await user.type(screen.getByLabelText(/^password$/i), 'password123');
-      await user.type(screen.getByLabelText(/confirm password/i), 'password123');
       await user.click(screen.getByLabelText(/club officer/i));
       await user.click(screen.getByLabelText(/show secretary/i));
       await user.click(screen.getByLabelText(/i agree to the/i));
-      await user.click(screen.getByRole('button', { name: /sign up/i }));
+      await user.click(screen.getByRole('button', { name: /create account/i }));
 
       expect(mockSignUp).toHaveBeenCalledWith('pat@example.com', 'password123', {
         firstName: 'Pat',
         lastName: 'Morgan',
         roles: ['exhibitor', 'club_officer', 'secretary'],
       });
+    });
+  });
+
+  describe('plain errors and one password rule (MYK9-1815)', () => {
+    async function fillAndSubmit(password: string) {
+      const user = userEvent.setup();
+      render(
+        <MemoryRouter>
+          <SignUpPage />
+        </MemoryRouter>
+      );
+      await user.type(screen.getByLabelText(/first name/i), 'Pat');
+      await user.type(screen.getByLabelText(/last name/i), 'Morgan');
+      await user.type(screen.getByLabelText(/email address/i), 'pat@example.com');
+      await user.type(screen.getByLabelText(/^password$/i), password);
+      await user.click(screen.getByLabelText(/i agree to the/i));
+      fireEvent.submit(screen.getByRole('button', { name: /create account/i }).closest('form')!);
+    }
+
+    it('asks for 8 characters, the same rule as the reset and account pages', async () => {
+      await fillAndSubmit('1234567');
+
+      expect(
+        await screen.findByText('Your password needs at least 8 characters.')
+      ).toBeInTheDocument();
+      expect(mockSignUp).not.toHaveBeenCalled();
+      expect(screen.getByLabelText(/^password$/i)).toHaveAttribute('minlength', '8');
+      expect(screen.getByLabelText(/^password$/i)).toHaveAttribute(
+        'placeholder',
+        'Password (at least 8 characters)'
+      );
+    });
+
+    it('an email that already has an account is explained in plain words', async () => {
+      mockSignUp.mockRejectedValue(
+        Object.assign(new Error('User already registered'), {
+          code: 'user_already_exists',
+          status: 422,
+        })
+      );
+      await fillAndSubmit('password123');
+
+      expect(
+        await screen.findByText(
+          'That email address already has an account. Sign in, or use "Forgot your password?" on the sign-in page.'
+        )
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/user already registered/i)).toBeNull();
+    });
+
+    it('an error it does not know shows the fallback, never the raw text', async () => {
+      mockSignUp.mockRejectedValue(new Error('Database error saving new user'));
+      await fillAndSubmit('password123');
+
+      expect(
+        await screen.findByText('We could not create your account. Please try again.')
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/database error/i)).toBeNull();
     });
   });
 
@@ -270,9 +361,8 @@ describe('SignUpPage', () => {
     await user.type(screen.getByLabelText(/last name/i), 'Morgan');
     await user.type(screen.getByLabelText(/email address/i), 'pat@example.com');
     await user.type(screen.getByLabelText(/^password$/i), 'password123');
-    await user.type(screen.getByLabelText(/confirm password/i), 'password123');
     await user.click(screen.getByLabelText(/i agree to the/i));
-    await user.click(screen.getByRole('button', { name: /sign up/i }));
+    await user.click(screen.getByRole('button', { name: /create account/i }));
 
     expect(mockSignUp).toHaveBeenCalledWith(
       'pat@example.com',
@@ -305,12 +395,11 @@ describe('SignUpPage', () => {
     await user.type(screen.getByLabelText(/last name/i), 'Morgan');
     await user.type(screen.getByLabelText(/email address/i), 'pat@example.com');
     await user.type(screen.getByLabelText(/^password$/i), 'password123');
-    await user.type(screen.getByLabelText(/confirm password/i), 'password123');
     await user.click(screen.getByLabelText(/i agree to the/i));
-    expect(screen.getByRole('button', { name: /sign up/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /create account/i })).toBeDisabled();
 
     await user.click(screen.getByRole('button', { name: 'Complete security check' }));
-    await user.click(screen.getByRole('button', { name: /sign up/i }));
+    await user.click(screen.getByRole('button', { name: /create account/i }));
 
     expect(mockSignUp).toHaveBeenCalledWith(
       'pat@example.com',
@@ -339,10 +428,9 @@ describe('SignUpPage', () => {
     await user.type(screen.getByLabelText(/last name/i), 'Morgan');
     await user.type(screen.getByLabelText(/email address/i), 'pat@example.com');
     await user.type(screen.getByLabelText(/^password$/i), 'password123');
-    await user.type(screen.getByLabelText(/confirm password/i), 'password123');
     await user.click(screen.getByLabelText(/i agree to the/i));
     await user.click(screen.getByRole('button', { name: 'Complete security check' }));
-    const form = screen.getByRole('button', { name: /sign up/i }).closest('form');
+    const form = screen.getByRole('button', { name: /create account/i }).closest('form');
     fireEvent.submit(form!);
     fireEvent.submit(form!);
 
@@ -364,9 +452,8 @@ describe('SignUpPage', () => {
       await user.type(screen.getByLabelText(/last name/i), 'Morgan');
       await user.type(screen.getByLabelText(/email address/i), 'pat@example.com');
       await user.type(screen.getByLabelText(/^password$/i), 'password123');
-      await user.type(screen.getByLabelText(/confirm password/i), 'password123');
       await user.click(screen.getByLabelText(/i agree to the/i));
-      await user.click(screen.getByRole('button', { name: /sign up/i }));
+      await user.click(screen.getByRole('button', { name: /create account/i }));
 
       expect(await screen.findByText(/check your email/i)).toBeInTheDocument();
     }
@@ -426,10 +513,9 @@ describe('SignUpPage', () => {
       await user.type(screen.getByLabelText(/last name/i), 'Morgan');
       await user.type(screen.getByLabelText(/email address/i), 'pat@example.com');
       await user.type(screen.getByLabelText(/^password$/i), 'password123');
-      await user.type(screen.getByLabelText(/confirm password/i), 'password123');
       await user.click(screen.getByLabelText(/i agree to the/i));
       await user.click(screen.getByRole('button', { name: 'Complete security check' }));
-      await user.click(screen.getByRole('button', { name: /sign up/i }));
+      await user.click(screen.getByRole('button', { name: /create account/i }));
 
       expect(await screen.findByText(/check your email/i)).toBeInTheDocument();
       const resend = screen.getByRole('button', { name: /resend email/i });

@@ -59,6 +59,32 @@ export function applyRecordedEnrollmentPayment(
   };
 }
 
+/** Postgres code of the RPCs' own validation refusals (every RAISE they can reach). */
+const RPC_REFUSAL_CODE = '22023';
+/** Postgres insufficient_privilege: raised before either RPC writes anything. */
+const NOT_AUTHORIZED_CODE = '42501';
+
+const LEDGER_NOT_AUTHORIZED = 'You do not have permission to record payments for this entry.';
+// Anything else, including a lost connection after the server saved it. No
+// client payment id is sent, so a blind retry could record the payment twice.
+const LEDGER_UNCONFIRMED =
+  "We could not confirm this was saved. Check the entry's payments: if it is not there, try again.";
+
+/**
+ * MYK9-1824: what the secretary reads when a payment write fails. The RPCs' own
+ * refusals keep their reason (MYK9-677, MYK9-773: "says why"); nothing else is
+ * shown raw.
+ */
+function ledgerFailureMessage(err: unknown): string {
+  const code =
+    typeof err === 'object' && err !== null ? (err as { code?: unknown }).code : undefined;
+  if (code === RPC_REFUSAL_CODE && err instanceof Error) {
+    return `Payment not recorded: ${err.message}`;
+  }
+  if (code === NOT_AUTHORIZED_CODE) return LEDGER_NOT_AUTHORIZED;
+  return LEDGER_UNCONFIRMED;
+}
+
 export interface EnrollmentLedgerControls {
   /** Records one cash/check payment, refund or "Payment Due" reset. */
   record: (enrollmentId: string, action: EnrollmentLedgerAction) => Promise<boolean>;
@@ -103,8 +129,7 @@ export function useEnrollmentLedgerActions({
         void queryClient.invalidateQueries({ queryKey: ['show-payments'] });
         return true;
       } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        toast.error(`Payment not recorded: ${message}`);
+        toast.error(ledgerFailureMessage(err));
         logger.error('Error recording enrollment payment:', 'secretary', {}, err as Error);
         return false;
       }

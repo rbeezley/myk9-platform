@@ -48,8 +48,6 @@ export interface EntriesPanelProps {
    * failed-read copy over the still-reading one.
    */
   feeTier?: { isReady: boolean; isUnavailable: boolean } | undefined;
-  waiveFees?: boolean | undefined;
-  feeOverride?: number | null | undefined;
   waitlistClassIds?: ReadonlySet<string> | undefined;
   onRemoveLine?: ((dogId: string, classId: string) => void | Promise<void>) | undefined;
   removingLineKey?: string | null | undefined;
@@ -78,8 +76,6 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
   capacityReady: capacityReadyProp = true,
   capacityUnavailable: capacityUnavailableProp,
   feeTier,
-  waiveFees = false,
-  feeOverride = null,
   waitlistClassIds,
   onRemoveLine,
   removingLineKey,
@@ -111,17 +107,15 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
         paymentMethod,
         feeCalculation,
         capacityReady,
-        waiveFees,
-        feeOverride,
         rates: resolvedRates,
       })
     : undefined;
 
   const classCount = countPanelLines(groups);
-  // ALWAYS the sum of the lines rendered above it. `totals.entryFeeCents` is the
-  // staff override when one is set, which made "Entry fees" and "Subtotal"
-  // contradict the itemisation directly beneath them (Codex #2210 round 6 P2).
-  // The override still decides what is OWED; it is reconciled as its own row.
+  // ALWAYS the sum of the lines rendered above it (Codex #2210 round 6 P2). The
+  // lines carry the server's per-line price and Total due the computed total;
+  // any gap between them (junior minimum fee, a wait-list line, rounding, a
+  // stale line price) is reconciled as its own "Adjustment" row (MYK9-1822).
   const entryFeeCents = sumPanelFeeCents(groups);
   const adjustmentCents = totals ? totals.entryFeeCents - entryFeeCents : 0;
   // The SAME string the totals block shows — one derivation, two widths.

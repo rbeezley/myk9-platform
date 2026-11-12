@@ -1,10 +1,18 @@
 import { describe, expect, it } from 'vitest';
+import type { EntryManagementEntry } from '@/types/entry-management-types';
+import { buildDecisionEmailKeyForEntries } from './decisionEmail';
 import { foldEntryDecisionStatuses, type EntryDecisionJobRow } from './entryDecisionStatuses';
+
+const entry = (id: string) =>
+  ({ id, showId: 'show-1', registrationId: 'reg-1' }) as unknown as EntryManagementEntry;
+// The row as the server stores it: the covered set lives only in the idempotency key.
+const MULTI_KEY = buildDecisionEmailKeyForEntries([entry('a'), entry('b'), entry('c')], 'accepted');
+const SINGLE_KEY = buildDecisionEmailKeyForEntries([entry('a')], 'accepted');
 
 const row = (overrides: Partial<EntryDecisionJobRow>): EntryDecisionJobRow => ({
   id: 'job-1',
   entry_id: 'a',
-  batch_key: 'reg-1:decided:a,b,c',
+  idempotency_key: MULTI_KEY,
   step_type: 'accepted',
   status: 'sent',
   subject: 's',
@@ -34,7 +42,7 @@ describe('foldEntryDecisionStatuses for a job covering several entries (MYK9-180
   });
 
   it('leaves a single-entry job on its entry alone', () => {
-    const statuses = foldEntryDecisionStatuses([row({ batch_key: null })]);
+    const statuses = foldEntryDecisionStatuses([row({ idempotency_key: SINGLE_KEY })]);
 
     expect(Object.keys(statuses)).toEqual(['a']);
   });

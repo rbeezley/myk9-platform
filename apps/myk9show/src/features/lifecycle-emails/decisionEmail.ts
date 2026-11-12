@@ -57,18 +57,22 @@ export function sortDecidedEntries(entries: EntryManagementEntry[]): EntryManage
 const DECIDED_MARKER = ':decided:';
 
 /**
- * The entries one decision job covers, read from its `batch_key`
- * (`<registrationId>:decided:<sorted entry ids>`, written by `buildDecisionEmailKeyForEntries`).
- * A single-entry job, a missing or malformed key all cover just the anchor entry.
+ * The entries one decision job covers, read from its stored `idempotency_key`
+ * (`show-lifecycle-email:<show>:<step>:enrollment:<registrationId>:decided:<sorted ids>:<anchor>:…`,
+ * built by `buildDecisionEmailKeyForEntries`). The key is the only place the covered set is
+ * stored: nothing writes the job's `batch_key` column. A single-entry job, a missing or
+ * malformed key all cover just the anchor entry.
  */
-export function coveredEntryIds(batchKey: string | null, anchorEntryId: string | null): string[] {
+export function coveredEntryIds(
+  idempotencyKey: string | null,
+  anchorEntryId: string | null
+): string[] {
   if (!anchorEntryId) return [];
-  const at = batchKey?.indexOf(DECIDED_MARKER) ?? -1;
-  if (!batchKey || at < 0) return [anchorEntryId];
-  const ids = batchKey
-    .slice(at + DECIDED_MARKER.length)
-    .split(',')
-    .filter(Boolean);
+  const at = idempotencyKey?.indexOf(DECIDED_MARKER) ?? -1;
+  if (!idempotencyKey || at < 0) return [anchorEntryId];
+  // The id list runs to the next ':' (UUIDs hold none); what follows is the anchor and suffix.
+  const [idList = ''] = idempotencyKey.slice(at + DECIDED_MARKER.length).split(':');
+  const ids = idList.split(',').filter(Boolean);
   return ids.includes(anchorEntryId) ? [...new Set(ids)] : [anchorEntryId];
 }
 
@@ -78,6 +82,8 @@ export function coveredEntryIds(batchKey: string | null, anchorEntryId: string |
  * those ids (the table wants an entry_id), and a repeat of the same Accept builds the same
  * key, so the server's unique index refuses a second email. One entry keeps the entry's own
  * key, so it matches an email already saved or sent for that entry by any path.
+ * Known limit: a single-entry key and a multi-entry key never collide, so an entry emailed
+ * alone, later reset and then accepted again with others is named in a second email.
  */
 export function buildDecisionEmailKeyForEntries(
   entries: EntryManagementEntry[],

@@ -234,11 +234,12 @@ describe('coveredEntryIds', () => {
     expect(coveredEntryIds('reg-1:decided:a,b', null)).toEqual([]);
   });
 
-  it('round-trips the key the save builds', () => {
+  it('round-trips the full idempotency key the save stores (the only place the set is kept)', () => {
     const e = (id: string) =>
       ({ id, showId: 's', registrationId: 'reg-1' }) as unknown as EntryManagementEntry;
     const key = buildDecisionEmailKeyForEntries([e('c'), e('a'), e('b')], 'accepted');
-    expect(key).toContain('reg-1:decided:a,b,c');
-    expect(coveredEntryIds('reg-1:decided:a,b,c', 'a')).toEqual(['a', 'b', 'c']);
+    expect(coveredEntryIds(key, 'a')).toEqual(['a', 'b', 'c']);
+    const single = buildDecisionEmailKeyForEntries([e('a')], 'accepted');
+    expect(coveredEntryIds(single, 'a')).toEqual(['a']);
   });
 });

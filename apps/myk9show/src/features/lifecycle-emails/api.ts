@@ -258,7 +258,7 @@ export async function fetchEntryDecisionEmailStatuses(args: {
       args.supabase
         .from<EntryDecisionJobRow[]>('show_lifecycle_email_jobs')
         .select(
-          'id, entry_id, batch_key, step_type, status, subject, body, secretary_note, due_at, prepared_at, sent_at, correction_for_job_id'
+          'id, entry_id, idempotency_key, step_type, status, subject, body, secretary_note, due_at, prepared_at, sent_at, correction_for_job_id'
         )
         .eq('show_id', args.showId)
         .in('entry_id', ids)

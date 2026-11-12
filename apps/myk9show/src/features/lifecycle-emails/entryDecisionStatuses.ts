@@ -6,7 +6,7 @@ import { coveredEntryIds } from './decisionEmail';
 export interface EntryDecisionJobRow {
   id: string;
   entry_id: string | null;
-  batch_key: string | null;
+  idempotency_key: string | null;
   step_type: DecisionEmailStepType;
   status: LifecycleEmailJobSummaryRow['status'];
   subject: string | null;
@@ -56,7 +56,7 @@ export function foldEntryDecisionStatuses(
 ): Record<string, EntryDecisionEmailStatus> {
   const statuses: Record<string, EntryDecisionEmailStatus> = {};
   for (const row of rows) {
-    const covered = coveredEntryIds(row.batch_key, row.entry_id);
+    const covered = coveredEntryIds(row.idempotency_key, row.entry_id);
     for (const entryId of covered) {
       const job = mapEntryDecisionJob(row, entryId, covered);
       const status = (statuses[entryId] ??= {

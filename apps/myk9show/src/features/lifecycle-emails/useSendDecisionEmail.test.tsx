@@ -86,6 +86,26 @@ describe('useSendDecisionEmail after a show switch (MYK9-1833, MYK9-1915)', () =
     );
   });
 
+  it('judges where she is when the notice shows, not when the send began', async () => {
+    let finishSend: (value: { sent: number; failed: number; total: number }) => void = () => {};
+    vi.mocked(sendLifecycleEmailJobs).mockReturnValue(
+      new Promise(resolve => {
+        finishSend = resolve;
+      })
+    );
+    sender()([showAEntry], 'accepted', 'Show A');
+    await waitFor(() => expect(sendLifecycleEmailJobs).toHaveBeenCalled());
+
+    onPage('/shows/show-b/entries');
+    finishSend({ sent: 1, failed: 0, total: 1 });
+
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenCalledWith(
+        'Acceptance email sent to Pat Owner for Rex at Show A'
+      )
+    );
+  });
+
   it('names the show when she has left for a page that belongs to no show', async () => {
     onPage('/dogs');
     sender()([showAEntry], 'accepted', 'Show A');
@@ -98,6 +118,14 @@ describe('useSendDecisionEmail after a show switch (MYK9-1833, MYK9-1915)', () =
 
   it('keeps the success notice short while she is still on that show, on any of its pages', async () => {
     onPage('/at-show/show-a/class/class-1');
+    sender()([showAEntry], 'accepted', 'Show A');
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenCalledWith('Acceptance email sent to Pat Owner for Rex')
+    );
+  });
+
+  it('counts a page that names the show in its query as the same show', async () => {
+    onPage('/secretary/messages?showId=show-a');
     sender()([showAEntry], 'accepted', 'Show A');
     await waitFor(() =>
       expect(toast.success).toHaveBeenCalledWith('Acceptance email sent to Pat Owner for Rex')

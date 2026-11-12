@@ -52,10 +52,16 @@ const UNNAMED_SHOW = 'this show';
  */
 const UNTIL_CLOSED = { duration: Infinity };
 
-/** Whether the page on screen belongs to this show (its id is a segment of the address). */
+/**
+ * Whether the page on screen belongs to this show: its id is a segment of the path
+ * (`/shows/:id/...`, `/at-show/:id/...`) or the `showId` of the query (`/secretary/messages`).
+ */
 function isShowOnScreen(showId: string): boolean {
-  if (typeof window === 'undefined') return true;
-  return window.location.pathname.split('/').includes(showId);
+  if (!showId || typeof window === 'undefined') return true;
+  const { pathname, search } = window.location;
+  return (
+    pathname.split('/').includes(showId) || new URLSearchParams(search).get('showId') === showId
+  );
 }
 
 /**

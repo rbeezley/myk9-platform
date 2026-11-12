@@ -139,6 +139,21 @@ Nearly every finding in the July exhibitor audits (E1â€“E8) was the same shape â
 
 For every count, total, status and date you see, find the OTHER place the app states it and compare. Where they disagree, say which one is right and how you know.
 
+## Promises: what the exhibitor is told, against what decides it
+
+The section above compares facts. This one compares **promises and instructions**: every sentence that tells the exhibitor what will happen next, what someone else will do, or what they must do. Three reached `main` unreported until 2026-11-12 (MYK9-1909), because each reads fine on its own screen:
+
+- My Entries said "the secretary will review it once it is paid", while the secretary's list offers Accept on an unpaid entry (MYK9-1897).
+- The card option and the checkout success page said entries "are confirmed" once paid, while a paid entry still waits for the secretary's review (MYK9-1896).
+- The entry form said to bring a check to the show; My Entries then said to mail it to the club (MYK9-1895).
+
+On the entry path (the wizard's Payment and Receipt steps, My Entries, the dog's own page), list each such sentence with the screen it is on. The checkout return page lies past the stop-at-checkout boundary, so read its copy in the code and say so. For each sentence:
+
+1. **Find what decides it**: the secretary's control, the status rule or the server function. Read it in the code and cite file and line. This walk signs in as no other role to check it; where another walk's report shows the other role's screen in that state, cite that as well.
+2. **Find every other place the same instruction is given** (how to pay, when to check in, who to contact) and compare the wording.
+
+A promise the product does not keep, and one instruction given two ways, are findings, rated on "I trust this with my day". A promise that holds only because of a recorded owner decision (an `// INTENT:` comment or a Linear issue) is listed as verified with that reference. Put the list in the report as a table: sentence, screen, what decides it, holds or not.
+
 ## Judgment rules
 
 - **Read `docs/INTENT.md` and `docs/roles/exhibitor.md` first.** The target feeling is "I trust this with my day", and the doc is explicit that **silence after payment is the scariest state**. A screen that is technically correct but leaves the exhibitor unsure whether something worked IS a finding, and should be rated on that basis rather than dismissed as cosmetic.

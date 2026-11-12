@@ -25,6 +25,7 @@ import { SelfCheckinTool } from '@/features/show-workbench/SelfCheckinTool';
 import { getTrialTimezone } from '@/features/registries';
 import { useResultSubmissions } from '@/hooks/mutations/useResultSubmission';
 import { useQuery } from '@tanstack/react-query';
+import { useShowEntriesRefreshAfterWrite } from './useShowEntriesRefreshAfterWrite';
 import {
   listShowIncidentCloseout,
   showIncidentCloseoutQueryKey,
@@ -95,6 +96,7 @@ function ShowWorkbenchShowDeskBody() {
     isError: showEntriesIsError,
     refetch: refetchShowEntries,
   } = useSecretaryShowEntriesQuery(showId ?? '', Boolean(showId));
+  const refreshAfterWrite = useShowEntriesRefreshAfterWrite(showId ?? '', refetchShowEntries);
   const showEntries = useMemo(() => showEntriesData ?? EMPTY_ENTRIES, [showEntriesData]);
   const { entriesKnown, entriesUnavailable } = getShowDeskEntriesAvailability({
     data: showEntriesData,
@@ -487,9 +489,7 @@ function ShowWorkbenchShowDeskBody() {
           canManageShow
           tools={allShowDeskTools}
           entryBreakdownByClassId={entryBreakdownByClassId}
-          onRefreshEntries={async () => {
-            await refetchShowEntries({ throwOnError: true });
-          }}
+          onRefreshEntries={refreshAfterWrite}
         />
       </Suspense>
     </TrialSecretaryAccessProvider>

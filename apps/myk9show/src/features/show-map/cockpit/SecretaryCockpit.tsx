@@ -36,6 +36,7 @@ import type {
   SecretaryCockpitRunOrderControls,
   SecretaryCockpitSnapshot,
 } from './secretaryCockpitTypes';
+import type { EntriesRefresh } from '@/components/entries/management/checkInDesk/entriesRefresh';
 
 export function SecretaryCockpit({
   snapshot,
@@ -56,7 +57,7 @@ export function SecretaryCockpit({
   /** Entered/pending per class for the schedule rows (MYK9-943); absent until read. */
   entryBreakdownByClassId?: ReadonlyMap<string, ClassEntryBreakdown> | undefined;
   /** Re-reads the page's entries after a Check-in cell write (MYK9-1797). */
-  onRefreshEntries?: (() => void | Promise<void>) | undefined;
+  onRefreshEntries?: EntriesRefresh | undefined;
 }) {
   const { state: urlState, updateState } = useSecretaryCockpitUrlState();
   // A Select classes link's trial or class (MYK9-1324) opens and scrolls like the cockpit's own.

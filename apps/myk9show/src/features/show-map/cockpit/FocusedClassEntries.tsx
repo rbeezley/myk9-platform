@@ -52,6 +52,7 @@ import {
   runStatusDisplay,
   type SecretaryCockpitClassEntry,
 } from './cockpitClassEntries';
+import type { EntriesRefresh } from '@/components/entries/management/checkInDesk/entriesRefresh';
 
 // Tight cells and wrapping Dog and Handler keep the table inside the ~600px focus column; the
 // scroll wrapper stays as the fallback for narrower ones.
@@ -191,7 +192,7 @@ export function ClassEntriesTable({
   /** Managers only: the Check-in cell opens the Check-in desk's status picker (MYK9-1797). */
   canChangeCheckIn?: boolean;
   /** Re-reads the page's entries after a write, so the table speaks for the stored status. */
-  onRefreshEntries?: () => void | Promise<void>;
+  onRefreshEntries?: EntriesRefresh;
   /** Entries the data left out; said aloud so a capped list never reads as the whole class. */
   hidden?: number;
   /** The entries have not been read; an empty list then is not "no entries". */

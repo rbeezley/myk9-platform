@@ -197,6 +197,19 @@ describe('showMapActionMutations', () => {
     });
   });
 
+  it('does not write a second Pull over an entry the stored row already shows as pulled (MYK9-1812)', async () => {
+    mockGetReplicatedEntryById.mockResolvedValueOnce({
+      id: 'entry-1',
+      entryStatus: 'scratched',
+      checkInStatus: 'pulled',
+    });
+
+    await expect(scratchShowMapEntry('entry-1', 'Dog absent')).rejects.toMatchObject({
+      code: 'already-pulled',
+    });
+    expect(mockUpdateReplicatedDayOfScratch).not.toHaveBeenCalled();
+  });
+
   describe('undoShowMapScratch', () => {
     it('restores the entry to its previous status, check-in state, and notes', async () => {
       await undoShowMapScratch({

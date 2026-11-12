@@ -33,6 +33,7 @@ import type { CheckInStatus } from '@myk9/core';
 import { EntryStatus } from '@/types/show-registration-types';
 import { sendRegistrationConfirmationEmail } from '@/components/shows/RegistrationWorkflow/sendRegistrationConfirmationEmail';
 import { ENTRY_ACTION_COPY } from '@/hooks/entryManagementErrorCopy';
+import type { EntriesRefresh } from '@/components/entries/management/checkInDesk/entriesRefresh';
 
 // INTENT: `cockpit.state.queues` (the Filter menu's Status values) is
 // the single source of registration-status filtering on Entry Management. Do
@@ -89,6 +90,8 @@ interface EntryManagementCockpitProps {
     amountDue?: number
   ) => Promise<void>;
   onRefresh: () => void | Promise<void>;
+  /** The re-read after a desk write; handed what the write stored so the list takes it at once. */
+  onRefreshEntries?: EntriesRefresh | undefined;
   paymentLedger: EnrollmentLedgerControls;
 }
 
@@ -114,6 +117,7 @@ export function EntryManagementCockpit({
   onBulkStatusChange,
   onSendDecisionEmail,
   onRefresh,
+  onRefreshEntries,
   paymentLedger,
 }: EntryManagementCockpitProps) {
   const focusedKey = cockpit.focusedGroup?.groupKey ?? null;
@@ -373,7 +377,7 @@ export function EntryManagementCockpit({
               onStatusChange={handleStatusChangeWithDecisionEmail}
               onEntryRefunded={onRefresh}
               onEntryRestored={onRefresh}
-              onRefreshEntries={onRefresh}
+              onRefreshEntries={onRefreshEntries ?? onRefresh}
               onCheckInStatusChange={onCheckInStatusChange}
               onOpenEditEntry={onOpenEditEntry}
               onOpenArmbandDialog={onOpenArmbandDialog}

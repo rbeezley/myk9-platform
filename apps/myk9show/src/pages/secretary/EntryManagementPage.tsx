@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -45,6 +45,7 @@ import { EntryManagementUnresolvedShow } from './EntryManagementUnresolvedShow';
 import { EntryManagementExceptionPanes } from './EntryManagementExceptionPanes';
 import { useRegistrationNeededEntries } from '@/hooks/useRegistrationNeededEntries';
 import { registerCommandMenuContext } from '@/features/command-menu/commandMenuContextStore';
+import { useManagementRefreshAfterWrite } from '@/hooks/storedManagementEntries';
 
 const EntryManagementPage: React.FC = () => {
   const params = useParams<{ showId?: string; id?: string }>();
@@ -85,6 +86,12 @@ const EntryManagementPage: React.FC = () => {
   const secretaryOnlyReason = trialSecretaryOnlyReason(manageScope, {
     showIdKnown: Boolean(urlShowId),
   });
+  // After a desk write the list takes the stored rows, then re-reads: a re-read that fails (a cold
+  // replica) or pauses offline must not leave the old status on screen.
+  const refreshAfterWrite = useManagementRefreshAfterWrite(
+    setEntries,
+    useCallback(() => loadEntries(selectedShowId), [loadEntries, selectedShowId])
+  );
   const registrationGroups = useMemo(() => groupEntriesByShowRegistration(entries), [entries]);
   // MYK9-632: the tab lists BOTH acts an exhibitor can leave behind. A pull
   // ('scratched') is the club's call; a withdrawal carrying one of the two
@@ -518,6 +525,7 @@ const EntryManagementPage: React.FC = () => {
                     refreshEmailLog(registrationIds);
                   }}
                   onRefresh={() => loadEntries(selectedShowId)}
+                  onRefreshEntries={refreshAfterWrite}
                 />
               </TrialSecretaryAccessProvider>
             </div>
@@ -535,7 +543,7 @@ const EntryManagementPage: React.FC = () => {
           entriesUnknown={Boolean(loadError)}
           entriesLoading={isLoading}
           registrationNeeded={registrationNeeded}
-          onRefreshEntries={() => loadEntries(selectedShowId)}
+          onRefreshEntries={refreshAfterWrite}
           onMoveUpsChanged={() => {
             loadEntries(selectedShowId);
             refetchMoveUpRequestsCount();

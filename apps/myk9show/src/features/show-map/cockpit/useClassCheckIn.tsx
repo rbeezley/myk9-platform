@@ -1,6 +1,5 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 
-import type { CheckInStatus } from '@/types/check-in-types';
 import { StatusPickerDialog } from '@/components/common/StatusPickerDialog';
 import { DeskPullDialogs } from '@/components/entries/management/checkInDesk/DeskPullDialogs';
 import { changeDeskRowStatus } from '@/components/entries/management/checkInDesk/deskRowStatus';
@@ -15,6 +14,7 @@ import {
 } from '@/components/entries/management/checkInDesk/useDeskPull';
 
 import type { SecretaryCockpitClassEntry } from './cockpitClassEntries';
+import type { EntriesRefresh } from '@/components/entries/management/checkInDesk/entriesRefresh';
 
 /**
  * The class table's Check-in cell opens the Check-in desk's own picker (MYK9-1797): the same
@@ -26,23 +26,11 @@ export function useClassCheckIn(
   entries: readonly SecretaryCockpitClassEntry[],
   className: string,
   canChange: boolean,
-  onRefreshEntries?: () => void | Promise<void>
+  onRefreshEntries?: EntriesRefresh
 ) {
-  const sources = useMemo(
-    () =>
-      entries.map(entry => ({
-        id: entry.entryId,
-        classes: [{ checkInStatus: entry.checkInValue }],
-      })),
-    [entries]
-  );
-  const { changes, busyIds, error, errorIds, notice, setStatus } = useCheckInDeskActions(
-    sources,
-    onRefreshEntries
-  );
+  const { busyIds, error, errorIds, notice, setStatus } = useCheckInDeskActions(onRefreshEntries);
   // The panel is reused across classes, so an alert shows only beside the class whose dog it is
-  // about. The held statuses stay: a write whose re-read failed must survive a look at another
-  // class (MYK9-1803).
+  // about.
   const errorHere = error !== null && entries.some(entry => errorIds.has(entry.entryId));
   const rowOf = (entryId: string): DeskPullRow | undefined => {
     const entry = entries.find(candidate => candidate.entryId === entryId);
@@ -63,12 +51,6 @@ export function useClassCheckIn(
     entry => entry.entryId === pickerId && canChange && entry.deskEditable
   );
   if (pickerId && !pickerEntry) setPickerId(null);
-
-  /** The status shown: the write just made, until the entries speak for themselves. */
-  const statusOf = (entry: SecretaryCockpitClassEntry): CheckInStatus => {
-    const change = changes.get(entry.entryId);
-    return change && change.from === entry.checkInValue ? change.to : entry.checkInValue;
-  };
 
   const dialogs: ReactNode = (
     <>
@@ -95,7 +77,7 @@ export function useClassCheckIn(
             dogName: pickerEntry.dogName,
             handlerName: [pickerEntry.handler, className].filter(Boolean).join(' · '),
           }}
-          currentStatus={statusOf(pickerEntry)}
+          currentStatus={pickerEntry.checkInValue}
           onStatusChange={(_, status) => {
             const row = rowOf(pickerEntry.entryId);
             if (row) changeDeskRowStatus(row, status, { setStatus }, pull);
@@ -111,7 +93,6 @@ export function useClassCheckIn(
 
   return {
     canChange,
-    statusOf,
     isBusy: (entryId: string) => busyIds.has(entryId),
     open: (entryId: string) => setPickerId(entryId),
     dialogs,

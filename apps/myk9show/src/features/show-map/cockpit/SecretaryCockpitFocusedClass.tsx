@@ -27,6 +27,7 @@ import {
   FOCUSED_CLASS_SCROLL_MARGIN_CLASS_IN_PANEL,
   type FocusedClassPinMode,
 } from '@/components/shows/ShowDetails/showStickyLayout';
+import type { EntriesRefresh } from '@/components/entries/management/checkInDesk/entriesRefresh';
 
 const NO_ENTRIES: ClassEntryBreakdown = { entered: 0, pending: 0 };
 
@@ -65,7 +66,7 @@ export function SecretaryCockpitFocusedClass({
   /** Entered/pending per class, the schedule row's own count (MYK9-943); absent until entries are read. */
   entryBreakdownByClassId?: ReadonlyMap<string, ClassEntryBreakdown> | undefined;
   /** Re-reads the page's entries after a Check-in cell write (MYK9-1797). */
-  onRefreshEntries?: (() => void | Promise<void>) | undefined;
+  onRefreshEntries?: EntriesRefresh | undefined;
 }) {
   // Which class's actual-start editor is open; the header's Actual timing field and the Class started step share it.
   const [editingStart, setEditingStart] = useState<string | null>(null);

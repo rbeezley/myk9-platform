@@ -5,6 +5,8 @@ import { render } from '@/test/utils/testUtils';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { CheckInDesk } from './CheckInDesk';
+import { resetReplica, writeReplicaRow } from './storedRowsReplica';
+import { StoredRowsDesk } from './storedRowsTestUtils';
 
 const h = vi.hoisted(() => ({
   updateReplicatedCheckInStatus: vi.fn(),
@@ -15,6 +17,12 @@ const h = vi.hoisted(() => ({
   getEntryStatusHistory: vi.fn(),
 }));
 
+vi.mock('@/services/replication/ReplicatedEntriesTable', async () => ({
+  replicatedEntriesTable: (await import('./storedRowsReplica')).replicaEntriesTable,
+}));
+vi.mock('@/services/replication/ReplicatedClassesTable', async () => ({
+  replicatedClassesTable: (await import('./storedRowsReplica')).replicaClassesTable,
+}));
 vi.mock('@/services/database/entries/lifecycle', () => ({
   changeSecretaryEntryStatus: h.changeSecretaryEntryStatus,
 }));
@@ -144,6 +152,113 @@ describe('Pulled on the Check-in desk is the real Pull (MYK9-1749)', () => {
     );
   });
 
+  describe('a Pull never waits for the entries re-read (MYK9-1812)', () => {
+    const toastInfo = vi.spyOn(toast, 'info');
+    const toastError = vi.spyOn(toast, 'error');
+    beforeEach(() => {
+      toastInfo.mockClear();
+      toastError.mockClear();
+    });
+    const stalled = () => vi.fn(() => new Promise<void>(() => {}));
+    const pip: EntryManagementEntry = {
+      ...poppy,
+      id: 'entry-2',
+      dogId: 'dog-2',
+      dogName: 'Pip',
+      armbandNumber: '115',
+      classes: [{ ...poppy.classes[0]!, id: 'entry-2' }],
+    };
+    const renderDesk = (onRefreshEntries: () => Promise<void>) =>
+      render(
+        <CheckInDesk
+          showId="show-1"
+          entries={[poppy, pip]}
+          loading={false}
+          unknown={false}
+          onRetry={vi.fn()}
+          onRefreshEntries={onRefreshEntries}
+          currentDate={NOW}
+        />
+      );
+    const pullDog = async (user: ReturnType<typeof render>['user'], dog: string) => {
+      await user.click(
+        screen.getByRole('button', { name: new RegExp(`^Change status for ${dog}`) })
+      );
+      const picker = await screen.findByRole('dialog');
+      await user.click(within(picker).getByRole('button', { name: /^Pulled/ }));
+      const confirm = await screen.findByRole('dialog', { name: `Pull ${dog}?` });
+      await user.click(within(confirm).getByRole('button', { name: 'Pull' }));
+    };
+
+    it('offers Undo and runs it while the re-read is stalled', async () => {
+      const { user } = renderDesk(stalled());
+      await pullDog(user, 'Poppy');
+      await waitFor(() => expect(h.showUndoToast).toHaveBeenCalledTimes(1));
+
+      h.showUndoToast.mock.calls[0]![0].onUndo();
+      await waitFor(() =>
+        expect(h.undoShowMapScratch).toHaveBeenCalledWith({
+          entryId: 'entry-1',
+          previousEntryStatus: 'accepted',
+        })
+      );
+    });
+
+    it('lets another dog be pulled while the first re-read is stalled', async () => {
+      const { user } = renderDesk(stalled());
+      await pullDog(user, 'Poppy');
+      await waitFor(() => expect(h.showUndoToast).toHaveBeenCalledTimes(1));
+
+      await pullDog(user, 'Pip');
+      await waitFor(() => expect(h.scratchShowMapEntry).toHaveBeenCalledTimes(2));
+      expect(h.scratchShowMapEntry).toHaveBeenLastCalledWith(
+        'entry-2',
+        undefined,
+        'Pulled at the check-in desk'
+      );
+      await waitFor(() => expect(h.showUndoToast).toHaveBeenCalledTimes(2));
+    });
+
+    it('does not offer an Undo that restores the pulled state when the same dog is pulled twice', async () => {
+      const { user } = renderDesk(stalled());
+      await pullDog(user, 'Poppy');
+      await waitFor(() => expect(h.showUndoToast).toHaveBeenCalledTimes(1));
+
+      // The row has not refreshed yet, so it is still editable; the stored entry says pulled.
+      h.scratchShowMapEntry.mockRejectedValueOnce(
+        Object.assign(new Error('already pulled'), { code: 'already-pulled' })
+      );
+      await pullDog(user, 'Poppy');
+
+      await waitFor(() => expect(h.scratchShowMapEntry).toHaveBeenCalledTimes(2));
+      await waitFor(() =>
+        expect(toastInfo).toHaveBeenCalledWith('Poppy is already pulled from Container Novice A')
+      );
+      expect(toastError).not.toHaveBeenCalled();
+      expect(h.showUndoToast).toHaveBeenCalledTimes(1);
+      expect(h.undoShowMapScratch).not.toHaveBeenCalled();
+    });
+
+    it('shows the stored Pull when the entries re-read fails', async () => {
+      resetReplica();
+      h.scratchShowMapEntry.mockImplementation(async (entryId: string) => {
+        writeReplicaRow(entryId, { entryStatus: 'scratched', checkInStatus: 'pulled' });
+        return { entryId, previousEntryStatus: 'confirmed' };
+      });
+      const { user } = render(
+        <StoredRowsDesk initial={[poppy]} reRead={() => Promise.reject(new Error('not synced'))} />
+      );
+      await pullDog(user, 'Poppy');
+
+      await waitFor(() =>
+        expect(screen.getByRole('region', { name: 'Alice Martin' })).toHaveTextContent('Pulled')
+      );
+      expect(
+        screen.queryByRole('button', { name: /^Change status for Poppy/ })
+      ).not.toBeInTheDocument();
+    });
+  });
+
   describe('a Pull that fails (MYK9-1844)', () => {
     let toastError: MockInstance<typeof toast.error>;
 
@@ -271,6 +386,30 @@ describe('Putting a pulled class back from the desk (MYK9-1749)', () => {
       newStatus: EntryStatus.ACCEPTED,
     });
     expect(h.updateReplicatedCheckInStatus).not.toHaveBeenCalled();
+  });
+
+  it('shows both the status and the check-in the stored Put back wrote when the re-read fails (MYK9-1812)', async () => {
+    resetReplica();
+    // What the real write stores: back to entered, and the check-in cleared from Pulled.
+    h.changeSecretaryEntryStatus.mockImplementation(
+      async ({ entry }: { entry: { id: string } }) => {
+        writeReplicaRow(entry.id, { entryStatus: 'confirmed', checkInStatus: 'no-status' });
+        return {};
+      }
+    );
+    const { user } = render(
+      <StoredRowsDesk
+        initial={[pulledPoppy]}
+        reRead={() => Promise.reject(new Error('not synced'))}
+      />
+    );
+    const confirm = await openPutBack(user);
+    await user.click(within(confirm).getByRole('button', { name: 'Put back' }));
+
+    const row = () => screen.getByRole('region', { name: 'Alice Martin' });
+    await waitFor(() => expect(row()).toHaveTextContent('Not checked in'));
+    expect(row()).not.toHaveTextContent('Pulled');
+    expect(screen.getByRole('button', { name: /^Change status for Poppy/ })).toBeInTheDocument();
   });
 
   it.each(['submitted', 'waitlisted', 'withdrawn'])(

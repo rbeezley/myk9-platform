@@ -49,11 +49,17 @@ function decisionStepType(status: EntryStatus): DecisionStepType | null {
 }
 
 /** One group per entry form (registration); an entry with no registration has no email. */
-function groupByRegistration(entries: EntryManagementEntry[]): EntryManagementEntry[][] {
+/**
+ * One email per entry form AND owner: a secretary's Add entry can put dogs with different
+ * owners on one form, and the email goes to the dog's owner, so each owner hears only about
+ * their own dogs, classes and fees.
+ */
+export function groupByRegistration(entries: EntryManagementEntry[]): EntryManagementEntry[][] {
   const groups = new Map<string, EntryManagementEntry[]>();
   for (const entry of entries) {
     if (!entry.registrationId) continue;
-    groups.set(entry.registrationId, [...(groups.get(entry.registrationId) ?? []), entry]);
+    const key = `${entry.registrationId}|${(entry.ownerEmail ?? '').trim().toLowerCase()}`;
+    groups.set(key, [...(groups.get(key) ?? []), entry]);
   }
   return [...groups.values()];
 }

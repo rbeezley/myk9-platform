@@ -3,7 +3,10 @@ import { toast } from 'sonner';
 import { renderHook } from '@/test/utils/testUtils';
 import { EntryStatus } from '@/types/show-registration-types';
 import type { BulkStatusChangeOptions, EntryManagementEntry } from '@/types/entry-management-types';
-import { useDecisionEmailedStatusChange } from './useDecisionEmailedStatusChange';
+import {
+  groupByRegistration,
+  useDecisionEmailedStatusChange,
+} from './useDecisionEmailedStatusChange';
 
 vi.mock('sonner', () => ({ toast: { info: vi.fn(), success: vi.fn(), error: vi.fn() } }));
 
@@ -187,5 +190,23 @@ describe('preview plan (draft or finished show)', () => {
     await handlers.onBulkStatusChange(['e1', 'e2', 'e3'], EntryStatus.ACCEPTED);
 
     expect(lifecycle.openDecisionPrompt).not.toHaveBeenCalled();
+  });
+});
+
+describe('groupByRegistration: one email per form and owner', () => {
+  it('splits one form whose dogs have different owners, so no owner sees another owner’s dog', () => {
+    const groups = groupByRegistration([
+      entry('e1', 'reg-1', { ownerEmail: 'a@example.com' }),
+      entry('e2', 'reg-1', { ownerEmail: 'B@example.com ' }),
+      entry('e3', 'reg-1', { ownerEmail: 'b@example.com' }),
+    ]);
+    expect(groups.map(g => g.map(e => e.id))).toEqual([['e1'], ['e2', 'e3']]);
+  });
+
+  it('keeps one form with one owner as one email', () => {
+    const groups = groupByRegistration(
+      formEntries.map(e => ({ ...e, ownerEmail: 'a@example.com' }))
+    );
+    expect(groups).toHaveLength(1);
   });
 });

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Opening a scoresheet is navigation, not judging. A dog's ring status and ring time change only when timed judging actually starts, so a sheet opened by mistake, left with Back or Cancel, or opened on a dog someone else has already pulled, scored or timed never leaves the running order wrong on show day.
+Opening a scoresheet is navigation, not judging. A dog's ring status and ring time change only when timed judging actually starts, and an ordinary leave of an unscored run (Back or Cancel, then Discard) puts the dog back. A sheet opened by mistake, or on a dog someone else has already pulled, scored or timed, does not leave that dog wrongly In ring. A reload or crash mid-run is outside this capability: the dog stays In ring until someone changes it.
 
 ## Requirements
 

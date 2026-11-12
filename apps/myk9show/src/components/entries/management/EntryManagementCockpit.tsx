@@ -212,7 +212,9 @@ export function EntryManagementCockpit({
       // The email waits for the decision to stand, on the Undo toast's own clock, and is
       // written from the entry as it is then (the Accept may have just given it an armband).
       plan === 'send' && stepType
-        ? { onStood: stoodEntry => sendDecisionEmail(stoodEntry, stepType, showName) }
+        ? {
+            onStood: stoodEntry => sendDecisionEmail(stoodEntry, stepType, showName ?? 'this show'),
+          }
         : undefined
     );
     if (entry && stepType && plan === 'preview' && statusSaved !== false) {

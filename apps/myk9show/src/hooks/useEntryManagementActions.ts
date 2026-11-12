@@ -124,12 +124,10 @@ export function useEntryManagementActions({
 }: UseEntryManagementActionsProps): UseEntryManagementActionsReturn {
   const [isProcessing, setIsProcessing] = useState(false);
   const entriesRef = useRef(entries);
-  const selectedShowIdRef = useRef(selectedShowId);
 
   useEffect(() => {
     entriesRef.current = entries;
-    selectedShowIdRef.current = selectedShowId;
-  }, [entries, selectedShowId]);
+  }, [entries]);
 
   // INTENT: Entry Management supports explicit per-entry armband corrections only.
   // Bulk automatic assignment was retired in MYK9-256 because no live workflow owned it;
@@ -174,10 +172,7 @@ export function useEntryManagementActions({
           changeSecretaryStatus: changeSecretaryEntryStatus,
           patchEntries: update => {
             setEntries(update);
-            if (typeof update === 'function') {
-              decided = update([decided])[0] ?? decided;
-              decided = { ...decided, entryStatus: newStatus };
-            }
+            decided = { ...(update([decided])[0] ?? decided), entryStatus: newStatus };
           },
         }
       );
@@ -202,10 +197,11 @@ export function useEntryManagementActions({
           onStood: options?.onStood
             ? () => {
                 const current = entriesRef.current.find(e => e.id === entryId);
-                if (current?.entryStatus === newStatus) {
-                  options.onStood?.(current);
-                } else if (!current && selectedShowIdRef.current !== decided.showId) {
-                  // The list now belongs to another show: the decision still stood.
+                if (current) {
+                  if (current.entryStatus === newStatus) options.onStood?.(current);
+                } else {
+                  // Not on this list: she switched shows inside the window (and perhaps back
+                  // to a list still loading). The decision still stood.
                   options.onStood?.(decided);
                 }
               }

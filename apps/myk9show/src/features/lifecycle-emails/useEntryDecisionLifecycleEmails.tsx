@@ -62,7 +62,7 @@ interface UseEntryDecisionLifecycleEmailsResult {
   sendDecisionEmail: (
     entry: EntryManagementEntry,
     stepType: DecisionStepType,
-    showName?: string
+    showName: string
   ) => void;
   reviewReadyEmail: (job: EntryDecisionEmailJob, entry: EntryManagementEntry) => void;
   prepareCorrectionEmail: (job: EntryDecisionEmailJob, entry: EntryManagementEntry) => void;
@@ -121,7 +121,16 @@ export function useEntryDecisionLifecycleEmails({
 
   const sendDecisionEmail = useSendDecisionEmail({
     showName,
-    onSettled: invalidateLifecycleEmailQueries,
+    // The send may belong to a show she has since left: refresh that show's caches too.
+    onSettled: settledShowId => {
+      invalidateLifecycleEmailQueries();
+      if (settledShowId !== showId) {
+        void queryClient.invalidateQueries({
+          queryKey: ['entry-decision-lifecycle-emails', settledShowId],
+        });
+        void queryClient.invalidateQueries({ queryKey: ['show-lifecycle-emails', settledShowId] });
+      }
+    },
   });
 
   // The show's switch in Scheduled emails is the decision to email (MYK9-1800). On, and the

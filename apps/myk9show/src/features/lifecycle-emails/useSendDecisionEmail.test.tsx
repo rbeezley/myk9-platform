@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { toast } from 'sonner';
 import { renderHook, waitFor } from '@/test/utils/testUtils';
 import { EntryStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
@@ -53,5 +54,40 @@ describe('useSendDecisionEmail after a show switch (MYK9-1833)', () => {
     expect(vi.mocked(saveDecisionEmailJob).mock.calls[0]?.[0]).toBe(showAEntry);
     expect(draft?.body).toContain('Show A');
     expect(draft?.body).not.toContain('Show B');
+  });
+
+  function sender(showName: string, onSettled = vi.fn()) {
+    return renderHook(() => useSendDecisionEmail({ showName, onSettled })).result.current;
+  }
+
+  it('names the dog in the success toast, and the show only when it is not the one on screen', async () => {
+    sender('Show B')(showAEntry, 'accepted', 'Show A');
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenCalledWith(
+        'Acceptance email sent to Pat Owner for Rex at Show A'
+      )
+    );
+
+    vi.mocked(toast.success).mockClear();
+    sender('Show A')(showAEntry, 'accepted', 'Show A');
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenCalledWith('Acceptance email sent to Pat Owner for Rex')
+    );
+  });
+
+  it('names the dog and show in the failure toast after a switch', async () => {
+    vi.mocked(sendLifecycleEmailJobs).mockResolvedValue({ sent: 0, failed: 1, total: 1 });
+    sender('Show B')(showAEntry, 'waitlisted', 'Show A');
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        'The waitlist email to Pat Owner for Rex at Show A did not send. Use "Email Exhibitor" on the entry to let them know.'
+      )
+    );
+  });
+
+  it('refreshes the lifecycle email caches of the show the decision was made on', async () => {
+    const onSettled = vi.fn();
+    sender('Show B', onSettled)(showAEntry, 'accepted', 'Show A');
+    await waitFor(() => expect(onSettled).toHaveBeenCalledWith('show-a'));
   });
 });

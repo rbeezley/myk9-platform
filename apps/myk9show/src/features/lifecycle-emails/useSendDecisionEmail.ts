@@ -14,8 +14,8 @@ const EMAIL_NAME: Record<DecisionStepType, { lower: string; title: string }> = {
 
 interface SendDecisionEmailArgs {
   showName: string | undefined;
-  /** A send was attempted: the entry's email status may have changed. */
-  onSettled: () => void;
+  /** A send was attempted for this show's entry: its email status may have changed. */
+  onSettled: (showId: string) => void;
 }
 
 /**
@@ -45,7 +45,7 @@ export function useSendDecisionEmail({
 }: SendDecisionEmailArgs): (
   entry: EntryManagementEntry,
   stepType: DecisionStepType,
-  decidedOnShowName?: string
+  decidedOnShowName: string
 ) => void {
   const latest = useRef({ showName, onSettled });
   useEffect(() => {
@@ -53,7 +53,7 @@ export function useSendDecisionEmail({
   });
 
   return useCallback(
-    (entry: EntryManagementEntry, stepType: DecisionStepType, decidedOnShowName?: string) => {
+    (entry: EntryManagementEntry, stepType: DecisionStepType, decidedOnShowName: string) => {
       const { lower: emailName, title: emailTitle } = EMAIL_NAME[stepType];
       const ownerName = entry.ownerName?.trim();
       const who = ownerName || 'the exhibitor';
@@ -73,8 +73,12 @@ export function useSendDecisionEmail({
 
       const send = async () => {
         const { showName: currentShowName, onSettled: settled } = latest.current;
-        // She may have switched shows inside the Undo window: the email names the show decided on.
-        const name = decidedOnShowName ?? currentShowName;
+        // She may have switched shows inside the Undo window: the email names the show decided
+        // on, and so do the notices, because the entry is no longer on screen.
+        const name = decidedOnShowName;
+        const dogAndShow =
+          `${entry.dogName ? ` for ${entry.dogName}` : ''}` +
+          (name !== (currentShowName ?? 'this show') ? ` at ${name}` : '');
         const draft = buildLifecycleEmailDraft({ stepType, ...decisionEmailContext(entry, name) });
         try {
           const jobId = await saveDecisionEmailJob(entry, stepType, {
@@ -89,14 +93,14 @@ export function useSendDecisionEmail({
           });
           // The send handler answers 200 even when delivery fails.
           if (result.failed > 0) throw new Error('Lifecycle email delivery failed');
-          toast.success(`${emailTitle} email sent to ${who}`);
+          toast.success(`${emailTitle} email sent to ${who}${dogAndShow}`);
         } catch (error) {
           if (error instanceof LifecycleEmailAlreadySavedError) return;
           toast.error(
-            `The ${emailName} email to ${who} did not send. Use "Email Exhibitor" on the entry to let them know.`
+            `The ${emailName} email to ${who}${dogAndShow} did not send. Use "Email Exhibitor" on the entry to let them know.`
           );
         } finally {
-          settled();
+          settled(entry.showId);
         }
       };
       void send();

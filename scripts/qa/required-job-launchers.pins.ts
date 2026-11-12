@@ -278,6 +278,11 @@ export const PINNED_SCRIPTS: readonly PinnedScript[] = [
   },
   {
     pkgDir: '.',
+    script: 'qa:commit-review:test',
+    command: 'vitest run scripts/qa/commit-review',
+  },
+  {
+    pkgDir: '.',
     script: 'qa:code-quality-ratchet',
     command: 'tsx scripts/qa/code-quality-ratchet.ts',
   },

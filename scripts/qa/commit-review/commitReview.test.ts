@@ -162,7 +162,9 @@ describe('validateRecord', () => {
 
 describe('store and cli', () => {
   let dir: string;
-  afterEach(() => dir && rmSync(dir, { recursive: true, force: true }));
+  afterEach(() => {
+    if (dir) rmSync(dir, { recursive: true, force: true });
+  });
 
   it('round-trips atomically and mark-reviewed persists evidence', () => {
     dir = mkdtempSync(join(tmpdir(), 'commit-review-'));

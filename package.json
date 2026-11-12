@@ -6,6 +6,8 @@
   "scripts": {
     "qa:backups:typecheck": "tsc --noEmit -p scripts/backup/tsconfig.json",
     "qa:backups:test": "vitest run scripts/backup --sequence.shuffle",
+    "qa:commit-review:validate": "tsx scripts/qa/commit-review/cli.ts",
+    "qa:commit-review:test": "vitest run scripts/qa/commit-review",
     "qa:browser-session": "tsx scripts/qa/browser-session.ts",
     "qa:browser-session:test": "tsx --test scripts/qa/browser-session.test.ts",
     "dev:show": "turbo dev --filter=@myk9/show",

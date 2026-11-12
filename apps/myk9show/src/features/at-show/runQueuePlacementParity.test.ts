@@ -22,6 +22,23 @@ describe('run queue and placement model agree on who is waiting', () => {
     }
   }
 
+  it('a stale ring_entry_time with is_in_ring false is waiting in both (MYK9-1889)', () => {
+    const rows = [
+      {
+        id: 'x',
+        classId: 'c',
+        armband: '1',
+        runOrder: 9,
+        checkInStatus: 'checked-in',
+        ring_entry_time: '2026-07-20T10:00:00Z',
+        is_in_ring: false,
+      },
+      { id: 'ref', classId: 'c', armband: '2', runOrder: 31 },
+    ] as ReplicatedEntry[];
+    expect(pendingReplicatedByRunOrder(rows).map(r => r.id)).toEqual(['x', 'ref']);
+    expect(buildClassPlacement(rows, []).model.waiting.map(r => r.id)).toEqual(['x', 'ref']);
+  });
+
   it('check-in completed is not waiting in either', () => {
     const rows = [
       { id: 'x', classId: 'c', armband: '1', runOrder: 9, checkInStatus: 'completed' },

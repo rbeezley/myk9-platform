@@ -184,7 +184,7 @@ describe('cockpit entry rows carry the stranded actions', () => {
     expect(screen.queryAllByRole('button', { name: /^Actions for #\d+ Dog/ })).toHaveLength(0);
   });
 
-  it('renders no row menu once the class is in progress, built through the real builder', () => {
+  it('offers no Change class once the class is in progress, built through the real builder', async () => {
     const { snapshot } = buildSnapshot(classesWithStatus('in_progress'));
     const model = buildSecretaryCockpitModel(snapshot, {
       selectedDays: undefined,
@@ -208,7 +208,10 @@ describe('cockpit entry rows carry the stranded actions', () => {
       />
     );
     expect(screen.getAllByTestId('class-entry-row')).toHaveLength(ENTRY_COUNT);
-    expect(screen.queryAllByRole('button', { name: /^Actions for #\d+ Dog/ })).toHaveLength(0);
+    // The engine offers no move-up now, but the menu still carries Edit entry.
+    await userEvent.click(screen.getAllByRole('button', { name: /^Actions for #\d+ Dog/ })[0]!);
+    expect(await screen.findByRole('menuitem', { name: 'Edit entry' })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /^Change class/i })).toBeNull();
   });
 
   it('offers move-up on EVERY entry, not just the first 25', () => {

@@ -13,7 +13,10 @@ import { queueFor } from './__tests__/queueFixture';
 import type { FocusedClassModel, SecretaryCockpitClass } from './secretaryCockpitTypes';
 
 vi.mock('@/hooks/useAuthContext', () => ({
-  useAuthContext: () => ({ user: { id: 'user-1', email: 'secretary@example.com' } }),
+  useAuthContext: () => ({
+    user: { id: 'user-1', email: 'secretary@example.com' },
+    hasRole: () => true,
+  }),
 }));
 vi.mock('@/services/replication', () => ({
   replicatedPaperworkPrintsTable: { confirmPrinted: vi.fn(), voidPrint: vi.fn() },

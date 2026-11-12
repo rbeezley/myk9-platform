@@ -68,7 +68,10 @@ vi.mock('@/services/replication', () => ({
   },
 }));
 vi.mock('@/hooks/useAuthContext', () => ({
-  useAuthContext: () => ({ user: { id: 'user-1', email: 'sec@example.com', user_metadata: {} } }),
+  useAuthContext: () => ({
+    user: { id: 'user-1', email: 'sec@example.com', user_metadata: {} },
+    hasRole: () => true,
+  }),
 }));
 vi.mock('@/store/messageStore', () => ({
   useMessageStore: (

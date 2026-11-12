@@ -94,7 +94,13 @@ export function SecretaryCockpitFocusedClass({
     detailsAction?.destination.kind === 'href' ? detailsAction.destination.href : null;
 
   const rowMenu = canManageShow
-    ? { actions: new Map(focused.entryRows.map(row => [row.nodeId, row.actions])), onCommand }
+    ? {
+        actions: new Map(focused.entryRows.map(row => [row.nodeId, row.actions])),
+        showId,
+        classId: focused.id,
+        classLifecycle: focused.lifecycle.value,
+        onCommand,
+      }
     : undefined;
   const unread = entriesUnread(focused.entries, sourceClass.entryCount);
   // The Run order menu hides itself below 2 entries, so its label does too.

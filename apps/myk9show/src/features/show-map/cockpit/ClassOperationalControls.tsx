@@ -164,7 +164,7 @@ export function ClassStatusChoices({
 }
 
 /** The class's status as a read-only badge; changing it goes through the header's Actions menu. */
-export function ClassStatusControl({ lifecycle }: { lifecycle: CockpitLifecycle | null }) {
+export function ClassStatusBadge({ lifecycle }: { lifecycle: CockpitLifecycle | null }) {
   const label = lifecycle ? STATUS_LABEL[lifecycle] : 'Status unknown';
   const tone =
     lifecycle === 'complete'
@@ -223,14 +223,10 @@ export function ExpectedStartControl({
   }
   if (!canManageShow || onEditingChange === undefined) {
     return (
-      <button
-        type="button"
-        disabled
-        className="group inline-flex min-h-11 items-center gap-1.5 text-left text-sm font-semibold text-foreground disabled:cursor-default"
-      >
+      <span className="group inline-flex min-h-11 items-center gap-1.5 text-left text-sm font-semibold text-foreground">
         <Clock3 className="h-4 w-4 text-muted-foreground" />
         {effective || 'Set expected start'}
-      </button>
+      </span>
     );
   }
   const setIsEditing = onEditingChange;

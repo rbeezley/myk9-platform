@@ -22,7 +22,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { RunOrderPresetItems } from '../ShowMapRunOrderMenu';
-import { AnnounceDelayButton } from './AnnounceDelayButton';
+import { AnnounceDelayPanel } from './AnnounceDelayPanel';
 import { getCockpitPaperScoringHref, getShowHomeHref } from './cockpitRoutes';
 import type { SecretaryCockpitRunOrderControls } from './secretaryCockpitTypes';
 
@@ -169,7 +169,7 @@ export function FocusedClassActionsMenu({
       </DropdownMenu>
 
       {showDelay && (
-        <AnnounceDelayButton
+        <AnnounceDelayPanel
           showId={showId}
           className={className}
           delayMinutes={delayMinutes}

@@ -376,9 +376,9 @@ A phase is not complete until its tests pass.
 
 ## Explicit non-goals
 
-- **The four service-role specs stay as they are.** `show-live-sync`,
-  `uat/shared/secretaryData`, `show/atShowOfflineScoring` and
-  `show/secretaryCockpitSharedSync` hold `SUPABASE_SERVICE_ROLE_KEY` and write
+- **The three service-role specs stay as they are.** `show-live-sync`,
+  `uat/shared/secretaryData` and `show/atShowOfflineScoring` (the fourth,
+  `show/secretaryCockpitSharedSync`, was deleted by MYK9-1811) hold `SUPABASE_SERVICE_ROLE_KEY` and write
   to the live project with RLS bypassed. They are the real hazard once clubs
   have data in there, and they need project isolation, not fixtures. Tracked
   separately.

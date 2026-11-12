@@ -153,7 +153,7 @@ Each phase ends with its own checks passing. One pull request per phase.
 
 ### Phase 0: decisions and inventory
 
-- The owner's four decisions are recorded under "Decisions". Find the WooCommerce sales export for the trust bar's club count.
+- The owner's four decisions are recorded under "Decisions".
 - Re-verify the Show day and Results flows in code the way Entries open was verified, and write each scene's numbered lines.
 - Add or update KEEP rows in the evidence doc for every line.
 - **Tests:** `lifecycleStories.test.ts` updated for the new data shape and still enforcing `BANNED_COPY`.
@@ -235,7 +235,9 @@ All four were open when this plan was written. They are settled.
 
    Say "about half", never a fixed "3%": the card rate varies and applies to the total, not the entry fee alone.
 
-2. **Trust bar: four claims, plus one number.** The claims: scent-sport software since 2013; AKC, UKC and ASCA scent work; scores at the ring with no signal; from the team behind mySWT, myNWT and myK9Q. The number: how many clubs use mySWT and myNWT, counted from the owner's export of Access application sales and renewals from the myk9t.com WooCommerce store. **That export was not found** on 2026-11-12 in this repo, its database, or the `MS-Access` and `myK9Qv3` folders on the Windows machine. Until it is located the bar ships with the four claims and no number. No testimonials, club names or logos.
+2. **Trust bar: four claims, plus one number.** The claims: scent-sport software since 2013; AKC, UKC and ASCA scent work; scores at the ring with no signal; from the team behind mySWT, myNWT and myK9Q. The number: **"More than 200 clubs run their trials on mySWT and myNWT."** No testimonials, club names or logos.
+
+   Where the number comes from: the owner's WooCommerce licence-key export of 2026-10-25 (413 active keys), counted on 2026-11-12. Leaving out free demos and keys expired since the export, 280 paid mySWT or myNWT subscriptions are held by 211 customers (mySWT 247 keys, 185 customers; myNWT 33 keys, 32 customers). The customer on a key is a person, not a club, and 27 of them hold two or more keys of the same product, which the file cannot split into second clubs, early renewals and second computers. So the customer count is the floor and the claim is "more than 200", the owner's choice. The export holds names and emails: it stays out of the repo, and the count is redone from a fresh export before the page ships.
 
 3. **FAQ: all six questions.**
    - Ready to answer: Does it work with no signal? (Scoring at the ring does and sends itself later; entries, payments and sign-in need a connection, and the answer says so.) Which registries and sports? What does it cost?

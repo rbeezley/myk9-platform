@@ -176,6 +176,7 @@ export function useBulkDispatch<T>({
         return;
       }
       // Partial failure: the toast offers "Try failed again", not Undo, so what succeeded stands.
+      // Known: a retried entry that then succeeds is emailed on its own, a second email for its form.
       if (onStood && outcome.succeeded.length > 0) onStood(outcome);
 
       const details = unclaimed.map(

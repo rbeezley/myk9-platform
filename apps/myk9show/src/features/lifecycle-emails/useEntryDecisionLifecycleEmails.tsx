@@ -155,8 +155,11 @@ export function useEntryDecisionLifecycleEmails({
   };
 
   const reviewReadyEmail = (job: EntryDecisionEmailJob, entry: EntryManagementEntry) => {
+    // A job covering several classes reopens with all of them, so the header and draft agree.
+    const covered = job.coveredEntryIds.flatMap(id => entries.find(item => item.id === id) ?? []);
     setPrompt({
       entry,
+      ...(covered.length > 1 ? { decidedEntries: sortDecidedEntries(covered) } : {}),
       stepType: job.stepType,
       jobId: job.id,
       correctionForJobId: job.correctionForJobId,

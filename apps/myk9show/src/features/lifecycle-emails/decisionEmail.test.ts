@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildDecisionEmailIdempotencyKey,
   buildDecisionEmailKeyForEntries,
+  coveredEntryIds,
   buildEntryDecisionLifecycleEmailIdempotencyKey,
   decisionEmailContext,
   isDecisionEmailSuperseded,
@@ -214,5 +215,30 @@ describe('one decision email for several entries of a registration (MYK9-1800)',
     expect(isDecisionEmailSuperseded(prompt, [a, { ...b, entryStatus: EntryStatus.PENDING }])).toBe(
       true
     );
+  });
+});
+
+describe('coveredEntryIds', () => {
+  it('reads every entry from a multi-entry batch key', () => {
+    expect(coveredEntryIds('reg-1:decided:a,b,c', 'a')).toEqual(['a', 'b', 'c']);
+  });
+
+  it('covers just the anchor for a single-entry job (no batch key or a "single" one)', () => {
+    expect(coveredEntryIds(null, 'a')).toEqual(['a']);
+    expect(coveredEntryIds('single', 'a')).toEqual(['a']);
+  });
+
+  it('covers just the anchor for a malformed key, and nothing for a job with no entry', () => {
+    expect(coveredEntryIds('reg-1:decided:', 'a')).toEqual(['a']);
+    expect(coveredEntryIds('reg-1:decided:x,y', 'a')).toEqual(['a']);
+    expect(coveredEntryIds('reg-1:decided:a,b', null)).toEqual([]);
+  });
+
+  it('round-trips the key the save builds', () => {
+    const e = (id: string) =>
+      ({ id, showId: 's', registrationId: 'reg-1' }) as unknown as EntryManagementEntry;
+    const key = buildDecisionEmailKeyForEntries([e('c'), e('a'), e('b')], 'accepted');
+    expect(key).toContain('reg-1:decided:a,b,c');
+    expect(coveredEntryIds('reg-1:decided:a,b,c', 'a')).toEqual(['a', 'b', 'c']);
   });
 });

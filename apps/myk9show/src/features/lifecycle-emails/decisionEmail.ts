@@ -54,6 +54,24 @@ export function sortDecidedEntries(entries: EntryManagementEntry[]): EntryManage
   return [...entries].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
 
+const DECIDED_MARKER = ':decided:';
+
+/**
+ * The entries one decision job covers, read from its `batch_key`
+ * (`<registrationId>:decided:<sorted entry ids>`, written by `buildDecisionEmailKeyForEntries`).
+ * A single-entry job, a missing or malformed key all cover just the anchor entry.
+ */
+export function coveredEntryIds(batchKey: string | null, anchorEntryId: string | null): string[] {
+  if (!anchorEntryId) return [];
+  const at = batchKey?.indexOf(DECIDED_MARKER) ?? -1;
+  if (!batchKey || at < 0) return [anchorEntryId];
+  const ids = batchKey
+    .slice(at + DECIDED_MARKER.length)
+    .split(',')
+    .filter(Boolean);
+  return ids.includes(anchorEntryId) ? [...new Set(ids)] : [anchorEntryId];
+}
+
 /**
  * The key for ONE email covering several entries of a registration decided together:
  * registration + step + the sorted decided entry ids. The job is anchored on the first of
@@ -76,7 +94,7 @@ export function buildDecisionEmailKeyForEntries(
     recipientScope: 'enrollment',
     entryId: first.id,
     enrollmentId: first.registrationId,
-    batchKey: `${first.registrationId}:decided:${[first, ...rest].map(entry => entry.id).join(',')}`,
+    batchKey: `${first.registrationId}${DECIDED_MARKER}${[first, ...rest].map(entry => entry.id).join(',')}`,
     correctionForJobId: correctionForJobId ?? null,
   });
 }

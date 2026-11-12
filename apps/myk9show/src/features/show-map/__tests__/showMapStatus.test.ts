@@ -161,6 +161,38 @@ describe('showMapStatus', () => {
     expect(classifyEntryRunStatus(entry)?.label).toBe(expectedLabel);
   });
 
+  describe('in-ring uses the shared Ringside rule (MYK9-1892)', () => {
+    it('a leftover ring_entry_time on a checked-in, not-in-ring dog is not In ring', () => {
+      const status = classifyEntryRunStatus({
+        entry_status: 'accepted',
+        check_in_status: 'checked-in',
+        is_in_ring: false,
+        ring_entry_time: '2026-09-18T12:00:00Z',
+      });
+      expect(status?.value).not.toBe('in-ring');
+      expect(status?.label).toBe('Pending');
+    });
+
+    it.each([
+      ['check-in in-ring', { check_in_status: 'in-ring' }],
+      ['is_in_ring flag', { check_in_status: 'checked-in', is_in_ring: true }],
+    ])('a genuine in-ring dog (%s) is still In ring', (_name, fields) => {
+      expect(
+        classifyEntryRunStatus({
+          entry_status: 'accepted',
+          ring_entry_time: '2026-09-18T12:00:00Z',
+          ...fields,
+        })?.label
+      ).toBe('In ring');
+    });
+
+    it('a stale in-ring flag on a withdrawn row is not In ring', () => {
+      expect(classifyEntryRunStatus({ entry_status: 'withdrawn', is_in_ring: true })?.label).toBe(
+        'Pulled'
+      );
+    });
+  });
+
   it("classifies 'moved' as muted, matching pulled/scratched (MYK9-825)", () => {
     expect(classifyEntryRunStatus({ entry_status: 'moved' })).toEqual({
       value: 'moved',

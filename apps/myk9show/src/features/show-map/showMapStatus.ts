@@ -6,7 +6,8 @@ import {
   type TrialStatusKey,
 } from '@myk9/core';
 import { getStatusDescriptor } from '@/components/status';
-import { isExpectedEntry } from '@/features/_shared/entryAccounting';
+import { isInRingEntry } from '@myk9/ringside/run-queue';
+import { isExpectedEntry, isRunnableEntry } from '@/features/_shared/entryAccounting';
 import type {
   ShowMapClassInput,
   ShowMapDisplayStatus,
@@ -184,7 +185,16 @@ export function classifyEntryRunStatus(entry: ShowMapEntryInput): ShowMapDisplay
     return { value: resultStatus ?? 'complete', label: 'Complete', kind: 'complete' };
   }
 
-  if (checkInStatus === 'in-ring' || readString(entry, 'ring_entry_time')) {
+  // In ring is the shared Ringside rule (`isInRingEntry`: runnable and is_in_ring or check-in
+  // 'in-ring'), the same one the run queue and run-order placement use (MYK9-1889). A leftover
+  // ring_entry_time alone is not in the ring; only a pressed Start stamps it now (MYK9-1779).
+  const inRing = isInRingEntry({
+    id: '',
+    armband: null,
+    status: checkInStatus,
+    inRing: readBoolean(entry, 'is_in_ring') || readBoolean(entry, 'isInRing'),
+  });
+  if (inRing && isRunnableEntry(entry)) {
     return { value: 'in-ring', label: 'In ring', kind: 'active' };
   }
 

@@ -18,7 +18,8 @@ import { isUnsetJudgeName } from '@/utils/classJudgeDisplay';
  */
 
 import type { Entry, ClassInfo, EntryListData, EntryListDataDependencies } from '@myk9/ringside';
-import { buildCombinedClassName } from '@myk9/ringside/run-queue';
+import { buildCombinedClassName, isInRingEntry } from '@myk9/ringside/run-queue';
+import { isRunnableEntry } from '@/features/_shared/entryAccounting';
 import type { EntryStatus } from '@myk9/core';
 import {
   replicatedArmbandsTable,
@@ -38,7 +39,6 @@ import type { ShowChangeSignal } from '@/features/show-live-sync/showChangeSigna
 import { getTrialRegistry, getTrialTimezone } from '@/features/registries';
 import { buildRingsideStatusInfo, withCombinedStatusLabel } from './ringsideStatusInfo';
 import { scoresheetKeyForClass } from '@/pages/scoring/types';
-import { toRunQueueEntry } from './replicatedRunQueue';
 import { settleRingRestores } from '@/utils/checkInTransitions';
 import type { AtShowSyncInFlight } from './atShowSyncOutcome';
 import { startAtShowSyncRun } from './atShowSyncRun';
@@ -244,9 +244,17 @@ export function transformEntry(re: ReplicatedEntry, cls: ReplicatedClass | null)
     isScored: re.isScored ?? re.is_scored ?? false,
     status,
     // Deprecated compat fields.
-    // The shared in-ring rule (MYK9-1892): runnable and (is_in_ring or check-in 'in-ring'), the
-    // same projection the run queue uses, never ring_entry_time.
-    inRing: toRunQueueEntry(re).inRing === true,
+    // The shared in-ring rule (MYK9-1892): runnable and (is_in_ring or check-in 'in-ring'),
+    // never ring_entry_time. Uses the run-queue subpath, not replicatedRunQueue, which would
+    // pull the ringside UI barrel into the entry chunk.
+    inRing:
+      isRunnableEntry(re) &&
+      isInRingEntry({
+        id: re.id,
+        armband: null,
+        status,
+        inRing: (re.isInRing ?? re.is_in_ring ?? false) === true,
+      }),
     checkedIn: checkinStatus === 'checked-in',
 
     // Class-derived header fields.

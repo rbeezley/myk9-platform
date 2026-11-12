@@ -48,6 +48,33 @@ export interface RunRecord {
   findings: Finding[];
   verificationLimitations: string[];
   publication: Publication;
+  /**
+   * Controller bookkeeping (MYK9-1891). Optional and additive, so schemaVersion
+   * stays 1 and records written by part 1 remain valid unchanged.
+   */
+  controller?: ControllerState;
+}
+
+export type AttemptClass = 'ok' | 'no-progress' | 'transient' | 'permanent';
+
+export interface Attempt {
+  n: number;
+  startedAt: string;
+  endedAt: string;
+  exitCode: number;
+  sessionId?: string;
+  reviewedBefore: number;
+  reviewedAfter: number;
+  prefixBefore: number;
+  prefixAfter: number;
+  classification: AttemptClass;
+  error?: string;
+}
+
+export interface ControllerState {
+  /** Codex session the next attempt resumes. */
+  sessionId?: string;
+  attempts: Attempt[];
 }
 
 export type OutcomeKind = 'complete' | 'complete-empty' | 'incomplete' | 'blocked';

@@ -152,8 +152,8 @@ const WaitlistManagementPage: React.FC<WaitlistManagementPageProps> = ({ showId 
 
       {isCapacityUnavailable && judgeDays.length === 0 && (
         <p className="text-sm text-muted-foreground" data-testid="judge-day-capacity-offline">
-          Judge-day capacity needs a connection, so the cards are unavailable offline. The wait
-          lists below are read from this device.
+          Judge-day capacity needs a connection, so the cards are unavailable offline. The waitlists
+          below are read from this device.
         </p>
       )}
 

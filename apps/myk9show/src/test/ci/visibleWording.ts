@@ -116,7 +116,9 @@ export function scanVisibleWording(fileName: string, source: string): WordingHit
 
   const visit = (node: ts.Node) => {
     if (isTextNode(node)) {
-      const text = node.text;
+      // Collapse whitespace as the browser does: Prettier wraps long JSX text, and a phrase
+      // split across lines ("The wait⏎lists") still reads as one phrase on screen.
+      const text = node.text.replace(/\s+/g, ' ');
       const trimmed = text.trim();
       if (!NON_VISIBLE_MATCH_KEYS.has(trimmed) && !isHiddenText(node)) {
         if (WAITLIST_PATTERN.test(text)) report(node, 'waitlist is one word', text);

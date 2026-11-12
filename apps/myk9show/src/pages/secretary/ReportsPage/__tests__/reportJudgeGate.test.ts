@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { officialFormJudgeBlock } from '../reportJudgeGate';
 
+// Every stored trial has a name (MYK9-704); the label shows it, not "Trial ${trial_number}".
 const trials = [
-  { id: 't1', registry_id: 'AKC', trial_number: 1 },
-  { id: 't2', registry_id: 'AKC', trial_number: 2 },
-  { id: 'u1', registry_id: 'UKC', trial_number: 3 },
+  { id: 't1', registry_id: 'AKC', name: 'Trial 1', trial_number: 1 },
+  { id: 't2', registry_id: 'AKC', name: 'Trial 2', trial_number: 2 },
+  { id: 'u1', registry_id: 'UKC', name: 'Trial 3', trial_number: 3 },
 ];
 
 const judged = { id: 'c1', trial_id: 't1', element: 'Buried', level: 'Novice', judge: 'Pat Judge' };
@@ -49,6 +50,27 @@ describe('officialFormJudgeBlock', () => {
     );
 
     expect(message).toContain('Container Novice A (Trial 2)');
+  });
+
+  it('names the trial once, whether its stored number is "4" or "Trial 4" (MYK9-1903)', () => {
+    const storedTrials = [
+      { id: 's1', registry_id: 'AKC', name: 'Trial 4', trial_number: 'Trial 4' },
+      { id: 's2', registry_id: 'AKC', name: 'Saturday Trial', trial_number: '1' },
+    ];
+    const message = officialFormJudgeBlock(
+      'result-catalog',
+      null,
+      storedTrials,
+      [
+        { ...unjudged, trial_id: 's1' },
+        { ...unjudged, id: 'c4', trial_id: 's2' },
+      ],
+      'all',
+      'all'
+    );
+
+    expect(message).toContain('Container Novice A (Trial 4), Container Novice A (Saturday Trial)');
+    expect(message).not.toContain('Trial Trial');
   });
 
   it('leaves club reports alone', () => {

@@ -1,3 +1,4 @@
+import { formatTrialLabel } from '@myk9/core';
 import { getTrialRegistry } from '@/features/registries';
 import { resolveClassSection } from '@/services/entryDisplay/entryDisplaySelectors';
 import { classesMissingJudge } from '@/utils/classJudgeDisplay';
@@ -25,6 +26,7 @@ const AKC_ONLY_WHEN_WHOLE_SELECTION_IS_AKC = 'result-catalog';
 interface GateTrial {
   id: string;
   registry_id?: string | null;
+  name?: string | null;
   trial_number?: string | number | null;
 }
 
@@ -106,8 +108,11 @@ export function officialFormJudgeBlock(
   const multipleTrials = new Set(akcClasses.map(cls => cls.trial_id)).size > 1;
   const names = missing.map(cls => {
     const label = classLabel(cls) || 'Unnamed class';
-    const trialNumber = trialById.get(cls.trial_id ?? '')?.trial_number;
-    return multipleTrials && trialNumber != null ? `${label} (Trial ${trialNumber})` : label;
+    const trial = trialById.get(cls.trial_id ?? '');
+    // The trial's name, never "Trial ${trial_number}": seed rows store "Trial 4" (MYK9-704, MYK9-1903).
+    return multipleTrials && trial
+      ? `${label} (${formatTrialLabel({ name: trial.name, trialNumber: trial.trial_number })})`
+      : label;
   });
   return `These classes need a judge before you can print this form: ${names.join(', ')}. Assign a judge to each class, then come back.`;
 }

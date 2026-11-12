@@ -20,7 +20,8 @@ import {
  * then one letter per line, the header ~540px tall). Class names cannot see that; only rendered
  * geometry can. Hermetic (no sign-in, no staging): the REAL EntryListHeader, SyncIndicator,
  * FilterTriggerButton and offline note markup, styled by Tailwind compiled from the app's own
- * config. Fonts are the browser default sans, so widths are indicative, not pixel-exact.
+ * config. The font is pinned to a wide face (Verdana, else DejaVu Sans, which CI's Linux runner has), so the
+ * measurement is conservative and does not depend on the runner's default font.
  */
 
 const LONGEST_CLASS = 'Handler Discrimination Advanced';
@@ -29,6 +30,7 @@ const SCREENS = [
   { name: '768 portrait', width: 768, height: 1024 },
   { name: '834 portrait', width: 834, height: 1112 },
   { name: '1024 landscape', width: 1024, height: 768 },
+  { name: '1280 landscape', width: 1280, height: 800 },
 ] as const;
 const MAX_HEADER_HEIGHT = 160;
 
@@ -91,7 +93,7 @@ function headerHtml(args: { className: string; offline: boolean; pending: number
 async function load(page: Page, html: string): Promise<void> {
   const css = await appCss();
   await page.setContent(
-    `<!DOCTYPE html><html><head><style>${css}</style></head><body>${html}</body></html>`
+    `<!DOCTYPE html><html><head><style>${css} body { font-family: Verdana, 'DejaVu Sans', sans-serif; }</style></head><body>${html}</body></html>`
   );
 }
 

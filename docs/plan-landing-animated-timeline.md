@@ -197,6 +197,8 @@ Product-screen observations, outside this plan's scope. Filed 2026-11-12 at the 
 - MYK9-1896: the card option and the checkout success page say entries "are confirmed" after payment, while a paid entry still awaits review.
 - MYK9-1898: the "Needs review" pill is cut off in the Entry Forms list at 1440px wide with the form panel open.
 - MYK9-1899: on a portrait tablet the ringside entry-list header breaks after a score is saved offline; the class name wraps one letter per line.
-- Not filed, paper scoring page, confirmed by reading the code: in Card view "Cancel" does nothing (`SequentialView.tsx:90`); the List / Card choice is saved but never read back, and every link forces the split view; "Back to Class" goes to Class Details and ignores the `returnTo` that Show Desk sends.
+- MYK9-1905: on the paper scoring page, "Cancel" in Card view does nothing (`SequentialView.tsx:90`).
+- MYK9-1906: the paper scoring List / Card choice is saved but never read back, and every link forces the split view.
+- MYK9-1907: paper scoring's "Back to Class" goes to Class Details and ignores the `returnTo` that Show Desk sends.
 - Not filed, not confirmed: the "show has started" banner uses the device's date while the schedule uses the trial's timezone, so the two could disagree near midnight or for a remote secretary (`showDeskStatus.ts:56`).
 - Not a bug, not filed: signed out, `/shows` lists no upcoming shows because the public list filters out demo clubs (`club.is_demo=eq.false`), and the seed show belongs to one. It matters here only for capture: the exhibitor's "Find a show" still needs a signed-in view or a non-demo fixture.

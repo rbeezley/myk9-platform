@@ -320,6 +320,7 @@ jobs:
           pnpm qa:go-live:phase2:test
           pnpm qa:go-live:phase3:test
           pnpm qa:go-live:phase4:test
+          pnpm qa:commit-review:test
 
       - name: Code-quality ratchets
         run: |

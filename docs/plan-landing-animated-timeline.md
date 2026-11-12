@@ -69,14 +69,14 @@ One reusable component, `TimelineScene`, driven by data in `lifecycleStories.ts`
 
 Six full scenes would make a very long page. Three steps sell the product and get the full treatment; the other three are one still and one line each.
 
-| Step            | Treatment | Notes                                                                   |
-| --------------- | --------- | ----------------------------------------------------------------------- |
-| Set up          | Still     | Create Show wizard                                                      |
-| Entries open    | Scene     | Prototyped; flow below                                                  |
-| Before show day | Still     | Keeps `NightBeforeCard`                                                 |
-| Show day        | Scene     | Judge's tablet scores with no signal; keeps `ScoresheetDemo` beneath it |
-| Results         | Scene     | Secretary releases; exhibitor's phone shows the placement               |
-| After           | Still     | Dog's record                                                            |
+| Step            | Treatment | Notes                                                                    |
+| --------------- | --------- | ------------------------------------------------------------------------ |
+| Set up          | Still     | Create Show wizard                                                       |
+| Entries open    | Scene     | Prototyped; flow below                                                   |
+| Before show day | Still     | Keeps `NightBeforeCard`                                                  |
+| Show day        | 2 scenes  | At the ring (judge, prototyped) and at the desk (secretary); flows below |
+| Results         | Scene     | Secretary releases; exhibitor's phone shows the placement                |
+| After           | Still     | Dog's record                                                             |
 
 ### The real "Entries open" flow (verified in code 2026-11-12)
 
@@ -91,6 +91,51 @@ Facts the copy must respect:
 - The secretary's list shows no class-limit figure. The limit is enforced when the exhibitor enters.
 - Accepting sends no email. The secretary sends the decision email by hand.
 - Armbands are not assigned by an online entry or by Accept.
+
+### Show day has two scenes (owner, 2026-11-12)
+
+The judge is a key role and works almost entirely in Ringside, and the secretary has her own show-day screens, including typing results in from paper when tablets are not used. Show day therefore carries two scenes, one after the other, inside the one step. It does not add a third audience to the switch: judges do not choose the software.
+
+Do not capture the desk scene until the page fixes are finished. Its lines are written now so the flow is checked; the screens are among those most likely to change.
+
+### The real "Show day, at the ring" flow (verified in code and prototyped 2026-11-12)
+
+The judge's tablet leads; the exhibitor's phone is the second device.
+
+1. **The judge opens their ring.** Ringside's class list has a "Your ring" section with the judge's classes in order and how many dogs are left.
+2. **The signal drops. The run order stays.** The entry list shows "Offline · scores saved on this device" and the dogs still to run.
+3. **Time the run, mark the result.** The scoresheet has Start, then Stop, then Qualified, NQ, Absent, Excused or DQ. Faults appear for a Qualified run.
+4. **Read it back, then submit.** "Score Confirmation" lists the result and time, with "Confirm & Submit". The tablet then says "Saved on this device. It will send when you're back online."
+5. **It sends itself when the signal returns.** The exhibitor's My Entries row shows "New result".
+
+Facts the copy must respect:
+
+- Scoring is not gated on the date. The exhibitor's "Show day is here" banner is, and by the server's clock, so it cannot be staged by changing a browser clock.
+- While the tablet is offline the exhibitor's phone does not change. "In ring" and the result both arrive only after the tablet reconnects.
+- There is no auto-advance after a score. The judge chooses "Back to Entries" or a dog at the gate.
+- The reconnect ("Score saved", the "Scores sent" toast, "Synced") was not captured, because capturing it would send a real score.
+- Capture at 834px wide or wider until MYK9-1899 is fixed: at 768px the entry-list header breaks.
+
+### The real "Show day, at the desk" flow (verified in code 2026-11-12, not captured)
+
+The secretary's screen leads. The second device is the judge's tablet for lines 1 to 3. For line 4 there is no second device: the paper score sheet is the other half of the picture, so that frame needs a different treatment (a printed Score Sheet beside the screen).
+
+1. **Your day is one list.** Show Desk opens on "Today's schedule". Each class row says where it stands, for example "Not started · 3 of 5 not checked in".
+2. **Check dogs in as they arrive.** The Check-in desk searches by name, dog or armband, with a "Check in" button per dog.
+3. **Watch a class run.** Once a class is "In progress" its row reads "Running · 2 of 6 scored · Willow in ring" as the tablets send their scores.
+4. **No tablets? Type the scores in from paper.** "Open paper scoring" lists the class in run order. For each dog the secretary picks the result, types the search time and presses "Save & Next", until the heading reads "6 of 6 scored".
+5. **Complete the class and move on.** Setting Status to "Complete" warns if paper scores are still missing, then offers "Continue on Results".
+
+Facts the copy must respect:
+
+- Show Desk updates when a tablet syncs, not continuously, and it does not show that a tablet still holds unsent scores.
+- A dog that checked itself in looks the same at the desk as one the staff checked in.
+- Paper scoring saves one dog at a time with "Save" or "Save & Next". There is no "Save all" and Enter does not save.
+- Paper scoring writes to the device first, so it works offline once the show is on that device.
+- Typing "12345" or "1:23.45" both mean 1 minute 23.45 seconds.
+- The "Ready for show day" checklist is hidden on show day itself. It belongs to the Before show day step.
+- Checking, releasing and the judge's initials happen on the Results tab. They belong to the Results step, not here.
+- The evidence doc has no row for paper scoring. Every line above needs a KEEP row before it ships, and the doc's show-day rows are out of date (it quotes "Check the scores against the paper", which is no longer in the code, and a `/secretary/results-control` route that is now a redirect).
 
 ## Capturing the screens
 
@@ -151,4 +196,7 @@ Product-screen observations, outside this plan's scope. Filed 2026-11-12 at the 
 - MYK9-1895: My Entries tells a check payer to mail the check; the wizard says to bring it to the show.
 - MYK9-1896: the card option and the checkout success page say entries "are confirmed" after payment, while a paid entry still awaits review.
 - MYK9-1898: the "Needs review" pill is cut off in the Entry Forms list at 1440px wide with the form panel open.
+- MYK9-1899: on a portrait tablet the ringside entry-list header breaks after a score is saved offline; the class name wraps one letter per line.
+- Not filed, paper scoring page, confirmed by reading the code: in Card view "Cancel" does nothing (`SequentialView.tsx:90`); the List / Card choice is saved but never read back, and every link forces the split view; "Back to Class" goes to Class Details and ignores the `returnTo` that Show Desk sends.
+- Not filed, not confirmed: the "show has started" banner uses the device's date while the schedule uses the trial's timezone, so the two could disagree near midnight or for a remote secretary (`showDeskStatus.ts:56`).
 - Not a bug, not filed: signed out, `/shows` lists no upcoming shows because the public list filters out demo clubs (`club.is_demo=eq.false`), and the seed show belongs to one. It matters here only for capture: the exhibitor's "Find a show" still needs a signed-in view or a non-demo fixture.

@@ -3,9 +3,8 @@
  *
  * `ShowMapRowActionsMenu` renders the entry action set, but mounts only inside
  * `ShowMapTab` — the public show page, read-only by intent (#291). The cockpit's own
- * action surface filters to `recommended` actions via
- * `getRecommendedActionsForNode(node, …, 1)`, and no entry action sets that flag, so
- * `ShowDeskPanel`'s move-up dialog could never open.
+ * action surface never read the entry action set, so `ShowDeskPanel`'s move-up dialog
+ * could never open.
  *
  * These tests assert the two halves that make it REACHABLE, which is the property the
  * previous two F29 verdicts both got wrong by inspecting the catalog instead:

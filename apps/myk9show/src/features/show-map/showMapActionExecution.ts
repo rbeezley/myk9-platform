@@ -105,7 +105,3 @@ export function resolveShowMapActionExecution(
 
   return execution;
 }
-
-export function isShowMapActionEnabled(action: ShowMapAction): boolean {
-  return resolveShowMapActionExecution(action).kind !== 'disabled';
-}

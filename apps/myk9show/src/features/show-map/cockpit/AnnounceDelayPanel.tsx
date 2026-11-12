@@ -7,7 +7,7 @@ import { ScheduleSlipScriptCard } from '@/features/show-workbench/ScheduleSlipSc
  * separate Tools card that defaulted to the show's FIRST class and 30 minutes;
  * here it opens on this class and the minutes it actually runs behind.
  */
-export function AnnounceDelayButton({
+export function AnnounceDelayPanel({
   showId,
   className,
   delayMinutes,

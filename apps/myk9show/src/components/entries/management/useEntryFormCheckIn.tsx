@@ -4,16 +4,12 @@ import type { RowAction } from '@/components/ui/RowActionMenu';
 import { CheckInStatusIndicator } from '@/components/common/CheckInStatusIndicator';
 import { useShowDeskScheduleRead } from '@/pages/secretary/useShowDeskScheduleRead';
 import type { EntryClass, EntryManagementEntry } from '@/types/entry-management-types';
-import {
-  applyOptimisticDeskStatuses,
-  buildCheckInDeskClasses,
-  eligibleCheckInEntryIds,
-} from './checkInDesk/checkInDeskModel';
+import { buildCheckInDeskClasses, eligibleCheckInEntryIds } from './checkInDesk/checkInDeskModel';
 import { useCheckInDeskActions } from './checkInDesk/useCheckInDeskActions';
 import { useMinuteClock } from './checkInDesk/useMinuteClock';
 
 export interface EntryFormCheckIn {
-  /** The form's entries with a just-made check-in shown, until the entries re-read lands. */
+  /** The form's entries, as the shared read has them. */
   entries: EntryManagementEntry[];
   /** Entries the Check-in desk would offer "Check in" for right now (show day, accepted, not yet in). */
   eligibleIds: ReadonlySet<string>;
@@ -37,7 +33,7 @@ export function useEntryFormCheckIn(
 ): EntryFormCheckIn {
   const now = useMinuteClock();
   const { trials, trialClasses, readFailed, retry } = useShowDeskScheduleRead();
-  const { changes, busyIds, error, setStatus } = useCheckInDeskActions(entries, onRefreshEntries);
+  const { busyIds, error, setStatus } = useCheckInDeskActions(onRefreshEntries);
 
   const classes = useMemo(
     () =>
@@ -47,13 +43,10 @@ export function useEntryFormCheckIn(
       ),
     [showId, trialClasses, trials]
   );
-  const shownEntries = useMemo(
-    () => applyOptimisticDeskStatuses(entries, changes),
-    [changes, entries]
-  );
+  const shownEntries = useMemo(() => [...entries], [entries]);
   const eligibleIds = useMemo(
-    () => eligibleCheckInEntryIds(shownEntries, classes, now),
-    [classes, now, shownEntries]
+    () => eligibleCheckInEntryIds(entries, classes, now),
+    [classes, now, entries]
   );
   return {
     entries: shownEntries,

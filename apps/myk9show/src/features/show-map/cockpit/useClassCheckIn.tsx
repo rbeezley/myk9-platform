@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 
 import type { CheckInStatus } from '@/types/check-in-types';
 import { StatusPickerDialog } from '@/components/common/StatusPickerDialog';
@@ -28,21 +28,9 @@ export function useClassCheckIn(
   canChange: boolean,
   onRefreshEntries?: () => void | Promise<void>
 ) {
-  const sources = useMemo(
-    () =>
-      entries.map(entry => ({
-        id: entry.entryId,
-        classes: [{ checkInStatus: entry.checkInValue }],
-      })),
-    [entries]
-  );
-  const { changes, busyIds, error, errorIds, notice, setStatus } = useCheckInDeskActions(
-    sources,
-    onRefreshEntries
-  );
+  const { busyIds, error, errorIds, notice, setStatus } = useCheckInDeskActions(onRefreshEntries);
   // The panel is reused across classes, so an alert shows only beside the class whose dog it is
-  // about. The held statuses stay: a write whose re-read failed must survive a look at another
-  // class (MYK9-1803).
+  // about.
   const errorHere = error !== null && entries.some(entry => errorIds.has(entry.entryId));
   const rowOf = (entryId: string): DeskPullRow | undefined => {
     const entry = entries.find(candidate => candidate.entryId === entryId);
@@ -64,11 +52,8 @@ export function useClassCheckIn(
   );
   if (pickerId && !pickerEntry) setPickerId(null);
 
-  /** The status shown: the write just made, until the entries speak for themselves. */
-  const statusOf = (entry: SecretaryCockpitClassEntry): CheckInStatus => {
-    const change = changes.get(entry.entryId);
-    return change && change.from === entry.checkInValue ? change.to : entry.checkInValue;
-  };
+  /** The status shown: the shared entries' own, never a local copy of a write. */
+  const statusOf = (entry: SecretaryCockpitClassEntry): CheckInStatus => entry.checkInValue;
 
   const dialogs: ReactNode = (
     <>

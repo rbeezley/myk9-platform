@@ -7,7 +7,6 @@ import { ListResultLine, ListViewTabs, type ListView } from '@/components/list-t
 import { useShowDeskScheduleRead } from '@/pages/secretary/useShowDeskScheduleRead';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import {
-  applyOptimisticDeskStatuses,
   buildCheckInDeskClasses,
   buildCheckInDeskPeople,
   filterCheckInDesk,
@@ -58,10 +57,7 @@ export function CheckInDesk({
   const [search, setSearch] = useState('');
   const now = useMinuteClock(currentDate);
   const { trials, trialClasses, readPending, readFailed, retry } = useShowDeskScheduleRead();
-  const { changes, busyIds, error, errorIds, notice, setStatus } = useCheckInDeskActions(
-    entries,
-    onRefreshEntries
-  );
+  const { busyIds, error, errorIds, notice, setStatus } = useCheckInDeskActions(onRefreshEntries);
   const classes = useMemo(
     () =>
       buildCheckInDeskClasses(
@@ -70,13 +66,9 @@ export function CheckInDesk({
       ),
     [showId, trialClasses, trials]
   );
-  const shownEntries = useMemo(
-    () => applyOptimisticDeskStatuses(entries, changes),
-    [changes, entries]
-  );
   const people = useMemo(
-    () => buildCheckInDeskPeople(shownEntries, classes, now),
-    [classes, now, shownEntries]
+    () => buildCheckInDeskPeople(entries, classes, now),
+    [classes, now, entries]
   );
   const rowsByEntryId = useMemo(
     () => new Map(people.flatMap(person => person.classRows.map(row => [row.entryId, row]))),

@@ -10,12 +10,10 @@ import {
   type PeopleRosterClassRow,
   type PeopleRosterPerson,
 } from '@/components/entries/management/checkInDesk/peopleRoster';
-import type { CheckInStatus } from '@myk9/core';
 import { buildTrialRingResolver } from '@/components/entries/management/checkInDesk/trialRingLabel';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import type { Trial, TrialClass } from '@/components/trials/types/trial.types';
 import { getTrialTimezone } from '@/features/registries';
-import { optimisticPulledBy } from '@/utils/optimisticPulledBy';
 
 export type CheckInDeskFilter = 'all' | 'not-checked-in';
 
@@ -91,42 +89,6 @@ export function filterCheckInDesk(
   filter: CheckInDeskFilter
 ): PeopleRosterPerson[] {
   return filterPeopleRoster(people, search, filter === 'not-checked-in' ? 'needs-check-in' : 'all');
-}
-
-/** A desk write made but not yet read back: the status it changed from, and to. */
-export interface DeskStatusChange {
-  from: CheckInStatus;
-  to: CheckInStatus;
-}
-
-/**
- * Optimistic until the entries re-read lands. A class shows `to` only while the shared entries
- * still say `from`: once anything else moves it (ringside, a pull, the exhibitor's own Conflict,
- * or the read-back itself) the shared value wins, even if the re-read failed and the change is
- * still held. Shared by the Check-in desk and the entry form so both show a change the same way.
- */
-export function applyOptimisticDeskStatuses(
-  entries: readonly EntryManagementEntry[],
-  changes: ReadonlyMap<string, DeskStatusChange>
-): EntryManagementEntry[] {
-  if (changes.size === 0) return [...entries];
-  return entries.map(entry => {
-    const change = changes.get(entry.id);
-    if (!change) return entry;
-    return {
-      ...entry,
-      classes: entry.classes.map(cls =>
-        (cls.checkInStatus ?? 'no-status') === change.from
-          ? {
-              ...cls,
-              checkInStatus: change.to,
-              checkInPulledBy: optimisticPulledBy(change.from, change.to, cls.checkInPulledBy),
-              ...(change.to === 'checked-in' ? { checkInTime: new Date() } : {}),
-            }
-          : cls
-      ),
-    };
-  });
 }
 
 /** One dog's card on the desk: its armband, its class lines, and what one tap checks in. */

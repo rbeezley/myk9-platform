@@ -163,36 +163,4 @@ describe('SecretaryCockpitFocusedClass guards', () => {
     expect(screen.getByRole('heading', { name: 'Interior Novice' })).toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
-
-  it('keeps a check-in whose re-read failed when the secretary looks at another class and comes back (MYK9-1803)', async () => {
-    vi.mocked(updateReplicatedCheckInStatus).mockResolvedValue(null);
-    const failedReRead = vi.fn().mockRejectedValue(new Error('Show entries not synced'));
-    const first = () =>
-      panel(
-        focusedClass('class-1', 'Container Novice'),
-        sourceOf('class-1', 'Container Novice'),
-        failedReRead
-      );
-    const { user, rerender } = render(first());
-    await user.click(
-      screen.getByRole('button', { name: 'Change check-in for Moss: Not checked in' })
-    );
-    const picker = await screen.findByRole('dialog');
-    await user.click(within(picker).getByRole('button', { name: /^Checked-in/ }));
-    await waitFor(() => expect(failedReRead).toHaveBeenCalledTimes(1));
-    const checkedIn = { name: 'Change check-in for Moss: Checked in' };
-    expect(await screen.findByRole('button', checkedIn)).toBeInTheDocument();
-
-    rerender(
-      panel(
-        focusedClass('class-2', 'Interior Novice'),
-        sourceOf('class-2', 'Interior Novice'),
-        failedReRead
-      )
-    );
-    rerender(first());
-
-    // The entries read still says "Not checked in"; the write that was stored is what shows.
-    expect(screen.getByRole('button', checkedIn)).toBeInTheDocument();
-  });
 });

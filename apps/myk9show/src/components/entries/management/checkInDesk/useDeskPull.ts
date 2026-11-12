@@ -12,6 +12,7 @@ import {
 import { getEntryStatusHistory } from '@/services/database/entries/statusHistory';
 import { clearFlaggedPull } from '@/services/database/entries/flaggedPull';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
+import { refreshWithoutWaiting } from './refreshWithoutWaiting';
 import { ACCEPTED_DB_STATUS, deskStatusLabel, statusBeforeLatestPull } from './deskStatus';
 
 /**
@@ -54,13 +55,9 @@ export function useDeskPull(
   // Forget a confirmation whose class moved on, so it never reopens on its own.
   if (pending && !pullRow && !unpullRow && !isWorking) setPending(null);
 
-  const refresh = async () => {
-    try {
-      await onRefreshEntries?.();
-    } catch {
-      // The write landed; the next read shows it.
-    }
-  };
+  // Never awaited: the write is stored, and an entries re-read that pauses offline would
+  // otherwise hold `isWorking` and every later Pull confirmation with it.
+  const refresh = () => refreshWithoutWaiting(onRefreshEntries);
 
   const confirmPull = async (reason: string | undefined) => {
     if (!pullRow || isWorking) return;
@@ -73,7 +70,7 @@ export function useDeskPull(
         'Pulled at the check-in desk'
       );
       setPending(null);
-      await refresh();
+      refresh();
       showUndoToast({
         message: `${row.dogName} pulled from ${row.className}`,
         onUndo: () => {
@@ -87,6 +84,14 @@ export function useDeskPull(
         },
       });
     } catch (error) {
+      if ((error as { code?: unknown } | null)?.code === 'already-pulled') {
+        // A repeat Pull on a row that had not refreshed yet: nothing was written, and there is
+        // nothing to undo.
+        setPending(null);
+        refresh();
+        toast.info(`${row.dogName} is already pulled from ${row.className}`);
+        return;
+      }
       toast.error(showDayErrorMessage(error, deskPullCopy.pullFailed(row.dogName, row.className)));
     } finally {
       setIsWorking(false);
@@ -117,7 +122,7 @@ export function useDeskPull(
         ...(user?.id ? { secretaryId: user.id } : {}),
       });
       setPending(null);
-      await refresh();
+      refresh();
       toast.success(`${row.dogName} is back in ${row.className}`);
     } catch (error) {
       toast.error(
@@ -135,7 +140,7 @@ export function useDeskPull(
     setClearingId(row.entryId);
     try {
       const restored = await clearFlaggedPull(row.entryId);
-      await refresh();
+      refresh();
       toast.success(`${row.dogName}, ${row.className}: ${deskStatusLabel(restored)}`);
     } catch (error) {
       toast.error(

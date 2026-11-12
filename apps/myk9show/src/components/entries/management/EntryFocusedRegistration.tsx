@@ -32,7 +32,7 @@ interface EntryFocusedRegistrationProps extends Omit<EnrollmentCardProps, 'group
    * list, so the row that was tapped is gone and focus would otherwise fall to the page.
    */
   focusHeadingOnMount?: boolean;
-  /** Re-reads the page's entries; a check-in shows at once and hands over to it when it lands. */
+  /** Re-reads the page's entries after a check-in; the form shows only what that read returns. */
   onRefreshEntries?: (() => void | Promise<void>) | undefined;
 }
 
@@ -55,7 +55,7 @@ export function EntryFocusedRegistration({
   }, []);
 
   // Check-in on the form (MYK9-1691): the Check-in desk's write and eligibility. Everything below
-  // reads the form with a just-made check-in applied, so the count, the rows and the chip agree.
+  // reads the form's entries as the page has them, so the count, the rows and the chip agree.
   const checkIn = useEntryFormCheckIn(
     loadedRegistration.entries[0]?.showId ?? '',
     loadedRegistration.entries,

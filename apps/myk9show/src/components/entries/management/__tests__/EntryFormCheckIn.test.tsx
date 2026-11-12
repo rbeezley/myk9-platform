@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import type { CheckInStatus } from '@myk9/core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
 import { getStatusDescriptor } from '@/components/status';
@@ -83,9 +85,24 @@ function entry(
   };
 }
 
-function renderForm(entries: EntryManagementEntry[]) {
+/**
+ * A page standing in for the replica: the registration it hands the form is the initial one with
+ * every stored check-in write applied, picked up when the form asks for a re-read.
+ */
+function StoredForm({ initial }: { initial: EntryManagementEntry[] }) {
+  const read = () =>
+    initial.map(item => {
+      const written = h.updateReplicatedCheckInStatus.mock.calls.filter(
+        ([entryId]) => entryId === item.id
+      );
+      const latest = written[written.length - 1]?.[1] as CheckInStatus | undefined;
+      return latest
+        ? { ...item, classes: item.classes.map(cls => ({ ...cls, checkInStatus: latest })) }
+        : item;
+    });
+  const [entries, setEntries] = useState(initial);
   const registration = groupEntriesByShowRegistration(entries)[0]!;
-  return render(
+  return (
     <EntryFocusedRegistration
       registration={registration}
       onStatusChange={vi.fn()}
@@ -95,8 +112,13 @@ function renderForm(entries: EntryManagementEntry[]) {
       onBulkStatusChange={vi.fn()}
       paymentLedger={{ record: vi.fn(), markPaidOnline: vi.fn(), todayInShowZone: '2026-07-08' }}
       showCheckInStatus={false}
+      onRefreshEntries={() => setEntries(read())}
     />
   );
+}
+
+function renderForm(entries: EntryManagementEntry[]) {
+  return render(<StoredForm initial={entries} />);
 }
 
 const twoEntries = () => [

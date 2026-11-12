@@ -1,8 +1,10 @@
 import { screen, waitFor, within } from '@testing-library/react';
+import { useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
+import type { CheckInStatus } from '@myk9/core';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { CheckInDesk } from './CheckInDesk';
 import { buildCheckInDeskClasses } from './checkInDeskModel';
@@ -127,17 +129,39 @@ function Probe() {
   return <div data-testid="location">{location.search}</div>;
 }
 
+/**
+ * A page standing in for the replica: the entries it hands the desk are the initial ones with
+ * every stored check-in write applied, picked up when the desk asks for a re-read.
+ */
+function StoredEntriesDesk({ initial }: { initial: EntryManagementEntry[] }) {
+  const read = () =>
+    initial.map(entry => {
+      const written = h.updateReplicatedCheckInStatus.mock.calls
+        .filter(([entryId]) => entryId === entry.id)
+        .map(([, status]) => status as CheckInStatus);
+      const latest = written[written.length - 1];
+      return latest
+        ? { ...entry, classes: entry.classes.map(cls => ({ ...cls, checkInStatus: latest })) }
+        : entry;
+    });
+  const [entries, setEntries] = useState(initial);
+  return (
+    <CheckInDesk
+      showId="show-1"
+      entries={entries}
+      loading={false}
+      unknown={false}
+      onRetry={vi.fn()}
+      onRefreshEntries={() => setEntries(read())}
+      currentDate={NOW}
+    />
+  );
+}
+
 function renderDesk(entries: EntryManagementEntry[], route = '/shows/show-1/entries') {
   return render(
     <>
-      <CheckInDesk
-        showId="show-1"
-        entries={entries}
-        loading={false}
-        unknown={false}
-        onRetry={vi.fn()}
-        currentDate={NOW}
-      />
+      <StoredEntriesDesk initial={entries} />
       <Probe />
     </>,
     { initialRoute: route }
@@ -354,14 +378,38 @@ describe('CheckInDesk', () => {
     );
   });
 
-  it('re-reads the entries after a check-in and drops its local flip once the read lands', async () => {
-    let finishRefresh: () => void = () => {};
-    const onRefreshEntries = vi.fn(
-      () =>
-        new Promise<void>(resolve => {
-          finishRefresh = resolve;
-        })
+  it('frees the dog as soon as the write is stored, even when the entries re-read never settles (MYK9-1812)', async () => {
+    const onRefreshEntries = vi.fn(() => new Promise<void>(() => {}));
+    const { user } = render(
+      <CheckInDesk
+        showId="show-1"
+        entries={[entry()]}
+        loading={false}
+        unknown={false}
+        onRetry={vi.fn()}
+        onRefreshEntries={onRefreshEntries}
+        currentDate={NOW}
+      />
     );
+    await user.click(screen.getByRole('button', { name: 'Check in Poppy' }));
+
+    await waitFor(() => expect(onRefreshEntries).toHaveBeenCalledTimes(1));
+    expect(h.updateReplicatedCheckInStatus).toHaveBeenCalledWith('entry-1', 'checked-in');
+    // The write is stored, so the control is usable again while the read is still pending.
+    expect(await screen.findByRole('button', { name: 'Check in Poppy' })).toBeEnabled();
+  });
+
+  it('shows the shared entries alone: an older read-back never hides a newer status', async () => {
+    let finishFirst: () => void = () => {};
+    const onRefreshEntries = vi
+      .fn<() => Promise<void>>()
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>(resolve => {
+            finishFirst = resolve;
+          })
+      )
+      .mockResolvedValue(undefined);
     const props = {
       showId: 'show-1',
       loading: false,
@@ -370,35 +418,26 @@ describe('CheckInDesk', () => {
       onRefreshEntries,
       currentDate: NOW,
     };
-    const { user, rerender } = render(<CheckInDesk {...props} entries={[entry()]} />);
+    const withStatus = (checkInStatus: 'no-status' | 'checked-in' | 'conflict') =>
+      entry({ classes: [{ ...entry().classes[0]!, checkInStatus }] });
+    const region = () => screen.getByRole('region', { name: 'Alice Martin' });
+    const { user, rerender } = render(
+      <CheckInDesk {...props} entries={[withStatus('no-status')]} />
+    );
+
+    // First write: the re-read is still pending.
     await user.click(screen.getByRole('button', { name: 'Check in Poppy' }));
-
     await waitFor(() => expect(onRefreshEntries).toHaveBeenCalledTimes(1));
-    // Optimistic flip holds while the read is in flight.
-    expect(screen.getByRole('region', { name: 'Alice Martin' })).toHaveTextContent('Checked-in');
+    // The older read-back (nothing stored yet) is shown for what it is, with no local flip over it.
+    rerender(<CheckInDesk {...props} entries={[withStatus('no-status')]} />);
+    expect(region()).toHaveTextContent('Not checked in');
 
-    // A later ringside status in the shared entries is never masked by the flip, even before the
-    // read promise settles.
-    const inRing = entry({ classes: [{ ...entry().classes[0]!, checkInStatus: 'in-ring' }] });
-    rerender(<CheckInDesk {...props} entries={[inRing]} />);
-    expect(screen.getByRole('region', { name: 'Alice Martin' })).toHaveTextContent('In Ring');
-    expect(screen.getByRole('region', { name: 'Alice Martin' })).not.toHaveTextContent(
-      /Checked-in|Not checked in/
-    );
-    const pulled = entry({ classes: [{ ...entry().classes[0]!, checkInStatus: 'pulled' }] });
-    rerender(<CheckInDesk {...props} entries={[pulled]} />);
-    expect(screen.getByRole('region', { name: 'Alice Martin' })).toHaveTextContent(
-      'Flagged pulled'
-    );
-
-    // Once the read lands the flip is gone and the shared entries speak alone.
-    finishRefresh();
-    rerender(<CheckInDesk {...props} entries={[entry()]} />);
-    await waitFor(() =>
-      expect(screen.getByRole('region', { name: 'Alice Martin' })).toHaveTextContent(
-        'Not checked in'
-      )
-    );
+    // The newer status arrives while the first re-read is still unsettled; it is shown, and the
+    // first re-read settling afterwards changes nothing.
+    rerender(<CheckInDesk {...props} entries={[withStatus('conflict')]} />);
+    finishFirst();
+    expect(region()).toHaveTextContent('Conflict');
+    expect(region()).not.toHaveTextContent(/Checked-in|Not checked in/);
   });
 });
 

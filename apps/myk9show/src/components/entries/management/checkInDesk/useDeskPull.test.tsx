@@ -144,6 +144,84 @@ describe('Pulled on the Check-in desk is the real Pull (MYK9-1749)', () => {
     );
   });
 
+  describe('a Pull never waits for the entries re-read (MYK9-1812)', () => {
+    const stalled = () => vi.fn(() => new Promise<void>(() => {}));
+    const pip: EntryManagementEntry = {
+      ...poppy,
+      id: 'entry-2',
+      dogId: 'dog-2',
+      dogName: 'Pip',
+      armbandNumber: '115',
+      classes: [{ ...poppy.classes[0]!, id: 'entry-2' }],
+    };
+    const renderDesk = (onRefreshEntries: () => Promise<void>) =>
+      render(
+        <CheckInDesk
+          showId="show-1"
+          entries={[poppy, pip]}
+          loading={false}
+          unknown={false}
+          onRetry={vi.fn()}
+          onRefreshEntries={onRefreshEntries}
+          currentDate={NOW}
+        />
+      );
+    const pullDog = async (user: ReturnType<typeof render>['user'], dog: string) => {
+      await user.click(
+        screen.getByRole('button', { name: new RegExp(`^Change status for ${dog}`) })
+      );
+      const picker = await screen.findByRole('dialog');
+      await user.click(within(picker).getByRole('button', { name: /^Pulled/ }));
+      const confirm = await screen.findByRole('dialog', { name: `Pull ${dog}?` });
+      await user.click(within(confirm).getByRole('button', { name: 'Pull' }));
+    };
+
+    it('offers Undo and runs it while the re-read is stalled', async () => {
+      const { user } = renderDesk(stalled());
+      await pullDog(user, 'Poppy');
+      await waitFor(() => expect(h.showUndoToast).toHaveBeenCalledTimes(1));
+
+      h.showUndoToast.mock.calls[0]![0].onUndo();
+      await waitFor(() =>
+        expect(h.undoShowMapScratch).toHaveBeenCalledWith({
+          entryId: 'entry-1',
+          previousEntryStatus: 'accepted',
+        })
+      );
+    });
+
+    it('lets another dog be pulled while the first re-read is stalled', async () => {
+      const { user } = renderDesk(stalled());
+      await pullDog(user, 'Poppy');
+      await waitFor(() => expect(h.showUndoToast).toHaveBeenCalledTimes(1));
+
+      await pullDog(user, 'Pip');
+      await waitFor(() => expect(h.scratchShowMapEntry).toHaveBeenCalledTimes(2));
+      expect(h.scratchShowMapEntry).toHaveBeenLastCalledWith(
+        'entry-2',
+        undefined,
+        'Pulled at the check-in desk'
+      );
+      await waitFor(() => expect(h.showUndoToast).toHaveBeenCalledTimes(2));
+    });
+
+    it('does not offer an Undo that restores the pulled state when the same dog is pulled twice', async () => {
+      const { user } = renderDesk(stalled());
+      await pullDog(user, 'Poppy');
+      await waitFor(() => expect(h.showUndoToast).toHaveBeenCalledTimes(1));
+
+      // The row has not refreshed yet, so it is still editable; the stored entry says pulled.
+      h.scratchShowMapEntry.mockRejectedValueOnce(
+        Object.assign(new Error('already pulled'), { code: 'already-pulled' })
+      );
+      await pullDog(user, 'Poppy');
+
+      await waitFor(() => expect(h.scratchShowMapEntry).toHaveBeenCalledTimes(2));
+      expect(h.showUndoToast).toHaveBeenCalledTimes(1);
+      expect(h.undoShowMapScratch).not.toHaveBeenCalled();
+    });
+  });
+
   describe('a Pull that fails (MYK9-1844)', () => {
     let toastError: MockInstance<typeof toast.error>;
 

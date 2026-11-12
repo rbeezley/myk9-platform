@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,7 @@ import { EntryFormHeaderMenu } from './EntryFormHeaderMenu';
 import { buildFormChecklist, entryDogKey } from './formChecklist';
 import { EntryFormCheckInProvider, useEntryFormCheckIn } from './useEntryFormCheckIn';
 import { useEnrollmentDialogControls } from './useEnrollmentDialogControls';
+import type { EntriesRefresh } from '@/components/entries/management/checkInDesk/entriesRefresh';
 
 interface EntryFocusedRegistrationProps extends Omit<EnrollmentCardProps, 'group'> {
   registration: ShowRegistrationGroup;
@@ -32,8 +33,8 @@ interface EntryFocusedRegistrationProps extends Omit<EnrollmentCardProps, 'group
    * list, so the row that was tapped is gone and focus would otherwise fall to the page.
    */
   focusHeadingOnMount?: boolean;
-  /** Re-reads the page's entries; a check-in shows at once and hands over to it when it lands. */
-  onRefreshEntries?: (() => void | Promise<void>) | undefined;
+  /** Re-reads the page's entries after a check-in, handed the ids whose writes were stored. */
+  onRefreshEntries?: EntriesRefresh | undefined;
 }
 
 const reviewLabel = getRegistrationReviewLabel;
@@ -55,16 +56,13 @@ export function EntryFocusedRegistration({
   }, []);
 
   // Check-in on the form (MYK9-1691): the Check-in desk's write and eligibility. Everything below
-  // reads the form with a just-made check-in applied, so the count, the rows and the chip agree.
+  // reads the form's entries as the page has them, so the count, the rows and the chip agree.
   const checkIn = useEntryFormCheckIn(
     loadedRegistration.entries[0]?.showId ?? '',
     loadedRegistration.entries,
     onRefreshEntries
   );
-  const registration = useMemo(
-    () => ({ ...loadedRegistration, entries: checkIn.entries }),
-    [loadedRegistration, checkIn.entries]
-  );
+  const registration = loadedRegistration;
   const [noteFocusRequest, setNoteFocusRequest] = useState(0);
   const controls = useEnrollmentDialogControls(registration, enrollmentCardProps.paymentLedger);
   const checklist = buildFormChecklist(registration, controls, checkIn.eligibleIds);

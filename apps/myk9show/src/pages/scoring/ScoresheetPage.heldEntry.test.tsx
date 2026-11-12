@@ -6,6 +6,7 @@
  */
 import { Routes, Route } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { fireEvent } from '@testing-library/react';
 import { render, screen } from '@/test/utils/testUtils';
 
 const mocks = vi.hoisted(() => ({
@@ -35,7 +36,13 @@ vi.mock('@myk9/scoring-ui', () => ({
   ScoresheetActionBarRefContext: {
     Provider: ({ children }: { children: React.ReactNode }) => children,
   },
-  getScoresheetComponent: () => () => <div data-testid="live-scoresheet" />,
+  getScoresheetComponent:
+    () =>
+    ({ onRunStart }: { onRunStart?: () => void }) => (
+      <button data-testid="live-scoresheet" onClick={onRunStart}>
+        Start timer
+      </button>
+    ),
 }));
 vi.mock('./classScoringRules', () => ({ classScoringRules: () => ({ maxTimeSeconds: 120 }) }));
 vi.mock('./types', () => ({
@@ -109,6 +116,8 @@ describe('ScoresheetPage held entry (MYK9-1162)', () => {
 
     await screen.findByTestId('live-scoresheet');
     expect(screen.queryByText('Registration number needed')).toBeNull();
+    expect(mocks.transitionToInRing).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Start timer' }));
     expect(mocks.transitionToInRing).toHaveBeenCalledTimes(1);
   });
 });

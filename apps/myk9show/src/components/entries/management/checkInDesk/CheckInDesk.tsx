@@ -7,7 +7,6 @@ import { ListResultLine, ListViewTabs, type ListView } from '@/components/list-t
 import { useShowDeskScheduleRead } from '@/pages/secretary/useShowDeskScheduleRead';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import {
-  applyOptimisticDeskStatuses,
   buildCheckInDeskClasses,
   buildCheckInDeskPeople,
   filterCheckInDesk,
@@ -22,6 +21,7 @@ import { useMinuteClock } from './useMinuteClock';
 import { useDeskPull } from './useDeskPull';
 import { DeskPullDialogs } from './DeskPullDialogs';
 import { changeDeskRowStatus } from './deskRowStatus';
+import type { EntriesRefresh } from '@/components/entries/management/checkInDesk/entriesRefresh';
 
 interface CheckInDeskProps {
   showId: string;
@@ -30,8 +30,8 @@ interface CheckInDeskProps {
   loading: boolean;
   unknown: boolean;
   onRetry: () => void;
-  /** Re-reads the page's entries; the optimistic status flip lasts only until it lands. */
-  onRefreshEntries?: () => void | Promise<void>;
+  /** Re-reads the page's entries after a write, handed the ids whose writes were stored. */
+  onRefreshEntries?: EntriesRefresh;
   /** Fixed clock for tests; the desk otherwise ticks once a minute. */
   currentDate?: Date | null;
 }
@@ -58,10 +58,7 @@ export function CheckInDesk({
   const [search, setSearch] = useState('');
   const now = useMinuteClock(currentDate);
   const { trials, trialClasses, readPending, readFailed, retry } = useShowDeskScheduleRead();
-  const { changes, busyIds, error, errorIds, notice, setStatus } = useCheckInDeskActions(
-    entries,
-    onRefreshEntries
-  );
+  const { busyIds, error, errorIds, notice, setStatus } = useCheckInDeskActions(onRefreshEntries);
   const classes = useMemo(
     () =>
       buildCheckInDeskClasses(
@@ -70,13 +67,9 @@ export function CheckInDesk({
       ),
     [showId, trialClasses, trials]
   );
-  const shownEntries = useMemo(
-    () => applyOptimisticDeskStatuses(entries, changes),
-    [changes, entries]
-  );
   const people = useMemo(
-    () => buildCheckInDeskPeople(shownEntries, classes, now),
-    [classes, now, shownEntries]
+    () => buildCheckInDeskPeople(entries, classes, now),
+    [classes, now, entries]
   );
   const rowsByEntryId = useMemo(
     () => new Map(people.flatMap(person => person.classRows.map(row => [row.entryId, row]))),

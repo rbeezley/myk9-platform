@@ -55,6 +55,7 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   backLabel,
   onDirtyChange,
   headerActions,
+  onRunStart,
   onWarningChime,
   onVoiceAnnouncement,
   enableVoiceAnnouncements,
@@ -87,6 +88,7 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   });
 
   const handleStartTimer = () => {
+    onRunStart?.();
     area.pinOnStart(stopwatch.time);
     stopwatch.start();
   };

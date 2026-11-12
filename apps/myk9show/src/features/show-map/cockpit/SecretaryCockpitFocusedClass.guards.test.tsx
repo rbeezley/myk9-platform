@@ -103,7 +103,7 @@ const sourceOf = (id: string, name: string, overrides: Partial<SecretaryCockpitC
 const panel = (
   focused: FocusedClassModel,
   sourceClass: SecretaryCockpitClass,
-  onRefreshEntries?: () => Promise<void>
+  onRefreshEntries?: (storedIds?: readonly string[]) => Promise<void>
 ) => (
   <SecretaryCockpitFocusedClass
     {...(onRefreshEntries && { onRefreshEntries })}
@@ -164,35 +164,24 @@ describe('SecretaryCockpitFocusedClass guards', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
-  it('keeps a check-in whose re-read failed when the secretary looks at another class and comes back (MYK9-1803)', async () => {
+  it('hands the page the entry a check-in stored, so a failed re-read cannot undo it on screen (MYK9-1803, MYK9-1812)', async () => {
     vi.mocked(updateReplicatedCheckInStatus).mockResolvedValue(null);
     const failedReRead = vi.fn().mockRejectedValue(new Error('Show entries not synced'));
-    const first = () =>
+    const { user } = render(
       panel(
         focusedClass('class-1', 'Container Novice'),
         sourceOf('class-1', 'Container Novice'),
         failedReRead
-      );
-    const { user, rerender } = render(first());
+      )
+    );
     await user.click(
       screen.getByRole('button', { name: 'Change check-in for Moss: Not checked in' })
     );
     const picker = await screen.findByRole('dialog');
     await user.click(within(picker).getByRole('button', { name: /^Checked-in/ }));
-    await waitFor(() => expect(failedReRead).toHaveBeenCalledTimes(1));
-    const checkedIn = { name: 'Change check-in for Moss: Checked in' };
-    expect(await screen.findByRole('button', checkedIn)).toBeInTheDocument();
 
-    rerender(
-      panel(
-        focusedClass('class-2', 'Interior Novice'),
-        sourceOf('class-2', 'Interior Novice'),
-        failedReRead
-      )
-    );
-    rerender(first());
-
-    // The entries read still says "Not checked in"; the write that was stored is what shows.
-    expect(screen.getByRole('button', checkedIn)).toBeInTheDocument();
+    // The page reads that row back before its re-read runs; the re-read failing changes nothing.
+    await waitFor(() => expect(failedReRead).toHaveBeenCalledWith(['e-class-1']));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });

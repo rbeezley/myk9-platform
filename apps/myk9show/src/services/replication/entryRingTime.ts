@@ -6,7 +6,7 @@ const RUN_STATUSES: ReadonlySet<string> = new Set(['in-ring', 'completed']);
 /**
  * MYK9-1761: the extra field a check-in write must carry so an unscored dog moved off the
  * ring (back to a pre-run status, a conflict or a pull) loses the ring_entry_time stamped
- * when its scoresheet opened. Show Map, hand placement and move-up supersession all read
+ * when the judge started its run (Start on the scoresheet, MYK9-1779). Show Map, hand placement and move-up supersession all read
  * that stamp as "in the ring / run started".
  *
  * The one rule for every entries-table write that sets a check-in status, so no screen

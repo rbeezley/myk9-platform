@@ -103,10 +103,22 @@ describe('the class table Check-in cell opens the desk status picker (MYK9-1797)
       expect(h.updateReplicatedCheckInStatus).toHaveBeenCalledWith('e-1', 'checked-in')
     );
     expect(h.updateReplicatedCheckInStatus).toHaveBeenCalledTimes(1);
-    // The row shows the write at once.
+  });
+
+  it('frees the cell once the write is stored, though the entries re-read never settles (MYK9-1812)', async () => {
+    const onRefreshEntries = vi.fn(() => new Promise<void>(() => {}));
+    const { user } = renderTable(true, onRefreshEntries);
+    await user.click(
+      screen.getByRole('button', { name: 'Change check-in for Moss: Not checked in' })
+    );
+    const picker = await screen.findByRole('dialog');
+    await user.click(within(picker).getByRole('button', { name: /^Checked-in/ }));
+    await waitFor(() => expect(onRefreshEntries).toHaveBeenCalledTimes(1));
+
+    // The table shows the shared entries (still "Not checked in" here) and the cell is usable.
     expect(
-      await screen.findByRole('button', { name: 'Change check-in for Moss: Checked in' })
-    ).toBeInTheDocument();
+      await screen.findByRole('button', { name: 'Change check-in for Moss: Not checked in' })
+    ).toBeEnabled();
   });
 
   it('re-reads the entries after a status change, so the table does not keep the old value', async () => {

@@ -67,6 +67,7 @@ export const AKCFastCatLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   backLabel,
   onDirtyChange,
   headerActions,
+  onRunStart,
   onWarningChime,
   onVoiceAnnouncement,
   enableVoiceAnnouncements,
@@ -89,6 +90,11 @@ export const AKCFastCatLiveScoresheet: React.FC<LiveScoresheetProps> = ({
     onWarningChime,
     onVoiceAnnouncement,
   });
+
+  const handleStartTimer = () => {
+    onRunStart?.();
+    stopwatch.start();
+  };
 
   const handleStopTimer = useCallback(() => {
     const elapsedMs = stopwatch.pause();
@@ -196,7 +202,7 @@ export const AKCFastCatLiveScoresheet: React.FC<LiveScoresheetProps> = ({
           ) : (
             <Button
               className={cn(timerPrimaryButtonClass, 'bg-green-600 hover:bg-green-700')}
-              onClick={stopwatch.start}
+              onClick={handleStartTimer}
               data-testid="timer-start"
             >
               Start

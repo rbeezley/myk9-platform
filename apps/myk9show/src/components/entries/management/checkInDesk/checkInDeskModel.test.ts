@@ -2,11 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { CheckInStatus } from '@myk9/core';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
-import {
-  applyOptimisticDeskStatuses,
-  buildCheckInDeskPeople,
-  groupCheckInDeskDogs,
-} from './checkInDeskModel';
+import { buildCheckInDeskPeople, groupCheckInDeskDogs } from './checkInDeskModel';
 import type { PeopleRosterClassInfo } from './peopleRoster';
 import { statusBeforeLatestPull } from './deskStatus';
 
@@ -174,44 +170,6 @@ describe('deskCanUnpull (MYK9-1749)', () => {
         entry('e1', 'class-1', 'checked-in', { isScored: false, resultStatus: 'pending' }),
       ])[0]!.deskStatusEditable
     ).toBe(true);
-  });
-});
-
-describe('applyOptimisticDeskStatuses', () => {
-  const change = (from: CheckInStatus, to: CheckInStatus) => new Map([['e1', { from, to }]]);
-
-  it('returns a copy when nothing is pending', () => {
-    const entries = [entry('e1', 'class-1', 'no-status')];
-    const shown = applyOptimisticDeskStatuses(entries, new Map());
-    expect(shown).toEqual(entries);
-    expect(shown).not.toBe(entries);
-  });
-
-  it.each(['in-ring', 'pulled', 'conflict'] as const)(
-    'gives way once the shared status has moved on from the one written over (%s)',
-    moved => {
-      const [shown] = applyOptimisticDeskStatuses(
-        [entry('e1', 'class-1', moved)],
-        change('no-status', 'checked-in')
-      );
-      expect(shown!.classes[0]!.checkInStatus).toBe(moved);
-    }
-  );
-
-  it('stamps a check-in time only when checking in', () => {
-    const [checkedIn] = applyOptimisticDeskStatuses(
-      [entry('e1', 'class-1', 'no-status')],
-      change('no-status', 'checked-in')
-    );
-    expect(checkedIn!.classes[0]).toMatchObject({ checkInStatus: 'checked-in' });
-    expect(checkedIn!.classes[0]!.checkInTime).toBeInstanceOf(Date);
-
-    const [conflict] = applyOptimisticDeskStatuses(
-      [entry('e1', 'class-1', 'no-status')],
-      change('no-status', 'conflict')
-    );
-    expect(conflict!.classes[0]!.checkInStatus).toBe('conflict');
-    expect(conflict!.classes[0]!.checkInTime).toBeUndefined();
   });
 });
 

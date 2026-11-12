@@ -70,6 +70,7 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   backLabel,
   onDirtyChange,
   headerActions,
+  onRunStart,
   onWarningChime,
   onVoiceAnnouncement,
   enableVoiceAnnouncements,
@@ -101,6 +102,11 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
       scoring.handleAreaUpdate(currentArea, 'time', formattedTime);
     },
   });
+
+  const handleStartTimer = () => {
+    onRunStart?.();
+    stopwatch.start();
+  };
 
   const handleStopTimer = useCallback(() => {
     const elapsedMs = stopwatch.pause();
@@ -271,7 +277,7 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
           ) : (
             <Button
               className={cn(timerPrimaryButtonClass, 'bg-green-600 hover:bg-green-700')}
-              onClick={stopwatch.start}
+              onClick={handleStartTimer}
               data-testid="timer-start"
             >
               Start

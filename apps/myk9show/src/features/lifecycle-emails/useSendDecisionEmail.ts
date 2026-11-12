@@ -3,8 +3,9 @@ import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { LifecycleEmailAlreadySavedError, sendLifecycleEmailJobs } from './api';
-import { decisionEmailContext, type DecisionStepType } from './decisionEmail';
+import { decisionEmailContext, sortDecidedEntries, type DecisionStepType } from './decisionEmail';
 import { buildLifecycleEmailDraft } from './render';
+import { joinNames } from './multiEntryDecision';
 import { saveDecisionEmailJob } from './saveDecisionEmailJob';
 
 const EMAIL_NAME: Record<DecisionStepType, { lower: string; title: string }> = {
@@ -19,10 +20,12 @@ interface SendDecisionEmailArgs {
 }
 
 /**
- * Sends an entry's acceptance or waitlist email with no preview (owner decision 2026-11-09,
+ * Sends a registration's acceptance or waitlist email with no preview (owner decision 2026-11-09,
  * MYK9-1800). The caller invokes it once the decision has STOOD: the status change's Undo
- * toast has closed without Undo and the entry still has that status. It is handed the live
- * entry, so the email carries the armband the Accept itself assigned.
+ * toast has closed without Undo and the entries still have that status. It is handed the
+ * entries of ONE registration decided in that action (owner decision 2026-11-12: one email per
+ * entry form, listing every class), as they are then, so the email carries the armband the
+ * Accept itself assigned. A job per registration, keyed on the decided entry ids.
  *
  * It acts once, at that moment, and keeps nothing to act on later:
  *  - no email on file: one plain notice, no job (a job with no recipient can only fail);
@@ -47,15 +50,26 @@ const UNNAMED_SHOW = 'this show';
  * no name to compare) it stays as short as before.
  */
 function whichEntry(
-  entry: EntryManagementEntry,
+  entries: EntryManagementEntry[],
   decidedOnShowName: string,
   currentShowName: string | undefined
 ): { about: string; emailLater: string } {
   const elsewhere =
     decidedOnShowName !== UNNAMED_SHOW && decidedOnShowName !== (currentShowName ?? UNNAMED_SHOW);
-  const dog = entry.dogName?.trim();
+  // One dog is named once however many of its classes were decided; several dogs by name.
+  const dogs = [
+    ...new Set(entries.map(entry => entry.dogName?.trim()).filter(Boolean)),
+  ] as string[];
+  const dog = joinNames(dogs);
   const about = `${dog ? ` for ${dog}` : ''}${elsewhere ? ` at ${decidedOnShowName}` : ''}`;
-  const onEntry = dog ? `on ${dog}'s entry` : 'on the entry';
+  const onEntry =
+    dogs.length > 1
+      ? 'on the entry form'
+      : dog
+        ? `on ${dog}'s ${entries.length > 1 ? 'entry form' : 'entry'}`
+        : entries.length > 1
+          ? 'on the entry form'
+          : 'on the entry';
   const emailLater = elsewhere
     ? `go back to ${decidedOnShowName} and use "Email Exhibitor" ${onEntry}`
     : `use "Email Exhibitor" ${onEntry}`;
@@ -70,7 +84,7 @@ export function useSendDecisionEmail({
   showName,
   onSettled,
 }: SendDecisionEmailArgs): (
-  entry: EntryManagementEntry,
+  entries: EntryManagementEntry[],
   stepType: DecisionStepType,
   decidedOnShowName: string
 ) => void {
@@ -80,13 +94,16 @@ export function useSendDecisionEmail({
   });
 
   return useCallback(
-    (entry: EntryManagementEntry, stepType: DecisionStepType, decidedOnShowName: string) => {
+    (decided: EntryManagementEntry[], stepType: DecisionStepType, decidedOnShowName: string) => {
+      const entries = sortDecidedEntries(decided);
+      const [entry] = entries;
+      if (!entry) return;
       const { lower: emailName, title: emailTitle } = EMAIL_NAME[stepType];
       const ownerName = entry.ownerName?.trim();
       const who = ownerName || 'the exhibitor';
       // She may have switched shows inside the Undo window: every notice names the dog, and the
       // show and the way back to it when that show is no longer the one on screen.
-      const { about, emailLater } = whichEntry(entry, decidedOnShowName, latest.current.showName);
+      const { about, emailLater } = whichEntry(entries, decidedOnShowName, latest.current.showName);
 
       if (!entry.ownerEmail?.trim()) {
         toast.info(
@@ -104,9 +121,12 @@ export function useSendDecisionEmail({
       const send = async () => {
         const { onSettled: settled } = latest.current;
         const name = decidedOnShowName;
-        const draft = buildLifecycleEmailDraft({ stepType, ...decisionEmailContext(entry, name) });
+        const draft = buildLifecycleEmailDraft({
+          stepType,
+          ...decisionEmailContext(entries, name),
+        });
         try {
-          const jobId = await saveDecisionEmailJob(entry, stepType, {
+          const jobId = await saveDecisionEmailJob(entries, stepType, {
             ...draft,
             secretaryNote: '',
           });

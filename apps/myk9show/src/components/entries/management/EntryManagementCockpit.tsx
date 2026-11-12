@@ -14,6 +14,7 @@ import { TableSkeleton } from '@/components/common/SkeletonLoaders';
 import { getEntryRegistrationRowId } from './showRegistrationProjection';
 import { EntryFocusedRegistration } from './EntryFocusedRegistration';
 import { EntryManagementBulkBar } from './EntryManagementBulkBar';
+import { useDecisionEmailedStatusChange } from './useDecisionEmailedStatusChange';
 import {
   entryCockpitResponsiveReducer,
   initialEntryCockpitResponsiveState,
@@ -25,12 +26,13 @@ import {
 import { downloadCsv } from '@/utils/downloadCsv';
 import type {
   BulkActionResult,
+  BulkStatusChangeOptions,
   EntryClass,
   EntryManagementEntry,
   StatusChangeOptions,
 } from '@/types/entry-management-types';
 import type { CheckInStatus } from '@myk9/core';
-import { EntryStatus } from '@/types/show-registration-types';
+import type { EntryStatus } from '@/types/show-registration-types';
 import { sendRegistrationConfirmationEmail } from '@/components/shows/RegistrationWorkflow/sendRegistrationConfirmationEmail';
 import { ENTRY_ACTION_COPY } from '@/hooks/entryManagementErrorCopy';
 import type { EntriesRefresh } from '@/components/entries/management/checkInDesk/entriesRefresh';
@@ -82,7 +84,8 @@ interface EntryManagementCockpitProps {
   onBulkStatusChange: (
     entryIds: string[],
     status: EntryStatus,
-    onFullSuccess?: () => void
+    onFullSuccess?: () => void,
+    options?: BulkStatusChangeOptions
   ) => BulkActionResult | Promise<BulkActionResult>;
   onSendDecisionEmail: (
     registrationId: string,
@@ -194,38 +197,13 @@ export function EntryManagementCockpit({
     downloadCsv(selectedEntriesExportFilename(), buildSelectedEntriesExportCsv(selectedEntries));
   };
 
-  const handleStatusChangeWithDecisionEmail = async (
-    entryId: string,
-    status: EntryStatus,
-    withdrawalReason?: string
-  ) => {
-    const entry = entries.find(candidate => candidate.id === entryId);
-    const stepType =
-      status === EntryStatus.ACCEPTED
-        ? 'accepted'
-        : status === EntryStatus.WAITLIST
-          ? 'waitlisted'
-          : null;
-    const plan =
-      entry?.registrationId && stepType ? lifecycleEmails.decisionEmailPlan(stepType) : 'none';
-    const { sendDecisionEmail } = lifecycleEmails;
-    const statusSaved = await onStatusChange(
-      entryId,
-      status,
-      withdrawalReason,
-      // The email waits for the decision to stand, on the Undo toast's own clock, and is
-      // written from the entry as it is then (the Accept may have just given it an armband).
-      plan === 'send' && stepType
-        ? {
-            onStood: stoodEntry => sendDecisionEmail(stoodEntry, stepType, showName ?? 'this show'),
-          }
-        : undefined
-    );
-    if (entry && stepType && plan === 'preview' && statusSaved !== false) {
-      lifecycleEmails.openDecisionPrompt({ ...entry, entryStatus: status }, stepType);
-    }
-    return statusSaved;
-  };
+  const decisionEmailed = useDecisionEmailedStatusChange({
+    entries,
+    showName,
+    lifecycleEmails,
+    onStatusChange,
+    onBulkStatusChange,
+  });
 
   const selectedEntries = cockpit.selection.selectedItems.flatMap(group => group.entries);
   const showQueue = !responsive.compact || !responsive.detailOpen;
@@ -374,7 +352,7 @@ export function EntryManagementCockpit({
                     },
                   }
                 : {})}
-              onStatusChange={handleStatusChangeWithDecisionEmail}
+              onStatusChange={decisionEmailed.onStatusChange}
               onEntryRefunded={onRefresh}
               onEntryRestored={onRefresh}
               onRefreshEntries={onRefreshEntries ?? onRefresh}
@@ -391,7 +369,7 @@ export function EntryManagementCockpit({
               matchingEntryIds={
                 new Set(cockpit.matchingEntryIdsByGroup.get(cockpit.focusedGroup.groupKey) ?? [])
               }
-              onBulkStatusChange={onBulkStatusChange}
+              onBulkStatusChange={decisionEmailed.onBulkStatusChange}
               paymentLedger={paymentLedger}
               emailStatusMap={emailStatusMap}
               juniorDeclaredEntryIds={juniorDeclaredEntryIds}
@@ -414,7 +392,7 @@ export function EntryManagementCockpit({
       <EntryManagementBulkBar
         registrations={cockpit.selection.selectedCount}
         selectedEntries={selectedEntries}
-        onBulkStatusChange={onBulkStatusChange}
+        onBulkStatusChange={decisionEmailed.onBulkStatusChange}
         onClear={cockpit.selection.clearSelection}
         busy={busy}
         isResendDisabled={isResendDisabled}

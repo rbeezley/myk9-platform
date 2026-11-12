@@ -7,6 +7,7 @@ import {
   type LifecycleEmailJobSummaryRow,
   type LifecycleEmailReceiptLogRow,
 } from './readModel';
+import { foldEntryDecisionStatuses, type EntryDecisionJobRow } from './entryDecisionStatuses';
 import { fetchAllPages } from './pagedRead';
 import type { LifecycleEmailStepType } from './types';
 
@@ -62,20 +63,6 @@ interface JobReviewRow {
 
 type DecisionEmailStepType = Extract<LifecycleEmailStepType, 'accepted' | 'waitlisted'>;
 
-interface EntryDecisionJobRow {
-  id: string;
-  entry_id: string | null;
-  step_type: DecisionEmailStepType;
-  status: LifecycleEmailJobSummaryRow['status'];
-  subject: string | null;
-  body: string | null;
-  secretary_note: string | null;
-  due_at: string | null;
-  prepared_at: string | null;
-  sent_at: string | null;
-  correction_for_job_id: string | null;
-}
-
 export interface LifecycleEmailJobReview {
   id: string;
   stepType: LifecycleEmailStepType;
@@ -100,6 +87,8 @@ export interface EntryDecisionEmailJob {
   preparedAt: string | null;
   sentAt: string | null;
   correctionForJobId: string | null;
+  /** Every entry this job's one email covers (just `entryId` unless it spans a form's classes). */
+  coveredEntryIds: string[];
 }
 
 export interface EntryDecisionEmailStatus {
@@ -269,7 +258,7 @@ export async function fetchEntryDecisionEmailStatuses(args: {
       args.supabase
         .from<EntryDecisionJobRow[]>('show_lifecycle_email_jobs')
         .select(
-          'id, entry_id, step_type, status, subject, body, secretary_note, due_at, prepared_at, sent_at, correction_for_job_id'
+          'id, entry_id, idempotency_key, step_type, status, subject, body, secretary_note, due_at, prepared_at, sent_at, correction_for_job_id'
         )
         .eq('show_id', args.showId)
         .in('entry_id', ids)
@@ -282,29 +271,7 @@ export async function fetchEntryDecisionEmailStatuses(args: {
     throw new Error(failed.error.message ?? 'Failed to load entry decision email status');
   }
 
-  const statuses: Record<string, EntryDecisionEmailStatus> = {};
-  for (const row of results.flatMap(result => result.data ?? [])) {
-    if (!row.entry_id) continue;
-    const job = mapEntryDecisionJob(row, row.entry_id);
-    const status = (statuses[row.entry_id] ??= {
-      entryId: row.entry_id,
-      readyJob: null,
-      sentDecisionJob: null,
-      sentCorrectionJob: null,
-    });
-
-    if (job.status === 'ready') {
-      status.readyJob = pickLatestJob(status.readyJob, job, 'preparedAt');
-    }
-    if (job.status === 'sent' && job.correctionForJobId) {
-      status.sentCorrectionJob = pickLatestJob(status.sentCorrectionJob, job, 'sentAt');
-    }
-    if (job.status === 'sent' && !job.correctionForJobId) {
-      status.sentDecisionJob = pickLatestJob(status.sentDecisionJob, job, 'sentAt');
-    }
-  }
-
-  return statuses;
+  return foldEntryDecisionStatuses(results.flatMap(result => result.data ?? []));
 }
 
 /**
@@ -468,31 +435,4 @@ function mapReceiptLogRow(row: ReceiptLogRow): LifecycleEmailReceiptLogRow {
     errorMessage: row.error_message,
     createdAt: row.created_at,
   };
-}
-
-function mapEntryDecisionJob(row: EntryDecisionJobRow, entryId: string): EntryDecisionEmailJob {
-  return {
-    id: row.id,
-    entryId,
-    stepType: row.step_type,
-    status: row.status,
-    subject: row.subject ?? '',
-    body: row.body ?? '',
-    secretaryNote: row.secretary_note ?? '',
-    dueAt: row.due_at,
-    preparedAt: row.prepared_at,
-    sentAt: row.sent_at,
-    correctionForJobId: row.correction_for_job_id,
-  };
-}
-
-function pickLatestJob(
-  current: EntryDecisionEmailJob | null,
-  next: EntryDecisionEmailJob,
-  timestampKey: 'preparedAt' | 'sentAt'
-): EntryDecisionEmailJob {
-  if (!current) return next;
-  const currentTime = current[timestampKey] ? Date.parse(current[timestampKey]) : 0;
-  const nextTime = next[timestampKey] ? Date.parse(next[timestampKey]) : 0;
-  return nextTime >= currentTime ? next : current;
 }

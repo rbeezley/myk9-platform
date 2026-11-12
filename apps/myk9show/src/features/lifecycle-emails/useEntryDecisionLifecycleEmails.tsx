@@ -10,6 +10,7 @@ import { LifecycleEmailPreviewDialog } from './LifecycleEmailPreviewDialog';
 import {
   decisionEmailContext,
   isDecisionEmailSuperseded,
+  sortDecidedEntries,
   type DecisionStepType,
 } from './decisionEmail';
 import { saveDecisionEmailJob } from './saveDecisionEmailJob';
@@ -29,6 +30,8 @@ const EMPTY_STATUS_MAP: Record<string, EntryDecisionEmailStatus> = {};
 
 interface DecisionEmailPrompt {
   entry: EntryManagementEntry;
+  /** Every entry of the registration this one decision covers (includes `entry`); absent for one. */
+  decidedEntries?: EntryManagementEntry[] | undefined;
   stepType: DecisionStepType;
   jobId?: string | null | undefined;
   correctionForJobId?: string | null | undefined;
@@ -57,10 +60,11 @@ interface UseEntryDecisionLifecycleEmailsResult {
    * decision has stood. `preview`: she is shown it first. `none`: this show does not email it.
    */
   decisionEmailPlan: (stepType: DecisionStepType) => DecisionEmailPlan;
-  openDecisionPrompt: (entry: EntryManagementEntry, stepType: DecisionStepType) => void;
+  /** Opens the preview for the entries of ONE registration decided together. */
+  openDecisionPrompt: (entries: EntryManagementEntry[], stepType: DecisionStepType) => void;
   /** For a decision that has stood; stable, and safe to call after the cockpit unmounts. */
   sendDecisionEmail: (
-    entry: EntryManagementEntry,
+    entries: EntryManagementEntry[],
     stepType: DecisionStepType,
     showName: string
   ) => void;
@@ -113,7 +117,7 @@ export function useEntryDecisionLifecycleEmails({
     values: { subject: string; body: string; secretaryNote: string }
   ) =>
     saveDecisionEmailJob(
-      currentPrompt.entry,
+      currentPrompt.decidedEntries ?? [currentPrompt.entry],
       currentPrompt.stepType,
       values,
       currentPrompt.correctionForJobId
@@ -145,12 +149,17 @@ export function useEntryDecisionLifecycleEmails({
     return sendUnasked && !offline ? 'send' : 'preview';
   };
 
-  const openDecisionPrompt = (entry: EntryManagementEntry, stepType: DecisionStepType) =>
-    setPrompt({ entry, stepType });
+  const openDecisionPrompt = (decided: EntryManagementEntry[], stepType: DecisionStepType) => {
+    const [entry] = sortDecidedEntries(decided);
+    if (entry) setPrompt({ entry, decidedEntries: sortDecidedEntries(decided), stepType });
+  };
 
   const reviewReadyEmail = (job: EntryDecisionEmailJob, entry: EntryManagementEntry) => {
+    // A job covering several classes reopens with all of them, so the header and draft agree.
+    const covered = job.coveredEntryIds.flatMap(id => entries.find(item => item.id === id) ?? []);
     setPrompt({
       entry,
+      ...(covered.length > 1 ? { decidedEntries: sortDecidedEntries(covered) } : {}),
       stepType: job.stepType,
       jobId: job.id,
       correctionForJobId: job.correctionForJobId,
@@ -196,7 +205,7 @@ export function useEntryDecisionLifecycleEmails({
       initialBody={prompt.initialBody}
       initialSecretaryNote={prompt.initialSecretaryNote}
       isSending={isSending}
-      {...decisionEmailContext(prompt.entry, showName)}
+      {...decisionEmailContext(prompt.decidedEntries ?? prompt.entry, showName)}
       onNotNow={values => {
         // Saving a superseded fresh decision for later would persist a sendable
         // job for a decision that was undone — same hazard as sending it now.

@@ -43,7 +43,7 @@ describe('useSendDecisionEmail after a show switch (MYK9-1833)', () => {
     );
     view.rerender({ showName: 'Show B' });
 
-    view.result.current(showAEntry, 'accepted', 'Show A');
+    view.result.current([showAEntry], 'accepted', 'Show A');
 
     await waitFor(() =>
       expect(sendLifecycleEmailJobs).toHaveBeenCalledWith(
@@ -51,7 +51,7 @@ describe('useSendDecisionEmail after a show switch (MYK9-1833)', () => {
       )
     );
     const draft = vi.mocked(saveDecisionEmailJob).mock.calls[0]?.[2];
-    expect(vi.mocked(saveDecisionEmailJob).mock.calls[0]?.[0]).toBe(showAEntry);
+    expect(vi.mocked(saveDecisionEmailJob).mock.calls[0]?.[0]).toEqual([showAEntry]);
     expect(draft?.body).toContain('Show A');
     expect(draft?.body).not.toContain('Show B');
   });
@@ -61,7 +61,7 @@ describe('useSendDecisionEmail after a show switch (MYK9-1833)', () => {
   }
 
   it('names the dog in the success toast, and the show only when it is not the one on screen', async () => {
-    sender('Show B')(showAEntry, 'accepted', 'Show A');
+    sender('Show B')([showAEntry], 'accepted', 'Show A');
     await waitFor(() =>
       expect(toast.success).toHaveBeenCalledWith(
         'Acceptance email sent to Pat Owner for Rex at Show A'
@@ -69,7 +69,7 @@ describe('useSendDecisionEmail after a show switch (MYK9-1833)', () => {
     );
 
     vi.mocked(toast.success).mockClear();
-    sender('Show A')(showAEntry, 'accepted', 'Show A');
+    sender('Show A')([showAEntry], 'accepted', 'Show A');
     await waitFor(() =>
       expect(toast.success).toHaveBeenCalledWith('Acceptance email sent to Pat Owner for Rex')
     );
@@ -77,7 +77,7 @@ describe('useSendDecisionEmail after a show switch (MYK9-1833)', () => {
 
   it('names the dog and show in the failure toast after a switch', async () => {
     vi.mocked(sendLifecycleEmailJobs).mockResolvedValue({ sent: 0, failed: 1, total: 1 });
-    sender('Show B')(showAEntry, 'waitlisted', 'Show A');
+    sender('Show B')([showAEntry], 'waitlisted', 'Show A');
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith(
         'The waitlist email to Pat Owner for Rex at Show A did not send. Go back to Show A and use "Email Exhibitor" on Rex\'s entry to let them know.'
@@ -87,7 +87,7 @@ describe('useSendDecisionEmail after a show switch (MYK9-1833)', () => {
 
   it('keeps the failure advice short on the same show', async () => {
     vi.mocked(sendLifecycleEmailJobs).mockResolvedValue({ sent: 0, failed: 1, total: 1 });
-    sender('Show A')(showAEntry, 'waitlisted', 'Show A');
+    sender('Show A')([showAEntry], 'waitlisted', 'Show A');
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith(
         'The waitlist email to Pat Owner for Rex did not send. Use "Email Exhibitor" on Rex\'s entry to let them know.'
@@ -98,7 +98,7 @@ describe('useSendDecisionEmail after a show switch (MYK9-1833)', () => {
   it('names the dog and show when offline after a switch, and says to go back', () => {
     const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
     try {
-      sender('Show B')(showAEntry, 'accepted', 'Show A');
+      sender('Show B')([showAEntry], 'accepted', 'Show A');
       expect(toast.error).toHaveBeenCalledWith(
         'You\'re offline, so the acceptance email to Pat Owner for Rex at Show A was not sent. When you are back online, go back to Show A and use "Email Exhibitor" on Rex\'s entry.'
       );
@@ -109,14 +109,14 @@ describe('useSendDecisionEmail after a show switch (MYK9-1833)', () => {
   });
 
   it('names the dog and show when the exhibitor has no email, after a switch', () => {
-    sender('Show B')({ ...showAEntry, ownerEmail: '' }, 'accepted', 'Show A');
+    sender('Show B')([{ ...showAEntry, ownerEmail: '' }], 'accepted', 'Show A');
     expect(toast.info).toHaveBeenCalledWith(
       'Pat Owner has no email on file, so no acceptance email was sent for Rex at Show A.'
     );
   });
 
   it('leaves the show out when the decided-on show has no name', async () => {
-    sender('Show B')(showAEntry, 'accepted', 'this show');
+    sender('Show B')([showAEntry], 'accepted', 'this show');
     await waitFor(() =>
       expect(toast.success).toHaveBeenCalledWith('Acceptance email sent to Pat Owner for Rex')
     );
@@ -124,7 +124,57 @@ describe('useSendDecisionEmail after a show switch (MYK9-1833)', () => {
 
   it('refreshes the lifecycle email caches of the show the decision was made on', async () => {
     const onSettled = vi.fn();
-    sender('Show B', onSettled)(showAEntry, 'accepted', 'Show A');
+    sender('Show B', onSettled)([showAEntry], 'accepted', 'Show A');
     await waitFor(() => expect(onSettled).toHaveBeenCalledWith('show-a'));
+  });
+});
+
+describe('useSendDecisionEmail for several classes of one entry form (MYK9-1800)', () => {
+  const rexNovice = { ...showAEntry, id: 'entry-3', classes: [{ name: 'Novice A' }] };
+  const rexOpen = { ...showAEntry, id: 'entry-1', classes: [{ name: 'Open B' }] };
+  const bessMaster = {
+    ...showAEntry,
+    id: 'entry-2',
+    dogName: 'Bess',
+    classes: [{ name: 'Master C' }],
+  };
+  const several = [rexNovice, rexOpen, bessMaster] as unknown as EntryManagementEntry[];
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(saveDecisionEmailJob).mockResolvedValue('job-1');
+    vi.mocked(sendLifecycleEmailJobs).mockResolvedValue({ sent: 1, failed: 0, total: 1 });
+  });
+
+  function sender() {
+    return renderHook(() => useSendDecisionEmail({ showName: 'Show A', onSettled: vi.fn() })).result
+      .current;
+  }
+
+  it('saves and sends ONE job whose email lists every class, and names each dog once', async () => {
+    sender()(several, 'accepted', 'Show A');
+
+    await waitFor(() => expect(sendLifecycleEmailJobs).toHaveBeenCalledTimes(1));
+    expect(saveDecisionEmailJob).toHaveBeenCalledTimes(1);
+    const [savedEntries, stepType, draft] = vi.mocked(saveDecisionEmailJob).mock.calls[0] ?? [];
+    expect(savedEntries?.map(entry => entry.id)).toEqual(['entry-1', 'entry-2', 'entry-3']);
+    expect(stepType).toBe('accepted');
+    expect(draft?.body).toContain('Open B');
+    expect(draft?.body).toContain('Master C');
+    expect(draft?.body).toContain('Novice A');
+    expect(toast.success).toHaveBeenCalledWith(
+      'Acceptance email sent to Pat Owner for Rex and Bess'
+    );
+  });
+
+  it('tells her where to email from when it fails, naming the entry form', async () => {
+    vi.mocked(sendLifecycleEmailJobs).mockResolvedValue({ sent: 0, failed: 1, total: 1 });
+    sender()([rexNovice, rexOpen] as unknown as EntryManagementEntry[], 'waitlisted', 'Show A');
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        `The waitlist email to Pat Owner for Rex did not send. Use "Email Exhibitor" on Rex's entry form to let them know.`
+      )
+    );
   });
 });

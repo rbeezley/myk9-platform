@@ -38,3 +38,12 @@ export function createRecord(
     publication: { state: 'pending' },
   };
 }
+
+/** Git bound to one repository, so `--repo` governs every controller git call. */
+export const makeGit =
+  (repoDir: string): GitFn =>
+  args =>
+    execFileSync('git', ['-C', repoDir, ...args], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    }).trim();

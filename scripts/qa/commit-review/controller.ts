@@ -13,7 +13,7 @@ import { join } from 'node:path';
 import { runAttempt, tail } from './attempt';
 import { acquireLock, type LockIdentity } from './lock';
 import { BOUNDARY_PATH, publishCheck } from './publish';
-import { createRecord, readBoundaryFromSha, realGit } from './record';
+import { createRecord, makeGit, readBoundaryFromSha } from './record';
 import {
   DEFAULT_RUNS_DIR,
   isRecordShape,
@@ -70,10 +70,15 @@ function readCursor(git: GitFn): string {
   return readBoundaryFromSha(git(['show', `origin/main:${BOUNDARY_PATH}`]));
 }
 
-/** The newest not-yet-complete record frozen from the current cursor, if any. */
-function findOpenRecord(runsDir: string, cursor: string, git: GitFn): string | null {
-  if (!existsSync(runsDir)) return null;
-  const open: Array<{ path: string; createdAt: string }> = [];
+interface OpenRecord {
+  path: string;
+  record: RunRecord;
+}
+
+/** Every unfinished record, whatever cursor it was frozen from, newest first. */
+function findOpenRecords(runsDir: string, git: GitFn): OpenRecord[] {
+  if (!existsSync(runsDir)) return [];
+  const open: OpenRecord[] = [];
   for (const f of readdirSync(runsDir).filter(n => n.endsWith('.json'))) {
     const path = join(runsDir, f);
     let raw: unknown;
@@ -82,13 +87,28 @@ function findOpenRecord(runsDir: string, cursor: string, git: GitFn): string | n
     } catch {
       continue;
     }
-    if (!isRecordShape(raw) || raw.boundary.fromSha !== cursor) continue;
+    if (!isRecordShape(raw)) continue;
     const kind = validateRecord(raw, git).outcome;
-    if (kind === 'complete' || kind === 'complete-empty') continue;
-    open.push({ path, createdAt: raw.createdAt });
+    if (kind !== 'complete' && kind !== 'complete-empty') open.push({ path, record: raw });
   }
-  open.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  return open[0]?.path ?? null;
+  return open.sort((a, b) => b.record.createdAt.localeCompare(a.record.createdAt));
+}
+
+/**
+ * A run whose commits are all reviewed and whose report and cursor are already
+ * on origin/main only lacks the readback note (the controller stopped between
+ * the push and recording it). Record it; never publish again.
+ */
+function reconcilePublished(open: OpenRecord[], git: GitFn, log: (s: string) => void): void {
+  for (const o of open) {
+    const out = validateRecord(o.record, git);
+    if (out.outcome !== 'incomplete' || out.remainingShas.length) continue;
+    if (!publishCheck(o.record, git).ok) continue;
+    log(`Run ${o.record.runId} is already published on origin/main; recording readback-ok.`);
+    save(o.path, r => {
+      r.publication = { ...r.publication, state: 'readback-ok' };
+    });
+  }
 }
 
 function blockedResult(
@@ -188,7 +208,21 @@ async function drive(
 
   try {
     const cursor = readCursor(git);
-    path = findOpenRecord(runsDir, cursor, git) ?? undefined;
+    reconcilePublished(findOpenRecords(runsDir, git), git, log);
+    const open = findOpenRecords(runsDir, git);
+    const superseded = open.filter(o => o.record.boundary.fromSha !== cursor);
+    if (superseded.length) {
+      const first = superseded[0] as OpenRecord;
+      path = first.path;
+      const o = validateRecord(first.record, git);
+      return block(
+        'reconcile an unfinished run with the shared cursor',
+        `run ${first.record.runId} was frozen from ${first.record.boundary.fromSha} but the audit-boundary cursor on origin/main is ${cursor}, and the run is not published (${superseded.length} such run(s))`,
+        o,
+        'Another stream advanced the cursor. Decide whether the run is superseded, then move its record out of the runs directory; the next run freezes a fresh window.'
+      );
+    }
+    path = open[0]?.path;
     if (path) log(`Resuming frozen run ${path}`);
     else {
       const to = git(['rev-parse', '--verify', 'origin/main^{commit}']);
@@ -314,7 +348,7 @@ function flagValue(args: string[], name: string): string | undefined {
   return i >= 0 ? args[i + 1] : undefined;
 }
 
-export async function runControllerMain(args: string[]): Promise<number> {
+export function buildRuntimeOptions(args: string[]): ControllerOptions {
   const runsDir = flagValue(args, 'dir') ?? DEFAULT_RUNS_DIR;
   const repoDir = flagValue(args, 'repo') ?? process.cwd();
   const instructionsFile =
@@ -322,9 +356,9 @@ export async function runControllerMain(args: string[]): Promise<number> {
   const num = (n: string): number | undefined =>
     flagValue(args, n) ? Number(flagValue(args, n)) : undefined;
   const extraArgs = (process.env.COMMIT_REVIEW_CODEX_ARGS ?? '').split(/\s+/).filter(Boolean);
-  const result = await runController({
+  return {
     runsDir,
-    git: realGit,
+    git: makeGit(repoDir),
     launchWorker: realLaunchWorker({ repoDir, instructionsFile, extraArgs }),
     sleep: ms => new Promise(r => setTimeout(r, ms)),
     now: () => new Date(),
@@ -344,7 +378,11 @@ export async function runControllerMain(args: string[]): Promise<number> {
     log: line => console.error(`[commit-review] ${line}`),
     maxAttempts: num('max-attempts'),
     maxNoProgress: num('max-no-progress'),
-  });
+  };
+}
+
+export async function runControllerMain(args: string[]): Promise<number> {
+  const result = await runController(buildRuntimeOptions(args));
   console.log(
     JSON.stringify(
       {

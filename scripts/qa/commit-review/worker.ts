@@ -108,7 +108,9 @@ export function realLaunchWorker(cfg: RealWorkerConfig): LaunchWorker {
         cwd: cfg.repoDir,
         stdio: ['ignore', 'pipe', 'pipe'],
       });
-      let stdout = '';
+      // First session event wins and is kept apart from the bounded output tail.
+      let sessionFound: string | undefined;
+      let pending = '';
       let stderr = '';
       let settled = false;
       const done = (exitCode: number, extra = ''): void => {
@@ -117,7 +119,7 @@ export function realLaunchWorker(cfg: RealWorkerConfig): LaunchWorker {
         clearTimeout(timer);
         resolve({
           exitCode,
-          sessionId: parseSessionId(stdout) ?? req.sessionId,
+          sessionId: sessionFound ?? parseSessionId(pending) ?? req.sessionId,
           stderr: stderr + extra,
         });
       };
@@ -129,8 +131,14 @@ export function realLaunchWorker(cfg: RealWorkerConfig): LaunchWorker {
         cfg.timeoutMs ?? 6 * 60 * 60 * 1000
       );
       child.stdout.on('data', d => {
-        stdout += String(d);
-        if (stdout.length > 2_000_000) stdout = stdout.slice(-1_000_000);
+        if (sessionFound) return;
+        pending += String(d);
+        const cut = pending.lastIndexOf('\n');
+        if (cut >= 0) {
+          sessionFound = parseSessionId(pending.slice(0, cut));
+          pending = pending.slice(cut + 1);
+        }
+        if (pending.length > 1_000_000) pending = pending.slice(-100_000);
       });
       child.stderr.on('data', d => {
         stderr += String(d);

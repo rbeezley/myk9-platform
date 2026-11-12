@@ -1,12 +1,28 @@
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { runCli } from './cli';
-import { runController, type ControllerOptions, type LaunchWorker } from './controller';
+import {
+  buildRuntimeOptions,
+  runController,
+  type ControllerOptions,
+  type LaunchWorker,
+} from './controller';
 import { acquireLock } from './lock';
 import { publishCheck } from './publish';
 import { readRecordRaw } from './store';
+import { realLaunchWorker } from './worker';
 import type { GitFn, RunRecord } from './types';
 
 const sha = (n: number) => String(n).padStart(40, 'a');
@@ -386,5 +402,72 @@ describe('publication readback', () => {
       runCli(['publish-check', '--record', path, '--apply'], makeGit(1, origin), s => out.push(s))
     ).toBe(0);
     expect(out.join('')).toContain('already');
+  });
+});
+
+describe('reconciling every open record before freezing a new window', () => {
+  const REPORT = 'docs/qa/codex-daily-commit-review-2026-11-12.md';
+
+  it('finishes a run whose report and cursor were pushed before readback was recorded', async () => {
+    gitN = 3;
+    const first = await runController(options(scriptedWorker([{ review: 3 }]), { maxAttempts: 1 }));
+    expect(first.status).toBe('blocked');
+    const oldName = records()[0] as string;
+    // The publication worker pushed, then the controller died before recording readback.
+    origin.rowSha = TO;
+    origin.reports[REPORT] = `target ${TO}`;
+    calls.length = 0;
+    const res = await runController(options(scriptedWorker([{}])));
+    expect(res.status).toMatch(/^complete/);
+    const old = readRecordRaw(join(dir, oldName)) as RunRecord;
+    expect(old.publication.state).toBe('readback-ok');
+    expect(calls).toHaveLength(0);
+  });
+
+  it('reports a superseded unfinished run instead of silently freezing a new window', async () => {
+    gitN = 3;
+    await runController(options(scriptedWorker([{ review: 1 }]), { maxAttempts: 1 }));
+    origin.rowSha = sha(300);
+    calls.length = 0;
+    const res = await runController(options(scriptedWorker([{ review: 3 }])));
+    expect(res.status).toBe('blocked');
+    expect(res.blocker?.error).toMatch(/cursor/i);
+    expect(res.blocker?.remainingShas).toEqual(inv(3).slice(1));
+    expect(calls).toHaveLength(0);
+    expect(records()).toHaveLength(1);
+  });
+});
+
+describe('repo binding and session capture', () => {
+  it('binds git to --repo rather than the process cwd', () => {
+    const repo = mkdtempSync(join(tmpdir(), 'repo-'));
+    try {
+      execFileSync('git', ['init', '-q'], { cwd: repo });
+      const opts = buildRuntimeOptions(['--repo', repo, '--dir', dir]);
+      expect(realpathSync(opts.git(['rev-parse', '--show-toplevel']))).toBe(realpathSync(repo));
+      expect(realpathSync(process.cwd())).not.toBe(realpathSync(repo));
+    } finally {
+      rmSync(repo, { recursive: true, force: true });
+    }
+  });
+
+  it('keeps the session id when later output overflows the buffer', async () => {
+    const bin = join(dir, 'fake-codex');
+    writeFileSync(
+      bin,
+      `#!/usr/bin/env node
+console.log(JSON.stringify({ type: 'thread.started', thread_id: 'thread-xyz' }));
+const line = JSON.stringify({ type: 'item', text: 'x'.repeat(1000) }) + String.fromCharCode(10);
+for (let i = 0; i < 3500; i++) process.stdout.write(line);
+`
+    );
+    chmodSync(bin, 0o755);
+    const instr = join(dir, 'instructions.md');
+    writeFileSync(instr, 'review');
+    const launch = realLaunchWorker({ repoDir: dir, instructionsFile: instr, codexBin: bin });
+    const res = await launch({ recordPath: 'r', remainingShas: [], publicationOnly: false });
+    expect(res.stderr).toBe('');
+    expect(res.exitCode).toBe(0);
+    expect(res.sessionId).toBe('thread-xyz');
   });
 });

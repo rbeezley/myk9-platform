@@ -29,9 +29,8 @@ export function ClassCheckInCell({
   entry: SecretaryCockpitClassEntry;
   checkIn: ClassCheckIn;
 }) {
-  const shown = checkIn.statusOf(entry);
-  const display =
-    shown === entry.checkInValue ? (entry.checkIn ?? displayOf(shown)) : displayOf(shown);
+  const shown = entry.checkInValue;
+  const display = entry.checkIn ?? displayOf(shown);
   const notCheckedIn = shown === 'no-status';
   const pill = <StatusPill label={display.label} kind={display.kind} outlined={notCheckedIn} />;
 

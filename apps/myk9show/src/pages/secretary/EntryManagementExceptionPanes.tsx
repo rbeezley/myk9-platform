@@ -7,6 +7,7 @@ import type { EntryManagementException } from '@/components/entries/management/e
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { CheckInDesk } from '@/components/entries/management/checkInDesk/CheckInDesk';
 import WaitlistManagementPage from './WaitlistManagementPage/index';
+import type { EntriesRefresh } from '@/components/entries/management/checkInDesk/storedEntryPatch';
 
 interface EntryManagementExceptionPanesProps {
   showId: string;
@@ -24,7 +25,7 @@ interface EntryManagementExceptionPanesProps {
     isError: boolean;
     retry: () => void;
   };
-  onRefreshEntries: () => void | Promise<void>;
+  onRefreshEntries: EntriesRefresh;
   onMoveUpsChanged: () => void;
   onOpenEntry: (entry: EntryManagementEntry) => void;
 }

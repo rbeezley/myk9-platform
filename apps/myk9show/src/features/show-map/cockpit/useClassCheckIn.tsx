@@ -1,6 +1,5 @@
 import { useState, type ReactNode } from 'react';
 
-import type { CheckInStatus } from '@/types/check-in-types';
 import { StatusPickerDialog } from '@/components/common/StatusPickerDialog';
 import { DeskPullDialogs } from '@/components/entries/management/checkInDesk/DeskPullDialogs';
 import { changeDeskRowStatus } from '@/components/entries/management/checkInDesk/deskRowStatus';
@@ -15,6 +14,7 @@ import {
 } from '@/components/entries/management/checkInDesk/useDeskPull';
 
 import type { SecretaryCockpitClassEntry } from './cockpitClassEntries';
+import type { EntriesRefresh } from '@/components/entries/management/checkInDesk/storedEntryPatch';
 
 /**
  * The class table's Check-in cell opens the Check-in desk's own picker (MYK9-1797): the same
@@ -26,7 +26,7 @@ export function useClassCheckIn(
   entries: readonly SecretaryCockpitClassEntry[],
   className: string,
   canChange: boolean,
-  onRefreshEntries?: () => void | Promise<void>
+  onRefreshEntries?: EntriesRefresh
 ) {
   const { busyIds, error, errorIds, notice, setStatus } = useCheckInDeskActions(onRefreshEntries);
   // The panel is reused across classes, so an alert shows only beside the class whose dog it is
@@ -51,9 +51,6 @@ export function useClassCheckIn(
     entry => entry.entryId === pickerId && canChange && entry.deskEditable
   );
   if (pickerId && !pickerEntry) setPickerId(null);
-
-  /** The status shown: the shared entries' own, never a local copy of a write. */
-  const statusOf = (entry: SecretaryCockpitClassEntry): CheckInStatus => entry.checkInValue;
 
   const dialogs: ReactNode = (
     <>
@@ -80,7 +77,7 @@ export function useClassCheckIn(
             dogName: pickerEntry.dogName,
             handlerName: [pickerEntry.handler, className].filter(Boolean).join(' · '),
           }}
-          currentStatus={statusOf(pickerEntry)}
+          currentStatus={pickerEntry.checkInValue}
           onStatusChange={(_, status) => {
             const row = rowOf(pickerEntry.entryId);
             if (row) changeDeskRowStatus(row, status, { setStatus }, pull);
@@ -96,7 +93,6 @@ export function useClassCheckIn(
 
   return {
     canChange,
-    statusOf,
     isBusy: (entryId: string) => busyIds.has(entryId),
     open: (entryId: string) => setPickerId(entryId),
     dialogs,

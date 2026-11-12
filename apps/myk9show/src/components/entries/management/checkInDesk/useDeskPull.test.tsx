@@ -1,10 +1,12 @@
 import { screen, waitFor, within } from '@testing-library/react';
+import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
 import { toast } from 'sonner';
 import { render } from '@/test/utils/testUtils';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { CheckInDesk } from './CheckInDesk';
+import { patchManagementEntries } from './storedEntryPatch';
 
 const h = vi.hoisted(() => ({
   updateReplicatedCheckInStatus: vi.fn(),
@@ -145,6 +147,12 @@ describe('Pulled on the Check-in desk is the real Pull (MYK9-1749)', () => {
   });
 
   describe('a Pull never waits for the entries re-read (MYK9-1812)', () => {
+    const toastInfo = vi.spyOn(toast, 'info');
+    const toastError = vi.spyOn(toast, 'error');
+    beforeEach(() => {
+      toastInfo.mockClear();
+      toastError.mockClear();
+    });
     const stalled = () => vi.fn(() => new Promise<void>(() => {}));
     const pip: EntryManagementEntry = {
       ...poppy,
@@ -217,8 +225,41 @@ describe('Pulled on the Check-in desk is the real Pull (MYK9-1749)', () => {
       await pullDog(user, 'Poppy');
 
       await waitFor(() => expect(h.scratchShowMapEntry).toHaveBeenCalledTimes(2));
+      await waitFor(() =>
+        expect(toastInfo).toHaveBeenCalledWith('Poppy is already pulled from Container Novice A')
+      );
+      expect(toastError).not.toHaveBeenCalled();
       expect(h.showUndoToast).toHaveBeenCalledTimes(1);
       expect(h.undoShowMapScratch).not.toHaveBeenCalled();
+    });
+
+    it('shows the stored Pull when the entries re-read fails', async () => {
+      const Page = () => {
+        const [entries, setEntries] = useState([poppy]);
+        return (
+          <CheckInDesk
+            showId="show-1"
+            entries={entries}
+            loading={false}
+            unknown={false}
+            onRetry={vi.fn()}
+            onRefreshEntries={stored => {
+              if (stored) setEntries(current => patchManagementEntries(current, stored));
+              return Promise.reject(new Error('Show entries not synced'));
+            }}
+            currentDate={NOW}
+          />
+        );
+      };
+      const { user } = render(<Page />);
+      await pullDog(user, 'Poppy');
+
+      await waitFor(() =>
+        expect(screen.getByRole('region', { name: 'Alice Martin' })).toHaveTextContent('Pulled')
+      );
+      expect(
+        screen.queryByRole('button', { name: /^Change status for Poppy/ })
+      ).not.toBeInTheDocument();
     });
   });
 

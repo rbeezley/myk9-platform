@@ -152,7 +152,9 @@ vi.mock('@/features/show-map/ShowDeskPanel', () => ({
     tools,
     onRefreshEntries,
   }: {
-    onRefreshEntries?: () => Promise<void>;
+    onRefreshEntries?: (
+      stored?: Array<{ entryId: string; checkInStatus?: string; entryStatus?: string }>
+    ) => Promise<void>;
     entries: unknown[];
     classes: Array<{ entryCount: number; scoredCount: number }>;
     tools: Array<{
@@ -174,6 +176,19 @@ vi.mock('@/features/show-map/ShowDeskPanel', () => ({
           );
         }}
       />
+      <button
+        type="button"
+        data-testid="panel-refresh-after-write"
+        onClick={() => {
+          void onRefreshEntries?.([{ entryId: 'entry-1', checkInStatus: 'checked-in' }]).then(
+            () => refreshOutcomes.push('resolved'),
+            () => refreshOutcomes.push('rejected')
+          );
+        }}
+      />
+      <div data-testid="panel-entry-check-ins">
+        {(entries as Array<{ check_in_status?: string }>).map(e => e.check_in_status).join(',')}
+      </div>
       <div data-testid="panel-entry-count">{entries.length}</div>
       <div data-testid="panel-class-entry-counts">
         {classes.map(cls => cls.entryCount).join(',')}
@@ -505,6 +520,37 @@ describe('ShowWorkbenchShowDeskPage', () => {
     fireEvent.click(await screen.findByTestId('panel-refresh-entries'));
 
     await waitFor(() => expect(refreshOutcomes).toEqual(['rejected']));
+  });
+
+  it('keeps the status a desk write stored when the entries re-read fails (MYK9-1812)', async () => {
+    trialStoreState.trials = [
+      {
+        id: 'trial-1',
+        showId: 'show-1',
+        trialDate: '2026-03-22',
+        trialNumber: '1',
+        name: 'Trial 1',
+      },
+    ];
+    trialStoreState.trialClasses = {
+      'trial-1': [{ id: 'class-1', element: 'Container', level: 'Novice', status: 'Scheduled' }],
+    };
+    getEntriesForShowMock.mockResolvedValue({ data: null, error: new Error('not synced') });
+
+    renderPage([
+      {
+        id: 'entry-1',
+        show_id: 'show-1',
+        class_id: 'class-1',
+        is_scored: false,
+        check_in_status: 'no-status',
+      },
+    ]);
+    expect(await screen.findByTestId('panel-entry-check-ins')).toHaveTextContent('no-status');
+    fireEvent.click(screen.getByTestId('panel-refresh-after-write'));
+
+    await waitFor(() => expect(refreshOutcomes).toEqual(['rejected']));
+    expect(screen.getByTestId('panel-entry-check-ins')).toHaveTextContent('checked-in');
   });
 
   it('pauses Show Desk claims and retries both schedule reads after an initial failure', async () => {

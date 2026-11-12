@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,7 @@ import { EntryFormHeaderMenu } from './EntryFormHeaderMenu';
 import { buildFormChecklist, entryDogKey } from './formChecklist';
 import { EntryFormCheckInProvider, useEntryFormCheckIn } from './useEntryFormCheckIn';
 import { useEnrollmentDialogControls } from './useEnrollmentDialogControls';
+import type { EntriesRefresh } from '@/components/entries/management/checkInDesk/storedEntryPatch';
 
 interface EntryFocusedRegistrationProps extends Omit<EnrollmentCardProps, 'group'> {
   registration: ShowRegistrationGroup;
@@ -33,7 +34,7 @@ interface EntryFocusedRegistrationProps extends Omit<EnrollmentCardProps, 'group
    */
   focusHeadingOnMount?: boolean;
   /** Re-reads the page's entries after a check-in; the form shows only what that read returns. */
-  onRefreshEntries?: (() => void | Promise<void>) | undefined;
+  onRefreshEntries?: EntriesRefresh | undefined;
 }
 
 const reviewLabel = getRegistrationReviewLabel;
@@ -61,10 +62,7 @@ export function EntryFocusedRegistration({
     loadedRegistration.entries,
     onRefreshEntries
   );
-  const registration = useMemo(
-    () => ({ ...loadedRegistration, entries: checkIn.entries }),
-    [loadedRegistration, checkIn.entries]
-  );
+  const registration = loadedRegistration;
   const [noteFocusRequest, setNoteFocusRequest] = useState(0);
   const controls = useEnrollmentDialogControls(registration, enrollmentCardProps.paymentLedger);
   const checklist = buildFormChecklist(registration, controls, checkIn.eligibleIds);

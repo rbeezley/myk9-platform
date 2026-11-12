@@ -4,6 +4,7 @@ import { dispatchBulk } from '@/hooks/bulkDispatch';
 import { updateReplicatedCheckInStatus } from '@/services/show-day/checkInStatus';
 import { refreshWithoutWaiting } from './refreshWithoutWaiting';
 import { deskStatusLabel } from './peopleRoster';
+import type { EntriesRefresh } from '@/components/entries/management/checkInDesk/storedEntryPatch';
 
 /**
  * Status writes for the Check-in desk (check in, Conflict, undo): the replicated path
@@ -12,7 +13,7 @@ import { deskStatusLabel } from './peopleRoster';
  * re-read (`onRefreshEntries`) is started but never awaited (`refreshWithoutWaiting`), and the
  * shared entries are the only status shown, with no local copy of a status beside them.
  */
-export function useCheckInDeskActions(onRefreshEntries?: () => void | Promise<void>) {
+export function useCheckInDeskActions(onRefreshEntries?: EntriesRefresh) {
   const [busyIds, setBusyIds] = useState<ReadonlySet<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   /** The entries the last failed write was about, so the error shows on their dog's card. */
@@ -32,7 +33,12 @@ export function useCheckInDeskActions(onRefreshEntries?: () => void | Promise<vo
       });
       const done = new Set(outcome.succeeded);
       const applied = entryIds.filter(entryId => done.has(entryId));
-      if (applied.length > 0) refreshWithoutWaiting(onRefreshEntries);
+      if (applied.length > 0) {
+        refreshWithoutWaiting(
+          onRefreshEntries,
+          applied.map(entryId => ({ entryId, checkInStatus: status }))
+        );
+      }
       const checkingIn = status === 'checked-in';
       if (applied.length !== entryIds.length) {
         setErrorIds(new Set(entryIds.filter(id => !done.has(id))));

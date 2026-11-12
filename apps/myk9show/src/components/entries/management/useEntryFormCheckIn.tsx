@@ -7,10 +7,9 @@ import type { EntryClass, EntryManagementEntry } from '@/types/entry-management-
 import { buildCheckInDeskClasses, eligibleCheckInEntryIds } from './checkInDesk/checkInDeskModel';
 import { useCheckInDeskActions } from './checkInDesk/useCheckInDeskActions';
 import { useMinuteClock } from './checkInDesk/useMinuteClock';
+import type { EntriesRefresh } from '@/components/entries/management/checkInDesk/storedEntryPatch';
 
 export interface EntryFormCheckIn {
-  /** The form's entries, as the shared read has them. */
-  entries: EntryManagementEntry[];
   /** Entries the Check-in desk would offer "Check in" for right now (show day, accepted, not yet in). */
   eligibleIds: ReadonlySet<string>;
   busyIds: ReadonlySet<string>;
@@ -29,7 +28,7 @@ export interface EntryFormCheckIn {
 export function useEntryFormCheckIn(
   showId: string,
   entries: readonly EntryManagementEntry[],
-  onRefreshEntries?: () => void | Promise<void>
+  onRefreshEntries?: EntriesRefresh
 ): EntryFormCheckIn {
   const now = useMinuteClock();
   const { trials, trialClasses, readFailed, retry } = useShowDeskScheduleRead();
@@ -43,13 +42,11 @@ export function useEntryFormCheckIn(
       ),
     [showId, trialClasses, trials]
   );
-  const shownEntries = useMemo(() => [...entries], [entries]);
   const eligibleIds = useMemo(
     () => eligibleCheckInEntryIds(entries, classes, now),
     [classes, now, entries]
   );
   return {
-    entries: shownEntries,
     eligibleIds,
     busyIds,
     error,

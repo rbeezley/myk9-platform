@@ -21,6 +21,7 @@ import { useMinuteClock } from './useMinuteClock';
 import { useDeskPull } from './useDeskPull';
 import { DeskPullDialogs } from './DeskPullDialogs';
 import { changeDeskRowStatus } from './deskRowStatus';
+import type { EntriesRefresh } from '@/components/entries/management/checkInDesk/storedEntryPatch';
 
 interface CheckInDeskProps {
   showId: string;
@@ -30,7 +31,7 @@ interface CheckInDeskProps {
   unknown: boolean;
   onRetry: () => void;
   /** Re-reads the page's entries; the optimistic status flip lasts only until it lands. */
-  onRefreshEntries?: () => void | Promise<void>;
+  onRefreshEntries?: EntriesRefresh;
   /** Fixed clock for tests; the desk otherwise ticks once a minute. */
   currentDate?: Date | null;
 }

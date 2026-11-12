@@ -17,6 +17,7 @@ import { resolveShowMapActionExecution } from './showMapActionExecution';
 import { useShowMapWorkbenchState } from './useShowMapWorkbenchState';
 import type { BuildShowMapTreeInput } from './showMapTypes';
 import type { ClassEntryBreakdown } from '@/features/entry-operations/classEntryBreakdown';
+import type { EntriesRefresh } from '@/components/entries/management/checkInDesk/storedEntryPatch';
 
 interface ShowDeskPanelProps extends BuildShowMapTreeInput {
   canManageShow: boolean;
@@ -25,7 +26,7 @@ interface ShowDeskPanelProps extends BuildShowMapTreeInput {
   /** Entered/pending per class for the schedule rows (MYK9-943); absent until read. */
   entryBreakdownByClassId?: ReadonlyMap<string, ClassEntryBreakdown> | undefined;
   /** Re-reads the page's entries after a class-table Check-in write (MYK9-1797). */
-  onRefreshEntries?: (() => void | Promise<void>) | undefined;
+  onRefreshEntries?: EntriesRefresh | undefined;
 }
 
 // INTENT: This is the secretary's live operations cockpit. It projects the

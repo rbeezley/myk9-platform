@@ -8,6 +8,7 @@ import type { CheckInStatus } from '@myk9/core';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { CheckInDesk } from './CheckInDesk';
 import { buildCheckInDeskClasses } from './checkInDeskModel';
+import { patchManagementEntries } from './storedEntryPatch';
 import type { Trial } from '@/components/trials/types/trial.types';
 
 const h = vi.hoisted(() => ({
@@ -153,6 +154,34 @@ function StoredEntriesDesk({ initial }: { initial: EntryManagementEntry[] }) {
       unknown={false}
       onRetry={vi.fn()}
       onRefreshEntries={() => setEntries(read())}
+      currentDate={NOW}
+    />
+  );
+}
+
+/**
+ * The Entry Management page's side of a desk write: its list takes what the write stored
+ * (`patchManagementEntries`), then its re-read runs, whatever that re-read does.
+ */
+function PatchedDesk({
+  initial,
+  reRead,
+}: {
+  initial: EntryManagementEntry[];
+  reRead: () => Promise<void>;
+}) {
+  const [entries, setEntries] = useState(initial);
+  return (
+    <CheckInDesk
+      showId="show-1"
+      entries={entries}
+      loading={false}
+      unknown={false}
+      onRetry={vi.fn()}
+      onRefreshEntries={stored => {
+        if (stored) setEntries(current => patchManagementEntries(current, stored));
+        return reRead();
+      }}
       currentDate={NOW}
     />
   );
@@ -399,45 +428,35 @@ describe('CheckInDesk', () => {
     expect(await screen.findByRole('button', { name: 'Check in Poppy' })).toBeEnabled();
   });
 
-  it('shows the shared entries alone: an older read-back never hides a newer status', async () => {
-    let finishFirst: () => void = () => {};
-    const onRefreshEntries = vi
-      .fn<() => Promise<void>>()
-      .mockImplementationOnce(
-        () =>
-          new Promise<void>(resolve => {
-            finishFirst = resolve;
-          })
-      )
-      .mockResolvedValue(undefined);
-    const props = {
-      showId: 'show-1',
-      loading: false,
-      unknown: false,
-      onRetry: vi.fn(),
-      onRefreshEntries,
-      currentDate: NOW,
-    };
-    const withStatus = (checkInStatus: 'no-status' | 'checked-in' | 'conflict') =>
-      entry({ classes: [{ ...entry().classes[0]!, checkInStatus }] });
-    const region = () => screen.getByRole('region', { name: 'Alice Martin' });
-    const { user, rerender } = render(
-      <CheckInDesk {...props} entries={[withStatus('no-status')]} />
-    );
+  it.each([
+    ['rejects', () => Promise.reject(new Error('Show entries not synced'))],
+    ['never settles', () => new Promise<void>(() => {})],
+  ])('shows the stored status when the entries re-read %s (MYK9-1812)', async (_name, reRead) => {
+    const refresh = vi.fn(reRead);
+    const { user } = render(<PatchedDesk initial={[entry()]} reRead={refresh} />);
 
-    // First write: the re-read is still pending.
     await user.click(screen.getByRole('button', { name: 'Check in Poppy' }));
-    await waitFor(() => expect(onRefreshEntries).toHaveBeenCalledTimes(1));
-    // The older read-back (nothing stored yet) is shown for what it is, with no local flip over it.
-    rerender(<CheckInDesk {...props} entries={[withStatus('no-status')]} />);
-    expect(region()).toHaveTextContent('Not checked in');
 
-    // The newer status arrives while the first re-read is still unsettled; it is shown, and the
-    // first re-read settling afterwards changes nothing.
-    rerender(<CheckInDesk {...props} entries={[withStatus('conflict')]} />);
-    finishFirst();
-    expect(region()).toHaveTextContent('Conflict');
-    expect(region()).not.toHaveTextContent(/Checked-in|Not checked in/);
+    await waitFor(() =>
+      expect(screen.getByRole('region', { name: 'Alice Martin' })).toHaveTextContent('Checked')
+    );
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('button', { name: 'Check in Poppy' })).not.toBeInTheDocument();
+  });
+
+  it('keeps the newer stored status across two writes while the first re-read is unsettled', async () => {
+    const { user } = render(
+      <PatchedDesk initial={[entry()]} reRead={() => new Promise<void>(() => {})} />
+    );
+    await user.click(screen.getByRole('button', { name: 'Check in Poppy' }));
+    await user.click(await screen.findByRole('button', { name: /^Change status for Poppy/ }));
+    const picker = await screen.findByRole('dialog');
+    await user.click(within(picker).getByRole('button', { name: /^Conflict/ }));
+
+    expect(h.updateReplicatedCheckInStatus).toHaveBeenLastCalledWith('entry-1', 'conflict');
+    await waitFor(() =>
+      expect(screen.getByRole('region', { name: 'Alice Martin' })).toHaveTextContent('Conflict')
+    );
   });
 });
 

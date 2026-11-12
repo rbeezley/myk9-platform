@@ -6,7 +6,7 @@
 
 import { Routes, Route } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, act } from '@/test/utils/testUtils';
+import { render, screen, act, fireEvent } from '@/test/utils/testUtils';
 import { UserRole } from '@/types/auth-types';
 import { ReplicationSyncTestProvider } from '@/test/utils/ReplicationSyncTestProvider';
 import type { ReplicationSyncContextValue } from '@/context/ReplicationSyncContext';
@@ -139,6 +139,7 @@ const StubLiveScoresheet = ({
   onVoiceAnnouncement,
   enableVoiceAnnouncements,
   headerActions,
+  onRunStart,
 }: {
   entry: { armband: number };
   onSubmit: (sd: unknown) => void;
@@ -149,6 +150,7 @@ const StubLiveScoresheet = ({
   onVoiceAnnouncement?: (secondsRemaining: number) => void;
   enableVoiceAnnouncements?: boolean;
   headerActions?: React.ReactNode;
+  onRunStart?: () => void;
 }) => (
   <div>
     <header>{headerActions}</header>
@@ -167,6 +169,7 @@ const StubLiveScoresheet = ({
       Submit Score
     </button>
     <button onClick={onBack}>Back</button>
+    <button onClick={() => onRunStart?.()}>Start</button>
     <button onClick={() => onWarningChime?.()}>Fire warning chime</button>
     <button onClick={() => onVoiceAnnouncement?.(30)}>Fire voice announcement</button>
   </div>
@@ -323,10 +326,13 @@ describe('AtShowScoresheetPage with a cancelled class (MYK9-1847)', () => {
     expect(screen.queryByText(CANCELLED_CLASS_MESSAGE)).not.toBeInTheDocument();
   });
 
-  it('moves the dog into the ring as usual when the class is running', async () => {
+  it('moves the dog into the ring on Start, not on opening, when the class is running (MYK9-1779)', async () => {
     renderPage();
     await screen.findByTestId('live-scoresheet');
-    expect(transitionToInRing).toHaveBeenCalled();
+    expect(transitionToInRing).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+    expect(transitionToInRing).toHaveBeenCalledTimes(1);
   });
 
   it('does not move the dog into the ring when the class is cancelled', async () => {

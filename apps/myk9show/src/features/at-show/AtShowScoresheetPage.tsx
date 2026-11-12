@@ -139,8 +139,8 @@ export const AtShowScoresheetPage: React.FC = () => {
   const assignmentCheck = useJudgeAssignedToClass({ showRole, isAnonymous, classId });
 
   // Gate BEFORE mounting the scoring engine: an unauthorized role must never run
-  // `useAtShowScoresheet` (whose load effect calls `transitionToInRing`), so the
-  // denial blocks every side effect, not just the final submit.
+  // `useAtShowScoresheet` (whose Start marks the dog in-ring via `transitionToInRing`),
+  // so the denial blocks every side effect, not just the final submit.
   if (!hasPermission('canScore')) {
     return (
       <main className="ringside-root container max-w-2xl mx-auto px-4 py-6">
@@ -216,7 +216,7 @@ interface ScoresheetContentProps {
 
 /**
  * The authorized scoresheet body. Mounted only when `canScore` is true, so its
- * `useAtShowScoresheet` engine (data load + `transitionToInRing` + submit) runs
+ * `useAtShowScoresheet` engine (data load, Start's `transitionToInRing`, submit) runs
  * exclusively for roles allowed to score.
  */
 const ScoresheetContent: React.FC<ScoresheetContentProps> = ({

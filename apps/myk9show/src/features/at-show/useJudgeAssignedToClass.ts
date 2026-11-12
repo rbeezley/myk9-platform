@@ -178,9 +178,9 @@ export function useJudgeAssignedToClass({
     //
     // ONLINE it is merely PENDING and resolves a moment later, so returning a
     // verdict would be worse than waiting: `not-applicable` mounts the scoring
-    // engine, and mounting WRITES `in-ring` (useAtShowScoresheet ->
-    // transitionToInRing). A judge we are about to deny would leave the dog
-    // marked in-ring with a ring_entry_time and no score, and watch the sheet
+    // engine, and pressing Start there WRITES `in-ring` (useAtShowScoresheet ->
+    // transitionToInRing, MYK9-1779). A judge we are about to deny could leave the
+    // dog marked in-ring with a ring_entry_time and no score, and watch the sheet
     // flash and get yanked away. My first pass at this fix missed that window
     // by treating unresolved identity as an offline-only condition.
     const identityCanStillArrive = typeof navigator === 'undefined' || navigator.onLine !== false;

@@ -124,6 +124,9 @@ export const UKCObedienceLiveScoresheet: React.FC<LiveScoresheetProps> = ({
     });
     try {
       await onSubmit(scoreData);
+    } catch {
+      // The host page shows the "Score not saved" banner; keep the entered
+      // score so Save can be tapped again.
     } finally {
       setShowConfirmation(false);
     }

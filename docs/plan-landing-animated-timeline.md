@@ -59,6 +59,7 @@ One reusable component, `TimelineScene`, driven by data in `lifecycleStories.ts`
 - **Camera:** every capture of one device shares the same camera values, so cross-fades between two states of the same screen line up exactly.
 - **Regions are measured, not typed by eye.** The capture script writes each highlighted element's bounding box to JSON beside the images.
 - **Controls:** Pause / Play, and each numbered line is a button that jumps to its first frame.
+- **Progress:** each line's number sits in a circle. The current line's circle draws itself as its part plays, and a finished line fills in with a tick (owner's choice, 2026-11-12, over a progress bar above the line).
 - **Plays only while in view**, and stops when the tab is hidden.
 - **Reduced motion:** the finished frame is shown and nothing moves. Pressing a line shows that line's last frame.
 - **No scroll-jacking.** The page scrolls normally at all times.
@@ -144,10 +145,10 @@ Each phase ends with its own checks passing. One pull request per phase.
 
 ## Found while verifying the flow
 
-Product-screen observations, outside this plan's scope. File only those that meet the filing rule.
+Product-screen observations, outside this plan's scope. Filed 2026-11-12 at the owner's request.
 
-- My Entries tells an exhibitor "the secretary will review it once it is paid", but payment does not gate review.
-- My Entries tells a check payer to mail the check; the wizard says to bring it to the show.
-- The checkout success page says entries "are confirmed" after payment, while a paid entry still awaits review.
-- The "Needs review" pill is cut off in the Entry Forms list at 1440px wide.
-- Signed out, `/shows` listed no upcoming shows although the seed show is published for December (not investigated).
+- MYK9-1897: My Entries tells an exhibitor "the secretary will review it once it is paid", but payment does not gate review. Owner decision.
+- MYK9-1895: My Entries tells a check payer to mail the check; the wizard says to bring it to the show.
+- MYK9-1896: the card option and the checkout success page say entries "are confirmed" after payment, while a paid entry still awaits review.
+- MYK9-1898: the "Needs review" pill is cut off in the Entry Forms list at 1440px wide with the form panel open.
+- Not a bug, not filed: signed out, `/shows` lists no upcoming shows because the public list filters out demo clubs (`club.is_demo=eq.false`), and the seed show belongs to one. It matters here only for capture: the exhibitor's "Find a show" still needs a signed-in view or a non-demo fixture.

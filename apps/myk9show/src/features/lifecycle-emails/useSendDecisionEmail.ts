@@ -39,6 +39,33 @@ interface SendDecisionEmailArgs {
  * The returned function is stable and safe to call after the cockpit has unmounted (she
  * switched view inside the window): it touches only refs, the API and the toaster.
  */
+const UNNAMED_SHOW = 'this show';
+
+/**
+ * Which entry a notice is about, and where to act on it. After a show switch the entry is not
+ * on screen, so the notice names the show and says to go back to it; on the same show (or with
+ * no name to compare) it stays as short as before.
+ */
+function whichEntry(
+  entry: EntryManagementEntry,
+  decidedOnShowName: string,
+  currentShowName: string | undefined
+): { about: string; emailLater: string } {
+  const elsewhere =
+    decidedOnShowName !== UNNAMED_SHOW && decidedOnShowName !== (currentShowName ?? UNNAMED_SHOW);
+  const dog = entry.dogName?.trim();
+  const about = `${dog ? ` for ${dog}` : ''}${elsewhere ? ` at ${decidedOnShowName}` : ''}`;
+  const onEntry = dog ? `on ${dog}'s entry` : 'on the entry';
+  const emailLater = elsewhere
+    ? `go back to ${decidedOnShowName} and use "Email Exhibitor" ${onEntry}`
+    : `use "Email Exhibitor" ${onEntry}`;
+  return { about, emailLater };
+}
+
+function capitalize(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
 export function useSendDecisionEmail({
   showName,
   onSettled,
@@ -57,28 +84,26 @@ export function useSendDecisionEmail({
       const { lower: emailName, title: emailTitle } = EMAIL_NAME[stepType];
       const ownerName = entry.ownerName?.trim();
       const who = ownerName || 'the exhibitor';
+      // She may have switched shows inside the Undo window: every notice names the dog, and the
+      // show and the way back to it when that show is no longer the one on screen.
+      const { about, emailLater } = whichEntry(entry, decidedOnShowName, latest.current.showName);
 
       if (!entry.ownerEmail?.trim()) {
         toast.info(
-          `${ownerName || 'The exhibitor'} has no email on file, so no ${emailName} email was sent.`
+          `${ownerName || 'The exhibitor'} has no email on file, so no ${emailName} email was sent${about}.`
         );
         return;
       }
       if (typeof navigator !== 'undefined' && !navigator.onLine) {
         toast.error(
-          `You're offline, so the ${emailName} email to ${who} was not sent. When you are back online, use "Email Exhibitor" on the entry.`
+          `You're offline, so the ${emailName} email to ${who}${about} was not sent. When you are back online, ${emailLater}.`
         );
         return;
       }
 
       const send = async () => {
-        const { showName: currentShowName, onSettled: settled } = latest.current;
-        // She may have switched shows inside the Undo window: the email names the show decided
-        // on, and so do the notices, because the entry is no longer on screen.
+        const { onSettled: settled } = latest.current;
         const name = decidedOnShowName;
-        const dogAndShow =
-          `${entry.dogName ? ` for ${entry.dogName}` : ''}` +
-          (name !== (currentShowName ?? 'this show') ? ` at ${name}` : '');
         const draft = buildLifecycleEmailDraft({ stepType, ...decisionEmailContext(entry, name) });
         try {
           const jobId = await saveDecisionEmailJob(entry, stepType, {
@@ -93,11 +118,11 @@ export function useSendDecisionEmail({
           });
           // The send handler answers 200 even when delivery fails.
           if (result.failed > 0) throw new Error('Lifecycle email delivery failed');
-          toast.success(`${emailTitle} email sent to ${who}${dogAndShow}`);
+          toast.success(`${emailTitle} email sent to ${who}${about}`);
         } catch (error) {
           if (error instanceof LifecycleEmailAlreadySavedError) return;
           toast.error(
-            `The ${emailName} email to ${who}${dogAndShow} did not send. Use "Email Exhibitor" on the entry to let them know.`
+            `The ${emailName} email to ${who}${about} did not send. ${capitalize(emailLater)} to let them know.`
           );
         } finally {
           settled(entry.showId);

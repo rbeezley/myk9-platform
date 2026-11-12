@@ -80,8 +80,45 @@ describe('useSendDecisionEmail after a show switch (MYK9-1833)', () => {
     sender('Show B')(showAEntry, 'waitlisted', 'Show A');
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith(
-        'The waitlist email to Pat Owner for Rex at Show A did not send. Use "Email Exhibitor" on the entry to let them know.'
+        'The waitlist email to Pat Owner for Rex at Show A did not send. Go back to Show A and use "Email Exhibitor" on Rex\'s entry to let them know.'
       )
+    );
+  });
+
+  it('keeps the failure advice short on the same show', async () => {
+    vi.mocked(sendLifecycleEmailJobs).mockResolvedValue({ sent: 0, failed: 1, total: 1 });
+    sender('Show A')(showAEntry, 'waitlisted', 'Show A');
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        'The waitlist email to Pat Owner for Rex did not send. Use "Email Exhibitor" on Rex\'s entry to let them know.'
+      )
+    );
+  });
+
+  it('names the dog and show when offline after a switch, and says to go back', () => {
+    const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    try {
+      sender('Show B')(showAEntry, 'accepted', 'Show A');
+      expect(toast.error).toHaveBeenCalledWith(
+        'You\'re offline, so the acceptance email to Pat Owner for Rex at Show A was not sent. When you are back online, go back to Show A and use "Email Exhibitor" on Rex\'s entry.'
+      );
+      expect(saveDecisionEmailJob).not.toHaveBeenCalled();
+    } finally {
+      online.mockRestore();
+    }
+  });
+
+  it('names the dog and show when the exhibitor has no email, after a switch', () => {
+    sender('Show B')({ ...showAEntry, ownerEmail: '' }, 'accepted', 'Show A');
+    expect(toast.info).toHaveBeenCalledWith(
+      'Pat Owner has no email on file, so no acceptance email was sent for Rex at Show A.'
+    );
+  });
+
+  it('leaves the show out when the decided-on show has no name', async () => {
+    sender('Show B')(showAEntry, 'accepted', 'this show');
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenCalledWith('Acceptance email sent to Pat Owner for Rex')
     );
   });
 

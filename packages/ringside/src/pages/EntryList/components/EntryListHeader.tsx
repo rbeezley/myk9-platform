@@ -174,6 +174,8 @@ export interface EntryListHeaderProps {
   /** Count of writes queued locally but not yet synced (see EntryListActions). */
   pendingCount?: number;
   hasActiveFilters: boolean;
+  /** Disables the search and sort button (drag mode). */
+  filterDisabled?: boolean;
   onFilterClick: () => void;
   onRefresh: () => void;
   /** The Up control's label and fixed parent route (MYK9-1500). */
@@ -215,6 +217,7 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
   hasError,
   pendingCount,
   hasActiveFilters,
+  filterDisabled = false,
   onFilterClick,
   onRefresh,
   actionsMenu,
@@ -331,7 +334,11 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
             SyncIndicator={SyncIndicator}
           />
 
-          <FilterTriggerButton onClick={onFilterClick} hasActiveFilters={hasActiveFilters} />
+          <FilterTriggerButton
+            onClick={onFilterClick}
+            hasActiveFilters={hasActiveFilters}
+            disabled={filterDisabled}
+          />
 
           {/* Refresh, in the same place as on the class list (D3). Long press
               reloads the whole page. */}

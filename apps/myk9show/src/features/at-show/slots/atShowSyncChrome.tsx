@@ -96,6 +96,7 @@ export const SyncIndicator: React.FC<SyncIndicatorProps> = ({
 export const FilterTriggerButton: React.FC<FilterTriggerButtonProps> = ({
   onClick,
   hasActiveFilters,
+  disabled,
   className,
 }) => (
   <Button
@@ -106,6 +107,7 @@ export const FilterTriggerButton: React.FC<FilterTriggerButtonProps> = ({
     title="Search & sort"
     className={cn('at-show-filter-trigger relative', className)}
     onClick={onClick}
+    disabled={disabled}
   >
     <SlidersHorizontal size={20} />
     {hasActiveFilters && (

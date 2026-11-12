@@ -391,6 +391,17 @@ export const useEntryListFilters = ({
   );
 
   /**
+   * The list drag mode shows and reorders: EVERY pending dog, in run order, whatever the search,
+   * Section tab or status tab say. A drop numbers the list it was dragged in 1..N, so a subset
+   * would collide with the dogs the filter hides (MYK9-1808). Drag only exists in drag mode, so
+   * hosts hand this to the drag hook as its `currentEntries` and the page renders it there.
+   */
+  const dragEntries = useMemo(
+    () => entries.filter(e => classify(e) === 'pending').sort((a, b) => sortEntries(a, b, 'run')),
+    [entries, classify, sortEntries]
+  );
+
+  /**
    * Count entries by section (for combined view). Running dogs only -- the same
    * rule as the Pending/Completed badges, so a section's count equals its two
    * badges and "All Sections" equals the class card (MYK9-645).
@@ -432,6 +443,7 @@ export const useEntryListFilters = ({
     pendingEntries,
     completedEntries,
     notRunningEntries,
+    dragEntries,
     entryCounts,
     sectionCounts,
 

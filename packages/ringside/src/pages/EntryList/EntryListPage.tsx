@@ -20,7 +20,7 @@
  * The shim renders `<EntryListPage {...all-the-bags} />` and that's it.
  */
 
-import React, { useCallback, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
 import { TabBar } from '@myk9/ui';
@@ -119,21 +119,20 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
     filteredEntries,
     notRunningEntries,
     currentEntries,
+    dragEntries,
     entryCounts,
     sectionCounts,
   } = derived;
+  // Drag mode renders and reorders EVERY pending dog (a drop numbers the list on screen 1..N, so a
+  // subset would collide with hidden dogs, MYK9-1808). The user's search, Section tab and status
+  // tab stay as set, are disabled until Done, and apply again then.
+  const shownEntries = isDragMode ? dragEntries : currentEntries;
+  const shownTab = isDragMode ? 'pending' : activeTab;
   const { sensors, handleDragStart, handleDragEnd } = drag;
   const { isSyncing, hasError } = actions;
 
-  const { setSearchTerm } = uiActions;
-  const setSectionFilter = combined?.setSectionFilter;
-  const clearListFilters = useCallback(() => {
-    setSearchTerm('');
-    setSectionFilter?.('all');
-  }, [setSearchTerm, setSectionFilter]);
-
   const { handlePrintSortOrder, handleOpenDragMode, handleApplyRunOrder } = useEntryListPageActions(
-    { handlers, uiActions, printDialogType, currentEntries, clearListFilters }
+    { handlers, uiActions, printDialogType, currentEntries: dragEntries }
   );
 
   const statusTabs = useMemo(
@@ -241,6 +240,7 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
         hasError={hasError}
         pendingCount={actions.pendingCount}
         hasActiveFilters={hasActiveFilters}
+        filterDisabled={isDragMode}
         onFilterClick={() => setIsFilterPanelOpen(true)}
         onRefresh={handlers.handleManualRefresh}
         refreshLongPressHandlers={handlers.refreshLongPressHandlers}
@@ -288,7 +288,8 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
       {combined && (
         <TabBar
           tabs={sectionTabs}
-          activeTab={combined.sectionFilter}
+          activeTab={isDragMode ? 'all' : combined.sectionFilter}
+          disabled={isDragMode}
           onTabChange={tabId => combined.setSectionFilter(tabId as 'all' | 'A' | 'B')}
           className="full-width"
         />
@@ -296,7 +297,8 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
 
       <TabBar
         tabs={statusTabs}
-        activeTab={activeTab}
+        activeTab={shownTab}
+        disabled={isDragMode}
         onTabChange={tabId => setActiveTab(tabId as TabType)}
       />
 
@@ -329,8 +331,8 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
               onSelectCompleted={() => setActiveTab('completed')}
             />
             <EntryListContent
-              entries={currentEntries}
-              activeTab={activeTab}
+              entries={shownEntries}
+              activeTab={shownTab}
               isDragMode={isDragMode}
               showContext={showContext}
               classInfo={classInfo}
@@ -418,7 +420,7 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
       </layout.PullToRefresh>
 
       <layout.FilterPanel
-        isOpen={isFilterPanelOpen}
+        isOpen={isFilterPanelOpen && !isDragMode}
         onClose={() => setIsFilterPanelOpen(false)}
         searchTerm={searchTerm}
         onSearchChange={uiActions.setSearchTerm}

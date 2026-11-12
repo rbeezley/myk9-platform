@@ -44,10 +44,12 @@ vi.mock('../components/EntryListContent', () => ({
     onEntryClick?: (entry: unknown) => void;
     onStatusClick?: (...args: unknown[]) => void;
     onOpenDragMode?: () => void;
+    entries?: Array<{ id: string }>;
   }) => {
     contentSpy.onEntryClick = props.onEntryClick;
     contentSpy.onStatusClick = props.onStatusClick;
     contentSpy.onOpenDragMode = props.onOpenDragMode;
+    contentSpy.entries = props.entries;
     return <div data-testid="entry-list-content" />;
   },
 }));
@@ -182,21 +184,74 @@ describe.each(PAGES)('entry-list parity — $name', page => {
     });
   });
 
-  describe('drag mode shows the whole list (MYK9-1808)', () => {
-    it('clears the search term, and the Section tab when there is one, as drag mode opens', () => {
-      // A drop numbers the list on screen 1..N. On a filtered subset that collides with the run
-      // orders of the dogs the filter hides, so the filters are emptied first.
-      const props = makeProps({ entries: [{ id: 'e1', classId: 'class-a' }], loaded: true });
+  describe('drag mode shows the whole pending list (MYK9-1808)', () => {
+    // A search is narrowing the list to one dog (and, combined, Section B is selected), but two more
+    // pending dogs are hidden. A drop numbers what is on screen 1..N, so drag mode must show all three.
+    const entries = [
+      { id: 'e1', classId: 'class-a' },
+      { id: 'e2', classId: 'class-a' },
+      { id: 'e3', classId: 'class-b' },
+    ];
+    function renderFiltered(isDragMode: boolean) {
+      const props = makeProps({ entries, loaded: true });
+      props.derived.currentEntries = [props.derived.currentEntries[0]];
+      props.derived.filteredEntries = props.derived.currentEntries;
+      props.derived.dragEntries = props.derived.pendingEntries;
+      props.derived.searchTerm = 'x';
+      props.uiState.isDragMode = isDragMode;
+      render(
+        <MemoryRouter>
+          <EntryListPage {...props} />
+        </MemoryRouter>
+      );
+      return props;
+    }
+
+    it('renders every pending dog, not the filtered subset', () => {
+      renderFiltered(true);
+
+      expect(contentSpy.entries?.map(e => e.id)).toEqual(['e1', 'e2', 'e3']);
+    });
+
+    it('applies the filter again once drag mode is off', () => {
+      renderFiltered(false);
+
+      expect(contentSpy.entries?.map(e => e.id)).toEqual(['e1']);
+    });
+
+    it('disables the status tabs, and the Section tabs when combined, until Done', () => {
+      const props = renderFiltered(true);
+
+      for (const name of [/pending/i, /completed/i]) {
+        expect((screen.getByRole('button', { name }) as HTMLButtonElement).disabled).toBe(true);
+      }
+      if (props.combined) {
+        expect(
+          (screen.getByRole('button', { name: /section a/i }) as HTMLButtonElement).disabled
+        ).toBe(true);
+      }
+    });
+
+    it('leaves the tabs live outside drag mode', () => {
+      renderFiltered(false);
+
+      expect(
+        (screen.getByRole('button', { name: /completed/i }) as HTMLButtonElement).disabled
+      ).toBe(false);
+    });
+
+    it('shows the Pending tab as selected while dragging from the Completed tab', () => {
+      const props = makeProps({ entries, loaded: true });
+      props.derived.activeTab = 'completed';
+      props.derived.dragEntries = props.derived.pendingEntries;
+      props.uiState.isDragMode = true;
       render(
         <MemoryRouter>
           <EntryListPage {...props} />
         </MemoryRouter>
       );
 
-      contentSpy.onOpenDragMode?.();
-
-      expect(uiActionSpy.setSearchTerm).toHaveBeenCalledWith('');
-      if (props.combined) expect(props.combined.setSectionFilter).toHaveBeenCalledWith('all');
+      expect(contentSpy.entries?.map(e => e.id)).toEqual(['e1', 'e2', 'e3']);
     });
   });
 

@@ -30,13 +30,14 @@ If any of those three turns into a parallel implementation, stop and restructure
 
 ## The packets
 
-| Packet            | Unit  | Starts with                                             | Collated                        | Outputs                     |
-| ----------------- | ----- | ------------------------------------------------------- | ------------------------------- | --------------------------- |
-| Before the trial  | Trial | Cover sheet, check-in sheets, scoresheets               | One packet per judge            | Print, PDF                  |
-| Armband labels    | Day   | One label per dog entered that day                      | By dog                          | Print                       |
-| During, per class | Class | Preliminary results, result labels                      | By class                        | Print                       |
-| Judge review      | Judge | The results pages for that judge's classes              | One per judge, in judging order | Print, for initials         |
-| After the show    | Trial | Marked catalog, High in Trial, the registry's own forms | Judge's record; registry; club  | Print, PDF, email to judges |
+| Packet            | Unit           | Starts with                                                                      | Collated                                   | Outputs             |
+| ----------------- | -------------- | -------------------------------------------------------------------------------- | ------------------------------------------ | ------------------- |
+| Before the trial  | Trial          | Cover sheet, check-in sheets, scoresheets                                        | One packet per judge                       | Print, PDF          |
+| Armband labels    | Day            | One label per dog entered that day                                               | By dog                                     | Print               |
+| During, per class | Class          | Preliminary results, result labels                                               | By class                                   | Print               |
+| Judge review      | Judge          | The results pages for that judge's classes                                       | One per judge, in judging order            | Print, for initials |
+| Judge's record    | Judge, per day | The marked catalog pages for that judge's classes, and their scores as submitted | One per judge per day, a section per trial | Print, PDF, email   |
+| After the show    | Trial          | Marked catalog, High in Trial, the registry's own forms                          | Registry; club                             | Print, PDF          |
 
 Why these units (owner, 2026-11-13):
 
@@ -63,9 +64,9 @@ The registry requires the judge to compare the catalog with their scoresheets an
 - Offered when a judge's last class completes: "Pat Donovan's classes are done. Print results for initials."
 - Results shows progress per judge ("2 of 3 judges initialled"), extending the existing "Needs judge's initials" state.
 
-### The after-show record
+### The judge's record and the show record
 
-- **The judge's record**, emailed to each judge once results are final: a cover sheet, the marked catalog pages for their classes, and their scores as submitted at ringside. It carries a line saying it is a convenience copy and the signed paper is the official record.
+- **The judge's record**, offered as soon as that judge's last class of the day is initialled, so they have it before leaving the site: a cover sheet, the marked catalog pages for their classes, and their scores as submitted at ringside. It carries a line saying it is a convenience copy and the signed paper is the official record.
 - **The secretary's show record**: one PDF with the full marked catalog, High in Trial, the registry forms, and the entry and transfer forms the club must keep.
 
 Sending rules:
@@ -74,21 +75,25 @@ Sending rules:
 - The secretary presses send, after seeing who will receive it. Nothing sends by itself.
 - A judge with no email on file gets a PDF the secretary downloads and passes on. Some judges will not have one.
 - Nothing is emailed to a judge before they judge.
+- The email names the date its link stops working and says to save the file. The secretary can send it again later.
+- On a UKC trial, the same moment shows: "UKC: give the judge a copy of the signed judge's book before they leave."
 
 ## The panel
 
 One panel, opened from wherever the secretary is.
 
-| Opened from                   | Scope it starts on | Starts with                     |
-| ----------------------------- | ------------------ | ------------------------------- |
-| A trial card's menu           | That trial         | The before-trial packet         |
-| A day on the schedule         | That day           | Armband labels                  |
-| A class card                  | That class         | Whatever that class still needs |
-| The "Ready for show day" row  | The first day      | Everything not yet printed      |
-| A dog's row                   | That dog           | That dog's armband label        |
-| Results, when a judge is done | That judge         | The judge review packet         |
-| Results close-out             | That trial         | The after-show packet           |
-| Reports                       | The show           | Nothing ticked                  |
+| Opened from                                  | Scope it starts on   | Starts with                     |
+| -------------------------------------------- | -------------------- | ------------------------------- |
+| A trial card's menu                          | That trial           | The before-trial packet         |
+| A day on the schedule                        | That day             | Armband labels                  |
+| A class card                                 | That class           | Whatever that class still needs |
+| The "Ready for show day" row                 | The first day        | Everything not yet printed      |
+| A dog's row                                  | That dog             | That dog's armband label        |
+| Results, when a judge is done                | That judge           | The judge review packet         |
+| Results, when a judge has initialled         | That judge, that day | The judge's record              |
+| The next trial's card, when a trial finishes | That trial           | The before-trial packet         |
+| Results close-out                            | That trial           | The after-show packet           |
+| Reports                                      | The show             | Nothing ticked                  |
 
 What she can change inside it:
 
@@ -108,7 +113,7 @@ The mock-up is linked from MYK9-1924. Top to bottom, the panel is:
 2. **Notes**, when there are any. They never block.
 3. **What to include:** the packet's own reports, ticked. Every other report sits under "More reports".
 4. **What you will get:** the packets with sheet counts, before she prints. One per judge; a class with no judge gets a "No judge assigned" packet of its own; after the show, one set per recipient.
-5. **The total, then Print and Save as PDF.** After the show, "Email N judges their record" is a third button, and it shows who receives it before anything is sent.
+5. **The total, then Print and Save as PDF.** For a judge's record, "Email the judge their record" is a third button, and it shows who receives it before anything is sent.
 
 Scope choices in the sentence: one class, a trial, a day, one judge's classes, the whole show, or classes she ticks.
 
@@ -157,7 +162,7 @@ For a lost label or a late entry. The mock-up is linked from MYK9-1924.
 
 ### The night-before checklist line (owner approved the mock-up, 2026-11-13)
 
-"Ready for show day" already has the line "Check-in sheets and score sheets printed" (`readyForShowDay.ts`). Today a failing line counts the sheets and links to the Show Desk schedule, where they print one class at a time. It becomes a door into the panel:
+"Ready for show day" already has the line "Check-in sheets and score sheets printed" (`readyForShowDay.ts`). It is renamed "First trial's paperwork printed" and measures the first trial's sheets and the first day's labels (decision 7). Today a failing line counts the sheets and links to the Show Desk schedule, where they print one class at a time. It becomes a door into the panel:
 
 | State                  | The line's detail                                                                     | Its link                                                   |
 | ---------------------- | ------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
@@ -187,6 +192,7 @@ Read 2026-11-13 from `docs/rulebooks/`. These decide what the after-show packets
 | AKC      | Ch. 4 §18: judges retain score sheets and a copy of the marked catalog for one year, "in hard-copy or electronic format".                                 | A PDF of the judge's record is expressly allowed.                                            |
 | AKC      | Ch. 3 §37: the club "shall provide the judge(s) with a marked catalog", and keeps a marked catalog, entry forms and transfer forms for at least one year. | Emailing the judge's record meets a duty the club has. The show record meets the club's own. |
 | AKC      | Ch. 6 §§8–10: High in Trial and High Combined Division.                                                                                                   | Both are already built, in one report (`highInTrial.ts`, `highCombinedDivision.ts`).         |
+| AKC      | Ch. 3 §37, continued: "The judge must be provided their copy of the marked catalog prior to leaving the trial site."                                      | The judge's record is offered when that judge is done, per day, not after the show.          |
 | UKC      | The secretary must give the judge one copy of the signed judge's book before the judge leaves the grounds; the judge keeps their books for one year.      | The paper copy is still owed on the day. A PDF is extra.                                     |
 | ASCA     | §1.10: High in Trial is optional, one winner per level, and a team entered in more than one level is ineligible.                                          | No ASCA High in Trial report exists. Filed as MYK9-1925.                                     |
 | ASCA     | No retention rule was found by keyword search.                                                                                                            | Read the ASCA rules properly before building its after-show packet.                          |
@@ -213,8 +219,8 @@ One pull request per phase. A phase is not done until its tests pass.
 
 ### Phase 0: mock-up and open questions
 
-- Done 2026-11-13: the panel is mocked up in seven states and the owner approved the sentence layout (see "Layout"). The preview, the judge's cover sheet and the initials page were mocked and approved the same day (see "The preview"). One dog's label and the checklist line followed, also approved. Phase 0 now owes only the open questions.
-- Answer the open questions below.
+- Done 2026-11-13: the panel is mocked up in seven states and the owner approved the sentence layout (see "Layout"). The preview, the judge's cover sheet and the initials page were mocked and approved the same day (see "The preview"). One dog's label and the checklist line followed, also approved.
+- Done 2026-11-13: the seven open questions are answered (see "Decisions on the open questions"). Still to confirm before building: the label layout, max time on the cover sheet, and which report is the certification page.
 - **Tests:** none; the output is the mock-up and recorded decisions.
 
 ### Phase 1: the before-trial packet
@@ -228,13 +234,15 @@ One pull request per phase. A phase is not done until its tests pass.
 
 - Judge review packet, offered when a judge's classes complete, with per-judge progress on Results.
 - After-show packet opened from Results close-out, with registry forms chosen by `registryId`.
-- The judge's record by email, the secretary's show record as a PDF, and the download path for a judge with no email.
+- The judge's record, one per judge per day, offered when that judge's last class of the day is initialled: print, PDF and email, with the download path for a judge with no email. The UKC reminder at the same moment.
+- The secretary's show record as a PDF.
 - **Tests:** recipient resolution (only the assigned judge; a caller-supplied recipient is still refused; a judge with no email yields a download and no send). The corrected-score mark against a known score history. A packet for one judge contains no other judge's classes. Edge function tests run under the node environment.
 
 ### Phase 3: staying correct after changes, and labels by day
 
 - "Changed since printing" on the class card, and "only what changed" as a panel default.
-- The note when printing a later trial early.
+- The note when printing a later trial early, and the note on the next trial's card when the trial before it finishes.
+- The checklist line renamed "First trial's paperwork printed", measuring the first trial's sheets and the first day's labels.
 - Day scope for armband labels, "labels added since the last print", and one dog's label from its row.
 - **Tests:** a move-up, a late entry and a pull each flip the right classes to changed, and only those. One label per dog per day across two trials.
 
@@ -251,15 +259,17 @@ One pull request per phase. A phase is not done until its tests pass.
 
 Launch priority is show-day reliability. If time is short, Phase 1 alone delivers the everyday need.
 
-## Open questions
+## Decisions on the open questions (owner, 2026-11-13)
 
-1. Does any registry restrict what a judge may be sent? Nothing is sent before judging under this plan, so this matters only for the after-show record.
-2. What does ASCA require a judge and a club to keep, and for how long?
-3. Is UKC's signed judge's book copy produced from the existing UKC Judges Book reports, or does it need its own step in the after-show packet?
-4. Should the judge's record be one PDF per trial or one per show?
-5. How long do stored packet links stay valid, and is that long enough for a judge's one-year retention? If not, the email must say to save the file.
-6. On a multi-day show, what prompts printing the next day's first trial the evening before? The checklist is hidden once the show starts, and `rollUpFirstDayPaperwork` looks only at the first day.
-7. Should the checklist line be renamed, for example "First day's paperwork printed", now that armband labels sit behind the same link?
+All seven are settled. Where one changes an earlier section, that section has been updated to match.
+
+1. **The judge's record is offered when that judge is done, not after the show.** AKC Ch. 3 §37: "The judge must be provided their copy of the marked catalog prior to leaving the trial site." UKC says the same of its judge's book. No rulebook restricts what a judge may be sent. Whether an emailed PDF counts as "provided" under §37 is not stated, so printing a copy on the day is the safe reading, with the PDF as well.
+2. **ASCA gets the same packets, with no rule cited.** ASCA requires the judge to verify and sign the paperwork (§1.6.2, §1.6.3) and gives no retention period. Its pages make no claim about what ASCA requires.
+3. **UKC gets a reminder plus the judge's record.** UKC's judge's book is a blank registry form, filled and signed on paper, so the app cannot produce the signed copy. When a UKC judge is done, the app says: "UKC: give the judge a copy of the signed judge's book before they leave." Filling the judge's book from the scores, and attaching a scan of the signed book, are not part of this plan.
+4. **One judge's record per day**, for each day the judge works, with each trial as its own section starting on a new page.
+5. **Links keep their 30-day limit.** A packet link lasts until 30 days after the show ends (never under 7 days or over 60; `_shared/trialPacket/delivery.ts`). The email names the date the link stops working and says to save the file, the PDF's cover says "Keep this file for one year", and the secretary can send it again, which makes a fresh link. No year-long links and no attachments.
+6. **A note on the next trial's card prompts the next print.** When a trial's last class completes, the next trial's card reads "Trial 1 is finished. Trial 2's paperwork is ready to print", with a link into the panel. If the next trial is on a new day, it names that day's armband labels too. This covers the next day and a later trial on the same day.
+7. **The checklist line is renamed "First trial's paperwork printed"**, and it measures the first trial's sheets and the first day's labels. Today `rollUpFirstDayPaperwork` counts every class on the first day, so this is a change in what it measures as well as its name.
 
 ## Non-goals
 

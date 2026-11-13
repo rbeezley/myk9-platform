@@ -27,6 +27,19 @@ describe('officialFormJudgeBlock', () => {
     );
   });
 
+  it.each([
+    'akc-judge-report',
+    'trial-chairman-report',
+    'trial-secretary-report',
+    'judges-certification',
+    'result-catalog',
+  ])('refuses %s while a class has no judge, and prints once every class has one', reportType => {
+    expect(
+      officialFormJudgeBlock(reportType, null, trials, [judged, unjudged], 't1', 'all')
+    ).toMatch(/^These classes need a judge before you can print this form: Container Novice/);
+    expect(officialFormJudgeBlock(reportType, null, trials, [judged], 't1', 'all')).toBeNull();
+  });
+
   it('reads the judge the way every other surface does, including an assigned judge', () => {
     const show = {
       assignedJudges: [

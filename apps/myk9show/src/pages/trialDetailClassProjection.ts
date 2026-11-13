@@ -21,7 +21,7 @@ export function toTrialDetailClass(classData: SyncableClassData, entries: number
         ? 'Upcoming'
         : (classData.status as 'Upcoming' | 'In Progress' | 'Completed' | 'Cancelled'),
     judgeId: ((classData as unknown as Record<string, unknown>).judgeId as string) || 'TBD',
-    judgeName: classData.judge || 'TBD',
+    judgeName: classData.judge || '',
     startTime,
     entries,
     maxEntries: classData.maxEntries ?? null,

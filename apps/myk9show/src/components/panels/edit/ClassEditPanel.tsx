@@ -78,7 +78,7 @@ const TrialClassEditForm: React.FC<{ showId?: string; capacityLoaded: boolean }>
       form?.setValue(field, value);
       form?.touchField(field);
       if (field === 'judgeId') {
-        form?.setValue('judgeName', getJudgeNameById(assignedJudges, value) ?? 'TBD');
+        form?.setValue('judgeName', getJudgeNameById(assignedJudges, value) ?? '');
       }
     },
     [form, assignedJudges]

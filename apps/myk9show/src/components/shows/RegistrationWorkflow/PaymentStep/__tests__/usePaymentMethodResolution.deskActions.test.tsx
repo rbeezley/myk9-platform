@@ -103,6 +103,36 @@ describe('usePaymentMethodResolution canUseDeskPaymentActions', () => {
     expect(result.canUseDeskPaymentActions).toBe(true);
   });
 
+  it('is offered to a show-pinned club admin whose anchoring show is gone (club_id on the grant)', () => {
+    const result = setup({
+      roles: [UserRole.CLUB_ADMIN],
+      scopes: [
+        {
+          scopeType: ScopeType.SHOW,
+          scopeId: 'show-gone',
+          roleId: UserRole.CLUB_ADMIN,
+          clubId: CLUB_B,
+        },
+      ] as unknown as ReturnType<typeof scope>[],
+    });
+    expect(result.canUseDeskPaymentActions).toBe(true);
+  });
+
+  it('is not offered to a show-pinned club admin whose grant belongs to another club', () => {
+    const result = setup({
+      roles: [UserRole.CLUB_ADMIN],
+      scopes: [
+        {
+          scopeType: ScopeType.SHOW,
+          scopeId: 'show-gone',
+          roleId: UserRole.CLUB_ADMIN,
+          clubId: CLUB_A,
+        },
+      ] as unknown as ReturnType<typeof scope>[],
+    });
+    expect(result.canUseDeskPaymentActions).toBe(false);
+  });
+
   it('is not offered to a club admin granted for a show of another club', () => {
     const result = setup({
       roles: [UserRole.CLUB_ADMIN],

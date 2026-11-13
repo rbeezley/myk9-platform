@@ -13,6 +13,7 @@
 import type { PostgrestSingleResponse } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/services/LoggingService';
+import { fetchShowGrantClubIds } from './showGrantClubs';
 import {
   Permission,
   UserRoleWithDetails,
@@ -22,6 +23,7 @@ import {
 
 // RPC return types matching actual database function signatures
 interface DbUserRole {
+  user_role_id?: string;
   role_id: string;
   role_name: string;
   role_description: string;
@@ -249,6 +251,11 @@ export class PermissionChecker {
 
       // Map RPC role results to UserRoleWithDetails
       const typedRoles = roles ?? [];
+      const showGrantClubs = await fetchShowGrantClubIds(
+        typedRoles
+          .filter(r => r.scope_type === 'show' && r.is_active && r.user_role_id)
+          .map(r => r.user_role_id as string)
+      );
       const rolesWithDetails: UserRoleWithDetails[] = typedRoles.map(userRole => {
         const scopeType = userRole.scope_type || 'global';
         const scopeId = userRole.scope_id || null;
@@ -257,7 +264,10 @@ export class PermissionChecker {
           id: `${userId}-${userRole.role_id}-${scopeType}-${scopeId ?? 'global'}`,
           user_id: userId,
           role_id: userRole.role_id,
-          club_id: scopeType === 'club' ? scopeId : null,
+          club_id:
+            scopeType === 'club'
+              ? scopeId
+              : (userRole.user_role_id && showGrantClubs.get(userRole.user_role_id)) || null,
           show_id: scopeType === 'show' ? scopeId : null,
           granted_by: null,
           granted_at: userRole.granted_at,

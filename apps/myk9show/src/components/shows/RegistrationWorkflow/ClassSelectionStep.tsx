@@ -151,6 +151,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
     hasRole,
     userWithRoles,
     clubId: show?.clubId,
+    shows,
   });
   const showTrials = useMemo(
     () =>

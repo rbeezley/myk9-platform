@@ -43,9 +43,20 @@ const CHANGEABLE: ReadonlySet<ClassRowKind> = new Set<ClassRowKind>([
   'checked-in',
 ]);
 
-const LINK_CLASS =
-  'inline-flex min-h-[44px] items-center rounded font-medium text-primary hover:underline ' +
+const LINK_BASE_CLASS =
+  'inline-flex min-h-[44px] items-center rounded font-medium ' +
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2';
+
+/** Brand link colour: "change" and "Check in". */
+const LINK_CLASS = `${LINK_BASE_CLASS} text-primary hover:underline`;
+
+/**
+ * The leave verb: the status text's grey, underlined at rest so it still reads
+ * as a link. Its own variant rather than `LINK_CLASS` plus an override, because
+ * two colour utilities on one element are decided by stylesheet order, and
+ * `text-primary` won.
+ */
+const MUTED_LINK_CLASS = `${LINK_BASE_CLASS} text-muted-foreground underline`;
 
 export interface MyShowClassRowProps {
   cls: MyShowClass;
@@ -201,7 +212,7 @@ export const MyShowClassRow: React.FC<MyShowClassRowProps> = ({
                   ? `Pull or withdraw: ${dogName} from ${cls.name}, ${classWhen}`
                   : `Pull or withdraw: ${dogName} from ${cls.name}`
               }
-              className={`${LINK_CLASS} text-muted-foreground`}
+              className={MUTED_LINK_CLASS}
             >
               Pull or withdraw…
             </button>

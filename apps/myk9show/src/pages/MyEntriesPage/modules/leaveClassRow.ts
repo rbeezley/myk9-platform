@@ -1,5 +1,5 @@
 /**
- * When a My Shows class row may offer "Leave class…" (MYK9-631 AC3, Q4).
+ * When a My Shows class row may offer "Pull or withdraw…" (MYK9-631 AC3, Q4).
  *
  * MYK9-631 makes leaving a class a ROW verb rather than a menu item: one
  * control on the class it acts on, opening `RemoveFromClassDialog` for that
@@ -53,7 +53,7 @@ const NOT_LEAVEABLE: ReadonlySet<ClassRowKind> = new Set<ClassRowKind>([
   'not-accepted',
 ]);
 
-/** True when this row's KIND may offer "Leave class…". */
+/** True when this row's KIND may offer "Pull or withdraw…". */
 export function canLeaveClassRow(kind: ClassRowKind): boolean {
   return !NOT_LEAVEABLE.has(kind);
 }
@@ -91,7 +91,7 @@ export interface LeaveClassRowContext {
   hasShowId: boolean;
 }
 
-/** True when this row may offer "Leave class…". One place, all five terms. */
+/** True when this row may offer "Pull or withdraw…". One place, all five terms. */
 export function canLeaveClass(context: LeaveClassRowContext): boolean {
   return (
     !context.isPastShow &&

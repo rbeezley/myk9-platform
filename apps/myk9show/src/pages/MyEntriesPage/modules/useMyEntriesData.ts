@@ -363,7 +363,7 @@ export function useMyEntriesData({
       showName: show ? show.name || SHOW_NOT_PUBLISHED_LABEL : SHOW_NOT_PUBLISHED_LABEL,
       isShowUnreadable: !show,
       isShowCancelled,
-      // MYK9-778: closeout ends the show for "Leave class", as the server's
+      // MYK9-778: closeout ends the show for "Pull or withdraw", as the server's
       // withdraw_own_entry does. Both read paths carry shows.status.
       isShowClosedOut: isShowClosedOut(show?.status),
       // Date-only DB columns ("YYYY-MM-DD") must be read as local days, not UTC,

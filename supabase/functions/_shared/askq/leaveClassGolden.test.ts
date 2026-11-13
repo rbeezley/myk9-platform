@@ -38,7 +38,7 @@ describe('MYK9-1775 leave class / refund (exhibitor, guides source)', () => {
   it('includes exhibitor guide section 9 with the path, Pull vs Withdraw and the service-fee rule', () => {
     expect(guides.map(guide => guide.id)).toContain('exhibitor-guide');
     expect(systemPrompt).toContain('## Section 9 — Leave a Class: Withdraw or Pull');
-    expect(systemPrompt).toContain('Leave class…');
+    expect(systemPrompt).toContain('Pull or withdraw…');
     expect(systemPrompt).toContain("Refunds for a pull are at the club's discretion.");
     expect(systemPrompt).toContain(ENTRY_FEE_ONLY);
     expect(systemPrompt).toContain(SERVICE_FEE);

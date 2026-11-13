@@ -14,6 +14,11 @@ function setup() {
     ['users', 'owner-b', 'dogs'],
     ['users', 'owner-a'],
     ['entries', 'show-1'],
+    ['shows', 'show-1', 'entries'],
+    ['classes', 'show-1'],
+    ['check-in-report', 'show-1'],
+    ['trials', 'trial-1', 'entries'],
+    ['trials', 'trial-1', 'checklist'],
   ];
   for (const key of keys) queryClient.setQueryData(key, []);
   const wrapper = ({ children }: { children: ReactNode }) => (
@@ -55,10 +60,30 @@ describe('useDiscardRevertCacheSync (MYK9-1076)', () => {
     expect(stale()).not.toContainEqual(['entries', 'show-1']);
   });
 
-  it('ignores rows of other tables', () => {
+  it("refetches an entry's show reads and the class counts after an entry Discard (MYK9-1922)", () => {
     const { stale } = setup();
 
     replaced('entries');
+
+    expect(stale()).toEqual(
+      expect.arrayContaining([
+        ['entries', 'show-1'],
+        ['shows', 'show-1', 'entries'],
+        ['classes', 'show-1'],
+        // The Show Desk check-in report: a discarded check-in must not linger there.
+        ['check-in-report', 'show-1'],
+        // The trial entries tab (round 3): covered by the 'entries' segment.
+        ['trials', 'trial-1', 'entries'],
+      ])
+    );
+    expect(stale()).not.toContainEqual(['trials', 'trial-1', 'checklist']);
+    expect(stale()).not.toContainEqual(['dogs', 'dog-1']);
+  });
+
+  it('ignores rows of other tables', () => {
+    const { stale } = setup();
+
+    replaced('clubs');
 
     expect(stale()).toEqual([]);
   });

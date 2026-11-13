@@ -64,6 +64,7 @@ vi.mock('./useAtShowClassList', () => ({
 }));
 
 import { useAtShowStaffDogs } from './useAtShowStaffDogs';
+import { replicatedEntriesTable } from '@/services/replication';
 
 describe('useAtShowStaffDogs', () => {
   // The offline test spies navigator.onLine; under --sequence.shuffle it must not
@@ -212,6 +213,22 @@ describe('useAtShowStaffDogs', () => {
     );
     return renderHook(() => useAtShowStaffDogs('s1'), { wrapper });
   }
+
+  it('re-reads the entries when the entries replica changes locally (a Discard, MYK9-1922)', async () => {
+    getEntriesByShow.mockResolvedValue([
+      { id: 'e1', dogId: 'd1', armband: '5', dogCallName: 'Zip', classId: 'c1' },
+    ]);
+    const { result } = setup();
+    await waitFor(() => expect(result.current.dogs.map(d => d.dogName)).toEqual(['Zip']));
+    const listener = vi.mocked(replicatedEntriesTable.subscribe).mock.calls.at(-1)?.[0] as
+      (() => void) | undefined;
+    expect(listener).toBeTypeOf('function');
+    getEntriesByShow.mockResolvedValue([
+      { id: 'e1', dogId: 'd1', armband: '5', dogCallName: 'Zap', classId: 'c1' },
+    ]);
+    act(() => listener?.());
+    await waitFor(() => expect(result.current.dogs.map(d => d.dogName)).toEqual(['Zap']));
+  });
 
   it('re-reads the entries when a show-change signal or foreground refresh fires', async () => {
     classState.groups = [

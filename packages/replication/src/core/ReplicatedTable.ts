@@ -172,7 +172,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
   /**
    * Opt in to putting a row back to its last known server state when the user
    * discards its failed UPDATE or DELETE (MYK9-1076, revertDiscardedRowWrite).
-   * Off by default: ringside and entries keep today's Discard behaviour.
+   * Off by default. Opted in: dogs (MYK9-1076) and entries (MYK9-1922).
    */
   protected readonly revertsOnDiscard: boolean = false;
   /** Rows whose mutation was queued first with deferUpload=true. */

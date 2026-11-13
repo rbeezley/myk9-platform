@@ -183,6 +183,7 @@ describe('ReplicatedEntriesTable cold-insert guard (MYK9-575)', () => {
         announceQueued: vi.fn(async () => undefined),
         requestUpload: vi.fn(),
         rowRefetchers: { register: () => () => undefined },
+        discardReverters: { register: () => () => undefined },
         acquireMutationWriteLock: vi.fn(async () => vi.fn()),
         getPendingCount: vi.fn(async () => 0),
       } as unknown as MutationManager);

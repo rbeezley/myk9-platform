@@ -234,8 +234,11 @@ export {
   type ParsedClassTime,
 } from '../ClassList/utils/classTimeValue';
 export {
+  mergeSectionCancellation,
   mergeSectionPhase,
   mergeSectionStatus,
+  type CancellationSource,
+  type MergedSectionCancellation,
   type MergedSectionPhase,
   type PhaseSource,
 } from '../ClassList/utils/combinedSectionState';

@@ -180,3 +180,45 @@ describe('AtShowClassRow cancelled class (MYK9-1847)', () => {
     expect(screen.getByText(/3 of 4 remaining/)).toBeInTheDocument();
   });
 });
+
+describe('AtShowClassRow combined A/B cancellation (MYK9-1847)', () => {
+  const live = { class_status: 'in_progress' as const };
+
+  it('both sections cancelled reads Cancelled', () => {
+    renderRow(classEntry({ ...live, is_cancelled: true }), preview);
+    expect(screen.getByText('Cancelled')).toBeInTheDocument();
+    expect(screen.queryByText(/cancelled$/)).not.toBeInTheDocument();
+  });
+
+  it.each(['A', 'B'])('only section %s cancelled keeps the live card and names it', letter => {
+    renderRow(classEntry({ ...live, cancelled_sections: [letter] }), preview);
+    expect(screen.getByText(`Section ${letter} cancelled`)).toBeInTheDocument();
+    expect(screen.queryByText('Cancelled')).not.toBeInTheDocument();
+    expect(screen.getByText('#12')).toBeInTheDocument();
+    expect(screen.getByText('In Progress')).toBeInTheDocument();
+  });
+
+  it('neither cancelled shows no cancelled line', () => {
+    renderRow(classEntry(live), preview);
+    expect(screen.queryByText(/cancelled/i)).not.toBeInTheDocument();
+  });
+
+  it('un-cancelling restores the live cues', () => {
+    const view = renderRow(classEntry({ ...live, is_cancelled: true }), preview);
+    expect(screen.queryByText('#12')).not.toBeInTheDocument();
+    view.rerender(
+      <ul>
+        <AtShowClassRow
+          entry={classEntry(live)}
+          isExhibitorOnly={false}
+          onClick={() => {}}
+          trialTimeZone="America/New_York"
+          nextUp={preview}
+          entryCountsAvailable
+        />
+      </ul>
+    );
+    expect(screen.getByText('#12')).toBeInTheDocument();
+    expect(screen.queryByText('Cancelled')).not.toBeInTheDocument();
+  });
+});

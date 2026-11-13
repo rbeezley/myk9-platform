@@ -25,6 +25,7 @@
  * dialog via `applyCombinedRunOrder`.
  */
 
+import { mergeSectionCancellation } from '@myk9/ringside/run-queue';
 import { useIsClassCancelledFor } from './cancelledClassGuard';
 import { isCancelledClassStatus } from './ringsideClassStatusMap';
 import { RingsideMenu } from './menu/RingsideMenu';
@@ -145,7 +146,10 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
   const isClassCancelled = useIsClassCancelledFor([classIdA, classIdB]);
   // The header carries section A's status. Cancelled reads for the pair only when every section is
   // cancelled; with just A cancelled the header drops it rather than call B's dogs cancelled too.
-  const allSectionsCancelled = [classIdA, classIdB].every(id => !!id && isClassCancelled(id));
+  const allSectionsCancelled = mergeSectionCancellation(
+    { section: 'A', is_cancelled: !!classIdA && isClassCancelled(classIdA) },
+    { section: 'B', is_cancelled: !!classIdB && isClassCancelled(classIdB) }
+  ).allCancelled;
   const headerClassInfo = useMemo(() => {
     if (!classInfo) return classInfo;
     if (allSectionsCancelled) return { ...classInfo, classStatus: 'cancelled' };

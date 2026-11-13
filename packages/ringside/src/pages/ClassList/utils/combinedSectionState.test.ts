@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ClassEntry } from '../types';
 import {
+  mergeSectionCancellation,
   mergeSectionPhase,
   withMergedSectionState,
   type PhaseSource,
@@ -89,5 +90,49 @@ describe('withMergedSectionState phase time', () => {
       card({ class_status: 'break', break_until: '10:45' })
     );
     expect(merged.break_until).toBe('10:45');
+  });
+});
+
+describe('A/B cancellation (MYK9-1847)', () => {
+  const sec = (section: string, is_cancelled: boolean, class_status: ClassEntry['class_status']) =>
+    ({ section, is_cancelled, class_status }) as ClassEntry;
+
+  it.each([
+    ['A only', true, false, false, ['A']],
+    ['B only', false, true, false, ['B']],
+    ['both', true, true, true, ['A', 'B']],
+    ['neither', false, false, false, []],
+  ])('%s', (_name, aCancelled, bCancelled, all, sections) => {
+    expect(
+      mergeSectionCancellation(sec('A', aCancelled, 'setup'), sec('B', bCancelled, 'setup'))
+    ).toEqual({
+      allCancelled: all,
+      cancelledSections: sections,
+    });
+  });
+
+  it('the card is cancelled only when both sections are', () => {
+    const both = withMergedSectionState(sec('A', true, 'setup'), sec('B', true, 'setup'));
+    expect(both.is_cancelled).toBe(true);
+    expect(both.cancelled_sections).toBeUndefined();
+  });
+
+  it('A cancelled, B live: the card stays live and names A', () => {
+    const merged = withMergedSectionState(sec('A', true, 'setup'), sec('B', false, 'in_progress'));
+    expect(merged.is_cancelled).toBeUndefined();
+    expect(merged.cancelled_sections).toEqual(['A']);
+    expect(merged.class_status).toBe('in_progress');
+  });
+
+  it('A live, B cancelled: the card stays live and names B', () => {
+    const merged = withMergedSectionState(sec('A', false, 'in_progress'), sec('B', true, 'setup'));
+    expect(merged.is_cancelled).toBeUndefined();
+    expect(merged.cancelled_sections).toEqual(['B']);
+  });
+
+  it('neither cancelled: no cancellation fact on the card', () => {
+    const merged = withMergedSectionState(sec('A', false, 'setup'), sec('B', false, 'setup'));
+    expect(merged.is_cancelled).toBeUndefined();
+    expect(merged.cancelled_sections).toBeUndefined();
   });
 });

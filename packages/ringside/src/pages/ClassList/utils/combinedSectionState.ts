@@ -74,6 +74,30 @@ export function mergeSectionPhase(a: PhaseSource, b: PhaseSource): MergedSection
   return time ? { status, time } : { status };
 }
 
+/** The slice of a section the pair's cancellation is decided from. */
+export type CancellationSource = Pick<ClassEntry, 'section' | 'is_cancelled'>;
+
+export interface MergedSectionCancellation {
+  /** Both sections are cancelled: the pair reads Cancelled. */
+  allCancelled: boolean;
+  /** The section letters that are cancelled. Exactly one means the pair is still running. */
+  cancelledSections: string[];
+}
+
+/**
+ * The one decision of an A/B pair's cancellation (MYK9-1847), read by the combined card
+ * (`withMergedSectionState`) and the entry-list header alike so they cannot disagree. The pair is
+ * cancelled only when BOTH sections are; with one cancelled the other still runs, so the pair stays
+ * live and the cancelled section is named instead.
+ */
+export function mergeSectionCancellation(
+  a: CancellationSource,
+  b: CancellationSource
+): MergedSectionCancellation {
+  const cancelledSections = [a, b].filter(s => s.is_cancelled === true).map(s => s.section);
+  return { allCancelled: cancelledSections.length === 2, cancelledSections };
+}
+
 const earlier = (a?: string, b?: string) => pickClassTime(a, b, 'earlier');
 const later = (a?: string, b?: string) => pickClassTime(a, b, 'later');
 
@@ -127,8 +151,14 @@ export function withMergedSectionState(first: ClassEntry, second: ClassEntry): C
   delete base.break_until;
   const bothReleased = first.results_released_at && second.results_released_at;
   const phase = mergeSectionPhase(first, second);
+  const cancellation = mergeSectionCancellation(first, second);
+  delete base.is_cancelled;
   return {
     ...base,
+    ...(cancellation.allCancelled ? { is_cancelled: true } : {}),
+    ...(cancellation.cancelledSections.length === 1
+      ? { cancelled_sections: cancellation.cancelledSections }
+      : {}),
     class_status: phase.status,
     ...(phase.time && phase.status === 'briefing' ? { briefing_time: phase.time } : {}),
     ...(phase.time && phase.status === 'break' ? { break_until: phase.time } : {}),

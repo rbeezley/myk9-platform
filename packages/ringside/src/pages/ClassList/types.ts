@@ -49,6 +49,11 @@ export interface ClassEntry {
    * the Change Status dialog tiles read back.
    */
   is_cancelled?: boolean;
+  /**
+   * On a combined A/B card: the section letters cancelled while the other still runs
+   * (`mergeSectionCancellation`). Absent when none or both are cancelled; both set `is_cancelled`.
+   */
+  cancelled_sections?: string[];
   time_limit_seconds?: number;
   time_limit_area2_seconds?: number;
   time_limit_area3_seconds?: number;

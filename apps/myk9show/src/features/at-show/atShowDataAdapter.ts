@@ -203,7 +203,7 @@ function timeLimitString(seconds?: number): string | undefined {
  */
 export function transformEntry(re: ReplicatedEntry, cls: ReplicatedClass | null): Entry {
   const checkinStatus = re.checkInStatus ?? re.check_in_status;
-  const { status, inRing } = ringsideEntryRingState(re);
+  const { status, inRing, notRunning } = ringsideEntryRingState(re);
   const finalPlacement = re.finalPlacement ?? re.final_placement;
   const searchTimeSeconds = re.searchTimeSeconds ?? re.search_time_seconds;
   const resultText = re.resultStatus ?? re.result_status;
@@ -276,6 +276,7 @@ export function transformEntry(re: ReplicatedEntry, cls: ReplicatedClass | null)
     ...(timeLimit3 != null && { timeLimit3 }),
     ...(areas != null && { areas }),
     // MYK9-1162: server-computed; absent or unknown reads as not held.
+    ...(notRunning && { notRunningByEntryStatus: true }),
     ...((re.awaitingRegistrationNumber ?? re.awaiting_registration_number) === true && {
       awaitingRegistrationNumber: true,
     }),

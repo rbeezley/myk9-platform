@@ -29,7 +29,12 @@ import { SortableContext, rectSortingStrategy } from '@dnd-kit/sortable';
 import { SortableEntryCard } from '../SortableEntryCard';
 import type { Entry } from '../../../stores/entryStore';
 import type { EntryListPermission } from '../permissions';
-import type { DogCardProps, EntryListFavorites, EntryListOwnership } from '../pageProps';
+import type {
+  DogCardProps,
+  EntryListFavorites,
+  EntryListOwnership,
+  EntryStatusControl,
+} from '../pageProps';
 import type { ClassInfo } from '../hooks/useEntryListData';
 import { findInRingEntry, pendingByRunOrder } from '../runQueue';
 import { useOptionalStableCallback, useStableCallback } from '../hooks/useStableCallback';
@@ -83,6 +88,8 @@ export interface EntryListContentProps {
    * (MYK9-1086). The page turns this off for drag mode and while searching.
    */
   showNowAndNext?: boolean;
+  /** What each card's status control does for this viewer (MYK9-1807). */
+  statusControlFor?: (entry: Entry) => EntryStatusControl;
   /** Host-injected card primitive — passed through to SortableEntryCard. */
   DogCard: ComponentType<DogCardProps>;
 }
@@ -112,6 +119,7 @@ export const EntryListContent: React.FC<EntryListContentProps> = ({
   ownership,
   scoringDisabled = false,
   showNowAndNext = false,
+  statusControlFor,
   DogCard,
 }) => {
   // Track when entries first load to trigger stagger animation
@@ -193,6 +201,7 @@ export const EntryListContent: React.FC<EntryListContentProps> = ({
       sectionBadge={showSectionBadges ? (entry.section as 'A' | 'B' | null) : undefined}
       onOpenDragMode={stableOpenDragMode}
       {...(variant ? { variant } : {})}
+      {...(statusControlFor ? { statusControl: statusControlFor(entry) } : {})}
       {...(favorites
         ? {
             isFavorite: entry.armband != null && favorites.favoriteArmbands.has(entry.armband),

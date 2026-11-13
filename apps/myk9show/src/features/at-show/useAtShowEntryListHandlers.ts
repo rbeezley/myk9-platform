@@ -36,6 +36,7 @@ import { persistRunOrderResults } from './persistRunOrderResults';
 import { toStatusUpdateFields } from './ringsideClassStatusMap';
 import { CANCELLED_CLASS_MESSAGE } from './cancelledClassGuard';
 import { useAtShowResetHandlers, type ResetConfirmState } from './useAtShowResetHandlers';
+import { SELF_CHECKIN_REFUSED_MESSAGE, isSelfCheckinRefusal } from './entryStatusAccess';
 
 /** `handleStatusChange`, plus a flag marking the write as an exhibitor's Pull Undo (MYK9-1911). */
 type StatusChangeHandler = (
@@ -79,6 +80,12 @@ export interface UseAtShowEntryListHandlersDeps {
    * status back restores them.
    */
   isClassCancelled?: (classId: string) => boolean;
+  /**
+   * MYK9-1807: why this viewer may not set `status` on this entry (entryStatusAccess.ts), or null.
+   * A change it refuses is turned away with that message before anything is sent or shown.
+   * Omitted allows all.
+   */
+  statusRefusalFor?: (entry: Entry, status: string) => string | null;
   /** Force-refresh from the data hook. */
   refresh: (forceSync?: boolean) => Promise<void>;
   /** Manual refresh control: syncs and records the done/failed/offline answer (MYK9-1746). */
@@ -117,6 +124,7 @@ export function useAtShowEntryListHandlers(
     buildScoreSheetRoute,
     gateEntryClick,
     isClassCancelled = NEVER_CANCELLED,
+    statusRefusalFor,
     refresh,
     manualRefresh,
     setActiveStatusPopup,
@@ -261,6 +269,11 @@ export function useAtShowEntryListHandlers(
       }
 
       const previous = entriesRef.current.find(entry => entry.id === entryId);
+      const refusal = previous && statusRefusalFor ? statusRefusalFor(previous, status) : null;
+      if (refusal) {
+        toast.error(refusal);
+        return;
+      }
       setLocalEntries(prev =>
         prev.map(entry =>
           entry.id === entryId
@@ -306,10 +319,13 @@ export function useAtShowEntryListHandlers(
         rollback();
         // The Pull Undo's own guard turns this refusal into the plain-words notice.
         if (undoOfPull && isStaleCheckIn(error)) throw error;
+        // The server turned the change away (not their dog, or check-in went off meanwhile): say
+        // so in plain words. The writer already kept it off the "could not be sent" pill.
+        if (isSelfCheckinRefusal(error)) toast.error(SELF_CHECKIN_REFUSED_MESSAGE);
         logger.error('[at-show] status change failed', 'at-show', { error: String(error) });
       }
     },
-    [actions, isEntryCancelled, setActiveStatusPopup, setLocalEntries]
+    [actions, isEntryCancelled, statusRefusalFor, setActiveStatusPopup, setLocalEntries]
   );
 
   useEffect(() => {

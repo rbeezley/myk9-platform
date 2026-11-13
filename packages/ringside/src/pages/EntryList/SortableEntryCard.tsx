@@ -26,7 +26,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { ComponentType } from 'react';
 import type { Entry } from '../../stores/entryStore';
-import type { DogCardProps } from './pageProps';
+import type { DogCardProps, EntryStatusControl } from './pageProps';
 import type { EntryListPermission } from './permissions';
 import type { DogsAheadResult } from './dogsAheadInList';
 import { SortableEntryCardBody } from './SortableEntryCardBody';
@@ -81,6 +81,11 @@ export interface SortableEntryCardProps {
    * existing check-in flow remains the one way back — no new action is added.
    */
   scoringDisabled?: boolean;
+  /**
+   * What the status control does for this viewer on this entry (MYK9-1807). Omitted keeps the
+   * old rule: the control follows `canCheckInDogs` and the class's self check-in setting.
+   */
+  statusControl?: EntryStatusControl;
   /** Render as the in-ring hero or the up-next card (MYK9-1086). */
   variant?: 'hero' | 'next';
   /**
@@ -114,6 +119,7 @@ const SortableEntryCardImpl: React.FC<SortableEntryCardProps> = ({
   isOwnEntry = false,
   dogsAhead = null,
   conflictLabel = null,
+  statusControl,
   variant,
   DogCard,
 }) => {
@@ -188,6 +194,7 @@ const SortableEntryCardImpl: React.FC<SortableEntryCardProps> = ({
         isOwnEntry={isOwnEntry}
         dogsAhead={dogsAhead}
         conflictLabel={conflictLabel}
+        statusControl={statusControl}
         variant={variant}
         DogCard={DogCard}
         isLongPressRef={isLongPressRef}

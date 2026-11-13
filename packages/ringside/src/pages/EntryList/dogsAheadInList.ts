@@ -57,13 +57,21 @@ export interface EntryListOwnership {
 export function buildEntryListOwnership(
   entries: Entry[],
   ownEntryIds: ReadonlySet<string>,
-  conflictLabelByEntryId?: ReadonlyMap<string, string>
+  conflictLabelByEntryId?: ReadonlyMap<string, string>,
+  /**
+   * False while the show's entries have not all arrived on this device (MYK9-1809): a count over
+   * a partial list would put the dog in the wrong place in line, so no place is shown.
+   */
+  entriesComplete = true
 ): EntryListOwnership | undefined {
   if (ownEntryIds.size === 0) return undefined;
   const dogsAheadByEntryId = new Map<string, DogsAheadResult>();
   for (const entry of entries) {
     if (!ownEntryIds.has(entry.id)) continue;
-    dogsAheadByEntryId.set(entry.id, computeDogsAheadInList(entries, entry.id));
+    dogsAheadByEntryId.set(
+      entry.id,
+      entriesComplete ? computeDogsAheadInList(entries, entry.id) : null
+    );
   }
   if (dogsAheadByEntryId.size === 0) return undefined;
   return { ownEntryIds, dogsAheadByEntryId, conflictLabelByEntryId };

@@ -26,3 +26,17 @@ export function PartialReplicaNotice() {
     </p>
   );
 }
+
+/** Why an exhibitor's own dogs show no check-in control while ownership is still unknown (MYK9-1807). */
+export function EntryListNotices({ partial, own }: { partial: boolean; own: string | null }) {
+  return (
+    <>
+      {partial && <PartialReplicaNotice />}
+      {own && (
+        <p className="mb-3 rounded-md border px-3 py-2 text-sm text-muted-foreground" role="status">
+          {own}
+        </p>
+      )}
+    </>
+  );
+}

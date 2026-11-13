@@ -355,11 +355,16 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
                 activeTab === 'pending' &&
                 !isDragMode &&
                 !searchTerm &&
+                // With part of the show missing, "Ring is clear" and "Up next" could be wrong (MYK9-1809).
+                !context.entriesIncomplete &&
                 // A filtered section cannot see the other section's in-ring dog.
                 (!combined || combined.sectionFilter === 'all')
               }
               {...(favorites ? { favorites } : {})}
               {...(ownership ? { ownership } : {})}
+              {...(context.statusAccess
+                ? { statusControlFor: context.statusAccess.controlFor }
+                : {})}
               DogCard={layout.DogCard}
             />
             {/* INTENT: a withdrawn or pulled dog must stay VISIBLE to the judge
@@ -409,6 +414,9 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
                       onDragEnd={handleDragEnd}
                       {...(favorites ? { favorites } : {})}
                       {...(ownership ? { ownership } : {})}
+                      {...(context.statusAccess
+                        ? { statusControlFor: context.statusAccess.controlFor }
+                        : {})}
                       DogCard={layout.DogCard}
                     />
                   </div>
@@ -444,6 +452,7 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
         classInfo={classInfo}
         localEntries={localEntries}
         hasPermission={hasPermission}
+        selfCheckinOnly={context.statusAccess?.selfCheckinOnly ?? false}
         upTo={context.up.to}
         hideMaxTimeOption={context.hideMaxTimeOption}
         hideSettingsOption={context.hideSettingsOption}

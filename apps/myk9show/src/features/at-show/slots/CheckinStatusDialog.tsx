@@ -5,7 +5,6 @@
  */
 import React, { useState } from 'react';
 import type { CheckinStatusDialogProps } from '@myk9/ringside';
-import { STAFF_CHECK_IN_STATUSES, type CheckInStatus } from '@myk9/core';
 import {
   Dialog,
   DialogContent,
@@ -17,9 +16,7 @@ import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/alert-dialog/confirm-dialog';
 import { StatusTileGrid } from '@/components/status/StatusTileGrid';
 import { handleOpenChange } from './dialogHelpers';
-
-/** Additional statuses only stewards/judges may set (ring management). */
-const RING_MANAGEMENT_CHECK_IN_STATUSES: readonly CheckInStatus[] = ['in-ring', 'completed'];
+import { pickerStatuses } from '../entryStatusAccess';
 
 export const CheckinStatusDialog: React.FC<CheckinStatusDialogProps> = ({
   isOpen,
@@ -29,13 +26,14 @@ export const CheckinStatusDialog: React.FC<CheckinStatusDialogProps> = ({
   className,
   showRingManagement,
   currentStatus,
+  selfCheckinOnly,
 }) => {
   const [confirmingPull, setConfirmingPull] = useState(false);
   if (!isOpen) return null;
 
-  const statuses = showRingManagement
-    ? [...STAFF_CHECK_IN_STATUSES, ...RING_MANAGEMENT_CHECK_IN_STATUSES]
-    : STAFF_CHECK_IN_STATUSES;
+  // One rule for which statuses a viewer is offered (MYK9-1807): an exhibitor sees only what
+  // `self_checkin_entry` accepts, so no tile ends in a refused write.
+  const statuses = pickerStatuses(selfCheckinOnly ? 'exhibitor' : 'staff', !!showRingManagement);
 
   return (
     <Dialog open onOpenChange={open => handleOpenChange(open, onClose)}>

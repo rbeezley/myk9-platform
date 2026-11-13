@@ -79,4 +79,36 @@ describe('CheckinStatusDialog', () => {
 
     expect(onStatusChange).not.toHaveBeenCalled();
   });
+
+  it('offers an exhibitor only the statuses self check-in accepts (MYK9-1807)', () => {
+    render(
+      <CheckinStatusDialog
+        isOpen
+        onClose={vi.fn()}
+        onStatusChange={vi.fn()}
+        dogInfo={{ armband: 101, callName: 'Piper', handler: 'Jane Handler' }}
+        showRingManagement
+        selfCheckinOnly
+      />
+    );
+
+    expect(document.querySelectorAll('[data-family="entry"]')).toHaveLength(5);
+    expect(screen.queryByRole('button', { name: 'Come to Gate' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /In Ring/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Completed/i })).not.toBeInTheDocument();
+  });
+
+  it('keeps the staff list for a viewer who is not self-check-in only', () => {
+    render(
+      <CheckinStatusDialog
+        isOpen
+        onClose={vi.fn()}
+        onStatusChange={vi.fn()}
+        dogInfo={{ armband: 101, callName: 'Piper', handler: 'Jane Handler' }}
+      />
+    );
+
+    expect(document.querySelectorAll('[data-family="entry"]')).toHaveLength(6);
+    expect(screen.getByRole('button', { name: 'Come to Gate' })).toBeInTheDocument();
+  });
 });

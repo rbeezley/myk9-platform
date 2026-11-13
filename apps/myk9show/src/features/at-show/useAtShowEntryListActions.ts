@@ -18,6 +18,7 @@ import { useCallback, useRef, useState } from 'react';
 import type { EntryListActions, EntryStatusCheckIn } from '@myk9/ringside';
 import type { EntryStatus } from '@myk9/core';
 import { logger } from '@/utils/logger';
+import { SelfCheckinRefusedError, isSelfCheckinRefusal } from './entryStatusAccess';
 import { usePendingMutationCount } from '@/hooks/usePendingMutationCount';
 import {
   updateReplicatedCheckInStatus,
@@ -65,7 +66,14 @@ async function writeCheckInStatus(
   status: EntryStatus,
   writer: CheckInWriter
 ): Promise<number | undefined> {
-  if (writer === 'self-checkin-rpc') return updateSelfCheckInStatus(entryId, status);
+  if (writer === 'self-checkin-rpc') {
+    try {
+      return await updateSelfCheckInStatus(entryId, status);
+    } catch (error) {
+      // Only the write's own refusal is an answer; a refresh failure after it stays a failure.
+      throw isSelfCheckinRefusal(error) ? new SelfCheckinRefusedError(error) : error;
+    }
+  }
   await updateReplicatedCheckInStatus(entryId, status);
   return undefined;
 }
@@ -100,7 +108,10 @@ export function useAtShowEntryListActions(deps: UseAtShowEntryListActionsDeps): 
       await fn();
       setHasError(false);
     } catch (error) {
-      setHasError(true);
+      // A refusal by `self_checkin_entry` is an answer, not a failure to send: the change is not
+      // queued and nothing is waiting to sync, so it must not light the "could not be sent" pill.
+      // The caller words the refusal for the exhibitor (MYK9-1807).
+      if (!(error instanceof SelfCheckinRefusedError)) setHasError(true);
       logger.error('[at-show] entry mutation failed', 'at-show', { error: String(error) });
       throw error;
     } finally {

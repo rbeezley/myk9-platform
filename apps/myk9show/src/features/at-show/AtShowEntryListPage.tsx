@@ -50,7 +50,7 @@ import { notifyRunOrderPersistError } from './runOrderErrorToast';
 import { createRunOrderUpdater } from './runOrderUpdater';
 import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
 import { useAtShowShowHydration } from './useAtShowShowHydration';
-import { PartialReplicaNotice } from './StaleReadNotice';
+import { EntryListNotices } from './StaleReadNotice';
 import { AtShowEntriesNotOnDeviceAction } from './AtShowEntriesNotOnDeviceAction';
 import { createAtShowDataDependencies } from './atShowDataAdapter';
 import { useAtShowEntryListActions } from './useAtShowEntryListActions';
@@ -64,8 +64,9 @@ import { useHasClassSettingsLinks } from './slots/classSettingsLinks';
 import { useAtShowDogFavoritesSynced } from './dogFavoritesSync';
 import { useAtShowFavoriteAlertNudge } from './useAtShowFavoriteAlertNudge';
 import { AtShowAddToHomeNudge } from './AtShowAddToHomeNudge';
-import { useMyAtShowEntries } from './useMyAtShowEntries';
 import { useMyRingConflicts } from './useMyRingConflicts';
+import { useEntryStatusAccess } from './useEntryStatusAccess';
+import { writerForRole } from './entryStatusAccess';
 import { useAtShowRealtimeRefresh } from './useAtShowRealtimeRefresh';
 import { useAtShowEntryListRefresh } from './useAtShowEntryListRefresh';
 import { useIsClassCancelledFor } from './cancelledClassGuard';
@@ -158,7 +159,7 @@ export const AtShowEntryListPage: React.FC = () => {
   // RPC — otherwise the optimistic update sticks locally but never syncs.
   const actions = useAtShowEntryListActions({
     refresh,
-    writer: ringsideRole === 'exhibitor' ? 'self-checkin-rpc' : 'replicated',
+    writer: writerForRole(ringsideRole),
   });
   const isInitialEntryDataSyncing =
     entries.length === 0 &&
@@ -284,6 +285,16 @@ export const AtShowEntryListPage: React.FC = () => {
     [showId, classId]
   );
 
+  // ── Who may change a check-in status here (MYK9-1807) ───────────────────
+  const selfCheckinEnabled = classInfo?.selfCheckin ?? true;
+  const selfCheckinFor = useCallback(() => selfCheckinEnabled, [selfCheckinEnabled]);
+  const { statusAccess, statusRefusalFor, ownershipNotice, ownEntryIds } = useEntryStatusAccess({
+    role: ringsideRole,
+    showId,
+    selfCheckinFor,
+  });
+  const entriesIncomplete = showHydration === 'not-arrived';
+
   // ── Handlers ────────────────────────────────────────────────────────────
   // MYK9-1847: each entry is judged by its own class, so one cancelled section blocks only itself.
   const isClassCancelled = useIsClassCancelledFor([classId]);
@@ -297,6 +308,7 @@ export const AtShowEntryListPage: React.FC = () => {
     buildScoreSheetRoute,
     gateEntryClick,
     isClassCancelled,
+    statusRefusalFor,
     refresh,
     manualRefresh,
     setActiveStatusPopup: uiActions.setActiveStatusPopup,
@@ -346,11 +358,11 @@ export const AtShowEntryListPage: React.FC = () => {
   // Built from the same `localEntries` array the page renders, so the pill
   // can never disagree with the visible list. Undefined for accounts with no
   // entries here (staff, passcode grantees) — rendering is then unchanged.
-  const { ownEntryIds } = useMyAtShowEntries(showId);
+  // While the show's entries have not all arrived, no place in line (MYK9-1809).
   const conflictLabels = useMyRingConflicts(showId, ownEntryIds);
   const ownership = useMemo(
-    () => buildEntryListOwnership(localEntries, ownEntryIds, conflictLabels),
-    [localEntries, ownEntryIds, conflictLabels]
+    () => buildEntryListOwnership(localEntries, ownEntryIds, conflictLabels, !entriesIncomplete),
+    [localEntries, ownEntryIds, conflictLabels, entriesIncomplete]
   );
 
   // ── Context bag ──────────────────────────────────────────────────────────
@@ -373,7 +385,7 @@ export const AtShowEntryListPage: React.FC = () => {
             onDismiss={dismissNudge}
           />
         )}
-        {showHydration === 'not-arrived' && entries.length > 0 && <PartialReplicaNotice />}
+        <EntryListNotices partial={entriesIncomplete && entries.length > 0} own={ownershipNotice} />
         <EntryListPage
           classId={classId}
           data={{ entries, classInfo }}
@@ -403,6 +415,8 @@ export const AtShowEntryListPage: React.FC = () => {
             role: ringsideRole,
             showContext: pageShowContext,
             hasPermission,
+            statusAccess,
+            entriesIncomplete,
             // INTENT (spike): hide org-rule max-time + class-settings options
             // for anyone who can't manage classes. A faithful org-rule pass
             // (mirroring myK9Q's hasRuleDefinedMaxTimes) lands in the UI sprint.

@@ -25,11 +25,14 @@ describe('Discard revert opt-in (MYK9-1076)', () => {
     });
   });
 
-  it('entries keep the existing Discard behaviour', () => {
+  it('entries put a row back when a refused score, check-in or in-ring write is discarded (MYK9-1922)', () => {
     const { manager, register } = stubManager();
 
     new ReplicatedEntriesTable().setMutationManager(manager);
 
-    expect(register).not.toHaveBeenCalled();
+    expect(register).toHaveBeenCalledWith('entries', {
+      onChanged: expect.any(Function),
+      fetchRow: expect.any(Function),
+    });
   });
 });

@@ -112,6 +112,7 @@ describe('ReplicatedEntriesTable', () => {
       table.setMutationManager(
         fromAny({
           rowRefetchers: { register: vi.fn(() => vi.fn()) },
+          discardReverters: { register: vi.fn(() => vi.fn()) },
           getFailedMutations: vi.fn(async () => failed),
           getPendingMutationsForRow: vi.fn(async () => pending),
         })

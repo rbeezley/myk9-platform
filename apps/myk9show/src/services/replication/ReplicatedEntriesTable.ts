@@ -195,6 +195,13 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
   /** Entries this device deleted and has queued, durable across restarts (MYK9-762). */
   readonly pendingDeletes = new PendingDeletes('entries');
 
+  /**
+   * Discarding a refused entry write (score, check-in, in-ring, status) puts the
+   * row back to the server's copy, so the device stops showing a score the server
+   * refused (MYK9-1922).
+   */
+  protected override readonly revertsOnDiscard = true;
+
   constructor() {
     super('entries', { logger });
   }

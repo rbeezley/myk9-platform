@@ -14,6 +14,8 @@ function setup() {
     ['users', 'owner-b', 'dogs'],
     ['users', 'owner-a'],
     ['entries', 'show-1'],
+    ['shows', 'show-1', 'entries'],
+    ['classes', 'show-1'],
   ];
   for (const key of keys) queryClient.setQueryData(key, []);
   const wrapper = ({ children }: { children: ReactNode }) => (
@@ -55,10 +57,25 @@ describe('useDiscardRevertCacheSync (MYK9-1076)', () => {
     expect(stale()).not.toContainEqual(['entries', 'show-1']);
   });
 
-  it('ignores rows of other tables', () => {
+  it("refetches an entry's show reads and the class counts after an entry Discard (MYK9-1922)", () => {
     const { stale } = setup();
 
     replaced('entries');
+
+    expect(stale()).toEqual(
+      expect.arrayContaining([
+        ['entries', 'show-1'],
+        ['shows', 'show-1', 'entries'],
+        ['classes', 'show-1'],
+      ])
+    );
+    expect(stale()).not.toContainEqual(['dogs', 'dog-1']);
+  });
+
+  it('ignores rows of other tables', () => {
+    const { stale } = setup();
+
+    replaced('clubs');
 
     expect(stale()).toEqual([]);
   });

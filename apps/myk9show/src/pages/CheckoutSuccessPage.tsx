@@ -387,7 +387,7 @@ export default function CheckoutSuccessPage() {
       ? 'The remaining spots filled before your paid entries could be created.'
       : allEntriesAccepted
         ? 'Your payment has been recorded and your entries are confirmed.'
-        : "Your payment has been recorded. Your entries are submitted, awaiting the secretary's review.";
+        : 'Your payment has been recorded. The show secretary will review your entries.';
 
   if (isLoading) {
     return (

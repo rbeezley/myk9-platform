@@ -38,8 +38,7 @@ vi.mock('@/hooks/pruneWizardDraftsForFiledEntries', () => ({
 
 import CheckoutSuccessPage from '@/pages/CheckoutSuccessPage';
 
-const REVIEW_COPY =
-  "Your payment has been recorded. Your entries are submitted, awaiting the secretary's review.";
+const REVIEW_COPY = 'Your payment has been recorded. The show secretary will review your entries.';
 const CONFIRMED_COPY = 'Your payment has been recorded and your entries are confirmed.';
 
 function mockPaidOrder() {

@@ -127,7 +127,7 @@ export interface SecretaryPaymentManagementProps {
 /** Shared payment messaging for the wizard's Stripe handoff. */
 export const PAYMENT_MESSAGES = {
   CARD_CHECKOUT_REDIRECT:
-    "You'll be taken to our secure checkout to complete payment. Once payment is recorded, your entries are submitted, awaiting the secretary's review.",
+    "You'll be taken to our secure checkout to complete payment. Then the show secretary reviews your entries.",
 } as const;
 
 /** Props for the EntryAgreementSection sub-component. */

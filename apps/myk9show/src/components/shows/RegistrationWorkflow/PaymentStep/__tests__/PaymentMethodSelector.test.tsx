@@ -98,7 +98,7 @@ describe('PaymentMethodSelector — acceptedMethods filtering', () => {
 
     expect(
       screen.getByText(
-        "You'll be taken to our secure checkout to complete payment. Once payment is recorded, your entries are submitted, awaiting the secretary's review."
+        "You'll be taken to our secure checkout to complete payment. Then the show secretary reviews your entries."
       )
     ).toBeInTheDocument();
     expect(screen.queryByText(/confirmed/i)).not.toBeInTheDocument();

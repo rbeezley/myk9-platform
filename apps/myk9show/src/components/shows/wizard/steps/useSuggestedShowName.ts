@@ -53,7 +53,8 @@ export function useSuggestedShowName({
   // Back on this step after a look at Trials the refs are new, but the record is not: a name
   // is ours only if we wrote it. Equality with the suggestion proves nothing, since she may
   // have typed exactly that.
-  const lastWritten = useRef<string | null>(name !== '' && name === suggestedName ? name : null);
+  const ownedName = () => (name !== '' && name === suggestedName ? name : null);
+  const lastWritten = useRef<string | null>(ownedName());
   /** The name our last write replaced, until a render shows the write has landed. */
   const replaced = useRef<string | null>(null);
   const hers = useRef(false);
@@ -62,7 +63,8 @@ export function useSuggestedShowName({
   useEffect(() => {
     if (generation.current !== draftGeneration) {
       generation.current = draftGeneration;
-      lastWritten.current = null;
+      // A generation bump that keeps the draft (a clone begun, then cancelled) keeps its record.
+      lastWritten.current = ownedName();
       replaced.current = null;
       hers.current = false;
     }

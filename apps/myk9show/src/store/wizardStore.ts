@@ -13,26 +13,14 @@ import {
   type PersistedWizardDraft,
 } from './wizardStore.draft';
 
+import type { CloneHydrationState, CloneHydrationSnapshot } from './wizardStore.cloneTypes';
+
+export type {
+  CloneHydrationState,
+  CloneHydrationSnapshot,
+  CloneHydrationStatus,
+} from './wizardStore.cloneTypes';
 export type ShowDraft = WizardState['show'];
-export type CloneHydrationStatus = 'idle' | 'hydrating' | 'ready' | 'failed';
-
-export interface CloneHydrationState {
-  status: CloneHydrationStatus;
-  sourceShowId: string | null;
-  sourceShowName: string | null;
-  /** What the clone applied, kept for the banner's summary. Set when status is 'ready'. */
-  snapshot?: CloneHydrationSnapshot | undefined;
-  failureReason?: 'load-failed' | undefined;
-}
-
-export interface CloneHydrationSnapshot {
-  sourceShowId: string;
-  sourceShowName: string;
-  show: Partial<WizardState['show']>;
-  judgeDetails: WizardState['judgeDetails'];
-  trials: Array<Omit<WizardState['trials'][number], 'id'>>;
-}
-
 export interface WizardState {
   currentStep: number;
   completedSteps: number[];
@@ -59,6 +47,8 @@ export interface WizardState {
   trialsMovedCount: number;
   /** The new-show draft set aside while Add trials / Add classes is open (wizardStore.draft). */
   parkedCreateDraft: PersistedWizardDraft | null;
+  /** `suggestedShowName` of the parked draft, kept off disk like the flag itself. */
+  parkedSuggestedShowName: string | null;
   /** The saved draft could not be read from this device (see wizardDraftRead). */
   draftReadFailed: boolean;
 
@@ -197,6 +187,7 @@ const initialState: WizardState = {
   editBaselineJudgeIds: null,
   trialsMovedCount: 0,
   parkedCreateDraft: null,
+  parkedSuggestedShowName: null,
   draftReadFailed: false,
   show: {
     name: '',
@@ -436,6 +427,7 @@ export const useWizardStore = create<WizardState & WizardActions>()(
           ...initialState,
           draftReadFailed: state.draftReadFailed,
           parkedCreateDraft: state.parkedCreateDraft,
+          parkedSuggestedShowName: state.parkedSuggestedShowName,
           cloneGeneration: state.cloneGeneration + 1,
         })),
 
@@ -446,6 +438,9 @@ export const useWizardStore = create<WizardState & WizardActions>()(
         set(state => ({
           ...loadDraftPatch(state, draft),
           parkedCreateDraft: state.parkedCreateDraft ?? pickPersistedDraft(state),
+          parkedSuggestedShowName: state.parkedCreateDraft
+            ? state.parkedSuggestedShowName
+            : state.suggestedShowName,
         })),
 
       endEditVisit: () =>
@@ -456,6 +451,7 @@ export const useWizardStore = create<WizardState & WizardActions>()(
                 ...state,
                 ...initialState,
                 ...state.parkedCreateDraft,
+                suggestedShowName: state.parkedSuggestedShowName,
                 draftReadFailed: state.draftReadFailed,
                 cloneGeneration: state.cloneGeneration + 1,
               })

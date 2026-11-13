@@ -186,4 +186,18 @@ describe('useSuggestedShowName', () => {
 
     expect(setName).not.toHaveBeenCalled();
   });
+
+  it('keeps following the dates when a clone is begun and cancelled over its own name', () => {
+    const ownership = createOwnership();
+    const { setName, rerender } = setup({}, { ownership });
+    rerender({ name: 'Heartland October 2026' });
+    setName.mockClear();
+
+    // beginCloneHydration bumps the generation and leaves the draft and the record alone.
+    rerender({ name: 'Heartland October 2026', draftGeneration: 1 });
+    rerender({ name: 'Heartland October 2026', draftGeneration: 2 });
+    rerender({ name: 'Heartland October 2026', draftGeneration: 2, startDate: day(2026, 11, 14) });
+
+    expect(setName).toHaveBeenCalledWith('Heartland November 2026');
+  });
 });

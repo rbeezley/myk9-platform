@@ -109,4 +109,37 @@ describe('show name across Show details and Trials', () => {
 
     expect(useWizardStore.getState().show.name).toBe('Heartland November 2026');
   });
+
+  it('follows the month after an Add classes visit parked and restored the draft', () => {
+    render(<StepHost />);
+    act(() => useWizardStore.getState().updateShowData({ startDate: day(2026, 10, 10) }));
+    expect(useWizardStore.getState().show.name).toBe('Heartland October 2026');
+    const draft = { show: { ...useWizardStore.getState().show, name: 'Other Show' } };
+
+    act(() => useWizardStore.getState().loadEditDraft(draft));
+    act(() => useWizardStore.getState().endEditVisit());
+    goToStep(0);
+    act(() => useWizardStore.getState().updateShowData({ startDate: day(2026, 11, 14) }));
+
+    expect(useWizardStore.getState().show.name).toBe('Heartland November 2026');
+  });
+
+  it('keeps a cloned name even when it equals the new suggestion', () => {
+    render(<StepHost />);
+    act(() => useWizardStore.getState().updateShowData({ startDate: day(2026, 10, 10) }));
+    const generation = useWizardStore.getState().beginCloneHydration('src-1', 'Source');
+
+    act(() =>
+      useWizardStore.getState().completeCloneHydration(generation, {
+        sourceShowId: 'src-1',
+        sourceShowName: 'Source',
+        show: { name: 'Heartland October 2026', clubId: 'club-1', startDate: day(2026, 10, 10) },
+        judgeDetails: {},
+        trials: [],
+      })
+    );
+    act(() => useWizardStore.getState().updateShowData({ startDate: day(2026, 11, 14) }));
+
+    expect(useWizardStore.getState().show.name).toBe('Heartland October 2026');
+  });
 });

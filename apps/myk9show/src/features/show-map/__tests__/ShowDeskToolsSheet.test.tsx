@@ -28,6 +28,17 @@ function mockRegenerateRpc() {
         error: null,
       }) as unknown as ReturnType<typeof mockSupabase.rpc>;
     }
+    if (fn === 'get_show_access_codes') {
+      // The card re-reads the saved codes after regenerating.
+      return Promise.resolve({
+        data: [
+          { role: 'admin', passcode: 'a1111', recoverable: true },
+          { role: 'steward', passcode: 's3333', recoverable: true },
+          { role: 'exhibitor', passcode: 'e4444', recoverable: true },
+        ],
+        error: null,
+      }) as unknown as ReturnType<typeof mockSupabase.rpc>;
+    }
     return Promise.resolve({ data: null, error: null }) as unknown as ReturnType<
       typeof mockSupabase.rpc
     >;

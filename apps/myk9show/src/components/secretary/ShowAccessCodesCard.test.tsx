@@ -55,6 +55,20 @@ function mockRegenerateRpc(response: {
     if (fn === 'regenerate_show_passcodes') {
       return Promise.resolve(response) as unknown as ReturnType<typeof mockSupabase.rpc>;
     }
+    if (fn === 'get_show_access_codes') {
+      // The card re-reads the saved codes after regenerating (judge codes come only from here).
+      const saved = response.data?.[0];
+      const rows = saved
+        ? (['admin', 'steward', 'exhibitor'] as const).map(role => ({
+            role,
+            passcode: saved[role],
+            recoverable: true,
+          }))
+        : [];
+      return Promise.resolve({ data: rows, error: null }) as unknown as ReturnType<
+        typeof mockSupabase.rpc
+      >;
+    }
     return Promise.resolve({ data: null, error: null }) as unknown as ReturnType<
       typeof mockSupabase.rpc
     >;
@@ -305,12 +319,19 @@ describe('ShowAccessCodesCard', () => {
 
   it('shows an in-progress state and prevents a second generation request', async () => {
     let resolveRpc: ((value: unknown) => void) | undefined;
-    mockSupabase.rpc.mockImplementation(
-      () =>
-        new Promise(resolve => {
-          resolveRpc = resolve;
-        }) as unknown as ReturnType<typeof mockSupabase.rpc>
-    );
+    mockSupabase.rpc.mockImplementation(((fn: string) =>
+      fn === 'regenerate_show_passcodes'
+        ? new Promise(resolve => {
+            resolveRpc = resolve;
+          })
+        : Promise.resolve({
+            data: [
+              { role: 'admin', passcode: 'a1111', recoverable: true },
+              { role: 'steward', passcode: 's3333', recoverable: true },
+              { role: 'exhibitor', passcode: 'e4444', recoverable: true },
+            ],
+            error: null,
+          })) as unknown as typeof mockSupabase.rpc);
 
     const { user } = renderWithProviders(
       <ShowAccessCodesCard showId={TEST_SHOW_ID} canRegenerate />
@@ -436,8 +457,10 @@ describe('ShowAccessCodesCard', () => {
   });
 
   it('clears regenerated codes when the card changes to another show', async () => {
+    let regenerated = false;
     mockSupabase.rpc.mockImplementation((fn: string, args?: Record<string, unknown>) => {
       if (fn === 'regenerate_show_passcodes') {
+        regenerated = true;
         return Promise.resolve({
           data: [{ admin: 'a1111', judge: null, steward: 's3333', exhibitor: 'e4444' }],
           error: null,
@@ -448,7 +471,9 @@ describe('ShowAccessCodesCard', () => {
           data:
             args?.p_show_id === SECOND_TEST_SHOW_ID
               ? [{ role: 'admin', passcode: 'b2222', recoverable: true }]
-              : [],
+              : regenerated
+                ? [{ role: 'admin', passcode: 'a1111', recoverable: true }]
+                : [],
           error: null,
         }) as unknown as ReturnType<typeof mockSupabase.rpc>;
       }

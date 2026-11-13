@@ -64,6 +64,7 @@ import { useMyAtShowJudgeAssignments } from './useMyAtShowJudgeAssignments';
 import { OfflineReadyBadge } from '@/features/offline-readiness/OfflineReadyBadge';
 import { useSyncNote } from '@/components/shows/ShowDetails/ShowSyncStatus';
 import { isJudgeOnlyAtShow } from './isJudgeOnlyAtShow';
+import { deriveRingsideJudgePersonIdFromClaim } from '@/store/ringsideGrantStore';
 
 /**
  * Staff-only readiness action. Rendered in EVERY branch of the page — the
@@ -123,8 +124,11 @@ export const AtShowClassListPage: React.FC = () => {
   // This is a UI scope; route guards, RLS, and canScore remain the security
   // gates. Broader staff roles still need the full picker for show-day
   // coordination, while anonymous passcode sessions are show-wide by design.
+  // A per-judge passcode session (MYK9-1951) is scoped the same way: its claim names
+  // the judge. Admin and steward codes name none, so they keep the whole show.
   const isJudgeOnly =
-    Boolean(user) && isJudgeOnlyAtShow({ isAnonymous: Boolean(user?.is_anonymous), hasRole });
+    (Boolean(user) && isJudgeOnlyAtShow({ isAnonymous: Boolean(user?.is_anonymous), hasRole })) ||
+    deriveRingsideJudgePersonIdFromClaim(user, showId) !== null;
 
   // Narrowing the picker to "my classes" is only safe when we actually know
   // which classes are mine. When the assignment set is unknown (offline cold

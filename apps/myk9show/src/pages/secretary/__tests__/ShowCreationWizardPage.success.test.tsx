@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, act, waitFor } from '@testing-library/react';
 import type { ShowPasscodes } from '@myk9/core';
 import { render } from '@/test/utils/testUtils';
+import { mockSupabase } from '@/test/mocks/supabase';
 import ShowCreationWizardPage from '../ShowCreationWizardPage';
 
 // Capture the onCreated callback the page passes to the hook so we can
@@ -63,9 +64,30 @@ describe('ShowCreationWizardPage success overlay', () => {
   beforeEach(() => {
     mockNavigate.mockReset();
     capturedOnCreated = undefined;
+    // insert_show_passcodes returns no judge code; the card re-reads the saved list for them.
+    mockSupabase.rpc.mockImplementation(((fn: string) =>
+      Promise.resolve(
+        fn === 'get_show_access_codes'
+          ? {
+              data: [
+                { role: 'admin', passcode: FIXTURE_PASSCODES.admin, recoverable: true },
+                {
+                  role: 'judge',
+                  passcode: 'jm9q4',
+                  recoverable: true,
+                  person_id: 'person-ada',
+                  judge_display_name: 'Ada Lovelace',
+                },
+                { role: 'steward', passcode: FIXTURE_PASSCODES.steward, recoverable: true },
+                { role: 'exhibitor', passcode: FIXTURE_PASSCODES.exhibitor, recoverable: true },
+              ],
+              error: null,
+            }
+          : { data: null, error: null }
+      )) as unknown as typeof mockSupabase.rpc);
   });
 
-  it('shows the success overlay with server-issued passcodes after show creation', () => {
+  it('shows the success overlay with server-issued passcodes after show creation', async () => {
     render(<ShowCreationWizardPage />);
 
     // Simulate the hook calling onCreated after a successful save.
@@ -85,7 +107,9 @@ describe('ShowCreationWizardPage success overlay', () => {
     expect(screen.getByText('Show Created!')).toBeInTheDocument();
     expect(screen.getByText('Spring Trial')).toBeInTheDocument();
     expect(screen.getByText(FIXTURE_PASSCODES.admin)).toBeInTheDocument();
-    expect(screen.queryByText('Judge')).not.toBeInTheDocument();
+    // The creation call returns no judge code; the card re-reads the list and names each judge.
+    expect(await screen.findByText('Ada Lovelace')).toBeInTheDocument();
+    expect(screen.getByText('jm9q4')).toBeInTheDocument();
     expect(screen.getByText(FIXTURE_PASSCODES.steward)).toBeInTheDocument();
     expect(screen.getByText(FIXTURE_PASSCODES.exhibitor)).toBeInTheDocument();
   });
@@ -113,9 +137,13 @@ describe('ShowCreationWizardPage success overlay', () => {
       'sm:p-8'
     );
     expect(screen.getByRole('button', { name: /review & publish show/i })).toBeInTheDocument();
-    expect(
-      screen.getAllByRole('button', { name: /^copy (admin|judge|steward|exhibitor) code$/i })
-    ).toHaveLength(3);
+    await waitFor(() =>
+      expect(
+        screen.getAllByRole('button', {
+          name: /^copy (admin|ada lovelace|steward|exhibitor) code$/i,
+        })
+      ).toHaveLength(4)
+    );
 
     expect(
       screen.getByRole('heading', { name: /role-specific access codes/i })

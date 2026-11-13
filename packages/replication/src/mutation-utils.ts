@@ -246,7 +246,9 @@ export function isAuthorizationError(error: unknown): boolean {
     message?.includes('rls policy') === true ||
     message?.includes('permission denied') === true;
 
-  if (code === '42501' || isExplicitPermissionRejection) return true;
+  // MYK9-1950: RS403 is the ringside refusal of a per-judge passcode writing another judge's
+  // class. The class's judge does not change on a retry, so it dead-letters as a refusal.
+  if (code === '42501' || code === 'RS403' || isExplicitPermissionRejection) return true;
 
   // Broad authorization wording is trustworthy only when it comes with a
   // structured server code. Plain Error messages such as an expired-session

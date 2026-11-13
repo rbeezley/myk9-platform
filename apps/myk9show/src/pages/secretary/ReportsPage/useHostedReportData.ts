@@ -49,6 +49,8 @@ import {
 } from '@/features/lunch-orders/useHospitalityPlan';
 import type { HospitalityPlanDay } from '@/features/lunch-orders/hospitalityPlan';
 import { useWaitlistReportQuery } from './useWaitlistReportQuery';
+import { fetchShowAccessCodes } from '@/components/secretary/fetchShowAccessCodes';
+import type { ReportJudgeSupplyRow } from '@/features/judge-supplies/types';
 
 /** Report ids whose component needs entry-form data passed in. */
 export const ENTRY_FORM_REPORT_IDS = new Set(['akc-scent-work-entry-form']);
@@ -122,6 +124,20 @@ export function useHostedReportData({
     enabled: needsSupplies,
   });
 
+  // MYK9-1951: each judge's ringside code prints on that judge's page. The codes are read
+  // online by the RPC, which shows a manager every judge and an assigned judge only their own;
+  // a failed or offline read prints the sheet without codes, so it settles rather than blocks.
+  const judgeCodes = useQuery({
+    queryKey: ['judge-supply-checklist-report', 'access-codes', showId ?? ''] as const,
+    queryFn: async () => {
+      const { data, error } = await fetchShowAccessCodes(showId as string);
+      if (error) throw new Error(error.message);
+      return data ?? [];
+    },
+    enabled: needsSupplies,
+    retry: false,
+  });
+
   const waitlistQuery = useWaitlistReportQuery(showId, classIds, needsWaitlist);
 
   const needsHospitality = HOSPITALITY_REPORT_IDS.has(reportType) && Boolean(showId);
@@ -135,6 +151,17 @@ export function useHostedReportData({
   const needed: ReadinessQuery[] = [
     ...(needsEntryForm ? [entryForm.readiness] : []),
     ...(needsSupplies ? [readinessOf(supplies)] : []),
+    ...(needsSupplies
+      ? [
+          readinessOf(judgeCodes, {
+            hasData:
+              judgeCodes.data !== undefined ||
+              judgeCodes.isError ||
+              judgeCodes.fetchStatus === 'paused',
+            isError: false,
+          }),
+        ]
+      : []),
     ...(needsWaitlist ? [readinessOf(waitlistQuery)] : []),
     ...(needsHospitality ? [hospitalityQuery.readiness] : []),
     // MYK9-1386: a failed or offline officials read prints the form's blank
@@ -165,9 +192,17 @@ export function useHostedReportData({
       }
     : undefined;
 
+  const judgeCodeByPerson = new Map(
+    (judgeCodes.data ?? []).flatMap(row =>
+      row.role === 'judge' && row.person_id && row.passcode ? [[row.person_id, row.passcode]] : []
+    )
+  );
   const judgeSupplies: ReportAsyncData<unknown[]> | undefined = needsSupplies
     ? {
-        data: supplies.data ?? [],
+        data: (supplies.data ?? []).map((row): ReportJudgeSupplyRow => ({
+          ...row,
+          judge_passcode: row.person_id ? (judgeCodeByPerson.get(row.person_id) ?? null) : null,
+        })),
         isLoading: supplies.isLoading,
         isError: Boolean(supplies.error),
       }
@@ -204,7 +239,10 @@ export function useHostedReportData({
       if (needsEntryForm) {
         void queryClient.invalidateQueries({ queryKey: ['entry-form-data', showId] });
       }
-      if (needsSupplies) void supplies.refetch();
+      if (needsSupplies) {
+        void supplies.refetch();
+        void judgeCodes.refetch();
+      }
       if (needsOfficials) void officialsQuery.refetch();
       if (needsHospitality) hospitalityQuery.refetch();
       if (needsWaitlist) {

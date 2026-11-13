@@ -65,10 +65,11 @@ export interface UseAtShowEntryListHandlersDeps {
    */
   isClassCancelled?: (classId: string) => boolean;
   /**
-   * MYK9-1807: whether this viewer may set `status` on this entry (entryStatusAccess.ts). A change
-   * it refuses is turned away with a message before anything is sent or shown. Omitted allows all.
+   * MYK9-1807: why this viewer may not set `status` on this entry (entryStatusAccess.ts), or null.
+   * A change it refuses is turned away with that message before anything is sent or shown.
+   * Omitted allows all.
    */
-  maySetEntryStatus?: (entry: Entry, status: string) => boolean;
+  statusRefusalFor?: (entry: Entry, status: string) => string | null;
   /** Force-refresh from the data hook. */
   refresh: (forceSync?: boolean) => Promise<void>;
   /** Manual refresh control: syncs and records the done/failed/offline answer (MYK9-1746). */
@@ -107,7 +108,7 @@ export function useAtShowEntryListHandlers(
     buildScoreSheetRoute,
     gateEntryClick,
     isClassCancelled = NEVER_CANCELLED,
-    maySetEntryStatus,
+    statusRefusalFor,
     refresh,
     manualRefresh,
     setActiveStatusPopup,
@@ -252,8 +253,9 @@ export function useAtShowEntryListHandlers(
       }
 
       const previous = entriesRef.current.find(entry => entry.id === entryId);
-      if (previous && maySetEntryStatus && !maySetEntryStatus(previous, status)) {
-        toast.error(SELF_CHECKIN_REFUSED_MESSAGE);
+      const refusal = previous && statusRefusalFor ? statusRefusalFor(previous, status) : null;
+      if (refusal) {
+        toast.error(refusal);
         return;
       }
       setLocalEntries(prev =>
@@ -301,7 +303,7 @@ export function useAtShowEntryListHandlers(
         logger.error('[at-show] status change failed', 'at-show', { error: String(error) });
       }
     },
-    [actions, isEntryCancelled, maySetEntryStatus, setActiveStatusPopup, setLocalEntries]
+    [actions, isEntryCancelled, statusRefusalFor, setActiveStatusPopup, setLocalEntries]
   );
 
   useEffect(() => {

@@ -577,9 +577,11 @@ export type { EntryListOwnership } from './dogsAheadInList';
  *  - `open`: the tappable status control.
  *  - `self-checkin-off`: the control opens the "self check-in is off" dialog.
  *  - `none`: the status is shown but nothing can be changed (not the viewer's dog).
- *  - `reinstate`: the dog is not running; the secretary must reinstate the entry.
+ *  - `reinstate`: the dog is not running; an exhibitor is told the secretary must reinstate it.
+ *  - `reinstate-staff`: the same row for staff, who are pointed to Entry management.
  */
-export type EntryStatusControl = 'open' | 'self-checkin-off' | 'none' | 'reinstate';
+export type EntryStatusControl =
+  'open' | 'self-checkin-off' | 'none' | 'reinstate' | 'reinstate-staff';
 
 /** Host answers for who may change a check-in status from this list. */
 export interface EntryListStatusAccess {

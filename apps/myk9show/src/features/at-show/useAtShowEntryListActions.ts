@@ -18,7 +18,7 @@ import { useCallback, useRef, useState } from 'react';
 import type { EntryListActions } from '@myk9/ringside';
 import type { EntryStatus } from '@myk9/core';
 import { logger } from '@/utils/logger';
-import { isSelfCheckinRefusal } from './entryStatusAccess';
+import { SelfCheckinRefusedError, isSelfCheckinRefusal } from './entryStatusAccess';
 import { usePendingMutationCount } from '@/hooks/usePendingMutationCount';
 import {
   updateReplicatedCheckInStatus,
@@ -66,7 +66,12 @@ async function writeCheckInStatus(
   writer: CheckInWriter
 ): Promise<void> {
   if (writer === 'self-checkin-rpc') {
-    await updateSelfCheckInStatus(entryId, status);
+    try {
+      await updateSelfCheckInStatus(entryId, status);
+    } catch (error) {
+      // Only the write's own refusal is an answer; a refresh failure after it stays a failure.
+      throw isSelfCheckinRefusal(error) ? new SelfCheckinRefusedError(error) : error;
+    }
     return;
   }
   await updateReplicatedCheckInStatus(entryId, status);
@@ -86,29 +91,24 @@ export function useAtShowEntryListActions(
   // last one settles (useState lags within a sync burst).
   const inFlight = useRef(0);
 
-  const runMutation = useCallback(
-    async (fn: () => Promise<void>): Promise<void> => {
-      inFlight.current += 1;
-      setIsSyncing(true);
-      try {
-        await fn();
-        setHasError(false);
-      } catch (error) {
-        // A refusal by `self_checkin_entry` is an answer, not a failure to send: the change is not
-        // queued and nothing is waiting to sync, so it must not light the "could not be sent" pill.
-        // The caller words the refusal for the exhibitor (MYK9-1807).
-        if (!(writer === 'self-checkin-rpc' && isSelfCheckinRefusal(error))) {
-          setHasError(true);
-        }
-        logger.error('[at-show] entry mutation failed', 'at-show', { error: String(error) });
-        throw error;
-      } finally {
-        inFlight.current -= 1;
-        if (inFlight.current === 0) setIsSyncing(false);
-      }
-    },
-    [writer]
-  );
+  const runMutation = useCallback(async (fn: () => Promise<void>): Promise<void> => {
+    inFlight.current += 1;
+    setIsSyncing(true);
+    try {
+      await fn();
+      setHasError(false);
+    } catch (error) {
+      // A refusal by `self_checkin_entry` is an answer, not a failure to send: the change is not
+      // queued and nothing is waiting to sync, so it must not light the "could not be sent" pill.
+      // The caller words the refusal for the exhibitor (MYK9-1807).
+      if (!(error instanceof SelfCheckinRefusedError)) setHasError(true);
+      logger.error('[at-show] entry mutation failed', 'at-show', { error: String(error) });
+      throw error;
+    } finally {
+      inFlight.current -= 1;
+      if (inFlight.current === 0) setIsSyncing(false);
+    }
+  }, []);
 
   const handleStatusChange = useCallback<EntryListActions['handleStatusChange']>(
     async (entryId, newStatus) => {

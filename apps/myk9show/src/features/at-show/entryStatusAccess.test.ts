@@ -5,12 +5,18 @@
 import { describe, expect, it } from 'vitest';
 import { CHECKIN_STATUSES, EXHIBITOR_ALLOWED_STATUSES, STAFF_CHECK_IN_STATUSES } from '@myk9/core';
 import {
+  NOT_RUNNING_EXHIBITOR_MESSAGE,
+  NOT_RUNNING_STAFF_MESSAGE,
   SELF_CHECKIN_REFUSED_MESSAGE,
+  SelfCheckinRefusedError,
   SELF_SETTABLE_STATUSES,
   isSelfCheckinRefusal,
   maySetStatus,
   pickerStatuses,
   statusControlFor,
+  statusRefusalMessage,
+  viewerForRole,
+  writerForRole,
 } from './entryStatusAccess';
 
 const own = { ownsEntry: true, selfCheckinEnabled: true, notRunning: false };
@@ -80,7 +86,7 @@ describe('statusControlFor', () => {
   });
 
   it('offers nobody a control on a dog scratched or withdrawn from the entry', () => {
-    expect(statusControlFor({ viewer: 'staff', ...own, notRunning: true })).toBe('reinstate');
+    expect(statusControlFor({ viewer: 'staff', ...own, notRunning: true })).toBe('reinstate-staff');
     expect(statusControlFor({ viewer: 'exhibitor', ...own, notRunning: true })).toBe('reinstate');
   });
 });
@@ -128,6 +134,15 @@ describe('isSelfCheckinRefusal', () => {
     expect(isSelfCheckinRefusal({ message })).toBe(true);
   });
 
+  it('does not mistake a failure that merely mentions self check-in for a refusal', () => {
+    expect(isSelfCheckinRefusal(new Error('self check-in is disabled'))).toBe(false);
+    expect(isSelfCheckinRefusal(new Error('Not authorized to refresh'))).toBe(false);
+  });
+
+  it("knows the write's own refusal wrapper", () => {
+    expect(isSelfCheckinRefusal(new SelfCheckinRefusedError(new Error('anything')))).toBe(true);
+  });
+
   it('does not mistake a network failure for a refusal', () => {
     expect(isSelfCheckinRefusal(new Error('Failed to fetch'))).toBe(false);
     expect(isSelfCheckinRefusal(undefined)).toBe(false);
@@ -137,5 +152,39 @@ describe('isSelfCheckinRefusal', () => {
 describe('refused-write message', () => {
   it('is plain words with no em dash', () => {
     expect(SELF_CHECKIN_REFUSED_MESSAGE).not.toContain('—');
+  });
+});
+
+describe('one definition of exhibitor', () => {
+  it.each([
+    ['admin', 'staff', 'replicated'],
+    ['judge', 'staff', 'replicated'],
+    ['steward', 'staff', 'replicated'],
+    ['exhibitor', 'exhibitor', 'self-checkin-rpc'],
+    [null, 'exhibitor', 'self-checkin-rpc'],
+  ] as const)('role %s is a %s viewer written by %s', (role, viewer, writer) => {
+    expect(viewerForRole(role)).toBe(viewer);
+    expect(writerForRole(role)).toBe(writer);
+  });
+});
+
+describe('statusRefusalMessage', () => {
+  const gone = { ...own, notRunning: true, status: 'checked-in' };
+
+  it('words a not-running row for who is looking', () => {
+    expect(statusRefusalMessage({ viewer: 'staff', ...gone })).toBe(NOT_RUNNING_STAFF_MESSAGE);
+    expect(statusRefusalMessage({ viewer: 'exhibitor', ...gone })).toBe(
+      NOT_RUNNING_EXHIBITOR_MESSAGE
+    );
+  });
+
+  it('is null when the write may go', () => {
+    expect(statusRefusalMessage({ viewer: 'staff', ...own, status: 'in-ring' })).toBeNull();
+  });
+
+  it('uses the self check-in sentence for any other refusal', () => {
+    expect(
+      statusRefusalMessage({ viewer: 'exhibitor', ...own, ownsEntry: false, status: 'checked-in' })
+    ).toBe(SELF_CHECKIN_REFUSED_MESSAGE);
   });
 });

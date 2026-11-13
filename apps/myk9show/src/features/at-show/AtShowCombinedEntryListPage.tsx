@@ -72,6 +72,8 @@ import { AtShowAddToHomeNudge } from './AtShowAddToHomeNudge';
 import { useMyAtShowEntries } from './useMyAtShowEntries';
 import { useMyRingConflicts } from './useMyRingConflicts';
 import { useEntryStatusAccess } from './useEntryStatusAccess';
+import { useSelfCheckinFor } from './selfCheckinByClass';
+import { writerForRole } from './entryStatusAccess';
 import { useAtShowRealtimeRefresh } from './useAtShowRealtimeRefresh';
 import { useAtShowEntryListRefresh } from './useAtShowEntryListRefresh';
 import {
@@ -168,7 +170,7 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
   // RPC — otherwise the optimistic update sticks locally but never syncs.
   const actions = useAtShowEntryListActions({
     refresh,
-    writer: ringsideRole === 'exhibitor' ? 'self-checkin-rpc' : 'replicated',
+    writer: writerForRole(ringsideRole),
   });
 
   // ── Realtime: scoring/check-in changes elsewhere re-sync this list ─────
@@ -274,12 +276,11 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
       ),
     [showId, classIdA, classIdB]
   );
-
   const { ownEntryIds } = useMyAtShowEntries(showId);
-  const { statusAccess, maySetEntryStatus } = useEntryStatusAccess({
+  const { statusAccess, statusRefusalFor } = useEntryStatusAccess({
     role: ringsideRole,
     ownEntryIds,
-    selfCheckinEnabled: classInfo?.selfCheckin ?? true,
+    selfCheckinFor: useSelfCheckinFor([classIdA, classIdB]),
   });
   const entriesIncomplete = showHydration === 'not-arrived';
 
@@ -295,7 +296,7 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
     buildScoreSheetRoute,
     gateEntryClick,
     isClassCancelled,
-    maySetEntryStatus,
+    statusRefusalFor,
     refresh,
     manualRefresh,
     setActiveStatusPopup: uiActions.setActiveStatusPopup,

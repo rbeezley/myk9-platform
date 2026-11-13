@@ -18,7 +18,7 @@ vi.mock('@/utils/logger', () => ({
 vi.mock('@/services/database/supabaseClient', () => ({ supabase: { rpc: vi.fn() } }));
 
 import { useAtShowEntryListHandlers } from './useAtShowEntryListHandlers';
-import { SELF_CHECKIN_REFUSED_MESSAGE } from './entryStatusAccess';
+import { NOT_RUNNING_STAFF_MESSAGE, SELF_CHECKIN_REFUSED_MESSAGE } from './entryStatusAccess';
 
 const entry: Entry = {
   id: 'e1',
@@ -34,7 +34,7 @@ const entry: Entry = {
 
 function setup(
   options: {
-    maySetEntryStatus?: (entry: Entry, status: string) => boolean;
+    statusRefusalFor?: (entry: Entry, status: string) => string | null;
     handleStatusChange?: EntryListActions['handleStatusChange'];
   } = {}
 ) {
@@ -58,7 +58,7 @@ function setup(
       hasPermission: () => true,
       navigate: vi.fn(),
       buildScoreSheetRoute: () => '/route',
-      ...(options.maySetEntryStatus ? { maySetEntryStatus: options.maySetEntryStatus } : {}),
+      ...(options.statusRefusalFor ? { statusRefusalFor: options.statusRefusalFor } : {}),
       refresh: vi.fn(() => Promise.resolve()),
       manualRefresh: vi.fn(() => Promise.resolve()),
       setActiveStatusPopup: vi.fn(),
@@ -80,15 +80,15 @@ describe('handleStatusChange with a viewer-specific rule', () => {
   });
 
   it('sends nothing and says why when the viewer may not set the status', async () => {
-    const maySetEntryStatus = vi.fn(() => false);
-    const { result, actions, setLocalEntries } = setup({ maySetEntryStatus });
+    const statusRefusalFor = vi.fn(() => NOT_RUNNING_STAFF_MESSAGE);
+    const { result, actions, setLocalEntries } = setup({ statusRefusalFor });
 
     await act(async () => {
       await result.current.handleStatusChange('e1', 'in-ring');
     });
 
-    expect(maySetEntryStatus).toHaveBeenCalledWith(entry, 'in-ring');
-    expect(toastError).toHaveBeenCalledWith(SELF_CHECKIN_REFUSED_MESSAGE);
+    expect(statusRefusalFor).toHaveBeenCalledWith(entry, 'in-ring');
+    expect(toastError).toHaveBeenCalledWith(NOT_RUNNING_STAFF_MESSAGE);
     expect(actions.handleMarkInRing).not.toHaveBeenCalled();
     expect(actions.handleStatusChange).not.toHaveBeenCalled();
     // No optimistic flip, so nothing to snap back.
@@ -96,7 +96,7 @@ describe('handleStatusChange with a viewer-specific rule', () => {
   });
 
   it('writes as before when the viewer may set the status (staff path unchanged)', async () => {
-    const { result, actions } = setup({ maySetEntryStatus: () => true });
+    const { result, actions } = setup({ statusRefusalFor: () => null });
 
     await act(async () => {
       await result.current.handleStatusChange('e1', 'at-gate');
@@ -118,7 +118,7 @@ describe('handleStatusChange with a viewer-specific rule', () => {
 
   it('rolls the card back and says why when the server refuses anyway', async () => {
     const { result, setLocalEntries } = setup({
-      maySetEntryStatus: () => true,
+      statusRefusalFor: () => null,
       handleStatusChange: vi.fn(() =>
         Promise.reject(
           new Error('Not authorized: caller does not own entry e1 or self check-in is disabled')

@@ -236,6 +236,17 @@ describe('useAtShowEntryListActions', () => {
       expect(result.current.hasError).toBe(false);
     });
 
+    it('a refresh that fails after an accepted write still raises hasError', async () => {
+      refresh.mockRejectedValueOnce(
+        new Error('Not authorized: caller does not own entry e1 or self check-in is disabled')
+      );
+      const { result } = render('self-checkin-rpc');
+      await act(async () => {
+        await result.current.handleStatusChange('entry-uuid-9', 'checked-in').catch(() => {});
+      });
+      await waitFor(() => expect(result.current.hasError).toBe(true));
+    });
+
     it('a staff writer that is refused still raises hasError', async () => {
       updateEntry.mockRejectedValueOnce(new Error('Not authorized'));
       const { result } = render('replicated');

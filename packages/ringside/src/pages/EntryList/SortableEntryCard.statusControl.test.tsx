@@ -90,7 +90,15 @@ describe('SortableEntryCard status control', () => {
     renderCard({ statusControl: 'reinstate' });
     expect(screen.queryByTestId('check-in-button')).toBeNull();
     expect(screen.getByTestId('reinstate-notice').textContent).toContain(
-      'The secretary must reinstate this entry'
+      'The show secretary must reinstate this entry before it can be checked in.'
+    );
+  });
+
+  it('reinstate-staff: no control, and the row points staff to Entry management', () => {
+    renderCard({ statusControl: 'reinstate-staff' });
+    expect(screen.queryByTestId('check-in-button')).toBeNull();
+    expect(screen.getByTestId('reinstate-notice').textContent).toContain(
+      'Reinstate this entry in Entry management first.'
     );
   });
 

@@ -188,14 +188,37 @@ describe('MYK9-1809 item 2: a scratched or withdrawn row has no status control',
     row('pulled', 3, { checkInStatus: 'pulled' }),
   ];
 
-  it('says the secretary must reinstate the entry, for staff too', async () => {
+  it.each(['SITE_ADMIN', 'JUDGE'])(
+    'has no control for %s and points them to Entry management',
+    async role => {
+      viewer.role = role;
+      seed(rows);
+      renderPage();
+      await screen.findByText('Dog gone');
+
+      const gone = cardFor('Dog gone');
+      expect(within(gone).queryByTestId('check-in-button')).not.toBeInTheDocument();
+      expect(
+        within(gone).getByText('Reinstate this entry in Entry management first.')
+      ).toBeInTheDocument();
+      expect(within(gone).queryByText(/secretary must reinstate/i)).not.toBeInTheDocument();
+    }
+  );
+
+  it('has no control for an exhibitor and says the secretary must reinstate the entry', async () => {
+    viewer.role = 'EXHIBITOR';
+    viewer.ownIds = ['gone'];
     seed(rows);
     renderPage();
     await screen.findByText('Dog gone');
 
     const gone = cardFor('Dog gone');
     expect(within(gone).queryByTestId('check-in-button')).not.toBeInTheDocument();
-    expect(within(gone).getByText(/secretary must reinstate this entry/i)).toBeInTheDocument();
+    expect(
+      within(gone).getByText(
+        'The show secretary must reinstate this entry before it can be checked in.'
+      )
+    ).toBeInTheDocument();
   });
 
   it('keeps the control on a dog pulled through check-in, and the picker marks Pulled as current', async () => {

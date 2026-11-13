@@ -35,6 +35,20 @@ export function pickerStatuses(
     : STAFF_CHECK_IN_STATUSES;
 }
 
+/**
+ * The one definition of "exhibitor" for the entry lists: staff are the three roles with ring
+ * authority; every other viewer (exhibitor, passcode exhibitor, no role) is held to their own
+ * dogs. The viewer kind and the writer below both come from here, so they cannot disagree.
+ */
+export function viewerForRole(role: string | null | undefined): StatusViewer {
+  return role === 'admin' || role === 'judge' || role === 'steward' ? 'staff' : 'exhibitor';
+}
+
+/** An exhibitor writes through the ownership-scoped RPC; staff through the replicated writer. */
+export function writerForRole(role: string | null | undefined): 'self-checkin-rpc' | 'replicated' {
+  return viewerForRole(role) === 'exhibitor' ? 'self-checkin-rpc' : 'replicated';
+}
+
 interface StatusAccessInput {
   viewer: StatusViewer;
   /** The entry belongs to the signed-in account (handler, owner or co-owner). */
@@ -47,7 +61,7 @@ interface StatusAccessInput {
 
 /** What the card shows in place of (or as) the status control. */
 export function statusControlFor(input: StatusAccessInput): EntryStatusControl {
-  if (input.notRunning) return 'reinstate';
+  if (input.notRunning) return input.viewer === 'staff' ? 'reinstate-staff' : 'reinstate';
   if (input.viewer === 'staff') return 'open';
   if (!input.ownsEntry) return 'none';
   return input.selfCheckinEnabled ? 'open' : 'self-checkin-off';
@@ -64,12 +78,36 @@ export function maySetStatus(input: StatusAccessInput & { status: string }): boo
 export const SELF_CHECKIN_REFUSED_MESSAGE =
   'Check-in was not changed. You can only check in your own dogs, and only while check-in is on for the class. Ask the show secretary.';
 
+/** Why a not-running row takes no status change, worded for who is looking. */
+export const NOT_RUNNING_EXHIBITOR_MESSAGE =
+  'The show secretary must reinstate this entry before it can be checked in.';
+export const NOT_RUNNING_STAFF_MESSAGE = 'Reinstate this entry in Entry management first.';
+
+/** The message to show when this viewer's write would be refused, or null when it may go. */
+export function statusRefusalMessage(input: StatusAccessInput & { status: string }): string | null {
+  if (maySetStatus(input)) return null;
+  if (input.notRunning) {
+    return input.viewer === 'staff' ? NOT_RUNNING_STAFF_MESSAGE : NOT_RUNNING_EXHIBITOR_MESSAGE;
+  }
+  return SELF_CHECKIN_REFUSED_MESSAGE;
+}
+
+/** The exact phrases `self_checkin_entry` raises when it turns a write away. */
+const REFUSAL_PHRASES =
+  /Not authorized: caller (?:is not linked to a person record|does not own entry)|Status \S+ is not allowed for self-check-in/;
+
+/** Marks a refusal that came from the write itself (never from the refresh after it). */
+export class SelfCheckinRefusedError extends Error {
+  constructor(cause: unknown) {
+    super(cause instanceof Error ? cause.message : String(cause));
+    this.name = 'SelfCheckinRefusedError';
+  }
+}
+
 /** The server refused an exhibitor's write (ownership, self check-in off, or a staff-only status). */
 export function isSelfCheckinRefusal(error: unknown): boolean {
+  if (error instanceof SelfCheckinRefusedError) return true;
   const message =
     error instanceof Error ? error.message : (error as { message?: unknown })?.message;
-  return (
-    typeof message === 'string' &&
-    /not authorized|not allowed for self-check-in|self check-in is disabled/i.test(message)
-  );
+  return typeof message === 'string' && REFUSAL_PHRASES.test(message);
 }

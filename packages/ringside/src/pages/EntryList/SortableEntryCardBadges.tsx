@@ -182,7 +182,10 @@ export const ResetButton: React.FC<ResetButtonProps> = ({ onClick, callName }) =
  * scratched or withdrawn (MYK9-1809). A check-in status cannot bring it back, so no control is
  * offered, and the row says who can.
  */
-export const ReinstateNotice: React.FC<{ inverse?: boolean }> = ({ inverse }) => (
+export const ReinstateNotice: React.FC<{ inverse?: boolean; staff?: boolean }> = ({
+  inverse,
+  staff,
+}) => (
   <span
     role="note"
     data-testid="reinstate-notice"
@@ -192,6 +195,10 @@ export const ReinstateNotice: React.FC<{ inverse?: boolean }> = ({ inverse }) =>
     )}
   >
     <span>Not running</span>
-    <span className="font-normal">The secretary must reinstate this entry</span>
+    <span className="font-normal">
+      {staff
+        ? 'Reinstate this entry in Entry management first.'
+        : 'The show secretary must reinstate this entry before it can be checked in.'}
+    </span>
   </span>
 );

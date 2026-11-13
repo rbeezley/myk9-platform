@@ -218,10 +218,12 @@ const SortableEntryCardBodyImpl: React.FC<SortableEntryCardBodyProps> = ({
   // A viewer who cannot change the status still sees it; a dog that is not running says who can
   // bring it back, because no check-in status will (MYK9-1809).
   const statusControlView = (inverse: boolean) =>
-    control === 'none' || control === 'reinstate' ? (
+    control === 'none' || control === 'reinstate' || control === 'reinstate-staff' ? (
       <>
         <StatusBadge entry={entry} readOnly inverse={inverse} />
-        {control === 'reinstate' && <ReinstateNotice inverse={inverse} />}
+        {(control === 'reinstate' || control === 'reinstate-staff') && (
+          <ReinstateNotice inverse={inverse} staff={control === 'reinstate-staff'} />
+        )}
       </>
     ) : (
       <StatusBadge

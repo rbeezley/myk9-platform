@@ -74,6 +74,8 @@ It never touches the seeded Willow or Cooper entries, never completes or release
 
 ## What to walk
 
+**Cancelled class hand-off (MYK9-1847).** Separately from the shared-staging chain below, use an isolated test environment and a disposable class with an entry. Confirm its deployed build includes the fix. Cancel it on Show Desk; on a phone as judge and exhibitor, verify the ringside list and class card say Cancelled, and scoring and check-in cannot be performed, including an already-open scoresheet. Restore the original status and verify the normal card and actions return. Record each role and result. Never cancel the shared fixture; if an isolated environment or fixture is unavailable, record this check as blocked, not passed.
+
 Record the SQL row for the walk's entry after every step: `check_in_status, is_scored, result_status, search_time_seconds, total_faults, run_order, armband, version, updated_at`.
 
 1. **Secretary: add and check in.** From the secretary's show page for today's fixture (the `show_id` the precondition returned), add a day-of mail-in entry for Ranger in today's class. A secretary takes day-of entries on a real show day, so if the UI refuses because entries are closed, that is a finding (see MYK9-642 for the day-of entry flag), and the walk stops there with the refusal recorded. Then check the entry in from the check-in surface (Known mechanics has the route). Assert in SQL: exactly one new entry, handler `exhibitor@`, `check_in_status = 'checked-in'`, an armband and a run order.

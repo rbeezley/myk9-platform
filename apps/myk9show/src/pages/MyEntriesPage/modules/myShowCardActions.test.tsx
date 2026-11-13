@@ -175,6 +175,18 @@ describe('MYK9-631 AC2 — the show card carries ONE actions trigger', () => {
 });
 
 describe('MYK9-631 AC3 — leaving a class is a ROW verb', () => {
+  // MYK9-1913: jsdom has no stylesheet, so the computed colour is asserted in
+  // myEntriesPullLinkMuted.spec.ts. This pins the composition that spec relies
+  // on: the leave link must not carry the brand colour utility that beat it.
+  it('gives the leave link the muted underlined variant, not the brand colour', () => {
+    renderRows([liveRow([aheadClass()])]);
+
+    const leave = screen.getByRole('button', { name: /^Pull or withdraw: Juni/ });
+    expect(leave).toHaveClass('text-muted-foreground', 'underline');
+    expect(leave).not.toHaveClass('text-primary');
+    expect(leave).toHaveClass('min-h-[44px]');
+  });
+
   it('opens the chooser for THAT class id, with no order picker in between', async () => {
     const user = userEvent.setup();
     const { props } = renderRows([

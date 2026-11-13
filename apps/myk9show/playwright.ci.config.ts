@@ -93,6 +93,8 @@ const REGRESSION_SPECS = [
   // E2E_DEMO_EXHIBITOR_*, so exhibitor specs are eligible. This one stays
   // Nightly-only on cost grounds rather than credentials.
   '**/myEntriesZoomReflow.spec.ts',
+  // Exhibitor-authed, read-only: computed colour of the row's leave control (MYK9-1913).
+  '**/myEntriesPullLinkMuted.spec.ts',
   // Exhibitor-authed, read-only: opens the Add/Edit dog panels and asserts the
   // real accessibility tree at three viewports (MYK9-88). Nightly rather than
   // PR smoke on cost grounds — six panel opens across three viewports.

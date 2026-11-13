@@ -190,7 +190,7 @@ async function reserveOrReconcile(
   const version = Number(result.version);
   if (result.status !== 'reserved' || !Number.isSafeInteger(version) || version < 1) {
     throw new PremiumPublishError(
-      'Premium publish attempt did not receive a server version',
+      'Premium publish attempt did not receive a version from myK9Show',
       'premium-metadata'
     );
   }

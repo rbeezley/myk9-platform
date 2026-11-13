@@ -88,7 +88,8 @@ export function useUserFriendlyErrors() {
   const showOfflineNotice = useCallback(() => {
     if (!networkStatus.isOnline) {
       toast.error('You are offline', {
-        description: 'Your changes will be saved and synced when connection is restored.',
+        description:
+          'Your changes are saved on this device and will be sent when you are back online.',
         duration: 8000,
       });
     }

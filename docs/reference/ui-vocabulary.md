@@ -142,7 +142,7 @@ Audience: older, retired, low-computer-skill volunteers and exhibitors, usually 
 
 No em dashes in these strings.
 
-Guard: `apps/myk9show/src/test/ci/visibleWording.test.ts` fails on visible "will sync" and its relatives ("changes to sync", "not synced", "Sync needs attention"), "queued", "reach the server" / "server is down", and "clear cache" / "cached data", in app source and in `packages/scoring-ui`. It checks phrases, not bare words, and does not check "reload" (the screens now say "restart the app", MYK9-1926). The System Health page and developer tools are exempt; the few strings that keep a word on purpose are listed in the guard with the reason.
+Guard: `apps/myk9show/src/test/ci/visibleWording.test.ts` fails on any visible string with a bare "sync" (syncing, synced, resync), "queued", "server", "cache" or "reload", in app source, `packages/scoring-ui` and `packages/ringside` (MYK9-1928). Comments, identifiers, log calls, test files, className/data-* values and lowercase one-token keys never count. The System Health page, developer tools and code no screen mounts are exempt by path, and the few strings that keep a word on purpose (the development-only cache menu, "push alert queued", "Try again to reload the list", where the control only retries a query) are listed in the guard with the reason for each.
 
 Rules:
 

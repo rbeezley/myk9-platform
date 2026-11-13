@@ -34,51 +34,91 @@ const NON_VISIBLE_MATCH_KEYS = new Set([
   'wait list offer entry changed by the server',
 ]);
 /**
- * Offline and update words (MYK9-1848; ui-vocabulary.md, "Offline and updates"). Phrases, not
- * bare words: "sync", "server" and "cache" also name developer logs, admin tools and code, so
- * each rule names the shape a person was shown. "reload" is not checked yet: the screens say
- * "restart the app" since MYK9-1926, and MYK9-1928 tightens this guard to bare words.
+ * Offline and update words (MYK9-1848, MYK9-1928; ui-vocabulary.md, "Offline and updates").
+ * Bare words: any visible string with one of these says a developer's word to a person.
  */
 const OFFLINE_RULES: ReadonlyArray<{ pattern: RegExp; rule: string }> = [
   {
-    pattern:
-      /\bwill (?:be )?sync(?:ed)?\b|\bchanges to sync\b|\bonce it syncs\b|\b(?:haven't|hasn't|have not|has not) synced\b|\bsync (?:needs attention|paused)\b|\boldest sync\b|\bunsynced\b|\bpending sync\b|\bresync/i,
-    rule: 'say "will be sent when you are back online" or "not been sent yet", not "sync"',
+    pattern: /\b(?:un|re)?sync(?:s|ed|ing|hroni[sz]\w*)?\b/i,
+    rule: 'say "sent when you are back online" or "not been sent yet", not "sync"',
   },
   { pattern: /\bqueued\b/i, rule: 'say "saved on this device", not "queued"' },
   {
-    pattern: /\breach (?:the )?server\b|\bserver is (?:down|unreachable)\b/i,
-    rule: 'say "we could not reach myK9Show", not "the server"',
+    pattern: /\bservers?\b/i,
+    rule: 'say "myK9Show" ("we could not reach myK9Show"), not "the server"',
   },
+  { pattern: /\bcach(?:e|es|ed|ing)\b/i, rule: 'say "saved data", not "cache"' },
   {
-    pattern: /\bclear(?:ing)? (?:(?:the|your|browser|development) )*caches?\b|\bcached data\b/i,
-    rule: 'say "saved data", not "cache"',
+    pattern: /\breload(?:s|ed|ing)?\b/i,
+    rule: 'say "restart the app", not "reload" (reload only where the control just refetches a list)',
   },
 ];
-/** Staff diagnostics and developer-only tools keep the technical words (MYK9-1848). */
+/**
+ * Code a person never reads (MYK9-1848, MYK9-1928): staff diagnostics, developer tools, and
+ * services no screen mounts. Each entry says why. Prefer deleting dead code over listing it.
+ */
 const OFFLINE_EXEMPT_PATHS = [
+  // Staff diagnostics and developer-only tools keep the technical words.
   'features/admin-system-health/',
   'pages/admin/SystemHealth',
   'utils/clearDevelopmentCache.ts',
+  // Developer error thrown by the viewer-scope guard; never rendered.
+  'lib/viewerScopedQueryKey.ts',
+  // Codemod pattern strings, not copy.
+  'utils/standardizedErrorHandler.ts',
+  // Developer console output (DEV builds only).
+  'hooks/useNavigationPerformance.ts',
+  // Lock errors thrown to callers that catch and log them.
+  'services/cacheClearGate.ts',
+  // Developer analytics, feature-flag and deployment tooling: no screen renders these strings.
+  'services/analytics/',
+  'services/deployment/',
+  'hooks/useCDN.ts',
+  // Not mounted by any screen (no importers outside tests); delete rather than reword.
+  'components/common/SyncStatusIndicator.tsx',
+  'hooks/useBackgroundSync.ts',
+  'services/sync/',
+  'services/offline/DataBackupService.ts',
 ];
 /**
  * Visible text that keeps an offline word on purpose. Each entry says why; keep this short.
  */
+/** Allowed only in the file that owns it, so the same words elsewhere are still caught. */
+const DEV_MENU_FILE = 'components/layout/AccountMenuContent.tsx';
+const OFFLINE_ALLOWED_IN_FILE = new Map<string, string>([
+  // The Developer submenu, shown only to a site admin in a development build.
+  ['Clear development cache and browser storage?', DEV_MENU_FILE],
+  ['Clear cache', DEV_MENU_FILE],
+  ['Clear Cache', DEV_MENU_FILE],
+  ['This preserves templates and UI preferences, then reloads the page.', DEV_MENU_FILE],
+  ['This will reload the page.', DEV_MENU_FILE],
+]);
 const OFFLINE_ALLOWED_TEXT = new Set([
-  // The Developer submenu in AccountMenuContent, shown only in development builds.
-  'Clear development cache and browser storage?',
-  'Clear cache',
-  'Clear Cache',
   // A push alert queued on the server for sending, not a change held on this device.
   'Message posted and push alert queued',
   'Schedule announcement posted and push alert queued',
+  // Raw HTTP error text matched against messages; never shown (friendlySaveError rewrites it).
+  'internal server error',
+  // Developer refresh labels (asserted by tests); logged, never shown.
+  'flagged pull cleared by the server',
+  'move-up pair confirmed by the server',
+  // Log message from a .catch handler.
+  'Judge-name resolve failed; cached names are retained',
 ]);
+/**
+ * Phrases that are accurate: the Try again control only retries a query, so "reload the list"
+ * is true (waitlistErrorCopy.ts, VolunteerSchedulingPage). Removed before the rules run.
+ */
+const OFFLINE_ALLOWED_PHRASES = /\bTry again to reload the list\b|\bTry Again to reload it\b/gi;
 /** One-token strings ('queued', 'replication:mutation-queued', import paths) are keys, not copy;
  * a "[tag] ..." message is a developer error. */
+/** A lowercase token or one with a separator ('queued', 'a:b', 'x_y') is a key; "Syncing…" is not. */
+const KEY_SHAPED = /^(?:[a-z][\w.-]*|[\w.-]*[:/_#@][\w.:/#@-]*)$/;
 const isOfflineExempt = (file: string, trimmed: string) =>
-  !/\s/.test(trimmed) ||
+  KEY_SHAPED.test(trimmed) ||
   trimmed.startsWith('[') ||
   OFFLINE_ALLOWED_TEXT.has(trimmed) ||
+  OFFLINE_ALLOWED_IN_FILE.get(trimmed) === file ||
   OFFLINE_EXEMPT_PATHS.some(p => file.startsWith(p));
 
 /** Walk-up skip folders: tests and dependencies never ship as visible text. */
@@ -125,7 +165,7 @@ export function scanVisibleWording(fileName: string, source: string): WordingHit
         if (RETRY_PATTERN.test(trimmed)) report(node, 'use "Try again", not "Retry"', text);
         if (!isOfflineExempt(fileName, trimmed)) {
           for (const { pattern, rule } of OFFLINE_RULES) {
-            if (pattern.test(text)) report(node, rule, text);
+            if (pattern.test(text.replace(OFFLINE_ALLOWED_PHRASES, ''))) report(node, rule, text);
           }
         }
       }

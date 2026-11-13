@@ -21,7 +21,7 @@ describe('visible wording guard (MYK9-1857, MYK9-1848)', () => {
     ].join('\n');
     expect(scanVisibleWording('x.tsx', src).map(h => h.rule)).toEqual([
       'waitlist is one word',
-      'say "will be sent when you are back online" or "not been sent yet", not "sync"',
+      'say "sent when you are back online" or "not been sent yet", not "sync"',
     ]);
   });
 
@@ -77,11 +77,28 @@ describe('visible wording guard (MYK9-1857, MYK9-1848)', () => {
     expect(scanVisibleWording('x.tsx', src).map(h => h.line)).toEqual([1, 2, 3, 4, 5]);
   });
 
+  it('flags a bare visible "Syncing…" and the other bare words (MYK9-1928)', () => {
+    const src = [
+      "const a = 'Syncing…';",
+      'const b = <span>Sync</span>;',
+      "const c = 'Cache';",
+      "const d = 'Reload';",
+      "const e = 'Server';",
+      "const f = 'Queued';",
+      "const g = 'Please reload the page';",
+      "const h = 'Press Try again to reload the list.';",
+      "const i = 'Saving changes...';",
+      "logger.info('Syncing…', 'x');",
+    ].join('\n');
+    expect(scanVisibleWording('x.tsx', src).map(h => h.line)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+  });
+
   it('lets staff diagnostics and developer tools keep the technical words', () => {
     const src = "const a = 'Clearing browser caches; queued rows will sync.';";
     expect(scanVisibleWording('features/admin-system-health/x.ts', src)).toEqual([]);
     expect(scanVisibleWording('utils/clearDevelopmentCache.ts', src)).toEqual([]);
     expect(scanVisibleWording('features/other/x.ts', src)).toHaveLength(3);
+    expect(scanVisibleWording('services/analytics/x.ts', src)).toEqual([]);
   });
 
   // Parses every app source file; under CI's coverage instrumentation that outruns the 10 s
@@ -95,6 +112,14 @@ describe('visible wording guard (MYK9-1857, MYK9-1848)', () => {
   it('finds none in the scoring-ui package source', () => {
     const hits = scanSourceTree(
       fileURLToPath(new URL('../../../../../packages/scoring-ui/src/', import.meta.url))
+    );
+    expect(hits.map(h => `${h.file}:${h.line} ${h.rule}: ${h.text}`)).toEqual([]);
+  }, 60_000);
+
+  // The shared ringside package ships visible text too (EntryListHeader).
+  it('finds none in the ringside package source', () => {
+    const hits = scanSourceTree(
+      fileURLToPath(new URL('../../../../../packages/ringside/src/', import.meta.url))
     );
     expect(hits.map(h => `${h.file}:${h.line} ${h.rule}: ${h.text}`)).toEqual([]);
   }, 60_000);

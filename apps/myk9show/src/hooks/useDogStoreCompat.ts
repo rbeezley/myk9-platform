@@ -327,7 +327,7 @@ export const useDogStoreCompat = () => {
         notifications.warning(
           err instanceof FriendlySaveError
             ? `Dog details saved, but not its registrations. ${err.message.replace(/\.$/, '')}.`
-            : 'Dog details saved, but registration changes could not be synced. Please try editing registrations again.'
+            : 'Dog details saved, but registration changes could not be saved. Please try editing registrations again.'
         );
       }
     }

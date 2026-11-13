@@ -499,7 +499,8 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
           endAbortedPass(selectedNames);
           return;
         }
-        const errorMessage = error instanceof Error ? error.message : 'Sync failed';
+        const errorMessage =
+          error instanceof Error ? error.message : 'Saved data could not be updated';
         logger.error('Sync error', 'replication', {}, error as Error);
         setStatus(prev => ({
           ...prev,

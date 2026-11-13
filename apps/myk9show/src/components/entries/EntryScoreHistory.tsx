@@ -100,7 +100,7 @@ export function EntryScoreHistory({ entryId }: EntryScoreHistoryProps) {
                     <p className="font-medium">{scoreAuditActorLabel(item)}</p>
                     <p className="text-sm text-muted-foreground">
                       {saved ? `Saved on device ${saved} · ` : ''}
-                      {saved ? 'Reached server' : 'Recorded'} {reached ?? 'time not recorded'}
+                      {saved ? 'Reached myK9Show' : 'Recorded'} {reached ?? 'time not recorded'}
                     </p>
                     {item.changes.length === 0 ? (
                       <p className="text-sm text-muted-foreground">No values changed</p>

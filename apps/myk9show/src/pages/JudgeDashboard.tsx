@@ -304,7 +304,7 @@ const JudgeDashboard: React.FC = () => {
                 {entryCountsStatus === 'unavailable'
                   ? 'Entry totals unavailable'
                   : entryCountsStatus === 'partial'
-                    ? `${judgedEntries} judged · ${entryCountsAvailableAssignments} of ${entryCountsAssignmentCount} classes synced`
+                    ? `${judgedEntries} judged · ${entryCountsAvailableAssignments} of ${entryCountsAssignmentCount} classes loaded`
                     : `${judgedEntries} judged`}
               </p>
             </CardContent>

@@ -17,7 +17,7 @@ describe('sync error messages', () => {
     const error = new Error('AbortError: signal is aborted without reason');
 
     expect(isAbortSyncError(error)).toBe(true);
-    expect(getSyncErrorMessage(error)).toBe('Sync was cancelled.');
+    expect(getSyncErrorMessage(error)).toBe('Updating saved data was cancelled.');
   });
 
   it('uses a safe fallback for non-Error database failures', () => {

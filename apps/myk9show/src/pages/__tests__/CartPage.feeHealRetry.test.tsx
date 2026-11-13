@@ -208,7 +208,7 @@ describe('CartPage retry after a fee heal (MYK9-838)', () => {
   it.each([
     ['a 500 body (raw catch-all)', new CheckoutSessionError(RAW_STRIPE, 500, null, true)],
     ['a transport message', new CheckoutSessionError(RAW_TRANSPORT, 409)],
-    ['a plain Error', new Error('No checkout URL returned from server')],
+    ['a plain Error', new Error('No checkout URL returned')],
   ])('shows the fixed sentence, never the raw text, for %s', async (_label, failure) => {
     createEntryCheckoutSessionMock.mockRejectedValueOnce(failure);
 

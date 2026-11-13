@@ -112,7 +112,7 @@ export const getEntriesForShow = async (showId: string) => {
           operation: 'get_entries_for_show',
         }
       );
-      return secretaryEntriesReadFailure(new Error('Show entries not synced'), startTime);
+      return secretaryEntriesReadFailure(new Error('Show entries not loaded'), startTime);
     }
   } catch (error) {
     const replicationError = error instanceof Error ? error : new Error(String(error));

@@ -94,8 +94,8 @@ export function InstallAppSettings() {
           <CardContent className="pt-6">
             <p className="text-sm text-muted-foreground">
               Installing myK9Show as an app isn&apos;t currently available in this browser session.
-              You can still use myK9Show normally in the browser — check back later, or try again
-              after reloading the page.
+              You can still use myK9Show normally in the browser. Check back later, or close this
+              browser tab and open myK9Show again.
             </p>
           </CardContent>
         </Card>

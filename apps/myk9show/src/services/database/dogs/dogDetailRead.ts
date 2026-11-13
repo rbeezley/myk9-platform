@@ -176,7 +176,7 @@ export async function getDogById(id: string): Promise<DogDetailResult> {
   if (!server.data) {
     return {
       data: null,
-      error: createDatabaseError(new Error('The server returned no dog'), 'dog', 'select_by_id'),
+      error: createDatabaseError(new Error('myK9Show returned no dog'), 'dog', 'select_by_id'),
     };
   }
 

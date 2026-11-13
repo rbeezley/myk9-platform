@@ -185,10 +185,10 @@ export const useClubStore = create<ClubStoreState>()((set, get) => ({
         await get().loadClubs();
       } else {
         logger.error('Sync failed', 'clubs', { error: result.error });
-        set({ error: result.error || 'Sync failed' });
+        set({ error: result.error || 'Clubs could not be updated' });
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Sync failed';
+      const errorMessage = error instanceof Error ? error.message : 'Clubs could not be updated';
       logger.error('Sync error', 'clubs', {}, error as Error);
       set({ error: errorMessage });
     } finally {

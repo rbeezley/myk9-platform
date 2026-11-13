@@ -232,7 +232,7 @@ class ErrorClassificationService {
       {
         type: 'refresh',
         label: 'Refresh Page',
-        description: 'Refresh the page to reload data.',
+        description: 'Restart the app to load the data again.',
         automated: false,
         priority: 2,
       },
@@ -266,7 +266,7 @@ class ErrorClassificationService {
       {
         type: 'refresh',
         label: 'Refresh Page',
-        description: 'Refresh the page to reload the application.',
+        description: 'Restart the app to start fresh.',
         automated: false,
         priority: 1,
       },
@@ -332,7 +332,7 @@ class ErrorClassificationService {
       {
         type: 'refresh',
         label: 'Refresh Page',
-        description: 'Refresh the page to reload the interface.',
+        description: 'Restart the app to start the screen again.',
         automated: false,
         priority: 1,
       },

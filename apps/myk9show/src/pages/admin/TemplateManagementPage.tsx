@@ -228,8 +228,8 @@ const TemplateManagementPage: React.FC = () => {
             <div>
               <p className="font-medium">Could not read sport rules from the database.</p>
               <p className="myk9-template-description">
-                Nothing is shown below rather than falling back to cached or bundled data — this
-                page would be useless if it could not be trusted.{' '}
+                Nothing is shown below rather than falling back to saved or bundled data — this page
+                would be useless if it could not be trusted.{' '}
                 {error instanceof Error ? error.message : String(error)}
               </p>
             </div>

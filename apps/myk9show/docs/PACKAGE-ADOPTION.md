@@ -6,12 +6,12 @@
 
 ### By Package
 
-| Package             | Files | Usage                                                               |
-| ------------------- | ----- | ------------------------------------------------------------------- |
-| `@myk9/replication` | 8     | ReplicatedTable, SyncResult, type definitions                       |
-| `@myk9/core`        | 6     | logger                                                              |
-| `@myk9/scoring-ui`  | 8     | useStopwatch, useDragAndDropEntries, BaseEntry, scoresheet registry |
-| `@myk9/ui`          | 4     | Button, Card, Badge, ClassCard                                      |
+| Package             | Files | Usage                                         |
+| ------------------- | ----- | --------------------------------------------- |
+| `@myk9/replication` | 8     | ReplicatedTable, SyncResult, type definitions |
+| `@myk9/core`        | 6     | logger                                        |
+| `@myk9/scoring-ui`  | 8     | useStopwatch, BaseEntry, scoresheet registry  |
+| `@myk9/ui`          | 4     | Button, Card, Badge, ClassCard                |
 
 ### Files Using Packages
 
@@ -53,11 +53,11 @@
 ### @myk9/scoring-ui
 
 - `useStopwatch` - Timer hook with max time and warnings
-- `useDragAndDropEntries` - Drag-and-drop reordering
 - `BaseEntry` - Base entry type
 
 > Entry-list filtering/sorting is `useEntryListFilters` from `@myk9/ringside`, not this package. The
-> `@myk9/scoring-ui` copy was an unreferenced duplicate and was deleted (MYK9-646).
+> `@myk9/scoring-ui` copy was an unreferenced duplicate and was deleted (MYK9-646). Drag-and-drop
+> reordering is `useDragAndDropEntries` from `@myk9/ringside`; the `@myk9/scoring-ui` drag hook copy was likewise unreferenced and deleted (MYK9-1916).
 
 ### @myk9/ui
 

@@ -26,7 +26,6 @@ export {
 // Hooks
 export { useStopwatch } from './hooks/useStopwatch';
 export { useElementTimer } from './hooks/useElementTimer';
-export { useDragAndDropEntries } from './hooks/useDragAndDropEntries';
 export { useScoresheetScoring } from './hooks/useScoresheetScoring';
 export { useScoresheetLeave } from './hooks/useScoresheetLeave';
 
@@ -68,8 +67,6 @@ export type {
   StopwatchOptions,
   StopwatchReturn,
   ElementTimerReturn,
-  DragAndDropOptions,
-  DragAndDropReturn,
   ResolvedClassRules,
   ClassRuleFields,
 } from './types';

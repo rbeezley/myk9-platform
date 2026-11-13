@@ -35,6 +35,8 @@ export interface AtShowClassGroup {
   classes: ClassEntry[];
   /** Per-class "in ring / next up" row preview, keyed by class id. */
   nextUpByClassId: Map<string, AtShowNextUpPreview>;
+  /** Replicated entries per class id, so a combined A & B card can merge both sections' queues. */
+  entriesByClassId?: Map<string, ReplicatedEntry[]>;
 }
 
 /** Render the class name from element + level (+ section). The '-' "no section" sentinel is handled by resolveClassSection inside composeClassTitle. */
@@ -133,7 +135,7 @@ export function refreshAtShowClassListEntries(
         completed_count: counts.accounted,
       };
     });
-    return { ...group, classes, nextUpByClassId };
+    return { ...group, classes, nextUpByClassId, entriesByClassId: entriesByClass };
   });
 }
 
@@ -226,7 +228,7 @@ export async function fetchAtShowClassList(showId: string): Promise<AtShowClassG
         return toClassEntry(cls, classEntriesForClass, favoriteClassIds);
       });
       classEntries.sort((a, b) => a.class_order - b.class_order);
-      return { trial, classes: classEntries, nextUpByClassId };
+      return { trial, classes: classEntries, nextUpByClassId, entriesByClassId: entriesByClass };
     })
   );
 }

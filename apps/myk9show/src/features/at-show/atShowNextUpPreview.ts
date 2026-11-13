@@ -13,7 +13,12 @@
  * decision 2026-06-11) — "next" means "next after the dog currently running".
  */
 
-import type { EffectiveClassStatus } from '@myk9/ringside';
+import {
+  getClassIds,
+  isCombinedEntry,
+  type ClassEntry,
+  type EffectiveClassStatus,
+} from '@myk9/ringside';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 import { countEntryAccounting } from '@/features/_shared/entryAccounting';
 import { inRingReplicated, nextPendingReplicated } from './replicatedRunQueue';
@@ -92,22 +97,21 @@ export function isEmptyNextUpPreview(preview: AtShowNextUpPreview | undefined): 
 }
 
 /**
- * Pick the preview for a card that may cover several classes (Novice A & B pairs
- * are rendered as one row). Prefer the class that actually has a dog in the
- * ring; otherwise the first class with anyone waiting; otherwise the first
- * known preview so the remaining count still renders.
+ * Pick the preview for a class card. A combined A & B card (one row for both
+ * sections) is built from the MERGED entries of both sections, through the same
+ * run-queue rule the combined entry list uses, so the card and the list always
+ * name the same next dog and the counts above describe the same dogs. Before
+ * MYK9-1809 the card showed ONE section's preview beside a counter that summed
+ * both. A single-section card reads its own class preview unchanged.
  */
 export function selectNextUpForCard(
-  classIds: string[],
-  previews: ReadonlyMap<string, AtShowNextUpPreview>
+  entry: ClassEntry,
+  previews: ReadonlyMap<string, AtShowNextUpPreview>,
+  entriesByClassId: ReadonlyMap<string, ReplicatedEntry[]>
 ): AtShowNextUpPreview | undefined {
-  const candidates = classIds
-    .map(id => previews.get(id))
-    .filter((preview): preview is AtShowNextUpPreview => preview !== undefined);
+  if (!isCombinedEntry(entry)) return previews.get(entry.id);
 
-  return (
-    candidates.find(preview => preview.inRingArmband !== null) ??
-    candidates.find(preview => preview.nextArmbands.length > 0) ??
-    candidates[0]
-  );
+  const classIds = getClassIds(entry);
+  if (!classIds.some(id => entriesByClassId.has(id))) return previews.get(entry.id);
+  return buildNextUpPreview(classIds.flatMap(id => entriesByClassId.get(id) ?? []));
 }

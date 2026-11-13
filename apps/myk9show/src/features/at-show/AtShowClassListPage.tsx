@@ -97,6 +97,7 @@ export const AtShowClassListPage: React.FC = () => {
   const {
     groups,
     nextUpByClassId,
+    entriesByClassId,
     organization,
     showName,
     showDateLabel,
@@ -479,7 +480,7 @@ export const AtShowClassListPage: React.FC = () => {
         cardProps={entry => ({
           isExhibitorOnly,
           onClick: handleClassClick,
-          nextUp: selectNextUpForCard(getClassIds(entry), nextUpByClassId),
+          nextUp: selectNextUpForCard(entry, nextUpByClassId, entriesByClassId),
           entryCountsAvailable: hasTrustedEntryCount(entry),
           ...rowProps(entry),
         })}

@@ -53,6 +53,8 @@ describe('MergedSheetsPreview readiness gap (MYK9-1904)', () => {
   let container: HTMLDivElement;
   let root: Root;
   let urls = 0;
+  const originalCreateObjectURL = URL.createObjectURL;
+  const originalRevokeObjectURL = URL.revokeObjectURL;
   beforeEach(() => {
     mocks.merges.length = 0;
     urls = 0;
@@ -65,6 +67,8 @@ describe('MergedSheetsPreview readiness gap (MYK9-1904)', () => {
   afterEach(() => {
     act(() => root.unmount());
     container.remove();
+    URL.createObjectURL = originalCreateObjectURL;
+    URL.revokeObjectURL = originalRevokeObjectURL;
   });
 
   it('never leaves Print enabled over a frame that no longer holds the current sheets', async () => {
@@ -85,13 +89,14 @@ describe('MergedSheetsPreview readiness gap (MYK9-1904)', () => {
     });
     observer.observe(frameRef.current!, { attributes: true, attributeFilter: ['src'] });
     const actEnvironment = globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean };
+    const previousActEnvironment = actEnvironment.IS_REACT_ACT_ENVIRONMENT;
     actEnvironment.IS_REACT_ACT_ENVIRONMENT = false;
     try {
       root.render(<Harness entries={[{ id: 'a' }, { id: 'b' }]} />);
       await vi.waitFor(() => expect(frameRef.current!.src).not.toMatch(/^blob:/));
       await vi.waitFor(() => expect(mocks.merges).toHaveLength(2));
     } finally {
-      actEnvironment.IS_REACT_ACT_ENVIRONMENT = true;
+      actEnvironment.IS_REACT_ACT_ENVIRONMENT = previousActEnvironment;
       observer.disconnect();
     }
     expect(button.disabled).toBe(true);

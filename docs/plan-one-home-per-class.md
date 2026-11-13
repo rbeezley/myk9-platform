@@ -62,7 +62,10 @@ So "one place-in-line answer" in this plan has three possible answers, from one 
 ### Exhibitor
 
 1. **Ringside is the show-day home.** No new screen; "Your dogs today" is it.
-2. **The show page's "Where to be & when"** is a second copy of "Your dogs today". On the trial day it becomes a link into Ringside. Before the day it stays as the schedule it is.
+2. **The show page's "Where to be & when"** becomes a link, on every day: to Ringside on the trial day, to My Shows before it. It is a second copy of "Your dogs today" on the day and, once My Shows carries the same facts (next item), of My Shows before it.
+   - **My Shows carries the night before.** Its class rows gain the time, the judge, and the running order once the secretary posts it. Before the trial day it makes no place-in-line claim, as today.
+   - **An exhibitor's own screens show their own result and where they placed**: "Scout: Qualified, 0:52.40, 2nd of 14". My Shows and Ringside need no class table.
+   - **Requirements open from Ringside's class card and from a link on each My Shows class row.** Both open the same view, read-only for an exhibitor. It shows the current time limit and when it was set, because a judge can change it on the day.
 3. **Links that send exhibitors to the class page** go to Ringside on the day, or to My Shows: the show page's entry rows, the alert's link.
 4. **One count for place in line.** Every screen and the alert use the server's answer. Ringside's class list today counts on the phone; it follows the same answer or says when it was last updated.
 5. **One set of words for check-in** across My Shows and Ringside.
@@ -76,11 +79,13 @@ It keeps one job: a class's released results and its Requirements, for anyone al
 - The check-in badges on its table go (Ringside and My Shows own check-in).
 - The "Add Entry", delete, "Set Run Order" and editable cells go. The search found they appear for a secretary or club admin of a different club who opens a class they do not manage. The server's rules should refuse those writes; confirm in Phase 0, and remove the controls either way.
 
-## Open questions for the owner
+## Decisions on the open questions (owner, 2026-11-13)
 
-1. **Before show day.** An exhibitor at home the night before: is Ringside the place to look, or My Shows? Ringside lists upcoming shows today. Proposal: My Shows until the trial day, with its existing link into Ringside.
-2. **Does an exhibitor need the whole class's results**, or only their own and the placements? If only their own, the class page's table matters less and the page can be simpler still.
-3. **Requirements for exhibitors.** Ringside has a Requirements dialog. Not confirmed: whether an exhibitor can open it. If they can, the class page does not need to carry it for them.
+1. **The night before a show: My Shows.** One rule: before the trial day, My Shows; on the day, Ringside. My Shows gains the time, judge and running order per class.
+2. **An exhibitor needs their own result and where they placed**, not the whole class. The class page keeps its table for results people chose to make public; nobody is sent there for their own.
+3. **Requirements for exhibitors live in Ringside, with a link from My Shows.** One view, two doors. Not yet confirmed: whether Ringside shows Requirements to an exhibitor today (it sits behind the class card's options menu, which is gated by role). If it does not, it is shown read-only.
+
+Left open, not a change: whether a placement should be public when the rest of a result is private. Placements are announced at the ring, so hiding them may feel odd, but that would change the privacy rule and needs its own decision.
 
 ## Phases
 

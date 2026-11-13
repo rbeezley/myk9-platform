@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type RefObject } from 'react';
+import { useLayoutEffect, useMemo, useState, type RefObject } from 'react';
 
 import { Button } from '@/components/ui/button';
 
@@ -73,7 +73,11 @@ export function MergedSheetsPreview({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, show, trialId, classId, trials, classes, entries, key, attempt]);
 
-  useEffect(() => {
+  // A layout effect, not a passive one: the caller's Print button must go disabled in the same
+  // commit that empties the frame. A passive effect leaves a gap (a task or more, longer under
+  // load) where Print is enabled over a blank frame, and a press in it only says "still
+  // building" and leaves the panel open (MYK9-1904).
+  useLayoutEffect(() => {
     const iframe = iframeRef.current;
     // The inputs changed: whatever the frame holds describes obsolete sheets. Empty it first.
     if (iframe?.getAttribute('src')?.startsWith('blob:')) iframe.src = 'about:blank';

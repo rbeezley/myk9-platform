@@ -73,7 +73,7 @@ Redirect check output to a file and echo the real exit status, because a pipe th
 - A test runner that hangs for more than 30 seconds: stop and report, never retry in a loop.
 - Use the custom render from `src/test/utils/testUtils.tsx`, not raw `render`.
 - **Assertion-first for value-sensitive bugs.** When a specific value goes to a specific place, write the `expect(...).toHaveBeenCalledWith(...)` line first and run it red before touching the implementation.
-- **Shuffled runs.** CI shuffles, local runs do not. Before pushing a test you added or touched, run the whole app suite once with `pnpm vitest run --sequence.shuffle` (never `pnpm test --sequence.shuffle`). When the change adds module-scope mutable state, also run `pnpm vitest related <that module> --run --sequence.shuffle` 10 times.
+- **Shuffled runs.** CI shuffles, local runs do not. Before pushing a test you added or touched, run the whole app suite once with `pnpm vitest run --sequence.shuffle` (never `pnpm test --sequence.shuffle`). When the change adds a module-scope variable, also run `pnpm vitest related <that module> --run --sequence.shuffle` 10 times; state written outside the module (window, storage, IndexedDB, env) takes six whole-suite runs.
 - App tests import every package's built `dist`; after editing a package, rebuild it (`pnpm --filter @myk9/<pkg> build`) or `pnpm qa:dist-fresh` fails. Behavioral SQL tests under `supabase/tests/` run only in CI, so registering one is not having run it.
 
 ## Workflow

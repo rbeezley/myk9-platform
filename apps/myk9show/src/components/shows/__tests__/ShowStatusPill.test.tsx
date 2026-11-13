@@ -290,7 +290,7 @@ describe('ShowStatusPill', () => {
       mutateAsync.mockRejectedValueOnce({
         code: 'MK003',
         message:
-          "Connect your club's payment account before publishing — online entry fees need somewhere to go. Find it under My Club → Payments.",
+          "Connect your club's payment account before publishing. Online entry fees need somewhere to go. Find it under My Club → Payments.",
       });
       const user = userEvent.setup();
       render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" clubId="club-1" />);
@@ -299,7 +299,7 @@ describe('ShowStatusPill', () => {
       await user.click(await screen.findByText(/publish show/i));
 
       expect(toast.error).toHaveBeenCalledWith(
-        "Connect your club's payment account before publishing — online entry fees need somewhere to go. Find it under My Club → Payments.",
+        "Connect your club's payment account before publishing. Online entry fees need somewhere to go. Find it under My Club → Payments.",
         expect.objectContaining({ action: expect.anything() })
       );
     });
@@ -312,7 +312,7 @@ describe('ShowStatusPill', () => {
       mutateAsync.mockRejectedValueOnce({
         code: 'MK003',
         message:
-          'Assign a club to this show before publishing — entry fees are paid out to the club.',
+          'Assign a club to this show before publishing. Entry fees are paid out to the club.',
       });
       const user = userEvent.setup();
       render(<ShowStatusPill {...WINDOW} showId="show-1" status="draft" clubId="club-1" />);
@@ -321,7 +321,7 @@ describe('ShowStatusPill', () => {
       await user.click(await screen.findByText(/publish show/i));
 
       expect(toast.error).toHaveBeenCalledWith(
-        'Assign a club to this show before publishing — entry fees are paid out to the club.'
+        'Assign a club to this show before publishing. Entry fees are paid out to the club.'
       );
       const call = (toast.error as ReturnType<typeof vi.fn>).mock.calls[0];
       expect(call).toHaveLength(1);

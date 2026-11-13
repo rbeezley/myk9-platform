@@ -233,7 +233,7 @@ BEGIN
      WHERE id = '00000000-0000-0000-0000-000000979102';
     RAISE EXCEPTION 'FAIL 2 online-on show published without Stripe payouts';
   EXCEPTION WHEN SQLSTATE 'MK003' THEN
-    IF SQLERRM IS DISTINCT FROM 'Connect your club''s payment account before publishing — online entry fees need somewhere to go. Find it under My Club → Payments.' THEN
+    IF SQLERRM IS DISTINCT FROM 'Connect your club''s payment account before publishing. Online entry fees need somewhere to go. Find it under My Club → Payments.' THEN
       RAISE EXCEPTION 'FAIL 2 wrong MK003 text: %', SQLERRM;
     END IF;
   END;
@@ -245,7 +245,7 @@ BEGIN
      WHERE id = '00000000-0000-0000-0000-000000979103';
     RAISE EXCEPTION 'FAIL 3 online entries turned on for a published show without Stripe payouts';
   EXCEPTION WHEN SQLSTATE 'MK003' THEN
-    IF SQLERRM IS DISTINCT FROM 'Connect your club''s payment account before turning on online entries — online entry fees need somewhere to go. Find it under My Club → Payments.' THEN
+    IF SQLERRM IS DISTINCT FROM 'Connect your club''s payment account before turning on online entries. Online entry fees need somewhere to go. Find it under My Club → Payments.' THEN
       RAISE EXCEPTION 'FAIL 3 wrong MK003 text: %', SQLERRM;
     END IF;
   END;

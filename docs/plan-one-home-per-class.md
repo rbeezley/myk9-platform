@@ -85,7 +85,7 @@ It keeps one job: a class's released results and its Requirements, for anyone al
 2. **An exhibitor needs their own result and where they placed**, not the whole class. The class page keeps its table for results people chose to make public; nobody is sent there for their own.
 3. **Requirements for exhibitors live in Ringside, with a link from My Shows.** One view, two doors. Not yet confirmed: whether Ringside shows Requirements to an exhibitor today (it sits behind the class card's options menu, which is gated by role). If it does not, it is shown read-only.
 
-Left open, not a change: whether a placement should be public when the rest of a result is private. Placements are announced at the ring, so hiding them may feel odd, but that would change the privacy rule and needs its own decision.
+4. **A placement stays private like the rest of the result.** Placements are announced at the ring, so "Private entry" in a placed row can feel odd, but the rule does not change. Instead, when an exhibitor's dog places, they are asked once whether to show their results publicly. Filed as MYK9-1944; not part of this plan.
 
 ## Phases
 

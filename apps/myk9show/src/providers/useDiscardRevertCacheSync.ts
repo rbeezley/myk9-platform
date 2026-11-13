@@ -26,7 +26,8 @@ export function refreshDogCachesAfterDiscard(queryClient: QueryClient): void {
  * After a Discard puts an entry's row back to the server's state (MYK9-1922),
  * refetch what derives from entries: the table's own queries, each show's
  * entries read (`['shows', showId, 'entries']`, which feeds class counts and
- * the Completed list) and the judge dashboard's assignments/classes read.
+ * the Completed list), the Show Desk check-in report (`['check-in-report', showId]`, as
+ * `entryInvalidationKeys` does) and the judge dashboard's assignments/classes read.
  */
 export function refreshEntryCachesAfterDiscard(queryClient: QueryClient): void {
   for (const queryKey of getPostSyncInvalidationKeys(['entries'])) {
@@ -36,6 +37,7 @@ export function refreshEntryCachesAfterDiscard(queryClient: QueryClient): void {
     predicate: query => query.queryKey[0] === 'shows' && query.queryKey[2] === 'entries',
   });
   void queryClient.invalidateQueries({ queryKey: ['classes'] });
+  void queryClient.invalidateQueries({ queryKey: ['check-in-report'] });
 }
 
 /** Listens for `replication:discard-row-replaced` from `@myk9/replication`. */

@@ -39,6 +39,23 @@ describe('updateSelfCheckInStatus (MYK9-1911)', () => {
     });
   });
 
+  it('sends the version of the Pull being undone, and returns the version a write produced', async () => {
+    rpc.mockResolvedValue({ data: 5, error: null });
+    const produced = await updateSelfCheckInStatus('e1', 'checked-in', {
+      status: 'pulled',
+      pullSource: 'exhibitor',
+      version: 4,
+    });
+    expect(rpc).toHaveBeenCalledWith('self_checkin_entry', {
+      p_entry_id: 'e1',
+      p_new_status: 'checked-in',
+      p_expected_status: 'pulled',
+      p_expected_pull_source: 'exhibitor',
+      p_expected_version: 4,
+    });
+    expect(produced).toBe(5);
+  });
+
   it('turns the server refusal (MK911) into a permanent StaleCheckInError', async () => {
     rpc.mockResolvedValue({ error: { code: 'MK911', message: 'Entry e1 status changed' } });
     const failure = await updateSelfCheckInStatus('e1', 'checked-in', {

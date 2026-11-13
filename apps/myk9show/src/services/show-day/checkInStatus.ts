@@ -34,6 +34,11 @@ export interface ExpectedCheckIn {
   status: CheckInStatus;
   /** Who made the Pull being undone, when the expectation is a Pull. */
   pullSource?: 'exhibitor' | 'staff';
+  /**
+   * The `entries.version` the original Pull produced (what `updateSelfCheckInStatus` returned).
+   * Bumped on every write, so it tells that Pull apart from a later identical-looking one.
+   */
+  version?: number;
 }
 
 /** SQLSTATE `self_checkin_entry` raises when the row no longer matches the expectation. */
@@ -61,13 +66,14 @@ export async function updateSelfCheckInStatus(
   entryId: string,
   status: CheckInStatus,
   expected?: ExpectedCheckIn
-): Promise<void> {
-  const { error } = await supabase.rpc('self_checkin_entry', {
+): Promise<number | undefined> {
+  const { data, error } = await supabase.rpc('self_checkin_entry', {
     p_entry_id: entryId,
     p_new_status: status,
     ...(expected && {
       p_expected_status: expected.status,
       ...(expected.pullSource && { p_expected_pull_source: expected.pullSource }),
+      ...(expected.version !== undefined && { p_expected_version: expected.version }),
     }),
   });
 
@@ -76,6 +82,8 @@ export async function updateSelfCheckInStatus(
     if (error.code === STALE_CHECKIN_SQLSTATE) throw new StaleCheckInError();
     throw createDatabaseError(error, 'entries', 'self_checkin_entry');
   }
+  // The version this write produced; an Undo of a Pull carries it back as its expectation.
+  return typeof data === 'number' ? data : undefined;
 }
 
 /**

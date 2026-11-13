@@ -41,7 +41,7 @@ import { useAtShowResetHandlers, type ResetConfirmState } from './useAtShowReset
 type StatusChangeHandler = (
   entryId: string,
   status: EntryStatusChange,
-  undoOfPull?: boolean
+  undoOfPull?: { pullVersion?: number | undefined } | undefined
 ) => Promise<void>;
 
 export interface UseAtShowEntryListHandlersDeps {
@@ -49,7 +49,11 @@ export interface UseAtShowEntryListHandlersDeps {
   actions: EntryListActions & {
     writer?: CheckInWriter | undefined;
     /** Exhibitor Pull Undo that the server refuses when a newer status superseded the Pull. */
-    handleUndoPull?: ((entryId: string, prior: EntryStatusCheckIn) => Promise<void>) | undefined;
+    handleUndoPull?:
+      | ((entryId: string, prior: EntryStatusCheckIn, pullVersion?: number) => Promise<void>)
+      | undefined;
+    /** The entry version the exhibitor's latest write produced (the Pull's identity). */
+    lastWriteVersion?: ((entryId: string) => number | undefined) | undefined;
   };
   /** Replication capability (for the class-status dialog). */
   replication: RingsideReplication;
@@ -249,7 +253,7 @@ export function useAtShowEntryListHandlers(
   // exhibitors by design. Tracked separately.
   const handleStatusChangeRef = useRef<StatusChangeHandler | null>(null);
   const handleStatusChange = useCallback<StatusChangeHandler>(
-    async (entryId, status: EntryStatusChange, undoOfPull = false) => {
+    async (entryId, status: EntryStatusChange, undoOfPull) => {
       setActiveStatusPopup(null);
       if (isEntryCancelled(entryId)) {
         toast.info(CANCELLED_CLASS_MESSAGE);
@@ -285,13 +289,15 @@ export function useAtShowEntryListHandlers(
           return;
         }
         if (undoOfPull && actions.handleUndoPull) {
-          await actions.handleUndoPull(entryId, status);
+          await actions.handleUndoPull(entryId, status, undoOfPull.pullVersion);
           return;
         }
         await actions.handleStatusChange(entryId, status);
         if (status === 'pulled') {
+          // Read now: a later write to this entry replaces it, and the Undo names THIS Pull.
+          const pullVersion = actions.lastWriteVersion?.(entryId);
           offerPullUndo(previous, actions.writer, prior =>
-            handleStatusChangeRef.current?.(entryId, prior, true)
+            handleStatusChangeRef.current?.(entryId, prior, { pullVersion })
           );
         }
       } catch (error) {

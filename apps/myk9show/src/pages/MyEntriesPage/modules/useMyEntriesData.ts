@@ -86,7 +86,7 @@ interface UseMyEntriesDataReturn {
     status: CheckInStatus,
     notes?: string,
     expected?: ExpectedCheckIn
-  ) => Promise<void>;
+  ) => Promise<number | undefined>;
 }
 
 /**
@@ -105,7 +105,8 @@ interface PersistCheckInStatusInput {
 }
 
 interface UseMyEntriesDataOptions {
-  persistCheckInStatus: (input: PersistCheckInStatusInput) => Promise<unknown>;
+  /** Resolves to the entry version the write produced, when the writer reports one. */
+  persistCheckInStatus: (input: PersistCheckInStatusInput) => Promise<number | undefined | void>;
 }
 
 type OwnEntryResultRow = Record<string, unknown> & {
@@ -563,7 +564,7 @@ export function useMyEntriesData({
       status: CheckInStatus,
       notes?: string,
       expected?: ExpectedCheckIn
-    ) => {
+    ): Promise<number | undefined> => {
       // After grouping, entry.id is the first class row's id and may differ from
       // classId. Find the grouped card that contains the target class instead.
       const entry = visibleEntries.find(
@@ -571,8 +572,9 @@ export function useMyEntriesData({
       );
       const classEntry = entry?.classes.find(c => c.id === classId);
 
-      if (!entry || !classEntry) return;
+      if (!entry || !classEntry) return undefined;
 
+      let persistedVersion: number | undefined;
       const previousStatus = classEntry.checkInStatus;
       const previousTime = classEntry.checkInTime;
 
@@ -602,12 +604,13 @@ export function useMyEntriesData({
 
         // classId is the individual entry row id — use it as the DB target so
         // grouped cards with multiple classes update the right row.
-        await persistCheckInStatus({
+        const persisted = await persistCheckInStatus({
           entryId: classId,
           classId,
           newStatus: status,
           ...(expected && { expected }),
         });
+        persistedVersion = typeof persisted === 'number' ? persisted : undefined;
       } catch (error) {
         logger.error('Failed to update check-in status:', 'pages', {}, error as Error);
         // Revert optimistic update
@@ -657,6 +660,7 @@ export function useMyEntriesData({
           notes,
         },
       });
+      return persistedVersion;
     },
     [persistCheckInStatus, user?.id, visibleEntries]
   );

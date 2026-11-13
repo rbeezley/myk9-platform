@@ -20,9 +20,10 @@ create or replace function public.self_checkin_entry(
   p_entry_id uuid,
   p_new_status text,
   p_expected_status text default null,
-  p_expected_pull_source text default null
+  p_expected_pull_source text default null,
+  p_expected_version integer default null
 )
-returns void
+returns integer
 language plpgsql
 security definer
 set search_path = ''
@@ -31,6 +32,8 @@ declare
   v_person_id uuid;
   v_current_status text;
   v_current_pull_source text;
+  v_current_version integer;
+  v_new_version integer;
   v_allowed_statuses text[] := array[
     'checked-in', 'conflict', 'pulled', 'at-gate', 'no-status'
   ];
@@ -50,8 +53,8 @@ begin
   end if;
 
   -- Lock the row the caller may touch (ownership + self check-in visibility, unchanged).
-  select e.check_in_status, e.check_in_pulled_by
-    into v_current_status, v_current_pull_source
+  select e.check_in_status, e.check_in_pulled_by, e.version
+    into v_current_status, v_current_pull_source, v_current_version
     from public.entries e
    where e.id = p_entry_id
      and exists (
@@ -86,7 +89,8 @@ begin
 
   if (p_expected_status is not null and v_current_status is distinct from p_expected_status)
      or (p_expected_pull_source is not null
-         and v_current_pull_source is distinct from p_expected_pull_source) then
+         and v_current_pull_source is distinct from p_expected_pull_source)
+     or (p_expected_version is not null and v_current_version is distinct from p_expected_version) then
     raise exception 'Entry % status changed since this write was prepared', p_entry_id
       using errcode = 'MK911';
   end if;
@@ -97,12 +101,15 @@ begin
   update public.entries e
      set check_in_status = p_new_status,
          updated_at = now()
-   where e.id = p_entry_id;
+   where e.id = p_entry_id
+  returning e.version into v_new_version;
 
   -- Reset before anything else in this transaction can write entries as staff.
   perform set_config('myk9.pull_source', '', true);
+
+  return v_new_version;
 end;
 $func$;
 
-revoke all on function public.self_checkin_entry(uuid, text, text, text) from public, anon;
-grant execute on function public.self_checkin_entry(uuid, text, text, text) to authenticated;
+revoke all on function public.self_checkin_entry(uuid, text, text, text, integer) from public, anon;
+grant execute on function public.self_checkin_entry(uuid, text, text, text, integer) to authenticated;

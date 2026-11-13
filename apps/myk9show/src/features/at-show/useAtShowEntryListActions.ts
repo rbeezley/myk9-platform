@@ -64,17 +64,21 @@ async function writeCheckInStatus(
   entryId: string,
   status: EntryStatus,
   writer: CheckInWriter
-): Promise<void> {
-  if (writer === 'self-checkin-rpc') {
-    await updateSelfCheckInStatus(entryId, status);
-    return;
-  }
+): Promise<number | undefined> {
+  if (writer === 'self-checkin-rpc') return updateSelfCheckInStatus(entryId, status);
   await updateReplicatedCheckInStatus(entryId, status);
+  return undefined;
 }
 
 export function useAtShowEntryListActions(deps: UseAtShowEntryListActionsDeps): EntryListActions & {
   writer: CheckInWriter;
-  handleUndoPull: (entryId: string, prior: EntryStatusCheckIn) => Promise<void>;
+  handleUndoPull: (
+    entryId: string,
+    prior: EntryStatusCheckIn,
+    pullVersion?: number
+  ) => Promise<void>;
+  /** The `entries.version` the exhibitor's latest write to this entry produced, if any. */
+  lastWriteVersion: (entryId: string) => number | undefined;
 } {
   const { refresh } = deps;
   const writer: CheckInWriter = deps.writer ?? 'replicated';
@@ -86,6 +90,8 @@ export function useAtShowEntryListActions(deps: UseAtShowEntryListActionsDeps): 
   // Tracks concurrent in-flight mutations so `isSyncing` only clears when the
   // last one settles (useState lags within a sync burst).
   const inFlight = useRef(0);
+  // The version each exhibitor write produced, so a Pull's Undo can name the Pull it undoes.
+  const writeVersions = useRef(new Map<string, number>());
 
   const runMutation = useCallback(async (fn: () => Promise<void>): Promise<void> => {
     inFlight.current += 1;
@@ -106,25 +112,29 @@ export function useAtShowEntryListActions(deps: UseAtShowEntryListActionsDeps): 
   const handleStatusChange = useCallback<EntryListActions['handleStatusChange']>(
     async (entryId, newStatus) => {
       await runMutation(async () => {
-        await writeCheckInStatus(entryId, newStatus, writer);
+        const version = await writeCheckInStatus(entryId, newStatus, writer);
+        if (version === undefined) writeVersions.current.delete(entryId);
+        else writeVersions.current.set(entryId, version);
         await refresh();
       });
     },
     [runMutation, refresh, writer]
   );
+  const lastWriteVersion = useCallback((entryId: string) => writeVersions.current.get(entryId), []);
 
   // MYK9-1911: an exhibitor's Pull Undo expects the dog to still be pulled by the exhibitor, so a
   // replay after a newer status refuses instead of overwriting it. Staff Undo (replicated writer)
   // is guarded client-side and goes through the ordinary path. A refusal refreshes the list so it
   // shows the newer truth, then rethrows for the caller's notice.
   const handleUndoPull = useCallback(
-    async (entryId: string, prior: EntryStatusCheckIn): Promise<void> => {
+    async (entryId: string, prior: EntryStatusCheckIn, pullVersion?: number): Promise<void> => {
       if (writer !== 'self-checkin-rpc') return handleStatusChange(entryId, prior);
       try {
         await runMutation(async () => {
           await updateSelfCheckInStatus(entryId, prior, {
             status: 'pulled',
             pullSource: 'exhibitor',
+            ...(pullVersion !== undefined && { version: pullVersion }),
           });
           await refresh();
         });
@@ -213,6 +223,7 @@ export function useAtShowEntryListActions(deps: UseAtShowEntryListActionsDeps): 
   return {
     handleStatusChange,
     handleUndoPull,
+    lastWriteVersion,
     handleResetScore,
     handleToggleInRing,
     handleMarkInRing,

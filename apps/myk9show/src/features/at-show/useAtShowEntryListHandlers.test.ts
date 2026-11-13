@@ -394,6 +394,29 @@ describe('useAtShowEntryListHandlers - optimistic check-in', () => {
     expect(toastSuccess).toHaveBeenCalledTimes(1);
   });
 
+  it('an exhibitor Undo names the version its own Pull produced (MYK9-1911)', async () => {
+    mirror = [makeEntry({ id: 'e1', status: 'checked-in' as EntryStatus, callName: 'Abby' })];
+    const handleUndoPull = vi.fn(() => Promise.resolve());
+    const lastWriteVersion = vi.fn(() => 12);
+    const exhibitorActions = {
+      ...actions,
+      writer: 'self-checkin-rpc' as const,
+      handleUndoPull,
+      lastWriteVersion,
+    };
+    const { result } = renderHandlers(mirror, exhibitorActions, applyToMirror);
+
+    await act(async () => {
+      await result.current.handleStatusChange('e1', 'pulled');
+    });
+    const options = toastSuccess.mock.calls[0]?.[1] as { action: { onClick: () => void } };
+    await act(async () => {
+      options.action.onClick();
+    });
+
+    await waitFor(() => expect(handleUndoPull).toHaveBeenCalledWith('e1', 'checked-in', 12));
+  });
+
   it('offers no Undo to a exhibitor writer when the prior status is staff-set', async () => {
     mirror = [makeEntry({ id: 'e1', status: 'come-to-gate' as EntryStatus })];
     const exhibitorActions = { ...actions, writer: 'self-checkin-rpc' as const };

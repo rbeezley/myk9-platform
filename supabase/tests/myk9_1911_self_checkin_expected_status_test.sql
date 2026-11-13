@@ -34,7 +34,8 @@ values ('00000000-0000-0000-0000-000000191131', '00000000-0000-0000-0000-0000001
 
 -- Calls the RPC as the exhibitor (or another caller) and returns the SQLSTATE, null on success.
 create function pg_temp.call_rpc(
-  caller text, new_status text, expected_status text default null, expected_source text default null
+  caller text, new_status text, expected_status text default null, expected_source text default null,
+  expected_version integer default null
 ) returns text language plpgsql as $$
 declare
   actual_state text;
@@ -45,12 +46,27 @@ begin
   perform set_config('role', 'authenticated', true);
   begin
     perform public.self_checkin_entry('00000000-0000-0000-0000-000000191131',
-      new_status, expected_status, expected_source);
+      new_status, expected_status, expected_source, expected_version);
   exception when others then
     actual_state := sqlstate;
   end;
   reset role;
   return actual_state;
+end;
+$$;
+
+-- The exhibitor pulls the dog and gets back the version that write produced.
+create function pg_temp.pull_version(caller text) returns integer language plpgsql as $$
+declare
+  v integer;
+begin
+  perform set_config('request.jwt.claim.sub', caller, true);
+  perform set_config('request.jwt.claims',
+    jsonb_build_object('sub', caller, 'role', 'authenticated')::text, true);
+  perform set_config('role', 'authenticated', true);
+  v := public.self_checkin_entry('00000000-0000-0000-0000-000000191131', 'pulled');
+  reset role;
+  return v;
 end;
 $$;
 
@@ -65,6 +81,8 @@ declare
   v_state text;
   v_version integer;
   v_updated_at timestamptz;
+  v_first_pull integer;
+  v_second_pull integer;
 begin
   -- The exhibitor pulls the dog (no expectation, as before).
   if pg_temp.call_rpc(v_owner, 'pulled') is not null then
@@ -104,6 +122,30 @@ begin
   end if;
   raise notice 'PASS Undo of a Pull by someone else is refused';
 
+  -- ABA: the exhibitor pulls (version v), another device moves the dog on, the exhibitor's
+  -- account pulls it again. Status and source match the first Pull again; the version does not.
+  update public.entries set check_in_status = 'checked-in'
+   where id = '00000000-0000-0000-0000-000000191131';
+  v_first_pull := pg_temp.pull_version(v_owner);
+  update public.entries set check_in_status = 'at-gate'
+   where id = '00000000-0000-0000-0000-000000191131';
+  v_second_pull := pg_temp.pull_version(v_owner);
+  if v_second_pull = v_first_pull then
+    raise exception 'FAIL both Pulls produced version %', v_first_pull;
+  end if;
+  v_state := pg_temp.call_rpc(v_owner, 'checked-in', 'pulled', 'exhibitor', v_first_pull);
+  if v_state is distinct from 'MK911' or pg_temp.status_now() <> 'pulled' then
+    raise exception 'FAIL ABA Undo: state %, status %', v_state, pg_temp.status_now();
+  end if;
+  raise notice 'PASS an Undo carrying an older Pull''s version is refused';
+
+  -- The newest Pull's own Undo, carrying its version, is applied.
+  v_state := pg_temp.call_rpc(v_owner, 'checked-in', 'pulled', 'exhibitor', v_second_pull);
+  if v_state is not null or pg_temp.status_now() <> 'checked-in' then
+    raise exception 'FAIL Undo with the current version: state %, status %', v_state, pg_temp.status_now();
+  end if;
+  raise notice 'PASS an Undo carrying the current Pull''s version is applied';
+
   -- A non-owner learns nothing about the row: authorization refusal, not MK911.
   v_state := pg_temp.call_rpc(v_outsider, 'checked-in', 'in-ring', null);
   if v_state is distinct from 'P0001' then
@@ -116,9 +158,9 @@ $$;
 -- Grants unchanged in shape: authenticated only, never anon or public.
 do $$
 begin
-  if has_function_privilege('anon', 'public.self_checkin_entry(uuid, text, text, text)', 'execute')
-     or has_function_privilege('public', 'public.self_checkin_entry(uuid, text, text, text)', 'execute')
-     or not has_function_privilege('authenticated', 'public.self_checkin_entry(uuid, text, text, text)', 'execute') then
+  if has_function_privilege('anon', 'public.self_checkin_entry(uuid, text, text, text, integer)', 'execute')
+     or has_function_privilege('public', 'public.self_checkin_entry(uuid, text, text, text, integer)', 'execute')
+     or not has_function_privilege('authenticated', 'public.self_checkin_entry(uuid, text, text, text, integer)', 'execute') then
     raise exception 'FAIL self_checkin_entry grants drifted';
   end if;
   if to_regprocedure('public.self_checkin_entry(uuid, text)') is not null then

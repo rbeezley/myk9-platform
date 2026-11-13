@@ -15378,9 +15378,10 @@ export type Database = {
           p_entry_id: string
           p_expected_pull_source?: string
           p_expected_status?: string
+          p_expected_version?: number
           p_new_status: string
         }
-        Returns: undefined
+        Returns: number
       }
       send_waitlist_offer_message: {
         Args: { p_payment_link_url?: string; p_waitlist_entry_id: string }

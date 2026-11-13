@@ -1,10 +1,11 @@
+import { createDatabaseError } from '@/services/database/databaseError';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { rpc } = vi.hoisted(() => ({ rpc: vi.fn() }));
-vi.mock('@/services/database/supabaseClient', async () => {
-  const { createDatabaseError } = await import('@/services/database/databaseError');
-  return { supabase: { rpc }, createDatabaseError };
-});
+vi.mock('@/services/database/supabaseClient', () => ({
+  supabase: { rpc },
+  createDatabaseError,
+}));
 vi.mock('@/services/database/entries/secretary', () => ({ updateEntryStatus: vi.fn() }));
 vi.mock('@/services/replication', () => ({ replicatedEntriesTable: {} }));
 vi.mock('./entryStatusAudit', () => ({ logReplicatedEntryStatusChange: vi.fn() }));

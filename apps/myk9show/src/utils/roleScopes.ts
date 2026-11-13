@@ -35,6 +35,31 @@ export function hasScopedShowRole(
   );
 }
 
+/**
+ * Mirrors `is_show_club_admin(show)` (migration 20261113222900, MYK9-1886): ONE rule for a
+ * club admin on the late-entry desk path. An active club_admin grant for the show's club
+ * counts WHETHER OR NOT it is pinned to a show, so a club admin granted for one show may
+ * manage every show of that club. The client scope list keeps one id per grant, so a
+ * show-pinned grant is a SHOW scope on its own show's id; its club is read from `shows`.
+ */
+export function hasWholeClubAdminGrant(
+  user: UserWithRoles | null | undefined,
+  {
+    clubId,
+    shows,
+  }: { clubId: string | undefined; shows: readonly { id: string; clubId?: string | null }[] }
+): boolean {
+  if (!clubId) return false;
+  return (user?.scopes ?? []).some(scope => {
+    if (scope.roleId !== UserRole.CLUB_ADMIN) return false;
+    if (scope.scopeType === ScopeType.CLUB) return scope.scopeId === clubId;
+    if (scope.scopeType === ScopeType.SHOW) {
+      return shows.some(s => s.id === scope.scopeId && s.clubId === clubId);
+    }
+    return false;
+  });
+}
+
 /** Secretary role names `is_trial_secretary` accepts (`trial_secretary` is not a `UserRole`). */
 const CLUB_SECRETARY_ROLE_NAMES: readonly string[] = [UserRole.SECRETARY, 'trial_secretary'];
 

@@ -62,6 +62,7 @@ const launchCriticalSqlTests = [
   'show_message_tenant_isolation_test.sql',
   'show_organization_immutability_test.sql',
   'entries_insert_show_scope_test.sql',
+  'myk9_1886_show_club_admin_one_rule_test.sql',
   'enrollments_select_club_scope_test.sql',
   'myk9_1601_entry_form_notes_test.sql',
   'myk9_1634_enrollment_total_derived_test.sql',

@@ -59,6 +59,7 @@ TEST_FILES=(
   "$TEST_DIR/account_today_entries_show_timezone_test.sql"
   "$TEST_DIR/create_show_with_children_junior_fee_test.sql"
   "$TEST_DIR/entries_insert_show_scope_test.sql"
+  "$TEST_DIR/myk9_1886_show_club_admin_one_rule_test.sql"
   "$TEST_DIR/enrollments_select_club_scope_test.sql"
   "$TEST_DIR/myk9_1601_entry_form_notes_test.sql"
   "$TEST_DIR/myk9_1634_enrollment_total_derived_test.sql"

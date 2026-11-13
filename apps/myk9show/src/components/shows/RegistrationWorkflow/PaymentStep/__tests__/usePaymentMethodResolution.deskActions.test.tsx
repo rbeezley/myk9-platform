@@ -33,7 +33,12 @@ function scope(role: UserRole, clubId: string) {
   return { scopeType: ScopeType.CLUB, scopeId: clubId, roleId: role };
 }
 
-function setup(args: { roles: UserRole[]; scopes: ReturnType<typeof scope>[]; showClub?: string }) {
+function setup(args: {
+  roles: UserRole[];
+  scopes: ReturnType<typeof scope>[];
+  showClub?: string;
+  otherShows?: { id: string; clubId: string }[];
+}) {
   mocks.useAuthContext.mockReturnValue({
     hasRole: (role: UserRole) => args.roles.includes(role),
     userWithRoles: { scopes: args.scopes },
@@ -44,7 +49,10 @@ function setup(args: { roles: UserRole[]; scopes: ReturnType<typeof scope>[]; sh
     isSiteAdmin: args.roles.includes(UserRole.SITE_ADMIN),
   });
   mocks.useShowStore.mockReturnValue({
-    shows: [{ id: SHOW_ID, clubId: args.showClub ?? CLUB_B, juniorHandlerFee: '15' }],
+    shows: [
+      { id: SHOW_ID, clubId: args.showClub ?? CLUB_B, juniorHandlerFee: '15' },
+      ...(args.otherShows ?? []),
+    ],
   });
   return renderHook(() => usePaymentMethodResolution(SHOW_ID, 'cash')).result.current;
 }
@@ -82,6 +90,24 @@ describe('usePaymentMethodResolution canUseDeskPaymentActions', () => {
     const result = setup({
       roles: [UserRole.CLUB_ADMIN],
       scopes: [scope(UserRole.CLUB_ADMIN, CLUB_A)],
+    });
+    expect(result.canUseDeskPaymentActions).toBe(false);
+  });
+
+  it('is offered to a club admin granted for another show of the same club (MYK9-1886)', () => {
+    const result = setup({
+      roles: [UserRole.CLUB_ADMIN],
+      scopes: [{ scopeType: ScopeType.SHOW, scopeId: 'show-a', roleId: UserRole.CLUB_ADMIN }],
+      otherShows: [{ id: 'show-a', clubId: CLUB_B }],
+    });
+    expect(result.canUseDeskPaymentActions).toBe(true);
+  });
+
+  it('is not offered to a club admin granted for a show of another club', () => {
+    const result = setup({
+      roles: [UserRole.CLUB_ADMIN],
+      scopes: [{ scopeType: ScopeType.SHOW, scopeId: 'show-a', roleId: UserRole.CLUB_ADMIN }],
+      otherShows: [{ id: 'show-a', clubId: CLUB_A }],
     });
     expect(result.canUseDeskPaymentActions).toBe(false);
   });

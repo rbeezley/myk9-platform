@@ -5,6 +5,8 @@ import { pathToFileURL } from 'node:url';
 import { LOAD_SHOW_ENTRY_COUNT } from '../../apps/myk9show/src/test/load/loadFixture';
 import { ISOLATED_FUNCTION_SECRETS, stageAppEdgeFunctions } from './isolated-e2e-functions';
 import { LOCAL_E2E_PROJECT_REF, resolveIsolatedE2eTarget } from './isolated-e2e-target';
+import { nativeStatusToEnv, withRuntimeEnv, type E2eRuntime } from './isolated-e2e-native';
+import { currentRuntime, prepareNative, runSpec, teardown } from './isolated-e2e-native-lifecycle';
 import { describePortHolder, detectBindFailurePort } from './port-conflict-diagnostics';
 
 export interface LocalSupabaseEnvironment {
@@ -200,7 +202,7 @@ function capturedFailureOutput(error: unknown): string {
     .join('\n');
 }
 
-function runCommand(
+export function runCommand(
   label: string,
   command: string,
   args: string[],
@@ -221,7 +223,12 @@ function runCommand(
   }
 }
 
-function captureCommand(label: string, command: string, args: string[], env: NodeJS.ProcessEnv) {
+export function captureCommand(
+  label: string,
+  command: string,
+  args: string[],
+  env: NodeJS.ProcessEnv
+) {
   try {
     return execFileSync(command, args, {
       cwd: process.cwd(),
@@ -234,13 +241,26 @@ function captureCommand(label: string, command: string, args: string[], env: Nod
   }
 }
 
-function readLocalEnvironment(env: NodeJS.ProcessEnv): LocalSupabaseEnvironment {
-  const status = captureCommand(
-    'Supabase status',
-    resolveSupabaseCliCommand(env),
-    ['status', '-o', 'env'],
-    env
-  );
+export function readLocalEnvironment(
+  env: NodeJS.ProcessEnv,
+  runtime: E2eRuntime = 'docker'
+): LocalSupabaseEnvironment {
+  const status =
+    runtime === 'native'
+      ? nativeStatusToEnv(
+          captureCommand(
+            'Supabase status',
+            resolveSupabaseCliCommand(env),
+            ['status', '--output-format', 'json'],
+            withRuntimeEnv(env, runtime)
+          )
+        )
+      : captureCommand(
+          'Supabase status',
+          resolveSupabaseCliCommand(env),
+          ['status', '-o', 'env'],
+          env
+        );
   return localSupabaseEnvironmentFromStatus(status);
 }
 
@@ -291,11 +311,23 @@ function seedIsolatedPlatformGrants(local: LocalSupabaseEnvironment, env: NodeJS
   );
 }
 
-function resetAndSeed(local: LocalSupabaseEnvironment, baseEnv: NodeJS.ProcessEnv) {
+export function resetAndSeed(
+  local: LocalSupabaseEnvironment,
+  baseEnv: NodeJS.ProcessEnv,
+  options: { skipDbReset?: boolean } = {}
+) {
   const jobEnv = { ...baseEnv, ...buildJobEnvironment(local) };
   resolveIsolatedE2eTarget(jobEnv);
 
-  runCommand('Supabase database reset', resolveSupabaseCliCommand(jobEnv), ['db', 'reset'], jobEnv);
+  // A freshly started native stack already has every migration applied and nothing seeded.
+  if (!options.skipDbReset) {
+    runCommand(
+      'Supabase database reset',
+      resolveSupabaseCliCommand(jobEnv),
+      ['db', 'reset'],
+      jobEnv
+    );
+  }
   seedIsolatedPlatformGrants(local, jobEnv);
   runCommand(
     'E2E account setup',
@@ -341,7 +373,7 @@ function resetAndSeed(local: LocalSupabaseEnvironment, baseEnv: NodeJS.ProcessEn
   );
 }
 
-function assertPreparationIntent(env: NodeJS.ProcessEnv) {
+export function assertPreparationIntent(env: NodeJS.ProcessEnv) {
   if (env.MYK9_PLAYWRIGHT_REGRESSION_ENABLED !== 'true') {
     throw new Error('Set MYK9_PLAYWRIGHT_REGRESSION_ENABLED=true before preparing E2E data');
   }
@@ -357,6 +389,7 @@ function assertPreparationIntent(env: NodeJS.ProcessEnv) {
 }
 
 function prepare() {
+  if (currentRuntime(process.env) === 'native') return prepareNative();
   assertPreparationIntent(process.env);
   const staged = stageAppEdgeFunctions(process.cwd(), process.env);
   console.log(`Staged ${staged.functionDirs.length} app edge functions beside the root ones`);
@@ -384,6 +417,7 @@ function prepare() {
 }
 
 function reset() {
+  if (currentRuntime(process.env) === 'native') return prepareNative();
   const local = readLocalEnvironment(process.env);
   const jobEnv = { ...process.env, ...buildJobEnvironment(local) };
   resolveIsolatedE2eTarget(jobEnv);
@@ -402,8 +436,10 @@ function stop() {
   console.log('Isolated E2E target stopped');
 }
 
-export function main(command = process.argv[2] ?? 'prepare') {
+export function main(command = process.argv[2] ?? 'prepare', args = process.argv.slice(3)) {
   if (command === 'prepare') prepare();
+  else if (command === 'run') runSpec(args);
+  else if (command === 'teardown') teardown();
   else if (command === 'reset') reset();
   else if (command === 'stop') stop();
   else throw new Error(`Unknown isolated E2E lifecycle command: ${command}`);

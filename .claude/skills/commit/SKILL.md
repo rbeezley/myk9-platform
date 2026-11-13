@@ -149,13 +149,15 @@ CI runs vitest with `--sequence.shuffle`; local runs do not. Run the **whole** s
 **How many times: scope it to the risk.** Detection is `1 - 0.5^n` per ordered file pair, so one run 50%, three 88%, six 98%.
 
 - **1 whole-suite run**, always. Extra whole-suite runs mostly test other people's leaks.
-- **Plus 10 targeted runs** when the change adds or touches module-scope mutable state (a memo, cache, singleton, module-scope `let`), and add an O(1) `beforeEach` reset. A leak through that state can only pass between two files that both import the module, so shuffle exactly those: `pnpm vitest related <module> --run --sequence.shuffle` picks every test file that imports it, directly or not. Ten runs reach `1 - 0.5^10` (99.9%) in about a minute each for a widely imported module; six whole-suite runs reached 98% in over an hour (MYK9-1923, 2026-11-13). CI will not cover you here: `--shard=i/6` partitions files by `sha1(path)` deterministically, so files in different shards never share a process and CI can never see a leak between them.
+- **Plus 10 targeted runs** when the change adds or touches a module-scope variable (a memo, cache, singleton, module-scope `let`), and add an O(1) `beforeEach` reset. Vitest gives each file its own module registry, so a leak through that variable can only pass between files that both import the module: shuffle exactly those with `pnpm vitest related <module> --run --sequence.shuffle`, which picks every test file that imports it, directly or not. Ten runs reach `1 - 0.5^10` (99.9%); `related` on `src/providers/syncCadence.ts` (38 files) took about a minute. Six whole-suite runs reached 98% in over an hour (MYK9-1923, 2026-11-13).
+- **6+ whole-suite runs instead** when the change writes state OUTSIDE the module: `window`, `globalThis`, `localStorage`, IndexedDB, `process.env`, the filesystem. That state can reach a file that never imports the module, so `related` does not cover it. `src/test/setup.ts` resets IndexedDB and localStorage before each test, which helps but is not proof. CI will not cover you here: `--shard=i/6` partitions files by `sha1(path)` deterministically, so files in different shards never share a process and CI can never see a leak between them.
 
 ```bash
 LOGS="$(git rev-parse --show-toplevel)/.logs"; mkdir -p "$LOGS"
 cd apps/myk9show && pnpm vitest run --sequence.shuffle > "$LOGS/shuffle.log" 2>&1; echo "EXIT=$?"
 # Only when the change adds module-scope mutable state (path relative to apps/myk9show):
-for i in $(seq 10); do pnpm vitest related src/<module>.ts --run --sequence.shuffle > "$LOGS/shuffle-related-$i.log" 2>&1 || { echo "FAILED run $i"; break; }; done; echo done
+# `related` also exits non-zero when no test imports the module: a gap to fix, not a pass.
+FAILED=0; for i in $(seq 10); do pnpm vitest related src/<module>.ts --run --sequence.shuffle > "$LOGS/shuffle-related-$i.log" 2>&1 || { FAILED=$i; break; }; done; echo "FAILED_RUN=$FAILED"
 ```
 
 #### Failure handling (both passes)

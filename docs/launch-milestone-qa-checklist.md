@@ -22,7 +22,7 @@ Most gates also run in CI on every PR (marked **[CI]**). Re-running them togethe
 
 - [ ] `pnpm test:packages` — green **[CI]**
 - [ ] `cd apps/myk9show && pnpm test` — full app suite green **[CI, sharded 1–6 with `--sequence.shuffle`]**
-- [ ] _Local isolation probe:_ `cd apps/myk9show && pnpm vitest run --sequence.shuffle` — run once normally, or six or more times when a change adds or touches module-scope mutable state.
+- [ ] _Local isolation probe:_ `cd apps/myk9show && pnpm vitest run --sequence.shuffle` — run once; when a change adds a module-scope variable, also run `pnpm vitest related <module> --run --sequence.shuffle` 10 times; when it writes state outside the module (window, storage, IndexedDB, env, files), run the whole suite six or more times.
 
 ## 3. Static code quality
 

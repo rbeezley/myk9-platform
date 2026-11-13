@@ -62,11 +62,19 @@ gate_comment_pending() {
   ' >/dev/null 2>&1
 }
 
-# fetch_gate_runs: recent issue_comment runs of the gate workflow, as
-# [{status, created_at}]. REST with explicit paging, like every other read here.
+# fetch_gate_runs: recent issue_comment runs of the gate workflow FOR THIS PR, as
+# [{status, created_at}]. issue_comment runs are repo-wide and carry the base
+# branch's SHA, so they are matched on display_title, which is the PR's title: a
+# queued comment run on another PR must not make this watcher wait. When the
+# title cannot be read the list is empty, so the watcher keeps today's exit 1.
+# REST with explicit paging, like every other read here.
 fetch_gate_runs() {
-  gh api "repos/$REPO/actions/workflows/review-gate.yml/runs?event=issue_comment&per_page=20" \
-    --jq '[.workflow_runs[] | {status, created_at}]' 2>/dev/null
+  local title
+  title=$(gh api "repos/$REPO/pulls/$PR" --jq '.title' 2>/dev/null) || { echo '[]'; return 0; }
+  [ -n "$title" ] || { echo '[]'; return 0; }
+  gh api "repos/$REPO/actions/workflows/review-gate.yml/runs?event=issue_comment&per_page=30" 2>/dev/null |
+    jq --arg t "$title" '[.workflow_runs[] | select(.display_title == $t) | {status, created_at}]' 2>/dev/null ||
+    echo '[]'
 }
 
 # extra_self_test <required-json-array>: prints each failure, returns 1 if any.

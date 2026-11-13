@@ -90,7 +90,7 @@ describe('EmergencyTrialPacketTool', () => {
 
     expect(screen.getByTestId('packet-panel')).toHaveAttribute(
       'data-reason',
-      'The complete packet data is unavailable. Reload Show Desk before preparing the packet.'
+      'The complete packet data is unavailable. Restart the app before preparing the packet.'
     );
   });
 

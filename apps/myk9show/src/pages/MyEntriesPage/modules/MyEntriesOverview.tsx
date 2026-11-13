@@ -88,8 +88,7 @@ export const MyEntriesOverview: React.FC<MyEntriesOverviewProps> = ({
       )}
       {moneyWarning && (
         <p role="status" className="text-sm text-muted-foreground">
-          Some balances could not be confirmed with the server yet; the money total covers confirmed
-          balances only.
+          Some balances could not be confirmed yet; the money total covers confirmed balances only.
         </p>
       )}
 

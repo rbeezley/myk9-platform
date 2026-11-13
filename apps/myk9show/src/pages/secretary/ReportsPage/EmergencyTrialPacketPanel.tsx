@@ -234,8 +234,8 @@ export function EmergencyTrialPacketPanel({
         )}
         {deliveredPacketsError && (
           <p className="mb-4 text-sm font-medium text-destructive" role="alert">
-            We could not check which packets already exist for this show. Reload before preparing a
-            new one, or you may email a duplicate.
+            We could not check which packets already exist for this show. Restart the app before
+            preparing a new one, or you may email a duplicate.
           </p>
         )}
         {outstandingPackets.length > 0 && (

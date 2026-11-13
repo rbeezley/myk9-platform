@@ -34,7 +34,7 @@ export function ReportPrintStatus({
       {isChecking && (
         <div className="mt-1 text-muted-foreground">
           {isUnavailable
-            ? 'Reload before recording this report as printed.'
+            ? 'Restart the app before recording this report as printed.'
             : 'Checking the replicated print record…'}
         </div>
       )}

@@ -69,7 +69,7 @@ export function useStillSavingPrompt(saving: boolean) {
         <AlertDialogHeader>
           <AlertDialogTitle>Still saving</AlertDialogTitle>
           <AlertDialogDescription>
-            Waiting for the server to answer. This panel will close or show an error as soon as it
+            Waiting for myK9Show to answer. This panel will close or show an error as soon as it
             does.
           </AlertDialogDescription>
         </AlertDialogHeader>

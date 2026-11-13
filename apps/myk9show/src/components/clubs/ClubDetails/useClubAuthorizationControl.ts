@@ -49,7 +49,7 @@ export function useClubAuthorizationControl(club: Club | null | undefined, isSit
         if (readinessStatus === 'fresh') notifications.success(done);
         else
           notifications.warning(
-            `${done} This page could not refresh yet; reload to see the change.`
+            `${done} This page could not update yet. Restart the app to see the change.`
           );
       } catch (error) {
         notifications.error(getErrorMessage(error) || 'Could not update club authorization.');

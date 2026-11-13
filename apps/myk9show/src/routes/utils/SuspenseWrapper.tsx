@@ -14,10 +14,11 @@ import {
   trackLazyComponentEnd,
   trackLazyComponentRetry,
 } from '@/utils/lazyLoadingMetrics';
+import { RESTART_THE_APP_LABEL } from '@/lib/offlineCopy';
 import { logger } from '@/services/LoggingService';
 import { resetFailedLazyRoutes } from '@/utils/lazyWithRetry';
 
-const PAGE_LOAD_FAILED_BODY = 'Try again. If it still will not open, reload the page.';
+const PAGE_LOAD_FAILED_BODY = 'Try again. If it still will not open, restart the app.';
 
 interface SuspenseWrapperProps {
   children: React.ReactNode;
@@ -111,7 +112,7 @@ class LoadingErrorBoundary extends React.Component<
                 Try Again
               </Button>
               <Button onClick={() => window.location.reload()} variant="outline" size="sm">
-                Reload Page
+                {RESTART_THE_APP_LABEL}
               </Button>
             </div>
             {this.state.retryCount > 0 && (
@@ -149,7 +150,7 @@ const LoadingFallback: React.FC<{ timeout?: number }> = ({ timeout = 10000 }) =>
           <p className="text-xs text-muted-foreground mb-2">This is taking longer than expected</p>
           <Button onClick={() => window.location.reload()} variant="outline" size="sm">
             <RefreshCw className="h-4 w-4 mr-2" />
-            Reload Page
+            {RESTART_THE_APP_LABEL}
           </Button>
         </div>
       )}

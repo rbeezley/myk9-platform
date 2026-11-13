@@ -98,7 +98,7 @@ async function startHangingSave() {
 
 async function keepWaiting(user: Awaited<ReturnType<typeof startHangingSave>>['user']) {
   const dialog = await screen.findByRole('alertdialog', { name: /still saving/i });
-  expect(dialog).toHaveTextContent(/waiting for the server to answer/i);
+  expect(dialog).toHaveTextContent(/waiting for myK9Show to answer/i);
   // Keep waiting is the only answer: there is no way to leave mid-save.
   expect(screen.queryByRole('button', { name: /leave/i })).not.toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: /keep waiting/i }));

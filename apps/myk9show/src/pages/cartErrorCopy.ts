@@ -17,15 +17,15 @@ import { RECOVERY_FAILED_MESSAGE } from '@/store/cartStore.recovery';
 
 export const CART_ERROR = {
   removeFailed:
-    'We could not finish removing that class. Reload the page to see what is still in your entry.',
+    'We could not finish removing that class. Restart the app to see what is still in your entry.',
   clearFailed:
-    'We could not finish clearing your entry. Reload the page to see what is still in it.',
+    'We could not finish clearing your entry. Restart the app to see what is still in it.',
   waitlistFailed:
     'We could not finish your waitlist requests, and nothing was charged. Check your entries to see which were saved, then try again.',
   checkoutFailed: 'We could not open the payment page, so nothing was charged. Try again.',
   signedOut: 'You were signed out. Sign in again, then pay for your entry.',
   unknown:
-    'Something went wrong with your entry. Reload the page to see what is in it, then try again.',
+    'Something went wrong with your entry. Restart the app to see what is in it, then try again.',
 } as const;
 
 /** Sentences the cart store writes to `error` on purpose, for the exhibitor to read. */

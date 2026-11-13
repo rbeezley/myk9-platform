@@ -148,7 +148,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
       if (!entryWindowTimezoneReady) {
         notifications.error(
           entryWindowTimezoneUnavailable
-            ? 'We could not load this show\u2019s details, so we cannot work out the entry fee. Check your connection and reload the page.'
+            ? 'We could not load this show\u2019s details, so we cannot work out the entry fee. Check your connection, then restart the app.'
             : 'Still loading this show. Wait a moment and try again \u2014 the entry fee depends on the show timezone.'
         );
         return;

@@ -160,7 +160,7 @@ export function PlacementCalculator({
         <div>
           <h3 className="text-lg font-semibold">Placement Calculator</h3>
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            AKC Scent Work placements supplied by the server
+            AKC Scent Work placements supplied by myK9Show
           </p>
         </div>
 
@@ -251,7 +251,7 @@ export function PlacementCalculator({
         <Calculator className="h-4 w-4" />
         <AlertDescription>
           <strong>AKC Placement Rules:</strong> Only Qualified entries receive placements.
-          Placements are assigned by the server using faults first, then total search time.
+          Placements are assigned by myK9Show using faults first, then total search time.
           {classConfig.multiArea && ' Multi-area classes use total time across all areas.'}
         </AlertDescription>
       </Alert>

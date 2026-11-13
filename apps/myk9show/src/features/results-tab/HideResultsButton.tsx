@@ -66,7 +66,7 @@ export function HideResultsButton({
           <AlertDialogTitle>Hide results for {className}?</AlertDialogTitle>
           <AlertDialogDescription>
             Exhibitors and spectators will stop seeing these results. A page someone already has
-            open keeps showing them until it is reloaded. You can release them again at any time.
+            open keeps showing them until it is restarted. You can release them again at any time.
           </AlertDialogDescription>
           {/* Things can change while the dialog is open (connection, settings, a release). */}
           {blockedReason && <p className="text-sm text-muted-foreground">{blockedReason}</p>}

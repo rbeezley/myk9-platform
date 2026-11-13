@@ -7,6 +7,12 @@
 /** The button and menu label for getting the newest version of the app. */
 export const UPDATE_THE_APP_LABEL = 'Update the app';
 
+/** The button for starting the app again when nothing new is being applied (never "update"). */
+export const RESTART_THE_APP_LABEL = 'Restart the app';
+
+/** Plain words for server trouble: the person cannot fix it, so say what happened. */
+export const COULD_NOT_REACH_MYK9SHOW = 'We could not reach myK9Show.';
+
 /** Tail of every "saved offline" sentence: where the change is and when it leaves. */
 export const SENT_WHEN_ONLINE = 'will be sent when you are back online';
 

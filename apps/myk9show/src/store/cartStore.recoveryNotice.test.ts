@@ -182,7 +182,7 @@ import { useCartStore } from './cartStore';
 import { derivePaymentLinkOutcome } from './cartStore.paymentLink';
 
 const RETRY_MESSAGE =
-  'We could not check the entries in your payment link. Please reload the page to try again.';
+  'We could not check the entries in your payment link. Please restart the app to try again.';
 
 function entry(id: string, payment_status = 'pending'): EntryRow {
   return { id, dog_id: 'dog-1', class_id: `class-${id}`, payment_status };

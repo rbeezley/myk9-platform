@@ -392,7 +392,7 @@ export function useShowCreationWizardActions({
           // Reload first: the store and query cache already hold the unsaved
           // list, so re-saving without a reload would find nothing to change.
           notifications.warning(
-            'The show was saved, but its judges could not be updated. Reload the page, then open the show and save the judges again.'
+            'The show was saved, but its judges could not be updated. Restart the app, then open the show and save the judges again.'
           );
         }
 

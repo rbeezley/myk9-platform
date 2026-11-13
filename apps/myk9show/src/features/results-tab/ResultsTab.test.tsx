@@ -851,7 +851,7 @@ describe('ResultsTab one-tap release (MYK9-1264)', () => {
     expect(verifyMutate).not.toHaveBeenCalled();
   });
 
-  it('a class whose scores need a reload cannot be released from here', () => {
+  it('a class whose scores need a restart cannot be released from here', () => {
     hook.value = {
       ...hook.value,
       rows: unchecked().map(row =>

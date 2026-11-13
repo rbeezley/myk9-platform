@@ -161,7 +161,7 @@ describe('ShowPublicLanding style preview', () => {
     await user.click(screen.getByRole('button', { name: 'Save style' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Could not confirm whether style saved. Sync and reload before retrying.'
+      'We could not confirm whether the style was saved. Restart the app before trying again.'
     );
     expect(screen.getByRole('alert')).not.toHaveTextContent('Your current style is still');
   });

@@ -6,6 +6,7 @@
  * This utility maps known error codes to safe, actionable messages.
  */
 
+import { COULD_NOT_REACH_MYK9SHOW } from '@/lib/offlineCopy';
 import {
   SIGN_IN_EMAIL_LOCKED_CODE,
   SIGN_IN_EMAIL_LOCKED_MESSAGE,
@@ -36,7 +37,7 @@ export const ERROR_CODE_MESSAGES: Record<string, string> = {
 
   // PostgreSQL class 08 — connection
   '08000': 'We could not reach myK9Show. Please check your connection.',
-  '08006': 'Connection to the server was lost. Please try again.',
+  '08006': `${COULD_NOT_REACH_MYK9SHOW} Please try again.`,
 
   // myK9 custom SQLSTATEs (class MK)
   MK001: 'This person still owns dogs. Delete those dogs first.',

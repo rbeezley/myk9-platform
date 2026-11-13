@@ -110,7 +110,7 @@ const FAILED = { ok: false } as const;
 
 /** Shown when the payment-link lookup or rebuild fails; the exhibitor can retry. */
 export const RECOVERY_FAILED_MESSAGE =
-  'We could not check the entries in your payment link. Please reload the page to try again.';
+  'We could not check the entries in your payment link. Please restart the app to try again.';
 
 export const findRecoverableEntries = async ({
   showId,

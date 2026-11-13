@@ -350,7 +350,7 @@ function PremiumStylePreviewControls({
           {entitlementError
             ? `Premium access is no longer available. Your current style is still ${PREMIUM_STYLE_LABELS[committedStyle]}.`
             : (saveErrorMessage ??
-              'Could not confirm whether style saved. Sync and reload before retrying.')}
+              'We could not confirm whether the style was saved. Restart the app before trying again.')}
         </p>
       )}
       <div className="mt-4 flex flex-wrap justify-end gap-2">

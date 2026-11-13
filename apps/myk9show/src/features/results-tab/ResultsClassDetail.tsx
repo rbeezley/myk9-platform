@@ -132,7 +132,7 @@ function PrimaryWork({
       : !online
         ? 'Connect to release from here'
         : row.resultsCanonical === null
-          ? 'These scores need a reload before they can be released'
+          ? 'Restart the app before these scores can be released'
           : (verifyBlockedReason ?? releaseBlockedReason);
     title = released ? 'Confirm the scores' : 'Release the results';
     body = released

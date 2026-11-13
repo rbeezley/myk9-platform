@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { ClipboardCheck } from 'lucide-react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { SearchBar } from '@/components/common/SearchBar';
 import { ListResultLine, ListViewTabs, type ListView } from '@/components/list-toolkit';
@@ -16,6 +16,7 @@ import {
   type CheckInDeskFilter,
 } from './checkInDeskModel';
 import { CheckInDeskDogCard } from './CheckInDeskDogCard';
+import { deskAmountOwed, deskOwedHref, owesLabel } from './deskAmountOwed';
 import { classIdsOnDay, firstClassLine } from './firstClassForExhibitor';
 import { useCheckInDeskActions } from './useCheckInDeskActions';
 import { useMinuteClock } from './useMinuteClock';
@@ -170,6 +171,7 @@ export function CheckInDesk({
             const waitingDogs = dogs.filter(dog => dog.pendingEntryIds.length > 0);
             const anyBusy = person.classRows.some(row => busyIds.has(row.entryId));
             const firstClass = firstClassLine(person.classRows, dayClassIds);
+            const owed = deskAmountOwed([...new Set(person.classRows.map(row => row.sourceEntry))]);
             return (
               <section key={person.id} aria-label={person.name} className="space-y-2">
                 <div className="flex flex-wrap items-center justify-between gap-x-2">
@@ -179,6 +181,14 @@ export function CheckInDesk({
                       <p className="truncate text-xs text-muted-foreground">
                         Also entered as {person.alternateNames.join(', ')}
                       </p>
+                    )}
+                    {(owed.amount > 0 || owed.unknown) && (
+                      <Link
+                        to={deskOwedHref(showId, person.name, owed.formKeys)}
+                        className="inline-flex min-h-11 items-center text-xs font-medium text-warning underline-offset-2 hover:underline"
+                      >
+                        {owed.amount > 0 ? owesLabel(owed.amount) : 'Amount not available'}
+                      </Link>
                     )}
                   </div>
                   {waitingDogs.length > 1 && (

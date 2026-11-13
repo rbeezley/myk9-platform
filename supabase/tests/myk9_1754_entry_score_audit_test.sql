@@ -73,9 +73,13 @@ insert into public.user_roles (user_id, role_id, show_id, is_active, auth_user_i
 select '00000000-0000-0000-0000-000001754014', r.id, '00000000-0000-0000-0000-000001754021',
        true, '00000000-0000-0000-0000-000001754104'
   from public.roles r where r.name = 'steward';
+-- MYK9-1950: a judge code belongs to a judge. The assigned judge above got one from the
+-- judge_assignments trigger; pin its generation so the claims below can name it.
+update public.show_passcodes set created_at = '2026-11-01T00:00:00Z'
+ where show_id = '00000000-0000-0000-0000-000001754021'
+   and person_id = '00000000-0000-0000-0000-000001754013';
 insert into public.show_passcodes (show_id, role, passcode_hash, created_at) values
   ('00000000-0000-0000-0000-000001754021', 'admin', 'myk9-1754-admin', '2026-11-03T00:00:00Z'),
-  ('00000000-0000-0000-0000-000001754021', 'judge', 'myk9-1754-judge', '2026-11-01T00:00:00Z'),
   ('00000000-0000-0000-0000-000001754021', 'steward', 'myk9-1754-steward', '2026-11-02T00:00:00Z');
 
 -- `authenticated` has no table-level SELECT on entries or the audit's count
@@ -97,21 +101,23 @@ create or replace function pg_temp.as_account(p_uid uuid) returns void language 
          set_config('request.jwt.claims',
            jsonb_build_object('sub', p_uid, 'role', 'authenticated')::text, true);
 $$;
-create or replace function pg_temp.as_passcode(p_role text, p_generation text)
+create or replace function pg_temp.as_passcode(
+  p_role text, p_generation text, p_person text default null)
 returns void language sql as $$
   select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000001754199', true),
          set_config('request.jwt.claims', jsonb_build_object(
            'sub', '00000000-0000-0000-0000-000001754199',
            'role', 'authenticated',
            'is_anonymous', true,
-           'app_metadata', jsonb_build_object(
+           'app_metadata', jsonb_strip_nulls(jsonb_build_object(
              'kind', 'ringside_passcode',
              'show_id', '00000000-0000-0000-0000-000001754021',
              'ringside_role', p_role,
-             'passcode_generation', p_generation))::text, true);
+             'ringside_person_id', p_person,
+             'passcode_generation', p_generation)))::text, true);
 $$;
 grant execute on function pg_temp.as_account(uuid) to authenticated;
-grant execute on function pg_temp.as_passcode(text, text) to authenticated;
+grant execute on function pg_temp.as_passcode(text, text, text) to authenticated;
 
 -- ===========================================================================
 -- A. A manager's score write.
@@ -297,7 +303,7 @@ $$;
 -- C. Passcode sessions.
 -- ===========================================================================
 set local role authenticated;
-select pg_temp.as_passcode('judge', '2026-11-01T00:00:00Z');
+select pg_temp.as_passcode('judge', '2026-11-01T00:00:00Z', '00000000-0000-0000-0000-000001754013');
 
 do $$
 declare

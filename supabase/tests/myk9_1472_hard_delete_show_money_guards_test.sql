@@ -80,9 +80,11 @@ FROM generate_series(1472020, 1472059) AS n;
 INSERT INTO public.judge_assignments (show_id, trial_id, class_id, person_id)
 VALUES ('00000000-0000-0000-0000-000001472020', '00000000-0000-0000-0000-000001473020',
         '00000000-0000-0000-0000-000001474020', '00000000-0000-0000-0000-000001472012');
+-- MYK9-1950: the assignment above already mints the judge's own code; this admin code is the
+-- extra configuration row the guard must clear.
 INSERT INTO public.show_passcodes (id, show_id, role, passcode_hash)
 VALUES ('00000000-0000-0000-0000-000001475020', '00000000-0000-0000-0000-000001472020',
-        'judge', 'myk9-1472-passcode-hash-020');
+        'admin', 'myk9-1472-passcode-hash-020');
 INSERT INTO public.show_officials (show_id, person_id, role)
 VALUES ('00000000-0000-0000-0000-000001472020', '00000000-0000-0000-0000-000001472012', 'steward');
 INSERT INTO public.user_roles (user_id, role_id, club_id, show_id, is_active)

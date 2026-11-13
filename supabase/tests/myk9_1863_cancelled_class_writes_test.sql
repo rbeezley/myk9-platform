@@ -32,8 +32,18 @@ insert into public.classes (id, trial_id, name, status, element, level, section)
    'Container Novice A', 'in_progress', 'Container', 'Novice', 'A'),
   ('00000000-0000-0000-0000-000001863024', '00000000-0000-0000-0000-000001863022',
    'Container Novice B', 'in_progress', 'Container', 'Novice', 'B');
-insert into public.show_passcodes (show_id, role, passcode_hash, created_at) values
-  ('00000000-0000-0000-0000-000001863021', 'judge', 'myk9-1863-judge', '2026-11-13T00:00:00Z');
+-- MYK9-1950: a judge code belongs to a judge and scores the classes assigned to them. The
+-- judge_assignments trigger issues the code; pin its generation so the claims can name it.
+insert into public.people (id, first_name, last_name)
+values ('00000000-0000-0000-0000-000001863012', 'Ring', 'Judge');
+insert into public.judge_assignments (person_id, show_id, class_id, status, confirmed_at) values
+  ('00000000-0000-0000-0000-000001863012', '00000000-0000-0000-0000-000001863021',
+   '00000000-0000-0000-0000-000001863023', 'confirmed', now()),
+  ('00000000-0000-0000-0000-000001863012', '00000000-0000-0000-0000-000001863021',
+   '00000000-0000-0000-0000-000001863024', 'confirmed', now());
+update public.show_passcodes set created_at = '2026-11-13T00:00:00Z'
+ where show_id = '00000000-0000-0000-0000-000001863021'
+   and person_id = '00000000-0000-0000-0000-000001863012';
 
 insert into public.dogs (id, name, call_name, breed) values
   ('00000000-0000-0000-0000-000001863031', 'MYK9-1863 One', 'One', 'Beagle'),
@@ -90,6 +100,7 @@ create or replace function pg_temp.as_passcode(p_show uuid, p_role text) returns
            'is_anonymous', true,
            'app_metadata', jsonb_build_object(
              'kind', 'ringside_passcode', 'show_id', p_show, 'ringside_role', p_role,
+             'ringside_person_id', '00000000-0000-0000-0000-000001863012',
              'passcode_generation', '2026-11-13T00:00:00Z'))::text, true);
 $$;
 grant execute on function pg_temp.as_account(uuid) to authenticated;

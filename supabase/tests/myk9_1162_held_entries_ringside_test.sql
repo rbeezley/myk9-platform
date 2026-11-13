@@ -39,8 +39,16 @@ insert into public.trials (id, show_id, name, date, registry_id, trial_type) val
 insert into public.classes (id, trial_id, name, status, element, level, section) values
   ('00000000-0000-0000-0000-000001162023', '00000000-0000-0000-0000-000001162022',
    'Container Novice A', 'upcoming', 'Container', 'Novice', 'A');
-insert into public.show_passcodes (show_id, role, passcode_hash, created_at) values
-  ('00000000-0000-0000-0000-000001162021', 'judge', 'myk9-1162-judge', '2026-10-10T00:00:00Z');
+-- MYK9-1950: a judge code belongs to a judge and scores the classes assigned to them. The
+-- judge_assignments trigger issues the code; pin its generation so the claims can name it.
+insert into public.people (id, first_name, last_name)
+values ('00000000-0000-0000-0000-000001162012', 'Ring', 'Judge');
+insert into public.judge_assignments (person_id, show_id, class_id, status, confirmed_at)
+values ('00000000-0000-0000-0000-000001162012', '00000000-0000-0000-0000-000001162021',
+        '00000000-0000-0000-0000-000001162023', 'confirmed', now());
+update public.show_passcodes set created_at = '2026-10-10T00:00:00Z'
+ where show_id = '00000000-0000-0000-0000-000001162021'
+   and person_id = '00000000-0000-0000-0000-000001162012';
 
 -- A show never mixes registries (enforce_show_registry_on_trial), so the UKC
 -- trial gets its own UKC show.
@@ -124,6 +132,7 @@ create or replace function pg_temp.as_passcode(p_show uuid, p_role text) returns
            'is_anonymous', true,
            'app_metadata', jsonb_build_object(
              'kind', 'ringside_passcode', 'show_id', p_show, 'ringside_role', p_role,
+             'ringside_person_id', '00000000-0000-0000-0000-000001162012',
              'passcode_generation', '2026-10-10T00:00:00Z'))::text, true);
 $$;
 grant execute on function pg_temp.as_account(uuid) to authenticated;

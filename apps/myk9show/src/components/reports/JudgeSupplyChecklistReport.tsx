@@ -1,10 +1,14 @@
 import React from 'react';
 import type { ReportProps } from '@/lib/reports/types';
-import { judgeKey, type ShowJudgeSupplyRow } from '@/features/judge-supplies/types';
+import { judgeKey, type ReportJudgeSupplyRow } from '@/features/judge-supplies/types';
+
+type ShowJudgeSupplyRow = ReportJudgeSupplyRow;
 
 interface JudgePage {
   judgeName: string;
   judgeKey: string;
+  /** The judge's own ringside access code, when the host could read it. */
+  passcode: string | null;
   rows: ShowJudgeSupplyRow[];
 }
 
@@ -15,10 +19,11 @@ function buildPages(supplies: ShowJudgeSupplyRow[]): JudgePage[] {
     const key = judgeKey(row);
     let page = pages.get(key);
     if (!page) {
-      page = { judgeName: row.judge_name, judgeKey: key, rows: [] };
+      page = { judgeName: row.judge_name, judgeKey: key, passcode: null, rows: [] };
       pages.set(key, page);
     }
     page.rows.push(row);
+    page.passcode = page.passcode ?? row.judge_passcode ?? null;
   }
 
   for (const page of pages.values()) {
@@ -101,6 +106,15 @@ export const JudgeSupplyChecklistReport: React.FC<ReportProps> = ({
 
           <div className="catalog-trial-section">
             <h2 className="catalog-trial-header">Judge: {page.judgeName}</h2>
+            {page.passcode && (
+              <p data-testid={`supply-passcode-${page.judgeKey}`}>
+                <strong>Your ringside access code:</strong>{' '}
+                <code style={{ fontFamily: 'monospace', letterSpacing: '0.1em' }}>
+                  {page.passcode}
+                </code>{' '}
+                Enter it at myk9show.com/at-show to score your classes.
+              </p>
+            )}
 
             <JudgePageBody rows={page.rows} />
           </div>

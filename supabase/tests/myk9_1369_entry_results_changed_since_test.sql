@@ -127,9 +127,13 @@ VALUES ('00000000-0000-0000-0000-000000136071', '00000000-0000-0000-0000-0000001
         '00000000-0000-0000-0000-000000136020', '00000000-0000-0000-0000-000000136030',
         '00000000-0000-0000-0000-000000136040', 'confirmed');
 
-INSERT INTO public.show_passcodes (id, show_id, role, passcode_hash, passcode_ciphertext, created_at)
+-- MYK9-1950: a judge code belongs to a judge; the assignment trigger may already have minted it.
+INSERT INTO public.show_passcodes (id, show_id, role, passcode_hash, passcode_ciphertext, created_at, person_id)
 VALUES ('00000000-0000-0000-0000-000000136081', '00000000-0000-0000-0000-000000136020',
-        'judge', 'myk9-1369-fixture-hash', NULL, '2026-10-04 15:00:00+00'::timestamptz);
+        'judge', 'myk9-1369-fixture-hash', NULL, '2026-10-04 15:00:00+00'::timestamptz,
+        '00000000-0000-0000-0000-000000136011')
+ON CONFLICT (show_id, person_id) WHERE person_id IS NOT NULL
+DO UPDATE SET passcode_hash = excluded.passcode_hash, created_at = excluded.created_at;
 
 INSERT INTO public.user_roles (user_id, role_id, club_id, show_id, is_active, auth_user_id)
 SELECT g.person_id::uuid, r.id, g.club_id::uuid, g.show_id::uuid, true, g.auth_id::uuid
@@ -171,7 +175,7 @@ INSERT INTO callers VALUES
   ('handler (tied)',       '00000000-0000-0000-0000-000000136113', '{}', true),
   ('show exhibitor (not tied to A)', '00000000-0000-0000-0000-000000136112', '{}', true),
   ('ringside judge passcode', '00000000-0000-0000-0000-000000136199',
-   '{"kind":"ringside_passcode","show_id":"00000000-0000-0000-0000-000000136020","ringside_role":"judge","passcode_generation":"2026-10-04T15:00:00+00:00"}', true),
+   '{"kind":"ringside_passcode","show_id":"00000000-0000-0000-0000-000000136020","ringside_role":"judge","ringside_person_id":"00000000-0000-0000-0000-000000136011","passcode_generation":"2026-10-04T15:00:00+00:00"}', true),
   ('outsider',             '00000000-0000-0000-0000-000000136117', '{}', false),
   ('co-owner of a withdrawn entry only', '00000000-0000-0000-0000-000000136122', '{}', false),
   ('other club secretary', '00000000-0000-0000-0000-000000136118', '{}', false),

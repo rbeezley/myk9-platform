@@ -25,14 +25,18 @@ VALUES
   ('00000000-0000-0000-0000-000000819024', '00000000-0000-0000-0000-000000819014', 'Vehicle Novice'),
   ('00000000-0000-0000-0000-000000819025', '00000000-0000-0000-0000-000000819015', 'Vehicle Novice');
 
-INSERT INTO public.show_passcodes (show_id, role, passcode_hash, created_at)
+-- MYK9-1950: a judge code belongs to a judge (show_passcodes_judge_person_check).
+INSERT INTO public.people (id, first_name, last_name)
+VALUES ('00000000-0000-0000-0000-000000819090', 'MYK9-819', 'Judge');
+
+INSERT INTO public.show_passcodes (show_id, role, passcode_hash, created_at, person_id)
 VALUES
-  ('00000000-0000-0000-0000-000000819002', 'judge', 'myk9-819-judge-target', '2026-09-29T00:00:00Z'),
-  ('00000000-0000-0000-0000-000000819002', 'steward', 'myk9-819-steward-target', '2026-09-29T00:00:00Z'),
-  ('00000000-0000-0000-0000-000000819002', 'admin', 'myk9-819-admin-target', '2026-09-29T00:00:00Z'),
-  ('00000000-0000-0000-0000-000000819002', 'exhibitor', 'myk9-819-exhibitor-target', '2026-09-29T00:00:00Z'),
-  ('00000000-0000-0000-0000-000000819003', 'judge', 'myk9-819-judge-other', '2026-09-29T00:00:00Z'),
-  ('00000000-0000-0000-0000-000000819005', 'judge', 'myk9-819-judge-deleted', '2026-09-29T00:00:00Z');
+  ('00000000-0000-0000-0000-000000819002', 'judge', 'myk9-819-judge-target', '2026-09-29T00:00:00Z', '00000000-0000-0000-0000-000000819090'),
+  ('00000000-0000-0000-0000-000000819002', 'steward', 'myk9-819-steward-target', '2026-09-29T00:00:00Z', NULL),
+  ('00000000-0000-0000-0000-000000819002', 'admin', 'myk9-819-admin-target', '2026-09-29T00:00:00Z', NULL),
+  ('00000000-0000-0000-0000-000000819002', 'exhibitor', 'myk9-819-exhibitor-target', '2026-09-29T00:00:00Z', NULL),
+  ('00000000-0000-0000-0000-000000819003', 'judge', 'myk9-819-judge-other', '2026-09-29T00:00:00Z', '00000000-0000-0000-0000-000000819090'),
+  ('00000000-0000-0000-0000-000000819005', 'judge', 'myk9-819-judge-deleted', '2026-09-29T00:00:00Z', '00000000-0000-0000-0000-000000819090');
 
 UPDATE public.shows
 SET deleted_at = now()
@@ -64,6 +68,8 @@ BEGIN
         'kind', 'ringside_passcode',
         'show_id', test_case.claim_show_id,
         'ringside_role', test_case.claim_role,
+        'ringside_person_id', CASE WHEN test_case.claim_role = 'judge'
+                                   THEN '00000000-0000-0000-0000-000000819090' END,
         'passcode_generation', test_case.generation
       ) END;
     PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000819100', true);
@@ -90,6 +96,7 @@ BEGIN
       'kind', 'ringside_passcode',
       'show_id', '00000000-0000-0000-0000-000000819005',
       'ringside_role', 'judge',
+      'ringside_person_id', '00000000-0000-0000-0000-000000819090',
       'passcode_generation', '2026-09-29T00:00:00Z'
     )
   )::text, true);

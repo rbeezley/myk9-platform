@@ -97,7 +97,12 @@ export async function saveShowAtomicOnline(
       fn: string,
       args: Record<string, unknown>
     ) => Promise<{
-      data: Array<{ admin: string; judge: string; steward: string; exhibitor: string }> | null;
+      data: Array<{
+        admin: string;
+        judge: string | null;
+        steward: string;
+        exhibitor: string;
+      }> | null;
       error: { message: string } | null;
     }>
   )('insert_show_passcodes', { p_show_id: showId });
@@ -117,7 +122,7 @@ export async function saveShowAtomicOnline(
     const row = passcodeRows[0]!;
     passcodes = {
       admin: row.admin,
-      judge: row.judge,
+      judge: null,
       steward: row.steward,
       exhibitor: row.exhibitor,
     };

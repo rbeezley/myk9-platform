@@ -2305,7 +2305,7 @@ JOIN public.people p ON lower(p.email) = v.email;
 --     validate and authorized show roles can revisit them in the access-code card.
 --
 --     DEMO CODES (hand these to testers — validator lowercases input):
---         admin   = 'ah4r8'      judge   = 'jh3k9'
+--         admin   = 'ah4r8'      judge   = 'jh3k9' (judge@myk9t.com's own code, MYK9-1950)
 --         steward = 's7m2p'      exhibitor = 'e5n8q'
 --     Format must satisfy the client classifier regex /^[ajse][a-z0-9]{4}$/
 --     (role letter a|j|s|e + 4 [a-z0-9]); the authoritative role is the DB row.
@@ -2330,15 +2330,21 @@ BEGIN
     ('dededede-0000-0000-0000-000000000080', 'dededede-0000-0000-0000-000000000010', 'admin',
      public._hash_passcode('ah4r8'), public._encrypt_show_passcode('ah4r8'),
      ((CURRENT_DATE)::timestamp AT TIME ZONE 'UTC')),
-    ('dededede-0000-0000-0000-000000000081', 'dededede-0000-0000-0000-000000000010', 'judge',
-     public._hash_passcode('jh3k9'), public._encrypt_show_passcode('jh3k9'),
-     ((CURRENT_DATE)::timestamp AT TIME ZONE 'UTC')),
     ('dededede-0000-0000-0000-000000000082', 'dededede-0000-0000-0000-000000000010', 'steward',
      public._hash_passcode('s7m2p'), public._encrypt_show_passcode('s7m2p'),
      ((CURRENT_DATE)::timestamp AT TIME ZONE 'UTC')),
     ('dededede-0000-0000-0000-000000000083', 'dededede-0000-0000-0000-000000000010', 'exhibitor',
      public._hash_passcode('e5n8q'), public._encrypt_show_passcode('e5n8q'),
      ((CURRENT_DATE)::timestamp AT TIME ZONE 'UTC'));
+
+  -- MYK9-1950: judge codes are per judge. The judge_assignments above gave judge@myk9t.com a
+  -- code (the DELETE removed it, so mint it again); pin it to the well-known demo value.
+  PERFORM public._sync_show_judge_passcodes('dededede-0000-0000-0000-000000000010');
+  UPDATE public.show_passcodes
+     SET passcode_hash = public._hash_passcode('jh3k9'),
+         passcode_ciphertext = public._encrypt_show_passcode('jh3k9'),
+         created_at = ((CURRENT_DATE)::timestamp AT TIME ZONE 'UTC')
+   WHERE show_id = 'dededede-0000-0000-0000-000000000010' AND person_id IS NOT NULL;
 EXCEPTION WHEN sqlstate '55000' THEN
   RAISE NOTICE 'Skipped Heartland ringside passcode seed (% - %). passcode_pepper Vault secret is unset; mint via regenerate_show_passcodes() instead.', SQLSTATE, SQLERRM;
 END $$;

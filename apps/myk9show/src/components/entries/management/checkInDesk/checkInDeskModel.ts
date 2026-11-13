@@ -3,6 +3,7 @@
  * search are the People roster's own (`peopleRoster.ts`), imported rather than copied, so the
  * two cannot disagree about who can be checked in or what a search matches.
  */
+import { CLASS_STATUS, normalizeClassStatus } from '@myk9/core';
 import {
   buildPeopleRoster,
   filterPeopleRoster,
@@ -41,7 +42,8 @@ export function buildCheckInDeskClasses(
   trialClasses: Readonly<
     Record<
       string,
-      readonly Pick<TrialClass, 'id' | 'name' | 'element' | 'level' | 'section' | 'startTime'>[]
+      readonly (Pick<TrialClass, 'id' | 'name' | 'element' | 'level' | 'section' | 'startTime'> &
+        Partial<Pick<TrialClass, 'status'>>)[]
     >
   >
 ): PeopleRosterClassInfo[] {
@@ -71,6 +73,9 @@ export function buildCheckInDeskClasses(
       section: cls.section || '',
       trialDate: trial.trialDate || '',
       timezone: getTrialTimezone(trial),
+      ...(cls.status && normalizeClassStatus(cls.status) === CLASS_STATUS.CANCELLED
+        ? { cancelled: true }
+        : {}),
     }));
   });
 }

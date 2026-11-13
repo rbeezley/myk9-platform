@@ -29,6 +29,16 @@ export const RATCHET_BASELINE_ALLOWLIST: ReadonlySet<string> = new Set([
   'scripts/qa/em-dash-ratchet.baseline.json',
 ]);
 
+/**
+ * Per baseline, the maps whose entries may be REMOVED. Removal is lowering only
+ * where the ratchet reads a missing entry as zero: em-dash-ratchet.ts reads
+ * `baseline[file] ?? 0`. code-quality-ratchet.ts iterates the baseline's own
+ * metric keys, so deleting a metric switches its check off: never removable.
+ */
+const REMOVABLE_ENTRY_MAPS: ReadonlyMap<string, ReadonlySet<string>> = new Map([
+  ['scripts/qa/em-dash-ratchet.baseline.json', new Set(['files'])],
+]);
+
 /** Keys whose value is never a ratchet count: pure bookkeeping or schema. */
 const IGNORED_KEYS = new Set(['updatedAt']);
 const MUST_MATCH_TOP_LEVEL_KEYS = new Set(['version']);
@@ -37,9 +47,18 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
-function isLoweringOnly(base: unknown, head: unknown, topLevel: boolean): boolean {
+function isLoweringOnly(
+  base: unknown,
+  head: unknown,
+  path: string,
+  removableMaps: ReadonlySet<string>
+): boolean {
+  const topLevel = path === '';
   if (typeof base === 'number' && typeof head === 'number') return head <= base;
   if (isRecord(base) && isRecord(head)) {
+    // A removed entry is lowering only inside a map the ratchet reads as zero
+    // when missing; anywhere else it can switch a check off.
+    if (!removableMaps.has(path) && Object.keys(base).some(key => !(key in head))) return false;
     for (const [key, headValue] of Object.entries(head)) {
       if (IGNORED_KEYS.has(key)) continue;
       // A key base lacks is an added entry: never an exemption.
@@ -48,7 +67,8 @@ function isLoweringOnly(base: unknown, head: unknown, topLevel: boolean): boolea
         if (JSON.stringify(base[key]) !== JSON.stringify(headValue)) return false;
         continue;
       }
-      if (!isLoweringOnly(base[key], headValue, false)) return false;
+      const childPath = topLevel ? key : `${path}.${key}`;
+      if (!isLoweringOnly(base[key], headValue, childPath, removableMaps)) return false;
     }
     return true;
   }
@@ -56,8 +76,15 @@ function isLoweringOnly(base: unknown, head: unknown, topLevel: boolean): boolea
   return JSON.stringify(base) === JSON.stringify(head);
 }
 
-/** True when `head` differs from `base` only by lower counts or removed entries. */
-export function baselineChangeIsLoweringOnly(baseText: string, headText: string): boolean {
+/**
+ * True when `head` differs from `base` only by lower counts, or by entries
+ * removed from one of `removableMaps` (dotted paths; none by default).
+ */
+export function baselineChangeIsLoweringOnly(
+  baseText: string,
+  headText: string,
+  removableMaps: ReadonlySet<string> = new Set()
+): boolean {
   let base: unknown;
   let head: unknown;
   try {
@@ -67,7 +94,7 @@ export function baselineChangeIsLoweringOnly(baseText: string, headText: string)
     return false;
   }
   if (!isRecord(base) || !isRecord(head)) return false;
-  return isLoweringOnly(base, head, true);
+  return isLoweringOnly(base, head, '', removableMaps);
 }
 
 /** Reads one file at the merge base and at head; throws when either is absent. */
@@ -83,7 +110,8 @@ export function exemptBaselineFiles(files: readonly string[], read: BaselineRead
     if (!RATCHET_BASELINE_ALLOWLIST.has(file)) continue;
     try {
       const { base, head } = read(file);
-      if (baselineChangeIsLoweringOnly(base, head)) exempt.add(file);
+      if (baselineChangeIsLoweringOnly(base, head, REMOVABLE_ENTRY_MAPS.get(file)))
+        exempt.add(file);
     } catch {
       // An added or deleted file 404s on one side: not exempt.
     }

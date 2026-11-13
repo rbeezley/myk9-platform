@@ -24,7 +24,7 @@ describe('baselineChangeIsLoweringOnly', () => {
   it.each([
     ['equal counts', BASE_TEXT, true],
     ['lowered count', baselineJson(4, { 'a.ts': 2, 'b.ts': 2 }), true],
-    ['removed entry', baselineJson(3, { 'a.ts': 3 }), true],
+    ['removed entry, no removable map given', baselineJson(3, { 'a.ts': 3 }), false],
     ['raised count', baselineJson(5, { 'a.ts': 4, 'b.ts': 2 }), false],
     ['added key', baselineJson(5, { 'a.ts': 3, 'b.ts': 2, 'c.ts': 0 }), false],
     ['changed version', BASE_TEXT.replace('"version": 1', '"version": 0'), false],
@@ -32,6 +32,37 @@ describe('baselineChangeIsLoweringOnly', () => {
     ['number replaced by string', BASE_TEXT.replace('"total": 5', '"total": "4"'), false],
   ])('%s', (_name, head, expected) => {
     expect(baselineChangeIsLoweringOnly(BASE_TEXT, head)).toBe(expected);
+  });
+
+  it('allows a removed entry only inside a removable map', () => {
+    const head = baselineJson(3, { 'a.ts': 3 });
+    expect(baselineChangeIsLoweringOnly(BASE_TEXT, head, new Set(['files']))).toBe(true);
+    // Removing a top-level count is never lowering, even with `files` removable.
+    const noTotal = JSON.stringify({ version: 1, updatedAt: 'x', files: { 'a.ts': 3, 'b.ts': 2 } });
+    expect(baselineChangeIsLoweringOnly(BASE_TEXT, noTotal, new Set(['files']))).toBe(false);
+  });
+
+  it('does not exempt deleting a code-quality metric, which switches its check off', () => {
+    const metrics = (m: Record<string, number>) =>
+      JSON.stringify({ version: 1, updatedAt: 'x', metrics: m });
+    const exempt = exemptBaselineFiles([OTHER_BASELINE], () => ({
+      base: metrics({ anyCasts: 16, todoMarkers: 16 }),
+      head: metrics({ todoMarkers: 16 }),
+    }));
+    expect(exempt.size).toBe(0);
+    const lowered = exemptBaselineFiles([OTHER_BASELINE], () => ({
+      base: metrics({ anyCasts: 16, todoMarkers: 16 }),
+      head: metrics({ anyCasts: 15, todoMarkers: 16 }),
+    }));
+    expect([...lowered]).toEqual([OTHER_BASELINE]);
+  });
+
+  it('exempts an em-dash file entry dropped at zero', () => {
+    const exempt = exemptBaselineFiles([BASELINE], () => ({
+      base: BASE_TEXT,
+      head: baselineJson(3, { 'a.ts': 3 }),
+    }));
+    expect([...exempt]).toEqual([BASELINE]);
   });
 
   it('ignores updatedAt but not other strings', () => {

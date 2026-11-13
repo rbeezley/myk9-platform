@@ -113,6 +113,15 @@ jobs:
         run: pnpm exec playwright test --config=playwright.batch3.config.ts --workers=1 --retries=0 --fail-on-flaky-tests ringsidePhoneWalk
         env:
           CI: 'true'
+      - name: Keep the phone-walk evidence
+        # The next step's Playwright run rewrites playwright-report-ci/ and test-results/,
+        # so copy the walk's (already scrubbed) report and traces aside first.
+        if: ${{ always() && steps.phone_walk.outcome != 'skipped' }}
+        working-directory: apps/myk9show
+        run: |
+          mkdir -p phone-walk-evidence
+          if [ -d playwright-report-ci ]; then cp -R playwright-report-ci phone-walk-evidence/report; fi
+          if [ -d test-results ]; then cp -R test-results phone-walk-evidence/test-results; fi
       - name: Scoring persistence, paperwork and time-display parity
         # Runs after a red walk too (so one run reports both), but not when the walk
         # was skipped because setup failed, and not on cancel.
@@ -125,7 +134,7 @@ jobs:
         id: verify-artifacts
         if: always()
         working-directory: apps/myk9show
-        run: pnpm exec tsx scripts/verify-artifact-secrets.ts --skip-zip-files playwright-report-ci test-results
+        run: pnpm exec tsx scripts/verify-artifact-secrets.ts --skip-zip-files playwright-report-ci test-results phone-walk-evidence
       - name: Preserve isolated evidence
         # Keep the explicit exclusion required by playwrightArtifactScrubbing.test.ts;
         # success also prevents uploads when the scanner is skipped or cancelled.
@@ -138,6 +147,8 @@ jobs:
             apps/myk9show/test-results/
             !apps/myk9show/playwright-report-ci/**/*.zip
             !apps/myk9show/test-results/**/*.zip
+            apps/myk9show/phone-walk-evidence/
+            !apps/myk9show/phone-walk-evidence/**/*.zip
           retention-days: 7
       - name: Stop disposable target
         if: always()

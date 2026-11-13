@@ -31,3 +31,4 @@ test-results/
 !test-results/.gitkeep
 playwright-report/
 playwright/.cache/
+phone-walk-evidence/

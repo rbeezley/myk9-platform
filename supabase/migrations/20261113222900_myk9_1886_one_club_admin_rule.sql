@@ -59,6 +59,56 @@ REVOKE ALL ON FUNCTION public.can_manage_show(uuid) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.can_manage_show(uuid) FROM anon;
 GRANT EXECUTE ON FUNCTION public.can_manage_show(uuid) TO authenticated, service_role;
 
+-- Reads follow writes. entry_enrollment_select_show_ids (entries, enrollments,
+-- waitlists) and is_show_office_manager (promo codes, officials, payments
+-- ledger, show financial reconciliation policies) each pinned a club admin's
+-- show_id row to that one show, so a club admin who can now WRITE at the club's
+-- other shows could not READ them. Both now use the one rule.
+-- Copied from 20261004181900_myk9_1008_show_requires_club.sql (latest
+-- definitions); only the club-admin branches change. manageable_show_ids and
+-- get_show_officials already use is_club_admin(s.club_id), which ignores
+-- user_roles.show_id, so they are club-wide already and are not touched.
+CREATE OR REPLACE FUNCTION public.entry_enrollment_select_show_ids()
+RETURNS SETOF uuid
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT s.id
+  FROM public.shows s
+  WHERE (SELECT public.is_site_admin())
+     OR (SELECT public.is_show_club_admin(s.id))
+     OR (SELECT public.is_trial_secretary(s.club_id));
+$$;
+
+REVOKE ALL ON FUNCTION public.entry_enrollment_select_show_ids() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.entry_enrollment_select_show_ids() FROM anon;
+GRANT EXECUTE ON FUNCTION public.entry_enrollment_select_show_ids() TO authenticated, service_role;
+
+CREATE OR REPLACE FUNCTION public.is_show_office_manager(check_show_id uuid)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.shows s
+    WHERE s.id = check_show_id
+      AND (
+        (SELECT public.is_site_admin())
+        OR (SELECT public.is_show_club_admin(s.id))
+        OR (SELECT public.is_trial_secretary(s.club_id))
+      )
+  );
+$$;
+
+REVOKE ALL ON FUNCTION public.is_show_office_manager(uuid) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.is_show_office_manager(uuid) FROM anon;
+GRANT EXECUTE ON FUNCTION public.is_show_office_manager(uuid) TO authenticated, service_role;
+
 CREATE OR REPLACE FUNCTION public.submit_show_entries(p_show_id uuid, p_registration_id uuid, p_entries jsonb, p_submission_id uuid, p_payment_method text, p_payment jsonb DEFAULT NULL::jsonb)
  RETURNS jsonb
  LANGUAGE plpgsql

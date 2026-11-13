@@ -5,7 +5,11 @@
 --   1. is_show_club_admin / can_manage_show admit a club-wide club admin at both
 --      shows of the club, a show-scoped club admin at BOTH shows of the club,
 --      refuse that person at another club's show, and refuse an expired grant.
---   2. submit_show_entries decides its official with is_show_club_admin and no
+--   2. Reads match writes: entry_enrollment_select_show_ids and
+--      is_show_office_manager (promo codes, officials, payments ledger,
+--      financial reconciliation) admit the show-scoped club admin at the club's
+--      other show, refuse Club B's show and an expired grant.
+--   3. submit_show_entries decides its official with is_show_club_admin and no
 --      longer with the show_id-blind is_club_admin(club).
 --
 -- Run with psql -X -v ON_ERROR_STOP=1 against a migrated local database;
@@ -84,7 +88,29 @@ select set_config('request.jwt.claims',
   '{"sub":"00000000-0000-0000-0000-000001886153","role":"authenticated"}', true);
 insert into results values
   ('expired: helper A1', public.is_show_club_admin('00000000-0000-0000-0000-000001886011'), false),
-  ('expired: can_manage A1', public.can_manage_show('00000000-0000-0000-0000-000001886011'), false);
+  ('expired: can_manage A1', public.can_manage_show('00000000-0000-0000-0000-000001886011'), false),
+  ('expired: office manager A1', public.is_show_office_manager('00000000-0000-0000-0000-000001886011'), false),
+  ('expired: read set A1',
+   '00000000-0000-0000-0000-000001886011'::uuid in (select public.entry_enrollment_select_show_ids()), false);
+
+-- Reads match writes: the show-scoped admin (granted for A1 only) reads A2.
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000001886152', true);
+select set_config('request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000001886152","role":"authenticated"}', true);
+insert into results values
+  ('show-scoped: read set own show A1',
+   '00000000-0000-0000-0000-000001886011'::uuid in (select public.entry_enrollment_select_show_ids()), true),
+  ('show-scoped: read set other show A2',
+   '00000000-0000-0000-0000-000001886012'::uuid in (select public.entry_enrollment_select_show_ids()), true),
+  ('show-scoped: read set other club B1',
+   '00000000-0000-0000-0000-000001886013'::uuid in (select public.entry_enrollment_select_show_ids()), false),
+  ('show-scoped: office manager A1', public.is_show_office_manager('00000000-0000-0000-0000-000001886011'), true),
+  ('show-scoped: office manager A2', public.is_show_office_manager('00000000-0000-0000-0000-000001886012'), true),
+  ('show-scoped: office manager B1', public.is_show_office_manager('00000000-0000-0000-0000-000001886013'), false),
+  ('show-scoped: manageable A2',
+   '00000000-0000-0000-0000-000001886012'::uuid in (select public.manageable_show_ids()), true),
+  ('show-scoped: manageable B1',
+   '00000000-0000-0000-0000-000001886013'::uuid in (select public.manageable_show_ids()), false);
 
 RESET ROLE;
 

@@ -256,9 +256,10 @@ end;
 $$;
 
 -- A show-pinned club_admin manages every show of its club (MYK9-1886, owner
--- decision 2026-11-13: the whole club) for WRITES. Entry READS go through
--- entry_enrollment_select_show_ids(), which MYK9-1886 did not change, so the
--- pinned club_admin still reads exactly its assigned show's entry.
+-- decision 2026-11-13: the whole club), for WRITES and READS alike. Entry reads
+-- go through entry_enrollment_select_show_ids(), which uses the same rule, so
+-- the pinned club_admin reads all three fixture entries (published, draft and
+-- soft-deleted shows), exactly like a club-wide club_admin.
 do $$
 declare
   assigned boolean;
@@ -285,8 +286,8 @@ begin
   if not assigned or not other then
     raise exception 'FAIL pinned club_admin can_manage_show assigned=%, other=%', assigned, other;
   end if;
-  if row_count <> 1 then
-    raise exception 'FAIL pinned club_admin sees %/1 assigned-show entries', row_count;
+  if row_count <> 3 then
+    raise exception 'FAIL pinned club_admin sees %/3 fixture entries', row_count;
   end if;
 end;
 $$;

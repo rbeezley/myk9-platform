@@ -417,6 +417,7 @@ function prepare() {
 }
 
 function reset() {
+  if (currentRuntime(process.env) === 'native') return prepareNative();
   const local = readLocalEnvironment(process.env);
   const jobEnv = { ...process.env, ...buildJobEnvironment(local) };
   resolveIsolatedE2eTarget(jobEnv);

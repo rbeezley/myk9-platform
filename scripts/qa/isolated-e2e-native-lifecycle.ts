@@ -16,13 +16,16 @@ import {
   runCommand,
 } from './isolated-e2e-lifecycle';
 import {
+  buildSpecEnv,
   chooseRuntime,
+  findOptionalStackIdForProjectRoot,
   findStackIdForProjectRoot,
   formatSpecRunSummary,
   nativeIntentDefaults,
   nativeStartArgs,
-  specRunEnv,
+  parseE2ePasswords,
   stackDestroyArgs,
+  withPlaywrightDefaults,
   withRuntimeEnv,
   type E2eRuntime,
 } from './isolated-e2e-native';
@@ -51,15 +54,29 @@ function mainCheckoutE2ePasswords(env: NodeJS.ProcessEnv): Record<string, string
     ?.replace(/^worktree /, '');
   const file = root ? resolve(root, 'apps/myk9show/.env.local') : '';
   if (!file || !existsSync(file)) return {};
-  const values: Record<string, string> = {};
-  for (const line of readFileSync(file, 'utf8').split(/\r?\n/)) {
-    const match = line.match(/^(E2E_[A-Z0-9_]*PASSWORD)=(.*)$/);
-    if (!match || match[1] === undefined || match[2] === undefined || env[match[1]]) continue;
-    values[match[1]] = match[2].trim().replace(/^(["'])(.*)\1$/, '$2');
-  }
-  return values;
+  return parseE2ePasswords(readFileSync(file, 'utf8'), env);
 }
 
+function listStacks(env: NodeJS.ProcessEnv): string {
+  return captureCommand(
+    'Supabase stack list',
+    resolveSupabaseCliCommand(env),
+    ['stack', 'list', '--output-format', 'json'],
+    withRuntimeEnv(env, 'native')
+  );
+}
+
+function destroyStack(env: NodeJS.ProcessEnv, stackId: string) {
+  runCommand(
+    'Supabase stack destroy',
+    resolveSupabaseCliCommand(env),
+    stackDestroyArgs(stackId),
+    withRuntimeEnv(env, 'native')
+  );
+}
+
+// Always starts from a clean database: a stack this worktree already has (running, dirtied by a
+// spec, or half-seeded) is destroyed first, because `db reset` is not offered on native stacks.
 export function prepareNative() {
   const baseEnv = {
     ...mainCheckoutE2ePasswords(process.env),
@@ -67,6 +84,11 @@ export function prepareNative() {
     ...nativeIntentDefaults(process.env),
   };
   assertPreparationIntent(baseEnv);
+  const existing = findOptionalStackIdForProjectRoot(listStacks(baseEnv), process.cwd());
+  if (existing !== undefined) {
+    console.log("Destroying this worktree's existing native stack so prepare starts clean");
+    destroyStack(baseEnv, existing);
+  }
   try {
     runCommand(
       'Supabase start (native)',
@@ -80,50 +102,49 @@ export function prepareNative() {
     if (port !== null) console.error(describePortHolder(port));
     throw error;
   }
-  const local = readLocalEnvironment(baseEnv, 'native');
-  const jobEnv = { ...baseEnv, ...buildJobEnvironment(local) };
-  resolveIsolatedE2eTarget(jobEnv);
-  resetAndSeed(local, jobEnv, { skipDbReset: true });
-  console.log(`Isolated E2E target prepared (native): ${LOCAL_E2E_PROJECT_REF}`);
-  console.log(formatSpecRunSummary(local));
-}
-
-function worktreeStackId(env: NodeJS.ProcessEnv): string {
-  const list = captureCommand(
-    'Supabase stack list',
-    resolveSupabaseCliCommand(env),
-    ['stack', 'list', '--output-format', 'json'],
-    withRuntimeEnv(env, 'native')
-  );
-  return findStackIdForProjectRoot(list, process.cwd());
+  try {
+    const local = readLocalEnvironment(baseEnv, 'native');
+    const jobEnv = { ...baseEnv, ...buildJobEnvironment(local) };
+    resolveIsolatedE2eTarget(jobEnv);
+    resetAndSeed(local, jobEnv, { skipDbReset: true });
+    console.log(`Isolated E2E target prepared (native): ${LOCAL_E2E_PROJECT_REF}`);
+    console.log(formatSpecRunSummary(local));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `${message}\nThe native Supabase stack for this worktree is still running. ` +
+        'Remove it with: pnpm qa:isolated-e2e:teardown'
+    );
+  }
 }
 
 export function teardown() {
-  const stackId = worktreeStackId(process.env);
-  runCommand(
-    'Supabase stack destroy',
-    resolveSupabaseCliCommand(process.env),
-    stackDestroyArgs(stackId),
-    withRuntimeEnv(process.env, 'native')
-  );
+  const stackId = findStackIdForProjectRoot(listStacks(process.env), process.cwd());
+  destroyStack(process.env, stackId);
   console.log('Isolated E2E native stack destroyed (this worktree only)');
 }
 
 export function runSpec(args: string[]) {
   if (args.length === 0) throw new Error('Usage: pnpm qa:isolated-e2e:run <spec> [flags]');
   const local = readLocalEnvironment(process.env, 'native');
-  const specEnv = {
-    ...mainCheckoutE2ePasswords(process.env),
-    ...process.env,
-    ...nativeIntentDefaults(process.env),
-    ...buildJobEnvironment(local),
-    ...specRunEnv(local),
-  };
+  const specEnv = buildSpecEnv(
+    {
+      ...mainCheckoutE2ePasswords(process.env),
+      ...process.env,
+      ...nativeIntentDefaults(process.env),
+    },
+    local,
+    buildJobEnvironment(local)
+  );
   resolveIsolatedE2eTarget(specEnv);
   const result = spawnSync(
     'pnpm',
-    ['exec', 'playwright', 'test', ...args, '--workers=1', '--project=chromium'],
-    { cwd: resolve(process.cwd(), 'apps/myk9show'), env: specEnv, stdio: 'inherit' }
+    ['exec', 'playwright', 'test', ...withPlaywrightDefaults(args)],
+    {
+      cwd: resolve(process.cwd(), 'apps/myk9show'),
+      env: specEnv,
+      stdio: 'inherit',
+    }
   );
   if (result.status !== 0) process.exitCode = result.status ?? 1;
 }

@@ -37,7 +37,7 @@ The preparation command writes generated local values to `GITHUB_ENV` only when 
 
 ### One command on a Mac without Docker (MYK9-1934)
 
-When `docker info` fails (or `MYK9_E2E_RUNTIME=native`), `prepare` starts a native Supabase stack (`SUPABASE_EXPERIMENTAL_STACK=1 supabase start --runtime native --exclude studio,mail,analytics,pooler`), seeds it, and runs the post-seed assertions. It reads the `E2E_*_PASSWORD` values from the main checkout's `apps/myk9show/.env.local` when your shell has not set them, and it needs no other variables. CI keeps the Docker path unchanged.
+When `docker info` fails (or `MYK9_E2E_RUNTIME=native`), `prepare` starts a native Supabase stack (`SUPABASE_EXPERIMENTAL_STACK=1 supabase start --runtime native --exclude studio,mail,analytics,pooler`), seeds it, and runs the post-seed assertions. It reads the `E2E_*_PASSWORD` values from the main checkout's `apps/myk9show/.env.local` when your shell has not set them, and it needs no other variables.
 
 ```bash
 pnpm qa:isolated-e2e:prepare                      # ~1 minute; prints the local API URL and anon key
@@ -45,7 +45,12 @@ pnpm qa:isolated-e2e:run src/test/e2e/<spec>.spec.ts   # exports them, runs Play
 pnpm qa:isolated-e2e:teardown                     # destroys only this worktree's stack
 ```
 
-`teardown` finds the stack by matching `project_root` in `supabase stack list` to this worktree, so other worktrees' stacks are never touched. The edge runtime's app functions are not staged on this path, so specs that need them (the wait-list journey) still run in CI only.
+- **Prepare starts clean.** If this worktree already has a native stack (running, dirtied by a spec, or half-seeded), `prepare` destroys it first and starts a new one, because `supabase db reset` is not offered on native stacks. `pnpm qa:isolated-e2e:reset` does the same on native.
+- **After a failed prepare** the stack is left running, and the error says so. Run `pnpm qa:isolated-e2e:teardown`, or just run `prepare` again, which starts clean.
+- **`run`** adds `--project=chromium --workers=1` only when you did not pass your own `--project` or `--workers`. It passes the API URL and anon key and never the service key or DB URL.
+- **`teardown`** finds the stack by matching `project_root` in `supabase stack list` to this worktree (symlinks resolved, trailing slashes ignored, never a prefix match), so other worktrees' stacks are never touched.
+- **CI sets nothing.** Docker is present there, so the Docker path runs unchanged. With `CI=true` or `GITHUB_ACTIONS=true` and no `MYK9_E2E_RUNTIME`, a failed `docker info` fails loudly instead of falling back to native.
+- The app edge functions are not staged on the native path, so specs that need them (the wait-list journey) still run in CI only.
 
 Do not replace `local` with the shared staging project ref. The target resolver fails closed if the project ref, URL, build URL, allowlist, or regression mode is not an approved isolated combination.
 

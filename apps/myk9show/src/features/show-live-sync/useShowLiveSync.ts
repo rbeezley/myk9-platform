@@ -3,8 +3,10 @@
  *
  * Broadcast carries no row data. It only asks ReplicationSyncProvider to run
  * its existing incremental sync, keeping the offline-first replica authoritative.
- * The provider's poll remains the correctness fallback: 60 s, or 3-5 min while
- * the show channel is SUBSCRIBED (MYK9-1305).
+ * The provider's poll cannot be the fallback for a show's entries: it has no
+ * show scope and never downloads them (MYK9-1923). This hook polls the show's
+ * scoped entries and classes itself (`showFallbackPoll`), briskly while the
+ * channel is down and slowly as a safety net while it is SUBSCRIBED.
  */
 
 import { useEffect } from 'react';
@@ -22,6 +24,7 @@ import {
   type ShowChangeSignal,
   type ShowChangeTable,
 } from './showChangeSignal';
+import { showFallbackPollDelayMs } from './showFallbackPoll';
 import { scheduleShowNudge } from './showNudgeGate';
 
 const NUDGE_DEBOUNCE_MS = 400;
@@ -75,6 +78,8 @@ export function useShowLiveSync(showId: string | undefined): void {
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
     let hasConnected = false;
     let explicitPending = false;
+    let subscribed = false;
+    let pollTimer: ReturnType<typeof setTimeout> | null = null;
 
     // MYK9-1304: a change broadcast syncs only what changed, spaced per show by
     // the gate. The fire is show-level and mount-independent (it reads the
@@ -94,6 +99,29 @@ export function useShowLiveSync(showId: string | undefined): void {
           });
       });
     };
+
+    // MYK9-1923: fallback poll. A hidden tab skips its tick; the next visible tick catches it
+    // up. Rides the nudge gate, so it is spaced and coalesced with broadcast nudges.
+    const armPoll = () => {
+      if (pollTimer) clearTimeout(pollTimer);
+      pollTimer = setTimeout(() => {
+        if (unmounted) return;
+        if (document.visibilityState !== 'hidden') {
+          scheduleShowNudge(showId, new Set<ShowChangeTable>(['entries', 'classes']), tables => {
+            void targetsForTables(showId, tables)
+              .catch(() => null)
+              .then(targets => {
+                if (targets)
+                  window.dispatchEvent(
+                    new CustomEvent('replication:sync-requested', { detail: { targets } })
+                  );
+              });
+          });
+        }
+        armPoll();
+      }, showFallbackPollDelayMs(subscribed));
+    };
+    armPoll();
 
     // A change nudge is explicit: run now. A reconnect nudge is `deferred`:
     // events may have been missed while the channel was down, so a pass is owed,
@@ -134,6 +162,10 @@ export function useShowLiveSync(showId: string | undefined): void {
       status => {
         // MYK9-1305: the 3-5 min poll holds only while the channel is SUBSCRIBED.
         markShowChannel(mountToken, status === 'SUBSCRIBED');
+        if (subscribed !== (status === 'SUBSCRIBED')) {
+          subscribed = status === 'SUBSCRIBED';
+          armPoll();
+        }
         if (status !== 'SUBSCRIBED') return;
         if (hasConnected) {
           // MYK9-1301: events may have been missed, so the next count pass runs
@@ -148,6 +180,7 @@ export function useShowLiveSync(showId: string | undefined): void {
     return () => {
       unmounted = true;
       if (debounceTimer) clearTimeout(debounceTimer);
+      if (pollTimer) clearTimeout(pollTimer);
       unsubscribe();
       clearShowChannel(mountToken);
     };

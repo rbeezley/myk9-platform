@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { getClassIds, groupSectionedClasses } from '@myk9/ringside';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { replicatedArmbandsTable, replicatedEntriesTable } from '@/services/replication';
@@ -34,6 +34,15 @@ export function useAtShowStaffDogs(showId: string | undefined): UseAtShowStaffDo
   const queryClient = useQueryClient();
   const classList = useAtShowClassList(showId);
   const { status: syncStatus } = useReplicationSync();
+
+  // Re-read on any local change to the entries replica, as the sibling at-show reads do:
+  // a Discard that puts a refused entry back (MYK9-1922) starts no sync pass.
+  useEffect(() => {
+    if (!showId) return undefined;
+    return replicatedEntriesTable.subscribe(() => {
+      void queryClient.invalidateQueries({ queryKey: ['at-show', 'staff-dogs', showId] });
+    });
+  }, [showId, queryClient]);
 
   const entriesQuery = useQuery({
     queryKey: ['at-show', 'staff-dogs', showId],

@@ -13,6 +13,11 @@
  *   pnpm qa:phone-walk [--base origin/main]   is the walk required for this diff?
  *   pnpm qa:phone-walk --pr <n>               ...and if so, is it green on the PR head?
  *
+ * The verdict is the walk STEP's own conclusion inside the `proof` job (MYK9-1946), read
+ * from the job's step list. The job as a whole also runs unrelated specs; one of those
+ * failing must not block the gate. Fail closed: no job, no step, or a step that did not
+ * succeed is never green.
+ *
  * Exit: 0 not required, or required and green · 1 required and failed · 2 could not decide
  * (a declared path is gone, the PR head is not local HEAD, a bad flag, or git/gh failed) ·
  * 3 required and not finished (not a verdict).
@@ -26,6 +31,9 @@ export const WALK_SPEC = 'apps/myk9show/src/test/e2e/verification/ringsidePhoneW
 export const WALK_CONFIG = 'apps/myk9show/playwright.batch3.config.ts';
 export const WALK_WORKFLOW = 'Isolated scoring and paperwork verification';
 export const WALK_JOB = 'proof';
+/** The workflow step that runs only the walk spec (MYK9-1946). Rename together with the workflow. */
+export const WALK_STEP = 'Phone-width ringside walk';
+export const WALK_WORKFLOW_FILE = '.github/workflows/batch3-verification.yml';
 
 /**
  * Ringside and check-in desk surfaces. A trailing slash is a directory prefix; anything else
@@ -77,29 +85,86 @@ export interface PrCheck {
   name: string;
   workflow: string;
   bucket: string;
+  link?: string;
+}
+
+export interface JobStep {
+  name: string;
+  status: string;
+  conclusion: string | null;
+}
+
+/** True when the workflow still has a step of the walk's name that runs the walk spec. */
+export function workflowRunsWalkStep(workflowSource: string): boolean {
+  const at = workflowSource.indexOf(`name: ${WALK_STEP}`);
+  if (at === -1) return false;
+  const rest = workflowSource.slice(at + 1);
+  const next = rest.search(/\n {6}- /);
+  const block = next === -1 ? rest : rest.slice(0, next);
+  const live = block.replace(/^\s*#.*$/gm, '');
+  // continue-on-error makes a failing walk report `success`: the gate reads only
+  // the step's conclusion, so such a step can never count as the walk.
+  if (/^\s*continue-on-error:/m.test(live)) return false;
+  return /^\s*run:.*ringsidePhoneWalk/m.test(live);
+}
+
+/** `https://github.com/<owner>/<repo>/actions/runs/<run>/job/<job>` -> repo and job id. */
+export function parseJobLink(link: string | undefined): { repo: string; jobId: string } | null {
+  const match = /github\.com\/([^/]+\/[^/]+)\/actions\/runs\/\d+\/job\/(\d+)/.exec(link ?? '');
+  return match ? { repo: match[1] as string, jobId: match[2] as string } : null;
+}
+
+/** The current attempt of the walk's job: the highest job id (a re-run gets a new one). */
+export function currentWalkRun(checks: readonly PrCheck[]): PrCheck | undefined {
+  const runs = checks.filter(check => check.workflow === WALK_WORKFLOW && check.name === WALK_JOB);
+  const id = (check: PrCheck) => Number(parseJobLink(check.link)?.jobId ?? 0);
+  return [...runs].sort((a, b) => id(b) - id(a))[0];
 }
 
 export interface Verdict {
-  code: 0 | 1 | 3;
+  code: 0 | 1 | 2 | 3;
   message: string;
 }
 
-/** Read the walk's job off a PR's checks. Anything but a finished pass is not green. */
-export function walkVerdict(checks: readonly PrCheck[]): Verdict {
-  const runs = checks.filter(check => check.workflow === WALK_WORKFLOW && check.name === WALK_JOB);
-  if (runs.length === 0) {
+/**
+ * Read the walk off a PR's checks and the job's steps. `steps` is the step list of the
+ * current `proof` job, or null when it could not be read. Anything but a finished pass of
+ * the walk step is not green.
+ */
+export function walkVerdict(
+  checks: readonly PrCheck[],
+  steps: readonly JobStep[] | null = null
+): Verdict {
+  const run = currentWalkRun(checks);
+  if (!run) {
     return {
       code: 3,
       message: `no "${WALK_WORKFLOW}" run on this head yet (a PR that conflicts with its base never gets one)`,
     };
   }
-  if (runs.some(run => run.bucket === 'fail' || run.bucket === 'cancel')) {
-    return { code: 1, message: 'the walk failed or was cancelled on this head' };
+  const finished = run.bucket !== 'pending';
+  if (steps === null) {
+    return { code: 2, message: `could not read the steps of the "${WALK_JOB}" job` };
   }
-  if (runs.every(run => run.bucket === 'pass')) {
-    return { code: 0, message: 'the walk is green on this head' };
+  const step = steps.find(entry => entry.name === WALK_STEP);
+  if (!step) {
+    return finished
+      ? {
+          code: 2,
+          message: `the "${WALK_JOB}" job has no "${WALK_STEP}" step (renamed or removed?)`,
+        }
+      : { code: 3, message: 'the walk has not started on this head' };
   }
-  return { code: 3, message: 'the walk has not finished on this head' };
+  if (step.status !== 'completed')
+    return { code: 3, message: 'the walk has not finished on this head' };
+  if (step.conclusion === 'success') return { code: 0, message: 'the walk is green on this head' };
+  if (step.conclusion === 'skipped' && !finished) {
+    return { code: 3, message: 'the walk has not finished on this head' };
+  }
+  return {
+    code: 1,
+    message: `the walk did not pass on this head (step conclusion: ${step.conclusion ?? 'none'})`,
+  };
 }
 
 /** A flag's value, undefined when the flag is absent. A flag with no value is an error. */
@@ -114,6 +179,19 @@ export function readFlag(argv: readonly string[], name: string): string | undefi
 const run = (command: string, args: string[]): string =>
   execFileSync(command, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
 
+/** The steps of the current walk job via REST (GraphQL is refused in cloud sessions), or null. */
+function readWalkSteps(checks: readonly PrCheck[]): JobStep[] | null {
+  const job = parseJobLink(currentWalkRun(checks)?.link);
+  if (!job) return null;
+  try {
+    const out = run('gh', ['api', `repos/${job.repo}/actions/jobs/${job.jobId}`, '--jq', '.steps']);
+    const steps: unknown = JSON.parse(out);
+    return Array.isArray(steps) ? (steps as JobStep[]) : null;
+  } catch {
+    return null;
+  }
+}
+
 function main(): number {
   const base = readFlag(process.argv, '--base') ?? 'origin/main';
   const pr = readFlag(process.argv, '--pr');
@@ -126,6 +204,10 @@ function main(): number {
   }
   if (!configRunsWalk(readFileSync(resolve(root, WALK_CONFIG), 'utf8'))) {
     console.error(`phone walk: ${WALK_CONFIG} no longer runs ringsidePhoneWalk.spec.ts`);
+    return 2;
+  }
+  if (!workflowRunsWalkStep(readFileSync(resolve(root, WALK_WORKFLOW_FILE), 'utf8'))) {
+    console.error(`phone walk: ${WALK_WORKFLOW_FILE} has no "${WALK_STEP}" step running the walk`);
     return 2;
   }
 
@@ -150,7 +232,7 @@ function main(): number {
   let checks: PrCheck[];
   try {
     // `gh pr checks` exits non-zero while checks are pending or failed and still prints them.
-    const out = execFileSync('gh', ['pr', 'checks', pr, '--json', 'name,workflow,bucket'], {
+    const out = execFileSync('gh', ['pr', 'checks', pr, '--json', 'name,workflow,bucket,link'], {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
     });
@@ -164,7 +246,7 @@ function main(): number {
       return 2;
     }
   }
-  const verdict = walkVerdict(checks);
+  const verdict = walkVerdict(checks, readWalkSteps(checks));
   console.log(`phone walk: ${verdict.message}`);
   return verdict.code;
 }

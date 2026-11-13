@@ -44,7 +44,7 @@ base_conflict() {
 # gate_comment_pending <rollup-json> <required-json-array> <gate-runs-json>
 # (MYK9-1933) True when the ONLY red required check is the `Review gate` status
 # and a `review-gate.yml` run triggered by `issue_comment` is still queued or in
-# progress and was created after that status. The status then still holds the
+# progress and was created at or after that status (same-second counts). The status then still holds the
 # `pull_request_target` run's "no independent review recorded" failure while the
 # comment-triggered run that re-evaluates it has not answered, so the red is
 # stale. Match on time and state, never head SHA: that run carries the base
@@ -58,8 +58,31 @@ gate_comment_pending() {
     | ($failed | map(select(. as $f | $req | index($f)))) as $reqFailed
     | ($reqFailed == ["Review gate"]) and ($at != "")
       and any($runs[]; (.status | IN("queued","in_progress","waiting","pending","requested"))
-                       and ((.created_at // "") > $at))
+                       and ((.created_at // "") >= $at))
   ' >/dev/null 2>&1
+}
+
+# settle_budget: seconds the settle window may use: MYK9_PR_GATE_SETTLE_SECONDS (default
+# 60), never past the watcher's own DEADLINE (MYK9-1946).
+settle_budget() {
+  local want="${MYK9_PR_GATE_SETTLE_SECONDS:-60}" left=$(( ${DEADLINE:-0} - $(date +%s) ))
+  [ "${DEADLINE:-0}" -eq 0 ] && { echo "$want"; return; }
+  [ "$left" -lt 0 ] && left=0
+  [ "$left" -lt "$want" ] && want=$left
+  echo "$want"
+}
+
+# gate_settle_wait <rollup> <required> <seconds> <interval-seconds>
+# (MYK9-1946) Like gate_comment_pending, but re-reads the comment-triggered runs for up
+# to <seconds> so a run created just after the watcher's first look is still seen.
+# Returns 0 as soon as one is queued or running, 1 when the window ends without one.
+gate_settle_wait() {
+  local end=$(( $(date +%s) + $3 ))
+  while :; do
+    gate_comment_pending "$1" "$2" "$(fetch_gate_runs || echo '[]')" && return 0
+    [ "$(date +%s)" -ge "$end" ] && return 1
+    sleep "$4"
+  done
 }
 
 # fetch_gate_runs: recent issue_comment runs of the gate workflow FOR THIS PR, as
@@ -94,8 +117,9 @@ extra_self_test() {
 
   # base_conflict end to end with the fetch stubbed (no network). The real
   # fetch is restored afterwards.
-  local real_fetch
+  local real_fetch real_fetch_gate
   real_fetch=$(declare -f fetch_mergeable)
+  real_fetch_gate=$(declare -f fetch_gate_runs)
   bc_check() { # bc_check <label> <expect 0|1> <pull-json> <rollup>
     STUB_PULL="$3"
     fetch_mergeable() { printf '%s' "$STUB_PULL"; }
@@ -132,6 +156,7 @@ extra_self_test() {
   gp_check in-progress-run-waits 0 "$gate_red" '[{"status":"in_progress","created_at":"2026-11-13T10:01:00Z"}]'
   gp_check completed-run-still-red 1 "$gate_red" '[{"status":"completed","created_at":"2026-11-13T10:01:00Z"}]'
   gp_check no-comment-run 1 "$gate_red" '[]'
+  gp_check run-same-second-as-status 0 "$gate_red" '[{"status":"queued","created_at":"2026-11-13T10:00:00Z"}]'
   gp_check run-older-than-status 1 "$gate_red" '[{"status":"queued","created_at":"2026-11-13T09:59:00Z"}]'
   gp_check other-required-also-red 1 "{\"statusCheckRollup\":[{\"name\":\"Quality Checks\",\"conclusion\":\"SUCCESS\"},{\"name\":\"Test\",\"conclusion\":\"FAILURE\"},{\"context\":\"Review gate\",\"state\":\"FAILURE\",\"createdAt\":\"2026-11-13T10:00:00Z\"}]}" '[{"status":"queued","created_at":"2026-11-13T10:01:00Z"}]'
   # After the run completes the refreshed (newer) status is judged as today.
@@ -139,6 +164,36 @@ extra_self_test() {
   [ "$got" = green ] || { echo "SELF-TEST FAIL [gate-comment-refreshed-green]: expected 'green', got '$got'"; ok=1; }
   got=$(verdict "$gate_red" "$gate_req")
   [ "$got" = "required-failed:Review gate" ] || { echo "SELF-TEST FAIL [gate-comment-refreshed-red]: expected 'required-failed:Review gate', got '$got'"; ok=1; }
+
+  # MYK9-1946: a run created after the first look is found inside the settle window.
+  # The call runs in a command substitution, so the look count lives in a file.
+  settle_looks=$(mktemp)
+  : >"$settle_looks"
+  fetch_gate_runs() {
+    echo . >>"$settle_looks"
+    if [ "$(wc -l <"$settle_looks")" -ge "$STUB_APPEARS_AT" ]; then
+      echo '[{"status":"queued","created_at":"2026-11-13T10:00:00Z"}]'
+    else echo '[]'; fi
+  }
+  STUB_APPEARS_AT=2
+  gate_settle_wait "$gate_red" "$gate_req" 2 0 || { echo "SELF-TEST FAIL [gate-settle-late-run]: a run appearing on the 2nd look was missed"; ok=1; }
+  : >"$settle_looks"
+  STUB_APPEARS_AT=999
+  if gate_settle_wait "$gate_red" "$gate_req" 0 0; then echo "SELF-TEST FAIL [gate-settle-no-run]: waited with no run"; ok=1; fi
+  rm -f "$settle_looks"
+  eval "$real_fetch_gate"
+
+  # MYK9-1946: a CANCELLED evidence run beside a green Review gate status is not a failure.
+  ev_check() { # ev_check <label> <expected> <evidence conclusion> <gate state|none>
+    local gate=""
+    [ "$4" != none ] && gate=",{\"context\":\"Review gate\",\"state\":\"$4\",\"createdAt\":\"2026-11-13T10:00:00Z\"}"
+    got=$(verdict "{\"statusCheckRollup\":[$gate_base,{\"name\":\"Evaluate review evidence\",\"conclusion\":\"$3\"}$gate]}" '["Quality Checks","Test"]')
+    [ "$got" = "$2" ] || { echo "SELF-TEST FAIL [evidence-$1]: expected '$2', got '$got'"; ok=1; }
+  }
+  ev_check cancelled-gate-green green CANCELLED SUCCESS
+  ev_check failure-gate-green 'preview-failed:Evaluate review evidence' FAILURE SUCCESS
+  ev_check cancelled-gate-red 'preview-failed:Evaluate review evidence, Review gate' CANCELLED FAILURE
+  ev_check cancelled-no-gate 'preview-failed:Evaluate review evidence' CANCELLED none
 
   # REST payloads reach the same verdicts (MYK9-1414): lower-case enums, a
   # status context's state, and the draft->ready stale rule, which only works

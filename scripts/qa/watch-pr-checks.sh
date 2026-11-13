@@ -133,7 +133,15 @@ JQ_VERDICT='
   | [$cur[] | select(answered and (passing | not) and (stale($cur) | not)) | key] as $failed
   | ($req - $settled) as $pending
   | ($failed | map(select(. as $f | $req | index($f)))) as $reqFailed
-  | ($failed | map(select(. as $f | $req | index($f) | not))) as $otherFailed
+  # MYK9-1946: the pull_request_target "Evaluate review evidence" run is CANCELLED when
+  # the comment-triggered run supersedes it. Once the Review gate STATUS is green that
+  # cancellation says nothing; a FAILURE conclusion, or a red/absent gate, still counts.
+  | (any($cur[]; .context == "Review gate" and ((.state // "") == "SUCCESS"))) as $gateGreen
+  | ($failed | map(select(. as $f | $req | index($f) | not))) as $otherAll
+  | ([$cur[] | select(key == "Evaluate review evidence" and (.conclusion // "") == "CANCELLED")] | length > 0) as $evCancelled
+  | (if $gateGreen and $evCancelled
+     then ($otherAll | map(select(. != "Evaluate review evidence")))
+     else $otherAll end) as $otherFailed
   | if   ($reqFailed   | length) > 0 then "required-failed:" + ($reqFailed   | join(", "))
     elif ($pending     | length) > 0 then "waiting:"         + ($pending     | join(", "))
     elif ($otherFailed | length) > 0 then "preview-failed:"  + ($otherFailed | join(", "))
@@ -471,7 +479,9 @@ while :; do
   # MYK9-1933: a lone red `Review gate` may be the pull_request_target run's stale
   # "no review recorded" failure while the issue_comment run that re-evaluates it
   # is still queued. Wait for that run (within the usual timeout) instead of exit 1.
-  if [ "$RESULT" = "required-failed:Review gate" ] && gate_comment_pending "$RESPONSE" "$REQUIRED" "$(fetch_gate_runs || echo '[]')"; then
+  # MYK9-1946: the run can be created in the same second the watcher first looks, so a
+  # red lone gate gets a short settle window before it is believed.
+  if [ "$RESULT" = "required-failed:Review gate" ] && gate_settle_wait "$RESPONSE" "$REQUIRED" "$(settle_budget)" "${MYK9_PR_GATE_SETTLE_INTERVAL:-5}"; then
     RESULT="waiting:Review gate (comment-triggered run in flight)"
     echo "Review gate is red but a comment-triggered review-gate.yml run is still queued or running; waiting for it"
   fi

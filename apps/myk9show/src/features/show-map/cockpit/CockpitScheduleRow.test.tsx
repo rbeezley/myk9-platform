@@ -84,15 +84,28 @@ describe('CockpitScheduleRow pending link', () => {
     );
   });
 
-  it('keeps the judge off the class-name line, so neither is squeezed in the narrow rail', () => {
+  it('puts the judge on line 1 with the class name, and line 2 holds only the status phrase', () => {
     renderRow(0);
     const judge = screen.getByTestId('class-judge');
     const className = screen.getByRole('button', { name: 'Container Novice' });
-    expect(judge).toHaveTextContent('Judge to be announced');
-    // A flex-1 truncating judge beside the class name collapsed to a few pixels at 300px.
-    expect(judge.parentElement).not.toBe(className.parentElement);
+    expect(judge).toHaveTextContent(/^Judge to be announced$/);
+    expect(judge.parentElement).toContainElement(className);
+    expect(judge.parentElement).not.toContainElement(screen.getByTestId('class-status-line'));
+    expect(screen.getByTestId('class-status-line').parentElement).not.toHaveTextContent(
+      'Judge to be announced'
+    );
+  });
+
+  it('wraps line 1 instead of truncating, so the judge cannot collapse in the 300px rail', () => {
+    renderRow(0);
+    const judge = screen.getByTestId('class-judge');
+    expect(judge.parentElement).toHaveClass('flex-wrap');
+    // Time and name share their own row, so a long name wraps beside the time, not below it.
+    const className = screen.getByRole('button', { name: 'Container Novice' });
+    expect(className.parentElement).not.toHaveClass('flex-wrap');
+    expect(className.parentElement).toContainElement(screen.getByText('9:00 AM'));
     expect(judge.closest('.truncate')).toBeNull();
-    expect(judge.parentElement).toContainElement(screen.getByTestId('class-status-line'));
+    expect(judge).not.toHaveClass('flex-1');
   });
 
   it('marks a recorded start as started, so it is not read as the planned time', () => {

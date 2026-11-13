@@ -317,11 +317,12 @@ async function expectTrial3Judge(page: Page, text: string) {
   await page.reload();
   await page.getByRole('button', { name: /^Expand Trial 3/ }).click({ timeout: 30_000 });
   for (const cls of TRIAL_3_CLASS_NAMES) {
-    // The class's text column: the name button on line 1 and the judge at the start of line 2.
-    const row = page
+    // The judge sits on line 1 beside the class name (MYK9-1782); read the row's own judge cell.
+    const judge = page
       .getByRole('button', { name: cls, exact: true })
-      .locator('xpath=ancestor::div[contains(@class, "min-w-0")][1]');
-    await expect(row).toContainText(text, { timeout: 15_000 });
+      .locator('xpath=ancestor::div[.//*[@data-testid="class-judge"]][1]')
+      .getByTestId('class-judge');
+    await expect(judge).toContainText(text, { timeout: 15_000 });
   }
 }
 

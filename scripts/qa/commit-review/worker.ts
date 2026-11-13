@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
+import { dirname } from 'node:path';
 
 export interface WorkerRequest {
   recordPath: string;
@@ -80,6 +81,40 @@ export function parseSessionId(stdout: string): string | undefined {
   return undefined;
 }
 
+/**
+ * The worker runs as a nested `codex exec`, which does not inherit the automation's
+ * session settings. Left to defaults it got `approval_policy=never` and a sandbox that
+ * cannot write the run record, so every `mark-reviewed` failed and the 2026-11-13 run
+ * blocked at 0/63 (MYK9-1883). Pin it to the nightly automation's own mode (workspace
+ * sandbox, escalations auto-reviewed) and make the record's directory writable.
+ * `codex exec resume` takes no `--sandbox`/`--add-dir`, so everything goes through `-c`.
+ */
+function workerSandboxArgs(recordPath: string): string[] {
+  return [
+    '-c',
+    'sandbox_mode="workspace-write"',
+    '-c',
+    `sandbox_workspace_write.writable_roots=[${JSON.stringify(dirname(recordPath))}]`,
+    '-c',
+    'approval_policy="on-request"',
+    '-c',
+    'approvals_reviewer="auto_review"',
+  ];
+}
+
+export function buildCodexArgs(
+  req: WorkerRequest,
+  prompt: string,
+  extraArgs: string[] = []
+): string[] {
+  // `codex exec resume` has no -C; the working directory is set by spawn's cwd for both.
+  // extraArgs come last so COMMIT_REVIEW_CODEX_ARGS can still override a default.
+  const flags = ['--json', ...workerSandboxArgs(req.recordPath), ...extraArgs];
+  return req.sessionId
+    ? ['exec', 'resume', ...flags, req.sessionId, prompt]
+    : ['exec', ...flags, prompt];
+}
+
 export interface RealWorkerConfig {
   repoDir: string;
   instructionsFile: string;
@@ -99,11 +134,7 @@ export function realLaunchWorker(cfg: RealWorkerConfig): LaunchWorker {
         return;
       }
       const prompt = buildPrompt(req, readFileSync(cfg.instructionsFile, 'utf8'));
-      // `codex exec resume` has no -C; the working directory is set by spawn's cwd for both.
-      const flags = ['--json', ...(cfg.extraArgs ?? [])];
-      const args = req.sessionId
-        ? ['exec', 'resume', ...flags, req.sessionId, prompt]
-        : ['exec', ...flags, prompt];
+      const args = buildCodexArgs(req, prompt, cfg.extraArgs);
       const child = spawn(cfg.codexBin ?? 'codex', args, {
         cwd: cfg.repoDir,
         stdio: ['ignore', 'pipe', 'pipe'],

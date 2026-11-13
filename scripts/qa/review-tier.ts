@@ -205,8 +205,8 @@ export function optionalReviewReason(input: OptionalReviewInput): string | undef
 }
 
 function floorFor(file: string, exempt: ReadonlySet<string>): { tier: Tier; reason: string } {
-  // MYK9-1932: a lowering-only ratchet baseline or a comment-only edit (decided
-  // from the diff by review-tier-exemptions.ts) skips ONLY the guardrail rule
+  // MYK9-1932: a lowering-only allowlisted ratchet baseline (decided from file
+  // contents by review-tier-exemptions.ts) skips ONLY the guardrail rule
   // and falls to the ordinary tooling floor below.
   if (!exempt.has(file) && INDEPENDENT_PATTERNS.some(p => p.test(file))) {
     return { tier: 'independent', reason: `${file} is a guardrail or high-risk path` };
@@ -246,7 +246,7 @@ export function meetsFloor(supplied: Tier, floor: Tier): boolean {
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
-import { exemptGuardrailFiles } from './review-tier-exemptions.ts';
+import { exemptBaselineFilesViaGit } from './review-tier-exemptions.ts';
 
 /** Files changed against a base ref, for the CLI. */
 export function changedFiles(base: string): string[] {
@@ -299,6 +299,11 @@ function manifestsVerified(base: string, files: readonly string[]): boolean {
   }
 }
 
+function optionValue(argv: readonly string[], name: string): string | undefined {
+  const index = argv.indexOf(name);
+  return index === -1 ? undefined : argv[index + 1];
+}
+
 function labelArgs(argv: readonly string[]): string[] {
   return argv.flatMap((arg, i) => (arg === '--label' ? [argv[i + 1] ?? ''] : []));
 }
@@ -310,23 +315,30 @@ function labelArgs(argv: readonly string[]): string[] {
  * check `evaluateReviewGate` applies afterwards. One table, two callers; a
  * copied rule in shell would drift (fallback review of #2243, S-c).
  */
-function runFilesStdin(): void {
+function runFilesStdin(argv: readonly string[]): void {
   const raw = readFileSync(0, 'utf8');
   const files = raw.split('\n').filter(Boolean);
   // An empty list is not "no risk": it is "we could not tell". Match
   // review-gate.ts's resolveFloor, which pins an empty list to independent.
-  console.log(files.length === 0 ? 'independent' : requiredTier(files).tier);
+  // post-review-gate.sh passes the SHAs it checks the diff over, so the claimed
+  // floor includes the same baseline exemption the gate computes; without them
+  // the floor stays strict.
+  const baseSha = optionValue(argv, '--base');
+  const headSha = optionValue(argv, '--head');
+  const exempt =
+    baseSha && headSha ? exemptBaselineFilesViaGit(baseSha, headSha, files) : new Set<string>();
+  console.log(files.length === 0 ? 'independent' : requiredTier(files, exempt).tier);
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   if (process.argv.includes('--files-stdin')) {
-    runFilesStdin();
+    runFilesStdin(process.argv);
     process.exit(0);
   }
   const baseIndex = process.argv.indexOf('--base');
   const base = baseIndex === -1 ? 'origin/main' : (process.argv[baseIndex + 1] ?? 'origin/main');
   const files = changedFiles(base);
-  const exempt = exemptGuardrailFiles(base, files);
+  const exempt = exemptBaselineFilesViaGit(base, 'HEAD', files);
   const { tier, reason } = requiredTier(files, exempt);
   const labels = labelArgs(process.argv);
   const optional = optionalReviewReason({

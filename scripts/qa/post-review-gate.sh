@@ -233,7 +233,7 @@ if [ "$REVIEWER" = "owner" ]; then
   OWNER_DIFF="$(git diff --name-only "$BASE...$HEAD" 2>/dev/null || true)"
   if [ -n "$OWNER_DIFF" ]; then
     CLAIMED_FLOOR="$(printf '%s' "$VERDICT" | tr '[:upper:]' '[:lower:]' | sed -n 's/^override, floor was \([a-z][a-z]*\)\.\{0,1\}$/\1/p')"
-    REAL_FLOOR="$(printf '%s\n' "$OWNER_DIFF" | node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON "$HERE/review-tier.ts" --files-stdin)"
+    REAL_FLOOR="$(printf '%s\n' "$OWNER_DIFF" | node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON "$HERE/review-tier.ts" --files-stdin --base "$BASE" --head "$HEAD")"
     if [ -n "$CLAIMED_FLOOR" ] && [ "$CLAIMED_FLOOR" != "$REAL_FLOOR" ]; then
       echo "post-review-gate: override claims floor was $CLAIMED_FLOOR, but the real floor for $BASE...$HEAD is $REAL_FLOOR; nothing posted" >&2
       exit 2

@@ -1,27 +1,37 @@
 /**
- * Narrow exemptions from the guardrail (`independent`) floor, decided from the
- * DIFF, never the file name (MYK9-1932). A file here still falls to its
- * ordinary floor (`adversarial`: tooling code), so it is never treated as docs.
+ * The one narrow exemption from the guardrail (`independent`) floor, decided
+ * from file CONTENTS at two commits, never from the file name (MYK9-1932). An
+ * exempt file still falls to its ordinary floor (`adversarial`: tooling code),
+ * so it is never treated as docs.
  *
- * Two shapes qualify, and everything else keeps today's tier:
- *  - a ratchet baseline (`scripts/qa/*baseline*.json`) whose only effect is
- *    lowering counts or removing entries (raising a count, adding an entry or
- *    changing any non-numeric value does not qualify);
- *  - a file whose changed lines are all comments.
- * Fail closed: any file or diff that cannot be read is NOT exempt.
+ * Only an allowlisted ratchet baseline whose change lowers counts or removes
+ * entries qualifies. A comment-only exemption was considered and rejected: a
+ * line-based check is bypassable (block-comment wrapping, code after a closing comment marker,
+ * template literals, heredocs), and a per-language tokenizer is too much
+ * attack surface for a security gate.
+ *
+ * Fail closed: any fetch or parse error, and any added or deleted file (it has
+ * no counterpart on one side), is NOT exempt. Shared by the gate (contents by
+ * SHA through the GitHub API; `pull_request_target` never checks out the PR
+ * head), `qa:review-tier` and `--files-stdin` (contents through git), so the
+ * floor an override claims equals the floor the gate computes.
  */
 import { execFileSync } from 'node:child_process';
-import { extname } from 'node:path';
 
-const BASELINE_PATTERN = /^scripts\/qa\/[^/]*baseline[^/]*\.json$/;
+/**
+ * Baselines under scripts/qa/ whose every number is a ratchet cap (lower is
+ * better). A new baseline file is never exempt until added here.
+ * Excluded: `typecheck-scripts.baseline.json` (a JSON array of error strings,
+ * not counts).
+ */
+export const RATCHET_BASELINE_ALLOWLIST: ReadonlySet<string> = new Set([
+  'scripts/qa/code-quality-ratchet.baseline.json',
+  'scripts/qa/em-dash-ratchet.baseline.json',
+]);
 
 /** Keys whose value is never a ratchet count: pure bookkeeping or schema. */
 const IGNORED_KEYS = new Set(['updatedAt']);
 const MUST_MATCH_TOP_LEVEL_KEYS = new Set(['version']);
-
-const SLASH_COMMENT_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs']);
-/** `#` is a comment here; in `.md` it is a heading and in `.json` it is data. */
-const HASH_COMMENT_EXTENSIONS = new Set(['.sh', '.yml', '.yaml', '.toml', '']);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -60,83 +70,89 @@ export function baselineChangeIsLoweringOnly(baseText: string, headText: string)
   return isLoweringOnly(base, head, true);
 }
 
-function lineIsComment(file: string, trimmed: string): boolean {
-  const ext = extname(file).toLowerCase();
-  if (SLASH_COMMENT_EXTENSIONS.has(ext)) {
-    return /^(\/\/|\/\*|\*\/|\*(\s|$))/.test(trimmed);
-  }
-  // A shebang is code: it picks the interpreter.
-  if (HASH_COMMENT_EXTENSIONS.has(ext)) return trimmed.startsWith('#') && !trimmed.startsWith('#!');
-  return false;
-}
+/** Reads one file at the merge base and at head; throws when either is absent. */
+export type BaselineReader = (file: string) => { base: string; head: string };
 
 /**
- * True when every added or removed line of a `-U0` unified diff is a comment
- * for this file's language. An empty diff is not an exemption.
+ * The subset of `files` that are allowlisted baselines whose change is
+ * lowering-only. Any reader error leaves that file out (fail closed).
  */
-export function diffIsCommentOnly(file: string, unifiedDiff: string): boolean {
-  let changed = 0;
-  for (const line of unifiedDiff.split('\n')) {
-    if (line.startsWith('+++') || line.startsWith('---')) continue;
-    if (line[0] !== '+' && line[0] !== '-') continue;
-    changed += 1;
-    if (!lineIsComment(file, line.slice(1).trim())) return false;
-  }
-  return changed > 0;
-}
-
-interface GitOptions {
-  cwd?: string;
-}
-
-function git(args: readonly string[], options: GitOptions): string {
-  return execFileSync('git', [...args], {
-    encoding: 'utf8',
-    stdio: 'pipe',
-    maxBuffer: 16 * 1024 * 1024,
-    ...(options.cwd ? { cwd: options.cwd } : {}),
-  });
-}
-
-function fileIsExempt(base: string, mergeBase: string, file: string, options: GitOptions): boolean {
-  try {
-    if (BASELINE_PATTERN.test(file)) {
-      return baselineChangeIsLoweringOnly(
-        git(['show', `${mergeBase}:${file}`], options),
-        git(['show', `HEAD:${file}`], options)
-      );
-    }
-    // --no-renames: a moved guardrail file reads as delete + add, never exempt
-    // by similarity.
-    const diff = git(
-      ['diff', '-U0', '--no-color', '--no-renames', `${base}...HEAD`, '--', file],
-      options
-    );
-    return diffIsCommentOnly(file, diff);
-  } catch {
-    return false;
-  }
-}
-
-/**
- * The subset of `files` whose change against `base` qualifies for the
- * exemption. The caller must still decide which of them are guardrail paths:
- * an exempt file is only one whose guardrail classification may be skipped.
- */
-export function exemptGuardrailFiles(
-  base: string,
-  files: readonly string[],
-  options: GitOptions = {}
-): Set<string> {
+export function exemptBaselineFiles(files: readonly string[], read: BaselineReader): Set<string> {
   const exempt = new Set<string>();
-  let mergeBase: string;
-  try {
-    mergeBase = git(['merge-base', base, 'HEAD'], options).trim();
-  } catch {
-    return exempt;
-  }
   for (const file of files) {
-    if (fileIsExempt(base, mergeBase, file, options)) exempt.add(file);
+    if (!RATCHET_BASELINE_ALLOWLIST.has(file)) continue;
+    try {
+      const { base, head } = read(file);
+      if (baselineChangeIsLoweringOnly(base, head)) exempt.add(file);
+    } catch {
+      // An added or deleted file 404s on one side: not exempt.
+    }
   }
   return exempt;
+}
+
+const hasAllowlisted = (files: readonly string[]) =>
+  files.some(file => RATCHET_BASELINE_ALLOWLIST.has(file));
+
+/** `gh` runner shape shared with review-gate.ts and optional-review-inputs.ts. */
+export type GhRunner = (args: string[]) => string;
+
+/** Gate path: contents by SHA through the GitHub API, no working tree. */
+export function exemptBaselineFilesViaGh(
+  run: GhRunner,
+  repo: string,
+  input: { changedFiles: readonly string[]; baseSha?: string; headSha: string }
+): Set<string> {
+  if (!hasAllowlisted(input.changedFiles) || !input.baseSha) return new Set();
+  let mergeBase: string;
+  try {
+    // GitHub diffs a PR against the merge base, not the base tip.
+    mergeBase = run([
+      'api',
+      '--jq',
+      '.merge_base_commit.sha',
+      `repos/${repo}/compare/${input.baseSha}...${input.headSha}`,
+    ]).trim();
+  } catch {
+    return new Set();
+  }
+  if (!mergeBase) return new Set();
+  const at = (file: string, ref: string) =>
+    run([
+      'api',
+      '-H',
+      'Accept: application/vnd.github.raw+json',
+      `repos/${repo}/contents/${file}?ref=${ref}`,
+    ]);
+  return exemptBaselineFiles(input.changedFiles, file => ({
+    base: at(file, mergeBase),
+    head: at(file, input.headSha),
+  }));
+}
+
+/** Local path: contents through git, for `qa:review-tier` and `--files-stdin`. */
+export function exemptBaselineFilesViaGit(
+  base: string,
+  head: string,
+  files: readonly string[],
+  cwd?: string
+): Set<string> {
+  if (!hasAllowlisted(files)) return new Set();
+  const git = (args: string[]) =>
+    execFileSync('git', args, {
+      encoding: 'utf8',
+      stdio: 'pipe',
+      maxBuffer: 16 * 1024 * 1024,
+      ...(cwd ? { cwd } : {}),
+    });
+  let mergeBase: string;
+  try {
+    mergeBase = git(['merge-base', base, head]).trim();
+  } catch {
+    return new Set();
+  }
+  return exemptBaselineFiles(files, file => ({
+    base: git(['show', `${mergeBase}:${file}`]),
+    head: git(['show', `${head}:${file}`]),
+  }));
 }

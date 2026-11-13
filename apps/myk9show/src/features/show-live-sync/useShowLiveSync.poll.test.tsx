@@ -18,7 +18,10 @@ vi.mock('./showChangeSignal', () => ({
     return () => undefined;
   },
 }));
-vi.mock('@myk9/replication', () => ({ markRealtimeReconnected: vi.fn() }));
+vi.mock('@myk9/replication', async importOriginal => ({
+  SYNC_INTERVAL_MS: (await importOriginal<typeof import('@myk9/replication')>()).SYNC_INTERVAL_MS,
+  markRealtimeReconnected: vi.fn(),
+}));
 vi.mock('@/services/replication', () => ({
   replicatedTrialsTable: { getTrialsByShow: vi.fn().mockResolvedValue([{ id: 'trial-1' }]) },
   replicatedClassesTable: { getClassById: vi.fn().mockResolvedValue({ id: 'class-1' }) },

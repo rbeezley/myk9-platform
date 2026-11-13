@@ -32,6 +32,7 @@ import {
 import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { logger } from '@myk9/core';
 import type { Entry } from '../../../stores/entryStore';
+import { computeDragRunOrder } from './dragRunOrder';
 
 interface UseDragAndDropEntriesOptions {
   /** All local entries (for merging after drag) */
@@ -46,9 +47,11 @@ interface UseDragAndDropEntriesOptions {
    * In apps/myk9q the binding is the `updateExhibitorOrder` export from
    * `services/entryService`, wired by the shim re-export.
    *
-   * `previous` is the pre-drop snapshot of the same view, still carrying each
+   * `previous` is the pre-drop snapshot of the same rows, still carrying each
    * entry's prior `exhibitorOrder`, so the host can write only the rows whose
-   * order changed instead of renumbering the whole class.
+   * order changed instead of renumbering the whole class. Normally `entries` is the
+   * dragged (pending) dogs only; when their slots are unusable it is the whole class
+   * so scored dogs' healed numbers are written too (MYK9-1914).
    */
   updateExhibitorOrder: (entries: Entry[], previous: Entry[]) => Promise<unknown>;
   /** External isDraggingRef - if provided, hook uses it instead of creating its own */
@@ -226,27 +229,23 @@ export function useDragAndDropEntries({
       // Create new reordered array from the snapshot
       const reorderedEntries = arrayMove(snapshot, oldIndex, targetIndex);
 
-      // Update exhibitor_order values locally. Drag mode opens on the whole list (the page clears
-      // the search and Section tab first, MYK9-1808), so 1..N never collides with a hidden dog,
-      // and renumbering also heals dogs that shared a run order.
-      const entriesWithNewOrder = reorderedEntries.map((entry, index) => ({
-        ...entry,
-        exhibitorOrder: index + 1,
-      }));
-
-      // Merge reordered entries back into localEntries (preserving entries not in current view)
-      const reorderedIds = new Set(entriesWithNewOrder.map(e => e.id));
-      const otherEntries = localEntries.filter(entry => !reorderedIds.has(entry.id));
-      const newAllEntries = [...otherEntries, ...entriesWithNewOrder];
+      // Scored and other hidden dogs keep their run orders; the drag only permutes the dragged
+      // dogs among the slots they held, or heals the whole class when those slots are unusable
+      // (MYK9-1914). When the whole class is dragged this is a plain 1..N renumber.
+      const { written, previous, allEntries, dragged } = computeDragRunOrder(
+        snapshot,
+        reorderedEntries,
+        localEntries
+      );
 
       // Single atomic state update for smooth UX
-      setLocalEntries(newAllEntries);
-      setManualOrder(entriesWithNewOrder);
+      setLocalEntries(allEntries);
+      setManualOrder(dragged);
 
       // Update database and AWAIT it to prevent race conditions with sync
       setIsUpdatingOrder(true);
       try {
-        await updateExhibitorOrder(entriesWithNewOrder, snapshot);
+        await updateExhibitorOrder(written, previous);
       } catch (error) {
         logger.error('Failed to update run order in database:', error);
         // The old comment here reasoned "if offline, the sync will happen later"

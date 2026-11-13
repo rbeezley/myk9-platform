@@ -30,6 +30,25 @@ describe('buildActiveRoleScopes', () => {
   });
 });
 
+describe('buildActiveRoleScopes club_id (MYK9-1886)', () => {
+  it('carries the grant club on a show-pinned scope', () => {
+    const scopes = buildActiveRoleScopes(
+      [
+        {
+          role_id: UserRole.CLUB_ADMIN,
+          role: { name: UserRole.CLUB_ADMIN, display_name: 'Club Admin' },
+          scope_type: ScopeType.SHOW,
+          scope_id: 'show-1',
+          club_id: 'club-1',
+          is_active: true,
+        },
+      ],
+      'user-1'
+    );
+    expect(scopes[0]).toMatchObject({ scopeType: 'show', scopeId: 'show-1', clubId: 'club-1' });
+  });
+});
+
 describe('getUniqueActiveRoleNames', () => {
   it('deduplicates repeated scoped role rows', () => {
     const roles: UserRoleWithDetails[] = [

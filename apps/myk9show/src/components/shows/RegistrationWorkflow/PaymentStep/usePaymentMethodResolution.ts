@@ -13,7 +13,7 @@
 
 import { useShowStore } from '@/store/showStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { hasClubAdminGrant, hasScopedClubRole } from '@/utils/roleScopes';
+import { hasScopedClubRole, hasClubAdminGrant } from '@/utils/roleScopes';
 import { UserRole } from '@/types/auth-types';
 import { useRegistrationPermissions } from '@/hooks/useRegistrationPermissions';
 import { useClubStripePaymentReadiness } from '@/features/payments/useClubStripeAccount';
@@ -95,7 +95,7 @@ export function usePaymentMethodResolution(
     canUseDeskPaymentActions:
       isSiteAdmin ||
       (isSecretary && hasScopedClubRole(userWithRoles, UserRole.SECRETARY, show?.clubId)) ||
-      (isClubAdmin && hasClubAdminGrant(userWithRoles, { clubId: show?.clubId, showId })),
+      (isClubAdmin && hasClubAdminGrant(userWithRoles, { clubId: show?.clubId, shows })),
     show,
     cardCheckoutUnavailableReason: isOnBehalf
       ? undefined

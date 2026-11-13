@@ -425,4 +425,45 @@ describe('ClassSelectionStep — started classes (MYK9-516, integration)', () =>
     expect(await screen.findByText('This class has started')).toBeInTheDocument();
     expect(screen.getByRole('checkbox')).toHaveAttribute('aria-disabled', 'true');
   });
+  describe('a club admin granted for one show (MYK9-1886)', () => {
+    function asClubAdmin(clubId: string | undefined) {
+      mockUseAuthContext.mockReturnValue({
+        isSecretary: false,
+        isAdmin: false,
+        user: null,
+        hasRole: (role: string) => role === 'club_admin',
+        userWithRoles: {
+          // The grant is pinned to a show that is not in `shows` (soft-deleted or another
+          // show): only the grant's own club_id can place it.
+          scopes: [
+            {
+              scopeType: 'show',
+              scopeId: 'anchor-show-gone',
+              roleId: 'club_admin',
+              ...(clubId ? { clubId } : {}),
+            },
+          ],
+        },
+      });
+    }
+
+    it('takes a gate entry into a running class at another show of the same club', async () => {
+      setupStepMocks({ availabilityStatus: 'in_progress' });
+      asClubAdmin(CLUB_ID);
+      renderStep();
+
+      expect(await screen.findByText('Advanced')).toBeInTheDocument();
+      expect(screen.queryByText('This class has started')).not.toBeInTheDocument();
+      expect(screen.getByRole('checkbox')).not.toHaveAttribute('aria-disabled', 'true');
+    });
+
+    it('is blocked as an exhibitor when the grant belongs to another club', async () => {
+      setupStepMocks({ availabilityStatus: 'in_progress' });
+      asClubAdmin('club-somewhere-else');
+      renderStep();
+
+      expect(await screen.findByText('This class has started')).toBeInTheDocument();
+      expect(screen.getByRole('checkbox')).toHaveAttribute('aria-disabled', 'true');
+    });
+  });
 });

@@ -23,6 +23,8 @@ export interface UserRoleWithDetails {
   };
   scope_type?: string | null;
   scope_id?: string | null;
+  /** The grant's own `club_id`; set on a show-pinned grant, whose scope id is the show. */
+  club_id?: string | null;
   assigned_at?: string;
   is_active: boolean;
 }

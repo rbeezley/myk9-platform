@@ -39,20 +39,36 @@ export function hasScopedShowRole(
 const CLUB_SECRETARY_ROLE_NAMES: readonly string[] = [UserRole.SECRETARY, 'trial_secretary'];
 
 /**
- * Mirrors `is_club_admin(club)` (migration 156): an active club_admin grant whose
- * `club_id` is this club, WHETHER OR NOT `show_id` is set. The client scope list
- * keeps only one id per grant, so a club_admin grant pinned to a show shows up as a
- * SHOW scope on that show's id; pass `showId` where the surface knows its show so
- * that grant counts, as it does on the server.
+ * THE one club_admin rule. Mirrors `is_club_admin(club)` / `is_show_club_admin(show)`
+ * (migration 156, MYK9-1886): an active club_admin grant whose `club_id` is this club,
+ * WHETHER OR NOT `show_id` is set, so a club admin granted for one show manages every show
+ * of that club. The client scope list keeps one id per grant, so a show-pinned grant is a
+ * SHOW scope on its own show's id and carries its club as `scope.clubId`
+ * (`user_roles.club_id`), which needs no live show: a soft-deleted anchoring show does not
+ * revoke it. `showId` also counts the grant on that exact show, and `shows` is the fallback
+ * for a grant whose club could not be read.
  */
 export function hasClubAdminGrant(
   user: UserWithRoles | null | undefined,
-  { clubId, showId }: { clubId?: string | undefined; showId?: string | undefined }
+  {
+    clubId,
+    showId,
+    shows,
+  }: {
+    clubId?: string | undefined;
+    showId?: string | undefined;
+    shows?: readonly { id: string; clubId?: string | null }[] | undefined;
+  }
 ): boolean {
-  return (
-    hasScopedClubRole(user, UserRole.CLUB_ADMIN, clubId) ||
-    hasScopedShowRole(user, UserRole.CLUB_ADMIN, showId)
-  );
+  if (hasScopedShowRole(user, UserRole.CLUB_ADMIN, showId)) return true;
+  if (!clubId) return false;
+  return (user?.scopes ?? []).some(scope => {
+    if (scope.roleId !== UserRole.CLUB_ADMIN) return false;
+    if (scope.scopeType === ScopeType.CLUB) return scope.scopeId === clubId;
+    if (scope.scopeType !== ScopeType.SHOW) return false;
+    if (scope.clubId) return scope.clubId === clubId;
+    return !!shows?.some(s => s.id === scope.scopeId && s.clubId === clubId);
+  });
 }
 
 /**
@@ -93,6 +109,8 @@ export interface ShowSurfaceViewer {
   userWithRoles: UserWithRoles | null | undefined;
   /** Club that owns the show this surface belongs to. */
   clubId: string | undefined;
+  /** Replicated shows, the fallback for a show-pinned club_admin grant with no `clubId`. */
+  shows?: readonly { id: string; clubId?: string | null }[] | undefined;
 }
 
 /**
@@ -122,6 +140,7 @@ export function canManageShowSurface({
   hasRole,
   userWithRoles,
   clubId,
+  shows,
 }: ShowSurfaceViewer): boolean {
   if (isAdmin) return true;
   // The club id is unknown while the show is still resolving. Deny by default:
@@ -132,7 +151,8 @@ export function canManageShowSurface({
   // fixture scope with no role (a guest) grants nothing. `trial_secretary` is not a UserRole,
   // so it has no global role to pair with; it is the same server helper, and counts on its scope.
   if (isSecretary && hasClubSecretaryGrant(userWithRoles, clubId)) return true;
-  if (hasRole(UserRole.CLUB_ADMIN) && hasClubAdminGrant(userWithRoles, { clubId })) return true;
+  if (hasRole(UserRole.CLUB_ADMIN) && hasClubAdminGrant(userWithRoles, { clubId, shows }))
+    return true;
   return hasClubSecretaryGrant(userWithRoles, clubId, ['trial_secretary']);
 }
 
@@ -152,14 +172,20 @@ export function managedClubIds(viewer: {
   userWithRoles: UserWithRoles | null | undefined;
 }): Set<string> | null {
   if (viewer.isAdmin) return null;
-  return new Set(
-    (viewer.userWithRoles?.scopes ?? [])
-      .filter(
-        scope =>
-          scope.scopeType === ScopeType.CLUB && CLUB_STAFF_ROLES.includes(scope.roleId as UserRole)
-      )
-      .map(scope => scope.scopeId)
-  );
+  const managed = new Set<string>();
+  for (const scope of viewer.userWithRoles?.scopes ?? []) {
+    if (scope.scopeType === ScopeType.CLUB && CLUB_STAFF_ROLES.includes(scope.roleId as UserRole)) {
+      managed.add(scope.scopeId);
+    } else if (
+      scope.scopeType === ScopeType.SHOW &&
+      scope.roleId === UserRole.CLUB_ADMIN &&
+      scope.clubId
+    ) {
+      // A show-pinned club_admin grant manages every show of its club (MYK9-1886).
+      managed.add(scope.clubId);
+    }
+  }
+  return managed;
 }
 
 /**

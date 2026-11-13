@@ -255,9 +255,10 @@ begin
 end;
 $$;
 
--- A show-pinned club_admin can manage exactly its assigned show. This covers
--- the shared can_manage_show predicate used by entries INSERT/UPDATE and the
--- entries_select replacement in the MYK9-663 follow-up migration.
+-- A show-pinned club_admin manages every show of its club (MYK9-1886, owner
+-- decision 2026-11-13: the whole club) for WRITES. Entry READS go through
+-- entry_enrollment_select_show_ids(), which MYK9-1886 did not change, so the
+-- pinned club_admin still reads exactly its assigned show's entry.
 do $$
 declare
   assigned boolean;
@@ -281,7 +282,7 @@ begin
     '00000000-0000-0000-0000-000000126033'
   );
 
-  if not assigned or other then
+  if not assigned or not other then
     raise exception 'FAIL pinned club_admin can_manage_show assigned=%, other=%', assigned, other;
   end if;
   if row_count <> 1 then

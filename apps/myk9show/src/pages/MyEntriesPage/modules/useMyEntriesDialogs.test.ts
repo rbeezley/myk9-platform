@@ -16,6 +16,7 @@ vi.mock('sonner', () => ({
 }));
 vi.mock('@/services/replication', () => ({ replicatedEntriesTable: { getEntryById } }));
 
+import { StaleCheckInError } from '@/services/show-day/checkInStatus';
 import { useMyEntriesDialogs } from './useMyEntriesDialogs';
 import type { EntryClass, MyEntry } from './my-entries-types';
 
@@ -277,7 +278,13 @@ describe('useMyEntriesDialogs', () => {
       options.action.onClick();
     });
 
-    expect(updateEntryCheckIn).toHaveBeenLastCalledWith('order-1', 'class-row-1', CHECKED_IN);
+    expect(updateEntryCheckIn).toHaveBeenLastCalledWith(
+      'order-1',
+      'class-row-1',
+      CHECKED_IN,
+      undefined,
+      { status: 'pulled', pullSource: 'exhibitor' }
+    );
   });
 
   it('offers no Undo for a check-in that is not a Pulled', async () => {
@@ -313,7 +320,10 @@ describe('useMyEntriesDialogs', () => {
       options2.action.onClick();
     });
 
-    expect(newer).toHaveBeenCalledWith('order-1', 'class-row-1', CHECKED_IN);
+    expect(newer).toHaveBeenCalledWith('order-1', 'class-row-1', CHECKED_IN, undefined, {
+      status: 'pulled',
+      pullSource: 'exhibitor',
+    });
     expect(updateEntryCheckIn).toHaveBeenCalledTimes(1);
   });
 
@@ -336,6 +346,22 @@ describe('useMyEntriesDialogs', () => {
     expect(toastInfo).toHaveBeenCalledTimes(1);
   });
 
+  it('shows the superseded notice, not a retry error, when the server refuses the Undo', async () => {
+    const { result, updateEntryCheckIn } = setup();
+    const checkedInClass: EntryClass = { ...CLASS_ROW, checkInStatus: CHECKED_IN };
+
+    act(() => result.current.openCheckIn(ENTRY, checkedInClass));
+    await act(() => result.current.submitCheckInStatus('pulled'));
+    const toastOptions = toastSuccess.mock.calls[0]?.[1] as { action: { onClick: () => void } };
+
+    updateEntryCheckIn.mockRejectedValueOnce(new StaleCheckInError());
+    await act(async () => {
+      toastOptions.action.onClick();
+    });
+
+    expect(toastInfo).toHaveBeenCalledWith(expect.stringContaining('so Undo did nothing'));
+  });
+
   it('Undo restores even when the replica holds a different, stale status', async () => {
     const { result, updateEntryCheckIn } = setup();
     const checkedInClass: EntryClass = { ...CLASS_ROW, checkInStatus: CHECKED_IN };
@@ -349,7 +375,13 @@ describe('useMyEntriesDialogs', () => {
       toastOptions.action.onClick();
     });
 
-    expect(updateEntryCheckIn).toHaveBeenLastCalledWith('order-1', 'class-row-1', CHECKED_IN);
+    expect(updateEntryCheckIn).toHaveBeenLastCalledWith(
+      'order-1',
+      'class-row-1',
+      CHECKED_IN,
+      undefined,
+      { status: 'pulled', pullSource: 'exhibitor' }
+    );
     expect(toastInfo).not.toHaveBeenCalled();
   });
 });

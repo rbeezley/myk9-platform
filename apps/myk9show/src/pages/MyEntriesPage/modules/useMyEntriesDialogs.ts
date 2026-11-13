@@ -9,6 +9,7 @@
  * @module MyEntriesPage/modules/useMyEntriesDialogs
  */
 
+import { isStaleCheckIn, type ExpectedCheckIn } from '@/services/show-day/checkInStatus';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -40,7 +41,8 @@ export interface UseMyEntriesDialogsOptions {
     entryId: string,
     classId: string,
     status: CheckInStatus,
-    notes?: string
+    notes?: string,
+    expected?: ExpectedCheckIn
   ) => Promise<void>;
   refreshEntries: () => Promise<void>;
 }
@@ -182,8 +184,15 @@ export function useMyEntriesDialogs({
               replicaMayLag: true,
               restore: () =>
                 updateEntryCheckInRef
-                  .current(entry.id, classEntry.id, priorStatus)
-                  .catch(() => toast.error(`We could not undo that. Please try again.`)),
+                  .current(entry.id, classEntry.id, priorStatus, undefined, {
+                    status: 'pulled',
+                    pullSource: 'exhibitor',
+                  })
+                  .catch(error => {
+                    // A superseded Undo gets the guard's own notice, not a retry prompt.
+                    if (isStaleCheckIn(error)) throw error;
+                    toast.error(`We could not undo that. Please try again.`);
+                  }),
             });
           },
         });

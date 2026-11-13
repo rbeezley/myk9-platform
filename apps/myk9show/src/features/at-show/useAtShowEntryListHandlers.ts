@@ -19,13 +19,14 @@ import type {
   EntryListHandlers,
   EntryListActions,
   EntryStatusChange,
+  EntryStatusCheckIn,
   LongPressHandlers,
   RunOrderPreset,
   RingsideReplication,
   Entry,
 } from '@myk9/ringside';
 import { toast } from 'sonner';
-import type { CheckInWriter } from '@/services/show-day/checkInStatus';
+import { isStaleCheckIn, type CheckInWriter } from '@/services/show-day/checkInStatus';
 import { offerPullUndo } from './offerPullUndo';
 import { logger } from '@/utils/logger';
 import { supabase } from '@/services/database/supabaseClient';
@@ -36,9 +37,20 @@ import { toStatusUpdateFields } from './ringsideClassStatusMap';
 import { CANCELLED_CLASS_MESSAGE } from './cancelledClassGuard';
 import { useAtShowResetHandlers, type ResetConfirmState } from './useAtShowResetHandlers';
 
+/** `handleStatusChange`, plus a flag marking the write as an exhibitor's Pull Undo (MYK9-1911). */
+type StatusChangeHandler = (
+  entryId: string,
+  status: EntryStatusChange,
+  undoOfPull?: boolean
+) => Promise<void>;
+
 export interface UseAtShowEntryListHandlersDeps {
   /** Mutation bag from `useAtShowEntryListActions`. */
-  actions: EntryListActions & { writer?: CheckInWriter | undefined };
+  actions: EntryListActions & {
+    writer?: CheckInWriter | undefined;
+    /** Exhibitor Pull Undo that the server refuses when a newer status superseded the Pull. */
+    handleUndoPull?: ((entryId: string, prior: EntryStatusCheckIn) => Promise<void>) | undefined;
+  };
   /** Replication capability (for the class-status dialog). */
   replication: RingsideReplication;
   /** Route param. */
@@ -235,9 +247,9 @@ export function useAtShowEntryListHandlers(
   // NOTE: this does NOT make the exhibitor's status survive a reload -- only a
   // real write into the replicated store would, and that path is blocked for
   // exhibitors by design. Tracked separately.
-  const handleStatusChangeRef = useRef<EntryListHandlers['handleStatusChange'] | null>(null);
-  const handleStatusChange = useCallback<EntryListHandlers['handleStatusChange']>(
-    async (entryId, status: EntryStatusChange) => {
+  const handleStatusChangeRef = useRef<StatusChangeHandler | null>(null);
+  const handleStatusChange = useCallback<StatusChangeHandler>(
+    async (entryId, status: EntryStatusChange, undoOfPull = false) => {
       setActiveStatusPopup(null);
       if (isEntryCancelled(entryId)) {
         toast.info(CANCELLED_CLASS_MESSAGE);
@@ -272,18 +284,22 @@ export function useAtShowEntryListHandlers(
           await actions.handleMarkCompleted(entryId);
           return;
         }
+        if (undoOfPull && actions.handleUndoPull) {
+          await actions.handleUndoPull(entryId, status);
+          return;
+        }
         await actions.handleStatusChange(entryId, status);
         if (status === 'pulled') {
-          offerPullUndo(
-            previous,
-            actions.writer,
-            prior => void handleStatusChangeRef.current?.(entryId, prior)
+          offerPullUndo(previous, actions.writer, prior =>
+            handleStatusChangeRef.current?.(entryId, prior, true)
           );
         }
       } catch (error) {
         // Showing a status the server rejected is worse than showing none: the
         // gate would be worked from a check-in that does not exist.
         rollback();
+        // The Pull Undo's own guard turns this refusal into the plain-words notice.
+        if (undoOfPull && isStaleCheckIn(error)) throw error;
         logger.error('[at-show] status change failed', 'at-show', { error: String(error) });
       }
     },

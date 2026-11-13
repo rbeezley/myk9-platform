@@ -15,13 +15,14 @@
  */
 
 import { useCallback, useRef, useState } from 'react';
-import type { EntryListActions } from '@myk9/ringside';
+import type { EntryListActions, EntryStatusCheckIn } from '@myk9/ringside';
 import type { EntryStatus } from '@myk9/core';
 import { logger } from '@/utils/logger';
 import { usePendingMutationCount } from '@/hooks/usePendingMutationCount';
 import {
   updateReplicatedCheckInStatus,
   updateSelfCheckInStatus,
+  isStaleCheckIn,
   type CheckInWriter,
 } from '@/services/show-day/checkInStatus';
 import { replicatedEntriesTable } from '@/services/replication';
@@ -71,9 +72,10 @@ async function writeCheckInStatus(
   await updateReplicatedCheckInStatus(entryId, status);
 }
 
-export function useAtShowEntryListActions(
-  deps: UseAtShowEntryListActionsDeps
-): EntryListActions & { writer: CheckInWriter } {
+export function useAtShowEntryListActions(deps: UseAtShowEntryListActionsDeps): EntryListActions & {
+  writer: CheckInWriter;
+  handleUndoPull: (entryId: string, prior: EntryStatusCheckIn) => Promise<void>;
+} {
   const { refresh } = deps;
   const writer: CheckInWriter = deps.writer ?? 'replicated';
   const [isSyncing, setIsSyncing] = useState(false);
@@ -109,6 +111,29 @@ export function useAtShowEntryListActions(
       });
     },
     [runMutation, refresh, writer]
+  );
+
+  // MYK9-1911: an exhibitor's Pull Undo expects the dog to still be pulled by the exhibitor, so a
+  // replay after a newer status refuses instead of overwriting it. Staff Undo (replicated writer)
+  // is guarded client-side and goes through the ordinary path. A refusal refreshes the list so it
+  // shows the newer truth, then rethrows for the caller's notice.
+  const handleUndoPull = useCallback(
+    async (entryId: string, prior: EntryStatusCheckIn): Promise<void> => {
+      if (writer !== 'self-checkin-rpc') return handleStatusChange(entryId, prior);
+      try {
+        await runMutation(async () => {
+          await updateSelfCheckInStatus(entryId, prior, {
+            status: 'pulled',
+            pullSource: 'exhibitor',
+          });
+          await refresh();
+        });
+      } catch (error) {
+        if (isStaleCheckIn(error)) await refresh();
+        throw error;
+      }
+    },
+    [writer, handleStatusChange, runMutation, refresh]
   );
 
   const handleToggleInRing = useCallback<EntryListActions['handleToggleInRing']>(
@@ -187,6 +212,7 @@ export function useAtShowEntryListActions(
 
   return {
     handleStatusChange,
+    handleUndoPull,
     handleResetScore,
     handleToggleInRing,
     handleMarkInRing,

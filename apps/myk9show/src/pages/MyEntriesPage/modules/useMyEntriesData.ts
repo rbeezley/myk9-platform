@@ -4,6 +4,7 @@
  * @module MyEntriesPage/hooks
  */
 
+import type { ExpectedCheckIn } from '@/services/show-day/checkInStatus';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { CLASS_NOT_PUBLISHED_LABEL, CLASS_DETAILS_UNAVAILABLE_LABEL } from './myShowsCopy';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -83,7 +84,8 @@ interface UseMyEntriesDataReturn {
     entryId: string,
     classId: string,
     status: CheckInStatus,
-    notes?: string
+    notes?: string,
+    expected?: ExpectedCheckIn
   ) => Promise<void>;
 }
 
@@ -98,6 +100,8 @@ interface PersistCheckInStatusInput {
   entryId: string;
   classId: string;
   newStatus: CheckInStatus;
+  /** Set by a Pull Undo: the server refuses the write if the entry no longer matches (MYK9-1911). */
+  expected?: ExpectedCheckIn;
 }
 
 interface UseMyEntriesDataOptions {
@@ -553,7 +557,13 @@ export function useMyEntriesData({
    * Updates check-in status for a class entry
    */
   const updateEntryCheckIn = useCallback(
-    async (entryId: string, classId: string, status: CheckInStatus, notes?: string) => {
+    async (
+      entryId: string,
+      classId: string,
+      status: CheckInStatus,
+      notes?: string,
+      expected?: ExpectedCheckIn
+    ) => {
       // After grouping, entry.id is the first class row's id and may differ from
       // classId. Find the grouped card that contains the target class instead.
       const entry = visibleEntries.find(
@@ -592,7 +602,12 @@ export function useMyEntriesData({
 
         // classId is the individual entry row id — use it as the DB target so
         // grouped cards with multiple classes update the right row.
-        await persistCheckInStatus({ entryId: classId, classId, newStatus: status });
+        await persistCheckInStatus({
+          entryId: classId,
+          classId,
+          newStatus: status,
+          ...(expected && { expected }),
+        });
       } catch (error) {
         logger.error('Failed to update check-in status:', 'pages', {}, error as Error);
         // Revert optimistic update

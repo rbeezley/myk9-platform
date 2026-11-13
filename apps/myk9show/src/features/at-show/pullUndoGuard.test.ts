@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { showUndoToast } from '@/lib/undoToast';
+import { StaleCheckInError } from '@/services/show-day/checkInStatus';
 import { offerPullUndo } from './offerPullUndo';
+import { registerPull, undoPullIfCurrent } from './pullUndoGuard';
 
 const { toastInfo, getEntryById } = vi.hoisted(() => ({
   toastInfo: vi.fn(),
@@ -115,5 +117,29 @@ describe('Pull Undo only restores the Pull it owns (MYK9-1880)', () => {
     undo();
     await flush();
     expect(restore).toHaveBeenCalledWith('checked-in');
+  });
+
+  it('shows the notice, without crashing, when the server refuses a superseded exhibitor Undo', async () => {
+    // MYK9-1911: another device moved the dog on; the RPC raised MK911 and wrote nothing.
+    const { restore, undo } = pull('self-checkin-rpc');
+    restore.mockRejectedValue(new StaleCheckInError());
+    undo();
+    await flush();
+    expect(restore).toHaveBeenCalledWith('checked-in');
+    expect(toastInfo).toHaveBeenCalledWith(NOTICE);
+  });
+
+  it('does not swallow a real failure as a superseded Undo', async () => {
+    const restore = vi.fn().mockRejectedValue(new Error('network down'));
+    await expect(
+      undoPullIfCurrent({
+        entryId: 'real-failure',
+        token: registerPull('real-failure'),
+        callName: 'Hazel',
+        replicaMayLag: true,
+        restore,
+      })
+    ).rejects.toThrow('network down');
+    expect(toastInfo).not.toHaveBeenCalled();
   });
 });

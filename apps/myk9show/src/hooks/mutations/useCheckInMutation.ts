@@ -13,6 +13,7 @@ import {
   updateReplicatedCheckInStatus,
   updateSelfCheckInStatus,
   type CheckInWriter,
+  type ExpectedCheckIn,
 } from '@/services/show-day/checkInStatus';
 import { invalidateAccountTodayEntries } from '@/features/show-today/accountTodayEntriesKey';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -22,6 +23,8 @@ interface CheckInMutationInput {
   entryId: string;
   newStatus: CheckInStatus;
   classId?: string | undefined;
+  /** A Pull Undo's expectation; the RPC refuses the write if the entry has moved on. */
+  expected?: ExpectedCheckIn | undefined;
 }
 
 interface CheckInMutationContext {
@@ -37,12 +40,12 @@ interface UseCheckInMutationOptions {
 }
 
 async function updateCheckInStatus(
-  { entryId, newStatus }: CheckInMutationInput,
+  { entryId, newStatus, expected }: CheckInMutationInput,
   writer: CheckInWriter
 ): Promise<void> {
   try {
     if (writer === 'self-checkin-rpc') {
-      await updateSelfCheckInStatus(entryId, newStatus);
+      await updateSelfCheckInStatus(entryId, newStatus, expected);
       return;
     }
 

@@ -15,19 +15,13 @@ import {
   registerShowChannelMount,
 } from '@/providers/syncCadence';
 import { replicatedClassesTable, replicatedTrialsTable } from '@/services/replication';
+import { getMountedShowIds, resetMountedShows } from '@/providers/showScopeTargets';
 import { resetShowNudgeGate, setShowNudgeRandom } from '@/features/show-live-sync/showNudgeGate';
 import { showLiveSyncEnabled, useShowLiveSync } from '@/features/show-live-sync/useShowLiveSync';
 
-vi.mock('@myk9/replication', () => ({
-  markRealtimeReconnected: vi.fn(),
-  SYNC_INTERVAL_MS: 60_000,
-}));
+vi.mock('@myk9/replication', () => ({ markRealtimeReconnected: vi.fn() }));
 vi.mock('@/config/features', () => ({
-  features: {
-    showLiveSync: true,
-    replicationScopedNudges: false,
-    replicationSubscribedCadence: true,
-  },
+  features: { showLiveSync: true, replicationScopedNudges: false },
 }));
 vi.mock('@/services/replication', () => ({
   replicatedTrialsTable: { getTrialsByShow: vi.fn() },
@@ -37,9 +31,6 @@ vi.mock('@/providers/syncCadence', () => ({
   registerShowChannelMount: vi.fn((showId: string) => `${showId}#token`),
   markShowChannel: vi.fn(),
   clearShowChannel: vi.fn(),
-  isCadenceOnline: () => true,
-  SLOW_POLL_MIN_MS: 180_000,
-  SLOW_POLL_MAX_MS: 300_000,
 }));
 vi.mock('@/features/show-live-sync/showChangeSignal', () => ({
   subscribeToShowChanges: vi.fn(),
@@ -67,6 +58,7 @@ const setScoped = (enabled: boolean) => {
 beforeEach(() => {
   vi.useFakeTimers();
   resetShowNudgeGate();
+  resetMountedShows();
   setShowNudgeRandom(() => 0);
   setScoped(false);
   vi.clearAllMocks();
@@ -390,5 +382,22 @@ describe('useShowLiveSync scoped change nudges (MYK9-1304)', () => {
     });
 
     expect(dispatchedSyncEvents()).toHaveLength(1);
+  });
+
+  it('registers its show with the provider while mounted; two mounts register it once', () => {
+    const first = renderHook(() => useShowLiveSync('show-1'));
+    const second = renderHook(() => useShowLiveSync('show-1'));
+    expect(getMountedShowIds()).toEqual(['show-1']);
+
+    first.unmount();
+    expect(getMountedShowIds()).toEqual(['show-1']);
+    second.unmount();
+    expect(getMountedShowIds()).toEqual([]);
+  });
+
+  it('registers nothing when disabled', () => {
+    setFlag(false);
+    renderHook(() => useShowLiveSync('show-1'));
+    expect(getMountedShowIds()).toEqual([]);
   });
 });

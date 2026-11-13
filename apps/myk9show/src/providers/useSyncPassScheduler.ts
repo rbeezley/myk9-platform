@@ -2,6 +2,7 @@ import { useEffect, type MutableRefObject } from 'react';
 import { logger } from '@/services/LoggingService';
 import { createSyncPassScheduler } from './syncPassScheduler';
 import type { UploadSyncTarget } from './ringsideUploadSyncTargets';
+import { getMountedShowTargets } from './showScopeTargets';
 import { nextPollDelayMs, onCadenceChange } from './syncCadence';
 
 /**
@@ -13,6 +14,11 @@ import { nextPollDelayMs, onCadenceChange } from './syncCadence';
  * visibility catch-up). Explicit and scoped passes neither read nor write the
  * scheduler's clock; an explicit full pass already in flight is coalesced by the
  * provider's own in-flight guard.
+ *
+ * Every untargeted pass also syncs the scoped entries and classes of each show a
+ * surface has mounted (MYK9-1923): the pass itself runs with no show scope, so it
+ * would never refresh them. The scoped request rides the same trigger, so while
+ * the full pass is in flight the provider coalesces it and runs it right after.
  */
 export function useSyncPassScheduler(
   autoSync: boolean,
@@ -20,7 +26,15 @@ export function useSyncPassScheduler(
 ): void {
   useEffect(() => {
     const scheduler = createSyncPassScheduler({
-      run: () => void triggerSyncRef.current?.(),
+      run: () => {
+        void triggerSyncRef.current?.();
+        void getMountedShowTargets()
+          .then(targets => {
+            if (targets.length) return triggerSyncRef.current?.(targets);
+            return undefined;
+          })
+          .catch(error => logger.warn('Mounted show sync failed', 'replication', { error }));
+      },
       canRun: () => document.visibilityState !== 'hidden',
     });
     // Keeps data fresh and recovers from any failed startup sync. A re-armed

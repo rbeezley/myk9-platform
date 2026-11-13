@@ -145,9 +145,9 @@ The preview is the panel's second step. Its mock-up is also linked from MYK9-192
 
 The existing Check-in Sheet and Score Sheet are not redesigned.
 
-Assumed in the mock-up and to confirm before building:
+Assumed in the mock-up and confirmed by the owner on 2026-11-13:
 
-- Ten armband labels per sheet, each with armband, call name, handler and the day. The real label stock and layout were not checked.
+- Armband labels keep today's contents and sheet sizes: armband, call name, breed, handler and the day, on the label stock chosen in Reports (`ArmbandLabelCell.tsx`, `labelTemplates.ts`; the default is Avery #18262, 14 per sheet). The preview mock-up drew ten per sheet before the real templates were read; the real ones are what to build.
 - Max time belongs on the cover sheet.
 - The certification page a judge signs is the existing "AKC Trial Secretary Certification" report.
 
@@ -220,7 +220,7 @@ One pull request per phase. A phase is not done until its tests pass.
 ### Phase 0: mock-up and open questions
 
 - Done 2026-11-13: the panel is mocked up in seven states and the owner approved the sentence layout (see "Layout"). The preview, the judge's cover sheet and the initials page were mocked and approved the same day (see "The preview"). One dog's label and the checklist line followed, also approved.
-- Done 2026-11-13: the seven open questions are answered (see "Decisions on the open questions"). Still to confirm before building: the label layout, max time on the cover sheet, and which report is the certification page.
+- Done 2026-11-13: the seven open questions are answered (see "Decisions on the open questions"). The three mock-up assumptions (label layout, max time on the cover sheet, the certification page) were confirmed the same day. Phase 0 is complete.
 - **Tests:** none; the output is the mock-up and recorded decisions.
 
 ### Phase 1: the before-trial packet

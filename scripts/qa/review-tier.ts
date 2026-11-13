@@ -204,8 +204,11 @@ export function optionalReviewReason(input: OptionalReviewInput): string | undef
   return 'small-app-change';
 }
 
-function floorFor(file: string): { tier: Tier; reason: string } {
-  if (INDEPENDENT_PATTERNS.some(p => p.test(file))) {
+function floorFor(file: string, exempt: ReadonlySet<string>): { tier: Tier; reason: string } {
+  // MYK9-1932: a lowering-only ratchet baseline or a comment-only edit (decided
+  // from the diff by review-tier-exemptions.ts) skips ONLY the guardrail rule
+  // and falls to the ordinary tooling floor below.
+  if (!exempt.has(file) && INDEPENDENT_PATTERNS.some(p => p.test(file))) {
     return { tier: 'independent', reason: `${file} is a guardrail or high-risk path` };
   }
   if (MIGRATION_PATTERN.test(file)) {
@@ -221,13 +224,16 @@ function floorFor(file: string): { tier: Tier; reason: string } {
   return { tier: 'adversarial', reason: `${file} is application or tooling code` };
 }
 
-export function requiredTier(files: readonly string[]): { tier: Tier; reason: string } {
+export function requiredTier(
+  files: readonly string[],
+  exemptFiles: ReadonlySet<string> = new Set()
+): { tier: Tier; reason: string } {
   if (files.length === 0) return { tier: 'adversarial', reason: 'no files' };
   // Seed from the first file's own candidate so `reason` always names a real
   // path for a non-empty list, even when every file resolves to 'none'.
-  let best = floorFor(files[0]!);
+  let best = floorFor(files[0]!, exemptFiles);
   for (const file of files.slice(1)) {
-    const candidate = floorFor(file);
+    const candidate = floorFor(file, exemptFiles);
     if (TIER_ORDER.indexOf(candidate.tier) > TIER_ORDER.indexOf(best.tier)) best = candidate;
   }
   return best;
@@ -240,6 +246,7 @@ export function meetsFloor(supplied: Tier, floor: Tier): boolean {
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
+import { exemptGuardrailFiles } from './review-tier-exemptions.ts';
 
 /** Files changed against a base ref, for the CLI. */
 export function changedFiles(base: string): string[] {
@@ -319,7 +326,8 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const baseIndex = process.argv.indexOf('--base');
   const base = baseIndex === -1 ? 'origin/main' : (process.argv[baseIndex + 1] ?? 'origin/main');
   const files = changedFiles(base);
-  const { tier, reason } = requiredTier(files);
+  const exempt = exemptGuardrailFiles(base, files);
+  const { tier, reason } = requiredTier(files, exempt);
   const labels = labelArgs(process.argv);
   const optional = optionalReviewReason({
     changedFiles: files,
@@ -334,5 +342,6 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   console.log(`review-tier: ${files.length} file(s) vs ${base}`);
   console.log(`tier: ${tier}`);
   console.log(`reason: ${reason}`);
+  if (exempt.size > 0) console.log(`exempt from guardrail floor: ${[...exempt].join(', ')}`);
   console.log(optional ? `review: optional (${optional})` : 'review: required');
 }

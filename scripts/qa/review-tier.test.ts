@@ -1,6 +1,8 @@
 import { execFileSync } from 'node:child_process';
-import { resolve } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
+import { afterEach, describe, expect, it } from 'vitest';
 import {
   requiredTier,
   meetsFloor,
@@ -9,6 +11,11 @@ import {
   manifestChangeIsDependencyOnly,
   optionalReviewReason,
 } from './review-tier';
+import {
+  baselineChangeIsLoweringOnly,
+  diffIsCommentOnly,
+  exemptGuardrailFiles,
+} from './review-tier-exemptions.ts';
 
 describe('requiredTier', () => {
   it('puts guardrails at independent', () => {
@@ -371,5 +378,139 @@ describe('the --files-stdin CLI mode', () => {
     // review-gate.ts's resolveFloor applies to an empty changed-file list.
     expect(tierOf('')).toBe('independent');
     expect(tierOf('\n\n')).toBe('independent');
+  });
+});
+
+/**
+ * MYK9-1932: a lowering-only ratchet baseline and a comment-only edit do not
+ * raise the tier by themselves. Real git repos, so the diff the exemption reads
+ * is the one `qa:review-tier` reads.
+ */
+describe('guardrail exemptions (MYK9-1932)', () => {
+  const BASELINE = 'scripts/qa/em-dash-ratchet.baseline.json';
+  const CONFIG = 'apps/myk9show/playwright.ci.config.ts';
+  const APP = 'apps/myk9show/src/a.ts';
+  const baselineJson = (total: number, files: Record<string, number>, updatedAt = 'x') =>
+    JSON.stringify({ version: 1, updatedAt, total, files }, null, 2) + '\n';
+  const CONFIG_BASE = ['// retries stay low', 'export default {', '  retries: 1,', '};', ''].join(
+    '\n'
+  );
+  const dirs: string[] = [];
+
+  afterEach(() => {
+    for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
+  });
+
+  /** Base commit on `main`, then `edit` applied on a branch and committed. */
+  function repo(edit: Record<string, string>): { dir: string; files: string[] } {
+    const dir = mkdtempSync(join(tmpdir(), 'review-tier-'));
+    dirs.push(dir);
+    const git = (...args: string[]) => execFileSync('git', args, { cwd: dir, stdio: 'pipe' });
+    const write = (file: string, text: string) => {
+      mkdirSync(dirname(join(dir, file)), { recursive: true });
+      writeFileSync(join(dir, file), text);
+    };
+    git('init', '-q', '-b', 'main');
+    git('config', 'user.email', 't@example.com');
+    git('config', 'user.name', 't');
+    git('config', 'commit.gpgsign', 'false');
+    write(BASELINE, baselineJson(5, { 'a.ts': 3, 'b.ts': 2 }));
+    write(CONFIG, CONFIG_BASE);
+    write(APP, 'export const a = 1;\n');
+    git('add', '.');
+    git('commit', '-q', '-m', 'base');
+    git('checkout', '-q', '-b', 'work');
+    for (const [file, text] of Object.entries(edit)) write(file, text);
+    git('add', '.');
+    git('commit', '-q', '-m', 'work');
+    return { dir, files: Object.keys(edit) };
+  }
+
+  const tierFor = (edit: Record<string, string>) => {
+    const { dir, files } = repo(edit);
+    return requiredTier(files, exemptGuardrailFiles('main', files, { cwd: dir })).tier;
+  };
+
+  it('lowered baseline alone falls to the floor of the other files', () => {
+    const lowered = baselineJson(3, { 'a.ts': 3 }, 'y');
+    expect(tierFor({ [BASELINE]: lowered })).toBe('adversarial');
+    expect(tierFor({ [BASELINE]: lowered, 'docs/x.md': '# x\n' })).toBe('adversarial');
+  });
+
+  it('raised baseline stays independent', () => {
+    expect(tierFor({ [BASELINE]: baselineJson(6, { 'a.ts': 4, 'b.ts': 2 }) })).toBe('independent');
+  });
+
+  it('baseline with an added entry stays independent', () => {
+    expect(tierFor({ [BASELINE]: baselineJson(5, { 'a.ts': 3, 'c.ts': 1 }) })).toBe('independent');
+  });
+
+  it('comment-only edit to playwright.ci.config.ts falls to the floor of the other files', () => {
+    const edited = CONFIG_BASE.replace('retries stay low', 'retries stay low on CI');
+    expect(tierFor({ [CONFIG]: edited })).toBe('adversarial');
+  });
+
+  it('code edit to playwright.ci.config.ts stays independent', () => {
+    expect(tierFor({ [CONFIG]: CONFIG_BASE.replace('retries: 1', 'retries: 3') })).toBe(
+      'independent'
+    );
+  });
+
+  it('a comment edit beside a code edit stays independent', () => {
+    const both = CONFIG_BASE.replace('stay low', 'stay low!').replace('retries: 1', 'retries: 0');
+    expect(tierFor({ [CONFIG]: both })).toBe('independent');
+  });
+
+  it('other guardrail files that are not exempt keep independent beside an exempt one', () => {
+    const edit = {
+      [BASELINE]: baselineJson(3, { 'a.ts': 3 }),
+      '.githooks/pre-push': '#!/bin/sh\n',
+    };
+    expect(tierFor(edit)).toBe('independent');
+  });
+
+  it('fails closed when the base cannot be resolved', () => {
+    const { dir, files } = repo({ [BASELINE]: baselineJson(3, { 'a.ts': 3 }) });
+    expect(exemptGuardrailFiles('no-such-ref', files, { cwd: dir }).size).toBe(0);
+  });
+
+  describe('baselineChangeIsLoweringOnly', () => {
+    const base = baselineJson(5, { 'a.ts': 3, 'b.ts': 2 });
+    it.each([
+      ['equal counts', base, true],
+      ['lowered count', baselineJson(4, { 'a.ts': 2, 'b.ts': 2 }), true],
+      ['removed entry', baselineJson(3, { 'a.ts': 3 }), true],
+      ['raised count', baselineJson(5, { 'a.ts': 4, 'b.ts': 2 }), false],
+      ['added entry', baselineJson(5, { 'a.ts': 3, 'b.ts': 2, 'c.ts': 0 }), false],
+      ['changed version', base.replace('"version": 1', '"version": 0'), false],
+      ['not JSON', '{', false],
+    ])('%s', (_name, head, expected) => {
+      expect(baselineChangeIsLoweringOnly(base, head)).toBe(expected);
+    });
+
+    it('ignores updatedAt but not other strings', () => {
+      expect(
+        baselineChangeIsLoweringOnly(base, baselineJson(5, { 'a.ts': 3, 'b.ts': 2 }, 'z'))
+      ).toBe(true);
+      expect(baselineChangeIsLoweringOnly('{"mode":"a","n":1}', '{"mode":"b","n":1}')).toBe(false);
+    });
+  });
+
+  describe('diffIsCommentOnly', () => {
+    const diff = (...lines: string[]) => ['--- a/f', '+++ b/f', '@@ -1 +1 @@', ...lines].join('\n');
+    it.each([
+      ['f.ts', ['-// old', '+// new'], true],
+      ['f.ts', ['-/** old', '+ * new', '+ */'], true],
+      ['f.ts', ['+const x = 1; // note'], false],
+      ['f.ts', ['+  retries: 3,'], false],
+      ['f.ts', ['+# not a comment in ts'], false],
+      ['pre-push', ['-# old', '+# new'], true],
+      ['pre-push', ['+#!/bin/bash'], false],
+      ['x.yml', ['+# note'], true],
+      ['CLAUDE.md', ['+# A heading'], false],
+      ['x.ts', [], false],
+    ] as const)('%s %j', (file, lines, expected) => {
+      expect(diffIsCommentOnly(file, diff(...lines))).toBe(expected);
+    });
   });
 });

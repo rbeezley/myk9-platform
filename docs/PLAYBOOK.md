@@ -73,6 +73,10 @@ refuses evidence below. Four tiers, weakest to strongest: `none` < `owner` <
   `scripts/qa/push-hold.ts` (itself `independent`), so a guard at `independent`
   reached through a launcher that is not is perfectly reviewed and trivially
   unreachable. When you add a guard, floor its entrypoint too.
+  **Exemption (MYK9-1932):** a `scripts/qa/*baseline*.json` change that only lowers
+  counts or removes entries, and a guardrail-file change whose every changed line is a
+  comment, do not raise the floor by themselves (they fall to `adversarial`); the check
+  reads the diff, fails closed, and any other change to those files stays `independent`.
 - **`adversarial`** — app code, tests, dependency manifests, and an unrecognised path
   (fail safe, not fail cheap). Run at least two same-harness subagent reviews with
   distinct bug-finding lenses — prompts that say to _find bugs, not approve_ ("assume

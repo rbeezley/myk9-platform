@@ -122,6 +122,11 @@ the floor when the optional route does not apply.
 `scripts/qa/post-review-gate.sh` is the only writer of `Review gate:`
 comments for every tier — never type an evidence line by hand.
 
+A lowering-only `scripts/qa/*baseline*.json` change or a comment-only edit to a guardrail
+file does not raise the floor by itself (MYK9-1932; read from the diff, fail closed; the
+printed `exempt from guardrail floor:` line names such files), and any other change to
+those files stays `independent`.
+
 - **`review: optional (...)`** — no synthetic attestation is needed; the gate
   passes without review evidence while the diff stays eligible. A newly added
   independent-risk path, an edit to an existing test file, a `package.json`

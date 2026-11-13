@@ -301,10 +301,11 @@ describe('useDragAndDropEntries — handleDragEnd reorder', () => {
       makeEntry({ id: '3', armband: 3 }),
     ];
 
+    // localEntries stays the 3-dog class; only the live view prop grows mid-drag.
     let currentEntries = startEntries;
     const { result, rerender } = renderHook(() =>
       useDragAndDropEntries({
-        localEntries: currentEntries,
+        localEntries: startEntries,
         setLocalEntries,
         currentEntries,
         updateExhibitorOrder,

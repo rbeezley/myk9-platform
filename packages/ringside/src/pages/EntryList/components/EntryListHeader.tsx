@@ -349,7 +349,7 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
             onClick={onRefresh}
             disabled={isRefreshing}
             aria-label="Refresh entries"
-            title="Refresh (long press for full reload)"
+            title="Refresh (long press to restart the app)"
             className={REFRESH_BUTTON_CLASS}
             {...refreshLongPressHandlers}
           >

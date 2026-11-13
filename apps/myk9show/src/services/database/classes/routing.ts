@@ -37,12 +37,12 @@ export const getClassRouteContext = async (id: string): Promise<ClassRouteContex
       async () => {
         const cls = await replicatedClassesTable.getClassById(id);
         if (!cls?.trialId || cls.deletedAt) {
-          throw new Error('Class route context missing from replication cache');
+          throw new Error('Class route context missing from saved data');
         }
 
         const trial = await replicatedTrialsTable.getTrialById(cls.trialId);
         if (!trial?.showId) {
-          throw new Error('Trial route context missing from replication cache');
+          throw new Error('Trial route context missing from saved data');
         }
 
         return {

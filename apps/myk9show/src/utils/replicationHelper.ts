@@ -68,7 +68,7 @@ class ReplicationManager {
     if (table && typeof table.sync === 'function') {
       return await table.sync(syncScopeId);
     }
-    return { success: false, error: `Table ${name} not found or sync not supported` };
+    return { success: false, error: `Table ${name} not found or cannot be updated` };
   }
 }
 

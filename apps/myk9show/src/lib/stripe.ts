@@ -216,7 +216,7 @@ export async function createEntryCheckoutSession(
   }
 
   if (!data?.url) {
-    throw new Error('No checkout URL returned from server');
+    throw new Error('myK9Show did not return a checkout link');
   }
 
   // MYK9-1012: the spots are held until the page expires. Remembered across

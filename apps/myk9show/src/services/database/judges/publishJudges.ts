@@ -130,7 +130,7 @@ export async function fetchShowJudgesForPublish(showId: string): Promise<ShowJud
   if (await hasUnsentPickInShow(showId)) {
     mutationManager.requestUpload();
     throw new PremiumPublishError(
-      "This device's judges don't match the server's yet",
+      "This device's judges don't match myK9Show yet",
       'experience-snapshot',
       'judges-syncing'
     );
@@ -142,7 +142,7 @@ export async function fetchShowJudgesForPublish(showId: string): Promise<ShowJud
   if (deviceKeys && !sameKeys(deviceKeys, server.keys)) {
     mutationManager.requestUpload();
     throw new PremiumPublishError(
-      "This device's judges don't match the server's yet",
+      "This device's judges don't match myK9Show yet",
       'experience-snapshot',
       'judges-syncing'
     );

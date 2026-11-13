@@ -207,7 +207,7 @@ export function unsavedWorkNotice(total: number, failed: number): string {
       : `Finish saving first: ${total} changes on this device haven't uploaded yet.`;
   if (failed === 0) return lead;
   const which = failed === total ? (failed === 1 ? 'It' : 'They') : `${failed} of them`;
-  return `${lead} ${which} failed to upload: use Try again or Discard on the sync error notice, then check again.`;
+  return `${lead} ${which} failed to upload: use Try again or Discard on the notice about changes that were not sent, then check again.`;
 }
 
 export const UNSAVED_WORK_CHECK_FAILED =

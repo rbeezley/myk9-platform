@@ -166,15 +166,15 @@ export const actionNotifications = {
   },
 
   syncSuccess: () => {
-    return notifications.success('Data synchronized successfully');
+    return notifications.success('Your changes were sent');
   },
 
   syncError: (onRetry?: () => void) => {
     const opts: NotificationOptions = {
       description: 'Some changes may not be saved. Please try again.',
     };
-    if (onRetry) opts.action = { label: 'Try sync again', onClick: onRetry };
-    return notifications.error('Failed to sync data', opts);
+    if (onRetry) opts.action = { label: 'Try again', onClick: onRetry };
+    return notifications.error('Your changes were not sent', opts);
   },
 
   bulkAction: (action: string, count: number, entityType: string) => {

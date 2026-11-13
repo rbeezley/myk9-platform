@@ -309,7 +309,7 @@ function DiagnosticsPanel({ ticket }: { ticket: SupportTicket }) {
         <DiagnosticRow label="Show" value={diagnostics.context.showId} />
         <DiagnosticRow label="Trial" value={diagnostics.context.trialId} />
         <DiagnosticRow label="Entry" value={diagnostics.context.entryId} />
-        <DiagnosticRow label="Sync" value={replication.status} />
+        <DiagnosticRow label="Saved data" value={replication.status} />
         <DiagnosticRow label="Queue" value={replication.queueSize} />
         <DiagnosticRow label="Conflicts" value={replication.conflictCount} />
         <DiagnosticRow label="Errors" value={replication.errorCount} />

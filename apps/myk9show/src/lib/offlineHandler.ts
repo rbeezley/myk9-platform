@@ -596,7 +596,7 @@ export const useOfflineFirst = () => {
 
   const manualSync = useCallback(async () => {
     if (!networkStatus.isOnline) {
-      throw new Error('Cannot sync while offline');
+      throw new Error('Changes cannot be sent while offline');
     }
     return degradationManager.syncOfflineOperations();
   }, [networkStatus.isOnline, degradationManager]);

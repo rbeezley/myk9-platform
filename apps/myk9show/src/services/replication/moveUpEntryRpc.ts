@@ -61,7 +61,7 @@ export function classifyMoveUpRpcError(error: unknown, fallback: string): MoveUp
   if (code === 'PGRST202' || code === '42883') {
     return new MoveUpRpcError(
       'not-deployed',
-      'Moving entries is not available on this server yet. Nothing was changed.'
+      'Moving entries is not available in myK9Show yet. Nothing was changed.'
     );
   }
   if (code === '42501') {

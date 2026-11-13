@@ -113,7 +113,7 @@ export function ScoresheetDemo({ syncMs = 1400 }: { syncMs?: number }) {
         tone: 'amber',
       }
     : syncing
-      ? { text: `Syncing ${waiting}…`, tone: 'blue' }
+      ? { text: `Sending ${waiting}…`, tone: 'blue' }
       : log.length && !waiting
         ? { text: 'All sent', tone: 'green' }
         : { text: 'Online', tone: 'neutral' };

@@ -18,9 +18,16 @@ import { replicatedClassesTable, replicatedTrialsTable } from '@/services/replic
 import { resetShowNudgeGate, setShowNudgeRandom } from '@/features/show-live-sync/showNudgeGate';
 import { showLiveSyncEnabled, useShowLiveSync } from '@/features/show-live-sync/useShowLiveSync';
 
-vi.mock('@myk9/replication', () => ({ markRealtimeReconnected: vi.fn() }));
+vi.mock('@myk9/replication', () => ({
+  markRealtimeReconnected: vi.fn(),
+  SYNC_INTERVAL_MS: 60_000,
+}));
 vi.mock('@/config/features', () => ({
-  features: { showLiveSync: true, replicationScopedNudges: false },
+  features: {
+    showLiveSync: true,
+    replicationScopedNudges: false,
+    replicationSubscribedCadence: true,
+  },
 }));
 vi.mock('@/services/replication', () => ({
   replicatedTrialsTable: { getTrialsByShow: vi.fn() },
@@ -30,6 +37,9 @@ vi.mock('@/providers/syncCadence', () => ({
   registerShowChannelMount: vi.fn((showId: string) => `${showId}#token`),
   markShowChannel: vi.fn(),
   clearShowChannel: vi.fn(),
+  isCadenceOnline: () => true,
+  SLOW_POLL_MIN_MS: 180_000,
+  SLOW_POLL_MAX_MS: 300_000,
 }));
 vi.mock('@/features/show-live-sync/showChangeSignal', () => ({
   subscribeToShowChanges: vi.fn(),

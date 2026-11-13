@@ -29,6 +29,9 @@ let random: () => number = Math.random;
 const isSlow = (): boolean =>
   features.replicationSubscribedCadence && online && subscribedMounts.size > 0;
 
+/** Whether the device is online as the provider last reported it (`markOnline`). */
+export const isCadenceOnline = (): boolean => online;
+
 /** Runs a state change and notifies once if it flipped slow <-> fast. */
 function mutate(change: () => void): void {
   const before = isSlow();

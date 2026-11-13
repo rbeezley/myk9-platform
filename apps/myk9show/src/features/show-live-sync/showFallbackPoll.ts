@@ -13,14 +13,36 @@
  * subscribed interval would multiply database load on show day.
  */
 import { SYNC_INTERVAL_MS } from '@myk9/replication';
-import { SLOW_POLL_MAX_MS, SLOW_POLL_MIN_MS } from '@/providers/syncCadence';
+import { features } from '@/config/features';
+import { isCadenceOnline, SLOW_POLL_MAX_MS, SLOW_POLL_MIN_MS } from '@/providers/syncCadence';
 
 /** Channel not SUBSCRIBED: the provider's own 60 s offline-first fallback. */
 export const SHOW_FALLBACK_POLL_DOWN_MS = SYNC_INTERVAL_MS;
 /** Channel SUBSCRIBED: the longest backstop delay (3-5 min window, MYK9-1305). */
 export const SHOW_FALLBACK_POLL_SUBSCRIBED_MS = SLOW_POLL_MAX_MS;
 
-export function showFallbackPollDelayMs(subscribed: boolean, random: () => number = Math.random) {
-  if (!subscribed) return SHOW_FALLBACK_POLL_DOWN_MS;
+let jitterRandom: () => number = Math.random;
+
+/** Test seam: inject the jitter source (device-only, like `setCadenceRandom`). */
+export function setShowFallbackPollRandom(next: () => number): void {
+  jitterRandom = next;
+}
+
+/** Test seam: restore the default jitter source. */
+export function resetShowFallbackPollRandom(): void {
+  jitterRandom = Math.random;
+}
+
+/**
+ * `syncCadence.ts`'s `isSlow`, for one show's channel: slow only while the kill switch is on, the
+ * device is online and THIS show's channel is SUBSCRIBED. Another show's subscribed channel says
+ * nothing about this one, so the global flag is not reused.
+ */
+export function isShowPollSlow(subscribed: boolean): boolean {
+  return features.replicationSubscribedCadence && isCadenceOnline() && subscribed;
+}
+
+export function showFallbackPollDelayMs(slow: boolean, random: () => number = jitterRandom) {
+  if (!slow) return SHOW_FALLBACK_POLL_DOWN_MS;
   return SLOW_POLL_MIN_MS + Math.floor(random() * (SLOW_POLL_MAX_MS - SLOW_POLL_MIN_MS));
 }

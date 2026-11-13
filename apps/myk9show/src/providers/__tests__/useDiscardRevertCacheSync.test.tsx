@@ -17,6 +17,8 @@ function setup() {
     ['shows', 'show-1', 'entries'],
     ['classes', 'show-1'],
     ['check-in-report', 'show-1'],
+    ['trials', 'trial-1', 'entries'],
+    ['trials', 'trial-1', 'checklist'],
   ];
   for (const key of keys) queryClient.setQueryData(key, []);
   const wrapper = ({ children }: { children: ReactNode }) => (
@@ -70,8 +72,11 @@ describe('useDiscardRevertCacheSync (MYK9-1076)', () => {
         ['classes', 'show-1'],
         // The Show Desk check-in report: a discarded check-in must not linger there.
         ['check-in-report', 'show-1'],
+        // The trial entries tab (round 3): covered by the 'entries' segment.
+        ['trials', 'trial-1', 'entries'],
       ])
     );
+    expect(stale()).not.toContainEqual(['trials', 'trial-1', 'checklist']);
     expect(stale()).not.toContainEqual(['dogs', 'dog-1']);
   });
 

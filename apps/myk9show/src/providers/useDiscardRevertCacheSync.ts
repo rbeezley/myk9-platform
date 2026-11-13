@@ -23,21 +23,27 @@ export function refreshDogCachesAfterDiscard(queryClient: QueryClient): void {
 }
 
 /**
+ * Reads derived from entries whose key does not name them: class counts, the Show
+ * Desk check-in report and the judge dashboard's assignments read.
+ */
+const ENTRY_DERIVED_ROOTS: ReadonlySet<unknown> = new Set(['classes', 'check-in-report']);
+
+/**
  * After a Discard puts an entry's row back to the server's state (MYK9-1922),
- * refetch what derives from entries: the table's own queries, each show's
- * entries read (`['shows', showId, 'entries']`, which feeds class counts and
- * the Completed list), the Show Desk check-in report (`['check-in-report', showId]`, as
- * `entryInvalidationKeys` does) and the judge dashboard's assignments/classes read.
+ * refetch every cached read of entries. One structural rule, not a list of keys:
+ * any query whose key contains the `'entries'` segment (`['entries', ...]`,
+ * `['shows', id, 'entries']`, `['trials', id, 'entries']`, `['classes', id, 'entries']`),
+ * plus the derived roots above and the post-sync keys. Two review rounds each found a
+ * key a hand-picked list had missed, so a new entries read is covered by its name.
  */
 export function refreshEntryCachesAfterDiscard(queryClient: QueryClient): void {
   for (const queryKey of getPostSyncInvalidationKeys(['entries'])) {
     void queryClient.invalidateQueries({ queryKey });
   }
   void queryClient.invalidateQueries({
-    predicate: query => query.queryKey[0] === 'shows' && query.queryKey[2] === 'entries',
+    predicate: ({ queryKey }) =>
+      queryKey.includes('entries') || ENTRY_DERIVED_ROOTS.has(queryKey[0]),
   });
-  void queryClient.invalidateQueries({ queryKey: ['classes'] });
-  void queryClient.invalidateQueries({ queryKey: ['check-in-report'] });
 }
 
 /** Listens for `replication:discard-row-replaced` from `@myk9/replication`. */

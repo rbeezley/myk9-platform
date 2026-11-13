@@ -144,16 +144,18 @@ For UI/state bugs, prefer extracting pure state helpers and testing those direct
 
 #### Shuffled runs for any test you added or touched
 
-CI runs vitest with `--sequence.shuffle`; local runs do not. Run the **whole** suite shuffled before pushing a new or changed test — a subset cannot show a leak between files, and `pnpm test --sequence.shuffle` never reaches vitest (pnpm claims the flag).
+CI runs vitest with `--sequence.shuffle`; local runs do not. Run the **whole** suite shuffled before pushing a new or changed test — a hand-picked subset cannot show a leak between files, and `pnpm test --sequence.shuffle` never reaches vitest (pnpm claims the flag).
 
 **How many times: scope it to the risk.** Detection is `1 - 0.5^n` per ordered file pair, so one run 50%, three 88%, six 98%.
 
-- **1 run** when the change adds no module-scope mutable state — the extra runs are testing other people's leaks.
-- **6+ runs** when it adds or touches one (a memo, cache, singleton, module-scope `let`), and add an O(1) `beforeEach` reset. CI will not cover you here: `--shard=i/6` partitions files by `sha1(path)` deterministically, so files in different shards never share a process and CI can never see a leak between them.
+- **1 whole-suite run**, always. Extra whole-suite runs mostly test other people's leaks.
+- **Plus 10 targeted runs** when the change adds or touches module-scope mutable state (a memo, cache, singleton, module-scope `let`), and add an O(1) `beforeEach` reset. A leak through that state can only pass between two files that both import the module, so shuffle exactly those: `pnpm vitest related <module> --run --sequence.shuffle` picks every test file that imports it, directly or not. Ten runs reach `1 - 0.5^10` (99.9%) in about a minute each for a widely imported module; six whole-suite runs reached 98% in over an hour (MYK9-1923, 2026-11-13). CI will not cover you here: `--shard=i/6` partitions files by `sha1(path)` deterministically, so files in different shards never share a process and CI can never see a leak between them.
 
 ```bash
 LOGS="$(git rev-parse --show-toplevel)/.logs"; mkdir -p "$LOGS"
 cd apps/myk9show && pnpm vitest run --sequence.shuffle > "$LOGS/shuffle.log" 2>&1; echo "EXIT=$?"
+# Only when the change adds module-scope mutable state (path relative to apps/myk9show):
+for i in $(seq 10); do pnpm vitest related src/<module>.ts --run --sequence.shuffle > "$LOGS/shuffle-related-$i.log" 2>&1 || { echo "FAILED run $i"; break; }; done; echo done
 ```
 
 #### Failure handling (both passes)

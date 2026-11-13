@@ -3,8 +3,10 @@
  *
  * Broadcast carries no row data. It only asks ReplicationSyncProvider to run
  * its existing incremental sync, keeping the offline-first replica authoritative.
- * The provider's poll remains the correctness fallback: 60 s, or 3-5 min while
- * the show channel is SUBSCRIBED (MYK9-1305).
+ * Freshness when a broadcast is missed (MYK9-1923): a mounted show registers
+ * with the provider (`registerMountedShow`), and the provider's own poll and
+ * visibility pass then also syncs that show's scoped entries and classes, on its
+ * existing cadence (60 s, or 3-5 min while a channel is SUBSCRIBED).
  */
 
 import { useEffect } from 'react';
@@ -15,8 +17,13 @@ import {
   markShowChannel,
   registerShowChannelMount,
 } from '@/providers/syncCadence';
-import { replicatedClassesTable, replicatedTrialsTable } from '@/services/replication';
+import { replicatedClassesTable } from '@/services/replication';
 import type { UploadSyncTarget } from '@/providers/ringsideUploadSyncTargets';
+import {
+  registerMountedShow,
+  targetsForTables,
+  unregisterMountedShow,
+} from '@/providers/showScopeTargets';
 import {
   subscribeToShowChanges,
   type ShowChangeSignal,
@@ -27,25 +34,19 @@ import { scheduleShowNudge } from './showNudgeGate';
 const NUDGE_DEBOUNCE_MS = 400;
 
 /**
- * The scoped sync targets for the tables a broadcast named. Classes replicate
- * per trial, so a classes change is one target per trial of the show. Returns
- * null when no target can be named (a classes change on a replica with no
- * trials): a scoped pass with no target would sync nothing, so the caller falls
- * back to the bare full pass. paperwork_prints is scoped by show id.
+ * The fire for the nudge gate (broadcasts). The scoped pass goes out for what could be named; the bare full pass goes out when
+ * nothing could be named or a classes change had no trial to scope to.
  */
-async function targetsForTables(
-  showId: string,
-  tables: ReadonlySet<ShowChangeTable>
-): Promise<UploadSyncTarget[] | null> {
-  const targets: UploadSyncTarget[] = [];
-  if (tables.has('entries')) targets.push({ name: 'entries', scopeId: showId });
-  if (tables.has('paperwork_prints')) targets.push({ name: 'paperwork_prints', scopeId: showId });
-  if (tables.has('classes')) {
-    const trials = await replicatedTrialsTable.getTrialsByShow(showId);
-    if (!trials.length) return null;
-    for (const trial of trials) targets.push({ name: 'classes', scopeId: trial.id });
-  }
-  return targets.length ? targets : null;
+function fireScopedPass(showId: string, tables: ReadonlySet<ShowChangeTable>): void {
+  void targetsForTables(showId, tables)
+    .catch(() => ({ targets: [] as UploadSyncTarget[], fullPass: true }))
+    .then(({ targets, fullPass }) => {
+      if (targets.length)
+        window.dispatchEvent(
+          new CustomEvent('replication:sync-requested', { detail: { targets } })
+        );
+      if (fullPass) window.dispatchEvent(new Event('replication:sync-requested'));
+    });
 }
 
 /**
@@ -71,6 +72,7 @@ export function useShowLiveSync(showId: string | undefined): void {
     if (!enabled || !showId) return undefined;
 
     const mountToken = registerShowChannelMount(showId);
+    const mountedShowToken = registerMountedShow(showId);
     let unmounted = false;
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
     let hasConnected = false;
@@ -82,17 +84,7 @@ export function useShowLiveSync(showId: string | undefined): void {
     // unmounting never drops the other's pending nudge. The deferred reconnect
     // path below is deliberately separate.
     const scopedChange = (table: ShowChangeTable) => {
-      scheduleShowNudge(showId, new Set([table]), tables => {
-        void targetsForTables(showId, tables)
-          .catch(() => null)
-          .then(targets => {
-            window.dispatchEvent(
-              targets
-                ? new CustomEvent('replication:sync-requested', { detail: { targets } })
-                : new Event('replication:sync-requested')
-            );
-          });
-      });
+      scheduleShowNudge(showId, new Set([table]), tables => fireScopedPass(showId, tables));
     };
 
     // A change nudge is explicit: run now. A reconnect nudge is `deferred`:
@@ -150,6 +142,7 @@ export function useShowLiveSync(showId: string | undefined): void {
       if (debounceTimer) clearTimeout(debounceTimer);
       unsubscribe();
       clearShowChannel(mountToken);
+      unregisterMountedShow(mountedShowToken);
     };
   }, [enabled, showId]);
 }

@@ -4,7 +4,9 @@
  * While at least one show channel is SUBSCRIBED and the device is online,
  * realtime nudges carry freshness and the poll is only a correctness backstop,
  * so it stretches to 3-5 minutes with uniform jitter. Offline, or with no
- * subscribed channel, it stays at the 60 s offline-first fallback.
+ * subscribed channel, it stays at the 60 s offline-first fallback. The pass
+ * also syncs the scoped entries and classes of every mounted show
+ * (`showScopeTargets.ts`), so this cadence is a show's freshness backstop too.
  *
  * Pure module state (no React). The 24 h forced full sync and the `since`
  * buffer live in the replication engine and are untouched. Jitter uses the

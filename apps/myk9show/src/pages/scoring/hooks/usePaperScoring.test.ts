@@ -99,10 +99,39 @@ describe('usePaperScoring', () => {
     });
   });
 
-  it('defaults to split list mode even when an old card preference was stored', () => {
-    localStorage.setItem('paper-scoring-mode:user-1', 'sequential');
+  it('opens in list mode when nothing is saved', () => {
     const { result } = renderHook(() => usePaperScoring(entries, 'user-1'));
     expect(result.current.mode).toBe('split');
+  });
+
+  // MYK9-1906: the saved List / Card choice is restored, per user.
+  it('restores the saved view mode, for that user only', () => {
+    localStorage.setItem('paper-scoring-mode:user-1', 'sequential');
+    expect(renderHook(() => usePaperScoring(entries, 'user-1')).result.current.mode).toBe(
+      'sequential'
+    );
+    expect(renderHook(() => usePaperScoring(entries, 'user-2')).result.current.mode).toBe('split');
+  });
+
+  it('ignores a saved value that is not a view mode, and storage that throws', () => {
+    localStorage.setItem('paper-scoring-mode:user-1', 'bogus');
+    expect(renderHook(() => usePaperScoring(entries, 'user-1')).result.current.mode).toBe('split');
+    const getItem = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('blocked');
+    });
+    try {
+      expect(renderHook(() => usePaperScoring(entries, 'user-1')).result.current.mode).toBe(
+        'split'
+      );
+    } finally {
+      getItem.mockRestore();
+    }
+  });
+
+  it('setMode saves the choice', () => {
+    const { result } = renderHook(() => usePaperScoring(entries, 'user-1'));
+    act(() => result.current.setMode('sequential'));
+    expect(localStorage.getItem('paper-scoring-mode:user-1')).toBe('sequential');
   });
 
   it('selectEntry puts that dog on screen', () => {

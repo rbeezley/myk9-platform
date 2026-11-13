@@ -74,7 +74,7 @@ describe('ClassReadinessStrip', () => {
     );
     expect(screen.getByRole('link', { name: /scored/i })).toHaveAttribute(
       'href',
-      '/scoring/classes/class-1/entries?mode=split'
+      '/scoring/classes/class-1/entries'
     );
 
     for (const link of screen.getAllByRole('link')) {

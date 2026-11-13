@@ -10,7 +10,7 @@ import {
 function makeAction(
   overrides: Partial<Omit<ShowMapAction, 'href'>> & { href?: string | null } = {}
 ): ShowMapAction {
-  const { href = '/scoring/classes/class-1/entries?mode=split', ...rest } = overrides;
+  const { href = '/scoring/classes/class-1/entries', ...rest } = overrides;
 
   return {
     id: 'score-class',
@@ -34,7 +34,7 @@ describe('showMapActionExecution', () => {
 
     expect(resolveShowMapActionExecution(action)).toEqual({
       kind: 'navigate',
-      href: '/scoring/classes/class-1/entries?mode=split',
+      href: '/scoring/classes/class-1/entries',
     });
   });
 

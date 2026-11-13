@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { classScoringRules } from './classScoringRules';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, AlertCircle } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { ScoresheetLoadingSkeleton } from '@/components/scoring/ScoringLoadingSkeletons';
@@ -31,6 +31,7 @@ import { SessionToolbar } from './components/SessionToolbar';
 import { SplitPanelView } from './components/SplitPanelView';
 import { SequentialView } from './components/SequentialView';
 import { ViewModeToggle } from './components/ViewModeToggle';
+import { PaperScoresheetBackButton } from './components/PaperScoresheetBackButton';
 import { sortByExhibitorOrder } from './paper-scoring-types';
 import { cn } from '@/lib/utils';
 import type { ScoringEntry } from './types';
@@ -410,19 +411,11 @@ export function PaperScoresheetPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              if (classDetailsHref) navigate(classDetailsHref);
-              else navigate(-1);
-            }}
-            className="gap-2"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            <span className="hidden sm:inline">Back to Class</span>
-            <span className="sm:hidden">Class</span>
-          </Button>
+          <PaperScoresheetBackButton
+            returnTo={searchParams.get('returnTo')}
+            showId={breadcrumb.showId}
+            classDetailsHref={classDetailsHref}
+          />
           <ViewModeToggle mode={scoring.mode} onChange={handleModeChange} />
         </div>
       </div>

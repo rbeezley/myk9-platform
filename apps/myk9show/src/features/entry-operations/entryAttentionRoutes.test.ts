@@ -29,7 +29,7 @@ describe('entry attention routes', () => {
 
   it('builds day-of and scoring destinations through shared helpers', () => {
     expect(getClassDayOfHref(context)).toContain('mode=day-of');
-    expect(getClassScoringHref('class-1')).toBe('/scoring/classes/class-1/entries?mode=split');
+    expect(getClassScoringHref('class-1')).toBe('/scoring/classes/class-1/entries');
   });
 });
 

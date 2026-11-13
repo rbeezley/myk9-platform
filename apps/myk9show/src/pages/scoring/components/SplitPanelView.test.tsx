@@ -150,4 +150,21 @@ describe('SplitPanelView', () => {
     expect(screen.queryByText('1st')).not.toBeInTheDocument();
     expect(screen.getByText('1:23.45 · 0 faults')).toBeInTheDocument();
   });
+
+  it('Cancel closes the panel', async () => {
+    const onSelectEntry = vi.fn();
+    render(
+      <SplitPanelView
+        entries={entries}
+        settings={DEFAULT_SESSION_SETTINGS}
+        selectedEntryId="e1"
+        onSelectEntry={onSelectEntry}
+        onSave={vi.fn()}
+        onSaveAndNext={vi.fn()}
+        isSaving={false}
+      />
+    );
+    await userEvent.click(screen.getByRole('button', { name: /^cancel$/i }));
+    expect(onSelectEntry).toHaveBeenCalledWith(null);
+  });
 });

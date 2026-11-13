@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "updatedAt": "2026-11-13T15:25:11.261Z",
-  "total": 404,
+  "updatedAt": "2026-11-13T17:04:37.822Z",
+  "total": 403,
   "files": {
     "apps/myk9show/src/components/admin/DataLifecycleManagement/deletedEntityMappers.ts": 1,
     "apps/myk9show/src/components/admin/permissions/ManageUserRolesDialog.tsx": 2,
@@ -226,7 +226,6 @@
     "apps/myk9show/src/services/database/entries/jumpHeightErrors.ts": 6,
     "apps/myk9show/src/services/database/entries/statusUndo.ts": 3,
     "apps/myk9show/src/services/database/entries/withdrawEligibility.ts": 8,
-    "apps/myk9show/src/services/entryDisplay/entryPresentation.ts": 1,
     "apps/myk9show/src/services/replication/ReplicatedEntriesTable.ts": 1,
     "apps/myk9show/src/stripe-config.ts": 1,
     "apps/myk9show/src/types/check-in-types.ts": 1,

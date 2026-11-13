@@ -96,9 +96,7 @@ describe('balance due', () => {
     renderRows(rows);
 
     expect(screen.getByText("Scout's entry is waiting on payment")).toBeInTheDocument();
-    expect(
-      screen.getByText('$45.00 due · the secretary will review it once it is paid.')
-    ).toBeInTheDocument();
+    expect(screen.getByText('$45.00 due. Pay now to complete your entry.')).toBeInTheDocument();
 
     // MYK9-631: the strip keeps its own button — a status banner does not
     // hand its verb to the menu — but it is titled with the amount now, so it

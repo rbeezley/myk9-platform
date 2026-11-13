@@ -139,10 +139,13 @@ describe('PaperScoresheetPage remembered view (MYK9-1906)', () => {
     const getItem = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
       throw new Error('storage blocked');
     });
-    renderPage('/scoring/classes/class-1/entries');
-    expect(await screen.findByText('0 of 2 scored')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Willow/ })).toBeInTheDocument();
-    getItem.mockRestore();
+    try {
+      renderPage('/scoring/classes/class-1/entries');
+      expect(await screen.findByText('0 of 2 scored')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Willow/ })).toBeInTheDocument();
+    } finally {
+      getItem.mockRestore();
+    }
   });
 });
 

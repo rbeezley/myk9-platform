@@ -17,7 +17,8 @@ export function PaperScoresheetBackButton({
   classDetailsHref: string | null;
 }) {
   const navigate = useNavigate();
-  const showDesk = resolveShowDeskReturn(returnTo, showId);
+  // Until the show is known the return cannot be checked against it, so it is not offered.
+  const showDesk = showId ? resolveShowDeskReturn(returnTo, showId) : null;
   const destination = showDesk?.href ?? classDetailsHref;
   return (
     <Button

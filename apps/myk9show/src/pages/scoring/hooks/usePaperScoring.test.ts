@@ -119,8 +119,13 @@ describe('usePaperScoring', () => {
     const getItem = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
       throw new Error('blocked');
     });
-    expect(renderHook(() => usePaperScoring(entries, 'user-1')).result.current.mode).toBe('split');
-    getItem.mockRestore();
+    try {
+      expect(renderHook(() => usePaperScoring(entries, 'user-1')).result.current.mode).toBe(
+        'split'
+      );
+    } finally {
+      getItem.mockRestore();
+    }
   });
 
   it('setMode saves the choice', () => {

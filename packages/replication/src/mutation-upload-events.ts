@@ -91,7 +91,7 @@ export function notifyUserOfSyncFailure(logger: Logger, failedMutations: Pending
       detail: {
         count: failedMutations.length,
         mutations: failedMutations,
-        message: `${failedMutations.length} ${failedMutations.length === 1 ? 'change has' : 'changes have'} not been sent yet. Please check your connection and try again.`,
+        message: `${failedMutations.length} ${failedMutations.length === 1 ? 'change' : 'changes'} could not be sent. Please check your connection and try again.`,
       },
     });
 

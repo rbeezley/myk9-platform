@@ -175,8 +175,8 @@ extra_self_test() {
       echo '[{"status":"queued","created_at":"2026-11-13T10:00:00Z"}]'
     else echo '[]'; fi
   }
-  STUB_APPEARS_AT=3
-  gate_settle_wait "$gate_red" "$gate_req" 5 0 || { echo "SELF-TEST FAIL [gate-settle-late-run]: a run appearing on the 3rd look was missed"; ok=1; }
+  STUB_APPEARS_AT=2
+  gate_settle_wait "$gate_red" "$gate_req" 2 0 || { echo "SELF-TEST FAIL [gate-settle-late-run]: a run appearing on the 2nd look was missed"; ok=1; }
   : >"$settle_looks"
   STUB_APPEARS_AT=999
   if gate_settle_wait "$gate_red" "$gate_req" 0 0; then echo "SELF-TEST FAIL [gate-settle-no-run]: waited with no run"; ok=1; fi

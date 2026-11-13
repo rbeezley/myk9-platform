@@ -101,7 +101,11 @@ export function workflowRunsWalkStep(workflowSource: string): boolean {
   const rest = workflowSource.slice(at + 1);
   const next = rest.search(/\n {6}- /);
   const block = next === -1 ? rest : rest.slice(0, next);
-  return /^\s*run:.*ringsidePhoneWalk/m.test(block.replace(/^\s*#.*$/gm, ''));
+  const live = block.replace(/^\s*#.*$/gm, '');
+  // continue-on-error makes a failing walk report `success`: the gate reads only
+  // the step's conclusion, so such a step can never count as the walk.
+  if (/^\s*continue-on-error:/m.test(live)) return false;
+  return /^\s*run:.*ringsidePhoneWalk/m.test(live);
 }
 
 /** `https://github.com/<owner>/<repo>/actions/runs/<run>/job/<job>` -> repo and job id. */

@@ -185,4 +185,10 @@ describe('workflowRunsWalkStep', () => {
       )
     ).toBe(false);
   });
+
+  it('is false when the step may fail without failing (continue-on-error)', () => {
+    const base = `      - name: ${WALK_STEP}\n        run: pnpm exec playwright test ringsidePhoneWalk\n      - name: next\n`;
+    const withCoe = base.replace('        run:', '        continue-on-error: true\n        run:');
+    expect(workflowRunsWalkStep(withCoe)).toBe(false);
+  });
 });

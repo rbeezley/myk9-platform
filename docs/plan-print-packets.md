@@ -146,7 +146,29 @@ Assumed in the mock-up and to confirm before building:
 - Max time belongs on the cover sheet.
 - The certification page a judge signs is the existing "AKC Trial Secretary Certification" report.
 
-Not yet mocked: one dog's label from its row, and the night-before checklist row.
+### One dog's armband label (owner approved the mock-up, 2026-11-13)
+
+For a lost label or a late entry. The mock-up is linked from MYK9-1924.
+
+- A new row, "Print armband label", in the per-dog menu on Show Desk's entries table, beside Change class, Edit entry and Mark absent.
+- The panel opens on that dog: "For **Juni #102**, for **Monday, Dec 7**." A note says when the label was last printed. The scope can still be widened to the class or the day.
+- The label is shown as it will print. Its contents and the sheet sizes are today's (`ArmbandLabelCell.tsx`, `labelTemplates.ts`; the default is Avery #18262, 14 per sheet).
+- **Where on the sheet:** a picture of the label sheet. She taps the first unused label, and used ones are greyed. This sets the existing "Labels to skip on first page" value without typing or counting.
+
+### The night-before checklist line (owner approved the mock-up, 2026-11-13)
+
+"Ready for show day" already has the line "Check-in sheets and score sheets printed" (`readyForShowDay.ts`). Today a failing line counts the sheets and links to the Show Desk schedule, where they print one class at a time. It becomes a door into the panel:
+
+| State                  | The line's detail                                                                     | Its link                                                   |
+| ---------------------- | ------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| Not printed            | "Trial 1 on Monday: 2 judge packets and 14 armband labels to print."                  | "Print for Monday": everything the first day still needs   |
+| Changed since printing | "2 dogs were added to Interior Advanced after Monday's paperwork was printed."        | "Print what changed": only the affected classes and labels |
+| Printed                | "Trial 1 printed Sunday at 6:15 PM. Trials 2 and 3 print on Tuesday, after move-ups." | None                                                       |
+| Can't check            | "Can't check right now"                                                               | None; it does not guess                                    |
+
+When every line passes, the list still collapses to "Everything is handled."
+
+Every entry point in the table above is now mocked.
 
 Defaults that read the current state:
 
@@ -191,7 +213,7 @@ One pull request per phase. A phase is not done until its tests pass.
 
 ### Phase 0: mock-up and open questions
 
-- Done 2026-11-13: the panel is mocked up in seven states and the owner approved the sentence layout (see "Layout"). The preview, the judge's cover sheet and the initials page were mocked and approved the same day (see "The preview"). Still to mock: one dog's label and the checklist row.
+- Done 2026-11-13: the panel is mocked up in seven states and the owner approved the sentence layout (see "Layout"). The preview, the judge's cover sheet and the initials page were mocked and approved the same day (see "The preview"). One dog's label and the checklist line followed, also approved. Phase 0 now owes only the open questions.
 - Answer the open questions below.
 - **Tests:** none; the output is the mock-up and recorded decisions.
 
@@ -236,6 +258,8 @@ Launch priority is show-day reliability. If time is short, Phase 1 alone deliver
 3. Is UKC's signed judge's book copy produced from the existing UKC Judges Book reports, or does it need its own step in the after-show packet?
 4. Should the judge's record be one PDF per trial or one per show?
 5. How long do stored packet links stay valid, and is that long enough for a judge's one-year retention? If not, the email must say to save the file.
+6. On a multi-day show, what prompts printing the next day's first trial the evening before? The checklist is hidden once the show starts, and `rollUpFirstDayPaperwork` looks only at the first day.
+7. Should the checklist line be renamed, for example "First day's paperwork printed", now that armband labels sit behind the same link?
 
 ## Non-goals
 

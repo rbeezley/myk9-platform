@@ -308,7 +308,7 @@ describe('useEnrollmentLedgerActions', () => {
     await failRecord(raw);
 
     expect(mocks.toastError).toHaveBeenCalledWith(
-      'Payment not recorded. Something went wrong with this request. Reload the page and try again.'
+      'Payment not recorded. Something went wrong with this request. Restart the app and try again.'
     );
     expect(mocks.toastError).not.toHaveBeenCalledWith(expect.stringContaining(text));
     expect(logSpy).toHaveBeenCalledWith(

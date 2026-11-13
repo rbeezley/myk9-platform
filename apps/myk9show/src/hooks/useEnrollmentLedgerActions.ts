@@ -88,7 +88,7 @@ const FRIENDLY_REFUSALS: readonly RegExp[] = [
 // Every 22023 is raised before either RPC writes a row, so "not recorded" is
 // true here; the cause is on our side, not something the secretary typed.
 const LEDGER_REFUSED_TECHNICAL =
-  'Payment not recorded. Something went wrong with this request. Reload the page and try again.';
+  'Payment not recorded. Something went wrong with this request. Restart the app and try again.';
 
 /**
  * MYK9-1824: what the secretary reads when a payment write fails. The RPCs'

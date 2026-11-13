@@ -10,7 +10,7 @@
 
 import type { ClassEntry } from '../types';
 import { buildCombinedClassName } from './combinedClassName';
-import { withMergedSectionState } from './combinedSectionState';
+import { mergeSectionCancellation, withMergedSectionState } from './combinedSectionState';
 
 /**
  * Check if the organization uses A/B sections for all levels
@@ -96,6 +96,7 @@ export function findPairedSectionedClass(
  * - UKC Nosework: ALL levels with section 'A' or 'B' are combined
  * - AKC (default): Only Novice level classes are combined
  * - Classes must match on `element`, `level` and judge (different judges stay separate)
+ * - A pair with exactly one section cancelled is not combined (MYK9-1847)
  * - Status, release, finalization and times reflect BOTH sections
  * - Combined entry uses section 'A' as primary ID
  * - Entry counts, completion counts, and dog arrays are merged
@@ -144,8 +145,15 @@ export function groupSectionedClasses(
     if (shouldCheckForPair) {
       // Find the paired class
       const paired = findPairedFn(classEntry, classList);
+      // MYK9-1847: a pair whose sections disagree on cancellation is not combined. Each section
+      // keeps its own card, so the cancelled one reads Cancelled and the running one stays live
+      // with its own status, counts and next-up, instead of a merge that mixes in a section
+      // that will never run.
+      const mixedCancellation =
+        paired !== null &&
+        mergeSectionCancellation(classEntry, paired).cancelledSections.length === 1;
 
-      if (paired) {
+      if (paired && !mixedCancellation) {
         // Mark both as processed
         processedIds.add(classEntry.id);
         processedIds.add(paired.id);

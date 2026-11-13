@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { ClassEntry } from '../types';
 import {
+  mergeSectionCancellation,
   mergeSectionPhase,
   withMergedSectionState,
   type PhaseSource,
 } from './combinedSectionState';
+import { groupSectionedClasses } from './noviceClassGrouping';
 
 const section = (fields: Partial<PhaseSource>): PhaseSource => ({
   class_status: 'in_progress',
@@ -89,5 +91,105 @@ describe('withMergedSectionState phase time', () => {
       card({ class_status: 'break', break_until: '10:45' })
     );
     expect(merged.break_until).toBe('10:45');
+  });
+});
+
+describe('A/B cancellation (MYK9-1847)', () => {
+  const sec = (section: string, is_cancelled: boolean, class_status: ClassEntry['class_status']) =>
+    ({ section, is_cancelled, class_status }) as ClassEntry;
+
+  it.each([
+    ['A only', true, false, false, ['A']],
+    ['B only', false, true, false, ['B']],
+    ['both', true, true, true, ['A', 'B']],
+    ['neither', false, false, false, []],
+  ])('%s', (_name, aCancelled, bCancelled, all, sections) => {
+    expect(
+      mergeSectionCancellation(sec('A', aCancelled, 'setup'), sec('B', bCancelled, 'setup'))
+    ).toEqual({
+      allCancelled: all,
+      cancelledSections: sections,
+    });
+  });
+
+  it('the merged card is cancelled when both sections are', () => {
+    const both = withMergedSectionState(sec('A', true, 'setup'), sec('B', true, 'setup'));
+    expect(both.is_cancelled).toBe(true);
+  });
+
+  it('the merged card never takes section A cancelled flag alone', () => {
+    const merged = withMergedSectionState(sec('A', true, 'setup'), sec('B', false, 'in_progress'));
+    expect(merged.is_cancelled).toBeUndefined();
+  });
+
+  it('neither cancelled: no cancellation fact on the card', () => {
+    const merged = withMergedSectionState(sec('A', false, 'setup'), sec('B', false, 'setup'));
+    expect(merged.is_cancelled).toBeUndefined();
+  });
+});
+
+describe('grouping an A/B pair by cancellation (MYK9-1847)', () => {
+  const abSection = (
+    id: string,
+    letter: 'A' | 'B',
+    is_cancelled: boolean,
+    class_status: ClassEntry['class_status']
+  ) =>
+    ({
+      id,
+      section: letter,
+      level: 'Novice',
+      element: 'Interior',
+      class_status,
+      entry_count: 3,
+      completed_count: letter === 'B' ? 3 : 0,
+      dogs: [],
+      is_favorite: false,
+      ...(is_cancelled ? { is_cancelled: true } : {}),
+    }) as unknown as ClassEntry;
+  const pairOf = (entry: ClassEntry, all: ClassEntry[]) =>
+    all.find(other => other.id !== entry.id) ?? null;
+  const group = (a: ClassEntry, b: ClassEntry) =>
+    groupSectionedClasses([a, b], 'AKC Scent Work', pairOf);
+
+  it.each([
+    ['A only', true, false],
+    ['B only', false, true],
+  ])('%s cancelled: each section keeps its own card', (_name, aCancelled, bCancelled) => {
+    const cards = group(
+      abSection('a', 'A', aCancelled, 'setup'),
+      abSection('b', 'B', bCancelled, 'completed')
+    );
+    expect(cards.map(card => card.id)).toEqual(['a', 'b']);
+    expect(cards.find(card => card.section === 'A & B')).toBeUndefined();
+    const cancelled = cards.find(card => card.is_cancelled === true);
+    expect(cancelled?.id).toBe(aCancelled ? 'a' : 'b');
+    // The running section reads its own status, not a merge with the cancelled one.
+    const live = cards.find(card => card.is_cancelled !== true);
+    expect(live?.class_status).toBe(aCancelled ? 'completed' : 'setup');
+  });
+
+  it('both cancelled: one combined card that reads cancelled', () => {
+    const cards = group(abSection('a', 'A', true, 'setup'), abSection('b', 'B', true, 'setup'));
+    expect(cards).toHaveLength(1);
+    expect(cards[0]?.section).toBe('A & B');
+    expect(cards[0]?.is_cancelled).toBe(true);
+  });
+
+  it('neither cancelled: one combined card, not cancelled', () => {
+    const cards = group(
+      abSection('a', 'A', false, 'setup'),
+      abSection('b', 'B', false, 'in_progress')
+    );
+    expect(cards).toHaveLength(1);
+    expect(cards[0]?.is_cancelled).toBeUndefined();
+    expect(cards[0]?.entry_count).toBe(6);
+  });
+
+  it('un-cancelling a section combines the pair again', () => {
+    const a = abSection('a', 'A', true, 'setup');
+    const b = abSection('b', 'B', false, 'in_progress');
+    expect(group(a, b)).toHaveLength(2);
+    expect(group({ ...a, is_cancelled: false }, b)).toHaveLength(1);
   });
 });

@@ -114,6 +114,10 @@ The `verify` and `needs` groups are multi-select. Apply the children, never the 
 - Work types: `Bug`, `Improvement`, `Feature`, `Test` (test or harness work; never "tests
   passed"), `Ops` (operational work: follow its runbook, not a code implementer). `Parked` is an
   explicit owner decision to defer until a named trigger; leave it out of launch work.
+- State label: `changes-needed` (created 2026-11-13) marks a Backlog issue whose code already
+  merged but whose remaining work is parked (see the lifecycle table below). It sits beside the
+  `needs:*`/`verify:*` labels, it does not replace them: its comment names the open criterion.
+  Remove it when the issue leaves Backlog.
 - Retired, do not apply or recreate: `Claude`, `Codex`, `lane:mac`, `lane:pc`, `Oct 10 test show`,
   `vacation-blocked`, `needs-richard`, `Human Tester`, `Wait for Launch`, `auto:green`,
   `auto:yellow`. Replace one on an open issue with the specific `needs:*` or `verify:*` label.
@@ -123,13 +127,19 @@ The `verify` and `needs` groups are multi-select. Apply the children, never the 
 The root agent running a command or pipeline owns the tracking issue through every delegated
 phase. OpenSpec task checkboxes do not update Linear.
 
-| Stage                            | Status                                               |
-| -------------------------------- | ---------------------------------------------------- |
-| Not started, or held before work | Unchanged (Backlog/Todo)                             |
-| Implementation started           | In Progress, through the unmerged PR's review gate   |
-| Merged, only acceptance owed     | In Review, with the `verify:*` labels still owed     |
-| Merged, more implementation owed | In Progress (set it back if a linked merge moved it) |
-| Every criterion evidenced        | Done, after a fresh `get_issue` read                 |
+| Stage                            | Status                                                 |
+| -------------------------------- | ------------------------------------------------------ |
+| Not started, or held before work | Unchanged (Backlog/Todo)                               |
+| Implementation started           | In Progress, through the unmerged PR's review gate     |
+| Merged, only acceptance owed     | In Review, with the `verify:*` labels still owed       |
+| Merged, more implementation owed | In Progress (set it back if a linked merge moved it)   |
+| Merged, rest parked for later    | Backlog **with `changes-needed`**, never plain Backlog |
+| Every criterion evidenced        | Done, after a fresh `get_issue` read                   |
+
+A Backlog issue whose code already merged is the costliest kind to triage: it reads as unstarted
+work (owner, 2026-11-13, after six such issues each cost a triage pass). So an issue moved back
+to Backlog after a merge carries `changes-needed` and a comment naming the criterion still open,
+and triage reads every `changes-needed` issue's latest comments before counting it as work.
 
 Team automations, owner-approved and read back on 2026-10-25: PR open → In Progress; PR
 review activity → no action; **PR merge → In Review**; parent and sub-issue auto-close off. A

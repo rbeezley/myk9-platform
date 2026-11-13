@@ -51,7 +51,7 @@ This is the canonical loop: implement → simplify → harden (unless Codex revi
 | PR touches `package.json` / auth / RLS / migrations / list views | Also load `code-review-extensions` checklists (dependency, security, migration, performance sections)                                                                     |
 | New/changed Supabase migration before `db push`                  | `migration-auditor` agent — checks missing GRANTs, missing RLS, O(N) policy anti-patterns, missing pre-queries, enum/CHECK mismatches                                     |
 | Pre-launch or major release                                      | `security-audit` skill (full mode)                                                                                                                                        |
-| Pre-pass or lens inside an orchestrated / `ship-pr` run          | The `sonnet` sub-agent `ship-pr` Step 4 names. Not `/code-review`: it fans out ~4 agents, which breaks the 2-heavy-job Mac cap, and it is never gate evidence (MYK9-1469) |
+| Pre-pass or lens inside an orchestrated / `ship-pr` run          | The `sonnet` sub-agent `ship-pr` Step 4 names. Not `/code-review`: it fans out ~4 agents, which breaks the 3-heavy-job Mac cap, and it is never gate evidence (MYK9-1469) |
 | Security pass on a diff                                          | `security-audit` skill (diff mode). Claude's built-in `/security-review` is not used: it duplicates this without the repo's RLS/grant/RPC traps                           |
 
 Run Codex review **before** merging, not after — it's a gate, not a follow-up.

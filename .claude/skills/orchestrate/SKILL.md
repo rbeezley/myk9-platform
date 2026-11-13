@@ -42,11 +42,11 @@ this table.
 Never dispatch migrations blind. After an implementer writes one, run the `migration-auditor`
 agent on it before your own review. Migrations are never pushed in an orchestrated run.
 
-**Concurrency cap: 2 heavy jobs at once** (owner, 2026-10-13, after four agents plus Codex
-reviews needed a reboot). This counts sub-agents, resumed agents (SendMessage), verifiers that
+**Concurrency cap: 3 heavy jobs at once** (owner, 2026-11-13). It was 2 from 2026-10-13, when
+four agents plus Codex reviews needed a reboot; implementers have since moved to the cloud lane. This counts sub-agents, resumed agents (SendMessage), verifiers that
 run a suite or a browser, Codex reviews and your own full test or Playwright runs. Lightweight
 `gh` watchers don't count. Count before every spawn or resume, and queue the work when you're
-at 2. No size exemption: a "small" fix's agent counts like any other. Implementers running
+at 3. No size exemption: a "small" fix's agent counts like any other. Implementers running
 in Claude cloud sessions (Linear run mode's cloud lane) don't count, since they use no Mac
 CPU; the Codex review and any verifier run for their PRs do.
 

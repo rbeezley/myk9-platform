@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import type { ClassEntry } from '@myk9/ringside';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 import { classifyEntries } from '@/features/_shared/entryAccounting';
 import { toQuickAdvanceChips } from './quickAdvanceReplicated';
@@ -213,48 +214,55 @@ describe('isLiveNextUpStatus', () => {
 });
 
 describe('selectNextUpForCard', () => {
-  const idle: AtShowNextUpPreview = {
-    inRingArmband: null,
-    nextArmbands: [],
-    remaining: 2,
-    total: 2,
-  };
-  const waiting: AtShowNextUpPreview = {
+  const single = { id: 'a', section: 'A' } as ClassEntry;
+  const combined = { id: 'a', section: 'A & B', pairedClassId: 'b' } as ClassEntry;
+  const none = new Map<string, ReplicatedEntry[]>();
+  const stored: AtShowNextUpPreview = {
     inRingArmband: null,
     nextArmbands: ['7'],
     remaining: 1,
-    total: 3,
-  };
-  const running: AtShowNextUpPreview = {
-    inRingArmband: '5',
-    nextArmbands: ['9'],
-    remaining: 2,
-    total: 4,
+    total: 1,
   };
 
-  it('prefers the paired class that actually has a dog in the ring', () => {
-    const map = new Map([
-      ['a', waiting],
-      ['b', running],
+  it('leaves a single-section card on its own class preview', () => {
+    const previews = new Map([['a', stored]]);
+    const rows = new Map([['a', [entry({ id: 'x', armband: '1', runOrder: 1 })]]]);
+    expect(selectNextUpForCard(single, previews, rows)).toBe(stored);
+  });
+
+  it('names a section B dog as next when it is first in the merged run order', () => {
+    const rows = new Map([
+      ['a', [entry({ id: 'a1', armband: '30', runOrder: 3 })]],
+      ['b', [entry({ id: 'b1', armband: '20', runOrder: 1 })]],
     ]);
-    expect(selectNextUpForCard(['a', 'b'], map)).toBe(running);
+    const preview = selectNextUpForCard(combined, new Map([['a', stored]]), rows);
+    expect(preview?.nextArmbands).toEqual(['20', '30']);
+    expect(preview?.remaining).toBe(2);
+    expect(preview?.total).toBe(2);
   });
 
-  it('falls back to the first class with dogs waiting', () => {
-    const map = new Map([
-      ['a', idle],
-      ['b', waiting],
+  it('shows the in-ring dog from either section', () => {
+    const rows = new Map([
+      ['a', [entry({ id: 'a1', armband: '10', runOrder: 1 })]],
+      ['b', [entry({ id: 'b1', armband: '20', runOrder: 2, isInRing: true })]],
     ]);
-    expect(selectNextUpForCard(['a', 'b'], map)).toBe(waiting);
+    const preview = selectNextUpForCard(combined, new Map(), rows);
+    expect(preview?.inRingArmband).toBe('20');
+    expect(preview?.nextArmbands).toEqual(['10']);
   });
 
-  it('falls back to the first known preview so counts still render', () => {
-    const map = new Map([['a', idle]]);
-    expect(selectNextUpForCard(['a', 'b'], map)).toBe(idle);
+  it('picks the same in-ring dog as the sorted list when both sections flag one', () => {
+    const rows = new Map([
+      ['a', [entry({ id: 'a1', armband: '30', runOrder: 3, isInRing: true })]],
+      ['b', [entry({ id: 'b1', armband: '20', runOrder: 1, isInRing: true })]],
+    ]);
+    const preview = selectNextUpForCard(combined, new Map(), rows);
+    expect(preview?.inRingArmband).toBe('20');
   });
 
-  it('returns undefined when no class id is known', () => {
-    expect(selectNextUpForCard(['zz'], new Map())).toBeUndefined();
+  it('falls back to the stored preview when no entries are known', () => {
+    expect(selectNextUpForCard(combined, new Map([['a', stored]]), none)).toBe(stored);
+    expect(selectNextUpForCard(combined, new Map(), none)).toBeUndefined();
     expect(isEmptyNextUpPreview(undefined)).toBe(true);
   });
 });

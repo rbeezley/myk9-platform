@@ -14,6 +14,7 @@
  */
 
 import {
+  compareByRunOrder,
   findInRingEntry,
   nextPendingCandidates,
   pendingByRunOrder,
@@ -96,7 +97,11 @@ export function nextPendingReplicated(
   return nextPendingCandidates(entries.map(toRunQueueEntry), limit).map(row => row.entry);
 }
 
-/** The replicated entry currently in the ring, or null. */
+/**
+ * The replicated entry currently in the ring, or null. When stale data flags
+ * more than one dog (a merged A & B card can), the first by run order wins, the
+ * same comparator the entry list sorts with, so card and list name the same dog.
+ */
 export function inRingReplicated(entries: ReplicatedEntry[]): ReplicatedEntry | null {
-  return findInRingEntry(entries.map(toRunQueueEntry))?.entry ?? null;
+  return findInRingEntry(entries.map(toRunQueueEntry).sort(compareByRunOrder))?.entry ?? null;
 }

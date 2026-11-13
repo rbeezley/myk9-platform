@@ -23,11 +23,14 @@ import {
 } from './atShowClassListAdapter';
 import { syncAtShowData } from './atShowDataAdapter';
 import type { AtShowNextUpPreview } from './atShowNextUpPreview';
+import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 
 export interface UseAtShowClassListResult {
   groups: AtShowClassGroup[];
   /** In-ring / next-up row previews across every trial, keyed by class id. */
   nextUpByClassId: Map<string, AtShowNextUpPreview>;
+  /** Replicated entries across every trial, keyed by class id (merges combined A & B cards). */
+  entriesByClassId: Map<string, ReplicatedEntry[]>;
   organization: string;
   showName: string;
   /** "Aug 1–3, 2030" from the replicated show, or null when it has no renderable date. */
@@ -189,9 +192,18 @@ export function useAtShowClassList(showId: string | undefined): UseAtShowClassLi
     return merged;
   }, [groups]);
 
+  const entriesByClassId = useMemo(() => {
+    const merged = new Map<string, ReplicatedEntry[]>();
+    for (const group of groups) {
+      for (const [classId, rows] of group.entriesByClassId ?? []) merged.set(classId, rows);
+    }
+    return merged;
+  }, [groups]);
+
   return {
     groups,
     nextUpByClassId,
+    entriesByClassId,
     organization: showQuery.data?.organization ?? '',
     showName: showQuery.data?.name ?? '',
     showDateLabel: formatShowDateRange(showQuery.data?.startDate, showQuery.data?.endDate) || null,

@@ -54,11 +54,12 @@ export class AuthTimeoutError extends Error {
 }
 
 /**
- * No answer from the network: our timer, a failed fetch, or the SDK's status 0 (which is how it
- * reports a dropped connection; a retryable 5xx from the server is not "no connection").
+ * No answer from the network: our own timer, or the SDK's status 0 (how it reports a failed
+ * fetch). A retryable 5xx from the server is not "no connection", and a bare TypeError is a
+ * code bug, so neither counts.
  */
 function isConnectionFailure(error: unknown, failure: AuthFailure): boolean {
-  return error instanceof AuthTimeoutError || error instanceof TypeError || failure.status === 0;
+  return error instanceof AuthTimeoutError || failure.status === 0;
 }
 
 export interface AuthFailure {

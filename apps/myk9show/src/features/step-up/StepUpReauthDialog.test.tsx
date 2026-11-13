@@ -288,7 +288,9 @@ describe('StepUpReauthDialog', () => {
   });
 
   it('says the connection is the problem when the request cannot reach the provider', async () => {
-    mockSupabase.auth.signInWithPassword.mockRejectedValue(new Error('Failed to fetch'));
+    mockSupabase.auth.signInWithPassword.mockRejectedValue(
+      Object.assign(new Error('Failed to fetch'), { status: 0 })
+    );
     const user = userEvent.setup();
     await openPrompt('email');
 

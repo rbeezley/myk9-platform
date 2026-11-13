@@ -49,7 +49,10 @@ describe('friendlyAuthError', () => {
 
   it.each([
     ['a dropped connection', Object.assign(new Error('Failed to fetch'), { status: 0 })],
-    ['a network error', new TypeError('NetworkError when attempting to fetch resource.')],
+    [
+      'a failed fetch the SDK wrapped',
+      new AuthRetryableFetchError('TypeError: Failed to fetch', 0),
+    ],
     ['the sign-in timeout, whatever its message says', new AuthTimeoutError('Zeit abgelaufen')],
     [
       'the SDK retryable fetch error, in any language',

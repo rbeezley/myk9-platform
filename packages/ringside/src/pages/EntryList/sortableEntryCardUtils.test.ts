@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { getStatusBorderClass, isNationalsCompetition } from './sortableEntryCardUtils';
+import {
+  getPlacementText,
+  getStatusBorderClass,
+  isNationalsCompetition,
+} from './sortableEntryCardUtils';
 
 // Pins the contract between the show-context producers (myK9Show's
 // validate-passcode edge function + the /at-show RingsideShowContext, both of
@@ -35,5 +39,25 @@ describe('getStatusBorderClass for a disqualified entry', () => {
     expect(getStatusBorderClass(scored('DQ'))).toBe('result-ex');
     expect(getStatusBorderClass(scored('excused'))).toBe('result-ex');
     expect(getStatusBorderClass(scored('mystery'))).toBe('scored');
+  });
+});
+
+describe('getPlacementText', () => {
+  it('returns the correct English ordinal, including the 11th to 13th teens', () => {
+    expect([1, 2, 3, 4, 11, 12, 13, 21, 22, 23, 101, 111, 112].map(getPlacementText)).toEqual([
+      '1st',
+      '2nd',
+      '3rd',
+      '4th',
+      '11th',
+      '12th',
+      '13th',
+      '21st',
+      '22nd',
+      '23rd',
+      '101st',
+      '111th',
+      '112th',
+    ]);
   });
 });

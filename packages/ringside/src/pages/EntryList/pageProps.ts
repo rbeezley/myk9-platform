@@ -570,6 +570,25 @@ export interface EntryListFavorites {
 // Defined next to its builder in ./dogsAheadInList.ts; re-exported here so the
 // props bags below and host shims import from one place.
 export type { EntryListOwnership } from './dogsAheadInList';
+
+/**
+ * What a card offers in place of the check-in status control (MYK9-1807, MYK9-1809). The host
+ * decides per entry; ringside only renders it.
+ *  - `open`: the tappable status control.
+ *  - `self-checkin-off`: the control opens the "self check-in is off" dialog.
+ *  - `none`: the status is shown but nothing can be changed (not the viewer's dog).
+ *  - `reinstate`: the dog is not running; an exhibitor is told the secretary must reinstate it.
+ *  - `reinstate-staff`: the same row for staff, who are pointed to Entry management.
+ */
+export type EntryStatusControl =
+  'open' | 'self-checkin-off' | 'none' | 'reinstate' | 'reinstate-staff';
+
+/** Host answers for who may change a check-in status from this list. */
+export interface EntryListStatusAccess {
+  controlFor: (entry: Entry) => EntryStatusControl;
+  /** The viewer writes through self check-in: the picker lists only the statuses it accepts. */
+  selfCheckinOnly: boolean;
+}
 import type { EntryListOwnership as EntryListOwnershipBag } from './dogsAheadInList';
 
 // =============================================================================
@@ -696,6 +715,17 @@ export interface EntryListPageProps {
      * option (org rule fixes max times, or user lacks permission).
      */
     hideMaxTimeOption: boolean;
+    /**
+     * Who may change a check-in status here. Omitted keeps the old rule (the control follows
+     * `canCheckInDogs` and the class's self check-in setting).
+     */
+    statusAccess?: EntryListStatusAccess;
+    /**
+     * The show's entries have not all arrived on this device (MYK9-1809). The list then claims
+     * nothing that depends on the whole run: no "In the ring", "Ring is clear" or "Up next"
+     * block (the host withholds place in line the same way, in the ownership bag).
+     */
+    entriesIncomplete?: boolean;
     /**
      * Precomputed by the shim from `!hasRole(['admin', 'judge'])`.
      * True means the ClassOptionsDialog should hide the "Settings"

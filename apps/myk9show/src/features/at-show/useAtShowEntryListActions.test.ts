@@ -209,9 +209,47 @@ describe('useAtShowEntryListActions', () => {
       expect(updateEntry).not.toHaveBeenCalled();
     });
 
-    it('surfaces hasError when the self-check-in RPC rejects (e.g. not authorized)', async () => {
-      updateSelfCheckInStatus.mockRejectedValueOnce(new Error('Not authorized'));
+    it('surfaces hasError when the self-check-in RPC cannot be reached', async () => {
+      updateSelfCheckInStatus.mockRejectedValueOnce(new Error('Failed to fetch'));
       const { result } = render('self-checkin-rpc');
+      await act(async () => {
+        await result.current.handleStatusChange('entry-uuid-9', 'checked-in').catch(() => {});
+      });
+      await waitFor(() => expect(result.current.hasError).toBe(true));
+    });
+
+    // MYK9-1807: a refusal is the server's answer, not a write that failed to send, so it must
+    // not light the "could not be sent" pill. It still rejects, so the caller can word it.
+    it.each([
+      'Not authorized: caller does not own entry e1 or self check-in is disabled',
+      'Status in-ring is not allowed for self-check-in',
+    ])('does not raise hasError when the server refuses the write (%s)', async message => {
+      updateSelfCheckInStatus.mockRejectedValueOnce(new Error(message));
+      const { result } = render('self-checkin-rpc');
+      let rejection: unknown;
+      await act(async () => {
+        rejection = await result.current
+          .handleStatusChange('entry-uuid-9', 'checked-in')
+          .catch((error: unknown) => error);
+      });
+      expect(rejection).toBeInstanceOf(Error);
+      expect(result.current.hasError).toBe(false);
+    });
+
+    it('a refresh that fails after an accepted write still raises hasError', async () => {
+      refresh.mockRejectedValueOnce(
+        new Error('Not authorized: caller does not own entry e1 or self check-in is disabled')
+      );
+      const { result } = render('self-checkin-rpc');
+      await act(async () => {
+        await result.current.handleStatusChange('entry-uuid-9', 'checked-in').catch(() => {});
+      });
+      await waitFor(() => expect(result.current.hasError).toBe(true));
+    });
+
+    it('a staff writer that is refused still raises hasError', async () => {
+      updateEntry.mockRejectedValueOnce(new Error('Not authorized'));
+      const { result } = render('replicated');
       await act(async () => {
         await result.current.handleStatusChange('entry-uuid-9', 'checked-in').catch(() => {});
       });

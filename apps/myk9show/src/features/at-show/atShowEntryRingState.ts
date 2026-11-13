@@ -17,13 +17,18 @@ import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTa
 export function ringsideEntryRingState(re: ReplicatedEntry): {
   status: EntryStatus;
   inRing: boolean;
+  /**
+   * The entry lifecycle (scratched, withdrawn, absent) says the dog will not run. `status` reads
+   * Pulled for it whatever the check-in column holds, so a check-in change cannot bring it back;
+   * only the secretary reinstating the entry can (MYK9-1809).
+   */
+  notRunning: boolean;
 } {
   const checkinStatus = re.checkInStatus ?? re.check_in_status;
   const lifecycleStatus = re.entryStatus ?? re.entry_status ?? re.status;
+  const notRunning = isNonRunningEntry({ entryStatus: lifecycleStatus });
   const status: EntryStatus = (
-    checkinStatus === 'pulled' || isNonRunningEntry({ entryStatus: lifecycleStatus })
-      ? 'pulled'
-      : (checkinStatus ?? 'no-status')
+    checkinStatus === 'pulled' || notRunning ? 'pulled' : (checkinStatus ?? 'no-status')
   ) as EntryStatus;
   const inRing =
     isRunnableEntry(re) &&
@@ -33,5 +38,5 @@ export function ringsideEntryRingState(re: ReplicatedEntry): {
       status,
       inRing: (re.isInRing ?? re.is_in_ring ?? false) === true,
     });
-  return { status, inRing };
+  return { status, inRing, notRunning };
 }

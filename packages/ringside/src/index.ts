@@ -276,6 +276,8 @@ export type {
   EntryListDerived,
   EntryListDrag,
   EntryListLayoutSlots,
+  EntryListStatusAccess,
+  EntryStatusControl,
   // PR E2d-2a — per-primitive Props interfaces. apps/myk9q will switch
   // its component-side interfaces to these during/after E2d-2b for
   // single-sourcing.

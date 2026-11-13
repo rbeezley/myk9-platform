@@ -16,7 +16,7 @@ import type { ComponentType } from 'react';
 import type { useSortable } from '@dnd-kit/sortable';
 import type { Entry } from '../../stores/entryStore';
 import { formatArmband } from '../../utils/armband';
-import type { DogCardProps } from './pageProps';
+import type { DogCardProps, EntryStatusControl } from './pageProps';
 import type { EntryListPermission } from './permissions';
 import { isNationalsCompetition } from './sortableEntryCardUtils';
 import { ResultBadges } from './SortableEntryCardComponents';
@@ -24,6 +24,7 @@ import type { DogsAheadResult } from './dogsAheadInList';
 import { CompletedResult } from './CompletedResult';
 import {
   OwnDogConflictChip,
+  ReinstateNotice,
   OwnDogQueuePill,
   ResetButton,
   StatusBadge,
@@ -49,6 +50,8 @@ export interface SortableEntryCardBodyProps {
   isOwnEntry: boolean;
   dogsAhead: DogsAheadResult;
   conflictLabel: string | null;
+  /** See SortableEntryCardProps.statusControl. */
+  statusControl?: EntryStatusControl | undefined;
   variant?: 'hero' | 'next' | undefined;
   DogCard: ComponentType<DogCardProps>;
   /** Set by the shell's long press; a click that ends one must not navigate. */
@@ -76,6 +79,7 @@ const SortableEntryCardBodyImpl: React.FC<SortableEntryCardBodyProps> = ({
   isOwnEntry,
   dogsAhead,
   conflictLabel,
+  statusControl,
   variant,
   DogCard,
   isLongPressRef,
@@ -91,10 +95,13 @@ const SortableEntryCardBodyImpl: React.FC<SortableEntryCardBodyProps> = ({
   // held, and the server refuses a locked write regardless.
   const awaitingRegistration = entry.awaitingRegistrationNumber === true && !entry.isScored;
 
-  // Determine if self check-in is allowed
-  const canCheckIn = hasPermission('canCheckInDogs');
+  // What the status control does here. The host answers per viewer and entry (MYK9-1807); with no
+  // answer, the old rule: anyone who can check dogs in, or any viewer while self check-in is on.
   const isSelfCheckinEnabled = classInfo?.selfCheckin ?? true;
-  const isCheckInDisabled = !canCheckIn && !isSelfCheckinEnabled;
+  const control: EntryStatusControl =
+    statusControl ??
+    (hasPermission('canCheckInDogs') || isSelfCheckinEnabled ? 'open' : 'self-checkin-off');
+  const isCheckInDisabled = control === 'self-checkin-off';
 
   // Scoring is a permission AND a property of the row: a dog the show no longer
   // expects to run has nothing to score (MYK9-645).
@@ -112,7 +119,7 @@ const SortableEntryCardBodyImpl: React.FC<SortableEntryCardBodyProps> = ({
 
   // Handle status badge click
   const handleStatusBadgeClick = (e: React.MouseEvent) => {
-    if (canCheckIn || isSelfCheckinEnabled) {
+    if (control === 'open') {
       handleStatusClick(e, entry.id);
     } else {
       e.preventDefault();
@@ -208,26 +215,35 @@ const SortableEntryCardBodyImpl: React.FC<SortableEntryCardBodyProps> = ({
       <span className="font-normal">See the secretary</span>
     </span>
   );
+  // A viewer who cannot change the status still sees it; a dog that is not running says who can
+  // bring it back, because no check-in status will (MYK9-1809).
+  const statusControlView = (inverse: boolean) =>
+    control === 'none' || control === 'reinstate' || control === 'reinstate-staff' ? (
+      <>
+        <StatusBadge entry={entry} readOnly inverse={inverse} />
+        {(control === 'reinstate' || control === 'reinstate-staff') && (
+          <ReinstateNotice inverse={inverse} staff={control === 'reinstate-staff'} />
+        )}
+      </>
+    ) : (
+      <StatusBadge
+        entry={entry}
+        isDisabled={isCheckInDisabled}
+        onClick={handleStatusBadgeClick}
+        inverse={inverse}
+      />
+    );
   const baseTrailing =
     variant === 'hero' ? (
       <>
         {/* The ring steward can still correct an in-ring dog's status from here. */}
-        <StatusBadge
-          entry={entry}
-          isDisabled={isCheckInDisabled}
-          onClick={handleStatusBadgeClick}
-          inverse
-        />
+        {statusControlView(true)}
         {scoringAllowed && !awaitingRegistration && actionPill('Resume')}
         {keyboardScoreButton}
       </>
     ) : variant === 'next' ? (
       <>
-        <StatusBadge
-          entry={entry}
-          isDisabled={isCheckInDisabled}
-          onClick={handleStatusBadgeClick}
-        />
+        {statusControlView(false)}
         {isOwnEntry && <OwnDogQueuePill dogsAhead={dogsAhead} />}
         {scoringAllowed && !awaitingRegistration && actionPill('Time')}
         {keyboardScoreButton}
@@ -236,11 +252,7 @@ const SortableEntryCardBodyImpl: React.FC<SortableEntryCardBodyProps> = ({
       <>
         {/* A dog scored and then moved to Not running keeps its result visible. */}
         {entry.isScored && !isNationals && result}
-        <StatusBadge
-          entry={entry}
-          isDisabled={isCheckInDisabled}
-          onClick={handleStatusBadgeClick}
-        />
+        {statusControlView(false)}
         {isOwnEntry && <OwnDogQueuePill dogsAhead={dogsAhead} />}
         {keyboardScoreButton}
       </>

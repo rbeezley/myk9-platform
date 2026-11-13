@@ -57,7 +57,7 @@ import { createRunOrderUpdater } from './runOrderUpdater';
 import { buildRingsideContextValue, buildRingsideReplication } from './ringsideCapabilities';
 import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
 import { useAtShowShowHydration } from './useAtShowShowHydration';
-import { PartialReplicaNotice } from './StaleReadNotice';
+import { EntryListNotices } from './StaleReadNotice';
 import { AtShowEntriesNotOnDeviceAction } from './AtShowEntriesNotOnDeviceAction';
 import { createAtShowDataDependencies } from './atShowDataAdapter';
 import { useAtShowEntryListActions } from './useAtShowEntryListActions';
@@ -69,8 +69,10 @@ import { atShowDialogSlots } from './slots/atShowDialogSlots';
 import { useAtShowDogFavoritesSynced } from './dogFavoritesSync';
 import { useAtShowFavoriteAlertNudge } from './useAtShowFavoriteAlertNudge';
 import { AtShowAddToHomeNudge } from './AtShowAddToHomeNudge';
-import { useMyAtShowEntries } from './useMyAtShowEntries';
 import { useMyRingConflicts } from './useMyRingConflicts';
+import { useEntryStatusAccess } from './useEntryStatusAccess';
+import { useSelfCheckinFor } from './selfCheckinByClass';
+import { writerForRole } from './entryStatusAccess';
 import { useAtShowRealtimeRefresh } from './useAtShowRealtimeRefresh';
 import { useAtShowEntryListRefresh } from './useAtShowEntryListRefresh';
 import {
@@ -167,7 +169,7 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
   // RPC — otherwise the optimistic update sticks locally but never syncs.
   const actions = useAtShowEntryListActions({
     refresh,
-    writer: ringsideRole === 'exhibitor' ? 'self-checkin-rpc' : 'replicated',
+    writer: writerForRole(ringsideRole),
   });
 
   // ── Realtime: scoring/check-in changes elsewhere re-sync this list ─────
@@ -273,6 +275,12 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
       ),
     [showId, classIdA, classIdB]
   );
+  const { statusAccess, statusRefusalFor, ownershipNotice, ownEntryIds } = useEntryStatusAccess({
+    role: ringsideRole,
+    showId,
+    selfCheckinFor: useSelfCheckinFor([classIdA, classIdB]),
+  });
+  const entriesIncomplete = showHydration === 'not-arrived';
 
   const baseHandlers = useAtShowEntryListHandlers({
     actions,
@@ -286,6 +294,7 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
     buildScoreSheetRoute,
     gateEntryClick,
     isClassCancelled,
+    statusRefusalFor,
     refresh,
     manualRefresh,
     setActiveStatusPopup: uiActions.setActiveStatusPopup,
@@ -398,14 +407,12 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
     [baseHandlers, handleApplyRunOrder]
   );
 
-  // ── Ownership annotations (own-dog highlight + dogs-ahead pills) ────────
-  // Combined A/B run together, so the queue is computed over the merged
-  // localEntries — exactly what the page renders.
-  const { ownEntryIds } = useMyAtShowEntries(showId);
+  // Ownership annotations: the queue is computed over the merged localEntries the page renders,
+  // with no place in line while the show's entries have not all arrived (MYK9-1809).
   const conflictLabels = useMyRingConflicts(showId, ownEntryIds);
   const ownership = useMemo(
-    () => buildEntryListOwnership(localEntries, ownEntryIds, conflictLabels),
-    [localEntries, ownEntryIds, conflictLabels]
+    () => buildEntryListOwnership(localEntries, ownEntryIds, conflictLabels, !entriesIncomplete),
+    [localEntries, ownEntryIds, conflictLabels, entriesIncomplete]
   );
 
   // ── Context ────────────────────────────────────────────────────────────
@@ -425,7 +432,7 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
             onDismiss={dismissNudge}
           />
         )}
-        {showHydration === 'not-arrived' && entries.length > 0 && <PartialReplicaNotice />}
+        <EntryListNotices partial={entriesIncomplete && entries.length > 0} own={ownershipNotice} />
         <EntryListPage
           classId={classIdA}
           combined={{
@@ -461,6 +468,8 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
             role: ringsideRole,
             showContext: pageShowContext,
             hasPermission,
+            statusAccess,
+            entriesIncomplete,
             hideMaxTimeOption: !canManageClasses,
             // A combined A/B view has no single class to carry to the Settings links (the page's
             // dialog gets an empty class id), so it never offers Settings (MYK9-1627).

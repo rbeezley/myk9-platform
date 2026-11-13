@@ -6,7 +6,7 @@
   "scripts": {
     "qa:backups:typecheck": "tsc --noEmit -p scripts/backup/tsconfig.json",
     "qa:backups:test": "vitest run scripts/backup --sequence.shuffle",
-    "qa:commit-review:validate": "tsx scripts/qa/commit-review/cli.ts",
+    "qa:commit-review:validate": "node --import tsx scripts/qa/commit-review/cli.ts",
     "qa:commit-review:run": "tsx scripts/qa/commit-review/cli.ts run",
     "qa:commit-review:test": "vitest run scripts/qa/commit-review",
     "qa:browser-session": "tsx scripts/qa/browser-session.ts",

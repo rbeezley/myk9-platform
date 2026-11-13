@@ -17,6 +17,8 @@ The nightly Codex commit review used to stop early (0/N reviewed) until the owne
 5. Progress means more commits reviewed, a longer contiguous reviewed prefix, or publication moving forward. After a failed or no-progress attempt it waits 30 s, 2 min, then 5 min (capped). Per invocation, 3 consecutive no-progress attempts or 12 attempts in total block the run with a report, never silently. A rerun continues the same record and session with fresh counters.
 6. Permanent errors (not logged in, 401/403, missing `codex` binary, missing instructions file) block immediately. Anything else non-zero is treated as transient.
 
+**Worker sandbox.** A nested `codex exec` does not inherit the automation's session settings. The controller pins every worker, fresh or resumed, to the automation's own mode through `-c` (`exec resume` takes no `--sandbox`): a `workspace-write` sandbox, `approval_policy="on-request"` with `approvals_reviewer="auto_review"`, and the run record's directory as a writable root. `qa:commit-review:validate` runs as `node --import tsx` because the `tsx` CLI's IPC socket is `listen EPERM` in that sandbox. Without both, every checkpoint fails and the run blocks at 0/N (the 2026-11-13 run, MYK9-1883).
+
 The controller never reviews, files issues, writes the report or stamps the cursor. The worker does, under the existing one-report-and-cursor docs-only commit contract. Only the controller-verified record can say complete, and the cursor can only be stamped to the reviewed target. A cursor that moves while commits are unreviewed (the Claude failover stamped it) blocks the run as superseded instead of overwriting.
 
 ### Exit codes

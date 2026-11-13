@@ -96,7 +96,7 @@ Owner decision, 2026-11-13: **show the difference, the club collects it.** Nothi
 This needs facts the conversation did not establish, so Phase 0 confirms them:
 
 - `move_up_entry` creates the destination entry at a fee of $0 with payment pending, and leaves the payment on the source entry ("money does not travel", MYK9-639). So today a move to a dearer class is free and nothing shows a difference.
-- Where a class's price comes from, and whether a show can already price levels differently.
+- Answered 2026-11-13: a show has one entry fee, and a class's own fee is ignored when the show has one, so a class change within a show never changes what is owed today. Class fees are planned in `plan-class-fees.md` (MYK9-1931). Until that ships, the fee difference lines in this plan have nothing to show.
 - Whether the app shows an unpaid amount on an entry anywhere the secretary would see it at the table. A search for a balance-due field found none.
 
 ## Switches per show

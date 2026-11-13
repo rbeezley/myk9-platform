@@ -36,6 +36,18 @@ Ringside already does every show-day job: expected time, check-in, place in line
 
 **Results stay private unless the exhibitor says otherwise** (`docs/INTENT.md`, MYK9-969). Nothing in this plan changes who can see a result. Moving a link must never move a result to a place with looser rules.
 
+## When the judge scores on paper
+
+Raised by the owner, 2026-11-13. Place in line only moves when someone records a score or an in-ring mark in the app. A judge on a stopwatch and a paper scoresheet records nothing as the class runs, and the gate steward works from paper sheets, so every place-in-line screen and the alert would be stale. Making Ringside the exhibitor's show-day home makes that worse unless it is fixed.
+
+Design agreed and filed as MYK9-1943 (High):
+
+- Paper or phone is set judge by judge, with the show's existing "Judges score on devices" switch as the default, and one class can be switched on the day from Show Desk.
+- A paper class shows the position in the running order and "This class is scored on paper. Listen for your number at the ring." No "Next up", no "dogs ahead", no alert.
+- On a phone-scored class with dogs still to run and nothing recorded for 10 minutes, the claim becomes "Order may be out of date".
+
+So "one place-in-line answer" in this plan has three possible answers, from one server rule: a live place, the paper line, or out of date.
+
 ## What changes
 
 ### Secretary
@@ -100,6 +112,7 @@ It keeps one job: a class's released results and its Requirements, for anyone al
 
 ## Connections
 
+- MYK9-1943: paper-scored classes make no live claim. Build with or before Phase 1.
 - MYK9-1941: the alert's count. Fix first; it is a bug on its own.
 - MYK9-1940 (day-of changes): the same-words rule, and ringside's wording for moved and absent dogs.
 - MYK9-1780: each dog's status on Show Desk's class panel.

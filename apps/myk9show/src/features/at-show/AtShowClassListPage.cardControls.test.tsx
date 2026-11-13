@@ -385,15 +385,15 @@ describe('upload indicator', () => {
     renderPage();
 
     const card = (await screen.findByText('Interior Excellent')).closest('li') as HTMLElement;
-    expect(await within(card).findByText('1 score not uploaded yet')).toBeInTheDocument();
+    expect(await within(card).findByText('1 score not sent yet')).toBeInTheDocument();
     expect(within(card).getByText('Offline Scoring')).toBeInTheDocument();
-    expect(screen.getAllByText(/not uploaded yet/)).toHaveLength(1);
+    expect(screen.getAllByText(/not sent yet/)).toHaveLength(1);
   });
 
   it('shows nothing when the queue is empty', async () => {
     renderPage();
     await screen.findByText('Interior Excellent');
-    expect(screen.queryByText(/not uploaded yet/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/not sent yet/)).not.toBeInTheDocument();
     expect(screen.queryByText('Offline Scoring')).not.toBeInTheDocument();
   });
 });

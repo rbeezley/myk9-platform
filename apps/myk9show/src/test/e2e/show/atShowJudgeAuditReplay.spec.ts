@@ -88,7 +88,7 @@ test.describe('At-show judge scheduled audit replay', () => {
 
     // The judge is never told anything went wrong — a transient conflict is not
     // a user-facing failure.
-    await expect(page.getByText(/failed to sync/i)).toHaveCount(0);
+    await expect(page.getByText(/could not be sent/i)).toHaveCount(0);
     await expect(page.getByText(/couldn't save/i)).toHaveCount(0);
 
     // The score is the one the judge entered, not the losing attempt's ghost.

@@ -8,7 +8,7 @@ const ICON_BUTTON =
   'flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
 function queuedScoresLabel(count: number): string {
-  return `${count} ${count === 1 ? 'score' : 'scores'} not uploaded yet`;
+  return `${count} ${count === 1 ? 'score' : 'scores'} not sent yet`;
 }
 
 /** Completed over total, drawn only when the count is known and there is something to complete. */

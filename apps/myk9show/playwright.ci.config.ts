@@ -279,7 +279,7 @@ const PR_SMOKE_SPECS = [
   '**/labels-print-geometry.spec.ts',
   // Hermetic (no sign-in, no DB): the real ringside entry-list header at 768/834 portrait and 1024
   // landscape keeps the class name whole and the header short beside the offline note and the
-  // "Waiting to sync" pill (MYK9-1899).
+  // "Not sent yet" pill (MYK9-1899).
   '**/ringsideEntryListHeaderTablet.spec.ts',
   '**/header-wordmark-fits.spec.ts',
   '**/dialogContainsLongContent.spec.ts',

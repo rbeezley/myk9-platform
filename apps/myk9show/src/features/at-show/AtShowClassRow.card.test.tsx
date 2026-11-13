@@ -69,13 +69,13 @@ describe('progress bar', () => {
 describe('upload indicator and Offline Scoring badge', () => {
   it('shows both for a class with scores queued on this device', () => {
     renderRow(classEntry(), { queuedScoreCount: 3 });
-    expect(screen.getByText('3 scores not uploaded yet')).toBeInTheDocument();
+    expect(screen.getByText('3 scores not sent yet')).toBeInTheDocument();
     expect(screen.getByText('Offline Scoring')).toBeInTheDocument();
   });
 
   it('uses the singular for one queued score', () => {
     renderRow(classEntry(), { queuedScoreCount: 1 });
-    expect(screen.getByText('1 score not uploaded yet')).toBeInTheDocument();
+    expect(screen.getByText('1 score not sent yet')).toBeInTheDocument();
   });
 
   it.each([
@@ -84,7 +84,7 @@ describe('upload indicator and Offline Scoring badge', () => {
     ['finished', classEntry({ class_status: 'completed', completed_count: 4 })],
   ])('shows neither for an in-sync %s class, and never an outdated warning', (_name, entry) => {
     renderRow(entry, { queuedScoreCount: 0 });
-    expect(screen.queryByText(/not uploaded yet/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/not sent yet/)).not.toBeInTheDocument();
     expect(screen.queryByText('Offline Scoring')).not.toBeInTheDocument();
     expect(screen.queryByText(/outdated|may be out of date|stale/i)).not.toBeInTheDocument();
   });
@@ -92,7 +92,7 @@ describe('upload indicator and Offline Scoring badge', () => {
   it('still shows the badge when the class itself is in Offline Scoring', () => {
     renderRow(classEntry({ class_status: 'offline-scoring' }), { queuedScoreCount: 0 });
     expect(screen.getByText('Offline Scoring')).toBeInTheDocument();
-    expect(screen.queryByText(/not uploaded yet/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/not sent yet/)).not.toBeInTheDocument();
   });
 });
 

@@ -88,7 +88,8 @@ export const ClassRequirementsDialog: React.FC<ClassRequirementsDialogProps> = (
           <div className="space-y-3">
             {maxTimeCard}
             <p className="text-sm text-muted-foreground">
-              This class&apos;s rules aren&apos;t on this device yet. They load on the next sync.
+              This class&apos;s rules aren&apos;t on this device yet. They will appear once this
+              device gets the latest show data.
             </p>
           </div>
         )}

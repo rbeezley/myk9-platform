@@ -8,7 +8,8 @@ export function StaleReadNotice({ onRetry }: { onRetry: () => void }) {
       role="status"
     >
       <p className="text-sm text-muted-foreground">
-        Couldn't refresh this show's dogs on this device. This may be out of date.
+        We could not reach myK9Show to refresh this show's dogs. The list saved on this device may
+        be out of date.
       </p>
       <Button variant="outline" onClick={onRetry}>
         Try again
@@ -21,7 +22,7 @@ export function StaleReadNotice({ onRetry }: { onRetry: () => void }) {
 export function PartialReplicaNotice() {
   return (
     <p className="mb-3 rounded-md border px-3 py-2 text-sm text-muted-foreground" role="status">
-      This device hasn't finished syncing this show, so some dogs or classes may be missing.
+      This device hasn't finished getting this show's data, so some dogs or classes may be missing.
     </p>
   );
 }

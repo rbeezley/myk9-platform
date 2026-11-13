@@ -14,7 +14,7 @@ import { SELF_RESTORABLE } from './offerPullUndo';
 export type StatusViewer = 'staff' | 'exhibitor';
 
 /** Ring management statuses only stewards and judges may set. */
-export const RING_MANAGEMENT_STATUSES: readonly CheckInStatus[] = ['in-ring', 'completed'];
+export const STAFF_RING_STATUSES: readonly CheckInStatus[] = ['in-ring', 'completed'];
 
 /**
  * What `self_checkin_entry` accepts: what Undo can restore, plus Pulled (it records the
@@ -31,7 +31,7 @@ export function pickerStatuses(
     return STAFF_CHECK_IN_STATUSES.filter(status => SELF_SETTABLE_STATUSES.has(status));
   }
   return ringManagement
-    ? [...STAFF_CHECK_IN_STATUSES, ...RING_MANAGEMENT_STATUSES]
+    ? [...STAFF_CHECK_IN_STATUSES, ...STAFF_RING_STATUSES]
     : STAFF_CHECK_IN_STATUSES;
 }
 

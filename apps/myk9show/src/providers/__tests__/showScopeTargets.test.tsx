@@ -9,6 +9,7 @@ import {
   getMountedShowIds,
   registerMountedShow,
   resetMountedShows,
+  targetsForTables,
   unregisterMountedShow,
 } from '../showScopeTargets';
 import { useSyncPassScheduler } from '../useSyncPassScheduler';
@@ -40,6 +41,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
 describe('mounted show registry', () => {
@@ -104,5 +106,33 @@ describe('provider pass covers mounted shows', () => {
     mount();
     await advance(SYNC_INTERVAL_MS);
     expect(scopedCalls()).toEqual([[[{ name: 'entries', scopeId: 'show-1' }]]]);
+  });
+});
+
+describe('targetsForTables (broadcast contract)', () => {
+  it('scopes entries and asks for the full pass when a classes change has no trials', async () => {
+    vi.mocked(replicatedTrialsTable.getTrialsByShow).mockResolvedValue([]);
+    await expect(targetsForTables('show-1', new Set(['entries', 'classes']))).resolves.toEqual({
+      targets: [{ name: 'entries', scopeId: 'show-1' }],
+      fullPass: true,
+    });
+  });
+
+  it('asks for the full pass when the trials lookup fails, keeping the entries target', async () => {
+    vi.mocked(replicatedTrialsTable.getTrialsByShow).mockRejectedValue(new Error('idb'));
+    await expect(targetsForTables('show-1', new Set(['entries', 'classes']))).resolves.toEqual({
+      targets: [{ name: 'entries', scopeId: 'show-1' }],
+      fullPass: true,
+    });
+  });
+
+  it('needs no full pass when every class change can be scoped to a trial', async () => {
+    await expect(targetsForTables('show-1', new Set(['classes']))).resolves.toEqual({
+      targets: [
+        { name: 'classes', scopeId: 'trial-1' },
+        { name: 'classes', scopeId: 'trial-2' },
+      ],
+      fullPass: false,
+    });
   });
 });

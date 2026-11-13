@@ -176,16 +176,20 @@ describe('EntryRegistrationQueue', () => {
       expect(focused.className).not.toContain('flex-col');
     });
 
-    it('floors every flexible grid track at 0 so the row cannot outgrow its column', () => {
+    it('floors the truncating grid tracks at 0 and the review track at its labels', () => {
       restoreMatchMedia = stubMatchMedia(true);
       renderQueue();
 
-      // A `minmax(9rem, …)` style floor is what pushed the row's action past
-      // the right edge of a sidebar-narrowed column (MYK9-57); the tracks that
-      // hold truncating text must be able to shrink all the way down.
+      // A `minmax(9rem, …)` style floor on every track is what pushed the row's
+      // action past the right edge of a sidebar-narrowed column (MYK9-57); the
+      // tracks that hold truncating text must be able to shrink all the way down.
+      // The review track alone floors at its labels' width so "Needs review" is
+      // never clipped (MYK9-1898). That is safe because the grid only renders at
+      // ENTRY_QUEUE_STACKED_MAX_WIDTH and up; the rendered geometry (labels whole,
+      // actions inside the list) is asserted in e2e/secretary/entryFormsReviewPillFits.
       const focused = screen.getByRole('listitem', { name: /alice martin/i });
       expect(focused.className).toContain(
-        'grid-cols-[2.75rem_minmax(0,1.15fr)_minmax(0,.7fr)_minmax(0,.7fr)_auto]'
+        'grid-cols-[2.75rem_minmax(0,1.15fr)_minmax(0,.7fr)_minmax(9.5rem,.7fr)_auto]'
       );
     });
 

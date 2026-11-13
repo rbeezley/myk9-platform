@@ -22,21 +22,29 @@ import type { EntryQueueEmptyCopy } from './entryQueueEmptyState';
  * Below this measured width (px) the queue stacks each registration into a
  * card instead of the multi-column grid.
  *
- * 480px is the `minmax(30rem, …)` floor the cockpit's two-column desktop
- * arrangement guarantees this column, so any layout wide enough to be
- * "desktop" keeps the grid, and only genuinely narrow columns — such as the
- * ~408px left by the manager sidebar at a 768px tablet viewport — stack.
+ * 640px (MYK9-1898): the review column floors at its labels' width, so below
+ * this the exhibitor and dog-name cells would be cut to a few characters. With
+ * the form panel open the column is about 530px at a 1200px window and 590px
+ * at 1280px, and those widths read better stacked; 1440px (about 670px) keeps
+ * the grid. Narrow tablet columns (~408px beside the manager sidebar at 768px)
+ * stack as before.
  */
-export const ENTRY_QUEUE_STACKED_MAX_WIDTH = 480;
+export const ENTRY_QUEUE_STACKED_MAX_WIDTH = 640;
 
 /**
- * Shared by the header and every row so the two can never drift apart. Every
- * flexible track floors at 0 and its cell truncates, so the grid compresses to
- * fit its column instead of overflowing a `overflow-hidden` ancestor and
- * putting the row's action out of reach (MYK9-57).
+ * Shared by the header and every row so the two can never drift apart. The exhibitor and entries
+ * tracks floor at 0 and their cells truncate, so the grid compresses to fit its column instead of
+ * overflowing a `overflow-hidden` ancestor and putting the row's action out of reach (MYK9-57).
+ *
+ * The review track is the exception: it floors at the width of its own labels, because "Needs
+ * review" is the one word the list exists to make obvious (MYK9-1594) and it read "Needs revi…"
+ * beside the open form panel (MYK9-1898). 9.5rem holds the longest one-line label ("Missing
+ * information") and the "Review / payment" heading, and still leaves room for the row's action at
+ * the queue's narrowest grid width (`ENTRY_QUEUE_STACKED_MAX_WIDTH`). Its cells wrap rather than
+ * truncate, so a label that ever outgrows the floor takes a second line instead of losing words.
  */
 const QUEUE_GRID_COLUMNS =
-  'grid-cols-[2.75rem_minmax(0,1.15fr)_minmax(0,.7fr)_minmax(0,.7fr)_auto]';
+  'grid-cols-[2.75rem_minmax(0,1.15fr)_minmax(0,.7fr)_minmax(9.5rem,.7fr)_auto]';
 
 interface EntryRegistrationQueueProps {
   groups: ShowRegistrationGroup[];
@@ -102,19 +110,19 @@ const reviewLabel = getRegistrationReviewLabel;
  * be told apart from an accepted one at a glance: a warning-toned pill with a dot, not just the
  * words. Payment due has its own red line beneath; missing information reads in the words.
  */
-function ReviewLabel({ group, truncate }: { group: ShowRegistrationGroup; truncate: boolean }) {
+function ReviewLabel({ group }: { group: ShowRegistrationGroup }) {
   const label = reviewLabel(group);
   if (!group.attentionReasons.includes('pending_review')) {
-    return <p className={cn('font-medium', truncate && 'truncate')}>{label}</p>;
+    return <p className="font-medium">{label}</p>;
   }
   return (
-    <p className={cn('font-medium', truncate && 'truncate')}>
+    <p className="font-medium">
       <span
         data-testid="needs-review-marker"
         className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-warning/15 px-2 py-0.5 ring-1 ring-inset ring-warning/50"
       >
         <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-warning" />
-        <span className="truncate">{label}</span>
+        <span className="min-w-0">{label}</span>
       </span>
     </p>
   );
@@ -221,7 +229,7 @@ export function EntryRegistrationQueue({
           </span>
           <span className="truncate">Exhibitor</span>
           <span className="truncate">Entries</span>
-          <span className="truncate">Review / payment</span>
+          <span data-testid="entry-review-heading">Review / payment</span>
           <span className="text-right">Next action</span>
         </div>
       )}
@@ -286,8 +294,8 @@ export function EntryRegistrationQueue({
 
                     <EntryFormTrialClasses entries={group.entries} truncate={false} />
 
-                    <div className="text-sm">
-                      <ReviewLabel group={group} truncate={false} />
+                    <div data-testid="entry-review-cell" className="text-sm">
+                      <ReviewLabel group={group} />
                       <p
                         className={cn(
                           'text-xs text-muted-foreground',
@@ -333,11 +341,11 @@ export function EntryRegistrationQueue({
                       </p>
                     </div>
 
-                    <div className="min-w-0 text-sm">
-                      <ReviewLabel group={group} truncate />
+                    <div data-testid="entry-review-cell" className="min-w-0 text-sm">
+                      <ReviewLabel group={group} />
                       <p
                         className={cn(
-                          'truncate text-xs text-muted-foreground',
+                          'text-xs text-muted-foreground',
                           group.attentionReasons.includes('payment_due') && 'text-destructive'
                         )}
                       >

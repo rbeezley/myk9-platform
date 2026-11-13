@@ -77,7 +77,7 @@ export function ScoresheetDemo({ syncMs = 1400 }: { syncMs?: number }) {
     syncTimer.current = window.setTimeout(() => {
       setLog(cur => cur.map(l => ({ ...l, state: 'synced' })));
       setSyncing(false);
-      setMessage(`All ${n} synced.`);
+      setMessage(`All ${n} sent.`);
     }, syncMs);
   };
 
@@ -102,7 +102,7 @@ export function ScoresheetDemo({ syncMs = 1400 }: { syncMs?: number }) {
     const n = next.filter(l => l.state === 'waiting').length;
     setMessage(
       online
-        ? `${dog.name} saved and synced.`
+        ? `${dog.name} saved and sent.`
         : `${dog.name} saved on the tablet. ${n} waiting for signal.`
     );
   };
@@ -207,7 +207,7 @@ export function ScoresheetDemo({ syncMs = 1400 }: { syncMs?: number }) {
         {log.slice(0, VISIBLE_ROWS).map((l, i) => (
           <li key={`${l.arm}-${i}`}>
             <span className="lc-demo-chip" data-state={l.state}>
-              {l.state === 'waiting' ? 'Waiting' : 'Synced'}
+              {l.state === 'waiting' ? 'Waiting' : 'Sent'}
             </span>
             #{l.arm} {l.name}: {l.result}
           </li>

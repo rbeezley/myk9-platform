@@ -43,7 +43,8 @@ import { isCancelledClassStatus } from './ringsideClassStatusMap';
 import { CANCELLED_CLASS_MESSAGE, useIsClassCancelled } from './cancelledClassGuard';
 
 /** Shown while a cold sheet's show sync keeps failing; retried automatically. */
-export const NOT_LOADED_YET_MESSAGE = "Couldn't load this dog from the server yet. Trying again…";
+export const NOT_LOADED_YET_MESSAGE =
+  'We could not reach myK9Show to load this dog yet. Trying again…';
 const NOT_LOADED_RETRY_BASE_MS = 2_000;
 const NOT_LOADED_RETRY_MAX_MS = 30_000;
 

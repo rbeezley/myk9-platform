@@ -54,8 +54,8 @@ describe('ScoresheetDemo', () => {
       vi.advanceTimersByTime(1000);
     });
     expect(within(log()).queryByText('Waiting')).toBeNull();
-    expect(within(log()).getAllByText('Synced')).toHaveLength(2);
-    expect(status()).toHaveTextContent('All 2 synced.');
+    expect(within(log()).getAllByText('Sent')).toHaveLength(2);
+    expect(status()).toHaveTextContent('All 2 sent.');
   });
 
   it('keeps every offline score past the four rows it shows', () => {
@@ -71,15 +71,15 @@ describe('ScoresheetDemo', () => {
     act(() => {
       vi.advanceTimersByTime(1000);
     });
-    expect(status()).toHaveTextContent('All 6 synced.');
+    expect(status()).toHaveTextContent('All 6 sent.');
   });
 
   it('saves straight through while online', () => {
     render(<ScoresheetDemo />);
     fireEvent.click(screen.getByRole('button', { name: 'Absent' }));
     fireEvent.click(save());
-    expect(within(log()).getByText('Synced')).toBeInTheDocument();
-    expect(status()).toHaveTextContent('Ziva saved and synced.');
+    expect(within(log()).getByText('Sent')).toBeInTheDocument();
+    expect(status()).toHaveTextContent('Ziva saved and sent.');
   });
 
   it('starts and stops the real timer', () => {

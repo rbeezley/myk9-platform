@@ -91,12 +91,12 @@ export function getCheckinTier(enabled: boolean): BadgeTier {
 export type SyncIndicatorStatusValue = 'synced' | 'syncing' | 'pending' | 'offline' | 'error';
 
 const SYNC_LABELS: Record<SyncIndicatorStatusValue, string> = {
-  synced: 'Synced',
-  syncing: 'Syncing…',
+  synced: 'All sent',
+  syncing: 'Sending…',
   // Idle with queued writes — calm, not alarming (offline is normal, PRODUCT.md).
-  pending: 'Waiting to sync',
+  pending: 'Saved on this device',
   offline: 'Offline',
-  error: 'Sync error',
+  error: 'Not sent yet',
 };
 
 const SYNC_TIERS: Record<SyncIndicatorStatusValue, BadgeTier> = {

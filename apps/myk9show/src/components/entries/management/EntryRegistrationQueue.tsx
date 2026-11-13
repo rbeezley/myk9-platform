@@ -22,12 +22,14 @@ import type { EntryQueueEmptyCopy } from './entryQueueEmptyState';
  * Below this measured width (px) the queue stacks each registration into a
  * card instead of the multi-column grid.
  *
- * 480px is the `minmax(30rem, …)` floor the cockpit's two-column desktop
- * arrangement guarantees this column, so any layout wide enough to be
- * "desktop" keeps the grid, and only genuinely narrow columns — such as the
- * ~408px left by the manager sidebar at a 768px tablet viewport — stack.
+ * 640px (MYK9-1898): the review column floors at its labels' width, so below
+ * this the exhibitor and dog-name cells would be cut to a few characters. With
+ * the form panel open the column is about 530px at a 1200px window and 590px
+ * at 1280px, and those widths read better stacked; 1440px (about 670px) keeps
+ * the grid. Narrow tablet columns (~408px beside the manager sidebar at 768px)
+ * stack as before.
  */
-export const ENTRY_QUEUE_STACKED_MAX_WIDTH = 480;
+export const ENTRY_QUEUE_STACKED_MAX_WIDTH = 640;
 
 /**
  * Shared by the header and every row so the two can never drift apart. The exhibitor and entries

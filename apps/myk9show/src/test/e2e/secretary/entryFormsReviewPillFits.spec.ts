@@ -91,9 +91,11 @@ async function expectReviewColumnInFull(page: Page, label: string, withHeading: 
   );
 }
 
+// At 1440px the list beside the panel is wide enough for the grid; at 1200px (about 530px of
+// list) it stacks, so names and labels are never cut to a few characters (MYK9-1898).
 for (const viewport of [
-  { width: 1440, height: 900 },
-  { width: 1200, height: 750 },
+  { width: 1440, height: 900, grid: true },
+  { width: 1200, height: 750, grid: false },
 ]) {
   test(`Needs review renders in full beside the open form at ${viewport.width}px (MYK9-1898)`, async ({
     page,
@@ -102,9 +104,11 @@ for (const viewport of [
     await openFormNeedingReview(page);
     // The layout under test is the split one: the list and the panel side by side.
     await expect(page.getByRole('list', { name: 'Entry form work queue' })).toBeVisible();
-    await expect(page.getByTestId('entry-review-heading')).toHaveText('Review / payment');
+    if (viewport.grid) {
+      await expect(page.getByTestId('entry-review-heading')).toHaveText('Review / payment');
+    }
 
-    await expectReviewColumnInFull(page, `${viewport.width}px with the panel open`, true);
+    await expectReviewColumnInFull(page, `${viewport.width}px with the panel open`, viewport.grid);
     await expectNoHorizontalOverflow(page, `Entry Forms at ${viewport.width}px`);
   });
 }

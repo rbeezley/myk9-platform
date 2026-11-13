@@ -157,7 +157,7 @@
     "tsx": "^4.23.15",
     "turbo": "^2.11.10",
     "typescript": "~5.9.3",
-    "vitest": "^5.0.0"
+    "vitest": "^5.1.0"
   },
   "packageManager": "pnpm@9.15.9",
   "engines": {

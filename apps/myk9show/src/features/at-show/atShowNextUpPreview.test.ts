@@ -251,6 +251,15 @@ describe('selectNextUpForCard', () => {
     expect(preview?.nextArmbands).toEqual(['10']);
   });
 
+  it('picks the same in-ring dog as the sorted list when both sections flag one', () => {
+    const rows = new Map([
+      ['a', [entry({ id: 'a1', armband: '30', runOrder: 3, isInRing: true })]],
+      ['b', [entry({ id: 'b1', armband: '20', runOrder: 1, isInRing: true })]],
+    ]);
+    const preview = selectNextUpForCard(combined, new Map(), rows);
+    expect(preview?.inRingArmband).toBe('20');
+  });
+
   it('falls back to the stored preview when no entries are known', () => {
     expect(selectNextUpForCard(combined, new Map([['a', stored]]), none)).toBe(stored);
     expect(selectNextUpForCard(combined, new Map(), none)).toBeUndefined();

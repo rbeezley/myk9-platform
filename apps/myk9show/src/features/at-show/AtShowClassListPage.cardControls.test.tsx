@@ -253,6 +253,17 @@ describe('details and options', () => {
     expect(await within(dialog).findByText('Offline Scoring')).toBeInTheDocument();
   });
 
+  it("names a section B dog as a combined A/B card's next dog", async () => {
+    vi.mocked(replicatedEntriesTable.getEntriesByShow).mockResolvedValue([
+      { id: 'a1', showId: 'show-1', classId: 'class-a', armband: '30', runOrder: 3 },
+      { id: 'b1', showId: 'show-1', classId: 'class-b', armband: '20', runOrder: 1 },
+    ] as never);
+    renderPage();
+
+    const card = (await screen.findByText('Container Novice A & B')).closest('li');
+    expect(await within(card as HTMLElement).findByText('Next #20 · #30')).toBeInTheDocument();
+  });
+
   it('hides the options ellipsis from roles that cannot manage classes', async () => {
     renderPage();
     await screen.findByText('Interior Excellent');

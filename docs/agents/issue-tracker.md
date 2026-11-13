@@ -114,6 +114,10 @@ The `verify` and `needs` groups are multi-select. Apply the children, never the 
 - Work types: `Bug`, `Improvement`, `Feature`, `Test` (test or harness work; never "tests
   passed"), `Ops` (operational work: follow its runbook, not a code implementer). `Parked` is an
   explicit owner decision to defer until a named trigger; leave it out of launch work.
+- State label: `changes-needed` (created 2026-11-13) marks a Backlog issue whose code already
+  merged but whose remaining work is parked (see the lifecycle table below). It sits beside the
+  `needs:*`/`verify:*` labels, it does not replace them: its comment names the open criterion.
+  Remove it when the issue leaves Backlog.
 - Retired, do not apply or recreate: `Claude`, `Codex`, `lane:mac`, `lane:pc`, `Oct 10 test show`,
   `vacation-blocked`, `needs-richard`, `Human Tester`, `Wait for Launch`, `auto:green`,
   `auto:yellow`. Replace one on an open issue with the specific `needs:*` or `verify:*` label.

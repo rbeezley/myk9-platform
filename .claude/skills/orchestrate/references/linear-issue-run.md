@@ -498,7 +498,7 @@ run, and mark each `refill` issue in the table (e.g. `MYK9-321 (refill)`).
 | Ending an overnight run when the approved list is done      | Refill from Ready/qualified fallback until an approved stop condition                                |
 | Reusing run-start Ready results for refills                 | Re-query and requalify; the board changes overnight                                                  |
 | Messaging a cloud session, or pushing to its branch early   | Read its PR; give its self-fix 10 min, then fix locally in `$WT`                                     |
-| Treating cloud implementers as free of the Mac cap entirely | Their Codex reviews and verifier runs still count; queue those at 2                                  |
+| Treating cloud implementers as free of the Mac cap entirely | Their Codex reviews and verifier runs still count; queue those at 3                                  |
 | Sending an E2E-proven issue to the cloud lane               | No `.env.local` or staging there; it stays local                                                     |
 | Watching `gh pr list --head <name>` for a cloud PR          | The harness names the branch; match `$PREFIX` or `Fixes MYK9-<n>`, read `$BRANCH` from the PR        |
 | Dispatching a cloud session without starting its watcher    | Start `watch-cloud-session.sh` in the same turn; a stall exit is a local takeover, no owner question |

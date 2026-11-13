@@ -145,9 +145,7 @@ describe('MyShowsList — paid banner (MYK9-804 exact scenario)', () => {
     renderList();
 
     expect(screen.getByText(/Ranger, Juni and Maple/)).toBeInTheDocument();
-    expect(
-      screen.getByText('$90.00 due. Pay now so the secretary can finish your entry.')
-    ).toBeInTheDocument();
+    expect(screen.getByText('$90.00 due. Pay now to complete your entries.')).toBeInTheDocument();
   });
 
   it('does not change when the visible cards are narrowed by a filter', () => {

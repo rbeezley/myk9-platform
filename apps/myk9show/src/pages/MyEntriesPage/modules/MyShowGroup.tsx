@@ -286,8 +286,8 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
               {money.dueDogNames.length > 1 ? 'entries are' : 'entry is'} waiting on payment
             </p>
             <p className="myk9-entries-strip-body">
-              {formatPaymentCents(money.amountCents, 'USD')} due. Pay now so the secretary can
-              finish your entry.
+              {formatPaymentCents(money.amountCents, 'USD')} due. Pay now to complete your{' '}
+              {money.dueDogNames.length > 1 ? 'entries' : 'entry'}.
             </p>
           </div>
           {money.paymentHref ? (

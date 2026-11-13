@@ -27,9 +27,10 @@ function selectsRow(event: MouseEvent<HTMLElement>): boolean {
 
 /**
  * One class on the schedule, the same two lines in the narrow rail and the full-width list
- * (MYK9-1782). Line 1: time and class. Line 2: the judge (per class, so never on the trial band), then one
- * status-and-next-step phrase; the judge sits on line 2 so neither is squeezed in the 300px rail. A red dot marks a class on Needs attention; the
- * full seven-step bar lives on the class page.
+ * (MYK9-1782). Line 1: time, class name and judge (per class, so never on the trial band). Line 1
+ * wraps rather than truncates, so in the 300px rail the judge drops below the name instead of
+ * collapsing. Line 2: one status-and-next-step phrase. A red dot marks a class on Needs attention;
+ * the full seven-step bar lives on the class page.
  */
 export function CockpitScheduleRow({
   classItem,
@@ -72,27 +73,36 @@ export function CockpitScheduleRow({
         />
       )}
       <div className="min-w-0 flex-1">
-        <div className="flex items-baseline gap-2">
-          <span className="shrink-0 whitespace-nowrap text-sm font-semibold">
-            {classItem.startedLabel ? (
-              // The recorded start, never mistaken for the planned time.
-              <>
-                <span className="mr-1 text-xs font-normal text-muted-foreground">Started</span>
-                {classItem.startedLabel}
-              </>
-            ) : (
-              (time ?? <span className="font-normal text-muted-foreground">No time</span>)
-            )}
-          </span>
-          {/* No onClick: the click (keyboard too) bubbles to the card's. */}
-          <button
-            type="button"
-            data-selects-row
-            aria-pressed={select ? ticked : focused}
-            className="min-w-0 break-words rounded-sm text-left font-semibold hover:underline hover:underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        <div className="flex flex-wrap items-baseline gap-x-2">
+          {/* Time and name stay together; only the judge wraps below them in the rail. */}
+          <div className="flex min-w-0 items-baseline gap-2">
+            <span className="shrink-0 whitespace-nowrap text-sm font-semibold">
+              {classItem.startedLabel ? (
+                // The recorded start, never mistaken for the planned time.
+                <>
+                  <span className="mr-1 text-xs font-normal text-muted-foreground">Started</span>
+                  {classItem.startedLabel}
+                </>
+              ) : (
+                (time ?? <span className="font-normal text-muted-foreground">No time</span>)
+              )}
+            </span>
+            {/* No onClick: the click (keyboard too) bubbles to the card's. */}
+            <button
+              type="button"
+              data-selects-row
+              aria-pressed={select ? ticked : focused}
+              className="min-w-0 break-words rounded-sm text-left font-semibold hover:underline hover:underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {classItem.name}
+            </button>
+          </div>
+          <span
+            data-testid="class-judge"
+            className="min-w-0 break-words text-sm text-muted-foreground"
           >
-            {classItem.name}
-          </button>
+            {judgeNameOrUnsetLabel(classItem.judgeName)}
+          </span>
         </div>
         <div className="mt-0.5 flex items-baseline gap-1.5 text-sm text-muted-foreground">
           {attention > 0 && (
@@ -107,8 +117,6 @@ export function CockpitScheduleRow({
             </span>
           )}
           <span className="min-w-0">
-            <span data-testid="class-judge">{judgeNameOrUnsetLabel(classItem.judgeName)}</span>
-            {' · '}
             <span data-testid="class-status-line">
               {classItem.statusLine.parts.map((part, index) => (
                 <Fragment key={`${index}:${part}`}>

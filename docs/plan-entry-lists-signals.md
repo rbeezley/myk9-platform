@@ -54,6 +54,8 @@ This needs more than a pill, because the waitlist screen does not yet say who is
 
 Owner decision: offering a spot stays a secretary's action, done by hand. The app recommends who.
 
+Seen in the running app on 2026-11-13: the show's Waitlist Settings already have a switch, "Offer open spots automatically", off on the test show ("You offer every open spot yourself, from the queue below"). So automatic offering exists as a club's choice. This plan is about the by-hand path, which is the default; the recommendation and the pill apply when that switch is off. With it on, the pill is only for an offer that has run out.
+
 Today (`pages/secretary/WaitlistManagementPage/WaitlistTable.tsx`, re-read 2026-11-13) the class's waitlist is shown "in join order (first come, first served)" with positions. When the class is under its own limit, "Offer Spot" appears on every row, all alike.
 
 Changes:
@@ -112,5 +114,5 @@ No. The lists stay where they are. The pills join an existing line. The waitlist
 ## Non-goals
 
 - Moving any list, or adding chips to the Entries page.
-- Offering waitlist spots automatically.
+- Changing the existing "Offer open spots automatically" switch.
 - Changing how the judge's daily limit is set or enforced.

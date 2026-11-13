@@ -231,7 +231,7 @@ describe('useAtShowEntryListActions', () => {
       });
     });
 
-    it('refreshes the list and rethrows when the server refuses a stale Undo', async () => {
+    it('rethrows a stale Undo refusal and leaves the refresh to the handler', async () => {
       const stale = Object.assign(new Error('stale'), { name: 'StaleCheckInError' });
       updateSelfCheckInStatus.mockRejectedValueOnce(stale);
       const { result } = render('self-checkin-rpc');
@@ -240,7 +240,7 @@ describe('useAtShowEntryListActions', () => {
           await result.current.handleUndoPull('entry-uuid-2', 'checked-in', 3);
         })
       ).rejects.toBe(stale);
-      expect(refresh).toHaveBeenCalledTimes(1);
+      expect(refresh).not.toHaveBeenCalled();
     });
 
     it('surfaces hasError when the self-check-in RPC cannot be reached', async () => {

@@ -318,14 +318,26 @@ export function useAtShowEntryListHandlers(
         // gate would be worked from a check-in that does not exist.
         rollback();
         // The Pull Undo's own guard turns this refusal into the plain-words notice.
-        if (undoOfPull && isStaleCheckIn(error)) throw error;
+        if (undoOfPull && isStaleCheckIn(error)) {
+          // The dog changed on another device. The rollback above shows our old local copy; a
+          // forced sync pulls the newer status and the page mirrors it over that copy. Sync
+          // AFTER the rollback so nothing stale lands on top. Offline: keep the rolled-back card.
+          try {
+            await refresh(true);
+          } catch (syncError) {
+            logger.warn('[at-show] sync after a refused Undo failed', 'at-show', {
+              error: String(syncError),
+            });
+          }
+          throw error;
+        }
         // The server turned the change away (not their dog, or check-in went off meanwhile): say
         // so in plain words. The writer already kept it off the "could not be sent" pill.
         if (isSelfCheckinRefusal(error)) toast.error(SELF_CHECKIN_REFUSED_MESSAGE);
         logger.error('[at-show] status change failed', 'at-show', { error: String(error) });
       }
     },
-    [actions, isEntryCancelled, statusRefusalFor, setActiveStatusPopup, setLocalEntries]
+    [actions, isEntryCancelled, statusRefusalFor, setActiveStatusPopup, setLocalEntries, refresh]
   );
 
   useEffect(() => {

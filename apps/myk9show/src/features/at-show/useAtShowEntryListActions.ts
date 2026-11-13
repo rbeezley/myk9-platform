@@ -23,7 +23,6 @@ import { usePendingMutationCount } from '@/hooks/usePendingMutationCount';
 import {
   updateReplicatedCheckInStatus,
   updateSelfCheckInStatus,
-  isStaleCheckIn,
   type CheckInWriter,
 } from '@/services/show-day/checkInStatus';
 import { replicatedEntriesTable } from '@/services/replication';
@@ -135,24 +134,19 @@ export function useAtShowEntryListActions(deps: UseAtShowEntryListActionsDeps): 
 
   // MYK9-1911: an exhibitor's Pull Undo expects the dog to still be pulled by the exhibitor, so a
   // replay after a newer status refuses instead of overwriting it. Staff Undo (replicated writer)
-  // is guarded client-side and goes through the ordinary path. A refusal refreshes the list so it
-  // shows the newer truth, then rethrows for the caller's notice.
+  // is guarded client-side and goes through the ordinary path. A refusal rethrows; the status-change
+  // handler owns showing the server's newer status (rollback, then a forced sync).
   const handleUndoPull = useCallback(
     async (entryId: string, prior: EntryStatusCheckIn, pullVersion?: number): Promise<void> => {
       if (writer !== 'self-checkin-rpc') return handleStatusChange(entryId, prior);
-      try {
-        await runMutation(async () => {
-          await updateSelfCheckInStatus(entryId, prior, {
-            status: 'pulled',
-            pullSource: 'exhibitor',
-            ...(pullVersion !== undefined && { version: pullVersion }),
-          });
-          await refresh();
+      await runMutation(async () => {
+        await updateSelfCheckInStatus(entryId, prior, {
+          status: 'pulled',
+          pullSource: 'exhibitor',
+          ...(pullVersion !== undefined && { version: pullVersion }),
         });
-      } catch (error) {
-        if (isStaleCheckIn(error)) await refresh();
-        throw error;
-      }
+        await refresh();
+      });
     },
     [writer, handleStatusChange, runMutation, refresh]
   );

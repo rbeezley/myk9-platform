@@ -45,7 +45,7 @@ No, provided it stays one flow:
 4. If it is inside the deadline, the sheet says so and still sends: "This is less than 30 minutes before the trial starts. The club may not be able to accept it."
 5. Send. The row reads "Change requested: Container Advanced. Waiting for the secretary."
 
-The exhibitor can take the request back while it is waiting. A denied request shows the secretary's reason on the row.
+The exhibitor can take the request back while it is waiting. A declined request shows the secretary's reason on the row.
 
 ## The secretary's side
 
@@ -54,9 +54,37 @@ Each request in the Move-ups list is complete enough to decide on sight:
 > Scout · Container Novice A → Container Advanced · Trial 2 · Finished the level · asked Mon 7:12 AM, 48 minutes before start · 4 of 12 entered · owes $5
 
 - **Accept** is one tap with Undo. No dialog, because the exhibitor already chose the class. Undo uses the existing `reverse_move_up_entry`.
-- **Deny** keeps its reason dialog.
+- **Decline** keeps its reason dialog.
 - A late request carries its note ("asked 12 minutes before start") and can still be accepted. Owner decision: a late request is sent with a note, never blocked.
 - When she changes a class herself for someone who asked at the table, the record says "asked in person". Both paths leave the same record, and the AKC Transfer Form and UKC Change Entry Form print from it.
+
+## Where the secretary sees it
+
+The Move-ups list is on the show's Entries page, in the header Actions menu under "Entry lists" (`components/entries/management/entryManagementViews.ts`). It is always in the menu; a count on the row and on the Actions button is the only sign that something is waiting.
+
+On show day the secretary is on Show Desk, not the Entries page, so a request sent that morning would wait unseen. Owner decision, 2026-11-13: a waiting request also shows on Show Desk.
+
+- Show Desk already has a "Needs attention" line of pills, each opening the place to fix the problem (`features/show-map/cockpit/CockpitAttentionStrip.tsx`). It has no pill for class change requests today.
+- Add one pill for the show: "2 class changes waiting". It opens the Move-ups list. It is a link to the existing list, not a second place to answer.
+- A request inside 30 minutes of its trial's start makes the pill say so: "2 class changes waiting · 1 for a trial starting soon".
+- No request, no pill.
+
+One wording fix rides along: the secretary's hint on an entry with a request says "Approve or decline in Move-ups & pulls" (`services/entryDisplay/entryPresentation.ts`), which names nothing on the page. It should name the list.
+
+## One name, one pair of verbs
+
+Owner decision, 2026-11-13. The action was made generic ("Change class", MYK9-1232), but the words around it still say move-up, and a dog moving down a level shows as a "move-up". The answer buttons also differ from the ones used for entries.
+
+| Today                                                           | Becomes                                               |
+| --------------------------------------------------------------- | ----------------------------------------------------- |
+| List name "Move-ups" (Actions menu row and the list title)      | "Class changes"                                       |
+| Dialog titles "Approve Move-Up Request", "Deny Move-Up Request" | No approve dialog; "Decline class change"             |
+| Exhibitor chip "Move-Up Requested"                              | "Change requested"                                    |
+| Buttons "Approve" and "Deny"                                    | "Accept" and "Decline", the words entries already use |
+| Hint "Approve or decline in Move-ups & pulls"                   | "Accept or decline in Class changes"                  |
+| Toasts "Move-up request approved" / "denied"                    | "Class change accepted" / "declined"                  |
+
+Only the words people read change. The stored status values, the `move_up_entry` function and the file names stay as they are; renaming those is churn with no gain for a secretary. This plan says "Move-ups list" where it describes the list as it is today.
 
 ## Money
 
@@ -88,9 +116,9 @@ The secretary's own "Change class" ignores both switches, because she must still
 
 **Phase 1: the request exists.** A database function the exhibitor may call for their own entry, in the pattern of `withdraw_own_entry`, that records the target class, the reason and the time, and sets the request status. Online only. A second function to take the request back. This adds a migration, so it ships on its own branch.
 
-**Phase 2: the exhibitor's sheet.** "Change class…" on the My Entries class row, the five steps above, and the waiting, denied and accepted states of the row.
+**Phase 2: the exhibitor's sheet.** "Change class…" on the My Entries class row, the five steps above, and the waiting, declined and accepted states of the row.
 
-**Phase 3: the secretary's list.** The complete request line, one-tap Accept with Undo, the late note, "asked in person" on her own changes.
+**Phase 3: the secretary's list.** The complete request line, one-tap Accept with Undo, the late note, "asked in person" on her own changes. The Show Desk "Needs attention" pill that opens the list, and the corrected hint.
 
 **Phase 4: money and switches.** The difference shown on both sides. The two show switches.
 

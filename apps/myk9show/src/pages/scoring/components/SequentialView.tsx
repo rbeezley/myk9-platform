@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -33,6 +33,8 @@ export function SequentialView({
   maxTimeSeconds,
   sportType,
 }: SequentialViewProps) {
+  // Cancel remounts the panel, which drops what was typed and reads the saved values again.
+  const [discardCount, setDiscardCount] = useState(0);
   const sorted = useMemo(() => sortByExhibitorOrder(entries), [entries]);
   const currentEntry = sorted[currentIndex] ?? null;
   const scoredCount = useMemo(() => sorted.filter(e => e.isScored).length, [sorted]);
@@ -81,13 +83,13 @@ export function SequentialView({
 
       <Card>
         <EntryPanel
-          key={currentEntry.entryId}
+          key={`${currentEntry.entryId}:${discardCount}`}
           entry={currentEntry}
           settings={settings}
           onSave={onSave}
           onSaveAndNext={onSaveAndNext}
           onClearResult={onClearResult}
-          onClose={() => {}}
+          onClose={() => setDiscardCount(count => count + 1)}
           isSaving={isSaving}
           maxTimeSeconds={maxTimeSeconds}
           sportType={sportType}

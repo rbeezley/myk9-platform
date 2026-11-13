@@ -135,7 +135,7 @@ describe('Show Desk context routes', () => {
     const returnTo = getShowHomeHref({ showId: 'show-1', state: context });
 
     expect(getCockpitPaperScoringHref({ classId: 'class/1', returnTo })).toBe(
-      `/scoring/classes/class%2F1/entries?mode=split&returnTo=${encodeURIComponent(returnTo)}`
+      `/scoring/classes/class%2F1/entries?returnTo=${encodeURIComponent(returnTo)}`
     );
 
     expect(

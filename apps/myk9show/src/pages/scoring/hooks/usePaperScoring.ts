@@ -14,6 +14,16 @@ import {
 import { mapQualificationToResultStatus } from '@/utils/scoringMappings';
 import type { PaperResult, PaperScoringMode, SessionSettings } from '../paper-scoring-types';
 
+function readModeFromStorage(userId: string): PaperScoringMode {
+  try {
+    const stored = localStorage.getItem(modeStorageKey(userId));
+    if (stored === 'split' || stored === 'sequential') return stored;
+  } catch {
+    // localStorage unavailable (private mode): open in the list view
+  }
+  return 'split';
+}
+
 function writeModeToStorage(userId: string, mode: PaperScoringMode) {
   try {
     localStorage.setItem(modeStorageKey(userId), mode);
@@ -55,7 +65,7 @@ export function usePaperScoring(entries: ScoringEntry[], userId: string) {
   const [requestedEntryId, setRequestedEntryId] = useState<RequestedEntry>(undefined);
   const [sessionSettings, setSessionSettingsState] =
     useState<SessionSettings>(DEFAULT_SESSION_SETTINGS);
-  const [mode, setModeState] = useState<PaperScoringMode>('split');
+  const [mode, setModeState] = useState<PaperScoringMode>(() => readModeFromStorage(userId));
   const [isSaving, setIsSaving] = useState(false);
 
   const sortedEntries = useMemo(() => sortByExhibitorOrder(entries), [entries]);

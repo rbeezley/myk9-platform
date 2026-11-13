@@ -94,7 +94,7 @@ describe('buildShowMapTree', () => {
     expect(tree.childIdsByParentId['trial:trial-1']).toEqual(['class:class-1']);
     expect(tree.childIdsByParentId['class:class-1']).toEqual(['entry:entry-1']);
     expect(tree.nodesById['class:class-1']?.scoreHref).toBe(
-      '/scoring/classes/class-1/entries?mode=split'
+      '/scoring/classes/class-1/entries'
     );
     expect(tree.nodesById['entry:entry-1']?.label).toBe('#12 Bella');
     expect(tree.nodesById['entry:entry-1']?.entryDisplay).toEqual({

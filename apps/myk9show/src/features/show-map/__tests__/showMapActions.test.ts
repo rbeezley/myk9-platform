@@ -469,7 +469,7 @@ describe('showMapActions', () => {
       label: 'Score Class',
       classId: 'class-future',
       trialId: 'trial-1',
-      href: '/scoring/classes/class-future/entries?mode=split',
+      href: '/scoring/classes/class-future/entries',
     });
     expect(getPrimaryActionForNode(notStartedClass, { tree })).toMatchObject({
       id: 'mark-class-started',
@@ -722,7 +722,7 @@ describe('showMapActions', () => {
       href: '/shows/show-1/trials/trial-1/classes/class-active',
     });
     expect(findAction(actions, 'score-class')).toMatchObject({
-      href: '/scoring/classes/class-active/entries?mode=split',
+      href: '/scoring/classes/class-active/entries',
       classId: 'class-active',
       trialId: 'trial-1',
     });
@@ -1580,7 +1580,7 @@ describe('showMapActions', () => {
       expect(editActions).toHaveLength(2);
       expect(editActions[0]).toMatchObject({
         id: 'edit-score',
-        href: '/scoring/classes/class-active/entries?entryId=entry-1&mode=split',
+        href: '/scoring/classes/class-active/entries?entryId=entry-1',
         classId: 'class-active',
       });
     });

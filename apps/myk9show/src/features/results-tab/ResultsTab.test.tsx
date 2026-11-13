@@ -503,7 +503,7 @@ describe('ResultsTab detail', () => {
     expect(within(table).getByText('1:01.25')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Fix score for Rex' })).toHaveAttribute(
       'href',
-      '/scoring/classes/class-ready/entries?entryId=e-ready&mode=split'
+      '/scoring/classes/class-ready/entries?entryId=e-ready'
     );
 
     await user.click(screen.getByRole('button', { name: 'Release results' }));

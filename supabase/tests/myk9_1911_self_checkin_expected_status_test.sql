@@ -89,9 +89,9 @@ $$;
 -- A matching Undo is applied: Pull, then Undo expecting that Pull.
 do $$
 declare
-  v_a constant uuid := '00000000-0000-0000-0000-000000191731';
+  v_a constant uuid := '00000000-0000-0000-0000-000000191131';
 begin
-  perform pg_temp.act_as('00000000-0000-0000-0000-000000191791');
+  perform pg_temp.act_as('00000000-0000-0000-0000-000000191191');
   perform public.self_checkin_entry(v_a, 'pulled');
   perform public.self_checkin_entry(v_a, 'checked-in', 'pulled', 'exhibitor');
   reset role;
@@ -99,7 +99,7 @@ begin
     'a matching Undo was not applied: ' || pg_temp.row_of(v_a));
 
   -- The two-argument call shape still works (no expectation, no check).
-  perform pg_temp.act_as('00000000-0000-0000-0000-000000191791');
+  perform pg_temp.act_as('00000000-0000-0000-0000-000000191191');
   perform public.self_checkin_entry(v_a, 'at-gate');
   reset role;
   perform pg_temp.fail_if(pg_temp.row_of(v_a) is distinct from 'at-gate/-',
@@ -112,17 +112,17 @@ $$;
 -- A superseded Undo is refused with 55000 and the row is untouched.
 do $$
 declare
-  v_b constant uuid := '00000000-0000-0000-0000-000000191732';
+  v_b constant uuid := '00000000-0000-0000-0000-000000191132';
   v_state text;
 begin
-  perform pg_temp.act_as('00000000-0000-0000-0000-000000191791');
+  perform pg_temp.act_as('00000000-0000-0000-0000-000000191191');
   perform public.self_checkin_entry(v_b, 'pulled');
   reset role;
   -- Staff moves the dog into the ring after the Pull.
   update public.entries set check_in_status = 'in-ring' where id = v_b;
   v_state := pg_temp.row_of(v_b);
 
-  perform pg_temp.act_as('00000000-0000-0000-0000-000000191791');
+  perform pg_temp.act_as('00000000-0000-0000-0000-000000191191');
   begin
     perform public.self_checkin_entry(v_b, 'checked-in', 'pulled', 'exhibitor');
     reset role;
@@ -142,14 +142,14 @@ $$;
 -- A staff re-Pull (source staff) refuses an exhibitor Undo that expects its own Pull.
 do $$
 declare
-  v_b constant uuid := '00000000-0000-0000-0000-000000191732';
+  v_b constant uuid := '00000000-0000-0000-0000-000000191132';
 begin
   update public.entries set check_in_status = 'checked-in' where id = v_b;
   update public.entries set check_in_status = 'pulled' where id = v_b;
   perform pg_temp.fail_if(pg_temp.row_of(v_b) is distinct from 'pulled/staff',
     'fixture: ' || pg_temp.row_of(v_b));
 
-  perform pg_temp.act_as('00000000-0000-0000-0000-000000191791');
+  perform pg_temp.act_as('00000000-0000-0000-0000-000000191191');
   begin
     perform public.self_checkin_entry(v_b, 'checked-in', 'pulled', 'exhibitor');
     reset role;
@@ -168,9 +168,9 @@ $$;
 -- Ownership still comes first: a stranger gets the authorization error, not Stale status.
 do $$
 declare
-  v_b constant uuid := '00000000-0000-0000-0000-000000191732';
+  v_b constant uuid := '00000000-0000-0000-0000-000000191132';
 begin
-  perform pg_temp.act_as('00000000-0000-0000-0000-000000191792');
+  perform pg_temp.act_as('00000000-0000-0000-0000-000000191192');
   begin
     perform public.self_checkin_entry(v_b, 'checked-in', 'pulled', 'staff');
     reset role;

@@ -146,7 +146,7 @@ describe('MyShowsList — paid banner (MYK9-804 exact scenario)', () => {
 
     expect(screen.getByText(/Ranger, Juni and Maple/)).toBeInTheDocument();
     expect(
-      screen.getByText('$90.00 due · the secretary will review it once it is paid.')
+      screen.getByText('$90.00 due. Pay now so the secretary can finish your entry.')
     ).toBeInTheDocument();
   });
 

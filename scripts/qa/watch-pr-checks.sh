@@ -468,6 +468,14 @@ while :; do
     exit 6
   fi
 
+  # MYK9-1933: a lone red `Review gate` may be the pull_request_target run's stale
+  # "no review recorded" failure while the issue_comment run that re-evaluates it
+  # is still queued. Wait for that run (within the usual timeout) instead of exit 1.
+  if [ "$RESULT" = "required-failed:Review gate" ] && gate_comment_pending "$RESPONSE" "$REQUIRED" "$(fetch_gate_runs || echo '[]')"; then
+    RESULT="waiting:Review gate (comment-triggered run in flight)"
+    echo "Review gate is red but a comment-triggered review-gate.yml run is still queued or running; waiting for it"
+  fi
+
   case "$RESULT" in
     green)
       echo "GREEN on $PINNED: every required check answered green ($TOTAL checks seen)"

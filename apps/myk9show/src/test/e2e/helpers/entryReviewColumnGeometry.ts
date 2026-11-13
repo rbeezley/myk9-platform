@@ -16,6 +16,11 @@ export interface ReviewColumnGeometry {
   heading: boolean;
   /** One line per clipped label: `"<text>" <scrollWidth>x<scrollHeight> in <clientWidth>x<clientHeight>`. */
   clipped: string[];
+  /**
+   * Row actions whose right edge passes the list's (MYK9-57): the review column's width floor
+   * must never push a row's action out of the `overflow-hidden` list.
+   */
+  actionsOutOfReach: string[];
 }
 
 export async function measureReviewColumn(page: Page): Promise<ReviewColumnGeometry> {
@@ -51,11 +56,24 @@ export async function measureReviewColumn(page: Page): Promise<ReviewColumnGeome
       }
     }
 
+    const actionsOutOfReach: string[] = [];
+    const list = document.querySelector('section[aria-label="Entry forms"]');
+    const listRight = list?.getBoundingClientRect().right ?? Number.POSITIVE_INFINITY;
+    for (const action of document.querySelectorAll('button[id^="entry-registration-"]')) {
+      const right = action.getBoundingClientRect().right;
+      if (right > listRight + TOLERANCE) {
+        actionsOutOfReach.push(
+          `"${(action.textContent ?? '').trim()}" right ${Math.round(right)} > list ${Math.round(listRight)}`
+        );
+      }
+    }
+
     return {
       pills: document.querySelectorAll('[data-testid="needs-review-marker"]').length,
       cells: cells.length,
       heading: heading instanceof HTMLElement && heading.getClientRects().length > 0,
       clipped,
+      actionsOutOfReach,
     };
   });
 }

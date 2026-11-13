@@ -53,6 +53,9 @@ async function expectReviewColumnInFull(page: Page, label: string, withHeading: 
   expect(geometry.cells, `${label}: review cells must render`).toBeGreaterThan(0);
   expect(geometry.heading, `${label}: "Review / payment" heading on screen`).toBe(withHeading);
   expect(geometry.clipped, `${label}: no review or payment label may be clipped`).toEqual([]);
+  expect(geometry.actionsOutOfReach, `${label}: every row action stays inside the list`).toEqual(
+    []
+  );
 }
 
 for (const viewport of [

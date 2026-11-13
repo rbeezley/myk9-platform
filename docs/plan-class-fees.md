@@ -52,15 +52,19 @@ These are test data, but the same copying would happen on a real show.
 
 ### Day-of entries
 
-A class has one fee column; there is no class day-of fee. Open question for the owner (below). Until answered, the recommendation is: the show's day-of surcharge, meaning its day-of fee minus its pre-entry fee, is added to whatever the class costs. A Master class at $30 on a show charging $25 pre-entry and $30 day-of would be $35 on the day.
+A class has one fee column; there is no class day-of fee. Owner decision: the show's day-of surcharge, meaning its day-of fee minus its pre-entry fee, is added to whatever the class costs. Detective at $40 on a show charging $25 pre-entry and $30 day-of is $45 on the day. A show with no day-of fee, or one not above its pre-entry fee, adds nothing.
 
-The class form's "Day-of-Show Fee" field has no column behind it and is removed, whichever way that question is answered, unless the answer is a per-class day-of fee.
+The class form's "Day-of-Show Fee" field has no column behind it and is removed.
+
+### Junior handlers
+
+Owner decision: the junior fee wins everywhere. The rule is unchanged: when the secretary chooses the junior fee for an entry, it costs the lower of the junior fee and the normal fee, and "normal" is now the class's fee where it has one. A junior pays $15 for a $40 Detective class. The secretary applies the junior fee by hand, so she can leave it off an entry the club does not want discounted.
 
 ### What the secretary sees
 
 - **Class edit form:** one field, "Entry fee for this class", empty by default, with the hint "Leave empty to charge the show's fee ($25)."
 - **Class list:** a class with its own fee shows it. A class without one shows nothing, so exceptions stand out.
-- **Several classes at once:** the class list's bulk edit gains "Set entry fee", so all Master classes can be priced in one step. Clearing the field in bulk returns them to the show's fee.
+- **Several classes at once:** the class list's bulk edit gains "Set entry fee", so several classes can be priced in one step: pick the classes, set the fee. Clearing the field in bulk returns them to the show's fee.
 - **Show fee field:** when some classes have their own fee, the show's fee field says so: "3 classes have their own fee."
 
 ### What the exhibitor sees
@@ -75,12 +79,12 @@ Changing a class's fee does not reprice entries that exist. An entry keeps the f
 
 No. It makes existing fields work and removes one that cannot. No new page. The bulk action joins the class list's existing bulk edit.
 
-## Open questions for the owner
+## Decisions on the open questions (owner, 2026-11-13)
 
-1. **What varies the price in practice?** By level, by particular class (Detective), or something else. The design above covers both, since it is per class.
-2. **Does the day-of surcharge vary by class**, or is it one amount added to whatever the class costs? The recommendation above assumes one amount.
-3. **Does any club price by count**, such as a lower fee for a second entry of the same dog? Not planned unless clubs do it.
-4. **Junior handler fee.** Today it is the lower of the junior fee and the normal fee. With a dearer class, a junior still pays the junior fee. Confirm that is wanted.
+1. **What varies the price.** Mostly Detective, sometimes Master; most clubs charge one fee. So pricing per class is enough. The bulk action is "pick the classes, set the fee", with no by-level shortcut, and the guide's example is Detective.
+2. **Day-of entries.** The show's surcharge is added to whatever the class costs.
+3. **Pricing by count.** Some clubs do it, each with its own rule, and it has to work at online checkout. It is not part of this plan. It is recorded as MYK9-1935 with the four rules clubs use and one constraint: a discount is worked out once at checkout and stored on the entry.
+4. **Junior handlers.** The junior fee wins everywhere.
 
 ## Phases
 
@@ -107,7 +111,8 @@ No. It makes existing fields work and removes one that cannot. No new page. The 
 
 ## Non-goals
 
-- Pricing by count, bundles or discounts.
+- Pricing by count, bundles, member fees or any other discount (MYK9-1935).
+- A day-of fee per class.
 - Repricing existing entries when a class's fee changes.
 - A per-trial fee.
 - Charging or refunding a difference online when a dog changes class (MYK9-1929 decided the club collects it).

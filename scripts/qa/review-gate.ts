@@ -48,6 +48,7 @@ import {
   type Tier,
 } from './review-tier.ts';
 import { fetchAddedFiles, verifyDependencyManifests } from './optional-review-inputs.ts';
+import { exemptBaselineFilesViaGh } from './review-tier-exemptions.ts';
 
 export const REVIEW_GATE_CONTEXT = 'Review gate';
 
@@ -420,6 +421,11 @@ export interface EvaluateReviewGateInput {
    */
   fileListUnusable?: boolean;
   /**
+   * Allowlisted ratchet baselines whose change is lowering-only (MYK9-1932),
+   * computed from contents by SHA in runCli. Absent means none: strict floor.
+   */
+  exemptFiles?: ReadonlySet<string>;
+  /**
    * GitHub's own `changedFiles` count, when the caller has it. Threaded in so
    * the in-module invariant can detect the SHORT-list case too, not only the
    * empty and at-cap cases. Without it a caller that computes `changedFiles`
@@ -442,6 +448,7 @@ function resolveFloor(input: {
   changedFiles: readonly string[];
   fileListUnusable?: boolean;
   declaredFileCount?: number;
+  exemptFiles?: ReadonlySet<string>;
 }): {
   tier: Tier;
   reason: string;
@@ -466,7 +473,7 @@ function resolveFloor(input: {
         reason:
           'the changed-file list is empty, short of GitHub’s own count, or hit its 3000-file cap and may be truncated',
       }
-    : requiredTier(input.changedFiles);
+    : requiredTier(input.changedFiles, input.exemptFiles);
 }
 
 function optionalReasonFor(input: EvaluateReviewGateInput): string | undefined {
@@ -868,6 +875,11 @@ export function runCli(
       deletions: view.deletions,
       declaredFileCount: view.changedFiles,
       fileListUnusable,
+      exemptFiles: exemptBaselineFilesViaGh(run, repo, {
+        changedFiles,
+        baseSha: view.baseRefOid,
+        headSha: view.headRefOid,
+      }),
       comments: comments.map(c => ({
         body: c.body,
         createdAt: c.created_at,

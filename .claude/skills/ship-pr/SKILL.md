@@ -122,6 +122,14 @@ the floor when the optional route does not apply.
 `scripts/qa/post-review-gate.sh` is the only writer of `Review gate:`
 comments for every tier — never type an evidence line by hand.
 
+A change to `scripts/qa/code-quality-ratchet.baseline.json` or
+`scripts/qa/em-dash-ratchet.baseline.json` that only lowers counts or removes entries does
+not raise the floor by itself (MYK9-1932; it falls to `adversarial`). The gate reads both
+file versions by SHA and fails closed (fetch error, added or deleted file, raised count,
+added key, changed non-count value). Any other baseline file, and any other guardrail file
+in the same PR, stays `independent`; `qa:review-tier` prints `exempt from guardrail floor:`
+for exempt files. There is no comment-only exemption.
+
 - **`review: optional (...)`** — no synthetic attestation is needed; the gate
   passes without review evidence while the diff stays eligible. A newly added
   independent-risk path, an edit to an existing test file, a `package.json`

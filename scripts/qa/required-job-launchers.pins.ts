@@ -111,7 +111,8 @@ export const PINNED_SCRIPTS: readonly PinnedScript[] = [
   {
     pkgDir: '.',
     script: 'qa:review-tier:test',
-    command: 'vitest run scripts/qa/review-tier.test.ts scripts/qa/optional-review-inputs.test.ts',
+    command:
+      'vitest run scripts/qa/review-tier.test.ts scripts/qa/review-tier-exemptions.test.ts scripts/qa/optional-review-inputs.test.ts',
   },
   {
     pkgDir: '.',

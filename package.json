@@ -64,7 +64,7 @@
     "qa:review-gate": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/qa/review-gate.ts",
     "qa:review-gate:test": "vitest run scripts/qa/review-gate.test.ts",
     "qa:review-tier": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/qa/review-tier.ts",
-    "qa:review-tier:test": "vitest run scripts/qa/review-tier.test.ts scripts/qa/optional-review-inputs.test.ts",
+    "qa:review-tier:test": "vitest run scripts/qa/review-tier.test.ts scripts/qa/review-tier-exemptions.test.ts scripts/qa/optional-review-inputs.test.ts",
     "qa:deferred-reviews": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/qa/deferred-reviews.ts",
     "qa:deferred-reviews:test": "vitest run scripts/qa/deferred-reviews.test.ts scripts/qa/deferred-reviews.window.test.ts",
     "qa:issue-janitor": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/qa/issue-janitor.ts",

@@ -26,7 +26,7 @@ The key shared concerns identified were:
 - **Database access** -- Supabase client initialization, generated database types
 - **Offline replication** -- IndexedDB caching, sync, and conflict resolution
 - **Scoring domain** -- Stores, types, and utilities for the scoring workflow
-- **Scoring UI** -- Shared hooks for timers, entry lists, drag-and-drop (behavioral, not visual)
+- **Scoring UI** -- Shared hooks for timers, scoresheet scoring, and touch and haptic helpers (behavioral, not visual)
 - **UI components** -- Accessible primitives and styled components for myK9Show
 
 ## Decision
@@ -57,15 +57,15 @@ We organized shared code into **6 packages** under the `@myk9/*` namespace, with
 
 **Package responsibilities:**
 
-| Package             | Responsibility                                      | Key Exports                                                     |
-| ------------------- | --------------------------------------------------- | --------------------------------------------------------------- |
-| `@myk9/core`        | Utilities, types, constants shared by everything    | `logger`, `BaseEntity`, `SyncableEntity`, network utilities     |
-| `@myk9/supabase`    | Supabase client singleton, generated database types | `supabase` client, `Database` type, query helpers               |
-| `@myk9/replication` | Offline-first data layer with IndexedDB             | `ReplicatedTable`, `replicatedClassesTable`, sync utilities     |
-| `@myk9/ui`          | Accessible UI components (Base UI + Tailwind)       | `Button`, `Dialog`, `Select`, tailwind preset                   |
-| `@myk9/scoring`     | Scoring domain stores and types                     | `useScoringStore`, `useTimerStore`, score types                 |
-| `@myk9/scoring-ui`  | Shared behavioral hooks for scoring UIs             | `useStopwatch`, `useDragAndDropEntries`, `useScoresheetScoring` |
-| `@myk9/ringside`    | The `/at-show` ringside screens and show-day flows  | `EntryListPage`, `useEntryListFilters`, `useEntryListData`      |
+| Package             | Responsibility                                      | Key Exports                                                 |
+| ------------------- | --------------------------------------------------- | ----------------------------------------------------------- |
+| `@myk9/core`        | Utilities, types, constants shared by everything    | `logger`, `BaseEntity`, `SyncableEntity`, network utilities |
+| `@myk9/supabase`    | Supabase client singleton, generated database types | `supabase` client, `Database` type, query helpers           |
+| `@myk9/replication` | Offline-first data layer with IndexedDB             | `ReplicatedTable`, `replicatedClassesTable`, sync utilities |
+| `@myk9/ui`          | Accessible UI components (Base UI + Tailwind)       | `Button`, `Dialog`, `Select`, tailwind preset               |
+| `@myk9/scoring`     | Scoring domain stores and types                     | `useScoringStore`, `useTimerStore`, score types             |
+| `@myk9/scoring-ui`  | Shared behavioral hooks for scoring UIs             | `useStopwatch`, `useElementTimer`, `useScoresheetScoring`   |
+| `@myk9/ringside`    | The `/at-show` ringside screens and show-day flows  | `EntryListPage`, `useEntryListFilters`, `useEntryListData`  |
 
 **Boundary rules:**
 

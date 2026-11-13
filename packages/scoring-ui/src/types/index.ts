@@ -139,46 +139,6 @@ export interface ElementTimerReturn {
   formatTime: (milliseconds: number) => string;
 }
 
-/**
- * Drag and drop options
- */
-export interface DragAndDropOptions<T extends BaseEntry> {
-  /** All local entries (for merging after drag) */
-  localEntries: T[];
-  /** Setter for local entries state */
-  setLocalEntries: React.Dispatch<React.SetStateAction<T[]>>;
-  /** Current filtered/sorted entries being displayed */
-  currentEntries: T[];
-  /** External isDraggingRef - if provided, hook uses it instead of creating its own */
-  isDraggingRef?: React.MutableRefObject<boolean>;
-  /** External manualOrder state setter */
-  setManualOrder?: React.Dispatch<React.SetStateAction<T[]>>;
-  /** Grace period in ms before accepting new sync data after drag (default: 1500) */
-  gracePeriodMs?: number;
-  /** Callback to persist order to database */
-  onUpdateOrder?: (entries: T[]) => Promise<void>;
-  /** Optional logger instance */
-  logger?: { log: (...args: unknown[]) => void; error: (...args: unknown[]) => void };
-}
-
-/**
- * Drag and drop return type
- */
-export interface DragAndDropReturn {
-  /** DnD-kit sensors configuration */
-  sensors: unknown; // ReturnType<typeof useSensors> - keeping as unknown to avoid circular deps
-  /** Handler for drag start event */
-  handleDragStart: (event: unknown) => void;
-  /** Handler for drag end event */
-  handleDragEnd: (event: unknown) => Promise<void>;
-  /** Whether a database update is in progress */
-  isUpdatingOrder: boolean;
-  /** Whether currently dragging (for external use) */
-  isDragging: boolean;
-  /** Ref to check drag state (for sync protection) */
-  isDraggingRef: React.MutableRefObject<boolean>;
-}
-
 // Score data types (scoresheet convergence)
 export type {
   QualifyingResult,

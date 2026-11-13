@@ -22,10 +22,11 @@ describe('getEntryPaymentPrompt (4.C — cash/check is a status, not a debt)', (
     });
   });
 
-  it('check → a "mail your check" status', () => {
+  // MYK9-1895: the wizard says "Check (pay at show)", so My Entries says the same.
+  it('check → a "bring your check to the show" status', () => {
     expect(pending('check')).toEqual({
       kind: 'pay-at-show',
-      text: 'Mail your $30.00 check to the club',
+      text: 'Bring your $30.00 check to check-in, payable to the hosting club',
     });
   });
 

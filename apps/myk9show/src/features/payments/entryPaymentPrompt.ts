@@ -43,7 +43,11 @@ export function getEntryPaymentPrompt({
     case 'cash':
       return { kind: 'pay-at-show', text: `Bring ${amount} cash to check-in` };
     case 'check':
-      return { kind: 'pay-at-show', text: `Mail your ${amount} check to the club` };
+      // MYK9-1895: the wizard offers "Check (pay at show)", so this says the same.
+      return {
+        kind: 'pay-at-show',
+        text: `Bring your ${amount} check to check-in, payable to the hosting club`,
+      };
     // Staff-recorded / group / waived: the money side isn't the exhibitor's to
     // action here, so show no CTA. (These rarely reach "pending + balance", but
     // guard anyway.)

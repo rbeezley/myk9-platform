@@ -100,6 +100,22 @@ What she can change inside it:
 
 One line above the button says what she is about to get, for example "3 judge packets · 42 sheets".
 
+### Layout (owner approved the mock-up, 2026-11-13)
+
+The mock-up is linked from MYK9-1924. Top to bottom, the panel is:
+
+1. **The defaults as one sentence, not a form:** "For **Trial 1 · Mon, Dec 7**, collated **by judge**, for **every dog**." Each bold part is a choice. If the sentence is right, she presses Print. This is how the panel stays simple while everything stays changeable.
+2. **Notes**, when there are any. They never block.
+3. **What to include:** the packet's own reports, ticked. Every other report sits under "More reports".
+4. **What you will get:** the packets with sheet counts, before she prints. One per judge; a class with no judge gets a "No judge assigned" packet of its own; after the show, one set per recipient.
+5. **The total, then Print and Save as PDF.** After the show, "Email N judges their record" is a third button, and it shows who receives it before anything is sent.
+
+Scope choices in the sentence: one class, a trial, a day, one judge's classes, the whole show, or classes she ticks.
+
+The only disabled state is having nothing to print. "Only what changed" with no changes says so and offers "Print every dog instead".
+
+Not yet mocked: the print preview, one dog's label from its row, and the night-before checklist row.
+
 Defaults that read the current state:
 
 - **Already printed, nothing changed:** opens on "only what changed", which is empty, and says so. A full reprint is one tap away.
@@ -143,7 +159,7 @@ One pull request per phase. A phase is not done until its tests pass.
 
 ### Phase 0: mock-up and open questions
 
-- Mock up the panel in its main states before any code. The risk to settle is whether one flexible panel stays simple enough for a first-time secretary: four choices are fine only if three are already right and visually quiet.
+- Done 2026-11-13: the panel is mocked up in seven states and the owner approved the sentence layout (see "Layout"). Still to mock: the preview, one dog's label, and the checklist row.
 - Answer the open questions below.
 - **Tests:** none; the output is the mock-up and recorded decisions.
 

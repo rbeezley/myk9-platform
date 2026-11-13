@@ -202,6 +202,36 @@ describe('useNotificationMonitor', () => {
     expect(mockDeliver).toHaveBeenCalledWith(expect.objectContaining({ type: 'your_turn' }));
   });
 
+  it('counts dogs ahead by run order, skipping a withdrawn dog (MYK9-1941)', async () => {
+    // Armband order would put the withdrawn dog (2) and the owned dog (10) first.
+    // The hand-set run order is 50, 40, then the owned dog, so two dogs run ahead.
+    mockRefetch.mockResolvedValue({
+      data: {
+        classes: [classRow({ status: 'In Progress' })],
+        entries: [
+          entry({ id: 'ring', dog_id: 'ring-dog', armband: '1', check_in_status: 'in-ring' }),
+          entry({
+            id: 'withdrawn',
+            dog_id: 'w-dog',
+            armband: '2',
+            run_order: 1,
+            entry_status: 'withdrawn',
+          }),
+          entry({ id: 'first', dog_id: 'f-dog', armband: '50', run_order: 1 }),
+          entry({ id: 'second', dog_id: 's-dog', armband: '40', run_order: 2 }),
+          entry({ armband: '10', run_order: 3 }),
+        ],
+      },
+    });
+    mountWithBaseline({ classes: [classRow({ status: 'In Progress' })], entries: [entry()] });
+
+    await emitShowChange();
+
+    expect(buildYourTurnPayload).toHaveBeenCalledWith(
+      expect.objectContaining({ dogName: 'Ditto', dogsAhead: 2 })
+    );
+  });
+
   it('does not repeat dogs-ahead alerts while the same entry remains in-ring', async () => {
     mockRefetch.mockResolvedValue({
       data: {

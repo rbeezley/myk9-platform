@@ -34,14 +34,15 @@ function makePayload(partial: Omit<NotificationPayload, 'id' | 'timestamp'>): No
 
 export function buildYourTurnPayload(input: YourTurnInput): NotificationPayload {
   const isNext = input.dogsAhead <= 0;
+  const dogWord = input.dogsAhead === 1 ? 'dog' : 'dogs';
   const title = isNext
     ? `${input.dogName} — You're up!`
-    : `${input.dogName} — ${input.dogsAhead} dogs away`;
+    : `${input.dogName} — ${input.dogsAhead} ${dogWord} away`;
 
   const ringSuffix = input.ringNumber ? ` (Ring ${input.ringNumber})` : '';
   const body = isNext
     ? `Your turn in ${input.className}${ringSuffix}`
-    : `${input.dogsAhead} dogs ahead in ${input.className}${ringSuffix}`;
+    : `${input.dogsAhead} ${dogWord} ahead in ${input.className}${ringSuffix}`;
 
   return makePayload({
     type: 'your_turn',

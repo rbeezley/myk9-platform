@@ -21,6 +21,7 @@ import {
   watchedUpcomingEntries,
   type NotificationWatchSet,
 } from '@/hooks/notificationWatchSet';
+import { isRunnableEntry } from '@/features/_shared/entryAccounting';
 import { detectConflicts } from '@/utils/conflictDetection';
 import type { ClassContext } from '@/utils/conflictDetection';
 import type { ShowEntry } from '@/store/entry-store-types';
@@ -40,6 +41,10 @@ interface EntryRow {
   is_scored: boolean | null;
   result_status: string | null;
   dog_call_name: string | null;
+  run_order?: number | null;
+  entry_status?: string | null;
+  is_in_ring?: boolean | null;
+  deleted_at?: string | null;
 }
 
 interface ClassRow {
@@ -69,6 +74,25 @@ interface ObservedClass {
 interface Observed {
   userId: string | null;
   classes: ReadonlyMap<string, ObservedClass>;
+}
+
+/**
+ * The check-in status the shared run queue reads (MYK9-1941). Whether the dog
+ * still runs is `isRunnableEntry`'s call, the same predicate behind the
+ * ringside run list, so a withdrawn, moved, pulled, scored or deleted row is
+ * `pulled` here and never counted ahead. Only a runnable row can be in the ring.
+ */
+function queueCheckInStatus(row: EntryRow): ShowEntry['checkInStatus'] | undefined {
+  const runnable = isRunnableEntry({
+    deleted_at: row.deleted_at,
+    entry_status: row.entry_status ?? undefined,
+    check_in_status: row.check_in_status ?? undefined,
+    is_scored: row.is_scored ?? undefined,
+    result_status: row.result_status ?? undefined,
+  });
+  if (!runnable) return 'pulled';
+  if (row.is_in_ring) return 'in-ring';
+  return (row.check_in_status as ShowEntry['checkInStatus']) ?? undefined;
 }
 
 function isUnchecked(entry: ShowEntry): boolean {
@@ -267,7 +291,7 @@ export function useNotificationMonitor(): void {
           dogId: row.dog_id,
           classId: row.class_id,
           showId: row.show_id,
-          checkInStatus: (row.check_in_status as ShowEntry['checkInStatus']) ?? undefined,
+          checkInStatus: queueCheckInStatus(row),
           status: 'confirmed',
           registrationData: {
             submittedAt: '',
@@ -275,6 +299,7 @@ export function useNotificationMonitor(): void {
             entryFee: 0,
             paymentStatus: 'pending',
             armband: row.armband ?? undefined,
+            runOrder: row.run_order ?? undefined,
           },
           competitionData: row.is_scored ? { recordedBy: '', recordedAt: '' } : undefined,
           statusHistory: [],

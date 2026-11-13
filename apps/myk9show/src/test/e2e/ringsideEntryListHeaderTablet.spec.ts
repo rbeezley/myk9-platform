@@ -16,7 +16,7 @@ import {
 
 /**
  * MYK9-1899: on a portrait tablet the ringside entry-list header put the offline note and the
- * "Waiting to sync N" pill beside the class name, which was left a sliver ("Contain/er/Novice A",
+ * "Not sent yet N" pill beside the class name, which was left a sliver ("Contain/er/Novice A",
  * then one letter per line, the header ~540px tall). Class names cannot see that; only rendered
  * geometry can. Hermetic (no sign-in, no staging): the REAL EntryListHeader, SyncIndicator,
  * FilterTriggerButton and offline note markup, styled by Tailwind compiled from the app's own

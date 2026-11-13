@@ -94,9 +94,9 @@ const SYNC_LABELS: Record<SyncIndicatorStatusValue, string> = {
   synced: 'All sent',
   syncing: 'Sending…',
   // Idle with queued writes — calm, not alarming (offline is normal, PRODUCT.md).
-  pending: 'Saved on this device',
+  pending: 'Not sent yet',
   offline: 'Offline',
-  error: 'Not sent yet',
+  error: 'Could not send',
 };
 
 const SYNC_TIERS: Record<SyncIndicatorStatusValue, BadgeTier> = {

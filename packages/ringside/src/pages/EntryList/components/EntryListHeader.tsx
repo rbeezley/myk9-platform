@@ -125,7 +125,7 @@ function HeaderSyncState({
       {hasError && (
         <SyncIndicator status="error" compact errorMessage="Some changes have not been sent yet" />
       )}
-      {/* Idle but with queued writes: show "Saved on this device" with the count so a judge can
+      {/* Idle but with queued writes: show "Not sent yet" with the count so a judge can
           tell whether it's safe to close the iPad, not just while a sync is
           actively running (audit H3). */}
       {!isSyncing && !hasError && typeof pendingCount === 'number' && pendingCount > 0 && (

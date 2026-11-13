@@ -66,9 +66,9 @@ describe('getSyncLabel / getSyncTier', () => {
   it('labels each sync status', () => {
     expect(getSyncLabel('synced')).toBe('All sent');
     expect(getSyncLabel('syncing')).toBe('Sending…');
-    expect(getSyncLabel('pending')).toBe('Saved on this device');
+    expect(getSyncLabel('pending')).toBe('Not sent yet');
     expect(getSyncLabel('offline')).toBe('Offline');
-    expect(getSyncLabel('error')).toBe('Not sent yet');
+    expect(getSyncLabel('error')).toBe('Could not send');
   });
 
   it('tiers each sync status', () => {

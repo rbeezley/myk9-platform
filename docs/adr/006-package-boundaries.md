@@ -26,7 +26,7 @@ The key shared concerns identified were:
 - **Database access** -- Supabase client initialization, generated database types
 - **Offline replication** -- IndexedDB caching, sync, and conflict resolution
 - **Scoring domain** -- Stores, types, and utilities for the scoring workflow
-- **Scoring UI** -- Shared hooks for timers, entry lists, drag-and-drop (behavioral, not visual)
+- **Scoring UI** -- Shared hooks for timers, scoresheet scoring, and touch and haptic helpers (behavioral, not visual)
 - **UI components** -- Accessible primitives and styled components for myK9Show
 
 ## Decision

@@ -106,7 +106,7 @@ Show venues often have weak signal. The app is built for it.
 - The sync label at the top reads **Offline**, then **Not sent yet** while scores are waiting to be sent. This is normal at most venues.
 - A chip at the top reads **Offline ready** once the show is saved on the device, and **Preparing offline copy…** until then.
 - Your work is saved on the device and **is sent automatically** when signal returns. The label changes to **All sent**.
-- On the class list, **Offline copy: saved on this device** means the show is stored on your device. **Not sent yet** after a score means it has not reached the secretary yet.
+- On the class list, **Offline copy: saved on this device** means the show is stored on your device. A line such as **1 score not sent yet** under a class means that score has not reached the secretary yet.
 
 **Scores not showing for the secretary after signal returns?** Reload the page once you have a solid connection. If entries are still missing, find the trial secretary.
 

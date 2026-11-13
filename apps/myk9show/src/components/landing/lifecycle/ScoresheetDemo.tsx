@@ -115,7 +115,7 @@ export function ScoresheetDemo({ syncMs = 1400 }: { syncMs?: number }) {
     : syncing
       ? { text: `Syncing ${waiting}…`, tone: 'blue' }
       : log.length && !waiting
-        ? { text: 'All synced', tone: 'green' }
+        ? { text: 'All sent', tone: 'green' }
         : { text: 'Online', tone: 'neutral' };
 
   const maxMs = stopwatch.getMaxTimeMs();

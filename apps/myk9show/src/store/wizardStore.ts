@@ -1,11 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { DEFAULT_PREMIUM_STYLE, type PremiumStyle } from '@/types/premium-types';
-import {
-  getRegistrySportName,
-  listRegistries,
-  resolveBrowserTrialTimezone,
-} from '@/features/registries';
+import { resolveBrowserTrialTimezone } from '@/features/registries';
+import { defaultTrialType } from './wizardStore.trialType';
 import { stepTransitionPatch } from './wizardStore.stepTransition';
 import { migrateWizardState, WIZARD_STORE_VERSION } from './wizardStore.migrations';
 import { createWizardPersistStorage } from './wizardStorage';
@@ -15,12 +12,6 @@ import {
   pickPersistedDraft,
   type PersistedWizardDraft,
 } from './wizardStore.draft';
-
-/** Maps show organization to a default trial type (discipline); undefined for an unknown org. */
-function defaultTrialType(organization: string): string | undefined {
-  const id = organization.trim().toUpperCase();
-  return (listRegistries() as string[]).includes(id) ? getRegistrySportName(id) : undefined;
-}
 
 export type ShowDraft = WizardState['show'];
 export type CloneHydrationStatus = 'idle' | 'hydrating' | 'ready' | 'failed';
@@ -51,6 +42,8 @@ export interface WizardState {
   lastSaved: Date | null;
   cloneHydration: CloneHydrationState;
   cloneGeneration: number;
+  /** Name useSuggestedShowName wrote and she has not touched (MYK9-1832). Transient: a resumed draft's name is hers. */
+  suggestedShowName: string | null;
   /**
    * Edit mode only: the show-level judge ids the edit draft was BUILT from.
    * The save writes the difference between this and `show.judgeIds`
@@ -150,6 +143,7 @@ interface WizardActions {
 
   // Show data
   updateShowData: (data: Partial<WizardState['show']>) => void;
+  setSuggestedShowName: (name: string | null) => void;
 
   // Trial management
   addTrial: (trial: Omit<WizardState['trials'][0], 'id'>) => void;
@@ -184,6 +178,7 @@ function loadDraftPatch(state: WizardState, draft: Partial<WizardState>) {
     ...state,
     ...draft,
     cloneGeneration: state.cloneGeneration + 1,
+    suggestedShowName: null,
     cloneHydration: initialState.cloneHydration,
     trialsMovedCount: 0,
     isDirty: false,
@@ -198,6 +193,7 @@ const initialState: WizardState = {
   lastSaved: null,
   cloneHydration: { status: 'idle', sourceShowId: null, sourceShowName: null },
   cloneGeneration: 0,
+  suggestedShowName: null,
   editBaselineJudgeIds: null,
   trialsMovedCount: 0,
   parkedCreateDraft: null,
@@ -279,6 +275,8 @@ export const useWizardStore = create<WizardState & WizardActions>()(
           show: { ...state.show, ...data },
           isDirty: true,
         })),
+
+      setSuggestedShowName: name => set({ suggestedShowName: name }),
 
       // Trial management
       addTrial: trial =>

@@ -13,12 +13,13 @@ import type { UserPermissionsResponse } from '@/types/rbac-types';
 const auth = vi.hoisted(() => ({
   listener: undefined as ((event: string, session: unknown) => void) | undefined,
   signOut: vi.fn(),
+  getSession: vi.fn(),
 }));
 
 vi.mock('@/lib/supabase', () => ({
   supabase: {
     auth: {
-      getSession: vi.fn().mockResolvedValue({ data: { session: { user: { id: 'user-a' } } } }),
+      getSession: auth.getSession,
       onAuthStateChange: (cb: (event: string, session: unknown) => void) => {
         auth.listener = cb;
         return { data: { subscription: { unsubscribe: vi.fn() } } };
@@ -50,6 +51,9 @@ describe('useAuth sign-out purges warm tokens', () => {
   beforeEach(() => {
     localStorage.clear();
     auth.signOut.mockReset().mockResolvedValue({ error: null });
+    auth.getSession
+      .mockReset()
+      .mockResolvedValue({ data: { session: { user: { id: 'user-a' } } } });
   });
 
   it('signOut() clears them before navigating away', async () => {
@@ -80,6 +84,34 @@ describe('useAuth sign-out purges warm tokens', () => {
 
     expect(auth.signOut).toHaveBeenLastCalledWith({ scope: 'local' });
     expect(hasFreshRbacWarmToken('user-a')).toBe(false);
+  });
+
+  it('finishes signing out offline even though the local revoke request also fails', async () => {
+    // `local` drops the session before its own request, which fails offline too.
+    seedCaches();
+    auth.signOut.mockResolvedValue({ error: new Error('Failed to fetch') });
+    const { result } = renderHook(() => useAuth());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    auth.getSession.mockResolvedValue({ data: { session: null } });
+
+    await act(async () => {
+      await result.current.signOut();
+    });
+
+    expect(auth.signOut).toHaveBeenLastCalledWith({ scope: 'local' });
+    expect(hasFreshRbacWarmToken('user-a')).toBe(false);
+  });
+
+  it('still reports the failure when the device keeps its session', async () => {
+    auth.signOut.mockResolvedValue({ error: new Error('Storage unavailable') });
+    const { result } = renderHook(() => useAuth());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await expect(
+      act(async () => {
+        await result.current.signOut();
+      })
+    ).rejects.toThrow('Storage unavailable');
   });
 
   it('a SIGNED_OUT event (expiry, suspension, another tab) clears them', async () => {

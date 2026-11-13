@@ -368,10 +368,14 @@ export function useAuth() {
     const { error: globalError } = await supabase.auth.signOut();
     if (globalError) {
       // supabase-js 2.119+ keeps the session when the server request fails (offline, 5xx).
-      // Signing out must still sign this device out; `local` drops the session first.
+      // Signing out must still sign this device out; `local` drops the session first, then
+      // its own revoke request can fail the same way. Only a session still held here is fatal.
       const { error: localError } = await supabase.auth.signOut({ scope: 'local' });
       if (localError) {
-        throw localError;
+        const { data } = await supabase.auth.getSession();
+        if (data.session) {
+          throw localError;
+        }
       }
     }
     await replicatedClassesTable.clearCachedHideCounts();

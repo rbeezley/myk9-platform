@@ -57,7 +57,7 @@ import { createRunOrderUpdater } from './runOrderUpdater';
 import { buildRingsideContextValue, buildRingsideReplication } from './ringsideCapabilities';
 import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
 import { useAtShowShowHydration } from './useAtShowShowHydration';
-import { PartialReplicaNotice } from './StaleReadNotice';
+import { EntryListNotices } from './StaleReadNotice';
 import { AtShowEntriesNotOnDeviceAction } from './AtShowEntriesNotOnDeviceAction';
 import { createAtShowDataDependencies } from './atShowDataAdapter';
 import { useAtShowEntryListActions } from './useAtShowEntryListActions';
@@ -69,7 +69,6 @@ import { atShowDialogSlots } from './slots/atShowDialogSlots';
 import { useAtShowDogFavoritesSynced } from './dogFavoritesSync';
 import { useAtShowFavoriteAlertNudge } from './useAtShowFavoriteAlertNudge';
 import { AtShowAddToHomeNudge } from './AtShowAddToHomeNudge';
-import { useMyAtShowEntries } from './useMyAtShowEntries';
 import { useMyRingConflicts } from './useMyRingConflicts';
 import { useEntryStatusAccess } from './useEntryStatusAccess';
 import { useSelfCheckinFor } from './selfCheckinByClass';
@@ -276,10 +275,9 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
       ),
     [showId, classIdA, classIdB]
   );
-  const { ownEntryIds } = useMyAtShowEntries(showId);
-  const { statusAccess, statusRefusalFor } = useEntryStatusAccess({
+  const { statusAccess, statusRefusalFor, ownershipNotice, ownEntryIds } = useEntryStatusAccess({
     role: ringsideRole,
-    ownEntryIds,
+    showId,
     selfCheckinFor: useSelfCheckinFor([classIdA, classIdB]),
   });
   const entriesIncomplete = showHydration === 'not-arrived';
@@ -434,7 +432,7 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
             onDismiss={dismissNudge}
           />
         )}
-        {showHydration === 'not-arrived' && entries.length > 0 && <PartialReplicaNotice />}
+        <EntryListNotices partial={entriesIncomplete && entries.length > 0} own={ownershipNotice} />
         <EntryListPage
           classId={classIdA}
           combined={{

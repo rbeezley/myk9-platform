@@ -20,6 +20,8 @@ const viewer = vi.hoisted(() => ({
   ownIds: [] as string[],
   hydration: 'arrived' as 'arrived' | 'not-arrived' | 'pending',
   selfCheckin: true,
+  ownershipUnknown: false,
+  online: true,
 }));
 
 vi.mock('@/services/replication', () => ({
@@ -69,8 +71,13 @@ vi.mock('./useMyAtShowEntries', () => ({
     ownEntryIds: new Set(viewer.ownIds),
     ownClassIds: new Set<string>(),
     isLoading: false,
-    isUnknown: false,
+    isUnknown: viewer.ownershipUnknown,
   }),
+}));
+
+vi.mock('@/hooks/useNetworkStatus', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/hooks/useNetworkStatus')>()),
+  useIsOnline: () => viewer.online,
 }));
 
 vi.mock('./useAtShowShowHydration', () => ({
@@ -147,6 +154,8 @@ beforeEach(() => {
   viewer.ownIds = [];
   viewer.hydration = 'arrived';
   viewer.selfCheckin = true;
+  viewer.ownershipUnknown = false;
+  viewer.online = true;
 });
 
 describe('MYK9-1809 item 1: nothing about the line while entries are missing', () => {
@@ -323,5 +332,58 @@ describe('MYK9-1807: staff keep every control', () => {
     await user.click(within(cardFor('Dog a')).getByTestId('check-in-button'));
 
     expect(await screen.findByRole('button', { name: /Come to Gate/i })).toBeInTheDocument();
+  });
+});
+
+describe('MYK9-1807: an exhibitor whose ownership is not known yet', () => {
+  const rows = [row('mine', 1), row('theirs', 2)];
+  const checking = /still checking which dogs are yours/i;
+  const offline = 'Connect to the internet to check in your dogs.';
+
+  beforeEach(() => {
+    viewer.role = 'EXHIBITOR';
+    viewer.ownershipUnknown = true;
+  });
+
+  it('online: says it is still checking and offers no control on any dog', async () => {
+    seed(rows);
+    renderPage();
+    await screen.findByText('Dog mine');
+
+    expect(screen.getByText(checking)).toBeInTheDocument();
+    expect(screen.queryByText(offline)).not.toBeInTheDocument();
+    expect(screen.queryByTestId('check-in-button')).not.toBeInTheDocument();
+  });
+
+  it('offline: asks them to connect', async () => {
+    viewer.online = false;
+    seed(rows);
+    renderPage();
+    await screen.findByText('Dog mine');
+
+    expect(screen.getByText(offline)).toBeInTheDocument();
+    expect(screen.queryByText(checking)).not.toBeInTheDocument();
+    expect(screen.queryByTestId('check-in-button')).not.toBeInTheDocument();
+  });
+
+  it('once ownership is known: no line, and the control is on their own dog only', async () => {
+    viewer.ownershipUnknown = false;
+    viewer.ownIds = ['mine'];
+    seed(rows);
+    renderPage();
+    await screen.findByText('Dog mine');
+
+    expect(screen.queryByText(checking)).not.toBeInTheDocument();
+    expect(within(cardFor('Dog mine')).getByTestId('check-in-button')).toBeInTheDocument();
+    expect(within(cardFor('Dog theirs')).queryByTestId('check-in-button')).not.toBeInTheDocument();
+  });
+
+  it('staff never see the line', async () => {
+    viewer.role = 'SITE_ADMIN';
+    seed(rows);
+    renderPage();
+    await screen.findByText('Dog mine');
+
+    expect(screen.queryByText(checking)).not.toBeInTheDocument();
   });
 });

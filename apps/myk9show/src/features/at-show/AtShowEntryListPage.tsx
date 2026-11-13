@@ -50,7 +50,7 @@ import { notifyRunOrderPersistError } from './runOrderErrorToast';
 import { createRunOrderUpdater } from './runOrderUpdater';
 import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
 import { useAtShowShowHydration } from './useAtShowShowHydration';
-import { PartialReplicaNotice } from './StaleReadNotice';
+import { EntryListNotices } from './StaleReadNotice';
 import { AtShowEntriesNotOnDeviceAction } from './AtShowEntriesNotOnDeviceAction';
 import { createAtShowDataDependencies } from './atShowDataAdapter';
 import { useAtShowEntryListActions } from './useAtShowEntryListActions';
@@ -64,7 +64,6 @@ import { useHasClassSettingsLinks } from './slots/classSettingsLinks';
 import { useAtShowDogFavoritesSynced } from './dogFavoritesSync';
 import { useAtShowFavoriteAlertNudge } from './useAtShowFavoriteAlertNudge';
 import { AtShowAddToHomeNudge } from './AtShowAddToHomeNudge';
-import { useMyAtShowEntries } from './useMyAtShowEntries';
 import { useMyRingConflicts } from './useMyRingConflicts';
 import { useEntryStatusAccess } from './useEntryStatusAccess';
 import { writerForRole } from './entryStatusAccess';
@@ -287,12 +286,11 @@ export const AtShowEntryListPage: React.FC = () => {
   );
 
   // ── Who may change a check-in status here (MYK9-1807) ───────────────────
-  const { ownEntryIds } = useMyAtShowEntries(showId);
   const selfCheckinEnabled = classInfo?.selfCheckin ?? true;
   const selfCheckinFor = useCallback(() => selfCheckinEnabled, [selfCheckinEnabled]);
-  const { statusAccess, statusRefusalFor } = useEntryStatusAccess({
+  const { statusAccess, statusRefusalFor, ownershipNotice, ownEntryIds } = useEntryStatusAccess({
     role: ringsideRole,
-    ownEntryIds,
+    showId,
     selfCheckinFor,
   });
   const entriesIncomplete = showHydration === 'not-arrived';
@@ -387,7 +385,7 @@ export const AtShowEntryListPage: React.FC = () => {
             onDismiss={dismissNudge}
           />
         )}
-        {showHydration === 'not-arrived' && entries.length > 0 && <PartialReplicaNotice />}
+        <EntryListNotices partial={entriesIncomplete && entries.length > 0} own={ownershipNotice} />
         <EntryListPage
           classId={classId}
           data={{ entries, classInfo }}

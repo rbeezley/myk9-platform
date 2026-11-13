@@ -3,20 +3,35 @@
  * because that is what the server's `self_checkin_entry` does.
  */
 import { renderHook } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { Entry } from '@myk9/ringside';
-import { useEntryStatusAccess } from './useEntryStatusAccess';
+import {
+  OWNERSHIP_CHECKING_NOTICE,
+  OWNERSHIP_OFFLINE_NOTICE,
+  useEntryStatusAccess,
+} from './useEntryStatusAccess';
+
+const own = vi.hoisted(() => ({ unknown: false, online: true }));
+
+vi.mock('./useMyAtShowEntries', () => ({
+  useMyAtShowEntries: () => ({
+    ownEntryIds: new Set(['a', 'b']),
+    ownClassIds: new Set<string>(),
+    isLoading: false,
+    isUnknown: own.unknown,
+  }),
+}));
+vi.mock('@/hooks/useNetworkStatus', () => ({ useIsOnline: () => own.online }));
 
 const dog = (id: string, classId: string): Entry => ({ id, classId }) as unknown as Entry;
 const dogA = dog('a', 'class-a');
 const dogB = dog('b', 'class-b');
-const ownBoth = new Set(['a', 'b']);
 
 function controls(role: string | null, off: string[]) {
   const { result } = renderHook(() =>
     useEntryStatusAccess({
       role,
-      ownEntryIds: ownBoth,
+      showId: 'show-1',
       selfCheckinFor: classId => !off.includes(classId),
     })
   );
@@ -46,5 +61,26 @@ describe('useEntryStatusAccess per entry class', () => {
     const got = controls('admin', ['class-a', 'class-b']);
     expect(got.a).toBe('open');
     expect(got.b).toBe('open');
+  });
+});
+
+describe('useEntryStatusAccess ownership notice', () => {
+  const notice = (role: string, unknown: boolean, online: boolean) => {
+    own.unknown = unknown;
+    own.online = online;
+    const { result } = renderHook(() =>
+      useEntryStatusAccess({ role, showId: 'show-1', selfCheckinFor: () => true })
+    );
+    return result.current.ownershipNotice;
+  };
+
+  it('tells an exhibitor it is still checking, or to connect when offline', () => {
+    expect(notice('exhibitor', true, true)).toBe(OWNERSHIP_CHECKING_NOTICE);
+    expect(notice('exhibitor', true, false)).toBe(OWNERSHIP_OFFLINE_NOTICE);
+  });
+
+  it('says nothing once ownership is known, and nothing to staff', () => {
+    expect(notice('exhibitor', false, true)).toBeNull();
+    expect(notice('admin', true, true)).toBeNull();
   });
 });

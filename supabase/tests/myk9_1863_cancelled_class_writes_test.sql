@@ -69,7 +69,7 @@ alter table public.entries enable trigger trg_entries_require_dog_registration;
 
 update public.entries
    set is_scored = true, result_status = 'qualified', search_time_seconds = 22,
-       check_in_status = 'completed'
+       total_faults = 1, check_in_status = 'completed'
  where id = '00000000-0000-0000-0000-000001863042';
 
 -- Show Desk cancels with status_source 'manual' (classStatusMutations), which keeps
@@ -103,21 +103,26 @@ do $$
 declare
   v_payload jsonb;
   v_label text;
+  v_entry uuid;
   v_hint text;
 begin
-  for v_label, v_payload in
-    select * from (values
-      ('a score', jsonb_build_object('is_scored', true, 'result_status', 'qualified', 'search_time_seconds', 30)),
-      ('a fault-only correction', jsonb_build_object('total_faults', 1)),
-      ('an absent', jsonb_build_object('is_scored', true, 'result_status', 'absent')),
-      ('a check-in', jsonb_build_object('check_in_status', 'checked-in')),
-      ('an in-ring move', jsonb_build_object('check_in_status', 'in-ring')),
-      ('an is_in_ring write', jsonb_build_object('is_in_ring', true)),
-      ('a reset carrying a score', jsonb_build_object('is_scored', false, 'result_status', 'pending', 'search_time_seconds', 0, 'total_faults', 2))
-    ) as t(label, payload)
+  for v_label, v_entry, v_payload in
+    select label, coalesce(entry, '00000000-0000-0000-0000-000001863041'::uuid), payload from (values
+      ('a score', null::uuid, jsonb_build_object('is_scored', true, 'result_status', 'qualified', 'search_time_seconds', 30)),
+      ('a fault-only correction', null::uuid, jsonb_build_object('total_faults', 1)),
+      ('an absent', null::uuid, jsonb_build_object('is_scored', true, 'result_status', 'absent')),
+      ('a check-in', null::uuid, jsonb_build_object('check_in_status', 'checked-in')),
+      ('an in-ring move', null::uuid, jsonb_build_object('check_in_status', 'in-ring')),
+      ('an is_in_ring write', null::uuid, jsonb_build_object('is_in_ring', true)),
+      ('a reset carrying a score', null::uuid, jsonb_build_object('is_scored', false, 'result_status', 'pending', 'search_time_seconds', 0, 'total_faults', 2)),
+      ('a zero-valued correction on a scored entry', '00000000-0000-0000-0000-000001863042'::uuid,
+        jsonb_build_object('total_faults', 0)),
+      ('completed back to checked-in without a reset', '00000000-0000-0000-0000-000001863042'::uuid,
+        jsonb_build_object('check_in_status', 'checked-in'))
+    ) as t(label, entry, payload)
   loop
     begin
-      perform public.ringside_update_entry('00000000-0000-0000-0000-000001863041', v_payload, null);
+      perform public.ringside_update_entry(v_entry, v_payload, null);
       raise exception 'FAIL A % was accepted for a cancelled class', v_label;
     exception when check_violation then
       get stacked diagnostics v_hint = pg_exception_hint;
@@ -171,9 +176,19 @@ end $$;
 -- D. what takes something away still goes through
 do $$
 begin
-  update public.entries
-     set is_scored = false, result_status = 'pending', search_time_seconds = 0
-   where id = '00000000-0000-0000-0000-000001863042';
+  -- The app's own reset payload (handleResetScore + SCORE_DETAIL_CLEAR_FIELDS +
+  -- scoreResetCheckInFields), which moves the completed dog back to checked-in.
+  perform public.ringside_update_entry(
+    '00000000-0000-0000-0000-000001863042',
+    jsonb_build_object(
+      'is_scored', false, 'result_status', 'pending', 'search_time_seconds', 0,
+      'total_faults', 0, 'final_placement', null, 'scoring_completed_at', null,
+      'disqualification_reason', null,
+      'area1_time_seconds', null, 'area2_time_seconds', null, 'area3_time_seconds', null,
+      'area4_time_seconds', null, 'total_correct_finds', null, 'total_incorrect_finds', null,
+      'no_finish_count', null, 'points_earned', null,
+      'check_in_status', 'checked-in'),
+    null);
   update public.entries set check_in_status = 'no-status'
    where id = '00000000-0000-0000-0000-000001863042';
   update public.entries set is_in_ring = false

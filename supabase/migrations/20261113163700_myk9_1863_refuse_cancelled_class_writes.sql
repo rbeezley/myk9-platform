@@ -12,8 +12,9 @@
 --
 -- Still allowed in a cancelled class, because each takes something away rather
 -- than recording that the class ran:
---   * a score RESET (every changed score column cleared to null, false, zero or
---     'pending'), so a result recorded before the cancel can be taken off;
+--   * a score RESET (the entry ends unscored and no score column changes to a
+--     recorded value), so a result recorded before the cancel can be taken off,
+--     with the reset's own move of a completed dog back to 'checked-in';
 --   * a check-in reset to 'no-status' (a NULL check-in counts as a write), a Pull
 --     ('pulled'), and taking a dog out of the ring (is_in_ring false);
 --   * every non-score, non-check-in write (withdrawals, notes, moves, payments).
@@ -46,7 +47,9 @@ DECLARE
   ];
   v_new jsonb;
   v_old jsonb;
-  v_score_write boolean;
+  v_score_changed boolean;
+  v_records_value boolean;
+  v_reset boolean;
 BEGIN
   -- Cheapest gate first: one primary-key probe. Nearly every entry write is in a
   -- running class and leaves here without building the row's jsonb.
@@ -57,28 +60,36 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  IF (NEW.check_in_status IS DISTINCT FROM OLD.check_in_status
-      AND NEW.check_in_status IS DISTINCT FROM 'no-status'
-      AND NEW.check_in_status IS DISTINCT FROM 'pulled')
-     OR (NEW.is_in_ring IS TRUE AND OLD.is_in_ring IS NOT TRUE) THEN
-    RAISE EXCEPTION 'This class is cancelled. Scores and check-ins are closed.'
-      USING ERRCODE = '23514', HINT = 'class_cancelled';
-  END IF;
-
-  -- A score write is any score column that changes to a value that records
-  -- something. Clearing a column (null, false, zero, 'pending') records nothing,
-  -- so a reset passes whole, and a fault-only correction on an unscored entry
-  -- does not pass as one.
+  -- A reset is defined by where the entry ENDS, not by which columns the payload
+  -- names (the app's reset clears only some score columns): the entry ends
+  -- unscored, and no score column changes to a value that records something.
+  -- So a zero-valued correction on a scored entry is not a reset (it stays
+  -- scored), and a fault written to an unscored entry is not one either.
   v_new := to_jsonb(NEW);
   v_old := to_jsonb(OLD);
-  SELECT bool_or(
-           (v_new -> k) IS DISTINCT FROM (v_old -> k)
-           AND (v_new -> k) IS NOT NULL
-           AND (v_new -> k) NOT IN ('null'::jsonb, 'false'::jsonb, '0'::jsonb, '"pending"'::jsonb))
-    INTO v_score_write
+  SELECT bool_or((v_new -> k) IS DISTINCT FROM (v_old -> k)),
+         bool_or((v_new -> k) IS DISTINCT FROM (v_old -> k)
+                 AND (v_new -> k) IS NOT NULL
+                 AND (v_new -> k) NOT IN ('null'::jsonb, 'false'::jsonb, '0'::jsonb, '"pending"'::jsonb))
+    INTO v_score_changed, v_records_value
     FROM unnest(v_score_cols) AS k;
 
-  IF v_score_write IS TRUE THEN
+  v_reset := v_score_changed IS TRUE
+    AND v_records_value IS NOT TRUE
+    AND NEW.is_scored IS NOT TRUE
+    AND coalesce(NEW.result_status, 'pending') = 'pending'
+    AND coalesce(NEW.search_time_seconds, 0) = 0;
+
+  IF (v_score_changed IS TRUE AND NOT v_reset)
+     -- A check-in other than a reset to 'no-status' or a Pull. The app's score reset
+     -- moves a completed dog back to 'checked-in' in the same payload
+     -- (scoreResetCheckInFields), so that move rides along with a reset.
+     OR (NEW.check_in_status IS DISTINCT FROM OLD.check_in_status
+         AND NEW.check_in_status IS DISTINCT FROM 'no-status'
+         AND NEW.check_in_status IS DISTINCT FROM 'pulled'
+         AND NOT (v_reset AND OLD.check_in_status = 'completed'
+                  AND NEW.check_in_status = 'checked-in'))
+     OR (NEW.is_in_ring IS TRUE AND OLD.is_in_ring IS NOT TRUE) THEN
     RAISE EXCEPTION 'This class is cancelled. Scores and check-ins are closed.'
       USING ERRCODE = '23514', HINT = 'class_cancelled';
   END IF;

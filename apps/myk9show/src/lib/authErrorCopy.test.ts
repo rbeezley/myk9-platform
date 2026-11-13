@@ -2,8 +2,10 @@
  * MYK9-1815: sign-in, sign-up and password pages never show the login provider's own text.
  * Errors are told apart by their CODE; the provider's English is free to change.
  */
+import { AuthRetryableFetchError } from '@supabase/supabase-js';
 import { describe, expect, it } from 'vitest';
 import {
+  AuthTimeoutError,
   commonAuthFailure,
   friendlyAuthError,
   MIN_PASSWORD_LENGTH,
@@ -48,10 +50,35 @@ describe('friendlyAuthError', () => {
   it.each([
     ['a dropped connection', Object.assign(new Error('Failed to fetch'), { status: 0 })],
     ['a network error', new TypeError('NetworkError when attempting to fetch resource.')],
-    ['the sign-in timeout', new Error('Sign-in request timed out. Check your connection.')],
+    ['the sign-in timeout, whatever its message says', new AuthTimeoutError('Zeit abgelaufen')],
+    [
+      'the SDK retryable fetch error, in any language',
+      new AuthRetryableFetchError('Sin conexión', 0),
+    ],
   ])('%s says to check the connection', (_label, error) => {
     expect(friendlyAuthError(error, 'signIn')).toBe(
       'Could not reach myK9Show. Check your connection and try again.'
+    );
+  });
+
+  it('a known code beats misleading English about the network', () => {
+    const misleading = authError('invalid_credentials', 400, 'network timed out: failed to fetch');
+    expect(friendlyAuthError(misleading, 'signIn')).toBe(
+      'That email or password is not right. Check both and try again, or use "Forgot your password?" below.'
+    );
+  });
+
+  it('a known code with a non-English message still maps', () => {
+    expect(
+      friendlyAuthError(authError('email_exists', 422, 'Ya existe una cuenta'), 'signUp')
+    ).toBe(
+      'That email address already has an account. Sign in, or use "Forgot your password?" on the sign-in page.'
+    );
+  });
+
+  it('English network words alone no longer mean no connection', () => {
+    expect(friendlyAuthError(new Error('Failed to fetch'), 'signIn')).toBe(
+      'We could not sign you in. Please try again.'
     );
   });
 

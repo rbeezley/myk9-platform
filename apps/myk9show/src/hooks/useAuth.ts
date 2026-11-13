@@ -1,5 +1,6 @@
 import { clearAllRbacWarmTokens } from '@/context/rbacWarmToken';
 import { useEffect, useState, useCallback } from 'react';
+import { AuthTimeoutError } from '@/lib/authErrorCopy';
 import { changePassword } from '@/features/step-up/passwordChange';
 import { supabase } from '../lib/supabase';
 import { rbacService } from '@/services/rbac/RBACService';
@@ -40,7 +41,7 @@ function buildAuthCallbackUrl(redirectTo?: string): string {
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
-    const timeoutId = window.setTimeout(() => reject(new Error(message)), timeoutMs);
+    const timeoutId = window.setTimeout(() => reject(new AuthTimeoutError(message)), timeoutMs);
     promise
       .then(resolve)
       .catch(reject)

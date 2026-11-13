@@ -2,6 +2,7 @@ import { PDFDocument } from 'pdf-lib';
 import { isNonRunningEntry } from '@/features/_shared/entryAccounting';
 import type { ReportEntry, ReportProps } from '@/lib/reports/types';
 import { countQualified, formatReportDate, isQualified } from '@/lib/reports/reportUtils';
+import { isUnsetJudgeName } from '@/utils/classJudgeDisplay';
 import { fillPdfForm, type PdfFormFillValues } from './pdfForm';
 import { trialEventNumber } from './reportValueHelpers';
 import { AKC_SCENT_WORK_CERTIFICATION_PAGE_FIELDS } from './akcScentWorkCertificationPageFields';
@@ -151,7 +152,7 @@ function normalize(value: string | null | undefined): string {
 
 function cleanJudgeName(value: string | null | undefined): string | null {
   const clean = value?.trim();
-  if (!clean || clean === 'TBD' || clean === 'Multiple judges') return null;
+  if (!clean || isUnsetJudgeName(clean) || clean === 'Multiple judges') return null;
   return clean;
 }
 

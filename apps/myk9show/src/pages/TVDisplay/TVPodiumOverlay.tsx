@@ -3,6 +3,7 @@ import { TVPodiumCard } from './TVPodiumCard';
 import { TVConfetti } from './TVConfetti';
 import type { TVCompletedClass } from './types';
 import { TVRefreshNotice } from './TVRefreshNotice';
+import { isUnsetJudgeName } from '@/utils/classJudgeDisplay';
 
 const DISPLAY_DURATION_MS = 20_000;
 
@@ -77,7 +78,7 @@ export function TVPodiumOverlay({
       <div className="text-center mb-8">
         <div className="text-xs text-zinc-500 uppercase tracking-[0.2em]">Final Results</div>
         <div className="text-2xl font-bold text-zinc-100 mt-1">{current.name}</div>
-        {current.judgeName && (
+        {!isUnsetJudgeName(current.judgeName) && (
           <div className="text-sm text-zinc-600 mt-1">Judge: {current.judgeName}</div>
         )}
       </div>

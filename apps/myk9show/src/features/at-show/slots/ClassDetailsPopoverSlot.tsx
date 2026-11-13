@@ -34,6 +34,7 @@ import {
 import { cn } from '@/lib/utils';
 import { StatusBadge } from '@/components/status';
 import type { ClassDetailsPopoverProps } from '@myk9/ringside';
+import { isUnsetJudgeName } from '@/utils/classJudgeDisplay';
 import {
   badgeClass,
   formatRingTime,
@@ -234,7 +235,7 @@ export const ClassDetailsPopover: React.FC<ClassDetailsPopoverProps & { sheet?: 
             </DetailRow>
           )}
 
-          {data.judgeName && (
+          {!isUnsetJudgeName(data.judgeName) && (
             <DetailRow icon={User} label="Judge">
               <DetailValue>{data.judgeName}</DetailValue>
             </DetailRow>

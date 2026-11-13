@@ -11,9 +11,9 @@ import { resolveJudgeDisplay } from '@/components/panels/edit/ClassEditPanel';
 describe('resolveJudgeDisplay', () => {
   const roster = [{ judgeId: 'p-1', judgeName: 'Jane Smith' }];
 
-  it("returns 'TBD' when the form holds the literal 'TBD' sentinel", () => {
-    expect(resolveJudgeDisplay('TBD', undefined, roster)).toBe('TBD');
-    expect(resolveJudgeDisplay('TBD', 'something', roster)).toBe('TBD');
+  it("treats a legacy 'TBD' id as unset so the placeholder shows (MYK9-1850)", () => {
+    expect(resolveJudgeDisplay('TBD', undefined, roster)).toBeUndefined();
+    expect(resolveJudgeDisplay('TBD', 'something', roster)).toBeUndefined();
   });
 
   it('returns undefined when no judgeId is set (placeholder shows)', () => {

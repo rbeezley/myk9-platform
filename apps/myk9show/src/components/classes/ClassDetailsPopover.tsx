@@ -4,6 +4,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useIsTouchDevice } from '@myk9/scoring-ui';
 import { StatusBadge } from '@/components/status';
+import { isUnsetJudgeName } from '@/utils/classJudgeDisplay';
 
 export interface ClassDetailsData {
   className: string;
@@ -53,7 +54,7 @@ function ClassDetailsContent({ data }: { data: ClassDetailsData }) {
       </div>
 
       {/* Judge */}
-      {data.judgeName && (
+      {!isUnsetJudgeName(data.judgeName) && (
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <User className="h-3.5 w-3.5" />

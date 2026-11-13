@@ -9,6 +9,7 @@ import {
 import { getOverviewFocusHref } from './resultsTabRoutes';
 import { judgeSignOffWording } from '@/features/show-map/judgeSignOff';
 import type { JudgeSignOffGroup } from './judgeSignOffGroup';
+import { isUnsetJudgeName } from '@/utils/classJudgeDisplay';
 
 export const JUDGE_SIGN_OFF_SECTION_ID = 'judge-sign-off';
 
@@ -40,7 +41,12 @@ export function ResultsJudgeSignOff({
   const total = group.classes.length;
   // Two trials on one judge day can hold a class of the same name: say which one each row is.
   const spansTrials = new Set(group.classes.map(item => item.trialLabel)).size > 1;
-  const heading = [group.judgeName || 'Judge not set', group.dayLabel].filter(Boolean).join(' · ');
+  const heading = [
+    isUnsetJudgeName(group.judgeName) ? 'Judge not set' : group.judgeName,
+    group.dayLabel,
+  ]
+    .filter(Boolean)
+    .join(' · ');
   // MYK9-1036: the catalog for this judge's day alone, not the trial or show that contains it.
   const printHref = group.catalogJudgeDay
     ? getCockpitJudgeDayCatalogHref({ showId, ...group.catalogJudgeDay, returnTo })

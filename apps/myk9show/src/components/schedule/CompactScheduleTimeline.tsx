@@ -10,6 +10,7 @@ import { getShowMapClassHref, getShowMapTrialHref } from '@/features/show-map/sh
 import { useScheduleTimeline } from '@/hooks/queries/useScheduleTimeline';
 import { cn } from '@/lib/utils';
 import { countLabel } from '@/utils/pluralize';
+import { isUnsetJudgeName } from '@/utils/classJudgeDisplay';
 import { getSelectClassesHref } from '@/pages/secretary/selectClassesRoutes';
 import type { ClassEntryBreakdown } from '@/features/entry-operations/classEntryBreakdown';
 import { ClassEntryBreakdownLine } from './ClassEntryBreakdownLine';
@@ -72,7 +73,7 @@ function CompactClassRowView({
 }) {
   const classHref = getShowMapClassHref(showId, trialId, row.classId);
   const timeLabel = formatStartTime(row.startTime) ?? <NotSet />;
-  const judgeLabel = row.judgeName || <NotSet />;
+  const judgeLabel = isUnsetJudgeName(row.judgeName) ? <NotSet /> : row.judgeName;
 
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-border bg-card px-3 py-2.5 sm:flex-row sm:items-center sm:gap-4">

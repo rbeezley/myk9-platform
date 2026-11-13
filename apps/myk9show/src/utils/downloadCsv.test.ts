@@ -92,6 +92,12 @@ describe('class export columns', () => {
       7,
     ]);
   });
+
+  // MYK9-1850: an unset judge exports as "To be announced", whether stored as '' or the old 'TBD'.
+  it.each(['', 'TBD', null])('exports an unset judge (%j) as "To be announced"', judgeName => {
+    const [row] = classExportRows([{ id: 'c1', status: 'Scheduled', judgeName }]);
+    expect(row?.[4]).toBe('To be announced');
+  });
 });
 
 describe('dog export columns', () => {

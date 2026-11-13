@@ -160,13 +160,20 @@ describe('playwright arguments', () => {
 });
 
 describe('buildSpecEnv', () => {
-  it('drops the service key and DB URL even when the shell or job env set them', () => {
-    const env = buildSpecEnv({ SUPABASE_SERVICE_ROLE_KEY: 'from-shell', KEEP: 'yes' }, local, {
-      SUPABASE_DB_URL: local.dbUrl,
-      SUPABASE_SERVICE_ROLE_KEY: local.serviceRoleKey,
-    });
-    expect(env.SUPABASE_SERVICE_ROLE_KEY).toBeUndefined();
-    expect(env.SUPABASE_DB_URL).toBeUndefined();
+  it('overwrites any inherited service key, DB URL and API URL with the local stack values', () => {
+    const env = buildSpecEnv(
+      {
+        SUPABASE_SERVICE_ROLE_KEY: 'prod-looking-key',
+        SUPABASE_DB_URL: 'postgresql://prod',
+        SUPABASE_URL: 'https://sojmvhhwsjxmfistvzbe.supabase.co',
+        KEEP: 'yes',
+      },
+      local,
+      {}
+    );
+    expect(env.SUPABASE_SERVICE_ROLE_KEY).toBe(local.serviceRoleKey);
+    expect(env.SUPABASE_DB_URL).toBe(local.dbUrl);
+    expect(env.SUPABASE_URL).toBe(local.apiUrl);
     expect(env.KEEP).toBe('yes');
     expect(env.VITE_SUPABASE_URL).toBe(local.apiUrl);
   });

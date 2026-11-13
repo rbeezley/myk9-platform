@@ -103,7 +103,7 @@ export function stackDestroyArgs(stackId: string): string[] {
   return ['stack', 'destroy', '--stack-id', stackId.slice(0, 12), '--yes'];
 }
 
-/** What a spec run needs from the stack. The service key is deliberately not here. */
+/** The public part of a spec run's env: what the run summary prints. No service key. */
 export function specRunEnv(local: LocalSupabaseEnvironment): Record<string, string> {
   return {
     VITE_SUPABASE_URL: local.apiUrl,
@@ -129,17 +129,24 @@ export function withRuntimeEnv(env: NodeJS.ProcessEnv, runtime: E2eRuntime): Nod
   return runtime === 'native' ? { ...env, ...NATIVE_STACK_ENV } : env;
 }
 
-/** Keys a spec run never carries: the contract prints only the API URL and anon key. */
-const SPEC_RUN_EXCLUDED_KEYS = ['SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_DB_URL'] as const;
-
+/**
+ * The env a spec run gets. The local stack's service key, DB URL and API URL are set last, so
+ * whatever the shell or .env.local carried (a production key included) never reaches a spec.
+ * They go to the child process only; the printed summary never includes them.
+ */
 export function buildSpecEnv(
   base: NodeJS.ProcessEnv,
   local: LocalSupabaseEnvironment,
   jobEnv: Record<string, string>
 ): NodeJS.ProcessEnv {
-  const env: NodeJS.ProcessEnv = { ...base, ...jobEnv, ...specRunEnv(local) };
-  for (const key of SPEC_RUN_EXCLUDED_KEYS) delete env[key];
-  return env;
+  return {
+    ...base,
+    ...jobEnv,
+    ...specRunEnv(local),
+    SUPABASE_SERVICE_ROLE_KEY: local.serviceRoleKey,
+    SUPABASE_DB_URL: local.dbUrl,
+    SUPABASE_URL: local.apiUrl,
+  };
 }
 
 /** Adds the single-worker chromium defaults unless the caller already chose either. */

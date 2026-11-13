@@ -47,7 +47,7 @@ pnpm qa:isolated-e2e:teardown                     # destroys only this worktree'
 
 - **Prepare starts clean.** If this worktree already has a native stack (running, dirtied by a spec, or half-seeded), `prepare` destroys it first and starts a new one, because `supabase db reset` is not offered on native stacks. `pnpm qa:isolated-e2e:reset` does the same on native.
 - **After a failed prepare** the stack is left running, and the error says so. Run `pnpm qa:isolated-e2e:teardown`, or just run `prepare` again, which starts clean.
-- **`run`** adds `--project=chromium --workers=1` only when you did not pass your own `--project` or `--workers`. It passes the API URL and anon key and never the service key or DB URL.
+- **`run`** adds `--project=chromium --workers=1` only when you did not pass your own `--project` or `--workers`. It prints only the API URL and anon key, but the spec process gets the local stack's service key, DB URL and API URL, always overwriting anything your shell or `.env.local` carried, so a production key can never reach a spec.
 - **`teardown`** finds the stack by matching `project_root` in `supabase stack list` to this worktree (symlinks resolved, trailing slashes ignored, never a prefix match), so other worktrees' stacks are never touched.
 - **CI sets nothing.** Docker is present there, so the Docker path runs unchanged. With `CI=true` or `GITHUB_ACTIONS=true` and no `MYK9_E2E_RUNTIME`, a failed `docker info` fails loudly instead of falling back to native.
 - The app edge functions are not staged on the native path, so specs that need them (the wait-list journey) still run in CI only.

@@ -17,6 +17,8 @@
  * ReplicatedEntry normalizer.
  */
 
+import { ordinal } from './ordinal';
+
 /**
  * Numeric key for ORDERING only: an entry with no armband sorts ahead of
  * numbered ones. Never a display value or an identity -- render with
@@ -193,19 +195,7 @@ export function placeInLine(entries: readonly RunQueueEntry[], entryId: string):
 /** "Next up", "2nd up", "3rd up", "11th up", "21st up". */
 export function formatPlaceInLine(place: number): string {
   if (place <= 1) return 'Next up';
-  const lastTwo = place % 100;
-  const last = place % 10;
-  const suffix =
-    lastTwo >= 11 && lastTwo <= 13
-      ? 'th'
-      : last === 1
-        ? 'st'
-        : last === 2
-          ? 'nd'
-          : last === 3
-            ? 'rd'
-            : 'th';
-  return `${place}${suffix} up`;
+  return `${ordinal(place)} up`;
 }
 
 /** The label for any state: a place for a waiting dog, otherwise the state itself. */

@@ -13,6 +13,7 @@
  */
 
 import type { Entry } from '../../stores/entryStore';
+import { ordinal } from './ordinal';
 
 // ========================================
 // TYPES
@@ -104,16 +105,7 @@ export function getPlacementEmoji(placement: number): string {
  * Get placement text (1st, 2nd, etc.)
  */
 export function getPlacementText(placement: number): string {
-  switch (placement) {
-    case 1:
-      return '1st';
-    case 2:
-      return '2nd';
-    case 3:
-      return '3rd';
-    default:
-      return `${placement}th`;
-  }
+  return ordinal(placement);
 }
 
 /**

@@ -123,8 +123,8 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
     entryCounts,
     sectionCounts,
   } = derived;
-  // Drag mode renders and reorders EVERY pending dog (a drop numbers the list on screen 1..N, so a
-  // subset would collide with hidden dogs, MYK9-1808). The user's search, Section tab and status
+  // Drag mode renders and reorders EVERY pending dog (MYK9-1808). Scored dogs are hidden and keep
+  // their run orders; a drop only permutes the pending dogs among their own slots (MYK9-1914). The user's search, Section tab and status
   // tab stay as set, are disabled until Done, and apply again then.
   const shownEntries = isDragMode ? dragEntries : currentEntries;
   const shownTab = isDragMode ? 'pending' : activeTab;

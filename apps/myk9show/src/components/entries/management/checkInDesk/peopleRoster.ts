@@ -41,6 +41,8 @@ export interface PeopleRosterClassInfo {
   section?: string | null;
   trialDate?: string;
   timezone?: string | null;
+  /** The class was cancelled: nothing in it runs, so it is never an exhibitor's "First class" (MYK9-1786). */
+  cancelled?: boolean;
 }
 
 export interface PeopleRosterClassRow {

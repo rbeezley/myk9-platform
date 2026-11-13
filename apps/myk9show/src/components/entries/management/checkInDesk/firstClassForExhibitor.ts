@@ -7,7 +7,7 @@ import { isTrialDateToday } from '@/features/_shared/trialDateEligibility';
 import type { PeopleRosterClassInfo, PeopleRosterClassRow } from './peopleRoster';
 import { deskClassLine } from './deskClassLine';
 
-/** The ids of the show's classes whose trial runs on the desk's day (today, by the trial's clock). */
+/** The ids of the show's classes that run on the desk's day (today, by the trial's clock); a cancelled class runs on no day. */
 export function classIdsOnDay(
   classes: readonly PeopleRosterClassInfo[],
   currentDate: Date
@@ -15,7 +15,10 @@ export function classIdsOnDay(
   return new Set(
     classes
       .filter(
-        cls => Boolean(cls.trialDate) && isTrialDateToday(cls.trialDate, cls.timezone, currentDate)
+        cls =>
+          !cls.cancelled &&
+          Boolean(cls.trialDate) &&
+          isTrialDateToday(cls.trialDate, cls.timezone, currentDate)
       )
       .map(cls => cls.id)
   );

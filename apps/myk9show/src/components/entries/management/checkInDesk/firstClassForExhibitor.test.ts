@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { CheckInStatus } from '@myk9/core';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryClass, EntryManagementEntry } from '@/types/entry-management-types';
-import { buildCheckInDeskPeople } from './checkInDeskModel';
+import type { Trial } from '@/components/trials/types/trial.types';
+import { buildCheckInDeskClasses, buildCheckInDeskPeople } from './checkInDeskModel';
 import type { PeopleRosterClassInfo } from './peopleRoster';
 import { classIdsOnDay, firstClassForExhibitor, firstClassLine } from './firstClassForExhibitor';
 
@@ -75,6 +76,56 @@ function rowsOf(entries: EntryManagementEntry[]) {
 describe('classIdsOnDay', () => {
   it("holds the classes on the desk's day only, not another day's or an undated one", () => {
     expect([...DAY].sort()).toEqual(['cn', 'ex', 'in', 'untimed']);
+  });
+});
+
+describe('a cancelled class', () => {
+  it('is marked by the class builder and runs on no day', () => {
+    const trial: Trial = {
+      id: 'trial-1',
+      showId: 'show-1',
+      showName: 'Spring Specialty',
+      name: 'Trial 1',
+      trialNumber: '1',
+      trialDate: '2026-07-08',
+      timezone: 'America/New_York',
+      status: 'Scheduled',
+    };
+    const built = buildCheckInDeskClasses([trial], {
+      'trial-1': [
+        {
+          id: 'cn',
+          element: 'Container',
+          level: 'Novice',
+          section: 'A',
+          startTime: '08:00',
+          status: 'Cancelled',
+        },
+        {
+          id: 'in',
+          element: 'Interior',
+          level: 'Novice',
+          section: 'A',
+          startTime: '10:30',
+          status: 'Scheduled',
+        },
+      ],
+    });
+    expect(built.find(cls => cls.id === 'cn')?.cancelled).toBe(true);
+    expect(built.find(cls => cls.id === 'in')?.cancelled).toBeUndefined();
+    expect([...classIdsOnDay(built, NOW)]).toEqual(['in']);
+  });
+
+  it('is never the first class, even when it starts earliest', () => {
+    const cancelled = CLASSES.map(cls => (cls.id === 'cn' ? { ...cls, cancelled: true } : cls));
+    const people = buildCheckInDeskPeople(
+      [entry('c-cn', 'cn', COOPER, {}, { armbandNumber: '115' }), entry('p-in', 'in', POPPY)],
+      cancelled,
+      NOW
+    );
+    expect(firstClassLine(people[0]!.classRows, classIdsOnDay(cancelled, NOW))).toBe(
+      'First class: Interior Novice A · Ring 1 · 10:30 AM (Poppy)'
+    );
   });
 });
 

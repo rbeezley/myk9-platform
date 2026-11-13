@@ -170,9 +170,11 @@ pnpm qa:phone-walk --pr $PR_NUMBER
 ```
 
 `scripts/qa/phone-walk.ts` holds the declared path list. When the diff touches one,
-the walk (`ringsidePhoneWalk.spec.ts`, in the `proof` job of "Isolated scoring and
-paperwork verification") must be green on the PR head before a clean `Review gate:`
-line exists for it. That workflow is not a required check, so nothing else stops a red
+the walk (`ringsidePhoneWalk.spec.ts`, the `Phone-width ringside walk` step of the `proof` job
+of "Isolated scoring and paperwork verification") must be green on the PR head before a clean `Review gate:`
+line exists for it. The verdict is that step's own conclusion, so an unrelated spec failing in
+the same job does not hold the gate (do not re-run the job for it); a failing walk does. That
+workflow is not a required check, so nothing else stops a red
 walk from merging.
 
 You do not have to remember this step: `scripts/qa/post-review-gate.sh` runs the
@@ -282,6 +284,12 @@ Reading the rollup — three traps from the instruction file's LESSONS:
   all. The watcher encodes all three traps: it pins the SHA, waits for the
   `main-required-checks` ruleset's contexts specifically, and classifies with an allowlist of
   passing conclusions so `STALE` and any future value fail closed.
+
+Two cases the watcher settles itself (MYK9-1946), so do not judge them by hand: after a red
+lone `Review gate` it waits up to about 60 s (`MYK9_PR_GATE_SETTLE_SECONDS`) for the
+comment-triggered `review-gate.yml` run to appear before it exits 1, and a `CANCELLED`
+`Evaluate review evidence` check (the superseded `pull_request_target` run) is not reported as a
+non-required failure once the `Review gate` status is green. A `FAILURE` conclusion still is.
 
 **Exit 1 (a REQUIRED check failed) or exit 2 (head moved) is a STOP, not a slower Path B.** Never
 arm auto-merge to get past a red. **Exit 5** — required green, a non-required check red — is the

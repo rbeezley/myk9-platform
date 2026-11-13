@@ -103,9 +103,22 @@ jobs:
       - name: Compile proof tests
         working-directory: apps/myk9show
         run: pnpm exec tsc --noEmit -p tsconfig.show-day.json
-      - name: Scoring persistence, paperwork and time-display parity
+      # MYK9-1946: the phone-width walk is its own step with a stable name.
+      # scripts/qa/phone-walk.ts reads THIS step's conclusion from the job's step list,
+      # so an unrelated spec failing below cannot hold the review gate, and a failing
+      # walk still does. Rename it only together with WALK_STEP in that script.
+      - id: phone_walk
+        name: Phone-width ringside walk
         working-directory: apps/myk9show
-        run: pnpm exec playwright test --config=playwright.batch3.config.ts --workers=1 --retries=0 --fail-on-flaky-tests
+        run: pnpm exec playwright test --config=playwright.batch3.config.ts --workers=1 --retries=0 --fail-on-flaky-tests ringsidePhoneWalk
+        env:
+          CI: 'true'
+      - name: Scoring persistence, paperwork and time-display parity
+        # Runs after a red walk too (so one run reports both), but not when the walk
+        # was skipped because setup failed, and not on cancel.
+        if: ${{ !cancelled() && steps.phone_walk.outcome != 'skipped' }}
+        working-directory: apps/myk9show
+        run: pnpm exec playwright test --config=playwright.batch3.config.ts --workers=1 --retries=0 --fail-on-flaky-tests batch3Scoring batch4Paperwork batch1Followups
         env:
           CI: 'true'
       - name: Verify reports contain no credentials

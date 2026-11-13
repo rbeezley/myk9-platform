@@ -5,6 +5,11 @@ import {
   PHONE_WALK_PATHS,
   WALK_CONFIG,
   WALK_JOB,
+  WALK_STEP,
+  WALK_WORKFLOW_FILE,
+  currentWalkRun,
+  parseJobLink,
+  workflowRunsWalkStep,
   WALK_SPEC,
   WALK_WORKFLOW,
   configRunsWalk,
@@ -94,23 +99,90 @@ describe('readFlag', () => {
   });
 });
 
+const LINK = 'https://github.com/o/r/actions/runs/10/job/20';
+const walkRun = (bucket: string, link = LINK) => ({ ...walkJob(bucket), link });
+const step = (status: string, conclusion: string | null, name = WALK_STEP) => ({
+  name,
+  status,
+  conclusion,
+});
+// An unrelated spec step failed: the job is red, the walk step is not.
+const unrelatedRed = step(
+  'completed',
+  'failure',
+  'Scoring persistence, paperwork and time-display parity'
+);
+
 describe('walkVerdict', () => {
-  it('is green only when the walk job passed', () => {
-    expect(walkVerdict([walkJob('pass')]).code).toBe(0);
+  it('is green when the walk step passed, even if an unrelated spec failed the job', () => {
+    expect(walkVerdict([walkRun('fail')], [step('completed', 'success'), unrelatedRed]).code).toBe(
+      0
+    );
+    expect(walkVerdict([walkRun('pass')], [step('completed', 'success')]).code).toBe(0);
   });
 
-  it('is red when the walk job failed or was cancelled', () => {
-    expect(walkVerdict([walkJob('fail')]).code).toBe(1);
-    expect(walkVerdict([walkJob('cancel')]).code).toBe(1);
+  it('is red when the walk step failed or was cancelled, whatever the others did', () => {
+    expect(walkVerdict([walkRun('fail')], [step('completed', 'failure')]).code).toBe(1);
+    expect(walkVerdict([walkRun('cancel')], [step('completed', 'cancelled')]).code).toBe(1);
+    expect(
+      walkVerdict([walkRun('fail')], [step('completed', 'timed_out'), unrelatedRed]).code
+    ).toBe(1);
   });
 
-  it('is not a verdict while the job is pending, skipped or absent', () => {
-    expect(walkVerdict([walkJob('pending')]).code).toBe(3);
-    expect(walkVerdict([walkJob('skipping')]).code).toBe(3);
+  it('is red when the walk step was skipped in a finished job (setup failed before it)', () => {
+    expect(walkVerdict([walkRun('fail')], [step('completed', 'skipped')]).code).toBe(1);
+  });
+
+  it('is not a verdict while the walk has not finished', () => {
+    expect(walkVerdict([walkRun('pending')], [step('in_progress', null)]).code).toBe(3);
+    expect(walkVerdict([walkRun('pending')], [step('pending', null)]).code).toBe(3);
+    expect(walkVerdict([walkRun('pending')], []).code).toBe(3);
     expect(walkVerdict([]).code).toBe(3);
   });
 
+  it('fails closed: unreadable steps or a missing walk step in a finished job is code 2', () => {
+    expect(walkVerdict([walkRun('pass')], null).code).toBe(2);
+    expect(walkVerdict([walkRun('pass')]).code).toBe(2);
+    expect(walkVerdict([walkRun('pass')], [unrelatedRed]).code).toBe(2);
+    expect(walkVerdict([walkRun('pass')], []).code).toBe(2);
+  });
+
   it('ignores a job of the same name in another workflow', () => {
-    expect(walkVerdict([{ name: WALK_JOB, workflow: 'CI', bucket: 'pass' }]).code).toBe(3);
+    const other = { name: WALK_JOB, workflow: 'CI', bucket: 'pass', link: LINK };
+    expect(walkVerdict([other], [step('completed', 'success')]).code).toBe(3);
+  });
+
+  it('judges the newest attempt of the job (highest job id)', () => {
+    const oldRed = walkRun('fail', 'https://github.com/o/r/actions/runs/10/job/20');
+    const newGreen = walkRun('pass', 'https://github.com/o/r/actions/runs/10/job/30');
+    expect(currentWalkRun([oldRed, newGreen])).toBe(newGreen);
+  });
+});
+
+describe('parseJobLink', () => {
+  it('reads the repo and job id, and rejects anything else', () => {
+    expect(parseJobLink(LINK)).toEqual({ repo: 'o/r', jobId: '20' });
+    expect(parseJobLink('https://example.com/x')).toBeNull();
+    expect(parseJobLink(undefined)).toBeNull();
+  });
+});
+
+describe('workflowRunsWalkStep', () => {
+  it('is true for the workflow CI runs today', () => {
+    expect(workflowRunsWalkStep(readFileSync(resolve(root, WALK_WORKFLOW_FILE), 'utf8'))).toBe(
+      true
+    );
+  });
+
+  it('is false when the step is renamed, or no longer runs the walk spec', () => {
+    const base = `      - name: ${WALK_STEP}\n        run: pnpm exec playwright test ringsidePhoneWalk\n      - name: next\n`;
+    expect(workflowRunsWalkStep(base)).toBe(true);
+    expect(workflowRunsWalkStep(base.replace(WALK_STEP, 'Walk'))).toBe(false);
+    expect(workflowRunsWalkStep(base.replace('ringsidePhoneWalk', 'batch3Scoring'))).toBe(false);
+    expect(
+      workflowRunsWalkStep(
+        base.replace('run: pnpm exec playwright test ringsidePhoneWalk', '# ringsidePhoneWalk')
+      )
+    ).toBe(false);
   });
 });

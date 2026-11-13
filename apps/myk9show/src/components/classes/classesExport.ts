@@ -1,3 +1,5 @@
+import { judgeNameOrUnsetLabel } from '@/utils/classJudgeDisplay';
+
 /** What a class row needs to be exported; every field but id and status may be missing. */
 export interface ClassExportItem {
   id: string;
@@ -37,7 +39,7 @@ export function classExportRows(
     cls.element,
     cls.level,
     cls.section,
-    cls.judgeName,
+    judgeNameOrUnsetLabel(cls.judgeName, { bare: true }),
     cls.time,
     cls.ring,
     cls.status,

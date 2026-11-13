@@ -3366,6 +3366,8 @@ export type Database = {
           entry_version: number | null
           id: string
           passcode_generation: string | null
+          passcode_id: string | null
+          passcode_person_id: string | null
           passcode_role: string | null
           show_id: string
         }
@@ -3382,6 +3384,8 @@ export type Database = {
           entry_version?: number | null
           id?: string
           passcode_generation?: string | null
+          passcode_id?: string | null
+          passcode_person_id?: string | null
           passcode_role?: string | null
           show_id: string
         }
@@ -3398,6 +3402,8 @@ export type Database = {
           entry_version?: number | null
           id?: string
           passcode_generation?: string | null
+          passcode_id?: string | null
+          passcode_person_id?: string | null
           passcode_role?: string | null
           show_id?: string
         }
@@ -8229,6 +8235,7 @@ export type Database = {
           id: string
           passcode_ciphertext: string | null
           passcode_hash: string
+          person_id: string | null
           role: string
           show_id: string
         }
@@ -8237,6 +8244,7 @@ export type Database = {
           id?: string
           passcode_ciphertext?: string | null
           passcode_hash: string
+          person_id?: string | null
           role: string
           show_id: string
         }
@@ -8245,10 +8253,18 @@ export type Database = {
           id?: string
           passcode_ciphertext?: string | null
           passcode_hash?: string
+          person_id?: string | null
           role?: string
           show_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "show_passcodes_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "show_passcodes_show_id_fkey"
             columns: ["show_id"]
@@ -14350,7 +14366,9 @@ export type Database = {
       get_show_access_codes: {
         Args: { p_show_id: string }
         Returns: {
+          judge_display_name: string
           passcode: string
+          person_id: string
           recoverable: boolean
           role: string
         }[]
@@ -14979,6 +14997,10 @@ export type Database = {
           stripe_payment_intent_id: string
           stripe_refund_id: string
         }[]
+      }
+      regenerate_judge_passcode: {
+        Args: { p_person_id: string; p_show_id: string }
+        Returns: string
       }
       regenerate_show_passcodes: {
         Args: { p_show_id: string }
@@ -15692,6 +15714,7 @@ export type Database = {
         Args: { p_code: string }
         Returns: {
           passcode_generation: string
+          person_id: string
           role: string
           show_id: string
         }[]

@@ -103,10 +103,10 @@ A class with two or three areas shows one time field per area under the timer, l
 Show venues often have weak signal. The app is built for it.
 
 - Scoring and viewing the run order **keep working offline**.
-- The sync label at the top reads **Offline**, then **Waiting to sync** while scores are queued. This is normal at most venues.
+- The sync label at the top reads **Offline**, then **Not sent yet** while scores are waiting to be sent. This is normal at most venues.
 - A chip at the top reads **Offline ready** once the show is saved on the device, and **Preparing offline copy…** until then.
-- Your work is saved on the device and **syncs automatically** when signal returns. The label changes to **Synced**.
-- On the class list, **Offline copy: saved on this device** means the show is stored on your device. **Saved on this device** after a score means it has not reached the secretary yet.
+- Your work is saved on the device and **is sent automatically** when signal returns. The label changes to **All sent**.
+- On the class list, **Offline copy: saved on this device** means the show is stored on your device. A line such as **1 score not sent yet** under a class means that score has not reached the secretary yet.
 
 **Scores not showing for the secretary after signal returns?** Reload the page once you have a solid connection. If entries are still missing, find the trial secretary.
 
@@ -118,7 +118,7 @@ Show venues often have weak signal. The app is built for it.
 | ----------------------------------------- | ----------------------------------------------------------------------------------- |
 | You can't find your class                 | Check with the secretary — the class may not be published yet                       |
 | The passcode doesn't work                 | Ask the secretary for the current code; they can regenerate it                      |
-| Your scores aren't reaching the secretary | Check the sync label — it reads **Waiting to sync** until the connection returns    |
+| Your scores aren't reaching the secretary | Check the sync label — it reads **Not sent yet** until the connection returns       |
 | The timer reset itself                    | Start timing again, then tap **Save** — scores are saved by hand, not automatically |
 | The app stops responding                  | Close the browser tab and reopen it. If you came in by QR code, scan it again       |
 

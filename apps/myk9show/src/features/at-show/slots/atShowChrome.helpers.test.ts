@@ -64,10 +64,11 @@ describe('getCheckinLabel / getCheckinTier', () => {
 
 describe('getSyncLabel / getSyncTier', () => {
   it('labels each sync status', () => {
-    expect(getSyncLabel('synced')).toBe('Synced');
-    expect(getSyncLabel('syncing')).toBe('Syncing…');
+    expect(getSyncLabel('synced')).toBe('All sent');
+    expect(getSyncLabel('syncing')).toBe('Sending…');
+    expect(getSyncLabel('pending')).toBe('Not sent yet');
     expect(getSyncLabel('offline')).toBe('Offline');
-    expect(getSyncLabel('error')).toBe('Sync error');
+    expect(getSyncLabel('error')).toBe('Could not send');
   });
 
   it('tiers each sync status', () => {

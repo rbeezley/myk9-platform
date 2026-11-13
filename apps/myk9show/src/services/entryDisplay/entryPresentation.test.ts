@@ -34,7 +34,7 @@ describe('deriveEntryPresentation — context-aware wording', () => {
   it('keeps promotion-expired in the review lane for the secretary, honest for the exhibitor', () => {
     const sec = present('promotion-expired', secretary);
     expect(sec.statusLine).toBe('Needs review');
-    expect(sec.actionHint).toBe('Waitlist promotion expired — confirm or release the spot');
+    expect(sec.actionHint).toBe('Waitlist promotion expired. Confirm or release the spot');
     const exh = present('promotion-expired', exhibitor);
     expect(exh.statusLine).toBe('Payment window expired');
     expect(exh.actionHint).toBe('Contact the show secretary to re-enter');

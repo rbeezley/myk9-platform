@@ -172,7 +172,7 @@ for (const vp of VIEWPORTS) {
       await peak.getByRole('button', { name: 'Save' }).click();
       await expect(peak.getByText('No signal · 2 waiting')).toBeVisible();
       await sw.click();
-      await expect(peak.getByText('All synced')).toBeVisible({ timeout: 4000 });
+      await expect(peak.getByText('All sent')).toBeVisible({ timeout: 4000 });
     });
 
     test('the line fills down to the reached step and empties going back', async ({

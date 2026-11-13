@@ -65,7 +65,7 @@ const RAW_WORDING = new Map<string, VoicedWording>([
     {
       secretary: {
         line: 'Needs review',
-        hint: 'Waitlist promotion expired — confirm or release the spot',
+        hint: 'Waitlist promotion expired. Confirm or release the spot',
       },
       exhibitor: {
         line: 'Payment window expired',
@@ -146,7 +146,8 @@ const KIND_WORDING: Record<EntryStatusKind, VoicedWording> = {
 /**
  * A submitted entry whose online balance is still owed. My Shows reads the same
  * `getEntryPaymentPrompt` rule ("waiting on payment"), so the dog pages say the
- * same thing: the secretary reviews it once it is paid. Cash/check entries are
+ * same thing: payment is outstanding. It does not gate review (the entry is in
+ * the secretary's list either way). Cash/check entries are
  * pay-at-show, not a debt, and a row without a fee has no balance to claim.
  */
 const AWAITING_PAYMENT_WORDING: VoicedWording = {

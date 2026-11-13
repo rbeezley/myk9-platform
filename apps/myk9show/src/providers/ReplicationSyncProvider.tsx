@@ -804,7 +804,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
             detail: {
               count: failed.length,
               mutations: failed,
-              message: `${failed.length} change(s) failed to sync.`,
+              message: `${failed.length} ${failed.length === 1 ? 'change' : 'changes'} could not be sent.`,
             } satisfies SyncFailedEventDetail,
           })
         );

@@ -433,7 +433,7 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
           {isSyncing && (
             <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-info/10 text-info rounded-full">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Syncing score...
+              Sending score...
             </div>
           )}
           {hasSyncError && !isSyncing && (

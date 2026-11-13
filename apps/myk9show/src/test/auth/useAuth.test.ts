@@ -365,6 +365,11 @@ describe('useAuth', () => {
       mockSupabase.auth.signOut.mockResolvedValue({
         error: mockError,
       });
+      // The failure only surfaces while this device still holds a session.
+      mockSupabase.auth.getSession.mockResolvedValue({
+        data: { session: { user: mockUser } },
+        error: null,
+      });
 
       const { result } = renderHook(() => useAuth());
 

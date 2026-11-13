@@ -22,9 +22,12 @@
 -- they leave the ACL exactly as it is. SECURITY DEFINER and
 -- SET search_path = '' are kept as the latest definition has them.
 --
--- Ship order: merge, supabase db push, then the next Deploy myK9Show. Between
--- the push and the deploy an old client reads the new text; see the PR for
--- why that degrades safely (the server's message is still shown).
+-- Ship order: merge, supabase db push, then the next Deploy myK9Show, back to
+-- back. Between the push and the deploy an old client reads the new text and
+-- its exact-match checks miss: the publish pill shows the server's message
+-- with the generic payments action, and the sync-failure toast falls back to
+-- its generic "We couldn't save this show change" line. The publish is still
+-- refused and nothing is lost; only the reason text is less specific.
 -- =============================================================================
 
 BEGIN;

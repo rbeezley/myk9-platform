@@ -35,7 +35,7 @@ describe('generatePasscodesFromShowId', () => {
   it('prefixes each code with the correct role letter', () => {
     const result = generatePasscodesFromShowId(validUuid);
     expect(result?.admin.startsWith('a')).toBe(true);
-    expect(result?.judge.startsWith('j')).toBe(true);
+    expect(result?.judge?.startsWith('j')).toBe(true);
     expect(result?.steward.startsWith('s')).toBe(true);
     expect(result?.exhibitor.startsWith('e')).toBe(true);
   });

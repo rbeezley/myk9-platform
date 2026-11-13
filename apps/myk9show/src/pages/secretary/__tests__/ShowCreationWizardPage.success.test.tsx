@@ -43,7 +43,7 @@ vi.mock('@/pages/secretary/ShowCreationWizard/useShowCreationWizardActions', () 
 // arbitrary fixture data, not derived from showId.
 const FIXTURE_PASSCODES: ShowPasscodes = {
   admin: 'ax7k2',
-  judge: 'jm9q4',
+  judge: null,
   steward: 'sp3n8',
   exhibitor: 'eh5d1',
 };
@@ -85,7 +85,7 @@ describe('ShowCreationWizardPage success overlay', () => {
     expect(screen.getByText('Show Created!')).toBeInTheDocument();
     expect(screen.getByText('Spring Trial')).toBeInTheDocument();
     expect(screen.getByText(FIXTURE_PASSCODES.admin)).toBeInTheDocument();
-    expect(screen.getByText(FIXTURE_PASSCODES.judge)).toBeInTheDocument();
+    expect(screen.queryByText('Judge')).not.toBeInTheDocument();
     expect(screen.getByText(FIXTURE_PASSCODES.steward)).toBeInTheDocument();
     expect(screen.getByText(FIXTURE_PASSCODES.exhibitor)).toBeInTheDocument();
   });
@@ -115,7 +115,7 @@ describe('ShowCreationWizardPage success overlay', () => {
     expect(screen.getByRole('button', { name: /review & publish show/i })).toBeInTheDocument();
     expect(
       screen.getAllByRole('button', { name: /^copy (admin|judge|steward|exhibitor) code$/i })
-    ).toHaveLength(4);
+    ).toHaveLength(3);
 
     expect(
       screen.getByRole('heading', { name: /role-specific access codes/i })
@@ -135,8 +135,8 @@ describe('ShowCreationWizardPage success overlay', () => {
       screen.getByText(/do not replace normal myk9show account or exhibitor sign-in/i)
     ).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Copy Judge code' }));
-    await waitFor(() => expect(writeText).toHaveBeenCalledWith(FIXTURE_PASSCODES.judge));
+    await user.click(screen.getByRole('button', { name: 'Copy Steward code' }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(FIXTURE_PASSCODES.steward));
   });
 
   it('opens the created show so the secretary can review and publish it', async () => {

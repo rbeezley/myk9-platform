@@ -71,7 +71,7 @@ interface ShowAccessCodesCardProps {
 
 type RegenerateRpcRow = {
   admin: string;
-  judge: string;
+  judge: string | null;
   steward: string;
   exhibitor: string;
 };
@@ -222,7 +222,7 @@ function ShowAccessCodesCardForShow({
       const row = data[0]!;
       setGeneratedPasscodes({
         admin: row.admin,
-        judge: row.judge,
+        judge: null,
         steward: row.steward,
         exhibitor: row.exhibitor,
       });
@@ -329,7 +329,8 @@ function ShowAccessCodesCardForShow({
   const providedRows: DisplayCodeRow[] = passcodes
     ? [
         { role: 'Admin', code: passcodes.admin },
-        { role: 'Judge', code: passcodes.judge },
+        // Judge codes are per judge now; a single Judge row is never shown.
+        ...(passcodes.judge ? [{ role: 'Judge' as const, code: passcodes.judge }] : []),
         { role: 'Steward', code: passcodes.steward },
         { role: 'Exhibitor', code: passcodes.exhibitor },
       ]

@@ -420,7 +420,7 @@ describe('saveShowAtomicOnline', () => {
   it('calls insert_show_passcodes(p_show_id) with no codes payload and surfaces the returned plaintexts', async () => {
     const serverPlaintexts = {
       admin: 'aq8m2',
-      judge: 'j7xk0',
+      judge: null,
       steward: 's4nf3',
       exhibitor: 'eh2p9',
     };

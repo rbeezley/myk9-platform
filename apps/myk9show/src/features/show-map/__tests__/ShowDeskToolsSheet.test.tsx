@@ -24,7 +24,7 @@ function mockRegenerateRpc() {
   mockSupabase.rpc.mockImplementation((fn: string) => {
     if (fn === 'regenerate_show_passcodes') {
       return Promise.resolve({
-        data: [{ admin: 'a1111', judge: 'j2222', steward: 's3333', exhibitor: 'e4444' }],
+        data: [{ admin: 'a1111', judge: null, steward: 's3333', exhibitor: 'e4444' }],
         error: null,
       }) as unknown as ReturnType<typeof mockSupabase.rpc>;
     }

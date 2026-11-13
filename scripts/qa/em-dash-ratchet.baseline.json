@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "updatedAt": "2026-11-13T15:25:11.261Z",
-  "total": 404,
+  "updatedAt": "2026-11-13T18:13:53.513Z",
+  "total": 403,
   "files": {
     "apps/myk9show/src/components/admin/DataLifecycleManagement/deletedEntityMappers.ts": 1,
     "apps/myk9show/src/components/admin/permissions/ManageUserRolesDialog.tsx": 2,
@@ -79,7 +79,6 @@
     "apps/myk9show/src/components/shows/RegistrationWorkflow/InlineHandlerSection.tsx": 1,
     "apps/myk9show/src/components/shows/RegistrationWorkflow/entryBlankOptions.ts": 1,
     "apps/myk9show/src/components/shows/ShowDetails/StaleShowNotice.tsx": 1,
-    "apps/myk9show/src/components/shows/WithdrawalPolicyCard.tsx": 1,
     "apps/myk9show/src/components/shows/browse/ShowsTableView.tsx": 4,
     "apps/myk9show/src/components/shows/tabs/ClassCard.tsx": 1,
     "apps/myk9show/src/components/shows/tabs/DogEntriesSection.tsx": 1,

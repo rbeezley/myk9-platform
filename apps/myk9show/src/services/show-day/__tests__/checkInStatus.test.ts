@@ -53,6 +53,7 @@ import {
   updateReplicatedDayOfScratch,
   updateSelfCheckInStatus,
 } from '../checkInStatus';
+import { isStaleStatusRefusal, StaleStatusError } from '../staleStatus';
 
 describe('updateReplicatedCheckInStatus', () => {
   beforeEach(() => {
@@ -96,6 +97,46 @@ describe('updateReplicatedCheckInStatus', () => {
     });
     expect(updateCheckInStatus).not.toHaveBeenCalled();
     expect(updateEntry).not.toHaveBeenCalled();
+  });
+
+  // MYK9-1911: an Undo names the state it replaces, and the server's refusal is a stale error.
+  it('sends the expected status and Pull source when the write names them', async () => {
+    await updateSelfCheckInStatus('entry-1', 'checked-in', {
+      status: 'pulled',
+      pullSource: 'exhibitor',
+    });
+
+    expect(rpc).toHaveBeenCalledWith('self_checkin_entry', {
+      p_entry_id: 'entry-1',
+      p_new_status: 'checked-in',
+      p_expected_status: 'pulled',
+      p_expected_pull_source: 'exhibitor',
+    });
+  });
+
+  it('raises a stale error, not a generic one, when the server refuses the write', async () => {
+    rpc.mockResolvedValueOnce({
+      error: Object.assign(new Error('Stale status: entry entry-1 is no longer in the state'), {
+        code: '55000',
+      }),
+    });
+
+    const failure = await updateSelfCheckInStatus('entry-1', 'checked-in', {
+      status: 'pulled',
+    }).catch((error: unknown) => error);
+
+    expect(failure).toBeInstanceOf(StaleStatusError);
+    expect(isStaleStatusRefusal(failure)).toBe(true);
+  });
+
+  it('does not call an ordinary database error stale', async () => {
+    rpc.mockResolvedValueOnce({ error: Object.assign(new Error('boom'), { code: '42501' }) });
+
+    const failure = await updateSelfCheckInStatus('entry-1', 'checked-in').catch(
+      (error: unknown) => error
+    );
+
+    expect(isStaleStatusRefusal(failure)).toBe(false);
   });
 
   // MYK9-1658: pin that the chosen status, not a hard-coded 'checked-in', is sent.

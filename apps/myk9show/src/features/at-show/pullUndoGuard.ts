@@ -15,8 +15,9 @@ import { logger } from '@/services/LoggingService';
  *    replicated store, so the replica row can be older than the status the screen holds.
  *    Consulting it would refuse a normal Undo, so it is not read at all. Only the per-device
  *    token decides: a later Pull on this device kills the older toast's Undo.
- * Not detectable client-side: another device changing or re-pulling the dog while an exhibitor's
- * Undo is showing. That needs the server predicate on `self_checkin_entry` (MYK9-1911).
+ * Another device changing or re-pulling the dog while an exhibitor's Undo is showing is not
+ * detectable here; the server refuses that Undo (`self_checkin_entry` expected-status predicate,
+ * MYK9-1911) and the caller shows the same notice through `notifyUndoSuperseded`.
  */
 const latestPullToken = new Map<string, number>();
 let nextToken = 0;
@@ -39,6 +40,15 @@ async function currentReplicaStatus(entryId: string): Promise<string | null> {
   }
 }
 
+/** The plain-words notice for an Undo that did nothing because the dog's status moved on. */
+export function notifyUndoSuperseded(callName?: string): void {
+  toast.info(
+    callName
+      ? `${callName}'s status changed after the Pull, so Undo did nothing.`
+      : `The dog's status changed after the Pull, so Undo did nothing.`
+  );
+}
+
 export interface PullUndoRequest {
   entryId: string;
   token: number;
@@ -55,7 +65,7 @@ export async function undoPullIfCurrent(request: PullUndoRequest): Promise<boole
   const status = replicaMayLag || supersededHere ? null : await currentReplicaStatus(entryId);
   const supersededElsewhere = status !== null && status !== 'pulled';
   if (supersededHere || supersededElsewhere) {
-    toast.info(`${callName}'s status changed after the Pull, so Undo did nothing.`);
+    notifyUndoSuperseded(callName);
     return false;
   }
   await restore();

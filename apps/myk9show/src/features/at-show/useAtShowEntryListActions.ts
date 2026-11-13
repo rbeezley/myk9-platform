@@ -24,6 +24,7 @@ import {
   updateSelfCheckInStatus,
   type CheckInWriter,
 } from '@/services/show-day/checkInStatus';
+import type { ExpectedCheckInState } from '@/services/show-day/staleStatus';
 import { replicatedEntriesTable } from '@/services/replication';
 import {
   SCORE_DETAIL_CLEAR_FIELDS,
@@ -62,10 +63,11 @@ export interface UseAtShowEntryListActionsDeps {
 async function writeCheckInStatus(
   entryId: string,
   status: EntryStatus,
-  writer: CheckInWriter
+  writer: CheckInWriter,
+  expected?: ExpectedCheckInState
 ): Promise<void> {
   if (writer === 'self-checkin-rpc') {
-    await updateSelfCheckInStatus(entryId, status);
+    await updateSelfCheckInStatus(entryId, status, expected);
     return;
   }
   await updateReplicatedCheckInStatus(entryId, status);
@@ -101,10 +103,10 @@ export function useAtShowEntryListActions(
     }
   }, []);
 
-  const handleStatusChange = useCallback<EntryListActions['handleStatusChange']>(
-    async (entryId, newStatus) => {
+  const handleStatusChange = useCallback(
+    async (entryId: string, newStatus: EntryStatus, expected?: ExpectedCheckInState) => {
       await runMutation(async () => {
-        await writeCheckInStatus(entryId, newStatus, writer);
+        await writeCheckInStatus(entryId, newStatus, writer, expected);
         await refresh();
       });
     },

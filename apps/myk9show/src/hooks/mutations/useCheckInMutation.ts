@@ -14,6 +14,7 @@ import {
   updateSelfCheckInStatus,
   type CheckInWriter,
 } from '@/services/show-day/checkInStatus';
+import { isStaleStatusRefusal, type ExpectedCheckInState } from '@/services/show-day/staleStatus';
 import { invalidateAccountTodayEntries } from '@/features/show-today/accountTodayEntriesKey';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import type { ShowDayDetailRow } from '@/types/show-day-types';
@@ -22,6 +23,8 @@ interface CheckInMutationInput {
   entryId: string;
   newStatus: CheckInStatus;
   classId?: string | undefined;
+  /** Self check-in only: the state this write replaces; the server refuses it if the entry moved. */
+  expected?: ExpectedCheckInState | undefined;
 }
 
 interface CheckInMutationContext {
@@ -37,17 +40,19 @@ interface UseCheckInMutationOptions {
 }
 
 async function updateCheckInStatus(
-  { entryId, newStatus }: CheckInMutationInput,
+  { entryId, newStatus, expected }: CheckInMutationInput,
   writer: CheckInWriter
 ): Promise<void> {
   try {
     if (writer === 'self-checkin-rpc') {
-      await updateSelfCheckInStatus(entryId, newStatus);
+      await updateSelfCheckInStatus(entryId, newStatus, expected);
       return;
     }
 
     await updateReplicatedCheckInStatus(entryId, newStatus);
   } catch (error) {
+    // Stale means another operator moved the dog first: say so plainly, and never retry.
+    if (isStaleStatusRefusal(error)) throw error;
     // This message is rendered verbatim to the exhibitor by CheckInStatusDialog,
     // so it stays plain English and non-blaming (PRODUCT.md: no technical error
     // messages, no sync anxiety). The original failure travels on `cause` for

@@ -266,6 +266,7 @@ export type {
 export type {
   EntryListHandlers,
   EntryListActions,
+  ExpectedEntryStatus,
   ReportSortOrder,
   EntryStatusChange,
   EntryStatusCheckIn,

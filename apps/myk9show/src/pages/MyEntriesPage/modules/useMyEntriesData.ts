@@ -21,6 +21,7 @@ import {
 import { auditService } from '@/services/AuditService';
 import { AuditAction } from '@/types/audit-types';
 import { CheckInStatus } from '@/types/check-in-types';
+import type { ExpectedCheckInState } from '@/services/show-day/staleStatus';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { logger } from '@/services/LoggingService';
 import { getUserEntries, type UserEntriesSource } from '@/services/database/entries';
@@ -83,7 +84,8 @@ interface UseMyEntriesDataReturn {
     entryId: string,
     classId: string,
     status: CheckInStatus,
-    notes?: string
+    notes?: string,
+    expected?: ExpectedCheckInState
   ) => Promise<void>;
 }
 
@@ -98,6 +100,7 @@ interface PersistCheckInStatusInput {
   entryId: string;
   classId: string;
   newStatus: CheckInStatus;
+  expected?: ExpectedCheckInState | undefined;
 }
 
 interface UseMyEntriesDataOptions {
@@ -553,7 +556,13 @@ export function useMyEntriesData({
    * Updates check-in status for a class entry
    */
   const updateEntryCheckIn = useCallback(
-    async (entryId: string, classId: string, status: CheckInStatus, notes?: string) => {
+    async (
+      entryId: string,
+      classId: string,
+      status: CheckInStatus,
+      notes?: string,
+      expected?: ExpectedCheckInState
+    ) => {
       // After grouping, entry.id is the first class row's id and may differ from
       // classId. Find the grouped card that contains the target class instead.
       const entry = visibleEntries.find(
@@ -592,7 +601,7 @@ export function useMyEntriesData({
 
         // classId is the individual entry row id — use it as the DB target so
         // grouped cards with multiple classes update the right row.
-        await persistCheckInStatus({ entryId: classId, classId, newStatus: status });
+        await persistCheckInStatus({ entryId: classId, classId, newStatus: status, expected });
       } catch (error) {
         logger.error('Failed to update check-in status:', 'pages', {}, error as Error);
         // Revert optimistic update

@@ -138,6 +138,7 @@ export type { ClassCompletionPresentationProps, ClassPodiumProps } from './compo
 export type {
   EntryListHandlers,
   EntryListActions,
+  ExpectedEntryStatus,
   ReportSortOrder,
   EntryStatusChange,
   EntryStatusCheckIn,

@@ -6,16 +6,18 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 
-const { toastSuccess, toastInfo, getEntryById } = vi.hoisted(() => ({
+const { toastSuccess, toastInfo, toastError, getEntryById } = vi.hoisted(() => ({
   toastSuccess: vi.fn(),
+  toastError: vi.fn(),
   toastInfo: vi.fn(),
   getEntryById: vi.fn(),
 }));
 vi.mock('sonner', () => ({
-  toast: { success: toastSuccess, error: vi.fn(), info: toastInfo },
+  toast: { success: toastSuccess, error: toastError, info: toastInfo },
 }));
 vi.mock('@/services/replication', () => ({ replicatedEntriesTable: { getEntryById } }));
 
+import { EXHIBITOR_PULL_EXPECTED, StaleStatusError } from '@/services/show-day/staleStatus';
 import { useMyEntriesDialogs } from './useMyEntriesDialogs';
 import type { EntryClass, MyEntry } from './my-entries-types';
 
@@ -277,7 +279,34 @@ describe('useMyEntriesDialogs', () => {
       options.action.onClick();
     });
 
-    expect(updateEntryCheckIn).toHaveBeenLastCalledWith('order-1', 'class-row-1', CHECKED_IN);
+    expect(updateEntryCheckIn).toHaveBeenLastCalledWith(
+      'order-1',
+      'class-row-1',
+      CHECKED_IN,
+      undefined,
+      EXHIBITOR_PULL_EXPECTED
+    );
+  });
+
+  it('says so in plain words when the server refuses a stale Undo', async () => {
+    const { result, updateEntryCheckIn } = setup();
+    const checkedInClass: EntryClass = { ...CLASS_ROW, checkInStatus: CHECKED_IN };
+
+    act(() => result.current.openCheckIn(ENTRY, checkedInClass));
+    await act(() => result.current.submitCheckInStatus('pulled'));
+    const options = toastSuccess.mock.calls[0]?.[1] as { action: { onClick: () => void } };
+    updateEntryCheckIn.mockRejectedValueOnce(new StaleStatusError());
+
+    await act(async () => {
+      options.action.onClick();
+    });
+
+    await waitFor(() =>
+      expect(toastInfo).toHaveBeenCalledWith(
+        expect.stringContaining('status changed after the Pull, so Undo did nothing.')
+      )
+    );
+    expect(toastError).not.toHaveBeenCalled();
   });
 
   it('offers no Undo for a check-in that is not a Pulled', async () => {
@@ -313,7 +342,13 @@ describe('useMyEntriesDialogs', () => {
       options2.action.onClick();
     });
 
-    expect(newer).toHaveBeenCalledWith('order-1', 'class-row-1', CHECKED_IN);
+    expect(newer).toHaveBeenCalledWith(
+      'order-1',
+      'class-row-1',
+      CHECKED_IN,
+      undefined,
+      EXHIBITOR_PULL_EXPECTED
+    );
     expect(updateEntryCheckIn).toHaveBeenCalledTimes(1);
   });
 
@@ -349,7 +384,13 @@ describe('useMyEntriesDialogs', () => {
       toastOptions.action.onClick();
     });
 
-    expect(updateEntryCheckIn).toHaveBeenLastCalledWith('order-1', 'class-row-1', CHECKED_IN);
+    expect(updateEntryCheckIn).toHaveBeenLastCalledWith(
+      'order-1',
+      'class-row-1',
+      CHECKED_IN,
+      undefined,
+      EXHIBITOR_PULL_EXPECTED
+    );
     expect(toastInfo).not.toHaveBeenCalled();
   });
 });

@@ -309,6 +309,16 @@ export interface EntryListHandlers {
  * as its sole argument; the shim provides that from the data hook.
  * Ringside doesn't see the refresh wiring.
  */
+/**
+ * The state an exhibitor's write expects to replace (MYK9-1911): the host's self check-in writer
+ * sends it to the server, which refuses the write when the entry no longer matches. Writers that
+ * need no such guard ignore it.
+ */
+export interface ExpectedEntryStatus {
+  status: EntryStatusCheckIn;
+  pullSource?: 'exhibitor' | 'staff' | undefined;
+}
+
 export interface EntryListActions {
   // ── Single-entry mutations ────────────────────────────────────────
   /**
@@ -318,7 +328,11 @@ export interface EntryListActions {
    * `'completed'`) go through `handleMarkInRing` /
    * `handleMarkCompleted` instead.
    */
-  handleStatusChange: (entryId: string, newStatus: EntryStatusCheckIn) => Promise<void>;
+  handleStatusChange: (
+    entryId: string,
+    newStatus: EntryStatusCheckIn,
+    expected?: ExpectedEntryStatus
+  ) => Promise<void>;
 
   /**
    * Reset an entry's score. Background-only (fire-and-forget) — UI

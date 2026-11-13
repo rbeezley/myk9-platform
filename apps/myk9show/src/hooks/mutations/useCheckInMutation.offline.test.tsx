@@ -19,6 +19,7 @@ vi.mock('@/services/show-day/checkInStatus', () => checkIn);
 vi.mock('@/hooks/useAuthContext', () => ({ useAuthContext: () => ({ user: { id: 'user-1' } }) }));
 
 import { createAppQueryClient } from '@/lib/queryClient';
+import { StaleStatusError } from '@/services/show-day/staleStatus';
 import { useCheckInMutation } from './useCheckInMutation';
 
 function wrapper({ children }: { children: ReactNode }) {
@@ -53,5 +54,32 @@ describe('useCheckInMutation while offline', () => {
 
     await waitFor(() => expect(result.current.isPaused).toBe(true));
     expect(checkIn.updateSelfCheckInStatus).not.toHaveBeenCalled();
+  });
+
+  // MYK9-1911: a refused stale Undo can only be refused again, so it is neither retried nor
+  // replayed; any other failure keeps the app's one retry.
+  it('does not retry a write the server refused as stale', async () => {
+    checkIn.updateSelfCheckInStatus.mockRejectedValue(new StaleStatusError());
+    const { result } = renderHook(() => useCheckInMutation({ writer: 'self-checkin-rpc' }), {
+      wrapper,
+    });
+
+    await act(async () => {
+      await result.current
+        .mutateAsync({
+          entryId: 'e1',
+          newStatus: 'checked-in',
+          expected: { status: 'pulled', pullSource: 'exhibitor' },
+        })
+        .catch(() => undefined);
+    });
+
+    expect(checkIn.updateSelfCheckInStatus).toHaveBeenCalledTimes(1);
+    expect(checkIn.updateSelfCheckInStatus).toHaveBeenCalledWith('e1', 'checked-in', {
+      status: 'pulled',
+      pullSource: 'exhibitor',
+    });
+    await waitFor(() => expect(result.current.error).toBeInstanceOf(StaleStatusError));
+    checkIn.updateSelfCheckInStatus.mockResolvedValue(undefined);
   });
 });

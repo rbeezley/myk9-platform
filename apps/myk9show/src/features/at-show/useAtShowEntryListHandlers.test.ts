@@ -433,6 +433,45 @@ describe('useAtShowEntryListHandlers - optimistic check-in', () => {
 
     expect(toastSuccess).not.toHaveBeenCalled();
   });
+
+  // MYK9-1911: the exhibitor's Undo names the Pull it replaces; the server refuses it otherwise.
+  async function pullThenUndoAsExhibitor(actionsForTest: EntryListActionsDep) {
+    mirror = [makeEntry({ id: 'e1', status: 'checked-in' as EntryStatus, callName: 'Abby' })];
+    const { result } = renderHandlers(mirror, actionsForTest, applyToMirror);
+    await act(async () => {
+      await result.current.handleStatusChange('e1', 'pulled');
+    });
+    const options = toastSuccess.mock.calls[0]?.[1] as { action: { onClick: () => void } };
+    await act(async () => {
+      options.action.onClick();
+    });
+  }
+
+  it('sends the expected Pull with an exhibitor Undo', async () => {
+    const exhibitorActions = { ...actions, writer: 'self-checkin-rpc' as const };
+    await pullThenUndoAsExhibitor(exhibitorActions);
+
+    await waitFor(() =>
+      expect(exhibitorActions.handleStatusChange).toHaveBeenLastCalledWith('e1', 'checked-in', {
+        status: 'pulled',
+        pullSource: 'exhibitor',
+      })
+    );
+  });
+
+  it('says so in plain words when the server refuses a stale Undo', async () => {
+    const exhibitorActions = { ...actions, writer: 'self-checkin-rpc' as const };
+    vi.mocked(exhibitorActions.handleStatusChange)
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(Object.assign(new Error('Stale status: entry e1'), { code: '55000' }));
+    await pullThenUndoAsExhibitor(exhibitorActions);
+
+    await waitFor(() =>
+      expect(toastInfo).toHaveBeenCalledWith(
+        "Abby's status changed after the Pull, so Undo did nothing."
+      )
+    );
+  });
 });
 
 describe('useAtShowEntryListHandlers — max time gate (MYK9-1099)', () => {

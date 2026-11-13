@@ -2,6 +2,7 @@ import type { CheckInStatus } from '@myk9/core';
 import { createDatabaseError, supabase } from '@/services/database/supabaseClient';
 import { updateEntryStatus } from '@/services/database/entries/secretary';
 import { replicatedEntriesTable, type ReplicatedEntry } from '@/services/replication';
+import { isStaleStatusRefusal, StaleStatusError, type ExpectedCheckInState } from './staleStatus';
 import { logReplicatedEntryStatusChange } from './entryStatusAudit';
 
 /**
@@ -31,15 +32,22 @@ export async function updateReplicatedCheckInStatus(
 
 export async function updateSelfCheckInStatus(
   entryId: string,
-  status: CheckInStatus
+  status: CheckInStatus,
+  expected?: ExpectedCheckInState
 ): Promise<void> {
   const { error } = await supabase.rpc('self_checkin_entry', {
     p_entry_id: entryId,
     p_new_status: status,
+    ...(expected && {
+      p_expected_status: expected.status,
+      ...(expected.pullSource && { p_expected_pull_source: expected.pullSource }),
+    }),
   });
 
   if (error) {
-    throw createDatabaseError(error, 'entries', 'self_checkin_entry');
+    const databaseError = createDatabaseError(error, 'entries', 'self_checkin_entry');
+    if (isStaleStatusRefusal(databaseError)) throw new StaleStatusError(databaseError);
+    throw databaseError;
   }
 }
 

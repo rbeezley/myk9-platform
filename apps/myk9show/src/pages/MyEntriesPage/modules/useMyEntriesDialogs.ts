@@ -13,6 +13,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { showUndoToast } from '@/lib/undoToast';
+import {
+  EXHIBITOR_PULL_EXPECTED,
+  isStaleStatusRefusal,
+  type ExpectedCheckInState,
+} from '@/services/show-day/staleStatus';
+import { notifyUndoSuperseded } from '@/features/at-show/pullUndoGuard';
 
 import type { CheckInStatus } from '@/types/check-in-types';
 
@@ -40,7 +46,8 @@ export interface UseMyEntriesDialogsOptions {
     entryId: string,
     classId: string,
     status: CheckInStatus,
-    notes?: string
+    notes?: string,
+    expected?: ExpectedCheckInState
   ) => Promise<void>;
   refreshEntries: () => Promise<void>;
 }
@@ -182,8 +189,13 @@ export function useMyEntriesDialogs({
               replicaMayLag: true,
               restore: () =>
                 updateEntryCheckInRef
-                  .current(entry.id, classEntry.id, priorStatus)
-                  .catch(() => toast.error(`We could not undo that. Please try again.`)),
+                  .current(entry.id, classEntry.id, priorStatus, undefined, EXHIBITOR_PULL_EXPECTED)
+                  .catch(error =>
+                    // The server refuses an Undo of a Pull the dog has since moved past.
+                    isStaleStatusRefusal(error)
+                      ? notifyUndoSuperseded(entry.dogName)
+                      : toast.error(`We could not undo that. Please try again.`)
+                  ),
             });
           },
         });

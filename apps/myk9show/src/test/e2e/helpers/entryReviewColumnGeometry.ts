@@ -53,6 +53,17 @@ export async function measureReviewColumn(page: Page): Promise<ReviewColumnGeome
             `pill "${(pill.textContent ?? '').trim()}" right ${Math.round(right)} > cell ${Math.round(cellRight)}`
           );
         }
+        // "Renders in full" means one line: a pill that wrapped its words is not a fit either.
+        const text = pill.querySelector('span:last-child');
+        if (text instanceof HTMLElement) {
+          const lineHeight = parseFloat(getComputedStyle(text).lineHeight) || 20;
+          const height = text.getBoundingClientRect().height;
+          if (height > lineHeight * 1.5) {
+            clipped.push(
+              `pill "${(pill.textContent ?? '').trim()}" wraps: ${Math.round(height)}px tall, line ${Math.round(lineHeight)}px`
+            );
+          }
+        }
       }
     }
 

@@ -36,14 +36,26 @@ async function stageOneFormNeedingReview(page: Page) {
         return;
       }
       const response = await route.fetch();
-      const rows = (await response.json()) as unknown;
+      let rows: unknown;
+      try {
+        rows = await response.json();
+      } catch {
+        // An empty or non-JSON body (a 204, a proxy page) passes through untouched.
+        await route.fulfill({ response });
+        return;
+      }
       if (Array.isArray(rows)) {
-        const candidates = (rows as Array<{ registration_id?: string; entry_status?: string }>)
-          .filter(row => row.entry_status === 'confirmed' && row.registration_id)
+        type Row = { registration_id?: string; entry_status?: string; show_id?: string };
+        // Only this show's forms: another scope's pull must never pick the staged form.
+        const candidates = (rows as Row[])
+          .filter(
+            row =>
+              row.show_id === SHOW_ID && row.entry_status === 'confirmed' && row.registration_id
+          )
           .map(row => row.registration_id as string)
           .sort();
         registrationId ??= candidates[0] ?? null;
-        for (const row of rows as Array<{ registration_id?: string; entry_status?: string }>) {
+        for (const row of rows as Row[]) {
           if (registrationId && row.registration_id === registrationId)
             row.entry_status = 'pending';
         }
@@ -67,8 +79,15 @@ async function openEntryForms(page: Page, viewport: { width: number; height: num
   await expect(page.getByTestId('needs-review-marker').first()).toBeVisible({ timeout: 30_000 });
 }
 
-/** Opens the first form that needs review, so the detail panel sits beside the list. */
-async function openFormNeedingReview(page: Page) {
+/**
+ * Opens the first form that needs review, so the detail panel sits beside the list, then waits on
+ * layout, not on the network: the list's width must stop changing and the list must settle into
+ * the expected grid or stacked layout before anything is measured against its width. (The panel's
+ * column is reserved before a form opens, so the list does not narrow on the click.)
+ */
+async function openFormNeedingReview(page: Page, grid: boolean) {
+  const listSection = page.locator('section[aria-label="Entry forms"]');
+  const listWidth = async () => Math.round((await listSection.boundingBox())?.width ?? 0);
   const row = page
     .getByRole('listitem')
     .filter({ has: page.getByTestId('needs-review-marker') })
@@ -76,8 +95,19 @@ async function openFormNeedingReview(page: Page) {
   // The row's action control carries the row id (`getEntryRegistrationRowId`).
   await row.locator('button[id^="entry-registration-"]').click();
   await expect(row).toHaveAttribute('aria-current', 'true');
-  // Let the panel settle: the queue column's width is what the labels are measured against.
-  await page.waitForLoadState('networkidle').catch(() => undefined);
+  let last = -1;
+  await expect
+    .poll(
+      async () => {
+        const now = await listWidth();
+        const stable = now === last;
+        last = now;
+        return stable;
+      },
+      { message: 'the list width stops changing', intervals: [150] }
+    )
+    .toBe(true);
+  await expect(page.getByTestId('entry-review-heading')).toHaveCount(grid ? 1 : 0);
 }
 
 async function expectReviewColumnInFull(page: Page, label: string, withHeading: boolean) {
@@ -101,7 +131,7 @@ for (const viewport of [
     page,
   }) => {
     await openEntryForms(page, viewport);
-    await openFormNeedingReview(page);
+    await openFormNeedingReview(page, viewport.grid);
     // The layout under test is the split one: the list and the panel side by side.
     await expect(page.getByRole('list', { name: 'Entry form work queue' })).toBeVisible();
     if (viewport.grid) {

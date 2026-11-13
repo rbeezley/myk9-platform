@@ -35,6 +35,18 @@ pnpm qa:isolated-e2e:prepare
 
 The preparation command writes generated local values to `GITHUB_ENV` only when that CI variable exists. For an interactive shell, export the values printed by `supabase status -o env` before running the app build and regression command. To repeat the fixture proof in an already-running local stack, use `pnpm qa:isolated-e2e:reset`; stop it with `pnpm qa:isolated-e2e:stop`.
 
+### One command on a Mac without Docker (MYK9-1934)
+
+When `docker info` fails (or `MYK9_E2E_RUNTIME=native`), `prepare` starts a native Supabase stack (`SUPABASE_EXPERIMENTAL_STACK=1 supabase start --runtime native --exclude studio,mail,analytics,pooler`), seeds it, and runs the post-seed assertions. It reads the `E2E_*_PASSWORD` values from the main checkout's `apps/myk9show/.env.local` when your shell has not set them, and it needs no other variables. CI keeps the Docker path unchanged.
+
+```bash
+pnpm qa:isolated-e2e:prepare                      # ~1 minute; prints the local API URL and anon key
+pnpm qa:isolated-e2e:run src/test/e2e/<spec>.spec.ts   # exports them, runs Playwright (chromium, 1 worker) on this worktree's own port
+pnpm qa:isolated-e2e:teardown                     # destroys only this worktree's stack
+```
+
+`teardown` finds the stack by matching `project_root` in `supabase stack list` to this worktree, so other worktrees' stacks are never touched. The edge runtime's app functions are not staged on this path, so specs that need them (the wait-list journey) still run in CI only.
+
 Do not replace `local` with the shared staging project ref. The target resolver fails closed if the project ref, URL, build URL, allowlist, or regression mode is not an approved isolated combination.
 
 ## MYK9-107 repair evidence

@@ -37,6 +37,8 @@
     "qa:playwright:regression": "bash scripts/qa/run-playwright-regression.sh",
     "qa:isolated-e2e:prepare": "tsx scripts/qa/isolated-e2e-lifecycle.ts prepare",
     "qa:isolated-e2e:reset": "tsx scripts/qa/isolated-e2e-lifecycle.ts reset",
+    "qa:isolated-e2e:run": "tsx scripts/qa/isolated-e2e-lifecycle.ts run",
+    "qa:isolated-e2e:teardown": "tsx scripts/qa/isolated-e2e-lifecycle.ts teardown",
     "qa:isolated-e2e:stop": "tsx scripts/qa/isolated-e2e-lifecycle.ts stop",
     "qa:isolated-e2e:test": "vitest run scripts/qa/isolated-e2e-*.test.ts scripts/qa/reserve-supabase-ports.test.ts scripts/qa/port-conflict-diagnostics.test.ts",
     "qa:nightly:workflow:test": "vitest run scripts/qa/nightly-health-workflow.test.ts scripts/qa/nightly-isolation-cleanup.test.ts",

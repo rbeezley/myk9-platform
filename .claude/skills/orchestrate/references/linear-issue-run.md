@@ -409,9 +409,8 @@ lanes. Additions specific to the run:
   (the docs-only budget above is the one exception, and only when the run-start approval named it).
 - **Watcher exit 3:** follow ship-pr Path B and the shared **Asynchronous merge protocol**;
   an approved stop-time handoff records the named next executor and resume action.
-- **Read the watcher's own exit code** (`…; echo "WATCH_EXIT=$?"`), never a wrapper's. If
-  the failed check is `Review gate` and its status predates your gate comment, the
-  comment-triggered run hasn't finished yet. Re-run the watcher once before treating it as red.
+- **Read the watcher's own exit code** (`…; echo "WATCH_EXIT=$?"`), never a wrapper's. The
+  watcher itself waits out a queued comment-triggered `Review gate` run, so exit 1 on it is real.
 - **Watcher exit 1:** a fix attempt, which counts toward the two-red-CI hold. Exit 2 means a new
   head, so re-run the gate.
 

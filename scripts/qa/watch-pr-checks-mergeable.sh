@@ -41,6 +41,34 @@ base_conflict() {
   [ "$(mergeable_verdict "$(fetch_mergeable)")" = conflict ]
 }
 
+# gate_comment_pending <rollup-json> <required-json-array> <gate-runs-json>
+# (MYK9-1933) True when the ONLY red required check is the `Review gate` status
+# and a `review-gate.yml` run triggered by `issue_comment` is still queued or in
+# progress and was created after that status. The status then still holds the
+# `pull_request_target` run's "no independent review recorded" failure while the
+# comment-triggered run that re-evaluates it has not answered, so the red is
+# stale. Match on time and state, never head SHA: that run carries the base
+# branch's SHA. <gate-runs-json> is an array of {status, created_at}. Pure.
+gate_comment_pending() {
+  printf '%s' "$1" | jq -e --argjson req "$2" --argjson runs "$3" "$JQ_DEFS"'
+    . as $r
+    | ($r | current) as $cur
+    | [$cur[] | select(answered and (passing | not) and (stale($cur) | not)) | key] as $failed
+    | ([$cur[] | select(.context == "Review gate") | started] | first // "") as $at
+    | ($failed | map(select(. as $f | $req | index($f)))) as $reqFailed
+    | ($reqFailed == ["Review gate"]) and ($at != "")
+      and any($runs[]; (.status | IN("queued","in_progress","waiting","pending","requested"))
+                       and ((.created_at // "") > $at))
+  ' >/dev/null 2>&1
+}
+
+# fetch_gate_runs: recent issue_comment runs of the gate workflow, as
+# [{status, created_at}]. REST with explicit paging, like every other read here.
+fetch_gate_runs() {
+  gh api "repos/$REPO/actions/workflows/review-gate.yml/runs?event=issue_comment&per_page=20" \
+    --jq '[.workflow_runs[] | {status, created_at}]' 2>/dev/null
+}
+
 # extra_self_test <required-json-array>: prints each failure, returns 1 if any.
 extra_self_test() {
   local req="$1" got ok=0 rest_runs='[{"id":100,"name":"CI"},{"id":200,"name":"CI"}]'
@@ -81,6 +109,28 @@ extra_self_test() {
   bc_check mergeable-review-gate-red 1 '{"mergeable":true,"mergeable_state":"blocked"}' "$gate_red"
   mv_check empty-fetch unknown ''
   eval "$real_fetch"
+
+  # Stale Review gate failure vs the comment-triggered run (MYK9-1933).
+  gate_req='["Quality Checks","Test","Review gate"]'
+  gate_base='{"name":"Quality Checks","conclusion":"SUCCESS"},{"name":"Test","conclusion":"SUCCESS"}'
+  gate_red="{\"statusCheckRollup\":[$gate_base,{\"context\":\"Review gate\",\"state\":\"FAILURE\",\"createdAt\":\"2026-11-13T10:00:00Z\"}]}"
+  gate_ok="{\"statusCheckRollup\":[$gate_base,{\"context\":\"Review gate\",\"state\":\"FAILURE\",\"createdAt\":\"2026-11-13T10:00:00Z\"},{\"context\":\"Review gate\",\"state\":\"SUCCESS\",\"createdAt\":\"2026-11-13T10:02:00Z\"}]}"
+  gp_check() { # gp_check <label> <expect 0|1> <rollup> <runs>
+    gate_comment_pending "$3" "$gate_req" "$4"
+    got=$?
+    [ "$got" = "$2" ] || { echo "SELF-TEST FAIL [gate-comment-$1]: expected rc $2, got $got"; ok=1; }
+  }
+  gp_check queued-run-waits 0 "$gate_red" '[{"status":"queued","created_at":"2026-11-13T10:01:00Z"}]'
+  gp_check in-progress-run-waits 0 "$gate_red" '[{"status":"in_progress","created_at":"2026-11-13T10:01:00Z"}]'
+  gp_check completed-run-still-red 1 "$gate_red" '[{"status":"completed","created_at":"2026-11-13T10:01:00Z"}]'
+  gp_check no-comment-run 1 "$gate_red" '[]'
+  gp_check run-older-than-status 1 "$gate_red" '[{"status":"queued","created_at":"2026-11-13T09:59:00Z"}]'
+  gp_check other-required-also-red 1 "{\"statusCheckRollup\":[{\"name\":\"Quality Checks\",\"conclusion\":\"SUCCESS\"},{\"name\":\"Test\",\"conclusion\":\"FAILURE\"},{\"context\":\"Review gate\",\"state\":\"FAILURE\",\"createdAt\":\"2026-11-13T10:00:00Z\"}]}" '[{"status":"queued","created_at":"2026-11-13T10:01:00Z"}]'
+  # After the run completes the refreshed (newer) status is judged as today.
+  got=$(verdict "$gate_ok" "$gate_req")
+  [ "$got" = green ] || { echo "SELF-TEST FAIL [gate-comment-refreshed-green]: expected 'green', got '$got'"; ok=1; }
+  got=$(verdict "$gate_red" "$gate_req")
+  [ "$got" = "required-failed:Review gate" ] || { echo "SELF-TEST FAIL [gate-comment-refreshed-red]: expected 'required-failed:Review gate', got '$got'"; ok=1; }
 
   # REST payloads reach the same verdicts (MYK9-1414): lower-case enums, a
   # status context's state, and the draft->ready stale rule, which only works

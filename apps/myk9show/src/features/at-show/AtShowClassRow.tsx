@@ -155,13 +155,6 @@ export function AtShowClassRow({
                 {entry.judge_name}
               </div>
             )}
-            {!isCancelled && entry.cancelled_sections?.length === 1 && (
-              // MYK9-1847: one section of the A/B pair is cancelled; the other still runs, so the
-              // card stays live and only names the cancelled section.
-              <div className="mt-0.5 text-sm text-muted-foreground">
-                Section {entry.cancelled_sections[0]} cancelled
-              </div>
-            )}
             {!isCancelled && (
               <AtShowClassStatusInfo entry={entry} status={status} trialTimeZone={trialTimeZone} />
             )}

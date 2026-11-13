@@ -190,14 +190,6 @@ describe('AtShowClassRow combined A/B cancellation (MYK9-1847)', () => {
     expect(screen.queryByText(/cancelled$/)).not.toBeInTheDocument();
   });
 
-  it.each(['A', 'B'])('only section %s cancelled keeps the live card and names it', letter => {
-    renderRow(classEntry({ ...live, cancelled_sections: [letter] }), preview);
-    expect(screen.getByText(`Section ${letter} cancelled`)).toBeInTheDocument();
-    expect(screen.queryByText('Cancelled')).not.toBeInTheDocument();
-    expect(screen.getByText('#12')).toBeInTheDocument();
-    expect(screen.getByText('In Progress')).toBeInTheDocument();
-  });
-
   it('neither cancelled shows no cancelled line', () => {
     renderRow(classEntry(live), preview);
     expect(screen.queryByText(/cancelled/i)).not.toBeInTheDocument();

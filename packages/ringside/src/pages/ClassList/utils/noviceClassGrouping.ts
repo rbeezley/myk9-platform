@@ -10,7 +10,7 @@
 
 import type { ClassEntry } from '../types';
 import { buildCombinedClassName } from './combinedClassName';
-import { withMergedSectionState } from './combinedSectionState';
+import { mergeSectionCancellation, withMergedSectionState } from './combinedSectionState';
 
 /**
  * Check if the organization uses A/B sections for all levels
@@ -144,8 +144,15 @@ export function groupSectionedClasses(
     if (shouldCheckForPair) {
       // Find the paired class
       const paired = findPairedFn(classEntry, classList);
+      // MYK9-1847: a pair whose sections disagree on cancellation is not combined. Each section
+      // keeps its own card, so the cancelled one reads Cancelled and the running one stays live
+      // with its own status, counts and next-up, instead of a merge that mixes in a section
+      // that will never run.
+      const mixedCancellation =
+        paired !== null &&
+        mergeSectionCancellation(classEntry, paired).cancelledSections.length === 1;
 
-      if (paired) {
+      if (paired && !mixedCancellation) {
         // Mark both as processed
         processedIds.add(classEntry.id);
         processedIds.add(paired.id);

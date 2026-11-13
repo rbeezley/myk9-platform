@@ -151,14 +151,13 @@ export function withMergedSectionState(first: ClassEntry, second: ClassEntry): C
   delete base.break_until;
   const bothReleased = first.results_released_at && second.results_released_at;
   const phase = mergeSectionPhase(first, second);
+  // A mixed pair is never combined (`groupSectionedClasses`), so the pair is cancelled only when
+  // both sections are; it never inherits section A's flag alone.
   const cancellation = mergeSectionCancellation(first, second);
   delete base.is_cancelled;
   return {
     ...base,
     ...(cancellation.allCancelled ? { is_cancelled: true } : {}),
-    ...(cancellation.cancelledSections.length === 1
-      ? { cancelled_sections: cancellation.cancelledSections }
-      : {}),
     class_status: phase.status,
     ...(phase.time && phase.status === 'briefing' ? { briefing_time: phase.time } : {}),
     ...(phase.time && phase.status === 'break' ? { break_until: phase.time } : {}),

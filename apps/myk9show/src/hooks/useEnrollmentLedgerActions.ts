@@ -71,15 +71,37 @@ const LEDGER_UNCONFIRMED =
   "We could not confirm this was saved. Check the entry's payments: if it is not there, try again.";
 
 /**
- * MYK9-1824: what the secretary reads when a payment write fails. The RPCs' own
- * refusals keep their reason (MYK9-677, MYK9-773: "says why"); nothing else is
- * shown raw.
+ * The 22023 refusals the SQL writes for the person at the desk (a date or an
+ * amount they typed), matched on the exact RAISE text in
+ * `record_enrollment_payment`. The same code also carries technical refusals
+ * (unsupported kind, enrollment not found, client_payment_id misuse, a method
+ * the form never offers); those are not listed, so they never reach the screen.
+ */
+const FRIENDLY_REFUSALS: readonly RegExp[] = [
+  /^received date .+ is after today \(.+\) on the show's calendar$/,
+  /^a payment amount must be greater than zero$/,
+  /^invalid payment amount \S+$/,
+  /^invalid refund amount \S*$/,
+  /^refund \S+ exceeds the \S+ still held \(\S+ paid, \S+ already refunded\)$/,
+];
+
+// Every 22023 is raised before either RPC writes a row, so "not recorded" is
+// true here; the cause is on our side, not something the secretary typed.
+const LEDGER_REFUSED_TECHNICAL =
+  'Payment not recorded. Something went wrong with this request. Restart the app and try again.';
+
+/**
+ * MYK9-1824: what the secretary reads when a payment write fails. The RPCs'
+ * refusals written for a person keep their reason (MYK9-677, MYK9-773: "says
+ * why"); nothing else is shown raw, and the logger keeps the raw error.
  */
 function ledgerFailureMessage(err: unknown): string {
   const code =
     typeof err === 'object' && err !== null ? (err as { code?: unknown }).code : undefined;
   if (code === RPC_REFUSAL_CODE && err instanceof Error) {
-    return `Payment not recorded: ${err.message}`;
+    return FRIENDLY_REFUSALS.some(pattern => pattern.test(err.message))
+      ? `Payment not recorded: ${err.message}`
+      : LEDGER_REFUSED_TECHNICAL;
   }
   if (code === NOT_AUTHORIZED_CODE) return LEDGER_NOT_AUTHORIZED;
   return LEDGER_UNCONFIRMED;

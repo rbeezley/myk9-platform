@@ -236,7 +236,7 @@ describe('useEnrollmentLedgerActions', () => {
   });
 
   it('leaves the entries alone when the server refuses Paid in Full: Online', async () => {
-    mocks.markOnline.mockRejectedValue(refusal('not authorized'));
+    mocks.markOnline.mockRejectedValue(refusal('a payment amount must be greater than zero'));
     const setEntries = vi.fn();
     const { result } = renderHook(
       () => useEnrollmentLedgerActions({ setEntries, showTimeZone: 'America/New_York' }),
@@ -250,11 +250,15 @@ describe('useEnrollmentLedgerActions', () => {
 
     expect(ok).toBe(false);
     expect(setEntries).not.toHaveBeenCalled();
-    expect(mocks.toastError).toHaveBeenCalledWith('Payment not recorded: not authorized');
+    expect(mocks.toastError).toHaveBeenCalledWith(
+      'Payment not recorded: a payment amount must be greater than zero'
+    );
   });
 
   it('leaves the entries alone and says why when the server refuses', async () => {
-    mocks.record.mockRejectedValue(refusal('received date is after today'));
+    mocks.record.mockRejectedValue(
+      refusal("received date 2026-11-20 is after today (2026-11-13) on the show's calendar")
+    );
     const setEntries = vi.fn();
     const { result } = renderHook(
       () => useEnrollmentLedgerActions({ setEntries, showTimeZone: 'America/New_York' }),
@@ -269,7 +273,7 @@ describe('useEnrollmentLedgerActions', () => {
     expect(ok).toBe(false);
     expect(setEntries).not.toHaveBeenCalled();
     expect(mocks.toastError).toHaveBeenCalledWith(
-      'Payment not recorded: received date is after today'
+      "Payment not recorded: received date 2026-11-20 is after today (2026-11-13) on the show's calendar"
     );
   });
 
@@ -291,6 +295,40 @@ describe('useEnrollmentLedgerActions', () => {
 
   const UNCONFIRMED =
     "We could not confirm this was saved. Check the entry's payments: if it is not there, try again.";
+
+  it.each([
+    'client_payment_id 0f1e was already used for a different payment',
+    'enrollment 9a8b not found',
+    'unsupported payment kind: foo',
+    'a payment is recorded as cash or check, got card',
+    'client_payment_id is only accepted for a payment',
+  ])('a technical 22023 (%s) shows a fixed sentence, not its text, and logs it raw', async text => {
+    const logSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
+    const raw = refusal(text);
+    await failRecord(raw);
+
+    expect(mocks.toastError).toHaveBeenCalledWith(
+      'Payment not recorded. Something went wrong with this request. Restart the app and try again.'
+    );
+    expect(mocks.toastError).not.toHaveBeenCalledWith(expect.stringContaining(text));
+    expect(logSpy).toHaveBeenCalledWith(
+      'Error recording enrollment payment:',
+      'secretary',
+      {},
+      raw
+    );
+  });
+
+  it.each([
+    'a payment amount must be greater than zero',
+    'invalid payment amount 12.345',
+    'invalid refund amount 0',
+    'refund 80 exceeds the 50.00 still held (50.00 paid, 0.00 already refunded)',
+  ])('keeps the reason for the desk refusal: %s', async text => {
+    vi.spyOn(logger, 'error').mockImplementation(() => {});
+    await failRecord(refusal(text));
+    expect(mocks.toastError).toHaveBeenCalledWith(`Payment not recorded: ${text}`);
+  });
 
   it('an error with no code shows the check-first sentence, not the raw text, and logs it', async () => {
     const logSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});

@@ -136,6 +136,10 @@ export function useHostedReportData({
     },
     enabled: needsSupplies,
     retry: false,
+    // Codes can be regenerated (and the old ones revoked) at any time: never print a cached set.
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: 'always',
   });
 
   const waitlistQuery = useWaitlistReportQuery(showId, classIds, needsWaitlist);

@@ -45,6 +45,23 @@ const BY_CODE: Record<string, string> = {
   otp_expired: CODE_NOT_RIGHT,
 };
 
+/** The app's own timer fired before the login provider answered. Told apart by type, not text. */
+export class AuthTimeoutError extends Error {
+  constructor(message = 'The sign-in request timed out.') {
+    super(message);
+    this.name = 'AuthTimeoutError';
+  }
+}
+
+/**
+ * No answer from the network: our own timer, or the SDK's status 0 (how it reports a failed
+ * fetch). A retryable 5xx from the server is not "no connection", and a bare TypeError is a
+ * code bug, so neither counts.
+ */
+function isConnectionFailure(error: unknown, failure: AuthFailure): boolean {
+  return error instanceof AuthTimeoutError || failure.status === 0;
+}
+
 export interface AuthFailure {
   status?: number | undefined;
   code?: string | undefined;
@@ -64,10 +81,9 @@ export function commonAuthFailure(error: unknown): string | null {
   const failure = asFailure(error);
   if (isCaptchaFailure(error)) return AUTH_SECURITY_CHECK;
   if (failure.status === 429 || failure.code?.startsWith('over_')) return AUTH_TOO_MANY_TRIES;
-  if (failure.status === 0 || /fetch|network|timed out/i.test(failure.message ?? '')) {
-    return AUTH_UNREACHABLE;
-  }
-  return null;
+  // A known provider code always wins over connection handling.
+  if (failure.code && failure.code in BY_CODE) return null;
+  return isConnectionFailure(error, failure) ? AUTH_UNREACHABLE : null;
 }
 
 /** A plain sentence for a failed auth call. Never the provider's message. */
